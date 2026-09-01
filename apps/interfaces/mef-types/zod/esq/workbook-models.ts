@@ -16,7 +16,11 @@ import {
   WorkbookModelAddressSchema,
   WorkbookModelIdSchema,
 } from "../modeling/shared";
-import { HclSolverSettingsSchema } from "../modeling/hybrid-causal-logic";
+import {
+  HclEvidenceScenarioSchema,
+  HclHazardGridDefinitionSchema,
+  HclSolverSettingsSchema,
+} from "../modeling/hybrid-causal-logic";
 
 const EsqWorkbookModelIdentitySchema = z
   .object({
@@ -61,6 +65,8 @@ const EsqHclConfigurationBaseSchema = z
     faultTrees: z.array(WorkbookModelAddressSchema),
     bindings: z.array(EsqHclEventBindingSchema),
     baseEvidence: BayesianNetworkEvidenceConfigurationSchema,
+    evidenceScenarios: z.array(HclEvidenceScenarioSchema).optional(),
+    hazardGrid: HclHazardGridDefinitionSchema.optional(),
     solverSettings: HclSolverSettingsSchema,
   })
   .strict();
@@ -88,6 +94,62 @@ function refineEsqHclConfiguration(
       code: "custom",
       path: ["bindings"],
       message: "HCL binding ids must be unique",
+    });
+  }
+  const scenarios = configuration.evidenceScenarios ?? [];
+  const scenarioIds = scenarios.map((scenario) => scenario.id);
+  const scenarioCodes = scenarios.map((scenario) => scenario.code.trim().toUpperCase());
+  if (new Set(scenarioIds).size !== scenarioIds.length) {
+    context.addIssue({
+      code: "custom",
+      path: ["evidenceScenarios"],
+      message: "Evidence-scenario ids must be unique",
+    });
+  }
+  if (new Set(scenarioCodes).size !== scenarioCodes.length) {
+    context.addIssue({
+      code: "custom",
+      path: ["evidenceScenarios"],
+      message: "Evidence-scenario codes must be unique",
+    });
+  }
+  if (configuration.hazardGrid !== undefined) {
+    const enabledScenarios = scenarios.filter((scenario) => scenario.enabled);
+    if (enabledScenarios.length === 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["hazardGrid"],
+        message: "Hazard-grid convolution requires at least one enabled evidence scenario",
+      });
+    }
+    const hazardNodeIds = new Set(configuration.hazardGrid.hazardNodeIds);
+    const hazardCellKeys = new Set<string>();
+    scenarios.forEach((scenario, scenarioIndex) => {
+      if (!scenario.enabled) return;
+      const observed = new Set(scenario.evidence.observations.map((observation) => observation.nodeId));
+      for (const hazardNodeId of hazardNodeIds) {
+        if (!observed.has(hazardNodeId)) {
+          context.addIssue({
+            code: "custom",
+            path: ["evidenceScenarios", scenarioIndex, "evidence", "observations"],
+            message: `Enabled hazard-grid scenario must observe hazard node '${hazardNodeId}'`,
+          });
+        }
+      }
+      const cellObservations = scenario.evidence.observations
+        .filter((observation) => hazardNodeIds.has(observation.nodeId));
+      const cellKey = cellObservations
+        .sort((left, right) => left.nodeId.localeCompare(right.nodeId))
+        .map((observation) => `${observation.nodeId}:${observation.stateId}`)
+        .join("|");
+      if (cellObservations.length === hazardNodeIds.size && hazardCellKeys.has(cellKey)) {
+        context.addIssue({
+          code: "custom",
+          path: ["evidenceScenarios", scenarioIndex, "evidence", "observations"],
+          message: "Enabled hazard-grid scenarios must identify unique grid cells",
+        });
+      }
+      hazardCellKeys.add(cellKey);
     });
   }
 

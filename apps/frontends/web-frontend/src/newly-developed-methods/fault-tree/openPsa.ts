@@ -153,6 +153,9 @@ function editorCatalogueSnapshot(catalogue: FaultTreeEditorCatalogue): FaultTree
       ...basicEvent,
       probability: {
         ...basicEvent.probability,
+        ...(basicEvent.probability.quantificationBasis === undefined
+          ? {}
+          : { quantificationBasis: structuredClone(basicEvent.probability.quantificationBasis) }),
         ...(basicEvent.probability.controlledDataSource === undefined
           ? {}
           : { controlledDataSource: { ...basicEvent.probability.controlledDataSource } }),

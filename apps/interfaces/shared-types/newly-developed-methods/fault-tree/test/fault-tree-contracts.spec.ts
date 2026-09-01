@@ -167,6 +167,27 @@ describe("fault-tree probability contracts", () => {
     expect(FaultTreeBasicEventProbabilitySchema.safeParse({ value: 0.02, controlledDataSource }).success).toBe(true);
   });
 
+  it("accepts an explicit failure rate, mission time, and conversion model", () => {
+    expect(FaultTreeBasicEventProbabilitySchema.safeParse({
+      value: 4.798848184297884e-4,
+      quantificationBasis: {
+        kind: "FAILURE_RATE",
+        failureRate: { value: 2e-5, unit: "HOUR" },
+        missionTime: { value: 24, unit: "HOUR" },
+        conversion: "EXPONENTIAL",
+      },
+    }).success).toBe(true);
+  });
+
+  it.each([
+    { kind: "FAILURE_RATE", failureRate: { value: -1, unit: "HOUR" }, missionTime: { value: 24, unit: "HOUR" }, conversion: "EXPONENTIAL" },
+    { kind: "FAILURE_RATE", failureRate: { value: 1, unit: "WEEK" }, missionTime: { value: 24, unit: "HOUR" }, conversion: "EXPONENTIAL" },
+    { kind: "FAILURE_RATE", failureRate: { value: 1, unit: "HOUR" }, missionTime: { value: 0, unit: "HOUR" }, conversion: "EXPONENTIAL" },
+    { kind: "FAILURE_RATE", failureRate: { value: 1, unit: "HOUR" }, missionTime: { value: 24, unit: "HOUR" }, conversion: "POISSON" },
+  ])("rejects malformed rate semantics %#", (quantificationBasis) => {
+    expect(FaultTreeBasicEventProbabilitySchema.safeParse({ value: 0.1, quantificationBasis }).success).toBe(false);
+  });
+
   it("accepts an HRA event with an explicit HEP quantification", () => {
     expect(FaultTreeControlledDataSourceReferenceSchema.safeParse({
       referenceType: "HUMAN_FAILURE_EVENT",

@@ -97,6 +97,36 @@ function classifiedTreeFixture(): { linkedModel: EventTree; eventSequences: Even
 }
 
 describe("EventTreeEditor", () => {
+  it("persists explicit initiating-frequency and annualization units", () => {
+    const { onOperation } = renderEditor();
+
+    fireEvent.change(screen.getByLabelText("Initiating-event frequency unit"), {
+      target: { value: "PER_HOUR" },
+    });
+    fireEvent.change(screen.getByLabelText("Annualization basis"), {
+      target: { value: "CRITICAL_YEAR" },
+    });
+
+    expect(onOperation).toHaveBeenCalledWith(expect.objectContaining({
+      kind: "UPDATE_TREE",
+      changes: {
+        initiatingEventFrequency: expect.objectContaining({
+          unit: "PER_HOUR",
+          annualization: expect.objectContaining({ basis: "PLANT_YEAR", hoursPerYear: 8_766 }),
+        }),
+      },
+    }));
+    expect(onOperation).toHaveBeenCalledWith(expect.objectContaining({
+      kind: "UPDATE_TREE",
+      changes: {
+        initiatingEventFrequency: expect.objectContaining({
+          unit: "PER_YEAR",
+          annualization: expect.objectContaining({ basis: "CRITICAL_YEAR", hoursPerYear: 8_766 }),
+        }),
+      },
+    }));
+  });
+
   it("lets an author add the first functional event without showing a plus icon", () => {
     const emptyModel: EventTree = {
       ...model,

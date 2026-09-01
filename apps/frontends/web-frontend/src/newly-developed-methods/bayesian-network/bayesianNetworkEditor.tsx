@@ -171,12 +171,15 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     hclRunning,
     hclRunError,
     hclRunResult,
+    hclBatchRunResult,
     onModelChange,
     onEvidenceChange,
     onQueryNodeChange,
     onHclConfigurationsChange,
     onRunHclFaultTree,
     onRunHclEventTree,
+    onRunHclFaultTreeBatch,
+    onRunHclEventTreeBatch,
     onRun,
   } = props;
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(model.nodes[0]?.id ?? null);
@@ -1071,9 +1074,12 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
             running={hclRunning}
             runError={hclRunError}
             runResult={hclRunResult}
+            batchRunResult={hclBatchRunResult}
             onChange={onHclConfigurationsChange}
             onRunFaultTree={onRunHclFaultTree}
             onRunEventTree={onRunHclEventTree}
+            onRunFaultTreeBatch={onRunHclFaultTreeBatch}
+            onRunEventTreeBatch={onRunHclEventTreeBatch}
           />
         </div>
       </section>}

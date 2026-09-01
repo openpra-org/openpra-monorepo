@@ -1,13 +1,19 @@
 use std::collections::{HashMap, HashSet};
 
 use praxis::analysis::event_tree_quantification::EventTreeHclContext;
-use praxis::hcl::{quantify_hcl, HclBindingSpec, HclEvidenceSpec, HclModel, HclSettings};
+use praxis::hcl::{
+    quantify_hcl, quantify_hcl_batch, quantify_hcl_hazard_grid_batch, HclBindingSpec,
+    HclEvidenceSpec, HclHazardGridBatchResult, HclModel, HclResult, HclSettings,
+};
+use praxis::quantitative::{
+    prepare_hazard_weights, AnnualizationConvention, FrequencyUnit, HazardWeightSummary,
+};
 use praxis::{PraxisError, Result};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::bayesian_network::build_network_for_model;
-use crate::fault_tree::build_fault_tree_for_model;
+use crate::fault_tree::{build_fault_tree_for_model, BasicEventQuantificationRecord};
 use crate::transport::SolverRequest;
 
 const HCL_METHOD: &str = "HYBRID_CAUSAL_LOGIC";
@@ -21,6 +27,34 @@ struct HclExecuteRequest {
     revision: u64,
     requested_by: String,
     fault_tree_top_gate: EntityReference,
+    evidence_batch: Option<Vec<HclEvidenceRow>>,
+    hazard_convolution: Option<HazardConvolutionRequest>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct HclEvidenceRow {
+    scenario_id: String,
+    observations: Vec<HclObservation>,
+    #[serde(default)]
+    hazard_observations: Vec<HclObservation>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct HazardConvolutionRequest {
+    grid_name: String,
+    hazard_node_ids: Vec<String>,
+    annual_frequency_scale: AnnualFrequencyScale,
+    normalize_weights: bool,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AnnualFrequencyScale {
+    value: f64,
+    unit: FrequencyUnit,
+    annualization: AnnualizationConvention,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -70,7 +104,7 @@ struct HclEvidence {
     observations: Vec<HclObservation>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct HclObservation {
     node_id: String,
@@ -91,6 +125,9 @@ struct HclAdapter {
     fault_tree_top_gate: EntityReference,
     model: HclModel,
     settings: HclSettings,
+    evidence_batch: Option<Vec<HclEvidenceRow>>,
+    hazard_convolution: Option<HazardConvolutionRequest>,
+    basic_event_quantifications: Vec<BasicEventQuantificationRecord>,
 }
 
 fn serialization_error(context: &str, error: impl std::fmt::Display) -> PraxisError {
@@ -283,6 +320,7 @@ fn build_adapter(request: &SolverRequest) -> Result<HclAdapter> {
             state: observation.state_id,
         })
         .collect();
+    let basic_event_quantifications = fault_tree.basic_event_quantifications.clone();
     let model = HclModel::new(fault_tree.fault_tree, graph)?
         .with_bindings(bindings)
         .with_base_evidence(base_evidence);
@@ -298,25 +336,253 @@ fn build_adapter(request: &SolverRequest) -> Result<HclAdapter> {
         fault_tree_top_gate: execute.fault_tree_top_gate,
         model,
         settings,
+        evidence_batch: execute.evidence_batch,
+        hazard_convolution: execute.hazard_convolution,
+        basic_event_quantifications,
     })
 }
 
 pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
     let adapter = build_adapter(request)?;
-    let result = quantify_hcl(&adapter.model, &adapter.settings)?;
+    let (bdd_variables, scenario_count) = match &adapter.evidence_batch {
+        Some(rows) => {
+            validate_evidence_rows(rows)?;
+            let evidence = batch_evidence_specs(rows);
+            let bdd_variables = if let Some(hazard) = &adapter.hazard_convolution {
+                validate_hazard_grid(rows, hazard)?;
+                let assignments = hazard_evidence_specs(rows);
+                quantify_hcl_hazard_grid_batch(
+                    &adapter.model,
+                    &evidence,
+                    &assignments,
+                    &adapter.settings,
+                )?
+                .quantification
+                .results[0]
+                    .bdd_variables
+            } else {
+                quantify_hcl_batch(&adapter.model, &evidence, &adapter.settings)?.results[0]
+                    .bdd_variables
+            };
+            (bdd_variables, rows.len())
+        }
+        None => (
+            quantify_hcl(&adapter.model, &adapter.settings)?.bdd_variables,
+            1,
+        ),
+    };
     Ok(json!({
         "scope": HCL_METHOD,
         "valid": true,
         "modelId": adapter.model_id,
         "modelRevision": adapter.model_revision,
-        "bddVariables": result.bdd_variables
+        "bddVariables": bdd_variables,
+        "scenarioCount": scenario_count
     }))
 }
 
 pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
     let adapter = build_adapter(request)?;
+    if let Some(rows) = &adapter.evidence_batch {
+        validate_evidence_rows(rows)?;
+        let evidence = batch_evidence_specs(rows);
+        let (batch, hazard_convolution) = if let Some(hazard) = &adapter.hazard_convolution {
+            validate_hazard_grid(rows, hazard)?;
+            let assignments = hazard_evidence_specs(rows);
+            let weighted = quantify_hcl_hazard_grid_batch(
+                &adapter.model,
+                &evidence,
+                &assignments,
+                &adapter.settings,
+            )?;
+            let integration = hcl_hazard_convolution_json(rows, hazard, &weighted)?;
+            (weighted.quantification, Some(integration))
+        } else {
+            (
+                quantify_hcl_batch(&adapter.model, &evidence, &adapter.settings)?,
+                None,
+            )
+        };
+        let batch_results: Vec<Value> = rows
+            .iter()
+            .zip(batch.results.iter())
+            .map(|(row, result)| hcl_result_json(&adapter, result, Some(&row.scenario_id)))
+            .collect();
+        let mut response = json!({
+            "methodType": HCL_METHOD,
+            "modelId": adapter.model_id,
+            "modelRevision": adapter.model_revision,
+            "faultTreeTopGate": {
+                "modelId": adapter.fault_tree_top_gate.model_id,
+                "entityId": adapter.fault_tree_top_gate.entity_id
+            },
+            "batchResults": batch_results,
+            "compilationReuse": {
+                "bddCompilations": batch.compilation.bdd_compilations,
+                "junctionTreeCompilations": batch.compilation.junction_tree_compilations,
+                "scenarioEvaluations": batch.compilation.scenario_evaluations
+            }
+        });
+        if let Some(hazard_convolution) = hazard_convolution {
+            response["hazardConvolution"] = hazard_convolution;
+        }
+        return Ok(response);
+    }
     let result = quantify_hcl(&adapter.model, &adapter.settings)?;
-    Ok(json!({
+    Ok(hcl_result_json(&adapter, &result, None))
+}
+
+fn validate_evidence_rows(rows: &[HclEvidenceRow]) -> Result<()> {
+    if rows.is_empty() {
+        return Err(PraxisError::Hcl(
+            "HCL evidence batch requires at least one scenario".to_string(),
+        ));
+    }
+    let mut scenario_ids = HashSet::with_capacity(rows.len());
+    if let Some(row) = rows.iter().find(|row| {
+        row.scenario_id.trim().is_empty() || !scenario_ids.insert(row.scenario_id.as_str())
+    }) {
+        return Err(PraxisError::Hcl(format!(
+            "HCL evidence batch contains an empty or duplicate scenario id '{}'",
+            row.scenario_id
+        )));
+    }
+    Ok(())
+}
+
+fn batch_evidence_specs(rows: &[HclEvidenceRow]) -> Vec<Vec<HclEvidenceSpec>> {
+    rows.iter()
+        .map(|row| {
+            row.observations
+                .iter()
+                .map(|observation| HclEvidenceSpec {
+                    node: observation.node_id.clone(),
+                    state: observation.state_id.clone(),
+                })
+                .collect()
+        })
+        .collect()
+}
+
+fn hazard_evidence_specs(rows: &[HclEvidenceRow]) -> Vec<Vec<HclEvidenceSpec>> {
+    rows.iter()
+        .map(|row| {
+            row.hazard_observations
+                .iter()
+                .map(|observation| HclEvidenceSpec {
+                    node: observation.node_id.clone(),
+                    state: observation.state_id.clone(),
+                })
+                .collect()
+        })
+        .collect()
+}
+
+fn validate_hazard_grid(rows: &[HclEvidenceRow], hazard: &HazardConvolutionRequest) -> Result<()> {
+    if hazard.grid_name.trim().is_empty() {
+        return Err(PraxisError::Hcl(
+            "hazard grid requires a non-empty name".to_string(),
+        ));
+    }
+    let expected: HashSet<&str> = hazard.hazard_node_ids.iter().map(String::as_str).collect();
+    if expected.is_empty() || expected.len() != hazard.hazard_node_ids.len() {
+        return Err(PraxisError::Hcl(
+            "hazard grid requires unique hazard node ids".to_string(),
+        ));
+    }
+    let mut cell_keys = HashSet::with_capacity(rows.len());
+    for row in rows {
+        let actual: HashSet<&str> = row
+            .hazard_observations
+            .iter()
+            .map(|observation| observation.node_id.as_str())
+            .collect();
+        if actual.len() != row.hazard_observations.len() || actual != expected {
+            return Err(PraxisError::Hcl(format!(
+                "hazard scenario '{}' must observe every configured hazard node exactly once",
+                row.scenario_id
+            )));
+        }
+        let mut assignments: Vec<_> = row
+            .hazard_observations
+            .iter()
+            .map(|observation| format!("{}={}", observation.node_id, observation.state_id))
+            .collect();
+        assignments.sort();
+        if !cell_keys.insert(assignments.join("|")) {
+            return Err(PraxisError::Hcl(format!(
+                "hazard scenario '{}' duplicates an existing grid cell",
+                row.scenario_id
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn hcl_hazard_convolution_json(
+    rows: &[HclEvidenceRow],
+    hazard: &HazardConvolutionRequest,
+    batch: &HclHazardGridBatchResult,
+) -> Result<Value> {
+    let scale = hazard.annual_frequency_scale;
+    let weights = prepare_hazard_weights(
+        &batch.raw_weights,
+        scale.value,
+        scale.unit,
+        scale.annualization,
+        hazard.normalize_weights,
+    )?;
+    let result_rows: Vec<Value> = rows
+        .iter()
+        .zip(batch.quantification.results.iter())
+        .zip(weights.weights.iter())
+        .map(|((row, result), weight)| {
+            json!({
+                "scenarioId": row.scenario_id,
+                "rawWeight": weight.raw_weight,
+                "normalizedWeight": weight.normalized_weight,
+                "convolutionWeight": weight.convolution_weight,
+                "annualFrequency": weight.annual_frequency,
+                "conditionalProbability": result.probability,
+                "annualContribution": weight.annual_frequency * result.probability
+            })
+        })
+        .collect();
+    let integrated_annual_frequency = result_rows
+        .iter()
+        .filter_map(|row| row["annualContribution"].as_f64())
+        .sum::<f64>();
+    Ok(hazard_common_json(
+        hazard,
+        &weights,
+        json!({
+            "targetKind": "FAULT_TREE",
+            "rows": result_rows,
+            "integratedAnnualFrequency": integrated_annual_frequency
+        }),
+    ))
+}
+
+fn hazard_common_json(
+    hazard: &HazardConvolutionRequest,
+    weights: &HazardWeightSummary,
+    mut value: Value,
+) -> Value {
+    value["gridName"] = json!(hazard.grid_name);
+    value["annualFrequencyScale"] = json!({
+        "value": hazard.annual_frequency_scale.value,
+        "unit": hazard.annual_frequency_scale.unit,
+        "annualization": hazard.annual_frequency_scale.annualization
+    });
+    value["annualizedFrequencyScale"] = json!(weights.annualized_frequency_scale);
+    value["normalizeWeights"] = json!(hazard.normalize_weights);
+    value["rawWeightSum"] = json!(weights.raw_weight_sum);
+    value["convolutionWeightSum"] = json!(weights.convolution_weight_sum);
+    value
+}
+
+fn hcl_result_json(adapter: &HclAdapter, result: &HclResult, scenario_id: Option<&str>) -> Value {
+    let mut value = json!({
         "methodType": HCL_METHOD,
         "modelId": adapter.model_id,
         "modelRevision": adapter.model_revision,
@@ -341,8 +607,13 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
             "treewidth": result.junction_tree.treewidth,
             "totalTableEntries": result.junction_tree.total_table_entries
         },
+        "basicEventQuantifications": adapter.basic_event_quantifications,
         "validationIssues": []
-    }))
+    });
+    if let Some(scenario_id) = scenario_id {
+        value["scenarioId"] = json!(scenario_id);
+    }
+    value
 }
 
 #[cfg(test)]
@@ -364,124 +635,184 @@ mod tests {
         let a_true = "00000000-0000-4000-8000-000000000208";
         let b_false = "00000000-0000-4000-8000-000000000209";
         let b_true = "00000000-0000-4000-8000-000000000210";
-        let request = SolverRequest::from_json(
-            &json!({
+        let mut payload = json!({
+            "schemaVersion": "1.0.0",
+            "request": {
                 "schemaVersion": "1.0.0",
-                "request": {
-                    "schemaVersion": "1.0.0",
-                    "methodType": "HYBRID_CAUSAL_LOGIC",
-                    "modelId": hcl_id,
-                    "revision": 4,
-                    "requestedBy": "analyst",
-                    "faultTreeTopGate": { "modelId": ft_id, "entityId": top }
+                "methodType": "HYBRID_CAUSAL_LOGIC",
+                "modelId": hcl_id,
+                "revision": 4,
+                "requestedBy": "analyst",
+                "faultTreeTopGate": { "modelId": ft_id, "entityId": top }
+            },
+            "modelSnapshots": [
+                {
+                    "id": ft_id,
+                    "projectId": "project-1",
+                    "methodType": "FAULT_TREE",
+                    "revision": 2,
+                    "topGate": { "gateId": top },
+                    "gates": [{ "id": top, "gateType": "AND" }],
+                    "leafNodes": [
+                        { "id": "ref-a", "kind": "BASIC_EVENT_REFERENCE", "basicEventId": "A" },
+                        { "id": "ref-b", "kind": "BASIC_EVENT_REFERENCE", "basicEventId": "B" }
+                    ],
+                    "gateInputs": [
+                        { "id": "input-a", "gateId": top, "childId": "ref-a", "order": 0 },
+                        { "id": "input-b", "gateId": top, "childId": "ref-b", "order": 1 }
+                    ]
                 },
-                "modelSnapshots": [
-                    {
-                        "id": ft_id,
-                        "projectId": "project-1",
-                        "methodType": "FAULT_TREE",
-                        "revision": 2,
-                        "topGate": { "gateId": top },
-                        "gates": [{ "id": top, "gateType": "AND" }],
-                        "leafNodes": [
-                            { "id": "ref-a", "kind": "BASIC_EVENT_REFERENCE", "basicEventId": "A" },
-                            { "id": "ref-b", "kind": "BASIC_EVENT_REFERENCE", "basicEventId": "B" }
-                        ],
-                        "gateInputs": [
-                            { "id": "input-a", "gateId": top, "childId": "ref-a", "order": 0 },
-                            { "id": "input-b", "gateId": top, "childId": "ref-b", "order": 1 }
-                        ]
-                    },
-                    {
-                        "id": bn_id,
-                        "methodType": "BAYESIAN_NETWORK",
-                        "revision": 3,
-                        "nodes": [
-                            { "id": node_a, "states": [{ "id": a_false }, { "id": a_true }] },
-                            { "id": node_b, "states": [{ "id": b_false }, { "id": b_true }] }
-                        ],
-                        "conditionalProbabilityTables": [
-                            {
-                                "nodeId": node_a,
-                                "parents": [],
-                                "rows": [{
-                                    "id": "row-a",
-                                    "parentStates": [],
-                                    "values": [
-                                        { "stateId": a_false, "probability": 0.8 },
-                                        { "stateId": a_true, "probability": 0.2 }
-                                    ]
-                                }]
-                            },
-                            {
-                                "nodeId": node_b,
-                                "parents": [{ "nodeId": node_a, "order": 0 }],
-                                "rows": [
-                                    {
-                                        "id": "row-b-false",
-                                        "parentStates": [{ "parentNodeId": node_a, "stateId": a_false }],
-                                        "values": [
-                                            { "stateId": b_false, "probability": 0.9 },
-                                            { "stateId": b_true, "probability": 0.1 }
-                                        ]
-                                    },
-                                    {
-                                        "id": "row-b-true",
-                                        "parentStates": [{ "parentNodeId": node_a, "stateId": a_true }],
-                                        "values": [
-                                            { "stateId": b_false, "probability": 0.2 },
-                                            { "stateId": b_true, "probability": 0.8 }
-                                        ]
-                                    }
+                {
+                    "id": bn_id,
+                    "methodType": "BAYESIAN_NETWORK",
+                    "revision": 3,
+                    "nodes": [
+                        { "id": node_a, "states": [{ "id": a_false }, { "id": a_true }] },
+                        { "id": node_b, "states": [{ "id": b_false }, { "id": b_true }] }
+                    ],
+                    "conditionalProbabilityTables": [
+                        {
+                            "nodeId": node_a,
+                            "parents": [],
+                            "rows": [{
+                                "id": "row-a",
+                                "parentStates": [],
+                                "values": [
+                                    { "stateId": a_false, "probability": 0.8 },
+                                    { "stateId": a_true, "probability": 0.2 }
                                 ]
-                            }
-                        ]
-                    },
-                    {
-                        "id": hcl_id,
-                        "methodType": "HYBRID_CAUSAL_LOGIC",
-                        "revision": 4,
-                        "bayesianNetwork": { "modelId": bn_id },
-                        "faultTrees": [{ "faultTree": { "modelId": ft_id } }],
-                        "bindings": [
-                            {
-                                "id": "binding-a",
-                                "faultTreeBasicEvent": { "modelId": ft_id, "entityId": "A" },
-                                "bayesianNetworkNode": { "modelId": bn_id, "entityId": node_a },
-                                "trueStateIds": [a_true]
-                            },
-                            {
-                                "id": "binding-b",
-                                "faultTreeBasicEvent": { "modelId": ft_id, "entityId": "B" },
-                                "bayesianNetworkNode": { "modelId": bn_id, "entityId": node_b },
-                                "trueStateIds": [b_true]
-                            }
-                        ],
-                        "baseEvidence": { "observations": [] },
-                        "solverSettings": {
-                            "variableOrder": ["A", "B"],
-                            "foldConstants": false,
-                            "spliceNullGates": false
+                            }]
+                        },
+                        {
+                            "nodeId": node_b,
+                            "parents": [{ "nodeId": node_a, "order": 0 }],
+                            "rows": [
+                                {
+                                    "id": "row-b-false",
+                                    "parentStates": [{ "parentNodeId": node_a, "stateId": a_false }],
+                                    "values": [
+                                        { "stateId": b_false, "probability": 0.9 },
+                                        { "stateId": b_true, "probability": 0.1 }
+                                    ]
+                                },
+                                {
+                                    "id": "row-b-true",
+                                    "parentStates": [{ "parentNodeId": node_a, "stateId": a_true }],
+                                    "values": [
+                                        { "stateId": b_false, "probability": 0.2 },
+                                        { "stateId": b_true, "probability": 0.8 }
+                                    ]
+                                }
+                            ]
                         }
-                    }
-                ],
-                "resources": {
-                    "faultTreeBasicEventCatalogue": {
-                        "projectId": "project-1",
-                        "basicEvents": [
-                            { "id": "A", "probability": { "value": 0.2 } },
-                            { "id": "B", "probability": { "value": 0.24 } }
-                        ]
+                    ]
+                },
+                {
+                    "id": hcl_id,
+                    "methodType": "HYBRID_CAUSAL_LOGIC",
+                    "revision": 4,
+                    "bayesianNetwork": { "modelId": bn_id },
+                    "faultTrees": [{ "faultTree": { "modelId": ft_id } }],
+                    "bindings": [
+                        {
+                            "id": "binding-a",
+                            "faultTreeBasicEvent": { "modelId": ft_id, "entityId": "A" },
+                            "bayesianNetworkNode": { "modelId": bn_id, "entityId": node_a },
+                            "trueStateIds": [a_true]
+                        },
+                        {
+                            "id": "binding-b",
+                            "faultTreeBasicEvent": { "modelId": ft_id, "entityId": "B" },
+                            "bayesianNetworkNode": { "modelId": bn_id, "entityId": node_b },
+                            "trueStateIds": [b_true]
+                        }
+                    ],
+                    "baseEvidence": { "observations": [] },
+                    "solverSettings": {
+                        "variableOrder": ["A", "B"],
+                        "foldConstants": false,
+                        "spliceNullGates": false
                     }
                 }
-            })
-            .to_string(),
-        )
-        .unwrap();
+            ],
+            "resources": {
+                "faultTreeBasicEventCatalogue": {
+                    "projectId": "project-1",
+                    "basicEvents": [
+                        { "id": "A", "probability": { "value": 0.2 } },
+                        { "id": "B", "probability": { "value": 0.24 } }
+                    ]
+                }
+            }
+        });
+        let request = SolverRequest::from_json(&payload.to_string()).unwrap();
 
         let result = execute(&request).unwrap();
         assert!((result["probability"].as_f64().unwrap() - 0.16).abs() < 1e-12);
         assert_eq!(result["variableOrder"], json!(["A", "B"]));
         assert_eq!(result["faultTreeTopGate"]["entityId"], top);
+
+        let true_scenario = "00000000-0000-4000-8000-000000000211";
+        let false_scenario = "00000000-0000-4000-8000-000000000212";
+        payload["modelSnapshots"][2]["baseEvidence"]["observations"] =
+            json!([{ "nodeId": node_a, "stateId": a_false }]);
+        payload["request"]["evidenceBatch"] = json!([
+            {
+                "scenarioId": true_scenario,
+                "observations": [{ "nodeId": node_a, "stateId": a_true }],
+                "hazardObservations": [{ "nodeId": node_a, "stateId": a_true }]
+            },
+            {
+                "scenarioId": false_scenario,
+                "observations": [{ "nodeId": node_a, "stateId": a_false }],
+                "hazardObservations": [{ "nodeId": node_a, "stateId": a_false }]
+            }
+        ]);
+        payload["request"]["hazardConvolution"] = json!({
+            "gridName": "A-state grid",
+            "hazardNodeIds": [node_a],
+            "annualFrequencyScale": {
+                "value": 1.0e-4,
+                "unit": "PER_YEAR",
+                "annualization": { "basis": "PLANT_YEAR", "hoursPerYear": 8766.0 }
+            },
+            "normalizeWeights": false
+        });
+        let batch_request = SolverRequest::from_json(&payload.to_string()).unwrap();
+        let batch = execute(&batch_request).unwrap();
+        assert_eq!(batch["compilationReuse"]["bddCompilations"], 1);
+        assert_eq!(batch["compilationReuse"]["junctionTreeCompilations"], 1);
+        assert!(
+            (batch["hazardConvolution"]["rows"][0]["rawWeight"]
+                .as_f64()
+                .unwrap()
+                - 0.2)
+                .abs()
+                < 1e-12
+        );
+        assert!(
+            (batch["hazardConvolution"]["rows"][1]["rawWeight"]
+                .as_f64()
+                .unwrap()
+                - 0.8)
+                .abs()
+                < 1e-12
+        );
+        assert!(
+            (batch["hazardConvolution"]["integratedAnnualFrequency"]
+                .as_f64()
+                .unwrap()
+                - 1.6e-5)
+                .abs()
+                < 1e-12
+        );
+
+        payload["request"]["evidenceBatch"][1]["hazardObservations"] =
+            json!([{ "nodeId": node_a, "stateId": a_true }]);
+        let duplicate_request = SolverRequest::from_json(&payload.to_string()).unwrap();
+        assert!(execute(&duplicate_request)
+            .unwrap_err()
+            .to_string()
+            .contains("duplicates an existing grid cell"));
     }
 }

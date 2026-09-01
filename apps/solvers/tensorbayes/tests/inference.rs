@@ -185,6 +185,18 @@ fn reports_zero_mass_evidence() {
 }
 
 #[test]
+fn reports_exact_evidence_probability_for_each_batch_row() {
+    let (mut engine, a, b) = two_node_engine();
+    let evidence = EvidenceBatch::from_rows(&[vec![0, UNOBSERVED], vec![1, 1]]).unwrap();
+    let probabilities = engine.evidence_probabilities(&evidence).unwrap();
+    assert!((probabilities[0] - 0.6).abs() < 1e-12);
+    assert!((probabilities[1] - 0.32).abs() < 1e-12);
+    assert_eq!(engine.workspace().batch_size(), 2);
+    assert_eq!(a.index(), 0);
+    assert_eq!(b.index(), 1);
+}
+
+#[test]
 fn rejects_cycles_and_non_normalized_cpts() {
     let mut graph = BayesianGraph::new();
     let a = graph.add_variable("A", &["false", "true"]).unwrap();

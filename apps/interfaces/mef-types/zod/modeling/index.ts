@@ -1,4 +1,5 @@
 export * from "./shared";
+export * from "./quantitative-semantics";
 export * from "./references";
 export * from "./fault-tree";
 export * from "./bayesian-network";

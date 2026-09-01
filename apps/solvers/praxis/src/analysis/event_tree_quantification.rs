@@ -7,6 +7,7 @@ use crate::algorithms::pdag::PdagNode;
 use crate::analysis::sequence_formula::SequenceFormulaBuilder;
 use crate::core::event_tree::EventTree;
 use crate::core::model::Model;
+use crate::hcl::conditional_evidence_probabilities_for_network;
 use crate::hcl::{
     HclBaseEvidence, HclBindingSpec, HclEventBinding, HclEventBindings, HclEvidenceSpec,
     HclQuantifier,
@@ -47,6 +48,25 @@ pub struct EventTreeSequenceProbability {
     pub conditional_probability: f64,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct EventTreeBatchCompilationStats {
+    pub sequence_bdd_compilations: usize,
+    pub junction_tree_compilations: usize,
+    pub scenario_evaluations: usize,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct EventTreeBatchQuantification {
+    pub scenarios: Vec<Vec<EventTreeSequenceProbability>>,
+    pub compilation: EventTreeBatchCompilationStats,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct EventTreeHazardGridQuantification {
+    pub quantification: EventTreeBatchQuantification,
+    pub raw_weights: Vec<f64>,
+}
+
 /// Quantifies the complete Boolean formula for every event-tree sequence.
 ///
 /// Each failure branch contributes its linked fault-tree formula and each
@@ -58,20 +78,101 @@ pub fn quantify_event_tree_sequences(
     event_tree: &EventTree,
     hcl: Option<&EventTreeHclContext>,
 ) -> Result<Vec<EventTreeSequenceProbability>> {
+    let evidence_rows = match hcl {
+        Some(context) => vec![context.base_evidence.clone()],
+        None => vec![Vec::new()],
+    };
+    quantify_event_tree_sequences_batch(model, event_tree, hcl, &evidence_rows)?
+        .scenarios
+        .pop()
+        .ok_or_else(|| {
+            PraxisError::Logic("single event-tree quantification returned no result".to_string())
+        })
+}
+
+/// Quantifies every sequence for multiple complete evidence rows while each
+/// sequence BDD and the Bayesian junction tree are compiled only once.
+pub fn quantify_event_tree_sequences_batch(
+    model: &Model,
+    event_tree: &EventTree,
+    hcl: Option<&EventTreeHclContext>,
+    evidence_rows: &[Vec<HclEvidenceSpec>],
+) -> Result<EventTreeBatchQuantification> {
+    Ok(
+        quantify_event_tree_sequences_batch_internal(model, event_tree, hcl, evidence_rows, None)?
+            .0,
+    )
+}
+
+pub fn quantify_event_tree_hazard_grid_batch(
+    model: &Model,
+    event_tree: &EventTree,
+    hcl: &EventTreeHclContext,
+    evidence_rows: &[Vec<HclEvidenceSpec>],
+    hazard_assignment_rows: &[Vec<HclEvidenceSpec>],
+) -> Result<EventTreeHazardGridQuantification> {
+    if evidence_rows.len() != hazard_assignment_rows.len() {
+        return Err(PraxisError::Hcl(
+            "event-tree hazard grid requires one hazard assignment for every evidence row"
+                .to_string(),
+        ));
+    }
+    let (quantification, raw_weights) = quantify_event_tree_sequences_batch_internal(
+        model,
+        event_tree,
+        Some(hcl),
+        evidence_rows,
+        Some(hazard_assignment_rows),
+    )?;
+    Ok(EventTreeHazardGridQuantification {
+        quantification,
+        raw_weights: raw_weights.expect("hazard rows must produce weights"),
+    })
+}
+
+fn quantify_event_tree_sequences_batch_internal(
+    model: &Model,
+    event_tree: &EventTree,
+    hcl: Option<&EventTreeHclContext>,
+    evidence_rows: &[Vec<HclEvidenceSpec>],
+    hazard_assignment_rows: Option<&[Vec<HclEvidenceSpec>]>,
+) -> Result<(EventTreeBatchQuantification, Option<Vec<f64>>)> {
+    if evidence_rows.is_empty() {
+        return Err(PraxisError::Hcl(
+            "event-tree HCL batch requires at least one evidence row".to_string(),
+        ));
+    }
     let formulas = SequenceFormulaBuilder::new(model).build(event_tree, 1.0)?;
     let compiled_hcl = match hcl {
         Some(context) => Some(CompiledHclContext::new(context)?),
         None => None,
     };
+    let raw_weights = match (hcl, compiled_hcl.as_ref(), hazard_assignment_rows) {
+        (Some(context), Some(compiled), Some(rows)) => {
+            Some(conditional_evidence_probabilities_for_network(
+                &context.network,
+                &context.base_evidence,
+                &compiled.tree,
+                rows,
+            )?)
+        }
+        (None, _, Some(_)) => {
+            return Err(PraxisError::Hcl(
+                "event-tree hazard convolution requires an HCL Bayesian context".to_string(),
+            ));
+        }
+        _ => None,
+    };
 
     let mut sequence_ids: Vec<String> = event_tree.sequences.keys().cloned().collect();
     sequence_ids.sort();
-    let mut results = Vec::with_capacity(sequence_ids.len());
+    let mut results = vec![Vec::with_capacity(sequence_ids.len()); evidence_rows.len()];
     let mut pdag = formulas.pdag;
+    let mut sequence_bdd_compilations = 0;
 
     for sequence_id in sequence_ids {
-        let conditional_probability = if formulas.unconditional.contains(&sequence_id) {
-            1.0
+        let probabilities = if formulas.unconditional.contains(&sequence_id) {
+            vec![1.0; evidence_rows.len()]
         } else {
             let root = formulas
                 .sequence_roots
@@ -89,70 +190,60 @@ pub fn quantify_event_tree_sequences(
                 &[],
                 &sequence_id,
             )?;
+            sequence_bdd_compilations += 1;
             match &compiled_hcl {
-                Some(context) => context.quantify(&pdag, &order, &bdd, bdd_root)?,
-                None => bdd.probability(bdd_root),
+                Some(context) => {
+                    context.quantify_batch(&pdag, &order, &bdd, bdd_root, evidence_rows)?
+                }
+                None => vec![bdd.probability(bdd_root); evidence_rows.len()],
             }
         };
-        results.push(EventTreeSequenceProbability {
-            sequence_id,
-            conditional_probability,
-        });
+        for (scenario, conditional_probability) in results.iter_mut().zip(probabilities) {
+            scenario.push(EventTreeSequenceProbability {
+                sequence_id: sequence_id.clone(),
+                conditional_probability,
+            });
+        }
     }
 
-    Ok(results)
+    Ok((
+        EventTreeBatchQuantification {
+            scenarios: results,
+            compilation: EventTreeBatchCompilationStats {
+                sequence_bdd_compilations,
+                junction_tree_compilations: usize::from(compiled_hcl.is_some()),
+                scenario_evaluations: evidence_rows.len(),
+            },
+        },
+        raw_weights,
+    ))
 }
 
 struct CompiledHclContext {
     network: BayesianGraph,
     tree: CompiledJunctionTree,
     bindings: Vec<HclBindingSpec>,
-    base_evidence: HclBaseEvidence,
 }
 
 impl CompiledHclContext {
     fn new(context: &EventTreeHclContext) -> Result<Self> {
-        let mut base_evidence = HclBaseEvidence::unobserved(context.network.num_variables());
-        let mut observed_nodes = HashSet::new();
-        for spec in &context.base_evidence {
-            let node = context.network.node_id(&spec.node)?;
-            if !observed_nodes.insert(node) {
-                return Err(PraxisError::Hcl(format!(
-                    "base evidence observes BN node '{}' more than once",
-                    spec.node
-                )));
-            }
-            let variable = context.network.variable(node)?;
-            let state = variable
-                .states()
-                .iter()
-                .position(|candidate| candidate == &spec.state)
-                .ok_or_else(|| {
-                    PraxisError::Hcl(format!(
-                        "base evidence state '{}' does not exist on BN node '{}'",
-                        spec.state, spec.node
-                    ))
-                })?;
-            base_evidence.observe(node, StateIndex::new(state))?;
-        }
-
         let tree =
             CompiledJunctionTree::compile(context.network.clone(), CompileHeuristic::MinFill)?;
         Ok(Self {
             network: context.network.clone(),
             tree,
             bindings: context.bindings.clone(),
-            base_evidence,
         })
     }
 
-    fn quantify(
+    fn quantify_batch(
         &self,
         pdag: &crate::algorithms::pdag::Pdag,
         order: &[crate::algorithms::pdag::NodeIndex],
         bdd: &crate::algorithms::bdd_engine::Bdd,
         root: crate::algorithms::bdd_engine::BddRef,
-    ) -> Result<f64> {
+        evidence_rows: &[Vec<HclEvidenceSpec>],
+    ) -> Result<Vec<f64>> {
         let variable_by_event: HashMap<&str, usize> = order
             .iter()
             .enumerate()
@@ -172,9 +263,43 @@ impl CompiledHclContext {
             bindings.insert(HclEventBinding::new(bdd_variable, node, true_states)?)?;
         }
 
-        let mut quantifier =
-            HclQuantifier::new(bdd, self.tree.clone(), bindings, self.base_evidence.clone())?;
-        quantifier.quantify(root)
+        let first_evidence = self.build_base_evidence(&evidence_rows[0])?;
+        let mut quantifier = HclQuantifier::new(bdd, self.tree.clone(), bindings, first_evidence)?;
+        let mut probabilities = Vec::with_capacity(evidence_rows.len());
+        for (index, evidence) in evidence_rows.iter().enumerate() {
+            if index > 0 {
+                quantifier.set_base_evidence(self.build_base_evidence(evidence)?)?;
+            }
+            probabilities.push(quantifier.quantify(root)?);
+        }
+        Ok(probabilities)
+    }
+
+    fn build_base_evidence(&self, evidence: &[HclEvidenceSpec]) -> Result<HclBaseEvidence> {
+        let mut base_evidence = HclBaseEvidence::unobserved(self.network.num_variables());
+        let mut observed_nodes = HashSet::new();
+        for spec in evidence {
+            let node = self.network.node_id(&spec.node)?;
+            if !observed_nodes.insert(node) {
+                return Err(PraxisError::Hcl(format!(
+                    "base evidence observes BN node '{}' more than once",
+                    spec.node
+                )));
+            }
+            let variable = self.network.variable(node)?;
+            let state = variable
+                .states()
+                .iter()
+                .position(|candidate| candidate == &spec.state)
+                .ok_or_else(|| {
+                    PraxisError::Hcl(format!(
+                        "base evidence state '{}' does not exist on BN node '{}'",
+                        spec.state, spec.node
+                    ))
+                })?;
+            base_evidence.observe(node, StateIndex::new(state))?;
+        }
+        Ok(base_evidence)
     }
 }
 
@@ -206,7 +331,10 @@ fn resolve_states(
 
 #[cfg(test)]
 mod tests {
-    use super::{quantify_event_tree_sequences, EventTreeHclContext};
+    use super::{
+        quantify_event_tree_hazard_grid_batch, quantify_event_tree_sequences,
+        quantify_event_tree_sequences_batch, EventTreeHclContext,
+    };
     use crate::core::event::BasicEvent;
     use crate::core::event_tree::{
         Branch, BranchTarget, EventTree, Fork, FunctionalEvent, Path, Sequence,
@@ -214,7 +342,9 @@ mod tests {
     use crate::core::fault_tree::FaultTree;
     use crate::core::gate::{Formula, Gate};
     use crate::core::model::Model;
-    use crate::hcl::{CanonicalBayesianNetwork, CanonicalBayesianVariable, HclBindingSpec};
+    use crate::hcl::{
+        CanonicalBayesianNetwork, CanonicalBayesianVariable, HclBindingSpec, HclEvidenceSpec,
+    };
 
     fn single_event_tree(id: &str, event: &str, probability: f64) -> FaultTree {
         let top_id = format!("{id}-TOP");
@@ -377,5 +507,48 @@ mod tests {
         assert!((probability("SF") - 0.08).abs() < 1e-12);
         assert!((probability("FS") - 0.04).abs() < 1e-12);
         assert!((probability("FF") - 0.16).abs() < 1e-12);
+
+        let rows = vec![
+            vec![HclEvidenceSpec {
+                node: "NODE-A".to_string(),
+                state: "A-TRUE".to_string(),
+            }],
+            vec![HclEvidenceSpec {
+                node: "NODE-A".to_string(),
+                state: "A-FALSE".to_string(),
+            }],
+        ];
+        let batch =
+            quantify_event_tree_sequences_batch(&model, &event_tree, Some(&hcl), &rows).unwrap();
+        let scenario_probability = |scenario: usize, id: &str| {
+            batch.scenarios[scenario]
+                .iter()
+                .find(|result| result.sequence_id == id)
+                .unwrap()
+                .conditional_probability
+        };
+        assert_eq!(batch.compilation.junction_tree_compilations, 1);
+        assert_eq!(batch.compilation.sequence_bdd_compilations, 4);
+        assert_eq!(batch.compilation.scenario_evaluations, 2);
+        assert!((scenario_probability(0, "SS") - 0.0).abs() < 1e-12);
+        assert!((scenario_probability(0, "SF") - 0.0).abs() < 1e-12);
+        assert!((scenario_probability(0, "FS") - 0.2).abs() < 1e-12);
+        assert!((scenario_probability(0, "FF") - 0.8).abs() < 1e-12);
+        assert!((scenario_probability(1, "SS") - 0.9).abs() < 1e-12);
+        assert!((scenario_probability(1, "SF") - 0.1).abs() < 1e-12);
+        assert!((scenario_probability(1, "FS") - 0.0).abs() < 1e-12);
+        assert!((scenario_probability(1, "FF") - 0.0).abs() < 1e-12);
+
+        let weighted =
+            quantify_event_tree_hazard_grid_batch(&model, &event_tree, &hcl, &rows, &rows).unwrap();
+        assert_eq!(
+            weighted
+                .quantification
+                .compilation
+                .junction_tree_compilations,
+            1
+        );
+        assert!((weighted.raw_weights[0] - 0.2).abs() < 1e-12);
+        assert!((weighted.raw_weights[1] - 0.8).abs() < 1e-12);
     }
 }

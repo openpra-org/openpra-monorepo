@@ -18,6 +18,129 @@ function escapeXml(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
+function serializeXml(element: Element): string {
+  return new XMLSerializer().serializeToString(element);
+}
+
+function descendantElements(parent: Element, tagName: string): Element[] {
+  return [...parent.getElementsByTagName("*")]
+    .filter((child) => child.tagName.toLowerCase() === tagName);
+}
+
+function directText(parent: Element, tagName: string): string | undefined {
+  const value = childElements(parent, tagName)[0]?.textContent?.trim();
+  return value === undefined || value === "" ? undefined : value;
+}
+
+function parseGeniePosition(node: Element | undefined): { x: number; y: number } | undefined {
+  if (node === undefined) return undefined;
+  const values = (directText(node, "position") ?? "").split(/\s+/).map(Number);
+  if (values.length < 2 || !Number.isFinite(values[0]) || !Number.isFinite(values[1])) return undefined;
+  return { x: values[0]!, y: values[1]! };
+}
+
+function formatCoordinate(value: number): string {
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(4)));
+}
+
+function ensureTextChild(parent: Element, tagName: string, value: string): Element {
+  let child = childElements(parent, tagName)[0];
+  if (child === undefined) {
+    child = parent.ownerDocument.createElement(tagName);
+    parent.appendChild(child);
+  }
+  child.textContent = value;
+  return child;
+}
+
+function createGenieNode(parent: Element, code: string, name: string, x: number, y: number): Element {
+  const document = parent.ownerDocument;
+  const node = document.createElement("node");
+  node.setAttribute("id", code);
+  ensureTextChild(node, "name", name);
+  const interior = document.createElement("interior");
+  interior.setAttribute("color", "e2e8f0");
+  node.appendChild(interior);
+  const outline = document.createElement("outline");
+  outline.setAttribute("color", "334155");
+  node.appendChild(outline);
+  const font = document.createElement("font");
+  font.setAttribute("color", "000000");
+  font.setAttribute("name", "Arial");
+  font.setAttribute("size", "10");
+  node.appendChild(font);
+  ensureTextChild(node, "position", `${formatCoordinate(x)} ${formatCoordinate(y)} ${formatCoordinate(x + 180)} ${formatCoordinate(y + 70)}`);
+  parent.appendChild(node);
+  return node;
+}
+
+function synchronizedExtensions(model: BayesianNetworkModel): string {
+  const source = model.xdslMetadata?.extensionsXml
+    ?? '<extensions><genie version="1.0" app="OpenPRA" name="Bayesian network"/></extensions>';
+  const document = new DOMParser().parseFromString(source, "application/xml");
+  if (document.querySelector("parsererror") !== null || document.documentElement.tagName.toLowerCase() !== "extensions") {
+    throw new Error("The preserved XDSL extensions are not valid XML.");
+  }
+  const extensions = document.documentElement;
+  let genie = childElements(extensions, "genie")[0];
+  if (genie === undefined) {
+    genie = document.createElement("genie");
+    genie.setAttribute("version", "1.0");
+    genie.setAttribute("app", "OpenPRA");
+    genie.setAttribute("name", model.name);
+    extensions.appendChild(genie);
+  }
+
+  const nodeById = new Map(model.nodes.map((node) => [node.id, node]));
+  const positionById = new Map(model.nodePositions.map((entry) => [entry.nodeId, entry.position]));
+  const internalIdBySourceId = new Map(
+    (model.xdslMetadata?.nodeIdentifiers ?? []).map(({ nodeId, sourceId }) => [sourceId, nodeId]),
+  );
+  const seen = new Set<string>();
+
+  descendantElements(extensions, "node").forEach((extensionNode) => {
+    const sourceId = extensionNode.getAttribute("id") ?? "";
+    const internalId = internalIdBySourceId.get(sourceId)
+      ?? model.nodes.find((candidate) => candidate.code === sourceId)?.id;
+    if (internalId === undefined) return;
+    const node = nodeById.get(internalId);
+    if (node === undefined) {
+      extensionNode.remove();
+      return;
+    }
+    seen.add(node.id);
+    extensionNode.setAttribute("id", node.code);
+    ensureTextChild(extensionNode, "name", node.name);
+    if (node.description !== "" || childElements(extensionNode, "comment").length > 0) {
+      ensureTextChild(extensionNode, "comment", node.description);
+    }
+    const position = positionById.get(node.id);
+    if (position === undefined) return;
+    const original = (directText(extensionNode, "position") ?? "").split(/\s+/).map(Number);
+    const width = original.length >= 4 && Number.isFinite(original[2]) && Number.isFinite(original[0])
+      ? Math.max(1, original[2]! - original[0]!)
+      : 180;
+    const height = original.length >= 4 && Number.isFinite(original[3]) && Number.isFinite(original[1])
+      ? Math.max(1, original[3]! - original[1]!)
+      : 70;
+    ensureTextChild(
+      extensionNode,
+      "position",
+      [position.x, position.y, position.x + width, position.y + height].map(formatCoordinate).join(" "),
+    );
+  });
+
+  model.nodes.forEach((node, index) => {
+    if (seen.has(node.id)) return;
+    const position = positionById.get(node.id) ?? {
+      x: 44 + (index % 3) * 250,
+      y: 44 + Math.floor(index / 3) * 140,
+    };
+    createGenieNode(genie!, node.code, node.name, position.x, position.y);
+  });
+  return serializeXml(extensions);
+}
+
 function exportBayesianNetworkXdsl(model: BayesianNetworkModel): string {
   const nodeById = new Map(model.nodes.map((node) => [node.id, node]));
   const nodes = model.nodes.map((node) => {
@@ -44,12 +167,25 @@ function exportBayesianNetworkXdsl(model: BayesianNetworkModel): string {
       "    </cpt>",
     ].join("\n");
   });
+  const rootAttributes = {
+    version: "1.0",
+    ...(model.xdslMetadata?.rootAttributes ?? {}),
+    id: model.code,
+  };
+  const attributes = Object.entries(rootAttributes)
+    .map(([name, value]) => `${name}="${escapeXml(value)}"`)
+    .join(" ");
+  const extensions = synchronizedExtensions(model)
+    .split("\n")
+    .map((line) => `  ${line}`)
+    .join("\n");
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    `<smile version="1.0" id="${escapeXml(model.code)}">`,
+    `<smile ${attributes}>`,
     "  <nodes>",
     ...nodes,
     "  </nodes>",
+    extensions,
     "</smile>",
   ].join("\n");
 }
@@ -72,6 +208,14 @@ function importBayesianNetworkXdsl(xml: string, current?: BayesianNetworkModel):
   }
   const cptElements = childElements(nodesElement, "cpt");
   if (cptElements.length === 0) throw new Error("The XDSL network must contain at least one CPT node.");
+  const extensionsElement = childElements(root, "extensions")[0];
+  const extensionNodeByCode = new Map<string, Element>();
+  if (extensionsElement !== undefined) {
+    descendantElements(extensionsElement, "node").forEach((element) => {
+      const id = element.getAttribute("id")?.trim();
+      if (id !== undefined && id !== "" && !extensionNodeByCode.has(id)) extensionNodeByCode.set(id, element);
+    });
+  }
   const codes = new Set<string>();
   const nodes: BayesianNetworkNode[] = cptElements.map((element) => {
     const code = element.getAttribute("id")?.trim() ?? "";
@@ -84,26 +228,43 @@ function importBayesianNetworkXdsl(xml: string, current?: BayesianNetworkModel):
       return { id: newId(), code: stateCode, name: stateCode };
     });
     if (states.length < 2) throw new Error(`XDSL node '${code}' must contain at least two states.`);
+    const extensionNode = extensionNodeByCode.get(code);
     return {
       id: newId(),
       kind: "CHANCE_NODE",
       code,
-      name: code,
-      description: "",
+      name: directText(extensionNode ?? element, "name") ?? code,
+      description: directText(extensionNode ?? element, "comment") ?? "",
       states: states as BayesianNetworkNode["states"],
     };
   });
   const nodeByCode = new Map(nodes.map((node) => [node.code, node]));
+  const importedPositions = nodes.map((node, index) => ({
+    nodeId: node.id,
+    position: parseGeniePosition(extensionNodeByCode.get(node.code)) ?? {
+      x: 44 + (index % 3) * 250,
+      y: 44 + Math.floor(index / 3) * 140,
+    },
+  }));
+  const hasGeniePositions = nodes.some((node) => parseGeniePosition(extensionNodeByCode.get(node.code)) !== undefined);
   let model: BayesianNetworkModel = {
     ...(current ?? createEmptyBayesianNetwork(root.getAttribute("id") ?? "Imported Bayesian network")),
     code: root.getAttribute("id")?.trim() || current?.code || "BN-IMPORTED",
     nodes,
     edges: [],
     conditionalProbabilityTables: [],
-    nodePositions: nodes.map((node, index) => ({
-      nodeId: node.id,
-      position: { x: 44 + (index % 3) * 250, y: 44 + Math.floor(index / 3) * 140 },
-    })),
+    nodePositions: importedPositions,
+    layout: {
+      ...(current ?? createEmptyBayesianNetwork()).layout,
+      mode: hasGeniePositions ? "MANUAL" : (current?.layout.mode ?? "AUTOMATIC"),
+    },
+    xdslMetadata: {
+      rootAttributes: Object.fromEntries(
+        [...root.attributes].map((attribute) => [attribute.name, attribute.value]),
+      ),
+      ...(extensionsElement === undefined ? {} : { extensionsXml: serializeXml(extensionsElement) }),
+      nodeIdentifiers: nodes.map((node) => ({ nodeId: node.id, sourceId: node.code })),
+    },
   };
 
   const tables: BayesianNetworkConditionalProbabilityTable[] = [];

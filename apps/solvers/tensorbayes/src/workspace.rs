@@ -19,6 +19,7 @@ pub struct InferenceWorkspace {
     calibrated_potentials: Vec<Factor>,
     node_to_clique: Vec<usize>,
     soft_evidence: HashMap<NodeId, SoftEvidence>,
+    evidence_probabilities: Vec<f64>,
     calibrated: bool,
 }
 
@@ -33,6 +34,7 @@ impl InferenceWorkspace {
             calibrated_potentials: Vec::new(),
             node_to_clique,
             soft_evidence: HashMap::new(),
+            evidence_probabilities: Vec::new(),
             calibrated: false,
         }
     }
@@ -104,10 +106,26 @@ impl InferenceWorkspace {
         self.clique_potentials.clear();
         self.messages.clear();
         self.calibrated_potentials.clear();
+        self.evidence_probabilities.clear();
         self.calibrated = false;
     }
 
     pub fn calibrate(&mut self, evidence: &EvidenceBatch) -> Result<()> {
+        self.calibrate_internal(evidence, false)
+    }
+
+    pub(crate) fn calibrate_for_evidence_probability(
+        &mut self,
+        evidence: &EvidenceBatch,
+    ) -> Result<()> {
+        self.calibrate_internal(evidence, true)
+    }
+
+    fn calibrate_internal(
+        &mut self,
+        evidence: &EvidenceBatch,
+        allow_zero_mass: bool,
+    ) -> Result<()> {
         validate_evidence(&self.tree, evidence)?;
         self.validate_batch_geometry(evidence.batch_size())?;
         self.batch_size = evidence.batch_size();
@@ -150,11 +168,14 @@ impl InferenceWorkspace {
         }
 
         let partition = self.calibrated_potentials[0].project_to(&[])?;
+        self.evidence_probabilities.clear();
+        self.evidence_probabilities.reserve(self.batch_size);
         for batch in 0..self.batch_size {
             let mass = partition.tensor().values()[batch];
-            if !mass.is_finite() || mass <= 0.0 {
+            if !mass.is_finite() || (!allow_zero_mass && mass <= 0.0) || mass < 0.0 {
                 return Err(Error::ZeroMassEvidence { batch });
             }
+            self.evidence_probabilities.push(mass);
         }
 
         self.calibrated = true;
@@ -173,6 +194,13 @@ impl InferenceWorkspace {
         let marginal = self.calibrated_potentials[clique_id].project_to(&[node])?;
         let values = normalized_row_major(&marginal, cardinality)?;
         Ok(MarginalBatch::new(self.batch_size, cardinality, values))
+    }
+
+    pub fn evidence_probabilities(&self) -> Result<&[f64]> {
+        if !self.calibrated {
+            return Err(Error::WorkspaceNotCalibrated);
+        }
+        Ok(&self.evidence_probabilities)
     }
 
     pub fn query_marginals(&self, queries: &[NodeId]) -> Result<MultiMarginalBatch> {

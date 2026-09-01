@@ -221,7 +221,7 @@ function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, sho
         <div className="estree__ie" style={{ top: layout.rootY }}>
           <div className="estree__ie-cap">Initiator</div>
           <div className="estree__ie-id">{view.initiatingEventId}</div>
-          {showFrequency && view.initiatingEventFrequency !== undefined && <div className="estree__ie-freq">{formatExponential(view.initiatingEventFrequency)}/yr</div>}
+          {showFrequency && view.initiatingEventFrequency !== undefined && <div className="estree__ie-freq">{formatExponential(view.initiatingEventFrequency)} {({ PER_SECOND: "/s", PER_MINUTE: "/min", PER_HOUR: "/h", PER_DAY: "/day", PER_YEAR: "/yr" } as const)[view.initiatingEventFrequencyUnit ?? "PER_YEAR"]}</div>}
         </div>
         <svg className="estree__svg" width={layout.width} height={layout.height} aria-hidden="true">
           {layout.segments.map((segment, index) => <line key={index} className={`estree__seg${highlighted(segment.sequences) ? " estree__seg--hot" : ""}`} x1={segment.x1} y1={segment.y1} x2={segment.x2} y2={segment.y2} />)}

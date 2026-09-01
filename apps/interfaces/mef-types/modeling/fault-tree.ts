@@ -4,6 +4,7 @@ import type {
   MethodEntityReference,
   WorkbookEntityId,
 } from "./shared";
+import type { FaultTreeBasicEventQuantificationBasis } from "./quantitative-semantics";
 import type { HumanFailureEventReference, WorkbookParameterReference } from "./references";
 
 interface FaultTreeEntityIdentity {
@@ -84,6 +85,7 @@ type FaultTreeControlledDataSourceReference =
 
 interface FaultTreeBasicEventProbability {
   value: number;
+  quantificationBasis?: FaultTreeBasicEventQuantificationBasis;
   controlledDataSource?: FaultTreeControlledDataSourceReference;
 }
 

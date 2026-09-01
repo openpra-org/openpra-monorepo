@@ -8,6 +8,7 @@ import {
   WorkbookRevisionSchema,
   ValidationIssueSchema,
   ValidationResultSchema,
+  EventTreeFrequencySemanticsSchema,
 } from "../shared";
 import type {
   AnalysisRunId,
@@ -18,6 +19,7 @@ import type {
   WorkbookRevision,
   ValidationIssue,
   ValidationResult,
+  EventTreeFrequencySemantics,
 } from "../shared";
 import type {
   EventTreeBranchResult,
@@ -70,6 +72,7 @@ interface EventTreeAnalysisResult {
   mode: EventTreeExecutionMode;
   sequences: EventTreeSequenceAnalysisResult[];
   endStateAggregates: EventTreeEndStateAggregate[];
+  frequencySemantics?: EventTreeFrequencySemantics;
   validationIssues: ValidationIssue[];
   completedAt: string;
 }
@@ -140,6 +143,7 @@ const EventTreeAnalysisResultSchema = z
     mode: EventTreeExecutionModeSchema,
     sequences: z.array(EventTreeSequenceAnalysisResultSchema),
     endStateAggregates: z.array(EventTreeEndStateAggregateSchema),
+    frequencySemantics: EventTreeFrequencySemanticsSchema.optional(),
     validationIssues: z.array(ValidationIssueSchema),
     completedAt: z.string().datetime({ offset: true }),
   })

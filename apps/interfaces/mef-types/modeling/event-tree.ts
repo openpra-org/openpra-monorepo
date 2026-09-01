@@ -5,6 +5,7 @@ import type {
   MethodModelReference,
   WorkbookEntityId,
 } from "./shared";
+import type { AnnualizationConvention, EventFrequencyUnit } from "./quantitative-semantics";
 
 interface EventTreeEntityIdentity {
   id: WorkbookEntityId;
@@ -24,6 +25,8 @@ interface EventTreeControlledDataSourceReference {
 
 interface EventTreeInitiatingEventFrequency {
   value: number;
+  unit?: EventFrequencyUnit;
+  annualization?: AnnualizationConvention;
   controlledDataSource?: EventTreeControlledDataSourceReference;
 }
 

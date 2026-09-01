@@ -12,7 +12,9 @@ import {
   type BayesianNetworkFaultTreeOption,
 } from "../newly-developed-methods/bayesian-network";
 import type {
+  HclEditorBatchRunResult,
   HclEditorRunResult,
+  HclEditorScenarioRunResult,
   HclEventTreeOption,
   HclFaultTreeOption,
 } from "../newly-developed-methods/hybrid-causal-logic";
@@ -30,9 +32,31 @@ import {
   getEsqHclFaultTreeResult,
   runEsqBayesianNetwork,
   runEsqHclEventTree,
+  runEsqHclEventTreeBatch,
   runEsqHclFaultTree,
+  runEsqHclFaultTreeBatch,
 } from "./esqWorkbookApi";
 import { EsqAnalysisRunProvenance } from "./esqAnalysisRunProvenance";
+
+function connectedEventTreeModelIds(
+  trees: ReadonlyArray<{ uuid: string; transfers?: Record<string, { targetEventTreeId: string }> }>,
+  modelId: string,
+): string[] {
+  const byId = new Map(trees.map((tree) => [tree.uuid, tree]));
+  const connected: string[] = [];
+  const pending = [modelId];
+  const seen = new Set<string>();
+  while (pending.length > 0) {
+    const currentId = pending.shift()!;
+    if (seen.has(currentId)) continue;
+    seen.add(currentId);
+    const tree = byId.get(currentId);
+    if (tree === undefined) continue;
+    connected.push(currentId);
+    Object.values(tree.transfers ?? {}).forEach((transfer) => pending.push(transfer.targetEventTreeId));
+  }
+  return connected;
+}
 
 function EsqBayesianNetworkWorkspace(): JSX.Element {
   const { esq, editable, mutateEsq, runtime } = useEsqWorkbook();
@@ -46,6 +70,7 @@ function EsqBayesianNetworkWorkspace(): JSX.Element {
   const [eventTreeOptions, setEventTreeOptions] = useState<HclEventTreeOption[]>([]);
   const [sourceError, setSourceError] = useState<string | null>(null);
   const [hclResults, setHclResults] = useState<Record<string, HclEditorRunResult>>({});
+  const [hclBatchResults, setHclBatchResults] = useState<Record<string, HclEditorBatchRunResult>>({});
   const [runningHclConfigurationId, setRunningHclConfigurationId] = useState<string | null>(null);
   const [hclRunError, setHclRunError] = useState<string | null>(null);
   const [provenanceRuns, setProvenanceRuns] = useState<AnalysisRunProvenance[]>([]);
@@ -107,28 +132,76 @@ function EsqBayesianNetworkWorkspace(): JSX.Element {
               basicEvents: source.mef.systemBasicEvents
                 .filter((event) => usedEventIds.has(event.uuid))
                 .map((event) => ({ id: event.uuid, code: event.code, name: event.name })),
+              gates: logic.gates.map((gate) => gate.gateType === "K_OF_N"
+                ? { id: gate.id, gateType: gate.gateType, k: gate.k }
+                : { id: gate.id, gateType: gate.gateType }),
+              leafNodes: logic.leafNodes.map((leaf) => {
+                if (leaf.kind === "BASIC_EVENT_REFERENCE") {
+                  return { id: leaf.id, kind: leaf.kind, basicEventId: leaf.basicEventId };
+                }
+                if (leaf.kind === "HOUSE_EVENT") {
+                  return { id: leaf.id, kind: leaf.kind, state: leaf.state };
+                }
+                if (leaf.kind === "TRANSFER_REFERENCE") {
+                  return {
+                    id: leaf.id,
+                    kind: leaf.kind,
+                    target: {
+                      workbookId: workbook.id,
+                      modelId: leaf.target.modelId,
+                      entityId: leaf.target.entityId,
+                    },
+                  };
+                }
+                return { id: leaf.id, kind: leaf.kind };
+              }),
+              gateInputs: logic.gateInputs.map(({ gateId, childId, order }) => ({
+                gateId,
+                childId,
+                order,
+              })),
+              constantBasicEventStates: Object.fromEntries(
+                source.mef.systemBasicEvents.flatMap((event) =>
+                  event.controlledDataSource === undefined
+                    && (event.probability === 0 || event.probability === 1)
+                    ? [[event.uuid, event.probability === 1]]
+                    : [],
+                ),
+              ),
             };
           }),
         ));
         setEventTreeOptions(eventSequenceSources.flatMap(({ workbook, source }) =>
           (source.mef.eventTrees ?? [])
             .filter((tree) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(tree.uuid))
-            .map((tree) => ({
-              workbookId: workbook.id,
-              workbookName: workbook.name,
-              modelId: tree.uuid,
-              modelName: tree.name,
-              sequences: Object.values(tree.sequences).map((sequence) => ({ id: sequence.uuid, name: sequence.name })),
-              faultTrees: [...new Map(Object.values(tree.functionalEvents).flatMap((functionalEvent) => {
-                const reference = functionalEvent.faultTreeTopEvent;
-                return reference === undefined
-                  ? []
-                  : [[`${reference.workbookId}:${reference.modelId}`, {
-                      workbookId: reference.workbookId,
-                      modelId: reference.modelId,
-                    }] as const];
-              })).values()],
-            })),
+            .map((tree) => {
+              const connectedModelIds = new Set(connectedEventTreeModelIds(source.mef.eventTrees ?? [], tree.uuid));
+              const connectedTrees = (source.mef.eventTrees ?? []).filter((candidate) => connectedModelIds.has(candidate.uuid));
+              return {
+                workbookId: workbook.id,
+                workbookName: workbook.name,
+                modelId: tree.uuid,
+                modelName: tree.name,
+                sequences: connectedTrees.flatMap((candidate) =>
+                  Object.values(candidate.sequences).map((sequence) => ({ id: sequence.uuid, name: sequence.name })),
+                ),
+                faultTrees: [...new Map(connectedTrees.flatMap((candidate) =>
+                  Object.values(candidate.functionalEvents).flatMap((functionalEvent) => {
+                    const reference = functionalEvent.faultTreeTopEvent;
+                    return reference === undefined
+                      ? []
+                      : [[`${reference.workbookId}:${reference.modelId}`, {
+                          workbookId: reference.workbookId,
+                          modelId: reference.modelId,
+                        }] as const];
+                  }),
+                )).values()],
+                transferTargets: [...new Map(Object.values(tree.transfers ?? {}).map((transfer) => [
+                  `${workbook.id}:${transfer.targetEventTreeId}`,
+                  { workbookId: workbook.id, modelId: transfer.targetEventTreeId },
+                ])).values()],
+              };
+            }),
         ));
       })
       .catch((error: unknown) => {
@@ -192,7 +265,18 @@ function EsqBayesianNetworkWorkspace(): JSX.Element {
       ),
       hclConfigurations: draft.hclConfigurations.map((configuration) =>
         configuration.bayesianNetwork.modelId === next.modelId
-          ? { ...configuration, baseEvidence: sanitizedEvidence }
+          ? {
+              ...configuration,
+              baseEvidence: sanitizedEvidence,
+              evidenceScenarios: (configuration.evidenceScenarios ?? []).map((scenario) => ({
+                ...scenario,
+                evidence: {
+                  observations: scenario.evidence.observations.filter((observation) =>
+                    statesByNode.get(observation.nodeId)?.has(observation.stateId) === true,
+                  ),
+                },
+              })),
+            }
           : configuration,
       ),
     }));
@@ -288,6 +372,10 @@ function EsqBayesianNetworkWorkspace(): JSX.Element {
       if (execution.run.status !== "SUCCEEDED") throw new Error(execution.run.failure?.message ?? `HCL quantification did not complete (${execution.run.status}).`);
       const result = await getEsqHclFaultTreeResult(runtime.workbookId, configuration.modelId, execution.run.id);
       setHclResults((current) => ({ ...current, [configuration.modelId]: { kind: "FAULT_TREE", result } }));
+      setHclBatchResults((current) => {
+        const { [configuration.modelId]: _stale, ...remaining } = current;
+        return remaining;
+      });
     } catch (error) {
       setHclRunError(error instanceof Error ? error.message : "HCL fault-tree quantification failed.");
     } finally {
@@ -311,8 +399,141 @@ function EsqBayesianNetworkWorkspace(): JSX.Element {
       if (execution.run.status !== "SUCCEEDED") throw new Error(execution.run.failure?.message ?? `HCL quantification did not complete (${execution.run.status}).`);
       const result = await getEsqHclEventTreeResult(runtime.workbookId, configuration.modelId, execution.run.id);
       setHclResults((current) => ({ ...current, [configuration.modelId]: { kind: "EVENT_TREE", result } }));
+      setHclBatchResults((current) => {
+        const { [configuration.modelId]: _stale, ...remaining } = current;
+        return remaining;
+      });
     } catch (error) {
       setHclRunError(error instanceof Error ? error.message : "HCL event-tree quantification failed.");
+    } finally {
+      setRunningHclConfigurationId(null);
+      setProvenanceRefresh((current) => current + 1);
+    }
+  }
+
+  async function runHclFaultTreeBatch(
+    configuration: EsqHclConfiguration,
+    faultTree: HclFaultTreeOption,
+    scenarioIds: string[],
+    integrateHazardGrid: boolean,
+  ): Promise<void> {
+    if (runtime.workbookId === null || runtime.revision === null || faultTree.topGateId === null) {
+      setHclRunError("HCL quantification is available after the workbooks and top event have been saved.");
+      return;
+    }
+    setRunningHclConfigurationId(configuration.modelId);
+    setHclRunError(null);
+    try {
+      const execution = await runEsqHclFaultTreeBatch(
+        runtime.workbookId,
+        configuration.modelId,
+        runtime.revision,
+        {
+          referenceType: "FAULT_TREE_TOP_EVENT",
+          workbookId: faultTree.workbookId,
+          modelId: faultTree.modelId,
+          entityId: faultTree.topGateId,
+        },
+        scenarioIds,
+        integrateHazardGrid,
+      );
+      const scenarios: HclEditorScenarioRunResult[] = await Promise.all(execution.runs.map(async (scenario) => {
+        if (scenario.run.status !== "SUCCEEDED") {
+          return {
+            scenarioId: scenario.scenarioId,
+            scenarioCode: scenario.scenarioCode,
+            scenarioName: scenario.scenarioName,
+            status: scenario.run.status,
+            failure: scenario.run.failure?.message ?? null,
+            result: null,
+          };
+        }
+        const result = await getEsqHclFaultTreeResult(runtime.workbookId!, configuration.modelId, scenario.run.id);
+        return {
+          scenarioId: scenario.scenarioId,
+          scenarioCode: scenario.scenarioCode,
+          scenarioName: scenario.scenarioName,
+          status: scenario.run.status,
+          failure: null,
+          result: { kind: "FAULT_TREE", result },
+        };
+      }));
+      setHclBatchResults((current) => ({
+        ...current,
+        [configuration.modelId]: {
+          kind: "FAULT_TREE",
+          scenarios,
+          ...(execution.hazardConvolution === undefined ? {} : { hazardConvolution: execution.hazardConvolution }),
+        },
+      }));
+      setHclResults((current) => {
+        const { [configuration.modelId]: _stale, ...remaining } = current;
+        return remaining;
+      });
+    } catch (error) {
+      setHclRunError(error instanceof Error ? error.message : "HCL fault-tree scenario batch failed.");
+    } finally {
+      setRunningHclConfigurationId(null);
+      setProvenanceRefresh((current) => current + 1);
+    }
+  }
+
+  async function runHclEventTreeBatch(
+    configuration: EsqHclConfiguration,
+    eventTree: HclEventTreeOption,
+    scenarioIds: string[],
+    integrateHazardGrid: boolean,
+  ): Promise<void> {
+    if (runtime.workbookId === null || runtime.revision === null) {
+      setHclRunError("HCL quantification is available after the workbooks have been saved.");
+      return;
+    }
+    setRunningHclConfigurationId(configuration.modelId);
+    setHclRunError(null);
+    try {
+      const execution = await runEsqHclEventTreeBatch(
+        runtime.workbookId,
+        configuration.modelId,
+        runtime.revision,
+        { workbookId: eventTree.workbookId, modelId: eventTree.modelId },
+        scenarioIds,
+        integrateHazardGrid,
+      );
+      const scenarios: HclEditorScenarioRunResult[] = await Promise.all(execution.runs.map(async (scenario) => {
+        if (scenario.run.status !== "SUCCEEDED") {
+          return {
+            scenarioId: scenario.scenarioId,
+            scenarioCode: scenario.scenarioCode,
+            scenarioName: scenario.scenarioName,
+            status: scenario.run.status,
+            failure: scenario.run.failure?.message ?? null,
+            result: null,
+          };
+        }
+        const result = await getEsqHclEventTreeResult(runtime.workbookId!, configuration.modelId, scenario.run.id);
+        return {
+          scenarioId: scenario.scenarioId,
+          scenarioCode: scenario.scenarioCode,
+          scenarioName: scenario.scenarioName,
+          status: scenario.run.status,
+          failure: null,
+          result: { kind: "EVENT_TREE", result },
+        };
+      }));
+      setHclBatchResults((current) => ({
+        ...current,
+        [configuration.modelId]: {
+          kind: "EVENT_TREE",
+          scenarios,
+          ...(execution.hazardConvolution === undefined ? {} : { hazardConvolution: execution.hazardConvolution }),
+        },
+      }));
+      setHclResults((current) => {
+        const { [configuration.modelId]: _stale, ...remaining } = current;
+        return remaining;
+      });
+    } catch (error) {
+      setHclRunError(error instanceof Error ? error.message : "HCL event-tree scenario batch failed.");
     } finally {
       setRunningHclConfigurationId(null);
       setProvenanceRefresh((current) => current + 1);
@@ -357,12 +578,15 @@ function EsqBayesianNetworkWorkspace(): JSX.Element {
           hclRunning={relevantConfigurations.some((configuration) => configuration.modelId === runningHclConfigurationId)}
           hclRunError={hclRunError}
           hclRunResult={relevantConfigurations.length === 0 ? null : (hclResults[relevantConfigurations[0]!.modelId] ?? null)}
+          hclBatchRunResult={relevantConfigurations.length === 0 ? null : (hclBatchResults[relevantConfigurations[0]!.modelId] ?? null)}
           onModelChange={replaceNetwork}
           onEvidenceChange={replaceEvidence}
           onQueryNodeChange={(nodeId) => setQueryByModel((current) => ({ ...current, [model.modelId]: nodeId }))}
           onHclConfigurationsChange={(configurations) => mutateEsq((draft) => ({ ...draft, hclConfigurations: configurations }))}
           onRunHclFaultTree={(configuration, faultTree) => { void runHclFaultTree(configuration, faultTree); }}
           onRunHclEventTree={(configuration, eventTree) => { void runHclEventTree(configuration, eventTree); }}
+          onRunHclFaultTreeBatch={(configuration, faultTree, scenarioIds, integrateHazardGrid) => { void runHclFaultTreeBatch(configuration, faultTree, scenarioIds, integrateHazardGrid); }}
+          onRunHclEventTreeBatch={(configuration, eventTree, scenarioIds, integrateHazardGrid) => { void runHclEventTreeBatch(configuration, eventTree, scenarioIds, integrateHazardGrid); }}
           onRun={() => { void run(); }}
         />
       )}

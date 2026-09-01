@@ -107,6 +107,30 @@ pub struct HclResult {
     pub junction_tree: HclJunctionTreeStats,
 }
 
+/// Compilation work shared by every evidence row in one HCL batch.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct HclBatchCompilationStats {
+    pub bdd_compilations: usize,
+    pub junction_tree_compilations: usize,
+    pub scenario_evaluations: usize,
+}
+
+/// Exact HCL results produced from one compiled BDD and junction tree.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct HclBatchResult {
+    pub results: Vec<HclResult>,
+    pub compilation: HclBatchCompilationStats,
+}
+
+/// HCL batch results plus exact P(hazard assignment | common evidence) weights.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct HclHazardGridBatchResult {
+    pub quantification: HclBatchResult,
+    pub raw_weights: Vec<f64>,
+}
+
 impl HclResult {
     pub fn to_json_pretty(&self) -> Result<String> {
         serde_json::to_string_pretty(self)

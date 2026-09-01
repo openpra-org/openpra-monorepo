@@ -1,12 +1,19 @@
 use std::collections::{HashMap, HashSet};
 
 use praxis::analysis::event_tree_quantification::{
-    quantify_event_tree_sequences, EventTreeHclContext,
+    quantify_event_tree_hazard_grid_batch, quantify_event_tree_sequences,
+    quantify_event_tree_sequences_batch, EventTreeHazardGridQuantification, EventTreeHclContext,
+    EventTreeSequenceProbability,
 };
 use praxis::core::event_tree::{
     Branch, BranchTarget, EventTree, Fork, FunctionalEvent, Path, Sequence,
 };
 use praxis::core::model::Model;
+use praxis::hcl::HclEvidenceSpec;
+use praxis::quantitative::{
+    annualize_frequency, prepare_hazard_weights, AnnualizationConvention, FrequencyUnit,
+    HazardWeightSummary,
+};
 use praxis::{PraxisError, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -26,6 +33,41 @@ struct EventTreeExecuteRequest {
     revision: u64,
     mode: EventTreeExecutionMode,
     requested_by: String,
+    evidence_batch: Option<Vec<EventTreeEvidenceRow>>,
+    hazard_convolution: Option<HazardConvolutionRequest>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct EventTreeEvidenceRow {
+    scenario_id: String,
+    observations: Vec<EventTreeEvidenceObservation>,
+    #[serde(default)]
+    hazard_observations: Vec<EventTreeEvidenceObservation>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct HazardConvolutionRequest {
+    grid_name: String,
+    hazard_node_ids: Vec<String>,
+    annual_frequency_scale: AnnualFrequencyScale,
+    normalize_weights: bool,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AnnualFrequencyScale {
+    value: f64,
+    unit: FrequencyUnit,
+    annualization: AnnualizationConvention,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct EventTreeEvidenceObservation {
+    node_id: String,
+    state_id: String,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -55,9 +97,13 @@ struct InitiatingEventReference {
     target: EntityReference,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct InitiatingEventFrequency {
     value: f64,
+    #[serde(default)]
+    unit: FrequencyUnit,
+    annualization: Option<AnnualizationConvention>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -148,11 +194,15 @@ struct EventTreeAdapter {
     model_revision: u64,
     mode: EventTreeExecutionMode,
     initiating_event_frequency: f64,
+    initiating_event_frequency_input: InitiatingEventFrequency,
+    annualization: AnnualizationConvention,
     event_tree: EventTree,
     model: Model,
     snapshot: EventTreeSnapshot,
     event_tree_snapshots: HashMap<String, EventTreeSnapshot>,
     hcl_context: Option<EventTreeHclContext>,
+    evidence_batch: Option<Vec<EventTreeEvidenceRow>>,
+    hazard_convolution: Option<HazardConvolutionRequest>,
 }
 
 fn serialization_error(context: &str, error: impl std::fmt::Display) -> PraxisError {
@@ -223,13 +273,15 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
             snapshot.revision, execute.revision
         )));
     }
-    if !snapshot.initiating_event_frequency.value.is_finite()
-        || snapshot.initiating_event_frequency.value < 0.0
-    {
-        return Err(PraxisError::Logic(
-            "event-tree initiating-event frequency must be finite and non-negative".to_string(),
-        ));
-    }
+    let annualization = snapshot
+        .initiating_event_frequency
+        .annualization
+        .unwrap_or_default();
+    let annualized_initiating_event_frequency = annualize_frequency(
+        snapshot.initiating_event_frequency.value,
+        snapshot.initiating_event_frequency.unit,
+        annualization,
+    )?;
     if snapshot.initiating_event.target.model_id.trim().is_empty()
         || snapshot.initiating_event.target.entity_id.trim().is_empty()
     {
@@ -346,12 +398,16 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
         model_id: snapshot.id.clone(),
         model_revision: snapshot.revision,
         mode: execute.mode,
-        initiating_event_frequency: snapshot.initiating_event_frequency.value,
+        initiating_event_frequency: annualized_initiating_event_frequency,
+        initiating_event_frequency_input: snapshot.initiating_event_frequency.clone(),
+        annualization,
         event_tree,
         model,
         snapshot,
         event_tree_snapshots,
         hcl_context,
+        evidence_batch: execute.evidence_batch,
+        hazard_convolution: execute.hazard_convolution,
     })
 }
 
@@ -421,27 +477,127 @@ fn build_branch(
 
 pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
     let adapter = build_adapter(request)?;
-    let probabilities = quantify_event_tree_sequences(
-        &adapter.model,
-        &adapter.event_tree,
-        adapter.hcl_context.as_ref(),
-    )?;
+    let (sequence_count, scenario_count) = match &adapter.evidence_batch {
+        Some(rows) => {
+            validate_evidence_rows(rows)?;
+            let evidence = batch_evidence_specs(rows);
+            let sequence_count = if let Some(hazard) = &adapter.hazard_convolution {
+                validate_hazard_grid(rows, hazard)?;
+                let assignments = hazard_evidence_specs(rows);
+                let context = adapter.hcl_context.as_ref().ok_or_else(|| {
+                    PraxisError::Hcl("event-tree hazard convolution requires HCL mode".to_string())
+                })?;
+                quantify_event_tree_hazard_grid_batch(
+                    &adapter.model,
+                    &adapter.event_tree,
+                    context,
+                    &evidence,
+                    &assignments,
+                )?
+                .quantification
+                .scenarios[0]
+                    .len()
+            } else {
+                quantify_event_tree_sequences_batch(
+                    &adapter.model,
+                    &adapter.event_tree,
+                    adapter.hcl_context.as_ref(),
+                    &evidence,
+                )?
+                .scenarios[0]
+                    .len()
+            };
+            (sequence_count, rows.len())
+        }
+        None => (
+            quantify_event_tree_sequences(
+                &adapter.model,
+                &adapter.event_tree,
+                adapter.hcl_context.as_ref(),
+            )?
+            .len(),
+            1,
+        ),
+    };
     Ok(json!({
         "scope": EVENT_TREE_METHOD,
         "valid": true,
         "modelId": adapter.model_id,
         "modelRevision": adapter.model_revision,
-        "sequenceCount": probabilities.len()
+        "sequenceCount": sequence_count,
+        "scenarioCount": scenario_count
     }))
 }
 
 pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
     let adapter = build_adapter(request)?;
+    if let Some(rows) = &adapter.evidence_batch {
+        validate_evidence_rows(rows)?;
+        let evidence = batch_evidence_specs(rows);
+        let (batch, hazard_convolution) = if let Some(hazard) = &adapter.hazard_convolution {
+            validate_hazard_grid(rows, hazard)?;
+            let assignments = hazard_evidence_specs(rows);
+            let context = adapter.hcl_context.as_ref().ok_or_else(|| {
+                PraxisError::Hcl("event-tree hazard convolution requires HCL mode".to_string())
+            })?;
+            let weighted = quantify_event_tree_hazard_grid_batch(
+                &adapter.model,
+                &adapter.event_tree,
+                context,
+                &evidence,
+                &assignments,
+            )?;
+            let integration =
+                event_tree_hazard_convolution_json(rows, hazard, &weighted, &adapter)?;
+            (weighted.quantification, Some(integration))
+        } else {
+            (
+                quantify_event_tree_sequences_batch(
+                    &adapter.model,
+                    &adapter.event_tree,
+                    adapter.hcl_context.as_ref(),
+                    &evidence,
+                )?,
+                None,
+            )
+        };
+        let batch_results = rows
+            .iter()
+            .zip(batch.scenarios.iter())
+            .map(|(row, probabilities)| {
+                event_tree_result_json(&adapter, probabilities, Some(&row.scenario_id))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let mut response = json!({
+            "methodType": EVENT_TREE_METHOD,
+            "modelId": adapter.model_id,
+            "modelRevision": adapter.model_revision,
+            "mode": adapter.mode,
+            "batchResults": batch_results,
+            "compilationReuse": {
+                "sequenceBddCompilations": batch.compilation.sequence_bdd_compilations,
+                "junctionTreeCompilations": batch.compilation.junction_tree_compilations,
+                "scenarioEvaluations": batch.compilation.scenario_evaluations
+            }
+        });
+        if let Some(hazard_convolution) = hazard_convolution {
+            response["hazardConvolution"] = hazard_convolution;
+        }
+        return Ok(response);
+    }
     let probabilities = quantify_event_tree_sequences(
         &adapter.model,
         &adapter.event_tree,
         adapter.hcl_context.as_ref(),
     )?;
+    event_tree_result_json(&adapter, &probabilities, None)
+}
+
+fn event_tree_result_json(
+    adapter: &EventTreeAdapter,
+    probabilities: &[EventTreeSequenceProbability],
+    scenario_id: Option<&str>,
+) -> Result<Value> {
     let probability_by_sequence: HashMap<&str, f64> = probabilities
         .iter()
         .map(|result| (result.sequence_id.as_str(), result.conditional_probability))
@@ -500,15 +656,231 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
             .cmp(&right["endStateId"].as_str())
     });
 
-    Ok(json!({
+    let mut value = json!({
         "methodType": EVENT_TREE_METHOD,
         "modelId": adapter.model_id,
         "modelRevision": adapter.model_revision,
         "mode": adapter.mode,
         "sequences": sequences,
         "endStateAggregates": end_state_aggregates,
+        "frequencySemantics": {
+            "initiatingEventFrequency": {
+                "value": adapter.initiating_event_frequency_input.value,
+                "unit": adapter.initiating_event_frequency_input.unit
+            },
+            "annualization": adapter.annualization,
+            "annualizedInitiatingEventFrequency": {
+                "value": adapter.initiating_event_frequency,
+                "unit": "PER_YEAR"
+            }
+        },
         "validationIssues": []
-    }))
+    });
+    if let Some(scenario_id) = scenario_id {
+        value["scenarioId"] = json!(scenario_id);
+    }
+    Ok(value)
+}
+
+fn validate_evidence_rows(rows: &[EventTreeEvidenceRow]) -> Result<()> {
+    if rows.is_empty() {
+        return Err(PraxisError::Hcl(
+            "event-tree HCL evidence batch requires at least one scenario".to_string(),
+        ));
+    }
+    let mut scenario_ids = HashSet::with_capacity(rows.len());
+    if let Some(row) = rows.iter().find(|row| {
+        row.scenario_id.trim().is_empty() || !scenario_ids.insert(row.scenario_id.as_str())
+    }) {
+        return Err(PraxisError::Hcl(format!(
+            "event-tree HCL evidence batch contains an empty or duplicate scenario id '{}'",
+            row.scenario_id
+        )));
+    }
+    Ok(())
+}
+
+fn batch_evidence_specs(rows: &[EventTreeEvidenceRow]) -> Vec<Vec<HclEvidenceSpec>> {
+    rows.iter()
+        .map(|row| {
+            row.observations
+                .iter()
+                .map(|observation| HclEvidenceSpec {
+                    node: observation.node_id.clone(),
+                    state: observation.state_id.clone(),
+                })
+                .collect()
+        })
+        .collect()
+}
+
+fn hazard_evidence_specs(rows: &[EventTreeEvidenceRow]) -> Vec<Vec<HclEvidenceSpec>> {
+    rows.iter()
+        .map(|row| {
+            row.hazard_observations
+                .iter()
+                .map(|observation| HclEvidenceSpec {
+                    node: observation.node_id.clone(),
+                    state: observation.state_id.clone(),
+                })
+                .collect()
+        })
+        .collect()
+}
+
+fn validate_hazard_grid(
+    rows: &[EventTreeEvidenceRow],
+    hazard: &HazardConvolutionRequest,
+) -> Result<()> {
+    if hazard.grid_name.trim().is_empty() {
+        return Err(PraxisError::Hcl(
+            "hazard grid requires a non-empty name".to_string(),
+        ));
+    }
+    let expected: HashSet<&str> = hazard.hazard_node_ids.iter().map(String::as_str).collect();
+    if expected.is_empty() || expected.len() != hazard.hazard_node_ids.len() {
+        return Err(PraxisError::Hcl(
+            "hazard grid requires unique hazard node ids".to_string(),
+        ));
+    }
+    let mut cell_keys = HashSet::with_capacity(rows.len());
+    for row in rows {
+        let actual: HashSet<&str> = row
+            .hazard_observations
+            .iter()
+            .map(|observation| observation.node_id.as_str())
+            .collect();
+        if actual.len() != row.hazard_observations.len() || actual != expected {
+            return Err(PraxisError::Hcl(format!(
+                "hazard scenario '{}' must observe every configured hazard node exactly once",
+                row.scenario_id
+            )));
+        }
+        let mut assignments: Vec<_> = row
+            .hazard_observations
+            .iter()
+            .map(|observation| format!("{}={}", observation.node_id, observation.state_id))
+            .collect();
+        assignments.sort();
+        if !cell_keys.insert(assignments.join("|")) {
+            return Err(PraxisError::Hcl(format!(
+                "hazard scenario '{}' duplicates an existing grid cell",
+                row.scenario_id
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn event_tree_hazard_convolution_json(
+    rows: &[EventTreeEvidenceRow],
+    hazard: &HazardConvolutionRequest,
+    batch: &EventTreeHazardGridQuantification,
+    adapter: &EventTreeAdapter,
+) -> Result<Value> {
+    let scale = hazard.annual_frequency_scale;
+    let weights = prepare_hazard_weights(
+        &batch.raw_weights,
+        scale.value,
+        scale.unit,
+        scale.annualization,
+        hazard.normalize_weights,
+    )?;
+    let mut sequence_totals: HashMap<String, f64> = HashMap::new();
+    let mut end_state_totals: HashMap<String, f64> = HashMap::new();
+    let result_rows = rows
+        .iter()
+        .zip(batch.quantification.scenarios.iter())
+        .zip(weights.weights.iter())
+        .map(|((row, probabilities), weight)| {
+            let sequences = probabilities
+                .iter()
+                .map(|probability| {
+                    let contribution =
+                        weight.annual_frequency * probability.conditional_probability;
+                    *sequence_totals
+                        .entry(probability.sequence_id.clone())
+                        .or_default() += contribution;
+                    let end_state_id = resolve_end_state(
+                        &adapter.model_id,
+                        &probability.sequence_id,
+                        &adapter.event_tree_snapshots,
+                        &mut HashSet::new(),
+                    )?;
+                    *end_state_totals.entry(end_state_id).or_default() += contribution;
+                    Ok(json!({
+                        "sequenceId": probability.sequence_id,
+                        "conditionalProbability": probability.conditional_probability,
+                        "annualContribution": contribution
+                    }))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            Ok(json!({
+                "scenarioId": row.scenario_id,
+                "rawWeight": weight.raw_weight,
+                "normalizedWeight": weight.normalized_weight,
+                "convolutionWeight": weight.convolution_weight,
+                "annualFrequency": weight.annual_frequency,
+                "sequences": sequences
+            }))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let mut sequences: Vec<Value> = sequence_totals
+        .into_iter()
+        .map(|(sequence_id, integrated_annual_frequency)| {
+            json!({
+                "sequenceId": sequence_id,
+                "integratedAnnualFrequency": integrated_annual_frequency
+            })
+        })
+        .collect();
+    sequences.sort_by(|left, right| {
+        left["sequenceId"]
+            .as_str()
+            .cmp(&right["sequenceId"].as_str())
+    });
+    let mut end_state_aggregates: Vec<Value> = end_state_totals
+        .into_iter()
+        .map(|(end_state_id, integrated_annual_frequency)| {
+            json!({
+                "endStateId": end_state_id,
+                "integratedAnnualFrequency": integrated_annual_frequency
+            })
+        })
+        .collect();
+    end_state_aggregates.sort_by(|left, right| {
+        left["endStateId"]
+            .as_str()
+            .cmp(&right["endStateId"].as_str())
+    });
+    Ok(hazard_common_json(
+        hazard,
+        &weights,
+        json!({
+            "targetKind": "EVENT_TREE",
+            "rows": result_rows,
+            "sequences": sequences,
+            "endStateAggregates": end_state_aggregates
+        }),
+    ))
+}
+
+fn hazard_common_json(
+    hazard: &HazardConvolutionRequest,
+    weights: &HazardWeightSummary,
+    mut value: Value,
+) -> Value {
+    value["gridName"] = json!(hazard.grid_name);
+    value["annualFrequencyScale"] = json!({
+        "value": hazard.annual_frequency_scale.value,
+        "unit": hazard.annual_frequency_scale.unit,
+        "annualization": hazard.annual_frequency_scale.annualization
+    });
+    value["annualizedFrequencyScale"] = json!(weights.annualized_frequency_scale);
+    value["normalizeWeights"] = json!(hazard.normalize_weights);
+    value["rawWeightSum"] = json!(weights.raw_weight_sum);
+    value["convolutionWeightSum"] = json!(weights.convolution_weight_sum);
+    value
 }
 
 fn resolve_end_state(
@@ -675,6 +1047,62 @@ mod tests {
         let result = execute(&request).unwrap();
         assert_eq!(result["sequences"][0]["conditionalProbability"], 1.0);
         assert_eq!(result["sequences"][0]["annualFrequency"], 0.01);
+    }
+
+    #[test]
+    fn annualizes_typed_initiating_frequency_before_sequence_aggregation() {
+        let request = SolverRequest::from_json(
+            &json!({
+                "schemaVersion": "1.0.0",
+                "request": {
+                    "schemaVersion": "1.0.0",
+                    "methodType": "EVENT_TREE",
+                    "modelId": "ET-ANNUAL",
+                    "revision": 1,
+                    "mode": "INDEPENDENT",
+                    "requestedBy": "analyst"
+                },
+                "modelSnapshots": [{
+                    "id": "ET-ANNUAL",
+                    "methodType": "EVENT_TREE",
+                    "revision": 1,
+                    "initiatingEvent": { "target": { "modelId": "IE", "entityId": "IE-1" } },
+                    "initiatingEventFrequency": {
+                        "value": 2.0e-5,
+                        "unit": "PER_HOUR",
+                        "annualization": { "basis": "CRITICAL_YEAR", "hoursPerYear": 7000.0 }
+                    },
+                    "functionalEvents": [{ "id": "FE-A", "name": "A", "order": 0 }],
+                    "functionalEventFaultTreeLinks": [],
+                    "endStates": [{ "id": "SAFE" }],
+                    "sequences": [{
+                        "id": "B",
+                        "path": [{ "functionalEventId": "FE-A", "outcome": "BYPASSED" }],
+                        "result": { "kind": "END_STATE", "endStateId": "SAFE" }
+                    }]
+                }],
+                "resources": {
+                    "faultTreeBasicEventCatalogue": { "projectId": "P", "basicEvents": [] }
+                }
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        let result = execute(&request).unwrap();
+        assert!((result["sequences"][0]["annualFrequency"].as_f64().unwrap() - 0.14).abs() < 1e-15);
+        assert_eq!(
+            result["frequencySemantics"]["initiatingEventFrequency"]["unit"],
+            "PER_HOUR"
+        );
+        assert_eq!(
+            result["frequencySemantics"]["annualization"]["basis"],
+            "CRITICAL_YEAR"
+        );
+        assert_eq!(
+            result["frequencySemantics"]["annualizedInitiatingEventFrequency"]["unit"],
+            "PER_YEAR"
+        );
     }
 
     #[test]

@@ -3,6 +3,8 @@ import type {
   BayesianNetworkNodeReference,
   FaultTreeBasicEventCatalogueReference,
   HclSolverSettings,
+  HclEvidenceScenario,
+  HclHazardGridDefinition,
   WorkbookEntityId,
   WorkbookModelAddress,
   WorkbookModelId,
@@ -32,6 +34,8 @@ interface EsqHclConfiguration extends EsqWorkbookModelIdentity {
   faultTrees: WorkbookModelAddress[];
   bindings: EsqHclEventBinding[];
   baseEvidence: BayesianNetworkEvidenceConfiguration;
+  evidenceScenarios?: HclEvidenceScenario[];
+  hazardGrid?: HclHazardGridDefinition;
   solverSettings: HclSolverSettings;
 }
 

@@ -2,6 +2,7 @@ import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookS
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useState } from "react";
 import type { SystemBasicEvent, SystemLogicModel } from "interfaces-mef-types/sy/systems-analysis";
+import { failureRateToProbability } from "interfaces-mef-types/modeling";
 import {
   applyFaultTreeBasicEventToSystemBasicEvent,
   systemBasicEventToFaultTreeBasicEvent,
@@ -227,7 +228,7 @@ function toFaultTreeEditorCatalogue(
   const controlledParameterValues = new Map(
     controlledParameters.map((parameter) => [
       JSON.stringify([parameter.workbookId, parameter.parameterId]),
-      parameter.value,
+      parameter,
     ]),
   );
   const controlledHumanFailureValues = new Map(
@@ -244,19 +245,30 @@ function toFaultTreeEditorCatalogue(
     basicEvents: events.map((event) => {
       const projected = systemBasicEventToFaultTreeBasicEvent(event);
       if (event.controlledDataSource === undefined) return projected;
-      const controlledValue = event.controlledDataSource.referenceType === "WORKBOOK_PARAMETER"
+      const controlledParameter = event.controlledDataSource.referenceType === "WORKBOOK_PARAMETER"
         ? controlledParameterValues.get(JSON.stringify([
             event.controlledDataSource.workbookId,
             event.controlledDataSource.entityId,
           ]))
-        : controlledHumanFailureValues.get(JSON.stringify([
+        : undefined;
+      const controlledHumanFailureValue = event.controlledDataSource.referenceType === "HUMAN_FAILURE_EVENT"
+        ? controlledHumanFailureValues.get(JSON.stringify([
             event.controlledDataSource.workbookId,
             event.controlledDataSource.entityId,
             event.controlledDataSource.quantificationId,
-          ]));
-      return controlledValue === undefined
+          ]))
+        : undefined;
+      const basis = projected.probability.quantificationBasis;
+      if (controlledParameter !== undefined && basis?.kind === "FAILURE_RATE" && controlledParameter.parameterType === "FREQUENCY") {
+        const resolvedBasis = { ...basis, failureRate: { ...basis.failureRate, value: controlledParameter.value } };
+        return { ...projected, probability: { ...projected.probability, value: failureRateToProbability(resolvedBasis), quantificationBasis: resolvedBasis } };
+      }
+      if (controlledParameter !== undefined && basis?.kind !== "FAILURE_RATE" && controlledParameter.parameterType !== "FREQUENCY") {
+        return { ...projected, probability: { ...projected.probability, value: controlledParameter.value } };
+      }
+      return controlledHumanFailureValue === undefined || basis?.kind === "FAILURE_RATE"
         ? projected
-        : { ...projected, probability: { ...projected.probability, value: controlledValue } };
+        : { ...projected, probability: { ...projected.probability, value: controlledHumanFailureValue } };
     }),
     presentations: events.map((event) => {
       const failureMode = event.failureMode ?? "";
@@ -282,6 +294,9 @@ function newSystemBasicEvent(event: FaultTreeEditorCatalogue["basicEvents"][numb
       ? { failureMode: "HUMAN_ERROR" }
       : {}),
     ...(Number.isFinite(event.probability.value) ? { probability: event.probability.value } : {}),
+    ...(event.probability.quantificationBasis === undefined
+      ? {}
+      : { quantificationBasis: structuredClone(event.probability.quantificationBasis) }),
     ...(event.probability.controlledDataSource === undefined
       ? {}
       : { controlledDataSource: { ...event.probability.controlledDataSource } }),

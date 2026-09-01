@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   FaultTreeTopEventReferenceSchema,
+  WorkbookEntityIdSchema,
   WorkbookMethodSchemaVersionSchema,
   WorkbookModelAddressSchema,
   WorkbookModelIdSchema,
@@ -9,6 +10,7 @@ import {
 } from "../shared";
 import type {
   FaultTreeTopEventReference,
+  WorkbookEntityId,
   WorkbookMethodSchemaVersion,
   WorkbookModelAddress,
   WorkbookModelId,
@@ -17,14 +19,18 @@ import type {
 } from "../shared";
 import type {
   HclBaseEvidence,
+  HclEvidenceScenario,
   HclFaultTreeReference,
+  HclHazardGridDefinition,
   HclSolverSettings,
 } from "./hcl-configuration";
 import type { HclEventBinding } from "./hcl-bindings";
 import {
   HclBaseEvidenceSchema,
+  HclEvidenceScenarioSchema,
   HclEventBindingSchema,
   HclFaultTreeReferenceSchema,
+  HclHazardGridDefinitionSchema,
   HclSolverSettingsSchema,
 } from "./hcl-schemas";
 
@@ -45,6 +51,8 @@ interface HclPatchChanges {
   faultTrees?: HclFaultTreeReference[];
   bindings?: HclEventBinding[];
   baseEvidence?: HclBaseEvidence;
+  evidenceScenarios?: HclEvidenceScenario[];
+  hazardGrid?: HclHazardGridDefinition;
   solverSettings?: HclSolverSettings;
 }
 
@@ -67,6 +75,7 @@ interface HclExecuteRequest {
   modelId: WorkbookModelId;
   workbookRevision: WorkbookRevision;
   faultTreeTopGate: FaultTreeTopEventReference;
+  evidenceScenarioId?: WorkbookEntityId;
 }
 
 interface HclEventTreeExecuteRequest {
@@ -74,6 +83,25 @@ interface HclEventTreeExecuteRequest {
   modelId: WorkbookModelId;
   workbookRevision: WorkbookRevision;
   eventTree: WorkbookModelAddress;
+  evidenceScenarioId?: WorkbookEntityId;
+}
+
+interface HclFaultTreeBatchExecuteRequest {
+  schemaVersion: WorkbookMethodSchemaVersion;
+  modelId: WorkbookModelId;
+  workbookRevision: WorkbookRevision;
+  faultTreeTopGate: FaultTreeTopEventReference;
+  evidenceScenarioIds: WorkbookEntityId[];
+  integrateHazardGrid?: boolean;
+}
+
+interface HclEventTreeBatchExecuteRequest {
+  schemaVersion: WorkbookMethodSchemaVersion;
+  modelId: WorkbookModelId;
+  workbookRevision: WorkbookRevision;
+  eventTree: WorkbookModelAddress;
+  evidenceScenarioIds: WorkbookEntityId[];
+  integrateHazardGrid?: boolean;
 }
 
 const HclCreateRequestSchema = z
@@ -96,6 +124,8 @@ const HclPatchChangesSchema = z
     faultTrees: z.array(HclFaultTreeReferenceSchema).optional(),
     bindings: z.array(HclEventBindingSchema).optional(),
     baseEvidence: HclBaseEvidenceSchema.optional(),
+    evidenceScenarios: z.array(HclEvidenceScenarioSchema).optional(),
+    hazardGrid: HclHazardGridDefinitionSchema.optional(),
     solverSettings: HclSolverSettingsSchema.optional(),
   })
   .strict()
@@ -125,6 +155,7 @@ const HclExecuteRequestSchema = z
     modelId: WorkbookModelIdSchema,
     workbookRevision: WorkbookRevisionSchema,
     faultTreeTopGate: FaultTreeTopEventReferenceSchema,
+    evidenceScenarioId: WorkbookEntityIdSchema.optional(),
   })
   .strict();
 
@@ -134,6 +165,38 @@ const HclEventTreeExecuteRequestSchema = z
     modelId: WorkbookModelIdSchema,
     workbookRevision: WorkbookRevisionSchema,
     eventTree: WorkbookModelAddressSchema,
+    evidenceScenarioId: WorkbookEntityIdSchema.optional(),
+  })
+  .strict();
+
+const EvidenceScenarioIdsSchema = z
+  .array(WorkbookEntityIdSchema)
+  .min(1, "At least one evidence scenario is required")
+  .superRefine((scenarioIds, context) => {
+    if (new Set(scenarioIds).size !== scenarioIds.length) {
+      context.addIssue({ code: "custom", message: "Evidence-scenario ids must be unique" });
+    }
+  });
+
+const HclFaultTreeBatchExecuteRequestSchema = z
+  .object({
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    modelId: WorkbookModelIdSchema,
+    workbookRevision: WorkbookRevisionSchema,
+    faultTreeTopGate: FaultTreeTopEventReferenceSchema,
+    evidenceScenarioIds: EvidenceScenarioIdsSchema,
+    integrateHazardGrid: z.boolean().optional(),
+  })
+  .strict();
+
+const HclEventTreeBatchExecuteRequestSchema = z
+  .object({
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    modelId: WorkbookModelIdSchema,
+    workbookRevision: WorkbookRevisionSchema,
+    eventTree: WorkbookModelAddressSchema,
+    evidenceScenarioIds: EvidenceScenarioIdsSchema,
+    integrateHazardGrid: z.boolean().optional(),
   })
   .strict();
 
@@ -147,6 +210,12 @@ type _AssertHclExecuteRequest = Expect<Equal<z.infer<typeof HclExecuteRequestSch
 type _AssertHclEventTreeExecuteRequest = Expect<
   Equal<z.infer<typeof HclEventTreeExecuteRequestSchema>, HclEventTreeExecuteRequest>
 >;
+type _AssertHclFaultTreeBatchExecuteRequest = Expect<
+  Equal<z.infer<typeof HclFaultTreeBatchExecuteRequestSchema>, HclFaultTreeBatchExecuteRequest>
+>;
+type _AssertHclEventTreeBatchExecuteRequest = Expect<
+  Equal<z.infer<typeof HclEventTreeBatchExecuteRequestSchema>, HclEventTreeBatchExecuteRequest>
+>;
 
 export {
   HclCreateRequestSchema,
@@ -155,6 +224,8 @@ export {
   HclValidateRequestSchema,
   HclExecuteRequestSchema,
   HclEventTreeExecuteRequestSchema,
+  HclFaultTreeBatchExecuteRequestSchema,
+  HclEventTreeBatchExecuteRequestSchema,
 };
 export type {
   HclCreateRequest,
@@ -163,4 +234,6 @@ export type {
   HclValidateRequest,
   HclExecuteRequest,
   HclEventTreeExecuteRequest,
+  HclFaultTreeBatchExecuteRequest,
+  HclEventTreeBatchExecuteRequest,
 };

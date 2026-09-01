@@ -1,11 +1,17 @@
 import { type JSX, useEffect, useMemo, useState } from "react";
 import type { EsqHclConfiguration } from "interfaces-mef-types/esq/workbook-models";
+import {
+  hclTargetKey,
+  resolveHclBatchTargetRelevance,
+} from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import { useEditorConfirmation } from "../shared";
 import type {
   HclBindingEditorProps,
+  HclEditorBatchRunResult,
   HclEventTreeOption,
   HclFaultTreeOption,
 } from "./hclBindingTypes";
+import { HclEvidenceScenarioEditor } from "./hclEvidenceScenarioEditor";
 import "./css/hclBindingEditor.css";
 
 function uniqueCode(prefix: string, codes: readonly string[]): string {
@@ -13,6 +19,28 @@ function uniqueCode(prefix: string, codes: readonly string[]): string {
   let suffix = normalized.size + 1;
   while (normalized.has(`${prefix}-${String(suffix)}`)) suffix += 1;
   return `${prefix}-${String(suffix)}`;
+}
+
+function batchHasNoNumericVariation(batch: HclEditorBatchRunResult): boolean {
+  const vectors = batch.scenarios.flatMap((scenario) => {
+    if (scenario.status !== "SUCCEEDED" || scenario.result === null) return [];
+    if (scenario.result.kind === "FAULT_TREE") {
+      return [[scenario.result.result.probability]];
+    }
+    return [[...scenario.result.result.sequences]
+      .sort((left, right) => left.sequenceId.localeCompare(right.sequenceId))
+      .flatMap((sequence) => [sequence.conditionalProbability, sequence.annualFrequency])];
+  });
+  if (vectors.length < 2) return false;
+  const first = vectors[0]!;
+  return vectors.slice(1).every((vector) =>
+    vector.length === first.length
+    && vector.every((value, index) => {
+      const baseline = first[index]!;
+      return Math.abs(value - baseline)
+        <= Math.max(1, Math.abs(baseline), Math.abs(value)) * 1e-12;
+    }),
+  );
 }
 
 function HclIcon({ name }: { name: "configuration" | "run" | "trash" }): JSX.Element {
@@ -44,9 +72,12 @@ function HclBindingEditor({
   running,
   runError,
   runResult,
+  batchRunResult,
   onChange,
   onRunFaultTree,
   onRunEventTree,
+  onRunFaultTreeBatch,
+  onRunEventTreeBatch,
 }: HclBindingEditorProps): JSX.Element {
   const configuration = configurations.find(
     (candidate) =>
@@ -58,25 +89,80 @@ function HclBindingEditor({
   const [nodeId, setNodeId] = useState(model.nodes[0]?.id ?? "");
   const [trueStateIds, setTrueStateIds] = useState<string[]>([]);
   const [targetKind, setTargetKind] = useState<"FAULT_TREE" | "EVENT_TREE">("FAULT_TREE");
+  const [evidenceMode, setEvidenceMode] = useState<"BASE" | "SCENARIOS" | "HAZARD_GRID">("BASE");
   const [runFaultTreeKey, setRunFaultTreeKey] = useState("");
   const [eventTreeKey, setEventTreeKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
-  const [manageTab, setManageTab] = useState<"TREES" | "BINDINGS" | "ADVANCED">("BINDINGS");
+  const [manageTab, setManageTab] = useState<"TREES" | "BINDINGS" | "SCENARIOS" | "ADVANCED">("BINDINGS");
   const [sequenceResultsOpen, setSequenceResultsOpen] = useState(false);
   const { requestConfirmation, confirmationDialog } = useEditorConfirmation();
   const selectedTree = faultTreeOptions.find(
     (option) => `${option.workbookId}:${option.modelId}` === faultTreeKey,
   );
-  const selectedEventTree = eventTreeOptions.find(
-    (option) => `${option.workbookId}:${option.modelId}` === eventTreeKey,
-  );
   const selectedNode = model.nodes.find((node) => node.id === nodeId);
-  const executableFaultTrees = useMemo(() => {
+  const declaredFaultTrees = useMemo(() => {
     if (configuration === undefined) return [];
     const declared = new Set(configuration.faultTrees.map((reference) => `${reference.workbookId}:${reference.modelId}`));
-    return faultTreeOptions.filter((option) => declared.has(`${option.workbookId}:${option.modelId}`) && option.topGateId !== null);
+    return faultTreeOptions.filter((option) => declared.has(`${option.workbookId}:${option.modelId}`));
   }, [configuration, faultTreeOptions]);
+  const executableFaultTrees = useMemo(
+    () => declaredFaultTrees.filter((option) => option.topGateId !== null),
+    [declaredFaultTrees],
+  );
+  const executableEventTrees = useMemo(() => {
+    if (configuration === undefined) return [];
+    const declared = new Set(configuration.faultTrees.map((reference) => hclTargetKey(reference)));
+    return eventTreeOptions.filter((option) =>
+      option.faultTrees.every((reference) => declared.has(hclTargetKey(reference))),
+    );
+  }, [configuration, eventTreeOptions]);
+  const enabledScenarios = useMemo(
+    () => (configuration?.evidenceScenarios ?? []).filter((scenario) => scenario.enabled),
+    [configuration?.evidenceScenarios],
+  );
+  const batchRelevance = useMemo(() => configuration === undefined
+    ? null
+    : resolveHclBatchTargetRelevance({
+        bayesianNetwork: model,
+        baseEvidence: configuration.baseEvidence,
+        scenarios: enabledScenarios,
+        bindings: configuration.bindings,
+        faultTrees: declaredFaultTrees.map((option) => ({
+          workbookId: option.workbookId,
+          modelId: option.modelId,
+          topGateId: option.topGateId,
+          gates: option.gates,
+          leafNodes: option.leafNodes,
+          gateInputs: option.gateInputs,
+          constantBasicEventStates: option.constantBasicEventStates,
+        })),
+        eventTrees: executableEventTrees.map((option) => ({
+          workbookId: option.workbookId,
+          modelId: option.modelId,
+          faultTrees: option.faultTrees,
+          transferTargets: option.transferTargets,
+        })),
+      }), [configuration, declaredFaultTrees, enabledScenarios, executableEventTrees, model]);
+  const batchFaultTreeKeys = useMemo(
+    () => new Set(batchRelevance?.faultTreeKeys ?? []),
+    [batchRelevance?.faultTreeKeys],
+  );
+  const batchEventTreeKeys = useMemo(
+    () => new Set(batchRelevance?.eventTreeKeys ?? []),
+    [batchRelevance?.eventTreeKeys],
+  );
+  const runFaultTreeOptions = evidenceMode !== "BASE"
+    ? executableFaultTrees.filter((option) => batchFaultTreeKeys.has(hclTargetKey(option)))
+    : executableFaultTrees;
+  const runEventTreeOptions = evidenceMode !== "BASE"
+    ? executableEventTrees.filter((option) => batchEventTreeKeys.has(hclTargetKey(option)))
+    : executableEventTrees;
+  const batchNumericallyUnchanged = batchRunResult !== null
+    && batchHasNoNumericVariation(batchRunResult);
+  const selectedEventTree = runEventTreeOptions.find(
+    (option) => `${option.workbookId}:${option.modelId}` === eventTreeKey,
+  );
 
   useEffect(() => {
     if (faultTreeOptions.some((option) => `${option.workbookId}:${option.modelId}` === faultTreeKey)) return;
@@ -93,16 +179,15 @@ function HclBindingEditor({
     setTrueStateIds([]);
   }, [model.nodes, nodeId]);
   useEffect(() => {
-    const selected = `${selectedEventTree?.workbookId ?? ""}:${selectedEventTree?.modelId ?? ""}`;
-    if (selectedEventTree !== undefined && selected === eventTreeKey) return;
-    const first = eventTreeOptions[0];
+    if (runEventTreeOptions.some((option) => hclTargetKey(option) === eventTreeKey)) return;
+    const first = runEventTreeOptions[0];
     setEventTreeKey(first === undefined ? "" : `${first.workbookId}:${first.modelId}`);
-  }, [eventTreeKey, eventTreeOptions, selectedEventTree]);
+  }, [eventTreeKey, runEventTreeOptions]);
   useEffect(() => {
-    if (executableFaultTrees.some((option) => `${option.workbookId}:${option.modelId}` === runFaultTreeKey)) return;
-    const first = executableFaultTrees[0];
+    if (runFaultTreeOptions.some((option) => hclTargetKey(option) === runFaultTreeKey)) return;
+    const first = runFaultTreeOptions[0];
     setRunFaultTreeKey(first === undefined ? "" : `${first.workbookId}:${first.modelId}`);
-  }, [executableFaultTrees, runFaultTreeKey]);
+  }, [runFaultTreeKey, runFaultTreeOptions]);
 
   function createConfiguration(): void {
     if (workbookId === null) {
@@ -118,6 +203,7 @@ function HclBindingEditor({
       faultTrees: [],
       bindings: [],
       baseEvidence,
+      evidenceScenarios: [],
       solverSettings: { variableOrder: null, foldConstants: true, spliceNullGates: true },
     };
     onChange([...configurations, created]);
@@ -218,29 +304,36 @@ function HclBindingEditor({
 
   function run(): void {
     if (configuration === undefined) return;
+    const scenarioIds = enabledScenarios.map((scenario) => scenario.id);
+    const batchMode = evidenceMode !== "BASE";
+    if (batchMode && scenarioIds.length === 0) {
+      setError("Enable at least one evidence scenario before running the batch.");
+      return;
+    }
+    if (evidenceMode === "HAZARD_GRID" && configuration.hazardGrid === undefined) {
+      setError("Configure a hazard grid before running the convolution.");
+      return;
+    }
     if (targetKind === "FAULT_TREE") {
-      const tree = executableFaultTrees.find((option) => `${option.workbookId}:${option.modelId}` === runFaultTreeKey);
+      const tree = runFaultTreeOptions.find((option) => `${option.workbookId}:${option.modelId}` === runFaultTreeKey);
       if (tree === undefined) {
-        setError("Choose a linked fault tree with a top event.");
+        setError(batchMode
+          ? "No configured fault-tree target is affected by evidence that varies across the enabled scenarios."
+          : "Choose a linked fault tree with a top event.");
         return;
       }
-      onRunFaultTree(configuration, tree);
+      if (batchMode) onRunFaultTreeBatch(configuration, tree, scenarioIds, evidenceMode === "HAZARD_GRID");
+      else onRunFaultTree(configuration, tree);
       return;
     }
     if (selectedEventTree === undefined) {
-      setError("Choose an event tree.");
+      setError(batchMode
+        ? "No linked event-tree target is affected by evidence that varies across the enabled scenarios."
+        : "Choose an event tree.");
       return;
     }
-    const declared = new Set(configuration.faultTrees.map(({ workbookId: sourceWorkbookId, modelId }) =>
-      `${sourceWorkbookId}:${modelId}`,
-    ));
-    if (selectedEventTree.faultTrees.some(({ workbookId: sourceWorkbookId, modelId }) =>
-      !declared.has(`${sourceWorkbookId}:${modelId}`),
-    )) {
-      setError("Include every fault tree linked by this event tree before running HCL.");
-      return;
-    }
-    onRunEventTree(configuration, selectedEventTree);
+    if (batchMode) onRunEventTreeBatch(configuration, selectedEventTree, scenarioIds, evidenceMode === "HAZARD_GRID");
+    else onRunEventTree(configuration, selectedEventTree);
   }
 
   return (
@@ -260,7 +353,7 @@ function HclBindingEditor({
           <div className="hcleditor__summary">
             <div>
               <strong>{configuration.code}</strong>
-              <span>{validation.some((issue) => issue.severity === "ERROR") ? "Needs attention" : "Ready"} · {String(configuration.faultTrees.length)} FTs · {String(configuration.bindings.length)} bindings</span>
+              <span>{validation.some((issue) => issue.severity === "ERROR") ? "Needs attention" : "Ready"} · {String(configuration.faultTrees.length)} FTs · {String(configuration.bindings.length)} bindings · {String((configuration.evidenceScenarios ?? []).length)} scenarios</span>
             </div>
             <button type="button" className="posnav__btn posnav__btn--sm" aria-expanded={manageOpen} onClick={() => setManageOpen((open) => !open)}>
               {manageOpen ? "Close" : "Manage"}
@@ -272,6 +365,7 @@ function HclBindingEditor({
               <div className="hcleditor__manage-tabs" role="tablist" aria-label="HCL configuration sections">
                 <button type="button" role="tab" aria-selected={manageTab === "TREES"} className={manageTab === "TREES" ? "is-active" : ""} onClick={() => setManageTab("TREES")}>Fault trees</button>
                 <button type="button" role="tab" aria-selected={manageTab === "BINDINGS"} className={manageTab === "BINDINGS" ? "is-active" : ""} onClick={() => setManageTab("BINDINGS")}>Bindings</button>
+                <button type="button" role="tab" aria-selected={manageTab === "SCENARIOS"} className={manageTab === "SCENARIOS" ? "is-active" : ""} onClick={() => setManageTab("SCENARIOS")}>Evidence scenarios</button>
                 <button type="button" role="tab" aria-selected={manageTab === "ADVANCED"} className={manageTab === "ADVANCED" ? "is-active" : ""} onClick={() => setManageTab("ADVANCED")}>Advanced</button>
               </div>
 
@@ -357,6 +451,16 @@ function HclBindingEditor({
                 </div>
               )}
 
+              {manageTab === "SCENARIOS" && (
+                <HclEvidenceScenarioEditor
+                  model={model}
+                  configuration={configuration}
+                  editable={editable}
+                  onChange={replaceConfiguration}
+                  onError={setError}
+                />
+              )}
+
               {manageTab === "ADVANCED" && (
                 <div className="hcleditor__advanced" role="tabpanel" aria-label="Advanced HCL settings">
                   <div className="hcleditor__identity">
@@ -386,23 +490,38 @@ function HclBindingEditor({
               <label>
                 <span>Top event</span>
                 <select aria-label="HCL fault-tree target" value={runFaultTreeKey} onChange={(event) => setRunFaultTreeKey(event.target.value)}>
-                  {executableFaultTrees.length === 0 && <option value="">No linked fault tree</option>}
-                  {executableFaultTrees.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode} · {option.modelName}</option>)}
+                  {runFaultTreeOptions.length === 0 && <option value="">{evidenceMode !== "BASE" ? "No affected fault tree" : "No linked fault tree"}</option>}
+                  {runFaultTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode} · {option.modelName}</option>)}
                 </select>
               </label>
             ) : (
               <label>
                 <span>Event tree</span>
                 <select aria-label="HCL event-tree target" value={eventTreeKey} onChange={(event) => setEventTreeKey(event.target.value)}>
-                  {eventTreeOptions.length === 0 && <option value="">No Event Sequence workbook tree available</option>}
-                  {eventTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.workbookName} · {option.modelName}</option>)}
+                  {runEventTreeOptions.length === 0 && <option value="">{evidenceMode !== "BASE" ? "No affected event tree" : "No linked event tree"}</option>}
+                  {runEventTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.workbookName} · {option.modelName}</option>)}
                 </select>
               </label>
             )}
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary hcleditor__aligned-action" disabled={running || validation.some((issue) => issue.severity === "ERROR")} onClick={run}>
-              <HclIcon name="run" />{running ? "Running…" : "Run HCL quantification"}
+            <label>
+              <span>Evidence</span>
+              <select aria-label="HCL evidence mode" value={evidenceMode} onChange={(event) => setEvidenceMode(event.target.value as "BASE" | "SCENARIOS" | "HAZARD_GRID")}>
+                <option value="BASE">Common evidence</option>
+                <option value="SCENARIOS">Enabled scenarios ({String((configuration.evidenceScenarios ?? []).filter((scenario) => scenario.enabled).length)})</option>
+                {configuration.hazardGrid !== undefined && <option value="HAZARD_GRID">Hazard-grid convolution</option>}
+              </select>
+            </label>
+            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary hcleditor__aligned-action" disabled={running || validation.some((issue) => issue.severity === "ERROR") || (targetKind === "FAULT_TREE" ? runFaultTreeOptions.length === 0 : runEventTreeOptions.length === 0)} onClick={run}>
+              <HclIcon name="run" />{running ? "Running…" : evidenceMode === "HAZARD_GRID" ? "Run hazard convolution" : evidenceMode === "SCENARIOS" ? "Run scenario batch" : "Run HCL quantification"}
             </button>
           </div>
+          {evidenceMode !== "BASE" && (
+            <p className="hcleditor__batch-scope" aria-label="HCL batch target scope">
+              Varying evidence: {batchRelevance?.varyingEvidenceNodeIds.map((nodeId) =>
+                model.nodes.find((node) => node.id === nodeId)?.code ?? nodeId,
+              ).join(", ") || "none"} · {String(runFaultTreeOptions.length)} affected FTs · {String(runEventTreeOptions.length)} affected ETs · {String(batchRelevance?.constantMaskedFaultTreeKeys.length ?? 0)} FTs excluded by constant logic{evidenceMode === "HAZARD_GRID" ? ` · ${(configuration.hazardGrid?.annualFrequencyScale.value ?? 0).toExponential(3)}/yr scale` : ""}
+            </p>
+          )}
           {runError !== null && <p className="bneditor__error" role="alert">{runError}</p>}
           {runResult?.kind === "FAULT_TREE" && (
             <div className="hcleditor__result hcleditor__result--fault-tree" aria-label="HCL fault-tree result">
@@ -425,6 +544,53 @@ function HclBindingEditor({
                   })}
                 </div>
               )}
+            </div>
+          )}
+          {batchRunResult !== null && (
+            <div className="hcleditor__batch-result" aria-label="HCL scenario batch result">
+              <div className="hcleditor__batch-heading">
+                <strong>{batchRunResult.hazardConvolution === undefined ? "Scenario results" : "Hazard convolution"}</strong>
+                <span>{String(batchRunResult.scenarios.filter((scenario) => scenario.status === "SUCCEEDED").length)} of {String(batchRunResult.scenarios.length)} completed{batchNumericallyUnchanged ? " · No variation across scenarios" : ""}</span>
+              </div>
+              {batchRunResult.hazardConvolution !== undefined && (
+                <div className="hcleditor__convolution-summary" aria-label="Hazard convolution summary">
+                  <span><small>Grid</small><strong>{batchRunResult.hazardConvolution.gridName}</strong></span>
+                  <span><small>Covered probability</small><strong>{batchRunResult.hazardConvolution.rawWeightSum.toPrecision(5)}</strong></span>
+                  <span><small>Annual scale</small><strong>{batchRunResult.hazardConvolution.annualizedFrequencyScale.toExponential(4)}/yr</strong></span>
+                  {batchRunResult.hazardConvolution.targetKind === "FAULT_TREE" ? (
+                    <span><small>Integrated frequency</small><strong>{batchRunResult.hazardConvolution.integratedAnnualFrequency.toExponential(4)}/yr</strong></span>
+                  ) : (
+                    <span><small>End states</small><strong>{String(batchRunResult.hazardConvolution.endStateAggregates.length)}</strong></span>
+                  )}
+                </div>
+              )}
+              <div className="hcleditor__batch-table">
+                {batchRunResult.scenarios.map((scenario) => {
+                  let value = scenario.failure ?? scenario.status;
+                  if (scenario.result?.kind === "FAULT_TREE") value = scenario.result.result.probability.toExponential(6);
+                  if (scenario.result?.kind === "EVENT_TREE") {
+                    const frequency = scenario.result.result.sequences.reduce((sum, sequence) => sum + sequence.annualFrequency, 0);
+                    value = `${String(scenario.result.result.sequences.length)} sequences · ${frequency.toExponential(6)}/yr`;
+                  }
+                  const convolution = batchRunResult.hazardConvolution;
+                  if (convolution?.targetKind === "FAULT_TREE") {
+                    const row = convolution.rows.find((candidate) => candidate.scenarioId === scenario.scenarioId);
+                    if (row !== undefined) value = `w=${row.convolutionWeight.toPrecision(4)} · ${row.annualContribution.toExponential(4)}/yr`;
+                  } else if (convolution?.targetKind === "EVENT_TREE") {
+                    const row = convolution.rows.find((candidate) => candidate.scenarioId === scenario.scenarioId);
+                    if (row !== undefined) {
+                      const contribution = row.sequences.reduce((sum, sequence) => sum + sequence.annualContribution, 0);
+                      value = `w=${row.convolutionWeight.toPrecision(4)} · ${contribution.toExponential(4)}/yr`;
+                    }
+                  }
+                  return (
+                    <div key={scenario.scenarioId}>
+                      <span><strong>{scenario.scenarioCode}</strong>{scenario.scenarioName}</span>
+                      <output>{value}</output>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </>

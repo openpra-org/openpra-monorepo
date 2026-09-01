@@ -320,7 +320,11 @@ function createEmptyEventTree(
     uuid,
     name: "New event tree",
     initiatingEventId,
-    initiatingEventFrequency: initiatingEventFrequency === undefined ? undefined : { value: initiatingEventFrequency },
+    initiatingEventFrequency: initiatingEventFrequency === undefined ? undefined : {
+      value: initiatingEventFrequency,
+      unit: "PER_YEAR",
+      annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_766 },
+    },
     plantOperatingStateId,
     endStateIds: {
       SUCCESSFUL_MITIGATION: crypto.randomUUID(),
@@ -451,6 +455,7 @@ function createEventTreePresentation(
     name: model.name,
     initiatingEventId: model.initiatingEventId,
     initiatingEventFrequency: model.initiatingEventFrequency?.value,
+    initiatingEventFrequencyUnit: model.initiatingEventFrequency?.unit ?? "PER_YEAR",
     functionalEvents: events.map((event) => ({
       id: event.uuid,
       code: event.label ?? event.uuid,

@@ -211,6 +211,13 @@ impl ExecutionEngine {
         self.workspace.query_marginals(queries)
     }
 
+    /// Returns the exact probability mass of every hard-evidence row.
+    pub fn evidence_probabilities(&mut self, evidence: &EvidenceBatch) -> Result<Vec<f64>> {
+        self.workspace
+            .calibrate_for_evidence_probability(evidence)?;
+        Ok(self.workspace.evidence_probabilities()?.to_vec())
+    }
+
     pub fn set_soft_evidence(&mut self, node: NodeId, likelihoods: &[f64]) -> Result<()> {
         self.workspace.set_soft_evidence(node, likelihoods)
     }

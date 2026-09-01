@@ -275,12 +275,15 @@ function WorkbookBayesianNetworkCollectionEditor({
         hclRunning={false}
         hclRunError={null}
         hclRunResult={null}
+        hclBatchRunResult={null}
         onModelChange={(model) => onChange(networks.map((candidate) => candidate.modelId === selected.modelId ? model : candidate))}
         onEvidenceChange={setEvidence}
         onQueryNodeChange={setQueryNodeId}
         onHclConfigurationsChange={() => undefined}
         onRunHclFaultTree={() => undefined}
         onRunHclEventTree={() => undefined}
+        onRunHclFaultTreeBatch={() => undefined}
+        onRunHclEventTreeBatch={() => undefined}
         onRun={() => undefined}
       />
     </section>

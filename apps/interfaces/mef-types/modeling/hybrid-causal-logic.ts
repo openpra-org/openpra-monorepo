@@ -4,6 +4,7 @@ import type {
   FaultTreeBasicEventCatalogueReference,
 } from "./references";
 import type { WorkbookEntityId, WorkbookModelAddress } from "./shared";
+import type { AnnualizedFrequencyInput } from "./quantitative-semantics";
 
 interface HclEventBinding {
   id: WorkbookEntityId;
@@ -20,6 +21,21 @@ type HclFaultTreeReference = WorkbookModelAddress;
 
 type HclBaseEvidence = BayesianNetworkEvidenceConfiguration;
 
+interface HclEvidenceScenario {
+  id: WorkbookEntityId;
+  code: string;
+  name: string;
+  enabled: boolean;
+  evidence: BayesianNetworkEvidenceConfiguration;
+}
+
+interface HclHazardGridDefinition {
+  name: string;
+  hazardNodeIds: [WorkbookEntityId, ...WorkbookEntityId[]];
+  annualFrequencyScale: AnnualizedFrequencyInput;
+  normalizeWeights: boolean;
+}
+
 interface HclSolverSettings {
   variableOrder: WorkbookEntityId[] | null;
   foldConstants: boolean;
@@ -31,6 +47,8 @@ interface HclConfigurationDefinition {
   faultTrees: HclFaultTreeReference[];
   bindings: HclEventBinding[];
   baseEvidence: HclBaseEvidence;
+  evidenceScenarios?: HclEvidenceScenario[];
+  hazardGrid?: HclHazardGridDefinition;
   solverSettings: HclSolverSettings;
 }
 
@@ -40,6 +58,8 @@ export type {
   HclBayesianNetworkReference,
   HclFaultTreeReference,
   HclBaseEvidence,
+  HclEvidenceScenario,
+  HclHazardGridDefinition,
   HclSolverSettings,
   HclConfigurationDefinition,
 };

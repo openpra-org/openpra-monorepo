@@ -309,6 +309,72 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     ]);
   });
 
+  it("resolves a DA-controlled failure rate and derives its mission probability", () => {
+    const mef = structuredClone(syMef);
+    const reference = {
+      referenceType: "WORKBOOK_PARAMETER" as const,
+      workbookId: "da-1",
+      entityId: "rate-a",
+    };
+    mef.systemBasicEvents[0] = {
+      ...mef.systemBasicEvents[0]!,
+      probability: 0,
+      quantificationBasis: {
+        kind: "FAILURE_RATE",
+        failureRate: { value: 0, unit: "HOUR" },
+        missionTime: { value: 24, unit: "HOUR" },
+        conversion: "EXPONENTIAL",
+      },
+      controlledDataSource: reference,
+    };
+    const adapted = adaptSyFaultTreeSnapshot(
+      { workbookId: "sy-1", workbookRevision: 7, mef },
+      "ft-1",
+      {
+        controlledDataSourceValues: new Map([[
+          workbookParameterReferenceKey(reference),
+          { value: 2e-5, quantity: "FAILURE_RATE" },
+        ]]),
+      },
+    );
+    const events = adapted.basicEventCatalogue["basicEvents"] as Array<Record<string, unknown>>;
+    expect(events[0]).toEqual(expect.objectContaining({
+      id: "be-a",
+      probability: expect.objectContaining({
+        value: expect.closeTo(4.798848184297884e-4, 15),
+        quantificationBasis: {
+          kind: "FAILURE_RATE",
+          failureRate: { value: 2e-5, unit: "HOUR" },
+          missionTime: { value: 24, unit: "HOUR" },
+          conversion: "EXPONENTIAL",
+        },
+      }),
+    }));
+  });
+
+  it("rejects a controlled source whose quantity does not match the basic-event basis", () => {
+    const mef = structuredClone(syMef);
+    const reference = {
+      referenceType: "WORKBOOK_PARAMETER" as const,
+      workbookId: "da-1",
+      entityId: "rate-a",
+    };
+    mef.systemBasicEvents[0] = {
+      ...mef.systemBasicEvents[0]!,
+      controlledDataSource: reference,
+    };
+    expect(() => adaptSyFaultTreeSnapshot(
+      { workbookId: "sy-1", workbookRevision: 7, mef },
+      "ft-1",
+      {
+        controlledDataSourceValues: new Map([[
+          workbookParameterReferenceKey(reference),
+          { value: 2e-5, quantity: "FAILURE_RATE" },
+        ]]),
+      },
+    )).toThrow("expects a probability source");
+  });
+
   it("recursively inlines transfer subgraphs while preserving shared gates and basic events", () => {
     const mef = structuredClone(syMef);
     mef.systemBasicEvents.push({

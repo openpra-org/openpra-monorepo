@@ -59,6 +59,11 @@ const model = {
     mode: "MANUAL",
     direction: "LEFT_TO_RIGHT",
   },
+  xdslMetadata: {
+    rootAttributes: { version: "1.0", id: "BN-PUMP", numsamples: "1000" },
+    extensionsXml: '<extensions><genie name="Pump"><submodel id="SM-PUMP"><node id="N-PUMP-STATE"/></submodel></genie></extensions>',
+    nodeIdentifiers: [{ nodeId: NODE_ID, sourceId: "N-PUMP-STATE" }],
+  },
 } as const;
 
 const query = {
@@ -126,6 +131,13 @@ describe("Bayesian-network model and create contracts", () => {
     { ...model, id: MODEL_ID },
     { ...model, projectId: "project-mhtgr" },
     { ...model, nodes: [{ ...node, kind: "UTILITY_NODE" }] },
+    {
+      ...model,
+      xdslMetadata: {
+        ...model.xdslMetadata,
+        nodeIdentifiers: [model.xdslMetadata.nodeIdentifiers[0], model.xdslMetadata.nodeIdentifiers[0]],
+      },
+    },
     { ...model, localState: true },
   ])("rejects malformed model %#", (candidate) => {
     expect(BayesianNetworkModelSchema.safeParse(candidate).success).toBe(false);
@@ -149,6 +161,13 @@ describe("Bayesian-network patch contract", () => {
         model: { ...model, name: patchRequest.changes.name },
       }).success,
     ).toBe(true);
+  });
+
+  it("accepts preserved XDSL metadata in a patch", () => {
+    expect(BayesianNetworkPatchRequestSchema.safeParse({
+      ...patchRequest,
+      changes: { xdslMetadata: model.xdslMetadata },
+    }).success).toBe(true);
   });
 
   it.each([

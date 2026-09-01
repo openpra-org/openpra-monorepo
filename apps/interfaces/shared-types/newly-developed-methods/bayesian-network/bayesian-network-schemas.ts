@@ -31,6 +31,8 @@ export {
   BayesianNetworkCptRowSchema,
   BayesianNetworkConditionalProbabilityTableSchema,
   BayesianNetworkNodePositionSchema,
+  BayesianNetworkXdslNodeIdentifierSchema,
+  BayesianNetworkXdslMetadataSchema,
   BayesianNetworkEvidenceObservationSchema,
   BayesianNetworkEvidenceConfigurationSchema,
   BayesianNetworkDefinitionSchema,

@@ -17,6 +17,7 @@ import type {
   WorkbookModelAddress,
 } from "interfaces-mef-types/modeling";
 import type {
+  HclBatchExecuteResult,
   HclExecuteResult,
   HclQuantificationResult,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
@@ -222,6 +223,48 @@ async function runEsqHclEventTree(
   );
 }
 
+async function runEsqHclFaultTreeBatch(
+  workbookId: string,
+  configurationId: string,
+  workbookRevision: number,
+  faultTreeTopGate: FaultTreeTopEventReference,
+  evidenceScenarioIds: string[],
+  integrateHazardGrid = false,
+): Promise<HclBatchExecuteResult> {
+  return postJson<HclBatchExecuteResult>(
+    `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-batch-runs`,
+    {
+      schemaVersion: "1.0.0",
+      modelId: configurationId,
+      workbookRevision,
+      faultTreeTopGate,
+      evidenceScenarioIds,
+      ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
+    },
+  );
+}
+
+async function runEsqHclEventTreeBatch(
+  workbookId: string,
+  configurationId: string,
+  workbookRevision: number,
+  eventTree: WorkbookModelAddress,
+  evidenceScenarioIds: string[],
+  integrateHazardGrid = false,
+): Promise<HclBatchExecuteResult> {
+  return postJson<HclBatchExecuteResult>(
+    `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-batch-runs`,
+    {
+      schemaVersion: "1.0.0",
+      modelId: configurationId,
+      workbookRevision,
+      eventTree,
+      evidenceScenarioIds,
+      ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
+    },
+  );
+}
+
 async function getEsqHclFaultTreeResult(
   workbookId: string,
   configurationId: string,
@@ -258,6 +301,8 @@ export {
   getEsqBayesianNetworkResult,
   runEsqHclFaultTree,
   runEsqHclEventTree,
+  runEsqHclFaultTreeBatch,
+  runEsqHclEventTreeBatch,
   getEsqHclFaultTreeResult,
   getEsqHclEventTreeResult,
   type EsqWorkbookResponse,

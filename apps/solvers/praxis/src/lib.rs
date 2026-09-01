@@ -6,6 +6,7 @@ pub mod expression;
 pub mod hcl;
 pub mod io;
 pub mod mc;
+pub mod quantitative;
 
 pub use error::{MefError, PraxisError, Result, XmlError};
 

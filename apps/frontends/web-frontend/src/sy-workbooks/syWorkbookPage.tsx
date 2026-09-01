@@ -144,7 +144,7 @@ function SyWorkbookPage(): JSX.Element {
               workbook: await getDaWorkbook(entry.id),
             })),
           );
-          const supported = new Set(["PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
+          const supported = new Set(["FREQUENCY", "PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
           const options = loaded.flatMap((result): SyControlledParameterOption[] => {
             if (result.status !== "fulfilled") return [];
             return result.value.workbook.mef.parameters.flatMap((parameter) => {
@@ -152,7 +152,7 @@ function SyWorkbookPage(): JSX.Element {
                 !supported.has(parameter.parameterType) ||
                 !Number.isFinite(parameter.value) ||
                 parameter.value < 0 ||
-                parameter.value > 1
+                (parameter.parameterType !== "FREQUENCY" && parameter.value > 1)
               ) return [];
               return [{
                 workbookId: result.value.entry.id,

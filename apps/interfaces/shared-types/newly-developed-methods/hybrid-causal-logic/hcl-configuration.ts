@@ -12,6 +12,8 @@ export type {
   HclBayesianNetworkReference,
   HclFaultTreeReference,
   HclBaseEvidence,
+  HclEvidenceScenario,
+  HclHazardGridDefinition,
   HclSolverSettings,
   HclConfigurationDefinition,
 } from "interfaces-mef-types/modeling";

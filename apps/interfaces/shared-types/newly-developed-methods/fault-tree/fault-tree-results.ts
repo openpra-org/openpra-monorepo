@@ -8,6 +8,7 @@ import {
   ValidationResultSchema,
   WorkbookModelSnapshotIdentitySchema,
   WorkbookRevisionSchema,
+  BasicEventQuantificationTraceSchema,
 } from "../shared";
 import type {
   AnalysisRunId,
@@ -18,6 +19,7 @@ import type {
   ValidationResult,
   WorkbookModelSnapshotIdentity,
   WorkbookRevision,
+  BasicEventQuantificationTrace,
 } from "../shared";
 import type { FaultTreeModel } from "./fault-tree-model";
 import { FaultTreeModelSchema } from "./fault-tree-schemas";
@@ -65,6 +67,7 @@ interface FaultTreeAnalysisResult {
   topEventProbability: number;
   minimalCutSetCount: number;
   leadingCutSets: FaultTreeCutSet[];
+  basicEventQuantifications?: BasicEventQuantificationTrace[];
   validationIssues: ValidationIssue[];
   completedAt: string;
 }
@@ -145,6 +148,7 @@ const FaultTreeAnalysisResultSchema = z
     topEventProbability: ProbabilitySchema,
     minimalCutSetCount: z.number().int().nonnegative(),
     leadingCutSets: z.array(FaultTreeCutSetSchema),
+    basicEventQuantifications: z.array(BasicEventQuantificationTraceSchema).optional(),
     validationIssues: z.array(ValidationIssueSchema),
     completedAt: z.string().datetime({ offset: true }),
   })

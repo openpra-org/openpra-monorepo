@@ -6,6 +6,7 @@ import type {
 } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
 import type {
+  HclEditorBatchRunResult,
   HclEditorRunResult,
   HclEventTreeOption,
   HclFaultTreeOption,
@@ -30,12 +31,15 @@ interface BayesianNetworkEditorProps {
   hclRunning: boolean;
   hclRunError: string | null;
   hclRunResult: HclEditorRunResult | null;
+  hclBatchRunResult: HclEditorBatchRunResult | null;
   onModelChange: (model: BayesianNetworkModel) => void;
   onEvidenceChange: (evidence: BayesianNetworkEvidenceConfiguration) => void;
   onQueryNodeChange: (nodeId: string | null) => void;
   onHclConfigurationsChange: (configurations: EsqHclConfiguration[]) => void;
   onRunHclFaultTree: (configuration: EsqHclConfiguration, faultTree: HclFaultTreeOption) => void;
   onRunHclEventTree: (configuration: EsqHclConfiguration, eventTree: HclEventTreeOption) => void;
+  onRunHclFaultTreeBatch: (configuration: EsqHclConfiguration, faultTree: HclFaultTreeOption, scenarioIds: string[], integrateHazardGrid: boolean) => void;
+  onRunHclEventTreeBatch: (configuration: EsqHclConfiguration, eventTree: HclEventTreeOption, scenarioIds: string[], integrateHazardGrid: boolean) => void;
   onRun: () => void;
 }
 

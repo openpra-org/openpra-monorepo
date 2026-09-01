@@ -23,6 +23,7 @@ import { type SyDrawerContext } from "./syScreens";
 import { type SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
 import { systemFaultTreeBasicEventIds, systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
+import { failureRateToProbability } from "interfaces-mef-types/modeling";
 
 function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element {
   const { sy, editable, mutateSy, shortOf } = useSyWorkbook();
@@ -1592,10 +1593,14 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
       return Number.isFinite(n) ? n : 0;
     };
     const prob = be.probability ?? 0;
+    const rateBasis = be.quantificationBasis?.kind === "FAILURE_RATE" ? be.quantificationBasis : undefined;
+    const compatibleParameters = controlledParameters.filter((option) =>
+      rateBasis === undefined ? option.parameterType !== "FREQUENCY" : option.parameterType === "FREQUENCY",
+    );
     const selectedParameterKey = be.controlledDataSource?.referenceType !== "WORKBOOK_PARAMETER"
       ? ""
       : JSON.stringify([be.controlledDataSource.workbookId, be.controlledDataSource.entityId]);
-    const selectedParameter = controlledParameters.find((option) =>
+    const selectedParameter = compatibleParameters.find((option) =>
       JSON.stringify([option.workbookId, option.parameterId]) === selectedParameterKey,
     );
     const selectedHumanFailureKey = be.controlledDataSource?.referenceType !== "HUMAN_FAILURE_EVENT"
@@ -1612,7 +1617,12 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
         option.quantificationId,
       ]) === selectedHumanFailureKey,
     );
-    const displayedProbability = selectedParameter?.value ?? selectedHumanFailure?.value ?? prob;
+    const resolvedRateBasis = rateBasis === undefined || selectedParameter === undefined
+      ? rateBasis
+      : { ...rateBasis, failureRate: { ...rateBasis.failureRate, value: selectedParameter.value } };
+    const displayedProbability = resolvedRateBasis === undefined
+      ? (selectedParameter?.value ?? selectedHumanFailure?.value ?? prob)
+      : failureRateToProbability(resolvedRateBasis);
     const isHumanError = be.failureMode === "HUMAN_ERROR";
     const repairOk = be.repairModeled !== true || (be.repairJustification ?? "").length > 0;
     return (
@@ -1644,8 +1654,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
                 </select>
               ) : <div>{FAILURE_MODE_LABELS[be.failureMode ?? ""] ?? be.failureMode ?? "—"}</div>}
             </div>
-            <div className="posfield"><label className="posfield__label">Probability{be.controlledDataSource === undefined ? "" : " (controlled)"}</label>
-              {editable && be.controlledDataSource === undefined ? <WorkbookInput className="posfield__input posmono" type="number" min="0" max="1" step="any" value={prob} onChange={(e) => patch({ probability: num(e.target.value) })} /> : <div className="posmono">{toExp(displayedProbability)}</div>}
+            <div className="posfield"><label className="posfield__label">{rateBasis === undefined ? "Probability" : "Mission probability"}{be.controlledDataSource === undefined ? "" : " (controlled)"}</label>
+              {editable && be.controlledDataSource === undefined && rateBasis === undefined ? <WorkbookInput className="posfield__input posmono" type="number" min="0" max="1" step="any" value={prob} onChange={(e) => patch({ probability: num(e.target.value), quantificationBasis: { kind: "PROBABILITY" } })} /> : <div className="posmono">{toExp(displayedProbability)}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">{isHumanError ? "Human Reliability event and HEP" : "Data Analysis parameter"}</label>
               {editable && isHumanError ? (
@@ -1667,6 +1677,7 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
                     }
                     patch({
                       probability: option.value,
+                      quantificationBasis: { kind: "PROBABILITY" },
                       controlledDataSource: {
                         referenceType: "HUMAN_FAILURE_EVENT",
                         workbookId: option.workbookId,
@@ -1696,15 +1707,19 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
                   className="posfield__select"
                   value={selectedParameterKey}
                   onChange={(event) => {
-                    const option = controlledParameters.find((candidate) =>
+                    const option = compatibleParameters.find((candidate) =>
                       JSON.stringify([candidate.workbookId, candidate.parameterId]) === event.target.value,
                     );
                     if (option === undefined) {
                       patch({ controlledDataSource: undefined, dataAnalysisBasicEventRef: undefined });
                       return;
                     }
+                    const nextBasis = rateBasis === undefined
+                      ? { kind: "PROBABILITY" as const }
+                      : { ...rateBasis, failureRate: { ...rateBasis.failureRate, value: option.value } };
                     patch({
-                      probability: option.value,
+                      probability: nextBasis.kind === "FAILURE_RATE" ? failureRateToProbability(nextBasis) : option.value,
+                      quantificationBasis: nextBasis,
                       controlledDataSource: {
                         referenceType: "WORKBOOK_PARAMETER",
                         workbookId: option.workbookId,
@@ -1714,11 +1729,11 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
                     });
                   }}
                 >
-                  <option value="">Manual probability</option>
+                  <option value="">{rateBasis === undefined ? "Manual probability" : "Manual failure rate"}</option>
                   {selectedParameter === undefined && selectedParameterKey.length > 0 && (
                     <option value={selectedParameterKey}>Unavailable linked parameter</option>
                   )}
-                  {controlledParameters.map((option) => {
+                  {compatibleParameters.map((option) => {
                     const key = JSON.stringify([option.workbookId, option.parameterId]);
                     return <option key={key} value={key}>{option.workbookName} · {option.parameterName} · {toExp(option.value)}</option>;
                   })}

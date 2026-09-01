@@ -8,6 +8,8 @@ import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event
 import type { WorkbookModelAddress } from "interfaces-shared-types/newly-developed-methods";
 import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import type { FaultTreeControlledDataSourceReference } from "interfaces-mef-types/modeling/fault-tree";
+import { failureRateToProbability } from "interfaces-mef-types/modeling/quantitative-semantics";
+import type { BayesianNetworkEvidenceConfiguration } from "interfaces-mef-types/modeling/bayesian-network";
 import { createHash } from "crypto";
 
 interface WorkbookMefSnapshot<TMef> {
@@ -29,8 +31,13 @@ interface AdaptedFaultTreeSnapshot {
 }
 
 interface SyFaultTreeAdapterOptions {
-  controlledDataSourceValues?: ReadonlyMap<string, number>;
+  controlledDataSourceValues?: ReadonlyMap<string, number | ResolvedControlledDataSourceValue>;
   allowUnresolvedControlledDataSources?: boolean;
+}
+
+interface ResolvedControlledDataSourceValue {
+  value: number;
+  quantity: "PROBABILITY" | "FAILURE_RATE";
 }
 
 const faultTreeControlledDataSourceKey = (
@@ -397,9 +404,34 @@ const adaptSyFaultTreeSnapshot = (
   const basicEvents = [...referencedBasicEventIds].map((basicEventId) => {
     const event = findByUuid(source.mef.systemBasicEvents, basicEventId, "SY basic event");
     const controlled = event.controlledDataSource;
-    const resolvedProbability = controlled === undefined
-      ? event.probability
+    const controlledValue = controlled === undefined
+      ? undefined
       : options.controlledDataSourceValues?.get(faultTreeControlledDataSourceKey(controlled));
+    const resolvedControlledValue = typeof controlledValue === "number"
+      ? { value: controlledValue, quantity: "PROBABILITY" as const }
+      : controlledValue;
+    if (
+      controlled !== undefined
+      && resolvedControlledValue === undefined
+      && options.allowUnresolvedControlledDataSources !== true
+    ) {
+      throw new WorkbookPraxisAdapterError(
+        `SY basic event '${basicEventId}' could not resolve controlled ${controlled.referenceType === "HUMAN_FAILURE_EVENT" ? "HRA quantification" : "DA parameter"} '${controlled.workbookId}:${controlled.entityId}'`,
+      );
+    }
+    const basis = event.quantificationBasis;
+    const expectedQuantity = basis?.kind === "FAILURE_RATE" ? "FAILURE_RATE" : "PROBABILITY";
+    if (resolvedControlledValue !== undefined && resolvedControlledValue.quantity !== expectedQuantity) {
+      throw new WorkbookPraxisAdapterError(
+        `SY basic event '${basicEventId}' expects a ${expectedQuantity.toLowerCase().replace("_", " ")} source but its controlled value is ${resolvedControlledValue.quantity.toLowerCase().replace("_", " ")}`,
+      );
+    }
+    const resolvedBasis = basis?.kind === "FAILURE_RATE" && resolvedControlledValue !== undefined
+      ? { ...basis, failureRate: { ...basis.failureRate, value: resolvedControlledValue.value } }
+      : basis;
+    const resolvedProbability = resolvedBasis?.kind === "FAILURE_RATE"
+      ? failureRateToProbability(resolvedBasis)
+      : (resolvedControlledValue?.value ?? event.probability);
     if (controlled !== undefined) {
       controlledDataSources.set(faultTreeControlledDataSourceKey(controlled), { ...controlled });
     }
@@ -417,6 +449,7 @@ const adaptSyFaultTreeSnapshot = (
     return systemBasicEventToFaultTreeBasicEvent({
       ...event,
       probability: resolvedProbability,
+      quantificationBasis: resolvedBasis,
     });
   });
 
@@ -577,6 +610,7 @@ const adaptEsqHclSnapshot = (
   source: WorkbookMefSnapshot<EventSequenceQuantification>,
   modelId: string,
   faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
+  baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
 ): PraxisModelSnapshot => {
   const configuration = source.mef.hclConfigurations.find(
     (candidate) => candidate.modelId === modelId,
@@ -617,7 +651,7 @@ const adaptEsqHclSnapshot = (
       faultTree: { modelId: faultTree.modelId },
     })),
     bindings,
-    baseEvidence: configuration.baseEvidence,
+    baseEvidence: baseEvidenceOverride ?? configuration.baseEvidence,
     solverSettings: configuration.solverSettings,
   };
 };
@@ -637,4 +671,5 @@ export type {
   PraxisModelSnapshot,
   AdaptedFaultTreeSnapshot,
   SyFaultTreeAdapterOptions,
+  ResolvedControlledDataSourceValue,
 };

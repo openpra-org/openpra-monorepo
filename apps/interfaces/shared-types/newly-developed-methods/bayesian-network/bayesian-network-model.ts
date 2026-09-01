@@ -22,6 +22,8 @@ export type {
   BayesianNetworkCptRow,
   BayesianNetworkConditionalProbabilityTable,
   BayesianNetworkNodePosition,
+  BayesianNetworkXdslNodeIdentifier,
+  BayesianNetworkXdslMetadata,
   BayesianNetworkEvidenceObservation,
   BayesianNetworkEvidenceConfiguration,
   BayesianNetworkDefinition,

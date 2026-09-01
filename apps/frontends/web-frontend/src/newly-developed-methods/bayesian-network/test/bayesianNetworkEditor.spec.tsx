@@ -11,6 +11,7 @@ import {
 import { BayesianNetworkEditor } from "../bayesianNetworkEditor";
 import { connectNodes } from "../bayesianNetworkOperations";
 import type { BayesianNetworkFaultTreeOption } from "../bayesianNetworkTypes";
+import type { HclEditorBatchRunResult } from "../../hybrid-causal-logic";
 import { TEST_ID, testBayesianNetworkModel } from "./bayesianNetworkTestModel";
 
 const WORKBOOK_ID = "esq-workbook";
@@ -36,6 +37,14 @@ const faultTreeOptions: BayesianNetworkFaultTreeOption[] = [{
   modelName: "Fault tree A",
   topGateId: TOP_GATE_ID,
   basicEvents: [{ id: BASIC_EVENT_ID, code: "BE-PUMP", name: "Pump failure" }],
+  gates: [{ id: TOP_GATE_ID, gateType: "OR" }],
+  leafNodes: [{ id: "20000000-0000-4000-8000-000000000004", kind: "BASIC_EVENT_REFERENCE", basicEventId: BASIC_EVENT_ID }],
+  gateInputs: [{
+    gateId: TOP_GATE_ID,
+    childId: "20000000-0000-4000-8000-000000000004",
+    order: 0,
+  }],
+  constantBasicEventStates: {},
 }];
 
 const analysisResult: BayesianNetworkAnalysisResult = {
@@ -54,6 +63,50 @@ const analysisResult: BayesianNetworkAnalysisResult = {
   completedAt: "2026-08-23T12:00:00.000Z",
 };
 
+const unchangedBatchResult: HclEditorBatchRunResult = {
+  kind: "FAULT_TREE",
+  scenarios: ["1", "2"].map((suffix) => ({
+    scenarioId: `30000000-0000-4000-8000-00000000000${suffix}`,
+    scenarioCode: `SCN-${suffix}`,
+    scenarioName: `Scenario ${suffix}`,
+    status: "SUCCEEDED" as const,
+    failure: null,
+    result: {
+      kind: "FAULT_TREE" as const,
+      result: {
+        schemaVersion: "1.0.0" as const,
+        runId: `40000000-0000-4000-8000-00000000000${suffix}`,
+        owner: { workbookId: WORKBOOK_ID, modelId: TEST_ID.model, workbookRevision: 2 },
+        faultTreeTopGate: {
+          referenceType: "FAULT_TREE_TOP_EVENT" as const,
+          workbookId: FT_WORKBOOK_ID,
+          modelId: FT_MODEL_ID,
+          entityId: TOP_GATE_ID,
+        },
+        probability: 0.25,
+        bddNodes: 1,
+        bddVariables: 1,
+        variableOrder: [BASIC_EVENT_ID],
+        bridge: {
+          quantifications: 1,
+          bddContextCacheHits: 0,
+          bddContextCacheMisses: 1,
+          bnQueryCacheHits: 0,
+          bnQueryCacheMisses: 1,
+        },
+        junctionTree: {
+          numCliques: 1,
+          maxCliqueSize: 1,
+          treewidth: 0,
+          totalTableEntries: 2,
+        },
+        validationIssues: [],
+        completedAt: "2026-08-31T12:00:00.000Z",
+      },
+    },
+  })),
+};
+
 function Harness({
   initialModel = testBayesianNetworkModel(),
   editable = true,
@@ -61,6 +114,8 @@ function Harness({
   onRun = jest.fn(),
   onConfigurationsChange = jest.fn(),
   onRunHclFaultTree = jest.fn(),
+  onRunHclFaultTreeBatch = jest.fn(),
+  hclBatchRunResult = null,
 }: {
   initialModel?: BayesianNetworkModel;
   editable?: boolean;
@@ -68,6 +123,8 @@ function Harness({
   onRun?: () => void;
   onConfigurationsChange?: (configurations: EsqHclConfiguration[]) => void;
   onRunHclFaultTree?: jest.Mock;
+  onRunHclFaultTreeBatch?: jest.Mock;
+  hclBatchRunResult?: HclEditorBatchRunResult | null;
 }): JSX.Element {
   const [model, setModel] = useState(initialModel);
   const [evidence, setEvidence] = useState<BayesianNetworkEvidenceConfiguration>({ observations: [] });
@@ -99,12 +156,15 @@ function Harness({
       hclRunning={false}
       hclRunError={null}
       hclRunResult={null}
+      hclBatchRunResult={hclBatchRunResult}
       onModelChange={setModel}
       onEvidenceChange={setEvidence}
       onQueryNodeChange={setQueryNodeId}
       onHclConfigurationsChange={replaceConfigurations}
       onRunHclFaultTree={onRunHclFaultTree}
       onRunHclEventTree={jest.fn()}
+      onRunHclFaultTreeBatch={onRunHclFaultTreeBatch}
+      onRunHclEventTreeBatch={jest.fn()}
       onRun={onRun}
     />
   );
@@ -480,6 +540,127 @@ describe("BayesianNetworkEditor", () => {
     expect(screen.getByLabelText("Included HCL fault trees")).toHaveTextContent("FT-A");
     await user.click(screen.getByRole("button", { name: "Run HCL quantification" }));
     expect(onRunHclFaultTree).toHaveBeenCalledWith(expect.any(Object), faultTreeOptions[0]);
+  });
+
+  it("builds and runs an enabled evidence-scenario batch", async () => {
+    const user = userEvent.setup();
+    const onRunHclFaultTreeBatch = jest.fn();
+    render(<Harness onRunHclFaultTreeBatch={onRunHclFaultTreeBatch} />);
+
+    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
+    await user.click(screen.getByRole("checkbox", { name: "TRUE" }));
+    await user.click(screen.getByRole("button", { name: "Add binding" }));
+    await user.click(screen.getByRole("tab", { name: "Evidence scenarios" }));
+    await user.click(screen.getByRole("button", { name: "Add scenario" }));
+    await user.selectOptions(screen.getByLabelText("A evidence for SCN-1"), TEST_ID.aTrue);
+    await user.click(screen.getByRole("button", { name: "Add scenario" }));
+    await user.selectOptions(screen.getByLabelText("A evidence for SCN-2"), TEST_ID.aTrue);
+    expect(screen.getByLabelText("Evidence scenario list")).toHaveTextContent("SCN-1");
+    expect(screen.getByLabelText("Evidence scenario list")).toHaveTextContent("SCN-2");
+
+    await user.click(screen.getByRole("tab", { name: "Fault trees" }));
+    await user.click(screen.getByRole("button", { name: "Include selected fault tree" }));
+    await user.selectOptions(screen.getByLabelText("HCL evidence mode"), "SCENARIOS");
+    expect(screen.getByLabelText("HCL fault-tree target")).toHaveTextContent("No affected fault tree");
+    expect(screen.getByRole("button", { name: "Run scenario batch" })).toBeDisabled();
+
+    await user.click(screen.getByRole("tab", { name: "Evidence scenarios" }));
+    await user.click(screen.getByRole("button", { name: /SCN-2 Evidence scenario 2/i }));
+    await user.selectOptions(screen.getByLabelText("A evidence for SCN-2"), TEST_ID.aFalse);
+    expect(screen.getByLabelText("HCL fault-tree target")).toHaveTextContent("FT-A");
+    await user.click(screen.getByRole("button", { name: "Run scenario batch" }));
+
+    expect(onRunHclFaultTreeBatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        evidenceScenarios: expect.arrayContaining([
+          expect.objectContaining({ code: "SCN-1" }),
+          expect.objectContaining({ code: "SCN-2" }),
+        ]),
+      }),
+      faultTreeOptions[0],
+      [expect.any(String), expect.any(String)],
+      false,
+    );
+
+    onRunHclFaultTreeBatch.mockClear();
+    await user.click(screen.getByRole("tab", { name: "Evidence scenarios" }));
+    await user.click(screen.getByRole("button", { name: "Enable" }));
+    await user.selectOptions(screen.getByLabelText("HCL evidence mode"), "HAZARD_GRID");
+    await user.click(screen.getByRole("button", { name: "Run hazard convolution" }));
+    expect(onRunHclFaultTreeBatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hazardGrid: expect.objectContaining({
+          hazardNodeIds: [TEST_ID.a],
+          normalizeWeights: false,
+        }),
+      }),
+      faultTreeOptions[0],
+      [expect.any(String), expect.any(String)],
+      true,
+    );
+  });
+
+  it("shows the missing hazard-grid setup beside the enable control", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
+    await user.click(screen.getByRole("tab", { name: "Evidence scenarios" }));
+    await user.click(screen.getByRole("button", { name: "Add scenario" }));
+
+    const hazardSettings = screen.getByRole("region", { name: "Hazard convolution settings" });
+    expect(within(hazardSettings).getByRole("status")).toHaveTextContent(/No enabled scenario assigns a BN node/i);
+
+    await user.click(within(hazardSettings).getByRole("button", { name: "Enable" }));
+    expect(within(hazardSettings).getByRole("alert")).toHaveTextContent(/Assign the same hazard node in every enabled scenario/i);
+    expect(within(hazardSettings).queryByText("Annual scale")).not.toBeInTheDocument();
+  });
+
+  it("selects every dimension needed to make hazard-grid cells unique", async () => {
+    const user = userEvent.setup();
+    const onConfigurationsChange = jest.fn();
+    render(<Harness onConfigurationsChange={onConfigurationsChange} />);
+
+    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
+    await user.click(screen.getByRole("tab", { name: "Evidence scenarios" }));
+    const combinations = [
+      [TEST_ID.aFalse, TEST_ID.bFalse],
+      [TEST_ID.aFalse, TEST_ID.bTrue],
+      [TEST_ID.aTrue, TEST_ID.bFalse],
+      [TEST_ID.aTrue, TEST_ID.bTrue],
+    ] as const;
+    for (const [index, [aStateId, bStateId]] of combinations.entries()) {
+      await user.click(screen.getByRole("button", { name: "Add scenario" }));
+      const scenarioNumber = index + 1;
+      await user.selectOptions(screen.getByLabelText(`A evidence for SCN-${String(scenarioNumber)}`), aStateId);
+      await user.selectOptions(screen.getByLabelText(`B evidence for SCN-${String(scenarioNumber)}`), bStateId);
+    }
+
+    const hazardSettings = screen.getByRole("region", { name: "Hazard convolution settings" });
+    expect(within(hazardSettings).getByRole("status")).toHaveTextContent("A + B uniquely identifies 4 enabled grid cells");
+    await user.click(within(hazardSettings).getByRole("button", { name: "Enable" }));
+
+    expect(within(hazardSettings).getByRole("checkbox", { name: "A" })).toBeChecked();
+    expect(within(hazardSettings).getByRole("checkbox", { name: "B" })).toBeChecked();
+    expect(onConfigurationsChange.mock.calls.at(-1)?.[0]?.[0]?.hazardGrid?.hazardNodeIds).toEqual([
+      TEST_ID.a,
+      TEST_ID.b,
+    ]);
+  });
+
+  it("labels completed batches whose numerical result does not vary", async () => {
+    const user = userEvent.setup();
+    render(<Harness hclBatchRunResult={unchangedBatchResult} />);
+
+    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
+
+    expect(screen.getByLabelText("HCL scenario batch result")).toHaveTextContent(
+      "No variation across scenarios",
+    );
   });
 
   it("keeps mutation controls unavailable in read-only mode", () => {

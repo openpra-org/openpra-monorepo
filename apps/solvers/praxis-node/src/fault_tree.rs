@@ -7,8 +7,9 @@ use praxis::analysis::fault_tree::FaultTreeAnalysis;
 use praxis::core::event::{BasicEvent, HouseEvent};
 use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::{Formula, Gate};
+use praxis::quantitative::{resolve_basic_event_probability, BasicEventQuantificationBasis};
 use praxis::{PraxisError, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::transport::SolverRequest;
@@ -113,9 +114,20 @@ struct CatalogueBasicEvent {
     probability: CatalogueProbability,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct CatalogueProbability {
     value: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    quantification_basis: Option<BasicEventQuantificationBasis>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BasicEventQuantificationRecord {
+    basic_event_id: String,
+    input: CatalogueProbability,
+    resolved_probability: f64,
 }
 
 pub(crate) struct FaultTreeAdapter {
@@ -123,6 +135,7 @@ pub(crate) struct FaultTreeAdapter {
     pub(crate) model_id: String,
     pub(crate) model_revision: u64,
     pub(crate) top_gate_id: String,
+    pub(crate) basic_event_quantifications: Vec<BasicEventQuantificationRecord>,
 }
 
 fn serialization_error(context: &str, error: impl std::fmt::Display) -> PraxisError {
@@ -223,9 +236,19 @@ fn build_fault_tree_snapshot(
     let catalogue = parse_catalogue(request, &snapshot.project_id)?;
 
     let mut catalogue_probabilities = HashMap::with_capacity(catalogue.basic_events.len());
+    let mut basic_event_quantifications = Vec::with_capacity(catalogue.basic_events.len());
     for event in catalogue.basic_events {
+        let resolved_probability = resolve_basic_event_probability(
+            event.probability.value,
+            event.probability.quantification_basis.as_ref(),
+        )?;
+        basic_event_quantifications.push(BasicEventQuantificationRecord {
+            basic_event_id: event.id.clone(),
+            input: event.probability,
+            resolved_probability,
+        });
         if catalogue_probabilities
-            .insert(event.id.clone(), event.probability.value)
+            .insert(event.id.clone(), resolved_probability)
             .is_some()
         {
             return Err(PraxisError::Logic(format!(
@@ -320,6 +343,7 @@ fn build_fault_tree_snapshot(
         model_id: snapshot.id,
         model_revision: snapshot.revision,
         top_gate_id,
+        basic_event_quantifications,
     })
 }
 
@@ -408,6 +432,7 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
         "topEventProbability": top_event_probability,
         "minimalCutSetCount": leading_cut_sets.len(),
         "leadingCutSets": leading_cut_sets,
+        "basicEventQuantifications": adapter.basic_event_quantifications,
         "validationIssues": []
     }))
 }
@@ -526,6 +551,42 @@ mod tests {
         assert!(
             (or["leadingCutSets"][0]["contribution"].as_f64().unwrap() - (0.2 / 0.28)).abs()
                 < 1e-12
+        );
+    }
+
+    #[test]
+    fn converts_failure_rate_and_mission_time_before_fault_tree_analysis() {
+        let mut request = request("OR", None, &[("A", 0.0)], &[("ref-a", "A")]);
+        request.resources.fault_tree_basic_event_catalogue = Some(json!({
+            "projectId": "project-1",
+            "basicEvents": [{
+                "id": "A",
+                "probability": {
+                    "value": 0.0,
+                    "quantificationBasis": {
+                        "kind": "FAILURE_RATE",
+                        "failureRate": { "value": 2.0e-5, "unit": "HOUR" },
+                        "missionTime": { "value": 24.0, "unit": "HOUR" },
+                        "conversion": "EXPONENTIAL"
+                    }
+                }
+            }]
+        }));
+
+        let result = execute(&request).unwrap();
+        let expected = 4.798848184297884e-4;
+        assert!((result["topEventProbability"].as_f64().unwrap() - expected).abs() < 1e-15);
+        assert_eq!(
+            result["basicEventQuantifications"][0]["input"]["quantificationBasis"]["kind"],
+            "FAILURE_RATE"
+        );
+        assert!(
+            (result["basicEventQuantifications"][0]["resolvedProbability"]
+                .as_f64()
+                .unwrap()
+                - expected)
+                .abs()
+                < 1e-15
         );
     }
 

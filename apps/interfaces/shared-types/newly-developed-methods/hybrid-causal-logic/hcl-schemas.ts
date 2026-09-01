@@ -27,6 +27,8 @@ export {
   HclFaultTreeReferenceSchema,
   HclEventBindingSchema,
   HclBaseEvidenceSchema,
+  HclEvidenceScenarioSchema,
+  HclHazardGridDefinitionSchema,
   HclSolverSettingsSchema,
   HclConfigurationDefinitionBaseSchema,
   HclConfigurationDefinitionSchema,

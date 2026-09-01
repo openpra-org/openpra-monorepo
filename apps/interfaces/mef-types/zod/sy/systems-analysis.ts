@@ -15,6 +15,7 @@ import { SRReferenceSchema } from "../core/pra-common";
 import { CanvasLayoutMetadataSchema, CanvasPositionSchema } from "../modeling/shared";
 import { HumanFailureEventReferenceSchema } from "../modeling/references";
 import { FaultTreeControlledDataSourceReferenceSchema } from "../modeling/fault-tree";
+import { FaultTreeBasicEventQuantificationBasisSchema } from "../modeling/quantitative-semantics";
 import { WorkbookBayesianNetworkSchema } from "../modeling/workbook-models";
 import {
   normalizeSystemLogicModel,
@@ -32,6 +33,7 @@ export const SystemBasicEventSchema = z.object({
   componentReference: z.string().optional(),
   failureMode: z.string().optional(),
   probability: z.number().optional(),
+  quantificationBasis: FaultTreeBasicEventQuantificationBasisSchema.optional(),
   repairModeled: z.boolean().optional(),
   repairJustification: z.string().optional(),
   meanTimeToRepair: z.number().optional(),

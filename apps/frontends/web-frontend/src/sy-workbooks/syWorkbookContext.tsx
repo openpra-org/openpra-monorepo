@@ -42,7 +42,7 @@ interface SyControlledParameterOption {
   workbookName: string;
   parameterId: string;
   parameterName: string;
-  parameterType: "PROBABILITY" | "UNAVAILABILITY" | "HUMAN_ERROR_PROBABILITY";
+  parameterType: "FREQUENCY" | "PROBABILITY" | "UNAVAILABILITY" | "HUMAN_ERROR_PROBABILITY";
   value: number;
 }
 

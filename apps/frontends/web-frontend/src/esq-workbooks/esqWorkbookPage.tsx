@@ -52,6 +52,16 @@ interface EsqBundleResponse {
   newlyDevelopedMethods: EsqExampleResponse[];
 }
 
+function presentEsqSaveError(message: string): string {
+  if (message.includes("Enabled hazard-grid scenarios must identify unique grid cells")) {
+    return "Hazard convolution was not saved because the selected dimensions did not uniquely identify every enabled scenario.";
+  }
+  if (message.includes("Enabled hazard-grid scenario must observe hazard node")) {
+    return "Hazard convolution was not saved because one or more enabled scenarios are missing a selected hazard dimension.";
+  }
+  return message;
+}
+
 function EsqWorkbookPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -138,7 +148,7 @@ function EsqWorkbookPage(): JSX.Element {
     setRevision(nextRevision);
     setSaveError(null);
   }, []);
-  const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
+  const handleSaveErr = useCallback((message: string): void => { setSaveError(presentEsqSaveError(message)); }, []);
   const handleSaveResync = useCallback((latest: EsqWorkbookResponse): void => {
     setData((previous) => (previous === null ? previous : { ...previous, esq: latest.mef }));
     setRevision(latest.revision);

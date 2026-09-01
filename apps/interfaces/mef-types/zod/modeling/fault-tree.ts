@@ -5,6 +5,7 @@ import {
   MethodEntityReferenceSchema,
   WorkbookEntityIdSchema,
 } from "./shared";
+import { FaultTreeBasicEventQuantificationBasisSchema } from "./quantitative-semantics";
 import {
   HumanFailureEventReferenceSchema,
   WorkbookParameterReferenceSchema,
@@ -125,6 +126,7 @@ const FaultTreeControlledDataSourceReferenceSchema = z.union([
 const FaultTreeBasicEventProbabilitySchema = z
   .object({
     value: z.number().min(0, "Probability cannot be less than zero").max(1, "Probability cannot exceed one"),
+    quantificationBasis: FaultTreeBasicEventQuantificationBasisSchema.optional(),
     controlledDataSource: FaultTreeControlledDataSourceReferenceSchema.optional(),
   })
   .strict();

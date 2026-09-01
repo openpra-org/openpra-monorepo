@@ -655,6 +655,52 @@ describe("FaultTreeEditor", () => {
     });
   });
 
+  it("derives mission probability when a failure-rate input changes", async () => {
+    const user = userEvent.setup();
+    const onOperation = jest.fn<void, [FaultTreeOperation]>();
+    const rateCatalogue = {
+      ...catalogue,
+      basicEvents: [{
+        ...catalogue.basicEvents[0],
+        probability: {
+          value: 0,
+          quantificationBasis: {
+            kind: "FAILURE_RATE" as const,
+            failureRate: { value: 0, unit: "HOUR" as const },
+            missionTime: { value: 24, unit: "HOUR" as const },
+            conversion: "EXPONENTIAL" as const,
+          },
+        },
+      }],
+    };
+    render(<FaultTreeEditor {...editorProps({
+      catalogue: rateCatalogue,
+      selection: { kind: "LEAF", leafId: LEAF_ID },
+      onOperation,
+    })} />);
+
+    const rate = screen.getByLabelText("Failure rate");
+    await user.clear(rate);
+    await user.type(rate, "0.00002");
+    await user.tab();
+
+    const operation = onOperation.mock.calls[0]?.[0];
+    expect(operation).toMatchObject({
+      type: "UPDATE_BASIC_EVENT",
+      basicEvent: {
+        probability: {
+          value: expect.closeTo(4.798848184297884e-4, 15),
+          quantificationBasis: {
+            kind: "FAILURE_RATE",
+            failureRate: { value: 2e-5, unit: "HOUR" },
+            missionTime: { value: 24, unit: "HOUR" },
+            conversion: "EXPONENTIAL",
+          },
+        },
+      },
+    });
+  });
+
   it("emits an automatic layout operation", async () => {
     const user = userEvent.setup();
     const onOperation = jest.fn<void, [FaultTreeOperation]>();

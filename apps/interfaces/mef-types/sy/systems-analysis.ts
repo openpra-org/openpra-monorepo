@@ -10,6 +10,7 @@ import {
   type FaultTreeControlledDataSourceReference,
 } from "../modeling/fault-tree";
 import type { HumanFailureEventReference } from "../modeling/references";
+import type { FaultTreeBasicEventQuantificationBasis } from "../modeling/quantitative-semantics";
 import type { WorkbookBayesianNetwork } from "../modeling/workbook-models";
 
 export type SystemReference = string;
@@ -45,6 +46,7 @@ export interface SystemBasicEvent extends BasicEvent {
   componentReference?: ComponentReference;
   failureMode?: FailureModeType | string;
   probability?: number;
+  quantificationBasis?: FaultTreeBasicEventQuantificationBasis;
   repairModeled?: boolean;
   repairJustification?: string;
   meanTimeToRepair?: number;

@@ -31,9 +31,15 @@ import {
   FaultTreeAnalysisResultSchema,
   FaultTreeExecuteRequestSchema,
   HclEventTreeExecuteRequestSchema,
+  HclEventTreeBatchExecuteRequestSchema,
   HclExecuteRequestSchema,
+  HclFaultTreeBatchExecuteRequestSchema,
+  HclBatchExecuteResultSchema,
+  HclHazardConvolutionResultSchema,
   HclQuantificationResultSchema,
   createImmutableAnalysisRunContext,
+  hclTargetKey,
+  resolveHclBatchTargetRelevance,
 } from "interfaces-shared-types/newly-developed-methods";
 import type {
   AnalysisRunMetadata,
@@ -46,7 +52,12 @@ import type {
   EventTreeExecuteRequest,
   FaultTreeExecuteRequest,
   HclEventTreeExecuteRequest,
+  HclEventTreeBatchExecuteRequest,
   HclExecuteRequest,
+  HclFaultTreeBatchExecuteRequest,
+  HclBatchExecuteResult,
+  HclHazardConvolutionResult,
+  HclBatchFaultTreeTarget,
   MethodType,
   WorkbookMethodHostType,
   WorkbookCrossReference,
@@ -76,6 +87,7 @@ import {
   faultTreeControlledDataSourceKey,
   WorkbookPraxisAdapterError,
 } from "./praxis-snapshot-adapters";
+import type { ResolvedControlledDataSourceValue } from "./praxis-snapshot-adapters";
 import type {
   AdaptedFaultTreeSnapshot,
   PraxisModelSnapshot,
@@ -106,6 +118,39 @@ interface SolverEnvelope {
 interface FaultTreeBundle {
   modelSnapshots: PraxisModelSnapshot[];
   resource: Record<string, unknown>;
+}
+
+interface HclBatchRunContext {
+  evidenceScenarioIds: string[];
+  varyingEvidenceNodeIds: string[];
+  affectedBayesianNetworkNodeIds: string[];
+  relevantBindingIds: string[];
+  targetKey: string;
+  targetEvidenceNodeIds: string[];
+  hazardGrid?: {
+    name: string;
+    hazardNodeIds: string[];
+    annualFrequencyScale: {
+      value: number;
+      unit: string;
+      annualization: { basis: string; hoursPerYear: number };
+    };
+    normalizeWeights: boolean;
+  };
+}
+
+interface HclPreparedBatchScenario {
+  scenarioId: string;
+  scenarioCode: string;
+  scenarioName: string;
+  runId: string;
+  request: Record<string, unknown>;
+  trace: AnalysisRunTrace;
+}
+
+interface ExecutedHclBatch {
+  runs: HclBatchExecuteResult["runs"];
+  hazardConvolution?: HclHazardConvolutionResult;
 }
 
 type PublicResultKind = "FAULT_TREE" | "BAYESIAN_NETWORK" | "EVENT_TREE" | "HYBRID_CAUSAL_LOGIC";
@@ -169,6 +214,9 @@ const uniqueWorkbooks = <T extends LoadedWorkbook<unknown>>(values: T[]): T[] =>
   values.forEach((value) => byId.set(value.workbookId, value));
   return [...byId.values()];
 };
+
+const crossReferenceKey = (reference: WorkbookCrossReference): string =>
+  JSON.stringify(Object.fromEntries(Object.entries(reference).sort(([left], [right]) => left.localeCompare(right))));
 
 const combineFaultTrees = (
   runId: string,
@@ -310,7 +358,7 @@ export class WorkbookAnalysisRunsService {
   private async resolveFaultTreeControlledDataSources(
     faultTrees: Array<{ source: LoadedWorkbook<SystemsAnalysis>; modelId: string }>,
   ): Promise<{
-    values: ReadonlyMap<string, number>;
+    values: ReadonlyMap<string, ResolvedControlledDataSourceValue>;
     sources: LoadedWorkbook<unknown>[];
     references: WorkbookCrossReference[];
   }> {
@@ -332,7 +380,7 @@ export class WorkbookAnalysisRunsService {
       }
     }
 
-    const values = new Map<string, number>();
+    const values = new Map<string, ResolvedControlledDataSourceValue>();
     const probabilityParameterTypes = new Set([
       "PROBABILITY",
       "UNAVAILABILITY",
@@ -350,17 +398,22 @@ export class WorkbookAnalysisRunsService {
           );
         }
         const parameter = matches[0]!;
-        if (!probabilityParameterTypes.has(parameter.parameterType)) {
+        if (!probabilityParameterTypes.has(parameter.parameterType) && parameter.parameterType !== "FREQUENCY") {
           throw new BadRequestException(
-            `DA parameter '${reference.workbookId}:${reference.entityId}' has type '${parameter.parameterType}', which cannot control a fault-tree probability`,
+            `DA parameter '${reference.workbookId}:${reference.entityId}' has type '${parameter.parameterType}', which cannot control a fault-tree quantitative input`,
           );
         }
-        if (!Number.isFinite(parameter.value) || parameter.value < 0 || parameter.value > 1) {
+        const quantity = parameter.parameterType === "FREQUENCY" ? "FAILURE_RATE" : "PROBABILITY";
+        if (
+          !Number.isFinite(parameter.value)
+          || parameter.value < 0
+          || (quantity === "PROBABILITY" && parameter.value > 1)
+        ) {
           throw new BadRequestException(
-            `DA parameter '${reference.workbookId}:${reference.entityId}' must be finite and between zero and one`,
+            `DA parameter '${reference.workbookId}:${reference.entityId}' must be finite and ${quantity === "PROBABILITY" ? "between zero and one" : "non-negative"}`,
           );
         }
-        values.set(key, parameter.value);
+        values.set(key, { value: parameter.value, quantity });
         continue;
       }
 
@@ -393,7 +446,7 @@ export class WorkbookAnalysisRunsService {
           `HRA HEP quantification '${reference.workbookId}:${reference.quantificationId}' must provide a finite mean or point estimate between zero and one`,
         );
       }
-      values.set(key, hep);
+      values.set(key, { value: hep, quantity: "PROBABILITY" });
     }
     return {
       values,
@@ -476,8 +529,8 @@ export class WorkbookAnalysisRunsService {
           `Contributing entity '${entity.workbookId}:${entity.entityId}' has no immutable workbook source`,
         );
       }
-      const key = JSON.stringify(entity);
-      if (!contribution.entities.some((candidate) => JSON.stringify(candidate) === key)) {
+      const key = crossReferenceKey(entity);
+      if (!contribution.entities.some((candidate) => crossReferenceKey(candidate) === key)) {
         contribution.entities.push(entity);
       }
     });
@@ -505,6 +558,7 @@ export class WorkbookAnalysisRunsService {
         topEventProbability: raw["topEventProbability"],
         minimalCutSetCount: raw["minimalCutSetCount"],
         leadingCutSets: raw["leadingCutSets"],
+        basicEventQuantifications: raw["basicEventQuantifications"],
         validationIssues: raw["validationIssues"] ?? [],
       });
     }
@@ -522,6 +576,7 @@ export class WorkbookAnalysisRunsService {
         mode: raw["mode"],
         sequences: raw["sequences"],
         endStateAggregates: raw["endStateAggregates"],
+        frequencySemantics: raw["frequencySemantics"],
         validationIssues: raw["validationIssues"] ?? [],
       });
     }
@@ -534,6 +589,7 @@ export class WorkbookAnalysisRunsService {
       variableOrder: raw["variableOrder"],
       bridge: raw["bridge"],
       junctionTree: raw["junctionTree"],
+      basicEventQuantifications: raw["basicEventQuantifications"],
       validationIssues: raw["validationIssues"] ?? [],
     });
   }
@@ -649,6 +705,162 @@ export class WorkbookAnalysisRunsService {
       const message = error instanceof Error ? error.message : String(error);
       await this.runModel.updateOne(
         { id: runId, status: "RUNNING" },
+        {
+          $set: {
+            status: "FAILED",
+            completedAt,
+            failure: {
+              kind: "TRANSPORT",
+              code: "PRAETOR_FAILURE",
+              message,
+              details: {},
+            },
+          },
+        },
+      ).exec();
+      throw error;
+    }
+  }
+
+  private async executeHclBatchRuns(
+    owner: WorkbookModelSnapshotIdentity,
+    methodType: "HYBRID_CAUSAL_LOGIC" | "EVENT_TREE",
+    scenarios: HclPreparedBatchScenario[],
+    sources: LoadedWorkbook<unknown>[],
+    envelope: SolverEnvelope,
+    resultKind: "HYBRID_CAUSAL_LOGIC" | "EVENT_TREE",
+    acting: ActingUser,
+  ): Promise<ExecutedHclBatch> {
+    const context = createImmutableAnalysisRunContext({
+      owner,
+      sourceWorkbooks: uniqueWorkbooks(sources).map((source) => ({
+        workbookId: source.workbookId,
+        workbookRevision: source.workbookRevision,
+      })),
+      workbookSnapshots: this.createSnapshots(sources),
+    });
+    const requestedAt = new Date();
+    await Promise.all(scenarios.map((scenario) => this.runModel.create({
+      id: scenario.runId,
+      schemaVersion: "1.0.0",
+      owner: context.owner,
+      sourceWorkbooks: context.sourceWorkbooks,
+      methodType,
+      status: "QUEUED",
+      requestedBy: acting.username,
+      requestedAt,
+      startedAt: null,
+      completedAt: null,
+      engine: null,
+      failure: null,
+      request: structuredClone(scenario.request),
+      workbookSnapshots: context.workbookSnapshots,
+      target: scenario.trace.target,
+      contributions: scenario.trace.contributions,
+      result: null,
+    })));
+
+    const startedAt = new Date();
+    await this.runModel.updateMany(
+      { id: { $in: scenarios.map((scenario) => scenario.runId) }, status: "QUEUED" },
+      { $set: { status: "RUNNING", startedAt, engine: ENGINE } },
+    ).exec();
+    try {
+      const response = await this.praetor.execute(envelope);
+      const completedAt = new Date();
+      if (response.error !== undefined) {
+        await this.runModel.updateMany(
+          { id: { $in: scenarios.map((scenario) => scenario.runId) }, status: "RUNNING" },
+          { $set: { status: "FAILED", completedAt, failure: response.error } },
+        ).exec();
+        return { runs: scenarios.map((scenario) => ({
+          scenarioId: scenario.scenarioId,
+          scenarioCode: scenario.scenarioCode,
+          scenarioName: scenario.scenarioName,
+          run: AnalysisRunMetadataSchema.parse({
+            schemaVersion: "1.0.0",
+            id: scenario.runId,
+            owner,
+            sourceWorkbooks: context.sourceWorkbooks,
+            methodType,
+            status: "FAILED",
+            requestedBy: acting.username,
+            requestedAt: requestedAt.toISOString(),
+            startedAt: startedAt.toISOString(),
+            completedAt: completedAt.toISOString(),
+            engine: ENGINE,
+            failure: response.error,
+          }),
+        })) };
+      }
+
+      const native = asRecord(response.result, "HCL batch");
+      const rawBatchResults = native["batchResults"];
+      if (!Array.isArray(rawBatchResults) || rawBatchResults.length !== scenarios.length) {
+        throw new BadGatewayException("PRAXIS returned an invalid HCL batch result count");
+      }
+      const byScenarioId = new Map<string, Record<string, unknown>>();
+      rawBatchResults.forEach((rawResult) => {
+        const result = asRecord(rawResult, "HCL batch scenario");
+        const scenarioId = result["scenarioId"];
+        if (typeof scenarioId !== "string" || byScenarioId.has(scenarioId)) {
+          throw new BadGatewayException("PRAXIS returned an invalid HCL batch scenario id");
+        }
+        byScenarioId.set(scenarioId, result);
+      });
+
+      const runs = await Promise.all(scenarios.map(async (scenario) => {
+        const rawResult = byScenarioId.get(scenario.scenarioId);
+        if (rawResult === undefined) {
+          throw new BadGatewayException(
+            `PRAXIS did not return HCL batch scenario '${scenario.scenarioId}'`,
+          );
+        }
+        const result = this.publicResult(
+          resultKind,
+          rawResult,
+          scenario.runId,
+          owner,
+          completedAt.toISOString(),
+          scenario.request,
+        );
+        await this.runModel.updateOne(
+          { id: scenario.runId, status: "RUNNING" },
+          { $set: { status: "SUCCEEDED", completedAt, result, failure: null } },
+        ).exec();
+        return {
+          scenarioId: scenario.scenarioId,
+          scenarioCode: scenario.scenarioCode,
+          scenarioName: scenario.scenarioName,
+          run: AnalysisRunMetadataSchema.parse({
+            schemaVersion: "1.0.0",
+            id: scenario.runId,
+            owner,
+            sourceWorkbooks: context.sourceWorkbooks,
+            methodType,
+            status: "SUCCEEDED",
+            requestedBy: acting.username,
+            requestedAt: requestedAt.toISOString(),
+            startedAt: startedAt.toISOString(),
+            completedAt: completedAt.toISOString(),
+            engine: ENGINE,
+            failure: null,
+          }),
+        };
+      }));
+      const rawHazardConvolution = native["hazardConvolution"];
+      const hazardConvolution = rawHazardConvolution === undefined
+        ? undefined
+        : HclHazardConvolutionResultSchema.parse(rawHazardConvolution);
+      return {
+        runs,
+        ...(hazardConvolution === undefined ? {} : { hazardConvolution }),
+      };
+    } catch (error) {
+      const completedAt = new Date();
+      const message = error instanceof Error ? error.message : String(error);
+      await this.runModel.updateMany(
+        { id: { $in: scenarios.map((scenario) => scenario.runId) }, status: "RUNNING" },
         {
           $set: {
             status: "FAILED",
@@ -953,6 +1165,65 @@ export class WorkbookAnalysisRunsService {
     );
   }
 
+  private hclBatchFaultTreeTargets(
+    faultTrees: Array<{ source: LoadedWorkbook<SystemsAnalysis>; modelId: string }>,
+  ): HclBatchFaultTreeTarget[] {
+    return faultTrees.map(({ source, modelId }) => {
+      const model = source.mef.systemLogicModels.find((candidate) => candidate.uuid === modelId);
+      if (model === undefined) throw new NotFoundException(`SY fault-tree model '${modelId}' was not found`);
+      return {
+        workbookId: source.workbookId,
+        modelId,
+        topGateId: model.topGate?.gateId ?? null,
+        gates: model.gates.map((gate) => gate.gateType === "K_OF_N"
+          ? { id: gate.id, gateType: gate.gateType, k: gate.k }
+          : { id: gate.id, gateType: gate.gateType }),
+        leafNodes: model.leafNodes.map((leaf) => {
+          if (leaf.kind === "BASIC_EVENT_REFERENCE") {
+            return { id: leaf.id, kind: leaf.kind, basicEventId: leaf.basicEventId };
+          }
+          if (leaf.kind === "HOUSE_EVENT") {
+            return { id: leaf.id, kind: leaf.kind, state: leaf.state };
+          }
+          if (leaf.kind === "TRANSFER_REFERENCE") {
+            return {
+              id: leaf.id,
+              kind: leaf.kind,
+              target: {
+                workbookId: source.workbookId,
+                modelId: leaf.target.modelId,
+                entityId: leaf.target.entityId,
+              },
+            };
+          }
+          return { id: leaf.id, kind: leaf.kind };
+        }),
+        gateInputs: model.gateInputs.map(({ gateId, childId, order }) => ({
+          gateId,
+          childId,
+          order,
+        })),
+        constantBasicEventStates: Object.fromEntries(
+          source.mef.systemBasicEvents.flatMap((event) =>
+            event.controlledDataSource === undefined
+              && (event.probability === 0 || event.probability === 1)
+              ? [[event.uuid, event.probability === 1]]
+              : [],
+          ),
+        ),
+      };
+    });
+  }
+
+  private hclBatchBayesianNetwork(
+    source: LoadedWorkbook<EventSequenceQuantification>,
+    modelId: string,
+  ): EventSequenceQuantification["bayesianNetworks"][number] {
+    const model = source.mef.bayesianNetworks.find((candidate) => candidate.modelId === modelId);
+    if (model === undefined) throw new NotFoundException(`ESQ Bayesian network '${modelId}' was not found`);
+    return model;
+  }
+
   private hclBindingContributionEntities(
     owner: LoadedWorkbook<EventSequenceQuantification>,
     configuration: EventSequenceQuantification["hclConfigurations"][number],
@@ -994,6 +1265,56 @@ export class WorkbookAnalysisRunsService {
     });
   }
 
+  private resolveHclEvidenceScenario(
+    configuration: EventSequenceQuantification["hclConfigurations"][number],
+    scenarioId: string | undefined,
+  ): {
+    scenario: NonNullable<EventSequenceQuantification["hclConfigurations"][number]["evidenceScenarios"]>[number];
+    evidence: EventSequenceQuantification["hclConfigurations"][number]["baseEvidence"];
+  } | null {
+    if (scenarioId === undefined) return null;
+    const matches = (configuration.evidenceScenarios ?? []).filter((scenario) => scenario.id === scenarioId);
+    if (matches.length !== 1) {
+      throw new BadRequestException(
+        `Evidence scenario '${scenarioId}' resolved ${matches.length} times; expected exactly once`,
+      );
+    }
+    const scenario = matches[0]!;
+    const observations = new Map(
+      configuration.baseEvidence.observations.map((observation) => [observation.nodeId, observation]),
+    );
+    scenario.evidence.observations.forEach((observation) => observations.set(observation.nodeId, observation));
+    return {
+      scenario,
+      evidence: { observations: [...observations.values()] },
+    };
+  }
+
+  private resolveHclHazardGrid(
+    configuration: EventSequenceQuantification["hclConfigurations"][number],
+    requested: boolean | undefined,
+  ): NonNullable<EventSequenceQuantification["hclConfigurations"][number]["hazardGrid"]> | null {
+    if (requested !== true) return null;
+    if (configuration.hazardGrid === undefined) {
+      throw new BadRequestException(
+        "Hazard convolution requires hazard-grid settings on the HCL configuration",
+      );
+    }
+    return configuration.hazardGrid;
+  }
+
+  private hclEvidenceContributionEntities(
+    configuration: EventSequenceQuantification["hclConfigurations"][number],
+    evidence: EventSequenceQuantification["hclConfigurations"][number]["baseEvidence"],
+  ): WorkbookCrossReference[] {
+    return evidence.observations.map((observation) => ({
+      referenceType: "BAYESIAN_NETWORK_NODE" as const,
+      workbookId: configuration.bayesianNetwork.workbookId,
+      modelId: configuration.bayesianNetwork.modelId,
+      entityId: observation.nodeId,
+    }));
+  }
+
   private eventTreeContributionEntities(
     source: LoadedWorkbook<EventSequenceAnalysis>,
     modelIds: string[],
@@ -1020,12 +1341,17 @@ export class WorkbookAnalysisRunsService {
     pathModelId: string,
     body: unknown,
     acting: ActingUser,
+    batchContext: HclBatchRunContext | null = null,
   ): Promise<AnalysisRunMetadata> {
     const request = parseRequest(HclExecuteRequestSchema, body);
     expectPathModel(pathModelId, request.modelId);
     const owner = await this.loadEsq(workbookId);
     await this.authorizeOwner(owner, request.workbookRevision, acting);
     const hcl = await this.loadHclSources(owner, request.modelId);
+    const evidenceScenario = this.resolveHclEvidenceScenario(
+      hcl.configuration,
+      request.evidenceScenarioId,
+    );
     const selected = hcl.faultTrees.find(
       ({ source, modelId }) =>
         source.workbookId === request.faultTreeTopGate.workbookId &&
@@ -1076,14 +1402,21 @@ export class WorkbookAnalysisRunsService {
       [
         request.faultTreeTopGate,
         ...this.hclBindingContributionEntities(owner, hcl.configuration, hcl.faultTrees),
+        ...this.hclEvidenceContributionEntities(
+          hcl.configuration,
+          evidenceScenario?.evidence ?? hcl.configuration.baseEvidence,
+        ),
         ...controlled.references,
       ],
     );
+    const persistedRequest = batchContext === null
+      ? request as unknown as Record<string, unknown>
+      : { ...request, batchContext } as unknown as Record<string, unknown>;
     return this.executeRun(
       runId,
       identity,
       "HYBRID_CAUSAL_LOGIC",
-      request as unknown as Record<string, unknown>,
+      persistedRequest,
       sources,
       {
         schemaVersion: "1.0.0",
@@ -1107,7 +1440,12 @@ export class WorkbookAnalysisRunsService {
             ),
           ),
           adaptOrThrow(() =>
-            adaptEsqHclSnapshot(owner, request.modelId, faultTreeBasicEventMembership),
+            adaptEsqHclSnapshot(
+              owner,
+              request.modelId,
+              faultTreeBasicEventMembership,
+              evidenceScenario?.evidence,
+            ),
           ),
         ],
         resources: { faultTreeBasicEventCatalogue: faultTrees.resource },
@@ -1123,12 +1461,17 @@ export class WorkbookAnalysisRunsService {
     pathModelId: string,
     body: unknown,
     acting: ActingUser,
+    batchContext: HclBatchRunContext | null = null,
   ): Promise<AnalysisRunMetadata> {
     const request = parseRequest(HclEventTreeExecuteRequestSchema, body);
     expectPathModel(pathModelId, request.modelId);
     const owner = await this.loadEsq(workbookId);
     await this.authorizeOwner(owner, request.workbookRevision, acting);
     const hcl = await this.loadHclSources(owner, request.modelId);
+    const evidenceScenario = this.resolveHclEvidenceScenario(
+      hcl.configuration,
+      request.evidenceScenarioId,
+    );
     const eventTree = await this.loadEs(request.eventTree.workbookId);
     const eventTreeModelIds = this.eventTreeModelIds(eventTree, request.eventTree.modelId);
     const linked = await this.loadEventTreeFaultTrees(eventTree, request.eventTree.modelId);
@@ -1168,6 +1511,7 @@ export class WorkbookAnalysisRunsService {
     const persistedRequest = {
       ...request,
       mode: "HYBRID_CAUSAL_LOGIC",
+      ...(batchContext === null ? {} : { batchContext }),
     } as unknown as Record<string, unknown>;
     const trace = this.createAnalysisRunTrace(
       sources,
@@ -1188,6 +1532,10 @@ export class WorkbookAnalysisRunsService {
       ],
       [
         ...this.hclBindingContributionEntities(owner, hcl.configuration, linked),
+        ...this.hclEvidenceContributionEntities(
+          hcl.configuration,
+          evidenceScenario?.evidence ?? hcl.configuration.baseEvidence,
+        ),
         ...this.eventTreeContributionEntities(eventTree, eventTreeModelIds),
         ...controlled.references,
       ],
@@ -1225,7 +1573,12 @@ export class WorkbookAnalysisRunsService {
             ),
           ),
           adaptOrThrow(() =>
-            adaptEsqHclSnapshot(owner, request.modelId, faultTreeBasicEventMembership),
+            adaptEsqHclSnapshot(
+              owner,
+              request.modelId,
+              faultTreeBasicEventMembership,
+              evidenceScenario?.evidence,
+            ),
           ),
         ],
         resources: { faultTreeBasicEventCatalogue: faultTrees.resource },
@@ -1234,6 +1587,381 @@ export class WorkbookAnalysisRunsService {
       acting,
       trace,
     );
+  }
+
+  async executeHclFaultTreeBatch(
+    workbookId: string,
+    pathModelId: string,
+    body: unknown,
+    acting: ActingUser,
+  ): Promise<HclBatchExecuteResult> {
+    const request = parseRequest(HclFaultTreeBatchExecuteRequestSchema, body);
+    expectPathModel(pathModelId, request.modelId);
+    const owner = await this.loadEsq(workbookId);
+    await this.authorizeOwner(owner, request.workbookRevision, acting);
+    const hcl = await this.loadHclSources(owner, request.modelId);
+    const configuration = hcl.configuration;
+    const hazardGrid = this.resolveHclHazardGrid(configuration, request.integrateHazardGrid);
+    const resolvedScenarios = request.evidenceScenarioIds.map((scenarioId) =>
+      this.resolveHclEvidenceScenario(configuration, scenarioId)!,
+    );
+    const scenarios = resolvedScenarios.map(({ scenario }) => scenario);
+    const relevance = resolveHclBatchTargetRelevance({
+      bayesianNetwork: this.hclBatchBayesianNetwork(
+        hcl.bayesian,
+        configuration.bayesianNetwork.modelId,
+      ),
+      baseEvidence: configuration.baseEvidence,
+      scenarios,
+      bindings: configuration.bindings,
+      faultTrees: this.hclBatchFaultTreeTargets(hcl.faultTrees),
+      eventTrees: [],
+    });
+    if (!relevance.faultTreeKeys.includes(hclTargetKey(request.faultTreeTopGate))) {
+      if (relevance.constantMaskedFaultTreeKeys.includes(hclTargetKey(request.faultTreeTopGate))) {
+        throw new BadRequestException(
+          "Requested fault tree is structurally connected to varying evidence but its top event is masked by constant fault-tree logic",
+        );
+      }
+      throw new BadRequestException(
+        "Requested fault tree is not affected by evidence that varies across the selected scenarios",
+      );
+    }
+    const targetKey = hclTargetKey(request.faultTreeTopGate);
+    const batchContext: HclBatchRunContext = {
+      evidenceScenarioIds: [...request.evidenceScenarioIds],
+      varyingEvidenceNodeIds: relevance.varyingEvidenceNodeIds,
+      affectedBayesianNetworkNodeIds: relevance.affectedBayesianNetworkNodeIds,
+      relevantBindingIds: relevance.relevantBindingIds,
+      targetKey,
+      targetEvidenceNodeIds: relevance.faultTreeEvidenceNodeIds[targetKey] ?? [],
+      ...(hazardGrid === null ? {} : { hazardGrid: structuredClone(hazardGrid) }),
+    };
+    const selected = hcl.faultTrees.find(
+      ({ source, modelId }) =>
+        source.workbookId === request.faultTreeTopGate.workbookId
+        && modelId === request.faultTreeTopGate.modelId,
+    );
+    if (selected === undefined) {
+      throw new BadRequestException("Requested fault tree is not declared by the HCL configuration");
+    }
+    const controlled = await this.resolveFaultTreeControlledDataSources([selected]);
+    const sources = [
+      owner,
+      hcl.bayesian,
+      ...hcl.faultTrees.map(({ source }) => source),
+      ...controlled.sources,
+    ];
+    await this.authorizeSources(sources, owner.workbookId, acting);
+    const envelopeId = randomUUID();
+    const faultTrees = combineFaultTrees(envelopeId, [
+      adaptOrThrow(() =>
+        adaptSyFaultTreeSnapshot(selected.source, selected.modelId, {
+          controlledDataSourceValues: controlled.values,
+        }),
+      ),
+    ]);
+    const faultTreeBasicEventMembership = this.hclFaultTreeBasicEventMembership(hcl.faultTrees);
+    const identity = { workbookId, modelId: request.modelId, workbookRevision: owner.workbookRevision };
+    const prepared = resolvedScenarios.map(({ scenario, evidence }) => {
+      const singleRequest: HclExecuteRequest = {
+        schemaVersion: request.schemaVersion,
+        modelId: request.modelId,
+        workbookRevision: request.workbookRevision,
+        faultTreeTopGate: request.faultTreeTopGate,
+        evidenceScenarioId: scenario.id,
+      };
+      const runId = randomUUID();
+      const trace = this.createAnalysisRunTrace(
+        sources,
+        {
+          targetType: "HCL_FAULT_TREE",
+          configuration: identity,
+          faultTreeTopEvent: {
+            workbookId: request.faultTreeTopGate.workbookId,
+            workbookRevision: selected.source.workbookRevision,
+            modelId: request.faultTreeTopGate.modelId,
+            entityId: request.faultTreeTopGate.entityId,
+          },
+        },
+        [
+          { workbookId: owner.workbookId, modelId: request.modelId },
+          hcl.configuration.bayesianNetwork,
+          ...hcl.faultTrees.map(({ source, modelId }) => ({
+            workbookId: source.workbookId,
+            modelId,
+          })),
+        ],
+        [
+          request.faultTreeTopGate,
+          ...this.hclBindingContributionEntities(owner, hcl.configuration, hcl.faultTrees),
+          ...this.hclEvidenceContributionEntities(hcl.configuration, evidence),
+          ...controlled.references,
+        ],
+      );
+      return {
+        scenarioId: scenario.id,
+        scenarioCode: scenario.code,
+        scenarioName: scenario.name,
+        runId,
+        request: { ...singleRequest, batchContext } as unknown as Record<string, unknown>,
+        trace,
+      };
+    });
+    const executed = await this.executeHclBatchRuns(
+      identity,
+      "HYBRID_CAUSAL_LOGIC",
+      prepared,
+      sources,
+      {
+        schemaVersion: "1.0.0",
+        request: {
+          schemaVersion: request.schemaVersion,
+          methodType: "HYBRID_CAUSAL_LOGIC",
+          modelId: request.modelId,
+          revision: owner.workbookRevision,
+          requestedBy: acting.username,
+          faultTreeTopGate: {
+            modelId: request.faultTreeTopGate.modelId,
+            entityId: request.faultTreeTopGate.entityId,
+          },
+          evidenceBatch: resolvedScenarios.map(({ scenario, evidence }) => ({
+            scenarioId: scenario.id,
+            observations: evidence.observations,
+            ...(hazardGrid === null ? {} : {
+              hazardObservations: scenario.evidence.observations.filter((observation) =>
+                hazardGrid.hazardNodeIds.includes(observation.nodeId)),
+            }),
+          })),
+          ...(hazardGrid === null ? {} : {
+            hazardConvolution: {
+              gridName: hazardGrid.name,
+              hazardNodeIds: hazardGrid.hazardNodeIds,
+              annualFrequencyScale: hazardGrid.annualFrequencyScale,
+              normalizeWeights: hazardGrid.normalizeWeights,
+            },
+          }),
+        },
+        modelSnapshots: [
+          ...faultTrees.modelSnapshots,
+          adaptOrThrow(() =>
+            adaptEsqBayesianNetworkSnapshot(
+              hcl.bayesian,
+              hcl.configuration.bayesianNetwork.modelId,
+            ),
+          ),
+          adaptOrThrow(() =>
+            adaptEsqHclSnapshot(owner, request.modelId, faultTreeBasicEventMembership),
+          ),
+        ],
+        resources: { faultTreeBasicEventCatalogue: faultTrees.resource },
+      },
+      "HYBRID_CAUSAL_LOGIC",
+      acting,
+    );
+    if (hazardGrid !== null && executed.hazardConvolution === undefined) {
+      throw new BadGatewayException("PRAXIS omitted the requested fault-tree hazard convolution");
+    }
+    return HclBatchExecuteResultSchema.parse({ schemaVersion: "1.0.0", ...executed });
+  }
+
+  async executeHclEventTreeBatch(
+    workbookId: string,
+    pathModelId: string,
+    body: unknown,
+    acting: ActingUser,
+  ): Promise<HclBatchExecuteResult> {
+    const request = parseRequest(HclEventTreeBatchExecuteRequestSchema, body);
+    expectPathModel(pathModelId, request.modelId);
+    const owner = await this.loadEsq(workbookId);
+    await this.authorizeOwner(owner, request.workbookRevision, acting);
+    const hcl = await this.loadHclSources(owner, request.modelId);
+    const configuration = hcl.configuration;
+    const hazardGrid = this.resolveHclHazardGrid(configuration, request.integrateHazardGrid);
+    const resolvedScenarios = request.evidenceScenarioIds.map((scenarioId) =>
+      this.resolveHclEvidenceScenario(configuration, scenarioId)!,
+    );
+    const scenarios = resolvedScenarios.map(({ scenario }) => scenario);
+    const eventTree = await this.loadEs(request.eventTree.workbookId);
+    const eventTreeModelIds = this.eventTreeModelIds(eventTree, request.eventTree.modelId);
+    const linked = await this.loadEventTreeFaultTrees(eventTree, request.eventTree.modelId);
+    const relevance = resolveHclBatchTargetRelevance({
+      bayesianNetwork: this.hclBatchBayesianNetwork(
+        hcl.bayesian,
+        configuration.bayesianNetwork.modelId,
+      ),
+      baseEvidence: configuration.baseEvidence,
+      scenarios,
+      bindings: configuration.bindings,
+      faultTrees: this.hclBatchFaultTreeTargets(hcl.faultTrees),
+      eventTrees: [{
+        workbookId: request.eventTree.workbookId,
+        modelId: request.eventTree.modelId,
+        faultTrees: linked.map(({ source, modelId }) => ({ workbookId: source.workbookId, modelId })),
+        transferTargets: [],
+      }],
+    });
+    if (!relevance.eventTreeKeys.includes(hclTargetKey(request.eventTree))) {
+      if (linked.some(({ source, modelId }) =>
+        relevance.constantMaskedFaultTreeKeys.includes(`${source.workbookId}:${modelId}`))) {
+        throw new BadRequestException(
+          "Requested event tree is linked only through fault-tree targets masked by constant fault-tree logic",
+        );
+      }
+      throw new BadRequestException(
+        "Requested event tree is not affected by evidence that varies across the selected scenarios",
+      );
+    }
+    const targetKey = hclTargetKey(request.eventTree);
+    const batchContext: HclBatchRunContext = {
+      evidenceScenarioIds: [...request.evidenceScenarioIds],
+      varyingEvidenceNodeIds: relevance.varyingEvidenceNodeIds,
+      affectedBayesianNetworkNodeIds: relevance.affectedBayesianNetworkNodeIds,
+      relevantBindingIds: relevance.relevantBindingIds,
+      targetKey,
+      targetEvidenceNodeIds: relevance.eventTreeEvidenceNodeIds[targetKey] ?? [],
+      ...(hazardGrid === null ? {} : { hazardGrid: structuredClone(hazardGrid) }),
+    };
+    const declared = new Set(
+      hcl.configuration.faultTrees.map((reference) => `${reference.workbookId}:${reference.modelId}`),
+    );
+    const undeclared = linked.find(
+      ({ source, modelId }) => !declared.has(`${source.workbookId}:${modelId}`),
+    );
+    if (undeclared !== undefined) {
+      throw new BadRequestException(
+        `Event tree links fault tree '${undeclared.modelId}' that is not declared by the HCL configuration`,
+      );
+    }
+    const controlled = await this.resolveFaultTreeControlledDataSources(linked);
+    const sources = [
+      owner,
+      hcl.bayesian,
+      eventTree,
+      ...linked.map(({ source }) => source),
+      ...controlled.sources,
+    ];
+    await this.authorizeSources(sources, owner.workbookId, acting);
+    const envelopeId = randomUUID();
+    const faultTrees = combineFaultTrees(
+      envelopeId,
+      linked.map(({ source, modelId }) =>
+        adaptOrThrow(() =>
+          adaptSyFaultTreeSnapshot(source, modelId, {
+            controlledDataSourceValues: controlled.values,
+          }),
+        ),
+      ),
+    );
+    const faultTreeBasicEventMembership = this.hclFaultTreeBasicEventMembership(hcl.faultTrees);
+    const identity = { workbookId, modelId: request.modelId, workbookRevision: owner.workbookRevision };
+    const prepared = resolvedScenarios.map(({ scenario, evidence }) => {
+      const singleRequest: HclEventTreeExecuteRequest = {
+        schemaVersion: request.schemaVersion,
+        modelId: request.modelId,
+        workbookRevision: request.workbookRevision,
+        eventTree: request.eventTree,
+        evidenceScenarioId: scenario.id,
+      };
+      const runId = randomUUID();
+      const persistedRequest = {
+        ...singleRequest,
+        mode: "HYBRID_CAUSAL_LOGIC",
+        batchContext,
+      } as unknown as Record<string, unknown>;
+      const trace = this.createAnalysisRunTrace(
+        sources,
+        {
+          targetType: "HCL_EVENT_TREE",
+          configuration: identity,
+          eventTree: {
+            workbookId: eventTree.workbookId,
+            workbookRevision: eventTree.workbookRevision,
+            modelId: request.eventTree.modelId,
+          },
+        },
+        [
+          { workbookId: owner.workbookId, modelId: request.modelId },
+          hcl.configuration.bayesianNetwork,
+          ...eventTreeModelIds.map((modelId) => ({ workbookId: eventTree.workbookId, modelId })),
+          ...linked.map(({ source, modelId }) => ({ workbookId: source.workbookId, modelId })),
+        ],
+        [
+          ...this.hclBindingContributionEntities(owner, hcl.configuration, linked),
+          ...this.hclEvidenceContributionEntities(hcl.configuration, evidence),
+          ...this.eventTreeContributionEntities(eventTree, eventTreeModelIds),
+          ...controlled.references,
+        ],
+      );
+      return {
+        scenarioId: scenario.id,
+        scenarioCode: scenario.code,
+        scenarioName: scenario.name,
+        runId,
+        request: persistedRequest,
+        trace,
+      };
+    });
+    const executed = await this.executeHclBatchRuns(
+      identity,
+      "EVENT_TREE",
+      prepared,
+      sources,
+      {
+        schemaVersion: "1.0.0",
+        request: {
+          schemaVersion: request.schemaVersion,
+          methodType: "EVENT_TREE",
+          modelId: request.eventTree.modelId,
+          revision: eventTree.workbookRevision,
+          mode: "HYBRID_CAUSAL_LOGIC",
+          requestedBy: acting.username,
+          evidenceBatch: resolvedScenarios.map(({ scenario, evidence }) => ({
+            scenarioId: scenario.id,
+            observations: evidence.observations,
+            ...(hazardGrid === null ? {} : {
+              hazardObservations: scenario.evidence.observations.filter((observation) =>
+                hazardGrid.hazardNodeIds.includes(observation.nodeId)),
+            }),
+          })),
+          ...(hazardGrid === null ? {} : {
+            hazardConvolution: {
+              gridName: hazardGrid.name,
+              hazardNodeIds: hazardGrid.hazardNodeIds,
+              annualFrequencyScale: hazardGrid.annualFrequencyScale,
+              normalizeWeights: hazardGrid.normalizeWeights,
+            },
+          }),
+        },
+        modelSnapshots: [
+          ...eventTreeModelIds.map((eventTreeModelId) =>
+            adaptOrThrow(() =>
+              adaptEsEventTreeSnapshot(eventTree, eventTreeModelId, {
+                workbookId: owner.workbookId,
+                modelId: request.modelId,
+              }),
+            ),
+          ),
+          ...faultTrees.modelSnapshots,
+          adaptOrThrow(() =>
+            adaptEsqBayesianNetworkSnapshot(
+              hcl.bayesian,
+              hcl.configuration.bayesianNetwork.modelId,
+            ),
+          ),
+          adaptOrThrow(() =>
+            adaptEsqHclSnapshot(owner, request.modelId, faultTreeBasicEventMembership),
+          ),
+        ],
+        resources: { faultTreeBasicEventCatalogue: faultTrees.resource },
+      },
+      "EVENT_TREE",
+      acting,
+    );
+    if (hazardGrid !== null && executed.hazardConvolution === undefined) {
+      throw new BadGatewayException("PRAXIS omitted the requested event-tree hazard convolution");
+    }
+    return HclBatchExecuteResultSchema.parse({ schemaVersion: "1.0.0", ...executed });
   }
 
   private async authorizeRunOwner(

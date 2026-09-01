@@ -3,8 +3,13 @@ import {
   HclBayesianNetworkReferenceSchema,
   HclConfigurationModelSchema,
   HclEventBindingSchema,
+  HclEvidenceScenarioSchema,
+  HclEventTreeBatchExecuteRequestSchema,
   HclEventTreeExecuteRequestSchema,
+  HclFaultTreeBatchExecuteRequestSchema,
   HclFaultTreeReferenceSchema,
+  HclHazardConvolutionResultSchema,
+  HclHazardGridDefinitionSchema,
   HclQuantificationResultSchema,
   HclSolverSettingsSchema,
   HclValidationResultSchema,
@@ -27,6 +32,8 @@ const BN_WORKBOOK_ID = "esq-workbook";
 const FT_WORKBOOK_ID = "sy-workbook";
 const OTHER_FT_WORKBOOK_ID = "other-sy-workbook";
 const EVENT_TREE_MODEL_ID = "123e4567-e89b-42d3-a456-426614174713";
+const SCENARIO_ID = "123e4567-e89b-42d3-a456-426614174714";
+const OTHER_SCENARIO_ID = "123e4567-e89b-42d3-a456-426614174715";
 
 describe("HCL model-reference contracts", () => {
   it("accepts a workbook-qualified Bayesian-network reference", () => {
@@ -85,6 +92,90 @@ describe("HCL integration-workbook event-tree execution", () => {
     },
   ])("rejects malformed integration ET request %#", (candidate) => {
     expect(HclEventTreeExecuteRequestSchema.safeParse(candidate).success).toBe(false);
+  });
+});
+
+describe("HCL evidence-scenario batches", () => {
+  const scenario = {
+    id: SCENARIO_ID,
+    code: "HIGH-PGA",
+    name: "High seismic demand",
+    enabled: true,
+    evidence: { observations: [{ nodeId: BN_NODE_ID, stateId: TRUE_STATE_ID }] },
+  };
+
+  it("accepts a named scenario with a complete evidence assignment", () => {
+    expect(HclEvidenceScenarioSchema.safeParse(scenario).success).toBe(true);
+  });
+
+  it("accepts unique scenario sets for fault-tree and event-tree batch requests", () => {
+    expect(HclFaultTreeBatchExecuteRequestSchema.safeParse({
+      schemaVersion: "1.0.0",
+      modelId: CONFIGURATION_ID,
+      workbookRevision: 3,
+      faultTreeTopGate: {
+        referenceType: "FAULT_TREE_TOP_EVENT",
+        workbookId: FT_WORKBOOK_ID,
+        modelId: FT_MODEL_ID,
+        entityId: TOP_GATE_ID,
+      },
+      evidenceScenarioIds: [SCENARIO_ID, OTHER_SCENARIO_ID],
+      integrateHazardGrid: true,
+    }).success).toBe(true);
+    expect(HclEventTreeBatchExecuteRequestSchema.safeParse({
+      schemaVersion: "1.0.0",
+      modelId: CONFIGURATION_ID,
+      workbookRevision: 3,
+      eventTree: { workbookId: "es-workbook", modelId: EVENT_TREE_MODEL_ID },
+      evidenceScenarioIds: [SCENARIO_ID],
+    }).success).toBe(true);
+  });
+
+  it("accepts a typed hazard grid and its auditable fault-tree integration result", () => {
+    const annualFrequencyScale = {
+      value: 2e-4,
+      unit: "PER_YEAR",
+      annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_766 },
+    };
+    expect(HclHazardGridDefinitionSchema.safeParse({
+      name: "Seismic demand grid",
+      hazardNodeIds: [BN_NODE_ID],
+      annualFrequencyScale,
+      normalizeWeights: false,
+    }).success).toBe(true);
+    expect(HclHazardConvolutionResultSchema.safeParse({
+      targetKind: "FAULT_TREE",
+      gridName: "Seismic demand grid",
+      annualFrequencyScale,
+      annualizedFrequencyScale: 2e-4,
+      normalizeWeights: false,
+      rawWeightSum: 1,
+      convolutionWeightSum: 1,
+      rows: [{
+        scenarioId: SCENARIO_ID,
+        rawWeight: 0.2,
+        normalizedWeight: 0.2,
+        convolutionWeight: 0.2,
+        annualFrequency: 4e-5,
+        conditionalProbability: 0.5,
+        annualContribution: 2e-5,
+      }],
+      integratedAnnualFrequency: 2e-5,
+    }).success).toBe(true);
+  });
+
+  it("rejects empty or duplicate scenario selections", () => {
+    const request = {
+      schemaVersion: "1.0.0",
+      modelId: CONFIGURATION_ID,
+      workbookRevision: 3,
+      eventTree: { workbookId: "es-workbook", modelId: EVENT_TREE_MODEL_ID },
+    };
+    expect(HclEventTreeBatchExecuteRequestSchema.safeParse({ ...request, evidenceScenarioIds: [] }).success).toBe(false);
+    expect(HclEventTreeBatchExecuteRequestSchema.safeParse({
+      ...request,
+      evidenceScenarioIds: [SCENARIO_ID, SCENARIO_ID],
+    }).success).toBe(false);
   });
 });
 
@@ -309,11 +400,57 @@ describe("independent HCL mapping model", () => {
       },
     ],
     baseEvidence: { observations: [] },
+    evidenceScenarios: [{
+      id: SCENARIO_ID,
+      code: "HIGH-PGA",
+      name: "High seismic demand",
+      enabled: true,
+      evidence: { observations: [{ nodeId: BN_NODE_ID, stateId: TRUE_STATE_ID }] },
+    }],
     solverSettings,
   };
 
   it("keeps one BN-to-multiple-FT mapping in its own versioned model", () => {
     expect(HclConfigurationModelSchema.safeParse(configuration).success).toBe(true);
+  });
+
+  it("requires every enabled grid row to assign every configured hazard node", () => {
+    const hazardGrid = {
+      name: "Seismic grid",
+      hazardNodeIds: [BN_NODE_ID],
+      annualFrequencyScale: {
+        value: 1e-4,
+        unit: "PER_YEAR",
+        annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_766 },
+      },
+      normalizeWeights: false,
+    };
+    expect(HclConfigurationModelSchema.safeParse({ ...configuration, hazardGrid }).success).toBe(true);
+    expect(HclConfigurationModelSchema.safeParse({
+      ...configuration,
+      hazardGrid,
+      evidenceScenarios: [{
+        ...configuration.evidenceScenarios[0],
+        evidence: { observations: [] },
+      }],
+    }).success).toBe(false);
+    expect(HclConfigurationModelSchema.safeParse({
+      ...configuration,
+      hazardGrid,
+      evidenceScenarios: [{ ...configuration.evidenceScenarios[0], enabled: false }],
+    }).success).toBe(false);
+    expect(HclConfigurationModelSchema.safeParse({
+      ...configuration,
+      hazardGrid,
+      evidenceScenarios: [
+        configuration.evidenceScenarios[0],
+        {
+          ...configuration.evidenceScenarios[0],
+          id: OTHER_SCENARIO_ID,
+          code: "HIGH-PGA-DUPLICATE",
+        },
+      ],
+    }).success).toBe(false);
   });
 
   it("allows the same BN reference to be reused by independent HCL configurations", () => {
@@ -338,6 +475,18 @@ describe("independent HCL mapping model", () => {
         bindings: [],
       }).success,
     ).toBe(true);
+  });
+
+  it("rejects duplicate evidence-scenario ids or codes", () => {
+    const scenario = configuration.evidenceScenarios[0];
+    expect(HclConfigurationModelSchema.safeParse({
+      ...configuration,
+      evidenceScenarios: [scenario, { ...scenario, id: OTHER_SCENARIO_ID }],
+    }).success).toBe(false);
+    expect(HclConfigurationModelSchema.safeParse({
+      ...configuration,
+      evidenceScenarios: [scenario, { ...scenario, code: "OTHER", name: "Other" }],
+    }).success).toBe(false);
   });
 
   it.each([

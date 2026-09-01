@@ -56,6 +56,14 @@ describe("Event-tree initiating and functional-event contracts", () => {
     ).toBe(true);
   });
 
+  it("accepts explicit frequency units and annualization semantics", () => {
+    expect(EventTreeInitiatingEventFrequencySchema.safeParse({
+      value: 2e-5,
+      unit: "PER_HOUR",
+      annualization: { basis: "CRITICAL_YEAR", hoursPerYear: 7_000 },
+    }).success).toBe(true);
+  });
+
   it.each([
     { value: -0.001 },
     { value: Number.NaN },
@@ -63,6 +71,7 @@ describe("Event-tree initiating and functional-event contracts", () => {
     { value: 0.001, controlledDataSource: { workbookId: "", parameterId: FREQUENCY_PARAMETER_ID } },
     { value: 0.001, controlledDataSource: { workbookId: "ie-workbook-1", parameterId: "IE-FREQUENCY" } },
     { value: 0.001, unit: "per-year" },
+    { value: 0.001, unit: "PER_HOUR", annualization: { basis: "PLANT_YEAR", hoursPerYear: 0 } },
   ])("rejects malformed initiating-event frequency %#", (candidate) => {
     expect(EventTreeInitiatingEventFrequencySchema.safeParse(candidate).success).toBe(false);
   });

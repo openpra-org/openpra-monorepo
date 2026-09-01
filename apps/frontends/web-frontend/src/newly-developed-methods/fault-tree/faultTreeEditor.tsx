@@ -11,10 +11,12 @@ import {
 } from "react";
 import type {
   FaultTreeBasicEvent,
+  FaultTreeBasicEventQuantificationBasis,
   FaultTreeGate,
   FaultTreeLeafNode,
   FaultTreeNodePosition,
 } from "interfaces-mef-types/modeling";
+import { failureRateToProbability } from "interfaces-mef-types/modeling";
 import {
   createFaultTreeAutoLayoutOperation,
   computeFaultTreeAutoLayout,
@@ -674,18 +676,124 @@ function NodeInspector({
           <CommitField label="Code" value={basicEvent.code} disabled={!canEditBasicEvents} required maxLength={64} onCommit={(code) => updateBasicEvent({ ...basicEvent, code })} />
           <CommitField label="Name" value={basicEvent.name} disabled={!canEditBasicEvents} required maxLength={200} onCommit={(name) => updateBasicEvent({ ...basicEvent, name })} />
           <CommitField label="Description" value={basicEvent.description} disabled={!canEditBasicEvents} multiline maxLength={10_000} onCommit={(description) => updateBasicEvent({ ...basicEvent, description })} />
-          <CommitField
-            label="Probability (0–1)"
-            value={String(basicEvent.probability.value)}
-            type="number"
-            min={0}
-            max={1}
-            disabled={!canEditBasicEvents}
-            onCommit={(value) => {
-              const probability = Number(value);
-              if (Number.isFinite(probability) && probability >= 0 && probability <= 1) updateBasicEvent({ ...basicEvent, probability: { ...basicEvent.probability, value: probability } });
-            }}
-          />
+          <label className="fteditor__field">
+            <span>Quantification input</span>
+            <select
+              className="fteditor__select"
+              aria-label="Basic-event quantification input"
+              value={basicEvent.probability.quantificationBasis?.kind ?? "PROBABILITY"}
+              disabled={!canEditBasicEvents}
+              onChange={(event) => {
+                if (event.target.value === "PROBABILITY") {
+                  updateBasicEvent({
+                    ...basicEvent,
+                    probability: {
+                      ...basicEvent.probability,
+                      quantificationBasis: { kind: "PROBABILITY" },
+                    },
+                  });
+                  return;
+                }
+                const quantificationBasis: FaultTreeBasicEventQuantificationBasis = {
+                  kind: "FAILURE_RATE",
+                  failureRate: { value: basicEvent.probability.value, unit: "HOUR" },
+                  missionTime: { value: 1, unit: "HOUR" },
+                  conversion: "LINEAR",
+                };
+                updateBasicEvent({
+                  ...basicEvent,
+                  probability: {
+                    ...basicEvent.probability,
+                    value: failureRateToProbability(quantificationBasis),
+                    quantificationBasis,
+                  },
+                });
+              }}
+            >
+              <option value="PROBABILITY">Probability</option>
+              <option value="FAILURE_RATE">Failure rate and mission time</option>
+            </select>
+          </label>
+          {basicEvent.probability.quantificationBasis?.kind === "FAILURE_RATE" ? (() => {
+            const basis = basicEvent.probability.quantificationBasis;
+            const updateBasis = (
+              next: Extract<FaultTreeBasicEventQuantificationBasis, { kind: "FAILURE_RATE" }>,
+            ): void => updateBasicEvent({
+              ...basicEvent,
+              probability: {
+                ...basicEvent.probability,
+                value: failureRateToProbability(next),
+                quantificationBasis: next,
+              },
+            });
+            return (
+              <>
+                <CommitField
+                  label="Failure rate"
+                  value={String(basis.failureRate.value)}
+                  type="number"
+                  min={0}
+                  disabled={!canEditBasicEvents}
+                  onCommit={(value) => {
+                    const rate = Number(value);
+                    if (Number.isFinite(rate) && rate >= 0) updateBasis({ ...basis, failureRate: { ...basis.failureRate, value: rate } });
+                  }}
+                />
+                <label className="fteditor__field">
+                  <span>Failure-rate unit</span>
+                  <select className="fteditor__select" value={basis.failureRate.unit} disabled={!canEditBasicEvents} onChange={(event) => updateBasis({ ...basis, failureRate: { ...basis.failureRate, unit: event.target.value as typeof basis.failureRate.unit } })}>
+                    <option value="SECOND">Per second</option>
+                    <option value="MINUTE">Per minute</option>
+                    <option value="HOUR">Per hour</option>
+                    <option value="DAY">Per day</option>
+                    <option value="YEAR">Per year</option>
+                  </select>
+                </label>
+                <CommitField
+                  label="Mission time"
+                  value={String(basis.missionTime.value)}
+                  type="number"
+                  min={0}
+                  disabled={!canEditBasicEvents}
+                  onCommit={(value) => {
+                    const duration = Number(value);
+                    if (Number.isFinite(duration) && duration > 0) updateBasis({ ...basis, missionTime: { ...basis.missionTime, value: duration } });
+                  }}
+                />
+                <label className="fteditor__field">
+                  <span>Mission-time unit</span>
+                  <select className="fteditor__select" value={basis.missionTime.unit} disabled={!canEditBasicEvents} onChange={(event) => updateBasis({ ...basis, missionTime: { ...basis.missionTime, unit: event.target.value as typeof basis.missionTime.unit } })}>
+                    <option value="SECOND">Seconds</option>
+                    <option value="MINUTE">Minutes</option>
+                    <option value="HOUR">Hours</option>
+                    <option value="DAY">Days</option>
+                    <option value="YEAR">Years</option>
+                  </select>
+                </label>
+                <label className="fteditor__field">
+                  <span>Rate conversion</span>
+                  <select className="fteditor__select" value={basis.conversion} disabled={!canEditBasicEvents} onChange={(event) => updateBasis({ ...basis, conversion: event.target.value as typeof basis.conversion })}>
+                    <option value="EXPONENTIAL">Exponential (Poisson)</option>
+                    <option value="LINEAR">Linear approximation</option>
+                  </select>
+                </label>
+                <p className="fteditor__hint">Mission probability: {formatNodeProbability(basicEvent.probability.value)}</p>
+              </>
+            );
+          })() : (
+            <CommitField
+              label="Probability (0–1)"
+              value={String(basicEvent.probability.value)}
+              type="number"
+              min={0}
+              max={1}
+              disabled={!canEditBasicEvents}
+              onCommit={(value) => {
+                const probability = Number(value);
+                if (Number.isFinite(probability) && probability >= 0 && probability <= 1) updateBasicEvent({ ...basicEvent, probability: { ...basicEvent.probability, value: probability } });
+              }}
+            />
+          )}
         </>
       )}
 

@@ -7,6 +7,7 @@ import { WorkbookAnalysisRunsService } from "../newly-developed-methods/shared/w
 import type {
   AnalysisRunMetadata,
   AnalysisRunProvenanceList,
+  HclBatchExecuteResult,
 } from "interfaces-shared-types/newly-developed-methods";
 
 @Controller("esq-workbooks")
@@ -136,6 +137,19 @@ export class EsqWorkbooksController {
     };
   }
 
+  @Post(":id/hcl-configurations/:modelId/fault-tree-batch-runs")
+  @HttpCode(HttpStatus.OK)
+  runHclFaultTreeBatch(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<HclBatchExecuteResult> {
+    return this.analysisRunsService.executeHclFaultTreeBatch(id, modelId, body, {
+      username: req.user!.username,
+    });
+  }
+
   @Post(":id/hcl-configurations/:modelId/event-tree-runs")
   @HttpCode(HttpStatus.OK)
   async runHclEventTree(
@@ -150,6 +164,19 @@ export class EsqWorkbooksController {
         username: req.user!.username,
       }),
     };
+  }
+
+  @Post(":id/hcl-configurations/:modelId/event-tree-batch-runs")
+  @HttpCode(HttpStatus.OK)
+  runHclEventTreeBatch(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<HclBatchExecuteResult> {
+    return this.analysisRunsService.executeHclEventTreeBatch(id, modelId, body, {
+      username: req.user!.username,
+    });
   }
 
   @Get(":id/hcl-configurations/:modelId/runs/:runId")

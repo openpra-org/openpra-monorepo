@@ -94,14 +94,19 @@ const connectedExampleIds = (variant: "sfr" | "htgr") => ({
 
 const FT_OR = "10000000-0000-4000-8000-000000000001";
 const FT_AND = "10000000-0000-4000-8000-000000000002";
+const FT_MASKED = "10000000-0000-4000-8000-000000000012";
 const TOP_OR = "10000000-0000-4000-8000-000000000003";
 const TOP_AND = "10000000-0000-4000-8000-000000000004";
+const TOP_MASKED = "10000000-0000-4000-8000-000000000013";
 const EVENT_A = "10000000-0000-4000-8000-000000000005";
 const EVENT_B = "10000000-0000-4000-8000-000000000006";
 const OR_LEAF_A = "10000000-0000-4000-8000-000000000007";
 const OR_LEAF_B = "10000000-0000-4000-8000-000000000008";
 const AND_LEAF_A = "10000000-0000-4000-8000-000000000009";
 const AND_LEAF_B = "10000000-0000-4000-8000-000000000010";
+const EVENT_CONSTANT_FALSE = "10000000-0000-4000-8000-000000000014";
+const MASKED_LEAF_A = "10000000-0000-4000-8000-000000000015";
+const MASKED_LEAF_FALSE = "10000000-0000-4000-8000-000000000016";
 const FT_TRANSFER = "10000000-0000-4000-8000-000000000011";
 // Fault-tree entity ids are model-local; these deliberate overlaps exercise transfer flattening.
 const TOP_TRANSFER = TOP_AND;
@@ -115,6 +120,8 @@ const A_TRUE = "20000000-0000-4000-8000-000000000005";
 const B_FALSE = "20000000-0000-4000-8000-000000000006";
 const B_TRUE = "20000000-0000-4000-8000-000000000007";
 const HCL = "20000000-0000-4000-8000-000000000008";
+const SCENARIO_A_TRUE = "20000000-0000-4000-8000-000000000015";
+const SCENARIO_A_FALSE = "20000000-0000-4000-8000-000000000016";
 
 const ET_INDEPENDENT = "30000000-0000-4000-8000-000000000001";
 const ET_HCL = "30000000-0000-4000-8000-000000000002";
@@ -167,6 +174,15 @@ const createSyMef = () => {
       description: "Probability 0.2",
       eventType: "BASIC",
       probability: 0.2,
+      implementsSrs: [],
+    },
+    {
+      uuid: EVENT_CONSTANT_FALSE,
+      code: "EVENT-FALSE",
+      name: "Constant false event",
+      description: "Probability 0",
+      eventType: "BASIC",
+      probability: 0,
       implementsSrs: [],
     },
   ];
@@ -283,6 +299,52 @@ const createSyMef = () => {
       },
       implementsSrs: [],
     },
+    {
+      uuid: FT_MASKED,
+      code: "FT-MASKED",
+      name: "Constant-masked top event",
+      systemReference: "SYS-MASKED",
+      description: "A and a constant-false event",
+      modelRepresentation: "Fault tree",
+      topGate: { gateId: TOP_MASKED },
+      gates: [{
+        id: TOP_MASKED,
+        code: "TOP-MASKED",
+        name: "Constant-masked top event",
+        description: "A and a constant-false event",
+        kind: "GATE",
+        gateType: "AND",
+      }],
+      leafNodes: [
+        { id: MASKED_LEAF_A, kind: "BASIC_EVENT_REFERENCE", basicEventId: EVENT_A },
+        {
+          id: MASKED_LEAF_FALSE,
+          kind: "BASIC_EVENT_REFERENCE",
+          basicEventId: EVENT_CONSTANT_FALSE,
+        },
+      ],
+      gateInputs: [
+        {
+          id: `${TOP_MASKED}:${MASKED_LEAF_A}:0`,
+          gateId: TOP_MASKED,
+          childId: MASKED_LEAF_A,
+          order: 0,
+        },
+        {
+          id: `${TOP_MASKED}:${MASKED_LEAF_FALSE}:1`,
+          gateId: TOP_MASKED,
+          childId: MASKED_LEAF_FALSE,
+          order: 1,
+        },
+      ],
+      nodePositions: [],
+      layout: {
+        viewport: { x: 0, y: 0, zoom: 1 },
+        mode: "AUTOMATIC",
+        direction: "TOP_TO_BOTTOM",
+      },
+      implementsSrs: [],
+    },
   ];
   return mef;
 };
@@ -382,7 +444,10 @@ const createEsqMef = () => {
       name: "HCL bindings",
       description: "Bind the AND tree to the correlated BN",
       bayesianNetwork: { workbookId: ESQ_WORKBOOK_ID, modelId: BN },
-      faultTrees: [{ workbookId: SY_WORKBOOK_ID, modelId: FT_AND }],
+      faultTrees: [
+        { workbookId: SY_WORKBOOK_ID, modelId: FT_AND },
+        { workbookId: SY_WORKBOOK_ID, modelId: FT_MASKED },
+      ],
       bindings: [
         {
           id: "20000000-0000-4000-8000-000000000013",
@@ -416,6 +481,32 @@ const createEsqMef = () => {
         },
       ],
       baseEvidence: { observations: [] },
+      evidenceScenarios: [
+        {
+          id: SCENARIO_A_TRUE,
+          code: "A-TRUE",
+          name: "Cause present",
+          enabled: true,
+          evidence: { observations: [{ nodeId: NODE_A, stateId: A_TRUE }] },
+        },
+        {
+          id: SCENARIO_A_FALSE,
+          code: "A-FALSE",
+          name: "Cause absent",
+          enabled: true,
+          evidence: { observations: [{ nodeId: NODE_A, stateId: A_FALSE }] },
+        },
+      ],
+      hazardGrid: {
+        name: "A-state grid",
+        hazardNodeIds: [NODE_A],
+        annualFrequencyScale: {
+          value: 1e-4,
+          unit: "PER_YEAR",
+          annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_766 },
+        },
+        normalizeWeights: false,
+      },
       solverSettings: {
         variableOrder: [EVENT_A, EVENT_B],
         foldConstants: false,
@@ -526,6 +617,8 @@ describe("workbook-owned analysis-run APIs", () => {
   let praetor: INestApplication;
   let mongo: MongoMemoryServer;
   let runs: Model<AnalysisRunRecordDocument>;
+  let syWorkbooks: Model<unknown>;
+  let daWorkbooks: Model<unknown>;
   let praetorClient: PraetorAnalysisClient;
   let executionAllowed = true;
   let originalPraetorUrl: string | undefined;
@@ -588,9 +681,11 @@ describe("workbook-owned analysis-run APIs", () => {
     api.setGlobalPrefix("api");
     await api.init();
     runs = moduleRef.get(getModelToken(AnalysisRunRecord.name));
+    syWorkbooks = moduleRef.get(getModelToken(SyWorkbook.name));
+    daWorkbooks = moduleRef.get(getModelToken(DaWorkbook.name));
     praetorClient = moduleRef.get(PraetorAnalysisClient);
 
-    await moduleRef.get<Model<unknown>>(getModelToken(SyWorkbook.name)).create({
+    await syWorkbooks.create({
       workbookId: SY_WORKBOOK_ID,
       projectId: PROJECT_ID,
       ownerUsername: USERNAME,
@@ -654,7 +749,7 @@ describe("workbook-owned analysis-run APIs", () => {
         implementsSrs: [],
       },
     ];
-    await moduleRef.get<Model<unknown>>(getModelToken(DaWorkbook.name)).create({
+    await daWorkbooks.create({
       workbookId: DA_WORKBOOK_ID,
       projectId: PROJECT_ID,
       ownerUsername: USERNAME,
@@ -811,6 +906,10 @@ describe("workbook-owned analysis-run APIs", () => {
       expect.closeTo(0.2 / 0.28, 12),
       expect.closeTo(0.1 / 0.28, 12),
     ]);
+    expect(result.body.basicEventQuantifications).toEqual(expect.arrayContaining([
+      expect.objectContaining({ basicEventId: EVENT_A, resolvedProbability: 0.1 }),
+      expect.objectContaining({ basicEventId: EVENT_B, resolvedProbability: 0.2 }),
+    ]));
   }, 120_000);
 
   it("quantifies an SY transfer reference through the existing fault-tree run API", async () => {
@@ -879,6 +978,74 @@ describe("workbook-owned analysis-run APIs", () => {
         }),
       ]),
     );
+  }, 120_000);
+
+  it("resolves a controlled DA failure rate through mission-time semantics", async () => {
+    const rateSyWorkbookId = "sy-workbook-rate-semantics";
+    const rateDaWorkbookId = "da-workbook-rate-semantics";
+    const rateMef = createSyMef();
+    rateMef.systemBasicEvents[0] = {
+      ...rateMef.systemBasicEvents[0]!,
+      probability: 0,
+      quantificationBasis: {
+        kind: "FAILURE_RATE",
+        failureRate: { value: 0, unit: "HOUR" },
+        missionTime: { value: 24, unit: "HOUR" },
+        conversion: "EXPONENTIAL",
+      },
+      controlledDataSource: {
+        referenceType: "WORKBOOK_PARAMETER",
+        workbookId: rateDaWorkbookId,
+        entityId: DA_PARAMETER_ID,
+      },
+    };
+    await syWorkbooks.create({
+      workbookId: rateSyWorkbookId,
+      projectId: PROJECT_ID,
+      ownerUsername: USERNAME,
+      revision: 1,
+      mef: rateMef,
+    });
+    const rateDa = createBlankDa("Controlled failure rate", USERNAME);
+    rateDa.parameters = [{
+      uuid: DA_PARAMETER_ID,
+      name: "Event A hourly failure rate",
+      parameterType: "FREQUENCY",
+      value: 2e-5,
+      valueType: "POINT_ESTIMATE",
+      implementsSrs: [],
+    }];
+    await daWorkbooks.create({
+      workbookId: rateDaWorkbookId,
+      projectId: PROJECT_ID,
+      ownerUsername: USERNAME,
+      revision: 1,
+      mef: rateDa,
+    });
+
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${rateSyWorkbookId}/fault-trees/${FT_OR}/runs`)
+      .send({ schemaVersion: "1.0.0", modelId: FT_OR, workbookRevision: 1 });
+    expect(response.status).toBe(200);
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${rateSyWorkbookId}/fault-trees/${FT_OR}/runs/${response.body.run.id}/result`,
+    );
+    const missionProbability = 4.798848184297884e-4;
+    expect(result.status).toBe(200);
+    expect(result.body.topEventProbability).toBeCloseTo(1 - (1 - missionProbability) * 0.8, 12);
+    expect(result.body.basicEventQuantifications).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        basicEventId: EVENT_A,
+        resolvedProbability: expect.closeTo(missionProbability, 15),
+        input: expect.objectContaining({
+          quantificationBasis: expect.objectContaining({
+            kind: "FAILURE_RATE",
+            failureRate: { value: 2e-5, unit: "HOUR" },
+            missionTime: { value: 24, unit: "HOUR" },
+          }),
+        }),
+      }),
+    ]));
   }, 120_000);
 
   it("executes an ESQ-owned BN query and returns the exact 0.64 posterior", async () => {
@@ -977,6 +1144,11 @@ describe("workbook-owned analysis-run APIs", () => {
         annualFrequency: expect.closeTo(0.0028, 12),
       }),
     ]);
+    expect(result.body.frequencySemantics).toEqual({
+      initiatingEventFrequency: { value: 0.01, unit: "PER_YEAR" },
+      annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_766 },
+      annualizedInitiatingEventFrequency: { value: 0.01, unit: "PER_YEAR" },
+    });
   }, 120_000);
 
   it("executes exact HCL FT and HCL ET runs through the integration workbook API", async () => {
@@ -995,6 +1167,10 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(faultTreeResult.status).toBe(200);
     expect(faultTreeResult.body.probability).toBeCloseTo(0.16, 12);
     expect(faultTreeResult.body.probability).not.toBeCloseTo(0.02, 12);
+    expect(faultTreeResult.body.basicEventQuantifications).toEqual(expect.arrayContaining([
+      expect.objectContaining({ basicEventId: EVENT_A, resolvedProbability: 0.1 }),
+      expect.objectContaining({ basicEventId: EVENT_B, resolvedProbability: 0.2 }),
+    ]));
 
     const eventTree = await request(api.getHttpServer())
       .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/event-tree-runs`)
@@ -1016,6 +1192,194 @@ describe("workbook-owned analysis-run APIs", () => {
       expect.objectContaining({ sequenceId: HCL_FF, conditionalProbability: expect.closeTo(0.16, 12) }),
     ]);
   }, 120_000);
+
+  it("runs HCL fault-tree and event-tree targets for a saved evidence-scenario set", async () => {
+    const executeSpy = jest.spyOn(praetorClient, "execute");
+    const faultTreeBatch = await request(api.getHttpServer())
+      .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-batch-runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: HCL,
+        workbookRevision: 7,
+        faultTreeTopGate: topReference(FT_AND, TOP_AND),
+        evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
+      });
+    expect(faultTreeBatch.status).toBe(200);
+    expect(executeSpy).toHaveBeenCalledTimes(1);
+    expect(executeSpy.mock.calls[0]?.[0]).toMatchObject({
+      request: {
+        methodType: "HYBRID_CAUSAL_LOGIC",
+        evidenceBatch: [
+          { scenarioId: SCENARIO_A_TRUE },
+          { scenarioId: SCENARIO_A_FALSE },
+        ],
+      },
+    });
+    expect(faultTreeBatch.body.runs).toEqual([
+      expect.objectContaining({ scenarioId: SCENARIO_A_TRUE, scenarioCode: "A-TRUE" }),
+      expect.objectContaining({ scenarioId: SCENARIO_A_FALSE, scenarioCode: "A-FALSE" }),
+    ]);
+    const faultTreeProbabilities: number[] = [];
+    for (const scenario of faultTreeBatch.body.runs as Array<{ run: { id: string; status: string } }>) {
+      expect(scenario.run.status).toBe("SUCCEEDED");
+      const result = await request(api.getHttpServer()).get(
+        `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/runs/${scenario.run.id}/result`,
+      );
+      expect(result.status).toBe(200);
+      faultTreeProbabilities.push(result.body.probability);
+    }
+    expect(faultTreeProbabilities).toEqual([expect.closeTo(0.8, 12), expect.closeTo(0, 12)]);
+    const storedBatchRun = await runs.findOne({ id: faultTreeBatch.body.runs[0].run.id }).lean().exec();
+    expect(storedBatchRun?.request).toMatchObject({
+      batchContext: {
+        evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
+        varyingEvidenceNodeIds: [NODE_A],
+        targetKey: `${SY_WORKBOOK_ID}:${FT_AND}`,
+        targetEvidenceNodeIds: [NODE_A],
+      },
+    });
+
+    executeSpy.mockClear();
+    const eventTreeBatch = await request(api.getHttpServer())
+      .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/event-tree-batch-runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: HCL,
+        workbookRevision: 7,
+        eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL },
+        evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
+      });
+    expect(eventTreeBatch.status).toBe(200);
+    expect(executeSpy).toHaveBeenCalledTimes(1);
+    expect(executeSpy.mock.calls[0]?.[0]).toMatchObject({
+      request: {
+        methodType: "EVENT_TREE",
+        evidenceBatch: [
+          { scenarioId: SCENARIO_A_TRUE },
+          { scenarioId: SCENARIO_A_FALSE },
+        ],
+      },
+    });
+    expect(eventTreeBatch.body.runs).toHaveLength(2);
+    for (const scenario of eventTreeBatch.body.runs as Array<{ run: { id: string; status: string } }>) {
+      expect(scenario.run.status).toBe("SUCCEEDED");
+      const result = await request(api.getHttpServer()).get(
+        `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/runs/${scenario.run.id}/result`,
+      );
+      expect(result.status).toBe(200);
+      expect(result.body.sequences.reduce(
+        (sum: number, sequence: { conditionalProbability: number }) => sum + sequence.conditionalProbability,
+        0,
+      )).toBeCloseTo(1, 12);
+    }
+
+    executeSpy.mockClear();
+    const faultTreeConvolution = await request(api.getHttpServer())
+      .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-batch-runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: HCL,
+        workbookRevision: 7,
+        faultTreeTopGate: topReference(FT_AND, TOP_AND),
+        evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
+        integrateHazardGrid: true,
+      });
+    expect(faultTreeConvolution.status).toBe(200);
+    expect(executeSpy).toHaveBeenCalledTimes(1);
+    expect(executeSpy.mock.calls[0]?.[0]).toMatchObject({
+      request: {
+        hazardConvolution: {
+          gridName: "A-state grid",
+          hazardNodeIds: [NODE_A],
+          annualFrequencyScale: { value: 1e-4, unit: "PER_YEAR" },
+          normalizeWeights: false,
+        },
+        evidenceBatch: [
+          { scenarioId: SCENARIO_A_TRUE, hazardObservations: [{ nodeId: NODE_A, stateId: A_TRUE }] },
+          { scenarioId: SCENARIO_A_FALSE, hazardObservations: [{ nodeId: NODE_A, stateId: A_FALSE }] },
+        ],
+      },
+    });
+    expect(faultTreeConvolution.body.hazardConvolution).toMatchObject({
+      targetKind: "FAULT_TREE",
+      gridName: "A-state grid",
+      rawWeightSum: expect.closeTo(1, 12),
+      convolutionWeightSum: expect.closeTo(1, 12),
+      integratedAnnualFrequency: expect.closeTo(1.6e-5, 12),
+      rows: [
+        expect.objectContaining({
+          scenarioId: SCENARIO_A_TRUE,
+          rawWeight: expect.closeTo(0.2, 12),
+          conditionalProbability: expect.closeTo(0.8, 12),
+          annualContribution: expect.closeTo(1.6e-5, 12),
+        }),
+        expect.objectContaining({
+          scenarioId: SCENARIO_A_FALSE,
+          rawWeight: expect.closeTo(0.8, 12),
+          conditionalProbability: expect.closeTo(0, 12),
+          annualContribution: expect.closeTo(0, 12),
+        }),
+      ],
+    });
+
+    const eventTreeConvolution = await request(api.getHttpServer())
+      .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/event-tree-batch-runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: HCL,
+        workbookRevision: 7,
+        eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL },
+        evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
+        integrateHazardGrid: true,
+      });
+    expect(eventTreeConvolution.status).toBe(200);
+    expect(eventTreeConvolution.body.hazardConvolution).toMatchObject({
+      targetKind: "EVENT_TREE",
+      rawWeightSum: expect.closeTo(1, 12),
+      endStateAggregates: expect.arrayContaining([
+        { endStateId: SAFE, integratedAnnualFrequency: expect.closeTo(8.4e-5, 12) },
+        { endStateId: RELEASE, integratedAnnualFrequency: expect.closeTo(1.6e-5, 12) },
+      ]),
+    });
+  }, 120_000);
+
+  it("rejects batch targets that cannot change across the selected scenarios", async () => {
+    const constantMasked = await request(api.getHttpServer())
+      .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-batch-runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: HCL,
+        workbookRevision: 7,
+        faultTreeTopGate: topReference(FT_MASKED, TOP_MASKED),
+        evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
+      });
+    expect(constantMasked.status).toBe(400);
+    expect(constantMasked.body.message).toMatch(/masked by constant fault-tree logic/i);
+
+    const constantEvidence = await request(api.getHttpServer())
+      .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-batch-runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: HCL,
+        workbookRevision: 7,
+        faultTreeTopGate: topReference(FT_AND, TOP_AND),
+        evidenceScenarioIds: [SCENARIO_A_TRUE],
+      });
+    expect(constantEvidence.status).toBe(400);
+    expect(constantEvidence.body.message).toMatch(/not affected by evidence that varies/i);
+
+    const unrelatedEventTree = await request(api.getHttpServer())
+      .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/event-tree-batch-runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: HCL,
+        workbookRevision: 7,
+        eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_INDEPENDENT },
+        evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
+      });
+    expect(unrelatedEventTree.status).toBe(400);
+    expect(unrelatedEventTree.body.message).toMatch(/not affected by evidence that varies/i);
+  });
 
   it.each(["sfr", "htgr"] as const)(
     "executes and traces the connected %s example through its real workbook revisions",

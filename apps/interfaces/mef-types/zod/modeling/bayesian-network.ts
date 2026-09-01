@@ -17,6 +17,8 @@ import type {
   BayesianNetworkNodeStates,
   BayesianNetworkParentReference,
   BayesianNetworkParentStateSelection,
+  BayesianNetworkXdslMetadata,
+  BayesianNetworkXdslNodeIdentifier,
 } from "../../modeling/bayesian-network";
 
 const BayesianNetworkEntityIdentitySchema = z.object({
@@ -101,6 +103,43 @@ const BayesianNetworkNodePositionSchema = z
   })
   .strict();
 
+const BayesianNetworkXdslNodeIdentifierSchema = z
+  .object({
+    nodeId: WorkbookEntityIdSchema,
+    sourceId: z.string().trim().min(1, "XDSL node id is required"),
+  })
+  .strict();
+
+const BayesianNetworkXdslMetadataSchema = z
+  .object({
+    rootAttributes: z.record(z.string(), z.string()),
+    extensionsXml: z.string().optional(),
+    nodeIdentifiers: z.array(BayesianNetworkXdslNodeIdentifierSchema),
+  })
+  .strict()
+  .superRefine((metadata, context) => {
+    const internalIds = new Set<string>();
+    const sourceIds = new Set<string>();
+    metadata.nodeIdentifiers.forEach((identifier, index) => {
+      if (internalIds.has(identifier.nodeId)) {
+        context.addIssue({
+          code: "custom",
+          path: ["nodeIdentifiers", index, "nodeId"],
+          message: "Each Bayesian-network node can have only one XDSL identifier",
+        });
+      }
+      if (sourceIds.has(identifier.sourceId)) {
+        context.addIssue({
+          code: "custom",
+          path: ["nodeIdentifiers", index, "sourceId"],
+          message: "XDSL node identifiers must be unique",
+        });
+      }
+      internalIds.add(identifier.nodeId);
+      sourceIds.add(identifier.sourceId);
+    });
+  });
+
 const BayesianNetworkEvidenceObservationSchema = z
   .object({
     nodeId: WorkbookEntityIdSchema,
@@ -134,6 +173,7 @@ const BayesianNetworkDefinitionSchema = z
     conditionalProbabilityTables: z.array(BayesianNetworkConditionalProbabilityTableSchema),
     nodePositions: z.array(BayesianNetworkNodePositionSchema),
     layout: CanvasLayoutMetadataSchema,
+    xdslMetadata: BayesianNetworkXdslMetadataSchema.optional(),
   })
   .strict();
 
@@ -179,6 +219,12 @@ type _AssertBayesianNetworkConditionalProbabilityTable = Expect<
 type _AssertBayesianNetworkNodePosition = Expect<
   Equal<z.infer<typeof BayesianNetworkNodePositionSchema>, BayesianNetworkNodePosition>
 >;
+type _AssertBayesianNetworkXdslNodeIdentifier = Expect<
+  Equal<z.infer<typeof BayesianNetworkXdslNodeIdentifierSchema>, BayesianNetworkXdslNodeIdentifier>
+>;
+type _AssertBayesianNetworkXdslMetadata = Expect<
+  Equal<z.infer<typeof BayesianNetworkXdslMetadataSchema>, BayesianNetworkXdslMetadata>
+>;
 type _AssertBayesianNetworkEvidenceObservation = Expect<
   Equal<z.infer<typeof BayesianNetworkEvidenceObservationSchema>, BayesianNetworkEvidenceObservation>
 >;
@@ -203,6 +249,8 @@ export {
   BayesianNetworkCptRowSchema,
   BayesianNetworkConditionalProbabilityTableSchema,
   BayesianNetworkNodePositionSchema,
+  BayesianNetworkXdslNodeIdentifierSchema,
+  BayesianNetworkXdslMetadataSchema,
   BayesianNetworkEvidenceObservationSchema,
   BayesianNetworkEvidenceConfigurationSchema,
   BayesianNetworkDefinitionSchema,

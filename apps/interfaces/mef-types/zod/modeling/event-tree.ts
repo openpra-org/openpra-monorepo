@@ -6,6 +6,7 @@ import {
   MethodModelReferenceSchema,
   WorkbookEntityIdSchema,
 } from "./shared";
+import { AnnualizationConventionSchema, EventFrequencyUnitSchema } from "./quantitative-semantics";
 import type {
   EventTreeBranchOutcome,
   EventTreeBranchResult,
@@ -49,6 +50,8 @@ const EventTreeControlledDataSourceReferenceSchema = z
 const EventTreeInitiatingEventFrequencySchema = z
   .object({
     value: z.number().nonnegative("Initiating-event frequency cannot be negative"),
+    unit: EventFrequencyUnitSchema.optional(),
+    annualization: AnnualizationConventionSchema.optional(),
     controlledDataSource: EventTreeControlledDataSourceReferenceSchema.optional(),
   })
   .strict();

@@ -519,6 +519,9 @@ function systemBasicEventToFaultTreeBasicEvent(event: SystemBasicEvent): FaultTr
     description: event.description ?? "",
     probability: {
       value: event.probability ?? Number.NaN,
+      ...(event.quantificationBasis === undefined
+        ? {}
+        : { quantificationBasis: structuredClone(event.quantificationBasis) }),
       ...(event.controlledDataSource === undefined
         ? {}
         : { controlledDataSource: { ...event.controlledDataSource } }),
@@ -543,6 +546,9 @@ function applyFaultTreeBasicEventToSystemBasicEvent(
       ? {}
       : { description: event.description }),
     ...(probability === undefined ? { probability: undefined } : { probability }),
+    ...(event.probability.quantificationBasis === undefined
+      ? { quantificationBasis: undefined }
+      : { quantificationBasis: structuredClone(event.probability.quantificationBasis) }),
     ...(event.probability.controlledDataSource === undefined
       ? { controlledDataSource: undefined }
       : { controlledDataSource: { ...event.probability.controlledDataSource } }),

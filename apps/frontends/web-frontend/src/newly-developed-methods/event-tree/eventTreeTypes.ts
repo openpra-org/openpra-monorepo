@@ -6,6 +6,7 @@ import type {
   SystemStatus,
 } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { FaultTreeTopEventReference } from "interfaces-mef-types/modeling";
+import type { EventFrequencyUnit } from "interfaces-mef-types/modeling";
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 
 type EventTreeRepresentation = "event-sequence-diagram" | "event-tree" | "table" | "dynamic";
@@ -120,6 +121,7 @@ interface EventTreePresentationView {
   name: string;
   initiatingEventId: string;
   initiatingEventFrequency?: number;
+  initiatingEventFrequencyUnit?: EventFrequencyUnit;
   functionalEvents: EventTreeFunctionalEventView[];
   node: EventTreeNodeView | EventTreeLeafReference;
   sequences: EventTreeSequenceView[];

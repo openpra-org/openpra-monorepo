@@ -70,6 +70,22 @@ interface BayesianNetworkNodePosition {
   position: CanvasPosition;
 }
 
+interface BayesianNetworkXdslNodeIdentifier {
+  nodeId: WorkbookEntityId;
+  sourceId: string;
+}
+
+/**
+ * Presentation-only XDSL data that is not needed by the inference engine.
+ * Keeping it beside the canonical model lets OpenPRA edit and quantify the
+ * network without flattening GeNIe submodels or discarding vendor metadata.
+ */
+interface BayesianNetworkXdslMetadata {
+  rootAttributes: Record<string, string>;
+  extensionsXml?: string;
+  nodeIdentifiers: BayesianNetworkXdslNodeIdentifier[];
+}
+
 interface BayesianNetworkEvidenceObservation {
   nodeId: WorkbookEntityId;
   stateId: WorkbookEntityId;
@@ -85,6 +101,7 @@ interface BayesianNetworkDefinition {
   conditionalProbabilityTables: BayesianNetworkConditionalProbabilityTable[];
   nodePositions: BayesianNetworkNodePosition[];
   layout: CanvasLayoutMetadata;
+  xdslMetadata?: BayesianNetworkXdslMetadata;
 }
 
 export type {
@@ -101,6 +118,8 @@ export type {
   BayesianNetworkCptRow,
   BayesianNetworkConditionalProbabilityTable,
   BayesianNetworkNodePosition,
+  BayesianNetworkXdslNodeIdentifier,
+  BayesianNetworkXdslMetadata,
   BayesianNetworkEvidenceObservation,
   BayesianNetworkEvidenceConfiguration,
   BayesianNetworkDefinition,

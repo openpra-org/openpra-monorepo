@@ -225,6 +225,7 @@ function EsqEventTreeHclWorkspace({
             workbookId: workbook.id,
             workbookName: workbook.name,
             modelId: tree.uuid,
+            modelCode: tree.label?.trim() || tree.name,
             modelName: tree.name,
             sequences: connectedTrees.flatMap((connectedTree) =>
               Object.values(connectedTree.sequences).map((sequence) => ({ id: sequence.uuid, name: sequence.name })),
@@ -438,11 +439,11 @@ function EsqEventTreeHclWorkspace({
   }
 
   return (
-    <section className="poscard esq-hcl-et" aria-label="Event-tree Bayesian dependency quantification">
+    <section className="poscard esq-hcl-et" aria-label="Event tree Bayesian dependency quantification">
       <div className="poscard__head">
-        <div>
-          <h3>Event-tree Bayesian dependency network</h3>
-          {displayedNetwork !== undefined && <p className="poscard__sub">Inspect the dependency network and quantify event trees; linked fault trees are derived automatically.</p>}
+        <div className="esq-hcl-et__intro">
+          <h3 className="poscard__title">Event tree Bayesian dependency network</h3>
+          {displayedNetwork !== undefined && <p className="poscard__sub">Inspect the dependency network and quantify event trees. Linked fault trees are derived automatically.</p>}
         </div>
         {!sourceLoading && displayedNetwork === undefined && editable && (
           <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={createLegacyNetwork}>
@@ -453,7 +454,7 @@ function EsqEventTreeHclWorkspace({
         {displayedNetwork !== undefined && relevantConfigurations.length > 0 && (
           <label className="esq-hcl-et__configuration">
             <span>Dependency configuration</span>
-            <select value={selectedConfigurationKey} onChange={(event) => {
+            <select className="posfield__select" aria-label="Dependency configuration" value={selectedConfigurationKey} onChange={(event) => {
               setSelectedConfigurationKey(event.target.value);
               setRunResult(null);
               setBatchRunResult(null);

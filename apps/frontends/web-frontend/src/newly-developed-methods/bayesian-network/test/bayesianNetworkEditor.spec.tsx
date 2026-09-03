@@ -72,6 +72,7 @@ const linkedEventTree: HclEventTreeOption = {
   workbookId: "es-workbook",
   workbookName: "Event Sequence Analysis",
   modelId: ET_MODEL_ID,
+  modelCode: "ET-LOSS-COOLING",
   modelName: "Loss of cooling event tree",
   sequences: [{ id: "20000000-0000-4000-8000-000000000007", name: "Safe" }],
   faultTrees: [{ workbookId: FT_WORKBOOK_ID, modelId: FT_MODEL_ID }],
@@ -152,6 +153,28 @@ const unchangedBatchResult: HclEditorBatchRunResult = {
 };
 
 const commonHclResult = unchangedBatchResult.scenarios[0]!.result as HclEditorRunResult;
+const eventHclResult = {
+  kind: "EVENT_TREE",
+  result: {
+    schemaVersion: "1.0.0",
+    runId: "40000000-0000-4000-8000-000000000010",
+    owner: { workbookId: linkedEventTree.workbookId, modelId: linkedEventTree.modelId, workbookRevision: 2 },
+    mode: "HYBRID_CAUSAL_LOGIC",
+    sequences: [{
+      sequenceId: linkedEventTree.sequences[0]!.id,
+      path: [],
+      result: { kind: "END_STATE", endStateId: "40000000-0000-4000-8000-000000000011" },
+      conditionalProbability: 0.25,
+      annualFrequency: 0.00025,
+    }],
+    endStateAggregates: [{
+      endStateId: "40000000-0000-4000-8000-000000000011",
+      annualFrequency: 0.00025,
+    }],
+    validationIssues: [],
+    completedAt: "2026-08-31T12:00:00.000Z",
+  },
+} as HclEditorRunResult;
 const hazardBatchResult: HclEditorBatchRunResult = {
   ...unchangedBatchResult,
   hazardConvolution: {
@@ -970,12 +993,49 @@ describe("BayesianNetworkEditor", () => {
 
     expect(screen.queryByLabelText("HCL target type")).not.toBeInTheDocument();
     expect(screen.getByLabelText("HCL event-tree target")).toHaveValue(`${linkedEventTree.workbookId}:${linkedEventTree.modelId}`);
-    expect(screen.getByLabelText("Automatically linked fault trees")).toHaveTextContent("FT-A");
-    expect(screen.getByLabelText("Automatically linked fault trees")).toHaveTextContent("FE-PUMP");
+    expect(screen.getByLabelText("HCL event-tree target")).toHaveDisplayValue("ET-LOSS-COOLING");
+    const linkedTrees = screen.getByLabelText("Automatically linked fault trees");
+    expect(linkedTrees).toHaveClass("hcleditor__trees", "hcleditor__linked-tree-directory");
+    expect(linkedTrees).toHaveTextContent("FT-A");
+    expect(linkedTrees).not.toHaveTextContent("FE-PUMP");
+    expect(within(linkedTrees).getByRole("listitem", { name: /FT-A/ })).toHaveAttribute("title", expect.stringContaining("FE-PUMP"));
     expect(screen.queryByRole("button", { name: "Manage" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("HCL fault-tree target")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Run HCL quantification" }));
     expect(onRunEventTree).toHaveBeenCalledWith(syOwnedConfiguration, linkedEventTree);
+  });
+
+  it("presents event-tree HCL results with the shared Systems Analysis result layout", () => {
+    render(
+      <HclBindingEditor
+        model={testBayesianNetworkModel()}
+        editable={false}
+        workbookId={FT_WORKBOOK_ID}
+        configurations={[syOwnedConfiguration]}
+        scope="EVENT_TREE"
+        faultTreeOptions={faultTreeOptions}
+        eventTreeOptions={[linkedEventTree]}
+        baseEvidence={syOwnedConfiguration.baseEvidence}
+        validation={[]}
+        running={false}
+        runError={null}
+        runResult={eventHclResult}
+        batchRunResult={null}
+        onChange={jest.fn()}
+        onRunFaultTree={jest.fn()}
+        onRunEventTree={jest.fn()}
+        onRunFaultTreeBatch={jest.fn()}
+        onRunEventTreeBatch={jest.fn()}
+      />,
+    );
+
+    const result = screen.getByLabelText("HCL event-tree result");
+    expect(result).toHaveClass("hcleditor__batch-result");
+    expect(result).toHaveTextContent("Sequence results");
+    expect(result).toHaveTextContent("Safe");
+    expect(result).toHaveTextContent("2.50E-04/yr");
+    expect(result).toHaveTextContent("Conditional probability 2.50E-01");
+    expect(screen.queryByRole("button", { name: "View sequence results" })).not.toBeInTheDocument();
   });
 
   it("blocks HCL quantification while a CPT edit is invalid", () => {
@@ -1212,10 +1272,15 @@ describe("BayesianNetworkEditor", () => {
   it("keeps mutation controls unavailable in read-only mode", () => {
     render(<Harness editable={false} />);
 
+    expect(screen.getByTestId("bayesian-network-editor")).toHaveClass("bneditor--readonly");
+    expect(screen.getByLabelText("Bayesian-network code")).toHaveTextContent("BN-TEST");
+    expect(screen.getByLabelText("Bayesian-network name")).toHaveTextContent("Test network");
     expect(screen.getByRole("button", { name: "Add node" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reusable modules" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Add state" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Create HCL configuration" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "BN node Effect" }));
     expect(screen.getByLabelText("Bayesian-network node inspector")).toHaveTextContent("B");
+    expect(screen.getAllByLabelText(/State code/)[0]).toHaveAttribute("readonly");
   });
 });

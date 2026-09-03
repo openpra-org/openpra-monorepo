@@ -86,6 +86,53 @@ function HclResultMetric({
   );
 }
 
+interface HclFaultTreeDirectoryItem {
+  id: string;
+  code: string;
+  title?: string;
+}
+
+function HclFaultTreeDirectory({
+  ariaLabel,
+  heading,
+  items,
+  emptyText,
+  className = "",
+}: {
+  ariaLabel: string;
+  heading: string;
+  items: HclFaultTreeDirectoryItem[];
+  emptyText: string;
+  className?: string;
+}): JSX.Element {
+  return (
+    <div className={`hcleditor__trees${className === "" ? "" : ` ${className}`}`} aria-label={ariaLabel}>
+      <div className="hcleditor__trees-head">
+        <strong>{heading}</strong>
+        <span>{items.length} {items.length === 1 ? "tree" : "trees"}</span>
+      </div>
+      {items.length > 0 ? (
+        <div className="hcleditor__tree-cloud" role="list">
+          {items.map((item) => (
+            <span
+              key={item.id}
+              className="hcleditor__tree-token"
+              role="listitem"
+              title={item.title ?? item.code}
+              aria-label={item.title ?? item.code}
+            >
+              <span className="hcleditor__tree-mark" aria-hidden="true">✓</span>
+              <strong>{item.code}</strong>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="hcleditor__trees-empty">{emptyText}</p>
+      )}
+    </div>
+  );
+}
+
 function HclIcon({ name }: { name: "configuration" | "evidence" | "run" | "trash" }): JSX.Element {
   const common = {
     fill: "none",
@@ -147,7 +194,6 @@ function HclBindingEditor({
   const [error, setError] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
   const [manageTab, setManageTab] = useState<"TREES" | "BINDINGS" | "SCENARIOS" | "ADVANCED">("BINDINGS");
-  const [sequenceResultsOpen, setSequenceResultsOpen] = useState(false);
   const { requestConfirmation, confirmationDialog } = useEditorConfirmation();
   const selectedTree = faultTreeOptions.find(
     (option) => `${option.workbookId}:${option.modelId}` === faultTreeKey,
@@ -431,7 +477,7 @@ function HclBindingEditor({
                   <span>Event tree</span>
                   <select aria-label="HCL event-tree target" value={eventTreeKey} onChange={(event) => setEventTreeKey(event.target.value)}>
                     {runEventTreeOptions.length === 0 && <option value="">{evidenceMode !== "BASE" ? "No affected event tree" : "No linked event tree"}</option>}
-                    {runEventTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.workbookName} · {option.modelName}</option>)}
+                    {runEventTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode}</option>)}
                   </select>
                 </label>
               )}
@@ -466,16 +512,17 @@ function HclBindingEditor({
           </div>
 
           {targetKind === "EVENT_TREE" && selectedEventTree !== undefined && (
-            <div className="hcleditor__linked-fault-trees" aria-label="Automatically linked fault trees">
-              <strong>Linked fault trees</strong>
-              {(selectedEventTree.linkedFaultTrees ?? []).map((tree) => (
-                <span key={`${tree.workbookId}:${tree.modelId}`}>
-                  <b>{tree.modelCode}</b>
-                  {tree.functionalEvents.map((event) => event.code).join(", ")}
-                </span>
-              ))}
-              {(selectedEventTree.linkedFaultTrees ?? []).length === 0 && <span>No functional-event fault-tree links were found.</span>}
-            </div>
+            <HclFaultTreeDirectory
+              ariaLabel="Automatically linked fault trees"
+              heading="Linked fault trees"
+              className="hcleditor__linked-tree-directory"
+              items={(selectedEventTree.linkedFaultTrees ?? []).map((tree) => ({
+                id: `${tree.workbookId}:${tree.modelId}`,
+                code: tree.modelCode,
+                title: `${tree.modelCode} · ${tree.modelName} · ${tree.functionalEvents.map((event) => event.code).join(", ")}`,
+              }))}
+              emptyText="No functional-event fault-tree links were found."
+            />
           )}
 
           {manageOpen && (
@@ -504,37 +551,22 @@ function HclBindingEditor({
                       <button type="button" className="posnav__btn posnav__btn--sm" onClick={includeSelectedFaultTree}>Include</button>
                     </div>
                   )}
-                  <div className="hcleditor__trees" aria-label="Included HCL fault trees">
-                    <div className="hcleditor__trees-head">
-                      <strong>Included</strong>
-                      <span>{configuration.faultTrees.length} {configuration.faultTrees.length === 1 ? "tree" : "trees"}</span>
-                    </div>
-                    {configuration.faultTrees.length > 0 ? (
-                      <div className="hcleditor__tree-cloud" role="list">
-                        {configuration.faultTrees.map((reference) => {
-                          const tree = faultTreeOptions.find((option) =>
-                            option.workbookId === reference.workbookId && option.modelId === reference.modelId,
-                          );
-                          const code = tree?.modelCode ?? reference.modelId;
-                          const name = tree?.modelName;
-                          return (
-                            <span
-                              key={`${reference.workbookId}:${reference.modelId}`}
-                              className="hcleditor__tree-token"
-                              role="listitem"
-                              title={name === undefined ? code : `${code} · ${name}`}
-                              aria-label={name === undefined ? code : `${code}, ${name}`}
-                            >
-                              <span className="hcleditor__tree-mark" aria-hidden="true">✓</span>
-                              <strong>{code}</strong>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="hcleditor__trees-empty">No fault trees included.</p>
-                    )}
-                  </div>
+                  <HclFaultTreeDirectory
+                    ariaLabel="Included HCL fault trees"
+                    heading="Included"
+                    items={configuration.faultTrees.map((reference) => {
+                      const tree = faultTreeOptions.find((option) =>
+                        option.workbookId === reference.workbookId && option.modelId === reference.modelId,
+                      );
+                      const code = tree?.modelCode ?? reference.modelId;
+                      return {
+                        id: `${reference.workbookId}:${reference.modelId}`,
+                        code,
+                        title: tree === undefined ? code : `${code} · ${tree.modelName}`,
+                      };
+                    })}
+                    emptyText="No fault trees included."
+                  />
                 </div>
               )}
 
@@ -643,21 +675,25 @@ function HclBindingEditor({
             </div>
           )}
           {runResult?.kind === "EVENT_TREE" && (
-            <div className="hcleditor__result hcleditor__result--sequences" aria-label="HCL event-tree result">
-              <div className="hcleditor__result-summary">
-                <strong>{String(runResult.result.sequences.length)} sequences calculated</strong>
-                <button type="button" className="posnav__btn posnav__btn--sm" aria-expanded={sequenceResultsOpen} onClick={() => setSequenceResultsOpen((open) => !open)}>
-                  {sequenceResultsOpen ? "Hide results" : "View sequence results"}
-                </button>
+            <div className="hcleditor__batch-result" aria-label="HCL event-tree result">
+              <div className="hcleditor__batch-heading">
+                <strong>Sequence results</strong>
+                <span>{String(runResult.result.sequences.length)} sequences calculated</span>
               </div>
-              {sequenceResultsOpen && (
-                <div className="hcleditor__sequence-list">
-                  {runResult.result.sequences.map((sequence) => {
-                    const target = eventTreeOptions.flatMap((option) => option.sequences).find(({ id }) => id === sequence.sequenceId);
-                    return <span key={sequence.sequenceId}><b>{target?.name ?? sequence.sequenceId}</b><output>{sequence.conditionalProbability.toExponential(6)} · {sequence.annualFrequency.toExponential(6)}/yr</output></span>;
-                  })}
-                </div>
-              )}
+              <div className="hcleditor__batch-table">
+                {runResult.result.sequences.map((sequence) => {
+                  const target = eventTreeOptions.flatMap((option) => option.sequences).find(({ id }) => id === sequence.sequenceId);
+                  return (
+                    <HclResultMetric
+                      key={sequence.sequenceId}
+                      label={target?.name ?? sequence.sequenceId}
+                      value={`${formatScientific(sequence.annualFrequency)}/yr`}
+                      ratio={sequence.conditionalProbability}
+                      detail={`Conditional probability ${formatScientific(sequence.conditionalProbability)}`}
+                    />
+                  );
+                })}
+              </div>
             </div>
           )}
           {batchRunResult !== null && (
@@ -688,8 +724,8 @@ function HclBindingEditor({
                     />
                   ) : (
                     <HclResultMetric
-                      label="End states"
-                      value={String(batchRunResult.hazardConvolution.endStateAggregates.length)}
+                      label="Integrated frequency"
+                      value={`${formatScientific(batchRunResult.hazardConvolution.endStateAggregates.reduce((sum, endState) => sum + endState.integratedAnnualFrequency, 0))}/yr`}
                     />
                   )}
                 </div>
@@ -705,7 +741,8 @@ function HclBindingEditor({
                   }
                   if (scenario.result?.kind === "EVENT_TREE") {
                     const frequency = scenario.result.result.sequences.reduce((sum, sequence) => sum + sequence.annualFrequency, 0);
-                    value = `${String(scenario.result.result.sequences.length)} sequences · ${formatScientific(frequency)}/yr`;
+                    value = `${formatScientific(frequency)}/yr`;
+                    detail = `${scenario.scenarioName} · ${String(scenario.result.result.sequences.length)} sequences`;
                   }
                   const convolution = batchRunResult.hazardConvolution;
                   if (convolution?.targetKind === "FAULT_TREE") {

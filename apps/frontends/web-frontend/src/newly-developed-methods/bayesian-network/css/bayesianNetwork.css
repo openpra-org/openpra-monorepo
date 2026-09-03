@@ -334,6 +334,31 @@
   min-width: 0;
 }
 
+.bneditor__identity-value {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  box-sizing: border-box;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 7px 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.bneditor--readonly .bneditor__inspector input[readonly],
+.bneditor--readonly .bneditor__inspector textarea[readonly] {
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: default;
+}
+
 .bneditor__btn,
 .bneditor__section-head button,
 .bneditor__cpt button,

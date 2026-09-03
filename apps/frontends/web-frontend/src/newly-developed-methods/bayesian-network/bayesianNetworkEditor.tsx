@@ -1016,16 +1016,24 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
   }, [graphHeight, graphWidth, model.modelId, model.nodes.length, selectedNode !== undefined]);
 
   return (
-    <div className="bneditor" data-testid="bayesian-network-editor">
+    <div className={`bneditor${editable ? "" : " bneditor--readonly"}`} data-testid="bayesian-network-editor">
       <header className="bneditor__header">
         <div className="bneditor__identity">
           <label>
             <span>Network code</span>
-            <input aria-label="Bayesian-network code" value={model.code} disabled={!editable} onChange={(event) => commit({ ...model, code: event.target.value })} />
+            {editable ? (
+              <input aria-label="Bayesian-network code" value={model.code} onChange={(event) => commit({ ...model, code: event.target.value })} />
+            ) : (
+              <output className="bneditor__identity-value" aria-label="Bayesian-network code" title={model.code}>{model.code}</output>
+            )}
           </label>
           <label>
             <span>Network name</span>
-            <input aria-label="Bayesian-network name" value={model.name} disabled={!editable} onChange={(event) => commit({ ...model, name: event.target.value })} />
+            {editable ? (
+              <input aria-label="Bayesian-network name" value={model.name} onChange={(event) => commit({ ...model, name: event.target.value })} />
+            ) : (
+              <output className="bneditor__identity-value" aria-label="Bayesian-network name" title={model.name}>{model.name}</output>
+            )}
           </label>
         </div>
         <div className="bneditor__toolbar" aria-label="Bayesian-network tools">
@@ -1061,69 +1069,71 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
                 )}
               </div>
             </details>
-            <details ref={moduleMenuRef} className="bneditor__file-menu bneditor__module-menu">
-              <summary className="bneditor__icon-btn" role="button" aria-label="Reusable modules" title="Reusable modules" aria-haspopup="menu"><EditorIcon name="modules" /></summary>
-              <div className="bneditor__file-menu-popover bneditor__module-popover" aria-label="Reusable Bayesian-network modules">
-                <div className="bneditor__module-heading">
-                  <p>Select the branch root and save it as a module</p>
-                  <button type="button" className="bneditor__module-save" disabled={!editable || selectedNode === undefined} onClick={saveSelectedBranchAsModule}>Save</button>
-                </div>
-                {(model.moduleTemplates?.length ?? 0) === 0 ? (
-                  null
-                ) : (
-                  <div className="bneditor__module-list" aria-label="Saved modules">
-                    {model.moduleTemplates?.map((template) => {
-                      const draft = moduleDraft(template);
-                      return (
-                        <details key={template.id} className="bneditor__module-card">
-                          <summary className="bneditor__module-card-head">
-                            <strong>{template.code}</strong>
-                            <span>{template.name}</span>
-                            <i aria-hidden="true">›</i>
-                          </summary>
-                          {editable && (
+            {editable ? (
+              <details ref={moduleMenuRef} className="bneditor__file-menu bneditor__module-menu">
+                <summary className="bneditor__icon-btn" role="button" aria-label="Reusable modules" title="Reusable modules" aria-haspopup="menu"><EditorIcon name="modules" /></summary>
+                <div className="bneditor__file-menu-popover bneditor__module-popover" aria-label="Reusable Bayesian-network modules">
+                  <div className="bneditor__module-heading">
+                    <p>Select the branch root and save it as a module</p>
+                    <button type="button" className="bneditor__module-save" disabled={selectedNode === undefined} onClick={saveSelectedBranchAsModule}>Save</button>
+                  </div>
+                  {(model.moduleTemplates?.length ?? 0) === 0 ? (
+                    null
+                  ) : (
+                    <div className="bneditor__module-list" aria-label="Saved modules">
+                      {model.moduleTemplates?.map((template) => {
+                        const draft = moduleDraft(template);
+                        return (
+                          <details key={template.id} className="bneditor__module-card">
+                            <summary className="bneditor__module-card-head">
+                              <strong>{template.code}</strong>
+                              <span>{template.name}</span>
+                              <i aria-hidden="true">›</i>
+                            </summary>
                             <div className="bneditor__module-card-body">
                               <div className="bneditor__module-form">
-                              <div className="bneditor__module-identity-fields">
-                                <label>
-                                  <span>Code</span>
-                                  <input value={draft.code} onChange={(event) => updateModuleDraft(template, (current) => ({ ...current, code: event.target.value }))} />
-                                </label>
-                                <label>
-                                  <span>Name</span>
-                                  <input value={draft.name} onChange={(event) => updateModuleDraft(template, (current) => ({ ...current, name: event.target.value }))} />
-                                </label>
-                              </div>
-                              <div className="bneditor__module-inputs">
-                                <span>Input</span>
-                                {template.inputPorts.length === 0 && <em>None</em>}
-                                {template.inputPorts.map((port) => (
-                                  <div key={port.id}>
-                                    <strong>{port.code}</strong>
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="bneditor__module-actions">
-                                <button
-                                  type="button"
-                                  className="bneditor__module-add"
-                                  disabled={draft.code.trim() === "" || template.inputPorts.some((port) => (draft.inputBindings[port.id] ?? "") === "")}
-                                  onClick={() => addModuleInstance(template)}
-                                >
-                                  Use this module
-                                </button>
-                                <button type="button" className="bneditor__module-delete" aria-label={`Delete module ${template.code}`} onClick={() => requestDeleteModuleTemplate(template)}>Delete</button>
-                              </div>
+                                <div className="bneditor__module-identity-fields">
+                                  <label>
+                                    <span>Code</span>
+                                    <input value={draft.code} onChange={(event) => updateModuleDraft(template, (current) => ({ ...current, code: event.target.value }))} />
+                                  </label>
+                                  <label>
+                                    <span>Name</span>
+                                    <input value={draft.name} onChange={(event) => updateModuleDraft(template, (current) => ({ ...current, name: event.target.value }))} />
+                                  </label>
+                                </div>
+                                <div className="bneditor__module-inputs">
+                                  <span>Input</span>
+                                  {template.inputPorts.length === 0 && <em>None</em>}
+                                  {template.inputPorts.map((port) => (
+                                    <div key={port.id}>
+                                      <strong>{port.code}</strong>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="bneditor__module-actions">
+                                  <button
+                                    type="button"
+                                    className="bneditor__module-add"
+                                    disabled={draft.code.trim() === "" || template.inputPorts.some((port) => (draft.inputBindings[port.id] ?? "") === "")}
+                                    onClick={() => addModuleInstance(template)}
+                                  >
+                                    Use this module
+                                  </button>
+                                  <button type="button" className="bneditor__module-delete" aria-label={`Delete module ${template.code}`} onClick={() => requestDeleteModuleTemplate(template)}>Delete</button>
+                                </div>
                               </div>
                             </div>
-                          )}
-                        </details>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </details>
+                          </details>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </details>
+            ) : (
+              <button type="button" className="bneditor__icon-btn" aria-label="Reusable modules" title="Reusable modules" disabled><EditorIcon name="modules" /></button>
+            )}
             {editable && (
               <input ref={importRef} hidden type="file" accept=".xdsl,.xml,.json,application/xml,application/json" onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -1288,22 +1298,22 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
               )}
               <label className="bneditor__field">
                 <span>Code</span>
-                <input value={nodeIdentityDraft?.nodeId === selectedNode.id ? nodeIdentityDraft.code : selectedNode.code} disabled={!editable} onChange={(event) => updateSelectedNodeIdentity("code", event.target.value)} />
+                <input value={nodeIdentityDraft?.nodeId === selectedNode.id ? nodeIdentityDraft.code : selectedNode.code} readOnly={!editable} onChange={(event) => updateSelectedNodeIdentity("code", event.target.value)} />
               </label>
               <label className="bneditor__field">
                 <span>Name</span>
-                <input value={nodeIdentityDraft?.nodeId === selectedNode.id ? nodeIdentityDraft.name : selectedNode.name} disabled={!editable} onChange={(event) => updateSelectedNodeIdentity("name", event.target.value)} />
+                <input value={nodeIdentityDraft?.nodeId === selectedNode.id ? nodeIdentityDraft.name : selectedNode.name} readOnly={!editable} onChange={(event) => updateSelectedNodeIdentity("name", event.target.value)} />
               </label>
               <label className="bneditor__field">
                 <span>Description</span>
-                <textarea value={selectedNode.description} disabled={!editable} onChange={(event) => updateSelectedNode({ ...selectedNode, description: event.target.value })} />
+                <textarea value={selectedNode.description} readOnly={!editable} onChange={(event) => updateSelectedNode({ ...selectedNode, description: event.target.value })} />
               </label>
 
               <div className="bneditor__section-head"><strong>States</strong>{editable && <button type="button" disabled={selectedModuleInstance !== undefined} title={selectedModuleInstance === undefined ? "Add state" : "Module states follow the template"} onClick={addState}>Add state</button>}</div>
               <div className="bneditor__states">
                 {selectedNode.states.map((state, index) => (
                   <div key={state.id} className="bneditor__state">
-                    <input aria-label={`State code ${String(index + 1)}`} value={stateCodeDrafts[state.id] ?? state.code} disabled={!editable} onChange={(event) => updateSelectedStateCode(state.id, event.target.value)} />
+                    <input aria-label={`State code ${String(index + 1)}`} value={stateCodeDrafts[state.id] ?? state.code} readOnly={!editable} onChange={(event) => updateSelectedStateCode(state.id, event.target.value)} />
                     {editable && (
                       <span>
                         <button type="button" aria-label={`Move ${state.code} up`} disabled={index === 0 || selectedModuleInstance !== undefined} onClick={() => moveState(state.id, -1)}>↑</button>
@@ -1372,7 +1382,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
                               type="text"
                               inputMode="decimal"
                               value={value === undefined ? "" : cptDraftValue(row, state.id, cptValueDrafts)}
-                              disabled={!editable}
+                              readOnly={!editable}
                               onChange={(event) => updateCptValueDraft(row, state.id, event.target.value)}
                             />
                           </td>

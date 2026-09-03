@@ -1,5 +1,4 @@
-.hcleditor__empty-state,
-.hcleditor__result-summary {
+.hcleditor__empty-state {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -153,37 +152,47 @@
   height: 13px;
 }
 
-.hcleditor__linked-fault-trees {
-  align-self: stretch;
+.hcleditor__linked-tree-directory {
+  margin-top: 18px;
+}
+
+.esq-hcl-et__intro {
   display: grid;
-  gap: 0.35rem;
-  min-width: min(28rem, 100%);
-  padding: 0.55rem 0.7rem;
-  border: 1px solid var(--border-subtle, #d8dee8);
-  border-radius: 0.5rem;
-  background: var(--surface-subtle, #f7f9fc);
+  min-width: 0;
+  gap: 3px;
 }
 
-.hcleditor__linked-fault-trees > span {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  font-size: 0.78rem;
-}
-
-.hcleditor__linked-fault-trees b {
-  white-space: nowrap;
+.esq-hcl-et__intro .poscard__sub {
+  margin: 0;
+  line-height: 1.4;
 }
 
 .esq-hcl-et__configuration {
   display: grid;
-  gap: 0.25rem;
-  min-width: 18rem;
-  font-size: 0.78rem;
+  width: min(34rem, 100%);
+  min-width: min(24rem, 100%);
+  flex: 0 1 34rem;
+  gap: 4px;
+}
+
+.esq-hcl-et__configuration > span {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .esq-hcl-et__configuration select {
-  min-height: 2rem;
+  width: 100%;
+  min-height: 34px;
+  padding-top: 7px;
+  padding-right: 40px;
+  padding-bottom: 7px;
+  background-position: right 14px center;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.25;
 }
 
 .hcleditor__trees {
@@ -1019,48 +1028,6 @@
 
 .hcleditor__batch-table .hcleditor__result-metric > small {
   grid-area: detail;
-}
-
-.hcleditor__result {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 12px;
-  border: 1px solid #b9dfce;
-  border-radius: 9px;
-  background: #f2fbf7;
-  padding: 10px 12px;
-  color: #155e45;
-}
-
-.hcleditor__result output {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-weight: 700;
-}
-
-.hcleditor__result--sequences {
-  display: grid;
-  justify-content: stretch;
-}
-
-.hcleditor__sequence-list {
-  display: grid;
-  gap: 6px;
-  width: 100%;
-  border-top: 1px solid color-mix(in srgb, var(--color-text) 12%, transparent);
-  padding-top: 8px;
-}
-
-.hcleditor__sequence-list > span {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 11px;
-}
-
-.hcleditor__result-summary {
-  width: 100%;
 }
 
 @media (max-width: 900px) {

@@ -27,7 +27,7 @@ describe("Event Sequence Quantification Bayesian-network workspace", () => {
     render(<EsqBayesianNetworkWorkspace />);
 
     expect(await screen.findByRole("button", { name: "Add network" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Event-tree Bayesian dependency network" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Event tree Bayesian dependency network" })).toBeInTheDocument();
     expect(screen.getAllByRole("button")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: /^About / })).not.toBeInTheDocument();
     expect(screen.queryByText(/No Bayesian dependency network is available/)).not.toBeInTheDocument();

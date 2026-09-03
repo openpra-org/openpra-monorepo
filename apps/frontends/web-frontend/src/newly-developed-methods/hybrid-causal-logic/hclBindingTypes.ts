@@ -34,6 +34,7 @@ interface HclEventTreeOption {
   workbookId: string;
   workbookName: string;
   modelId: string;
+  modelCode: string;
   modelName: string;
   sequences: Array<{ id: string; name: string }>;
   faultTrees: Array<{ workbookId: string; modelId: string }>;

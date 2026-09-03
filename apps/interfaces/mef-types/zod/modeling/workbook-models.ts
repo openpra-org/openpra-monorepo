@@ -1,11 +1,16 @@
 import { z } from "zod";
 import type {
   WorkbookBayesianNetwork,
+  WorkbookHclConfiguration,
   WorkbookFaultTree,
   WorkbookFaultTreeCatalogue,
   WorkbookMethodModelIdentity,
 } from "../../modeling/workbook-models";
 import { BayesianNetworkDefinitionSchema } from "./bayesian-network";
+import {
+  HclConfigurationDefinitionBaseSchema,
+  refineHclConfigurationDefinition,
+} from "./hybrid-causal-logic";
 import {
   FaultTreeBasicEventCatalogueDefinitionSchema,
   FaultTreeDefinitionSchema,
@@ -35,6 +40,14 @@ const WorkbookBayesianNetworkSchema = z
   })
   .strict();
 
+const WorkbookHclConfigurationSchema = z
+  .object({
+    ...WorkbookMethodModelIdentitySchema.shape,
+    ...HclConfigurationDefinitionBaseSchema.shape,
+  })
+  .strict()
+  .superRefine(refineHclConfigurationDefinition);
+
 const WorkbookFaultTreeCatalogueSchema = FaultTreeBasicEventCatalogueDefinitionSchema;
 
 type Expect<T extends true> = T;
@@ -48,12 +61,16 @@ type _AssertFaultTree = Expect<
 type _AssertBayesianNetwork = Expect<
   Equal<z.infer<typeof WorkbookBayesianNetworkSchema>, WorkbookBayesianNetwork>
 >;
+type _AssertHclConfiguration = Expect<
+  Equal<z.infer<typeof WorkbookHclConfigurationSchema>, WorkbookHclConfiguration>
+>;
 type _AssertCatalogue = Expect<
   Equal<z.infer<typeof WorkbookFaultTreeCatalogueSchema>, WorkbookFaultTreeCatalogue>
 >;
 
 export {
   WorkbookBayesianNetworkSchema,
+  WorkbookHclConfigurationSchema,
   WorkbookFaultTreeCatalogueSchema,
   WorkbookFaultTreeSchema,
   WorkbookMethodModelIdentitySchema,

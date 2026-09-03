@@ -5,12 +5,33 @@ import {
   importBayesianNetworkXdsl,
 } from "../bayesianNetworkInterchange";
 import { connectNodes, deleteNode } from "../bayesianNetworkOperations";
+import {
+  createBayesianNetworkModuleFromBranch,
+  instantiateBayesianNetworkModule,
+} from "../bayesianNetworkModules";
 import { TEST_ID, testBayesianNetworkModel } from "./bayesianNetworkTestModel";
 
 describe("Bayesian-network interchange", () => {
   it("round-trips a canonical model through OpenPRA JSON", () => {
     const original = connectNodes(testBayesianNetworkModel(), TEST_ID.a, TEST_ID.b);
     expect(importBayesianNetworkJson(exportBayesianNetworkJson(original))).toEqual(original);
+  });
+
+  it("round-trips reusable module templates and materialized instances through OpenPRA JSON", () => {
+    const connected = connectNodes(testBayesianNetworkModel(), TEST_ID.a, TEST_ID.b);
+    const created = createBayesianNetworkModuleFromBranch(connected, TEST_ID.b);
+    const template = created.model.moduleTemplates![0]!;
+    const instantiated = instantiateBayesianNetworkModule(created.model, template.id, {
+      inputBindings: [{ portId: template.inputPorts[0]!.id, nodeId: TEST_ID.a }],
+    }).model;
+
+    expect(importBayesianNetworkJson(exportBayesianNetworkJson(instantiated))).toEqual(instantiated);
+    const xdsl = new DOMParser().parseFromString(exportBayesianNetworkXdsl(instantiated), "application/xml");
+    const instance = instantiated.moduleInstances![0]!;
+    const materializedNode = instantiated.nodes.find(
+      (node) => node.id === instance.nodeMappings[0]?.nodeId,
+    )!;
+    expect(xdsl.querySelector(`submodel[id="${instance.code}"] node[id="${materializedNode.code}"]`)).not.toBeNull();
   });
 
   it("exports and imports discrete XDSL while preserving parent order and probabilities", () => {

@@ -45,7 +45,7 @@ function EsqAnalysisRunProvenance({
       <div className="poscard__head esqrun__head">
         <div>
           <div className="esqrun__eyebrow"><ESQIcon.Lock /> Revision-pinned provenance</div>
-          <WorkbookSectionHeading workbook="ESQ" title="Immutable analysis runs" level={3} />
+          <WorkbookSectionHeading title="Immutable analysis runs" level={3} />
           <p className="poscard__sub">Exact targets, source revisions, models, and entity references used by PRAXIS.</p>
         </div>
         {!loading && error === null && (

@@ -19,7 +19,7 @@ import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import { WorkbookSaveIndicator } from "../workbooks/workbookSaveIndicator";
 import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
-import { WorkbookBayesianNetworkCollectionEditor } from "../workbooks/hazardConditionedModelEditors";
+import { SyBayesianNetworkWorkspace } from "./syBayesianNetworkWorkspace";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/syScreens.css";
 
@@ -389,7 +389,7 @@ function SyWorkbench({
       case "models": return <ModelsScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} />;
       case "failures": return <FailuresScreen openDrawer={setDrawer} />;
       case "ccf": return <CcfScreen openDrawer={setDrawer} />;
-      case "deps": return <><WorkbookBayesianNetworkCollectionEditor networks={data.sy.dependencyBayesianNetworks ?? []} editable={editable} onChange={(dependencyBayesianNetworks) => mutateSy((current) => ({ ...current, dependencyBayesianNetworks }))} /><DepsScreen openDrawer={setDrawer} /></>;
+      case "deps": return <><SyBayesianNetworkWorkspace /><DepsScreen openDrawer={setDrawer} /></>;
       case "integrity": return <IntegrityScreen stage={stage} openDrawer={setDrawer} />;
       case "uncert": return <UncertScreen openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
@@ -439,7 +439,9 @@ function SyWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <WorkbookSectionHeading workbook="SY" title={h.title} description={h.sub} level={1} className="posmain__title" />
+              {stepId === "deps"
+                ? <h1 className="posmain__title">{h.title}</h1>
+                : <WorkbookSectionHeading workbook="SY" title={h.title} description={h.sub} level={1} className="posmain__title" />}
             </div>
             <div className="posmain__actions">
               {!dockOpen && (

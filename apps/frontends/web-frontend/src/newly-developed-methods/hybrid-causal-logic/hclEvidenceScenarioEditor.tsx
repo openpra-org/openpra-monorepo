@@ -3,6 +3,7 @@ import type { EsqHclConfiguration } from "interfaces-mef-types/esq/workbook-mode
 import type { HclEvidenceScenario } from "interfaces-mef-types/modeling";
 import { DEFAULT_ANNUALIZATION_CONVENTION } from "interfaces-mef-types/modeling";
 import type { BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
+import { useToast } from "../../toast/toastProvider";
 import {
   exportHclEvidenceScenariosCsv,
   exportHclEvidenceScenariosJson,
@@ -88,6 +89,7 @@ function HclEvidenceScenarioEditor({
   onChange,
   onError,
 }: HclEvidenceScenarioEditorProps): JSX.Element {
+  const { addToast } = useToast();
   const scenarios = configuration.evidenceScenarios ?? [];
   const [selectedId, setSelectedId] = useState(scenarios[0]?.id ?? "");
   const importRef = useRef<HTMLInputElement>(null);
@@ -106,39 +108,9 @@ function HclEvidenceScenarioEditor({
   const hazardSetupReady = suggestedHazardNodeIds.length > 0;
   const configuredHazardGridValid = configuration.hazardGrid !== undefined
     && hasUniqueHazardCells(enabledScenarios, configuration.hazardGrid.hazardNodeIds);
-  const bestCoveredHazardNode = model.nodes
-    .map((node) => ({
-      node,
-      coverage: enabledScenarios.filter((scenario) =>
-        scenario.evidence.observations.some((observation) => observation.nodeId === node.id),
-      ).length,
-    }))
-    .sort((left, right) => right.coverage - left.coverage)[0];
-  const hazardReadinessMessage = (() => {
-    if (enabledScenarios.length === 0) {
-      return "Add or enable at least one evidence scenario before enabling convolution.";
-    }
-    if (hazardSetupReady) {
-      const nodeCodes = suggestedHazardNodeIds.map((nodeId) =>
-        model.nodes.find((node) => node.id === nodeId)?.code ?? nodeId,
-      );
-      return `${nodeCodes.join(" + ")} uniquely identifies ${String(enabledScenarios.length)} enabled grid cells.`;
-    }
-    if (completeHazardNodes.length > 0) {
-      return "The enabled scenarios contain duplicate evidence cells. Change their evidence or disable duplicate rows before enabling convolution.";
-    }
-    if (bestCoveredHazardNode === undefined || bestCoveredHazardNode.coverage === 0) {
-      return "No enabled scenario assigns a BN node. Assign the same hazard node in every enabled scenario.";
-    }
-    const missingScenarioCodes = enabledScenarios
-      .filter((scenario) => !scenario.evidence.observations.some((observation) => observation.nodeId === bestCoveredHazardNode.node.id))
-      .map((scenario) => scenario.code);
-    const shownCodes = missingScenarioCodes.slice(0, 3).join(", ");
-    const remainingCount = missingScenarioCodes.length - 3;
-    const missingLabel = remainingCount > 0 ? `${shownCodes}, and ${String(remainingCount)} more` : shownCodes;
-    return `${bestCoveredHazardNode.node.code} is assigned in ${String(bestCoveredHazardNode.coverage)} of ${String(enabledScenarios.length)} enabled scenarios. Assign it in ${missingLabel} or disable ${missingScenarioCodes.length === 1 ? "that row" : "those rows"}.`;
-  })();
-  const [hazardEnableBlocked, setHazardEnableBlocked] = useState(false);
+  const hazardSetupMessage = enabledScenarios.length === 0
+    ? "Enable at least one scenario and choose its BN state."
+    : "Choose BN states for every enabled scenario so each scenario has a complete, unique combination.";
 
   useEffect(() => {
     if (scenarios.some((scenario) => scenario.id === selectedId)) return;
@@ -146,7 +118,25 @@ function HclEvidenceScenarioEditor({
   }, [scenarios, selectedId]);
 
   function replaceScenarios(next: HclEvidenceScenario[]): void {
-    onChange({ ...configuration, evidenceScenarios: next });
+    const nextConfiguration = { ...configuration, evidenceScenarios: next };
+    if (
+      configuration.hazardGrid !== undefined
+      && !hasUniqueHazardCells(
+        next.filter((scenario) => scenario.enabled),
+        configuration.hazardGrid.hazardNodeIds,
+      )
+    ) {
+      const { hazardGrid: _removed, ...configurationWithoutHazardGrid } = nextConfiguration;
+      onChange(configurationWithoutHazardGrid as EsqHclConfiguration);
+      addToast({
+        id: "hcl-hazard-grid-disabled-after-scenario-edit",
+        type: "warning",
+        message: "Scenario updated. Hazard convolution was turned off because the enabled scenarios no longer form a complete, unique grid.",
+      });
+      onError(null);
+      return;
+    }
+    onChange(nextConfiguration);
   }
 
   function replaceScenario(next: HclEvidenceScenario): void {
@@ -213,12 +203,7 @@ function HclEvidenceScenarioEditor({
   }
 
   function enableHazardGrid(): void {
-    if (!hazardSetupReady) {
-      setHazardEnableBlocked(true);
-      onError(hazardReadinessMessage);
-      return;
-    }
-    setHazardEnableBlocked(false);
+    if (!hazardSetupReady) return;
     onChange({
       ...configuration,
       hazardGrid: {
@@ -227,7 +212,10 @@ function HclEvidenceScenarioEditor({
         annualFrequencyScale: {
           value: 1,
           unit: "PER_YEAR",
-          annualization: DEFAULT_ANNUALIZATION_CONVENTION,
+          annualization: {
+            ...DEFAULT_ANNUALIZATION_CONVENTION,
+            hoursPerYear: 8_760,
+          },
         },
         normalizeWeights: false,
       },
@@ -244,41 +232,93 @@ function HclEvidenceScenarioEditor({
         hazardNodeIds: suggestedHazardNodeIds as [string, ...string[]],
       },
     });
-    setHazardEnableBlocked(false);
     onError(null);
   }
 
   function disableHazardGrid(): void {
     const { hazardGrid: _removed, ...remaining } = configuration;
-    setHazardEnableBlocked(false);
     onChange(remaining as EsqHclConfiguration);
     onError(null);
   }
 
   return (
     <div className="hcleditor__scenarios" role="tabpanel" aria-label="HCL evidence scenarios">
-      <div className="hcleditor__scenario-toolbar">
-        {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addScenario}>Add scenario</button>}
-        {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => importRef.current?.click()}>Import JSON/CSV</button>}
-        <button type="button" className="posnav__btn posnav__btn--sm" disabled={scenarios.length === 0} onClick={exportJson}>Export JSON</button>
-        <button type="button" className="posnav__btn posnav__btn--sm" disabled={scenarios.length === 0} onClick={exportCsv}>Export CSV</button>
-        <input ref={importRef} hidden type="file" accept=".json,.csv,application/json,text/csv" onChange={(event) => { void importScenarios(event); }} />
+      <div className="hcleditor__scenario-commandbar">
+        <div className="hcleditor__scenario-summary">
+          <strong>Scenarios</strong>
+        </div>
+        <div className="hcleditor__scenario-toolbar">
+          {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addScenario}>Add scenario</button>}
+          {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => importRef.current?.click()}>Import JSON/CSV</button>}
+          <button type="button" className="posnav__btn posnav__btn--sm" disabled={scenarios.length === 0} onClick={exportJson}>Export JSON</button>
+          <button type="button" className="posnav__btn posnav__btn--sm" disabled={scenarios.length === 0} onClick={exportCsv}>Export CSV</button>
+          <input ref={importRef} hidden type="file" accept=".json,.csv,application/json,text/csv" onChange={(event) => { void importScenarios(event); }} />
+        </div>
       </div>
-      <p className="hcleditor__scenario-help">Each scenario overrides the common evidence only for the nodes listed below.</p>
+      {scenarios.length === 0 ? (
+        <div className="hcleditor__scenario-empty">No evidence scenarios yet.</div>
+      ) : (
+        <div className="hcleditor__scenario-workspace">
+          <div className="hcleditor__scenario-list" aria-label="Evidence scenario list">
+            {scenarios.map((scenario) => (
+              <div key={scenario.id} className={`hcleditor__scenario-row${scenario.id === selectedId ? " is-selected" : ""}`}>
+                <input aria-label={`Enable ${scenario.code}`} type="checkbox" checked={scenario.enabled} disabled={!editable} onChange={(event) => replaceScenario({ ...scenario, enabled: event.target.checked })} />
+                <button type="button" onClick={() => setSelectedId(scenario.id)}>
+                  <strong>{scenario.code}</strong>
+                  <span>{scenario.name}</span>
+                </button>
+                {editable && <button type="button" className="hcleditor__scenario-delete" aria-label={`Delete scenario ${scenario.code}`} onClick={() => replaceScenarios(scenarios.filter((candidate) => candidate.id !== scenario.id))}>Delete</button>}
+              </div>
+            ))}
+          </div>
+          {selected !== undefined && (
+            <section className="hcleditor__scenario-detail" aria-label={`Edit scenario ${selected.code}`}>
+              <div className="hcleditor__scenario-detail-head">
+                <div>
+                  <strong>{selected.code}</strong>
+                </div>
+              </div>
+              <div className="hcleditor__scenario-identity">
+                <label><span>Code</span><input required maxLength={64} value={selected.code} disabled={!editable} onChange={(event) => replaceScenario({ ...selected, code: event.target.value })} /></label>
+                <label><span>Name</span><input required maxLength={200} value={selected.name} disabled={!editable} onChange={(event) => replaceScenario({ ...selected, name: event.target.value })} /></label>
+              </div>
+              <div className="hcleditor__scenario-evidence-head">
+                <strong>Evidence overrides</strong>
+              </div>
+              <div className="hcleditor__scenario-evidence">
+                {model.nodes.map((node) => {
+                  const observation = selected.evidence.observations.find((candidate) => candidate.nodeId === node.id);
+                  return (
+                    <label key={node.id} className={observation === undefined ? "" : "is-overridden"}>
+                      <span>{node.code}</span>
+                      <select aria-label={`${node.code} evidence for ${selected.code}`} value={observation?.stateId ?? ""} disabled={!editable} onChange={(event) => setObservation(node.id, event.target.value)}>
+                        <option value="">Use common evidence</option>
+                        {node.states.map((state) => <option key={state.id} value={state.id}>{state.code}</option>)}
+                      </select>
+                    </label>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
       <section className="hcleditor__hazard-grid" aria-label="Hazard convolution settings">
         <div className="hcleditor__hazard-grid-heading">
-          <div><strong>Hazard convolution</strong><span>Weight grid cells by their exact BN probability and annual occurrence frequency.</span></div>
-          {editable && (configuration.hazardGrid === undefined
-            ? <button type="button" className="posnav__btn posnav__btn--sm" aria-expanded={false} aria-controls="hcl-hazard-grid-fields" onClick={enableHazardGrid}>Enable</button>
-            : <button type="button" className="posnav__btn posnav__btn--sm" onClick={disableHazardGrid}>Disable</button>)}
+          <div>
+            <strong>Hazard convolution</strong>
+            <span>Weight enabled scenario cells by BN probability and annual occurrence frequency.</span>
+          </div>
+          <div className="hcleditor__hazard-grid-actions">
+            {editable && (configuration.hazardGrid === undefined
+              ? <button type="button" className="posnav__btn posnav__btn--sm" aria-expanded={false} aria-controls="hcl-hazard-grid-fields" disabled={!hazardSetupReady} onClick={enableHazardGrid}>Enable</button>
+              : <button type="button" className="posnav__btn posnav__btn--sm" onClick={disableHazardGrid}>Disable</button>)}
+          </div>
         </div>
-        {configuration.hazardGrid === undefined && (
-          <p
-            className={`hcleditor__hazard-grid-status${hazardSetupReady ? " is-ready" : " is-blocked"}${hazardEnableBlocked ? " is-emphasized" : ""}`}
-            role={hazardEnableBlocked ? "alert" : "status"}
-          >
-            <strong>{hazardSetupReady ? "Ready to enable" : "Setup required"}</strong>
-            <span>{hazardReadinessMessage}</span>
+        {configuration.hazardGrid === undefined && !hazardSetupReady && (
+          <p className="hcleditor__hazard-grid-status is-blocked is-emphasized" role="status">
+            <strong>Setup required</strong>
+            <span>{hazardSetupMessage}</span>
           </p>
         )}
         {configuration.hazardGrid !== undefined && !configuredHazardGridValid && (
@@ -308,7 +348,7 @@ function HclEvidenceScenarioEditor({
               if (Number.isFinite(hoursPerYear) && hoursPerYear > 0) onChange({ ...configuration, hazardGrid: { ...configuration.hazardGrid!, annualFrequencyScale: { ...configuration.hazardGrid!.annualFrequencyScale, annualization: { ...configuration.hazardGrid!.annualFrequencyScale.annualization, hoursPerYear } } } });
             }} /></label>
             <label className="hcleditor__hazard-normalize"><input type="checkbox" checked={configuration.hazardGrid.normalizeWeights} disabled={!editable} onChange={(event) => onChange({ ...configuration, hazardGrid: { ...configuration.hazardGrid!, normalizeWeights: event.target.checked } })} /><span>Normalize selected grid mass</span></label>
-            <fieldset><legend>Hazard dimensions</legend>{model.nodes.map((node) => {
+            <fieldset><legend>Hazard dimensions</legend><div className="hcleditor__hazard-dimensions">{model.nodes.map((node) => {
               const selectedNode = configuration.hazardGrid!.hazardNodeIds.includes(node.id);
               const complete = completeHazardNodes.some((candidate) => candidate.id === node.id);
               const next = selectedNode
@@ -326,50 +366,10 @@ function HclEvidenceScenarioEditor({
                   : configuration.hazardGrid!.hazardNodeIds.filter((nodeId) => nodeId !== node.id);
                 if (hasUniqueHazardCells(enabledScenarios, nextSelection)) onChange({ ...configuration, hazardGrid: { ...configuration.hazardGrid!, hazardNodeIds: nextSelection as [string, ...string[]] } });
               }} /><span>{node.code}</span></label>;
-            })}</fieldset>
+            })}</div></fieldset>
           </div>
         )}
       </section>
-      {scenarios.length === 0 ? (
-        <p className="bneditor__empty">No evidence scenarios yet.</p>
-      ) : (
-        <div className="hcleditor__scenario-workspace">
-          <div className="hcleditor__scenario-list" aria-label="Evidence scenario list">
-            {scenarios.map((scenario) => (
-              <div key={scenario.id} className={`hcleditor__scenario-row${scenario.id === selectedId ? " is-selected" : ""}`}>
-                <input aria-label={`Enable ${scenario.code}`} type="checkbox" checked={scenario.enabled} disabled={!editable} onChange={(event) => replaceScenario({ ...scenario, enabled: event.target.checked })} />
-                <button type="button" onClick={() => setSelectedId(scenario.id)}>
-                  <strong>{scenario.code}</strong>
-                  <span>{scenario.name} · {String(scenario.evidence.observations.length)} overrides</span>
-                </button>
-                {editable && <button type="button" className="hcleditor__scenario-delete" aria-label={`Delete scenario ${scenario.code}`} onClick={() => replaceScenarios(scenarios.filter((candidate) => candidate.id !== scenario.id))}>Delete</button>}
-              </div>
-            ))}
-          </div>
-          {selected !== undefined && (
-            <div className="hcleditor__scenario-detail" aria-label={`Edit scenario ${selected.code}`}>
-              <div className="hcleditor__scenario-identity">
-                <label><span>Code</span><input required maxLength={64} value={selected.code} disabled={!editable} onChange={(event) => replaceScenario({ ...selected, code: event.target.value })} /></label>
-                <label><span>Name</span><input required maxLength={200} value={selected.name} disabled={!editable} onChange={(event) => replaceScenario({ ...selected, name: event.target.value })} /></label>
-              </div>
-              <div className="hcleditor__scenario-evidence">
-                {model.nodes.map((node) => {
-                  const observation = selected.evidence.observations.find((candidate) => candidate.nodeId === node.id);
-                  return (
-                    <label key={node.id}>
-                      <span>{node.code}</span>
-                      <select aria-label={`${node.code} evidence for ${selected.code}`} value={observation?.stateId ?? ""} disabled={!editable} onChange={(event) => setObservation(node.id, event.target.value)}>
-                        <option value="">Use common evidence</option>
-                        {node.states.map((state) => <option key={state.id} value={state.id}>{state.code}</option>)}
-                      </select>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

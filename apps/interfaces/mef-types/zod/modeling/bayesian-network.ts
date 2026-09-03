@@ -11,6 +11,14 @@ import type {
   BayesianNetworkEvidenceConfiguration,
   BayesianNetworkEvidenceObservation,
   BayesianNetworkEntityIdentity,
+  BayesianNetworkModuleInputBinding,
+  BayesianNetworkModuleInputPort,
+  BayesianNetworkModuleInstance,
+  BayesianNetworkModuleNodeMapping,
+  BayesianNetworkModuleOutputBinding,
+  BayesianNetworkModuleOutputPort,
+  BayesianNetworkModuleStateMapping,
+  BayesianNetworkModuleTemplate,
   BayesianNetworkNode,
   BayesianNetworkNodePosition,
   BayesianNetworkNodeState,
@@ -140,6 +148,59 @@ const BayesianNetworkXdslMetadataSchema = z
     });
   });
 
+const BayesianNetworkModuleInputPortSchema = BayesianNetworkEntityIdentitySchema.extend({
+  node: BayesianNetworkNodeSchema,
+}).strict();
+
+const BayesianNetworkModuleOutputPortSchema = BayesianNetworkEntityIdentitySchema.extend({
+  nodeId: WorkbookEntityIdSchema,
+}).strict();
+
+const BayesianNetworkModuleTemplateSchema = BayesianNetworkEntityIdentitySchema.extend({
+  nodes: z.array(BayesianNetworkNodeSchema),
+  edges: z.array(BayesianNetworkDirectedEdgeSchema),
+  conditionalProbabilityTables: z.array(BayesianNetworkConditionalProbabilityTableSchema),
+  nodePositions: z.array(BayesianNetworkNodePositionSchema),
+  inputPorts: z.array(BayesianNetworkModuleInputPortSchema),
+  outputPorts: z.array(BayesianNetworkModuleOutputPortSchema),
+}).strict();
+
+const BayesianNetworkModuleInputBindingSchema = z
+  .object({
+    portId: WorkbookEntityIdSchema,
+    nodeId: WorkbookEntityIdSchema,
+  })
+  .strict();
+
+const BayesianNetworkModuleStateMappingSchema = z
+  .object({
+    templateStateId: WorkbookEntityIdSchema,
+    stateId: WorkbookEntityIdSchema,
+  })
+  .strict();
+
+const BayesianNetworkModuleNodeMappingSchema = z
+  .object({
+    templateNodeId: WorkbookEntityIdSchema,
+    nodeId: WorkbookEntityIdSchema,
+    stateMappings: z.array(BayesianNetworkModuleStateMappingSchema),
+  })
+  .strict();
+
+const BayesianNetworkModuleOutputBindingSchema = z
+  .object({
+    portId: WorkbookEntityIdSchema,
+    nodeId: WorkbookEntityIdSchema,
+  })
+  .strict();
+
+const BayesianNetworkModuleInstanceSchema = BayesianNetworkEntityIdentitySchema.extend({
+  templateId: WorkbookEntityIdSchema,
+  inputBindings: z.array(BayesianNetworkModuleInputBindingSchema),
+  nodeMappings: z.array(BayesianNetworkModuleNodeMappingSchema),
+  outputBindings: z.array(BayesianNetworkModuleOutputBindingSchema),
+}).strict();
+
 const BayesianNetworkEvidenceObservationSchema = z
   .object({
     nodeId: WorkbookEntityIdSchema,
@@ -174,6 +235,8 @@ const BayesianNetworkDefinitionSchema = z
     nodePositions: z.array(BayesianNetworkNodePositionSchema),
     layout: CanvasLayoutMetadataSchema,
     xdslMetadata: BayesianNetworkXdslMetadataSchema.optional(),
+    moduleTemplates: z.array(BayesianNetworkModuleTemplateSchema).optional(),
+    moduleInstances: z.array(BayesianNetworkModuleInstanceSchema).optional(),
   })
   .strict();
 
@@ -225,6 +288,30 @@ type _AssertBayesianNetworkXdslNodeIdentifier = Expect<
 type _AssertBayesianNetworkXdslMetadata = Expect<
   Equal<z.infer<typeof BayesianNetworkXdslMetadataSchema>, BayesianNetworkXdslMetadata>
 >;
+type _AssertBayesianNetworkModuleInputPort = Expect<
+  Equal<z.infer<typeof BayesianNetworkModuleInputPortSchema>, BayesianNetworkModuleInputPort>
+>;
+type _AssertBayesianNetworkModuleOutputPort = Expect<
+  Equal<z.infer<typeof BayesianNetworkModuleOutputPortSchema>, BayesianNetworkModuleOutputPort>
+>;
+type _AssertBayesianNetworkModuleTemplate = Expect<
+  Equal<z.infer<typeof BayesianNetworkModuleTemplateSchema>, BayesianNetworkModuleTemplate>
+>;
+type _AssertBayesianNetworkModuleInputBinding = Expect<
+  Equal<z.infer<typeof BayesianNetworkModuleInputBindingSchema>, BayesianNetworkModuleInputBinding>
+>;
+type _AssertBayesianNetworkModuleStateMapping = Expect<
+  Equal<z.infer<typeof BayesianNetworkModuleStateMappingSchema>, BayesianNetworkModuleStateMapping>
+>;
+type _AssertBayesianNetworkModuleNodeMapping = Expect<
+  Equal<z.infer<typeof BayesianNetworkModuleNodeMappingSchema>, BayesianNetworkModuleNodeMapping>
+>;
+type _AssertBayesianNetworkModuleOutputBinding = Expect<
+  Equal<z.infer<typeof BayesianNetworkModuleOutputBindingSchema>, BayesianNetworkModuleOutputBinding>
+>;
+type _AssertBayesianNetworkModuleInstance = Expect<
+  Equal<z.infer<typeof BayesianNetworkModuleInstanceSchema>, BayesianNetworkModuleInstance>
+>;
 type _AssertBayesianNetworkEvidenceObservation = Expect<
   Equal<z.infer<typeof BayesianNetworkEvidenceObservationSchema>, BayesianNetworkEvidenceObservation>
 >;
@@ -251,6 +338,14 @@ export {
   BayesianNetworkNodePositionSchema,
   BayesianNetworkXdslNodeIdentifierSchema,
   BayesianNetworkXdslMetadataSchema,
+  BayesianNetworkModuleInputPortSchema,
+  BayesianNetworkModuleOutputPortSchema,
+  BayesianNetworkModuleTemplateSchema,
+  BayesianNetworkModuleInputBindingSchema,
+  BayesianNetworkModuleStateMappingSchema,
+  BayesianNetworkModuleNodeMappingSchema,
+  BayesianNetworkModuleOutputBindingSchema,
+  BayesianNetworkModuleInstanceSchema,
   BayesianNetworkEvidenceObservationSchema,
   BayesianNetworkEvidenceConfigurationSchema,
   BayesianNetworkDefinitionSchema,

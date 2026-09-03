@@ -114,7 +114,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Support dependency matrix" level={3} />
+          <WorkbookSectionHeading title="Support dependency matrix" level={3} />
           <SYProvenanceChip>SY-B5 · SY-B6 · SY-B10</SYProvenanceChip>
         </div>
         <p className="poscard__sub">Each row depends on the marked support systems. Click a cell to cycle it between power, signal, cooling and none.</p>
@@ -160,7 +160,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Support success criteria" level={3} />
+          <WorkbookSectionHeading title="Support success criteria" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B7 · SY-B9 · SY-B13</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSsc}><SYIcon.Plus /> Add criterion</button>}
@@ -189,7 +189,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Spatial and environmental couplings" level={3} />
+          <WorkbookSectionHeading title="Spatial and environmental couplings" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B8 · SY-B14</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSpc}><SYIcon.Plus /> Add coupling</button>}
@@ -217,7 +217,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Depletable inventories" level={3} />
+          <WorkbookSectionHeading title="Depletable inventories" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B12</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addInv}><SYIcon.Plus /> Add inventory</button>}
@@ -268,7 +268,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Digital I&C and software" level={3} />
+          <WorkbookSectionHeading title="Digital I&C and software" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B11</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addDic}><SYIcon.Plus /> Add record</button>}

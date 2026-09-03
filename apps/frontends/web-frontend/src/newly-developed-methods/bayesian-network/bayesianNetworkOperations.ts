@@ -225,13 +225,14 @@ function deleteNode(model: BayesianNetworkModel, nodeId: string): BayesianNetwor
 }
 
 function normalizeCptRow(row: BayesianNetworkCptRow): BayesianNetworkCptRow {
-  const finite = row.values.map(({ probability }) =>
-    Number.isFinite(probability) && probability > 0 ? probability : 0,
-  );
-  const sum = finite.reduce((total, probability) => total + probability, 0);
+  const weights = row.values.map(({ probability }) => probability);
+  if (weights.some((probability) =>
+    !Number.isFinite(probability) || probability < 0 || probability > 1,
+  )) return row;
+  const sum = weights.reduce((total, probability) => total + probability, 0);
   const probabilities = sum === 0
-    ? finite.map(() => 1 / finite.length)
-    : finite.map((probability) => probability / sum);
+    ? row.values.map(() => 1 / row.values.length)
+    : row.values.map(({ probability }) => probability / sum);
   return {
     ...row,
     values: row.values.map((value, index) => ({

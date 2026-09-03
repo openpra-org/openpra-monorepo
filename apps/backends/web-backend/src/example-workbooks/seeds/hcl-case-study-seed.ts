@@ -1236,6 +1236,8 @@ const hclConfiguration: EsqHclConfiguration = {
   solverSettings: { variableOrder: null, foldConstants: true, spliceNullGates: true },
 };
 
+SY_ANALYSIS_HCL.dependencyHclConfigurations = [hclConfiguration];
+
 const hclFamilyQuantifications: EventSequenceQuantification["familyQuantifications"] = [
   {
     uuid: "EFQ-HCL-CD",

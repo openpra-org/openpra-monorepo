@@ -438,7 +438,9 @@ function EsqWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <WorkbookSectionHeading workbook="ESQ" title={h.title} description={h.sub} level={1} className="posmain__title" />
+              {stepId === "depend"
+                ? <h1 className="posmain__title">{h.title}</h1>
+                : <WorkbookSectionHeading workbook="ESQ" title={h.title} description={h.sub} level={1} className="posmain__title" />}
             </div>
             <div className="posmain__actions">
               {!dockOpen && (

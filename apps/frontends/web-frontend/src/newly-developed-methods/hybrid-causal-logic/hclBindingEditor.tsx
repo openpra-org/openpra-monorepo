@@ -1,5 +1,5 @@
 import { type JSX, useEffect, useMemo, useState } from "react";
-import type { EsqHclConfiguration } from "interfaces-mef-types/esq/workbook-models";
+import type { WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
 import {
   hclTargetKey,
   resolveHclBatchTargetRelevance,
@@ -43,7 +43,50 @@ function batchHasNoNumericVariation(batch: HclEditorBatchRunResult): boolean {
   );
 }
 
-function HclIcon({ name }: { name: "configuration" | "run" | "trash" }): JSX.Element {
+function resultBarWidth(value: number): string {
+  const percent = Math.max(0, Math.min(1, value)) * 100;
+  return `${String(percent > 0 ? Math.max(0.75, percent) : 0)}%`;
+}
+
+function formatScientific(value: number): string {
+  const [coefficient, exponent = "0"] = value.toExponential(2).split("e");
+  const numericExponent = Number(exponent);
+  const sign = numericExponent >= 0 ? "+" : "-";
+  return `${coefficient}E${sign}${String(Math.abs(numericExponent)).padStart(2, "0")}`;
+}
+
+function formatPercentage(value: number): string {
+  const percent = value * 100;
+  if (percent === 0 || Math.abs(percent) >= 0.01) return `${percent.toFixed(2)}%`;
+  return `${formatScientific(percent)}%`;
+}
+
+function HclResultMetric({
+  label,
+  value,
+  ratio,
+  detail,
+}: {
+  label: string;
+  value: string;
+  ratio?: number;
+  detail?: string;
+}): JSX.Element {
+  return (
+    <div className="bneditor__posterior-state hcleditor__result-metric">
+      <span>{label}</span>
+      <output>{value}</output>
+      {ratio !== undefined && (
+        <i aria-hidden="true">
+          <b style={{ width: resultBarWidth(ratio) }} />
+        </i>
+      )}
+      {detail !== undefined && <small title={detail}>{detail}</small>}
+    </div>
+  );
+}
+
+function HclIcon({ name }: { name: "configuration" | "evidence" | "run" | "trash" }): JSX.Element {
   const common = {
     fill: "none",
     stroke: "currentColor",
@@ -54,6 +97,7 @@ function HclIcon({ name }: { name: "configuration" | "run" | "trash" }): JSX.Ele
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       {name === "configuration" && <><circle {...common} cx="6" cy="12" r="3" /><circle {...common} cx="18" cy="6" r="3" /><circle {...common} cx="18" cy="18" r="3" /><path {...common} d="m9 11 6-4M9 13l6 4" /></>}
+      {name === "evidence" && <><path {...common} d="M4 7h16M4 17h16" /><circle {...common} cx="9" cy="7" r="2" /><circle {...common} cx="15" cy="17" r="2" /></>}
       {name === "run" && <><circle {...common} cx="12" cy="12" r="9" /><path {...common} d="m10 8.5 6 3.5-6 3.5z" /></>}
       {name === "trash" && <><path {...common} d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" /></>}
     </svg>
@@ -65,20 +109,26 @@ function HclBindingEditor({
   editable,
   workbookId,
   configurations,
+  scope = "BOTH",
   faultTreeOptions,
   eventTreeOptions,
   baseEvidence,
   validation,
+  quantificationBlocked = false,
   running,
   runError,
   runResult,
   batchRunResult,
+  evidenceEditorOpen = false,
+  onEditEvidence,
   onChange,
   onRunFaultTree,
   onRunEventTree,
   onRunFaultTreeBatch,
   onRunEventTreeBatch,
 }: HclBindingEditorProps): JSX.Element {
+  const hasBlockingIssue = quantificationBlocked
+    || validation.some((issue) => issue.severity === "ERROR");
   const configuration = configurations.find(
     (candidate) =>
       candidate.bayesianNetwork.modelId === model.modelId
@@ -88,7 +138,9 @@ function HclBindingEditor({
   const [basicEventId, setBasicEventId] = useState("");
   const [nodeId, setNodeId] = useState(model.nodes[0]?.id ?? "");
   const [trueStateIds, setTrueStateIds] = useState<string[]>([]);
-  const [targetKind, setTargetKind] = useState<"FAULT_TREE" | "EVENT_TREE">("FAULT_TREE");
+  const [targetKind, setTargetKind] = useState<"FAULT_TREE" | "EVENT_TREE">(
+    scope === "EVENT_TREE" ? "EVENT_TREE" : "FAULT_TREE",
+  );
   const [evidenceMode, setEvidenceMode] = useState<"BASE" | "SCENARIOS" | "HAZARD_GRID">("BASE");
   const [runFaultTreeKey, setRunFaultTreeKey] = useState("");
   const [eventTreeKey, setEventTreeKey] = useState("");
@@ -114,9 +166,10 @@ function HclBindingEditor({
     if (configuration === undefined) return [];
     const declared = new Set(configuration.faultTrees.map((reference) => hclTargetKey(reference)));
     return eventTreeOptions.filter((option) =>
-      option.faultTrees.every((reference) => declared.has(hclTargetKey(reference))),
+      scope === "EVENT_TREE"
+      || option.faultTrees.every((reference) => declared.has(hclTargetKey(reference))),
     );
-  }, [configuration, eventTreeOptions]);
+  }, [configuration, eventTreeOptions, scope]);
   const enabledScenarios = useMemo(
     () => (configuration?.evidenceScenarios ?? []).filter((scenario) => scenario.enabled),
     [configuration?.evidenceScenarios],
@@ -165,6 +218,10 @@ function HclBindingEditor({
   );
 
   useEffect(() => {
+    if (scope === "EVENT_TREE") setTargetKind("EVENT_TREE");
+    if (scope === "FAULT_TREE") setTargetKind("FAULT_TREE");
+  }, [scope]);
+  useEffect(() => {
     if (faultTreeOptions.some((option) => `${option.workbookId}:${option.modelId}` === faultTreeKey)) return;
     const first = faultTreeOptions[0];
     setFaultTreeKey(first === undefined ? "" : `${first.workbookId}:${first.modelId}`);
@@ -191,10 +248,10 @@ function HclBindingEditor({
 
   function createConfiguration(): void {
     if (workbookId === null) {
-      setError("Save this ESQ workbook before creating an HCL configuration.");
+      setError("Save this workbook before creating an HCL configuration.");
       return;
     }
-    const created: EsqHclConfiguration = {
+    const created: WorkbookHclConfiguration = {
       modelId: crypto.randomUUID(),
       code: uniqueCode("HCL", configurations.map((candidate) => candidate.code)),
       name: `${model.name} HCL bindings`,
@@ -211,7 +268,7 @@ function HclBindingEditor({
     setError(null);
   }
 
-  function replaceConfiguration(next: EsqHclConfiguration): void {
+  function replaceConfiguration(next: WorkbookHclConfiguration): void {
     onChange(configurations.map((candidate) => candidate.modelId === next.modelId ? next : candidate));
   }
 
@@ -341,7 +398,7 @@ function HclBindingEditor({
       {configuration === undefined ? (
         <div className="hcleditor__empty-state">
           <span>No HCL configuration</span>
-          {editable && (
+          {editable && scope !== "EVENT_TREE" && (
           <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={createConfiguration}>
             <HclIcon name="configuration" />
             <span>Create HCL configuration</span>
@@ -350,23 +407,87 @@ function HclBindingEditor({
         </div>
       ) : (
         <>
-          <div className="hcleditor__summary">
-            <div>
-              <strong>{configuration.code}</strong>
-              <span>{validation.some((issue) => issue.severity === "ERROR") ? "Needs attention" : "Ready"} · {String(configuration.faultTrees.length)} FTs · {String(configuration.bindings.length)} bindings · {String((configuration.evidenceScenarios ?? []).length)} scenarios</span>
+          <div className="hcleditor__composer" aria-label="HCL quantification controls">
+            <div className="hcleditor__run-fields">
+              {scope === "BOTH" && (
+                <label className="hcleditor__run-field hcleditor__run-field--kind">
+                  <span>Quantify</span>
+                  <select aria-label="HCL target type" value={targetKind} onChange={(event) => setTargetKind(event.target.value as "FAULT_TREE" | "EVENT_TREE")}>
+                    <option value="FAULT_TREE">Fault tree</option>
+                    <option value="EVENT_TREE">Event tree</option>
+                  </select>
+                </label>
+              )}
+              {targetKind === "FAULT_TREE" ? (
+                <label className="hcleditor__run-field hcleditor__run-field--target">
+                  <span>Top event</span>
+                  <select aria-label="HCL fault-tree target" value={runFaultTreeKey} onChange={(event) => setRunFaultTreeKey(event.target.value)}>
+                    {runFaultTreeOptions.length === 0 && <option value="">{evidenceMode !== "BASE" ? "No affected fault tree" : "No linked fault tree"}</option>}
+                    {runFaultTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode} · {option.modelName}</option>)}
+                  </select>
+                </label>
+              ) : (
+                <label className="hcleditor__run-field hcleditor__run-field--target">
+                  <span>Event tree</span>
+                  <select aria-label="HCL event-tree target" value={eventTreeKey} onChange={(event) => setEventTreeKey(event.target.value)}>
+                    {runEventTreeOptions.length === 0 && <option value="">{evidenceMode !== "BASE" ? "No affected event tree" : "No linked event tree"}</option>}
+                    {runEventTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.workbookName} · {option.modelName}</option>)}
+                  </select>
+                </label>
+              )}
+              <label className="hcleditor__run-field hcleditor__run-field--evidence">
+                <span>Evidence</span>
+                <select aria-label="HCL evidence mode" value={evidenceMode} onChange={(event) => setEvidenceMode(event.target.value as "BASE" | "SCENARIOS" | "HAZARD_GRID")}>
+                  <option value="BASE">Common evidence</option>
+                  <option value="SCENARIOS">Enabled scenarios ({String((configuration.evidenceScenarios ?? []).filter((scenario) => scenario.enabled).length)})</option>
+                  {configuration.hazardGrid !== undefined && <option value="HAZARD_GRID">Hazard-grid convolution</option>}
+                </select>
+              </label>
             </div>
-            <button type="button" className="posnav__btn posnav__btn--sm" aria-expanded={manageOpen} onClick={() => setManageOpen((open) => !open)}>
-              {manageOpen ? "Close" : "Manage"}
-            </button>
+            <div className="hcleditor__run-actions">
+              {onEditEvidence !== undefined && (
+                <button type="button" className="posnav__btn posnav__btn--sm bneditor__evidence-trigger" aria-label="Edit evidence" aria-expanded={evidenceEditorOpen} onClick={onEditEvidence}>
+                  <HclIcon name="evidence" />
+                  <span>Evidence</span>
+                  {baseEvidence.observations.length > 0 && <b>{String(baseEvidence.observations.length)}</b>}
+                </button>
+              )}
+              {scope !== "EVENT_TREE" && (
+                <button type="button" className="posnav__btn posnav__btn--sm" aria-expanded={manageOpen} onClick={() => setManageOpen(true)}>
+                  <HclIcon name="configuration" />
+                  <span>Manage</span>
+                </button>
+              )}
+              <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={running || hasBlockingIssue || (targetKind === "FAULT_TREE" ? runFaultTreeOptions.length === 0 : runEventTreeOptions.length === 0)} onClick={run}>
+                <HclIcon name="run" />
+                <span>{running ? "Running…" : evidenceMode === "HAZARD_GRID" ? "Run hazard convolution" : evidenceMode === "SCENARIOS" ? "Run scenario batch" : "Run HCL quantification"}</span>
+              </button>
+            </div>
           </div>
+
+          {targetKind === "EVENT_TREE" && selectedEventTree !== undefined && (
+            <div className="hcleditor__linked-fault-trees" aria-label="Automatically linked fault trees">
+              <strong>Linked fault trees</strong>
+              {(selectedEventTree.linkedFaultTrees ?? []).map((tree) => (
+                <span key={`${tree.workbookId}:${tree.modelId}`}>
+                  <b>{tree.modelCode}</b>
+                  {tree.functionalEvents.map((event) => event.code).join(", ")}
+                </span>
+              ))}
+              {(selectedEventTree.linkedFaultTrees ?? []).length === 0 && <span>No functional-event fault-tree links were found.</span>}
+            </div>
+          )}
 
           {manageOpen && (
             <div className="hcleditor__manage" aria-label="HCL configuration manager">
-              <div className="hcleditor__manage-tabs" role="tablist" aria-label="HCL configuration sections">
-                <button type="button" role="tab" aria-selected={manageTab === "TREES"} className={manageTab === "TREES" ? "is-active" : ""} onClick={() => setManageTab("TREES")}>Fault trees</button>
-                <button type="button" role="tab" aria-selected={manageTab === "BINDINGS"} className={manageTab === "BINDINGS" ? "is-active" : ""} onClick={() => setManageTab("BINDINGS")}>Bindings</button>
-                <button type="button" role="tab" aria-selected={manageTab === "SCENARIOS"} className={manageTab === "SCENARIOS" ? "is-active" : ""} onClick={() => setManageTab("SCENARIOS")}>Evidence scenarios</button>
-                <button type="button" role="tab" aria-selected={manageTab === "ADVANCED"} className={manageTab === "ADVANCED" ? "is-active" : ""} onClick={() => setManageTab("ADVANCED")}>Advanced</button>
+              <div className="hcleditor__manage-head">
+                <div className="hcleditor__manage-tabs" role="tablist" aria-label="HCL configuration sections">
+                  <button type="button" role="tab" aria-selected={manageTab === "TREES"} className={manageTab === "TREES" ? "is-active" : ""} onClick={() => setManageTab("TREES")}>Fault trees</button>
+                  <button type="button" role="tab" aria-selected={manageTab === "BINDINGS"} className={manageTab === "BINDINGS" ? "is-active" : ""} onClick={() => setManageTab("BINDINGS")}>Bindings</button>
+                  <button type="button" role="tab" aria-selected={manageTab === "SCENARIOS"} className={manageTab === "SCENARIOS" ? "is-active" : ""} onClick={() => setManageTab("SCENARIOS")}>Evidence scenarios</button>
+                  <button type="button" role="tab" aria-selected={manageTab === "ADVANCED"} className={manageTab === "ADVANCED" ? "is-active" : ""} onClick={() => setManageTab("ADVANCED")}>Advanced</button>
+                </div>
+                <button type="button" className="posnav__btn posnav__btn--sm" aria-label="Close HCL manager" onClick={() => setManageOpen(false)}>Close</button>
               </div>
 
               {manageTab === "TREES" && (
@@ -377,20 +498,42 @@ function HclBindingEditor({
                         <span>Fault tree</span>
                         <select aria-label="Fault tree to include" value={faultTreeKey} onChange={(event) => setFaultTreeKey(event.target.value)}>
                           {faultTreeOptions.length === 0 && <option value="">No Systems Analysis fault tree available</option>}
-                          {faultTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.workbookName} · {option.modelCode}</option>)}
+                          {faultTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode}</option>)}
                         </select>
                       </label>
-                      <button type="button" className="posnav__btn posnav__btn--sm" onClick={includeSelectedFaultTree}>Include selected fault tree</button>
+                      <button type="button" className="posnav__btn posnav__btn--sm" onClick={includeSelectedFaultTree}>Include</button>
                     </div>
                   )}
                   <div className="hcleditor__trees" aria-label="Included HCL fault trees">
-                    <strong>Included fault trees</strong>
-                    <span>{configuration.faultTrees.map((reference) => {
-                      const tree = faultTreeOptions.find((option) =>
-                        option.workbookId === reference.workbookId && option.modelId === reference.modelId,
-                      );
-                      return tree?.modelCode ?? reference.modelId;
-                    }).join(" · ") || "None"}</span>
+                    <div className="hcleditor__trees-head">
+                      <strong>Included</strong>
+                      <span>{configuration.faultTrees.length} {configuration.faultTrees.length === 1 ? "tree" : "trees"}</span>
+                    </div>
+                    {configuration.faultTrees.length > 0 ? (
+                      <div className="hcleditor__tree-cloud" role="list">
+                        {configuration.faultTrees.map((reference) => {
+                          const tree = faultTreeOptions.find((option) =>
+                            option.workbookId === reference.workbookId && option.modelId === reference.modelId,
+                          );
+                          const code = tree?.modelCode ?? reference.modelId;
+                          const name = tree?.modelName;
+                          return (
+                            <span
+                              key={`${reference.workbookId}:${reference.modelId}`}
+                              className="hcleditor__tree-token"
+                              role="listitem"
+                              title={name === undefined ? code : `${code} · ${name}`}
+                              aria-label={name === undefined ? code : `${code}, ${name}`}
+                            >
+                              <span className="hcleditor__tree-mark" aria-hidden="true">✓</span>
+                              <strong>{code}</strong>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="hcleditor__trees-empty">No fault trees included.</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -398,12 +541,12 @@ function HclBindingEditor({
               {manageTab === "BINDINGS" && (
                 <div role="tabpanel" aria-label="HCL binding manager">
                   {editable && (
-                    <div className="bneditor__binding-form">
+                    <div className="bneditor__binding-form hcleditor__binding-form">
                       <label>
                         <span>Fault tree</span>
                         <select aria-label="Fault tree for binding" value={faultTreeKey} onChange={(event) => setFaultTreeKey(event.target.value)}>
                           {faultTreeOptions.length === 0 && <option value="">No Systems Analysis fault tree available</option>}
-                          {faultTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.workbookName} · {option.modelCode}</option>)}
+                          {faultTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode}</option>)}
                         </select>
                       </label>
                       <label>
@@ -430,23 +573,35 @@ function HclBindingEditor({
                       <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary hcleditor__add-binding" onClick={addBinding}>Add binding</button>
                     </div>
                   )}
-                  <div className="bneditor__binding-list">
-                    {configuration.bindings.map((binding) => {
-                      const tree = faultTreeOptions.find((option) => option.workbookId === binding.faultTreeBasicEvent.workbookId && option.basicEvents.some((event) => event.id === binding.faultTreeBasicEvent.entityId));
-                      const basicEvent = tree?.basicEvents.find((event) => event.id === binding.faultTreeBasicEvent.entityId);
-                      const node = model.nodes.find((candidate) => candidate.id === binding.bayesianNetworkNode.entityId);
-                      const states = node?.states.filter((state) => binding.trueStateIds.includes(state.id)) ?? [];
-                      const invalid = node === undefined || states.length === 0 || states.length === node.states.length;
-                      return (
-                        <div key={binding.id} className={`bneditor__binding${invalid ? " is-invalid" : ""}`}>
-                          <span>{tree?.modelCode ?? "Missing FT"} / {basicEvent?.code ?? "Missing basic event"}</span>
-                          <span>→</span>
-                          <span>{node?.code ?? "Missing BN node"} = {states.map((state) => state.code).join(" | ") || "No valid state"}</span>
-                          {editable && <button type="button" aria-label={`Delete binding ${basicEvent?.code ?? binding.id}`} onClick={() => replaceConfiguration({ ...configuration, bindings: configuration.bindings.filter((candidate) => candidate.id !== binding.id) })}>Delete</button>}
-                        </div>
-                      );
-                    })}
-                    {configuration.bindings.length === 0 && <p className="bneditor__empty">No fault-tree events are bound yet.</p>}
+                  <div className="hcleditor__binding-directory">
+                    <div className="hcleditor__binding-list-head">
+                      <strong>Bindings</strong>
+                      <span>{configuration.bindings.length} {configuration.bindings.length === 1 ? "mapping" : "mappings"}</span>
+                    </div>
+                    <div className="bneditor__binding-list hcleditor__binding-list">
+                      {configuration.bindings.map((binding) => {
+                        const tree = faultTreeOptions.find((option) => option.workbookId === binding.faultTreeBasicEvent.workbookId && option.basicEvents.some((event) => event.id === binding.faultTreeBasicEvent.entityId));
+                        const basicEvent = tree?.basicEvents.find((event) => event.id === binding.faultTreeBasicEvent.entityId);
+                        const node = model.nodes.find((candidate) => candidate.id === binding.bayesianNetworkNode.entityId);
+                        const states = node?.states.filter((state) => binding.trueStateIds.includes(state.id)) ?? [];
+                        const invalid = node === undefined || states.length === 0 || states.length === node.states.length;
+                        return (
+                          <div key={binding.id} className={`bneditor__binding${invalid ? " is-invalid" : ""}`}>
+                            <span className="hcleditor__binding-endpoint">
+                              <small>FT / basic event</small>
+                              <strong>{tree?.modelCode ?? "Missing FT"} / {basicEvent?.code ?? "Missing basic event"}</strong>
+                            </span>
+                            <span className="hcleditor__binding-arrow" aria-hidden="true">→</span>
+                            <span className="hcleditor__binding-endpoint">
+                              <small>BN condition</small>
+                              <strong>{node?.code ?? "Missing BN node"} = {states.map((state) => state.code).join(" | ") || "No valid state"}</strong>
+                            </span>
+                            {editable && <button type="button" className="hcleditor__binding-delete" aria-label={`Delete binding ${basicEvent?.code ?? binding.id}`} onClick={() => replaceConfiguration({ ...configuration, bindings: configuration.bindings.filter((candidate) => candidate.id !== binding.id) })}>Delete</button>}
+                          </div>
+                        );
+                      })}
+                      {configuration.bindings.length === 0 && <p className="bneditor__empty">No fault-tree events are bound yet.</p>}
+                    </div>
                   </div>
                 </div>
               )}
@@ -468,7 +623,6 @@ function HclBindingEditor({
                     <label><span>Name</span><input value={configuration.name} disabled={!editable} onChange={(event) => replaceConfiguration({ ...configuration, name: event.target.value })} /></label>
                   </div>
                   <div className="hcleditor__solver-settings">
-                    <span>Variable order <strong>{configuration.solverSettings.variableOrder === null ? "Automatic" : `${String(configuration.solverSettings.variableOrder.length)} variables`}</strong></span>
                     <label><input type="checkbox" checked={configuration.solverSettings.foldConstants} disabled={!editable} onChange={(event) => replaceConfiguration({ ...configuration, solverSettings: { ...configuration.solverSettings, foldConstants: event.target.checked } })} />Fold constants</label>
                     <label><input type="checkbox" checked={configuration.solverSettings.spliceNullGates} disabled={!editable} onChange={(event) => replaceConfiguration({ ...configuration, solverSettings: { ...configuration.solverSettings, spliceNullGates: event.target.checked } })} />Splice null gates</label>
                   </div>
@@ -478,54 +632,14 @@ function HclBindingEditor({
             </div>
           )}
 
-          <div className="hcleditor__run" aria-label="HCL quantification">
-            <label>
-              <span>Quantify</span>
-              <select aria-label="HCL target type" value={targetKind} onChange={(event) => setTargetKind(event.target.value as "FAULT_TREE" | "EVENT_TREE")}>
-                <option value="FAULT_TREE">Fault tree</option>
-                <option value="EVENT_TREE">Event tree</option>
-              </select>
-            </label>
-            {targetKind === "FAULT_TREE" ? (
-              <label>
-                <span>Top event</span>
-                <select aria-label="HCL fault-tree target" value={runFaultTreeKey} onChange={(event) => setRunFaultTreeKey(event.target.value)}>
-                  {runFaultTreeOptions.length === 0 && <option value="">{evidenceMode !== "BASE" ? "No affected fault tree" : "No linked fault tree"}</option>}
-                  {runFaultTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode} · {option.modelName}</option>)}
-                </select>
-              </label>
-            ) : (
-              <label>
-                <span>Event tree</span>
-                <select aria-label="HCL event-tree target" value={eventTreeKey} onChange={(event) => setEventTreeKey(event.target.value)}>
-                  {runEventTreeOptions.length === 0 && <option value="">{evidenceMode !== "BASE" ? "No affected event tree" : "No linked event tree"}</option>}
-                  {runEventTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.workbookName} · {option.modelName}</option>)}
-                </select>
-              </label>
-            )}
-            <label>
-              <span>Evidence</span>
-              <select aria-label="HCL evidence mode" value={evidenceMode} onChange={(event) => setEvidenceMode(event.target.value as "BASE" | "SCENARIOS" | "HAZARD_GRID")}>
-                <option value="BASE">Common evidence</option>
-                <option value="SCENARIOS">Enabled scenarios ({String((configuration.evidenceScenarios ?? []).filter((scenario) => scenario.enabled).length)})</option>
-                {configuration.hazardGrid !== undefined && <option value="HAZARD_GRID">Hazard-grid convolution</option>}
-              </select>
-            </label>
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary hcleditor__aligned-action" disabled={running || validation.some((issue) => issue.severity === "ERROR") || (targetKind === "FAULT_TREE" ? runFaultTreeOptions.length === 0 : runEventTreeOptions.length === 0)} onClick={run}>
-              <HclIcon name="run" />{running ? "Running…" : evidenceMode === "HAZARD_GRID" ? "Run hazard convolution" : evidenceMode === "SCENARIOS" ? "Run scenario batch" : "Run HCL quantification"}
-            </button>
-          </div>
-          {evidenceMode !== "BASE" && (
-            <p className="hcleditor__batch-scope" aria-label="HCL batch target scope">
-              Varying evidence: {batchRelevance?.varyingEvidenceNodeIds.map((nodeId) =>
-                model.nodes.find((node) => node.id === nodeId)?.code ?? nodeId,
-              ).join(", ") || "none"} · {String(runFaultTreeOptions.length)} affected FTs · {String(runEventTreeOptions.length)} affected ETs · {String(batchRelevance?.constantMaskedFaultTreeKeys.length ?? 0)} FTs excluded by constant logic{evidenceMode === "HAZARD_GRID" ? ` · ${(configuration.hazardGrid?.annualFrequencyScale.value ?? 0).toExponential(3)}/yr scale` : ""}
-            </p>
-          )}
           {runError !== null && <p className="bneditor__error" role="alert">{runError}</p>}
           {runResult?.kind === "FAULT_TREE" && (
-            <div className="hcleditor__result hcleditor__result--fault-tree" aria-label="HCL fault-tree result">
-              <strong>Top event probability</strong><output>{runResult.result.probability.toExponential(6)}</output>
+            <div className="hcleditor__result-grid hcleditor__result-grid--single" aria-label="HCL fault-tree result">
+              <HclResultMetric
+                label="Top event probability"
+                value={formatScientific(runResult.result.probability)}
+                ratio={runResult.result.probability}
+              />
             </div>
           )}
           {runResult?.kind === "EVENT_TREE" && (
@@ -554,40 +668,70 @@ function HclBindingEditor({
               </div>
               {batchRunResult.hazardConvolution !== undefined && (
                 <div className="hcleditor__convolution-summary" aria-label="Hazard convolution summary">
-                  <span><small>Grid</small><strong>{batchRunResult.hazardConvolution.gridName}</strong></span>
-                  <span><small>Covered probability</small><strong>{batchRunResult.hazardConvolution.rawWeightSum.toPrecision(5)}</strong></span>
-                  <span><small>Annual scale</small><strong>{batchRunResult.hazardConvolution.annualizedFrequencyScale.toExponential(4)}/yr</strong></span>
+                  <HclResultMetric
+                    label="Grid"
+                    value={batchRunResult.hazardConvolution.gridName}
+                  />
+                  <HclResultMetric
+                    label="Covered probability"
+                    value={formatPercentage(batchRunResult.hazardConvolution.rawWeightSum)}
+                    ratio={batchRunResult.hazardConvolution.rawWeightSum}
+                  />
+                  <HclResultMetric
+                    label="Annual scale"
+                    value={`${formatScientific(batchRunResult.hazardConvolution.annualizedFrequencyScale)}/yr`}
+                  />
                   {batchRunResult.hazardConvolution.targetKind === "FAULT_TREE" ? (
-                    <span><small>Integrated frequency</small><strong>{batchRunResult.hazardConvolution.integratedAnnualFrequency.toExponential(4)}/yr</strong></span>
+                    <HclResultMetric
+                      label="Integrated frequency"
+                      value={`${formatScientific(batchRunResult.hazardConvolution.integratedAnnualFrequency)}/yr`}
+                    />
                   ) : (
-                    <span><small>End states</small><strong>{String(batchRunResult.hazardConvolution.endStateAggregates.length)}</strong></span>
+                    <HclResultMetric
+                      label="End states"
+                      value={String(batchRunResult.hazardConvolution.endStateAggregates.length)}
+                    />
                   )}
                 </div>
               )}
               <div className="hcleditor__batch-table">
                 {batchRunResult.scenarios.map((scenario) => {
                   let value = scenario.failure ?? scenario.status;
-                  if (scenario.result?.kind === "FAULT_TREE") value = scenario.result.result.probability.toExponential(6);
+                  let ratio: number | undefined;
+                  let detail = scenario.scenarioName;
+                  if (scenario.result?.kind === "FAULT_TREE") {
+                    value = formatScientific(scenario.result.result.probability);
+                    ratio = scenario.result.result.probability;
+                  }
                   if (scenario.result?.kind === "EVENT_TREE") {
                     const frequency = scenario.result.result.sequences.reduce((sum, sequence) => sum + sequence.annualFrequency, 0);
-                    value = `${String(scenario.result.result.sequences.length)} sequences · ${frequency.toExponential(6)}/yr`;
+                    value = `${String(scenario.result.result.sequences.length)} sequences · ${formatScientific(frequency)}/yr`;
                   }
                   const convolution = batchRunResult.hazardConvolution;
                   if (convolution?.targetKind === "FAULT_TREE") {
                     const row = convolution.rows.find((candidate) => candidate.scenarioId === scenario.scenarioId);
-                    if (row !== undefined) value = `w=${row.convolutionWeight.toPrecision(4)} · ${row.annualContribution.toExponential(4)}/yr`;
+                    if (row !== undefined) {
+                      value = `${formatScientific(row.annualContribution)}/yr`;
+                      ratio = row.convolutionWeight;
+                      detail = `${scenario.scenarioName} · ${formatPercentage(row.convolutionWeight)} weight`;
+                    }
                   } else if (convolution?.targetKind === "EVENT_TREE") {
                     const row = convolution.rows.find((candidate) => candidate.scenarioId === scenario.scenarioId);
                     if (row !== undefined) {
                       const contribution = row.sequences.reduce((sum, sequence) => sum + sequence.annualContribution, 0);
-                      value = `w=${row.convolutionWeight.toPrecision(4)} · ${contribution.toExponential(4)}/yr`;
+                      value = `${formatScientific(contribution)}/yr`;
+                      ratio = row.convolutionWeight;
+                      detail = `${scenario.scenarioName} · ${formatPercentage(row.convolutionWeight)} weight`;
                     }
                   }
                   return (
-                    <div key={scenario.scenarioId}>
-                      <span><strong>{scenario.scenarioCode}</strong>{scenario.scenarioName}</span>
-                      <output>{value}</output>
-                    </div>
+                    <HclResultMetric
+                      key={scenario.scenarioId}
+                      label={scenario.scenarioCode}
+                      value={value}
+                      ratio={ratio}
+                      detail={detail}
+                    />
                   );
                 })}
               </div>

@@ -68,7 +68,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ESQ" title="Dependency treatment" level={3} />
+          <WorkbookSectionHeading title="Dependency treatment" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C1 · ESQ-C2</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "dependency", id: "dependency" })}>Edit</button>}
@@ -92,7 +92,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ESQ" title="Multiple human failure events in a cutset" level={3} />
+          <WorkbookSectionHeading title="Multiple human failure events in a cutset" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C1 · ESQ-C2</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addMultiHfe}><ESQIcon.Plus /> Add cutset</button>}
@@ -123,7 +123,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ESQ" title="Event-tree linking transfers" level={3} />
+          <WorkbookSectionHeading title="Event-tree linking transfers" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C3</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addTransfer}><ESQIcon.Plus /> Add transfer</button>}
@@ -150,7 +150,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ESQ" title="Phenomena dependencies" level={3} />
+          <WorkbookSectionHeading title="Phenomena dependencies" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C4 · ESQ-C6</EsqProvenanceChip>
             <div className="posrow" style={{ gap: 6 }}>
@@ -183,7 +183,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ESQ" title="Equipment survivability credit" level={3} />
+          <WorkbookSectionHeading title="Equipment survivability credit" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C8 · ESQ-C9</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSurv}><ESQIcon.Plus /> Add assessment</button>}

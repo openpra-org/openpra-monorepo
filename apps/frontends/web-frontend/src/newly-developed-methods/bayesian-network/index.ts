@@ -18,4 +18,11 @@ export {
   importBayesianNetworkJson,
   importBayesianNetworkXdsl,
 } from "./bayesianNetworkInterchange";
+export {
+  compatibleBayesianNetworkModuleInputNodes,
+  createBayesianNetworkModuleFromBranch,
+  deleteBayesianNetworkModuleInstance,
+  deleteBayesianNetworkModuleTemplate,
+  instantiateBayesianNetworkModule,
+} from "./bayesianNetworkModules";
 export type { BayesianNetworkEditorProps, BayesianNetworkFaultTreeOption } from "./bayesianNetworkTypes";

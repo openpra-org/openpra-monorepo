@@ -22,6 +22,7 @@ import {
   reconcileExampleEventTreeDependencyReferences,
   reconcileExampleSyDataAnalysisReferences,
   reconcileExampleSyHumanReliabilityReferences,
+  reconcileExampleSyDependencyOwnership,
   reconcileExampleRiskResultReferences,
 } from "../seeds/dependency-model-seed";
 import { DA_EXAMPLES, ES_EXAMPLES, ESQ_EXAMPLES, HR_EXAMPLES, IE_EXAMPLES, RC_EXAMPLES, RI_EXAMPLES, SY_EXAMPLES } from "../seeds";
@@ -46,6 +47,7 @@ describe("HCL dissertation case-study example", () => {
     expect(ES_ANALYSIS_HCL.eventTrees).toHaveLength(3);
     expect(ES_ANALYSIS_HCL.eventSequences).toHaveLength(45);
     expect(SY_ANALYSIS_HCL.dependencyBayesianNetworks).toHaveLength(1);
+    expect(SY_ANALYSIS_HCL.dependencyHclConfigurations).toHaveLength(1);
     expect(HR_ANALYSIS_HCL.dependencyBayesianNetworks).toHaveLength(1);
     expect(ES_ANALYSIS_HCL.dependencyModels?.bayesianNetworks).toHaveLength(1);
     expect(ES_ANALYSIS_HCL.eventTrees?.map(({ label }) => label)).toEqual(["LOOP", "SBO", "FLEX"]);
@@ -65,14 +67,17 @@ describe("HCL dissertation case-study example", () => {
     const daWorkbookId = "real-hcl-da-workbook";
     const hrWorkbookId = "real-hcl-hr-workbook";
     const esqWorkbookId = "real-hcl-esq-workbook";
-    const sy = SystemsAnalysisSchema.parse(reconcileExampleSyHumanReliabilityReferences(
-      reconcileExampleSyDataAnalysisReferences(
-        SystemsAnalysisSchema.parse(structuredClone(SY_ANALYSIS_HCL)),
-        DA_ANALYSIS_HCL,
-        daWorkbookId,
+    const sy = SystemsAnalysisSchema.parse(reconcileExampleSyDependencyOwnership(
+      reconcileExampleSyHumanReliabilityReferences(
+        reconcileExampleSyDataAnalysisReferences(
+          SystemsAnalysisSchema.parse(structuredClone(SY_ANALYSIS_HCL)),
+          DA_ANALYSIS_HCL,
+          daWorkbookId,
+        ),
+        HR_ANALYSIS_HCL,
+        hrWorkbookId,
       ),
-      HR_ANALYSIS_HCL,
-      hrWorkbookId,
+      syWorkbookId,
     ));
     const es = EventSequenceAnalysisSchema.parse(reconcileExampleEventTreeDependencyReferences(
       EventSequenceAnalysisSchema.parse(structuredClone(ES_ANALYSIS_HCL)),
@@ -106,6 +111,15 @@ describe("HCL dissertation case-study example", () => {
     expect(sy.humanFailureEventIntegrations.every((integration) =>
       integration.hfeSource?.workbookId === hrWorkbookId &&
       integration.hfeSource.entityId === integration.hfeReference)).toBe(true);
+    const ownedConfiguration = sy.dependencyHclConfigurations?.[0];
+    expect(ownedConfiguration?.bayesianNetwork.workbookId).toBe(syWorkbookId);
+    expect(ownedConfiguration?.faultTrees).toHaveLength(22);
+    expect(ownedConfiguration?.faultTrees.every(({ workbookId, modelId }) =>
+      workbookId === syWorkbookId && modelIds.has(modelId))).toBe(true);
+    expect(ownedConfiguration?.bindings.every(({ faultTreeBasicEvent, bayesianNetworkNode }) =>
+      faultTreeBasicEvent.workbookId === syWorkbookId &&
+      basicEventIds.has(faultTreeBasicEvent.entityId) &&
+      bayesianNetworkNode.workbookId === syWorkbookId)).toBe(true);
     for (const tree of es.eventTrees ?? []) {
       for (const functionalEvent of Object.values(tree.functionalEvents)) {
         expect(functionalEvent.faultTreeTopEvent?.workbookId).toBe(syWorkbookId);

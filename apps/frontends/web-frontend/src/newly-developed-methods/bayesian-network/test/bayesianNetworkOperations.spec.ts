@@ -1,4 +1,7 @@
-import type { BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
+import {
+  type BayesianNetworkModel,
+  validateBayesianNetworkModules,
+} from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import {
   addNode,
   canConnect,
@@ -6,6 +9,12 @@ import {
   deleteNode,
   normalizeCptRow,
 } from "../bayesianNetworkOperations";
+import {
+  compatibleBayesianNetworkModuleInputNodes,
+  createBayesianNetworkModuleFromBranch,
+  deleteBayesianNetworkModuleInstance,
+  instantiateBayesianNetworkModule,
+} from "../bayesianNetworkModules";
 
 const ID = {
   model: "10000000-0000-4000-8000-000000000001",
@@ -85,6 +94,11 @@ function model(): BayesianNetworkModel {
   };
 }
 
+function deterministicIds(): () => string {
+  let value = 1;
+  return () => `90000000-0000-4000-8000-${String(value++).padStart(12, "0")}`;
+}
+
 describe("Bayesian-network domain operations", () => {
   it("adds a discrete node with two states and a normalized prior", () => {
     const added = addNode(model());
@@ -128,6 +142,27 @@ describe("Bayesian-network domain operations", () => {
     expect(normalized.values.map(({ probability }) => probability)).toEqual([0.5, 0.5]);
   });
 
+  it("does not normalize probabilities outside the legal range", () => {
+    const row = model().conditionalProbabilityTables[0]!.rows[0]!;
+    const negative = {
+      ...row,
+      values: row.values.map((value, index) => ({
+        ...value,
+        probability: index === 0 ? -0.2 : value.probability,
+      })) as typeof row.values,
+    };
+    const aboveOne = {
+      ...row,
+      values: row.values.map((value, index) => ({
+        ...value,
+        probability: index === 0 ? 1.2 : value.probability,
+      })) as typeof row.values,
+    };
+
+    expect(normalizeCptRow(negative)).toBe(negative);
+    expect(normalizeCptRow(aboveOne)).toBe(aboveOne);
+  });
+
   it("deletes a node and rebuilds each affected child CPT", () => {
     const connected = connectNodes(model(), ID.a, ID.b);
     const deleted = deleteNode(connected, ID.a);
@@ -137,6 +172,127 @@ describe("Bayesian-network domain operations", () => {
     expect(deleted.edges).toEqual([]);
     expect(childTable?.parents).toEqual([]);
     expect(childTable?.rows).toHaveLength(1);
+  });
+
+  it("captures a branch as a reusable module with a typed upstream input", () => {
+    const connected = connectNodes(model(), ID.a, ID.b);
+    const created = createBayesianNetworkModuleFromBranch(connected, ID.b, deterministicIds());
+    const template = created.model.moduleTemplates?.[0];
+
+    expect(template).toMatchObject({
+      code: "MOD-B",
+      nodes: [expect.objectContaining({ code: "B" })],
+      inputPorts: [expect.objectContaining({ code: "A", node: expect.objectContaining({ code: "A" }) })],
+      outputPorts: [expect.objectContaining({ code: "B" })],
+    });
+    expect(template?.conditionalProbabilityTables[0]?.parents[0]?.nodeId).toBe(
+      template?.inputPorts[0]?.node.id,
+    );
+  });
+
+  it("materializes independent module nodes while preserving CPT semantics", () => {
+    const connected = connectNodes(model(), ID.a, ID.b);
+    const created = createBayesianNetworkModuleFromBranch(connected, ID.b, deterministicIds());
+    const template = created.model.moduleTemplates![0]!;
+    const port = template.inputPorts[0]!;
+    const instantiated = instantiateBayesianNetworkModule(created.model, template.id, {
+      code: "PUMP-TRAIN-2",
+      name: "Pump train 2",
+      inputBindings: [{ portId: port.id, nodeId: ID.a }],
+    }, deterministicIds());
+    const instance = instantiated.model.moduleInstances?.[0];
+    const copiedNode = instantiated.model.nodes.find((node) => node.id === instance?.nodeMappings[0]?.nodeId);
+    const copiedTable = instantiated.model.conditionalProbabilityTables.find(
+      (table) => table.nodeId === copiedNode?.id,
+    );
+
+    expect(copiedNode).toMatchObject({ code: "PUMP-TRAIN-2-B", name: "Pump train 2 · Effect" });
+    expect(copiedNode?.id).not.toBe(ID.b);
+    expect(copiedTable?.parents).toEqual([{ nodeId: ID.a, order: 0 }]);
+    expect(copiedTable?.rows.map((row) => row.values.map((value) => value.probability))).toEqual(
+      connected.conditionalProbabilityTables.find((table) => table.nodeId === ID.b)?.rows
+        .map((row) => row.values.map((value) => value.probability)),
+    );
+    expect(instantiated.outputNodeIds).toEqual([copiedNode?.id]);
+    expect(validateBayesianNetworkModules(instantiated.model)).toEqual([]);
+  });
+
+  it("filters module input choices by state contract and rejects incompatible bindings", () => {
+    const connected = connectNodes(model(), ID.a, ID.b);
+    const created = createBayesianNetworkModuleFromBranch(connected, ID.b, deterministicIds());
+    const template = created.model.moduleTemplates![0]!;
+    const port = template.inputPorts[0]!;
+    const incompatible = {
+      ...created.model,
+      nodes: created.model.nodes.map((node) => node.id === ID.a
+        ? {
+            ...node,
+            states: [
+              { ...node.states[0], code: "LOW" },
+              { ...node.states[1], code: "HIGH" },
+            ] as typeof node.states,
+          }
+        : node),
+    };
+
+    expect(compatibleBayesianNetworkModuleInputNodes(incompatible, port).map((node) => node.id)).not.toContain(ID.a);
+    expect(() => instantiateBayesianNetworkModule(incompatible, template.id, {
+      inputBindings: [{ portId: port.id, nodeId: ID.a }],
+    }, deterministicIds())).toThrow(/requires states/i);
+  });
+
+  it("removes a module instance without touching its reusable template or source branch", () => {
+    const connected = connectNodes(model(), ID.a, ID.b);
+    const created = createBayesianNetworkModuleFromBranch(connected, ID.b, deterministicIds());
+    const template = created.model.moduleTemplates![0]!;
+    const instantiated = instantiateBayesianNetworkModule(created.model, template.id, {
+      inputBindings: [{ portId: template.inputPorts[0]!.id, nodeId: ID.a }],
+    }, deterministicIds());
+    const instance = instantiated.model.moduleInstances![0]!;
+    const removed = deleteBayesianNetworkModuleInstance(instantiated.model, instance.id);
+
+    expect(removed.nodes.map((node) => node.id)).toEqual([ID.a, ID.b]);
+    expect(removed.moduleTemplates).toHaveLength(1);
+    expect(removed.moduleInstances).toEqual([]);
+  });
+
+  it("detects stale materialized module mappings before analysis", () => {
+    const connected = connectNodes(model(), ID.a, ID.b);
+    const created = createBayesianNetworkModuleFromBranch(connected, ID.b, deterministicIds());
+    const template = created.model.moduleTemplates![0]!;
+    const instantiated = instantiateBayesianNetworkModule(created.model, template.id, {
+      inputBindings: [{ portId: template.inputPorts[0]!.id, nodeId: ID.a }],
+    }, deterministicIds()).model;
+    const stale = {
+      ...instantiated,
+      moduleInstances: instantiated.moduleInstances?.map((instance) => ({
+        ...instance,
+        nodeMappings: instance.nodeMappings.map((mapping) => ({ ...mapping, stateMappings: [] })),
+      })),
+    };
+
+    expect(validateBayesianNetworkModules(stale).map((issue) => issue.code)).toContain(
+      "BN_MODULE_STATE_MAPPING_MISMATCH",
+    );
+  });
+
+  it("protects module-to-module input dependencies during deletion", () => {
+    const ids = deterministicIds();
+    const connected = connectNodes(model(), ID.a, ID.b);
+    const created = createBayesianNetworkModuleFromBranch(connected, ID.b, ids);
+    const template = created.model.moduleTemplates![0]!;
+    const first = instantiateBayesianNetworkModule(created.model, template.id, {
+      code: "FIRST",
+      inputBindings: [{ portId: template.inputPorts[0]!.id, nodeId: ID.a }],
+    }, ids);
+    const second = instantiateBayesianNetworkModule(first.model, template.id, {
+      code: "SECOND",
+      inputBindings: [{ portId: template.inputPorts[0]!.id, nodeId: first.outputNodeIds[0]! }],
+    }, ids);
+
+    expect(() => deleteBayesianNetworkModuleInstance(second.model, first.instanceId)).toThrow(
+      /dependent module instance SECOND/i,
+    );
   });
 });
 

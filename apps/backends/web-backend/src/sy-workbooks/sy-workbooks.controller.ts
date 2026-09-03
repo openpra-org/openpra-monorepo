@@ -4,7 +4,7 @@ import { SyWorkbooksService, type SyWorkbookResponse } from "./sy-workbooks.serv
 import { parseRevisionedWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
 import { parseExpectedWorkbookRevision } from "../workbooks/workbook-revision";
 import { WorkbookAnalysisRunsService } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
-import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
+import type { AnalysisRunMetadata, HclBatchExecuteResult } from "interfaces-shared-types/newly-developed-methods";
 import type { FaultTreeValidateResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 
 @Controller("sy-workbooks")
@@ -94,6 +94,90 @@ export class SyWorkbooksController {
   @Get(":id/fault-trees/:modelId/runs/:runId/result")
   @HttpCode(HttpStatus.OK)
   getFaultTreeResult(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<unknown> {
+    return this.analysisRunsService.getResult("SY", id, modelId, runId, {
+      username: req.user!.username,
+    });
+  }
+
+  @Post(":id/bayesian-networks/:modelId/runs")
+  @HttpCode(HttpStatus.OK)
+  async runBayesianNetwork(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ schemaVersion: "1.0.0"; run: AnalysisRunMetadata }> {
+    return {
+      schemaVersion: "1.0.0",
+      run: await this.analysisRunsService.executeBayesianNetwork(
+        id,
+        modelId,
+        body,
+        { username: req.user!.username },
+        "SY",
+      ),
+    };
+  }
+
+  @Get(":id/bayesian-networks/:modelId/runs/:runId/result")
+  @HttpCode(HttpStatus.OK)
+  getBayesianNetworkResult(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<unknown> {
+    return this.analysisRunsService.getResult("SY", id, modelId, runId, {
+      username: req.user!.username,
+    });
+  }
+
+  @Post(":id/hcl-configurations/:modelId/fault-tree-runs")
+  @HttpCode(HttpStatus.OK)
+  async runHclFaultTree(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ schemaVersion: "1.0.0"; run: AnalysisRunMetadata }> {
+    return {
+      schemaVersion: "1.0.0",
+      run: await this.analysisRunsService.executeHclFaultTree(
+        id,
+        modelId,
+        body,
+        { username: req.user!.username },
+        null,
+        "SY",
+      ),
+    };
+  }
+
+  @Post(":id/hcl-configurations/:modelId/fault-tree-batch-runs")
+  @HttpCode(HttpStatus.OK)
+  runHclFaultTreeBatch(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<HclBatchExecuteResult> {
+    return this.analysisRunsService.executeHclFaultTreeBatch(
+      id,
+      modelId,
+      body,
+      { username: req.user!.username },
+      "SY",
+    );
+  }
+
+  @Get(":id/hcl-configurations/:modelId/runs/:runId/result")
+  @HttpCode(HttpStatus.OK)
+  getHclResult(
     @Param("id") id: string,
     @Param("modelId") modelId: string,
     @Param("runId") runId: string,

@@ -83,6 +83,7 @@ interface HclEventTreeExecuteRequest {
   modelId: WorkbookModelId;
   workbookRevision: WorkbookRevision;
   eventTree: WorkbookModelAddress;
+  dependencyConfiguration?: WorkbookModelAddress;
   evidenceScenarioId?: WorkbookEntityId;
 }
 
@@ -100,6 +101,7 @@ interface HclEventTreeBatchExecuteRequest {
   modelId: WorkbookModelId;
   workbookRevision: WorkbookRevision;
   eventTree: WorkbookModelAddress;
+  dependencyConfiguration?: WorkbookModelAddress;
   evidenceScenarioIds: WorkbookEntityId[];
   integrateHazardGrid?: boolean;
 }
@@ -165,6 +167,7 @@ const HclEventTreeExecuteRequestSchema = z
     modelId: WorkbookModelIdSchema,
     workbookRevision: WorkbookRevisionSchema,
     eventTree: WorkbookModelAddressSchema,
+    dependencyConfiguration: WorkbookModelAddressSchema.optional(),
     evidenceScenarioId: WorkbookEntityIdSchema.optional(),
   })
   .strict();
@@ -195,6 +198,7 @@ const HclEventTreeBatchExecuteRequestSchema = z
     modelId: WorkbookModelIdSchema,
     workbookRevision: WorkbookRevisionSchema,
     eventTree: WorkbookModelAddressSchema,
+    dependencyConfiguration: WorkbookModelAddressSchema.optional(),
     evidenceScenarioIds: EvidenceScenarioIdsSchema,
     integrateHazardGrid: z.boolean().optional(),
   })

@@ -75,7 +75,7 @@ const HclHazardGridDefinitionSchema = z
 
 const HclSolverSettingsSchema = z
   .object({
-    variableOrder: z.array(WorkbookEntityIdSchema).min(1, "A custom variable order cannot be empty").nullable(),
+    variableOrder: z.array(WorkbookEntityIdSchema).min(1, "A custom variable order cannot be empty").nullable().default(null),
     foldConstants: z.boolean(),
     spliceNullGates: z.boolean(),
   })

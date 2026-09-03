@@ -86,6 +86,58 @@ interface BayesianNetworkXdslMetadata {
   nodeIdentifiers: BayesianNetworkXdslNodeIdentifier[];
 }
 
+/**
+ * A virtual upstream node accepted by a reusable module. The contract keeps
+ * the expected states beside the port so an instance can reject an
+ * incompatible host node before any CPT is copied.
+ */
+interface BayesianNetworkModuleInputPort extends BayesianNetworkEntityIdentity {
+  node: BayesianNetworkNode;
+}
+
+interface BayesianNetworkModuleOutputPort extends BayesianNetworkEntityIdentity {
+  nodeId: WorkbookEntityId;
+}
+
+/** A reusable, self-contained Bayesian-network fragment. */
+interface BayesianNetworkModuleTemplate extends BayesianNetworkEntityIdentity {
+  nodes: BayesianNetworkNode[];
+  edges: BayesianNetworkDirectedEdge[];
+  conditionalProbabilityTables: BayesianNetworkConditionalProbabilityTable[];
+  nodePositions: BayesianNetworkNodePosition[];
+  inputPorts: BayesianNetworkModuleInputPort[];
+  outputPorts: BayesianNetworkModuleOutputPort[];
+}
+
+interface BayesianNetworkModuleInputBinding {
+  portId: WorkbookEntityId;
+  nodeId: WorkbookEntityId;
+}
+
+interface BayesianNetworkModuleStateMapping {
+  templateStateId: WorkbookEntityId;
+  stateId: WorkbookEntityId;
+}
+
+interface BayesianNetworkModuleNodeMapping {
+  templateNodeId: WorkbookEntityId;
+  nodeId: WorkbookEntityId;
+  stateMappings: BayesianNetworkModuleStateMapping[];
+}
+
+interface BayesianNetworkModuleOutputBinding {
+  portId: WorkbookEntityId;
+  nodeId: WorkbookEntityId;
+}
+
+/** Provenance and stable identity for one materialized module instance. */
+interface BayesianNetworkModuleInstance extends BayesianNetworkEntityIdentity {
+  templateId: WorkbookEntityId;
+  inputBindings: BayesianNetworkModuleInputBinding[];
+  nodeMappings: BayesianNetworkModuleNodeMapping[];
+  outputBindings: BayesianNetworkModuleOutputBinding[];
+}
+
 interface BayesianNetworkEvidenceObservation {
   nodeId: WorkbookEntityId;
   stateId: WorkbookEntityId;
@@ -102,6 +154,8 @@ interface BayesianNetworkDefinition {
   nodePositions: BayesianNetworkNodePosition[];
   layout: CanvasLayoutMetadata;
   xdslMetadata?: BayesianNetworkXdslMetadata;
+  moduleTemplates?: BayesianNetworkModuleTemplate[];
+  moduleInstances?: BayesianNetworkModuleInstance[];
 }
 
 export type {
@@ -120,6 +174,14 @@ export type {
   BayesianNetworkNodePosition,
   BayesianNetworkXdslNodeIdentifier,
   BayesianNetworkXdslMetadata,
+  BayesianNetworkModuleInputPort,
+  BayesianNetworkModuleOutputPort,
+  BayesianNetworkModuleTemplate,
+  BayesianNetworkModuleInputBinding,
+  BayesianNetworkModuleStateMapping,
+  BayesianNetworkModuleNodeMapping,
+  BayesianNetworkModuleOutputBinding,
+  BayesianNetworkModuleInstance,
   BayesianNetworkEvidenceObservation,
   BayesianNetworkEvidenceConfiguration,
   BayesianNetworkDefinition,

@@ -74,6 +74,47 @@ function createGenieNode(parent: Element, code: string, name: string, x: number,
   return node;
 }
 
+function ensureGenieModuleSubmodel(
+  genie: Element,
+  model: BayesianNetworkModel,
+  instance: NonNullable<BayesianNetworkModel["moduleInstances"]>[number],
+): Element {
+  const existing = descendantElements(genie, "submodel").find(
+    (submodel) => submodel.getAttribute("id") === instance.code,
+  );
+  if (existing !== undefined) return existing;
+  const document = genie.ownerDocument;
+  const submodel = document.createElement("submodel");
+  submodel.setAttribute("id", instance.code);
+  ensureTextChild(submodel, "name", instance.name);
+  const interior = document.createElement("interior");
+  interior.setAttribute("color", "e2e8f0");
+  submodel.appendChild(interior);
+  const outline = document.createElement("outline");
+  outline.setAttribute("color", "64748b");
+  submodel.appendChild(outline);
+  const font = document.createElement("font");
+  font.setAttribute("color", "000000");
+  font.setAttribute("name", "Arial");
+  font.setAttribute("size", "10");
+  submodel.appendChild(font);
+  const materializedIds = new Set(instance.nodeMappings.map((mapping) => mapping.nodeId));
+  const positions = model.nodePositions
+    .filter((entry) => materializedIds.has(entry.nodeId))
+    .map((entry) => entry.position);
+  const minX = Math.min(...positions.map((position) => position.x), 24);
+  const minY = Math.min(...positions.map((position) => position.y), 24);
+  const maxX = Math.max(...positions.map((position) => position.x + 180), minX + 210);
+  const maxY = Math.max(...positions.map((position) => position.y + 70), minY + 74);
+  ensureTextChild(
+    submodel,
+    "position",
+    [minX - 20, minY - 36, maxX + 20, maxY + 20].map(formatCoordinate).join(" "),
+  );
+  genie.appendChild(submodel);
+  return submodel;
+}
+
 function synchronizedExtensions(model: BayesianNetworkModel): string {
   const source = model.xdslMetadata?.extensionsXml
     ?? '<extensions><genie version="1.0" app="OpenPRA" name="Bayesian network"/></extensions>';
@@ -97,6 +138,11 @@ function synchronizedExtensions(model: BayesianNetworkModel): string {
     (model.xdslMetadata?.nodeIdentifiers ?? []).map(({ nodeId, sourceId }) => [sourceId, nodeId]),
   );
   const seen = new Set<string>();
+  const moduleInstanceByNodeId = new Map(
+    (model.moduleInstances ?? []).flatMap((instance) =>
+      instance.nodeMappings.map((mapping) => [mapping.nodeId, instance] as const),
+    ),
+  );
 
   descendantElements(extensions, "node").forEach((extensionNode) => {
     const sourceId = extensionNode.getAttribute("id") ?? "";
@@ -136,7 +182,9 @@ function synchronizedExtensions(model: BayesianNetworkModel): string {
       x: 44 + (index % 3) * 250,
       y: 44 + Math.floor(index / 3) * 140,
     };
-    createGenieNode(genie!, node.code, node.name, position.x, position.y);
+    const instance = moduleInstanceByNodeId.get(node.id);
+    const parent = instance === undefined ? genie! : ensureGenieModuleSubmodel(genie!, model, instance);
+    createGenieNode(parent, node.code, node.name, position.x, position.y);
   });
   return serializeXml(extensions);
 }

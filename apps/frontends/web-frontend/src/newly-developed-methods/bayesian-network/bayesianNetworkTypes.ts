@@ -1,5 +1,4 @@
-import type { EsqHclConfiguration } from "interfaces-mef-types/esq/workbook-models";
-import type { BayesianNetworkEvidenceConfiguration } from "interfaces-mef-types/modeling";
+import type { BayesianNetworkEvidenceConfiguration, WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
 import type {
   BayesianNetworkAnalysisResult,
   BayesianNetworkModel,
@@ -18,6 +17,9 @@ interface BayesianNetworkEditorProps {
   model: BayesianNetworkModel;
   editable: boolean;
   showAnalysis?: boolean;
+  showQueryAnalysis?: boolean;
+  showHclAnalysis?: boolean;
+  hclScope?: "BOTH" | "FAULT_TREE" | "EVENT_TREE";
   evidence: BayesianNetworkEvidenceConfiguration;
   queryNodeId: string | null;
   validation: ValidationIssue[];
@@ -25,7 +27,7 @@ interface BayesianNetworkEditorProps {
   running: boolean;
   runError: string | null;
   workbookId: string | null;
-  hclConfigurations: EsqHclConfiguration[];
+  hclConfigurations: WorkbookHclConfiguration[];
   faultTreeOptions: BayesianNetworkFaultTreeOption[];
   eventTreeOptions: HclEventTreeOption[];
   hclRunning: boolean;
@@ -35,11 +37,11 @@ interface BayesianNetworkEditorProps {
   onModelChange: (model: BayesianNetworkModel) => void;
   onEvidenceChange: (evidence: BayesianNetworkEvidenceConfiguration) => void;
   onQueryNodeChange: (nodeId: string | null) => void;
-  onHclConfigurationsChange: (configurations: EsqHclConfiguration[]) => void;
-  onRunHclFaultTree: (configuration: EsqHclConfiguration, faultTree: HclFaultTreeOption) => void;
-  onRunHclEventTree: (configuration: EsqHclConfiguration, eventTree: HclEventTreeOption) => void;
-  onRunHclFaultTreeBatch: (configuration: EsqHclConfiguration, faultTree: HclFaultTreeOption, scenarioIds: string[], integrateHazardGrid: boolean) => void;
-  onRunHclEventTreeBatch: (configuration: EsqHclConfiguration, eventTree: HclEventTreeOption, scenarioIds: string[], integrateHazardGrid: boolean) => void;
+  onHclConfigurationsChange: (configurations: WorkbookHclConfiguration[]) => void;
+  onRunHclFaultTree: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption) => void;
+  onRunHclEventTree: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption) => void;
+  onRunHclFaultTreeBatch: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, scenarioIds: string[], integrateHazardGrid: boolean) => void;
+  onRunHclEventTreeBatch: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, scenarioIds: string[], integrateHazardGrid: boolean) => void;
   onRun: () => void;
 }
 

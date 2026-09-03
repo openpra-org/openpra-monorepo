@@ -7,7 +7,11 @@ import type {
   WorkbookModelSnapshotIdentity,
 } from "../shared";
 import type { HclEventBinding } from "../hybrid-causal-logic/hcl-bindings";
-import type { BayesianNetworkEvidenceConfiguration, BayesianNetworkModel } from "./bayesian-network-model";
+import type {
+  BayesianNetworkConditionalProbabilityTable,
+  BayesianNetworkEvidenceConfiguration,
+  BayesianNetworkModel,
+} from "./bayesian-network-model";
 
 interface BayesianNetworkValidationContext {
   evidence?: BayesianNetworkEvidenceConfiguration;
@@ -586,6 +590,295 @@ const validateBayesianNetworkHclBindings = (
   return issues;
 };
 
+const validateBayesianNetworkModules = (model: BayesianNetworkModel): ValidationIssue[] => {
+  const issues: ValidationIssue[] = [];
+  const templates = model.moduleTemplates ?? [];
+  const instances = model.moduleInstances ?? [];
+  const templateIds = new Set<string>();
+  const templateCodes = new Set<string>();
+
+  templates.forEach((template, templateIndex) => {
+    const templatePath = ["moduleTemplates", templateIndex] as Array<string | number>;
+    if (templateIds.has(template.id)) {
+      issues.push({
+        code: "BN_MODULE_TEMPLATE_ID_DUPLICATE",
+        severity: "ERROR",
+        message: "Reusable module template ids must be unique",
+        entityId: template.id,
+        fieldPath: [...templatePath, "id"],
+      });
+    }
+    templateIds.add(template.id);
+    const normalizedTemplateCode = template.code.trim().toUpperCase();
+    if (templateCodes.has(normalizedTemplateCode)) {
+      issues.push({
+        code: "BN_MODULE_TEMPLATE_CODE_DUPLICATE",
+        severity: "ERROR",
+        message: "Reusable module template codes must be unique",
+        entityId: template.id,
+        fieldPath: [...templatePath, "code"],
+      });
+    }
+    templateCodes.add(normalizedTemplateCode);
+
+    const portIds = new Set<string>();
+    const interfaceNodeIds = new Set<string>();
+    template.inputPorts.forEach((port, portIndex) => {
+      if (portIds.has(port.id)) {
+        issues.push({
+          code: "BN_MODULE_INPUT_PORT_DUPLICATE",
+          severity: "ERROR",
+          message: "Module input port ids must be unique",
+          entityId: port.id,
+          fieldPath: [...templatePath, "inputPorts", portIndex, "id"],
+        });
+      }
+      portIds.add(port.id);
+      if (interfaceNodeIds.has(port.node.id) || template.nodes.some((node) => node.id === port.node.id)) {
+        issues.push({
+          code: "BN_MODULE_INPUT_NODE_DUPLICATE",
+          severity: "ERROR",
+          message: "Each module input must have a unique virtual node",
+          entityId: port.node.id,
+          fieldPath: [...templatePath, "inputPorts", portIndex, "node", "id"],
+        });
+      }
+      interfaceNodeIds.add(port.node.id);
+      if (template.edges.some((edge) => edge.childNodeId === port.node.id)) {
+        issues.push({
+          code: "BN_MODULE_INPUT_MUST_BE_ROOT",
+          severity: "ERROR",
+          message: "A module input port can only be an upstream parent",
+          entityId: port.id,
+          fieldPath: [...templatePath, "inputPorts", portIndex],
+        });
+      }
+    });
+
+    const internalNodeIds = new Set(template.nodes.map((node) => node.id));
+    template.outputPorts.forEach((port, portIndex) => {
+      if (!internalNodeIds.has(port.nodeId)) {
+        issues.push({
+          code: "BN_MODULE_OUTPUT_NODE_NOT_FOUND",
+          severity: "ERROR",
+          message: "A module output port must reference an internal module node",
+          entityId: port.id,
+          fieldPath: [...templatePath, "outputPorts", portIndex, "nodeId"],
+        });
+      }
+    });
+
+    const uniformPortTables: BayesianNetworkConditionalProbabilityTable[] = template.inputPorts.map((port) => ({
+      nodeId: port.node.id,
+      parents: [],
+      rows: [{
+        id: `validation-${port.id}`,
+        parentStates: [],
+        values: port.node.states.map((state) => ({
+          stateId: state.id,
+          probability: 1 / port.node.states.length,
+        })) as BayesianNetworkConditionalProbabilityTable["rows"][number]["values"],
+      }],
+    }));
+    const templateModel: BayesianNetworkModel = {
+      modelId: template.id,
+      code: template.code,
+      name: template.name,
+      description: template.description,
+      nodes: [...template.inputPorts.map((port) => port.node), ...template.nodes],
+      edges: template.edges,
+      conditionalProbabilityTables: [...uniformPortTables, ...template.conditionalProbabilityTables],
+      nodePositions: template.nodePositions,
+      layout: {
+        viewport: { x: 0, y: 0, zoom: 1 },
+        mode: "MANUAL",
+        direction: "LEFT_TO_RIGHT",
+      },
+    };
+    [
+      ...validateBayesianNetworkIdentity(templateModel),
+      ...validateBayesianNetworkNodeStateCount(templateModel),
+      ...validateBayesianNetworkGraph(templateModel),
+      ...validateBayesianNetworkCpts(templateModel),
+    ].forEach((issue) => {
+      issues.push({
+        ...issue,
+        code: `BN_MODULE_${issue.code.replace(/^BN_/, "")}`,
+        message: `Module ${template.code}: ${issue.message}`,
+        fieldPath: [...templatePath, ...issue.fieldPath],
+      });
+    });
+  });
+
+  const instanceIds = new Set<string>();
+  const instanceCodes = new Set<string>();
+  const claimedNodeIds = new Set<string>();
+  instances.forEach((instance, instanceIndex) => {
+    const instancePath = ["moduleInstances", instanceIndex] as Array<string | number>;
+    if (instanceIds.has(instance.id)) {
+      issues.push({
+        code: "BN_MODULE_INSTANCE_ID_DUPLICATE",
+        severity: "ERROR",
+        message: "Module instance ids must be unique",
+        entityId: instance.id,
+        fieldPath: [...instancePath, "id"],
+      });
+    }
+    instanceIds.add(instance.id);
+    const normalizedInstanceCode = instance.code.trim().toUpperCase();
+    if (instanceCodes.has(normalizedInstanceCode)) {
+      issues.push({
+        code: "BN_MODULE_INSTANCE_CODE_DUPLICATE",
+        severity: "ERROR",
+        message: "Module instance codes must be unique",
+        entityId: instance.id,
+        fieldPath: [...instancePath, "code"],
+      });
+    }
+    instanceCodes.add(normalizedInstanceCode);
+    const template = templates.find((candidate) => candidate.id === instance.templateId);
+    if (template === undefined) {
+      issues.push({
+        code: "BN_MODULE_INSTANCE_TEMPLATE_NOT_FOUND",
+        severity: "ERROR",
+        message: "A module instance must reference an existing template",
+        entityId: instance.id,
+        fieldPath: [...instancePath, "templateId"],
+      });
+      return;
+    }
+
+    const bindingByPortId = new Map(instance.inputBindings.map((binding) => [binding.portId, binding]));
+    if (bindingByPortId.size !== instance.inputBindings.length) {
+      issues.push({
+        code: "BN_MODULE_INPUT_BINDING_DUPLICATE",
+        severity: "ERROR",
+        message: "Each module input port must be bound exactly once",
+        entityId: instance.id,
+        fieldPath: [...instancePath, "inputBindings"],
+      });
+    }
+    template.inputPorts.forEach((port) => {
+      const binding = bindingByPortId.get(port.id);
+      const boundNode = model.nodes.find((node) => node.id === binding?.nodeId);
+      if (binding === undefined || boundNode === undefined) {
+        issues.push({
+          code: "BN_MODULE_INPUT_BINDING_NOT_FOUND",
+          severity: "ERROR",
+          message: `Module input ${port.code} must reference an existing network node`,
+          entityId: instance.id,
+          fieldPath: [...instancePath, "inputBindings"],
+        });
+        return;
+      }
+      const expectedStateCodes = new Set(port.node.states.map((state) => state.code.trim().toUpperCase()));
+      const actualStateCodes = new Set(boundNode.states.map((state) => state.code.trim().toUpperCase()));
+      if (
+        expectedStateCodes.size !== actualStateCodes.size
+        || [...expectedStateCodes].some((code) => !actualStateCodes.has(code))
+      ) {
+        issues.push({
+          code: "BN_MODULE_INPUT_STATES_INCOMPATIBLE",
+          severity: "ERROR",
+          message: `Module input ${port.code} has incompatible states`,
+          entityId: boundNode.id,
+          fieldPath: [...instancePath, "inputBindings"],
+        });
+      }
+    });
+    if (bindingByPortId.size !== template.inputPorts.length) {
+      issues.push({
+        code: "BN_MODULE_INPUT_BINDING_COUNT_MISMATCH",
+        severity: "ERROR",
+        message: "Module input bindings must match the template interface",
+        entityId: instance.id,
+        fieldPath: [...instancePath, "inputBindings"],
+      });
+    }
+
+    const mappingByTemplateNodeId = new Map(
+      instance.nodeMappings.map((mapping) => [mapping.templateNodeId, mapping]),
+    );
+    if (
+      mappingByTemplateNodeId.size !== instance.nodeMappings.length
+      || mappingByTemplateNodeId.size !== template.nodes.length
+    ) {
+      issues.push({
+        code: "BN_MODULE_NODE_MAPPING_COUNT_MISMATCH",
+        severity: "ERROR",
+        message: "Module node mappings must match the template nodes exactly",
+        entityId: instance.id,
+        fieldPath: [...instancePath, "nodeMappings"],
+      });
+    }
+    template.nodes.forEach((templateNode) => {
+      const mapping = mappingByTemplateNodeId.get(templateNode.id);
+      const materializedNode = model.nodes.find((node) => node.id === mapping?.nodeId);
+      if (mapping === undefined || materializedNode === undefined) {
+        issues.push({
+          code: "BN_MODULE_NODE_MAPPING_NOT_FOUND",
+          severity: "ERROR",
+          message: `Module node ${templateNode.code} must resolve to a materialized network node`,
+          entityId: instance.id,
+          fieldPath: [...instancePath, "nodeMappings"],
+        });
+        return;
+      }
+      if (claimedNodeIds.has(materializedNode.id)) {
+        issues.push({
+          code: "BN_MODULE_NODE_OWNERSHIP_DUPLICATE",
+          severity: "ERROR",
+          message: "A materialized node can belong to only one module instance",
+          entityId: materializedNode.id,
+          fieldPath: [...instancePath, "nodeMappings"],
+        });
+      }
+      claimedNodeIds.add(materializedNode.id);
+      const mappedTemplateStateIds = new Set(mapping.stateMappings.map((state) => state.templateStateId));
+      const mappedStateIds = new Set(mapping.stateMappings.map((state) => state.stateId));
+      if (
+        mappedTemplateStateIds.size !== templateNode.states.length
+        || mappedStateIds.size !== materializedNode.states.length
+        || templateNode.states.some((state) => !mappedTemplateStateIds.has(state.id))
+        || materializedNode.states.some((state) => !mappedStateIds.has(state.id))
+      ) {
+        issues.push({
+          code: "BN_MODULE_STATE_MAPPING_MISMATCH",
+          severity: "ERROR",
+          message: `Module node ${templateNode.code} has stale state mappings`,
+          entityId: materializedNode.id,
+          fieldPath: [...instancePath, "nodeMappings"],
+        });
+      }
+    });
+
+    const outputByPortId = new Map(instance.outputBindings.map((binding) => [binding.portId, binding.nodeId]));
+    if (outputByPortId.size !== template.outputPorts.length) {
+      issues.push({
+        code: "BN_MODULE_OUTPUT_BINDING_COUNT_MISMATCH",
+        severity: "ERROR",
+        message: "Module output bindings must match the template outputs exactly",
+        entityId: instance.id,
+        fieldPath: [...instancePath, "outputBindings"],
+      });
+    }
+    template.outputPorts.forEach((port) => {
+      const expectedNodeId = mappingByTemplateNodeId.get(port.nodeId)?.nodeId;
+      if (expectedNodeId === undefined || outputByPortId.get(port.id) !== expectedNodeId) {
+        issues.push({
+          code: "BN_MODULE_OUTPUT_BINDING_INVALID",
+          severity: "ERROR",
+          message: `Module output ${port.code} does not resolve to its materialized node`,
+          entityId: instance.id,
+          fieldPath: [...instancePath, "outputBindings"],
+        });
+      }
+    });
+  });
+
+  return issues;
+};
+
 const validateBayesianNetworkModel = (
   model: BayesianNetworkModel,
   context: BayesianNetworkValidationContext = {},
@@ -594,6 +887,7 @@ const validateBayesianNetworkModel = (
   ...validateBayesianNetworkNodeStateCount(model),
   ...validateBayesianNetworkGraph(model),
   ...validateBayesianNetworkCpts(model),
+  ...validateBayesianNetworkModules(model),
   ...(context.evidence === undefined ? [] : validateBayesianNetworkEvidence(model, context.evidence)),
   ...(context.hclBindings === undefined
     ? []
@@ -631,6 +925,7 @@ export {
   validateBayesianNetworkCpts,
   validateBayesianNetworkEvidence,
   validateBayesianNetworkHclBindings,
+  validateBayesianNetworkModules,
   validateBayesianNetworkModel,
   validateBayesianNetworkDraft,
   validateBayesianNetworkAnalysisReady,

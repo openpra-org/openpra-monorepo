@@ -10,6 +10,7 @@ import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/r
 import type { FaultTreeControlledDataSourceReference } from "interfaces-mef-types/modeling/fault-tree";
 import { failureRateToProbability } from "interfaces-mef-types/modeling/quantitative-semantics";
 import type { BayesianNetworkEvidenceConfiguration } from "interfaces-mef-types/modeling/bayesian-network";
+import type { WorkbookBayesianNetwork, WorkbookHclConfiguration } from "interfaces-mef-types/modeling/workbook-models";
 import { createHash } from "crypto";
 
 interface WorkbookMefSnapshot<TMef> {
@@ -501,6 +502,29 @@ const adaptEsqBayesianNetworkSnapshot = (
   };
 };
 
+const adaptSyBayesianNetworkSnapshot = (
+  source: WorkbookMefSnapshot<SystemsAnalysis>,
+  modelId: string,
+): PraxisModelSnapshot => {
+  const model = (source.mef.dependencyBayesianNetworks ?? []).find(
+    (candidate) => candidate.modelId === modelId,
+  );
+  if (model === undefined) {
+    throw new WorkbookPraxisAdapterError(`SY Bayesian network '${modelId}' was not found`);
+  }
+  return adaptBayesianNetworkModelSnapshot(source, model);
+};
+
+const adaptBayesianNetworkModelSnapshot = (
+  source: Pick<WorkbookMefSnapshot<unknown>, "workbookRevision">,
+  model: WorkbookBayesianNetwork,
+): PraxisModelSnapshot => ({
+  ...model,
+  id: model.modelId,
+  methodType: "BAYESIAN_NETWORK",
+  revision: source.workbookRevision,
+});
+
 const orderedFunctionalEvents = (tree: EventTree): EventTree["functionalEvents"][string][] =>
   Object.values(tree.functionalEvents).sort(
     (left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER),
@@ -656,6 +680,71 @@ const adaptEsqHclSnapshot = (
   };
 };
 
+const adaptHclConfigurationSnapshot = (
+  source: Pick<WorkbookMefSnapshot<unknown>, "workbookRevision">,
+  configuration: WorkbookHclConfiguration,
+  faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
+  baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
+  effectiveFaultTrees = configuration.faultTrees,
+): PraxisModelSnapshot => {
+  const bindings = configuration.bindings.flatMap((binding) =>
+    effectiveFaultTrees
+      .filter((faultTree) => faultTree.workbookId === binding.faultTreeBasicEvent.workbookId)
+      .filter((faultTree) =>
+        faultTreeBasicEventIdsByModel === undefined ||
+        faultTreeBasicEventIdsByModel
+          .get(faultTree.modelId)
+          ?.has(binding.faultTreeBasicEvent.entityId) === true
+      )
+      .map((faultTree) => ({
+        id: `${binding.id}:${faultTree.modelId}`,
+        faultTreeBasicEvent: {
+          modelId: faultTree.modelId,
+          entityId: binding.faultTreeBasicEvent.entityId,
+        },
+        bayesianNetworkNode: {
+          modelId: binding.bayesianNetworkNode.modelId,
+          entityId: binding.bayesianNetworkNode.entityId,
+        },
+        trueStateIds: binding.trueStateIds,
+      })),
+  );
+  return {
+    id: configuration.modelId,
+    methodType: "HYBRID_CAUSAL_LOGIC",
+    revision: source.workbookRevision,
+    bayesianNetwork: { modelId: configuration.bayesianNetwork.modelId },
+    faultTrees: effectiveFaultTrees.map((faultTree) => ({
+      faultTree: { modelId: faultTree.modelId },
+    })),
+    bindings,
+    baseEvidence: baseEvidenceOverride ?? configuration.baseEvidence,
+    solverSettings: configuration.solverSettings,
+  };
+};
+
+const adaptSyHclSnapshot = (
+  source: WorkbookMefSnapshot<SystemsAnalysis>,
+  modelId: string,
+  faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
+  baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
+  effectiveFaultTrees?: WorkbookModelAddress[],
+): PraxisModelSnapshot => {
+  const configuration = (source.mef.dependencyHclConfigurations ?? []).find(
+    (candidate) => candidate.modelId === modelId,
+  );
+  if (configuration === undefined) {
+    throw new WorkbookPraxisAdapterError(`SY HCL configuration '${modelId}' was not found`);
+  }
+  return adaptHclConfigurationSnapshot(
+    source,
+    configuration,
+    faultTreeBasicEventIdsByModel,
+    baseEvidenceOverride,
+    effectiveFaultTrees,
+  );
+};
+
 export {
   WorkbookPraxisAdapterError,
   collectSyFaultTreeControlledDataSources,
@@ -663,8 +752,12 @@ export {
   faultTreeControlledDataSourceKey,
   adaptSyFaultTreeSnapshot,
   adaptEsqBayesianNetworkSnapshot,
+  adaptSyBayesianNetworkSnapshot,
   adaptEsEventTreeSnapshot,
   adaptEsqHclSnapshot,
+  adaptSyHclSnapshot,
+  adaptBayesianNetworkModelSnapshot,
+  adaptHclConfigurationSnapshot,
 };
 export type {
   WorkbookMefSnapshot,

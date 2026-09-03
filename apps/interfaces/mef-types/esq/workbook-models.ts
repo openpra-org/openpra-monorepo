@@ -1,14 +1,8 @@
 import type {
-  BayesianNetworkEvidenceConfiguration,
-  BayesianNetworkNodeReference,
-  FaultTreeBasicEventCatalogueReference,
-  HclSolverSettings,
-  HclEvidenceScenario,
-  HclHazardGridDefinition,
   WorkbookEntityId,
-  WorkbookModelAddress,
   WorkbookModelId,
   WorkbookBayesianNetwork,
+  WorkbookHclConfiguration,
 } from "../modeling";
 
 interface EsqWorkbookModelIdentity {
@@ -24,20 +18,12 @@ type EsqHclTrueStateIds = [WorkbookEntityId, ...WorkbookEntityId[]];
 
 interface EsqHclEventBinding {
   id: WorkbookEntityId;
-  faultTreeBasicEvent: FaultTreeBasicEventCatalogueReference;
-  bayesianNetworkNode: BayesianNetworkNodeReference;
+  faultTreeBasicEvent: import("../modeling").FaultTreeBasicEventCatalogueReference;
+  bayesianNetworkNode: import("../modeling").BayesianNetworkNodeReference;
   trueStateIds: EsqHclTrueStateIds;
 }
 
-interface EsqHclConfiguration extends EsqWorkbookModelIdentity {
-  bayesianNetwork: WorkbookModelAddress;
-  faultTrees: WorkbookModelAddress[];
-  bindings: EsqHclEventBinding[];
-  baseEvidence: BayesianNetworkEvidenceConfiguration;
-  evidenceScenarios?: HclEvidenceScenario[];
-  hazardGrid?: HclHazardGridDefinition;
-  solverSettings: HclSolverSettings;
-}
+interface EsqHclConfiguration extends WorkbookHclConfiguration {}
 
 export type {
   EsqWorkbookModelIdentity,

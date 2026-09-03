@@ -24,6 +24,7 @@ import {
   reconcileExampleEventTreeDependencyReferences,
   reconcileExampleSyDataAnalysisReferences,
   reconcileExampleSyHumanReliabilityReferences,
+  reconcileExampleSyDependencyOwnership,
   reconcileExampleRiskResultReferences,
 } from "../seeds/dependency-model-seed";
 
@@ -115,6 +116,29 @@ describe("dependency example models", () => {
     }]);
     expect(configuration!.bindings.map((binding) => binding.faultTreeBasicEvent.entityId).sort())
       .toEqual(expectedBasicEventIds.sort());
+
+    const ownedSystems = SystemsAnalysisSchema.parse(reconcileExampleSyDependencyOwnership(
+      SystemsAnalysisSchema.parse(structuredClone(sy)),
+      "real-sy-workbook",
+    ));
+    const ownedNetwork = ownedSystems.dependencyBayesianNetworks?.find(
+      ({ modelId }) => modelId === EXAMPLE_DEPENDENCY_IDS.network,
+    );
+    const ownedConfiguration = ownedSystems.dependencyHclConfigurations?.find(
+      ({ modelId }) => modelId === EXAMPLE_DEPENDENCY_IDS.hclConfiguration,
+    );
+    expect(ownedNetwork).toBeDefined();
+    expect(ownedConfiguration?.bayesianNetwork).toEqual({
+      workbookId: "real-sy-workbook",
+      modelId: EXAMPLE_DEPENDENCY_IDS.network,
+    });
+    expect(ownedConfiguration?.faultTrees).toEqual([{
+      workbookId: "real-sy-workbook",
+      modelId: rpsTree!.uuid,
+    }]);
+    expect(ownedConfiguration?.bindings.every((binding) =>
+      binding.faultTreeBasicEvent.workbookId === "real-sy-workbook" &&
+      binding.bayesianNetworkNode.workbookId === "real-sy-workbook")).toBe(true);
   });
 
   it.each(variants)("provides an HCL-executable demonstration event tree for $name", ({ es, sy }) => {

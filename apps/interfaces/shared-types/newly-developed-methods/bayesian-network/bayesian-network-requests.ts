@@ -19,6 +19,8 @@ import type {
   BayesianNetworkConditionalProbabilityTable,
   BayesianNetworkDirectedEdge,
   BayesianNetworkEvidenceConfiguration,
+  BayesianNetworkModuleInstance,
+  BayesianNetworkModuleTemplate,
   BayesianNetworkNode,
   BayesianNetworkNodePosition,
   BayesianNetworkXdslMetadata,
@@ -27,6 +29,8 @@ import {
   BayesianNetworkConditionalProbabilityTableSchema,
   BayesianNetworkDirectedEdgeSchema,
   BayesianNetworkEvidenceConfigurationSchema,
+  BayesianNetworkModuleInstanceSchema,
+  BayesianNetworkModuleTemplateSchema,
   BayesianNetworkNodePositionSchema,
   BayesianNetworkNodeSchema,
   BayesianNetworkXdslMetadataSchema,
@@ -55,6 +59,8 @@ interface BayesianNetworkPatchChanges {
   nodePositions?: BayesianNetworkNodePosition[];
   layout?: CanvasLayoutMetadata;
   xdslMetadata?: BayesianNetworkXdslMetadata;
+  moduleTemplates?: BayesianNetworkModuleTemplate[];
+  moduleInstances?: BayesianNetworkModuleInstance[];
 }
 
 interface BayesianNetworkPatchRequest {
@@ -116,6 +122,8 @@ const BayesianNetworkPatchChangesSchema = z
     nodePositions: z.array(BayesianNetworkNodePositionSchema).optional(),
     layout: CanvasLayoutMetadataSchema.optional(),
     xdslMetadata: BayesianNetworkXdslMetadataSchema.optional(),
+    moduleTemplates: z.array(BayesianNetworkModuleTemplateSchema).optional(),
+    moduleInstances: z.array(BayesianNetworkModuleInstanceSchema).optional(),
   })
   .strict()
   .refine((changes) => Object.keys(changes).length > 0, "At least one Bayesian-network change is required");

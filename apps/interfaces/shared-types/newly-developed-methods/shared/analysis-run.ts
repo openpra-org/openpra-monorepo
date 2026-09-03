@@ -228,6 +228,7 @@ const HclEventTreeRunTargetSchema = z
     targetType: z.literal("HCL_EVENT_TREE"),
     configuration: WorkbookModelSnapshotIdentitySchema,
     eventTree: WorkbookModelSnapshotIdentitySchema,
+    orchestrator: WorkbookModelSnapshotIdentitySchema.optional(),
   })
   .strict();
 
@@ -320,7 +321,9 @@ const AnalysisRunProvenanceSchema = z
 
     const owner = provenance.target.targetType === "BAYESIAN_NETWORK_QUERY"
       ? provenance.target.model
-      : provenance.target.configuration;
+      : provenance.target.targetType === "HCL_EVENT_TREE" && provenance.target.orchestrator !== undefined
+        ? provenance.target.orchestrator
+        : provenance.target.configuration;
     if (
       owner.workbookId !== provenance.run.owner.workbookId ||
       owner.workbookRevision !== provenance.run.owner.workbookRevision ||

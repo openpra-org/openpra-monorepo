@@ -10,6 +10,7 @@ import {
 import type {
   BayesianNetworkCptRow,
   BayesianNetworkEvidenceConfiguration,
+  BayesianNetworkModuleTemplate,
   BayesianNetworkNode,
 } from "interfaces-mef-types/modeling";
 import type { BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
@@ -33,9 +34,17 @@ import {
   importBayesianNetworkJson,
   importBayesianNetworkXdsl,
 } from "./bayesianNetworkInterchange";
+import {
+  compatibleBayesianNetworkModuleInputNodes,
+  createBayesianNetworkModuleFromBranch,
+  deleteBayesianNetworkModuleInstance,
+  deleteBayesianNetworkModuleTemplate,
+  instantiateBayesianNetworkModule,
+} from "./bayesianNetworkModules";
 import type { BayesianNetworkEditorProps } from "./bayesianNetworkTypes";
 import { useEditorConfirmation } from "../shared";
 import { HclBindingEditor } from "../hybrid-causal-logic";
+import { useToast } from "../../toast/toastProvider";
 import "./css/bayesianNetwork.css";
 
 interface DragState {
@@ -66,8 +75,21 @@ interface EdgeContextMenuState {
   y: number;
 }
 
+interface ModuleInstanceDraft {
+  code: string;
+  name: string;
+  inputBindings: Record<string, string>;
+}
+
+interface NodeIdentityDraft {
+  nodeId: string;
+  code: string;
+  name: string;
+}
+
 const MIN_ZOOM = 0.4;
 const MAX_ZOOM = 2;
+const ZOOM_EPSILON = 1e-6;
 const NODE_WIDTH = 180;
 const NODE_HEIGHT = 84;
 const DOCK_REVEAL_MARGIN = 28;
@@ -77,7 +99,7 @@ const CONNECTION_SIDES = ["top", "right", "bottom", "left"] as const;
 function EditorIcon({
   name,
 }: {
-  name: "undo" | "redo" | "file" | "add-node" | "zoom-out" | "zoom-in" | "fit" | "auto-layout" | "trash" | "run" | "configuration";
+  name: "undo" | "redo" | "file" | "modules" | "add-node" | "zoom-out" | "zoom-in" | "fit" | "auto-layout" | "trash" | "run" | "configuration" | "evidence";
 }): JSX.Element {
   const common = {
     fill: "none",
@@ -91,10 +113,12 @@ function EditorIcon({
       {name === "undo" && <><path {...common} d="M9 7H4V2" /><path {...common} d="M4.5 7A9 9 0 1 1 7 19.5" /></>}
       {name === "redo" && <><path {...common} d="M15 7h5V2" /><path {...common} d="M19.5 7A9 9 0 1 0 17 19.5" /></>}
       {name === "file" && <><path {...common} d="M6 3h8l4 4v14H6z" /><path {...common} d="M14 3v5h4" /><path {...common} d="M9 13h6M9 17h6" /></>}
+      {name === "modules" && <><rect {...common} x="4" y="4" width="7" height="7" rx="1.5" /><rect {...common} x="13" y="4" width="7" height="7" rx="1.5" /><rect {...common} x="8.5" y="13" width="7" height="7" rx="1.5" /><path {...common} d="M11 7.5h2M8 11v2.5M16 11v2.5" /></>}
       {name === "add-node" && <><rect {...common} x="4" y="4" width="16" height="16" rx="3" /><path {...common} d="M12 8v8M8 12h8" /></>}
       {name === "trash" && <><path {...common} d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" /></>}
       {name === "run" && <><circle {...common} cx="12" cy="12" r="9" /><path {...common} d="m10 8.5 6 3.5-6 3.5z" /></>}
       {name === "configuration" && <><circle {...common} cx="6" cy="12" r="3" /><circle {...common} cx="18" cy="6" r="3" /><circle {...common} cx="18" cy="18" r="3" /><path {...common} d="m9 11 6-4M9 13l6 4" /></>}
+      {name === "evidence" && <><path {...common} d="M4 7h16M4 17h16" /><circle {...common} cx="9" cy="7" r="2" /><circle {...common} cx="15" cy="17" r="2" /></>}
       {(name === "zoom-out" || name === "zoom-in") && <><circle {...common} cx="10.5" cy="10.5" r="6.5" /><path {...common} d="m15.5 15.5 5 5M7.5 10.5h6" />{name === "zoom-in" && <path {...common} d="M10.5 7.5v6" />}</>}
       {name === "fit" && <><path {...common} d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" /><rect {...common} x="8" y="8" width="8" height="8" rx="1" /></>}
       {name === "auto-layout" && <><rect {...common} x="9" y="3" width="6" height="5" rx="1" /><rect {...common} x="3" y="16" width="6" height="5" rx="1" /><rect {...common} x="15" y="16" width="6" height="5" rx="1" /><path {...common} d="M12 8v4M6 12h12M6 12v4M18 12v4" /></>}
@@ -148,8 +172,42 @@ function download(filename: string, text: string, type: string): void {
   URL.revokeObjectURL(url);
 }
 
-function rowTotal(row: BayesianNetworkCptRow): number {
-  return row.values.reduce((sum, value) => sum + value.probability, 0);
+function cptDraftKey(rowId: string, stateId: string): string {
+  return `${rowId}:${stateId}`;
+}
+
+function cptDraftValue(
+  row: BayesianNetworkCptRow,
+  stateId: string,
+  drafts: Record<string, string>,
+): string {
+  const key = cptDraftKey(row.id, stateId);
+  const draft = drafts[key];
+  if (draft !== undefined) return draft;
+  const value = row.values.find((candidate) => candidate.stateId === stateId);
+  return value === undefined ? "" : value.probability.toFixed(2);
+}
+
+function cptDraftRowStatus(
+  row: BayesianNetworkCptRow,
+  drafts: Record<string, string>,
+): { probabilities: number[]; total: number; valid: boolean } {
+  const probabilities = row.values.map((value) => {
+    const draft = drafts[cptDraftKey(row.id, value.stateId)];
+    if (draft === undefined) return value.probability;
+    return draft.trim() === "" ? Number.NaN : Number(draft);
+  });
+  const valuesValid = probabilities.every((probability) =>
+    Number.isFinite(probability) && probability >= 0 && probability <= 1,
+  );
+  const total = valuesValid
+    ? probabilities.reduce((sum, probability) => sum + probability, 0)
+    : Number.NaN;
+  return {
+    probabilities,
+    total,
+    valid: valuesValid && Math.abs(total - 1) <= 1e-9,
+  };
 }
 
 
@@ -158,6 +216,9 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     model,
     editable,
     showAnalysis = true,
+    showQueryAnalysis = true,
+    showHclAnalysis = true,
+    hclScope = "BOTH",
     evidence,
     queryNodeId,
     validation,
@@ -185,37 +246,46 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(model.nodes[0]?.id ?? null);
   const [displayZoom, setDisplayZoom] = useState(() => clampZoom(model.layout.viewport.zoom));
   const persistedZoomRef = useRef(clampZoom(model.layout.viewport.zoom));
+  const userChangedZoomRef = useRef(false);
   const [connectionDrag, setConnectionDrag] = useState<ConnectionDragState | null>(null);
   const [edgeContextMenu, setEdgeContextMenu] = useState<EdgeContextMenuState | null>(null);
   const [operationError, setOperationError] = useState<string | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const { requestConfirmation, confirmationDialog } = useEditorConfirmation();
+  const { addToast } = useToast();
   const history = useRef<BayesianNetworkModel[]>([]);
   const future = useRef<BayesianNetworkModel[]>([]);
   const importRef = useRef<HTMLInputElement>(null);
+  const moduleMenuRef = useRef<HTMLDetailsElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const stageContentRef = useRef<HTMLDivElement>(null);
   const nodeShellRefs = useRef(new Map<string, HTMLDivElement>());
   const [nodeHeights, setNodeHeights] = useState<Record<string, number>>({});
-  const [analysisMode, setAnalysisMode] = useState<"QUERY" | "HCL">("QUERY");
+  const [analysisMode, setAnalysisMode] = useState<"QUERY" | "HCL">(
+    showQueryAnalysis ? "QUERY" : "HCL",
+  );
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [evidenceSearch, setEvidenceSearch] = useState("");
-  const [posteriorOpen, setPosteriorOpen] = useState(false);
+  const [moduleDrafts, setModuleDrafts] = useState<Record<string, ModuleInstanceDraft>>({});
   const importKind = useRef<"XDSL" | "JSON">("XDSL");
   const modelIdRef = useRef(model.modelId);
   const selectedNode = model.nodes.find((node) => node.id === selectedNodeId);
+  const [nodeIdentityDraft, setNodeIdentityDraft] = useState<NodeIdentityDraft | null>(() =>
+    selectedNode === undefined
+      ? null
+      : { nodeId: selectedNode.id, code: selectedNode.code, name: selectedNode.name },
+  );
+  const [stateCodeDrafts, setStateCodeDrafts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(model.nodes.flatMap((node) => node.states.map((state) => [state.id, state.code]))),
+  );
+  const [cptValueDrafts, setCptValueDrafts] = useState<Record<string, string>>({});
   const selectedTable = model.conditionalProbabilityTables.find((table) => table.nodeId === selectedNodeId);
+  const selectedModuleInstance = model.moduleInstances?.find((instance) =>
+    instance.nodeMappings.some((mapping) => mapping.nodeId === selectedNodeId),
+  );
   const nodeById = useMemo(() => new Map(model.nodes.map((node) => [node.id, node])), [model.nodes]);
   const positionById = useMemo(() => new Map(model.nodePositions.map((entry) => [entry.nodeId, entry.position])), [model.nodePositions]);
-  const evidenceSummary = useMemo(() => {
-    if (evidence.observations.length === 0) return "No evidence";
-    return evidence.observations.map((observation) => {
-      const node = nodeById.get(observation.nodeId);
-      const state = node?.states.find((candidate) => candidate.id === observation.stateId);
-      return `${node?.code ?? observation.nodeId} = ${state?.code ?? observation.stateId}`;
-    }).join(" · ");
-  }, [evidence.observations, nodeById]);
   const evidenceNodes = useMemo(() => {
     const query = evidenceSearch.trim().toLowerCase();
     if (query === "") return model.nodes;
@@ -232,6 +302,8 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     future.current = [];
     setConnectionDrag(null);
     setEdgeContextMenu(null);
+    setCptValueDrafts({});
+    userChangedZoomRef.current = false;
     setSelectedNodeId(model.nodes[0]?.id ?? null);
     setDisplayZoom(clampZoom(model.layout.viewport.zoom));
   }, [model.modelId, model.nodes]);
@@ -241,9 +313,31 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     setDisplayZoom(persistedZoom);
   }, [model.layout.viewport.zoom]);
   useEffect(() => {
-    if (selectedNodeId !== null && model.nodes.some((node) => node.id === selectedNodeId)) return;
+    if (selectedNodeId === null || model.nodes.some((node) => node.id === selectedNodeId)) return;
     setSelectedNodeId(model.nodes[0]?.id ?? null);
   }, [model.nodes, selectedNodeId]);
+  useEffect(() => {
+    setNodeIdentityDraft((current) => {
+      if (selectedNode === undefined) return null;
+      if (
+        current?.nodeId === selectedNode.id
+        && (current.code.trim() === "" || current.name.trim() === "")
+      ) return current;
+      return { nodeId: selectedNode.id, code: selectedNode.code, name: selectedNode.name };
+    });
+  }, [selectedNode]);
+  useEffect(() => {
+    setStateCodeDrafts((current) => Object.fromEntries(model.nodes.flatMap((node) =>
+      node.states.map((state) => [
+        state.id,
+        current[state.id]?.trim() === "" ? current[state.id] : state.code,
+      ]),
+    )));
+  }, [model.nodes]);
+  useEffect(() => {
+    if (!showQueryAnalysis && showHclAnalysis) setAnalysisMode("HCL");
+    if (!showHclAnalysis && showQueryAnalysis) setAnalysisMode("QUERY");
+  }, [showHclAnalysis, showQueryAnalysis]);
   useEffect(() => {
     if (typeof ResizeObserver === "undefined") return undefined;
     const observer = new ResizeObserver((entries) => {
@@ -281,6 +375,27 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
       window.removeEventListener("keydown", closeOnKeyDown);
     };
   }, [edgeContextMenu]);
+  useEffect(() => {
+    const closeModuleMenu = (event: PointerEvent): void => {
+      const menu = moduleMenuRef.current;
+      if (
+        menu?.open === true
+        && event.target instanceof Node
+        && !menu.contains(event.target)
+      ) menu.open = false;
+    };
+    const closeModuleMenuOnEscape = (event: KeyboardEvent): void => {
+      if (event.key === "Escape" && moduleMenuRef.current !== null) {
+        moduleMenuRef.current.open = false;
+      }
+    };
+    window.addEventListener("pointerdown", closeModuleMenu);
+    window.addEventListener("keydown", closeModuleMenuOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", closeModuleMenu);
+      window.removeEventListener("keydown", closeModuleMenuOnEscape);
+    };
+  }, []);
 
   function commit(next: BayesianNetworkModel, record = true): void {
     if (!editable) return;
@@ -325,8 +440,45 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     commit({ ...model, nodes: model.nodes.map((candidate) => candidate.id === node.id ? node : candidate) });
   }
 
+  function updateSelectedNodeIdentity(field: "code" | "name", value: string): void {
+    if (selectedNode === undefined) return;
+    setNodeIdentityDraft((current) => ({
+      nodeId: selectedNode.id,
+      code: current?.nodeId === selectedNode.id ? current.code : selectedNode.code,
+      name: current?.nodeId === selectedNode.id ? current.name : selectedNode.name,
+      [field]: value,
+    }));
+    if (value.trim() === "") {
+      addToast({
+        id: `bn-node-${field}-required`,
+        type: "warning",
+        message: `Node ${field} is required.`,
+      });
+      return;
+    }
+    if (
+      field === "code"
+      && model.nodes.some((node) =>
+        node.id !== selectedNode.id
+        && node.code.trim().toUpperCase() === value.trim().toUpperCase(),
+      )
+    ) {
+      addToast({
+        id: "bn-node-code-duplicate",
+        type: "warning",
+        message: "Bayesian-network node codes must be unique.",
+      });
+      return;
+    }
+    updateSelectedNode({ ...selectedNode, [field]: value });
+  }
+
   function addState(): void {
     if (selectedNode === undefined) return;
+    if (selectedModuleInstance !== undefined) {
+      setOperationError("Module instance states follow the reusable template and cannot be added locally.");
+      return;
+    }
     const code = uniqueCode("STATE", selectedNode.states.map((state) => state.code));
     const updated = {
       ...selectedNode,
@@ -340,7 +492,30 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     });
   }
 
+  function updateSelectedStateCode(stateId: string, value: string): void {
+    if (selectedNode === undefined) return;
+    setStateCodeDrafts((current) => ({ ...current, [stateId]: value }));
+    if (value.trim() === "") {
+      addToast({
+        id: "bn-state-code-required",
+        type: "warning",
+        message: "State code is required.",
+      });
+      return;
+    }
+    updateSelectedNode({
+      ...selectedNode,
+      states: selectedNode.states.map((candidate) =>
+        candidate.id === stateId ? { ...candidate, code: value } : candidate,
+      ) as BayesianNetworkNode["states"],
+    });
+  }
+
   function removeState(stateId: string): void {
+    if (selectedModuleInstance !== undefined) {
+      setOperationError("Module instance states follow the reusable template and cannot be removed locally.");
+      return;
+    }
     if (selectedNode === undefined || selectedNode.states.length <= 2) {
       setOperationError("A discrete Bayesian-network node requires at least two states.");
       return;
@@ -359,6 +534,10 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
 
   function moveState(stateId: string, direction: -1 | 1): void {
     if (selectedNode === undefined) return;
+    if (selectedModuleInstance !== undefined) {
+      setOperationError("Module instance state order follows the reusable template.");
+      return;
+    }
     const index = selectedNode.states.findIndex((state) => state.id === stateId);
     const nextIndex = index + direction;
     if (index < 0 || nextIndex < 0 || nextIndex >= selectedNode.states.length) return;
@@ -530,8 +709,166 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     }));
   }
 
+  function clearCptRowDrafts(
+    drafts: Record<string, string>,
+    row: BayesianNetworkCptRow,
+  ): Record<string, string> {
+    const rowKeys = new Set(row.values.map((value) => cptDraftKey(row.id, value.stateId)));
+    return Object.fromEntries(Object.entries(drafts).filter(([key]) => !rowKeys.has(key)));
+  }
+
+  function updateCptValueDraft(
+    row: BayesianNetworkCptRow,
+    stateId: string,
+    value: string,
+  ): void {
+    const nextDrafts = {
+      ...cptValueDrafts,
+      [cptDraftKey(row.id, stateId)]: value,
+    };
+    setCptValueDrafts(nextDrafts);
+    const status = cptDraftRowStatus(row, nextDrafts);
+    if (!status.valid) return;
+    const nextRow = {
+      ...row,
+      values: row.values.map((candidate, index) => ({
+        ...candidate,
+        probability: status.probabilities[index]!,
+      })) as typeof row.values,
+    };
+    setCptValueDrafts((current) => clearCptRowDrafts(current, row));
+    updateRow(nextRow);
+  }
+
+  function normalizeDraftRow(row: BayesianNetworkCptRow): void {
+    const draftValues = row.values.map((candidate) => {
+      const draft = cptValueDrafts[cptDraftKey(row.id, candidate.stateId)];
+      const probability = draft === undefined
+        ? candidate.probability
+        : draft.trim() === "" ? Number.NaN : Number(draft);
+      return { ...candidate, probability };
+    }) as typeof row.values;
+    if (draftValues.some(({ probability }) =>
+      !Number.isFinite(probability) || probability < 0 || probability > 1,
+    )) {
+      addToast({
+        id: "bn-cpt-normalize-invalid-probability",
+        type: "warning",
+        message: "Enter probabilities between 0 and 1 before normalizing this row.",
+      });
+      return;
+    }
+    const normalized = normalizeCptRow({ ...row, values: draftValues });
+    setCptValueDrafts((current) => clearCptRowDrafts(current, row));
+    updateRow(normalized);
+  }
+
+  function defaultModuleDraft(template: BayesianNetworkModuleTemplate): ModuleInstanceDraft {
+    const instanceNumber = (model.moduleInstances?.filter(
+      (instance) => instance.templateId === template.id,
+    ).length ?? 0) + 1;
+    return {
+      code: `${template.code}-${String(instanceNumber)}`,
+      name: `${template.name} ${String(instanceNumber)}`,
+      inputBindings: Object.fromEntries(template.inputPorts.map((port) => {
+        const compatible = compatibleBayesianNetworkModuleInputNodes(model, port);
+        const exactCode = compatible.find(
+          (node) => node.code.trim().toUpperCase() === port.code.trim().toUpperCase(),
+        );
+        return [port.id, exactCode?.id ?? (compatible.length === 1 ? compatible[0]!.id : "")];
+      })),
+    };
+  }
+
+  function moduleDraft(template: BayesianNetworkModuleTemplate): ModuleInstanceDraft {
+    return moduleDrafts[template.id] ?? defaultModuleDraft(template);
+  }
+
+  function updateModuleDraft(
+    template: BayesianNetworkModuleTemplate,
+    update: (draft: ModuleInstanceDraft) => ModuleInstanceDraft,
+  ): void {
+    setModuleDrafts((current) => ({
+      ...current,
+      [template.id]: update(current[template.id] ?? defaultModuleDraft(template)),
+    }));
+  }
+
+  function saveSelectedBranchAsModule(): void {
+    if (selectedNode === undefined) {
+      setOperationError("Select the first node of the branch you want to reuse.");
+      return;
+    }
+    try {
+      const created = createBayesianNetworkModuleFromBranch(model, selectedNode.id);
+      commit(created.model);
+    } catch (error) {
+      setOperationError(error instanceof Error ? error.message : "Could not create the reusable module.");
+    }
+  }
+
+  function addModuleInstance(template: BayesianNetworkModuleTemplate): void {
+    const draft = moduleDraft(template);
+    try {
+      const instantiated = instantiateBayesianNetworkModule(model, template.id, {
+        code: draft.code,
+        name: draft.name,
+        inputBindings: template.inputPorts.map((port) => ({
+          portId: port.id,
+          nodeId: draft.inputBindings[port.id] ?? "",
+        })),
+      });
+      commit(instantiated.model);
+      setSelectedNodeId(instantiated.outputNodeIds[0] ?? null);
+      setModuleDrafts((current) => {
+        const next = { ...current };
+        delete next[template.id];
+        return next;
+      });
+    } catch (error) {
+      setOperationError(error instanceof Error ? error.message : "Could not instantiate the reusable module.");
+    }
+  }
+
+  function requestDeleteModuleTemplate(template: BayesianNetworkModuleTemplate): void {
+    requestConfirmation({
+      title: `Delete ${template.code}?`,
+      message: "The reusable template will be removed. Materialized instances must be deleted first.",
+      confirmLabel: "Delete template",
+      tone: "danger",
+    }, () => {
+      try {
+        commit(deleteBayesianNetworkModuleTemplate(model, template.id));
+      } catch (error) {
+        setOperationError(error instanceof Error ? error.message : "Could not delete the reusable module.");
+      }
+    });
+  }
+
+  function requestDeleteModuleInstance(instanceId: string): void {
+    const instance = model.moduleInstances?.find((candidate) => candidate.id === instanceId);
+    if (instance === undefined) return;
+    requestConfirmation({
+      title: `Delete ${instance.code}?`,
+      message: `${String(instance.nodeMappings.length)} materialized node${instance.nodeMappings.length === 1 ? "" : "s"} and their connections will be removed. Downstream CPTs will be rebuilt.` ,
+      confirmLabel: "Delete instance",
+      tone: "danger",
+    }, () => {
+      try {
+        commit(deleteBayesianNetworkModuleInstance(model, instance.id));
+        setSelectedNodeId(null);
+      } catch (error) {
+        setOperationError(error instanceof Error ? error.message : "Could not delete the module instance.");
+      }
+    });
+  }
+
   function removeSelectedNode(): void {
     if (selectedNode === undefined) return;
+    if (selectedModuleInstance !== undefined) {
+      requestDeleteModuleInstance(selectedModuleInstance.id);
+      return;
+    }
     const impact = model.edges.filter((edge) => edge.parentNodeId === selectedNode.id || edge.childNodeId === selectedNode.id).length;
     requestConfirmation({
       title: `Delete ${selectedNode.code}?`,
@@ -591,6 +928,8 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
 
   function setZoom(zoom: number): void {
     const nextZoom = clampZoom(zoom);
+    userChangedZoomRef.current = true;
+    persistedZoomRef.current = nextZoom;
     setDisplayZoom(nextZoom);
     if (nextZoom === model.layout.viewport.zoom) return;
     commit({
@@ -632,12 +971,29 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
   const graphWidth = Math.max(520, ...[...graphPositions.values()].map(({ x }) => x + NODE_WIDTH + 30));
   const graphHeight = Math.max(320, ...[...graphPositions.entries()].map(([nodeId, { y }]) => y + (nodeHeights[nodeId] ?? NODE_HEIGHT) + 30));
   const zoom = displayZoom;
+  const zoomInDisabled = zoom >= MAX_ZOOM - ZOOM_EPSILON
+    || (userChangedZoomRef.current && persistedZoomRef.current > zoom + ZOOM_EPSILON);
   const orderedParents = selectedTable === undefined
     ? []
     : [...selectedTable.parents].sort((left, right) => left.order - right.order);
   const contextEdge = model.edges.find((edge) => edge.id === edgeContextMenu?.edgeId);
   const hclIssues = validation.filter((issue) => issue.code.startsWith("BN_HCL_"));
   const nonHclIssues = validation.filter((issue) => !issue.code.startsWith("BN_HCL_"));
+  const hasCptDraftErrors = model.conditionalProbabilityTables.some((table) =>
+    table.rows.some((row) => !cptDraftRowStatus(row, cptValueDrafts).valid),
+  );
+  const quantificationBlocked = hasCptDraftErrors
+    || nonHclIssues.some((issue) => issue.severity === "ERROR");
+
+  function clearNodeSelectionFromCanvas(event: ReactMouseEvent<HTMLDivElement>): void {
+    const target = event.target;
+    if (
+      target instanceof Element
+      && target.closest("button, input, select, textarea, summary, a, .bneditor__node-shell") !== null
+    ) return;
+    setSelectedNodeId(null);
+    setEdgeContextMenu(null);
+  }
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -705,6 +1061,69 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
                 )}
               </div>
             </details>
+            <details ref={moduleMenuRef} className="bneditor__file-menu bneditor__module-menu">
+              <summary className="bneditor__icon-btn" role="button" aria-label="Reusable modules" title="Reusable modules" aria-haspopup="menu"><EditorIcon name="modules" /></summary>
+              <div className="bneditor__file-menu-popover bneditor__module-popover" aria-label="Reusable Bayesian-network modules">
+                <div className="bneditor__module-heading">
+                  <p>Select the branch root and save it as a module</p>
+                  <button type="button" className="bneditor__module-save" disabled={!editable || selectedNode === undefined} onClick={saveSelectedBranchAsModule}>Save</button>
+                </div>
+                {(model.moduleTemplates?.length ?? 0) === 0 ? (
+                  null
+                ) : (
+                  <div className="bneditor__module-list" aria-label="Saved modules">
+                    {model.moduleTemplates?.map((template) => {
+                      const draft = moduleDraft(template);
+                      return (
+                        <details key={template.id} className="bneditor__module-card">
+                          <summary className="bneditor__module-card-head">
+                            <strong>{template.code}</strong>
+                            <span>{template.name}</span>
+                            <i aria-hidden="true">›</i>
+                          </summary>
+                          {editable && (
+                            <div className="bneditor__module-card-body">
+                              <div className="bneditor__module-form">
+                              <div className="bneditor__module-identity-fields">
+                                <label>
+                                  <span>Code</span>
+                                  <input value={draft.code} onChange={(event) => updateModuleDraft(template, (current) => ({ ...current, code: event.target.value }))} />
+                                </label>
+                                <label>
+                                  <span>Name</span>
+                                  <input value={draft.name} onChange={(event) => updateModuleDraft(template, (current) => ({ ...current, name: event.target.value }))} />
+                                </label>
+                              </div>
+                              <div className="bneditor__module-inputs">
+                                <span>Input</span>
+                                {template.inputPorts.length === 0 && <em>None</em>}
+                                {template.inputPorts.map((port) => (
+                                  <div key={port.id}>
+                                    <strong>{port.code}</strong>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="bneditor__module-actions">
+                                <button
+                                  type="button"
+                                  className="bneditor__module-add"
+                                  disabled={draft.code.trim() === "" || template.inputPorts.some((port) => (draft.inputBindings[port.id] ?? "") === "")}
+                                  onClick={() => addModuleInstance(template)}
+                                >
+                                  Use this module
+                                </button>
+                                <button type="button" className="bneditor__module-delete" aria-label={`Delete module ${template.code}`} onClick={() => requestDeleteModuleTemplate(template)}>Delete</button>
+                              </div>
+                              </div>
+                            </div>
+                          )}
+                        </details>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </details>
             {editable && (
               <input ref={importRef} hidden type="file" accept=".xdsl,.xml,.json,application/xml,application/json" onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -719,23 +1138,37 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
 
       <div className={`bneditor__workspace${selectedNode === undefined ? "" : " bneditor__workspace--inspecting"}`}>
         <div ref={canvasRef} className="bneditor__canvas">
-          <div className="bneditor__canvas-controls" aria-label="Bayesian-network canvas controls">
-            <button type="button" className="bneditor__icon-btn bneditor__icon-btn--primary" aria-label="Add node" title="Add node" disabled={!editable} onClick={addNewNode}><EditorIcon name="add-node" /></button>
-            <button type="button" className="bneditor__icon-btn" aria-label="Auto arrange" title="Auto arrange" disabled={!editable || model.nodes.length === 0} onClick={() => commit(autoArrange(model))}><EditorIcon name="auto-layout" /></button>
-            <span className="bneditor__control-separator" aria-hidden="true" />
-            <button type="button" className="bneditor__icon-btn" aria-label="Zoom out" title="Zoom out" disabled={zoom <= MIN_ZOOM} onClick={() => setZoom(zoom - 0.1)}><EditorIcon name="zoom-out" /></button>
-            <output className="bneditor__zoom" aria-label="Zoom level">{Math.round(zoom * 100)}%</output>
-            <button type="button" className="bneditor__icon-btn" aria-label="Zoom in" title="Zoom in" disabled={zoom >= MAX_ZOOM} onClick={() => setZoom(zoom + 0.1)}><EditorIcon name="zoom-in" /></button>
-            <button type="button" className="bneditor__icon-btn" aria-label="Fit" title="Fit to screen" disabled={model.nodes.length === 0} onClick={() => {
-              const viewport = viewportRef.current;
-              if (viewport === null) return;
-              setZoom(Math.min((viewport.clientWidth - 32) / graphWidth, (viewport.clientHeight - 32) / graphHeight));
-              viewport.scrollTo({ left: 0, top: 0 });
-            }}><EditorIcon name="fit" /></button>
-          </div>
-          <div ref={viewportRef} className="bneditor__viewport" aria-label="Bayesian-network graph">
+          {model.nodes.length > 0 && (
+            <div className="bneditor__canvas-controls" aria-label="Bayesian-network canvas controls">
+              <button type="button" className="bneditor__icon-btn bneditor__icon-btn--primary" aria-label="Add node" title="Add node" disabled={!editable} onClick={addNewNode}><EditorIcon name="add-node" /></button>
+              <button type="button" className="bneditor__icon-btn" aria-label="Auto arrange" title="Auto arrange" disabled={!editable} onClick={() => commit(autoArrange(model))}><EditorIcon name="auto-layout" /></button>
+              <span className="bneditor__control-separator" aria-hidden="true" />
+              <button type="button" className="bneditor__icon-btn" aria-label="Zoom out" title="Zoom out" disabled={zoom <= MIN_ZOOM} onClick={() => setZoom(zoom - 0.1)}><EditorIcon name="zoom-out" /></button>
+              <output className="bneditor__zoom" aria-label="Zoom level">{Math.round(zoom * 100)}%</output>
+              <button type="button" className="bneditor__icon-btn" aria-label="Zoom in" title="Zoom in" disabled={zoomInDisabled} onClick={() => setZoom(zoom + 0.1)}><EditorIcon name="zoom-in" /></button>
+              <button type="button" className="bneditor__icon-btn" aria-label="Fit" title="Fit to screen" onClick={() => {
+                const viewport = viewportRef.current;
+                if (viewport === null) return;
+                setZoom(Math.min((viewport.clientWidth - 32) / graphWidth, (viewport.clientHeight - 32) / graphHeight));
+                viewport.scrollTo({ left: 0, top: 0 });
+              }}><EditorIcon name="fit" /></button>
+            </div>
+          )}
+          <div
+            ref={viewportRef}
+            className="bneditor__viewport"
+            aria-label="Bayesian-network graph"
+            onClick={clearNodeSelectionFromCanvas}
+          >
             {model.nodes.length === 0 ? (
-              <div className="bneditor__graph-empty">Add a node to begin.</div>
+              <div className="bneditor__graph-empty">
+                {editable && (
+                  <button type="button" className="bneditor__graph-empty-add" aria-label="Add first node" title="Add node" onClick={addNewNode}>
+                    <EditorIcon name="add-node" />
+                  </button>
+                )}
+                <span>Add node to begin.</span>
+              </div>
             ) : (
               <div className="bneditor__stage" style={{ width: graphWidth * zoom, height: graphHeight * zoom }}>
                 <div ref={stageContentRef} className="bneditor__stage-content" style={{ width: graphWidth, height: graphHeight, transform: `scale(${String(zoom)})` }}>
@@ -847,36 +1280,35 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
 
         {selectedNode !== undefined && (
           <aside className="bneditor__inspector" aria-label="Bayesian-network node inspector">
+              {selectedModuleInstance !== undefined && (
+                <div className="bneditor__module-badge">
+                  <span>Module instance</span>
+                  <strong>{selectedModuleInstance.code}</strong>
+                </div>
+              )}
               <label className="bneditor__field">
                 <span>Code</span>
-                <input value={selectedNode.code} disabled={!editable} onChange={(event) => updateSelectedNode({ ...selectedNode, code: event.target.value })} />
+                <input value={nodeIdentityDraft?.nodeId === selectedNode.id ? nodeIdentityDraft.code : selectedNode.code} disabled={!editable} onChange={(event) => updateSelectedNodeIdentity("code", event.target.value)} />
               </label>
               <label className="bneditor__field">
                 <span>Name</span>
-                <input value={selectedNode.name} disabled={!editable} onChange={(event) => updateSelectedNode({ ...selectedNode, name: event.target.value })} />
+                <input value={nodeIdentityDraft?.nodeId === selectedNode.id ? nodeIdentityDraft.name : selectedNode.name} disabled={!editable} onChange={(event) => updateSelectedNodeIdentity("name", event.target.value)} />
               </label>
               <label className="bneditor__field">
                 <span>Description</span>
                 <textarea value={selectedNode.description} disabled={!editable} onChange={(event) => updateSelectedNode({ ...selectedNode, description: event.target.value })} />
               </label>
 
-              <div className="bneditor__section-head"><strong>States</strong>{editable && <button type="button" onClick={addState}>Add state</button>}</div>
+              <div className="bneditor__section-head"><strong>States</strong>{editable && <button type="button" disabled={selectedModuleInstance !== undefined} title={selectedModuleInstance === undefined ? "Add state" : "Module states follow the template"} onClick={addState}>Add state</button>}</div>
               <div className="bneditor__states">
                 {selectedNode.states.map((state, index) => (
                   <div key={state.id} className="bneditor__state">
-                    <input aria-label={`State code ${String(index + 1)}`} value={state.code} disabled={!editable} onChange={(event) => updateSelectedNode({
-                      ...selectedNode,
-                      states: selectedNode.states.map((candidate) => candidate.id === state.id ? { ...candidate, code: event.target.value } : candidate) as BayesianNetworkNode["states"],
-                    })} />
-                    <input aria-label={`State name ${String(index + 1)}`} value={state.name} disabled={!editable} onChange={(event) => updateSelectedNode({
-                      ...selectedNode,
-                      states: selectedNode.states.map((candidate) => candidate.id === state.id ? { ...candidate, name: event.target.value } : candidate) as BayesianNetworkNode["states"],
-                    })} />
+                    <input aria-label={`State code ${String(index + 1)}`} value={stateCodeDrafts[state.id] ?? state.code} disabled={!editable} onChange={(event) => updateSelectedStateCode(state.id, event.target.value)} />
                     {editable && (
                       <span>
-                        <button type="button" aria-label={`Move ${state.code} up`} disabled={index === 0} onClick={() => moveState(state.id, -1)}>↑</button>
-                        <button type="button" aria-label={`Move ${state.code} down`} disabled={index === selectedNode.states.length - 1} onClick={() => moveState(state.id, 1)}>↓</button>
-                        <button type="button" aria-label={`Delete state ${state.code}`} disabled={selectedNode.states.length <= 2} onClick={() => removeState(state.id)}>×</button>
+                        <button type="button" aria-label={`Move ${state.code} up`} disabled={index === 0 || selectedModuleInstance !== undefined} onClick={() => moveState(state.id, -1)}>↑</button>
+                        <button type="button" aria-label={`Move ${state.code} down`} disabled={index === selectedNode.states.length - 1 || selectedModuleInstance !== undefined} onClick={() => moveState(state.id, 1)}>↓</button>
+                        <button type="button" aria-label={`Delete state ${state.code}`} disabled={selectedNode.states.length <= 2 || selectedModuleInstance !== undefined} onClick={() => removeState(state.id)}>×</button>
                       </span>
                     )}
                   </div>
@@ -909,27 +1341,27 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
       {selectedNode !== undefined && selectedTable !== undefined && (
         <section className="bneditor__panel" aria-label={`CPT for ${selectedNode.code}`}>
           <div className="bneditor__panel-head">
-            <div><h3>Conditional probability table · {selectedNode.code}</h3><p>Rows are never normalized automatically. Use Normalize row explicitly.</p></div>
+            <div><h3>Conditional probability table · {selectedNode.code}</h3></div>
           </div>
           <div className="bneditor__table-wrap">
             <table className="bneditor__cpt">
               <thead>
                 <tr>
-                  {orderedParents.map((parent) => <th key={parent.nodeId}>{nodeById.get(parent.nodeId)?.code}</th>)}
+                  {orderedParents.map((parent) => <th key={parent.nodeId} className="bneditor__cpt-parent">{nodeById.get(parent.nodeId)?.code}</th>)}
                   {selectedNode.states.map((state) => <th key={state.id}>P({state.code})</th>)}
                   <th>Total</th>
-                  {editable && <th>Action</th>}
+                  {editable && <th aria-label="Row actions" />}
                 </tr>
               </thead>
               <tbody>
                 {selectedTable.rows.map((row) => {
-                  const total = rowTotal(row);
-                  const invalid = !Number.isFinite(total) || Math.abs(total - 1) > 1e-9 || row.values.some((value) => value.probability < 0 || value.probability > 1);
+                  const draftStatus = cptDraftRowStatus(row, cptValueDrafts);
+                  const invalid = !draftStatus.valid;
                   return (
                     <tr key={row.id} className={invalid ? "is-invalid" : ""}>
                       {orderedParents.map((parent) => {
                         const selection = row.parentStates.find((state) => state.parentNodeId === parent.nodeId);
-                        return <td key={parent.nodeId}>{nodeById.get(parent.nodeId)?.states.find((state) => state.id === selection?.stateId)?.code ?? "—"}</td>;
+                        return <td key={parent.nodeId} className="bneditor__cpt-parent">{nodeById.get(parent.nodeId)?.states.find((state) => state.id === selection?.stateId)?.code ?? "—"}</td>;
                       })}
                       {selectedNode.states.map((state) => {
                         const value = row.values.find((candidate) => candidate.stateId === state.id);
@@ -937,25 +1369,17 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
                           <td key={state.id}>
                             <input
                               aria-label={`${selectedNode.code} ${state.code} probability`}
-                              type="number"
-                              min="0"
-                              max="1"
-                              step="any"
-                              value={value?.probability ?? ""}
+                              type="text"
+                              inputMode="decimal"
+                              value={value === undefined ? "" : cptDraftValue(row, state.id, cptValueDrafts)}
                               disabled={!editable}
-                              onChange={(event) => updateRow({
-                                ...row,
-                                values: row.values.map((candidate) => candidate.stateId === state.id
-                                  ? { ...candidate, probability: Number(event.target.value) }
-                                  : candidate,
-                                ) as typeof row.values,
-                              })}
+                              onChange={(event) => updateCptValueDraft(row, state.id, event.target.value)}
                             />
                           </td>
                         );
                       })}
-                      <td><output aria-label={`Row total ${row.id}`}>{Number.isFinite(total) ? total.toFixed(6) : "Invalid"}</output></td>
-                      {editable && <td><button type="button" onClick={() => updateRow(normalizeCptRow(row))}>Normalize row</button></td>}
+                      <td><output aria-label={`Row total ${row.id}`}>{Number.isFinite(draftStatus.total) ? draftStatus.total.toFixed(2) : "Invalid"}</output></td>
+                      {editable && <td><button type="button" onClick={() => normalizeDraftRow(row)}>Normalize row</button></td>}
                     </tr>
                   );
                 })}
@@ -965,22 +1389,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
         </section>
       )}
 
-      {showAnalysis && <section className="bneditor__analysis" aria-label="Bayesian-network analysis">
-        <div className="bneditor__scenario">
-          <div>
-            <span>Scenario</span>
-            <strong>{evidenceSummary}</strong>
-          </div>
-          <button
-            type="button"
-            className="posnav__btn posnav__btn--sm"
-            aria-expanded={evidenceOpen}
-            onClick={() => setEvidenceOpen((open) => !open)}
-          >
-            {`Edit evidence${evidence.observations.length === 0 ? "" : ` (${String(evidence.observations.length)})`}`}
-          </button>
-        </div>
-
+      {showAnalysis && (showQueryAnalysis || showHclAnalysis) && <section className="bneditor__analysis" aria-label="Bayesian-network analysis">
         {evidenceOpen && (
           <div className="bneditor__evidence-popover" role="dialog" aria-label="Evidence editor">
             <div className="bneditor__evidence-popover-head">
@@ -988,7 +1397,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
                 <span>Find a node</span>
                 <input type="search" aria-label="Search evidence nodes" placeholder="Search by code or name" value={evidenceSearch} onChange={(event) => setEvidenceSearch(event.target.value)} />
               </label>
-              <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setEvidenceOpen(false)}>Close</button>
+              <button type="button" className="posnav__btn posnav__btn--sm bneditor__evidence-close" onClick={() => setEvidenceOpen(false)}>Close</button>
             </div>
             <div className="bneditor__evidence-editor">
               {evidenceNodes.map((node) => {
@@ -1014,74 +1423,79 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
         )}
 
         <div className="bneditor__analysis-tabs" role="tablist" aria-label="Analysis mode">
-          <button type="button" role="tab" aria-selected={analysisMode === "QUERY"} className={analysisMode === "QUERY" ? "is-active" : ""} onClick={() => setAnalysisMode("QUERY")}>BN query</button>
-          <button type="button" role="tab" aria-selected={analysisMode === "HCL"} className={analysisMode === "HCL" ? "is-active" : ""} onClick={() => setAnalysisMode("HCL")}>HCL quantification</button>
+          {showQueryAnalysis && <button type="button" role="tab" aria-selected={analysisMode === "QUERY"} className={analysisMode === "QUERY" ? "is-active" : ""} onClick={() => setAnalysisMode("QUERY")}>BN query</button>}
+          {showHclAnalysis && <button type="button" role="tab" aria-selected={analysisMode === "HCL"} className={analysisMode === "HCL" ? "is-active" : ""} onClick={() => setAnalysisMode("HCL")}>HCL quantification</button>}
         </div>
 
-        <div role="tabpanel" aria-label="BN query" hidden={analysisMode !== "QUERY"}>
-          <div className="bneditor__query-run">
-            <label>
+        {showQueryAnalysis && <div role="tabpanel" aria-label="BN query" hidden={analysisMode !== "QUERY"}>
+          <div className="bneditor__query-composer">
+            <label className="bneditor__query-target">
               <span>Query node</span>
               <select aria-label="Bayesian-network query node" value={queryNodeId ?? ""} onChange={(event) => onQueryNodeChange(event.target.value || null)}>
                 <option value="">Choose a node</option>
                 {model.nodes.map((node) => <option key={node.id} value={node.id}>{node.code}</option>)}
               </select>
             </label>
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={running || queryNodeId === null || nonHclIssues.some((issue) => issue.severity === "ERROR")} onClick={onRun}>
-              <EditorIcon name="run" />
-              <span>{running ? "Running…" : "Run exact inference"}</span>
-            </button>
+            <div className="bneditor__query-actions">
+              <button
+                type="button"
+                className="posnav__btn posnav__btn--sm bneditor__evidence-trigger"
+                aria-label="Edit evidence"
+                aria-expanded={evidenceOpen}
+                onClick={() => setEvidenceOpen((open) => !open)}
+              >
+                <EditorIcon name="evidence" />
+                <span>Evidence</span>
+                {evidence.observations.length > 0 && <b>{String(evidence.observations.length)}</b>}
+              </button>
+              <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary bneditor__query-submit" aria-label="Run exact inference" disabled={running || queryNodeId === null || quantificationBlocked} onClick={onRun}>
+                <EditorIcon name="run" />
+                <span>{running ? "Running…" : "Run inference"}</span>
+              </button>
+            </div>
           </div>
           {runError !== null && <p className="bneditor__error" role="alert">{runError}</p>}
           {analysisResult !== null && (
             <div className="bneditor__posterior" aria-label="Posterior distribution">
-              {analysisResult.marginals.map((marginal) => {
+              {analysisResult.marginals.flatMap((marginal) => {
                 const node = nodeById.get(marginal.nodeId);
-                const visibleValues = posteriorOpen ? marginal.values : marginal.values.slice(0, 2);
-                return (
-                  <div key={marginal.nodeId}>
-                    <strong>{node?.code ?? marginal.nodeId}</strong>
-                    <span>
-                      {visibleValues.map((value) => (
-                        <span key={value.stateId}>
-                          {node?.states.find((state) => state.id === value.stateId)?.code ?? value.stateId}
-                          <b>{(value.probability * 100).toFixed(4)}%</b>
-                        </span>
-                      ))}
-                    </span>
-                    {marginal.values.length > 2 && (
-                      <button type="button" className="bneditor__posterior-toggle" aria-expanded={posteriorOpen} onClick={() => setPosteriorOpen((open) => !open)}>
-                        {posteriorOpen ? "Hide details" : `View details (+${String(marginal.values.length - 2)})`}
-                      </button>
-                    )}
+                return marginal.values.map((value) => (
+                  <div key={`${marginal.nodeId}:${value.stateId}`} className="bneditor__posterior-state">
+                    <span>{node?.states.find((state) => state.id === value.stateId)?.code ?? value.stateId}</span>
+                    <output>{(value.probability * 100).toFixed(2)}%</output>
+                    <i aria-hidden="true"><b style={{ width: `${String(Math.max(0, Math.min(1, value.probability)) * 100)}%` }} /></i>
                   </div>
-                );
+                ));
               })}
             </div>
           )}
-        </div>
+        </div>}
 
-        <div role="tabpanel" aria-label="HCL quantification" hidden={analysisMode !== "HCL"}>
+        {showHclAnalysis && <div role="tabpanel" aria-label="HCL quantification" hidden={analysisMode !== "HCL"}>
           <HclBindingEditor
             model={model}
             editable={editable}
             workbookId={workbookId}
             configurations={hclConfigurations}
+            scope={hclScope}
             faultTreeOptions={faultTreeOptions}
             eventTreeOptions={eventTreeOptions}
             baseEvidence={evidence}
             validation={hclIssues}
+            quantificationBlocked={quantificationBlocked}
             running={hclRunning}
             runError={hclRunError}
             runResult={hclRunResult}
             batchRunResult={hclBatchRunResult}
+            evidenceEditorOpen={evidenceOpen}
+            onEditEvidence={() => setEvidenceOpen((open) => !open)}
             onChange={onHclConfigurationsChange}
             onRunFaultTree={onRunHclFaultTree}
             onRunEventTree={onRunHclEventTree}
             onRunFaultTreeBatch={onRunHclFaultTreeBatch}
             onRunEventTreeBatch={onRunHclEventTreeBatch}
           />
-        </div>
+        </div>}
       </section>}
 
       {nonHclIssues.length > 0 && (

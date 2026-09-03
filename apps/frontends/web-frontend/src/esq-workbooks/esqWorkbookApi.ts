@@ -211,6 +211,7 @@ async function runEsqHclEventTree(
   configurationId: string,
   workbookRevision: number,
   eventTree: WorkbookModelAddress,
+  dependencyConfiguration?: WorkbookModelAddress,
 ): Promise<HclExecuteResult> {
   return postJson<HclExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-runs`,
@@ -219,6 +220,7 @@ async function runEsqHclEventTree(
       modelId: configurationId,
       workbookRevision,
       eventTree,
+      ...(dependencyConfiguration === undefined ? {} : { dependencyConfiguration }),
     },
   );
 }
@@ -251,6 +253,7 @@ async function runEsqHclEventTreeBatch(
   eventTree: WorkbookModelAddress,
   evidenceScenarioIds: string[],
   integrateHazardGrid = false,
+  dependencyConfiguration?: WorkbookModelAddress,
 ): Promise<HclBatchExecuteResult> {
   return postJson<HclBatchExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-batch-runs`,
@@ -259,6 +262,7 @@ async function runEsqHclEventTreeBatch(
       modelId: configurationId,
       workbookRevision,
       eventTree,
+      ...(dependencyConfiguration === undefined ? {} : { dependencyConfiguration }),
       evidenceScenarioIds,
       ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
     },

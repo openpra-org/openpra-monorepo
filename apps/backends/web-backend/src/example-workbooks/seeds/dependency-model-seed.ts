@@ -350,6 +350,63 @@ function reconcileExampleEsqDependencyReferences(
   };
 }
 
+function reconcileExampleSyDependencyOwnership(
+  analysis: SystemsAnalysis,
+  syWorkbookId: string,
+): SystemsAnalysis {
+  const exampleReferences = (analysis.dependencyHclConfigurations ?? []).some(
+    (configuration) => configuration.modelId === EXAMPLE_DEPENDENCY_IDS.hclConfiguration,
+  ) ? exampleRpsReferences(analysis) : null;
+  const localNetworkIds = new Set((analysis.dependencyBayesianNetworks ?? []).map((network) => network.modelId));
+  const localFaultTreeIds = new Set(analysis.systemLogicModels.map((model) => model.uuid));
+  const localBasicEventIds = new Set(analysis.systemBasicEvents.map((event) => event.uuid));
+  return {
+    ...analysis,
+    dependencyHclConfigurations: (analysis.dependencyHclConfigurations ?? []).map((configuration) => {
+      const owned = configuration.modelId === EXAMPLE_DEPENDENCY_IDS.hclConfiguration && exampleReferences !== null
+        ? {
+            ...configuration,
+            bayesianNetwork: { workbookId: syWorkbookId, modelId: EXAMPLE_DEPENDENCY_IDS.network },
+            faultTrees: [{ workbookId: syWorkbookId, modelId: exampleReferences.modelId }],
+            bindings: configuration.bindings.map((binding) => ({
+              ...binding,
+              faultTreeBasicEvent: {
+                ...binding.faultTreeBasicEvent,
+                workbookId: syWorkbookId,
+                entityId: binding.id === EXAMPLE_DEPENDENCY_IDS.bindingA
+                  ? exampleReferences.divisionAEventId
+                  : exampleReferences.divisionBEventId,
+              },
+              bayesianNetworkNode: {
+                ...binding.bayesianNetworkNode,
+                workbookId: syWorkbookId,
+                modelId: EXAMPLE_DEPENDENCY_IDS.network,
+              },
+            })),
+          }
+        : configuration;
+      return {
+        ...owned,
+        bayesianNetwork: localNetworkIds.has(owned.bayesianNetwork.modelId)
+          ? { ...owned.bayesianNetwork, workbookId: syWorkbookId }
+          : owned.bayesianNetwork,
+        faultTrees: owned.faultTrees.map((faultTree) => localFaultTreeIds.has(faultTree.modelId)
+          ? { ...faultTree, workbookId: syWorkbookId }
+          : faultTree),
+        bindings: owned.bindings.map((binding) => ({
+          ...binding,
+          faultTreeBasicEvent: localBasicEventIds.has(binding.faultTreeBasicEvent.entityId)
+            ? { ...binding.faultTreeBasicEvent, workbookId: syWorkbookId }
+            : binding.faultTreeBasicEvent,
+          bayesianNetworkNode: localNetworkIds.has(binding.bayesianNetworkNode.modelId)
+            ? { ...binding.bayesianNetworkNode, workbookId: syWorkbookId }
+            : binding.bayesianNetworkNode,
+        })),
+      };
+    }),
+  };
+}
+
 function reconcileExampleEventTreeDependencyReferences(
   analysis: EventSequenceAnalysis,
   systems: SystemsAnalysis,
@@ -738,5 +795,6 @@ export {
   reconcileExampleSyHumanReliabilityReferences,
   reconcileExampleRiskResultReferences,
   reconcileExampleEsqDependencyReferences,
+  reconcileExampleSyDependencyOwnership,
   reconcileExampleEventTreeDependencyReferences,
 };

@@ -11,7 +11,7 @@ import {
 } from "../modeling/fault-tree";
 import type { HumanFailureEventReference } from "../modeling/references";
 import type { FaultTreeBasicEventQuantificationBasis } from "../modeling/quantitative-semantics";
-import type { WorkbookBayesianNetwork } from "../modeling/workbook-models";
+import type { WorkbookBayesianNetwork, WorkbookHclConfiguration } from "../modeling/workbook-models";
 
 export type SystemReference = string;
 export type HumanActionReference = string;
@@ -554,6 +554,7 @@ export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.
   systemDependencies: SystemDependency[];
   componentDependencies: ComponentDependency[];
   dependencyBayesianNetworks?: WorkbookBayesianNetwork[];
+  dependencyHclConfigurations?: WorkbookHclConfiguration[];
   dependencySearchMethodology: DependencySearchMethodology;
   commonCauseFailureGroups: CommonCauseFailureGroup[];
   supportSystemNeedAnalyses?: SupportSystemNeedAnalysis[];

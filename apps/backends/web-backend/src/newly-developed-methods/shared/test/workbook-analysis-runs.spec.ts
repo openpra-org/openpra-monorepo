@@ -44,6 +44,7 @@ import {
   reconcileExampleEventTreeDependencyReferences,
   reconcileExampleSyDataAnalysisReferences,
   reconcileExampleSyHumanReliabilityReferences,
+  reconcileExampleSyDependencyOwnership,
 } from "../../../example-workbooks/seeds/dependency-model-seed";
 import { SY_ANALYSIS } from "../../../example-workbooks/seeds/sy-seed";
 import { SY_ANALYSIS_HTGR } from "../../../example-workbooks/seeds/sy-seed-htgr";
@@ -80,10 +81,13 @@ const DA_WORKBOOK_ID = "da-workbook-runs";
 const DA_PARAMETER_ID = "40000000-0000-4000-8000-000000000001";
 const CONTROLLED_SY_WORKBOOK_ID = "controlled-sy-workbook-runs";
 const HCL_CASE_SY_WORKBOOK_ID = "hcl-case-sy-workbook-runs";
+const HCL_CASE_STALE_SY_WORKBOOK_ID = "hcl-case-stale-sy-workbook-runs";
 const HCL_CASE_DA_WORKBOOK_ID = "hcl-case-da-workbook-runs";
 const HCL_CASE_HR_WORKBOOK_ID = "hcl-case-hr-workbook-runs";
 const HCL_CASE_ES_WORKBOOK_ID = "hcl-case-es-workbook-runs";
 const HCL_CASE_ESQ_WORKBOOK_ID = "hcl-case-esq-workbook-runs";
+const HCL_CASE_SCENARIO_BASE_ID = "d15c0190-cafe-4a10-8b00-000000000001";
+const HCL_CASE_SCENARIO_SEISMIC_ID = "d15c0190-cafe-4a10-8b00-000000000002";
 const connectedExampleIds = (variant: "sfr" | "htgr") => ({
   sy: `${variant}-sy-workbook-runs`,
   da: `${variant}-da-workbook-runs`,
@@ -756,7 +760,7 @@ describe("workbook-owned analysis-run APIs", () => {
       revision: 6,
       mef: da,
     });
-    const hclCaseSystems = reconcileExampleSyHumanReliabilityReferences(
+    const hclCaseSystems = reconcileExampleSyDependencyOwnership(reconcileExampleSyHumanReliabilityReferences(
       reconcileExampleSyDataAnalysisReferences(
         structuredClone(SY_ANALYSIS_HCL),
         DA_ANALYSIS_HCL,
@@ -764,7 +768,27 @@ describe("workbook-owned analysis-run APIs", () => {
       ),
       HR_ANALYSIS_HCL,
       HCL_CASE_HR_WORKBOOK_ID,
-    );
+    ), HCL_CASE_SY_WORKBOOK_ID);
+    const hclCaseNetwork = hclCaseSystems.dependencyBayesianNetworks?.find(
+      ({ modelId }) => modelId === HCL_CASE_BAYESIAN_IDS.model,
+    )!;
+    const seismicNode = hclCaseNetwork.nodes.find(({ id }) => id === HCL_CASE_BAYESIAN_IDS.seismic)!;
+    hclCaseSystems.dependencyHclConfigurations![0]!.evidenceScenarios = [
+      {
+        id: HCL_CASE_SCENARIO_BASE_ID,
+        code: "SCN-SEISMIC-0",
+        name: "Baseline seismic evidence regression scenario",
+        enabled: true,
+        evidence: { observations: [{ nodeId: seismicNode.id, stateId: seismicNode.states[0]!.id }] },
+      },
+      {
+        id: HCL_CASE_SCENARIO_SEISMIC_ID,
+        code: "SCN-SEISMIC-1",
+        name: "Alternate seismic evidence regression scenario",
+        enabled: true,
+        evidence: { observations: [{ nodeId: seismicNode.id, stateId: seismicNode.states[1]!.id }] },
+      },
+    ];
     await moduleRef.get<Model<unknown>>(getModelToken(DaWorkbook.name)).create({
       workbookId: HCL_CASE_DA_WORKBOOK_ID,
       projectId: PROJECT_ID,
@@ -1439,6 +1463,77 @@ describe("workbook-owned analysis-run APIs", () => {
     120_000,
   );
 
+  it("executes exact BN inference and fault-tree HCL from the SY-owned dependency configuration", async () => {
+    const bn = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/bayesian-networks/${HCL_CASE_BAYESIAN_IDS.model}/runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: HCL_CASE_BAYESIAN_IDS.model,
+        workbookRevision: 1,
+        query: {
+          evidence: { observations: [] },
+          queryNodeIds: [HCL_CASE_BAYESIAN_IDS.seismic],
+        },
+      });
+    expect(bn.status).toBe(200);
+    expect(bn.body.run.status).toBe("SUCCEEDED");
+    const bnResult = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/bayesian-networks/${HCL_CASE_BAYESIAN_IDS.model}/runs/${bn.body.run.id}/result`,
+    );
+    expect(bnResult.status).toBe(200);
+
+    const hcl = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: HCL_CASE_BAYESIAN_IDS.hclConfiguration,
+        workbookRevision: 1,
+        faultTreeTopGate: {
+          referenceType: "FAULT_TREE_TOP_EVENT",
+          workbookId: HCL_CASE_SY_WORKBOOK_ID,
+          modelId: HCL_CASE_FAULT_TREE_MODEL_IDS.FEED_BLEED,
+          entityId: HCL_CASE_FAULT_TREE_TOP_GATE_IDS.FEED_BLEED,
+        },
+      });
+    expect(hcl.status).toBe(200);
+    expect(hcl.body.run.status).toBe("SUCCEEDED");
+  });
+
+  it("recovers stale DA and HRA workbook references by entity identity within the project", async () => {
+    const staleSystems = reconcileExampleSyDependencyOwnership(
+      structuredClone(SY_ANALYSIS_HCL),
+      HCL_CASE_STALE_SY_WORKBOOK_ID,
+    );
+    await syWorkbooks.create({
+      workbookId: HCL_CASE_STALE_SY_WORKBOOK_ID,
+      projectId: PROJECT_ID,
+      ownerUsername: USERNAME,
+      revision: 1,
+      mef: staleSystems,
+    });
+
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${HCL_CASE_STALE_SY_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: HCL_CASE_BAYESIAN_IDS.hclConfiguration,
+        workbookRevision: 1,
+        faultTreeTopGate: {
+          referenceType: "FAULT_TREE_TOP_EVENT",
+          workbookId: HCL_CASE_STALE_SY_WORKBOOK_ID,
+          modelId: HCL_CASE_FAULT_TREE_MODEL_IDS.FEED_BLEED,
+          entityId: HCL_CASE_FAULT_TREE_TOP_GATE_IDS.FEED_BLEED,
+        },
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+    expect(response.body.run.sourceWorkbooks).toEqual(expect.arrayContaining([
+      { workbookId: HCL_CASE_DA_WORKBOOK_ID, workbookRevision: 2 },
+      { workbookId: HCL_CASE_HR_WORKBOOK_ID, workbookRevision: 3 },
+    ]));
+  });
+
   it("executes the dissertation HCL case-study FT and all three event trees", async () => {
     const configurationId = HCL_CASE_BAYESIAN_IDS.hclConfiguration;
     const runIds: string[] = [];
@@ -1483,6 +1578,10 @@ describe("workbook-owned analysis-run APIs", () => {
           schemaVersion: "1.0.0",
           modelId: configurationId,
           workbookRevision: 1,
+          dependencyConfiguration: {
+            workbookId: HCL_CASE_SY_WORKBOOK_ID,
+            modelId: configurationId,
+          },
           eventTree: {
             workbookId: HCL_CASE_ES_WORKBOOK_ID,
             modelId: HCL_CASE_EVENT_TREE_IDS[treeKey],
@@ -1513,6 +1612,31 @@ describe("workbook-owned analysis-run APIs", () => {
         ),
       ).toBeCloseTo(1, 10);
     }
+
+    const eventTreeBatch = await request(api.getHttpServer())
+      .post(`/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${configurationId}/event-tree-batch-runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: configurationId,
+        workbookRevision: 1,
+        dependencyConfiguration: {
+          workbookId: HCL_CASE_SY_WORKBOOK_ID,
+          modelId: configurationId,
+        },
+        eventTree: {
+          workbookId: HCL_CASE_ES_WORKBOOK_ID,
+          modelId: HCL_CASE_EVENT_TREE_IDS.LOOP,
+        },
+        evidenceScenarioIds: [HCL_CASE_SCENARIO_BASE_ID, HCL_CASE_SCENARIO_SEISMIC_ID],
+        integrateHazardGrid: false,
+      });
+    expect({ status: eventTreeBatch.status, body: eventTreeBatch.body }).toEqual({
+      status: 200,
+      body: expect.objectContaining({ runs: expect.any(Array) }),
+    });
+    expect(eventTreeBatch.body.runs).toHaveLength(2);
+    expect(eventTreeBatch.body.runs.every(({ run }: { run: { status: string } }) => run.status === "SUCCEEDED")).toBe(true);
+    runIds.push(...eventTreeBatch.body.runs.map(({ run }: { run: { id: string } }) => run.id));
 
     const provenance = await request(api.getHttpServer()).get(
       `/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/analysis-runs`,
@@ -1571,6 +1695,16 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(eventTreeProvenance).toMatchObject({
       target: {
         targetType: "HCL_EVENT_TREE",
+        configuration: {
+          workbookId: HCL_CASE_SY_WORKBOOK_ID,
+          workbookRevision: 1,
+          modelId: configurationId,
+        },
+        orchestrator: {
+          workbookId: HCL_CASE_ESQ_WORKBOOK_ID,
+          workbookRevision: 1,
+          modelId: configurationId,
+        },
         eventTree: {
           workbookId: HCL_CASE_ES_WORKBOOK_ID,
           workbookRevision: 1,
@@ -1582,6 +1716,17 @@ describe("workbook-owned analysis-run APIs", () => {
         expect.objectContaining({
           hostType: "ES",
           entities: expect.arrayContaining([expect.objectContaining({ referenceType: "EVENT_TREE_FUNCTIONAL_EVENT" })]),
+        }),
+        expect.objectContaining({
+          hostType: "SY",
+          models: expect.arrayContaining([
+            { workbookId: HCL_CASE_SY_WORKBOOK_ID, modelId: configurationId },
+            { workbookId: HCL_CASE_SY_WORKBOOK_ID, modelId: HCL_CASE_BAYESIAN_IDS.model },
+          ]),
+          entities: expect.arrayContaining([
+            expect.objectContaining({ referenceType: "HCL_BINDING" }),
+            expect.objectContaining({ referenceType: "BAYESIAN_NETWORK_NODE" }),
+          ]),
         }),
       ]),
     );

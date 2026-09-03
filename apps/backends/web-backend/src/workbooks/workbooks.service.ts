@@ -26,6 +26,7 @@ import {
   reconcileExampleSyDataAnalysisReferences,
   reconcileExampleSyHumanReliabilityReferences,
   reconcileExampleRiskResultReferences,
+  reconcileExampleSyDependencyOwnership,
 } from "../example-workbooks/seeds/dependency-model-seed";
 
 function computeInitials(fullName: string): string {
@@ -233,6 +234,14 @@ export class WorkbooksService {
       if (syEntry?.workbookId === null || syEntry?.workbookId === undefined) continue;
 
       let systems = await syAdapter.load(syEntry.workbookId);
+      if (systems === null || systems.revision === undefined) continue;
+
+      const ownedSystems = reconcileExampleSyDependencyOwnership(
+        systems.mef as SystemsAnalysis,
+        syEntry.workbookId,
+      );
+      await syAdapter.save(syEntry.workbookId, ownedSystems, systems.revision);
+      systems = await syAdapter.load(syEntry.workbookId);
       if (systems === null || systems.revision === undefined) continue;
 
       if (daAdapter !== undefined && daEntry?.workbookId !== null && daEntry?.workbookId !== undefined) {

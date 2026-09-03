@@ -32,6 +32,7 @@ import {
 } from "../workbooks/workbook-revision";
 import type { RevisionedWorkbookPatchBody } from "interfaces-shared-types/workbooks";
 import { WorkbookDependencyDiscoveryService } from "../newly-developed-methods/shared/workbook-dependency-discovery.service";
+import { reconcileExampleSyDependencyOwnership } from "../example-workbooks/seeds/dependency-model-seed";
 
 export interface SyWorkbookResponse {
   workbookId: string;
@@ -247,7 +248,7 @@ export class SyWorkbooksService {
     const parsed = SystemsAnalysisSchema.safeParse(stripNulls(example.sy.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const cleaned = {
-      ...parsed.data,
+      ...reconcileExampleSyDependencyOwnership(parsed.data, workbookId),
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };

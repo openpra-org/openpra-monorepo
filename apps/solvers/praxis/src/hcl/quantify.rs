@@ -75,6 +75,7 @@ impl EvidenceContext {
 struct BddContextKey {
     node: BddRef,
     context: EvidenceContext,
+    pinned: Option<(usize, bool)>,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -130,7 +131,115 @@ impl<'a> HclQuantifier<'a> {
         }
         self.stats.quantifications += 1;
         let context = self.initial_context.clone();
-        self.recurse(root, &context)
+        self.recurse(root, &context, None)
+    }
+
+    /// Quantifies a structural cofactor of the HCL BDD while reusing the
+    /// compiled BDD and Bayesian junction tree. The selected fault-tree event
+    /// is pinned directly in the Boolean model and is deliberately not fed
+    /// back as new BN evidence, matching conventional PRA importance
+    /// definitions.
+    pub fn quantify_with_pinned_variable(
+        &mut self,
+        root: BddRef,
+        variable: usize,
+        event_occurs: bool,
+    ) -> Result<f64> {
+        if variable >= self.bdd.variable_count() {
+            return Err(PraxisError::Hcl(format!(
+                "importance references unknown BDD variable {variable}"
+            )));
+        }
+        if root == BDD_NULL {
+            return Err(PraxisError::Hcl(
+                "cannot quantify the null BDD reference".to_string(),
+            ));
+        }
+        // A cofactor is reused only within this one evaluation. Retain the
+        // baseline cache, but do not let 2 x event-count pinned traversals
+        // accumulate a separate full BDD cache for every event.
+        self.bdd_context_cache.retain(|key, _| key.pinned.is_none());
+        self.stats.quantifications += 1;
+        let context = self.initial_context.clone();
+        self.recurse(root, &context, Some((variable, event_occurs)))
+    }
+
+    /// Returns the active-evidence probability of one fault-tree event. Bound
+    /// events are queried from TensorBayes; unbound events use their PRAXIS
+    /// Bernoulli probability.
+    pub fn event_probability(&mut self, variable: usize) -> Result<f64> {
+        if variable >= self.bdd.variable_count() {
+            return Err(PraxisError::Hcl(format!(
+                "importance references unknown BDD variable {variable}"
+            )));
+        }
+        if let Some(binding) = self.bindings.get(variable).cloned() {
+            let context = self.initial_context.clone();
+            self.conditional_event_probability(&binding, &context)
+        } else {
+            self.bdd.var_probs().get(variable).copied().ok_or_else(|| {
+                PraxisError::Hcl(format!(
+                    "BDD variable {variable} has no independent probability"
+                ))
+            })
+        }
+    }
+
+    /// Calculates the exact joint probability of one signed structural cut
+    /// set under the active BN evidence. Each tuple is `(BDD variable,
+    /// event_occurs)`. Bound variables extend the BN evidence context and are
+    /// evaluated by TensorBayes; unbound variables retain their independent
+    /// fault-tree probabilities.
+    pub fn quantify_literals(&mut self, literals: &[(usize, bool)]) -> Result<f64> {
+        let mut ordered = literals.to_vec();
+        ordered.sort_unstable_by_key(|(variable, _)| *variable);
+        for pair in ordered.windows(2) {
+            if pair[0].0 == pair[1].0 {
+                return if pair[0].1 == pair[1].1 {
+                    Err(PraxisError::Hcl(format!(
+                        "cut set repeats BDD variable {}",
+                        pair[0].0
+                    )))
+                } else {
+                    Ok(0.0)
+                };
+            }
+        }
+
+        let mut context = self.initial_context.clone();
+        let mut probability = 1.0;
+        for (variable, event_occurs) in ordered {
+            if let Some(binding) = self.bindings.get(variable).cloned() {
+                let event_probability = self.conditional_event_probability(&binding, &context)?;
+                probability *= if event_occurs {
+                    event_probability
+                } else {
+                    1.0 - event_probability
+                };
+                let Some(next_context) = context.extend(&binding, event_occurs) else {
+                    return Ok(0.0);
+                };
+                context = next_context;
+            } else {
+                let event_probability =
+                    self.bdd.var_probs().get(variable).copied().ok_or_else(|| {
+                        PraxisError::Hcl(format!(
+                            "cut-set BDD variable {variable} has no independent probability"
+                        ))
+                    })?;
+                if !(0.0..=1.0).contains(&event_probability) || !event_probability.is_finite() {
+                    return Err(PraxisError::Hcl(format!(
+                        "cut-set BDD variable {variable} has invalid probability {event_probability}"
+                    )));
+                }
+                probability *= if event_occurs {
+                    event_probability
+                } else {
+                    1.0 - event_probability
+                };
+            }
+        }
+        Ok(probability.clamp(0.0, 1.0))
     }
 
     pub fn set_base_evidence(&mut self, base_evidence: HclBaseEvidence) -> Result<()> {
@@ -161,7 +270,12 @@ impl<'a> HclQuantifier<'a> {
         self.engine.invalidate_workspace_cache();
     }
 
-    fn recurse(&mut self, reference: BddRef, context: &EvidenceContext) -> Result<f64> {
+    fn recurse(
+        &mut self,
+        reference: BddRef,
+        context: &EvidenceContext,
+        pinned: Option<(usize, bool)>,
+    ) -> Result<f64> {
         if reference == BDD_TRUE {
             return Ok(1.0);
         }
@@ -169,12 +283,13 @@ impl<'a> HclQuantifier<'a> {
             return Ok(0.0);
         }
         if reference.is_complement() {
-            return Ok(1.0 - self.recurse(reference.regular(), context)?);
+            return Ok(1.0 - self.recurse(reference.regular(), context, pinned)?);
         }
 
         let key = BddContextKey {
             node: reference,
             context: context.clone(),
+            pinned,
         };
         if let Some(&probability) = self.bdd_context_cache.get(&key) {
             self.stats.bdd_context_cache_hits += 1;
@@ -183,19 +298,61 @@ impl<'a> HclQuantifier<'a> {
         self.stats.bdd_context_cache_misses += 1;
 
         let node = *self.bdd.node(reference);
-        let probability = if let Some(binding) = self.bindings.get(node.var).cloned() {
+        let probability = if let Some((variable, event_occurs)) = pinned {
+            if node.var == variable {
+                self.recurse(
+                    if event_occurs { node.high } else { node.low },
+                    context,
+                    pinned,
+                )?
+            } else if let Some(binding) = self.bindings.get(node.var).cloned() {
+                let event_probability = self.conditional_event_probability(&binding, context)?;
+                let high = if event_probability == 0.0 {
+                    0.0
+                } else if let Some(high_context) = context.extend(&binding, true) {
+                    self.recurse(node.high, &high_context, pinned)?
+                } else {
+                    0.0
+                };
+                let low = if event_probability == 1.0 {
+                    0.0
+                } else if let Some(low_context) = context.extend(&binding, false) {
+                    self.recurse(node.low, &low_context, pinned)?
+                } else {
+                    0.0
+                };
+                event_probability * high + (1.0 - event_probability) * low
+            } else {
+                let event_probability =
+                    self.bdd.var_probs().get(node.var).copied().ok_or_else(|| {
+                        PraxisError::Hcl(format!(
+                            "unbound BDD variable {} has no independent probability",
+                            node.var
+                        ))
+                    })?;
+                if !(0.0..=1.0).contains(&event_probability) || !event_probability.is_finite() {
+                    return Err(PraxisError::Hcl(format!(
+                        "unbound BDD variable {} has invalid probability {event_probability}",
+                        node.var
+                    )));
+                }
+                let high = self.recurse(node.high, context, pinned)?;
+                let low = self.recurse(node.low, context, pinned)?;
+                event_probability * high + (1.0 - event_probability) * low
+            }
+        } else if let Some(binding) = self.bindings.get(node.var).cloned() {
             let event_probability = self.conditional_event_probability(&binding, context)?;
             let high = if event_probability == 0.0 {
                 0.0
             } else if let Some(high_context) = context.extend(&binding, true) {
-                self.recurse(node.high, &high_context)?
+                self.recurse(node.high, &high_context, pinned)?
             } else {
                 0.0
             };
             let low = if event_probability == 1.0 {
                 0.0
             } else if let Some(low_context) = context.extend(&binding, false) {
-                self.recurse(node.low, &low_context)?
+                self.recurse(node.low, &low_context, pinned)?
             } else {
                 0.0
             };
@@ -214,8 +371,8 @@ impl<'a> HclQuantifier<'a> {
                     node.var
                 )));
             }
-            let high = self.recurse(node.high, context)?;
-            let low = self.recurse(node.low, context)?;
+            let high = self.recurse(node.high, context, pinned)?;
+            let low = self.recurse(node.low, context, pinned)?;
             event_probability * high + (1.0 - event_probability) * low
         };
 

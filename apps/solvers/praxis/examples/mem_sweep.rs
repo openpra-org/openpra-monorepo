@@ -257,7 +257,13 @@ fn build_one(
     }
 }
 
-fn run_one(file: &str, node_budget: usize, time_budget_s: u64, compute_cap: usize, gc_interval: usize) {
+fn run_one(
+    file: &str,
+    node_budget: usize,
+    time_budget_s: u64,
+    compute_cap: usize,
+    gc_interval: usize,
+) {
     let path = Path::new(file);
     let fname = path
         .file_name()
@@ -293,21 +299,18 @@ fn run_one(file: &str, node_budget: usize, time_budget_s: u64, compute_cap: usiz
         compute_cap,
         gc_interval,
     );
-    let prob_s = res
-        .prob
-        .map(|p| format!("{:.6e}", p))
-        .unwrap_or_default();
+    let prob_s = res.prob.map(|p| format!("{:.6e}", p)).unwrap_or_default();
     let live_s = res.live.map(|v| v.to_string()).unwrap_or_default();
     let dead_s = match res.live {
         Some(live) if res.nodes > 0 => {
-            format!("{:.1}", 100.0 * (res.nodes.saturating_sub(live)) as f64 / res.nodes as f64)
+            format!(
+                "{:.1}",
+                100.0 * (res.nodes.saturating_sub(live)) as f64 / res.nodes as f64
+            )
         }
         _ => String::new(),
     };
-    let compute_s = res
-        .compute_cache
-        .map(|v| v.to_string())
-        .unwrap_or_default();
+    let compute_s = res.compute_cache.map(|v| v.to_string()).unwrap_or_default();
     println!(
         "{},{},{},{},{},{},{},{},{},{},{},{:.2},{:.0},{}",
         fname,
@@ -417,9 +420,7 @@ fn run_orchestrator(
             .stderr(Stdio::inherit())
             .output();
         let line = match out {
-            Ok(o) if o.status.success() => {
-                String::from_utf8_lossy(&o.stdout).trim().to_string()
-            }
+            Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).trim().to_string(),
             Ok(o) => format!(
                 "{},,,,,,DNF_oom_or_crash(exit={:?}),,,,",
                 fname,
@@ -449,8 +450,14 @@ fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     if args.first().map(|s| s == "--persist").unwrap_or(false) {
         let file = args.get(1).cloned().expect("--persist needs a file");
-        let out = args.get(2).cloned().expect("--persist needs an output path");
-        let gc_interval = args.get(3).and_then(|s| s.parse::<usize>().ok()).unwrap_or(500000);
+        let out = args
+            .get(2)
+            .cloned()
+            .expect("--persist needs an output path");
+        let gc_interval = args
+            .get(3)
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(500000);
         run_persist(&file, &out, gc_interval);
         return;
     }
@@ -465,13 +472,22 @@ fn main() {
             .get(3)
             .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or(DEFAULT_TIME_BUDGET_S);
-        let compute_cap = args.get(4).and_then(|s| s.parse::<usize>().ok()).unwrap_or(0);
-        let gc_interval = args.get(5).and_then(|s| s.parse::<usize>().ok()).unwrap_or(0);
+        let compute_cap = args
+            .get(4)
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(0);
+        let gc_interval = args
+            .get(5)
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(0);
         run_one(&file, node_budget, time_budget_s, compute_cap, gc_interval);
         return;
     }
 
-    let dir = args.first().cloned().unwrap_or_else(|| DEFAULT_DIR.to_string());
+    let dir = args
+        .first()
+        .cloned()
+        .unwrap_or_else(|| DEFAULT_DIR.to_string());
     let node_budget = args
         .get(1)
         .and_then(|s| s.parse::<usize>().ok())
@@ -480,7 +496,13 @@ fn main() {
         .get(2)
         .and_then(|s| s.parse::<u64>().ok())
         .unwrap_or(DEFAULT_TIME_BUDGET_S);
-    let compute_cap = args.get(3).and_then(|s| s.parse::<usize>().ok()).unwrap_or(0);
-    let gc_interval = args.get(4).and_then(|s| s.parse::<usize>().ok()).unwrap_or(0);
+    let compute_cap = args
+        .get(3)
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(0);
+    let gc_interval = args
+        .get(4)
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(0);
     run_orchestrator(&dir, node_budget, time_budget_s, compute_cap, gc_interval);
 }

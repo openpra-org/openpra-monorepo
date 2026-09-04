@@ -67,7 +67,6 @@ pub struct ModelFeatures {
 }
 
 impl AnalysisReport {
-
     pub fn new(fta_result: AnalysisResult) -> Self {
         AnalysisReport {
             fta_result,
@@ -91,7 +90,10 @@ impl AnalysisReport {
     }
 
     pub fn with_model_features(mut self, gates: usize, basic_events: usize) -> Self {
-        self.model_features = Some(ModelFeatures { gates, basic_events });
+        self.model_features = Some(ModelFeatures {
+            gates,
+            basic_events,
+        });
         self
     }
 

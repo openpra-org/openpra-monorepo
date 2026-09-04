@@ -29,6 +29,16 @@ import type {
 import { EventTreeBranchResultSchema, EventTreeModelSchema, EventTreeSequencePathStepSchema } from "./event-tree-schemas";
 import { EventTreeExecutionModeSchema } from "./event-tree-requests";
 import type { EventTreeExecutionMode } from "./event-tree-requests";
+import {
+  HclCutSetAnalysisSchema,
+  HclImportanceAnalysisSchema,
+  HclUncertaintySummarySchema,
+} from "../hybrid-causal-logic/hcl-results";
+import type {
+  HclCutSetAnalysis,
+  HclImportanceAnalysis,
+  HclUncertaintySummary,
+} from "../hybrid-causal-logic/hcl-results";
 
 interface EventTreeCreateResult {
   schemaVersion: WorkbookMethodSchemaVersion;
@@ -58,11 +68,20 @@ interface EventTreeSequenceAnalysisResult {
   result: EventTreeBranchResult;
   conditionalProbability: number;
   annualFrequency: number;
+  /** Present when PRAXIS quantified this sequence with an HCL Bayesian context. */
+  cutSets?: HclCutSetAnalysis;
+  /** PRAXIS importance measures for the sequence Boolean formula. */
+  importance?: HclImportanceAnalysis;
+  uncertainty?: {
+    conditionalProbability: HclUncertaintySummary;
+    annualFrequency: HclUncertaintySummary;
+  };
 }
 
 interface EventTreeEndStateAggregate {
   endStateId: WorkbookEntityId;
   annualFrequency: number;
+  uncertainty?: HclUncertaintySummary;
 }
 
 interface EventTreeAnalysisResult {
@@ -125,6 +144,12 @@ const EventTreeSequenceAnalysisResultSchema = z
     result: EventTreeBranchResultSchema,
     conditionalProbability: ProbabilitySchema,
     annualFrequency: z.number().nonnegative("Annual frequency cannot be negative"),
+    cutSets: HclCutSetAnalysisSchema.optional(),
+    importance: HclImportanceAnalysisSchema.optional(),
+    uncertainty: z.object({
+      conditionalProbability: HclUncertaintySummarySchema,
+      annualFrequency: HclUncertaintySummarySchema,
+    }).strict().optional(),
   })
   .strict();
 
@@ -132,6 +157,7 @@ const EventTreeEndStateAggregateSchema = z
   .object({
     endStateId: WorkbookEntityIdSchema,
     annualFrequency: z.number().nonnegative("Annual frequency cannot be negative"),
+    uncertainty: HclUncertaintySummarySchema.optional(),
   })
   .strict();
 

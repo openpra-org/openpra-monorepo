@@ -29,7 +29,9 @@ pub enum MefError {
         reference: String,
         element_type: String,
     },
-    Cycle { cycle_path: String },
+    Cycle {
+        cycle_path: String,
+    },
     Domain {
         message: String,
         value: Option<String>,

@@ -10,7 +10,10 @@ import {
 } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import { BayesianNetworkEditor } from "../bayesianNetworkEditor";
 import { connectNodes } from "../bayesianNetworkOperations";
-import type { BayesianNetworkFaultTreeOption } from "../bayesianNetworkTypes";
+import type {
+  BayesianNetworkFaultTreeOption,
+  BayesianNetworkQueryBatchResult,
+} from "../bayesianNetworkTypes";
 import { ToastContainer } from "../../../toast/toastContainer";
 import { ToastProvider } from "../../../toast/toastProvider";
 import {
@@ -19,6 +22,8 @@ import {
   type HclEditorRunResult,
   type HclEventTreeOption,
 } from "../../hybrid-causal-logic";
+import { serializeHclCutSetsCsv } from "../../hybrid-causal-logic/hclCutSetExport";
+import { serializeHclImportanceCsv } from "../../hybrid-causal-logic/hclImportanceExport";
 import { TEST_ID, testBayesianNetworkModel } from "./bayesianNetworkTestModel";
 
 const WORKBOOK_ID = "esq-workbook";
@@ -129,6 +134,26 @@ const unchangedBatchResult: HclEditorBatchRunResult = {
           entityId: TOP_GATE_ID,
         },
         probability: 0.25,
+        cutSets: {
+          totalCount: 1,
+          cutSets: [{
+            rank: 1,
+            order: 1,
+            probability: 0.25,
+            coverage: 1,
+            literals: [{
+              basicEventId: BASIC_EVENT_ID,
+              complemented: false,
+              binding: {
+                bayesianNetworkNodeId: TEST_ID.a,
+                stateIds: [TEST_ID.aTrue],
+                parentNodeIds: [],
+              },
+            }],
+            bnAncestorNodeIds: [],
+            bnRootCauseNodeIds: [],
+          }],
+        },
         bddNodes: 1,
         bddVariables: 1,
         variableOrder: [BASIC_EVENT_ID],
@@ -153,6 +178,63 @@ const unchangedBatchResult: HclEditorBatchRunResult = {
 };
 
 const commonHclResult = unchangedBatchResult.scenarios[0]!.result as HclEditorRunResult;
+
+function hclResultWithCutSets(count: number): HclEditorRunResult {
+  if (commonHclResult.kind !== "FAULT_TREE" || commonHclResult.result.cutSets === undefined) {
+    throw new Error("Expected the common test result to contain fault-tree cut sets");
+  }
+  const template = commonHclResult.result.cutSets.cutSets[0]!;
+  return {
+    kind: "FAULT_TREE",
+    result: {
+      ...commonHclResult.result,
+      cutSets: {
+        totalCount: count,
+        cutSets: Array.from({ length: count }, (_, index) => ({
+          ...template,
+          rank: index + 1,
+          probability: template.probability / (index + 1),
+          coverage: 1 / (index + 1),
+        })),
+      },
+    },
+  };
+}
+
+function hclResultWithImportance(count: number): HclEditorRunResult {
+  if (commonHclResult.kind !== "FAULT_TREE") {
+    throw new Error("Expected a fault-tree test result");
+  }
+  const template = {
+    rank: 1,
+    basicEventId: BASIC_EVENT_ID,
+    bayesianNetworkNodeId: TEST_ID.a,
+    eventProbability: 0.25,
+    probabilityIfTrue: 1,
+    probabilityIfFalse: 0,
+    birnbaum: 1,
+    criticality: 1,
+    fussellVesely: 1,
+    riskAchievementWorth: 4,
+    riskReductionWorth: null,
+  };
+  return {
+    kind: "FAULT_TREE",
+    result: {
+      ...commonHclResult.result,
+      importance: {
+        totalCount: count,
+        measures: Array.from({ length: count }, (_, index) => ({
+          ...template,
+          rank: index + 1,
+          basicEventId: `${BASIC_EVENT_ID}-${String(index + 1)}`,
+          fussellVesely: 1 / (index + 1),
+        })),
+      },
+    },
+  };
+}
+
 const eventHclResult = {
   kind: "EVENT_TREE",
   result: {
@@ -166,6 +248,26 @@ const eventHclResult = {
       result: { kind: "END_STATE", endStateId: "40000000-0000-4000-8000-000000000011" },
       conditionalProbability: 0.25,
       annualFrequency: 0.00025,
+      cutSets: {
+        totalCount: 1,
+        cutSets: [{
+          rank: 1,
+          order: 1,
+          probability: 0.25,
+          coverage: 1,
+          literals: [{
+            basicEventId: BASIC_EVENT_ID,
+            complemented: false,
+            binding: {
+              bayesianNetworkNodeId: TEST_ID.a,
+              stateIds: [TEST_ID.aTrue],
+              parentNodeIds: [],
+            },
+          }],
+          bnAncestorNodeIds: [],
+          bnRootCauseNodeIds: [],
+        }],
+      },
     }],
     endStateAggregates: [{
       endStateId: "40000000-0000-4000-8000-000000000011",
@@ -215,6 +317,8 @@ function Harness({
   hclRunResult = null,
   hclBatchRunResult = null,
   onModelChange = jest.fn(),
+  queryBatchResult = null,
+  onRunBatch = jest.fn(),
 }: {
   initialModel?: BayesianNetworkModel;
   editable?: boolean;
@@ -228,6 +332,8 @@ function Harness({
   hclRunResult?: HclEditorRunResult | null;
   hclBatchRunResult?: HclEditorBatchRunResult | null;
   onModelChange?: (model: BayesianNetworkModel) => void;
+  queryBatchResult?: BayesianNetworkQueryBatchResult | null;
+  onRunBatch?: jest.Mock;
 }): JSX.Element {
   const [model, setModel] = useState(initialModel);
   const [evidence, setEvidence] = useState<BayesianNetworkEvidenceConfiguration>({ observations: [] });
@@ -257,6 +363,7 @@ function Harness({
         queryNodeId={queryNodeId}
         validation={validation}
         analysisResult={result}
+        queryBatchResult={queryBatchResult}
         running={false}
         runError={null}
         workbookId={WORKBOOK_ID}
@@ -275,6 +382,7 @@ function Harness({
         onRunHclEventTree={jest.fn()}
         onRunHclFaultTreeBatch={onRunHclFaultTreeBatch}
         onRunHclEventTreeBatch={jest.fn()}
+        onRunBatch={onRunBatch}
         onRun={onRun}
       />
       <ToastContainer />
@@ -285,8 +393,10 @@ function Harness({
 describe("BayesianNetworkEditor", () => {
   afterEach(() => jest.restoreAllMocks());
 
-  it("renders the canonical graph, CPT, and exact-query controls", () => {
+  it("renders the canonical graph, CPT, and exact-query controls", async () => {
+    const user = userEvent.setup();
     render(<Harness />);
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
 
     expect(screen.getByLabelText("Bayesian-network graph")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /BN node/i })).toHaveLength(2);
@@ -302,8 +412,14 @@ describe("BayesianNetworkEditor", () => {
     const user = userEvent.setup();
     render(<Harness />);
 
+    expect(screen.getByRole("radio", { name: "BN query" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Manual" })).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: "Batch" })).not.toBeChecked();
+    expect(screen.queryByLabelText("Bayesian-network query node")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
+
     expect(screen.queryByText("No evidence")).not.toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "BN query" })).toHaveAttribute("aria-selected", "true");
     expect(screen.queryByLabelText("Evidence for A")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Create HCL configuration" })).not.toBeInTheDocument();
     const evidenceAction = screen.getByRole("button", { name: "Edit evidence" });
@@ -311,12 +427,84 @@ describe("BayesianNetworkEditor", () => {
     expect(evidenceAction).toHaveClass("posnav__btn", "posnav__btn--sm");
 
     await user.click(screen.getByRole("button", { name: "Edit evidence" }));
-    expect(screen.getByLabelText("Evidence editor")).toBeInTheDocument();
+    const evidenceEditor = screen.getByLabelText("Evidence editor");
+    expect(evidenceEditor).toBeInTheDocument();
+    expect(evidenceEditor.closest(".bneditor__evidence-anchor")).not.toBeNull();
     expect(screen.getByLabelText("Evidence for A")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    await user.click(screen.getByRole("radio", { name: "Probability" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
     expect(screen.getByRole("button", { name: "Create HCL configuration" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Run exact inference" })).not.toBeInTheDocument();
+  });
+
+  it("imports JSON or CSV evidence rows for BN batch inference", async () => {
+    const user = userEvent.setup();
+    const onRunBatch = jest.fn();
+    const { container } = render(<Harness onRunBatch={onRunBatch} />);
+
+    await user.click(screen.getByRole("radio", { name: "Batch" }));
+    const batchActions = screen.getByRole("region", { name: "BN query" }).querySelector(".bneditor__batch-intake");
+    expect(batchActions).not.toBeNull();
+    expect(within(batchActions as HTMLElement).getAllByRole("button")).toHaveLength(3);
+    expect(within(batchActions as HTMLElement).getByRole("button", { name: "Upload JSON/CSV" })).toBeInTheDocument();
+    const sampleButton = within(batchActions as HTMLElement).getByRole("button", { name: "Download samples" });
+    expect(sampleButton).toContainHTML("<svg");
+    expect(screen.queryByText("JSON or CSV")).not.toBeInTheDocument();
+
+    await user.click(sampleButton);
+    const sampleDetails = sampleButton.closest("details");
+    expect(sampleDetails).toHaveAttribute("open");
+    const sampleMenu = screen.getByRole("menu", { name: "BN query batch samples" });
+    expect(within(sampleMenu).getByRole("menuitem", { name: "Sample JSON" })).toBeInTheDocument();
+    expect(within(sampleMenu).getByRole("menuitem", { name: "Sample CSV" })).toBeInTheDocument();
+    await user.click(screen.getByText("Query node"));
+    expect(sampleDetails).not.toHaveAttribute("open");
+
+    const input = container.querySelector<HTMLInputElement>('input[type="file"][accept*=".csv"]');
+    expect(input).not.toBeNull();
+    expect(input).toHaveAttribute("accept", expect.stringContaining(".json"));
+    expect(input).toHaveAttribute("accept", expect.stringContaining(".csv"));
+    const source = JSON.stringify({
+      schemaVersion: "1.0.0",
+      scenarios: [{ code: "SCN-1", name: "Scenario 1", enabled: true, evidence: { A: "TRUE" } }],
+    });
+    const file = new File([source], "evidence.json", { type: "application/json" });
+    Object.defineProperty(file, "text", { value: async () => source });
+    fireEvent.change(input!, { target: { files: [file] } });
+
+    expect(await screen.findByText("1", { selector: ".bneditor__batch-upload b" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Run batch" }));
+    expect(onRunBatch).toHaveBeenCalledWith([
+      expect.objectContaining({
+        code: "SCN-1",
+        evidence: { observations: [{ nodeId: TEST_ID.a, stateId: TEST_ID.aTrue }] },
+      }),
+    ]);
+  });
+
+  it("presents each BN query batch posterior in a collapsible scenario row", async () => {
+    const user = userEvent.setup();
+    const queryBatchResult: BayesianNetworkQueryBatchResult = {
+      queryNodeId: TEST_ID.a,
+      scenarios: [{
+        scenarioId: "30000000-0000-4000-8000-000000000099",
+        scenarioCode: "BNQ-BASE",
+        scenarioName: "No seismic, flood, or fire hazard",
+        status: "SUCCEEDED",
+        failure: null,
+        result: analysisResult,
+      }],
+    };
+    render(<Harness queryBatchResult={queryBatchResult} />);
+
+    await user.click(screen.getByRole("radio", { name: "Batch" }));
+    const scenario = screen.getByText("BNQ-BASE").closest("details");
+    expect(scenario).not.toHaveAttribute("open");
+    expect(scenario).toHaveTextContent("Complete");
+    await user.click(screen.getByText("BNQ-BASE"));
+    expect(within(scenario!).getByText("80.00%")).toBeInTheDocument();
+    expect(within(scenario!).getByText("20.00%")).toBeInTheDocument();
   });
 
   it("adds a node and supports undo and redo", async () => {
@@ -460,6 +648,7 @@ describe("BayesianNetworkEditor", () => {
 
   it("uses the shared icon treatment for history, file, and canvas tools", () => {
     render(<Harness />);
+    fireEvent.click(screen.getByRole("radio", { name: "Manual" }));
 
     const toolbar = screen.getByLabelText("Bayesian-network tools");
     ["Undo", "Redo", "File"].forEach((name) => {
@@ -491,7 +680,8 @@ describe("BayesianNetworkEditor", () => {
     );
     expect(inferenceAction).toContainHTML("<svg");
 
-    fireEvent.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Probability" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Manual" }));
     const configurationAction = screen.getByRole("button", { name: "Create HCL configuration" });
     expect(configurationAction).toHaveClass("posnav__btn", "posnav__btn--sm", "posnav__btn--primary");
     expect(configurationAction).toContainHTML("<svg");
@@ -773,6 +963,7 @@ describe("BayesianNetworkEditor", () => {
     initial.conditionalProbabilityTables[0]!.rows[0]!.values[0]!.probability = 0.03;
     initial.conditionalProbabilityTables[0]!.rows[0]!.values[1]!.probability = 0.97;
     render(<Harness initialModel={initial} onModelChange={onModelChange} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Manual" }));
 
     const firstProbability = screen.getByLabelText("A FALSE probability");
     const secondProbability = screen.getByLabelText("A TRUE probability");
@@ -861,6 +1052,7 @@ describe("BayesianNetworkEditor", () => {
     const user = userEvent.setup();
     const onRun = jest.fn();
     render(<Harness result={analysisResult} onRun={onRun} />);
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
 
     await user.click(screen.getByRole("button", { name: "Edit evidence" }));
     await user.selectOptions(screen.getByLabelText("Evidence for A"), TEST_ID.aTrue);
@@ -898,6 +1090,7 @@ describe("BayesianNetworkEditor", () => {
     };
 
     render(<Harness initialModel={initial} result={threeStateResult} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Manual" }));
 
     const posterior = screen.getByLabelText("Posterior distribution");
     expect(within(posterior).getAllByRole("status")).toHaveLength(3);
@@ -912,7 +1105,8 @@ describe("BayesianNetworkEditor", () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    await user.click(screen.getByRole("radio", { name: "Probability" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
     expect(screen.getByRole("button", { name: "Add binding" })).toHaveClass(
       "posnav__btn",
@@ -920,14 +1114,14 @@ describe("BayesianNetworkEditor", () => {
       "posnav__btn--primary",
       "hcleditor__add-binding",
     );
-    await user.click(screen.getByRole("tab", { name: "Advanced" }));
+    await user.click(screen.getByRole("button", { name: "Advanced" }));
     expect(screen.getByRole("button", { name: "Delete configuration" })).toHaveClass("hcleditor__aligned-action");
-    expect(screen.getByRole("button", { name: "Run HCL quantification" })).toHaveClass(
+    expect(screen.getByRole("button", { name: "Run probability" })).toHaveClass(
       "posnav__btn",
       "posnav__btn--sm",
       "posnav__btn--primary",
     );
-    await user.click(screen.getByRole("tab", { name: "Bindings" }));
+    await user.click(screen.getByText("Bindings", { selector: "summary" }));
     await user.click(screen.getByRole("checkbox", { name: "FALSE" }));
     await user.click(screen.getByRole("checkbox", { name: "TRUE" }));
     await user.click(screen.getByRole("button", { name: "Add binding" }));
@@ -950,18 +1144,20 @@ describe("BayesianNetworkEditor", () => {
       />,
     );
 
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
     await user.click(screen.getByRole("button", { name: "Edit evidence" }));
     await user.selectOptions(screen.getByLabelText("Evidence for A"), TEST_ID.aTrue);
-    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    await user.click(screen.getByRole("radio", { name: "Probability" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
     expect(onConfigurationsChange.mock.calls.at(-1)?.[0]?.[0]?.baseEvidence).toEqual({
       observations: [{ nodeId: TEST_ID.a, stateId: TEST_ID.aTrue }],
     });
 
-    await user.click(screen.getByRole("tab", { name: "Fault trees" }));
+    await user.click(screen.getByText("Fault trees", { selector: "summary" }));
     await user.click(screen.getByRole("button", { name: "Include" }));
     expect(screen.getByLabelText("Included HCL fault trees")).toHaveTextContent("FT-A");
-    await user.click(screen.getByRole("button", { name: "Run HCL quantification" }));
+    await user.click(screen.getByRole("button", { name: "Run probability" }));
     expect(onRunHclFaultTree).toHaveBeenCalledWith(expect.any(Object), faultTreeOptions[0]);
   });
 
@@ -994,18 +1190,22 @@ describe("BayesianNetworkEditor", () => {
     expect(screen.queryByLabelText("HCL target type")).not.toBeInTheDocument();
     expect(screen.getByLabelText("HCL event-tree target")).toHaveValue(`${linkedEventTree.workbookId}:${linkedEventTree.modelId}`);
     expect(screen.getByLabelText("HCL event-tree target")).toHaveDisplayValue("ET-LOSS-COOLING");
+    const linkedTreeDisclosure = screen.getByText("Linked fault trees", { selector: "summary" }).closest("details");
+    expect(linkedTreeDisclosure).not.toHaveAttribute("open");
+    await user.click(screen.getByText("Linked fault trees", { selector: "summary" }));
     const linkedTrees = screen.getByLabelText("Automatically linked fault trees");
-    expect(linkedTrees).toHaveClass("hcleditor__trees", "hcleditor__linked-tree-directory");
+    expect(linkedTrees).toHaveClass("hcleditor__trees");
+    expect(linkedTreeDisclosure).toHaveClass("hcleditor__linked-tree-directory");
     expect(linkedTrees).toHaveTextContent("FT-A");
     expect(linkedTrees).not.toHaveTextContent("FE-PUMP");
     expect(within(linkedTrees).getByRole("listitem", { name: /FT-A/ })).toHaveAttribute("title", expect.stringContaining("FE-PUMP"));
-    expect(screen.queryByRole("button", { name: "Manage" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Configuration" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("HCL fault-tree target")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Run HCL quantification" }));
+    await user.click(screen.getByRole("button", { name: "Run probability" }));
     expect(onRunEventTree).toHaveBeenCalledWith(syOwnedConfiguration, linkedEventTree);
   });
 
-  it("presents event-tree HCL results with the shared Systems Analysis result layout", () => {
+  it("presents the selected event-tree HCL result without competing calculations", () => {
     render(
       <HclBindingEditor
         model={testBayesianNetworkModel()}
@@ -1026,15 +1226,15 @@ describe("BayesianNetworkEditor", () => {
         onRunEventTree={jest.fn()}
         onRunFaultTreeBatch={jest.fn()}
         onRunEventTreeBatch={jest.fn()}
+        calculationType="CUT_SETS"
       />,
     );
 
     const result = screen.getByLabelText("HCL event-tree result");
     expect(result).toHaveClass("hcleditor__batch-result");
     expect(result).toHaveTextContent("Sequence results");
-    expect(result).toHaveTextContent("Safe");
-    expect(result).toHaveTextContent("2.50E-04/yr");
-    expect(result).toHaveTextContent("Conditional probability 2.50E-01");
+    expect(result).not.toHaveTextContent("2.50E-04/yr");
+    expect(result).toHaveTextContent("Sequence cut sets");
     expect(screen.queryByRole("button", { name: "View sequence results" })).not.toBeInTheDocument();
   });
 
@@ -1063,42 +1263,92 @@ describe("BayesianNetworkEditor", () => {
     );
 
     expect(screen.queryByText(/Needs attention/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Run HCL quantification" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Run probability" })).toBeDisabled();
   });
 
   it("uses the compact Systems Analysis HCL composer without configuration details or a target-kind selector", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    await user.click(screen.getByRole("radio", { name: "Probability" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
 
     const composer = screen.getByLabelText("HCL quantification controls");
     expect(within(composer).getByLabelText("HCL fault-tree target")).toBeInTheDocument();
-    expect(within(composer).getByLabelText("HCL evidence mode")).toBeInTheDocument();
+    expect(composer).not.toHaveTextContent("Common evidence");
     expect(within(composer).getByRole("button", { name: "Edit evidence" })).toBeInTheDocument();
-    expect(within(composer).getByRole("button", { name: "Manage" })).toBeInTheDocument();
+    expect(within(composer).getByRole("button", { name: "Configuration" })).toBeInTheDocument();
+    expect(within(composer).getByRole("button", { name: "Advanced" })).toBeInTheDocument();
+    expect(within(composer).getByRole("button", { name: "Edit evidence" }).closest(".hcleditor__setup-row")).not.toBeNull();
+    expect(within(composer).getByLabelText("HCL fault-tree target").closest(".hcleditor__execution-row")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Close HCL manager" })).toBeInTheDocument();
-    expect(within(composer).getByRole("button", { name: "Run HCL quantification" })).toBeInTheDocument();
+    expect(within(composer).getByRole("button", { name: "Run probability" })).toBeInTheDocument();
     expect(within(composer).queryByLabelText("HCL target type")).not.toBeInTheDocument();
     expect(screen.queryByText("HCL-1")).not.toBeInTheDocument();
     expect(screen.queryByText(/Ready.*FTs.*bindings.*scenarios/)).not.toBeInTheDocument();
+    await user.click(within(composer).getByRole("button", { name: "Edit evidence" }));
+    expect(screen.getByLabelText("Evidence editor").closest(".hcleditor__evidence-anchor")).not.toBeNull();
+    await user.click(screen.getByRole("button", { name: "Close" }));
 
     await user.click(screen.getByRole("button", { name: "Close HCL manager" }));
     expect(screen.queryByLabelText("HCL configuration manager")).not.toBeInTheDocument();
-    expect(within(composer).getByRole("button", { name: "Manage" })).toBeInTheDocument();
+    expect(within(composer).getByRole("button", { name: "Configuration" })).toBeInTheDocument();
 
-    await user.click(within(composer).getByRole("button", { name: "Manage" }));
+    await user.click(within(composer).getByRole("button", { name: "Configuration" }));
     expect(screen.getByLabelText("HCL configuration manager")).toBeInTheDocument();
-    expect(within(composer).getByRole("button", { name: "Manage" })).toBeInTheDocument();
+    expect(screen.getByText("Fault trees", { selector: "summary" })).toBeInTheDocument();
+    expect(screen.getByText("Bindings", { selector: "summary" })).toBeInTheDocument();
+    expect(screen.queryByText("Evidence scenarios", { selector: "summary" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("HCL uncertainty settings")).not.toBeInTheDocument();
+    expect(screen.queryByText("Advanced", { selector: "summary" })).not.toBeInTheDocument();
+    expect(within(composer).getByRole("button", { name: "Configuration" })).toBeInTheDocument();
+  });
+
+  it("configures PRAXIS uncertainty sampling and BN CPT-row distributions", async () => {
+    const user = userEvent.setup();
+    const onConfigurationsChange = jest.fn();
+    render(<Harness onConfigurationsChange={onConfigurationsChange} />);
+
+    await user.click(screen.getByRole("radio", { name: "Probability" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
+    await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
+    await user.click(screen.getByText("Fault trees", { selector: "summary" }));
+    await user.click(screen.getByRole("button", { name: "Include" }));
+    await user.click(screen.getByRole("radio", { name: "Uncertainty" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
+    await user.click(screen.getByRole("button", { name: "Configuration" }));
+    await user.click(screen.getByRole("button", { name: "Enable uncertainty" }));
+
+    expect(screen.getByRole("spinbutton", { name: "Samples" })).toHaveValue(1000);
+    expect(screen.getByRole("spinbutton", { name: "Seed" })).toHaveValue(42);
+    const basicEvents = screen.getByText("Basic events").closest("section");
+    expect(basicEvents).not.toBeNull();
+    await user.click(within(basicEvents!).getByRole("button", { name: "Add" }));
+    const basicEventCollection = within(basicEvents!).getByText("Configured basic events").closest("details");
+    expect(basicEventCollection).not.toHaveAttribute("open");
+    await user.click(within(basicEvents!).getByText("Configured basic events"));
+    await user.click(within(basicEvents!).getByText("Settings"));
+    await user.selectOptions(
+      within(basicEvents!).getByRole("combobox", { name: /Distribution for/ }),
+      "LOGNORMAL",
+    );
+    expect(within(basicEvents!).getByRole("spinbutton", { name: "Median" })).toBeInTheDocument();
+    expect(within(basicEvents!).getByRole("spinbutton", { name: "Error factor" })).toBeInTheDocument();
+    const bnParameters = screen.getByText("BN parameters").closest("section");
+    expect(bnParameters).not.toBeNull();
+    await user.click(within(bnParameters!).getByRole("button", { name: "Add" }));
+    expect(within(bnParameters!).getByText("Configured CPT rows").closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByLabelText("HCL uncertainty settings")).toHaveTextContent("Dirichlet");
+    expect(onConfigurationsChange.mock.calls.at(-1)?.[0]?.[0]?.solverSettings.uncertainty.cptRowDistributions).toHaveLength(1);
   });
 
   it("keeps the BN canvas visible when ESQ exposes only event-tree HCL analysis", () => {
     render(<Harness editable={false} showQueryAnalysis={false} />);
 
     expect(screen.getByLabelText("Bayesian-network graph")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "HCL quantification" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.queryByRole("tab", { name: "BN query" })).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Probability" })).toBeChecked();
+    expect(screen.queryByRole("radio", { name: "BN query" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Run exact inference" })).not.toBeInTheDocument();
   });
 
@@ -1107,31 +1357,51 @@ describe("BayesianNetworkEditor", () => {
     const onRunHclFaultTreeBatch = jest.fn();
     render(<Harness onRunHclFaultTreeBatch={onRunHclFaultTreeBatch} />);
 
-    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    await user.click(screen.getByRole("radio", { name: "Probability" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
+    await user.click(screen.getByText("Bindings", { selector: "summary" }));
     await user.click(screen.getByRole("checkbox", { name: "TRUE" }));
     await user.click(screen.getByRole("button", { name: "Add binding" }));
-    await user.click(screen.getByRole("tab", { name: "Evidence scenarios" }));
+    await user.click(screen.getByText("Fault trees", { selector: "summary" }));
+    await user.click(screen.getByRole("button", { name: "Include" }));
+    await user.click(screen.getByRole("radio", { name: "Batch" }));
+    const batchComposer = screen.getByLabelText("HCL quantification controls");
+    expect(within(batchComposer).getByLabelText("HCL batch type").closest(".hcleditor__setup-row")).not.toBeNull();
+    expect(within(batchComposer).getByRole("button", { name: "Upload JSON/CSV" })).toBeInTheDocument();
+    const sampleDownload = within(batchComposer).getByRole("button", { name: "Download samples" });
+    expect(sampleDownload).toContainHTML("<svg");
+    expect(within(batchComposer).getByLabelText("HCL fault-tree target").closest(".hcleditor__execution-row")).not.toBeNull();
+    expect(within(batchComposer).getByRole("button", { name: "Run probability batch" }).closest(".hcleditor__execution-row")).not.toBeNull();
+    await user.click(sampleDownload);
+    expect(screen.getByRole("menu", { name: "HCL batch samples" })).toHaveTextContent("Sample JSONSample CSV");
+    await user.click(screen.getByText("Batch type"));
+    expect(sampleDownload.closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText("Evidence scenarios", { selector: "summary" }).closest("details")).toHaveAttribute("open");
     await user.click(screen.getByRole("button", { name: "Add scenario" }));
     await user.selectOptions(screen.getByLabelText("A evidence for SCN-1"), TEST_ID.aTrue);
     await user.click(screen.getByRole("button", { name: "Add scenario" }));
     await user.selectOptions(screen.getByLabelText("A evidence for SCN-2"), TEST_ID.aTrue);
     expect(screen.getByLabelText("Evidence scenario list")).toHaveTextContent("SCN-1");
     expect(screen.getByLabelText("Evidence scenario list")).toHaveTextContent("SCN-2");
+    expect(screen.queryByRole("button", { name: "Import JSON/CSV" })).not.toBeInTheDocument();
+    const exportButton = screen.getByRole("button", { name: "Export" });
+    expect(exportButton).toContainHTML("<svg");
+    await user.click(exportButton);
+    expect(screen.getByRole("menu", { name: "Evidence scenario export formats" })).toHaveTextContent("JSONCSV");
+    await user.click(screen.getByText("Scenarios", { selector: "strong" }));
+    expect(exportButton.closest("details")).not.toHaveAttribute("open");
 
-    await user.click(screen.getByRole("tab", { name: "Fault trees" }));
-    await user.click(screen.getByRole("button", { name: "Include" }));
-    await user.selectOptions(screen.getByLabelText("HCL evidence mode"), "SCENARIOS");
-    expect(screen.getByLabelText("HCL evidence mode")).toHaveDisplayValue("Enabled scenarios (2)");
+    expect(screen.getByLabelText("HCL batch type")).toHaveDisplayValue("Evidence scenarios");
+    expect(screen.queryByRole("region", { name: "Hazard convolution settings" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("HCL batch target scope")).not.toBeInTheDocument();
     expect(screen.getByLabelText("HCL fault-tree target")).toHaveTextContent("No affected fault tree");
-    expect(screen.getByRole("button", { name: "Run scenario batch" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Run probability batch" })).toBeDisabled();
 
-    await user.click(screen.getByRole("tab", { name: "Evidence scenarios" }));
     await user.click(screen.getByRole("button", { name: /SCN-2 Evidence scenario 2/i }));
     await user.selectOptions(screen.getByLabelText("A evidence for SCN-2"), TEST_ID.aFalse);
     expect(screen.getByLabelText("HCL fault-tree target")).toHaveTextContent("FT-A");
-    await user.click(screen.getByRole("button", { name: "Run scenario batch" }));
+    await user.click(screen.getByRole("button", { name: "Run probability batch" }));
 
     expect(onRunHclFaultTreeBatch).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1146,10 +1416,10 @@ describe("BayesianNetworkEditor", () => {
     );
 
     onRunHclFaultTreeBatch.mockClear();
-    await user.click(screen.getByRole("tab", { name: "Evidence scenarios" }));
-    await user.click(screen.getByRole("button", { name: "Enable" }));
-    await user.selectOptions(screen.getByLabelText("HCL evidence mode"), "HAZARD_GRID");
-    await user.click(screen.getByRole("button", { name: "Run hazard convolution" }));
+    await user.selectOptions(screen.getByLabelText("HCL batch type"), "HAZARD_GRID");
+    const hazardSettings = screen.getByRole("region", { name: "Hazard convolution settings" });
+    await user.click(within(hazardSettings).getByRole("button", { name: "Enable" }));
+    await user.click(screen.getByRole("button", { name: "Run probability batch" }));
     expect(onRunHclFaultTreeBatch).toHaveBeenCalledWith(
       expect.objectContaining({
         hazardGrid: expect.objectContaining({
@@ -1167,9 +1437,12 @@ describe("BayesianNetworkEditor", () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    await user.click(screen.getByRole("radio", { name: "Probability" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
-    await user.click(screen.getByRole("tab", { name: "Evidence scenarios" }));
+    await user.click(screen.getByRole("radio", { name: "Batch" }));
+    expect(screen.queryByRole("region", { name: "Hazard convolution settings" })).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("HCL batch type"), "HAZARD_GRID");
     await user.click(screen.getByRole("button", { name: "Add scenario" }));
 
     const hazardSettings = screen.getByRole("region", { name: "Hazard convolution settings" });
@@ -1186,9 +1459,11 @@ describe("BayesianNetworkEditor", () => {
     const onConfigurationsChange = jest.fn();
     render(<Harness onConfigurationsChange={onConfigurationsChange} />);
 
-    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    await user.click(screen.getByRole("radio", { name: "Probability" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
-    await user.click(screen.getByRole("tab", { name: "Evidence scenarios" }));
+    await user.click(screen.getByRole("radio", { name: "Batch" }));
+    await user.selectOptions(screen.getByLabelText("HCL batch type"), "HAZARD_GRID");
     await user.click(screen.getByRole("button", { name: "Add scenario" }));
     await user.selectOptions(screen.getByLabelText("A evidence for SCN-1"), TEST_ID.aTrue);
 
@@ -1209,9 +1484,11 @@ describe("BayesianNetworkEditor", () => {
     const onConfigurationsChange = jest.fn();
     render(<Harness onConfigurationsChange={onConfigurationsChange} />);
 
-    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    await user.click(screen.getByRole("radio", { name: "Probability" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
-    await user.click(screen.getByRole("tab", { name: "Evidence scenarios" }));
+    await user.click(screen.getByRole("radio", { name: "Batch" }));
+    await user.selectOptions(screen.getByLabelText("HCL batch type"), "HAZARD_GRID");
     const combinations = [
       [TEST_ID.aFalse, TEST_ID.bFalse],
       [TEST_ID.aFalse, TEST_ID.bTrue],
@@ -1241,25 +1518,210 @@ describe("BayesianNetworkEditor", () => {
     const user = userEvent.setup();
     render(<Harness hclRunResult={commonHclResult} hclBatchRunResult={unchangedBatchResult} />);
 
-    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    await user.click(screen.getByRole("radio", { name: "Probability" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
 
     const commonResult = screen.getByLabelText("HCL fault-tree result");
     expect(commonResult).toHaveTextContent("Top event probability");
     expect(commonResult).toHaveTextContent("2.50E-01");
     expect(commonResult.querySelectorAll(".hcleditor__result-metric")).toHaveLength(1);
-
+    await user.click(screen.getByRole("radio", { name: "Batch" }));
     const scenarioResult = screen.getByLabelText("HCL scenario batch result");
     expect(scenarioResult).toHaveTextContent("No variation across scenarios");
     expect(scenarioResult.querySelectorAll(".hcleditor__batch-table .hcleditor__result-metric"))
       .toHaveLength(2);
+
+    await user.click(screen.getByRole("radio", { name: "Cut sets" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
+    const commonResultAfterModeChange = screen.getByLabelText("HCL fault-tree result");
+    expect(commonResultAfterModeChange).not.toHaveTextContent("Top event probability");
+    expect(commonResultAfterModeChange).toHaveTextContent("HCL-aware cut sets");
+    await user.click(within(commonResultAfterModeChange).getByText("HCL-aware cut sets"));
+    const cutSetSummary = within(commonResultAfterModeChange).getByText("Cut set 1").closest("summary");
+    expect(cutSetSummary).toHaveClass("bneditor__posterior-state", "hcleditor__cut-set-metric");
+    expect(cutSetSummary?.querySelector("code")).toBeNull();
+    expect(commonResultAfterModeChange).toHaveTextContent("BE-PUMP");
+    expect(commonResultAfterModeChange).toHaveTextContent("BE-PUMP → A = TRUE");
+    expect(commonResultAfterModeChange).toHaveTextContent("100.00% coverage");
+
+  });
+
+  it("separates uncertainty statistics for manual and scenario results", async () => {
+    const user = userEvent.setup();
+    const uncertainty = {
+      sampleCount: 1_000,
+      seed: 42,
+      mean: 0.25,
+      standardDeviation: 0.01,
+      coefficientOfVariation: 0.04,
+      minimum: 0.2,
+      percentile05: 0.23,
+      median: 0.25,
+      percentile95: 0.27,
+      maximum: 0.3,
+    };
+    if (commonHclResult.kind !== "FAULT_TREE") throw new Error("Expected a fault-tree result");
+    const manualResult: HclEditorRunResult = {
+      kind: "FAULT_TREE",
+      result: { ...commonHclResult.result, uncertainty },
+    };
+    const batchResult: HclEditorBatchRunResult = {
+      ...unchangedBatchResult,
+      scenarios: unchangedBatchResult.scenarios.map((scenario) => ({
+        ...scenario,
+        result: scenario.result?.kind === "FAULT_TREE"
+          ? { ...scenario.result, result: { ...scenario.result.result, uncertainty } }
+          : scenario.result,
+      })),
+    };
+    render(<Harness hclRunResult={manualResult} hclBatchRunResult={batchResult} />);
+
+    await user.click(screen.getByRole("radio", { name: "Uncertainty" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
+    await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
+
+    const manualUncertainty = screen.getByLabelText("Uncertainty results");
+    expect(manualUncertainty.querySelectorAll(".hcleditor__uncertainty-metric")).toHaveLength(5);
+    expect(within(manualUncertainty).getByText("Standard deviation")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "Batch" }));
+    const scenarioOneDisclosure = screen.getByText("SCN-1").closest("details");
+    const scenarioTwoDisclosure = screen.getByText("SCN-2").closest("details");
+    expect(scenarioOneDisclosure).not.toHaveAttribute("open");
+    expect(scenarioTwoDisclosure).not.toHaveAttribute("open");
+    expect(scenarioOneDisclosure).toHaveTextContent("Mean 2.50E-01");
+    await user.click(screen.getByText("SCN-1"));
+    await user.click(screen.getByText("SCN-2"));
+    const [scenarioOne, scenarioTwo] = screen.getAllByLabelText("Statistics uncertainty results");
+    expect(scenarioOne).toHaveClass("hcleditor__uncertainty-result--inline");
+    expect(scenarioOne!.querySelectorAll(".hcleditor__uncertainty-metric")).toHaveLength(5);
+    expect(scenarioTwo!.querySelectorAll(".hcleditor__uncertainty-metric")).toHaveLength(5);
+  });
+
+  it("groups batch cut sets and importance measures under identified scenarios", async () => {
+    const user = userEvent.setup();
+    const importanceResult = hclResultWithImportance(2);
+    if (importanceResult.kind !== "FAULT_TREE") throw new Error("Expected a fault-tree result");
+    const batchResult: HclEditorBatchRunResult = {
+      ...unchangedBatchResult,
+      scenarios: unchangedBatchResult.scenarios.map((scenario) => ({
+        ...scenario,
+        result: scenario.result?.kind === "FAULT_TREE"
+          ? {
+              ...scenario.result,
+              result: {
+                ...scenario.result.result,
+                importance: importanceResult.result.importance,
+              },
+            }
+          : scenario.result,
+      })),
+    };
+    render(<Harness hclBatchRunResult={batchResult} />);
+
+    await user.click(screen.getByRole("radio", { name: "Cut sets" }));
+    await user.click(screen.getByRole("radio", { name: "Batch" }));
+    await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
+    let scenarioOne = screen.getByText("SCN-1").closest("details");
+    expect(scenarioOne).not.toHaveAttribute("open");
+    expect(scenarioOne).toHaveTextContent("1 cut set");
+    expect(scenarioOne).not.toHaveTextContent("Scenario cut sets");
+    await user.click(screen.getByText("SCN-1"));
+    expect(within(scenarioOne!).getByLabelText("Cut sets results")).toHaveTextContent("Cut set 1");
+
+    await user.click(screen.getByRole("radio", { name: "Importance" }));
+    await user.click(screen.getByRole("radio", { name: "Batch" }));
+    scenarioOne = screen.getByText("SCN-1").closest("details");
+    expect(scenarioOne).not.toHaveAttribute("open");
+    expect(scenarioOne).toHaveTextContent("2 measures");
+    await user.click(screen.getByText("SCN-1"));
+    expect(within(scenarioOne!).getByLabelText("Importance measures results")).toHaveTextContent("Event probability");
+  });
+
+  it("shows at most ten HCL cut sets per page and retains a complete CSV export", async () => {
+    const user = userEvent.setup();
+    render(<Harness hclRunResult={hclResultWithCutSets(12)} />);
+
+    await user.click(screen.getByRole("radio", { name: "Cut sets" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
+    await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
+    const result = screen.getByLabelText("HCL fault-tree result");
+    await user.click(within(result).getByText("HCL-aware cut sets"));
+
+    expect(result).toHaveTextContent("Showing 1–10 of 12");
+    expect(within(result).getByText("Cut set 10")).toBeInTheDocument();
+    expect(within(result).queryByText("Cut set 11")).not.toBeInTheDocument();
+    expect(within(result).getByRole("button", { name: "Export CSV" })).toBeEnabled();
+
+    const pagination = within(result).getByRole("navigation", { name: "HCL-aware cut sets pagination" });
+    await user.click(within(pagination).getByRole("button", { name: "Next" }));
+
+    expect(result).toHaveTextContent("Showing 11–12 of 12");
+    expect(within(result).queryByText("Cut set 10")).not.toBeInTheDocument();
+    expect(within(result).getByText("Cut set 11")).toBeInTheDocument();
+    expect(within(pagination).getByRole("button", { name: "Next" })).toBeDisabled();
+  });
+
+  it("serializes cut-set calculations and causal traces as portable CSV", () => {
+    const csv = serializeHclCutSetsCsv([{
+      rank: 1,
+      order: 2,
+      probability: 0.0025,
+      coverage: 0.75,
+      expression: "BE-A ∩ BE-B",
+      conditions: ["BE-A → HAZARD = HIGH"],
+      rootCauses: ["HAZARD"],
+      ancestors: ["WEATHER", "HAZARD"],
+    }]);
+
+    expect(csv).toContain("rank,order,probability,coverage_fraction,cut_set,bn_conditions,bn_root_causes,bn_ancestors");
+    expect(csv).toContain('1,2,0.0025,0.75,"BE-A ∩ BE-B","BE-A → HAZARD = HIGH","HAZARD","WEATHER | HAZARD"');
+  });
+
+  it("paginates PRAXIS importance measures ten at a time", async () => {
+    const user = userEvent.setup();
+    render(<Harness hclRunResult={hclResultWithImportance(12)} />);
+
+    await user.click(screen.getByRole("radio", { name: "Importance" }));
+    await user.click(screen.getByRole("radio", { name: "Manual" }));
+    await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
+    const result = screen.getByLabelText("HCL fault-tree result");
+    await user.click(within(result).getByText("Importance measures"));
+
+    expect(result).toHaveTextContent("Showing 1–10 of 12");
+    expect(result.querySelectorAll(".hcleditor__importance-row")).toHaveLength(10);
+    const pagination = within(result).getByRole("navigation", { name: "Importance measures pagination" });
+    await user.click(within(pagination).getByRole("button", { name: "Next" }));
+    expect(result).toHaveTextContent("Showing 11–12 of 12");
+    expect(result.querySelectorAll(".hcleditor__importance-row")).toHaveLength(2);
+  });
+
+  it("serializes every PRAXIS importance input and measure as CSV", () => {
+    const csv = serializeHclImportanceCsv([{
+      rank: 1,
+      basicEvent: "BE-A",
+      bayesianNetworkNode: "HAZARD",
+      eventProbability: 0.1,
+      probabilityIfTrue: 0.15,
+      probabilityIfFalse: 0,
+      birnbaum: 0.15,
+      criticality: 1,
+      fussellVesely: 1,
+      riskAchievementWorth: 10,
+      riskReductionWorth: null,
+    }]);
+
+    expect(csv).toContain("P(target | event true)");
+    expect(csv).toContain("1,BE-A,HAZARD,0.1,0.15,0,0.15,1,1,10,");
   });
 
   it("presents hazard convolution as summary and weighted contribution metrics", async () => {
     const user = userEvent.setup();
     render(<Harness hclBatchRunResult={hazardBatchResult} />);
 
-    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    await user.click(screen.getByRole("radio", { name: "Probability" }));
+    await user.click(screen.getByRole("radio", { name: "Batch" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
 
     const result = screen.getByLabelText("HCL scenario batch result");

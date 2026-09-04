@@ -4,6 +4,8 @@ export type {
   HclEditorBatchRunResult,
   HclEditorRunResult,
   HclEditorScenarioRunResult,
+  HclCalculationType,
+  QuantificationWorkflow,
   HclEventTreeOption,
   HclFaultTreeOption,
 } from "./hclBindingTypes";

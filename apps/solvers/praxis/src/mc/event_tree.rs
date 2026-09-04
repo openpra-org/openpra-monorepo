@@ -1,20 +1,18 @@
 use crate::algorithms::pdag::{Connective, Pdag, PdagNode};
+use crate::algorithms::simplify::splice_null_and_not;
 use crate::core::event_tree::{Branch, BranchTarget, EventTree, InitiatingEvent, Sequence};
 use crate::core::gate::Formula;
 use crate::core::model::Model;
 use crate::error::{PraxisError, Result};
 use crate::mc::bernoulli::threshold_from_probability;
-use crate::mc::counter::blueprint_counter_with_increment;
 use crate::mc::core::ConvergenceSettings;
+use crate::mc::counter::blueprint_counter_with_increment;
 #[cfg(feature = "gpu")]
-use crate::mc::gpu_exec::{
-    EtGpuContext,
-};
+use crate::mc::gpu_exec::EtGpuContext;
 use crate::mc::gpu_soa::GpuSoaPlan;
 use crate::mc::packed_gate::eval_gate_word;
 use crate::mc::philox::{philox4x32_10, Philox4x32Key};
 use crate::mc::plan::{choose_run_params_for_num_trials, DpMcPlan, RunParams};
-use crate::algorithms::simplify::splice_null_and_not;
 use crate::mc::tally::effective_bits_per_iteration;
 
 use indicatif::{ProgressBar, ProgressStyle};
@@ -267,7 +265,9 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
                 } else {
                     let pseudo_id = format!("{PSEUDO_FE_PREFIX}{fe_id}");
                     let idx = pdag.get_index(&pseudo_id).ok_or_else(|| {
-                        PraxisError::Logic("Pseudo functional event missing from compiled PDAG".to_string())
+                        PraxisError::Logic(
+                            "Pseudo functional event missing from compiled PDAG".to_string(),
+                        )
                     })?;
                     fe_node_by_id.insert(fe_id.clone(), idx as usize);
                 }
@@ -323,8 +323,7 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
         )
         .unwrap_or(0);
 
-        let z = crate::mc::stats::normal_quantile_two_sided(convergence.confidence)
-            .unwrap_or(1.96);
+        let z = crate::mc::stats::normal_quantile_two_sided(convergence.confidence).unwrap_or(1.96);
 
         let mut iters_done: u64 = 0;
 
@@ -441,8 +440,8 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
 
                     let p = p_hat.clamp(0.0, 1.0);
                     let target_lin = convergence.delta * p.max(1.0e-12);
-                    let eps_lin = crate::mc::stats::half_width_wald(p, trials_done, z)
-                        .unwrap_or(f64::NAN);
+                    let eps_lin =
+                        crate::mc::stats::half_width_wald(p, trials_done, z).unwrap_or(f64::NAN);
                     let ratio_lin = if target_lin.is_finite() && target_lin > 0.0 {
                         eps_lin / target_lin
                     } else {
@@ -521,10 +520,7 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
 
                 pb.set_message(format!(
                     "trials {}/{}  sum_freq={}  thr={}",
-                    trials_done,
-                    self.requested_trials,
-                    sum_freq_s,
-                    thr
+                    trials_done, self.requested_trials, sum_freq_s, thr
                 ));
                 pb.inc(1);
             }
@@ -702,8 +698,7 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
         )
         .unwrap_or(0);
 
-        let z = crate::mc::stats::normal_quantile_two_sided(convergence.confidence)
-            .unwrap_or(1.96);
+        let z = crate::mc::stats::normal_quantile_two_sided(convergence.confidence).unwrap_or(1.96);
 
         let mut iters_done: u64 = 0;
 
@@ -820,8 +815,8 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
 
                     let p = p_hat.clamp(0.0, 1.0);
                     let target_lin = convergence.delta * p.max(1.0e-12);
-                    let eps_lin = crate::mc::stats::half_width_wald(p, trials_done, z)
-                        .unwrap_or(f64::NAN);
+                    let eps_lin =
+                        crate::mc::stats::half_width_wald(p, trials_done, z).unwrap_or(f64::NAN);
                     let ratio_lin = if target_lin.is_finite() && target_lin > 0.0 {
                         eps_lin / target_lin
                     } else {
@@ -836,8 +831,9 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
                         worst_eps_lin = Some((ratio_lin, eps_lin, target_lin));
                     }
 
-                    let eps_log = crate::mc::stats::half_width_log10_wald(p, trials_done, z, 1.0e-12)
-                        .unwrap_or(f64::NAN);
+                    let eps_log =
+                        crate::mc::stats::half_width_log10_wald(p, trials_done, z, 1.0e-12)
+                            .unwrap_or(f64::NAN);
                     let ratio_log = if convergence.delta.is_finite() && convergence.delta > 0.0 {
                         eps_log / convergence.delta
                     } else {
@@ -899,10 +895,7 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
 
                 pb.set_message(format!(
                     "trials {}/{}  sum_freq={}  thr={}",
-                    trials_done,
-                    self.requested_trials,
-                    sum_freq_s,
-                    thr
+                    trials_done, self.requested_trials, sum_freq_s, thr
                 ));
                 pb.inc(1);
             }
@@ -957,11 +950,7 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
         &self,
         device: &R::Device,
     ) -> Result<EventTreeMonteCarloResult> {
-        self.run_gpu_with_watch_and_convergence::<R>(
-            device,
-            false,
-            ConvergenceSettings::disabled(),
-        )
+        self.run_gpu_with_watch_and_convergence::<R>(device, false, ConvergenceSettings::disabled())
     }
 
     #[cfg(feature = "gpu")]
@@ -970,11 +959,7 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
         device: &R::Device,
         watch: bool,
     ) -> Result<EventTreeMonteCarloResult> {
-        self.run_gpu_with_watch_and_convergence::<R>(
-            device,
-            watch,
-            ConvergenceSettings::disabled(),
-        )
+        self.run_gpu_with_watch_and_convergence::<R>(device, watch, ConvergenceSettings::disabled())
     }
 
     #[cfg(feature = "gpu")]
@@ -1096,11 +1081,9 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
             let total_iters = plan.params.t as u64;
             let pb = ProgressBar::new(total_iters.max(1));
             pb.set_style(
-                ProgressStyle::with_template(
-                    "mc [{bar:40.cyan/blue}] {pos}/{len} it {msg}",
-                )
-                .unwrap()
-                .progress_chars("##-"),
+                ProgressStyle::with_template("mc [{bar:40.cyan/blue}] {pos}/{len} it {msg}")
+                    .unwrap()
+                    .progress_chars("##-"),
             );
             pb.enable_steady_tick(std::time::Duration::from_millis(120));
             Some(pb)
@@ -1117,8 +1100,7 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
             self.valid_lanes_last_word,
         )?;
 
-        let z = crate::mc::stats::normal_quantile_two_sided(convergence.confidence)
-            .unwrap_or(1.96);
+        let z = crate::mc::stats::normal_quantile_two_sided(convergence.confidence).unwrap_or(1.96);
 
         let iters_total_u32 = plan.params.t as u32;
         let iters_per_chunk = (iters_total_u32 / 100).max(1);
@@ -1177,8 +1159,8 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
 
                     let p = p_hat.clamp(0.0, 1.0);
                     let target_lin = convergence.delta * p.max(1.0e-12);
-                    let eps_lin = crate::mc::stats::half_width_wald(p, trials_done, z)
-                        .unwrap_or(f64::NAN);
+                    let eps_lin =
+                        crate::mc::stats::half_width_wald(p, trials_done, z).unwrap_or(f64::NAN);
                     let ratio_lin = if target_lin.is_finite() && target_lin > 0.0 {
                         eps_lin / target_lin
                     } else {
@@ -1194,13 +1176,9 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
                         }
                     }
 
-                    let eps_log = crate::mc::stats::half_width_log10_wald(
-                        p,
-                        trials_done,
-                        z,
-                        1.0e-12,
-                    )
-                    .unwrap_or(f64::NAN);
+                    let eps_log =
+                        crate::mc::stats::half_width_log10_wald(p, trials_done, z, 1.0e-12)
+                            .unwrap_or(f64::NAN);
                     let ratio_log = if convergence.delta.is_finite() && convergence.delta > 0.0 {
                         eps_log / convergence.delta
                     } else {
@@ -1264,10 +1242,7 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
 
                 pb.set_message(format!(
                     "trials {}/{}  sum_freq={}  thr={}",
-                    bits_done,
-                    self.requested_trials,
-                    sum_freq_s,
-                    thr
+                    bits_done, self.requested_trials, sum_freq_s, thr
                 ));
                 pb.set_position(iters_done);
             }
@@ -1287,8 +1262,7 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
         let actual_trials = usize::try_from(actual_trials_u64).unwrap_or(usize::MAX);
 
         let ie_frequency = self.initiating_event.frequency.unwrap_or(1.0);
-        let mut results: Vec<SequenceMonteCarloResult> =
-            Vec::with_capacity(terminal_seq_ids.len());
+        let mut results: Vec<SequenceMonteCarloResult> = Vec::with_capacity(terminal_seq_ids.len());
         for (ix, seq_id) in terminal_seq_ids.iter().enumerate() {
             let seq = sequences_by_id.get(seq_id).ok_or_else(|| {
                 PraxisError::Logic(format!("Sequence '{}' missing from collected set", seq_id))
@@ -1426,11 +1400,9 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
             let total_iters = plan.params.t as u64;
             let pb = ProgressBar::new(total_iters.max(1));
             pb.set_style(
-                ProgressStyle::with_template(
-                    "mc [{bar:40.cyan/blue}] {pos}/{len} it {msg}",
-                )
-                .unwrap()
-                .progress_chars("##-"),
+                ProgressStyle::with_template("mc [{bar:40.cyan/blue}] {pos}/{len} it {msg}")
+                    .unwrap()
+                    .progress_chars("##-"),
             );
             pb.enable_steady_tick(std::time::Duration::from_millis(120));
             Some(pb)
@@ -1447,8 +1419,7 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
             self.valid_lanes_last_word,
         )?;
 
-        let z = crate::mc::stats::normal_quantile_two_sided(convergence.confidence)
-            .unwrap_or(1.96);
+        let z = crate::mc::stats::normal_quantile_two_sided(convergence.confidence).unwrap_or(1.96);
 
         let iters_total_u32 = plan.params.t as u32;
         let iters_per_chunk = (iters_total_u32 / 100).max(1);
@@ -1507,8 +1478,8 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
 
                     let p = p_hat.clamp(0.0, 1.0);
                     let target_lin = convergence.delta * p.max(1.0e-12);
-                    let eps_lin = crate::mc::stats::half_width_wald(p, trials_done, z)
-                        .unwrap_or(f64::NAN);
+                    let eps_lin =
+                        crate::mc::stats::half_width_wald(p, trials_done, z).unwrap_or(f64::NAN);
                     let ratio_lin = if target_lin.is_finite() && target_lin > 0.0 {
                         eps_lin / target_lin
                     } else {
@@ -1524,8 +1495,9 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
                         }
                     }
 
-                    let eps_log = crate::mc::stats::half_width_log10_wald(p, trials_done, z, 1.0e-12)
-                        .unwrap_or(f64::NAN);
+                    let eps_log =
+                        crate::mc::stats::half_width_log10_wald(p, trials_done, z, 1.0e-12)
+                            .unwrap_or(f64::NAN);
                     let ratio_log = if convergence.delta.is_finite() && convergence.delta > 0.0 {
                         eps_log / convergence.delta
                     } else {
@@ -1589,10 +1561,7 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
 
                 pb.set_message(format!(
                     "trials {}/{}  sum_freq={}  thr={}",
-                    bits_done,
-                    self.requested_trials,
-                    sum_freq_s,
-                    thr
+                    bits_done, self.requested_trials, sum_freq_s, thr
                 ));
                 pb.set_position(iters_done);
             }

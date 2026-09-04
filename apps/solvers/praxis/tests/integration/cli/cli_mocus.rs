@@ -24,7 +24,6 @@ fn praxis_binary() -> PathBuf {
 
 #[test]
 fn test_mocus_and_gate() {
-
     let _ = Command::new("cargo")
         .args(["build"])
         .output()

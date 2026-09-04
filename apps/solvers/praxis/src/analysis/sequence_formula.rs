@@ -8,7 +8,6 @@ use crate::core::model::Model;
 use crate::error::{PraxisError, Result};
 
 pub struct SequenceFormulas {
-
     pub pdag: Pdag,
 
     pub sequence_roots: HashMap<String, NodeIndex>,
@@ -153,7 +152,6 @@ impl<'a> SequenceFormulaBuilder<'a> {
         success_collector: Vec<NodeIndex>,
         house_overrides: HashMap<String, bool>,
     ) -> Result<()> {
-
         let mut overrides = house_overrides;
         for (id, val) in &branch.house_event_assignments {
             overrides.insert(id.clone(), *val);
@@ -191,19 +189,20 @@ impl<'a> SequenceFormulaBuilder<'a> {
                             continue;
                         }
                         let root_idx = if let Some(ref ft_id) = fe_ft_id {
-
-                            let ft: FaultTree =
-                                self.model.get_fault_tree(ft_id).ok_or_else(|| {
+                            let ft: FaultTree = self
+                                .model
+                                .get_fault_tree(ft_id)
+                                .ok_or_else(|| {
                                     PraxisError::Logic(format!(
                                         "Fault tree '{}' not found for functional event '{}'",
                                         ft_id, fe_id
                                     ))
-                                })?.clone();
+                                })?
+                                .clone();
 
                             let scope = make_scope_key(&overrides);
                             Some(self.add_ft_scoped(&ft, &overrides, &scope)?)
                         } else if let Some(ref be_id) = fe_be_id {
-
                             Some(self.add_functional_event_basic(be_id, &fe_id)?)
                         } else {
                             None
@@ -211,14 +210,12 @@ impl<'a> SequenceFormulaBuilder<'a> {
 
                         if let Some(root_idx) = root_idx {
                             if negated && self.delete_term {
-
                                 new_successes.push(root_idx);
                             } else {
                                 let formula_idx = if negated { -root_idx } else { root_idx };
                                 new_collector.push(formula_idx);
                             }
                         }
-
                     }
 
                     self.collect_sequences(
@@ -266,7 +263,6 @@ impl<'a> SequenceFormulaBuilder<'a> {
 
         if let Some(linked_et_id) = sequence.linked_event_tree_id.clone() {
             if linked_et_id == et.id {
-
                 let initial = et.initial_state.clone();
                 return self.collect_sequences(
                     et,
@@ -277,13 +273,15 @@ impl<'a> SequenceFormulaBuilder<'a> {
                 );
             }
             if let Some(lib) = self.et_library {
-
-                let linked_et: EventTree = lib.get(&linked_et_id).ok_or_else(|| {
-                    PraxisError::Logic(format!(
-                        "Linked event tree '{}' not found",
-                        linked_et_id
-                    ))
-                })?.clone();
+                let linked_et: EventTree = lib
+                    .get(&linked_et_id)
+                    .ok_or_else(|| {
+                        PraxisError::Logic(format!(
+                            "Linked event tree '{}' not found",
+                            linked_et_id
+                        ))
+                    })?
+                    .clone();
                 linked_et.validate()?;
                 let initial = linked_et.initial_state.clone();
                 return self.collect_sequences(
@@ -294,7 +292,6 @@ impl<'a> SequenceFormulaBuilder<'a> {
                     overrides,
                 );
             }
-
         }
 
         if self.delete_term && !success_collector.is_empty() {
@@ -310,7 +307,6 @@ impl<'a> SequenceFormulaBuilder<'a> {
                     .push(idx);
             }
             None => {
-
                 self.unconditional.insert(seq_id.to_string());
             }
         }
@@ -324,9 +320,9 @@ impl<'a> SequenceFormulaBuilder<'a> {
             _ => {
                 let id = format!("__AND__{}", self.next_synthetic);
                 self.next_synthetic += 1;
-                let idx =
-                    self.pdag
-                        .add_gate(id, Connective::And, path_collector, None)?;
+                let idx = self
+                    .pdag
+                    .add_gate(id, Connective::And, path_collector, None)?;
                 Some(idx)
             }
         })
@@ -519,14 +515,13 @@ mod tests {
         let fork = Fork::new("FE".to_string(), vec![success_path, failure_path]).unwrap();
         let initial = Branch::new(BranchTarget::Fork(fork));
         let mut et = EventTree::new("ET".to_string(), initial);
-        et.add_sequence(Sequence::new("SEQ-OK".to_string())).unwrap();
+        et.add_sequence(Sequence::new("SEQ-OK".to_string()))
+            .unwrap();
         et.add_sequence(Sequence::new("SEQ-FAIL".to_string()))
             .unwrap();
         et.add_functional_event(fe).unwrap();
 
-        let formulas = SequenceFormulaBuilder::new(&model)
-            .build(&et, 1.0)
-            .unwrap();
+        let formulas = SequenceFormulaBuilder::new(&model).build(&et, 1.0).unwrap();
 
         assert!(formulas.sequence_roots.is_empty());
         assert!(formulas.unconditional.contains("SEQ-OK"));
@@ -560,14 +555,13 @@ mod tests {
         let fork = Fork::new("FE-COOL".to_string(), vec![success_path, failure_path]).unwrap();
         let initial = Branch::new(BranchTarget::Fork(fork));
         let mut et = EventTree::new("ET".to_string(), initial);
-        et.add_sequence(Sequence::new("SEQ-OK".to_string())).unwrap();
+        et.add_sequence(Sequence::new("SEQ-OK".to_string()))
+            .unwrap();
         et.add_sequence(Sequence::new("SEQ-FAIL".to_string()))
             .unwrap();
         et.add_functional_event(fe).unwrap();
 
-        let formulas = SequenceFormulaBuilder::new(&model)
-            .build(&et, 1.0)
-            .unwrap();
+        let formulas = SequenceFormulaBuilder::new(&model).build(&et, 1.0).unwrap();
 
         assert!(formulas.unconditional.is_empty());
         assert!(formulas.sequence_roots.contains_key("SEQ-OK"));
@@ -599,7 +593,7 @@ mod tests {
 
         let seq_ff = Sequence::new("SEQ-FF".to_string());
         let seq_fs = Sequence::new("SEQ-FS".to_string());
-        let seq_s  = Sequence::new("SEQ-S".to_string());
+        let seq_s = Sequence::new("SEQ-S".to_string());
 
         let fork2 = Fork::new(
             "FE-2".to_string(),
@@ -646,21 +640,25 @@ mod tests {
         et.add_functional_event(fe1).unwrap();
         et.add_functional_event(fe2).unwrap();
 
-        let formulas = SequenceFormulaBuilder::new(&model)
-            .build(&et, 1.0)
-            .unwrap();
+        let formulas = SequenceFormulaBuilder::new(&model).build(&et, 1.0).unwrap();
 
         assert!(formulas.unconditional.is_empty());
 
         let ff_root = formulas.sequence_roots["SEQ-FF"];
-        let ff_node = formulas.pdag.get_node(ff_root).expect("SEQ-FF root must exist");
+        let ff_node = formulas
+            .pdag
+            .get_node(ff_root)
+            .expect("SEQ-FF root must exist");
         assert!(ff_node.is_gate());
 
         let s_root = formulas.sequence_roots["SEQ-S"];
         assert!(s_root > 0);
 
         for be in ["E1", "E2", "E3", "E4"] {
-            assert!(formulas.pdag.get_index(be).is_some(), "{be} missing from pdag");
+            assert!(
+                formulas.pdag.get_index(be).is_some(),
+                "{be} missing from pdag"
+            );
         }
     }
 
@@ -681,14 +679,12 @@ mod tests {
 
         let fork_b_after_fail = Fork::new(
             "FE-B".to_string(),
-            vec![
-                Path::new(
-                    "success".to_string(),
-                    Branch::new(BranchTarget::Sequence("SEQ-TARGET".to_string())),
-                )
-                .unwrap()
-                .with_collect_formula_negated(false),
-            ],
+            vec![Path::new(
+                "success".to_string(),
+                Branch::new(BranchTarget::Sequence("SEQ-TARGET".to_string())),
+            )
+            .unwrap()
+            .with_collect_formula_negated(false)],
         )
         .unwrap();
 
@@ -717,9 +713,7 @@ mod tests {
         et.add_functional_event(fe_a).unwrap();
         et.add_functional_event(fe_b).unwrap();
 
-        let formulas = SequenceFormulaBuilder::new(&model)
-            .build(&et, 1.0)
-            .unwrap();
+        let formulas = SequenceFormulaBuilder::new(&model).build(&et, 1.0).unwrap();
 
         let root = formulas.sequence_roots["SEQ-TARGET"];
         let node = formulas.pdag.get_node(root).unwrap();
@@ -766,9 +760,7 @@ mod tests {
         et.add_sequence(Sequence::new("SEQ-1".to_string())).unwrap();
         et.add_functional_event(fe).unwrap();
 
-        let formulas = SequenceFormulaBuilder::new(&model)
-            .build(&et, 1.0)
-            .unwrap();
+        let formulas = SequenceFormulaBuilder::new(&model).build(&et, 1.0).unwrap();
 
         assert!(formulas.sequence_roots.contains_key("SEQ-1"));
 
@@ -810,9 +802,7 @@ mod tests {
         et.add_sequence(Sequence::new("SEQ-1".to_string())).unwrap();
         et.add_functional_event(fe).unwrap();
 
-        let formulas = SequenceFormulaBuilder::new(&model)
-            .build(&et, 1.0)
-            .unwrap();
+        let formulas = SequenceFormulaBuilder::new(&model).build(&et, 1.0).unwrap();
 
         assert!(formulas.sequence_roots.contains_key("SEQ-1"));
         let has_false = formulas
@@ -820,7 +810,10 @@ mod tests {
             .nodes()
             .values()
             .any(|n| matches!(n, PdagNode::Constant { value: false, .. }));
-        assert!(has_false, "expected a FALSE constant node from the house event");
+        assert!(
+            has_false,
+            "expected a FALSE constant node from the house event"
+        );
     }
 
     #[test]
@@ -876,16 +869,20 @@ mod tests {
         et.add_functional_event(fe1).unwrap();
         et.add_functional_event(fe2).unwrap();
 
-        let formulas = SequenceFormulaBuilder::new(&model)
-            .build(&et, 1.0)
-            .unwrap();
+        let formulas = SequenceFormulaBuilder::new(&model).build(&et, 1.0).unwrap();
 
         let root = formulas.sequence_roots["SEQ-1"];
         let node = formulas.pdag.get_node(root).unwrap();
         assert!(node.is_gate());
 
-        assert!(formulas.pdag.get_index("GX__FT-X").is_some(), "GX__FT-X must be in pdag");
-        assert!(formulas.pdag.get_index("GX").is_none(), "plain GX must not exist after ft-scope fix");
+        assert!(
+            formulas.pdag.get_index("GX__FT-X").is_some(),
+            "GX__FT-X must be in pdag"
+        );
+        assert!(
+            formulas.pdag.get_index("GX").is_none(),
+            "plain GX must not exist after ft-scope fix"
+        );
     }
 
     #[test]
@@ -902,9 +899,7 @@ mod tests {
         et.add_sequence(Sequence::new("SEQ-1".to_string())).unwrap();
         et.add_named_branch(named_branch).unwrap();
 
-        let formulas = SequenceFormulaBuilder::new(&model)
-            .build(&et, 1.0)
-            .unwrap();
+        let formulas = SequenceFormulaBuilder::new(&model).build(&et, 1.0).unwrap();
 
         assert!(formulas.unconditional.contains("SEQ-1"));
         assert!(!formulas.sequence_roots.contains_key("SEQ-1"));

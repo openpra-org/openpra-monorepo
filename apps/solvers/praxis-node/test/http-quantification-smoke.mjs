@@ -305,6 +305,16 @@ const hclResult = await execute(
 );
 assert.ok(Math.abs(hclResult.probability - 0.16) < 1e-12);
 assert.ok(Math.abs(hclResult.probability - 0.048) > 1e-6);
+assert.equal(hclResult.cutSets.totalCount, 1);
+assert.ok(Math.abs(hclResult.cutSets.cutSets[0].probability - 0.16) < 1e-12);
+assert.deepEqual(hclResult.cutSets.cutSets[0].bnRootCauseNodeIds, ["NODE-A"]);
+assert.equal(hclResult.importance.totalCount, 2);
+assert.ok(
+  Math.abs(
+    hclResult.importance.measures.find(({ basicEventId }) => basicEventId === "A")
+      .riskAchievementWorth - 1.5,
+  ) < 1e-12,
+);
 
 const hclEt = {
   id: "ET-HCL",
@@ -381,6 +391,9 @@ for (const [index, expected] of [0.84, 0, 0, 0.16].entries()) {
   );
 }
 assert.ok(Math.abs(hclEtResult.sequences[3].conditionalProbability - 0.048) > 1e-6);
+assert.equal(hclEtResult.sequences[3].cutSets.totalCount, 1);
+assert.ok(Math.abs(hclEtResult.sequences[3].cutSets.cutSets[0].probability - 0.16) < 1e-12);
+assert.equal(hclEtResult.sequences[3].importance.totalCount, 2);
 
 console.log(
   JSON.stringify({

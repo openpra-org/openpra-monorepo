@@ -30,6 +30,8 @@ mod cli_event_tree;
 mod cli_event_tree_mc;
 #[path = "integration/cli/cli_event_tree_mc_xml_output.rs"]
 mod cli_event_tree_mc_xml_output;
+#[path = "integration/cli/cli_importance_output.rs"]
+mod cli_importance_output;
 #[path = "integration/cli/cli_mc_xml_output.rs"]
 mod cli_mc_xml_output;
 #[path = "integration/cli/cli_mocus.rs"]
@@ -40,8 +42,6 @@ mod cli_pbf_input;
 mod cli_test;
 #[path = "integration/cli/cli_xml_output_shape.rs"]
 mod cli_xml_output_shape;
-#[path = "integration/cli/cli_importance_output.rs"]
-mod cli_importance_output;
 
 #[path = "integration/core/ccf_integration.rs"]
 mod ccf_integration;

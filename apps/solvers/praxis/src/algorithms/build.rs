@@ -14,7 +14,6 @@ use crate::{PraxisError, Result};
 
 #[derive(Debug, Clone, Copy)]
 pub struct BuildOptions {
-
     pub fold_constants: bool,
 
     pub splice_null_gates: bool,
@@ -130,10 +129,14 @@ fn resolve_variable_order(pdag: &Pdag, names: &[String]) -> Result<Vec<NodeIndex
     let mut order = Vec::with_capacity(names.len());
     for name in names {
         let index = pdag.get_index(name).ok_or_else(|| {
-            PraxisError::Logic(format!("explicit BDD order references unknown event '{name}'"))
+            PraxisError::Logic(format!(
+                "explicit BDD order references unknown event '{name}'"
+            ))
         })?;
         let node = pdag.get_node(index).ok_or_else(|| {
-            PraxisError::Logic(format!("explicit BDD order references missing node '{name}'"))
+            PraxisError::Logic(format!(
+                "explicit BDD order references missing node '{name}'"
+            ))
         })?;
         if !node.is_basic_event() {
             return Err(PraxisError::Logic(format!(
@@ -209,14 +212,14 @@ pub fn enumerate_event_names(
     let mut event_sets = Vec::new();
     zbdd.for_each_set(root, |set| {
         let mut events: Vec<String> = set
-                .iter()
-                .filter_map(|&pos| {
-                    order
-                        .get(pos)
-                        .and_then(|&idx| pdag.get_node(idx))
-                        .and_then(|node| node.id().map(|id| id.to_string()))
-                })
-                .collect();
+            .iter()
+            .filter_map(|&pos| {
+                order
+                    .get(pos)
+                    .and_then(|&idx| pdag.get_node(idx))
+                    .and_then(|node| node.id().map(|id| id.to_string()))
+            })
+            .collect();
         events.sort();
         event_sets.push(events);
     });

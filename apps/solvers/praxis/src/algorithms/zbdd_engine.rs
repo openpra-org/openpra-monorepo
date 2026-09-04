@@ -131,7 +131,12 @@ impl OpenUnique {
         loop {
             let e = self.slots[i];
             if e.val == 0 {
-                self.slots[i] = UEntry { var, high, low, val };
+                self.slots[i] = UEntry {
+                    var,
+                    high,
+                    low,
+                    val,
+                };
                 self.len += 1;
                 return;
             }
@@ -361,14 +366,30 @@ impl JoinCache {
         loop {
             let e = self.slots[i];
             if !e.used {
-                self.slots[i] = JEntry { f, g, bucket, mp, thr, result, used: true };
+                self.slots[i] = JEntry {
+                    f,
+                    g,
+                    bucket,
+                    mp,
+                    thr,
+                    result,
+                    used: true,
+                };
                 self.len += 1;
                 return;
             }
             if e.f == f && e.g == g && e.bucket == bucket && e.mp == mp {
                 // Keep the lowest (loosest) threshold per key; it serves the most.
                 if thr < e.thr {
-                    self.slots[i] = JEntry { f, g, bucket, mp, thr, result, used: true };
+                    self.slots[i] = JEntry {
+                        f,
+                        g,
+                        bucket,
+                        mp,
+                        thr,
+                        result,
+                        used: true,
+                    };
                 }
                 return;
             }
@@ -470,9 +491,15 @@ const ZBDD_SENTINEL: ZbddNode = ZbddNode {
 
 impl ZbddEngine {
     pub fn new() -> Self {
-        let gc_on = std::env::var("PRAXIS_ZBDD_GC").map(|v| v == "1").unwrap_or(false);
-        let open_unique = std::env::var("PRAXIS_UNIQUE").map(|v| v != "std").unwrap_or(true);
-        let array_opcache = std::env::var("PRAXIS_OPCACHE").map(|v| v != "hashmap").unwrap_or(true);
+        let gc_on = std::env::var("PRAXIS_ZBDD_GC")
+            .map(|v| v == "1")
+            .unwrap_or(false);
+        let open_unique = std::env::var("PRAXIS_UNIQUE")
+            .map(|v| v != "std")
+            .unwrap_or(true);
+        let array_opcache = std::env::var("PRAXIS_OPCACHE")
+            .map(|v| v != "hashmap")
+            .unwrap_or(true);
         let use_computed = gc_on || array_opcache;
         let (computed, computed_mask) = if use_computed {
             // GC-on keeps a small cache to protect the 1E-12 memory wall (every
@@ -514,11 +541,7 @@ impl ZbddEngine {
             use_computed,
             minimal: vec![false, false],
             minimize_memo: HashMap::new(),
-            join_bcache: if !gc_on {
-                Some(JoinCache::new())
-            } else {
-                None
-            },
+            join_bcache: if !gc_on { Some(JoinCache::new()) } else { None },
         }
     }
 
@@ -580,7 +603,11 @@ impl ZbddEngine {
     }
 
     pub fn var_of(&self, f: ZbddRef) -> usize {
-        if f.is_terminal() { usize::MAX } else { self.node(f).var }
+        if f.is_terminal() {
+            usize::MAX
+        } else {
+            self.node(f).var
+        }
     }
 
     pub fn node_count(&self) -> usize {
@@ -862,10 +889,20 @@ impl ZbddEngine {
         r
     }
 
-    pub(crate) fn union(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {        trace!(target: "praxis::zbdd", op = "union", f = f.raw(), g = g.raw(), "zbdd op");
-        if f.is_empty() { self.protect(g); return g; }
-        if g.is_empty() { self.protect(f); return f; }
-        if f == g { self.protect(f); return f; }
+    pub(crate) fn union(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
+        trace!(target: "praxis::zbdd", op = "union", f = f.raw(), g = g.raw(), "zbdd op");
+        if f.is_empty() {
+            self.protect(g);
+            return g;
+        }
+        if g.is_empty() {
+            self.protect(f);
+            return f;
+        }
+        if f == g {
+            self.protect(f);
+            return f;
+        }
 
         let (ka, kb) = if f < g { (f, g) } else { (g, f) };
         if self.use_computed {
@@ -1016,13 +1053,25 @@ impl ZbddEngine {
         if f.is_empty() || g.is_empty() {
             return ZBDD_EMPTY;
         }
-        let mf = if f.is_base() { 1.0 } else { self.maxprobs[f.index()] };
-        let mg = if g.is_base() { 1.0 } else { self.maxprobs[g.index()] };
+        let mf = if f.is_base() {
+            1.0
+        } else {
+            self.maxprobs[f.index()]
+        };
+        let mg = if g.is_base() {
+            1.0
+        } else {
+            self.maxprobs[g.index()]
+        };
         if p_acc * mf.min(mg) < min_prob {
             return ZBDD_EMPTY;
         }
         if f.is_base() && g.is_base() {
-            return if p_acc >= min_prob { ZBDD_BASE } else { ZBDD_EMPTY };
+            return if p_acc >= min_prob {
+                ZBDD_BASE
+            } else {
+                ZBDD_EMPTY
+            };
         }
         if let Some(r) = cache.get(f.raw(), g.raw(), min_prob / p_acc, min_prob) {
             let r = ZbddRef(r);
@@ -1072,7 +1121,8 @@ impl ZbddEngine {
         result
     }
 
-    pub(crate) fn difference(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {        trace!(target: "praxis::zbdd", op = "difference", f = f.raw(), g = g.raw(), "zbdd op");
+    pub(crate) fn difference(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
+        trace!(target: "praxis::zbdd", op = "difference", f = f.raw(), g = g.raw(), "zbdd op");
         if f.is_empty() {
             return ZBDD_EMPTY;
         }
@@ -1120,10 +1170,18 @@ impl ZbddEngine {
         result
     }
 
-    pub(crate) fn nonsuperset(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {        trace!(target: "praxis::zbdd", op = "subsume(nonsuperset)", f = f.raw(), g = g.raw(), "zbdd op: remove from f every set that is a superset of some set in g");
-        if g.is_empty() { self.protect(f); return f; }
-        if g.is_base() { return ZBDD_EMPTY; }
-        if f.is_empty() { return ZBDD_EMPTY; }
+    pub(crate) fn nonsuperset(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
+        trace!(target: "praxis::zbdd", op = "subsume(nonsuperset)", f = f.raw(), g = g.raw(), "zbdd op: remove from f every set that is a superset of some set in g");
+        if g.is_empty() {
+            self.protect(f);
+            return f;
+        }
+        if g.is_base() {
+            return ZBDD_EMPTY;
+        }
+        if f.is_empty() {
+            return ZBDD_EMPTY;
+        }
 
         if self.use_computed {
             if let Some(r) = self.computed_get(OP_SUBTRACT, f, g.raw()) {
@@ -1210,7 +1268,8 @@ impl ZbddEngine {
         result
     }
 
-    pub(crate) fn purify(&mut self, f: ZbddRef) -> ZbddRef {        trace!(target: "praxis::zbdd", op = "purify", f = f.raw(), "zbdd op");
+    pub(crate) fn purify(&mut self, f: ZbddRef) -> ZbddRef {
+        trace!(target: "praxis::zbdd", op = "purify", f = f.raw(), "zbdd op");
         if f.is_terminal() {
             return f;
         }
@@ -1245,7 +1304,8 @@ impl ZbddEngine {
         result
     }
 
-    pub(crate) fn remove_var(&mut self, f: ZbddRef, w: usize) -> ZbddRef {        if f.is_terminal() {
+    pub(crate) fn remove_var(&mut self, f: ZbddRef, w: usize) -> ZbddRef {
+        if f.is_terminal() {
             return f;
         }
         let var = self.var_of(f);
@@ -1298,7 +1358,11 @@ impl ZbddEngine {
                 return r;
             }
         }
-        let ZbddNode { var, high: hi, low: lo } = *self.node(f);
+        let ZbddNode {
+            var,
+            high: hi,
+            low: lo,
+        } = *self.node(f);
         let hi_r = self.project_out_set(hi, flags, cache);
         let lo_r = self.project_out_set(lo, flags, cache);
         let result = if flags.contains(&var) {
@@ -1313,8 +1377,12 @@ impl ZbddEngine {
     }
 
     fn convert_bdd_inner(&mut self, bdd: &Bdd, f: BddRef) -> ZbddRef {
-        if f.is_false() { return ZBDD_EMPTY; }
-        if f.is_true() { return ZBDD_BASE; }
+        if f.is_false() {
+            return ZBDD_EMPTY;
+        }
+        if f.is_true() {
+            return ZBDD_BASE;
+        }
 
         if let Some(cached) = self.convert_cache_get(f) {
             return cached;
@@ -1402,14 +1470,8 @@ impl ZbddEngine {
         let mut result = if coherent { raw } else { z.minimize(raw) };
 
         for &delete_root in delete_roots {
-            let raw_delete = z.convert_bdd_limited(
-                bdd,
-                delete_root,
-                limit_order,
-                scale,
-                min_value,
-                &mut memo,
-            );
+            let raw_delete =
+                z.convert_bdd_limited(bdd, delete_root, limit_order, scale, min_value, &mut memo);
             let delete = z.minimize(raw_delete);
             result = z.nonsuperset(result, delete);
         }
@@ -1463,7 +1525,11 @@ impl ZbddEngine {
             return ZBDD_EMPTY;
         }
         if f.is_true() {
-            return if p_acc >= min_value { ZBDD_BASE } else { ZBDD_EMPTY };
+            return if p_acc >= min_value {
+                ZBDD_BASE
+            } else {
+                ZBDD_EMPTY
+            };
         }
         if min_value > 0.0 {
             let bound = self.bdd_max_path_prob(bdd, f, &mut memo.max_path_prob);
@@ -1489,14 +1555,7 @@ impl ZbddEngine {
             ZBDD_EMPTY
         } else {
             let new_budget = budget.map(|b| b - 1);
-            self.convert_bdd_limited(
-                bdd,
-                cofactor_hi,
-                new_budget,
-                p_acc * p_var,
-                min_value,
-                memo,
-            )
+            self.convert_bdd_limited(bdd, cofactor_hi, new_budget, p_acc * p_var, min_value, memo)
         };
         let lo_z = self.convert_bdd_limited(bdd, cofactor_lo, budget, p_acc, min_value, memo);
         let with_var = self.multiply(var, hi_z);
@@ -1569,10 +1628,16 @@ impl ZbddEngine {
     }
 
     fn re_inner(&self, f: ZbddRef, cache: &mut HashMap<u32, f64>) -> f64 {
-        if f.is_empty() { return 0.0; }
-        if f.is_base() { return 1.0; }
+        if f.is_empty() {
+            return 0.0;
+        }
+        if f.is_base() {
+            return 1.0;
+        }
         let key = f.raw();
-        if let Some(&p) = cache.get(&key) { return p; }
+        if let Some(&p) = cache.get(&key) {
+            return p;
+        }
         let node = self.node(f);
         let p_var = self.var_probs[node.var];
         let p_hi = self.re_inner(node.high, cache);
@@ -1617,7 +1682,11 @@ impl ZbddEngine {
                 return r;
             }
         }
-        let ZbddNode { var, high: hi, low: lo } = *self.node(f);
+        let ZbddNode {
+            var,
+            high: hi,
+            low: lo,
+        } = *self.node(f);
         let result = if budget == 0 {
             self.limit_order_rec(lo, 0, cache)
         } else {
@@ -1648,7 +1717,8 @@ impl ZbddEngine {
         result
     }
 
-    fn ensure_maxprob(&mut self, f: ZbddRef) -> f64 {        if f.is_empty() {
+    fn ensure_maxprob(&mut self, f: ZbddRef) -> f64 {
+        if f.is_empty() {
             return 0.0;
         }
         if f.is_base() {
@@ -1674,10 +1744,15 @@ impl ZbddEngine {
         p_acc: f64,
         min_prob: f64,
         cache: &mut HashMap<(ZbddRef, u64), ZbddRef>,
-    ) -> ZbddRef {        if f.is_empty() {
+    ) -> ZbddRef {
+        if f.is_empty() {
             return ZBDD_EMPTY;
         }
-        let fmax = if f.is_base() { 1.0 } else { self.maxprobs[f.index()] };
+        let fmax = if f.is_base() {
+            1.0
+        } else {
+            self.maxprobs[f.index()]
+        };
         if p_acc * fmax < min_prob {
             return ZBDD_EMPTY;
         }
@@ -1689,7 +1764,11 @@ impl ZbddEngine {
             self.protect(r);
             return r;
         }
-        let ZbddNode { var, high: hi, low: lo } = *self.node(f);
+        let ZbddNode {
+            var,
+            high: hi,
+            low: lo,
+        } = *self.node(f);
         let p_var = self.var_probs[var];
         let hi_r = self.prune_below_rec(hi, p_acc * p_var, min_prob, cache);
         let lo_r = self.prune_below_rec(lo, p_acc, min_prob, cache);
@@ -1706,12 +1785,7 @@ impl ZbddEngine {
         1.0 - self.mcub_factor(root, 1.0, &mut cache)
     }
 
-    fn mcub_factor(
-        &self,
-        f: ZbddRef,
-        p_acc: f64,
-        cache: &mut HashMap<(u32, u64), f64>,
-    ) -> f64 {
+    fn mcub_factor(&self, f: ZbddRef, p_acc: f64, cache: &mut HashMap<(u32, u64), f64>) -> f64 {
         if f.is_empty() {
             return 1.0;
         }

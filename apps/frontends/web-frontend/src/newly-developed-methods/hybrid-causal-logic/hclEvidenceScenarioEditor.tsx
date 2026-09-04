@@ -1,4 +1,4 @@
-import { type ChangeEvent, type JSX, useEffect, useRef, useState } from "react";
+import { type JSX, useEffect, useRef, useState } from "react";
 import type { EsqHclConfiguration } from "interfaces-mef-types/esq/workbook-models";
 import type { HclEvidenceScenario } from "interfaces-mef-types/modeling";
 import { DEFAULT_ANNUALIZATION_CONVENTION } from "interfaces-mef-types/modeling";
@@ -7,15 +7,13 @@ import { useToast } from "../../toast/toastProvider";
 import {
   exportHclEvidenceScenariosCsv,
   exportHclEvidenceScenariosJson,
-  importHclEvidenceScenariosCsv,
-  importHclEvidenceScenariosJson,
-  mergeHclEvidenceScenarios,
 } from "./hclEvidenceScenarioInterchange";
 
 interface HclEvidenceScenarioEditorProps {
   model: BayesianNetworkModel;
   configuration: EsqHclConfiguration;
   editable: boolean;
+  showHazardConvolution?: boolean;
   onChange: (configuration: EsqHclConfiguration) => void;
   onError: (message: string | null) => void;
 }
@@ -86,13 +84,14 @@ function HclEvidenceScenarioEditor({
   model,
   configuration,
   editable,
+  showHazardConvolution = false,
   onChange,
   onError,
 }: HclEvidenceScenarioEditorProps): JSX.Element {
   const { addToast } = useToast();
   const scenarios = configuration.evidenceScenarios ?? [];
   const [selectedId, setSelectedId] = useState(scenarios[0]?.id ?? "");
-  const importRef = useRef<HTMLInputElement>(null);
+  const exportMenuRef = useRef<HTMLDetailsElement>(null);
   const selected = scenarios.find((scenario) => scenario.id === selectedId);
   const enabledScenarios = scenarios.filter((scenario) => scenario.enabled);
   const completeHazardNodes = model.nodes.filter((node) =>
@@ -116,6 +115,21 @@ function HclEvidenceScenarioEditor({
     if (scenarios.some((scenario) => scenario.id === selectedId)) return;
     setSelectedId(scenarios[0]?.id ?? "");
   }, [scenarios, selectedId]);
+  useEffect(() => {
+    const closeExportMenu = (event: PointerEvent): void => {
+      const menu = exportMenuRef.current;
+      if (menu?.open === true && event.target instanceof Node && !menu.contains(event.target)) menu.open = false;
+    };
+    const closeExportMenuOnEscape = (event: KeyboardEvent): void => {
+      if (event.key === "Escape" && exportMenuRef.current !== null) exportMenuRef.current.open = false;
+    };
+    window.addEventListener("pointerdown", closeExportMenu);
+    window.addEventListener("keydown", closeExportMenuOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", closeExportMenu);
+      window.removeEventListener("keydown", closeExportMenuOnEscape);
+    };
+  }, []);
 
   function replaceScenarios(next: HclEvidenceScenario[]): void {
     const nextConfiguration = { ...configuration, evidenceScenarios: next };
@@ -156,25 +170,6 @@ function HclEvidenceScenarioEditor({
     replaceScenarios([...scenarios, created]);
     setSelectedId(created.id);
     onError(null);
-  }
-
-  async function importScenarios(event: ChangeEvent<HTMLInputElement>): Promise<void> {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (file === undefined) return;
-    try {
-      const text = await file.text();
-      const imported = file.name.toLowerCase().endsWith(".csv")
-        ? importHclEvidenceScenariosCsv(text, model)
-        : importHclEvidenceScenariosJson(text, model);
-      const merged = mergeHclEvidenceScenarios(scenarios, imported);
-      replaceScenarios(merged);
-      const firstImportedCode = imported[0]?.code.trim().toUpperCase();
-      setSelectedId(merged.find((scenario) => scenario.code.trim().toUpperCase() === firstImportedCode)?.id ?? selectedId);
-      onError(null);
-    } catch (error) {
-      onError(error instanceof Error ? error.message : "Could not import evidence scenarios.");
-    }
   }
 
   function exportJson(): void {
@@ -249,10 +244,16 @@ function HclEvidenceScenarioEditor({
         </div>
         <div className="hcleditor__scenario-toolbar">
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addScenario}>Add scenario</button>}
-          {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => importRef.current?.click()}>Import JSON/CSV</button>}
-          <button type="button" className="posnav__btn posnav__btn--sm" disabled={scenarios.length === 0} onClick={exportJson}>Export JSON</button>
-          <button type="button" className="posnav__btn posnav__btn--sm" disabled={scenarios.length === 0} onClick={exportCsv}>Export CSV</button>
-          <input ref={importRef} hidden type="file" accept=".json,.csv,application/json,text/csv" onChange={(event) => { void importScenarios(event); }} />
+          <details ref={exportMenuRef} className="hcleditor__download-menu hcleditor__scenario-export-menu">
+            <summary className="posnav__btn posnav__btn--sm" role="button" aria-disabled={scenarios.length === 0} onClick={(event) => { if (scenarios.length === 0) event.preventDefault(); }}>
+              <span>Export</span>
+              <svg viewBox="0 0 12 8" aria-hidden="true"><path d="m1 1 5 5 5-5" /></svg>
+            </summary>
+            <div className="hcleditor__download-popover" role="menu" aria-label="Evidence scenario export formats">
+              <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); exportJson(); }}>JSON</button>
+              <button type="button" role="menuitem" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); exportCsv(); }}>CSV</button>
+            </div>
+          </details>
         </div>
       </div>
       {scenarios.length === 0 ? (
@@ -303,7 +304,7 @@ function HclEvidenceScenarioEditor({
           )}
         </div>
       )}
-      <section className="hcleditor__hazard-grid" aria-label="Hazard convolution settings">
+      {showHazardConvolution && <section className="hcleditor__hazard-grid" aria-label="Hazard convolution settings">
         <div className="hcleditor__hazard-grid-heading">
           <div>
             <strong>Hazard convolution</strong>
@@ -369,7 +370,7 @@ function HclEvidenceScenarioEditor({
             })}</div></fieldset>
           </div>
         )}
-      </section>
+      </section>}
     </div>
   );
 }

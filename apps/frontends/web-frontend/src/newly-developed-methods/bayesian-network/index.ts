@@ -25,4 +25,9 @@ export {
   deleteBayesianNetworkModuleTemplate,
   instantiateBayesianNetworkModule,
 } from "./bayesianNetworkModules";
-export type { BayesianNetworkEditorProps, BayesianNetworkFaultTreeOption } from "./bayesianNetworkTypes";
+export type {
+  BayesianNetworkEditorProps,
+  BayesianNetworkFaultTreeOption,
+  BayesianNetworkQueryBatchResult,
+  BayesianNetworkQueryBatchRow,
+} from "./bayesianNetworkTypes";

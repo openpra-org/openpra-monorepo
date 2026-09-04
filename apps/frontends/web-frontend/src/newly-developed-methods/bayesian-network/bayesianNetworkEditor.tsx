@@ -1,4 +1,5 @@
 import {
+  type ChangeEvent,
   type JSX,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -10,6 +11,7 @@ import {
 import type {
   BayesianNetworkCptRow,
   BayesianNetworkEvidenceConfiguration,
+  HclEvidenceScenario,
   BayesianNetworkModuleTemplate,
   BayesianNetworkNode,
 } from "interfaces-mef-types/modeling";
@@ -44,6 +46,12 @@ import {
 import type { BayesianNetworkEditorProps } from "./bayesianNetworkTypes";
 import { useEditorConfirmation } from "../shared";
 import { HclBindingEditor } from "../hybrid-causal-logic";
+import {
+  exportHclEvidenceScenariosCsv,
+  exportHclEvidenceScenariosJson,
+  importHclEvidenceScenariosCsv,
+  importHclEvidenceScenariosJson,
+} from "../hybrid-causal-logic/hclEvidenceScenarioInterchange";
 import { useToast } from "../../toast/toastProvider";
 import "./css/bayesianNetwork.css";
 
@@ -172,6 +180,23 @@ function download(filename: string, text: string, type: string): void {
   URL.revokeObjectURL(url);
 }
 
+function createQueryBatchSamples(model: BayesianNetworkModel): HclEvidenceScenario[] {
+  const sampleNodes = model.nodes.filter((node) => node.states.length > 0).slice(0, 3);
+  if (sampleNodes.length === 0) return [];
+  return [0, 1].map((scenarioIndex) => ({
+    id: newId(),
+    code: `SAMPLE-${String(scenarioIndex + 1).padStart(2, "0")}`,
+    name: `Sample evidence ${String(scenarioIndex + 1)}`,
+    enabled: true,
+    evidence: {
+      observations: sampleNodes.map((node) => ({
+        nodeId: node.id,
+        stateId: node.states[scenarioIndex % node.states.length]!.id,
+      })),
+    },
+  }));
+}
+
 function cptDraftKey(rowId: string, stateId: string): string {
   return `${rowId}:${stateId}`;
 }
@@ -223,6 +248,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     queryNodeId,
     validation,
     analysisResult,
+    queryBatchResult = null,
     running,
     runError,
     workbookId,
@@ -242,6 +268,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     onRunHclFaultTreeBatch,
     onRunHclEventTreeBatch,
     onRun,
+    onRunBatch,
   } = props;
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(model.nodes[0]?.id ?? null);
   const [displayZoom, setDisplayZoom] = useState(() => clampZoom(model.layout.viewport.zoom));
@@ -257,14 +284,19 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
   const future = useRef<BayesianNetworkModel[]>([]);
   const importRef = useRef<HTMLInputElement>(null);
   const moduleMenuRef = useRef<HTMLDetailsElement>(null);
+  const queryBatchSampleMenuRef = useRef<HTMLDetailsElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const stageContentRef = useRef<HTMLDivElement>(null);
   const nodeShellRefs = useRef(new Map<string, HTMLDivElement>());
   const [nodeHeights, setNodeHeights] = useState<Record<string, number>>({});
-  const [analysisMode, setAnalysisMode] = useState<"QUERY" | "HCL">(
-    showQueryAnalysis ? "QUERY" : "HCL",
+  const [calculationType, setCalculationType] = useState<"BN_QUERY" | "PROBABILITY" | "CUT_SETS" | "UNCERTAINTY" | "IMPORTANCE">(
+    showQueryAnalysis ? "BN_QUERY" : "PROBABILITY",
   );
+  const [quantificationWorkflow, setQuantificationWorkflow] = useState<"MANUAL" | "BATCH" | null>(null);
+  const [queryBatchScenarios, setQueryBatchScenarios] = useState<HclEvidenceScenario[]>([]);
+  const [queryBatchError, setQueryBatchError] = useState<string | null>(null);
+  const queryBatchImportRef = useRef<HTMLInputElement>(null);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [evidenceSearch, setEvidenceSearch] = useState("");
   const [moduleDrafts, setModuleDrafts] = useState<Record<string, ModuleInstanceDraft>>({});
@@ -294,6 +326,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
       || node.name.toLowerCase().includes(query),
     );
   }, [evidenceSearch, model.nodes]);
+  const queryBatchSamples = useMemo(() => createQueryBatchSamples(model), [model.nodes]);
 
   useEffect(() => {
     if (modelIdRef.current === model.modelId) return;
@@ -335,10 +368,6 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     )));
   }, [model.nodes]);
   useEffect(() => {
-    if (!showQueryAnalysis && showHclAnalysis) setAnalysisMode("HCL");
-    if (!showHclAnalysis && showQueryAnalysis) setAnalysisMode("QUERY");
-  }, [showHclAnalysis, showQueryAnalysis]);
-  useEffect(() => {
     if (typeof ResizeObserver === "undefined") return undefined;
     const observer = new ResizeObserver((entries) => {
       setNodeHeights((current) => {
@@ -376,24 +405,30 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     };
   }, [edgeContextMenu]);
   useEffect(() => {
-    const closeModuleMenu = (event: PointerEvent): void => {
-      const menu = moduleMenuRef.current;
-      if (
-        menu?.open === true
-        && event.target instanceof Node
-        && !menu.contains(event.target)
-      ) menu.open = false;
-    };
-    const closeModuleMenuOnEscape = (event: KeyboardEvent): void => {
-      if (event.key === "Escape" && moduleMenuRef.current !== null) {
-        moduleMenuRef.current.open = false;
+    const menus = (): Array<HTMLDetailsElement | null> => [
+      moduleMenuRef.current,
+      queryBatchSampleMenuRef.current,
+    ];
+    const closeMenus = (event: PointerEvent): void => {
+      for (const menu of menus()) {
+        if (
+          menu?.open === true
+          && event.target instanceof Node
+          && !menu.contains(event.target)
+        ) menu.open = false;
       }
     };
-    window.addEventListener("pointerdown", closeModuleMenu);
-    window.addEventListener("keydown", closeModuleMenuOnEscape);
+    const closeMenusOnEscape = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape") return;
+      for (const menu of menus()) {
+        if (menu !== null) menu.open = false;
+      }
+    };
+    window.addEventListener("pointerdown", closeMenus);
+    window.addEventListener("keydown", closeMenusOnEscape);
     return () => {
-      window.removeEventListener("pointerdown", closeModuleMenu);
-      window.removeEventListener("keydown", closeModuleMenuOnEscape);
+      window.removeEventListener("pointerdown", closeMenus);
+      window.removeEventListener("keydown", closeMenusOnEscape);
     };
   }, []);
 
@@ -962,6 +997,37 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     }
   }
 
+  async function importQueryBatch(event: ChangeEvent<HTMLInputElement>): Promise<void> {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file === undefined) return;
+    try {
+      const source = await file.text();
+      const imported = file.name.toLowerCase().endsWith(".csv")
+        ? importHclEvidenceScenariosCsv(source, model)
+        : importHclEvidenceScenariosJson(source, model);
+      setQueryBatchScenarios(imported.filter((scenario) => scenario.enabled));
+      setQueryBatchError(null);
+    } catch (error) {
+      setQueryBatchScenarios([]);
+      setQueryBatchError(error instanceof Error ? error.message : "Could not import the evidence batch.");
+    }
+  }
+
+  function downloadQueryBatchSample(format: "JSON" | "CSV"): void {
+    if (queryBatchSamples.length === 0) {
+      setQueryBatchError("Add at least one node with a state before downloading a sample.");
+      return;
+    }
+    setQueryBatchError(null);
+    const filename = `${model.code || "bayesian-network"}-evidence-sample.${format.toLowerCase()}`;
+    if (format === "JSON") {
+      download(filename, exportHclEvidenceScenariosJson(queryBatchSamples, model), "application/json");
+      return;
+    }
+    download(filename, exportHclEvidenceScenariosCsv(queryBatchSamples, model), "text/csv");
+  }
+
   const graphPositions = new Map(model.nodes.map((node, index) => {
     const position = drag?.nodeId === node.id
       ? { x: drag.x, y: drag.y }
@@ -984,6 +1050,51 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
   );
   const quantificationBlocked = hasCptDraftErrors
     || nonHclIssues.some((issue) => issue.severity === "ERROR");
+
+  function renderEvidenceEditor(): JSX.Element {
+    return (
+      <div className="bneditor__evidence-popover" role="dialog" aria-label="Evidence editor">
+        <div className="bneditor__evidence-popover-head">
+          <label>
+            <span>Find a node</span>
+            <input type="search" aria-label="Search evidence nodes" placeholder="Search by code or name" value={evidenceSearch} onChange={(event) => setEvidenceSearch(event.target.value)} />
+          </label>
+          <button type="button" className="posnav__btn posnav__btn--sm bneditor__evidence-close" onClick={() => setEvidenceOpen(false)}>Close</button>
+        </div>
+        <div className="bneditor__evidence-editor">
+          {evidenceNodes.map((node) => {
+            const observation = evidence.observations.find((candidate) => candidate.nodeId === node.id);
+            return (
+              <label key={node.id}>
+                <span>{node.code}</span>
+                <select aria-label={`Evidence for ${node.code}`} value={observation?.stateId ?? ""} disabled={!editable} onChange={(event) => onEvidenceChange({
+                  observations: [
+                    ...evidence.observations.filter((candidate) => candidate.nodeId !== node.id),
+                    ...(event.target.value === "" ? [] : [{ nodeId: node.id, stateId: event.target.value }]),
+                  ],
+                })}>
+                  <option value="">No evidence</option>
+                  {node.states.map((state) => <option key={state.id} value={state.id}>{state.code}</option>)}
+                </select>
+              </label>
+            );
+          })}
+          {evidenceNodes.length === 0 && <p className="bneditor__empty">No matching nodes.</p>}
+        </div>
+      </div>
+    );
+  }
+
+  useEffect(() => {
+    if (calculationType === "BN_QUERY" && !showQueryAnalysis) {
+      setCalculationType("PROBABILITY");
+      setQuantificationWorkflow(null);
+    }
+    if (calculationType !== "BN_QUERY" && !showHclAnalysis) {
+      setCalculationType("BN_QUERY");
+      setQuantificationWorkflow(null);
+    }
+  }, [calculationType, showHclAnalysis, showQueryAnalysis]);
 
   function clearNodeSelectionFromCanvas(event: ReactMouseEvent<HTMLDivElement>): void {
     const target = event.target;
@@ -1400,112 +1511,194 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
       )}
 
       {showAnalysis && (showQueryAnalysis || showHclAnalysis) && <section className="bneditor__analysis" aria-label="Bayesian-network analysis">
-        {evidenceOpen && (
-          <div className="bneditor__evidence-popover" role="dialog" aria-label="Evidence editor">
-            <div className="bneditor__evidence-popover-head">
-              <label>
-                <span>Find a node</span>
-                <input type="search" aria-label="Search evidence nodes" placeholder="Search by code or name" value={evidenceSearch} onChange={(event) => setEvidenceSearch(event.target.value)} />
-              </label>
-              <button type="button" className="posnav__btn posnav__btn--sm bneditor__evidence-close" onClick={() => setEvidenceOpen(false)}>Close</button>
-            </div>
-            <div className="bneditor__evidence-editor">
-              {evidenceNodes.map((node) => {
-                const observation = evidence.observations.find((candidate) => candidate.nodeId === node.id);
-                return (
-                  <label key={node.id}>
-                    <span>{node.code}</span>
-                    <select aria-label={`Evidence for ${node.code}`} value={observation?.stateId ?? ""} disabled={!editable} onChange={(event) => onEvidenceChange({
-                      observations: [
-                        ...evidence.observations.filter((candidate) => candidate.nodeId !== node.id),
-                        ...(event.target.value === "" ? [] : [{ nodeId: node.id, stateId: event.target.value }]),
-                      ],
-                    })}>
-                      <option value="">No evidence</option>
-                      {node.states.map((state) => <option key={state.id} value={state.id}>{state.code}</option>)}
-                    </select>
+        <div className="bneditor__quantification-shell">
+          <fieldset className="bneditor__calculation-picker">
+            <legend>Calculation</legend>
+            <div role="radiogroup" aria-label="Calculation type">
+              {showQueryAnalysis && (
+                <label className={calculationType === "BN_QUERY" ? "is-selected" : ""}>
+                  <input type="radio" name="bn-calculation" value="BN_QUERY" checked={calculationType === "BN_QUERY"} onChange={() => { setCalculationType("BN_QUERY"); setQuantificationWorkflow(null); }} />
+                  <span>BN query</span>
+                </label>
+              )}
+              {showHclAnalysis && (
+                <>
+                  <label className={calculationType === "PROBABILITY" ? "is-selected" : ""}>
+                    <input type="radio" name="bn-calculation" value="PROBABILITY" checked={calculationType === "PROBABILITY"} onChange={() => { setCalculationType("PROBABILITY"); setQuantificationWorkflow(null); }} />
+                    <span>Probability</span>
                   </label>
-                );
-              })}
-              {evidenceNodes.length === 0 && <p className="bneditor__empty">No matching nodes.</p>}
+                  <label className={calculationType === "CUT_SETS" ? "is-selected" : ""}>
+                    <input type="radio" name="bn-calculation" value="CUT_SETS" checked={calculationType === "CUT_SETS"} onChange={() => { setCalculationType("CUT_SETS"); setQuantificationWorkflow(null); }} />
+                    <span>Cut sets</span>
+                  </label>
+                  <label className={calculationType === "UNCERTAINTY" ? "is-selected" : ""}>
+                    <input type="radio" name="bn-calculation" value="UNCERTAINTY" checked={calculationType === "UNCERTAINTY"} onChange={() => { setCalculationType("UNCERTAINTY"); setQuantificationWorkflow(null); }} />
+                    <span>Uncertainty</span>
+                  </label>
+                  <label className={calculationType === "IMPORTANCE" ? "is-selected" : ""}>
+                    <input type="radio" name="bn-calculation" value="IMPORTANCE" checked={calculationType === "IMPORTANCE"} onChange={() => { setCalculationType("IMPORTANCE"); setQuantificationWorkflow(null); }} />
+                    <span>Importance</span>
+                  </label>
+                </>
+              )}
             </div>
-          </div>
-        )}
+          </fieldset>
 
-        <div className="bneditor__analysis-tabs" role="tablist" aria-label="Analysis mode">
-          {showQueryAnalysis && <button type="button" role="tab" aria-selected={analysisMode === "QUERY"} className={analysisMode === "QUERY" ? "is-active" : ""} onClick={() => setAnalysisMode("QUERY")}>BN query</button>}
-          {showHclAnalysis && <button type="button" role="tab" aria-selected={analysisMode === "HCL"} className={analysisMode === "HCL" ? "is-active" : ""} onClick={() => setAnalysisMode("HCL")}>HCL quantification</button>}
-        </div>
-
-        {showQueryAnalysis && <div role="tabpanel" aria-label="BN query" hidden={analysisMode !== "QUERY"}>
-          <div className="bneditor__query-composer">
-            <label className="bneditor__query-target">
-              <span>Query node</span>
-              <select aria-label="Bayesian-network query node" value={queryNodeId ?? ""} onChange={(event) => onQueryNodeChange(event.target.value || null)}>
-                <option value="">Choose a node</option>
-                {model.nodes.map((node) => <option key={node.id} value={node.id}>{node.code}</option>)}
-              </select>
-            </label>
-            <div className="bneditor__query-actions">
-              <button
-                type="button"
-                className="posnav__btn posnav__btn--sm bneditor__evidence-trigger"
-                aria-label="Edit evidence"
-                aria-expanded={evidenceOpen}
-                onClick={() => setEvidenceOpen((open) => !open)}
-              >
-                <EditorIcon name="evidence" />
-                <span>Evidence</span>
-                {evidence.observations.length > 0 && <b>{String(evidence.observations.length)}</b>}
-              </button>
-              <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary bneditor__query-submit" aria-label="Run exact inference" disabled={running || queryNodeId === null || quantificationBlocked} onClick={onRun}>
-                <EditorIcon name="run" />
-                <span>{running ? "Running…" : "Run inference"}</span>
-              </button>
+          <fieldset className="bneditor__workflow-picker">
+            <legend>Workflow</legend>
+            <div role="radiogroup" aria-label="Quantification workflow">
+              <label className={quantificationWorkflow === "MANUAL" ? "is-selected" : ""}>
+                <input type="radio" name="bn-workflow" value="MANUAL" checked={quantificationWorkflow === "MANUAL"} onChange={() => setQuantificationWorkflow("MANUAL")} />
+                <span>Manual</span>
+              </label>
+              <label className={quantificationWorkflow === "BATCH" ? "is-selected" : ""}>
+                <input type="radio" name="bn-workflow" value="BATCH" checked={quantificationWorkflow === "BATCH"} onChange={() => setQuantificationWorkflow("BATCH")} />
+                <span>Batch</span>
+              </label>
             </div>
-          </div>
-          {runError !== null && <p className="bneditor__error" role="alert">{runError}</p>}
-          {analysisResult !== null && (
-            <div className="bneditor__posterior" aria-label="Posterior distribution">
-              {analysisResult.marginals.flatMap((marginal) => {
-                const node = nodeById.get(marginal.nodeId);
-                return marginal.values.map((value) => (
-                  <div key={`${marginal.nodeId}:${value.stateId}`} className="bneditor__posterior-state">
-                    <span>{node?.states.find((state) => state.id === value.stateId)?.code ?? value.stateId}</span>
-                    <output>{(value.probability * 100).toFixed(2)}%</output>
-                    <i aria-hidden="true"><b style={{ width: `${String(Math.max(0, Math.min(1, value.probability)) * 100)}%` }} /></i>
+          </fieldset>
+
+          {calculationType === "BN_QUERY" && showQueryAnalysis && quantificationWorkflow !== null && (
+            <section className="bneditor__calculation-workspace" aria-label="BN query">
+              <div className={`bneditor__query-composer${quantificationWorkflow === "MANUAL" ? " bneditor__manual-column" : " bneditor__query-composer--batch"}`}>
+                <label className="bneditor__query-target">
+                  <span>Query node</span>
+                  <select aria-label="Bayesian-network query node" value={queryNodeId ?? ""} onChange={(event) => onQueryNodeChange(event.target.value || null)}>
+                    <option value="">Choose a node</option>
+                    {model.nodes.map((node) => <option key={node.id} value={node.id}>{node.code}</option>)}
+                  </select>
+                </label>
+                {quantificationWorkflow === "MANUAL" ? (
+                  <div className="bneditor__query-actions">
+                    <div className="bneditor__evidence-anchor">
+                      <button
+                        type="button"
+                        className="posnav__btn posnav__btn--sm bneditor__evidence-trigger"
+                        aria-label="Edit evidence"
+                        aria-expanded={evidenceOpen}
+                        onClick={() => setEvidenceOpen((open) => !open)}
+                      >
+                        <EditorIcon name="evidence" />
+                        <span>Evidence</span>
+                        {evidence.observations.length > 0 && <b>{String(evidence.observations.length)}</b>}
+                      </button>
+                      {evidenceOpen && renderEvidenceEditor()}
+                    </div>
+                    <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary bneditor__query-submit" aria-label="Run exact inference" disabled={running || queryNodeId === null || quantificationBlocked} onClick={onRun}>
+                      <EditorIcon name="run" />
+                      <span>{running ? "Running…" : "Run inference"}</span>
+                    </button>
                   </div>
-                ));
-              })}
-            </div>
+                ) : (
+                  <div className="bneditor__batch-intake">
+                    <input ref={queryBatchImportRef} hidden type="file" accept=".json,.csv,application/json,text/csv" aria-label="Upload BN evidence batch" onChange={(event) => { void importQueryBatch(event); }} />
+                    <button type="button" className="posnav__btn posnav__btn--sm bneditor__batch-upload" aria-label="Upload JSON/CSV" onClick={() => queryBatchImportRef.current?.click()}>
+                      <span>Upload JSON/CSV</span>
+                      {queryBatchScenarios.length > 0 && <b>{String(queryBatchScenarios.length)}</b>}
+                    </button>
+                    <details ref={queryBatchSampleMenuRef} className="bneditor__batch-sample-menu">
+                      <summary className="posnav__btn posnav__btn--sm" role="button">
+                        <span>Download samples</span>
+                        <svg className="bneditor__batch-sample-chevron" viewBox="0 0 12 8" aria-hidden="true">
+                          <path d="m1 1 5 5 5-5" />
+                        </svg>
+                      </summary>
+                      <div className="bneditor__batch-sample-popover" role="menu" aria-label="BN query batch samples">
+                        <button type="button" role="menuitem" onClick={(event) => {
+                          event.currentTarget.closest("details")?.removeAttribute("open");
+                          downloadQueryBatchSample("JSON");
+                        }}>Sample JSON</button>
+                        <button type="button" role="menuitem" onClick={(event) => {
+                          event.currentTarget.closest("details")?.removeAttribute("open");
+                          downloadQueryBatchSample("CSV");
+                        }}>Sample CSV</button>
+                      </div>
+                    </details>
+                    <button
+                      type="button"
+                      className="posnav__btn posnav__btn--sm posnav__btn--primary"
+                      disabled={running || queryNodeId === null || quantificationBlocked || queryBatchScenarios.length === 0 || onRunBatch === undefined}
+                      onClick={() => onRunBatch?.(queryBatchScenarios)}
+                    >
+                      <EditorIcon name="run" />
+                      <span>{running ? "Running…" : "Run batch"}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+              {(runError ?? queryBatchError) !== null && <p className="bneditor__error" role="alert">{runError ?? queryBatchError}</p>}
+              {quantificationWorkflow === "MANUAL" && analysisResult !== null && (
+                <div className="bneditor__posterior" aria-label="Posterior distribution">
+                  {analysisResult.marginals.flatMap((marginal) => {
+                    const node = nodeById.get(marginal.nodeId);
+                    return marginal.values.map((value) => (
+                      <div key={`${marginal.nodeId}:${value.stateId}`} className="bneditor__posterior-state">
+                        <span>{node?.states.find((state) => state.id === value.stateId)?.code ?? value.stateId}</span>
+                        <output>{(value.probability * 100).toFixed(2)}%</output>
+                        <i aria-hidden="true"><b style={{ width: `${String(Math.max(0, Math.min(1, value.probability)) * 100)}%` }} /></i>
+                      </div>
+                    ));
+                  })}
+                </div>
+              )}
+              {quantificationWorkflow === "BATCH" && queryBatchResult !== null && (
+                <div className="bneditor__query-batch-results" aria-label="BN query batch results">
+                  {queryBatchResult.scenarios.map((scenario) => (
+                    <details key={scenario.scenarioId} className="bneditor__query-batch-row">
+                      <summary><strong>{scenario.scenarioCode}</strong><span>{scenario.status === "SUCCEEDED" ? "Complete" : "Failed"}</span></summary>
+                      {scenario.failure !== null && <p className="bneditor__error">{scenario.failure}</p>}
+                      {scenario.result !== null && (
+                        <div className="bneditor__posterior">
+                          {scenario.result.marginals.flatMap((marginal) => {
+                            const node = nodeById.get(marginal.nodeId);
+                            return marginal.values.map((value) => (
+                              <div key={`${scenario.scenarioId}:${marginal.nodeId}:${value.stateId}`} className="bneditor__posterior-state">
+                                <span>{node?.states.find((state) => state.id === value.stateId)?.code ?? value.stateId}</span>
+                                <output>{(value.probability * 100).toFixed(2)}%</output>
+                                <i aria-hidden="true"><b style={{ width: `${String(Math.max(0, Math.min(1, value.probability)) * 100)}%` }} /></i>
+                              </div>
+                            ));
+                          })}
+                        </div>
+                      )}
+                    </details>
+                  ))}
+                </div>
+              )}
+            </section>
           )}
-        </div>}
 
-        {showHclAnalysis && <div role="tabpanel" aria-label="HCL quantification" hidden={analysisMode !== "HCL"}>
-          <HclBindingEditor
-            model={model}
-            editable={editable}
-            workbookId={workbookId}
-            configurations={hclConfigurations}
-            scope={hclScope}
-            faultTreeOptions={faultTreeOptions}
-            eventTreeOptions={eventTreeOptions}
-            baseEvidence={evidence}
-            validation={hclIssues}
-            quantificationBlocked={quantificationBlocked}
-            running={hclRunning}
-            runError={hclRunError}
-            runResult={hclRunResult}
-            batchRunResult={hclBatchRunResult}
-            evidenceEditorOpen={evidenceOpen}
-            onEditEvidence={() => setEvidenceOpen((open) => !open)}
-            onChange={onHclConfigurationsChange}
-            onRunFaultTree={onRunHclFaultTree}
-            onRunEventTree={onRunHclEventTree}
-            onRunFaultTreeBatch={onRunHclFaultTreeBatch}
-            onRunEventTreeBatch={onRunHclEventTreeBatch}
-          />
-        </div>}
+          {calculationType !== "BN_QUERY" && showHclAnalysis && quantificationWorkflow !== null && (
+            <section className="bneditor__calculation-workspace" aria-label={`${calculationType.toLowerCase()} calculation`}>
+              <HclBindingEditor
+                model={model}
+                editable={editable}
+                workbookId={workbookId}
+                configurations={hclConfigurations}
+                scope={hclScope}
+                faultTreeOptions={faultTreeOptions}
+                eventTreeOptions={eventTreeOptions}
+                baseEvidence={evidence}
+                validation={hclIssues}
+                quantificationBlocked={quantificationBlocked}
+                running={hclRunning}
+                runError={hclRunError}
+                runResult={hclRunResult}
+                batchRunResult={hclBatchRunResult}
+                evidenceEditorOpen={evidenceOpen}
+                evidenceEditor={evidenceOpen ? renderEvidenceEditor() : null}
+                calculationType={calculationType}
+                workflow={quantificationWorkflow}
+                onEditEvidence={() => setEvidenceOpen((open) => !open)}
+                onChange={onHclConfigurationsChange}
+                onRunFaultTree={onRunHclFaultTree}
+                onRunEventTree={onRunHclEventTree}
+                onRunFaultTreeBatch={onRunHclFaultTreeBatch}
+                onRunEventTreeBatch={onRunHclEventTreeBatch}
+              />
+            </section>
+          )}
+        </div>
       </section>}
 
       {nonHclIssues.length > 0 && (

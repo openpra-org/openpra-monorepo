@@ -9,9 +9,7 @@ pub struct Element {
 }
 
 impl Element {
-
     pub fn new(id: String) -> Result<Self> {
-
         if id.is_empty() {
             return Err(PraxisError::Logic(
                 "The element name cannot be empty".to_string(),

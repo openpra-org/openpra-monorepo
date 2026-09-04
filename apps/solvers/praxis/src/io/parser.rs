@@ -574,7 +574,6 @@ fn operand_name(e: &BytesStart) -> Result<Option<String>> {
                 let attr =
                     attr.map_err(|err| MefError::Validity(format!("Invalid attribute: {}", err)))?;
                 if attr.key.as_ref() == b"name" {
-
                     let name = attr.unescape_value().map_err(|err| {
                         MefError::Validity(format!("Invalid name attribute: {}", err))
                     })?;
@@ -738,11 +737,9 @@ pub fn parse_gate<R: BufRead>(reader: &mut Reader<R>, name: &str) -> Result<Vec<
             gate
         }
         None => {
-            return Err(MefError::Validity(format!(
-                "Missing gate formula for gate {}",
-                name
-            ))
-            .into())
+            return Err(
+                MefError::Validity(format!("Missing gate formula for gate {}", name)).into(),
+            )
         }
     };
     let mut out = Vec::with_capacity(1 + synthetic.len());
@@ -773,7 +770,6 @@ pub fn parse_ccf_group<R: BufRead>(
                             })?;
 
                             if attr.key.as_ref() == b"name" {
-
                                 let member_name = attr.unescape_value().map_err(|_| {
                                     MefError::Validity("Invalid member name".to_string())
                                 })?;
@@ -1003,9 +999,7 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
                                 parameter_name = Some(
                                     attr.unescape_value()
                                         .map_err(|_| {
-                                            MefError::Validity(
-                                                "Invalid parameter name".to_string(),
-                                            )
+                                            MefError::Validity("Invalid parameter name".to_string())
                                         })?
                                         .into_owned(),
                                 );
@@ -1332,7 +1326,10 @@ mod tests {
         }
         let (_bdd, root) =
             crate::algorithms::bdd_engine::Bdd::from_pdag_with_order(&pdag, &var_of).unwrap();
-        assert!(!root.is_true(), "inline not must not collapse to constant true");
+        assert!(
+            !root.is_true(),
+            "inline not must not collapse to constant true"
+        );
         assert!(!root.is_false());
     }
 

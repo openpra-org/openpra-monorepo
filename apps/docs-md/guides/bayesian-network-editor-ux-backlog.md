@@ -2,9 +2,7 @@
 
 ## Purpose
 
-This document pauses the current dependency-workbook refactor and establishes the work that remains before changing the appearance of the Bayesian-network (BN) and dependency sections in Systems Analysis (SY) and Event Sequence Quantification (ESQ).
-
-The next design must begin with the analyst's workflow. Styling should be changed only after the interaction inventory below has been reviewed and corrected with user feedback.
+This document tracks the work that remains for the Bayesian-network (BN) and dependency sections in Systems Analysis (SY) and Event Sequence Quantification (ESQ). Completed ownership, layout, linked-model discovery, analysis, and result-presentation work has been removed from the backlog.
 
 ## Working rules
 
@@ -15,38 +13,24 @@ The next design must begin with the analyst's workflow. Styling should be change
 - Place controls according to their scope: network actions, canvas actions, node actions, evidence, analysis, and results must not be mixed together.
 - Prefer progressive disclosure. Common actions should be immediately understandable, while CPT details, batch evidence, HCL settings, and provenance may open only when needed.
 - Keep old workbooks usable while ownership and storage are migrated.
-- Do not begin the SY/ESQ visual redesign until the interaction inventory is accepted.
 
 ## Remaining tasks
 
-### Immediate BN usability work
+### BN usability verification
 
-- [ ] Review and approve the complete BN interaction inventory in this document.
-- [ ] Decide the final responsibility split between SY and ESQ, including where a BN is edited, where FT bindings are edited, and whether ESQ presents the same network as editable or read-only.
-- [ ] Define the information architecture for the SY and ESQ dependency sections.
-- [ ] Decide which controls belong in the page header, editor toolbar, canvas, node context menu, inspector, evidence area, and analysis-results area.
-- [ ] Produce a compact UX specification or wireframe for the empty, editing, validation, running, result, failure, and read-only states.
-- [ ] Apply the approved interaction and visual design to the canonical BN editor.
-- [ ] Apply surface-specific capabilities to SY and ESQ without creating another BN editor.
-- [ ] Verify the full workflow manually with small and large networks at wide and narrow viewport sizes.
+- [ ] Finish reviewing the remaining interactions in the BN manual-test guide.
+- [ ] Verify the empty, editing, validation, running, result, failure, and read-only states in both SY and ESQ.
+- [ ] Verify complete workflows with small and genuinely large networks at wide and narrow viewport sizes.
 - [ ] Add focused browser regressions for the accepted interactions and layouts.
 
-### Paused dependency ownership work
+### Dependency ownership migration
 
-- [ ] Reconcile the in-progress SY-owned FT dependency configuration and ESQ ET-orchestration work with the approved UX.
-- [ ] Define an automatic migration for existing ESQ-owned BN/HCL data instead of requiring users to reload examples or rebuild configurations.
-- [ ] Ensure an ET always exposes the fault trees reached through its functional events and transfer chains.
-- [ ] Define what ESQ should show when a BN exists but no applicable FT binding or HCL configuration exists.
-- [ ] Verify that SY and ESQ never present competing editable copies of the same dependency model.
-- [ ] Verify single-scenario, batch, and hazard-convolution runs after the ownership design is finalized.
-- [ ] Verify immutable run provenance when SY owns the dependency configuration and ESQ orchestrates an ET run.
+- [ ] Automatically migrate existing ESQ-owned BN/HCL data to the SY-owned dependency model without requiring users to reload examples or rebuild configurations.
 
-### Reusable BN modules
+### Reusable BN module hardening
 
-- [ ] Review the current reusable-module implementation through an analyst workflow rather than only through unit tests.
-- [ ] Confirm the terminology for templates, instances, exposed inputs, and instance bindings.
-- [ ] Confirm how module changes propagate to instances and how incompatible changes are reported.
-- [ ] Decide whether users may detach an instance into ordinary nodes and how that affects traceability.
+- [ ] Define how module-template changes propagate to existing instances and how incompatible changes are reported.
+- [ ] Decide whether users may detach an instance into ordinary nodes and how detachment affects traceability.
 - [ ] Validate module import/export and submodel preservation with representative XDSL files.
 - [ ] Add a large-model interaction test using multiple module instances.
 
@@ -54,9 +38,7 @@ The next design must begin with the analyst's workflow. Styling should be change
 
 - [ ] Detect independent dependency components automatically so unrelated BN regions can be compiled and solved separately.
 - [ ] Add scale, numerical-parity, typed-frequency, and dissertation-source regression suites.
-- [ ] Add HCL uncertainty-quantification inputs and outputs if they remain in product scope.
-- [ ] Add HCL-aware cut sets that reflect dependent BN states rather than reporting only independent FT cut sets.
-- [ ] Add HCL importance and sensitivity results if they remain in product scope.
+- [ ] Add the remaining HCL sensitivity results if they remain in product scope.
 
 ### Workbook connection and hardening backlog
 
@@ -135,7 +117,8 @@ A person may move between these modes during one workflow, subject to workbook p
 4. Review missing, contradictory, or unusable bindings.
 5. Define common evidence, optional evidence scenarios, and applicable solver settings.
 6. Select a top event and run HCL quantification.
-7. See the top-event probability and enough context to know which BN, evidence, FT, and revision produced it.
+7. See the top-event probability and structural minimal cut sets quantified under the selected BN evidence.
+8. Expand a cut set to inspect its BN conditions, ancestors, and root causes without changing its structural FT identity.
 
 ### 6. Quantify an ET dependency in ESQ
 
@@ -146,8 +129,9 @@ A person may move between these modes during one workflow, subject to workbook p
 5. Choose common evidence, scenarios, or a hazard grid.
 6. Run HCL ET quantification without manually reselecting fault trees already linked by the ET.
 7. See every sequence's conditional probability and annual frequency.
-8. See end-state aggregates and leading contributors where available.
-9. Confirm that success, failure, and bypassed functional events are represented correctly.
+8. Inspect sequence-level HCL cut sets, including complemented success literals and omitted bypassed events.
+9. See end-state aggregates and leading contributors where available.
+10. Confirm that success, failure, and bypassed functional events are represented correctly.
 
 ### 7. Run many evidence cases
 
@@ -206,9 +190,12 @@ A person may move between these modes during one workflow, subject to workbook p
 | Exact query | Select a query node and run | Validate the BN and return its posterior distribution | State probabilities |
 | FT inclusion | Select an FT in SY | Show its code, top event, and relevant basic events | FT reference |
 | HCL binding | Map an FT basic event to BN occurrence states | Reject zero or all states and show the mapping in plain language | Typed HCL binding |
+| HCL uncertainty | Assign a distribution to an unbound FT basic event or a Dirichlet effective sample size to a BN CPT row | Validate the source, sample count, and seed before execution | PRAXIS uncertainty settings |
 | ET selection | Select an ET in ESQ | Derive and display linked FTs and transfer targets automatically | ET and FT references |
 | HCL FT run | Quantify a top event | Return dependency-aware top-event probability and run metadata | FT HCL result |
 | HCL ET run | Quantify an event tree | Return sequence probabilities, annual frequencies, and end-state aggregates | ET HCL result |
+| HCL cut sets | Expand a completed HCL result | Show structural literals, exact PRAXIS joint probability, coverage, BN conditions, ancestors, and root causes | HCL cut-set analysis |
+| HCL uncertainty results | Run HCL with uncertainty enabled | Show mean, standard deviation, and 5th, 50th, and 95th percentiles for FT probabilities or ET annual frequencies | Sampled PRAXIS result summary |
 | Results | Expand result details | Keep a compact summary first and reveal tables or provenance on demand | Analysis result |
 | Validation | Select a finding | Focus the affected node, edge, CPT, binding, scenario, or target | Validation issue |
 | Save | Pause after an edit or leave a field | Persist a minimal revisioned patch and expose saving, saved, or conflict status | Workbook revision |
@@ -230,6 +217,7 @@ A person may move between these modes during one workflow, subject to workbook p
 - Common evidence or many evidence scenarios through UI, JSON, or CSV.
 - Hazard-grid dimensions, weights, and annual-frequency semantics where applicable.
 - FT basic-event-to-BN-state bindings.
+- Optional basic-event probability distributions and BN CPT-row effective sample sizes, plus sample count and seed.
 - The FT top event or ET target when it is not already implied by the host workflow.
 - Solver settings that are genuinely necessary for the supported calculation.
 
@@ -238,6 +226,8 @@ A person may move between these modes during one workflow, subject to workbook p
 - Immediate structural, CPT, evidence, binding, and target validation.
 - Exact BN posterior probabilities by state.
 - HCL FT top-event probability.
+- HCL probability and annual-frequency uncertainty summaries with reproducible sampling metadata.
+- HCL-aware structural minimal cut sets with exact conditional probabilities and causal BN trace metadata.
 - HCL ET sequence conditional probabilities and annual frequencies.
 - End-state aggregate frequencies and leading contributors where supported.
 - Scenario comparison and hazard-convolution summaries.
@@ -246,26 +236,13 @@ A person may move between these modes during one workflow, subject to workbook p
 - Immutable run provenance identifying all input models, entities, revisions, evidence, and settings.
 - Exportable BN models and, where approved, exportable evidence or result tables.
 
-## Decisions required before styling
+## Remaining execution sequence
 
-The following questions must be answered through user review:
-
-1. Is SY the only place where a dependency BN can be edited, or can ESQ own a separate ET-specific BN?
-2. If ESQ displays an SY-owned BN, which interactions remain available there: inspection only, evidence selection, exact query, or ET HCL execution?
-3. Should evidence belong to the BN, an HCL configuration, a saved scenario set, or the pending run?
-4. How should a user switch among network editing, CPT editing, evidence, HCL configuration, and results without facing every control at once?
-5. Which result summary is most important in SY, and which is most important in ESQ?
-6. How should modules and imported XDSL submodels appear on the canvas?
-7. Which advanced settings should remain hidden unless validation or scale requires them?
-8. Which actions must remain visible in read-only review mode?
-
-## Redesign sequence
-
-1. Review and correct this interaction inventory.
-2. Confirm SY and ESQ responsibilities.
-3. Group interactions into a page-level information architecture.
-4. Produce the empty, authoring, analysis, result, failure, and read-only layouts.
-5. Implement the canonical editor changes once.
-6. Configure SY and ESQ through capabilities rather than forks.
-7. Verify the small-model, imported-large-model, FT HCL, ET HCL, batch, failure, and reviewer journeys.
-8. Obtain manual acceptance before resuming the paused dependency roadmap.
+1. Finish the manual interaction review and address any remaining usability findings.
+2. Verify all editor states with small and large networks at wide and narrow viewport sizes.
+3. Add the missing browser-level regressions.
+4. Complete automatic migration of legacy ESQ-owned dependency data.
+5. Define and verify the remaining reusable-module lifecycle behavior.
+6. Implement independent-component detection and the remaining regression suites.
+7. Implement the approved remaining HCL sensitivity capabilities.
+8. Complete workbook-result controls, legacy cleanup, connected-example hardening, and the deferred MHTGR import when those items enter scope.

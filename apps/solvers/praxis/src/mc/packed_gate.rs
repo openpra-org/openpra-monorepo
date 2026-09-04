@@ -27,7 +27,6 @@ fn eval_connective_word(
             eval_atleast(operands, node_words, k)
         }
         Connective::Not | Connective::Null => {
-
             panic!("Unexpected connective in packed gate evaluation: {connective:?}")
         }
     }
@@ -72,7 +71,6 @@ fn fold_xor(operands: &[GateInput], node_words: &[Bitpack]) -> Bitpack {
 
 #[inline]
 fn eval_iff(operands: &[GateInput], node_words: &[Bitpack]) -> Bitpack {
-
     let mut all_true = !0u64;
     let mut all_false = !0u64;
 
@@ -87,7 +85,6 @@ fn eval_iff(operands: &[GateInput], node_words: &[Bitpack]) -> Bitpack {
 
 #[inline]
 fn eval_atleast(operands: &[GateInput], node_words: &[Bitpack], k: usize) -> Bitpack {
-
     let n = operands.len();
     if k == 0 {
         return !0u64;
@@ -221,7 +218,6 @@ mod tests {
 
     #[test]
     fn packed_atleast_edge_cases() {
-
         let mut node_words = vec![0u64; 4];
         node_words[1] = 0xFFFF_FFFF_0000_0000;
         node_words[2] = 0xAAAA_AAAA_AAAA_AAAA;

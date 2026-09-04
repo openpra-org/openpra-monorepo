@@ -6,9 +6,9 @@ use crate::algorithms::modules::{decompose, Decomposition};
 use crate::algorithms::noncoherent_mocus::{
     combinations, gate_expansion, normalize_xor_iff, Expansion,
 };
+use crate::algorithms::ordering;
 use crate::algorithms::pdag::{Connective, NodeIndex, Pdag, PdagNode};
 use crate::algorithms::zbdd_engine::{ZbddEngine, ZbddRef, ZBDD_BASE, ZBDD_EMPTY};
-use crate::algorithms::ordering;
 use crate::analysis::width::compute_dfs_metadata_pdag;
 use crate::core::fault_tree::FaultTree;
 use crate::error::PraxisError;
@@ -48,7 +48,11 @@ fn select_variable_order(pdag: &Pdag) -> Result<Vec<NodeIndex>> {
                 "ils" => crate::algorithms::reorder::ReorderMethod::Ils,
                 _ => crate::algorithms::reorder::ReorderMethod::Sift,
             };
-            crate::algorithms::reorder::best_order(pdag, method, std::time::Duration::from_secs(secs))
+            crate::algorithms::reorder::best_order(
+                pdag,
+                method,
+                std::time::Duration::from_secs(secs),
+            )
         }
         _ => compute_dfs_metadata_pdag(pdag)?.variable_order,
     };
@@ -705,9 +709,7 @@ impl Builder {
             NodeKind::Gate(conn, ops, min) => {
                 let expansion = gate_expansion(conn, neg, &ops, min);
                 match expansion {
-                    Expansion::Conjunction(refs) => {
-                        self.and_build_b(&refs, budget)?
-                    }
+                    Expansion::Conjunction(refs) => self.and_build_b(&refs, budget)?,
                     Expansion::Disjunction(refs) => {
                         let mut acc = ZBDD_EMPTY;
                         for op in refs {
@@ -754,8 +756,7 @@ impl Builder {
             }
         }
 
-        let mut order: Vec<(f64, NodeIndex)> =
-            pos.iter().map(|&c| (self.maxcs(c), c)).collect();
+        let mut order: Vec<(f64, NodeIndex)> = pos.iter().map(|&c| (self.maxcs(c), c)).collect();
         order.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         let n = order.len();
 
@@ -1052,8 +1053,9 @@ impl Builder {
                                     }
                                 }
                                 let mut cache: HashMap<NodeIndex, i8> = HashMap::new();
-                                let verdict =
-                                    Self::eval3(pdag, eff, &true_set, &false_set, default, &mut cache);
+                                let verdict = Self::eval3(
+                                    pdag, eff, &true_set, &false_set, default, &mut cache,
+                                );
                                 if verdict != -1 {
                                     lv.push(cs.clone());
                                 }

@@ -170,7 +170,6 @@ mod tests {
 
     #[test]
     fn sampling_mean_is_close_to_p_for_fixed_counter_stream() {
-
         let key: Philox4x32Key = [0xDEAD_BEEF, 0x1234_5678];
         let threshold = threshold_from_probability(0.5);
 

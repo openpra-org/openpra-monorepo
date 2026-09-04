@@ -14,6 +14,10 @@ export type {
   HclBaseEvidence,
   HclEvidenceScenario,
   HclHazardGridDefinition,
+  HclBasicEventProbabilityDistribution,
+  HclBasicEventUncertainty,
+  HclCptRowUncertainty,
+  HclUncertaintySettings,
   HclSolverSettings,
   HclConfigurationDefinition,
 } from "interfaces-mef-types/modeling";

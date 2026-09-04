@@ -172,7 +172,11 @@ fn find_snapshot(
     Ok(snapshot)
 }
 
-fn build_network(snapshot: BayesianSnapshot) -> Result<(String, u64, CanonicalBayesianNetwork)> {
+pub(crate) type CptRowIndexMap = HashMap<(String, String), usize>;
+
+fn build_network(
+    snapshot: BayesianSnapshot,
+) -> Result<(String, u64, CanonicalBayesianNetwork, CptRowIndexMap)> {
     let mut node_states = HashMap::with_capacity(snapshot.nodes.len());
     for node in &snapshot.nodes {
         let states: Vec<String> = node.states.iter().map(|state| state.id.clone()).collect();
@@ -201,6 +205,7 @@ fn build_network(snapshot: BayesianSnapshot) -> Result<(String, u64, CanonicalBa
     }
 
     let mut variables = Vec::with_capacity(snapshot.nodes.len());
+    let mut cpt_row_indices = HashMap::new();
     for node in &snapshot.nodes {
         let mut table = tables.remove(&node.id).ok_or_else(|| {
             PraxisError::Bayesian(format!("Bayesian node '{}' has no CPT", node.id))
@@ -226,6 +231,7 @@ fn build_network(snapshot: BayesianSnapshot) -> Result<(String, u64, CanonicalBa
         let mut rows_by_index: Vec<Option<BayesianCptRow>> =
             (0..table.rows.len()).map(|_| None).collect();
         for row in table.rows {
+            let row_id = row.id.clone();
             let selections: HashMap<&str, &str> = row
                 .parent_states
                 .iter()
@@ -279,6 +285,15 @@ fn build_network(snapshot: BayesianSnapshot) -> Result<(String, u64, CanonicalBa
             if slot.replace(row).is_some() {
                 return Err(PraxisError::Bayesian(format!(
                     "CPT for node '{}' repeats a parent-state combination",
+                    node.id
+                )));
+            }
+            if cpt_row_indices
+                .insert((node.id.clone(), row_id), row_index)
+                .is_some()
+            {
+                return Err(PraxisError::Bayesian(format!(
+                    "CPT for node '{}' contains a duplicate row id",
                     node.id
                 )));
             }
@@ -336,22 +351,23 @@ fn build_network(snapshot: BayesianSnapshot) -> Result<(String, u64, CanonicalBa
             id: Some(snapshot.id),
             variables,
         },
+        cpt_row_indices,
     ))
 }
 
-pub(crate) fn build_network_for_model(
+pub(crate) fn build_network_for_model_with_cpt_rows(
     request: &SolverRequest,
     model_id: &str,
-) -> Result<(CanonicalBayesianNetwork, u64)> {
+) -> Result<(CanonicalBayesianNetwork, u64, CptRowIndexMap)> {
     let snapshot = find_snapshot(request, model_id, None)?;
-    let (_model_id, revision, network) = build_network(snapshot)?;
-    Ok((network, revision))
+    let (_model_id, revision, network, cpt_row_indices) = build_network(snapshot)?;
+    Ok((network, revision, cpt_row_indices))
 }
 
 fn build_adapter(request: &SolverRequest) -> Result<BayesianAdapter> {
     let execute = parse_request(request)?;
     let snapshot = find_snapshot(request, &execute.model_id, Some(execute.revision))?;
-    let (model_id, model_revision, network) = build_network(snapshot)?;
+    let (model_id, model_revision, network, _cpt_row_indices) = build_network(snapshot)?;
     let evidence = execute
         .query
         .evidence

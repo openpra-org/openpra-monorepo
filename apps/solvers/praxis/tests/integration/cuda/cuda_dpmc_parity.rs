@@ -169,13 +169,7 @@ fn run_fixture_parity(xml_path: &str) {
     let mut pdag = Pdag::from_fault_tree(&fault_tree).expect("pdag from fault tree");
     preprocess_for_mc(&mut pdag).expect("mc preprocess");
 
-    let params = RunParams::new(
-        0,
-        2,
-        3,
-        64,
-        0xC0FFEEu64,
-    );
+    let params = RunParams::new(0, 2, 3, 64, 0xC0FFEEu64);
 
     let plan = DpMcPlan::from_pdag(&pdag, params).expect("plan");
     let soa = GpuSoaPlan::from_plan(&plan).expect("soa");
@@ -257,6 +251,5 @@ fn cuda_dpmc_parity_tallies_atleast_xml_fixture() {
 #[cfg(not(feature = "cuda"))]
 #[test]
 fn cuda_dpmc_parity_tests_are_gated() {
-
     assert!(std::env::current_exe().is_ok());
 }

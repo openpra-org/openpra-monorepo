@@ -31,18 +31,15 @@ pub fn tally_popcount_per_node_reduced_kernel(
         let mut w_hi = node_words_hi[ix];
 
         if valid_lanes_last_word != 0u32 && bp + 1u32 == bp_total {
-
             if valid_lanes_last_word < 32u32 {
                 let lo_mask = (1u32 << valid_lanes_last_word) - 1u32;
                 w_lo &= lo_mask;
                 w_hi = 0u32;
             } else {
-
                 let hi_bits = valid_lanes_last_word - 32u32;
                 if hi_bits == 0u32 {
                     w_hi = 0u32;
                 } else {
-
                     w_hi &= (1u32 << hi_bits) - 1u32;
                 }
             }
@@ -315,7 +312,6 @@ mod cuda_tests {
         let mut words: Vec<u64> = Vec::with_capacity(total_words);
         let mut x = 0x1234_5678_9ABC_DEF0u64;
         for _ in 0..total_words {
-
             x = x.wrapping_mul(6364136223846793005u64).wrapping_add(1);
             words.push(x);
         }

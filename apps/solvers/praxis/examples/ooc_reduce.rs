@@ -469,12 +469,17 @@ fn external_sort<K: Fn(&[u64]) -> u128>(
         for c in bytebuf[..count * rec_bytes].chunks_exact(8) {
             flat.push(u64::from_le_bytes(c.try_into().unwrap()));
         }
-        let keys: Vec<u128> = (0..count).map(|r| key(&flat[r * len..r * len + len])).collect();
+        let keys: Vec<u128> = (0..count)
+            .map(|r| key(&flat[r * len..r * len + len]))
+            .collect();
         let mut idx: Vec<u32> = (0..count as u32).collect();
         idx.sort_unstable_by(|&a, &b| keys[a as usize].cmp(&keys[b as usize]));
         for (pos, &i) in idx.iter().enumerate() {
             let src = &flat[i as usize * len..i as usize * len + len];
-            words_to_bytes(src, &mut outbuf[pos * rec_bytes..pos * rec_bytes + rec_bytes]);
+            words_to_bytes(
+                src,
+                &mut outbuf[pos * rec_bytes..pos * rec_bytes + rec_bytes],
+            );
         }
         let run_path = format!("{}/run_{}.bin", tmp, runs.len());
         File::create(&run_path)
@@ -495,7 +500,11 @@ fn external_sort<K: Fn(&[u64]) -> u128>(
     let mut rbuf = vec![0u8; rec_bytes];
     let mut heap: BinaryHeap<Reverse<(u128, usize)>> = BinaryHeap::new();
     for i in 0..readers.len() {
-        if read_into(&mut readers[i], &mut heads[i * len..i * len + len], &mut rbuf) {
+        if read_into(
+            &mut readers[i],
+            &mut heads[i * len..i * len + len],
+            &mut rbuf,
+        ) {
             let k = key(&heads[i * len..i * len + len]);
             heap.push(Reverse((k, i)));
         }
@@ -505,7 +514,11 @@ fn external_sort<K: Fn(&[u64]) -> u128>(
     while let Some(Reverse((_, i))) = heap.pop() {
         words_to_bytes(&heads[i * len..i * len + len], &mut ob);
         w.write_all(&ob).unwrap();
-        if read_into(&mut readers[i], &mut heads[i * len..i * len + len], &mut rbuf) {
+        if read_into(
+            &mut readers[i],
+            &mut heads[i * len..i * len + len],
+            &mut rbuf,
+        ) {
             let k = key(&heads[i * len..i * len + len]);
             heap.push(Reverse((k, i)));
         }
@@ -732,7 +745,14 @@ fn process_level_ext(
     let _ = fs::remove_file(&trans_sorted);
 
     let ntrans_sorted = format!("{}/ntrans_sorted.bin", tmp);
-    external_sort(&ntrans_part, &ntrans_sorted, 2, budget, |r| r[0] as u128, tmp);
+    external_sort(
+        &ntrans_part,
+        &ntrans_sorted,
+        2,
+        budget,
+        |r| r[0] as u128,
+        tmp,
+    );
     {
         let mut nr = RecReader::open(&ntrans_sorted, 2);
         let mut orr = RecReader::open(trans_path, 2);
@@ -854,7 +874,10 @@ fn emit_edge(
         let p = format!("{}/areq_{}.bin", tmp, lvl);
         buckets[lvl as usize] = Some(BufWriter::new(File::create(&p).unwrap()));
     }
-    write_rec(buckets[lvl as usize].as_mut().unwrap(), &[s, t, parent, edge]);
+    write_rec(
+        buckets[lvl as usize].as_mut().unwrap(),
+        &[s, t, parent, edge],
+    );
 }
 
 fn ooc_apply(
@@ -877,7 +900,16 @@ fn ooc_apply(
     let mut res_w = BufWriter::new(File::create(&res_path).unwrap());
 
     emit_edge(
-        root_f, root_g, sentinel, 0, op, v, sentinel, tmp, &mut buckets, &mut res_w,
+        root_f,
+        root_g,
+        sentinel,
+        0,
+        op,
+        v,
+        sentinel,
+        tmp,
+        &mut buckets,
+        &mut res_w,
         &mut product_root,
     );
 
@@ -940,10 +972,30 @@ fn ooc_apply(
                 (t, t)
             };
             emit_edge(
-                s0, t0, p, 0, op, v, sentinel, tmp, &mut buckets, &mut res_w, &mut product_root,
+                s0,
+                t0,
+                p,
+                0,
+                op,
+                v,
+                sentinel,
+                tmp,
+                &mut buckets,
+                &mut res_w,
+                &mut product_root,
             );
             emit_edge(
-                s1, t1, p, 1, op, v, sentinel, tmp, &mut buckets, &mut res_w, &mut product_root,
+                s1,
+                t1,
+                p,
+                1,
+                op,
+                v,
+                sentinel,
+                tmp,
+                &mut buckets,
+                &mut res_w,
+                &mut product_root,
             );
             while matches!(&cur, Some(r) if r[0] == s && r[1] == t) {
                 let r = cur.unwrap();
@@ -1007,12 +1059,14 @@ fn ooc_apply(
 }
 
 fn complement_diagram(in_path: &str, out_path: &str) {
-    let swap = |r: u64| if r == 0 {
-        1
-    } else if r == 1 {
-        0
-    } else {
-        r
+    let swap = |r: u64| {
+        if r == 0 {
+            1
+        } else if r == 1 {
+            0
+        } else {
+            r
+        }
     };
     let mut rr = RecReader::open(in_path, 4);
     let mut w = BufWriter::new(File::create(out_path).unwrap());
@@ -1091,7 +1145,9 @@ fn combine(
     let fn_ = file_nodes(f_path);
     let gn = file_nodes(g_path);
     let t = Instant::now();
-    let proot = ooc_apply(f_path, g_path, f_root, g_root, op, ctx.v, ctx.budget, &prod, ctx.tmp);
+    let proot = ooc_apply(
+        f_path, g_path, f_root, g_root, op, ctx.v, ctx.budget, &prod, ctx.tmp,
+    );
     let apply_ns = t.elapsed().as_nanos();
     if proot < 2 {
         let _ = fs::remove_file(&prod);
@@ -1272,17 +1328,23 @@ fn drop_diag(d: Diag) {
 }
 
 fn complement_diag(ctx: &Bctx, fid: &mut u64, d: &Diag) -> Diag {
-    let swap = |r: u64| if r == 0 {
-        1
-    } else if r == 1 {
-        0
-    } else {
-        r
+    let swap = |r: u64| {
+        if r == 0 {
+            1
+        } else if r == 1 {
+            0
+        } else {
+            r
+        }
     };
     match d {
-        Diag::Mem(nodes, r) => {
-            Diag::Mem(nodes.iter().map(|n| [n[0], n[1], swap(n[2]), swap(n[3])]).collect(), *r)
-        }
+        Diag::Mem(nodes, r) => Diag::Mem(
+            nodes
+                .iter()
+                .map(|n| [n[0], n[1], swap(n[2]), swap(n[3])])
+                .collect(),
+            *r,
+        ),
         Diag::Disk(p, r) => {
             let out = newpath(ctx, fid, "nc");
             complement_diagram(p, &out);
@@ -1687,7 +1749,11 @@ fn ooc_build_tree(
                     min_number,
                     ..
                 }) => (
-                    format!("{:?}{}", connective, min_number.map(|k| format!("(k={})", k)).unwrap_or_default()),
+                    format!(
+                        "{:?}{}",
+                        connective,
+                        min_number.map(|k| format!("(k={})", k)).unwrap_or_default()
+                    ),
                     operands.len(),
                 ),
                 _ => ("?".to_string(), 0),

@@ -4,7 +4,8 @@ use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::{Formula, Gate};
 use praxis::hcl::{
     parse_xdsl, quantify_hcl, CanonicalBayesianNetwork, CanonicalBayesianVariable, HclBindingSpec,
-    HclEvidenceSpec, HclModel, HclRequest, HclSettings,
+    HclCptRowUncertaintySpec, HclEvidenceSpec, HclModel, HclRequest, HclSettings,
+    HclUncertaintySettings,
 };
 use tensorbayes::{EvidenceBatch, ExecutionEngine};
 
@@ -171,4 +172,38 @@ fn request_rejects_unknown_schema_versions() {
     assert!(error
         .to_string()
         .contains("unsupported HCL request schema version"));
+}
+
+#[test]
+fn hcl_uncertainty_samples_bn_parameters_inside_praxis() {
+    let model = HclModel::new(
+        two_event_fault_tree(),
+        canonical_network().into_graph().unwrap(),
+    )
+    .unwrap()
+    .with_bindings(bindings());
+    let settings = HclSettings {
+        uncertainty: Some(HclUncertaintySettings {
+            sample_count: 500,
+            seed: 2026,
+            basic_event_distributions: vec![],
+            cpt_row_distributions: vec![HclCptRowUncertaintySpec {
+                node: "B".to_string(),
+                row_index: 1,
+                equivalent_sample_size: 25.0,
+            }],
+        }),
+        ..HclSettings::default()
+    };
+
+    let first = quantify_hcl(&model, &settings).unwrap();
+    let second = quantify_hcl(&model, &settings).unwrap();
+    let first_uncertainty = first.uncertainty.unwrap();
+    let second_uncertainty = second.uncertainty.unwrap();
+
+    assert_eq!(first_uncertainty, second_uncertainty);
+    assert_eq!(first_uncertainty.sample_count, 500);
+    assert_eq!(first_uncertainty.seed, 2026);
+    assert!(first_uncertainty.percentile_05 < first_uncertainty.percentile_95);
+    assert!((first_uncertainty.mean - 0.16).abs() < 0.03);
 }

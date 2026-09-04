@@ -487,7 +487,9 @@ pub fn compute_widths(pdag: &Pdag, options: WidthOptions) -> Result<WidthsReport
         }
         module_reports.push(ModuleWidthReport {
             root_gate_idx: root.abs(),
-            root_gate_id: pdag.get_node(root).and_then(|n| n.id().map(|s| s.to_string())),
+            root_gate_id: pdag
+                .get_node(root)
+                .and_then(|n| n.id().map(|s| s.to_string())),
             kind,
             num_vertices: skeleton.num_vertices(),
             num_edges: skeleton.num_edges(),
@@ -507,7 +509,9 @@ pub fn compute_widths(pdag: &Pdag, options: WidthOptions) -> Result<WidthsReport
         }
         module_reports.push(ModuleWidthReport {
             root_gate_idx: m_root,
-            root_gate_id: pdag.get_node(m_root).and_then(|n| n.id().map(|s| s.to_string())),
+            root_gate_id: pdag
+                .get_node(m_root)
+                .and_then(|n| n.id().map(|s| s.to_string())),
             kind: ModuleKind::Module,
             num_vertices: module_graph.num_vertices(),
             num_edges: module_graph.num_edges(),

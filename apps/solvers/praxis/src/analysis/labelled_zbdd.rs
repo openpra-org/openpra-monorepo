@@ -100,7 +100,9 @@ pub fn extract(
 ) -> Vec<(Vec<i32>, f64)> {
     let mut out = Vec::new();
     let mut cur = Vec::new();
-    extract_rec(z, root, var_event, var_prob, max_order, min_prob, 1.0, &mut cur, &mut out);
+    extract_rec(
+        z, root, var_event, var_prob, max_order, min_prob, 1.0, &mut cur, &mut out,
+    );
     for (c, _) in out.iter_mut() {
         c.sort_by_key(|x| x.abs());
     }
@@ -135,8 +137,20 @@ fn extract_rec(
     };
     if cur.len() < max_order {
         cur.push(lit);
-        extract_rec(z, node.high, var_event, var_prob, max_order, min_prob, prob * p, cur, out);
+        extract_rec(
+            z,
+            node.high,
+            var_event,
+            var_prob,
+            max_order,
+            min_prob,
+            prob * p,
+            cur,
+            out,
+        );
         cur.pop();
     }
-    extract_rec(z, node.low, var_event, var_prob, max_order, min_prob, prob, cur, out);
+    extract_rec(
+        z, node.low, var_event, var_prob, max_order, min_prob, prob, cur, out,
+    );
 }

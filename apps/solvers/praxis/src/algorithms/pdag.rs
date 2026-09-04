@@ -42,7 +42,10 @@ impl Connective {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PdagNode {
-    BasicEvent { id: String, index: NodeIndex },
+    BasicEvent {
+        id: String,
+        index: NodeIndex,
+    },
     Gate {
         id: String,
         index: NodeIndex,
@@ -50,7 +53,10 @@ pub enum PdagNode {
         operands: Vec<NodeIndex>,
         min_number: Option<usize>,
     },
-    Constant { index: NodeIndex, value: bool },
+    Constant {
+        index: NodeIndex,
+        value: bool,
+    },
 }
 
 impl PdagNode {
@@ -346,21 +352,13 @@ impl Pdag {
         fault_tree: &FaultTree,
         var_of: &HashMap<NodeIndex, usize>,
     ) -> Result<Vec<f64>> {
-        let levels = var_of
-            .values()
-            .copied()
-            .max()
-            .map(|m| m + 1)
-            .unwrap_or(0);
+        let levels = var_of.values().copied().max().map(|m| m + 1).unwrap_or(0);
         let mut probs = vec![0.0; levels];
         for node in self.nodes.values() {
             if let PdagNode::BasicEvent { id, index } = node {
                 if let Some(&level) = var_of.get(index) {
                     let event = fault_tree.basic_events().get(id).ok_or_else(|| {
-                        PraxisError::Logic(format!(
-                            "Basic event '{}' not found in fault tree",
-                            id
-                        ))
+                        PraxisError::Logic(format!("Basic event '{}' not found in fault tree", id))
                     })?;
                     probs[level] = event.probability();
                 }
@@ -374,12 +372,7 @@ impl Pdag {
         event_probs: &HashMap<String, f64>,
         var_of: &HashMap<NodeIndex, usize>,
     ) -> Vec<f64> {
-        let levels = var_of
-            .values()
-            .copied()
-            .max()
-            .map(|m| m + 1)
-            .unwrap_or(0);
+        let levels = var_of.values().copied().max().map(|m| m + 1).unwrap_or(0);
         let mut probs = vec![0.0; levels];
         for node in self.nodes.values() {
             if let PdagNode::BasicEvent { id, index } = node {

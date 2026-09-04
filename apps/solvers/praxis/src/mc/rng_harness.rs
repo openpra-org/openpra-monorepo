@@ -4,7 +4,6 @@ const TWO_POW_32_F64: f64 = 4294967296.0;
 
 #[inline]
 fn u32_to_unit_interval(x: u32) -> f64 {
-
     (x as f64) / TWO_POW_32_F64
 }
 
@@ -103,7 +102,6 @@ mod tests {
 
     #[test]
     fn philox_stream_has_no_duplicates_in_small_prefix() {
-
         let key: Philox4x32Key = [0xDEAD_BEEF, 0x1234_5678];
         let ctr: Philox4x32Ctr = [0, 1, 2, 3];
         let v = philox_u32_stream_from_ctr3(ctr, key, 4096);

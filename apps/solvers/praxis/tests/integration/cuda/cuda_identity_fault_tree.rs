@@ -11,7 +11,6 @@ use praxis::mc::DpMonteCarloAnalysis;
 
 #[test]
 fn cuda_identity_fault_tree_or_of_n_identical_events_matches_analytic_within_ci() {
-
     let n_events: usize = 32;
     let p: f64 = 0.02;
     let num_trials: usize = 200_000;

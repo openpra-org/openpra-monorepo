@@ -3,7 +3,9 @@ use std::fs;
 use std::thread;
 use std::time::Instant;
 
-use praxis::algorithms::direct_zbdd::{build_zbdd_delterm, build_zbdd_from_pdag, build_zbdd_topdown};
+use praxis::algorithms::direct_zbdd::{
+    build_zbdd_delterm, build_zbdd_from_pdag, build_zbdd_topdown,
+};
 use praxis::algorithms::pdag::Pdag;
 use praxis::analysis::quantify::{quantify, Approximation, Engine, Settings};
 use praxis::core::fault_tree::FaultTree;
@@ -120,7 +122,11 @@ fn run(
                     "MATCH    rare={}  count={}  ({})",
                     rare_ok,
                     count_ok,
-                    if rare_ok && count_ok { "OK" } else { "MISMATCH" }
+                    if rare_ok && count_ok {
+                        "OK"
+                    } else {
+                        "MISMATCH"
+                    }
                 );
             }
         })

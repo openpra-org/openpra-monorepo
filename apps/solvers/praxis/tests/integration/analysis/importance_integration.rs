@@ -24,7 +24,9 @@ fn test_importance_or_gate_comprehensive() {
     let cut_sets = mocus_runner.analyze().unwrap();
     let importance = ImportanceAnalysis::new(&ft, result.top_event_probability).unwrap();
 
-    let fv_values = importance.compute_fussell_vesely_from_cutsets(&cut_sets).unwrap();
+    let fv_values = importance
+        .compute_fussell_vesely_from_cutsets(&cut_sets)
+        .unwrap();
     let raw_values = importance.compute_raw().unwrap();
     let rrw_values = importance.compute_rrw().unwrap();
     let bi_values = importance.compute_birnbaum().unwrap();
@@ -116,7 +118,9 @@ fn test_importance_complex_tree_ranking() {
     let cut_sets = mocus_runner.analyze().unwrap();
     let importance = ImportanceAnalysis::new(&ft, result.top_event_probability).unwrap();
 
-    let fv_values = importance.compute_fussell_vesely_from_cutsets(&cut_sets).unwrap();
+    let fv_values = importance
+        .compute_fussell_vesely_from_cutsets(&cut_sets)
+        .unwrap();
     let bi_values = importance.compute_birnbaum().unwrap();
 
     let fv_e1 = fv_values.get("E1").unwrap();
@@ -188,7 +192,9 @@ fn test_importance_consistency_across_measures() {
     let cut_sets = mocus_runner.analyze().unwrap();
     let importance = ImportanceAnalysis::new(&ft, result.top_event_probability).unwrap();
 
-    let fv_values = importance.compute_fussell_vesely_from_cutsets(&cut_sets).unwrap();
+    let fv_values = importance
+        .compute_fussell_vesely_from_cutsets(&cut_sets)
+        .unwrap();
     let raw_values = importance.compute_raw().unwrap();
     let rrw_values = importance.compute_rrw().unwrap();
     let bi_values = importance.compute_birnbaum().unwrap();

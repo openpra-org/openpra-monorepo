@@ -5,9 +5,9 @@ use praxis::analysis::fault_tree::FaultTreeAnalysis;
 use praxis::analysis::importance::ImportanceAnalysis;
 use praxis::analysis::width::compute_dfs_metadata_pdag;
 use praxis::core::event::BasicEvent;
-use praxis::expression::Expr;
 use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::{Formula, Gate};
+use praxis::expression::Expr;
 use praxis::mc::DpMonteCarloAnalysis;
 
 #[test]
@@ -40,22 +40,34 @@ fn test_full_pra_workflow_comprehensive() {
     ft.add_gate(pump_c_gate).unwrap();
 
     ft.add_basic_event(
-        BasicEvent::with_value("PUMP_A_MOTOR".to_string(), 0.01, Expr::lognormal(0.01, 0.003))
-            .unwrap(),
+        BasicEvent::with_value(
+            "PUMP_A_MOTOR".to_string(),
+            0.01,
+            Expr::lognormal(0.01, 0.003),
+        )
+        .unwrap(),
     )
     .unwrap();
     ft.add_basic_event(BasicEvent::new("PUMP_A_VALVE".to_string(), 0.005).unwrap())
         .unwrap();
     ft.add_basic_event(
-        BasicEvent::with_value("PUMP_B_MOTOR".to_string(), 0.01, Expr::lognormal(0.01, 0.003))
-            .unwrap(),
+        BasicEvent::with_value(
+            "PUMP_B_MOTOR".to_string(),
+            0.01,
+            Expr::lognormal(0.01, 0.003),
+        )
+        .unwrap(),
     )
     .unwrap();
     ft.add_basic_event(BasicEvent::new("PUMP_B_VALVE".to_string(), 0.005).unwrap())
         .unwrap();
     ft.add_basic_event(
-        BasicEvent::with_value("PUMP_C_TURBINE".to_string(), 0.02, Expr::normal(0.02, 0.005))
-            .unwrap(),
+        BasicEvent::with_value(
+            "PUMP_C_TURBINE".to_string(),
+            0.02,
+            Expr::normal(0.02, 0.005),
+        )
+        .unwrap(),
     )
     .unwrap();
     ft.add_basic_event(BasicEvent::new("PUMP_C_VALVE".to_string(), 0.005).unwrap())
@@ -92,7 +104,9 @@ fn test_full_pra_workflow_comprehensive() {
 
     let importance = ImportanceAnalysis::new(&ft, bdd_result).unwrap();
 
-    let fv_measures = importance.compute_fussell_vesely_from_cutsets(&cut_sets).unwrap();
+    let fv_measures = importance
+        .compute_fussell_vesely_from_cutsets(&cut_sets)
+        .unwrap();
     println!("  Top 3 by Fussell-Vesely:");
     let mut fv_sorted: Vec<_> = fv_measures.iter().collect();
     fv_sorted.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());

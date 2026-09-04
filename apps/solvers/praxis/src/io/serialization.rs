@@ -12,7 +12,6 @@ use crate::Result;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalysisCheckpoint {
-
     pub fta_result: AnalysisResult,
 
     pub cut_sets: Option<Vec<CutSet>>,
@@ -29,7 +28,6 @@ pub struct AnalysisCheckpoint {
 }
 
 impl AnalysisCheckpoint {
-
     pub fn new(fta_result: AnalysisResult) -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -68,7 +66,6 @@ impl AnalysisCheckpoint {
         self.sil = Some(sil);
         self
     }
-
 }
 
 pub fn save_checkpoint<P: AsRef<Path>>(path: P, checkpoint: &AnalysisCheckpoint) -> Result<()> {

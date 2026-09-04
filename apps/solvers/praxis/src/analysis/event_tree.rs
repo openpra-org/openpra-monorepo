@@ -433,7 +433,8 @@ mod tests {
         let ie = InitiatingEvent::new("IE-1".to_string());
         let seq = Sequence::new("SEQ-1".to_string());
         let target = BranchTarget::Sequence("SEQ-1".to_string());
-        let named_branch = crate::core::event_tree::NamedBranch::new("BRANCH-1".to_string(), Branch::new(target));
+        let named_branch =
+            crate::core::event_tree::NamedBranch::new("BRANCH-1".to_string(), Branch::new(target));
         let initial = Branch::new(BranchTarget::NamedBranch("BRANCH-1".to_string()));
 
         let mut et = EventTree::new("ET-1".to_string(), initial);

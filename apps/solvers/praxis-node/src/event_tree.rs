@@ -2,14 +2,16 @@ use std::collections::{HashMap, HashSet};
 
 use praxis::analysis::event_tree_quantification::{
     quantify_event_tree_hazard_grid_batch, quantify_event_tree_sequences,
-    quantify_event_tree_sequences_batch, EventTreeHazardGridQuantification, EventTreeHclContext,
-    EventTreeSequenceProbability,
+    quantify_event_tree_sequences_batch, summarize_event_tree_hazard_uncertainty,
+    EventTreeHazardGridQuantification, EventTreeHclContext, EventTreeSequenceProbability,
 };
 use praxis::core::event_tree::{
     Branch, BranchTarget, EventTree, Fork, FunctionalEvent, Path, Sequence,
 };
 use praxis::core::model::Model;
-use praxis::hcl::HclEvidenceSpec;
+use praxis::hcl::{
+    HclCutSetAnalysis, HclEvidenceSpec, HclImportanceAnalysis, HclUncertaintySummary,
+};
 use praxis::quantitative::{
     annualize_frequency, prepare_hazard_weights, AnnualizationConvention, FrequencyUnit,
     HazardWeightSummary,
@@ -187,6 +189,19 @@ struct SequenceResult<'a> {
     result: &'a EventTreeBranchResult,
     conditional_probability: f64,
     annual_frequency: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cut_sets: Option<&'a HclCutSetAnalysis>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    importance: Option<&'a HclImportanceAnalysis>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    uncertainty: Option<EventTreeSequenceUncertainty>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EventTreeSequenceUncertainty {
+    conditional_probability: HclUncertaintySummary,
+    annual_frequency: HclUncertaintySummary,
 }
 
 struct EventTreeAdapter {
@@ -477,6 +492,12 @@ fn build_branch(
 
 pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
     let adapter = build_adapter(request)?;
+    // Structural validation uses nominal probabilities. The sampled population
+    // is built only by execute, avoiding duplicate Monte Carlo work per run.
+    let validation_hcl_context = adapter
+        .hcl_context
+        .clone()
+        .map(|context| context.with_uncertainty(None));
     let (sequence_count, scenario_count) = match &adapter.evidence_batch {
         Some(rows) => {
             validate_evidence_rows(rows)?;
@@ -484,7 +505,7 @@ pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
             let sequence_count = if let Some(hazard) = &adapter.hazard_convolution {
                 validate_hazard_grid(rows, hazard)?;
                 let assignments = hazard_evidence_specs(rows);
-                let context = adapter.hcl_context.as_ref().ok_or_else(|| {
+                let context = validation_hcl_context.as_ref().ok_or_else(|| {
                     PraxisError::Hcl("event-tree hazard convolution requires HCL mode".to_string())
                 })?;
                 quantify_event_tree_hazard_grid_batch(
@@ -501,7 +522,7 @@ pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
                 quantify_event_tree_sequences_batch(
                     &adapter.model,
                     &adapter.event_tree,
-                    adapter.hcl_context.as_ref(),
+                    validation_hcl_context.as_ref(),
                     &evidence,
                 )?
                 .scenarios[0]
@@ -513,7 +534,7 @@ pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
             quantify_event_tree_sequences(
                 &adapter.model,
                 &adapter.event_tree,
-                adapter.hcl_context.as_ref(),
+                validation_hcl_context.as_ref(),
             )?
             .len(),
             1,
@@ -598,14 +619,15 @@ fn event_tree_result_json(
     probabilities: &[EventTreeSequenceProbability],
     scenario_id: Option<&str>,
 ) -> Result<Value> {
-    let probability_by_sequence: HashMap<&str, f64> = probabilities
+    let probability_by_sequence: HashMap<&str, &EventTreeSequenceProbability> = probabilities
         .iter()
-        .map(|result| (result.sequence_id.as_str(), result.conditional_probability))
+        .map(|result| (result.sequence_id.as_str(), result))
         .collect();
     let mut aggregate_by_end_state: HashMap<String, f64> = HashMap::new();
+    let mut aggregate_samples_by_end_state: HashMap<String, Vec<f64>> = HashMap::new();
     let mut sequences = Vec::with_capacity(adapter.snapshot.sequences.len());
     for sequence in &adapter.snapshot.sequences {
-        let conditional_probability = probability_by_sequence
+        let quantified = probability_by_sequence
             .get(sequence.id.as_str())
             .copied()
             .ok_or_else(|| {
@@ -614,6 +636,7 @@ fn event_tree_result_json(
                     sequence.id
                 ))
             })?;
+        let conditional_probability = quantified.conditional_probability;
         let annual_frequency = conditional_probability * adapter.initiating_event_frequency;
         let end_state_id = resolve_end_state(
             &adapter.model_id,
@@ -621,13 +644,37 @@ fn event_tree_result_json(
             &adapter.event_tree_snapshots,
             &mut HashSet::new(),
         )?;
-        *aggregate_by_end_state.entry(end_state_id).or_default() += annual_frequency;
+        *aggregate_by_end_state
+            .entry(end_state_id.clone())
+            .or_default() += annual_frequency;
+        if let Some(samples) = &quantified.uncertainty_samples {
+            let aggregate = aggregate_samples_by_end_state
+                .entry(end_state_id.clone())
+                .or_insert_with(|| vec![0.0; samples.len()]);
+            if aggregate.len() != samples.len() {
+                return Err(PraxisError::Hcl(
+                    "event-tree uncertainty sequences use inconsistent sample populations"
+                        .to_string(),
+                ));
+            }
+            for (total, sample) in aggregate.iter_mut().zip(samples) {
+                *total += sample * adapter.initiating_event_frequency;
+            }
+        }
         sequences.push(SequenceResult {
             sequence_id: &sequence.id,
             path: &sequence.path,
             result: &sequence.result,
             conditional_probability,
             annual_frequency,
+            cut_sets: quantified.cut_sets.as_ref(),
+            importance: quantified.importance.as_ref(),
+            uncertainty: quantified.uncertainty.as_ref().map(|summary| {
+                EventTreeSequenceUncertainty {
+                    conditional_probability: summary.clone(),
+                    annual_frequency: summary.scaled(adapter.initiating_event_frequency),
+                }
+            }),
         });
     }
 
@@ -647,7 +694,25 @@ fn event_tree_result_json(
     let mut end_state_aggregates: Vec<Value> = aggregate_by_end_state
         .into_iter()
         .map(|(end_state_id, annual_frequency)| {
-            json!({ "endStateId": end_state_id, "annualFrequency": annual_frequency })
+            let uncertainty =
+                aggregate_samples_by_end_state
+                    .get(&end_state_id)
+                    .and_then(|samples| {
+                        probabilities
+                            .iter()
+                            .find_map(|sequence| {
+                                sequence.uncertainty.as_ref().map(|summary| summary.seed)
+                            })
+                            .and_then(|seed| {
+                                HclUncertaintySummary::from_samples(samples, seed).ok()
+                            })
+                    });
+            let mut value =
+                json!({ "endStateId": end_state_id, "annualFrequency": annual_frequency });
+            if let Some(uncertainty) = uncertainty {
+                value["uncertainty"] = json!(uncertainty);
+            }
+            value
         })
         .collect();
     end_state_aggregates.sort_by(|left, right| {
@@ -788,6 +853,7 @@ fn event_tree_hazard_convolution_json(
     )?;
     let mut sequence_totals: HashMap<String, f64> = HashMap::new();
     let mut end_state_totals: HashMap<String, f64> = HashMap::new();
+    let mut end_state_by_sequence: HashMap<String, String> = HashMap::new();
     let result_rows = rows
         .iter()
         .zip(batch.quantification.scenarios.iter())
@@ -807,6 +873,9 @@ fn event_tree_hazard_convolution_json(
                         &adapter.event_tree_snapshots,
                         &mut HashSet::new(),
                     )?;
+                    end_state_by_sequence
+                        .entry(probability.sequence_id.clone())
+                        .or_insert_with(|| end_state_id.clone());
                     *end_state_totals.entry(end_state_id).or_default() += contribution;
                     Ok(json!({
                         "sequenceId": probability.sequence_id,
@@ -825,13 +894,26 @@ fn event_tree_hazard_convolution_json(
             }))
         })
         .collect::<Result<Vec<_>>>()?;
+    let uncertainty = summarize_event_tree_hazard_uncertainty(
+        batch,
+        &end_state_by_sequence,
+        scale.value,
+        scale.unit,
+        scale.annualization,
+        hazard.normalize_weights,
+    )?;
     let mut sequences: Vec<Value> = sequence_totals
         .into_iter()
         .map(|(sequence_id, integrated_annual_frequency)| {
-            json!({
+            let uncertainty = uncertainty.sequences.get(&sequence_id);
+            let mut value = json!({
                 "sequenceId": sequence_id,
                 "integratedAnnualFrequency": integrated_annual_frequency
-            })
+            });
+            if let Some(uncertainty) = uncertainty {
+                value["uncertainty"] = json!(uncertainty);
+            }
+            value
         })
         .collect();
     sequences.sort_by(|left, right| {
@@ -842,10 +924,15 @@ fn event_tree_hazard_convolution_json(
     let mut end_state_aggregates: Vec<Value> = end_state_totals
         .into_iter()
         .map(|(end_state_id, integrated_annual_frequency)| {
-            json!({
+            let uncertainty = uncertainty.end_states.get(&end_state_id);
+            let mut value = json!({
                 "endStateId": end_state_id,
                 "integratedAnnualFrequency": integrated_annual_frequency
-            })
+            });
+            if let Some(uncertainty) = uncertainty {
+                value["uncertainty"] = json!(uncertainty);
+            }
+            value
         })
         .collect();
     end_state_aggregates.sort_by(|left, right| {

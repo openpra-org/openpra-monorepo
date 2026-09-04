@@ -681,10 +681,11 @@ export class WorkbookAnalysisRunsService {
         validationIssues: raw["validationIssues"] ?? [],
       });
     }
-    return HclQuantificationResultSchema.parse({
+    const hclResult: Record<string, unknown> = {
       ...common,
       faultTreeTopGate: request["faultTreeTopGate"],
       probability: raw["probability"],
+      cutSets: raw["cutSets"],
       bddNodes: raw["bddNodes"],
       bddVariables: raw["bddVariables"],
       variableOrder: raw["variableOrder"],
@@ -692,7 +693,10 @@ export class WorkbookAnalysisRunsService {
       junctionTree: raw["junctionTree"],
       basicEventQuantifications: raw["basicEventQuantifications"],
       validationIssues: raw["validationIssues"] ?? [],
-    });
+    };
+    if (raw["importance"] != null) hclResult["importance"] = raw["importance"];
+    if (raw["uncertainty"] != null) hclResult["uncertainty"] = raw["uncertainty"];
+    return HclQuantificationResultSchema.parse(hclResult);
   }
 
   private async executeRun(

@@ -51,12 +51,76 @@ interface HclJunctionTreeStats {
   totalTableEntries: number;
 }
 
+interface HclCutSetBindingTrace {
+  bayesianNetworkNodeId: WorkbookEntityId;
+  stateIds: WorkbookEntityId[];
+  parentNodeIds: WorkbookEntityId[];
+}
+
+interface HclCutSetLiteral {
+  basicEventId: WorkbookEntityId;
+  complemented: boolean;
+  binding: HclCutSetBindingTrace | null;
+}
+
+interface HclCutSet {
+  rank: number;
+  order: number;
+  probability: number;
+  coverage: number | null;
+  literals: HclCutSetLiteral[];
+  bnAncestorNodeIds: WorkbookEntityId[];
+  bnRootCauseNodeIds: WorkbookEntityId[];
+}
+
+interface HclCutSetAnalysis {
+  totalCount: number;
+  cutSets: HclCutSet[];
+}
+
+interface HclImportanceMeasure {
+  rank: number;
+  basicEventId: WorkbookEntityId;
+  bayesianNetworkNodeId: WorkbookEntityId | null;
+  eventProbability: number;
+  probabilityIfTrue: number;
+  probabilityIfFalse: number;
+  birnbaum: number;
+  criticality: number | null;
+  fussellVesely: number | null;
+  riskAchievementWorth: number | null;
+  riskReductionWorth: number | null;
+}
+
+interface HclImportanceAnalysis {
+  totalCount: number;
+  measures: HclImportanceMeasure[];
+}
+
+interface HclUncertaintySummary {
+  sampleCount: number;
+  seed: number;
+  mean: number;
+  standardDeviation: number;
+  coefficientOfVariation: number | null;
+  minimum: number;
+  percentile05: number;
+  median: number;
+  percentile95: number;
+  maximum: number;
+}
+
 interface HclQuantificationResult {
   schemaVersion: WorkbookMethodSchemaVersion;
   runId: AnalysisRunId;
   owner: WorkbookModelSnapshotIdentity;
   faultTreeTopGate: FaultTreeTopEventReference;
   probability: number;
+  uncertainty?: HclUncertaintySummary;
+  /** Present on results produced by PRAXIS versions with HCL cut-set analysis. */
+  cutSets?: HclCutSetAnalysis;
+  /** Present on results produced by PRAXIS versions with HCL importance analysis. */
+  importance?: HclImportanceAnalysis;
   bddNodes: number;
   bddVariables: number;
   variableOrder: WorkbookEntityId[];
@@ -106,6 +170,7 @@ interface HclFaultTreeHazardConvolutionResult extends HclHazardConvolutionCommon
   targetKind: "FAULT_TREE";
   rows: HclFaultTreeHazardConvolutionRow[];
   integratedAnnualFrequency: number;
+  uncertainty?: HclUncertaintySummary;
 }
 
 interface HclEventTreeHazardSequenceContribution {
@@ -121,11 +186,13 @@ interface HclEventTreeHazardConvolutionRow extends HclHazardConvolutionWeight {
 interface HclEventTreeHazardSequenceResult {
   sequenceId: WorkbookEntityId;
   integratedAnnualFrequency: number;
+  uncertainty?: HclUncertaintySummary;
 }
 
 interface HclEventTreeHazardEndStateResult {
   endStateId: WorkbookEntityId;
   integratedAnnualFrequency: number;
+  uncertainty?: HclUncertaintySummary;
 }
 
 interface HclEventTreeHazardConvolutionResult extends HclHazardConvolutionCommon {
@@ -214,6 +281,94 @@ const HclJunctionTreeStatsSchema = z
   })
   .strict();
 
+const HclCutSetBindingTraceSchema = z.object({
+  bayesianNetworkNodeId: WorkbookEntityIdSchema,
+  stateIds: z.array(WorkbookEntityIdSchema).min(1),
+  parentNodeIds: z.array(WorkbookEntityIdSchema),
+}).strict();
+
+const HclCutSetLiteralSchema = z.object({
+  basicEventId: WorkbookEntityIdSchema,
+  complemented: z.boolean(),
+  binding: HclCutSetBindingTraceSchema.nullable(),
+}).strict();
+
+const HclCutSetSchema = z.object({
+  rank: z.number().int().positive(),
+  order: z.number().int().nonnegative(),
+  probability: z.number().min(0).max(1),
+  coverage: z.number().min(0).max(1).nullable(),
+  literals: z.array(HclCutSetLiteralSchema),
+  bnAncestorNodeIds: z.array(WorkbookEntityIdSchema),
+  bnRootCauseNodeIds: z.array(WorkbookEntityIdSchema),
+}).strict().superRefine((cutSet, context) => {
+  if (cutSet.order !== cutSet.literals.length) {
+    context.addIssue({
+      code: "custom",
+      path: ["order"],
+      message: "HCL cut-set order must equal its literal count",
+    });
+  }
+});
+
+const HclCutSetAnalysisSchema = z.object({
+  totalCount: NonnegativeCounterSchema,
+  cutSets: z.array(HclCutSetSchema),
+}).strict().superRefine((analysis, context) => {
+  if (analysis.totalCount !== analysis.cutSets.length) {
+    context.addIssue({
+      code: "custom",
+      path: ["totalCount"],
+      message: "HCL cut-set count must equal the returned structural enumeration",
+    });
+  }
+  analysis.cutSets.forEach((cutSet, index) => {
+    if (cutSet.rank !== index + 1) {
+      context.addIssue({
+        code: "custom",
+        path: ["cutSets", index, "rank"],
+        message: "HCL cut sets must use contiguous probability rank order",
+      });
+    }
+  });
+});
+
+const HclImportanceMeasureSchema = z.object({
+  rank: z.number().int().positive(),
+  basicEventId: WorkbookEntityIdSchema,
+  bayesianNetworkNodeId: WorkbookEntityIdSchema.nullable(),
+  eventProbability: z.number().min(0).max(1),
+  probabilityIfTrue: z.number().min(0).max(1),
+  probabilityIfFalse: z.number().min(0).max(1),
+  birnbaum: z.number().finite().min(-1).max(1),
+  criticality: z.number().finite().nullable(),
+  fussellVesely: z.number().finite().nullable(),
+  riskAchievementWorth: z.number().finite().nonnegative().nullable(),
+  riskReductionWorth: z.number().finite().nonnegative().nullable(),
+}).strict();
+
+const HclImportanceAnalysisSchema = z.object({
+  totalCount: NonnegativeCounterSchema,
+  measures: z.array(HclImportanceMeasureSchema),
+}).strict().superRefine((analysis, context) => {
+  if (analysis.totalCount !== analysis.measures.length) {
+    context.addIssue({
+      code: "custom",
+      path: ["totalCount"],
+      message: "HCL importance count must equal the returned measure count",
+    });
+  }
+  analysis.measures.forEach((measure, index) => {
+    if (measure.rank !== index + 1) {
+      context.addIssue({
+        code: "custom",
+        path: ["measures", index, "rank"],
+        message: "HCL importance measures must use contiguous rank order",
+      });
+    }
+  });
+});
+
 const ProbabilitySchema = z.number().min(0).max(1);
 const NonnegativeFiniteSchema = z.number().nonnegative().finite();
 
@@ -242,6 +397,7 @@ const HclFaultTreeHazardConvolutionResultSchema = z.object({
     annualContribution: NonnegativeFiniteSchema,
   }).strict()).min(1),
   integratedAnnualFrequency: NonnegativeFiniteSchema,
+  uncertainty: z.lazy(() => HclUncertaintySummarySchema).optional(),
 }).strict();
 
 const HclEventTreeHazardSequenceContributionSchema = z.object({
@@ -259,10 +415,12 @@ const HclEventTreeHazardConvolutionResultSchema = z.object({
   sequences: z.array(z.object({
     sequenceId: WorkbookEntityIdSchema,
     integratedAnnualFrequency: NonnegativeFiniteSchema,
+    uncertainty: z.lazy(() => HclUncertaintySummarySchema).optional(),
   }).strict()),
   endStateAggregates: z.array(z.object({
     endStateId: WorkbookEntityIdSchema,
     integratedAnnualFrequency: NonnegativeFiniteSchema,
+    uncertainty: z.lazy(() => HclUncertaintySummarySchema).optional(),
   }).strict()),
 }).strict();
 
@@ -278,6 +436,9 @@ const HclQuantificationResultSchema = z
     owner: WorkbookModelSnapshotIdentitySchema,
     faultTreeTopGate: FaultTreeTopEventReferenceSchema,
     probability: z.number().min(0, "Probability cannot be less than zero").max(1, "Probability cannot exceed one"),
+    uncertainty: z.lazy(() => HclUncertaintySummarySchema).optional(),
+    cutSets: HclCutSetAnalysisSchema.optional(),
+    importance: HclImportanceAnalysisSchema.optional(),
     bddNodes: NonnegativeCounterSchema,
     bddVariables: NonnegativeCounterSchema,
     variableOrder: z.array(WorkbookEntityIdSchema),
@@ -303,6 +464,29 @@ const HclQuantificationResultSchema = z
         path: ["bddVariables"],
         message: "BDD variable count must equal the returned variable-order length",
       });
+    }
+  });
+
+const HclUncertaintySummarySchema = z
+  .object({
+    sampleCount: z.number().int().positive(),
+    seed: z.number().int().nonnegative(),
+    mean: z.number().finite().nonnegative(),
+    standardDeviation: z.number().finite().nonnegative(),
+    coefficientOfVariation: z.number().finite().nonnegative().nullable(),
+    minimum: z.number().finite().nonnegative(),
+    percentile05: z.number().finite().nonnegative(),
+    median: z.number().finite().nonnegative(),
+    percentile95: z.number().finite().nonnegative(),
+    maximum: z.number().finite().nonnegative(),
+  })
+  .strict()
+  .superRefine((summary, context) => {
+    if (!(summary.minimum <= summary.percentile05
+      && summary.percentile05 <= summary.median
+      && summary.median <= summary.percentile95
+      && summary.percentile95 <= summary.maximum)) {
+      context.addIssue({ code: "custom", path: ["percentile05"], message: "Uncertainty percentiles must be ordered" });
     }
   });
 
@@ -339,6 +523,13 @@ export {
   HclEventTreeHazardConvolutionResultSchema,
   HclBridgeStatsSchema,
   HclJunctionTreeStatsSchema,
+  HclCutSetBindingTraceSchema,
+  HclCutSetLiteralSchema,
+  HclCutSetSchema,
+  HclCutSetAnalysisSchema,
+  HclImportanceMeasureSchema,
+  HclImportanceAnalysisSchema,
+  HclUncertaintySummarySchema,
   HclQuantificationResultSchema,
 };
 export type {
@@ -351,5 +542,12 @@ export type {
   HclEventTreeHazardConvolutionResult,
   HclBridgeStats,
   HclJunctionTreeStats,
+  HclCutSetBindingTrace,
+  HclCutSetLiteral,
+  HclCutSet,
+  HclCutSetAnalysis,
+  HclImportanceMeasure,
+  HclImportanceAnalysis,
+  HclUncertaintySummary,
   HclQuantificationResult,
 };

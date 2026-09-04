@@ -41,9 +41,7 @@ pub fn confidence_interval(samples: &[f64], confidence: f64) -> (f64, f64) {
         c if (c - 0.90).abs() < 0.01 => 1.645,
         c if (c - 0.95).abs() < 0.01 => 1.96,
         c if (c - 0.99).abs() < 0.01 => 2.576,
-        _ => {
-            1.96
-        }
+        _ => 1.96,
     };
 
     let margin = z_score * std_err;
@@ -80,7 +78,11 @@ pub fn half_width_log10_wald(p_hat: f64, n: u64, z: f64, p_min: f64) -> Option<f
     if n == 0 || !z.is_finite() {
         return None;
     }
-    let p = clamp01(p_hat).max(if p_min.is_finite() { p_min } else { P_MIN_DEFAULT });
+    let p = clamp01(p_hat).max(if p_min.is_finite() {
+        p_min
+    } else {
+        P_MIN_DEFAULT
+    });
     let eps = half_width_wald(p, n, z)?;
     Some(eps / (p * std::f64::consts::LN_10))
 }
@@ -207,11 +209,7 @@ pub fn jeffreys_credible_interval(
     Some((clamp01(lo), clamp01(hi)))
 }
 
-pub fn clopper_pearson_upper_bound(
-    successes: u64,
-    trials: u64,
-    confidence: f64,
-) -> Option<f64> {
+pub fn clopper_pearson_upper_bound(successes: u64, trials: u64, confidence: f64) -> Option<f64> {
     if successes > trials {
         return None;
     }

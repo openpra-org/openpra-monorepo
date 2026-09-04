@@ -46,7 +46,7 @@ fn test_cli_mocus_xml_output_uses_report_format() {
         .arg("mocus")
         .arg("--analysis")
         .arg("cutsets-only")
-            .arg("--output")
+        .arg("--output")
         .arg(&output_path)
         .output()
         .expect("Failed to execute praxis");

@@ -1022,6 +1022,202 @@
   color: var(--color-primary);
 }
 
+.bneditor__quantification-shell {
+  display: grid;
+  gap: 14px;
+  padding: 12px 14px 14px;
+  font-family: inherit;
+}
+
+.bneditor__calculation-picker,
+.bneditor__workflow-picker {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.bneditor__calculation-picker > legend,
+.bneditor__workflow-picker > legend {
+  margin: 0;
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.bneditor__calculation-picker > div,
+.bneditor__workflow-picker > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.bneditor__calculation-picker label,
+.bneditor__workflow-picker label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 25px;
+  border: 0;
+  border-radius: 6px;
+  padding: 3px 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.bneditor__calculation-picker label:hover,
+.bneditor__workflow-picker label:hover,
+.bneditor__calculation-picker label.is-selected,
+.bneditor__workflow-picker label.is-selected {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.bneditor__calculation-picker input,
+.bneditor__workflow-picker input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+.bneditor__calculation-workspace {
+  min-width: 0;
+}
+
+.bneditor__manual-column {
+  grid-template-columns: minmax(0, 460px);
+  justify-items: start;
+}
+
+.bneditor__batch-intake {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.bneditor__query-composer--batch {
+  grid-template-columns: minmax(220px, 1fr) auto;
+}
+
+.bneditor__batch-upload b {
+  display: inline-grid;
+  min-width: 17px;
+  height: 17px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: white;
+  font-size: 9px;
+}
+
+.bneditor__batch-sample-menu {
+  position: relative;
+}
+
+.bneditor__batch-sample-menu > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.bneditor__batch-sample-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.bneditor .bneditor__batch-sample-chevron {
+  width: 10px;
+  height: 7px;
+  margin-left: 2px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+  transition: transform 140ms ease;
+}
+
+.bneditor__batch-sample-menu[open] .bneditor__batch-sample-chevron {
+  transform: rotate(180deg);
+}
+
+.bneditor__batch-sample-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 32;
+  display: grid;
+  min-width: 150px;
+  gap: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  padding: 5px;
+  background: var(--color-surface);
+  box-shadow: 0 10px 28px rgb(29 25 43 / 0.16);
+}
+
+.bneditor__batch-sample-popover button {
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: transparent;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bneditor__batch-sample-popover button:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.bneditor__query-batch-results {
+  display: grid;
+  width: min(100%, 680px);
+  gap: 0;
+  margin: 12px auto 0;
+}
+
+.bneditor__query-batch-row {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bneditor__query-batch-row > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+  list-style: none;
+  color: var(--color-text);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.bneditor__query-batch-row > summary::-webkit-details-marker {
+  display: none;
+}
+
+.bneditor__query-batch-row > summary span {
+  color: var(--color-text-muted);
+  font-size: 10.5px;
+}
+
+.bneditor__query-batch-row .bneditor__posterior {
+  margin: 2px 0 12px;
+}
+
 .bneditor__analysis [role="tabpanel"] {
   padding: 12px 14px 14px;
 }
@@ -1077,6 +1273,18 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.bneditor__evidence-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.bneditor__evidence-anchor .bneditor__evidence-popover {
+  top: calc(100% + 8px);
+  right: 0;
+  left: auto;
+  width: min(520px, calc(100vw - 48px));
 }
 
 .bneditor__evidence-trigger {
@@ -1301,6 +1509,15 @@
 
   .bneditor__query-actions {
     flex-wrap: wrap;
+  }
+
+  .bneditor__batch-intake {
+    flex-wrap: wrap;
+  }
+
+  .bneditor__evidence-anchor .bneditor__evidence-popover {
+    right: auto;
+    left: 0;
   }
 
   .bneditor__workspace,

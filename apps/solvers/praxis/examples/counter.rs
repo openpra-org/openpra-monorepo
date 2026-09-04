@@ -84,7 +84,10 @@ fn sum_out(f: &Factor, v: usize) -> Factor {
         let high = (idx >> (pos + 1)) << pos;
         table[low | high] += f.table[idx];
     }
-    Factor { vars: new_vars, table }
+    Factor {
+        vars: new_vars,
+        table,
+    }
 }
 
 #[derive(Clone)]
@@ -255,7 +258,11 @@ impl Builder {
     }
 }
 
-fn min_fill_order(scopes: &[Vec<usize>], num_vars: usize, cap: usize) -> Option<(Vec<usize>, usize)> {
+fn min_fill_order(
+    scopes: &[Vec<usize>],
+    num_vars: usize,
+    cap: usize,
+) -> Option<(Vec<usize>, usize)> {
     let mut adj: Vec<HashSet<usize>> = vec![HashSet::new(); num_vars];
     for scope in scopes {
         for i in 0..scope.len() {
@@ -538,7 +545,10 @@ fn corpus(paths: Vec<String>) {
         find_xml(Path::new(p), &mut files);
     }
     eprintln!("trees: {}", files.len());
-    let files: Vec<String> = files.iter().map(|p| p.to_string_lossy().replace('\\', "/")).collect();
+    let files: Vec<String> = files
+        .iter()
+        .map(|p| p.to_string_lossy().replace('\\', "/"))
+        .collect();
 
     let files = Arc::new(files);
     let cursor = Arc::new(AtomicUsize::new(0));
@@ -603,10 +613,18 @@ fn corpus(paths: Vec<String>) {
         }
     }
 
-    println!("=== counter (binarized WMC) vs BDD over {} trees ===", total);
+    println!(
+        "=== counter (binarized WMC) vs BDD over {} trees ===",
+        total
+    );
     println!("wmc solved:        {}", wmc_solved);
     println!("bdd solved:        {}", bdd_solved);
-    println!("both solved:       {}  (match {}, MISMATCH {})", both, matched, mism.len());
+    println!(
+        "both solved:       {}  (match {}, MISMATCH {})",
+        both,
+        matched,
+        mism.len()
+    );
     println!("wmc-only (BDD failed/timeout): {}", wmc_only.len());
     println!("bdd-only:          {}", bdd_only);
     println!("neither:           {}", neither);
@@ -614,7 +632,12 @@ fn corpus(paths: Vec<String>) {
     if !mism.is_empty() {
         println!("--- MISMATCHES ---");
         for r in mism.iter().take(20) {
-            println!("  {}  wmc={:.6e} bdd={:.6e}", short(&r.file), r.wmc.unwrap(), r.bdd.unwrap());
+            println!(
+                "  {}  wmc={:.6e} bdd={:.6e}",
+                short(&r.file),
+                r.wmc.unwrap(),
+                r.bdd.unwrap()
+            );
         }
     }
     if !wmc_only.is_empty() {
@@ -659,7 +682,10 @@ fn main() {
     let paths = if args.len() > 1 {
         args[1..].to_vec()
     } else {
-        vec!["fixtures/aralia".to_string(), "fixtures/synthetic".to_string()]
+        vec![
+            "fixtures/aralia".to_string(),
+            "fixtures/synthetic".to_string(),
+        ]
     };
     let h = thread::Builder::new()
         .stack_size(1024 * 1024 * 1024)

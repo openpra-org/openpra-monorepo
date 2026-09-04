@@ -1,15 +1,15 @@
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
-use std::path::Path;
 use std::io::Write;
+use std::path::Path;
 use std::thread;
 use std::time::{Duration, Instant};
 
 use praxis::algorithms::bdd_engine::Bdd;
+use praxis::algorithms::ordering::sloan_on_adj;
 use praxis::algorithms::pdag::Pdag;
 use praxis::analysis::width::compute_dfs_metadata_pdag;
-use praxis::algorithms::ordering::sloan_on_adj;
 use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::Formula;
 use praxis::io::parser::parse_fault_tree;
@@ -500,7 +500,11 @@ impl Searcher {
                         }
                     }
                     if det != 0.0 {
-                        let sub = if still.is_empty() { 1.0 } else { self.solve(&still) };
+                        let sub = if still.is_empty() {
+                            1.0
+                        } else {
+                            self.solve(&still)
+                        };
                         sum += det * sub;
                     }
                 }
@@ -550,7 +554,11 @@ fn run_with_rank(
         if s.is_constraint[fi] && s.factors[fi].vars.len() == 1 {
             let v = s.factors[fi].vars[0];
             if s.assign[v] < 0 {
-                let forced = if s.factors[fi].table[1] == 1.0 { 1i8 } else { 0i8 };
+                let forced = if s.factors[fi].table[1] == 1.0 {
+                    1i8
+                } else {
+                    0i8
+                };
                 s.assign[v] = forced;
                 trail.push(v);
                 q.push(v);
@@ -676,7 +684,11 @@ fn primal_graph(factors: &[Factor], nv: usize) -> Vec<Vec<usize>> {
         .collect()
 }
 
-fn graph_rank_from_adj(adj: &[Vec<usize>], nv: usize, core: fn(&[Vec<usize>]) -> Vec<usize>) -> Vec<usize> {
+fn graph_rank_from_adj(
+    adj: &[Vec<usize>],
+    nv: usize,
+    core: fn(&[Vec<usize>]) -> Vec<usize>,
+) -> Vec<usize> {
     let order = core(adj);
     let mut rank = vec![0usize; nv];
     for (pos, &v) in order.iter().enumerate() {
@@ -698,7 +710,10 @@ fn run_order_count(paths: Vec<String>) {
         secs
     );
     println!("(sloanF = Sloan on the factor hypergraph, the same sparse graph min-fill uses)");
-    println!("{:<20} {:>6} {:>11} {:>11}", "tree", "events", "minfill", "sloanF");
+    println!(
+        "{:<20} {:>6} {:>11} {:>11}",
+        "tree", "events", "minfill", "sloanF"
+    );
     let _ = std::io::stdout().flush();
     let mut rows: Vec<[Option<usize>; 2]> = Vec::new();
     for path in &paths {
@@ -768,7 +783,11 @@ fn run_order_count(paths: Vec<String>) {
         };
         println!(
             "{:<10} geomean {:>8.3}   best {:>3}   solves {:>3}/{}",
-            labels[i], gm, wins[i], solves[i], rows.len()
+            labels[i],
+            gm,
+            wins[i],
+            solves[i],
+            rows.len()
         );
     }
 }

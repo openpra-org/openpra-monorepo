@@ -196,7 +196,10 @@ fn test_zbdd_cut_set_with_order_limit() {
     let all_cut_sets = cut_sets_via_zbdd(&ft);
     assert_eq!(all_cut_sets.len(), 2);
 
-    let limited_cut_sets: Vec<_> = all_cut_sets.into_iter().filter(|cs| cs.order() <= 2).collect();
+    let limited_cut_sets: Vec<_> = all_cut_sets
+        .into_iter()
+        .filter(|cs| cs.order() <= 2)
+        .collect();
     assert_eq!(limited_cut_sets.len(), 1);
     assert_eq!(limited_cut_sets[0].order(), 1);
     assert!(limited_cut_sets[0].events.contains("E4"));

@@ -1,4 +1,8 @@
-import type { BayesianNetworkEvidenceConfiguration, WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
+import type {
+  BayesianNetworkEvidenceConfiguration,
+  HclEvidenceScenario,
+  WorkbookHclConfiguration,
+} from "interfaces-mef-types/modeling";
 import type {
   BayesianNetworkAnalysisResult,
   BayesianNetworkModel,
@@ -13,6 +17,20 @@ import type {
 
 type BayesianNetworkFaultTreeOption = HclFaultTreeOption;
 
+interface BayesianNetworkQueryBatchRow {
+  scenarioId: string;
+  scenarioCode: string;
+  scenarioName: string;
+  status: "SUCCEEDED" | "FAILED";
+  failure: string | null;
+  result: BayesianNetworkAnalysisResult | null;
+}
+
+interface BayesianNetworkQueryBatchResult {
+  queryNodeId: string;
+  scenarios: BayesianNetworkQueryBatchRow[];
+}
+
 interface BayesianNetworkEditorProps {
   model: BayesianNetworkModel;
   editable: boolean;
@@ -24,6 +42,7 @@ interface BayesianNetworkEditorProps {
   queryNodeId: string | null;
   validation: ValidationIssue[];
   analysisResult: BayesianNetworkAnalysisResult | null;
+  queryBatchResult?: BayesianNetworkQueryBatchResult | null;
   running: boolean;
   runError: string | null;
   workbookId: string | null;
@@ -43,6 +62,12 @@ interface BayesianNetworkEditorProps {
   onRunHclFaultTreeBatch: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, scenarioIds: string[], integrateHazardGrid: boolean) => void;
   onRunHclEventTreeBatch: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, scenarioIds: string[], integrateHazardGrid: boolean) => void;
   onRun: () => void;
+  onRunBatch?: (scenarios: HclEvidenceScenario[]) => void;
 }
 
-export type { BayesianNetworkEditorProps, BayesianNetworkFaultTreeOption };
+export type {
+  BayesianNetworkEditorProps,
+  BayesianNetworkFaultTreeOption,
+  BayesianNetworkQueryBatchResult,
+  BayesianNetworkQueryBatchRow,
+};

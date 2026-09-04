@@ -272,6 +272,31 @@ describe("PRAXIS HCL solver settings", () => {
         spliceNullGates: true,
       }).success,
     ).toBe(true);
+    expect(HclSolverSettingsSchema.safeParse({
+      ...defaults,
+      uncertainty: {
+        sampleCount: 1000,
+        seed: 2026,
+        basicEventDistributions: [{
+          faultTreeBasicEvent: {
+            referenceType: "FAULT_TREE_BASIC_EVENT",
+            workbookId: FT_WORKBOOK_ID,
+            entityId: BASIC_EVENT_ID,
+          },
+          distribution: { family: "BETA", alpha: 2, beta: 18 },
+        }],
+        cptRowDistributions: [{
+          bayesianNetworkNode: {
+            referenceType: "BAYESIAN_NETWORK_NODE",
+            workbookId: BN_WORKBOOK_ID,
+            modelId: BN_MODEL_ID,
+            entityId: BN_NODE_ID,
+          },
+          cptRowId: "123e4567-e89b-42d3-a456-426614174799",
+          equivalentSampleSize: 100,
+        }],
+      },
+    }).success).toBe(true);
   });
 
   it.each([
@@ -310,6 +335,61 @@ describe("HCL validation and quantification results", () => {
       entityId: TOP_GATE_ID,
     },
     probability: 0.015,
+    uncertainty: {
+      sampleCount: 1000,
+      seed: 2026,
+      mean: 0.015,
+      standardDeviation: 0.002,
+      coefficientOfVariation: 0.1333,
+      minimum: 0.009,
+      percentile05: 0.012,
+      median: 0.0148,
+      percentile95: 0.019,
+      maximum: 0.023,
+    },
+    cutSets: {
+      totalCount: 1,
+      cutSets: [{
+        rank: 1,
+        order: 2,
+        probability: 0.01,
+        coverage: 2 / 3,
+        literals: [
+          {
+            basicEventId: BASIC_EVENT_ID,
+            complemented: false,
+            binding: {
+              bayesianNetworkNodeId: BN_NODE_ID,
+              stateIds: [TRUE_STATE_ID],
+              parentNodeIds: [],
+            },
+          },
+          {
+            basicEventId: OTHER_BASIC_EVENT_ID,
+            complemented: false,
+            binding: null,
+          },
+        ],
+        bnAncestorNodeIds: [],
+        bnRootCauseNodeIds: [],
+      }],
+    },
+    importance: {
+      totalCount: 1,
+      measures: [{
+        rank: 1,
+        basicEventId: BASIC_EVENT_ID,
+        bayesianNetworkNodeId: BN_NODE_ID,
+        eventProbability: 0.1,
+        probabilityIfTrue: 0.15,
+        probabilityIfFalse: 0,
+        birnbaum: 0.15,
+        criticality: 1,
+        fussellVesely: 1,
+        riskAchievementWorth: 10,
+        riskReductionWorth: null,
+      }],
+    },
     bddNodes: 7,
     bddVariables: 2,
     variableOrder: [BASIC_EVENT_ID, OTHER_BASIC_EVENT_ID],
@@ -346,6 +426,27 @@ describe("HCL validation and quantification results", () => {
     { ...quantification, variableOrder: [BASIC_EVENT_ID, BASIC_EVENT_ID] },
     { ...quantification, bridge: { ...quantification.bridge, quantifications: 1.5 } },
     { ...quantification, junctionTree: { ...quantification.junctionTree, treewidth: -1 } },
+    {
+      ...quantification,
+      cutSets: {
+        ...quantification.cutSets,
+        cutSets: [{ ...quantification.cutSets.cutSets[0], probability: 1.01 }],
+      },
+    },
+    {
+      ...quantification,
+      importance: {
+        ...quantification.importance,
+        totalCount: 2,
+      },
+    },
+    {
+      ...quantification,
+      cutSets: {
+        ...quantification.cutSets,
+        cutSets: [{ ...quantification.cutSets.cutSets[0], order: 1 }],
+      },
+    },
     { ...quantification, completedAt: "yesterday" },
     { ...quantification, unsupportedMetric: 1 },
   ])("rejects malformed or unsupported quantification output %#", (candidate) => {

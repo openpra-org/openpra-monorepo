@@ -329,9 +329,7 @@ pub fn eval_gates_packed_atleast_small_kernel(
         out_lo.store(!0u32);
         out_hi.store(!0u32);
     } else if k > n_ops {
-
     } else {
-
         let c0_lo = RuntimeCell::<u32>::new(0u32);
         let c1_lo = RuntimeCell::<u32>::new(0u32);
         let c2_lo = RuntimeCell::<u32>::new(0u32);
@@ -496,9 +494,7 @@ pub fn eval_gates_packed_atleast_kernel(
         out_lo.store(!0u32);
         out_hi.store(!0u32);
     } else if k > n_ops {
-
     } else {
-
         let c0_lo = RuntimeCell::<u32>::new(0u32);
         let c1_lo = RuntimeCell::<u32>::new(0u32);
         let c2_lo = RuntimeCell::<u32>::new(0u32);
@@ -988,7 +984,6 @@ pub fn eval_gates_packed_atleast_large_coop_kernel(
     if k == 0u32 {
         out_word.store(!0u32);
     } else if k > n_ops {
-
     } else {
         let c0 = RuntimeCell::<u32>::new(0u32);
         let c1 = RuntimeCell::<u32>::new(0u32);
@@ -1513,7 +1508,6 @@ pub fn eval_gates_packed_iff_u64_kernel(
 }
 
 #[cfg(feature = "gpu")]
-
 #[allow(clippy::too_many_arguments)]
 pub fn eval_gates_packed_gpu<R: Runtime>(
     client: &ComputeClient<R>,
@@ -1562,7 +1556,19 @@ pub fn eval_gates_packed_gpu<R: Runtime>(
     let words_lo_h = client.create_from_slice(u32::as_bytes(&words_lo));
     let words_hi_h = client.create_from_slice(u32::as_bytes(&words_hi));
 
-    let cube_dim_x = if num_gates >= 32 { 32 } else if num_gates >= 16 { 16 } else if num_gates >= 8 { 8 } else if num_gates >= 4 { 4 } else if num_gates >= 2 { 2 } else { 1 };
+    let cube_dim_x = if num_gates >= 32 {
+        32
+    } else if num_gates >= 16 {
+        16
+    } else if num_gates >= 8 {
+        8
+    } else if num_gates >= 4 {
+        4
+    } else if num_gates >= 2 {
+        2
+    } else {
+        1
+    };
     let cube_dim_y = p_count.max(1).min((256 / cube_dim_x).max(1).min(8));
     let cube_dim = CubeDim::new_2d(cube_dim_x, cube_dim_y);
     let cube_count = CubeCount::new_3d(
@@ -1711,10 +1717,11 @@ pub fn eval_gates_packed_gpu<R: Runtime>(
             let indices_arg_small =
                 ArrayArg::from_raw_parts::<u32>(&indices_h, operand_indices.len(), 1);
             let neg_arg_small = ArrayArg::from_raw_parts::<u32>(&neg_h, operand_negated.len(), 1);
-            let out_arg_small =
-                ArrayArg::from_raw_parts::<u32>(&out_h, gate_out_indices.len(), 1);
-            let words_lo_arg_small = ArrayArg::from_raw_parts::<u32>(&words_lo_h, words_lo.len(), 1);
-            let words_hi_arg_small = ArrayArg::from_raw_parts::<u32>(&words_hi_h, words_hi.len(), 1);
+            let out_arg_small = ArrayArg::from_raw_parts::<u32>(&out_h, gate_out_indices.len(), 1);
+            let words_lo_arg_small =
+                ArrayArg::from_raw_parts::<u32>(&words_lo_h, words_lo.len(), 1);
+            let words_hi_arg_small =
+                ArrayArg::from_raw_parts::<u32>(&words_hi_h, words_hi.len(), 1);
 
             eval_gates_packed_atleast_small_kernel::launch_unchecked::<R>(
                 client,
@@ -1740,10 +1747,11 @@ pub fn eval_gates_packed_gpu<R: Runtime>(
             let indices_arg_large =
                 ArrayArg::from_raw_parts::<u32>(&indices_h, operand_indices.len(), 1);
             let neg_arg_large = ArrayArg::from_raw_parts::<u32>(&neg_h, operand_negated.len(), 1);
-            let out_arg_large =
-                ArrayArg::from_raw_parts::<u32>(&out_h, gate_out_indices.len(), 1);
-            let words_lo_arg_large = ArrayArg::from_raw_parts::<u32>(&words_lo_h, words_lo.len(), 1);
-            let words_hi_arg_large = ArrayArg::from_raw_parts::<u32>(&words_hi_h, words_hi.len(), 1);
+            let out_arg_large = ArrayArg::from_raw_parts::<u32>(&out_h, gate_out_indices.len(), 1);
+            let words_lo_arg_large =
+                ArrayArg::from_raw_parts::<u32>(&words_lo_h, words_lo.len(), 1);
+            let words_hi_arg_large =
+                ArrayArg::from_raw_parts::<u32>(&words_hi_h, words_hi.len(), 1);
 
             eval_gates_packed_atleast_large_coop_kernel::launch_unchecked::<R>(
                 client,
@@ -1778,7 +1786,6 @@ pub fn eval_gates_packed_gpu<R: Runtime>(
 }
 
 #[cfg(all(feature = "gpu", feature = "gpu_u64"))]
-
 #[allow(clippy::too_many_arguments)]
 pub fn eval_gates_packed_gpu_u64<R: Runtime>(
     client: &ComputeClient<R>,
@@ -2028,7 +2035,6 @@ mod cuda_tests {
             for p in 0..p_count {
                 let bp_base = ((b * p_count + p) * num_nodes) as usize;
                 for n in 0..num_nodes {
-
                     node_words[bp_base + n as usize] = 0x9E37_79B9_7F4A_7C15u64
                         ^ ((b as u64) << 48)
                         ^ ((p as u64) << 32)

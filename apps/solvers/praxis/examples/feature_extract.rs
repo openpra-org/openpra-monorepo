@@ -125,7 +125,11 @@ fn compute_feats(
             }
             Some(PdagNode::Gate { .. }) => {
                 num_gates += 1;
-                if let Some(g) = pdag.get_node(v).and_then(|n| n.id()).and_then(|name| ft.get_gate(name)) {
+                if let Some(g) = pdag
+                    .get_node(v)
+                    .and_then(|n| n.id())
+                    .and_then(|name| ft.get_gate(name))
+                {
                     typed += 1;
                     match g.formula() {
                         Formula::And | Formula::Nand => and += 1,
@@ -267,7 +271,11 @@ fn process(path: &Path, rows: &mut Vec<Row>, st: &mut Stats) {
     for &m in &maximals {
         let g = build_incidence_graph_full(&pdag, m);
         let f = compute_feats(&pdag, &ft, &g, &pc);
-        let name = pdag.get_node(m).and_then(|n| n.id()).unwrap_or("?").to_string();
+        let name = pdag
+            .get_node(m)
+            .and_then(|n| n.id())
+            .unwrap_or("?")
+            .to_string();
         st.cores += 1;
         if f.tw.is_some() {
             st.width_done += 1;
@@ -312,10 +320,26 @@ fn run(dirs: Vec<String>) {
         let f = &r.f;
         csv.push_str(&format!(
             "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n",
-            r.file, r.kind, r.root, f.num_vars, f.num_gates, f.nv, f.ne,
-            fu(f.tw), fu(f.pw), ff(f.mean_fanout), f.max_fanout, ff(f.frac_shared),
-            ff(f.pmin), ff(f.pmed), ff(f.pmax), ff(f.frac_rare),
-            ff(f.f_and), ff(f.f_or), ff(f.f_atl), ff(f.f_xor)
+            r.file,
+            r.kind,
+            r.root,
+            f.num_vars,
+            f.num_gates,
+            f.nv,
+            f.ne,
+            fu(f.tw),
+            fu(f.pw),
+            ff(f.mean_fanout),
+            f.max_fanout,
+            ff(f.frac_shared),
+            ff(f.pmin),
+            ff(f.pmed),
+            ff(f.pmax),
+            ff(f.frac_rare),
+            ff(f.f_and),
+            ff(f.f_or),
+            ff(f.f_atl),
+            ff(f.f_xor)
         ));
     }
     let out = "C:/tmp/praxis_features.csv";
@@ -325,10 +349,16 @@ fn run(dirs: Vec<String>) {
     println!("xml found:        {}", st.found);
     println!("parsed + pdag ok: {}", st.pdag_ok);
     println!("read/parse fails: {}", st.read_fail + st.parse_fail);
-    println!("pdag fails:       {}  (e.g. XOR-using -all voters)", st.pdag_fail);
+    println!(
+        "pdag fails:       {}  (e.g. XOR-using -all voters)",
+        st.pdag_fail
+    );
     println!("cores extracted:  {}", st.cores);
     println!("  width computed: {}", st.width_done);
-    println!("  width skipped:  {}  (core > {} vertices, this pass)", st.width_skipped, WIDTH_CAP);
+    println!(
+        "  width skipped:  {}  (core > {} vertices, this pass)",
+        st.width_skipped, WIDTH_CAP
+    );
     println!("csv -> {}", out);
 
     let mut nus: Vec<&Row> = rows.iter().filter(|r| r.file == "nus9601.xml").collect();
@@ -337,7 +367,11 @@ fn run(dirs: Vec<String>) {
     if let Some(h) = nus.first() {
         println!(
             "hardest core: kind={} root={} vars={} treewidth={} pathwidth={}",
-            h.kind, h.root, h.f.num_vars, fu(h.f.tw), fu(h.f.pw)
+            h.kind,
+            h.root,
+            h.f.num_vars,
+            fu(h.f.tw),
+            fu(h.f.pw)
         );
         println!("expected from prior research: treewidth ~40-56, pathwidth ~114-221");
     } else {
@@ -347,11 +381,18 @@ fn run(dirs: Vec<String>) {
     let mut bytw: Vec<&Row> = rows.iter().filter(|r| r.f.tw.is_some()).collect();
     bytw.sort_by_key(|r| std::cmp::Reverse(r.f.tw.unwrap_or(0)));
     println!("\n=== top 8 cores by treewidth (corpus) ===");
-    println!("{:<28} {:<9} {:>6} {:>4} {:>4}", "file", "kind", "vars", "tw", "pw");
+    println!(
+        "{:<28} {:<9} {:>6} {:>4} {:>4}",
+        "file", "kind", "vars", "tw", "pw"
+    );
     for r in bytw.iter().take(8) {
         println!(
             "{:<28} {:<9} {:>6} {:>4} {:>4}",
-            r.file, r.kind, r.f.num_vars, fu(r.f.tw), fu(r.f.pw)
+            r.file,
+            r.kind,
+            r.f.num_vars,
+            fu(r.f.tw),
+            fu(r.f.pw)
         );
     }
 }
@@ -359,7 +400,10 @@ fn run(dirs: Vec<String>) {
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     let dirs = if args.is_empty() {
-        vec!["fixtures/aralia".to_string(), "fixtures/synthetic".to_string()]
+        vec![
+            "fixtures/aralia".to_string(),
+            "fixtures/synthetic".to_string(),
+        ]
     } else {
         args
     };

@@ -36,10 +36,34 @@ interface HclHazardGridDefinition {
   normalizeWeights: boolean;
 }
 
+type HclBasicEventProbabilityDistribution =
+  | { family: "BETA"; alpha: number; beta: number }
+  | { family: "LOGNORMAL"; median: number; errorFactor: number }
+  | { family: "UNIFORM"; lower: number; upper: number };
+
+interface HclBasicEventUncertainty {
+  faultTreeBasicEvent: FaultTreeBasicEventCatalogueReference;
+  distribution: HclBasicEventProbabilityDistribution;
+}
+
+interface HclCptRowUncertainty {
+  bayesianNetworkNode: BayesianNetworkNodeReference;
+  cptRowId: WorkbookEntityId;
+  equivalentSampleSize: number;
+}
+
+interface HclUncertaintySettings {
+  sampleCount: number;
+  seed: number;
+  basicEventDistributions: HclBasicEventUncertainty[];
+  cptRowDistributions: HclCptRowUncertainty[];
+}
+
 interface HclSolverSettings {
   variableOrder: WorkbookEntityId[] | null;
   foldConstants: boolean;
   spliceNullGates: boolean;
+  uncertainty?: HclUncertaintySettings;
 }
 
 interface HclConfigurationDefinition {
@@ -60,6 +84,10 @@ export type {
   HclBaseEvidence,
   HclEvidenceScenario,
   HclHazardGridDefinition,
+  HclBasicEventProbabilityDistribution,
+  HclBasicEventUncertainty,
+  HclCptRowUncertainty,
+  HclUncertaintySettings,
   HclSolverSettings,
   HclConfigurationDefinition,
 };

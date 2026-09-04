@@ -30,7 +30,6 @@ pub fn evaluate_gate_cpu(op: GateOp, inputs: &[bool], min_number: Option<usize>)
 }
 
 fn next_u64_xorshift(state: &mut u64) -> u64 {
-
     let mut x = *state;
     x ^= x << 13;
     x ^= x >> 7;
@@ -40,7 +39,6 @@ fn next_u64_xorshift(state: &mut u64) -> u64 {
 }
 
 fn next_f64_unit(state: &mut u64) -> f64 {
-
     let x = next_u64_xorshift(state);
     let mantissa = x >> 11;
     (mantissa as f64) / ((1u64 << 53) as f64)

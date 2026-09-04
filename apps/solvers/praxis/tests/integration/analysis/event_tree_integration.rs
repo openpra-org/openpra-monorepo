@@ -4,7 +4,6 @@ use praxis::core::model::Model;
 
 #[test]
 fn test_simple_loca_event_tree() {
-
     let ie = InitiatingEvent::new("IE-LOCA".to_string())
         .with_name("Loss of Coolant Accident".to_string());
 
@@ -57,7 +56,6 @@ fn test_simple_loca_event_tree() {
 
 #[test]
 fn test_complex_event_tree_with_multiple_systems() {
-
     let ie =
         InitiatingEvent::new("IE-LOSP".to_string()).with_name("Loss of Offsite Power".to_string());
 
@@ -160,7 +158,6 @@ fn test_complex_event_tree_with_multiple_systems() {
 
 #[test]
 fn test_event_tree_with_named_branches() {
-
     let ie = InitiatingEvent::new("IE-1".to_string());
 
     let seq_a = Sequence::new("SEQ-A".to_string());
@@ -212,7 +209,6 @@ fn test_event_tree_with_named_branches() {
 
 #[test]
 fn test_attack_tree_three_level_security() {
-
     let ie = InitiatingEvent::new("IE-Attack".to_string()).with_name("Security Attack".to_string());
 
     let seq_success = Sequence::new("SEQ-AttackSucceeds".to_string());
@@ -303,7 +299,6 @@ fn test_attack_tree_three_level_security() {
 
 #[test]
 fn test_bcd_tree_with_named_branch_reuse() {
-
     let ie = InitiatingEvent::new("IE-I".to_string());
 
     let seq_success = Sequence::new("SEQ-Success".to_string());
@@ -411,7 +406,6 @@ fn test_bcd_tree_with_named_branch_reuse() {
 
 #[test]
 fn test_mef_example_bypass_state() {
-
     let ie = InitiatingEvent::new("IE-1".to_string());
 
     let seq_s1 = Sequence::new("SEQ-S1".to_string());
@@ -533,7 +527,6 @@ fn test_mef_example_bypass_state() {
 
 #[test]
 fn test_gas_leak_simple_detection() {
-
     let ie = InitiatingEvent::new("IE-GasLeak".to_string()).with_name("Gas Leak".to_string());
 
     let seq_s9 = Sequence::new("SEQ-S9".to_string());
@@ -589,7 +582,6 @@ fn test_gas_leak_simple_detection() {
 
 #[test]
 fn test_complex_branching_all_combinations() {
-
     let ie = InitiatingEvent::new("IE-Complex".to_string());
 
     let seqs: Vec<Sequence> = (0..8)

@@ -30,7 +30,11 @@ impl ZbddSequenceMetadata {
             })
             .collect();
         order_stats.sort_by_key(|s| s.order);
-        Self { sequence_id, frequency, order_stats }
+        Self {
+            sequence_id,
+            frequency,
+            order_stats,
+        }
     }
 }
 
@@ -109,7 +113,10 @@ pub fn prompt_for_limits_with_defaults(
     } else if cut_off_input.eq_ignore_ascii_case("none") {
         None
     } else {
-        cut_off_input.parse::<f64>().ok().filter(|&value| value > 0.0)
+        cut_off_input
+            .parse::<f64>()
+            .ok()
+            .filter(|&value| value > 0.0)
     };
 
     (limit_order, cut_off)

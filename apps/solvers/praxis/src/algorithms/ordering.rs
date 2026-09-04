@@ -60,7 +60,14 @@ pub fn dfs_order(pdag: &Pdag, scram: bool) -> HashMap<NodeIndex, usize> {
     let mut visited = HashSet::new();
     let mut counter = 0;
     if let Some(root) = pdag.root() {
-        dfs(pdag, root.abs(), scram, &mut pos, &mut visited, &mut counter);
+        dfs(
+            pdag,
+            root.abs(),
+            scram,
+            &mut pos,
+            &mut visited,
+            &mut counter,
+        );
     }
     for &be in &basic_events(pdag) {
         if let std::collections::hash_map::Entry::Vacant(e) = pos.entry(be) {
@@ -71,7 +78,11 @@ pub fn dfs_order(pdag: &Pdag, scram: bool) -> HashMap<NodeIndex, usize> {
     pos
 }
 
-fn cone(pdag: &Pdag, idx: NodeIndex, memo: &mut HashMap<NodeIndex, Vec<NodeIndex>>) -> Vec<NodeIndex> {
+fn cone(
+    pdag: &Pdag,
+    idx: NodeIndex,
+    memo: &mut HashMap<NodeIndex, Vec<NodeIndex>>,
+) -> Vec<NodeIndex> {
     let a = idx.abs();
     if let Some(c) = memo.get(&a) {
         return c.clone();

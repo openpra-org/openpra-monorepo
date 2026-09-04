@@ -8,7 +8,6 @@ use std::collections::HashMap;
 
 #[test]
 fn test_rea_or_gate() {
-
     let mut ft = FaultTree::new("REATest", "TopEvent").unwrap();
 
     let e1 = BasicEvent::new("E1".to_string(), 0.01).unwrap();
@@ -60,7 +59,6 @@ fn test_rea_or_gate() {
 
 #[test]
 fn test_mcub_or_gate() {
-
     let mut ft = FaultTree::new("MCUBTest", "TopEvent").unwrap();
 
     let e1 = BasicEvent::new("E1".to_string(), 0.1).unwrap();
@@ -114,7 +112,6 @@ fn test_mcub_or_gate() {
 
 #[test]
 fn test_approximations_and_gate() {
-
     let mut ft = FaultTree::new("ANDTest", "TopEvent").unwrap();
 
     let e1 = BasicEvent::new("E1".to_string(), 0.1).unwrap();
@@ -167,7 +164,6 @@ fn test_approximations_and_gate() {
 
 #[test]
 fn test_rea_vs_mcub() {
-
     let mut ft = FaultTree::new("CompareTest", "TopEvent").unwrap();
 
     let e1 = BasicEvent::new("E1".to_string(), 0.05).unwrap();
@@ -229,7 +225,6 @@ fn test_rea_vs_mcub() {
 
 #[test]
 fn test_limit_order_filtering() {
-
     let mut ft = FaultTree::new("OrderTest", "TopEvent").unwrap();
 
     let e1 = BasicEvent::new("E1".to_string(), 0.1).unwrap();
@@ -269,7 +264,6 @@ fn test_limit_order_filtering() {
 
 #[test]
 fn test_cut_off_filtering() {
-
     let mut ft = FaultTree::new("CutoffTest", "TopEvent").unwrap();
 
     let e1 = BasicEvent::new("E1".to_string(), 0.1).unwrap();

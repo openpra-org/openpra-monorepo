@@ -1,4 +1,5 @@
 import type { BayesianNetworkEvidenceConfiguration, WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
+import type { ReactNode } from "react";
 import type { BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type {
@@ -68,6 +69,9 @@ interface HclEditorBatchRunResult {
   hazardConvolution?: HclHazardConvolutionResult;
 }
 
+type HclCalculationType = "PROBABILITY" | "CUT_SETS" | "UNCERTAINTY" | "IMPORTANCE";
+type QuantificationWorkflow = "MANUAL" | "BATCH";
+
 interface HclBindingEditorProps {
   model: BayesianNetworkModel;
   editable: boolean;
@@ -84,6 +88,9 @@ interface HclBindingEditorProps {
   runResult: HclEditorRunResult | null;
   batchRunResult: HclEditorBatchRunResult | null;
   evidenceEditorOpen?: boolean;
+  evidenceEditor?: ReactNode;
+  calculationType?: HclCalculationType;
+  workflow?: QuantificationWorkflow;
   onEditEvidence?: () => void;
   onChange: (configurations: WorkbookHclConfiguration[]) => void;
   onRunFaultTree: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption) => void;
@@ -97,6 +104,8 @@ export type {
   HclEditorRunResult,
   HclEditorBatchRunResult,
   HclEditorScenarioRunResult,
+  HclCalculationType,
+  QuantificationWorkflow,
   HclEventTreeOption,
   HclFaultTreeOption,
 };

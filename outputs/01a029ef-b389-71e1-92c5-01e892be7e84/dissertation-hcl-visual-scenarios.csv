@@ -1,0 +1,13 @@
+code,name,enabled,evidence
+HZ-0001,No seismic hazard | No flood wave,true,"{""SEISMIC-LEVEL"":""NO_SEISMIC"",""FLOOD-LEVEL"":""NO_FLOOD"",""FIRE"":""FALSE""}"
+HZ-0004,No seismic hazard | W3 (4.42 m),true,"{""SEISMIC-LEVEL"":""NO_SEISMIC"",""FLOOD-LEVEL"":""W3"",""FIRE"":""FALSE""}"
+HZ-0007,No seismic hazard | W6 (8.42 m),true,"{""SEISMIC-LEVEL"":""NO_SEISMIC"",""FLOOD-LEVEL"":""W6"",""FIRE"":""FALSE""}"
+HZ-0008,PGA_1 (0.17 g) | No flood wave,true,"{""SEISMIC-LEVEL"":""PGA1"",""FLOOD-LEVEL"":""NO_FLOOD"",""FIRE"":""FALSE""}"
+HZ-0010,PGA_1 (0.17 g) | W2 (3.21 m),true,"{""SEISMIC-LEVEL"":""PGA1"",""FLOOD-LEVEL"":""W2"",""FIRE"":""FALSE""}"
+HZ-0016,PGA_2 (0.39 g) | W1 (2.30 m),true,"{""SEISMIC-LEVEL"":""PGA2"",""FLOOD-LEVEL"":""W1"",""FIRE"":""FALSE""}"
+HZ-0021,PGA_2 (0.39 g) | W6 (8.42 m),true,"{""SEISMIC-LEVEL"":""PGA2"",""FLOOD-LEVEL"":""W6"",""FIRE"":""FALSE""}"
+HZ-0025,PGA_3 (0.61 g) | W3 (4.42 m),true,"{""SEISMIC-LEVEL"":""PGA3"",""FLOOD-LEVEL"":""W3"",""FIRE"":""FALSE""}"
+HZ-0030,PGA_4 (0.87 g) | W1 (2.30 m),true,"{""SEISMIC-LEVEL"":""PGA4"",""FLOOD-LEVEL"":""W1"",""FIRE"":""FALSE""}"
+HZ-0041,PGA_5 (1.22 g) | W5 (7.06 m),true,"{""SEISMIC-LEVEL"":""PGA5"",""FLOOD-LEVEL"":""W5"",""FIRE"":""FALSE""}"
+HZ-0043,PGA_6 (2.12 g) | No flood wave,true,"{""SEISMIC-LEVEL"":""PGA6"",""FLOOD-LEVEL"":""NO_FLOOD"",""FIRE"":""FALSE""}"
+HZ-0049,PGA_6 (2.12 g) | W6 (8.42 m),true,"{""SEISMIC-LEVEL"":""PGA6"",""FLOOD-LEVEL"":""W6"",""FIRE"":""FALSE""}"

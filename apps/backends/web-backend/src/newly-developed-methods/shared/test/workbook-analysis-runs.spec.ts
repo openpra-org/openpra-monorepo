@@ -1191,6 +1191,28 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(faultTreeResult.status).toBe(200);
     expect(faultTreeResult.body.probability).toBeCloseTo(0.16, 12);
     expect(faultTreeResult.body.probability).not.toBeCloseTo(0.02, 12);
+    expect(faultTreeResult.body.cutSets).toMatchObject({
+      totalCount: 1,
+      cutSets: [expect.objectContaining({
+        rank: 1,
+        order: 2,
+        probability: expect.closeTo(0.16, 12),
+        coverage: expect.closeTo(1, 12),
+      })],
+    });
+    expect(faultTreeResult.body.importance).toMatchObject({
+      totalCount: 2,
+      measures: expect.arrayContaining([
+        expect.objectContaining({
+          basicEventId: EVENT_A,
+          bayesianNetworkNodeId: NODE_A,
+          probabilityIfTrue: expect.closeTo(0.25, 12),
+          probabilityIfFalse: 0,
+          birnbaum: expect.closeTo(0.25, 12),
+          fussellVesely: 1,
+        }),
+      ]),
+    });
     expect(faultTreeResult.body.basicEventQuantifications).toEqual(expect.arrayContaining([
       expect.objectContaining({ basicEventId: EVENT_A, resolvedProbability: 0.1 }),
       expect.objectContaining({ basicEventId: EVENT_B, resolvedProbability: 0.2 }),
@@ -1215,6 +1237,20 @@ describe("workbook-owned analysis-run APIs", () => {
       expect.objectContaining({ sequenceId: HCL_FS, conditionalProbability: expect.closeTo(0, 12) }),
       expect.objectContaining({ sequenceId: HCL_FF, conditionalProbability: expect.closeTo(0.16, 12) }),
     ]);
+    expect(eventTreeResult.body.sequences.find(
+      (sequence: { sequenceId: string }) => sequence.sequenceId === HCL_FF,
+    )?.cutSets).toMatchObject({
+      totalCount: 1,
+      cutSets: [expect.objectContaining({ probability: expect.closeTo(0.16, 12) })],
+    });
+    expect(eventTreeResult.body.sequences.find(
+      (sequence: { sequenceId: string }) => sequence.sequenceId === HCL_FF,
+    )?.importance).toMatchObject({
+      totalCount: 2,
+      measures: expect.arrayContaining([
+        expect.objectContaining({ basicEventId: EVENT_A, birnbaum: expect.closeTo(0.25, 12) }),
+      ]),
+    });
   }, 120_000);
 
   it("runs HCL fault-tree and event-tree targets for a saved evidence-scenario set", async () => {

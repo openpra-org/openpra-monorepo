@@ -809,6 +809,53 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     ]);
   });
 
+  it("adapts typed uncertainty references into the PRAXIS HCL snapshot", () => {
+    const mef = structuredClone(esqMef);
+    mef.hclConfigurations[0]!.solverSettings.uncertainty = {
+      sampleCount: 500,
+      seed: 2026,
+      basicEventDistributions: [{
+        faultTreeBasicEvent: {
+          referenceType: "FAULT_TREE_BASIC_EVENT",
+          workbookId: "sy-1",
+          entityId: "be-a",
+        },
+        distribution: { family: "BETA", alpha: 2, beta: 18 },
+      }],
+      cptRowDistributions: [{
+        bayesianNetworkNode: {
+          referenceType: "BAYESIAN_NETWORK_NODE",
+          workbookId: "esq-1",
+          modelId: "bn-1",
+          entityId: "node-1",
+        },
+        cptRowId: "row-1",
+        equivalentSampleSize: 100,
+      }],
+    };
+
+    const adapted = adaptEsqHclSnapshot(
+      { workbookId: "esq-1", workbookRevision: 9, mef },
+      "hcl-1",
+    );
+
+    expect(adapted["solverSettings"]).toMatchObject({
+      uncertainty: {
+        sampleCount: 500,
+        seed: 2026,
+        basicEventDistributions: [{
+          faultTreeBasicEvent: { entityId: "be-a" },
+          distribution: { family: "BETA", alpha: 2, beta: 18 },
+        }],
+        cptRowDistributions: [{
+          bayesianNetworkNode: { modelId: "bn-1", entityId: "node-1" },
+          cptRowId: "row-1",
+          equivalentSampleSize: 100,
+        }],
+      },
+    });
+  });
+
   it("fails deterministically when a requested workbook model cannot be resolved", () => {
     expect(() =>
       adaptSyFaultTreeSnapshot(

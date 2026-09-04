@@ -16,6 +16,10 @@ import type {
   HclEventBinding,
   HclEvidenceScenario,
   HclHazardGridDefinition,
+  HclBasicEventProbabilityDistribution,
+  HclBasicEventUncertainty,
+  HclCptRowUncertainty,
+  HclUncertaintySettings,
   HclFaultTreeReference,
   HclSolverSettings,
   HclTrueStateIds,
@@ -73,11 +77,48 @@ const HclHazardGridDefinitionSchema = z
     }
   });
 
+const HclBasicEventProbabilityDistributionSchema: z.ZodType<HclBasicEventProbabilityDistribution> = z.discriminatedUnion("family", [
+  z.object({ family: z.literal("BETA"), alpha: z.number().finite().positive(), beta: z.number().finite().positive() }).strict(),
+  z.object({ family: z.literal("LOGNORMAL"), median: z.number().finite().positive().max(1), errorFactor: z.number().finite().gt(1) }).strict(),
+  z.object({ family: z.literal("UNIFORM"), lower: z.number().finite().min(0).max(1), upper: z.number().finite().min(0).max(1) }).strict().refine((value) => value.lower < value.upper, { message: "Uniform lower bound must be less than its upper bound", path: ["upper"] }),
+]);
+
+const HclBasicEventUncertaintySchema: z.ZodType<HclBasicEventUncertainty> = z
+  .object({
+    faultTreeBasicEvent: FaultTreeBasicEventCatalogueReferenceSchema,
+    distribution: HclBasicEventProbabilityDistributionSchema,
+  })
+  .strict();
+
+const HclCptRowUncertaintySchema: z.ZodType<HclCptRowUncertainty> = z
+  .object({
+    bayesianNetworkNode: BayesianNetworkNodeReferenceSchema,
+    cptRowId: WorkbookEntityIdSchema,
+    equivalentSampleSize: z.number().finite().positive().max(1_000_000),
+  })
+  .strict();
+
+const HclUncertaintySettingsSchema: z.ZodType<HclUncertaintySettings> = z
+  .object({
+    sampleCount: z.number().int().min(10).max(10_000),
+    seed: z.number().int().nonnegative().max(4_294_967_295),
+    basicEventDistributions: z.array(HclBasicEventUncertaintySchema),
+    cptRowDistributions: z.array(HclCptRowUncertaintySchema),
+  })
+  .strict()
+  .superRefine((settings, context) => {
+    const basicEvents = settings.basicEventDistributions.map(({ faultTreeBasicEvent }) => `${faultTreeBasicEvent.workbookId}:${faultTreeBasicEvent.entityId}`);
+    if (new Set(basicEvents).size !== basicEvents.length) context.addIssue({ code: "custom", path: ["basicEventDistributions"], message: "Basic-event uncertainty definitions must be unique" });
+    const cptRows = settings.cptRowDistributions.map(({ bayesianNetworkNode, cptRowId }) => `${bayesianNetworkNode.workbookId}:${bayesianNetworkNode.modelId}:${bayesianNetworkNode.entityId}:${cptRowId}`);
+    if (new Set(cptRows).size !== cptRows.length) context.addIssue({ code: "custom", path: ["cptRowDistributions"], message: "CPT-row uncertainty definitions must be unique" });
+  });
+
 const HclSolverSettingsSchema = z
   .object({
     variableOrder: z.array(WorkbookEntityIdSchema).min(1, "A custom variable order cannot be empty").nullable().default(null),
     foldConstants: z.boolean(),
     spliceNullGates: z.boolean(),
+    uncertainty: HclUncertaintySettingsSchema.optional(),
   })
   .strict()
   .superRefine((settings, context) => {
@@ -221,6 +262,35 @@ function refineHclConfigurationDefinition(
     }
     boundFaultTreeEvents.add(faultTreeEventKey);
   });
+
+  const uncertainty = configuration.solverSettings.uncertainty;
+  uncertainty?.basicEventDistributions.forEach((definition, index) => {
+    const reference = definition.faultTreeBasicEvent;
+    if (!configuration.faultTrees.some((faultTree) => faultTree.workbookId === reference.workbookId)) {
+      context.addIssue({
+        code: "custom",
+        path: ["solverSettings", "uncertainty", "basicEventDistributions", index, "faultTreeBasicEvent"],
+        message: "Uncertain basic event must belong to an included fault tree",
+      });
+    }
+    if (boundFaultTreeEvents.has(`${reference.workbookId}:${reference.entityId}`)) {
+      context.addIssue({
+        code: "custom",
+        path: ["solverSettings", "uncertainty", "basicEventDistributions", index, "faultTreeBasicEvent"],
+        message: "BN-bound basic-event uncertainty must be defined on the corresponding BN CPT row",
+      });
+    }
+  });
+  uncertainty?.cptRowDistributions.forEach((definition, index) => {
+    const reference = definition.bayesianNetworkNode;
+    if (reference.workbookId !== configuration.bayesianNetwork.workbookId || reference.modelId !== configuration.bayesianNetwork.modelId) {
+      context.addIssue({
+        code: "custom",
+        path: ["solverSettings", "uncertainty", "cptRowDistributions", index, "bayesianNetworkNode"],
+        message: "Uncertain CPT row must belong to the configured Bayesian network",
+      });
+    }
+  });
 }
 
 const HclConfigurationDefinitionSchema = HclConfigurationDefinitionBaseSchema.superRefine(
@@ -256,6 +326,10 @@ export {
   HclBaseEvidenceSchema,
   HclEvidenceScenarioSchema,
   HclHazardGridDefinitionSchema,
+  HclBasicEventProbabilityDistributionSchema,
+  HclBasicEventUncertaintySchema,
+  HclCptRowUncertaintySchema,
+  HclUncertaintySettingsSchema,
   HclSolverSettingsSchema,
   HclConfigurationDefinitionBaseSchema,
   HclConfigurationDefinitionSchema,

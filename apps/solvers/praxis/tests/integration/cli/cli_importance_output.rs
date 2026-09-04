@@ -27,7 +27,10 @@ fn praxis_binary() -> PathBuf {
 fn top_probability(stdout: &str) -> f64 {
     for line in stdout.lines() {
         if let Some(rest) = line.trim().strip_prefix("Top Event Probability:") {
-            return rest.trim().parse::<f64>().expect("probability should parse");
+            return rest
+                .trim()
+                .parse::<f64>()
+                .expect("probability should parse");
         }
     }
     panic!("no top event probability line in: {stdout}");

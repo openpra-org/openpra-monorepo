@@ -630,6 +630,32 @@ const adaptEsEventTreeSnapshot = (
   };
 };
 
+const adaptHclSolverSettings = (configuration: WorkbookHclConfiguration): Record<string, unknown> => ({
+  variableOrder: configuration.solverSettings.variableOrder,
+  foldConstants: configuration.solverSettings.foldConstants,
+  spliceNullGates: configuration.solverSettings.spliceNullGates,
+  ...(configuration.solverSettings.uncertainty === undefined ? {} : {
+    uncertainty: {
+      sampleCount: configuration.solverSettings.uncertainty.sampleCount,
+      seed: configuration.solverSettings.uncertainty.seed,
+      basicEventDistributions: configuration.solverSettings.uncertainty.basicEventDistributions.map((definition) => ({
+        faultTreeBasicEvent: {
+          entityId: definition.faultTreeBasicEvent.entityId,
+        },
+        distribution: definition.distribution,
+      })),
+      cptRowDistributions: configuration.solverSettings.uncertainty.cptRowDistributions.map((definition) => ({
+        bayesianNetworkNode: {
+          modelId: definition.bayesianNetworkNode.modelId,
+          entityId: definition.bayesianNetworkNode.entityId,
+        },
+        cptRowId: definition.cptRowId,
+        equivalentSampleSize: definition.equivalentSampleSize,
+      })),
+    },
+  }),
+});
+
 const adaptEsqHclSnapshot = (
   source: WorkbookMefSnapshot<EventSequenceQuantification>,
   modelId: string,
@@ -676,7 +702,7 @@ const adaptEsqHclSnapshot = (
     })),
     bindings,
     baseEvidence: baseEvidenceOverride ?? configuration.baseEvidence,
-    solverSettings: configuration.solverSettings,
+    solverSettings: adaptHclSolverSettings(configuration),
   };
 };
 
@@ -719,7 +745,7 @@ const adaptHclConfigurationSnapshot = (
     })),
     bindings,
     baseEvidence: baseEvidenceOverride ?? configuration.baseEvidence,
-    solverSettings: configuration.solverSettings,
+    solverSettings: adaptHclSolverSettings(configuration),
   };
 };
 

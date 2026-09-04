@@ -5,7 +5,6 @@ use praxis::core::gate::{Formula, Gate};
 
 #[test]
 fn test_pdag_from_simple_and_tree() {
-
     let mut ft = FaultTree::new("SimpleAnd".to_string(), "TOP".to_string()).unwrap();
 
     let e1 = BasicEvent::new("E1".to_string(), 0.1).unwrap();
@@ -55,7 +54,6 @@ fn test_pdag_from_or_tree() {
 
 #[test]
 fn test_pdag_nested_gates() {
-
     let mut ft = FaultTree::new("NestedGates".to_string(), "TOP".to_string()).unwrap();
 
     let e1 = BasicEvent::new("E1".to_string(), 0.1).unwrap();
@@ -125,7 +123,6 @@ fn test_pdag_atleast_gate() {
 
 #[test]
 fn test_pdag_shared_events() {
-
     let mut ft = FaultTree::new("SharedEvents".to_string(), "TOP".to_string()).unwrap();
 
     let e1 = BasicEvent::new("E1".to_string(), 0.1).unwrap();

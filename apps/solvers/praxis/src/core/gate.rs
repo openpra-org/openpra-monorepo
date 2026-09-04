@@ -21,7 +21,6 @@ pub struct Gate {
 }
 
 impl Gate {
-
     pub fn new(id: String, formula: Formula) -> Result<Self> {
         let element = Element::new(id)?;
         Ok(Gate {

@@ -54,7 +54,7 @@ fn test_cli_event_tree_monte_carlo_writes_xml() {
         .arg("1")
         .arg("--seed")
         .arg("42")
-            .arg("--output")
+        .arg("--output")
         .arg(&out_path)
         .output()
         .expect("Failed to execute praxis");

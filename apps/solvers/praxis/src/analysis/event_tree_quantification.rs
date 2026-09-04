@@ -3,15 +3,19 @@ use std::collections::{HashMap, HashSet};
 use tensorbayes::{BayesianGraph, CompileHeuristic, CompiledJunctionTree, StateIndex};
 
 use crate::algorithms::build::build_sequence_bdd_with_successes;
-use crate::algorithms::pdag::PdagNode;
+use crate::algorithms::noncoherent_mocus::NonCoherentMocus;
+use crate::algorithms::pdag::{NodeIndex, PdagNode};
 use crate::analysis::sequence_formula::SequenceFormulaBuilder;
 use crate::core::event_tree::EventTree;
 use crate::core::model::Model;
 use crate::hcl::conditional_evidence_probabilities_for_network;
 use crate::hcl::{
-    HclBaseEvidence, HclBindingSpec, HclEventBinding, HclEventBindings, HclEvidenceSpec,
-    HclQuantifier,
+    evaluate_cut_sets, evaluate_importance, prepare_cut_sets, HclBaseEvidence, HclBindingSpec,
+    HclCutSetAnalysis, HclCutSetTemplate, HclEventBinding, HclEventBindings, HclEvidenceSpec,
+    HclImportanceAnalysis, HclQuantifier, HclUncertaintySettings, HclUncertaintySummary,
+    PreparedHclUncertainty,
 };
+use crate::quantitative::{prepare_hazard_weights, AnnualizationConvention, FrequencyUnit};
 use crate::{PraxisError, Result};
 
 #[derive(Clone, Debug)]
@@ -19,6 +23,7 @@ pub struct EventTreeHclContext {
     network: BayesianGraph,
     bindings: Vec<HclBindingSpec>,
     base_evidence: Vec<HclEvidenceSpec>,
+    uncertainty: Option<HclUncertaintySettings>,
 }
 
 impl EventTreeHclContext {
@@ -28,6 +33,7 @@ impl EventTreeHclContext {
             network,
             bindings: Vec::new(),
             base_evidence: Vec::new(),
+            uncertainty: None,
         })
     }
 
@@ -40,12 +46,21 @@ impl EventTreeHclContext {
         self.base_evidence = base_evidence;
         self
     }
+
+    pub fn with_uncertainty(mut self, uncertainty: Option<HclUncertaintySettings>) -> Self {
+        self.uncertainty = uncertainty;
+        self
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct EventTreeSequenceProbability {
     pub sequence_id: String,
     pub conditional_probability: f64,
+    pub cut_sets: Option<HclCutSetAnalysis>,
+    pub importance: Option<HclImportanceAnalysis>,
+    pub uncertainty: Option<HclUncertaintySummary>,
+    pub uncertainty_samples: Option<Vec<f64>>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -65,6 +80,13 @@ pub struct EventTreeBatchQuantification {
 pub struct EventTreeHazardGridQuantification {
     pub quantification: EventTreeBatchQuantification,
     pub raw_weights: Vec<f64>,
+    pub uncertainty_raw_weights: Option<Vec<Vec<f64>>>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct EventTreeHazardUncertaintySummary {
+    pub sequences: HashMap<String, HclUncertaintySummary>,
+    pub end_states: HashMap<String, HclUncertaintySummary>,
 }
 
 /// Quantifies the complete Boolean formula for every event-tree sequence.
@@ -117,16 +139,122 @@ pub fn quantify_event_tree_hazard_grid_batch(
                 .to_string(),
         ));
     }
-    let (quantification, raw_weights) = quantify_event_tree_sequences_batch_internal(
-        model,
-        event_tree,
-        Some(hcl),
-        evidence_rows,
-        Some(hazard_assignment_rows),
-    )?;
+    let (quantification, raw_weights, uncertainty_raw_weights) =
+        quantify_event_tree_sequences_batch_internal(
+            model,
+            event_tree,
+            Some(hcl),
+            evidence_rows,
+            Some(hazard_assignment_rows),
+        )?;
     Ok(EventTreeHazardGridQuantification {
         quantification,
         raw_weights: raw_weights.expect("hazard rows must produce weights"),
+        uncertainty_raw_weights,
+    })
+}
+
+/// Propagates the correlated PRAXIS uncertainty population through event-tree
+/// hazard weighting, annualization, and end-state aggregation.
+pub fn summarize_event_tree_hazard_uncertainty(
+    batch: &EventTreeHazardGridQuantification,
+    end_state_by_sequence: &HashMap<String, String>,
+    frequency_scale_value: f64,
+    frequency_scale_unit: FrequencyUnit,
+    annualization: AnnualizationConvention,
+    normalize_weights: bool,
+) -> Result<EventTreeHazardUncertaintySummary> {
+    let empty = || EventTreeHazardUncertaintySummary {
+        sequences: HashMap::new(),
+        end_states: HashMap::new(),
+    };
+    let Some(raw_weights) = &batch.uncertainty_raw_weights else {
+        return Ok(empty());
+    };
+    let Some(first_quantified) = batch
+        .quantification
+        .scenarios
+        .iter()
+        .flat_map(|scenario| scenario.iter())
+        .find(|sequence| sequence.uncertainty_samples.is_some())
+    else {
+        return Ok(empty());
+    };
+    let first_samples = first_quantified
+        .uncertainty_samples
+        .as_ref()
+        .ok_or_else(|| {
+            PraxisError::Hcl("event-tree hazard uncertainty samples are missing".to_string())
+        })?;
+    let seed = first_quantified
+        .uncertainty
+        .as_ref()
+        .map(|summary| summary.seed)
+        .ok_or_else(|| PraxisError::Hcl("event-tree hazard uncertainty has no seed".to_string()))?;
+    if raw_weights.len() != batch.quantification.scenarios.len() {
+        return Err(PraxisError::Hcl(
+            "event-tree hazard uncertainty weights do not match scenario rows".to_string(),
+        ));
+    }
+    let mut sequence_samples: HashMap<String, Vec<f64>> = HashMap::new();
+    let mut end_state_samples: HashMap<String, Vec<f64>> = HashMap::new();
+    for sample_index in 0..first_samples.len() {
+        let sample_raw_weights = raw_weights
+            .iter()
+            .map(|row| {
+                row.get(sample_index).copied().ok_or_else(|| {
+                    PraxisError::Hcl(
+                        "event-tree hazard weight population is incomplete".to_string(),
+                    )
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let weights = prepare_hazard_weights(
+            &sample_raw_weights,
+            frequency_scale_value,
+            frequency_scale_unit,
+            annualization,
+            normalize_weights,
+        )?;
+        for (scenario, weight) in batch.quantification.scenarios.iter().zip(weights.weights) {
+            for sequence in scenario {
+                let samples = sequence.uncertainty_samples.as_ref().ok_or_else(|| {
+                    PraxisError::Hcl("event-tree sequence omitted uncertainty samples".to_string())
+                })?;
+                let probability = samples.get(sample_index).copied().ok_or_else(|| {
+                    PraxisError::Hcl(
+                        "event-tree sequence uncertainty population is incomplete".to_string(),
+                    )
+                })?;
+                let contribution = weight.annual_frequency * probability;
+                sequence_samples
+                    .entry(sequence.sequence_id.clone())
+                    .or_insert_with(|| vec![0.0; first_samples.len()])[sample_index] +=
+                    contribution;
+                let end_state = end_state_by_sequence.get(&sequence.sequence_id).ok_or_else(|| {
+                    PraxisError::Hcl(format!(
+                        "event-tree sequence '{}' has no resolved end state for uncertainty aggregation",
+                        sequence.sequence_id
+                    ))
+                })?;
+                end_state_samples
+                    .entry(end_state.clone())
+                    .or_insert_with(|| vec![0.0; first_samples.len()])[sample_index] +=
+                    contribution;
+            }
+        }
+    }
+    let sequences = sequence_samples
+        .into_iter()
+        .map(|(id, samples)| Ok((id, HclUncertaintySummary::from_samples(&samples, seed)?)))
+        .collect::<Result<HashMap<_, _>>>()?;
+    let end_states = end_state_samples
+        .into_iter()
+        .map(|(id, samples)| Ok((id, HclUncertaintySummary::from_samples(&samples, seed)?)))
+        .collect::<Result<HashMap<_, _>>>()?;
+    Ok(EventTreeHazardUncertaintySummary {
+        sequences,
+        end_states,
     })
 }
 
@@ -136,7 +264,11 @@ fn quantify_event_tree_sequences_batch_internal(
     hcl: Option<&EventTreeHclContext>,
     evidence_rows: &[Vec<HclEvidenceSpec>],
     hazard_assignment_rows: Option<&[Vec<HclEvidenceSpec>]>,
-) -> Result<(EventTreeBatchQuantification, Option<Vec<f64>>)> {
+) -> Result<(
+    EventTreeBatchQuantification,
+    Option<Vec<f64>>,
+    Option<Vec<Vec<f64>>>,
+)> {
     if evidence_rows.is_empty() {
         return Err(PraxisError::Hcl(
             "event-tree HCL batch requires at least one evidence row".to_string(),
@@ -163,6 +295,16 @@ fn quantify_event_tree_sequences_batch_internal(
         }
         _ => None,
     };
+    let uncertainty_raw_weights = match (hcl, compiled_hcl.as_ref(), hazard_assignment_rows) {
+        (Some(context), Some(compiled), Some(rows)) => compiled
+            .uncertainty
+            .as_ref()
+            .map(|uncertainty| {
+                uncertainty.conditional_evidence_probabilities(&context.base_evidence, rows)
+            })
+            .transpose()?,
+        _ => None,
+    };
 
     let mut sequence_ids: Vec<String> = event_tree.sequences.keys().cloned().collect();
     sequence_ids.sort();
@@ -171,8 +313,18 @@ fn quantify_event_tree_sequences_batch_internal(
     let mut sequence_bdd_compilations = 0;
 
     for sequence_id in sequence_ids {
-        let probabilities = if formulas.unconditional.contains(&sequence_id) {
-            vec![1.0; evidence_rows.len()]
+        let evaluations = if formulas.unconditional.contains(&sequence_id) {
+            match &compiled_hcl {
+                Some(context) if context.uncertainty.is_some() => {
+                    let samples = vec![1.0; context.uncertainty.as_ref().unwrap().sample_count()];
+                    let summary = HclUncertaintySummary::from_samples(
+                        &samples,
+                        context.uncertainty.as_ref().unwrap().seed(),
+                    )?;
+                    vec![(1.0, None, None, Some(summary), Some(samples)); evidence_rows.len()]
+                }
+                _ => vec![(1.0, None, None, None, None); evidence_rows.len()],
+            }
         } else {
             let root = formulas
                 .sequence_roots
@@ -193,15 +345,47 @@ fn quantify_event_tree_sequences_batch_internal(
             sequence_bdd_compilations += 1;
             match &compiled_hcl {
                 Some(context) => {
-                    context.quantify_batch(&pdag, &order, &bdd, bdd_root, evidence_rows)?
+                    let variable_by_node: HashMap<NodeIndex, usize> = order
+                        .iter()
+                        .enumerate()
+                        .map(|(variable, node)| (node.abs(), variable))
+                        .collect();
+                    let mut mocus =
+                        NonCoherentMocus::with_probabilities(&pdag, &formulas.event_probs)?;
+                    let structural_cut_sets = mocus.analyze_primes();
+                    let templates = prepare_cut_sets(
+                        &pdag,
+                        &variable_by_node,
+                        &structural_cut_sets,
+                        &context.network,
+                        &context.bindings,
+                    )?;
+                    context.quantify_batch(
+                        &pdag,
+                        &order,
+                        &bdd,
+                        bdd_root,
+                        &templates,
+                        evidence_rows,
+                    )?
                 }
-                None => vec![bdd.probability(bdd_root); evidence_rows.len()],
+                None => {
+                    vec![(bdd.probability(bdd_root), None, None, None, None); evidence_rows.len()]
+                }
             }
         };
-        for (scenario, conditional_probability) in results.iter_mut().zip(probabilities) {
+        for (
+            scenario,
+            (conditional_probability, cut_sets, importance, uncertainty, uncertainty_samples),
+        ) in results.iter_mut().zip(evaluations)
+        {
             scenario.push(EventTreeSequenceProbability {
                 sequence_id: sequence_id.clone(),
                 conditional_probability,
+                cut_sets,
+                importance,
+                uncertainty,
+                uncertainty_samples,
             });
         }
     }
@@ -216,6 +400,7 @@ fn quantify_event_tree_sequences_batch_internal(
             },
         },
         raw_weights,
+        uncertainty_raw_weights,
     ))
 }
 
@@ -223,6 +408,7 @@ struct CompiledHclContext {
     network: BayesianGraph,
     tree: CompiledJunctionTree,
     bindings: Vec<HclBindingSpec>,
+    uncertainty: Option<PreparedHclUncertainty>,
 }
 
 impl CompiledHclContext {
@@ -233,6 +419,11 @@ impl CompiledHclContext {
             network: context.network.clone(),
             tree,
             bindings: context.bindings.clone(),
+            uncertainty: context
+                .uncertainty
+                .as_ref()
+                .map(|settings| PreparedHclUncertainty::new(&context.network, settings))
+                .transpose()?,
         })
     }
 
@@ -242,8 +433,17 @@ impl CompiledHclContext {
         order: &[crate::algorithms::pdag::NodeIndex],
         bdd: &crate::algorithms::bdd_engine::Bdd,
         root: crate::algorithms::bdd_engine::BddRef,
+        cut_set_templates: &[HclCutSetTemplate],
         evidence_rows: &[Vec<HclEvidenceSpec>],
-    ) -> Result<Vec<f64>> {
+    ) -> Result<
+        Vec<(
+            f64,
+            Option<HclCutSetAnalysis>,
+            Option<HclImportanceAnalysis>,
+            Option<HclUncertaintySummary>,
+            Option<Vec<f64>>,
+        )>,
+    > {
         let variable_by_event: HashMap<&str, usize> = order
             .iter()
             .enumerate()
@@ -264,13 +464,59 @@ impl CompiledHclContext {
         }
 
         let first_evidence = self.build_base_evidence(&evidence_rows[0])?;
-        let mut quantifier = HclQuantifier::new(bdd, self.tree.clone(), bindings, first_evidence)?;
+        let mut quantifier =
+            HclQuantifier::new(bdd, self.tree.clone(), bindings.clone(), first_evidence)?;
+        let event_by_variable = (0..bdd.variable_count())
+            .map(|variable| {
+                order
+                    .get(variable)
+                    .and_then(|index| match pdag.get_node(*index) {
+                        Some(PdagNode::BasicEvent { id, .. }) => Some(id.clone()),
+                        _ => None,
+                    })
+            })
+            .collect::<Vec<_>>();
+        let binding_node_by_event: HashMap<String, String> = self
+            .bindings
+            .iter()
+            .map(|binding| (binding.event.clone(), binding.node.clone()))
+            .collect();
         let mut probabilities = Vec::with_capacity(evidence_rows.len());
         for (index, evidence) in evidence_rows.iter().enumerate() {
+            let resolved_evidence = self.build_base_evidence(evidence)?;
             if index > 0 {
-                quantifier.set_base_evidence(self.build_base_evidence(evidence)?)?;
+                quantifier.set_base_evidence(resolved_evidence.clone())?;
             }
-            probabilities.push(quantifier.quantify(root)?);
+            let probability = quantifier.quantify(root)?;
+            let cut_sets = evaluate_cut_sets(cut_set_templates, &mut quantifier, probability)?;
+            let importance = evaluate_importance(
+                root,
+                &event_by_variable,
+                &binding_node_by_event,
+                &mut quantifier,
+                probability,
+            )?;
+            let (uncertainty, uncertainty_samples) = match &self.uncertainty {
+                Some(prepared) => {
+                    let samples = prepared.quantify(
+                        bdd,
+                        root,
+                        bindings.clone(),
+                        resolved_evidence,
+                        &event_by_variable,
+                    )?;
+                    let summary = HclUncertaintySummary::from_samples(&samples, prepared.seed())?;
+                    (Some(summary), Some(samples))
+                }
+                None => (None, None),
+            };
+            probabilities.push((
+                probability,
+                Some(cut_sets),
+                Some(importance),
+                uncertainty,
+                uncertainty_samples,
+            ));
         }
         Ok(probabilities)
     }
@@ -331,9 +577,12 @@ fn resolve_states(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::{
         quantify_event_tree_hazard_grid_batch, quantify_event_tree_sequences,
-        quantify_event_tree_sequences_batch, EventTreeHclContext,
+        quantify_event_tree_sequences_batch, summarize_event_tree_hazard_uncertainty,
+        EventTreeHclContext,
     };
     use crate::core::event::BasicEvent;
     use crate::core::event_tree::{
@@ -343,8 +592,10 @@ mod tests {
     use crate::core::gate::{Formula, Gate};
     use crate::core::model::Model;
     use crate::hcl::{
-        CanonicalBayesianNetwork, CanonicalBayesianVariable, HclBindingSpec, HclEvidenceSpec,
+        CanonicalBayesianNetwork, CanonicalBayesianVariable, HclBindingSpec,
+        HclCptRowUncertaintySpec, HclEvidenceSpec, HclUncertaintySettings,
     };
+    use crate::quantitative::{AnnualizationConvention, FrequencyUnit};
 
     fn single_event_tree(id: &str, event: &str, probability: f64) -> FaultTree {
         let top_id = format!("{id}-TOP");
@@ -482,18 +733,30 @@ mod tests {
         }
         .into_graph()
         .unwrap();
-        let hcl = EventTreeHclContext::new(graph).unwrap().with_bindings(vec![
-            HclBindingSpec {
-                event: "A".to_string(),
-                node: "NODE-A".to_string(),
-                true_states: vec!["A-TRUE".to_string()],
-            },
-            HclBindingSpec {
-                event: "B".to_string(),
-                node: "NODE-B".to_string(),
-                true_states: vec!["B-TRUE".to_string()],
-            },
-        ]);
+        let hcl = EventTreeHclContext::new(graph)
+            .unwrap()
+            .with_bindings(vec![
+                HclBindingSpec {
+                    event: "A".to_string(),
+                    node: "NODE-A".to_string(),
+                    true_states: vec!["A-TRUE".to_string()],
+                },
+                HclBindingSpec {
+                    event: "B".to_string(),
+                    node: "NODE-B".to_string(),
+                    true_states: vec!["B-TRUE".to_string()],
+                },
+            ])
+            .with_uncertainty(Some(HclUncertaintySettings {
+                sample_count: 200,
+                seed: 2026,
+                basic_event_distributions: vec![],
+                cpt_row_distributions: vec![HclCptRowUncertaintySpec {
+                    node: "NODE-B".to_string(),
+                    row_index: 1,
+                    equivalent_sample_size: 25.0,
+                }],
+            }));
 
         let results = quantify_event_tree_sequences(&model, &event_tree, Some(&hcl)).unwrap();
         let probability = |id: &str| {
@@ -507,6 +770,57 @@ mod tests {
         assert!((probability("SF") - 0.08).abs() < 1e-12);
         assert!((probability("FS") - 0.04).abs() < 1e-12);
         assert!((probability("FF") - 0.16).abs() < 1e-12);
+        let ff_uncertainty = results
+            .iter()
+            .find(|result| result.sequence_id == "FF")
+            .and_then(|result| result.uncertainty.as_ref())
+            .unwrap();
+        assert_eq!(ff_uncertainty.sample_count, 200);
+        assert!(ff_uncertainty.percentile_05 < ff_uncertainty.percentile_95);
+
+        let cut_sets = |id: &str| {
+            results
+                .iter()
+                .find(|result| result.sequence_id == id)
+                .and_then(|result| result.cut_sets.as_ref())
+                .unwrap()
+        };
+        let ff = cut_sets("FF");
+        assert_eq!(ff.total_count, 1);
+        assert!((ff.cut_sets[0].probability - 0.16).abs() < 1e-12);
+        assert!(ff.cut_sets[0]
+            .literals
+            .iter()
+            .all(|literal| !literal.complemented));
+        assert_eq!(ff.cut_sets[0].bn_root_cause_node_ids, vec!["NODE-A"]);
+        let ff_importance = results
+            .iter()
+            .find(|result| result.sequence_id == "FF")
+            .and_then(|result| result.importance.as_ref())
+            .unwrap();
+        assert_eq!(ff_importance.total_count, 2);
+        let a_importance = ff_importance
+            .measures
+            .iter()
+            .find(|measure| measure.basic_event_id == "A")
+            .unwrap();
+        assert!((a_importance.probability_if_true - 0.24).abs() < 1e-12);
+        assert_eq!(a_importance.probability_if_false, 0.0);
+
+        let ss = cut_sets("SS");
+        assert_eq!(ss.total_count, 1);
+        assert!((ss.cut_sets[0].probability - 0.72).abs() < 1e-12);
+        assert!(ss.cut_sets[0]
+            .literals
+            .iter()
+            .all(|literal| literal.complemented));
+        let b_trace = ss.cut_sets[0]
+            .literals
+            .iter()
+            .find(|literal| literal.basic_event_id == "B")
+            .and_then(|literal| literal.binding.as_ref())
+            .unwrap();
+        assert_eq!(b_trace.state_ids, vec!["B-FALSE"]);
 
         let rows = vec![
             vec![HclEvidenceSpec {
@@ -550,5 +864,27 @@ mod tests {
         );
         assert!((weighted.raw_weights[0] - 0.2).abs() < 1e-12);
         assert!((weighted.raw_weights[1] - 0.8).abs() < 1e-12);
+        assert_eq!(weighted.uncertainty_raw_weights.as_ref().unwrap().len(), 2);
+        let end_states = HashMap::from([
+            ("SS".to_string(), "SAFE".to_string()),
+            ("FS".to_string(), "SAFE".to_string()),
+            ("SF".to_string(), "FAILED".to_string()),
+            ("FF".to_string(), "FAILED".to_string()),
+        ]);
+        let uncertainty = summarize_event_tree_hazard_uncertainty(
+            &weighted,
+            &end_states,
+            1.0,
+            FrequencyUnit::PerYear,
+            AnnualizationConvention::default(),
+            false,
+        )
+        .unwrap();
+        assert_eq!(uncertainty.sequences["FF"].sample_count, 200);
+        assert_eq!(uncertainty.end_states["FAILED"].seed, 2026);
+        assert!(
+            uncertainty.end_states["FAILED"].percentile_05
+                < uncertainty.end_states["FAILED"].percentile_95
+        );
     }
 }

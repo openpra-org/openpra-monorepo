@@ -65,8 +65,31 @@ jest.mock("../syWorkbookContext", () => ({
   }),
 }));
 
+const originalEvents = structuredClone(mockAnalysis.systemBasicEvents);
+
 describe("SY basic-event controlled probability authoring", () => {
-  beforeEach(() => mockMutateSy.mockClear());
+  beforeEach(() => {
+    mockMutateSy.mockClear();
+    mockAnalysis.systemBasicEvents = structuredClone(originalEvents);
+  });
+
+  it("shows legacy rate settings without calculating and converts only on review", () => {
+    mockAnalysis.systemBasicEvents[0]!.quantificationBasis = {
+      kind: "FAILURE_RATE", conversion: "LINEAR",
+      failureRate: { value: .001, unit: "HOUR" }, missionTime: { value: 100, unit: "HOUR" },
+    };
+    render(<DrawerContent context={{ kind: "be", id: "be-1" }} onClose={jest.fn()} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Review the rate and mission time");
+    expect(screen.getByText("Review required")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Data Analysis parameter" })).toBeDisabled();
+    expect(mockMutateSy).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Use exponential conversion" }));
+    const next = mockMutateSy.mock.calls[0]![0](mockAnalysis) as SystemsAnalysis;
+    expect(next.systemBasicEvents[0]).toMatchObject({ probability: .09516258196404048,
+      quantificationBasis: { conversion: "EXPONENTIAL", failureRate: { value: .001, unit: "HOUR" }, missionTime: { value: 100, unit: "HOUR" } },
+    });
+    expect(mockAnalysis.systemBasicEvents[0]?.probability).toBe(.1);
+  });
 
   it("stores a typed DA parameter reference and its current display value", () => {
     render(<DrawerContent context={{ kind: "be", id: "be-1" }} onClose={jest.fn()} />);

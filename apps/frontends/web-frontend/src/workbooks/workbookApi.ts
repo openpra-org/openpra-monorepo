@@ -1,3 +1,4 @@
+import { stringifyJson } from "interfaces-shared-types/json";
 import {
   type CreateWorkbookRequest,
   type UpdateWorkbookRequest,
@@ -30,7 +31,7 @@ async function readError(response: Response): Promise<string> {
 
 async function request(method: string, path: string, body?: unknown): Promise<Response> {
   const init: RequestInit = { method, headers: authHeaders() };
-  if (body !== undefined) init.body = JSON.stringify(body);
+  if (body !== undefined) init.body = stringifyJson(body);
   const response = await fetch(`${API_BASE}${path}`, init);
   if (response.status === 401) { onUnauthorized(); throw new Error("Session expired"); }
   if (!response.ok) throw new Error(await readError(response));

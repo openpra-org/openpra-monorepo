@@ -142,20 +142,28 @@ const analysisResult: FaultTreeAnalysisResult = {
   },
   topGateId: ROOT_GATE_ID,
   topEventProbability: 0.02,
-  minimalCutSetCount: 1,
-  leadingCutSets: [
-    {
-      rank: 1,
-      order: 1,
-      probability: 0.02,
-      events: [{ basicEventId: BASIC_EVENT_ID, complemented: false }],
-    },
-  ],
   validationIssues: [],
   completedAt: "2026-08-22T12:00:00.000Z",
 };
 
 describe("FaultTreeEditor", () => {
+  it("edits and displays XOR with its odd-parity meaning", async () => {
+    const user = userEvent.setup();
+    const props = editorProps({ selection: { kind: "GATE", gateId: ROOT_GATE_ID } });
+    const rendered = render(<FaultTreeEditor {...props} />);
+    await user.selectOptions(screen.getByLabelText("Gate type"), "XOR");
+    expect(props.onOperation).toHaveBeenCalledWith(expect.objectContaining({
+      type: "UPDATE_GATE",
+      gate: expect.objectContaining({ id: ROOT_GATE_ID, gateType: "XOR" }),
+    }));
+    const updated = { ...model, gates: model.gates.map((gate) => gate.id === ROOT_GATE_ID
+      ? { ...gate, gateType: "XOR" as const } : gate) };
+    rendered.rerender(<FaultTreeEditor {...props} model={updated} />);
+    expect(screen.getByLabelText("Gate type")).toHaveValue("XOR");
+    expect(screen.getByText("True when an odd number of inputs are true.")).toBeInTheDocument();
+    expect(rendered.container.querySelector(".ftgate--xor")).toBeInTheDocument();
+  });
+
   it("renders the approved SY boxes, symbols, and connectors without a persistent legend", () => {
     const { container } = render(<FaultTreeEditor {...editorProps()} />);
 
@@ -655,6 +663,37 @@ describe("FaultTreeEditor", () => {
     });
   });
 
+  it("uses exponential conversion for a new failure-rate input", () => {
+    const onOperation = jest.fn();
+    render(<FaultTreeEditor {...editorProps({ selection: { kind: "LEAF", leafId: LEAF_ID }, onOperation })} />);
+    fireEvent.change(screen.getByLabelText("Basic-event quantification input"), { target: { value: "FAILURE_RATE" } });
+    expect(onOperation).toHaveBeenCalledWith(expect.objectContaining({ basicEvent: expect.objectContaining({
+      probability: expect.objectContaining({ quantificationBasis: expect.objectContaining({ conversion: "EXPONENTIAL" }) }),
+    }) }));
+  });
+
+  it("requires an explicit review before replacing a saved linear conversion", () => {
+    const onOperation = jest.fn();
+    const legacyCatalogue: FaultTreeEditorCatalogue = { ...catalogue, basicEvents: [{ ...catalogue.basicEvents[0], probability: {
+      value: .1, quantificationBasis: { kind: "FAILURE_RATE", conversion: "LINEAR",
+        failureRate: { value: .001, unit: "HOUR" }, missionTime: { value: 100, unit: "HOUR" } },
+    } }] };
+    render(<FaultTreeEditor {...editorProps({ catalogue: legacyCatalogue, selection: { kind: "LEAF", leafId: LEAF_ID }, onOperation })} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Review the rate and mission time");
+    expect(screen.getByLabelText("Failure rate")).toBeDisabled();
+    expect(screen.queryByRole("option", { name: "Linear approximation" })).not.toBeInTheDocument();
+    expect(onOperation).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Use exponential conversion" }));
+    expect(onOperation).toHaveBeenCalledWith(expect.objectContaining({ basicEvent: expect.objectContaining({
+      probability: { value: 0.09516258196404048, quantificationBasis: {
+        kind: "FAILURE_RATE", conversion: "EXPONENTIAL",
+        failureRate: { value: .001, unit: "HOUR" }, missionTime: { value: 100, unit: "HOUR" },
+      } },
+    }) }));
+    expect(legacyCatalogue.basicEvents[0].probability.quantificationBasis?.kind).toBe("FAILURE_RATE");
+    expect(legacyCatalogue.basicEvents[0].probability.value).toBe(.1);
+  });
+
   it("derives mission probability when a failure-rate input changes", async () => {
     const user = userEvent.setup();
     const onOperation = jest.fn<void, [FaultTreeOperation]>();
@@ -689,7 +728,7 @@ describe("FaultTreeEditor", () => {
       type: "UPDATE_BASIC_EVENT",
       basicEvent: {
         probability: {
-          value: expect.closeTo(4.798848184297884e-4, 15),
+          value: 0.0004798848184297544, // HCL_MH calculation type 3.
           quantificationBasis: {
             kind: "FAILURE_RATE",
             failureRate: { value: 2e-5, unit: "HOUR" },
@@ -799,17 +838,14 @@ describe("FaultTreeEditor", () => {
     expect(onSelectionChange).toHaveBeenCalledWith({ kind: "LEAF", leafId: LEAF_ID });
   });
 
-  it("shows exact analysis results and their cut sets", () => {
+  it("shows exact probability without cut-set results", () => {
     render(<FaultTreeEditor {...editorProps({ analysisResult })} />);
 
     const results = screen.getByLabelText("Fault-tree analysis results");
     const probabilityMetric = within(results).getByText("Exact top-event probability").parentElement!;
     expect(within(probabilityMetric).getByLabelText("2.00 times 10 to the power of −2")).toBeInTheDocument();
-    expect(within(results).getByText("Minimal cut sets").parentElement).toHaveTextContent("1");
-    const table = within(results).getByRole("table");
-    expect(within(table).getByText("BE-PUMP")).toHaveAttribute("title", "Shared pump failure");
-    expect(within(table).queryByText(BASIC_EVENT_ID)).not.toBeInTheDocument();
-    expect(within(table).getByText("100%")).toBeInTheDocument();
+    expect(within(results).queryByText(/cut sets/i)).not.toBeInTheDocument();
+    expect(within(results).queryByRole("table")).not.toBeInTheDocument();
     expect(within(results).queryByText(/stale/i)).not.toBeInTheDocument();
   });
 

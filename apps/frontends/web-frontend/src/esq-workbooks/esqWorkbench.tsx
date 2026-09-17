@@ -1,3 +1,4 @@
+import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -166,10 +167,6 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
           );
         })}
       </ul>
-      <div className="posrail__footer">
-        <button type="button" className="posrail__footer-btn"><ESQIcon.Layers /> Show all inputs</button>
-        <button type="button" className="posrail__footer-btn"><ESQIcon.Settings /> Workbook settings</button>
-      </div>
     </aside>
   );
 }
@@ -450,6 +447,7 @@ function EsqWorkbench({
           </div>
 
           {renderScreen()}
+          {["depend", "results"].includes(stepId) && <EsqAnalysisHistory />}
 
           <div className="posnav">
             {prev ? (
@@ -494,3 +492,8 @@ function EsqWorkbench({
 }
 
 export { EsqWorkbench, type HeaderMeta, type EsqWorkbenchActions };
+
+function EsqAnalysisHistory() {
+  const {runtime} = useEsqWorkbook();
+  return <AnalysisRunHistory host="esq" workbookId={runtime.workbookId}/>;
+}

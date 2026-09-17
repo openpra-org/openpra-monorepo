@@ -1,4 +1,5 @@
-import { type JSX, useEffect, useRef, useState } from "react";
+import { MissingEvidenceObservations } from "../bayesian-network/missingEvidenceObservations";
+import { type JSX, useEffect, useId, useRef, useState } from "react";
 import type { EsqHclConfiguration } from "interfaces-mef-types/esq/workbook-models";
 import type { HclEvidenceScenario } from "interfaces-mef-types/modeling";
 import { DEFAULT_ANNUALIZATION_CONVENTION } from "interfaces-mef-types/modeling";
@@ -89,6 +90,7 @@ function HclEvidenceScenarioEditor({
   onError,
 }: HclEvidenceScenarioEditorProps): JSX.Element {
   const { addToast } = useToast();
+  const annualizationHelpId = useId();
   const scenarios = configuration.evidenceScenarios ?? [];
   const [selectedId, setSelectedId] = useState(scenarios[0]?.id ?? "");
   const exportMenuRef = useRef<HTMLDetailsElement>(null);
@@ -207,10 +209,7 @@ function HclEvidenceScenarioEditor({
         annualFrequencyScale: {
           value: 1,
           unit: "PER_YEAR",
-          annualization: {
-            ...DEFAULT_ANNUALIZATION_CONVENTION,
-            hoursPerYear: 8_760,
-          },
+          annualization: { ...DEFAULT_ANNUALIZATION_CONVENTION },
         },
         normalizeWeights: false,
       },
@@ -286,6 +285,8 @@ function HclEvidenceScenarioEditor({
               <div className="hcleditor__scenario-evidence-head">
                 <strong>Evidence overrides</strong>
               </div>
+              <MissingEvidenceObservations model={model} evidence={selected.evidence} editable={editable}
+                onChange={(evidence) => replaceScenario({ ...selected, evidence })} />
               <div className="hcleditor__scenario-evidence">
                 {model.nodes.map((node) => {
                   const observation = selected.evidence.observations.find((candidate) => candidate.nodeId === node.id);
@@ -294,6 +295,8 @@ function HclEvidenceScenarioEditor({
                       <span>{node.code}</span>
                       <select aria-label={`${node.code} evidence for ${selected.code}`} value={observation?.stateId ?? ""} disabled={!editable} onChange={(event) => setObservation(node.id, event.target.value)}>
                         <option value="">Use common evidence</option>
+                        {observation !== undefined && !node.states.some((state) => state.id === observation.stateId)
+                          && <option value={observation.stateId} disabled>Missing state</option>}
                         {node.states.map((state) => <option key={state.id} value={state.id}>{state.code}</option>)}
                       </select>
                     </label>
@@ -341,10 +344,10 @@ function HclEvidenceScenarioEditor({
             <label><span>Unit</span><select value={configuration.hazardGrid.annualFrequencyScale.unit} disabled={!editable} onChange={(event) => onChange({ ...configuration, hazardGrid: { ...configuration.hazardGrid!, annualFrequencyScale: { ...configuration.hazardGrid!.annualFrequencyScale, unit: event.target.value as typeof configuration.hazardGrid.annualFrequencyScale.unit } } })}>
               <option value="PER_YEAR">per year</option><option value="PER_HOUR">per hour</option><option value="PER_DAY">per day</option><option value="PER_MINUTE">per minute</option><option value="PER_SECOND">per second</option>
             </select></label>
-            <label><span>Year basis</span><select value={configuration.hazardGrid.annualFrequencyScale.annualization.basis} disabled={!editable} onChange={(event) => onChange({ ...configuration, hazardGrid: { ...configuration.hazardGrid!, annualFrequencyScale: { ...configuration.hazardGrid!.annualFrequencyScale, annualization: { ...configuration.hazardGrid!.annualFrequencyScale.annualization, basis: event.target.value as typeof configuration.hazardGrid.annualFrequencyScale.annualization.basis } } } })}>
+            <label><span>Year basis</span><select aria-label="Year basis" aria-describedby={annualizationHelpId} value={configuration.hazardGrid.annualFrequencyScale.annualization.basis} disabled={!editable} onChange={(event) => onChange({ ...configuration, hazardGrid: { ...configuration.hazardGrid!, annualFrequencyScale: { ...configuration.hazardGrid!.annualFrequencyScale, annualization: { ...configuration.hazardGrid!.annualFrequencyScale.annualization, basis: event.target.value as typeof configuration.hazardGrid.annualFrequencyScale.annualization.basis } } } })}>
               <option value="PLANT_YEAR">Plant year</option><option value="CALENDAR_YEAR">Calendar year</option><option value="REACTOR_YEAR">Reactor year</option><option value="CRITICAL_YEAR">Critical year</option>
-            </select></label>
-            <label><span>Hours/year</span><input type="number" min="0.000001" step="any" value={configuration.hazardGrid.annualFrequencyScale.annualization.hoursPerYear} disabled={!editable} onChange={(event) => {
+            </select><small id={annualizationHelpId}>Year basis is a label. Hours/year controls conversion to annual frequency. Per-year inputs are already annual.</small></label>
+            <label><span>Hours/year</span><input aria-describedby={annualizationHelpId} type="number" min="0.000001" step="any" value={configuration.hazardGrid.annualFrequencyScale.annualization.hoursPerYear} disabled={!editable} onChange={(event) => {
               const hoursPerYear = Number(event.target.value);
               if (Number.isFinite(hoursPerYear) && hoursPerYear > 0) onChange({ ...configuration, hazardGrid: { ...configuration.hazardGrid!, annualFrequencyScale: { ...configuration.hazardGrid!.annualFrequencyScale, annualization: { ...configuration.hazardGrid!.annualFrequencyScale.annualization, hoursPerYear } } } });
             }} /></label>

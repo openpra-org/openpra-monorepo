@@ -119,6 +119,8 @@ describe("WorkbooksService", () => {
     it("reconciles generated DA and HRA values into the matching SY basic events", async () => {
       let syRevision = 1;
       let syMef = {
+        systemLogicModels: [],
+        dependencyHclConfigurations: [],
         systemBasicEvents: [{
           uuid: "be-1",
           code: "BE-1",
@@ -223,10 +225,10 @@ describe("WorkbooksService", () => {
             },
           })]),
         }),
-        1,
+        2,
       );
       expect(syAdapter.save).toHaveBeenNthCalledWith(
-        2,
+        3,
         "sy-workbook",
         expect.objectContaining({
           systemBasicEvents: expect.arrayContaining([
@@ -250,7 +252,7 @@ describe("WorkbooksService", () => {
             },
           })],
         }),
-        2,
+        3,
       );
     });
   });

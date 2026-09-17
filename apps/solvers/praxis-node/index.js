@@ -701,4 +701,5 @@ if (!nativeBinding) {
 
 module.exports = nativeBinding
 module.exports.execute = nativeBinding.execute
+module.exports.preflight = nativeBinding.preflight
 module.exports.validate = nativeBinding.validate

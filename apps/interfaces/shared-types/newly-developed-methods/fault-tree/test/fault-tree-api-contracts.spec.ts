@@ -228,16 +228,6 @@ describe("fault-tree execution and analysis-result contracts", () => {
     owner: { workbookId: "sy-workbook", workbookRevision: 1, modelId: MODEL_ID },
     topGateId: GATE_ID,
     topEventProbability: 0.02,
-    minimalCutSetCount: 1,
-    leadingCutSets: [
-      {
-        rank: 1,
-        order: 1,
-        probability: 0.02,
-        contribution: 1,
-        events: [{ basicEventId: BASIC_EVENT_ID, complemented: false }],
-      },
-    ],
     validationIssues: [],
     completedAt: "2026-08-20T12:06:00.000Z",
   };
@@ -247,8 +237,14 @@ describe("fault-tree execution and analysis-result contracts", () => {
     expect(FaultTreeExecuteResultSchema.safeParse({ schemaVersion: "1.0.0", run: queuedRun }).success).toBe(true);
   });
 
-  it("accepts exact probability and leading minimal-cut-set results", () => {
+  it("accepts exact probability results", () => {
     expect(FaultTreeAnalysisResultSchema.safeParse(analysisResult).success).toBe(true);
+  });
+
+  it.each([0, 1])("accepts boundary probability %s", (topEventProbability) => {
+    expect(FaultTreeAnalysisResultSchema.safeParse({
+      ...analysisResult, topEventProbability,
+    }).success).toBe(true);
   });
 
   it.each([
@@ -274,20 +270,10 @@ describe("fault-tree execution and analysis-result contracts", () => {
   it.each([
     { ...analysisResult, schemaVersion: "2.0.0" },
     { ...analysisResult, topEventProbability: 1.01 },
+    { ...analysisResult, topEventProbability: -0.01 },
     { ...analysisResult, minimalCutSetCount: 0 },
-    {
-      ...analysisResult,
-      leadingCutSets: [{ ...analysisResult.leadingCutSets[0], order: 2 }],
-    },
-    {
-      ...analysisResult,
-      leadingCutSets: [
-        {
-          ...analysisResult.leadingCutSets[0],
-          events: [{ basicEventId: "BE-PUMP-A", complemented: false }],
-        },
-      ],
-    },
+    { ...analysisResult, leadingCutSets: [] },
+    { ...analysisResult, cutSets: {} },
   ])("rejects malformed analysis result %#", (candidate) => {
     expect(FaultTreeAnalysisResultSchema.safeParse(candidate).success).toBe(false);
   });

@@ -23,6 +23,7 @@ const QuantificationRateSchema = z
   })
   .strict();
 
+// Preserve legacy workbook/result data for review; execution rejects LINEAR.
 const FailureRateConversionModelSchema = z.enum(["EXPONENTIAL", "LINEAR"]);
 
 const FaultTreeBasicEventQuantificationBasisSchema = z.discriminatedUnion("kind", [

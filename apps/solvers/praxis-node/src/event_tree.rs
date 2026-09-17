@@ -1,17 +1,16 @@
+use crate::hybrid_causal_logic::HclCalculationType;
 use std::collections::{HashMap, HashSet};
 
 use praxis::analysis::event_tree_quantification::{
     quantify_event_tree_hazard_grid_batch, quantify_event_tree_sequences,
-    quantify_event_tree_sequences_batch, summarize_event_tree_hazard_uncertainty,
-    EventTreeHazardGridQuantification, EventTreeHclContext, EventTreeSequenceProbability,
+    quantify_event_tree_sequences_batch, EventTreeHazardGridQuantification, EventTreeHclContext,
+    EventTreeSequenceProbability,
 };
 use praxis::core::event_tree::{
     Branch, BranchTarget, EventTree, Fork, FunctionalEvent, Path, Sequence,
 };
 use praxis::core::model::Model;
-use praxis::hcl::{
-    HclCutSetAnalysis, HclEvidenceSpec, HclImportanceAnalysis, HclUncertaintySummary,
-};
+use praxis::hcl::{HclEvidenceSpec, HclUncertaintySummary};
 use praxis::quantitative::{
     annualize_frequency, prepare_hazard_weights, AnnualizationConvention, FrequencyUnit,
     HazardWeightSummary,
@@ -26,9 +25,13 @@ use crate::transport::SolverRequest;
 
 const EVENT_TREE_METHOD: &str = "EVENT_TREE";
 
+mod linked;
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct EventTreeExecuteRequest {
+    #[serde(default)]
+    calculation_type: HclCalculationType,
     schema_version: String,
     method_type: String,
     model_id: String,
@@ -140,7 +143,7 @@ struct EventTreeHclConfigurationReference {
     configuration: ModelReference,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ModelReference {
     model_id: String,
@@ -152,6 +155,8 @@ struct EventTreeSequenceSnapshot {
     id: String,
     path: Vec<EventTreePathStep>,
     result: EventTreeBranchResult,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    sequence_chain: Vec<EntityReference>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -177,7 +182,7 @@ enum EventTreeBranchResult {
         end_state_id: String,
     },
     Transfer {
-        target: EntityReference,
+        target: ModelReference,
     },
 }
 
@@ -187,14 +192,13 @@ struct SequenceResult<'a> {
     sequence_id: &'a str,
     path: &'a [EventTreePathStep],
     result: &'a EventTreeBranchResult,
+    #[serde(skip_serializing_if = "<[EntityReference]>::is_empty")]
+    sequence_chain: &'a [EntityReference],
     conditional_probability: f64,
     annual_frequency: f64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    cut_sets: Option<&'a HclCutSetAnalysis>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    importance: Option<&'a HclImportanceAnalysis>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     uncertainty: Option<EventTreeSequenceUncertainty>,
+    diagnostics: Value,
 }
 
 #[derive(Serialize)]
@@ -214,7 +218,6 @@ struct EventTreeAdapter {
     event_tree: EventTree,
     model: Model,
     snapshot: EventTreeSnapshot,
-    event_tree_snapshots: HashMap<String, EventTreeSnapshot>,
     hcl_context: Option<EventTreeHclContext>,
     evidence_batch: Option<Vec<EventTreeEvidenceRow>>,
     hazard_convolution: Option<HazardConvolutionRequest>,
@@ -267,9 +270,20 @@ fn parse_event_tree_snapshots(
 
 fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
     let execute = parse_request(request)?;
-    let mut event_tree_snapshots = parse_event_tree_snapshots(request)?;
+    execute
+        .calculation_type
+        .ensure_hazard_supported(execute.hazard_convolution.is_some())?;
+    if matches!(execute.mode, EventTreeExecutionMode::Independent)
+        && execute.calculation_type == HclCalculationType::Uncertainty
+    {
+        return Err(PraxisError::Hcl(
+            "Uncertainty execution requires HCL mode.".into(),
+        ));
+    }
+    let event_tree_snapshots = parse_event_tree_snapshots(request)?;
     let snapshot = event_tree_snapshots
-        .remove(&execute.model_id)
+        .get(&execute.model_id)
+        .cloned()
         .ok_or_else(|| {
             PraxisError::Logic(format!(
                 "event-tree model snapshot '{}' is missing",
@@ -305,72 +319,18 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
         ));
     }
 
-    let mut functional_events = snapshot.functional_events.clone();
-    functional_events.sort_by_key(|event| event.order);
-    if functional_events
-        .iter()
-        .enumerate()
-        .any(|(order, event)| event.order != order)
-    {
-        return Err(PraxisError::Logic(
-            "event-tree functional-event order must be contiguous from zero".to_string(),
-        ));
-    }
-    let links: HashMap<&str, &FunctionalEventFaultTreeLink> = snapshot
-        .functional_event_fault_tree_links
-        .iter()
-        .map(|link| (link.functional_event_id.as_str(), link))
-        .collect();
-    if links.len() != snapshot.functional_event_fault_tree_links.len() {
-        return Err(PraxisError::Logic(
-            "event-tree contains duplicate functional-event fault-tree links".to_string(),
-        ));
-    }
-
+    let linked = linked::build(&snapshot.id, &event_tree_snapshots)?;
     let mut model = Model::new(format!("event-tree-{}", snapshot.id))?;
-    let mut added_fault_trees = HashSet::new();
-    let mut core_functional_events = Vec::with_capacity(functional_events.len());
-    for functional_event in &functional_events {
-        let link = links.get(functional_event.id.as_str());
-        let bypassed_everywhere = !snapshot.sequences.is_empty()
-            && snapshot.sequences.iter().all(|sequence| {
-                sequence.path.iter().any(|step| {
-                    step.functional_event_id == functional_event.id
-                        && step.outcome == EventTreeBranchOutcome::Bypassed
-                })
-            });
-        if link.is_none() && !bypassed_everywhere {
+    let added_fault_trees: HashSet<String> = linked.fault_trees.keys().cloned().collect();
+    for (id, top) in &linked.fault_trees {
+        let adapter = build_fault_tree_for_model(request, id)?;
+        if &adapter.top_gate_id != top {
             return Err(PraxisError::Logic(format!(
-                "functional event '{}' has no fault-tree top-gate link",
-                functional_event.id
+                "fault tree '{id}' uses top gate '{}' instead of '{top}'",
+                adapter.top_gate_id
             )));
         }
-        if let Some(link) = link {
-            if added_fault_trees.insert(link.fault_tree_top_gate.model_id.clone()) {
-                let adapter =
-                    build_fault_tree_for_model(request, &link.fault_tree_top_gate.model_id)?;
-                if adapter.top_gate_id != link.fault_tree_top_gate.entity_id {
-                    return Err(PraxisError::Logic(format!(
-                    "functional event '{}' references top gate '{}' but fault tree '{}' uses '{}'",
-                    functional_event.id,
-                    link.fault_tree_top_gate.entity_id,
-                    link.fault_tree_top_gate.model_id,
-                    adapter.top_gate_id
-                )));
-                }
-                model.add_fault_tree(adapter.fault_tree)?;
-            }
-        }
-        let order = i32::try_from(functional_event.order).map_err(|_| {
-            PraxisError::Logic("functional-event order exceeds PRAXIS range".to_string())
-        })?;
-        let core_event = FunctionalEvent::new(functional_event.id.clone())
-            .with_name(functional_event.name.clone())
-            .with_order(order);
-        core_functional_events.push(match link {
-            Some(link) => core_event.with_fault_tree(link.fault_tree_top_gate.model_id.clone()),
-            None => core_event,
-        });
+        model.add_fault_tree(adapter.fault_tree)?;
     }
 
     let hcl_context = match execute.mode {
@@ -389,26 +349,23 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
                 request,
                 configuration_id,
                 &added_fault_trees,
+                execute.calculation_type,
             )?)
         }
     };
 
-    let ordered_ids: Vec<&str> = functional_events
-        .iter()
-        .map(|event| event.id.as_str())
-        .collect();
-    let sequence_refs: Vec<&EventTreeSequenceSnapshot> = snapshot.sequences.iter().collect();
-    let initial_state = build_branch(&ordered_ids, &sequence_refs, 0)?;
-    let mut event_tree = EventTree::new(snapshot.id.clone(), initial_state);
-    for functional_event in core_functional_events {
-        event_tree.add_functional_event(functional_event)?;
+    let snapshot = EventTreeSnapshot {
+        sequences: linked.sequences,
+        ..snapshot
+    };
+    if execute.hazard_convolution.is_some() {
+        hcl_context
+            .as_ref()
+            .ok_or_else(|| {
+                PraxisError::Hcl("event-tree hazard convolution requires HCL mode".into())
+            })?
+            .ensure_hazard_convolution_supported()?;
     }
-    for sequence in &snapshot.sequences {
-        event_tree.add_sequence(Sequence::new(sequence.id.clone()))?;
-    }
-    event_tree.validate()?;
-
-    event_tree_snapshots.insert(snapshot.id.clone(), snapshot.clone());
     Ok(EventTreeAdapter {
         model_id: snapshot.id.clone(),
         model_revision: snapshot.revision,
@@ -416,78 +373,13 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
         initiating_event_frequency: annualized_initiating_event_frequency,
         initiating_event_frequency_input: snapshot.initiating_event_frequency.clone(),
         annualization,
-        event_tree,
+        event_tree: linked.event_tree,
         model,
         snapshot,
-        event_tree_snapshots,
         hcl_context,
         evidence_batch: execute.evidence_batch,
         hazard_convolution: execute.hazard_convolution,
     })
-}
-
-fn build_branch(
-    ordered_functional_event_ids: &[&str],
-    candidates: &[&EventTreeSequenceSnapshot],
-    depth: usize,
-) -> Result<Branch> {
-    if depth == ordered_functional_event_ids.len() {
-        if candidates.len() != 1 {
-            return Err(PraxisError::Logic(format!(
-                "event-tree path resolves to {} sequences instead of exactly one",
-                candidates.len()
-            )));
-        }
-        return Ok(Branch::new(BranchTarget::Sequence(
-            candidates[0].id.clone(),
-        )));
-    }
-
-    let functional_event_id = ordered_functional_event_ids[depth];
-    let mut paths = Vec::with_capacity(3);
-    for outcome in [
-        EventTreeBranchOutcome::Success,
-        EventTreeBranchOutcome::Failure,
-        EventTreeBranchOutcome::Bypassed,
-    ] {
-        let matching: Vec<&EventTreeSequenceSnapshot> = candidates
-            .iter()
-            .copied()
-            .filter(|sequence| {
-                sequence.path.get(depth).is_some_and(|step| {
-                    step.functional_event_id == functional_event_id && step.outcome == outcome
-                })
-            })
-            .collect();
-        if matching.is_empty() {
-            continue;
-        }
-        let state = match outcome {
-            EventTreeBranchOutcome::Success => "success",
-            EventTreeBranchOutcome::Failure => "failure",
-            EventTreeBranchOutcome::Bypassed => "bypass",
-        };
-        let path = Path::new(
-            state.to_string(),
-            build_branch(ordered_functional_event_ids, &matching, depth + 1)?,
-        )?;
-        paths.push(if outcome == EventTreeBranchOutcome::Bypassed {
-            path.with_probability(1.0)
-        } else {
-            path.with_collect_formula_negated(outcome == EventTreeBranchOutcome::Success)
-        });
-    }
-    let has_bypass = paths.iter().any(|path| path.state == "bypass");
-    if (has_bypass && paths.len() != 1) || (!has_bypass && paths.len() != 2) {
-        return Err(PraxisError::Logic(format!(
-            "functional event '{}' must define success and failure paths or one bypass path",
-            functional_event_id
-        )));
-    }
-    Ok(Branch::new(BranchTarget::Fork(Fork::new(
-        functional_event_id.to_string(),
-        paths,
-    )?)))
 }
 
 pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
@@ -516,8 +408,9 @@ pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
                     &assignments,
                 )?
                 .quantification
-                .scenarios[0]
-                    .len()
+                .scenarios
+                .first()
+                .map_or(0, |scenario| scenario.len())
             } else {
                 quantify_event_tree_sequences_batch(
                     &adapter.model,
@@ -525,8 +418,9 @@ pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
                     validation_hcl_context.as_ref(),
                     &evidence,
                 )?
-                .scenarios[0]
-                    .len()
+                .scenarios
+                .first()
+                .map_or(0, |scenario| scenario.len())
             };
             (sequence_count, rows.len())
         }
@@ -550,61 +444,40 @@ pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
     }))
 }
 
+pub(crate) fn preflight(request: &SolverRequest, executing: bool) -> Result<Value> {
+    let execute = parse_request(request)?;
+    let adapter = build_adapter(request)?;
+    if adapter.hcl_context.is_none() {
+        return Ok(crate::resource_preflight::no_clique());
+    }
+    let configuration_id = &adapter
+        .snapshot
+        .hcl_configuration
+        .as_ref()
+        .expect("HCL adapter requires its configuration")
+        .configuration
+        .model_id;
+    crate::hybrid_causal_logic::preflight_event_tree_network(
+        request,
+        configuration_id,
+        execute.calculation_type,
+        executing,
+    )
+}
+
 pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
     let adapter = build_adapter(request)?;
     if let Some(rows) = &adapter.evidence_batch {
         validate_evidence_rows(rows)?;
-        let evidence = batch_evidence_specs(rows);
-        let (batch, hazard_convolution) = if let Some(hazard) = &adapter.hazard_convolution {
-            validate_hazard_grid(rows, hazard)?;
-            let assignments = hazard_evidence_specs(rows);
-            let context = adapter.hcl_context.as_ref().ok_or_else(|| {
-                PraxisError::Hcl("event-tree hazard convolution requires HCL mode".to_string())
-            })?;
-            let weighted = quantify_event_tree_hazard_grid_batch(
-                &adapter.model,
-                &adapter.event_tree,
-                context,
-                &evidence,
-                &assignments,
-            )?;
-            let integration =
-                event_tree_hazard_convolution_json(rows, hazard, &weighted, &adapter)?;
-            (weighted.quantification, Some(integration))
-        } else {
-            (
-                quantify_event_tree_sequences_batch(
-                    &adapter.model,
-                    &adapter.event_tree,
-                    adapter.hcl_context.as_ref(),
-                    &evidence,
-                )?,
-                None,
-            )
-        };
-        let batch_results = rows
-            .iter()
-            .zip(batch.scenarios.iter())
-            .map(|(row, probabilities)| {
-                event_tree_result_json(&adapter, probabilities, Some(&row.scenario_id))
-            })
-            .collect::<Result<Vec<_>>>()?;
-        let mut response = json!({
-            "methodType": EVENT_TREE_METHOD,
-            "modelId": adapter.model_id,
-            "modelRevision": adapter.model_revision,
-            "mode": adapter.mode,
-            "batchResults": batch_results,
-            "compilationReuse": {
-                "sequenceBddCompilations": batch.compilation.sequence_bdd_compilations,
-                "junctionTreeCompilations": batch.compilation.junction_tree_compilations,
-                "scenarioEvaluations": batch.compilation.scenario_evaluations
-            }
-        });
-        if let Some(hazard_convolution) = hazard_convolution {
-            response["hazardConvolution"] = hazard_convolution;
+        if adapter.hazard_convolution.is_some() {
+            return execute_batch(&adapter, rows);
         }
-        return Ok(response);
+        return crate::evidence_batch::execute(
+            rows,
+            |row| row.scenario_id.as_str(),
+            batch_response(&adapter),
+            |rows| execute_batch(&adapter, rows),
+        );
     }
     let probabilities = quantify_event_tree_sequences(
         &adapter.model,
@@ -638,16 +511,22 @@ fn event_tree_result_json(
             })?;
         let conditional_probability = quantified.conditional_probability;
         let annual_frequency = conditional_probability * adapter.initiating_event_frequency;
-        let end_state_id = resolve_end_state(
-            &adapter.model_id,
-            &sequence.id,
-            &adapter.event_tree_snapshots,
-            &mut HashSet::new(),
-        )?;
+        let end_state_id = terminal_end_state(sequence)?.to_string();
         *aggregate_by_end_state
             .entry(end_state_id.clone())
             .or_default() += annual_frequency;
-        if let Some(samples) = &quantified.uncertainty_samples {
+        let uncertainty = if let Some(summary) = &quantified.uncertainty {
+            let samples = quantified.uncertainty_samples.as_ref().ok_or_else(|| {
+                PraxisError::Hcl("event-tree uncertainty is missing its samples".to_string())
+            })?;
+            // Apply the frequency conversion to each paired sample before
+            // calling HCL_MH's summary routine; scaling summaries rounds differently.
+            let annual_samples: Vec<f64> = samples
+                .iter()
+                .map(|sample| sample * adapter.initiating_event_frequency)
+                .collect();
+            let annual_summary =
+                HclUncertaintySummary::from_samples(&annual_samples, summary.seed)?;
             let aggregate = aggregate_samples_by_end_state
                 .entry(end_state_id.clone())
                 .or_insert_with(|| vec![0.0; samples.len()]);
@@ -657,64 +536,55 @@ fn event_tree_result_json(
                         .to_string(),
                 ));
             }
-            for (total, sample) in aggregate.iter_mut().zip(samples) {
-                *total += sample * adapter.initiating_event_frequency;
+            for (total, sample) in aggregate.iter_mut().zip(&annual_samples) {
+                *total += sample;
             }
-        }
+            Some(EventTreeSequenceUncertainty {
+                conditional_probability: summary.clone(),
+                annual_frequency: annual_summary,
+            })
+        } else {
+            None
+        };
         sequences.push(SequenceResult {
             sequence_id: &sequence.id,
             path: &sequence.path,
             result: &sequence.result,
+            sequence_chain: &sequence.sequence_chain,
             conditional_probability,
             annual_frequency,
-            cut_sets: quantified.cut_sets.as_ref(),
-            importance: quantified.importance.as_ref(),
-            uncertainty: quantified.uncertainty.as_ref().map(|summary| {
-                EventTreeSequenceUncertainty {
-                    conditional_probability: summary.clone(),
-                    annual_frequency: summary.scaled(adapter.initiating_event_frequency),
-                }
-            }),
+            diagnostics: crate::diagnostics::sequence_diagnostics_json(&quantified.diagnostics),
+            uncertainty,
         });
     }
 
-    let declared_end_states: HashSet<&str> = adapter
-        .event_tree_snapshots
-        .values()
-        .flat_map(|snapshot| snapshot.end_states.iter().map(|state| state.id.as_str()))
-        .collect();
-    if let Some(undeclared) = aggregate_by_end_state
-        .keys()
-        .find(|end_state_id| !declared_end_states.contains(end_state_id.as_str()))
-    {
-        return Err(PraxisError::Logic(format!(
-            "event-tree result resolves undeclared end state '{undeclared}'"
-        )));
-    }
     let mut end_state_aggregates: Vec<Value> = aggregate_by_end_state
         .into_iter()
         .map(|(end_state_id, annual_frequency)| {
-            let uncertainty =
-                aggregate_samples_by_end_state
-                    .get(&end_state_id)
-                    .and_then(|samples| {
-                        probabilities
-                            .iter()
-                            .find_map(|sequence| {
-                                sequence.uncertainty.as_ref().map(|summary| summary.seed)
-                            })
-                            .and_then(|seed| {
-                                HclUncertaintySummary::from_samples(samples, seed).ok()
-                            })
-                    });
+            let uncertainty = aggregate_samples_by_end_state
+                .get(&end_state_id)
+                .map(|samples| {
+                    let seed = probabilities
+                        .iter()
+                        .find_map(|sequence| {
+                            sequence.uncertainty.as_ref().map(|summary| summary.seed)
+                        })
+                        .ok_or_else(|| {
+                            PraxisError::Hcl(
+                                "event-tree uncertainty is missing its seed".to_string(),
+                            )
+                        })?;
+                    HclUncertaintySummary::from_samples(samples, seed)
+                })
+                .transpose()?;
             let mut value =
                 json!({ "endStateId": end_state_id, "annualFrequency": annual_frequency });
             if let Some(uncertainty) = uncertainty {
                 value["uncertainty"] = json!(uncertainty);
             }
-            value
+            Ok(value)
         })
-        .collect();
+        .collect::<Result<Vec<_>>>()?;
     end_state_aggregates.sort_by(|left, right| {
         left["endStateId"]
             .as_str()
@@ -745,6 +615,72 @@ fn event_tree_result_json(
         value["scenarioId"] = json!(scenario_id);
     }
     Ok(value)
+}
+
+fn batch_response(adapter: &EventTreeAdapter) -> Value {
+    json!({
+        "methodType": EVENT_TREE_METHOD,
+        "modelId": adapter.model_id,
+        "modelRevision": adapter.model_revision,
+        "mode": adapter.mode,
+    })
+}
+
+fn execute_batch(adapter: &EventTreeAdapter, rows: &[EventTreeEvidenceRow]) -> Result<Value> {
+    let evidence = batch_evidence_specs(rows);
+    let (batch, hazard_convolution) = if let Some(hazard) = &adapter.hazard_convolution {
+        validate_hazard_grid(rows, hazard)?;
+        let assignments = hazard_evidence_specs(rows);
+        let context = adapter.hcl_context.as_ref().ok_or_else(|| {
+            PraxisError::Hcl("event-tree hazard convolution requires HCL mode".to_string())
+        })?;
+        let weighted = quantify_event_tree_hazard_grid_batch(
+            &adapter.model,
+            &adapter.event_tree,
+            context,
+            &evidence,
+            &assignments,
+        )?;
+        let integration = event_tree_hazard_convolution_json(rows, hazard, &weighted, &adapter)?;
+        (weighted.quantification, Some(integration))
+    } else {
+        (
+            quantify_event_tree_sequences_batch(
+                &adapter.model,
+                &adapter.event_tree,
+                adapter.hcl_context.as_ref(),
+                &evidence,
+            )?,
+            None,
+        )
+    };
+    let evaluated: HashMap<_, _> = batch
+        .scenario_indices
+        .iter()
+        .copied()
+        .zip(batch.scenarios.iter())
+        .collect();
+    let batch_results = rows
+        .iter()
+        .enumerate()
+        .map(|(index, row)| match evaluated.get(&index) {
+            Some(probabilities) => {
+                event_tree_result_json(&adapter, probabilities, Some(&row.scenario_id))
+            }
+            None => Ok(json!({"scenarioId": row.scenario_id, "status": "skipped_zero_weight"})),
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let mut response = batch_response(adapter);
+    response["batchResults"] = json!(batch_results);
+    response["compilationReuse"] = json!({
+        "sequenceBddCompilations": batch.compilation.sequence_bdd_compilations,
+        "junctionTreeCompilations": batch.compilation.junction_tree_compilations,
+        "scenarioEvaluations": batch.compilation.scenario_evaluations
+    });
+    if let Some(hazard_convolution) = hazard_convolution {
+        response["hazardConvolution"] = hazard_convolution;
+    }
+    Ok(response)
 }
 
 fn validate_evidence_rows(rows: &[EventTreeEvidenceRow]) -> Result<()> {
@@ -851,41 +787,61 @@ fn event_tree_hazard_convolution_json(
         scale.annualization,
         hazard.normalize_weights,
     )?;
+    let mut sequence_probabilities: HashMap<String, f64> = HashMap::new();
+    let mut end_state_probabilities: HashMap<String, f64> = HashMap::new();
     let mut sequence_totals: HashMap<String, f64> = HashMap::new();
     let mut end_state_totals: HashMap<String, f64> = HashMap::new();
-    let mut end_state_by_sequence: HashMap<String, String> = HashMap::new();
+    let evaluated: HashMap<_, _> = batch
+        .quantification
+        .scenario_indices
+        .iter()
+        .copied()
+        .zip(batch.quantification.scenarios.iter())
+        .collect();
     let result_rows = rows
         .iter()
-        .zip(batch.quantification.scenarios.iter())
-        .zip(weights.weights.iter())
-        .map(|((row, probabilities), weight)| {
+        .zip(&weights.weights)
+        .enumerate()
+        .map(|(index, (row, weight))| {
+            let probabilities = evaluated.get(&index);
             let sequences = probabilities
-                .iter()
+                .into_iter()
+                .flat_map(|p| p.iter())
                 .map(|probability| {
                     let contribution =
                         weight.annual_frequency * probability.conditional_probability;
+                    let probability_contribution =
+                        weight.convolution_weight * probability.conditional_probability;
+                    *sequence_probabilities
+                        .entry(probability.sequence_id.clone())
+                        .or_default() += probability_contribution;
                     *sequence_totals
                         .entry(probability.sequence_id.clone())
                         .or_default() += contribution;
-                    let end_state_id = resolve_end_state(
-                        &adapter.model_id,
-                        &probability.sequence_id,
-                        &adapter.event_tree_snapshots,
-                        &mut HashSet::new(),
-                    )?;
-                    end_state_by_sequence
-                        .entry(probability.sequence_id.clone())
-                        .or_insert_with(|| end_state_id.clone());
+                    let sequence = adapter
+                        .snapshot
+                        .sequences
+                        .iter()
+                        .find(|sequence| sequence.id == probability.sequence_id)
+                        .ok_or_else(|| {
+                            PraxisError::Logic("missing expanded event-tree sequence".into())
+                        })?;
+                    let end_state_id = terminal_end_state(sequence)?.to_string();
+                    *end_state_probabilities
+                        .entry(end_state_id.clone())
+                        .or_default() += probability_contribution;
                     *end_state_totals.entry(end_state_id).or_default() += contribution;
                     Ok(json!({
                         "sequenceId": probability.sequence_id,
                         "conditionalProbability": probability.conditional_probability,
+                        "probabilityContribution": probability_contribution,
                         "annualContribution": contribution
                     }))
                 })
                 .collect::<Result<Vec<_>>>()?;
             Ok(json!({
                 "scenarioId": row.scenario_id,
+                "status": if probabilities.is_some() { "ok" } else { "skipped_zero_weight" },
                 "rawWeight": weight.raw_weight,
                 "normalizedWeight": weight.normalized_weight,
                 "convolutionWeight": weight.convolution_weight,
@@ -894,26 +850,14 @@ fn event_tree_hazard_convolution_json(
             }))
         })
         .collect::<Result<Vec<_>>>()?;
-    let uncertainty = summarize_event_tree_hazard_uncertainty(
-        batch,
-        &end_state_by_sequence,
-        scale.value,
-        scale.unit,
-        scale.annualization,
-        hazard.normalize_weights,
-    )?;
     let mut sequences: Vec<Value> = sequence_totals
         .into_iter()
         .map(|(sequence_id, integrated_annual_frequency)| {
-            let uncertainty = uncertainty.sequences.get(&sequence_id);
-            let mut value = json!({
+            json!({
                 "sequenceId": sequence_id,
+                "convolvedProbability": sequence_probabilities[&sequence_id],
                 "integratedAnnualFrequency": integrated_annual_frequency
-            });
-            if let Some(uncertainty) = uncertainty {
-                value["uncertainty"] = json!(uncertainty);
-            }
-            value
+            })
         })
         .collect();
     sequences.sort_by(|left, right| {
@@ -924,15 +868,11 @@ fn event_tree_hazard_convolution_json(
     let mut end_state_aggregates: Vec<Value> = end_state_totals
         .into_iter()
         .map(|(end_state_id, integrated_annual_frequency)| {
-            let uncertainty = uncertainty.end_states.get(&end_state_id);
-            let mut value = json!({
+            json!({
                 "endStateId": end_state_id,
+                "convolvedProbability": end_state_probabilities[&end_state_id],
                 "integratedAnnualFrequency": integrated_annual_frequency
-            });
-            if let Some(uncertainty) = uncertainty {
-                value["uncertainty"] = json!(uncertainty);
-            }
-            value
+            })
         })
         .collect();
     end_state_aggregates.sort_by(|left, right| {
@@ -970,46 +910,117 @@ fn hazard_common_json(
     value
 }
 
-fn resolve_end_state(
-    model_id: &str,
-    sequence_id: &str,
-    snapshots: &HashMap<String, EventTreeSnapshot>,
-    visited: &mut HashSet<(String, String)>,
-) -> Result<String> {
-    if !visited.insert((model_id.to_string(), sequence_id.to_string())) {
-        return Err(PraxisError::Logic(format!(
-            "event-tree transfer loop reaches '{model_id}:{sequence_id}'"
-        )));
-    }
-    let snapshot = snapshots.get(model_id).ok_or_else(|| {
-        PraxisError::Logic(format!("event-tree transfer model '{model_id}' is missing"))
-    })?;
-    let sequence = snapshot
-        .sequences
-        .iter()
-        .find(|sequence| sequence.id == sequence_id)
-        .ok_or_else(|| {
-            PraxisError::Logic(format!(
-                "event-tree transfer sequence '{model_id}:{sequence_id}' is missing"
-            ))
-        })?;
+fn terminal_end_state(sequence: &EventTreeSequenceSnapshot) -> Result<&str> {
     match &sequence.result {
-        EventTreeBranchResult::EndState { end_state_id } => Ok(end_state_id.clone()),
-        EventTreeBranchResult::Transfer { target } => {
-            resolve_end_state(&target.model_id, &target.entity_id, snapshots, visited)
+        EventTreeBranchResult::EndState { end_state_id } => Ok(end_state_id),
+        EventTreeBranchResult::Transfer { .. } => {
+            Err(PraxisError::Logic("unexpanded event-tree transfer".into()))
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashMap, HashSet};
+    use std::collections::HashMap;
 
     use serde_json::json;
     use serde_json::Value;
 
-    use super::{execute, resolve_end_state, EventTreeSnapshot};
+    use super::execute;
     use crate::transport::SolverRequest;
+
+    #[test]
+    fn annual_summaries_match_original_source_after_sample_conversion() {
+        use praxis::analysis::event_tree_quantification::{
+            EventTreeSequenceDiagnostics, EventTreeSequenceProbability,
+        };
+        use praxis::hcl::HclUncertaintySummary;
+
+        let reference: Value = serde_json::from_str(include_str!(
+            "../test/fixtures/annual-statistics/reference.json"
+        ))
+        .unwrap();
+        let from_bits =
+            |v: &Value| f64::from_bits(u64::from_str_radix(v.as_str().unwrap(), 16).unwrap());
+        let request = SolverRequest::from_json(&json!({
+            "schemaVersion": "1.0.0",
+            "request": {"schemaVersion":"1.0.0","methodType":"EVENT_TREE","modelId":"ET","revision":1,"mode":"INDEPENDENT","requestedBy":"source-test"},
+            "modelSnapshots": [fault_tree("FT", "TOP", "REF"), {
+                "id":"ET","methodType":"EVENT_TREE","revision":1,
+                "initiatingEvent":{"target":{"modelId":"IE","entityId":"IE"}},
+                "initiatingEventFrequency":{"value":1.0},
+                "functionalEvents":[{"id":"FE","name":"System","order":0}],
+                "functionalEventFaultTreeLinks":[{"functionalEventId":"FE","faultTreeTopGate":{"modelId":"FT","entityId":"TOP"}}],
+                "endStates":[{"id":"ALL"}],
+                "sequences":[
+                    {"id":"S0","path":[{"functionalEventId":"FE","outcome":"FAILURE"}],"result":{"kind":"END_STATE","endStateId":"ALL"}},
+                    {"id":"S1","path":[{"functionalEventId":"FE","outcome":"SUCCESS"}],"result":{"kind":"END_STATE","endStateId":"ALL"}}
+                ]
+            }],
+            "resources":{"faultTreeBasicEventCatalogue":{"projectId":"P","basicEvents":[{"id":"SHARED","probability":{"value":0.2}}]}}
+        }).to_string()).unwrap();
+        let mut adapter = super::build_adapter(&request).unwrap();
+        for case in reference["cases"].as_array().unwrap() {
+            adapter.initiating_event_frequency = from_bits(&case["scale_bits"]);
+            let probabilities: Vec<_> = case["sample_bits"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .enumerate()
+                .map(|(i, values)| {
+                    let samples: Vec<_> =
+                        values.as_array().unwrap().iter().map(from_bits).collect();
+                    EventTreeSequenceProbability {
+                        sequence_id: format!("S{i}"),
+                        conditional_probability: 0.2,
+                        uncertainty: Some(
+                            HclUncertaintySummary::from_samples(&samples, 42).unwrap(),
+                        ),
+                        uncertainty_samples: Some(samples),
+                        diagnostics: EventTreeSequenceDiagnostics {
+                            bdd: None,
+                            bridge: None,
+                            junction_tree: None,
+                        },
+                    }
+                })
+                .collect();
+            let result = super::event_tree_result_json(&adapter, &probabilities, None).unwrap();
+            for sequence in result["sequences"].as_array().unwrap() {
+                let i: usize = sequence["sequenceId"].as_str().unwrap()[1..]
+                    .parse()
+                    .unwrap();
+                for (field, bits) in case["annual_bits"][i].as_object().unwrap() {
+                    assert_eq!(
+                        sequence["uncertainty"]["annualFrequency"][field]
+                            .as_f64()
+                            .unwrap()
+                            .to_bits(),
+                        from_bits(bits).to_bits(),
+                        "sequence {i} {field}: count {} scale {}",
+                        case["count"],
+                        adapter.initiating_event_frequency
+                    );
+                }
+                assert_eq!(
+                    sequence["uncertainty"]["conditionalProbability"],
+                    serde_json::to_value(probabilities[i].uncertainty.as_ref().unwrap()).unwrap()
+                );
+            }
+            for (field, bits) in case["total_bits"].as_object().unwrap() {
+                assert_eq!(
+                    result["endStateAggregates"][0]["uncertainty"][field]
+                        .as_f64()
+                        .unwrap()
+                        .to_bits(),
+                    from_bits(bits).to_bits(),
+                    "end-state {field}: count {} scale {}",
+                    case["count"],
+                    adapter.initiating_event_frequency
+                );
+            }
+        }
+    }
 
     #[test]
     fn quantifies_complete_sequences_without_multiplying_shared_branch_marginals() {
@@ -1134,6 +1145,12 @@ mod tests {
         let result = execute(&request).unwrap();
         assert_eq!(result["sequences"][0]["conditionalProbability"], 1.0);
         assert_eq!(result["sequences"][0]["annualFrequency"], 0.01);
+        assert_eq!(
+            result["sequences"][0]["diagnostics"],
+            json!({
+                "bdd": null, "bridge": null, "junctionTree": null
+            })
+        );
     }
 
     #[test]
@@ -1192,59 +1209,228 @@ mod tests {
         );
     }
 
+    fn transfer_request(events: &[(&str, f64)]) -> SolverRequest {
+        let mut snapshots = Vec::new();
+        let mut catalogue = HashMap::new();
+        for (i, (event, probability)) in events.iter().enumerate() {
+            let mut ft = fault_tree(&format!("FT-{i}"), &format!("TOP-{i}"), &format!("REF-{i}"));
+            ft["leafNodes"][0]["basicEventId"] = json!(event);
+            snapshots.push(ft);
+            catalogue.insert(*event, *probability);
+            snapshots.push(json!({
+                "id": format!("ET-{i}"), "methodType": "EVENT_TREE", "revision": 1,
+                "initiatingEvent": {"target": {"modelId": "IE", "entityId": "IE-1"}},
+                "initiatingEventFrequency": {"value": 0.01},
+                "functionalEvents": [{"id": format!("FE-{i}"), "name": event, "order": 0}],
+                "functionalEventFaultTreeLinks": [{"functionalEventId": format!("FE-{i}"),
+                    "faultTreeTopGate": {"modelId": format!("FT-{i}"), "entityId": format!("TOP-{i}")}}],
+                "endStates": [{"id": format!("SAFE-{i}")}, {"id": "RELEASE"}],
+                "sequences": [
+                    {"id": format!("S-{i}"), "path": [{"functionalEventId": format!("FE-{i}"), "outcome": "SUCCESS"}],
+                     "result": {"kind": "END_STATE", "endStateId": format!("SAFE-{i}")}},
+                    {"id": format!("F-{i}"), "path": [{"functionalEventId": format!("FE-{i}"), "outcome": "FAILURE"}],
+                     "result": if i + 1 < events.len() { json!({"kind": "TRANSFER", "target": {"modelId": format!("ET-{}", i + 1)}}) }
+                               else { json!({"kind": "END_STATE", "endStateId": "RELEASE"}) }}
+                ]
+            }));
+        }
+        SolverRequest::from_json(&json!({
+            "schemaVersion": "1.0.0",
+            "request": {"schemaVersion": "1.0.0", "methodType": "EVENT_TREE", "modelId": "ET-0", "revision": 1,
+                "mode": "INDEPENDENT", "requestedBy": "analyst"},
+            "modelSnapshots": snapshots,
+            "resources": {"faultTreeBasicEventCatalogue": {"projectId": "P", "basicEvents": catalogue.into_iter()
+                .map(|(id, probability)| json!({"id": id, "probability": {"value": probability}})).collect::<Vec<_>>()}}
+        }).to_string()).unwrap()
+    }
+
+    fn terminal_probability(result: &Value, end_state: &str) -> f64 {
+        result["sequences"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|sequence| sequence["result"]["endStateId"] == end_state)
+            .map(|sequence| sequence["conditionalProbability"].as_f64().unwrap())
+            .sum()
+    }
+
     #[test]
-    fn resolves_transfer_chains_and_rejects_transfer_loops() {
-        let source: EventTreeSnapshot = serde_json::from_value(json!({
-            "id": "ET-SOURCE",
-            "methodType": "EVENT_TREE",
-            "revision": 1,
-            "initiatingEvent": { "target": { "modelId": "IE", "entityId": "IE-1" } },
-            "initiatingEventFrequency": { "value": 1.0 },
-            "functionalEvents": [],
-            "functionalEventFaultTreeLinks": [],
-            "endStates": [],
-            "sequences": [{
-                "id": "TRANSFER",
-                "path": [],
-                "result": {
-                    "kind": "TRANSFER",
-                    "target": { "modelId": "ET-TARGET", "entityId": "TARGET" }
-                }
-            }]
-        }))
-        .unwrap();
-        let target: EventTreeSnapshot = serde_json::from_value(json!({
-            "id": "ET-TARGET",
-            "methodType": "EVENT_TREE",
-            "revision": 1,
-            "initiatingEvent": { "target": { "modelId": "IE", "entityId": "IE-1" } },
-            "initiatingEventFrequency": { "value": 1.0 },
-            "functionalEvents": [],
-            "functionalEventFaultTreeLinks": [],
-            "endStates": [{ "id": "SAFE" }],
-            "sequences": [{
-                "id": "TARGET",
-                "path": [],
-                "result": { "kind": "END_STATE", "endStateId": "SAFE" }
-            }]
-        }))
-        .unwrap();
-        let mut snapshots =
-            HashMap::from([(source.id.clone(), source), (target.id.clone(), target)]);
+    fn transfers_preserve_bn_dependence_and_reset_evidence_between_scenarios() {
+        let mut request = transfer_request(&[("A", 0.2), ("B", 0.24)]);
+        request.request["mode"] = json!("HYBRID_CAUSAL_LOGIC");
+        request.model_snapshots[1]["hclConfiguration"] =
+            json!({"configuration": {"modelId": "HCL"}});
+        let values = |event: &str, p: f64| {
+            json!([
+                {"stateId": format!("{event}-0"), "probability": 1.0 - p},
+                {"stateId": format!("{event}-1"), "probability": p}
+            ])
+        };
+        request.model_snapshots.push(json!({
+            "id": "BN", "methodType": "BAYESIAN_NETWORK", "revision": 1,
+            "nodes": (["A", "B"].map(|id| json!({"id": id, "states": [{"id": format!("{id}-0")}, {"id": format!("{id}-1")}]}))),
+            "conditionalProbabilityTables": [
+                {"nodeId": "A", "parents": [], "rows": [{"id": "a", "parentStates": [], "values": values("A", 0.2)}]},
+                {"nodeId": "B", "parents": [{"nodeId": "A", "order": 0}], "rows": [
+                    {"id": "b0", "parentStates": [{"parentNodeId": "A", "stateId": "A-0"}], "values": values("B", 0.1)},
+                    {"id": "b1", "parentStates": [{"parentNodeId": "A", "stateId": "A-1"}], "values": values("B", 0.8)}
+                ]}
+            ]
+        }));
+        request.model_snapshots.push(json!({
+            "id": "HCL", "methodType": "HYBRID_CAUSAL_LOGIC", "revision": 1,
+            "bayesianNetwork": {"modelId": "BN"},
+            "faultTrees": [{"faultTree": {"modelId": "FT-0"}}, {"faultTree": {"modelId": "FT-1"}}],
+            "bindings": (["A", "B"].iter().enumerate().map(|(i, event)| json!({
+                "id": format!("binding-{event}"),
+                "faultTreeBasicEvent": {"modelId": format!("FT-{i}"), "entityId": event},
+                "bayesianNetworkNode": {"modelId": "BN", "entityId": event}, "trueStateIds": [format!("{event}-1")]
+            })).collect::<Vec<_>>()),
+            "baseEvidence": {"observations": []},
+            "solverSettings": {"foldConstants": false, "spliceNullGates": false}
+        }));
+        let result = execute(&request).unwrap();
+        assert!((terminal_probability(&result, "RELEASE") - 0.16).abs() < 1e-12);
+        assert!((terminal_probability(&result, "SAFE-1") - 0.04).abs() < 1e-12);
+        for (state, probability) in [("SAFE-0", 0.8), ("SAFE-1", 0.04), ("RELEASE", 0.16)] {
+            let sequence = result["sequences"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|sequence| sequence["result"]["endStateId"] == state)
+                .unwrap();
+            assert!(
+                (sequence["conditionalProbability"].as_f64().unwrap() - probability).abs() < 1e-12
+            );
+            assert!(sequence.get("cutSets").is_none());
+            assert!(sequence.get("importance").is_none());
+        }
+        let mut single_outcome = request.clone();
+        single_outcome.model_snapshots[1]["sequences"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|s| s["path"][0]["outcome"] == "FAILURE");
+        let partial = execute(&single_outcome).unwrap();
+        assert_eq!(partial["sequences"].as_array().unwrap().len(), 2);
+        assert!((terminal_probability(&partial, "SAFE-1") - 0.04).abs() < 1e-12);
+        assert!((terminal_probability(&partial, "RELEASE") - 0.16).abs() < 1e-12);
 
-        let end_state =
-            resolve_end_state("ET-SOURCE", "TRANSFER", &snapshots, &mut HashSet::new()).unwrap();
-        assert_eq!(end_state, "SAFE");
+        request.request["evidenceBatch"] = json!([
+            {"scenarioId": "A-TRUE", "observations": [{"nodeId": "A", "stateId": "A-1"}]},
+            {"scenarioId": "A-FALSE", "observations": [{"nodeId": "A", "stateId": "A-0"}]}
+        ]);
+        let result = execute(&request).unwrap();
+        assert!((terminal_probability(&result["batchResults"][0], "RELEASE") - 0.8).abs() < 1e-12);
+        assert_eq!(
+            terminal_probability(&result["batchResults"][1], "RELEASE"),
+            0.0
+        );
+    }
 
-        snapshots.get_mut("ET-TARGET").unwrap().sequences[0].result =
-            serde_json::from_value(json!({
-                "kind": "TRANSFER",
-                "target": { "modelId": "ET-SOURCE", "entityId": "TRANSFER" }
-            }))
+    #[test]
+    fn transfers_include_destination_success_and_failure_conditions() {
+        let request = transfer_request(&[("A", 0.2), ("B", 0.3)]);
+        let result = execute(&request).unwrap();
+        assert_eq!(result["sequences"].as_array().unwrap().len(), 3);
+        for (state, probability) in [("SAFE-0", 0.8), ("SAFE-1", 0.14), ("RELEASE", 0.06)] {
+            assert!((terminal_probability(&result, state) - probability).abs() < 1e-12);
+        }
+        let released = result["sequences"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|sequence| sequence["result"]["endStateId"] == "RELEASE")
             .unwrap();
-        let error = resolve_end_state("ET-SOURCE", "TRANSFER", &snapshots, &mut HashSet::new())
-            .unwrap_err();
-        assert!(error.to_string().contains("transfer loop"));
+        assert_eq!(released["path"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            released["sequenceChain"],
+            json!([
+                {"modelId": "ET-0", "entityId": "F-0"}, {"modelId": "ET-1", "entityId": "F-1"}
+            ])
+        );
+        assert!((released["annualFrequency"].as_f64().unwrap() - 0.0006).abs() < 1e-12);
+        assert_eq!(result["sequences"], execute(&request).unwrap()["sequences"]);
+    }
+
+    #[test]
+    fn single_outcome_transfers_preserve_conditions_without_normalizing() {
+        for (outcome, expected) in [("SUCCESS", 0.14), ("FAILURE", 0.06)] {
+            let mut request = transfer_request(&[("A", 0.2), ("B", 0.3)]);
+            for (snapshot, retained) in [(1, "FAILURE"), (3, outcome)] {
+                request.model_snapshots[snapshot]["sequences"]
+                    .as_array_mut()
+                    .unwrap()
+                    .retain(|s| s["path"][0]["outcome"] == retained);
+            }
+            let result = execute(&request).unwrap();
+            let sequences = result["sequences"].as_array().unwrap();
+            assert_eq!(sequences.len(), 1);
+            assert!(
+                (sequences[0]["conditionalProbability"].as_f64().unwrap() - expected).abs() < 1e-12
+            );
+            assert!(
+                (sequences[0]["annualFrequency"].as_f64().unwrap() - expected * 0.01).abs() < 1e-12
+            );
+            assert_eq!(sequences[0]["path"][0]["outcome"], "FAILURE");
+            assert_eq!(sequences[0]["path"][1]["outcome"], outcome);
+        }
+    }
+
+    #[test]
+    fn rejects_empty_duplicate_and_mixed_bypass_paths() {
+        let request = transfer_request(&[("A", 0.2)]);
+        for sequences in [
+            json!([]),
+            json!(vec![request.model_snapshots[1]["sequences"][0].clone(); 2]),
+            json!([
+                request.model_snapshots[1]["sequences"][0].clone(),
+                {"id": "BYPASS", "path": [{"functionalEventId": "FE-0", "outcome": "BYPASSED"}],
+                 "result": {"kind": "END_STATE", "endStateId": "RELEASE"}}
+            ]),
+        ] {
+            let mut invalid = request.clone();
+            invalid.model_snapshots[1]["sequences"] = sequences;
+            assert!(execute(&invalid).is_err());
+        }
+    }
+
+    #[test]
+    fn transfers_preserve_shared_events_and_distinct_incoming_paths() {
+        let mut request = transfer_request(&[("A", 0.2), ("A", 0.2)]);
+        let result = execute(&request).unwrap();
+        assert!((terminal_probability(&result, "RELEASE") - 0.2).abs() < 1e-12);
+        assert_eq!(terminal_probability(&result, "SAFE-1"), 0.0);
+        request.model_snapshots[1]["sequences"][0]["result"] =
+            json!({"kind": "TRANSFER", "target": {"modelId": "ET-1"}});
+        let result = execute(&request).unwrap();
+        let sequences = result["sequences"].as_array().unwrap();
+        assert_eq!(sequences.len(), 4);
+        let ids: std::collections::HashSet<_> = sequences
+            .iter()
+            .map(|sequence| sequence["sequenceId"].as_str().unwrap())
+            .collect();
+        assert_eq!(ids.len(), 4);
+        assert!((terminal_probability(&result, "SAFE-1") - 0.8).abs() < 1e-12);
+        assert!((terminal_probability(&result, "RELEASE") - 0.2).abs() < 1e-12);
+    }
+
+    #[test]
+    fn follows_transfer_chains_and_rejects_missing_trees_and_loops() {
+        let mut request = transfer_request(&[("A", 0.2), ("B", 0.3), ("C", 0.4)]);
+        assert!(
+            (terminal_probability(&execute(&request).unwrap(), "RELEASE") - 0.024).abs() < 1e-12
+        );
+        request.model_snapshots[5]["sequences"][1]["result"] =
+            json!({"kind": "TRANSFER", "target": {"modelId": "MISSING"}});
+        assert!(execute(&request)
+            .unwrap_err()
+            .to_string()
+            .contains("is missing"));
+        request.model_snapshots[5]["sequences"][1]["result"]["target"]["modelId"] = json!("ET-0");
+        assert!(execute(&request)
+            .unwrap_err()
+            .to_string()
+            .contains("transfer loop"));
     }
 
     fn fault_tree(id: &str, top: &str, reference: &str) -> Value {

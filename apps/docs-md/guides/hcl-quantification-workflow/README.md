@@ -14,6 +14,14 @@ Event-tree functional event
 
 The final solver input is one JSON envelope. The event tree, fault trees, Bayesian network, and HCL configuration are sibling model snapshots connected by stable model and entity IDs. They are not copied into one deeply nested object.
 
+This guide covers point-probability ET execution. The JSON below is abbreviated
+and uses readable example IDs; it is not a complete executable addon request.
+For the runnable CLI example, API boundaries, uncertainty and hazard methods,
+see the [HCL capability/source guide](../../../solvers/praxis/src/hcl/README.md).
+The original probability algorithm comes from main HCL+TensorBayes; sequence
+formulas use PRAXIS, transfer traversal follows HCL_MH, and backend snapshots,
+transport and editor controls are application adaptations.
+
 ## System overview
 
 ```text
@@ -40,7 +48,7 @@ The browser does **not** send the complete ET/FT/BN model graph. It sends the se
 | --- | --- |
 | OpenPRA editors | Author ET, FT, BN, bindings, evidence, and solver settings. |
 | Web backend | Load referenced workbooks, check revisions and access, resolve DA/HRA-controlled values, adapt models, record provenance, and construct the solver envelope. |
-| Praetor | Expose the HTTP execution endpoint and isolate native execution in a worker thread. |
+| Praetor | Expose the HTTP execution endpoint and isolate native execution in a separate Node process. |
 | `praxis-node` | Deserialize the JSON envelope, resolve cross-model IDs, construct Rust model structures, invoke PRAXIS, and serialize the result. |
 | PRAXIS | Build Boolean formulas and BDDs and perform HCL quantification. |
 | TensorBayes | Perform exact Bayesian-network inference under base evidence and the temporary evidence accumulated along a BDD path. |
@@ -339,6 +347,7 @@ When the user selects `ET-1` and runs HCL quantification, the browser sends a sm
   "schemaVersion": "1.0.0",
   "modelId": "HCL-1",
   "workbookRevision": 12,
+  "calculationType": "PROBABILITY",
   "eventTree": {
     "workbookId": "ES-WORKBOOK",
     "modelId": "ET-1"
@@ -367,6 +376,7 @@ The solver envelope has this top-level shape:
     "schemaVersion": "1.0.0",
     "methodType": "EVENT_TREE",
     "mode": "HYBRID_CAUSAL_LOGIC",
+    "calculationType": "PROBABILITY",
     "modelId": "ET-1",
     "revision": 2,
     "requestedBy": "developer"
@@ -396,7 +406,7 @@ The abbreviated entries in `modelSnapshots` stand for the complete ET, FT, BN, a
 
 ## Praetor overview
 
-Praetor provides the HTTP boundary around native solver execution. The backend posts the solver envelope to the native PRAXIS execution endpoint, and Praetor starts an isolated worker thread that loads `praxis-node`.
+Praetor provides the HTTP boundary around native solver execution. The backend posts the solver envelope to the native PRAXIS execution endpoint, and Praetor starts an isolated Node process that loads `praxis-node`. Deadlines, HTTP disconnects and orderly shutdown terminate that process. The default limit is five minutes and two concurrent native jobs per Praetor process; excess requests fail immediately. See the [execution source map](../praxis-execution-source-map.md).
 
 Praetor does not currently distribute HCL jobs across a durable queue or cluster. The analysis record briefly uses statuses such as `QUEUED` and `RUNNING`, but these are persisted lifecycle states rather than evidence of a distributed message queue. The backend waits for Praetor to return the result before completing the run request.
 
@@ -456,7 +466,11 @@ FS = F1 AND NOT F2
 FF = F1 AND F2
 ```
 
-PRAXIS builds a BDD for each complete sequence formula. While traversing a BDD:
+PRAXIS builds a BDD for each complete sequence formula. The default puts
+BN-linked events first using HCL_MH's stable BN depth order, followed by BFS
+FT-only events. An explicit API order takes precedence; the GUI has no manual
+order editor. FT constant-folding/null-splicing controls do not apply to this
+sequence builder and are hidden in the ET editor. While traversing a BDD:
 
 - Bound events `A` and `B` obtain conditional probabilities from TensorBayes.
 - Unbound events `C`, `D`, and `E` use their independent catalogue probabilities.
@@ -471,7 +485,10 @@ P(F | context)
   + P(not x | context) * P(low branch | context, not x)
 ```
 
-This is why the order used to traverse the BDD can affect performance but does not change the exact probability.
+BDD order can affect performance but not the mathematical probability.
+Floating-point complement subtraction has documented limits for rare noncoherent
+paths; see the [numerical verification report](../../../solvers/praxis/docs/HCL_VERIFICATION.md).
+Probability selection leaves saved uncertainty settings intact and skips sampling.
 
 ## Example calculation
 
@@ -560,3 +577,13 @@ An abbreviated result for the example is:
 ```
 
 The web backend retains both the result and the exact revisions of the ET, FT, BN, HCL, DA, and HRA inputs that contributed to it. The frontend then retrieves this stored result and displays the sequence conditional probabilities, annual frequencies, end-state aggregates, and revision-pinned provenance.
+
+End-state totals sum sequence frequencies. This is the approved sequence-based
+method: there is no combined end-state BDD or general Boolean disjointness check.
+The example's four paths are mutually exclusive. Cut sets and importance are
+absent from this application execution path.
+
+Results retain point-pass BDD, junction-tree and cache diagnostics. Their display,
+CSV export and historical-run behavior are documented in the
+[result source map](../result-presentation-source-map.md) and
+[run-history source map](../analysis-run-history-source-map.md).

@@ -1,3 +1,4 @@
+import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -166,10 +167,6 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
           );
         })}
       </ul>
-      <div className="posrail__footer">
-        <button type="button" className="posrail__footer-btn"><SYIcon.Layers /> Show all inputs</button>
-        <button type="button" className="posrail__footer-btn"><SYIcon.Settings /> Workbook settings</button>
-      </div>
     </aside>
   );
 }
@@ -451,6 +448,7 @@ function SyWorkbench({
           </div>
 
           {renderScreen()}
+          {["models", "deps", "uncert"].includes(stepId) && <SyAnalysisHistory />}
 
           <div className="posnav">
             {prev ? (
@@ -495,3 +493,8 @@ function SyWorkbench({
 }
 
 export { SyWorkbench, type HeaderMeta, type SyWorkbenchActions };
+
+function SyAnalysisHistory() {
+  const {runtime} = useSyWorkbook();
+  return <AnalysisRunHistory host="sy" workbookId={runtime.workbookId}/>;
+}

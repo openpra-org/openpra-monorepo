@@ -1,3 +1,12 @@
+import { HclUncertaintyReview } from "./hclUncertaintyReview";
+import { HclUncertaintySeedSchema, HclUncertaintySettingsSchema, WorkbookHclUncertaintyConfigurationSchema } from "interfaces-mef-types/zod/modeling";
+import { HclResults } from "./hclResults";
+import { DEFAULT_ANNUALIZATION_CONVENTION } from "interfaces-mef-types/modeling";
+import { HclHazardSweepControls } from "./hclHazardSweepControls";
+import type { HclBatchInput } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
+import { HclSeismicGeneratorControls } from "./hclSeismicGeneratorControls";
+import { createCptPrior, HclCptPriorControls } from "./hclCptPriorControls";
+import { normalizeHclUncertaintySampler } from "interfaces-mef-types/modeling";
 import { type ChangeEvent, type JSX, useEffect, useMemo, useRef, useState } from "react";
 import type {
   HclBasicEventProbabilityDistribution,
@@ -5,25 +14,14 @@ import type {
   HclUncertaintySettings,
   WorkbookHclConfiguration,
 } from "interfaces-mef-types/modeling";
-import type { BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
-import {
-  hclTargetKey,
-  resolveHclBatchTargetRelevance,
-} from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
-import type {
-  HclCutSetAnalysis,
-  HclImportanceAnalysis,
-  HclUncertaintySummary,
-} from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
+import { validateBayesianNetworkEvidence, type BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
+import { HCL_HAZARD_CONVOLUTION_POINT_ONLY } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import { useEditorConfirmation } from "../shared";
 import type {
   HclBindingEditorProps,
-  HclEditorBatchRunResult,
   HclEventTreeOption,
   HclFaultTreeOption,
 } from "./hclBindingTypes";
-import { serializeHclCutSetsCsv, type HclCutSetExportRow } from "./hclCutSetExport";
-import { serializeHclImportanceCsv, type HclImportanceExportRow } from "./hclImportanceExport";
 import { HclEvidenceScenarioEditor } from "./hclEvidenceScenarioEditor";
 import {
   exportHclEvidenceScenariosCsv,
@@ -32,23 +30,8 @@ import {
   importHclEvidenceScenariosJson,
 } from "./hclEvidenceScenarioInterchange";
 import "./css/hclBindingEditor.css";
+import { createBasicEventDistribution, probabilityDistributionLabel, HclDistributionOptions, HclDistributionParameters } from "./hclUncertaintyControls";
 
-const CUT_SETS_PER_PAGE = 10;
-const IMPORTANCE_ROWS_PER_PAGE = 10;
-
-function createBasicEventDistribution(
-  family: HclBasicEventProbabilityDistribution["family"],
-): HclBasicEventProbabilityDistribution {
-  if (family === "BETA") return { family: "BETA", alpha: 2, beta: 18 };
-  if (family === "LOGNORMAL") return { family: "LOGNORMAL", median: 0.01, errorFactor: 3 };
-  return { family: "UNIFORM", lower: 0, upper: 0.1 };
-}
-
-function probabilityDistributionLabel(distribution: HclBasicEventProbabilityDistribution): string {
-  if (distribution.family === "BETA") return "Beta";
-  if (distribution.family === "LOGNORMAL") return "Lognormal";
-  return "Uniform";
-}
 
 function uniqueCode(prefix: string, codes: readonly string[]): string {
   const normalized = new Set(codes.map((code) => code.trim().toUpperCase()));
@@ -74,110 +57,6 @@ function createEvidenceBatchSamples(model: BayesianNetworkModel): HclEvidenceSce
   }));
 }
 
-function batchHasNoNumericVariation(batch: HclEditorBatchRunResult): boolean {
-  const vectors = batch.scenarios.flatMap((scenario) => {
-    if (scenario.status !== "SUCCEEDED" || scenario.result === null) return [];
-    if (scenario.result.kind === "FAULT_TREE") {
-      return [[scenario.result.result.probability]];
-    }
-    return [[...scenario.result.result.sequences]
-      .sort((left, right) => left.sequenceId.localeCompare(right.sequenceId))
-      .flatMap((sequence) => [sequence.conditionalProbability, sequence.annualFrequency])];
-  });
-  if (vectors.length < 2) return false;
-  const first = vectors[0]!;
-  return vectors.slice(1).every((vector) =>
-    vector.length === first.length
-    && vector.every((value, index) => {
-      const baseline = first[index]!;
-      return Math.abs(value - baseline)
-        <= Math.max(1, Math.abs(baseline), Math.abs(value)) * 1e-12;
-    }),
-  );
-}
-
-function resultBarWidth(value: number): string {
-  const percent = Math.max(0, Math.min(1, value)) * 100;
-  return `${String(percent > 0 ? Math.max(0.75, percent) : 0)}%`;
-}
-
-function formatScientific(value: number): string {
-  const [coefficient, exponent = "0"] = value.toExponential(2).split("e");
-  const numericExponent = Number(exponent);
-  const sign = numericExponent >= 0 ? "+" : "-";
-  return `${coefficient}E${sign}${String(Math.abs(numericExponent)).padStart(2, "0")}`;
-}
-
-function formatPercentage(value: number): string {
-  const percent = value * 100;
-  if (percent === 0 || Math.abs(percent) >= 0.01) return `${percent.toFixed(2)}%`;
-  return `${formatScientific(percent)}%`;
-}
-
-function HclResultMetric({
-  label,
-  value,
-  ratio,
-  detail,
-}: {
-  label: string;
-  value: string;
-  ratio?: number;
-  detail?: string;
-}): JSX.Element {
-  return (
-    <div className="bneditor__posterior-state hcleditor__result-metric">
-      <span>{label}</span>
-      <output>{value}</output>
-      {ratio !== undefined && (
-        <i aria-hidden="true">
-          <b style={{ width: resultBarWidth(ratio) }} />
-        </i>
-      )}
-      {detail !== undefined && <small title={detail}>{detail}</small>}
-    </div>
-  );
-}
-
-function HclUncertaintyResults({
-  summary,
-  annual = false,
-  label = "Uncertainty",
-  inline = false,
-}: {
-  summary: HclUncertaintySummary | undefined;
-  annual?: boolean;
-  label?: string;
-  inline?: boolean;
-}): JSX.Element | null {
-  if (summary === undefined) return null;
-  const unit = annual ? "/yr" : "";
-  const metrics = [
-    { label: "Mean", value: `${formatScientific(summary.mean)}${unit}` },
-    { label: "5th percentile", value: `${formatScientific(summary.percentile05)}${unit}` },
-    { label: "Median", value: `${formatScientific(summary.median)}${unit}` },
-    { label: "95th percentile", value: `${formatScientific(summary.percentile95)}${unit}` },
-    { label: "Standard deviation", value: `${formatScientific(summary.standardDeviation)}${unit}` },
-  ];
-  const accessibleLabel = label === "Uncertainty" ? "Uncertainty results" : `${label} uncertainty results`;
-  return (
-    <section className={`hcleditor__uncertainty-result${inline ? " hcleditor__uncertainty-result--inline" : ""}`} aria-label={accessibleLabel}>
-      <div className="hcleditor__uncertainty-result-head">
-        <strong>{label}</strong>
-        <span>{String(summary.sampleCount)} PRAXIS samples · seed {String(summary.seed)}</span>
-      </div>
-      <dl className="hcleditor__uncertainty-metrics">
-        {metrics.map((metric) => (
-          <div key={metric.label} className="hcleditor__uncertainty-metric">
-            <dt>{metric.label}</dt>
-            <dd>{metric.value}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  );
-}
-
 function downloadText(filename: string, text: string, type: string): void {
   const url = URL.createObjectURL(new Blob([text], { type }));
   const link = document.createElement("a");
@@ -185,290 +64,6 @@ function downloadText(filename: string, text: string, type: string): void {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
-}
-
-function cutSetExportFilename(label: string): string {
-  const segment = label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return `${segment.length === 0 ? "hcl-cut-sets" : segment}.csv`;
-}
-
-function importanceExportFilename(label: string): string {
-  const segment = label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return `${segment.length === 0 ? "hcl-importance" : segment}.csv`;
-}
-
-function formatWorth(value: number | null): string {
-  if (value === null) return "—";
-  if (value !== 0 && (Math.abs(value) >= 10_000 || Math.abs(value) < 0.01)) {
-    return formatScientific(value);
-  }
-  return value.toFixed(2);
-}
-
-function HclCutSetResults({
-  analysis,
-  model,
-  faultTreeOptions,
-  label = "HCL-aware cut sets",
-  embedded = false,
-}: {
-  analysis: HclCutSetAnalysis | undefined;
-  model: BayesianNetworkModel;
-  faultTreeOptions: HclFaultTreeOption[];
-  label?: string;
-  embedded?: boolean;
-}): JSX.Element | null {
-  const [page, setPage] = useState(0);
-  useEffect(() => setPage(0), [analysis]);
-  if (analysis === undefined) return null;
-  const basicEvents = new Map(
-    faultTreeOptions.flatMap((tree) => tree.basicEvents).map((event) => [event.id, event]),
-  );
-  const nodes = new Map(model.nodes.map((node) => [node.id, node]));
-  const nodeCode = (nodeId: string): string => nodes.get(nodeId)?.code ?? nodeId;
-  const stateCode = (nodeId: string, stateId: string): string =>
-    nodes.get(nodeId)?.states.find((state) => state.id === stateId)?.code ?? stateId;
-  const rows = analysis.cutSets.map((cutSet) => {
-    const expression = cutSet.literals.length === 0
-      ? "TRUE"
-      : cutSet.literals.map((literal) => {
-        const event = basicEvents.get(literal.basicEventId);
-        return `${literal.complemented ? "¬" : ""}${event?.code ?? literal.basicEventId}`;
-      }).join(" ∩ ");
-    const conditions = cutSet.literals.flatMap((literal) => {
-      if (literal.binding === null) return [];
-      const event = basicEvents.get(literal.basicEventId);
-      const node = nodes.get(literal.binding.bayesianNetworkNodeId);
-      const states = literal.binding.stateIds.map((stateId) =>
-        stateCode(literal.binding!.bayesianNetworkNodeId, stateId),
-      );
-      const parents = literal.binding.parentNodeIds.map(nodeCode);
-      return [`${event?.code ?? literal.basicEventId} → ${node?.code ?? literal.binding.bayesianNetworkNodeId} = ${states.join(" or ")}${parents.length === 0 ? "" : ` (parents: ${parents.join(", ")})`}`];
-    });
-    return {
-      cutSet,
-      expression,
-      conditions,
-      rootCauses: cutSet.bnRootCauseNodeIds.map(nodeCode),
-      ancestors: cutSet.bnAncestorNodeIds.map(nodeCode),
-    };
-  });
-  const pageCount = Math.max(1, Math.ceil(rows.length / CUT_SETS_PER_PAGE));
-  const currentPage = Math.min(page, pageCount - 1);
-  const firstIndex = currentPage * CUT_SETS_PER_PAGE;
-  const visibleRows = rows.slice(firstIndex, firstIndex + CUT_SETS_PER_PAGE);
-  const exportRows: HclCutSetExportRow[] = rows.map(({ cutSet, expression, conditions, rootCauses, ancestors }) => ({
-    rank: cutSet.rank,
-    order: cutSet.order,
-    probability: cutSet.probability,
-    coverage: cutSet.coverage,
-    expression,
-    conditions,
-    rootCauses,
-    ancestors,
-  }));
-  const exportCsv = (): void => {
-    downloadText(
-      cutSetExportFilename(label),
-      serializeHclCutSetsCsv(exportRows),
-      "text/csv;charset=utf-8",
-    );
-  };
-
-  const content = analysis.cutSets.length === 0 ? (
-        <p>No structural minimal cut sets.</p>
-      ) : (
-        <>
-          <div className="hcleditor__cut-set-toolbar">
-            <span>Showing {String(firstIndex + 1)}–{String(firstIndex + visibleRows.length)} of {String(rows.length)}</span>
-            <button type="button" className="posnav__btn posnav__btn--sm" onClick={exportCsv}>Export CSV</button>
-          </div>
-          <div className="hcleditor__cut-set-list">
-            {visibleRows.map(({ cutSet, expression, conditions, rootCauses, ancestors }) => (
-              <details key={`${String(cutSet.rank)}:${expression}`} className="hcleditor__cut-set">
-                <summary className="bneditor__posterior-state hcleditor__cut-set-metric">
-                  <span>Cut set {String(cutSet.rank)}</span>
-                  <output>{formatScientific(cutSet.probability)}</output>
-                  <strong title={expression}>{expression}</strong>
-                  <small>{cutSet.coverage === null ? "Coverage unavailable" : `${formatPercentage(cutSet.coverage)} coverage`}</small>
-                  <i aria-hidden="true">
-                    <b style={{ width: resultBarWidth(cutSet.coverage ?? 0) }} />
-                  </i>
-                </summary>
-                <div className="hcleditor__cut-set-trace">
-                  {conditions.length > 0 && (
-                    <div><span>BN conditions</span><p>{conditions.join(" · ")}</p></div>
-                  )}
-                  {rootCauses.length > 0 && (
-                    <div><span>Root causes</span><p>{rootCauses.join(", ")}</p></div>
-                  )}
-                  {ancestors.length > 0 && (
-                    <div><span>BN ancestors</span><p>{ancestors.join(", ")}</p></div>
-                  )}
-                </div>
-              </details>
-            ))}
-          </div>
-          {pageCount > 1 && (
-            <nav className="hcleditor__cut-set-pagination" aria-label={`${label} pagination`}>
-              <button
-                type="button"
-                className="posnav__btn posnav__btn--sm"
-                disabled={currentPage === 0}
-                onClick={() => setPage(Math.max(0, currentPage - 1))}
-              >Previous</button>
-              <output>Page {String(currentPage + 1)} of {String(pageCount)}</output>
-              <button
-                type="button"
-                className="posnav__btn posnav__btn--sm"
-                disabled={currentPage === pageCount - 1}
-                onClick={() => setPage(Math.min(pageCount - 1, currentPage + 1))}
-              >Next</button>
-            </nav>
-          )}
-        </>
-      );
-  if (embedded) {
-    return (
-      <div className="hcleditor__cut-sets hcleditor__cut-sets--embedded" aria-label={`${label} results`}>
-        <div className="hcleditor__embedded-result-head"><strong>{label}</strong><output>{String(analysis.totalCount)}</output></div>
-        {content}
-      </div>
-    );
-  }
-  return (
-    <details className="hcleditor__cut-sets">
-      <summary>
-        <span>{label}</span>
-        <output>{String(analysis.totalCount)}</output>
-      </summary>
-      {content}
-    </details>
-  );
-}
-
-function HclImportanceResults({
-  analysis,
-  model,
-  faultTreeOptions,
-  label = "Importance measures",
-  embedded = false,
-}: {
-  analysis: HclImportanceAnalysis | undefined;
-  model: BayesianNetworkModel;
-  faultTreeOptions: HclFaultTreeOption[];
-  label?: string;
-  embedded?: boolean;
-}): JSX.Element | null {
-  const [page, setPage] = useState(0);
-  useEffect(() => setPage(0), [analysis]);
-  if (analysis === undefined) return null;
-  const basicEvents = new Map(
-    faultTreeOptions.flatMap((tree) => tree.basicEvents).map((event) => [event.id, event]),
-  );
-  const nodes = new Map(model.nodes.map((node) => [node.id, node]));
-  const rows = analysis.measures.map((measure) => {
-    const event = basicEvents.get(measure.basicEventId);
-    const node = measure.bayesianNetworkNodeId === null
-      ? undefined
-      : nodes.get(measure.bayesianNetworkNodeId);
-    return {
-      measure,
-      eventCode: event?.code ?? measure.basicEventId,
-      eventName: event?.name ?? "",
-      nodeCode: node?.code ?? measure.bayesianNetworkNodeId ?? "",
-    };
-  });
-  const pageCount = Math.max(1, Math.ceil(rows.length / IMPORTANCE_ROWS_PER_PAGE));
-  const currentPage = Math.min(page, pageCount - 1);
-  const firstIndex = currentPage * IMPORTANCE_ROWS_PER_PAGE;
-  const visibleRows = rows.slice(firstIndex, firstIndex + IMPORTANCE_ROWS_PER_PAGE);
-  const exportRows: HclImportanceExportRow[] = rows.map(({
-    measure,
-    eventCode,
-    nodeCode,
-  }) => ({
-    rank: measure.rank,
-    basicEvent: eventCode,
-    bayesianNetworkNode: nodeCode,
-    eventProbability: measure.eventProbability,
-    probabilityIfTrue: measure.probabilityIfTrue,
-    probabilityIfFalse: measure.probabilityIfFalse,
-    birnbaum: measure.birnbaum,
-    criticality: measure.criticality,
-    fussellVesely: measure.fussellVesely,
-    riskAchievementWorth: measure.riskAchievementWorth,
-    riskReductionWorth: measure.riskReductionWorth,
-  }));
-
-  const content = rows.length === 0 ? (
-        <p>No structural basic events affect this target.</p>
-      ) : (
-        <>
-          <div className="hcleditor__cut-set-toolbar">
-            <span>Showing {String(firstIndex + 1)}–{String(firstIndex + visibleRows.length)} of {String(rows.length)}</span>
-            <button
-              type="button"
-              className="posnav__btn posnav__btn--sm"
-              onClick={() => downloadText(
-                importanceExportFilename(label),
-                serializeHclImportanceCsv(exportRows),
-                "text/csv;charset=utf-8",
-              )}
-            >Export CSV</button>
-          </div>
-          <div className="hcleditor__importance-header" aria-hidden="true">
-            <span>Basic event</span>
-            <span>FV</span>
-            <span>RAW</span>
-            <span>RRW</span>
-          </div>
-          <div className="hcleditor__importance-list">
-            {visibleRows.map(({ measure, eventCode, eventName, nodeCode }) => (
-              <details key={measure.basicEventId} className="hcleditor__importance-row">
-                <summary>
-                  <span><b>{String(measure.rank)}</b><strong title={eventName}>{eventCode}</strong></span>
-                  <output>{measure.fussellVesely === null ? "—" : formatPercentage(measure.fussellVesely)}</output>
-                  <output>{formatWorth(measure.riskAchievementWorth)}</output>
-                  <output>{formatWorth(measure.riskReductionWorth)}</output>
-                </summary>
-                <div className="hcleditor__importance-detail">
-                  <HclResultMetric label="Event probability" value={formatScientific(measure.eventProbability)} />
-                  <HclResultMetric label="Target if true" value={formatScientific(measure.probabilityIfTrue)} />
-                  <HclResultMetric label="Target if false" value={formatScientific(measure.probabilityIfFalse)} />
-                  <HclResultMetric label="Birnbaum" value={formatScientific(measure.birnbaum)} />
-                  <HclResultMetric label="Criticality" value={measure.criticality === null ? "—" : formatPercentage(measure.criticality)} />
-                  {nodeCode !== "" && <HclResultMetric label="BN condition" value={nodeCode} />}
-                </div>
-              </details>
-            ))}
-          </div>
-          {pageCount > 1 && (
-            <nav className="hcleditor__cut-set-pagination" aria-label={`${label} pagination`}>
-              <button type="button" className="posnav__btn posnav__btn--sm" disabled={currentPage === 0} onClick={() => setPage(Math.max(0, currentPage - 1))}>Previous</button>
-              <output>Page {String(currentPage + 1)} of {String(pageCount)}</output>
-              <button type="button" className="posnav__btn posnav__btn--sm" disabled={currentPage === pageCount - 1} onClick={() => setPage(Math.min(pageCount - 1, currentPage + 1))}>Next</button>
-            </nav>
-          )}
-        </>
-      );
-  if (embedded) {
-    return (
-      <div className="hcleditor__cut-sets hcleditor__cut-sets--embedded hcleditor__importance" aria-label={`${label} results`}>
-        <div className="hcleditor__embedded-result-head"><strong>{label}</strong><output>{String(analysis.totalCount)}</output></div>
-        {content}
-      </div>
-    );
-  }
-  return (
-    <details className="hcleditor__cut-sets hcleditor__importance">
-      <summary>
-        <span>{label}</span>
-        <output>{String(analysis.totalCount)}</output>
-      </summary>
-      {content}
-    </details>
-  );
 }
 
 interface HclFaultTreeDirectoryItem {
@@ -548,6 +143,8 @@ function HclBindingEditor({
   validation,
   quantificationBlocked = false,
   running,
+  saveBlockedReason = null,
+  onAnalysisInputChange,
   runError,
   runResult,
   batchRunResult,
@@ -560,15 +157,27 @@ function HclBindingEditor({
   onRunFaultTree,
   onRunEventTree,
   onRunFaultTreeBatch,
+  onGenerateScenarios,
   onRunEventTreeBatch,
 }: HclBindingEditorProps): JSX.Element {
-  const hasBlockingIssue = quantificationBlocked
-    || validation.some((issue) => issue.severity === "ERROR");
   const configuration = configurations.find(
     (candidate) =>
       candidate.bayesianNetwork.modelId === model.modelId
       && (workbookId === null || candidate.bayesianNetwork.workbookId === workbookId),
   );
+  const savedUncertainty = configuration?.solverSettings.uncertainty;
+  const parsedUncertainty = useMemo(
+    () => calculationType !== "UNCERTAINTY" || savedUncertainty === undefined
+      ? undefined : HclUncertaintySettingsSchema.safeParse(savedUncertainty),
+    [calculationType, savedUncertainty],
+  );
+  const uncertainty = parsedUncertainty?.success ? parsedUncertainty.data : undefined;
+  const uncertaintyError = useMemo(() => {
+    if (calculationType !== "UNCERTAINTY" || configuration === undefined) return null;
+    if (savedUncertainty === undefined) return "Configure uncertainty settings before running uncertainty.";
+    const parsed = WorkbookHclUncertaintyConfigurationSchema.safeParse(configuration);
+    return parsed.success ? null : `Uncertainty settings need review: ${parsed.error.issues[0]?.message ?? "invalid settings"}`;
+  }, [calculationType, configuration, savedUncertainty]);
   const [faultTreeKey, setFaultTreeKey] = useState("");
   const [basicEventId, setBasicEventId] = useState("");
   const [nodeId, setNodeId] = useState(model.nodes[0]?.id ?? "");
@@ -585,7 +194,13 @@ function HclBindingEditor({
   const [uncertainBasicEventKey, setUncertainBasicEventKey] = useState("");
   const [uncertainBasicEventFamily, setUncertainBasicEventFamily] = useState<HclBasicEventProbabilityDistribution["family"]>("BETA");
   const [uncertainCptRowKey, setUncertainCptRowKey] = useState("");
-  const [uploadedBatchScenarios, setUploadedBatchScenarios] = useState<HclEvidenceScenario[] | null>(null);
+  const [batchInput, setBatchInput] = useState<HclBatchInput | null>(null);
+  const batchImportEpoch = useRef(0);
+  const batchConfiguration = useMemo(() => {
+    if (configuration === undefined || batchInput === null) return configuration;
+    const { hazardGrid: _savedGrid, ...saved } = configuration;
+    return { ...saved, ...batchInput };
+  }, [configuration, batchInput]);
   const batchImportRef = useRef<HTMLInputElement>(null);
   const batchSampleMenuRef = useRef<HTMLDetailsElement>(null);
   const { requestConfirmation, confirmationDialog } = useEditorConfirmation();
@@ -604,58 +219,27 @@ function HclBindingEditor({
   );
   const executableEventTrees = useMemo(() => {
     if (configuration === undefined) return [];
-    const declared = new Set(configuration.faultTrees.map((reference) => hclTargetKey(reference)));
+    const declared = new Set(configuration.faultTrees.map((reference) => `${reference.workbookId}:${reference.modelId}`));
     return eventTreeOptions.filter((option) =>
       scope === "EVENT_TREE"
-      || option.faultTrees.every((reference) => declared.has(hclTargetKey(reference))),
+      || option.faultTrees.every((reference) => declared.has(`${reference.workbookId}:${reference.modelId}`)),
     );
   }, [configuration, eventTreeOptions, scope]);
   const enabledScenarios = useMemo(
-    () => (uploadedBatchScenarios ?? configuration?.evidenceScenarios ?? []).filter((scenario) => scenario.enabled),
-    [configuration?.evidenceScenarios, uploadedBatchScenarios],
+    () => (batchConfiguration?.evidenceScenarios ?? []).filter((scenario) => scenario.enabled),
+    [batchConfiguration?.evidenceScenarios],
   );
+  const invalidScenario = workflow === "BATCH" ? enabledScenarios.find((scenario) =>
+    validateBayesianNetworkEvidence(model, scenario.evidence).some((issue) => issue.severity === "ERROR"),
+  ) : undefined;
+  const hasBlockingIssue = uncertaintyError !== null || quantificationBlocked || saveBlockedReason !== null || invalidScenario !== undefined
+    || validation.some((issue) => issue.severity === "ERROR");
+  useEffect(() => {
+    onAnalysisInputChange?.();
+  }, [configuration, batchInput, targetKind, runFaultTreeKey, eventTreeKey, batchMode, workflow, calculationType, onAnalysisInputChange]);
   const batchSamples = useMemo(() => createEvidenceBatchSamples(model), [model.nodes]);
-  const batchRelevance = useMemo(() => configuration === undefined
-    ? null
-    : resolveHclBatchTargetRelevance({
-        bayesianNetwork: model,
-        baseEvidence: configuration.baseEvidence,
-        scenarios: enabledScenarios,
-        bindings: configuration.bindings,
-        faultTrees: declaredFaultTrees.map((option) => ({
-          workbookId: option.workbookId,
-          modelId: option.modelId,
-          topGateId: option.topGateId,
-          gates: option.gates,
-          leafNodes: option.leafNodes,
-          gateInputs: option.gateInputs,
-          constantBasicEventStates: option.constantBasicEventStates,
-        })),
-        eventTrees: executableEventTrees.map((option) => ({
-          workbookId: option.workbookId,
-          modelId: option.modelId,
-          faultTrees: option.faultTrees,
-          transferTargets: option.transferTargets,
-        })),
-      }), [configuration, declaredFaultTrees, enabledScenarios, executableEventTrees, model]);
-  const batchFaultTreeKeys = useMemo(
-    () => new Set(batchRelevance?.faultTreeKeys ?? []),
-    [batchRelevance?.faultTreeKeys],
-  );
-  const batchEventTreeKeys = useMemo(
-    () => new Set(batchRelevance?.eventTreeKeys ?? []),
-    [batchRelevance?.eventTreeKeys],
-  );
   const effectiveEvidenceMode = workflow === "MANUAL" ? "BASE" : batchMode;
-  const runFaultTreeOptions = effectiveEvidenceMode !== "BASE"
-    ? executableFaultTrees.filter((option) => batchFaultTreeKeys.has(hclTargetKey(option)))
-    : executableFaultTrees;
-  const runEventTreeOptions = effectiveEvidenceMode !== "BASE"
-    ? executableEventTrees.filter((option) => batchEventTreeKeys.has(hclTargetKey(option)))
-    : executableEventTrees;
-  const batchNumericallyUnchanged = batchRunResult !== null
-    && batchHasNoNumericVariation(batchRunResult);
-  const selectedEventTree = runEventTreeOptions.find(
+  const selectedEventTree = executableEventTrees.find(
     (option) => `${option.workbookId}:${option.modelId}` === eventTreeKey,
   );
   const boundBasicEventKeys = useMemo(
@@ -705,18 +289,19 @@ function HclBindingEditor({
     setTrueStateIds([]);
   }, [model.nodes, nodeId]);
   useEffect(() => {
-    if (runEventTreeOptions.some((option) => hclTargetKey(option) === eventTreeKey)) return;
-    const first = runEventTreeOptions[0];
+    if (executableEventTrees.some((option) => `${option.workbookId}:${option.modelId}` === eventTreeKey)) return;
+    const first = executableEventTrees[0];
     setEventTreeKey(first === undefined ? "" : `${first.workbookId}:${first.modelId}`);
-  }, [eventTreeKey, runEventTreeOptions]);
+  }, [eventTreeKey, executableEventTrees]);
   useEffect(() => {
-    if (runFaultTreeOptions.some((option) => hclTargetKey(option) === runFaultTreeKey)) return;
-    const first = runFaultTreeOptions[0];
+    if (executableFaultTrees.some((option) => `${option.workbookId}:${option.modelId}` === runFaultTreeKey)) return;
+    const first = executableFaultTrees[0];
     setRunFaultTreeKey(first === undefined ? "" : `${first.workbookId}:${first.modelId}`);
-  }, [runFaultTreeKey, runFaultTreeOptions]);
+  }, [runFaultTreeKey, executableFaultTrees]);
   useEffect(() => {
-    setUploadedBatchScenarios(null);
-  }, [configuration?.modelId, model.modelId]);
+    setBatchInput(null);
+    batchImportEpoch.current += 1;
+  }, [configuration?.modelId, model.modelId, workbookId]);
   useEffect(() => {
     const closeSampleMenu = (event: PointerEvent): void => {
       const menu = batchSampleMenuRef.current;
@@ -763,7 +348,7 @@ function HclBindingEditor({
     if (configuration === undefined) return;
     const solverSettings = { ...configuration.solverSettings };
     if (uncertainty === undefined) delete solverSettings.uncertainty;
-    else solverSettings.uncertainty = uncertainty;
+    else solverSettings.uncertainty = normalizeHclUncertaintySampler(uncertainty);
     replaceConfiguration({ ...configuration, solverSettings });
   }
 
@@ -771,13 +356,13 @@ function HclBindingEditor({
     replaceUncertainty({
       sampleCount: 1_000,
       seed: 42,
+      sampler: "LHS",
       basicEventDistributions: [],
       cptRowDistributions: [],
     });
   }
 
   function addBasicEventUncertainty(): void {
-    const uncertainty = configuration?.solverSettings.uncertainty;
     if (configuration === undefined || uncertainty === undefined) return;
     const selected = basicEventUncertaintyOptions.find((option) => option.key === uncertainBasicEventKey)
       ?? basicEventUncertaintyOptions[0];
@@ -807,12 +392,15 @@ function HclBindingEditor({
   }
 
   function addCptRowUncertainty(): void {
-    const uncertainty = configuration?.solverSettings.uncertainty;
     if (configuration === undefined || uncertainty === undefined) return;
     const selected = cptRowUncertaintyOptions.find((option) => option.key === uncertainCptRowKey)
       ?? cptRowUncertaintyOptions[0];
     if (selected === undefined) {
       setError("No CPT row is available for uncertainty.");
+      return;
+    }
+    if (uncertainty.cptGenerators?.some((g) => g.bayesianNetworkNode.entityId === selected.nodeId)) {
+      setError("That node already uses a seismic generator. Delete it before adding row priors.");
       return;
     }
     if (uncertainty.cptRowDistributions.some((row) => row.bayesianNetworkNode.entityId === selected.nodeId && row.cptRowId === selected.rowId)) {
@@ -829,14 +417,13 @@ function HclBindingEditor({
           entityId: selected.nodeId,
         },
         cptRowId: selected.rowId,
-        equivalentSampleSize: 100,
+        prior: createCptPrior(model.nodes.find((node) => node.id === selected.nodeId)?.states ?? []),
       }],
     });
     setError(null);
   }
 
   function updateBasicEventDistribution(index: number, distribution: HclBasicEventProbabilityDistribution): void {
-    const uncertainty = configuration?.solverSettings.uncertainty;
     if (uncertainty === undefined) return;
     replaceUncertainty({
       ...uncertainty,
@@ -937,14 +524,18 @@ function HclBindingEditor({
     const file = event.target.files?.[0];
     event.target.value = "";
     if (file === undefined || configuration === undefined) return;
+    const epoch = ++batchImportEpoch.current;
     try {
       const source = await file.text();
+      if (epoch !== batchImportEpoch.current) return;
       const imported = file.name.toLowerCase().endsWith(".csv")
         ? importHclEvidenceScenariosCsv(source, model)
         : importHclEvidenceScenariosJson(source, model);
-      setUploadedBatchScenarios(imported);
+      setBatchInput({ evidenceScenarios: imported, hazardGrid: batchConfiguration?.hazardGrid });
+      setManageOpen(true);
       setError(null);
     } catch (importError) {
+      if (epoch !== batchImportEpoch.current) return;
       setError(importError instanceof Error ? importError.message : "Could not import the evidence batch.");
     }
   }
@@ -964,49 +555,43 @@ function HclBindingEditor({
   }
 
   function run(): void {
+    if (hasBlockingIssue) return;
     if (configuration === undefined) return;
+    if (effectiveEvidenceMode === "HAZARD_GRID" && hazardUncertaintyBlocked) {
+      setError(HCL_HAZARD_CONVOLUTION_POINT_ONLY);
+      return;
+    }
     const scenarioIds = enabledScenarios.map((scenario) => scenario.id);
     const isBatchWorkflow = workflow === "BATCH";
-    const runConfiguration = isBatchWorkflow && uploadedBatchScenarios !== null
-      ? { ...configuration, evidenceScenarios: uploadedBatchScenarios }
-      : configuration;
+    const runConfiguration = isBatchWorkflow ? batchConfiguration! : configuration;
     if (isBatchWorkflow && scenarioIds.length === 0) {
       setError("Enable at least one evidence scenario before running the batch.");
       return;
     }
-    if (effectiveEvidenceMode === "HAZARD_GRID" && configuration.hazardGrid === undefined) {
+    if (effectiveEvidenceMode === "HAZARD_GRID" && runConfiguration.hazardGrid === undefined) {
       setError("Configure a hazard grid before running the convolution.");
       return;
     }
     if (targetKind === "FAULT_TREE") {
-      const tree = runFaultTreeOptions.find((option) => `${option.workbookId}:${option.modelId}` === runFaultTreeKey);
+      const tree = executableFaultTrees.find((option) => `${option.workbookId}:${option.modelId}` === runFaultTreeKey);
       if (tree === undefined) {
-        setError(isBatchWorkflow
-          ? "No configured fault-tree target is affected by evidence that varies across the enabled scenarios."
-          : "Choose a linked fault tree with a top event.");
+        setError("Choose a linked fault tree with a top event.");
         return;
       }
-      if (isBatchWorkflow) onRunFaultTreeBatch(runConfiguration, tree, scenarioIds, effectiveEvidenceMode === "HAZARD_GRID");
-      else onRunFaultTree(configuration, tree);
+      if (isBatchWorkflow) onRunFaultTreeBatch(runConfiguration, tree, scenarioIds, effectiveEvidenceMode === "HAZARD_GRID", calculationType);
+      else onRunFaultTree(configuration, tree, calculationType);
       return;
     }
     if (selectedEventTree === undefined) {
-      setError(isBatchWorkflow
-        ? "No linked event-tree target is affected by evidence that varies across the enabled scenarios."
-        : "Choose an event tree.");
+      setError("Choose an event tree.");
       return;
     }
-    if (isBatchWorkflow) onRunEventTreeBatch(runConfiguration, selectedEventTree, scenarioIds, effectiveEvidenceMode === "HAZARD_GRID");
-    else onRunEventTree(configuration, selectedEventTree);
+    if (isBatchWorkflow) onRunEventTreeBatch(runConfiguration, selectedEventTree, scenarioIds, effectiveEvidenceMode === "HAZARD_GRID", calculationType);
+    else onRunEventTree(configuration, selectedEventTree, calculationType);
   }
 
-  const calculationLabel = calculationType === "CUT_SETS"
-    ? "cut sets"
-    : calculationType === "UNCERTAINTY"
-      ? "uncertainty"
-      : calculationType === "IMPORTANCE"
-        ? "importance"
-        : "probability";
+  const hazardUncertaintyBlocked = calculationType === "UNCERTAINTY";
+  const calculationLabel = calculationType === "UNCERTAINTY" ? "uncertainty" : "probability";
   const targetFields = (
     <>
       {scope === "BOTH" && (
@@ -1022,16 +607,16 @@ function HclBindingEditor({
         <label className="hcleditor__run-field hcleditor__run-field--target">
           <span>Top event</span>
           <select aria-label="HCL fault-tree target" value={runFaultTreeKey} onChange={(event) => setRunFaultTreeKey(event.target.value)}>
-            {runFaultTreeOptions.length === 0 && <option value="">{effectiveEvidenceMode !== "BASE" ? "No affected fault tree" : "No linked fault tree"}</option>}
-            {runFaultTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode} · {option.modelName}</option>)}
+            {executableFaultTrees.length === 0 && <option value="">No linked fault tree</option>}
+            {executableFaultTrees.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode} · {option.modelName}</option>)}
           </select>
         </label>
       ) : (
         <label className="hcleditor__run-field hcleditor__run-field--target">
           <span>Event tree</span>
           <select aria-label="HCL event-tree target" value={eventTreeKey} onChange={(event) => setEventTreeKey(event.target.value)}>
-            {runEventTreeOptions.length === 0 && <option value="">{effectiveEvidenceMode !== "BASE" ? "No affected event tree" : "No linked event tree"}</option>}
-            {runEventTreeOptions.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode}</option>)}
+            {executableEventTrees.length === 0 && <option value="">No linked event tree</option>}
+            {executableEventTrees.map((option) => <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>{option.modelCode}</option>)}
           </select>
         </label>
       )}
@@ -1079,7 +664,7 @@ function HclBindingEditor({
                     <span>Batch type</span>
                     <select aria-label="HCL batch type" value={batchMode} onChange={(event) => setBatchMode(event.target.value as "SCENARIOS" | "HAZARD_GRID")}>
                       <option value="SCENARIOS">Evidence scenarios</option>
-                      <option value="HAZARD_GRID">Hazard convolution</option>
+                      <option value="HAZARD_GRID" disabled={hazardUncertaintyBlocked}>Hazard convolution</option>
                     </select>
                   </label>
                   {scope !== "EVENT_TREE" && (
@@ -1115,9 +700,15 @@ function HclBindingEditor({
                 )}
               </div>
             </div>
+            {saveBlockedReason !== null && <p role="status">{saveBlockedReason}</p>}
+            {uncertaintyError !== null && <p role="alert">{uncertaintyError}</p>}
+            {invalidScenario !== undefined && <p role="alert">Scenario {invalidScenario.code} references missing or invalid BN evidence. Repair it or disable the scenario.</p>}
+            {workflow === "BATCH" && hazardUncertaintyBlocked && (
+              <p role="note">{HCL_HAZARD_CONVOLUTION_POINT_ONLY}</p>
+            )}
             <div className="hcleditor__execution-row">
               <div className="hcleditor__run-fields">{targetFields}</div>
-              <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={running || hasBlockingIssue || (calculationType === "UNCERTAINTY" && configuration.solverSettings.uncertainty === undefined) || (targetKind === "FAULT_TREE" ? runFaultTreeOptions.length === 0 : runEventTreeOptions.length === 0)} onClick={run}>
+              <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={running || hasBlockingIssue || (workflow === "BATCH" && enabledScenarios.length === 0) || (effectiveEvidenceMode === "HAZARD_GRID" && hazardUncertaintyBlocked) || (targetKind === "FAULT_TREE" ? executableFaultTrees.length === 0 : executableEventTrees.length === 0)} onClick={run}>
                 <HclIcon name="run" />
                 <span>{running ? "Running…" : `Run ${calculationLabel}${workflow === "BATCH" ? " batch" : ""}`}</span>
               </button>
@@ -1231,7 +822,7 @@ function HclBindingEditor({
                         const basicEvent = tree?.basicEvents.find((event) => event.id === binding.faultTreeBasicEvent.entityId);
                         const node = model.nodes.find((candidate) => candidate.id === binding.bayesianNetworkNode.entityId);
                         const states = node?.states.filter((state) => binding.trueStateIds.includes(state.id)) ?? [];
-                        const invalid = node === undefined || states.length === 0 || states.length === node.states.length;
+                        const invalid = basicEvent === undefined || node === undefined || states.length !== binding.trueStateIds.length || states.length === 0 || states.length === node.states.length;
                         return (
                           <div key={binding.id} className={`bneditor__binding${invalid ? " is-invalid" : ""}`}>
                             <span className="hcleditor__binding-endpoint">
@@ -1257,13 +848,34 @@ function HclBindingEditor({
 
               {workflow === "BATCH" && (
               <details className="hcleditor__configuration-group" open>
-                <summary>Evidence scenarios <span>{String(configuration.evidenceScenarios?.length ?? 0)}</span></summary>
+                <summary>Evidence scenarios <span>{String(batchConfiguration?.evidenceScenarios?.length ?? 0)}</span></summary>
+                {onGenerateScenarios !== undefined && <HclHazardSweepControls
+                  key={`${configuration.modelId}:${model.modelId}`}
+                  model={model}
+                  disabled={!editable || running}
+                  onGenerate={(spec) => onGenerateScenarios(configuration, spec)}
+                  onError={setError}
+                  onGenerated={(evidenceScenarios, spec) => {
+                    batchImportEpoch.current += 1;
+                    setBatchInput({ evidenceScenarios, hazardGrid: {
+                      name: `${configuration.code} hazard grid`,
+                      annualFrequencyScale: { value: 1, unit: "PER_YEAR", annualization: { ...DEFAULT_ANNUALIZATION_CONVENTION } },
+                      normalizeWeights: false,
+                      ...batchConfiguration?.hazardGrid,
+                      hazardNodeIds: spec.dimensions.map((d) => d.bnNode) as [string, ...string[]],
+                    } });
+                  }}
+                />}
+                {batchInput !== null && <p role="status">Using temporary batch rows. Saved scenarios are unchanged. <button type="button" onClick={() => { batchImportEpoch.current += 1; setBatchInput(null); }}>Use saved scenarios</button></p>}
                 <HclEvidenceScenarioEditor
                     model={model}
-                    configuration={configuration}
+                    configuration={batchConfiguration!}
                     editable={editable}
                     showHazardConvolution={batchMode === "HAZARD_GRID"}
-                    onChange={replaceConfiguration}
+                    onChange={(next) => {
+                      if (batchInput === null) replaceConfiguration(next);
+                      else setBatchInput({ evidenceScenarios: next.evidenceScenarios ?? [], hazardGrid: next.hazardGrid });
+                    }}
                     onError={setError}
                   />
               </details>
@@ -1275,33 +887,42 @@ function HclBindingEditor({
                 className="hcleditor__configuration-group"
                 open
               >
-                <summary>Uncertainty <span>{configuration.solverSettings.uncertainty === undefined ? "Off" : "On"}</span></summary>
+                <summary>Uncertainty <span>{savedUncertainty === undefined ? "Off" : uncertainty === undefined ? "Needs review" : "On"}</span></summary>
                 <div className="hcleditor__uncertainty" role="tabpanel" aria-label="HCL uncertainty settings">
-                  {configuration.solverSettings.uncertainty === undefined ? (
+                  {savedUncertainty === undefined ? (
                     <div className="hcleditor__uncertainty-empty">
                       <span>Propagate uncertain basic-event probabilities and BN parameters through PRAXIS.</span>
                       {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={enableUncertainty}>Enable uncertainty</button>}
                     </div>
+                  ) : uncertainty === undefined ? (
+                    <HclUncertaintyReview key={configuration.modelId} value={savedUncertainty} disabled={!editable || running} onChange={replaceUncertainty} />
                   ) : (
                     <>
                       <section className="hcleditor__uncertainty-section hcleditor__uncertainty-section--sampling">
                         <div className="hcleditor__uncertainty-section-head">
-                          <div><strong>Monte Carlo</strong><span>PRAXIS sampling settings</span></div>
+                          <div><strong>Sampling</strong><span>The selected method applies to both basic-event probabilities and BN CPT priors. Zero-spread normal, lognormal and logit-normal distributions require MC; constant uniform distributions support both methods.</span></div>
                         </div>
                         <div className="hcleditor__uncertainty-controls">
                           <label>
+                            <span>Sampling method</span>
+                            <select aria-label="Sampling method" value={normalizeHclUncertaintySampler(uncertainty).sampler} disabled={!editable} onChange={(event) => replaceUncertainty({ ...uncertainty, sampler: event.target.value as "MC" | "LHS" })}>
+                              <option value="MC">Monte Carlo (MC)</option>
+                              <option value="LHS">Latin hypercube (LHS)</option>
+                            </select>
+                          </label>
+                          <label>
                             <span>Samples</span>
                             <input
-                              key={`samples:${String(configuration.solverSettings.uncertainty.sampleCount)}`}
+                              key={`samples:${String(uncertainty.sampleCount)}`}
                               type="number"
                               min="10"
                               max="10000"
                               step="10"
-                              defaultValue={configuration.solverSettings.uncertainty.sampleCount}
+                              defaultValue={uncertainty.sampleCount}
                               disabled={!editable}
                               onBlur={(event) => {
                                 const value = Number(event.target.value);
-                                if (Number.isInteger(value) && value >= 10 && value <= 10_000) replaceUncertainty({ ...configuration.solverSettings.uncertainty!, sampleCount: value });
+                                if (Number.isInteger(value) && value >= 10 && value <= 10_000) replaceUncertainty({ ...uncertainty, sampleCount: value });
                                 else setError("Uncertainty samples must be a whole number from 10 to 10,000.");
                               }}
                             />
@@ -1309,17 +930,18 @@ function HclBindingEditor({
                           <label>
                             <span>Seed</span>
                             <input
-                              key={`seed:${String(configuration.solverSettings.uncertainty.seed)}`}
+                              key={`seed:${String(uncertainty.seed)}`}
                               type="number"
                               min="0"
-                              max="4294967295"
+                              max={Number.MAX_SAFE_INTEGER}
                               step="1"
-                              defaultValue={configuration.solverSettings.uncertainty.seed}
+                              defaultValue={uncertainty.seed}
                               disabled={!editable}
                               onBlur={(event) => {
-                                const value = Number(event.target.value);
-                                if (Number.isInteger(value) && value >= 0 && value <= 4_294_967_295) replaceUncertainty({ ...configuration.solverSettings.uncertainty!, seed: value });
-                                else setError("Uncertainty seed must be a nonnegative whole number.");
+                                const value = event.target.valueAsNumber;
+                                const parsed = HclUncertaintySeedSchema.safeParse(value);
+                                if (parsed.success) replaceUncertainty({ ...uncertainty, seed: parsed.data });
+                                else setError(`Uncertainty seed must be a whole number from 0 to ${String(Number.MAX_SAFE_INTEGER)}.`);
                               }}
                             />
                           </label>
@@ -1329,20 +951,20 @@ function HclBindingEditor({
 
                       <section className="hcleditor__uncertainty-section">
                         <div className="hcleditor__uncertainty-section-head">
-                          <strong>Basic events</strong>
+                          <div><strong>Basic events</strong><span>Samples outside 0–1 are clipped to that range.</span></div>
                         </div>
                         {editable && (
                           <div className="hcleditor__uncertainty-add hcleditor__uncertainty-add--event">
                             <label><span>Basic event</span><select aria-label="Uncertain basic event" value={uncertainBasicEventKey || basicEventUncertaintyOptions[0]?.key || ""} onChange={(event) => setUncertainBasicEventKey(event.target.value)}>{basicEventUncertaintyOptions.map(({ key, tree, event }) => <option key={key} value={key}>{tree.modelCode} / {event.code}</option>)}</select></label>
-                            <label><span>Distribution</span><select aria-label="Basic-event uncertainty distribution" value={uncertainBasicEventFamily} onChange={(event) => setUncertainBasicEventFamily(event.target.value as HclBasicEventProbabilityDistribution["family"])}><option value="BETA">Beta</option><option value="LOGNORMAL">Lognormal</option><option value="UNIFORM">Uniform</option></select></label>
+                            <label><span>Distribution</span><select aria-label="Basic-event uncertainty distribution" value={uncertainBasicEventFamily} onChange={(event) => setUncertainBasicEventFamily(event.target.value as HclBasicEventProbabilityDistribution["family"])}><HclDistributionOptions /></select></label>
                             <button type="button" className="posnav__btn posnav__btn--sm" onClick={addBasicEventUncertainty}>Add</button>
                           </div>
                         )}
-                        {configuration.solverSettings.uncertainty.basicEventDistributions.length > 0 && (
+                        {uncertainty.basicEventDistributions.length > 0 && (
                           <details className="hcleditor__uncertainty-collection">
-                            <summary>Configured basic events <span>{String(configuration.solverSettings.uncertainty.basicEventDistributions.length)}</span></summary>
+                            <summary>Configured basic events <span>{String(uncertainty.basicEventDistributions.length)}</span></summary>
                             <div className="hcleditor__uncertainty-list">
-                            {configuration.solverSettings.uncertainty.basicEventDistributions.map((definition, index) => {
+                            {uncertainty.basicEventDistributions.map((definition, index) => {
                             const tree = faultTreeOptions.find((candidate) => candidate.workbookId === definition.faultTreeBasicEvent.workbookId && candidate.basicEvents.some((event) => event.id === definition.faultTreeBasicEvent.entityId));
                             const basicEvent = tree?.basicEvents.find((candidate) => candidate.id === definition.faultTreeBasicEvent.entityId);
                             const distribution = definition.distribution;
@@ -1361,16 +983,12 @@ function HclBindingEditor({
                                     <label>
                                       <span>Distribution</span>
                                       <select aria-label={`Distribution for ${basicEvent?.code ?? definition.faultTreeBasicEvent.entityId}`} value={distribution.family} disabled={!editable} onChange={(event) => updateBasicEventDistribution(index, createBasicEventDistribution(event.target.value as HclBasicEventProbabilityDistribution["family"]))}>
-                                        <option value="BETA">Beta</option>
-                                        <option value="LOGNORMAL">Lognormal</option>
-                                        <option value="UNIFORM">Uniform</option>
+                                        <HclDistributionOptions />
                                       </select>
                                     </label>
-                                    {distribution.family === "BETA" && <><label><span>Alpha</span><input type="number" min="0.000001" step="any" defaultValue={distribution.alpha} disabled={!editable} onBlur={(event) => { const value = Number(event.target.value); if (value > 0) updateBasicEventDistribution(index, { ...distribution, alpha: value }); }} /></label><label><span>Beta</span><input type="number" min="0.000001" step="any" defaultValue={distribution.beta} disabled={!editable} onBlur={(event) => { const value = Number(event.target.value); if (value > 0) updateBasicEventDistribution(index, { ...distribution, beta: value }); }} /></label></>}
-                                    {distribution.family === "LOGNORMAL" && <><label><span>Median</span><input type="number" min="0.000001" max="1" step="any" defaultValue={distribution.median} disabled={!editable} onBlur={(event) => { const value = Number(event.target.value); if (value > 0 && value <= 1) updateBasicEventDistribution(index, { ...distribution, median: value }); }} /></label><label><span>Error factor</span><input type="number" min="1.000001" step="any" defaultValue={distribution.errorFactor} disabled={!editable} onBlur={(event) => { const value = Number(event.target.value); if (value > 1) updateBasicEventDistribution(index, { ...distribution, errorFactor: value }); }} /></label></>}
-                                    {distribution.family === "UNIFORM" && <><label><span>Lower</span><input type="number" min="0" max="1" step="any" defaultValue={distribution.lower} disabled={!editable} onBlur={(event) => { const value = Number(event.target.value); if (value >= 0 && value < distribution.upper) updateBasicEventDistribution(index, { ...distribution, lower: value }); }} /></label><label><span>Upper</span><input type="number" min="0" max="1" step="any" defaultValue={distribution.upper} disabled={!editable} onBlur={(event) => { const value = Number(event.target.value); if (value > distribution.lower && value <= 1) updateBasicEventDistribution(index, { ...distribution, upper: value }); }} /></label></>}
+                                    <HclDistributionParameters distribution={distribution} sampler={normalizeHclUncertaintySampler(uncertainty).sampler ?? "MC"} disabled={!editable} onChange={(value) => updateBasicEventDistribution(index, value)} onError={setError} />
                                   </div>
-                                  {editable && <button type="button" className="hcleditor__uncertainty-delete" onClick={() => replaceUncertainty({ ...configuration.solverSettings.uncertainty!, basicEventDistributions: configuration.solverSettings.uncertainty!.basicEventDistributions.filter((_, candidateIndex) => candidateIndex !== index) })}>Delete</button>}
+                                  {editable && <button type="button" className="hcleditor__uncertainty-delete" onClick={() => replaceUncertainty({ ...uncertainty, basicEventDistributions: uncertainty.basicEventDistributions.filter((_, candidateIndex) => candidateIndex !== index) })}>Delete</button>}
                                 </div>
                               </details>
                             );
@@ -1384,17 +1002,29 @@ function HclBindingEditor({
                         <div className="hcleditor__uncertainty-section-head">
                           <strong>BN parameters</strong>
                         </div>
+                        <label><span>BN probability clipping epsilon</span><input
+                          key={`cpt-clip:${uncertainty.cptProbabilityClipEpsilon ?? 0}`}
+                          type="number" min="0" max="0.499999" step="any"
+                          defaultValue={uncertainty.cptProbabilityClipEpsilon ?? 0}
+                          disabled={!editable}
+                          onBlur={(event) => {
+                            const value = event.target.value.trim() === "" ? Number.NaN : Number(event.target.value);
+                            if (Number.isFinite(value) && value >= 0 && value < 0.5) replaceUncertainty({ ...uncertainty, cptProbabilityClipEpsilon: value });
+                            else { event.target.value = String(uncertainty.cptProbabilityClipEpsilon ?? 0); setError("BN probability clipping epsilon must be from 0 to less than 0.5."); }
+                          }}
+                        /></label>
+                        <span>Zero disables clipping. A positive epsilon limits Beta probabilities to [epsilon, 1 - epsilon].</span>
                         {editable && (
                           <div className="hcleditor__uncertainty-add">
                             <label><span>CPT row</span><select aria-label="Uncertain CPT row" value={uncertainCptRowKey || cptRowUncertaintyOptions[0]?.key || ""} onChange={(event) => setUncertainCptRowKey(event.target.value)}>{cptRowUncertaintyOptions.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select></label>
                             <button type="button" className="posnav__btn posnav__btn--sm" onClick={addCptRowUncertainty}>Add</button>
                           </div>
                         )}
-                        {configuration.solverSettings.uncertainty.cptRowDistributions.length > 0 && (
+                        {uncertainty.cptRowDistributions.length > 0 && (
                           <details className="hcleditor__uncertainty-collection">
-                            <summary>Configured CPT rows <span>{String(configuration.solverSettings.uncertainty.cptRowDistributions.length)}</span></summary>
+                            <summary>Configured CPT rows <span>{String(uncertainty.cptRowDistributions.length)}</span></summary>
                             <div className="hcleditor__uncertainty-list">
-                            {configuration.solverSettings.uncertainty.cptRowDistributions.map((definition, index) => {
+                            {uncertainty.cptRowDistributions.map((definition, index) => {
                             const option = cptRowUncertaintyOptions.find((candidate) => candidate.nodeId === definition.bayesianNetworkNode.entityId && candidate.rowId === definition.cptRowId);
                             return (
                               <details key={`${definition.bayesianNetworkNode.entityId}:${definition.cptRowId}`} className="hcleditor__uncertainty-item">
@@ -1403,12 +1033,24 @@ function HclBindingEditor({
                                     <small>BN / CPT row</small>
                                     <strong>{option?.label ?? definition.cptRowId}</strong>
                                   </span>
-                                  <span className="hcleditor__uncertainty-family">Dirichlet</span>
+                                  <span className="hcleditor__uncertainty-family">{definition.prior?.family === "BETA" ? "Beta" : definition.prior ? "Dirichlet" : "Prior required"}</span>
                                   <span className="hcleditor__uncertainty-expand">Settings</span>
                                 </summary>
                                 <div className="hcleditor__uncertainty-item-settings">
-                                  <div className="hcleditor__uncertainty-parameters"><label><span>Equivalent sample size</span><input type="number" min="0.000001" max="1000000" step="any" defaultValue={definition.equivalentSampleSize} disabled={!editable} onBlur={(event) => { const value = Number(event.target.value); if (value > 0 && value <= 1_000_000) replaceUncertainty({ ...configuration.solverSettings.uncertainty!, cptRowDistributions: configuration.solverSettings.uncertainty!.cptRowDistributions.map((row, rowIndex) => rowIndex === index ? { ...row, equivalentSampleSize: value } : row) }); }} /></label></div>
-                                  {editable && <button type="button" className="hcleditor__uncertainty-delete" onClick={() => replaceUncertainty({ ...configuration.solverSettings.uncertainty!, cptRowDistributions: configuration.solverSettings.uncertainty!.cptRowDistributions.filter((_, candidateIndex) => candidateIndex !== index) })}>Delete</button>}
+                                  <div className="hcleditor__uncertainty-parameters"><HclCptPriorControls
+                                    prior={definition.prior}
+                                    states={model.nodes.find((node) => node.id === definition.bayesianNetworkNode.entityId)?.states ?? []}
+                                    disabled={!editable}
+                                    onError={setError}
+                                    onChange={(prior) => replaceUncertainty({ ...uncertainty, cptRowDistributions: uncertainty.cptRowDistributions.map((row, rowIndex) => {
+                                      if (rowIndex !== index) {
+                                        if (prior.family === "BETA" && row.prior?.family === "BETA" && row.bayesianNetworkNode.entityId === definition.bayesianNetworkNode.entityId) return { ...row, prior: { ...row.prior, trueStateId: prior.trueStateId } };
+                                        return row;
+                                      }
+                                      return { bayesianNetworkNode: row.bayesianNetworkNode, cptRowId: row.cptRowId, prior };
+                                    }) })}
+                                  /></div>
+                                  {editable && <button type="button" className="hcleditor__uncertainty-delete" onClick={() => replaceUncertainty({ ...uncertainty, cptRowDistributions: uncertainty.cptRowDistributions.filter((_, candidateIndex) => candidateIndex !== index) })}>Delete</button>}
                                 </div>
                               </details>
                             );
@@ -1417,6 +1059,7 @@ function HclBindingEditor({
                           </details>
                         )}
                       </section>
+                      <HclSeismicGeneratorControls model={model} reference={configuration.bayesianNetwork} settings={uncertainty} disabled={!editable} onChange={replaceUncertainty} onError={setError} />
                     </>
                   )}
                 </div>
@@ -1447,238 +1090,7 @@ function HclBindingEditor({
           )}
 
           {runError !== null && <p className="bneditor__error" role="alert">{runError}</p>}
-          {workflow === "MANUAL" && runResult?.kind === "FAULT_TREE" && (
-            <div className="hcleditor__analysis-result" aria-label="HCL fault-tree result">
-              {calculationType === "PROBABILITY" && (
-                <div className="hcleditor__result-grid hcleditor__result-grid--single">
-                  <HclResultMetric
-                    label="Top event probability"
-                    value={formatScientific(runResult.result.probability)}
-                    ratio={runResult.result.probability}
-                  />
-                </div>
-              )}
-              {calculationType === "UNCERTAINTY" && <HclUncertaintyResults summary={runResult.result.uncertainty} />}
-              {calculationType === "CUT_SETS" && (
-                <HclCutSetResults
-                  analysis={runResult.result.cutSets}
-                  model={model}
-                  faultTreeOptions={faultTreeOptions}
-                />
-              )}
-              {calculationType === "IMPORTANCE" && (
-                <HclImportanceResults
-                  analysis={runResult.result.importance}
-                  model={model}
-                  faultTreeOptions={faultTreeOptions}
-                />
-              )}
-            </div>
-          )}
-          {workflow === "MANUAL" && runResult?.kind === "EVENT_TREE" && (
-            <div className="hcleditor__batch-result" aria-label="HCL event-tree result">
-              <div className="hcleditor__batch-heading">
-                <strong>Sequence results</strong>
-                <span>{String(runResult.result.sequences.length)} sequences calculated</span>
-              </div>
-              <div className="hcleditor__batch-table">
-                {runResult.result.sequences.map((sequence) => {
-                  const target = eventTreeOptions.flatMap((option) => option.sequences).find(({ id }) => id === sequence.sequenceId);
-                  return (
-                    <div key={sequence.sequenceId} className="hcleditor__sequence-analysis">
-                      {calculationType === "PROBABILITY" && (
-                        <HclResultMetric
-                          label={target?.name ?? sequence.sequenceId}
-                          value={`${formatScientific(sequence.annualFrequency)}/yr`}
-                          ratio={sequence.conditionalProbability}
-                          detail={`Conditional probability ${formatScientific(sequence.conditionalProbability)}`}
-                        />
-                      )}
-                      {calculationType === "UNCERTAINTY" && <HclUncertaintyResults summary={sequence.uncertainty?.annualFrequency} annual label={target?.name ?? sequence.sequenceId} />}
-                      {calculationType === "CUT_SETS" && (
-                        <HclCutSetResults
-                          analysis={sequence.cutSets}
-                          model={model}
-                          faultTreeOptions={faultTreeOptions}
-                          label="Sequence cut sets"
-                        />
-                      )}
-                      {calculationType === "IMPORTANCE" && (
-                        <HclImportanceResults
-                          analysis={sequence.importance}
-                          model={model}
-                          faultTreeOptions={faultTreeOptions}
-                          label="Sequence importance"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          {workflow === "BATCH" && batchRunResult !== null && (
-            <div className="hcleditor__batch-result" aria-label="HCL scenario batch result">
-              <div className="hcleditor__batch-heading">
-                <strong>{batchRunResult.hazardConvolution === undefined ? "Scenario results" : "Hazard convolution"}</strong>
-                <span>{String(batchRunResult.scenarios.filter((scenario) => scenario.status === "SUCCEEDED").length)} of {String(batchRunResult.scenarios.length)} completed{batchNumericallyUnchanged ? " · No variation across scenarios" : ""}</span>
-              </div>
-              {calculationType === "PROBABILITY" && batchRunResult.hazardConvolution !== undefined && (
-                <><div className="hcleditor__convolution-summary" aria-label="Hazard convolution summary">
-                  <HclResultMetric
-                    label="Grid"
-                    value={batchRunResult.hazardConvolution.gridName}
-                  />
-                  <HclResultMetric
-                    label="Covered probability"
-                    value={formatPercentage(batchRunResult.hazardConvolution.rawWeightSum)}
-                    ratio={batchRunResult.hazardConvolution.rawWeightSum}
-                  />
-                  <HclResultMetric
-                    label="Annual scale"
-                    value={`${formatScientific(batchRunResult.hazardConvolution.annualizedFrequencyScale)}/yr`}
-                  />
-                  {batchRunResult.hazardConvolution.targetKind === "FAULT_TREE" ? (
-                    <HclResultMetric
-                      label="Integrated frequency"
-                      value={`${formatScientific(batchRunResult.hazardConvolution.integratedAnnualFrequency)}/yr`}
-                    />
-                  ) : (
-                    <HclResultMetric
-                      label="Integrated frequency"
-                      value={`${formatScientific(batchRunResult.hazardConvolution.endStateAggregates.reduce((sum, endState) => sum + endState.integratedAnnualFrequency, 0))}/yr`}
-                    />
-                  )}
-                </div></>
-              )}
-              {calculationType === "UNCERTAINTY" && batchRunResult.hazardConvolution?.targetKind === "FAULT_TREE" && (
-                <HclUncertaintyResults summary={batchRunResult.hazardConvolution.uncertainty} annual label="Hazard convolution" />
-              )}
-              <div className="hcleditor__batch-table">
-                {batchRunResult.scenarios.map((scenario) => {
-                  let value = scenario.failure ?? scenario.status;
-                  let ratio: number | undefined;
-                  let detail = scenario.scenarioName;
-                  if (scenario.result?.kind === "FAULT_TREE") {
-                    value = formatScientific(scenario.result.result.probability);
-                    ratio = scenario.result.result.probability;
-                  }
-                  if (scenario.result?.kind === "EVENT_TREE") {
-                    const frequency = scenario.result.result.sequences.reduce((sum, sequence) => sum + sequence.annualFrequency, 0);
-                    value = `${formatScientific(frequency)}/yr`;
-                    detail = `${scenario.scenarioName} · ${String(scenario.result.result.sequences.length)} sequences`;
-                  }
-                  const convolution = batchRunResult.hazardConvolution;
-                  if (convolution?.targetKind === "FAULT_TREE") {
-                    const row = convolution.rows.find((candidate) => candidate.scenarioId === scenario.scenarioId);
-                    if (row !== undefined) {
-                      value = `${formatScientific(row.annualContribution)}/yr`;
-                      ratio = row.convolutionWeight;
-                      detail = `${scenario.scenarioName} · ${formatPercentage(row.convolutionWeight)} weight`;
-                    }
-                  } else if (convolution?.targetKind === "EVENT_TREE") {
-                    const row = convolution.rows.find((candidate) => candidate.scenarioId === scenario.scenarioId);
-                    if (row !== undefined) {
-                      const contribution = row.sequences.reduce((sum, sequence) => sum + sequence.annualContribution, 0);
-                      value = `${formatScientific(contribution)}/yr`;
-                      ratio = row.convolutionWeight;
-                      detail = `${scenario.scenarioName} · ${formatPercentage(row.convolutionWeight)} weight`;
-                    }
-                  }
-                  if (calculationType === "PROBABILITY") {
-                    return (
-                      <div key={scenario.scenarioId} className="hcleditor__scenario-analysis">
-                        <HclResultMetric
-                          label={scenario.scenarioCode}
-                          value={value}
-                          ratio={ratio}
-                          detail={detail}
-                        />
-                      </div>
-                    );
-                  }
-                  let scenarioSummary = scenario.failure === null && scenario.status === "SUCCEEDED" ? "Complete" : "Failed";
-                  if (scenario.result?.kind === "FAULT_TREE" && calculationType === "CUT_SETS") {
-                    const count = scenario.result.result.cutSets?.totalCount ?? 0;
-                    scenarioSummary = `${String(count)} cut ${count === 1 ? "set" : "sets"}`;
-                  } else if (scenario.result?.kind === "FAULT_TREE" && calculationType === "IMPORTANCE") {
-                    const count = scenario.result.result.importance?.totalCount ?? 0;
-                    scenarioSummary = `${String(count)} ${count === 1 ? "measure" : "measures"}`;
-                  } else if (scenario.result?.kind === "FAULT_TREE" && calculationType === "UNCERTAINTY") {
-                    const uncertainty = scenario.result.result.uncertainty;
-                    scenarioSummary = uncertainty === undefined ? "No uncertainty result" : `Mean ${formatScientific(uncertainty.mean)}`;
-                  } else if (scenario.result?.kind === "EVENT_TREE") {
-                    scenarioSummary = `${String(scenario.result.result.sequences.length)} ${scenario.result.result.sequences.length === 1 ? "sequence" : "sequences"}`;
-                  }
-                  return (
-                    <details key={scenario.scenarioId} className="hcleditor__scenario-result">
-                      <summary>
-                        <span className="hcleditor__scenario-result-identity">
-                          <strong>{scenario.scenarioCode}</strong>
-                          <small>{scenario.scenarioName}</small>
-                        </span>
-                        <output>{scenarioSummary}</output>
-                      </summary>
-                      <div className="hcleditor__scenario-result-body">
-                      {scenario.failure !== null && <p className="bneditor__error">{scenario.failure}</p>}
-                      {calculationType === "UNCERTAINTY" && scenario.result?.kind === "FAULT_TREE" && (
-                        <HclUncertaintyResults summary={scenario.result.result.uncertainty} label="Statistics" inline />
-                      )}
-                      {calculationType === "UNCERTAINTY" && scenario.result?.kind === "EVENT_TREE" && scenario.result.result.sequences.map((sequence) => {
-                        const target = eventTreeOptions.flatMap((option) => option.sequences).find(({ id }) => id === sequence.sequenceId);
-                        return <HclUncertaintyResults key={sequence.sequenceId} summary={sequence.uncertainty?.annualFrequency} annual label={target?.name ?? sequence.sequenceId} inline />;
-                      })}
-                      {calculationType === "CUT_SETS" && scenario.result?.kind === "FAULT_TREE" && (
-                        <HclCutSetResults
-                          analysis={scenario.result.result.cutSets}
-                          model={model}
-                          faultTreeOptions={faultTreeOptions}
-                          label="Cut sets"
-                          embedded
-                        />
-                      )}
-                      {calculationType === "IMPORTANCE" && scenario.result?.kind === "FAULT_TREE" && (
-                        <HclImportanceResults
-                          analysis={scenario.result.result.importance}
-                          model={model}
-                          faultTreeOptions={faultTreeOptions}
-                          label="Importance measures"
-                          embedded
-                        />
-                      )}
-                      {calculationType === "CUT_SETS" && scenario.result?.kind === "EVENT_TREE" && scenario.result.result.sequences.map((sequence) => {
-                        const target = eventTreeOptions.flatMap((option) => option.sequences).find(({ id }) => id === sequence.sequenceId);
-                        return (
-                          <HclCutSetResults
-                            key={sequence.sequenceId}
-                            analysis={sequence.cutSets}
-                            model={model}
-                            faultTreeOptions={faultTreeOptions}
-                            label={`${target?.name ?? sequence.sequenceId} cut sets`}
-                            embedded
-                          />
-                        );
-                      })}
-                      {calculationType === "IMPORTANCE" && scenario.result?.kind === "EVENT_TREE" && scenario.result.result.sequences.map((sequence) => {
-                        const target = eventTreeOptions.flatMap((option) => option.sequences).find(({ id }) => id === sequence.sequenceId);
-                        return (
-                          <HclImportanceResults
-                            key={`importance:${sequence.sequenceId}`}
-                            analysis={sequence.importance}
-                            model={model}
-                            faultTreeOptions={faultTreeOptions}
-                            label={`${target?.name ?? sequence.sequenceId} importance`}
-                            embedded
-                          />
-                        );
-                      })}
-                      </div>
-                    </details>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <HclResults runResult={runResult} batchRunResult={batchRunResult} workflow={workflow} calculationType={calculationType} eventTreeOptions={eventTreeOptions} faultTreeOptions={faultTreeOptions} />
         </>
       )}
       {error !== null && <p className="bneditor__error" role="alert">{error}</p>}

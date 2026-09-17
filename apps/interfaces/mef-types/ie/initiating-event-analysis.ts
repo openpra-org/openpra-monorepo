@@ -193,7 +193,7 @@ export interface FrequencyFaultTreeNode {
   label: string;
   code?: string;
   nodeType: "GATE" | "BASIC" | "HOUSE" | "TRANSFER" | "UNDEVELOPED";
-  gate?: "AND" | "OR" | "NOT" | "ATLEAST";
+  gate?: "AND" | "OR" | "XOR" | "NOT" | "ATLEAST";
   k?: number;
   detail?: string;
   /** Marks an explicitly selected top gate when inference from root gates is insufficient. */

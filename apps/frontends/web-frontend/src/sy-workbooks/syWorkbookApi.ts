@@ -8,15 +8,22 @@ import type {
 } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import type {
   BayesianNetworkAnalysisResult,
+  BayesianNetworkBatchAnalysisResult,
+  BayesianNetworkQueryScenario,
   BayesianNetworkExecuteResult,
 } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import type {
   BayesianNetworkEvidenceConfiguration,
   FaultTreeTopEventReference,
+  WorkbookModelAddress,
 } from "interfaces-mef-types/modeling";
 import type {
   HclBatchExecuteResult,
+  HclBatchInput,
+  HclHazardSweepSpec,
+  HclGenerateScenariosResult,
   HclExecuteResult,
+  HclCalculationType,
   HclQuantificationResult,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 
@@ -143,6 +150,37 @@ async function runSyBayesianNetwork(
   );
 }
 
+async function runSyBayesianNetworkBatch(
+  workbookId: string,
+  modelId: string,
+  workbookRevision: number,
+  scenarios: BayesianNetworkQueryScenario[],
+  queryNodeId: string,
+): Promise<BayesianNetworkExecuteResult> {
+  return postJson<BayesianNetworkExecuteResult>(
+    `/api/sy-workbooks/${workbookId}/bayesian-networks/${modelId}/runs`,
+    {
+      schemaVersion: "1.0.0",
+      modelId,
+      workbookRevision,
+      query: {
+        scenarios: scenarios.map(({ id, code, name, evidence }) => ({ id, code, name, evidence })),
+        queryNodeIds: [queryNodeId],
+      },
+    },
+  );
+}
+
+async function getSyBayesianNetworkBatchResult(
+  workbookId: string,
+  modelId: string,
+  runId: string,
+): Promise<BayesianNetworkBatchAnalysisResult> {
+  return fetchJson<BayesianNetworkBatchAnalysisResult>(
+    `/api/sy-workbooks/${workbookId}/bayesian-networks/${modelId}/runs/${runId}/result`,
+  );
+}
+
 async function getSyBayesianNetworkResult(
   workbookId: string,
   modelId: string,
@@ -158,6 +196,7 @@ async function runSyHclFaultTree(
   configurationId: string,
   workbookRevision: number,
   faultTreeTopGate: FaultTreeTopEventReference,
+  calculationType: HclCalculationType,
   evidenceScenarioId?: string,
 ): Promise<HclExecuteResult> {
   return postJson<HclExecuteResult>(
@@ -166,6 +205,7 @@ async function runSyHclFaultTree(
       schemaVersion: "1.0.0",
       modelId: configurationId,
       workbookRevision,
+      calculationType,
       faultTreeTopGate,
       ...(evidenceScenarioId === undefined ? {} : { evidenceScenarioId }),
     },
@@ -177,8 +217,10 @@ async function runSyHclFaultTreeBatch(
   configurationId: string,
   workbookRevision: number,
   faultTreeTopGate: FaultTreeTopEventReference,
+  calculationType: HclCalculationType,
   evidenceScenarioIds: string[],
   integrateHazardGrid = false,
+  batchInput?: HclBatchInput,
 ): Promise<HclBatchExecuteResult> {
   return postJson<HclBatchExecuteResult>(
     `/api/sy-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-batch-runs`,
@@ -186,8 +228,10 @@ async function runSyHclFaultTreeBatch(
       schemaVersion: "1.0.0",
       modelId: configurationId,
       workbookRevision,
+      calculationType,
       faultTreeTopGate,
       evidenceScenarioIds,
+      ...(batchInput === undefined ? {} : { batchInput }),
       ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
     },
   );
@@ -204,6 +248,8 @@ async function getSyHclFaultTreeResult(
 }
 
 export {
+  runSyBayesianNetworkBatch,
+  getSyBayesianNetworkBatchResult,
   getSyWorkbook,
   patchSyWorkbook,
   getSyExampleOptions,
@@ -226,3 +272,15 @@ export {
   type SyExampleOption,
   type SyDocumentEntry,
 };
+
+export async function generateSyHclScenarios(
+  workbookId: string, configurationId: string, workbookRevision: number,
+  spec: HclHazardSweepSpec, dependencyConfiguration?: WorkbookModelAddress,
+): Promise<HclGenerateScenariosResult> {
+  return postJson<HclGenerateScenariosResult>(
+    `/api/sy-workbooks/${workbookId}/hcl-configurations/${configurationId}/generate-scenarios`,
+    { schemaVersion: "1.0.0", modelId: configurationId, workbookRevision, spec,
+      ...(dependencyConfiguration === undefined ? {} : { dependencyConfiguration }),
+    },
+  );
+}

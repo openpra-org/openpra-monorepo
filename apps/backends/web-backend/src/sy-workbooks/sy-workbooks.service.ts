@@ -1,6 +1,8 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { stringifyJson } from "interfaces-shared-types/json";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
+import { requiresFailureRateConversionReview, FAILURE_RATE_CONVERSION_REVIEW_REQUIRED } from "interfaces-mef-types/modeling";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { systemBasicEventToFaultTreeBasicEvent } from "interfaces-mef-types/sy/system-models";
 import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
@@ -127,6 +129,14 @@ export class SyWorkbooksService {
     );
     if (!parsed.success) {
       throw new BadRequestException(`Invalid SY workbook payload: ${parsed.error.message}`);
+    }
+    // Old settings may be retained unchanged while the user reviews them.
+    for (const event of parsed.data.systemBasicEvents) {
+      if (!requiresFailureRateConversionReview(event.quantificationBasis)) continue;
+      const previous = current.data.systemBasicEvents.find((candidate) => candidate.uuid === event.uuid);
+      if (JSON.stringify(previous?.quantificationBasis) !== JSON.stringify(event.quantificationBasis)) {
+        throw new BadRequestException(`SY basic event '${event.uuid}': ${FAILURE_RATE_CONVERSION_REVIEW_REQUIRED}`);
+      }
     }
     const updatedDoc = await this.syWorkbookModel
       .findOneAndUpdate(
@@ -257,7 +267,7 @@ export class SyWorkbooksService {
         createWorkbookRevisionFilter(workbookId, expectedRevision),
         {
           $set: {
-            previousMefJson: JSON.stringify(doc.mef),
+            previousMefJson: stringifyJson(doc.mef),
             mef: cleaned,
             revision: expectedRevision + 1,
           },

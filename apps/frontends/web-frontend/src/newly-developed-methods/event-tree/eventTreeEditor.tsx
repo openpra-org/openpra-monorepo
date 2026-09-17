@@ -1,4 +1,6 @@
-import { type JSX, useEffect, useMemo, useState } from "react";
+import { PagedResults, ResultCsvButton, ResultWarnings } from "../shared/resultPresentation";
+import { eventTreeResultRecords } from "../shared/probabilityResultExport";
+import { type JSX, useEffect, useId, useMemo, useState } from "react";
 import type { FunctionalEvent, SystemStatus } from "interfaces-mef-types/es/event-sequence-analysis";
 import { DEFAULT_ANNUALIZATION_CONVENTION } from "interfaces-mef-types/modeling";
 import {
@@ -15,6 +17,8 @@ import {
 } from "./eventTreePresentation";
 import type { EventTreeEditorProps, EventTreeOperation, EventTreeRepresentation } from "./eventTreeTypes";
 import { useEditorConfirmation } from "../shared";
+import { EventTreeTransferResults } from "./eventTreeTransferResults";
+import { eventTreeResultName } from "./eventTreeResultLabels";
 import "./css/eventTree.css";
 
 const REPRESENTATIONS: Array<{ id: EventTreeRepresentation; label: string }> = [
@@ -60,6 +64,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
     onOpenReference,
     onRun,
   } = props;
+  const annualizationHelpId = useId();
   const [hoveredSequenceId, setHoveredSequenceId] = useState<string | null>(null);
   const [past, setPast] = useState<typeof model[]>([]);
   const [future, setFuture] = useState<typeof model[]>([]);
@@ -263,9 +268,12 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
         <div className={`et-editor__results${resultIsStale ? " et-editor__results--stale" : ""}`}>
           <strong>{resultIsStale ? "Previous result" : "Latest result"}</strong>
           <span>{analysisResult.sequences.length} quantified sequences</span>
+          <ResultCsvButton filename={`et-${analysisResult.runId}.csv`} records={() => eventTreeResultRecords(analysisResult, eventTreeResultName(model, availableTransfers)).map((row) => ({ ...row, stale: resultIsStale }))} />
           {analysisResult.endStateAggregates.map((aggregate) => <span key={aggregate.endStateId}>{endStateLabel(aggregate.endStateId)}: <span className="posmono">{formatExponential(resultByEndState.get(aggregate.endStateId))}/yr</span></span>)}
         </div>
       )}
+
+      {analysisResult !== null && <ResultWarnings issues={analysisResult.validationIssues} />}
 
       <div className="et-editor__setup">
         <label className="et-editor__field">
@@ -303,7 +311,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
         </label>
         <label className="et-editor__field">
           <span>Annualization basis</span>
-          <select aria-label="Annualization basis" value={model.initiatingEventFrequency?.annualization?.basis ?? "PLANT_YEAR"} disabled={!capabilities.author || model.initiatingEventFrequency === undefined} onChange={(event) => {
+          <select aria-label="Annualization basis" aria-describedby={annualizationHelpId} value={model.initiatingEventFrequency?.annualization?.basis ?? "PLANT_YEAR"} disabled={!capabilities.author || model.initiatingEventFrequency === undefined} onChange={(event) => {
             if (model.initiatingEventFrequency === undefined) return;
             const annualization = model.initiatingEventFrequency.annualization ?? DEFAULT_ANNUALIZATION_CONVENTION;
             commit({ kind: "UPDATE_TREE", changes: { initiatingEventFrequency: { ...model.initiatingEventFrequency, unit: model.initiatingEventFrequency.unit ?? "PER_YEAR", annualization: { ...annualization, basis: event.target.value as typeof annualization.basis } } } });
@@ -313,10 +321,11 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
             <option value="REACTOR_YEAR">Reactor year</option>
             <option value="CRITICAL_YEAR">Critical year</option>
           </select>
+          <small id={annualizationHelpId} className="et-editor__context-hint">Year basis is a label. Exposure hours control conversion to annual frequency. Per-year inputs are already annual.</small>
         </label>
         <label className="et-editor__field">
           <span>Exposure hours / year</span>
-          <input key={`${model.uuid}-annual-hours-${String(model.initiatingEventFrequency?.annualization?.hoursPerYear ?? 8_766)}`} aria-label="Annualization hours per year" type="number" min="0" step="any" disabled={!capabilities.author || model.initiatingEventFrequency === undefined} defaultValue={model.initiatingEventFrequency?.annualization?.hoursPerYear ?? 8_766} onBlur={(event) => {
+          <input key={`${model.uuid}-annual-hours-${String(model.initiatingEventFrequency?.annualization?.hoursPerYear ?? DEFAULT_ANNUALIZATION_CONVENTION.hoursPerYear)}`} aria-label="Annualization hours per year" aria-describedby={annualizationHelpId} type="number" min="0" step="any" disabled={!capabilities.author || model.initiatingEventFrequency === undefined} defaultValue={model.initiatingEventFrequency?.annualization?.hoursPerYear ?? DEFAULT_ANNUALIZATION_CONVENTION.hoursPerYear} onBlur={(event) => {
             if (model.initiatingEventFrequency === undefined) return;
             const hoursPerYear = Number(event.currentTarget.value);
             if (!Number.isFinite(hoursPerYear) || hoursPerYear <= 0) return;
@@ -381,10 +390,11 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
               {representation === "event-sequence-diagram" && <EventSequenceDiagram view={presentation} activeSequenceId={activeSequenceId} selectedEntityId={selection} onHover={setHoveredSequenceId} onSelectSequence={selectSequence} onSelectFunctionalEvent={selectFunctionalEvent} onFunctionalEventContext={openFunctionalEventContext} onSequenceContext={openSequenceContext} />}
               {representation === "dynamic" && dynamicRun !== undefined && <DynamicEventSequenceDiagram run={dynamicRun} sequences={new Map(presentation.sequences.map((sequence) => [sequence.id, sequence]))} activeSequenceId={activeSequenceId} onHover={setHoveredSequenceId} onSelect={selectSequence} />}
               {representation === "table" && (
-                <div className="et-editor__table-wrap"><table className="postable et-editor__table"><thead><tr><th>Sequence</th><th>Path</th><th>Result</th><th>Probability</th><th>Frequency</th></tr></thead><tbody>{presentation.sequences.map((sequence) => <tr key={sequence.id} className={selection === sequence.id ? "et-editor__table-row--selected" : ""} onMouseEnter={() => setHoveredSequenceId(sequence.id)} onMouseLeave={() => setHoveredSequenceId(null)} onClick={() => selectSequence(sequence.id)} onContextMenu={(contextEvent) => { contextEvent.preventDefault(); contextEvent.stopPropagation(); openSequenceContext(sequence.id, contextEvent.clientX, contextEvent.clientY); }}><td className="posmono">{sequence.name}</td><td><div className="et-editor__path">{events.map((event) => { const state = PATH_STATE[sequence.path[event.uuid] ?? "BYPASSED"]; return <span key={event.uuid} className={`et-editor__path-step et-editor__path-step--${state.className}`}>{event.label ?? event.name} {state.short}</span>; })}</div></td><td>{sequence.transferTargetId === undefined ? (sequence.endState === "SUCCESSFUL_MITIGATION" ? "Safe state" : "Release") : `Transfer to ${sequence.transferTargetId}`}</td><td className="posmono">{formatExponential(sequence.conditionalProbability)}</td><td className="posmono">{formatExponential(sequence.annualFrequency)}</td></tr>)}</tbody></table></div>
+                <PagedResults items={presentation.sequences} label="Event-tree sequences" resetKey={`${model.uuid}:${analysisResult?.runId ?? "unquantified"}`} >{(page) => <div className="et-editor__table-wrap"><table className="postable et-editor__table"><thead><tr><th>Sequence</th><th>Path</th><th>Result</th><th>Probability</th><th>Frequency</th></tr></thead><tbody>{page.map((sequence) => <tr key={sequence.id} className={selection === sequence.id ? "et-editor__table-row--selected" : ""} onMouseEnter={() => setHoveredSequenceId(sequence.id)} onMouseLeave={() => setHoveredSequenceId(null)} onClick={() => selectSequence(sequence.id)} onContextMenu={(contextEvent) => { contextEvent.preventDefault(); contextEvent.stopPropagation(); openSequenceContext(sequence.id, contextEvent.clientX, contextEvent.clientY); }}><td className="posmono">{sequence.name}</td><td><div className="et-editor__path">{events.map((event) => { const state = PATH_STATE[sequence.path[event.uuid] ?? "BYPASSED"]; return <span key={event.uuid} className={`et-editor__path-step et-editor__path-step--${state.className}`}>{event.label ?? event.name} {state.short}</span>; })}</div></td><td>{sequence.transferTargetId === undefined ? (sequence.endState === "SUCCESSFUL_MITIGATION" ? "Safe state" : "Release") : `Transfer to ${sequence.transferTargetId}`}</td><td className="posmono">{formatExponential(sequence.conditionalProbability)}</td><td className="posmono">{formatExponential(sequence.annualFrequency)}</td></tr>)}</tbody></table></div>}</PagedResults>
               )}
             </div>
           )}
+          <EventTreeTransferResults model={model} availableTransfers={availableTransfers} analysisResult={analysisResult} />
         </div>
 
         {(selectedEvent !== undefined || selectedSequence !== undefined) && (
@@ -412,11 +422,10 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
                 <label className="et-editor__field"><span>Sequence result</span><select disabled={!capabilities.author} value={selectedSequence.transferTargetId === undefined ? selectedSequence.endState : "TRANSFER"} onChange={(event) => {
                   if (event.target.value === "TRANSFER") {
                     const target = availableTransfers.find((candidate) => candidate.sequenceIds.length > 0);
-                    if (target !== undefined) commit({ kind: "SET_SEQUENCE_TRANSFER", sequenceId: selectedSequence.id, targetEventTreeId: target.id, targetSequenceId: target.sequenceIds[0] });
+                    if (target !== undefined) commit({ kind: "SET_SEQUENCE_TRANSFER", sequenceId: selectedSequence.id, targetEventTreeId: target.id });
                   } else commit({ kind: "SET_SEQUENCE_END_STATE", sequenceId: selectedSequence.id, endState: event.target.value as "SUCCESSFUL_MITIGATION" | "RADIONUCLIDE_RELEASE" });
                 }}><option value="SUCCESSFUL_MITIGATION">Safe stable state</option><option value="RADIONUCLIDE_RELEASE">Radionuclide release</option>{availableTransfers.length > 0 && <option value="TRANSFER">Transfer to event tree</option>}</select></label>
-                {selectedSequence.transferTargetId !== undefined && <label className="et-editor__field"><span>Transfer target</span><select disabled={!capabilities.author} value={selectedSequence.transferTargetId} onChange={(event) => { const target = availableTransfers.find((candidate) => candidate.id === event.target.value); commit({ kind: "SET_SEQUENCE_TRANSFER", sequenceId: selectedSequence.id, targetEventTreeId: event.target.value, targetSequenceId: target?.sequenceIds[0] }); }}>{availableTransfers.filter((tree) => tree.sequenceIds.length > 0).map((tree) => <option key={tree.id} value={tree.id}>{tree.id} · {tree.name}</option>)}</select></label>}
-                {selectedSequence.transferTargetId !== undefined && <label className="et-editor__field"><span>Target sequence</span><select disabled={!capabilities.author} value={model.transfers?.[selectedSequence.id]?.targetSequenceId ?? ""} onChange={(event) => commit({ kind: "SET_SEQUENCE_TRANSFER", sequenceId: selectedSequence.id, targetEventTreeId: selectedSequence.transferTargetId!, targetSequenceId: event.target.value })}><option value="" disabled>Select target sequence</option>{availableTransfers.find((tree) => tree.id === selectedSequence.transferTargetId)?.sequenceIds.map((sequenceId) => <option key={sequenceId} value={sequenceId}>{sequenceId}</option>)}</select></label>}
+                {selectedSequence.transferTargetId !== undefined && <label className="et-editor__field"><span>Transfer target</span><select disabled={!capabilities.author} value={selectedSequence.transferTargetId} onChange={(event) => { commit({ kind: "SET_SEQUENCE_TRANSFER", sequenceId: selectedSequence.id, targetEventTreeId: event.target.value }); }}>{availableTransfers.filter((tree) => tree.sequenceIds.length > 0).map((tree) => <option key={tree.id} value={tree.id}>{tree.id} · {tree.name}</option>)}</select></label>}
                 {selectedSequence.transferTargetId !== undefined && onOpenReference !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onOpenReference({ targetEventTreeId: selectedSequence.transferTargetId! })}>Open transfer target</button>}
                 {selectedLinkedSequence !== undefined && onUpdateEventSequence !== undefined && (
                   <>
@@ -462,7 +471,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
               {capabilities.author && <div className="et-editor__context-separator" />}
               {capabilities.author && <button type="button" role="menuitem" onClick={() => { commit({ kind: "SET_SEQUENCE_END_STATE", sequenceId: sequence.id, endState: "SUCCESSFUL_MITIGATION" }); setContextMenu(null); }}>Mark safe stable state</button>}
               {capabilities.author && <button type="button" role="menuitem" onClick={() => { commit({ kind: "SET_SEQUENCE_END_STATE", sequenceId: sequence.id, endState: "RADIONUCLIDE_RELEASE" }); setContextMenu(null); }}>Mark radionuclide release</button>}
-              {capabilities.author && transfer !== undefined && <button type="button" role="menuitem" onClick={() => { commit({ kind: "SET_SEQUENCE_TRANSFER", sequenceId: sequence.id, targetEventTreeId: transfer.id, targetSequenceId: transfer.sequenceIds[0] }); setContextMenu(null); }}>Transfer to another event tree</button>}
+              {capabilities.author && transfer !== undefined && <button type="button" role="menuitem" onClick={() => { commit({ kind: "SET_SEQUENCE_TRANSFER", sequenceId: sequence.id, targetEventTreeId: transfer.id }); setContextMenu(null); }}>Transfer to another event tree</button>}
               {capabilities.author && <div className="et-editor__context-separator" />}
               {capabilities.author && <div className="et-editor__context-title">Functional-event applicability</div>}
               {capabilities.author && events.map((functionalEvent) => {

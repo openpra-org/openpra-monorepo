@@ -54,7 +54,7 @@ Expected: the selected network and any HCL configurations attached to it are rem
 
 1. Select a network.
 2. Click the **File** icon.
-3. Click **Export JSON**.
+3. Click **Export OpenPRA JSON**.
 
 Expected: the browser downloads `<network-code>.json`, including nodes, states, edges, CPTs, positions, layout, XDSL metadata, reusable module templates, and module instances.
 
@@ -77,7 +77,7 @@ Expected: the canvas becomes `HAZARD → SUPPORT → OUTCOME`, all row totals ar
 ### BN-10 — Import valid XDSL
 
 1. Create or select another disposable network.
-2. Click **File → Import XDSL**.
+2. Click the **File** icon → **Import XDSL**.
 3. Choose `bn-editor-smoke-test.xdsl`.
 4. Confirm **Replace network**.
 
@@ -94,7 +94,7 @@ Expected: the edits and positions survive the round trip, together with supporte
 ### BN-12 — Reject unsupported XDSL safely
 
 1. Select a disposable network and note its code.
-2. Click **File → Import XDSL**.
+2. Click the **File** icon → **Import XDSL**.
 3. Choose `invalid-bn-unsupported-decision.xdsl`.
 
 Expected: a styled editor error says that only discrete CPT nodes are supported. The current network remains unchanged and no replacement confirmation appears.
@@ -206,9 +206,9 @@ Expected: the menu closes without changing the graph.
 1. Create a node with at least two parents.
 2. Select the child.
 3. Under **Relationships**, use the up/down buttons beside a parent.
-4. Confirm **Rebuild CPTs**.
+4. Verify the same conditional probabilities, then use **Undo**.
 
-Expected: parent order changes in both the inspector and CPT columns. The CPT is rebuilt with uniform rows because its interpretation changed.
+Expected: parent order changes in both the inspector and CPT columns. Every conditional assignment retains its probability; no uniform reset or destructive confirmation occurs. This also works for template instances. Undo restores the original order. Finish invalid pending edits before reordering.
 
 ## E. Node identity and states
 
@@ -343,7 +343,7 @@ Expected: the observation is removed, its node badge disappears, and the scenari
 3. Ensure common evidence is empty.
 4. Click **Run exact inference**.
 
-Expected: a posterior distribution appears. `OUTCOME = SEVERE` should be `2.9580%`.
+Expected: a posterior distribution appears. `OUTCOME / SEVERE` should show probability `0.02958` (2.958%).
 
 ### BN-44 — Run a conditional exact query
 
@@ -351,15 +351,16 @@ Expected: a posterior distribution appears. `OUTCOME = SEVERE` should be `2.9580
 2. Keep **Query node** as `OUTCOME`.
 3. Click **Run exact inference**.
 
-Expected: `OUTCOME = SEVERE` should be `27.4000%`, demonstrating that evidence propagates through `SUPPORT`.
+Expected: `OUTCOME / SEVERE` should show probability `0.274` (27.4%), demonstrating that evidence propagates through `SUPPORT`.
 
-### BN-45 — Expand and collapse posterior details
+### BN-45 — Inspect posterior results and export
 
 1. Query a node with more than two states, such as `OUTCOME`.
-2. Click **View details (+1)**.
-3. Click **Hide details**.
+2. Check that each result identifies its node and state.
+3. Hover a probability to inspect its full numeric value.
+4. Click **Export results CSV**.
 
-Expected: the compact result initially shows two states; expansion shows all states without changing the result.
+Expected: probabilities use significant digits; `1e-7` remains nonzero. Up to 25 states appear per page. Larger results have page controls and a 25/50/100 row selector. CSV contains every returned state and the unrounded probabilities, IDs, evidence and run metadata, regardless of the visible page. Returned validation issues appear below the results.
 
 ### BN-46 — Query versus evidence distinction
 
@@ -368,63 +369,78 @@ Expected: the compact result initially shows two states; expansion shows all sta
 
 Expected: evidence is the known condition and the query is the requested posterior. Changing the query must not change evidence.
 
-## I. Reusable BN modules
+## I. Reusable BN templates and visual submodels
 
-Use the smoke-test network.
+Use the smoke-test network. Templates copy BN branches; visual submodels group existing nodes. Template copying follows HCL_MH's preservation of states and conditional assignments, generalized to arbitrary supported branches. HRA-specific probability overrides are not applied. See the [source map](bayesian-network-submodel-template-source-map.md).
 
 ### BN-47 — Save a branch as a module
 
 1. Select `SUPPORT`.
-2. Click **Reusable modules**.
-3. Click **Save selected branch**.
+2. Open **Reusable templates** and click **Save**.
 
-Expected: a template named from `SUPPORT` is created. It contains `SUPPORT` and descendant `OUTCOME`; external parent `HAZARD` becomes an input port.
+Expected: a template named from `SUPPORT` contains `SUPPORT` and descendant `OUTCOME`; external parent `HAZARD` becomes an input port. Invalid graphs, incomplete CPTs or unfinished node/state/CPT edits produce an error without creating a template.
 
 ### BN-48 — Add a module instance
 
-1. Keep **Reusable modules** open.
-2. Review or edit **Instance code** and **Instance name**.
-3. For the `HAZARD` input, choose the compatible `HAZARD` node if it is not selected automatically.
-4. Click **Add instance**.
+1. Open the saved template card.
+2. Review **Code**, **Name** and the listed input ports.
+3. Click **Create instance** twice, using different instance codes.
 
-Expected: an independent materialized copy of `SUPPORT → OUTCOME` appears, connected to the chosen hazard node. New node codes are unique and the output node becomes selected.
+Expected: two independent copies of `SUPPORT → OUTCOME` appear with unique IDs and codes. Each connects to `HAZARD`; conditional probabilities retain their parent-state meaning. Editing one copy's probabilities does not change the template or the other copy. Saving, exporting and reloading preserves both copies.
 
 ### BN-49 — Verify module state compatibility
 
-1. Create or select an input candidate whose state-code set differs from `HAZARD`.
-2. Reopen **Reusable modules**.
+Inputs initially select a compatible node with the exact same code, or the sole compatible node when no exact match exists. Use the input selector to choose another compatible node. An unresolved input disables **Create instance**. Create an instance using a different input and verify its graph connection and CPT parent labels.
 
-Expected: incompatible nodes do not appear as valid input choices. Every module input must be bound before **Add instance** is enabled.
+1. In a disposable model, use an input with distinct state codes `On` and `on`.
+2. Save a child branch and instantiate it.
+3. Repeat with compatible input states listed in the reverse order.
+
+Expected: state matching is case-sensitive and maps by code, not array position. `On` and `on` remain distinct, and their probabilities are not exchanged. A node with a different state-code set is incompatible. Node codes `A` and `a` are also distinct when choosing the default input.
 
 ### BN-50 — Inspect module-instance restrictions
 
-1. Select a node belonging to the new module instance.
+1. Select a materialized node.
+2. Inspect its states and edit a valid CPT probability row.
 
-Expected: the inspector shows a **Module instance** badge. Adding, deleting, or reordering template-controlled states is disabled; local identity and probability behavior should remain consistent with the module rules.
+Expected: the inspector shows a **Template instance** badge. Adding, deleting or reordering template-controlled states is disabled. Probability edits are allowed. Invalid template data, duplicate bindings, or input bindings that disagree with actual graph edges/CPT parents are rejected before module creation and before backend BN/HCL execution.
 
 ### BN-51 — Delete a module instance
 
-1. In **Reusable modules**, find **Instances in this network**.
-2. Click **Delete instance** for the disposable instance.
-3. Confirm.
+1. Connect the disposable instance to an ordinary downstream node and enter nonuniform downstream probabilities.
+2. Select an instance node and click **Delete node**.
+3. Read the confirmation, then cancel once.
+4. Repeat and confirm **Delete instance**.
+5. Use **Undo**.
 
-Expected: all materialized nodes and their connections are removed and downstream CPTs are rebuilt. An instance used as another instance’s input cannot be deleted until the dependent instance is deleted.
+Expected: the confirmation explicitly warns that affected downstream CPTs reset to uniform probabilities and discard their old values. Cancel changes nothing. Confirmation removes the whole instance and its connections, resets only affected downstream CPTs, and removes its known XDSL node records and empty generated submodel. Undo restores the previous model and probabilities. An instance used as another instance's input cannot be deleted until the dependent instance is deleted.
 
 ### BN-52 — Delete a module template
 
 1. Delete all instances of the template.
-2. Click **Delete** on the template card.
-3. Confirm **Delete template**.
+2. Click **Delete** on the template card and confirm **Delete template**.
 
-Expected: the reusable definition disappears. Attempting this while instances remain produces an explanatory error and does not damage the network.
+Expected: the reusable definition disappears. Attempting this while instances remain produces an explanatory error and leaves the network intact.
 
 ### BN-53 — Module JSON/XDSL persistence
 
-1. Create a template and one instance again.
-2. Export JSON and XDSL.
-3. Import each into separate disposable networks.
+1. Create two instances and export **OpenPRA JSON** and **XDSL**.
+2. Import each into separate disposable networks.
+3. In the OpenPRA copy, delete one instance, export both formats again, and inspect the remaining graph and XDSL extensions.
 
-Expected: JSON preserves templates and instances. XDSL preserves the materialized solver-ready nodes and represents an instance as a GeNIe submodel in its extensions.
+Expected: OpenPRA JSON preserves templates, instances and their wiring. XDSL preserves the materialized solver-ready nodes and GeNIe submodels; it does not carry reusable template definitions. Deleted instance node records do not reappear after either export. The other instance and unrelated vendor extensions remain, including foreign-namespace records whose IDs match deleted records.
+
+### BN-53A — Navigate visual submodels
+
+1. Import an XDSL containing nested GeNIe submodels, or create a template instance.
+2. Set **View** to **Submodels**.
+3. Open a group by clicking it, double-clicking it, or focusing it and pressing Enter.
+4. Navigate a nested group, then use **Back**, **Home** and **Scope**.
+5. Select a visible ordinary node and inspect its CPT. Return to **All nodes**.
+
+Expected: ROOT shows top-level groups and ungrouped nodes. Each scope shows its immediate child groups and directly owned nodes. Arrows combine existing connections between visible items; internal edges and connections outside the current scope are hidden. Selecting a scope never changes nodes, CPTs, evidence or calculation inputs. Zoom and Fit affect this view only. Read-only workbooks allow the same navigation. Groups with no directly owned nodes can still contain child groups.
+
+Group membership comes from existing XDSL submodels and materialized template instances. This feature adds their visualization, not an arbitrary group-authoring workflow. A deleted instance disappears from the view; imported empty groups can remain. Malformed grouping metadata produces an error while **All nodes** stays available.
 
 ## J. HCL configuration and fault-tree bindings in Systems Analysis
 
@@ -556,7 +572,7 @@ Expected: the editor reports the unknown state `NOT_A_REAL_STATE` on `SEISMIC-LE
 
 ### BN-70 — Export evidence JSON and CSV
 
-1. Click **Export JSON**.
+1. Click **Export OpenPRA JSON**.
 2. Click **Export CSV**.
 
 Expected: both downloads use the HCL configuration code in their filename and contain portable node/state codes, not UUIDs. Export buttons are disabled when no scenarios exist.
@@ -671,28 +687,30 @@ Expected: the button shows **Running…**, then a styled **Top event probability
 
 ### BN-85 — Run an evidence-scenario batch
 
-1. Import and enable at least two scenarios whose evidence varies on bound BN nodes.
-2. Set **Evidence** to **Enabled scenarios (n)**.
-3. Review **Varying evidence**, affected FT count, affected ET count, and fault trees excluded by constant logic.
-4. Choose one of the affected top events shown in the filtered dropdown.
-5. Click **Run scenario batch**.
+1. Open the batch workflow and select **Evidence scenarios** under **Batch type**.
+2. Upload or enable at least one scenario.
+3. Choose a linked top event.
+4. Click **Run probability batch**.
 
-Expected: only targets that can be affected by varying evidence are offered. Each scenario shows success/failure and its top-event probability; a no-variation notice appears if all successful numeric results are equal.
+Expected: every included FT with a top event is offered, regardless of whether the evidence varies its result. Each scenario shows its run status and probability; a no-variation notice appears only when all scenarios succeeded and their returned numbers are exactly equal. A single scenario or identical evidence in different rows is valid.
 
 ### BN-86 — Run hazard convolution for a fault tree
 
 1. Enable a valid hazard grid.
-2. Set **Evidence** to **Hazard-grid convolution**.
-3. Choose an affected top event.
-4. Click **Run hazard convolution**.
+2. In the batch workflow, select **Hazard convolution** under **Batch type**.
+3. Choose a linked top event.
+4. Click **Run probability batch**.
 
 Expected: the result shows grid name, covered probability, annual scale, integrated annual frequency, and one row per scenario with its convolution weight and annual contribution.
 
-### BN-87 — Verify target relevance behavior
+### BN-87 — Verify batch target availability
 
-1. Switch between **Common evidence** and **Enabled scenarios**.
+1. Compare the linked top events in the manual and batch workflows.
+2. Try one enabled scenario, two rows with identical evidence, and evidence that leaves a target's probability unchanged.
+3. Try a BN-linked event whose unused FT probability is zero.
+4. Disable all scenarios.
 
-Expected: common-evidence mode offers every included executable FT. Batch modes offer only FTs reached by bindings from evidence nodes that actually vary, and exclude targets masked by constant FT logic.
+Expected: evidence and FT placeholder probabilities do not hide targets. The solver computes each valid requested scenario using the BN bindings. With no enabled scenarios, targets remain visible but the batch run button is disabled. Normal model and reference validation still applies.
 
 ## O. Event-tree HCL quantification in ESQ
 
@@ -728,29 +746,31 @@ Expected: every fault tree referenced by functional events in that event tree—
 
 Expected: the result reports the number of sequences calculated.
 
-### BN-92 — Expand event-sequence results
+### BN-92 — Inspect event-sequence results
 
-1. After BN-91, click **View sequence results**.
+1. After BN-91, inspect the sequence rows.
+2. For more than 25 sequences, use **Next**, **Last**, and **Rows per page**.
+3. Click **Export results CSV** while viewing a later page.
 
-Expected: every returned sequence shows its name, conditional probability, and annual frequency `/yr`. Click **Hide results** to collapse it.
+Expected: each visible sequence identifies its path and shows conditional probability and annual frequency `/yr`. The CSV includes every sequence, both quantities, returned end-state aggregates, and available UQ statistics. In uncertainty mode, sequence probability and annual-frequency summaries each show mean, standard deviation, minimum, maximum, median and the 5th/95th percentiles. CSV export does not calculate new end-state or hazard totals.
 
 ### BN-93 — Run an event-tree scenario batch
 
 1. Import/enable scenarios in the Systems Analysis-owned configuration.
-2. Return to ESQ Step 05 and set **Evidence** to **Enabled scenarios (n)**.
-3. Choose an affected event tree.
-4. Click **Run scenario batch**.
+2. Return to ESQ Step 05 and select **Evidence scenarios** in the batch workflow.
+3. Choose a linked event tree.
+4. Click **Run probability batch**.
 
-Expected: each row reports sequence count and summed annual frequency. The event-tree list is filtered from varying BN evidence through bindings, linked FTs, functional-event links, and transfer targets.
+Expected: each scenario summary labels the combined frequency **All outcomes**, or the selected end state. Expand a scenario to inspect individual sequences and returned end-state totals/UQ. The list retains event trees connected to the chosen HCL configuration, including transferred trees. Evidence variation does not filter this list; single and identical-evidence rows are valid.
 
 ### BN-94 — Run event-tree hazard convolution
 
 1. Enable the grid in Systems Analysis.
-2. Return to ESQ and set **Evidence** to **Hazard-grid convolution**.
-3. Choose an affected event tree.
-4. Click **Run hazard convolution**.
+2. Return to ESQ and select **Hazard convolution** in the batch workflow.
+3. Choose a linked event tree.
+4. Click **Run probability batch**.
 
-Expected: the summary shows grid name, covered probability, annual scale, and aggregated end-state count. Scenario rows show weights and annual contributions.
+Expected: the summary shows grid name, covered probability, annual scale and raw/normalized weight mode. Separate tables show integrated sequences and end states. Select **Release** to exclude safe outcomes from the view. Expand a scenario for raw/normalized/applied weights and each sequence's conditional probability, probability contribution and annual contribution. Hazard-grid UQ remains disabled.
 
 ### BN-95 — Inspect immutable run provenance
 
@@ -763,7 +783,7 @@ Expected: the record shows run status/type, exact workbook revisions, source mod
 
 ### BN-96 — Confirm destructive dialogs are styled and cancellable
 
-Open each applicable action without confirming: import replacement, delete node, delete network, delete module instance/template, delete HCL configuration, add/delete/reorder state, and reorder parents.
+Open each applicable action without confirming: import replacement, delete node, delete network, delete module instance/template, delete HCL configuration, and add/delete/reorder state. Parent reordering preserves probabilities and needs no destructive confirmation.
 
 Expected: each uses the application’s confirmation dialog, explains impact, has a clear action label, and leaves data unchanged when canceled.
 
@@ -813,3 +833,85 @@ Expected: Systems Analysis remains the source of truth for FT-related dependency
 10. BN-96 through BN-100: error, confirmation, persistence, and ownership checks.
 
 For each interaction, record: interaction ID, what you clicked, what happened, what you expected, desired change, and a screenshot if the problem is visual.
+
+
+## Task 34 regression checks
+
+- Save common evidence and scenario overrides for a BN node. Delete the node or
+  a referenced state. The evidence must remain, with a missing-reference notice;
+  invalid calculations must be blocked. Undo restores the original references.
+  Remove an observation explicitly to repair it without undoing the edit.
+- Repeat in an ESQ-owned network. Inspect a SY-owned network from ESQ in read-only
+  mode; repair its source in Systems Analysis.
+- Delay a workbook save, then simulate a save failure. BN inference and HCL
+  probability/uncertainty runs must remain disabled until a successful save.
+- Complete a manual or batch run, then edit its CPTs, evidence, bindings or
+  settings. The previous displayed result must disappear. Repeat while the
+  request is still pending; its late response must not restore that result.
+- Switch target, workflow or calculation type after a run. Previous results
+  must not appear under the new selection. Existing immutable run records remain
+  available in run history.
+
+
+### BN-35 — Source-compatible file interchange
+
+1. Export **canonical JSON**, then use **Import JSON** to reload it. This is main PRAXIS's name-based `{id, variables}` format; it carries the BN calculation data. OpenPRA JSON also carries layout, descriptions and reusable modules.
+2. Reorder CPT rows in OpenPRA JSON while keeping each row's parent-state assignments. Import it, export XDSL and reload. Each conditional probability must stay with the same parent states.
+3. Import a one-state CPT (`Only` with probability `1`), including namespace-prefixed XDSL. Save, then run inference. The marginal must be `1`.
+4. Import a cycle, repeated state code or a CPT row totaling `0.8`. Import must show an error before replacement. Invalid exports must show an error rather than download a file.
+5. Change network/node names, descriptions and positions. XDSL reload must retain them and preserve unrelated vendor extensions.
+6. Replace a network containing module instances with XDSL or canonical JSON. Old instances must disappear; independent templates remain available. Undo restores the previous model. Saved evidence and HCL links require repair if they reference replaced nodes.
+
+Node/state codes are case-sensitive, as in main. CPT row totals use main TensorBayes's `1e-6` tolerance; values are never silently normalized. New editor nodes still start with two states; at least one state is required.
+
+## Task 37 regression checks
+
+- Check BN manual and batch results with probabilities `1e-7`, `1e-15`, zero and one. Small positive values must remain visible; hover and CSV preserve the raw values.
+- Check node/state IDs and names, scenario code/name, and returned validation issues. Missing labels fall back to IDs.
+- Check 63 scenarios or sequences: pages contain 25, 25 and 13 rows. Export from page 3 and verify that all 63 are included. A new run returns to page 1.
+- Check failed and zero-weight skipped scenarios. Export keeps their status/reason and leaves absent probabilities blank.
+- Compare every exported UQ statistic and unit with the API result. End-state and hazard quantities are displayed and exported as returned; see task 38 checks below.
+- Check ordinary FT/ET result CSV controls in read-only views, including the stale flag for a previous result.
+- Source correspondence and CSV conventions are documented in [Result presentation source map](result-presentation-source-map.md).
+
+## Task 38 regression checks
+
+- Run an ET with Safe `0.009/yr` and Release `0.001/yr`. The combined `0.010/yr` is labelled **All outcomes**. Selecting Release shows only its aggregate and terminating sequences.
+- Run manual and scenario UQ. Compare all seven returned end-state statistics with the API, including `/yr`, sample count and seed. End-state percentiles must not be calculated by adding sequence percentiles. Missing UQ is labelled absent.
+- Expand an ordinary probability scenario. Verify sequence conditional probabilities, annual frequencies and end-state totals. If the selected state is absent from a scenario, show no result rather than zero.
+- Repeat with a transferred sequence. Its complete path uses both tree names; its end-state label belongs to the terminal tree. Check legacy trees without saved `endStateIds`, and raw-ID fallback when names are unavailable.
+- Run raw-weight and normalized-weight hazard grids. Compare integrated sequence/end-state numbers and each bin's weights/contributions with the API. No second weighting or annual scaling should occur. Scenario frequencies and hazard contributions remain labelled separately.
+- Check zero-weight skips, failures, and unknown sequence destinations. Unknown destinations remain inspectable under All outcomes. Hazard-grid UQ cannot be enabled.
+- Check more than 25 end states, sequences and scenarios. Changing the selected state resets pagination; a new run resets the selector. CSV always exports all outcomes and all pages, including safe states while Release is selected.
+
+
+## Task 39 regression checks
+
+- Expand **Solver diagnostics** after an HCL FT run. Compare BDD nodes, variables, actual basic-event order, bridge counters and junction-tree fields with the API result. Order must not be alphabetically resorted.
+- Run a two-row evidence batch. Compare **Batch compilation diagnostics** with the batch response. Open both scenario results: point evaluation counters belong to each row, while compilation counts cover the whole batch. Retrieve a saved result and confirm those counts remain present.
+- Repeat for ET probability and UQ. Each sequence has its own BDD diagnostics. Counters describe the point calculation only, even when UQ is enabled; sample-chunk compilations and hazard-weight queries are excluded.
+- Check an unconditional sequence: it reports that no BDD was built, rather than an invented zero-size BDD. Historical records without diagnostics show **not recorded**. Actual zero counters remain zero.
+- Check a long variable order: pages retain their original positions; a new run resets paging. Expand panels in a narrow view and confirm labels and identifiers wrap without hiding counts.
+- No GUI order override, cut-set display, importance calculation or new solver algorithm is introduced. See [source definitions](result-presentation-source-map.md#task-39-bdd-junction-tree-and-cache-diagnostics).
+
+## Task 40 regression checks
+
+- Execute FT, BN, HCL FT/ET and uncertainty batches. Compare returned values with saved/retrieved results, including scenario and compilation diagnostics.
+- In a test environment, lower `PRAETOR_NATIVE_TIMEOUT_MS` in backend and Praetor. A long run must fail with `PRAXIS_TIMEOUT`, stop its native process and retain no result. Restore the default `300000` afterward.
+- Abort a pending HTTP request. Its native process must stop, its saved run must record `PRAXIS_CANCELLED`, and a separate request must remain unaffected. This does not add a GUI Cancel button.
+- Set `PRAETOR_NATIVE_MAX_CONCURRENT=1` and hold one run open. A second native request must return `PRAXIS_BUSY`; retry after the first process exits must work.
+- Send missing/unknown `methodType` values to native validate and execute. Both must return `UNSUPPORTED_METHOD_TYPE`, never a successful validation.
+- Build Praetor and execute through its compiled HTTP service. Confirm the copied JavaScript worker matches its source; no TypeScript worker duplicate remains. Malformed native envelopes must fail before result storage.
+- See [execution sources and limits](praxis-execution-source-map.md). The quantification algorithms are unchanged.
+
+
+## Task 41 regression checks
+
+- Run ordinary FT/ET, BN, HCL FT/ET, hazard and uncertainty batches. Open **Saved analysis runs** in SY/ES/ESQ. Check saved values, complete scenario members, hazard totals, UQ and diagnostics. Reload the workbook and inspect the same run.
+- Download a saved run. Check original workbook snapshots, evidence/settings, native request, source revisions and the native build fingerprint. Replaying the request with that build must reproduce numerical results; timings may differ.
+- Change a linked DA or HRA workbook without editing the owner. On focus or the next visible 30-second check, active results must become stale. Saved history retains its original result and reports both revisions. Deleted sources are marked missing.
+- Revoke access to a contributing source project. Metadata, result and detail endpoints must refuse access; history must omit that run, and an open detail/download view must clear on refresh. Other accessible runs remain available.
+- Remove the exact DA/HRA workbook referenced by a controlled event, while leaving another workbook containing the same entity ID. Execution must request explicit relinking. It must never select the other workbook automatically.
+- Inspect more than 25 saved runs and use **Older runs**. Ordinary and legacy records remain visible when their source permissions can be verified. Missing historical native requests/build identities are labelled **not recorded**, never invented.
+- In an isolated backend test, reject the second native batch row or fail a child result write. The batch and children must all fail without retained partial results.
+- Source rules and old-record limits: [saved-run source map](analysis-run-history-source-map.md).

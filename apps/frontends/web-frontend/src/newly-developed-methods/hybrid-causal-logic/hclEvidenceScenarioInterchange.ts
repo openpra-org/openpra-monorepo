@@ -223,25 +223,9 @@ function importHclEvidenceScenariosCsv(
   return fromPortableScenarios(portable, model);
 }
 
-function mergeHclEvidenceScenarios(
-  current: readonly HclEvidenceScenario[],
-  imported: readonly HclEvidenceScenario[],
-): HclEvidenceScenario[] {
-  const importedCodes = new Set(imported.map((scenario) => normalized(scenario.code)));
-  const idsByCode = new Map(current.map((scenario) => [normalized(scenario.code), scenario.id]));
-  return [
-    ...current.filter((scenario) => !importedCodes.has(normalized(scenario.code))),
-    ...imported.map((scenario) => ({
-      ...scenario,
-      id: idsByCode.get(normalized(scenario.code)) ?? scenario.id,
-    })),
-  ];
-}
-
 export {
   exportHclEvidenceScenariosCsv,
   exportHclEvidenceScenariosJson,
   importHclEvidenceScenariosCsv,
   importHclEvidenceScenariosJson,
-  mergeHclEvidenceScenarios,
 };

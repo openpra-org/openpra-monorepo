@@ -5,7 +5,6 @@ import {
   exportHclEvidenceScenariosJson,
   importHclEvidenceScenariosCsv,
   importHclEvidenceScenariosJson,
-  mergeHclEvidenceScenarios,
 } from "../hclEvidenceScenarioInterchange";
 
 const scenario: HclEvidenceScenario = {
@@ -74,10 +73,4 @@ describe("HCL evidence-scenario interchange", () => {
     )).toThrow("unknown state 'MISSING'");
   });
 
-  it("replaces matching scenario codes while preserving their stable ids", () => {
-    const imported = { ...scenario, id: "30000000-0000-4000-8000-000000000002", name: "Updated" };
-    expect(mergeHclEvidenceScenarios([scenario], [imported])).toEqual([
-      { ...imported, id: scenario.id },
-    ]);
-  });
 });

@@ -1,3 +1,6 @@
+import { stringifyJson } from "interfaces-shared-types/json";
+import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
+import { hclEventTreeResultMetadata } from "../newly-developed-methods/hybrid-causal-logic/hclResultLabels";
 import { type JSX, useEffect, useMemo, useState } from "react";
 import type { EsqBayesianNetwork } from "interfaces-mef-types/esq/workbook-models";
 import type {
@@ -18,16 +21,19 @@ import type {
   HclEditorRunResult,
   HclEditorScenarioRunResult,
   HclEventTreeOption,
+  HclCalculationType,
   HclFaultTreeOption,
 } from "../newly-developed-methods/hybrid-causal-logic";
 import { listWorkbooks } from "../workbooks/workbookApi";
 import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
 import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
+import { analysisSaveBlock, useAnalysisScope } from "../newly-developed-methods/shared/useAnalysisScope";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import {
   getEsqHclEventTreeResult,
   runEsqHclEventTree,
   runEsqHclEventTreeBatch,
+  generateEsqHclScenarios,
 } from "./esqWorkbookApi";
 
 type DependencyOwner = "SY" | "ESQ";
@@ -87,11 +93,15 @@ function EsqEventTreeHclWorkspace({
   onNetworkAvailabilityChange,
 }: EsqEventTreeHclWorkspaceProps): JSX.Element {
   const { esq, editable, mutateEsq, runtime } = useEsqWorkbook();
+  const {sourceEpoch, sourceWarning} = useAnalysisSourceGuard("esq", runtime.workbookId);
   const [syConfigurations, setSyConfigurations] = useState<OwnedConfiguration[]>([]);
-  const [syNetworks, setSyNetworks] = useState<OwnedNetwork[]>([]);
   const [faultTrees, setFaultTrees] = useState<HclFaultTreeOption[]>([]);
   const [eventTrees, setEventTrees] = useState<HclEventTreeOption[]>([]);
-  const [selectedConfigurationKey, setSelectedConfigurationKey] = useState("");
+  const [configurationSelection, setConfigurationSelection] = useState<{
+    workbookId: string | null;
+    esqUuid: string;
+    key: string;
+  } | null>(null);
   const [sourceLoading, setSourceLoading] = useState(true);
   const [sourceError, setSourceError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
@@ -103,7 +113,6 @@ function EsqEventTreeHclWorkspace({
     let cancelled = false;
     if (runtime.projectId === null) {
       setSyConfigurations([]);
-      setSyNetworks([]);
       setFaultTrees([]);
       setEventTrees([]);
       setSourceLoading(false);
@@ -137,44 +146,11 @@ function EsqEventTreeHclWorkspace({
             basicEvents: source.mef.systemBasicEvents
               .filter((event) => usedEventIds.has(event.uuid))
               .map((event) => ({ id: event.uuid, code: event.code, name: event.name })),
-            gates: logic.gates.map((gate) => gate.gateType === "K_OF_N"
-              ? { id: gate.id, gateType: gate.gateType, k: gate.k }
-              : { id: gate.id, gateType: gate.gateType }),
-            leafNodes: logic.leafNodes.map((leaf) => {
-              if (leaf.kind === "BASIC_EVENT_REFERENCE") return { id: leaf.id, kind: leaf.kind, basicEventId: leaf.basicEventId };
-              if (leaf.kind === "HOUSE_EVENT") return { id: leaf.id, kind: leaf.kind, state: leaf.state };
-              if (leaf.kind === "TRANSFER_REFERENCE") {
-                return {
-                  id: leaf.id,
-                  kind: leaf.kind,
-                  target: {
-                    workbookId: workbook.id,
-                    modelId: leaf.target.modelId,
-                    entityId: leaf.target.entityId,
-                  },
-                };
-              }
-              return { id: leaf.id, kind: leaf.kind };
-            }),
-            gateInputs: logic.gateInputs.map(({ gateId, childId, order }) => ({ gateId, childId, order })),
-            constantBasicEventStates: Object.fromEntries(source.mef.systemBasicEvents.flatMap((event) =>
-              event.controlledDataSource === undefined && (event.probability === 0 || event.probability === 1)
-                ? [[event.uuid, event.probability === 1]]
-                : [],
-            )),
           };
         }),
       );
       const optionByKey = new Map(options.map((option) => [`${option.workbookId}:${option.modelId}`, option]));
       setFaultTrees(options);
-      setSyNetworks(systemSources.flatMap(({ workbook, source }) =>
-        (source.mef.dependencyBayesianNetworks ?? []).map((network) => ({
-          owner: "SY" as const,
-          workbookId: workbook.id,
-          workbookName: workbook.name,
-          network,
-        })),
-      ));
       setSyConfigurations(systemSources.flatMap(({ workbook, source }) => {
         const networks = new Map((source.mef.dependencyBayesianNetworks ?? []).map((network) => [network.modelId, network]));
         return (source.mef.dependencyHclConfigurations ?? []).flatMap((configuration) => {
@@ -227,22 +203,15 @@ function EsqEventTreeHclWorkspace({
             modelId: tree.uuid,
             modelCode: tree.label?.trim() || tree.name,
             modelName: tree.name,
-            sequences: connectedTrees.flatMap((connectedTree) =>
-              Object.values(connectedTree.sequences).map((sequence) => ({ id: sequence.uuid, name: sequence.name })),
-            ),
+            ...hclEventTreeResultMetadata(connectedTrees),
             faultTrees: linkedFaultTrees.map(({ workbookId, modelId }) => ({ workbookId, modelId })),
             linkedFaultTrees,
-            transferTargets: [...new Map(Object.values(tree.transfers ?? {}).map((transfer) => [
-              `${workbook.id}:${transfer.targetEventTreeId}`,
-              { workbookId: workbook.id, modelId: transfer.targetEventTreeId },
-            ])).values()],
           };
         }),
       ));
     }).catch((error: unknown) => {
       if (!cancelled) {
         setSyConfigurations([]);
-        setSyNetworks([]);
         setFaultTrees([]);
         setEventTrees([]);
         setSourceError(error instanceof Error ? error.message : "Could not load SY dependencies and ES event trees.");
@@ -251,7 +220,7 @@ function EsqEventTreeHclWorkspace({
       if (!cancelled) setSourceLoading(false);
     });
     return () => { cancelled = true; };
-  }, [runtime.projectId]);
+  }, [runtime.projectId, sourceEpoch]);
 
   const localNetworks = useMemo<OwnedNetwork[]>(() => runtime.workbookId === null ? [] : esq.bayesianNetworks.map((network) => ({
     owner: "ESQ",
@@ -276,23 +245,21 @@ function EsqEventTreeHclWorkspace({
   const matchingLocalConfigurations = useMemo(() => localConfigurations.filter((candidate) =>
     eventTrees.some((eventTree) => configurationMatchesEventTree(candidate.configuration, eventTree)),
   ), [eventTrees, localConfigurations]);
-  const relevantConfigurations = matchingSyConfigurations.length > 0
-    ? matchingSyConfigurations
-    : matchingLocalConfigurations;
-  const selected = relevantConfigurations.find((candidate) =>
-    `${candidate.owner}:${candidate.workbookId}:${candidate.configuration.modelId}` === selectedConfigurationKey,
-  ) ?? relevantConfigurations[0];
+  const relevantConfigurations = [...matchingLocalConfigurations, ...matchingSyConfigurations];
+  const selectionBelongsToWorkbook = configurationSelection?.workbookId === runtime.workbookId
+    && configurationSelection?.esqUuid === esq.uuid;
+  // Owned models may have been created or explicitly loaded as an example.
+  // Discovering a project's SY models must not select one for a blank workbook.
+  const selected = selectionBelongsToWorkbook
+    ? relevantConfigurations.find((candidate) =>
+      `${candidate.owner}:${candidate.workbookId}:${candidate.configuration.modelId}` === configurationSelection.key,
+    )
+    : matchingLocalConfigurations[0];
+  const selectedConfigurationKey = selected === undefined
+    ? ""
+    : `${selected.owner}:${selected.workbookId}:${selected.configuration.modelId}`;
 
-  useEffect(() => {
-    if (selected === undefined) {
-      setSelectedConfigurationKey("");
-      return;
-    }
-    const key = `${selected.owner}:${selected.workbookId}:${selected.configuration.modelId}`;
-    if (key !== selectedConfigurationKey) setSelectedConfigurationKey(key);
-  }, [selected, selectedConfigurationKey]);
-
-  const displayedNetwork = selected ?? localNetworks[0] ?? syNetworks[0];
+  const displayedNetwork = selected ?? localNetworks[0];
 
   useEffect(() => {
     if (!sourceLoading) onNetworkAvailabilityChange?.(displayedNetwork !== undefined);
@@ -309,33 +276,24 @@ function EsqEventTreeHclWorkspace({
     workbookId: displayedNetwork.workbookId,
   });
 
+  const saveBlockedReason = analysisSaveBlock(runtime)
+    ?? (sourceLoading ? "Wait for linked models to load." : sourceError);
+  const inputKey = stringifyJson([sourceEpoch, runtime.workbookId, runtime.revision, runtime.saveStatus,
+    esq.bayesianNetworks, esq.hclConfigurations, selected, faultTrees, eventTrees, sourceLoading, sourceError]);
+  const analysis = useAnalysisScope(inputKey!, () => {
+    setRunResult(null);
+    setBatchRunResult(null);
+    setRunError(null);
+    setRunning(false);
+  });
+
   function replaceLegacyNetwork(next: BayesianNetworkModel): void {
     if (displayedNetwork?.owner !== "ESQ") return;
-    const statesByNode = new Map(next.nodes.map((node) => [node.id, new Set(node.states.map((state) => state.id))]));
+    analysis.invalidate();
     mutateEsq((current) => ({
       ...current,
       bayesianNetworks: current.bayesianNetworks.map((candidate) =>
         candidate.modelId === next.modelId ? next as EsqBayesianNetwork : candidate,
-      ),
-      hclConfigurations: current.hclConfigurations.map((configuration) =>
-        configuration.bayesianNetwork.modelId === next.modelId
-          ? {
-              ...configuration,
-              baseEvidence: {
-                observations: configuration.baseEvidence.observations.filter((observation) =>
-                  statesByNode.get(observation.nodeId)?.has(observation.stateId) === true,
-                ),
-              },
-              evidenceScenarios: (configuration.evidenceScenarios ?? []).map((scenario) => ({
-                ...scenario,
-                evidence: {
-                  observations: scenario.evidence.observations.filter((observation) =>
-                    statesByNode.get(observation.nodeId)?.has(observation.stateId) === true,
-                  ),
-                },
-              })),
-            }
-          : configuration,
       ),
     }));
   }
@@ -346,12 +304,11 @@ function EsqEventTreeHclWorkspace({
       ...current,
       bayesianNetworks: [...current.bayesianNetworks, created],
     }));
-    setRunResult(null);
-    setBatchRunResult(null);
   }
 
   function replaceLegacyEvidence(next: BayesianNetworkEvidenceConfiguration): void {
     if (displayedNetwork?.owner !== "ESQ") return;
+    analysis.invalidate();
     mutateEsq((current) => ({
       ...current,
       hclConfigurations: current.hclConfigurations.map((configuration) =>
@@ -360,12 +317,13 @@ function EsqEventTreeHclWorkspace({
           : configuration,
       ),
     }));
-    setRunResult(null);
-    setBatchRunResult(null);
   }
 
-  async function runEventTree(configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption): Promise<void> {
+  async function runEventTree(configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, calculationType: HclCalculationType): Promise<void> {
+    if (saveBlockedReason !== null) { setRunError(saveBlockedReason); return; }
     if (runtime.workbookId === null || runtime.revision === null || selected === undefined) return;
+    analysis.invalidate();
+    const isCurrent = analysis.capture();
     setRunning(true);
     setRunError(null);
     try {
@@ -374,6 +332,7 @@ function EsqEventTreeHclWorkspace({
         configuration.modelId,
         runtime.revision,
         { workbookId: eventTree.workbookId, modelId: eventTree.modelId },
+        calculationType,
         selected.owner === "SY"
           ? { workbookId: selected.workbookId, modelId: configuration.modelId }
           : undefined,
@@ -382,12 +341,14 @@ function EsqEventTreeHclWorkspace({
         throw new Error(execution.run.failure?.message ?? `HCL event-tree quantification did not complete (${execution.run.status}).`);
       }
       const result = await getEsqHclEventTreeResult(runtime.workbookId, configuration.modelId, execution.run.id);
+      if (!isCurrent()) return;
       setRunResult({ kind: "EVENT_TREE", result });
       setBatchRunResult(null);
     } catch (error) {
+      if (!isCurrent()) return;
       setRunError(error instanceof Error ? error.message : "HCL event-tree quantification failed.");
     } finally {
-      setRunning(false);
+      if (isCurrent()) setRunning(false);
       onRunComplete?.();
     }
   }
@@ -397,8 +358,12 @@ function EsqEventTreeHclWorkspace({
     eventTree: HclEventTreeOption,
     scenarioIds: string[],
     integrateHazardGrid: boolean,
+    calculationType: HclCalculationType,
   ): Promise<void> {
+    if (saveBlockedReason !== null) { setRunError(saveBlockedReason); return; }
     if (runtime.workbookId === null || runtime.revision === null || selected === undefined) return;
+    analysis.invalidate();
+    const isCurrent = analysis.capture();
     setRunning(true);
     setRunError(null);
     try {
@@ -407,11 +372,13 @@ function EsqEventTreeHclWorkspace({
         configuration.modelId,
         runtime.revision,
         { workbookId: eventTree.workbookId, modelId: eventTree.modelId },
+        calculationType,
         scenarioIds,
         integrateHazardGrid,
         selected.owner === "SY"
           ? { workbookId: selected.workbookId, modelId: configuration.modelId }
           : undefined,
+        { evidenceScenarios: configuration.evidenceScenarios ?? [], hazardGrid: configuration.hazardGrid },
       );
       const scenarios: HclEditorScenarioRunResult[] = await Promise.all(execution.runs.map(async (scenario) => ({
         scenarioId: scenario.scenarioId,
@@ -424,23 +391,26 @@ function EsqEventTreeHclWorkspace({
           result: await getEsqHclEventTreeResult(runtime.workbookId!, configuration.modelId, scenario.run.id),
         },
       })));
+      if (!isCurrent()) return;
       setBatchRunResult({
         kind: "EVENT_TREE",
         scenarios,
         ...(execution.hazardConvolution === undefined ? {} : { hazardConvolution: execution.hazardConvolution }),
+        ...(execution.compilationReuse === undefined ? {} : { compilationReuse: execution.compilationReuse }),
       });
       setRunResult(null);
     } catch (error) {
+      if (!isCurrent()) return;
       setRunError(error instanceof Error ? error.message : "HCL event-tree scenario batch failed.");
     } finally {
-      setRunning(false);
+      if (isCurrent()) setRunning(false);
       onRunComplete?.();
     }
   }
 
   return (
     <section className="poscard esq-hcl-et" aria-label="Event tree Bayesian dependency quantification">
-      <div className="poscard__head">
+      <div className="poscard__head bneditor__network-head">
         <div className="esq-hcl-et__intro">
           <h3 className="poscard__title">Event tree Bayesian dependency network</h3>
           {displayedNetwork !== undefined && <p className="poscard__sub">Inspect the dependency network and quantify event trees. Linked fault trees are derived automatically.</p>}
@@ -451,14 +421,15 @@ function EsqEventTreeHclWorkspace({
             Add network
           </button>
         )}
-        {displayedNetwork !== undefined && relevantConfigurations.length > 0 && (
+        {relevantConfigurations.length > 0 && (
           <label className="esq-hcl-et__configuration">
             <span>Dependency configuration</span>
             <select className="posfield__select" aria-label="Dependency configuration" value={selectedConfigurationKey} onChange={(event) => {
-              setSelectedConfigurationKey(event.target.value);
+              setConfigurationSelection({ workbookId: runtime.workbookId, esqUuid: esq.uuid, key: event.target.value });
               setRunResult(null);
               setBatchRunResult(null);
             }}>
+              <option value="">Choose a dependency configuration</option>
               {relevantConfigurations.map((candidate) => (
                 <option
                   key={`${candidate.owner}:${candidate.workbookId}:${candidate.configuration.modelId}`}
@@ -476,7 +447,14 @@ function EsqEventTreeHclWorkspace({
       {displayedNetwork !== undefined && (
         <BayesianNetworkEditor
           model={displayedNetwork.network}
+          saveBlockedReason={saveBlockedReason}
+          onAnalysisInputChange={analysis.invalidate}
           editable={displayedNetwork.owner === "ESQ" && editable}
+          readOnlyNotice={displayedNetwork.owner === "SY" ? {
+            message: `This network is linked from ${displayedNetwork.workbookName} and is read-only here. Open that workbook's Dependencies step to import XDSL or manage groups.`,
+            sourceHref: `/sy-workbooks/${encodeURIComponent(displayedNetwork.workbookId)}`,
+            sourceLabel: "Open Systems workbook",
+          } : undefined}
           showQueryAnalysis={false}
           hclScope="EVENT_TREE"
           evidence={evidence}
@@ -490,18 +468,24 @@ function EsqEventTreeHclWorkspace({
           faultTreeOptions={faultTrees}
           eventTreeOptions={eligibleEventTrees}
           hclRunning={running}
-          hclRunError={runError}
+          hclRunError={runError ?? sourceWarning}
           hclRunResult={runResult}
           hclBatchRunResult={batchRunResult}
           onModelChange={replaceLegacyNetwork}
           onEvidenceChange={replaceLegacyEvidence}
           onQueryNodeChange={() => undefined}
           onHclConfigurationsChange={() => undefined}
+          onGenerateHclScenarios={async (configuration, spec) => {
+            if (saveBlockedReason !== null) throw new Error(saveBlockedReason);
+            if (runtime.workbookId === null || runtime.revision === null || selected === undefined) throw new Error("Save the workbook first.");
+            return (await generateEsqHclScenarios(runtime.workbookId, configuration.modelId, runtime.revision, spec,
+              selected.owner === "SY" ? { workbookId: selected.workbookId, modelId: configuration.modelId } : undefined)).scenarios;
+          }}
           onRunHclFaultTree={() => undefined}
-          onRunHclEventTree={(configuration, eventTree) => { void runEventTree(configuration, eventTree); }}
+          onRunHclEventTree={(configuration, eventTree, calculationType) => { void runEventTree(configuration, eventTree, calculationType); }}
           onRunHclFaultTreeBatch={() => undefined}
-          onRunHclEventTreeBatch={(configuration, eventTree, scenarioIds, integrateHazardGrid) => {
-            void runEventTreeBatch(configuration, eventTree, scenarioIds, integrateHazardGrid);
+          onRunHclEventTreeBatch={(configuration, eventTree, scenarioIds, integrateHazardGrid, calculationType) => {
+            void runEventTreeBatch(configuration, eventTree, scenarioIds, integrateHazardGrid, calculationType);
           }}
           onRun={() => undefined}
         />

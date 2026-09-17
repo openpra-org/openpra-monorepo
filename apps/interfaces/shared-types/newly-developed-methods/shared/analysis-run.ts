@@ -12,7 +12,7 @@ import { WorkbookMethodHostTypeSchema } from "./workbook-dependencies";
 const CURRENT_ANALYSIS_RUN_SCHEMA_VERSION = "1.0.0" as const;
 const AnalysisRunSchemaVersionSchema = z.literal(CURRENT_ANALYSIS_RUN_SCHEMA_VERSION);
 const AnalysisRunIdSchema = z.string().uuid("Analysis run id must be a UUID");
-const AnalysisRunStatusSchema = z.enum(["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"]);
+const AnalysisRunStatusSchema = z.enum(["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "SKIPPED"]);
 
 const AnalysisEngineMetadataSchema = z.object({
   name: z.string().trim().min(1, "Analysis engine name is required"),
@@ -33,6 +33,7 @@ const OptionalRunTimestampSchema = z.string().datetime({ offset: true }).nullabl
 const AnalysisRunWorkbookSnapshotSchema = z
   .object({
     hostType: WorkbookMethodHostTypeSchema,
+    projectId: z.string().min(1).optional(),
     identity: WorkbookSnapshotIdentitySchema,
     mef: z.record(z.string(), z.unknown()),
   })
@@ -82,10 +83,7 @@ const ImmutableAnalysisRunContextSchema = z
     }
 
     const snapshotRevisions = new Map(
-      context.workbookSnapshots.map((snapshot) => [
-        snapshot.identity.workbookId,
-        snapshot.identity.workbookRevision,
-      ]),
+      context.workbookSnapshots.map((snapshot) => [snapshot.identity.workbookId, snapshot.identity.workbookRevision]),
     );
     if (
       sourceRevisions.size !== snapshotRevisions.size ||
@@ -101,6 +99,22 @@ const ImmutableAnalysisRunContextSchema = z
     }
   });
 
+const AnalysisRunFreshnessSchema = z
+  .object({
+    status: z.enum(["CURRENT", "STALE", "UNKNOWN"]),
+    sources: z.array(
+      z
+        .object({
+          workbookId: z.string().min(1),
+          savedRevision: z.number().int().nonnegative(),
+          currentRevision: z.number().int().nonnegative().nullable(),
+          status: z.enum(["CURRENT", "CHANGED", "MISSING"]),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+
 const AnalysisRunMetadataSchema = z
   .object({
     schemaVersion: AnalysisRunSchemaVersionSchema,
@@ -108,6 +122,9 @@ const AnalysisRunMetadataSchema = z
     owner: WorkbookModelSnapshotIdentitySchema,
     sourceWorkbooks: z.array(WorkbookSnapshotIdentitySchema).min(1),
     methodType: MethodTypeSchema,
+    scope: z.enum(["SINGLE", "BATCH", "SCENARIO"]).optional(),
+    batchId: AnalysisRunIdSchema.nullable().optional(),
+    freshness: AnalysisRunFreshnessSchema.optional(),
     status: AnalysisRunStatusSchema,
     requestedBy: z.string().trim().min(1, "Requester id is required"),
     requestedAt: z.string().datetime({ offset: true }),
@@ -146,19 +163,22 @@ const AnalysisRunMetadataSchema = z
       });
     }
 
-    if (run.status === "RUNNING" && (run.startedAt === null || run.completedAt !== null || run.engine === null)) {
+    if (run.status === "RUNNING" && (run.startedAt === null || run.completedAt !== null)) {
       context.addIssue({
         code: "custom",
         path: ["status"],
-        message: "Running runs require start and engine metadata and cannot be completed",
+        message: "Running runs require a start timestamp and cannot be completed",
       });
     }
 
-    if ((run.status === "SUCCEEDED" || run.status === "FAILED") && (run.startedAt === null || run.completedAt === null || run.engine === null)) {
+    if (
+      (run.status === "SUCCEEDED" || run.status === "FAILED") &&
+      (run.startedAt === null || run.completedAt === null)
+    ) {
       context.addIssue({
         code: "custom",
         path: ["status"],
-        message: "Succeeded and failed runs require start, completion, and engine metadata",
+        message: "Succeeded and failed runs require start and completion timestamps",
       });
     }
 
@@ -177,11 +197,11 @@ const AnalysisRunMetadataSchema = z
       });
     }
 
-    if (run.status === "CANCELLED" && run.completedAt === null) {
+    if ((run.status === "CANCELLED" || run.status === "SKIPPED") && run.completedAt === null) {
       context.addIssue({
         code: "custom",
         path: ["completedAt"],
-        message: "Cancelled runs require a completion timestamp",
+        message: "Cancelled and skipped runs require a completion timestamp",
       });
     }
 
@@ -232,7 +252,15 @@ const HclEventTreeRunTargetSchema = z
   })
   .strict();
 
+const WorkbookModelRunTargetSchema = z
+  .object({
+    targetType: z.enum(["FAULT_TREE", "EVENT_TREE"]),
+    model: WorkbookModelSnapshotIdentitySchema,
+  })
+  .strict();
+
 const AnalysisRunTargetSchema = z.discriminatedUnion("targetType", [
+  WorkbookModelRunTargetSchema,
   BayesianNetworkQueryRunTargetSchema,
   HclFaultTreeRunTargetSchema,
   HclEventTreeRunTargetSchema,
@@ -293,10 +321,12 @@ const AnalysisRunTraceSchema = z
 const AnalysisRunProvenanceSchema = z
   .object({
     run: AnalysisRunMetadataSchema,
-    ...AnalysisRunTraceSchema.shape,
+    target: AnalysisRunTargetSchema.nullable(),
+    contributions: z.array(AnalysisRunContributionSchema).nullable(),
   })
   .strict()
   .superRefine((provenance, context) => {
+    if (provenance.target === null || provenance.contributions === null) return;
     const sourceRevisions = new Map(
       provenance.run.sourceWorkbooks.map((source) => [source.workbookId, source.workbookRevision]),
     );
@@ -319,11 +349,11 @@ const AnalysisRunProvenanceSchema = z
       });
     }
 
-    const owner = provenance.target.targetType === "BAYESIAN_NETWORK_QUERY"
-      ? provenance.target.model
-      : provenance.target.targetType === "HCL_EVENT_TREE" && provenance.target.orchestrator !== undefined
-        ? provenance.target.orchestrator
-        : provenance.target.configuration;
+    const owner =
+      "model" in provenance.target ? provenance.target.model
+      : provenance.target.targetType === "HCL_EVENT_TREE" && provenance.target.orchestrator !== undefined ?
+        provenance.target.orchestrator
+      : provenance.target.configuration;
     if (
       owner.workbookId !== provenance.run.owner.workbookId ||
       owner.workbookRevision !== provenance.run.owner.workbookRevision ||
@@ -341,6 +371,20 @@ const AnalysisRunProvenanceListSchema = z
   .object({
     schemaVersion: AnalysisRunSchemaVersionSchema,
     runs: z.array(AnalysisRunProvenanceSchema),
+    nextCursor: z.string().nullable().optional(),
+  })
+  .strict();
+
+const AnalysisRunDetailsSchema = z
+  .object({
+    run: AnalysisRunMetadataSchema,
+    target: AnalysisRunTargetSchema.nullable(),
+    contributions: z.array(AnalysisRunContributionSchema).nullable(),
+    request: z.record(z.string(), z.unknown()),
+    nativeRequest: z.record(z.string(), z.unknown()).nullable(),
+    workbookSnapshots: AnalysisRunWorkbookSnapshotsSchema,
+    result: z.unknown().nullable(),
+    members: z.array(z.object({ run: AnalysisRunMetadataSchema, result: z.unknown().nullable() }).strict()).optional(),
   })
   .strict();
 
@@ -368,12 +412,12 @@ const freezeRecursively = <T>(value: T): T => {
   return Object.freeze(value);
 };
 
-const createImmutableAnalysisRunContext = (
-  input: ImmutableAnalysisRunContext,
-): ImmutableAnalysisRunContext =>
+const createImmutableAnalysisRunContext = (input: ImmutableAnalysisRunContext): ImmutableAnalysisRunContext =>
   freezeRecursively(ImmutableAnalysisRunContextSchema.parse(input));
 
 export {
+  AnalysisRunFreshnessSchema,
+  AnalysisRunDetailsSchema,
   CURRENT_ANALYSIS_RUN_SCHEMA_VERSION,
   AnalysisRunSchemaVersionSchema,
   AnalysisRunIdSchema,
@@ -395,6 +439,8 @@ export {
   createImmutableAnalysisRunContext,
 };
 export type {
+  AnalysisRunFreshness,
+  AnalysisRunDetails,
   AnalysisRunSchemaVersion,
   AnalysisRunId,
   AnalysisRunStatus,
@@ -413,3 +459,6 @@ export type {
   AnalysisRunProvenance,
   AnalysisRunProvenanceList,
 };
+
+type AnalysisRunFreshness = z.infer<typeof AnalysisRunFreshnessSchema>;
+type AnalysisRunDetails = z.infer<typeof AnalysisRunDetailsSchema>;

@@ -51,7 +51,7 @@ type EventTreeOperation =
   | { kind: "DELETE_FUNCTIONAL_EVENT"; functionalEventId: string }
   | { kind: "SET_SEQUENCE_END_STATE"; sequenceId: string; endState: "SUCCESSFUL_MITIGATION" | "RADIONUCLIDE_RELEASE" }
   | { kind: "SET_FUNCTIONAL_EVENT_BYPASS"; sequenceId: string; functionalEventId: string; bypassed: boolean }
-  | { kind: "SET_SEQUENCE_TRANSFER"; sequenceId: string; targetEventTreeId: string | null; targetSequenceId?: string }
+  | { kind: "SET_SEQUENCE_TRANSFER"; sequenceId: string; targetEventTreeId: string | null }
   | { kind: "SET_FAULT_TREE_REFERENCE"; functionalEventId: string; reference: FaultTreeTopEventReference | undefined }
   | { kind: "REPLACE"; model: EventTree };
 

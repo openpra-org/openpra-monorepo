@@ -1,80 +1,69 @@
 import { BadGatewayException, Injectable } from "@nestjs/common";
-import { z } from "zod";
+import { stringifyJson } from "interfaces-shared-types/json";
+import {
+  nativeExecutionTimeout,
+  NATIVE_DEADLINE_HEADER,
+  NATIVE_TRANSPORT_GRACE_MS,
+  parseNativeResponse,
+  type NativeResponse,
+  type NativeStructuredError,
+} from "praxis-node/protocol";
+import { analysisRequestSignal } from "./analysis-cancellation.interceptor";
 
-const PraetorStructuredErrorSchema = z
-  .object({
-    kind: z.string().trim().min(1),
-    code: z.string().trim().min(1),
-    message: z.string().trim().min(1),
-    details: z.record(z.string(), z.unknown()),
-  })
-  .strict();
-
-const PraetorNativeResponseSchema = z
-  .object({
-    schemaVersion: z.literal("1.0.0"),
-    result: z.unknown().optional(),
-    error: PraetorStructuredErrorSchema.optional(),
-  })
-  .strict()
-  .superRefine((response, context) => {
-    if ((response.result === undefined) === (response.error === undefined)) {
-      context.addIssue({
-        code: "custom",
-        path: [],
-        message: "PRAXIS response must contain exactly one of result or error",
-      });
-    }
-  });
-
-type PraetorStructuredError = z.infer<typeof PraetorStructuredErrorSchema>;
-type PraetorNativeResponse = z.infer<typeof PraetorNativeResponseSchema>;
+type PraetorStructuredError = NativeStructuredError;
+type PraetorNativeResponse = NativeResponse;
 
 @Injectable()
 class PraetorAnalysisClient {
   async execute(request: unknown): Promise<PraetorNativeResponse> {
     const baseUrl = (process.env["PRAETOR_URL"] ?? "http://localhost:3000/q").replace(/\/$/, "");
-    let response: Response;
+    const timeoutMs = nativeExecutionTimeout();
+    const cancelled = analysisRequestSignal.getStore();
+    const timeout = AbortSignal.timeout(timeoutMs + NATIVE_TRANSPORT_GRACE_MS);
+    const signal = cancelled === undefined ? timeout : AbortSignal.any([cancelled, timeout]);
     try {
-      response = await fetch(`${baseUrl}/praxis/native/execute`, {
+      const response = await fetch(`${baseUrl}/praxis/native/execute`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(request),
-        signal: AbortSignal.timeout(300_000),
+        headers: { "content-type": "application/json", [NATIVE_DEADLINE_HEADER]: String(Date.now() + timeoutMs) },
+        body: stringifyJson(request),
+        signal,
       });
-    }
-    catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new BadGatewayException(`Unable to reach Praetor: ${message}`);
-    }
-
-    if (!response.ok) {
-      const body = await response.text();
+      if (!response.ok) {
+        const body = await response.text();
+        throw new BadGatewayException(`Praetor returned HTTP ${response.status}${body.length > 0 ? `: ${body}` : ""}`);
+      }
+      let body: unknown;
+      try {
+        body = await response.json();
+      } catch (error) {
+        if (signal.aborted) throw error;
+        throw new BadGatewayException(
+          `Praetor returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      try {
+        return parseNativeResponse(body);
+      } catch {
+        throw new BadGatewayException("Praetor returned an invalid native solver response");
+      }
+    } catch (error) {
+      if (signal.aborted)
+        return {
+          schemaVersion: "1.0.0",
+          error: {
+            kind: "EXECUTION_ERROR",
+            code: cancelled?.aborted ? "PRAXIS_CANCELLED" : "PRAXIS_TIMEOUT",
+            message: cancelled?.aborted ? "Analysis request was cancelled" : "Praetor execution response timed out",
+            details: {},
+          },
+        };
+      if (error instanceof BadGatewayException) throw error;
       throw new BadGatewayException(
-        `Praetor returned HTTP ${response.status}${body.length > 0 ? `: ${body}` : ""}`,
+        `Unable to reach Praetor: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
-
-    let body: unknown;
-    try {
-      body = await response.json();
-    }
-    catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new BadGatewayException(`Praetor returned invalid JSON: ${message}`);
-    }
-
-    const parsed = PraetorNativeResponseSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadGatewayException("Praetor returned an invalid native solver response");
-    }
-    return parsed.data;
   }
 }
 
-export {
-  PraetorAnalysisClient,
-  PraetorNativeResponseSchema,
-  PraetorStructuredErrorSchema,
-};
+export { PraetorAnalysisClient };
 export type { PraetorNativeResponse, PraetorStructuredError };

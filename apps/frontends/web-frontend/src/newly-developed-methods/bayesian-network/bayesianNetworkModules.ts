@@ -7,8 +7,9 @@ import type {
   BayesianNetworkModuleTemplate,
   BayesianNetworkNode,
 } from "interfaces-mef-types/modeling";
-import type { BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
-import { descendants, newId } from "./bayesianNetworkOperations";
+import { BayesianNetworkModelSchema, validateBayesianNetworkModel, type BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
+import { removeBayesianNetworkXdslNodes } from "./bayesianNetworkInterchange";
+import { descendants, newId, rebuildCpt } from "./bayesianNetworkOperations";
 
 type IdFactory = () => string;
 
@@ -16,6 +17,12 @@ interface BayesianNetworkModuleInstantiationOptions {
   code?: string;
   name?: string;
   inputBindings?: BayesianNetworkModuleInputBinding[];
+}
+
+function assertValidModuleModel(model: BayesianNetworkModel): void {
+  BayesianNetworkModelSchema.parse(model);
+  const errors = validateBayesianNetworkModel(model).filter((issue) => issue.severity === "ERROR");
+  if (errors.length > 0) throw new Error(errors.map((issue) => issue.message).join("; "));
 }
 
 function normalizedCode(value: string): string {
@@ -98,14 +105,8 @@ function createBayesianNetworkModuleFromBranch(
   const root = model.nodes.find((node) => node.id === rootNodeId);
   if (root === undefined) throw new Error("Select a node before creating a reusable module.");
 
+  assertValidModuleModel(model);
   const selectedIds = new Set([rootNodeId, ...descendants(model, rootNodeId)]);
-  const missingCptNode = model.nodes.find(
-    (node) => selectedIds.has(node.id)
-      && model.conditionalProbabilityTables.filter((table) => table.nodeId === node.id).length !== 1,
-  );
-  if (missingCptNode !== undefined) {
-    throw new Error(`Node ${missingCptNode.code} needs one valid CPT before its branch can become a module.`);
-  }
   const externalParentIds = new Set(
     model.edges
       .filter((edge) => selectedIds.has(edge.childNodeId) && !selectedIds.has(edge.parentNodeId))
@@ -166,7 +167,7 @@ function createBayesianNetworkModuleFromBranch(
   const template: BayesianNetworkModuleTemplate = {
     id: idFactory(),
     code: templateCode,
-    name: `${root.name} module`,
+    name: `${root.name} module`.slice(0, 200),
     description: `Reusable Bayesian-network branch rooted at ${root.code}.`,
     nodes: internalNodes,
     edges,
@@ -181,20 +182,20 @@ function createBayesianNetworkModuleFromBranch(
       nodeId: nodeIds.get(node.id)!,
     })),
   };
-  return {
-    model: { ...model, moduleTemplates: [...existingTemplates, template] },
-    templateId: template.id,
-  };
+  const next = { ...model, moduleTemplates: [...existingTemplates, template] };
+  assertValidModuleModel(next);
+  return { model: next, templateId: template.id };
 }
 
 function compatibleBayesianNetworkModuleInputNodes(
   model: BayesianNetworkModel,
   port: BayesianNetworkModuleInputPort,
 ): BayesianNetworkNode[] {
-  const expected = new Set(port.node.states.map((state) => normalizedCode(state.code)));
+  const expected = new Set(port.node.states.map((state) => state.code.trim()));
   return model.nodes.filter((node) => {
-    const actual = new Set(node.states.map((state) => normalizedCode(state.code)));
-    return actual.size === expected.size && [...expected].every((code) => actual.has(code));
+    const actual = new Set(node.states.map((state) => state.code.trim()));
+    return node.states.length === port.node.states.length && actual.size === node.states.length
+      && expected.size === port.node.states.length && [...expected].every((code) => actual.has(code));
   });
 }
 
@@ -203,11 +204,11 @@ function stateMappingByCode(
   targetNode: BayesianNetworkNode,
 ): Map<string, string> {
   const targetStateByCode = new Map(
-    targetNode.states.map((state) => [normalizedCode(state.code), state.id]),
+    targetNode.states.map((state) => [state.code.trim(), state.id]),
   );
   const mapping = new Map<string, string>();
   templateNode.states.forEach((state) => {
-    const stateId = targetStateByCode.get(normalizedCode(state.code));
+    const stateId = targetStateByCode.get(state.code.trim());
     if (stateId === undefined) {
       throw new Error(
         `Input ${templateNode.code} requires states ${templateNode.states.map(({ code }) => code).join(", ")}.`,
@@ -250,6 +251,7 @@ function instantiateBayesianNetworkModule(
   const template = model.moduleTemplates?.find((candidate) => candidate.id === templateId);
   if (template === undefined) throw new Error("The selected reusable module no longer exists.");
 
+  assertValidModuleModel(model);
   const suppliedBindings = options.inputBindings ?? [];
   const bindingByPortId = new Map(suppliedBindings.map((binding) => [binding.portId, binding.nodeId]));
   if (bindingByPortId.size !== suppliedBindings.length) {
@@ -276,7 +278,7 @@ function instantiateBayesianNetworkModule(
     options.code ?? `${template.code}-1`,
     [...existingInstances.map((instance) => instance.code), ...model.nodes.map((node) => node.code)],
   );
-  const instanceName = options.name?.trim() || `${template.name} instance`;
+  const instanceName = options.name?.trim() || `${template.name} instance`.slice(0, 200);
   const usedNodeCodes = [...model.nodes.map((node) => node.code)];
   const materializedNodes: BayesianNetworkNode[] = [];
   const nodeMappings: BayesianNetworkModuleNodeMapping[] = [];
@@ -357,18 +359,16 @@ function instantiateBayesianNetworkModule(
     nodeMappings,
     outputBindings,
   };
-  return {
-    model: {
-      ...model,
-      nodes: [...model.nodes, ...materializedNodes],
-      edges: allEdges,
-      conditionalProbabilityTables: [...model.conditionalProbabilityTables, ...materializedTables],
-      nodePositions: [...model.nodePositions, ...materializedPositions],
-      moduleInstances: [...existingInstances, instance],
-    },
-    instanceId: instance.id,
-    outputNodeIds: outputBindings.map((binding) => binding.nodeId),
+  const next: BayesianNetworkModel = {
+    ...model,
+    nodes: [...model.nodes, ...materializedNodes],
+    edges: allEdges,
+    conditionalProbabilityTables: [...model.conditionalProbabilityTables, ...materializedTables],
+    nodePositions: [...model.nodePositions, ...materializedPositions],
+    moduleInstances: [...existingInstances, instance],
   };
+  assertValidModuleModel(next);
+  return { model: next, instanceId: instance.id, outputNodeIds: outputBindings.map((binding) => binding.nodeId) };
 }
 
 function deleteBayesianNetworkModuleInstance(
@@ -403,56 +403,12 @@ function deleteBayesianNetworkModuleInstance(
     ),
     nodePositions: model.nodePositions.filter((entry) => !materializedNodeIds.has(entry.nodeId)),
     moduleInstances: model.moduleInstances?.filter((candidate) => candidate.id !== instanceId),
-    ...(model.xdslMetadata === undefined
-      ? {}
-      : {
-          xdslMetadata: {
-            ...model.xdslMetadata,
-            nodeIdentifiers: model.xdslMetadata.nodeIdentifiers.filter(
-              (identifier) => !materializedNodeIds.has(identifier.nodeId),
-            ),
-          },
-        }),
+    ...(model.xdslMetadata === undefined ? {} : {
+      xdslMetadata: removeBayesianNetworkXdslNodes(model, materializedNodeIds, new Set([instance.code])),
+    }),
   };
   affectedChildIds.forEach((childId) => {
-    const child = next.nodes.find((node) => node.id === childId);
-    if (child === undefined) return;
-    const incomingIds = new Set(
-      next.edges.filter((edge) => edge.childNodeId === childId).map((edge) => edge.parentNodeId),
-    );
-    const current = next.conditionalProbabilityTables.find((table) => table.nodeId === childId);
-    const parents = (current?.parents ?? [])
-      .filter((parent) => incomingIds.has(parent.nodeId))
-      .map((parent, order) => ({ nodeId: parent.nodeId, order }));
-    const probability = 1 / child.states.length;
-    let combinations: Array<Array<{ parentNodeId: string; stateId: string }>> = [[]];
-    parents.forEach((parent) => {
-      const parentNode = next.nodes.find((node) => node.id === parent.nodeId);
-      combinations = parentNode === undefined
-        ? []
-        : combinations.flatMap((combination) =>
-            parentNode.states.map((state) => [
-              ...combination,
-              { parentNodeId: parent.nodeId, stateId: state.id },
-            ]),
-          );
-    });
-    const rebuilt: BayesianNetworkConditionalProbabilityTable = {
-      nodeId: childId,
-      parents,
-      rows: combinations.map((parentStates) => ({
-        id: newId(),
-        parentStates,
-        values: child.states.map((state) => ({ stateId: state.id, probability })) as BayesianNetworkConditionalProbabilityTable["rows"][number]["values"],
-      })),
-    };
-    next = {
-      ...next,
-      conditionalProbabilityTables: [
-        ...next.conditionalProbabilityTables.filter((table) => table.nodeId !== childId),
-        rebuilt,
-      ],
-    };
+    next = rebuildCpt(next, childId);
   });
   return next;
 }

@@ -34,6 +34,9 @@ import {
   HclSolverSettingsSchema,
 } from "./hcl-schemas";
 
+const HclCalculationTypeSchema = z.enum(["PROBABILITY", "UNCERTAINTY"]);
+type HclCalculationType = z.infer<typeof HclCalculationTypeSchema>;
+
 interface HclCreateRequest {
   schemaVersion: WorkbookMethodSchemaVersion;
   modelId: WorkbookModelId;
@@ -71,6 +74,7 @@ interface HclValidateRequest {
 }
 
 interface HclExecuteRequest {
+  calculationType: HclCalculationType;
   schemaVersion: WorkbookMethodSchemaVersion;
   modelId: WorkbookModelId;
   workbookRevision: WorkbookRevision;
@@ -79,6 +83,7 @@ interface HclExecuteRequest {
 }
 
 interface HclEventTreeExecuteRequest {
+  calculationType: HclCalculationType;
   schemaVersion: WorkbookMethodSchemaVersion;
   modelId: WorkbookModelId;
   workbookRevision: WorkbookRevision;
@@ -87,22 +92,39 @@ interface HclEventTreeExecuteRequest {
   evidenceScenarioId?: WorkbookEntityId;
 }
 
+const HclBatchInputSchema = z.object({
+  evidenceScenarios: z.array(HclEvidenceScenarioSchema).min(1),
+  hazardGrid: HclHazardGridDefinitionSchema.optional(),
+}).strict().superRefine((input, context) => {
+  for (const key of ["id", "code"] as const) {
+    const values = input.evidenceScenarios.map((row) => row[key].trim().toLowerCase());
+    if (new Set(values).size !== values.length) {
+      context.addIssue({ code: "custom", path: ["evidenceScenarios"], message: `Scenario ${key}s must be unique` });
+    }
+  }
+});
+type HclBatchInput = z.infer<typeof HclBatchInputSchema>;
+
 interface HclFaultTreeBatchExecuteRequest {
+  calculationType: HclCalculationType;
   schemaVersion: WorkbookMethodSchemaVersion;
   modelId: WorkbookModelId;
   workbookRevision: WorkbookRevision;
   faultTreeTopGate: FaultTreeTopEventReference;
   evidenceScenarioIds: WorkbookEntityId[];
+  batchInput?: HclBatchInput;
   integrateHazardGrid?: boolean;
 }
 
 interface HclEventTreeBatchExecuteRequest {
+  calculationType: HclCalculationType;
   schemaVersion: WorkbookMethodSchemaVersion;
   modelId: WorkbookModelId;
   workbookRevision: WorkbookRevision;
   eventTree: WorkbookModelAddress;
   dependencyConfiguration?: WorkbookModelAddress;
   evidenceScenarioIds: WorkbookEntityId[];
+  batchInput?: HclBatchInput;
   integrateHazardGrid?: boolean;
 }
 
@@ -153,6 +175,7 @@ const HclValidateRequestSchema = z
 
 const HclExecuteRequestSchema = z
   .object({
+    calculationType: HclCalculationTypeSchema.default("PROBABILITY"),
     schemaVersion: WorkbookMethodSchemaVersionSchema,
     modelId: WorkbookModelIdSchema,
     workbookRevision: WorkbookRevisionSchema,
@@ -163,6 +186,7 @@ const HclExecuteRequestSchema = z
 
 const HclEventTreeExecuteRequestSchema = z
   .object({
+    calculationType: HclCalculationTypeSchema.default("PROBABILITY"),
     schemaVersion: WorkbookMethodSchemaVersionSchema,
     modelId: WorkbookModelIdSchema,
     workbookRevision: WorkbookRevisionSchema,
@@ -183,23 +207,27 @@ const EvidenceScenarioIdsSchema = z
 
 const HclFaultTreeBatchExecuteRequestSchema = z
   .object({
+    calculationType: HclCalculationTypeSchema.default("PROBABILITY"),
     schemaVersion: WorkbookMethodSchemaVersionSchema,
     modelId: WorkbookModelIdSchema,
     workbookRevision: WorkbookRevisionSchema,
     faultTreeTopGate: FaultTreeTopEventReferenceSchema,
     evidenceScenarioIds: EvidenceScenarioIdsSchema,
+    batchInput: HclBatchInputSchema.optional(),
     integrateHazardGrid: z.boolean().optional(),
   })
   .strict();
 
 const HclEventTreeBatchExecuteRequestSchema = z
   .object({
+    calculationType: HclCalculationTypeSchema.default("PROBABILITY"),
     schemaVersion: WorkbookMethodSchemaVersionSchema,
     modelId: WorkbookModelIdSchema,
     workbookRevision: WorkbookRevisionSchema,
     eventTree: WorkbookModelAddressSchema,
     dependencyConfiguration: WorkbookModelAddressSchema.optional(),
     evidenceScenarioIds: EvidenceScenarioIdsSchema,
+    batchInput: HclBatchInputSchema.optional(),
     integrateHazardGrid: z.boolean().optional(),
   })
   .strict();
@@ -222,6 +250,8 @@ type _AssertHclEventTreeBatchExecuteRequest = Expect<
 >;
 
 export {
+  HclCalculationTypeSchema,
+  HclBatchInputSchema,
   HclCreateRequestSchema,
   HclPatchChangesSchema,
   HclPatchRequestSchema,
@@ -232,6 +262,8 @@ export {
   HclEventTreeBatchExecuteRequestSchema,
 };
 export type {
+  HclCalculationType,
+  HclBatchInput,
   HclCreateRequest,
   HclPatchChanges,
   HclPatchRequest,

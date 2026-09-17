@@ -67,7 +67,7 @@ const EsqHclConfigurationBaseSchema = z
     baseEvidence: BayesianNetworkEvidenceConfigurationSchema,
     evidenceScenarios: z.array(HclEvidenceScenarioSchema).optional(),
     hazardGrid: HclHazardGridDefinitionSchema.optional(),
-    solverSettings: HclSolverSettingsSchema,
+    solverSettings: HclSolverSettingsSchema.extend({ uncertainty: z.unknown().optional() }),
   })
   .strict();
 

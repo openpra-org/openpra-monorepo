@@ -1,3 +1,4 @@
+import { stringifyJson } from "interfaces-shared-types/json";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
@@ -207,7 +208,7 @@ export class EsqWorkbooksService {
         createWorkbookRevisionFilter(workbookId, expectedRevision),
         {
           $set: {
-            previousMefJson: JSON.stringify(doc.mef),
+            previousMefJson: stringifyJson(doc.mef),
             mef: cleaned,
             revision: expectedRevision + 1,
           },

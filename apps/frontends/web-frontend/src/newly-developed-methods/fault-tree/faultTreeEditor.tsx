@@ -1,3 +1,5 @@
+import { ResultCsvButton } from "../shared/resultPresentation";
+import { faultTreeResultRecords } from "../shared/probabilityResultExport";
 import {
   type ChangeEvent,
   type JSX,
@@ -16,7 +18,7 @@ import type {
   FaultTreeLeafNode,
   FaultTreeNodePosition,
 } from "interfaces-mef-types/modeling";
-import { failureRateToProbability } from "interfaces-mef-types/modeling";
+import { failureRateToProbability, requiresFailureRateConversionReview, FAILURE_RATE_CONVERSION_REVIEW_REQUIRED } from "interfaces-mef-types/modeling";
 import {
   createFaultTreeAutoLayoutOperation,
   computeFaultTreeAutoLayout,
@@ -147,15 +149,6 @@ function ScientificProbability({ value }: { value: number | undefined }): JSX.El
       {coefficient}<span aria-hidden="true"> × 10</span><sup aria-hidden="true">{exponent}</sup>
     </span>
   );
-}
-
-function formatContribution(value: number | undefined): string {
-  if (value === undefined || !Number.isFinite(value)) return "—";
-  const percentage = value * 100;
-  if (percentage > 0 && percentage < 0.01) return "<0.01%";
-  if (percentage >= 99.995) return `${percentage.toFixed(0)}%`;
-  if (percentage >= 10) return `${percentage.toFixed(1)}%`;
-  return `${percentage.toFixed(2)}%`;
 }
 
 function formatNodeProbability(value: number | undefined): string {
@@ -334,6 +327,14 @@ function FtSymbol({
 
   if (node.kind === "GATE") {
     if (node.gateType === "OR") return <path d={orPath} className="ftgate ftgate--or" />;
+    if (node.gateType === "XOR") {
+      return (
+        <g>
+          <path d={orPath} className="ftgate ftgate--xor" />
+          <text x={cx} y={symTop + FT.SYM_H * 0.72} className="ftgate-lab">XOR</text>
+        </g>
+      );
+    }
     if (node.gateType === "K_OF_N") {
       return (
         <g>
@@ -584,10 +585,12 @@ function NodeInspector({
             >
               <option value="OR">OR</option>
               <option value="AND">AND</option>
+              <option value="XOR">XOR</option>
               <option value="NOT" disabled={inputCount > 1}>NOT{inputCount > 1 ? " (requires one input)" : ""}</option>
               <option value="K_OF_N">K of N</option>
             </select>
           </label>
+          {gate.gateType === "XOR" && <p>True when an odd number of inputs are true.</p>}
           {gate.gateType === "K_OF_N" && (
             <CommitField
               label={`K (1–${Math.max(1, inputCount)})`}
@@ -697,8 +700,8 @@ function NodeInspector({
                 const quantificationBasis: FaultTreeBasicEventQuantificationBasis = {
                   kind: "FAILURE_RATE",
                   failureRate: { value: basicEvent.probability.value, unit: "HOUR" },
-                  missionTime: { value: 1, unit: "HOUR" },
-                  conversion: "LINEAR",
+                  missionTime: { value: 8760, unit: "HOUR" },
+                  conversion: "EXPONENTIAL",
                 };
                 updateBasicEvent({
                   ...basicEvent,
@@ -716,6 +719,7 @@ function NodeInspector({
           </label>
           {basicEvent.probability.quantificationBasis?.kind === "FAILURE_RATE" ? (() => {
             const basis = basicEvent.probability.quantificationBasis;
+            const needsReview = requiresFailureRateConversionReview(basis);
             const updateBasis = (
               next: Extract<FaultTreeBasicEventQuantificationBasis, { kind: "FAILURE_RATE" }>,
             ): void => updateBasicEvent({
@@ -733,7 +737,7 @@ function NodeInspector({
                   value={String(basis.failureRate.value)}
                   type="number"
                   min={0}
-                  disabled={!canEditBasicEvents}
+                  disabled={!canEditBasicEvents || needsReview}
                   onCommit={(value) => {
                     const rate = Number(value);
                     if (Number.isFinite(rate) && rate >= 0) updateBasis({ ...basis, failureRate: { ...basis.failureRate, value: rate } });
@@ -741,7 +745,7 @@ function NodeInspector({
                 />
                 <label className="fteditor__field">
                   <span>Failure-rate unit</span>
-                  <select className="fteditor__select" value={basis.failureRate.unit} disabled={!canEditBasicEvents} onChange={(event) => updateBasis({ ...basis, failureRate: { ...basis.failureRate, unit: event.target.value as typeof basis.failureRate.unit } })}>
+                  <select className="fteditor__select" value={basis.failureRate.unit} disabled={!canEditBasicEvents || needsReview} onChange={(event) => updateBasis({ ...basis, failureRate: { ...basis.failureRate, unit: event.target.value as typeof basis.failureRate.unit } })}>
                     <option value="SECOND">Per second</option>
                     <option value="MINUTE">Per minute</option>
                     <option value="HOUR">Per hour</option>
@@ -754,7 +758,7 @@ function NodeInspector({
                   value={String(basis.missionTime.value)}
                   type="number"
                   min={0}
-                  disabled={!canEditBasicEvents}
+                  disabled={!canEditBasicEvents || needsReview}
                   onCommit={(value) => {
                     const duration = Number(value);
                     if (Number.isFinite(duration) && duration > 0) updateBasis({ ...basis, missionTime: { ...basis.missionTime, value: duration } });
@@ -762,7 +766,7 @@ function NodeInspector({
                 />
                 <label className="fteditor__field">
                   <span>Mission-time unit</span>
-                  <select className="fteditor__select" value={basis.missionTime.unit} disabled={!canEditBasicEvents} onChange={(event) => updateBasis({ ...basis, missionTime: { ...basis.missionTime, unit: event.target.value as typeof basis.missionTime.unit } })}>
+                  <select className="fteditor__select" value={basis.missionTime.unit} disabled={!canEditBasicEvents || needsReview} onChange={(event) => updateBasis({ ...basis, missionTime: { ...basis.missionTime, unit: event.target.value as typeof basis.missionTime.unit } })}>
                     <option value="SECOND">Seconds</option>
                     <option value="MINUTE">Minutes</option>
                     <option value="HOUR">Hours</option>
@@ -770,14 +774,15 @@ function NodeInspector({
                     <option value="YEAR">Years</option>
                   </select>
                 </label>
-                <label className="fteditor__field">
-                  <span>Rate conversion</span>
-                  <select className="fteditor__select" value={basis.conversion} disabled={!canEditBasicEvents} onChange={(event) => updateBasis({ ...basis, conversion: event.target.value as typeof basis.conversion })}>
-                    <option value="EXPONENTIAL">Exponential (Poisson)</option>
-                    <option value="LINEAR">Linear approximation</option>
-                  </select>
-                </label>
-                <p className="fteditor__hint">Mission probability: {formatNodeProbability(basicEvent.probability.value)}</p>
+                {needsReview ? (
+                  <div>
+                    <p role="alert">{FAILURE_RATE_CONVERSION_REVIEW_REQUIRED}</p>
+                    <button type="button" className="fteditor__btn" disabled={!canEditBasicEvents}
+                      onClick={() => updateBasis({ ...basis, conversion: "EXPONENTIAL" })}>Use exponential conversion</button>
+                  </div>
+                ) : (
+                  <p className="fteditor__hint">Exponential conversion · Mission probability: {formatNodeProbability(basicEvent.probability.value)}</p>
+                )}
               </>
             );
           })() : (
@@ -826,15 +831,14 @@ function NodeInspector({
 function Results({
   analysisResult,
   resultIsStale,
-  catalogue,
-}: Pick<FaultTreeEditorProps, "analysisResult" | "resultIsStale" | "catalogue">): JSX.Element | null {
+}: Pick<FaultTreeEditorProps, "analysisResult" | "resultIsStale">): JSX.Element | null {
   if (analysisResult === null) return null;
   const result = analysisResult;
-  const basicEvents = new Map(catalogue.basicEvents.map((basicEvent) => [basicEvent.id, basicEvent]));
   return (
     <section className="fteditor__results" aria-label="Fault-tree analysis results">
       <div className="fteditor__header">
         <h3>Analysis results</h3>
+        <ResultCsvButton filename={`ft-${result.runId}.csv`} records={() => faultTreeResultRecords(result).map((row) => ({ ...row, stale: resultIsStale }))} />
         {resultIsStale && <span className="fteditor__pill fteditor__pill--stale">Results are stale</span>}
       </div>
       <p className="fteditor__run-detail">
@@ -843,70 +847,8 @@ function Results({
       <div className="fteditor__result-metrics">
         <div className="fteditor__result-metric">
           <span>Exact top-event probability</span>
-          <strong><ScientificProbability value={result.topEventProbability} /></strong>
+          <strong title={String(result.topEventProbability)}><ScientificProbability value={result.topEventProbability} /></strong>
         </div>
-        <div className="fteditor__result-metric">
-          <span>Minimal cut sets</span>
-          <strong className="fteditor__mono">{result.minimalCutSetCount}</strong>
-        </div>
-      </div>
-      <div className="fteditor__table-wrap">
-        <table className="fteditor__table">
-          <colgroup>
-            <col className="fteditor__table-rank" />
-            <col className="fteditor__table-order" />
-            <col />
-            <col className="fteditor__table-probability" />
-            <col className="fteditor__table-contribution" />
-          </colgroup>
-          <thead><tr><th>Rank</th><th>Order</th><th>Events</th><th>Probability</th><th>Contribution</th></tr></thead>
-          <tbody>
-            {result.leadingCutSets.map((cutSet) => {
-              const contribution = cutSet.contribution ?? (
-                cutSet.probability !== undefined && result.topEventProbability > 0
-                  ? cutSet.probability / result.topEventProbability
-                  : undefined
-              );
-              return (
-                <tr key={cutSet.rank}>
-                  <td><span className="fteditor__cut-set-rank">{cutSet.rank}</span></td>
-                  <td className="fteditor__mono">{cutSet.order}</td>
-                  <td>
-                    <div className="fteditor__cut-set-events">
-                      {cutSet.events.map((event, index) => {
-                        const basicEvent = basicEvents.get(event.basicEventId);
-                        const label = basicEvent?.code || basicEvent?.name || "Unknown basic event";
-                        return (
-                          <span key={`${event.basicEventId}-${index}`} className="fteditor__cut-set-event-wrap">
-                            {index > 0 && <span className="fteditor__intersection" aria-hidden="true">∩</span>}
-                            <span
-                              className={`fteditor__cut-set-event${event.complemented ? " fteditor__cut-set-event--complemented" : ""}`}
-                              title={basicEvent === undefined ? event.basicEventId : basicEvent.name}
-                            >
-                              {event.complemented && <span aria-label="not">¬</span>}{label}
-                            </span>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </td>
-                  <td><ScientificProbability value={cutSet.probability} /></td>
-                  <td>
-                    <div className="fteditor__contribution">
-                      <span className="fteditor__mono">{formatContribution(contribution)}</span>
-                      {contribution !== undefined && Number.isFinite(contribution) && (
-                        <span className="fteditor__contribution-track" aria-hidden="true">
-                          <span style={{ width: `${Math.max(0, Math.min(100, contribution * 100))}%` }} />
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {result.leadingCutSets.length === 0 && <tr><td colSpan={5}>No minimal cut sets were returned.</td></tr>}
-          </tbody>
-        </table>
       </div>
       {result.validationIssues.length > 0 && (
         <div className="fteditor__run-detail">
@@ -1770,7 +1712,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
         </section>
       )}
 
-      <Results analysisResult={analysisResult} resultIsStale={resultIsStale} catalogue={catalogue} />
+      <Results analysisResult={analysisResult} resultIsStale={resultIsStale} />
       {confirmationDialog}
     </div>
   );

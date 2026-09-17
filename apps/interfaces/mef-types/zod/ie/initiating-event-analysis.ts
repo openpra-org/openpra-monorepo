@@ -187,7 +187,7 @@ export const FrequencyFaultTreeNodeSchema = z.object({
   label: z.string(),
   code: z.string().optional(),
   nodeType: z.enum(["GATE", "BASIC", "HOUSE", "TRANSFER", "UNDEVELOPED"]),
-  gate: z.enum(["AND", "OR", "NOT", "ATLEAST"]).optional(),
+  gate: z.enum(["AND", "OR", "XOR", "NOT", "ATLEAST"]).optional(),
   k: z.number().optional(),
   detail: z.string().optional(),
   isTopGate: z.boolean().optional(),

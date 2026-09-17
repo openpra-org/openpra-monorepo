@@ -101,22 +101,23 @@ const validateEventTreeStartingNodeAndPaths = (
   });
 
   const completePaths = model.sequences.filter((sequence) => sequence.path.length === orderedFunctionalEvents.length);
-  const hasCompleteCoverage = (depth: number, candidates: typeof completePaths): boolean => {
+  // HCL_MH enumerates the supplied edges, including a sole success/failure edge.
+  const hasValidBranches = (depth: number, candidates: typeof completePaths): boolean => {
     if (depth === orderedFunctionalEvents.length) return candidates.length === 1;
     const states = new Set(candidates.map((sequence) => sequence.path[depth]?.outcome));
-    const binary = states.size === 2 && states.has("SUCCESS") && states.has("FAILURE");
+    const binary = states.size > 0 && [...states].every((state) => state === "SUCCESS" || state === "FAILURE");
     const bypassed = states.size === 1 && states.has("BYPASSED");
     if (!binary && !bypassed) return false;
-    return [...states].every((state) => hasCompleteCoverage(
+    return [...states].every((state) => hasValidBranches(
       depth + 1,
       candidates.filter((sequence) => sequence.path[depth]?.outcome === state),
     ));
   };
-  if (!hasCompleteCoverage(0, completePaths)) {
+  if (!hasValidBranches(0, completePaths)) {
     issues.push({
-      code: "ET_BRANCH_COVERAGE_INCOMPLETE",
+      code: "ET_BRANCH_PATHS_INVALID",
       severity: "ERROR",
-      message: "Every applicable functional event must define both success and failure; a bypassed event must define one bypass path",
+      message: "Each branch must contain success and/or failure paths, or one bypass path; paths must be unique",
       entityId: model.modelId,
       fieldPath: ["sequences"],
     });
@@ -300,20 +301,6 @@ const validateEventTreeTransfers = (
       });
       return;
     }
-
-    const targetSequences = targetModels[0].sequences.filter((candidate) => candidate.id === target.entityId);
-    if (targetSequences.length !== 1) {
-      issues.push({
-        code: targetSequences.length === 0 ? "ET_TRANSFER_SEQUENCE_NOT_FOUND" : "ET_TRANSFER_SEQUENCE_AMBIGUOUS",
-        severity: "ERROR",
-        message:
-          targetSequences.length === 0
-            ? "The transfer target sequence does not resolve"
-            : "The transfer target must resolve to exactly one sequence",
-        entityId: sequence.id,
-        fieldPath: ["sequences", sequenceIndex, "result", "target", "entityId"],
-      });
-    }
   });
 
   const uniqueModels = [...modelsById.values()].flatMap((matches) => (matches.length === 1 ? matches : []));
@@ -324,29 +311,25 @@ const validateEventTreeTransfers = (
       if (result.kind !== "TRANSFER") return;
       const targetModels = modelsById.get(result.target.modelId) ?? [];
       if (targetModels.length !== 1) return;
-      const targetSequences = targetModels[0].sequences.filter(
-        (candidate) => candidate.id === result.target.entityId,
-      );
-      if (targetSequences.length !== 1) return;
       transferEdges.push({
-        sourceKey: `${availableModel.modelId}:${sequence.id}`,
-        targetKey: `${targetModels[0].modelId}:${targetSequences[0].id}`,
+        sourceKey: availableModel.modelId,
+        targetKey: targetModels[0].modelId,
         sequenceId: sequence.id,
         sequenceIndex,
       });
     });
   });
 
-  const outgoingBySequence = new Map<string, EventTreeTransferEdge[]>();
+  const outgoingByTree = new Map<string, EventTreeTransferEdge[]>();
   transferEdges.forEach((edge) => {
-    const outgoing = outgoingBySequence.get(edge.sourceKey) ?? [];
+    const outgoing = outgoingByTree.get(edge.sourceKey) ?? [];
     outgoing.push(edge);
-    outgoingBySequence.set(edge.sourceKey, outgoing);
+    outgoingByTree.set(edge.sourceKey, outgoing);
   });
 
   type VisitState = "VISITING" | "VISITED";
   const visitState = new Map<string, VisitState>();
-  const sequenceStack: string[] = [];
+  const treeStack: string[] = [];
   const edgeStack: EventTreeTransferEdge[] = [];
   const reportCycleEdge = (edge: EventTreeTransferEdge): void => {
     issues.push({
@@ -357,13 +340,13 @@ const validateEventTreeTransfers = (
       fieldPath: ["sequences", edge.sequenceIndex, "result", "target"],
     });
   };
-  const visit = (sequenceKey: string): void => {
-    visitState.set(sequenceKey, "VISITING");
-    sequenceStack.push(sequenceKey);
-    for (const edge of outgoingBySequence.get(sequenceKey) ?? []) {
+  const visit = (treeKey: string): void => {
+    visitState.set(treeKey, "VISITING");
+    treeStack.push(treeKey);
+    for (const edge of outgoingByTree.get(treeKey) ?? []) {
       const targetState = visitState.get(edge.targetKey);
       if (targetState === "VISITING") {
-        const cycleStart = sequenceStack.lastIndexOf(edge.targetKey);
+        const cycleStart = treeStack.lastIndexOf(edge.targetKey);
         edgeStack.slice(cycleStart).forEach(reportCycleEdge);
         reportCycleEdge(edge);
         continue;
@@ -373,14 +356,11 @@ const validateEventTreeTransfers = (
       visit(edge.targetKey);
       edgeStack.pop();
     }
-    sequenceStack.pop();
-    visitState.set(sequenceKey, "VISITED");
+    treeStack.pop();
+    visitState.set(treeKey, "VISITED");
   };
 
-  model.sequences.forEach((sequence) => {
-    const sequenceKey = `${model.modelId}:${sequence.id}`;
-    if (!visitState.has(sequenceKey)) visit(sequenceKey);
-  });
+  visit(model.modelId);
 
   return issues;
 };

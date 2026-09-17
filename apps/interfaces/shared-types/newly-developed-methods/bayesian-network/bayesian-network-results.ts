@@ -29,7 +29,6 @@ interface BayesianNetworkMarginalValue {
 
 type BayesianNetworkMarginalValues = [
   BayesianNetworkMarginalValue,
-  BayesianNetworkMarginalValue,
   ...BayesianNetworkMarginalValue[],
 ];
 
@@ -78,7 +77,7 @@ const BayesianNetworkMarginalValueSchema = z
   .strict();
 
 const BayesianNetworkMarginalValuesSchema = z
-  .tuple([BayesianNetworkMarginalValueSchema, BayesianNetworkMarginalValueSchema])
+  .tuple([BayesianNetworkMarginalValueSchema])
   .rest(BayesianNetworkMarginalValueSchema);
 
 const BayesianNetworkMarginalResultSchema = z
@@ -149,6 +148,33 @@ const BayesianNetworkAnalysisResultSchema = z
   })
   .strict();
 
+const BayesianNetworkBatchRowSchema = z.intersection(
+  z.object({ scenarioId: WorkbookEntityIdSchema, scenarioCode: z.string(), scenarioName: z.string() }),
+  z.discriminatedUnion("status", [
+    z.object({ status: z.literal("SUCCEEDED"), failure: z.null(), result: BayesianNetworkAnalysisResultSchema }),
+    z.object({ status: z.literal("FAILED"), failure: z.string(), result: z.null() }),
+  ]),
+);
+
+const BayesianNetworkBatchAnalysisResultSchema = z.object({
+  schemaVersion: WorkbookMethodSchemaVersionSchema,
+  runId: AnalysisRunIdSchema,
+  owner: WorkbookModelSnapshotIdentitySchema,
+  queryNodeIds: z.array(WorkbookEntityIdSchema).min(1),
+  scenarios: z.array(BayesianNetworkBatchRowSchema).min(1),
+  diagnostics: z.object({
+    junctionTreeCompilations: z.number().int().min(0),
+    scenarioEvaluations: z.number().int().min(1),
+  }).strict(),
+  completedAt: z.string().datetime({ offset: true }),
+}).strict();
+
+type BayesianNetworkBatchRow = z.infer<typeof BayesianNetworkBatchRowSchema>;
+type BayesianNetworkBatchAnalysisResult = z.infer<typeof BayesianNetworkBatchAnalysisResultSchema>;
+const BayesianNetworkStoredResultSchema = z.union([
+  BayesianNetworkAnalysisResultSchema, BayesianNetworkBatchAnalysisResultSchema,
+]);
+
 type Expect<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type _AssertBayesianNetworkMarginalValue = Expect<
@@ -177,6 +203,9 @@ type _AssertBayesianNetworkAnalysisResult = Expect<
 >;
 
 export {
+  BayesianNetworkBatchRowSchema,
+  BayesianNetworkBatchAnalysisResultSchema,
+  BayesianNetworkStoredResultSchema,
   BayesianNetworkMarginalValueSchema,
   BayesianNetworkMarginalValuesSchema,
   BayesianNetworkMarginalResultSchema,
@@ -187,6 +216,8 @@ export {
   BayesianNetworkAnalysisResultSchema,
 };
 export type {
+  BayesianNetworkBatchRow,
+  BayesianNetworkBatchAnalysisResult,
   BayesianNetworkMarginalValue,
   BayesianNetworkMarginalValues,
   BayesianNetworkMarginalResult,

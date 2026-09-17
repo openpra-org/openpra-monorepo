@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This network was created in GeNIe Academic, which can be used for academic teaching and research purposes only -->
+<smile version="1.0" id="Network10" numsamples="10000" discsamples="10000">
+	<nodes>
+		<cpt id="T">
+			<state id="0" />
+			<state id="1" />
+			<probabilities>0.25 0.75</probabilities>
+		</cpt>
+		<cpt id="X">
+			<state id="0" />
+			<state id="1" />
+			<parents>T</parents>
+			<probabilities>0.55 0.45 0.02 0.98</probabilities>
+		</cpt>
+		<cpt id="Z">
+			<state id="0" />
+			<state id="1" />
+			<probabilities>0.2 0.8</probabilities>
+		</cpt>
+		<cpt id="Y">
+			<state id="0" />
+			<state id="1" />
+			<parents>X Z</parents>
+			<probabilities>0.85 0.15 0.4 0.6 0.2 0.8 0.01 0.99</probabilities>
+		</cpt>
+	</nodes>
+	<extensions>
+		<genie version="1.0" app="GeNIe 5.0.5310.0 ACADEMIC" name="Network10">
+			<node id="T">
+				<name>T</name>
+				<interior color="e5f6f7" />
+				<outline color="000080" />
+				<font color="000000" name="Arial" size="8" />
+				<position>396 242 430 263</position>
+			</node>
+			<node id="X">
+				<name>X</name>
+				<interior color="e5f6f7" />
+				<outline color="000080" />
+				<font color="000000" name="Arial" size="8" />
+				<position>249 179 283 200</position>
+			</node>
+			<node id="Y">
+				<name>Y</name>
+				<interior color="e5f6f7" />
+				<outline color="000080" />
+				<font color="000000" name="Arial" size="8" />
+				<position>152 105 186 126</position>
+			</node>
+			<node id="Z">
+				<name>Z</name>
+				<interior color="e5f6f7" />
+				<outline color="000080" />
+				<font color="000000" name="Arial" size="8" />
+				<position>131 246 165 267</position>
+			</node>
+		</genie>
+	</extensions>
+</smile>

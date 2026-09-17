@@ -26,6 +26,10 @@ interface FaultTreeOrGate extends FaultTreeGateBase {
   gateType: "OR";
 }
 
+interface FaultTreeXorGate extends FaultTreeGateBase {
+  gateType: "XOR";
+}
+
 interface FaultTreeNotGate extends FaultTreeGateBase {
   gateType: "NOT";
 }
@@ -35,7 +39,7 @@ interface FaultTreeKOfNGate extends FaultTreeGateBase {
   k: number;
 }
 
-type FaultTreeGate = FaultTreeAndGate | FaultTreeOrGate | FaultTreeNotGate | FaultTreeKOfNGate;
+type FaultTreeGate = FaultTreeAndGate | FaultTreeOrGate | FaultTreeXorGate | FaultTreeNotGate | FaultTreeKOfNGate;
 
 interface FaultTreeTopGateReference {
   gateId: WorkbookEntityId;
@@ -111,6 +115,7 @@ export type {
   FaultTreeGateBase,
   FaultTreeAndGate,
   FaultTreeOrGate,
+  FaultTreeXorGate,
   FaultTreeNotGate,
   FaultTreeKOfNGate,
   FaultTreeGate,

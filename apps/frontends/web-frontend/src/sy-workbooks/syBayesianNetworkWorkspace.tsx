@@ -1,3 +1,5 @@
+import { stringifyJson } from "interfaces-shared-types/json";
+import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
 import { type JSX, useEffect, useMemo, useState } from "react";
 import type {
   BayesianNetworkEvidenceConfiguration,
@@ -21,15 +23,20 @@ import type {
   HclEditorRunResult,
   HclEditorScenarioRunResult,
   HclFaultTreeOption,
+  HclCalculationType,
 } from "../newly-developed-methods/hybrid-causal-logic";
 import { useEditorConfirmation } from "../newly-developed-methods/shared";
+import { analysisSaveBlock, useAnalysisScope } from "../newly-developed-methods/shared/useAnalysisScope";
 import { useSyWorkbook } from "./syWorkbookContext";
 import {
   getSyBayesianNetworkResult,
+  getSyBayesianNetworkBatchResult,
+  runSyBayesianNetworkBatch,
   getSyHclFaultTreeResult,
   runSyBayesianNetwork,
   runSyHclFaultTree,
   runSyHclFaultTreeBatch,
+  generateSyHclScenarios,
 } from "./syWorkbookApi";
 
 function SyBayesianNetworkWorkspace(): JSX.Element {
@@ -81,31 +88,6 @@ function SyBayesianNetworkWorkspace(): JSX.Element {
         basicEvents: sy.systemBasicEvents
           .filter((event) => usedEventIds.has(event.uuid))
           .map((event) => ({ id: event.uuid, code: event.code, name: event.name })),
-        gates: logic.gates.map((gate) => gate.gateType === "K_OF_N"
-          ? { id: gate.id, gateType: gate.gateType, k: gate.k }
-          : { id: gate.id, gateType: gate.gateType }),
-        leafNodes: logic.leafNodes.map((leaf) => {
-          if (leaf.kind === "BASIC_EVENT_REFERENCE") return { id: leaf.id, kind: leaf.kind, basicEventId: leaf.basicEventId };
-          if (leaf.kind === "HOUSE_EVENT") return { id: leaf.id, kind: leaf.kind, state: leaf.state };
-          if (leaf.kind === "TRANSFER_REFERENCE") {
-            return {
-              id: leaf.id,
-              kind: leaf.kind,
-              target: {
-                workbookId: runtime.workbookId ?? "",
-                modelId: leaf.target.modelId,
-                entityId: leaf.target.entityId,
-              },
-            };
-          }
-          return { id: leaf.id, kind: leaf.kind };
-        }),
-        gateInputs: logic.gateInputs.map(({ gateId, childId, order }) => ({ gateId, childId, order })),
-        constantBasicEventStates: Object.fromEntries(sy.systemBasicEvents.flatMap((event) =>
-          event.controlledDataSource === undefined && (event.probability === 0 || event.probability === 1)
-            ? [[event.uuid, event.probability === 1]]
-            : [],
-        )),
       };
     }), [runtime.workbookId, sy.systemBasicEvents, sy.systemLogicModels]);
 
@@ -115,7 +97,23 @@ function SyBayesianNetworkWorkspace(): JSX.Element {
     ...(runtime.workbookId === null ? {} : { workbookId: runtime.workbookId }),
   });
 
+  const saveBlockedReason = analysisSaveBlock(runtime);
+  const {sourceEpoch, sourceWarning} = useAnalysisSourceGuard("sy", runtime.workbookId);
+  const inputKey = stringifyJson([sourceEpoch, runtime.workbookId, runtime.revision, runtime.saveStatus,
+    networks, configurations, sy.systemLogicModels, sy.systemBasicEvents, model?.modelId, evidenceByModel, queryByModel]);
+  const analysis = useAnalysisScope(inputKey!, () => {
+    setResults({});
+    setQueryBatchResults({});
+    setHclResults({});
+    setHclBatchResults({});
+    setRunningModelId(null);
+    setRunningConfigurationId(null);
+    setRunError(null);
+    setHclRunError(null);
+  });
+
   function changeConfigurations(next: WorkbookHclConfiguration[]): void {
+    analysis.invalidate();
     mutateSy((current) => ({ ...current, dependencyHclConfigurations: next }));
   }
 
@@ -129,37 +127,14 @@ function SyBayesianNetworkWorkspace(): JSX.Element {
   }
 
   function replaceNetwork(next: BayesianNetworkModel): void {
-    const statesByNode = new Map(next.nodes.map((node) => [node.id, new Set(node.states.map((state) => state.id))]));
-    const sanitizedEvidence = {
-      observations: evidence.observations.filter((observation) => statesByNode.get(observation.nodeId)?.has(observation.stateId) === true),
-    };
+    analysis.invalidate();
+    // Keep evidence and bindings intact: undo restores their referenced IDs.
     mutateSy((current) => ({
       ...current,
       dependencyBayesianNetworks: (current.dependencyBayesianNetworks ?? []).map((candidate) =>
         candidate.modelId === next.modelId ? next as WorkbookBayesianNetwork : candidate,
       ),
-      dependencyHclConfigurations: (current.dependencyHclConfigurations ?? []).map((configuration) =>
-        configuration.bayesianNetwork.modelId === next.modelId
-          ? {
-              ...configuration,
-              baseEvidence: sanitizedEvidence,
-              evidenceScenarios: (configuration.evidenceScenarios ?? []).map((scenario) => ({
-                ...scenario,
-                evidence: {
-                  observations: scenario.evidence.observations.filter((observation) =>
-                    statesByNode.get(observation.nodeId)?.has(observation.stateId) === true,
-                  ),
-                },
-              })),
-            }
-          : configuration,
-      ),
     }));
-    setEvidenceByModel((current) => ({ ...current, [next.modelId]: sanitizedEvidence }));
-    setResults((current) => {
-      const { [next.modelId]: _stale, ...remaining } = current;
-      return remaining;
-    });
   }
 
   function removeNetwork(): void {
@@ -180,6 +155,7 @@ function SyBayesianNetworkWorkspace(): JSX.Element {
   }
 
   async function runExactQuery(): Promise<void> {
+    if (saveBlockedReason !== null) { setRunError(saveBlockedReason); return; }
     if (model === undefined || queryNodeId === null || runtime.workbookId === null || runtime.revision === null) {
       setRunError("Exact inference is available after this SY workbook has been saved.");
       return;
@@ -189,96 +165,78 @@ function SyBayesianNetworkWorkspace(): JSX.Element {
       setRunError(issue.message);
       return;
     }
+    analysis.invalidate();
+    const isCurrent = analysis.capture();
     setRunningModelId(model.modelId);
     setRunError(null);
     try {
       const execution = await runSyBayesianNetwork(runtime.workbookId, model.modelId, runtime.revision, evidence, queryNodeId);
       if (execution.run.status !== "SUCCEEDED") throw new Error(execution.run.failure?.message ?? `Inference did not complete (${execution.run.status}).`);
       const result = await getSyBayesianNetworkResult(runtime.workbookId, model.modelId, execution.run.id);
+      if (!isCurrent()) return;
       setResults((current) => ({ ...current, [model.modelId]: result }));
     } catch (error) {
+      if (!isCurrent()) return;
       setRunError(error instanceof Error ? error.message : "Bayesian-network inference failed.");
     } finally {
-      setRunningModelId(null);
+      if (isCurrent()) setRunningModelId(null);
     }
   }
 
   async function runExactQueryBatch(scenarios: HclEvidenceScenario[]): Promise<void> {
+    if (saveBlockedReason !== null) { setRunError(saveBlockedReason); return; }
     if (model === undefined || queryNodeId === null || runtime.workbookId === null || runtime.revision === null) {
       setRunError("Exact inference is available after this SY workbook has been saved.");
       return;
     }
+    analysis.invalidate();
+    const isCurrent = analysis.capture();
     setRunningModelId(model.modelId);
     setRunError(null);
-    const rows: BayesianNetworkQueryBatchResult["scenarios"] = [];
-    for (const scenario of scenarios) {
-      try {
-        const execution = await runSyBayesianNetwork(
-          runtime.workbookId,
-          model.modelId,
-          runtime.revision,
-          scenario.evidence,
-          queryNodeId,
-        );
-        if (execution.run.status !== "SUCCEEDED") {
-          throw new Error(execution.run.failure?.message ?? `Inference did not complete (${execution.run.status}).`);
-        }
-        rows.push({
-          scenarioId: scenario.id,
-          scenarioCode: scenario.code,
-          scenarioName: scenario.name,
-          status: "SUCCEEDED",
-          failure: null,
-          result: await getSyBayesianNetworkResult(runtime.workbookId, model.modelId, execution.run.id),
-        });
-      } catch (error) {
-        rows.push({
-          scenarioId: scenario.id,
-          scenarioCode: scenario.code,
-          scenarioName: scenario.name,
-          status: "FAILED",
-          failure: error instanceof Error ? error.message : "Bayesian-network inference failed.",
-          result: null,
-        });
+    try {
+      const execution = await runSyBayesianNetworkBatch(
+        runtime.workbookId, model.modelId, runtime.revision, scenarios, queryNodeId,
+      );
+      if (execution.run.status !== "SUCCEEDED") {
+        throw new Error(execution.run.failure?.message ?? `Inference did not complete (${execution.run.status}).`);
       }
+      const result = await getSyBayesianNetworkBatchResult(runtime.workbookId, model.modelId, execution.run.id);
+      if (!isCurrent()) return;
+      setQueryBatchResults((current) => ({
+        ...current,
+        [model.modelId]: { queryNodeId, scenarios: result.scenarios },
+      }));
+    } catch (error) {
+      if (!isCurrent()) return;
+      setRunError(error instanceof Error ? error.message : "Bayesian-network batch inference failed.");
+    } finally {
+      if (isCurrent()) setRunningModelId(null);
     }
-    setQueryBatchResults((current) => ({
-      ...current,
-      [model.modelId]: { queryNodeId, scenarios: rows },
-    }));
-    setRunningModelId(null);
   }
 
   function replaceEvidence(next: BayesianNetworkEvidenceConfiguration): void {
     if (model === undefined) return;
     setEvidenceByModel((current) => ({ ...current, [model.modelId]: next }));
-    setResults((current) => {
-      const { [model.modelId]: _stale, ...remaining } = current;
-      return remaining;
-    });
+    analysis.invalidate();
     if (relevantConfigurations.length === 0) return;
-    const affectedConfigurationIds = new Set(relevantConfigurations.map((configuration) => configuration.modelId));
-    setHclResults((current) => Object.fromEntries(
-      Object.entries(current).filter(([configurationId]) => !affectedConfigurationIds.has(configurationId)),
-    ));
-    setHclBatchResults((current) => Object.fromEntries(
-      Object.entries(current).filter(([configurationId]) => !affectedConfigurationIds.has(configurationId)),
-    ));
     mutateSy((current) => ({
       ...current,
       dependencyHclConfigurations: (current.dependencyHclConfigurations ?? []).map((configuration) =>
-        configuration.bayesianNetwork.modelId === model.modelId
+        configuration.bayesianNetwork.workbookId === runtime.workbookId && configuration.bayesianNetwork.modelId === model.modelId
           ? { ...configuration, baseEvidence: next }
           : configuration,
       ),
     }));
   }
 
-  async function runHcl(configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption): Promise<void> {
+  async function runHcl(configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, calculationType: HclCalculationType): Promise<void> {
+    if (saveBlockedReason !== null) { setHclRunError(saveBlockedReason); return; }
     if (runtime.workbookId === null || runtime.revision === null || faultTree.topGateId === null) {
       setHclRunError("HCL quantification is available after this workbook and top event have been saved.");
       return;
     }
+    analysis.invalidate();
+    const isCurrent = analysis.capture();
     setRunningConfigurationId(configuration.modelId);
     setHclRunError(null);
     try {
@@ -287,18 +245,16 @@ function SyBayesianNetworkWorkspace(): JSX.Element {
         workbookId: faultTree.workbookId,
         modelId: faultTree.modelId,
         entityId: faultTree.topGateId,
-      });
+      }, calculationType);
       if (execution.run.status !== "SUCCEEDED") throw new Error(execution.run.failure?.message ?? `HCL quantification did not complete (${execution.run.status}).`);
       const result = await getSyHclFaultTreeResult(runtime.workbookId, configuration.modelId, execution.run.id);
+      if (!isCurrent()) return;
       setHclResults((current) => ({ ...current, [configuration.modelId]: { kind: "FAULT_TREE", result } }));
-      setHclBatchResults((current) => {
-        const { [configuration.modelId]: _stale, ...remaining } = current;
-        return remaining;
-      });
     } catch (error) {
+      if (!isCurrent()) return;
       setHclRunError(error instanceof Error ? error.message : "HCL fault-tree quantification failed.");
     } finally {
-      setRunningConfigurationId(null);
+      if (isCurrent()) setRunningConfigurationId(null);
     }
   }
 
@@ -307,8 +263,12 @@ function SyBayesianNetworkWorkspace(): JSX.Element {
     faultTree: HclFaultTreeOption,
     scenarioIds: string[],
     integrateHazardGrid: boolean,
+    calculationType: HclCalculationType,
   ): Promise<void> {
+    if (saveBlockedReason !== null) { setHclRunError(saveBlockedReason); return; }
     if (runtime.workbookId === null || runtime.revision === null || faultTree.topGateId === null) return;
+    analysis.invalidate();
+    const isCurrent = analysis.capture();
     setRunningConfigurationId(configuration.modelId);
     setHclRunError(null);
     try {
@@ -322,8 +282,10 @@ function SyBayesianNetworkWorkspace(): JSX.Element {
           modelId: faultTree.modelId,
           entityId: faultTree.topGateId,
         },
+        calculationType,
         scenarioIds,
         integrateHazardGrid,
+        { evidenceScenarios: configuration.evidenceScenarios ?? [], hazardGrid: configuration.hazardGrid },
       );
       const scenarios: HclEditorScenarioRunResult[] = await Promise.all(execution.runs.map(async (scenario) => ({
         scenarioId: scenario.scenarioId,
@@ -336,28 +298,27 @@ function SyBayesianNetworkWorkspace(): JSX.Element {
           result: await getSyHclFaultTreeResult(runtime.workbookId!, configuration.modelId, scenario.run.id),
         },
       })));
+      if (!isCurrent()) return;
       setHclBatchResults((current) => ({
         ...current,
         [configuration.modelId]: {
           kind: "FAULT_TREE",
           scenarios,
           ...(execution.hazardConvolution === undefined ? {} : { hazardConvolution: execution.hazardConvolution }),
+        ...(execution.compilationReuse === undefined ? {} : { compilationReuse: execution.compilationReuse }),
         },
       }));
-      setHclResults((current) => {
-        const { [configuration.modelId]: _stale, ...remaining } = current;
-        return remaining;
-      });
     } catch (error) {
+      if (!isCurrent()) return;
       setHclRunError(error instanceof Error ? error.message : "HCL fault-tree scenario batch failed.");
     } finally {
-      setRunningConfigurationId(null);
+      if (isCurrent()) setRunningConfigurationId(null);
     }
   }
 
   return (
     <section className="poscard" aria-label="Systems Analysis dependency models">
-      <div className="poscard__head">
+      <div className="poscard__head bneditor__network-head">
         <h3 className="poscard__title">Bayesian dependency network</h3>
         <div className="posrow esqbn__network-actions" style={{ gap: 8 }}>
           {model !== undefined && (
@@ -374,6 +335,8 @@ function SyBayesianNetworkWorkspace(): JSX.Element {
       ) : (
         <BayesianNetworkEditor
           model={model}
+          saveBlockedReason={saveBlockedReason}
+          onAnalysisInputChange={analysis.invalidate}
           editable={editable}
           hclScope="FAULT_TREE"
           evidence={evidence}
@@ -382,28 +345,30 @@ function SyBayesianNetworkWorkspace(): JSX.Element {
           analysisResult={results[model.modelId] ?? null}
           queryBatchResult={queryBatchResults[model.modelId] ?? null}
           running={runningModelId === model.modelId}
-          runError={runError}
+          runError={runError ?? sourceWarning}
           workbookId={runtime.workbookId}
           hclConfigurations={configurations}
           faultTreeOptions={faultTreeOptions}
           eventTreeOptions={[]}
           hclRunning={relevantConfigurations.some((configuration) => configuration.modelId === runningConfigurationId)}
-          hclRunError={hclRunError}
+          hclRunError={hclRunError ?? sourceWarning}
           hclRunResult={relevantConfigurations.length === 0 ? null : hclResults[relevantConfigurations[0]!.modelId] ?? null}
           hclBatchRunResult={relevantConfigurations.length === 0 ? null : hclBatchResults[relevantConfigurations[0]!.modelId] ?? null}
           onModelChange={replaceNetwork}
           onEvidenceChange={replaceEvidence}
           onQueryNodeChange={(next) => {
+            analysis.invalidate();
             setQueryByModel((current) => ({ ...current, [model.modelId]: next }));
-            setQueryBatchResults((current) => {
-              const { [model.modelId]: _stale, ...remaining } = current;
-              return remaining;
-            });
           }}
           onHclConfigurationsChange={changeConfigurations}
-          onRunHclFaultTree={(configuration, faultTree) => { void runHcl(configuration, faultTree); }}
+          onGenerateHclScenarios={async (configuration, spec) => {
+            if (saveBlockedReason !== null) throw new Error(saveBlockedReason);
+            if (runtime.workbookId === null || runtime.revision === null) throw new Error("Save the workbook first.");
+            return (await generateSyHclScenarios(runtime.workbookId, configuration.modelId, runtime.revision, spec)).scenarios;
+          }}
+          onRunHclFaultTree={(configuration, faultTree, calculationType) => { void runHcl(configuration, faultTree, calculationType); }}
           onRunHclEventTree={() => undefined}
-          onRunHclFaultTreeBatch={(configuration, faultTree, scenarioIds, integrateHazardGrid) => { void runHclBatch(configuration, faultTree, scenarioIds, integrateHazardGrid); }}
+          onRunHclFaultTreeBatch={(configuration, faultTree, scenarioIds, integrateHazardGrid, calculationType) => { void runHclBatch(configuration, faultTree, scenarioIds, integrateHazardGrid, calculationType); }}
           onRunHclEventTreeBatch={() => undefined}
           onRun={() => { void runExactQuery(); }}
           onRunBatch={(scenarios) => { void runExactQueryBatch(scenarios); }}

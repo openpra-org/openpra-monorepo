@@ -1,3 +1,10 @@
+import {
+  validateBayesianNetworkGraph,
+  validateBayesianNetworkCpts,
+  validateBayesianNetworkModules,
+} from "interfaces-shared-types/newly-developed-methods/bayesian-network";
+import type { HclCalculationType } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
+import { WorkbookHclUncertaintyConfigurationSchema } from "interfaces-mef-types/zod/modeling";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { systemBasicEventToFaultTreeBasicEvent } from "interfaces-mef-types/sy/system-models";
 import type {
@@ -8,7 +15,7 @@ import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event
 import type { WorkbookModelAddress } from "interfaces-shared-types/newly-developed-methods";
 import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import type { FaultTreeControlledDataSourceReference } from "interfaces-mef-types/modeling/fault-tree";
-import { failureRateToProbability } from "interfaces-mef-types/modeling/quantitative-semantics";
+import { failureRateToProbability, requiresFailureRateConversionReview, FAILURE_RATE_CONVERSION_REVIEW_REQUIRED } from "interfaces-mef-types/modeling/quantitative-semantics";
 import type { BayesianNetworkEvidenceConfiguration } from "interfaces-mef-types/modeling/bayesian-network";
 import type { WorkbookBayesianNetwork, WorkbookHclConfiguration } from "interfaces-mef-types/modeling/workbook-models";
 import { createHash } from "crypto";
@@ -60,6 +67,7 @@ const workbookParameterReferenceKey = (
 
 type WorkbookPraxisAdapterErrorCode =
   | "WORKBOOK_PRAXIS_ADAPTER_ERROR"
+  | "SY_FAILURE_RATE_CONVERSION_REVIEW_REQUIRED"
   | "SY_FAULT_TREE_GRAPH_CYCLE"
   | "SY_FAULT_TREE_GRAPH_REFERENCE_INVALID"
   | "SY_FAULT_TREE_GATE_INPUT_ID_COLLISION"
@@ -288,7 +296,16 @@ const adaptSyFaultTreeSnapshot = (
   const gateKey = (candidate: SyFaultTreeModel, gateId: string): string =>
     JSON.stringify([candidate.uuid, gateId]);
 
-  const expandGate = (
+  interface GateFrame {
+    model: SyFaultTreeModel;
+    key: string;
+    outputGateId: string;
+    inputs: SyFaultTreeModel["gateInputs"];
+    nextInput: number;
+  }
+  const frames: GateFrame[] = [];
+
+  const enterGate = (
     candidate: SyFaultTreeModel,
     gateId: string,
     reachedByTransfer: boolean,
@@ -321,8 +338,29 @@ const adaptSyFaultTreeSnapshot = (
     copyPosition(candidate, gate.id);
     visitState.set(key, "VISITING");
     visitStack.push(key);
+    frames.push({
+      model: candidate,
+      key,
+      outputGateId,
+      inputs: candidate.gateInputs.filter((entry) => entry.gateId === gate.id),
+      nextInput: 0,
+    });
+  };
 
-    for (const input of candidate.gateInputs.filter((entry) => entry.gateId === gate.id)) {
+  modelGate(model, model.topGate.gateId, false);
+  enterGate(model, model.topGate.gateId, false);
+
+  // Resume each parent's next input after its child, preserving recursive DFS
+  // order without using one JavaScript call frame per gate or transfer.
+  while (frames.length > 0) {
+    const frame = frames[frames.length - 1];
+    if (frame.nextInput === frame.inputs.length) {
+      frames.pop();
+      visitStack.pop();
+      visitState.set(frame.key, "VISITED");
+    } else {
+      const { model: candidate, outputGateId } = frame;
+      const input = frame.inputs[frame.nextInput++];
       const matchingGates = candidate.gates.filter((child) => child.id === input.childId);
       const matchingLeaves = candidate.leafNodes.filter((child) => child.id === input.childId);
       if (matchingGates.length + matchingLeaves.length !== 1) {
@@ -379,16 +417,10 @@ const adaptSyFaultTreeSnapshot = (
         childId: replacementChildId,
       });
       if (childGate !== undefined) {
-        expandGate(childGate.model, childGate.gateId, childGate.viaTransfer);
+        enterGate(childGate.model, childGate.gateId, childGate.viaTransfer);
       }
     }
-
-    visitStack.pop();
-    visitState.set(key, "VISITED");
-  };
-
-  modelGate(model, model.topGate.gateId, false);
-  expandGate(model, model.topGate.gateId, false);
+  }
 
   for (const basicEventId of referencedBasicEventIds) {
     const nodeClaim = claimedNodeIds.get(basicEventId);
@@ -404,6 +436,13 @@ const adaptSyFaultTreeSnapshot = (
   const controlledDataSources = new Map<string, FaultTreeControlledDataSourceReference>();
   const basicEvents = [...referencedBasicEventIds].map((basicEventId) => {
     const event = findByUuid(source.mef.systemBasicEvents, basicEventId, "SY basic event");
+    if (requiresFailureRateConversionReview(event.quantificationBasis)) {
+      throw new WorkbookPraxisAdapterError(
+        `SY basic event '${basicEventId}': ${FAILURE_RATE_CONVERSION_REVIEW_REQUIRED}`,
+        "SY_FAILURE_RATE_CONVERSION_REVIEW_REQUIRED",
+        { basicEventId },
+      );
+    }
     const controlled = event.controlledDataSource;
     const controlledValue = controlled === undefined
       ? undefined
@@ -494,12 +533,7 @@ const adaptEsqBayesianNetworkSnapshot = (
   if (model === undefined) {
     throw new WorkbookPraxisAdapterError(`ESQ Bayesian network '${modelId}' was not found`);
   }
-  return {
-    ...model,
-    id: model.modelId,
-    methodType: "BAYESIAN_NETWORK",
-    revision: source.workbookRevision,
-  };
+  return adaptBayesianNetworkModelSnapshot(source, model);
 };
 
 const adaptSyBayesianNetworkSnapshot = (
@@ -518,12 +552,20 @@ const adaptSyBayesianNetworkSnapshot = (
 const adaptBayesianNetworkModelSnapshot = (
   source: Pick<WorkbookMefSnapshot<unknown>, "workbookRevision">,
   model: WorkbookBayesianNetwork,
-): PraxisModelSnapshot => ({
-  ...model,
-  id: model.modelId,
-  methodType: "BAYESIAN_NETWORK",
-  revision: source.workbookRevision,
-});
+): PraxisModelSnapshot => {
+  const errors = [
+    ...validateBayesianNetworkGraph(model),
+    ...validateBayesianNetworkCpts(model),
+    ...validateBayesianNetworkModules(model),
+  ].filter((issue) => issue.severity === "ERROR");
+  if (errors.length > 0) throw new WorkbookPraxisAdapterError(errors.map((issue) => issue.message).join("; "));
+  return {
+    ...model,
+    id: model.modelId,
+    methodType: "BAYESIAN_NETWORK",
+    revision: source.workbookRevision,
+  };
+};
 
 const orderedFunctionalEvents = (tree: EventTree): EventTree["functionalEvents"][string][] =>
   Object.values(tree.functionalEvents).sort(
@@ -569,11 +611,6 @@ const adaptEsEventTreeSnapshot = (
     if (transfer === undefined && sequence.endState === undefined) {
       throw new WorkbookPraxisAdapterError(`ES sequence '${sequence.uuid}' has no end state`);
     }
-    if (transfer !== undefined && transfer.targetSequenceId === undefined) {
-      throw new WorkbookPraxisAdapterError(
-        `ES sequence '${sequence.uuid}' transfer has no target sequence`,
-      );
-    }
     const states = sequence.functionalEventStates;
     if (states === undefined) {
       throw new WorkbookPraxisAdapterError(
@@ -605,7 +642,6 @@ const adaptEsEventTreeSnapshot = (
               kind: "TRANSFER" as const,
               target: {
                 modelId: transfer.targetEventTreeId,
-                entityId: transfer.targetSequenceId!,
               },
             },
     };
@@ -630,35 +666,56 @@ const adaptEsEventTreeSnapshot = (
   };
 };
 
-const adaptHclSolverSettings = (configuration: WorkbookHclConfiguration): Record<string, unknown> => ({
-  variableOrder: configuration.solverSettings.variableOrder,
-  foldConstants: configuration.solverSettings.foldConstants,
-  spliceNullGates: configuration.solverSettings.spliceNullGates,
-  ...(configuration.solverSettings.uncertainty === undefined ? {} : {
-    uncertainty: {
-      sampleCount: configuration.solverSettings.uncertainty.sampleCount,
-      seed: configuration.solverSettings.uncertainty.seed,
-      basicEventDistributions: configuration.solverSettings.uncertainty.basicEventDistributions.map((definition) => ({
-        faultTreeBasicEvent: {
-          entityId: definition.faultTreeBasicEvent.entityId,
-        },
-        distribution: definition.distribution,
-      })),
-      cptRowDistributions: configuration.solverSettings.uncertainty.cptRowDistributions.map((definition) => ({
-        bayesianNetworkNode: {
-          modelId: definition.bayesianNetworkNode.modelId,
-          entityId: definition.bayesianNetworkNode.entityId,
-        },
-        cptRowId: definition.cptRowId,
-        equivalentSampleSize: definition.equivalentSampleSize,
-      })),
-    },
-  }),
-});
+const adaptHclSolverSettings = (
+  configuration: WorkbookHclConfiguration,
+  calculationType: HclCalculationType,
+): Record<string, unknown> => {
+  const input = calculationType === "UNCERTAINTY" ? configuration.solverSettings.uncertainty : undefined;
+  if (calculationType === "UNCERTAINTY" && input === undefined) {
+    throw new WorkbookPraxisAdapterError("Uncertainty execution requires saved uncertainty settings.");
+  }
+  const parsed = input === undefined ? undefined : WorkbookHclUncertaintyConfigurationSchema.safeParse(configuration);
+  if (parsed && !parsed.success) {
+    throw new WorkbookPraxisAdapterError(`Invalid uncertainty settings: ${parsed.error.message}`);
+  }
+  const uncertainty = parsed?.success ? parsed.data.solverSettings.uncertainty : undefined;
+  return {
+    variableOrder: configuration.solverSettings.variableOrder,
+    foldConstants: configuration.solverSettings.foldConstants,
+    spliceNullGates: configuration.solverSettings.spliceNullGates,
+    ...(uncertainty === undefined ? {} : {
+      uncertainty: {
+        sampleCount: uncertainty.sampleCount,
+        seed: uncertainty.seed,
+        sampler: uncertainty.sampler ?? "MC",
+        cptProbabilityClipEpsilon: uncertainty.cptProbabilityClipEpsilon ?? 0,
+        basicEventDistributions: uncertainty.basicEventDistributions.map((definition) => ({
+          faultTreeBasicEvent: {
+            entityId: definition.faultTreeBasicEvent.entityId,
+          },
+          distribution: definition.distribution,
+        })),
+        ...(uncertainty.cptGenerators === undefined ? {} : { cptGenerators: uncertainty.cptGenerators.map((definition) => ({
+          bayesianNetworkNode: { modelId: definition.bayesianNetworkNode.modelId, entityId: definition.bayesianNetworkNode.entityId },
+          generator: definition.generator,
+        })) }),
+        cptRowDistributions: uncertainty.cptRowDistributions.map((definition) => ({
+          bayesianNetworkNode: {
+            modelId: definition.bayesianNetworkNode.modelId,
+            entityId: definition.bayesianNetworkNode.entityId,
+          },
+          cptRowId: definition.cptRowId,
+          prior: definition.prior,
+        })),
+      },
+    }),
+  };
+};
 
 const adaptEsqHclSnapshot = (
   source: WorkbookMefSnapshot<EventSequenceQuantification>,
   modelId: string,
+  calculationType: HclCalculationType = "PROBABILITY",
   faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
   baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
 ): PraxisModelSnapshot => {
@@ -669,46 +726,15 @@ const adaptEsqHclSnapshot = (
     throw new WorkbookPraxisAdapterError(`ESQ HCL configuration '${modelId}' was not found`);
   }
 
-  const bindings = configuration.bindings.flatMap((binding) =>
-    configuration.faultTrees
-      .filter((faultTree) => faultTree.workbookId === binding.faultTreeBasicEvent.workbookId)
-      .filter((faultTree) =>
-        faultTreeBasicEventIdsByModel === undefined ||
-        faultTreeBasicEventIdsByModel
-          .get(faultTree.modelId)
-          ?.has(binding.faultTreeBasicEvent.entityId) === true
-      )
-      .map((faultTree) => ({
-        id: `${binding.id}:${faultTree.modelId}`,
-        faultTreeBasicEvent: {
-          modelId: faultTree.modelId,
-          entityId: binding.faultTreeBasicEvent.entityId,
-        },
-        bayesianNetworkNode: {
-          modelId: binding.bayesianNetworkNode.modelId,
-          entityId: binding.bayesianNetworkNode.entityId,
-        },
-        trueStateIds: binding.trueStateIds,
-      })),
+  return adaptHclConfigurationSnapshot(
+    source, configuration, calculationType, faultTreeBasicEventIdsByModel, baseEvidenceOverride,
   );
-
-  return {
-    id: configuration.modelId,
-    methodType: "HYBRID_CAUSAL_LOGIC",
-    revision: source.workbookRevision,
-    bayesianNetwork: { modelId: configuration.bayesianNetwork.modelId },
-    faultTrees: configuration.faultTrees.map((faultTree) => ({
-      faultTree: { modelId: faultTree.modelId },
-    })),
-    bindings,
-    baseEvidence: baseEvidenceOverride ?? configuration.baseEvidence,
-    solverSettings: adaptHclSolverSettings(configuration),
-  };
 };
 
 const adaptHclConfigurationSnapshot = (
   source: Pick<WorkbookMefSnapshot<unknown>, "workbookRevision">,
   configuration: WorkbookHclConfiguration,
+  calculationType: HclCalculationType,
   faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
   baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
   effectiveFaultTrees = configuration.faultTrees,
@@ -745,13 +771,14 @@ const adaptHclConfigurationSnapshot = (
     })),
     bindings,
     baseEvidence: baseEvidenceOverride ?? configuration.baseEvidence,
-    solverSettings: adaptHclSolverSettings(configuration),
+    solverSettings: adaptHclSolverSettings(configuration, calculationType),
   };
 };
 
 const adaptSyHclSnapshot = (
   source: WorkbookMefSnapshot<SystemsAnalysis>,
   modelId: string,
+  calculationType: HclCalculationType = "PROBABILITY",
   faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
   baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
   effectiveFaultTrees?: WorkbookModelAddress[],
@@ -765,6 +792,7 @@ const adaptSyHclSnapshot = (
   return adaptHclConfigurationSnapshot(
     source,
     configuration,
+    calculationType,
     faultTreeBasicEventIdsByModel,
     baseEvidenceOverride,
     effectiveFaultTrees,

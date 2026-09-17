@@ -64,8 +64,23 @@
 
 .bneditor__toolbar > div {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 6px;
+}
+
+.poscard__head.bneditor__network-head {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.bneditor__readonly-notice {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-subtle);
+  font-size: 12px;
 }
 
 .bneditor__file-menu {
@@ -1544,3 +1559,67 @@
     border-left: 0;
   }
 }
+
+/* Both views use the same canvas, node cards, inspector and editing controls. */
+.bneditor__canvas {
+  display: flex;
+  flex-direction: column;
+}
+.bneditor__canvas-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.bneditor__graph-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+.bneditor__view-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 12px;
+}
+.bneditor__view-selector select, .bneditor__module-inputs select {
+  min-width: 0;
+  max-width: 100%;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  padding: 4px 6px;
+}
+.bneditor__node--group { border-left: 5px solid var(--color-primary); cursor: pointer; }
+.bneditor__edge--summary { cursor: default; }
+.bneditor__edge-label { pointer-events: none; }
+.bneditor__edge-label rect { fill: var(--color-surface); }
+.bneditor__edge-count {
+  fill: var(--color-text-muted);
+  font-family: monospace;
+  font-size: 12px;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.bneditor__module-inputs label { display: grid; gap: 4px; }
+.bneditor__groups {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+.bneditor__group-form { display: grid; gap: 10px; padding: 12px; }
+.bneditor__group-form p { margin: 0; font-size: 12px; }
+.bneditor__group-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.bneditor__group-fields label { display: grid; gap: 4px; min-width: 0; font-size: 12px; }
+.bneditor__group-fields input, .bneditor__group-fields select { width: 100%; min-width: 0; box-sizing: border-box; }
+.bneditor__group-members { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px; max-height: 220px; overflow: auto; }
+.bneditor__group-members label { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; }
+.bneditor__group-members label > span { overflow-wrap: anywhere; }
+.bneditor__group-members small { display: block; color: var(--color-text-muted); }
+.bneditor__group-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }

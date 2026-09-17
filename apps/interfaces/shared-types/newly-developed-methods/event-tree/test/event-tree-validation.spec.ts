@@ -34,7 +34,6 @@ const SECOND_FAULT_TREE_MODEL_ID = "123e4567-e89b-42d3-a456-426614174615";
 const SECOND_FAULT_TREE_TOP_GATE_ID = "123e4567-e89b-42d3-a456-426614174616";
 const TARGET_EVENT_TREE_ID = "123e4567-e89b-42d3-a456-426614174617";
 const TARGET_SEQUENCE_ID = "123e4567-e89b-42d3-a456-426614174618";
-const MISSING_TRANSFER_SEQUENCE_ID = "123e4567-e89b-42d3-a456-426614174619";
 const owner = { workbookId: "es-workbook", workbookRevision: 1, modelId: MODEL_ID } as const;
 
 const model: EventTreeModel = {
@@ -231,7 +230,6 @@ describe("event-tree starting-node and path validation", () => {
     });
     expect(issues.map((issue) => issue.code)).toEqual([
       "ET_SEQUENCE_PATH_INCOMPLETE",
-      "ET_BRANCH_COVERAGE_INCOMPLETE",
     ]);
   });
 
@@ -242,18 +240,21 @@ describe("event-tree starting-node and path validation", () => {
     });
     expect(issues.map((issue) => issue.code)).toEqual([
       "ET_SEQUENCE_PATH_DUPLICATE",
-      "ET_BRANCH_COVERAGE_INCOMPLETE",
+      "ET_BRANCH_PATHS_INVALID",
     ]);
   });
 
-  it("reports missing success/failure branch coverage", () => {
-    expect(validateEventTreeStartingNodeAndPaths({ ...model, sequences: model.sequences.slice(0, 3) })).toEqual([
-      expect.objectContaining({
-        code: "ET_BRANCH_COVERAGE_INCOMPLETE",
-        entityId: MODEL_ID,
-        fieldPath: ["sequences"],
-      }),
-    ]);
+  it("accepts source paths without requiring an unmodeled sibling outcome", () => {
+    for (const sequences of [model.sequences.slice(0, 3), [model.sequences[0]], [model.sequences[3]]]) {
+      expect(validateEventTreeStartingNodeAndPaths({ ...model, sequences })).toEqual([]);
+    }
+  });
+
+  it("rejects a bypass mixed with an outcome under the same prefix", () => {
+    const first = model.sequences[0];
+    const bypass = { ...first, path: [{ ...first.path[0], outcome: "BYPASSED" as const }, first.path[1]] };
+    expect(validateEventTreeStartingNodeAndPaths({ ...model, sequences: [bypass, model.sequences[3]] }))
+      .toEqual([expect.objectContaining({ code: "ET_BRANCH_PATHS_INVALID" })]);
   });
 
   it("emits schema-valid, addressable findings", () => {
@@ -494,7 +495,6 @@ describe("event-tree transfer validation", () => {
   const transferFirstSequence = (
     sourceModel: EventTreeModel,
     targetModelId = TARGET_EVENT_TREE_ID,
-    targetSequenceId = TARGET_SEQUENCE_ID,
   ): EventTreeModel => ({
     ...sourceModel,
     sequences: [
@@ -502,24 +502,16 @@ describe("event-tree transfer validation", () => {
         ...sourceModel.sequences[0],
         result: {
           kind: "TRANSFER",
-          target: { modelId: targetModelId, entityId: targetSequenceId },
+          target: { modelId: targetModelId },
         },
       },
       ...sourceModel.sequences.slice(1),
     ],
   });
 
-  it("accepts a transfer that resolves to one sequence in another event tree", () => {
+  it("accepts a transfer into another event tree", () => {
     expect(
       validateEventTreeTransfers(transferFirstSequence(model), { eventTreeModels: [targetModel] }),
-    ).toEqual([]);
-  });
-
-  it("accepts an internal transfer to a terminal sequence", () => {
-    expect(
-      validateEventTreeTransfers(
-        transferFirstSequence(model, MODEL_ID, SUCCESS_FAILURE_SEQUENCE_ID),
-      ),
     ).toEqual([]);
   });
 
@@ -539,30 +531,10 @@ describe("event-tree transfer validation", () => {
     ).toEqual([expect.objectContaining({ code: "ET_TRANSFER_MODEL_AMBIGUOUS" })]);
   });
 
-  it("reports a missing or ambiguous target sequence", () => {
-    expect(
-      validateEventTreeTransfers(transferFirstSequence(model, TARGET_EVENT_TREE_ID, MISSING_TRANSFER_SEQUENCE_ID), {
-        eventTreeModels: [targetModel],
-      }),
-    ).toEqual([
-      expect.objectContaining({
-        code: "ET_TRANSFER_SEQUENCE_NOT_FOUND",
-        entityId: SUCCESS_SUCCESS_SEQUENCE_ID,
-        fieldPath: ["sequences", 0, "result", "target", "entityId"],
-      }),
-    ]);
-
-    expect(
-      validateEventTreeTransfers(transferFirstSequence(model), {
-        eventTreeModels: [{ ...targetModel, sequences: [targetSequence, targetSequence] }],
-      }),
-    ).toEqual([expect.objectContaining({ code: "ET_TRANSFER_SEQUENCE_AMBIGUOUS" })]);
-  });
-
   it("rejects a transfer sequence that targets itself", () => {
     expect(
       validateEventTreeTransfers(
-        transferFirstSequence(model, MODEL_ID, SUCCESS_SUCCESS_SEQUENCE_ID),
+        transferFirstSequence(model, MODEL_ID),
       ),
     ).toEqual([
       expect.objectContaining({
@@ -578,7 +550,6 @@ describe("event-tree transfer validation", () => {
     const loopingTargetModel = transferFirstSequence(
       targetModel,
       MODEL_ID,
-      SUCCESS_SUCCESS_SEQUENCE_ID,
     );
     const issues = validateEventTreeTransfers(sourceModel, { eventTreeModels: [loopingTargetModel] });
     expect(issues.map((issue) => issue.code)).toEqual(["ET_TRANSFER_LOOP", "ET_TRANSFER_LOOP"]);

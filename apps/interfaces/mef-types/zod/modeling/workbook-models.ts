@@ -9,6 +9,7 @@ import type {
 import { BayesianNetworkDefinitionSchema } from "./bayesian-network";
 import {
   HclConfigurationDefinitionBaseSchema,
+  HclSolverSettingsSchema,
   refineHclConfigurationDefinition,
 } from "./hybrid-causal-logic";
 import {
@@ -40,12 +41,23 @@ const WorkbookBayesianNetworkSchema = z
   })
   .strict();
 
-const WorkbookHclConfigurationSchema = z
+const WorkbookHclConfigurationBaseSchema = z
   .object({
     ...WorkbookMethodModelIdentitySchema.shape,
     ...HclConfigurationDefinitionBaseSchema.shape,
   })
-  .strict()
+  .strict();
+
+// Stored settings are drafts. Keep them unchanged so an unused or obsolete
+// uncertainty configuration cannot prevent loading or running a point model.
+const WorkbookHclConfigurationSchema = WorkbookHclConfigurationBaseSchema
+  .extend({ solverSettings: HclSolverSettingsSchema.extend({ uncertainty: z.unknown().optional() }) })
+  .superRefine(({ solverSettings, ...configuration }, context) => {
+    const { uncertainty: _unused, ...pointSettings } = solverSettings;
+    refineHclConfigurationDefinition({ ...configuration, solverSettings: pointSettings }, context);
+  });
+
+const WorkbookHclUncertaintyConfigurationSchema = WorkbookHclConfigurationBaseSchema
   .superRefine(refineHclConfigurationDefinition);
 
 const WorkbookFaultTreeCatalogueSchema = FaultTreeBasicEventCatalogueDefinitionSchema;
@@ -71,6 +83,7 @@ type _AssertCatalogue = Expect<
 export {
   WorkbookBayesianNetworkSchema,
   WorkbookHclConfigurationSchema,
+  WorkbookHclUncertaintyConfigurationSchema,
   WorkbookFaultTreeCatalogueSchema,
   WorkbookFaultTreeSchema,
   WorkbookMethodModelIdentitySchema,

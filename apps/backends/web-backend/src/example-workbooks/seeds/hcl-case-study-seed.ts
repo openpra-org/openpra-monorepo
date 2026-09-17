@@ -768,7 +768,7 @@ const FE_IDS: Record<TreeKey, Record<string, string>> = {
 interface TreePathSpec {
   states: string;
   endState?: EndState;
-  transfer?: { targetTree: TreeKey; targetSequenceIndex: number };
+  transfer?: { targetTree: TreeKey };
 }
 
 const PATH_SPECS: Record<TreeKey, TreePathSpec[]> = {
@@ -790,14 +790,14 @@ const PATH_SPECS: Record<TreeKey, TreePathSpec[]> = {
     { states: "SSFBBBSFBBS", endState: EndState.SUCCESSFUL_MITIGATION },
     { states: "SSFBBBSFBBF", endState: EndState.RADIONUCLIDE_RELEASE },
     { states: "SSFBBBFBBBB", endState: EndState.RADIONUCLIDE_RELEASE },
-    { states: "SFBBBBBBBBB", transfer: { targetTree: "SBO", targetSequenceIndex: 6 } },
+    { states: "SFBBBBBBBBB", transfer: { targetTree: "SBO" } },
     { states: "FSBBBBBBBBB", endState: EndState.RADIONUCLIDE_RELEASE },
     { states: "FFBBBBBBBBB", endState: EndState.RADIONUCLIDE_RELEASE },
   ],
   SBO: [
     { states: "SSSSB", endState: EndState.SUCCESSFUL_MITIGATION },
     { states: "SSSFS", endState: EndState.SUCCESSFUL_MITIGATION },
-    { states: "SSSFF", transfer: { targetTree: "FLEX", targetSequenceIndex: 3 } },
+    { states: "SSSFF", transfer: { targetTree: "FLEX" } },
     { states: "SSFSB", endState: EndState.SUCCESSFUL_MITIGATION },
     { states: "SSFFS", endState: EndState.SUCCESSFUL_MITIGATION },
     { states: "SSFFF", endState: EndState.RADIONUCLIDE_RELEASE },
@@ -806,7 +806,7 @@ const PATH_SPECS: Record<TreeKey, TreePathSpec[]> = {
     { states: "SFBFF", endState: EndState.RADIONUCLIDE_RELEASE },
     { states: "FBBSB", endState: EndState.SUCCESSFUL_MITIGATION },
     { states: "FBBFS", endState: EndState.SUCCESSFUL_MITIGATION },
-    { states: "FBBFF", transfer: { targetTree: "FLEX", targetSequenceIndex: 12 } },
+    { states: "FBBFF", transfer: { targetTree: "FLEX" } },
   ],
   FLEX: [
     { states: "SSSBSBS", endState: EndState.SUCCESSFUL_MITIGATION },
@@ -887,7 +887,6 @@ function createEventTree(treeKey: TreeKey): EventTree {
     if (spec.transfer === undefined) return [];
     return [[sequenceId, {
       targetEventTreeId: ET_IDS[spec.transfer.targetTree],
-      targetSequenceId: SEQUENCE_IDS[spec.transfer.targetTree][spec.transfer.targetSequenceIndex - 1],
       transferConditions: [`Continue the connected progression in the ${spec.transfer.targetTree} tree.`],
       preservedDependencies: ["Seismic level", "Flood level", "Fire state", "Shared plant condition"],
     }]];

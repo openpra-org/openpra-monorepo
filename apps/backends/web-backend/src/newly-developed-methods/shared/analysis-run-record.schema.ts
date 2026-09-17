@@ -1,3 +1,4 @@
+import { modelPayloadSchema } from "../../storage/model-payload-schema";
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument } from "mongoose";
 import {
@@ -17,7 +18,7 @@ import {
 
 type AnalysisRunRecordDocument = HydratedDocument<AnalysisRunRecord>;
 
-@Schema({ collection: "method_analysis_runs", id: false, versionKey: false })
+@Schema({ collection: "method_analysis_runs", id: false, versionKey: false, minimize: false })
 class AnalysisRunRecord {
   @Prop({ type: String, required: true, unique: true, index: true })
   id!: string;
@@ -55,6 +56,15 @@ class AnalysisRunRecord {
   @Prop({ type: Object, default: null })
   failure!: AnalysisRunFailure | null;
 
+  @Prop({ type: String, enum: ["SINGLE", "BATCH", "SCENARIO"], default: "SINGLE", immutable: true })
+  scope!: "SINGLE" | "BATCH" | "SCENARIO";
+
+  @Prop({ type: String, default: null, immutable: true, index: true })
+  batchId!: string | null;
+
+  @Prop({ type: Object, default: null, immutable: true })
+  nativeRequest!: Record<string, unknown> | null;
+
   @Prop({ type: Object, required: true, immutable: true })
   request!: Record<string, unknown>;
 
@@ -72,6 +82,15 @@ class AnalysisRunRecord {
 }
 
 const AnalysisRunRecordSchema = SchemaFactory.createForClass(AnalysisRunRecord);
+
+modelPayloadSchema(AnalysisRunRecordSchema, {
+  nativeRequest: () => ({}),
+  request: () => ({}),
+  workbookSnapshots: (snapshots: AnalysisRunWorkbookSnapshot[]) => snapshots.map(({ mef: _mef, ...identity }) => identity),
+  target: () => ({}),
+  contributions: () => [],
+  result: () => ({}),
+});
 
 AnalysisRunRecordSchema.index({ "owner.workbookId": 1, "owner.modelId": 1, requestedAt: -1 });
 AnalysisRunRecordSchema.index({ "owner.workbookId": 1, requestedAt: -1 });

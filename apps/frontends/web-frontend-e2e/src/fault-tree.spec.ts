@@ -76,14 +76,6 @@ interface LoginResponse {
 interface FaultTreeAnalysisResult {
   owner: { workbookRevision: number };
   topEventProbability: number;
-  minimalCutSetCount: number;
-  leadingCutSets: Array<{
-    rank: number;
-    order: number;
-    probability: number;
-    contribution: number;
-    events: Array<{ basicEventId: string; complemented: boolean }>;
-  }>;
 }
 
 interface JsonResponse {
@@ -104,7 +96,6 @@ let linkedFunctionalEventId = "";
 let targetModelId = "";
 let targetGateId = "";
 let sharedBasicEventId = "";
-let expectedCutSets: Array<{ basicEventId: string; code: string; probability: number }> = [];
 
 async function json<T>(response: JsonResponse, action: string): Promise<T> {
   const body = await response.text();
@@ -187,20 +178,6 @@ test.beforeAll(async () => {
   const sharedEvent = loaded.mef.systemBasicEvents.find(({ code }) => code === SHARED_BASIC_EVENT_CODE);
   expect(sharedEvent?.probability, "The selected basic event must have a seeded probability").toBeDefined();
   sharedBasicEventId = sharedEvent!.uuid;
-
-  const eventById = new Map(loaded.mef.systemBasicEvents.map((event) => [event.uuid, event]));
-  expectedCutSets = [
-    { basicEventId: sharedBasicEventId, code: sharedEvent!.code, probability: sharedEvent!.probability! },
-    ...targetModel!.leafNodes.flatMap((leaf) => {
-      if (leaf.kind !== "BASIC_EVENT_REFERENCE") return [];
-      expect(leaf.basicEventId).toBeDefined();
-      const event = eventById.get(leaf.basicEventId!);
-      expect(event?.probability, `Target event ${leaf.basicEventId!} must have a probability`).toBeDefined();
-      return [{ basicEventId: leaf.basicEventId!, code: event!.code, probability: event!.probability! }];
-    }),
-  ].sort((left, right) =>
-    right.probability - left.probability
-    || left.basicEventId.localeCompare(right.basicEventId));
 
   await json<SyWorkbookResponse>(
     await api.delete(
@@ -417,28 +394,13 @@ test("authors, persists, quantifies, and invalidates a transferred fault tree", 
   const exactResult = await json<FaultTreeAnalysisResult>(await resultResponse, "Read exact fault-tree results");
 
   expect(exactResult.topEventProbability).toBeCloseTo(0.006363209690436578, 14);
-  expect(exactResult.minimalCutSetCount).toBe(8);
-  expect(exactResult.leadingCutSets).toHaveLength(8);
-  expect(exactResult.leadingCutSets.every(({ order }) => order === 1)).toBeTruthy();
-  expect(exactResult.leadingCutSets.map(({ events }) => events[0].basicEventId)).toEqual(
-    expectedCutSets.map(({ basicEventId }) => basicEventId),
-  );
-  exactResult.leadingCutSets.forEach((cutSet, index) => {
-    expect(cutSet.probability).toBeCloseTo(expectedCutSets[index].probability, 14);
-    expect(cutSet.contribution).toBeCloseTo(
-      expectedCutSets[index].probability / exactResult.topEventProbability,
-      14,
-    );
-  });
+  expect(exactResult).not.toHaveProperty("minimalCutSetCount");
+  expect(exactResult).not.toHaveProperty("leadingCutSets");
 
   const results = editor.getByRole("region", { name: "Fault-tree analysis results" });
   await expect(results.getByText("Exact top-event probability").locator("..").getByLabel("6.36 times 10 to the power of −3")).toBeVisible();
-  await expect(results.getByText("Minimal cut sets").locator("..")).toContainText("8");
-  await expect(results.locator("tbody tr")).toHaveCount(8);
-  await expect(results.locator("tbody tr").first()).toContainText(expectedCutSets[0].code);
-  await expect(results.locator("tbody tr").first()).not.toContainText(expectedCutSets[0].basicEventId);
-  await expect(results.locator("tbody tr").first().getByLabel("1.50 times 10 to the power of −3")).toBeVisible();
-  await expect(results.locator("tbody tr").first()).toContainText("23.6%");
+  await expect(results.getByText(/cut sets/i)).toHaveCount(0);
+  await expect(results.getByRole("table")).toHaveCount(0);
   await results.screenshot({ path: testInfo.outputPath("fault-tree-analysis-results.png") });
 
   await waitForWorkbookSave(page, async () => {

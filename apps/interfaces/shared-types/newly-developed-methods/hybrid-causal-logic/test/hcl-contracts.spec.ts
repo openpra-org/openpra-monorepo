@@ -14,6 +14,7 @@ import {
   HclSolverSettingsSchema,
   HclValidationResultSchema,
 } from "..";
+import { HclCptGeneratorSchema, HclCptPriorSchema, HclUncertaintySettingsSchema } from "interfaces-mef-types/zod/modeling";
 
 const BN_MODEL_ID = "123e4567-e89b-42d3-a456-426614174700";
 const FT_MODEL_ID = "123e4567-e89b-42d3-a456-426614174701";
@@ -34,6 +35,38 @@ const OTHER_FT_WORKBOOK_ID = "other-sy-workbook";
 const EVENT_TREE_MODEL_ID = "123e4567-e89b-42d3-a456-426614174713";
 const SCENARIO_ID = "123e4567-e89b-42d3-a456-426614174714";
 const OTHER_SCENARIO_ID = "123e4567-e89b-42d3-a456-426614174715";
+
+describe("source CPT priors and shared sampling", () => {
+  const base = { sampleCount: 513, seed: 42, basicEventDistributions: [], cptRowDistributions: [] };
+  it.each([
+    { family: "BETA", alpha: 2, beta: 8, trueStateId: TRUE_STATE_ID },
+    { family: "DIRICHLET", alpha: [8, 1, 1] },
+    { family: "DIRICHLET", alpha: [0, 2, 0] },
+    { family: "DIRICHLET", alpha: [1e-104, 2e-104] },
+  ])("accepts source prior %j", (prior) => expect(HclCptPriorSchema.safeParse(prior).success).toBe(true));
+  it.each([
+    { family: "BETA", alpha: 0, beta: 1, trueStateId: TRUE_STATE_ID },
+    { family: "BETA", alpha: 1, beta: 1 },
+    { family: "DIRICHLET", alpha: [] },
+    { family: "DIRICHLET", alpha: [0, 0] },
+    { family: "DIRICHLET", alpha: [-1, 2] },
+    { family: "DIRICHLET", alpha: [Infinity, 2] },
+    { family: "DIRICHLET", alpha: [1, 2], equivalentSampleSize: 20 },
+  ])("rejects invalid prior %j", (prior) => expect(HclCptPriorSchema.safeParse(prior).success).toBe(false));
+  it.each(["MC", "LHS"])("normalizes the legacy FT selector %s", (sampler) => {
+    const parsed = HclUncertaintySettingsSchema.parse({ ...base, basicEventSampler: sampler });
+    expect(parsed).toEqual({ ...base, sampler });
+  });
+  it("rejects conflicting old and new sampler fields", () => {
+    expect(HclUncertaintySettingsSchema.safeParse({ ...base, sampler: "MC", basicEventSampler: "LHS" }).success).toBe(false);
+  });
+  it.each([0, 0.01, 0.499])("accepts Beta clipping %s", (cptProbabilityClipEpsilon) => {
+    expect(HclUncertaintySettingsSchema.safeParse({ ...base, cptProbabilityClipEpsilon }).success).toBe(true);
+  });
+  it.each([-0.01, 0.5, Infinity, NaN])("rejects clipping %s", (cptProbabilityClipEpsilon) => {
+    expect(HclUncertaintySettingsSchema.safeParse({ ...base, cptProbabilityClipEpsilon }).success).toBe(false);
+  });
+});
 
 describe("HCL model-reference contracts", () => {
   it("accepts a workbook-qualified Bayesian-network reference", () => {
@@ -153,15 +186,40 @@ describe("HCL evidence-scenario batches", () => {
       convolutionWeightSum: 1,
       rows: [{
         scenarioId: SCENARIO_ID,
+        status: "ok",
         rawWeight: 0.2,
         normalizedWeight: 0.2,
         convolutionWeight: 0.2,
         annualFrequency: 4e-5,
         conditionalProbability: 0.5,
+        probabilityContribution: 0.1,
         annualContribution: 2e-5,
       }],
+      convolvedProbability: 0.1,
       integratedAnnualFrequency: 2e-5,
     }).success).toBe(true);
+  });
+
+  it("represents skipped hazard scenarios without invented conditional probabilities", () => {
+    const row = {
+      scenarioId: SCENARIO_ID, status: "skipped_zero_weight",
+      rawWeight: 0, normalizedWeight: 0, convolutionWeight: 0, annualFrequency: 0,
+      conditionalProbability: null, probabilityContribution: 0, annualContribution: 0,
+    };
+    const result = {
+      targetKind: "FAULT_TREE", gridName: "Zero-mass grid",
+      annualFrequencyScale: { value: 1, unit: "PER_YEAR", annualization: { basis: "PLANT_YEAR", hoursPerYear: 8766 } },
+      annualizedFrequencyScale: 1, normalizeWeights: true,
+      rawWeightSum: 0, convolutionWeightSum: 0, rows: [row],
+      convolvedProbability: 0, integratedAnnualFrequency: 0,
+    };
+    expect(HclHazardConvolutionResultSchema.safeParse(result).success).toBe(true);
+    for (const change of [
+      { conditionalProbability: 0 }, { rawWeight: 0.1 }, { annualContribution: 1 },
+      { probabilityContribution: 0.1 }, { status: "ok" },
+    ]) {
+      expect(HclHazardConvolutionResultSchema.safeParse({ ...result, rows: [{ ...row, ...change }] }).success).toBe(false);
+    }
   });
 
   it("rejects empty or duplicate scenario selections", () => {
@@ -293,7 +351,7 @@ describe("PRAXIS HCL solver settings", () => {
             entityId: BN_NODE_ID,
           },
           cptRowId: "123e4567-e89b-42d3-a456-426614174799",
-          equivalentSampleSize: 100,
+          prior: { family: "DIRICHLET", alpha: [80, 20] },
         }],
       },
     }).success).toBe(true);
@@ -340,55 +398,11 @@ describe("HCL validation and quantification results", () => {
       seed: 2026,
       mean: 0.015,
       standardDeviation: 0.002,
-      coefficientOfVariation: 0.1333,
       minimum: 0.009,
       percentile05: 0.012,
       median: 0.0148,
       percentile95: 0.019,
       maximum: 0.023,
-    },
-    cutSets: {
-      totalCount: 1,
-      cutSets: [{
-        rank: 1,
-        order: 2,
-        probability: 0.01,
-        coverage: 2 / 3,
-        literals: [
-          {
-            basicEventId: BASIC_EVENT_ID,
-            complemented: false,
-            binding: {
-              bayesianNetworkNodeId: BN_NODE_ID,
-              stateIds: [TRUE_STATE_ID],
-              parentNodeIds: [],
-            },
-          },
-          {
-            basicEventId: OTHER_BASIC_EVENT_ID,
-            complemented: false,
-            binding: null,
-          },
-        ],
-        bnAncestorNodeIds: [],
-        bnRootCauseNodeIds: [],
-      }],
-    },
-    importance: {
-      totalCount: 1,
-      measures: [{
-        rank: 1,
-        basicEventId: BASIC_EVENT_ID,
-        bayesianNetworkNodeId: BN_NODE_ID,
-        eventProbability: 0.1,
-        probabilityIfTrue: 0.15,
-        probabilityIfFalse: 0,
-        birnbaum: 0.15,
-        criticality: 1,
-        fussellVesely: 1,
-        riskAchievementWorth: 10,
-        riskReductionWorth: null,
-      }],
     },
     bddNodes: 7,
     bddVariables: 2,
@@ -418,6 +432,15 @@ describe("HCL validation and quantification results", () => {
     expect(HclQuantificationResultSchema.safeParse(quantification).success).toBe(true);
   });
 
+  it("rejects the removed HCL coefficient of variation", () => {
+    expect(
+      HclQuantificationResultSchema.safeParse({
+        ...quantification,
+        uncertainty: { ...quantification.uncertainty, coefficientOfVariation: 0.1333 },
+      }).success,
+    ).toBe(false);
+  });
+
   it.each([
     { ...quantification, probability: -0.01 },
     { ...quantification, probability: 1.01 },
@@ -426,27 +449,8 @@ describe("HCL validation and quantification results", () => {
     { ...quantification, variableOrder: [BASIC_EVENT_ID, BASIC_EVENT_ID] },
     { ...quantification, bridge: { ...quantification.bridge, quantifications: 1.5 } },
     { ...quantification, junctionTree: { ...quantification.junctionTree, treewidth: -1 } },
-    {
-      ...quantification,
-      cutSets: {
-        ...quantification.cutSets,
-        cutSets: [{ ...quantification.cutSets.cutSets[0], probability: 1.01 }],
-      },
-    },
-    {
-      ...quantification,
-      importance: {
-        ...quantification.importance,
-        totalCount: 2,
-      },
-    },
-    {
-      ...quantification,
-      cutSets: {
-        ...quantification.cutSets,
-        cutSets: [{ ...quantification.cutSets.cutSets[0], order: 1 }],
-      },
-    },
+    { ...quantification, cutSets: { totalCount: 0, cutSets: [] } },
+    { ...quantification, importance: { totalCount: 0, measures: [] } },
     { ...quantification, completedAt: "yesterday" },
     { ...quantification, unsupportedMetric: 1 },
   ])("rejects malformed or unsupported quantification output %#", (candidate) => {
@@ -629,4 +633,124 @@ describe("independent HCL mapping model", () => {
   ])("rejects cross-model coupling or inconsistent mapping scope %#", (candidate) => {
     expect(HclConfigurationModelSchema.safeParse(candidate).success).toBe(false);
   });
+});
+
+
+describe("HCL_MH FT distribution and sampler contracts", () => {
+  const distributions = [
+    { family: "BETA", alpha: 2, beta: 8 },
+    { family: "UNIFORM", lower: 0, upper: 1 },
+    { family: "NORMAL", mean: -0.1, standardDeviation: 0.5 },
+    { family: "LOGNORMAL", median: 0.2, errorFactor: 8 },
+    { family: "LOGITNORMAL", mu: -2, sigma: 0.5 },
+    { family: "GAMMA", shape: 2, scale: 0.2 },
+    { family: "EXPONENTIAL", rate: 2 },
+    { family: "TRIANGULAR", lower: -0.1, mode: 0.2, upper: 1.2 },
+  ];
+  const settings = (distribution: object, sampler?: string) => ({
+    foldConstants: false, spliceNullGates: false,
+    uncertainty: { sampleCount: 513, seed: 42, sampler,
+      basicEventDistributions: [{
+        faultTreeBasicEvent: { referenceType: "FAULT_TREE_BASIC_EVENT", workbookId: FT_WORKBOOK_ID, entityId: BASIC_EVENT_ID },
+        distribution,
+      }], cptRowDistributions: [],
+    },
+  });
+  it.each(distributions.flatMap((distribution) => ["MC", "LHS"].map((sampler) => [distribution, sampler] as const)))(
+    "accepts source distribution %j with %s", (distribution, sampler) => {
+      const candidate = settings(distribution, sampler);
+      expect(HclSolverSettingsSchema.parse(candidate)).toMatchObject(candidate);
+    },
+  );
+  it("preserves legacy settings with no sampler", () => {
+    const parsed = HclSolverSettingsSchema.parse(settings(distributions[0]!));
+    expect(parsed.uncertainty?.sampler).toBeUndefined();
+  });
+  it("matches the original source's distribution domains for both samplers", () => {
+    const fixture = require("../../../../../solvers/praxis/tests/fixtures/hcl_mh_distribution_domain/reference-windows.json");
+    for (const testCase of fixture.cases) {
+      const { standard_deviation, error_factor, ...distribution } = testCase.distribution;
+      if (standard_deviation !== undefined) distribution.standardDeviation = standard_deviation;
+      if (error_factor !== undefined) distribution.errorFactor = error_factor;
+      const candidate = settings(distribution, testCase.sampler);
+      expect({ id: testCase.id, accepted: HclSolverSettingsSchema.safeParse(candidate).success }).toEqual({ id: testCase.id, accepted: testCase.status === "FINITE" });
+      // The old basicEventSampler alias and omitted MC default use identical rules.
+      candidate.uncertainty = { ...candidate.uncertainty, sampler: undefined, basicEventSampler: testCase.sampler } as typeof candidate.uncertainty;
+      expect(HclSolverSettingsSchema.safeParse(candidate).success).toBe(testCase.status === "FINITE");
+      if (testCase.sampler === "MC") {
+        delete (candidate.uncertainty as { basicEventSampler?: string }).basicEventSampler;
+        expect(HclSolverSettingsSchema.safeParse(candidate).success).toBe(testCase.status === "FINITE");
+      }
+    }
+  });
+  it.each([
+    { family: "NORMAL", mean: 0, standardDeviation: 0 },
+    { family: "NORMAL", mean: Infinity, standardDeviation: 1 },
+    { family: "LOGITNORMAL", mu: 0, sigma: -1 },
+    { family: "LOGITNORMAL", mu: NaN, sigma: 1 },
+    { family: "GAMMA", shape: 0, scale: 1 },
+    { family: "GAMMA", shape: 1, scale: -1 },
+    { family: "EXPONENTIAL", rate: 0 },
+    { family: "EXPONENTIAL", rate: Infinity },
+    { family: "TRIANGULAR", lower: 1, mode: 1, upper: 1 },
+    { family: "TRIANGULAR", lower: 0, mode: 2, upper: 1 },
+    { family: "TRIANGULAR", lower: 0, mode: -1, upper: 1 },
+    { family: "GAMMA", shape: 2, scale: 1, uncitedParameter: 1 },
+  ])("rejects invalid distribution %j", (distribution) => {
+    expect(HclSolverSettingsSchema.safeParse(settings(distribution, "LHS")).success).toBe(false);
+  });
+  it.each(["lhs", "APPROXIMATE", ""])("rejects unsupported sampler %s", (sampler) => {
+    expect(HclSolverSettingsSchema.safeParse(settings(distributions[0]!, sampler)).success).toBe(false);
+  });
+});
+
+
+describe("source seismic generator contracts", () => {
+  const fragility = { type: "seismic_fragility", pgaParentId: BN_NODE_ID, theta: .5, betaR: .3, betaU: .2, trueStateId: TRUE_STATE_ID, falseStateId: OTHER_TRUE_STATE_ID, pgaCenters: [{ stateId: TRUE_STATE_ID, value: .5 }, { stateId: OTHER_TRUE_STATE_ID, value: 0 }] };
+  const bins = { type: "seismic_pga_bins", noneStateId: OTHER_TRUE_STATE_ID, missionTime: 1, frequencyToProbability: "poisson", bins: [{ stateId: TRUE_STATE_ID, medianFrequency: .01, errorFactor95: 2 }] };
+  const reference = { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: BN_WORKBOOK_ID, modelId: BN_MODEL_ID, entityId: BN_NODE_ID };
+  it.each([fragility, bins, { ...bins, frequencyToProbability: "linear" }])("accepts the source parameters: %j", (g) => expect(HclCptGeneratorSchema.safeParse(g).success).toBe(true));
+  it.each([
+    { ...fragility, theta: 0 }, { ...fragility, betaR: 0 }, { ...fragility, betaU: -1 },
+    { ...fragility, trueStateId: OTHER_TRUE_STATE_ID }, { ...fragility, pgaCenters: [] },
+    { ...fragility, pgaCenters: [fragility.pgaCenters[0], fragility.pgaCenters[0]] },
+    { ...bins, missionTime: 0 }, { ...bins, frequencyToProbability: "capped_linear" },
+    { ...bins, bins: [{ ...bins.bins[0], errorFactor95: 1 }] },
+    { ...bins, bins: [{ ...bins.bins[0], medianFrequency: -1 }] },
+    { ...bins, bins: [{ ...bins.bins[0], stateId: OTHER_TRUE_STATE_ID }] },
+    { ...bins, bins: [bins.bins[0], bins.bins[0]] }, { ...bins, renormalize: true },
+  ])("rejects invalid or invented generator options: %j", (g) => expect(HclCptGeneratorSchema.safeParse(g).success).toBe(false));
+  it("rejects generators sharing a node with another generator or row priors", () => {
+    const g = { bayesianNetworkNode: reference, generator: bins };
+    const base = { sampleCount: 513, seed: 42, basicEventDistributions: [], cptRowDistributions: [], cptGenerators: [g] };
+    expect(HclUncertaintySettingsSchema.safeParse(base).success).toBe(true);
+    expect(HclUncertaintySettingsSchema.safeParse({ ...base, cptGenerators: [g, g] }).success).toBe(false);
+    expect(HclUncertaintySettingsSchema.safeParse({ ...base, cptRowDistributions: [{ bayesianNetworkNode: reference, cptRowId: RUN_ID, prior: { family: "DIRICHLET", alpha: [1, 1] } }] }).success).toBe(false);
+  });
+});
+
+
+describe("point-only hazard convolution", () => {
+  const summary = { sampleCount: 10, seed: 42, mean: 0, standardDeviation: 0, minimum: 0, percentile05: 0, median: 0, percentile95: 0, maximum: 0 };
+  const common = {
+    gridName: "Grid", normalizeWeights: false, rawWeightSum: 1, convolutionWeightSum: 1,
+    annualFrequencyScale: { value: 1, unit: "PER_YEAR", annualization: { basis: "PLANT_YEAR", hoursPerYear: 8766 } },
+    annualizedFrequencyScale: 1,
+  };
+  const weight = { scenarioId: SCENARIO_ID, status: "ok", rawWeight: 1, normalizedWeight: 1, convolutionWeight: 1, annualFrequency: 1 };
+  it("rejects removed FT hazard uncertainty results", () => {
+    const result = { ...common, targetKind: "FAULT_TREE", convolvedProbability: 0, integratedAnnualFrequency: 0,
+      rows: [{ ...weight, conditionalProbability: 0, probabilityContribution: 0, annualContribution: 0 }] };
+    expect(HclHazardConvolutionResultSchema.safeParse(result).success).toBe(true);
+    expect(HclHazardConvolutionResultSchema.safeParse({ ...result, uncertainty: summary }).success).toBe(false);
+  });
+  it("rejects removed sequence and end-state hazard uncertainty results", () => {
+    const sequence = { sequenceId: RUN_ID, convolvedProbability: 0, integratedAnnualFrequency: 0 };
+    const endState = { endStateId: RUN_ID, convolvedProbability: 0, integratedAnnualFrequency: 0 };
+    const result = { ...common, targetKind: "EVENT_TREE", rows: [{ ...weight, sequences: [] }], sequences: [sequence], endStateAggregates: [endState] };
+    expect(HclHazardConvolutionResultSchema.safeParse(result).success).toBe(true);
+    expect(HclHazardConvolutionResultSchema.safeParse({ ...result, sequences: [{ ...sequence, uncertainty: summary }] }).success).toBe(false);
+    expect(HclHazardConvolutionResultSchema.safeParse({ ...result, endStateAggregates: [{ ...endState, uncertainty: summary }] }).success).toBe(false);
+  });
+
 });

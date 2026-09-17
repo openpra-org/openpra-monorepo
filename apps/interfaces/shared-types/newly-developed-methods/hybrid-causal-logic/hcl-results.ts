@@ -23,6 +23,7 @@ import type {
 } from "../shared";
 import {
   AnnualizedFrequencyInputSchema,
+  HclUncertaintySeedSchema,
 } from "interfaces-mef-types/zod/modeling";
 import type { AnnualizedFrequencyInput } from "interfaces-mef-types/modeling";
 
@@ -51,58 +52,19 @@ interface HclJunctionTreeStats {
   totalTableEntries: number;
 }
 
-interface HclCutSetBindingTrace {
-  bayesianNetworkNodeId: WorkbookEntityId;
-  stateIds: WorkbookEntityId[];
-  parentNodeIds: WorkbookEntityId[];
-}
-
-interface HclCutSetLiteral {
-  basicEventId: WorkbookEntityId;
-  complemented: boolean;
-  binding: HclCutSetBindingTrace | null;
-}
-
-interface HclCutSet {
-  rank: number;
-  order: number;
-  probability: number;
-  coverage: number | null;
-  literals: HclCutSetLiteral[];
-  bnAncestorNodeIds: WorkbookEntityId[];
-  bnRootCauseNodeIds: WorkbookEntityId[];
-}
-
-interface HclCutSetAnalysis {
-  totalCount: number;
-  cutSets: HclCutSet[];
-}
-
-interface HclImportanceMeasure {
-  rank: number;
-  basicEventId: WorkbookEntityId;
-  bayesianNetworkNodeId: WorkbookEntityId | null;
-  eventProbability: number;
-  probabilityIfTrue: number;
-  probabilityIfFalse: number;
-  birnbaum: number;
-  criticality: number | null;
-  fussellVesely: number | null;
-  riskAchievementWorth: number | null;
-  riskReductionWorth: number | null;
-}
-
-interface HclImportanceAnalysis {
-  totalCount: number;
-  measures: HclImportanceMeasure[];
-}
+/** Counts for base point-probability compilation, shared by the entire evidence batch.
+ * UQ sample-chunk compilations are excluded. */
+type HclBatchCompilationStats = {
+  junctionTreeCompilations: number;
+  scenarioEvaluations: number;
+} & ({ bddCompilations: number } | { sequenceBddCompilations: number });
 
 interface HclUncertaintySummary {
   sampleCount: number;
   seed: number;
   mean: number;
+  /** HCL_MH quantifier population SD (variance denominator is sampleCount). */
   standardDeviation: number;
-  coefficientOfVariation: number | null;
   minimum: number;
   percentile05: number;
   median: number;
@@ -117,15 +79,12 @@ interface HclQuantificationResult {
   faultTreeTopGate: FaultTreeTopEventReference;
   probability: number;
   uncertainty?: HclUncertaintySummary;
-  /** Present on results produced by PRAXIS versions with HCL cut-set analysis. */
-  cutSets?: HclCutSetAnalysis;
-  /** Present on results produced by PRAXIS versions with HCL importance analysis. */
-  importance?: HclImportanceAnalysis;
   bddNodes: number;
   bddVariables: number;
   variableOrder: WorkbookEntityId[];
   bridge: HclBridgeStats;
   junctionTree: HclJunctionTreeStats;
+  compilationReuse?: HclBatchCompilationStats;
   basicEventQuantifications?: BasicEventQuantificationTrace[];
   validationIssues: ValidationIssue[];
   completedAt: string;
@@ -139,8 +98,10 @@ interface HclEvidenceScenarioRun {
 }
 
 interface HclBatchExecuteResult {
+  batchId?: string;
   schemaVersion: WorkbookMethodSchemaVersion;
   runs: HclEvidenceScenarioRun[];
+  compilationReuse?: HclBatchCompilationStats;
   hazardConvolution?: HclHazardConvolutionResult;
 }
 
@@ -155,6 +116,7 @@ interface HclHazardConvolutionCommon {
 
 interface HclHazardConvolutionWeight {
   scenarioId: WorkbookEntityId;
+  status: "ok" | "skipped_zero_weight";
   rawWeight: number;
   normalizedWeight: number;
   convolutionWeight: number;
@@ -162,20 +124,22 @@ interface HclHazardConvolutionWeight {
 }
 
 interface HclFaultTreeHazardConvolutionRow extends HclHazardConvolutionWeight {
-  conditionalProbability: number;
+  conditionalProbability: number | null;
+  probabilityContribution: number;
   annualContribution: number;
 }
 
 interface HclFaultTreeHazardConvolutionResult extends HclHazardConvolutionCommon {
   targetKind: "FAULT_TREE";
   rows: HclFaultTreeHazardConvolutionRow[];
+  convolvedProbability: number;
   integratedAnnualFrequency: number;
-  uncertainty?: HclUncertaintySummary;
 }
 
 interface HclEventTreeHazardSequenceContribution {
   sequenceId: WorkbookEntityId;
   conditionalProbability: number;
+  probabilityContribution: number;
   annualContribution: number;
 }
 
@@ -185,14 +149,14 @@ interface HclEventTreeHazardConvolutionRow extends HclHazardConvolutionWeight {
 
 interface HclEventTreeHazardSequenceResult {
   sequenceId: WorkbookEntityId;
+  convolvedProbability: number;
   integratedAnnualFrequency: number;
-  uncertainty?: HclUncertaintySummary;
 }
 
 interface HclEventTreeHazardEndStateResult {
   endStateId: WorkbookEntityId;
+  convolvedProbability: number;
   integratedAnnualFrequency: number;
-  uncertainty?: HclUncertaintySummary;
 }
 
 interface HclEventTreeHazardConvolutionResult extends HclHazardConvolutionCommon {
@@ -207,6 +171,14 @@ type HclHazardConvolutionResult =
   | HclEventTreeHazardConvolutionResult;
 
 const NonnegativeCounterSchema = z.number().int().nonnegative();
+const CompilationCommonShape = {
+  junctionTreeCompilations: NonnegativeCounterSchema,
+  scenarioEvaluations: NonnegativeCounterSchema,
+};
+const HclBatchCompilationStatsSchema = z.union([
+  z.object({ ...CompilationCommonShape, bddCompilations: NonnegativeCounterSchema }).strict(),
+  z.object({ ...CompilationCommonShape, sequenceBddCompilations: NonnegativeCounterSchema }).strict(),
+]);
 
 const HclValidationResultSchema = z
   .object({
@@ -253,6 +225,8 @@ const HclBatchExecuteResultSchema = z
   .object({
     schemaVersion: WorkbookMethodSchemaVersionSchema,
     runs: z.array(HclEvidenceScenarioRunSchema).min(1),
+    batchId: z.string().uuid().optional(),
+    compilationReuse: HclBatchCompilationStatsSchema.optional(),
     hazardConvolution: z.lazy(() => HclHazardConvolutionResultSchema).optional(),
   })
   .strict()
@@ -281,99 +255,12 @@ const HclJunctionTreeStatsSchema = z
   })
   .strict();
 
-const HclCutSetBindingTraceSchema = z.object({
-  bayesianNetworkNodeId: WorkbookEntityIdSchema,
-  stateIds: z.array(WorkbookEntityIdSchema).min(1),
-  parentNodeIds: z.array(WorkbookEntityIdSchema),
-}).strict();
-
-const HclCutSetLiteralSchema = z.object({
-  basicEventId: WorkbookEntityIdSchema,
-  complemented: z.boolean(),
-  binding: HclCutSetBindingTraceSchema.nullable(),
-}).strict();
-
-const HclCutSetSchema = z.object({
-  rank: z.number().int().positive(),
-  order: z.number().int().nonnegative(),
-  probability: z.number().min(0).max(1),
-  coverage: z.number().min(0).max(1).nullable(),
-  literals: z.array(HclCutSetLiteralSchema),
-  bnAncestorNodeIds: z.array(WorkbookEntityIdSchema),
-  bnRootCauseNodeIds: z.array(WorkbookEntityIdSchema),
-}).strict().superRefine((cutSet, context) => {
-  if (cutSet.order !== cutSet.literals.length) {
-    context.addIssue({
-      code: "custom",
-      path: ["order"],
-      message: "HCL cut-set order must equal its literal count",
-    });
-  }
-});
-
-const HclCutSetAnalysisSchema = z.object({
-  totalCount: NonnegativeCounterSchema,
-  cutSets: z.array(HclCutSetSchema),
-}).strict().superRefine((analysis, context) => {
-  if (analysis.totalCount !== analysis.cutSets.length) {
-    context.addIssue({
-      code: "custom",
-      path: ["totalCount"],
-      message: "HCL cut-set count must equal the returned structural enumeration",
-    });
-  }
-  analysis.cutSets.forEach((cutSet, index) => {
-    if (cutSet.rank !== index + 1) {
-      context.addIssue({
-        code: "custom",
-        path: ["cutSets", index, "rank"],
-        message: "HCL cut sets must use contiguous probability rank order",
-      });
-    }
-  });
-});
-
-const HclImportanceMeasureSchema = z.object({
-  rank: z.number().int().positive(),
-  basicEventId: WorkbookEntityIdSchema,
-  bayesianNetworkNodeId: WorkbookEntityIdSchema.nullable(),
-  eventProbability: z.number().min(0).max(1),
-  probabilityIfTrue: z.number().min(0).max(1),
-  probabilityIfFalse: z.number().min(0).max(1),
-  birnbaum: z.number().finite().min(-1).max(1),
-  criticality: z.number().finite().nullable(),
-  fussellVesely: z.number().finite().nullable(),
-  riskAchievementWorth: z.number().finite().nonnegative().nullable(),
-  riskReductionWorth: z.number().finite().nonnegative().nullable(),
-}).strict();
-
-const HclImportanceAnalysisSchema = z.object({
-  totalCount: NonnegativeCounterSchema,
-  measures: z.array(HclImportanceMeasureSchema),
-}).strict().superRefine((analysis, context) => {
-  if (analysis.totalCount !== analysis.measures.length) {
-    context.addIssue({
-      code: "custom",
-      path: ["totalCount"],
-      message: "HCL importance count must equal the returned measure count",
-    });
-  }
-  analysis.measures.forEach((measure, index) => {
-    if (measure.rank !== index + 1) {
-      context.addIssue({
-        code: "custom",
-        path: ["measures", index, "rank"],
-        message: "HCL importance measures must use contiguous rank order",
-      });
-    }
-  });
-});
-
 const ProbabilitySchema = z.number().min(0).max(1);
 const NonnegativeFiniteSchema = z.number().nonnegative().finite();
 
 const HclHazardConvolutionWeightSchema = z.object({
   scenarioId: WorkbookEntityIdSchema,
+  status: z.enum(["ok", "skipped_zero_weight"]),
   rawWeight: NonnegativeFiniteSchema,
   normalizedWeight: NonnegativeFiniteSchema,
   convolutionWeight: NonnegativeFiniteSchema,
@@ -393,16 +280,18 @@ const HclFaultTreeHazardConvolutionResultSchema = z.object({
   targetKind: z.literal("FAULT_TREE"),
   ...HclHazardConvolutionCommonShape,
   rows: z.array(HclHazardConvolutionWeightSchema.extend({
-    conditionalProbability: ProbabilitySchema,
+    conditionalProbability: ProbabilitySchema.nullable(),
+    probabilityContribution: NonnegativeFiniteSchema,
     annualContribution: NonnegativeFiniteSchema,
   }).strict()).min(1),
+  convolvedProbability: NonnegativeFiniteSchema,
   integratedAnnualFrequency: NonnegativeFiniteSchema,
-  uncertainty: z.lazy(() => HclUncertaintySummarySchema).optional(),
 }).strict();
 
 const HclEventTreeHazardSequenceContributionSchema = z.object({
   sequenceId: WorkbookEntityIdSchema,
   conditionalProbability: ProbabilitySchema,
+  probabilityContribution: NonnegativeFiniteSchema,
   annualContribution: NonnegativeFiniteSchema,
 }).strict();
 
@@ -414,20 +303,35 @@ const HclEventTreeHazardConvolutionResultSchema = z.object({
   }).strict()).min(1),
   sequences: z.array(z.object({
     sequenceId: WorkbookEntityIdSchema,
+    convolvedProbability: NonnegativeFiniteSchema,
     integratedAnnualFrequency: NonnegativeFiniteSchema,
-    uncertainty: z.lazy(() => HclUncertaintySummarySchema).optional(),
   }).strict()),
   endStateAggregates: z.array(z.object({
     endStateId: WorkbookEntityIdSchema,
+    convolvedProbability: NonnegativeFiniteSchema,
     integratedAnnualFrequency: NonnegativeFiniteSchema,
-    uncertainty: z.lazy(() => HclUncertaintySummarySchema).optional(),
   }).strict()),
 }).strict();
 
 const HclHazardConvolutionResultSchema = z.discriminatedUnion("targetKind", [
   HclFaultTreeHazardConvolutionResultSchema,
   HclEventTreeHazardConvolutionResultSchema,
-]);
+]).superRefine((result, context) => {
+  result.rows.forEach((row, index) => {
+    const skipped = row.status === "skipped_zero_weight";
+    if (skipped && [row.rawWeight, row.normalizedWeight, row.convolutionWeight, row.annualFrequency].some((v) => v !== 0)) {
+      context.addIssue({ code: "custom", path: ["rows", index], message: "Skipped scenarios must have zero hazard weights" });
+    }
+    if ("conditionalProbability" in row) {
+      if (skipped !== (row.conditionalProbability === null) ||
+          (skipped && (row.probabilityContribution !== 0 || row.annualContribution !== 0))) {
+        context.addIssue({ code: "custom", path: ["rows", index], message: "Skipped FT scenarios have no conditional probability and contribute zero" });
+      }
+    } else if (skipped && row.sequences.length !== 0) {
+      context.addIssue({ code: "custom", path: ["rows", index], message: "Skipped ET scenarios have no sequence results" });
+    }
+  });
+});
 
 const HclQuantificationResultSchema = z
   .object({
@@ -437,12 +341,11 @@ const HclQuantificationResultSchema = z
     faultTreeTopGate: FaultTreeTopEventReferenceSchema,
     probability: z.number().min(0, "Probability cannot be less than zero").max(1, "Probability cannot exceed one"),
     uncertainty: z.lazy(() => HclUncertaintySummarySchema).optional(),
-    cutSets: HclCutSetAnalysisSchema.optional(),
-    importance: HclImportanceAnalysisSchema.optional(),
     bddNodes: NonnegativeCounterSchema,
     bddVariables: NonnegativeCounterSchema,
     variableOrder: z.array(WorkbookEntityIdSchema),
     bridge: HclBridgeStatsSchema,
+    compilationReuse: HclBatchCompilationStatsSchema.optional(),
     junctionTree: HclJunctionTreeStatsSchema,
     basicEventQuantifications: z.array(BasicEventQuantificationTraceSchema).optional(),
     validationIssues: z.array(ValidationIssueSchema),
@@ -470,10 +373,9 @@ const HclQuantificationResultSchema = z
 const HclUncertaintySummarySchema = z
   .object({
     sampleCount: z.number().int().positive(),
-    seed: z.number().int().nonnegative(),
+    seed: HclUncertaintySeedSchema,
     mean: z.number().finite().nonnegative(),
     standardDeviation: z.number().finite().nonnegative(),
-    coefficientOfVariation: z.number().finite().nonnegative().nullable(),
     minimum: z.number().finite().nonnegative(),
     percentile05: z.number().finite().nonnegative(),
     median: z.number().finite().nonnegative(),
@@ -505,6 +407,9 @@ type _AssertHclBatchExecuteResult = Expect<
 type _AssertHclHazardConvolutionResult = Expect<
   Equal<z.infer<typeof HclHazardConvolutionResultSchema>, HclHazardConvolutionResult>
 >;
+type _AssertHclBatchCompilationStats = Expect<
+  Equal<z.infer<typeof HclBatchCompilationStatsSchema>, HclBatchCompilationStats>
+>;
 type _AssertHclBridgeStats = Expect<Equal<z.infer<typeof HclBridgeStatsSchema>, HclBridgeStats>>;
 type _AssertHclJunctionTreeStats = Expect<
   Equal<z.infer<typeof HclJunctionTreeStatsSchema>, HclJunctionTreeStats>
@@ -514,6 +419,7 @@ type _AssertHclQuantificationResult = Expect<
 >;
 
 export {
+  HclBatchCompilationStatsSchema,
   HclValidationResultSchema,
   HclExecuteResultSchema,
   HclEvidenceScenarioRunSchema,
@@ -523,16 +429,11 @@ export {
   HclEventTreeHazardConvolutionResultSchema,
   HclBridgeStatsSchema,
   HclJunctionTreeStatsSchema,
-  HclCutSetBindingTraceSchema,
-  HclCutSetLiteralSchema,
-  HclCutSetSchema,
-  HclCutSetAnalysisSchema,
-  HclImportanceMeasureSchema,
-  HclImportanceAnalysisSchema,
   HclUncertaintySummarySchema,
   HclQuantificationResultSchema,
 };
 export type {
+  HclBatchCompilationStats,
   HclValidationResult,
   HclExecuteResult,
   HclEvidenceScenarioRun,
@@ -542,12 +443,6 @@ export type {
   HclEventTreeHazardConvolutionResult,
   HclBridgeStats,
   HclJunctionTreeStats,
-  HclCutSetBindingTrace,
-  HclCutSetLiteral,
-  HclCutSet,
-  HclCutSetAnalysis,
-  HclImportanceMeasure,
-  HclImportanceAnalysis,
   HclUncertaintySummary,
   HclQuantificationResult,
 };

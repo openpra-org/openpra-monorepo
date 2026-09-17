@@ -27,6 +27,7 @@ import type {
   FaultTreeNodePosition,
   FaultTreeNotGate,
   FaultTreeOrGate,
+  FaultTreeXorGate,
   FaultTreeTopGateReference,
   FaultTreeTransferReference,
   FaultTreeUndevelopedEvent,
@@ -54,6 +55,11 @@ const FaultTreeNotGateSchema = FaultTreeEntityIdentitySchema.extend({
   gateType: z.literal("NOT"),
 }).strict();
 
+const FaultTreeXorGateSchema = FaultTreeEntityIdentitySchema.extend({
+  kind: z.literal("GATE"),
+  gateType: z.literal("XOR"),
+}).strict();
+
 const FaultTreeKOfNGateSchema = FaultTreeEntityIdentitySchema.extend({
   kind: z.literal("GATE"),
   gateType: z.literal("K_OF_N"),
@@ -63,6 +69,7 @@ const FaultTreeKOfNGateSchema = FaultTreeEntityIdentitySchema.extend({
 const FaultTreeGateSchema = z.discriminatedUnion("gateType", [
   FaultTreeAndGateSchema,
   FaultTreeOrGateSchema,
+  FaultTreeXorGateSchema,
   FaultTreeNotGateSchema,
   FaultTreeKOfNGateSchema,
 ]);
@@ -159,6 +166,7 @@ type _AssertFaultTreeEntityIdentity = Expect<
 >;
 type _AssertFaultTreeAndGate = Expect<Equal<z.infer<typeof FaultTreeAndGateSchema>, FaultTreeAndGate>>;
 type _AssertFaultTreeOrGate = Expect<Equal<z.infer<typeof FaultTreeOrGateSchema>, FaultTreeOrGate>>;
+type _AssertFaultTreeXorGate = Expect<Equal<z.infer<typeof FaultTreeXorGateSchema>, FaultTreeXorGate>>;
 type _AssertFaultTreeNotGate = Expect<Equal<z.infer<typeof FaultTreeNotGateSchema>, FaultTreeNotGate>>;
 type _AssertFaultTreeKOfNGate = Expect<Equal<z.infer<typeof FaultTreeKOfNGateSchema>, FaultTreeKOfNGate>>;
 type _AssertFaultTreeGate = Expect<Equal<z.infer<typeof FaultTreeGateSchema>, FaultTreeGate>>;
@@ -206,6 +214,7 @@ export {
   FaultTreeEntityIdentitySchema,
   FaultTreeAndGateSchema,
   FaultTreeOrGateSchema,
+  FaultTreeXorGateSchema,
   FaultTreeNotGateSchema,
   FaultTreeKOfNGateSchema,
   FaultTreeGateSchema,

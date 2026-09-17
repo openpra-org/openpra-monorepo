@@ -32,6 +32,7 @@ export {
   FaultTreeEntityIdentitySchema,
   FaultTreeAndGateSchema,
   FaultTreeOrGateSchema,
+  FaultTreeXorGateSchema,
   FaultTreeNotGateSchema,
   FaultTreeKOfNGateSchema,
   FaultTreeGateSchema,

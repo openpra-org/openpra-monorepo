@@ -1,3 +1,4 @@
+import { validateBayesianNetworkModuleWiring } from "./bayesian-network-module-wiring";
 import { createAnalysisReadyValidationOutcome, createDraftValidationOutcome } from "../shared";
 import type {
   AnalysisReadyValidationOutcome,
@@ -36,7 +37,7 @@ const validateBayesianNetworkIdentity = (model: BayesianNetworkModel): Validatio
     }
     nodeIds.add(node.id);
 
-    const normalizedNodeCode = node.code.trim().toUpperCase();
+    const normalizedNodeCode = node.code.trim();
     if (nodeCodes.has(normalizedNodeCode)) {
       issues.push({
         code: "BN_DUPLICATE_NODE_CODE",
@@ -62,7 +63,7 @@ const validateBayesianNetworkIdentity = (model: BayesianNetworkModel): Validatio
       }
       stateIds.add(state.id);
 
-      const normalizedStateCode = state.code.trim().toUpperCase();
+      const normalizedStateCode = state.code.trim();
       if (stateCodes.has(normalizedStateCode)) {
         issues.push({
           code: "BN_DUPLICATE_STATE_CODE",
@@ -83,11 +84,11 @@ const validateBayesianNetworkNodeStateCount = (model: BayesianNetworkModel): Val
   const issues: ValidationIssue[] = [];
 
   model.nodes.forEach((node, nodeIndex) => {
-    if (node.states.length >= 2) return;
+    if (node.states.length >= 1) return;
     issues.push({
       code: "BN_NODE_STATES_MINIMUM",
       severity: "ERROR",
-      message: "Each Bayesian-network node must define at least two states",
+      message: "Each Bayesian-network node must define at least one state",
       entityId: node.id,
       fieldPath: ["nodes", nodeIndex, "states"],
     });
@@ -102,7 +103,20 @@ const validateBayesianNetworkGraph = (model: BayesianNetworkModel): ValidationIs
   model.nodes.forEach((node) => nodeCounts.set(node.id, (nodeCounts.get(node.id) ?? 0) + 1));
 
   const validEdges: Array<{ edge: BayesianNetworkModel["edges"][number]; index: number }> = [];
+  const edgePairs = new Map<string, Set<string>>();
   model.edges.forEach((edge, edgeIndex) => {
+    const children = edgePairs.get(edge.parentNodeId) ?? new Set<string>();
+    if (children.has(edge.childNodeId)) {
+      issues.push({
+        code: "BN_DUPLICATE_EDGE",
+        severity: "ERROR",
+        message: "Each directed Bayesian-network edge can appear only once",
+        entityId: edge.id,
+        fieldPath: ["edges", edgeIndex],
+      });
+    }
+    children.add(edge.childNodeId);
+    edgePairs.set(edge.parentNodeId, children);
     const parentCount = nodeCounts.get(edge.parentNodeId) ?? 0;
     if (parentCount !== 1) {
       issues.push({
@@ -188,10 +202,27 @@ const validateBayesianNetworkGraph = (model: BayesianNetworkModel): ValidationIs
       fieldPath: ["edges", index],
     });
   };
-  const visit = (nodeId: string): void => {
+  const frames: Array<{ nodeId: string; nextEdge: number }> = [];
+  const enter = (nodeId: string): void => {
     visitState.set(nodeId, "VISITING");
     nodeStack.push(nodeId);
-    for (const validEdge of outgoingEdges.get(nodeId) ?? []) {
+    frames.push({ nodeId, nextEdge: 0 });
+  };
+
+  model.nodes.forEach((node) => {
+    if (visitState.has(node.id) || nodeCounts.get(node.id) !== 1) return;
+    enter(node.id);
+    while (frames.length > 0) {
+      const frame = frames[frames.length - 1];
+      const outgoing = outgoingEdges.get(frame.nodeId) ?? [];
+      if (frame.nextEdge === outgoing.length) {
+        frames.pop();
+        nodeStack.pop();
+        if (frames.length > 0) edgeStack.pop();
+        visitState.set(frame.nodeId, "VISITED");
+        continue;
+      }
+      const validEdge = outgoing[frame.nextEdge++];
       const childNodeId = validEdge.edge.childNodeId;
       const childState = visitState.get(childNodeId);
       if (childState === "VISITING") {
@@ -202,15 +233,8 @@ const validateBayesianNetworkGraph = (model: BayesianNetworkModel): ValidationIs
       }
       if (childState === "VISITED") continue;
       edgeStack.push(validEdge);
-      visit(childNodeId);
-      edgeStack.pop();
+      enter(childNodeId);
     }
-    nodeStack.pop();
-    visitState.set(nodeId, "VISITED");
-  };
-
-  model.nodes.forEach((node) => {
-    if (!visitState.has(node.id) && nodeCounts.get(node.id) === 1) visit(node.id);
   });
 
   return issues;
@@ -429,7 +453,8 @@ const validateBayesianNetworkCpts = (model: BayesianNetworkModel): ValidationIss
         });
       });
       const probabilityTotal = row.values.reduce((sum, value) => sum + value.probability, 0);
-      if (probabilitiesValid && Math.abs(probabilityTotal - 1) > 1e-9) {
+      // Main TensorBayes graph.rs::validate uses a 1e-6 CPT row tolerance.
+      if (probabilitiesValid && Math.abs(probabilityTotal - 1) > 1e-6) {
         issues.push({
           code: "BN_CPT_ROW_NOT_NORMALIZED",
           severity: "ERROR",
@@ -621,6 +646,10 @@ const validateBayesianNetworkModules = (model: BayesianNetworkModel): Validation
     }
     templateCodes.add(normalizedTemplateCode);
 
+    if (template.nodes.length === 0) {
+      issues.push({ code: "BN_MODULE_TEMPLATE_EMPTY", severity: "ERROR", entityId: template.id,
+        message: "A reusable module must contain at least one internal node", fieldPath: [...templatePath, "nodes"] });
+    }
     const portIds = new Set<string>();
     const interfaceNodeIds = new Set<string>();
     template.inputPorts.forEach((port, portIndex) => {
@@ -656,7 +685,13 @@ const validateBayesianNetworkModules = (model: BayesianNetworkModel): Validation
     });
 
     const internalNodeIds = new Set(template.nodes.map((node) => node.id));
+    const outputPortIds = new Set<string>();
     template.outputPorts.forEach((port, portIndex) => {
+      if (outputPortIds.has(port.id)) {
+        issues.push({ code: "BN_MODULE_OUTPUT_PORT_DUPLICATE", severity: "ERROR", entityId: port.id,
+          message: "Module output port ids must be unique", fieldPath: [...templatePath, "outputPorts", portIndex, "id"] });
+      }
+      outputPortIds.add(port.id);
       if (!internalNodeIds.has(port.nodeId)) {
         issues.push({
           code: "BN_MODULE_OUTPUT_NODE_NOT_FOUND",
@@ -771,8 +806,8 @@ const validateBayesianNetworkModules = (model: BayesianNetworkModel): Validation
         });
         return;
       }
-      const expectedStateCodes = new Set(port.node.states.map((state) => state.code.trim().toUpperCase()));
-      const actualStateCodes = new Set(boundNode.states.map((state) => state.code.trim().toUpperCase()));
+      const expectedStateCodes = new Set(port.node.states.map((state) => state.code.trim()));
+      const actualStateCodes = new Set(boundNode.states.map((state) => state.code.trim()));
       if (
         expectedStateCodes.size !== actualStateCodes.size
         || [...expectedStateCodes].some((code) => !actualStateCodes.has(code))
@@ -837,7 +872,8 @@ const validateBayesianNetworkModules = (model: BayesianNetworkModel): Validation
       const mappedTemplateStateIds = new Set(mapping.stateMappings.map((state) => state.templateStateId));
       const mappedStateIds = new Set(mapping.stateMappings.map((state) => state.stateId));
       if (
-        mappedTemplateStateIds.size !== templateNode.states.length
+        mapping.stateMappings.length !== templateNode.states.length
+        || mappedTemplateStateIds.size !== templateNode.states.length
         || mappedStateIds.size !== materializedNode.states.length
         || templateNode.states.some((state) => !mappedTemplateStateIds.has(state.id))
         || materializedNode.states.some((state) => !mappedStateIds.has(state.id))
@@ -853,7 +889,7 @@ const validateBayesianNetworkModules = (model: BayesianNetworkModel): Validation
     });
 
     const outputByPortId = new Map(instance.outputBindings.map((binding) => [binding.portId, binding.nodeId]));
-    if (outputByPortId.size !== template.outputPorts.length) {
+    if (outputByPortId.size !== template.outputPorts.length || instance.outputBindings.length !== template.outputPorts.length) {
       issues.push({
         code: "BN_MODULE_OUTPUT_BINDING_COUNT_MISMATCH",
         severity: "ERROR",
@@ -862,6 +898,7 @@ const validateBayesianNetworkModules = (model: BayesianNetworkModel): Validation
         fieldPath: [...instancePath, "outputBindings"],
       });
     }
+    issues.push(...validateBayesianNetworkModuleWiring(model, template, instance, instanceIndex));
     template.outputPorts.forEach((port) => {
       const expectedNodeId = mappingByTemplateNodeId.get(port.nodeId)?.nodeId;
       if (expectedNodeId === undefined || outputByPortId.get(port.id) !== expectedNodeId) {

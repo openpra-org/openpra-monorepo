@@ -129,10 +129,10 @@ describe("Bayesian-network identity validation", () => {
     ]);
   });
 
-  it("treats node codes as case-insensitively unique", () => {
+  it("rejects repeated node codes", () => {
     const issues = validateBayesianNetworkIdentity({
       ...model,
-      nodes: [model.nodes[0], { ...model.nodes[1], code: " cause " }],
+      nodes: [model.nodes[0], { ...model.nodes[1], code: " CAUSE " }],
     });
 
     expect(issues).toEqual([
@@ -166,14 +166,14 @@ describe("Bayesian-network identity validation", () => {
     ]);
   });
 
-  it("treats state codes as case-insensitively unique within a node", () => {
+  it("rejects repeated state codes within a node", () => {
     const causeNode = model.nodes[0];
     const issues = validateBayesianNetworkIdentity({
       ...model,
       nodes: [
         {
           ...causeNode,
-          states: [causeNode.states[0], { ...causeNode.states[1], code: " false " }],
+          states: [causeNode.states[0], { ...causeNode.states[1], code: " FALSE " }],
         },
         model.nodes[1],
       ],
@@ -249,8 +249,8 @@ describe("Bayesian-network node-state-count validation", () => {
     ).toEqual([]);
   });
 
-  it.each([{ states: [] }, { states: [model.nodes[0].states[0]] }])(
-    "reports a node with fewer than two states",
+  it.each([{ states: [] }])(
+    "reports a node without states",
     ({ states }) => {
       expect(validateBayesianNetworkNodeStateCount(withCauseStates(states))).toEqual([
         expect.objectContaining({
@@ -296,6 +296,20 @@ describe("Bayesian-network graph validation", () => {
         ],
       }),
     ).toEqual([]);
+  });
+
+  it("rejects repeated directed edges even when their ids differ", () => {
+    const issues = validateBayesianNetworkGraph({ ...model, edges: [causeToEffect, { ...causeToEffect, id: EDGE_EFFECT_CAUSE_ID }] });
+    expect(issues).toEqual([expect.objectContaining({ code: "BN_DUPLICATE_EDGE", fieldPath: ["edges", 1] })]);
+  });
+
+  it("validates deep graphs and reports deep cycles without recursive stack growth", () => {
+    const nodes = Array.from({ length: 6000 }, (_, i) => ({ ...model.nodes[0], id: `node-${i}` }));
+    const edges = nodes.slice(1).map((node, i) => ({ id: `edge-${i}`, parentNodeId: nodes[i].id, childNodeId: node.id }));
+    const deep = { ...model, nodes, edges, conditionalProbabilityTables: [] };
+    expect(validateBayesianNetworkGraph(deep)).toEqual([]);
+    edges.push({ id: "back-edge", parentNodeId: nodes[5999].id, childNodeId: nodes[5998].id });
+    expect(validateBayesianNetworkGraph(deep).map((issue) => issue.entityId)).toEqual(["edge-5998", "back-edge"]);
   });
 
   it("reports dangling edge parent and child references", () => {
@@ -746,7 +760,7 @@ describe("Bayesian-network CPT validation", () => {
       ],
     } as BayesianNetworkModel);
 
-    expect(validateBayesianNetworkCpts(withProbabilities(0.3, 0.7000000001))).toEqual([]);
+    expect(validateBayesianNetworkCpts(withProbabilities(0.3, 0.7000005))).toEqual([]);
     expect(validateBayesianNetworkCpts(withProbabilities(0.3, 0.6))).toEqual([
       expect.objectContaining({
         code: "BN_CPT_ROW_NOT_NORMALIZED",

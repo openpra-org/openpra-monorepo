@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { AnalysisCancellationInterceptor } from "../newly-developed-methods/shared/analysis-cancellation.interceptor";
+import type { HclGenerateScenariosResult } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, UseGuards, UseInterceptors } from "@nestjs/common";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { EsqWorkbooksService, type EsqWorkbookResponse } from "./esq-workbooks.service";
 import { parseRevisionedWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
@@ -6,10 +8,10 @@ import { parseExpectedWorkbookRevision } from "../workbooks/workbook-revision";
 import { WorkbookAnalysisRunsService } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
 import type {
   AnalysisRunMetadata,
-  AnalysisRunProvenanceList,
   HclBatchExecuteResult,
 } from "interfaces-shared-types/newly-developed-methods";
 
+@UseInterceptors(AnalysisCancellationInterceptor)
 @Controller("esq-workbooks")
 @UseGuards(JwtAuthGuard)
 export class EsqWorkbooksController {
@@ -25,14 +27,18 @@ export class EsqWorkbooksController {
   }
 
   @Get(":id/analysis-runs")
-  @HttpCode(HttpStatus.OK)
-  listAnalysisRuns(
-    @Param("id") id: string,
-    @Req() req: AuthenticatedRequest,
-  ): Promise<AnalysisRunProvenanceList> {
-    return this.analysisRunsService.listRunProvenance("ESQ", id, {
-      username: req.user!.username,
-    });
+  listAnalysisRuns(@Param("id") id: string, @Req() req: AuthenticatedRequest, @Query("cursor") cursor?: string) {
+    return this.analysisRunsService.listRunProvenance("ESQ", id, { username: req.user!.username }, cursor);
+  }
+
+  @Get(":id/analysis-runs/:runId")
+  analysisRun(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
+    return this.analysisRunsService.getRun("ESQ", id, undefined, runId, { username: req.user!.username });
+  }
+
+  @Get(":id/analysis-runs/:runId/details")
+  analysisRunDetails(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
+    return this.analysisRunsService.getRunDetails("ESQ", id, runId, { username: req.user!.username });
   }
 
   @Patch(":id")
@@ -121,6 +127,17 @@ export class EsqWorkbooksController {
     });
   }
 
+  @Post(":id/hcl-configurations/:modelId/generate-scenarios")
+  @HttpCode(HttpStatus.OK)
+  generateHclScenarios(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<HclGenerateScenariosResult> {
+    return this.analysisRunsService.generateHclScenarios(id, modelId, body, { username: req.user!.username }, "ESQ");
+  }
+
   @Post(":id/hcl-configurations/:modelId/fault-tree-runs")
   @HttpCode(HttpStatus.OK)
   async runHclFaultTree(
@@ -207,7 +224,11 @@ export class EsqWorkbooksController {
 
   @Post(":id/load-example")
   @HttpCode(HttpStatus.OK)
-  loadExample(@Param("id") id: string, @Body() body: { example?: string }, @Req() req: AuthenticatedRequest): Promise<EsqWorkbookResponse> {
+  loadExample(
+    @Param("id") id: string,
+    @Body() body: { example?: string },
+    @Req() req: AuthenticatedRequest,
+  ): Promise<EsqWorkbookResponse> {
     return this.esqWorkbooksService.loadExample(id, { username: req.user!.username }, body.example);
   }
 

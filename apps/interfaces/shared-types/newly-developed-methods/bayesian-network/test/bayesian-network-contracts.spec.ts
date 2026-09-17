@@ -47,8 +47,8 @@ describe("Bayesian-network discrete chance-node contracts", () => {
     ).toBe(true);
   });
 
-  it.each([{ states: [] }, { states: [falseState] }])(
-    "rejects a chance node with fewer than two states",
+  it.each([{ states: [] }])(
+    "rejects a chance node without states",
     ({ states }) => {
       expect(BayesianNetworkChanceNodeSchema.safeParse({ ...nodeIdentity, states }).success).toBe(false);
     },
@@ -170,7 +170,7 @@ describe("Bayesian-network graph and CPT contracts", () => {
   it.each([
     {
       ...rootTable,
-      rows: [{ ...rootTable.rows[0], values: [values[0]] }],
+      rows: [{ ...rootTable.rows[0], values: [] }],
     },
     {
       ...rootTable,
@@ -286,5 +286,15 @@ describe("Bayesian-network evidence, query, and marginal contracts", () => {
     { ...marginal, normalized: true },
   ])("rejects malformed marginal %#", (candidate) => {
     expect(BayesianNetworkMarginalResultSchema.safeParse(candidate).success).toBe(false);
+  });
+});
+
+
+describe("main source single-state contracts", () => {
+  it("accepts a single state and its certain marginal", () => {
+    expect(BayesianNetworkChanceNodeSchema.safeParse({ ...nodeIdentity, states: [falseState] }).success).toBe(true);
+    expect(BayesianNetworkMarginalResultSchema.safeParse({ nodeId: NODE_ID,
+      values: [{ stateId: falseState.id, probability: 1 }] }).success).toBe(true);
+    expect(BayesianNetworkMarginalResultSchema.safeParse({ nodeId: NODE_ID, values: [] }).success).toBe(false);
   });
 });

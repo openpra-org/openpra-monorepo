@@ -1,3 +1,4 @@
+import { requiresFailureRateConversionReview, FAILURE_RATE_CONVERSION_REVIEW_REQUIRED } from "interfaces-mef-types/modeling";
 import {
   createAnalysisReadyValidationOutcome,
   createDraftValidationOutcome,
@@ -342,6 +343,15 @@ const validateFaultTreeProbabilitiesAndTransfers = (
       }
 
       const basicEvent = matches[0];
+      if (basicEvent !== undefined && requiresFailureRateConversionReview(basicEvent.probability.quantificationBasis)) {
+        issues.push({
+          code: "FT_FAILURE_RATE_CONVERSION_REVIEW_REQUIRED",
+          severity: "ERROR",
+          message: FAILURE_RATE_CONVERSION_REVIEW_REQUIRED,
+          entityId: leaf.id,
+          fieldPath: ["basicEvents", catalogue?.basicEvents.indexOf(basicEvent) ?? 0, "probability", "quantificationBasis", "conversion"],
+        });
+      }
       if (
         basicEvent !== undefined &&
         (!Number.isFinite(basicEvent.probability.value) ||

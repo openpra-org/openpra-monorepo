@@ -6,6 +6,7 @@ import type {
   FunctionalEvent,
   SystemStatus,
 } from "interfaces-mef-types/es/event-sequence-analysis";
+import { DEFAULT_ANNUALIZATION_CONVENTION } from "interfaces-mef-types/modeling";
 import { EndState } from "interfaces-mef-types/core/events";
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import { v5 as uuidV5 } from "uuid";
@@ -208,7 +209,6 @@ function applyEventTreeOperation(model: EventTree, operation: EventTreeOperation
     if (operation.targetEventTreeId === null) delete transfers[operation.sequenceId];
     else transfers[operation.sequenceId] = {
       targetEventTreeId: operation.targetEventTreeId,
-      ...(operation.targetSequenceId === undefined ? {} : { targetSequenceId: operation.targetSequenceId }),
     };
     return {
       ...model,
@@ -323,7 +323,7 @@ function createEmptyEventTree(
     initiatingEventFrequency: initiatingEventFrequency === undefined ? undefined : {
       value: initiatingEventFrequency,
       unit: "PER_YEAR",
-      annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_766 },
+      annualization: { ...DEFAULT_ANNUALIZATION_CONVENTION },
     },
     plantOperatingStateId,
     endStateIds: {
@@ -381,23 +381,20 @@ function validateEventTree(model: EventTree, allTrees: Array<EventTree | string>
       return;
     }
     const bypasses = branch.paths.filter((path) => path.state === "BYPASSED");
-    const expectedStates = bypasses.length > 0 ? (["BYPASSED"] as const) : (["SUCCESS", "FAILURE"] as const);
+    if (branch.paths.length === 0) {
+      error("ET_BRANCH_INCOMPLETE", `${branch.name} needs at least one path.`, branch.uuid);
+    }
     if (bypasses.length > 0 && branch.paths.length !== 1) {
-      error("ET_BRANCH_BYPASS_INVALID", `${branch.name} must use either one bypass path or success and failure paths.`, branch.uuid);
+      error("ET_BRANCH_BYPASS_INVALID", `${branch.name} cannot mix a bypass with other paths.`, branch.uuid);
     }
-    for (const state of expectedStates) {
-      const matchingPaths = branch.paths.filter((path) => path.state === state);
-      if (matchingPaths.length !== 1) error("ET_BRANCH_INCOMPLETE", `${branch.name} needs exactly one ${state.toLowerCase()} path.`, branch.uuid);
-      const path = matchingPaths[0];
-      if (path?.targetType === "BRANCH") visit(path.target, new Set(stack).add(branchId));
-      else if (path?.targetType === "SEQUENCE") reachableSequences.add(path.target);
-    }
-    if (bypasses.length > 0) {
-      for (const state of ["SUCCESS", "FAILURE"] as const) {
-        const path = branch.paths.find((candidate) => candidate.state === state);
-        if (path?.targetType === "BRANCH") visit(path.target, new Set(stack).add(branchId));
-        else if (path?.targetType === "SEQUENCE") reachableSequences.add(path.target);
+    const states = new Set<SystemStatus>();
+    for (const path of branch.paths) {
+      if (states.has(path.state)) {
+        error("ET_BRANCH_PATH_DUPLICATE", `${branch.name} repeats its ${path.state.toLowerCase()} path.`, branch.uuid);
       }
+      states.add(path.state);
+      if (path.targetType === "BRANCH") visit(path.target, new Set(stack).add(branchId));
+      else if (path.targetType === "SEQUENCE") reachableSequences.add(path.target);
     }
   };
   if (model.initialState.branchId.length > 0) visit(model.initialState.branchId, new Set());
@@ -406,11 +403,6 @@ function validateEventTree(model: EventTree, allTrees: Array<EventTree | string>
     const transfer = model.transfers?.[sequence.uuid];
     if (transfer === undefined && sequence.endState === undefined) error("ET_SEQUENCE_RESULT_REQUIRED", `${sequence.name} needs an end state or transfer.`, sequence.uuid);
     if (transfer !== undefined && !treeIds.has(transfer.targetEventTreeId)) error("ET_TRANSFER_MISSING", `${sequence.name} references a missing event tree.`, sequence.uuid);
-    if (transfer !== undefined && (transfer.targetSequenceId === undefined || transfer.targetSequenceId.length === 0)) error("ET_TRANSFER_SEQUENCE_REQUIRED", `${sequence.name} needs a target sequence.`, sequence.uuid);
-    const targetTree = transfer === undefined ? undefined : treeById.get(transfer.targetEventTreeId);
-    if (targetTree !== undefined && transfer?.targetSequenceId !== undefined && targetTree.sequences[transfer.targetSequenceId] === undefined) {
-      error("ET_TRANSFER_SEQUENCE_MISSING", `${sequence.name} references a missing target sequence.`, sequence.uuid);
-    }
     const reachesOwner = (treeId: string, visited: Set<string>): boolean => {
       if (treeId === model.uuid) return true;
       if (visited.has(treeId)) return false;

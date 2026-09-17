@@ -10,6 +10,8 @@ interface QuantificationRate {
   unit: QuantificationTimeUnit;
 }
 
+// LINEAR is retained only to read saved workbooks/results that require review.
+// It must never be evaluated or selected for a new failure-rate input.
 type FailureRateConversionModel = "EXPONENTIAL" | "LINEAR";
 
 type FaultTreeBasicEventQuantificationBasis =
@@ -41,9 +43,11 @@ interface AnnualizedFrequencyInput {
   annualization: AnnualizationConvention;
 }
 
+const DEFAULT_HOURS_PER_YEAR = 8_760;
+
 const DEFAULT_ANNUALIZATION_CONVENTION: AnnualizationConvention = {
   basis: "PLANT_YEAR",
-  hoursPerYear: 8_766,
+  hoursPerYear: DEFAULT_HOURS_PER_YEAR,
 };
 
 const HOURS_PER_TIME_UNIT: Record<QuantificationTimeUnit, number> = {
@@ -51,18 +55,25 @@ const HOURS_PER_TIME_UNIT: Record<QuantificationTimeUnit, number> = {
   MINUTE: 1 / 60,
   HOUR: 1,
   DAY: 24,
-  YEAR: 8_766,
+  YEAR: DEFAULT_HOURS_PER_YEAR,
 };
+
+const FAILURE_RATE_CONVERSION_REVIEW_REQUIRED =
+  "This failure-rate conversion is no longer supported. Review the rate and mission time, then select exponential conversion.";
+
+function requiresFailureRateConversionReview(basis?: FaultTreeBasicEventQuantificationBasis): boolean {
+  return basis?.kind === "FAILURE_RATE" && basis.conversion !== "EXPONENTIAL";
+}
 
 function failureRateToProbability(
   basis: Extract<FaultTreeBasicEventQuantificationBasis, { kind: "FAILURE_RATE" }>,
 ): number {
+  if (requiresFailureRateConversionReview(basis)) throw new Error(FAILURE_RATE_CONVERSION_REVIEW_REQUIRED);
   const rateHours = HOURS_PER_TIME_UNIT[basis.failureRate.unit];
   const missionHours = basis.missionTime.value * HOURS_PER_TIME_UNIT[basis.missionTime.unit];
   const exposure = basis.failureRate.value * missionHours / rateHours;
-  return basis.conversion === "LINEAR"
-    ? Math.min(exposure, 1)
-    : -Math.expm1(-exposure);
+  // HCL_MH uq/basic_event_models.py::calc_probability, type 3.
+  return 1 - Math.exp(-exposure);
 }
 
 function annualizeFrequency(
@@ -83,6 +94,8 @@ function annualizeFrequency(
 
 export {
   DEFAULT_ANNUALIZATION_CONVENTION,
+  FAILURE_RATE_CONVERSION_REVIEW_REQUIRED,
+  requiresFailureRateConversionReview,
   annualizeFrequency,
   failureRateToProbability,
 };

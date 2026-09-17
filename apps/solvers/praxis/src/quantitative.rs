@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{PraxisError, Result};
 
-pub const DEFAULT_HOURS_PER_YEAR: f64 = 8_766.0;
+pub const DEFAULT_HOURS_PER_YEAR: f64 = 8_760.0;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -41,10 +41,20 @@ pub struct Rate {
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE", try_from = "String")]
 pub enum FailureRateConversion {
     Exponential,
-    Linear,
+}
+
+impl TryFrom<String> for FailureRateConversion {
+    type Error = &'static str;
+
+    fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
+        match value.as_str() {
+            "EXPONENTIAL" => Ok(Self::Exponential),
+            _ => Err("Unsupported failure-rate conversion; review the rate and mission time and select EXPONENTIAL"),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
@@ -60,11 +70,7 @@ pub enum BasicEventQuantificationBasis {
     },
 }
 
-pub fn failure_rate_to_probability(
-    failure_rate: Rate,
-    mission_time: Duration,
-    conversion: FailureRateConversion,
-) -> Result<f64> {
+pub fn failure_rate_to_probability(failure_rate: Rate, mission_time: Duration) -> Result<f64> {
     if !failure_rate.value.is_finite() || failure_rate.value < 0.0 {
         return Err(PraxisError::Logic(
             "failure rate must be finite and non-negative".to_string(),
@@ -82,10 +88,8 @@ pub fn failure_rate_to_probability(
             "failure-rate exposure is not finite".to_string(),
         ));
     }
-    Ok(match conversion {
-        FailureRateConversion::Exponential => -(-exposure).exp_m1(),
-        FailureRateConversion::Linear => exposure.min(1.0),
-    })
+    // HCL_MH uq/basic_event_models.py::calc_probability, calculation type 3.
+    Ok(1.0 - (-exposure).exp())
 }
 
 pub fn resolve_basic_event_probability(
@@ -96,8 +100,8 @@ pub fn resolve_basic_event_probability(
         Some(BasicEventQuantificationBasis::FailureRate {
             failure_rate,
             mission_time,
-            conversion,
-        }) => failure_rate_to_probability(*failure_rate, *mission_time, *conversion),
+            ..
+        }) => failure_rate_to_probability(*failure_rate, *mission_time),
         None | Some(BasicEventQuantificationBasis::Probability) => {
             if !stored_probability.is_finite() || !(0.0..=1.0).contains(&stored_probability) {
                 return Err(PraxisError::Logic(
@@ -192,6 +196,28 @@ pub struct HazardWeightSummary {
     pub convolution_weight_sum: f64,
 }
 
+// CPython 3.12.10 builtin_sum float path, used by HCL_MH's weight builder.
+// Source: Python/bltinmodule.c, lines 2464–2496. PSF license is retained in
+// hcl/uncertainty/LICENSES.txt. Aggregation's explicit += remains sequential.
+fn python_float_sum(values: impl IntoIterator<Item = f64>) -> f64 {
+    let mut values = values.into_iter();
+    let mut total = 0.0 + values.next().unwrap_or(0.0);
+    let mut correction = 0.0;
+    for value in values {
+        let next = total + value;
+        correction += if total.abs() >= value.abs() {
+            (total - next) + value
+        } else {
+            (value - next) + total
+        };
+        total = next;
+    }
+    if correction != 0.0 && correction.is_finite() {
+        total += correction;
+    }
+    total
+}
+
 /// Converts exact BN scenario probabilities into auditable hazard-convolution weights.
 pub fn prepare_hazard_weights(
     raw_weights: &[f64],
@@ -213,10 +239,10 @@ pub fn prepare_hazard_weights(
             "hazard-grid weights must be finite and non-negative".to_string(),
         ));
     }
-    let raw_weight_sum: f64 = raw_weights.iter().sum();
-    if !raw_weight_sum.is_finite() || raw_weight_sum <= 0.0 {
+    let raw_weight_sum = python_float_sum(raw_weights.iter().copied());
+    if !raw_weight_sum.is_finite() {
         return Err(PraxisError::Logic(
-            "hazard-grid weight sum must be greater than zero".to_string(),
+            "hazard-grid weight sum must be finite".to_string(),
         ));
     }
     let annualized_frequency_scale =
@@ -224,7 +250,11 @@ pub fn prepare_hazard_weights(
     let weights: Vec<HazardWeight> = raw_weights
         .iter()
         .map(|raw_weight| {
-            let normalized_weight = raw_weight / raw_weight_sum;
+            let normalized_weight = if raw_weight_sum > 0.0 {
+                raw_weight / raw_weight_sum
+            } else {
+                0.0
+            };
             let convolution_weight = if normalize_weights {
                 normalized_weight
             } else {
@@ -238,7 +268,8 @@ pub fn prepare_hazard_weights(
             }
         })
         .collect();
-    let convolution_weight_sum = weights.iter().map(|weight| weight.convolution_weight).sum();
+    let convolution_weight_sum =
+        python_float_sum(weights.iter().map(|weight| weight.convolution_weight));
     Ok(HazardWeightSummary {
         weights,
         annualized_frequency_scale,
@@ -252,24 +283,38 @@ mod tests {
     use super::*;
 
     #[test]
-    fn converts_an_hourly_failure_rate_over_a_mission() {
-        let probability = failure_rate_to_probability(
-            Rate {
-                value: 2.0e-5,
-                unit: TimeUnit::Hour,
-            },
-            Duration {
-                value: 24.0,
-                unit: TimeUnit::Hour,
-            },
-            FailureRateConversion::Exponential,
-        )
+    fn exponential_failure_rates_match_hcl_mh_source() {
+        let reference: serde_json::Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/hcl_mh_failure_rate/reference.json"
+        ))
         .unwrap();
-        assert!((probability - 4.798848184297884e-4).abs() < 1e-15);
+        for case in reference["cases"].as_array().unwrap() {
+            let probability = failure_rate_to_probability(
+                Rate {
+                    value: case["rate"].as_f64().unwrap(),
+                    unit: TimeUnit::Hour,
+                },
+                Duration {
+                    value: case["time"].as_f64().unwrap(),
+                    unit: TimeUnit::Hour,
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                probability,
+                case["probability"]
+                    .as_str()
+                    .unwrap()
+                    .parse::<f64>()
+                    .unwrap(),
+                "{}",
+                case["name"]
+            );
+        }
     }
 
     #[test]
-    fn converts_mixed_time_units_before_applying_the_linear_model() {
+    fn converts_mixed_time_units_before_applying_the_exponential_model() {
         let probability = failure_rate_to_probability(
             Rate {
                 value: 0.01,
@@ -279,10 +324,24 @@ mod tests {
                 value: 30.0,
                 unit: TimeUnit::Minute,
             },
-            FailureRateConversion::Linear,
         )
         .unwrap();
-        assert!((probability - 0.005).abs() < 1e-15);
+        assert_eq!(probability, 0.00498752080731768); // HCL_MH type 3, exposure 0.005.
+    }
+
+    #[test]
+    fn rejects_removed_failure_rate_conversions() {
+        for conversion in ["LINEAR", "UNKNOWN"] {
+            let basis = serde_json::json!({
+                "kind": "FAILURE_RATE", "conversion": conversion,
+                "failureRate": {"value": 0.001, "unit": "HOUR"},
+                "missionTime": {"value": 100, "unit": "HOUR"}
+            });
+            let error = serde_json::from_value::<BasicEventQuantificationBasis>(basis).unwrap_err();
+            assert!(error
+                .to_string()
+                .contains("review the rate and mission time"));
+        }
     }
 
     #[test]
@@ -300,6 +359,51 @@ mod tests {
     }
 
     #[test]
+    fn default_year_is_365_days_for_frequency_and_mission_time() {
+        let annual = AnnualizationConvention::default();
+        assert_eq!(
+            annualize_frequency(1.0, FrequencyUnit::PerHour, annual).unwrap(),
+            8_760.0
+        );
+        assert_eq!(
+            annualize_frequency(1.0, FrequencyUnit::PerDay, annual).unwrap(),
+            365.0
+        );
+        assert_eq!(
+            annualize_frequency(1.0, FrequencyUnit::PerYear, annual).unwrap(),
+            1.0
+        );
+        assert_eq!(
+            failure_rate_to_probability(
+                Rate {
+                    value: 0.2,
+                    unit: TimeUnit::Year
+                },
+                Duration {
+                    value: 365.0,
+                    unit: TimeUnit::Day
+                },
+            )
+            .unwrap(),
+            1.0 - (-0.2_f64).exp()
+        );
+        assert_eq!(
+            failure_rate_to_probability(
+                Rate {
+                    value: 0.001,
+                    unit: TimeUnit::Hour
+                },
+                Duration {
+                    value: 1.0,
+                    unit: TimeUnit::Year
+                },
+            )
+            .unwrap(),
+            1.0 - (-8.76_f64).exp()
+        );
+    }
+
+    #[test]
     fn rejects_invalid_time_and_frequency_inputs() {
         assert!(failure_rate_to_probability(
             Rate {
@@ -310,7 +414,6 @@ mod tests {
                 value: 0.0,
                 unit: TimeUnit::Hour,
             },
-            FailureRateConversion::Exponential,
         )
         .is_err());
         assert!(annualize_frequency(

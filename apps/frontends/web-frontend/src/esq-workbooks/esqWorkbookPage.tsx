@@ -1,9 +1,6 @@
 import { JSX, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
-import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
-import { fetchJson } from "../api/client";
 import { getProject } from "../projects/projectApi";
 import { WorkbookRolesModal } from "../workbooks/workbookRolesModal";
 import { WorkbookApprovalTable } from "../workbooks/workbookApprovalTable";
@@ -39,19 +36,6 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   uncert: "ESQ-E1",
 };
 
-interface EsqExampleResponse {
-  slug: string;
-  kind: string;
-  mef: unknown;
-  updatedAt: string;
-}
-
-interface EsqBundleResponse {
-  esq: EsqExampleResponse;
-  configurationControl: EsqExampleResponse;
-  newlyDevelopedMethods: EsqExampleResponse[];
-}
-
 function presentEsqSaveError(message: string): string {
   if (message.includes("Enabled hazard-grid scenarios must identify unique grid cells")) {
     return "Hazard convolution was not saved because the selected dimensions did not uniquely identify every enabled scenario.";
@@ -85,16 +69,13 @@ function EsqWorkbookPage(): JSX.Element {
   useEffect(() => {
     if (id === undefined) return;
     let cancelled = false;
-    Promise.all([
-      getEsqWorkbook(id),
-      fetchJson<EsqBundleResponse>("/api/example-workbooks/esq-bundle"),
-    ])
-      .then(async ([workbook, bundle]) => {
+    setData(null);
+    setError(null);
+    getEsqWorkbook(id)
+      .then(async (workbook) => {
         if (cancelled) return;
         setData({
           esq: workbook.mef,
-          cc: bundle.configurationControl.mef as PRAConfigurationControl,
-          nms: bundle.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
           links: null,
         });
         setMyRoles(workbook.myRoles);
@@ -132,6 +113,7 @@ function EsqWorkbookPage(): JSX.Element {
         : esqUuid === "esq-hcl-case-study"
           ? "hcl"
           : null;
+    setData((prev) => prev === null || prev.links === null ? prev : { ...prev, links: null });
     if (variant === null) return;
     let cancelled = false;
     fetchEsqLinkedInputs(variant)
@@ -237,7 +219,7 @@ function EsqWorkbookPage(): JSX.Element {
     <EsqWorkbookProvider
       data={data}
       editable={editable}
-      runtime={{ workbookId: id, projectId, revision }}
+      runtime={{ workbookId: id, projectId, revision, saveStatus }}
       mutateEsq={mutateEsq}
     >
       <EsqWorkbench

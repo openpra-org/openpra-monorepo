@@ -18,11 +18,14 @@ import type {
 } from "interfaces-mef-types/modeling";
 import type {
   HclBatchExecuteResult,
+  HclBatchInput,
+  HclHazardSweepSpec,
+  HclGenerateScenariosResult,
   HclExecuteResult,
+  HclCalculationType,
   HclQuantificationResult,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
-import type { AnalysisRunProvenanceList } from "interfaces-shared-types/newly-developed-methods";
 
 interface LinkedPosMef { plantOperatingStates?: { uuid: string; name: string; operatingMode?: string; meanDurationHours: number }[] }
 interface LinkedIeMef { initiatingEventGroups?: { uuid: string; name: string; meanFrequency?: { value: number } }[] }
@@ -109,14 +112,6 @@ async function patchEsqWorkbook(
   });
 }
 
-async function getEsqAnalysisRunProvenance(
-  workbookId: string,
-): Promise<AnalysisRunProvenanceList> {
-  return fetchJson<AnalysisRunProvenanceList>(
-    `/api/esq-workbooks/${workbookId}/analysis-runs`,
-  );
-}
-
 interface EsqExampleOption {
   id: string;
   label: string;
@@ -194,6 +189,7 @@ async function runEsqHclFaultTree(
   configurationId: string,
   workbookRevision: number,
   faultTreeTopGate: FaultTreeTopEventReference,
+  calculationType: HclCalculationType,
 ): Promise<HclExecuteResult> {
   return postJson<HclExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-runs`,
@@ -201,6 +197,7 @@ async function runEsqHclFaultTree(
       schemaVersion: "1.0.0",
       modelId: configurationId,
       workbookRevision,
+      calculationType,
       faultTreeTopGate,
     },
   );
@@ -211,6 +208,7 @@ async function runEsqHclEventTree(
   configurationId: string,
   workbookRevision: number,
   eventTree: WorkbookModelAddress,
+  calculationType: HclCalculationType,
   dependencyConfiguration?: WorkbookModelAddress,
 ): Promise<HclExecuteResult> {
   return postJson<HclExecuteResult>(
@@ -219,6 +217,7 @@ async function runEsqHclEventTree(
       schemaVersion: "1.0.0",
       modelId: configurationId,
       workbookRevision,
+      calculationType,
       eventTree,
       ...(dependencyConfiguration === undefined ? {} : { dependencyConfiguration }),
     },
@@ -230,8 +229,10 @@ async function runEsqHclFaultTreeBatch(
   configurationId: string,
   workbookRevision: number,
   faultTreeTopGate: FaultTreeTopEventReference,
+  calculationType: HclCalculationType,
   evidenceScenarioIds: string[],
   integrateHazardGrid = false,
+  batchInput?: HclBatchInput,
 ): Promise<HclBatchExecuteResult> {
   return postJson<HclBatchExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-batch-runs`,
@@ -239,8 +240,10 @@ async function runEsqHclFaultTreeBatch(
       schemaVersion: "1.0.0",
       modelId: configurationId,
       workbookRevision,
+      calculationType,
       faultTreeTopGate,
       evidenceScenarioIds,
+      ...(batchInput === undefined ? {} : { batchInput }),
       ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
     },
   );
@@ -251,9 +254,11 @@ async function runEsqHclEventTreeBatch(
   configurationId: string,
   workbookRevision: number,
   eventTree: WorkbookModelAddress,
+  calculationType: HclCalculationType,
   evidenceScenarioIds: string[],
   integrateHazardGrid = false,
   dependencyConfiguration?: WorkbookModelAddress,
+  batchInput?: HclBatchInput,
 ): Promise<HclBatchExecuteResult> {
   return postJson<HclBatchExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-batch-runs`,
@@ -261,9 +266,11 @@ async function runEsqHclEventTreeBatch(
       schemaVersion: "1.0.0",
       modelId: configurationId,
       workbookRevision,
+      calculationType,
       eventTree,
       ...(dependencyConfiguration === undefined ? {} : { dependencyConfiguration }),
       evidenceScenarioIds,
+      ...(batchInput === undefined ? {} : { batchInput }),
       ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
     },
   );
@@ -293,7 +300,6 @@ export {
   fetchEsqLinkedInputs,
   getEsqExampleOptions,
   getEsqWorkbook,
-  getEsqAnalysisRunProvenance,
   patchEsqWorkbook,
   loadEsqExample,
   unloadEsqExample,
@@ -314,3 +320,15 @@ export {
   type EsqExampleOption,
   type EsqDocumentEntry,
 };
+
+export async function generateEsqHclScenarios(
+  workbookId: string, configurationId: string, workbookRevision: number,
+  spec: HclHazardSweepSpec, dependencyConfiguration?: WorkbookModelAddress,
+): Promise<HclGenerateScenariosResult> {
+  return postJson<HclGenerateScenariosResult>(
+    `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/generate-scenarios`,
+    { schemaVersion: "1.0.0", modelId: configurationId, workbookRevision, spec,
+      ...(dependencyConfiguration === undefined ? {} : { dependencyConfiguration }),
+    },
+  );
+}

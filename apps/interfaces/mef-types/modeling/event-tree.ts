@@ -55,7 +55,8 @@ interface EventTreeEndStateBranchResult {
 
 interface EventTreeTransferBranchResult {
   kind: "TRANSFER";
-  target: MethodEntityReference;
+  /** Continue from the destination tree entry. */
+  target: MethodModelReference;
 }
 
 type EventTreeBranchResult = EventTreeEndStateBranchResult | EventTreeTransferBranchResult;

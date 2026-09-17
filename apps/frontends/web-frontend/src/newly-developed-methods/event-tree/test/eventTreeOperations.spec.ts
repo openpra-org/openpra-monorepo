@@ -85,9 +85,8 @@ describe("canonical event-tree operations", () => {
       kind: "SET_SEQUENCE_TRANSFER",
       sequenceId,
       targetEventTreeId: "ET-2",
-      targetSequenceId: "ET-2-SEQ-1",
     });
-    expect(transferred.transfers?.[sequenceId]).toEqual({ targetEventTreeId: "ET-2", targetSequenceId: "ET-2-SEQ-1" });
+    expect(transferred.transfers?.[sequenceId]).toEqual({ targetEventTreeId: "ET-2" });
     expect(transferred.sequences[sequenceId]?.endState).toBeUndefined();
     expect(validateEventTree(transferred, ["ET-1"])).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: "ET_TRANSFER_MISSING", entityId: sequenceId }),
@@ -96,25 +95,25 @@ describe("canonical event-tree operations", () => {
       "target-sequence": { targetEventTreeId: transferred.uuid },
     } };
     expect(validateEventTree(transferred, [transferred, target])).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "ET_TRANSFER_SEQUENCE_MISSING", entityId: sequenceId }),
       expect.objectContaining({ code: "ET_TRANSFER_LOOP", entityId: sequenceId }),
     ]));
     expect(createEventTreePresentation(transferred, []).sequences.find((sequence) => sequence.id === sequenceId)?.transferTargetId).toBe("ET-2");
   });
 
-  it("identifies incomplete imported branches and missing typed fault-tree links", () => {
+  it("identifies empty imported branches and missing typed fault-tree links", () => {
     const invalid: EventTree = {
       ...emptyTree(),
       functionalEvents: { "FE-1": { uuid: "FE-1", name: "First", order: 0 } },
       sequences: {
-        "SEQ-1": { uuid: "SEQ-1", name: "One", endState: EndState.SUCCESSFUL_MITIGATION },
+        "SEQ-1": { uuid: "SEQ-1", name: "One", endState: EndState.SUCCESSFUL_MITIGATION,
+          functionalEventStates: { "FE-1": "SUCCESS" } },
       },
       branches: {
         "B-1": {
           uuid: "B-1",
           name: "First",
           functionalEventId: "FE-1",
-          paths: [{ state: "SUCCESS", target: "SEQ-1", targetType: "SEQUENCE" }],
+          paths: [],
         },
       },
       initialState: { branchId: "B-1" },
@@ -123,6 +122,32 @@ describe("canonical event-tree operations", () => {
       "ET_FT_LINK_REQUIRED",
       "ET_BRANCH_INCOMPLETE",
     ]));
+  });
+
+  it.each(["SUCCESS", "FAILURE"] as const)("preserves a single %s outcome through validation, presentation and editing", (outcome) => {
+    const model: EventTree = {
+      ...emptyTree(),
+      functionalEvents: { "FE-1": { uuid: "FE-1", name: "First", order: 0, faultTreeTopEvent: reference } },
+      sequences: { "SEQ-1": { uuid: "SEQ-1", name: "Only path", endState: EndState.SUCCESSFUL_MITIGATION } },
+      branches: { "B-1": { uuid: "B-1", name: "First", functionalEventId: "FE-1",
+        paths: [{ state: outcome, target: "SEQ-1", targetType: "SEQUENCE" }] } },
+      initialState: { branchId: "B-1" },
+    };
+    expect(validateEventTree(model, [model])).toEqual([]);
+    expect(createEventTreePresentation(model, []).sequences[0]?.path["FE-1"]).toBe(outcome);
+    const expanded = applyEventTreeOperation(model, {
+      kind: "ADD_FUNCTIONAL_EVENT",
+      functionalEvent: { uuid: "FE-2", name: "Second", order: 1, faultTreeTopEvent: reference },
+    });
+    expect(Object.values(expanded.sequences)).toHaveLength(2);
+    expect(Object.values(expanded.sequences).every((s) => s.functionalEventStates?.["FE-1"] === outcome)).toBe(true);
+    expect(validateEventTree(expanded, [expanded])).toEqual([]);
+    const duplicated = JSON.parse(JSON.stringify(model)) as EventTree;
+    duplicated.branches["B-1"]!.paths.push({ ...duplicated.branches["B-1"]!.paths[0]! });
+    expect(validateEventTree(duplicated, [duplicated])).toContainEqual(expect.objectContaining({ code: "ET_BRANCH_PATH_DUPLICATE" }));
+    const mixed = JSON.parse(JSON.stringify(model)) as EventTree;
+    mixed.branches["B-1"]!.paths.push({ state: "BYPASSED", target: "SEQ-1", targetType: "SEQUENCE" });
+    expect(validateEventTree(mixed, [mixed])).toContainEqual(expect.objectContaining({ code: "ET_BRANCH_BYPASS_INVALID" }));
   });
 
   it("keeps bypassed functional events distinct from failures across presentation and structural edits", () => {

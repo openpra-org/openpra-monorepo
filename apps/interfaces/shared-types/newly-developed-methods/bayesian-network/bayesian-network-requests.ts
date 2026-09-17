@@ -41,6 +41,18 @@ interface BayesianNetworkQueryRequest {
   queryNodeIds: WorkbookEntityId[];
 }
 
+interface BayesianNetworkQueryScenario {
+  id: WorkbookEntityId;
+  code: string;
+  name: string;
+  evidence: BayesianNetworkEvidenceConfiguration;
+}
+
+interface BayesianNetworkBatchQueryRequest {
+  scenarios: BayesianNetworkQueryScenario[];
+  queryNodeIds: WorkbookEntityId[];
+}
+
 interface BayesianNetworkCreateRequest {
   schemaVersion: WorkbookMethodSchemaVersion;
   modelId: WorkbookModelId;
@@ -81,7 +93,7 @@ interface BayesianNetworkExecuteRequest {
   schemaVersion: WorkbookMethodSchemaVersion;
   modelId: WorkbookModelId;
   workbookRevision: WorkbookRevision;
-  query: BayesianNetworkQueryRequest;
+  query: BayesianNetworkQueryRequest | BayesianNetworkBatchQueryRequest;
 }
 
 const BayesianNetworkQueryRequestSchema = z
@@ -100,6 +112,23 @@ const BayesianNetworkQueryRequestSchema = z
       });
     }
   });
+
+const BayesianNetworkBatchQueryRequestSchema = z.object({
+  scenarios: z.array(z.object({
+    id: WorkbookEntityIdSchema,
+    code: z.string().trim().min(1),
+    name: z.string().trim().min(1),
+    evidence: BayesianNetworkEvidenceConfigurationSchema,
+  }).strict()).min(1, "At least one evidence scenario is required"),
+  queryNodeIds: z.array(WorkbookEntityIdSchema).min(1, "At least one query node is required"),
+}).strict().superRefine((request, context) => {
+  if (new Set(request.queryNodeIds).size !== request.queryNodeIds.length) {
+    context.addIssue({ code: "custom", path: ["queryNodeIds"], message: "Query node ids must be unique" });
+  }
+  if (new Set(request.scenarios.map((scenario) => scenario.id)).size !== request.scenarios.length) {
+    context.addIssue({ code: "custom", path: ["scenarios"], message: "Scenario ids must be unique" });
+  }
+});
 
 const BayesianNetworkCreateRequestSchema = z
   .object({
@@ -151,7 +180,7 @@ const BayesianNetworkExecuteRequestSchema = z
     schemaVersion: WorkbookMethodSchemaVersionSchema,
     modelId: WorkbookModelIdSchema,
     workbookRevision: WorkbookRevisionSchema,
-    query: BayesianNetworkQueryRequestSchema,
+    query: z.union([BayesianNetworkQueryRequestSchema, BayesianNetworkBatchQueryRequestSchema]),
   })
   .strict();
 
@@ -159,6 +188,9 @@ type Expect<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type _AssertBayesianNetworkQueryRequest = Expect<
   Equal<z.infer<typeof BayesianNetworkQueryRequestSchema>, BayesianNetworkQueryRequest>
+>;
+type _AssertBayesianNetworkBatchQueryRequest = Expect<
+  Equal<z.infer<typeof BayesianNetworkBatchQueryRequestSchema>, BayesianNetworkBatchQueryRequest>
 >;
 type _AssertBayesianNetworkCreateRequest = Expect<
   Equal<z.infer<typeof BayesianNetworkCreateRequestSchema>, BayesianNetworkCreateRequest>
@@ -177,6 +209,7 @@ type _AssertBayesianNetworkExecuteRequest = Expect<
 >;
 
 export {
+  BayesianNetworkBatchQueryRequestSchema,
   BayesianNetworkQueryRequestSchema,
   BayesianNetworkCreateRequestSchema,
   BayesianNetworkPatchChangesSchema,
@@ -185,6 +218,8 @@ export {
   BayesianNetworkExecuteRequestSchema,
 };
 export type {
+  BayesianNetworkBatchQueryRequest,
+  BayesianNetworkQueryScenario,
   BayesianNetworkQueryRequest,
   BayesianNetworkCreateRequest,
   BayesianNetworkPatchChanges,

@@ -88,7 +88,7 @@ const EventTreeEndStateBranchResultSchema = z
 const EventTreeTransferBranchResultSchema = z
   .object({
     kind: z.literal("TRANSFER"),
-    target: MethodEntityReferenceSchema,
+    target: MethodModelReferenceSchema,
   })
   .strict();
 

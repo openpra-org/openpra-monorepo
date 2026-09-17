@@ -15,7 +15,6 @@ interface BayesianNetworkNodeState {
 
 type BayesianNetworkNodeStates = [
   BayesianNetworkNodeState,
-  BayesianNetworkNodeState,
   ...BayesianNetworkNodeState[],
 ];
 
@@ -48,7 +47,6 @@ interface BayesianNetworkCptValue {
 }
 
 type BayesianNetworkCptValues = [
-  BayesianNetworkCptValue,
   BayesianNetworkCptValue,
   ...BayesianNetworkCptValue[],
 ];

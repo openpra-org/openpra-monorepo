@@ -1,3 +1,4 @@
+import type { RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
 import React, { createContext, useContext, useMemo } from "react";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type {
@@ -5,8 +6,6 @@ import type {
   EventSequence,
   EventTree,
 } from "interfaces-mef-types/es/event-sequence-analysis";
-import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
-import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 
 interface EsqLinkedInputs {
   posStates: { id: string; name: string; mode: string; durationHours: number }[];
@@ -23,12 +22,11 @@ interface EsqLinkedInputs {
 
 interface EsqWorkbookData {
   esq: EventSequenceQuantification;
-  cc: PRAConfigurationControl;
-  nms: NewlyDevelopedMethod[];
   links: EsqLinkedInputs | null;
 }
 
 interface EsqWorkbookRuntime {
+  saveStatus: RevisionedSaveStatus;
   workbookId: string | null;
   projectId: string | null;
   revision: number | null;
@@ -55,7 +53,7 @@ function EsqWorkbookProvider({ data, editable, runtime, mutateEsq, children }: {
     () => ({
       ...data,
       editable,
-      runtime: runtime ?? { workbookId: null, projectId: null, revision: null },
+      runtime: runtime ?? { workbookId: null, projectId: null, revision: null, saveStatus: "saved" },
       mutateEsq,
     }),
     [data, editable, mutateEsq, runtime],

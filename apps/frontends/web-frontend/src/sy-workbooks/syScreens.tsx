@@ -1,8 +1,9 @@
+import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
 import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useState } from "react";
 import type { SystemBasicEvent, SystemLogicModel } from "interfaces-mef-types/sy/systems-analysis";
-import { failureRateToProbability } from "interfaces-mef-types/modeling";
+import { failureRateToProbability, requiresFailureRateConversionReview } from "interfaces-mef-types/modeling";
 import {
   applyFaultTreeBasicEventToSystemBasicEvent,
   systemBasicEventToFaultTreeBasicEvent,
@@ -244,7 +245,7 @@ function toFaultTreeEditorCatalogue(
   return {
     basicEvents: events.map((event) => {
       const projected = systemBasicEventToFaultTreeBasicEvent(event);
-      if (event.controlledDataSource === undefined) return projected;
+      if (event.controlledDataSource === undefined || requiresFailureRateConversionReview(event.quantificationBasis)) return projected;
       const controlledParameter = event.controlledDataSource.referenceType === "WORKBOOK_PARAMETER"
         ? controlledParameterValues.get(JSON.stringify([
             event.controlledDataSource.workbookId,
@@ -319,13 +320,46 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
     controlledParameters,
     controlledHumanFailures,
   } = useSyWorkbook();
+  const {sourceWarning} = useAnalysisSourceGuard("sy", runtime.workbookId);
   const [selection, setSelection] = useState<FaultTreeSelection>(null);
   const [analysisResults, setAnalysisResults] = useState<Record<string, FaultTreeAnalysisResult>>({});
   const [runningModelId, setRunningModelId] = useState<string | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+  const [newSystemName, setNewSystemName] = useState("");
   const sysDef = sy.systemDefinitions.find((s) => s.uuid === sysId) ?? sy.systemDefinitions[0];
 
   useEffect(() => setSelection(null), [sysId]);
+
+  function addSystem(): void {
+    const name = newSystemName.trim();
+    if (!editable || name.length === 0) return;
+    const uuid = crypto.randomUUID();
+    mutateSy((draft) => ({
+      ...draft,
+      systemDefinitions: [...draft.systemDefinitions, {
+        uuid,
+        name,
+        boundaries: [],
+        successCriteriaIds: [],
+        missionTimeHours: 8760,
+        modeledComponentsAndFailures: {},
+        informationBasis: draft.plantStage === "OPERATIONAL" ? "as-built-as-operated" : "as-designed-as-intended",
+        implementsSrs: [],
+      }],
+    }));
+    setSysId(uuid);
+    setNewSystemName("");
+  }
+
+  const systemForm = editable ? (
+    <form className="posrow posrow--wrap" style={{ gap: 8, marginTop: 12 }} onSubmit={(event) => { event.preventDefault(); addSystem(); }}>
+      <label className="posfield">
+        <span className="posfield__label">New system name</span>
+        <input className="posfield__input" value={newSystemName} onChange={(event) => setNewSystemName(event.target.value)} />
+      </label>
+      <button type="submit" className="posnav__btn" disabled={newSystemName.trim().length === 0}>Add system</button>
+    </form>
+  ) : null;
 
   if (sysDef === undefined) {
     return (
@@ -335,9 +369,8 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
           <span className="possubtle">0 systems · SY-A1, A7, A8</span>
         </div>
         <p className="poscard__sub">No systems have been added to this workbook yet.</p>
-        <div className="eswarn">
-          <span>Add or import a system definition before building its fault-tree logic model.</span>
-        </div>
+        <p className="poscard__sub">Add a system before building its fault-tree logic model.</p>
+        {systemForm}
       </div>
     );
   }
@@ -467,6 +500,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
             <option key={s.uuid} value={s.uuid}>{shortOf(s.uuid)}: {s.name}</option>
           ))}
         </select>
+        {systemForm}
       </div>
 
       <div className="poscard">
@@ -542,7 +576,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
             validation={validation}
             saveState={runtime.saveStatus}
             analysisResult={analysisResult}
-            resultIsStale={analysisResult !== null && (runtime.saveStatus !== "saved" || analysisResult.owner.workbookRevision !== runtime.revision)}
+            resultIsStale={analysisResult !== null && (sourceWarning !== null || runtime.saveStatus !== "saved" || analysisResult.owner.workbookRevision !== runtime.revision)}
             transferTargets={transferTargets}
             onOperation={applyOperation}
             onSelectionChange={setSelection}

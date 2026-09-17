@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { EndState } from "interfaces-mef-types/core/events";
 import type { EventSequence, EventTree } from "interfaces-mef-types/es/event-sequence-analysis";
 import { applyEventTreeOperation } from "../eventTreeOperations";
@@ -97,6 +97,34 @@ function classifiedTreeFixture(): { linkedModel: EventTree; eventSequences: Even
 }
 
 describe("EventTreeEditor", () => {
+  it("selects a destination tree and displays each complete transfer path", () => {
+    const source = Object.values(model.sequences)[0]!;
+    const { onOperation } = renderEditor({
+      selection: source.uuid,
+      availableTransfers: [{ id: "ET-2", name: "Backup", sequenceIds: ["S", "F"] }],
+      analysisResult: {
+        schemaVersion: "1.0.0", runId: "run", owner: { workbookId: "workbook", workbookRevision: 1, modelId: model.uuid },
+        mode: "INDEPENDENT", completedAt: "2026-01-01T00:00:00Z", validationIssues: [], endStateAggregates: [],
+        sequences: [
+          { sequenceId: "path-s", sequenceChain: [{ modelId: model.uuid, entityId: source.uuid }, { modelId: "ET-2", entityId: "S" }],
+            path: [{ functionalEventId: "FE-1", outcome: "FAILURE" }, { functionalEventId: "FE-2", outcome: "SUCCESS" }],
+            result: { kind: "END_STATE", endStateId: "SAFE" }, conditionalProbability: 0.14, annualFrequency: 0.0014 },
+          { sequenceId: "path-f", sequenceChain: [{ modelId: model.uuid, entityId: source.uuid }, { modelId: "ET-2", entityId: "F" }],
+            path: [{ functionalEventId: "FE-1", outcome: "FAILURE" }, { functionalEventId: "FE-2", outcome: "FAILURE" }],
+            result: { kind: "END_STATE", endStateId: "RELEASE" }, conditionalProbability: 0.06, annualFrequency: 0.0006 },
+        ],
+      },
+    });
+    fireEvent.change(screen.getByLabelText("Sequence result"), { target: { value: "TRANSFER" } });
+    expect(onOperation).toHaveBeenLastCalledWith({ kind: "SET_SEQUENCE_TRANSFER", sequenceId: source.uuid, targetEventTreeId: "ET-2" });
+    expect(screen.queryByLabelText("Target sequence")).not.toBeInTheDocument();
+    const results = within(screen.getByLabelText("Transferred sequence results"));
+    expect(results.getAllByRole("row")).toHaveLength(3);
+    expect(results.getByText(`${source.name} → Backup / Sequence 2`)).toBeInTheDocument();
+    expect(results.getByText("FAILURE → FAILURE")).toBeInTheDocument();
+    expect(results.getByText("0.06")).toBeInTheDocument();
+  });
+
   it("persists explicit initiating-frequency and annualization units", () => {
     const { onOperation } = renderEditor();
 
@@ -112,7 +140,7 @@ describe("EventTreeEditor", () => {
       changes: {
         initiatingEventFrequency: expect.objectContaining({
           unit: "PER_HOUR",
-          annualization: expect.objectContaining({ basis: "PLANT_YEAR", hoursPerYear: 8_766 }),
+          annualization: expect.objectContaining({ basis: "PLANT_YEAR", hoursPerYear: 8_760 }),
         }),
       },
     }));
@@ -121,7 +149,7 @@ describe("EventTreeEditor", () => {
       changes: {
         initiatingEventFrequency: expect.objectContaining({
           unit: "PER_YEAR",
-          annualization: expect.objectContaining({ basis: "CRITICAL_YEAR", hoursPerYear: 8_766 }),
+          annualization: expect.objectContaining({ basis: "CRITICAL_YEAR", hoursPerYear: 8_760 }),
         }),
       },
     }));

@@ -1,3 +1,4 @@
+import type { HclBindingEditorProps } from "../hybrid-causal-logic/hclBindingTypes";
 import type {
   BayesianNetworkEvidenceConfiguration,
   HclEvidenceScenario,
@@ -5,6 +6,7 @@ import type {
 } from "interfaces-mef-types/modeling";
 import type {
   BayesianNetworkAnalysisResult,
+  BayesianNetworkBatchRow,
   BayesianNetworkModel,
 } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
@@ -13,18 +15,12 @@ import type {
   HclEditorRunResult,
   HclEventTreeOption,
   HclFaultTreeOption,
+  HclCalculationType,
 } from "../hybrid-causal-logic";
 
 type BayesianNetworkFaultTreeOption = HclFaultTreeOption;
 
-interface BayesianNetworkQueryBatchRow {
-  scenarioId: string;
-  scenarioCode: string;
-  scenarioName: string;
-  status: "SUCCEEDED" | "FAILED";
-  failure: string | null;
-  result: BayesianNetworkAnalysisResult | null;
-}
+type BayesianNetworkQueryBatchRow = BayesianNetworkBatchRow;
 
 interface BayesianNetworkQueryBatchResult {
   queryNodeId: string;
@@ -34,6 +30,7 @@ interface BayesianNetworkQueryBatchResult {
 interface BayesianNetworkEditorProps {
   model: BayesianNetworkModel;
   editable: boolean;
+  readOnlyNotice?: { message: string; sourceHref?: string; sourceLabel?: string };
   showAnalysis?: boolean;
   showQueryAnalysis?: boolean;
   showHclAnalysis?: boolean;
@@ -44,6 +41,8 @@ interface BayesianNetworkEditorProps {
   analysisResult: BayesianNetworkAnalysisResult | null;
   queryBatchResult?: BayesianNetworkQueryBatchResult | null;
   running: boolean;
+  saveBlockedReason?: string | null;
+  onAnalysisInputChange?: () => void;
   runError: string | null;
   workbookId: string | null;
   hclConfigurations: WorkbookHclConfiguration[];
@@ -57,10 +56,11 @@ interface BayesianNetworkEditorProps {
   onEvidenceChange: (evidence: BayesianNetworkEvidenceConfiguration) => void;
   onQueryNodeChange: (nodeId: string | null) => void;
   onHclConfigurationsChange: (configurations: WorkbookHclConfiguration[]) => void;
-  onRunHclFaultTree: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption) => void;
-  onRunHclEventTree: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption) => void;
-  onRunHclFaultTreeBatch: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, scenarioIds: string[], integrateHazardGrid: boolean) => void;
-  onRunHclEventTreeBatch: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, scenarioIds: string[], integrateHazardGrid: boolean) => void;
+  onGenerateHclScenarios?: HclBindingEditorProps["onGenerateScenarios"];
+  onRunHclFaultTree: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, calculationType: HclCalculationType) => void;
+  onRunHclEventTree: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, calculationType: HclCalculationType) => void;
+  onRunHclFaultTreeBatch: (configuration: WorkbookHclConfiguration, faultTree: HclFaultTreeOption, scenarioIds: string[], integrateHazardGrid: boolean, calculationType: HclCalculationType) => void;
+  onRunHclEventTreeBatch: (configuration: WorkbookHclConfiguration, eventTree: HclEventTreeOption, scenarioIds: string[], integrateHazardGrid: boolean, calculationType: HclCalculationType) => void;
   onRun: () => void;
   onRunBatch?: (scenarios: HclEvidenceScenario[]) => void;
 }

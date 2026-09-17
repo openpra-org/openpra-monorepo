@@ -113,6 +113,71 @@ function roundTripFixture(): {
 }
 
 describe("OpenPSA fault-tree interchange", () => {
+  it("does not overwrite another tree's events when importing plain XML", () => {
+    const xml = (code: string, value: number): string => `<opsa-mef>
+      <define-fault-tree name="${code}"><define-gate name="Top"><basic-event name="${code}"/></define-gate></define-fault-tree>
+      <model-data><define-basic-event name="${code}"><float value="${value}"/></define-basic-event></model-data>
+    </opsa-mef>`;
+    const first = importOpenPsaFaultTree(xml("A", 0.125));
+    const second = importOpenPsaFaultTree(xml("B", 0.01));
+    const merged = mergeOpenPsaImportCatalogue(first.catalogue, second.catalogue);
+    expect(merged.basicEvents).toHaveLength(2);
+    expect(merged.basicEvents.find(({ id }) => id === first.catalogue.basicEvents[0].id))
+      .toEqual(first.catalogue.basicEvents[0]);
+    expect(merged.basicEvents.find(({ id }) => id === second.catalogue.basicEvents[0].id)?.probability.value).toBe(0.01);
+  });
+
+  it("preserves source probabilities and house events in shared model-data", () => {
+    const imported = importOpenPsaFaultTree(`<opsa-mef>
+      <define-fault-tree name="source">
+        <define-gate name="Top"><and><basic-event name="X"/><house-event name="Enabled"/></and></define-gate>
+      </define-fault-tree>
+      <model-data>
+        <define-basic-event name="X"><float value="0.0002"/></define-basic-event>
+        <define-house-event name="Enabled"><constant value="true"/></define-house-event>
+      </model-data>
+    </opsa-mef>`);
+    expect(imported.catalogue.basicEvents).toEqual([expect.objectContaining({ code: "X", probability: { value: 0.0002 } })]);
+    expect(imported.model.leafNodes).toEqual(expect.arrayContaining([expect.objectContaining({ code: "Enabled", kind: "HOUSE_EVENT", state: true })]));
+    expect(imported.warnings).toEqual([]);
+  });
+
+  it.each([true, false])("round-trips XOR with editor metadata=%s", (includeEditorSnapshot) => {
+    const fixture = roundTripFixture();
+    fixture.model.gates[0] = { ...fixture.model.gates[0], gateType: "XOR" };
+    const xml = exportOpenPsaFaultTree(fixture.model, fixture.catalogue, { includeEditorSnapshot });
+    expect(xml).toContain("<xor>");
+    const imported = importOpenPsaFaultTree(xml);
+    expect(imported.model.gates[0].gateType).toBe("XOR");
+    expect(imported.model.gateInputs).toHaveLength(fixture.model.gateInputs.length);
+  });
+
+  it("imports nested XOR without replacing it with OR", () => {
+    const imported = importOpenPsaFaultTree(`<opsa-mef><define-fault-tree name="FT">
+      <define-gate name="TOP"><xor><basic-event name="A"/><xor>
+        <basic-event name="B"/><basic-event name="C"/>
+      </xor></xor></define-gate>
+      <define-basic-event name="A"><float value="0.1"/></define-basic-event>
+      <define-basic-event name="B"><float value="0.2"/></define-basic-event>
+      <define-basic-event name="C"><float value="0.3"/></define-basic-event>
+    </define-fault-tree></opsa-mef>`);
+    expect(imported.model.gates.map((gate) => gate.gateType)).toEqual(["XOR", "XOR"]);
+    expect(imported.model.gateInputs).toHaveLength(4);
+  });
+
+  it("preserves negative zero in standard probabilities and editor snapshots", () => {
+    const fixture = roundTripFixture();
+    fixture.catalogue.basicEvents[0].probability.value = -0;
+    fixture.model.layout!.viewport!.x = -0;
+    const xml = exportOpenPsaFaultTree(fixture.model, fixture.catalogue);
+    expect(xml).toContain('<float value="-0"/>');
+    const imported = importOpenPsaFaultTree(xml);
+    expect(Object.is(imported.catalogue.basicEvents[0].probability.value, -0)).toBe(true);
+    expect(Object.is(imported.model.layout!.viewport!.x, -0)).toBe(true);
+    const standard = importOpenPsaFaultTree(exportOpenPsaFaultTree(fixture.model, fixture.catalogue, { includeEditorSnapshot: false }));
+    expect(Object.is(standard.catalogue.basicEvents[0].probability.value, -0)).toBe(true);
+  });
+
   it("exports standard Boolean operators and round-trips normalized editor data", () => {
     const fixture = roundTripFixture();
     const xml = exportOpenPsaFaultTree(fixture.model, fixture.catalogue);

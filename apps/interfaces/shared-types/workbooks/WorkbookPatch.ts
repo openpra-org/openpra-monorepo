@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { stringifyJson } from "../json";
 
 const WorkbookPatchPathSegmentSchema = z.union([
   z.string().min(1).max(256),
@@ -36,7 +37,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function cloneJsonValue<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
+  return JSON.parse(stringifyJson(value)!) as T;
 }
 
 function jsonValuesEqual(left: unknown, right: unknown): boolean {

@@ -71,10 +71,8 @@ const ftResult = await execute(
   ),
 );
 assert.ok(Math.abs(ftResult.topEventProbability - 0.28) < 1e-12);
-assert.deepEqual(
-  ftResult.leadingCutSets.map((cutSet) => cutSet.probability),
-  [0.2, 0.1],
-);
+assert.equal(ftResult.minimalCutSetCount, undefined);
+assert.equal(ftResult.leadingCutSets, undefined);
 
 const ftFixtures = [
   {
@@ -305,16 +303,8 @@ const hclResult = await execute(
 );
 assert.ok(Math.abs(hclResult.probability - 0.16) < 1e-12);
 assert.ok(Math.abs(hclResult.probability - 0.048) > 1e-6);
-assert.equal(hclResult.cutSets.totalCount, 1);
-assert.ok(Math.abs(hclResult.cutSets.cutSets[0].probability - 0.16) < 1e-12);
-assert.deepEqual(hclResult.cutSets.cutSets[0].bnRootCauseNodeIds, ["NODE-A"]);
-assert.equal(hclResult.importance.totalCount, 2);
-assert.ok(
-  Math.abs(
-    hclResult.importance.measures.find(({ basicEventId }) => basicEventId === "A")
-      .riskAchievementWorth - 1.5,
-  ) < 1e-12,
-);
+assert.equal(hclResult.cutSets, undefined);
+assert.equal(hclResult.importance, undefined);
 
 const hclEt = {
   id: "ET-HCL",
@@ -391,9 +381,10 @@ for (const [index, expected] of [0.84, 0, 0, 0.16].entries()) {
   );
 }
 assert.ok(Math.abs(hclEtResult.sequences[3].conditionalProbability - 0.048) > 1e-6);
-assert.equal(hclEtResult.sequences[3].cutSets.totalCount, 1);
-assert.ok(Math.abs(hclEtResult.sequences[3].cutSets.cutSets[0].probability - 0.16) < 1e-12);
-assert.equal(hclEtResult.sequences[3].importance.totalCount, 2);
+for (const sequence of hclEtResult.sequences) {
+  assert.equal(sequence.cutSets, undefined);
+  assert.equal(sequence.importance, undefined);
+}
 
 console.log(
   JSON.stringify({

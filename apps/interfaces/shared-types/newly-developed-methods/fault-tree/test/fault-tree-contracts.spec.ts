@@ -12,6 +12,7 @@ import {
   FaultTreeTransferReferenceSchema,
   FaultTreeUndevelopedEventSchema,
 } from "..";
+import { SystemFaultTreeGateSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 
 const GATE_ID = "123e4567-e89b-42d3-a456-426614174100";
 const LEAF_ID = "123e4567-e89b-42d3-a456-426614174101";
@@ -32,8 +33,9 @@ const gateIdentity = {
 };
 
 describe("fault-tree gate contracts", () => {
-  it.each(["AND", "OR", "NOT"] as const)("accepts a %s gate", (gateType) => {
+  it.each(["AND", "OR", "XOR", "NOT"] as const)("accepts a %s gate", (gateType) => {
     expect(FaultTreeGateSchema.safeParse({ ...gateIdentity, gateType }).success).toBe(true);
+    expect(SystemFaultTreeGateSchema.safeParse({ ...gateIdentity, gateType }).success).toBe(true);
   });
 
   it("accepts a positive-integer K-of-N gate", () => {
@@ -53,7 +55,7 @@ describe("fault-tree gate contracts", () => {
     { ...gateIdentity, code: "   ", gateType: "OR" },
     { ...gateIdentity, name: "   ", gateType: "OR" },
     { ...gateIdentity, kind: "BASIC_EVENT", gateType: "OR" },
-    { ...gateIdentity, gateType: "XOR" },
+    { ...gateIdentity, gateType: "UNKNOWN" },
   ])("rejects malformed gate %#", (gate) => {
     expect(FaultTreeGateSchema.safeParse(gate).success).toBe(false);
   });

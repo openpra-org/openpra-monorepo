@@ -10,7 +10,11 @@ import {
   NotImplementedException,
   Param,
   Post,
+  Req,
+  Res,
 } from "@nestjs/common";
+import type { Request, Response } from "express";
+import type { NativeResponse } from "praxis-node/protocol";
 import { ApiTags } from "@nestjs/swagger";
 import type { ExecuteRequest, ExecuteSolver } from "../../common/types/execute-request";
 import { getSolverDescriptor } from "../solvers.registry";
@@ -29,14 +33,14 @@ export class ExecuteController {
 
   @Post("praxis/native/validate")
   @HttpCode(HttpStatus.OK)
-  public async validatePraxisNative(@Body() request: unknown): Promise<Record<string, unknown>> {
-    return this.praxisNativeService.run("validate", request);
+  public async validatePraxisNative(@Body() request: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<NativeResponse> {
+    return this.praxisNativeService.run("validate", request, { request: req, response: res });
   }
 
   @Post("praxis/native/execute")
   @HttpCode(HttpStatus.OK)
-  public async executePraxisNative(@Body() request: unknown): Promise<Record<string, unknown>> {
-    return this.praxisNativeService.run("execute", request);
+  public async executePraxisNative(@Body() request: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<NativeResponse> {
+    return this.praxisNativeService.run("execute", request, { request: req, response: res });
   }
 
   @Post("scram/execute")

@@ -14,7 +14,12 @@ interface WorkbookFaultTree extends WorkbookMethodModelIdentity, FaultTreeDefini
 
 interface WorkbookBayesianNetwork extends WorkbookMethodModelIdentity, BayesianNetworkDefinition {}
 
-interface WorkbookHclConfiguration extends WorkbookMethodModelIdentity, HclConfigurationDefinition {}
+interface WorkbookHclConfiguration extends WorkbookMethodModelIdentity, Omit<HclConfigurationDefinition, "solverSettings"> {
+  solverSettings: Omit<HclConfigurationDefinition["solverSettings"], "uncertainty"> & {
+    /** Saved draft data; validate only when executing or editing uncertainty. */
+    uncertainty?: unknown;
+  };
+}
 
 interface WorkbookFaultTreeCatalogue extends FaultTreeBasicEventCatalogueDefinition {}
 

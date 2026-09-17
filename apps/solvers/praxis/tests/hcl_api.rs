@@ -3,9 +3,9 @@ use praxis::core::event::BasicEvent;
 use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::{Formula, Gate};
 use praxis::hcl::{
-    parse_xdsl, quantify_hcl, CanonicalBayesianNetwork, CanonicalBayesianVariable, HclBindingSpec,
-    HclCptRowUncertaintySpec, HclEvidenceSpec, HclModel, HclRequest, HclSettings,
-    HclUncertaintySettings,
+    analyze_hcl, parse_xdsl, quantify_hcl, CanonicalBayesianNetwork, CanonicalBayesianVariable,
+    HclAnalysisSettings, HclBindingSpec, HclCptRowUncertaintySpec, HclEvidenceSpec, HclModel,
+    HclRequest, HclSettings, HclUncertaintySettings,
 };
 use tensorbayes::{EvidenceBatch, ExecutionEngine};
 
@@ -80,6 +80,60 @@ fn public_model_and_quantify_api_preserve_correlation() {
 
     let json = result.to_json_pretty().unwrap();
     assert!(json.contains("\"probability\": 0.16000000000000003"));
+}
+
+#[test]
+fn probability_api_keeps_the_original_result_boundary() {
+    let model = HclModel::new(
+        two_event_fault_tree(),
+        canonical_network().into_graph().unwrap(),
+    )
+    .unwrap()
+    .with_bindings(bindings());
+    let result = quantify_hcl(&model, &HclSettings::default()).unwrap();
+    let json = serde_json::to_value(&result).unwrap();
+    let mut fields: Vec<&str> = json
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    fields.sort_unstable();
+    assert_eq!(
+        fields,
+        vec![
+            "bdd_nodes",
+            "bdd_variables",
+            "bridge",
+            "junction_tree",
+            "probability",
+            "variable_order",
+        ]
+    );
+    assert_eq!(result.bridge.quantifications, 1);
+    assert_abs_diff_eq!(result.probability, 0.16, epsilon = 1e-12);
+
+    // Existing addon analyses remain available through their explicit API.
+    let analysis = analyze_hcl(&model, &HclAnalysisSettings::default()).unwrap();
+    assert_abs_diff_eq!(analysis.probability, result.probability, epsilon = 1e-12);
+    assert_eq!(analysis.bridge.quantifications, 1);
+    let json = serde_json::to_value(analysis).unwrap();
+    assert!(json.get("cut_sets").is_none());
+    assert!(json.get("importance").is_none());
+}
+
+#[test]
+fn original_probability_request_rejects_analysis_only_settings() {
+    let request = serde_json::json!({
+        "schema_version": 1,
+        "network": {
+            "format": "canonical",
+            "variables": canonical_network().variables,
+        },
+        "settings": { "uncertainty": null }
+    });
+    let error = HclRequest::from_json(&request.to_string()).unwrap_err();
+    assert!(error.to_string().contains("unknown field `uncertainty`"));
 }
 
 #[test]
@@ -182,22 +236,27 @@ fn hcl_uncertainty_samples_bn_parameters_inside_praxis() {
     )
     .unwrap()
     .with_bindings(bindings());
-    let settings = HclSettings {
+    let settings = HclAnalysisSettings {
         uncertainty: Some(HclUncertaintySettings {
+            cpt_generators: vec![],
+            sampler: Default::default(),
+            cpt_probability_clip_epsilon: 0.0,
             sample_count: 500,
             seed: 2026,
             basic_event_distributions: vec![],
             cpt_row_distributions: vec![HclCptRowUncertaintySpec {
                 node: "B".to_string(),
                 row_index: 1,
-                equivalent_sample_size: 25.0,
+                prior: praxis::hcl::HclCptPrior::Dirichlet {
+                    alpha: vec![5.0, 20.0],
+                },
             }],
         }),
-        ..HclSettings::default()
+        ..HclAnalysisSettings::default()
     };
 
-    let first = quantify_hcl(&model, &settings).unwrap();
-    let second = quantify_hcl(&model, &settings).unwrap();
+    let first = analyze_hcl(&model, &settings).unwrap();
+    let second = analyze_hcl(&model, &settings).unwrap();
     let first_uncertainty = first.uncertainty.unwrap();
     let second_uncertainty = second.uncertainty.unwrap();
 

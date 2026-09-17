@@ -142,7 +142,7 @@ let mockWorkbookContext: {
     workbookName: string;
     parameterId: string;
     parameterName: string;
-    parameterType: "PROBABILITY";
+    parameterType: "PROBABILITY" | "FREQUENCY";
     value: number;
   }>;
   controlledHumanFailures: Array<{
@@ -245,7 +245,8 @@ describe("ModelsScreen canonical fault-tree host", () => {
     render(<ModelsScreen sysId="" setSysId={jest.fn()} openDrawer={jest.fn()} />);
 
     expect(screen.getByText("No systems have been added to this workbook yet.")).toBeInTheDocument();
-    expect(screen.getByText("Add or import a system definition before building its fault-tree logic model.")).toBeInTheDocument();
+    expect(screen.getByText("Add a system before building its fault-tree logic model.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add system" })).toBeDisabled();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     expect(mockedFaultTreeEditor).not.toHaveBeenCalled();
   });
@@ -294,6 +295,20 @@ describe("ModelsScreen canonical fault-tree host", () => {
       faultTreeModels: [props.model],
     });
     expect(props.validation).toEqual([validationIssue]);
+  });
+
+  it("keeps a legacy controlled rate available for review without recalculating it", () => {
+    const basis = { kind: "FAILURE_RATE" as const, conversion: "LINEAR" as const,
+      failureRate: { value: .001, unit: "HOUR" as const }, missionTime: { value: 100, unit: "HOUR" as const } };
+    setWorkbookContext({
+      sy: makeAnalysis({ systemBasicEvents: [{ ...BASIC_EVENT, probability: .1, quantificationBasis: basis,
+        controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "parameter-1" } }] }),
+      controlledParameters: [{ workbookId: "da-workbook", workbookName: "DA", parameterId: "parameter-1",
+        parameterName: "Rate", parameterType: "FREQUENCY", value: .002 }],
+    });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    expect(latestEditorProps().catalogue.basicEvents[0]?.probability).toMatchObject({ value: .1, quantificationBasis: basis });
+    expect(mockMutateSy).not.toHaveBeenCalled();
   });
 
   it("renders a controlled basic event with the current DA value instead of its cached SY value", () => {
@@ -568,8 +583,6 @@ describe("ModelsScreen canonical fault-tree host", () => {
       owner,
       topGateId: "gate-top",
       topEventProbability: 0.001,
-      minimalCutSetCount: 1,
-      leadingCutSets: [],
       validationIssues: [],
       completedAt: timestamp,
     };
@@ -635,8 +648,6 @@ describe("ModelsScreen canonical fault-tree host", () => {
       owner,
       topGateId: "gate-top",
       topEventProbability: 0.001,
-      minimalCutSetCount: 1,
-      leadingCutSets: [],
       validationIssues: [],
       completedAt: "2026-08-22T12:00:00.000Z",
     };

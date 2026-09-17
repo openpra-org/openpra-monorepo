@@ -581,6 +581,22 @@ describe("fault-tree probability and transfer-target validation", () => {
     availableTransferTargets: [{ modelId: TARGET_MODEL_ID, entityId: TARGET_GATE_ID }],
   };
 
+  it("flags a saved linear conversion against its FT node before analysis", () => {
+    const issues = validateFaultTreeProbabilitiesAndTransfers({ ...model, leafNodes: [basicEventReference] }, {
+      ...context,
+      basicEventCatalogue: { ...catalogue, basicEvents: [{ ...catalogue.basicEvents[0], probability: {
+        value: .1, quantificationBasis: {
+          kind: "FAILURE_RATE", conversion: "LINEAR",
+          failureRate: { value: .001, unit: "HOUR" }, missionTime: { value: 100, unit: "HOUR" },
+        },
+      } }] },
+    });
+    expect(issues).toEqual([expect.objectContaining({
+      code: "FT_FAILURE_RATE_CONVERSION_REVIEW_REQUIRED", severity: "ERROR", entityId: basicEventReference.id,
+    })]);
+    expect(ValidationIssueSchema.safeParse(issues[0]).success).toBe(true);
+  });
+
   it.each([0, 0.25, 1])("accepts a resolved basic event with probability %s", (value) => {
     expect(
       validateFaultTreeProbabilitiesAndTransfers(

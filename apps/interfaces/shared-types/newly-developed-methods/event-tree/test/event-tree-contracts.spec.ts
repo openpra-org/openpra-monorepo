@@ -196,7 +196,7 @@ describe("Event-tree branch-result and position contracts", () => {
     expect(
       EventTreeBranchResultSchema.safeParse({
         kind: "TRANSFER",
-        target: { modelId: TARGET_EVENT_TREE_ID, entityId: TARGET_SEQUENCE_ID },
+        target: { modelId: TARGET_EVENT_TREE_ID },
       }).success,
     ).toBe(true);
   });
@@ -255,9 +255,9 @@ describe("Event-tree branch-result and position contracts", () => {
   it.each([
     { kind: "END_STATE", endStateId: "RC-2" },
     { kind: "END_STATE", endStateId: END_STATE_ID, endStateName: "Cooling challenge" },
-    { kind: "TRANSFER", target: { modelId: "ET-2", entityId: TARGET_SEQUENCE_ID } },
-    { kind: "TRANSFER", target: { modelId: TARGET_EVENT_TREE_ID, entityId: "SEQ-1" } },
-    { kind: "CONTINUE", target: { modelId: TARGET_EVENT_TREE_ID, entityId: TARGET_SEQUENCE_ID } },
+    { kind: "TRANSFER", target: { modelId: "ET-2" } },
+    { kind: "TRANSFER", target: { modelId: TARGET_EVENT_TREE_ID, entityId: "obsolete-sequence-target" } },
+    { kind: "CONTINUE", target: { modelId: TARGET_EVENT_TREE_ID } },
   ])("rejects malformed branch result %#", (candidate) => {
     expect(EventTreeBranchResultSchema.safeParse(candidate).success).toBe(false);
   });

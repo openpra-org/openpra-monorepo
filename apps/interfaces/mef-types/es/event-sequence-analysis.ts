@@ -299,7 +299,6 @@ export interface EventTreeSequence extends Unique, Named {
 
 export interface EventTreeTransfer {
   targetEventTreeId: string;
-  targetSequenceId?: EventSequenceReference;
   transferConditions?: string[];
   preservedDependencies?: string[];
 }

@@ -5,6 +5,7 @@ import {
   WorkbookPraxisAdapterError,
   adaptEsEventTreeSnapshot,
   adaptEsqBayesianNetworkSnapshot,
+  adaptSyBayesianNetworkSnapshot,
   adaptEsqHclSnapshot,
   adaptSyFaultTreeSnapshot,
   collectSyFaultTreeControlledDataSources,
@@ -309,6 +310,18 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     ]);
   });
 
+  it("rejects saved FT linear conversion with an addressable review error", () => {
+    const mef = structuredClone(syMef);
+    mef.systemBasicEvents[0] = { ...mef.systemBasicEvents[0]!, quantificationBasis: {
+      kind: "FAILURE_RATE", conversion: "LINEAR",
+      failureRate: { value: .001, unit: "HOUR" }, missionTime: { value: 100, unit: "HOUR" },
+    } };
+    const original = structuredClone(mef);
+    expect(() => adaptSyFaultTreeSnapshot({ workbookId: "sy-1", workbookRevision: 7, mef }, "ft-1"))
+      .toThrow(expect.objectContaining({ code: "SY_FAILURE_RATE_CONVERSION_REVIEW_REQUIRED", details: { basicEventId: "be-a" } }));
+    expect(mef).toEqual(original);
+  });
+
   it("resolves a DA-controlled failure rate and derives its mission probability", () => {
     const mef = structuredClone(syMef);
     const reference = {
@@ -341,7 +354,7 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     expect(events[0]).toEqual(expect.objectContaining({
       id: "be-a",
       probability: expect.objectContaining({
-        value: expect.closeTo(4.798848184297884e-4, 15),
+        value: 0.0004798848184297544, // HCL_MH calculation type 3.
         quantificationBasis: {
           kind: "FAILURE_RATE",
           failureRate: { value: 2e-5, unit: "HOUR" },
@@ -375,7 +388,53 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     )).toThrow("expects a probability source");
   });
 
-  it("recursively inlines transfer subgraphs while preserving shared gates and basic events", () => {
+  it.each([false, true])("expands 6,000 nested gates without call-stack recursion (transfers: %s)", (transfers) => {
+    const depth = 6_000;
+    const mef = structuredClone(syMef);
+    const chainGates = Array.from({ length: depth }, (_, i) => gate(`g${i}`));
+    const chainInputs = chainGates.map(({ id }, i) => ({
+      id: `input${i}`,
+      gateId: id,
+      childId: i === depth - 1 ? "leaf" : transfers ? `transfer${i}` : `g${i + 1}`,
+      order: 0,
+    }));
+    const leaf = { id: "leaf", kind: "BASIC_EVENT_REFERENCE" as const, basicEventId: "be-a" };
+    const modelId = (i: number): string => i === 0 ? "root" : `model${i}`;
+    mef.systemLogicModels = transfers
+      ? chainGates.map((entry, i) => syLogicModel(
+        modelId(i), entry.id, [entry],
+        i === depth - 1 ? [leaf] : [transfer(`transfer${i}`, modelId(i + 1), `g${i + 1}`)],
+        [chainInputs[i]],
+      ))
+      : [syLogicModel("root", "g0", chainGates, [leaf], chainInputs)];
+
+    const adapted = adaptSyFaultTreeSnapshot({ workbookId: "sy-1", workbookRevision: 1, mef }, "root");
+    const gates = adapted.modelSnapshot["gates"] as Array<{ id: string; name: string }>;
+    expect(gates.map(({ name }) => name)).toEqual(chainGates.map(({ name }) => name));
+    expect(new Set(gates.map(({ id }) => id)).size).toBe(depth);
+    expect(adapted.modelSnapshot["gateInputs"]).toHaveLength(depth);
+    expect(adapted.modelSnapshot["leafNodes"]).toHaveLength(1);
+    expect(adapted.basicEventCatalogue["basicEvents"]).toEqual([
+      expect.objectContaining({ id: "be-a", probability: { value: 0.2 } }),
+    ]);
+
+    // A back edge at the same depth must still produce a structured cycle error.
+    if (transfers) {
+      const last = mef.systemLogicModels[depth - 1];
+      last.leafNodes = [transfer("back", "root", "g0")];
+      last.gateInputs[0].childId = "back";
+    } else {
+      mef.systemLogicModels[0].gateInputs[depth - 1].childId = "g0";
+    }
+    const error = expectSyAdapterError(mef, transfers ? "SY_FAULT_TREE_TRANSFER_CYCLE" : "SY_FAULT_TREE_GRAPH_CYCLE");
+    const cycle = error.details["cycle"] as Array<{ modelId: string; gateId: string }>;
+    expect(cycle).toHaveLength(depth + 1);
+    expect(cycle[0]).toEqual({ modelId: "root", gateId: "g0" });
+    expect(cycle[depth - 1]).toEqual({ modelId: transfers ? modelId(depth - 1) : "root", gateId: `g${depth - 1}` });
+    expect(cycle[depth]).toEqual(cycle[0]);
+  }, 30_000);
+
+  it("inlines transfer subgraphs while preserving shared gates and basic events", () => {
     const mef = structuredClone(syMef);
     mef.systemBasicEvents.push({
       uuid: "be-c",
@@ -673,6 +732,46 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     expect(esqMef.bayesianNetworks[0]).toEqual(before);
   });
 
+  describe.each(["SY", "ESQ"])("%s Bayesian graph execution validation", (host) => {
+    const network = () => {
+      const bn = structuredClone(esqMef.bayesianNetworks[0]);
+      bn.nodes.push({ ...structuredClone(bn.nodes[0]), id: "node-2", code: "N2" });
+      bn.edges = [{ id: "edge-1", parentNodeId: "node-1", childNodeId: "node-2" }];
+      bn.conditionalProbabilityTables.push({
+        nodeId: "node-2", parents: [{ nodeId: "node-1", order: 0 }],
+        rows: ["false", "true"].map((stateId) => ({
+          id: stateId, parentStates: [{ parentNodeId: "node-1", stateId }],
+          values: [{ stateId: "false", probability: 0.8 }, { stateId: "true", probability: 0.2 }],
+        })),
+      });
+      return bn;
+    };
+    const adapt = (bn: ReturnType<typeof network>) => host === "SY"
+      ? adaptSyBayesianNetworkSnapshot({ workbookId: "sy-1", workbookRevision: 1, mef: { ...syMef, dependencyBayesianNetworks: [bn] } }, "bn-1")
+      : adaptEsqBayesianNetworkSnapshot({ workbookId: "esq-1", workbookRevision: 1, mef: { ...esqMef, bayesianNetworks: [bn] } }, "bn-1");
+
+    it("preserves a valid graph, parent order and probabilities", () => {
+      const bn = network(), before = structuredClone(bn);
+      expect(adapt(bn)).toMatchObject(bn);
+      expect(bn).toEqual(before);
+    });
+    it.each(["missing", "extra", "reversed", "duplicate", "dangling", "self-cycle", "edge-cycle"])(
+      "rejects %s edges without repairing the input", (kind) => {
+        const bn = network();
+        if (kind === "missing") bn.edges = [];
+        if (kind === "extra") { bn.conditionalProbabilityTables[1].parents = []; bn.conditionalProbabilityTables[1].rows = [bn.conditionalProbabilityTables[0].rows[0]]; }
+        if (kind === "reversed") bn.edges[0] = { ...bn.edges[0], parentNodeId: "node-2", childNodeId: "node-1" };
+        if (kind === "duplicate") bn.edges.push({ ...bn.edges[0], id: "edge-2" });
+        if (kind === "dangling") bn.edges[0].parentNodeId = "missing";
+        if (kind === "self-cycle") bn.edges.push({ id: "edge-2", parentNodeId: "node-1", childNodeId: "node-1" });
+        if (kind === "edge-cycle") bn.edges.push({ id: "edge-2", parentNodeId: "node-2", childNodeId: "node-1" });
+        const before = structuredClone(bn);
+        expect(() => adapt(bn)).toThrow(WorkbookPraxisAdapterError);
+        expect(bn).toEqual(before);
+      },
+    );
+  });
+
   it("normalizes an ES event tree, typed FT links, sequence paths, and optional HCL link", () => {
     const adapted = adaptEsEventTreeSnapshot(
       { workbookId: "es-1", workbookRevision: 3, mef: esMef },
@@ -734,7 +833,7 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
       .every((candidate) => candidate.path[0]?.outcome === "BYPASSED")).toBe(true);
   });
 
-  it("normalizes workbook-owned event-tree transfers to solver target sequences", () => {
+  it("normalizes workbook-owned event-tree transfers to destination trees", () => {
     const transferringMef = structuredClone(esMef);
     const tree = transferringMef.eventTrees?.[0];
     expect(tree).toBeDefined();
@@ -743,7 +842,6 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     tree!.transfers = {
       [sequence.uuid]: {
         targetEventTreeId: "target-tree",
-        targetSequenceId: "target-sequence",
       },
     };
 
@@ -757,10 +855,25 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
         id: sequence.uuid,
         result: {
           kind: "TRANSFER",
-          target: { modelId: "target-tree", entityId: "target-sequence" },
+          target: { modelId: "target-tree" },
         },
       }),
     ]));
+  });
+
+  it("omits saved uncertainty before validating its contents on probability runs", () => {
+    const mef = structuredClone(esqMef);
+    const settings = mef.hclConfigurations[0]!.solverSettings;
+    settings.uncertainty = { sampleCount: 10, seed: 42, basicEventDistributions: [], cptRowDistributions: [],
+      cptGenerators: [{ generator: { family: "UNREVIEWED" } }] } as unknown as NonNullable<typeof settings.uncertainty>;
+    const before = structuredClone(mef);
+    const source = { workbookId: "esq-1", workbookRevision: 9, mef };
+    expect(adaptEsqHclSnapshot(source, "hcl-1")["solverSettings"]).not.toHaveProperty("uncertainty");
+    expect(adaptEsqHclSnapshot(source, "hcl-1", "PROBABILITY")["solverSettings"]).not.toHaveProperty("uncertainty");
+    expect(() => adaptEsqHclSnapshot(source, "hcl-1", "UNCERTAINTY")).toThrow("Invalid uncertainty settings");
+    expect(mef).toEqual(before);
+    delete settings.uncertainty;
+    expect(() => adaptEsqHclSnapshot(source, "hcl-1", "UNCERTAINTY")).toThrow("requires saved uncertainty settings");
   });
 
   it("normalizes workbook-scoped HCL targets for each declared fault tree", () => {
@@ -795,6 +908,7 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     const adapted = adaptEsqHclSnapshot(
       { workbookId: "esq-1", workbookRevision: 9, mef: esqMef },
       "hcl-1",
+      "PROBABILITY",
       new Map([
         ["ft-1", new Set(["be-a"])],
         ["ft-2", new Set(["be-b"])],
@@ -809,16 +923,40 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     ]);
   });
 
-  it("adapts typed uncertainty references into the PRAXIS HCL snapshot", () => {
-    const mef = structuredClone(esqMef);
+  // Execution validation uses real workbook identities and current references.
+  const uncertaintyFixture = () => {
+    const ids: Record<string, string> = {
+    "bn-1": "b8fcb955-7ed8-54dc-8547-b21211f35650",
+    "node-1": "726a04e3-a685-5681-ac94-efe34c05944e",
+    "ft-1": "0635ed46-91fc-51be-a5c5-02f675f3fb9b",
+    "ft-2": "6e27ca94-9ebe-55a9-bf56-162c41b9be23",
+    "hcl-1": "be2caff7-2730-5de2-9525-fc1564e9e73c",
+    "binding-1": "5203677c-c86d-5f43-a921-9e817289a2b5",
+    "be-a": "0ebcb518-bea9-5522-be37-9aca09222c3c",
+    "be-b": "1e86ecf0-df01-5bde-8d0c-39df2d5947d1",
+    "false": "dcd6ab13-3645-5ece-90c0-8a4e6fcb808a",
+    "true": "7ae29d4a-ad3d-5579-9252-1060b79fba57",
+    "root-row": "d3f8ce23-70e1-5d1c-8a57-c7f5f76fb893",
+    "row-1": "769c6a5d-266d-5653-8444-e46aadeff59b"
+};
+    return JSON.parse(JSON.stringify(esqMef, (_key, value) => typeof value === "string"
+      ? value === "FAULT_TREE_BASIC_EVENT_CATALOGUE" ? "FAULT_TREE_BASIC_EVENT" : ids[value] ?? value
+      : value)) as EventSequenceQuantification;
+  };
+
+  it.each(([undefined, "MC", "LHS"] as const).flatMap((sampler) => (["BETA", "DIRICHLET"] as const).map((family) => [sampler, family] as const)))("adapts CPT priors with sampler %s / %s into the PRAXIS HCL snapshot", (sampler, family) => {
+    const prior = family === "BETA" ? { family, alpha: 2, beta: 8, trueStateId: "123e4567-e89b-42d3-a456-426614174702" } as const : { family, alpha: [80, 20] };
+    const mef = uncertaintyFixture();
     mef.hclConfigurations[0]!.solverSettings.uncertainty = {
       sampleCount: 500,
       seed: 2026,
+      sampler: sampler,
+      cptProbabilityClipEpsilon: 0.01,
       basicEventDistributions: [{
         faultTreeBasicEvent: {
           referenceType: "FAULT_TREE_BASIC_EVENT",
           workbookId: "sy-1",
-          entityId: "be-a",
+          entityId: "1e86ecf0-df01-5bde-8d0c-39df2d5947d1",
         },
         distribution: { family: "BETA", alpha: 2, beta: 18 },
       }],
@@ -826,34 +964,68 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
         bayesianNetworkNode: {
           referenceType: "BAYESIAN_NETWORK_NODE",
           workbookId: "esq-1",
-          modelId: "bn-1",
-          entityId: "node-1",
+          modelId: "b8fcb955-7ed8-54dc-8547-b21211f35650",
+          entityId: "726a04e3-a685-5681-ac94-efe34c05944e",
         },
-        cptRowId: "row-1",
-        equivalentSampleSize: 100,
+        cptRowId: "769c6a5d-266d-5653-8444-e46aadeff59b",
+        prior,
       }],
     };
 
     const adapted = adaptEsqHclSnapshot(
       { workbookId: "esq-1", workbookRevision: 9, mef },
-      "hcl-1",
+      "be2caff7-2730-5de2-9525-fc1564e9e73c",
+      "UNCERTAINTY",
     );
 
     expect(adapted["solverSettings"]).toMatchObject({
       uncertainty: {
         sampleCount: 500,
         seed: 2026,
+        sampler: sampler ?? "MC",
+        cptProbabilityClipEpsilon: 0.01,
         basicEventDistributions: [{
-          faultTreeBasicEvent: { entityId: "be-a" },
+          faultTreeBasicEvent: { entityId: "1e86ecf0-df01-5bde-8d0c-39df2d5947d1" },
           distribution: { family: "BETA", alpha: 2, beta: 18 },
         }],
         cptRowDistributions: [{
-          bayesianNetworkNode: { modelId: "bn-1", entityId: "node-1" },
-          cptRowId: "row-1",
-          equivalentSampleSize: 100,
+          bayesianNetworkNode: { modelId: "b8fcb955-7ed8-54dc-8547-b21211f35650", entityId: "726a04e3-a685-5681-ac94-efe34c05944e" },
+          cptRowId: "769c6a5d-266d-5653-8444-e46aadeff59b",
+          prior,
         }],
       },
     });
+  });
+
+  it("normalizes the old FT sampler spelling without losing LHS", () => {
+    const mef = uncertaintyFixture();
+    mef.hclConfigurations[0]!.solverSettings.uncertainty = Object.assign({ sampleCount: 100, seed: 42, basicEventDistributions: [], cptRowDistributions: [] }, { basicEventSampler: "LHS" });
+    const adapted = adaptEsqHclSnapshot({ workbookId: "esq-1", workbookRevision: 9, mef }, "be2caff7-2730-5de2-9525-fc1564e9e73c", "UNCERTAINTY");
+    expect(adapted["solverSettings"]).toMatchObject({ uncertainty: { sampler: "LHS" } });
+    expect(JSON.stringify(adapted["solverSettings"])).not.toContain("basicEventSampler");
+  });
+
+  it.each(["seismic_fragility", "seismic_pga_bins"] as const)("transports %s generator parameters unchanged", (type) => {
+    const a = "123e4567-e89b-42d3-a456-426614174702", b = "123e4567-e89b-42d3-a456-426614174703";
+    const generator = type === "seismic_fragility"
+      ? { type, pgaParentId: a, theta: .5, betaR: .3, betaU: .2, trueStateId: a, falseStateId: b, pgaCenters: [{ stateId: a, value: .5 }, { stateId: b, value: 0 }] }
+      : { type, noneStateId: b, missionTime: 1, frequencyToProbability: "linear" as const, bins: [{ stateId: a, medianFrequency: .01, errorFactor95: 2 }] };
+    const mef = uncertaintyFixture();
+    mef.hclConfigurations[0]!.solverSettings.uncertainty = { sampleCount: 513, seed: 42, sampler: "LHS", basicEventDistributions: [], cptRowDistributions: [], cptGenerators: [{ bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: "esq-1", modelId: "b8fcb955-7ed8-54dc-8547-b21211f35650", entityId: "726a04e3-a685-5681-ac94-efe34c05944e" }, generator }] };
+    const adapted = adaptEsqHclSnapshot({ workbookId: "esq-1", workbookRevision: 9, mef }, "be2caff7-2730-5de2-9525-fc1564e9e73c", "UNCERTAINTY");
+    expect(adapted["solverSettings"]).toMatchObject({ uncertainty: { sampler: "LHS", cptGenerators: [{ bayesianNetworkNode: { modelId: "b8fcb955-7ed8-54dc-8547-b21211f35650", entityId: "726a04e3-a685-5681-ac94-efe34c05944e" }, generator }] } });
+    Object.assign(generator, { type: "invented_generator" });
+    expect(() => adaptEsqHclSnapshot({ workbookId: "esq-1", workbookRevision: 9, mef }, "be2caff7-2730-5de2-9525-fc1564e9e73c", "UNCERTAINTY")).toThrow("Invalid uncertainty settings");
+  });
+
+  it("rejects an ESS-only CPT row before creating an executable snapshot", () => {
+    const mef = uncertaintyFixture();
+    const legacy = { sampleCount: 100, seed: 42, basicEventDistributions: [], cptRowDistributions: [{
+      bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: "esq-1", modelId: "b8fcb955-7ed8-54dc-8547-b21211f35650", entityId: "726a04e3-a685-5681-ac94-efe34c05944e" },
+      cptRowId: "769c6a5d-266d-5653-8444-e46aadeff59b", equivalentSampleSize: 100,
+    }] };
+    Object.assign(mef.hclConfigurations[0]!.solverSettings, { uncertainty: legacy });
+    expect(() => adaptEsqHclSnapshot({ workbookId: "esq-1", workbookRevision: 9, mef }, "be2caff7-2730-5de2-9525-fc1564e9e73c", "UNCERTAINTY")).toThrow("Invalid uncertainty settings");
   });
 
   it("fails deterministically when a requested workbook model cannot be resolved", () => {

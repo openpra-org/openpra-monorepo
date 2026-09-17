@@ -2,10 +2,11 @@ use std::collections::{HashMap, HashSet};
 
 use praxis::analysis::event_tree_quantification::EventTreeHclContext;
 use praxis::hcl::{
-    quantify_hcl, quantify_hcl_batch, quantify_hcl_hazard_grid_batch,
-    summarize_hcl_hazard_uncertainty, validate_hcl_uncertainty_settings,
-    HclBasicEventUncertaintySpec, HclBindingSpec, HclCptRowUncertaintySpec, HclEvidenceSpec,
-    HclHazardGridBatchResult, HclModel, HclProbabilityDistribution, HclResult, HclSettings,
+    analyze_hcl, ensure_hazard_convolution_supported, quantify_hcl, quantify_hcl_batch,
+    quantify_hcl_hazard_grid_batch, validate_hcl_uncertainty_settings, HclAnalysisResult,
+    HclAnalysisSettings, HclBasicEventUncertaintySpec, HclBindingSpec, HclCptGenerator,
+    HclCptGeneratorSpec, HclCptPrior, HclCptRowUncertaintySpec, HclEvidenceSpec,
+    HclHazardGridBatchResult, HclModel, HclProbabilityDistribution, HclSampler, HclSettings,
     HclUncertaintySettings,
 };
 use praxis::quantitative::{
@@ -16,14 +17,37 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::bayesian_network::{build_network_for_model_with_cpt_rows, CptRowIndexMap};
-use crate::fault_tree::{build_fault_tree_for_model, BasicEventQuantificationRecord};
+use crate::fault_tree::{
+    basic_event_ids_for_model, build_fault_tree_for_model, BasicEventQuantificationRecord,
+};
 use crate::transport::SolverRequest;
 
 const HCL_METHOD: &str = "HYBRID_CAUSAL_LOGIC";
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub(crate) enum HclCalculationType {
+    #[default]
+    Probability,
+    Uncertainty,
+}
+
+impl HclCalculationType {
+    pub(crate) fn ensure_hazard_supported(self, requested: bool) -> Result<()> {
+        if requested && self == Self::Uncertainty {
+            return Err(PraxisError::Hcl(
+                "Hazard convolution supports point runs only. Select probability or use evidence scenarios.".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct HclExecuteRequest {
+    #[serde(default)]
+    calculation_type: HclCalculationType,
     schema_version: String,
     method_type: String,
     model_id: String,
@@ -120,23 +144,29 @@ struct HclSolverSettings {
     variable_order: Option<Vec<String>>,
     fold_constants: bool,
     splice_null_gates: bool,
-    uncertainty: Option<HclUncertaintySnapshot>,
+    uncertainty: Option<Value>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct HclUncertaintySnapshot {
+    #[serde(default, alias = "basicEventSampler")]
+    sampler: HclSampler,
+    #[serde(default)]
+    cpt_probability_clip_epsilon: f64,
     sample_count: usize,
     seed: u64,
     basic_event_distributions: Vec<HclBasicEventUncertaintySnapshot>,
     cpt_row_distributions: Vec<HclCptRowUncertaintySnapshot>,
+    #[serde(default)]
+    cpt_generators: Vec<HclCptGeneratorSnapshot>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct HclBasicEventUncertaintySnapshot {
     fault_tree_basic_event: BasicEventReference,
-    distribution: HclProbabilityDistributionSnapshot,
+    distribution: HclProbabilityDistribution,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -150,54 +180,36 @@ struct BasicEventReference {
 struct HclCptRowUncertaintySnapshot {
     bayesian_network_node: EntityReference,
     cpt_row_id: String,
-    equivalent_sample_size: f64,
+    prior: HclCptPrior,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(
-    tag = "family",
-    rename_all = "SCREAMING_SNAKE_CASE",
-    rename_all_fields = "camelCase",
-    deny_unknown_fields
-)]
-enum HclProbabilityDistributionSnapshot {
-    Beta { alpha: f64, beta: f64 },
-    Lognormal { median: f64, error_factor: f64 },
-    Uniform { lower: f64, upper: f64 },
-}
-
-impl From<HclProbabilityDistributionSnapshot> for HclProbabilityDistribution {
-    fn from(value: HclProbabilityDistributionSnapshot) -> Self {
-        match value {
-            HclProbabilityDistributionSnapshot::Beta { alpha, beta } => Self::Beta { alpha, beta },
-            HclProbabilityDistributionSnapshot::Lognormal {
-                median,
-                error_factor,
-            } => Self::Lognormal {
-                median,
-                error_factor,
-            },
-            HclProbabilityDistributionSnapshot::Uniform { lower, upper } => {
-                Self::Uniform { lower, upper }
-            }
-        }
-    }
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct HclCptGeneratorSnapshot {
+    bayesian_network_node: EntityReference,
+    generator: HclCptGenerator,
 }
 
 fn resolve_uncertainty(
-    uncertainty: Option<HclUncertaintySnapshot>,
+    calculation_type: HclCalculationType,
+    uncertainty: Option<Value>,
     bayesian_network_model_id: &str,
     cpt_row_indices: &CptRowIndexMap,
 ) -> Result<Option<HclUncertaintySettings>> {
-    let Some(uncertainty) = uncertainty else {
+    if calculation_type == HclCalculationType::Probability {
         return Ok(None);
-    };
+    }
+    let uncertainty = uncertainty.ok_or_else(|| {
+        PraxisError::Hcl("Uncertainty execution requires saved uncertainty settings.".into())
+    })?;
+    let uncertainty: HclUncertaintySnapshot = serde_json::from_value(uncertainty)
+        .map_err(|error| serialization_error("invalid uncertainty settings", error))?;
     let basic_event_distributions = uncertainty
         .basic_event_distributions
         .into_iter()
         .map(|definition| HclBasicEventUncertaintySpec {
             event: definition.fault_tree_basic_event.entity_id,
-            distribution: definition.distribution.into(),
+            distribution: definition.distribution,
         })
         .collect();
     let mut cpt_row_distributions = Vec::with_capacity(uncertainty.cpt_row_distributions.len());
@@ -221,10 +233,25 @@ fn resolve_uncertainty(
         cpt_row_distributions.push(HclCptRowUncertaintySpec {
             node: definition.bayesian_network_node.entity_id,
             row_index,
-            equivalent_sample_size: definition.equivalent_sample_size,
+            prior: definition.prior,
+        });
+    }
+    let mut cpt_generators = Vec::new();
+    for definition in uncertainty.cpt_generators {
+        if definition.bayesian_network_node.model_id != bayesian_network_model_id {
+            return Err(PraxisError::Hcl(
+                "CPT generator references a different Bayesian model".into(),
+            ));
+        }
+        cpt_generators.push(HclCptGeneratorSpec {
+            node: definition.bayesian_network_node.entity_id,
+            generator: definition.generator,
         });
     }
     Ok(Some(HclUncertaintySettings {
+        cpt_generators,
+        sampler: uncertainty.sampler,
+        cpt_probability_clip_epsilon: uncertainty.cpt_probability_clip_epsilon,
         sample_count: uncertainty.sample_count,
         seed: uncertainty.seed,
         basic_event_distributions,
@@ -237,7 +264,7 @@ struct HclAdapter {
     model_revision: u64,
     fault_tree_top_gate: EntityReference,
     model: HclModel,
-    settings: HclSettings,
+    settings: HclAnalysisSettings,
     evidence_batch: Option<Vec<HclEvidenceRow>>,
     hazard_convolution: Option<HazardConvolutionRequest>,
     basic_event_quantifications: Vec<BasicEventQuantificationRecord>,
@@ -311,12 +338,53 @@ fn find_snapshot_for_model(
     Ok(snapshot)
 }
 
+fn validate_binding_references(request: &SolverRequest, snapshot: &HclSnapshot) -> Result<()> {
+    let declared: HashSet<_> = snapshot
+        .fault_trees
+        .iter()
+        .map(|reference| reference.fault_tree.model_id.as_str())
+        .collect();
+    let mut events_by_model = HashMap::new();
+    for binding in &snapshot.bindings {
+        let target = &binding.fault_tree_basic_event;
+        if !declared.contains(target.model_id.as_str()) {
+            return Err(PraxisError::Hcl(format!(
+                "binding '{}' references undeclared fault tree '{}'",
+                binding.id, target.model_id
+            )));
+        }
+        if !events_by_model.contains_key(&target.model_id) {
+            events_by_model.insert(
+                target.model_id.clone(),
+                basic_event_ids_for_model(request, &target.model_id)?,
+            );
+        }
+        if !events_by_model[&target.model_id].contains(&target.entity_id) {
+            return Err(PraxisError::Hcl(format!(
+                "binding '{}' references unknown basic event '{}' in fault tree '{}'",
+                binding.id, target.entity_id, target.model_id
+            )));
+        }
+        if binding.bayesian_network_node.model_id != snapshot.bayesian_network.model_id {
+            return Err(PraxisError::Hcl(format!(
+                "binding '{}' references Bayesian model '{}' instead of '{}'",
+                binding.id,
+                binding.bayesian_network_node.model_id,
+                snapshot.bayesian_network.model_id
+            )));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn build_event_tree_context(
     request: &SolverRequest,
     configuration_id: &str,
     linked_fault_tree_ids: &HashSet<String>,
+    calculation_type: HclCalculationType,
 ) -> Result<EventTreeHclContext> {
     let snapshot = find_snapshot_for_model(request, configuration_id, None)?;
+    validate_binding_references(request, &snapshot)?;
     let declared_fault_tree_ids: HashSet<&str> = snapshot
         .fault_trees
         .iter()
@@ -336,17 +404,10 @@ pub(crate) fn build_event_tree_context(
         build_network_for_model_with_cpt_rows(request, &snapshot.bayesian_network.model_id)?;
     let graph = network.into_graph()?;
     let mut bindings_by_event: HashMap<String, HclBindingSpec> = HashMap::new();
+    let mut bindings = Vec::new();
     for binding in snapshot.bindings {
         if !linked_fault_tree_ids.contains(&binding.fault_tree_basic_event.model_id) {
             continue;
-        }
-        if binding.bayesian_network_node.model_id != snapshot.bayesian_network.model_id {
-            return Err(PraxisError::Hcl(format!(
-                "binding '{}' references Bayesian model '{}' instead of '{}'",
-                binding.id,
-                binding.bayesian_network_node.model_id,
-                snapshot.bayesian_network.model_id
-            )));
         }
         let spec = HclBindingSpec {
             event: binding.fault_tree_basic_event.entity_id,
@@ -361,11 +422,10 @@ pub(crate) fn build_event_tree_context(
                 )));
             }
         } else {
+            bindings.push(spec.clone());
             bindings_by_event.insert(spec.event.clone(), spec);
         }
     }
-    let mut bindings: Vec<HclBindingSpec> = bindings_by_event.into_values().collect();
-    bindings.sort_by(|left, right| left.event.cmp(&right.event));
     let base_evidence = snapshot
         .base_evidence
         .observations
@@ -376,6 +436,7 @@ pub(crate) fn build_event_tree_context(
         })
         .collect();
     let uncertainty = resolve_uncertainty(
+        calculation_type,
         snapshot.solver_settings.uncertainty,
         &snapshot.bayesian_network.model_id,
         &cpt_row_indices,
@@ -386,12 +447,17 @@ pub(crate) fn build_event_tree_context(
     Ok(EventTreeHclContext::new(graph)?
         .with_bindings(bindings)
         .with_base_evidence(base_evidence)
-        .with_uncertainty(uncertainty))
+        .with_uncertainty(uncertainty)
+        .with_variable_order(snapshot.solver_settings.variable_order))
 }
 
 fn build_adapter(request: &SolverRequest) -> Result<HclAdapter> {
     let execute = parse_request(request)?;
+    execute
+        .calculation_type
+        .ensure_hazard_supported(execute.hazard_convolution.is_some())?;
     let snapshot = find_snapshot(request, &execute)?;
+    validate_binding_references(request, &snapshot)?;
     if !snapshot
         .fault_trees
         .iter()
@@ -419,14 +485,6 @@ fn build_adapter(request: &SolverRequest) -> Result<HclAdapter> {
         if binding.fault_tree_basic_event.model_id != execute.fault_tree_top_gate.model_id {
             continue;
         }
-        if binding.bayesian_network_node.model_id != snapshot.bayesian_network.model_id {
-            return Err(PraxisError::Hcl(format!(
-                "binding '{}' references Bayesian model '{}' instead of '{}'",
-                binding.id,
-                binding.bayesian_network_node.model_id,
-                snapshot.bayesian_network.model_id
-            )));
-        }
         bindings.push(HclBindingSpec {
             event: binding.fault_tree_basic_event.entity_id,
             node: binding.bayesian_network_node.entity_id,
@@ -447,17 +505,24 @@ fn build_adapter(request: &SolverRequest) -> Result<HclAdapter> {
         .with_bindings(bindings)
         .with_base_evidence(base_evidence);
     let uncertainty = resolve_uncertainty(
+        execute.calculation_type,
         snapshot.solver_settings.uncertainty,
         &snapshot.bayesian_network.model_id,
         &cpt_row_indices,
     )?;
-    let settings = HclSettings {
-        variable_order: snapshot.solver_settings.variable_order,
+    let settings = HclAnalysisSettings {
+        variable_order: Some(match snapshot.solver_settings.variable_order {
+            Some(order) => order,
+            None => praxis::hcl::source_fault_tree_order(&model)?,
+        }),
         fold_constants: snapshot.solver_settings.fold_constants,
         splice_null_gates: snapshot.solver_settings.splice_null_gates,
         uncertainty,
     };
 
+    if execute.hazard_convolution.is_some() {
+        ensure_hazard_convolution_supported(settings.uncertainty.as_ref())?;
+    }
     Ok(HclAdapter {
         model_id: snapshot.id,
         model_revision: snapshot.revision,
@@ -471,6 +536,9 @@ fn build_adapter(request: &SolverRequest) -> Result<HclAdapter> {
 }
 
 pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
+    if request.request["operation"] == "GENERATE_SCENARIOS" {
+        return crate::hazard_sweep::validate(request);
+    }
     let adapter = build_adapter(request)?;
     if let Some(settings) = &adapter.settings.uncertainty {
         validate_hcl_uncertainty_settings(adapter.model.network(), settings)?;
@@ -494,16 +562,19 @@ pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
                     &validation_settings,
                 )?
                 .quantification
-                .results[0]
-                    .bdd_variables
+                .results
+                .first()
+                .map_or(0, |result| result.bdd_variables)
             } else {
-                quantify_hcl_batch(&adapter.model, &evidence, &validation_settings)?.results[0]
-                    .bdd_variables
+                quantify_hcl_batch(&adapter.model, &evidence, &validation_settings)?
+                    .results
+                    .first()
+                    .map_or(0, |result| result.bdd_variables)
             };
             (bdd_variables, rows.len())
         }
         None => (
-            quantify_hcl(&adapter.model, &validation_settings)?.bdd_variables,
+            quantify_hcl(&adapter.model, &HclSettings::from(&validation_settings))?.bdd_variables,
             1,
         ),
     };
@@ -517,55 +588,117 @@ pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
     }))
 }
 
+pub(crate) fn preflight(request: &SolverRequest, executing: bool) -> Result<Value> {
+    if request.request["operation"] == "GENERATE_SCENARIOS" {
+        return Ok(crate::resource_preflight::no_clique());
+    }
+    let adapter = build_adapter(request)?;
+    if let Some(settings) = &adapter.settings.uncertainty {
+        validate_hcl_uncertainty_settings(adapter.model.network(), settings)?;
+    }
+    let batch =
+        crate::resource_preflight::sample_batch(adapter.settings.uncertainty.as_ref(), executing);
+    crate::resource_preflight::network(adapter.model.network().clone(), batch)
+}
+
+pub(crate) fn preflight_event_tree_network(
+    request: &SolverRequest,
+    configuration_id: &str,
+    calculation_type: HclCalculationType,
+    executing: bool,
+) -> Result<Value> {
+    let snapshot = find_snapshot_for_model(request, configuration_id, None)?;
+    let (network, _, rows) =
+        build_network_for_model_with_cpt_rows(request, &snapshot.bayesian_network.model_id)?;
+    let uncertainty = resolve_uncertainty(
+        calculation_type,
+        snapshot.solver_settings.uncertainty,
+        &snapshot.bayesian_network.model_id,
+        &rows,
+    )?;
+    crate::resource_preflight::network(
+        network.into_graph()?,
+        crate::resource_preflight::sample_batch(uncertainty.as_ref(), executing),
+    )
+}
+
 pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
+    if request.request["operation"] == "GENERATE_SCENARIOS" {
+        return crate::hazard_sweep::execute(request);
+    }
     let adapter = build_adapter(request)?;
     if let Some(rows) = &adapter.evidence_batch {
         validate_evidence_rows(rows)?;
-        let evidence = batch_evidence_specs(rows);
-        let (batch, hazard_convolution) = if let Some(hazard) = &adapter.hazard_convolution {
-            validate_hazard_grid(rows, hazard)?;
-            let assignments = hazard_evidence_specs(rows);
-            let weighted = quantify_hcl_hazard_grid_batch(
-                &adapter.model,
-                &evidence,
-                &assignments,
-                &adapter.settings,
-            )?;
-            let integration = hcl_hazard_convolution_json(rows, hazard, &weighted)?;
-            (weighted.quantification, Some(integration))
-        } else {
-            (
-                quantify_hcl_batch(&adapter.model, &evidence, &adapter.settings)?,
-                None,
-            )
-        };
-        let batch_results: Vec<Value> = rows
-            .iter()
-            .zip(batch.results.iter())
-            .map(|(row, result)| hcl_result_json(&adapter, result, Some(&row.scenario_id)))
-            .collect();
-        let mut response = json!({
-            "methodType": HCL_METHOD,
-            "modelId": adapter.model_id,
-            "modelRevision": adapter.model_revision,
-            "faultTreeTopGate": {
-                "modelId": adapter.fault_tree_top_gate.model_id,
-                "entityId": adapter.fault_tree_top_gate.entity_id
-            },
-            "batchResults": batch_results,
-            "compilationReuse": {
-                "bddCompilations": batch.compilation.bdd_compilations,
-                "junctionTreeCompilations": batch.compilation.junction_tree_compilations,
-                "scenarioEvaluations": batch.compilation.scenario_evaluations
-            }
-        });
-        if let Some(hazard_convolution) = hazard_convolution {
-            response["hazardConvolution"] = hazard_convolution;
+        if adapter.hazard_convolution.is_some() {
+            return execute_batch(&adapter, rows);
         }
-        return Ok(response);
+        return crate::evidence_batch::execute(
+            rows,
+            |row| row.scenario_id.as_str(),
+            batch_response(&adapter),
+            |rows| execute_batch(&adapter, rows),
+        );
     }
-    let result = quantify_hcl(&adapter.model, &adapter.settings)?;
+    let result = analyze_hcl(&adapter.model, &adapter.settings)?;
     Ok(hcl_result_json(&adapter, &result, None))
+}
+
+fn batch_response(adapter: &HclAdapter) -> Value {
+    json!({
+        "methodType": HCL_METHOD,
+        "modelId": adapter.model_id,
+        "modelRevision": adapter.model_revision,
+        "faultTreeTopGate": {
+            "modelId": adapter.fault_tree_top_gate.model_id,
+            "entityId": adapter.fault_tree_top_gate.entity_id
+        },
+    })
+}
+
+fn execute_batch(adapter: &HclAdapter, rows: &[HclEvidenceRow]) -> Result<Value> {
+    let evidence = batch_evidence_specs(rows);
+    let (batch, hazard_convolution) = if let Some(hazard) = &adapter.hazard_convolution {
+        validate_hazard_grid(rows, hazard)?;
+        let assignments = hazard_evidence_specs(rows);
+        let weighted = quantify_hcl_hazard_grid_batch(
+            &adapter.model,
+            &evidence,
+            &assignments,
+            &adapter.settings,
+        )?;
+        let integration = hcl_hazard_convolution_json(rows, hazard, &weighted)?;
+        (weighted.quantification, Some(integration))
+    } else {
+        (
+            quantify_hcl_batch(&adapter.model, &evidence, &adapter.settings)?,
+            None,
+        )
+    };
+    let evaluated: HashMap<_, _> = batch
+        .scenario_indices
+        .iter()
+        .copied()
+        .zip(batch.results.iter())
+        .collect();
+    let batch_results: Vec<Value> = rows
+        .iter()
+        .enumerate()
+        .map(|(index, row)| match evaluated.get(&index) {
+            Some(result) => hcl_result_json(&adapter, result, Some(&row.scenario_id)),
+            None => json!({"scenarioId": row.scenario_id, "status": "skipped_zero_weight"}),
+        })
+        .collect();
+    let mut response = batch_response(adapter);
+    response["batchResults"] = json!(batch_results);
+    response["compilationReuse"] = json!({
+        "bddCompilations": batch.compilation.bdd_compilations,
+        "junctionTreeCompilations": batch.compilation.junction_tree_compilations,
+        "scenarioEvaluations": batch.compilation.scenario_evaluations
+    });
+    if let Some(hazard_convolution) = hazard_convolution {
+        response["hazardConvolution"] = hazard_convolution;
+    }
+    Ok(response)
 }
 
 fn validate_evidence_rows(rows: &[HclEvidenceRow]) -> Result<()> {
@@ -668,44 +801,49 @@ fn hcl_hazard_convolution_json(
         scale.annualization,
         hazard.normalize_weights,
     )?;
+    let evaluated: HashMap<_, _> = batch
+        .quantification
+        .scenario_indices
+        .iter()
+        .copied()
+        .zip(batch.quantification.results.iter())
+        .collect();
+    let mut convolved_probability = 0.0;
+    let mut integrated_annual_frequency = 0.0;
     let result_rows: Vec<Value> = rows
         .iter()
-        .zip(batch.quantification.results.iter())
-        .zip(weights.weights.iter())
-        .map(|((row, result), weight)| {
+        .zip(&weights.weights)
+        .enumerate()
+        .map(|(index, (row, weight))| {
+            let result = evaluated.get(&index);
+            let probability = result.map(|result| result.probability);
+            let contribution = probability.map_or(0.0, |p| weight.convolution_weight * p);
+            let annual_contribution = probability.map_or(0.0, |p| weight.annual_frequency * p);
+            convolved_probability += contribution;
+            integrated_annual_frequency += annual_contribution;
             json!({
                 "scenarioId": row.scenario_id,
+                "status": if result.is_some() { "ok" } else { "skipped_zero_weight" },
                 "rawWeight": weight.raw_weight,
                 "normalizedWeight": weight.normalized_weight,
                 "convolutionWeight": weight.convolution_weight,
                 "annualFrequency": weight.annual_frequency,
-                "conditionalProbability": result.probability,
-                "annualContribution": weight.annual_frequency * result.probability
+                "conditionalProbability": probability,
+                "probabilityContribution": contribution,
+                "annualContribution": annual_contribution
             })
         })
         .collect();
-    let integrated_annual_frequency = result_rows
-        .iter()
-        .filter_map(|row| row["annualContribution"].as_f64())
-        .sum::<f64>();
-    let mut result = hazard_common_json(
+    let result = hazard_common_json(
         hazard,
         &weights,
         json!({
             "targetKind": "FAULT_TREE",
             "rows": result_rows,
+            "convolvedProbability": convolved_probability,
             "integratedAnnualFrequency": integrated_annual_frequency
         }),
     );
-    if let Some(uncertainty) = summarize_hcl_hazard_uncertainty(
-        batch,
-        hazard.annual_frequency_scale.value,
-        hazard.annual_frequency_scale.unit,
-        hazard.annual_frequency_scale.annualization,
-        hazard.normalize_weights,
-    )? {
-        result["uncertainty"] = json!(uncertainty);
-    }
     Ok(result)
 }
 
@@ -727,7 +865,11 @@ fn hazard_common_json(
     value
 }
 
-fn hcl_result_json(adapter: &HclAdapter, result: &HclResult, scenario_id: Option<&str>) -> Value {
+fn hcl_result_json(
+    adapter: &HclAdapter,
+    result: &HclAnalysisResult,
+    scenario_id: Option<&str>,
+) -> Value {
     let mut value = json!({
         "methodType": HCL_METHOD,
         "modelId": adapter.model_id,
@@ -737,24 +879,11 @@ fn hcl_result_json(adapter: &HclAdapter, result: &HclResult, scenario_id: Option
             "entityId": adapter.fault_tree_top_gate.entity_id
         },
         "probability": result.probability,
-        "cutSets": result.cut_sets,
-        "importance": result.importance,
         "bddNodes": result.bdd_nodes,
         "bddVariables": result.bdd_variables,
         "variableOrder": result.variable_order,
-        "bridge": {
-            "quantifications": result.bridge.quantifications,
-            "bddContextCacheHits": result.bridge.bdd_context_cache_hits,
-            "bddContextCacheMisses": result.bridge.bdd_context_cache_misses,
-            "bnQueryCacheHits": result.bridge.bn_query_cache_hits,
-            "bnQueryCacheMisses": result.bridge.bn_query_cache_misses
-        },
-        "junctionTree": {
-            "numCliques": result.junction_tree.num_cliques,
-            "maxCliqueSize": result.junction_tree.max_clique_size,
-            "treewidth": result.junction_tree.treewidth,
-            "totalTableEntries": result.junction_tree.total_table_entries
-        },
+        "bridge": crate::diagnostics::bridge_stats_json(&result.bridge),
+        "junctionTree": crate::diagnostics::junction_tree_stats_json(&result.junction_tree),
         "basicEventQuantifications": adapter.basic_event_quantifications,
         "validationIssues": []
     });
@@ -791,6 +920,7 @@ mod tests {
             "request": {
                 "schemaVersion": "1.0.0",
                 "methodType": "HYBRID_CAUSAL_LOGIC",
+                "calculationType": "UNCERTAINTY",
                 "modelId": hcl_id,
                 "revision": 4,
                 "requestedBy": "analyst",
@@ -890,7 +1020,7 @@ mod tests {
                             "cptRowDistributions": [{
                                 "bayesianNetworkNode": { "modelId": bn_id, "entityId": node_b },
                                 "cptRowId": "row-b-true",
-                                "equivalentSampleSize": 25.0
+                                "prior": { "family": "DIRICHLET", "alpha": [5.0, 20.0] }
                             }]
                         }
                     }
@@ -912,45 +1042,36 @@ mod tests {
         assert!((result["probability"].as_f64().unwrap() - 0.16).abs() < 1e-12);
         assert_eq!(result["variableOrder"], json!(["A", "B"]));
         assert_eq!(result["faultTreeTopGate"]["entityId"], top);
-        assert_eq!(result["cutSets"]["totalCount"], 1);
-        assert_eq!(result["cutSets"]["cutSets"][0]["order"], 2);
-        assert_eq!(result["importance"]["totalCount"], 2);
-        assert_eq!(result["importance"]["measures"][0]["basicEventId"], "A");
-        assert!(
-            (result["importance"]["measures"][0]["riskAchievementWorth"]
-                .as_f64()
-                .unwrap()
-                - 1.5)
-                .abs()
-                < 1e-12
-        );
+        assert!(result.get("cutSets").is_none());
+        assert!(result.get("importance").is_none());
+        assert_eq!(result["bridge"]["quantifications"], 1);
         assert_eq!(result["uncertainty"]["sampleCount"], 200);
         assert_eq!(result["uncertainty"]["seed"], 2026);
         assert!(
             result["uncertainty"]["percentile05"].as_f64().unwrap()
                 < result["uncertainty"]["percentile95"].as_f64().unwrap()
         );
-        assert!(
-            (result["cutSets"]["cutSets"][0]["probability"]
-                .as_f64()
-                .unwrap()
-                - 0.16)
-                .abs()
-                < 1e-12
-        );
-        assert_eq!(
-            result["cutSets"]["cutSets"][0]["bnAncestorNodeIds"],
-            json!([node_a])
-        );
-        assert_eq!(
-            result["cutSets"]["cutSets"][0]["bnRootCauseNodeIds"],
-            json!([node_a])
-        );
+        let mut signed_payload = payload.clone();
+        signed_payload["modelSnapshots"][0]["gates"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"id": "NOT-B", "gateType": "NOT"}));
+        signed_payload["modelSnapshots"][0]["gateInputs"][1]["childId"] = json!("NOT-B");
+        signed_payload["modelSnapshots"][0]["gateInputs"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "id": "not-b-input", "gateId": "NOT-B", "childId": "ref-b", "order": 0
+            }));
+        let signed_request = SolverRequest::from_json(&signed_payload.to_string()).unwrap();
+        let signed = execute(&signed_request).unwrap();
+        assert!((signed["probability"].as_f64().unwrap() - 0.04).abs() < 1e-12);
+        assert!(signed.get("cutSets").is_none());
+        assert!(signed.get("importance").is_none());
 
         let true_scenario = "00000000-0000-4000-8000-000000000211";
         let false_scenario = "00000000-0000-4000-8000-000000000212";
-        payload["modelSnapshots"][2]["baseEvidence"]["observations"] =
-            json!([{ "nodeId": node_a, "stateId": a_false }]);
+        payload["modelSnapshots"][2]["baseEvidence"]["observations"] = json!([]);
         payload["request"]["evidenceBatch"] = json!([
             {
                 "scenarioId": true_scenario,
@@ -973,20 +1094,27 @@ mod tests {
             },
             "normalizeWeights": false
         });
+        let rejected = SolverRequest::from_json(&payload.to_string()).unwrap();
+        assert!(execute(&rejected)
+            .unwrap_err()
+            .to_string()
+            .contains("point runs only"));
+        assert!(super::validate(&rejected)
+            .unwrap_err()
+            .to_string()
+            .contains("point runs only"));
+        // Saved settings remain present when switching to point hazard execution.
+        payload["request"]["calculationType"] = json!("PROBABILITY");
         let batch_request = SolverRequest::from_json(&payload.to_string()).unwrap();
         let batch = execute(&batch_request).unwrap();
         assert_eq!(batch["compilationReuse"]["bddCompilations"], 1);
         assert_eq!(batch["compilationReuse"]["junctionTreeCompilations"], 1);
-        assert_eq!(batch["batchResults"][0]["cutSets"]["totalCount"], 1);
-        assert_eq!(batch["batchResults"][1]["cutSets"]["totalCount"], 1);
-        assert_eq!(
-            batch["batchResults"][0]["cutSets"]["cutSets"][0]["probability"],
-            0.8
-        );
-        assert_eq!(
-            batch["batchResults"][1]["cutSets"]["cutSets"][0]["probability"],
-            0.0
-        );
+        for result in batch["batchResults"].as_array().unwrap() {
+            assert!(result.get("cutSets").is_none());
+            assert!(result.get("importance").is_none());
+        }
+        assert_eq!(batch["batchResults"][0]["probability"], 0.8);
+        assert_eq!(batch["batchResults"][1]["probability"], 0.0);
         assert!(
             (batch["hazardConvolution"]["rows"][0]["rawWeight"]
                 .as_f64()
@@ -1011,10 +1139,7 @@ mod tests {
                 .abs()
                 < 1e-12
         );
-        assert_eq!(
-            batch["hazardConvolution"]["uncertainty"]["sampleCount"],
-            200
-        );
+        assert!(batch["hazardConvolution"].get("uncertainty").is_none());
 
         payload["request"]["evidenceBatch"][1]["hazardObservations"] =
             json!([{ "nodeId": node_a, "stateId": a_true }]);

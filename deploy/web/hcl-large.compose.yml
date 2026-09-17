@@ -1,0 +1,5 @@
+# Use with deploy/web/cd-stack.yml and the matching Praetor large-HCL overlay.
+services:
+  backend:
+    environment:
+      PRAETOR_NATIVE_TIMEOUT_MS: ${PRAETOR_NATIVE_TIMEOUT_MS:-1800000}

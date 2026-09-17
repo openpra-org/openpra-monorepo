@@ -32,6 +32,14 @@ impl SolverRequest {
                 received: request.schema_version,
             });
         }
+        if !matches!(
+            request.request["methodType"].as_str(),
+            Some("FAULT_TREE" | "BAYESIAN_NETWORK" | "EVENT_TREE" | "HYBRID_CAUSAL_LOGIC")
+        ) {
+            return Err(TransportError::UnsupportedMethodType {
+                received: request.request["methodType"].clone(),
+            });
+        }
         Ok(request)
     }
 }
@@ -85,6 +93,10 @@ pub(crate) struct SolverErrorResult {
 impl SolverErrorResult {
     pub(crate) fn from_transport(error: &TransportError) -> Self {
         let (code, details) = match error {
+            TransportError::UnsupportedMethodType { received } => (
+                "UNSUPPORTED_METHOD_TYPE",
+                BTreeMap::from([("receivedMethodType".to_string(), received.clone())]),
+            ),
             TransportError::InvalidJson(error) => (
                 "INVALID_REQUEST_JSON",
                 BTreeMap::from([
@@ -149,12 +161,14 @@ impl SolverErrorResult {
 #[derive(Debug)]
 pub(crate) enum TransportError {
     InvalidJson(serde_json::Error),
+    UnsupportedMethodType { received: Value },
     UnsupportedSchemaVersion { received: String },
 }
 
 impl Display for TransportError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::UnsupportedMethodType { received } => write!(formatter, "unsupported or missing solver method type: {received}"),
             Self::InvalidJson(error) => write!(formatter, "invalid solver JSON: {error}"),
             Self::UnsupportedSchemaVersion { received } => write!(
                 formatter,
@@ -168,7 +182,7 @@ impl Error for TransportError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::InvalidJson(error) => Some(error),
-            Self::UnsupportedSchemaVersion { .. } => None,
+            Self::UnsupportedSchemaVersion { .. } | Self::UnsupportedMethodType { .. } => None,
         }
     }
 }
@@ -214,6 +228,45 @@ mod tests {
     }
 
     #[test]
+    fn preserves_probability_and_prior_bits_across_the_json_boundary() {
+        // The first value selects a different source Dirichlet routine if rounded to 0.1.
+        let cases = [
+            ("0.09999999999999999", 0.09999999999999999_f64),
+            ("1.999980000133572e-05", 1.999980000133572e-05_f64),
+            ("0.49999999999999994", 0.49999999999999994_f64),
+            ("1e-308", 1e-308_f64),
+            ("5e-324", f64::from_bits(1)),
+        ];
+        for (literal, expected) in cases {
+            let json = format!(
+                r#"{{
+                    "schemaVersion":"1.0.0",
+                    "request":{{"methodType":"HYBRID_CAUSAL_LOGIC","prior":{{"alpha":[{literal}]}}}},
+                    "modelSnapshots":[{{"probability":{literal}}}],
+                    "resources":{{"faultTreeBasicEventCatalogue":{{"probability":{literal}}}}}
+                }}"#
+            );
+            let parsed = SolverRequest::from_json(&json).unwrap();
+            let values = [
+                &parsed.request["prior"]["alpha"][0],
+                &parsed.model_snapshots[0]["probability"],
+                &parsed
+                    .resources
+                    .fault_tree_basic_event_catalogue
+                    .as_ref()
+                    .unwrap()["probability"],
+            ];
+            for value in values {
+                assert_eq!(
+                    value.as_f64().unwrap().to_bits(),
+                    expected.to_bits(),
+                    "{literal}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn rejects_unknown_versions_missing_fields_and_extra_envelope_fields() {
         let error = SolverRequest::from_json(&request_json("2.0.0")).unwrap_err();
         assert!(matches!(
@@ -240,6 +293,39 @@ mod tests {
             SolverRequest::from_json(&extra_field.to_string()),
             Err(TransportError::InvalidJson(_))
         ));
+    }
+
+    #[test]
+    fn preserves_signed_zero_in_request_numbers() {
+        for spelling in ["-0", "-0.0", "-0e0"] {
+            let input = format!(
+                r#"{{"schemaVersion":"1.0.0","request":{{"methodType":"FAULT_TREE","p":{spelling}}},"modelSnapshots":[{{"values":[0,{spelling}]}}]}}"#
+            );
+            let request = SolverRequest::from_json(&input).unwrap();
+            assert_eq!(
+                request.request["p"].as_f64().unwrap().to_bits(),
+                (-0.0_f64).to_bits()
+            );
+            let values = &request.model_snapshots[0]["values"];
+            assert_eq!(values[0].as_f64().unwrap().to_bits(), 0.0_f64.to_bits());
+            assert_eq!(values[1].as_f64().unwrap().to_bits(), (-0.0_f64).to_bits());
+        }
+    }
+
+    #[test]
+    fn preserves_signed_zero_in_result_numbers() {
+        let text = SolverResult::new(json!({"values": [-0.0_f64, 0.0_f64]}))
+            .to_json()
+            .unwrap();
+        let result: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(
+            result["result"]["values"][0].as_f64().unwrap().to_bits(),
+            (-0.0_f64).to_bits()
+        );
+        assert_eq!(
+            result["result"]["values"][1].as_f64().unwrap().to_bits(),
+            0.0_f64.to_bits()
+        );
     }
 
     #[test]

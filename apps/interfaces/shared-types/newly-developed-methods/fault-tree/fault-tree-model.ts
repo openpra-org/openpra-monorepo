@@ -20,6 +20,7 @@ export type {
   FaultTreeGateBase,
   FaultTreeAndGate,
   FaultTreeOrGate,
+  FaultTreeXorGate,
   FaultTreeNotGate,
   FaultTreeKOfNGate,
   FaultTreeGate,

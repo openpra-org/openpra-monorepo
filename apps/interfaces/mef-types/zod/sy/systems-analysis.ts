@@ -215,6 +215,10 @@ export const SystemFaultTreeGateSchema = z.discriminatedUnion("gateType", [
   }).strict(),
   SystemFaultTreeEntityIdentitySchema.extend({
     kind: z.literal("GATE"),
+    gateType: z.literal("XOR"),
+  }).strict(),
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("GATE"),
     gateType: z.literal("NOT"),
   }).strict(),
   SystemFaultTreeEntityIdentitySchema.extend({

@@ -22,6 +22,7 @@ import {
   type FaultTreeModel,
 } from "../fault-tree";
 import type { HclConfigurationModel } from "./hcl-configuration";
+import { HclCptPriorSchema, HclCptGeneratorSchema } from "interfaces-mef-types/zod/modeling";
 
 interface HclValidationContext {
   bayesianNetworks?: Array<{ workbookId: WorkbookId; model: BayesianNetworkModel }>;
@@ -62,6 +63,54 @@ const validateHclConfigurationModel = (
         { hclBindings: model.bindings, workbookId: matchingBayesianNetworks[0].workbookId },
       ),
     );
+    const bn = matchingBayesianNetworks[0].model;
+    const betaStates = new Map<string, string>();
+    model.solverSettings.uncertainty?.cptRowDistributions.forEach((definition, index) => {
+      const node = bn.nodes.find((candidate) => candidate.id === definition.bayesianNetworkNode.entityId);
+      const table = bn.conditionalProbabilityTables.find((candidate) => candidate.nodeId === node?.id);
+      const parsed = HclCptPriorSchema.safeParse(definition.prior);
+      const prior = parsed.success ? parsed.data : undefined;
+      const consistentBetaState = prior?.family !== "BETA" || !betaStates.has(node?.id ?? "") || betaStates.get(node?.id ?? "") === prior.trueStateId;
+      if (node && prior?.family === "BETA") betaStates.set(node.id, prior.trueStateId);
+      const valid = consistentBetaState && node && table?.rows.some((row) => row.id === definition.cptRowId) && prior && (
+        prior.family === "BETA"
+          ? node.states.length === 2 && node.states.some((state) => state.id === prior.trueStateId)
+          : prior.alpha.length === node.states.length
+      );
+      if (!valid) issues.push({
+        code: "HCL_CPT_PRIOR_INVALID", severity: "ERROR",
+        message: "CPT uncertainty needs an existing row and an explicit prior matching its states. Beta needs two states and one consistent probability state per node; Dirichlet needs one alpha per state.",
+        entityId: definition.bayesianNetworkNode.entityId,
+        fieldPath: ["solverSettings", "uncertainty", "cptRowDistributions", index],
+      });
+    });
+    const generatorNodes = new Set<string>();
+    model.solverSettings.uncertainty?.cptGenerators?.forEach((definition, index) => {
+      const node = bn.nodes.find((n) => n.id === definition.bayesianNetworkNode.entityId);
+      const table = bn.conditionalProbabilityTables.find((t) => t.nodeId === node?.id);
+      const parsed = HclCptGeneratorSchema.safeParse(definition.generator);
+      let valid = parsed.success && !!node && !!table
+        && definition.bayesianNetworkNode.workbookId === model.bayesianNetwork.workbookId
+        && definition.bayesianNetworkNode.modelId === model.bayesianNetwork.modelId
+        && !generatorNodes.has(definition.bayesianNetworkNode.entityId)
+        && !model.solverSettings.uncertainty?.cptRowDistributions.some((r) => r.bayesianNetworkNode.entityId === definition.bayesianNetworkNode.entityId);
+      generatorNodes.add(definition.bayesianNetworkNode.entityId);
+      if (parsed.success && node && table) {
+        const g = parsed.data;
+        if (g.type === "seismic_fragility") {
+          const parent = bn.nodes.find((n) => n.id === g.pgaParentId);
+          valid &&= node.states.length === 2 && node.states.some((s) => s.id === g.trueStateId) && node.states.some((s) => s.id === g.falseStateId)
+            && table.parents.some((p) => p.nodeId === g.pgaParentId) && !!parent
+            && parent.states.length === g.pgaCenters.length && parent.states.every((s) => g.pgaCenters.some((c) => c.stateId === s.id));
+        } else {
+          valid &&= table.parents.length === 0 && node.states.some((s) => s.id === g.noneStateId)
+            && g.bins.length + 1 === node.states.length && node.states.every((s) => s.id === g.noneStateId || g.bins.some((b) => b.stateId === s.id));
+        }
+      }
+      if (!valid) issues.push({ code: "HCL_CPT_GENERATOR_INVALID", severity: "ERROR", entityId: definition.bayesianNetworkNode.entityId,
+        message: "Seismic generator must match its BN node, parents and states, and cannot share a node with row priors or another generator.",
+        fieldPath: ["solverSettings", "uncertainty", "cptGenerators", index] });
+    });
   }
 
   if (model.faultTrees.length === 0) {

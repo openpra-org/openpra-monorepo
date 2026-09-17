@@ -333,7 +333,6 @@ export const EventTreeSequenceSchema = z.object({
 
 export const EventTreeTransferSchema = z.object({
   targetEventTreeId: z.string(),
-  targetSequenceId: z.string().optional(),
   transferConditions: z.array(z.string()).optional(),
   preservedDependencies: z.array(z.string()).optional(),
 });

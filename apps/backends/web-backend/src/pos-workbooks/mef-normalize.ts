@@ -5,6 +5,12 @@ function stripNulls(
   preserveNull: PreserveNull = () => false,
   path: readonly (string | number)[] = [],
 ): unknown {
+  // Uncertainty is opaque saved draft data. Preserve even malformed/null
+  // entries for later review; execution validates only the selected settings.
+  const savedUncertainty = path.length === 4
+    && (path[0] === "hclConfigurations" || path[0] === "dependencyHclConfigurations")
+    && typeof path[1] === "number" && path[2] === "solverSettings" && path[3] === "uncertainty";
+  if (savedUncertainty) return value;
   if (value === null) return preserveNull(path) ? null : undefined;
   if (Array.isArray(value)) {
     return value.map((entry, index) => stripNulls(entry, preserveNull, [...path, index]));

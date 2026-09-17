@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use praxis::hcl::{
-    query_bayesian_network, CanonicalBayesianNetwork, CanonicalBayesianVariable, HclEvidenceSpec,
+    query_bayesian_network_batch, BayesianMarginal, CanonicalBayesianNetwork,
+    CanonicalBayesianVariable, HclEvidenceSpec,
 };
 use praxis::{PraxisError, Result};
 use serde::Deserialize;
@@ -23,10 +24,33 @@ struct BayesianExecuteRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum BayesianQuery {
+    Single(BayesianSingleQuery),
+    Batch(BayesianBatchQuery),
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct BayesianQuery {
+struct BayesianSingleQuery {
     evidence: BayesianEvidence,
     query_node_ids: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct BayesianBatchQuery {
+    scenarios: Vec<BayesianScenario>,
+    query_node_ids: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BayesianScenario {
+    id: String,
+    code: String,
+    name: String,
+    evidence: BayesianEvidence,
 }
 
 #[derive(Debug, Deserialize)]
@@ -49,7 +73,24 @@ struct BayesianSnapshot {
     method_type: String,
     revision: u64,
     nodes: Vec<BayesianNode>,
+    // Canonical source inputs have only CPT parents. Workbook snapshots also
+    // carry visual edges; when present, they must describe the same graph.
+    #[serde(default, deserialize_with = "deserialize_edges")]
+    edges: Option<Vec<BayesianEdge>>,
     conditional_probability_tables: Vec<BayesianCpt>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BayesianEdge {
+    parent_node_id: String,
+    child_node_id: String,
+}
+
+fn deserialize_edges<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<Vec<BayesianEdge>>, D::Error> {
+    Vec::deserialize(deserializer).map(Some)
 }
 
 #[derive(Debug, Deserialize)]
@@ -104,8 +145,7 @@ struct BayesianAdapter {
     model_id: String,
     model_revision: u64,
     network: CanonicalBayesianNetwork,
-    evidence: Vec<HclEvidenceSpec>,
-    query_node_ids: Vec<String>,
+    query: BayesianQuery,
 }
 
 fn serialization_error(context: &str, error: impl std::fmt::Display) -> PraxisError {
@@ -180,9 +220,9 @@ fn build_network(
     let mut node_states = HashMap::with_capacity(snapshot.nodes.len());
     for node in &snapshot.nodes {
         let states: Vec<String> = node.states.iter().map(|state| state.id.clone()).collect();
-        if states.len() < 2 || states.iter().collect::<HashSet<_>>().len() != states.len() {
+        if states.is_empty() || states.iter().collect::<HashSet<_>>().len() != states.len() {
             return Err(PraxisError::Bayesian(format!(
-                "Bayesian node '{}' must define at least two unique states",
+                "Bayesian node '{}' must define at least one unique state",
                 node.id
             )));
         }
@@ -191,6 +231,41 @@ fn build_network(
                 "Bayesian snapshot contains duplicate node '{}'",
                 node.id
             )));
+        }
+    }
+
+    if let Some(edges) = &snapshot.edges {
+        let mut edge_pairs = HashSet::with_capacity(edges.len());
+        for edge in edges {
+            if !node_states.contains_key(&edge.parent_node_id)
+                || !node_states.contains_key(&edge.child_node_id)
+            {
+                return Err(PraxisError::Bayesian(format!(
+                    "Bayesian edge '{}' -> '{}' references an unknown node",
+                    edge.parent_node_id, edge.child_node_id
+                )));
+            }
+            if !edge_pairs.insert((&edge.parent_node_id, &edge.child_node_id)) {
+                return Err(PraxisError::Bayesian(format!(
+                    "Bayesian snapshot contains duplicate edge '{}' -> '{}'",
+                    edge.parent_node_id, edge.child_node_id
+                )));
+            }
+        }
+        let parent_pairs: HashSet<_> = snapshot
+            .conditional_probability_tables
+            .iter()
+            .flat_map(|table| {
+                table
+                    .parents
+                    .iter()
+                    .map(|parent| (&parent.node_id, &table.node_id))
+            })
+            .collect();
+        if edge_pairs != parent_pairs {
+            return Err(PraxisError::Bayesian(
+                "Bayesian edges must match CPT parents exactly".to_string(),
+            ));
         }
     }
 
@@ -368,22 +443,56 @@ fn build_adapter(request: &SolverRequest) -> Result<BayesianAdapter> {
     let execute = parse_request(request)?;
     let snapshot = find_snapshot(request, &execute.model_id, Some(execute.revision))?;
     let (model_id, model_revision, network, _cpt_row_indices) = build_network(snapshot)?;
-    let evidence = execute
-        .query
-        .evidence
-        .observations
-        .into_iter()
-        .map(|observation| HclEvidenceSpec {
-            node: observation.node_id,
-            state: observation.state_id,
-        })
-        .collect();
+    if let BayesianQuery::Batch(batch) = &execute.query {
+        let mut ids = HashSet::new();
+        if batch.scenarios.is_empty() {
+            return Err(PraxisError::Serialization(
+                "a Bayesian batch requires scenarios".to_string(),
+            ));
+        }
+        for scenario in &batch.scenarios {
+            if scenario.id.trim().is_empty()
+                || scenario.code.trim().is_empty()
+                || scenario.name.trim().is_empty()
+                || !ids.insert(&scenario.id)
+            {
+                return Err(PraxisError::Serialization(
+                    "Bayesian scenarios require unique ids and nonempty labels".to_string(),
+                ));
+            }
+        }
+    }
     Ok(BayesianAdapter {
         model_id,
         model_revision,
         network,
-        evidence,
-        query_node_ids: execute.query.query_node_ids,
+        query: execute.query,
+    })
+}
+
+fn observations(evidence: &BayesianEvidence) -> Vec<HclEvidenceSpec> {
+    evidence
+        .observations
+        .iter()
+        .map(|observation| HclEvidenceSpec {
+            node: observation.node_id.clone(),
+            state: observation.state_id.clone(),
+        })
+        .collect()
+}
+
+fn query_result(evidence: &[HclEvidenceSpec], marginals: Vec<BayesianMarginal>) -> Value {
+    json!({
+        "evidence": { "observations": evidence.iter().map(|observation|
+            json!({ "nodeId": observation.node, "stateId": observation.state })
+        ).collect::<Vec<_>>() },
+        "marginals": marginals.into_iter().map(|marginal| json!({
+            "nodeId": marginal.node,
+            "values": marginal.values.into_iter().map(|value| json!({
+                "stateId": value.state, "probability": value.probability
+            })).collect::<Vec<_>>()
+        })).collect::<Vec<_>>(),
+        "validationIssues": []
     })
 }
 
@@ -399,36 +508,62 @@ pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
     }))
 }
 
+pub(crate) fn preflight(request: &SolverRequest, executing: bool) -> Result<Value> {
+    if !executing {
+        return Ok(crate::resource_preflight::no_clique());
+    }
+    let adapter = build_adapter(request)?;
+    let batch_size = match &adapter.query {
+        BayesianQuery::Single(_) => 1,
+        BayesianQuery::Batch(query) => query.scenarios.len(),
+    };
+    crate::resource_preflight::network(adapter.network.into_graph()?, batch_size)
+}
+
 pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
     let adapter = build_adapter(request)?;
-    let marginals =
-        query_bayesian_network(adapter.network, &adapter.evidence, &adapter.query_node_ids)?;
-    let marginals: Vec<Value> = marginals
-        .into_iter()
-        .map(|marginal| {
-            json!({
-                "nodeId": marginal.node,
-                "values": marginal.values.into_iter().map(|value| json!({
-                    "stateId": value.state,
-                    "probability": value.probability
-                })).collect::<Vec<_>>()
-            })
-        })
-        .collect();
-    let evidence: Vec<Value> = adapter
-        .evidence
-        .into_iter()
-        .map(|observation| json!({ "nodeId": observation.node, "stateId": observation.state }))
-        .collect();
-
-    Ok(json!({
-        "methodType": BAYESIAN_NETWORK_METHOD,
-        "modelId": adapter.model_id,
-        "modelRevision": adapter.model_revision,
-        "evidence": { "observations": evidence },
-        "marginals": marginals,
-        "validationIssues": []
-    }))
+    let (scenarios, query_nodes) = match &adapter.query {
+        BayesianQuery::Single(query) => {
+            (vec![observations(&query.evidence)], &query.query_node_ids)
+        }
+        BayesianQuery::Batch(query) => (
+            query
+                .scenarios
+                .iter()
+                .map(|scenario| observations(&scenario.evidence))
+                .collect(),
+            &query.query_node_ids,
+        ),
+    };
+    let scenario_count = scenarios.len();
+    let batch = query_bayesian_network_batch(adapter.network, &scenarios, query_nodes)?;
+    let mut result = match adapter.query {
+        BayesianQuery::Single(_) => {
+            query_result(&scenarios[0], batch.scenarios.into_iter().next().unwrap()?)
+        }
+        BayesianQuery::Batch(query) => json!({
+            "queryNodeIds": query.query_node_ids,
+            "scenarios": query.scenarios.into_iter().zip(scenarios).zip(batch.scenarios)
+                .map(|((scenario, evidence), outcome)| {
+                    let (status, failure, result) = match outcome {
+                        Ok(marginals) => ("SUCCEEDED", None, query_result(&evidence, marginals)),
+                        Err(error) => ("FAILED", Some(error.to_string()), Value::Null),
+                    };
+                    json!({
+                        "scenarioId": scenario.id, "scenarioCode": scenario.code, "scenarioName": scenario.name,
+                        "status": status, "failure": failure, "result": result
+                    })
+                }).collect::<Vec<_>>(),
+            "diagnostics": {
+                "junctionTreeCompilations": batch.junction_tree_compilations,
+                "scenarioEvaluations": scenario_count
+            }
+        }),
+    };
+    result["methodType"] = json!(BAYESIAN_NETWORK_METHOD);
+    result["modelId"] = json!(adapter.model_id);
+    result["modelRevision"] = json!(adapter.model_revision);
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -509,6 +644,41 @@ mod tests {
             .to_string(),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn batches_scenarios_once_with_metadata_and_per_row_errors() {
+        let mut batch = request(json!([]));
+        let evidence = json!([{ "nodeId": "00000000-0000-4000-8000-000000000103", "stateId": "00000000-0000-4000-8000-000000000107" }]);
+        let expected = execute(&request(evidence.clone())).unwrap();
+        batch.request["query"] = json!({
+            "queryNodeIds": batch.request["query"]["queryNodeIds"],
+            "scenarios": [
+                { "id": "observed", "code": "OBS", "name": "Observed", "evidence": { "observations": evidence } },
+                { "id": "invalid", "code": "BAD", "name": "Invalid", "evidence": { "observations": [{ "nodeId": "unknown", "stateId": "unknown" }] } },
+                { "id": "prior", "code": "PRIOR", "name": "Prior", "evidence": { "observations": [] } }
+            ]
+        });
+        let result = execute(&batch).unwrap();
+        assert_eq!(result["diagnostics"]["junctionTreeCompilations"], 1);
+        assert_eq!(result["diagnostics"]["scenarioEvaluations"], 3);
+        assert_eq!(result["scenarios"][0]["scenarioId"], "observed");
+        assert_eq!(
+            result["scenarios"][0]["result"]["marginals"],
+            expected["marginals"]
+        );
+        assert_eq!(
+            result["scenarios"][0]["result"]["evidence"],
+            expected["evidence"]
+        );
+        assert_eq!(result["scenarios"][1]["status"], "FAILED");
+        assert!(result["scenarios"][1]["result"].is_null());
+        assert_eq!(
+            result["scenarios"][2]["result"]["marginals"],
+            execute(&request(json!([]))).unwrap()["marginals"]
+        );
+        batch.request["query"]["scenarios"][1]["id"] = json!("observed");
+        assert!(execute(&batch).is_err());
     }
 
     #[test]

@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { AnalysisCancellationInterceptor } from "../newly-developed-methods/shared/analysis-cancellation.interceptor";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, UseGuards, UseInterceptors } from "@nestjs/common";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { EsWorkbooksService, type EsWorkbookResponse } from "./es-workbooks.service";
 import { parseRevisionedWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
@@ -6,6 +7,7 @@ import { parseExpectedWorkbookRevision } from "../workbooks/workbook-revision";
 import { WorkbookAnalysisRunsService } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
 import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
 
+@UseInterceptors(AnalysisCancellationInterceptor)
 @Controller("es-workbooks")
 @UseGuards(JwtAuthGuard)
 export class EsWorkbooksController {
@@ -18,6 +20,21 @@ export class EsWorkbooksController {
   @HttpCode(HttpStatus.OK)
   get(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<EsWorkbookResponse> {
     return this.esWorkbooksService.findOne(id, { username: req.user!.username });
+  }
+
+  @Get(":id/analysis-runs")
+  listAnalysisRuns(@Param("id") id: string, @Req() req: AuthenticatedRequest, @Query("cursor") cursor?: string) {
+    return this.analysisRunsService.listRunProvenance("ES", id, { username: req.user!.username }, cursor);
+  }
+
+  @Get(":id/analysis-runs/:runId")
+  analysisRun(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
+    return this.analysisRunsService.getRun("ES", id, undefined, runId, { username: req.user!.username });
+  }
+
+  @Get(":id/analysis-runs/:runId/details")
+  analysisRunDetails(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
+    return this.analysisRunsService.getRunDetails("ES", id, runId, { username: req.user!.username });
   }
 
   @Patch(":id")
@@ -40,12 +57,9 @@ export class EsWorkbooksController {
     @Query("expectedRevision") expectedRevision: string | undefined,
     @Req() req: AuthenticatedRequest,
   ): Promise<EsWorkbookResponse> {
-    return this.esWorkbooksService.deleteEventTree(
-      id,
-      modelId,
-      parseExpectedWorkbookRevision(expectedRevision),
-      { username: req.user!.username },
-    );
+    return this.esWorkbooksService.deleteEventTree(id, modelId, parseExpectedWorkbookRevision(expectedRevision), {
+      username: req.user!.username,
+    });
   }
 
   @Post(":id/event-trees/:modelId/runs")
@@ -92,7 +106,11 @@ export class EsWorkbooksController {
 
   @Post(":id/load-example")
   @HttpCode(HttpStatus.OK)
-  loadExample(@Param("id") id: string, @Body() body: { example?: string }, @Req() req: AuthenticatedRequest): Promise<EsWorkbookResponse> {
+  loadExample(
+    @Param("id") id: string,
+    @Body() body: { example?: string },
+    @Req() req: AuthenticatedRequest,
+  ): Promise<EsWorkbookResponse> {
     return this.esWorkbooksService.loadExample(id, { username: req.user!.username }, body.example);
   }
 

@@ -9,6 +9,7 @@ import {
   ValidationIssueSchema,
   ValidationResultSchema,
   EventTreeFrequencySemanticsSchema,
+  MethodEntityReferenceSchema,
 } from "../shared";
 import type {
   AnalysisRunId,
@@ -20,6 +21,7 @@ import type {
   ValidationIssue,
   ValidationResult,
   EventTreeFrequencySemantics,
+  MethodEntityReference,
 } from "../shared";
 import type {
   EventTreeBranchResult,
@@ -30,14 +32,12 @@ import { EventTreeBranchResultSchema, EventTreeModelSchema, EventTreeSequencePat
 import { EventTreeExecutionModeSchema } from "./event-tree-requests";
 import type { EventTreeExecutionMode } from "./event-tree-requests";
 import {
-  HclCutSetAnalysisSchema,
-  HclImportanceAnalysisSchema,
   HclUncertaintySummarySchema,
+  HclBridgeStatsSchema, HclJunctionTreeStatsSchema, HclBatchCompilationStatsSchema,
 } from "../hybrid-causal-logic/hcl-results";
 import type {
-  HclCutSetAnalysis,
-  HclImportanceAnalysis,
   HclUncertaintySummary,
+  HclBridgeStats, HclJunctionTreeStats, HclBatchCompilationStats,
 } from "../hybrid-causal-logic/hcl-results";
 
 interface EventTreeCreateResult {
@@ -62,16 +62,25 @@ interface EventTreeExecuteResult {
   run: AnalysisRunMetadata;
 }
 
+/** Actual sequence compilation and point-pass diagnostics; no UQ/hazard-query counters. */
+interface EventTreeSequenceDiagnostics {
+  /** Null means an unconditional sequence did not build a BDD. */
+  bdd: { nodes: number; variables: number; variableOrder: string[] } | null;
+  /** Null means this sequence did not use the HCL bridge. */
+  bridge: HclBridgeStats | null;
+  /** Shared base network; null for independent evaluation. */
+  junctionTree: HclJunctionTreeStats | null;
+}
+
 interface EventTreeSequenceAnalysisResult {
   sequenceId: WorkbookEntityId;
+  /** Source and destination sequences forming this complete transfer path. */
+  sequenceChain?: MethodEntityReference[];
   path: EventTreeSequencePathStep[];
   result: EventTreeBranchResult;
   conditionalProbability: number;
   annualFrequency: number;
-  /** Present when PRAXIS quantified this sequence with an HCL Bayesian context. */
-  cutSets?: HclCutSetAnalysis;
-  /** PRAXIS importance measures for the sequence Boolean formula. */
-  importance?: HclImportanceAnalysis;
+  diagnostics?: EventTreeSequenceDiagnostics;
   uncertainty?: {
     conditionalProbability: HclUncertaintySummary;
     annualFrequency: HclUncertaintySummary;
@@ -92,6 +101,7 @@ interface EventTreeAnalysisResult {
   sequences: EventTreeSequenceAnalysisResult[];
   endStateAggregates: EventTreeEndStateAggregate[];
   frequencySemantics?: EventTreeFrequencySemantics;
+  compilationReuse?: HclBatchCompilationStats;
   validationIssues: ValidationIssue[];
   completedAt: string;
 }
@@ -137,15 +147,25 @@ const EventTreeExecuteResultSchema = z
 
 const ProbabilitySchema = z.number().min(0, "Probability cannot be less than zero").max(1, "Probability cannot exceed one");
 
+const EventTreeSequenceDiagnosticsSchema = z.object({
+  bdd: z.object({
+    nodes: z.number().int().nonnegative(),
+    variables: z.number().int().nonnegative(),
+    variableOrder: z.array(WorkbookEntityIdSchema),
+  }).strict().nullable(),
+  bridge: HclBridgeStatsSchema.nullable(),
+  junctionTree: HclJunctionTreeStatsSchema.nullable(),
+}).strict();
+
 const EventTreeSequenceAnalysisResultSchema = z
   .object({
     sequenceId: WorkbookEntityIdSchema,
+    sequenceChain: z.array(MethodEntityReferenceSchema).min(2).optional(),
     path: z.array(EventTreeSequencePathStepSchema),
     result: EventTreeBranchResultSchema,
     conditionalProbability: ProbabilitySchema,
     annualFrequency: z.number().nonnegative("Annual frequency cannot be negative"),
-    cutSets: HclCutSetAnalysisSchema.optional(),
-    importance: HclImportanceAnalysisSchema.optional(),
+    diagnostics: EventTreeSequenceDiagnosticsSchema.optional(),
     uncertainty: z.object({
       conditionalProbability: HclUncertaintySummarySchema,
       annualFrequency: HclUncertaintySummarySchema,
@@ -170,6 +190,7 @@ const EventTreeAnalysisResultSchema = z
     sequences: z.array(EventTreeSequenceAnalysisResultSchema),
     endStateAggregates: z.array(EventTreeEndStateAggregateSchema),
     frequencySemantics: EventTreeFrequencySemanticsSchema.optional(),
+    compilationReuse: HclBatchCompilationStatsSchema.optional(),
     validationIssues: z.array(ValidationIssueSchema),
     completedAt: z.string().datetime({ offset: true }),
   })
@@ -189,6 +210,9 @@ type _AssertEventTreeValidateResult = Expect<
 type _AssertEventTreeExecuteResult = Expect<
   Equal<z.infer<typeof EventTreeExecuteResultSchema>, EventTreeExecuteResult>
 >;
+type _AssertEventTreeSequenceDiagnostics = Expect<
+  Equal<z.infer<typeof EventTreeSequenceDiagnosticsSchema>, EventTreeSequenceDiagnostics>
+>;
 type _AssertEventTreeSequenceAnalysisResult = Expect<
   Equal<z.infer<typeof EventTreeSequenceAnalysisResultSchema>, EventTreeSequenceAnalysisResult>
 >;
@@ -200,6 +224,7 @@ type _AssertEventTreeAnalysisResult = Expect<
 >;
 
 export {
+  EventTreeSequenceDiagnosticsSchema,
   EventTreeCreateResultSchema,
   EventTreePatchResultSchema,
   EventTreeValidateResultSchema,
@@ -209,6 +234,7 @@ export {
   EventTreeAnalysisResultSchema,
 };
 export type {
+  EventTreeSequenceDiagnostics,
   EventTreeCreateResult,
   EventTreePatchResult,
   EventTreeValidateResult,

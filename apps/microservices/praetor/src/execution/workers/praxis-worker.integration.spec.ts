@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { threadId } from "node:worker_threads";
+
 
 import { runPraxisWithWorker } from "./praxis-worker-runner";
 
@@ -56,16 +56,17 @@ describe("PRAXIS native worker integration", () => {
   it.each([
     ["validate", "FAULT_TREE"],
     ["execute", "FAULT_TREE"],
-  ] as const)("runs %s through the native addon outside the calling thread", async (operation, expectedScope) => {
+  ] as const)("runs %s through the native addon outside the calling process", async (operation, expectedScope) => {
     const response = await runPraxisWithWorker({ operation, requestJson }, { addonPath, workerPath });
     const result = JSON.parse(response.resultJson) as Record<string, Record<string, unknown>>;
 
-    expect(response.workerThreadId).toBeGreaterThan(0);
-    expect(response.workerThreadId).not.toBe(threadId);
+    expect(response.workerProcessId).toBeGreaterThan(0);
+    expect(response.workerProcessId).not.toBe(process.pid);
     expect(operation === "validate" ? result.result.scope : result.result.methodType).toBe(expectedScope);
     if (operation === "execute") {
       expect(result.result.topEventProbability).toBeCloseTo(0.02, 12);
-      expect(result.result.minimalCutSetCount).toBe(1);
+      expect(result.result.minimalCutSetCount).toBeUndefined();
+      expect(result.result.leadingCutSets).toBeUndefined();
     }
   });
 });

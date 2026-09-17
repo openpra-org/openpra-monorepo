@@ -5,6 +5,15 @@ discrete Bayesian networks. It is derived from the discrete inference boundary
 of the C++ `bncore` library and intentionally contains no GUI, file importer,
 continuous-variable support, benchmark harness, or PRAXIS/HCL concepts.
 
+`src/engine.rs` and `src/workspace.rs` are unchanged from main commit
+`96b949e96ccbb2fa6eef7a27170dfc9cb9f54182`. Ordinary BN queries and HCL
+probability traversal use this original inference path.
+
+Point hazard weights use HCL_MH's sequential conditional queries through
+`ExecutionEngine`. The branch's separate evidence-mass engine and its dedicated
+tests were removed with unsupported sampled hazard convolution (task 23).
+The original engine's scalar and batched conditional inference remain intact.
+
 ## Phase 1 capabilities
 
 - Dense node identifiers, ordered graph adjacency, and typed validation errors

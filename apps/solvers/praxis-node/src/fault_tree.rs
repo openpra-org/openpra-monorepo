@@ -1,8 +1,6 @@
-use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
-use praxis::algorithms::noncoherent_mocus::NonCoherentMocus;
-use praxis::algorithms::pdag::Pdag;
+use praxis::algorithms::build::{build_bdd, BuildOptions};
 use praxis::analysis::fault_tree::FaultTreeAnalysis;
 use praxis::core::event::{BasicEvent, HouseEvent};
 use praxis::core::fault_tree::FaultTree;
@@ -52,6 +50,8 @@ enum FaultTreeGate {
     And { id: String },
     #[serde(rename = "OR")]
     Or { id: String },
+    #[serde(rename = "XOR")]
+    Xor { id: String },
     #[serde(rename = "NOT")]
     Not { id: String },
     #[serde(rename = "K_OF_N")]
@@ -61,7 +61,11 @@ enum FaultTreeGate {
 impl FaultTreeGate {
     fn id(&self) -> &str {
         match self {
-            Self::And { id } | Self::Or { id } | Self::Not { id } | Self::KOfN { id, .. } => id,
+            Self::And { id }
+            | Self::Or { id }
+            | Self::Xor { id }
+            | Self::Not { id }
+            | Self::KOfN { id, .. } => id,
         }
     }
 
@@ -69,6 +73,7 @@ impl FaultTreeGate {
         match self {
             Self::And { .. } => Formula::And,
             Self::Or { .. } => Formula::Or,
+            Self::Xor { .. } => Formula::Xor,
             Self::Not { .. } => Formula::Not,
             Self::KOfN { k, .. } => Formula::AtLeast { min: *k },
         }
@@ -201,6 +206,30 @@ fn find_snapshot(
         }
     }
     Ok(snapshot)
+}
+
+pub(crate) fn basic_event_ids_for_model(
+    request: &SolverRequest,
+    model_id: &str,
+) -> Result<HashSet<String>> {
+    let snapshot = find_snapshot(request, model_id, None)?;
+    let catalogue = parse_catalogue(request, &snapshot.project_id)?;
+    let mut catalogue_counts = HashMap::new();
+    for event in catalogue.basic_events {
+        *catalogue_counts.entry(event.id).or_insert(0usize) += 1;
+    }
+    Ok(snapshot
+        .leaf_nodes
+        .into_iter()
+        .filter_map(|leaf| match leaf {
+            FaultTreeLeaf::BasicEventReference { basic_event_id, .. }
+                if catalogue_counts.get(&basic_event_id) == Some(&1) =>
+            {
+                Some(basic_event_id)
+            }
+            _ => None,
+        })
+        .collect())
 }
 
 fn parse_catalogue(request: &SolverRequest, project_id: &str) -> Result<BasicEventCatalogue> {
@@ -375,63 +404,14 @@ pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
 
 pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
     let adapter = build_fault_tree(request)?;
-    let analysis = FaultTreeAnalysis::new(&adapter.fault_tree)?.analyze()?;
-    let pdag = Pdag::from_fault_tree(&adapter.fault_tree)?;
-    let mut mocus = NonCoherentMocus::new(&pdag, &adapter.fault_tree)?;
-    let cut_sets = mocus.analyze_primes();
-    let top_event_probability = analysis.top_event_probability;
-
-    let mut leading_cut_sets: Vec<Value> = cut_sets
-        .iter()
-        .map(|cut_set| {
-            let mut events: Vec<Value> = cut_set
-                .literals
-                .iter()
-                .map(|literal| {
-                    let name = mocus.literal_name(*literal);
-                    json!({
-                        "basicEventId": name.strip_prefix('~').unwrap_or(&name),
-                        "complemented": *literal < 0
-                    })
-                })
-                .collect();
-            events.sort_by(|left, right| {
-                left["basicEventId"]
-                    .as_str()
-                    .cmp(&right["basicEventId"].as_str())
-            });
-            let probability = mocus.cut_set_probability(cut_set);
-            let mut result = json!({
-                "order": cut_set.order(),
-                "probability": probability,
-                "events": events
-            });
-            if top_event_probability > 0.0 {
-                result["contribution"] =
-                    json!((probability / top_event_probability).clamp(0.0, 1.0));
-            }
-            result
-        })
-        .collect();
-    leading_cut_sets.sort_by(|left, right| {
-        right["probability"]
-            .as_f64()
-            .partial_cmp(&left["probability"].as_f64())
-            .unwrap_or(Ordering::Equal)
-            .then_with(|| left["events"].to_string().cmp(&right["events"].to_string()))
-    });
-    for (index, cut_set) in leading_cut_sets.iter_mut().enumerate() {
-        cut_set["rank"] = json!(index + 1);
-    }
-
+    let built = build_bdd(&adapter.fault_tree, BuildOptions::default())?;
+    let top_event_probability = built.bdd.probability(built.root);
     Ok(json!({
         "methodType": FAULT_TREE_METHOD,
         "modelId": adapter.model_id,
         "modelRevision": adapter.model_revision,
         "topGateId": adapter.top_gate_id,
         "topEventProbability": top_event_probability,
-        "minimalCutSetCount": leading_cut_sets.len(),
-        "leadingCutSets": leading_cut_sets,
         "basicEventQuantifications": adapter.basic_event_quantifications,
         "validationIssues": []
     }))
@@ -535,8 +515,6 @@ mod tests {
         ))
         .unwrap();
         assert!((and["topEventProbability"].as_f64().unwrap() - 0.02).abs() < 1e-12);
-        assert_eq!(and["minimalCutSetCount"], 1);
-        assert_eq!(and["leadingCutSets"][0]["order"], 2);
 
         let or = execute(&request(
             "OR",
@@ -546,12 +524,8 @@ mod tests {
         ))
         .unwrap();
         assert!((or["topEventProbability"].as_f64().unwrap() - 0.28).abs() < 1e-12);
-        assert_eq!(or["minimalCutSetCount"], 2);
-        assert_eq!(or["leadingCutSets"][0]["probability"], 0.2);
-        assert!(
-            (or["leadingCutSets"][0]["contribution"].as_f64().unwrap() - (0.2 / 0.28)).abs()
-                < 1e-12
-        );
+        assert!(or.get("minimalCutSetCount").is_none());
+        assert!(or.get("leadingCutSets").is_none());
     }
 
     #[test]
@@ -574,7 +548,7 @@ mod tests {
         }));
 
         let result = execute(&request).unwrap();
-        let expected = 4.798848184297884e-4;
+        let expected = 0.0004798848184297544; // HCL_MH calculation type 3.
         assert!((result["topEventProbability"].as_f64().unwrap() - expected).abs() < 1e-15);
         assert_eq!(
             result["basicEventQuantifications"][0]["input"]["quantificationBasis"]["kind"],
@@ -637,11 +611,6 @@ mod tests {
         ))
         .unwrap();
         assert!((result["topEventProbability"].as_f64().unwrap() - 0.25).abs() < 1e-12);
-        assert_eq!(result["minimalCutSetCount"], 1);
-        assert_eq!(
-            result["leadingCutSets"][0]["events"][0]["basicEventId"],
-            "SHARED"
-        );
     }
 
     #[test]
@@ -654,23 +623,159 @@ mod tests {
         ))
         .unwrap();
         assert!((result["topEventProbability"].as_f64().unwrap() - 0.5).abs() < 1e-12);
-        assert_eq!(result["minimalCutSetCount"], 3);
-        assert!(result["leadingCutSets"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|cut_set| cut_set["order"] == 2));
     }
 
     #[test]
-    fn returns_complemented_literals_for_not_gates() {
+    fn quantifies_not_gates_exactly() {
         let result = execute(&request("NOT", None, &[("A", 0.2)], &[("ref-a", "A")])).unwrap();
         assert!((result["topEventProbability"].as_f64().unwrap() - 0.8).abs() < 1e-12);
-        assert_eq!(result["minimalCutSetCount"], 1);
-        assert_eq!(result["leadingCutSets"][0]["probability"], 0.8);
-        assert_eq!(
-            result["leadingCutSets"][0]["events"][0]["complemented"],
-            true
+        assert_eq!(result["validationIssues"], json!([]));
+    }
+
+    fn product_request(
+        probabilities: &[(&str, f64)],
+        products: &[Vec<(&str, bool)>],
+    ) -> SolverRequest {
+        let references: Vec<_> = probabilities.iter().map(|(id, _)| (*id, *id)).collect();
+        let mut request = request("OR", None, probabilities, &references);
+        let snapshot = &mut request.model_snapshots[0];
+        let top = snapshot["topGate"]["gateId"].as_str().unwrap().to_string();
+        snapshot["gateInputs"] = json!([]);
+        for (id, _) in probabilities {
+            let gate = format!("not-{id}");
+            snapshot["gates"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({ "id": gate, "gateType": "NOT" }));
+            snapshot["gateInputs"].as_array_mut().unwrap().push(json!({
+                "id": format!("input-{gate}"), "gateId": gate, "childId": id, "order": 0
+            }));
+        }
+        for (index, product) in products.iter().enumerate() {
+            let gate = format!("product-{index}");
+            snapshot["gates"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({ "id": gate, "gateType": "AND" }));
+            let inputs = snapshot["gateInputs"].as_array_mut().unwrap();
+            inputs.push(json!({ "id": format!("top-{index}"), "gateId": top, "childId": gate, "order": index }));
+            for (order, (id, complemented)) in product.iter().enumerate() {
+                let child = if *complemented {
+                    format!("not-{id}")
+                } else {
+                    id.to_string()
+                };
+                inputs.push(json!({ "id": format!("{gate}-{order}"), "gateId": gate, "childId": child, "order": order }));
+            }
+        }
+        request
+    }
+
+    #[test]
+    fn quantifies_mixed_success_and_failure_conditions_exactly() {
+        let result = execute(&product_request(
+            &[("A", 0.2), ("B", 0.3), ("C", 0.4)],
+            &[
+                vec![("A", false), ("B", false)],
+                vec![("A", true), ("C", false)],
+            ],
+        ))
+        .unwrap();
+        assert!((result["topEventProbability"].as_f64().unwrap() - 0.38).abs() < 1e-12);
+    }
+
+    #[test]
+    fn matches_all_two_event_truth_tables() {
+        let names = ["A", "B"];
+        let probabilities = [0.2, 0.7];
+        for truth in 0u8..16 {
+            let products: Vec<_> = (0..4)
+                .filter(|assignment| truth & (1 << assignment) != 0)
+                .map(|assignment| {
+                    (0..2)
+                        .map(|v| (names[v], assignment & (1 << v) == 0))
+                        .collect()
+                })
+                .collect();
+            let result = execute(&product_request(
+                &[("A", probabilities[0]), ("B", probabilities[1])],
+                &products,
+            ))
+            .unwrap();
+            let exact: f64 = (0..4)
+                .filter(|assignment| truth & (1 << assignment) != 0)
+                .map(|assignment| {
+                    (0..2)
+                        .map(|v| {
+                            if assignment & (1 << v) != 0 {
+                                probabilities[v]
+                            } else {
+                                1.0 - probabilities[v]
+                            }
+                        })
+                        .product::<f64>()
+                })
+                .sum();
+            assert!((result["topEventProbability"].as_f64().unwrap() - exact).abs() < 1e-12);
+        }
+    }
+
+    #[test]
+    fn quantifies_overlapping_products_exactly() {
+        let request = product_request(
+            &[("A", 0.1), ("B", 0.2), ("C", 0.3)],
+            &[
+                vec![("A", false), ("B", false)],
+                vec![("A", false), ("C", false)],
+                vec![("A", false), ("B", false), ("C", false)],
+            ],
         );
+        let result = execute(&request).unwrap();
+        assert!((result["topEventProbability"].as_f64().unwrap() - 0.044).abs() < 1e-12);
+        assert_eq!(result["validationIssues"], json!([]));
+    }
+
+    #[test]
+    fn quantifies_constant_and_zero_probability_events() {
+        let always_true = execute(&request("AND", None, &[], &[])).unwrap();
+        assert_eq!(always_true["topEventProbability"], 1.0);
+        let always_false = execute(&request("OR", None, &[], &[])).unwrap();
+        assert_eq!(always_false["topEventProbability"], 0.0);
+        assert_eq!(always_false["validationIssues"], json!([]));
+
+        let zero = execute(&request("OR", None, &[("A", 0.0)], &[("ref-a", "A")])).unwrap();
+        assert_eq!(zero["topEventProbability"], 0.0);
+    }
+
+    #[test]
+    fn probability_execution_does_not_enumerate_exponential_cut_sets() {
+        // AND of 32 independent two-event ORs has 2^32 minimal cut sets.
+        let names: Vec<_> = (0..64).map(|index| format!("E{index:02}")).collect();
+        let probabilities: Vec<_> = names.iter().map(|id| (id.as_str(), 0.1)).collect();
+        let references: Vec<_> = names.iter().map(|id| (id.as_str(), id.as_str())).collect();
+        let mut request = request("AND", None, &probabilities, &references);
+        let snapshot = &mut request.model_snapshots[0];
+        let top = snapshot["topGate"]["gateId"].as_str().unwrap().to_string();
+        snapshot["gateInputs"] = json!([]);
+        for (index, pair) in names.chunks(2).enumerate() {
+            let gate = format!("pair-{index}");
+            snapshot["gates"].as_array_mut().unwrap().push(json!({
+                "id": gate, "gateType": "OR"
+            }));
+            let inputs = snapshot["gateInputs"].as_array_mut().unwrap();
+            inputs.push(json!({
+                "id": format!("top-{index}"), "gateId": top, "childId": gate, "order": index
+            }));
+            for (order, child) in pair.iter().enumerate() {
+                inputs.push(json!({
+                    "id": format!("input-{child}"), "gateId": gate, "childId": child, "order": order
+                }));
+            }
+        }
+        let result = execute(&request).unwrap();
+        let probability = result["topEventProbability"].as_f64().unwrap();
+        assert!((probability / 0.19_f64.powi(32) - 1.0).abs() < 1e-12);
+        assert!(result.get("minimalCutSetCount").is_none());
+        assert!(result.get("leadingCutSets").is_none());
     }
 }

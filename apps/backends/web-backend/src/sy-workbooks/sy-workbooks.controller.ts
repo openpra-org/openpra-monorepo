@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { AnalysisCancellationInterceptor } from "../newly-developed-methods/shared/analysis-cancellation.interceptor";
+import type { HclGenerateScenariosResult } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, UseGuards, UseInterceptors } from "@nestjs/common";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { SyWorkbooksService, type SyWorkbookResponse } from "./sy-workbooks.service";
 import { parseRevisionedWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
@@ -7,6 +9,7 @@ import { WorkbookAnalysisRunsService } from "../newly-developed-methods/shared/w
 import type { AnalysisRunMetadata, HclBatchExecuteResult } from "interfaces-shared-types/newly-developed-methods";
 import type { FaultTreeValidateResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 
+@UseInterceptors(AnalysisCancellationInterceptor)
 @Controller("sy-workbooks")
 @UseGuards(JwtAuthGuard)
 export class SyWorkbooksController {
@@ -19,6 +22,21 @@ export class SyWorkbooksController {
   @HttpCode(HttpStatus.OK)
   get(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<SyWorkbookResponse> {
     return this.syWorkbooksService.findOne(id, { username: req.user!.username });
+  }
+
+  @Get(":id/analysis-runs")
+  listAnalysisRuns(@Param("id") id: string, @Req() req: AuthenticatedRequest, @Query("cursor") cursor?: string) {
+    return this.analysisRunsService.listRunProvenance("SY", id, { username: req.user!.username }, cursor);
+  }
+
+  @Get(":id/analysis-runs/:runId")
+  analysisRun(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
+    return this.analysisRunsService.getRun("SY", id, undefined, runId, { username: req.user!.username });
+  }
+
+  @Get(":id/analysis-runs/:runId/details")
+  analysisRunDetails(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
+    return this.analysisRunsService.getRunDetails("SY", id, runId, { username: req.user!.username });
   }
 
   @Patch(":id")
@@ -41,12 +59,9 @@ export class SyWorkbooksController {
     @Query("expectedRevision") expectedRevision: string | undefined,
     @Req() req: AuthenticatedRequest,
   ): Promise<SyWorkbookResponse> {
-    return this.syWorkbooksService.deleteFaultTree(
-      id,
-      modelId,
-      parseExpectedWorkbookRevision(expectedRevision),
-      { username: req.user!.username },
-    );
+    return this.syWorkbooksService.deleteFaultTree(id, modelId, parseExpectedWorkbookRevision(expectedRevision), {
+      username: req.user!.username,
+    });
   }
 
   @Post(":id/fault-trees/:modelId/runs")
@@ -137,6 +152,17 @@ export class SyWorkbooksController {
     });
   }
 
+  @Post(":id/hcl-configurations/:modelId/generate-scenarios")
+  @HttpCode(HttpStatus.OK)
+  generateHclScenarios(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<HclGenerateScenariosResult> {
+    return this.analysisRunsService.generateHclScenarios(id, modelId, body, { username: req.user!.username }, "SY");
+  }
+
   @Post(":id/hcl-configurations/:modelId/fault-tree-runs")
   @HttpCode(HttpStatus.OK)
   async runHclFaultTree(
@@ -152,7 +178,6 @@ export class SyWorkbooksController {
         modelId,
         body,
         { username: req.user!.username },
-        null,
         "SY",
       ),
     };
@@ -166,13 +191,7 @@ export class SyWorkbooksController {
     @Body() body: unknown,
     @Req() req: AuthenticatedRequest,
   ): Promise<HclBatchExecuteResult> {
-    return this.analysisRunsService.executeHclFaultTreeBatch(
-      id,
-      modelId,
-      body,
-      { username: req.user!.username },
-      "SY",
-    );
+    return this.analysisRunsService.executeHclFaultTreeBatch(id, modelId, body, { username: req.user!.username }, "SY");
   }
 
   @Get(":id/hcl-configurations/:modelId/runs/:runId/result")
@@ -190,7 +209,11 @@ export class SyWorkbooksController {
 
   @Post(":id/load-example")
   @HttpCode(HttpStatus.OK)
-  loadExample(@Param("id") id: string, @Body() body: { example?: string }, @Req() req: AuthenticatedRequest): Promise<SyWorkbookResponse> {
+  loadExample(
+    @Param("id") id: string,
+    @Body() body: { example?: string },
+    @Req() req: AuthenticatedRequest,
+  ): Promise<SyWorkbookResponse> {
     return this.syWorkbooksService.loadExample(id, { username: req.user!.username }, body.example);
   }
 

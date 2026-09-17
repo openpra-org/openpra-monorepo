@@ -37,6 +37,6 @@ describe("ExecuteController native PRAXIS API", () => {
     const response = await request(app.getHttpServer()).post(`/praxis/native/${operation}`).send(body).expect(200);
 
     expect(response.body).toEqual({ schemaVersion: "1.0.0", result: { valid: true } });
-    expect(nativeService.run).toHaveBeenCalledWith(operation, body);
+    expect(nativeService.run).toHaveBeenCalledWith(operation, body, expect.objectContaining({ request: expect.anything(), response: expect.anything() }));
   });
 });

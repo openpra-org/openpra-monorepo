@@ -1,3 +1,5 @@
+import { stringifyJson } from "interfaces-shared-types/json";
+import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { Fragment, JSX, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -1062,6 +1064,7 @@ function SequencesScreen(): JSX.Element {
   const [selection, setSelection] = useState<string | null>(null);
   const [faultTreeLink, setFaultTreeLink] = useState<{ eventTreeId: string; functionalEventId: string; functionalEventName: string } | null>(null);
   const [results, setResults] = useState<Record<string, EventTreeAnalysisResult>>({});
+  const {sourceWarning} = useAnalysisSourceGuard("es", runtime.workbookId);
   const [runningTreeId, setRunningTreeId] = useState<string | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
   const trees = es.eventTrees ?? [];
@@ -1169,9 +1172,9 @@ function SequencesScreen(): JSX.Element {
           validation={validateEventTree(model, trees)}
           saveState={runtime.saveState}
           analysisResult={result ?? null}
-          resultIsStale={result !== undefined && (result.owner.workbookRevision !== runtime.revision || runtime.saveState === "saving")}
+          resultIsStale={result !== undefined && (sourceWarning !== null || result.owner.workbookRevision !== runtime.revision || runtime.saveState === "saving")}
           running={runningTreeId === model.uuid}
-          runError={runError}
+          runError={runError ?? sourceWarning}
           onOperation={applyOperation}
           onRepresentationChange={setRepresentation}
           onSelectionChange={setSelection}
@@ -2050,7 +2053,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
   const { es } = useEsWorkbook();
   const ready = scores.blocked === 0;
   function downloadJson(): void {
-    const blob = new Blob([JSON.stringify(es, null, 2)], { type: "application/json" });
+    const blob = new Blob([stringifyJson(es, 2)!], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

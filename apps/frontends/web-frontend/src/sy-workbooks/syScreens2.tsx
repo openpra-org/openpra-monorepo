@@ -1,3 +1,4 @@
+import { stringifyJson } from "interfaces-shared-types/json";
 import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
@@ -23,7 +24,7 @@ import { type SyDrawerContext } from "./syScreens";
 import { type SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
 import { systemFaultTreeBasicEventIds, systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
-import { failureRateToProbability } from "interfaces-mef-types/modeling";
+import { failureRateToProbability, requiresFailureRateConversionReview, FAILURE_RATE_CONVERSION_REVIEW_REQUIRED } from "interfaces-mef-types/modeling";
 
 function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element {
   const { sy, editable, mutateSy, shortOf } = useSyWorkbook();
@@ -546,7 +547,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
   const { sy } = useSyWorkbook();
   const ready = scores.blocked === 0 && scores.warn === 0;
   function downloadJson(): void {
-    const blob = new Blob([JSON.stringify(sy, null, 2)], { type: "application/json" });
+    const blob = new Blob([stringifyJson(sy, 2)!], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -1620,7 +1621,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     const resolvedRateBasis = rateBasis === undefined || selectedParameter === undefined
       ? rateBasis
       : { ...rateBasis, failureRate: { ...rateBasis.failureRate, value: selectedParameter.value } };
-    const displayedProbability = resolvedRateBasis === undefined
+    const needsReview = requiresFailureRateConversionReview(rateBasis);
+    const displayedProbability = needsReview ? undefined : resolvedRateBasis === undefined
       ? (selectedParameter?.value ?? selectedHumanFailure?.value ?? prob)
       : failureRateToProbability(resolvedRateBasis);
     const isHumanError = be.failureMode === "HUMAN_ERROR";
@@ -1655,8 +1657,18 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
               ) : <div>{FAILURE_MODE_LABELS[be.failureMode ?? ""] ?? be.failureMode ?? "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">{rateBasis === undefined ? "Probability" : "Mission probability"}{be.controlledDataSource === undefined ? "" : " (controlled)"}</label>
-              {editable && be.controlledDataSource === undefined && rateBasis === undefined ? <WorkbookInput className="posfield__input posmono" type="number" min="0" max="1" step="any" value={prob} onChange={(e) => patch({ probability: num(e.target.value), quantificationBasis: { kind: "PROBABILITY" } })} /> : <div className="posmono">{toExp(displayedProbability)}</div>}
+              {editable && be.controlledDataSource === undefined && rateBasis === undefined ? <WorkbookInput className="posfield__input posmono" type="number" min="0" max="1" step="any" value={prob} onChange={(e) => patch({ probability: num(e.target.value), quantificationBasis: { kind: "PROBABILITY" } })} /> : <div className="posmono">{displayedProbability === undefined ? "Review required" : toExp(displayedProbability)}</div>}
             </div>
+            {needsReview && resolvedRateBasis !== undefined && (
+              <div className="posfield posfield-grid--span2">
+                <p role="alert">{FAILURE_RATE_CONVERSION_REVIEW_REQUIRED}</p>
+                <p>Rate: {resolvedRateBasis.failureRate.value} per {resolvedRateBasis.failureRate.unit}; mission time: {resolvedRateBasis.missionTime.value} {resolvedRateBasis.missionTime.unit}.</p>
+                {editable && <button type="button" className="posnav__btn" onClick={() => {
+                  const reviewed = { ...resolvedRateBasis, conversion: "EXPONENTIAL" as const };
+                  patch({ quantificationBasis: reviewed, probability: failureRateToProbability(reviewed) });
+                }}>Use exponential conversion</button>}
+              </div>
+            )}
             <div className="posfield posfield-grid--span2"><label className="posfield__label">{isHumanError ? "Human Reliability event and HEP" : "Data Analysis parameter"}</label>
               {editable && isHumanError ? (
                 <select
@@ -1706,6 +1718,7 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
                   aria-label="Data Analysis parameter"
                   className="posfield__select"
                   value={selectedParameterKey}
+                  disabled={needsReview}
                   onChange={(event) => {
                     const option = compatibleParameters.find((candidate) =>
                       JSON.stringify([candidate.workbookId, candidate.parameterId]) === event.target.value,

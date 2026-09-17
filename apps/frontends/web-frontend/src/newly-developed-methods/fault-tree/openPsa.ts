@@ -1,3 +1,4 @@
+import { stringifyJson, numberText } from "interfaces-shared-types/json";
 import type {
   FaultTreeBasicEvent,
   FaultTreeControlledDataSourceReference,
@@ -377,7 +378,7 @@ function exportOpenPsaFaultTree(
         }),
         "  ",
       ),
-      `  <float value="${basicEvent.probability.value}"/>`,
+      `  <float value="${numberText(basicEvent.probability.value)}"/>`,
       "</define-basic-event>",
     ].join("\n");
   });
@@ -400,7 +401,7 @@ function exportOpenPsaFaultTree(
     "openpra.viewport-zoom": model.layout.viewport.zoom,
     ...(options.includeEditorSnapshot === false
       ? {}
-      : { [EDITOR_SNAPSHOT_ATTRIBUTE]: JSON.stringify(snapshot) }),
+      : { [EDITOR_SNAPSHOT_ATTRIBUTE]: stringifyJson(snapshot)! }),
   });
 
   return [
@@ -525,14 +526,10 @@ function importEditorSnapshot(value: string): OpenPsaFaultTreeImport {
 }
 
 function allocateUuid(used: Set<string>): string {
-  for (let counter = 1; counter <= 0xffffffffffff; counter += 1) {
-    const candidate = `00000000-0000-4000-8000-${counter.toString(16).padStart(12, "0")}`;
-    if (!used.has(candidate)) {
-      used.add(candidate);
-      return candidate;
-    }
-  }
-  throw new OpenPsaImportError("INVALID_MODEL", "No unused UUID is available");
+  let candidate = crypto.randomUUID();
+  while (used.has(candidate)) candidate = crypto.randomUUID();
+  used.add(candidate);
+  return candidate;
 }
 
 function importedId(candidate: string | undefined, used: Set<string>): string {
@@ -731,6 +728,8 @@ function gateFromOperator(
       return { ...base, gateType: "AND" };
     case "or":
       return { ...base, gateType: "OR" };
+    case "xor":
+      return { ...base, gateType: "XOR" };
     case "not":
       return { ...base, gateType: "NOT" };
     case "atleast": {
@@ -777,7 +776,7 @@ function importFormulaChildren(
       addInput(state, parentGateId, leafId, term, order);
       return;
     }
-    if (["and", "or", "not", "atleast"].includes(tag)) {
+    if (["and", "or", "xor", "not", "atleast"].includes(tag)) {
       const nestedId = importedId(undefined, state.usedIds);
       const nestedBase = {
         id: nestedId,
@@ -812,7 +811,11 @@ function importStandardFaultTree(tree: Element): OpenPsaFaultTreeImport {
     inputIds: new Set(),
     warnings: [],
   };
-  const definitions = Array.from(tree.getElementsByTagName("*"));
+  // OpenPSA model-data is shared by the fault trees in the document.
+  const sharedDefinitions = directChildren(tree.ownerDocument.documentElement)
+    .filter((element) => elementName(element) === "model-data")
+    .flatMap((element) => Array.from(element.getElementsByTagName("*")));
+  const definitions = [...sharedDefinitions, ...Array.from(tree.getElementsByTagName("*"))];
   const gateElements = definitions.filter((element) => elementName(element) === "define-gate");
   const houseElements = definitions.filter(
     (element) => elementName(element) === "define-house-event",
@@ -916,7 +919,7 @@ function importStandardFaultTree(tree: Element): OpenPsaFaultTreeImport {
     };
     const formulaTag = elementName(formula);
     state.gates.push(
-      ["and", "or", "not", "atleast"].includes(formulaTag)
+      ["and", "or", "xor", "not", "atleast"].includes(formulaTag)
         ? gateFromOperator(base, formulaTag, formula)
         : { ...base, gateType: "OR" },
     );
@@ -927,7 +930,7 @@ function importStandardFaultTree(tree: Element): OpenPsaFaultTreeImport {
 
   for (const [gateId, formula] of formulas) {
     const formulaTag = elementName(formula);
-    if (["and", "or", "not", "atleast"].includes(formulaTag)) {
+    if (["and", "or", "xor", "not", "atleast"].includes(formulaTag)) {
       importFormulaChildren(formula, gateId, state);
     } else {
       importFormulaChildren(

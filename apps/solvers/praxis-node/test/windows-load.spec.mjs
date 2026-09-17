@@ -21,7 +21,8 @@ test("loads the Windows x64 MSVC binary directly", () => {
     modelSnapshots: [{ methodType: "UNSUPPORTED_TEST_METHOD" }],
   });
 
-  assert.deepEqual(Object.keys(addon).sort(), ["execute", "validate"]);
-  assert.equal(JSON.parse(addon.validate(requestJson)).result.valid, true);
-  assert.equal(JSON.parse(addon.execute(requestJson)).error.code, "PRAXIS_ILLEGAL_OPERATION");
+  assert.deepEqual(Object.keys(addon).sort(), ["execute", "preflight", "validate"]);
+  assert.equal(JSON.parse(addon.preflight(requestJson, "execute")).error.code, "UNSUPPORTED_METHOD_TYPE");
+  assert.equal(JSON.parse(addon.validate(requestJson)).error.code, "UNSUPPORTED_METHOD_TYPE");
+  assert.equal(JSON.parse(addon.execute(requestJson)).error.code, "UNSUPPORTED_METHOD_TYPE");
 });

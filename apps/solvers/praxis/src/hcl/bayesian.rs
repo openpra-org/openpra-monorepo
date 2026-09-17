@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 
 use tensorbayes::{
-    CompileHeuristic, CompiledJunctionTree, EvidenceBatch, ExecutionEngine, UNOBSERVED,
+    BayesianGraph, CompileHeuristic, CompiledJunctionTree, EvidenceBatch, ExecutionEngine,
+    UNOBSERVED,
 };
 
 use crate::hcl::{CanonicalBayesianNetwork, HclEvidenceSpec};
@@ -26,13 +27,18 @@ pub fn query_bayesian_network(
     evidence: &[HclEvidenceSpec],
     query_nodes: &[String],
 ) -> Result<Vec<BayesianMarginal>> {
-    if query_nodes.is_empty() {
-        return Err(PraxisError::Bayesian(
-            "a Bayesian-network query requires at least one node".to_string(),
-        ));
-    }
+    query_bayesian_network_batch(network, &[evidence.to_vec()], query_nodes)?
+        .scenarios
+        .remove(0)
+}
 
-    let graph = network.into_graph()?;
+#[derive(Debug)]
+pub struct BayesianBatchResult {
+    pub scenarios: Vec<Result<Vec<BayesianMarginal>>>,
+    pub junction_tree_compilations: usize,
+}
+
+fn evidence_row(graph: &BayesianGraph, evidence: &[HclEvidenceSpec]) -> Result<Vec<i32>> {
     let mut evidence_states = vec![UNOBSERVED; graph.num_variables()];
     let mut observed_nodes = HashSet::with_capacity(evidence.len());
     for observation in evidence {
@@ -62,6 +68,22 @@ pub fn query_bayesian_network(
         })?;
     }
 
+    Ok(evidence_states)
+}
+
+/// Application batching adapter over main's unchanged TensorBayes engine.
+/// Compile once and evaluate evidence rows together, preserving per-row errors.
+pub fn query_bayesian_network_batch(
+    network: CanonicalBayesianNetwork,
+    scenarios: &[Vec<HclEvidenceSpec>],
+    query_nodes: &[String],
+) -> Result<BayesianBatchResult> {
+    if scenarios.is_empty() || query_nodes.is_empty() {
+        return Err(PraxisError::Bayesian(
+            "a Bayesian-network batch requires evidence rows and query nodes".to_string(),
+        ));
+    }
+    let graph = network.into_graph()?;
     let mut unique_queries = HashSet::with_capacity(query_nodes.len());
     let mut queries = Vec::with_capacity(query_nodes.len());
     let mut query_states = Vec::with_capacity(query_nodes.len());
@@ -76,37 +98,76 @@ pub fn query_bayesian_network(
         query_states.push(graph.variable(node)?.states().to_vec());
     }
 
-    let evidence = EvidenceBatch::new(1, graph.num_variables(), evidence_states)?;
+    let mut rows = Vec::new();
+    let mut indices = Vec::new();
+    let mut outcomes = Vec::with_capacity(scenarios.len());
+    for (index, scenario) in scenarios.iter().enumerate() {
+        match evidence_row(&graph, scenario) {
+            Ok(row) => {
+                indices.push(index);
+                rows.push(row);
+                outcomes.push(None);
+            }
+            Err(error) => outcomes.push(Some(Err(error))),
+        }
+    }
     let tree = CompiledJunctionTree::compile(graph, CompileHeuristic::MinFill)?;
     let mut engine = ExecutionEngine::new(tree);
-    let results = engine.evaluate_multi(&evidence, &queries)?;
-
-    query_nodes
-        .iter()
-        .zip(query_states)
-        .enumerate()
-        .map(|(query_index, (node, states))| {
-            let probabilities = results.marginal(0, query_index).ok_or_else(|| {
-                PraxisError::Bayesian(format!(
-                    "TensorBayes did not return marginal {query_index} for node '{node}'"
-                ))
-            })?;
-            let values = states
-                .into_iter()
-                .zip(probabilities.iter().copied())
-                .map(|(state, probability)| BayesianStateProbability { state, probability })
-                .collect();
-            Ok(BayesianMarginal {
-                node: node.clone(),
-                values,
-            })
-        })
-        .collect()
+    while !rows.is_empty() {
+        let evidence = EvidenceBatch::from_rows(&rows)?;
+        match engine.evaluate_multi(&evidence, &queries) {
+            Ok(results) => {
+                for (batch, &index) in indices.iter().enumerate() {
+                    let mut marginals = Vec::with_capacity(query_nodes.len());
+                    for (query_index, (node, states)) in
+                        query_nodes.iter().zip(&query_states).enumerate()
+                    {
+                        let probabilities = results.marginal(batch, query_index).ok_or_else(|| {
+                            PraxisError::Bayesian(format!(
+                                "TensorBayes did not return marginal {query_index} for node '{node}'"
+                            ))
+                        })?;
+                        marginals.push(BayesianMarginal {
+                            node: node.clone(),
+                            values: states
+                                .iter()
+                                .zip(probabilities)
+                                .map(|(state, &probability)| BayesianStateProbability {
+                                    state: state.clone(),
+                                    probability,
+                                })
+                                .collect(),
+                        });
+                    }
+                    outcomes[index] = Some(Ok(marginals));
+                }
+                break;
+            }
+            Err(tensorbayes::Error::ZeroMassEvidence { batch }) => {
+                // TensorBayes identifies the offending row. Retry the remaining
+                // rows on the same compiled engine; no inference rule is changed.
+                let index = indices.remove(batch);
+                rows.remove(batch);
+                outcomes[index] = Some(Err(
+                    tensorbayes::Error::ZeroMassEvidence { batch: index }.into()
+                ));
+                engine.invalidate_workspace_cache();
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Ok(BayesianBatchResult {
+        scenarios: outcomes
+            .into_iter()
+            .map(|outcome| outcome.expect("every scenario has an outcome"))
+            .collect(),
+        junction_tree_compilations: 1,
+    })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::query_bayesian_network;
+    use super::{query_bayesian_network, query_bayesian_network_batch};
     use crate::hcl::{CanonicalBayesianNetwork, CanonicalBayesianVariable, HclEvidenceSpec};
 
     fn network() -> CanonicalBayesianNetwork {
@@ -126,6 +187,87 @@ mod tests {
                     probabilities: vec![0.7, 0.3, 0.2, 0.8],
                 },
             ],
+        }
+    }
+
+    #[test]
+    fn batch_matches_individual_queries_in_both_orders() {
+        let observation = |state: &str| {
+            vec![HclEvidenceSpec {
+                node: "B".into(),
+                state: state.into(),
+            }]
+        };
+        let mut rows = vec![
+            vec![],
+            observation("true"),
+            observation("false"),
+            observation("true"),
+        ];
+        let queries = vec!["B".to_string(), "A".to_string()];
+        for _ in 0..2 {
+            let batch = query_bayesian_network_batch(network(), &rows, &queries).unwrap();
+            assert_eq!(batch.junction_tree_compilations, 1);
+            for (row, outcome) in rows.iter().zip(batch.scenarios) {
+                let marginals = outcome.unwrap();
+                let expected = match row.first().map(|observation| observation.state.as_str()) {
+                    None => 0.4,
+                    Some("true") => 0.64,
+                    Some("false") => 0.16,
+                    _ => unreachable!(),
+                };
+                assert!((marginals[1].values[1].probability - expected).abs() < 1e-12);
+                assert_eq!(
+                    marginals,
+                    query_bayesian_network(network(), row, &queries).unwrap()
+                );
+            }
+            rows.reverse();
+        }
+    }
+
+    #[test]
+    fn batch_isolates_invalid_and_zero_mass_evidence_without_stale_results() {
+        let mut model = network();
+        model.variables[1].probabilities = vec![1.0, 0.0, 0.0, 1.0];
+        let obs = |node: &str, state: &str| HclEvidenceSpec {
+            node: node.into(),
+            state: state.into(),
+        };
+        let rows = vec![
+            vec![obs("B", "true")],
+            vec![obs("A", "false"), obs("B", "true")],
+            vec![obs("A", "missing")],
+            vec![obs("B", "false")],
+            vec![obs("missing", "true")],
+            vec![obs("A", "true"), obs("B", "false")],
+            vec![obs("A", "true"), obs("A", "true")],
+            vec![],
+        ];
+        let queries = vec!["A".to_string()];
+        let batch = query_bayesian_network_batch(model.clone(), &rows, &queries).unwrap();
+        assert_eq!(batch.junction_tree_compilations, 1);
+        for (index, outcome) in batch.scenarios.into_iter().enumerate() {
+            if [0, 3, 7].contains(&index) {
+                assert_eq!(
+                    outcome.unwrap(),
+                    query_bayesian_network(model.clone(), &rows[index], &queries).unwrap()
+                );
+            } else {
+                assert!(outcome.is_err(), "row {index} must fail");
+            }
+        }
+        let all_impossible =
+            query_bayesian_network_batch(model, &[rows[1].clone(), rows[5].clone()], &queries)
+                .unwrap();
+        assert!(all_impossible.scenarios.iter().all(Result::is_err));
+    }
+
+    #[test]
+    fn rejects_empty_batches_and_invalid_shared_queries() {
+        assert!(query_bayesian_network_batch(network(), &[], &["A".into()]).is_err());
+        for queries in [vec![], vec!["missing".into()], vec!["A".into(), "A".into()]] {
+            assert!(query_bayesian_network_batch(network(), &[vec![]], &queries).is_err());
         }
     }
 

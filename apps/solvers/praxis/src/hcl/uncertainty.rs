@@ -1,26 +1,48 @@
 use std::collections::{HashMap, HashSet};
 
-use rand_distr::{Beta, Distribution, Gamma, LogNormal, Uniform};
+#[cfg(test)]
+use tensorbayes::StateIndex;
+
 use tensorbayes::{
     BayesianGraph, CompileHeuristic, CompiledJunctionTree, EvidenceBatch, ExecutionEngine, NodeId,
-    StateIndex,
 };
 
 use crate::algorithms::bdd_engine::{Bdd, BddRef, BDD_FALSE, BDD_NULL, BDD_TRUE};
-use crate::hcl::{
-    HclBaseEvidence, HclEventBinding, HclEventBindings, HclEvidenceSpec,
-    HclProbabilityDistribution, HclUncertaintySettings,
-};
-use crate::mc::prng::initialize_rng;
+use crate::hcl::{HclBaseEvidence, HclEventBinding, HclEventBindings, HclUncertaintySettings};
 use crate::{PraxisError, Result};
 
-const NORMAL_95TH_PERCENTILE: f64 = 1.644_853_626_951_472_2;
+mod cpt_sampling;
+mod numpy_rng;
+mod quantiles;
+mod sampling;
+mod seismic;
+mod statistics_normal;
+use numpy_rng::NumpyRng;
+use sampling::{sample_probabilities, validate_probability_distribution};
 
-/// One sampled BN and sampled independent-event population. TensorBayes stores
-/// samples on its CPT batch axis, so the junction tree is compiled once for the
-/// complete Monte Carlo population.
-pub(crate) struct PreparedHclUncertainty {
+#[cfg(test)]
+mod cpt_source_tests;
+#[cfg(test)]
+mod source_tests;
+
+// HCL_MH: uq/basic_event_models.py::_lognormal_mu_sigma and
+// engines/bdd_vec_shannon.py::_NameResolver. These apply to UQ only.
+const PROBABILITY_FLOOR: f64 = 1e-15;
+// HCL_MH exposes sample slicing in solve_top_event_vector/evaluate_bdd and
+// defaults its vectorized BN oracle to chunks of 256 samples.
+const SAMPLE_CHUNK_SIZE: usize = 256;
+
+struct SampleChunk {
+    start: usize,
+    end: usize,
     tree: CompiledJunctionTree,
+}
+
+/// One shared sample population, evaluated in slices of the same BDD. FT draws
+/// follow HCL_MH's Monte Carlo probability-vector builder; TensorBayes carries
+/// each slice on its CPT batch axis. See uncertainty/SOURCE.md.
+pub(crate) struct PreparedHclUncertainty {
+    chunks: Vec<SampleChunk>,
     sample_count: usize,
     seed: u64,
     event_samples: HashMap<String, Vec<f64>>,
@@ -28,84 +50,48 @@ pub(crate) struct PreparedHclUncertainty {
 
 impl PreparedHclUncertainty {
     pub(crate) fn new(network: &BayesianGraph, settings: &HclUncertaintySettings) -> Result<Self> {
+        Self::with_chunk_size(network, settings, SAMPLE_CHUNK_SIZE)
+    }
+
+    fn with_chunk_size(
+        network: &BayesianGraph,
+        settings: &HclUncertaintySettings,
+        chunk_size: usize,
+    ) -> Result<Self> {
         validate_hcl_uncertainty_settings(network, settings)?;
-        let mut rng = initialize_rng(Some(settings.seed));
-        let mut sampled_network = network.clone();
-        let mut rows_by_node: HashMap<NodeId, HashMap<usize, f64>> = HashMap::new();
-        for row in &settings.cpt_row_distributions {
-            let node = sampled_network.node_id(&row.node)?;
-            if rows_by_node
-                .entry(node)
-                .or_default()
-                .insert(row.row_index, row.equivalent_sample_size)
-                .is_some()
-            {
-                return Err(PraxisError::Hcl(format!(
-                    "CPT row {} of BN node '{}' has more than one uncertainty definition",
-                    row.row_index, row.node
-                )));
+        assert!(chunk_size > 0);
+        let sampled_network = cpt_sampling::sample_network(network, settings)?;
+        let mut chunks = Vec::new();
+        for start in (0..settings.sample_count).step_by(chunk_size) {
+            let end = (start + chunk_size).min(settings.sample_count);
+            let mut chunk_network = network.clone();
+            for variable in sampled_network.variables() {
+                if sampled_network.cpt_batch_size(variable.id())? == 1 {
+                    continue;
+                }
+                let values = variable
+                    .cpt()
+                    .chunks_exact(settings.sample_count)
+                    .flat_map(|family| family[start..end].iter().copied())
+                    .collect();
+                chunk_network.set_cpt(variable.id(), values)?;
             }
+            chunks.push(SampleChunk {
+                start,
+                end,
+                tree: CompiledJunctionTree::compile(chunk_network, CompileHeuristic::MinFill)?,
+            });
         }
 
-        let node_ids: Vec<NodeId> = sampled_network
-            .variables()
-            .iter()
-            .map(|variable| variable.id())
-            .collect();
-        for node in node_ids {
-            let variable = network.variable(node)?;
-            let cardinality = variable.cardinality();
-            let family_size = network.family_size(node)?;
-            if network.cpt_batch_size(node)? != 1 {
-                return Err(PraxisError::Hcl(format!(
-                    "uncertainty input BN node '{}' must have a scalar CPT",
-                    variable.name()
-                )));
-            }
-            let row_count = family_size / cardinality;
-            if let Some(rows) = rows_by_node.get(&node) {
-                if let Some(row_index) = rows.keys().find(|row_index| **row_index >= row_count) {
-                    return Err(PraxisError::Hcl(format!(
-                        "CPT row {row_index} is out of range for BN node '{}'",
-                        variable.name()
-                    )));
-                }
-            }
-            let mut values = vec![0.0; family_size * settings.sample_count];
-            for row_index in 0..row_count {
-                let nominal =
-                    &variable.cpt()[row_index * cardinality..(row_index + 1) * cardinality];
-                let equivalent_sample_size = rows_by_node
-                    .get(&node)
-                    .and_then(|rows| rows.get(&row_index))
-                    .copied();
-                for sample_index in 0..settings.sample_count {
-                    let sampled = match equivalent_sample_size {
-                        Some(sample_size) => sample_dirichlet_row(
-                            nominal,
-                            sample_size,
-                            &mut rng,
-                            variable.name(),
-                            row_index,
-                        )?,
-                        None => nominal.to_vec(),
-                    };
-                    for (state_index, probability) in sampled.into_iter().enumerate() {
-                        let family_index = row_index * cardinality + state_index;
-                        values[family_index * settings.sample_count + sample_index] = probability;
-                    }
-                }
-            }
-            sampled_network.set_cpt(node, values)?;
-        }
-        sampled_network.validate()?;
-        let tree = CompiledJunctionTree::compile(sampled_network, CompileHeuristic::MinFill)?;
-
+        let mut ft_rng = NumpyRng::new(settings.seed);
         let mut event_samples = HashMap::new();
         for event in &settings.basic_event_distributions {
-            let samples = (0..settings.sample_count)
-                .map(|_| sample_probability(&event.distribution, &mut rng))
-                .collect::<Result<Vec<_>>>()?;
+            let samples = sample_probabilities(
+                &event.distribution,
+                settings.sampler,
+                settings.sample_count,
+                &mut ft_rng,
+            )?;
             if event_samples.insert(event.event.clone(), samples).is_some() {
                 return Err(PraxisError::Hcl(format!(
                     "basic event '{}' has more than one uncertainty definition",
@@ -115,7 +101,7 @@ impl PreparedHclUncertainty {
         }
 
         Ok(Self {
-            tree,
+            chunks,
             sample_count: settings.sample_count,
             seed: settings.seed,
             event_samples,
@@ -154,140 +140,35 @@ impl PreparedHclUncertainty {
                     event.expect("checked as present")
                 )));
             }
-            let samples = event
+            let mut samples = event
                 .and_then(|event| self.event_samples.get(event))
                 .cloned()
                 .unwrap_or_else(|| vec![nominal; self.sample_count]);
+            // _NameResolver clips both sampled vectors and scalar fallbacks.
+            samples.iter_mut().for_each(|probability| {
+                *probability = probability.clamp(PROBABILITY_FLOOR, 1.0 - PROBABILITY_FLOOR);
+            });
             probabilities.push(samples);
         }
-        BatchedHclQuantifier::new(
-            bdd,
-            self.tree.clone(),
-            bindings,
-            base_evidence,
-            probabilities,
-            self.sample_count,
-        )?
-        .quantify(root)
-    }
-
-    /// Returns one hazard-cell probability vector per assignment row. Each
-    /// vector retains the same sample ordering as HCL top-event results.
-    pub(crate) fn conditional_evidence_probabilities(
-        &self,
-        base_evidence: &[HclEvidenceSpec],
-        assignment_rows: &[Vec<HclEvidenceSpec>],
-    ) -> Result<Vec<Vec<f64>>> {
-        if assignment_rows.is_empty() {
-            return Err(PraxisError::Hcl(
-                "hazard uncertainty requires at least one assignment row".to_string(),
-            ));
-        }
-        let network = self.tree.graph();
-        let mut resolved_base = HclBaseEvidence::unobserved(network.num_variables());
-        let mut base_nodes = HashSet::new();
-        for spec in base_evidence {
-            let node = network.node_id(&spec.node)?;
-            if !base_nodes.insert(node) {
-                return Err(PraxisError::Hcl(format!(
-                    "base evidence observes BN node '{}' more than once",
-                    spec.node
-                )));
-            }
-            let variable = network.variable(node)?;
-            let state = variable
-                .states()
+        let mut samples = Vec::with_capacity(self.sample_count);
+        for chunk in &self.chunks {
+            let slice = probabilities
                 .iter()
-                .position(|state| state == &spec.state)
-                .ok_or_else(|| {
-                    PraxisError::Hcl(format!(
-                        "base evidence state '{}' does not exist on BN node '{}'",
-                        spec.state, spec.node
-                    ))
-                })?;
-            resolved_base.observe(node, StateIndex::new(state))?;
+                .map(|values| values[chunk.start..chunk.end].to_vec())
+                .collect();
+            samples.extend(
+                BatchedHclQuantifier::new(
+                    bdd,
+                    chunk.tree.clone(),
+                    bindings.clone(),
+                    base_evidence.clone(),
+                    slice,
+                    chunk.end - chunk.start,
+                )?
+                .quantify(root)?,
+            );
         }
-
-        let mut resolved_rows = Vec::with_capacity(assignment_rows.len());
-        let mut hazard_nodes: Option<HashSet<NodeId>> = None;
-        for assignments in assignment_rows {
-            if assignments.is_empty() {
-                return Err(PraxisError::Hcl(
-                    "hazard uncertainty assignment rows cannot be empty".to_string(),
-                ));
-            }
-            let mut nodes = HashSet::new();
-            let mut resolved = Vec::with_capacity(assignments.len());
-            for spec in assignments {
-                let node = network.node_id(&spec.node)?;
-                if !nodes.insert(node) {
-                    return Err(PraxisError::Hcl(format!(
-                        "hazard assignment observes BN node '{}' more than once",
-                        spec.node
-                    )));
-                }
-                let variable = network.variable(node)?;
-                let state = variable
-                    .states()
-                    .iter()
-                    .position(|state| state == &spec.state)
-                    .ok_or_else(|| {
-                        PraxisError::Hcl(format!(
-                            "hazard assignment state '{}' does not exist on BN node '{}'",
-                            spec.state, spec.node
-                        ))
-                    })?;
-                resolved.push((
-                    node,
-                    i32::try_from(state).map_err(|_| {
-                        PraxisError::Hcl("hazard state index exceeds supported range".to_string())
-                    })?,
-                ));
-            }
-            match &hazard_nodes {
-                Some(expected) if expected != &nodes => {
-                    return Err(PraxisError::Hcl(
-                        "hazard uncertainty rows must define the same dimensions".to_string(),
-                    ));
-                }
-                None => hazard_nodes = Some(nodes),
-                _ => {}
-            }
-            resolved_rows.push(resolved);
-        }
-        for node in hazard_nodes.unwrap_or_default() {
-            resolved_base.clear(node)?;
-        }
-
-        let base_rows = vec![resolved_base.states().to_vec(); self.sample_count];
-        let mut engine = ExecutionEngine::new(self.tree.clone());
-        let base_probabilities =
-            engine.evidence_probabilities(&EvidenceBatch::from_rows(&base_rows)?)?;
-        if base_probabilities
-            .iter()
-            .any(|probability| *probability <= 0.0)
-        {
-            return Err(PraxisError::Hcl(
-                "common evidence has zero probability in an uncertainty sample".to_string(),
-            ));
-        }
-        resolved_rows
-            .into_iter()
-            .map(|assignments| {
-                let mut row = resolved_base.states().to_vec();
-                for (node, state) in assignments {
-                    row[node.index()] = state;
-                }
-                let rows = vec![row; self.sample_count];
-                let probabilities =
-                    engine.evidence_probabilities(&EvidenceBatch::from_rows(&rows)?)?;
-                Ok(probabilities
-                    .into_iter()
-                    .zip(&base_probabilities)
-                    .map(|(probability, base)| (probability / base).clamp(0.0, 1.0))
-                    .collect())
-            })
-            .collect()
+        Ok(samples)
     }
 }
 
@@ -300,10 +181,18 @@ pub fn validate_hcl_uncertainty_settings(
 ) -> Result<()> {
     validate_settings(settings)?;
     network.validate()?;
+    for variable in network.variables() {
+        if network.cpt_batch_size(variable.id())? != 1 {
+            return Err(PraxisError::Hcl(format!(
+                "uncertainty input BN node '{}' must have a scalar CPT",
+                variable.name()
+            )));
+        }
+    }
 
     let mut events = HashSet::new();
     for event in &settings.basic_event_distributions {
-        validate_probability_distribution(&event.distribution)?;
+        validate_probability_distribution(&event.distribution, settings.sampler)?;
         if !events.insert(&event.event) {
             return Err(PraxisError::Hcl(format!(
                 "basic event '{}' has more than one uncertainty definition",
@@ -313,6 +202,7 @@ pub fn validate_hcl_uncertainty_settings(
     }
 
     let mut rows = HashSet::new();
+    let mut beta_states = HashMap::new();
     for row in &settings.cpt_row_distributions {
         let node = network.node_id(&row.node)?;
         if !rows.insert((node, row.row_index)) {
@@ -322,11 +212,17 @@ pub fn validate_hcl_uncertainty_settings(
             )));
         }
         let variable = network.variable(node)?;
-        if network.cpt_batch_size(node)? != 1 {
-            return Err(PraxisError::Hcl(format!(
-                "uncertainty input BN node '{}' must have a scalar CPT",
-                variable.name()
-            )));
+        cpt_sampling::validate_prior(&row.prior, variable.states())?;
+        if let crate::hcl::HclCptPrior::Beta { true_state, .. } = &row.prior {
+            if beta_states
+                .insert(node, true_state)
+                .is_some_and(|previous| previous != true_state)
+            {
+                return Err(PraxisError::Hcl(format!(
+                    "Beta priors for BN node '{}' must use the same probability state",
+                    row.node
+                )));
+            }
         }
         let row_count = network.family_size(node)? / variable.cardinality();
         if row.row_index >= row_count {
@@ -337,6 +233,17 @@ pub fn validate_hcl_uncertainty_settings(
             )));
         }
     }
+    let mut generator_nodes = HashSet::new();
+    for spec in &settings.cpt_generators {
+        let node = network.node_id(&spec.node)?;
+        if !generator_nodes.insert(node) || rows.iter().any(|(n, _)| *n == node) {
+            return Err(PraxisError::Hcl(format!(
+                "BN node '{}' must use either row priors or one generator",
+                spec.node
+            )));
+        }
+        seismic::validate_generator(network, spec)?;
+    }
     Ok(())
 }
 
@@ -346,121 +253,14 @@ fn validate_settings(settings: &HclUncertaintySettings) -> Result<()> {
             "HCL uncertainty sample count must be between 10 and 10000".to_string(),
         ));
     }
-    for row in &settings.cpt_row_distributions {
-        if !row.equivalent_sample_size.is_finite() || row.equivalent_sample_size <= 0.0 {
-            return Err(PraxisError::Hcl(format!(
-                "CPT uncertainty for BN node '{}' requires a positive equivalent sample size",
-                row.node
-            )));
-        }
+    if !settings.cpt_probability_clip_epsilon.is_finite()
+        || !(0.0..0.5).contains(&settings.cpt_probability_clip_epsilon)
+    {
+        return Err(PraxisError::Hcl(
+            "CPT probability clipping epsilon must be finite and in [0, 0.5)".into(),
+        ));
     }
     Ok(())
-}
-
-fn sample_probability<R: rand::Rng + ?Sized>(
-    distribution: &HclProbabilityDistribution,
-    rng: &mut R,
-) -> Result<f64> {
-    validate_probability_distribution(distribution)?;
-    let value = match *distribution {
-        HclProbabilityDistribution::Beta { alpha, beta } => Beta::new(alpha, beta)
-            .map_err(|error| PraxisError::Hcl(error.to_string()))?
-            .sample(rng),
-        HclProbabilityDistribution::Lognormal {
-            median,
-            error_factor,
-        } => {
-            let sigma = error_factor.ln() / NORMAL_95TH_PERCENTILE;
-            LogNormal::new(median.ln(), sigma)
-                .map_err(|error| PraxisError::Hcl(error.to_string()))?
-                .sample(rng)
-        }
-        HclProbabilityDistribution::Uniform { lower, upper } => {
-            Uniform::new(lower, upper).sample(rng)
-        }
-    };
-    Ok(value.clamp(0.0, 1.0))
-}
-
-fn validate_probability_distribution(distribution: &HclProbabilityDistribution) -> Result<()> {
-    match *distribution {
-        HclProbabilityDistribution::Beta { alpha, beta }
-            if !alpha.is_finite() || alpha <= 0.0 || !beta.is_finite() || beta <= 0.0 =>
-        {
-            Err(PraxisError::Hcl(
-                "beta uncertainty parameters must be positive".to_string(),
-            ))
-        }
-        HclProbabilityDistribution::Lognormal {
-            median,
-            error_factor,
-        } if !median.is_finite()
-            || !(0.0..=1.0).contains(&median)
-            || median == 0.0
-            || !error_factor.is_finite()
-            || error_factor <= 1.0 =>
-        {
-            Err(PraxisError::Hcl(
-                "lognormal uncertainty requires a median in (0,1] and error factor above one"
-                    .to_string(),
-            ))
-        }
-        HclProbabilityDistribution::Uniform { lower, upper }
-            if !lower.is_finite()
-                || !upper.is_finite()
-                || lower < 0.0
-                || upper > 1.0
-                || lower >= upper =>
-        {
-            Err(PraxisError::Hcl(
-                "uniform uncertainty bounds must satisfy 0 <= lower < upper <= 1".to_string(),
-            ))
-        }
-        _ => Ok(()),
-    }
-}
-
-fn sample_dirichlet_row<R: rand::Rng + ?Sized>(
-    nominal: &[f64],
-    equivalent_sample_size: f64,
-    rng: &mut R,
-    node: &str,
-    row_index: usize,
-) -> Result<Vec<f64>> {
-    let positive: Vec<usize> = nominal
-        .iter()
-        .enumerate()
-        .filter_map(|(index, probability)| (*probability > 0.0).then_some(index))
-        .collect();
-    if positive.is_empty() {
-        return Err(PraxisError::Hcl(format!(
-            "CPT row {row_index} of BN node '{node}' has no positive probability"
-        )));
-    }
-    if positive.len() == 1 {
-        let mut deterministic = vec![0.0; nominal.len()];
-        deterministic[positive[0]] = 1.0;
-        return Ok(deterministic);
-    }
-    let mut sampled = vec![0.0; nominal.len()];
-    let mut sum = 0.0;
-    for state in positive {
-        let alpha = nominal[state] * equivalent_sample_size;
-        let draw = Gamma::new(alpha, 1.0)
-            .map_err(|error| PraxisError::Hcl(error.to_string()))?
-            .sample(rng);
-        sampled[state] = draw;
-        sum += draw;
-    }
-    if !sum.is_finite() || sum <= 0.0 {
-        return Err(PraxisError::Hcl(format!(
-            "could not sample CPT row {row_index} of BN node '{node}'"
-        )));
-    }
-    sampled
-        .iter_mut()
-        .for_each(|probability| *probability /= sum);
-    Ok(sampled)
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -647,9 +447,8 @@ impl<'a> BatchedHclQuantifier<'a> {
         let values = probabilities
             .iter()
             .zip(high.iter().zip(low.iter()))
-            .map(|(probability, (high, low))| {
-                (probability * high + (1.0 - probability) * low).clamp(0.0, 1.0)
-            })
+            // HCL_MH: bdd_vec_shannon.py::_fused_shannon.
+            .map(|(probability, (high, low))| low + probability * (high - low))
             .collect::<Vec<_>>();
         self.bdd_cache.insert(key, values.clone());
         Ok(values)
@@ -702,7 +501,9 @@ impl<'a> BatchedHclQuantifier<'a> {
 mod tests {
     use super::*;
     use crate::algorithms::bdd_engine::{Bdd, BddNode};
-    use crate::hcl::{HclBasicEventUncertaintySpec, HclCptRowUncertaintySpec};
+    use crate::hcl::{
+        HclBasicEventUncertaintySpec, HclCptRowUncertaintySpec, HclProbabilityDistribution,
+    };
 
     #[test]
     fn samples_cpt_rows_and_independent_events_reproducibly() {
@@ -710,6 +511,9 @@ mod tests {
         let node = graph.add_variable("N", &["F", "T"]).unwrap();
         graph.set_cpt(node, vec![0.8, 0.2]).unwrap();
         let settings = HclUncertaintySettings {
+            cpt_generators: vec![],
+            sampler: Default::default(),
+            cpt_probability_clip_epsilon: 0.0,
             sample_count: 200,
             seed: 42,
             basic_event_distributions: vec![HclBasicEventUncertaintySpec {
@@ -722,7 +526,9 @@ mod tests {
             cpt_row_distributions: vec![HclCptRowUncertaintySpec {
                 node: "N".to_string(),
                 row_index: 0,
-                equivalent_sample_size: 20.0,
+                prior: crate::hcl::HclCptPrior::Dirichlet {
+                    alpha: vec![16.0, 4.0],
+                },
             }],
         };
         let first = PreparedHclUncertainty::new(&graph, &settings).unwrap();
@@ -738,6 +544,9 @@ mod tests {
         let node = graph.add_variable("N", &["F", "T"]).unwrap();
         graph.set_cpt(node, vec![0.8, 0.2]).unwrap();
         let settings = HclUncertaintySettings {
+            cpt_generators: vec![],
+            sampler: Default::default(),
+            cpt_probability_clip_epsilon: 0.0,
             sample_count: 100,
             seed: 7,
             basic_event_distributions: vec![HclBasicEventUncertaintySpec {
@@ -766,3 +575,6 @@ mod tests {
         assert!(samples.iter().all(|sample| (0.1..0.3).contains(sample)));
     }
 }
+
+#[cfg(test)]
+mod seismic_source_tests;

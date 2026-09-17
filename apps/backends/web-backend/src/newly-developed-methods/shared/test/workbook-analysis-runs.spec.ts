@@ -1,3 +1,10 @@
+import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { WorkbookOracle, assertProbability } from "./hcl-independent-oracle";
+import { analysisRequestSignal } from "../analysis-cancellation.interceptor";
+import type { Request, Response } from "express";
+import type { NativeResponse } from "praxis-node/protocol";
 import {
   Body,
   Controller,
@@ -8,6 +15,8 @@ import {
   type ExecutionContext,
   type INestApplication,
   Post,
+  Req,
+  Res,
 } from "@nestjs/common";
 import { getModelToken, MongooseModule } from "@nestjs/mongoose";
 import { Test } from "@nestjs/testing";
@@ -147,8 +156,8 @@ class TestPraetorController {
 
   @Post("praxis/native/execute")
   @HttpCode(HttpStatus.OK)
-  execute(@Body() body: unknown): Promise<Record<string, unknown>> {
-    return this.nativeService.run("execute", body);
+  execute(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<NativeResponse> {
+    return this.nativeService.run("execute", body, { request: req, response: res });
   }
 }
 
@@ -760,15 +769,18 @@ describe("workbook-owned analysis-run APIs", () => {
       revision: 6,
       mef: da,
     });
-    const hclCaseSystems = reconcileExampleSyDependencyOwnership(reconcileExampleSyHumanReliabilityReferences(
-      reconcileExampleSyDataAnalysisReferences(
-        structuredClone(SY_ANALYSIS_HCL),
-        DA_ANALYSIS_HCL,
-        HCL_CASE_DA_WORKBOOK_ID,
+    const hclCaseSystems = reconcileExampleSyDependencyOwnership(
+      reconcileExampleSyHumanReliabilityReferences(
+        reconcileExampleSyDataAnalysisReferences(
+          structuredClone(SY_ANALYSIS_HCL),
+          DA_ANALYSIS_HCL,
+          HCL_CASE_DA_WORKBOOK_ID,
+        ),
+        HR_ANALYSIS_HCL,
+        HCL_CASE_HR_WORKBOOK_ID,
       ),
-      HR_ANALYSIS_HCL,
-      HCL_CASE_HR_WORKBOOK_ID,
-    ), HCL_CASE_SY_WORKBOOK_ID);
+      HCL_CASE_SY_WORKBOOK_ID,
+    );
     const hclCaseNetwork = hclCaseSystems.dependencyBayesianNetworks?.find(
       ({ modelId }) => modelId === HCL_CASE_BAYESIAN_IDS.model,
     )!;
@@ -909,6 +921,58 @@ describe("workbook-owned analysis-run APIs", () => {
     jest.restoreAllMocks();
   });
 
+  it("rejects legacy FT rates before creating ordinary or HCL FT/ET runs", async () => {
+    const executeSpy = jest.spyOn(praetorClient, "execute");
+    const original = createSyMef();
+    const legacy = structuredClone(original);
+    legacy.systemBasicEvents[0]!.quantificationBasis = {
+      kind: "FAILURE_RATE",
+      conversion: "LINEAR",
+      failureRate: { value: 0.001, unit: "HOUR" },
+      missionTime: { value: 100, unit: "HOUR" },
+    };
+    const count = await runs.countDocuments();
+    await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef: legacy } });
+    try {
+      for (const [url, body] of [
+        [
+          `/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs`,
+          { schemaVersion: "1.0.0", modelId: FT_OR, workbookRevision: 3 },
+        ],
+        [
+          `/api/es-workbooks/${ES_WORKBOOK_ID}/event-trees/${ET_INDEPENDENT}/runs`,
+          { schemaVersion: "1.0.0", modelId: ET_INDEPENDENT, workbookRevision: 5, mode: "INDEPENDENT" },
+        ],
+        [
+          `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-runs`,
+          {
+            schemaVersion: "1.0.0",
+            modelId: HCL,
+            workbookRevision: 7,
+            faultTreeTopGate: topReference(FT_AND, TOP_AND),
+          },
+        ],
+        [
+          `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/event-tree-runs`,
+          {
+            schemaVersion: "1.0.0",
+            modelId: HCL,
+            workbookRevision: 7,
+            eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL },
+          },
+        ],
+      ] as const) {
+        const response = await request(api.getHttpServer()).post(url).send(body);
+        expect(response.status).toBe(400);
+        expect(JSON.stringify(response.body)).toContain("Review the rate and mission time");
+      }
+      expect(executeSpy).not.toHaveBeenCalled();
+      expect(await runs.countDocuments()).toBe(count);
+    } finally {
+      await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef: original } });
+    }
+  });
+
   it("executes an SY-owned OR fault tree through PRAXIS and returns 0.28", async () => {
     const response = await request(api.getHttpServer())
       .post(`/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs`)
@@ -925,15 +989,61 @@ describe("workbook-owned analysis-run APIs", () => {
     );
     expect(result.status).toBe(200);
     expect(result.body.topEventProbability).toBeCloseTo(0.28, 12);
-    expect(result.body.leadingCutSets.map((set: { probability: number }) => set.probability)).toEqual([0.2, 0.1]);
-    expect(result.body.leadingCutSets.map((set: { contribution: number }) => set.contribution)).toEqual([
-      expect.closeTo(0.2 / 0.28, 12),
-      expect.closeTo(0.1 / 0.28, 12),
-    ]);
-    expect(result.body.basicEventQuantifications).toEqual(expect.arrayContaining([
-      expect.objectContaining({ basicEventId: EVENT_A, resolvedProbability: 0.1 }),
-      expect.objectContaining({ basicEventId: EVENT_B, resolvedProbability: 0.2 }),
-    ]));
+    expect(result.body.minimalCutSetCount).toBeUndefined();
+    expect(result.body.leadingCutSets).toBeUndefined();
+    expect(result.body.basicEventQuantifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ basicEventId: EVENT_A, resolvedProbability: 0.1 }),
+        expect.objectContaining({ basicEventId: EVENT_B, resolvedProbability: 0.2 }),
+      ]),
+    );
+    const stored = await runs.findOne({ id: response.body.run.id }).lean().exec();
+    expect(stored?.result).toEqual(result.body);
+
+    const legacy = {
+      ...result.body,
+      minimalCutSetCount: 2,
+      leadingCutSets: [
+        { rank: 1, order: 1, probability: 0.2, events: [{ basicEventId: EVENT_B, complemented: false }] },
+        { rank: 2, order: 1, probability: 0.1, events: [{ basicEventId: EVENT_A, complemented: false }] },
+      ],
+    };
+    await runs.updateOne({ id: response.body.run.id }, { $set: { result: legacy } }).exec();
+    const restored = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs/${response.body.run.id}/result`,
+    );
+    expect(restored.status).toBe(200);
+    expect(restored.body).toEqual(result.body);
+    expect((await runs.findOne({ id: response.body.run.id }).lean().exec())?.result).toEqual(legacy);
+  }, 120_000);
+
+  it("returns exact NOT probability without cut-set results", async () => {
+    const workbookId = "sy-workbook-not-probability";
+    const mef = createSyMef();
+    const tree = mef.systemLogicModels[0]!;
+    tree.gates![0] = { ...tree.gates![0]!, gateType: "NOT" };
+    tree.gateInputs = tree.gateInputs!.slice(0, 1);
+    tree.leafNodes = tree.leafNodes!.slice(0, 1);
+    await syWorkbooks.create({
+      workbookId,
+      projectId: PROJECT_ID,
+      ownerUsername: USERNAME,
+      revision: 1,
+      mef,
+    });
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${workbookId}/fault-trees/${FT_OR}/runs`)
+      .send({ schemaVersion: "1.0.0", modelId: FT_OR, workbookRevision: 1 });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${workbookId}/fault-trees/${FT_OR}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      topEventProbability: expect.closeTo(0.9, 12),
+      validationIssues: [],
+    });
   }, 120_000);
 
   it("quantifies an SY transfer reference through the existing fault-tree run API", async () => {
@@ -954,17 +1064,6 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(result.body).toMatchObject({
       topGateId: TOP_TRANSFER,
       topEventProbability: expect.closeTo(0.02, 12),
-      minimalCutSetCount: 1,
-      leadingCutSets: [
-        expect.objectContaining({
-          order: 2,
-          probability: expect.closeTo(0.02, 12),
-          events: [
-            { basicEventId: EVENT_A, complemented: false },
-            { basicEventId: EVENT_B, complemented: false },
-          ],
-        }),
-      ],
     });
   }, 120_000);
 
@@ -1031,14 +1130,16 @@ describe("workbook-owned analysis-run APIs", () => {
       mef: rateMef,
     });
     const rateDa = createBlankDa("Controlled failure rate", USERNAME);
-    rateDa.parameters = [{
-      uuid: DA_PARAMETER_ID,
-      name: "Event A hourly failure rate",
-      parameterType: "FREQUENCY",
-      value: 2e-5,
-      valueType: "POINT_ESTIMATE",
-      implementsSrs: [],
-    }];
+    rateDa.parameters = [
+      {
+        uuid: DA_PARAMETER_ID,
+        name: "Event A hourly failure rate",
+        parameterType: "FREQUENCY",
+        value: 2e-5,
+        valueType: "POINT_ESTIMATE",
+        implementsSrs: [],
+      },
+    ];
     await daWorkbooks.create({
       workbookId: rateDaWorkbookId,
       projectId: PROJECT_ID,
@@ -1057,20 +1158,333 @@ describe("workbook-owned analysis-run APIs", () => {
     const missionProbability = 4.798848184297884e-4;
     expect(result.status).toBe(200);
     expect(result.body.topEventProbability).toBeCloseTo(1 - (1 - missionProbability) * 0.8, 12);
-    expect(result.body.basicEventQuantifications).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        basicEventId: EVENT_A,
-        resolvedProbability: expect.closeTo(missionProbability, 15),
-        input: expect.objectContaining({
-          quantificationBasis: expect.objectContaining({
-            kind: "FAILURE_RATE",
-            failureRate: { value: 2e-5, unit: "HOUR" },
-            missionTime: { value: 24, unit: "HOUR" },
+    expect(result.body.basicEventQuantifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          basicEventId: EVENT_A,
+          resolvedProbability: expect.closeTo(missionProbability, 15),
+          input: expect.objectContaining({
+            quantificationBasis: expect.objectContaining({
+              kind: "FAILURE_RATE",
+              failureRate: { value: 2e-5, unit: "HOUR" },
+              missionTime: { value: 24, unit: "HOUR" },
+            }),
           }),
         }),
-      }),
-    ]));
+      ]),
+    );
   }, 120_000);
+
+  it("validates stored module wiring before BN or HCL execution and preserves ordinary BN results", async () => {
+    const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+    const original = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+      mef: ReturnType<typeof createEsqMef>;
+    };
+    const mef = structuredClone(original.mef);
+    const network = mef.bayesianNetworks[0]!;
+    const [a, b] = network.nodes;
+    const id = (n: number) => `81000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+    const identity = { code: "PUMP", name: "Pump module", description: "Stored module fixture" };
+    const childTable = network.conditionalProbabilityTables.find((table) => table.nodeId === b!.id)!;
+    network.moduleTemplates = [
+      {
+        ...identity,
+        id: id(1),
+        nodes: [{ ...b!, id: id(2) }],
+        inputPorts: [{ ...identity, id: id(3), node: { ...a!, id: id(4) } }],
+        outputPorts: [{ ...identity, id: id(5), nodeId: id(2) }],
+        edges: [{ id: id(6), parentNodeId: id(4), childNodeId: id(2) }],
+        nodePositions: [],
+        conditionalProbabilityTables: [
+          {
+            ...childTable,
+            nodeId: id(2),
+            parents: [{ nodeId: id(4), order: 0 }],
+            rows: childTable.rows.map((row, index) => ({
+              ...row,
+              id: id(10 + index),
+              parentStates: row.parentStates.map((selection) => ({ ...selection, parentNodeId: id(4) })),
+            })),
+          },
+        ],
+      },
+    ];
+    network.moduleInstances = [
+      {
+        ...identity,
+        id: id(7),
+        templateId: id(1),
+        inputBindings: [{ portId: id(3), nodeId: a!.id }],
+        nodeMappings: [
+          {
+            templateNodeId: id(2),
+            nodeId: b!.id,
+            stateMappings: b!.states.map((state) => ({ templateStateId: state.id, stateId: state.id })),
+          },
+        ],
+        outputBindings: [{ portId: id(5), nodeId: b!.id }],
+      },
+    ];
+    const endpoint = `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/bayesian-networks/${BN}/runs`;
+    const body = {
+      schemaVersion: "1.0.0",
+      modelId: BN,
+      workbookRevision: 7,
+      query: { queryNodeIds: [NODE_A, NODE_B], evidence: { observations: [] } },
+    };
+    try {
+      const baseline = await request(api.getHttpServer()).post(endpoint).send(body);
+      const baselineResult = await request(api.getHttpServer()).get(`${endpoint}/${baseline.body.run.id}/result`);
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
+      const valid = await request(api.getHttpServer()).post(endpoint).send(body);
+      expect(valid.status).toBe(200);
+      expect(valid.body.run.status).toBe("SUCCEEDED");
+      const result = await request(api.getHttpServer()).get(`${endpoint}/${valid.body.run.id}/result`);
+      expect(result.body.marginals).toEqual(baselineResult.body.marginals);
+      const persisted = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+        mef: ReturnType<typeof createEsqMef>;
+      };
+      expect(persisted.mef.bayesianNetworks[0]!.moduleInstances).toEqual(network.moduleInstances);
+      // Source permits parent-axis permutations; visual metadata must not affect execution.
+      const reorderedMef = structuredClone(mef);
+      const graph = reorderedMef.bayesianNetworks[0]!;
+      const extra = {
+        ...a!,
+        id: id(30),
+        code: "EXTRA",
+        states: a!.states.map((state, index) => ({ ...state, id: id(31 + index) })) as NonNullable<typeof a>["states"],
+      };
+      graph.nodes.push(extra);
+      graph.conditionalProbabilityTables.push({
+        nodeId: extra.id,
+        parents: [],
+        rows: [
+          {
+            id: id(33),
+            parentStates: [],
+            values: [
+              { stateId: extra.states[0].id, probability: 0.3 },
+              { stateId: extra.states[1]!.id, probability: 0.7 },
+            ],
+          },
+        ],
+      });
+      graph.edges.push({ id: id(34), parentNodeId: extra.id, childNodeId: b!.id });
+      const changedTable = graph.conditionalProbabilityTables.find((table) => table.nodeId === b!.id)!;
+      changedTable.parents.push({ nodeId: extra.id, order: 1 });
+      changedTable.rows = changedTable.rows.flatMap((row, rowIndex) =>
+        extra.states.map((state, stateIndex) => ({
+          ...row,
+          id: id(50 + rowIndex * 2 + stateIndex),
+          parentStates: [...row.parentStates, { parentNodeId: extra.id, stateId: state.id }],
+          values: row.values.map((value) => ({
+            ...value,
+            probability: stateIndex === 0 ? value.probability : 1 - value.probability,
+          })) as typeof row.values,
+        })),
+      );
+      const savedTemplate = graph.moduleTemplates![0]!;
+      savedTemplate.inputPorts.push({ ...identity, id: id(35), node: { ...extra, id: id(36) } });
+      savedTemplate.edges.push({ id: id(37), parentNodeId: id(36), childNodeId: id(2) });
+      savedTemplate.conditionalProbabilityTables = [
+        {
+          ...changedTable,
+          nodeId: id(2),
+          parents: [
+            { nodeId: id(4), order: 0 },
+            { nodeId: id(36), order: 1 },
+          ],
+          rows: changedTable.rows.map((row) => ({
+            ...row,
+            parentStates: row.parentStates.map((selection) => ({
+              ...selection,
+              parentNodeId: selection.parentNodeId === a!.id ? id(4) : id(36),
+            })),
+          })),
+        },
+      ];
+      graph.moduleInstances![0]!.inputBindings.push({ portId: id(35), nodeId: extra.id });
+      const variants = [];
+      for (const permute of [false, true]) {
+        if (permute) {
+          changedTable.parents = [...changedTable.parents].reverse().map((parent, order) => ({ ...parent, order }));
+          changedTable.rows.reverse();
+          graph.xdslMetadata = {
+            rootAttributes: {},
+            nodeIdentifiers: [],
+            extensionsXml: `<extensions><genie><submodel id="display"><name>Display only</name><node id="${b!.code}"/></submodel></genie></extensions>`,
+          };
+        }
+        await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: reorderedMef } }).exec();
+        const executed = await request(api.getHttpServer()).post(endpoint).send(body);
+        expect(executed.status).toBe(200);
+        expect(executed.body.run.status).toBe("SUCCEEDED");
+        const output = await request(api.getHttpServer()).get(`${endpoint}/${executed.body.run.id}/result`);
+        variants.push(output.body.marginals);
+      }
+      expect(variants[1].map((node: { nodeId: string }) => node.nodeId)).toEqual(
+        variants[0].map((node: { nodeId: string }) => node.nodeId),
+      );
+      variants[1].forEach((node: { values: Array<{ stateId: string; probability: number }> }, nodeIndex: number) => {
+        node.values.forEach((value, stateIndex) => {
+          expect(value.stateId).toBe(variants[0][nodeIndex].values[stateIndex].stateId);
+          expect(value.probability).toBeCloseTo(variants[0][nodeIndex].values[stateIndex].probability, 12);
+        });
+      });
+      for (const kind of ["declared input", "CPT", "edge", "template probability"]) {
+        const invalid = structuredClone(mef);
+        const bn = invalid.bayesianNetworks[0]!;
+        if (kind === "declared input") bn.moduleInstances![0]!.inputBindings[0]!.nodeId = NODE_B;
+        if (kind === "CPT") bn.conditionalProbabilityTables[1]!.parents[0]!.nodeId = NODE_B;
+        if (kind === "edge") bn.edges[0]!.parentNodeId = NODE_B;
+        if (kind === "template probability")
+          bn.moduleTemplates![0]!.conditionalProbabilityTables[0]!.rows[0]!.values[0].probability = 0.5;
+        await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: invalid } }).exec();
+        const before = await runs.countDocuments();
+        const rejected = await request(api.getHttpServer()).post(endpoint).send(body);
+        expect(rejected.status).toBe(400);
+        expect(rejected.body.message).toMatch(/Module/);
+        const hcl = await request(api.getHttpServer())
+          .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-runs`)
+          .send({
+            schemaVersion: "1.0.0",
+            modelId: HCL,
+            workbookRevision: 7,
+            faultTreeTopGate: topReference(FT_AND, TOP_AND),
+          });
+        expect(hcl.status).toBe(400);
+        expect(hcl.body.message).toMatch(/Module/);
+        expect(await runs.countDocuments()).toBe(before);
+      }
+    } finally {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
+    }
+  });
+
+  it("executes and persists an imported single-state BN through HTTP and the native addon", async () => {
+    const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+    const original = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+      mef: ReturnType<typeof createEsqMef>;
+    };
+    const mef = structuredClone(original.mef);
+    const network = mef.bayesianNetworks[0]!;
+    network.nodes[0]!.states = [network.nodes[0]!.states[0]];
+    network.conditionalProbabilityTables[0]!.rows[0]!.values = [{ stateId: A_FALSE, probability: 1 }];
+    network.conditionalProbabilityTables[1]!.rows.length = 1;
+    const endpoint = `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/bayesian-networks/${BN}/runs`;
+    try {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
+      const response = await request(api.getHttpServer())
+        .post(endpoint)
+        .send({
+          schemaVersion: "1.0.0",
+          modelId: BN,
+          workbookRevision: 7,
+          query: { queryNodeIds: [NODE_A, NODE_B], evidence: { observations: [] } },
+        });
+      expect(response.status).toBe(200);
+      expect(response.body.run.status).toBe("SUCCEEDED");
+      const result = await request(api.getHttpServer()).get(`${endpoint}/${response.body.run.id}/result`);
+      expect(result.status).toBe(200);
+      expect(result.body.marginals[0].values).toEqual([{ stateId: A_FALSE, probability: 1 }]);
+      expect(result.body.marginals[1].values[1].probability).toBeCloseTo(0.1125, 12);
+      const saved = await runs.findOne({ id: response.body.run.id }).lean().exec();
+      expect(saved?.status).toBe("SUCCEEDED");
+    } finally {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
+    }
+  });
+
+  it.each(["ESQ", "SY"] as const)(
+    "executes a %s-owned native BN batch with one saved run",
+    async (host) => {
+      const syNetwork = SY_ANALYSIS_HCL.dependencyBayesianNetworks!.find(
+        (network) => network.modelId === HCL_CASE_BAYESIAN_IDS.model,
+      )!;
+      const syNode = syNetwork.nodes.find((node) => node.id === HCL_CASE_BAYESIAN_IDS.seismic)!;
+      const workbookId = host === "SY" ? HCL_CASE_SY_WORKBOOK_ID : ESQ_WORKBOOK_ID;
+      const modelId = host === "SY" ? HCL_CASE_BAYESIAN_IDS.model : BN;
+      const workbookRevision = host === "SY" ? 1 : 7;
+      const nodeId = host === "SY" ? syNode.id : NODE_B;
+      const stateId = host === "SY" ? syNode.states[1]!.id : B_TRUE;
+      const queryNodeIds = host === "SY" ? [syNode.id] : [NODE_A, NODE_B];
+      const scenarios = [[], [{ nodeId, stateId }], [{ nodeId, stateId: EVENT_A }], [{ nodeId, stateId }]].map(
+        (observations, index) => ({
+          id: `70000000-0000-4000-8000-00000000000${index + 1}`,
+          code: `ROW-${index}`,
+          name: `Scenario ${index}`,
+          evidence: { observations },
+        }),
+      );
+      const endpoint = `/api/${host.toLowerCase()}-workbooks/${workbookId}/bayesian-networks/${modelId}/runs`;
+      const body = { schemaVersion: "1.0.0", modelId, workbookRevision, query: { queryNodeIds, scenarios } };
+      const before = await runs.countDocuments({ "owner.workbookId": workbookId, methodType: "BAYESIAN_NETWORK" });
+      const response = await request(api.getHttpServer()).post(endpoint).send(body);
+      expect(response.status).toBe(200);
+      expect(response.body.run.status).toBe("SUCCEEDED");
+      expect(await runs.countDocuments({ "owner.workbookId": workbookId, methodType: "BAYESIAN_NETWORK" })).toBe(
+        before + 1,
+      );
+      const saved = await runs.findOne({ id: response.body.run.id }).lean().exec();
+      expect(saved?.request).toEqual(body);
+      expect(saved?.target).toEqual(expect.objectContaining({ queryNodeIds, evidenceNodeIds: [nodeId] }));
+      const responseResult = await request(api.getHttpServer()).get(`${endpoint}/${response.body.run.id}/result`);
+      expect(responseResult.status).toBe(200);
+      const result = responseResult.body;
+      expect(result.diagnostics).toEqual({ junctionTreeCompilations: 1, scenarioEvaluations: 4 });
+      expect(result.scenarios.map((row: { scenarioId: string }) => row.scenarioId)).toEqual(
+        scenarios.map((row) => row.id),
+      );
+      expect(result.scenarios[2]).toEqual(
+        expect.objectContaining({ status: "FAILED", result: null, failure: expect.any(String) }),
+      );
+      for (const index of [0, 1, 3]) {
+        const single = await request(api.getHttpServer())
+          .post(endpoint)
+          .send({
+            schemaVersion: "1.0.0",
+            modelId,
+            workbookRevision,
+            query: { queryNodeIds, evidence: scenarios[index]!.evidence },
+          });
+        expect(single.body.run.status).toBe("SUCCEEDED");
+        const individual = await request(api.getHttpServer()).get(`${endpoint}/${single.body.run.id}/result`);
+        expect(individual.status).toBe(200);
+        expect(result.scenarios[index].result.marginals).toEqual(individual.body.marginals);
+        expect(result.scenarios[index].result.evidence).toEqual(scenarios[index]!.evidence);
+        expect(result.scenarios[index].result.runId).toBe(response.body.run.id);
+      }
+      if (host === "ESQ") expect(result.scenarios[1].result.marginals[0].values[1].probability).toBeCloseTo(0.64, 12);
+    },
+    120_000,
+  );
+
+  it("rejects empty batches and stale revisions before creating a BN run", async () => {
+    const endpoint = `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/bayesian-networks/${BN}/runs`;
+    const before = await runs.countDocuments({ methodType: "BAYESIAN_NETWORK" });
+    const base = {
+      schemaVersion: "1.0.0",
+      modelId: BN,
+      workbookRevision: 7,
+      query: { queryNodeIds: [NODE_A], scenarios: [] },
+    };
+    expect((await request(api.getHttpServer()).post(endpoint).send(base)).status).toBe(400);
+    expect(
+      (
+        await request(api.getHttpServer())
+          .post(endpoint)
+          .send({
+            ...base,
+            workbookRevision: 6,
+            query: {
+              queryNodeIds: [NODE_A],
+              scenarios: [{ id: EVENT_A, code: "P", name: "Prior", evidence: { observations: [] } }],
+            },
+          })
+      ).status,
+    ).toBe(409);
+    expect(await runs.countDocuments({ methodType: "BAYESIAN_NETWORK" })).toBe(before);
+  });
 
   it("executes an ESQ-owned BN query and returns the exact 0.64 posterior", async () => {
     const response = await request(api.getHttpServer())
@@ -1170,10 +1584,95 @@ describe("workbook-owned analysis-run APIs", () => {
     ]);
     expect(result.body.frequencySemantics).toEqual({
       initiatingEventFrequency: { value: 0.01, unit: "PER_YEAR" },
-      annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_766 },
+      annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_760 },
       annualizedInitiatingEventFrequency: { value: 0.01, unit: "PER_YEAR" },
     });
   }, 120_000);
+
+  it("returns complete transfer paths through the backend while preserving shared FT events", async () => {
+    const workbookId = "es-linked-transfer-runs";
+    const mef = createEsMef();
+    const source = mef.eventTrees![0]!;
+    const destination = structuredClone(source);
+    destination.uuid = ET_HCL;
+    destination.functionalEvents.first!.uuid = FE_HCL_A;
+    destination.functionalEvents.first!.faultTreeTopEvent = topReference(FT_AND, TOP_AND);
+    destination.sequences = {
+      success: { ...source.sequences.success!, uuid: HCL_SS, functionalEventStates: { [FE_HCL_A]: "SUCCESS" } },
+      failure: { ...source.sequences.failure!, uuid: HCL_FF, functionalEventStates: { [FE_HCL_A]: "FAILURE" } },
+    };
+    source.sequences.failure!.endState = undefined;
+    source.transfers = { [ET_FAILURE]: { targetEventTreeId: ET_HCL } };
+    mef.eventTrees = [source, destination];
+    await api.get<Model<unknown>>(getModelToken(EsWorkbook.name)).create({
+      workbookId,
+      projectId: PROJECT_ID,
+      ownerUsername: USERNAME,
+      revision: 1,
+      mef,
+    });
+    const response = await request(api.getHttpServer())
+      .post(`/api/es-workbooks/${workbookId}/event-trees/${ET_INDEPENDENT}/runs`)
+      .send({ schemaVersion: "1.0.0", modelId: ET_INDEPENDENT, workbookRevision: 1, mode: "INDEPENDENT" });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+    const result = await request(api.getHttpServer()).get(
+      `/api/es-workbooks/${workbookId}/event-trees/${ET_INDEPENDENT}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.sequences).toHaveLength(3);
+    expect(result.body.sequences).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sequenceId: ET_SUCCESS, conditionalProbability: expect.closeTo(0.72, 12) }),
+        expect.objectContaining({
+          sequenceChain: [
+            { modelId: ET_INDEPENDENT, entityId: ET_FAILURE },
+            { modelId: ET_HCL, entityId: HCL_SS },
+          ],
+          conditionalProbability: expect.closeTo(0.26, 12),
+        }),
+        expect.objectContaining({
+          sequenceChain: [
+            { modelId: ET_INDEPENDENT, entityId: ET_FAILURE },
+            { modelId: ET_HCL, entityId: HCL_FF },
+          ],
+          conditionalProbability: expect.closeTo(0.02, 12),
+          annualFrequency: expect.closeTo(0.0002, 12),
+        }),
+      ]),
+    );
+  }, 120_000);
+
+  it.each(["success", "failure"] as const)(
+    "executes a source tree containing only its %s outcome",
+    async (outcome) => {
+      const workbookId = `es-single-${outcome}-run`;
+      const mef = createEsMef();
+      const tree = mef.eventTrees![0]!;
+      tree.sequences = { [outcome]: tree.sequences[outcome]! };
+      mef.eventTrees = [tree];
+      await api.get<Model<unknown>>(getModelToken(EsWorkbook.name)).create({
+        workbookId,
+        projectId: PROJECT_ID,
+        ownerUsername: USERNAME,
+        revision: 1,
+        mef,
+      });
+      const response = await request(api.getHttpServer())
+        .post(`/api/es-workbooks/${workbookId}/event-trees/${ET_INDEPENDENT}/runs`)
+        .send({ schemaVersion: "1.0.0", modelId: ET_INDEPENDENT, workbookRevision: 1, mode: "INDEPENDENT" });
+      expect(response.status).toBe(200);
+      expect(response.body.run.status).toBe("SUCCEEDED");
+      const result = await request(api.getHttpServer()).get(
+        `/api/es-workbooks/${workbookId}/event-trees/${ET_INDEPENDENT}/runs/${response.body.run.id}/result`,
+      );
+      expect(result.status).toBe(200);
+      expect(result.body.sequences).toHaveLength(1);
+      expect(result.body.sequences[0].conditionalProbability).toBeCloseTo(outcome === "success" ? 0.72 : 0.28, 12);
+      expect(result.body.sequences[0].annualFrequency).toBeCloseTo(outcome === "success" ? 0.0072 : 0.0028, 12);
+    },
+    120_000,
+  );
 
   it("executes exact HCL FT and HCL ET runs through the integration workbook API", async () => {
     const faultTree = await request(api.getHttpServer())
@@ -1191,32 +1690,15 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(faultTreeResult.status).toBe(200);
     expect(faultTreeResult.body.probability).toBeCloseTo(0.16, 12);
     expect(faultTreeResult.body.probability).not.toBeCloseTo(0.02, 12);
-    expect(faultTreeResult.body.cutSets).toMatchObject({
-      totalCount: 1,
-      cutSets: [expect.objectContaining({
-        rank: 1,
-        order: 2,
-        probability: expect.closeTo(0.16, 12),
-        coverage: expect.closeTo(1, 12),
-      })],
-    });
-    expect(faultTreeResult.body.importance).toMatchObject({
-      totalCount: 2,
-      measures: expect.arrayContaining([
-        expect.objectContaining({
-          basicEventId: EVENT_A,
-          bayesianNetworkNodeId: NODE_A,
-          probabilityIfTrue: expect.closeTo(0.25, 12),
-          probabilityIfFalse: 0,
-          birnbaum: expect.closeTo(0.25, 12),
-          fussellVesely: 1,
-        }),
+    expect(faultTreeResult.body.cutSets).toBeUndefined();
+    expect(faultTreeResult.body.importance).toBeUndefined();
+    expect(faultTreeResult.body.bridge.quantifications).toBe(1);
+    expect(faultTreeResult.body.basicEventQuantifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ basicEventId: EVENT_A, resolvedProbability: 0.1 }),
+        expect.objectContaining({ basicEventId: EVENT_B, resolvedProbability: 0.2 }),
       ]),
-    });
-    expect(faultTreeResult.body.basicEventQuantifications).toEqual(expect.arrayContaining([
-      expect.objectContaining({ basicEventId: EVENT_A, resolvedProbability: 0.1 }),
-      expect.objectContaining({ basicEventId: EVENT_B, resolvedProbability: 0.2 }),
-    ]));
+    );
 
     const eventTree = await request(api.getHttpServer())
       .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/event-tree-runs`)
@@ -1237,21 +1719,383 @@ describe("workbook-owned analysis-run APIs", () => {
       expect.objectContaining({ sequenceId: HCL_FS, conditionalProbability: expect.closeTo(0, 12) }),
       expect.objectContaining({ sequenceId: HCL_FF, conditionalProbability: expect.closeTo(0.16, 12) }),
     ]);
-    expect(eventTreeResult.body.sequences.find(
-      (sequence: { sequenceId: string }) => sequence.sequenceId === HCL_FF,
-    )?.cutSets).toMatchObject({
-      totalCount: 1,
-      cutSets: [expect.objectContaining({ probability: expect.closeTo(0.16, 12) })],
+    eventTreeResult.body.sequences.forEach((sequence: Record<string, unknown>) => {
+      expect(sequence.cutSets).toBeUndefined();
+      expect(sequence.importance).toBeUndefined();
     });
-    expect(eventTreeResult.body.sequences.find(
-      (sequence: { sequenceId: string }) => sequence.sequenceId === HCL_FF,
-    )?.importance).toMatchObject({
-      totalCount: 2,
-      measures: expect.arrayContaining([
-        expect.objectContaining({ basicEventId: EVENT_A, birnbaum: expect.closeTo(0.25, 12) }),
-      ]),
-    });
+
+    // Saved results from before deferral remain readable; stored records are preserved.
+    for (const [runId, current, legacy] of [
+      [faultTree.body.run.id, faultTreeResult.body, { ...faultTreeResult.body, cutSets: {}, importance: {} }],
+      [
+        eventTree.body.run.id,
+        eventTreeResult.body,
+        {
+          ...eventTreeResult.body,
+          sequences: eventTreeResult.body.sequences.map((sequence: Record<string, unknown>) => ({
+            ...sequence,
+            cutSets: {},
+            importance: {},
+          })),
+        },
+      ],
+    ] as const) {
+      await runs.updateOne({ id: runId }, { $set: { result: legacy } }).exec();
+      const restored = await request(api.getHttpServer()).get(
+        `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/runs/${runId}/result`,
+      );
+      expect(restored.status).toBe(200);
+      expect(restored.body).toEqual(current);
+      const stored = await runs.findOne({ id: runId }).lean().exec();
+      expect(stored?.result).toEqual(legacy);
+    }
   }, 120_000);
+
+  it.each(["fault-tree", "event-tree"])(
+    "executes uploaded %s scenarios and preserves exact run evidence",
+    async (kind) => {
+      const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+      const original = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+        mef: ReturnType<typeof createEsqMef>;
+      };
+      const scenarios = original.mef.hclConfigurations[0]!.evidenceScenarios!.map((row, i) => ({
+        ...structuredClone(row),
+        id: `30000000-0000-4000-8000-00000000000${i + 1}`,
+        code: `UPLOAD-${i}`,
+        name: `Uploaded ${i}`,
+      }));
+      const grid = {
+        ...structuredClone(original.mef.hclConfigurations[0]!.hazardGrid!),
+        annualFrequencyScale: { ...original.mef.hclConfigurations[0]!.hazardGrid!.annualFrequencyScale, value: 3 },
+      };
+      const spy = jest.spyOn(praetorClient, "execute");
+      try {
+        for (const integrateHazardGrid of [false, true]) {
+          spy.mockClear();
+          const body = {
+            schemaVersion: "1.0.0",
+            modelId: HCL,
+            workbookRevision: 7,
+            evidenceScenarioIds: scenarios.map((s) => s.id),
+            integrateHazardGrid,
+            batchInput: { evidenceScenarios: scenarios, hazardGrid: grid },
+            ...(kind === "fault-tree" ?
+              { faultTreeTopGate: topReference(FT_AND, TOP_AND) }
+            : { eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL } }),
+          };
+          const response = await request(api.getHttpServer())
+            .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-batch-runs`)
+            .send(body);
+          expect(response.status).toBe(200);
+          expect(spy).toHaveBeenCalledTimes(1);
+          expect(spy.mock.calls[0]![0]).toMatchObject({
+            request: {
+              evidenceBatch: scenarios.map((row) => ({ scenarioId: row.id, observations: row.evidence.observations })),
+            },
+          });
+          for (const [i, row] of response.body.runs.entries()) {
+            expect(row.run.status).toBe("SUCCEEDED");
+            const stored = await runs.findOne({ id: row.run.id }).lean().exec();
+            expect(stored?.request["evidenceScenario"]).toEqual(scenarios[i]);
+            expect(stored?.request["effectiveEvidence"]).toEqual(scenarios[i]!.evidence);
+            if (integrateHazardGrid) expect(stored?.request["batchContext"]).toMatchObject({ hazardGrid: grid });
+          }
+          if (integrateHazardGrid) expect(response.body.hazardConvolution.annualizedFrequencyScale).toBe(3);
+        }
+        expect(
+          ((await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as { mef: unknown }).mef,
+        ).toEqual(original.mef);
+      } finally {
+        spy.mockRestore();
+      }
+    },
+    120_000,
+  );
+
+  it.each(["fault-tree", "event-tree"])("retains successful %s scenarios after impossible evidence", async (kind) => {
+    const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+    const original = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+      mef: ReturnType<typeof createEsqMef>;
+    };
+    const mef = structuredClone(original.mef);
+    const table = mef.bayesianNetworks[0]!.conditionalProbabilityTables.find((entry) => entry.nodeId === NODE_A)!;
+    table.rows[0]!.values.forEach((value) => { value.probability = value.stateId === A_FALSE ? 1 : 0; });
+    const spy = jest.spyOn(praetorClient, "execute");
+    try {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
+      const response = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-batch-runs`)
+        .send({
+          schemaVersion: "1.0.0", modelId: HCL, workbookRevision: 7, calculationType: "PROBABILITY",
+          evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
+          ...(kind === "fault-tree" ? { faultTreeTopGate: topReference(FT_AND, TOP_AND) }
+            : { eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL } }),
+        });
+      expect(response.status).toBe(200);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(response.body.runs.map((row: { run: { status: string } }) => row.run.status)).toEqual(["FAILED", "SUCCEEDED"]);
+      expect(response.body.compilationReuse).toBeUndefined();
+      const failed = response.body.runs[0].run;
+      expect(failed.failure).toMatchObject({ kind: "SOLVER_ERROR", code: "PRAXIS_BAYESIAN" });
+      for (const { run } of response.body.runs) {
+        const details = await request(api.getHttpServer()).get(
+          `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/analysis-runs/${run.id}/details`,
+        );
+        expect(details.status).toBe(200);
+        expect(details.body.run.status).toBe(run.status);
+        if (run.status === "FAILED") {
+          expect(details.body.result).toBeNull();
+          expect(details.body.run.failure).toEqual(run.failure);
+        } else expect(details.body.result).not.toBeNull();
+      }
+      const parent = await request(api.getHttpServer()).get(
+        `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/analysis-runs/${response.body.batchId}/details`,
+      );
+      expect(parent.body.run.status).toBe("SUCCEEDED");
+      expect(parent.body.result).toEqual(response.body);
+      expect(parent.body.members).toHaveLength(2);
+    } finally {
+      spy.mockRestore();
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
+    }
+  });
+
+  it.each(["fault-tree", "event-tree"].flatMap((kind) => [false, true].flatMap((batch) =>
+    ["missing-event", "undeclared-workbook", "unused-catalogue-event"].map((variant) => [kind, batch, variant] as const),
+  )))("rejects unresolved %s bindings (batch=%s, %s) before execution", async (kind, batch, variant) => {
+    const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+    const original = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as { mef: ReturnType<typeof createEsqMef> };
+    const originalSy = (await syWorkbooks.findOne({ workbookId: SY_WORKBOOK_ID }).lean().exec()) as unknown as { mef: ReturnType<typeof createSyMef> };
+    const mef = structuredClone(original.mef), sy = structuredClone(originalSy.mef);
+    const binding = mef.hclConfigurations[0]!.bindings[0]!;
+    if (variant === "undeclared-workbook") binding.faultTreeBasicEvent.workbookId = "undeclared-sy";
+    else binding.faultTreeBasicEvent.entityId = "40000000-0000-4000-8000-000000000099";
+    if (variant === "unused-catalogue-event") sy.systemBasicEvents.push({ ...sy.systemBasicEvents[0]!, uuid: binding.faultTreeBasicEvent.entityId, code: "UNUSED-TEST" });
+    const before = await runs.countDocuments(), spy = jest.spyOn(praetorClient, "execute");
+    try {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
+      await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef: sy } }).exec();
+      const response = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}${batch ? "-batch" : ""}-runs`)
+        .send({ schemaVersion: "1.0.0", modelId: HCL, workbookRevision: 7, calculationType: "PROBABILITY",
+          ...(kind === "fault-tree" ? { faultTreeTopGate: topReference(FT_AND, TOP_AND) } : { eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL } }),
+          ...(batch ? { evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE] } : {}),
+        });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain(variant === "undeclared-workbook"
+        ? "Binding basic event must belong to a declared fault-tree workbook" : `HCL binding '${binding.id}'`);
+      expect(spy).not.toHaveBeenCalled();
+      expect(await runs.countDocuments()).toBe(before);
+      expect(((await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as { mef: unknown }).mef).toEqual(mef);
+    } finally {
+      spy.mockRestore();
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
+      await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef: originalSy.mef } }).exec();
+    }
+  });
+
+  it("rejects invalid temporary scenario input before creating any runs", async () => {
+    const scenario = createEsqMef().hclConfigurations[0]!.evidenceScenarios![0]!;
+    const body = {
+      schemaVersion: "1.0.0",
+      modelId: HCL,
+      workbookRevision: 7,
+      faultTreeTopGate: topReference(FT_AND, TOP_AND),
+      evidenceScenarioIds: [scenario.id],
+      batchInput: { evidenceScenarios: [scenario] },
+    };
+    const invalid = [
+      { ...body, evidenceScenarioIds: ["30000000-0000-4000-8000-000000000099"] },
+      { ...body, batchInput: { evidenceScenarios: [{ ...scenario, enabled: false }] } },
+      { ...body, batchInput: { evidenceScenarios: [scenario, scenario] } },
+      {
+        ...body,
+        batchInput: { evidenceScenarios: [scenario, { ...scenario, id: "30000000-0000-4000-8000-000000000098" }] },
+      },
+      {
+        ...body,
+        batchInput: {
+          evidenceScenarios: [{ ...scenario, evidence: { observations: [{ nodeId: NODE_A, stateId: B_TRUE }] } }],
+        },
+      },
+      {
+        ...body,
+        batchInput: {
+          evidenceScenarios: [
+            {
+              ...scenario,
+              evidence: { observations: [scenario.evidence.observations[0], scenario.evidence.observations[0]] },
+            },
+          ],
+        },
+      },
+      { ...body, integrateHazardGrid: true }, // Temporary rows do not silently inherit a saved grid.
+    ];
+    const count = await runs.countDocuments();
+    const spy = jest.spyOn(praetorClient, "execute");
+    try {
+      for (const input of invalid) {
+        const response = await request(api.getHttpServer())
+          .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-batch-runs`)
+          .send(input);
+        expect(response.status).toBe(400);
+      }
+      expect(await runs.countDocuments()).toBe(count);
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("generates source combinations through the addon and executes them without saving settings", async () => {
+    const body = {
+      schemaVersion: "1.0.0",
+      modelId: HCL,
+      workbookRevision: 7,
+      spec: {
+        dimensions: [
+          {
+            id: "Cause",
+            bnNode: NODE_A,
+            states: [A_FALSE, A_TRUE],
+            stateLabels: { [A_FALSE]: "Absent", [A_TRUE]: "Present" },
+          },
+          { id: "Effect", bnNode: NODE_B, states: [B_FALSE, B_TRUE] },
+        ],
+        excludedAssignments: [{ Cause: A_FALSE, Effect: B_TRUE }],
+        maxScenarios: 2,
+      },
+    };
+    const route = `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}`;
+    const count = await runs.countDocuments();
+    const response = await request(api.getHttpServer()).post(`${route}/generate-scenarios`).send(body);
+    expect(response.status).toBe(200);
+    expect(response.body.scenarios.map((s: { code: string }) => s.code)).toEqual(["hz_0001", "hz_0002"]);
+    expect(response.body.scenarios.map((s: { evidence: unknown }) => s.evidence)).toEqual([
+      {
+        observations: [
+          { nodeId: NODE_A, stateId: A_FALSE },
+          { nodeId: NODE_B, stateId: B_FALSE },
+        ],
+      },
+      {
+        observations: [
+          { nodeId: NODE_A, stateId: A_TRUE },
+          { nodeId: NODE_B, stateId: B_FALSE },
+        ],
+      },
+    ]);
+    expect(await runs.countDocuments()).toBe(count);
+    const run = await request(api.getHttpServer())
+      .post(`${route}/fault-tree-batch-runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: HCL,
+        workbookRevision: 7,
+        faultTreeTopGate: topReference(FT_AND, TOP_AND),
+        evidenceScenarioIds: response.body.scenarios.map((s: { id: string }) => s.id),
+        batchInput: { evidenceScenarios: response.body.scenarios },
+      });
+    expect(run.status).toBe(200);
+    expect(run.body.runs.every((row: { run: { status: string } }) => row.run.status === "SUCCEEDED")).toBe(true);
+    for (const spec of [
+      { dimensions: [{ id: "A", bnNode: NODE_A, states: [B_TRUE] }] },
+      { dimensions: [{ id: "A", bnNode: NODE_A, states: [A_TRUE, A_TRUE] }] },
+      { ...body.spec, maxScenarios: 0 },
+    ]) {
+      const invalid = await request(api.getHttpServer())
+        .post(`${route}/generate-scenarios`)
+        .send({ ...body, spec });
+      expect(invalid.status).toBe(400);
+    }
+    const stale = await request(api.getHttpServer())
+      .post(`${route}/generate-scenarios`)
+      .send({ ...body, workbookRevision: 6 });
+    expect(stale.status).toBe(409);
+    executionAllowed = false;
+    try {
+      const denied = await request(api.getHttpServer()).post(`${route}/generate-scenarios`).send(body);
+      expect(denied.status).toBe(403);
+    } finally {
+      executionAllowed = true;
+    }
+  }, 120_000);
+
+  it("records common evidence and scenario overrides separately for uploaded rows", async () => {
+    const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+    const original = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+      mef: ReturnType<typeof createEsqMef>;
+    };
+    const mef = structuredClone(original.mef);
+    mef.hclConfigurations[0]!.baseEvidence = {
+      observations: [
+        { nodeId: NODE_A, stateId: A_FALSE },
+        { nodeId: NODE_B, stateId: B_TRUE },
+      ],
+    };
+    const scenarios = structuredClone(mef.hclConfigurations[0]!.evidenceScenarios!);
+    try {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
+      const response = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-batch-runs`)
+        .send({
+          schemaVersion: "1.0.0",
+          modelId: HCL,
+          workbookRevision: 7,
+          faultTreeTopGate: topReference(FT_AND, TOP_AND),
+          evidenceScenarioIds: scenarios.map((s) => s.id),
+          batchInput: { evidenceScenarios: scenarios },
+        });
+      expect(response.status).toBe(200);
+      for (const [i, row] of response.body.runs.entries()) {
+        expect(row.run.status).toBe("SUCCEEDED");
+        const stored = await runs.findOne({ id: row.run.id }).lean().exec();
+        expect(stored?.request["evidenceScenario"]).toEqual(scenarios[i]);
+        expect(stored?.request["effectiveEvidence"]).toEqual({
+          observations: [scenarios[i]!.evidence.observations[0], { nodeId: NODE_B, stateId: B_TRUE }],
+        });
+      }
+    } finally {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
+    }
+  });
+
+  it.each(["SY", "ESQ"])("generates scenarios for a SY-owned dependency from the %s host", async (host) => {
+    const saved = (await syWorkbooks.findOne({ workbookId: HCL_CASE_SY_WORKBOOK_ID }).lean().exec()) as unknown as {
+      mef: ReturnType<typeof createSyMef>;
+    };
+    const configuration = saved.mef.dependencyHclConfigurations![0]!;
+    const network = saved.mef.dependencyBayesianNetworks!.find(
+      (n) => n.modelId === configuration.bayesianNetwork.modelId,
+    )!;
+    const node = network.nodes[0]!;
+    const workbookId = host === "SY" ? HCL_CASE_SY_WORKBOOK_ID : HCL_CASE_ESQ_WORKBOOK_ID;
+    const ownerModel = host === "SY" ? syWorkbooks : api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+    const owner = (await ownerModel.findOne({ workbookId }).lean().exec()) as unknown as { revision: number };
+    const response = await request(api.getHttpServer())
+      .post(
+        `/api/${host.toLowerCase()}-workbooks/${workbookId}/hcl-configurations/${configuration.modelId}/generate-scenarios`,
+      )
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: configuration.modelId,
+        workbookRevision: owner.revision,
+        ...(host === "SY" ?
+          {}
+        : { dependencyConfiguration: { workbookId: HCL_CASE_SY_WORKBOOK_ID, modelId: configuration.modelId } }),
+        spec: {
+          dimensions: [{ id: node.code, bnNode: node.id, states: node.states.map((s) => s.id) }],
+          maxScenarios: 1,
+        },
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.scenarios).toEqual([
+      expect.objectContaining({
+        code: "hz_0001",
+        evidence: { observations: [{ nodeId: node.id, stateId: node.states[0]!.id }] },
+      }),
+    ]);
+  });
 
   it("runs HCL fault-tree and event-tree targets for a saved evidence-scenario set", async () => {
     const executeSpy = jest.spyOn(praetorClient, "execute");
@@ -1269,10 +2113,7 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(executeSpy.mock.calls[0]?.[0]).toMatchObject({
       request: {
         methodType: "HYBRID_CAUSAL_LOGIC",
-        evidenceBatch: [
-          { scenarioId: SCENARIO_A_TRUE },
-          { scenarioId: SCENARIO_A_FALSE },
-        ],
+        evidenceBatch: [{ scenarioId: SCENARIO_A_TRUE }, { scenarioId: SCENARIO_A_FALSE }],
       },
     });
     expect(faultTreeBatch.body.runs).toEqual([
@@ -1293,9 +2134,6 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(storedBatchRun?.request).toMatchObject({
       batchContext: {
         evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
-        varyingEvidenceNodeIds: [NODE_A],
-        targetKey: `${SY_WORKBOOK_ID}:${FT_AND}`,
-        targetEvidenceNodeIds: [NODE_A],
       },
     });
 
@@ -1314,10 +2152,7 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(executeSpy.mock.calls[0]?.[0]).toMatchObject({
       request: {
         methodType: "EVENT_TREE",
-        evidenceBatch: [
-          { scenarioId: SCENARIO_A_TRUE },
-          { scenarioId: SCENARIO_A_FALSE },
-        ],
+        evidenceBatch: [{ scenarioId: SCENARIO_A_TRUE }, { scenarioId: SCENARIO_A_FALSE }],
       },
     });
     expect(eventTreeBatch.body.runs).toHaveLength(2);
@@ -1327,10 +2162,12 @@ describe("workbook-owned analysis-run APIs", () => {
         `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/runs/${scenario.run.id}/result`,
       );
       expect(result.status).toBe(200);
-      expect(result.body.sequences.reduce(
-        (sum: number, sequence: { conditionalProbability: number }) => sum + sequence.conditionalProbability,
-        0,
-      )).toBeCloseTo(1, 12);
+      expect(
+        result.body.sequences.reduce(
+          (sum: number, sequence: { conditionalProbability: number }) => sum + sequence.conditionalProbability,
+          0,
+        ),
+      ).toBeCloseTo(1, 12);
     }
 
     executeSpy.mockClear();
@@ -1397,49 +2234,756 @@ describe("workbook-owned analysis-run APIs", () => {
       targetKind: "EVENT_TREE",
       rawWeightSum: expect.closeTo(1, 12),
       endStateAggregates: expect.arrayContaining([
-        { endStateId: SAFE, integratedAnnualFrequency: expect.closeTo(8.4e-5, 12) },
-        { endStateId: RELEASE, integratedAnnualFrequency: expect.closeTo(1.6e-5, 12) },
+        {
+          endStateId: SAFE,
+          convolvedProbability: expect.closeTo(0.84, 12),
+          integratedAnnualFrequency: expect.closeTo(8.4e-5, 12),
+        },
+        {
+          endStateId: RELEASE,
+          convolvedProbability: expect.closeTo(0.16, 12),
+          integratedAnnualFrequency: expect.closeTo(1.6e-5, 12),
+        },
       ]),
     });
   }, 120_000);
 
-  it("rejects batch targets that cannot change across the selected scenarios", async () => {
-    const constantMasked = await request(api.getHttpServer())
-      .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-batch-runs`)
-      .send({
+  it.each(["fault-tree", "event-tree"])(
+    "persists skipped %s hazard scenarios without probability results",
+    async (kind) => {
+      const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+      const original = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+        mef: ReturnType<typeof createEsqMef>;
+      };
+      const mef = structuredClone(original.mef);
+      mef.hclConfigurations[0]!.baseEvidence = { observations: [{ nodeId: NODE_A, stateId: A_FALSE }] };
+      const body = {
         schemaVersion: "1.0.0",
         modelId: HCL,
         workbookRevision: 7,
-        faultTreeTopGate: topReference(FT_MASKED, TOP_MASKED),
-        evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
-      });
-    expect(constantMasked.status).toBe(400);
-    expect(constantMasked.body.message).toMatch(/masked by constant fault-tree logic/i);
+        integrateHazardGrid: true,
+        ...(kind === "fault-tree" ?
+          { faultTreeTopGate: topReference(FT_AND, TOP_AND) }
+        : { eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL } }),
+      };
+      try {
+        await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
+        const response = await request(api.getHttpServer())
+          .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-batch-runs`)
+          .send({ ...body, evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE] });
+        expect(response.status).toBe(200);
+        expect(response.body.runs.map(({ run }: { run: { status: string } }) => run.status)).toEqual([
+          "SKIPPED",
+          "SUCCEEDED",
+        ]);
+        expect(response.body.hazardConvolution.rows[0]).toMatchObject({ status: "skipped_zero_weight", rawWeight: 0 });
+        const skipped = await runs.findOne({ id: response.body.runs[0].run.id }).lean().exec();
+        expect(skipped).toMatchObject({ status: "SKIPPED", result: null, failure: null });
 
-    const constantEvidence = await request(api.getHttpServer())
-      .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-batch-runs`)
-      .send({
-        schemaVersion: "1.0.0",
-        modelId: HCL,
-        workbookRevision: 7,
-        faultTreeTopGate: topReference(FT_AND, TOP_AND),
-        evidenceScenarioIds: [SCENARIO_A_TRUE],
-      });
-    expect(constantEvidence.status).toBe(400);
-    expect(constantEvidence.body.message).toMatch(/not affected by evidence that varies/i);
+        for (const normalize of [false, true]) {
+          mef.hclConfigurations[0]!.hazardGrid!.normalizeWeights = normalize;
+          await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
+          const zero = await request(api.getHttpServer())
+            .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-batch-runs`)
+            .send({ ...body, evidenceScenarioIds: [SCENARIO_A_TRUE] });
+          expect(zero.status).toBe(200);
+          expect(zero.body.runs[0].run.status).toBe("SKIPPED");
+          expect(zero.body.hazardConvolution).toMatchObject({ rawWeightSum: 0, convolutionWeightSum: 0 });
+          if (kind === "fault-tree")
+            expect(zero.body.hazardConvolution).toMatchObject({
+              convolvedProbability: 0,
+              integratedAnnualFrequency: 0,
+            });
+          else expect(zero.body.hazardConvolution.endStateAggregates).toEqual([]);
+        }
+      } finally {
+        await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
+      }
+    },
+  );
 
-    const unrelatedEventTree = await request(api.getHttpServer())
-      .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/event-tree-batch-runs`)
-      .send({
-        schemaVersion: "1.0.0",
-        modelId: HCL,
-        workbookRevision: 7,
-        eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_INDEPENDENT },
-        evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
-      });
-    expect(unrelatedEventTree.status).toBe(400);
-    expect(unrelatedEventTree.body.message).toMatch(/not affected by evidence that varies/i);
+  it("checks overlapping BN state subsets, evidence and ET transfers by full-state enumeration", async () => {
+    const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+    const original = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+      mef: ReturnType<typeof createEsqMef>;
+    };
+    const esq = createEsqMef(),
+      es = createEsMef(),
+      middle = randomUUID();
+    const network = esq.bayesianNetworks[0]!,
+      config = esq.hclConfigurations[0]!;
+    network.nodes[0]!.states.splice(1, 0, { id: middle, code: "RAIN", name: "Rain" });
+    network.conditionalProbabilityTables[0]!.rows[0]!.values = [
+      { stateId: A_FALSE, probability: 0.5 },
+      { stateId: middle, probability: 0.3 },
+      { stateId: A_TRUE, probability: 0.2 },
+    ];
+    network.conditionalProbabilityTables[1]!.rows = [A_FALSE, middle, A_TRUE].map((stateId, i) => ({
+      id: randomUUID(),
+      parentStates: [{ parentNodeId: NODE_A, stateId }],
+      values: [
+        { stateId: B_FALSE, probability: [0.9, 0.2, 0.6][i]! },
+        { stateId: B_TRUE, probability: [0.1, 0.8, 0.4][i]! },
+      ],
+    }));
+    config.bindings[0]!.trueStateIds = [middle, A_TRUE];
+    config.bindings[1]!.bayesianNetworkNode.entityId = NODE_A;
+    config.bindings[1]!.trueStateIds = [A_TRUE];
+    config.faultTrees.push({ workbookId: SY_WORKBOOK_ID, modelId: FT_OR });
+    config.baseEvidence = { observations: [{ nodeId: NODE_B, stateId: B_TRUE }] };
+    config.solverSettings.variableOrder = null;
+    es.eventTrees![0]!.sequences.failure!.endState = undefined;
+    es.eventTrees![0]!.transfers = { [ET_FAILURE]: { targetEventTreeId: ET_HCL } };
+    const workbookId = "es-multistate-oracle";
+    try {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: esq } }).exec();
+      await api
+        .get<Model<unknown>>(getModelToken(EsWorkbook.name))
+        .create({ workbookId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 1, mef: es });
+      const response = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/event-tree-runs`)
+        .send({
+          schemaVersion: "1.0.0",
+          modelId: HCL,
+          workbookRevision: 7,
+          eventTree: { workbookId, modelId: ET_INDEPENDENT },
+        });
+      expect(response.status).toBe(200);
+      const result = await request(api.getHttpServer()).get(
+        `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/runs/${response.body.run.id}/result`,
+      );
+      expect(result.status).toBe(200);
+      const saved = (await runs.findOne({ id: response.body.run.id }).lean().exec())!;
+      if (saved.target?.targetType !== "HCL_EVENT_TREE") throw new Error("Wrong subset target");
+      const oracle = new WorkbookOracle(saved.workbookSnapshots, saved.target.configuration);
+      await oracle.verifyEventTree(
+        saved.target.eventTree,
+        result.body,
+        (envelope) => praetorClient.execute(envelope),
+        [],
+        true,
+      );
+      const probabilities = result.body.sequences
+        .map((row: { conditionalProbability: number }) => row.conditionalProbability)
+        .sort((a: number, b: number) => a - b);
+      [0, 0, 0.05 / 0.37, 0.08 / 0.37, 0.24 / 0.37].forEach((expected, i) =>
+        assertProbability(probabilities[i], expected),
+      );
+    } finally {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
+    }
   });
+
+  it("preserves rare probabilities through the backend", async () => {
+    const original = (await syWorkbooks.findOne({ workbookId: SY_WORKBOOK_ID }).lean().exec()) as unknown as {
+      mef: ReturnType<typeof createSyMef>;
+    };
+    const sy = createSyMef();
+    const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+    const originalEsq = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+      mef: ReturnType<typeof createEsqMef>;
+    };
+    const esq = structuredClone(originalEsq.mef);
+    esq.hclConfigurations[0]!.solverSettings.variableOrder = null;
+    sy.systemBasicEvents.find((e) => e.uuid === EVENT_CONSTANT_FALSE)!.probability = 1e-14;
+    try {
+      await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef: sy } }).exec();
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: esq } }).exec();
+      const response = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-runs`)
+        .send({
+          schemaVersion: "1.0.0",
+          modelId: HCL,
+          workbookRevision: 7,
+          faultTreeTopGate: topReference(FT_MASKED, TOP_MASKED),
+        });
+      expect(response.status).toBe(200);
+      const result = await request(api.getHttpServer()).get(
+        `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/runs/${response.body.run.id}/result`,
+      );
+      expect(result.status).toBe(200);
+      assertProbability(result.body.probability, 2e-15);
+      const saved = (await runs.findOne({ id: response.body.run.id }).lean().exec())!;
+      if (saved.target?.targetType !== "HCL_FAULT_TREE") throw new Error("Wrong rare target");
+      const oracle = new WorkbookOracle(saved.workbookSnapshots, saved.target.configuration);
+      assertProbability(
+        result.body.probability,
+        await oracle.faultTree(saved.target.faultTreeTopEvent, (envelope) => praetorClient.execute(envelope)),
+      );
+    } finally {
+      await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: originalEsq.mef } }).exec();
+    }
+  });
+
+  it.each(["MC", "LHS"] as const)(
+    "checks %s sampled CPTs and FT probabilities through HTTP, transfers and evidence batches against HCL_MH",
+    async (sampler) => {
+      const fixtures = resolve(__dirname, "../../../../../../solvers/praxis/tests/fixtures");
+      const source = JSON.parse(readFileSync(resolve(fixtures, "hcl_mh_cpt/reference.json"), "utf8")).mixed.find(
+        (c: { name: string }) => c.name === sampler,
+      );
+      const reference = JSON.parse(
+        readFileSync(resolve(fixtures, "hcl_mh_summaries/reference.json"), "utf8"),
+      ).native.find((c: { family: string; name: string }) => c.family === "cpt" && c.name === sampler);
+      const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+      const originalSy = (await syWorkbooks.findOne({ workbookId: SY_WORKBOOK_ID }).lean().exec()) as unknown as {
+        mef: ReturnType<typeof createSyMef>;
+      };
+      const originalEsq = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+        mef: ReturnType<typeof createEsqMef>;
+      };
+      const sy = createSyMef(),
+        esq = createEsqMef(),
+        es = createEsMef();
+      const network = esq.bayesianNetworks[0]!,
+        config = esq.hclConfigurations[0]!;
+      const z = randomUUID(),
+        zFalse = randomUUID(),
+        zTrue = randomUUID();
+      network.nodes.push({
+        id: z,
+        code: "Z",
+        name: "Sampling-order sentinel",
+        description: "Source sampling order",
+        kind: "CHANCE_NODE",
+        states: [
+          { id: zFalse, code: "FALSE", name: "False" },
+          { id: zTrue, code: "TRUE", name: "True" },
+        ],
+      });
+      network.conditionalProbabilityTables.push({
+        nodeId: z,
+        parents: [],
+        rows: [
+          {
+            id: randomUUID(),
+            parentStates: [],
+            values: [
+              { stateId: zFalse, probability: 0.4 },
+              { stateId: zTrue, probability: 0.6 },
+            ],
+          },
+        ],
+      });
+      delete config.hazardGrid;
+      config.solverSettings.variableOrder = null;
+      const names: Record<string, string> = { A: NODE_A, B: NODE_B, Z: z };
+      for (const variable of source.variables) {
+        const table = network.conditionalProbabilityTables.find((t) => t.nodeId === names[variable.name])!;
+        table.rows.forEach((row, i) =>
+          row.values.forEach((value, j) => {
+            value.probability = variable.probabilities[i * 2 + j];
+          }),
+        );
+      }
+      // Same source formula: (A & E) | (!A & B). The outer FT is a transfer,
+      // so both probability and UQ must retain the bound events after flattening.
+      sy.systemBasicEvents.find((e) => e.uuid === EVENT_CONSTANT_FALSE)!.probability = 0.2;
+      const ft = sy.systemLogicModels.find((m) => m.uuid === FT_AND)!;
+      const ae = randomUUID(),
+        nb = randomUUID(),
+        na = randomUUID(),
+        leafE = randomUUID();
+      ft.gates = [
+        ...[
+          [TOP_AND, "OR"],
+          [ae, "AND"],
+          [nb, "AND"],
+          [na, "NOT"],
+        ].map(([id, gateType]) => ({
+          id: id!,
+          code: id!,
+          name: id!,
+          description: "Source uncertainty formula",
+          kind: "GATE" as const,
+          gateType: gateType as "AND" | "OR" | "NOT",
+        })),
+      ];
+      ft.leafNodes.push({ id: leafE, kind: "BASIC_EVENT_REFERENCE", basicEventId: EVENT_CONSTANT_FALSE });
+      ft.gateInputs = [
+        [TOP_AND, ae],
+        [TOP_AND, nb],
+        [ae, AND_LEAF_A],
+        [ae, leafE],
+        [nb, na],
+        [nb, AND_LEAF_B],
+        [na, AND_LEAF_A],
+      ].map(([gateId, childId], order) => ({ id: randomUUID(), gateId: gateId!, childId: childId!, order }));
+      config.faultTrees = [
+        { workbookId: SY_WORKBOOK_ID, modelId: FT_AND },
+        { workbookId: SY_WORKBOOK_ID, modelId: FT_TRANSFER },
+      ];
+      config.solverSettings.uncertainty = {
+        sampler,
+        sampleCount: source.settings.sample_count,
+        seed: source.settings.seed,
+        cptProbabilityClipEpsilon: source.settings.cpt_probability_clip_epsilon,
+        basicEventDistributions: [
+          {
+            faultTreeBasicEvent: {
+              referenceType: "FAULT_TREE_BASIC_EVENT",
+              workbookId: SY_WORKBOOK_ID,
+              entityId: EVENT_CONSTANT_FALSE,
+            },
+            distribution: source.settings.basic_event_distributions[0].distribution,
+          },
+        ],
+        cptRowDistributions: source.settings.cpt_row_distributions.map(
+          (row: {
+            node: string;
+            row_index: number;
+            prior: { family: "BETA" | "DIRICHLET"; alpha: number | number[]; beta?: number; true_state?: string };
+          }) => {
+            const table = network.conditionalProbabilityTables.find((t) => t.nodeId === names[row.node])!;
+            const { true_state, ...prior } = row.prior;
+            return {
+              bayesianNetworkNode: {
+                referenceType: "BAYESIAN_NETWORK_NODE",
+                workbookId: ESQ_WORKBOOK_ID,
+                modelId: BN,
+                entityId: names[row.node]!,
+              },
+              cptRowId: table.rows[row.row_index]!.id,
+              prior: {
+                ...prior,
+                ...(true_state === undefined ?
+                  {}
+                : { trueStateId: network.nodes.find((n) => n.id === names[row.node])!.states[1]!.id }),
+              },
+            };
+          },
+        ),
+      };
+      config.evidenceScenarios = source.outputs.map((output: { evidence: Record<string, number> }, i: number) => ({
+        id: randomUUID(),
+        code: `SOURCE-${i}`,
+        name: `Source evidence ${i}`,
+        enabled: true,
+        evidence: {
+          observations: Object.entries(output.evidence).map(([name, state]) => ({
+            nodeId: names[name]!,
+            stateId: network.nodes.find((n) => n.id === names[name])!.states[state]!.id,
+          })),
+        },
+      }));
+      es.eventTrees![0]!.functionalEvents.first!.faultTreeTopEvent = topReference(FT_TRANSFER, TOP_TRANSFER);
+      es.eventTrees![0]!.sequences.failure!.endState = undefined;
+      es.eventTrees![0]!.transfers = { [ET_FAILURE]: { targetEventTreeId: ET_HCL } };
+      const esId = `es-source-uq-${sampler}`;
+      const checkSummary = (actual: Record<string, number>, expected: Record<string, number>) => {
+        expect(actual["sampleCount"]).toBe(source.settings.sample_count);
+        expect(actual["seed"]).toBe(source.settings.seed);
+        for (const [field, value] of Object.entries(expected))
+          assertProbability(actual[field]!, value, `${sampler} ${field}`);
+      };
+      try {
+        await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef: sy } }).exec();
+        await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: esq } }).exec();
+        await api
+          .get<Model<unknown>>(getModelToken(EsWorkbook.name))
+          .create({ workbookId: esId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 1, mef: es });
+        for (const kind of ["fault-tree", "event-tree"]) {
+          const response = await request(api.getHttpServer())
+            .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-batch-runs`)
+            .send({
+              schemaVersion: "1.0.0",
+              modelId: HCL,
+              workbookRevision: 7,
+              calculationType: "UNCERTAINTY",
+              evidenceScenarioIds: config.evidenceScenarios!.map((s) => s.id),
+              ...(kind === "fault-tree" ?
+                { faultTreeTopGate: topReference(FT_TRANSFER, TOP_TRANSFER) }
+              : { eventTree: { workbookId: esId, modelId: ET_INDEPENDENT } }),
+            });
+          expect({ status: response.status, body: response.body }).toEqual({
+            status: 200,
+            body: expect.objectContaining({ runs: expect.any(Array) }),
+          });
+          for (const [index, row] of response.body.runs.entries()) {
+            expect({
+              kind,
+              status: row.run.status,
+              failure: (await runs.findOne({ id: row.run.id }).lean().exec())?.failure,
+            }).toEqual({ kind, status: "SUCCEEDED", failure: null });
+            const result = await request(api.getHttpServer()).get(
+              `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/runs/${row.run.id}/result`,
+            );
+            expect(result.status).toBe(200);
+            const recorded = (await runs.findOne({ id: row.run.id }).lean().exec())!;
+            expect(recorded.contributions!.flatMap((c) => c.entities)).toEqual(
+              expect.arrayContaining(
+                config.bindings.map((binding) => ({
+                  referenceType: "HCL_BINDING",
+                  workbookId: ESQ_WORKBOOK_ID,
+                  modelId: HCL,
+                  entityId: binding.id,
+                })),
+              ),
+            );
+            if (kind === "fault-tree") {
+              checkSummary(result.body.uncertainty, reference.outputs[index].summary);
+              expect(result.body.variableOrder.slice(0, 2)).toEqual([EVENT_A, EVENT_B]);
+            } else {
+              const saved = (await runs.findOne({ id: row.run.id }).lean().exec())!;
+              if (saved.target?.targetType !== "HCL_EVENT_TREE") throw new Error("Wrong source test target");
+              const oracle = new WorkbookOracle(saved.workbookSnapshots, saved.target.configuration);
+              await oracle.verifyEventTree(
+                saved.target.eventTree,
+                result.body,
+                (envelope) => praetorClient.execute(envelope),
+                config.evidenceScenarios![index]!.evidence.observations,
+                true,
+              );
+              for (const sequence of result.body.sequences) {
+                const outcome =
+                  sequence.sequenceId === ET_SUCCESS ? "SUCCESS"
+                  : sequence.sequenceChain.at(-1).entityId === HCL_FF ? "FAILURE"
+                  : null;
+                const zero = Object.fromEntries(
+                  Object.keys(reference.outputs[index].summary).map((field) => [field, 0]),
+                );
+                const expected =
+                  outcome === null ? { conditional: zero, annual: zero } : reference.outputs[index].sequences[outcome];
+                checkSummary(sequence.uncertainty.conditionalProbability, expected.conditional);
+                checkSummary(sequence.uncertainty.annualFrequency, expected.annual);
+              }
+              for (const aggregate of result.body.endStateAggregates) {
+                checkSummary(
+                  aggregate.uncertainty,
+                  reference.outputs[index].sequences[aggregate.endStateId === SAFE ? "SUCCESS" : "FAILURE"].annual,
+                );
+              }
+            }
+          }
+        }
+      } finally {
+        await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef: originalSy.mef } }).exec();
+        await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: originalEsq.mef } }).exec();
+      }
+    },
+    120_000,
+  );
+
+  it.each(
+    (["fault-tree", "event-tree"] as const).flatMap((kind) => [false, true].map((batch) => [kind, batch] as const)),
+  )(
+    "honors %s calculation selection (batch=%s) without changing saved settings",
+    async (kind, batch) => {
+      const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+      const original = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+        mef: ReturnType<typeof createEsqMef>;
+      };
+      const mef = structuredClone(original.mef);
+      const uncertainty = { sampleCount: 10, seed: 42, basicEventDistributions: [], cptRowDistributions: [] };
+      mef.hclConfigurations[0]!.solverSettings.uncertainty = uncertainty;
+      const client = api.get(PraetorAnalysisClient);
+      const spy = jest.spyOn(client, "execute");
+      try {
+        await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
+        for (const calculationType of [undefined, "PROBABILITY", "UNCERTAINTY"]) {
+          spy.mockClear();
+          const body = {
+            schemaVersion: "1.0.0",
+            modelId: HCL,
+            workbookRevision: 7,
+            ...(calculationType === undefined ? {} : { calculationType }),
+            ...(batch ? { evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE] } : {}),
+            ...(kind === "fault-tree" ?
+              { faultTreeTopGate: topReference(FT_AND, TOP_AND) }
+            : { eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL } }),
+          };
+          const response = await request(api.getHttpServer())
+            .post(
+              `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-${batch ? "batch-runs" : "runs"}`,
+            )
+            .send(body);
+          expect(response.status).toBe(200);
+          expect(spy).toHaveBeenCalledTimes(1);
+          const envelope = spy.mock.calls[0]![0];
+          expect(envelope.request["calculationType"]).toBe(calculationType ?? "PROBABILITY");
+          const snapshot = envelope.modelSnapshots.find((s) => s["methodType"] === "HYBRID_CAUSAL_LOGIC")!;
+          const settings = snapshot["solverSettings"] as Record<string, unknown>;
+          expect(settings["uncertainty"] !== undefined).toBe(calculationType === "UNCERTAINTY");
+          const metadata = batch ? response.body.runs.map((row: { run: unknown }) => row.run) : [response.body.run];
+          for (const run of metadata) {
+            expect(run.status).toBe("SUCCEEDED");
+            const result = await request(api.getHttpServer()).get(
+              `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/runs/${run.id}/result`,
+            );
+            expect(result.status).toBe(200);
+            const summary =
+              kind === "fault-tree" ?
+                result.body.uncertainty
+              : result.body.sequences[0].uncertainty?.conditionalProbability;
+            if (calculationType === "UNCERTAINTY") expect(summary.sampleCount).toBe(10);
+            else expect(summary == null).toBe(true);
+            expect((await runs.findOne({ id: run.id }).lean().exec())?.request["calculationType"]).toBe(
+              calculationType ?? "PROBABILITY",
+            );
+          }
+        }
+        const saved = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+          mef: ReturnType<typeof createEsqMef>;
+        };
+        expect(saved.mef).toEqual(mef);
+      } finally {
+        spy.mockRestore();
+        await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
+      }
+    },
+    120_000,
+  );
+
+  it.each(["fault-tree", "event-tree"])("rejects %s hazard uncertainty before creating runs", async (kind) => {
+    const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+    const original = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+      mef: ReturnType<typeof createEsqMef>;
+    };
+    const mef = structuredClone(original.mef);
+    mef.hclConfigurations[0]!.solverSettings.uncertainty = {
+      sampleCount: 10,
+      seed: 42,
+      basicEventDistributions: [],
+      cptRowDistributions: [],
+    };
+    const body = {
+      schemaVersion: "1.0.0",
+      modelId: HCL,
+      workbookRevision: 7,
+      integrateHazardGrid: true,
+      calculationType: "UNCERTAINTY",
+      evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
+      ...(kind === "fault-tree" ?
+        { faultTreeTopGate: topReference(FT_AND, TOP_AND) }
+      : { eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL } }),
+    };
+    try {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
+      const before = await runs.countDocuments().exec();
+      const response = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-batch-runs`)
+        .send(body);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain("Hazard convolution supports point runs only");
+      expect(await runs.countDocuments().exec()).toBe(before);
+      const point = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-batch-runs`)
+        .send({ ...body, calculationType: "PROBABILITY" });
+      expect(point.status).toBe(200);
+      const totals = kind === "fault-tree" ? [point.body.hazardConvolution] : point.body.hazardConvolution.sequences;
+      expect(totals.length).toBeGreaterThan(0);
+      expect(
+        totals.every((total: { convolvedProbability: number }) => Number.isFinite(total.convolvedProbability)),
+      ).toBe(true);
+      const saved = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+        mef: ReturnType<typeof createEsqMef>;
+      };
+      expect(saved.mef).toEqual(mef);
+      const scenarios = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-batch-runs`)
+        .send({ ...body, integrateHazardGrid: false });
+      expect(scenarios.status).toBe(200);
+      expect(scenarios.body.runs.every(({ run }: { run: { status: string } }) => run.status === "SUCCEEDED")).toBe(
+        true,
+      );
+    } finally {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
+    }
+  });
+
+  it("allows one-cell hazard grids with raw or normalized probability totals", async () => {
+    const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+    const original = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+      mef: ReturnType<typeof createEsqMef>;
+    };
+    const mef = structuredClone(original.mef);
+    try {
+      for (const normalize of [false, true]) {
+        mef.hclConfigurations[0]!.hazardGrid!.normalizeWeights = normalize;
+        await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
+        const response = await request(api.getHttpServer())
+          .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-batch-runs`)
+          .send({
+            schemaVersion: "1.0.0",
+            modelId: HCL,
+            workbookRevision: 7,
+            integrateHazardGrid: true,
+            faultTreeTopGate: topReference(FT_AND, TOP_AND),
+            evidenceScenarioIds: [SCENARIO_A_TRUE],
+          });
+        expect(response.status).toBe(200);
+        expect(response.body.hazardConvolution.convolvedProbability).toBeCloseTo(normalize ? 0.8 : 0.16, 12);
+      }
+    } finally {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
+    }
+  });
+
+  it("quantifies constant FT targets", async () => {
+    const workbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+    const original = (await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+      mef: ReturnType<typeof createEsqMef>;
+    };
+    const mef = structuredClone(original.mef);
+    mef.hclConfigurations[0]!.solverSettings.variableOrder = [EVENT_A, EVENT_CONSTANT_FALSE];
+    try {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
+      const response = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-batch-runs`)
+        .send({
+          schemaVersion: "1.0.0",
+          modelId: HCL,
+          workbookRevision: 7,
+          faultTreeTopGate: topReference(FT_MASKED, TOP_MASKED),
+          evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
+        });
+      expect(response.status).toBe(200);
+      for (const row of response.body.runs) {
+        expect(row.run).toMatchObject({ status: "SUCCEEDED", failure: null });
+        const result = await request(api.getHttpServer()).get(
+          `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/runs/${row.run.id}/result`,
+        );
+        expect(result.status).toBe(200);
+        expect(result.body.probability).toBe(0);
+      }
+    } finally {
+      await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
+    }
+  });
+
+  it("retains declared-target validation for FT and ET batches", async () => {
+    for (const kind of ["fault-tree", "event-tree"]) {
+      const response = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-batch-runs`)
+        .send({
+          schemaVersion: "1.0.0",
+          modelId: HCL,
+          workbookRevision: 7,
+          ...(kind === "fault-tree" ?
+            { faultTreeTopGate: topReference(FT_OR, TOP_OR) }
+          : { eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_INDEPENDENT } }),
+          evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
+        });
+      expect(response.status).toBe(400);
+      expect(response.body.message).toMatch(/not declared by the HCL configuration/i);
+    }
+  });
+
+  it.each((["fault-tree", "event-tree"] as const).flatMap((kind) => [1, 2].map((count) => [kind, count] as const)))(
+    "runs %s batches with %s identical evidence row(s)",
+    async (kind, count) => {
+      const original = createEsqMef().hclConfigurations[0]!.evidenceScenarios![0]!;
+      const scenarios = [
+        original,
+        { ...original, id: SCENARIO_A_FALSE, code: "REPEATED", name: "Repeated evidence" },
+      ].slice(0, count);
+      const response = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-batch-runs`)
+        .send({
+          schemaVersion: "1.0.0",
+          modelId: HCL,
+          workbookRevision: 7,
+          ...(kind === "fault-tree" ?
+            { faultTreeTopGate: topReference(FT_AND, TOP_AND) }
+          : { eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL } }),
+          evidenceScenarioIds: scenarios.map((row) => row.id),
+          batchInput: { evidenceScenarios: scenarios },
+        });
+      expect(response.status).toBe(200);
+      expect(response.body.runs).toHaveLength(count);
+      expect(response.body.compilationReuse).toEqual({
+        ...(kind === "fault-tree" ? { bddCompilations: 1 } : { sequenceBddCompilations: 4 }),
+        junctionTreeCompilations: 1,
+        scenarioEvaluations: count,
+      });
+      for (const row of response.body.runs) {
+        expect(row.run.status).toBe("SUCCEEDED");
+        const result = await request(api.getHttpServer()).get(
+          `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/runs/${row.run.id}/result`,
+        );
+        expect(result.status).toBe(200);
+        expect(result.body.compilationReuse).toEqual(response.body.compilationReuse);
+        if (kind === "fault-tree") {
+          expect(result.body.variableOrder).toEqual(expect.arrayContaining([EVENT_A, EVENT_B]));
+          expect(result.body.bridge.quantifications).toBe(1);
+        } else {
+          for (const sequence of result.body.sequences) {
+            expect(sequence.diagnostics.bdd.variableOrder).toEqual(expect.arrayContaining([EVENT_A, EVENT_B]));
+            expect(sequence.diagnostics.bridge.quantifications).toBe(1);
+            expect(sequence.diagnostics.junctionTree.numCliques).toBeGreaterThan(0);
+          }
+        }
+        const probability =
+          kind === "fault-tree" ?
+            result.body.probability
+          : result.body.sequences.find((sequence: { sequenceId: string }) => sequence.sequenceId === HCL_FF)
+              .conditionalProbability;
+        expect(probability).toBeCloseTo(0.8, 12);
+        const stored = await runs.findOne({ id: row.run.id }).lean().exec();
+        expect((stored?.result as { compilationReuse: unknown }).compilationReuse).toEqual(
+          response.body.compilationReuse,
+        );
+        expect(stored?.request["batchContext"]).toEqual({ evidenceScenarioIds: scenarios.map((s) => s.id) });
+        expect(stored?.request["evidenceScenario"]).toEqual(scenarios.find((s) => s.id === row.scenarioId));
+      }
+    },
+  );
+
+  it.each(["fault-tree", "event-tree"])(
+    "uses BN probabilities despite zero FT placeholders in %s batches",
+    async (kind) => {
+      const esqWorkbooks = api.get<Model<unknown>>(getModelToken(EsqWorkbook.name));
+      const originalEsq = (await esqWorkbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as {
+        mef: ReturnType<typeof createEsqMef>;
+      };
+      const originalSy = (await syWorkbooks.findOne({ workbookId: SY_WORKBOOK_ID }).lean().exec()) as unknown as {
+        mef: ReturnType<typeof createSyMef>;
+      };
+      const esq = structuredClone(originalEsq.mef);
+      const sy = structuredClone(originalSy.mef);
+      const bn = esq.bayesianNetworks[0]!;
+      bn.edges = [];
+      const cpt = bn.conditionalProbabilityTables.find((table) => table.nodeId === NODE_B)!;
+      cpt.parents = [];
+      cpt.rows = [{ ...cpt.rows[1]!, parentStates: [] }]; // Independent P(B=true)=0.8.
+      sy.systemBasicEvents.find((event) => event.uuid === EVENT_B)!.probability = 0; // Unused because B is BN-linked.
+      try {
+        await esqWorkbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: esq } }).exec();
+        await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef: sy } }).exec();
+        const response = await request(api.getHttpServer())
+          .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/${kind}-batch-runs`)
+          .send({
+            schemaVersion: "1.0.0",
+            modelId: HCL,
+            workbookRevision: 7,
+            ...(kind === "fault-tree" ?
+              { faultTreeTopGate: topReference(FT_AND, TOP_AND) }
+            : { eventTree: { workbookId: ES_WORKBOOK_ID, modelId: ET_HCL } }),
+            evidenceScenarioIds: [SCENARIO_A_FALSE, SCENARIO_A_TRUE],
+          });
+        expect(response.status).toBe(200);
+        const probabilities = [];
+        for (const row of response.body.runs) {
+          expect(row.run.status).toBe("SUCCEEDED");
+          const result = await request(api.getHttpServer()).get(
+            `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/runs/${row.run.id}/result`,
+          );
+          expect(result.status).toBe(200);
+          probabilities.push(
+            kind === "fault-tree" ?
+              result.body.probability
+            : result.body.sequences.find((sequence: { sequenceId: string }) => sequence.sequenceId === HCL_FF)
+                .conditionalProbability,
+          );
+        }
+        expect(probabilities).toEqual([0, expect.closeTo(0.8, 12)]);
+      } finally {
+        await esqWorkbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: originalEsq.mef } }).exec();
+        await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef: originalSy.mef } }).exec();
+      }
+    },
+  );
 
   it.each(["sfr", "htgr"] as const)(
     "executes and traces the connected %s example through its real workbook revisions",
@@ -1519,7 +3063,9 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(bnResult.status).toBe(200);
 
     const hcl = await request(api.getHttpServer())
-      .post(`/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`)
+      .post(
+        `/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`,
+      )
       .send({
         schemaVersion: "1.0.0",
         modelId: HCL_CASE_BAYESIAN_IDS.hclConfiguration,
@@ -1535,7 +3081,7 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(hcl.body.run.status).toBe("SUCCEEDED");
   });
 
-  it("recovers stale DA and HRA workbook references by entity identity within the project", async () => {
+  it("requires explicit relinking of missing DA/HRA workbooks", async () => {
     const staleSystems = reconcileExampleSyDependencyOwnership(
       structuredClone(SY_ANALYSIS_HCL),
       HCL_CASE_STALE_SY_WORKBOOK_ID,
@@ -1549,7 +3095,9 @@ describe("workbook-owned analysis-run APIs", () => {
     });
 
     const response = await request(api.getHttpServer())
-      .post(`/api/sy-workbooks/${HCL_CASE_STALE_SY_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`)
+      .post(
+        `/api/sy-workbooks/${HCL_CASE_STALE_SY_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`,
+      )
       .send({
         schemaVersion: "1.0.0",
         modelId: HCL_CASE_BAYESIAN_IDS.hclConfiguration,
@@ -1562,15 +3110,37 @@ describe("workbook-owned analysis-run APIs", () => {
         },
       });
 
-    expect(response.status).toBe(200);
-    expect(response.body.run.status).toBe("SUCCEEDED");
-    expect(response.body.run.sourceWorkbooks).toEqual(expect.arrayContaining([
-      { workbookId: HCL_CASE_DA_WORKBOOK_ID, workbookRevision: 2 },
-      { workbookId: HCL_CASE_HR_WORKBOOK_ID, workbookRevision: 3 },
-    ]));
+    expect(response.status).toBe(400);
+    expect(response.body.message).toMatch(/Relink .* explicitly/);
+    const repaired = reconcileExampleSyHumanReliabilityReferences(
+      reconcileExampleSyDataAnalysisReferences(staleSystems, DA_ANALYSIS_HCL, HCL_CASE_DA_WORKBOOK_ID),
+      HR_ANALYSIS_HCL,
+      HCL_CASE_HR_WORKBOOK_ID,
+    );
+    await syWorkbooks.updateOne(
+      { workbookId: HCL_CASE_STALE_SY_WORKBOOK_ID },
+      { $set: { mef: repaired, revision: 2 } },
+    );
+    const rerun = await request(api.getHttpServer())
+      .post(
+        `/api/sy-workbooks/${HCL_CASE_STALE_SY_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`,
+      )
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: HCL_CASE_BAYESIAN_IDS.hclConfiguration,
+        workbookRevision: 2,
+        faultTreeTopGate: {
+          referenceType: "FAULT_TREE_TOP_EVENT",
+          workbookId: HCL_CASE_STALE_SY_WORKBOOK_ID,
+          modelId: HCL_CASE_FAULT_TREE_MODEL_IDS.FEED_BLEED,
+          entityId: HCL_CASE_FAULT_TREE_TOP_GATE_IDS.FEED_BLEED,
+        },
+      });
+    expect(rerun.status).toBe(200);
+    expect(rerun.body.run.status).toBe("SUCCEEDED");
   });
 
-  it("executes the dissertation HCL case-study FT and all three event trees", async () => {
+  it("checks reconstructed dissertation inputs against an independent BN for the FT and every ET sequence", async () => {
     const configurationId = HCL_CASE_BAYESIAN_IDS.hclConfiguration;
     const runIds: string[] = [];
     const faultTree = await request(api.getHttpServer())
@@ -1592,8 +3162,14 @@ describe("workbook-owned analysis-run APIs", () => {
       `/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${configurationId}/runs/${faultTree.body.run.id}/result`,
     );
     expect(faultTreeResult.status).toBe(200);
-    expect(faultTreeResult.body.probability).toBeGreaterThanOrEqual(0);
-    expect(faultTreeResult.body.probability).toBeLessThanOrEqual(1);
+    const savedFt = (await runs.findOne({ id: faultTree.body.run.id }).lean().exec())!;
+    if (savedFt.target?.targetType !== "HCL_FAULT_TREE") throw new Error("Wrong saved FT target");
+    const ftOracle = new WorkbookOracle(savedFt.workbookSnapshots, savedFt.target.configuration);
+    assertProbability(
+      faultTreeResult.body.probability,
+      await ftOracle.faultTree(savedFt.target.faultTreeTopEvent, (envelope) => praetorClient.execute(envelope)),
+      "Case-study FT",
+    );
     expect(faultTree.body.run.sourceWorkbooks).toContainEqual({
       workbookId: HCL_CASE_DA_WORKBOOK_ID,
       workbookRevision: 2,
@@ -1604,8 +3180,9 @@ describe("workbook-owned analysis-run APIs", () => {
     });
 
     for (const [treeKey, sequenceCount] of [
-      ["LOOP", 20],
-      ["SBO", 12],
+      // LOOP: 19 terminal paths + SBO; SBO: 10 terminal paths + 2 * 13 FLEX paths.
+      ["LOOP", 55],
+      ["SBO", 36],
       ["FLEX", 13],
     ] as const) {
       const eventTree = await request(api.getHttpServer())
@@ -1641,6 +3218,19 @@ describe("workbook-owned analysis-run APIs", () => {
         failure: null,
       });
       expect(eventTreeResult.body.sequences).toHaveLength(sequenceCount);
+      if (storedEventTreeRun?.target?.targetType !== "HCL_EVENT_TREE") throw new Error("Wrong saved ET target");
+      const oracle = new WorkbookOracle(storedEventTreeRun.workbookSnapshots, storedEventTreeRun.target.configuration);
+      // Source BDD complement subtraction loses absolute precision on rare
+      // noncoherent paths. Bound roundoff AND relative error (0.1% maximum);
+      // a lost positive path can never pass. Compact cases use pure relative checks.
+      await oracle.verifyEventTree(
+        storedEventTreeRun.target.eventTree,
+        eventTreeResult.body,
+        (envelope) => praetorClient.execute(envelope),
+        [],
+        false,
+        4 * Number.EPSILON,
+      );
       expect(
         eventTreeResult.body.sequences.reduce(
           (sum: number, sequence: { conditionalProbability: number }) => sum + sequence.conditionalProbability,
@@ -1650,7 +3240,9 @@ describe("workbook-owned analysis-run APIs", () => {
     }
 
     const eventTreeBatch = await request(api.getHttpServer())
-      .post(`/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${configurationId}/event-tree-batch-runs`)
+      .post(
+        `/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${configurationId}/event-tree-batch-runs`,
+      )
       .send({
         schemaVersion: "1.0.0",
         modelId: configurationId,
@@ -1671,8 +3263,24 @@ describe("workbook-owned analysis-run APIs", () => {
       body: expect.objectContaining({ runs: expect.any(Array) }),
     });
     expect(eventTreeBatch.body.runs).toHaveLength(2);
-    expect(eventTreeBatch.body.runs.every(({ run }: { run: { status: string } }) => run.status === "SUCCEEDED")).toBe(true);
-    runIds.push(...eventTreeBatch.body.runs.map(({ run }: { run: { id: string } }) => run.id));
+    expect(eventTreeBatch.body.runs.every(({ run }: { run: { status: string } }) => run.status === "SUCCEEDED")).toBe(
+      true,
+    );
+    for (const row of eventTreeBatch.body.runs) {
+      const saved = (await runs.findOne({ id: row.run.id }).lean().exec())!;
+      if (saved.target?.targetType !== "HCL_EVENT_TREE") throw new Error("Wrong saved batch target");
+      const oracle = new WorkbookOracle(saved.workbookSnapshots, saved.target.configuration);
+      const scenario = oracle.configuration.evidenceScenarios!.find((s) => s.id === row.scenarioId)!;
+      await oracle.verifyEventTree(
+        saved.target.eventTree,
+        saved.result as Parameters<WorkbookOracle["verifyEventTree"]>[1],
+        (envelope) => praetorClient.execute(envelope),
+        scenario.evidence.observations,
+        false,
+        4 * Number.EPSILON,
+      );
+    }
+    runIds.push(eventTreeBatch.body.batchId);
 
     const provenance = await request(api.getHttpServer()).get(
       `/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/analysis-runs`,
@@ -1841,4 +3449,358 @@ describe("workbook-owned analysis-run APIs", () => {
     );
     expect(unavailable.status).toBe(409);
   }, 120_000);
+
+  it.each([false, true])("saves native deadline failures (batch=%s)", async (batch) => {
+    const previous = process.env["PRAETOR_NATIVE_TIMEOUT_MS"];
+    process.env["PRAETOR_NATIVE_TIMEOUT_MS"] = "1";
+    try {
+      const response = await request(api.getHttpServer())
+        .post(
+          batch ?
+            `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-batch-runs`
+          : `/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs`,
+        )
+        .send(
+          batch ?
+            {
+              schemaVersion: "1.0.0",
+              modelId: HCL,
+              workbookRevision: 7,
+              faultTreeTopGate: topReference(FT_AND, TOP_AND),
+              evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
+            }
+          : { schemaVersion: "1.0.0", modelId: FT_OR, workbookRevision: 3 },
+        );
+      expect(response.status).toBe(200);
+      const rows = batch ? response.body.runs.map((row: { run: { id: string } }) => row.run) : [response.body.run];
+      for (const row of rows) {
+        expect(row).toMatchObject({ status: "FAILED", failure: { code: "PRAXIS_TIMEOUT" } });
+        const stored = await runs.findOne({ id: row.id }).lean().exec();
+        expect(stored).toMatchObject({ status: "FAILED", failure: { code: "PRAXIS_TIMEOUT" }, result: null });
+      }
+    } finally {
+      if (previous === undefined) delete process.env["PRAETOR_NATIVE_TIMEOUT_MS"];
+      else process.env["PRAETOR_NATIVE_TIMEOUT_MS"] = previous;
+    }
+  });
+
+  it("cancels only the disconnected browser request and records its failure", async () => {
+    let entered!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    jest.spyOn(praetorClient, "execute").mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          const signal = analysisRequestSignal.getStore()!;
+          signal.addEventListener(
+            "abort",
+            () =>
+              resolve({
+                schemaVersion: "1.0.0",
+                error: { kind: "EXECUTION_ERROR", code: "PRAXIS_CANCELLED", message: "Cancelled", details: {} },
+              }),
+            { once: true },
+          );
+          entered();
+        }),
+    );
+    const server = api.getHttpServer();
+    if (!server.listening) await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address() as AddressInfo;
+    const controller = new AbortController();
+    const pending = fetch(
+      `http://127.0.0.1:${address.port}/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ schemaVersion: "1.0.0", modelId: FT_OR, workbookRevision: 3 }),
+        signal: controller.signal,
+      },
+    );
+    const aborted = expect(pending).rejects.toHaveProperty("name", "AbortError");
+    await ready;
+    const running = await runs.findOne({ status: "RUNNING" }).lean().exec();
+    controller.abort();
+    await aborted;
+    let stored = await runs.findOne({ id: running!.id }).lean().exec();
+    for (let i = 0; i < 100 && stored?.status !== "FAILED"; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      stored = await runs.findOne({ id: running!.id }).lean().exec();
+    }
+    expect(stored).toMatchObject({ status: "FAILED", failure: { code: "PRAXIS_CANCELLED" }, result: null });
+    const next = await request(server)
+      .post(`/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs`)
+      .send({ schemaVersion: "1.0.0", modelId: FT_OR, workbookRevision: 3 });
+    expect(next.body.run.status).toBe("SUCCEEDED");
+  });
+  it("pins each HCL workbook once and records the exact request and native build", async () => {
+    const readSpy = jest.spyOn(syWorkbooks, "findOne");
+    const response = await request(api.getHttpServer())
+      .post(
+        `/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`,
+      )
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: HCL_CASE_BAYESIAN_IDS.hclConfiguration,
+        workbookRevision: 1,
+        faultTreeTopGate: {
+          referenceType: "FAULT_TREE_TOP_EVENT",
+          workbookId: HCL_CASE_SY_WORKBOOK_ID,
+          modelId: HCL_CASE_FAULT_TREE_MODEL_IDS.FEED_BLEED,
+          entityId: HCL_CASE_FAULT_TREE_TOP_GATE_IDS.FEED_BLEED,
+        },
+      });
+    expect(response.body.run.status).toBe("SUCCEEDED");
+    expect(
+      readSpy.mock.calls.filter(([query]) => (query as { workbookId?: string }).workbookId === HCL_CASE_SY_WORKBOOK_ID),
+    ).toHaveLength(1);
+    const saved = await runs.findOne({ id: response.body.run.id }).lean().exec();
+    expect(saved!.nativeRequest).toMatchObject({
+      schemaVersion: "1.0.0",
+      request: { methodType: "HYBRID_CAUSAL_LOGIC" },
+      resources: { faultTreeBasicEventCatalogue: expect.any(Object) },
+    });
+    expect(saved!.engine?.version).toMatch(/^sha256:[0-9a-f]{64}$/);
+    const replay = await praetorClient.execute(saved!.nativeRequest);
+    expect(replay.error).toBeUndefined();
+    expect(replay.engine).toEqual(saved!.engine);
+    expect(replay.result!["probability"]).toBe((saved!.result as { probability: number }).probability);
+  });
+
+  it("preserves old inputs and detects changes in DA and HRA sources", async () => {
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${CONTROLLED_SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs`)
+      .send({ schemaVersion: "1.0.0", modelId: FT_OR, workbookRevision: 4 });
+    expect(response.body.run.status).toBe("SUCCEEDED");
+    const saved = await runs.findOne({ id: response.body.run.id }).lean().exec();
+    const hr = api.get<Model<unknown>>(getModelToken(HrWorkbook.name));
+    await daWorkbooks.updateOne({ workbookId: DA_WORKBOOK_ID }, { $inc: { revision: 1 } });
+    await hr.updateOne({ workbookId: HCL_CASE_HR_WORKBOOK_ID }, { $inc: { revision: 1 } });
+    try {
+      const details = await request(api.getHttpServer()).get(
+        `/api/sy-workbooks/${CONTROLLED_SY_WORKBOOK_ID}/analysis-runs/${saved!.id}/details`,
+      );
+      expect(details.status).toBe(200);
+      expect(details.body.run.freshness.status).toBe("STALE");
+      expect(
+        details.body.run.freshness.sources.filter((row: { status: string }) => row.status === "CHANGED"),
+      ).toHaveLength(2);
+      expect(details.body.nativeRequest).toEqual(saved!.nativeRequest);
+      expect(details.body.result).toEqual(saved!.result);
+      const replay = await praetorClient.execute(details.body.nativeRequest);
+      expect(replay.result!["topEventProbability"]).toBe(
+        (saved!.result as { topEventProbability: number }).topEventProbability,
+      );
+    } finally {
+      await daWorkbooks.updateOne({ workbookId: DA_WORKBOOK_ID }, { $inc: { revision: -1 } });
+      await hr.updateOne({ workbookId: HCL_CASE_HR_WORKBOOK_ID }, { $inc: { revision: -1 } });
+    }
+  });
+
+  it("rechecks source-project access for metadata, results, details and history", async () => {
+    const foreignProject = "000000000000000000000041";
+    await daWorkbooks.updateOne({ workbookId: DA_WORKBOOK_ID }, { $set: { projectId: foreignProject } });
+    try {
+      const response = await request(api.getHttpServer())
+        .post(`/api/sy-workbooks/${CONTROLLED_SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs`)
+        .send({ schemaVersion: "1.0.0", modelId: FT_OR, workbookRevision: 4 });
+      expect(response.body.run.status).toBe("SUCCEEDED");
+      const id = response.body.run.id;
+      jest.spyOn(api.get(ProjectsService), "resolveAccess").mockImplementation(async (projectId: string) => {
+        if (projectId === foreignProject) throw new ForbiddenException("Access revoked");
+        return { role: "editor" } as never;
+      });
+      for (const url of [
+        `/analysis-runs/${id}`,
+        `/analysis-runs/${id}/details`,
+        `/fault-trees/${FT_OR}/runs/${id}/result`,
+      ]) {
+        expect(
+          (await request(api.getHttpServer()).get(`/api/sy-workbooks/${CONTROLLED_SY_WORKBOOK_ID}${url}`)).status,
+        ).toBe(403);
+      }
+      const history = await request(api.getHttpServer()).get(
+        `/api/sy-workbooks/${CONTROLLED_SY_WORKBOOK_ID}/analysis-runs`,
+      );
+      expect(history.status).toBe(200);
+      expect(history.body.runs.some((row: { run: { id: string } }) => row.run.id === id)).toBe(false);
+    } finally {
+      await daWorkbooks.updateOne({ workbookId: DA_WORKBOOK_ID }, { $set: { projectId: PROJECT_ID } });
+    }
+  });
+
+  it("retains authorized history after a source is deleted and denies unverifiable legacy access", async () => {
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${CONTROLLED_SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs`)
+      .send({ schemaVersion: "1.0.0", modelId: FT_OR, workbookRevision: 4 });
+    const id = response.body.run.id;
+    const source = await daWorkbooks.findOne({ workbookId: DA_WORKBOOK_ID }).lean().exec();
+    const original = await runs.findOne({ id }).lean().exec();
+    const { _id, ...legacy } = original!;
+    const legacyId = randomUUID();
+    await runs.create({
+      ...legacy,
+      id: legacyId,
+      target: null,
+      contributions: null,
+      workbookSnapshots: legacy.workbookSnapshots.map(({ projectId, ...snapshot }) => snapshot),
+      nativeRequest: null,
+    });
+    await daWorkbooks.deleteOne({ workbookId: DA_WORKBOOK_ID });
+    try {
+      const current = await request(api.getHttpServer()).get(
+        `/api/sy-workbooks/${CONTROLLED_SY_WORKBOOK_ID}/analysis-runs/${id}/details`,
+      );
+      expect(current.status).toBe(200);
+      expect(current.body.run.freshness.sources).toContainEqual({
+        workbookId: DA_WORKBOOK_ID,
+        savedRevision: 6,
+        currentRevision: null,
+        status: "MISSING",
+      });
+      expect(current.body.result).toEqual(original!.result);
+      const historical = await request(api.getHttpServer()).get(
+        `/api/sy-workbooks/${CONTROLLED_SY_WORKBOOK_ID}/analysis-runs/${legacyId}/details`,
+      );
+      expect(historical.status).toBe(404);
+    } finally {
+      await daWorkbooks.create(source!);
+      await runs.deleteOne({ id: legacyId });
+    }
+  });
+
+  it("stores and retrieves complete hazard batches without recomputing weights", async () => {
+    const response = await request(api.getHttpServer())
+      .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-batch-runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: HCL,
+        workbookRevision: 7,
+        faultTreeTopGate: topReference(FT_AND, TOP_AND),
+        evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
+        integrateHazardGrid: true,
+      });
+    expect(response.body.runs.every((row: { run: { status: string } }) => row.run.status === "SUCCEEDED")).toBe(true);
+    const id = response.body.batchId;
+    expect(id).toEqual(expect.any(String));
+    const stored = await request(api.getHttpServer()).get(
+      `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/analysis-runs/${id}/details`,
+    );
+    expect(stored.status).toBe(200);
+    expect(stored.body.run.scope).toBe("BATCH");
+    expect(stored.body.result).toEqual(response.body);
+    expect(stored.body.members).toHaveLength(2);
+    expect(stored.body.nativeRequest.request.evidenceBatch).toHaveLength(2);
+    expect(stored.body.result.hazardConvolution).toEqual(response.body.hazardConvolution);
+    const first = await request(api.getHttpServer()).get(
+      `/api/esq-workbooks/${ESQ_WORKBOOK_ID}/analysis-runs/${response.body.runs[0].run.id}/details`,
+    );
+    expect(first.body.nativeRequest).toEqual(stored.body.nativeRequest);
+  });
+
+  it("pages all histories, includes ordinary/legacy runs, and enforces workbook ownership", async () => {
+    const seed = await runs
+      .findOne({ "owner.workbookId": SY_WORKBOOK_ID, methodType: "FAULT_TREE", status: "SUCCEEDED", scope: "SINGLE" })
+      .lean()
+      .exec();
+    const { _id, ...template } = seed!;
+    const ids = Array.from({ length: 30 }, () => randomUUID());
+    const date = new Date(Date.now() + 1000);
+    await runs.insertMany(
+      ids.map((id) => ({
+        ...template,
+        id,
+        target: null,
+        contributions: null,
+        requestedAt: date,
+        startedAt: date,
+        completedAt: date,
+      })),
+    );
+    try {
+      const first = await request(api.getHttpServer()).get(`/api/sy-workbooks/${SY_WORKBOOK_ID}/analysis-runs`);
+      expect(first.status).toBe(200);
+      expect(first.body.runs).toHaveLength(25);
+      const next = await request(api.getHttpServer())
+        .get(`/api/sy-workbooks/${SY_WORKBOOK_ID}/analysis-runs`)
+        .query({ cursor: first.body.nextCursor });
+      const combined = [...first.body.runs, ...next.body.runs].map((row: { run: { id: string } }) => row.run.id);
+      expect(new Set(combined).size).toBe(combined.length);
+      expect(ids.every((id) => combined.includes(id))).toBe(true);
+      expect(first.body.runs[0].target).toBeNull();
+      expect(
+        (
+          await request(api.getHttpServer()).get(
+            `/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/analysis-runs/${ids[0]}/details`,
+          )
+        ).status,
+      ).toBe(404);
+      expect(
+        (await request(api.getHttpServer()).get(`/api/sy-workbooks/${SY_WORKBOOK_ID}/analysis-runs?cursor=invalid`))
+          .status,
+      ).toBe(400);
+      const ordinaryEt = await request(api.getHttpServer()).get(`/api/es-workbooks/${ES_WORKBOOK_ID}/analysis-runs`);
+      expect(
+        ordinaryEt.body.runs.some((row: { run: { methodType: string } }) => row.run.methodType === "EVENT_TREE"),
+      ).toBe(true);
+    } finally {
+      await runs.deleteMany({ id: { $in: ids } });
+    }
+  });
+
+  it.each(["malformed second result", "failed child write"])(
+    "does not leave a partially successful batch after %s",
+    async (failure) => {
+      if (failure === "malformed second result") {
+        const execute = praetorClient.execute.bind(praetorClient);
+        jest.spyOn(praetorClient, "execute").mockImplementationOnce(async (envelope) => {
+          const response = await execute(envelope);
+          (response.result!["batchResults"] as Array<Record<string, unknown>>)[1]!["probability"] = -1;
+          return response;
+        });
+      } else {
+        jest
+          .spyOn(runs, "updateOne")
+          .mockImplementationOnce(
+            () => ({ exec: () => Promise.reject(new Error("Test child write failure")) }) as never,
+          );
+      }
+      const response = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${ESQ_WORKBOOK_ID}/hcl-configurations/${HCL}/fault-tree-batch-runs`)
+        .send({
+          schemaVersion: "1.0.0",
+          modelId: HCL,
+          workbookRevision: 7,
+          faultTreeTopGate: topReference(FT_AND, TOP_AND),
+          evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE],
+        });
+      expect(response.status).toBeGreaterThanOrEqual(500);
+      const parent = await runs.findOne({ scope: "BATCH" }).sort({ requestedAt: -1 }).lean().exec();
+      const records = await runs
+        .find({ $or: [{ id: parent!.id }, { batchId: parent!.id }] })
+        .lean()
+        .exec();
+      expect(records).toHaveLength(3);
+      expect(records.every((row) => row.status === "FAILED" && row.result === null)).toBe(true);
+    },
+  );
+});
+// API regressions isolate the object-store dependency; the storage campaign
+// separately exercises these same routes against real MinIO and MongoDB.
+jest.mock("../../../storage/model-payload-store", () => {
+  const actual = jest.requireActual("../../../storage/model-payload-store");
+  const { stringifyJson } = jest.requireActual("interfaces-shared-types/json");
+  const { createHash } = jest.requireActual("node:crypto");
+  const objects = new Map<string, string>();
+  return { ...actual, modelPayloadStore: {
+    put: async (value: unknown) => {
+      const text = stringifyJson(value);
+      if (!text || Buffer.byteLength(text) < actual.INLINE_PAYLOAD_BYTES) return undefined;
+      const sha256 = createHash("sha256").update(text).digest("hex");
+      objects.set(sha256, text);
+      return { format: "json-gzip-v1", key: sha256, sha256, bytes: Buffer.byteLength(text) };
+    },
+    get: async ({ key }: { key: string }) => JSON.parse(objects.get(key)!),
+  } };
 });

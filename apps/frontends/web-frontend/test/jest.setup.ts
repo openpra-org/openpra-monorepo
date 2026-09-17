@@ -1,4 +1,8 @@
+import { deserialize, serialize } from "node:v8";
 import "@testing-library/jest-dom";
+
+// jsdom does not expose the browser structuredClone API used by workbook projections.
+globalThis.structuredClone ??= <T,>(value: T): T => deserialize(serialize(value)) as T;
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

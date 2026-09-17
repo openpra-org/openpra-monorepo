@@ -135,6 +135,22 @@ const configuration = HclConfigurationModelSchema.parse({
 });
 
 describe("HCL semantic validation", () => {
+  it.each([
+    [{ family: "BETA", alpha: 2, beta: 8, trueStateId: TRUE_STATE_ID }, true],
+    [{ family: "BETA", alpha: 2, beta: 8, trueStateId: BASIC_EVENT_ID }, false],
+    [{ family: "DIRICHLET", alpha: [8, 2] }, true],
+    [{ family: "DIRICHLET", alpha: [8, 1, 1] }, false],
+  ])("checks the CPT prior against the referenced BN states: %j", (prior, valid) => {
+    const model = HclConfigurationModelSchema.parse({ ...configuration, solverSettings: {
+      ...configuration.solverSettings,
+      uncertainty: { sampleCount: 513, seed: 42, sampler: "LHS", basicEventDistributions: [], cptRowDistributions: [{
+        bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: BN_WORKBOOK_ID, modelId: BN_ID, entityId: NODE_ID },
+        cptRowId: bayesianNetwork.conditionalProbabilityTables[0]!.rows[0]!.id, prior,
+      }] },
+    } });
+    const issues = validateHclConfigurationModel(model, { bayesianNetworks: [{ workbookId: BN_WORKBOOK_ID, model: bayesianNetwork }], faultTrees: [{ workbookId: FT_WORKBOOK_ID, model: faultTree }] });
+    expect(issues.some((issue) => issue.code === "HCL_CPT_PRIOR_INVALID")).toBe(!valid);
+  });
   it("accepts resolved BN, FT, bound event, node, and true-state references", () => {
     expect(
       validateHclConfigurationModel(configuration, {
@@ -199,5 +215,29 @@ describe("HCL semantic validation", () => {
     expect(draft.saveAllowed).toBe(true);
     expect(analysis.validation.valid).toBe(false);
     expect(analysis.quantificationAllowed).toBe(false);
+  });
+});
+
+
+describe("seismic generators resolve against the BN", () => {
+  it.each([FALSE_STATE_ID, GATE_ID])("checks PGA-bin state coverage: %s", (noneStateId) => {
+    const model = HclConfigurationModelSchema.parse({ ...configuration, solverSettings: { ...configuration.solverSettings,
+      uncertainty: { sampleCount: 100, seed: 42, basicEventDistributions: [], cptRowDistributions: [], cptGenerators: [{
+        bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: BN_WORKBOOK_ID, modelId: BN_ID, entityId: NODE_ID },
+        generator: { type: "seismic_pga_bins", noneStateId, missionTime: 1, frequencyToProbability: "poisson", bins: [{ stateId: TRUE_STATE_ID, medianFrequency: .01, errorFactor95: 2 }] },
+      }] },
+    } });
+    const issues = validateHclConfigurationModel(model, { bayesianNetworks: [{ workbookId: BN_WORKBOOK_ID, model: bayesianNetwork }], faultTrees: [{ workbookId: FT_WORKBOOK_ID, model: faultTree }] });
+    expect(issues.some((i) => i.code === "HCL_CPT_GENERATOR_INVALID")).toBe(noneStateId !== FALSE_STATE_ID);
+  });
+  it("rejects fragility whose PGA node is not a parent", () => {
+    const model = HclConfigurationModelSchema.parse({ ...configuration, solverSettings: { ...configuration.solverSettings,
+      uncertainty: { sampleCount: 100, seed: 42, basicEventDistributions: [], cptRowDistributions: [], cptGenerators: [{
+        bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: BN_WORKBOOK_ID, modelId: BN_ID, entityId: NODE_ID },
+        generator: { type: "seismic_fragility", pgaParentId: NODE_ID, theta: .5, betaR: .3, betaU: 0, trueStateId: TRUE_STATE_ID, falseStateId: FALSE_STATE_ID, pgaCenters: [{ stateId: TRUE_STATE_ID, value: .5 }, { stateId: FALSE_STATE_ID, value: 0 }] },
+      }] },
+    } });
+    const issues = validateHclConfigurationModel(model, { bayesianNetworks: [{ workbookId: BN_WORKBOOK_ID, model: bayesianNetwork }] });
+    expect(issues.some((i) => i.code === "HCL_CPT_GENERATOR_INVALID")).toBe(true);
   });
 });

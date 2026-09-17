@@ -45,7 +45,7 @@ const BayesianNetworkNodeStateSchema = z
   .strict();
 
 const BayesianNetworkNodeStatesSchema = z
-  .tuple([BayesianNetworkNodeStateSchema, BayesianNetworkNodeStateSchema])
+  .tuple([BayesianNetworkNodeStateSchema])
   .rest(BayesianNetworkNodeStateSchema);
 
 const BayesianNetworkChanceNodeSchema = BayesianNetworkEntityIdentitySchema.extend({
@@ -85,7 +85,7 @@ const BayesianNetworkCptValueSchema = z
   .strict();
 
 const BayesianNetworkCptValuesSchema = z
-  .tuple([BayesianNetworkCptValueSchema, BayesianNetworkCptValueSchema])
+  .tuple([BayesianNetworkCptValueSchema])
   .rest(BayesianNetworkCptValueSchema);
 
 const BayesianNetworkCptRowSchema = z

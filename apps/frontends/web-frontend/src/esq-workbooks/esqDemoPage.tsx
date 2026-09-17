@@ -1,7 +1,5 @@
 import { JSX, useCallback, useEffect, useState } from "react";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
-import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
 import { fetchEsqLinkedInputs } from "./esqWorkbookApi";
 import { EsqWorkbench } from "./esqWorkbench";
@@ -17,8 +15,6 @@ interface EsqExampleResponse {
 
 interface EsqBundleResponse {
   esq: EsqExampleResponse;
-  configurationControl: EsqExampleResponse;
-  newlyDevelopedMethods: EsqExampleResponse[];
 }
 
 function EsqDemoPage(): JSX.Element {
@@ -33,8 +29,6 @@ function EsqDemoPage(): JSX.Element {
         if (cancelled) return;
         setData({
           esq: res.esq.mef as EventSequenceQuantification,
-          cc: res.configurationControl.mef as PRAConfigurationControl,
-          nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
           links: null,
         });
         const variant = (res.esq.mef as EventSequenceQuantification).uuid === "esq-generic-2" ? "htgr" : "sfr";

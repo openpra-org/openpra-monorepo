@@ -188,11 +188,19 @@ function reorderParents(
   nodeId: string,
   parentIds: readonly string[],
 ): BayesianNetworkModel {
-  return rebuildCpt(
-    model,
-    nodeId,
-    parentIds.map((parentId, order) => ({ nodeId: parentId, order })),
-  );
+  const table = model.conditionalProbabilityTables.find((candidate) => candidate.nodeId === nodeId);
+  if (table === undefined) throw new Error("The node has no CPT to reorder.");
+  const existing = new Set(table.parents.map((parent) => parent.nodeId));
+  if (existing.size !== table.parents.length || parentIds.length !== existing.size
+    || new Set(parentIds).size !== existing.size || parentIds.some((id) => !existing.has(id))) {
+    throw new Error("Reordering must keep exactly the same CPT parents.");
+  }
+  // HCL_MH HraBuilder._make_template_cpd_generator preserves each parent-state assignment.
+  // Our explicit row keys already encode those assignments; only the axis order changes.
+  return replaceCpt(model, nodeId, {
+    ...table,
+    parents: parentIds.map((parentId, order) => ({ nodeId: parentId, order })),
+  });
 }
 
 function rebuildNodeAndChildren(model: BayesianNetworkModel, nodeId: string): BayesianNetworkModel {

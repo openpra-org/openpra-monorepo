@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { RcPublishedExampleService } from "./rc-published-example.service";
+import { RC_PUBLISHED_SLUG } from "../example-workbooks/seeds/rc-published-inputs-seed";
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { isDeepStrictEqual } from "util";
+import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
+import { withSourceTermSummary } from "interfaces-shared-types/rc-workbooks/source-term-summary";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { RadiologicalConsequenceAnalysisSchema } from "interfaces-mef-types/zod/rc/radiological-consequence-analysis";
@@ -48,6 +53,7 @@ export class RcWorkbooksService {
     private readonly exampleWorkbooksService: ExampleWorkbooksService,
     private readonly rolesService: WorkbookRolesService,
     private readonly rcDocumentsService: RcDocumentsService,
+    private readonly publishedExample: RcPublishedExampleService,
   ) {}
 
   private async loadMyRoles(workbookId: string, username: string): Promise<WorkbookRoleName[]> {
@@ -71,9 +77,38 @@ export class RcWorkbooksService {
     if (!parsed.success) {
       throw new ForbiddenException(`Invalid RC workbook payload: ${parsed.error.message}`);
     }
-    doc.mef = parsed.data;
-    await doc.save();
     const myRoles = await this.loadMyRoles(workbookId, acting.username);
+    const before = stripNulls(doc.mef) as RadiologicalConsequenceAnalysis;
+    if (!isDeepStrictEqual(before.consequenceQuantification.caseRecords, parsed.data.consequenceQuantification.caseRecords))
+      throw new ConflictException("Use the case-record endpoints to change snapshots or linked results");
+    if (!isDeepStrictEqual(before.dosimetry.doseInputs, parsed.data.dosimetry.doseInputs))
+      throw new ConflictException("Use the dose-input endpoints to change saved inputs");
+    if (!isDeepStrictEqual(before.atmosphericTransportAndDispersion.transportInputs, parsed.data.atmosphericTransportAndDispersion.transportInputs))
+      throw new ConflictException("Transport inputs must be saved using the atmospheric dispersion editor. Reload if they changed");
+    if (!isDeepStrictEqual(before.meteorologicalData.weatherInputs, parsed.data.meteorologicalData.weatherInputs))
+      throw new ConflictException("Weather inputs must be saved using the meteorology editor. Reload if they changed");
+    if (!isDeepStrictEqual(before.protectiveActionParameters.siteAndReceptors, parsed.data.protectiveActionParameters.siteAndReceptors))
+      throw new ConflictException("Site inputs must be saved using the site and receptor editor. Reload if they changed");
+    if (before.workflowState !== parsed.data.workflowState) throw new ForbiddenException("Use the workbook review actions to change workflow state");
+    const oldCategories = before.releaseCategoryToConsequence.releaseCategoryInputs;
+    const nextCategories = parsed.data.releaseCategoryToConsequence.releaseCategoryInputs;
+    if (new Set(nextCategories.map((c) => c.releaseCategory)).size !== nextCategories.length)
+      throw new ForbiddenException("Release category identifiers must be unique");
+    if (!isDeepStrictEqual(oldCategories, nextCategories)) {
+      if (!myRoles.some((r) => r === "preparer" || r === "co_preparer") || !["DRAFT", "REVISION_REQUIRED"].includes(before.workflowState ?? "DRAFT"))
+        throw new ForbiddenException("Only preparers can edit source terms in a draft workbook");
+      for (const category of nextCategories) {
+        const previous = oldCategories.find((c) => c.releaseCategory === category.releaseCategory);
+        if (!isDeepStrictEqual(previous?.sourceTerm, category.sourceTerm))
+          throw new ConflictException("Source data must be saved using the source-term editor. Reload if it changed");
+      }
+    }
+    parsed.data.releaseCategoryToConsequence.releaseCategoryInputs = nextCategories.map(withSourceTermSummary);
+    doc.mef = JSON.parse(JSON.stringify(parsed.data));
+    try { await doc.save(); } catch (error) {
+      if (error instanceof Error && error.name === "VersionError") throw new ConflictException("The workbook changed. Reload before saving");
+      throw error;
+    }
     return toResponse(doc, myRoles);
   }
 
@@ -90,16 +125,21 @@ export class RcWorkbooksService {
     const example = await this.exampleWorkbooksService.getRcBundle(exampleId);
     const parsed = RadiologicalConsequenceAnalysisSchema.safeParse(stripNulls(example.rc.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
+    const prepared = example.rc.slug === RC_PUBLISHED_SLUG ? await this.publishedExample.prepare(workbookId, parsed.data, doc.__v + 1, acting) : undefined;
     const cleaned = {
-      ...parsed.data,
+      ...(prepared?.mef ?? parsed.data),
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };
     doc.previousMefJson = JSON.stringify(doc.mef);
-    doc.mef = cleaned;
-    await doc.save();
+    doc.mef = JSON.parse(JSON.stringify(cleaned));
+    try { await doc.save(); } catch (error) {
+      if (prepared) await this.publishedExample.rollback(workbookId, prepared.created);
+      if (error instanceof Error && error.name === "VersionError") throw new ConflictException("The workbook changed. Reload before loading the example");
+      throw error;
+    }
     await this.signoffModel.deleteMany({ workbookId }).exec();
-    await this.rcDocumentsService.removeAllForWorkbook(workbookId);
+    await this.rcDocumentsService.removeAllForWorkbook(workbookId, true);
     return toResponse(doc, myRoles);
   }
 

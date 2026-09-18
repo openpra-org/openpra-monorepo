@@ -1,3 +1,4 @@
+import { RcQuantificationPanel } from "./rcQuantification";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
@@ -20,6 +21,7 @@ import {
 } from "./rcViewData";
 import { lognormalBounds, type CcScore } from "./rcSelectors";
 import { type RcDrawerContext } from "./rcScreens";
+import { RcSourceTermEditor } from "./rcSourceTerm";
 import {
   DrawerHead,
   RcTextField,
@@ -64,7 +66,7 @@ import {
 } from "./rcFields";
 
 // ─── 08 — Quantification (RCQ) ─────────────────────────────────────────────
-function QuantifyScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => void }): JSX.Element {
+function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawerContext) => void; onOpenStep?: (id: string) => void }): JSX.Element {
   const { rc, editable, mutateRc, eventSequenceFamilySources } = useRcWorkbook();
   const q = rc.consequenceQuantification;
   const linkedFamilySources = eventSequenceFamilySources.filter((source) =>
@@ -105,7 +107,7 @@ function QuantifyScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => 
     const uuid = `RCQ-ESF-${String(q.eventSequenceConsequences.length + 1)}`;
     const family = `ESF-${String(q.eventSequenceConsequences.length + 1)}`;
     mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, eventSequenceConsequences: [...d.consequenceQuantification.eventSequenceConsequences, { uuid, eventSequenceFamily: family, consequenceResults: [], riskSignificance: ImportanceLevel.LOW }] } }));
-    openDrawer({ kind: "family", id: family });
+    openDrawer({ kind: "family", id: uuid });
   }
   function addLinkedFamily(): void {
     const sourceKey = selectedFamilySource.length > 0
@@ -183,6 +185,7 @@ function QuantifyScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => 
 
   return (
     <>
+      <RcQuantificationPanel onOpenStep={onOpenStep} />
       <div className="poscard">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="RC" title="Consequence codes" level={3} />
@@ -535,8 +538,8 @@ function DraftScreen({ cc, scores, site, onSubmitDraft, canSubmit }: {
 }
 
 // ─── Drawer content — every editable RC entity ─────────────────────────────
-function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose: () => void }): JSX.Element | null {
-  const { rc, editable, mutateRc } = useRcWorkbook();
+function DrawerContent({ context, onClose, centered = false }: { context: RcDrawerContext; onClose: () => void; centered?: boolean }): JSX.Element | null {
+  const { rc, editable, mutateRc, sourceTermDrafts, setSourceTermDraft } = useRcWorkbook();
   const dis = !editable;
   const rcc = rc.releaseCategoryToConsequence;
   const pa = rc.protectiveActionParameters;
@@ -551,32 +554,18 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const patchCh = (next: Partial<typeof ch>): void => patch({ releaseCharacteristics: { ...ch, ...next } });
     const fractions = ch.radionuclideGroupFractions ?? [];
     const timings = ch.releasePhaseTimings ?? [];
-    const remove = (): void => { mutateRc((d) => ({ ...d, releaseCategoryToConsequence: { ...d.releaseCategoryToConsequence, releaseCategoryInputs: d.releaseCategoryToConsequence.releaseCategoryInputs.filter((x) => x.releaseCategory !== c.releaseCategory) } })); onClose(); };
+    const remove = (): void => { setSourceTermDraft(c.releaseCategory, undefined); mutateRc((d) => ({ ...d, releaseCategoryToConsequence: { ...d.releaseCategoryToConsequence, releaseCategoryInputs: d.releaseCategoryToConsequence.releaseCategoryInputs.filter((x) => x.releaseCategory !== c.releaseCategory) } })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Release category" title={c.releaseCategory} sub={c.sourceTermDefinitionRef} onClose={onClose} />
-        <div className="posdrawer__body">
-          <div className="posfield-grid">
-            <RcTextField label="Category id" value={c.releaseCategory} onChange={(v) => patch({ releaseCategory: v })} disabled={dis} />
+        <DrawerHead cap="Release category" title={c.releaseCategory} sub={c.sourceTermDefinitionRef} onClose={onClose} centered />
+        <div className="modal__body">
+          <div className="posfield-grid rc-category-main-fields">
+            <RcTextField label="Category ID" value={c.releaseCategory} onChange={(v) => patch({ releaseCategory: v })} disabled={dis || Boolean(c.sourceTerm) || Boolean(Object.prototype.hasOwnProperty.call(sourceTermDrafts, c.releaseCategory) && sourceTermDrafts[c.releaseCategory])} />
             <RcTextField label="Source-term reference" value={c.sourceTermDefinitionRef ?? ""} onChange={(v) => patch({ sourceTermDefinitionRef: v })} disabled={dis} />
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm rcbtn-danger rc-category-remove" onClick={remove}>Remove category</button>}
           </div>
-          <div className="posfield-grid">
-            <RcNumberField label="Number of plumes" value={ch.numberOfPlumes ?? 1} onChange={(v) => patchCh({ numberOfPlumes: v })} disabled={dis} />
-            <RcNumberField label="Warning time (h)" value={ch.warningTime ?? 0} onChange={(v) => patchCh({ warningTime: v })} disabled={dis} />
-          </div>
-          <RcTextField label="Warning-time description" value={ch.warningTimeDescription ?? ""} onChange={(v) => patchCh({ warningTimeDescription: v })} disabled={dis} />
-          <div className="posfield-grid">
-            <RcNumberField label="Release energy (MW)" value={ch.releaseEnergy ?? 0} onChange={(v) => patchCh({ releaseEnergy: v })} disabled={dis} />
-            <RcNumberField label="Release height (m)" value={ch.releaseHeight ?? 0} onChange={(v) => patchCh({ releaseHeight: v })} disabled={dis} />
-          </div>
-          <RcTextField label="Release-energy description" value={ch.releaseEnergyDescription ?? ""} onChange={(v) => patchCh({ releaseEnergyDescription: v })} disabled={dis} />
-          <RcTextField label="Release-height description" value={ch.releaseHeightDescription ?? ""} onChange={(v) => patchCh({ releaseHeightDescription: v })} disabled={dis} />
-          <RcTextField label="Particle-size description" value={ch.releasedParticleSizeDescription ?? ""} onChange={(v) => patchCh({ releasedParticleSizeDescription: v })} disabled={dis} />
-          <RcAreaField label="Important-radionuclides justification" value={ch.importantRadionuclidesJustification ?? ""} onChange={(v) => patchCh({ importantRadionuclidesJustification: v })} disabled={dis} rows={2} />
-          <RcStringList label="Important radionuclides" values={ch.importantRadionuclides ?? []} onChange={(v) => patchCh({ importantRadionuclides: v })} disabled={dis} />
-          <RcAreaField label="Hazards impacting protective actions" value={ch.hazardsImpactingProtectiveActions ?? ""} onChange={(v) => patchCh({ hazardsImpactingProtectiveActions: v })} disabled={dis} rows={2} />
-          <RcAreaField label="Release uncertainties" value={ch.releaseUncertainties ?? ""} onChange={(v) => patchCh({ releaseUncertainties: v })} disabled={dis} rows={2} />
-          <div className="posfield">
+          <RcSourceTermEditor key={c.releaseCategory} category={c} />
+          {!c.sourceTerm && <><div className="posfield">
             <label className="posfield__label">Radionuclide group fractions</label>
             <table className="postable">
               <thead><tr><th>Group</th><th>Fraction</th>{editable && <th />}</tr></thead>
@@ -609,7 +598,7 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
             </table>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start", marginTop: 6 }} onClick={() => patchCh({ releasePhaseTimings: [...timings, { startTime: 0, duration: 0, timeUnit: "h" }] })}><RCIcon.Plus /> Add phase</button>}
           </div>
-          {editable && <RemoveBtn label="Remove category" onClick={remove} />}
+          </>}
         </div>
       </>
     );
@@ -666,8 +655,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const remove = (): void => { mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, protectiveActionsIncluded: d.protectiveActionParameters.protectiveActionsIncluded.filter((_, j) => j !== idx) } })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Protective action" title={a.action} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Protective action" title={a.action} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Action" value={a.action} options={PROT_ACTION_OPTIONS} onChange={(v) => patch({ action: v as typeof a.action })} disabled={dis} />
           <RcSelectField label="Included" value={a.included ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ included: v === "yes" })} disabled={dis} />
           <RcAreaField label="Applicability justification" value={a.applicabilityJustification ?? ""} onChange={(v) => patch({ applicabilityJustification: v })} disabled={dis} rows={2} />
@@ -686,8 +675,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const remove = (): void => { mutateRc((d) => { const cm = d.protectiveActionParameters.cohortModeling; return { ...d, protectiveActionParameters: { ...d.protectiveActionParameters, cohortModeling: { ...cm, cohorts: (cm.cohorts ?? []).filter((_, j) => j !== idx) } } }; }); onClose(); };
     return (
       <>
-        <DrawerHead cap="Cohort" title={c.name} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Cohort" title={c.name} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Cohort modeling approach" value={pa.cohortModeling.approach} options={COHORT_APPROACH_OPTIONS} onChange={(v) => mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, cohortModeling: { ...d.protectiveActionParameters.cohortModeling, approach: v as typeof pa.cohortModeling.approach } } }))} disabled={dis} />
           <RcTextField label="Name" value={c.name} onChange={(v) => patch({ name: v })} disabled={dis} />
           <RcAreaField label="Description" value={c.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
@@ -706,8 +695,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const remove = (): void => { mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, sourceDocuments: d.protectiveActionParameters.sourceDocuments.filter((_, j) => j !== idx) } })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Source document" title={doc.document} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Source document" title={doc.document} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcTextField label="Document" value={doc.document} onChange={(v) => patch({ document: v })} disabled={dis} />
           <RcAreaField label="Usage" value={doc.usage} onChange={(v) => patch({ usage: v })} disabled={dis} rows={2} />
           <RcAreaField label="Justification" value={doc.justification ?? ""} onChange={(v) => patch({ justification: v })} disabled={dis} rows={2} />
@@ -723,8 +712,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const patch = (next: Partial<typeof p>): void => mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, incidentPhasesModeled: d.protectiveActionParameters.incidentPhasesModeled.map((x) => (x.phase === p.phase ? { ...x, ...next } : x)) } }));
     return (
       <>
-        <DrawerHead cap="Incident phase" title={p.phase} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Incident phase" title={p.phase} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcAreaField label="Criteria description" value={p.criteriaDescription} onChange={(v) => patch({ criteriaDescription: v })} disabled={dis} rows={3} />
         </div>
       </>
@@ -740,8 +729,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const remove = (): void => { mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, evacuationDelayComponents: (d.protectiveActionParameters.evacuationDelayComponents ?? []).filter((_, j) => j !== idx) } })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Evacuation delay link" title={l.component} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Evacuation delay link" title={l.component} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Component" value={l.component} options={EVAC_COMPONENT_OPTIONS} onChange={(v) => patch({ component: v as typeof l.component })} disabled={dis} />
           <RcTextField label="Estimate" value={l.estimate} onChange={(v) => patch({ estimate: v })} disabled={dis} />
           {editable && <RemoveBtn label="Remove link" onClick={remove} />}
@@ -759,8 +748,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const remove = (): void => { mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, protectionParameters: (d.protectiveActionParameters.protectionParameters ?? []).filter((_, j) => j !== idx) } })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Protection parameter" title={p.parameter} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Protection parameter" title={p.parameter} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcTextField label="Parameter" value={p.parameter} onChange={(v) => patch({ parameter: v })} disabled={dis} />
           <RcTextField label="Value" value={p.value} onChange={(v) => patch({ value: v })} disabled={dis} />
           <RcAreaField label="Source" value={p.source} onChange={(v) => patch({ source: v })} disabled={dis} rows={2} />
@@ -776,8 +765,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
       const patch = (next: Partial<typeof p>): void => mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, populationDistribution: { ...d.protectiveActionParameters.populationDistribution, ...next } } }));
       return (
         <>
-          <DrawerHead cap="Site data" title="Population distribution" sub="RCPA-B1" onClose={onClose} />
-          <div className="posdrawer__body">
+          <DrawerHead cap="Site data" title="Population distribution" sub="RCPA-B1" onClose={onClose} centered={centered} />
+          <div className={centered ? "modal__body" : "posdrawer__body"}>
             <RcSelectField label="Basis" value={p.basis} options={POP_BASIS_OPTIONS} onChange={(v) => patch({ basis: v as typeof p.basis })} disabled={dis} />
             <RcAreaField label="Description" value={p.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
             <RcAreaField label="Justification" value={p.justification ?? ""} onChange={(v) => patch({ justification: v })} disabled={dis} rows={2} />
@@ -791,8 +780,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
       const patch = (next: Partial<typeof l>): void => mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, landUseData: { ...d.protectiveActionParameters.landUseData, ...next } } }));
       return (
         <>
-          <DrawerHead cap="Site data" title="Land use" sub="RCPA-B2" onClose={onClose} />
-          <div className="posdrawer__body">
+          <DrawerHead cap="Site data" title="Land use" sub="RCPA-B2" onClose={onClose} centered={centered} />
+          <div className={centered ? "modal__body" : "posdrawer__body"}>
             <RcSelectField label="Basis" value={l.basis} options={LAND_BASIS_OPTIONS} onChange={(v) => patch({ basis: v as typeof l.basis })} disabled={dis} />
             <RcAreaField label="Description" value={l.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
             <RcTextField label="Intra-regional adjustments" value={l.intraRegionalAdjustments ?? ""} onChange={(v) => patch({ intraRegionalAdjustments: v })} disabled={dis} />
@@ -804,8 +793,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const patch = (next: Partial<typeof b>): void => mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, plantPhysicalCharacteristics: { ...d.protectiveActionParameters.plantPhysicalCharacteristics, ...next } } }));
     return (
       <>
-        <DrawerHead cap="Site data" title="Building dimensions and stack heights" sub="RCPA-B3" onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Site data" title="Building dimensions and stack heights" sub="RCPA-B3" onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Basis" value={b.basis} options={PLANT_BASIS_OPTIONS} onChange={(v) => patch({ basis: v as typeof b.basis })} disabled={dis} />
           <RcAreaField label="Description" value={b.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
         </div>
@@ -823,8 +812,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const ar = met.accuracyReview;
     return (
       <>
-        <DrawerHead cap="Meteorology" title="Meteorological data quality" sub="RCME-A1 to A4" onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Meteorology" title="Meteorological data quality" sub="RCME-A1 to A4" onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcAreaField label="Data source" value={met.dataSource} onChange={(v) => patch({ dataSource: v })} disabled={dis} rows={2} />
           <RcAreaField label="Spatial representativeness justification" value={met.spatialRepresentativenessJustification} onChange={(v) => patch({ spatialRepresentativenessJustification: v })} disabled={dis} rows={2} />
           <RcSelectField label="Period-selection approach" value={met.periodSelection.approach} options={PERIOD_APPROACH_OPTIONS} onChange={(v) => patch({ periodSelection: { ...met.periodSelection, approach: v as typeof met.periodSelection.approach } })} disabled={dis} />
@@ -853,8 +842,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const ep = met.extractedParameters;
     return (
       <>
-        <DrawerHead cap="Meteorology" title="Extracted parameters" sub="RCME-A5 to A7" onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Meteorology" title="Extracted parameters" sub="RCME-A5 to A7" onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Wind speed and direction at 10 m" value={ep.windSpeedAndDirection10m ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ extractedParameters: { ...ep, windSpeedAndDirection10m: v === "yes" } })} disabled={dis} />
           <RcSelectField label="Stability class measurement" value={ep.stabilityClassMeasurement ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ extractedParameters: { ...ep, stabilityClassMeasurement: v === "yes" } })} disabled={dis} />
           <RcSelectField label="Precipitation" value={ep.precipitation === true ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ extractedParameters: { ...ep, precipitation: v === "yes" } })} disabled={dis} />
@@ -876,8 +865,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const ms = ad.meteorologicalSampling;
     return (
       <>
-        <DrawerHead cap="Dispersion" title="Dispersion model and sampling" sub="RCAD-A to C" onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Dispersion" title="Dispersion model and sampling" sub="RCAD-A to C" onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Model class" value={ad.dispersionModel.modelClass} options={MODEL_CLASS_OPTIONS} onChange={(v) => patch({ dispersionModel: { ...ad.dispersionModel, modelClass: v as typeof ad.dispersionModel.modelClass } })} disabled={dis} />
           <RcTextField label="Model name" value={ad.dispersionModel.name ?? ""} onChange={(v) => patch({ dispersionModel: { ...ad.dispersionModel, name: v } })} disabled={dis} />
           <RcAreaField label="Model justification" value={ad.dispersionModel.justification} onChange={(v) => patch({ dispersionModel: { ...ad.dispersionModel, justification: v } })} disabled={dis} rows={2} />
@@ -902,12 +891,13 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
   if (context.kind === "deposition") {
     const dep = ad.deposition;
     const patch = (next: Partial<typeof dep>): void => mutateRc((d) => ({ ...d, atmosphericTransportAndDispersion: { ...d.atmosphericTransportAndDispersion, deposition: { ...d.atmosphericTransportAndDispersion.deposition, ...next } } }));
+    const numberValue = (n: number) => n !== 0 && (Math.abs(n) >= 1e6 || Math.abs(n) < 1e-3) ? n.toExponential() : n;
     const vels = dep.dryDeposition.velocities ?? [];
     const wash = dep.wetDeposition.washoutCoefficients ?? [];
     return (
       <>
-        <DrawerHead cap="Deposition" title="Deposition matrix" sub="RCAD-E1 to E7" onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Deposition" title="Deposition matrix" sub="RCAD-E1 to E7" onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Dry deposition included" value={dep.dryDeposition.included ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ dryDeposition: { ...dep.dryDeposition, included: v === "yes" } })} disabled={dis} />
           <RcSelectField label="Dry deposition approach" value={dep.dryDeposition.approach ?? "SINGLE_VELOCITY"} options={DRY_APPROACH_OPTIONS} onChange={(v) => patch({ dryDeposition: { ...dep.dryDeposition, approach: v as NonNullable<typeof dep.dryDeposition.approach> } })} disabled={dis} />
           <div className="posfield">
@@ -918,7 +908,7 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
                 {vels.map((vv, i) => (
                   <tr key={i}>
                     <td><WorkbookInput className="posfield__input" value={vv.particleSize ?? ""} disabled={dis} onChange={(e) => patch({ dryDeposition: { ...dep.dryDeposition, velocities: vels.map((y, j) => (j === i ? { ...y, particleSize: e.target.value } : y)) } })} /></td>
-                    <td><WorkbookInput className="posfield__input posmono" type="number" step="any" value={vv.velocity} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ dryDeposition: { ...dep.dryDeposition, velocities: vels.map((y, j) => (j === i ? { ...y, velocity: n } : y)) } }); }} /></td>
+                    <td><WorkbookInput className="posfield__input posmono" type="number" step="any" value={numberValue(vv.velocity)} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ dryDeposition: { ...dep.dryDeposition, velocities: vels.map((y, j) => (j === i ? { ...y, velocity: n } : y)) } }); }} /></td>
                     {editable && <td><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ dryDeposition: { ...dep.dryDeposition, velocities: [...vels.slice(0, i), ...vels.slice(i + 1)] } })}>Remove</button></td>}
                   </tr>
                 ))}
@@ -936,7 +926,7 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
                 {wash.map((w, i) => (
                   <tr key={i}>
                     <td><WorkbookInput className="posfield__input" value={w.condition} disabled={dis} onChange={(e) => patch({ wetDeposition: { ...dep.wetDeposition, washoutCoefficients: wash.map((y, j) => (j === i ? { ...y, condition: e.target.value } : y)) } })} /></td>
-                    <td><WorkbookInput className="posfield__input posmono" type="number" step="any" value={w.coefficient} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ wetDeposition: { ...dep.wetDeposition, washoutCoefficients: wash.map((y, j) => (j === i ? { ...y, coefficient: n } : y)) } }); }} /></td>
+                    <td><WorkbookInput className="posfield__input posmono" type="number" step="any" value={numberValue(w.coefficient)} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ wetDeposition: { ...dep.wetDeposition, washoutCoefficients: wash.map((y, j) => (j === i ? { ...y, coefficient: n } : y)) } }); }} /></td>
                     {editable && <td><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ wetDeposition: { ...dep.wetDeposition, washoutCoefficients: [...wash.slice(0, i), ...wash.slice(i + 1)] } })}>Remove</button></td>}
                   </tr>
                 ))}
@@ -961,8 +951,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const remove = (): void => { mutateRc((d) => ({ ...d, dosimetry: { ...d.dosimetry, exposurePathways: d.dosimetry.exposurePathways.filter((_, j) => j !== idx) } })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Exposure pathway" title={p.pathway} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Exposure pathway" title={p.pathway} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Pathway" value={p.pathway} options={PATHWAY_OPTIONS} onChange={(v) => patch({ pathway: v as typeof p.pathway })} disabled={dis} />
           <RcSelectField label="Included" value={p.included ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ included: v === "yes" })} disabled={dis} />
           <RcAreaField label="Exclusion justification" value={p.exclusionJustification ?? ""} onChange={(v) => patch({ exclusionJustification: v })} disabled={dis} rows={2} />
@@ -977,8 +967,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const patch = (next: Partial<typeof dose>): void => mutateRc((d) => ({ ...d, dosimetry: { ...d.dosimetry, ...next } }));
     return (
       <>
-        <DrawerHead cap="Dosimetry" title="Dose treatment" sub="RCDO-A4 to B1" onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Dosimetry" title="Dose treatment" sub="RCDO-A4 to B1" onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Cloud immersion model" value={dose.cloudImmersionModel.approach} options={IMMERSION_OPTIONS} onChange={(v) => patch({ cloudImmersionModel: { ...dose.cloudImmersionModel, approach: v as typeof dose.cloudImmersionModel.approach } })} disabled={dis} />
           <RcTextField label="Cloud immersion description" value={dose.cloudImmersionModel.description ?? ""} onChange={(v) => patch({ cloudImmersionModel: { ...dose.cloudImmersionModel, description: v } })} disabled={dis} />
           <RcSelectField label="Breathing rates" value={dose.breathingRates.approach} options={BREATHING_OPTIONS} onChange={(v) => patch({ breathingRates: { ...dose.breathingRates, approach: v as typeof dose.breathingRates.approach } })} disabled={dis} />
@@ -1081,8 +1071,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const myLims = allLims.map((l, gi) => ({ l, gi })).filter((x) => x.l.code === c.code);
     return (
       <>
-        <DrawerHead cap="Consequence code" title={c.code} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Consequence code" title={c.code} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcTextField label="Code" value={c.code} onChange={(v) => patch({ code: v })} disabled={dis} />
           <RcAreaField label="Benchmark basis" value={c.benchmarkBasis ?? ""} onChange={(v) => patch({ benchmarkBasis: v })} disabled={dis} rows={2} />
           <div className="posfield">
@@ -1111,11 +1101,12 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     if (f === undefined) return null;
     const patch = (next: Partial<typeof f>): void => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, eventSequenceConsequences: d.consequenceQuantification.eventSequenceConsequences.map((x) => ((x.uuid ?? x.eventSequenceFamily) === (f.uuid ?? f.eventSequenceFamily) ? { ...x, ...next } : x)) } }));
     const results = f.consequenceResults;
+    const numberValue = (n: number | undefined) => n === undefined ? "" : n !== 0 && (Math.abs(n) >= 1e6 || Math.abs(n) < 1e-3) ? n.toExponential() : n;
     const remove = (): void => { mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, eventSequenceConsequences: d.consequenceQuantification.eventSequenceConsequences.filter((x) => (x.uuid ?? x.eventSequenceFamily) !== (f.uuid ?? f.eventSequenceFamily)) } })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Event sequence family" title={f.eventSequenceFamily} sub={f.releaseCategoryReference} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Event sequence family" title={f.eventSequenceFamily} sub={f.releaseCategoryReference} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <div className="posfield-grid">
             <RcTextField label="Family" value={f.eventSequenceFamily} onChange={(v) => patch({ eventSequenceFamily: v })} disabled={dis || f.eventSequenceFamilyReference !== undefined} />
             <RcSelectField label="Release category" value={f.releaseCategoryReference ?? ""} options={[["", "None"], ...catOptions]} onChange={(v) => patch({ releaseCategoryReference: v.length > 0 ? v : undefined })} disabled={dis} />
@@ -1132,16 +1123,16 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
                 const ef = m.uncertaintyDistribution?.type === DistributionType.LOGNORMAL ? m.uncertaintyDistribution.errorFactor : undefined;
                 return (
                   <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4, borderBottom: "1px dashed var(--color-border)", paddingBottom: 8 }}>
-                    <div className="posrow" style={{ gap: 6 }}>
-                      <WorkbookInput className="posfield__input" style={{ flex: 2 }} value={m.metric} disabled={dis} onChange={(e) => patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, metric: e.target.value } : y)) })} />
-                      <WorkbookInput className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" value={m.meanValue} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, meanValue: n } : y)) }); }} />
-                      <WorkbookInput className="posfield__input" style={{ width: 80 }} value={m.unit ?? ""} disabled={dis} onChange={(e) => patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, unit: e.target.value } : y)) })} />
+                    <div className="posrow rc-result-metric-row" style={{ gap: 6 }}>
+                      <WorkbookInput className="posfield__input" aria-label="Metric" style={{ flex: "1 1 150px" }} value={m.metric} disabled={dis} onChange={(e) => patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, metric: e.target.value } : y)) })} />
+                      <WorkbookInput className="posfield__input posmono" style={{ width: 160 }} type="number" step="any" aria-label="Mean value" value={numberValue(m.meanValue)} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, meanValue: n } : y)) }); }} />
+                      <WorkbookInput className="posfield__input" aria-label="Unit" style={{ width: 110 }} value={m.unit ?? ""} disabled={dis} onChange={(e) => patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, unit: e.target.value } : y)) })} />
                       {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ consequenceResults: [...results.slice(0, i), ...results.slice(i + 1)] })}>Remove</button>}
                     </div>
-                    <div className="posrow" style={{ gap: 6 }}>
-                      <WorkbookInput className="posfield__input posmono" style={{ width: 110 }} type="number" step="any" placeholder="median" value={median ?? ""} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDistribution: { type: DistributionType.LOGNORMAL, median: n, errorFactor: ef ?? 3 } } : y)) }); }} />
-                      <WorkbookInput className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" placeholder="EF" value={ef ?? ""} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDistribution: { type: DistributionType.LOGNORMAL, median: median ?? 0, errorFactor: n } } : y)) }); }} />
-                      <WorkbookInput className="posfield__input" style={{ flex: 1 }} placeholder="description" value={m.uncertaintyDescription ?? ""} disabled={dis} onChange={(e) => patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDescription: e.target.value } : y)) })} />
+                    <div className="posrow rc-result-metric-row" style={{ gap: 6 }}>
+                      <WorkbookInput className="posfield__input posmono" style={{ width: 160 }} type="number" step="any" placeholder="median" aria-label="Median" value={numberValue(median)} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDistribution: { type: DistributionType.LOGNORMAL, median: n, errorFactor: ef ?? 3 } } : y)) }); }} />
+                      <WorkbookInput className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" placeholder="EF" aria-label="Error factor" value={numberValue(ef)} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDistribution: { type: DistributionType.LOGNORMAL, median: median ?? 0, errorFactor: n } } : y)) }); }} />
+                      <WorkbookInput className="posfield__input" aria-label="Uncertainty description" style={{ flex: "1 1 180px" }} placeholder="description" value={m.uncertaintyDescription ?? ""} disabled={dis} onChange={(e) => patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDescription: e.target.value } : y)) })} />
                     </div>
                   </div>
                 );
@@ -1163,8 +1154,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const remove = (): void => { mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, modelUncertaintyAssessments: d.consequenceQuantification.modelUncertaintyAssessments.filter((_, j) => j !== idx) } })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Model uncertainty" title={u.uncertaintySource} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Model uncertainty" title={u.uncertaintySource} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Source sub-element" value={u.sourceSubElement} options={SUB_ELEMENT_OPTIONS} onChange={(v) => patch({ sourceSubElement: v as RcSubElement })} disabled={dis} />
           <RcTextField label="Uncertainty source" value={u.uncertaintySource} onChange={(v) => patch({ uncertaintySource: v })} disabled={dis} />
           <div className="posfield-grid">
@@ -1187,8 +1178,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const remove = (): void => { mutateRc((d) => ({ ...d, sensitivityStudies: (d.sensitivityStudies ?? []).filter((x) => x.uuid !== st.uuid) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Sensitivity study" title={st.name ?? st.uuid} sub={st.uuid} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Sensitivity study" title={st.name ?? st.uuid} sub={st.uuid} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcTextField label="Name" value={st.name ?? ""} onChange={(v) => patch({ name: v })} disabled={dis} />
           <RcAreaField label="Description" value={st.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
           <RcStringList label="Varied parameters" values={st.variedParameters} onChange={(v) => patch({ variedParameters: v })} disabled={dis} />
@@ -1206,8 +1197,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const remove = (): void => { mutateRc((d) => ({ ...d, boundingSiteAssumptions: (d.boundingSiteAssumptions ?? []).filter((x) => x.assumptionId !== a.assumptionId) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Bounding-site assumption" title={a.influenceOnDefinition} sub={a.assumptionId} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Bounding-site assumption" title={a.influenceOnDefinition} sub={a.assumptionId} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcTextField label="Area of influence" value={a.influenceOnDefinition} onChange={(v) => patch({ influenceOnDefinition: v })} disabled={dis} />
           <RcAreaField label="Description" value={a.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
           <div className="posfield-grid">
@@ -1228,8 +1219,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const remove = (): void => { mutateRc((d) => ({ ...d, preOperationalAssumptions: (d.preOperationalAssumptions ?? []).filter((x) => x.assumptionId !== a.assumptionId) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Pre-operational assumption" title={a.influenceOnDefinition} sub={a.assumptionId} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Pre-operational assumption" title={a.influenceOnDefinition} sub={a.assumptionId} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcTextField label="Area of influence" value={a.influenceOnDefinition} onChange={(v) => patch({ influenceOnDefinition: v })} disabled={dis} />
           <RcAreaField label="Description" value={a.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
           <div className="posfield-grid">
@@ -1256,8 +1247,8 @@ function DrawerContent({ context, onClose }: { context: RcDrawerContext; onClose
     const remove = (): void => { mutateRc((d) => ({ ...d, riskIntegrationFeedback: undefined })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Risk-integration feedback" title="Risk-integration feedback" sub={f.analysisRef} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Risk-integration feedback" title="Risk-integration feedback" sub={f.analysisRef} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <div className="posfield-grid">
             <RcTextField label="Analysis reference" value={f.analysisRef} onChange={(v) => patch({ analysisRef: v })} disabled={dis} />
             <RcTextField label="Feedback date" value={f.feedbackDate ?? ""} onChange={(v) => patch({ feedbackDate: v })} disabled={dis} />

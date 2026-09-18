@@ -1,4 +1,10 @@
+import { RcCaseRecordsSchema } from "./case-records";
 import { z } from "zod";
+import { RcSourceTermSchema } from "./source-term";
+import { RcSiteReceptorsSchema } from "./site-receptors";
+import { RcWeatherInputsSchema } from "./weather";
+import { RcDoseInputsSchema } from "./dose-inputs";
+import { RcTransportInputsSchema } from "./transport";
 import type { RadiologicalConsequenceAnalysis } from "../../rc/radiological-consequence-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
@@ -73,6 +79,7 @@ export const ReleaseCharacteristicsSchema = z.object({
 
 export const ReleaseCategoryInputsSchema = z.object({
   releaseCategory: z.string(),
+  sourceTerm: RcSourceTermSchema.optional(),
   sourceTermDefinitionRef: z.string().optional(),
   eventSequenceFamilyReferences: z.array(EventSequenceFamilyWorkbookReferenceSchema).optional(),
   releaseCharacteristics: ReleaseCharacteristicsSchema,
@@ -108,6 +115,7 @@ export const ReleaseCategoryToConsequenceAnalysisSchema = z.object({
 });
 
 export const ProtectiveActionAnalysisSchema = z.object({
+  siteAndReceptors: RcSiteReceptorsSchema.optional(),
   protectiveActionsIncluded: z.array(
     z.object({
       action: z.enum(["EVACUATION", "SHELTERING", "RELOCATION", "LAND_INTERDICTION_REMEDIATION", "FOOD_INTERDICTION_REMEDIATION"]),
@@ -223,6 +231,7 @@ export const ProtectiveActionAnalysisSchema = z.object({
 });
 
 export const MeteorologicalDataAnalysisSchema = z.object({
+  weatherInputs: RcWeatherInputsSchema.optional(),
   dataSource: z.string(),
   spatialRepresentativenessJustification: z.string(),
   periodSelection: z.object({
@@ -275,6 +284,7 @@ export const MeteorologicalDataAnalysisSchema = z.object({
 });
 
 export const AtmosphericDispersionAnalysisSchema = z.object({
+  transportInputs: RcTransportInputsSchema.optional(),
   dispersionModel: z.object({
     modelClass: z.enum(["STRAIGHT_LINE_GAUSSIAN", "SEGMENTED_PLUME", "OTHER_VARIABLE_TRAJECTORY"]),
     name: z.string().optional(),
@@ -358,6 +368,7 @@ export const AtmosphericDispersionAnalysisSchema = z.object({
 });
 
 export const DosimetryAnalysisSchema = z.object({
+  doseInputs: RcDoseInputsSchema.optional(),
   exposurePathways: z.array(
     z.object({
       pathway: z.enum(["CLOUDSHINE", "GROUNDSHINE", "SKIN_DEPOSITION", "INHALATION", "INGESTION"]),
@@ -448,6 +459,7 @@ export const EconomicFactorsAnalysisSchema = z.object({
 });
 
 export const ConsequenceQuantificationAnalysisSchema = z.object({
+  caseRecords: RcCaseRecordsSchema.optional(),
   consequenceCodesUsed: z.array(
     z.object({
       code: z.string(),

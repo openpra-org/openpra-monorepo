@@ -1,0 +1,104 @@
+import request from "supertest";
+import { createHash } from "crypto";
+import { createSourceTermTestApp } from "./source-term-test-app";
+import { ExampleWorkbooksService } from "../../example-workbooks/example-workbooks.service";
+import { ExampleDocumentsController } from "../../example-workbooks/example-documents.controller";
+import { createPublishedRcSeed, RC_PUBLISHED_ID, RC_PUBLISHED_LABEL, RC_PUBLISHED_SLUG, RC_PUBLISHED_CATEGORY, RC_PUBLISHED_FILES, readRcPublishedFile } from "../../example-workbooks/seeds/rc-published-inputs-seed";
+import { RC_EXAMPLES, SEEDS } from "../../example-workbooks/seeds";
+import { RadiologicalConsequenceAnalysisSchema } from "interfaces-mef-types/zod/rc/radiological-consequence-analysis";
+import { caseFiles, caseVersions, currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
+import { caseChecks } from "interfaces-shared-types/rc-workbooks/case-records";
+import { doseCoverage } from "interfaces-shared-types/rc-workbooks/dose-inputs";
+
+describe("RC-only published input example", () => {
+  let t: Awaited<ReturnType<typeof createSourceTermTestApp>>;
+  const root = "/rc-workbooks/rc-test", http = () => t.app.getHttpServer();
+  beforeAll(async () => { t = await createSourceTermTestApp(); }, 60000);
+  afterAll(async () => { await t.close(); });
+  beforeEach(async () => { await t.reset(); jest.spyOn(t.app.get(ExampleWorkbooksService), "getRcBundle").mockResolvedValue({ rc: { slug: RC_PUBLISHED_SLUG, kind: "RC", mef: createPublishedRcSeed(), updatedAt: "2026-09-12T00:00:00Z" }, configurationControl: {} as any, newlyDevelopedMethods: [] }); });
+  afterEach(() => { jest.restoreAllMocks(); });
+  const load = (user = "preparer") => request(http()).post(`${root}/load-example`).set("x-test-user", user).send({ example: RC_PUBLISHED_ID });
+  it("registers one new RC option and validates authentic numerical inputs", () => {
+    expect(RC_EXAMPLES.find(e => e.id === RC_PUBLISHED_ID)).toEqual({ id: RC_PUBLISHED_ID, label: RC_PUBLISHED_LABEL, slug: RC_PUBLISHED_SLUG });
+    expect(RC_EXAMPLES[0].id).toBe("htgr");
+    expect(SEEDS.filter(s => s.slug === RC_PUBLISHED_SLUG).map(s => s.kind)).toEqual(["RC"]);
+    const rc = createPublishedRcSeed(); expect(RadiologicalConsequenceAnalysisSchema.safeParse(rc).success).toBe(true);
+    const c = currentRcCase(rc, RC_PUBLISHED_CATEGORY), source = c.source!.values;
+    expect(source.inventory).toHaveLength(69); expect(source.groups).toHaveLength(10); expect(source.releases).toHaveLength(8);
+    expect(source.inventory[0]).toEqual({ name: "Kr-85", activityBq: 3.6319e16, group: 1 });
+    expect(source.releases.every(s => s.heightMetres === 0)).toBe(true);
+    expect(c.site!.settings).toEqual({ latitude: 35.31028, longitude: -93.23194 });
+    expect(c.site!.geometry).toMatchObject({ kind: "cells", sectors: 64, abridged: true });
+    expect(c.site!.geometry!.kind === "cells" && c.site!.geometry!.radiiKm.length).toBe(14);
+    expect(c.weather!.settings).toEqual({ latitude: 35.2989, longitude: -93.2422, year: 2020, windSectors: 64 });
+    expect(c.weather!.data!.recordCount).toBe(24); expect(c.weather!.review).toBeUndefined();
+    expect(c.dose!.categories[0].settings!.integrationSeconds).toBe(2592000);
+    expect(doseCoverage(c.dose, source, "inhalation").found).toHaveLength(58);
+    expect(doseCoverage(c.dose, source, "cloudshine").found).toHaveLength(69);
+    expect(caseChecks(c).find(g => g.key === "site")!.items.join(" ")).toContain("receptor height");
+    expect(rc.consequenceQuantification.eventSequenceConsequences).toEqual([]);
+    expect(rc.releaseCategoryToConsequence.releaseCategoryAndSourceTermReviewed).toBe(false);
+  });
+  it("retains byte-exact government library files with independently recorded hashes", () => {
+    const expected: Record<string, string> = { "NNDC-ENSDF-2023-04-03-mass-137.txt": "2e7c2a33de25ece5117a9ac6a1b620093096917e7ff89c95f94277181b39a671", "FGR13INH.HDB": "edd7d65edd36064137ca9cf2df9ce61c6de060a0eeb937d20df0deb5b9034b0d", "F12TIII1.EXT": "ba715095d9d05c79228f13ae26bd46412de2eae26d563bd3f9ef58139c0dac41", "F12TIII3.EXT": "0e5985f467b1d90ae08ab923ddc57d02fa2f59075754a216205cef067ea114f3" };
+    for (const [name, sha] of Object.entries(expected)) expect(createHash("sha256").update(readRcPublishedFile(name)).digest("hex")).toBe(sha);
+    expect(() => readRcPublishedFile("../../outside.txt")).toThrow("Unknown");
+  });
+  it("serves the source guide and health records as readable text", async () => {
+    const controller = new ExampleDocumentsController();
+    for (const [id, filename] of [["rc-published-input-sources", "sources.txt"], ["rc-published-health-records", "MACCS-Noah-health-settings-excerpt.inp"]]) {
+      const response = controller.getDocument(id), chunks: Buffer[] = [];
+      expect(response.getHeaders().type).toBe("text/plain; charset=utf-8");
+      for await (const chunk of response.getStream()) chunks.push(Buffer.from(chunk));
+      expect(Buffer.concat(chunks)).toEqual(readRcPublishedFile(filename));
+    }
+  });
+  it("loads original files and an incomplete snapshot without changing another workbook", async () => {
+    const before = await t.reset();
+    await t.workbooks.create({ workbookId: "rc-other", projectId: "project", ownerUsername: "preparer", mef: before });
+    const other = await t.workbooks.findOne({ workbookId: "rc-other" }).lean();
+    const response = (await load().expect(200)).body, mef = response.mef;
+    expect(t.app.get(ExampleWorkbooksService).getRcBundle).toHaveBeenCalledWith(RC_PUBLISHED_ID);
+    expect(response.hasPreviousMef).toBe(true); expect(mef.workflowState).toBe("DRAFT");
+    expect(await t.workbooks.findOne({ workbookId: "rc-other" }).lean()).toEqual(other);
+    const data = currentRcCase(mef, RC_PUBLISHED_CATEGORY), files = caseFiles(data), saved = mef.consequenceQuantification.caseRecords;
+    expect(files).toHaveLength(11); expect(t.storage.size).toBe(12); expect(saved.snapshots).toHaveLength(1); expect(saved.results).toEqual([]);
+    expect(saved.snapshots[0]).toMatchObject({ inventoryCount: 69, receptorCount: 0, trialCount: 24, integrationSeconds: 2592000 });
+    expect(saved.snapshots[0].reviewItems).toBeGreaterThan(0);
+    for (const entry of files) expect([...t.storage.values()].some(bytes => bytes.equals(readRcPublishedFile(entry.file.filename)))).toBe(true);
+    const selection = { categoryId: RC_PUBLISHED_CATEGORY, versions: caseVersions(data), snapshotId: saved.snapshots[0].id };
+    for (const f of files) await request(http()).get(`${root}/case-records/text/${f.file.documentId}`).query(selection).expect(200);
+    const doseFile = data.dose!.libraries.find(l => l.kind === "inhalation")!.file;
+    const records = (await request(http()).get(`${root}/dose-inputs/records/${doseFile.documentId}`).query({ nuclide: "Cs-137" }).expect(200)).body;
+    expect(records.some((r: any) => r.value === "4.673E-09")).toBe(true);
+    await request(http()).post(`${root}/unload-example`).send({}).expect(200);
+    expect((await request(http()).get(root)).body.mef).toEqual(before);
+    expect(t.storage.size).toBe(12);
+  });
+  it("uses workbook-local original IDs and newer revisions on a second load", async () => {
+    const first = (await load().expect(200)).body.mef, second = (await load().expect(200)).body.mef;
+    const a = currentRcCase(first, RC_PUBLISHED_CATEGORY), b = currentRcCase(second, RC_PUBLISHED_CATEGORY);
+    expect(b.source!.revision).toBeGreaterThan(a.source!.revision);
+    expect(caseFiles(a).some(x => caseFiles(b).some(y => x.file.documentId === y.file.documentId))).toBe(false);
+    const originalId = first.consequenceQuantification.caseRecords.snapshots[0].file.documentId;
+    await request(http()).delete(`${root}/documents/${originalId}`).expect(403);
+    await request(http()).post(`${root}/unload-example`).send({}).expect(200);
+    expect((await request(http()).get(root)).body.mef.consequenceQuantification.caseRecords).toEqual(first.consequenceQuantification.caseRecords);
+  });
+  it("rejects viewers and review-locked loading without copying any files", async () => {
+    for (const user of ["reviewer", "viewer", "outsider"]) await load(user).expect(403);
+    expect(t.storage.size).toBe(0);
+    await t.workbooks.updateOne({ workbookId: "rc-test" }, { $set: { "mef.workflowState": "IN_REVIEW" } });
+    await load().expect(403); expect(t.storage.size).toBe(0);
+  });
+  it("rolls back files if copying or saving the example fails", async () => {
+    const real = t.documents.upload.bind(t.documents), spy = jest.spyOn(t.documents, "upload").mockImplementation(async (...args) => {
+      if (t.storage.size === 2) throw new Error("Test storage failure"); return real(...args);
+    });
+    await load().expect(500); expect(t.storage.size).toBe(0); expect(await t.files.countDocuments({})).toBe(0); spy.mockRestore();
+    const conflict = jest.spyOn(t.documents, "upload").mockImplementation(async (...args) => {
+      const entry = await real(...args); if (t.storage.size === RC_PUBLISHED_FILES.length) await t.workbooks.updateOne({ workbookId: "rc-test" }, { $inc: { __v: 1 } }); return entry;
+    });
+    await load().expect(409); expect(t.storage.size).toBe(0); conflict.mockRestore();
+  });
+});

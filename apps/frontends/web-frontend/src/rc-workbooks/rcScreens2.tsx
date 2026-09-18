@@ -5,6 +5,8 @@ import { RCIcon } from "./rcIcons";
 import { RcProvenanceChip } from "./rcShared";
 import { useRcWorkbook } from "./rcWorkbookContext";
 import { type RcDrawerContext } from "./rcScreens";
+import { RcDosePanel } from "./rcDoseInputs";
+import { RcTransportPanel } from "./rcTransport";
 import {
   DISPERSION_CLASS_LABELS,
   CREDIT_FENCE,
@@ -55,6 +57,7 @@ function DispersionScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
 
   return (
     <>
+      <RcTransportPanel />
       <div className="poscard">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="RC" title="The dispersion model" level={3} />
@@ -159,6 +162,7 @@ function DosimetryScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =>
   }
   return (
     <>
+      <RcDosePanel />
       <div className="poscard">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="RC" title="Exposure pathways" level={3} />

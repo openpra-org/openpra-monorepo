@@ -20,11 +20,13 @@ interface LoadExampleModalProps {
   title?: string;
   intro?: string;
   confirmLabel?: string;
+  choiceLabel?: string;
+  exampleNotices?: Record<string, string>;
   onCancel: () => void;
   onConfirm: (exampleId?: string) => Promise<void>;
 }
 
-function LoadExampleModal({ exampleName, exampleOptions, title, intro, confirmLabel, onCancel, onConfirm }: LoadExampleModalProps): JSX.Element {
+function LoadExampleModal({ exampleName, exampleOptions, title, intro, confirmLabel, choiceLabel, exampleNotices, onCancel, onConfirm }: LoadExampleModalProps): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const options = exampleOptions ?? [];
@@ -52,7 +54,7 @@ function LoadExampleModal({ exampleName, exampleOptions, title, intro, confirmLa
         <div className="exmodal__body">
           {hasChoice && (
             <label className="exmodal__choice">
-              <span className="exmodal__choice-label">Example reactor</span>
+              <span className="exmodal__choice-label">{choiceLabel ?? "Example reactor"}</span>
               <select className="exmodal__choice-select" value={selected} disabled={busy} onChange={(e) => setSelected(e.target.value)}>
                 {options.map((o) => (
                   <option key={o.id} value={o.id}>{o.label}</option>
@@ -72,7 +74,7 @@ function LoadExampleModal({ exampleName, exampleOptions, title, intro, confirmLa
             Useful for exploring the workflow without entering plant data first. You can edit everything after loading.
           </p>
           <div className="exmodal__disclaimer">
-            <strong>Disclaimer:</strong> Use with caution. The contents of this example are <strong>LLM-generated</strong> and are <strong>not representative of any real plant or actual PRA data</strong>. The example exists solely to demonstrate how to use the app — every plant identity field, parameter value, frequency, distribution, reviewer comment, and approver remark is illustrative. Do not cite or build on any of it for a real analysis.
+            {exampleNotices?.[selected] ? <>{exampleNotices[selected]}</> : <><strong>Disclaimer:</strong> Use with caution. The contents of this example are <strong>LLM-generated</strong> and are <strong>not representative of any real plant or actual PRA data</strong>. The example exists solely to demonstrate how to use the app — every plant identity field, parameter value, frequency, distribution, reviewer comment, and approver remark is illustrative. Do not cite or build on any of it for a real analysis.</>}
             <br /><br />
             <strong>Not recoverable on unload:</strong> uploaded documents and review signoffs are destroyed at load time. If you later click <em>Unload example</em>, your prior MEF contents are restored, but documents you had uploaded and signoffs you had collected before loading the example are <strong>permanently lost</strong>.
           </div>

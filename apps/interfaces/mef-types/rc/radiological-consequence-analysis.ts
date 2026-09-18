@@ -1,4 +1,10 @@
+import type { RcCaseRecords } from "./case-records";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
+import type { RcSourceTerm } from "./source-term";
+import type { RcSiteReceptors } from "./site-receptors";
+import type { RcWeatherInputs } from "./weather";
+import type { RcDoseInputs } from "./dose-inputs";
+import type { RcTransportInputs } from "./transport";
 import { ParameterDistribution } from "../core/events";
 import {
   ImportanceLevel,
@@ -68,6 +74,7 @@ export interface ReleaseCharacteristics {
 
 export interface ReleaseCategoryInputs {
   releaseCategory: ReleaseCategoryReference;
+  sourceTerm?: RcSourceTerm;
   sourceTermDefinitionRef?: SourceTermDefinitionReference;
   eventSequenceFamilyReferences?: EventSequenceFamilyWorkbookReference[];
   releaseCharacteristics: ReleaseCharacteristics;
@@ -102,6 +109,7 @@ export interface ReleaseCategoryToConsequenceAnalysis {
 }
 
 export interface ProtectiveActionAnalysis {
+  siteAndReceptors?: RcSiteReceptors;
   protectiveActionsIncluded: {
     action: "EVACUATION" | "SHELTERING" | "RELOCATION" | "LAND_INTERDICTION_REMEDIATION" | "FOOD_INTERDICTION_REMEDIATION";
     included: boolean;
@@ -186,6 +194,7 @@ export interface ProtectiveActionAnalysis {
 }
 
 export interface MeteorologicalDataAnalysis {
+  weatherInputs?: RcWeatherInputs;
   dataSource: string;
   spatialRepresentativenessJustification: string;
   periodSelection: {
@@ -232,6 +241,7 @@ export interface MeteorologicalDataAnalysis {
 }
 
 export interface AtmosphericDispersionAnalysis {
+  transportInputs?: RcTransportInputs;
   dispersionModel: {
     modelClass: "STRAIGHT_LINE_GAUSSIAN" | "SEGMENTED_PLUME" | "OTHER_VARIABLE_TRAJECTORY";
     name?: string;
@@ -305,6 +315,7 @@ export interface AtmosphericDispersionAnalysis {
 }
 
 export interface DosimetryAnalysis {
+  doseInputs?: RcDoseInputs;
   exposurePathways: {
     pathway: "CLOUDSHINE" | "GROUNDSHINE" | "SKIN_DEPOSITION" | "INHALATION" | "INGESTION";
     included: boolean;
@@ -385,6 +396,7 @@ export interface EconomicFactorsAnalysis {
 }
 
 export interface ConsequenceQuantificationAnalysis {
+  caseRecords?: RcCaseRecords;
   consequenceCodesUsed: {
     code: string;
     benchmarkBasis?: string;

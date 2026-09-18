@@ -1,3 +1,4 @@
+import { createPublishedRcSeed, RC_PUBLISHED_ID, RC_PUBLISHED_LABEL, RC_PUBLISHED_SLUG } from "./rc-published-inputs-seed";
 import { POS_ANALYSIS } from "./pos-seed";
 import { POS_ANALYSIS_SFR } from "./pos-seed-sfr";
 import { IE_ANALYSIS } from "./ie-seed";
@@ -166,6 +167,7 @@ const RC_EXAMPLES: PosExampleEntry[] = [
   { id: "htgr", label: "Generic HTGR", slug: RC_GENERIC_2_SLUG },
   { id: "sfr", label: "Generic SFR", slug: RC_GENERIC_1_SLUG },
   { id: HCL_CASE_ID, label: HCL_CASE_LABEL, slug: RC_HCL_CASE_SLUG },
+  { id: RC_PUBLISHED_ID, label: RC_PUBLISHED_LABEL, slug: RC_PUBLISHED_SLUG },
 ];
 
 const RI_EXAMPLES: PosExampleEntry[] = [
@@ -234,6 +236,7 @@ const SEEDS: SeedEntry[] = [
   { slug: ESQ_HCL_CASE_SLUG, kind: "ESQ", mef: ESQ_ANALYSIS_HCL },
   { slug: MS_GENERIC_1_SLUG, kind: "MS", mef: MS_ANALYSIS },
   { slug: MS_GENERIC_2_SLUG, kind: "MS", mef: MS_ANALYSIS_HTGR },
+  { slug: RC_PUBLISHED_SLUG, kind: "RC", mef: createPublishedRcSeed() },
   { slug: RC_GENERIC_1_SLUG, kind: "RC", mef: RC_ANALYSIS },
   { slug: RC_GENERIC_2_SLUG, kind: "RC", mef: RC_ANALYSIS_HTGR },
   { slug: RC_HCL_CASE_SLUG, kind: "RC", mef: RC_ANALYSIS_HCL },

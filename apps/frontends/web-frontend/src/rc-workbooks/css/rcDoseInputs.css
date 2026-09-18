@@ -1,0 +1,65 @@
+/* Step 05 uses the shared workbook buttons, inputs and modal shell. */
+.rc-dose-input-card{width:100%}
+.rc-dose{container-type:inline-size;font:13px/1.45 var(--font-ui),sans-serif;color:var(--color-text);min-width:0;width:100%;overflow-wrap:anywhere}
+.rc-dose *{box-sizing:border-box}
+.rc-dose [hidden]{display:none!important}
+.rc-dose .posnav__btn{white-space:nowrap}
+.rc-dose input,.rc-dose select{min-width:0}
+.rc-dose button:disabled{cursor:default;opacity:.5}
+.rc-dose input:invalid{border-color:var(--color-error)}
+.rc-dose .ds-tabs{display:flex;gap:8px;border-bottom:1px solid var(--color-border);margin-bottom:18px}
+.rc-dose .ds-tabs button{font:inherit;color:var(--color-text);cursor:pointer;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:10px 12px}
+.rc-dose .ds-tabs button[aria-selected="true"]{border-bottom-color:var(--color-primary);color:var(--color-primary);font-weight:600}
+.rc-dose .ds-file{border:1px solid var(--color-border);border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:17px}
+.rc-dose .ds-file-info{min-width:0;display:flex;flex-direction:column;gap:4px}
+.rc-dose strong{font-weight:600}
+.rc-dose .ds-small{font-size:12px;color:var(--color-text-muted)}
+.rc-dose .ds-file-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+.rc-dose h3{font-size:14px;font-weight:600;margin:0 0 9px}
+.rc-dose .ds-section-title{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:21px 0 10px;flex-wrap:wrap}
+.rc-dose .ds-section-title h3{margin:0}
+.rc-dose label{display:block;font-size:12px;color:var(--color-text-muted);min-width:0}
+.rc-dose label input,.rc-dose label select{display:block;margin-top:5px}
+.rc-dose .ds-fields{display:grid;grid-template-columns:minmax(0,180px) minmax(0,360px);gap:16px;margin:14px 0 8px}
+.rc-dose .ds-duration-fields{grid-template-columns:minmax(0,160px)}
+.rc-dose .ds-duration-equivalent{align-self:center;padding-top:20px;font-size:13px;font-variant-numeric:tabular-nums}
+.rc-dose .ds-exposure-block{max-width:160px}
+.rc-dose .ds-activity-record{max-width:280px}
+.rc-dose table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px;font-variant-numeric:tabular-nums}
+.rc-dose th,.rc-dose td{padding:9px 8px;border-bottom:1px solid var(--color-border);text-align:left;vertical-align:middle}
+.rc-dose th{font-weight:600;font-size:12px;color:var(--color-text-muted);background:var(--color-surface-low)}
+.rc-dose .ds-coef-table th:first-child{width:31%}
+.rc-dose .ds-coef-table th:nth-child(2){width:27%}
+.rc-dose .ds-coef-table td small{display:block;font-size:11px;color:var(--color-text-muted);margin-top:3px}
+.rc-dose .ds-library{margin:0 0 20px;padding:0;list-style:none}
+.rc-dose .ds-library li{border-bottom:1px solid var(--color-border);padding:12px 0;display:flex;justify-content:space-between;gap:14px;align-items:center}
+.rc-dose .ds-library li:first-child{padding-top:2px}
+.rc-dose .ds-library strong{display:block;margin-bottom:3px}
+.rc-dose .ds-library .ds-file-actions{flex-wrap:wrap;justify-content:flex-end}
+.rc-dose .ds-note{font-size:12px;color:var(--color-text-muted);margin:10px 0;line-height:1.5}
+.rc-dose .ds-readonly{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:12px 0 19px}
+.rc-dose .ds-readonly dt{font-size:12px;color:var(--color-text-muted)}
+.rc-dose .ds-readonly dd{font-size:13px;margin:4px 0 0}
+.rc-dose details{margin-top:17px;border-top:1px solid var(--color-border);padding-top:12px}
+.rc-dose summary{font-size:12px;color:var(--color-primary);cursor:pointer}
+.rc-dose details table{margin-top:12px}
+.rc-dose .ds-ref-table th:first-child{width:42%}
+.rc-dose .ds-reference-values{margin-top:12px}
+.rc-dose .ds-reference-values div{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 0;border-bottom:1px solid var(--color-border)}
+.rc-dose .ds-reference-values dt{font-size:12px;color:var(--color-text-muted)}
+.rc-dose .ds-reference-values dd{margin:0;font-size:13px}
+.rc-dose .ds-pagination{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:var(--color-text-muted);margin-top:10px}
+.rc-dose .ds-pagination div{display:flex;gap:6px}
+.rc-dose .ds-file-view{margin:14px 0 20px;padding:12px;background:var(--color-surface-low);border-radius:8px}
+.rc-dose .ds-file-view strong{font-size:12px}
+.rc-dose pre{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-all;font:12px/1.55 Consolas,monospace;background:var(--color-surface-low);margin:12px 0 0}
+.rc-dose .ds-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:25px;padding-top:18px;border-top:1px solid var(--color-border)}
+.rc-dose .ds-footer>.ds-file-actions{margin-left:auto}
+.rc-dose .ds-status{font-size:12px;color:var(--color-text-muted)}
+.rc-dose .ds-error{color:var(--color-error);font-size:12px;margin-top:15px}
+.rc-dose .ds-empty{padding:20px 0;color:var(--color-text-muted);font-size:13px}
+.rc-dose .ds-category{max-width:400px;margin-bottom:18px}
+.rc-dose pre{max-height:360px;overflow:auto}
+.rc-dose .ds-footer{flex-wrap:wrap}
+.rc-dose :is(button,input,select,summary):focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}
+@container(max-width:520px){.rc-dose .ds-file{align-items:start;flex-direction:column}.rc-dose .ds-fields{grid-template-columns:minmax(0,360px);gap:12px}.rc-dose .ds-fields>label:first-child{max-width:180px}.rc-dose .ds-duration-fields>label:first-child{max-width:160px}.rc-dose .ds-duration-equivalent{padding-top:0}.rc-dose .ds-library li{align-items:start;flex-direction:column;gap:10px}.rc-dose .ds-library .ds-file-actions{justify-content:flex-start}.rc-dose .ds-footer{align-items:start}.rc-dose th,.rc-dose td{padding:8px 4px}.rc-dose .ds-coef-table th,.rc-dose .ds-coef-table td{font-size:12px}.rc-dose .ds-readonly{grid-template-columns:minmax(0,1fr)}}

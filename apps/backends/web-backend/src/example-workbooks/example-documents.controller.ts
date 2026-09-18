@@ -5,9 +5,14 @@ import { join } from "path";
 interface ExampleDocumentFile {
   file: string;
   filename: string;
+  mimeType?: string;
 }
 
 const EXAMPLE_DOCUMENT_FILES = new Map<string, ExampleDocumentFile>([
+  ["rc-published-dispersion", { file: "RC-Published-Inputs/MACCS2-DOE-published-dispersion.inp", filename: "MACCS2-DOE-published-dispersion.inp", mimeType: "text/plain; charset=utf-8" }],
+  ["rc-published-decay", { file: "RC-Published-Inputs/NNDC-ENSDF-2023-04-03-mass-137.txt", filename: "NNDC-ENSDF-2023-04-03-mass-137.txt", mimeType: "text/plain; charset=utf-8" }],
+  ["rc-published-input-sources", { file: "RC-Published-Inputs/sources.txt", filename: "Published-RC-inputs-sources.txt", mimeType: "text/plain; charset=utf-8" }],
+  ["rc-published-health-records", { file: "RC-Published-Inputs/MACCS-Noah-health-settings-excerpt.inp", filename: "MACCS-Noah-health-settings-excerpt.inp", mimeType: "text/plain; charset=utf-8" }],
   ["mhtgr-benchmark", { file: "HTGR/INL-EXT-13-30176.pdf", filename: "OECD-NEA-MHTGR-350-Core-Design-Benchmark.pdf" }],
   ["mhtgr-analysis", { file: "HTGR/ISN-0022-3131.pdf", filename: "Multi-physics-analysis-of-the-MHTGR-350.pdf" }],
   ["htgr-safety", { file: "HTGR/ORNL-TM-2014-187.pdf", filename: "Overview-of-Modular-HTGR-Safety-Characterization.pdf" }],
@@ -30,6 +35,7 @@ const EXAMPLE_DOCUMENT_FILES = new Map<string, ExampleDocumentFile>([
 function resolveDocumentPath(file: string): string | undefined {
   const candidates = [
     join(__dirname, "example-documents", file),
+    join(__dirname, "../../example-documents", file),
     join(process.cwd(), "dist", "apps", "backends", "web-backend", "example-documents", file),
     join(process.cwd(), "apps", "backends", "web-backend", "example-documents", file),
   ];
@@ -41,13 +47,19 @@ export class ExampleDocumentsController {
   @Get(":element/:docId")
   @HttpCode(HttpStatus.OK)
   getDocument(@Param("docId") docId: string): StreamableFile {
-    const entry = EXAMPLE_DOCUMENT_FILES.get(docId);
-    if (entry === undefined) throw new NotFoundException("Document not found");
-    const path = resolveDocumentPath(entry.file);
-    if (path === undefined) throw new NotFoundException("Document file not available");
+    const { path, filename } = resolveExampleDocument(docId);
+    const mimeType = EXAMPLE_DOCUMENT_FILES.get(docId)?.mimeType ?? "application/pdf";
     return new StreamableFile(createReadStream(path), {
-      type: "application/pdf",
-      disposition: `inline; filename="${entry.filename}"`,
+      type: mimeType,
+      disposition: `inline; filename="${filename}"`,
     });
   }
+}
+
+export function resolveExampleDocument(docId: string): { path: string; filename: string } {
+  const entry = EXAMPLE_DOCUMENT_FILES.get(docId);
+  if (entry === undefined) throw new NotFoundException("Document not found");
+  const path = resolveDocumentPath(entry.file);
+  if (path === undefined) throw new NotFoundException("Document file not available");
+  return { path, filename: entry.filename };
 }

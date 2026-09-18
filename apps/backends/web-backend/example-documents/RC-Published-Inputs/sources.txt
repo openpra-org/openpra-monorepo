@@ -1,0 +1,81 @@
+PUBLISHED RC INPUTS — EXPERT REVIEW
+
+OpenPRA > Radiological Consequences workbook > Load example > Published RC inputs expert review.
+This seed is registered only for RC. Loading it does not create or change another workbook.
+
+PURPOSE
+Inspect real numerical inputs in the redesigned RC sections. These files come from several published examples and reference libraries. They are not one validated plant accident case. The source inventory is a published MelMACCS example; site and weather files are published NRC examples. No release frequency, calculated dose, injury count, or cost is invented.
+
+WHAT TO INSPECT
+01 Source: 69 radionuclides, 10 chemical groups, 8 release segments. Activity is Bq; time is s; height is m. All eight release heights are explicitly zero in the published file.
+02 Site: 14 radial bands × 64 sectors = 896 cells. Site coordinates are 35.31028°, -93.23194°. The published geometry does not specify receptor height or within-cell evaluation point; those choices remain unset. Population and economic arrays are abridged in the publication and are not reconstructed.
+03 Meteorology: 24 hourly records for January 1, 2020, paired with the published 2020 request. Weather source coordinates remain 35.29890°, -93.24220°. The expert must review their use for the nearby site. The file retains 64 wind sectors, SRDT stability selection and UTC offset -5. A one-day excerpt is not labeled as annual weather data.
+04 Transport: ten chemical-group velocities use the defaults documented in the thesis: noble gases 0 m/s, other groups 0.003 m/s. Parent-only mode is the workbook's initial review choice, not a claim about the original MelMACCS case. MACCS power-law dispersion records and the unmodified ENSDF mass-137 file are available for inspection. Missing inventory decay records remain visible.
+05 Dose: published integration duration 2,592,000 s (30 days), published shielding/exposure records, and complete original EPA inhalation, cloudshine and groundshine files. Native coefficient quantities, units, age, absorption and particle-size variants are retained. They are not native MACCS DCF decks or verified OpenRC executable inputs.
+06 Health: 3 fatality, 7 injury and 8 latent-cancer model-parameter records from the thesis. These are reference parameters, not predicted outcomes.
+07 Economics: published SecPop multiplier 1.35 and 83-region header. The partial regional table remains a file reference; no derived cost is supplied.
+08 Quantification: an immutable snapshot retains the imported values, original-file links and unresolved choices. Returned outputs remain empty because no authentic output tied to this composite input set exists.
+
+The example does not mark the case reviewed or approved. Case checks should identify remaining analyst choices and missing library coverage. All source records are inspectable; original files retain hashes below.
+
+SOURCES
+S1. Sandia, MelMACCS 4.0.0 User Guide, SAND2022-13278, November 2023, Appendix C, printed pp. 75–85.
+https://maccs.sandia.gov/docs/MelMACCS%20Documents/MELMACCS_Users_Guide_4.0.0_SAND2022-13278_Update.pdf
+Files: MelMACCS-published-source-term.inp. Published cards; PDF line wrapping joined; numerical values retained. This is an excerpt, not a runnable full MACCS deck.
+
+S2. Noah Etter, Methodology for Generating MACCS Site-Specific Input Files to Support Risk-Informed Radiological Consequence Assessment, NRC, Appendix B.3–B.4 (pp. 72–73), B.6–B.7 (pp. 76–77).
+https://www.nrc.gov/docs/ML2520/ML25203A330.pdf
+Files: SecPop-Noah-published-site-excerpt.txt, MACCS-Noah-site-coordinates-excerpt.txt, MacMetGen-Noah-published-config.inp, MacMetGen-Noah-published-day.MET. Published values and ellipses retained. The SecPop west longitude is represented with a negative sign; the original header also remains available.
+
+S3. Noah Alexander Etter, A Methodology for using MACCS as a Tool for the Licensing of Non-Light Water Reactors, 2026 thesis.
+https://repository.lib.ncsu.edu/bitstreams/2af41279-fd84-46ec-a243-c4f99c1abe9a/download
+Files: MACCS-Noah-dose-settings-excerpt.inp (printed pp. 101, 110; PDF pp. 114, 123); MACCS-Noah-health-settings-excerpt.inp (printed pp. 99–100; PDF pp. 112–113). Documented OpenRC deposition defaults: printed p. 82. Selected published blocks combined in these excerpts; no numerical values created.
+
+S4. DOE, MACCS2 Computer Code Application Guidance for Documented Safety Analysis, June 2004, printed p. 7-4 (PDF p. 101).
+https://www.energy.gov/sites/default/files/2018/07/f54/Final_MACCS2_Guidance_Report_June_1_2004_508C.pdf
+File: MACCS2-DOE-published-dispersion.inp. Published ATMOS power-law dispersion cards, retained as reference values.
+
+S5. NNDC/BNL, Evaluated Nuclear Structure Data File, archival distribution 2023-04-03.
+https://www.nndc.bnl.gov/ensdfarchivals/distributions/dist23/ensdf_230403.zip
+File: NNDC-ENSDF-2023-04-03-mass-137.txt is byte-for-byte archive member ensdf.137.
+Archive SHA-256: d785cc0194cee046d6d98986035161464a3ead9ccc215ce3c0e295b97c3d3b4d.
+
+S6. US EPA, FGR 13 CD Supplement / FGR13PAK.
+https://www.epa.gov/radiation/federal-guidance-report-no-13-cd-supplement
+https://www.epa.gov/system/files/other-files/2023-04/fgr13pak.zip
+Files: FGR13INH.HDB, F12TIII1.EXT, F12TIII3.EXT; unmodified original archive members. Historical reference libraries are versioned by their source archive; no claim of newest regulatory coefficients is made.
+Archive SHA-256: 459e5524506fb992815f76815e5735ea7d273aa66ff809db4b6c29954ccefc08.
+
+REVIEW QUESTIONS
+1. Are the three source tables and unit labels clear?
+2. Are the radial bands, sectors and receptor evaluation choices easy to distinguish?
+3. Are weather-source coordinates, dates and incomplete time coverage clear?
+4. Does the interface separate OpenRC settings from MACCS and ENSDF reference data?
+5. Are coefficient alternatives and missing radionuclide coverage visible enough?
+6. Are saved snapshots, original files and result-to-input links adequate for your review process?
+
+FILE HASHES (SHA-256)
+F12TIII1.EXT
+ba715095d9d05c79228f13ae26bd46412de2eae26d563bd3f9ef58139c0dac41
+F12TIII3.EXT
+0e5985f467b1d90ae08ab923ddc57d02fa2f59075754a216205cef067ea114f3
+FGR13INH.HDB
+edd7d65edd36064137ca9cf2df9ce61c6de060a0eeb937d20df0deb5b9034b0d
+MACCS-Noah-dose-settings-excerpt.inp
+6d82cb5899b97caf57833a51b868068615785aed69f563e4dcae7795de3c2e3e
+MACCS-Noah-health-settings-excerpt.inp
+c6e6fd7cb97b7d52e6782fdc3a594b271695a1cc5f1483e32e0ce01155c1a2db
+MACCS-Noah-site-coordinates-excerpt.txt
+41d5ba2a540dbf58e40b9986ce30fa3d5f5c613beee842c06c8f8fc731d2684e
+MACCS2-DOE-published-dispersion.inp
+33918d9c3eb6429bc233392147cecff6c9e0e409e22294e2b3bfff1a25c3fca3
+MacMetGen-Noah-published-config.inp
+bf1c217198d35851e4f3301643e718178cc8fa7bd6214e7546e2756e831b4473
+MacMetGen-Noah-published-day.MET
+6c1f3db956a51d04af4e8d9d833bfe9a6b6ae50d6e9ddf1bd136a0458ff198b5
+MelMACCS-published-source-term.inp
+386b4a48047cde45187dc21ca8e39b7426ee944ec0e7dc53bb3c8d809d56dd18
+NNDC-ENSDF-2023-04-03-mass-137.txt
+2e7c2a33de25ece5117a9ac6a1b620093096917e7ff89c95f94277181b39a671
+SecPop-Noah-published-site-excerpt.txt
+11b77c681ebb0d3cdb233ae0e82e791c1254dd85940fdae5c34255070829b904

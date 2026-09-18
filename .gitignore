@@ -136,6 +136,8 @@ apps/solvers/xfta/XFTA.pdf
 
 # Local model backups from the explicit-prior data conversion.
 /outputs/hcl-seismic-generators/database-backups/
+/output
+/outputs
 
 !/apps/solvers/praxis/tests/fixtures/hcl_mh_source.py
 !/apps/solvers/praxis/tests/fixtures/hcl_mh_summaries/

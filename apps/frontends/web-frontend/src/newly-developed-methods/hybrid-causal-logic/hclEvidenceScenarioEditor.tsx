@@ -94,7 +94,8 @@ function HclEvidenceScenarioEditor({
   const scenarios = configuration.evidenceScenarios ?? [];
   const [selectedId, setSelectedId] = useState(scenarios[0]?.id ?? "");
   const exportMenuRef = useRef<HTMLDetailsElement>(null);
-  const selected = scenarios.find((scenario) => scenario.id === selectedId);
+  const selected = scenarios.find((scenario) => scenario.id === selectedId) ?? scenarios[0];
+  const resolvedSelectedId = selected?.id ?? "";
   const enabledScenarios = scenarios.filter((scenario) => scenario.enabled);
   const completeHazardNodes = model.nodes.filter((node) =>
     enabledScenarios.length > 0
@@ -114,9 +115,9 @@ function HclEvidenceScenarioEditor({
     : "Choose BN states for every enabled scenario so each scenario has a complete, unique combination.";
 
   useEffect(() => {
-    if (scenarios.some((scenario) => scenario.id === selectedId)) return;
-    setSelectedId(scenarios[0]?.id ?? "");
-  }, [scenarios, selectedId]);
+    if (selectedId === resolvedSelectedId) return;
+    setSelectedId(resolvedSelectedId);
+  }, [resolvedSelectedId, selectedId]);
   useEffect(() => {
     const closeExportMenu = (event: PointerEvent): void => {
       const menu = exportMenuRef.current;
@@ -261,7 +262,7 @@ function HclEvidenceScenarioEditor({
         <div className="hcleditor__scenario-workspace">
           <div className="hcleditor__scenario-list" aria-label="Evidence scenario list">
             {scenarios.map((scenario) => (
-              <div key={scenario.id} className={`hcleditor__scenario-row${scenario.id === selectedId ? " is-selected" : ""}`}>
+              <div key={scenario.id} className={`hcleditor__scenario-row${scenario.id === resolvedSelectedId ? " is-selected" : ""}`}>
                 <input aria-label={`Enable ${scenario.code}`} type="checkbox" checked={scenario.enabled} disabled={!editable} onChange={(event) => replaceScenario({ ...scenario, enabled: event.target.checked })} />
                 <button type="button" onClick={() => setSelectedId(scenario.id)}>
                   <strong>{scenario.code}</strong>

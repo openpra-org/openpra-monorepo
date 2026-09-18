@@ -1,0 +1,26 @@
+** AERMAP - VERSION 24142                                              09/23/24
+**                                                                     10:41:15
+**  Test of AERMAP for Mixed DEMs and Cross UTM Zone for Anchorage Area
+**  Inputs include 7.5-min, 15-min, and 1-deg AK DEM Data
+** A total of      31  DEM files were used
+** A total of      13  receptors were processed
+** DOMAINLL  149.60016  61.0304   150.7583 61.54274
+** DOMAINLL was adjusted for Negative West Longitude:
+** DOMAINLL     -150.75830     61.03040    -149.60016     61.54274
+** ANCHORXY  338880.  6785880.    338880. 6785880. 6 4
+** TERRHGTS  EXTRACT
+  
+RE ELEVUNIT METERS
+   DISCCART     341140.00   6785439.00      22.95      25.00
+   DISCCART     341946.00   6779026.00      16.16      51.10
+   DISCCART     341748.00   6778281.00       0.00       0.00
+   DISCCART     355659.00   6776526.00     785.72    1496.00
+   DISCCART     356187.00   6775575.00    1031.72    1341.00
+   DISCCART     358061.00   6773175.00    1286.40    1496.00
+   DISCCART     359542.00   6772036.00    1417.79    1496.00
+   DISCCART     359227.00   6780618.00    1364.12    1369.00
+   DISCCART     359608.00   6777779.00    1212.25    1341.00
+   DISCCART     305970.00   6779265.00       0.00       0.00
+   DISCCART     300500.00   6824000.00    1114.14    1136.00
+   DISCCART     304500.00   6820650.00     238.48    1340.00
+   DISCCART     337500.00   6818940.00      43.52      46.00

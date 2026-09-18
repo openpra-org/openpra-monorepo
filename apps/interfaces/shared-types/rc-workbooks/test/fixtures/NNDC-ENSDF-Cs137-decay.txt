@@ -1,0 +1,57 @@
+137BA    137CS B- DECAY                1983BE18,1996BI23,1997WAZZ07NDS    200709
+137BA  H TYP=ERR$AUT=J. Tuli$DAT=10-Feb-2008$COM=fixed logft values$            
+137BA  H TYP=ERR$AUT=J. Tuli$DAT=17-Dec-2007$COM=fixed typos noted by PNPI$     
+137BA  H TYP=FUL$AUT=E. BROWNE, J. K. TULI$CIT=NDS 108,2173 (2007)$             
+137BA2 H CUT=1-Oct-2006$                                                        
+137BA c  Measured: E(|b{+-}) (1983Be18,1978Ch22,1968Wo02,1966Hs02,1958Yo01),    
+137BA2c  shape of the |b spectra (1983Be18,1978Ch22,1978Gr09,1969Sc23,1966Hs02),
+137BA3c  longitudinal polarization of |b (1975Do14), internal bremsstrahlung    
+137BA4c  (1977We04,1975Ba20)                                                    
+137BA c  1996Bi23, 1997WaZZ: measured 283|g, HPGe                               
+137BA cG           1997WaZZ, 1996Bi23 looked for but did not find a transition  
+137BA2cG from the 661 level to the 283.5 level.                                 
+137BA cG           2007Ni04: Measured                                           
+137BA2cG |a(K)exp(127.5 keV E3 in {+134}Cs)/|a(K)exp(661.7 keV M4 in            
+137BAxcG {+137}Cs)=30.01 {I15}                                                  
+137BA cG           2007Ya02: Measured K x-ray ratios obtained in decay vs       
+137BA2cG photo-ionization. Values agreed with previous measurements and theory. 
+137BA3cG Other: 2006Ha36                                                        
+137BA cL J         Adopted values                                               
+137CS  P 0.0         7/2+              30.08 Y   9              1175.63   17    
+137BA  N 1.0                   1.0       1.0                                    
+137BA PN                                                                     3  
+137BA  L 0.0         3/2+                                                       
+137BA  B 1176       15.3      2           12.079 17                             
+137BAS B EAV=416.26 8                                                           
+137BA cB E         from 1966Hs02, 1176 {I3} (1958Yo01), 1176 {I15} (1983Be18)   
+137BA cB IB$from 100-I|b(661 level).                                            
+137BA2cB Others: 5.45 {I1} (1983Be18), 5.3 {I4} (1968Wo02), 5.4 {I3} (1969Ha05),
+137BA3cB 6.0 {I5} (1966Hs02), 7.6 {I8} (1958Yo01)                               
+137BA cB           Shape: |DJ=2(no) (1966Hs02,1969Sc23,1978Gr09)                
+137BA  L 283.50    101/2+                                                       
+137BA  B             0.00058 8             16.61 6                           2U 
+137BA cB IB$from I|g. 2007Se05 have recomputed logf2UT=16.45 {I12},             
+137BA2cB I|b=8.7|*10{+-4} {I20}, superseding their earlier value of 13.5        
+137BAxcB (2006SeZY)                                                             
+137BAS B EAV=334.65 8                                                           
+137BA  G 283.5      15.8E-4  8                                                  
+137BA cG E,RI$E|g from 1997Wa37, %I|g average of 5.3|*10{+-4} {I14} (1996Bi23), 
+137BA2cG 6.1|*10{+-4} {I10} (1997Wa37)                                          
+137BA  L 661.659    311/2-             2.552 M   1                           M  
+137BA cL T$from adopted levels                                                  
+137BA  B 514.03    2394.7     2           9.625   2                          1U 
+137BAS B EAV=174.32 6                                                           
+137BA cB E         from 1983Be18. Others: 513.89 {I26} (1978Ch22),              
+137BA2cB 511.63 {I84} (1968Wo02), 514 {I1} (1966Hs02), 514 {I3} (1958Yo01)      
+137BA cB IB$from I|g. Others: 94.6 {I3} (1968Wo02), 94.0 {I5} (1966Hs02), 92.4  
+137BAxcB {I8} (1958Yo01). I|b=94.6, log| {If{+1u}t}=8.5 (2006SeZY)              
+137BA cB                                                                        
+137BA cB           Shape: |DJ=2(yes)-1U (1983Be18,1978Gr09,1969Sc23,1966Hs02)   
+137BA  G 661.657   3 85.1     2M4                      0.1124                   
+137BAS G KC=0.0915 13$LC=0.01648 23$MC=0.00352 5$NC+=0.000879 13                
+137BAS G NC=0.000759 11$OC=0.0001134 16$PC=7.21E-6 11                           
+137BA cG E$from 1995HeZZ                                                        
+137BA cG RI$recommended by 1991BaZS on the basis of following values:           
+137BA2cG 85.21 {I7} (1983Be18), 84.3 {I5} (1978Gr09), 84.7 {I7} (1978MeZM),     
+137BA2cG 85.1 {I4} (1975Go28), 84.56 {I8} (1973LeZJ), 85.1 {I4} (1969Ha05)      
+137BA cG           Mult.,|a: see {+137}Ba IT decay                              

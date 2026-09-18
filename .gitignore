@@ -102,6 +102,8 @@ tools/
 !/apps/solvers/praxis/vendor/scipy-quantiles/include/boost/math/tools/**
 traefik/
 fixtures/
+!apps/interfaces/shared-types/rc-workbooks/test/fixtures/
+!apps/interfaces/shared-types/rc-workbooks/test/fixtures/**
 registry/
 docker-compose.yml
 docker-compose.infra.yml

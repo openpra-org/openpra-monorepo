@@ -169,3 +169,4 @@ apps/solvers/xfta/XFTA.pdf
 /apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/*
 !/apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/hclMhSource.json
 !/apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/hclMhSource.py
+!/apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/grouping-demo.xdsl

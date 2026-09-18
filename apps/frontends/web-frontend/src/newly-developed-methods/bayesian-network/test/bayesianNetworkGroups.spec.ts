@@ -18,7 +18,7 @@ import { deleteNode } from "../bayesianNetworkOperations";
 import { testBayesianNetworkModel } from "./bayesianNetworkTestModel";
 import { validateBayesianNetworkModel, type BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 
-const xml = readFileSync(resolve(__dirname, "../../../../../../../resources/examples/bayesian-networks/grouping-demo.xdsl"), "utf8");
+const xml = readFileSync(resolve(__dirname, "fixtures/grouping-demo.xdsl"), "utf8");
 const demo = () => importBayesianNetworkXdsl(xml);
 const group = (model: BayesianNetworkModel, path: string) => groups(model).find((entry) => entry.path === path)!;
 const nodeId = (model: BayesianNetworkModel, code: string) => model.nodes.find((node) => node.code === code)!.id;

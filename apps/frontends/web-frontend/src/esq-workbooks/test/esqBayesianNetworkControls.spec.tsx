@@ -16,7 +16,7 @@ jest.mock("../../workbooks/workbookApi", () => ({ listWorkbooks: jest.fn() }));
 jest.mock("../../sy-workbooks/syWorkbookApi", () => ({ getSyWorkbook: jest.fn() }));
 jest.mock("../../es-workbooks/esWorkbookApi", () => ({ getEsWorkbook: jest.fn() }));
 
-const sample = readFileSync(resolve(__dirname, "../../../../../../resources/examples/bayesian-networks/grouping-demo.xdsl"), "utf8");
+const sample = readFileSync(resolve(__dirname, "../../newly-developed-methods/bayesian-network/test/fixtures/grouping-demo.xdsl"), "utf8");
 const empty = { uuid: "test-esq", bayesianNetworks: [], hclConfigurations: [] } as unknown as EventSequenceQuantification;
 
 function Workbook({ editable = true, initial = empty, changed = jest.fn(), initialNetworkId = null, initialSourceWorkbookId = null }: {

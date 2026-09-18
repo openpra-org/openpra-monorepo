@@ -8,7 +8,6 @@ import type {
   EventTreeCanvasLayout,
   EventTreeInitiatingEventFrequency,
   FaultTreeTopEventReference,
-  WorkbookBayesianNetwork,
   WorkbookEntityId,
 } from "../modeling";
 
@@ -256,7 +255,6 @@ export interface SystemInterfaceDependency extends Unique, Named {
 }
 
 export interface DependencyModels {
-  bayesianNetworks?: WorkbookBayesianNetwork[];
   functionalDependencies?: FunctionalDependencyModel[];
   phenomenologicalDependencies?: PhenomenologicalDependencyModel[];
   operationalDependencies?: OperationalDependencyModel[];

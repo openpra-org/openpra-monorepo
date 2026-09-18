@@ -21,7 +21,6 @@ import {
   EventTreeCanvasLayoutSchema,
   EventTreeInitiatingEventFrequencySchema,
   FaultTreeTopEventReferenceSchema,
-  WorkbookBayesianNetworkSchema,
   WorkbookEntityIdSchema,
 } from "../modeling";
 
@@ -272,7 +271,6 @@ export const SystemInterfaceDependencySchema = z.object({
 });
 
 export const DependencyModelsSchema = z.object({
-  bayesianNetworks: z.array(WorkbookBayesianNetworkSchema).optional(),
   functionalDependencies: z.array(FunctionalDependencyModelSchema).optional(),
   phenomenologicalDependencies: z.array(PhenomenologicalDependencyModelSchema).optional(),
   operationalDependencies: z.array(OperationalDependencyModelSchema).optional(),

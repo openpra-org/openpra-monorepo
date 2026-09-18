@@ -356,46 +356,6 @@
   display: none;
 }
 
-.esq-hcl-et__intro {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.esq-hcl-et__intro .poscard__sub {
-  margin: 0;
-  line-height: 1.4;
-}
-
-.esq-hcl-et__configuration {
-  display: grid;
-  margin-inline-start: auto;
-  width: min(34rem, 100%);
-  min-width: min(24rem, 100%);
-  flex: 0 1 34rem;
-  gap: 4px;
-}
-
-.esq-hcl-et__configuration > span {
-  color: var(--color-text-muted);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.esq-hcl-et__configuration select {
-  width: 100%;
-  min-height: 34px;
-  padding-top: 7px;
-  padding-right: 40px;
-  padding-bottom: 7px;
-  background-position: right 14px center;
-  font-family: inherit;
-  font-size: 13px;
-  line-height: 1.25;
-}
-
 .hcleditor__trees {
   display: grid;
   gap: 8px;

@@ -10,7 +10,7 @@ import { type JSX, useState } from "react";
 import { POSIcon } from "../pos-workbooks/posIcons";
 import { removeStructuredRecord, StructuredEditorDrawer, type EditorPath } from "../seismic-pra-workbooks/seismicPraStructuredEditor";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
-import { HazardBayesianNetworkEditor, HazardEventTreeEditor, HazardFaultTreeEditor } from "../workbooks/hazardConditionedModelEditors";
+import { HazardEventTreeEditor, HazardFaultTreeEditor } from "../workbooks/hazardConditionedModelEditors";
 import { Drawer, Field, NumberInput, Section, SelectInput, TextArea, TextInput } from "./highWindsPraFields";
 import { useHighWindsPraWorkbook } from "./highWindsPraWorkbookContext";
 import "../seismic-pra-workbooks/css/seismicPra.css";
@@ -382,7 +382,6 @@ function TechnicalStep({ stepId }: { stepId: string }): JSX.Element {
       <Section title="Hazard-conditioned initiating-event fault trees" description="Author the initiating-event logic created or modified by high-wind demand."><HazardFaultTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>
       <Section title="Hazard-conditioned event trees" description="Author the high-wind response paths, functional events, bypasses, and end states."><HazardEventTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>
     </>}
-    {(stepId === "human-reliability" || stepId === "quantification") && <Section title="Hazard dependency Bayesian networks" description="Model causal and conditional dependencies retained in high-wind response quantification."><HazardBayesianNetworkEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>}
     {recordSections.map((item) => <RecordSectionView key={item.title} section={item} setTarget={setTarget} />)}
     <Editor target={target} onClose={() => setTarget(null)} />
   </div>;

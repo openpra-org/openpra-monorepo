@@ -9,7 +9,6 @@ import {
   PreOperationalAssumptionSchema,
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
-import { WorkbookBayesianNetworkSchema } from "../modeling/workbook-models";
 
 export const HfeTimingSchema = z.enum(["PRE_INITIATOR", "AT_INITIATOR", "POST_INITIATOR"]);
 export const HfeImpactLevelSchema = z.enum(["FUNCTION", "SYSTEM", "TRAIN", "COMPONENT"]);
@@ -267,7 +266,6 @@ export const HumanReliabilityAnalysisSchema = z.object({
   preInitiatorRecoveryCredits: z.array(PreInitiatorRecoveryCreditSchema).optional(),
   jointHepFloor: JointHepFloorSchema,
   dependencyAssessments: z.array(HfeDependencyAssessmentSchema),
-  dependencyBayesianNetworks: z.array(WorkbookBayesianNetworkSchema).optional(),
   hepConsistencyReviews: z.array(HepConsistencyReviewSchema).optional(),
   errorForcingContexts: z.array(ErrorForcingContextSchema).optional(),
   recoveryActions: z.array(RecoveryActionSchema).optional(),

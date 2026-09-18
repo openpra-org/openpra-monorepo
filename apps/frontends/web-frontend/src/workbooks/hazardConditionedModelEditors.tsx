@@ -1,16 +1,8 @@
 import type { EventSequence } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { HazardConditionedMethodModels } from "interfaces-mef-types/hazard-conditioned-models";
-import type { WorkbookBayesianNetwork, WorkbookFaultTree } from "interfaces-mef-types/modeling";
-import {
-  validateBayesianNetworkModel,
-  type BayesianNetworkModel,
-} from "interfaces-shared-types/newly-developed-methods/bayesian-network";
+import type { WorkbookFaultTree } from "interfaces-mef-types/modeling";
 import { type JSX, useEffect, useState } from "react";
 import { POSIcon } from "../pos-workbooks/posIcons";
-import {
-  BayesianNetworkEditor,
-  createEmptyBayesianNetwork,
-} from "../newly-developed-methods/bayesian-network";
 import {
   EventTreeEditor,
   applyEventTreeOperation,
@@ -31,14 +23,6 @@ interface HazardModelEditorProps {
   models: HazardConditionedMethodModels;
   editable: boolean;
   onChange: (models: HazardConditionedMethodModels) => void;
-}
-
-interface WorkbookBayesianNetworkCollectionEditorProps {
-  networks: WorkbookBayesianNetwork[];
-  editable: boolean;
-  onChange: (networks: WorkbookBayesianNetwork[]) => void;
-  ariaLabel?: string;
-  newNetworkName?: string;
 }
 
 function CollectionToolbar({
@@ -220,91 +204,7 @@ function HazardEventTreeEditor({ models, editable, onChange }: HazardModelEditor
   );
 }
 
-function WorkbookBayesianNetworkCollectionEditor({
-  networks,
-  editable,
-  onChange,
-  ariaLabel = "Dependency Bayesian networks",
-  newNetworkName = "Dependency network",
-}: WorkbookBayesianNetworkCollectionEditorProps): JSX.Element {
-  const [selectedId, setSelectedId] = useState(networks[0]?.modelId ?? "");
-  const [evidence, setEvidence] = useState({ observations: [] as Array<{ nodeId: string; stateId: string }> });
-  const [queryNodeId, setQueryNodeId] = useState<string | null>(null);
-  const selected = networks.find((model) => model.modelId === selectedId) ?? networks[0];
-  useEffect(() => {
-    if (selected !== undefined && selectedId !== selected.modelId) setSelectedId(selected.modelId);
-  }, [selected, selectedId]);
-  const add = (): void => {
-    const model = createEmptyBayesianNetwork(newNetworkName) as WorkbookBayesianNetwork;
-    onChange([...networks, model]);
-    setSelectedId(model.modelId);
-  };
-  if (selected === undefined) return <EmptyModel type="dependency Bayesian network" editable={editable} onAdd={add} qualifier="workbook-owned " />;
-  const validation = validateBayesianNetworkModel(selected as BayesianNetworkModel, { evidence });
-  return (
-    <section className="hazmodels" aria-label={ariaLabel}>
-      <CollectionToolbar
-        label="Dependency Bayesian network"
-        value={selected.modelId}
-        options={networks.map((model) => ({ id: model.modelId, code: model.code, name: model.name }))}
-        editable={editable}
-        onChange={(id) => { setSelectedId(id); setEvidence({ observations: [] }); setQueryNodeId(null); }}
-        onAdd={add}
-        onDelete={() => {
-          const remaining = networks.filter((model) => model.modelId !== selected.modelId);
-          onChange(remaining);
-          setSelectedId(remaining[0]?.modelId ?? "");
-          setEvidence({ observations: [] });
-          setQueryNodeId(null);
-        }}
-      />
-      <BayesianNetworkEditor
-        model={selected as BayesianNetworkModel}
-        editable={editable}
-        showAnalysis={false}
-        evidence={evidence}
-        queryNodeId={queryNodeId}
-        validation={validation}
-        analysisResult={null}
-        running={false}
-        runError={null}
-        workbookId={null}
-        hclConfigurations={[]}
-        faultTreeOptions={[]}
-        eventTreeOptions={[]}
-        hclRunning={false}
-        hclRunError={null}
-        hclRunResult={null}
-        hclBatchRunResult={null}
-        onModelChange={(model) => onChange(networks.map((candidate) => candidate.modelId === selected.modelId ? model : candidate))}
-        onEvidenceChange={setEvidence}
-        onQueryNodeChange={setQueryNodeId}
-        onHclConfigurationsChange={() => undefined}
-        onRunHclFaultTree={() => undefined}
-        onRunHclEventTree={() => undefined}
-        onRunHclFaultTreeBatch={() => undefined}
-        onRunHclEventTreeBatch={() => undefined}
-        onRun={() => undefined}
-      />
-    </section>
-  );
-}
-
-function HazardBayesianNetworkEditor({ models, editable, onChange }: HazardModelEditorProps): JSX.Element {
-  return (
-    <WorkbookBayesianNetworkCollectionEditor
-      networks={models.dependencyBayesianNetworks}
-      editable={editable}
-      onChange={(dependencyBayesianNetworks) => onChange({ ...models, dependencyBayesianNetworks })}
-      ariaLabel="Hazard-conditioned dependency networks"
-      newNetworkName="Hazard dependency network"
-    />
-  );
-}
-
 export {
-  HazardBayesianNetworkEditor,
   HazardEventTreeEditor,
   HazardFaultTreeEditor,
-  WorkbookBayesianNetworkCollectionEditor,
 };

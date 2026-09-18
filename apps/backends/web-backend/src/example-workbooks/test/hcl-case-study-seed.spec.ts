@@ -20,8 +20,6 @@ import {
 import {
   reconcileExampleEsqDependencyReferences,
   reconcileExampleEventTreeDependencyReferences,
-  reconcileExampleSyDataAnalysisReferences,
-  reconcileExampleSyHumanReliabilityReferences,
   reconcileExampleSyDependencyOwnership,
   reconcileExampleRiskResultReferences,
 } from "../seeds/dependency-model-seed";
@@ -48,8 +46,8 @@ describe("HCL dissertation case-study example", () => {
     expect(ES_ANALYSIS_HCL.eventSequences).toHaveLength(45);
     expect(SY_ANALYSIS_HCL.dependencyBayesianNetworks).toHaveLength(1);
     expect(SY_ANALYSIS_HCL.dependencyHclConfigurations).toHaveLength(1);
-    expect(HR_ANALYSIS_HCL.dependencyBayesianNetworks).toHaveLength(1);
-    expect(ES_ANALYSIS_HCL.dependencyModels?.bayesianNetworks).toHaveLength(1);
+    expect(ESQ_ANALYSIS_HCL.bayesianNetworks).toHaveLength(0);
+    expect(ESQ_ANALYSIS_HCL.hclConfigurations).toHaveLength(0);
     expect(ES_ANALYSIS_HCL.eventTrees?.map(({ label }) => label)).toEqual(["LOOP", "SBO", "FLEX"]);
     expect(ES_ANALYSIS_HCL.eventSequenceFamilies.map(({ name }) => name)).toEqual(
       expect.arrayContaining(["Successful stabilization", "Core damage", "LOCA", "ATWS"]),
@@ -64,19 +62,9 @@ describe("HCL dissertation case-study example", () => {
 
   it("reconciles every local FT, BE, BN, and event-tree reference", () => {
     const syWorkbookId = "real-hcl-sy-workbook";
-    const daWorkbookId = "real-hcl-da-workbook";
-    const hrWorkbookId = "real-hcl-hr-workbook";
     const esqWorkbookId = "real-hcl-esq-workbook";
     const sy = SystemsAnalysisSchema.parse(reconcileExampleSyDependencyOwnership(
-      reconcileExampleSyHumanReliabilityReferences(
-        reconcileExampleSyDataAnalysisReferences(
-          SystemsAnalysisSchema.parse(structuredClone(SY_ANALYSIS_HCL)),
-          DA_ANALYSIS_HCL,
-          daWorkbookId,
-        ),
-        HR_ANALYSIS_HCL,
-        hrWorkbookId,
-      ),
+      SystemsAnalysisSchema.parse(structuredClone(SY_ANALYSIS_HCL)),
       syWorkbookId,
     ));
     const es = EventSequenceAnalysisSchema.parse(reconcileExampleEventTreeDependencyReferences(
@@ -93,24 +81,8 @@ describe("HCL dissertation case-study example", () => {
 
     const modelIds = new Set(sy.systemLogicModels.map(({ uuid }) => uuid));
     const basicEventIds = new Set(sy.systemBasicEvents.map(({ uuid }) => uuid));
-    const parameters = new Map(DA_ANALYSIS_HCL.parameters.map((parameter) => [parameter.uuid, parameter]));
-    expect(sy.systemBasicEvents.every((event) => {
-      const reference = event.controlledDataSource;
-      if (event.failureMode === "HUMAN_ERROR") {
-        return reference?.referenceType === "HUMAN_FAILURE_EVENT" &&
-          reference.workbookId === hrWorkbookId &&
-          HR_ANALYSIS_HCL.hepQuantifications.some((quantification) =>
-            quantification.uuid === reference.quantificationId &&
-            quantification.hfeId === reference.entityId &&
-            (quantification.meanHep ?? quantification.pointEstimateHep) === event.probability);
-      }
-      return reference?.referenceType === "WORKBOOK_PARAMETER" &&
-        reference.workbookId === daWorkbookId &&
-        parameters.get(reference.entityId)?.value === event.probability;
-    })).toBe(true);
-    expect(sy.humanFailureEventIntegrations.every((integration) =>
-      integration.hfeSource?.workbookId === hrWorkbookId &&
-      integration.hfeSource.entityId === integration.hfeReference)).toBe(true);
+    expect(sy.systemBasicEvents.every((event) => event.controlledDataSource === undefined)).toBe(true);
+    expect(sy.humanFailureEventIntegrations).toEqual([]);
     const ownedConfiguration = sy.dependencyHclConfigurations?.[0];
     expect(ownedConfiguration?.bayesianNetwork.workbookId).toBe(syWorkbookId);
     expect(ownedConfiguration?.faultTrees).toHaveLength(22);
@@ -127,18 +99,13 @@ describe("HCL dissertation case-study example", () => {
       }
     }
 
-    const configuration = esq.hclConfigurations[0]!;
-    const network = esq.bayesianNetworks[0]!;
-    expect(configuration.bayesianNetwork.workbookId).toBe(esqWorkbookId);
-    expect(configuration.faultTrees).toHaveLength(22);
-    expect(configuration.faultTrees.every(({ workbookId, modelId }) =>
-      workbookId === syWorkbookId && modelIds.has(modelId))).toBe(true);
-    expect(configuration.bindings.every(({ faultTreeBasicEvent }) =>
-      faultTreeBasicEvent.workbookId === syWorkbookId && basicEventIds.has(faultTreeBasicEvent.entityId))).toBe(true);
+    expect(esq.hclConfigurations).toEqual([]);
+    expect(esq.bayesianNetworks).toEqual([]);
+    const network = sy.dependencyBayesianNetworks[0]!;
     expect(validateBayesianNetworkModel(network, {
-      evidence: configuration.baseEvidence,
-      hclBindings: configuration.bindings,
-      workbookId: esqWorkbookId,
+      evidence: ownedConfiguration!.baseEvidence,
+      hclBindings: ownedConfiguration!.bindings,
+      workbookId: syWorkbookId,
     }).filter(({ severity }) => severity === "ERROR")).toEqual([]);
 
     const risk = reconcileExampleRiskResultReferences(

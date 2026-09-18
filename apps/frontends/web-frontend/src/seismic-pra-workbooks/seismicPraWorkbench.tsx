@@ -29,7 +29,6 @@ import {
 import { InfoButton } from "./seismicPraFields";
 import { composeWorkbookCue } from "../workbooks/workbookCueContent";
 import {
-  HazardBayesianNetworkEditor,
   HazardEventTreeEditor,
   HazardFaultTreeEditor,
 } from "../workbooks/hazardConditionedModelEditors";
@@ -169,8 +168,8 @@ function Screen({ id, actions, renderApprovalTable, renderSignCard, renderRoster
     case "secondary-hazards": return <PlantConfigurationScreen />;
     case "sel-response": return <FragilityDevelopmentScreen />;
     case "thresholds": return <><HazardFaultTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /><HazardEventTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /><PlantResponseModelScreen /></>;
-    case "fragility-results": return <><HazardBayesianNetworkEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /><HumanReliabilityScreen /></>;
-    case "plant-model": return <><HazardBayesianNetworkEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /><AnnualRiskQuantificationScreen /></>;
+    case "fragility-results": return <HumanReliabilityScreen />;
+    case "plant-model": return <AnnualRiskQuantificationScreen />;
     case "human-reliability": return <RiskInterpretationScreen />;
     case "quantification": return <RiskIntegrationBaselineScreen />;
     case "draft": return <DraftScreen actions={actions} />;

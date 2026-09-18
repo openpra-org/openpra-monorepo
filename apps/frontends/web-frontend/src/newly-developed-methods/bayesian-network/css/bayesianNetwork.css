@@ -1613,13 +1613,27 @@
   border-radius: 8px;
   background: var(--color-surface);
 }
-.bneditor__group-form { display: grid; gap: 10px; padding: 12px; }
-.bneditor__group-form p { margin: 0; font-size: 12px; }
-.bneditor__group-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.bneditor__group-form { display: grid; gap: 8px; padding: 10px; }
+.bneditor__group-fields { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
 .bneditor__group-fields label { display: grid; gap: 4px; min-width: 0; font-size: 12px; }
-.bneditor__group-fields input, .bneditor__group-fields select { width: 100%; min-width: 0; box-sizing: border-box; }
-.bneditor__group-members { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px; max-height: 220px; overflow: auto; }
-.bneditor__group-members label { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; }
+.bneditor__group-fields input, .bneditor__group-fields select { width: 180px; height: 31px; min-width: 0; box-sizing: border-box; }
+.bneditor__group-remove {
+  min-height: 31px;
+  height: 31px;
+  margin-left: auto;
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: #fff;
+}
+.bneditor__group-remove:hover:not(:disabled) { border-color: var(--color-error); background: var(--color-error); color: #fff; filter: brightness(.92); }
+.bneditor .bneditor__group-remove:disabled {
+  border-color: color-mix(in srgb, var(--color-error) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--color-error) 12%, var(--color-surface));
+  color: var(--color-error);
+  opacity: 1;
+}
+.bneditor__group-members { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px 8px; max-height: 180px; margin-top: 8px; overflow: auto; }
+.bneditor__group-members label { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 2px 0; font-size: 12px; }
 .bneditor__group-members label > span { overflow-wrap: anywhere; }
-.bneditor__group-members small { display: block; color: var(--color-text-muted); }
 .bneditor__group-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
+.bneditor__view-nav { justify-content: center; width: 52px; height: 27px; }

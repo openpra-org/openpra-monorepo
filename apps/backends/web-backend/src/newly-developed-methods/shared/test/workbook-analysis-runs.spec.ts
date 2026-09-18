@@ -770,15 +770,7 @@ describe("workbook-owned analysis-run APIs", () => {
       mef: da,
     });
     const hclCaseSystems = reconcileExampleSyDependencyOwnership(
-      reconcileExampleSyHumanReliabilityReferences(
-        reconcileExampleSyDataAnalysisReferences(
-          structuredClone(SY_ANALYSIS_HCL),
-          DA_ANALYSIS_HCL,
-          HCL_CASE_DA_WORKBOOK_ID,
-        ),
-        HR_ANALYSIS_HCL,
-        HCL_CASE_HR_WORKBOOK_ID,
-      ),
+      structuredClone(SY_ANALYSIS_HCL),
       HCL_CASE_SY_WORKBOOK_ID,
     );
     const hclCaseNetwork = hclCaseSystems.dependencyBayesianNetworks?.find(
@@ -3081,7 +3073,7 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(hcl.body.run.status).toBe("SUCCEEDED");
   });
 
-  it("requires explicit relinking of missing DA/HRA workbooks", async () => {
+  it("runs HCL from SY-owned values without loading DA/HRA workbooks", async () => {
     const staleSystems = reconcileExampleSyDependencyOwnership(
       structuredClone(SY_ANALYSIS_HCL),
       HCL_CASE_STALE_SY_WORKBOOK_ID,
@@ -3110,41 +3102,18 @@ describe("workbook-owned analysis-run APIs", () => {
         },
       });
 
-    expect(response.status).toBe(400);
-    expect(response.body.message).toMatch(/Relink .* explicitly/);
-    const repaired = reconcileExampleSyHumanReliabilityReferences(
-      reconcileExampleSyDataAnalysisReferences(staleSystems, DA_ANALYSIS_HCL, HCL_CASE_DA_WORKBOOK_ID),
-      HR_ANALYSIS_HCL,
-      HCL_CASE_HR_WORKBOOK_ID,
-    );
-    await syWorkbooks.updateOne(
-      { workbookId: HCL_CASE_STALE_SY_WORKBOOK_ID },
-      { $set: { mef: repaired, revision: 2 } },
-    );
-    const rerun = await request(api.getHttpServer())
-      .post(
-        `/api/sy-workbooks/${HCL_CASE_STALE_SY_WORKBOOK_ID}/hcl-configurations/${HCL_CASE_BAYESIAN_IDS.hclConfiguration}/fault-tree-runs`,
-      )
-      .send({
-        schemaVersion: "1.0.0",
-        modelId: HCL_CASE_BAYESIAN_IDS.hclConfiguration,
-        workbookRevision: 2,
-        faultTreeTopGate: {
-          referenceType: "FAULT_TREE_TOP_EVENT",
-          workbookId: HCL_CASE_STALE_SY_WORKBOOK_ID,
-          modelId: HCL_CASE_FAULT_TREE_MODEL_IDS.FEED_BLEED,
-          entityId: HCL_CASE_FAULT_TREE_TOP_GATE_IDS.FEED_BLEED,
-        },
-      });
-    expect(rerun.status).toBe(200);
-    expect(rerun.body.run.status).toBe("SUCCEEDED");
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+    expect(response.body.run.sourceWorkbooks).toEqual([
+      { workbookId: HCL_CASE_STALE_SY_WORKBOOK_ID, workbookRevision: 1 },
+    ]);
   });
 
   it("checks reconstructed dissertation inputs against an independent BN for the FT and every ET sequence", async () => {
     const configurationId = HCL_CASE_BAYESIAN_IDS.hclConfiguration;
     const runIds: string[] = [];
     const faultTree = await request(api.getHttpServer())
-      .post(`/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${configurationId}/fault-tree-runs`)
+      .post(`/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/hcl-configurations/${configurationId}/fault-tree-runs`)
       .send({
         schemaVersion: "1.0.0",
         modelId: configurationId,
@@ -3157,9 +3126,8 @@ describe("workbook-owned analysis-run APIs", () => {
         },
       });
     expect(faultTree.status).toBe(200);
-    runIds.push(faultTree.body.run.id);
     const faultTreeResult = await request(api.getHttpServer()).get(
-      `/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${configurationId}/runs/${faultTree.body.run.id}/result`,
+      `/api/sy-workbooks/${HCL_CASE_SY_WORKBOOK_ID}/hcl-configurations/${configurationId}/runs/${faultTree.body.run.id}/result`,
     );
     expect(faultTreeResult.status).toBe(200);
     const savedFt = (await runs.findOne({ id: faultTree.body.run.id }).lean().exec())!;
@@ -3170,14 +3138,9 @@ describe("workbook-owned analysis-run APIs", () => {
       await ftOracle.faultTree(savedFt.target.faultTreeTopEvent, (envelope) => praetorClient.execute(envelope)),
       "Case-study FT",
     );
-    expect(faultTree.body.run.sourceWorkbooks).toContainEqual({
-      workbookId: HCL_CASE_DA_WORKBOOK_ID,
-      workbookRevision: 2,
-    });
-    expect(faultTree.body.run.sourceWorkbooks).toContainEqual({
-      workbookId: HCL_CASE_HR_WORKBOOK_ID,
-      workbookRevision: 3,
-    });
+    expect(faultTree.body.run.sourceWorkbooks).toEqual([
+      { workbookId: HCL_CASE_SY_WORKBOOK_ID, workbookRevision: 1 },
+    ]);
 
     for (const [treeKey, sequenceCount] of [
       // LOOP: 19 terminal paths + SBO; SBO: 10 terminal paths + 2 * 13 FLEX paths.
@@ -3288,50 +3251,6 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(provenance.status).toBe(200);
     expect(provenance.body.runs.map((entry: { run: { id: string } }) => entry.run.id).sort()).toEqual(
       [...runIds].sort(),
-    );
-    const faultTreeProvenance = provenance.body.runs.find(
-      (entry: { run: { id: string } }) => entry.run.id === faultTree.body.run.id,
-    );
-    expect(faultTreeProvenance).toMatchObject({
-      target: {
-        targetType: "HCL_FAULT_TREE",
-        configuration: {
-          workbookId: HCL_CASE_ESQ_WORKBOOK_ID,
-          workbookRevision: 1,
-          modelId: configurationId,
-        },
-        faultTreeTopEvent: {
-          workbookId: HCL_CASE_SY_WORKBOOK_ID,
-          workbookRevision: 1,
-          modelId: HCL_CASE_FAULT_TREE_MODEL_IDS.FEED_BLEED,
-          entityId: HCL_CASE_FAULT_TREE_TOP_GATE_IDS.FEED_BLEED,
-        },
-      },
-    });
-    expect(faultTreeProvenance.contributions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          hostType: "DA",
-          workbook: { workbookId: HCL_CASE_DA_WORKBOOK_ID, workbookRevision: 2 },
-          entities: expect.arrayContaining([expect.objectContaining({ referenceType: "WORKBOOK_PARAMETER" })]),
-        }),
-        expect.objectContaining({
-          hostType: "HRA",
-          workbook: { workbookId: HCL_CASE_HR_WORKBOOK_ID, workbookRevision: 3 },
-          entities: expect.arrayContaining([expect.objectContaining({ referenceType: "HUMAN_FAILURE_EVENT" })]),
-        }),
-        expect.objectContaining({
-          hostType: "ESQ",
-          models: expect.arrayContaining([
-            { workbookId: HCL_CASE_ESQ_WORKBOOK_ID, modelId: configurationId },
-            { workbookId: HCL_CASE_ESQ_WORKBOOK_ID, modelId: HCL_CASE_BAYESIAN_IDS.model },
-          ]),
-          entities: expect.arrayContaining([
-            expect.objectContaining({ referenceType: "HCL_BINDING" }),
-            expect.objectContaining({ referenceType: "BAYESIAN_NETWORK_NODE" }),
-          ]),
-        }),
-      ]),
     );
     const eventTreeProvenance = provenance.body.runs.find(
       (entry: { target: { targetType: string } }) => entry.target.targetType === "HCL_EVENT_TREE",

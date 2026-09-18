@@ -44,8 +44,10 @@ describe("Event Sequence Quantification Bayesian-network workspace", () => {
   it("shows only the heading and create action when no network exists", async () => {
     render(<EsqBayesianNetworkWorkspace />);
 
-    expect(await screen.findByRole("button", { name: "Add network" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Event tree Bayesian dependency network" })).toBeInTheDocument();
+    const addNetwork = await screen.findByRole("button", { name: "Add network" });
+    expect(addNetwork).toBeInTheDocument();
+    expect(addNetwork.parentElement).toHaveClass("bneditor__network-head");
+    expect(screen.getByRole("heading", { name: "Bayesian dependency network" })).toBeInTheDocument();
     expect(screen.getAllByRole("button")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: /^About / })).not.toBeInTheDocument();
     expect(screen.queryByText(/No Bayesian dependency network is available/)).not.toBeInTheDocument();
@@ -98,7 +100,10 @@ describe("Event Sequence Quantification Bayesian-network workspace", () => {
     const select = await screen.findByLabelText("Dependency configuration");
     expect(select).toHaveValue("");
     expect(screen.queryByTestId("dependency-network")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add network" })).toBeInTheDocument();
+    const addNetwork = screen.getByRole("button", { name: "Add network" });
+    const actions = select.closest(".esqbn__network-actions");
+    expect(actions).toContainElement(addNetwork);
+    expect(actions?.lastElementChild).toBe(addNetwork);
     expect(mockMutateEsq).not.toHaveBeenCalled();
 
     fireEvent.change(select, { target: { value: "SY:source-sy:source-hcl" } });
@@ -131,12 +136,15 @@ describe("Event Sequence Quantification Bayesian-network workspace", () => {
     expect(screen.queryByTestId("dependency-network")).not.toBeInTheDocument();
   });
 
-  it("does not use an unconfigured SY network as an automatic fallback", async () => {
-    projectWithDissertation();
+  it("lists an unconfigured SY network without selecting it automatically", async () => {
+    const { network } = projectWithDissertation();
     jest.mocked(getEsWorkbook).mockResolvedValue({ mef: { eventTrees: [] } } as unknown as Awaited<ReturnType<typeof getEsWorkbook>>);
     render(<EsqBayesianNetworkWorkspace />);
     await screen.findByRole("button", { name: "Add network" });
-    expect(screen.queryByLabelText("Dependency configuration")).not.toBeInTheDocument();
     expect(screen.queryByTestId("dependency-network")).not.toBeInTheDocument();
+    const select = screen.getByLabelText("Dependency configuration");
+    expect(screen.getByRole("option", { name: /Dissertation · .*network only/ })).toBeInTheDocument();
+    fireEvent.change(select, { target: { value: `NETWORK:SY:source-sy:${network.modelId}` } });
+    expect(screen.getByTestId("dependency-network")).toHaveTextContent("Dissertation network");
   });
 });

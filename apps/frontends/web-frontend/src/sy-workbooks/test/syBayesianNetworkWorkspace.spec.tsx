@@ -66,4 +66,21 @@ describe("Systems Analysis Bayesian-network workspace", () => {
       "bneditor__network-delete",
     );
   });
+
+  it("selects a network supplied by a deep link", () => {
+    const first = createEmptyBayesianNetwork("First network");
+    const linked = createEmptyBayesianNetwork("Linked network");
+    mockAnalysis = {
+      ...emptyAnalysis,
+      dependencyBayesianNetworks: [first, linked],
+    } as SystemsAnalysis;
+
+    render(<ToastProvider><SyBayesianNetworkWorkspace initialModelId={linked.modelId} initialEsqWorkbookId="esq-workbook" /></ToastProvider>);
+
+    expect(screen.getByRole("combobox", { name: "Bayesian network" })).toHaveValue(linked.modelId);
+    expect(screen.getByRole("link", { name: "Open Event Sequence Quantification workbook" })).toHaveAttribute(
+      "href",
+      `/esq-workbooks/esq-workbook?step=depend&sourceWorkbook=sy-workbook&network=${linked.modelId}`,
+    );
+  });
 });

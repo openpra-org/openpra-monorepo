@@ -4,7 +4,6 @@ import {
   type HazardConditionedMethodModels,
 } from "../hazard-conditioned-models";
 import {
-  WorkbookBayesianNetworkSchema,
   WorkbookFaultTreeCatalogueSchema,
   WorkbookFaultTreeSchema,
 } from "./modeling/workbook-models";
@@ -16,7 +15,6 @@ const HazardConditionedMethodModelsSchema = z
     faultTreeCatalogue: WorkbookFaultTreeCatalogueSchema,
     eventTrees: z.array(EventTreeSchema),
     eventSequences: z.array(EventSequenceSchema),
-    dependencyBayesianNetworks: z.array(WorkbookBayesianNetworkSchema),
   })
   .strict()
   .superRefine((models, context) => {
@@ -27,7 +25,6 @@ const HazardConditionedMethodModelsSchema = z
     };
     assertUnique(models.initiatingEventFaultTrees.map((model) => model.modelId), "initiatingEventFaultTrees", "Fault-tree model");
     assertUnique(models.eventTrees.map((model) => model.uuid), "eventTrees", "Event-tree model");
-    assertUnique(models.dependencyBayesianNetworks.map((model) => model.modelId), "dependencyBayesianNetworks", "Bayesian-network model");
   });
 
 type Expect<T extends true> = T;

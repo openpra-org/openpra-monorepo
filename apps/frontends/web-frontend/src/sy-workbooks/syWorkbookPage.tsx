@@ -106,6 +106,7 @@ function SyWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [exampleOptions, setExampleOptions] = useState<SyExampleOption[]>([]);
   const [controlledParameters, setControlledParameters] = useState<SyControlledParameterOption[]>([]);
   const [controlledHumanFailures, setControlledHumanFailures] = useState<SyControlledHumanFailureOption[]>([]);
@@ -130,6 +131,7 @@ function SyWorkbookPage(): JSX.Element {
         setMyRoles(workbook.myRoles);
         setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
+        setProjectId(workbook.projectId);
         try {
           const project = await getProject(workbook.projectId);
           if (!cancelled) setProjectName(project.name);
@@ -345,7 +347,7 @@ function SyWorkbookPage(): JSX.Element {
       data={data}
       editable={editable}
       mutateSy={mutateSy}
-      runtime={{ workbookId: id, revision, saveStatus }}
+      runtime={{ workbookId: id, projectId, revision, saveStatus }}
       controlledParameters={controlledParameters}
       controlledHumanFailures={controlledHumanFailures}
     >

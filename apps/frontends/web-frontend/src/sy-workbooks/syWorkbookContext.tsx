@@ -33,6 +33,7 @@ interface SyWorkbookData {
 
 interface SyWorkbookRuntime {
   workbookId: string | null;
+  projectId: string | null;
   revision: number | null;
   saveStatus: RevisionedSaveStatus;
 }
@@ -92,7 +93,7 @@ function SyWorkbookProvider({
     () => ({
       ...data,
       editable,
-      runtime: runtime ?? { workbookId: null, revision: null, saveStatus: "saved" },
+      runtime: runtime ?? { workbookId: null, projectId: null, revision: null, saveStatus: "saved" },
       controlledParameters: controlledParameters ?? [],
       controlledHumanFailures: controlledHumanFailures ?? [],
       mutateSy,

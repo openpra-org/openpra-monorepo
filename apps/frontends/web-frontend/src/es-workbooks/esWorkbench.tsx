@@ -19,7 +19,6 @@ import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import { WorkbookSaveIndicator } from "../workbooks/workbookSaveIndicator";
 import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
-import { WorkbookBayesianNetworkCollectionEditor } from "../workbooks/hazardConditionedModelEditors";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/esScreens.css";
 
@@ -382,7 +381,7 @@ function EsWorkbench({
           </>
         );
       case "sequences": return <SequencesScreen />;
-      case "deps": return <><WorkbookBayesianNetworkCollectionEditor networks={data.es.dependencyModels?.bayesianNetworks ?? []} editable={editable} onChange={(bayesianNetworks) => mutateEs((current) => ({ ...current, dependencyModels: { ...current.dependencyModels, bayesianNetworks } }))} /><DependenciesScreen /></>;
+      case "deps": return <DependenciesScreen />;
       case "timing": return <TimingScreen />;
       case "endstates": return <EndStatesScreen />;
       case "families": return <><FamiliesScreen /><ScreeningScreen /></>;

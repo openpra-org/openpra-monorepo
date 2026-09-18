@@ -1,7 +1,7 @@
 import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { SYIcon } from "./syIcons";
 import {
   SY_PERSONAS,
@@ -291,6 +291,10 @@ function SyWorkbench({
   const isApprover = persona === "approver";
 
   const visibleSteps = useMemo(() => stepsFromMef(data.sy, persona), [data.sy, persona]);
+  const [searchParams] = useSearchParams();
+  const requestedStepId = searchParams.get("step");
+  const requestedNetworkId = searchParams.get("network");
+  const requestedEsqWorkbookId = searchParams.get("esqWorkbook");
   const mefCcId = data.sy.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
   const mefStage: Stage = data.sy.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
   const [ccId, setCcId] = useState<string>(mefCcId);
@@ -303,7 +307,10 @@ function SyWorkbench({
     onStageChange?.(s);
   }
 
-  const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "scope");
+  const [stepId, setStepIdState] = useState<string>(() =>
+    visibleSteps.some((candidate) => candidate.id === requestedStepId)
+      ? requestedStepId!
+      : visibleSteps[0]?.id ?? "scope");
   const [sysId, setSysId] = useState<string>(data.sy.systemDefinitions[0]?.uuid ?? "SYS-DRACS");
   const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
   const [dockOpen, setDockOpen] = useState(!isNarrow);
@@ -386,7 +393,7 @@ function SyWorkbench({
       case "models": return <ModelsScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} />;
       case "failures": return <FailuresScreen openDrawer={setDrawer} />;
       case "ccf": return <CcfScreen openDrawer={setDrawer} />;
-      case "deps": return <><SyBayesianNetworkWorkspace /><DepsScreen openDrawer={setDrawer} /></>;
+      case "deps": return <><SyBayesianNetworkWorkspace initialModelId={requestedNetworkId} initialEsqWorkbookId={requestedEsqWorkbookId} /><DepsScreen openDrawer={setDrawer} /></>;
       case "integrity": return <IntegrityScreen stage={stage} openDrawer={setDrawer} />;
       case "uncert": return <UncertScreen openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;

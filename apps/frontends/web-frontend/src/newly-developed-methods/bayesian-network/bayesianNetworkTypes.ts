@@ -31,6 +31,7 @@ interface BayesianNetworkEditorProps {
   model: BayesianNetworkModel;
   editable: boolean;
   readOnlyNotice?: { message: string; sourceHref?: string; sourceLabel?: string };
+  workbookNotice?: { message: string; sourceHref?: string; sourceLabel?: string };
   showAnalysis?: boolean;
   showQueryAnalysis?: boolean;
   showHclAnalysis?: boolean;

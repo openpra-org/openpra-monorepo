@@ -32,8 +32,7 @@ export function BayesianNetworkGroupControls({ model, groups, onChange }: {
     }
     return excluded;
   }, [groups, groupId]);
-  const visibleNodes = model.nodes.filter((node) => `${node.code} ${node.name}`.toLowerCase().includes(search.toLowerCase()));
-  const ownerByNodeId = new Map(groups.flatMap((group) => group.nodeIds.map((id) => [id, group] as const)));
+  const visibleNodes = model.nodes.filter((node) => node.code.toLowerCase().includes(search.toLowerCase()));
   function apply(remove = false): void {
     try {
       const next = remove && selected !== undefined
@@ -55,7 +54,6 @@ export function BayesianNetworkGroupControls({ model, groups, onChange }: {
   return (
     <section className="bneditor__groups" id={`bn-groups-${model.modelId}`} aria-label="Manage BN groups">
       <div className="bneditor__group-form">
-        <p>Group existing nodes for display. Removing a group keeps its nodes and nested groups.</p>
         <div className="bneditor__group-fields">
           <label><span>Group</span><select aria-label="Group to edit" value={selected?.id ?? ""} onChange={(event) => setGroupId(event.target.value)}>
             <option value="">New group</option>
@@ -66,15 +64,20 @@ export function BayesianNetworkGroupControls({ model, groups, onChange }: {
             <option value="">Root</option>
             {groups.filter((group) => !excludedParents.has(group.id)).map((group) => <option key={group.id} value={group.id}>{group.path}</option>)}
           </select></label>
+          <label><span>Find nodes</span><input aria-label="Find group nodes" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+          <button
+            type="button"
+            className="posnav__btn posnav__btn--sm bneditor__delete-btn bneditor__group-remove"
+            disabled={selected === undefined}
+            onClick={() => apply(true)}
+          >Remove group</button>
         </div>
-        <label className="bneditor__field"><span>Find nodes</span><input aria-label="Find group nodes" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
         <div className="bneditor__group-members" aria-label="Group members">
           {visibleNodes.map((node) => {
-            const owner = ownerByNodeId.get(node.id);
             return <label key={node.id}>
               <input type="checkbox" aria-label={`Include ${node.code} in group`} checked={members.includes(node.id)} onChange={(event) =>
                 setMembers((current) => event.target.checked ? [...current, node.id] : current.filter((id) => id !== node.id))} />
-              <span>{node.code} — {node.name}<small>{owner?.path ?? "Root"}</small></span>
+              <span>{node.code}</span>
             </label>;
           })}
           {visibleNodes.length === 0 && <span>No matching nodes.</span>}
@@ -82,7 +85,6 @@ export function BayesianNetworkGroupControls({ model, groups, onChange }: {
         <div className="bneditor__group-actions">
           <span>{members.length} selected</span>
           <button type="button" className="posnav__btn posnav__btn--sm" disabled={name.trim() === ""} onClick={() => apply()}>{selected === undefined ? "Create group" : "Save group"}</button>
-          {selected !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => apply(true)}>Remove group</button>}
         </div>
         {error !== null && <p className="bneditor__error" role="alert">{error}</p>}
       </div>

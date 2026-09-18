@@ -59,8 +59,6 @@ const HCL_CASE_ID = "hcl";
 const HCL_CASE_LABEL = "HCL dissertation case study";
 
 const PLACEHOLDER_SY_WORKBOOK_ID = "example-sy-hcl-case-study";
-const PLACEHOLDER_DA_WORKBOOK_ID = "example-da-hcl-case-study";
-const PLACEHOLDER_HR_WORKBOOK_ID = "example-hr-hcl-case-study";
 const PLACEHOLDER_ESQ_WORKBOOK_ID = "example-esq-hcl-case-study";
 const PLACEHOLDER_ES_WORKBOOK_ID = "example-es-hcl-case-study";
 const PLACEHOLDER_RC_WORKBOOK_ID = "example-rc-hcl-case-study";
@@ -192,15 +190,12 @@ const BASIC_EVENT_META: Record<BasicEventKey, { code: string; name: string; prob
 
 const HUMAN_BASIC_EVENT_META: Partial<Record<BasicEventKey, {
   hfeId: string;
-  quantificationId: string;
 }>> = {
   FEED_BLEED_RANDOM: {
     hfeId: HCL_HFE_IDS.feedBleed,
-    quantificationId: `HEPQ-${HCL_HFE_IDS.feedBleed}`,
   },
   COOLDOWN_RANDOM: {
     hfeId: HCL_HFE_IDS.cooldown,
-    quantificationId: `HEPQ-${HCL_HFE_IDS.cooldown}`,
   },
 };
 
@@ -213,18 +208,6 @@ const systemBasicEvents: SystemBasicEvent[] = BASIC_EVENT_KEYS.map((key) => {
     eventType: "BASIC",
     failureMode: human === undefined ? "OTHER" : "HUMAN_ERROR",
     probability: BASIC_EVENT_META[key].probability,
-    controlledDataSource: human === undefined
-      ? {
-          referenceType: "WORKBOOK_PARAMETER",
-          workbookId: PLACEHOLDER_DA_WORKBOOK_ID,
-          entityId: BASIC_EVENT_IDS[key],
-        }
-      : {
-          referenceType: "HUMAN_FAILURE_EVENT",
-          workbookId: PLACEHOLDER_HR_WORKBOOK_ID,
-          entityId: human.hfeId,
-          quantificationId: human.quantificationId,
-        },
     ...(human === undefined
       ? {}
       : { attributes: [{ name: "hfeReference", value: human.hfeId }] }),
@@ -490,12 +473,12 @@ const IE_ANALYSIS_HCL = {
   },
 };
 
-const syBase = createBlankSy("HCL dissertation case study — SY", OWNER);
+const syBase = createBlankSy(HCL_CASE_LABEL, OWNER);
 
 const SY_ANALYSIS_HCL = {
   ...syBase,
   uuid: HCL_CASE_SY_UUID,
-  name: "HCL dissertation case study — Fault Trees",
+  name: HCL_CASE_LABEL,
   created: NOW,
   modified: NOW,
   metadata: {
@@ -514,38 +497,7 @@ const SY_ANALYSIS_HCL = {
   systemToSafetyFunctionMappings: systemDefinitions.map((system) => ({ uuid: `MAP-${system.uuid}`, systemReference: system.uuid, safetyFunctions: [system.name], eventSequences: [], implementsSrs: [] })),
   systemLogicModels,
   systemBasicEvents,
-  humanFailureEventIntegrations: [
-    {
-      uuid: "SY-HFE-HCL-FNB",
-      hfeReference: HCL_HFE_IDS.feedBleed,
-      hfeSource: {
-        referenceType: "HUMAN_FAILURE_EVENT",
-        workbookId: PLACEHOLDER_HR_WORKBOOK_ID,
-        entityId: HCL_HFE_IDS.feedBleed,
-        quantificationId: `HEPQ-${HCL_HFE_IDS.feedBleed}`,
-      },
-      system: `SYS-${MODEL_META.FEED_BLEED.code}`,
-      taskDescription: "Initiate feed-and-bleed cooling after high-pressure injection is challenged.",
-      hfeType: "POST_INITIATOR",
-      isTestMaintenance: false,
-      implementsSrs: [],
-    },
-    {
-      uuid: "SY-HFE-HCL-SBC",
-      hfeReference: HCL_HFE_IDS.cooldown,
-      hfeSource: {
-        referenceType: "HUMAN_FAILURE_EVENT",
-        workbookId: PLACEHOLDER_HR_WORKBOOK_ID,
-        entityId: HCL_HFE_IDS.cooldown,
-        quantificationId: `HEPQ-${HCL_HFE_IDS.cooldown}`,
-      },
-      system: `SYS-${MODEL_META.COOLDOWN.code}`,
-      taskDescription: "Establish primary and secondary cooldown for long-term heat removal.",
-      hfeType: "POST_INITIATOR",
-      isTestMaintenance: false,
-      implementsSrs: [],
-    },
-  ],
+  humanFailureEventIntegrations: [],
   plantRepresentationAccuracy: {
     ...syBase.plantRepresentationAccuracy,
     scope: "OPERATING",
@@ -651,7 +603,6 @@ const HR_ANALYSIS_HCL: HumanReliabilityAnalysis = {
     lastModifiedBy: OWNER,
   },
   praScope: "Two post-initiator human-failure events used by the connected LOOP–SBO–FLEX demonstration.",
-  dependencyBayesianNetworks: [] as EsqBayesianNetwork[],
   humanFailureEvents: [
     {
       uuid: HCL_HFE_IDS.feedBleed,
@@ -1034,7 +985,7 @@ const ES_ANALYSIS_HCL: EventSequenceAnalysis = {
   groupingCriteria: [{ uuid: "GC-HCL-END-STATE", name: "Published end-state grouping", description: "Groups paths as successful stabilization or core damage.", characteristicsConsidered: ["End state", "Transfer destination"] }],
   eventSequenceFamilies,
   eventTrees,
-  dependencyModels: { bayesianNetworks: [] as EsqBayesianNetwork[] },
+  dependencyModels: {},
   plantResponseAnalysisAccuracy: {
     ...esBase.plantResponseAnalysisAccuracy,
     scope: "OPERATING",
@@ -1209,20 +1160,18 @@ const bayesianNetwork: EsqBayesianNetwork = {
 };
 
 SY_ANALYSIS_HCL.dependencyBayesianNetworks.push(bayesianNetwork);
-HR_ANALYSIS_HCL.dependencyBayesianNetworks?.push(bayesianNetwork);
-ES_ANALYSIS_HCL.dependencyModels?.bayesianNetworks?.push(bayesianNetwork);
 
 const hclConfiguration: EsqHclConfiguration = {
   modelId: BN_IDS.hclConfiguration,
   code: "HCL-LOOP-SBO-FLEX",
   name: "Connected LOOP–SBO–FLEX HCL configuration",
   description: "Binds shared dependency basic events across all 22 fault-tree top events to the multi-hazard BN.",
-  bayesianNetwork: { workbookId: PLACEHOLDER_ESQ_WORKBOOK_ID, modelId: BN_IDS.model },
+  bayesianNetwork: { workbookId: PLACEHOLDER_SY_WORKBOOK_ID, modelId: BN_IDS.model },
   faultTrees: MODEL_KEYS.map((key) => ({ workbookId: PLACEHOLDER_SY_WORKBOOK_ID, modelId: MODEL_IDS[key] })),
   bindings: COMPONENT_NODE_KEYS.map((key, index) => ({
     id: id(380, index + 1),
     faultTreeBasicEvent: { referenceType: "FAULT_TREE_BASIC_EVENT", workbookId: PLACEHOLDER_SY_WORKBOOK_ID, entityId: BASIC_EVENT_IDS[key] },
-    bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: PLACEHOLDER_ESQ_WORKBOOK_ID, modelId: BN_IDS.model, entityId: COMPONENT_NODE_IDS[key] },
+    bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: PLACEHOLDER_SY_WORKBOOK_ID, modelId: BN_IDS.model, entityId: COMPONENT_NODE_IDS[key] },
     trueStateIds: [COMPONENT_FAILED_STATE_IDS[key]],
   })),
   baseEvidence: {
@@ -1273,12 +1222,12 @@ const hclFamilyQuantifications: EventSequenceQuantification["familyQuantificatio
   },
 ];
 
-const esqBase = createBlankEsq("HCL dissertation case study — ESQ", OWNER);
+const esqBase = createBlankEsq(HCL_CASE_LABEL, OWNER);
 
 const ESQ_ANALYSIS_HCL: EventSequenceQuantification = {
   ...esqBase,
   uuid: HCL_CASE_ESQ_UUID,
-  name: "HCL dissertation case study — Quantification",
+  name: HCL_CASE_LABEL,
   created: NOW,
   modified: NOW,
   metadata: {
@@ -1293,8 +1242,8 @@ const ESQ_ANALYSIS_HCL: EventSequenceQuantification = {
   },
   praScope: "Exact BN inference and HCL quantification over the linked case-study fault trees and event trees.",
   familyQuantifications: hclFamilyQuantifications,
-  bayesianNetworks: [bayesianNetwork],
-  hclConfigurations: [hclConfiguration],
+  bayesianNetworks: [],
+  hclConfigurations: [],
   modelIntegration: {
     ...esqBase.modelIntegration,
     integrationMethod: "Full-context HCL with exact BN inference and BDD fault-tree logic.",

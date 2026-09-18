@@ -13,7 +13,7 @@ import {
   type EditorPath,
 } from "../seismic-pra-workbooks/seismicPraStructuredEditor";
 import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
-import { HazardBayesianNetworkEditor, HazardEventTreeEditor, HazardFaultTreeEditor } from "../workbooks/hazardConditionedModelEditors";
+import { HazardEventTreeEditor, HazardFaultTreeEditor } from "../workbooks/hazardConditionedModelEditors";
 import {
   Drawer,
   Field,
@@ -2116,7 +2116,6 @@ function TechnicalStep({ stepId }: { stepId: string }): JSX.Element {
     <div className="flstep">
       {stepId === "scenarios" && <Section title="Hazard-conditioned initiating-event fault trees" description="Author initiating-event logic for the retained hazard scenario families."><HazardFaultTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>}
       {stepId === "plant-response" && <Section title="Hazard-conditioned event trees" description="Author response paths, functional events, bypasses, transfers, and end states for retained hazards."><HazardEventTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>}
-      {(stepId === "human-reliability" || stepId === "quantification") && <Section title="Hazard dependency Bayesian networks" description="Model causal and conditional dependencies retained in Other Hazards quantification."><HazardBayesianNetworkEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>}
       {recordSections.map((item) => (
         <RecordSectionView
           key={`${item.path.join(".")}-${item.title}`}

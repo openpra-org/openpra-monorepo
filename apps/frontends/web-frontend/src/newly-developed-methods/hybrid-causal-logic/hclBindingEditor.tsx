@@ -15,7 +15,6 @@ import type {
   WorkbookHclConfiguration,
 } from "interfaces-mef-types/modeling";
 import { validateBayesianNetworkEvidence, type BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
-import { HCL_HAZARD_CONVOLUTION_POINT_ONLY } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import { useEditorConfirmation } from "../shared";
 import type {
   HclBindingEditorProps,
@@ -557,10 +556,6 @@ function HclBindingEditor({
   function run(): void {
     if (hasBlockingIssue) return;
     if (configuration === undefined) return;
-    if (effectiveEvidenceMode === "HAZARD_GRID" && hazardUncertaintyBlocked) {
-      setError(HCL_HAZARD_CONVOLUTION_POINT_ONLY);
-      return;
-    }
     const scenarioIds = enabledScenarios.map((scenario) => scenario.id);
     const isBatchWorkflow = workflow === "BATCH";
     const runConfiguration = isBatchWorkflow ? batchConfiguration! : configuration;
@@ -703,9 +698,6 @@ function HclBindingEditor({
             {saveBlockedReason !== null && <p role="status">{saveBlockedReason}</p>}
             {uncertaintyError !== null && <p role="alert">{uncertaintyError}</p>}
             {invalidScenario !== undefined && <p role="alert">Scenario {invalidScenario.code} references missing or invalid BN evidence. Repair it or disable the scenario.</p>}
-            {workflow === "BATCH" && hazardUncertaintyBlocked && (
-              <p role="note">{HCL_HAZARD_CONVOLUTION_POINT_ONLY}</p>
-            )}
             <div className="hcleditor__execution-row">
               <div className="hcleditor__run-fields">{targetFields}</div>
               <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={running || hasBlockingIssue || (workflow === "BATCH" && enabledScenarios.length === 0) || (effectiveEvidenceMode === "HAZARD_GRID" && hazardUncertaintyBlocked) || (targetKind === "FAULT_TREE" ? executableFaultTrees.length === 0 : executableEventTrees.length === 0)} onClick={run}>

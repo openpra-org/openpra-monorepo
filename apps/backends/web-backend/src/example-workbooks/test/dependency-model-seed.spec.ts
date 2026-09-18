@@ -34,11 +34,10 @@ const variants = [
 ] as const;
 
 describe("dependency example models", () => {
-  it.each(variants)("makes the dependency BN editable from SY, ES, and HRA in $name", ({ sy, es, hr }) => {
+  it.each(variants)("makes the dependency BN editable from SY and ESQ in $name", ({ sy, esq }) => {
     const networks = [
       sy.dependencyBayesianNetworks?.[0],
-      es.dependencyModels?.bayesianNetworks?.[0],
-      hr.dependencyBayesianNetworks?.[0],
+      esq.bayesianNetworks[0],
     ];
     expect(networks.every((network) => network !== undefined)).toBe(true);
     for (const network of networks) {

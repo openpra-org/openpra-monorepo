@@ -1,7 +1,7 @@
 import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ESQIcon } from "./esqIcons";
 import {
   ESQ_PERSONAS,
@@ -290,6 +290,10 @@ function EsqWorkbench({
   const isApprover = persona === "approver";
 
   const visibleSteps = useMemo(() => stepsFromMef(data.esq, persona), [data.esq, persona]);
+  const [searchParams] = useSearchParams();
+  const requestedStepId = searchParams.get("step");
+  const requestedNetworkId = searchParams.get("network");
+  const requestedSourceWorkbookId = searchParams.get("sourceWorkbook");
   const mefCcId = data.esq.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
   const mefStage: Stage = data.esq.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
   const [ccId, setCcId] = useState<string>(mefCcId);
@@ -302,7 +306,10 @@ function EsqWorkbench({
     onStageChange?.(s);
   }
 
-  const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "scope");
+  const [stepId, setStepIdState] = useState<string>(() =>
+    visibleSteps.some((candidate) => candidate.id === requestedStepId)
+      ? requestedStepId!
+      : visibleSteps[0]?.id ?? "scope");
   const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
   const [dockOpen, setDockOpen] = useState(!isNarrow);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
@@ -384,7 +391,7 @@ function EsqWorkbench({
       case "integrate": return <IntegrateScreen openDrawer={setDrawer} />;
       case "solve": return <SolveScreen openDrawer={setDrawer} />;
       case "logic": return <LogicScreen openDrawer={setDrawer} />;
-      case "depend": return <DependScreen openDrawer={setDrawer} />;
+      case "depend": return <DependScreen openDrawer={setDrawer} initialNetworkId={requestedNetworkId} initialSourceWorkbookId={requestedSourceWorkbookId} />;
       case "barriers": return <BarriersScreen openDrawer={setDrawer} />;
       case "results": return <ResultsScreen openDrawer={setDrawer} />;
       case "uncert": return <UncertScreen stage={stage} openDrawer={setDrawer} />;

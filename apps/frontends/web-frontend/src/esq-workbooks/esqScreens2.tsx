@@ -28,7 +28,11 @@ import { familyMeanFrequency, type CcScore } from "./esqSelectors";
 import { EsqBayesianNetworkWorkspace } from "./esqBayesianNetworkWorkspace";
 
 // ─── 05 — Dependencies (HLR-C) ─────────────────────────────────────────────
-function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => void }): JSX.Element {
+function DependScreen({ openDrawer, initialNetworkId = null, initialSourceWorkbookId = null }: {
+  openDrawer: (ctx: EsqDrawerContext) => void;
+  initialNetworkId?: string | null;
+  initialSourceWorkbookId?: string | null;
+}): JSX.Element {
   const { esq, editable, mutateEsq } = useEsqWorkbook();
   const dep = esq.dependencyTreatment;
   const multiHfe = esq.multiHfeCutsetIdentifications ?? [];
@@ -65,7 +69,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
   }
   return (
     <>
-      <EsqBayesianNetworkWorkspace />
+      <EsqBayesianNetworkWorkspace initialNetworkId={initialNetworkId} initialSourceWorkbookId={initialSourceWorkbookId} />
 
       <div className="poscard">
         <div className="poscard__head">

@@ -52,6 +52,8 @@ interface OwnedConfiguration extends OwnedNetwork {
 interface EsqEventTreeHclWorkspaceProps {
   onRunComplete?: () => void;
   onNetworkAvailabilityChange?: (available: boolean) => void;
+  initialNetworkId?: string | null;
+  initialSourceWorkbookId?: string | null;
 }
 
 function connectedEventTreeModelIds(
@@ -91,9 +93,12 @@ function configurationMatchesEventTree(
 function EsqEventTreeHclWorkspace({
   onRunComplete,
   onNetworkAvailabilityChange,
+  initialNetworkId = null,
+  initialSourceWorkbookId = null,
 }: EsqEventTreeHclWorkspaceProps): JSX.Element {
   const { esq, editable, mutateEsq, runtime } = useEsqWorkbook();
   const {sourceEpoch, sourceWarning} = useAnalysisSourceGuard("esq", runtime.workbookId);
+  const [syNetworks, setSyNetworks] = useState<OwnedNetwork[]>([]);
   const [syConfigurations, setSyConfigurations] = useState<OwnedConfiguration[]>([]);
   const [faultTrees, setFaultTrees] = useState<HclFaultTreeOption[]>([]);
   const [eventTrees, setEventTrees] = useState<HclEventTreeOption[]>([]);
@@ -112,6 +117,7 @@ function EsqEventTreeHclWorkspace({
   useEffect(() => {
     let cancelled = false;
     if (runtime.projectId === null) {
+      setSyNetworks([]);
       setSyConfigurations([]);
       setFaultTrees([]);
       setEventTrees([]);
@@ -151,6 +157,14 @@ function EsqEventTreeHclWorkspace({
       );
       const optionByKey = new Map(options.map((option) => [`${option.workbookId}:${option.modelId}`, option]));
       setFaultTrees(options);
+      setSyNetworks(systemSources.flatMap(({ workbook, source }) =>
+        (source.mef.dependencyBayesianNetworks ?? []).map((network) => ({
+          owner: "SY" as const,
+          workbookId: workbook.id,
+          workbookName: workbook.name,
+          network,
+        })),
+      ));
       setSyConfigurations(systemSources.flatMap(({ workbook, source }) => {
         const networks = new Map((source.mef.dependencyBayesianNetworks ?? []).map((network) => [network.modelId, network]));
         return (source.mef.dependencyHclConfigurations ?? []).flatMap((configuration) => {
@@ -211,6 +225,7 @@ function EsqEventTreeHclWorkspace({
       ));
     }).catch((error: unknown) => {
       if (!cancelled) {
+        setSyNetworks([]);
         setSyConfigurations([]);
         setFaultTrees([]);
         setEventTrees([]);
@@ -246,20 +261,41 @@ function EsqEventTreeHclWorkspace({
     eventTrees.some((eventTree) => configurationMatchesEventTree(candidate.configuration, eventTree)),
   ), [eventTrees, localConfigurations]);
   const relevantConfigurations = [...matchingLocalConfigurations, ...matchingSyConfigurations];
+  const configuredNetworkKeys = new Set(relevantConfigurations.map((candidate) =>
+    `${candidate.owner}:${candidate.workbookId}:${candidate.network.modelId}`,
+  ));
+  const standaloneSyNetworks = syNetworks.filter((candidate) =>
+    !configuredNetworkKeys.has(`${candidate.owner}:${candidate.workbookId}:${candidate.network.modelId}`),
+  );
   const selectionBelongsToWorkbook = configurationSelection?.workbookId === runtime.workbookId
     && configurationSelection?.esqUuid === esq.uuid;
+  const deepLinkedConfiguration = relevantConfigurations.find((candidate) =>
+    candidate.network.modelId === initialNetworkId
+    && (initialSourceWorkbookId === null || candidate.workbookId === initialSourceWorkbookId),
+  );
+  const deepLinkedStandaloneNetwork = standaloneSyNetworks.find((candidate) =>
+    candidate.network.modelId === initialNetworkId
+    && (initialSourceWorkbookId === null || candidate.workbookId === initialSourceWorkbookId),
+  );
   // Owned models may have been created or explicitly loaded as an example.
   // Discovering a project's SY models must not select one for a blank workbook.
   const selected = selectionBelongsToWorkbook
     ? relevantConfigurations.find((candidate) =>
       `${candidate.owner}:${candidate.workbookId}:${candidate.configuration.modelId}` === configurationSelection.key,
     )
-    : matchingLocalConfigurations[0];
+    : deepLinkedConfiguration ?? matchingLocalConfigurations[0];
+  const selectedStandaloneNetwork = selectionBelongsToWorkbook
+    ? standaloneSyNetworks.find((candidate) =>
+      `NETWORK:${candidate.owner}:${candidate.workbookId}:${candidate.network.modelId}` === configurationSelection.key,
+    )
+    : selected === undefined ? deepLinkedStandaloneNetwork : undefined;
   const selectedConfigurationKey = selected === undefined
-    ? ""
+    ? selectedStandaloneNetwork === undefined
+      ? ""
+      : `NETWORK:${selectedStandaloneNetwork.owner}:${selectedStandaloneNetwork.workbookId}:${selectedStandaloneNetwork.network.modelId}`
     : `${selected.owner}:${selected.workbookId}:${selected.configuration.modelId}`;
 
-  const displayedNetwork = selected ?? localNetworks[0];
+  const displayedNetwork = selected ?? selectedStandaloneNetwork ?? localNetworks[0];
 
   useEffect(() => {
     if (!sourceLoading) onNetworkAvailabilityChange?.(displayedNetwork !== undefined);
@@ -408,22 +444,20 @@ function EsqEventTreeHclWorkspace({
     }
   }
 
+  const dependencyOptionsAvailable = relevantConfigurations.length > 0 || standaloneSyNetworks.length > 0;
+  const addNetworkAction = !sourceLoading && displayedNetwork === undefined && editable ? (
+    <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={createLegacyNetwork}>
+      <span aria-hidden="true">+</span>
+      Add network
+    </button>
+  ) : null;
+
   return (
     <section className="poscard esq-hcl-et" aria-label="Event tree Bayesian dependency quantification">
       <div className="poscard__head bneditor__network-head">
-        <div className="esq-hcl-et__intro">
-          <h3 className="poscard__title">Event tree Bayesian dependency network</h3>
-          {displayedNetwork !== undefined && <p className="poscard__sub">Inspect the dependency network and quantify event trees. Linked fault trees are derived automatically.</p>}
-        </div>
-        {!sourceLoading && displayedNetwork === undefined && editable && (
-          <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={createLegacyNetwork}>
-            <span aria-hidden="true">+</span>
-            Add network
-          </button>
-        )}
-        {relevantConfigurations.length > 0 && (
-          <label className="esq-hcl-et__configuration">
-            <span>Dependency configuration</span>
+        <h3 className="poscard__title">Bayesian dependency network</h3>
+        {dependencyOptionsAvailable ? (
+          <div className="posrow esqbn__network-actions" style={{ gap: 8 }}>
             <select className="posfield__select" aria-label="Dependency configuration" value={selectedConfigurationKey} onChange={(event) => {
               setConfigurationSelection({ workbookId: runtime.workbookId, esqUuid: esq.uuid, key: event.target.value });
               setRunResult(null);
@@ -438,9 +472,18 @@ function EsqEventTreeHclWorkspace({
                   {candidate.workbookName} · {candidate.configuration.code}
                 </option>
               ))}
+              {standaloneSyNetworks.map((candidate) => (
+                <option
+                  key={`NETWORK:${candidate.owner}:${candidate.workbookId}:${candidate.network.modelId}`}
+                  value={`NETWORK:${candidate.owner}:${candidate.workbookId}:${candidate.network.modelId}`}
+                >
+                  {candidate.workbookName} · {candidate.network.code} (network only)
+                </option>
+              ))}
             </select>
-          </label>
-        )}
+            {addNetworkAction}
+          </div>
+        ) : addNetworkAction}
       </div>
       {sourceLoading && <p className="pws-status">Loading dependency networks and linked event trees…</p>}
       {sourceError !== null && <p className="pws-status pws-status--error">{sourceError}</p>}
@@ -451,8 +494,8 @@ function EsqEventTreeHclWorkspace({
           onAnalysisInputChange={analysis.invalidate}
           editable={displayedNetwork.owner === "ESQ" && editable}
           readOnlyNotice={displayedNetwork.owner === "SY" ? {
-            message: `This network is linked from ${displayedNetwork.workbookName} and is read-only here. Open that workbook's Dependencies step to import XDSL or manage groups.`,
-            sourceHref: `/sy-workbooks/${encodeURIComponent(displayedNetwork.workbookId)}`,
+            message: `This network is linked from ${displayedNetwork.workbookName.replace(/\s+—.*$/, "")} and is read-only here. Open that workbook's Dependencies step to import XDSL or manage groups.`,
+            sourceHref: `/sy-workbooks/${encodeURIComponent(displayedNetwork.workbookId)}?step=deps&network=${encodeURIComponent(displayedNetwork.network.modelId)}&esqWorkbook=${encodeURIComponent(runtime.workbookId ?? "")}`,
             sourceLabel: "Open Systems workbook",
           } : undefined}
           showQueryAnalysis={false}

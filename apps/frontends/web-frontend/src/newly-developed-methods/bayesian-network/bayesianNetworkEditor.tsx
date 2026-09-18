@@ -116,7 +116,7 @@ const CONNECTION_SIDES = ["top", "right", "bottom", "left"] as const;
 function EditorIcon({
   name,
 }: {
-  name: "undo" | "redo" | "file" | "modules" | "add-node" | "zoom-out" | "zoom-in" | "fit" | "auto-layout" | "trash" | "run" | "configuration" | "evidence";
+  name: "undo" | "redo" | "file" | "modules" | "add-node" | "zoom-out" | "zoom-in" | "fit" | "auto-layout" | "trash" | "run" | "configuration" | "evidence" | "home" | "back";
 }): JSX.Element {
   const common = {
     fill: "none",
@@ -136,6 +136,8 @@ function EditorIcon({
       {name === "run" && <><circle {...common} cx="12" cy="12" r="9" /><path {...common} d="m10 8.5 6 3.5-6 3.5z" /></>}
       {name === "configuration" && <><circle {...common} cx="6" cy="12" r="3" /><circle {...common} cx="18" cy="6" r="3" /><circle {...common} cx="18" cy="18" r="3" /><path {...common} d="m9 11 6-4M9 13l6 4" /></>}
       {name === "evidence" && <><path {...common} d="M4 7h16M4 17h16" /><circle {...common} cx="9" cy="7" r="2" /><circle {...common} cx="15" cy="17" r="2" /></>}
+      {name === "home" && <><path {...common} d="m3 11 9-8 9 8" /><path {...common} d="M5 10v10h14V10M9 20v-6h6v6" /></>}
+      {name === "back" && <><path {...common} d="m10 5-7 7 7 7" /><path {...common} d="M3 12h18" /></>}
       {(name === "zoom-out" || name === "zoom-in") && <><circle {...common} cx="10.5" cy="10.5" r="6.5" /><path {...common} d="m15.5 15.5 5 5M7.5 10.5h6" />{name === "zoom-in" && <path {...common} d="M10.5 7.5v6" />}</>}
       {name === "fit" && <><path {...common} d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" /><rect {...common} x="8" y="8" width="8" height="8" rx="1" /></>}
       {name === "auto-layout" && <><rect {...common} x="9" y="3" width="6" height="5" rx="1" /><rect {...common} x="3" y="16" width="6" height="5" rx="1" /><rect {...common} x="15" y="16" width="6" height="5" rx="1" /><path {...common} d="M12 8v4M6 12h12M6 12v4M18 12v4" /></>}
@@ -260,6 +262,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     model,
     editable,
     readOnlyNotice,
+    workbookNotice,
     showAnalysis = true,
     showQueryAnalysis = true,
     showHclAnalysis = true,
@@ -1404,6 +1407,10 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
         </div>
       </header>
 
+      {workbookNotice !== undefined && <p className="bneditor__readonly-notice">
+        {workbookNotice.message}
+        {workbookNotice.sourceHref !== undefined && <> <a href={workbookNotice.sourceHref}>{workbookNotice.sourceLabel ?? "Open linked workbook"}</a></>}
+      </p>}
       {!editable && <p className="bneditor__readonly-notice" id={`bn-readonly-${model.modelId}`}>
         {readOnlyNotice?.message ?? "This network is read-only. Editing requires the preparer role and a workbook in Draft or Revision required."}
         {readOnlyNotice?.sourceHref !== undefined && <> <a href={readOnlyNotice.sourceHref}>{readOnlyNotice.sourceLabel ?? "Open source workbook"}</a></>}
@@ -1429,8 +1436,8 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
             </select>
           </label>
           {graphView === "SUBMODELS" && <>
-            <button type="button" className="posnav__btn posnav__btn--sm" disabled={overview.focus === null} onClick={() => navigateSubmodel(null)}>Home</button>
-            <button type="button" className="posnav__btn posnav__btn--sm" disabled={overview.focus === null} onClick={() => navigateSubmodel(currentGroup?.parentId ?? null)}>Back</button>
+            <button type="button" className="posnav__btn posnav__btn--sm bneditor__view-nav" aria-label="Home" title="Home" disabled={overview.focus === null} onClick={() => navigateSubmodel(null)}><EditorIcon name="home" /></button>
+            <button type="button" className="posnav__btn posnav__btn--sm bneditor__view-nav" aria-label="Back" title="Back" disabled={overview.focus === null} onClick={() => navigateSubmodel(currentGroup?.parentId ?? null)}><EditorIcon name="back" /></button>
             <label className="bneditor__view-selector"><span>Scope</span><select aria-label="Submodel scope" value={overview.focus ?? ""} onChange={(event) => navigateSubmodel(event.target.value || null)}>
               <option value="">Root</option>
               {submodels.groups.map((group) => <option key={group.id} value={group.id}>{group.path}</option>)}

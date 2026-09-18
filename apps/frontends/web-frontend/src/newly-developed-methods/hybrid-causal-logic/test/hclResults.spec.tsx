@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { EventTree } from "interfaces-mef-types/es/event-sequence-analysis";
 import { EndState } from "interfaces-mef-types/core/events";
-import { HCL_HAZARD_CONVOLUTION_POINT_ONLY } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import { HclResults } from "../hclResults";
 import { hclEventTreeResultMetadata, hclResultLabels } from "../hclResultLabels";
 import type { HclEditorBatchRunResult } from "../hclBindingTypes";
@@ -292,7 +291,7 @@ describe("HCL hazard presentation", () => {
 
   it("does not display integrated hazard UQ even for an incompatible result", () => {
     render(batchView(hazardBatch(), true));
-    expect(screen.getByRole("note")).toHaveTextContent(HCL_HAZARD_CONVOLUTION_POINT_ONLY);
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Integrated end-state results" })).not.toBeInTheDocument();
     openLow();
     expect(low().getByRole("region", { name: "Release (release) uncertainty results" })).toBeInTheDocument();

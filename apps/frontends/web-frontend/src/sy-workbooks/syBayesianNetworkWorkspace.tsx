@@ -27,6 +27,7 @@ import type {
 } from "../newly-developed-methods/hybrid-causal-logic";
 import { useEditorConfirmation } from "../newly-developed-methods/shared";
 import { analysisSaveBlock, useAnalysisScope } from "../newly-developed-methods/shared/useAnalysisScope";
+import { listWorkbooks } from "../workbooks/workbookApi";
 import { useSyWorkbook } from "./syWorkbookContext";
 import {
   getSyBayesianNetworkResult,
@@ -39,11 +40,29 @@ import {
   generateSyHclScenarios,
 } from "./syWorkbookApi";
 
-function SyBayesianNetworkWorkspace(): JSX.Element {
+interface EsqWorkbookLink {
+  id: string;
+  name: string;
+}
+
+function workbookBaseName(name: string): string {
+  return name.replace(/\s+—.*$/, "").trim();
+}
+
+function SyBayesianNetworkWorkspace({
+  initialModelId = null,
+  initialEsqWorkbookId = null,
+}: {
+  initialModelId?: string | null;
+  initialEsqWorkbookId?: string | null;
+} = {}): JSX.Element {
   const { sy, editable, mutateSy, runtime } = useSyWorkbook();
   const networks = sy.dependencyBayesianNetworks ?? [];
   const configurations = sy.dependencyHclConfigurations ?? [];
-  const [selectedModelId, setSelectedModelId] = useState(networks[0]?.modelId ?? "");
+  const [esqWorkbooks, setEsqWorkbooks] = useState<EsqWorkbookLink[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState(
+    networks.find((candidate) => candidate.modelId === initialModelId)?.modelId ?? networks[0]?.modelId ?? "",
+  );
   const [evidenceByModel, setEvidenceByModel] = useState<Record<string, BayesianNetworkEvidenceConfiguration>>({});
   const [queryByModel, setQueryByModel] = useState<Record<string, string | null>>({});
   const [results, setResults] = useState<Record<string, BayesianNetworkAnalysisResult>>({});
@@ -68,6 +87,32 @@ function SyBayesianNetworkWorkspace(): JSX.Element {
   const queryNodeId = model === undefined
     ? null
     : queryByModel[model.modelId] ?? model.nodes[0]?.id ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (runtime.projectId == null) {
+      setEsqWorkbooks([]);
+      return () => { cancelled = true; };
+    }
+    listWorkbooks(runtime.projectId, "ESQ")
+      .then(({ workbooks }) => {
+        if (!cancelled) setEsqWorkbooks(workbooks.map(({ id, name }) => ({ id, name })));
+      })
+      .catch(() => {
+        if (!cancelled) setEsqWorkbooks([]);
+      });
+    return () => { cancelled = true; };
+  }, [runtime.projectId]);
+
+  const targetEsqWorkbook = useMemo<EsqWorkbookLink | undefined>(() => {
+    if (initialEsqWorkbookId !== null) {
+      return esqWorkbooks.find((candidate) => candidate.id === initialEsqWorkbookId)
+        ?? { id: initialEsqWorkbookId, name: "Event Sequence Quantification workbook" };
+    }
+    const sourceName = workbookBaseName(sy.name ?? "").toLocaleLowerCase();
+    return esqWorkbooks.find((candidate) => workbookBaseName(candidate.name).toLocaleLowerCase() === sourceName)
+      ?? esqWorkbooks[0];
+  }, [esqWorkbooks, initialEsqWorkbookId, sy.name]);
 
   useEffect(() => {
     if (model !== undefined && model.modelId !== selectedModelId) setSelectedModelId(model.modelId);
@@ -338,6 +383,11 @@ function SyBayesianNetworkWorkspace(): JSX.Element {
           saveBlockedReason={saveBlockedReason}
           onAnalysisInputChange={analysis.invalidate}
           editable={editable}
+          workbookNotice={targetEsqWorkbook === undefined || runtime.workbookId === null ? undefined : {
+            message: `This network is available in ${workbookBaseName(targetEsqWorkbook.name)}.`,
+            sourceHref: `/esq-workbooks/${encodeURIComponent(targetEsqWorkbook.id)}?step=depend&sourceWorkbook=${encodeURIComponent(runtime.workbookId)}&network=${encodeURIComponent(model.modelId)}`,
+            sourceLabel: "Open Event Sequence Quantification workbook",
+          }}
           hclScope="FAULT_TREE"
           evidence={evidence}
           queryNodeId={queryNodeId}

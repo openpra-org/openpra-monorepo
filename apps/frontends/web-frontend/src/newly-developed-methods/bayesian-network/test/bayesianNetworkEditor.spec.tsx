@@ -1827,6 +1827,13 @@ describe("visual submodels and general templates", () => {
     const original = testBayesianNetworkModel();
     render(<Harness initialModel={original} onModelChange={changed} />);
     await user.click(screen.getByRole("button", { name: "Manage groups", exact: true }));
+    const groupManager = screen.getByLabelText("Manage BN groups");
+    expect(within(groupManager).queryByText(/Group existing nodes/)).not.toBeInTheDocument();
+    const removeGroup = within(groupManager).getByRole("button", { name: "Remove group" });
+    expect(removeGroup).toBeDisabled();
+    expect(removeGroup).toHaveClass("bneditor__delete-btn", "bneditor__group-remove");
+    expect(removeGroup.parentElement?.lastElementChild).toBe(removeGroup);
+    expect(within(screen.getByLabelText("Group members")).queryByText("Cause")).not.toBeInTheDocument();
     await user.type(screen.getByLabelText("Group name"), "Equipment");
     await user.click(screen.getByLabelText("Include A in group"));
     await user.click(screen.getByLabelText("Include B in group"));
@@ -1859,7 +1866,7 @@ describe("visual submodels and general templates", () => {
     await user.click(screen.getByRole("button", { name: "Manage groups", exact: true }));
     await user.type(screen.getByLabelText("Group name"), "Controls");
     await user.selectOptions(screen.getByLabelText("Parent group"), parentId);
-    await user.type(screen.getByLabelText("Find group nodes"), "Cause");
+    await user.type(screen.getByLabelText("Find group nodes"), "A");
     expect(screen.queryByLabelText("Include B in group")).not.toBeInTheDocument();
     await user.click(screen.getByLabelText("Include A in group"));
     await user.click(screen.getByRole("button", { name: "Create group" }));
@@ -1918,7 +1925,13 @@ describe("visual submodels and general templates", () => {
     const changed = jest.fn();
     render(<Harness initialModel={model} onModelChange={changed} editable={editable} />);
     await user.selectOptions(screen.getByRole("combobox", { name: "BN graph view" }), "SUBMODELS");
-    expect(screen.getByRole("button", { name: "Home", exact: true })).toBeDisabled();
+    const home = screen.getByRole("button", { name: "Home", exact: true });
+    const back = screen.getByRole("button", { name: "Back", exact: true });
+    expect(home).toBeDisabled();
+    expect(home).toContainHTML("<svg");
+    expect(back).toContainHTML("<svg");
+    expect(home).not.toHaveTextContent("Home");
+    expect(back).not.toHaveTextContent("Back");
     expect(screen.getByLabelText("Connections between visible groups and nodes")).toHaveTextContent("Pumps → Cooling: 2 connections");
     fireEvent.doubleClick(screen.getByRole("button", { name: "Open submodel Pumps", exact: true }));
     expect(screen.getByRole("button", { name: "BN node A" })).toBeInTheDocument();

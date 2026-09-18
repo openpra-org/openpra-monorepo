@@ -1605,20 +1605,18 @@ export class WorkbookAnalysisRunsService {
         source.workbookId === request.faultTreeTopGate.workbookId && modelId === request.faultTreeTopGate.modelId,
     );
     if (!selected) throw new BadRequestException("Requested fault tree is not declared by the HCL configuration");
-    const controlled = await this.resolveFaultTreeControlledDataSources([selected]);
     const sources = [
       owner,
       hcl.configurationOwner,
       hcl.bayesian,
       ...hcl.faultTrees.map(({ source }) => source),
-      ...controlled.sources,
     ];
     await this.authorizeSources(sources, owner.workbookId, acting);
     const runId = randomUUID();
     const faultTrees = combineFaultTrees(runId, [
       adaptOrThrow(() =>
         adaptSyFaultTreeSnapshot(selected.source, selected.modelId, {
-          controlledDataSourceValues: controlled.values,
+          allowUnresolvedControlledDataSources: true,
         }),
       ),
     ]);
@@ -1659,7 +1657,6 @@ export class WorkbookAnalysisRunsService {
           hcl.configuration,
           evidenceScenario?.evidence ?? hcl.configuration.baseEvidence,
         ),
-        ...controlled.references,
       ],
     );
     const persistedRequest = request as unknown as Record<string, unknown>;
@@ -1731,14 +1728,12 @@ export class WorkbookAnalysisRunsService {
         `Event tree links fault tree '${undeclared.modelId}' that is not declared by the HCL configuration`,
       );
     }
-    const controlled = await this.resolveFaultTreeControlledDataSources(linked);
     const sources = [
       owner,
       hcl.configurationOwner,
       hcl.bayesian,
       eventTree,
       ...linked.map(({ source }) => source),
-      ...controlled.sources,
     ];
     await this.authorizeSources(sources, owner.workbookId, acting);
     const runId = randomUUID();
@@ -1747,7 +1742,7 @@ export class WorkbookAnalysisRunsService {
       linked.map(({ source, modelId }) =>
         adaptOrThrow(() =>
           adaptSyFaultTreeSnapshot(source, modelId, {
-            controlledDataSourceValues: controlled.values,
+            allowUnresolvedControlledDataSources: true,
           }),
         ),
       ),
@@ -1799,7 +1794,6 @@ export class WorkbookAnalysisRunsService {
           evidenceScenario?.evidence ?? hcl.configuration.baseEvidence,
         ),
         ...this.eventTreeContributionEntities(eventTree, eventTreeModelIds),
-        ...controlled.references,
       ],
     );
     return this.executeRun(
@@ -1930,20 +1924,18 @@ export class WorkbookAnalysisRunsService {
     if (selected === undefined) {
       throw new BadRequestException("Requested fault tree is not declared by the HCL configuration");
     }
-    const controlled = await this.resolveFaultTreeControlledDataSources([selected]);
     const sources = [
       owner,
       hcl.configurationOwner,
       hcl.bayesian,
       ...hcl.faultTrees.map(({ source }) => source),
-      ...controlled.sources,
     ];
     await this.authorizeSources(sources, owner.workbookId, acting);
     const envelopeId = randomUUID();
     const faultTrees = combineFaultTrees(envelopeId, [
       adaptOrThrow(() =>
         adaptSyFaultTreeSnapshot(selected.source, selected.modelId, {
-          controlledDataSourceValues: controlled.values,
+          allowUnresolvedControlledDataSources: true,
         }),
       ),
     ]);
@@ -1988,7 +1980,6 @@ export class WorkbookAnalysisRunsService {
             faultTreeBasicEventMembership,
           ),
           ...this.hclEvidenceContributionEntities(hcl.configuration, evidence),
-          ...controlled.references,
         ],
       );
       return {
@@ -2097,14 +2088,12 @@ export class WorkbookAnalysisRunsService {
         `Event tree links fault tree '${undeclared.modelId}' that is not declared by the HCL configuration`,
       );
     }
-    const controlled = await this.resolveFaultTreeControlledDataSources(linked);
     const sources = [
       owner,
       hcl.configurationOwner,
       hcl.bayesian,
       eventTree,
       ...linked.map(({ source }) => source),
-      ...controlled.sources,
     ];
     await this.authorizeSources(sources, owner.workbookId, acting);
     const envelopeId = randomUUID();
@@ -2113,7 +2102,7 @@ export class WorkbookAnalysisRunsService {
       linked.map(({ source, modelId }) =>
         adaptOrThrow(() =>
           adaptSyFaultTreeSnapshot(source, modelId, {
-            controlledDataSourceValues: controlled.values,
+            allowUnresolvedControlledDataSources: true,
           }),
         ),
       ),
@@ -2178,7 +2167,6 @@ export class WorkbookAnalysisRunsService {
           ),
           ...this.hclEvidenceContributionEntities(hcl.configuration, evidence),
           ...this.eventTreeContributionEntities(eventTree, eventTreeModelIds),
-          ...controlled.references,
         ],
       );
       return {

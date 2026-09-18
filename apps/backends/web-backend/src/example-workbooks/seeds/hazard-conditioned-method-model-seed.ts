@@ -3,7 +3,6 @@ import type { EventSequence, EventTree } from "interfaces-mef-types/es/event-seq
 import { EndState } from "interfaces-mef-types/core/events";
 import type { HazardConditionedMethodModels } from "interfaces-mef-types/hazard-conditioned-models";
 import type {
-  WorkbookBayesianNetwork,
   WorkbookFaultTree,
 } from "interfaces-mef-types/modeling";
 
@@ -111,64 +110,6 @@ function createHazardConditionedMethodModels(
     },
   ];
 
-  const hazardNodeId = randomUUID();
-  const protectionNodeId = randomUUID();
-  const hazardTrueId = randomUUID();
-  const hazardFalseId = randomUUID();
-  const protectionTrueId = randomUUID();
-  const protectionFalseId = randomUUID();
-  const bayesianNetwork: WorkbookBayesianNetwork = {
-    modelId: randomUUID(),
-    code: `${hazardCode}-DEP-BN`,
-    name: `${hazardName} dependency network`,
-    description: `Dependency treatment for hazard demand and protection availability under ${hazardName}.`,
-    nodes: [
-      {
-        id: hazardNodeId,
-        kind: "CHANCE_NODE",
-        code: `${hazardCode}-DEMAND`,
-        name: `${hazardName} demand present`,
-        description: `Hazard-demand state for the ${hazardName} dependency model.`,
-        states: [
-          { id: hazardTrueId, code: "TRUE", name: "Present" },
-          { id: hazardFalseId, code: "FALSE", name: "Absent" },
-        ],
-      },
-      {
-        id: protectionNodeId,
-        kind: "CHANCE_NODE",
-        code: `${hazardCode}-PROTECT`,
-        name: "Protection unavailable",
-        description: `Conditional availability of credited protection under ${hazardName}.`,
-        states: [
-          { id: protectionTrueId, code: "TRUE", name: "Unavailable" },
-          { id: protectionFalseId, code: "FALSE", name: "Available" },
-        ],
-      },
-    ],
-    edges: [{ id: randomUUID(), parentNodeId: hazardNodeId, childNodeId: protectionNodeId }],
-    conditionalProbabilityTables: [
-      {
-        nodeId: hazardNodeId,
-        parents: [],
-        rows: [{ id: randomUUID(), parentStates: [], values: [{ stateId: hazardTrueId, probability: 0.1 }, { stateId: hazardFalseId, probability: 0.9 }] }],
-      },
-      {
-        nodeId: protectionNodeId,
-        parents: [{ nodeId: hazardNodeId, order: 0 }],
-        rows: [
-          { id: randomUUID(), parentStates: [{ parentNodeId: hazardNodeId, stateId: hazardTrueId }], values: [{ stateId: protectionTrueId, probability: 0.2 }, { stateId: protectionFalseId, probability: 0.8 }] },
-          { id: randomUUID(), parentStates: [{ parentNodeId: hazardNodeId, stateId: hazardFalseId }], values: [{ stateId: protectionTrueId, probability: 0.01 }, { stateId: protectionFalseId, probability: 0.99 }] },
-        ],
-      },
-    ],
-    nodePositions: [
-      { nodeId: hazardNodeId, position: { x: 120, y: 150 } },
-      { nodeId: protectionNodeId, position: { x: 440, y: 150 } },
-    ],
-    layout: { viewport: { x: 0, y: 0, zoom: 0.8 }, mode: "MANUAL", direction: "LEFT_TO_RIGHT" },
-  };
-
   return {
     initiatingEventFaultTrees: [faultTree],
     faultTreeCatalogue: {
@@ -179,7 +120,6 @@ function createHazardConditionedMethodModels(
     },
     eventTrees: [eventTree],
     eventSequences,
-    dependencyBayesianNetworks: [bayesianNetwork],
   };
 }
 

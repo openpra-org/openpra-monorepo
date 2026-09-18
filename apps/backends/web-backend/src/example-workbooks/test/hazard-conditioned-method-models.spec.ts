@@ -1,4 +1,3 @@
-import { validateBayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import { ExternalFloodPRASchema } from "interfaces-mef-types/zod/external-flood/external-flood-pra";
 import { HighWindsPRASchema } from "interfaces-mef-types/zod/high-winds/high-winds-pra";
 import { InternalFirePRASchema } from "interfaces-mef-types/zod/internal-fire/internal-fire-pra";
@@ -28,12 +27,11 @@ const variants = [
 ] as const;
 
 describe("hazard-conditioned method models", () => {
-  it.each(variants)("provides connected FT, ET, and BN models for $name", ({ schema, create }) => {
+  it.each(variants)("provides connected FT and ET models for $name", ({ schema, create }) => {
     const parsed = schema.parse(create());
     const models = parsed.hazardConditionedModels;
     expect(models.initiatingEventFaultTrees).toHaveLength(1);
     expect(models.eventTrees).toHaveLength(1);
-    expect(models.dependencyBayesianNetworks).toHaveLength(1);
 
     const faultTree = models.initiatingEventFaultTrees[0]!;
     expect(faultTree.topGate).not.toBeNull();
@@ -47,10 +45,6 @@ describe("hazard-conditioned method models", () => {
     expect(models.eventSequences.every(({ eventTreeId, eventTreeSequenceId }) =>
       eventTreeId === eventTree.uuid && treeSequenceIds.has(eventTreeSequenceId!))).toBe(true);
 
-    const network = models.dependencyBayesianNetworks[0]!;
-    expect(validateBayesianNetworkModel(network, { evidence: { observations: [] } })
-      .filter(({ severity }) => severity === "ERROR")).toEqual([]);
-    expect(network.edges).toHaveLength(1);
   });
 
   it.each(variants)("defaults legacy $name workbooks to an empty model bundle", ({ schema, create }) => {
@@ -61,7 +55,6 @@ describe("hazard-conditioned method models", () => {
       faultTreeCatalogue: { basicEvents: [] },
       eventTrees: [],
       eventSequences: [],
-      dependencyBayesianNetworks: [],
     });
   });
 });

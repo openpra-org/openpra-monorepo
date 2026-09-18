@@ -1,7 +1,6 @@
 import { HclFaultTreeDiagnostics, HclCompilationDiagnostics } from "./hclDiagnostics";
 import { useEffect, useId, useState } from "react";
 import type { HclUncertaintySummary } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
-import { HCL_HAZARD_CONVOLUTION_POINT_ONLY } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import type { HclBindingEditorProps, HclEditorBatchRunResult } from "./hclBindingTypes";
 import { PagedResults, ResultCsvButton, ResultWarnings } from "../shared/resultPresentation";
 import { hclResultRecords, hclBatchResultRecords } from "../shared/probabilityResultExport";
@@ -214,9 +213,6 @@ export function HclResults({
               {batchRunResult.scenarios.length} completed{noVariation ? " · No variation across scenarios" : ""}
             </span>
           </div>
-          {calculationType === "UNCERTAINTY" && batchRunResult.hazardConvolution !== undefined && (
-            <p role="note">{HCL_HAZARD_CONVOLUTION_POINT_ONLY}</p>
-          )}
           <HclCompilationDiagnostics key={batchKey} stats={batchRunResult.compilationReuse} />
           {hazard !== undefined && <HclHazardSummary hazard={hazard} />}
           {hazard?.targetKind === "EVENT_TREE" && (

@@ -364,6 +364,13 @@ struct CompiledHclContext {
     uncertainty: Option<PreparedHclUncertainty>,
 }
 
+type HclSequenceEvaluation = (
+    f64,
+    Option<HclUncertaintySummary>,
+    Option<Vec<f64>>,
+    Option<HclBridgeStats>,
+);
+
 impl CompiledHclContext {
     fn new(context: &EventTreeHclContext) -> Result<Self> {
         let tree =
@@ -387,14 +394,7 @@ impl CompiledHclContext {
         bdd: &crate::algorithms::bdd_engine::Bdd,
         root: crate::algorithms::bdd_engine::BddRef,
         evidence_rows: &[Vec<HclEvidenceSpec>],
-    ) -> Result<
-        Vec<(
-            f64,
-            Option<HclUncertaintySummary>,
-            Option<Vec<f64>>,
-            Option<HclBridgeStats>,
-        )>,
-    > {
+    ) -> Result<Vec<HclSequenceEvaluation>> {
         let variable_by_event: HashMap<&str, usize> = order
             .iter()
             .enumerate()

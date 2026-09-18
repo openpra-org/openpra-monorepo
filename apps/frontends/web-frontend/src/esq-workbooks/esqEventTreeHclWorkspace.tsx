@@ -25,6 +25,7 @@ import type {
   HclFaultTreeOption,
 } from "../newly-developed-methods/hybrid-causal-logic";
 import { listWorkbooks } from "../workbooks/workbookApi";
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
 import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
 import { analysisSaveBlock, useAnalysisScope } from "../newly-developed-methods/shared/useAnalysisScope";
@@ -455,7 +456,7 @@ function EsqEventTreeHclWorkspace({
   return (
     <section className="poscard esq-hcl-et" aria-label="Event tree Bayesian dependency quantification">
       <div className="poscard__head bneditor__network-head">
-        <h3 className="poscard__title">Bayesian dependency network</h3>
+        <WorkbookSectionHeading workbook="ESQ" title="Bayesian dependency network" level={3} />
         {dependencyOptionsAvailable ? (
           <div className="posrow esqbn__network-actions" style={{ gap: 8 }}>
             <select className="posfield__select" aria-label="Dependency configuration" value={selectedConfigurationKey} onChange={(event) => {

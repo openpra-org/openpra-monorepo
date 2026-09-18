@@ -28,6 +28,7 @@ import type {
 import { useEditorConfirmation } from "../newly-developed-methods/shared";
 import { analysisSaveBlock, useAnalysisScope } from "../newly-developed-methods/shared/useAnalysisScope";
 import { listWorkbooks } from "../workbooks/workbookApi";
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { useSyWorkbook } from "./syWorkbookContext";
 import {
   getSyBayesianNetworkResult,
@@ -364,7 +365,7 @@ function SyBayesianNetworkWorkspace({
   return (
     <section className="poscard" aria-label="Systems Analysis dependency models">
       <div className="poscard__head bneditor__network-head">
-        <h3 className="poscard__title">Bayesian dependency network</h3>
+        <WorkbookSectionHeading workbook="SY" title="Bayesian dependency network" level={3} />
         <div className="posrow esqbn__network-actions" style={{ gap: 8 }}>
           {model !== undefined && (
             <select aria-label="Bayesian network" className="posfield__select" value={model.modelId} onChange={(event) => setSelectedModelId(event.target.value)}>

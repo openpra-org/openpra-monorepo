@@ -11,7 +11,7 @@ pub(super) fn numpy_sum(values: &[f64]) -> f64 {
     if n <= 128 {
         let mut accumulators: [f64; 8] = values[..8].try_into().unwrap();
         let stop = n - n % 8;
-        for row in values[8..stop].chunks_exact(8) {
+        for row in values[8..stop].as_chunks::<8>().0 {
             for index in 0..8 {
                 accumulators[index] += row[index];
             }
@@ -47,7 +47,7 @@ pub(super) fn population_standard_deviation(values: &[f64], mean: f64) -> f64 {
 pub(super) fn median(sorted: &[f64]) -> f64 {
     // np.median averages the middle slice, independently of np.percentile.
     let middle = sorted.len() / 2;
-    if sorted.len() % 2 == 0 {
+    if sorted.len().is_multiple_of(2) {
         mean(&sorted[middle - 1..=middle])
     } else {
         mean(&sorted[middle..=middle])

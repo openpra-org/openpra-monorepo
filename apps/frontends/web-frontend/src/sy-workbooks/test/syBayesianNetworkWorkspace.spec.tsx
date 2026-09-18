@@ -38,8 +38,8 @@ describe("Systems Analysis Bayesian-network workspace", () => {
 
     expect(screen.getByRole("heading", { name: "Bayesian dependency network" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add network" })).toBeInTheDocument();
-    expect(screen.getAllByRole("button")).toHaveLength(1);
-    expect(screen.queryByRole("button", { name: /^About / })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "About Bayesian dependency network" })).toBeInTheDocument();
     expect(screen.queryByText(/Own dependency networks/)).not.toBeInTheDocument();
     expect(screen.queryByText(/No dependency Bayesian network exists/)).not.toBeInTheDocument();
   });

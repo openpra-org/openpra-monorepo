@@ -10,6 +10,8 @@
 //!
 //! Each unsafe block takes only local pointers, balances the x87 stack, and
 //! restores any temporary rounding-mode change. No state crosses calls.
+#![allow(clippy::excessive_precision)]
+
 use std::arch::asm;
 
 #[no_mangle]

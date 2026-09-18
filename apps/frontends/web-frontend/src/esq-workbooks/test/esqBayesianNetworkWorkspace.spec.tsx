@@ -48,8 +48,8 @@ describe("Event Sequence Quantification Bayesian-network workspace", () => {
     expect(addNetwork).toBeInTheDocument();
     expect(addNetwork.parentElement).toHaveClass("bneditor__network-head");
     expect(screen.getByRole("heading", { name: "Bayesian dependency network" })).toBeInTheDocument();
-    expect(screen.getAllByRole("button")).toHaveLength(1);
-    expect(screen.queryByRole("button", { name: /^About / })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "About Bayesian dependency network" })).toBeInTheDocument();
     expect(screen.queryByText(/No Bayesian dependency network is available/)).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Immutable analysis runs" })).not.toBeInTheDocument();
   });

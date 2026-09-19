@@ -11,6 +11,8 @@ permissions:
 
 env:
   REGISTRY: registry.openpra.org
+  MONGO_IMAGE: mongo:latest
+  MINIO_IMAGE: quay.io/minio/minio:latest
 
 jobs:
   build-and-push:
@@ -112,9 +114,9 @@ jobs:
 
       - name: Save base images for offline load
         run: |
-          docker pull mongo:latest
-          docker pull minio/minio:latest
-          docker save mongo:latest minio/minio:latest -o base-images.tar
+          docker pull "$MONGO_IMAGE"
+          docker pull "$MINIO_IMAGE"
+          docker save "$MONGO_IMAGE" "$MINIO_IMAGE" -o base-images.tar
 
       - name: Upload base images artifact
         uses: actions/upload-artifact@v4
@@ -174,7 +176,13 @@ jobs:
           echo "branch_slug=$BRANCH_SLUG" >> "$GITHUB_OUTPUT"
           echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           echo "host_url=${BRANCH_SLUG}-dev.openpra.org" >> "$GITHUB_OUTPUT"
-          echo "site_host_url=openpra.org" >> "$GITHUB_OUTPUT"
+          if [ "$BRANCH_SLUG" = "main" ]; then
+            echo "site_host_url=openpra.org" >> "$GITHUB_OUTPUT"
+            echo "site_stack=openpra-site" >> "$GITHUB_OUTPUT"
+          else
+            echo "site_host_url=${BRANCH_SLUG}-site-dev.openpra.org" >> "$GITHUB_OUTPUT"
+            echo "site_stack=openpra-site-${BRANCH_SLUG}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Log in to self-hosted registry
         uses: docker/login-action@v3
@@ -186,7 +194,7 @@ jobs:
       - name: Check base images present
         id: basecheck
         run: |
-          if docker image inspect mongo:latest >/dev/null 2>&1 && docker image inspect minio/minio:latest >/dev/null 2>&1; then
+          if docker image inspect "$MONGO_IMAGE" >/dev/null 2>&1 && docker image inspect "$MINIO_IMAGE" >/dev/null 2>&1; then
             echo "have=true" >> "$GITHUB_OUTPUT"
           else
             echo "have=false" >> "$GITHUB_OUTPUT"
@@ -238,8 +246,8 @@ jobs:
           HOST_URL: ${{ steps.vars.outputs.host_url }}
           IMAGE_BACKEND: ${{ env.REGISTRY }}/openpra-apps-web-backend:${{ steps.vars.outputs.short_sha }}
           IMAGE_FRONTEND: ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.vars.outputs.short_sha }}
-          IMAGE_MONGO: mongo:latest
-          IMAGE_MINIO: minio/minio:latest
+          IMAGE_MONGO: ${{ env.MONGO_IMAGE }}
+          IMAGE_MINIO: ${{ env.MINIO_IMAGE }}
           MONGO_DATABASE: openpra_main_20260821t001435z
           MINIO_BUCKET: openpra-main-20260821t001435z
           DOCS_HASH: ${{ needs.build-and-push.outputs.docs_hash }}
@@ -261,6 +269,7 @@ jobs:
 
       - name: Deploy site to Docker Swarm
         env:
+          APP_NAME: ${{ steps.vars.outputs.site_stack }}
           IMAGE_SITE: ${{ env.REGISTRY }}/openpra-apps-site:${{ steps.vars.outputs.short_sha }}
           SITE_HOST_URL: ${{ steps.vars.outputs.site_host_url }}
         run: |
@@ -268,8 +277,8 @@ jobs:
             --with-registry-auth \
             --resolve-image never \
             --compose-file deploy/site/cd-stack.yml \
-            openpra-site
-          echo "Deployed openpra-site to https://${SITE_HOST_URL}"
+            "${{ steps.vars.outputs.site_stack }}"
+          echo "Deployed ${{ steps.vars.outputs.site_stack }} to https://${SITE_HOST_URL}"
 
       - name: Roll base-image services onto the loaded images
         run: |
@@ -281,4 +290,4 @@ jobs:
         run: |
           sleep 30
           docker service ls --filter "label=com.docker.stack.namespace=openpra-apps-${{ steps.vars.outputs.branch_slug }}"
-          docker service ls --filter "label=com.docker.stack.namespace=openpra-site"
+          docker service ls --filter "label=com.docker.stack.namespace=${{ steps.vars.outputs.site_stack }}"

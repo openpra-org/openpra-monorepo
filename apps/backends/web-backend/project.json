@@ -54,6 +54,12 @@
     "test": {
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "dependsOn": [
+        {
+          "projects": ["solvers-praxis-node"],
+          "target": "build"
+        }
+      ],
       "options": {
         "jestConfig": "apps/backends/web-backend/test/jest.config.ts"
       }

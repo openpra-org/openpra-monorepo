@@ -1,0 +1,822 @@
+import {
+  validateBayesianNetworkGraph,
+  validateBayesianNetworkCpts,
+  validateBayesianNetworkModules,
+} from "interfaces-shared-types/newly-developed-methods/bayesian-network";
+import type { HclCalculationType } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
+import { WorkbookHclUncertaintyConfigurationSchema } from "interfaces-mef-types/zod/modeling";
+import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { systemBasicEventToFaultTreeBasicEvent } from "interfaces-mef-types/sy/system-models";
+import type {
+  EventSequenceAnalysis,
+  EventTree,
+} from "interfaces-mef-types/es/event-sequence-analysis";
+import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type { WorkbookModelAddress } from "interfaces-shared-types/newly-developed-methods";
+import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
+import type { FaultTreeControlledDataSourceReference } from "interfaces-mef-types/modeling/fault-tree";
+import { failureRateToProbability, requiresFailureRateConversionReview, FAILURE_RATE_CONVERSION_REVIEW_REQUIRED } from "interfaces-mef-types/modeling/quantitative-semantics";
+import type { BayesianNetworkEvidenceConfiguration } from "interfaces-mef-types/modeling/bayesian-network";
+import type { WorkbookBayesianNetwork, WorkbookHclConfiguration } from "interfaces-mef-types/modeling/workbook-models";
+import { createHash } from "crypto";
+
+interface WorkbookMefSnapshot<TMef> {
+  workbookId: string;
+  workbookRevision: number;
+  mef: TMef;
+}
+
+interface PraxisModelSnapshot extends Record<string, unknown> {
+  id: string;
+  methodType: "FAULT_TREE" | "BAYESIAN_NETWORK" | "EVENT_TREE" | "HYBRID_CAUSAL_LOGIC";
+  revision: number;
+}
+
+interface AdaptedFaultTreeSnapshot {
+  modelSnapshot: PraxisModelSnapshot;
+  basicEventCatalogue: Record<string, unknown>;
+  controlledDataSources: FaultTreeControlledDataSourceReference[];
+}
+
+interface SyFaultTreeAdapterOptions {
+  controlledDataSourceValues?: ReadonlyMap<string, number | ResolvedControlledDataSourceValue>;
+  allowUnresolvedControlledDataSources?: boolean;
+}
+
+interface ResolvedControlledDataSourceValue {
+  value: number;
+  quantity: "PROBABILITY" | "FAILURE_RATE";
+}
+
+const faultTreeControlledDataSourceKey = (
+  reference: FaultTreeControlledDataSourceReference,
+): string => JSON.stringify([
+  reference.referenceType,
+  reference.workbookId,
+  reference.entityId,
+  reference.referenceType === "HUMAN_FAILURE_EVENT" ? reference.quantificationId : null,
+]);
+
+const workbookParameterReferenceKey = (
+  reference: Pick<WorkbookParameterReference, "workbookId" | "entityId">,
+): string => faultTreeControlledDataSourceKey({
+  referenceType: "WORKBOOK_PARAMETER",
+  workbookId: reference.workbookId,
+  entityId: reference.entityId,
+});
+
+type WorkbookPraxisAdapterErrorCode =
+  | "WORKBOOK_PRAXIS_ADAPTER_ERROR"
+  | "SY_FAILURE_RATE_CONVERSION_REVIEW_REQUIRED"
+  | "SY_FAULT_TREE_GRAPH_CYCLE"
+  | "SY_FAULT_TREE_GRAPH_REFERENCE_INVALID"
+  | "SY_FAULT_TREE_GATE_INPUT_ID_COLLISION"
+  | "SY_FAULT_TREE_NODE_ID_COLLISION"
+  | "SY_FAULT_TREE_NODE_POSITION_COLLISION"
+  | "SY_FAULT_TREE_TOP_GATE_AMBIGUOUS"
+  | "SY_FAULT_TREE_TOP_GATE_NOT_FOUND"
+  | "SY_FAULT_TREE_TRANSFER_CYCLE"
+  | "SY_FAULT_TREE_TRANSFER_GATE_AMBIGUOUS"
+  | "SY_FAULT_TREE_TRANSFER_GATE_NOT_FOUND"
+  | "SY_FAULT_TREE_TRANSFER_MODEL_AMBIGUOUS"
+  | "SY_FAULT_TREE_TRANSFER_MODEL_NOT_FOUND";
+
+class WorkbookPraxisAdapterError extends Error {
+  readonly code: WorkbookPraxisAdapterErrorCode;
+  readonly details: Readonly<Record<string, unknown>>;
+
+  constructor(
+    message: string,
+    code: WorkbookPraxisAdapterErrorCode = "WORKBOOK_PRAXIS_ADAPTER_ERROR",
+    details: Readonly<Record<string, unknown>> = {},
+  ) {
+    super(message);
+    this.name = "WorkbookPraxisAdapterError";
+    this.code = code;
+    this.details = details;
+  }
+}
+
+const findByUuid = <T extends { uuid: string }>(
+  values: readonly T[],
+  id: string,
+  kind: string,
+): T => {
+  const matches = values.filter((value) => value.uuid === id);
+  if (matches.length !== 1) {
+    throw new WorkbookPraxisAdapterError(
+      `${kind} '${id}' resolved ${matches.length} times; expected exactly once`,
+    );
+  }
+  return matches[0];
+};
+
+const stableUuid = (value: string): string => {
+  const bytes = createHash("sha256").update(value).digest().subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+
+const adaptSyFaultTreeSnapshot = (
+  source: WorkbookMefSnapshot<SystemsAnalysis>,
+  modelId: string,
+  options: SyFaultTreeAdapterOptions = {},
+): AdaptedFaultTreeSnapshot => {
+  const model = findByUuid(source.mef.systemLogicModels, modelId, "SY fault tree");
+  if (model.topGate === null) {
+    throw new WorkbookPraxisAdapterError(
+      `SY model '${modelId}' has no fault-tree top gate`,
+      "SY_FAULT_TREE_TOP_GATE_NOT_FOUND",
+      { modelId },
+    );
+  }
+
+  type SyFaultTreeModel = SystemsAnalysis["systemLogicModels"][number];
+  type SyFaultTreeGate = SyFaultTreeModel["gates"][number];
+  type SyFaultTreeLeaf = SyFaultTreeModel["leafNodes"][number];
+
+  interface ClaimedId {
+    modelId: string;
+    kind: string;
+    sourceId: string;
+  }
+
+  const modelGate = (
+    candidate: SyFaultTreeModel,
+    gateId: string,
+    target: boolean,
+  ): SyFaultTreeGate => {
+    const matches = candidate.gates.filter((gate) => gate.id === gateId);
+    if (matches.length !== 1) {
+      const subject = target ? "transfer target gate" : "top gate";
+      const code = target
+        ? matches.length === 0
+          ? "SY_FAULT_TREE_TRANSFER_GATE_NOT_FOUND"
+          : "SY_FAULT_TREE_TRANSFER_GATE_AMBIGUOUS"
+        : matches.length === 0
+          ? "SY_FAULT_TREE_TOP_GATE_NOT_FOUND"
+          : "SY_FAULT_TREE_TOP_GATE_AMBIGUOUS";
+      throw new WorkbookPraxisAdapterError(
+        `SY ${subject} '${candidate.uuid}:${gateId}' resolved ${matches.length} times; expected exactly once`,
+        code,
+        { modelId: candidate.uuid, gateId, matchCount: matches.length },
+      );
+    }
+    return matches[0];
+  };
+
+  const transferModel = (sourceModelId: string, targetModelId: string): SyFaultTreeModel => {
+    const matches = source.mef.systemLogicModels.filter(
+      (candidate) => candidate.uuid === targetModelId,
+    );
+    if (matches.length !== 1) {
+      throw new WorkbookPraxisAdapterError(
+        `SY transfer target model '${targetModelId}' from '${sourceModelId}' resolved ${matches.length} times; expected exactly once`,
+        matches.length === 0
+          ? "SY_FAULT_TREE_TRANSFER_MODEL_NOT_FOUND"
+          : "SY_FAULT_TREE_TRANSFER_MODEL_AMBIGUOUS",
+        { sourceModelId, targetModelId, matchCount: matches.length },
+      );
+    }
+    return matches[0];
+  };
+
+  const checkedModels = new Set<string>();
+  const assertLocalIds = (candidate: SyFaultTreeModel): void => {
+    if (checkedModels.has(candidate.uuid)) return;
+    checkedModels.add(candidate.uuid);
+
+    const nodeKinds = new Map<string, string>();
+    for (const node of [...candidate.gates, ...candidate.leafNodes]) {
+      const priorKind = nodeKinds.get(node.id);
+      if (priorKind !== undefined) {
+        throw new WorkbookPraxisAdapterError(
+          `SY model '${candidate.uuid}' contains colliding node id '${node.id}'`,
+          "SY_FAULT_TREE_NODE_ID_COLLISION",
+          { modelId: candidate.uuid, id: node.id, kinds: [priorKind, node.kind] },
+        );
+      }
+      nodeKinds.set(node.id, node.kind);
+    }
+
+    const inputIds = new Set<string>();
+    for (const input of candidate.gateInputs) {
+      if (inputIds.has(input.id)) {
+        throw new WorkbookPraxisAdapterError(
+          `SY model '${candidate.uuid}' contains colliding gate-input id '${input.id}'`,
+          "SY_FAULT_TREE_GATE_INPUT_ID_COLLISION",
+          { modelId: candidate.uuid, id: input.id },
+        );
+      }
+      inputIds.add(input.id);
+    }
+
+    const positionedNodeIds = new Set<string>();
+    for (const position of candidate.nodePositions) {
+      if (positionedNodeIds.has(position.nodeId)) {
+        throw new WorkbookPraxisAdapterError(
+          `SY model '${candidate.uuid}' contains multiple positions for node '${position.nodeId}'`,
+          "SY_FAULT_TREE_NODE_POSITION_COLLISION",
+          { modelId: candidate.uuid, id: position.nodeId },
+        );
+      }
+      positionedNodeIds.add(position.nodeId);
+    }
+  };
+
+  const gates: Array<Record<string, unknown>> = [];
+  const leafNodes: Array<Record<string, unknown>> = [];
+  const gateInputs: Array<Record<string, unknown>> = [];
+  const nodePositions: Array<Record<string, unknown>> = [];
+  const referencedBasicEventIds = new Set<string>();
+  const claimedNodeIds = new Map<string, ClaimedId>();
+  const claimedInputIds = new Map<string, ClaimedId>();
+  const visitState = new Map<string, "VISITING" | "VISITED">();
+  const visitStack: string[] = [];
+
+  const expandedId = (candidate: SyFaultTreeModel, sourceId: string): string =>
+    candidate.uuid === model.uuid
+      ? sourceId
+      : stableUuid(JSON.stringify(["SY_FAULT_TREE_TRANSFER", candidate.uuid, sourceId]));
+
+  const claimId = (
+    claims: Map<string, ClaimedId>,
+    id: string,
+    claim: ClaimedId,
+    collisionCode:
+      | "SY_FAULT_TREE_NODE_ID_COLLISION"
+      | "SY_FAULT_TREE_GATE_INPUT_ID_COLLISION",
+  ): void => {
+    const prior = claims.get(id);
+    if (prior === undefined) {
+      claims.set(id, claim);
+      return;
+    }
+    if (
+      prior.modelId === claim.modelId &&
+      prior.kind === claim.kind &&
+      prior.sourceId === claim.sourceId
+    ) {
+      return;
+    }
+    throw new WorkbookPraxisAdapterError(
+      `SY fault-tree expansion found colliding ${collisionCode === "SY_FAULT_TREE_NODE_ID_COLLISION" ? "node" : "gate-input"} id '${id}' in models '${prior.modelId}' and '${claim.modelId}'`,
+      collisionCode,
+      { id, first: prior, second: claim },
+    );
+  };
+
+  const copyPosition = (candidate: SyFaultTreeModel, nodeId: string): void => {
+    const position = candidate.nodePositions.find((entry) => entry.nodeId === nodeId);
+    if (position === undefined) return;
+    nodePositions.push({
+      ...position,
+      nodeId: expandedId(candidate, nodeId),
+      position: { ...position.position },
+    });
+  };
+
+  const includeLeaf = (candidate: SyFaultTreeModel, leaf: SyFaultTreeLeaf): void => {
+    const outputId = expandedId(candidate, leaf.id);
+    const prior = claimedNodeIds.get(outputId);
+    claimId(
+      claimedNodeIds,
+      outputId,
+      { modelId: candidate.uuid, kind: leaf.kind, sourceId: leaf.id },
+      "SY_FAULT_TREE_NODE_ID_COLLISION",
+    );
+    if (prior !== undefined) return;
+    if (leaf.kind === "BASIC_EVENT_REFERENCE") referencedBasicEventIds.add(leaf.basicEventId);
+    leafNodes.push({ ...leaf, id: outputId });
+    copyPosition(candidate, leaf.id);
+  };
+
+  const gateKey = (candidate: SyFaultTreeModel, gateId: string): string =>
+    JSON.stringify([candidate.uuid, gateId]);
+
+  interface GateFrame {
+    model: SyFaultTreeModel;
+    key: string;
+    outputGateId: string;
+    inputs: SyFaultTreeModel["gateInputs"];
+    nextInput: number;
+  }
+  const frames: GateFrame[] = [];
+
+  const enterGate = (
+    candidate: SyFaultTreeModel,
+    gateId: string,
+    reachedByTransfer: boolean,
+  ): void => {
+    const key = gateKey(candidate, gateId);
+    const state = visitState.get(key);
+    if (state === "VISITED") return;
+    if (state === "VISITING") {
+      const cycleStart = visitStack.lastIndexOf(key);
+      const cycle = [...visitStack.slice(Math.max(cycleStart, 0)), key].map((entry) =>
+        JSON.parse(entry),
+      ) as Array<[string, string]>;
+      throw new WorkbookPraxisAdapterError(
+        `SY fault-tree ${reachedByTransfer ? "transfer " : ""}cycle detected at '${candidate.uuid}:${gateId}'`,
+        reachedByTransfer ? "SY_FAULT_TREE_TRANSFER_CYCLE" : "SY_FAULT_TREE_GRAPH_CYCLE",
+        { cycle: cycle.map(([cycleModelId, cycleGateId]) => ({ modelId: cycleModelId, gateId: cycleGateId })) },
+      );
+    }
+
+    const gate = modelGate(candidate, gateId, false);
+    assertLocalIds(candidate);
+    const outputGateId = expandedId(candidate, gate.id);
+    claimId(
+      claimedNodeIds,
+      outputGateId,
+      { modelId: candidate.uuid, kind: "GATE", sourceId: gate.id },
+      "SY_FAULT_TREE_NODE_ID_COLLISION",
+    );
+    gates.push({ ...gate, id: outputGateId });
+    copyPosition(candidate, gate.id);
+    visitState.set(key, "VISITING");
+    visitStack.push(key);
+    frames.push({
+      model: candidate,
+      key,
+      outputGateId,
+      inputs: candidate.gateInputs.filter((entry) => entry.gateId === gate.id),
+      nextInput: 0,
+    });
+  };
+
+  modelGate(model, model.topGate.gateId, false);
+  enterGate(model, model.topGate.gateId, false);
+
+  // Resume each parent's next input after its child, preserving recursive DFS
+  // order without using one JavaScript call frame per gate or transfer.
+  while (frames.length > 0) {
+    const frame = frames[frames.length - 1];
+    if (frame.nextInput === frame.inputs.length) {
+      frames.pop();
+      visitStack.pop();
+      visitState.set(frame.key, "VISITED");
+    } else {
+      const { model: candidate, outputGateId } = frame;
+      const input = frame.inputs[frame.nextInput++];
+      const matchingGates = candidate.gates.filter((child) => child.id === input.childId);
+      const matchingLeaves = candidate.leafNodes.filter((child) => child.id === input.childId);
+      if (matchingGates.length + matchingLeaves.length !== 1) {
+        throw new WorkbookPraxisAdapterError(
+          `SY gate input '${input.id}' in model '${candidate.uuid}' resolves child '${input.childId}' ${matchingGates.length + matchingLeaves.length} times; expected exactly once`,
+          "SY_FAULT_TREE_GRAPH_REFERENCE_INVALID",
+          {
+            modelId: candidate.uuid,
+            gateInputId: input.id,
+            childId: input.childId,
+            matchCount: matchingGates.length + matchingLeaves.length,
+          },
+        );
+      }
+
+      let replacementChildId = expandedId(candidate, input.childId);
+      let childGate: { model: SyFaultTreeModel; gateId: string; viaTransfer: boolean } | undefined;
+      const child = matchingGates[0];
+      if (child !== undefined) {
+        childGate = { model: candidate, gateId: child.id, viaTransfer: false };
+      } else {
+        const leaf = matchingLeaves[0];
+        if (leaf === undefined) continue;
+        if (leaf.kind !== "TRANSFER_REFERENCE") {
+          includeLeaf(candidate, leaf);
+        } else {
+          claimId(
+            claimedNodeIds,
+            expandedId(candidate, leaf.id),
+            { modelId: candidate.uuid, kind: leaf.kind, sourceId: leaf.id },
+            "SY_FAULT_TREE_NODE_ID_COLLISION",
+          );
+          const referencedModel = transferModel(candidate.uuid, leaf.target.modelId);
+          const referencedGate = modelGate(referencedModel, leaf.target.entityId, true);
+          replacementChildId = expandedId(referencedModel, referencedGate.id);
+          childGate = {
+            model: referencedModel,
+            gateId: referencedGate.id,
+            viaTransfer: true,
+          };
+        }
+      }
+
+      claimId(
+        claimedInputIds,
+        expandedId(candidate, input.id),
+        { modelId: candidate.uuid, kind: "GATE_INPUT", sourceId: input.id },
+        "SY_FAULT_TREE_GATE_INPUT_ID_COLLISION",
+      );
+      gateInputs.push({
+        ...input,
+        id: expandedId(candidate, input.id),
+        gateId: outputGateId,
+        childId: replacementChildId,
+      });
+      if (childGate !== undefined) {
+        enterGate(childGate.model, childGate.gateId, childGate.viaTransfer);
+      }
+    }
+  }
+
+  for (const basicEventId of referencedBasicEventIds) {
+    const nodeClaim = claimedNodeIds.get(basicEventId);
+    if (nodeClaim !== undefined && nodeClaim.kind !== "BASIC_EVENT_REFERENCE") {
+      throw new WorkbookPraxisAdapterError(
+        `SY basic event '${basicEventId}' collides with ${nodeClaim.kind.toLowerCase()} id in model '${nodeClaim.modelId}'`,
+        "SY_FAULT_TREE_NODE_ID_COLLISION",
+        { id: basicEventId, node: nodeClaim, basicEventId },
+      );
+    }
+  }
+
+  const controlledDataSources = new Map<string, FaultTreeControlledDataSourceReference>();
+  const basicEvents = [...referencedBasicEventIds].map((basicEventId) => {
+    const event = findByUuid(source.mef.systemBasicEvents, basicEventId, "SY basic event");
+    if (requiresFailureRateConversionReview(event.quantificationBasis)) {
+      throw new WorkbookPraxisAdapterError(
+        `SY basic event '${basicEventId}': ${FAILURE_RATE_CONVERSION_REVIEW_REQUIRED}`,
+        "SY_FAILURE_RATE_CONVERSION_REVIEW_REQUIRED",
+        { basicEventId },
+      );
+    }
+    const controlled = event.controlledDataSource;
+    const controlledValue = controlled === undefined
+      ? undefined
+      : options.controlledDataSourceValues?.get(faultTreeControlledDataSourceKey(controlled));
+    const resolvedControlledValue = typeof controlledValue === "number"
+      ? { value: controlledValue, quantity: "PROBABILITY" as const }
+      : controlledValue;
+    if (
+      controlled !== undefined
+      && resolvedControlledValue === undefined
+      && options.allowUnresolvedControlledDataSources !== true
+    ) {
+      throw new WorkbookPraxisAdapterError(
+        `SY basic event '${basicEventId}' could not resolve controlled ${controlled.referenceType === "HUMAN_FAILURE_EVENT" ? "HRA quantification" : "DA parameter"} '${controlled.workbookId}:${controlled.entityId}'`,
+      );
+    }
+    const basis = event.quantificationBasis;
+    const expectedQuantity = basis?.kind === "FAILURE_RATE" ? "FAILURE_RATE" : "PROBABILITY";
+    if (resolvedControlledValue !== undefined && resolvedControlledValue.quantity !== expectedQuantity) {
+      throw new WorkbookPraxisAdapterError(
+        `SY basic event '${basicEventId}' expects a ${expectedQuantity.toLowerCase().replace("_", " ")} source but its controlled value is ${resolvedControlledValue.quantity.toLowerCase().replace("_", " ")}`,
+      );
+    }
+    const resolvedBasis = basis?.kind === "FAILURE_RATE" && resolvedControlledValue !== undefined
+      ? { ...basis, failureRate: { ...basis.failureRate, value: resolvedControlledValue.value } }
+      : basis;
+    const resolvedProbability = resolvedBasis?.kind === "FAILURE_RATE"
+      ? failureRateToProbability(resolvedBasis)
+      : (resolvedControlledValue?.value ?? event.probability);
+    if (controlled !== undefined) {
+      controlledDataSources.set(faultTreeControlledDataSourceKey(controlled), { ...controlled });
+    }
+    if (
+      (resolvedProbability === undefined || !Number.isFinite(resolvedProbability)) &&
+      !(controlled !== undefined && options.allowUnresolvedControlledDataSources === true)
+    ) {
+      if (controlled !== undefined) {
+        throw new WorkbookPraxisAdapterError(
+          `SY basic event '${basicEventId}' could not resolve controlled ${controlled.referenceType === "HUMAN_FAILURE_EVENT" ? "HRA quantification" : "DA parameter"} '${controlled.workbookId}:${controlled.entityId}'`,
+        );
+      }
+      throw new WorkbookPraxisAdapterError(`SY basic event '${basicEventId}' has no finite probability`);
+    }
+    return systemBasicEventToFaultTreeBasicEvent({
+      ...event,
+      probability: resolvedProbability,
+      quantificationBasis: resolvedBasis,
+    });
+  });
+
+  return {
+    modelSnapshot: {
+      id: model.uuid,
+      projectId: source.workbookId,
+      methodType: "FAULT_TREE",
+      revision: source.workbookRevision,
+      topGate: { ...model.topGate },
+      gates,
+      leafNodes,
+      gateInputs,
+      nodePositions,
+      layout: {
+        ...model.layout,
+        viewport: { ...model.layout.viewport },
+      },
+    },
+    basicEventCatalogue: {
+      projectId: source.workbookId,
+      basicEvents,
+    },
+    controlledDataSources: [...controlledDataSources.values()],
+  };
+};
+
+const collectSyFaultTreeControlledDataSources = (
+  source: WorkbookMefSnapshot<SystemsAnalysis>,
+  modelId: string,
+): FaultTreeControlledDataSourceReference[] =>
+  adaptSyFaultTreeSnapshot(source, modelId, {
+    allowUnresolvedControlledDataSources: true,
+  }).controlledDataSources;
+
+const adaptEsqBayesianNetworkSnapshot = (
+  source: WorkbookMefSnapshot<EventSequenceQuantification>,
+  modelId: string,
+): PraxisModelSnapshot => {
+  const model = source.mef.bayesianNetworks.find((candidate) => candidate.modelId === modelId);
+  if (model === undefined) {
+    throw new WorkbookPraxisAdapterError(`ESQ Bayesian network '${modelId}' was not found`);
+  }
+  return adaptBayesianNetworkModelSnapshot(source, model);
+};
+
+const adaptSyBayesianNetworkSnapshot = (
+  source: WorkbookMefSnapshot<SystemsAnalysis>,
+  modelId: string,
+): PraxisModelSnapshot => {
+  const model = (source.mef.dependencyBayesianNetworks ?? []).find(
+    (candidate) => candidate.modelId === modelId,
+  );
+  if (model === undefined) {
+    throw new WorkbookPraxisAdapterError(`SY Bayesian network '${modelId}' was not found`);
+  }
+  return adaptBayesianNetworkModelSnapshot(source, model);
+};
+
+const adaptBayesianNetworkModelSnapshot = (
+  source: Pick<WorkbookMefSnapshot<unknown>, "workbookRevision">,
+  model: WorkbookBayesianNetwork,
+): PraxisModelSnapshot => {
+  const errors = [
+    ...validateBayesianNetworkGraph(model),
+    ...validateBayesianNetworkCpts(model),
+    ...validateBayesianNetworkModules(model),
+  ].filter((issue) => issue.severity === "ERROR");
+  if (errors.length > 0) throw new WorkbookPraxisAdapterError(errors.map((issue) => issue.message).join("; "));
+  return {
+    ...model,
+    id: model.modelId,
+    methodType: "BAYESIAN_NETWORK",
+    revision: source.workbookRevision,
+  };
+};
+
+const orderedFunctionalEvents = (tree: EventTree): EventTree["functionalEvents"][string][] =>
+  Object.values(tree.functionalEvents).sort(
+    (left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER),
+  );
+
+const adaptEsEventTreeSnapshot = (
+  source: WorkbookMefSnapshot<EventSequenceAnalysis>,
+  modelId: string,
+  hclConfiguration?: WorkbookModelAddress,
+): PraxisModelSnapshot => {
+  const tree = findByUuid(source.mef.eventTrees ?? [], modelId, "ES event tree");
+  if (tree.initiatingEventFrequency === undefined) {
+    throw new WorkbookPraxisAdapterError(`ES event tree '${modelId}' has no initiating-event frequency`);
+  }
+  const functionalEvents = orderedFunctionalEvents(tree).map((event, order) => ({
+    id: event.uuid,
+    name: event.name,
+    order,
+  }));
+  const treeSequences = Object.values(tree.sequences);
+  const links = orderedFunctionalEvents(tree).flatMap((event) => {
+    if (event.faultTreeTopEvent === undefined) {
+      const bypassedEverywhere =
+        treeSequences.length > 0 &&
+        treeSequences.every((sequence) => sequence.functionalEventStates?.[event.uuid] === "BYPASSED");
+      if (bypassedEverywhere) return [];
+      throw new WorkbookPraxisAdapterError(
+        `ES functional event '${event.uuid}' has no typed fault-tree top-event reference`,
+      );
+    }
+    return [{
+      functionalEventId: event.uuid,
+      faultTreeTopGate: {
+        modelId: event.faultTreeTopEvent.modelId,
+        entityId: event.faultTreeTopEvent.entityId,
+      },
+    }];
+  });
+  const endStateIds = new Set<string>();
+  const sequences = Object.values(tree.sequences).map((sequence) => {
+    const transfer = tree.transfers?.[sequence.uuid];
+    if (transfer === undefined && sequence.endState === undefined) {
+      throw new WorkbookPraxisAdapterError(`ES sequence '${sequence.uuid}' has no end state`);
+    }
+    const states = sequence.functionalEventStates;
+    if (states === undefined) {
+      throw new WorkbookPraxisAdapterError(
+        `ES sequence '${sequence.uuid}' has no normalized functional-event states`,
+      );
+    }
+    return {
+      id: sequence.uuid,
+      path: functionalEvents.map((event) => {
+        const outcome = states[event.id];
+        if (outcome !== "SUCCESS" && outcome !== "FAILURE" && outcome !== "BYPASSED") {
+          throw new WorkbookPraxisAdapterError(
+            `ES sequence '${sequence.uuid}' is missing a success, failure, or bypassed outcome for '${event.id}'`,
+          );
+        }
+        return { functionalEventId: event.id, outcome };
+      }),
+      result:
+        transfer === undefined
+          ? (() => {
+              const endState = sequence.endState!;
+              const endStateId =
+                tree.endStateIds?.[endState] ??
+                stableUuid(`${source.workbookId}:${tree.uuid}:end-state:${endState}`);
+              endStateIds.add(endStateId);
+              return { kind: "END_STATE" as const, endStateId };
+            })()
+          : {
+              kind: "TRANSFER" as const,
+              target: {
+                modelId: transfer.targetEventTreeId,
+              },
+            },
+    };
+  });
+
+  return {
+    id: tree.uuid,
+    methodType: "EVENT_TREE",
+    revision: source.workbookRevision,
+    initiatingEvent: {
+      target: { modelId: source.workbookId, entityId: tree.initiatingEventId },
+    },
+    initiatingEventFrequency: tree.initiatingEventFrequency,
+    functionalEvents,
+    functionalEventFaultTreeLinks: links,
+    endStates: [...endStateIds].map((id) => ({ id })),
+    sequences,
+    hclConfiguration:
+      hclConfiguration === undefined
+        ? null
+        : { configuration: { modelId: hclConfiguration.modelId } },
+  };
+};
+
+const adaptHclSolverSettings = (
+  configuration: WorkbookHclConfiguration,
+  calculationType: HclCalculationType,
+): Record<string, unknown> => {
+  const input = calculationType === "UNCERTAINTY" ? configuration.solverSettings.uncertainty : undefined;
+  if (calculationType === "UNCERTAINTY" && input === undefined) {
+    throw new WorkbookPraxisAdapterError("Uncertainty execution requires saved uncertainty settings.");
+  }
+  const parsed = input === undefined ? undefined : WorkbookHclUncertaintyConfigurationSchema.safeParse(configuration);
+  if (parsed && !parsed.success) {
+    throw new WorkbookPraxisAdapterError(`Invalid uncertainty settings: ${parsed.error.message}`);
+  }
+  const uncertainty = parsed?.success ? parsed.data.solverSettings.uncertainty : undefined;
+  return {
+    variableOrder: configuration.solverSettings.variableOrder,
+    foldConstants: configuration.solverSettings.foldConstants,
+    spliceNullGates: configuration.solverSettings.spliceNullGates,
+    ...(uncertainty === undefined ? {} : {
+      uncertainty: {
+        sampleCount: uncertainty.sampleCount,
+        seed: uncertainty.seed,
+        sampler: uncertainty.sampler ?? "MC",
+        cptProbabilityClipEpsilon: uncertainty.cptProbabilityClipEpsilon ?? 0,
+        basicEventDistributions: uncertainty.basicEventDistributions.map((definition) => ({
+          faultTreeBasicEvent: {
+            entityId: definition.faultTreeBasicEvent.entityId,
+          },
+          distribution: definition.distribution,
+        })),
+        ...(uncertainty.cptGenerators === undefined ? {} : { cptGenerators: uncertainty.cptGenerators.map((definition) => ({
+          bayesianNetworkNode: { modelId: definition.bayesianNetworkNode.modelId, entityId: definition.bayesianNetworkNode.entityId },
+          generator: definition.generator,
+        })) }),
+        cptRowDistributions: uncertainty.cptRowDistributions.map((definition) => ({
+          bayesianNetworkNode: {
+            modelId: definition.bayesianNetworkNode.modelId,
+            entityId: definition.bayesianNetworkNode.entityId,
+          },
+          cptRowId: definition.cptRowId,
+          prior: definition.prior,
+        })),
+      },
+    }),
+  };
+};
+
+const adaptEsqHclSnapshot = (
+  source: WorkbookMefSnapshot<EventSequenceQuantification>,
+  modelId: string,
+  calculationType: HclCalculationType = "PROBABILITY",
+  faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
+  baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
+): PraxisModelSnapshot => {
+  const configuration = source.mef.hclConfigurations.find(
+    (candidate) => candidate.modelId === modelId,
+  );
+  if (configuration === undefined) {
+    throw new WorkbookPraxisAdapterError(`ESQ HCL configuration '${modelId}' was not found`);
+  }
+
+  return adaptHclConfigurationSnapshot(
+    source, configuration, calculationType, faultTreeBasicEventIdsByModel, baseEvidenceOverride,
+  );
+};
+
+const adaptHclConfigurationSnapshot = (
+  source: Pick<WorkbookMefSnapshot<unknown>, "workbookRevision">,
+  configuration: WorkbookHclConfiguration,
+  calculationType: HclCalculationType,
+  faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
+  baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
+  effectiveFaultTrees = configuration.faultTrees,
+): PraxisModelSnapshot => {
+  const bindings = configuration.bindings.flatMap((binding) =>
+    effectiveFaultTrees
+      .filter((faultTree) => faultTree.workbookId === binding.faultTreeBasicEvent.workbookId)
+      .filter((faultTree) =>
+        faultTreeBasicEventIdsByModel === undefined ||
+        faultTreeBasicEventIdsByModel
+          .get(faultTree.modelId)
+          ?.has(binding.faultTreeBasicEvent.entityId) === true
+      )
+      .map((faultTree) => ({
+        id: `${binding.id}:${faultTree.modelId}`,
+        faultTreeBasicEvent: {
+          modelId: faultTree.modelId,
+          entityId: binding.faultTreeBasicEvent.entityId,
+        },
+        bayesianNetworkNode: {
+          modelId: binding.bayesianNetworkNode.modelId,
+          entityId: binding.bayesianNetworkNode.entityId,
+        },
+        trueStateIds: binding.trueStateIds,
+      })),
+  );
+  return {
+    id: configuration.modelId,
+    methodType: "HYBRID_CAUSAL_LOGIC",
+    revision: source.workbookRevision,
+    bayesianNetwork: { modelId: configuration.bayesianNetwork.modelId },
+    faultTrees: effectiveFaultTrees.map((faultTree) => ({
+      faultTree: { modelId: faultTree.modelId },
+    })),
+    bindings,
+    baseEvidence: baseEvidenceOverride ?? configuration.baseEvidence,
+    solverSettings: adaptHclSolverSettings(configuration, calculationType),
+  };
+};
+
+const adaptSyHclSnapshot = (
+  source: WorkbookMefSnapshot<SystemsAnalysis>,
+  modelId: string,
+  calculationType: HclCalculationType = "PROBABILITY",
+  faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
+  baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
+  effectiveFaultTrees?: WorkbookModelAddress[],
+): PraxisModelSnapshot => {
+  const configuration = (source.mef.dependencyHclConfigurations ?? []).find(
+    (candidate) => candidate.modelId === modelId,
+  );
+  if (configuration === undefined) {
+    throw new WorkbookPraxisAdapterError(`SY HCL configuration '${modelId}' was not found`);
+  }
+  return adaptHclConfigurationSnapshot(
+    source,
+    configuration,
+    calculationType,
+    faultTreeBasicEventIdsByModel,
+    baseEvidenceOverride,
+    effectiveFaultTrees,
+  );
+};
+
+export {
+  WorkbookPraxisAdapterError,
+  collectSyFaultTreeControlledDataSources,
+  workbookParameterReferenceKey,
+  faultTreeControlledDataSourceKey,
+  adaptSyFaultTreeSnapshot,
+  adaptEsqBayesianNetworkSnapshot,
+  adaptSyBayesianNetworkSnapshot,
+  adaptEsEventTreeSnapshot,
+  adaptEsqHclSnapshot,
+  adaptSyHclSnapshot,
+  adaptBayesianNetworkModelSnapshot,
+  adaptHclConfigurationSnapshot,
+};
+export type {
+  WorkbookMefSnapshot,
+  PraxisModelSnapshot,
+  AdaptedFaultTreeSnapshot,
+  SyFaultTreeAdapterOptions,
+  ResolvedControlledDataSourceValue,
+};

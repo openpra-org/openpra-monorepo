@@ -1,3 +1,4 @@
+import { stringifyJson } from "interfaces-shared-types/json";
 import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
@@ -24,9 +25,14 @@ import {
   type CapabilityCategory,
 } from "./esqViewData";
 import { familyMeanFrequency, type CcScore } from "./esqSelectors";
+import { EsqBayesianNetworkWorkspace } from "./esqBayesianNetworkWorkspace";
 
 // ─── 05 — Dependencies (HLR-C) ─────────────────────────────────────────────
-function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => void }): JSX.Element {
+function DependScreen({ openDrawer, initialNetworkId = null, initialSourceWorkbookId = null }: {
+  openDrawer: (ctx: EsqDrawerContext) => void;
+  initialNetworkId?: string | null;
+  initialSourceWorkbookId?: string | null;
+}): JSX.Element {
   const { esq, editable, mutateEsq } = useEsqWorkbook();
   const dep = esq.dependencyTreatment;
   const multiHfe = esq.multiHfeCutsetIdentifications ?? [];
@@ -63,9 +69,11 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
   }
   return (
     <>
+      <EsqBayesianNetworkWorkspace initialNetworkId={initialNetworkId} initialSourceWorkbookId={initialSourceWorkbookId} />
+
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ESQ" title="Dependency treatment" level={3} />
+          <WorkbookSectionHeading title="Dependency treatment" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C1 · ESQ-C2</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "dependency", id: "dependency" })}>Edit</button>}
@@ -89,7 +97,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ESQ" title="Multiple human failure events in a cutset" level={3} />
+          <WorkbookSectionHeading title="Multiple human failure events in a cutset" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C1 · ESQ-C2</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addMultiHfe}><ESQIcon.Plus /> Add cutset</button>}
@@ -120,7 +128,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ESQ" title="Event-tree linking transfers" level={3} />
+          <WorkbookSectionHeading title="Event-tree linking transfers" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C3</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addTransfer}><ESQIcon.Plus /> Add transfer</button>}
@@ -147,7 +155,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ESQ" title="Phenomena dependencies" level={3} />
+          <WorkbookSectionHeading title="Phenomena dependencies" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C4 · ESQ-C6</EsqProvenanceChip>
             <div className="posrow" style={{ gap: 6 }}>
@@ -180,7 +188,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ESQ" title="Equipment survivability credit" level={3} />
+          <WorkbookSectionHeading title="Equipment survivability credit" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C8 · ESQ-C9</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSurv}><ESQIcon.Plus /> Add assessment</button>}
@@ -508,7 +516,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
   const { esq } = useEsqWorkbook();
   const ready = scores.blocked === 0 && scores.warn === 0;
   function downloadJson(): void {
-    const blob = new Blob([JSON.stringify(esq, null, 2)], { type: "application/json" });
+    const blob = new Blob([stringifyJson(esq, 2)!], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

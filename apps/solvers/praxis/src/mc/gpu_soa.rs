@@ -237,7 +237,6 @@ impl GpuSoaPlan {
 
     pub fn validate(&self) -> Result<()> {
         for layer in &self.layers {
-
             let mut seen_out_nodes: std::collections::HashSet<u32> =
                 std::collections::HashSet::new();
             for group in layer.gate_groups.values() {

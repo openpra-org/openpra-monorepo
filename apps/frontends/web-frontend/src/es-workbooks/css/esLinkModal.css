@@ -20,6 +20,21 @@
   box-shadow: 0 24px 60px rgba(29, 25, 43, 0.28);
   overflow: hidden;
 }
+.eslink.eslink--fault-tree {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  grid-template-columns: none;
+  gap: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.eslink-backdrop--fault-tree {
+  padding: 0;
+}
 .eslink__head {
   display: flex;
   align-items: flex-start;
@@ -67,6 +82,63 @@
 .eslink__body {
   padding: 18px 20px;
   overflow-y: auto;
+}
+.eslink__body--fault-tree {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+}
+.eslink__ft-toolbar {
+  display: flex;
+  width: min(100%, 1280px);
+  align-items: flex-end;
+  justify-content: center;
+  gap: 14px;
+  margin-inline: auto;
+}
+.eslink__ft-selectors {
+  display: grid;
+  min-width: 0;
+  flex: 0 1 900px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.eslink__ft-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+.eslink__ft-editor {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+}
+.eslink__ft-editor .fteditor {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  gap: 0;
+}
+.eslink__ft-editor .fteditor__header,
+.eslink__ft-editor .fteditor__commandbar {
+  display: none;
+}
+.eslink__ft-editor .fteditor__workspace {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  flex: 1;
+}
+.eslink__ft-editor .fteditor__viewport {
+  height: 100%;
+  min-height: 0;
 }
 .eslink__col-h {
   display: flex;
@@ -144,4 +216,27 @@
   gap: 10px;
   padding: 14px 20px;
   border-top: 1px solid var(--color-border);
+}
+.eslink__selection-summary {
+  flex: 0 0 auto;
+  overflow: hidden;
+  color: var(--color-text);
+  font-family: var(--font-data), monospace;
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .eslink__ft-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .eslink__ft-selectors {
+    grid-template-columns: 1fr;
+  }
+  .eslink__ft-actions {
+    justify-content: flex-end;
+  }
 }

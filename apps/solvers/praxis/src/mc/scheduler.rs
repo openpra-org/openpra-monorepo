@@ -2,7 +2,6 @@ use std::time::Instant;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExecutionBackend {
-
     Cpu,
 
     #[cfg(feature = "cuda")]
@@ -14,7 +13,6 @@ pub enum ExecutionBackend {
 
 #[derive(Debug, Clone)]
 pub struct WorkloadMetrics {
-
     pub num_trials: usize,
 
     pub num_events: usize,
@@ -25,7 +23,6 @@ pub struct WorkloadMetrics {
 }
 
 impl WorkloadMetrics {
-
     pub fn total_cost(&self) -> f64 {
         let sampling_cost = self.num_trials as f64 * self.num_events as f64;
         let evaluation_cost = self.num_trials as f64 * self.num_gates as f64 * self.avg_gate_fanin;
@@ -34,7 +31,6 @@ impl WorkloadMetrics {
 }
 
 pub struct Scheduler {
-
     gpu_overhead_threshold: f64,
 
     preferred_backend: Option<ExecutionBackend>,
@@ -43,10 +39,8 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
-
     pub fn auto() -> Self {
         Scheduler {
-
             gpu_overhead_threshold: 100_000.0,
             preferred_backend: None,
             max_batch_size: 1_000_000,
@@ -70,7 +64,6 @@ impl Scheduler {
     }
 
     pub fn select_backend(&self, metrics: &WorkloadMetrics) -> ExecutionBackend {
-
         if let Some(backend) = self.preferred_backend {
             if self.is_backend_available(backend) {
                 return backend;
@@ -100,12 +93,10 @@ impl Scheduler {
             ExecutionBackend::Cpu => true,
             #[cfg(feature = "cuda")]
             ExecutionBackend::Cuda => {
-
                 cfg!(feature = "cuda")
             }
             #[cfg(feature = "wgpu")]
             ExecutionBackend::Wgpu => {
-
                 cfg!(feature = "wgpu")
             }
             #[allow(unreachable_patterns)]

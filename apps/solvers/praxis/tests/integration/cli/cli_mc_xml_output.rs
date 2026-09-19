@@ -65,7 +65,7 @@ fn test_cli_monte_carlo_xml_output_includes_stats() {
         .arg("1000")
         .arg("--seed")
         .arg("42")
-            .arg("--output")
+        .arg("--output")
         .arg(&output_path)
         .output()
         .expect("Failed to execute praxis");
@@ -121,7 +121,7 @@ fn test_cli_non_monte_carlo_xml_output_has_no_mc_section() {
         .arg("zbdd")
         .arg("--analysis")
         .arg("cutsets-only")
-            .arg("--output")
+        .arg("--output")
         .arg(&output_path)
         .output()
         .expect("Failed to execute praxis");

@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { jsonResponses } from 'interfaces-shared-types/json';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { INestApplication, Logger } from '@nestjs/common';
 import { json, urlencoded } from 'express';
@@ -17,6 +18,8 @@ async function bootstrap(): Promise<void> {
     const bootstrapLogger = new Logger();
     bootstrapLogger.debug('Initializing the app...');
     const app: INestApplication = await NestFactory.create(PraetorManagerModule);
+    app.use(jsonResponses);
+    app.enableShutdownHooks();
     bootstrapLogger.debug('Attaching the exception filter...');
     app.useGlobalFilters(new HttpExceptionFilter());
     const hostUrl = process.env['HOST_URL'] ?? 'http://localhost:3000';
@@ -41,8 +44,8 @@ async function bootstrap(): Promise<void> {
             operationsSorter: 'alpha',
         },
     });
-    app.use(json({ limit: '50mb' }));
-    app.use(urlencoded({ extended: true, limit: '50mb' }));
+    app.use(json({ limit: process.env['HTTP_JSON_LIMIT'] ?? '256mb' }));
+    app.use(urlencoded({ extended: true, limit: process.env['HTTP_JSON_LIMIT'] ?? '256mb' }));
     bootstrapLogger.debug('Microservices have been initialized.');
     await app.listen(3000);
 }

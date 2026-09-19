@@ -22,7 +22,10 @@ fn main() {
         Some("ils") => Some(ReorderMethod::Ils),
         _ => None,
     };
-    let budget = args.get(3).and_then(|s| s.parse::<u64>().ok()).unwrap_or(120);
+    let budget = args
+        .get(3)
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(120);
     let opts = BuildOptions {
         reorder,
         reorder_budget: Duration::from_secs(budget),

@@ -6,3 +6,4 @@ export * from "./teams";
 export * from "./orgs";
 export * from "./notifications";
 export * from "./execution";
+export * from "./newly-developed-methods";

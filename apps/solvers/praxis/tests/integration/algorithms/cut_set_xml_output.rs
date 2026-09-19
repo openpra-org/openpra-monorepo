@@ -8,7 +8,6 @@ use quick_xml::Writer;
 
 #[test]
 fn test_xml_output_includes_cut_sets_and_gate() {
-
     let mut ft = FaultTree::new("TestTree", "TopGate").unwrap();
 
     let mut gate = Gate::new("TopGate".to_string(), Formula::And).unwrap();
@@ -44,7 +43,6 @@ fn test_xml_output_includes_cut_sets_and_gate() {
 
 #[test]
 fn test_xml_output_includes_cut_sets_or_gate() {
-
     let mut ft = FaultTree::new("TestTree", "TopGate").unwrap();
 
     let mut gate = Gate::new("TopGate".to_string(), Formula::Or).unwrap();
@@ -83,7 +81,6 @@ fn test_xml_output_includes_cut_sets_or_gate() {
 
 #[test]
 fn test_xml_output_without_cut_sets() {
-
     let mut ft = FaultTree::new("TestTree", "TopGate").unwrap();
 
     let mut gate = Gate::new("TopGate".to_string(), Formula::And).unwrap();
@@ -111,7 +108,6 @@ fn test_xml_output_without_cut_sets() {
 
 #[test]
 fn test_xml_cut_sets_structure() {
-
     let mut ft = FaultTree::new("TestTree", "TopGate").unwrap();
 
     let mut top_gate = Gate::new("TopGate".to_string(), Formula::Or).unwrap();
@@ -155,7 +151,6 @@ fn test_xml_cut_sets_structure() {
 
 #[test]
 fn test_cut_set_xml_format_compliance() {
-
     let mut ft = FaultTree::new("TestTree", "TopGate").unwrap();
 
     let mut gate = Gate::new("TopGate".to_string(), Formula::And).unwrap();

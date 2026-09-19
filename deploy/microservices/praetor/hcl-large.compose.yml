@@ -1,0 +1,15 @@
+# Optional overlay for large HCL runs; see praxis-node/README.md.
+# These limits include the manager and its native child, not just the V8 heap.
+services:
+  praetor-manager:
+    environment:
+      PRAETOR_NATIVE_TIMEOUT_MS: ${PRAETOR_NATIVE_TIMEOUT_MS:-1800000}
+      PRAETOR_NATIVE_MAX_CONCURRENT: ${PRAETOR_NATIVE_MAX_CONCURRENT:-1}
+      PRAETOR_NATIVE_HEAP_MB: ${PRAETOR_NATIVE_HEAP_MB:-4096}
+      PRAETOR_NATIVE_MAX_CLIQUE_MB: ${PRAETOR_NATIVE_MAX_CLIQUE_MB:-4096}
+    deploy:
+      resources:
+        limits:
+          memory: ${PRAETOR_MEMORY_LIMIT:-16g}
+        reservations:
+          memory: ${PRAETOR_MEMORY_RESERVATION:-12g}

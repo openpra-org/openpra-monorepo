@@ -134,7 +134,10 @@ fn cut_sets_from_named(
         max_order = max_order.max(events.len());
         let probability = product_probability(events, probs);
         let literals = events.iter().map(|e| (e.clone(), false)).collect();
-        list.push(CutSetOut { literals, probability });
+        list.push(CutSetOut {
+            literals,
+            probability,
+        });
     }
     let mut distribution = vec![0usize; max_order + 1];
     for cs in &list {
@@ -192,9 +195,11 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
         Engine::Bdd => {
             let built = build_bdd(ft, BuildOptions::default())?;
             let value = if settings.limit_order.is_some() || settings.cut_off.is_some() {
-                built
-                    .bdd
-                    .probability_with_limits(built.root, settings.limit_order, settings.cut_off)
+                built.bdd.probability_with_limits(
+                    built.root,
+                    settings.limit_order,
+                    settings.cut_off,
+                )
             } else {
                 built.bdd.probability(built.root)
             };
@@ -437,7 +442,8 @@ mod tests {
         g2.add_operand("D".into());
         ft.add_gate(g2).unwrap();
         for e in ["A", "B", "C", "D"] {
-            ft.add_basic_event(BasicEvent::new(e.into(), 0.1).unwrap()).unwrap();
+            ft.add_basic_event(BasicEvent::new(e.into(), 0.1).unwrap())
+                .unwrap();
         }
         ft
     }
@@ -468,7 +474,6 @@ mod tests {
 
     #[test]
     fn mocus_pi_consensus() {
-
         let mut ft = FaultTree::new("FT", "top").unwrap();
         let mut top = Gate::new("top".into(), Formula::Or).unwrap();
         top.add_operand("g1".into());
@@ -486,7 +491,8 @@ mod tests {
         g2.add_operand("C".into());
         ft.add_gate(g2).unwrap();
         for e in ["A", "B", "C"] {
-            ft.add_basic_event(BasicEvent::new(e.into(), 0.1).unwrap()).unwrap();
+            ft.add_basic_event(BasicEvent::new(e.into(), 0.1).unwrap())
+                .unwrap();
         }
         let s = Settings {
             engine: Engine::MocusPi,

@@ -1,0 +1,781 @@
+use std::collections::{HashMap, HashSet};
+
+use praxis::algorithms::build::{build_bdd, BuildOptions};
+use praxis::analysis::fault_tree::FaultTreeAnalysis;
+use praxis::core::event::{BasicEvent, HouseEvent};
+use praxis::core::fault_tree::FaultTree;
+use praxis::core::gate::{Formula, Gate};
+use praxis::quantitative::{resolve_basic_event_probability, BasicEventQuantificationBasis};
+use praxis::{PraxisError, Result};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+
+use crate::transport::SolverRequest;
+
+const FAULT_TREE_METHOD: &str = "FAULT_TREE";
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct FaultTreeExecuteRequest {
+    schema_version: String,
+    method_type: String,
+    model_id: String,
+    revision: u64,
+    requested_by: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FaultTreeSnapshot {
+    id: String,
+    project_id: String,
+    method_type: String,
+    revision: u64,
+    top_gate: Option<FaultTreeTopGate>,
+    gates: Vec<FaultTreeGate>,
+    leaf_nodes: Vec<FaultTreeLeaf>,
+    gate_inputs: Vec<FaultTreeGateInput>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct FaultTreeTopGate {
+    gate_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "gateType")]
+enum FaultTreeGate {
+    #[serde(rename = "AND")]
+    And { id: String },
+    #[serde(rename = "OR")]
+    Or { id: String },
+    #[serde(rename = "XOR")]
+    Xor { id: String },
+    #[serde(rename = "NOT")]
+    Not { id: String },
+    #[serde(rename = "K_OF_N")]
+    KOfN { id: String, k: usize },
+}
+
+impl FaultTreeGate {
+    fn id(&self) -> &str {
+        match self {
+            Self::And { id }
+            | Self::Or { id }
+            | Self::Xor { id }
+            | Self::Not { id }
+            | Self::KOfN { id, .. } => id,
+        }
+    }
+
+    fn formula(&self) -> Formula {
+        match self {
+            Self::And { .. } => Formula::And,
+            Self::Or { .. } => Formula::Or,
+            Self::Xor { .. } => Formula::Xor,
+            Self::Not { .. } => Formula::Not,
+            Self::KOfN { k, .. } => Formula::AtLeast { min: *k },
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind")]
+enum FaultTreeLeaf {
+    #[serde(rename = "BASIC_EVENT_REFERENCE")]
+    BasicEventReference {
+        id: String,
+        #[serde(rename = "basicEventId")]
+        basic_event_id: String,
+    },
+    #[serde(rename = "HOUSE_EVENT")]
+    HouseEvent { id: String, state: bool },
+    #[serde(rename = "UNDEVELOPED_EVENT")]
+    UndevelopedEvent { id: String },
+    #[serde(rename = "TRANSFER_REFERENCE")]
+    TransferReference { id: String },
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct FaultTreeGateInput {
+    id: String,
+    gate_id: String,
+    child_id: String,
+    order: usize,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BasicEventCatalogue {
+    project_id: String,
+    basic_events: Vec<CatalogueBasicEvent>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CatalogueBasicEvent {
+    id: String,
+    probability: CatalogueProbability,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CatalogueProbability {
+    value: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    quantification_basis: Option<BasicEventQuantificationBasis>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BasicEventQuantificationRecord {
+    basic_event_id: String,
+    input: CatalogueProbability,
+    resolved_probability: f64,
+}
+
+pub(crate) struct FaultTreeAdapter {
+    pub(crate) fault_tree: FaultTree,
+    pub(crate) model_id: String,
+    pub(crate) model_revision: u64,
+    pub(crate) top_gate_id: String,
+    pub(crate) basic_event_quantifications: Vec<BasicEventQuantificationRecord>,
+}
+
+fn serialization_error(context: &str, error: impl std::fmt::Display) -> PraxisError {
+    PraxisError::Serialization(format!("{context}: {error}"))
+}
+
+fn parse_request(request: &SolverRequest) -> Result<FaultTreeExecuteRequest> {
+    let parsed: FaultTreeExecuteRequest = serde_json::from_value(request.request.clone())
+        .map_err(|error| serialization_error("invalid fault-tree execute request", error))?;
+    if parsed.schema_version != request.schema_version {
+        return Err(PraxisError::Version(format!(
+            "fault-tree request schema version '{}' does not match solver protocol version '{}'",
+            parsed.schema_version, request.schema_version
+        )));
+    }
+    if parsed.method_type != FAULT_TREE_METHOD {
+        return Err(PraxisError::IllegalOperation(format!(
+            "fault-tree adapter cannot execute method '{}'",
+            parsed.method_type
+        )));
+    }
+    if parsed.requested_by.trim().is_empty() {
+        return Err(PraxisError::Serialization(
+            "fault-tree execute request requires requestedBy".to_string(),
+        ));
+    }
+    Ok(parsed)
+}
+
+fn find_snapshot(
+    request: &SolverRequest,
+    model_id: &str,
+    expected_revision: Option<u64>,
+) -> Result<FaultTreeSnapshot> {
+    let snapshot = request
+        .model_snapshots
+        .iter()
+        .find(|snapshot| {
+            snapshot.get("methodType").and_then(Value::as_str) == Some(FAULT_TREE_METHOD)
+                && snapshot.get("id").and_then(Value::as_str) == Some(model_id)
+        })
+        .ok_or_else(|| {
+            PraxisError::Logic(format!(
+                "fault-tree model snapshot '{}' is missing",
+                model_id
+            ))
+        })?;
+
+    let snapshot: FaultTreeSnapshot = serde_json::from_value(snapshot.clone())
+        .map_err(|error| serialization_error("invalid fault-tree model snapshot", error))?;
+    if snapshot.method_type != FAULT_TREE_METHOD {
+        return Err(PraxisError::IllegalOperation(format!(
+            "fault-tree snapshot uses method '{}'",
+            snapshot.method_type
+        )));
+    }
+    if let Some(expected_revision) = expected_revision {
+        if snapshot.revision != expected_revision {
+            return Err(PraxisError::Version(format!(
+                "fault-tree snapshot revision {} does not match requested revision {}",
+                snapshot.revision, expected_revision
+            )));
+        }
+    }
+    Ok(snapshot)
+}
+
+pub(crate) fn basic_event_ids_for_model(
+    request: &SolverRequest,
+    model_id: &str,
+) -> Result<HashSet<String>> {
+    let snapshot = find_snapshot(request, model_id, None)?;
+    let catalogue = parse_catalogue(request, &snapshot.project_id)?;
+    let mut catalogue_counts = HashMap::new();
+    for event in catalogue.basic_events {
+        *catalogue_counts.entry(event.id).or_insert(0usize) += 1;
+    }
+    Ok(snapshot
+        .leaf_nodes
+        .into_iter()
+        .filter_map(|leaf| match leaf {
+            FaultTreeLeaf::BasicEventReference { basic_event_id, .. }
+                if catalogue_counts.get(&basic_event_id) == Some(&1) =>
+            {
+                Some(basic_event_id)
+            }
+            _ => None,
+        })
+        .collect())
+}
+
+fn parse_catalogue(request: &SolverRequest, project_id: &str) -> Result<BasicEventCatalogue> {
+    let value = request
+        .resources
+        .fault_tree_basic_event_catalogue
+        .as_ref()
+        .ok_or_else(|| {
+            PraxisError::Logic(
+                "fault-tree execution requires a project basic-event catalogue".to_string(),
+            )
+        })?;
+    let catalogue: BasicEventCatalogue = serde_json::from_value(value.clone())
+        .map_err(|error| serialization_error("invalid fault-tree basic-event catalogue", error))?;
+    if catalogue.project_id != project_id {
+        return Err(PraxisError::Logic(format!(
+            "basic-event catalogue project '{}' does not match fault-tree project '{}'",
+            catalogue.project_id, project_id
+        )));
+    }
+    Ok(catalogue)
+}
+
+fn build_fault_tree_snapshot(
+    request: &SolverRequest,
+    snapshot: FaultTreeSnapshot,
+) -> Result<FaultTreeAdapter> {
+    let top_gate_id = snapshot
+        .top_gate
+        .as_ref()
+        .map(|top_gate| top_gate.gate_id.clone())
+        .ok_or_else(|| PraxisError::Logic("fault-tree snapshot has no top gate".to_string()))?;
+    let catalogue = parse_catalogue(request, &snapshot.project_id)?;
+
+    let mut catalogue_probabilities = HashMap::with_capacity(catalogue.basic_events.len());
+    let mut basic_event_quantifications = Vec::with_capacity(catalogue.basic_events.len());
+    for event in catalogue.basic_events {
+        let resolved_probability = resolve_basic_event_probability(
+            event.probability.value,
+            event.probability.quantification_basis.as_ref(),
+        )?;
+        basic_event_quantifications.push(BasicEventQuantificationRecord {
+            basic_event_id: event.id.clone(),
+            input: event.probability,
+            resolved_probability,
+        });
+        if catalogue_probabilities
+            .insert(event.id.clone(), resolved_probability)
+            .is_some()
+        {
+            return Err(PraxisError::Logic(format!(
+                "basic-event catalogue contains duplicate id '{}'",
+                event.id
+            )));
+        }
+    }
+
+    let mut aliases = HashMap::with_capacity(snapshot.leaf_nodes.len());
+    let mut basic_event_probabilities = HashMap::new();
+    let mut house_events = Vec::new();
+    for leaf in snapshot.leaf_nodes {
+        match leaf {
+            FaultTreeLeaf::BasicEventReference { id, basic_event_id } => {
+                let probability = catalogue_probabilities
+                    .get(&basic_event_id)
+                    .copied()
+                    .ok_or_else(|| {
+                        PraxisError::Logic(format!(
+                            "basic-event reference '{}' cannot resolve catalogue event '{}'",
+                            id, basic_event_id
+                        ))
+                    })?;
+                aliases.insert(id, basic_event_id.clone());
+                basic_event_probabilities.insert(basic_event_id, probability);
+            }
+            FaultTreeLeaf::HouseEvent { id, state } => {
+                aliases.insert(id.clone(), id.clone());
+                house_events.push((id, state));
+            }
+            FaultTreeLeaf::UndevelopedEvent { id } => {
+                return Err(PraxisError::IllegalOperation(format!(
+                    "undeveloped event '{id}' has no quantifiable probability"
+                )));
+            }
+            FaultTreeLeaf::TransferReference { id } => {
+                return Err(PraxisError::IllegalOperation(format!(
+                    "fault-tree transfer reference '{id}' is not supported by the initial adapter"
+                )));
+            }
+        }
+    }
+
+    let gate_ids: HashSet<&str> = snapshot.gates.iter().map(FaultTreeGate::id).collect();
+    if !gate_ids.contains(top_gate_id.as_str()) {
+        return Err(PraxisError::Logic(format!(
+            "fault-tree top gate '{}' does not exist",
+            top_gate_id
+        )));
+    }
+
+    let mut inputs_by_gate: HashMap<String, Vec<FaultTreeGateInput>> = HashMap::new();
+    for input in snapshot.gate_inputs {
+        if !gate_ids.contains(input.gate_id.as_str()) {
+            return Err(PraxisError::Logic(format!(
+                "gate input '{}' references missing gate '{}'",
+                input.id, input.gate_id
+            )));
+        }
+        inputs_by_gate
+            .entry(input.gate_id.clone())
+            .or_default()
+            .push(input);
+    }
+    for inputs in inputs_by_gate.values_mut() {
+        inputs.sort_by_key(|input| input.order);
+    }
+
+    let mut fault_tree = FaultTree::new(snapshot.id.clone(), top_gate_id.clone())?;
+    for (id, probability) in basic_event_probabilities {
+        fault_tree.add_basic_event(BasicEvent::new(id, probability)?)?;
+    }
+    for (id, state) in house_events {
+        fault_tree.add_house_event(HouseEvent::new(id, state)?)?;
+    }
+    for gate_snapshot in snapshot.gates {
+        let gate_id = gate_snapshot.id().to_string();
+        let mut gate = Gate::new(gate_id.clone(), gate_snapshot.formula())?;
+        for input in inputs_by_gate.remove(&gate_id).unwrap_or_default() {
+            let operand = aliases
+                .get(&input.child_id)
+                .cloned()
+                .unwrap_or(input.child_id);
+            gate.add_operand(operand);
+        }
+        fault_tree.add_gate(gate)?;
+    }
+
+    Ok(FaultTreeAdapter {
+        fault_tree,
+        model_id: snapshot.id,
+        model_revision: snapshot.revision,
+        top_gate_id,
+        basic_event_quantifications,
+    })
+}
+
+pub(crate) fn build_fault_tree_for_model(
+    request: &SolverRequest,
+    model_id: &str,
+) -> Result<FaultTreeAdapter> {
+    let snapshot = find_snapshot(request, model_id, None)?;
+    build_fault_tree_snapshot(request, snapshot)
+}
+
+fn build_fault_tree(request: &SolverRequest) -> Result<FaultTreeAdapter> {
+    let execute = parse_request(request)?;
+    let snapshot = find_snapshot(request, &execute.model_id, Some(execute.revision))?;
+    build_fault_tree_snapshot(request, snapshot)
+}
+
+pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
+    let adapter = build_fault_tree(request)?;
+    FaultTreeAnalysis::new(&adapter.fault_tree)?.analyze()?;
+    Ok(json!({
+        "scope": FAULT_TREE_METHOD,
+        "valid": true,
+        "modelId": adapter.model_id,
+        "modelRevision": adapter.model_revision,
+        "basicEventCount": adapter.fault_tree.basic_events().len()
+    }))
+}
+
+pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
+    let adapter = build_fault_tree(request)?;
+    let built = build_bdd(&adapter.fault_tree, BuildOptions::default())?;
+    let top_event_probability = built.bdd.probability(built.root);
+    Ok(json!({
+        "methodType": FAULT_TREE_METHOD,
+        "modelId": adapter.model_id,
+        "modelRevision": adapter.model_revision,
+        "topGateId": adapter.top_gate_id,
+        "topEventProbability": top_event_probability,
+        "basicEventQuantifications": adapter.basic_event_quantifications,
+        "validationIssues": []
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::{json, Value};
+
+    use super::execute;
+    use crate::transport::SolverRequest;
+
+    fn request(
+        gate_type: &str,
+        k: Option<usize>,
+        probabilities: &[(&str, f64)],
+        operands: &[(&str, &str)],
+    ) -> SolverRequest {
+        let gate_id = "00000000-0000-4000-8000-000000000001";
+        let model_id = "00000000-0000-4000-8000-000000000002";
+        let project_id = "project-1";
+        let mut gate = json!({
+            "id": gate_id,
+            "kind": "GATE",
+            "gateType": gate_type,
+            "code": "TOP",
+            "name": "Top",
+            "description": ""
+        });
+        if let Some(k) = k {
+            gate["k"] = json!(k);
+        }
+        let leaf_nodes: Vec<Value> = operands
+            .iter()
+            .enumerate()
+            .map(|(index, (reference_id, basic_event_id))| {
+                json!({
+                    "id": reference_id,
+                    "kind": "BASIC_EVENT_REFERENCE",
+                    "basicEventId": basic_event_id,
+                    "index": index
+                })
+            })
+            .collect();
+        let gate_inputs: Vec<Value> = operands
+            .iter()
+            .enumerate()
+            .map(|(index, (reference_id, _))| {
+                json!({
+                    "id": format!("input-{index}"),
+                    "gateId": gate_id,
+                    "childId": reference_id,
+                    "order": index
+                })
+            })
+            .collect();
+        let basic_events: Vec<Value> = probabilities
+            .iter()
+            .map(|(id, probability)| json!({ "id": id, "probability": { "value": probability } }))
+            .collect();
+
+        SolverRequest::from_json(
+            &json!({
+                "schemaVersion": "1.0.0",
+                "request": {
+                    "schemaVersion": "1.0.0",
+                    "methodType": "FAULT_TREE",
+                    "modelId": model_id,
+                    "revision": 3,
+                    "requestedBy": "analyst"
+                },
+                "modelSnapshots": [{
+                    "id": model_id,
+                    "projectId": project_id,
+                    "methodType": "FAULT_TREE",
+                    "revision": 3,
+                    "topGate": { "gateId": gate_id },
+                    "gates": [gate],
+                    "leafNodes": leaf_nodes,
+                    "gateInputs": gate_inputs
+                }],
+                "resources": {
+                    "faultTreeBasicEventCatalogue": {
+                        "projectId": project_id,
+                        "basicEvents": basic_events
+                    }
+                }
+            })
+            .to_string(),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn quantifies_and_and_or_gates_exactly() {
+        let and = execute(&request(
+            "AND",
+            None,
+            &[("A", 0.1), ("B", 0.2)],
+            &[("ref-a", "A"), ("ref-b", "B")],
+        ))
+        .unwrap();
+        assert!((and["topEventProbability"].as_f64().unwrap() - 0.02).abs() < 1e-12);
+
+        let or = execute(&request(
+            "OR",
+            None,
+            &[("A", 0.1), ("B", 0.2)],
+            &[("ref-a", "A"), ("ref-b", "B")],
+        ))
+        .unwrap();
+        assert!((or["topEventProbability"].as_f64().unwrap() - 0.28).abs() < 1e-12);
+        assert!(or.get("minimalCutSetCount").is_none());
+        assert!(or.get("leadingCutSets").is_none());
+    }
+
+    #[test]
+    fn converts_failure_rate_and_mission_time_before_fault_tree_analysis() {
+        let mut request = request("OR", None, &[("A", 0.0)], &[("ref-a", "A")]);
+        request.resources.fault_tree_basic_event_catalogue = Some(json!({
+            "projectId": "project-1",
+            "basicEvents": [{
+                "id": "A",
+                "probability": {
+                    "value": 0.0,
+                    "quantificationBasis": {
+                        "kind": "FAILURE_RATE",
+                        "failureRate": { "value": 2.0e-5, "unit": "HOUR" },
+                        "missionTime": { "value": 24.0, "unit": "HOUR" },
+                        "conversion": "EXPONENTIAL"
+                    }
+                }
+            }]
+        }));
+
+        let result = execute(&request).unwrap();
+        let expected = 0.0004798848184297544; // HCL_MH calculation type 3.
+        assert!((result["topEventProbability"].as_f64().unwrap() - expected).abs() < 1e-15);
+        assert_eq!(
+            result["basicEventQuantifications"][0]["input"]["quantificationBasis"]["kind"],
+            "FAILURE_RATE"
+        );
+        assert!(
+            (result["basicEventQuantifications"][0]["resolvedProbability"]
+                .as_f64()
+                .unwrap()
+                - expected)
+                .abs()
+                < 1e-15
+        );
+    }
+
+    #[test]
+    fn matches_boolean_gate_truth_tables_exhaustively() {
+        for a in [0.0, 1.0] {
+            for b in [0.0, 1.0] {
+                let inputs = &[("A", a), ("B", b)];
+                let references = &[("ref-a", "A"), ("ref-b", "B")];
+                let and = execute(&request("AND", None, inputs, references)).unwrap();
+                let or = execute(&request("OR", None, inputs, references)).unwrap();
+                assert_eq!(and["topEventProbability"].as_f64().unwrap(), a * b);
+                assert_eq!(
+                    or["topEventProbability"].as_f64().unwrap(),
+                    if a == 1.0 || b == 1.0 { 1.0 } else { 0.0 }
+                );
+            }
+        }
+
+        for a in [0.0, 1.0] {
+            for b in [0.0, 1.0] {
+                for c in [0.0, 1.0] {
+                    let inputs = &[("A", a), ("B", b), ("C", c)];
+                    let references = &[("ref-a", "A"), ("ref-b", "B"), ("ref-c", "C")];
+                    let voting = execute(&request("K_OF_N", Some(2), inputs, references)).unwrap();
+                    let true_count = [a, b, c].iter().filter(|value| **value == 1.0).count();
+                    assert_eq!(
+                        voting["topEventProbability"].as_f64().unwrap(),
+                        if true_count >= 2 { 1.0 } else { 0.0 }
+                    );
+                }
+            }
+        }
+
+        for a in [0.0, 1.0] {
+            let not = execute(&request("NOT", None, &[("A", a)], &[("ref-a", "A")])).unwrap();
+            assert_eq!(not["topEventProbability"].as_f64().unwrap(), 1.0 - a);
+        }
+    }
+
+    #[test]
+    fn preserves_shared_basic_event_identity() {
+        let result = execute(&request(
+            "OR",
+            None,
+            &[("SHARED", 0.25)],
+            &[("ref-a", "SHARED"), ("ref-b", "SHARED")],
+        ))
+        .unwrap();
+        assert!((result["topEventProbability"].as_f64().unwrap() - 0.25).abs() < 1e-12);
+    }
+
+    #[test]
+    fn quantifies_k_of_n_exactly() {
+        let result = execute(&request(
+            "K_OF_N",
+            Some(2),
+            &[("A", 0.5), ("B", 0.5), ("C", 0.5)],
+            &[("ref-a", "A"), ("ref-b", "B"), ("ref-c", "C")],
+        ))
+        .unwrap();
+        assert!((result["topEventProbability"].as_f64().unwrap() - 0.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn quantifies_not_gates_exactly() {
+        let result = execute(&request("NOT", None, &[("A", 0.2)], &[("ref-a", "A")])).unwrap();
+        assert!((result["topEventProbability"].as_f64().unwrap() - 0.8).abs() < 1e-12);
+        assert_eq!(result["validationIssues"], json!([]));
+    }
+
+    fn product_request(
+        probabilities: &[(&str, f64)],
+        products: &[Vec<(&str, bool)>],
+    ) -> SolverRequest {
+        let references: Vec<_> = probabilities.iter().map(|(id, _)| (*id, *id)).collect();
+        let mut request = request("OR", None, probabilities, &references);
+        let snapshot = &mut request.model_snapshots[0];
+        let top = snapshot["topGate"]["gateId"].as_str().unwrap().to_string();
+        snapshot["gateInputs"] = json!([]);
+        for (id, _) in probabilities {
+            let gate = format!("not-{id}");
+            snapshot["gates"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({ "id": gate, "gateType": "NOT" }));
+            snapshot["gateInputs"].as_array_mut().unwrap().push(json!({
+                "id": format!("input-{gate}"), "gateId": gate, "childId": id, "order": 0
+            }));
+        }
+        for (index, product) in products.iter().enumerate() {
+            let gate = format!("product-{index}");
+            snapshot["gates"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({ "id": gate, "gateType": "AND" }));
+            let inputs = snapshot["gateInputs"].as_array_mut().unwrap();
+            inputs.push(json!({ "id": format!("top-{index}"), "gateId": top, "childId": gate, "order": index }));
+            for (order, (id, complemented)) in product.iter().enumerate() {
+                let child = if *complemented {
+                    format!("not-{id}")
+                } else {
+                    id.to_string()
+                };
+                inputs.push(json!({ "id": format!("{gate}-{order}"), "gateId": gate, "childId": child, "order": order }));
+            }
+        }
+        request
+    }
+
+    #[test]
+    fn quantifies_mixed_success_and_failure_conditions_exactly() {
+        let result = execute(&product_request(
+            &[("A", 0.2), ("B", 0.3), ("C", 0.4)],
+            &[
+                vec![("A", false), ("B", false)],
+                vec![("A", true), ("C", false)],
+            ],
+        ))
+        .unwrap();
+        assert!((result["topEventProbability"].as_f64().unwrap() - 0.38).abs() < 1e-12);
+    }
+
+    #[test]
+    fn matches_all_two_event_truth_tables() {
+        let names = ["A", "B"];
+        let probabilities = [0.2, 0.7];
+        for truth in 0u8..16 {
+            let products: Vec<_> = (0..4)
+                .filter(|assignment| truth & (1 << assignment) != 0)
+                .map(|assignment| {
+                    (0..2)
+                        .map(|v| (names[v], assignment & (1 << v) == 0))
+                        .collect()
+                })
+                .collect();
+            let result = execute(&product_request(
+                &[("A", probabilities[0]), ("B", probabilities[1])],
+                &products,
+            ))
+            .unwrap();
+            let exact: f64 = (0..4)
+                .filter(|assignment| truth & (1 << assignment) != 0)
+                .map(|assignment| {
+                    (0..2)
+                        .map(|v| {
+                            if assignment & (1 << v) != 0 {
+                                probabilities[v]
+                            } else {
+                                1.0 - probabilities[v]
+                            }
+                        })
+                        .product::<f64>()
+                })
+                .sum();
+            assert!((result["topEventProbability"].as_f64().unwrap() - exact).abs() < 1e-12);
+        }
+    }
+
+    #[test]
+    fn quantifies_overlapping_products_exactly() {
+        let request = product_request(
+            &[("A", 0.1), ("B", 0.2), ("C", 0.3)],
+            &[
+                vec![("A", false), ("B", false)],
+                vec![("A", false), ("C", false)],
+                vec![("A", false), ("B", false), ("C", false)],
+            ],
+        );
+        let result = execute(&request).unwrap();
+        assert!((result["topEventProbability"].as_f64().unwrap() - 0.044).abs() < 1e-12);
+        assert_eq!(result["validationIssues"], json!([]));
+    }
+
+    #[test]
+    fn quantifies_constant_and_zero_probability_events() {
+        let always_true = execute(&request("AND", None, &[], &[])).unwrap();
+        assert_eq!(always_true["topEventProbability"], 1.0);
+        let always_false = execute(&request("OR", None, &[], &[])).unwrap();
+        assert_eq!(always_false["topEventProbability"], 0.0);
+        assert_eq!(always_false["validationIssues"], json!([]));
+
+        let zero = execute(&request("OR", None, &[("A", 0.0)], &[("ref-a", "A")])).unwrap();
+        assert_eq!(zero["topEventProbability"], 0.0);
+    }
+
+    #[test]
+    fn probability_execution_does_not_enumerate_exponential_cut_sets() {
+        // AND of 32 independent two-event ORs has 2^32 minimal cut sets.
+        let names: Vec<_> = (0..64).map(|index| format!("E{index:02}")).collect();
+        let probabilities: Vec<_> = names.iter().map(|id| (id.as_str(), 0.1)).collect();
+        let references: Vec<_> = names.iter().map(|id| (id.as_str(), id.as_str())).collect();
+        let mut request = request("AND", None, &probabilities, &references);
+        let snapshot = &mut request.model_snapshots[0];
+        let top = snapshot["topGate"]["gateId"].as_str().unwrap().to_string();
+        snapshot["gateInputs"] = json!([]);
+        for (index, pair) in names.chunks(2).enumerate() {
+            let gate = format!("pair-{index}");
+            snapshot["gates"].as_array_mut().unwrap().push(json!({
+                "id": gate, "gateType": "OR"
+            }));
+            let inputs = snapshot["gateInputs"].as_array_mut().unwrap();
+            inputs.push(json!({
+                "id": format!("top-{index}"), "gateId": top, "childId": gate, "order": index
+            }));
+            for (order, child) in pair.iter().enumerate() {
+                inputs.push(json!({
+                    "id": format!("input-{child}"), "gateId": gate, "childId": child, "order": order
+                }));
+            }
+        }
+        let result = execute(&request).unwrap();
+        let probability = result["topEventProbability"].as_f64().unwrap();
+        assert!((probability / 0.19_f64.powi(32) - 1.0).abs() < 1e-12);
+        assert!(result.get("minimalCutSetCount").is_none());
+        assert!(result.get("leadingCutSets").is_none());
+    }
+}

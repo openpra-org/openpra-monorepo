@@ -1,9 +1,6 @@
 import { JSX, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
-import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
-import { fetchJson } from "../api/client";
 import { getProject } from "../projects/projectApi";
 import { WorkbookRolesModal } from "../workbooks/workbookRolesModal";
 import { WorkbookApprovalTable } from "../workbooks/workbookApprovalTable";
@@ -18,6 +15,7 @@ import {
   loadEsqExample,
   unloadEsqExample,
   type EsqExampleOption,
+  type EsqWorkbookResponse,
   type EsqWorkbookRoleName,
 } from "./esqWorkbookApi";
 import { EsqWorkbench, type EsqWorkbenchActions } from "./esqWorkbench";
@@ -38,17 +36,14 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   uncert: "ESQ-E1",
 };
 
-interface EsqExampleResponse {
-  slug: string;
-  kind: string;
-  mef: unknown;
-  updatedAt: string;
-}
-
-interface EsqBundleResponse {
-  esq: EsqExampleResponse;
-  configurationControl: EsqExampleResponse;
-  newlyDevelopedMethods: EsqExampleResponse[];
+function presentEsqSaveError(message: string): string {
+  if (message.includes("Enabled hazard-grid scenarios must identify unique grid cells")) {
+    return "Hazard convolution was not saved because the selected dimensions did not uniquely identify every enabled scenario.";
+  }
+  if (message.includes("Enabled hazard-grid scenario must observe hazard node")) {
+    return "Hazard convolution was not saved because one or more enabled scenarios are missing a selected hazard dimension.";
+  }
+  return message;
 }
 
 function EsqWorkbookPage(): JSX.Element {
@@ -56,6 +51,7 @@ function EsqWorkbookPage(): JSX.Element {
   const { user } = useAuth();
   const actingUsername = user?.username ?? "";
   const [data, setData] = useState<EsqWorkbookData | null>(null);
+  const [revision, setRevision] = useState<number | null>(null);
   const [myRoles, setMyRoles] = useState<EsqWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -65,6 +61,7 @@ function EsqWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [exampleOptions, setExampleOptions] = useState<EsqExampleOption[]>([]);
   const workbookName = data?.esq.name ?? "";
   const workbookVersion = data?.esq.version ?? "1";
@@ -72,19 +69,18 @@ function EsqWorkbookPage(): JSX.Element {
   useEffect(() => {
     if (id === undefined) return;
     let cancelled = false;
-    Promise.all([
-      getEsqWorkbook(id),
-      fetchJson<EsqBundleResponse>("/api/example-workbooks/esq-bundle"),
-    ])
-      .then(async ([workbook, bundle]) => {
+    setData(null);
+    setError(null);
+    getEsqWorkbook(id)
+      .then(async (workbook) => {
         if (cancelled) return;
         setData({
           esq: workbook.mef,
-          cc: bundle.configurationControl.mef as PRAConfigurationControl,
-          nms: bundle.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
           links: null,
         });
         setMyRoles(workbook.myRoles);
+        setProjectId(workbook.projectId);
+        setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
         try {
           const project = await getProject(workbook.projectId);
@@ -110,7 +106,14 @@ function EsqWorkbookPage(): JSX.Element {
 
   const esqUuid = data?.esq.uuid ?? "";
   useEffect(() => {
-    const variant = esqUuid === "esq-generic-1" ? "sfr" : esqUuid === "esq-generic-2" ? "htgr" : null;
+    const variant = esqUuid === "esq-generic-1"
+      ? "sfr"
+      : esqUuid === "esq-generic-2"
+        ? "htgr"
+        : esqUuid === "esq-hcl-case-study"
+          ? "hcl"
+          : null;
+    setData((prev) => prev === null || prev.links === null ? prev : { ...prev, links: null });
     if (variant === null) return;
     let cancelled = false;
     fetchEsqLinkedInputs(variant)
@@ -123,9 +126,29 @@ function EsqWorkbookPage(): JSX.Element {
     setData((prev) => (prev === null ? prev : { ...prev, esq }));
   }, []);
 
-  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
-  const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patch } = useEsqMefPatch(id ?? "", data?.esq ?? null, handleSaveOk, handleSaveErr);
+  const handleSaveOk = useCallback((nextRevision: number): void => {
+    setRevision(nextRevision);
+    setSaveError(null);
+  }, []);
+  const handleSaveErr = useCallback((message: string): void => { setSaveError(presentEsqSaveError(message)); }, []);
+  const handleSaveResync = useCallback((latest: EsqWorkbookResponse): void => {
+    setData((previous) => (previous === null ? previous : { ...previous, esq: latest.mef }));
+    setRevision(latest.revision);
+    setMyRoles(latest.myRoles);
+    setHasPreviousMef(latest.hasPreviousMef);
+  }, []);
+  const refreshWorkbook = useCallback(async (): Promise<void> => {
+    if (id === undefined) return;
+    handleSaveResync(await getEsqWorkbook(id));
+  }, [handleSaveResync, id]);
+  const { patch, saveStatus } = useEsqMefPatch(
+    id ?? "",
+    data?.esq ?? null,
+    revision,
+    handleSaveOk,
+    handleSaveErr,
+    handleSaveResync,
+  );
   const mutateEsq = useCallback((mutator: (esq: EventSequenceQuantification) => EventSequenceQuantification): void => {
     setData((prev) => (prev === null ? prev : { ...prev, esq: mutator(prev.esq) }));
     void patch(mutator);
@@ -135,23 +158,23 @@ function EsqWorkbookPage(): JSX.Element {
     if (id === undefined) return undefined;
     return {
       postComment: async (text, severity, stepId): Promise<void> => {
-        const esq = await postWorkbookComment(id, { text, severity, associatedSr: STEP_SR_HINT[stepId] }) as EventSequenceQuantification;
-        updateEsq(esq);
+        await postWorkbookComment(id, { text, severity, associatedSr: STEP_SR_HINT[stepId] });
+        await refreshWorkbook();
       },
       toggleResolve: async (commentId, nextResolved): Promise<void> => {
-        const esq = await patchWorkbookComment(id, commentId, { resolved: nextResolved }) as EventSequenceQuantification;
-        updateEsq(esq);
+        await patchWorkbookComment(id, commentId, { resolved: nextResolved });
+        await refreshWorkbook();
       },
       submitForReview: async (): Promise<void> => {
-        const esq = await submitWorkbookForReview(id) as EventSequenceQuantification;
-        updateEsq(esq);
+        await submitWorkbookForReview(id);
+        await refreshWorkbook();
       },
       requestRevision: async (note): Promise<void> => {
-        const esq = await requestWorkbookRevision(id, note) as EventSequenceQuantification;
-        updateEsq(esq);
+        await requestWorkbookRevision(id, note);
+        await refreshWorkbook();
       },
     };
-  }, [id, updateEsq]);
+  }, [id, refreshWorkbook]);
 
   const availablePersonas = useMemo<EsqPersona[]>(() => {
     const out: EsqPersona[] = [];
@@ -193,7 +216,12 @@ function EsqWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <EsqWorkbookProvider data={data} editable={editable} mutateEsq={mutateEsq}>
+    <EsqWorkbookProvider
+      data={data}
+      editable={editable}
+      runtime={{ workbookId: id, projectId, revision, saveStatus }}
+      mutateEsq={mutateEsq}
+    >
       <EsqWorkbench
         data={data}
         persona={persona}
@@ -204,7 +232,7 @@ function EsqWorkbookPage(): JSX.Element {
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
-        headerMeta={{ projectName, workbookName, workbookVersion }}
+        headerMeta={{ projectName, workbookName, workbookVersion, saveStatus }}
         renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />}
         renderSignCard={() => (
           <WorkbookSignCard
@@ -213,7 +241,12 @@ function EsqWorkbookPage(): JSX.Element {
             currentPersona={persona}
             myOpenComments={data.esq.internalReviewComments.comments.filter((c) => c.authorId === actingUsername && !c.resolved).length}
             refreshSignal={approvalRefresh}
-            onSigned={() => setApprovalRefresh((n) => n + 1)}
+            onSigned={() => {
+              setApprovalRefresh((n) => n + 1);
+              void refreshWorkbook().catch((refreshError: unknown) => {
+                handleSaveErr((refreshError as { message?: string }).message ?? "Could not refresh this ESQ workbook");
+              });
+            }}
           />
         )}
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
@@ -234,6 +267,7 @@ function EsqWorkbookPage(): JSX.Element {
           onConfirm={async (exampleId) => {
             const res = await loadEsqExample(id, exampleId);
             updateEsq(res.mef);
+            setRevision(res.revision);
             setHasPreviousMef(res.hasPreviousMef);
             setLoadExOpen(false);
           }}
@@ -245,6 +279,7 @@ function EsqWorkbookPage(): JSX.Element {
           onConfirm={async () => {
             const res = await unloadEsqExample(id);
             updateEsq(res.mef);
+            setRevision(res.revision);
             setHasPreviousMef(res.hasPreviousMef);
             setUnloadExOpen(false);
           }}

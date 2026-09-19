@@ -18,6 +18,7 @@ import {
   loadDaExample,
   unloadDaExample,
   type DaWorkbookRoleName,
+  type DaWorkbookResponse,
   type DaExampleOption,
 } from "./daWorkbookApi";
 import { DaWorkbench, type DaWorkbenchActions } from "./daWorkbench";
@@ -57,6 +58,7 @@ function DaWorkbookPage(): JSX.Element {
   const { user } = useAuth();
   const actingUsername = user?.username ?? "";
   const [data, setData] = useState<DaWorkbookData | null>(null);
+  const [revision, setRevision] = useState<number | null>(null);
   const [myRoles, setMyRoles] = useState<DaWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -86,6 +88,7 @@ function DaWorkbookPage(): JSX.Element {
           links: null,
         });
         setMyRoles(workbook.myRoles);
+        setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
         try {
           const project = await getProject(workbook.projectId);
@@ -124,9 +127,25 @@ function DaWorkbookPage(): JSX.Element {
     setData((prev) => (prev === null ? prev : { ...prev, da }));
   }, []);
 
-  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveOk = useCallback((nextRevision: number): void => {
+    setRevision(nextRevision);
+    setSaveError(null);
+  }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patch } = useDaMefPatch(id ?? "", data?.da ?? null, handleSaveOk, handleSaveErr);
+  const handleSaveResync = useCallback((latest: DaWorkbookResponse): void => {
+    setData((previous) => (previous === null ? previous : { ...previous, da: latest.mef }));
+    setRevision(latest.revision);
+    setMyRoles(latest.myRoles);
+    setHasPreviousMef(latest.hasPreviousMef);
+  }, []);
+  const { patch } = useDaMefPatch(
+    id ?? "",
+    data?.da ?? null,
+    revision,
+    handleSaveOk,
+    handleSaveErr,
+    handleSaveResync,
+  );
   const mutateDa = useCallback((mutator: (da: DataAnalysis) => DataAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, da: mutator(prev.da) }));
     void patch(mutator);
@@ -235,6 +254,7 @@ function DaWorkbookPage(): JSX.Element {
           onConfirm={async (exampleId) => {
             const res = await loadDaExample(id, exampleId);
             updateDa(res.mef);
+            setRevision(res.revision);
             setHasPreviousMef(res.hasPreviousMef);
             setLoadExOpen(false);
           }}
@@ -246,6 +266,7 @@ function DaWorkbookPage(): JSX.Element {
           onConfirm={async () => {
             const res = await unloadDaExample(id);
             updateDa(res.mef);
+            setRevision(res.revision);
             setHasPreviousMef(res.hasPreviousMef);
             setUnloadExOpen(false);
           }}

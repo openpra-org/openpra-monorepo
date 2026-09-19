@@ -178,7 +178,6 @@ mod tests {
 
     #[test]
     fn effective_bits_accounts_for_lane_mask() {
-
         let bits = effective_bits_per_iteration(1, 2, 64, 10).unwrap();
         assert_eq!(bits, 128 - (64 - 10));
 

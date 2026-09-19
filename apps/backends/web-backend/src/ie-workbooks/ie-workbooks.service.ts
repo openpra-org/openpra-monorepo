@@ -99,8 +99,8 @@ export class IeWorkbooksService {
     };
     doc.previousMefJson = JSON.stringify(doc.mef);
     doc.mef = cleaned;
-    doc.linkedPosWorkbookId = "example";
-    doc.exampleVariant = exampleId === "sfr" || exampleId === "htgr" ? exampleId : "htgr";
+    doc.linkedPosWorkbookId = exampleId === "hcl" ? null : "example";
+    doc.exampleVariant = exampleId === "sfr" || exampleId === "htgr" || exampleId === "hcl" ? exampleId : "htgr";
     await doc.save();
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.ieDocumentsService.removeAllForWorkbook(workbookId);

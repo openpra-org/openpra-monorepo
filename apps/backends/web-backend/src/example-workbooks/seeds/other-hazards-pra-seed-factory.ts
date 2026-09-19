@@ -7,6 +7,7 @@ import {
 } from "interfaces-mef-types/other-hazards/other-hazards-pra";
 import { synchronizeOtherHazardsPraDerivedRegisters } from "interfaces-mef-types/other-hazards/other-hazards-pra-validation";
 import { createBlankOtherHazardsPra } from "../../other-hazards-pra-workbooks/blank-other-hazards-pra";
+import { createHazardConditionedMethodModels } from "./hazard-conditioned-method-model-seed";
 
 export type OtherHazardsSeedVariant = "HTGR" | "SFR";
 
@@ -1104,6 +1105,7 @@ export function createOtherHazardsPraSeed(variant: OtherHazardsSeedVariant): Oth
       ["POS-01-POWER", "POS-02-STARTUP", "POS-03-HOT-SHUTDOWN", "POS-04-REFUELING"]
     : ["POS-01-POWER", "POS-02-LOW-POWER", "POS-03-HOT-SHUTDOWN", "POS-04-MAINTENANCE"];
   const mef = createBlankOtherHazardsPra(`${plantName} Other Hazards PRA`, "Other Hazards PRA Lead");
+  mef.hazardConditionedModels = createHazardConditionedMethodModels("OH", "Other retained hazards");
   mef.uuid = id(variant, "MEF");
   mef.version = "1.0";
   mef.created = stamp;

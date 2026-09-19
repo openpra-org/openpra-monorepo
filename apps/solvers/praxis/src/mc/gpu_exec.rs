@@ -95,7 +95,12 @@ fn choose_tally_cube_dim(bp_total: u32) -> CubeDim {
 
 #[cfg(feature = "gpu")]
 #[inline]
-fn cube_count_for_sample_launch(num_events: u32, p_count: u32, b_count: u32, cube_dim: CubeDim) -> CubeCount {
+fn cube_count_for_sample_launch(
+    num_events: u32,
+    p_count: u32,
+    b_count: u32,
+    cube_dim: CubeDim,
+) -> CubeCount {
     CubeCount::new_3d(
         num_events.div_ceil(cube_dim.x),
         p_count.div_ceil(cube_dim.y),
@@ -105,7 +110,12 @@ fn cube_count_for_sample_launch(num_events: u32, p_count: u32, b_count: u32, cub
 
 #[cfg(feature = "gpu")]
 #[inline]
-fn cube_count_for_gate_launch(num_gates: u32, p_count: u32, b_count: u32, cube_dim: CubeDim) -> CubeCount {
+fn cube_count_for_gate_launch(
+    num_gates: u32,
+    p_count: u32,
+    b_count: u32,
+    cube_dim: CubeDim,
+) -> CubeCount {
     CubeCount::new_3d(
         num_gates.div_ceil(cube_dim.x),
         p_count.div_ceil(cube_dim.y),
@@ -115,7 +125,12 @@ fn cube_count_for_gate_launch(num_gates: u32, p_count: u32, b_count: u32, cube_d
 
 #[cfg(feature = "gpu")]
 #[inline]
-fn cube_count_for_seq_launch(seq_count: u32, p_count: u32, b_count: u32, cube_dim: CubeDim) -> CubeCount {
+fn cube_count_for_seq_launch(
+    seq_count: u32,
+    p_count: u32,
+    b_count: u32,
+    cube_dim: CubeDim,
+) -> CubeCount {
     CubeCount::new_3d(
         seq_count.div_ceil(cube_dim.x),
         p_count.div_ceil(cube_dim.y),
@@ -144,10 +159,7 @@ fn build_gate_stream_clients<R: Runtime>(
 
 #[cfg(feature = "gpu")]
 #[inline]
-fn align_gate_streams_with_markers<R: Runtime>(
-    clients: &[ComputeClient<R>],
-    markers: &[Handle],
-) {
+fn align_gate_streams_with_markers<R: Runtime>(clients: &[ComputeClient<R>], markers: &[Handle]) {
     if markers.is_empty() {
         return;
     }
@@ -419,7 +431,6 @@ unsafe fn launch_gate_group<R: Runtime>(
 }
 
 #[cfg(feature = "gpu")]
-
 #[allow(clippy::too_many_arguments)]
 pub fn execute_layers_bitpacked_gpu<R: Runtime>(
     client: &ComputeClient<R>,
@@ -618,7 +629,10 @@ pub fn execute_layers_bitpacked_gpu_tallies_many_iters<R: Runtime>(
 
 #[cfg(feature = "gpu")]
 #[allow(clippy::too_many_arguments)]
-pub fn execute_layers_bitpacked_gpu_selected_nodes_process_many_iters<R: Runtime, F: FnMut(&[u64], u32) -> bool>(
+pub fn execute_layers_bitpacked_gpu_selected_nodes_process_many_iters<
+    R: Runtime,
+    F: FnMut(&[u64], u32) -> bool,
+>(
     client: &ComputeClient<R>,
     pdag: &Pdag,
     plan: &DpMcPlan,
@@ -682,7 +696,12 @@ pub fn execute_layers_bitpacked_gpu_selected_nodes_process_many_iters<R: Runtime
         let num_consts = const_nodes.len() as u32;
         let total_threads = num_consts * b_count * p_count;
         let blocks = total_threads.div_ceil(threads_per_block);
-        (Some(const_nodes_h), Some(const_values_h), num_consts, blocks)
+        (
+            Some(const_nodes_h),
+            Some(const_values_h),
+            num_consts,
+            blocks,
+        )
     } else {
         (None, None, 0u32, 0u32)
     };
@@ -930,8 +949,16 @@ impl<R: Runtime> FtGpuContext<R> {
 
         let num_nodes = soa.layout.num_nodes;
         let num_events = soa.event_nodes.len() as u32;
-        assert_eq!(thresholds.len(), num_events as usize, "thresholds must be per event");
-        assert_eq!(full_ranges.len(), num_events as usize, "full_ranges must be per event");
+        assert_eq!(
+            thresholds.len(),
+            num_events as usize,
+            "thresholds must be per event"
+        );
+        assert_eq!(
+            full_ranges.len(),
+            num_events as usize,
+            "full_ranges must be per event"
+        );
 
         let total_words = (b_count as usize) * (p_count as usize) * (num_nodes as usize);
         let zeros = vec![0u32; total_words];
@@ -960,31 +987,41 @@ impl<R: Runtime> FtGpuContext<R> {
             }
         }
 
-        let (const_nodes_h, const_values_h, num_consts, const_blocks, const_nodes_len, const_values_len) =
-            if !const_nodes.is_empty() {
-                let const_nodes_h = client.create_from_slice(u32::as_bytes(&const_nodes));
-                let const_values_h = client.create_from_slice(u32::as_bytes(&const_values));
-                let num_consts = const_nodes.len() as u32;
-                let total_threads = num_consts * b_count * p_count;
-                let blocks = total_threads.div_ceil(threads_per_block);
-                (
-                    Some(const_nodes_h),
-                    Some(const_values_h),
-                    num_consts,
-                    blocks,
-                    const_nodes.len(),
-                    const_values.len(),
-                )
-            } else {
-                (None, None, 0u32, 0u32, 0usize, 0usize)
-            };
+        let (
+            const_nodes_h,
+            const_values_h,
+            num_consts,
+            const_blocks,
+            const_nodes_len,
+            const_values_len,
+        ) = if !const_nodes.is_empty() {
+            let const_nodes_h = client.create_from_slice(u32::as_bytes(&const_nodes));
+            let const_values_h = client.create_from_slice(u32::as_bytes(&const_values));
+            let num_consts = const_nodes.len() as u32;
+            let total_threads = num_consts * b_count * p_count;
+            let blocks = total_threads.div_ceil(threads_per_block);
+            (
+                Some(const_nodes_h),
+                Some(const_values_h),
+                num_consts,
+                blocks,
+                const_nodes.len(),
+                const_values.len(),
+            )
+        } else {
+            (None, None, 0u32, 0u32, 0usize, 0usize)
+        };
 
         let uploaded_layers = upload_gate_groups(client, soa);
 
         let mut tally_lo: Vec<u32> = vec![0u32; num_nodes as usize];
         let mut tally_hi: Vec<u32> = vec![0u32; num_nodes as usize];
         if let Some(init) = initial_tallies {
-            assert_eq!(init.len(), num_nodes as usize, "initial_tallies must be per-node");
+            assert_eq!(
+                init.len(),
+                num_nodes as usize,
+                "initial_tallies must be per-node"
+            );
             for (i, &t) in init.iter().enumerate() {
                 tally_lo[i] = (t & 0xFFFF_FFFFu64) as u32;
                 tally_hi[i] = (t >> 32) as u32;
@@ -1060,7 +1097,9 @@ impl<R: Runtime> FtGpuContext<R> {
                 .expect("Failed to launch event sampling-to-node kernel");
             }
 
-            if let (Some(const_nodes_h), Some(const_values_h)) = (&self.const_nodes_h, &self.const_values_h) {
+            if let (Some(const_nodes_h), Some(const_values_h)) =
+                (&self.const_nodes_h, &self.const_values_h)
+            {
                 unsafe {
                     crate::mc::kernel::dpmc_node::set_constant_nodes_kernel::launch_unchecked::<R>(
                         &self.client,
@@ -1139,7 +1178,6 @@ impl<R: Runtime> FtGpuContext<R> {
                 )
                 .expect("Failed to launch DPMC tally kernel");
             }
-
         }
 
         if t_count != 0 {
@@ -1237,8 +1275,16 @@ impl<R: Runtime> EtGpuContext<R> {
         let num_nodes = soa.layout.num_nodes;
 
         let num_events = soa.event_nodes.len() as u32;
-        assert_eq!(thresholds.len(), num_events as usize, "thresholds must be per event");
-        assert_eq!(full_ranges.len(), num_events as usize, "full_ranges must be per event");
+        assert_eq!(
+            thresholds.len(),
+            num_events as usize,
+            "thresholds must be per event"
+        );
+        assert_eq!(
+            full_ranges.len(),
+            num_events as usize,
+            "full_ranges must be per event"
+        );
 
         let total_words = (b_count as usize) * (p_count as usize) * (num_nodes as usize);
         let zeros = vec![0u32; total_words];
@@ -1267,24 +1313,30 @@ impl<R: Runtime> EtGpuContext<R> {
             }
         }
 
-        let (const_nodes_h, const_values_h, num_consts, const_blocks, const_nodes_len, const_values_len) =
-            if !const_nodes.is_empty() {
-                let const_nodes_h = client.create_from_slice(u32::as_bytes(&const_nodes));
-                let const_values_h = client.create_from_slice(u32::as_bytes(&const_values));
-                let num_consts = const_nodes.len() as u32;
-                let total_threads = num_consts * b_count * p_count;
-                let blocks = total_threads.div_ceil(threads_per_block);
-                (
-                    Some(const_nodes_h),
-                    Some(const_values_h),
-                    num_consts,
-                    blocks,
-                    const_nodes.len(),
-                    const_values.len(),
-                )
-            } else {
-                (None, None, 0u32, 0u32, 0usize, 0usize)
-            };
+        let (
+            const_nodes_h,
+            const_values_h,
+            num_consts,
+            const_blocks,
+            const_nodes_len,
+            const_values_len,
+        ) = if !const_nodes.is_empty() {
+            let const_nodes_h = client.create_from_slice(u32::as_bytes(&const_nodes));
+            let const_values_h = client.create_from_slice(u32::as_bytes(&const_values));
+            let num_consts = const_nodes.len() as u32;
+            let total_threads = num_consts * b_count * p_count;
+            let blocks = total_threads.div_ceil(threads_per_block);
+            (
+                Some(const_nodes_h),
+                Some(const_values_h),
+                num_consts,
+                blocks,
+                const_nodes.len(),
+                const_values.len(),
+            )
+        } else {
+            (None, None, 0u32, 0u32, 0usize, 0usize)
+        };
 
         let uploaded_layers = upload_gate_groups(client, soa);
 
@@ -1403,7 +1455,9 @@ impl<R: Runtime> EtGpuContext<R> {
                 .expect("Failed to launch event sampling-to-node kernel");
             }
 
-            if let (Some(const_nodes_h), Some(const_values_h)) = (&self.const_nodes_h, &self.const_values_h) {
+            if let (Some(const_nodes_h), Some(const_values_h)) =
+                (&self.const_nodes_h, &self.const_values_h)
+            {
                 unsafe {
                     crate::mc::kernel::dpmc_node::set_constant_nodes_kernel::launch_unchecked::<R>(
                         &self.client,
@@ -1507,7 +1561,6 @@ impl<R: Runtime> EtGpuContext<R> {
                 )
                 .expect("Failed to launch sequence tally kernel");
             }
-
         }
 
         if t_count != 0 {
@@ -1540,7 +1593,6 @@ mod cuda_tests {
 
     #[test]
     fn cuda_dpmc_gpu_exec_runs_layers_and_matches_cpu() {
-
         let mut pdag = Pdag::new();
         let e1 = pdag.add_basic_event("e1".to_string());
         let e2 = pdag.add_basic_event("e2".to_string());
@@ -1563,13 +1615,7 @@ mod cuda_tests {
             .expect("add g6");
         pdag.set_root(g6).expect("set root");
 
-        let params = RunParams::new(
-            0,
-            2,
-            3,
-            64,
-            1234u64,
-        );
+        let params = RunParams::new(0, 2, 3, 64, 1234u64);
 
         let plan = DpMcPlan::from_pdag(&pdag, params).expect("plan");
         let soa = GpuSoaPlan::from_plan(&plan).expect("soa");
@@ -1642,13 +1688,11 @@ mod cuda_tests {
 
         for layer in &soa.layers {
             for gates in layer.gate_groups.values() {
-
                 for &out_node in &gates.out_nodes {
                     let desc = plan.gates.get(&(out_node as i32)).expect("gate desc");
 
                     for b in 0..b_count {
                         for p in 0..p_count {
-
                             let base = ((b * p_count + p) as usize) * num_nodes;
                             let view = &cpu_words[base..base + num_nodes];
                             let w = eval_gate_word(desc, view);
@@ -1664,7 +1708,6 @@ mod cuda_tests {
 
     #[test]
     fn cuda_dpmc_gpu_exec_can_tally_without_node_readback() {
-
         let mut pdag = Pdag::new();
         let e1 = pdag.add_basic_event("e1".to_string());
         let e2 = pdag.add_basic_event("e2".to_string());
@@ -1822,7 +1865,6 @@ mod dependency_tests {
 
     #[test]
     fn within_layer_gate_group_order_is_irrelevant_but_layer_order_matters() {
-
         let mut pdag = Pdag::new();
         let e1 = pdag.add_basic_event("e1".to_string());
         let e2 = pdag.add_basic_event("e2".to_string());

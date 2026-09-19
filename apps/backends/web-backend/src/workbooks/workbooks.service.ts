@@ -13,6 +13,21 @@ import { Workbook, type WorkbookDocument } from "./workbook.schema";
 import { WorkbookElementRegistry, type WorkbookExampleVariant } from "./workbook-element-registry";
 import { WorkbookRolesService } from "./workbook-roles.service";
 import { AnalyticsService } from "../analytics/analytics.service";
+import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
+import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
+import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
+import type { RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
+import {
+  reconcileExampleEsqDependencyReferences,
+  reconcileExampleEventTreeDependencyReferences,
+  reconcileExampleSyDataAnalysisReferences,
+  reconcileExampleSyHumanReliabilityReferences,
+  reconcileExampleRiskResultReferences,
+  reconcileExampleSyDependencyOwnership,
+} from "../example-workbooks/seeds/dependency-model-seed";
 
 function computeInitials(fullName: string): string {
   const parts = fullName.trim().split(" ").filter(Boolean);
@@ -193,7 +208,124 @@ export class WorkbooksService {
         }
       }
     }
+    await this.reconcileGeneratedDependencyExamples(generated);
     return { generated };
+  }
+
+  private async reconcileGeneratedDependencyExamples(generated: GeneratedExampleWorkbook[]): Promise<void> {
+    const variants = [...new Set(generated.map(({ exampleId }) => exampleId))];
+    const syAdapter = this.elementRegistry.tryGet("SY");
+    const daAdapter = this.elementRegistry.tryGet("DA");
+    const hrAdapter = this.elementRegistry.tryGet("HRA");
+    const esAdapter = this.elementRegistry.tryGet("ES");
+    const esqAdapter = this.elementRegistry.tryGet("ESQ");
+    const rcAdapter = this.elementRegistry.tryGet("RC");
+    const riAdapter = this.elementRegistry.tryGet("RI");
+    if (syAdapter === undefined) return;
+
+    for (const variant of variants) {
+      const syEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "SY");
+      const daEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "DA");
+      const hrEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "HRA");
+      const esEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "ES");
+      const esqEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "ESQ");
+      const rcEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "RC");
+      const riEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "RI");
+      if (syEntry?.workbookId === null || syEntry?.workbookId === undefined) continue;
+
+      let systems = await syAdapter.load(syEntry.workbookId);
+      if (systems === null || systems.revision === undefined) continue;
+
+      const ownedSystems = reconcileExampleSyDependencyOwnership(
+        systems.mef as SystemsAnalysis,
+        syEntry.workbookId,
+      );
+      await syAdapter.save(syEntry.workbookId, ownedSystems, systems.revision);
+      systems = await syAdapter.load(syEntry.workbookId);
+      if (systems === null || systems.revision === undefined) continue;
+
+      if (daAdapter !== undefined && daEntry?.workbookId !== null && daEntry?.workbookId !== undefined) {
+        const dataAnalysis = await daAdapter.load(daEntry.workbookId);
+        if (dataAnalysis !== null) {
+          const reconciledSystems = reconcileExampleSyDataAnalysisReferences(
+            systems.mef as SystemsAnalysis,
+            dataAnalysis.mef as DataAnalysis,
+            daEntry.workbookId,
+          );
+          if (reconciledSystems !== systems.mef) {
+            await syAdapter.save(syEntry.workbookId, reconciledSystems, systems.revision);
+            systems = await syAdapter.load(syEntry.workbookId);
+            if (systems === null || systems.revision === undefined) continue;
+          }
+        }
+      }
+
+      if (hrAdapter !== undefined && hrEntry?.workbookId !== null && hrEntry?.workbookId !== undefined) {
+        const humanReliability = await hrAdapter.load(hrEntry.workbookId);
+        if (humanReliability !== null) {
+          const reconciledSystems = reconcileExampleSyHumanReliabilityReferences(
+            systems.mef as SystemsAnalysis,
+            humanReliability.mef as HumanReliabilityAnalysis,
+            hrEntry.workbookId,
+          );
+          if (reconciledSystems !== systems.mef) {
+            await syAdapter.save(syEntry.workbookId, reconciledSystems, systems.revision);
+            systems = await syAdapter.load(syEntry.workbookId);
+            if (systems === null || systems.revision === undefined) continue;
+          }
+        }
+      }
+
+      if (esqAdapter !== undefined && esqEntry?.workbookId !== null && esqEntry?.workbookId !== undefined) {
+        const esq = await esqAdapter.load(esqEntry.workbookId);
+        if (esq !== null && esq.revision !== undefined) {
+          const reconciledEsq = reconcileExampleEsqDependencyReferences(
+            esq.mef as EventSequenceQuantification,
+            esqEntry.workbookId,
+            systems.mef as SystemsAnalysis,
+            syEntry.workbookId,
+          );
+          await esqAdapter.save(esqEntry.workbookId, reconciledEsq, esq.revision);
+        }
+      }
+
+      if (esAdapter === undefined || esEntry?.workbookId === null || esEntry?.workbookId === undefined) continue;
+      const eventSequences = await esAdapter.load(esEntry.workbookId);
+      if (eventSequences === null || eventSequences.revision === undefined) continue;
+      const reconciledEventSequences = reconcileExampleEventTreeDependencyReferences(
+        eventSequences.mef as EventSequenceAnalysis,
+        systems.mef as SystemsAnalysis,
+        syEntry.workbookId,
+      );
+      await esAdapter.save(esEntry.workbookId, reconciledEventSequences, eventSequences.revision);
+
+      if (
+        esqAdapter === undefined || rcAdapter === undefined || riAdapter === undefined ||
+        esqEntry?.workbookId === null || esqEntry?.workbookId === undefined ||
+        rcEntry?.workbookId === null || rcEntry?.workbookId === undefined ||
+        riEntry?.workbookId === null || riEntry?.workbookId === undefined
+      ) continue;
+      const [resolvedEs, resolvedEsq, consequence, integration] = await Promise.all([
+        esAdapter.load(esEntry.workbookId),
+        esqAdapter.load(esqEntry.workbookId),
+        rcAdapter.load(rcEntry.workbookId),
+        riAdapter.load(riEntry.workbookId),
+      ]);
+      if (resolvedEs === null || resolvedEsq === null || consequence === null || integration === null) continue;
+      const reconciledRisk = reconcileExampleRiskResultReferences(
+        resolvedEs.mef as EventSequenceAnalysis,
+        esEntry.workbookId,
+        resolvedEsq.mef as EventSequenceQuantification,
+        esqEntry.workbookId,
+        consequence.mef as RadiologicalConsequenceAnalysis,
+        rcEntry.workbookId,
+        integration.mef as RiskIntegration,
+        riEntry.workbookId,
+      );
+      await esqAdapter.save(esqEntry.workbookId, reconciledRisk.eventSequenceQuantification, resolvedEsq.revision);
+      await rcAdapter.save(rcEntry.workbookId, reconciledRisk.radiologicalConsequence, consequence.revision);
+      await riAdapter.save(riEntry.workbookId, reconciledRisk.riskIntegration, integration.revision);
+    }
   }
 
   async updateWorkbook(

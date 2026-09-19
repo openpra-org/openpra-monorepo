@@ -57,7 +57,10 @@ pub fn generate_dot_from_fault_tree(ft: &FaultTree) -> String {
                 format!("shape=triangle, style=dashed, label=\"NAND\\n{}\"", escaped)
             }
             Formula::Nor => {
-                format!("shape=invtriangle, style=dashed, label=\"NOR\\n{}\"", escaped)
+                format!(
+                    "shape=invtriangle, style=dashed, label=\"NOR\\n{}\"",
+                    escaped
+                )
             }
             Formula::Iff => {
                 format!("shape=diamond, style=dotted, label=\"IFF\\n{}\"", escaped)
@@ -245,9 +248,8 @@ fn save_with_format(dot_content: &str, output_path: &Path, format: &str) -> Resu
     }
 
     let tmp_dot_path = output_path.with_extension("dot");
-    fs::write(&tmp_dot_path, dot_content).map_err(|e| {
-        PraxisError::Io(format!("Failed to write dot file: {}", e))
-    })?;
+    fs::write(&tmp_dot_path, dot_content)
+        .map_err(|e| PraxisError::Io(format!("Failed to write dot file: {}", e)))?;
 
     let format_flag = format!("-T{}", format);
     let status = Command::new("dot")

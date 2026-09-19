@@ -19,8 +19,7 @@ pub fn estimate_fault_tree_nodes(fault_tree: &FaultTree) -> usize {
         return fallback;
     }
 
-    pdag
-        .nodes()
+    pdag.nodes()
         .keys()
         .map(|n| n.unsigned_abs() as usize)
         .max()
@@ -37,10 +36,7 @@ pub fn estimate_model_nodes(model: &Model) -> usize {
     total.max(1)
 }
 
-pub fn optimize_run_params_for_cpu(
-    node_count: usize,
-    seed: u64,
-) -> anyhow::Result<RunParams> {
+pub fn optimize_run_params_for_cpu(node_count: usize, seed: u64) -> anyhow::Result<RunParams> {
     let mut system = System::new_all();
     system.refresh_memory();
 
@@ -64,9 +60,7 @@ pub fn optimize_run_params_for_cpu(
     let per_buffer_cap_bytes = 2048u128 * 1024u128 * 1024u128;
     let max_bp_by_buffer_cap = per_buffer_cap_bytes.checked_div(bytes_per_bp).unwrap_or(1);
 
-    let max_bp = max_bp_by_ram
-        .min(max_bp_by_buffer_cap)
-        .max(1);
+    let max_bp = max_bp_by_ram.min(max_bp_by_buffer_cap).max(1);
 
     let mut b = (max_bp as f64).sqrt().floor() as usize;
     b = b.max(1);

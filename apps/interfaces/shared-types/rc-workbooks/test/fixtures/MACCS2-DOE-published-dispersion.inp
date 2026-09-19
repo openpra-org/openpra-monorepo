@@ -1,0 +1,11 @@
+* Published ATMOS input records, DOE MACCS2 Guidance Report, June 2004.
+* Section 7.1 sample calculation, printed page 7-4 (PDF page 101).
+* https://www.energy.gov/sites/default/files/2018/07/f54/Final_MACCS2_Guidance_Report_June_1_2004_508C.pdf
+* Excerpt only; not a complete input deck. Whitespace normalized.
+NUM_DIST001 0 (power-law fits used instead of dispersion tables)
+DPCYSIGA001 0.3658 0.2751 0.2089 0.1474 0.1046 0.0722
+DPCYSIGB001 .9031 .9031 .9031 .9031 .9031 .9031
+DPCZSIGA001 2.5E-4 1.9E-3 .2 .3 .4 .2
+DPCZSIGB001 2.125 1.6021 .8543 .6532 .6021 .6020
+DPYSCALE001 1.
+DPZSCALE001 1.27

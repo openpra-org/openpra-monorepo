@@ -1,3 +1,4 @@
+import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +17,8 @@ import { useEsWorkbook, type EsWorkbookData } from "./esWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
+import { WorkbookSaveIndicator } from "../workbooks/workbookSaveIndicator";
+import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/esScreens.css";
 
@@ -45,6 +48,7 @@ interface HeaderMeta {
   projectName: string;
   workbookName: string;
   workbookVersion: string;
+  saveStatus?: RevisionedSaveStatus;
   plantIdentity?: { name: string; type: string; power: string; vendor: string };
 }
 
@@ -127,7 +131,7 @@ function WorkspaceHeader({
         {onUnloadExample !== undefined && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onUnloadExample} title="Restore the contents that existed before the example was loaded"><ESIcon.Close /> Unload example</button>
         )}
-        <span className="poshd__save-pill"><span className="poshd__save-pill-dot" />Autosaved · v{headerMeta.workbookVersion}</span>
+        <WorkbookSaveIndicator status={headerMeta.saveStatus} workbookVersion={headerMeta.workbookVersion} />
         <button type="button" className="posnav__btn" aria-label="History"><ESIcon.History /></button>
         {onToggleDock !== undefined && (
           <button type="button" className="posw__mobile-toggle" onClick={onToggleDock} aria-label="Open conformance"><ESIcon.Eye /> Conformance</button>
@@ -173,10 +177,6 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
           );
         })}
       </ul>
-      <div className="posrail__footer">
-        <button type="button" className="posrail__footer-btn"><ESIcon.Layers /> Show all inputs</button>
-        <button type="button" className="posrail__footer-btn"><ESIcon.Settings /> Workbook settings</button>
-      </div>
     </aside>
   );
 }
@@ -277,6 +277,7 @@ function EsWorkbench({
   renderRoster?: () => JSX.Element | null;
   renderDocuments?: () => JSX.Element | null;
 }): JSX.Element {
+  const { editable, mutateEs } = useEsWorkbook();
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
 
@@ -442,6 +443,7 @@ function EsWorkbench({
           </div>
 
           {renderScreen()}
+          {["sequences", "quant"].includes(stepId) && <EsAnalysisHistory />}
 
           <div className="posnav">
             {prev ? (
@@ -485,3 +487,8 @@ function EsWorkbench({
 }
 
 export { EsWorkbench, type HeaderMeta, type EsWorkbenchActions };
+
+function EsAnalysisHistory() {
+  const {runtime} = useEsWorkbook();
+  return <AnalysisRunHistory host="es" workbookId={runtime.workbookId}/>;
+}

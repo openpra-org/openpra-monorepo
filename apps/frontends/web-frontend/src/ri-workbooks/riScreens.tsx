@@ -1,7 +1,7 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
-import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
+import { type CompiledRiskInput, type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { RIIcon } from "./riIcons";
 import { Badge, RiProvenanceChip, valText } from "./riShared";
 import { useRiWorkbook } from "./riWorkbookContext";
@@ -16,6 +16,11 @@ import {
   type AppTypeId,
 } from "./riViewData";
 import { riHandoffView, fcPointsView, ccdfPointsView, metricRollup, type FcPointView } from "./riSelectors";
+import {
+  consequenceMetricMatches,
+  meanFrequencyValue,
+  sourcesForEventSequenceFamily,
+} from "../workbooks/riskWorkbookConnections";
 
 interface RiDrawerContext {
   kind: "family" | "measures" | "criteria" | "floors" | "calc" | "metric" | "aggregation" | "hazardgroup" | "grouping" | "contributor" | "contribbasis" | "musource" | "screened" | "propagation" | "sensitivity" | "dispatch" | "method";
@@ -627,7 +632,7 @@ function nextMetricId(list: { uuid: string }[]): string {
 }
 
 function IntegrateScreen({ ccId, openDrawer }: { ccId: string; openDrawer: (ctx: RiDrawerContext) => void }): JSX.Element {
-  const { ri, editable, mutateRi } = useRiWorkbook();
+  const { ri, editable, mutateRi, riskSources } = useRiWorkbook();
   const isCcOne = ccId === "cc-i";
   const results = ri.integratedRiskResults;
   const approach = results.calculationApproach;
@@ -635,6 +640,11 @@ function IntegrateScreen({ ccId, openDrawer }: { ccId: string; openDrawer: (ctx:
   const plotMeasure = measures[0]?.name ?? "";
   const fcPoints = fcPointsView(ri, plotMeasure);
   const ccdfPoints = ccdfPointsView(ri, plotMeasure);
+  const availableFamilySources = riskSources.eventSequenceFamilies.filter((source) => {
+    const linked = sourcesForEventSequenceFamily(riskSources, source);
+    return linked.quantifications.length > 0 && linked.consequence !== undefined;
+  });
+  const [selectedFamilySource, setSelectedFamilySource] = useState("");
 
   const families = ri.compiledRiskInputs.length;
   const approachBlocks: { label: string; detail: string }[] = [];
@@ -698,6 +708,95 @@ function IntegrateScreen({ ccId, openDrawer }: { ccId: string; openDrawer: (ctx:
       },
     }));
     openDrawer({ kind: "metric", id: uuid });
+  }
+
+  function addLinkedInput(): void {
+    if (!editable) return;
+    const sourceKey = selectedFamilySource.length > 0
+      ? selectedFamilySource
+      : availableFamilySources[0] === undefined
+        ? ""
+        : `${availableFamilySources[0].workbookId}|${availableFamilySources[0].family.uuid}`;
+    const familySource = availableFamilySources.find((source) =>
+      `${source.workbookId}|${source.family.uuid}` === sourceKey);
+    if (familySource === undefined) return;
+    const existing = ri.compiledRiskInputs.find((input) =>
+      input.eventSequenceFamilyReference?.workbookId === familySource.workbookId &&
+      input.eventSequenceFamilyReference.entityId === familySource.family.uuid);
+    if (existing !== undefined) {
+      openDrawer({ kind: "family", id: existing.uuid });
+      return;
+    }
+    const linked = sourcesForEventSequenceFamily(riskSources, familySource);
+    if (linked.quantifications.length === 0 || linked.consequence === undefined) return;
+    const baseId = `RII-${familySource.family.uuid}`;
+    const uuid = ri.compiledRiskInputs.some((input) => input.uuid === baseId)
+      ? `${baseId}-${String(ri.compiledRiskInputs.length + 1)}`
+      : baseId;
+    const consequences = measures.flatMap((measure) => {
+      const result = linked.consequence!.result.consequenceResults.find((entry) =>
+        consequenceMetricMatches(entry.metric, measure.name));
+      return result === undefined ? [] : [{
+        metric: measure.name,
+        meanValue: result.meanValue,
+        unit: result.unit,
+        distribution: result.uncertaintyDistribution,
+      }];
+    });
+    const input: CompiledRiskInput = {
+      uuid,
+      eventSequenceFamilyRef: familySource.family.uuid,
+      eventSequenceFamilyReference: familySource.reference,
+      releaseCategoryRef: familySource.family.releaseCategoryIds?.[0],
+      sourceTermDefinitionRef: familySource.family.representativeSourceTermId,
+      frequency: linked.quantifications.reduce(
+        (sum, source) => sum + meanFrequencyValue(source.quantification.meanFrequency),
+        0,
+      ),
+      frequencyUnit: "per plant-year",
+      esqFamilyQuantificationRef: linked.quantifications.map((source) => source.quantification.uuid).join(" + "),
+      familyQuantificationReferences: linked.quantifications.map((source) => source.reference),
+      consequences: consequences.length > 0
+        ? consequences
+        : linked.consequence.result.consequenceResults.map((result) => ({
+          metric: result.metric,
+          meanValue: result.meanValue,
+          unit: result.unit,
+          distribution: result.uncertaintyDistribution,
+        })),
+      rcqRecordRef: linked.consequence.result.uuid,
+      consequenceResultReference: linked.consequence.reference,
+      consistentWithEventSequenceAnalysis: true,
+      implementsSrs: [{ sr: "RI-B1", hlr: "B" }],
+    };
+    mutateRi((draft) => {
+      const compiledRiskInputs = [...draft.compiledRiskInputs, input];
+      return {
+        ...draft,
+        scopeDefinition: {
+          ...draft.scopeDefinition,
+          eventSequenceFamilyRefs: [...new Set([
+            ...(draft.scopeDefinition.eventSequenceFamilyRefs ?? []),
+            input.eventSequenceFamilyRef,
+          ])],
+        },
+        compiledRiskInputs,
+        integratedRiskResults: {
+          ...draft.integratedRiskResults,
+          metrics: draft.integratedRiskResults.metrics.map((metric) => ({
+            ...metric,
+            value: metric.consequenceMeasureRef === undefined
+              ? metric.value
+              : compiledRiskInputs.reduce((sum, compiled) => {
+                const result = compiled.consequences.find((entry) =>
+                  consequenceMetricMatches(entry.metric, metric.consequenceMeasureRef!));
+                return sum + compiled.frequency * (result?.meanValue ?? 0);
+              }, 0),
+          })),
+        },
+      };
+    });
+    openDrawer({ kind: "family", id: uuid });
   }
 
   return (
@@ -765,8 +864,28 @@ function IntegrateScreen({ ccId, openDrawer }: { ccId: string; openDrawer: (ctx:
       <div className="poscard">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="RI" title="Frequency-consequence plot" level={3} />
-          <RiProvenanceChip>RI-B2</RiProvenanceChip>
+          <div className="posrow" style={{ gap: 10 }}>
+            <RiProvenanceChip>RI-B2</RiProvenanceChip>
+          </div>
         </div>
+        {editable && availableFamilySources.length > 0 && (
+          <div className="posrow" style={{ gap: 8, alignItems: "center", marginBottom: 14 }}>
+            <select
+              className="posfield__select"
+              aria-label="Linked risk input family"
+              value={selectedFamilySource}
+              onChange={(event) => setSelectedFamilySource(event.target.value)}
+              style={{ flex: 1 }}
+            >
+              {availableFamilySources.map((source) => (
+                <option key={`${source.workbookId}|${source.family.uuid}`} value={`${source.workbookId}|${source.family.uuid}`}>
+                  {source.family.uuid} · {source.family.name} · {source.family.endState} — {source.workbookName}
+                </option>
+              ))}
+            </select>
+            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addLinkedInput}><RIIcon.Plus /> Add linked input</button>
+          </div>
+        )}
         <p className="poscard__sub">Every family plots its consequence against its frequency, and the target is the diagonal the families are judged against. Select a family to edit it.</p>
         {fcPoints.length === 0 ? (
           <p className="posmuted" style={{ margin: 0 }}>No families compiled yet.</p>

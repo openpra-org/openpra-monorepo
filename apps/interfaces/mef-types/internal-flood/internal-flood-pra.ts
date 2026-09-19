@@ -1,4 +1,5 @@
 import { InternalFloodEventSequenceQuantification, FLESQ_SR_CATALOG } from "../flesq/internal-flood-event-sequence-quantification";
+import type { HazardConditionedMethodModels } from "../hazard-conditioned-models";
 import { InternalFloodInitiatingEvents, FLEV_SR_CATALOG } from "../flev/internal-flood-initiating-events";
 import { FLHR_SR_CATALOG, InternalFloodHumanReliabilityAnalysis } from "../flhr/internal-flood-human-reliability-analysis";
 import { FLPP_SR_CATALOG, InternalFloodPlantPartitioning } from "../flpp/internal-flood-plant-partitioning";
@@ -241,6 +242,7 @@ export interface InternalFloodPraExampleDocument {
 
 export interface InternalFloodPRA extends TechnicalElement<TechnicalElementTypes.INTERNAL_FLOOD_PRA> {
   praScope: string;
+  hazardConditionedModels: HazardConditionedMethodModels;
   applications: InternalFloodPraApplication[];
   evidenceRegister: InternalFloodPraEvidenceRecord[];
   baselinePra?: InternalFloodBaselinePraDefinition;

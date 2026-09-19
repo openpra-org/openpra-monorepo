@@ -480,7 +480,6 @@ mod tests {
 
     #[test]
     fn test_write_fault_tree_roundtrip() {
-
         let mut ft = FaultTree::new("RoundTrip", "TopGate").unwrap();
         let mut gate = Gate::new("TopGate".to_string(), Formula::And).unwrap();
         gate.add_operand("E1".to_string());

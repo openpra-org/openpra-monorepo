@@ -20,7 +20,10 @@ pub fn run_widths_only(
     let compute_pathwidth = cli.pathwidth || !cli.treewidth;
 
     if verbose {
-        eprintln!("Building PDAG from fault tree: {}", fault_tree.element().id());
+        eprintln!(
+            "Building PDAG from fault tree: {}",
+            fault_tree.element().id()
+        );
     }
 
     let pdag = Pdag::from_fault_tree(fault_tree)?;
@@ -79,7 +82,11 @@ fn render_widths_xml(
     writer.write_event(Event::Start(root))?;
 
     write_simple_text(&mut writer, "coherent", &report.coherent.to_string())?;
-    write_simple_text(&mut writer, "num-basic-events", &report.num_basic_events.to_string())?;
+    write_simple_text(
+        &mut writer,
+        "num-basic-events",
+        &report.num_basic_events.to_string(),
+    )?;
     write_simple_text(&mut writer, "num-gates", &report.num_gates.to_string())?;
     write_simple_text(&mut writer, "num-modules", &report.num_modules.to_string())?;
 
@@ -150,7 +157,10 @@ fn write_width_element(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut e = BytesStart::new(name);
     e.push_attribute(("upper-bound", width.upper_bound.to_string().as_str()));
-    e.push_attribute(("compute-time-ms", width.compute_time_ms.to_string().as_str()));
+    e.push_attribute((
+        "compute-time-ms",
+        width.compute_time_ms.to_string().as_str(),
+    ));
     writer.write_event(Event::Empty(e))?;
     Ok(())
 }
@@ -166,10 +176,7 @@ fn write_simple_text(
     Ok(())
 }
 
-fn emit_output(
-    output_file: Option<&PathBuf>,
-    xml: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn emit_output(output_file: Option<&PathBuf>, xml: &str) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(path) = output_file {
         fs::write(path, xml)
             .map_err(|e| format!("Failed to write output file '{}': {}", path.display(), e))?;

@@ -68,7 +68,6 @@ fn test_cli_event_tree_monte_carlo_with_library() {
 #[cfg(feature = "cuda")]
 #[test]
 fn test_cli_event_tree_monte_carlo_accepts_cuda_backend_flag() {
-
     let root = "tests/fixtures/eta/EventTrees/gas_leak/gas_leak_combined.xml";
 
     if !PathBuf::from(root).exists() {

@@ -1,11 +1,12 @@
 pub mod approximations;
 pub mod event_tree;
+pub mod event_tree_quantification;
 pub mod fault_tree;
-pub mod sequence_formula;
 pub mod importance;
 pub mod labelled_zbdd;
 pub mod prime_implicants;
 pub mod quantify;
+pub mod sequence_formula;
 pub mod settings;
 pub mod sil;
 pub mod ternary_dd;

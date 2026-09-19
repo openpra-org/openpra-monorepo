@@ -204,7 +204,6 @@ fn test_workload_metrics_cost_calculation() {
 
 #[test]
 fn test_combined_monte_carlo_simulation_cpu() {
-
     let probabilities = [0.1, 0.2];
     let num_trials = 1000;
     let seed = 42;
@@ -235,7 +234,6 @@ fn test_combined_monte_carlo_simulation_cpu() {
 
 #[test]
 fn test_combined_monte_carlo_simulation_or_gate() {
-
     let probabilities = [0.3, 0.4];
     let num_trials = 10000;
     let seed = 99;

@@ -1,0 +1,5 @@
+* Published site-coordinate records, Appendix B.7, pp. 76-77.
+* https://www.nrc.gov/docs/ML2520/ML25203A330.pdf
+* Extracted from the publication; not a complete parameter deck.
+M1LATITUD01 35.31028
+M1LONGITU01 -93.23194

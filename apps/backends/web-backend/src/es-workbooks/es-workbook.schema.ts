@@ -1,3 +1,4 @@
+import { modelPayloadSchema, workbookPayloadFields } from "../storage/model-payload-schema";
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument } from "mongoose";
 
@@ -17,6 +18,9 @@ export class EsWorkbook {
   @Prop({ type: Object, required: true })
   mef!: unknown;
 
+  @Prop({ type: Number, required: true, default: 1, min: 1 })
+  revision!: number;
+
   @Prop({ type: String, required: false, default: null })
   previousMefJson!: string | null;
 
@@ -31,3 +35,5 @@ export class EsWorkbook {
 }
 
 export const EsWorkbookSchema = SchemaFactory.createForClass(EsWorkbook);
+
+modelPayloadSchema(EsWorkbookSchema, workbookPayloadFields);

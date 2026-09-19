@@ -19,8 +19,8 @@ use praxis::analysis::width::{
 use praxis::core::event::BasicEvent;
 use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::{Formula, Gate};
-use praxis::mc::DpMonteCarloAnalysis;
 use praxis::io::parser::parse_fault_tree;
+use praxis::mc::DpMonteCarloAnalysis;
 
 const WIDTH_CAP: usize = 4000;
 const RARE: f64 = 1e-3;
@@ -77,7 +77,8 @@ fn extract_subtree(ft: &FaultTree, root: &str) -> Option<FaultTree> {
     }
     for be in &bes {
         let p = ft.get_basic_event(be)?.probability();
-        sub.add_basic_event(BasicEvent::new(be.clone(), p).ok()?).ok()?;
+        sub.add_basic_event(BasicEvent::new(be.clone(), p).ok()?)
+            .ok()?;
     }
     Some(sub)
 }
@@ -98,7 +99,11 @@ fn arm_mocus(ft: &FaultTree) -> Option<f64> {
         .map(|cs| {
             cs.events
                 .iter()
-                .map(|e| ft.get_basic_event(e).map(|b| b.probability()).unwrap_or(0.0))
+                .map(|e| {
+                    ft.get_basic_event(e)
+                        .map(|b| b.probability())
+                        .unwrap_or(0.0)
+                })
                 .product::<f64>()
         })
         .sum::<f64>();
@@ -220,7 +225,11 @@ fn compute_feats(
             }
             Some(PdagNode::Gate { .. }) => {
                 num_gates += 1;
-                if let Some(g) = pdag.get_node(v).and_then(|n| n.id()).and_then(|name| ft.get_gate(name)) {
+                if let Some(g) = pdag
+                    .get_node(v)
+                    .and_then(|n| n.id())
+                    .and_then(|name| ft.get_gate(name))
+                {
                     typed += 1;
                     match g.formula() {
                         Formula::And | Formula::Nand => and += 1,
@@ -375,7 +384,13 @@ fn run_arm_subprocess(exe: &Path, arm: &str, file: &str, root: &str) -> ArmOutco
                     let _ = so.read_to_string(&mut out);
                 }
                 if !status.success() {
-                    return ArmOutcome { status: "failed".into(), secs, val: None, lo: None, hi: None };
+                    return ArmOutcome {
+                        status: "failed".into(),
+                        secs,
+                        val: None,
+                        lo: None,
+                        hi: None,
+                    };
                 }
                 let out = out.trim();
                 if let Some(rest) = out.strip_prefix("OK ") {
@@ -386,18 +401,42 @@ fn run_arm_subprocess(exe: &Path, arm: &str, file: &str, root: &str) -> ArmOutco
                     } else {
                         (None, None)
                     };
-                    return ArmOutcome { status: "ok".into(), secs, val, lo, hi };
+                    return ArmOutcome {
+                        status: "ok".into(),
+                        secs,
+                        val,
+                        lo,
+                        hi,
+                    };
                 } else if out.contains("UNSUPPORTED") {
-                    return ArmOutcome { status: "unsupported".into(), secs, val: None, lo: None, hi: None };
+                    return ArmOutcome {
+                        status: "unsupported".into(),
+                        secs,
+                        val: None,
+                        lo: None,
+                        hi: None,
+                    };
                 } else {
-                    return ArmOutcome { status: "failed".into(), secs, val: None, lo: None, hi: None };
+                    return ArmOutcome {
+                        status: "failed".into(),
+                        secs,
+                        val: None,
+                        lo: None,
+                        hi: None,
+                    };
                 }
             }
             Ok(None) => {
                 if t.elapsed().as_secs_f64() >= CUTOFF {
                     let _ = child.kill();
                     let _ = child.wait();
-                    return ArmOutcome { status: "timeout".into(), secs: CUTOFF, val: None, lo: None, hi: None };
+                    return ArmOutcome {
+                        status: "timeout".into(),
+                        secs: CUTOFF,
+                        val: None,
+                        lo: None,
+                        hi: None,
+                    };
                 }
                 thread::sleep(Duration::from_millis(20));
             }
@@ -527,7 +566,10 @@ fn main() {
     let dirs = if args.len() > 1 {
         args[1..].to_vec()
     } else {
-        vec!["fixtures/aralia".to_string(), "fixtures/synthetic".to_string()]
+        vec![
+            "fixtures/aralia".to_string(),
+            "fixtures/synthetic".to_string(),
+        ]
     };
     let h = thread::Builder::new()
         .stack_size(1024 * 1024 * 1024)

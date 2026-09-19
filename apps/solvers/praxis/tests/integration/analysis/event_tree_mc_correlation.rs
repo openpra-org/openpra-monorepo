@@ -18,7 +18,6 @@ fn p_of(result: &praxis::mc::EventTreeMonteCarloResult, seq_id: &str) -> f64 {
 
 #[test]
 fn correlation_shared_basic_event_makes_dependent_functional_events() {
-
     let mut model = Model::new("M").unwrap();
 
     let x = BasicEvent::new("X".to_string(), 0.2).unwrap();

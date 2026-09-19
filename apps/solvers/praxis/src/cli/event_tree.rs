@@ -1,23 +1,21 @@
 use crate::cli::args::{Algorithm, Approximation, Args, Backend, CutOffBasis};
-use crate::cli::metadata::{
-    display_zbdd_metadata, prompt_for_limits, ZbddSequenceMetadata,
-};
-use praxis::algorithms::mocus::CutSet;
-use praxis::algorithms::zbdd_engine::ZbddEngine;
+use crate::cli::metadata::{display_zbdd_metadata, prompt_for_limits, ZbddSequenceMetadata};
 use crate::cli::optimize::{
     estimate_model_nodes, optimize_run_params_for_cpu, optimize_run_params_for_cuda,
 };
 use crate::cli::output::{writer_stdout, writer_vec};
 use praxis::algorithms::bdd_engine::{Bdd, BddRef};
+use praxis::algorithms::mocus::CutSet;
 use praxis::algorithms::pdag::{NodeIndex, Pdag};
+use praxis::algorithms::zbdd_engine::ZbddEngine;
 use praxis::algorithms::zbdd_engine::ZbddRef;
 use praxis::analysis::sequence_formula::SequenceFormulaBuilder;
 use praxis::core::event_tree::InitiatingEvent;
 use praxis::core::fault_tree::FaultTree;
 use praxis::io::event_tree_parser::EventTreeModel;
 use praxis::io::reporter::{
-    write_comprehensive_report, AnalysisReport, EventTreeAnalyticReport,
-    EventTreeAnalyticSequence, EventTreeMonteCarloReport,
+    write_comprehensive_report, AnalysisReport, EventTreeAnalyticReport, EventTreeAnalyticSequence,
+    EventTreeMonteCarloReport,
 };
 use praxis::mc::core::ConvergenceSettings;
 use praxis::mc::plan::{choose_run_params_for_num_trials, RunParams};
@@ -59,7 +57,10 @@ fn parse_model_with_libs_from_parsed(
 fn event_names_from_pdag(pdag: &Pdag, order: &[NodeIndex]) -> Vec<Option<String>> {
     order
         .iter()
-        .map(|&idx| pdag.get_node(idx).and_then(|n| n.id().map(|s| s.to_string())))
+        .map(|&idx| {
+            pdag.get_node(idx)
+                .and_then(|n| n.id().map(|s| s.to_string()))
+        })
         .collect()
 }
 
@@ -122,7 +123,11 @@ fn apply_zbdd_filters_et(
     r
 }
 
-fn compute_approx_et(zbdd: &ZbddEngine, root: ZbddRef, approximation: Option<Approximation>) -> f64 {
+fn compute_approx_et(
+    zbdd: &ZbddEngine,
+    root: ZbddRef,
+    approximation: Option<Approximation>,
+) -> f64 {
     match approximation {
         Some(Approximation::RareEvent) => zbdd.rare_event_probability(root),
         Some(Approximation::Mcub) => zbdd.min_cut_upper_bound_graph(root),
@@ -202,7 +207,12 @@ fn analytic_zbdd_wf1_no_approx_no_limits(
         .with_delete_term(cli.delete_term)
         .with_event_tree_library(event_tree_library)
         .build(event_tree, ie_frequency)
-        .map_err(|e| format!("Sequence formula construction failed for '{}': {}", event_tree.id, e))?;
+        .map_err(|e| {
+            format!(
+                "Sequence formula construction failed for '{}': {}",
+                event_tree.id, e
+            )
+        })?;
 
     let mut all_seq_ids: Vec<String> = sequence_roots.keys().cloned().collect();
     for id in &unconditional {
@@ -353,7 +363,12 @@ fn analytic_zbdd_wf2_approx_no_limits(
         .with_delete_term(cli.delete_term)
         .with_event_tree_library(event_tree_library)
         .build(event_tree, ie_frequency)
-        .map_err(|e| format!("Sequence formula construction failed for '{}': {}", event_tree.id, e))?;
+        .map_err(|e| {
+            format!(
+                "Sequence formula construction failed for '{}': {}",
+                event_tree.id, e
+            )
+        })?;
 
     let mut all_seq_ids: Vec<String> = sequence_roots.keys().cloned().collect();
     for id in &unconditional {
@@ -514,7 +529,12 @@ fn analytic_zbdd_wf3_no_approx_limits(
         .with_delete_term(cli.delete_term)
         .with_event_tree_library(event_tree_library)
         .build(event_tree, ie_frequency)
-        .map_err(|e| format!("Sequence formula construction failed for '{}': {}", event_tree.id, e))?;
+        .map_err(|e| {
+            format!(
+                "Sequence formula construction failed for '{}': {}",
+                event_tree.id, e
+            )
+        })?;
 
     let mut all_seq_ids: Vec<String> = sequence_roots.keys().cloned().collect();
     for id in &unconditional {
@@ -657,7 +677,12 @@ fn analytic_zbdd_wf4_approx_limits(
         .with_delete_term(cli.delete_term)
         .with_event_tree_library(event_tree_library)
         .build(event_tree, ie_frequency)
-        .map_err(|e| format!("Sequence formula construction failed for '{}': {}", event_tree.id, e))?;
+        .map_err(|e| {
+            format!(
+                "Sequence formula construction failed for '{}': {}",
+                event_tree.id, e
+            )
+        })?;
 
     let mut all_seq_ids: Vec<String> = sequence_roots.keys().cloned().collect();
     for id in &unconditional {
@@ -773,7 +798,10 @@ fn run_monte_carlo_impl(
 
     let mut computed_event_tree_monte_carlo: Vec<EventTreeMonteCarloReport> = Vec::new();
     let auto_cuda_num_trials = !cli.optimize
-        && matches!((cli.iterations, cli.batches, cli.bitpacks_per_batch), (None, None, None))
+        && matches!(
+            (cli.iterations, cli.batches, cli.bitpacks_per_batch),
+            (None, None, None)
+        )
         && matches!(cli.backend.unwrap_or(Backend::Cpu), Backend::Cuda);
 
     let auto_cuda_node_count = if auto_cuda_num_trials {
@@ -795,7 +823,9 @@ fn run_monte_carlo_impl(
                 println!("{}", et_dot);
             }
             if graphviz_ok {
-                let tree_path = cli.visualize_out_dir.join(format!("{}_tree.svg", event_tree.id));
+                let tree_path = cli
+                    .visualize_out_dir
+                    .join(format!("{}_tree.svg", event_tree.id));
                 if let Err(e) = praxis::analysis::visualize::save_svg(&et_dot, &tree_path) {
                     eprintln!("Warning: Failed to save event tree diagram: {}", e);
                 } else if verbose {
@@ -810,9 +840,7 @@ fn run_monte_carlo_impl(
         let explicit_params: Option<RunParams> = if cli.optimize || auto_cuda_num_trials {
             let node_count = auto_cuda_node_count.unwrap_or_else(|| estimate_model_nodes(&model));
             Some(match backend {
-                Backend::Cpu => {
-                    optimize_run_params_for_cpu(node_count, cli.seed)?
-                }
+                Backend::Cpu => optimize_run_params_for_cpu(node_count, cli.seed)?,
                 Backend::Cuda => {
                     optimize_run_params_for_cuda(cli.num_trials as usize, node_count, cli.seed)?
                 }
@@ -836,13 +864,7 @@ fn run_monte_carlo_impl(
                         )
                         .into());
                     }
-                    Some(RunParams::new(
-                        t,
-                        b,
-                        p,
-                        RunParams::DEFAULT_OMEGA,
-                        cli.seed,
-                    ))
+                    Some(RunParams::new(t, b, p, RunParams::DEFAULT_OMEGA, cli.seed))
                 }
                 _ => {
                     return Err(anyhow::anyhow!(
@@ -1043,9 +1065,7 @@ fn run_monte_carlo_impl(
             delta: cli.early_stop.then_some(cli.delta),
             burn_in: cli.early_stop.then_some(cli.burn_in),
             confidence: cli.early_stop.then_some(cli.confidence),
-            policy: cli
-                .early_stop
-                .then_some("wald-linear+log10".to_string()),
+            policy: cli.early_stop.then_some("wald-linear+log10".to_string()),
         };
 
         computed_event_tree_monte_carlo.push(EventTreeMonteCarloReport {
@@ -1069,7 +1089,11 @@ fn run_monte_carlo_impl(
         basic_events_count: 0,
     };
 
-    let total_gates: usize = model.fault_trees().values().map(|ft| ft.gates().len()).sum();
+    let total_gates: usize = model
+        .fault_trees()
+        .values()
+        .map(|ft| ft.gates().len())
+        .sum();
     let total_basic_events: usize = model.basic_events().len();
 
     let report = AnalysisReport::new(dummy_result)
@@ -1174,7 +1198,9 @@ fn run_analytic_impl(
                 println!("{}", et_dot);
             }
             if praxis::analysis::visualize::graphviz_available() {
-                let tree_path = cli.visualize_out_dir.join(format!("{}_tree.svg", event_tree.id));
+                let tree_path = cli
+                    .visualize_out_dir
+                    .join(format!("{}_tree.svg", event_tree.id));
                 if let Err(e) = praxis::analysis::visualize::save_svg(&et_dot, &tree_path) {
                     eprintln!("Warning: Failed to save event tree diagram: {}", e);
                 } else if verbose {
@@ -1228,7 +1254,6 @@ fn run_analytic_impl(
                 )?,
             }
         } else {
-
             let praxis::analysis::sequence_formula::SequenceFormulas {
                 mut pdag,
                 sequence_roots,
@@ -1241,7 +1266,12 @@ fn run_analytic_impl(
                 .with_delete_term(cli.delete_term)
                 .with_event_tree_library(&event_tree_library)
                 .build(&event_tree, ie_frequency)
-                .map_err(|e| format!("Sequence formula construction failed for '{}': {}", event_tree.id, e))?;
+                .map_err(|e| {
+                    format!(
+                        "Sequence formula construction failed for '{}': {}",
+                        event_tree.id, e
+                    )
+                })?;
 
             let mut all_seq_ids: Vec<String> = sequence_roots.keys().cloned().collect();
             for id in &unconditional {
@@ -1350,7 +1380,11 @@ fn run_analytic_impl(
         basic_events_count: 0,
     };
 
-    let total_gates: usize = model.fault_trees().values().map(|ft| ft.gates().len()).sum();
+    let total_gates: usize = model
+        .fault_trees()
+        .values()
+        .map(|ft| ft.gates().len())
+        .sum();
     let total_basic_events: usize = model.basic_events().len();
 
     let report = AnalysisReport::new(dummy_result)
@@ -1417,7 +1451,13 @@ fn select_event_trees_to_run(
         let et = event_trees
             .iter()
             .find(|et| &et.id == et_id)
-            .ok_or_else(|| anyhow::anyhow!("Initiating event '{}' references missing event tree '{}'", ie.id, et_id))?;
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Initiating event '{}' references missing event tree '{}'",
+                    ie.id,
+                    et_id
+                )
+            })?;
         referenced.push((ie.clone(), et.clone()));
     }
     if !referenced.is_empty() {

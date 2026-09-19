@@ -6,6 +6,7 @@
   "typings": "./index.ts",
   "private": true,
   "dependencies": {
+    "interfaces-mef-types": "workspace:*",
     "zod": "4.3.6"
   }
 }

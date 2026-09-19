@@ -9,7 +9,9 @@ use crate::mc::memory::HostMemoryTracker;
 use crate::mc::packed_gate::eval_gate_word;
 use crate::mc::philox::{philox4x32_10, Philox4x32Key};
 use crate::mc::plan::{choose_run_params_for_num_trials, DpMcPlan, RunParams};
-use crate::mc::tally::{effective_bits_per_iteration, popcount_tallies_from_node_words_u64, NodeTallies};
+use crate::mc::tally::{
+    effective_bits_per_iteration, popcount_tallies_from_node_words_u64, NodeTallies,
+};
 use crate::Result;
 
 use indicatif::{ProgressBar, ProgressStyle};
@@ -24,9 +26,9 @@ use crate::mc::memory::CudaVramTracker;
 
 #[cfg(feature = "gpu")]
 use crate::mc::gpu_exec::{
+    execute_layers_bitpacked_gpu_selected_nodes_process_many_iters,
     execute_layers_bitpacked_gpu_tallies, execute_layers_bitpacked_gpu_tallies_many_iters,
     FtGpuContext,
-    execute_layers_bitpacked_gpu_selected_nodes_process_many_iters,
 };
 
 #[cfg(feature = "gpu")]
@@ -188,7 +190,8 @@ impl<'a> DpMonteCarloAnalysis<'a> {
             VrtMode::StratifiedSampling => {
                 let DpRunConfig::NumTrials(num_trials) = self.run else {
                     return Err(crate::error::PraxisError::Settings(
-                        "Stratified sampling requires a NumTrials run (use --num-trials)".to_string(),
+                        "Stratified sampling requires a NumTrials run (use --num-trials)"
+                            .to_string(),
                     ));
                 };
                 let chosen = choose_run_params_for_num_trials(num_trials, self.seed)?;
@@ -199,11 +202,7 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
     #[cfg(feature = "gpu")]
     pub fn run_gpu<R: Runtime>(&self, device: &R::Device) -> Result<MonteCarloResult> {
-        self.run_gpu_with_watch_and_convergence::<R>(
-            device,
-            false,
-            ConvergenceSettings::disabled(),
-        )
+        self.run_gpu_with_watch_and_convergence::<R>(device, false, ConvergenceSettings::disabled())
     }
 
     #[cfg(feature = "gpu")]
@@ -249,11 +248,9 @@ impl<'a> DpMonteCarloAnalysis<'a> {
             let total_iters = built.plan.params.t as u64;
             let pb = ProgressBar::new(total_iters.max(1));
             pb.set_style(
-                ProgressStyle::with_template(
-                    "mc [{bar:40.cyan/blue}] {pos}/{len} it {msg}",
-                )
-                .unwrap()
-                .progress_chars("##-"),
+                ProgressStyle::with_template("mc [{bar:40.cyan/blue}] {pos}/{len} it {msg}")
+                    .unwrap()
+                    .progress_chars("##-"),
             );
             pb.enable_steady_tick(std::time::Duration::from_millis(120));
             Some(pb)
@@ -308,12 +305,11 @@ impl<'a> DpMonteCarloAnalysis<'a> {
                 .map(|v| format!("  vram={:.0}MiB/{:.1}%", v.used_mib(), v.percent_used()))
                 .unwrap_or_default();
 
-            let z = crate::mc::stats::normal_quantile_two_sided(convergence.confidence)
-                .unwrap_or(1.96);
+            let z =
+                crate::mc::stats::normal_quantile_two_sided(convergence.confidence).unwrap_or(1.96);
             let p = m.clamp(0.0, 1.0);
             let target_lin = convergence.delta * p.max(1.0e-12);
-            let eps_lin = crate::mc::stats::half_width_wald(p, bits_done, z)
-                .unwrap_or(f64::NAN);
+            let eps_lin = crate::mc::stats::half_width_wald(p, bits_done, z).unwrap_or(f64::NAN);
             let eps_log = crate::mc::stats::half_width_log10_wald(p, bits_done, z, 1.0e-12)
                 .unwrap_or(f64::NAN);
 
@@ -362,11 +358,14 @@ impl<'a> DpMonteCarloAnalysis<'a> {
         };
 
         match vrt.mode {
-            VrtMode::None => self.run_gpu_with_watch_and_convergence::<R>(device, watch, convergence),
+            VrtMode::None => {
+                self.run_gpu_with_watch_and_convergence::<R>(device, watch, convergence)
+            }
             VrtMode::ImportanceSampling => {
                 if convergence.enabled {
                     return Err(crate::error::PraxisError::Settings(
-                        "VRT cannot currently be combined with early-stop convergence on GPU".to_string(),
+                        "VRT cannot currently be combined with early-stop convergence on GPU"
+                            .to_string(),
                     ));
                 }
                 self.run_gpu_importance_sampling::<R>(device, num_trials, watch, vrt)
@@ -374,7 +373,8 @@ impl<'a> DpMonteCarloAnalysis<'a> {
             VrtMode::StratifiedSampling => {
                 if convergence.enabled {
                     return Err(crate::error::PraxisError::Settings(
-                        "VRT cannot currently be combined with early-stop convergence on GPU".to_string(),
+                        "VRT cannot currently be combined with early-stop convergence on GPU"
+                            .to_string(),
                     ));
                 }
                 self.run_gpu_stratified_sampling::<R>(device, num_trials, watch, vrt)
@@ -515,12 +515,7 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
                 pb.set_message(format!(
                     "trials {}/{}  p̂={:.6e}  CI95=[{:.3e},{:.3e}]{}",
-                    total_trials_done,
-                    total_trials_requested,
-                    p_hat,
-                    ci_low,
-                    ci_high,
-                    vram_msg
+                    total_trials_done, total_trials_requested, p_hat, ci_low, ci_high, vram_msg
                 ));
                 pb.inc(1);
             }
@@ -721,7 +716,6 @@ impl<'a> DpMonteCarloAnalysis<'a> {
             built.key,
             &selected_nodes,
             |words, t_counter| {
-
                 for bp in 0..bp_count {
                     let base = bp * num_selected;
                     let root_word = words[base];
@@ -770,7 +764,9 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
                     let thr = t0
                         .as_ref()
-                        .map(|t| crate::mc::core::format_bits_per_sec(samples_done as u64, t.elapsed()))
+                        .map(|t| {
+                            crate::mc::core::format_bits_per_sec(samples_done as u64, t.elapsed())
+                        })
                         .unwrap_or_else(|| "0.00 Mbit/s".to_string());
                     let vram = vram_tracker.sample();
                     let vram_msg = vram
@@ -899,11 +895,9 @@ impl<'a> DpMonteCarloAnalysis<'a> {
         let pb = if watch {
             let pb = ProgressBar::new((params.t as u64).max(1));
             pb.set_style(
-                ProgressStyle::with_template(
-                    "mc [{bar:40.cyan/blue}] {pos}/{len} it {msg}",
-                )
-                .unwrap()
-                .progress_chars("##-"),
+                ProgressStyle::with_template("mc [{bar:40.cyan/blue}] {pos}/{len} it {msg}")
+                    .unwrap()
+                    .progress_chars("##-"),
             );
             pb.enable_steady_tick(std::time::Duration::from_millis(120));
             Some(pb)
@@ -974,8 +968,8 @@ impl<'a> DpMonteCarloAnalysis<'a> {
                         .unwrap_or(1.96);
                     let p = p_hat.clamp(0.0, 1.0);
                     let target_lin = convergence.delta * p.max(1.0e-12);
-                    let eps_lin = crate::mc::stats::half_width_wald(p, bits_done, z)
-                        .unwrap_or(f64::NAN);
+                    let eps_lin =
+                        crate::mc::stats::half_width_wald(p, bits_done, z).unwrap_or(f64::NAN);
                     let eps_log = crate::mc::stats::half_width_log10_wald(p, bits_done, z, 1.0e-12)
                         .unwrap_or(f64::NAN);
 
@@ -1009,7 +1003,8 @@ impl<'a> DpMonteCarloAnalysis<'a> {
                 }
             }
 
-            let tallies = tallies_acc.unwrap_or_else(|| vec![0u64; built.soa.layout.num_nodes as usize]);
+            let tallies =
+                tallies_acc.unwrap_or_else(|| vec![0u64; built.soa.layout.num_nodes as usize]);
             (tallies, iters_done)
         } else {
             let mut gpu_context = FtGpuContext::<R>::new(
@@ -1334,9 +1329,11 @@ impl<'a> DpMonteCarloAnalysis<'a> {
             let total_iters = built.plan.params.t as u64;
             let pb = ProgressBar::new(total_iters.max(1));
             pb.set_style(
-                ProgressStyle::with_template("mc [VRT=IS] [{bar:40.cyan/blue}] {pos}/{len} it {msg}")
-                    .unwrap()
-                    .progress_chars("##-"),
+                ProgressStyle::with_template(
+                    "mc [VRT=IS] [{bar:40.cyan/blue}] {pos}/{len} it {msg}",
+                )
+                .unwrap()
+                .progress_chars("##-"),
             );
             pb.enable_steady_tick(std::time::Duration::from_millis(120));
             Some(pb)
@@ -1480,14 +1477,7 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
                 pb.set_message(format!(
                     "trials {}/{}  p̂={:.6e}  ESS≈{:.1}  CI95=[{:.3e},{:.3e}]  thr={}{}",
-                    samples_done,
-                    total_trials_requested,
-                    p_hat,
-                    ess,
-                    ci_low,
-                    ci_high,
-                    thr,
-                    mem_msg
+                    samples_done, total_trials_requested, p_hat, ess, ci_low, ci_high, thr, mem_msg
                 ));
                 pb.inc(1);
             }
@@ -1535,7 +1525,9 @@ impl<'a> DpMonteCarloAnalysis<'a> {
         full_ranges: &[u32],
         total_trials_requested: usize,
     ) -> Result<u64> {
-        if thresholds.len() != built.soa.event_nodes.len() || full_ranges.len() != built.soa.event_nodes.len() {
+        if thresholds.len() != built.soa.event_nodes.len()
+            || full_ranges.len() != built.soa.event_nodes.len()
+        {
             return Err(crate::error::PraxisError::Logic(
                 "thresholds/full_ranges length mismatch".to_string(),
             ));
@@ -1565,15 +1557,8 @@ impl<'a> DpMonteCarloAnalysis<'a> {
                         let node = node.unsigned_abs() as usize;
                         let thr = thresholds[event_ord];
                         let full = full_ranges[event_ord] != 0u32;
-                        view[node] = sample_event_word(
-                            event_ord as u32,
-                            p,
-                            b,
-                            t_counter,
-                            key,
-                            thr,
-                            full,
-                        );
+                        view[node] =
+                            sample_event_word(event_ord as u32, p, b, t_counter, key, thr, full);
                     }
                 }
             }
@@ -1680,9 +1665,11 @@ impl<'a> DpMonteCarloAnalysis<'a> {
         let progress = if watch {
             let pb = ProgressBar::new(num_strata as u64);
             pb.set_style(
-                ProgressStyle::with_template("mc [VRT=strat] [{bar:40.cyan/blue}] {pos}/{len} strata {msg}")
-                    .unwrap()
-                    .progress_chars("##-"),
+                ProgressStyle::with_template(
+                    "mc [VRT=strat] [{bar:40.cyan/blue}] {pos}/{len} strata {msg}",
+                )
+                .unwrap()
+                .progress_chars("##-"),
             );
             pb.enable_steady_tick(std::time::Duration::from_millis(120));
             Some(pb)
@@ -1752,12 +1739,7 @@ impl<'a> DpMonteCarloAnalysis<'a> {
                     .unwrap_or_default();
                 pb.set_message(format!(
                     "trials {}/{}  p̂={:.6e}  CI95=[{:.3e},{:.3e}]{}",
-                    total_trials_done,
-                    total_trials_requested,
-                    p_hat,
-                    ci_low,
-                    ci_high,
-                    mem_msg
+                    total_trials_done, total_trials_requested, p_hat, ci_low, ci_high, mem_msg
                 ));
                 pb.inc(1);
             }
@@ -1808,11 +1790,9 @@ impl<'a> DpMonteCarloAnalysis<'a> {
             let total_iters = built.plan.params.t as u64;
             let pb = ProgressBar::new(total_iters);
             pb.set_style(
-                ProgressStyle::with_template(
-                    "mc [{bar:40.cyan/blue}] {pos}/{len} it {msg}",
-                )
-                .unwrap()
-                .progress_chars("##-"),
+                ProgressStyle::with_template("mc [{bar:40.cyan/blue}] {pos}/{len} it {msg}")
+                    .unwrap()
+                    .progress_chars("##-"),
             );
             pb.enable_steady_tick(std::time::Duration::from_millis(120));
             Some(pb)
@@ -1948,11 +1928,7 @@ impl<'a> DpMonteCarloAnalysis<'a> {
                 let bits_done = tallies.bits_total();
                 let root_node = built.plan.root;
                 let root = root_node.unsigned_abs() as usize;
-                let mut successes = tallies
-                    .ones_by_node()
-                    .get(root)
-                    .copied()
-                    .unwrap_or(0u64);
+                let mut successes = tallies.ones_by_node().get(root).copied().unwrap_or(0u64);
                 if root_node < 0 {
                     successes = bits_done.saturating_sub(successes);
                 }
@@ -1967,8 +1943,8 @@ impl<'a> DpMonteCarloAnalysis<'a> {
                     .unwrap_or(1.96);
                 let p = p_hat.clamp(0.0, 1.0);
                 let target_lin = convergence.delta * p.max(1.0e-12);
-                let eps_lin = crate::mc::stats::half_width_wald(p, bits_done, z)
-                    .unwrap_or(f64::NAN);
+                let eps_lin =
+                    crate::mc::stats::half_width_wald(p, bits_done, z).unwrap_or(f64::NAN);
                 let eps_log = crate::mc::stats::half_width_log10_wald(p, bits_done, z, 1.0e-12)
                     .unwrap_or(f64::NAN);
 

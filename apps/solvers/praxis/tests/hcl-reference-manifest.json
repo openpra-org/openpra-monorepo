@@ -1,0 +1,323 @@
+{
+  "version": 1,
+  "hashEncoding": "UTF-8 text with CRLF normalized to LF",
+  "files": {
+    "apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/hclMhSource.json": "9f8f4a10a822c055a37e5a423b9b5566a66170dbd8220c7d7466dd8c2930c828",
+    "apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/hclMhSource.py": "c525596ff5b14256ae896ef5d97060ce129db253cd151de89143119882e11703",
+    "apps/solvers/praxis/tests/data/hcl_legacy/lazy_k5/BN.xdsl": "aeea14ce8b16db77c4376b4c20a0e25495fb12a6df04247c8afd4dbdcf2029de",
+    "apps/solvers/praxis/tests/data/hcl_legacy/lazy_k5/BN_unified.xdsl": "b5a27f75ded6b8cbebe374a7368569f42235492284379f6b7f471a5a04af9c7b",
+    "apps/solvers/praxis/tests/data/hcl_legacy/lazy_k5/FT.xml": "ef5d791ec52f425d18da276197c73ac520a7f811c10611b173e5d973767edb1f",
+    "apps/solvers/praxis/tests/data/hcl_legacy/lazy_k5/mapping.yaml": "98ea8b2bed9b334999fc45de55f2cefc270e8959df76a430c0502a4cc414ae88",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_cpt/generate.py": "eee29dbdf7f0265b33ff6d5456ca0f6457efcef89dc8f4d0acfec4d2cb1d9adc",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_cpt/reference.json": "1a5e2883b9a1ae7a4a59ef962d6cd9c7d4cf4b9ca8b62744ae8afe2aaff5e77f",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_failure_rate/generate.py": "ddfa1a70a96c05f9614e1eb3f9033c3f8c21b57319f08521524336e1397a51d1",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_failure_rate/reference.json": "f047ff7d99adb22267408cffbc6fb20af195d1fb31c64bf7b9c59c096185a8e2",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_hazard/generate.py": "194591bd8bc1d94b9828241bc5378a35288fc725b7737cf66154378f3215c16f",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_hazard/reference.json": "5d196f257bb96a7ca4a4069706f320a9a0f76a9d8f8a3ddf4fdf55ad39ba8759",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_hazard_sweep.json": "24e2cdec37cbd3a96eace39a57dd2961e3d368a91edc098e54d3cc6710b6bf51",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_hazard_sweep.py": "cbadabae78ee53e1b8f2c02be76b6d858c850e069f6dfc5774d4c4b1a3f11d91",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_seismic/generate.py": "4412360f4b0dce23fb17236913ebc97f4f1253e9576f3e64abf9965e9fb8707b",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_seismic/reference.json": "519fa9109a2b66589afe58b92ea733e2fdb08db644ce2d82381dec48a7e9e724",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_source.py": "f89dc6d2ee3cfbc34d7bb88dc22e377219048e65531be9bbba0512a3a22ac29b",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_summaries/generate.py": "776694678db3428d5692b92d2a50928cb48bcd855dac72cd2a8e23bebdba4f73",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_summaries/reference.json": "896f1e7285584155b86039cd4dcf748d8ea269d657a0c84ff505d855439a479e",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_uq/generate.py": "e24a2e4dcea4790a361eed1379aa563f7ad179b9f5be2df99fe53a87fbba3f07",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_uq/reference.json": "4a6ed53514618638a25efe25b5860cccb3da7806bbf7cee605a1b16d2d9fba7f",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Case_1/BN.xdsl": "d6fdd0720003fdb92af6e3364894af6aa8f0e079aa88b802bf94cd25554f2c6d",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Case_2/BN.xdsl": "fc2a1aefe2c40ae189abd368f0a233e5b23b48af0fdd8b9a653861db5d52277b",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Case_3/BN.xdsl": "057bebc75fa72064d594a0d297df5f2a5e5edd70307cf8efd7031e3ff62316e4",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Case_4/BN.xdsl": "f7399eb6015e6c592c648e82d6284532e03dd41badb1e2254eaa46a83533f92f",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Generic_HFE.xdsl": "4bb90fdaea78fdd459cc9064b8a68813838f9f5a1079eda888a7b6b4fea3ddfd",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/reference.json": "87ed92824bd9f7352ba4eb65059314d039015e56493a3e8ec9b53afca2ad7869",
+    "apps/solvers/praxis-node/test/fixtures/annual-statistics/generate.py": "f660a1e861e855e10ccf1cc231dc1223ced37c148c97e810cb9bebbaba232e4b",
+    "apps/solvers/praxis-node/test/fixtures/annual-statistics/reference.json": "2585b26863cce0cb64503d225d26b310b5af33aec9114278b3a3d345df57eb3d",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_distribution_domain/generate.py": "d24f3f33f9ce122e973e67f453762ecdf934d6c46abb3e01ae2d81514a1675c4",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_distribution_domain/reference-linux.json": "8fe0c588075ddd80e79d6b86fca77ea8ab1e84589fd56f7c71901c7ff56c7c13",
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_distribution_domain/reference-windows.json": "42b990783a80a1da742af11c49982ffea72cd7534d97a7be59d9f77ff05e26a3"
+  },
+  "sourceReferences": {
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_cpt/reference.json": [
+      {
+        "path": "resources/HCL_MH/oracle/bn_path_oracle.py",
+        "sha256": "0496cfb7a1a4f3f6a483766c3bd950566fd540290952bc716fc4b7aeefa2f444",
+        "sha256Lf": "f4ffacdbb56f66084fb54d1bd9e5abfb1d6e2be513fb81030ca50a9c155d40e1",
+        "metadataKey": [
+          "source_sha256",
+          "oracle/bn_path_oracle.py"
+        ]
+      },
+      {
+        "path": "resources/HCL_MH/engines/bdd_vec_shannon.py",
+        "sha256": "d9e02bb3eb752af1ed8116ab3c51814143ec06b34b054fe4b9b393229a087715",
+        "sha256Lf": "1e4f36f1bd8a6150a2dae2708b2a1504c2dbe06d0698e7eb5d8ca485449e3f52",
+        "metadataKey": [
+          "source_sha256",
+          "engines/bdd_vec_shannon.py"
+        ]
+      },
+      {
+        "path": "resources/HCL_MH/uq/basic_event_models.py",
+        "sha256": "e00823967f5397ee89e588b64abcc70b08cac16ff65f7e2cc4ba292fb379db98",
+        "sha256Lf": "8953a825508d10a81244acd4cfddde4e70700316e443c0663b2a0609661d7d2e",
+        "metadataKey": [
+          "source_sha256",
+          "uq/basic_event_models.py"
+        ]
+      }
+    ],
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_failure_rate/reference.json": [
+      {
+        "path": "resources/HCL_MH/uq/basic_event_models.py",
+        "sha256": "e00823967f5397ee89e588b64abcc70b08cac16ff65f7e2cc4ba292fb379db98",
+        "sha256Lf": "8953a825508d10a81244acd4cfddde4e70700316e443c0663b2a0609661d7d2e",
+        "metadataKey": [
+          "source_sha256"
+        ]
+      }
+    ],
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_hazard/reference.json": [
+      {
+        "path": "resources/HCL_MH/utils/ft_gui_builder_pkg/hcl/hazard_sweep.py",
+        "sha256": "5eb763256f8aa99321a347337dff056b852bef63003c1519538d9784cda1a106",
+        "sha256Lf": "86398e3556f0812651fb9077d2fca734cc6094927a09b9507bba51affdf49dd9",
+        "metadataKey": [
+          "source_sha256",
+          "utils/ft_gui_builder_pkg/hcl/hazard_sweep.py"
+        ]
+      },
+      {
+        "path": "resources/HCL_MH/utils/ft_gui_builder_pkg/hcl/hazard_convolution.py",
+        "sha256": "5689f7a773a67f2332279e3ba3e342ef53824b2f064efde2ebdb7abd3f0f5853",
+        "sha256Lf": "1e59c4a67064f07b78c9505b0bcd3a5d234716985c5e96774d94c0610c370271",
+        "metadataKey": [
+          "source_sha256",
+          "utils/ft_gui_builder_pkg/hcl/hazard_convolution.py"
+        ]
+      },
+      {
+        "path": "resources/HCL_MH/engines/bdd_vec_shannon.py",
+        "sha256": "d9e02bb3eb752af1ed8116ab3c51814143ec06b34b054fe4b9b393229a087715",
+        "sha256Lf": "1e4f36f1bd8a6150a2dae2708b2a1504c2dbe06d0698e7eb5d8ca485449e3f52",
+        "metadataKey": [
+          "source_sha256",
+          "engines/bdd_vec_shannon.py"
+        ]
+      }
+    ],
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_hazard_sweep.json": [
+      {
+        "path": "resources/HCL_MH/utils/ft_gui_builder_pkg/hcl/hazard_sweep.py",
+        "sha256": "5eb763256f8aa99321a347337dff056b852bef63003c1519538d9784cda1a106",
+        "sha256Lf": "86398e3556f0812651fb9077d2fca734cc6094927a09b9507bba51affdf49dd9",
+        "metadataKey": [
+          "sha256"
+        ]
+      }
+    ],
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_seismic/reference.json": [
+      {
+        "path": "resources/HCL_MH/oracle/bn_path_oracle.py",
+        "sha256": "0496cfb7a1a4f3f6a483766c3bd950566fd540290952bc716fc4b7aeefa2f444",
+        "sha256Lf": "f4ffacdbb56f66084fb54d1bd9e5abfb1d6e2be513fb81030ca50a9c155d40e1",
+        "metadataKey": [
+          "source_sha256",
+          "oracle/bn_path_oracle.py"
+        ]
+      },
+      {
+        "path": "resources/HCL_MH/engines/bdd_vec_shannon.py",
+        "sha256": "d9e02bb3eb752af1ed8116ab3c51814143ec06b34b054fe4b9b393229a087715",
+        "sha256Lf": "1e4f36f1bd8a6150a2dae2708b2a1504c2dbe06d0698e7eb5d8ca485449e3f52",
+        "metadataKey": [
+          "source_sha256",
+          "engines/bdd_vec_shannon.py"
+        ]
+      }
+    ],
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_summaries/reference.json": [
+      {
+        "path": "resources/HCL_MH/utils/ft_gui_builder_pkg/hcl/runner.py",
+        "sha256": "d6089725c562bd04810626679a9ccd7dc96c0da3d34a1f64a9b65f80d36f8a88",
+        "sha256Lf": "8aa415e012886905d8b91db1a507bb3a5be06e362497cff0d1ce5ada19a57fc3",
+        "metadataKey": [
+          "source_sha256",
+          "utils/ft_gui_builder_pkg/hcl/runner.py"
+        ]
+      },
+      {
+        "path": "resources/HCL_MH/utils/ft_gui_builder_pkg/quant.py",
+        "sha256": "1e3e15f4503d405f83037ec9ea72f108531061c8946b602738bd555e9a09e597",
+        "sha256Lf": "b5c3f2b6946760d0fa22002f9768ba6fd577f58253f4b3e0bd4d2bd5965050d5",
+        "metadataKey": [
+          "source_sha256",
+          "utils/ft_gui_builder_pkg/quant.py"
+        ]
+      }
+    ],
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_uq/reference.json": [
+      {
+        "path": "resources/HCL_MH/uq/basic_event_models.py",
+        "sha256": "e00823967f5397ee89e588b64abcc70b08cac16ff65f7e2cc4ba292fb379db98",
+        "sha256Lf": "8953a825508d10a81244acd4cfddde4e70700316e443c0663b2a0609661d7d2e",
+        "metadataKey": [
+          "source_sha256",
+          "uq/basic_event_models.py"
+        ]
+      },
+      {
+        "path": "resources/HCL_MH/utils/ft_gui_builder_pkg/hcl/runner.py",
+        "sha256": "d6089725c562bd04810626679a9ccd7dc96c0da3d34a1f64a9b65f80d36f8a88",
+        "sha256Lf": "8aa415e012886905d8b91db1a507bb3a5be06e362497cff0d1ce5ada19a57fc3",
+        "metadataKey": [
+          "source_sha256",
+          "utils/ft_gui_builder_pkg/hcl/runner.py"
+        ]
+      },
+      {
+        "path": "resources/HCL_MH/engines/bdd_vec_shannon.py",
+        "sha256": "d9e02bb3eb752af1ed8116ab3c51814143ec06b34b054fe4b9b393229a087715",
+        "sha256Lf": "1e4f36f1bd8a6150a2dae2708b2a1504c2dbe06d0698e7eb5d8ca485449e3f52",
+        "metadataKey": [
+          "source_sha256",
+          "engines/bdd_vec_shannon.py"
+        ]
+      }
+    ],
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/reference.json": [
+      {
+        "path": "resources/HCL_MH/tests/validate_hcl_point/Case_1/BN.xdsl",
+        "sha256": "b2839aa8e906961a7262076cf298f3b9abc2ea118700229f4fed34ac3467309b",
+        "sha256Lf": "d6fdd0720003fdb92af6e3364894af6aa8f0e079aa88b802bf94cd25554f2c6d",
+        "metadataKey": [
+          "source_sha256",
+          "tests/validate_hcl_point/Case_1/BN.xdsl"
+        ],
+        "copy": "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Case_1/BN.xdsl"
+      },
+      {
+        "path": "resources/HCL_MH/tests/validate_hcl_point/Case_2/BN.xdsl",
+        "sha256": "37cd320e9a1c648a6c682a4133f66670663a08aa9b22adcc942fb73d5cc0839f",
+        "sha256Lf": "fc2a1aefe2c40ae189abd368f0a233e5b23b48af0fdd8b9a653861db5d52277b",
+        "metadataKey": [
+          "source_sha256",
+          "tests/validate_hcl_point/Case_2/BN.xdsl"
+        ],
+        "copy": "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Case_2/BN.xdsl"
+      },
+      {
+        "path": "resources/HCL_MH/tests/validate_hcl_point/Case_3/BN.xdsl",
+        "sha256": "9773624f7ee7ab949dabcea0cee915f939ee5f991d1a97bd065285dd4ff6b8bb",
+        "sha256Lf": "057bebc75fa72064d594a0d297df5f2a5e5edd70307cf8efd7031e3ff62316e4",
+        "metadataKey": [
+          "source_sha256",
+          "tests/validate_hcl_point/Case_3/BN.xdsl"
+        ],
+        "copy": "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Case_3/BN.xdsl"
+      },
+      {
+        "path": "resources/HCL_MH/tests/validate_hcl_point/Case_4/BN.xdsl",
+        "sha256": "80334527640eeda0610f1a05685d3821cd56dcf9eb19029f8be9e31560682fac",
+        "sha256Lf": "f7399eb6015e6c592c648e82d6284532e03dd41badb1e2254eaa46a83533f92f",
+        "metadataKey": [
+          "source_sha256",
+          "tests/validate_hcl_point/Case_4/BN.xdsl"
+        ],
+        "copy": "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Case_4/BN.xdsl"
+      },
+      {
+        "path": "resources/HCL_MH/MH-BN/network_builder/templates/hra/Generic_HFE.xdsl",
+        "sha256": "5fab36707f7f6b05193a02995e9c123c68925ef29f2b6194ea1ca4d74dda17bc",
+        "sha256Lf": "4bb90fdaea78fdd459cc9064b8a68813838f9f5a1079eda888a7b6b4fea3ddfd",
+        "metadataKey": [
+          "source_sha256",
+          "MH-BN/network_builder/templates/hra/Generic_HFE.xdsl"
+        ],
+        "copy": "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Generic_HFE.xdsl"
+      }
+    ],
+    "apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/hclMhSource.json": [
+      {
+        "path": "resources/HCL_MH/MH-BN/network_builder/builders/hra.py",
+        "sha256": "76bbd52c9c8e4b1c651bc9c0dfb20baba5752b6be16868f24971a79d2f86ed56",
+        "sha256Lf": "7d96b5d2a8d95300889e531eb11c9dd01ce4aa65fcf35f54cc7a9649427330b8",
+        "metadataKey": [
+          "sources",
+          "resources/HCL_MH/MH-BN/network_builder/builders/hra.py"
+        ]
+      },
+      {
+        "path": "resources/HCL_MH/utils/ft_gui_builder_pkg/bn/model.py",
+        "sha256": "1000e4eee1928b7ffadd52fad2aecaacf7d3f0ea8e5b75be3de5a5bb988a6571",
+        "sha256Lf": "2cbca5f326dabef8bf3b888e3ea5f150f2661dd9727f1e469c738eb2b5d377be",
+        "metadataKey": [
+          "sources",
+          "resources/HCL_MH/utils/ft_gui_builder_pkg/bn/model.py"
+        ]
+      },
+      {
+        "path": "resources/HCL_MH/utils/ft_gui_builder_pkg/bn/panel.py",
+        "sha256": "7d5153f2030ec592a7362a23bc3fbb7f2a0e2ce913b8e1b2608263544c2f8577",
+        "sha256Lf": "b15b38cb18fc42baf7111d09dd4cf28173c3246f80610b61e241e6ef26c2f0e2",
+        "metadataKey": [
+          "sources",
+          "resources/HCL_MH/utils/ft_gui_builder_pkg/bn/panel.py"
+        ]
+      },
+      {
+        "path": "resources/HCL_MH/MH-BN/network_builder/templates/hra/Generic_HFE.xdsl",
+        "sha256": "5fab36707f7f6b05193a02995e9c123c68925ef29f2b6194ea1ca4d74dda17bc",
+        "sha256Lf": "4bb90fdaea78fdd459cc9064b8a68813838f9f5a1079eda888a7b6b4fea3ddfd",
+        "metadataKey": [
+          "sources",
+          "resources/HCL_MH/MH-BN/network_builder/templates/hra/Generic_HFE.xdsl"
+        ]
+      }
+    ],
+    "apps/solvers/praxis-node/test/fixtures/annual-statistics/reference.json": [
+      {
+        "path": "resources/HCL_MH/utils/ft_gui_builder_pkg/hcl/runner.py",
+        "sha256": "d6089725c562bd04810626679a9ccd7dc96c0da3d34a1f64a9b65f80d36f8a88",
+        "sha256Lf": "8aa415e012886905d8b91db1a507bb3a5be06e362497cff0d1ce5ada19a57fc3",
+        "metadataKey": [
+          "source_sha256"
+        ]
+      }
+    ],
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_distribution_domain/reference-linux.json": [
+      {
+        "path": "resources/HCL_MH/uq/basic_event_models.py",
+        "sha256": "e00823967f5397ee89e588b64abcc70b08cac16ff65f7e2cc4ba292fb379db98",
+        "sha256Lf": "8953a825508d10a81244acd4cfddde4e70700316e443c0663b2a0609661d7d2e",
+        "metadataKey": [
+          "source_sha256"
+        ]
+      }
+    ],
+    "apps/solvers/praxis/tests/fixtures/hcl_mh_distribution_domain/reference-windows.json": [
+      {
+        "path": "resources/HCL_MH/uq/basic_event_models.py",
+        "sha256": "e00823967f5397ee89e588b64abcc70b08cac16ff65f7e2cc4ba292fb379db98",
+        "sha256Lf": "8953a825508d10a81244acd4cfddde4e70700316e443c0663b2a0609661d7d2e",
+        "metadataKey": [
+          "source_sha256"
+        ]
+      }
+    ]
+  },
+  "dependencies": [
+    {
+      "fixture": "apps/solvers/praxis/tests/fixtures/hcl_mh_summaries/reference.json",
+      "key": "cpt",
+      "input": "apps/solvers/praxis/tests/fixtures/hcl_mh_cpt/reference.json",
+      "sha256": "f8fb57e57b49a7cfb82caad75a538da7b02fc2aab5dada259b55f95053bda94b",
+      "sha256Lf": "1a5e2883b9a1ae7a4a59ef962d6cd9c7d4cf4b9ca8b62744ae8afe2aaff5e77f"
+    },
+    {
+      "fixture": "apps/solvers/praxis/tests/fixtures/hcl_mh_summaries/reference.json",
+      "key": "seismic",
+      "input": "apps/solvers/praxis/tests/fixtures/hcl_mh_seismic/reference.json",
+      "sha256": "2c1b6412e13bb3114bd106823c8b85d9c2ca16f5a1e023f13ac58ebbdd8dc552",
+      "sha256Lf": "519fa9109a2b66589afe58b92ea733e2fdb08db644ce2d82381dec48a7e9e724"
+    }
+  ]
+}

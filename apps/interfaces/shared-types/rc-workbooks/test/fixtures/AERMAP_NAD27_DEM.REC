@@ -1,0 +1,88 @@
+** AERMAP - VERSION 24142                                              09/23/24
+**                                                                     10:41:40
+**  Using 10m NAD27 NW Durham DEM Data File
+**  With NAD27 Anchor Point
+** A total of       1  DEM files were used
+** A total of     180  receptors were processed
+** DOMAINXY  683500.0 3990500.0 17  686500.0 3993500.0 17
+** ANCHORXY  0.0      0.0     685000.0  3992000.0  17  1
+** Terrain heights were extracted by default
+  
+RE ELEVUNIT METERS
+   GRIDPOLR POL1 STA
+            POL1 ORIG   0.0   0.0
+            POL1 DIST   100.   200.   300.   500.   1000.
+            POL1 GDIR   36     10.    10.
+   GRIDPOLR POL1     ELEV    1    120.3    123.8    128.5    140.8    129.6
+   GRIDPOLR POL1     ELEV    2    122.1    126.8    132.1    143.8    131.3
+   GRIDPOLR POL1     ELEV    3    123.3    130.2    132.3    140.4    126.2
+   GRIDPOLR POL1     ELEV    4    124.2    131.8    131.7    133.7    128.8
+   GRIDPOLR POL1     ELEV    5    124.5    130.4    127.2    127.9    128.5
+   GRIDPOLR POL1     ELEV    6    124.0    128.1    124.0    125.4    119.4
+   GRIDPOLR POL1     ELEV    7    121.9    124.4    121.5    121.5    105.0
+   GRIDPOLR POL1     ELEV    8    119.4    121.4    122.1    117.9     98.9
+   GRIDPOLR POL1     ELEV    9    117.4    117.5    122.0    117.5    104.5
+   GRIDPOLR POL1     ELEV   10    117.9    118.0    113.5    114.9    107.1
+   GRIDPOLR POL1     ELEV   11    120.8    124.7    119.5    113.1    117.3
+   GRIDPOLR POL1     ELEV   12    125.4    128.1    119.3    109.4    120.7
+   GRIDPOLR POL1     ELEV   13    128.8    131.4    127.2    109.2    122.6
+   GRIDPOLR POL1     ELEV   14    130.2    133.7    128.2    109.7    124.8
+   GRIDPOLR POL1     ELEV   15    130.6    135.6    130.1    117.4    128.6
+   GRIDPOLR POL1     ELEV   16    129.9    138.8    134.9    127.0    125.5
+   GRIDPOLR POL1     ELEV   17    130.4    141.6    139.3    137.2    123.1
+   GRIDPOLR POL1     ELEV   18    130.0    140.6    141.6    139.8    135.1
+   GRIDPOLR POL1     ELEV   19    127.3    134.9    141.2    130.9    155.7
+   GRIDPOLR POL1     ELEV   20    124.8    129.3    141.7    140.4    158.4
+   GRIDPOLR POL1     ELEV   21    121.9    128.7    140.6    140.5    143.9
+   GRIDPOLR POL1     ELEV   22    119.6    126.0    136.3    132.9    145.3
+   GRIDPOLR POL1     ELEV   23    119.2    120.6    129.3    130.2    145.4
+   GRIDPOLR POL1     ELEV   24    120.5    125.0    123.1    128.3    149.7
+   GRIDPOLR POL1     ELEV   25    121.9    129.0    131.6    134.5    149.4
+   GRIDPOLR POL1     ELEV   26    123.9    129.7    136.5    133.2    137.1
+   GRIDPOLR POL1     ELEV   27    126.4    127.5    134.8    137.5    142.6
+   GRIDPOLR POL1     ELEV   28    128.6    127.1    128.4    140.6    133.7
+   GRIDPOLR POL1     ELEV   29    130.1    129.0    130.5    134.4    128.8
+   GRIDPOLR POL1     ELEV   30    129.7    133.2    131.3    139.2    128.1
+   GRIDPOLR POL1     ELEV   31    128.1    137.7    136.0    142.5    133.2
+   GRIDPOLR POL1     ELEV   32    126.3    138.2    140.6    141.5    135.1
+   GRIDPOLR POL1     ELEV   33    125.9    135.6    139.6    139.4    128.2
+   GRIDPOLR POL1     ELEV   34    125.7    132.2    133.6    136.7    128.8
+   GRIDPOLR POL1     ELEV   35    123.8    127.5    128.0    137.7    124.1
+   GRIDPOLR POL1     ELEV   36    119.5    122.3    127.0    142.8    126.3
+   GRIDPOLR POL1     HILL    1    141.0    130.3    141.1    140.8    129.6
+   GRIDPOLR POL1     HILL    2    132.0    131.1    132.1    143.8    131.3
+   GRIDPOLR POL1     HILL    3    132.0    130.2    132.3    140.4    126.2
+   GRIDPOLR POL1     HILL    4    132.0    131.8    131.7    133.7    128.8
+   GRIDPOLR POL1     HILL    5    132.0    130.4    131.3    127.9    128.5
+   GRIDPOLR POL1     HILL    6    132.0    131.8    124.0    125.4    122.0
+   GRIDPOLR POL1     HILL    7    132.0    132.0    125.5    121.5    108.3
+   GRIDPOLR POL1     HILL    8    141.8    132.0    125.9    117.9     98.9
+   GRIDPOLR POL1     HILL    9    142.0    140.3    122.0    117.5    113.3
+   GRIDPOLR POL1     HILL   10    142.0    141.8    134.6    114.9    118.0
+   GRIDPOLR POL1     HILL   11    142.0    130.6    132.1    113.1    119.8
+   GRIDPOLR POL1     HILL   12    142.0    130.6    140.8    109.4    120.7
+   GRIDPOLR POL1     HILL   13    141.1    131.4    131.6    181.3    122.6
+   GRIDPOLR POL1     HILL   14    141.1    133.7    131.8    181.3    124.8
+   GRIDPOLR POL1     HILL   15    141.8    140.8    134.3    181.3    128.6
+   GRIDPOLR POL1     HILL   16    142.0    140.8    134.9    181.3    181.3
+   GRIDPOLR POL1     HILL   17    142.0    141.6    139.3    181.3    181.3
+   GRIDPOLR POL1     HILL   18    142.0    140.6    141.6    181.3    181.3
+   GRIDPOLR POL1     HILL   19    142.0    142.0    141.2    181.3    181.3
+   GRIDPOLR POL1     HILL   20    142.0    142.3    141.7    181.3    158.6
+   GRIDPOLR POL1     HILL   21    142.0    142.1    140.6    181.3    146.0
+   GRIDPOLR POL1     HILL   22    142.1    142.3    140.1    181.3    149.8
+   GRIDPOLR POL1     HILL   23    142.0    142.3    141.1    181.3    150.3
+   GRIDPOLR POL1     HILL   24    142.0    131.5    141.6    140.1    149.7
+   GRIDPOLR POL1     HILL   25    141.8    129.0    138.1    134.5    149.4
+   GRIDPOLR POL1     HILL   26    137.6    131.3    137.1    133.2    140.8
+   GRIDPOLR POL1     HILL   27    137.5    132.6    137.3    137.5    143.8
+   GRIDPOLR POL1     HILL   28    137.5    138.3    140.1    140.6    147.6
+   GRIDPOLR POL1     HILL   29    136.3    140.3    132.3    134.4    128.8
+   GRIDPOLR POL1     HILL   30    137.6    138.8    136.3    139.2    128.1
+   GRIDPOLR POL1     HILL   31    138.3    138.1    138.8    142.5    140.3
+   GRIDPOLR POL1     HILL   32    140.8    140.3    140.6    141.5    137.1
+   GRIDPOLR POL1     HILL   33    141.0    140.6    140.8    139.4    128.2
+   GRIDPOLR POL1     HILL   34    140.8    141.0    144.5    136.7    128.8
+   GRIDPOLR POL1     HILL   35    141.0    141.1    144.6    137.7    128.1
+   GRIDPOLR POL1     HILL   36    141.6    143.8    127.0    142.8    127.5
+   GRIDPOLR POL1 END

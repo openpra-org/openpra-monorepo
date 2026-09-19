@@ -8,7 +8,6 @@ use praxis::core::model::Model;
 
 #[test]
 fn test_simple_ie_with_fault_tree() {
-
     let mut model = Model::new("GasLeakModel".to_string()).unwrap();
 
     let cpu = BasicEvent::new("CPU".to_string(), 0.05).unwrap();

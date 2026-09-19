@@ -1,3 +1,4 @@
+import { stringifyJson } from "interfaces-shared-types/json";
 import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
@@ -522,7 +523,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
   const { da } = useDaWorkbook();
   const ready = scores.blocked === 0 && scores.warn === 0;
   function downloadJson(): void {
-    const blob = new Blob([JSON.stringify(da, null, 2)], { type: "application/json" });
+    const blob = new Blob([stringifyJson(da, 2)!], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

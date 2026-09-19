@@ -35,6 +35,7 @@ export function createBlankSy(name: string, owner: string): SystemsAnalysis {
     systemDefinitions: [],
     systemToSafetyFunctionMappings: [],
     systemLogicModels: [],
+    systemBasicEvents: [],
     plantRepresentationAccuracy: {
       scope: "PRE_OPERATIONAL",
       accuracy: ImportanceLevel.MEDIUM,
@@ -49,6 +50,8 @@ export function createBlankSy(name: string, owner: string): SystemsAnalysis {
     },
     systemDependencies: [],
     componentDependencies: [],
+    dependencyBayesianNetworks: [],
+    dependencyHclConfigurations: [],
     dependencySearchMethodology: {
       uuid: randomUUID(),
       name: "Dependency search methodology",

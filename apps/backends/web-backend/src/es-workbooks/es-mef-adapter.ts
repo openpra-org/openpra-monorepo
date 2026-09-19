@@ -8,6 +8,12 @@ import { EsWorkbooksService } from "./es-workbooks.service";
 import { EsWorkbook, type EsWorkbookDocument } from "./es-workbook.schema";
 import { createBlankEs } from "./blank-es";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
+import {
+  assertExpectedWorkbookRevision,
+  createWorkbookRevisionFilter,
+  readWorkbookRevision,
+  workbookRevisionConflict,
+} from "../workbooks/workbook-revision";
 
 @Injectable()
 export class EsMefAdapter implements WorkbookElementAdapter, OnModuleInit {
@@ -28,19 +34,39 @@ export class EsMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     await this.esWorkbookModel.create({ workbookId, projectId, ownerUsername, mef });
   }
 
-  async load(workbookId: string): Promise<{ projectId: string; ownerUsername: string; mef: unknown } | null> {
+  async load(workbookId: string): Promise<{
+    projectId: string;
+    ownerUsername: string;
+    mef: unknown;
+    revision: number;
+  } | null> {
     const doc = await this.esWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) return null;
-    return { projectId: doc.projectId, ownerUsername: doc.ownerUsername, mef: doc.mef };
+    return {
+      projectId: doc.projectId,
+      ownerUsername: doc.ownerUsername,
+      mef: doc.mef,
+      revision: readWorkbookRevision(doc),
+    };
   }
 
-  async save(workbookId: string, mef: unknown): Promise<unknown> {
+  async save(workbookId: string, mef: unknown, expectedRevision?: number): Promise<unknown> {
     const doc = await this.esWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new BadRequestException("ES workbook not found");
+    if (expectedRevision === undefined) {
+      throw new BadRequestException("Expected ES workbook revision is required");
+    }
+    assertExpectedWorkbookRevision(doc, expectedRevision);
     const parsed = EventSequenceAnalysisSchema.safeParse(stripNulls(mef));
     if (!parsed.success) throw new BadRequestException(`Invalid ES workbook payload: ${parsed.error.message}`);
-    doc.mef = parsed.data;
-    await doc.save();
+    const updated = await this.esWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, expectedRevision),
+        { $set: { mef: parsed.data, revision: expectedRevision + 1 } },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updated) throw workbookRevisionConflict(expectedRevision);
     return parsed.data;
   }
 

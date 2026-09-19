@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { createEmptyHazardConditionedMethodModels } from "interfaces-mef-types/hazard-conditioned-models";
 import {
   OTHER_HAZARDS_PRA_SR_CATALOG,
   type OtherHazardsAnalysisRecord,
@@ -51,6 +52,7 @@ export function createBlankOtherHazardsPra(name: string, owner: string): OtherHa
     })),
     internalReviewComments: { comments: [], openCount: 0, resolvedCount: 0 },
     activePeerReviewIds: [], activeAuditIds: [], praScope: "",
+    hazardConditionedModels: createEmptyHazardConditionedMethodModels(),
     analysisBasis: {
       siteBasis: {
         ...analysisRecord("O-SITE-001", "Other Hazards PRA site basis", owner),

@@ -3,7 +3,7 @@ import { HydratedDocument } from "mongoose";
 
 export type RcWorkbookDocument = HydratedDocument<RcWorkbook> & { createdAt: Date; updatedAt: Date };
 
-@Schema({ timestamps: true, collection: "rc_workbooks", minimize: false })
+@Schema({ timestamps: true, collection: "rc_workbooks", minimize: false, optimisticConcurrency: true })
 export class RcWorkbook {
   @Prop({ type: String, required: true, unique: true, index: true })
   workbookId!: string;

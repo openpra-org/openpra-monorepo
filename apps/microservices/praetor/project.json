@@ -35,6 +35,12 @@
     "test": {
       "executor": "@nx/vitest:test",
       "outputs": ["{options.reportsDirectory}"],
+      "dependsOn": [
+        {
+          "projects": ["solvers-praxis-node"],
+          "target": "build"
+        }
+      ],
       "options": {
         "passWithNoTests": true,
         "reportsDirectory": "../../../coverage/apps/microservices/praetor"

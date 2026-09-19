@@ -1,0 +1,66 @@
+/* Step 04 uses the shared workbook buttons, inputs and modal shell. */
+.rc-transport-input-card{width:100%}
+.rc-transport{container-type:inline-size;font:13px/1.45 var(--font-ui),sans-serif;color:var(--color-text);min-width:0;width:100%;overflow-wrap:anywhere}
+.rc-transport *{box-sizing:border-box}
+.rc-transport [hidden]{display:none!important}
+.rc-transport .posnav__btn{white-space:nowrap}
+.rc-transport input,.rc-transport select{min-width:0}
+.rc-transport button:disabled{cursor:default;opacity:.5}
+.rc-transport input[readonly]{background:var(--color-surface-low)}
+.rc-transport input:invalid{border-color:var(--color-error)}
+.rc-transport .at-tabs{display:flex;gap:8px;border-bottom:1px solid var(--color-border);margin-bottom:18px}
+.rc-transport .at-tabs button{font:inherit;color:var(--color-text);cursor:pointer;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:10px 12px}
+.rc-transport .at-tabs button[aria-selected="true"]{border-bottom-color:var(--color-primary);color:var(--color-primary);font-weight:600}
+.rc-transport .at-file{border:1px solid var(--color-border);border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:17px}
+.rc-transport .at-file-info{min-width:0;display:flex;flex-direction:column;gap:4px}
+.rc-transport strong{font-weight:600}
+.rc-transport .at-small{font-size:12px;color:var(--color-text-muted)}
+.rc-transport .at-file-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+.rc-transport h3{font-size:14px;font-weight:600;margin:0 0 9px}
+.rc-transport .at-section-title{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:21px 0 10px;flex-wrap:wrap}
+.rc-transport .at-section-title h3{margin:0}
+.rc-transport label{display:block;font-size:12px;color:var(--color-text-muted);min-width:0}
+.rc-transport label input,.rc-transport label select{display:block;margin-top:5px}
+.rc-transport .at-fields{display:grid;grid-template-columns:minmax(0,180px) minmax(0,240px);gap:16px;margin:14px 0 8px}
+.rc-transport .at-fields input{max-width:160px}
+.rc-transport .at-decay-treatment{max-width:320px}
+.rc-transport .at-decay-file{margin-top:18px}
+.rc-transport .at-parent-record{max-width:560px}
+.rc-transport table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px;font-variant-numeric:tabular-nums}
+.rc-transport th,.rc-transport td{padding:9px 8px;border-bottom:1px solid var(--color-border);text-align:left;vertical-align:middle}
+.rc-transport th{font-weight:600;font-size:12px;color:var(--color-text-muted);background:var(--color-surface-low)}
+.rc-transport .at-bin-table th:first-child{width:15%}
+.rc-transport .at-bin-table th:nth-child(2){width:43%}
+.rc-transport .at-bin-table th:last-child{width:42%}
+.rc-transport .at-numeric{font-variant-numeric:tabular-nums}
+.rc-transport .at-pagination{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:var(--color-text-muted);margin-top:12px}
+.rc-transport .at-pagination div{display:flex;gap:6px}
+.rc-transport details{margin-top:17px;border-top:1px solid var(--color-border);padding-top:12px}
+.rc-transport summary{font-size:12px;color:var(--color-primary);cursor:pointer}
+.rc-transport details table{margin-top:12px}
+.rc-transport .at-note{font-size:12px;color:var(--color-text-muted);margin:10px 0;line-height:1.5}
+.rc-transport .at-readonly{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:12px 0 19px}
+.rc-transport .at-readonly dt{font-size:12px;color:var(--color-text-muted)}
+.rc-transport .at-readonly dd{font-size:13px;margin:4px 0 0}
+.rc-transport .at-reference{border-top:1px solid var(--color-border);padding-top:18px;margin-top:20px}
+.rc-transport .at-coverage{padding:12px;background:var(--color-surface-low);border-radius:8px;margin:17px 0}
+.rc-transport .at-coverage strong{display:block;margin-bottom:4px}
+.rc-transport .at-nuclides{font-size:12px;color:var(--color-text-muted);line-height:1.8;margin:10px 0 0}
+.rc-transport .at-library-list{margin:0 0 16px;padding:0;list-style:none;font-size:12px;color:var(--color-text-muted)}
+.rc-transport .at-library-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0}
+.rc-transport .at-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:25px;padding-top:18px;border-top:1px solid var(--color-border)}
+.rc-transport .at-status{font-size:12px;color:var(--color-text-muted)}
+.rc-transport .at-error{color:var(--color-error);font-size:12px;margin-top:15px}
+.rc-transport pre{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-all;font:12px/1.55 Consolas,monospace;background:var(--color-surface-low);padding:12px;border-radius:4px;margin:12px 0 17px}
+.rc-transport .at-empty{padding:20px 0;color:var(--color-text-muted);font-size:13px}
+.rc-transport .at-category{max-width:400px;margin-bottom:18px}
+.rc-transport .at-raw{max-height:360px;overflow:auto}
+.rc-transport :is(button,input,select,summary):focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}
+.rc-transport .at-library-list li>div{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap}
+.rc-transport .at-footer{flex-wrap:wrap}
+@container(max-width:520px){.rc-transport .at-file{align-items:start;flex-direction:column}.rc-transport .at-tabs{gap:0}.rc-transport .at-tabs button{padding:10px 8px}.rc-transport .at-fields{grid-template-columns:minmax(0,240px)}.rc-transport .at-fields select{max-width:180px}.rc-transport th,.rc-transport td{padding:8px 4px}.rc-transport .at-coefficients th,.rc-transport .at-coefficients td{padding:8px 3px;font-size:12px}.rc-transport .at-readonly{gap:12px}.rc-transport .at-footer{align-items:start}.rc-transport .at-library-list li{align-items:start;flex-wrap:wrap}}
+/* Compact tables inside the existing Step 04 editors. */
+.rc-transport-modal .postable{table-layout:fixed;max-width:560px}
+.rc-transport-modal .postable input{min-width:0}
+.rc-transport-modal .postable th:last-child:empty,.rc-transport-modal .postable td:last-child:has(button){width:86px}
+@media(max-width:520px){.rc-transport-modal .postable th,.rc-transport-modal .postable td{padding:8px 4px}.rc-transport-modal .postable th:last-child:empty,.rc-transport-modal .postable td:last-child:has(button){width:76px}}

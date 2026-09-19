@@ -623,14 +623,19 @@ mod tests {
                 .map(|e| ft.get_basic_event(e).unwrap().probability())
                 .product()
         };
-        let mut expected: Vec<Vec<String>> =
-            full.iter().filter(|s| prob(s) >= cut_off).cloned().collect();
+        let mut expected: Vec<Vec<String>> = full
+            .iter()
+            .filter(|s| prob(s) >= cut_off)
+            .cloned()
+            .collect();
         expected.sort();
         let mut got = truncated.clone();
         got.sort();
         assert_eq!(got, expected);
         assert_eq!(got.len(), 2);
-        assert!(!got.iter().any(|s| s == &vec!["e".to_string(), "f".to_string()]));
+        assert!(!got
+            .iter()
+            .any(|s| s == &vec!["e".to_string(), "f".to_string()]));
     }
 
     #[test]

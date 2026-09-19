@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { SeismicPRA } from "../../seismic/seismic-pra";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
+import { HazardConditionedMethodModelsSchema, createEmptyHazardConditionedMethodModels } from "../hazard-conditioned-models";
 import { BaseModelUncertaintyDocumentationSchema, PreOperationalAssumptionSchema } from "../core/documentation";
 import { ImportanceLevelSchema, SensitivityStudySchema } from "../core/shared-patterns";
 import { SRReferenceSchema } from "../core/pra-common";
@@ -367,6 +368,7 @@ export const SeismicPraExampleDocumentSchema = z.object({
 export const SeismicPRASchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.SEISMIC_PRA).shape,
   praScope: z.string(),
+  hazardConditionedModels: HazardConditionedMethodModelsSchema.default(createEmptyHazardConditionedMethodModels),
   applications: z.array(SeismicPraApplicationSchema),
   evidenceRegister: z.array(SeismicPraEvidenceRecordSchema),
   baselinePra: BaselinePraDefinitionSchema.optional(),

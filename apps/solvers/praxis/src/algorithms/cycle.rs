@@ -11,7 +11,6 @@ pub struct CycleDetector<'a> {
 }
 
 impl<'a> CycleDetector<'a> {
-
     pub fn new(fault_tree: &'a FaultTree) -> Self {
         Self {
             fault_tree,
@@ -21,14 +20,11 @@ impl<'a> CycleDetector<'a> {
     }
 
     pub fn detect(&mut self) -> Result<(), PraxisError> {
-
         self.detect_from_gate(self.fault_tree.top_event())
     }
 
     fn detect_from_gate(&mut self, gate_id: &str) -> Result<(), PraxisError> {
-
         if self.recursion_stack.contains(&gate_id.to_string()) {
-
             let cycle_start = self
                 .recursion_stack
                 .iter()
@@ -190,7 +186,6 @@ mod tests {
 
     #[test]
     fn test_shared_subtree_no_cycle() {
-
         let mut ft = FaultTree::new("FT-1".to_string(), "G1".to_string()).unwrap();
 
         let mut g1 = Gate::new("G1".to_string(), Formula::Or).unwrap();

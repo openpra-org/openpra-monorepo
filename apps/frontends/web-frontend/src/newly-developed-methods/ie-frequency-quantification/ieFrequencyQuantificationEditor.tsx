@@ -1,4 +1,4 @@
-import { JSX, useEffect, useState } from "react";
+import { JSX, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   type FrequencyDataSource,
@@ -7,8 +7,15 @@ import {
   type FrequencyDistributionFamily,
   type FrequencyFaultTreeNode,
 } from "interfaces-mef-types/ie/initiating-event-analysis";
-import { FaultTreeEditor } from "../fault-tree/faultTreeEditor";
-import { type FtInputNode } from "../fault-tree/faultTreeTypes";
+import {
+  FaultTreeEditor,
+  applyFaultTreeOperation,
+  type FaultTreeEditorCapabilities,
+  type FaultTreeEditorCatalogue,
+  type FaultTreeEditorModel,
+  type FaultTreeSelection,
+} from "../fault-tree";
+import { validateFaultTreeModel } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { sourceMean, moduleAdjusted, fmtFreq } from "./frequencyMath";
 import "./css/ieFrequencyQuantification.css";
 
@@ -72,12 +79,366 @@ function nextSourceId(sources: FrequencyDataSource[]): string {
   return `DS-${max + 1}`;
 }
 
-function starterTree(label: string): FtInputNode[] {
-  return [{ id: "TOP", data: { label: label.length > 0 ? label : "Top event", type: "GATE", gate: "OR" } }];
+interface FrequencyFaultTreeSnapshot {
+  model: FaultTreeEditorModel;
+  catalogue: FaultTreeEditorCatalogue;
 }
 
-function toFtNodes(nodes: FrequencyFaultTreeNode[]): FtInputNode[] {
-  return nodes.map((n) => ({ id: n.id, parentId: n.parentId, data: { label: n.label, type: n.nodeType, gate: n.gate, k: n.k, detail: n.detail } }));
+const FREQUENCY_FAULT_TREE_CAPABILITIES: FaultTreeEditorCapabilities = {
+  mode: "AUTHOR",
+  canEditBasicEvents: true,
+  canEditLayout: false,
+  canImport: false,
+  canExport: false,
+  canRunAnalysis: false,
+};
+
+const FREQUENCY_FAULT_TREE_READ_ONLY_CAPABILITIES: FaultTreeEditorCapabilities = {
+  ...FREQUENCY_FAULT_TREE_CAPABILITIES,
+  mode: "READ_ONLY",
+};
+
+function starterTree(label: string): FrequencyFaultTreeNode[] {
+  return [{
+    id: "TOP",
+    label: label.length > 0 ? label : "Top event",
+    nodeType: "GATE",
+    gate: "OR",
+  }];
+}
+
+type CanonicalGateInput = FaultTreeEditorModel["gateInputs"][number];
+
+function frequencyNodeInputs(
+  nodes: readonly FrequencyFaultTreeNode[],
+  gateIds: ReadonlySet<string>,
+): CanonicalGateInput[] {
+  const nextLegacyOrder = new Map<string, number>();
+  return nodes.flatMap((node, nodeIndex) => {
+    if (node.parentLinks !== undefined) {
+      const links = node.parentLinks.flatMap(({ inputId, gateId, order }) =>
+        gateIds.has(gateId)
+          ? [{ id: inputId, gateId, childId: node.id, order }]
+          : [],
+      );
+      for (const { gateId, order } of links) {
+        nextLegacyOrder.set(gateId, Math.max(nextLegacyOrder.get(gateId) ?? 0, order + 1));
+      }
+      return links;
+    }
+    if (node.parentId === undefined || !gateIds.has(node.parentId)) return [];
+    const order = nextLegacyOrder.get(node.parentId) ?? 0;
+    nextLegacyOrder.set(node.parentId, order + 1);
+    return [{
+      id: `IE-FQ-IN:${nodeIndex}`,
+      gateId: node.parentId,
+      childId: node.id,
+      order,
+    }];
+  });
+}
+
+function legacyBasicEventId(nodeId: string): string {
+  return `IE-FQ-BE:${nodeId}`;
+}
+
+function frequencyFaultTreeToEditor(
+  sourceId: string,
+  sourceLabel: string,
+  nodes: readonly FrequencyFaultTreeNode[],
+): FrequencyFaultTreeSnapshot {
+  const gateIds = new Set(nodes.filter(({ nodeType }) => nodeType === "GATE").map(({ id }) => id));
+  const gateInputs = frequencyNodeInputs(nodes, gateIds);
+  const gates = nodes.reduce<FaultTreeEditorModel["gates"]>((result, node) => {
+    if (node.nodeType !== "GATE") return result;
+    const identity = {
+      id: node.id,
+      kind: "GATE" as const,
+      code: node.code ?? node.id,
+      name: node.label,
+      description: node.detail ?? "",
+    };
+    if (node.gate === "ATLEAST") {
+      result.push({ ...identity, gateType: "K_OF_N", k: node.k ?? 1 });
+    } else {
+      result.push({ ...identity, gateType: node.gate ?? "OR" });
+    }
+    return result;
+  }, []);
+  const leafNodes = nodes.reduce<FaultTreeEditorModel["leafNodes"]>((result, node) => {
+    if (node.nodeType === "GATE") return result;
+    if (node.nodeType === "BASIC") {
+      if (node.catalogueOnly !== true) {
+        result.push({
+          id: node.id,
+          kind: "BASIC_EVENT_REFERENCE",
+          basicEventId: node.basicEventId ?? legacyBasicEventId(node.id),
+        });
+      }
+    } else {
+      const identity = {
+        id: node.id,
+        code: node.code ?? node.id,
+        name: node.label,
+        description: node.detail ?? "",
+      };
+      if (node.nodeType === "HOUSE") {
+        result.push({ ...identity, kind: "HOUSE_EVENT", state: node.houseState ?? false });
+      } else if (node.nodeType === "TRANSFER") {
+        result.push({
+          ...identity,
+          kind: "TRANSFER_REFERENCE",
+          target: node.transferTarget ?? { modelId: node.id, entityId: node.id },
+        });
+      } else {
+        result.push({ ...identity, kind: "UNDEVELOPED_EVENT" });
+      }
+    }
+    return result;
+  }, []);
+  const explicitlyStoredTopGate = nodes.find(
+    (node) => node.nodeType === "GATE" && node.isTopGate === true,
+  );
+  const hasExplicitTopGate = nodes.some(
+    (node) => node.nodeType === "GATE" && node.isTopGate !== undefined,
+  );
+  const referencedNodeIds = new Set(gateInputs.map(({ childId }) => childId));
+  const inferredTopGate =
+    nodes.find(
+      (node) => node.nodeType === "GATE" && !referencedNodeIds.has(node.id),
+    ) ?? nodes.find(({ nodeType }) => nodeType === "GATE");
+  const topGate = hasExplicitTopGate ? explicitlyStoredTopGate : inferredTopGate;
+
+  const basicEvents = new Map<string, FaultTreeEditorCatalogue["basicEvents"][number]>();
+  for (const node of nodes) {
+    if (node.nodeType !== "BASIC") continue;
+    const id = node.basicEventId ?? legacyBasicEventId(node.id);
+    const existing = basicEvents.get(id);
+    basicEvents.set(id, {
+      id,
+      code: node.basicEventCode ?? node.code ?? existing?.code ?? node.id,
+      name: existing?.name ?? node.label,
+      description: existing?.description ?? node.detail ?? "",
+      probability: { value: node.probability ?? existing?.probability.value ?? 0 },
+    });
+  }
+
+  return {
+    model: {
+      modelId: `IE-FQ:${sourceId}`,
+      code: sourceId,
+      name: sourceLabel,
+      description: "Initiating-event frequency fault tree",
+      topGate: topGate === undefined ? null : { gateId: topGate.id },
+      gates,
+      leafNodes,
+      gateInputs,
+      nodePositions: [],
+      layout: {
+        viewport: { x: 0, y: 0, zoom: 1 },
+        mode: "AUTOMATIC",
+        direction: "TOP_TO_BOTTOM",
+      },
+    },
+    catalogue: {
+      basicEvents: [...basicEvents.values()],
+    },
+  };
+}
+
+function sameInputs(
+  left: readonly CanonicalGateInput[],
+  right: readonly CanonicalGateInput[],
+): boolean {
+  return left.length === right.length && left.every((input, index) => {
+    const other = right[index];
+    return other !== undefined &&
+      input.id === other.id &&
+      input.gateId === other.gateId &&
+      input.childId === other.childId &&
+      input.order === other.order;
+  });
+}
+
+function editorToFrequencyFaultTree(
+  model: FaultTreeEditorModel,
+  catalogue: FaultTreeEditorCatalogue,
+  previousNodes: readonly FrequencyFaultTreeNode[] = [],
+): FrequencyFaultTreeNode[] {
+  const previousById = new Map(previousNodes.map((node) => [node.id, node]));
+  const parentInputs = new Map<string, CanonicalGateInput[]>();
+  for (const input of model.gateInputs) {
+    const inputs = parentInputs.get(input.childId) ?? [];
+    inputs.push(input);
+    parentInputs.set(input.childId, inputs);
+  }
+  const previousGateIds = new Set(
+    previousNodes.flatMap((node) => node.nodeType === "GATE" ? [node.id] : []),
+  );
+  const previousInputs = new Map<string, CanonicalGateInput[]>();
+  for (const input of frequencyNodeInputs(previousNodes, previousGateIds)) {
+    const inputs = previousInputs.get(input.childId) ?? [];
+    inputs.push(input);
+    previousInputs.set(input.childId, inputs);
+  }
+  const parentFieldsFor = (nodeId: string): Pick<FrequencyFaultTreeNode, "parentId" | "parentLinks"> => {
+    const inputs = parentInputs.get(nodeId) ?? [];
+    const previous = previousById.get(nodeId);
+    const previousParentId = previous?.parentId;
+    const parentId =
+      previousParentId !== undefined && inputs.some(({ gateId }) => gateId === previousParentId)
+        ? previousParentId
+        : inputs[0]?.gateId;
+    const expectedInputs = previousInputs.get(nodeId) ?? [];
+    const storeParentLinks =
+      previous?.parentLinks !== undefined || !sameInputs(inputs, expectedInputs);
+    const includeLegacyParentId =
+      parentId !== undefined &&
+      (previous === undefined || previous.parentId !== undefined || previous.parentLinks === undefined);
+    return {
+      ...(includeLegacyParentId ? { parentId } : {}),
+      ...(storeParentLinks
+        ? {
+            parentLinks: inputs.map(({ id, gateId, order }) => ({
+              inputId: id,
+              gateId,
+              order,
+            })),
+          }
+        : {}),
+    };
+  };
+  const detailFor = (nodeId: string, description: string): string | undefined =>
+    description.length > 0 || previousById.get(nodeId)?.detail !== undefined
+      ? description
+      : undefined;
+
+  const inferredTopGateId =
+    model.gates.find(({ id }) => (parentInputs.get(id) ?? []).length === 0)?.id;
+  const selectedTopGateId = model.topGate?.gateId;
+  const previousStoresTopGate = previousNodes.some(
+    (node) => node.nodeType === "GATE" && node.isTopGate !== undefined,
+  );
+  const storeTopGate = previousStoresTopGate || selectedTopGateId !== inferredTopGateId;
+
+  const codeFieldFor = (nodeId: string, code: string): Pick<FrequencyFaultTreeNode, "code"> =>
+    previousById.get(nodeId)?.code !== undefined || code !== nodeId ? { code } : {};
+  const basicEventCodeFieldsFor = (
+    nodeId: string,
+    code: string,
+  ): Pick<FrequencyFaultTreeNode, "code" | "basicEventCode"> => {
+    const previous = previousById.get(nodeId);
+    return {
+      ...(previous?.code !== undefined ? { code } : {}),
+      ...(previous?.basicEventCode !== undefined ||
+      (previous?.code === undefined && code !== nodeId)
+        ? { basicEventCode: code }
+        : {}),
+    };
+  };
+  const topGateFieldFor = (nodeId: string): Pick<FrequencyFaultTreeNode, "isTopGate"> => {
+    if (!storeTopGate) return {};
+    if (selectedTopGateId === undefined) return { isTopGate: false };
+    if (nodeId === selectedTopGateId) return { isTopGate: true };
+    return previousById.get(nodeId)?.isTopGate === false ? { isTopGate: false } : {};
+  };
+
+  const converted = new Map<string, FrequencyFaultTreeNode>();
+  for (const gate of model.gates) {
+    const previous = previousById.get(gate.id);
+    const gateType = gate.gateType === "K_OF_N" ? "ATLEAST" : gate.gateType;
+    converted.set(gate.id, {
+      id: gate.id,
+      ...parentFieldsFor(gate.id),
+      label: gate.name,
+      ...codeFieldFor(gate.id, gate.code),
+      nodeType: "GATE",
+      ...(gateType === "OR" && previous?.gate === undefined ? {} : { gate: gateType }),
+      ...(gate.gateType === "K_OF_N" ? { k: gate.k } : {}),
+      ...(detailFor(gate.id, gate.description) === undefined
+        ? {}
+        : { detail: detailFor(gate.id, gate.description) }),
+      ...topGateFieldFor(gate.id),
+    });
+  }
+  for (const leaf of model.leafNodes) {
+    const previous = previousById.get(leaf.id);
+    const common = {
+      id: leaf.id,
+      ...parentFieldsFor(leaf.id),
+    };
+    if (leaf.kind === "BASIC_EVENT_REFERENCE") {
+      const event = catalogue.basicEvents.find(({ id }) => id === leaf.basicEventId);
+      const basicEventId = event?.id ?? leaf.basicEventId;
+      const probability = event?.probability.value ?? 0;
+      converted.set(leaf.id, {
+        ...common,
+        label: event?.name ?? leaf.basicEventId,
+        nodeType: "BASIC",
+        ...(previous?.basicEventId !== undefined || basicEventId !== legacyBasicEventId(leaf.id)
+          ? { basicEventId }
+          : {}),
+        ...(event === undefined ? {} : basicEventCodeFieldsFor(leaf.id, event.code)),
+        ...(previous?.probability !== undefined || probability !== 0 ? { probability } : {}),
+        ...(detailFor(leaf.id, event?.description ?? "") === undefined
+          ? {}
+          : { detail: detailFor(leaf.id, event?.description ?? "") }),
+      });
+      continue;
+    }
+    converted.set(leaf.id, {
+      ...common,
+      label: leaf.name,
+      ...codeFieldFor(leaf.id, leaf.code),
+      nodeType:
+        leaf.kind === "HOUSE_EVENT"
+          ? "HOUSE"
+          : leaf.kind === "TRANSFER_REFERENCE"
+            ? "TRANSFER"
+            : "UNDEVELOPED",
+      ...(detailFor(leaf.id, leaf.description) === undefined
+        ? {}
+        : { detail: detailFor(leaf.id, leaf.description) }),
+      ...(leaf.kind === "HOUSE_EVENT" &&
+      (previous?.houseState !== undefined || leaf.state)
+        ? { houseState: leaf.state }
+        : {}),
+      ...(leaf.kind === "TRANSFER_REFERENCE" &&
+      (previous?.transferTarget !== undefined ||
+        leaf.target.modelId !== leaf.id ||
+        leaf.target.entityId !== leaf.id)
+        ? { transferTarget: leaf.target }
+        : {}),
+    });
+  }
+
+  const referencedBasicEventIds = new Set(
+    model.leafNodes.flatMap((leaf) =>
+      leaf.kind === "BASIC_EVENT_REFERENCE" ? [leaf.basicEventId] : [],
+    ),
+  );
+  for (const event of catalogue.basicEvents) {
+    if (referencedBasicEventIds.has(event.id)) continue;
+    const nodeId = converted.has(event.id) ? `${event.id}:NODE` : event.id;
+    converted.set(nodeId, {
+      id: nodeId,
+      label: event.name,
+      nodeType: "BASIC",
+      catalogueOnly: true,
+      ...(event.id === legacyBasicEventId(nodeId) ? {} : { basicEventId: event.id }),
+      ...basicEventCodeFieldsFor(nodeId, event.code),
+      ...(event.probability.value === 0 ? {} : { probability: event.probability.value }),
+      ...(event.description.length === 0 ? {} : { detail: event.description }),
+    });
+  }
+
+  const result = previousNodes.flatMap(({ id }) => {
+    const node = converted.get(id);
+    if (node === undefined) return [];
+    converted.delete(id);
+    return [node];
+  });
+  return [...result, ...converted.values()];
 }
 
 function NumField({ value, onChange, disabled, placeholder }: { value: number | undefined; onChange: (v: number) => void; disabled: boolean; placeholder?: string }): JSX.Element {
@@ -118,7 +479,26 @@ export function IeFrequencyQuantificationEditor({ sources, primaryId, numberOfMo
   const effectivePrimary = sources.find((s) => s.uuid === primaryId) ?? sources[0];
   const [openIds, setOpenIds] = useState<Set<string>>(() => new Set(effectivePrimary !== undefined ? [effectivePrimary.uuid] : []));
   const [treeSourceId, setTreeSourceId] = useState<string | null>(null);
+  const [faultTreeSelection, setFaultTreeSelection] = useState<FaultTreeSelection>(null);
   const treeSource = treeSourceId !== null ? sources.find((s) => s.uuid === treeSourceId) : undefined;
+  const treeNodes = useMemo(
+    () =>
+      treeSource === undefined
+        ? []
+        : treeSource.faultTree !== undefined && treeSource.faultTree.length > 0
+          ? treeSource.faultTree
+          : starterTree(treeSource.label),
+    [treeSource],
+  );
+  const treeSnapshot = useMemo(
+    () =>
+      treeSource === undefined
+        ? null
+        : frequencyFaultTreeToEditor(treeSource.uuid, treeSource.label, treeNodes),
+    [treeNodes, treeSource],
+  );
+
+  useEffect(() => setFaultTreeSelection(null), [treeSourceId]);
 
   const toggleOpen = (uuid: string): void => {
     setOpenIds((prev) => {
@@ -316,14 +696,61 @@ export function IeFrequencyQuantificationEditor({ sources, primaryId, numberOfMo
           })
         )}
       </div>
-      {treeSource !== undefined && createPortal(
+      {treeSource !== undefined && treeSnapshot !== null && createPortal(
         <div className="iefq-ftmodal">
           <div className="iefq-ftmodal__head">
             <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setTreeSourceId(null)}>&larr; Back to data sources</button>
             <span className="iefq-ftmodal__title">Fault tree &middot; {treeSource.label}</span>
           </div>
           <div className="iefq-ftmodal__body">
-            <FaultTreeEditor nodes={treeSource.faultTree !== undefined && treeSource.faultTree.length > 0 ? toFtNodes(treeSource.faultTree) : starterTree(treeSource.label)} flavor="logic" />
+            <FaultTreeEditor
+              model={treeSnapshot.model}
+              catalogue={treeSnapshot.catalogue}
+              capabilities={
+                editable
+                  ? FREQUENCY_FAULT_TREE_CAPABILITIES
+                  : FREQUENCY_FAULT_TREE_READ_ONLY_CAPABILITIES
+              }
+              selection={faultTreeSelection}
+              validation={validateFaultTreeModel(treeSnapshot.model, {
+                basicEventCatalogue: {
+                  workbookId: "IE",
+                  basicEvents: treeSnapshot.catalogue.basicEvents,
+                },
+                availableTransferTargets: treeSnapshot.model.leafNodes.flatMap((leaf) =>
+                  leaf.kind === "TRANSFER_REFERENCE" ? [leaf.target] : [],
+                ),
+              })}
+              saveState="saved"
+              analysisResult={null}
+              resultIsStale={false}
+              transferTargets={treeSnapshot.model.leafNodes.flatMap((leaf) =>
+                leaf.kind === "TRANSFER_REFERENCE"
+                  ? [{
+                      target: leaf.target,
+                      code: leaf.code,
+                      name: leaf.name,
+                      description: leaf.description,
+                    }]
+                  : [],
+              )}
+              onOperation={(operation) => {
+                const next = applyFaultTreeOperation(
+                  treeSnapshot.model,
+                  treeSnapshot.catalogue,
+                  operation,
+                );
+                patch(treeSource.uuid, {
+                  ...(operation.type === "UPDATE_MODEL" && operation.patch.name !== undefined
+                    ? { label: operation.patch.name }
+                    : {}),
+                  faultTree: editorToFrequencyFaultTree(next.model, next.catalogue, treeNodes),
+                });
+              }}
+              onSelectionChange={setFaultTreeSelection}
+              onOpenReference={() => undefined}
+              onRun={() => undefined}
+            />
           </div>
         </div>,
         document.body,
@@ -331,3 +758,9 @@ export function IeFrequencyQuantificationEditor({ sources, primaryId, numberOfMo
     </div>
   );
 }
+
+export {
+  editorToFrequencyFaultTree,
+  frequencyFaultTreeToEditor,
+};
+export type { FrequencyFaultTreeSnapshot };

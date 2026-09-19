@@ -17,8 +17,12 @@ import { Badge } from "./ieShared";
 import { useIeWorkbook } from "./ieWorkbookContext";
 import { CAPABILITY_CATEGORIES, CATEGORY_COLORS, INITIATOR_CATEGORIES, categoryById, methodSpec, COMPLETENESS_CHECK_META, type CapabilityCategory, type Stage } from "./ieViewData";
 import { type CcScore } from "./ieSelectors";
-import { FaultTreeEditor } from "../newly-developed-methods/fault-tree/faultTreeEditor";
-import { type FtInputNode } from "../newly-developed-methods/fault-tree/faultTreeTypes";
+import {
+  FaultTreeEditor,
+  type FaultTreeEditorCapabilities,
+  type FaultTreeSelection,
+} from "../newly-developed-methods/fault-tree";
+import { validateFaultTreeModel } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { mldToFaultTree, hbftToFaultTree } from "./faultTreeAdapters";
 import { WorksheetEditor } from "../newly-developed-methods/worksheet/worksheetEditor";
 import { PhaEditor } from "../newly-developed-methods/process-hazard-analysis/phaEditor";
@@ -30,6 +34,15 @@ import { generateIeReport, computeIeReportToc } from "./ieDocx";
 import { AutoTextarea } from "./ieDrawer";
 
 const EDITOR_METHOD_IDS = new Set(["MLD", "HBFT", "FMEA", "HAZOP", "PHA", "OEREV", "GENLIST"]);
+
+const IE_FAULT_TREE_READ_ONLY_CAPABILITIES: FaultTreeEditorCapabilities = {
+  mode: "READ_ONLY",
+  canEditBasicEvents: false,
+  canEditLayout: false,
+  canImport: false,
+  canExport: false,
+  canRunAnalysis: false,
+};
 
 function freqValue(f: Frequency | FrequencyWithDistribution): number {
   return typeof f === "number" ? f : f.value;
@@ -468,19 +481,20 @@ function MethodsScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
   const methods = ie.searchMethods ?? [];
   const [openMethodId, setOpenMethodId] = useState<string | null>(null);
+  const [faultTreeSelection, setFaultTreeSelection] = useState<FaultTreeSelection>(null);
   const [treeTitleOverride, setTreeTitleOverride] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const openMethod = methods.find((m) => m.id === openMethodId) ?? null;
   const openEditor = (id: string): void => { setOpenMethodId(id); setTreeTitleOverride(null); setEditingTitle(false); };
   const treeTitle = treeTitleOverride ?? (openMethod !== null ? `${ie.name} — ${openMethod.id}` : "");
-  const ftNodes = useMemo<FtInputNode[]>(() => {
-    if (openMethod === null) return [];
+  const faultTreeSnapshot = useMemo(() => {
+    if (openMethod === null) return null;
     if (openMethod.id === "MLD") {
       const mld = (ie.masterLogicDiagrams ?? [])[0];
-      return mld !== undefined ? mldToFaultTree(mld) : [];
+      return mld !== undefined ? mldToFaultTree(mld) : null;
     }
     if (openMethod.id === "HBFT") return hbftToFaultTree(ie.heatBalanceFaultTrees ?? []);
-    return [];
+    return null;
   }, [openMethod, ie.masterLogicDiagrams, ie.heatBalanceFaultTrees]);
   const worksheetModel = useMemo(
     () => buildWorksheetModel((ie.failureModesAnalyses ?? [])[0], (ie.hazardOperabilityStudies ?? [])[0]),
@@ -504,12 +518,34 @@ function MethodsScreen(): JSX.Element {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = previous; };
   }, [openMethod]);
+  useEffect(() => setFaultTreeSelection(null), [openMethodId]);
   const renderEditor = (): JSX.Element | null => {
     if (openMethod === null) return null;
     switch (openMethod.id) {
       case "MLD":
       case "HBFT":
-        return <FaultTreeEditor key={openMethod.id} nodes={ftNodes} flavor={openMethod.id === "HBFT" ? "heat" : "logic"} />;
+        return faultTreeSnapshot !== null ? (
+          <FaultTreeEditor
+            key={openMethod.id}
+            model={faultTreeSnapshot.model}
+            catalogue={faultTreeSnapshot.catalogue}
+            capabilities={IE_FAULT_TREE_READ_ONLY_CAPABILITIES}
+            selection={faultTreeSelection}
+            validation={validateFaultTreeModel(faultTreeSnapshot.model, {
+              basicEventCatalogue: {
+                workbookId: "IE",
+                basicEvents: faultTreeSnapshot.catalogue.basicEvents,
+              },
+            })}
+            saveState="saved"
+            analysisResult={null}
+            resultIsStale={false}
+            onOperation={() => undefined}
+            onSelectionChange={setFaultTreeSelection}
+            onOpenReference={() => undefined}
+            onRun={() => undefined}
+          />
+        ) : <div className="iee-empty">No fault-tree source data recorded yet.</div>;
       case "FMEA":
       case "HAZOP":
         return <WorksheetEditor key={openMethod.id} model={worksheetModel} mode={openMethod.id === "HAZOP" ? "hazop" : "fmea"} />;

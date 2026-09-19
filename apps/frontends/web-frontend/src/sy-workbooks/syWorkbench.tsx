@@ -1,6 +1,7 @@
+import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { SYIcon } from "./syIcons";
 import {
   SY_PERSONAS,
@@ -17,6 +18,9 @@ import { useSyWorkbook, type SyWorkbookData } from "./syWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
+import { WorkbookSaveIndicator } from "../workbooks/workbookSaveIndicator";
+import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
+import { SyBayesianNetworkWorkspace } from "./syBayesianNetworkWorkspace";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/syScreens.css";
 
@@ -46,6 +50,7 @@ interface HeaderMeta {
   projectName: string;
   workbookName: string;
   workbookVersion: string;
+  saveStatus?: RevisionedSaveStatus;
 }
 
 function WorkspaceHeader({
@@ -116,7 +121,7 @@ function WorkspaceHeader({
         {onUnloadExample !== undefined && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onUnloadExample} title="Restore the contents that existed before the example was loaded"><SYIcon.Close /> Unload example</button>
         )}
-        <span className="poshd__save-pill"><span className="poshd__save-pill-dot" />Autosaved · v{headerMeta.workbookVersion}</span>
+        <WorkbookSaveIndicator status={headerMeta.saveStatus} workbookVersion={headerMeta.workbookVersion} />
         <button type="button" className="posnav__btn" aria-label="History"><SYIcon.History /></button>
         {onToggleDock !== undefined && (
           <button type="button" className="posw__mobile-toggle" onClick={onToggleDock} aria-label="Open conformance"><SYIcon.Eye /> Conformance</button>
@@ -162,10 +167,6 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
           );
         })}
       </ul>
-      <div className="posrail__footer">
-        <button type="button" className="posrail__footer-btn"><SYIcon.Layers /> Show all inputs</button>
-        <button type="button" className="posrail__footer-btn"><SYIcon.Settings /> Workbook settings</button>
-      </div>
     </aside>
   );
 }
@@ -285,10 +286,15 @@ function SyWorkbench({
   renderRoster?: () => JSX.Element | null;
   renderDocuments?: () => JSX.Element | null;
 }): JSX.Element {
+  const { editable, mutateSy } = useSyWorkbook();
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
 
   const visibleSteps = useMemo(() => stepsFromMef(data.sy, persona), [data.sy, persona]);
+  const [searchParams] = useSearchParams();
+  const requestedStepId = searchParams.get("step");
+  const requestedNetworkId = searchParams.get("network");
+  const requestedEsqWorkbookId = searchParams.get("esqWorkbook");
   const mefCcId = data.sy.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
   const mefStage: Stage = data.sy.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
   const [ccId, setCcId] = useState<string>(mefCcId);
@@ -301,7 +307,10 @@ function SyWorkbench({
     onStageChange?.(s);
   }
 
-  const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "scope");
+  const [stepId, setStepIdState] = useState<string>(() =>
+    visibleSteps.some((candidate) => candidate.id === requestedStepId)
+      ? requestedStepId!
+      : visibleSteps[0]?.id ?? "scope");
   const [sysId, setSysId] = useState<string>(data.sy.systemDefinitions[0]?.uuid ?? "SYS-DRACS");
   const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
   const [dockOpen, setDockOpen] = useState(!isNarrow);
@@ -384,7 +393,7 @@ function SyWorkbench({
       case "models": return <ModelsScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} />;
       case "failures": return <FailuresScreen openDrawer={setDrawer} />;
       case "ccf": return <CcfScreen openDrawer={setDrawer} />;
-      case "deps": return <DepsScreen openDrawer={setDrawer} />;
+      case "deps": return <><SyBayesianNetworkWorkspace initialModelId={requestedNetworkId} initialEsqWorkbookId={requestedEsqWorkbookId} /><DepsScreen openDrawer={setDrawer} /></>;
       case "integrity": return <IntegrityScreen stage={stage} openDrawer={setDrawer} />;
       case "uncert": return <UncertScreen openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
@@ -444,6 +453,7 @@ function SyWorkbench({
           </div>
 
           {renderScreen()}
+          {["models", "deps", "uncert"].includes(stepId) && <SyAnalysisHistory />}
 
           <div className="posnav">
             {prev ? (
@@ -488,3 +498,8 @@ function SyWorkbench({
 }
 
 export { SyWorkbench, type HeaderMeta, type SyWorkbenchActions };
+
+function SyAnalysisHistory() {
+  const {runtime} = useSyWorkbook();
+  return <AnalysisRunHistory host="sy" workbookId={runtime.workbookId}/>;
+}

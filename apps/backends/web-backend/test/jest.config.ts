@@ -21,6 +21,7 @@ export default {
   testMatch: ["<rootDir>/src/**/test/*.spec.ts"],
   transformIgnorePatterns: ["node_modules/(?!.*(?:otplib|@otplib|@scure|@noble))"],
   moduleNameMapper: {
+    "^@nestjs/(.+)$": "<rootDir>/node_modules/@nestjs/$1",
     "^interfaces-shared-types$": "<rootDir>/../../interfaces/shared-types/index.ts",
     "^interfaces-shared-types/(.*)$": "<rootDir>/../../interfaces/shared-types/$1",
     "^interfaces-mef-types$": "<rootDir>/../../interfaces/mef-types/index.ts",

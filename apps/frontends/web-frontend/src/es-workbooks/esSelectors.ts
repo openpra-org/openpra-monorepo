@@ -1,4 +1,4 @@
-import { type EventSequenceAnalysis, type KeySafetyFunction, type EventTreeBranch } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type EventSequenceAnalysis, type KeySafetyFunction, type EventTreeBranch, type SystemStatus } from "interfaces-mef-types/es/event-sequence-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import {
@@ -422,7 +422,7 @@ interface SeqLeafView {
   familyId?: string;
   meanFrequency?: number;
   importance?: string;
-  path: Record<string, "SUCCESS" | "FAILURE">;
+  path: Record<string, SystemStatus>;
 }
 
 interface SeqLeafRef {
@@ -431,8 +431,9 @@ interface SeqLeafRef {
 
 interface TreeNodeView {
   fe: number;
-  S: TreeNodeView | SeqLeafRef;
-  F: TreeNodeView | SeqLeafRef;
+  S?: TreeNodeView | SeqLeafRef;
+  F?: TreeNodeView | SeqLeafRef;
+  B?: TreeNodeView | SeqLeafRef;
 }
 
 interface EventTreeView {
@@ -470,14 +471,16 @@ function eventTreesView(es: EventSequenceAnalysis): EventTreeView[] {
       const b = tree.branches[branchId];
       const s = b.paths.find((p) => p.state === "SUCCESS");
       const f = b.paths.find((p) => p.state === "FAILURE");
+      const bypassed = b.paths.find((p) => p.state === "BYPASSED");
       return {
         fe: feIndex.get(b.functionalEventId ?? "") ?? 0,
-        S: s !== undefined ? childOf(s.target, s.targetType) : { seq: "" },
-        F: f !== undefined ? childOf(f.target, f.targetType) : { seq: "" },
+        ...(s === undefined ? {} : { S: childOf(s.target, s.targetType) }),
+        ...(f === undefined ? {} : { F: childOf(f.target, f.targetType) }),
+        ...(bypassed === undefined ? {} : { B: childOf(bypassed.target, bypassed.targetType) }),
       };
     }
-    const paths = new Map<string, Record<string, "SUCCESS" | "FAILURE">>();
-    function walkPaths(branchId: string, acc: Record<string, "SUCCESS" | "FAILURE">): void {
+    const paths = new Map<string, Record<string, SystemStatus>>();
+    function walkPaths(branchId: string, acc: Record<string, SystemStatus>): void {
       const b = tree.branches[branchId];
       if (b === undefined) return;
       const feId = b.functionalEventId;
@@ -502,7 +505,8 @@ function eventTreesView(es: EventSequenceAnalysis): EventTreeView[] {
         path: paths.get(s.uuid) ?? {},
       };
     });
-    const ieFreq = sequences.reduce((sum, s) => sum + (s.meanFrequency ?? 0), 0);
+    const derivedIeFrequency = sequences.reduce((sum, s) => sum + (s.meanFrequency ?? 0), 0);
+    const ieFreq = tree.initiatingEventFrequency?.value ?? (derivedIeFrequency > 0 ? derivedIeFrequency : undefined);
     const memberStates = new Set<string>();
     if (tree.plantOperatingStateId !== undefined) memberStates.add(tree.plantOperatingStateId);
     for (const s of Object.values(tree.sequences)) {
@@ -518,7 +522,7 @@ function eventTreesView(es: EventSequenceAnalysis): EventTreeView[] {
       missionTimeUnits: tree.missionTimeUnits,
       description: tree.description,
       mitigationStrategy: tree.mitigationStrategy,
-      ieFreq: ieFreq > 0 ? ieFreq : undefined,
+      ieFreq,
       applicableStates: Array.from(memberStates),
       functionalEvents: fes.map((fe) => ({ id: fe.uuid, label: fe.label ?? fe.name, sub: fe.description ?? "", scId: ES_FE_SC_MAP[fe.uuid] })),
       node: tree.initialState.branchId.length > 0 ? buildNode(tree.initialState.branchId) : { seq: "" },

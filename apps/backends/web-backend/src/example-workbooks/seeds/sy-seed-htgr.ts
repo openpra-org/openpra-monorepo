@@ -1,9 +1,11 @@
-import { type SystemsAnalysis, type SystemBasicEvent, type SystemFaultTreeNode } from "interfaces-mef-types/sy/systems-analysis";
+import { type SystemsAnalysis, type SystemBasicEvent, type LegacySystemFaultTreeNode } from "interfaces-mef-types/sy/systems-analysis";
+import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type SRReference, type SRConformance, type HlrId, type PlantStage, type SRStatus } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
 import { DistributionType } from "interfaces-mef-types/core/events";
 import { SY_SR_CATALOG } from "interfaces-mef-types/sy/systems-analysis";
+import { createExampleDependencyNetwork, createExampleHclConfiguration } from "./dependency-model-seed";
 
 const NOW = "2026-05-04T12:00:00.000Z";
 const CREATED = "2026-04-22T09:00:00.000Z";
@@ -53,6 +55,7 @@ const conformanceMatrix: SRConformance[] = Object.keys(SY_SR_CATALOG).flatMap((c
 function be(uuid: string, name: string, failureMode: string, probability: number, componentReference?: string): SystemBasicEvent {
   return {
     uuid,
+    code: uuid,
     name,
     eventType: "BASIC",
     componentReference,
@@ -66,6 +69,7 @@ function be(uuid: string, name: string, failureMode: string, probability: number
 function hfe(uuid: string, name: string, probability: number, hfeRef: string): SystemBasicEvent {
   return {
     uuid,
+    code: uuid,
     name,
     eventType: "BASIC",
     failureMode: "HUMAN_ERROR",
@@ -79,6 +83,7 @@ function hfe(uuid: string, name: string, probability: number, hfeRef: string): S
 function tm(uuid: string, name: string, probability: number, basis: string, preOperational: boolean): SystemBasicEvent {
   return {
     uuid,
+    code: uuid,
     name,
     eventType: "BASIC",
     failureMode: "TEST_MAINTENANCE",
@@ -261,7 +266,7 @@ const systemToSafetyFunctionMappings = SYSTEMS.map((s) => ({
   implementsSrs: srs("SY-A1"),
 }));
 
-const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
+const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
   "SYS-RPS": {
     id: "RPS-TOP", type: "OR", name: "RPS fails to trip on demand",
     children: [
@@ -454,7 +459,6 @@ const systemLogicModels = SYSTEMS.map((s) => ({
   description: s.topEvent,
   modelRepresentation: s.modelRep,
   faultTree: FAULT_TREES[s.id],
-  basicEvents: s.events,
   nonDetailedModelJustification: s.detailed ? undefined : "System-level data sufficient, no internal redundancy.",
   logicLoopResolutions: s.loops,
   implementsSrs: srs("SY-A7", "SY-A14"),
@@ -721,7 +725,7 @@ const variableSuccessCriteria = [
   { uuid: "VSC-RCCS-OTHER", systemReference: "SYS-RCCS", scenarioCondition: "Shutdown states (POS-04 to POS-09)", successCriteriaIds: ["SC-SYS-RCCS"], basis: "At least a quarter of the nominal duct capacity carries the shutdown conduction cooldown.", implementsSrs: srs("SY-A5", "SY-B5") },
 ];
 
-export const SY_ANALYSIS_HTGR: SystemsAnalysis = {
+export const SY_ANALYSIS_HTGR: SystemsAnalysis = SystemsAnalysisSchema.parse({
   uuid: "sy-generic-2",
   name: "SY Workbook 1",
   type: TechnicalElementTypes.SYSTEMS_ANALYSIS,
@@ -763,6 +767,8 @@ export const SY_ANALYSIS_HTGR: SystemsAnalysis = {
   activePeerReviewIds: [],
   activeAuditIds: [],
   praScope: "Full-scope systems analysis for the Generic HTGR, pre-operational stage, capability category CC-II.",
+  dependencyBayesianNetworks: [createExampleDependencyNetwork()],
+  dependencyHclConfigurations: [createExampleHclConfiguration()],
   systemDefinitions,
   variableSuccessCriteria,
   systemToSafetyFunctionMappings,
@@ -848,4 +854,4 @@ export const SY_ANALYSIS_HTGR: SystemsAnalysis = {
   },
   configurationControlRecordId: "cc-2026.04.18-001",
   newlyDevelopedMethodIds: ["NM-072", "NM-055", "NM-061"],
-};
+});

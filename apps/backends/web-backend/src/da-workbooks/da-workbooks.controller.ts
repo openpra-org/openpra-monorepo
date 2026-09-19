@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { DaWorkbooksService, type DaWorkbookResponse } from "./da-workbooks.service";
-import { parseWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
+import { parseRevisionedWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
 
 
 @Controller("da-workbooks")
@@ -22,7 +22,7 @@ export class DaWorkbooksController {
     @Body() body: unknown,
     @Req() req: AuthenticatedRequest,
   ): Promise<DaWorkbookResponse> {
-    return this.daWorkbooksService.patchMef(id, parseWorkbookPatchBody(body), { username: req.user!.username });
+    return this.daWorkbooksService.patchMef(id, parseRevisionedWorkbookPatchBody(body), { username: req.user!.username });
   }
 
   @Post(":id/load-example")

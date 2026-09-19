@@ -1,5 +1,5 @@
 use praxis::core::element::Element;
-use praxis::error::{PraxisError, MefError};
+use praxis::error::{MefError, PraxisError};
 
 #[cfg(test)]
 mod element_new_tests {

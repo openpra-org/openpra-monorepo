@@ -43,7 +43,6 @@ pub fn sample_size_adequacy_ratio_relative_half_width_wald(
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChiSquareGof {
-
     pub chi2: f64,
 
     pub dof: u64,
@@ -170,7 +169,6 @@ mod tests {
 
     #[test]
     fn required_n_for_rhw_matches_hand_calc() {
-
         let n_req = required_n_for_relative_half_width_wald(0.1, 0.1, 1.96).unwrap();
         assert!((n_req - 3457.44).abs() < 1e-2);
     }

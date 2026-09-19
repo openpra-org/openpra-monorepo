@@ -1,0 +1,34 @@
+{
+  "name": "solvers-praxis-node",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "targets": {
+    "build": {
+      "executor": "nx:run-script",
+      "options": {
+        "script": "build"
+      }
+    },
+    "format": {
+      "executor": "nx:run-script",
+      "options": {
+        "script": "format"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-script",
+      "options": {
+        "script": "lint"
+      }
+    },
+    "test": {
+      "executor": "nx:run-script",
+      "options": {
+        "script": "test"
+      },
+      "dependsOn": ["build"]
+    }
+  },
+  "sourceRoot": "apps/solvers/praxis-node/src",
+  "projectType": "library",
+  "tags": []
+}

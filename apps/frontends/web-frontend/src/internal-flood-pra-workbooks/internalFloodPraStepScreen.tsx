@@ -13,6 +13,10 @@ import { POSIcon } from "../pos-workbooks/posIcons";
 import { removeStructuredRecord, StructuredEditorDrawer, type EditorPath } from "../seismic-pra-workbooks/seismicPraStructuredEditor";
 import { Drawer, Field, InfoButton, NumberInput, Section, SelectInput, TextArea, TextInput } from "./internalFloodPraFields";
 import { useInternalFloodPraWorkbook } from "./internalFloodPraWorkbookContext";
+import {
+  HazardEventTreeEditor,
+  HazardFaultTreeEditor,
+} from "../workbooks/hazardConditionedModelEditors";
 import "../seismic-pra-workbooks/css/seismicPra.css";
 
 interface EditorTarget {
@@ -496,10 +500,15 @@ function ScenarioDevelopment(): JSX.Element {
 }
 
 function EventFrequency(): JSX.Element {
-  const { mef, editable } = useInternalFloodPraWorkbook();
+  const { mef, editable, mutate } = useInternalFloodPraWorkbook();
   const editor = useEditor();
   const ev = mef.initiatingEvents;
   return <div className="flstep">
+    <HazardFaultTreeEditor
+      models={mef.hazardConditionedModels}
+      editable={editable}
+      onChange={(hazardConditionedModels) => mutate((current) => ({ ...current, hazardConditionedModels }))}
+    />
     <Section title="Scenario groups and initiating events" description="Scenario grouping based on compatible response, success criteria, timing, target effects, and human context, with baseline or new initiating-event mapping." actions={editable ? <AddButton label="Add scenario group" onClick={() => editor.setTarget(collectionTarget(["initiatingEvents", "scenarioGroups"], "scenario group", "Group compatible retained flood scenarios."))} /> : undefined}>
       <TechnicalTable records={ev.scenarioGroups} caption="Scenario groups" empty="No scenario groups" onEdit={(index) => editor.setTarget(collectionTarget(["initiatingEvents", "scenarioGroups"], "scenario group", "Edit members, grouping basis, bounding scenario, scope, and checks.", index))} columns={[{ header: "Scenarios", render: (item) => item.floodScenarioRefs.length }, { header: "Grouping basis", render: (item) => item.groupingBasis.replace(/_/g, " ") }, { header: "Units / sources", render: (item) => `${String(item.reactorUnitRefs.length)} / ${String(item.radioactiveMaterialSourceRefs.length)}` }, { header: "Checks", render: (item) => item.groupingValidityChecks.length }]} />
       <FlowRows rows={ev.initiatingEvents.map((item) => ({ id: item.uuid, from: item.scenarioGroupRef, through: item.newInitiatingEventRequired ? "NEW INITIATOR" : item.initiatingEventType.replace(/_/g, " "), to: item.affectedEventSequenceRefs.join(" · "), status: item.newInitiatingEventRequired ? "NEW" : "MAPPED" }))} onEdit={(index) => editor.setTarget(collectionTarget(["initiatingEvents", "initiatingEvents"], "initiating-event mapping", "Edit the scenario-group initiator and affected baseline event-sequence references.", index))} />
@@ -522,10 +531,15 @@ function EventFrequency(): JSX.Element {
 }
 
 function PlantResponse(): JSX.Element {
-  const { mef, editable } = useInternalFloodPraWorkbook();
+  const { mef, editable, mutate } = useInternalFloodPraWorkbook();
   const editor = useEditor();
   const pr = mef.plantResponseModel;
   return <div className="flstep">
+    <HazardEventTreeEditor
+      models={mef.hazardConditionedModels}
+      editable={editable}
+      onChange={(hazardConditionedModels) => mutate((current) => ({ ...current, hazardConditionedModels }))}
+    />
     <Section title="Flood event-sequence models" description="Baseline reuse, controlled modifications, new initiators, top events, end states, multi-unit logic, and release-family mapping." actions={editable ? <AddButton label="Add sequence model" onClick={() => editor.setTarget(collectionTarget(["plantResponseModel", "eventSequenceModels"], "event-sequence model", "Define the flood-specific sequence logic and outcomes."))} /> : undefined}>
       <div className="flsequences">{pr.eventSequenceModels.map((item, index) => <button type="button" key={item.uuid} onClick={() => editor.setTarget(collectionTarget(["plantResponseModel", "eventSequenceModels"], "event-sequence model", "Edit initiating event, top events, outcomes, and multi-source logic.", index))}><span>{item.modelTreatment}</span><strong>{item.name}</strong><div>{item.topEvents.map((event) => <em key={event.uuid}>{event.name}</em>)}</div><small>{item.sequenceFamilyRefs.join(" · ")}</small></button>)}</div>
     </Section>
@@ -544,7 +558,7 @@ function PlantResponse(): JSX.Element {
 }
 
 function HumanReliability(): JSX.Element {
-  const { mef, editable } = useInternalFloodPraWorkbook();
+  const { mef, editable, mutate } = useInternalFloodPraWorkbook();
   const editor = useEditor();
   const hr = mef.humanReliabilityAnalysis;
   const timingByHfe = new Map(hr.timingAssessments.map((item) => [item.humanFailureEventRef, item]));
@@ -573,7 +587,7 @@ function HumanReliability(): JSX.Element {
 }
 
 function Quantification(): JSX.Element {
-  const { mef, editable } = useInternalFloodPraWorkbook();
+  const { mef, editable, mutate } = useInternalFloodPraWorkbook();
   const editor = useEditor();
   const esq = mef.eventSequenceQuantification;
   return <div className="flstep">

@@ -13,6 +13,7 @@ import { WorkbookRolesService } from "./workbook-roles.service";
 import { WorkbookWorkflowService } from "./workbook-workflow.service";
 import { WorkbookCommentsService } from "./workbook-comments.service";
 import { WorkbookElementRegistry } from "./workbook-element-registry";
+import { WorkbookModelAccessService } from "./workbook-model-access.service";
 
 @Module({
   imports: [
@@ -32,11 +33,13 @@ import { WorkbookElementRegistry } from "./workbook-element-registry";
     WorkbookWorkflowService,
     WorkbookCommentsService,
     WorkbookElementRegistry,
+    WorkbookModelAccessService,
   ],
   exports: [
     MongooseModule,
     WorkbookRolesService,
     WorkbookElementRegistry,
+    WorkbookModelAccessService,
   ],
 })
 export class WorkbooksModule {}

@@ -179,7 +179,10 @@ fn fold_constants_once(pdag: &mut Pdag) -> Result<bool> {
         };
         match conn {
             Connective::And => {
-                if ops.iter().any(|&op| const_value_of(pdag, op) == Some(false)) {
+                if ops
+                    .iter()
+                    .any(|&op| const_value_of(pdag, op) == Some(false))
+                {
                     make_constant(pdag, index, false)?;
                     changed = true;
                     continue;
@@ -591,7 +594,12 @@ mod tests {
             .add_gate("U1".to_string(), Connective::Null, vec![not_e1], None)
             .unwrap();
         let root = pdag
-            .add_gate("ROOT".to_string(), Connective::Or, vec![null_not_e1, e2], None)
+            .add_gate(
+                "ROOT".to_string(),
+                Connective::Or,
+                vec![null_not_e1, e2],
+                None,
+            )
             .unwrap();
         pdag.set_root(root).unwrap();
 
@@ -628,10 +636,20 @@ mod tests {
         let true_const = pdag.add_constant(true);
         let false_const = pdag.add_constant(false);
         let or = pdag
-            .add_gate("G_or".to_string(), Connective::Or, vec![e1, false_const], None)
+            .add_gate(
+                "G_or".to_string(),
+                Connective::Or,
+                vec![e1, false_const],
+                None,
+            )
             .unwrap();
         let root = pdag
-            .add_gate("G_and".to_string(), Connective::And, vec![or, true_const], None)
+            .add_gate(
+                "G_and".to_string(),
+                Connective::And,
+                vec![or, true_const],
+                None,
+            )
             .unwrap();
         pdag.set_root(root).unwrap();
 

@@ -1,3 +1,4 @@
+import { stringifyJson } from "interfaces-shared-types/json";
 import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
@@ -20,14 +21,10 @@ import { type CcScore } from "./sySelectors";
 import { useSyWorkbook } from "./syWorkbookContext";
 import { generateSyReport } from "./syDocx";
 import { type SyDrawerContext } from "./syScreens";
-import { type SystemFaultTreeNode, type SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
+import { type SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
+import { systemFaultTreeBasicEventIds, systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
-
-function syncTreeBe(node: SystemFaultTreeNode, beId: string, fields: { name?: string; mode?: string; prob?: string }): SystemFaultTreeNode {
-  if (node.type === "BE") return node.be === beId ? { ...node, ...fields } : node;
-  if (node.type === "TR") return node;
-  return { ...node, children: node.children.map((c) => syncTreeBe(c, beId, fields)) };
-}
+import { failureRateToProbability, requiresFailureRateConversionReview, FAILURE_RATE_CONVERSION_REVIEW_REQUIRED } from "interfaces-mef-types/modeling";
 
 function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element {
   const { sy, editable, mutateSy, shortOf } = useSyWorkbook();
@@ -118,7 +115,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Support dependency matrix" level={3} />
+          <WorkbookSectionHeading title="Support dependency matrix" level={3} />
           <SYProvenanceChip>SY-B5 · SY-B6 · SY-B10</SYProvenanceChip>
         </div>
         <p className="poscard__sub">Each row depends on the marked support systems. Click a cell to cycle it between power, signal, cooling and none.</p>
@@ -164,7 +161,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Support success criteria" level={3} />
+          <WorkbookSectionHeading title="Support success criteria" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B7 · SY-B9 · SY-B13</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSsc}><SYIcon.Plus /> Add criterion</button>}
@@ -193,7 +190,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Spatial and environmental couplings" level={3} />
+          <WorkbookSectionHeading title="Spatial and environmental couplings" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B8 · SY-B14</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSpc}><SYIcon.Plus /> Add coupling</button>}
@@ -221,7 +218,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Depletable inventories" level={3} />
+          <WorkbookSectionHeading title="Depletable inventories" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B12</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addInv}><SYIcon.Plus /> Add inventory</button>}
@@ -272,7 +269,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Digital I&C and software" level={3} />
+          <WorkbookSectionHeading title="Digital I&C and software" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B11</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addDic}><SYIcon.Plus /> Add record</button>}
@@ -316,20 +313,15 @@ function IntegrityScreen({ stage, openDrawer }: { stage: string; openDrawer: (ct
     }));
     openDrawer({ kind: "confirm", id: uuid });
   }
-  const events = sy.systemLogicModels.flatMap((m) => m.basicEvents);
+  const events = sy.systemBasicEvents;
   const modeRows = Array.from(new Set(events.map((e) => e.failureMode ?? ""))).filter((m) => m.length > 0).map((mode) => {
     const of = events.filter((e) => e.failureMode === mode);
     return { mode, label: FAILURE_MODE_LABELS[mode] ?? mode, count: of.length, example: of[0]?.uuid ?? "" };
   });
-  const gates: string[] = [];
-  const transfers: string[] = [];
-  const walk = (node: SystemFaultTreeNode): void => {
-    if (node.type === "BE") return;
-    if (node.type === "TR") { transfers.push(node.id); return; }
-    gates.push(node.id);
-    node.children.forEach(walk);
-  };
-  sy.systemLogicModels.forEach((m) => { if (m.faultTree !== undefined) walk(m.faultTree); });
+  const gates = sy.systemLogicModels.flatMap((model) => model.gates.map(({ id }) => id));
+  const transfers = sy.systemLogicModels.flatMap((model) =>
+    model.leafNodes.flatMap((leaf) => leaf.kind === "TRANSFER_REFERENCE" ? [leaf.id] : []),
+  );
   const otherRows = [
     { label: "Logic gate", count: gates.length, example: gates[0] ?? "" },
     { label: "Transfer gate", count: transfers.length, example: transfers[0] ?? "" },
@@ -446,9 +438,10 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => vo
     ...(sy.sensitivityStudies ?? []).map((st) => ({ id: st.uuid, kind: "sens" as const, type: "Sensitivity", tone: undefined as BadgeKind | undefined, item: (st.name ?? "").length > 0 ? st.name ?? "" : st.description, detail: st.results ?? "", ok: (st.results ?? "").length > 0, status: (st.results ?? "").length > 0 ? "Run" : "Pending" })),
   ];
   const repairRows = sy.systemLogicModels.map((m) => {
-    const credited = m.basicEvents.filter((b) => b.repairModeled === true);
+    const modelEvents = systemLogicModelBasicEvents(sy, m);
+    const credited = modelEvents.filter((b) => b.repairModeled === true);
     const justified = credited.every((b) => (b.repairJustification ?? "").length > 0);
-    return { id: m.uuid, system: m.systemReference, events: m.basicEvents.length, credited: credited.length, ok: credited.length === 0 || justified };
+    return { id: m.uuid, system: m.systemReference, events: modelEvents.length, credited: credited.length, ok: credited.length === 0 || justified };
   });
   const totalEvents = repairRows.reduce((acc, r) => acc + r.events, 0);
   const totalCredited = repairRows.reduce((acc, r) => acc + r.credited, 0);
@@ -554,7 +547,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
   const { sy } = useSyWorkbook();
   const ready = scores.blocked === 0 && scores.warn === 0;
   function downloadJson(): void {
-    const blob = new Blob([JSON.stringify(sy, null, 2)], { type: "application/json" });
+    const blob = new Blob([stringifyJson(sy, 2)!], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -607,7 +600,14 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
 }
 
 function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose: () => void }): JSX.Element | null {
-  const { sy, editable, mutateSy, shortOf } = useSyWorkbook();
+  const {
+    sy,
+    editable,
+    mutateSy,
+    shortOf,
+    controlledParameters,
+    controlledHumanFailures,
+  } = useSyWorkbook();
 
   if (context.kind === "exclusion") {
     const def = sy.systemDefinitions.find((x) => x.uuid === context.id);
@@ -784,7 +784,7 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Mission time</label><div className="posmono">{sysDef.missionTimeHours !== undefined ? `${sysDef.missionTimeHours} h` : "—"}</div></div>
             <div className="posfield"><label className="posfield__label">Modeled components</label><div className="posmono">{Object.keys(sysDef.modeledComponentsAndFailures).length}</div></div>
-            <div className="posfield"><label className="posfield__label">Basic events</label><div className="posmono">{logic?.basicEvents.length ?? 0}</div></div>
+            <div className="posfield"><label className="posfield__label">Basic events</label><div className="posmono">{logic === undefined ? 0 : systemLogicModelBasicEvents(sy, logic).length}</div></div>
           </div>
           <div>
             <WorkbookCueLabel workbook="SY" title="Model boundary" className="essec" />
@@ -821,7 +821,7 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     const alpha = g.modelSpecificParameters?.alphaFactorParameters;
     const qt = beta?.totalFailureProbability ?? alpha?.totalFailureProbability ?? 0;
     const par = ccfParams(g);
-    const check = ccfModelCheck(g, sy.systemLogicModels);
+    const check = ccfModelCheck(g, sy);
     const num = (v: string): number => {
       const n = Number(v);
       return Number.isFinite(n) ? n : 0;
@@ -1578,23 +1578,15 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
   }
 
   if (context.kind === "be") {
-    const hit = sy.systemLogicModels.map((m) => ({ ref: m.systemReference, b: m.basicEvents.find((x) => x.uuid === context.id) })).find((x) => x.b !== undefined);
-    const be: SystemBasicEvent | undefined = hit?.b;
-    if (be === undefined || hit === undefined) return null;
-    const ownerRef = hit.ref;
+    const be: SystemBasicEvent | undefined = sy.systemBasicEvents.find((event) => event.uuid === context.id);
+    if (be === undefined) return null;
+    const ownerRef = sy.systemLogicModels.find((model) => systemFaultTreeBasicEventIds(model).includes(be.uuid))?.systemReference;
     const beId = be.uuid;
-    const patch = (beFields: Partial<SystemBasicEvent>, treeFields?: { name?: string; mode?: string; prob?: string }): void => {
+    const patch = (beFields: Partial<SystemBasicEvent>): void => {
       if (!editable) return;
       mutateSy((draft) => ({
         ...draft,
-        systemLogicModels: draft.systemLogicModels.map((m) => {
-          if (m.systemReference !== ownerRef) return m;
-          return {
-            ...m,
-            basicEvents: m.basicEvents.map((b) => (b.uuid === beId ? { ...b, ...beFields } : b)),
-            faultTree: treeFields !== undefined && m.faultTree !== undefined ? syncTreeBe(m.faultTree, beId, treeFields) : m.faultTree,
-          };
-        }),
+        systemBasicEvents: draft.systemBasicEvents.map((event) => (event.uuid === beId ? { ...event, ...beFields } : event)),
       }));
     };
     const num = (v: string): number => {
@@ -1602,33 +1594,172 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
       return Number.isFinite(n) ? n : 0;
     };
     const prob = be.probability ?? 0;
+    const rateBasis = be.quantificationBasis?.kind === "FAILURE_RATE" ? be.quantificationBasis : undefined;
+    const compatibleParameters = controlledParameters.filter((option) =>
+      rateBasis === undefined ? option.parameterType !== "FREQUENCY" : option.parameterType === "FREQUENCY",
+    );
+    const selectedParameterKey = be.controlledDataSource?.referenceType !== "WORKBOOK_PARAMETER"
+      ? ""
+      : JSON.stringify([be.controlledDataSource.workbookId, be.controlledDataSource.entityId]);
+    const selectedParameter = compatibleParameters.find((option) =>
+      JSON.stringify([option.workbookId, option.parameterId]) === selectedParameterKey,
+    );
+    const selectedHumanFailureKey = be.controlledDataSource?.referenceType !== "HUMAN_FAILURE_EVENT"
+      ? ""
+      : JSON.stringify([
+          be.controlledDataSource.workbookId,
+          be.controlledDataSource.entityId,
+          be.controlledDataSource.quantificationId,
+        ]);
+    const selectedHumanFailure = controlledHumanFailures.find((option) =>
+      JSON.stringify([
+        option.workbookId,
+        option.humanFailureEventId,
+        option.quantificationId,
+      ]) === selectedHumanFailureKey,
+    );
+    const resolvedRateBasis = rateBasis === undefined || selectedParameter === undefined
+      ? rateBasis
+      : { ...rateBasis, failureRate: { ...rateBasis.failureRate, value: selectedParameter.value } };
+    const needsReview = requiresFailureRateConversionReview(rateBasis);
+    const displayedProbability = needsReview ? undefined : resolvedRateBasis === undefined
+      ? (selectedParameter?.value ?? selectedHumanFailure?.value ?? prob)
+      : failureRateToProbability(resolvedRateBasis);
+    const isHumanError = be.failureMode === "HUMAN_ERROR";
     const repairOk = be.repairModeled !== true || (be.repairJustification ?? "").length > 0;
     return (
       <>
         <div className="posdrawer__head posdrawer__head--bare">
           <div>
-            <div className="posdrawer__cap">Basic event · {shortOf(ownerRef)}</div>
+            <div className="posdrawer__cap">Basic event · {ownerRef === undefined ? "Workbook catalogue" : shortOf(ownerRef)}</div>
           </div>
           <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="posfield-grid">
+            <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
-              {editable ? <WorkbookInput className="posfield__input" value={be.name} onChange={(e) => patch({ name: e.target.value }, { name: e.target.value })} /> : <div>{be.name}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={be.name} onChange={(e) => patch({ name: e.target.value })} /> : <div>{be.name}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Identifier</label><div className="posmono">{be.uuid}</div></div>
             <div className="posfield"><label className="posfield__label">Failure mode</label>
               {editable ? (
-                <select className="posfield__select" value={be.failureMode ?? ""} onChange={(e) => patch({ failureMode: e.target.value }, { mode: e.target.value })}>
+                <select
+                  className="posfield__select"
+                  value={be.failureMode ?? ""}
+                  onChange={(e) => patch({
+                    failureMode: e.target.value,
+                    controlledDataSource: undefined,
+                    dataAnalysisBasicEventRef: undefined,
+                  })}
+                >
                   {Object.entries(FAILURE_MODE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               ) : <div>{FAILURE_MODE_LABELS[be.failureMode ?? ""] ?? be.failureMode ?? "—"}</div>}
             </div>
-            <div className="posfield"><label className="posfield__label">Probability</label>
-              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={prob} onChange={(e) => patch({ probability: num(e.target.value) }, { prob: toExp(num(e.target.value)) })} /> : <div className="posmono">{toExp(prob)}</div>}
+            <div className="posfield"><label className="posfield__label">{rateBasis === undefined ? "Probability" : "Mission probability"}{be.controlledDataSource === undefined ? "" : " (controlled)"}</label>
+              {editable && be.controlledDataSource === undefined && rateBasis === undefined ? <WorkbookInput className="posfield__input posmono" type="number" min="0" max="1" step="any" value={prob} onChange={(e) => patch({ probability: num(e.target.value), quantificationBasis: { kind: "PROBABILITY" } })} /> : <div className="posmono">{displayedProbability === undefined ? "Review required" : toExp(displayedProbability)}</div>}
             </div>
-            <div className="posfield"><label className="posfield__label">Data Analysis reference</label>
-              {editable ? <WorkbookInput className="posfield__input posmono" value={be.dataAnalysisBasicEventRef ?? ""} onChange={(e) => patch({ dataAnalysisBasicEventRef: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div className="posmono">{be.dataAnalysisBasicEventRef ?? "—"}</div>}
+            {needsReview && resolvedRateBasis !== undefined && (
+              <div className="posfield posfield-grid--span2">
+                <p role="alert">{FAILURE_RATE_CONVERSION_REVIEW_REQUIRED}</p>
+                <p>Rate: {resolvedRateBasis.failureRate.value} per {resolvedRateBasis.failureRate.unit}; mission time: {resolvedRateBasis.missionTime.value} {resolvedRateBasis.missionTime.unit}.</p>
+                {editable && <button type="button" className="posnav__btn" onClick={() => {
+                  const reviewed = { ...resolvedRateBasis, conversion: "EXPONENTIAL" as const };
+                  patch({ quantificationBasis: reviewed, probability: failureRateToProbability(reviewed) });
+                }}>Use exponential conversion</button>}
+              </div>
+            )}
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">{isHumanError ? "Human Reliability event and HEP" : "Data Analysis parameter"}</label>
+              {editable && isHumanError ? (
+                <select
+                  aria-label="Human Reliability event and HEP"
+                  className="posfield__select"
+                  value={selectedHumanFailureKey}
+                  onChange={(event) => {
+                    const option = controlledHumanFailures.find((candidate) =>
+                      JSON.stringify([
+                        candidate.workbookId,
+                        candidate.humanFailureEventId,
+                        candidate.quantificationId,
+                      ]) === event.target.value,
+                    );
+                    if (option === undefined) {
+                      patch({ controlledDataSource: undefined });
+                      return;
+                    }
+                    patch({
+                      probability: option.value,
+                      quantificationBasis: { kind: "PROBABILITY" },
+                      controlledDataSource: {
+                        referenceType: "HUMAN_FAILURE_EVENT",
+                        workbookId: option.workbookId,
+                        entityId: option.humanFailureEventId,
+                        quantificationId: option.quantificationId,
+                      },
+                      dataAnalysisBasicEventRef: undefined,
+                    });
+                  }}
+                >
+                  <option value="">Select an HRA event and HEP</option>
+                  {selectedHumanFailure === undefined && selectedHumanFailureKey.length > 0 && (
+                    <option value={selectedHumanFailureKey}>Unavailable linked HRA quantification</option>
+                  )}
+                  {controlledHumanFailures.map((option) => {
+                    const key = JSON.stringify([
+                      option.workbookId,
+                      option.humanFailureEventId,
+                      option.quantificationId,
+                    ]);
+                    return <option key={key} value={key}>{option.workbookName} · {option.humanFailureEventName} · {option.methodology} · {toExp(option.value)}</option>;
+                  })}
+                </select>
+              ) : editable ? (
+                <select
+                  aria-label="Data Analysis parameter"
+                  className="posfield__select"
+                  value={selectedParameterKey}
+                  disabled={needsReview}
+                  onChange={(event) => {
+                    const option = compatibleParameters.find((candidate) =>
+                      JSON.stringify([candidate.workbookId, candidate.parameterId]) === event.target.value,
+                    );
+                    if (option === undefined) {
+                      patch({ controlledDataSource: undefined, dataAnalysisBasicEventRef: undefined });
+                      return;
+                    }
+                    const nextBasis = rateBasis === undefined
+                      ? { kind: "PROBABILITY" as const }
+                      : { ...rateBasis, failureRate: { ...rateBasis.failureRate, value: option.value } };
+                    patch({
+                      probability: nextBasis.kind === "FAILURE_RATE" ? failureRateToProbability(nextBasis) : option.value,
+                      quantificationBasis: nextBasis,
+                      controlledDataSource: {
+                        referenceType: "WORKBOOK_PARAMETER",
+                        workbookId: option.workbookId,
+                        entityId: option.parameterId,
+                      },
+                      dataAnalysisBasicEventRef: undefined,
+                    });
+                  }}
+                >
+                  <option value="">{rateBasis === undefined ? "Manual probability" : "Manual failure rate"}</option>
+                  {selectedParameter === undefined && selectedParameterKey.length > 0 && (
+                    <option value={selectedParameterKey}>Unavailable linked parameter</option>
+                  )}
+                  {compatibleParameters.map((option) => {
+                    const key = JSON.stringify([option.workbookId, option.parameterId]);
+                    return <option key={key} value={key}>{option.workbookName} · {option.parameterName} · {toExp(option.value)}</option>;
+                  })}
+                </select>
+              ) : isHumanError ? (
+                <div>{selectedHumanFailure === undefined
+                  ? be.controlledDataSource === undefined ? "No HRA quantification selected" : "Unavailable linked HRA quantification"
+                  : `${selectedHumanFailure.workbookName} · ${selectedHumanFailure.humanFailureEventName} · ${selectedHumanFailure.methodology}`}</div>
+              ) : (
+                <div>{selectedParameter === undefined
+                  ? be.controlledDataSource === undefined ? "Manual probability" : "Unavailable linked parameter"
+                  : `${selectedParameter.workbookName} · ${selectedParameter.parameterName}`}</div>
+              )}
             </div>
             <div className="posfield"><label className="posfield__label">Repair credited</label>
               {editable ? (
@@ -1676,6 +1807,20 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
         humanFailureEventIntegrations: draft.humanFailureEventIntegrations.filter((x) => x.uuid !== h.uuid),
       }));
     };
+    const selectedHumanFailureKey = h.hfeSource === undefined
+      ? ""
+      : JSON.stringify([
+          h.hfeSource.workbookId,
+          h.hfeSource.entityId,
+          h.hfeSource.quantificationId,
+        ]);
+    const selectedHumanFailure = controlledHumanFailures.find((option) =>
+      JSON.stringify([
+        option.workbookId,
+        option.humanFailureEventId,
+        option.quantificationId,
+      ]) === selectedHumanFailureKey,
+    );
     return (
       <>
         <div className="posdrawer__head posdrawer__head--bare">
@@ -1712,8 +1857,53 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
                 </select>
               ) : <div>{h.isTestMaintenance ? "Yes" : "No"}</div>}
             </div>
-            <div className="posfield"><label className="posfield__label">HR reference</label>
-              {editable ? <WorkbookInput className="posfield__input posmono" value={h.hfeReference} onChange={(e) => patch({ hfeReference: e.target.value })} /> : <div className="posmono">{h.hfeReference}</div>}
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">Human Reliability event and HEP</label>
+              {editable ? (
+                <select
+                  aria-label="Integrated Human Reliability event and HEP"
+                  className="posfield__select"
+                  value={selectedHumanFailureKey}
+                  onChange={(event) => {
+                    const option = controlledHumanFailures.find((candidate) =>
+                      JSON.stringify([
+                        candidate.workbookId,
+                        candidate.humanFailureEventId,
+                        candidate.quantificationId,
+                      ]) === event.target.value,
+                    );
+                    if (option === undefined) {
+                      patch({ hfeReference: "", hfeSource: undefined });
+                      return;
+                    }
+                    patch({
+                      hfeReference: option.humanFailureEventId,
+                      hfeSource: {
+                        referenceType: "HUMAN_FAILURE_EVENT",
+                        workbookId: option.workbookId,
+                        entityId: option.humanFailureEventId,
+                        quantificationId: option.quantificationId,
+                      },
+                      hfeType: option.hfeTiming === "PRE_INITIATOR" ? "PRE_INITIATOR" : "POST_INITIATOR",
+                      ...(h.taskDescription.length === 0
+                        ? { taskDescription: option.humanFailureEventName }
+                        : {}),
+                    });
+                  }}
+                >
+                  <option value="">Select an HRA event and HEP</option>
+                  {selectedHumanFailure === undefined && selectedHumanFailureKey.length > 0 && (
+                    <option value={selectedHumanFailureKey}>Unavailable linked HRA quantification</option>
+                  )}
+                  {controlledHumanFailures.map((option) => {
+                    const key = JSON.stringify([
+                      option.workbookId,
+                      option.humanFailureEventId,
+                      option.quantificationId,
+                    ]);
+                    return <option key={key} value={key}>{option.workbookName} · {option.humanFailureEventName} · {option.methodology} · {toExp(option.value)}</option>;
+                  })}
+                </select>
+              ) : <div>{selectedHumanFailure === undefined ? h.hfeReference || "—" : `${selectedHumanFailure.humanFailureEventName} · ${selectedHumanFailure.methodology} · ${toExp(selectedHumanFailure.value)}`}</div>}
             </div>
           </div>
           {editable && (

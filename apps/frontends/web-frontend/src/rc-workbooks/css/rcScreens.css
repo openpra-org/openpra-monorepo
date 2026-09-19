@@ -441,3 +441,10 @@
 
 /* â”€â”€â”€ Drawer SR chip row (shared by the drawer panels) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posdrawer__srs { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; }
+
+/* Reuse the centered modal shell for RC site and meteorology editors. */
+.rc-details-modal{font:13px/1.45 var(--font-ui),sans-serif;overflow-wrap:anywhere}
+.rc-details-modal .posfield:has(select){max-width:320px}
+.rc-details-modal input[type="number"]{max-width:160px}
+.rc-details-modal .posnav__btn{align-self:flex-start;white-space:nowrap}
+.rc-details-modal .posnav__btn:disabled{opacity:.5;cursor:default}

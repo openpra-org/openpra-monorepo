@@ -3,6 +3,7 @@ import { type SRReference } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { type SeismicPRA } from "interfaces-mef-types/seismic/seismic-pra";
 import { createBlankSeismicPra } from "../../seismic-pra-workbooks/blank-seismic-pra";
+import { createHazardConditionedMethodModels } from "./hazard-conditioned-method-model-seed";
 import { populateFragilityResults } from "./seismic-pra-fragility-results-seed";
 import { populateHazardResults } from "./seismic-pra-hazard-results-seed";
 import { populateSeismicHumanReliability } from "./seismic-pra-human-reliability-seed";
@@ -27,6 +28,7 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   const site = isSfr ? "Pioneer Mesa Site" : "Cedar Basin Site";
   const building = isSfr ? "Reactor and steam-generator building" : "Reactor building and helium service area";
   const mef = createBlankSeismicPra(isSfr ? "S Workbook 2" : "S Workbook 1", "example.preparer");
+  mef.hazardConditionedModels = createHazardConditionedMethodModels("S", "Seismic hazard");
 
   mef.uuid = `SEISMIC-PRA-${kind.toUpperCase()}`;
   mef.created = "2026-06-18T09:00:00.000Z";

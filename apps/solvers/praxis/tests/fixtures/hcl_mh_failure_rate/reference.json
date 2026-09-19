@@ -1,0 +1,68 @@
+{
+  "source": "resources/HCL_MH/uq/basic_event_models.py",
+  "function": "calc_probability, calculation type 3",
+  "source_sha256": "e00823967f5397ee89e588b64abcc70b08cac16ff65f7e2cc4ba292fb379db98",
+  "numpy_version": "2.4.4",
+  "cases": [
+    {
+      "name": "zero_rate",
+      "rate": 0.0,
+      "time": 100.0,
+      "probability": "0.0"
+    },
+    {
+      "name": "tiny_exposure_rounds_to_zero",
+      "rate": 1e-20,
+      "time": 1.0,
+      "probability": "0.0"
+    },
+    {
+      "name": "below_subtraction_resolution",
+      "rate": 1e-17,
+      "time": 1.0,
+      "probability": "0.0"
+    },
+    {
+      "name": "one_ulp_below_one",
+      "rate": 1e-16,
+      "time": 1.0,
+      "probability": "1.1102230246251565e-16"
+    },
+    {
+      "name": "small_exposure",
+      "rate": 1e-12,
+      "time": 1.0,
+      "probability": "9.999778782798785e-13"
+    },
+    {
+      "name": "hourly_mission",
+      "rate": 2e-05,
+      "time": 24.0,
+      "probability": "0.0004798848184297544"
+    },
+    {
+      "name": "pump_example",
+      "rate": 0.001,
+      "time": 100.0,
+      "probability": "0.09516258196404048"
+    },
+    {
+      "name": "unit_exposure",
+      "rate": 1.0,
+      "time": 1.0,
+      "probability": "0.6321205588285577"
+    },
+    {
+      "name": "near_certain",
+      "rate": 5.0,
+      "time": 1.0,
+      "probability": "0.9932620530009145"
+    },
+    {
+      "name": "saturated",
+      "rate": 1.0,
+      "time": 1000.0,
+      "probability": "1.0"
+    }
+  ]
+}

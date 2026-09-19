@@ -1,6 +1,7 @@
+import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ESQIcon } from "./esqIcons";
 import {
   ESQ_PERSONAS,
@@ -17,6 +18,8 @@ import { useEsqWorkbook, type EsqWorkbookData } from "./esqWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
+import { WorkbookSaveIndicator } from "../workbooks/workbookSaveIndicator";
+import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/esqScreens.css";
 
@@ -47,6 +50,7 @@ interface HeaderMeta {
   projectName: string;
   workbookName: string;
   workbookVersion: string;
+  saveStatus?: RevisionedSaveStatus;
 }
 
 function WorkspaceHeader({
@@ -117,7 +121,7 @@ function WorkspaceHeader({
         {onUnloadExample !== undefined && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onUnloadExample} title="Restore the contents that existed before the example was loaded"><ESQIcon.Close /> Unload example</button>
         )}
-        <span className="poshd__save-pill"><span className="poshd__save-pill-dot" />Autosaved · v{headerMeta.workbookVersion}</span>
+        <WorkbookSaveIndicator status={headerMeta.saveStatus} workbookVersion={headerMeta.workbookVersion} />
         <button type="button" className="posnav__btn" aria-label="History"><ESQIcon.History /></button>
         {onToggleDock !== undefined && (
           <button type="button" className="posw__mobile-toggle" onClick={onToggleDock} aria-label="Open conformance"><ESQIcon.Eye /> Conformance</button>
@@ -163,10 +167,6 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
           );
         })}
       </ul>
-      <div className="posrail__footer">
-        <button type="button" className="posrail__footer-btn"><ESQIcon.Layers /> Show all inputs</button>
-        <button type="button" className="posrail__footer-btn"><ESQIcon.Settings /> Workbook settings</button>
-      </div>
     </aside>
   );
 }
@@ -290,6 +290,10 @@ function EsqWorkbench({
   const isApprover = persona === "approver";
 
   const visibleSteps = useMemo(() => stepsFromMef(data.esq, persona), [data.esq, persona]);
+  const [searchParams] = useSearchParams();
+  const requestedStepId = searchParams.get("step");
+  const requestedNetworkId = searchParams.get("network");
+  const requestedSourceWorkbookId = searchParams.get("sourceWorkbook");
   const mefCcId = data.esq.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
   const mefStage: Stage = data.esq.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
   const [ccId, setCcId] = useState<string>(mefCcId);
@@ -302,7 +306,10 @@ function EsqWorkbench({
     onStageChange?.(s);
   }
 
-  const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "scope");
+  const [stepId, setStepIdState] = useState<string>(() =>
+    visibleSteps.some((candidate) => candidate.id === requestedStepId)
+      ? requestedStepId!
+      : visibleSteps[0]?.id ?? "scope");
   const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
   const [dockOpen, setDockOpen] = useState(!isNarrow);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
@@ -384,7 +391,7 @@ function EsqWorkbench({
       case "integrate": return <IntegrateScreen openDrawer={setDrawer} />;
       case "solve": return <SolveScreen openDrawer={setDrawer} />;
       case "logic": return <LogicScreen openDrawer={setDrawer} />;
-      case "depend": return <DependScreen openDrawer={setDrawer} />;
+      case "depend": return <DependScreen openDrawer={setDrawer} initialNetworkId={requestedNetworkId} initialSourceWorkbookId={requestedSourceWorkbookId} />;
       case "barriers": return <BarriersScreen openDrawer={setDrawer} />;
       case "results": return <ResultsScreen openDrawer={setDrawer} />;
       case "uncert": return <UncertScreen stage={stage} openDrawer={setDrawer} />;
@@ -445,6 +452,7 @@ function EsqWorkbench({
           </div>
 
           {renderScreen()}
+          {["depend", "results"].includes(stepId) && <EsqAnalysisHistory />}
 
           <div className="posnav">
             {prev ? (
@@ -489,3 +497,8 @@ function EsqWorkbench({
 }
 
 export { EsqWorkbench, type HeaderMeta, type EsqWorkbenchActions };
+
+function EsqAnalysisHistory() {
+  const {runtime} = useEsqWorkbook();
+  return <AnalysisRunHistory host="esq" workbookId={runtime.workbookId}/>;
+}

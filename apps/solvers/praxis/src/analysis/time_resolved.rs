@@ -44,7 +44,9 @@ pub fn quantify_over_time(fault_tree: &FaultTree, times: &[f64]) -> Result<Vec<(
     for &t in times {
         work.set_mission_time(t);
         work.reevaluate_basic_event_probabilities()?;
-        let probability = FaultTreeAnalysis::new(&work)?.analyze()?.top_event_probability;
+        let probability = FaultTreeAnalysis::new(&work)?
+            .analyze()?
+            .top_event_probability;
         series.push((probability, t));
     }
     Ok(series)

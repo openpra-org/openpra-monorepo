@@ -1,18 +1,42 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { AnalysisCancellationInterceptor } from "../newly-developed-methods/shared/analysis-cancellation.interceptor";
+import type { HclGenerateScenariosResult } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, UseGuards, UseInterceptors } from "@nestjs/common";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { SyWorkbooksService, type SyWorkbookResponse } from "./sy-workbooks.service";
-import { parseWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
+import { parseRevisionedWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
+import { parseExpectedWorkbookRevision } from "../workbooks/workbook-revision";
+import { WorkbookAnalysisRunsService } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
+import type { AnalysisRunMetadata, HclBatchExecuteResult } from "interfaces-shared-types/newly-developed-methods";
+import type { FaultTreeValidateResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 
-
+@UseInterceptors(AnalysisCancellationInterceptor)
 @Controller("sy-workbooks")
 @UseGuards(JwtAuthGuard)
 export class SyWorkbooksController {
-  constructor(private readonly syWorkbooksService: SyWorkbooksService) {}
+  constructor(
+    private readonly syWorkbooksService: SyWorkbooksService,
+    private readonly analysisRunsService: WorkbookAnalysisRunsService,
+  ) {}
 
   @Get(":id")
   @HttpCode(HttpStatus.OK)
   get(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<SyWorkbookResponse> {
     return this.syWorkbooksService.findOne(id, { username: req.user!.username });
+  }
+
+  @Get(":id/analysis-runs")
+  listAnalysisRuns(@Param("id") id: string, @Req() req: AuthenticatedRequest, @Query("cursor") cursor?: string) {
+    return this.analysisRunsService.listRunProvenance("SY", id, { username: req.user!.username }, cursor);
+  }
+
+  @Get(":id/analysis-runs/:runId")
+  analysisRun(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
+    return this.analysisRunsService.getRun("SY", id, undefined, runId, { username: req.user!.username });
+  }
+
+  @Get(":id/analysis-runs/:runId/details")
+  analysisRunDetails(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
+    return this.analysisRunsService.getRunDetails("SY", id, runId, { username: req.user!.username });
   }
 
   @Patch(":id")
@@ -22,12 +46,174 @@ export class SyWorkbooksController {
     @Body() body: unknown,
     @Req() req: AuthenticatedRequest,
   ): Promise<SyWorkbookResponse> {
-    return this.syWorkbooksService.patchMef(id, parseWorkbookPatchBody(body), { username: req.user!.username });
+    return this.syWorkbooksService.patchMef(id, parseRevisionedWorkbookPatchBody(body), {
+      username: req.user!.username,
+    });
+  }
+
+  @Delete(":id/fault-trees/:modelId")
+  @HttpCode(HttpStatus.OK)
+  deleteFaultTree(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Query("expectedRevision") expectedRevision: string | undefined,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<SyWorkbookResponse> {
+    return this.syWorkbooksService.deleteFaultTree(id, modelId, parseExpectedWorkbookRevision(expectedRevision), {
+      username: req.user!.username,
+    });
+  }
+
+  @Post(":id/fault-trees/:modelId/runs")
+  @HttpCode(HttpStatus.OK)
+  async runFaultTree(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ schemaVersion: "1.0.0"; run: AnalysisRunMetadata }> {
+    return {
+      schemaVersion: "1.0.0",
+      run: await this.analysisRunsService.executeFaultTree(id, modelId, body, {
+        username: req.user!.username,
+      }),
+    };
+  }
+
+  @Post(":id/fault-trees/:modelId/validate")
+  @HttpCode(HttpStatus.OK)
+  validateFaultTree(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<FaultTreeValidateResult> {
+    return this.syWorkbooksService.validateFaultTree(id, modelId, body, {
+      username: req.user!.username,
+    });
+  }
+
+  @Get(":id/fault-trees/:modelId/runs/:runId")
+  @HttpCode(HttpStatus.OK)
+  getFaultTreeRun(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<AnalysisRunMetadata> {
+    return this.analysisRunsService.getRun("SY", id, modelId, runId, {
+      username: req.user!.username,
+    });
+  }
+
+  @Get(":id/fault-trees/:modelId/runs/:runId/result")
+  @HttpCode(HttpStatus.OK)
+  getFaultTreeResult(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<unknown> {
+    return this.analysisRunsService.getResult("SY", id, modelId, runId, {
+      username: req.user!.username,
+    });
+  }
+
+  @Post(":id/bayesian-networks/:modelId/runs")
+  @HttpCode(HttpStatus.OK)
+  async runBayesianNetwork(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ schemaVersion: "1.0.0"; run: AnalysisRunMetadata }> {
+    return {
+      schemaVersion: "1.0.0",
+      run: await this.analysisRunsService.executeBayesianNetwork(
+        id,
+        modelId,
+        body,
+        { username: req.user!.username },
+        "SY",
+      ),
+    };
+  }
+
+  @Get(":id/bayesian-networks/:modelId/runs/:runId/result")
+  @HttpCode(HttpStatus.OK)
+  getBayesianNetworkResult(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<unknown> {
+    return this.analysisRunsService.getResult("SY", id, modelId, runId, {
+      username: req.user!.username,
+    });
+  }
+
+  @Post(":id/hcl-configurations/:modelId/generate-scenarios")
+  @HttpCode(HttpStatus.OK)
+  generateHclScenarios(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<HclGenerateScenariosResult> {
+    return this.analysisRunsService.generateHclScenarios(id, modelId, body, { username: req.user!.username }, "SY");
+  }
+
+  @Post(":id/hcl-configurations/:modelId/fault-tree-runs")
+  @HttpCode(HttpStatus.OK)
+  async runHclFaultTree(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ schemaVersion: "1.0.0"; run: AnalysisRunMetadata }> {
+    return {
+      schemaVersion: "1.0.0",
+      run: await this.analysisRunsService.executeHclFaultTree(
+        id,
+        modelId,
+        body,
+        { username: req.user!.username },
+        "SY",
+      ),
+    };
+  }
+
+  @Post(":id/hcl-configurations/:modelId/fault-tree-batch-runs")
+  @HttpCode(HttpStatus.OK)
+  runHclFaultTreeBatch(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<HclBatchExecuteResult> {
+    return this.analysisRunsService.executeHclFaultTreeBatch(id, modelId, body, { username: req.user!.username }, "SY");
+  }
+
+  @Get(":id/hcl-configurations/:modelId/runs/:runId/result")
+  @HttpCode(HttpStatus.OK)
+  getHclResult(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<unknown> {
+    return this.analysisRunsService.getResult("SY", id, modelId, runId, {
+      username: req.user!.username,
+    });
   }
 
   @Post(":id/load-example")
   @HttpCode(HttpStatus.OK)
-  loadExample(@Param("id") id: string, @Body() body: { example?: string }, @Req() req: AuthenticatedRequest): Promise<SyWorkbookResponse> {
+  loadExample(
+    @Param("id") id: string,
+    @Body() body: { example?: string },
+    @Req() req: AuthenticatedRequest,
+  ): Promise<SyWorkbookResponse> {
     return this.syWorkbooksService.loadExample(id, { username: req.user!.username }, body.example);
   }
 

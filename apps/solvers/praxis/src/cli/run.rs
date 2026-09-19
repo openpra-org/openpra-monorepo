@@ -2,9 +2,9 @@ use crate::cli::args::{Algorithm, Args, Backend, CutOffBasis, OutputFormat, Vrt}
 use crate::cli::event_tree;
 use crate::cli::fault_tree;
 use crate::cli::output::{writer_stdout, writer_vec};
+use praxis::io::ftc::serialize_saphire_v2;
 use praxis::io::parser::{parse_any_mef, ParsedInput};
 use praxis::io::pbf::decode_fault_tree;
-use praxis::io::ftc::serialize_saphire_v2;
 use praxis::io::reporter::{write_comprehensive_report, AnalysisReport, EventTreeMonteCarloReport};
 use praxis::io::serializer::{write_results, write_results_with_monte_carlo};
 use std::fs;
@@ -53,9 +53,7 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if cli.watch && cli.algorithm != Algorithm::MonteCarlo {
-        eprintln!(
-            "error: the argument '--watch' can only be used with '--algorithm monte-carlo'"
-        );
+        eprintln!("error: the argument '--watch' can only be used with '--algorithm monte-carlo'");
         eprintln!();
         eprintln!("For more information, try '--help'.");
         std::process::exit(2);
@@ -234,12 +232,7 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
                 return Err("HCL requests currently require a fault-tree input".into());
             }
         };
-        return crate::cli::hcl::run_hcl_request(
-            &cli,
-            fault_tree,
-            request_path,
-            verbose,
-        );
+        return crate::cli::hcl::run_hcl_request(&cli, fault_tree, request_path, verbose);
     }
 
     if cli.widths_only {
@@ -313,12 +306,8 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    let pre_outcome = fault_tree::run_pre_event_tree_parsed(
-        &cli,
-        fault_tree_model,
-        verbose,
-        verbosity_level,
-    )?;
+    let pre_outcome =
+        fault_tree::run_pre_event_tree_parsed(&cli, fault_tree_model, verbose, verbosity_level)?;
     let pre_state = match pre_outcome {
         fault_tree::FaultTreePreOutcome::ExitOk => return Ok(()),
         fault_tree::FaultTreePreOutcome::Continue(state) => *state,

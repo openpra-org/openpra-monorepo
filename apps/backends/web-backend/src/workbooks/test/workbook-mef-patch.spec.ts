@@ -1,5 +1,9 @@
 import { BadRequestException } from "@nestjs/common";
-import { mergeWorkbookPatch, parseWorkbookPatchBody } from "../workbook-mef-patch";
+import {
+  mergeWorkbookPatch,
+  parseRevisionedWorkbookPatchBody,
+  parseWorkbookPatchBody,
+} from "../workbook-mef-patch";
 
 describe("workbook MEF path patches", () => {
   test("merges only the supplied leaf operation into the current MEF", () => {
@@ -25,5 +29,23 @@ describe("workbook MEF path patches", () => {
     expect(() => mergeWorkbookPatch({ name: "A" }, [
       { op: "add", path: ["__proto__"], value: {} },
     ])).toThrow(BadRequestException);
+  });
+
+  test("requires a positive expected revision for revisioned method patches", () => {
+    const payload = {
+      expectedRevision: 7,
+      operations: [{ op: "replace" as const, path: ["name"], value: "Updated" }],
+    };
+
+    expect(parseRevisionedWorkbookPatchBody(payload)).toEqual(payload);
+    expect(() => parseRevisionedWorkbookPatchBody({ operations: payload.operations })).toThrow(
+      BadRequestException,
+    );
+    expect(() =>
+      parseRevisionedWorkbookPatchBody({ ...payload, expectedRevision: 0 }),
+    ).toThrow(BadRequestException);
+    expect(() =>
+      parseRevisionedWorkbookPatchBody({ ...payload, unexpectedField: true }),
+    ).toThrow(BadRequestException);
   });
 });

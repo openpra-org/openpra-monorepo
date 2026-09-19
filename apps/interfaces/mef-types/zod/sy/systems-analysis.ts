@@ -12,6 +12,16 @@ import {
   PreOperationalAssumptionSchema,
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
+import { CanvasLayoutMetadataSchema, CanvasPositionSchema } from "../modeling/shared";
+import { HumanFailureEventReferenceSchema } from "../modeling/references";
+import { FaultTreeControlledDataSourceReferenceSchema } from "../modeling/fault-tree";
+import { FaultTreeBasicEventQuantificationBasisSchema } from "../modeling/quantitative-semantics";
+import { WorkbookBayesianNetworkSchema, WorkbookHclConfigurationSchema } from "../modeling/workbook-models";
+import {
+  normalizeSystemLogicModel,
+  normalizeSystemsAnalysisModels,
+  systemFaultTreeBasicEventIds,
+} from "../../sy/system-models";
 
 export const SyDependencyTypeSchema = z.enum(DependencyType);
 export const SyFailureModeTypeSchema = z.enum(FailureModeType);
@@ -19,13 +29,16 @@ export const ComponentStateSchema = z.enum(["operational", "degraded", "failed",
 
 export const SystemBasicEventSchema = z.object({
   ...BasicEventSchema.shape,
+  code: z.string().trim().min(1).max(64),
   componentReference: z.string().optional(),
   failureMode: z.string().optional(),
   probability: z.number().optional(),
+  quantificationBasis: FaultTreeBasicEventQuantificationBasisSchema.optional(),
   repairModeled: z.boolean().optional(),
   repairJustification: z.string().optional(),
   meanTimeToRepair: z.number().optional(),
   probabilityModelRef: z.string().optional(),
+  controlledDataSource: FaultTreeControlledDataSourceReferenceSchema.optional(),
   dataAnalysisBasicEventRef: z.string().optional(),
   attributes: z
     .array(
@@ -168,33 +181,127 @@ export const SystemConfirmationRecordSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
-const SystemFaultTreeNodeSchema: z.ZodType<SystemFaultTreeNode> = z.lazy(() =>
+export const SystemFaultTreeNodeSchema: z.ZodType<SystemFaultTreeNode> = z.lazy(() =>
   z.union([
-    z.object({ id: z.string(), type: z.enum(["OR", "AND", "KN"]), name: z.string(), k: z.number().optional(), children: z.array(SystemFaultTreeNodeSchema) }),
-    z.object({ id: z.string(), type: z.literal("BE"), name: z.string(), be: z.string(), mode: z.string(), source: z.string(), prob: z.string(), ccf: z.boolean().optional() }),
-    z.object({ id: z.string(), type: z.literal("TR"), name: z.string(), transfer: z.string() }),
+    z
+      .object({
+        id: z.string(),
+        type: z.enum(["OR", "AND", "KN"]),
+        name: z.string(),
+        k: z.number().optional(),
+        children: z.array(SystemFaultTreeNodeSchema),
+      })
+      .strict(),
+    z.object({ id: z.string(), type: z.literal("BE"), basicEventId: z.string() }).strict(),
+    z.object({ id: z.string(), type: z.literal("TR"), name: z.string(), transfer: z.string() }).strict(),
   ]),
 );
 
-export const SystemLogicModelSchema = z.object({
-  uuid: z.string(),
-  systemReference: z.string(),
-  description: z.string(),
-  modelRepresentation: z.string(),
-  faultTree: SystemFaultTreeNodeSchema.optional(),
-  basicEvents: z.array(SystemBasicEventSchema),
-  nonDetailedModelJustification: z.string().optional(),
-  logicLoopResolutions: z
-    .array(
-      z.object({
-        loopId: z.string(),
-        resolution: z.string(),
-      }),
-    )
-    .optional(),
-  nomenclature: z.record(z.string(), z.string()).optional(),
-  implementsSrs: z.array(SRReferenceSchema),
+const SystemFaultTreeEntityIdentitySchema = z.object({
+  id: z.string().min(1),
+  code: z.string().trim().min(1).max(64),
+  name: z.string().trim().min(1).max(200),
+  description: z.string().max(10_000),
 });
+
+export const SystemFaultTreeGateSchema = z.discriminatedUnion("gateType", [
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("GATE"),
+    gateType: z.literal("AND"),
+  }).strict(),
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("GATE"),
+    gateType: z.literal("OR"),
+  }).strict(),
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("GATE"),
+    gateType: z.literal("XOR"),
+  }).strict(),
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("GATE"),
+    gateType: z.literal("NOT"),
+  }).strict(),
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("GATE"),
+    gateType: z.literal("K_OF_N"),
+    k: z.number().int().positive(),
+  }).strict(),
+]);
+
+export const SystemFaultTreeLeafNodeSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      id: z.string().min(1),
+      kind: z.literal("BASIC_EVENT_REFERENCE"),
+      basicEventId: z.string().min(1),
+    })
+    .strict(),
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("HOUSE_EVENT"),
+    state: z.boolean(),
+  }).strict(),
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("UNDEVELOPED_EVENT"),
+  }).strict(),
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("TRANSFER_REFERENCE"),
+    target: z
+      .object({
+        modelId: z.string().min(1),
+        entityId: z.string().min(1),
+      })
+      .strict(),
+  }).strict(),
+]);
+
+export const SystemFaultTreeGateInputSchema = z
+  .object({
+    id: z.string().min(1),
+    gateId: z.string().min(1),
+    childId: z.string().min(1),
+    order: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export const SystemFaultTreeNodePositionSchema = z
+  .object({
+    nodeId: z.string().min(1),
+    position: CanvasPositionSchema,
+  })
+  .strict();
+
+const CanonicalSystemLogicModelSchema = z
+  .object({
+    uuid: z.string(),
+    code: z.string().trim().min(1).max(64),
+    name: z.string().trim().min(1).max(200),
+    systemReference: z.string(),
+    description: z.string(),
+    modelRepresentation: z.string(),
+    topGate: z.object({ gateId: z.string().min(1) }).strict().nullable(),
+    gates: z.array(SystemFaultTreeGateSchema),
+    leafNodes: z.array(SystemFaultTreeLeafNodeSchema),
+    gateInputs: z.array(SystemFaultTreeGateInputSchema),
+    nodePositions: z.array(SystemFaultTreeNodePositionSchema),
+    layout: CanvasLayoutMetadataSchema,
+    nonDetailedModelJustification: z.string().optional(),
+    logicLoopResolutions: z
+      .array(
+        z.object({
+          loopId: z.string(),
+          resolution: z.string(),
+        }),
+      )
+      .optional(),
+    nomenclature: z.record(z.string(), z.string()).optional(),
+    implementsSrs: z.array(SRReferenceSchema),
+  })
+  .strict();
+
+export const SystemLogicModelSchema = z.preprocess(
+  normalizeSystemLogicModel,
+  CanonicalSystemLogicModelSchema,
+);
 
 export const DigitalInstrumentationAndControlSchema = z.object({
   uuid: z.string(),
@@ -406,6 +513,7 @@ export const CommonCauseFailureGroupSchema = z.object({
 export const HumanFailureEventIntegrationSchema = z.object({
   uuid: z.string(),
   hfeReference: z.string(),
+  hfeSource: HumanFailureEventReferenceSchema.optional(),
   system: z.string(),
   taskDescription: z.string(),
   hfeType: z.enum(["PRE_INITIATOR", "POST_INITIATOR"]),
@@ -624,18 +732,20 @@ export const SyDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
-export const SystemsAnalysisSchema = z.object({
+const CanonicalSystemsAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.SYSTEMS_ANALYSIS).shape,
   praScope: z.string(),
   systemDefinitions: z.array(SystemDefinitionSchema),
   systemToSafetyFunctionMappings: z.array(SystemToSafetyFunctionMappingSchema),
   systemLogicModels: z.array(SystemLogicModelSchema),
-  systemBasicEvents: z.array(SystemBasicEventSchema).optional(),
+  systemBasicEvents: z.array(SystemBasicEventSchema),
   variableSuccessCriteria: z.array(VariableSuccessCriterionSchema).optional(),
   systemConfirmationRecords: z.array(SystemConfirmationRecordSchema).optional(),
   plantRepresentationAccuracy: PlantRepresentationAccuracySchema,
   systemDependencies: z.array(SystemDependencySchema),
   componentDependencies: z.array(ComponentDependencySchema),
+  dependencyBayesianNetworks: z.array(WorkbookBayesianNetworkSchema).optional(),
+  dependencyHclConfigurations: z.array(WorkbookHclConfigurationSchema).optional(),
   dependencySearchMethodology: DependencySearchMethodologySchema,
   commonCauseFailureGroups: z.array(CommonCauseFailureGroupSchema),
   supportSystemNeedAnalyses: z.array(SupportSystemNeedAnalysisSchema).optional(),
@@ -693,7 +803,35 @@ export const SystemsAnalysisSchema = z.object({
     linked: z.number(),
     url: z.string().optional(),
   })).optional(),
+}).superRefine((analysis, context) => {
+  const catalogueIds = new Set<string>();
+  analysis.systemBasicEvents.forEach((event, eventIndex) => {
+    if (catalogueIds.has(event.uuid)) {
+      context.addIssue({
+        code: "custom",
+        path: ["systemBasicEvents", eventIndex, "uuid"],
+        message: `Basic-event id ${event.uuid} is duplicated in the workbook catalogue`,
+      });
+    }
+    catalogueIds.add(event.uuid);
+  });
+
+  analysis.systemLogicModels.forEach((model, modelIndex) => {
+    systemFaultTreeBasicEventIds(model).forEach((basicEventId) => {
+      if (catalogueIds.has(basicEventId)) return;
+      context.addIssue({
+        code: "custom",
+        path: ["systemLogicModels", modelIndex, "leafNodes"],
+        message: `Fault-tree basic-event reference ${basicEventId} does not resolve in systemBasicEvents`,
+      });
+    });
+  });
 });
+
+export const SystemsAnalysisSchema = z.preprocess(
+  normalizeSystemsAnalysisModels,
+  CanonicalSystemsAnalysisSchema,
+);
 
 type Expect<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;

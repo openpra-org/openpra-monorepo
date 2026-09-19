@@ -269,7 +269,6 @@ mod tests {
 
     #[test]
     fn likelihood_ratio_all_zero_vector() {
-
         let p = vec![0.2, 0.3];
         let q = vec![0.4, 0.6];
         let sample = vec![false, false];
@@ -286,7 +285,6 @@ mod tests {
 
     #[test]
     fn likelihood_ratio_all_one_vector() {
-
         let p = vec![0.2, 0.3];
         let q = vec![0.4, 0.6];
         let sample = vec![true, true];
@@ -298,7 +296,6 @@ mod tests {
 
     #[test]
     fn likelihood_ratio_mixed_vector() {
-
         let p = vec![0.2, 0.3];
         let q = vec![0.4, 0.6];
         let sample = vec![true, false];
@@ -318,7 +315,6 @@ mod tests {
 
     #[test]
     fn proposal_impossible_outcome_is_error() {
-
         let p = vec![0.2];
         let q = vec![0.0];
         let sample = vec![true];
@@ -353,7 +349,6 @@ mod tests {
 
     #[test]
     fn weighted_tally_exact_enumeration_matches_analytic_or_probability() {
-
         let p = vec![0.2, 0.3];
         let q = vec![0.4, 0.6];
 
@@ -409,7 +404,6 @@ mod tests {
 
     #[test]
     fn degeneracy_flag_triggers_for_spiky_weights() {
-
         let mut w = vec![1.0; 9];
         w.push(1000.0);
         let ratio = diagnostics::effective_sample_size_ratio(&w)

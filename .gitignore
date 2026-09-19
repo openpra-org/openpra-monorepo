@@ -97,8 +97,13 @@ __pycache__/
 
 tools/
 !apps/docs-md/tools/
+# Required vendored Boost headers are build inputs, not local tooling.
+!/apps/solvers/praxis/vendor/scipy-quantiles/include/boost/math/tools/
+!/apps/solvers/praxis/vendor/scipy-quantiles/include/boost/math/tools/**
 traefik/
 fixtures/
+!apps/interfaces/shared-types/rc-workbooks/test/fixtures/
+!apps/interfaces/shared-types/rc-workbooks/test/fixtures/**
 registry/
 docker-compose.yml
 docker-compose.infra.yml
@@ -113,3 +118,57 @@ apps/solvers/xfta/XFTA.pdf
 
 # Local one-off comment-removal utility (not part of the codebase)
 /strip-comments.mjs
+
+# Source-reference fixtures required by the HCL Rust and native addon tests.
+!/apps/solvers/praxis/tests/fixtures/
+/apps/solvers/praxis/tests/fixtures/*
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_uq/
+/apps/solvers/praxis/tests/fixtures/hcl_mh_uq/*
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_uq/generate.py
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_uq/reference.json
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_cpt/
+/apps/solvers/praxis/tests/fixtures/hcl_mh_cpt/*
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_cpt/generate.py
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_cpt/reference.json
+
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_seismic/
+/apps/solvers/praxis/tests/fixtures/hcl_mh_seismic/*
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_seismic/generate.py
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_seismic/reference.json
+
+# Local model backups from the explicit-prior data conversion.
+/outputs/hcl-seismic-generators/database-backups/
+/output
+/outputs
+
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_source.py
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_summaries/
+/apps/solvers/praxis/tests/fixtures/hcl_mh_summaries/*
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_summaries/generate.py
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_summaries/reference.json
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_hazard/
+/apps/solvers/praxis/tests/fixtures/hcl_mh_hazard/*
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_hazard/generate.py
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_hazard/reference.json
+
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_failure_rate/
+/apps/solvers/praxis/tests/fixtures/hcl_mh_failure_rate/*
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_failure_rate/generate.py
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_failure_rate/reference.json
+
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_hazard_sweep.py
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_hazard_sweep.json
+
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/**
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_distribution_domain/
+!/apps/solvers/praxis/tests/fixtures/hcl_mh_distribution_domain/**
+!/apps/solvers/praxis-node/test/fixtures/
+/apps/solvers/praxis-node/test/fixtures/*
+!/apps/solvers/praxis-node/test/fixtures/annual-statistics/
+!/apps/solvers/praxis-node/test/fixtures/annual-statistics/**
+!/apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/
+/apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/*
+!/apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/hclMhSource.json
+!/apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/hclMhSource.py
+!/apps/frontends/web-frontend/src/newly-developed-methods/bayesian-network/test/fixtures/grouping-demo.xdsl

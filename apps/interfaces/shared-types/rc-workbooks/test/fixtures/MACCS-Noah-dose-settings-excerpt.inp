@@ -1,0 +1,18 @@
+* SELECTED PUBLISHED INPUT RECORDS - not a complete MACCS run deck.
+* Noah A. Etter thesis, supplied etd.pdf: PDF pages 114 and 123 (printed 101 and 110).
+* Values and record identifiers preserved; selected blocks combined here.
+* Emergency-phase duration (seconds):
+SRENDEMP001 2.592E+6
+* Shielding and exposure records from the 90th-percentile evacuation cohort:
+SEBRRATE001 2.66E-04
+SEBRRATE002 2.66E-04
+SEBRRATE003 2.66E-04
+SECSFACT001 0.95
+SECSFACT002 0.75
+SECSFACT003 0.6
+SEGSHFAC001 0.52
+SEGSHFAC002 0.34
+SEGSHFAC003 0.19
+SEPROTIN001 0.98
+SEPROTIN002 0.46
+SEPROTIN003 0.25

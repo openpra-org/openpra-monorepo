@@ -53,7 +53,6 @@ fn attr_value(start: &BytesStart, key: &[u8]) -> Result<Option<String>> {
     for attr in start.attributes() {
         let attr = attr.map_err(|e| MefError::Validity(format!("Invalid attribute: {e}")))?;
         if attr.key.as_ref() == key {
-
             let value = attr
                 .unescape_value()
                 .map_err(|e| MefError::Validity(format!("Invalid attribute value: {e}")))?;
@@ -215,7 +214,6 @@ fn parse_expression_value<R: BufRead>(
             Ok(args[0] - args[1])
         }
         other => {
-
             skip_to_end(reader, other)?;
             Err(MefError::Validity(format!(
                 "Unsupported expression '{}' in collect-expression",
@@ -362,7 +360,6 @@ fn parse_fault_tree_from_reader<R: BufRead>(
                         let ccf = parse_ccf_group(reader, &ccf_name, &model_type)?;
                         ccf_groups.push(ccf);
                     } else {
-
                         skip_to_end(reader, b"define-CCF-group")?;
                     }
                 }
@@ -434,7 +431,6 @@ fn parse_basic_event_with_parameters<R: BufRead>(
     name: &str,
     parameters: &Parameters,
 ) -> Result<crate::core::event::BasicEvent> {
-
     let mut probability: Option<f64> = None;
     let mut buf = Vec::new();
 
@@ -669,7 +665,6 @@ fn parse_path_from_reader<R: BufRead>(
                     target = Some(BranchTarget::NamedBranch(branch_id));
                 }
                 b"float" => {
-
                     let _ = attr_value(&e, b"value")?;
                 }
                 _ => {}
@@ -752,7 +747,6 @@ fn parse_initial_state<R: BufRead>(
                 initial_house_events.push((id, state));
             }
             Ok(Event::Start(e)) if e.name().as_ref() == b"collect-expression" => {
-
                 skip_to_end(reader, b"collect-expression")?;
             }
             Ok(Event::Start(e)) if e.name().as_ref() == b"fork" => {
@@ -765,9 +759,7 @@ fn parse_initial_state<R: BufRead>(
                 }
                 return Ok(branch);
             }
-            Ok(Event::Empty(e)) if e.name().as_ref() == b"collect-expression" => {
-
-            }
+            Ok(Event::Empty(e)) if e.name().as_ref() == b"collect-expression" => {}
             Ok(Event::Empty(e)) if e.name().as_ref() == b"sequence" => {
                 let seq_id = required_attr(&e, b"name", "sequence")?;
                 skip_to_end(reader, b"initial-state")?;
@@ -822,7 +814,6 @@ fn parse_named_branch_from_reader<R: BufRead>(
                 branch_house_events.push((hid, state));
             }
             Ok(Event::Start(e)) if e.name().as_ref() == b"collect-expression" => {
-
                 skip_to_end(reader, b"collect-expression")?;
             }
             Ok(Event::Start(e)) if e.name().as_ref() == b"fork" => {
@@ -834,9 +825,7 @@ fn parse_named_branch_from_reader<R: BufRead>(
                 }
                 return Ok(NamedBranch::new(id, branch));
             }
-            Ok(Event::Empty(e)) if e.name().as_ref() == b"collect-expression" => {
-
-            }
+            Ok(Event::Empty(e)) if e.name().as_ref() == b"collect-expression" => {}
             Ok(Event::Empty(e)) if e.name().as_ref() == b"sequence" => {
                 let seq_id = required_attr(&e, b"name", "sequence")?;
                 skip_to_end(reader, b"define-branch")?;
@@ -1037,7 +1026,6 @@ pub fn parse_event_tree_model_full(xml: &str) -> Result<EventTreeModel> {
             if let Some(ft) = model.get_fault_tree_mut(&ft_id) {
                 for be in &model_basic_events {
                     if ft.get_basic_event(be.element().id()).is_none() {
-
                         let _ = ft.add_basic_event(be.clone());
                     }
                 }
@@ -1057,7 +1045,6 @@ pub fn parse_event_tree_model_full(xml: &str) -> Result<EventTreeModel> {
 }
 
 fn ext_gate_local_id(src_ft_id: &str, src_gate_id: &str) -> String {
-
     format!("__ext__{src_ft_id}__{src_gate_id}")
 }
 
@@ -1070,12 +1057,9 @@ fn resolve_cross_fault_tree_gate_references(model: &mut Model) -> Result<()> {
 
     let ft_ids: Vec<String> = model.fault_trees().keys().cloned().collect();
     for consumer_ft_id in ft_ids {
-
         let gate_ids: Vec<String> = model
             .get_fault_tree(&consumer_ft_id)
-            .ok_or_else(|| {
-                MefError::Validity(format!("Fault tree '{consumer_ft_id}' not found"))
-            })?
+            .ok_or_else(|| MefError::Validity(format!("Fault tree '{consumer_ft_id}' not found")))?
             .gates()
             .keys()
             .cloned()

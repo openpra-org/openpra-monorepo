@@ -15,7 +15,6 @@ fn p_of(result: &praxis::mc::EventTreeMonteCarloResult, seq_id: &str) -> f64 {
 
 #[test]
 fn mc_semantics_ie_probability_scales_sequence_partition() {
-
     let model = Model::new("M").unwrap();
 
     let ie = InitiatingEvent::new("IE".to_string()).with_probability(0.2);
@@ -54,7 +53,6 @@ fn mc_semantics_ie_probability_scales_sequence_partition() {
 
 #[test]
 fn mc_semantics_collect_formula_negation_routes_complements() {
-
     let model = Model::new("M").unwrap();
 
     let ie = InitiatingEvent::new("IE".to_string()).with_probability(1.0);
@@ -95,7 +93,6 @@ fn mc_semantics_collect_formula_negation_routes_complements() {
 
 #[test]
 fn mc_semantics_house_event_fixes_boolean_fork() {
-
     let model = Model::new("M").unwrap();
 
     let ie = InitiatingEvent::new("IE".to_string()).with_probability(1.0);

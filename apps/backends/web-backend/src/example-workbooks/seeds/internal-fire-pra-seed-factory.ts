@@ -10,6 +10,7 @@ import {
 } from "interfaces-mef-types/internal-fire/internal-fire-pra";
 import { synchronizeInternalFirePraDerivedRegisters } from "interfaces-mef-types/internal-fire/internal-fire-pra-validation";
 import { createBlankInternalFirePra } from "../../internal-fire-pra-workbooks/blank-internal-fire-pra";
+import { createHazardConditionedMethodModels } from "./hazard-conditioned-method-model-seed";
 
 export type InternalFirePraVariant = "htgr" | "sfr";
 interface PlantContext {
@@ -60,6 +61,7 @@ function preop(variant: InternalFirePraVariant, prefix: InternalFirePraSubelemen
 export function createInternalFirePraExample(variant: InternalFirePraVariant): InternalFirePRA {
   const context = CONTEXT[variant];
   const mef = createBlankInternalFirePra(context.workbookName, "Internal Fire PRA Team");
+  mef.hazardConditionedModels = createHazardConditionedMethodModels("FIRE", "Internal fire");
   mef.uuid = id(variant, "INTERNAL-FIRE-PRA"); mef.version = "1.0"; mef.plantStage = "PRE_OPERATIONAL";
   mef.praScope = `${context.plantName} Internal Fire PRA for all defined at-power operating states, ${String(context.modules)} reactor modules or units, shared support systems, spent-fuel inventory, and other modeled radioactive-material sources within the licensee-controlled area.`;
   mef.metadata.scope = mef.praScope; mef.metadata.plantIdentity = { name: context.plantName, vendor: "OpenPRA reference design", reactorType: context.reactorType, thermalPower: context.thermalPower, primaryCoolant: context.primaryCoolant, siteName: context.site, numberOfModules: context.modules };

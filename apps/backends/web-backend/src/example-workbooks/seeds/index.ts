@@ -1,3 +1,4 @@
+import { createPublishedRcSeed, RC_PUBLISHED_ID, RC_PUBLISHED_LABEL, RC_PUBLISHED_SLUG } from "./rc-published-inputs-seed";
 import { POS_ANALYSIS } from "./pos-seed";
 import { POS_ANALYSIS_SFR } from "./pos-seed-sfr";
 import { IE_ANALYSIS } from "./ie-seed";
@@ -34,6 +35,18 @@ import { EXTERNAL_FLOOD_PRA_ANALYSIS } from "./external-flood-pra-seed";
 import { EXTERNAL_FLOOD_PRA_ANALYSIS_SFR } from "./external-flood-pra-seed-sfr";
 import { OTHER_HAZARDS_PRA_ANALYSIS } from "./other-hazards-pra-seed";
 import { OTHER_HAZARDS_PRA_ANALYSIS_SFR } from "./other-hazards-pra-seed-sfr";
+import {
+  DA_ANALYSIS_HCL,
+  HR_ANALYSIS_HCL,
+  ES_ANALYSIS_HCL,
+  ESQ_ANALYSIS_HCL,
+  HCL_CASE_ID,
+  HCL_CASE_LABEL,
+  IE_ANALYSIS_HCL,
+  RC_ANALYSIS_HCL,
+  RI_ANALYSIS_HCL,
+  SY_ANALYSIS_HCL,
+} from "./hcl-case-study-seed";
 import { CC_SNAPSHOT_INSTANCE, NM_INSTANCES } from "./cross-cutting-seed";
 import type { ExampleWorkbookKind } from "../example-workbook.schema";
 
@@ -47,24 +60,32 @@ const POS_GENERIC_1_SLUG = "pos-generic-1";
 const POS_GENERIC_2_SLUG = "pos-generic-2";
 const IE_GENERIC_1_SLUG = "ie-generic-1";
 const IE_GENERIC_2_SLUG = "ie-generic-2";
+const IE_HCL_CASE_SLUG = "ie-hcl-case-study";
 const ES_GENERIC_1_SLUG = "es-generic-1";
 const ES_GENERIC_2_SLUG = "es-generic-2";
+const ES_HCL_CASE_SLUG = "es-hcl-case-study";
 const SC_GENERIC_1_SLUG = "sc-generic-1";
 const SC_GENERIC_2_SLUG = "sc-generic-2";
 const SY_GENERIC_1_SLUG = "sy-generic-1";
 const SY_GENERIC_2_SLUG = "sy-generic-2";
+const SY_HCL_CASE_SLUG = "sy-hcl-case-study";
 const HR_GENERIC_1_SLUG = "hr-generic-1";
 const HR_GENERIC_2_SLUG = "hr-generic-2";
+const HR_HCL_CASE_SLUG = "hr-hcl-case-study";
 const DA_GENERIC_1_SLUG = "da-generic-1";
 const DA_GENERIC_2_SLUG = "da-generic-2";
+const DA_HCL_CASE_SLUG = "da-hcl-case-study";
 const ESQ_GENERIC_1_SLUG = "esq-generic-1";
 const ESQ_GENERIC_2_SLUG = "esq-generic-2";
+const ESQ_HCL_CASE_SLUG = "esq-hcl-case-study";
 const MS_GENERIC_1_SLUG = "ms-generic-1";
 const MS_GENERIC_2_SLUG = "ms-generic-2";
 const RC_GENERIC_1_SLUG = "rc-generic-1";
 const RC_GENERIC_2_SLUG = "rc-generic-2";
+const RC_HCL_CASE_SLUG = "rc-hcl-case-study";
 const RI_GENERIC_1_SLUG = "ri-generic-1";
 const RI_GENERIC_2_SLUG = "ri-generic-2";
+const RI_HCL_CASE_SLUG = "ri-hcl-case-study";
 const SEISMIC_PRA_GENERIC_1_SLUG = "seismic-pra-generic-1";
 const SEISMIC_PRA_GENERIC_2_SLUG = "seismic-pra-generic-2";
 const INTERNAL_FLOOD_PRA_GENERIC_1_SLUG = "internal-flood-pra-generic-1";
@@ -99,11 +120,13 @@ const POS_EXAMPLES: PosExampleEntry[] = [
 const IE_EXAMPLES: PosExampleEntry[] = [
   { id: "htgr", label: "Generic HTGR", slug: IE_GENERIC_1_SLUG },
   { id: "sfr", label: "Generic SFR", slug: IE_GENERIC_2_SLUG },
+  { id: HCL_CASE_ID, label: HCL_CASE_LABEL, slug: IE_HCL_CASE_SLUG },
 ];
 
 const ES_EXAMPLES: PosExampleEntry[] = [
   { id: "htgr", label: "Generic HTGR", slug: ES_GENERIC_2_SLUG },
   { id: "sfr", label: "Generic SFR", slug: ES_GENERIC_1_SLUG },
+  { id: HCL_CASE_ID, label: HCL_CASE_LABEL, slug: ES_HCL_CASE_SLUG },
 ];
 
 const SC_EXAMPLES: PosExampleEntry[] = [
@@ -114,21 +137,25 @@ const SC_EXAMPLES: PosExampleEntry[] = [
 const SY_EXAMPLES: PosExampleEntry[] = [
   { id: "htgr", label: "Generic HTGR", slug: SY_GENERIC_2_SLUG },
   { id: "sfr", label: "Generic SFR", slug: SY_GENERIC_1_SLUG },
+  { id: HCL_CASE_ID, label: HCL_CASE_LABEL, slug: SY_HCL_CASE_SLUG },
 ];
 
 const HR_EXAMPLES: PosExampleEntry[] = [
   { id: "htgr", label: "Generic HTGR", slug: HR_GENERIC_2_SLUG },
   { id: "sfr", label: "Generic SFR", slug: HR_GENERIC_1_SLUG },
+  { id: HCL_CASE_ID, label: HCL_CASE_LABEL, slug: HR_HCL_CASE_SLUG },
 ];
 
 const DA_EXAMPLES: PosExampleEntry[] = [
   { id: "htgr", label: "Generic HTGR", slug: DA_GENERIC_2_SLUG },
   { id: "sfr", label: "Generic SFR", slug: DA_GENERIC_1_SLUG },
+  { id: HCL_CASE_ID, label: HCL_CASE_LABEL, slug: DA_HCL_CASE_SLUG },
 ];
 
 const ESQ_EXAMPLES: PosExampleEntry[] = [
   { id: "htgr", label: "Generic HTGR", slug: ESQ_GENERIC_2_SLUG },
   { id: "sfr", label: "Generic SFR", slug: ESQ_GENERIC_1_SLUG },
+  { id: HCL_CASE_ID, label: HCL_CASE_LABEL, slug: ESQ_HCL_CASE_SLUG },
 ];
 
 const MS_EXAMPLES: PosExampleEntry[] = [
@@ -139,11 +166,14 @@ const MS_EXAMPLES: PosExampleEntry[] = [
 const RC_EXAMPLES: PosExampleEntry[] = [
   { id: "htgr", label: "Generic HTGR", slug: RC_GENERIC_2_SLUG },
   { id: "sfr", label: "Generic SFR", slug: RC_GENERIC_1_SLUG },
+  { id: HCL_CASE_ID, label: HCL_CASE_LABEL, slug: RC_HCL_CASE_SLUG },
+  { id: RC_PUBLISHED_ID, label: RC_PUBLISHED_LABEL, slug: RC_PUBLISHED_SLUG },
 ];
 
 const RI_EXAMPLES: PosExampleEntry[] = [
   { id: "htgr", label: "Generic HTGR", slug: RI_GENERIC_2_SLUG },
   { id: "sfr", label: "Generic SFR", slug: RI_GENERIC_1_SLUG },
+  { id: HCL_CASE_ID, label: HCL_CASE_LABEL, slug: RI_HCL_CASE_SLUG },
 ];
 
 const SEISMIC_PRA_EXAMPLES: PosExampleEntry[] = [
@@ -186,24 +216,33 @@ const SEEDS: SeedEntry[] = [
   { slug: POS_GENERIC_2_SLUG, kind: "POS", mef: POS_ANALYSIS_SFR },
   { slug: IE_GENERIC_1_SLUG, kind: "IE", mef: IE_ANALYSIS },
   { slug: IE_GENERIC_2_SLUG, kind: "IE", mef: IE_ANALYSIS_SFR },
+  { slug: IE_HCL_CASE_SLUG, kind: "IE", mef: IE_ANALYSIS_HCL },
   { slug: ES_GENERIC_1_SLUG, kind: "ES", mef: ES_ANALYSIS },
   { slug: ES_GENERIC_2_SLUG, kind: "ES", mef: ES_ANALYSIS_HTGR },
+  { slug: ES_HCL_CASE_SLUG, kind: "ES", mef: ES_ANALYSIS_HCL },
   { slug: SC_GENERIC_1_SLUG, kind: "SC", mef: SC_ANALYSIS },
   { slug: SC_GENERIC_2_SLUG, kind: "SC", mef: SC_ANALYSIS_HTGR },
   { slug: SY_GENERIC_1_SLUG, kind: "SY", mef: SY_ANALYSIS },
   { slug: SY_GENERIC_2_SLUG, kind: "SY", mef: SY_ANALYSIS_HTGR },
+  { slug: SY_HCL_CASE_SLUG, kind: "SY", mef: SY_ANALYSIS_HCL },
   { slug: HR_GENERIC_1_SLUG, kind: "HRA", mef: HR_ANALYSIS },
   { slug: HR_GENERIC_2_SLUG, kind: "HRA", mef: HR_ANALYSIS_HTGR },
+  { slug: HR_HCL_CASE_SLUG, kind: "HRA", mef: HR_ANALYSIS_HCL },
   { slug: DA_GENERIC_1_SLUG, kind: "DA", mef: DA_ANALYSIS },
   { slug: DA_GENERIC_2_SLUG, kind: "DA", mef: DA_ANALYSIS_HTGR },
+  { slug: DA_HCL_CASE_SLUG, kind: "DA", mef: DA_ANALYSIS_HCL },
   { slug: ESQ_GENERIC_1_SLUG, kind: "ESQ", mef: ESQ_ANALYSIS },
   { slug: ESQ_GENERIC_2_SLUG, kind: "ESQ", mef: ESQ_ANALYSIS_HTGR },
+  { slug: ESQ_HCL_CASE_SLUG, kind: "ESQ", mef: ESQ_ANALYSIS_HCL },
   { slug: MS_GENERIC_1_SLUG, kind: "MS", mef: MS_ANALYSIS },
   { slug: MS_GENERIC_2_SLUG, kind: "MS", mef: MS_ANALYSIS_HTGR },
+  { slug: RC_PUBLISHED_SLUG, kind: "RC", mef: createPublishedRcSeed() },
   { slug: RC_GENERIC_1_SLUG, kind: "RC", mef: RC_ANALYSIS },
   { slug: RC_GENERIC_2_SLUG, kind: "RC", mef: RC_ANALYSIS_HTGR },
+  { slug: RC_HCL_CASE_SLUG, kind: "RC", mef: RC_ANALYSIS_HCL },
   { slug: RI_GENERIC_1_SLUG, kind: "RI", mef: RI_ANALYSIS },
   { slug: RI_GENERIC_2_SLUG, kind: "RI", mef: RI_ANALYSIS_HTGR },
+  { slug: RI_HCL_CASE_SLUG, kind: "RI", mef: RI_ANALYSIS_HCL },
   { slug: SEISMIC_PRA_GENERIC_1_SLUG, kind: "S", mef: SEISMIC_PRA_ANALYSIS },
   { slug: SEISMIC_PRA_GENERIC_2_SLUG, kind: "S", mef: SEISMIC_PRA_ANALYSIS_HTGR },
   { slug: INTERNAL_FLOOD_PRA_GENERIC_1_SLUG, kind: "FL", mef: INTERNAL_FLOOD_PRA_ANALYSIS },
@@ -229,4 +268,4 @@ function exampleWorkbookName(slug: string): string {
   return name;
 }
 
-export { SEEDS, exampleWorkbookName, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, MS_EXAMPLES, RC_EXAMPLES, RI_EXAMPLES, SEISMIC_PRA_EXAMPLES, INTERNAL_FLOOD_PRA_EXAMPLES, INTERNAL_FIRE_PRA_EXAMPLES, HSA_EXAMPLES, HIGH_WINDS_PRA_EXAMPLES, EXTERNAL_FLOOD_PRA_EXAMPLES, OTHER_HAZARDS_PRA_EXAMPLES, POS_GENERIC_1_SLUG, POS_GENERIC_2_SLUG, IE_GENERIC_1_SLUG, IE_GENERIC_2_SLUG, ES_GENERIC_1_SLUG, ES_GENERIC_2_SLUG, SC_GENERIC_1_SLUG, SC_GENERIC_2_SLUG, SY_GENERIC_1_SLUG, SY_GENERIC_2_SLUG, HR_GENERIC_1_SLUG, HR_GENERIC_2_SLUG, DA_GENERIC_1_SLUG, DA_GENERIC_2_SLUG, ESQ_GENERIC_1_SLUG, ESQ_GENERIC_2_SLUG, MS_GENERIC_1_SLUG, MS_GENERIC_2_SLUG, RC_GENERIC_1_SLUG, RC_GENERIC_2_SLUG, RI_GENERIC_1_SLUG, RI_GENERIC_2_SLUG, SEISMIC_PRA_GENERIC_1_SLUG, SEISMIC_PRA_GENERIC_2_SLUG, INTERNAL_FLOOD_PRA_GENERIC_1_SLUG, INTERNAL_FLOOD_PRA_GENERIC_2_SLUG, INTERNAL_FIRE_PRA_GENERIC_1_SLUG, INTERNAL_FIRE_PRA_GENERIC_2_SLUG, HSA_GENERIC_1_SLUG, HSA_GENERIC_2_SLUG, HIGH_WINDS_PRA_GENERIC_1_SLUG, HIGH_WINDS_PRA_GENERIC_2_SLUG, EXTERNAL_FLOOD_PRA_GENERIC_1_SLUG, EXTERNAL_FLOOD_PRA_GENERIC_2_SLUG, OTHER_HAZARDS_PRA_GENERIC_1_SLUG, OTHER_HAZARDS_PRA_GENERIC_2_SLUG, CC_GENERIC_1_SLUG, type SeedEntry, type PosExampleEntry };
+export { SEEDS, exampleWorkbookName, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, MS_EXAMPLES, RC_EXAMPLES, RI_EXAMPLES, SEISMIC_PRA_EXAMPLES, INTERNAL_FLOOD_PRA_EXAMPLES, INTERNAL_FIRE_PRA_EXAMPLES, HSA_EXAMPLES, HIGH_WINDS_PRA_EXAMPLES, EXTERNAL_FLOOD_PRA_EXAMPLES, OTHER_HAZARDS_PRA_EXAMPLES, POS_GENERIC_1_SLUG, POS_GENERIC_2_SLUG, IE_GENERIC_1_SLUG, IE_GENERIC_2_SLUG, IE_HCL_CASE_SLUG, ES_GENERIC_1_SLUG, ES_GENERIC_2_SLUG, ES_HCL_CASE_SLUG, SC_GENERIC_1_SLUG, SC_GENERIC_2_SLUG, SY_GENERIC_1_SLUG, SY_GENERIC_2_SLUG, SY_HCL_CASE_SLUG, HR_GENERIC_1_SLUG, HR_GENERIC_2_SLUG, HR_HCL_CASE_SLUG, DA_GENERIC_1_SLUG, DA_GENERIC_2_SLUG, DA_HCL_CASE_SLUG, ESQ_GENERIC_1_SLUG, ESQ_GENERIC_2_SLUG, ESQ_HCL_CASE_SLUG, MS_GENERIC_1_SLUG, MS_GENERIC_2_SLUG, RC_GENERIC_1_SLUG, RC_GENERIC_2_SLUG, RC_HCL_CASE_SLUG, RI_GENERIC_1_SLUG, RI_GENERIC_2_SLUG, RI_HCL_CASE_SLUG, SEISMIC_PRA_GENERIC_1_SLUG, SEISMIC_PRA_GENERIC_2_SLUG, INTERNAL_FLOOD_PRA_GENERIC_1_SLUG, INTERNAL_FLOOD_PRA_GENERIC_2_SLUG, INTERNAL_FIRE_PRA_GENERIC_1_SLUG, INTERNAL_FIRE_PRA_GENERIC_2_SLUG, HSA_GENERIC_1_SLUG, HSA_GENERIC_2_SLUG, HIGH_WINDS_PRA_GENERIC_1_SLUG, HIGH_WINDS_PRA_GENERIC_2_SLUG, EXTERNAL_FLOOD_PRA_GENERIC_1_SLUG, EXTERNAL_FLOOD_PRA_GENERIC_2_SLUG, OTHER_HAZARDS_PRA_GENERIC_1_SLUG, OTHER_HAZARDS_PRA_GENERIC_2_SLUG, CC_GENERIC_1_SLUG, type SeedEntry, type PosExampleEntry };

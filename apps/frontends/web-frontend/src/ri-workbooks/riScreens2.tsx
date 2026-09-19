@@ -52,6 +52,11 @@ import {
 } from "./riViewData";
 import { familySignificance, contributorRollup, findContributor, lognormalBounds, metricRollup, type ContributorBucketKey, type CcScore } from "./riSelectors";
 import { type RiDrawerContext } from "./riScreens";
+import {
+  consequenceMetricMatches,
+  meanFrequencyValue,
+  sourcesForEventSequenceFamily,
+} from "../workbooks/riskWorkbookConnections";
 
 // ─── 04 — Aggregation & Contributors (RI-B3, B4, B5, B6) ───────────────────
 const MASKING_ROWS: { label: string; field: "variationNotSignificantJustification" | "releaseCategorySelectionSufficiency" | "familyAssignmentSufficiency" }[] = [
@@ -727,7 +732,7 @@ function toCompliance(v: string): "COMPLIANT" | "NON_COMPLIANT" | "INDETERMINATE
 }
 
 function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose: () => void }): JSX.Element | null {
-  const { ri, editable, mutateRi } = useRiWorkbook();
+  const { ri, editable, mutateRi, riskSources } = useRiWorkbook();
   const dis = !editable;
 
   if (context.kind === "measures") {
@@ -1545,7 +1550,26 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     const sig = familySignificance(ri, f.eventSequenceFamilyRef);
     const measures = ri.scopeDefinition.consequenceMeasures;
     const patch = (next: Partial<CompiledRiskInput>): void => {
-      mutateRi((d) => ({ ...d, compiledRiskInputs: d.compiledRiskInputs.map((x) => (x.uuid === f.uuid ? { ...x, ...next } : x)) }));
+      mutateRi((d) => {
+        const compiledRiskInputs = d.compiledRiskInputs.map((x) => (x.uuid === f.uuid ? { ...x, ...next } : x));
+        return {
+          ...d,
+          compiledRiskInputs,
+          integratedRiskResults: {
+            ...d.integratedRiskResults,
+            metrics: d.integratedRiskResults.metrics.map((metric) => ({
+              ...metric,
+              value: metric.consequenceMeasureRef === undefined
+                ? metric.value
+                : compiledRiskInputs.reduce((sum, compiled) => {
+                  const result = compiled.consequences.find((entry) =>
+                    consequenceMetricMatches(entry.metric, metric.consequenceMeasureRef!));
+                  return sum + compiled.frequency * (result?.meanValue ?? 0);
+                }, 0),
+            })),
+          },
+        };
+      });
     };
     const setConsequence = (metric: string, meanValue: number): void => {
       patch({
@@ -1566,13 +1590,78 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     };
     const remove = (): void => {
       onClose();
-      mutateRi((d) => ({ ...d, compiledRiskInputs: d.compiledRiskInputs.filter((x) => x.uuid !== f.uuid) }));
+      mutateRi((d) => {
+        const compiledRiskInputs = d.compiledRiskInputs.filter((x) => x.uuid !== f.uuid);
+        return {
+          ...d,
+          compiledRiskInputs,
+          integratedRiskResults: {
+            ...d.integratedRiskResults,
+            metrics: d.integratedRiskResults.metrics.map((metric) => ({
+              ...metric,
+              value: metric.consequenceMeasureRef === undefined
+                ? metric.value
+                : compiledRiskInputs.reduce((sum, compiled) => {
+                  const result = compiled.consequences.find((entry) =>
+                    consequenceMetricMatches(entry.metric, metric.consequenceMeasureRef!));
+                  return sum + compiled.frequency * (result?.meanValue ?? 0);
+                }, 0),
+            })),
+          },
+        };
+      });
     };
     const dist = f.frequencyDistribution?.type === DistributionType.LOGNORMAL ? f.frequencyDistribution : undefined;
     const patchDist = (median: number | undefined, ef: number | undefined): void => {
       patch({ frequencyDistribution: { type: DistributionType.LOGNORMAL, median: median ?? dist?.median ?? 0, errorFactor: ef ?? dist?.errorFactor ?? 3 } });
     };
     const bounds = lognormalBounds(f.frequencyDistribution);
+    const familyOptions: [string, string][] = riskSources.eventSequenceFamilies.map((source) => [
+      `${source.workbookId}|${source.family.uuid}`,
+      `${source.family.uuid} · ${source.family.name} — ${source.workbookName}`,
+    ]);
+    const selectedFamilyKey = f.eventSequenceFamilyReference === undefined
+      ? riskSources.eventSequenceFamilies.find((source) => source.family.uuid === f.eventSequenceFamilyRef) === undefined
+        ? ""
+        : `${riskSources.eventSequenceFamilies.find((source) => source.family.uuid === f.eventSequenceFamilyRef)!.workbookId}|${f.eventSequenceFamilyRef}`
+      : `${f.eventSequenceFamilyReference.workbookId}|${f.eventSequenceFamilyReference.entityId}`;
+    const relinkFamily = (value: string): void => {
+      const familySource = riskSources.eventSequenceFamilies.find((source) =>
+        `${source.workbookId}|${source.family.uuid}` === value);
+      if (familySource === undefined) return;
+      const linked = sourcesForEventSequenceFamily(riskSources, familySource);
+      const consequenceSource = linked.consequence;
+      const consequences = consequenceSource === undefined ? f.consequences : measures.flatMap((measure) => {
+        const result = consequenceSource.result.consequenceResults.find((entry) =>
+          consequenceMetricMatches(entry.metric, measure.name));
+        return result === undefined ? [] : [{
+          metric: measure.name,
+          meanValue: result.meanValue,
+          unit: result.unit,
+          distribution: result.uncertaintyDistribution,
+        }];
+      });
+      patch({
+        eventSequenceFamilyRef: familySource.family.uuid,
+        eventSequenceFamilyReference: familySource.reference,
+        releaseCategoryRef: familySource.family.releaseCategoryIds?.[0],
+        sourceTermDefinitionRef: familySource.family.representativeSourceTermId,
+        frequency: linked.quantifications.length === 0
+          ? f.frequency
+          : linked.quantifications.reduce(
+            (sum, source) => sum + meanFrequencyValue(source.quantification.meanFrequency),
+            0,
+          ),
+        esqFamilyQuantificationRef: linked.quantifications.length === 0
+          ? f.esqFamilyQuantificationRef
+          : linked.quantifications.map((source) => source.quantification.uuid).join(" + "),
+        familyQuantificationReferences: linked.quantifications.map((source) => source.reference),
+        consequences: consequences.length > 0 ? consequences : f.consequences,
+        rcqRecordRef: consequenceSource?.result.uuid ?? f.rcqRecordRef,
+        consequenceResultReference: consequenceSource?.reference ?? f.consequenceResultReference,
+        consistentWithEventSequenceAnalysis: true,
+      });
+    };
     const rcRefs: [string, string][] = [["", "—"], ...(ri.scopeDefinition.releaseCategoryRefs ?? []).map((x) => [x, x] as [string, string])];
     const stRefs: [string, string][] = [["", "—"], ...(ri.scopeDefinition.sourceTermDefinitionRefs ?? []).map((x) => [x, x] as [string, string])];
     return (
@@ -1585,12 +1674,14 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
         />
         <div className="posdrawer__body">
           <div className="posfield-grid">
-            <RiTextField label="Event sequence family" value={f.eventSequenceFamilyRef} onChange={(v) => patch({ eventSequenceFamilyRef: v })} disabled={dis} />
-            <RiTextField label="Quantification reference" value={f.esqFamilyQuantificationRef ?? ""} onChange={(v) => patch({ esqFamilyQuantificationRef: v })} disabled={dis} placeholder="e.g. EFQ-1" />
+            {familyOptions.length > 0
+              ? <RiSelectField label="Event sequence family source" value={selectedFamilyKey} options={familyOptions} onChange={relinkFamily} disabled={dis} />
+              : <RiTextField label="Event sequence family" value={f.eventSequenceFamilyRef} onChange={(v) => patch({ eventSequenceFamilyRef: v })} disabled={dis} />}
+            <RiTextField label="Quantification results" value={f.esqFamilyQuantificationRef ?? ""} onChange={() => undefined} disabled placeholder="No ESQ result linked" />
             <RiSelectField label="Release category" value={f.releaseCategoryRef ?? ""} options={rcRefs} onChange={(v) => patch({ releaseCategoryRef: v })} disabled={dis} />
             <RiSelectField label="Source term" value={f.sourceTermDefinitionRef ?? ""} options={stRefs} onChange={(v) => patch({ sourceTermDefinitionRef: v })} disabled={dis} />
             <div className="posfield posfield-grid--span2">
-              <RiTextField label="Consequence record reference" value={f.rcqRecordRef ?? ""} onChange={(v) => patch({ rcqRecordRef: v })} disabled={dis} placeholder="e.g. RCQ-ESF-EARLY" />
+              <RiTextField label="Consequence result" value={f.rcqRecordRef ?? ""} onChange={() => undefined} disabled placeholder="No RC result linked" />
             </div>
           </div>
 

@@ -42,6 +42,9 @@ gpu_u64 = ["gpu"]
 [dev-dependencies]
 approx = "0.5"
 
+[build-dependencies]
+cc = "1.2"
+
 [[bin]]
 name = "praxis-cli"
 path = "src/main.rs"

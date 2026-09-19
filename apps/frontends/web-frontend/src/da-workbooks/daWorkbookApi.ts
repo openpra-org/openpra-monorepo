@@ -23,6 +23,7 @@ interface DaWorkbookResponse {
   workbookId: string;
   projectId: string;
   ownerUsername: string;
+  revision: number;
   mef: DataAnalysis;
   myRoles: DaWorkbookRoleName[];
   hasPreviousMef: boolean;
@@ -33,8 +34,11 @@ async function getDaWorkbook(workbookId: string): Promise<DaWorkbookResponse> {
   return fetchJson<DaWorkbookResponse>(`/api/da-workbooks/${workbookId}`);
 }
 
-async function patchDaWorkbook(workbookId: string, current: DataAnalysis, mef: DataAnalysis): Promise<DaWorkbookResponse> {
-  return patchJson<DaWorkbookResponse>(`/api/da-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
+async function patchDaWorkbook(workbookId: string, expectedRevision: number, current: DataAnalysis, mef: DataAnalysis): Promise<DaWorkbookResponse> {
+  return patchJson<DaWorkbookResponse>(`/api/da-workbooks/${workbookId}`, {
+    expectedRevision,
+    operations: createWorkbookPatch(current, mef),
+  });
 }
 
 interface DaExampleOption {

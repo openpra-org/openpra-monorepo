@@ -80,7 +80,11 @@ fn run(path: String) {
     println!("total basic events = {}", total_events);
     println!("non-root modules   = {}", mods.len());
     println!("maximal modules    = {}", maximal.len());
-    println!("events in maximal  = {} ({:.1}%)", covered.len(), pct(covered.len()));
+    println!(
+        "events in maximal  = {} ({:.1}%)",
+        covered.len(),
+        pct(covered.len())
+    );
     println!("loose events       = {} ({:.1}%)", loose, pct(loose));
     println!(
         "collapsed main vars= {} (loose {} + {} proxies) vs {} events => {:.1}% smaller main solve",
@@ -98,7 +102,10 @@ fn run(path: String) {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let path = args.get(1).expect("usage: module_coverage <model.pbf|.xml>").clone();
+    let path = args
+        .get(1)
+        .expect("usage: module_coverage <model.pbf|.xml>")
+        .clone();
     thread::Builder::new()
         .stack_size(2 << 30)
         .spawn(move || run(path))

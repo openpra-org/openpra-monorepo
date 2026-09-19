@@ -1,0 +1,495 @@
+{
+  "schemaVersion": "1.0.0",
+  "scenarios": [
+    {
+      "code": "HZ-0001",
+      "name": "No seismic hazard | No flood wave",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "NO_SEISMIC",
+        "FLOOD-LEVEL": "NO_FLOOD",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0002",
+      "name": "No seismic hazard | W1 (2.30 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "NO_SEISMIC",
+        "FLOOD-LEVEL": "W1",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0003",
+      "name": "No seismic hazard | W2 (3.21 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "NO_SEISMIC",
+        "FLOOD-LEVEL": "W2",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0004",
+      "name": "No seismic hazard | W3 (4.42 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "NO_SEISMIC",
+        "FLOOD-LEVEL": "W3",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0005",
+      "name": "No seismic hazard | W4 (5.69 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "NO_SEISMIC",
+        "FLOOD-LEVEL": "W4",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0006",
+      "name": "No seismic hazard | W5 (7.06 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "NO_SEISMIC",
+        "FLOOD-LEVEL": "W5",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0007",
+      "name": "No seismic hazard | W6 (8.42 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "NO_SEISMIC",
+        "FLOOD-LEVEL": "W6",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0008",
+      "name": "PGA_1 (0.17 g) | No flood wave",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA1",
+        "FLOOD-LEVEL": "NO_FLOOD",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0009",
+      "name": "PGA_1 (0.17 g) | W1 (2.30 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA1",
+        "FLOOD-LEVEL": "W1",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0010",
+      "name": "PGA_1 (0.17 g) | W2 (3.21 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA1",
+        "FLOOD-LEVEL": "W2",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0011",
+      "name": "PGA_1 (0.17 g) | W3 (4.42 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA1",
+        "FLOOD-LEVEL": "W3",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0012",
+      "name": "PGA_1 (0.17 g) | W4 (5.69 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA1",
+        "FLOOD-LEVEL": "W4",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0013",
+      "name": "PGA_1 (0.17 g) | W5 (7.06 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA1",
+        "FLOOD-LEVEL": "W5",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0014",
+      "name": "PGA_1 (0.17 g) | W6 (8.42 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA1",
+        "FLOOD-LEVEL": "W6",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0015",
+      "name": "PGA_2 (0.39 g) | No flood wave",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA2",
+        "FLOOD-LEVEL": "NO_FLOOD",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0016",
+      "name": "PGA_2 (0.39 g) | W1 (2.30 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA2",
+        "FLOOD-LEVEL": "W1",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0017",
+      "name": "PGA_2 (0.39 g) | W2 (3.21 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA2",
+        "FLOOD-LEVEL": "W2",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0018",
+      "name": "PGA_2 (0.39 g) | W3 (4.42 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA2",
+        "FLOOD-LEVEL": "W3",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0019",
+      "name": "PGA_2 (0.39 g) | W4 (5.69 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA2",
+        "FLOOD-LEVEL": "W4",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0020",
+      "name": "PGA_2 (0.39 g) | W5 (7.06 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA2",
+        "FLOOD-LEVEL": "W5",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0021",
+      "name": "PGA_2 (0.39 g) | W6 (8.42 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA2",
+        "FLOOD-LEVEL": "W6",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0022",
+      "name": "PGA_3 (0.61 g) | No flood wave",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA3",
+        "FLOOD-LEVEL": "NO_FLOOD",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0023",
+      "name": "PGA_3 (0.61 g) | W1 (2.30 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA3",
+        "FLOOD-LEVEL": "W1",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0024",
+      "name": "PGA_3 (0.61 g) | W2 (3.21 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA3",
+        "FLOOD-LEVEL": "W2",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0025",
+      "name": "PGA_3 (0.61 g) | W3 (4.42 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA3",
+        "FLOOD-LEVEL": "W3",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0026",
+      "name": "PGA_3 (0.61 g) | W4 (5.69 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA3",
+        "FLOOD-LEVEL": "W4",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0027",
+      "name": "PGA_3 (0.61 g) | W5 (7.06 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA3",
+        "FLOOD-LEVEL": "W5",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0028",
+      "name": "PGA_3 (0.61 g) | W6 (8.42 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA3",
+        "FLOOD-LEVEL": "W6",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0029",
+      "name": "PGA_4 (0.87 g) | No flood wave",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA4",
+        "FLOOD-LEVEL": "NO_FLOOD",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0030",
+      "name": "PGA_4 (0.87 g) | W1 (2.30 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA4",
+        "FLOOD-LEVEL": "W1",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0031",
+      "name": "PGA_4 (0.87 g) | W2 (3.21 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA4",
+        "FLOOD-LEVEL": "W2",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0032",
+      "name": "PGA_4 (0.87 g) | W3 (4.42 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA4",
+        "FLOOD-LEVEL": "W3",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0033",
+      "name": "PGA_4 (0.87 g) | W4 (5.69 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA4",
+        "FLOOD-LEVEL": "W4",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0034",
+      "name": "PGA_4 (0.87 g) | W5 (7.06 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA4",
+        "FLOOD-LEVEL": "W5",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0035",
+      "name": "PGA_4 (0.87 g) | W6 (8.42 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA4",
+        "FLOOD-LEVEL": "W6",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0036",
+      "name": "PGA_5 (1.22 g) | No flood wave",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA5",
+        "FLOOD-LEVEL": "NO_FLOOD",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0037",
+      "name": "PGA_5 (1.22 g) | W1 (2.30 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA5",
+        "FLOOD-LEVEL": "W1",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0038",
+      "name": "PGA_5 (1.22 g) | W2 (3.21 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA5",
+        "FLOOD-LEVEL": "W2",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0039",
+      "name": "PGA_5 (1.22 g) | W3 (4.42 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA5",
+        "FLOOD-LEVEL": "W3",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0040",
+      "name": "PGA_5 (1.22 g) | W4 (5.69 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA5",
+        "FLOOD-LEVEL": "W4",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0041",
+      "name": "PGA_5 (1.22 g) | W5 (7.06 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA5",
+        "FLOOD-LEVEL": "W5",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0042",
+      "name": "PGA_5 (1.22 g) | W6 (8.42 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA5",
+        "FLOOD-LEVEL": "W6",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0043",
+      "name": "PGA_6 (2.12 g) | No flood wave",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA6",
+        "FLOOD-LEVEL": "NO_FLOOD",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0044",
+      "name": "PGA_6 (2.12 g) | W1 (2.30 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA6",
+        "FLOOD-LEVEL": "W1",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0045",
+      "name": "PGA_6 (2.12 g) | W2 (3.21 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA6",
+        "FLOOD-LEVEL": "W2",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0046",
+      "name": "PGA_6 (2.12 g) | W3 (4.42 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA6",
+        "FLOOD-LEVEL": "W3",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0047",
+      "name": "PGA_6 (2.12 g) | W4 (5.69 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA6",
+        "FLOOD-LEVEL": "W4",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0048",
+      "name": "PGA_6 (2.12 g) | W5 (7.06 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA6",
+        "FLOOD-LEVEL": "W5",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "HZ-0049",
+      "name": "PGA_6 (2.12 g) | W6 (8.42 m)",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA6",
+        "FLOOD-LEVEL": "W6",
+        "FIRE": "FALSE"
+      }
+    }
+  ]
+}

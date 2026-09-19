@@ -1,0 +1,42 @@
+{
+  "name": "praxis-node",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Node-API bindings for the OpenPRA PRAXIS solver",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "protocol.js",
+    "protocol.d.ts",
+    "*.node",
+    "THIRD_PARTY_NOTICES.txt"
+  ],
+  "private": true,
+  "scripts": {
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "build:linux": "napi build --platform --release --target x86_64-unknown-linux-gnu",
+    "build:windows": "napi build --platform --release --target x86_64-pc-windows-msvc",
+    "format": "cargo fmt --check",
+    "lint": "cargo clippy --all-targets -- -D warnings",
+    "verify:vendor": "node ../praxis/tests/verify-vendored-kernels.mjs",
+    "test": "node ../praxis/tests/verify-vendored-kernels.mjs && node ../praxis/tests/verify-hcl-references.mjs && node --test test/addon-load.spec.mjs test/hcl-cpt-source.spec.mjs test/hcl-seismic-source.spec.mjs test/hcl-summary-source.spec.mjs test/hcl-hazard-source.spec.mjs test/hcl-hazard-sweep-source.spec.mjs test/hcl-calculation-type.spec.mjs test/hcl-batch-failures.spec.mjs test/bn-graph-consistency.spec.mjs test/hcl-binding-references.spec.mjs test/hcl-diagnostics.spec.mjs test/protocol.spec.mjs test/resource-preflight.spec.mjs test/hcl-rare-probability.spec.mjs ../praxis/tests/verify-hcl-references.spec.mjs ../praxis/tests/verify-vendored-kernels.spec.mjs",
+    "test:linux": "node --test test/linux-load.spec.mjs",
+    "test:windows": "node --test test/windows-load.spec.mjs"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "3.8.6"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "napi": {
+    "binaryName": "praxis-node",
+    "targets": [
+      "x86_64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu"
+    ]
+  }
+}

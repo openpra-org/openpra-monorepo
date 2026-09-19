@@ -35,6 +35,8 @@ export function createBlankEsq(name: string, owner: string): EventSequenceQuanti
     activePeerReviewIds: [],
     activeAuditIds: [],
     praScope: "",
+    bayesianNetworks: [],
+    hclConfigurations: [],
     familyQuantifications: [],
     modelIntegration: {
       integrationMethod: "",

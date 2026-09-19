@@ -1,7 +1,10 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { stringifyJson } from "interfaces-shared-types/json";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
+import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import { EventSequenceAnalysisSchema } from "interfaces-mef-types/zod/es/event-sequence-analysis";
+import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
@@ -12,12 +15,25 @@ import { createBlankEs } from "./blank-es";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
 import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
+import { WorkbookModelAccessService } from "../workbooks/workbook-model-access.service";
+import {
+  assertExpectedWorkbookRevision,
+  createWorkbookRevisionFilter,
+  readWorkbookRevision,
+  workbookRevisionConflict,
+} from "../workbooks/workbook-revision";
+import type { RevisionedWorkbookPatchBody } from "interfaces-shared-types/workbooks";
+import { WorkbookDependencyDiscoveryService } from "../newly-developed-methods/shared/workbook-dependency-discovery.service";
+import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook.schema";
+import { reconcileExampleEventTreeDependencyReferences } from "../example-workbooks/seeds/dependency-model-seed";
+import { SY_EXAMPLES } from "../example-workbooks/seeds";
 
 export interface EsWorkbookResponse {
   workbookId: string;
   projectId: string;
   ownerUsername: string;
-  mef: unknown;
+  revision: number;
+  mef: EventSequenceAnalysis;
   myRoles: WorkbookRoleName[];
   hasPreviousMef: boolean;
   linkedPosWorkbookId: string | null;
@@ -30,11 +46,14 @@ interface ActingUser {
 }
 
 function toResponse(doc: EsWorkbookDocument, myRoles: WorkbookRoleName[]): EsWorkbookResponse {
+  const parsed = EventSequenceAnalysisSchema.safeParse(stripNulls(doc.mef));
+  if (!parsed.success) throw new BadRequestException(`Stored ES workbook failed validation: ${parsed.error.message}`);
   return {
     workbookId: doc.workbookId,
     projectId: doc.projectId,
     ownerUsername: doc.ownerUsername,
-    mef: doc.mef,
+    revision: readWorkbookRevision(doc),
+    mef: parsed.data,
     myRoles,
     hasPreviousMef: typeof doc.previousMefJson === "string" && doc.previousMefJson.length > 0,
     linkedPosWorkbookId: typeof doc.linkedPosWorkbookId === "string" ? doc.linkedPosWorkbookId : null,
@@ -47,11 +66,14 @@ function toResponse(doc: EsWorkbookDocument, myRoles: WorkbookRoleName[]): EsWor
 export class EsWorkbooksService {
   constructor(
     @InjectModel(EsWorkbook.name) private readonly esWorkbookModel: Model<EsWorkbookDocument>,
+    @InjectModel(SyWorkbook.name) private readonly syWorkbookModel: Model<SyWorkbookDocument>,
     @InjectModel(WorkbookSignoff.name) private readonly signoffModel: Model<WorkbookSignoffDocument>,
     private readonly projectsService: ProjectsService,
     private readonly exampleWorkbooksService: ExampleWorkbooksService,
     private readonly rolesService: WorkbookRolesService,
     private readonly esDocumentsService: EsDocumentsService,
+    private readonly modelAccessService: WorkbookModelAccessService,
+    private readonly dependencyDiscoveryService: WorkbookDependencyDiscoveryService,
   ) {}
 
   private async loadMyRoles(workbookId: string, username: string): Promise<WorkbookRoleName[]> {
@@ -66,24 +88,79 @@ export class EsWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<EsWorkbookResponse> {
+  async patchMef(
+    workbookId: string,
+    patch: RevisionedWorkbookPatchBody,
+    acting: ActingUser,
+  ): Promise<EsWorkbookResponse> {
     const doc = await this.esWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("ES workbook not found");
-    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
-    if (role === "viewer") throw new ForbiddenException("You cannot edit this ES workbook");
-    const parsed = EventSequenceAnalysisSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
+    const { workbookRoles } = await this.modelAccessService.requireEdit({
+      workbookId,
+      projectId: doc.projectId,
+      mef: doc.mef,
+      acting,
+    });
+    assertExpectedWorkbookRevision(doc, patch.expectedRevision);
+    const parsed = EventSequenceAnalysisSchema.safeParse(
+      stripNulls(mergeWorkbookPatch(doc.mef, patch.operations)),
+    );
     if (!parsed.success) {
       throw new ForbiddenException(`Invalid ES workbook payload: ${parsed.error.message}`);
     }
-    doc.mef = parsed.data;
-    await doc.save();
-    const myRoles = await this.loadMyRoles(workbookId, acting.username);
-    return toResponse(doc, myRoles);
+    const updatedDoc = await this.esWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, patch.expectedRevision),
+        { $set: { mef: parsed.data, revision: patch.expectedRevision + 1 } },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updatedDoc) throw workbookRevisionConflict(patch.expectedRevision);
+    return toResponse(updatedDoc, workbookRoles);
+  }
+
+  async deleteEventTree(
+    workbookId: string,
+    modelId: string,
+    expectedRevision: number,
+    acting: ActingUser,
+  ): Promise<EsWorkbookResponse> {
+    const doc = await this.esWorkbookModel.findOne({ workbookId }).exec();
+    if (!doc) throw new NotFoundException("ES workbook not found");
+    const { workbookRoles } = await this.modelAccessService.requireEdit({
+      workbookId,
+      projectId: doc.projectId,
+      mef: doc.mef,
+      acting,
+    });
+    assertExpectedWorkbookRevision(doc, expectedRevision);
+    const mef = EventSequenceAnalysisSchema.parse(stripNulls(doc.mef));
+    const eventTrees = mef.eventTrees ?? [];
+    const index = eventTrees.findIndex((tree) => tree.uuid === modelId);
+    if (index < 0) throw new NotFoundException("ES event tree not found");
+    await this.dependencyDiscoveryService.assertModelCanBeDeleted(
+      { workbookId, modelId },
+      { ignoredSourcePathPrefixes: [`/eventTrees/${index}`] },
+    );
+    const nextMef = {
+      ...mef,
+      eventTrees: eventTrees.filter((_, candidateIndex) => candidateIndex !== index),
+    };
+    const updatedDoc = await this.esWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, expectedRevision),
+        { $set: { mef: nextMef, revision: expectedRevision + 1 } },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updatedDoc) throw workbookRevisionConflict(expectedRevision);
+    return toResponse(updatedDoc, workbookRoles);
   }
 
   async loadExample(workbookId: string, acting: ActingUser, exampleId?: string): Promise<EsWorkbookResponse> {
     const doc = await this.esWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("ES workbook not found");
+    const expectedRevision = readWorkbookRevision(doc);
     await this.projectsService.resolveAccess(doc.projectId, acting);
     const myRoles = await this.loadMyRoles(workbookId, acting.username);
     if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can load the example");
@@ -92,27 +169,47 @@ export class EsWorkbooksService {
       throw new ForbiddenException(`Cannot overwrite a workbook in state ${state}`);
     }
     const example = await this.exampleWorkbooksService.getEsBundle(exampleId);
-    const parsed = EventSequenceAnalysisSchema.safeParse(stripNulls(example.es.mef));
+    const sourceParsed = EventSequenceAnalysisSchema.safeParse(stripNulls(example.es.mef));
+    if (!sourceParsed.success) throw new ForbiddenException(`Example MEF failed validation: ${sourceParsed.error.message}`);
+    const variant = (SY_EXAMPLES.find((entry) => entry.id === exampleId) ?? SY_EXAMPLES[0]).slug;
+    const syDocument = await this.syWorkbookModel.findOne({ projectId: doc.projectId, "mef.uuid": variant }).exec();
+    const systems = syDocument === null ? null : SystemsAnalysisSchema.safeParse(syDocument.mef);
+    const reconciled = syDocument !== null && systems?.success === true
+      ? reconcileExampleEventTreeDependencyReferences(sourceParsed.data, systems.data, syDocument.workbookId)
+      : sourceParsed.data;
+    const parsed = EventSequenceAnalysisSchema.safeParse(reconciled);
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const cleaned = {
       ...parsed.data,
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };
-    doc.previousMefJson = JSON.stringify(doc.mef);
-    doc.mef = cleaned;
-    doc.linkedPosWorkbookId = "example";
-    doc.linkedIeWorkbookId = "example";
-    doc.exampleVariant = exampleId === "sfr" || exampleId === "htgr" ? exampleId : "htgr";
-    await doc.save();
+    const updatedDoc = await this.esWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, expectedRevision),
+        {
+          $set: {
+            previousMefJson: stringifyJson(doc.mef),
+            mef: cleaned,
+            linkedPosWorkbookId: exampleId === "hcl" ? null : "example",
+            linkedIeWorkbookId: "example",
+            exampleVariant: exampleId === "sfr" || exampleId === "htgr" || exampleId === "hcl" ? exampleId : "htgr",
+            revision: expectedRevision + 1,
+          },
+        },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updatedDoc) throw workbookRevisionConflict(expectedRevision);
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.esDocumentsService.removeAllForWorkbook(workbookId);
-    return toResponse(doc, myRoles);
+    return toResponse(updatedDoc, myRoles);
   }
 
   async unloadExample(workbookId: string, acting: ActingUser): Promise<EsWorkbookResponse> {
     const doc = await this.esWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("ES workbook not found");
+    const expectedRevision = readWorkbookRevision(doc);
     await this.projectsService.resolveAccess(doc.projectId, acting);
     const myRoles = await this.loadMyRoles(workbookId, acting.username);
     if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can unload the example");
@@ -129,11 +226,22 @@ export class EsWorkbooksService {
     const healed = healMef(restored, template);
     const parsed = EventSequenceAnalysisSchema.safeParse(healed);
     if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
-    doc.mef = parsed.data;
-    doc.previousMefJson = null;
-    doc.linkedPosWorkbookId = null;
-    doc.linkedIeWorkbookId = null;
-    await doc.save();
-    return toResponse(doc, myRoles);
+    const updatedDoc = await this.esWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, expectedRevision),
+        {
+          $set: {
+            mef: parsed.data,
+            previousMefJson: null,
+            linkedPosWorkbookId: null,
+            linkedIeWorkbookId: null,
+            revision: expectedRevision + 1,
+          },
+        },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updatedDoc) throw workbookRevisionConflict(expectedRevision);
+    return toResponse(updatedDoc, myRoles);
   }
 }

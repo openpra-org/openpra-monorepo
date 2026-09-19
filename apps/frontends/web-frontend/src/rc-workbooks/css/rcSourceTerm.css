@@ -1,0 +1,82 @@
+/* Step 01 layout only. Buttons, fields and the category modal reuse app styles. */
+.rc-ms-source { container-type: inline-size; margin-top: 22px; min-width: 0; width: 100%; font-size: 13px; line-height: 1.45; color: var(--color-text); }
+.rc-ms-source .rc-source__category { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.rc-ms-source .rc-source__category > .posfield { flex: 1 1 240px; max-width: 420px; min-width: 0; margin: 0; }
+.rc-ms-source .rc-source__actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.rc-ms-source .rc-source__category .posfield__select,
+.rc-ms-source .rc-source__actions > .posnav__btn { box-sizing: border-box; height: 38px; min-height: 38px; }
+.rc-ms-source .st-review { min-width: 0; overflow-wrap: anywhere; }
+.rc-ms-source .posnav__btn { white-space: nowrap; }
+.rc-ms-source .posnav__btn:disabled { cursor: default; opacity: .5; }
+.rc-ms-source .st-review input, .rc-ms-source .st-review select { box-sizing: border-box; min-width: 0; }
+.rc-ms-source .st-review input[aria-invalid="true"] { border-color: var(--color-error); }
+.rc-ms-source .st-review :is(button, input, select, summary):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.rc-ms-source .st-source { border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.rc-ms-source .st-source-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rc-ms-source .st-source-info strong { font-size: 13px; font-weight: 600; }
+.rc-ms-source .st-label, .rc-ms-source .st-caption { color: var(--color-text-muted); font-size: 12px; }
+.rc-ms-source .st-file-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+.rc-ms-source .st-tabs { display: flex; gap: 8px; margin-top: 20px; border-bottom: 1px solid var(--color-border); }
+.rc-ms-source .st-tabs button { font: inherit; color: var(--color-text); cursor: pointer; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; padding: 10px 12px; }
+.rc-ms-source .st-tabs button[aria-selected="true"] { border-bottom-color: var(--color-primary); color: var(--color-primary); font-weight: 600; }
+.rc-ms-source .st-tabs span { font-size: 12px; margin-left: 5px; color: var(--color-text-muted); }
+.rc-ms-source .st-panel { padding-top: 16px; min-width: 0; }
+.rc-ms-source .st-release-picker { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.rc-ms-source .st-release-picker label { width: 180px; max-width: 100%; }
+.rc-ms-source .st-release-picker select { margin-top: 5px; }
+.rc-ms-source .st-review label { display: block; font-size: 12px; color: var(--color-text-muted); }
+.rc-ms-source .st-timing { display: grid; grid-template-columns: repeat(3, minmax(0, 150px)); gap: 12px; padding-bottom: 18px; }
+.rc-ms-source .st-timing input { display: block; margin-top: 5px; }
+.rc-ms-source .st-panel-heading { display: flex; align-items: baseline; gap: 8px 16px; flex-wrap: wrap; margin-bottom: 9px; }
+.rc-ms-source .st-review h3 { font: inherit; font-size: 14px; font-weight: 600; margin: 0; }
+.rc-ms-source .st-review table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.rc-ms-source .st-review th, .rc-ms-source .st-review td { padding: 7px 8px; border-bottom: 1px solid var(--color-border); text-align: left; vertical-align: middle; }
+.rc-ms-source .st-review th { font-weight: 600; font-size: 12px; color: var(--color-text-muted); background: var(--color-surface-low); }
+.rc-ms-source .st-review table input { width: 160px; max-width: 100%; font-variant-numeric: tabular-nums; }
+.rc-ms-source .st-fraction-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; align-items: start; }
+.rc-ms-source .st-fractions th:first-child { width: 38%; }
+.rc-ms-source .st-inventory th:nth-child(1) { width: 26%; }
+.rc-ms-source .st-inventory th:nth-child(2) { width: 32%; }
+.rc-ms-source .st-inventory th:nth-child(3) { width: 42%; }
+.rc-ms-source .st-pagination { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; font-size: 12px; color: var(--color-text-muted); }
+.rc-ms-source .st-pagination > div { display: flex; gap: 6px; }
+.rc-ms-source .st-footer { display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap; border-top: 1px solid var(--color-border); padding-top: 16px; margin-top: 21px; }
+.rc-ms-source .st-errors { color: var(--color-error); font-size: 12px; margin-top: 15px; }
+.rc-ms-source .st-empty { padding: 28px 0 16px; color: var(--color-text-muted); text-align: center; font-size: 13px; }
+.rc-ms-source .st-empty p { font-size: 12px; margin: 8px 0 16px; }
+.rc-ms-source .st-manage { margin-top: 16px; font-size: 12px; }
+.rc-ms-source .st-manage summary { color: var(--color-text-muted); cursor: pointer; padding: 4px 0; }
+.rc-ms-source .st-manage[open] summary { margin-bottom: 12px; }
+.rc-ms-source .st-manage h3 { margin: 16px 0 8px; }
+.rc-ms-source .st-structure-rows { display: grid; gap: 8px; margin-bottom: 12px; max-width: 420px; }
+.rc-ms-source .st-structure-row { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 140px) auto; gap: 8px; }
+.rc-ms-source .st-structure-row--group { grid-template-columns: minmax(0, 150px) auto; justify-content: start; }
+/* Centered project-modal shell and existing category fields; no second editor. */
+.rc-category-modal .posfield { min-width: 0; }
+.rc-category-modal .rc-category-main-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; }
+.rc-category-modal .rc-category-remove { box-sizing: border-box; min-height: 38px; color: var(--color-error); border-color: var(--color-error-border); background: var(--color-error-soft); }
+.rc-category-modal .rc-category-remove:hover:not(:disabled) { color: var(--color-error); border-color: var(--color-error); background: var(--color-error-soft); }
+.rc-category-modal .rc-source-editor { gap: 20px; font-family: var(--font-ui), sans-serif; font-size: 13px; line-height: 1.45; }
+.rc-category-modal .rc-source-editor > .posnav__btn { align-self: flex-start; }
+.rc-category-modal .rc-source-editor .posnav__btn:disabled { opacity: .5; cursor: default; }
+.rc-source-editor__pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; margin-top: 8px; font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.rc-source-editor__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.rc-source-editor__footer { justify-content: flex-end; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--color-border); }
+.rc-category-modal .rc-source-editor input[type="number"] { width: 150px; max-width: 100%; }
+.rc-category-modal .rc-source-editor .posfield__select { max-width: 260px; }
+.rc-category-modal .modal__body > .posfield-grid:has(input[type="number"]) { grid-template-columns: repeat(2, minmax(0, 160px)); }
+.rc-category-modal .rc-source-editor .posnav__btn { white-space: nowrap; }
+.rc-category-modal .rc-source-editor .rc-source-editor__file-button { align-self: flex-start; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.rc-category-modal .rc-source-editor .postable input:not([type="number"]) { width: 120px; }
+.rc-category-modal .rc-source-editor .postable td:last-child:has(button) { width: 76px; }
+.rc-category-modal .rc-source-editor .posrow { flex-wrap: wrap; }
+@container (max-width: 540px) {
+  .rc-ms-source .st-source { align-items: start; flex-direction: column; }
+  .rc-ms-source .st-fraction-layout { grid-template-columns: minmax(0, 1fr); }
+  .rc-ms-source .st-timing { gap: 8px; }
+  .rc-ms-source .st-review th, .rc-ms-source .st-review td { padding-left: 5px; padding-right: 5px; }
+}
+@media (max-width: 520px) {
+  .rc-category-modal .posfield-grid { grid-template-columns: minmax(0, 1fr); }
+  .rc-category-modal .rc-category-remove { justify-self: start; }
+}

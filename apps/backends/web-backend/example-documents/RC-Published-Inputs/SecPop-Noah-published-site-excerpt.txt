@@ -1,0 +1,58 @@
+PUBLISHED EXCERPT - ABRIDGED IN THE ORIGINAL REPORT
+Source: Noah Etter, NRC, Methodology for Generating MACCS Site-Specific Input Files
+to Support Risk-Informed Radiological Consequence Assessment, Appendix B.6, p. 76.
+https://www.nrc.gov/docs/ML2520/ML25203A330.pdf
+
+The ellipses and [SITE NAME] placeholder below are present in the publication.
+This is a readable published example, not a complete, runnable MACCS site file.
+PDF layout was extracted; trailing whitespace was removed. Values were not changed.
+
+SECPOP Version: 4.3.1 SVN:7606 FileType: MACCS_Site Project: "[SITE NAME].spproj" Census:
+"C:\Program Files\SecPop 4.4.1\Census\Census2010.bin" County: "C:\Program Files\SecPop
+4.4.1\Census\County2012.dat"
+Lat: 35d18'37'' Long: 93d13'55'' Latitude: 35.310276 Longitude: 93.23194 Population_multiplier:
+1.03 Economic_multiplier: 1.35 Run_Time: 2025/06/25_10:33:35
+  14 SPATIAL INTERVALS
+  64 WIND DIRECTIONS
+   7 CROP CATEGORIES
+   4 WATER PATHWAY ISOTOPES
+   1 WATERSHEDS
+  83 ECONOMIC REGIONS
+ SPATIAL DISTANCES     KILOMETERS
+    0.7460    1.6093    2.3553    3.2187    8.0467   11.2654   16.0934   24.1402
+   32.1869   40.2336   48.2803   64.3738   80.4672  160.9344
+ POPULATION
+        0.        2.        2.        0.      276.        0.        0.       71.
+       53.        2.        4.      300.      997.    45426.
+…
+        0.        0.        0.        0.      179.        1.       14.       11.
+       58.       20.       16.      233.      490.    23508.
+ LAND FRACTION
+ 0.00 1.00 1.00 1.00 1.00 0.00 0.98 1.00 1.00 0.99 0.99 1.00 1.00 0.98
+…
+ 0.00 0.00 1.00 1.00 1.00 1.00 0.98 1.00 1.00 1.00 1.00 1.00 1.00 0.93
+ REGION INDEX
+ 1 4 4 4 4 3 420201220202083
+…
+ 1 3 4 4 4 4 482121282828283
+ WATERSHED INDEX
+ 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+…
+ 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+ CROP SEASON AND SHARE
+   1 PASTURE               90. 270.  0.4100
+   2 STORED FORAGE        150. 240.  0.1300
+   3 GRAINS               150. 240.  0.2100
+   4 GRN LEAFY VEGETABLES 150. 240.  0.0020
+   5 OTHER FOOD CROPS     150. 240.  0.0040
+   6 LEGUMES AND SEEDS    150. 240.  0.1500
+   7 ROOTS AND TUBERS     150. 240.  0.0030
+ WATERSHED DEFINITION  -- INITIAL AND ANNUAL WASHOFF AND INGESTION FACTORS
+   1 Sr-89                           5.00E-06       0.0
+   2 Sr-90                           5.00E-06       0.0
+   3 Cs-134                          5.00E-06       0.0
+   4 Cs-137                          5.00E-06       0.0
+ REGIONAL ECONOMIC DATA
+   1 EXCLUSION       .000 .000        .0        .0        .0
+…
+  83 MIX_CNTY83      .380 .009    2069.1    9628.2  469555.6

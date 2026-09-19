@@ -1,3 +1,5 @@
+import { notifyAnalysisRun } from "../newly-developed-methods/shared/analysisRunEvents";
+import { stringifyJson } from "interfaces-shared-types/json";
 import { getToken, onUnauthorized } from "../auth/authStorage";
 
 function authHeaders(): Record<string, string> {
@@ -20,7 +22,7 @@ async function readError(response: Response): Promise<string> {
 
 async function request(method: string, path: string, body?: unknown): Promise<Response> {
   const init: RequestInit = { method, headers: authHeaders() };
-  if (body !== undefined) init.body = JSON.stringify(body);
+  if (body !== undefined) init.body = stringifyJson(body);
   const response = await fetch(path, init);
   if (response.status === 401) { onUnauthorized(); throw new Error("Session expired"); }
   if (!response.ok) throw new Error(await readError(response));
@@ -33,8 +35,12 @@ async function fetchJson<T>(path: string): Promise<T> {
 }
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
-  const response = await request("POST", path, body);
-  return response.json() as Promise<T>;
+  let result: T | undefined;
+  try {
+    const response = await request("POST", path, body);
+    result = await response.json() as T;
+    return result;
+  } finally { notifyAnalysisRun(path, result); }
 }
 
 async function patchJson<T>(path: string, body: unknown): Promise<T> {

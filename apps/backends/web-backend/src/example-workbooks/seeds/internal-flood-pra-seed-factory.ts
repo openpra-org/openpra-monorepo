@@ -8,6 +8,7 @@ import {
 import { type SRReference } from "interfaces-mef-types/core/pra-common";
 import { synchronizeInternalFloodPraDerivedRegisters } from "interfaces-mef-types/internal-flood/internal-flood-pra-validation";
 import { createBlankInternalFloodPra } from "../../internal-flood-pra-workbooks/blank-internal-flood-pra";
+import { createHazardConditionedMethodModels } from "./hazard-conditioned-method-model-seed";
 
 export type InternalFloodPraVariant = "htgr" | "sfr";
 
@@ -116,6 +117,7 @@ function documentation(variant: InternalFloodPraVariant, prefix: InternalFloodPr
 export function createInternalFloodPraExample(variant: InternalFloodPraVariant): InternalFloodPRA {
   const context = CONTEXT[variant];
   const mef = createBlankInternalFloodPra(context.workbookName, "Internal Flood PRA Team");
+  mef.hazardConditionedModels = createHazardConditionedMethodModels("FL", "Internal flood");
   mef.uuid = id(variant, "INTERNAL-FLOOD-PRA");
   mef.version = "1.0";
   mef.plantStage = "PRE_OPERATIONAL";

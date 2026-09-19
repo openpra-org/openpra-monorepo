@@ -16,15 +16,25 @@ import {
   getSyExampleOptions,
   loadSyExample,
   unloadSyExample,
+  type SyWorkbookResponse,
   type SyWorkbookRoleName,
   type SyExampleOption,
 } from "./syWorkbookApi";
 import { SyWorkbench, type SyWorkbenchActions } from "./syWorkbench";
-import { SyWorkbookProvider, type SyWorkbookData, type SyLinkedInputs } from "./syWorkbookContext";
+import {
+  SyWorkbookProvider,
+  type SyControlledHumanFailureOption,
+  type SyControlledParameterOption,
+  type SyWorkbookData,
+  type SyLinkedInputs,
+} from "./syWorkbookContext";
 import { useSyMefPatch } from "./useSyMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { SyDocumentsCard } from "./syDocumentsCard";
 import { type SyPersona } from "./syViewData";
+import { listWorkbooks } from "../workbooks/workbookApi";
+import { getDaWorkbook } from "../da-workbooks/daWorkbookApi";
+import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "SY-A1",
@@ -86,6 +96,7 @@ function SyWorkbookPage(): JSX.Element {
   const { user } = useAuth();
   const actingUsername = user?.username ?? "";
   const [data, setData] = useState<SyWorkbookData | null>(null);
+  const [revision, setRevision] = useState<number | null>(null);
   const [myRoles, setMyRoles] = useState<SyWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -95,7 +106,10 @@ function SyWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [exampleOptions, setExampleOptions] = useState<SyExampleOption[]>([]);
+  const [controlledParameters, setControlledParameters] = useState<SyControlledParameterOption[]>([]);
+  const [controlledHumanFailures, setControlledHumanFailures] = useState<SyControlledHumanFailureOption[]>([]);
   const workbookName = data?.sy.name ?? "";
   const workbookVersion = data?.sy.version ?? "1";
 
@@ -115,12 +129,98 @@ function SyWorkbookPage(): JSX.Element {
           links: null,
         });
         setMyRoles(workbook.myRoles);
+        setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
+        setProjectId(workbook.projectId);
         try {
           const project = await getProject(workbook.projectId);
           if (!cancelled) setProjectName(project.name);
         } catch {
           if (!cancelled) setProjectName("");
+        }
+        try {
+          const listing = await listWorkbooks(workbook.projectId, "DA");
+          const loaded = await Promise.allSettled(
+            listing.workbooks.map(async (entry) => ({
+              entry,
+              workbook: await getDaWorkbook(entry.id),
+            })),
+          );
+          const supported = new Set(["FREQUENCY", "PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
+          const options = loaded.flatMap((result): SyControlledParameterOption[] => {
+            if (result.status !== "fulfilled") return [];
+            return result.value.workbook.mef.parameters.flatMap((parameter) => {
+              if (
+                !supported.has(parameter.parameterType) ||
+                !Number.isFinite(parameter.value) ||
+                parameter.value < 0 ||
+                (parameter.parameterType !== "FREQUENCY" && parameter.value > 1)
+              ) return [];
+              return [{
+                workbookId: result.value.entry.id,
+                workbookName: result.value.entry.name,
+                parameterId: parameter.uuid,
+                parameterName: parameter.name,
+                parameterType: parameter.parameterType as SyControlledParameterOption["parameterType"],
+                value: parameter.value,
+              }];
+            });
+          });
+          if (!cancelled) {
+            setControlledParameters(options.sort((left, right) =>
+              [left.workbookName, left.parameterName].join(":").localeCompare(
+                [right.workbookName, right.parameterName].join(":"),
+              ),
+            ));
+          }
+        } catch {
+          if (!cancelled) setControlledParameters([]);
+        }
+        try {
+          const listing = await listWorkbooks(workbook.projectId, "HRA");
+          const loaded = await Promise.allSettled(
+            listing.workbooks.map(async (entry) => ({
+              entry,
+              workbook: await getHrWorkbook(entry.id),
+            })),
+          );
+          const options = loaded.flatMap((result): SyControlledHumanFailureOption[] => {
+            if (result.status !== "fulfilled") return [];
+            const humanFailureEvents = new Map(
+              result.value.workbook.mef.humanFailureEvents.map((event) => [event.uuid, event]),
+            );
+            return result.value.workbook.mef.hepQuantifications.flatMap((quantification) => {
+              const humanFailureEvent = humanFailureEvents.get(quantification.hfeId);
+              const value = quantification.meanHep ?? quantification.pointEstimateHep;
+              if (
+                humanFailureEvent === undefined ||
+                value === undefined ||
+                !Number.isFinite(value) ||
+                value < 0 ||
+                value > 1
+              ) return [];
+              return [{
+                workbookId: result.value.entry.id,
+                workbookName: result.value.entry.name,
+                humanFailureEventId: humanFailureEvent.uuid,
+                humanFailureEventName: humanFailureEvent.name,
+                hfeTiming: humanFailureEvent.hfeTiming,
+                quantificationId: quantification.uuid,
+                methodology: quantification.methodology,
+                value,
+                valueKind: quantification.meanHep === undefined ? "POINT_ESTIMATE" : "MEAN",
+              }];
+            });
+          });
+          if (!cancelled) {
+            setControlledHumanFailures(options.sort((left, right) =>
+              [left.workbookName, left.humanFailureEventName, left.methodology].join(":").localeCompare(
+                [right.workbookName, right.humanFailureEventName, right.methodology].join(":"),
+              ),
+            ));
+          }
+        } catch {
+          if (!cancelled) setControlledHumanFailures([]);
         }
       })
       .catch((err: unknown) => {
@@ -153,9 +253,29 @@ function SyWorkbookPage(): JSX.Element {
     setData((prev) => (prev === null ? prev : { ...prev, sy }));
   }, []);
 
-  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveOk = useCallback((nextRevision: number): void => {
+    setRevision(nextRevision);
+    setSaveError(null);
+  }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patch } = useSyMefPatch(id ?? "", data?.sy ?? null, handleSaveOk, handleSaveErr);
+  const handleSaveResync = useCallback((latest: SyWorkbookResponse): void => {
+    setData((previous) => (previous === null ? previous : { ...previous, sy: latest.mef }));
+    setRevision(latest.revision);
+    setMyRoles(latest.myRoles);
+    setHasPreviousMef(latest.hasPreviousMef);
+  }, []);
+  const refreshWorkbook = useCallback(async (): Promise<void> => {
+    if (id === undefined) return;
+    handleSaveResync(await getSyWorkbook(id));
+  }, [handleSaveResync, id]);
+  const { patch, saveStatus } = useSyMefPatch(
+    id ?? "",
+    data?.sy ?? null,
+    revision,
+    handleSaveOk,
+    handleSaveErr,
+    handleSaveResync,
+  );
   const mutateSy = useCallback((mutator: (sy: SystemsAnalysis) => SystemsAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, sy: mutator(prev.sy) }));
     void patch(mutator);
@@ -165,23 +285,23 @@ function SyWorkbookPage(): JSX.Element {
     if (id === undefined) return undefined;
     return {
       postComment: async (text, severity, stepId): Promise<void> => {
-        const sy = await postWorkbookComment(id, { text, severity, associatedSr: STEP_SR_HINT[stepId] }) as SystemsAnalysis;
-        updateSy(sy);
+        await postWorkbookComment(id, { text, severity, associatedSr: STEP_SR_HINT[stepId] });
+        await refreshWorkbook();
       },
       toggleResolve: async (commentId, nextResolved): Promise<void> => {
-        const sy = await patchWorkbookComment(id, commentId, { resolved: nextResolved }) as SystemsAnalysis;
-        updateSy(sy);
+        await patchWorkbookComment(id, commentId, { resolved: nextResolved });
+        await refreshWorkbook();
       },
       submitForReview: async (): Promise<void> => {
-        const sy = await submitWorkbookForReview(id) as SystemsAnalysis;
-        updateSy(sy);
+        await submitWorkbookForReview(id);
+        await refreshWorkbook();
       },
       requestRevision: async (note): Promise<void> => {
-        const sy = await requestWorkbookRevision(id, note) as SystemsAnalysis;
-        updateSy(sy);
+        await requestWorkbookRevision(id, note);
+        await refreshWorkbook();
       },
     };
-  }, [id, updateSy]);
+  }, [id, refreshWorkbook]);
 
   const availablePersonas = useMemo<SyPersona[]>(() => {
     const out: SyPersona[] = [];
@@ -223,7 +343,14 @@ function SyWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <SyWorkbookProvider data={data} editable={editable} mutateSy={mutateSy}>
+    <SyWorkbookProvider
+      data={data}
+      editable={editable}
+      mutateSy={mutateSy}
+      runtime={{ workbookId: id, projectId, revision, saveStatus }}
+      controlledParameters={controlledParameters}
+      controlledHumanFailures={controlledHumanFailures}
+    >
       <SyWorkbench
         data={data}
         persona={persona}
@@ -234,7 +361,7 @@ function SyWorkbookPage(): JSX.Element {
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
-        headerMeta={{ projectName, workbookName, workbookVersion }}
+        headerMeta={{ projectName, workbookName, workbookVersion, saveStatus }}
         renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />}
         renderSignCard={() => (
           <WorkbookSignCard
@@ -243,7 +370,12 @@ function SyWorkbookPage(): JSX.Element {
             currentPersona={persona}
             myOpenComments={data.sy.internalReviewComments.comments.filter((c) => c.authorId === actingUsername && !c.resolved).length}
             refreshSignal={approvalRefresh}
-            onSigned={() => setApprovalRefresh((n) => n + 1)}
+            onSigned={() => {
+              setApprovalRefresh((n) => n + 1);
+              void refreshWorkbook().catch((refreshError: unknown) => {
+                handleSaveErr((refreshError as { message?: string }).message ?? "Could not refresh this SY workbook");
+              });
+            }}
           />
         )}
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
@@ -264,6 +396,7 @@ function SyWorkbookPage(): JSX.Element {
           onConfirm={async (exampleId) => {
             const res = await loadSyExample(id, exampleId);
             updateSy(res.mef);
+            setRevision(res.revision);
             setHasPreviousMef(res.hasPreviousMef);
             setLoadExOpen(false);
           }}
@@ -275,6 +408,7 @@ function SyWorkbookPage(): JSX.Element {
           onConfirm={async () => {
             const res = await unloadSyExample(id);
             updateSy(res.mef);
+            setRevision(res.revision);
             setHasPreviousMef(res.hasPreviousMef);
             setUnloadExOpen(false);
           }}

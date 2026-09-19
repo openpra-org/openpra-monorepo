@@ -347,7 +347,19 @@ pub fn sample_events_bitpacked_gpu<R: Runtime>(
     let full_ranges_handle = client.create_from_slice(u32::as_bytes(full_ranges));
     let out_handle = client.empty((total_words * 2) * std::mem::size_of::<u32>());
 
-    let cube_dim_x = if num_events >= 32 { 32 } else if num_events >= 16 { 16 } else if num_events >= 8 { 8 } else if num_events >= 4 { 4 } else if num_events >= 2 { 2 } else { 1 };
+    let cube_dim_x = if num_events >= 32 {
+        32
+    } else if num_events >= 16 {
+        16
+    } else if num_events >= 8 {
+        8
+    } else if num_events >= 4 {
+        4
+    } else if num_events >= 2 {
+        2
+    } else {
+        1
+    };
     let cube_dim_y = p_count.max(1).min((256 / cube_dim_x).max(1).min(8));
     let cube_dim = CubeDim::new_2d(cube_dim_x, cube_dim_y);
 
@@ -410,11 +422,7 @@ mod cuda_tests {
         let t = 1u32;
         let key = [0xDEAD_BEEF, 0x1234_5678];
 
-        let thresholds: Vec<u32> = vec![
-            0u32,
-            u32::MAX / 2,
-            u32::MAX,
-        ];
+        let thresholds: Vec<u32> = vec![0u32, u32::MAX / 2, u32::MAX];
         let full_ranges: Vec<u32> = vec![0u32, 0u32, 0u32];
 
         let gpu = sample_events_bitpacked_gpu::<CudaRuntime>(

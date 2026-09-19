@@ -38,6 +38,21 @@ jobs:
       - name: Install dependencies
         run: npx -y pnpm@10.19.0 install --ignore-scripts --no-frozen-lockfile
 
+      - name: Setup Rust for the native addon
+        run: rustup default stable
+
+      - name: Build the native addon before backend tests
+        # Catch ignored-but-local or altered vendored numerical dependencies.
+        run: |
+          npm --prefix apps/solvers/praxis-node run verify:vendor -- --check-git
+          node apps/solvers/praxis/tests/verify-hcl-references.mjs --check-git
+          npx -y pnpm@10.19.0 nx run solvers-praxis-node:build
+
+      - name: Verify frozen HCL references and native numerical suites
+        run: |
+          npm --prefix apps/solvers/praxis-node test
+          npm --prefix apps/solvers/praxis-node run test:linux
+
       - name: Build
         run: npx -y pnpm@10.19.0 nx run-many -t build --projects=backends-web-backend,frontends-web-frontend,praetor,site
 
@@ -52,7 +67,7 @@ jobs:
         env:
           MONGO_URI: mongodb://localhost:27017/test
         run: |
-          npx -y pnpm@10.19.0 nx run-many -t test --projects=backends-web-backend,frontends-web-frontend -- --testTimeout=60000
+          npx -y pnpm@10.19.0 nx run-many -t test --projects=backends-web-backend,frontends-web-frontend,interfaces-shared-types -- --testTimeout=60000
           npx -y pnpm@10.19.0 nx run praetor:test
 
       - name: Lint
@@ -85,8 +100,14 @@ jobs:
       - name: Lint
         run: cargo clippy -- -D warnings
 
-      - name: Test
+      - name: Test PRAXIS, including HCL equivalence and source fixtures
         run: cargo test
+
+      - name: Test TensorBayes inference and enumeration corpus
+        run: cargo test --manifest-path ../tensorbayes/Cargo.toml
+
+      - name: Test Rust addon adapters
+        run: cargo test --manifest-path ../praxis-node/Cargo.toml --lib
 
       - name: Build
         run: cargo build

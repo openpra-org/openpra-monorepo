@@ -5,6 +5,24 @@ export type RcWorkbookDocumentDocument = HydratedDocument<RcWorkbookFile> & { cr
 
 @Schema({ timestamps: true, collection: "rc_workbook_documents" })
 export class RcWorkbookFile {
+  @Prop({ type: Boolean, default: false })
+  caseArtifactOriginal?: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  sourceTermOriginal?: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  siteInputOriginal?: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  weatherInputOriginal?: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  transportInputOriginal?: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  doseInputOriginal?: boolean;
+
   @Prop({ type: String, required: true, unique: true, index: true })
   documentId!: string;
 

@@ -13,7 +13,6 @@ pub struct Model {
 }
 
 impl Model {
-
     pub fn new(name: impl Into<String>) -> Result<Self> {
         let name_str = name.into();
         let id = if name_str.is_empty() {

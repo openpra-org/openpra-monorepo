@@ -4,7 +4,7 @@ use tracing::{debug, trace};
 
 use crate::algorithms::pdag::{Connective, NodeIndex, Pdag, PdagNode};
 use crate::core::fault_tree::FaultTree;
-use crate::Result;
+use crate::{PraxisError, Result};
 
 #[derive(Debug, Clone)]
 pub struct SignedCutSet {
@@ -138,7 +138,12 @@ fn flip(ops: &[NodeIndex]) -> Vec<NodeIndex> {
     ops.iter().map(|&o| -o).collect()
 }
 
-pub(crate) fn gate_expansion(conn: Connective, neg: bool, ops: &[NodeIndex], min: Option<usize>) -> Expansion {
+pub(crate) fn gate_expansion(
+    conn: Connective,
+    neg: bool,
+    ops: &[NodeIndex],
+    min: Option<usize>,
+) -> Expansion {
     match conn {
         Connective::And => {
             if neg {
@@ -225,7 +230,13 @@ fn consensus(a: &[NodeIndex], b: &[NodeIndex]) -> Option<Vec<NodeIndex>> {
 pub(crate) fn combinations(items: &[NodeIndex], k: usize) -> Vec<Vec<NodeIndex>> {
     let mut out = Vec::new();
     let mut current = Vec::new();
-    fn rec(items: &[NodeIndex], start: usize, k: usize, current: &mut Vec<NodeIndex>, out: &mut Vec<Vec<NodeIndex>>) {
+    fn rec(
+        items: &[NodeIndex],
+        start: usize,
+        k: usize,
+        current: &mut Vec<NodeIndex>,
+        out: &mut Vec<Vec<NodeIndex>>,
+    ) {
         if current.len() == k {
             out.push(current.clone());
             return;
@@ -242,15 +253,28 @@ pub(crate) fn combinations(items: &[NodeIndex], k: usize) -> Vec<Vec<NodeIndex>>
 
 impl NonCoherentMocus {
     pub fn new(pdag: &Pdag, fault_tree: &FaultTree) -> Result<Self> {
+        let probabilities = fault_tree
+            .basic_events()
+            .iter()
+            .map(|(id, event)| (id.clone(), event.probability()))
+            .collect();
+        Self::with_probabilities(pdag, &probabilities)
+    }
+
+    /// Creates an enumerator for a PDAG whose basic-event probabilities come
+    /// from an external model-wide catalogue. Event-tree sequence formulas use
+    /// this path because their PDAG may combine several linked fault trees.
+    pub fn with_probabilities(pdag: &Pdag, probabilities: &HashMap<String, f64>) -> Result<Self> {
         let mut owned = pdag.clone();
         normalize_xor_iff(&mut owned)?;
         let mut prob = HashMap::new();
         for (&idx, node) in owned.nodes() {
             if let PdagNode::BasicEvent { id, .. } = node {
-                let p = fault_tree
-                    .get_basic_event(id)
-                    .map(|b| b.probability())
-                    .unwrap_or(0.0);
+                let p = probabilities.get(id).copied().ok_or_else(|| {
+                    PraxisError::Logic(format!(
+                        "basic event '{id}' has no probability for noncoherent MOCUS"
+                    ))
+                })?;
                 prob.insert(idx, p);
             }
         }
@@ -266,7 +290,10 @@ impl NonCoherentMocus {
     }
 
     fn is_basic(&self, r: NodeIndex) -> bool {
-        matches!(self.pdag.get_node(r.abs()), Some(PdagNode::BasicEvent { .. }))
+        matches!(
+            self.pdag.get_node(r.abs()),
+            Some(PdagNode::BasicEvent { .. })
+        )
     }
 
     fn canonicalize(&self, set: &[NodeIndex]) -> Option<Vec<NodeIndex>> {
@@ -366,10 +393,15 @@ impl NonCoherentMocus {
     }
 
     fn try_add(&mut self, candidate: Vec<NodeIndex>) {
-        if self.cut_sets.iter().any(|known| Self::is_subset(known, &candidate)) {
+        if self
+            .cut_sets
+            .iter()
+            .any(|known| Self::is_subset(known, &candidate))
+        {
             return;
         }
-        self.cut_sets.retain(|known| !Self::is_subset(&candidate, known));
+        self.cut_sets
+            .retain(|known| !Self::is_subset(&candidate, known));
         self.cut_sets.push(candidate);
     }
 
@@ -392,7 +424,11 @@ impl NonCoherentMocus {
             let Some(set) = self.canonicalize(&set) else {
                 continue;
             };
-            if self.cut_sets.iter().any(|known| Self::is_subset(known, &set)) {
+            if self
+                .cut_sets
+                .iter()
+                .any(|known| Self::is_subset(known, &set))
+            {
                 continue;
             }
             if set.iter().all(|&r| self.is_basic(r)) {
@@ -415,7 +451,9 @@ impl NonCoherentMocus {
         debug!(target: "praxis::noncoherent_mocus", cut_sets = self.cut_sets.len(), "noncoherent mocus analyze done");
         self.cut_sets
             .iter()
-            .map(|c| SignedCutSet { literals: c.clone() })
+            .map(|c| SignedCutSet {
+                literals: c.clone(),
+            })
             .collect()
     }
 
@@ -549,7 +587,11 @@ mod tests {
         for cs in &cuts {
             let mut seen: HashSet<NodeIndex> = HashSet::new();
             for &l in &cs.literals {
-                assert!(!seen.contains(&(-l)), "mutual exclusivity violated: {:?}", cs.literals);
+                assert!(
+                    !seen.contains(&(-l)),
+                    "mutual exclusivity violated: {:?}",
+                    cs.literals
+                );
                 seen.insert(l);
             }
         }
@@ -574,9 +616,15 @@ mod tests {
         let a = p.add_basic_event("a".to_string());
         let b = p.add_basic_event("b".to_string());
         let c = p.add_basic_event("c".to_string());
-        let g1 = p.add_gate("g1".to_string(), Connective::And, vec![a, b], None).unwrap();
-        let g2 = p.add_gate("g2".to_string(), Connective::And, vec![-a, c], None).unwrap();
-        let top = p.add_gate("top".to_string(), Connective::Or, vec![g1, g2], None).unwrap();
+        let g1 = p
+            .add_gate("g1".to_string(), Connective::And, vec![a, b], None)
+            .unwrap();
+        let g2 = p
+            .add_gate("g2".to_string(), Connective::And, vec![-a, c], None)
+            .unwrap();
+        let top = p
+            .add_gate("top".to_string(), Connective::Or, vec![g1, g2], None)
+            .unwrap();
         p.set_root(top).unwrap();
         let ft = ft_with(&[("a", 0.1), ("b", 0.2), ("c", 0.3)]);
         let cuts = check_cover(&p, &ft, &[a, b, c]);
@@ -588,8 +636,12 @@ mod tests {
         let mut p = Pdag::new();
         let a = p.add_basic_event("a".to_string());
         let b = p.add_basic_event("b".to_string());
-        let g1 = p.add_gate("g1".to_string(), Connective::And, vec![a, -a], None).unwrap();
-        let top = p.add_gate("top".to_string(), Connective::Or, vec![g1, b], None).unwrap();
+        let g1 = p
+            .add_gate("g1".to_string(), Connective::And, vec![a, -a], None)
+            .unwrap();
+        let top = p
+            .add_gate("top".to_string(), Connective::Or, vec![g1, b], None)
+            .unwrap();
         p.set_root(top).unwrap();
         let ft = ft_with(&[("a", 0.1), ("b", 0.2)]);
         let cuts = check_cover(&p, &ft, &[a, b]);
@@ -603,9 +655,15 @@ mod tests {
         let a = p.add_basic_event("a".to_string());
         let b = p.add_basic_event("b".to_string());
         let c = p.add_basic_event("c".to_string());
-        let g1 = p.add_gate("g1".to_string(), Connective::And, vec![a, b], None).unwrap();
-        let inner = p.add_gate("inner".to_string(), Connective::Or, vec![g1, c], None).unwrap();
-        let top = p.add_gate("top".to_string(), Connective::Not, vec![inner], None).unwrap();
+        let g1 = p
+            .add_gate("g1".to_string(), Connective::And, vec![a, b], None)
+            .unwrap();
+        let inner = p
+            .add_gate("inner".to_string(), Connective::Or, vec![g1, c], None)
+            .unwrap();
+        let top = p
+            .add_gate("top".to_string(), Connective::Not, vec![inner], None)
+            .unwrap();
         p.set_root(top).unwrap();
         let ft = ft_with(&[("a", 0.1), ("b", 0.2), ("c", 0.3)]);
         check_cover(&p, &ft, &[a, b, c]);
@@ -617,9 +675,15 @@ mod tests {
         let a = p.add_basic_event("a".to_string());
         let b = p.add_basic_event("b".to_string());
         let c = p.add_basic_event("c".to_string());
-        let g1 = p.add_gate("g1".to_string(), Connective::And, vec![a, b], None).unwrap();
-        let g2 = p.add_gate("g2".to_string(), Connective::And, vec![-a, c], None).unwrap();
-        let top = p.add_gate("top".to_string(), Connective::Or, vec![g1, g2], None).unwrap();
+        let g1 = p
+            .add_gate("g1".to_string(), Connective::And, vec![a, b], None)
+            .unwrap();
+        let g2 = p
+            .add_gate("g2".to_string(), Connective::And, vec![-a, c], None)
+            .unwrap();
+        let top = p
+            .add_gate("top".to_string(), Connective::Or, vec![g1, g2], None)
+            .unwrap();
         p.set_root(top).unwrap();
         let ft = ft_with(&[("a", 0.1), ("b", 0.2), ("c", 0.3)]);
 
@@ -635,7 +699,11 @@ mod tests {
                 v
             })
             .collect();
-        assert_eq!(primes.len(), 3, "consensus completion must yield 3 prime implicants");
+        assert_eq!(
+            primes.len(),
+            3,
+            "consensus completion must yield 3 prime implicants"
+        );
         let mut bc = vec![b, c];
         bc.sort();
         assert!(as_sets.contains(&bc), "consensus prime b&c must be present");
@@ -675,20 +743,43 @@ mod tests {
         let names = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"];
         let n = names.len();
         let mut p = Pdag::new();
-        let ev: Vec<NodeIndex> = names.iter().map(|nm| p.add_basic_event(nm.to_string())).collect();
+        let ev: Vec<NodeIndex> = names
+            .iter()
+            .map(|nm| p.add_basic_event(nm.to_string()))
+            .collect();
         let (a, b, c, d, e, f, g, h, i, j, k, l) = (
             ev[0], ev[1], ev[2], ev[3], ev[4], ev[5], ev[6], ev[7], ev[8], ev[9], ev[10], ev[11],
         );
-        let g1 = p.add_gate("g1".into(), Connective::And, vec![a, b], None).unwrap();
-        let g2 = p.add_gate("g2".into(), Connective::And, vec![-a, c], None).unwrap();
-        let g3 = p.add_gate("g3".into(), Connective::And, vec![-c, d], None).unwrap();
-        let g4 = p.add_gate("g4".into(), Connective::And, vec![-d, e], None).unwrap();
-        let g5 = p.add_gate("g5".into(), Connective::And, vec![-e, f], None).unwrap();
-        let g6 = p.add_gate("g6".into(), Connective::Xor, vec![g, h, i], None).unwrap();
-        let g7 = p.add_gate("g7".into(), Connective::Iff, vec![j, k], None).unwrap();
-        let g8 = p.add_gate("g8".into(), Connective::AtLeast, vec![a, f, l], Some(2)).unwrap();
-        let g9 = p.add_gate("g9".into(), Connective::And, vec![c, -c, g], None).unwrap();
-        let g10 = p.add_gate("g10".into(), Connective::And, vec![a, b, g, j], None).unwrap();
+        let g1 = p
+            .add_gate("g1".into(), Connective::And, vec![a, b], None)
+            .unwrap();
+        let g2 = p
+            .add_gate("g2".into(), Connective::And, vec![-a, c], None)
+            .unwrap();
+        let g3 = p
+            .add_gate("g3".into(), Connective::And, vec![-c, d], None)
+            .unwrap();
+        let g4 = p
+            .add_gate("g4".into(), Connective::And, vec![-d, e], None)
+            .unwrap();
+        let g5 = p
+            .add_gate("g5".into(), Connective::And, vec![-e, f], None)
+            .unwrap();
+        let g6 = p
+            .add_gate("g6".into(), Connective::Xor, vec![g, h, i], None)
+            .unwrap();
+        let g7 = p
+            .add_gate("g7".into(), Connective::Iff, vec![j, k], None)
+            .unwrap();
+        let g8 = p
+            .add_gate("g8".into(), Connective::AtLeast, vec![a, f, l], Some(2))
+            .unwrap();
+        let g9 = p
+            .add_gate("g9".into(), Connective::And, vec![c, -c, g], None)
+            .unwrap();
+        let g10 = p
+            .add_gate("g10".into(), Connective::And, vec![a, b, g, j], None)
+            .unwrap();
         let top = p
             .add_gate(
                 "top".into(),
@@ -759,7 +850,8 @@ mod tests {
 
         let mut ft = FaultTree::new("FT".to_string(), "top".to_string()).unwrap();
         for nm in &names {
-            ft.add_basic_event(BasicEvent::new(nm.to_string(), 0.5).unwrap()).unwrap();
+            ft.add_basic_event(BasicEvent::new(nm.to_string(), 0.5).unwrap())
+                .unwrap();
         }
         let primes = NonCoherentMocus::new(&p, &ft).unwrap().analyze_primes();
         let mut engine: Vec<String> = primes
@@ -769,7 +861,11 @@ mod tests {
                     .literals
                     .iter()
                     .map(|&lit| {
-                        let id = p.get_node(lit.abs()).and_then(|nd| nd.id()).unwrap_or("?").to_string();
+                        let id = p
+                            .get_node(lit.abs())
+                            .and_then(|nd| nd.id())
+                            .unwrap_or("?")
+                            .to_string();
                         let s = if lit < 0 {
                             format!("~{}", id)
                         } else {

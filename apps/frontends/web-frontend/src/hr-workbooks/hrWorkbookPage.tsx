@@ -19,6 +19,7 @@ import {
   unloadHrExample,
   type HrWorkbookRoleName,
   type HrExampleOption,
+  type HrWorkbookResponse,
 } from "./hrWorkbookApi";
 import { HrWorkbench, type HrWorkbenchActions } from "./hrWorkbench";
 import { HrWorkbookProvider, type HrWorkbookData } from "./hrWorkbookContext";
@@ -57,6 +58,7 @@ function HrWorkbookPage(): JSX.Element {
   const { user } = useAuth();
   const actingUsername = user?.username ?? "";
   const [data, setData] = useState<HrWorkbookData | null>(null);
+  const [revision, setRevision] = useState<number | null>(null);
   const [myRoles, setMyRoles] = useState<HrWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -86,6 +88,7 @@ function HrWorkbookPage(): JSX.Element {
           links: null,
         });
         setMyRoles(workbook.myRoles);
+        setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
         try {
           const project = await getProject(workbook.projectId);
@@ -124,9 +127,25 @@ function HrWorkbookPage(): JSX.Element {
     setData((prev) => (prev === null ? prev : { ...prev, hr }));
   }, []);
 
-  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveOk = useCallback((nextRevision: number): void => {
+    setRevision(nextRevision);
+    setSaveError(null);
+  }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patch } = useHrMefPatch(id ?? "", data?.hr ?? null, handleSaveOk, handleSaveErr);
+  const handleSaveResync = useCallback((latest: HrWorkbookResponse): void => {
+    setData((previous) => (previous === null ? previous : { ...previous, hr: latest.mef }));
+    setRevision(latest.revision);
+    setMyRoles(latest.myRoles);
+    setHasPreviousMef(latest.hasPreviousMef);
+  }, []);
+  const { patch } = useHrMefPatch(
+    id ?? "",
+    data?.hr ?? null,
+    revision,
+    handleSaveOk,
+    handleSaveErr,
+    handleSaveResync,
+  );
   const mutateHr = useCallback((mutator: (hr: HumanReliabilityAnalysis) => HumanReliabilityAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, hr: mutator(prev.hr) }));
     void patch(mutator);
@@ -235,6 +254,7 @@ function HrWorkbookPage(): JSX.Element {
           onConfirm={async (exampleId) => {
             const res = await loadHrExample(id, exampleId);
             updateHr(res.mef);
+            setRevision(res.revision);
             setHasPreviousMef(res.hasPreviousMef);
             setLoadExOpen(false);
           }}
@@ -246,6 +266,7 @@ function HrWorkbookPage(): JSX.Element {
           onConfirm={async () => {
             const res = await unloadHrExample(id);
             updateHr(res.mef);
+            setRevision(res.revision);
             setHasPreviousMef(res.hasPreviousMef);
             setUnloadExOpen(false);
           }}

@@ -7,7 +7,13 @@ import { ESQ_EXAMPLES, exampleWorkbookName } from "../example-workbooks/seeds";
 import { EsqWorkbooksService } from "./esq-workbooks.service";
 import { EsqWorkbook, type EsqWorkbookDocument } from "./esq-workbook.schema";
 import { createBlankEsq } from "./blank-esq";
-import { stripNulls } from "../pos-workbooks/mef-normalize";
+import { normalizeEsqMef } from "./esq-mef-normalize";
+import {
+  assertExpectedWorkbookRevision,
+  createWorkbookRevisionFilter,
+  readWorkbookRevision,
+  workbookRevisionConflict,
+} from "../workbooks/workbook-revision";
 
 @Injectable()
 export class EsqMefAdapter implements WorkbookElementAdapter, OnModuleInit {
@@ -28,19 +34,39 @@ export class EsqMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     await this.esqWorkbookModel.create({ workbookId, projectId, ownerUsername, mef });
   }
 
-  async load(workbookId: string): Promise<{ projectId: string; ownerUsername: string; mef: unknown } | null> {
+  async load(workbookId: string): Promise<{
+    projectId: string;
+    ownerUsername: string;
+    mef: unknown;
+    revision: number;
+  } | null> {
     const doc = await this.esqWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) return null;
-    return { projectId: doc.projectId, ownerUsername: doc.ownerUsername, mef: doc.mef };
+    return {
+      projectId: doc.projectId,
+      ownerUsername: doc.ownerUsername,
+      mef: doc.mef,
+      revision: readWorkbookRevision(doc),
+    };
   }
 
-  async save(workbookId: string, mef: unknown): Promise<unknown> {
+  async save(workbookId: string, mef: unknown, expectedRevision?: number): Promise<unknown> {
     const doc = await this.esqWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new BadRequestException("ESQ workbook not found");
-    const parsed = EventSequenceQuantificationSchema.safeParse(stripNulls(mef));
+    if (expectedRevision === undefined) {
+      throw new BadRequestException("Expected ESQ workbook revision is required");
+    }
+    assertExpectedWorkbookRevision(doc, expectedRevision);
+    const parsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(mef));
     if (!parsed.success) throw new BadRequestException(`Invalid ESQ workbook payload: ${parsed.error.message}`);
-    doc.mef = parsed.data;
-    await doc.save();
+    const updated = await this.esqWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, expectedRevision),
+        { $set: { mef: parsed.data, revision: expectedRevision + 1 } },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updated) throw workbookRevisionConflict(expectedRevision);
     return parsed.data;
   }
 

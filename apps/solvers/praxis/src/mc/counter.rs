@@ -11,7 +11,6 @@ fn checked_plus_one(x: u32) -> u32 {
 
 #[inline]
 fn checked_t_to_ctr3(t: u32) -> u32 {
-
     let tp1 = checked_plus_one(t);
     tp1.checked_shl(INTRA_THREAD_BITS)
         .expect("counter component overflow on (t+1)<<6")

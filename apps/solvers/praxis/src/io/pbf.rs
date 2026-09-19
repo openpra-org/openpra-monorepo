@@ -262,7 +262,9 @@ pub fn decode(bytes: &[u8]) -> Result<Structure> {
                 value: tag & 1 == 1,
             },
             other => {
-                return Err(PraxisError::Logic(format!("PBF: unknown node kind {other}")))
+                return Err(PraxisError::Logic(format!(
+                    "PBF: unknown node kind {other}"
+                )))
             }
         };
         nodes.push(node);
@@ -432,41 +434,154 @@ fn encode_expr(out: &mut Vec<u8>, e: &Expr) {
         MissionTime => out.push(2),
         Time => out.push(3),
         Pi => out.push(4),
-        Add(v) => { out.push(5); encode_expr_vec(out, v); }
-        Sub(v) => { out.push(6); encode_expr_vec(out, v); }
-        Mul(v) => { out.push(7); encode_expr_vec(out, v); }
-        Div(v) => { out.push(8); encode_expr_vec(out, v); }
-        Min(v) => { out.push(9); encode_expr_vec(out, v); }
-        Max(v) => { out.push(10); encode_expr_vec(out, v); }
-        Mean(v) => { out.push(11); encode_expr_vec(out, v); }
-        Pow(a, b) => { out.push(12); encode_expr(out, a); encode_expr(out, b); }
-        Mod(a, b) => { out.push(13); encode_expr(out, a); encode_expr(out, b); }
-        Neg(x) => { out.push(14); encode_expr(out, x); }
-        Abs(x) => { out.push(15); encode_expr(out, x); }
-        Sqrt(x) => { out.push(16); encode_expr(out, x); }
-        Exp(x) => { out.push(17); encode_expr(out, x); }
-        Ln(x) => { out.push(18); encode_expr(out, x); }
-        Log10(x) => { out.push(19); encode_expr(out, x); }
-        Sin(x) => { out.push(20); encode_expr(out, x); }
-        Cos(x) => { out.push(21); encode_expr(out, x); }
-        Tan(x) => { out.push(22); encode_expr(out, x); }
-        Asin(x) => { out.push(23); encode_expr(out, x); }
-        Acos(x) => { out.push(24); encode_expr(out, x); }
-        Atan(x) => { out.push(25); encode_expr(out, x); }
-        Sinh(x) => { out.push(26); encode_expr(out, x); }
-        Cosh(x) => { out.push(27); encode_expr(out, x); }
-        Tanh(x) => { out.push(28); encode_expr(out, x); }
-        Floor(x) => { out.push(29); encode_expr(out, x); }
-        Ceil(x) => { out.push(30); encode_expr(out, x); }
-        And(v) => { out.push(31); encode_expr_vec(out, v); }
-        Or(v) => { out.push(32); encode_expr_vec(out, v); }
-        Not(x) => { out.push(33); encode_expr(out, x); }
-        Eq(a, b) => { out.push(34); encode_expr(out, a); encode_expr(out, b); }
-        Ne(a, b) => { out.push(35); encode_expr(out, a); encode_expr(out, b); }
-        Lt(a, b) => { out.push(36); encode_expr(out, a); encode_expr(out, b); }
-        Gt(a, b) => { out.push(37); encode_expr(out, a); encode_expr(out, b); }
-        Le(a, b) => { out.push(38); encode_expr(out, a); encode_expr(out, b); }
-        Ge(a, b) => { out.push(39); encode_expr(out, a); encode_expr(out, b); }
+        Add(v) => {
+            out.push(5);
+            encode_expr_vec(out, v);
+        }
+        Sub(v) => {
+            out.push(6);
+            encode_expr_vec(out, v);
+        }
+        Mul(v) => {
+            out.push(7);
+            encode_expr_vec(out, v);
+        }
+        Div(v) => {
+            out.push(8);
+            encode_expr_vec(out, v);
+        }
+        Min(v) => {
+            out.push(9);
+            encode_expr_vec(out, v);
+        }
+        Max(v) => {
+            out.push(10);
+            encode_expr_vec(out, v);
+        }
+        Mean(v) => {
+            out.push(11);
+            encode_expr_vec(out, v);
+        }
+        Pow(a, b) => {
+            out.push(12);
+            encode_expr(out, a);
+            encode_expr(out, b);
+        }
+        Mod(a, b) => {
+            out.push(13);
+            encode_expr(out, a);
+            encode_expr(out, b);
+        }
+        Neg(x) => {
+            out.push(14);
+            encode_expr(out, x);
+        }
+        Abs(x) => {
+            out.push(15);
+            encode_expr(out, x);
+        }
+        Sqrt(x) => {
+            out.push(16);
+            encode_expr(out, x);
+        }
+        Exp(x) => {
+            out.push(17);
+            encode_expr(out, x);
+        }
+        Ln(x) => {
+            out.push(18);
+            encode_expr(out, x);
+        }
+        Log10(x) => {
+            out.push(19);
+            encode_expr(out, x);
+        }
+        Sin(x) => {
+            out.push(20);
+            encode_expr(out, x);
+        }
+        Cos(x) => {
+            out.push(21);
+            encode_expr(out, x);
+        }
+        Tan(x) => {
+            out.push(22);
+            encode_expr(out, x);
+        }
+        Asin(x) => {
+            out.push(23);
+            encode_expr(out, x);
+        }
+        Acos(x) => {
+            out.push(24);
+            encode_expr(out, x);
+        }
+        Atan(x) => {
+            out.push(25);
+            encode_expr(out, x);
+        }
+        Sinh(x) => {
+            out.push(26);
+            encode_expr(out, x);
+        }
+        Cosh(x) => {
+            out.push(27);
+            encode_expr(out, x);
+        }
+        Tanh(x) => {
+            out.push(28);
+            encode_expr(out, x);
+        }
+        Floor(x) => {
+            out.push(29);
+            encode_expr(out, x);
+        }
+        Ceil(x) => {
+            out.push(30);
+            encode_expr(out, x);
+        }
+        And(v) => {
+            out.push(31);
+            encode_expr_vec(out, v);
+        }
+        Or(v) => {
+            out.push(32);
+            encode_expr_vec(out, v);
+        }
+        Not(x) => {
+            out.push(33);
+            encode_expr(out, x);
+        }
+        Eq(a, b) => {
+            out.push(34);
+            encode_expr(out, a);
+            encode_expr(out, b);
+        }
+        Ne(a, b) => {
+            out.push(35);
+            encode_expr(out, a);
+            encode_expr(out, b);
+        }
+        Lt(a, b) => {
+            out.push(36);
+            encode_expr(out, a);
+            encode_expr(out, b);
+        }
+        Gt(a, b) => {
+            out.push(37);
+            encode_expr(out, a);
+            encode_expr(out, b);
+        }
+        Le(a, b) => {
+            out.push(38);
+            encode_expr(out, a);
+            encode_expr(out, b);
+        }
+        Ge(a, b) => {
+            out.push(39);
+            encode_expr(out, a);
+            encode_expr(out, b);
+        }
         Ite(a, b, c) => {
             out.push(40);
             encode_expr(out, a);
@@ -478,14 +593,24 @@ fn encode_expr(out: &mut Vec<u8>, e: &Expr) {
             encode_expr(out, lambda);
             encode_expr(out, time);
         }
-        Glm { gamma, lambda, mu, time } => {
+        Glm {
+            gamma,
+            lambda,
+            mu,
+            time,
+        } => {
             out.push(42);
             encode_expr(out, gamma);
             encode_expr(out, lambda);
             encode_expr(out, mu);
             encode_expr(out, time);
         }
-        Weibull { scale, shape, t0, time } => {
+        Weibull {
+            scale,
+            shape,
+            t0,
+            time,
+        } => {
             out.push(43);
             encode_expr(out, scale);
             encode_expr(out, shape);
@@ -523,7 +648,10 @@ fn encode_expr(out: &mut Vec<u8>, e: &Expr) {
             encode_expr(out, mode);
             encode_expr(out, upper);
         }
-        Histogram { boundaries, weights } => {
+        Histogram {
+            boundaries,
+            weights,
+        } => {
             out.push(50);
             encode_expr_vec(out, boundaries);
             encode_expr_vec(out, weights);
@@ -848,13 +976,18 @@ pub fn encode_fault_tree(ft: &FaultTree) -> Result<Vec<u8>> {
 }
 
 enum DecNode {
-    Gate { formula: Formula, ops: Vec<usize> },
+    Gate {
+        formula: Formula,
+        ops: Vec<usize>,
+    },
     Be {
         prob: f64,
         expr: Option<Expr>,
         initiator: bool,
     },
-    House { state: bool },
+    House {
+        state: bool,
+    },
 }
 
 /// Parse a `FaultTree` from a PBF model byte string.
@@ -901,7 +1034,11 @@ pub fn decode_fault_tree(bytes: &[u8]) -> Result<FaultTree> {
             }
             1 => {
                 let nibble = tag & 0x0f;
-                let k = if nibble == 3 { r.uvarint()? as usize } else { 0 };
+                let k = if nibble == 3 {
+                    r.uvarint()? as usize
+                } else {
+                    0
+                };
                 let formula = nibble_to_formula(nibble, k)?;
                 let n = r.uvarint()? as usize;
                 let mut ops = Vec::with_capacity(n);
@@ -920,7 +1057,9 @@ pub fn decode_fault_tree(bytes: &[u8]) -> Result<FaultTree> {
                 state: tag & 1 == 1,
             },
             other => {
-                return Err(PraxisError::Logic(format!("PBF: unknown node kind {other}")))
+                return Err(PraxisError::Logic(format!(
+                    "PBF: unknown node kind {other}"
+                )))
             }
         };
         decoded.push(node);
@@ -1109,7 +1248,10 @@ pub fn decode_result(bytes: &[u8]) -> Result<QuantResult> {
     if r.u8()? == 1 {
         let value = r.f64()?;
         let approximation = u8_to_approx(r.u8()?)?;
-        out.probability = Some(ProbabilityOut { value, approximation });
+        out.probability = Some(ProbabilityOut {
+            value,
+            approximation,
+        });
     }
 
     if r.u8()? == 1 {
@@ -1131,7 +1273,10 @@ pub fn decode_result(bytes: &[u8]) -> Result<QuantResult> {
                 literals.push((name, negated));
             }
             let probability = r.f64()?;
-            list.push(CutSetOut { literals, probability });
+            list.push(CutSetOut {
+                literals,
+                probability,
+            });
         }
         out.cut_sets = Some(CutSetsOut {
             prime_implicants,
@@ -1307,7 +1452,9 @@ mod tests {
         let pdag = Pdag::from_fault_tree(&ft).unwrap();
 
         let s = structure_from_pdag(&pdag, |id| {
-            ft.get_basic_event(id).map(|b| b.probability()).unwrap_or(0.0)
+            ft.get_basic_event(id)
+                .map(|b| b.probability())
+                .unwrap_or(0.0)
         })
         .unwrap();
         let bytes = encode(&s);
@@ -1373,7 +1520,10 @@ mod tests {
                 Expr::Mul(vec![Expr::Constant(2.0), Expr::Pi]),
             ]),
             Expr::Ite(
-                Box::new(Expr::Lt(Box::new(Expr::Time), Box::new(Expr::Constant(10.0)))),
+                Box::new(Expr::Lt(
+                    Box::new(Expr::Time),
+                    Box::new(Expr::Constant(10.0)),
+                )),
                 Box::new(Expr::Constant(0.0)),
                 Box::new(Expr::Constant(1.0)),
             ),
@@ -1415,7 +1565,8 @@ mod tests {
         g1.add_operand("e3".into());
         ft.add_gate(g1).unwrap();
 
-        ft.add_basic_event(BasicEvent::new("e1".into(), 0.1).unwrap()).unwrap();
+        ft.add_basic_event(BasicEvent::new("e1".into(), 0.1).unwrap())
+            .unwrap();
         ft.add_basic_event(
             BasicEvent::with_value(
                 "e2".into(),
@@ -1428,18 +1579,28 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
-        ft.add_basic_event(BasicEvent::new("e3".into(), 0.3).unwrap()).unwrap();
-        ft.add_house_event(HouseEvent::new("h1".into(), true).unwrap()).unwrap();
+        ft.add_basic_event(BasicEvent::new("e3".into(), 0.3).unwrap())
+            .unwrap();
+        ft.add_house_event(HouseEvent::new("h1".into(), true).unwrap())
+            .unwrap();
         ft.add_ccf_group(
-            CcfGroup::new("c1", vec!["e1".into(), "e2".into()], CcfModel::BetaFactor(0.1))
-                .unwrap()
-                .with_distribution("0.01".into()),
+            CcfGroup::new(
+                "c1",
+                vec!["e1".into(), "e2".into()],
+                CcfModel::BetaFactor(0.1),
+            )
+            .unwrap()
+            .with_distribution("0.01".into()),
         )
         .unwrap();
 
         let bytes = encode_fault_tree(&ft).unwrap();
         let back = decode_fault_tree(&bytes).unwrap();
         assert_eq!(ft, back, "fault tree round trip mismatch");
-        assert_eq!(bytes, encode_fault_tree(&back).unwrap(), "model not byte-canonical");
+        assert_eq!(
+            bytes,
+            encode_fault_tree(&back).unwrap(),
+            "model not byte-canonical"
+        );
     }
 }

@@ -1,4 +1,5 @@
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
+import type { HazardConditionedMethodModels } from "../hazard-conditioned-models";
 import {
   createExternalFloodSrCatalog,
   ExternalFloodAnalysisRecord,
@@ -308,6 +309,7 @@ export interface ExternalFloodPraExampleDocument {
 
 export interface ExternalFloodPRA extends TechnicalElement<TechnicalElementTypes.EXTERNAL_FLOODING_PRA> {
   praScope: string;
+  hazardConditionedModels: HazardConditionedMethodModels;
   analysisBasis: ExternalFloodAnalysisBasis;
   hazardScreening: ExternalFloodHazardScreening;
   siteFloodModel: ExternalFloodSiteModel;

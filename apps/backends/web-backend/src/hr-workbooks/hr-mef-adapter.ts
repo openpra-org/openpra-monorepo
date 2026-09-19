@@ -8,6 +8,12 @@ import { HrWorkbooksService } from "./hr-workbooks.service";
 import { HrWorkbook, type HrWorkbookDocument } from "./hr-workbook.schema";
 import { createBlankHr } from "./blank-hr";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
+import {
+  assertExpectedWorkbookRevision,
+  createWorkbookRevisionFilter,
+  readWorkbookRevision,
+  workbookRevisionConflict,
+} from "../workbooks/workbook-revision";
 
 @Injectable()
 export class HrMefAdapter implements WorkbookElementAdapter, OnModuleInit {
@@ -28,19 +34,32 @@ export class HrMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     await this.hrWorkbookModel.create({ workbookId, projectId, ownerUsername, mef });
   }
 
-  async load(workbookId: string): Promise<{ projectId: string; ownerUsername: string; mef: unknown } | null> {
+  async load(workbookId: string): Promise<{ projectId: string; ownerUsername: string; mef: unknown; revision: number } | null> {
     const doc = await this.hrWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) return null;
-    return { projectId: doc.projectId, ownerUsername: doc.ownerUsername, mef: doc.mef };
+    return {
+      projectId: doc.projectId,
+      ownerUsername: doc.ownerUsername,
+      mef: doc.mef,
+      revision: readWorkbookRevision(doc),
+    };
   }
 
-  async save(workbookId: string, mef: unknown): Promise<unknown> {
+  async save(workbookId: string, mef: unknown, expectedRevision?: number): Promise<unknown> {
     const doc = await this.hrWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new BadRequestException("HR workbook not found");
+    if (expectedRevision === undefined) throw new BadRequestException("Expected HR workbook revision is required");
+    assertExpectedWorkbookRevision(doc, expectedRevision);
     const parsed = HumanReliabilityAnalysisSchema.safeParse(stripNulls(mef));
     if (!parsed.success) throw new BadRequestException(`Invalid HR workbook payload: ${parsed.error.message}`);
-    doc.mef = parsed.data;
-    await doc.save();
+    const updated = await this.hrWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, expectedRevision),
+        { $set: { mef: parsed.data, revision: expectedRevision + 1 } },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updated) throw workbookRevisionConflict(expectedRevision);
     return parsed.data;
   }
 

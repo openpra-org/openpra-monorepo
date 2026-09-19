@@ -3,7 +3,9 @@ use praxis::io::parser::parse_fault_tree;
 use std::fs;
 use std::path::PathBuf;
 
-pub fn parse_fault_tree_from_xml(xml_content: &str) -> Result<FaultTree, Box<dyn std::error::Error>> {
+pub fn parse_fault_tree_from_xml(
+    xml_content: &str,
+) -> Result<FaultTree, Box<dyn std::error::Error>> {
     let fault_tree =
         parse_fault_tree(xml_content).map_err(|e| format!("Failed to parse XML: {}", e))?;
     Ok(fault_tree)

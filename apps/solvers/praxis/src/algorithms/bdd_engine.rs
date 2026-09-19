@@ -5,7 +5,9 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use tracing::trace;
 
-use crate::algorithms::pdag::{Connective as PdagConnective, NodeIndex as PdagIndex, Pdag, PdagNode};
+use crate::algorithms::pdag::{
+    Connective as PdagConnective, NodeIndex as PdagIndex, Pdag, PdagNode,
+};
 use crate::error::{PraxisError, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -248,7 +250,10 @@ impl Bdd {
     }
 
     pub fn live_nodes(&self) -> usize {
-        self.nodes.len().saturating_sub(2).saturating_sub(self.free.len())
+        self.nodes
+            .len()
+            .saturating_sub(2)
+            .saturating_sub(self.free.len())
     }
 
     fn gc(&mut self, roots: &[BddRef]) -> usize {
@@ -365,7 +370,10 @@ impl Bdd {
                     let mut children = Vec::with_capacity(ops.len());
                     for &op in &ops {
                         let c = *memo.get(&op.abs()).ok_or_else(|| {
-                            PraxisError::Logic(format!("BDD gc build: operand {} not built", op.abs()))
+                            PraxisError::Logic(format!(
+                                "BDD gc build: operand {} not built",
+                                op.abs()
+                            ))
                         })?;
                         children.push(if op < 0 { c.complement() } else { c });
                         if let Some(p) = pending.get_mut(&op.abs()) {
@@ -443,9 +451,9 @@ impl Bdd {
             }
         }
 
-        let mut r = *memo.get(&root_abs).ok_or_else(|| {
-            PraxisError::Logic("BDD gc build: root not built".to_string())
-        })?;
+        let mut r = *memo
+            .get(&root_abs)
+            .ok_or_else(|| PraxisError::Logic("BDD gc build: root not built".to_string()))?;
         if root < 0 {
             r = r.complement();
         }
@@ -537,7 +545,11 @@ impl Bdd {
             total = self.node_count(),
             "bdd node populated"
         );
-        if negate { r.complement() } else { r }
+        if negate {
+            r.complement()
+        } else {
+            r
+        }
     }
 
     fn top_var(&self, f: BddRef, g: BddRef, h: BddRef) -> usize {
@@ -555,7 +567,11 @@ impl Bdd {
         }
         let edge = if positive { node.high } else { node.low };
 
-        if f.is_complement() { edge.complement() } else { edge }
+        if f.is_complement() {
+            edge.complement()
+        } else {
+            edge
+        }
     }
 
     pub(crate) fn ite(&mut self, f: BddRef, g: BddRef, h: BddRef) -> BddRef {
@@ -619,7 +635,11 @@ impl Bdd {
             result = result.raw(),
             "bdd ite"
         );
-        if negate { result.complement() } else { result }
+        if negate {
+            result.complement()
+        } else {
+            result
+        }
     }
 
     pub(crate) fn and(&mut self, f: BddRef, g: BddRef) -> BddRef {
@@ -767,7 +787,12 @@ impl Bdd {
         Ok(r)
     }
 
-    fn combine_pdag(&mut self, conn: PdagConnective, children: &[BddRef], min: Option<usize>) -> BddRef {
+    fn combine_pdag(
+        &mut self,
+        conn: PdagConnective,
+        children: &[BddRef],
+        min: Option<usize>,
+    ) -> BddRef {
         match conn {
             PdagConnective::And => {
                 let mut acc = BDD_TRUE;
@@ -889,8 +914,12 @@ impl Bdd {
     }
 
     fn prob_inner(&self, f: BddRef, cache: &mut HashMap<i32, f64>) -> f64 {
-        if f.is_true() { return 1.0; }
-        if f.is_false() { return 0.0; }
+        if f.is_true() {
+            return 1.0;
+        }
+        if f.is_false() {
+            return 0.0;
+        }
         let key = f.raw();
         if let Some(&p) = cache.get(&key) {
             return p;
@@ -898,8 +927,22 @@ impl Bdd {
         let node = self.node(f.regular());
         let p_var = self.var_probs[node.var];
         let is_neg = f.is_complement();
-        let p_hi = self.prob_inner(if is_neg { node.high.complement() } else { node.high }, cache);
-        let p_lo = self.prob_inner(if is_neg { node.low.complement() } else { node.low }, cache);
+        let p_hi = self.prob_inner(
+            if is_neg {
+                node.high.complement()
+            } else {
+                node.high
+            },
+            cache,
+        );
+        let p_lo = self.prob_inner(
+            if is_neg {
+                node.low.complement()
+            } else {
+                node.low
+            },
+            cache,
+        );
         let p = p_var * p_hi + (1.0 - p_var) * p_lo;
         cache.insert(key, p);
         p
@@ -924,12 +967,22 @@ impl Bdd {
         cut_off: Option<f64>,
         cache: &mut HashMap<(i32, usize, u64), f64>,
     ) -> f64 {
-        if f.is_true() { return 1.0; }
-        if f.is_false() { return 0.0; }
+        if f.is_true() {
+            return 1.0;
+        }
+        if f.is_false() {
+            return 0.0;
+        }
         let depth_key = if limit_order.is_some() { depth } else { 0 };
-        let p_key    = if cut_off.is_some() { p_acc.to_bits() } else { 0 };
+        let p_key = if cut_off.is_some() {
+            p_acc.to_bits()
+        } else {
+            0
+        };
         let key = (f.raw(), depth_key, p_key);
-        if let Some(&p) = cache.get(&key) { return p; }
+        if let Some(&p) = cache.get(&key) {
+            return p;
+        }
         let node = self.node(f.regular());
         let p_var = self.var_probs[node.var];
         let is_neg = f.is_complement();
@@ -938,12 +991,19 @@ impl Bdd {
         } else {
             (node.high, node.low)
         };
-        let pruned_by_order  = limit_order.is_some_and(|n| depth >= n);
+        let pruned_by_order = limit_order.is_some_and(|n| depth >= n);
         let pruned_by_cutoff = cut_off.is_some_and(|c| p_acc * p_var < c);
         let p_hi = if pruned_by_order || pruned_by_cutoff {
             0.0
         } else {
-            self.prob_inner_limits(hi_child, depth + 1, p_acc * p_var, limit_order, cut_off, cache)
+            self.prob_inner_limits(
+                hi_child,
+                depth + 1,
+                p_acc * p_var,
+                limit_order,
+                cut_off,
+                cache,
+            )
         };
         let p_lo = self.prob_inner_limits(lo_child, depth, p_acc, limit_order, cut_off, cache);
         let p = p_var * p_hi + (1.0 - p_var) * p_lo;
@@ -981,8 +1041,8 @@ impl PersistedBdd {
     }
 
     pub fn load(path: &str) -> Result<PersistedBdd> {
-        let bytes = std::fs::read(path)
-            .map_err(|e| PraxisError::Logic(format!("persist read: {}", e)))?;
+        let bytes =
+            std::fs::read(path).map_err(|e| PraxisError::Logic(format!("persist read: {}", e)))?;
         bincode::deserialize(&bytes)
             .map_err(|e| PraxisError::Logic(format!("persist deserialize: {}", e)))
     }
@@ -1239,7 +1299,6 @@ mod tests {
 
     #[test]
     fn test_ite_complement_f_swaps_branches() {
-
         let (mut bdd, x0, x1) = two_var_bdd();
         let a = bdd.ite(x0.complement(), x1, BDD_FALSE);
         let b = bdd.ite(x0, BDD_FALSE, x1);
@@ -1248,7 +1307,6 @@ mod tests {
 
     #[test]
     fn test_and_two_vars_structure() {
-
         let (mut bdd, x0, x1) = two_var_bdd();
         let and_ref = bdd.and(x0, x1);
         assert!(!and_ref.is_terminal());
@@ -1263,7 +1321,6 @@ mod tests {
 
     #[test]
     fn test_or_two_vars_structure() {
-
         let (mut bdd, x0, x1) = two_var_bdd();
         let or_ref = bdd.or(x0, x1);
         let root = bdd.node(or_ref.regular());

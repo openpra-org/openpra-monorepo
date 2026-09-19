@@ -34,7 +34,12 @@ fn reachable_count(bdd: &Bdd, f: BddRef) -> usize {
     seen.len()
 }
 
-fn implies(bdd: &Bdd, f: BddRef, assign: &HashMap<usize, bool>, memo: &mut HashMap<i32, bool>) -> bool {
+fn implies(
+    bdd: &Bdd,
+    f: BddRef,
+    assign: &HashMap<usize, bool>,
+    memo: &mut HashMap<i32, bool>,
+) -> bool {
     if f.is_true() {
         return true;
     }
@@ -121,12 +126,18 @@ fn run_diag(path: &str) {
         }
     };
     match build_natural(&raw) {
-        Some((n, r, k)) => println!("{:<14} RAW (no preprocess):  vars={} reach={} root={}", name, n, r, k),
+        Some((n, r, k)) => println!(
+            "{:<14} RAW (no preprocess):  vars={} reach={} root={}",
+            name, n, r, k
+        ),
         None => println!("{:<14} RAW build failed", name),
     }
     let pre = raw;
     match build_natural(&pre) {
-        Some((n, r, k)) => println!("{:<14} PREPROCESSED:        vars={} reach={} root={}", name, n, r, k),
+        Some((n, r, k)) => println!(
+            "{:<14} PREPROCESSED:        vars={} reach={} root={}",
+            name, n, r, k
+        ),
         None => println!("{:<14} PREPROCESSED build failed", name),
     }
 }
@@ -181,7 +192,10 @@ fn run_verify(neg: bool, path: &str) {
             break;
         }
     }
-    println!("  every TDD cube verified prime-implicant on BDD: {}", all_prime);
+    println!(
+        "  every TDD cube verified prime-implicant on BDD: {}",
+        all_prime
+    );
     let mut shown = 0;
     for cube in &exp {
         if shown >= 6 {
@@ -385,7 +399,11 @@ fn run_extract(path: &str) {
         exact, rare_event, mcub_extracted
     );
     for (cube, prob) in ext.iter().take(12) {
-        println!("    p={:.3e}  {}", prob, cube_to_names(cube, &names, &var_of));
+        println!(
+            "    p={:.3e}  {}",
+            prob,
+            cube_to_names(cube, &names, &var_of)
+        );
     }
     if ext.len() > 12 {
         println!("    ... ({} total extracted)", ext.len());
@@ -529,7 +547,11 @@ fn oracle_strs(bdd: &Bdd, root: BddRef, n: usize, names: &[String]) -> Vec<Strin
     out
 }
 
-fn meta_strs(cubes: &HashSet<Vec<i32>>, names: &[String], pos_of: &HashMap<i32, usize>) -> Vec<String> {
+fn meta_strs(
+    cubes: &HashSet<Vec<i32>>,
+    names: &[String],
+    pos_of: &HashMap<i32, usize>,
+) -> Vec<String> {
     let mut out: Vec<String> = cubes
         .iter()
         .map(|cube| {
@@ -575,14 +597,24 @@ fn analyze(pdag: &Pdag, label: &str) -> Vec<String> {
     let oracle = oracle_strs(&bdd, root, n, &names);
     let (zeng, zroot) = labelled_zbdd::prime_zbdd(&mut bdd, root);
     let zcnt = labelled_zbdd::count(&zeng, zroot) as usize;
-    let zcube_set: HashSet<Vec<i32>> = labelled_zbdd::cubes(&zeng, zroot, &events).into_iter().collect();
+    let zcube_set: HashSet<Vec<i32>> = labelled_zbdd::cubes(&zeng, zroot, &events)
+        .into_iter()
+        .collect();
     let zbdd = meta_strs(&zcube_set, &names, &pos_of);
     let (teng, troot) = ternary_dd::prime_tdd(&mut bdd, root);
     let tcnt = teng.count(troot) as usize;
     let tcube_set: HashSet<Vec<i32>> = teng.cubes(troot, &events).into_iter().collect();
     let tdd = meta_strs(&tcube_set, &names, &pos_of);
-    let v_zbdd = if oracle == zbdd && zcnt == oracle.len() { "ok" } else { "FAIL" };
-    let v_tdd = if oracle == tdd && tcnt == oracle.len() { "ok" } else { "FAIL" };
+    let v_zbdd = if oracle == zbdd && zcnt == oracle.len() {
+        "ok"
+    } else {
+        "FAIL"
+    };
+    let v_tdd = if oracle == tdd && tcnt == oracle.len() {
+        "ok"
+    } else {
+        "FAIL"
+    };
     println!(
         "{:<24} vars={} oracle={} zbdd[{}]={}n tdd[{}]={}n",
         label,
@@ -596,7 +628,10 @@ fn analyze(pdag: &Pdag, label: &str) -> Vec<String> {
     if v_zbdd == "FAIL" || v_tdd == "FAIL" {
         let os: HashSet<&String> = oracle.iter().collect();
         let zs: HashSet<&String> = zbdd.iter().collect();
-        println!("    oracle-only: {:?}", os.difference(&zs).collect::<Vec<_>>());
+        println!(
+            "    oracle-only: {:?}",
+            os.difference(&zs).collect::<Vec<_>>()
+        );
     }
     for s in &oracle {
         println!("    {}", s);

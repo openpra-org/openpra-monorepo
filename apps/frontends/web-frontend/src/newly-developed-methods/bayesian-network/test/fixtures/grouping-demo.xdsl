@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<smile version="1.0" id="GroupingDemo">
+  <nodes>
+    <cpt id="Power"><state id="OFF"/><state id="ON"/><probabilities>0.1 0.9</probabilities></cpt>
+    <cpt id="PumpA"><state id="FAILED"/><state id="WORKING"/><parents>Power</parents><probabilities>0.9 0.1 0.1 0.9</probabilities></cpt>
+    <cpt id="PumpB"><state id="FAILED"/><state id="WORKING"/><parents>Power</parents><probabilities>0.9 0.1 0.2 0.8</probabilities></cpt>
+    <cpt id="Controller"><state id="FAILED"/><state id="WORKING"/><parents>PumpA</parents><probabilities>0.9 0.1 0.3 0.7</probabilities></cpt>
+    <cpt id="Cooling"><state id="FAILED"/><state id="WORKING"/><parents>PumpA PumpB</parents><probabilities>0.9 0.1 0.2 0.8 0.2 0.8 0.1 0.9</probabilities></cpt>
+  </nodes>
+  <extensions>
+    <genie version="1.0" app="OpenPRA" name="Grouping demo">
+      <comment>Synthetic example for visual grouping. Not a plant model.</comment>
+      <node id="Power"><name>Power supply</name><position>40 40 220 124</position></node>
+      <submodel id="Pumps">
+        <name>Pumps</name><position>310 40 490 144</position>
+        <node id="PumpA"><name>Pump A</name><position>310 40 490 124</position></node>
+        <node id="PumpB"><name>Pump B</name><position>310 210 490 294</position></node>
+        <submodel id="Controls">
+          <name>Controls</name><position>580 40 760 144</position>
+          <node id="Controller"><name>Pump controller</name><position>580 40 760 124</position></node>
+        </submodel>
+      </submodel>
+      <submodel id="HeatRemoval">
+        <name>Heat removal</name><position>580 210 760 314</position>
+        <node id="Cooling"><name>Cooling</name><position>580 210 760 294</position></node>
+      </submodel>
+    </genie>
+  </extensions>
+</smile>

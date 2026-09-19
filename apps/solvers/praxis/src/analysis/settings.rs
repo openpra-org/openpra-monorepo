@@ -2,7 +2,6 @@ use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Approximation {
-
     #[default]
     None,
 
@@ -14,7 +13,6 @@ pub enum Approximation {
 }
 
 impl Approximation {
-
     pub fn as_str(&self) -> &'static str {
         match self {
             Approximation::None => "none",
@@ -68,7 +66,6 @@ impl std::str::FromStr for Approximation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Settings {
-
     pub approximation: Approximation,
 
     pub algorithm: Algorithm,
@@ -87,7 +84,6 @@ pub struct Settings {
 }
 
 impl Settings {
-
     pub fn new() -> Self {
         Settings {
             approximation: Approximation::None,
@@ -140,7 +136,6 @@ impl Default for Settings {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Algorithm {
-
     Auto,
 
     Bdd,

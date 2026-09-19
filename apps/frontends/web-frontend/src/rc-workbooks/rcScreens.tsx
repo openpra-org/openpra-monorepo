@@ -9,7 +9,6 @@ import {
   CAPABILITY_CATEGORIES,
   RC_METHODS,
   SITE_OPTIONS,
-  HANDOFF_INPUTS,
   SCOPING_ASPECTS,
   PROTECTIVE_ACTION_LABELS,
   INCIDENT_PHASE_LABELS,
@@ -17,7 +16,9 @@ import {
   SITE_DATA_BASIS_LABELS,
   type SiteBasis,
 } from "./rcViewData";
-import { categoryInputById } from "./rcSelectors";
+import { RcMsSourceTerm } from "./rcMsSourceTerm";
+import { RcSiteReceptorsPanel } from "./rcSiteReceptors";
+import { RcMeteorologyPanel } from "./rcMeteorology";
 
 type Stage = "pre_operational" | "operational";
 
@@ -47,8 +48,6 @@ function RcInterfaces({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => vo
   const metrics = rc.scope.consequenceMetrics;
   const families = rc.consequenceQuantification.eventSequenceConsequences;
   const [selected, setSelected] = useState<string | null>("MS");
-  const [catId, setCatId] = useState<string>(inputs.find((c) => c.releaseCategory === "RC-1")?.releaseCategory ?? inputs[0]?.releaseCategory ?? "");
-  const cat = categoryInputById(rc, catId);
 
   const tiles: { code: string; name: string; role: string; direction: "in" | "out" }[] = [
     { code: "ES", name: "Event Sequence Analysis", role: "Release categories", direction: "in" },
@@ -57,6 +56,7 @@ function RcInterfaces({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => vo
   ];
 
   function releaseWindow(c: (typeof inputs)[number]): string {
+    if (c.sourceTerm?.values.releases.some((r) => r.startSeconds === undefined || r.durationSeconds === undefined)) return "Missing segment timing";
     const timings = c.releaseCharacteristics.releasePhaseTimings ?? [];
     if (timings.length === 0) return "—";
     const start = Math.min(...timings.map((t) => t.startTime));
@@ -64,36 +64,6 @@ function RcInterfaces({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => vo
     return `${start} to ${end} ${timings[0].timeUnit ?? "h"}`;
   }
 
-  function inputValue(id: string): string {
-    if (cat === undefined) return "n/a";
-    const ch = cat.releaseCharacteristics;
-    switch (id) {
-      case "plumes": return ch.numberOfPlumes !== undefined ? `${ch.numberOfPlumes} plume${ch.numberOfPlumes === 1 ? "" : "s"}, ${ch.releasePhaseTimings !== undefined && ch.releasePhaseTimings.length > 1 ? `${ch.releasePhaseTimings.length} phases` : "one phase"}` : "n/a";
-      case "fractions": return ch.radionuclideGroupFractions !== undefined && ch.radionuclideGroupFractions.length > 0 ? ch.radionuclideGroupFractions.map((g) => `${g.group} ${g.fraction.toExponential(1).replace("e", "E")}`).join(", ") : "n/a";
-      case "isotopes": return ch.importantRadionuclides?.join(", ") ?? "n/a";
-      case "timing": return ch.releasePhaseTimings !== undefined && ch.releasePhaseTimings.length > 0 ? ch.releasePhaseTimings.map((t) => `${t.startTime} to ${t.startTime + t.duration} ${t.timeUnit ?? "h"}`).join(", ") : "n/a";
-      case "warning": return ch.warningTimeDescription ?? (ch.warningTime !== undefined ? `About ${ch.warningTime} hours` : "n/a");
-      case "energy": return ch.releaseEnergyDescription ?? (ch.releaseEnergy !== undefined ? `${ch.releaseEnergy} MW thermal` : "n/a");
-      case "height": return ch.releaseHeightDescription ?? (ch.releaseHeight !== undefined ? `${ch.releaseHeight} m` : "n/a");
-      case "particle": return ch.releasedParticleSizeDescription ?? "n/a";
-      case "uncert": return ch.releaseUncertainties ?? "n/a";
-      default: return "n/a";
-    }
-  }
-
-  function addCategory(): void {
-    const n = inputs.reduce((m, c) => { const v = Number(c.releaseCategory.split("-").pop()); return Number.isNaN(v) ? m : Math.max(m, v); }, 0) + 1;
-    const releaseCategory = `RC-${String(n)}`;
-    mutateRc((draft) => ({
-      ...draft,
-      releaseCategoryToConsequence: {
-        ...draft.releaseCategoryToConsequence,
-        releaseCategoryInputs: [...draft.releaseCategoryToConsequence.releaseCategoryInputs, { releaseCategory, releaseCharacteristics: { importantRadionuclides: [], radionuclideGroupFractions: [], releasePhaseTimings: [] } }],
-      },
-    }));
-    setCatId(releaseCategory);
-    openDrawer({ kind: "category", id: releaseCategory });
-  }
   function updateMetrics(next: string[]): void {
     if (!editable) return;
     mutateRc((draft) => ({ ...draft, scope: { ...draft.scope, consequenceMetrics: next } }));
@@ -136,39 +106,7 @@ function RcInterfaces({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => vo
         </div>
       )}
 
-      {selected === "MS" && (
-        <div style={{ marginTop: 16 }}>
-          <div className="posrow" style={{ justifyContent: "space-between", alignItems: "flex-end", gap: 12, marginBottom: 10 }}>
-            <div className="posfield" style={{ margin: 0, minWidth: 240 }}>
-              <label className="posfield__label">Source term</label>
-              <select className="posfield__select" value={catId} onChange={(e) => setCatId(e.target.value)}>
-                {inputs.map((r) => (
-                  <option key={r.releaseCategory} value={r.releaseCategory}>{r.sourceTermDefinitionRef ?? r.releaseCategory}</option>
-                ))}
-              </select>
-            </div>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCategory}><RCIcon.Plus /> Add category</button>}
-          </div>
-          {cat === undefined ? (
-            <p className="posmuted" style={{ margin: 0 }}>No release categories yet. Add one to extract the nine consequence inputs from the source-term table.</p>
-          ) : (
-            <button type="button" className="rcinput" style={{ cursor: "pointer", textAlign: "left", border: "none", background: "none", padding: 0, width: "100%" }} onClick={() => openDrawer({ kind: "category", id: catId })}>
-              {HANDOFF_INPUTS.map((h) => {
-                const Icon = RCIcon[h.icon] ?? RCIcon.Tag;
-                return (
-                  <div key={h.id} className="rcinput__cell">
-                    <span className="rcinput__icon"><Icon /></span>
-                    <div className="rcinput__main">
-                      <div className="rcinput__label">{h.label}</div>
-                      <div className="rcinput__note posmono">{inputValue(h.id)}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </button>
-          )}
-        </div>
-      )}
+      {selected === "MS" && <RcMsSourceTerm openDrawer={openDrawer} />}
 
       {selected === "RI" && (
         <div style={{ marginTop: 16 }}>
@@ -389,7 +327,7 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
 }
 
 // ─── 02 — Protective Actions & Site (RCPA) ─────────────────────────────────
-function ProtectiveScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => void }): JSX.Element {
+function ProtectiveScreen({ openDrawer, initialSiteTab }: { openDrawer: (ctx: RcDrawerContext) => void; initialSiteTab?: "location" | "receptors" }): JSX.Element {
   const { rc, editable, mutateRc } = useRcWorkbook();
   const pa = rc.protectiveActionParameters;
   const cohorts = pa.cohortModeling.cohorts ?? [];
@@ -576,6 +514,8 @@ function ProtectiveScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
         )}
       </div>
 
+      <RcSiteReceptorsPanel initialTab={initialSiteTab} />
+
       <div className="poscard">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="RC" title="Site data" level={3} />
@@ -604,11 +544,12 @@ function ProtectiveScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
 }
 
 // ─── 03 — Meteorology (RCME) ───────────────────────────────────────────────
-function WeatherScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => void }): JSX.Element {
+function WeatherScreen({ openDrawer, onReviewSite }: { openDrawer: (ctx: RcDrawerContext) => void; onReviewSite?: () => void }): JSX.Element {
   const { rc, editable, mutateRc } = useRcWorkbook();
   const met = rc.meteorologicalData;
   return (
     <>
+      <RcMeteorologyPanel onReviewSite={onReviewSite} />
       <div className="poscard">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="RC" title="Meteorological data quality" level={3} />

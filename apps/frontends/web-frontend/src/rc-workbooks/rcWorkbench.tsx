@@ -20,6 +20,7 @@ import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/rcScreens.css";
+import "../welcome/css/newProjectModal.css";
 
 interface StepHeader {
   eyebrow: string;
@@ -248,6 +249,15 @@ function ConformanceDock({ ccId, site, onGoToHandoff, onClose, mobileOpen }: {
 }
 
 function RcDrawer({ context, onClose }: { context: RcDrawerContext; onClose: () => void }): JSX.Element {
+  const modalLabel = ({ category: "Category details", protaction: "Protective action details", cohort: "Cohort details", sourcedoc: "Source document details", phase: "Incident phase details", evacdelay: "Evacuation delay details", protparam: "Protection parameter details", sitedata: "Site details", metdata: "Meteorological data quality", metparams: "Extracted parameters", dispersion: "Dispersion model and sampling", deposition: "Deposition matrix", pathway: "Exposure pathway", dosetreatment: "Dose treatment", code: "Consequence code", family: "Event sequence family", uncertainty: "Model uncertainty", sensitivity: "Sensitivity study", bounding: "Bounding-site assumption", preop: "Pre-operational assumption", rifeedback: "Risk-integration feedback" } as Record<string, string | undefined>)[context.kind];
+  const centered = modalLabel !== undefined;
+  const dialog = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!centered) return;
+    const trigger = document.activeElement as HTMLElement | null;
+    dialog.current?.focus();
+    return () => { trigger?.focus(); };
+  }, [centered]);
   useEffect(() => {
     function onKey(e: KeyboardEvent): void { if (e.key === "Escape") onClose(); }
     document.addEventListener("keydown", onKey);
@@ -256,9 +266,17 @@ function RcDrawer({ context, onClose }: { context: RcDrawerContext; onClose: () 
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
   }, [onClose]);
   return (
-    <div className="posdrawer-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="posdrawer" role="dialog" aria-modal="true">
-        <DrawerContent context={context} onClose={onClose} />
+    <div className={centered ? "modal__backdrop" : "posdrawer-backdrop"} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div ref={dialog} className={centered ? `modal ${context.kind === "category" ? "rc-category-modal" : "rc-details-modal"}${context.kind === "dispersion" || context.kind === "deposition" ? " rc-transport-modal" : ""}` : "posdrawer"} role="dialog" aria-modal="true" aria-label={modalLabel} tabIndex={centered ? -1 : undefined}
+        onKeyDown={e => {
+          if (!centered || e.key !== "Tab") return;
+          const controls = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]')).filter(el => el.getClientRects().length > 0);
+          const first = controls[0], last = controls[controls.length - 1];
+          if (!first) { e.preventDefault(); return; }
+          if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && (document.activeElement === last || document.activeElement === dialog.current)) { e.preventDefault(); first.focus(); }
+        }}>
+        <DrawerContent context={context} onClose={onClose} centered={centered} />
       </div>
     </div>
   );
@@ -303,6 +321,7 @@ function RcWorkbench({
   useEffect(() => { setSite(mefSite); }, [mefSite]);
 
   const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "handoff");
+  const [initialSiteTab, setInitialSiteTab] = useState<"location" | "receptors">("receptors");
   const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
   const [dockOpen, setDockOpen] = useState(!isNarrow);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
@@ -381,13 +400,13 @@ function RcWorkbench({
             {renderDocuments?.()}
           </>
         );
-      case "protective": return <ProtectiveScreen openDrawer={setDrawer} />;
-      case "weather": return <WeatherScreen openDrawer={setDrawer} />;
+      case "protective": return <ProtectiveScreen openDrawer={setDrawer} initialSiteTab={initialSiteTab} />;
+      case "weather": return <WeatherScreen openDrawer={setDrawer} onReviewSite={() => { setInitialSiteTab("location"); setStepId("protective"); }} />;
       case "dispersion": return <DispersionScreen openDrawer={setDrawer} />;
       case "dose": return <DosimetryScreen openDrawer={setDrawer} />;
       case "health": return <HealthEffectsScreen openDrawer={setDrawer} />;
       case "economics": return <EconomicsScreen openDrawer={setDrawer} />;
-      case "quantify": return <QuantifyScreen openDrawer={setDrawer} />;
+      case "quantify": return <QuantifyScreen openDrawer={setDrawer} onOpenStep={setStepId} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} site={site} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (

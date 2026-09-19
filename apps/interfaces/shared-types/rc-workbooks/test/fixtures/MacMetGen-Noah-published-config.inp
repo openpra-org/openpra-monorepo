@@ -1,0 +1,40 @@
+! -------------------------------------------------------------------------- !
+! An input file for a MacMetGen run
+! -------------------------------------------------------------------------- !
+! Generate surface data parameters
+! -------------------------------------------------------------------------- !
+! Surface data file already created? (0=no, 1=yes) Skip to making output met file
+0
+! Surface data file name
+C:\Your\Path\Here
+! Latitude, Longitude
+35.29890 -93.24220
+! Number of groups to run
+1
+! First and last day for each group [YYYYMMDD]
+20200101      20201231
+! Meteorology directory
+C:\Your\Path\Here\NAM12_2020
+! Weather file prefix
+
+! Weather file suffix
+_nam12.txt
+! -------------------------------------------------------------------------- !
+! Output met file parameters
+! -------------------------------------------------------------------------- !
+! Output met file
+C:\Your\Path\[SITE NAME].MET
+! Number of minutes between entries (15, 30, or 60)
+60
+! Number of sectors (16, 32, 48, or 64)
+64
+! Stability class type (0=dT/dz, 1=Turner's Method, or 2=SRDT)
+2
+! UTC time zone (-7=MST,UTC-7, -5=EST,UTC-5, 0=GMT,UTC+0, 1=CET,UTC+1)
+-5
+! Print mixing height data from file on each line (0=no, 1=yes)
+1
+! Morning mixing heights in m (for days 1-91, 92-182, 183-273, 274-365)
+590 530 430 500
+! Afternoon mixing heights in m (for days 1-91, 92-182, 183-273, 274-365)
+1120 1800 1830 1010

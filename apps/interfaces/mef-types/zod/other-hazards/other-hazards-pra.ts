@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
 import { SRReferenceSchema } from "../core/pra-common";
+import { HazardConditionedMethodModelsSchema, createEmptyHazardConditionedMethodModels } from "../hazard-conditioned-models";
 
 const stringArray = z.array(z.string());
 
@@ -1347,6 +1348,7 @@ const exampleDocumentSchema = z.object({
 export const OtherHazardsPRASchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.OTHER_HAZARDS_PRA).shape,
   praScope: z.string(),
+  hazardConditionedModels: HazardConditionedMethodModelsSchema.default(createEmptyHazardConditionedMethodModels),
   analysisBasis: OtherHazardsAnalysisBasisSchema,
   retainedHazardGroups: OtherHazardsRetainedHazardGroupsSchema,
   hazardSourceCharacterization: OtherHazardsSourceCharacterizationSchema,

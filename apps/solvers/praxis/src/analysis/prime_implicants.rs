@@ -3,12 +3,10 @@ use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PrimeImplicant {
-
     pub events: Vec<i32>,
 }
 
 impl PrimeImplicant {
-
     pub fn new(events: Vec<i32>) -> Self {
         let mut sorted = events;
         sorted.sort_by_key(|x| x.abs());
@@ -26,7 +24,6 @@ impl PrimeImplicant {
 
 #[derive(Debug, Clone)]
 pub struct PrimeImplicants {
-
     implicants: Vec<PrimeImplicant>,
 
     min_order: usize,
@@ -35,9 +32,7 @@ pub struct PrimeImplicants {
 }
 
 impl PrimeImplicants {
-
     fn new(mut implicants: Vec<PrimeImplicant>) -> Self {
-
         implicants = Self::minimize(implicants);
 
         let min_order = implicants.iter().map(|pi| pi.order()).min().unwrap_or(0);
@@ -59,7 +54,6 @@ impl PrimeImplicants {
 
         let mut minimal = Vec::new();
         for candidate in implicants {
-
             let is_minimal = !minimal
                 .iter()
                 .any(|pi: &PrimeImplicant| pi.is_subset_of(&candidate));
@@ -122,7 +116,6 @@ impl<'a> PrimeImplicantCalculator<'a> {
     }
 
     fn calculate_internal(&mut self, node: NodeIndex, complement: bool) -> Vec<PrimeImplicant> {
-
         if let Some(cached) = self.cache.get(&(node, complement)) {
             return cached.clone();
         }
@@ -130,7 +123,6 @@ impl<'a> PrimeImplicantCalculator<'a> {
         let result = match self.pdag.get_node(node) {
             None => vec![],
             Some(PdagNode::BasicEvent { .. }) => {
-
                 let event_idx = if complement { -node } else { node };
                 vec![PrimeImplicant::new(vec![event_idx])]
             }
@@ -146,9 +138,7 @@ impl<'a> PrimeImplicantCalculator<'a> {
                 operands,
                 ..
             }) => {
-
                 if complement {
-
                     let dual_connective = match connective {
                         Connective::And => Connective::Or,
                         Connective::Or => Connective::And,
@@ -192,16 +182,11 @@ impl<'a> PrimeImplicantCalculator<'a> {
             }
             Connective::Nand => self.calculate_and(operands, !complement),
             Connective::Nor => self.calculate_or(operands, !complement),
-            Connective::Xor => {
-
-                self.calculate_or(operands, complement)
-            }
+            Connective::Xor => self.calculate_or(operands, complement),
             Connective::Iff => {
-
                 vec![]
             }
             Connective::AtLeast => {
-
                 let k = (operands.len() / 2) + 1;
                 self.calculate_atleast(operands, k, complement)
             }
@@ -248,7 +233,6 @@ impl<'a> PrimeImplicantCalculator<'a> {
 
         for l in &left {
             for r in &right {
-
                 let mut combined = l.events.clone();
                 combined.extend(&r.events);
 
@@ -279,7 +263,6 @@ impl<'a> PrimeImplicantCalculator<'a> {
         let combinations = Self::combinations(operands, k);
 
         for combo in combinations {
-
             let mut combo_pi = vec![PrimeImplicant::new(vec![])];
             for &op in &combo {
                 let op_pis = self.calculate_internal(op, complement);
@@ -362,7 +345,6 @@ mod tests {
 
     #[test]
     fn test_and_gate() {
-
         let mut pdag = Pdag::new();
         let e1 = pdag.add_basic_event("E1".to_string());
         let e2 = pdag.add_basic_event("E2".to_string());
@@ -380,7 +362,6 @@ mod tests {
 
     #[test]
     fn test_or_gate() {
-
         let mut pdag = Pdag::new();
         let e1 = pdag.add_basic_event("E1".to_string());
         let e2 = pdag.add_basic_event("E2".to_string());
@@ -397,7 +378,6 @@ mod tests {
 
     #[test]
     fn test_nested_gates() {
-
         let mut pdag = Pdag::new();
         let e1 = pdag.add_basic_event("E1".to_string());
         let e2 = pdag.add_basic_event("E2".to_string());
@@ -468,7 +448,6 @@ mod tests {
 
     #[test]
     fn test_not_gate() {
-
         let mut pdag = Pdag::new();
         let e1 = pdag.add_basic_event("E1".to_string());
         let not_gate = pdag

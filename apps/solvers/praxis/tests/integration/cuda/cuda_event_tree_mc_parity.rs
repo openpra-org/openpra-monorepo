@@ -12,7 +12,6 @@ use praxis::mc::DpEventTreeMonteCarloAnalysis;
 
 #[test]
 fn cuda_event_tree_mc_matches_cpu_bit_for_bit() {
-
     let model = Model::new("").unwrap();
 
     let seq_ok = Sequence::new("SEQ_OK".to_string());

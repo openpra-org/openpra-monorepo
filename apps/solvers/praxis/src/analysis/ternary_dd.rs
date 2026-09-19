@@ -187,7 +187,13 @@ impl TddEngine {
         out
     }
 
-    fn collect(&self, f: TddRef, var_event: &[NodeIndex], cur: &mut Vec<i32>, out: &mut Vec<Vec<i32>>) {
+    fn collect(
+        &self,
+        f: TddRef,
+        var_event: &[NodeIndex],
+        cur: &mut Vec<i32>,
+        out: &mut Vec<Vec<i32>>,
+    ) {
         if f.is_empty() {
             return;
         }
@@ -216,7 +222,9 @@ impl TddEngine {
     ) -> Vec<(Vec<i32>, f64)> {
         let mut out = Vec::new();
         let mut cur = Vec::new();
-        self.extract_rec(root, var_event, var_prob, max_order, min_prob, 1.0, &mut cur, &mut out);
+        self.extract_rec(
+            root, var_event, var_prob, max_order, min_prob, 1.0, &mut cur, &mut out,
+        );
         for (c, _) in out.iter_mut() {
             c.sort_by_key(|x| x.abs());
         }
@@ -247,13 +255,33 @@ impl TddEngine {
         let p = var_prob[n.var];
         if cur.len() < max_order {
             cur.push(ev);
-            self.extract_rec(n.pos, var_event, var_prob, max_order, min_prob, prob * p, cur, out);
+            self.extract_rec(
+                n.pos,
+                var_event,
+                var_prob,
+                max_order,
+                min_prob,
+                prob * p,
+                cur,
+                out,
+            );
             cur.pop();
             cur.push(-ev);
-            self.extract_rec(n.neg, var_event, var_prob, max_order, min_prob, prob * (1.0 - p), cur, out);
+            self.extract_rec(
+                n.neg,
+                var_event,
+                var_prob,
+                max_order,
+                min_prob,
+                prob * (1.0 - p),
+                cur,
+                out,
+            );
             cur.pop();
         }
-        self.extract_rec(n.absent, var_event, var_prob, max_order, min_prob, prob, cur, out);
+        self.extract_rec(
+            n.absent, var_event, var_prob, max_order, min_prob, prob, cur, out,
+        );
     }
 }
 
@@ -264,7 +292,12 @@ pub fn prime_tdd(fbdd: &mut Bdd, root: BddRef) -> (TddEngine, TddRef) {
     (t, r)
 }
 
-fn tdd_rec(fbdd: &mut Bdd, f: BddRef, t: &mut TddEngine, memo: &mut HashMap<i32, TddRef>) -> TddRef {
+fn tdd_rec(
+    fbdd: &mut Bdd,
+    f: BddRef,
+    t: &mut TddEngine,
+    memo: &mut HashMap<i32, TddRef>,
+) -> TddRef {
     if f.is_false() {
         return TDD_EMPTY;
     }

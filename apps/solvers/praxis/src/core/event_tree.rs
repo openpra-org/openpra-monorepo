@@ -3,7 +3,6 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct InitiatingEvent {
-
     pub id: String,
 
     pub name: Option<String>,
@@ -18,7 +17,6 @@ pub struct InitiatingEvent {
 }
 
 impl InitiatingEvent {
-
     pub fn new(id: String) -> Self {
         Self {
             id,
@@ -58,7 +56,6 @@ impl InitiatingEvent {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Sequence {
-
     pub id: String,
 
     pub name: Option<String>,
@@ -69,7 +66,6 @@ pub struct Sequence {
 }
 
 impl Sequence {
-
     pub fn new(id: String) -> Self {
         Self {
             id,
@@ -97,7 +93,6 @@ impl Sequence {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionalEvent {
-
     pub id: String,
 
     pub name: Option<String>,
@@ -114,7 +109,6 @@ pub struct FunctionalEvent {
 }
 
 impl FunctionalEvent {
-
     pub fn new(id: String) -> Self {
         Self {
             id,
@@ -154,7 +148,6 @@ impl FunctionalEvent {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NamedBranch {
-
     pub id: String,
 
     pub name: Option<String>,
@@ -163,7 +156,6 @@ pub struct NamedBranch {
 }
 
 impl NamedBranch {
-
     pub fn new(id: String, branch: Branch) -> Self {
         Self {
             id,
@@ -180,7 +172,6 @@ impl NamedBranch {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BranchTarget {
-
     Sequence(String),
 
     Fork(Fork),
@@ -190,7 +181,6 @@ pub enum BranchTarget {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Branch {
-
     pub instructions: Vec<String>,
 
     pub house_event_assignments: HashMap<String, bool>,
@@ -199,7 +189,6 @@ pub struct Branch {
 }
 
 impl Branch {
-
     pub fn new(target: BranchTarget) -> Self {
         Self {
             instructions: Vec::new(),
@@ -221,7 +210,6 @@ impl Branch {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Path {
-
     pub state: String,
 
     pub probability: Option<f64>,
@@ -232,7 +220,6 @@ pub struct Path {
 }
 
 impl Path {
-
     pub fn new(state: String, branch: Branch) -> Result<Self, PraxisError> {
         if state.is_empty() {
             return Err(PraxisError::Logic(
@@ -260,14 +247,12 @@ impl Path {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Fork {
-
     pub functional_event_id: String,
 
     pub paths: Vec<Path>,
 }
 
 impl Fork {
-
     pub fn new(functional_event_id: String, paths: Vec<Path>) -> Result<Self, PraxisError> {
         if paths.is_empty() {
             return Err(PraxisError::Mef(MefError::Validity(
@@ -295,7 +280,6 @@ impl Fork {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EventTree {
-
     pub id: String,
 
     pub name: Option<String>,
@@ -310,7 +294,6 @@ pub struct EventTree {
 }
 
 impl EventTree {
-
     pub fn new(id: String, initial_state: Branch) -> Self {
         Self {
             id,

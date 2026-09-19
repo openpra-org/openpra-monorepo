@@ -1,0 +1,715 @@
+{
+  "source": "resources/HCL_MH/utils/ft_gui_builder_pkg/hcl/hazard_sweep.py",
+  "sha256": "5eb763256f8aa99321a347337dff056b852bef63003c1519538d9784cda1a106",
+  "specs": [
+    {
+      "dimensions": [
+        {
+          "id": "Earthquake",
+          "bnNode": "a",
+          "states": [
+            "low",
+            "high"
+          ],
+          "stateLabels": {
+            "low": "Low PGA",
+            "high": "High PGA"
+          }
+        },
+        {
+          "id": "Flood",
+          "bnNode": "b",
+          "states": [
+            "dry",
+            "wet",
+            "severe"
+          ]
+        }
+      ]
+    },
+    {
+      "dimensions": [
+        {
+          "id": "Flood",
+          "bnNode": "b",
+          "states": [
+            "dry",
+            "wet",
+            "severe"
+          ]
+        },
+        {
+          "id": "Earthquake",
+          "bnNode": "a",
+          "states": [
+            "low",
+            "high"
+          ],
+          "stateLabels": {
+            "low": "Low PGA",
+            "high": "High PGA"
+          }
+        }
+      ]
+    },
+    {
+      "dimensions": [
+        {
+          "id": "Earthquake",
+          "bnNode": "a",
+          "states": [
+            "low",
+            "high"
+          ],
+          "stateLabels": {
+            "low": "Low PGA",
+            "high": "High PGA"
+          }
+        },
+        {
+          "id": "Flood",
+          "bnNode": "b",
+          "states": [
+            "dry",
+            "wet",
+            "severe"
+          ]
+        }
+      ],
+      "excludedAssignments": [
+        {
+          "Earthquake": "low"
+        }
+      ]
+    },
+    {
+      "dimensions": [
+        {
+          "id": "Earthquake",
+          "bnNode": "a",
+          "states": [
+            "low",
+            "high"
+          ],
+          "stateLabels": {
+            "low": "Low PGA",
+            "high": "High PGA"
+          }
+        },
+        {
+          "id": "Flood",
+          "bnNode": "b",
+          "states": [
+            "dry",
+            "wet",
+            "severe"
+          ]
+        }
+      ],
+      "excludedAssignments": [
+        {
+          "Earthquake": "low",
+          "Flood": "wet"
+        },
+        {
+          "Flood": "severe"
+        }
+      ],
+      "maxScenarios": 2
+    },
+    {
+      "dimensions": [
+        {
+          "id": "Earthquake",
+          "bnNode": "a",
+          "states": [
+            "low",
+            "high"
+          ],
+          "stateLabels": {
+            "low": "Low PGA",
+            "high": "High PGA"
+          }
+        },
+        {
+          "id": "Flood",
+          "bnNode": "b",
+          "states": [
+            "dry",
+            "wet",
+            "severe"
+          ]
+        }
+      ],
+      "maxScenarios": 1
+    },
+    {
+      "dimensions": [
+        {
+          "id": "Earthquake",
+          "bnNode": "a",
+          "states": [
+            "low",
+            "high"
+          ],
+          "stateLabels": {
+            "low": "Low PGA",
+            "high": "High PGA"
+          }
+        }
+      ],
+      "excludedAssignments": [
+        {
+          "Earthquake": "low"
+        },
+        {
+          "Earthquake": "high"
+        }
+      ]
+    },
+    {
+      "dimensions": []
+    },
+    {
+      "dimensions": [
+        {
+          "id": "Earthquake",
+          "bnNode": "a",
+          "states": [
+            "low",
+            "high"
+          ],
+          "stateLabels": {
+            "low": "Low PGA",
+            "high": "High PGA"
+          }
+        }
+      ],
+      "excludedAssignments": [
+        {}
+      ]
+    },
+    {
+      "dimensions": [
+        {
+          "id": "Earthquake",
+          "bnNode": "a",
+          "states": [
+            "low",
+            "high"
+          ],
+          "stateLabels": {
+            "low": "Low PGA",
+            "high": "High PGA"
+          }
+        },
+        {
+          "id": "Flood",
+          "bnNode": "b",
+          "states": [
+            "dry",
+            "wet",
+            "severe"
+          ]
+        },
+        {
+          "id": "Weather",
+          "bnNode": "c",
+          "states": [
+            "day",
+            "night"
+          ]
+        }
+      ],
+      "maxScenarios": 7
+    }
+  ],
+  "expected": [
+    [
+      {
+        "scenarioId": "hz_0001",
+        "label": "Earthquake=Low PGA | Flood=dry",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "low",
+          "b": "dry"
+        },
+        "hazardAssignments": {
+          "Earthquake": "low",
+          "Flood": "dry"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood"
+        ]
+      },
+      {
+        "scenarioId": "hz_0002",
+        "label": "Earthquake=Low PGA | Flood=wet",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "low",
+          "b": "wet"
+        },
+        "hazardAssignments": {
+          "Earthquake": "low",
+          "Flood": "wet"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood"
+        ]
+      },
+      {
+        "scenarioId": "hz_0003",
+        "label": "Earthquake=Low PGA | Flood=severe",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "low",
+          "b": "severe"
+        },
+        "hazardAssignments": {
+          "Earthquake": "low",
+          "Flood": "severe"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood"
+        ]
+      },
+      {
+        "scenarioId": "hz_0004",
+        "label": "Earthquake=High PGA | Flood=dry",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "high",
+          "b": "dry"
+        },
+        "hazardAssignments": {
+          "Earthquake": "high",
+          "Flood": "dry"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood"
+        ]
+      },
+      {
+        "scenarioId": "hz_0005",
+        "label": "Earthquake=High PGA | Flood=wet",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "high",
+          "b": "wet"
+        },
+        "hazardAssignments": {
+          "Earthquake": "high",
+          "Flood": "wet"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood"
+        ]
+      },
+      {
+        "scenarioId": "hz_0006",
+        "label": "Earthquake=High PGA | Flood=severe",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "high",
+          "b": "severe"
+        },
+        "hazardAssignments": {
+          "Earthquake": "high",
+          "Flood": "severe"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood"
+        ]
+      }
+    ],
+    [
+      {
+        "scenarioId": "hz_0001",
+        "label": "Flood=dry | Earthquake=Low PGA",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "b": "dry",
+          "a": "low"
+        },
+        "hazardAssignments": {
+          "Flood": "dry",
+          "Earthquake": "low"
+        },
+        "hazardDimensions": [
+          "Flood",
+          "Earthquake"
+        ]
+      },
+      {
+        "scenarioId": "hz_0002",
+        "label": "Flood=dry | Earthquake=High PGA",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "b": "dry",
+          "a": "high"
+        },
+        "hazardAssignments": {
+          "Flood": "dry",
+          "Earthquake": "high"
+        },
+        "hazardDimensions": [
+          "Flood",
+          "Earthquake"
+        ]
+      },
+      {
+        "scenarioId": "hz_0003",
+        "label": "Flood=wet | Earthquake=Low PGA",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "b": "wet",
+          "a": "low"
+        },
+        "hazardAssignments": {
+          "Flood": "wet",
+          "Earthquake": "low"
+        },
+        "hazardDimensions": [
+          "Flood",
+          "Earthquake"
+        ]
+      },
+      {
+        "scenarioId": "hz_0004",
+        "label": "Flood=wet | Earthquake=High PGA",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "b": "wet",
+          "a": "high"
+        },
+        "hazardAssignments": {
+          "Flood": "wet",
+          "Earthquake": "high"
+        },
+        "hazardDimensions": [
+          "Flood",
+          "Earthquake"
+        ]
+      },
+      {
+        "scenarioId": "hz_0005",
+        "label": "Flood=severe | Earthquake=Low PGA",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "b": "severe",
+          "a": "low"
+        },
+        "hazardAssignments": {
+          "Flood": "severe",
+          "Earthquake": "low"
+        },
+        "hazardDimensions": [
+          "Flood",
+          "Earthquake"
+        ]
+      },
+      {
+        "scenarioId": "hz_0006",
+        "label": "Flood=severe | Earthquake=High PGA",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "b": "severe",
+          "a": "high"
+        },
+        "hazardAssignments": {
+          "Flood": "severe",
+          "Earthquake": "high"
+        },
+        "hazardDimensions": [
+          "Flood",
+          "Earthquake"
+        ]
+      }
+    ],
+    [
+      {
+        "scenarioId": "hz_0001",
+        "label": "Earthquake=High PGA | Flood=dry",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "high",
+          "b": "dry"
+        },
+        "hazardAssignments": {
+          "Earthquake": "high",
+          "Flood": "dry"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood"
+        ]
+      },
+      {
+        "scenarioId": "hz_0002",
+        "label": "Earthquake=High PGA | Flood=wet",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "high",
+          "b": "wet"
+        },
+        "hazardAssignments": {
+          "Earthquake": "high",
+          "Flood": "wet"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood"
+        ]
+      },
+      {
+        "scenarioId": "hz_0003",
+        "label": "Earthquake=High PGA | Flood=severe",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "high",
+          "b": "severe"
+        },
+        "hazardAssignments": {
+          "Earthquake": "high",
+          "Flood": "severe"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood"
+        ]
+      }
+    ],
+    [
+      {
+        "scenarioId": "hz_0001",
+        "label": "Earthquake=Low PGA | Flood=dry",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "low",
+          "b": "dry"
+        },
+        "hazardAssignments": {
+          "Earthquake": "low",
+          "Flood": "dry"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood"
+        ]
+      },
+      {
+        "scenarioId": "hz_0002",
+        "label": "Earthquake=High PGA | Flood=dry",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "high",
+          "b": "dry"
+        },
+        "hazardAssignments": {
+          "Earthquake": "high",
+          "Flood": "dry"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood"
+        ]
+      }
+    ],
+    [
+      {
+        "scenarioId": "hz_0001",
+        "label": "Earthquake=Low PGA | Flood=dry",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "low",
+          "b": "dry"
+        },
+        "hazardAssignments": {
+          "Earthquake": "low",
+          "Flood": "dry"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood"
+        ]
+      }
+    ],
+    [],
+    [],
+    [],
+    [
+      {
+        "scenarioId": "hz_0001",
+        "label": "Earthquake=Low PGA | Flood=dry | Weather=day",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "low",
+          "b": "dry",
+          "c": "day"
+        },
+        "hazardAssignments": {
+          "Earthquake": "low",
+          "Flood": "dry",
+          "Weather": "day"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood",
+          "Weather"
+        ]
+      },
+      {
+        "scenarioId": "hz_0002",
+        "label": "Earthquake=Low PGA | Flood=dry | Weather=night",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "low",
+          "b": "dry",
+          "c": "night"
+        },
+        "hazardAssignments": {
+          "Earthquake": "low",
+          "Flood": "dry",
+          "Weather": "night"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood",
+          "Weather"
+        ]
+      },
+      {
+        "scenarioId": "hz_0003",
+        "label": "Earthquake=Low PGA | Flood=wet | Weather=day",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "low",
+          "b": "wet",
+          "c": "day"
+        },
+        "hazardAssignments": {
+          "Earthquake": "low",
+          "Flood": "wet",
+          "Weather": "day"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood",
+          "Weather"
+        ]
+      },
+      {
+        "scenarioId": "hz_0004",
+        "label": "Earthquake=Low PGA | Flood=wet | Weather=night",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "low",
+          "b": "wet",
+          "c": "night"
+        },
+        "hazardAssignments": {
+          "Earthquake": "low",
+          "Flood": "wet",
+          "Weather": "night"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood",
+          "Weather"
+        ]
+      },
+      {
+        "scenarioId": "hz_0005",
+        "label": "Earthquake=Low PGA | Flood=severe | Weather=day",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "low",
+          "b": "severe",
+          "c": "day"
+        },
+        "hazardAssignments": {
+          "Earthquake": "low",
+          "Flood": "severe",
+          "Weather": "day"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood",
+          "Weather"
+        ]
+      },
+      {
+        "scenarioId": "hz_0006",
+        "label": "Earthquake=Low PGA | Flood=severe | Weather=night",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "low",
+          "b": "severe",
+          "c": "night"
+        },
+        "hazardAssignments": {
+          "Earthquake": "low",
+          "Flood": "severe",
+          "Weather": "night"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood",
+          "Weather"
+        ]
+      },
+      {
+        "scenarioId": "hz_0007",
+        "label": "Earthquake=High PGA | Flood=dry | Weather=day",
+        "enabled": true,
+        "selected": true,
+        "evidence": {
+          "a": "high",
+          "b": "dry",
+          "c": "day"
+        },
+        "hazardAssignments": {
+          "Earthquake": "high",
+          "Flood": "dry",
+          "Weather": "day"
+        },
+        "hazardDimensions": [
+          "Earthquake",
+          "Flood",
+          "Weather"
+        ]
+      }
+    ]
+  ]
+}

@@ -1,4 +1,5 @@
-import { SY_SR_CATALOG } from "interfaces-mef-types/sy/systems-analysis";
+import { SY_SR_CATALOG, type SystemFaultTreeNode, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
 
 type StepStatus = "complete" | "in-progress" | "idle";
 
@@ -224,11 +225,11 @@ function ccfParams(g: { modelSpecificParameters?: CcfParameterSet }): { short: s
 
 function ccfModelCheck(
   g: { affectedSystems: string[]; members?: { basicEvents: { id: string }[] }; modelSpecificParameters?: CcfParameterSet },
-  models: { systemReference: string; basicEvents: { uuid: string; probability?: number; failureMode?: string }[] }[],
+  analysis: Pick<SystemsAnalysis, "systemLogicModels" | "systemBasicEvents">,
 ): { expected: number | null; eventId: string | null; eventProb: number | null; ok: boolean } {
   const par = ccfParams(g);
-  const lm = models.find((m) => m.systemReference === g.affectedSystems[0]);
-  const evs = lm?.basicEvents ?? [];
+  const lm = analysis.systemLogicModels.find((m) => m.systemReference === g.affectedSystems[0]);
+  const evs = lm === undefined ? [] : systemLogicModelBasicEvents(analysis, lm);
   const ids = (g.members?.basicEvents ?? []).map((b) => b.id);
   const ccfEvent = evs.find((e) => ids.includes(e.uuid) && e.failureMode === "COMMON_CAUSE_FAILURE");
   const membersOk = ids.length > 0 && ids.every((id) => evs.some((e) => e.uuid === id));
@@ -303,35 +304,10 @@ const SY_DOWNSTREAM_LINKS: SideLinkSpec[] = [
   { id: "esq", element: "Event Sequence Quantification", icon: "Network", uses: "Links the system models into the event trees and quantifies the sequences", role: "Branch probability", dir: "out" },
 ];
 
-type SyGateType = "OR" | "AND" | "KN";
-
-interface SyGateNode {
-  id: string;
-  type: SyGateType;
-  name: string;
-  k?: number;
-  children: SyTreeNode[];
-}
-
-interface SyBeNode {
-  id: string;
-  type: "BE";
-  name: string;
-  be: string;
-  mode: string;
-  source: string;
-  prob: string;
-  ccf?: boolean;
-}
-
-interface SyTrNode {
-  id: string;
-  type: "TR";
-  name: string;
-  transfer: string;
-}
-
-type SyTreeNode = SyGateNode | SyBeNode | SyTrNode;
+type SyTreeNode = SystemFaultTreeNode;
+type SyGateNode = Extract<SystemFaultTreeNode, { children: SystemFaultTreeNode[] }>;
+type SyBeNode = Extract<SystemFaultTreeNode, { type: "BE" }>;
+type SyTrNode = Extract<SystemFaultTreeNode, { type: "TR" }>;
 
 const SCREENING_CRITERIA: { code: string; label: string }[] = [
   { code: "a", label: "Total failure probability below 1E-6 over the mission time" },

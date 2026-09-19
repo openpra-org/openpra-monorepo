@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "1.0.0",
+  "scenarios": [
+    {
+      "code": "BNQ-BASE",
+      "name": "No seismic, flood, or fire hazard",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "NO_SEISMIC",
+        "FLOOD-LEVEL": "NO_FLOOD",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "BNQ-FIRE",
+      "name": "Internal fire only",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "NO_SEISMIC",
+        "FLOOD-LEVEL": "NO_FLOOD",
+        "FIRE": "TRUE"
+      }
+    },
+    {
+      "code": "BNQ-SEIS-LOW",
+      "name": "Low seismic hazard",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA1",
+        "FLOOD-LEVEL": "NO_FLOOD",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "BNQ-FLOOD-LOW",
+      "name": "Low external flood hazard",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "NO_SEISMIC",
+        "FLOOD-LEVEL": "W2",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "BNQ-COMBINED-LOW",
+      "name": "Low combined seismic and flood hazard",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA1",
+        "FLOOD-LEVEL": "W2",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "BNQ-COMBINED-MID",
+      "name": "Moderate combined hazard with fire",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA3",
+        "FLOOD-LEVEL": "W3",
+        "FIRE": "TRUE"
+      }
+    },
+    {
+      "code": "BNQ-SEIS-HIGH",
+      "name": "High seismic hazard",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA6",
+        "FLOOD-LEVEL": "NO_FLOOD",
+        "FIRE": "FALSE"
+      }
+    },
+    {
+      "code": "BNQ-COMBINED-HIGH",
+      "name": "High seismic and flood hazard with fire",
+      "enabled": true,
+      "evidence": {
+        "SEISMIC-LEVEL": "PGA6",
+        "FLOOD-LEVEL": "W6",
+        "FIRE": "TRUE"
+      }
+    }
+  ]
+}

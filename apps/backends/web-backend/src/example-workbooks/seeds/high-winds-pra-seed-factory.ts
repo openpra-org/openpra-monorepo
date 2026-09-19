@@ -10,6 +10,7 @@ import {
 } from "interfaces-mef-types/high-winds/high-winds-pra";
 import { synchronizeHighWindsPraDerivedRegisters } from "interfaces-mef-types/high-winds/high-winds-pra-validation";
 import { createBlankHighWindsPra } from "../../high-winds-pra-workbooks/blank-high-winds-pra";
+import { createHazardConditionedMethodModels } from "./hazard-conditioned-method-model-seed";
 
 export type HighWindsPraVariant = "htgr" | "sfr";
 interface PlantContext {
@@ -57,6 +58,7 @@ function interfaceRecord(variant: HighWindsPraVariant, code: string, technicalEl
 
 export function createHighWindsPraExample(variant: HighWindsPraVariant): HighWindsPRA {
   const context = CONTEXT[variant]; const mef = createBlankHighWindsPra(context.workbookName, "High Winds PRA Team");
+  mef.hazardConditionedModels = createHazardConditionedMethodModels("HW", "High winds");
   const units = Array.from({ length: context.units }, (_, index) => `UNIT-${String(index + 1)}`); const pos = ["POS-01-FULL-POWER", "POS-02-HOT-STANDBY", "POS-03-SHUTDOWN-COOLING", "POS-04-REFUELING"];
   mef.uuid = id(variant, "HIGH-WINDS-PRA"); mef.version = "1.0"; mef.plantStage = "PRE_OPERATIONAL";
   mef.praScope = `${context.plantName} High Winds PRA for all fueled plant operating states, ${String(context.units)} reactor modules or units, shared systems, spent-fuel inventory, and licensee-controlled locations exposed to straight wind, tropical cyclone, tornado, pressure, atmospheric pressure change, missiles, structural interaction, and wind-driven rain.`;

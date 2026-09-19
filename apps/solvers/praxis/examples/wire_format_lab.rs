@@ -43,7 +43,10 @@ fn eval_structure(s: &Structure, assign: &[bool]) -> bool {
             Node::BasicEvent { .. } => assign[i],
             Node::Constant { value } => *value,
             Node::Gate { op, k, operands } => {
-                let vals: Vec<bool> = operands.iter().map(|r| val[r.position] ^ r.complement).collect();
+                let vals: Vec<bool> = operands
+                    .iter()
+                    .map(|r| val[r.position] ^ r.complement)
+                    .collect();
                 combine(*op, &vals, *k)
             }
         };
@@ -155,7 +158,9 @@ fn main() {
         };
 
         let s = pbf::structure_from_pdag(&pdag, |id| {
-            ft.get_basic_event(id).map(|b| b.probability()).unwrap_or(0.0)
+            ft.get_basic_event(id)
+                .map(|b| b.probability())
+                .unwrap_or(0.0)
         })
         .expect("structure");
 

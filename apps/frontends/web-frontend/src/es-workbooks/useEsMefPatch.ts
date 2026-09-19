@@ -1,34 +1,32 @@
-import { useCallback } from "react";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
-import { patchEsWorkbook } from "./esWorkbookApi";
+import {
+  useRevisionedMefPatch,
+  type MefMutator,
+  type RevisionedMefPatcher,
+} from "../workbooks/useRevisionedMefPatch";
+import { getEsWorkbook, patchEsWorkbook, type EsWorkbookResponse } from "./esWorkbookApi";
 
-type Mutator = (draft: EventSequenceAnalysis) => EventSequenceAnalysis;
-
-interface EsMefPatcher {
-  patch: (mutator: Mutator) => Promise<void>;
-  patchDebounced: (mutator: Mutator) => void;
-}
+type Mutator = MefMutator<EventSequenceAnalysis>;
+type EsMefPatcher = RevisionedMefPatcher<EventSequenceAnalysis>;
 
 function useEsMefPatch(
   workbookId: string,
   current: EventSequenceAnalysis | null,
-  onSuccess: (next: EventSequenceAnalysis) => void,
+  currentRevision: number | null,
+  onSuccess: (nextRevision: number) => void,
   onError: (message: string) => void,
+  onResync: (latest: EsWorkbookResponse) => void,
 ): EsMefPatcher {
-  const patch = useCallback(async (mutator: Mutator): Promise<void> => {
-    if (current === null) return;
-    const draft = mutator(current);
-    try {
-      const updated = await patchEsWorkbook(workbookId, current, draft);
-      onSuccess(updated.mef);
-    } catch (err: unknown) {
-      onError((err as { message?: string }).message ?? "Save failed");
-    }
-  }, [workbookId, current, onSuccess, onError]);
-
-  const patchDebounced = useCallback((mutator: Mutator): void => { void patch(mutator); }, [patch]);
-
-  return { patch, patchDebounced };
+  return useRevisionedMefPatch(
+    workbookId,
+    current,
+    currentRevision,
+    patchEsWorkbook,
+    getEsWorkbook,
+    onSuccess,
+    onError,
+    onResync,
+  );
 }
 
 export { useEsMefPatch, type EsMefPatcher, type Mutator };

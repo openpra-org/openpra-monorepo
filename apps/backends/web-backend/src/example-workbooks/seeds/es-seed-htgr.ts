@@ -11,6 +11,7 @@ import {
   GEN_RC_MEMBERS,
   GEN_RC_FREQUENCY,
 } from "./es-seed-dynamic-htgr.generated";
+import { createExampleDependencyEventTree } from "./dependency-model-seed";
 
 const NOW = "2026-04-22T12:00:00.000Z";
 
@@ -99,7 +100,7 @@ export const ES_ANALYSIS_HTGR: EventSequenceAnalysis = {
     { uuid: "ESF-EARLY", name: "Building isolation failure, unfiltered release", groupingCriteriaId: "GC-1", representativeInitiatingEventId: "IEG-21", representativePlantOperatingStateId: "POS-01", representativePlantResponse: "The challenge reaches a reactor building whose isolation or filtration has failed, giving the largest unfiltered release the design can produce.", releaseCategoryIds: ["RC-1"], memberSequenceIds: GEN_FAMILY_MEMBERS["ESF-EARLY"], endState: EndState.RADIONUCLIDE_RELEASE, meanFrequency: GEN_FAMILY_FREQUENCY["ESF-EARLY"], similarityBasis: "At CC-II, confirm EHN-5 and EHW-8 (different source terms and timing) are not hidden by the chosen worst-case sequence.", implementsSrs: [] },
     { uuid: "ESF-ATWS", name: "Unprotected (failure-to-trip) transients", groupingCriteriaId: "GC-1", representativeInitiatingEventId: "IEG-17", representativePlantOperatingStateId: "POS-01", representativePlantResponse: "The reactor fails to trip; the negative temperature coefficient caps the power while passive cavity cooling absorbs it, and the dedicated ATWS tree resolves the release.", releaseCategoryIds: ["RC-1"], memberSequenceIds: GEN_FAMILY_MEMBERS["ESF-ATWS"], endState: EndState.RADIONUCLIDE_RELEASE, meanFrequency: GEN_FAMILY_FREQUENCY["ESF-ATWS"], similarityBasis: "Transfers to the ATWS tree (ES-A13); frequency is provisional until that tree is quantified in ESQ.", implementsSrs: [] },
   ],
-  eventTrees: GEN_EVENT_TREES,
+  eventTrees: [...GEN_EVENT_TREES, createExampleDependencyEventTree()],
   dynamicRuns: GEN_DYNAMIC_RUNS,
   operatorActionWindows: [
     {

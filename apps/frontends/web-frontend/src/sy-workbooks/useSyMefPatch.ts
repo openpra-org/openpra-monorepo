@@ -1,34 +1,32 @@
-import { useCallback } from "react";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import { patchSyWorkbook } from "./syWorkbookApi";
+import {
+  useRevisionedMefPatch,
+  type MefMutator,
+  type RevisionedMefPatcher,
+} from "../workbooks/useRevisionedMefPatch";
+import { getSyWorkbook, patchSyWorkbook, type SyWorkbookResponse } from "./syWorkbookApi";
 
-type Mutator = (draft: SystemsAnalysis) => SystemsAnalysis;
-
-interface SyMefPatcher {
-  patch: (mutator: Mutator) => Promise<void>;
-  patchDebounced: (mutator: Mutator) => void;
-}
+type Mutator = MefMutator<SystemsAnalysis>;
+type SyMefPatcher = RevisionedMefPatcher<SystemsAnalysis>;
 
 function useSyMefPatch(
   workbookId: string,
   current: SystemsAnalysis | null,
-  onSuccess: (next: SystemsAnalysis) => void,
+  currentRevision: number | null,
+  onSuccess: (nextRevision: number) => void,
   onError: (message: string) => void,
+  onResync: (latest: SyWorkbookResponse) => void,
 ): SyMefPatcher {
-  const patch = useCallback(async (mutator: Mutator): Promise<void> => {
-    if (current === null) return;
-    const draft = mutator(current);
-    try {
-      const updated = await patchSyWorkbook(workbookId, current, draft);
-      onSuccess(updated.mef);
-    } catch (err: unknown) {
-      onError((err as { message?: string }).message ?? "Save failed");
-    }
-  }, [workbookId, current, onSuccess, onError]);
-
-  const patchDebounced = useCallback((mutator: Mutator): void => { void patch(mutator); }, [patch]);
-
-  return { patch, patchDebounced };
+  return useRevisionedMefPatch(
+    workbookId,
+    current,
+    currentRevision,
+    patchSyWorkbook,
+    getSyWorkbook,
+    onSuccess,
+    onError,
+    onResync,
+  );
 }
 
 export { useSyMefPatch, type SyMefPatcher, type Mutator };

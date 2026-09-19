@@ -80,7 +80,6 @@ pub fn event_tree_sequence_words_kernel(
         let mut ci = 0u32;
         while ci < cond_len {
             if (m_lo | m_hi) == 0u32 {
-
                 ci = cond_len;
             } else {
                 let cond_ix = (cond_start + ci) as usize;

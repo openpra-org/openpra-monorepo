@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, OnModuleInit } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, OnModuleInit } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { RadiologicalConsequenceAnalysisSchema } from "interfaces-mef-types/zod/rc/radiological-consequence-analysis";
@@ -28,19 +28,24 @@ export class RcMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     await this.rcWorkbookModel.create({ workbookId, projectId, ownerUsername, mef });
   }
 
-  async load(workbookId: string): Promise<{ projectId: string; ownerUsername: string; mef: unknown } | null> {
+  async load(workbookId: string): Promise<{ projectId: string; ownerUsername: string; mef: unknown; revision: number } | null> {
     const doc = await this.rcWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) return null;
-    return { projectId: doc.projectId, ownerUsername: doc.ownerUsername, mef: doc.mef };
+    return { projectId: doc.projectId, ownerUsername: doc.ownerUsername, mef: doc.mef, revision: doc.__v + 1 };
   }
 
-  async save(workbookId: string, mef: unknown): Promise<unknown> {
+  async save(workbookId: string, mef: unknown, expectedRevision?: number): Promise<unknown> {
     const doc = await this.rcWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new BadRequestException("RC workbook not found");
+    if (expectedRevision !== undefined && expectedRevision !== doc.__v + 1)
+      throw new ConflictException("The workbook changed. Reload before completing this review action");
     const parsed = RadiologicalConsequenceAnalysisSchema.safeParse(stripNulls(mef));
     if (!parsed.success) throw new BadRequestException(`Invalid RC workbook payload: ${parsed.error.message}`);
-    doc.mef = parsed.data;
-    await doc.save();
+    doc.mef = JSON.parse(JSON.stringify(parsed.data));
+    try { await doc.save(); } catch (error) {
+      if (error instanceof Error && error.name === "VersionError") throw new ConflictException("The workbook changed. Reload before completing this review action");
+      throw error;
+    }
     return parsed.data;
   }
 

@@ -287,6 +287,7 @@ function HrWorkbench({
   renderRoster?: () => JSX.Element | null;
   renderDocuments?: () => JSX.Element | null;
 }): JSX.Element {
+  const { editable, mutateHr } = useHrWorkbook();
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
 

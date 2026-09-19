@@ -4,6 +4,12 @@
   "private": true,
   "dependencies": {
     "interfaces-shared-types": "workspace:*",
+    "praxis-node": "workspace:*",
     "scram-node": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/supertest": "2.0.16",
+    "supertest": "6.3.4",
+    "vitest": "4.0.15"
   }
 }

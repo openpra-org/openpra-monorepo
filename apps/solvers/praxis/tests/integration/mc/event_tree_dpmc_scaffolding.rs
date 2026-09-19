@@ -75,6 +75,5 @@ fn correlation_changes_sequence_probability_vs_independence() {
 #[test]
 #[ignore = "Scaffolding: enable once multi-root DPMC is implemented"]
 fn multi_root_matches_repeated_single_root_runs_for_fixed_seed() {
-
     unimplemented!("Multi-root DPMC output not implemented yet");
 }

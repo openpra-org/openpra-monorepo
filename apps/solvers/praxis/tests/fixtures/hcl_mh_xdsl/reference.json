@@ -1,0 +1,17 @@
+{
+  "description": "Unchanged HCL_MH XDSL inputs for portable GUI import/source tests. No solver or GUI source is copied.",
+  "source_sha256": {
+    "tests/validate_hcl_point/Case_1/BN.xdsl": "b2839aa8e906961a7262076cf298f3b9abc2ea118700229f4fed34ac3467309b",
+    "tests/validate_hcl_point/Case_2/BN.xdsl": "37cd320e9a1c648a6c682a4133f66670663a08aa9b22adcc942fb73d5cc0839f",
+    "tests/validate_hcl_point/Case_3/BN.xdsl": "9773624f7ee7ab949dabcea0cee915f939ee5f991d1a97bd065285dd4ff6b8bb",
+    "tests/validate_hcl_point/Case_4/BN.xdsl": "80334527640eeda0610f1a05685d3821cd56dcf9eb19029f8be9e31560682fac",
+    "MH-BN/network_builder/templates/hra/Generic_HFE.xdsl": "5fab36707f7f6b05193a02995e9c123c68925ef29f2b6194ea1ca4d74dda17bc"
+  },
+  "copies": {
+    "tests/validate_hcl_point/Case_1/BN.xdsl": "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Case_1/BN.xdsl",
+    "tests/validate_hcl_point/Case_2/BN.xdsl": "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Case_2/BN.xdsl",
+    "tests/validate_hcl_point/Case_3/BN.xdsl": "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Case_3/BN.xdsl",
+    "tests/validate_hcl_point/Case_4/BN.xdsl": "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Case_4/BN.xdsl",
+    "MH-BN/network_builder/templates/hra/Generic_HFE.xdsl": "apps/solvers/praxis/tests/fixtures/hcl_mh_xdsl/Generic_HFE.xdsl"
+  }
+}

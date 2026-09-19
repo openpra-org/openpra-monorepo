@@ -344,7 +344,11 @@ impl RBdd {
     }
 }
 
-fn build_pdag<S: ReorderSource>(rb: &mut RBdd, source: &S, var_of: &HashMap<NodeIndex, usize>) -> i32 {
+fn build_pdag<S: ReorderSource>(
+    rb: &mut RBdd,
+    source: &S,
+    var_of: &HashMap<NodeIndex, usize>,
+) -> i32 {
     let root = match source.r_root() {
         Some(r) => r,
         None => return TRUE,
@@ -381,7 +385,11 @@ fn build_node<S: ReorderSource>(
                 FALSE
             }
         }
-        Some(RKind::Gate { conn, operands, min }) => {
+        Some(RKind::Gate {
+            conn,
+            operands,
+            min,
+        }) => {
             let ops = operands.to_vec();
             let mut kids = Vec::with_capacity(ops.len());
             for op in &ops {
@@ -454,7 +462,12 @@ fn combine(
     }
 }
 
-fn atleast(rb: &mut RBdd, kids: &[i32], k: usize, imemo: &mut HashMap<(i32, i32, i32), i32>) -> i32 {
+fn atleast(
+    rb: &mut RBdd,
+    kids: &[i32],
+    k: usize,
+    imemo: &mut HashMap<(i32, i32, i32), i32>,
+) -> i32 {
     if k == 0 {
         return TRUE;
     }
@@ -735,8 +748,7 @@ mod tests {
             var_of.insert(idx.abs(), pos);
         }
         let var_probs = pdag.level_var_probs(ft, &var_of).unwrap();
-        let (bdd, root) =
-            Bdd::from_pdag_with_order_and_probs(pdag, &var_of, var_probs).unwrap();
+        let (bdd, root) = Bdd::from_pdag_with_order_and_probs(pdag, &var_of, var_probs).unwrap();
         bdd.probability(root)
     }
 
@@ -750,14 +762,22 @@ mod tests {
 
     #[test]
     fn best_order_permutes_and_preserves_function() {
-        for method in [ReorderMethod::Sift, ReorderMethod::Gsift, ReorderMethod::Ils] {
+        for method in [
+            ReorderMethod::Sift,
+            ReorderMethod::Gsift,
+            ReorderMethod::Ils,
+        ] {
             let ft = sample_ft();
             let pdag = Pdag::from_fault_tree(&ft).unwrap();
             let seed = compute_dfs_metadata_pdag(&pdag).unwrap().variable_order;
             let p0 = prob_with_order(&pdag, &ft, &seed);
 
             let order = best_order(&pdag, method, Duration::from_millis(150));
-            assert!(is_permutation(&seed, &order), "{:?} not a permutation", method);
+            assert!(
+                is_permutation(&seed, &order),
+                "{:?} not a permutation",
+                method
+            );
 
             let p1 = prob_with_order(&pdag, &ft, &order);
             assert!(

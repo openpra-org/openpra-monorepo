@@ -1,4 +1,4 @@
-use praxis::error::{PraxisError, MefError, XmlError};
+use praxis::error::{MefError, PraxisError, XmlError};
 
 #[cfg(test)]
 mod praxis_error_tests {
@@ -13,7 +13,10 @@ mod praxis_error_tests {
     #[test]
     fn test_dynamic_library_error() {
         let err = PraxisError::DynamicLibrary("Failed to load library".to_string());
-        assert_eq!(err.to_string(), "Dynamic Library Error: Failed to load library");
+        assert_eq!(
+            err.to_string(),
+            "Dynamic Library Error: Failed to load library"
+        );
     }
 
     #[test]
@@ -37,7 +40,10 @@ mod praxis_error_tests {
     #[test]
     fn test_version_error() {
         let err = PraxisError::Version("Minimum version not satisfied".to_string());
-        assert_eq!(err.to_string(), "Version Error: Minimum version not satisfied");
+        assert_eq!(
+            err.to_string(),
+            "Version Error: Minimum version not satisfied"
+        );
     }
 
     #[test]

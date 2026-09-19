@@ -3,7 +3,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
-use approx::assert_abs_diff_eq;
 use praxis::algorithms::build::{build_bdd_with_order, BuildOptions};
 use praxis::algorithms::pdag::{Connective, NodeIndex, Pdag, PdagNode};
 use praxis::core::event::BasicEvent;
@@ -19,7 +18,21 @@ use tensorbayes::{
     StateIndex, UNOBSERVED,
 };
 
-const EPSILON: f64 = 1e-12;
+fn assert_probability_close(actual: f64, expected: f64) {
+    assert!(actual.is_finite() && expected.is_finite());
+    if expected == 0.0 {
+        assert_eq!(actual, 0.0);
+    } else {
+        assert!(
+            actual > 0.0,
+            "positive probability was lost: expected {expected}"
+        );
+        assert!(
+            (actual - expected).abs() <= 2e-10 * expected.abs(),
+            "{actual} != {expected}"
+        );
+    }
+}
 const MAX_BRUTE_FORCE_ASSIGNMENTS: usize = 1_000_000;
 
 fn fixture_path(relative: &str) -> PathBuf {
@@ -512,10 +525,10 @@ fn legacy_lazy_k5_matches_frozen_and_rebuilt_unified_networks() -> Result<()> {
     let rebuilt_probability = query_true_probability(&rebuilt, rebuilt_top, model.base_evidence())?;
     let enumerated = brute_force_hcl(&model)?;
 
-    assert_abs_diff_eq!(shannon, EXPECTED, epsilon = EPSILON);
-    assert_abs_diff_eq!(shannon, frozen_probability, epsilon = EPSILON);
-    assert_abs_diff_eq!(shannon, rebuilt_probability, epsilon = EPSILON);
-    assert_abs_diff_eq!(shannon, enumerated, epsilon = EPSILON);
+    assert_probability_close(shannon, EXPECTED);
+    assert_probability_close(shannon, frozen_probability);
+    assert_probability_close(shannon, rebuilt_probability);
+    assert_probability_close(shannon, enumerated);
     Ok(())
 }
 
@@ -538,9 +551,9 @@ fn multistate_bindings_evidence_and_variable_order_match_both_oracles() -> Resul
                 ..HclSettings::default()
             },
         )?;
-        assert_abs_diff_eq!(result.probability, expected, epsilon = EPSILON);
-        assert_abs_diff_eq!(result.probability, enumerated, epsilon = EPSILON);
-        assert_abs_diff_eq!(result.probability, unified_probability, epsilon = EPSILON);
+        assert_probability_close(result.probability, expected);
+        assert_probability_close(result.probability, enumerated);
+        assert_probability_close(result.probability, unified_probability);
     }
     Ok(())
 }
@@ -579,8 +592,42 @@ fn shannon_cache_reuse_and_clear_are_probability_invariant() -> Result<()> {
     quantifier.clear_caches();
     let after_clear = quantifier.quantify(built.root)?;
     let oracle = brute_force_hcl(&model)?;
-    assert_abs_diff_eq!(first, oracle, epsilon = EPSILON);
-    assert_abs_diff_eq!(cached, oracle, epsilon = EPSILON);
-    assert_abs_diff_eq!(after_clear, oracle, epsilon = EPSILON);
+    assert_probability_close(first, oracle);
+    assert_probability_close(cached, oracle);
+    assert_probability_close(after_clear, oracle);
     Ok(())
+}
+
+#[test]
+fn rare_bound_and_independent_events_match_both_oracles() -> Result<()> {
+    for independent_probability in [0.0, 1e-14, 1e-100] {
+        let mut ft = FaultTree::new("rare", "TOP")?;
+        ft.add_basic_event(BasicEvent::new("A".into(), 0.5)?)?;
+        ft.add_basic_event(BasicEvent::new("E".into(), independent_probability)?)?;
+        let mut top = Gate::new("TOP".into(), Formula::And)?;
+        top.add_operand("A".into());
+        top.add_operand("E".into());
+        ft.add_gate(top)?;
+        let mut graph = BayesianGraph::new();
+        let a = graph.add_variable("A", &["false", "true"])?;
+        graph.set_cpt(a, vec![0.8, 0.2])?;
+        let model = HclModel::new(ft, graph)?.with_bindings(vec![HclBindingSpec {
+            event: "A".into(),
+            node: "A".into(),
+            true_states: vec!["true".into()],
+        }]);
+        let expected = 0.2 * independent_probability;
+        let actual = quantify_hcl(&model, &HclSettings::default())?.probability;
+        let (unified, top) = build_unified_bn(&model)?;
+        assert_probability_close(actual, expected);
+        assert_probability_close(actual, brute_force_hcl(&model)?);
+        assert_probability_close(actual, query_true_probability(&unified, top, &[])?);
+    }
+    Ok(())
+}
+
+#[test]
+#[should_panic(expected = "positive probability was lost")]
+fn numerical_gate_rejects_zero_for_a_rare_positive_probability() {
+    assert_probability_close(0.0, 1e-15);
 }

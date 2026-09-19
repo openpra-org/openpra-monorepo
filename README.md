@@ -518,6 +518,10 @@ export MONGO_URI="mongodb://127.0.0.1:27017/test"
 pnpm nx test backends-web-backend
 ```
 
+## Saved analysis runs
+
+SY, ES and ESQ provide **Saved analysis runs** with original results, source revisions and JSON downloads. New runs record the exact native request and a SHA-256 fingerprint of the loaded PRAXIS binary. Reading a saved run requires access to every contributing source project. Missing DA/HRA sources require explicit relinking before another execution. See [history and source rules](apps/docs-md/guides/analysis-run-history-source-map.md).
+
 ## Conventional commits
 
 Commit messages must follow Conventional Commits. A Husky `commit-msg` hook runs Commitlint. Format: `type(scope): short description` with types `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `build`, `ci`. If a commit is rejected, amend the message with `git commit --amend`. Hooks install automatically on `pnpm install`.

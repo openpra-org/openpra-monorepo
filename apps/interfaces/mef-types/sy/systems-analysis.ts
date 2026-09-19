@@ -5,6 +5,13 @@ import { BasicEvent, DistributionType } from "../core/events";
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption, PlantRepresentationAccuracy } from "../core/documentation";
 import { Component, ComponentReference, ComponentTypeReference } from "../core/component";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
+import {
+  FaultTreeDefinition,
+  type FaultTreeControlledDataSourceReference,
+} from "../modeling/fault-tree";
+import type { HumanFailureEventReference } from "../modeling/references";
+import type { FaultTreeBasicEventQuantificationBasis } from "../modeling/quantitative-semantics";
+import type { WorkbookBayesianNetwork, WorkbookHclConfiguration } from "../modeling/workbook-models";
 
 export type SystemReference = string;
 export type HumanActionReference = string;
@@ -35,13 +42,17 @@ export enum FailureModeType {
 export type ComponentState = "operational" | "degraded" | "failed" | "recovering" | "maintenance";
 
 export interface SystemBasicEvent extends BasicEvent {
+  code: string;
   componentReference?: ComponentReference;
   failureMode?: FailureModeType | string;
   probability?: number;
+  quantificationBasis?: FaultTreeBasicEventQuantificationBasis;
   repairModeled?: boolean;
   repairJustification?: string;
   meanTimeToRepair?: number;
   probabilityModelRef?: string;
+  controlledDataSource?: FaultTreeControlledDataSourceReference;
+  /** @deprecated Unqualified legacy traceability field. */
   dataAnalysisBasicEventRef?: string;
   attributes?: {
     name: string;
@@ -218,17 +229,24 @@ export interface SystemDefinition extends Unique, Named {
   implementsSrs: SRReference[];
 }
 
+/** @deprecated Recursive SY fault trees are accepted only by the workbook migration preprocessor. */
 export type SystemFaultTreeNode =
   | { id: string; type: "OR" | "AND" | "KN"; name: string; k?: number; children: SystemFaultTreeNode[] }
+  | { id: string; type: "BE"; basicEventId: string }
+  | { id: string; type: "TR"; name: string; transfer: string };
+
+/** @deprecated Accepted only while migrating workbooks saved before the workbook catalogue became canonical. */
+export type LegacySystemFaultTreeNode =
+  | { id: string; type: "OR" | "AND" | "KN"; name: string; k?: number; children: LegacySystemFaultTreeNode[] }
   | { id: string; type: "BE"; name: string; be: string; mode: string; source: string; prob: string; ccf?: boolean }
   | { id: string; type: "TR"; name: string; transfer: string };
 
-export interface SystemLogicModel extends Unique {
+export interface SystemLogicModel extends Unique, FaultTreeDefinition {
+  code: string;
+  name: string;
   systemReference: SystemReference;
   description: string;
   modelRepresentation: string;
-  faultTree?: SystemFaultTreeNode;
-  basicEvents: SystemBasicEvent[];
   nonDetailedModelJustification?: string;
   logicLoopResolutions?: {
     loopId: string;
@@ -338,6 +356,7 @@ export interface CommonCauseFailureGroup extends Unique, Named {
 
 export interface HumanFailureEventIntegration extends Unique {
   hfeReference: HumanActionReference;
+  hfeSource?: HumanFailureEventReference;
   system: SystemReference;
   taskDescription: string;
   hfeType: "PRE_INITIATOR" | "POST_INITIATOR";
@@ -526,7 +545,7 @@ export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.
   systemDefinitions: SystemDefinition[];
   systemToSafetyFunctionMappings: SystemToSafetyFunctionMapping[];
   systemLogicModels: SystemLogicModel[];
-  systemBasicEvents?: SystemBasicEvent[];
+  systemBasicEvents: SystemBasicEvent[];
 
   variableSuccessCriteria?: VariableSuccessCriterion[];
   systemConfirmationRecords?: SystemConfirmationRecord[];
@@ -534,6 +553,8 @@ export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.
 
   systemDependencies: SystemDependency[];
   componentDependencies: ComponentDependency[];
+  dependencyBayesianNetworks?: WorkbookBayesianNetwork[];
+  dependencyHclConfigurations?: WorkbookHclConfiguration[];
   dependencySearchMethodology: DependencySearchMethodology;
   commonCauseFailureGroups: CommonCauseFailureGroup[];
   supportSystemNeedAnalyses?: SupportSystemNeedAnalysis[];

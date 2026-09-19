@@ -15,7 +15,13 @@ impl RunParams {
     pub const DEFAULT_OMEGA: usize = 64;
 
     pub fn new(t: usize, b: usize, p: usize, omega: usize, seed: u64) -> Self {
-        Self { t, b, p, omega, seed }
+        Self {
+            t,
+            b,
+            p,
+            omega,
+            seed,
+        }
     }
 
     pub fn trials_per_iteration(&self) -> usize {

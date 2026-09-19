@@ -5,11 +5,12 @@
     }
   },
   "release": {
-    "projects": ["apps/*", "apps/*/*", "apps/*/*/*"],
+    "projects": ["apps/*", "apps/*/*", "apps/*/*/*", "!frontends-web-frontend-e2e"],
     "changelog": {
       "workspaceChangelog": true
     },
     "version": {
+      "conventionalCommits": true,
       "preserveLocalDependencyProtocols": false
     },
     "publish": {

@@ -1,5 +1,6 @@
 import { type RadiologicalConsequenceAnalysis, type ReleaseCategoryInputs } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { type ParameterDistribution, DistributionType } from "interfaces-mef-types/core/events";
+import { isRcAspectExcluded } from "./rcScope";
 import {
   CONFORMANCE_ITEMS,
   RC_STEPS,
@@ -157,6 +158,7 @@ function stepsFromMef(rc: RadiologicalConsequenceAnalysis, persona: RcPersona): 
   }
 
   return base.map((s) => {
+    if (s.se !== undefined && isRcAspectExcluded(rc, s.se)) return { ...s, status: "idle" as const, excluded: true };
     switch (s.id) {
       case "handoff": return { ...s, status: status(handoffComplete) };
       case "protective": return { ...s, status: status(protectiveComplete) };

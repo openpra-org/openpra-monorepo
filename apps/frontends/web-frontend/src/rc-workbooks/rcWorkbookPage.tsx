@@ -47,8 +47,9 @@ import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbo
 import { RcDocumentsCard } from "./rcDocumentsCard";
 import { type RcPersona } from "./rcViewData";
 import {
-  loadEventSequenceFamilySources,
+  loadEsHandoffSources,
   type EventSequenceFamilySource,
+  type ReleaseCategorySource,
 } from "../workbooks/riskWorkbookConnections";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
@@ -91,6 +92,7 @@ function RcWorkbookPage(): JSX.Element {
   const [projectName, setProjectName] = useState<string>("");
   const [exampleOptions, setExampleOptions] = useState<RcExampleOption[]>([]);
   const [eventSequenceFamilySources, setEventSequenceFamilySources] = useState<EventSequenceFamilySource[]>([]);
+  const [releaseCategorySources, setReleaseCategorySources] = useState<ReleaseCategorySource[]>([]);
   const workbookName = data?.rc.name ?? "";
   const workbookVersion = data?.rc.version ?? "1";
 
@@ -123,10 +125,16 @@ function RcWorkbookPage(): JSX.Element {
           if (!cancelled) setProjectName("");
         }
         try {
-          const sources = await loadEventSequenceFamilySources(workbook.projectId);
-          if (!cancelled) setEventSequenceFamilySources(sources);
+          const sources = await loadEsHandoffSources(workbook.projectId);
+          if (!cancelled) {
+            setEventSequenceFamilySources(sources.families);
+            setReleaseCategorySources(sources.categories);
+          }
         } catch {
-          if (!cancelled) setEventSequenceFamilySources([]);
+          if (!cancelled) {
+            setEventSequenceFamilySources([]);
+            setReleaseCategorySources([]);
+          }
         }
       })
       .catch((err: unknown) => {
@@ -293,7 +301,7 @@ function RcWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <RcWorkbookProvider key={id} data={data} editable={editable} mutateRc={mutateRc} eventSequenceFamilySources={eventSequenceFamilySources} sourceTerms={sourceTerms} siteReceptors={siteReceptors} weather={weather} transport={transport} doseInputs={doseInputs} caseRecords={caseRecords}>
+    <RcWorkbookProvider key={id} data={data} editable={editable} mutateRc={mutateRc} eventSequenceFamilySources={eventSequenceFamilySources} releaseCategorySources={releaseCategorySources} sourceTerms={sourceTerms} siteReceptors={siteReceptors} weather={weather} transport={transport} doseInputs={doseInputs} caseRecords={caseRecords}>
       <RcWorkbench
         data={data}
         persona={persona}

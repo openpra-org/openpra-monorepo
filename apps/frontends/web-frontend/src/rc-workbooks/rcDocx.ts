@@ -12,6 +12,7 @@ import {
 } from "docx";
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { DistributionType } from "interfaces-mef-types/core/events";
+import { RC_SCOPE_ASPECTS, rcScopeTreatment } from "./rcScope";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({ text, heading: level, spacing: { before: 240, after: 120 }, pageBreakBefore: level === HeadingLevel.HEADING_1 });
@@ -77,6 +78,19 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
   out.push(para(doc.processDescription));
   out.push(para(doc.inputsDescription));
   out.push(para(doc.praTaskInterfaces));
+  out.push(heading("Evaluation by Aspect", HeadingLevel.HEADING_2));
+  out.push(dataTable(
+    ["Aspect", "Included?", "Treatment used", "Reason for exclusion"],
+    RC_SCOPE_ASPECTS.map((aspect) => {
+      const decision = a.scope.evaluationDecisions?.find((item) => item.subElement === aspect.subElement);
+      return [
+        `${aspect.label} (Step ${aspect.step})`,
+        decision === undefined ? "Not set" : decision.included ? "Included" : "Excluded",
+        decision?.included === false ? "—" : rcScopeTreatment(a, aspect.subElement) || "Not recorded",
+        decision?.included === false ? decision.exclusionReason?.trim() || "Not recorded" : "—",
+      ];
+    }),
+  ));
   out.push(heading("Quality Assurance & Freeze Date", HeadingLevel.HEADING_2));
   out.push(para(doc.rcqProcess));
   out.push(para(`Model version ${a.version}. Analysis date: ${a.metadata.analysisDate}.`));

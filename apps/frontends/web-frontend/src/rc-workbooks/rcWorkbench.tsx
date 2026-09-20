@@ -3,7 +3,6 @@ import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { RCIcon } from "./rcIcons";
 import {
-  RC_PERSONAS,
   CAPABILITY_CATEGORIES,
   type RcPersona,
   type RcStep,
@@ -87,11 +86,11 @@ function WorkspaceHeader({
         <RCIcon.Chevron />
         <span className="poshd__crumb-current">{headerMeta.workbookName}</span>
         {personaPill !== null ? (
-          <span className={`poshd__wfstate ${personaPill.cls}`} title={RC_PERSONAS[persona].blurb}>
+          <span className={`poshd__wfstate ${personaPill.cls}`}>
             <RCIcon.Lock />{personaPill.text}
           </span>
         ) : (
-          <span className="poshd__wfstate poshd__wfstate--draft" title={workflowState}>
+          <span className="poshd__wfstate poshd__wfstate--draft">
             <span className="poshd__wfstate-dot" />{workflowState}
           </span>
         )}
@@ -101,7 +100,7 @@ function WorkspaceHeader({
 
       <div className="poshd__actions">
         {showPersonaPicker && availablePersonas.length > 1 && (
-          <label className="poshd__perspective" title="Switch perspective">
+          <label className="poshd__perspective">
             <span className="poshd__perspective-label">View as</span>
             <select className="poshd__perspective-select" value={persona} onChange={(e) => setPersona(e.target.value as RcPersona)}>
               {availablePersonas.includes("preparer") && <option value="preparer">Preparer</option>}
@@ -111,13 +110,13 @@ function WorkspaceHeader({
           </label>
         )}
         {onOpenRoles !== undefined && (
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles} title="Manage roles"><RCIcon.Settings /> Roles</button>
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles}><RCIcon.Settings /> Roles</button>
         )}
         {onLoadExample !== undefined && (
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onLoadExample} title="Replace contents with the Generic-1 example workbook"><RCIcon.Sparkle /> Load example</button>
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onLoadExample}><RCIcon.Sparkle /> Load example</button>
         )}
         {onUnloadExample !== undefined && (
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onUnloadExample} title="Restore the contents that existed before the example was loaded"><RCIcon.Close /> Unload example</button>
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onUnloadExample}><RCIcon.Close /> Unload example</button>
         )}
         <span className="poshd__save-pill"><span className="poshd__save-pill-dot" />Autosaved · v{headerMeta.workbookVersion}</span>
         <button type="button" className="posnav__btn" aria-label="History"><RCIcon.History /></button>
@@ -136,8 +135,9 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
   visibleSteps: RcStep[];
   mobileOpen: boolean;
 }): JSX.Element {
-  const idx = Math.max(0, visibleSteps.findIndex((s) => s.id === stepId));
-  const pct = ((idx + 1) / visibleSteps.length) * 100;
+  const enabledSteps = visibleSteps.filter((s) => !s.excluded);
+  const idx = Math.max(0, enabledSteps.findIndex((s) => s.id === stepId));
+  const pct = ((idx + 1) / enabledSteps.length) * 100;
   const eyebrow = persona === "reviewer" ? "Reviewer view" : persona === "approver" ? "Approver view" : "Workspace progress";
   return (
     <aside className={`posw__rail${mobileOpen ? " posw__rail--mobile-open" : ""}`} aria-label="RC analysis steps">
@@ -145,24 +145,26 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
         <span className="posrail__eyebrow">{eyebrow}</span>
         <div className="posrail__progress">
           <span className="posrail__progress-num">{idx + 1}</span>
-          <span className="posrail__progress-total">/ {visibleSteps.length} steps</span>
+          <span className="posrail__progress-total">/ {enabledSteps.length} steps</span>
         </div>
         <div className="posrail__bar"><div className="posrail__bar-fill" style={{ width: `${pct}%` }} /></div>
       </div>
       <ul className="posrail__list">
         {visibleSteps.map((s) => {
           const active = s.id === stepId;
-          const complete = s.status === "complete";
+          const excluded = s.excluded === true;
+          const complete = !excluded && s.status === "complete";
           const idle = s.status === "idle";
           return (
             <li key={s.id}>
-              <button type="button" className={`posrail__step${active ? " posrail__step--active" : ""}${complete ? " posrail__step--complete" : ""}${idle && s.terminal === true ? " posrail__step--idle" : ""}`} onClick={() => setStepId(s.id)}>
+              <button type="button" className={`posrail__step${active ? " posrail__step--active" : ""}${complete ? " posrail__step--complete" : ""}${idle && s.terminal === true ? " posrail__step--idle" : ""}${excluded ? " posrail__step--excluded" : ""}`} disabled={excluded} onClick={() => setStepId(s.id)}>
                 <span className="posrail__step-num">{complete ? <RCIcon.Check /> : s.num}</span>
                 <span>
                   <span className="posrail__step-label">
                     {s.label}
                     {s.se !== undefined && <span className={`rcse rcse--${s.seTone ?? "primary"}`} style={{ marginLeft: 6 }}>{s.se}</span>}
                   </span>
+                  {excluded && <span className="posrail__step-sub">Excluded</span>}
                 </span>
                 <span className="posrail__step-warn" style={{ background: "transparent" }} />
               </button>
@@ -313,6 +315,7 @@ function RcWorkbench({
   const isApprover = persona === "approver";
 
   const visibleSteps = useMemo(() => stepsFromMef(data.rc, persona), [data.rc, persona]);
+  const enabledSteps = useMemo(() => visibleSteps.filter((step) => !step.excluded), [visibleSteps]);
   const mefCcId = data.rc.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
   const mefSite = siteFromMef(data.rc);
   const [ccId, setCcId] = useState<string>(mefCcId);
@@ -320,7 +323,8 @@ function RcWorkbench({
   useEffect(() => { setCcId(mefCcId); }, [mefCcId]);
   useEffect(() => { setSite(mefSite); }, [mefSite]);
 
-  const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "handoff");
+  const [selectedStepId, setStepIdState] = useState<string>(enabledSteps[0]?.id ?? "handoff");
+  const stepId = enabledSteps.some((step) => step.id === selectedStepId) ? selectedStepId : enabledSteps[0]?.id ?? "handoff";
   const [initialSiteTab, setInitialSiteTab] = useState<"location" | "receptors">("receptors");
   const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
   const [dockOpen, setDockOpen] = useState(!isNarrow);
@@ -331,12 +335,11 @@ function RcWorkbench({
   const toastTimer = useRef<number | null>(null);
 
   useEffect(() => {
-    if (visibleSteps.find((s) => s.id === stepId) === undefined) {
-      setStepIdState(visibleSteps[0]?.id ?? "handoff");
-    }
-  }, [persona, stepId, visibleSteps]);
+    if (selectedStepId !== stepId) setStepIdState(stepId);
+  }, [selectedStepId, stepId]);
 
   function setStepId(id: string): void {
+    if (!enabledSteps.some((step) => step.id === id)) return;
     setStepIdState(id);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "auto" });
   }
@@ -385,10 +388,10 @@ function RcWorkbench({
     actions.requestRevision("").then(() => flash("Revision requested")).catch((err: unknown) => flash((err as { message?: string }).message ?? "Could not request revision"));
   }
 
-  const idx = Math.max(0, visibleSteps.findIndex((s) => s.id === stepId));
-  const step = visibleSteps[idx] ?? visibleSteps[0];
-  const prev = visibleSteps[idx - 1];
-  const next = visibleSteps[idx + 1];
+  const idx = Math.max(0, enabledSteps.findIndex((s) => s.id === stepId));
+  const step = enabledSteps[idx] ?? enabledSteps[0];
+  const prev = enabledSteps[idx - 1];
+  const next = enabledSteps[idx + 1];
   const h = headersFor(stepId);
 
   function renderScreen(): JSX.Element {

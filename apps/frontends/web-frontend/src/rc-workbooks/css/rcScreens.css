@@ -72,7 +72,6 @@
 .hrmethod-chip { font-family: var(--font-data), ui-monospace, monospace; font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 999px; cursor: default; background: var(--color-primary); color: #fff; }
 .hrempty { padding: 28px 18px; text-align: center; }
 .hrempty__title { font-family: var(--font-display), Georgia, serif; font-size: 16px; font-weight: 700; color: var(--color-text); }
-.hrempty__hint { margin: 8px auto 0; max-width: 520px; font-size: 13px; color: var(--color-text-muted); line-height: 1.55; }
 
 /* â”€â”€â”€ Load-example modal (rclink) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .rclink-backdrop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(29, 25, 43, 0.45); backdrop-filter: blur(2px); }
@@ -100,6 +99,39 @@
 @media (min-width: 1080px) { .rcgrid { grid-template-columns: 1fr 1fr 1fr; } }
 .rcgrid--2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
 @media (min-width: 860px) { .rcgrid--2 { grid-template-columns: 1fr 1fr; } }
+
+.rc-handoff__interface-tiles { max-width: 860px; }
+.rc-handoff__wide-card { box-sizing: border-box; width: 100%; max-width: 1120px; }
+.rc-handoff__wide-card:has(.rc-ms-source),
+.rc-handoff__wide-card:has(.rc-handoff__ri) { max-width: 900px; }
+.rc-handoff__es { max-width: 1080px; overflow-x: auto; }
+.rc-handoff__es .postable { min-width: 760px; }
+.rc-handoff__ri .posfield { max-width: 700px; }
+.rc-handoff__ri .posrow { flex-wrap: wrap; }
+.rc-handoff__ri .posrow .posfield__input { box-sizing: border-box; min-width: 0; }
+.rc-handoff__ri .posfield__textarea { box-sizing: border-box; min-height: 68px; }
+.rc-handoff__scope > .posfield__textarea { box-sizing: border-box; max-width: 820px; min-height: 76px; }
+.rc-handoff__compact-card { box-sizing: border-box; width: 100%; max-width: 960px; }
+.rc-handoff__choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 4px; }
+@media (max-width: 720px) { .rc-handoff__choices { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 520px) { .rc-handoff__interface-tiles { grid-template-columns: minmax(0, 1fr); } }
+
+.rcscope { margin-top: 18px; }
+.rcscope__title { margin: 0 0 10px; font-family: var(--font-ui), sans-serif; font-size: 13px; font-weight: 700; color: var(--color-text); }
+.rcscope__table-wrap { max-width: 1080px; overflow-x: auto; }
+.rcscope__table { width: 100%; min-width: 730px; table-layout: fixed; }
+.rcscope__table th:nth-child(1) { width: 23%; }
+.rcscope__table th:nth-child(2) { width: 17%; }
+.rcscope__table th:nth-child(3) { width: 34%; }
+.rcscope__table th:nth-child(4) { width: 26%; }
+.rcscope__table td:nth-child(3) { vertical-align: middle; }
+.rcscope__table td { vertical-align: top; line-height: 1.4; overflow-wrap: anywhere; }
+.rcscope__table td strong { font-weight: 700; }
+.rcscope__step { display: block; margin-top: 3px; font-size: 11px; color: var(--color-text-muted); }
+.rcscope__table .posfield__select, .rcscope__table .posfield__input { width: 100%; min-width: 0; font-size: 12px; }
+.rcscope__error { display: block; margin-top: 4px; font-size: 11px; color: var(--color-error); }
+.posrail__step--excluded { opacity: 0.55; cursor: not-allowed; }
+.posrail__step--excluded:hover { background: none; }
 
 /* â”€â”€â”€ Sub-element badge (RC is a composite of eight) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .rcse {

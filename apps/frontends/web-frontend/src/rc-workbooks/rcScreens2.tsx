@@ -66,7 +66,6 @@ function DispersionScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "dispersion", id: "dispersion" })}><RCIcon.Settings /> Edit</button>}
           </div>
         </div>
-        <p className="poscard__sub">The model class, the temporal resolution, the spatial treatment and the weather sampling. Select edit to change them.</p>
         <div className="rcdisp">
           <div className="rcdisp__main">
             <div className="rcdisp__model">{ad.dispersionModel.name ?? DISPERSION_CLASS_LABELS[ad.dispersionModel.modelClass]}</div>
@@ -83,7 +82,6 @@ function DispersionScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "dispersion", id: "dispersion" })}><RCIcon.Settings /> Edit</button>}
           </div>
         </div>
-        <p className="poscard__sub">Favorable physics that lowers the dose must be earned, forbidden at CC-I and credited through a justified algorithm at CC-II.</p>
         <div className="rccredit">
           {CREDIT_FENCE.map((f) => {
             const Icon = RCIcon[f.icon] ?? RCIcon.NoEntry;
@@ -116,7 +114,6 @@ function DispersionScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "deposition", id: "deposition" })}><RCIcon.Settings /> Edit</button>}
           </div>
         </div>
-        <p className="poscard__sub">The deposition modules are switched off at CC-I and switched on at CC-II, module by module. Select edit to change the CC-II state and the velocities.</p>
         <div className="rcdepo">
           <div className="rcdepo__row rcdepo__row--head">
             <div className="rcdepo__cell"><span className="rcdepo__process">Deposition process</span></div>
@@ -171,7 +168,6 @@ function DosimetryScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addPathway}><RCIcon.Plus /> Add pathway</button>}
           </div>
         </div>
-        <p className="poscard__sub">Five pathways turn concentration into dose, and any exclusion is justified. Select a pathway to edit it.</p>
         <div className="rcpath">
           {dose.exposurePathways.map((p, i) => {
             const meta = EXPOSURE_PATHWAY_LABELS[p.pathway];
@@ -198,7 +194,6 @@ function DosimetryScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "dosetreatment", id: "dose" })}><RCIcon.Settings /> Edit</button>}
           </div>
         </div>
-        <p className="poscard__sub">The immersion model, the breathing rates, the ingestion and the dose conversion factors each refine from CC-I to CC-II. Select edit to change them.</p>
         <div className="rcgrid--2">
           {DOSE_SPLITS.map((s) => {
             const Icon = RCIcon[s.icon] ?? RCIcon.Sigma;
@@ -239,7 +234,6 @@ function HealthEffectsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext
           <WorkbookSectionHeading workbook="RC" title="Health effects" level={3} />
           <RcProvenanceChip>RCHE-A1</RcProvenanceChip>
         </div>
-        <p className="poscard__sub">The early effects and the latent effects to evaluate are identified, since they need different parameters.</p>
         <div className="rche">
           <div className="rche__col">
             <div className="rche__col-head">
@@ -290,7 +284,6 @@ function HealthEffectsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "healthparams", id: "he" })}><RCIcon.Settings /> Edit</button>}
           </div>
         </div>
-        <p className="poscard__sub">Simplified parameters at CC-I, or organ-specific dose-response with the dose-rate effectiveness at CC-II.</p>
         <div className="rcgrid--2">
           {HE_PARAM_SPLITS.map((s) => (
             <div key={s.id} className="rccard rccard--health">
@@ -309,7 +302,6 @@ function HealthEffectsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRiskFactor}><RCIcon.Plus /> Add source</button>}
           </div>
         </div>
-        <p className="poscard__sub">Every risk factor is anchored to an internationally recognized body, not a local derivation. Select a source to edit it.</p>
         <div className="rcgrid--2">
           {he.riskFactorSources.map((r, i) => (
             <button key={i} type="button" className="rccard rccard--health" style={{ cursor: "pointer", textAlign: "left", border: "none", width: "100%" }} onClick={() => openDrawer({ kind: "riskfactor", id: String(i) })}>
@@ -348,7 +340,6 @@ function EconomicsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCategory}><RCIcon.Plus /> Add category</button>}
           </div>
         </div>
-        <p className="poscard__sub">The off-site cost is split into categories, since the standard refuses to let the societal-cost number be folklore. Select a category to edit it.</p>
         <div className="rccost">
           {ec.costCategories.map((c, i) => {
             const Icon = RCIcon[COST_CATEGORY_ICONS[c.category] ?? "Dollar"] ?? RCIcon.Dollar;
@@ -373,7 +364,6 @@ function EconomicsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addParam}><RCIcon.Plus /> Add parameter</button>}
           </div>
         </div>
-        <p className="poscard__sub">The cost parameters use regional data, from recognized sources, adjusted to a common year. Select a row to edit it.</p>
         <div className="rcbasis">
           {ec.costParameterEstimates.map((e, i) => {
             const Icon = RCIcon[COST_PARAM_ICONS[e.parameter] ?? "Dollar"] ?? RCIcon.Dollar;

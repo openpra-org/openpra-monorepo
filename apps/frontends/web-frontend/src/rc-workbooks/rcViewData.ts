@@ -9,6 +9,7 @@ interface RcStep {
   label: string;
   sub: string;
   status: StepStatus;
+  excluded?: boolean;
   se?: RcSubElement;
   seTone?: SubElementTone;
   terminal?: boolean;
@@ -370,24 +371,6 @@ const CONSEQUENCE_METRIC_NOTES: Record<string, string> = {
   "Population dose to 80 km": "The collective effective dose to the population within the analysis radius.",
 };
 
-interface ScopingAspectSpec {
-  aspect: string;
-  se: RcSubElement;
-  degreeKey: "protectiveActionsModellingDegree" | "meteorologyModellingDegree" | "atmosphericDispersionModellingDegree" | "dosimetryModellingDegree" | "healthEffectsModellingDegree" | "economicFactorsModellingDegree";
-  level: "full" | "partial" | "screened";
-}
-
-const SCOPING_ASPECTS: ScopingAspectSpec[] = [
-  { aspect: "Protective actions", se: "RCPA", degreeKey: "protectiveActionsModellingDegree", level: "full" },
-  { aspect: "Meteorology", se: "RCME", degreeKey: "meteorologyModellingDegree", level: "full" },
-  { aspect: "Atmospheric dispersion", se: "RCAD", degreeKey: "atmosphericDispersionModellingDegree", level: "full" },
-  { aspect: "Dosimetry", se: "RCDO", degreeKey: "dosimetryModellingDegree", level: "full" },
-  { aspect: "Health effects", se: "RCHE", degreeKey: "healthEffectsModellingDegree", level: "full" },
-  { aspect: "Economic factors", se: "RCEC", degreeKey: "economicFactorsModellingDegree", level: "partial" },
-];
-
-const SCOPE_LEVEL_LABELS: Record<string, string> = { full: "Full", partial: "Partial", screened: "Screened" };
-
 const PROTECTIVE_ACTION_LABELS: Record<string, { name: string; icon: string }> = {
   EVACUATION: { name: "Evacuation", icon: "Car" },
   SHELTERING: { name: "Sheltering", icon: "Home" },
@@ -657,7 +640,6 @@ export type {
   LinkSpec,
   SiteOptionSpec,
   HandoffInputSpec,
-  ScopingAspectSpec,
   LadderSpec,
   CreditFenceSpec,
   DepositionRowSpec,
@@ -681,8 +663,6 @@ export {
   SITE_OPTIONS,
   HANDOFF_INPUTS,
   CONSEQUENCE_METRIC_NOTES,
-  SCOPING_ASPECTS,
-  SCOPE_LEVEL_LABELS,
   PROTECTIVE_ACTION_LABELS,
   INCIDENT_PHASE_LABELS,
   EVAC_DELAY_LABELS,

@@ -12,6 +12,7 @@ import { getRcWorkbook } from "../rc-workbooks/rcWorkbookApi";
 import { listWorkbooks } from "./workbookApi";
 
 type EventSequenceFamily = EventSequenceAnalysis["eventSequenceFamilies"][number];
+type ReleaseCategoryMapping = NonNullable<EventSequenceAnalysis["releaseCategoryMappings"]>[number];
 type FamilyQuantification = EventSequenceQuantification["familyQuantifications"][number];
 type ConsequenceRecord = RadiologicalConsequenceAnalysis["consequenceQuantification"]["eventSequenceConsequences"][number];
 
@@ -20,6 +21,12 @@ interface EventSequenceFamilySource {
   workbookName: string;
   family: EventSequenceFamily;
   reference: EventSequenceFamilyWorkbookReference;
+}
+
+interface ReleaseCategorySource {
+  workbookId: string;
+  workbookName: string;
+  category: ReleaseCategoryMapping;
 }
 
 interface FamilyQuantificationSource {
@@ -79,13 +86,13 @@ function sourcesForEventSequenceFamily(
   };
 }
 
-async function loadEventSequenceFamilySources(projectId: string): Promise<EventSequenceFamilySource[]> {
+async function loadEsHandoffSources(projectId: string): Promise<{ families: EventSequenceFamilySource[]; categories: ReleaseCategorySource[] }> {
   const { workbooks } = await listWorkbooks(projectId, "ES");
   const loaded = await Promise.allSettled(workbooks.map(async (workbook) => ({
     workbook,
     response: await getEsWorkbook(workbook.id),
   })));
-  return loaded.flatMap((entry) => entry.status === "fulfilled"
+  const families = loaded.flatMap((entry) => entry.status === "fulfilled"
     ? entry.value.response.mef.eventSequenceFamilies.map((family) => ({
       workbookId: entry.value.workbook.id,
       workbookName: entry.value.workbook.name,
@@ -97,6 +104,18 @@ async function loadEventSequenceFamilySources(projectId: string): Promise<EventS
       },
     }))
     : []).sort((a, b) => a.family.name.localeCompare(b.family.name));
+  const categories = loaded.flatMap((entry) => entry.status === "fulfilled"
+    ? (entry.value.response.mef.releaseCategoryMappings ?? []).map((category) => ({
+      workbookId: entry.value.workbook.id,
+      workbookName: entry.value.workbook.name,
+      category,
+    }))
+    : []).sort((a, b) => a.category.releaseCategoryId.localeCompare(b.category.releaseCategoryId));
+  return { families, categories };
+}
+
+async function loadEventSequenceFamilySources(projectId: string): Promise<EventSequenceFamilySource[]> {
+  return (await loadEsHandoffSources(projectId)).families;
 }
 
 async function loadFamilyQuantificationSources(projectId: string): Promise<FamilyQuantificationSource[]> {
@@ -152,12 +171,14 @@ async function loadRiRiskSources(projectId: string): Promise<RiRiskSources> {
 }
 
 export {
+  loadEsHandoffSources,
   loadEventSequenceFamilySources,
   loadRiRiskSources,
   meanFrequencyValue,
   consequenceMetricMatches,
   sourcesForEventSequenceFamily,
   type EventSequenceFamilySource,
+  type ReleaseCategorySource,
   type FamilyQuantificationSource,
   type ConsequenceResultSource,
   type RiRiskSources,

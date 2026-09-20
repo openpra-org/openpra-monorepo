@@ -1,11 +1,16 @@
 /* Step 01 layout only. Buttons, fields and the category modal reuse app styles. */
 .rc-ms-source { container-type: inline-size; margin-top: 22px; min-width: 0; width: 100%; font-size: 13px; line-height: 1.45; color: var(--color-text); }
 .rc-ms-source .rc-source__category { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-.rc-ms-source .rc-source__category > .posfield { flex: 1 1 240px; max-width: 420px; min-width: 0; margin: 0; }
+.rc-ms-source .rc-source__category > .posfield { flex: 1 1 220px; max-width: 320px; min-width: 0; margin: 0; }
 .rc-ms-source .rc-source__actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .rc-ms-source .rc-source__category .posfield__select,
 .rc-ms-source .rc-source__actions > .posnav__btn { box-sizing: border-box; height: 38px; min-height: 38px; }
 .rc-ms-source .st-review { min-width: 0; overflow-wrap: anywhere; }
+.rc-ms-source .st-source,
+.rc-ms-source .st-tabs,
+.rc-ms-source .st-panel,
+.rc-ms-source .st-footer,
+.rc-ms-source .st-empty { box-sizing: border-box; max-width: 820px; }
 .rc-ms-source .posnav__btn { white-space: nowrap; }
 .rc-ms-source .posnav__btn:disabled { cursor: default; opacity: .5; }
 .rc-ms-source .st-review input, .rc-ms-source .st-review select { box-sizing: border-box; min-width: 0; }

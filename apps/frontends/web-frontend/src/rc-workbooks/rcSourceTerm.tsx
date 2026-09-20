@@ -16,7 +16,7 @@ export function RcSourceTermImport({ category, onImported, disabled = false, com
   const input = useRef<HTMLInputElement>(null);
   if (!editable || !sourceTerms) return null;
   return <div>
-    <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled || busy} title={disabled ? "Save or discard your edits before importing another file" : undefined} onClick={() => input.current?.click()}>
+    <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled || busy} onClick={() => input.current?.click()}>
       {category.sourceTerm?.originalFile ? <RCIcon.Refresh /> : <RCIcon.Plus />} {busy ? "Importing…" : compact ? category.sourceTerm?.originalFile ? "Replace file" : "Import file" : "Import source-term file"}
     </button>
       <WorkbookInput ref={input} type="file" hidden accept=".inp,.txt,.dat,text/plain" disabled={busy || disabled}
@@ -102,7 +102,7 @@ export function RcSourceTermEditor({ category, inline = false }: { category: Rel
   return <div className="posfield rc-source-editor">
     <div className="posfield__label">Source data</div>
     {!active ? <>
-      <p className="posmuted">Import a MelMACCS source-term text file, or enter inventory, release segments and fractions.</p>
+      <p className="posmuted">No source data.</p>
       <RcSourceTermImport category={category} />
       {editable && sourceTerms && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setActive(true)}>Enter source data</button>}
     </> : <>
@@ -170,7 +170,7 @@ export function RcSourceTermEditor({ category, inline = false }: { category: Rel
             <td><WorkbookInput aria-label={`Fraction for ${g.name || g.id} in segment ${release?.id ?? "none"}`} className="posfield__input posmono" type="number" step="any" min="0" max="1" value={shown(release?.fractions[i])} disabled={dis || !release}
               onChange={(e) => edit({ ...values, releases: values.releases.map((row, j) => j === segment ? { ...row, fractions: row.fractions.map((v, k) => k === i ? number(e.target.value) : v) } : row) })} /></td>
             <td className="posmono">{values.releases.reduce((sum, r) => sum + (r.fractions[i] ?? 0), 0).toPrecision(5)}</td>
-            {editable && <td><button type="button" className="posnav__btn posnav__btn--sm" disabled={dis || values.inventory.some((n) => n.group === g.id)} title="Reassign its nuclides before removing a group" aria-label={`Remove group ${g.id}`}
+            {editable && <td><button type="button" className="posnav__btn posnav__btn--sm" disabled={dis || values.inventory.some((n) => n.group === g.id)} aria-label={`Remove group ${g.id}`}
               onClick={() => edit({ ...values, groups: values.groups.filter((_, j) => i !== j), releases: values.releases.map((r) => ({ ...r, fractions: r.fractions.filter((_, j) => i !== j) })) })}>Remove</button></td>}
           </tr>)}</tbody>
         </table></div>

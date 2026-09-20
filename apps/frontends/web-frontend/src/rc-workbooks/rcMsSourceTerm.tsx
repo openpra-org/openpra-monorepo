@@ -37,6 +37,6 @@ export function RcMsSourceTerm({ openDrawer }: { openDrawer: (context: RcDrawerC
       </div>
     </div>
     {category ? <RcSourceTermEditor key={`${category.releaseCategory}:${editable}`} category={category} inline />
-      : <p className="posmuted">Add a release category, then import its source-term file or enter the data.</p>}
+      : <p className="posmuted">No release categories.</p>}
   </section>;
 }

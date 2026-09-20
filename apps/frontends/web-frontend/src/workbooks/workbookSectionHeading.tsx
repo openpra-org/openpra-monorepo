@@ -46,9 +46,11 @@ function WorkbookSectionHeading({
   className?: string;
 }): JSX.Element {
   const resolvedTitle = cueKey ?? (typeof title === "string" ? title : "this section");
-  const cue = workbook === undefined
-    ? description
-    : composeWorkbookCue(workbook, resolvedTitle, description);
+  const cue = workbook === "RC"
+    ? undefined
+    : workbook === undefined
+      ? description
+      : composeWorkbookCue(workbook, resolvedTitle, description);
   const heading = level === 1
     ? <h1 className={className}>{title}</h1>
     : level === 2
@@ -77,11 +79,11 @@ function WorkbookCueLabel({
   className: string;
 }): JSX.Element {
   const resolvedTitle = cueKey ?? (typeof title === "string" ? title : "this subsection");
-  const cue = composeWorkbookCue(workbook, resolvedTitle, description);
+  const cue = workbook === "RC" ? undefined : composeWorkbookCue(workbook, resolvedTitle, description);
   return (
     <div className={`${className} workbook-cue-label`}>
       <span>{title}</span>
-      <WorkbookHelpButton label={`About ${resolvedTitle}`}>{cue}</WorkbookHelpButton>
+      {cue !== undefined && <WorkbookHelpButton label={`About ${resolvedTitle}`}>{cue}</WorkbookHelpButton>}
     </div>
   );
 }

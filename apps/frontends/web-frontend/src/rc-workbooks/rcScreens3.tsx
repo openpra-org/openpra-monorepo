@@ -194,7 +194,6 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCode}><RCIcon.Plus /> Add code</button>}
           </div>
         </div>
-        <p className="poscard__sub">The codes are demonstrated against accepted algorithms, with the roles named rather than any product. Select a code to edit it.</p>
         <div className="rccode">
           {q.consequenceCodesUsed.map((c, i) => {
             const Icon = RCIcon[RC_CODE_ICONS[c.code] ?? "Cpu"] ?? RCIcon.Cpu;
@@ -238,7 +237,6 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
             <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addLinkedFamily}><RCIcon.Plus /> Add linked family</button>
           </div>
         )}
-        <p className="poscard__sub">The deliverable is the list of event sequence families and their radiological consequences, the table RI pairs with the ESQ frequency. Select a family to edit it.</p>
         <div className="rcfamily">
           {q.eventSequenceConsequences.map((f) => {
             const sig = f.riskSignificance ?? "LOW";
@@ -282,7 +280,6 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
           <WorkbookSectionHeading workbook="RC" title="Output review" level={3} />
           <RcProvenanceChip>RCQ-B1 · B2</RcProvenanceChip>
         </div>
-        <p className="poscard__sub">The output files are scanned for error statements and silent zeros, then the results are confirmed against expectation.</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="posfield">
             <label className="posfield__label">Acceptance justifications</label>
@@ -308,7 +305,6 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
           <WorkbookSectionHeading workbook="RC" title="Risk-significant contributors" level={3} />
           <RcProvenanceChip>RCQ-B3</RcProvenanceChip>
         </div>
-        <p className="poscard__sub">The risk-significant contributors are identified per HLR-RI-B, the handshake from the consequence side.</p>
         <div className="rccontrib">
           {(q.riskSignificantContributors ?? []).map((c, i) => (
             <div key={i} className="rccontrib__row">
@@ -331,7 +327,6 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
           <WorkbookSectionHeading workbook="RC" title="Uncertainty characterization" level={3} />
           <RcProvenanceChip>RCQ-C1 · C2</RcProvenanceChip>
         </div>
-        <p className="poscard__sub">The model uncertainties from every sub-element funnel into the uncertainty distribution of each consequence metric, with the dependent phenomena sampled together.</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <RcSelectField label="Characterization level" value={q.uncertaintyCharacterization.level} options={UNCERT_LEVEL_OPTIONS} disabled={!editable}
             onChange={(v) => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, uncertaintyCharacterization: { ...d.consequenceQuantification.uncertaintyCharacterization, level: v as typeof q.uncertaintyCharacterization.level } } }))} />
@@ -366,7 +361,6 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
           <WorkbookSectionHeading workbook="RC" title="Quantification basis and limitations" level={3} />
           <RcProvenanceChip>RCQ-B3 · D3</RcProvenanceChip>
         </div>
-        <p className="poscard__sub">The risk-significance criteria, the mapping from each consequence metric to the plant risk metric, and the quantification limitations.</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="posfield">
             <label className="posfield__label">Risk-significance criteria</label>
@@ -430,7 +424,6 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addPreop}><RCIcon.Plus /> Add assumption</button>}
           </div>
         </div>
-        <p className="poscard__sub">The model uncertainties, the bounding-site assumptions and the sensitivity studies feed the documentation. Select a row to edit it.</p>
         <table className="postable">
           <thead><tr><th>Type</th><th>Item</th><th>Detail</th><th>SR</th></tr></thead>
           <tbody>
@@ -455,7 +448,6 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
             {editable && rif === undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRif}><RCIcon.Plus /> Add feedback</button>}
           </div>
         </div>
-        <p className="poscard__sub">The feedback Risk Integration returns on the consequence table, and the RC response.</p>
         {rif === undefined ? (
           <p className="posmuted" style={{ margin: 0 }}>No risk-integration feedback yet.</p>
         ) : (
@@ -483,7 +475,6 @@ function DraftScreen({ cc, scores, site, onSubmitDraft, canSubmit }: {
   canSubmit: boolean;
 }): JSX.Element {
   const { rc } = useRcWorkbook();
-  const ready = scores.blocked === 0 && scores.warn === 0;
   function downloadJson(): void {
     const blob = new Blob([JSON.stringify(rc, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -521,11 +512,6 @@ function DraftScreen({ cc, scores, site, onSubmitDraft, canSubmit }: {
 
         <div className="posgen__readout">
           <WorkbookSectionHeading workbook="RC" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
-          <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-            {ready
-              ? <>All applicable items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 8 and moves to <strong>Internal Technical Review</strong>.</>
-              : <>{scores.warn} item{scores.warn === 1 ? "" : "s"} need attention. A working draft is fine, but approval waits.</>}
-          </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {canSubmit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onSubmitDraft}><RCIcon.Send /> Submit draft to internal review</button>}
             <button type="button" className="posnav__btn" onClick={() => { void generateRcReport(rc, false); }}><RCIcon.Download /> Download draft (.docx)</button>
@@ -1130,9 +1116,9 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
                       {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ consequenceResults: [...results.slice(0, i), ...results.slice(i + 1)] })}>Remove</button>}
                     </div>
                     <div className="posrow rc-result-metric-row" style={{ gap: 6 }}>
-                      <WorkbookInput className="posfield__input posmono" style={{ width: 160 }} type="number" step="any" placeholder="median" aria-label="Median" value={numberValue(median)} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDistribution: { type: DistributionType.LOGNORMAL, median: n, errorFactor: ef ?? 3 } } : y)) }); }} />
-                      <WorkbookInput className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" placeholder="EF" aria-label="Error factor" value={numberValue(ef)} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDistribution: { type: DistributionType.LOGNORMAL, median: median ?? 0, errorFactor: n } } : y)) }); }} />
-                      <WorkbookInput className="posfield__input" aria-label="Uncertainty description" style={{ flex: "1 1 180px" }} placeholder="description" value={m.uncertaintyDescription ?? ""} disabled={dis} onChange={(e) => patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDescription: e.target.value } : y)) })} />
+                      <WorkbookInput className="posfield__input posmono" style={{ width: 160 }} type="number" step="any" aria-label="Median" value={numberValue(median)} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDistribution: { type: DistributionType.LOGNORMAL, median: n, errorFactor: ef ?? 3 } } : y)) }); }} />
+                      <WorkbookInput className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" aria-label="Error factor" value={numberValue(ef)} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDistribution: { type: DistributionType.LOGNORMAL, median: median ?? 0, errorFactor: n } } : y)) }); }} />
+                      <WorkbookInput className="posfield__input" aria-label="Uncertainty description" style={{ flex: "1 1 180px" }} value={m.uncertaintyDescription ?? ""} disabled={dis} onChange={(e) => patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDescription: e.target.value } : y)) })} />
                     </div>
                   </div>
                 );
@@ -1313,7 +1299,6 @@ function PlaceholderScreen({ label }: { label: string }): JSX.Element {
     <div className="poscard">
       <div className="hrempty">
         <div className="hrempty__title">{label}</div>
-        <p className="hrempty__hint">This step is part of the Radiological Consequence Analysis workflow.</p>
       </div>
     </div>
   );

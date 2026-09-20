@@ -83,6 +83,7 @@ export interface ReleaseCategoryInputs {
 export interface RcScope {
   consequenceMetrics: string[];
   metricSelectionApplicationBasis?: string;
+  evaluationDecisions?: RcScopeDecision[];
   protectiveActionsModellingDegree: string;
   meteorologyModellingDegree: string;
   atmosphericDispersionModellingDegree: string;
@@ -90,6 +91,14 @@ export interface RcScope {
   healthEffectsModellingDegree: string;
   economicFactorsModellingDegree: string;
   implementsSrs: SRReference[];
+}
+
+export type RcEvaluationSubElement = Exclude<RcSubElement, "RCRE">;
+
+export interface RcScopeDecision {
+  subElement: RcEvaluationSubElement;
+  included: boolean;
+  exclusionReason?: string;
 }
 
 export interface ReleaseCategoryToConsequenceAnalysis {

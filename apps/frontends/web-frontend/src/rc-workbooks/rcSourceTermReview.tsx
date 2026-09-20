@@ -67,7 +67,7 @@ export function RcSourceTermReview({ category, values, active, disabled, dirty, 
   return <div className="st-review">
     <section className="st-source" aria-label="Source term file">
       <div className="st-source-info"><span className="st-label">Source term file</span>
-        <strong>{source?.originalFile?.filename ?? (source ? "Manually entered source term" : "Import inventory and releases together")}</strong>
+        <strong>{source?.originalFile?.filename ?? (source ? "Manually entered source term" : "No source-term file")}</strong>
         <span className="st-caption">.inp · .txt · .dat</span>
       </div>
       <div className="st-file-actions">{importControl}
@@ -76,7 +76,7 @@ export function RcSourceTermReview({ category, values, active, disabled, dirty, 
         }}><RCIcon.Eye /> View file</button>}
       </div>
     </section>
-    {!active ? <div className="st-empty"><div>Inventory → release segments → group release fractions</div><p>Imported together from one source-term file</p>
+    {!active ? <div className="st-empty">
       {editable && sourceTerms && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setManage(true); onEnter(); }}>Enter source data</button>}
     </div> : <>
       <div className="st-tabs" role="tablist" aria-label="Source term inputs" ref={tabs} onKeyDown={e => {
@@ -124,19 +124,19 @@ export function RcSourceTermReview({ category, values, active, disabled, dirty, 
               <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled} aria-label={`Remove nuclide ${offset + i + 1}`} onClick={() => edit({ ...values, inventory: values.inventory.filter((_, j) => j !== offset + i) })}>Remove</button>
             </div>)}</div>
             <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled || !values.groups.length} onClick={() => { edit({ ...values, inventory: [...values.inventory, { name: "", group: values.groups[0].id, activityBq: Number.NaN }] }); setPage(Math.floor(values.inventory.length / 8)); }}>Add nuclide</button>
-            {!values.groups.length && <p className="st-caption">Add a chemical group under Releases first.</p>}
+            {!values.groups.length && <p className="st-caption">No chemical groups.</p>}
           </> : <>
             <div className="st-file-actions"><button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled} onClick={addSegment}>Add segment</button>
               {release && <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled} aria-label={`Remove segment ${release.id}`} onClick={() => { edit({ ...values, releases: values.releases.filter((_, i) => i !== index) }); setSegment(0); }}>Remove segment</button>}
             </div>
             <h3>Chemical groups</h3><div className="st-structure-rows">{values.groups.map((g, i) => <div className="st-structure-row st-structure-row--group" key={g.id}>
               <WorkbookInput className="posfield__input posmono" aria-label={`Name of group ${g.id}`} value={g.name} disabled={disabled} onChange={e => edit({ ...values, groups: values.groups.map((r, j) => j === i ? { ...r, name: e.target.value } : r) })} />
-              <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled || values.inventory.some(n => n.group === g.id)} title="Reassign its nuclides before removing a group" aria-label={`Remove group ${g.id}`} onClick={() => edit({ ...values, groups: values.groups.filter((_, j) => i !== j), releases: values.releases.map(r => ({ ...r, fractions: r.fractions.filter((_, j) => i !== j) })) })}>Remove</button>
+              <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled || values.inventory.some(n => n.group === g.id)} aria-label={`Remove group ${g.id}`} onClick={() => edit({ ...values, groups: values.groups.filter((_, j) => i !== j), releases: values.releases.map(r => ({ ...r, fractions: r.fractions.filter((_, j) => i !== j) })) })}>Remove</button>
             </div>)}</div><button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled} onClick={addGroup}>Add chemical group</button>
           </>}
         </details>}
       </div>
-      {!!missing && <p className="st-caption" role="status">{missing} missing segment values. Blank means missing.</p>}
+      {!!missing && <p className="st-caption" role="status">{missing} missing segment values.</p>}
       {!!issues.length && <ul className="st-errors" role="alert">{[...new Set(issues)].slice(0, 4).map(issue => <li key={issue}>{issue}</li>)}</ul>}
       <footer className="st-footer">{dirty && <span className="st-caption" role="status">Unsaved changes</span>}
         {editable && <div className="st-file-actions">{dirty && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--ghost" disabled={disabled} onClick={onDiscard}>Discard edits</button>}

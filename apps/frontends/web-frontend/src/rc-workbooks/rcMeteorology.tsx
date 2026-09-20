@@ -66,7 +66,7 @@ export function RcMeteorologyPanel({ onReviewSite }: { onReviewSite?: () => void
     const file = fileKind === "weather" ? weather.weatherFile : weather.configurationFile;
     return <><div className="mw-file"><div className="mw-file-info"><span className="mw-small">{fileKind === "weather" ? "Weather data file" : "Generation settings file · optional"}</span>
       <strong>{file?.filename ?? "No file selected"}</strong><span className="mw-small">{fileKind === "weather" ? ".met · .txt" : ".inp · .txt"}</span>
-    </div><div className="mw-file-actions">{editable && <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled || dirty} title={dirty ? "Save or discard edits before importing" : undefined} onClick={() => { kind.current = fileKind; input.current?.click(); }}>{file ? <RCIcon.Refresh /> : <RCIcon.Plus />} {file ? "Replace file" : "Import file"}</button>}
+    </div><div className="mw-file-actions">{editable && <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled || dirty} onClick={() => { kind.current = fileKind; input.current?.click(); }}>{file ? <RCIcon.Refresh /> : <RCIcon.Plus />} {file ? "Replace file" : "Import file"}</button>}
       {file && <button type="button" className="posnav__btn posnav__btn--sm" disabled={busy || !actions} onClick={async () => {
         if (raw?.documentId === file.documentId) { setRaw(undefined); return; }
         setBusy(true); setError(""); try { setRaw({ documentId: file.documentId, text: await actions!.readOriginal(file.documentId) }); } catch (e) { setError(message(e)); } finally { setBusy(false); }
@@ -81,7 +81,7 @@ export function RcMeteorologyPanel({ onReviewSite }: { onReviewSite?: () => void
     const url = URL.createObjectURL(new Blob([JSON.stringify({ format: "openpra-weather-collection-request", version: 1, ...request }, null, 2)], { type: "application/json" }));
     const link = document.createElement("a"); link.href = url; link.download = "openpra-weather-collection-request.json"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  const status = busy ? "Working…" : source === "collect" ? datesDraft ? "Unsaved dates" : undefined : dirty ? "Unsaved changes" : !data ? "Import weather data to begin" : undefined;
+  const status = busy ? "Working…" : source === "collect" ? datesDraft ? "Unsaved dates" : undefined : dirty ? "Unsaved changes" : !data ? "No weather data" : undefined;
   return <div className="poscard rc-weather-input-card"><div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Weather inputs" level={3} /></div>
     <section className="rc-meteorology" aria-label="Weather inputs">
       <div className="mw-source-choice" role="group" aria-label="Weather source">
@@ -99,7 +99,7 @@ export function RcMeteorologyPanel({ onReviewSite }: { onReviewSite?: () => void
           </button>)}
         </div>
         <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${tab}`} tabIndex={0}>
-          {tab === "records" ? <>{fileBox("weather")}{!data ? <p className="mw-empty">Import weather records, then review their settings.</p> : <>
+          {tab === "records" ? <>{fileBox("weather")}{!data ? <p className="mw-empty">No weather records.</p> : <>
             <div className="mw-section-title"><h3>Weather records</h3></div>
             <div className="mw-meta"><span>{data.intervalMinutes}-minute averages</span>{!!data.gaps && <span>{data.gaps} gaps · {data.missingPeriods} missing periods within this sequence</span>}</div>
             {loading && <p role="status" className="mw-note">Loading records…</p>}
@@ -110,7 +110,7 @@ export function RcMeteorologyPanel({ onReviewSite }: { onReviewSite?: () => void
             {row && <div className="mw-detail"><strong>Record {offset + selected + 1} · day {row.day}, period {row.period}</strong><dl>
               <div><dt>Original wind sector</dt><dd>{row.windSector} of {count ?? "—"}</dd></div><div><dt>Wind comes from</dt><dd>{show(toward === undefined ? undefined : (toward + 180) % 360)}°</dd></div>
               <div><dt>Rain (mm/h)</dt><dd>{row.rainMillimetresPerHour === null ? "Trace (file code −1)" : show(row.rainMillimetresPerHour)}</dd></div><div><dt>Mixing height above ground (m)</dt><dd>{row.mixingHeightMetres === undefined ? data.mixingHeightMode === "seasonal" ? "Seasonal values below" : "Not supplied" : show(row.mixingHeightMetres)}</dd></div>
-            </dl><details><summary>Original record and units</summary><pre>{row.original}</pre><p className="mw-note">Speed {show(row.windSpeedMetresPerSecond * 10)} × 0.1 = {show(row.windSpeedMetresPerSecond)} m/s. Rain codes use 0.01 inches/hour.</p></details></div>}
+            </dl><details><summary>Original record and units</summary><pre>{row.original}</pre></details></div>}
             {data.seasonalHeightsMetres && <details><summary>Seasonal mixing heights</summary><table aria-label="Seasonal mixing heights"><thead><tr><th>Season</th><th>Morning (m)</th><th>Afternoon (m)</th></tr></thead><tbody>{["Winter", "Spring", "Summer", "Autumn"].map((s, i) => <tr key={s}><td>{s}</td><td>{show(data.seasonalHeightsMetres![i])}</td><td>{show(data.seasonalHeightsMetres![i + 4])}</td></tr>)}</tbody></table></details>}
           </>}</> : <>{fileBox("configuration")}<h3>Imported weather location</h3>
             <div className="mw-fields">{field("Weather latitude (°)", "latitude", -90, 90)}{field("Weather longitude (°)", "longitude", -180, 180)}</div>
@@ -118,8 +118,8 @@ export function RcMeteorologyPanel({ onReviewSite }: { onReviewSite?: () => void
               <label>Wind direction sectors{data?.windSectors !== undefined || config ? <WorkbookInput className="posfield__input posmono" aria-label="Wind direction sectors" readOnly value={`${count} sectors · ${show(360 / count!)}° each`} /> :
                 <select className="posfield__select" aria-label="Wind direction sectors" disabled={disabled} value={settings.windSectors ?? ""} onChange={e => edit({ windSectors: e.target.value ? Number(e.target.value) as RcWindSectors : undefined })}><option value="">Match the weather file</option>{[16, 32, 48, 64].map(n => <option key={n} value={n}>{n} sectors · {show(360 / n)}° each</option>)}</select>}
               </label></div>
-            <div className="mw-coverage"><span className="mw-small">Records in this file</span><strong>{data ? `${data.recordCount} records · ${recordRange(data)}` : "Import weather data"}</strong></div>
-            <dl className="mw-readonly"><div><dt>Record interval</dt><dd>{data ? `${data.intervalMinutes} minutes` : "Import weather data"}</dd></div><div><dt>MACCS file-to-local time offset</dt><dd>{!data ? "Import weather data" : data.utcOffsetHours === undefined ? "Local time (no /UTCTIM)" : `${data.utcOffsetHours} h (/UTCTIM)`}</dd></div></dl>
+            <div className="mw-coverage"><span className="mw-small">Records in this file</span><strong>{data ? `${data.recordCount} records · ${recordRange(data)}` : "No weather data"}</strong></div>
+            <dl className="mw-readonly"><div><dt>Record interval</dt><dd>{data ? `${data.intervalMinutes} minutes` : "No weather data"}</dd></div><div><dt>MACCS file-to-local time offset</dt><dd>{!data ? "No weather data" : data.utcOffsetHours === undefined ? "Local time (no /UTCTIM)" : `${data.utcOffsetHours} h (/UTCTIM)`}</dd></div></dl>
             {config && <details><summary>File history</summary><dl className="mw-readonly"><div><dt>Dataset</dt><dd>{config.dataset || "Not supplied"}</dd></div><div><dt>Stability method</dt><dd>{methods[config.stabilityMethod]}</dd></div></dl>{config.dateGroups.map((g, i) => <dl className="mw-readonly" key={i}><div><dt>Originally requested start</dt><dd>{g.start}</dd></div><div><dt>Originally requested end</dt><dd>{g.end}</dd></div></dl>)}</details>}
             <div className="mw-location-check"><div className="mw-section-title"><h3>Match to Step 02</h3>{siteLink}</div><dl className="mw-readonly"><div><dt>Release location</dt><dd>{show(siteSettings.latitude)}°, {show(siteSettings.longitude)}°</dd></div><div><dt>Weather location distance</dt><dd>{distance === undefined ? "Enter coordinates" : `${scientific(distance) ? distance.toExponential() : distance.toFixed(2)} km`}</dd></div></dl>
               {distance !== undefined && distance > .05 && <label className="mw-check-label"><WorkbookInput type="checkbox" disabled={disabled} checked={sameWeatherSite(settings.nearbySite, siteSettings)} onChange={e => edit({ nearbySite: e.target.checked ? { latitude: siteSettings.latitude!, longitude: siteSettings.longitude! } : undefined })} /><span>Use this nearby weather source for the site</span></label>}

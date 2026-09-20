@@ -88,6 +88,11 @@ export const ReleaseCategoryInputsSchema = z.object({
 export const RcScopeSchema = z.object({
   consequenceMetrics: z.array(z.string()),
   metricSelectionApplicationBasis: z.string().optional(),
+  evaluationDecisions: z.array(z.object({
+    subElement: z.enum(["RCPA", "RCME", "RCAD", "RCDO", "RCHE", "RCEC", "RCQ"]),
+    included: z.boolean(),
+    exclusionReason: z.string().optional(),
+  })).optional(),
   protectiveActionsModellingDegree: z.string(),
   meteorologyModellingDegree: z.string(),
   atmosphericDispersionModellingDegree: z.string(),

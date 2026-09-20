@@ -130,6 +130,8 @@ interface FaultTreeEditorProps {
   validation: readonly ValidationIssue[];
   saveState: FaultTreeSaveState;
   analysisResult: FaultTreeAnalysisResult | null;
+  showResults?: boolean;
+  showHeaderStatus?: boolean;
   resultIsStale: boolean;
   transferTargets?: readonly FaultTreeTransferTarget[];
   onOperation: (operation: FaultTreeOperation) => void;

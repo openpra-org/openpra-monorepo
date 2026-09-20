@@ -21,6 +21,7 @@ import {
   type FaultTreeAnalysisResult,
 } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { SYIcon } from "./syIcons";
+import { SyFaultTreeAnalysis } from "./SyFaultTreeAnalysis";
 import { Badge, SYProvenanceChip } from "./syShared";
 import {
   CAPABILITY_CATEGORIES,
@@ -352,7 +353,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
   }
 
   const systemForm = editable ? (
-    <form className="posrow posrow--wrap" style={{ gap: 8, marginTop: 12 }} onSubmit={(event) => { event.preventDefault(); addSystem(); }}>
+    <form className="posrow posrow--wrap sy-system-form" onSubmit={(event) => { event.preventDefault(); addSystem(); }}>
       <label className="posfield">
         <span className="posfield__label">New system name</span>
         <input className="posfield__input" value={newSystemName} onChange={(event) => setNewSystemName(event.target.value)} />
@@ -559,8 +560,6 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
             <WorkbookSectionHeading workbook="SY" title={<>Logic model · {shortOf(sysDef.uuid)}</>} cueKey="Fault-tree logic model" />
             <SYProvenanceChip>SY-A7 · SY-A14</SYProvenanceChip>
           </div>
-          <p className="poscard__sub">The fault tree is a common representation of the system logic model, and other representations could be used. Select a basic event to edit its definition.</p>
-          {runError !== null && <div className="eswarn" role="alert"><span>{runError}</span></div>}
           <FaultTreeEditor
             model={editorModel}
             catalogue={catalogue}
@@ -570,12 +569,14 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
               canEditLayout: editable,
               canImport: editable,
               canExport: true,
-              canRunAnalysis: editable && runtime.workbookId !== null && runningModelId !== logic.uuid,
+              canRunAnalysis: false,
             }}
             selection={selection}
             validation={validation}
             saveState={runtime.saveStatus}
             analysisResult={analysisResult}
+            showResults={false}
+            showHeaderStatus={false}
             resultIsStale={analysisResult !== null && (sourceWarning !== null || runtime.saveStatus !== "saved" || analysisResult.owner.workbookRevision !== runtime.revision)}
             transferTargets={transferTargets}
             onOperation={applyOperation}
@@ -589,6 +590,15 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
               if (target !== undefined) setSysId(target.systemReference);
             }}
             onRun={() => { void runAnalysis(); }}
+          />
+          <SyFaultTreeAnalysis
+            key={logic.uuid}
+            exactResult={analysisResult}
+            exactResultIsStale={analysisResult !== null && (sourceWarning !== null || runtime.saveStatus !== "saved" || analysisResult.owner.workbookRevision !== runtime.revision)}
+            exactRunError={runError}
+            exactRunning={runningModelId === logic.uuid}
+            sourceWarning={sourceWarning}
+            onRunExact={() => { void runAnalysis(); }}
           />
         </div>
       ) : logic?.nonDetailedModelJustification !== undefined ? (

@@ -444,7 +444,7 @@ function FtBox({
         {...dragProps}
       >
         <span className="ftbox__name">{node.name}</span>
-        <span className="ftbox__be-meta">
+        <span className="ftbox__be-meta ftbox__be-meta--centered">
           <span className="ftbox__id">{node.code}</span>
           {resultProbability !== undefined && <span className="ftbox__prob">P = {formatNodeProbability(resultProbability)}</span>}
         </span>
@@ -479,7 +479,6 @@ function FtBox({
   if (node.kind === "BASIC_EVENT_REFERENCE") {
     const basicEvent = catalogue.basicEvents.find(({ id }) => id === node.basicEventId);
     const presentation = catalogue.presentations?.find(({ basicEventId }) => basicEventId === node.basicEventId);
-    const short = presentation?.failureModeShort ?? presentation?.failureModeLabel ?? "—";
     return (
       <button
         type="button"
@@ -491,10 +490,9 @@ function FtBox({
         onContextMenu={onContextMenu}
         {...dragProps}
       >
-        <span className="ftbox__name">{basicEvent?.name ?? node.basicEventId}</span>
+        <span className="ftbox__name" title={basicEvent?.name ?? node.basicEventId}>{basicEvent?.name ?? node.basicEventId}</span>
         <span className="ftbox__be-meta">
           <span className="ftbox__id">{basicEvent?.code ?? node.basicEventId}</span>
-          <span className={`ftbox__fm${presentation?.commonCause === true ? " ftbox__fm--ccf" : ""}`}>{short}</span>
           <span className="ftbox__prob">{formatNodeProbability(basicEvent?.probability.value)}</span>
         </span>
       </button>
@@ -504,7 +502,7 @@ function FtBox({
   return (
     <button
       type="button"
-      className={`ftbox ftbox--be${selectedClass}${invalidClass}`}
+      className={`ftbox ftbox--${node.kind === "HOUSE_EVENT" ? "house" : "undeveloped"}${selectedClass}${invalidClass}`}
       style={{ left, top, width: FT.NODE_W, height: FT.NODE_H }}
       aria-label={node.name}
       onClick={onSelect}
@@ -512,7 +510,7 @@ function FtBox({
       {...dragProps}
     >
       <span className="ftbox__name">{node.name}</span>
-      <span className="ftbox__be-meta">
+      <span className="ftbox__be-meta ftbox__be-meta--centered">
         <span className="ftbox__id">{node.code}</span>
       </span>
     </button>
@@ -828,7 +826,7 @@ function NodeInspector({
   );
 }
 
-function Results({
+export function FaultTreeResults({
   analysisResult,
   resultIsStale,
 }: Pick<FaultTreeEditorProps, "analysisResult" | "resultIsStale">): JSX.Element | null {
@@ -841,9 +839,6 @@ function Results({
         <ResultCsvButton filename={`ft-${result.runId}.csv`} records={() => faultTreeResultRecords(result).map((row) => ({ ...row, stale: resultIsStale }))} />
         {resultIsStale && <span className="fteditor__pill fteditor__pill--stale">Results are stale</span>}
       </div>
-      <p className="fteditor__run-detail">
-        Run <span className="fteditor__mono">{result.runId}</span> · workbook revision {result.owner.workbookRevision} · completed {new Date(result.completedAt).toLocaleString()}
-      </p>
       <div className="fteditor__result-metrics">
         <div className="fteditor__result-metric">
           <span>Exact top-event probability</span>
@@ -875,6 +870,8 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     validation,
     saveState,
     analysisResult,
+    showResults = true,
+    showHeaderStatus = true,
     resultIsStale,
     transferTargets = [],
     onOperation,
@@ -1230,12 +1227,6 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     }
   };
 
-  const lines: JSX.Element[] = [];
-  geometry.nodes.forEach((positioned) => {
-    const symTop = positioned.top + FT.NODE_H + FT.SYM_GAP;
-    lines.push(<line key={`${positioned.node.id}-symbol-line`} x1={positioned.cx} y1={positioned.top + FT.NODE_H} x2={positioned.cx} y2={symTop} className="ftline" />);
-  });
-
   const connectedChildren = (gateId: string): Array<{
     input: FaultTreeEditorModel["gateInputs"][number];
     child: PositionedNode;
@@ -1246,6 +1237,34 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
       const child = positionedById.get(input.childId);
       return child === undefined ? [] : [{ input, child }];
     });
+  const eventStacks = new Map<string, Array<ReturnType<typeof connectedChildren>>>();
+  const groupedEventIds = new Set<string>();
+  const bottomEventIds = new Set<string>();
+  if (effectiveLayoutDirection(model) === "TOP_TO_BOTTOM") {
+    geometry.nodes.filter(({ node }) => node.kind === "GATE").forEach(({ node }) => {
+      const children = connectedChildren(node.id);
+      const stacks = (["BASIC_EVENT_REFERENCE", "UNDEVELOPED_EVENT"] as const).flatMap((kind) => {
+        const events = children
+          .filter(({ child }) => child.node.kind === kind)
+          .sort((left, right) => left.child.top - right.child.top || left.child.left - right.child.left);
+        return events.length > 0 && events.every(({ child }) => child.cx === events[0].child.cx)
+          ? [events]
+          : [];
+      });
+      eventStacks.set(node.id, stacks);
+      stacks.forEach((events) => {
+        events.forEach(({ child }) => groupedEventIds.add(child.node.id));
+        bottomEventIds.add(events[events.length - 1].child.node.id);
+      });
+    });
+  }
+  const showSymbol = ({ node }: PositionedNode): boolean =>
+    !groupedEventIds.has(node.id) || bottomEventIds.has(node.id);
+  const lines: JSX.Element[] = [];
+  geometry.nodes.filter(showSymbol).forEach((positioned) => {
+    const symTop = positioned.top + FT.NODE_H + FT.SYM_GAP;
+    lines.push(<line key={`${positioned.node.id}-symbol-line`} x1={positioned.cx} y1={positioned.top + FT.NODE_H} x2={positioned.cx} y2={symTop} className="ftline" />);
+  });
   const portOffset = (index: number, count: number): number => {
     if (count <= 1) return 0;
     const usableHeight = FT.NODE_H - 20;
@@ -1325,9 +1344,10 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
         || left.child.top - right.child.top);
       if (children.length === 0) return;
       const symBottom = positioned.top + FT.NODE_H + FT.SYM_GAP + FT.SYM_H;
-      const basicEvents = children.filter(({ child }) => child.node.kind === "BASIC_EVENT_REFERENCE");
-      const nonBasicEvents = children.filter(({ child }) => child.node.kind !== "BASIC_EVENT_REFERENCE");
-      const childConnections = children.map(({ input, child }) => {
+      const stacks = eventStacks.get(positioned.node.id) ?? [];
+      const groupedInputIds = new Set(stacks.flatMap((events) => events.map(({ input }) => input.id)));
+      const otherChildren = children.filter(({ input }) => !groupedInputIds.has(input.id));
+      const childConnections = otherChildren.map(({ input, child }) => {
         const incoming = incomingByChild.get(child.node.id) ?? [];
         const childPortIndex = incoming.findIndex(({ id }) => id === input.id);
         return {
@@ -1337,26 +1357,23 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
           incomingCount: incoming.length,
         };
       });
-      const basicEventRailX = basicEvents.length === 0
-        ? null
-        : Math.min(...basicEvents.map(({ child }) => child.left)) - FT.BUS_GAP;
-      const firstChildY = Math.min(...childConnections.map(({ child, childPortIndex, incomingCount }) =>
-        child.node.kind === "BASIC_EVENT_REFERENCE"
-          ? child.top + FT.NODE_H / 2 + portOffset(childPortIndex, incomingCount)
-          : child.top));
+      const firstChildY = Math.min(
+        ...childConnections.map(({ child }) => child.top),
+        ...stacks.map((events) => events[0].child.top),
+      );
       const availableTrunkHeight = firstChildY - symBottom;
       const branchY = symBottom + (availableTrunkHeight > 0
         ? Math.min(FT.BUS_GAP, availableTrunkHeight / 2)
         : FT.BUS_GAP);
-      const nonBasicDockXs = nonBasicEvents.map(({ input, child }) => {
+      const otherDockXs = otherChildren.map(({ input, child }) => {
         const incoming = incomingByChild.get(child.node.id) ?? [];
         const childPortIndex = incoming.findIndex(({ id }) => id === input.id);
         return child.cx + horizontalPortOffset(childPortIndex, incoming.length);
       });
       const busXs = [
         positioned.cx,
-        ...nonBasicDockXs,
-        ...(basicEventRailX === null ? [] : [basicEventRailX]),
+        ...otherDockXs,
+        ...stacks.map((events) => events[0].child.cx),
       ];
       const sharedSelected = selectedId === positioned.node.id;
       const sharedInvalid = children.some(({ input }) => invalidIds.has(input.id));
@@ -1391,25 +1408,38 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
           />,
         );
       }
-      if (basicEventRailX !== null) {
-        const lastBasicEventY = Math.max(...childConnections.flatMap(({ child, childPortIndex, incomingCount }) =>
-          child.node.kind === "BASIC_EVENT_REFERENCE"
-            ? [child.top + FT.NODE_H / 2 + portOffset(childPortIndex, incomingCount)]
-            : []));
+      stacks.forEach((events) => {
+        const stackX = events[0].child.cx;
+        const stackKind = events[0].child.node.kind === "UNDEVELOPED_EVENT" ? "undeveloped" : "basic-event";
+        const selected = sharedSelected || events.some(({ child }) => selectedId === child.node.id);
+        const invalid = events.some(({ input }) => invalidIds.has(input.id));
         lines.push(
           <line
-            key={`${positioned.node.id}-basic-event-rail`}
-            x1={basicEventRailX}
+            key={`${positioned.node.id}-${stackKind}-stack`}
+            x1={stackX}
             y1={branchY}
-            x2={basicEventRailX}
-            y2={lastBasicEventY}
-            className="ftline ftline--bus ftline--basic-event-rail"
+            x2={stackX}
+            y2={events[0].child.top}
+            className={`ftline ftedge ftline--event-stack${selected ? " ftline--selected" : ""}${invalid ? " ftline--invalid" : ""}`}
             vectorEffect="non-scaling-stroke"
-            data-testid="fault-tree-basic-event-rail"
-            data-gate-id={positioned.node.id}
+            data-testid="fault-tree-edge"
+            data-edge-ids={events.map(({ input }) => input.id).join(",")}
           />,
         );
-      }
+        if (events.length > 1) {
+          lines.push(
+            <line
+              key={`${positioned.node.id}-${stackKind}-stack-spine`}
+              x1={stackX}
+              y1={events[0].child.top + FT.NODE_H}
+              x2={stackX}
+              y2={events[events.length - 1].child.top}
+              className={`ftline ftline--event-stack${selected ? " ftline--selected" : ""}`}
+              vectorEffect="non-scaling-stroke"
+            />,
+          );
+        }
+      });
       childConnections.forEach(({ input, child, childPortIndex, incomingCount }) => {
         const selected = selectedId === positioned.node.id || selectedId === child.node.id;
         const invalid = invalidIds.has(input.id);
@@ -1417,18 +1447,10 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
         let y1: number;
         let x2: number;
         let y2: number;
-        if (child.node.kind === "BASIC_EVENT_REFERENCE") {
-          const dockY = child.top + FT.NODE_H / 2 + portOffset(childPortIndex, incomingCount);
-          x1 = basicEventRailX ?? child.left - FT.BUS_GAP;
-          y1 = dockY;
-          x2 = child.left;
-          y2 = dockY;
-        } else {
-          x1 = child.cx + horizontalPortOffset(childPortIndex, incomingCount);
-          y1 = branchY;
-          x2 = x1;
-          y2 = child.top;
-        }
+        x1 = child.cx + horizontalPortOffset(childPortIndex, incomingCount);
+        y1 = branchY;
+        x2 = x1;
+        y2 = child.top;
         lines.push(
           <line
             key={input.id}
@@ -1454,11 +1476,11 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
           <CommitField label="Fault-tree name" value={model.name} disabled={!editable} required maxLength={200} onCommit={(name) => emit({ type: "UPDATE_MODEL", patch: { name } })} />
         </div>
         <div className="fteditor__header-actions">
-          <div className="fteditor__status">
+          {showHeaderStatus && <div className="fteditor__status">
             <span className="fteditor__pill">{capabilities.mode === "READ_ONLY" ? "Read only" : capabilities.mode === "REFERENCE_SELECTION" ? "Select a reference" : "Authoring"}</span>
             <span className={`fteditor__pill${saveState === "failed" ? " fteditor__pill--error" : ""}`}>{saveState === "saving" ? "Saving…" : saveState === "failed" ? "Save failed" : "Saved"}</span>
             {resultIsStale && <span className="fteditor__pill fteditor__pill--stale">Results stale</span>}
-          </div>
+          </div>}
           {capabilities.canRunAnalysis && <button type="button" className="fteditor__btn fteditor__btn--primary" disabled={validation.some(({ severity }) => severity === "ERROR") || saveState !== "saved"} onClick={onRun}>Run analysis</button>}
         </div>
       </div>
@@ -1637,7 +1659,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
                 <div className="ftcanvas" style={{ width: geometry.width, height: geometry.height }}>
                   <svg className="ftsvg" width={geometry.width} height={geometry.height} viewBox={`0 0 ${geometry.width} ${geometry.height}`}>
                     {lines}
-                    {geometry.nodes.map((positioned) => <FtSymbol key={`${positioned.node.id}-symbol`} node={positioned.node} cx={positioned.cx} top={positioned.top} catalogue={catalogue} />)}
+                    {geometry.nodes.filter(showSymbol).map((positioned) => <FtSymbol key={`${positioned.node.id}-symbol`} node={positioned.node} cx={positioned.cx} top={positioned.top} catalogue={catalogue} />)}
                   </svg>
                   {geometry.nodes.map((positioned) => (
                     <FtBox
@@ -1712,7 +1734,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
         </section>
       )}
 
-      <Results analysisResult={analysisResult} resultIsStale={resultIsStale} />
+      {showResults && <FaultTreeResults analysisResult={analysisResult} resultIsStale={resultIsStale} />}
       {confirmationDialog}
     </div>
   );

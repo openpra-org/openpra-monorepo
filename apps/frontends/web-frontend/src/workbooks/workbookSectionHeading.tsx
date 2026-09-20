@@ -46,7 +46,7 @@ function WorkbookSectionHeading({
   className?: string;
 }): JSX.Element {
   const resolvedTitle = cueKey ?? (typeof title === "string" ? title : "this section");
-  const cue = workbook === "RC"
+  const cue = workbook === "RC" || workbook === "SY"
     ? undefined
     : workbook === undefined
       ? description
@@ -79,7 +79,7 @@ function WorkbookCueLabel({
   className: string;
 }): JSX.Element {
   const resolvedTitle = cueKey ?? (typeof title === "string" ? title : "this subsection");
-  const cue = workbook === "RC" ? undefined : composeWorkbookCue(workbook, resolvedTitle, description);
+  const cue = workbook === "RC" || workbook === "SY" ? undefined : composeWorkbookCue(workbook, resolvedTitle, description);
   return (
     <div className={`${className} workbook-cue-label`}>
       <span>{title}</span>

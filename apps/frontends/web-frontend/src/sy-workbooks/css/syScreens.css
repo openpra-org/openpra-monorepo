@@ -210,3 +210,14 @@
 .syvsc__row { display: flex; flex-direction: column; gap: 2px; padding: 7px 9px; border-radius: 8px; background: var(--color-surface-low); border: 1px solid var(--color-border); }
 .syvsc__when { font-family: var(--font-ui), sans-serif; font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-primary); }
 .syvsc__crit { font-size: 11.5px; color: var(--color-text-muted); line-height: 1.4; }
+.sy-system-form {
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.sy-system-form .posfield__input,
+.sy-system-form .posnav__btn {
+  box-sizing: border-box;
+  height: 40px;
+}

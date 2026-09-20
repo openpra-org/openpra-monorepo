@@ -94,9 +94,10 @@ export function SavedAnalysisResult({ details }: { details: AnalysisRunDetails }
     const result = FaultTreeAnalysisResultSchema.parse(details.result);
     return (
       <>
-        <p>
-          Top-event probability: <ResultNumber value={result.topEventProbability} />
-        </p>
+        <div className="analysis-history__metric">
+          <span>Top-event probability</span>
+          <strong><ResultNumber value={result.topEventProbability} /></strong>
+        </div>
         <ResultWarnings issues={result.validationIssues} />
       </>
     );
@@ -235,63 +236,57 @@ export function AnalysisRunHistory({
   }, [open, host, workbookId]);
   if (workbookId === null) return null;
   return (
-    <details
-      className="poscard analysis-history"
-      open={open}
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      <summary>Saved analysis runs</summary>
+    <section className="analysis-history" aria-label="Analysis history">
+      <div className="analysis-history__header">
+        <h3>Analysis history</h3>
+        <button
+          type="button"
+          className="analysis-history__toggle"
+          aria-expanded={open}
+          onClick={() => setOpen((current) => !current)}
+        >
+          {open ? "Hide saved runs" : "Review saved runs"}
+          <svg className="analysis-history__chevron" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="m2 4 4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
       {open && (
-        <>
-          <p>Original results and inputs are preserved. Source status reflects the latest access and revision check.</p>
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => void load()}
-          >
-            Refresh history
-          </button>
-          {loading && <p role="status">Loading saved runs…</p>}
-          {error && <p role="alert">{error}</p>}
-          {!loading && !error && rows.length === 0 && <p>No accessible runs on this page.</p>}
+        <div className="analysis-history__body">
+          <div className="analysis-history__toolbar">
+            <p>Saved results, inputs, and source revisions for this workbook.</p>
+            <button type="button" className="posnav__btn posnav__btn--sm" disabled={loading} onClick={() => void load()}>Refresh history</button>
+          </div>
+          {loading && <p role="status" className="analysis-history__state">Loading saved runs…</p>}
+          {error && <p role="alert" className="analysis-history__state analysis-history__state--error">{error}</p>}
+          {!loading && !error && rows.length === 0 && <p className="analysis-history__state">No accessible runs on this page.</p>}
           <div className="analysis-history__list">
             {rows.map((row) => (
               <button
                 type="button"
                 key={row.run.id}
+                className={details?.run.id === row.run.id ? "is-selected" : ""}
+                aria-pressed={details?.run.id === row.run.id}
                 onClick={() => void inspect(row.run.id)}
               >
-                <span>
-                  {row.run.methodType.replace(/_/g, " ")}
-                  {row.run.scope === "BATCH" ? " batch" : ""}
-                </span>
-                <span>
-                  {row.run.status} · {row.run.freshness?.status ?? "UNKNOWN"}
-                </span>
+                <span className="analysis-history__run-name">{row.run.methodType.replace(/_/g, " ")}{row.run.scope === "BATCH" ? " batch" : ""}</span>
+                <span className={`analysis-history__status analysis-history__status--${row.run.status.toLowerCase()}`}>{row.run.status}</span>
                 <time>{new Date(row.run.requestedAt).toLocaleString()}</time>
-                <small>{row.run.id}</small>
+                <span className="analysis-history__freshness">{row.run.freshness?.status ?? "UNKNOWN"}</span>
               </button>
             ))}
           </div>
           {cursor && (
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => void load(cursor)}
-            >
-              Older runs
-            </button>
+            <button type="button" className="posnav__btn posnav__btn--sm analysis-history__older" disabled={loading} onClick={() => void load(cursor)}>Older runs</button>
           )}
           {details && (
             <section aria-label="Saved run details">
-              <h3>Saved result</h3>
+              <div className="analysis-history__result-head"><div><span>Selected run</span><h3>Result</h3></div><span className="analysis-history__status">{details.run.status}</span></div>
               {details.run.freshness?.status !== "CURRENT" && (
-                <p role="status">Historical result: sources have changed, are missing, or could not be compared.</p>
+                <p role="status" className="analysis-history__state">Historical result: sources have changed, are missing, or could not be compared.</p>
               )}
-              <p>
-                Requested by {details.run.requestedBy} · {details.run.status}
-              </p>
-              <ul>
+              <p className="analysis-history__byline">Requested by {details.run.requestedBy} · {new Date(details.run.requestedAt).toLocaleString()}</p>
+              <ul className="analysis-history__sources">
                 {details.run.freshness?.sources.map((source) => (
                   <li key={source.workbookId}>
                     {source.workbookId}: saved revision {source.savedRevision},{" "}
@@ -300,7 +295,7 @@ export function AnalysisRunHistory({
                 ))}
               </ul>
               <SavedAnalysisResult details={details} />
-              <details>
+              <details className="analysis-history__record">
                 <summary>Run identity and recorded inputs</summary>
                 <p>Run: {details.run.id}</p>
                 <p>
@@ -334,17 +329,12 @@ export function AnalysisRunHistory({
                     </ul>
                   </details>
                 ))}
-                <button
-                  type="button"
-                  onClick={() => downloadSavedRun(details)}
-                >
-                  Download saved run
-                </button>
+                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => downloadSavedRun(details)}>Download saved run</button>
               </details>
             </section>
           )}
-        </>
+        </div>
       )}
-    </details>
+    </section>
   );
 }

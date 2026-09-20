@@ -62,12 +62,26 @@ function page(nextCursor: string | null = null) {
   return { schemaVersion: "1.0.0", runs: [{ run, target: null, contributions: null }], nextCursor };
 }
 function openHistory() {
-  const element = screen.getByText("Saved analysis runs").parentElement as HTMLDetailsElement;
-  element.open = true;
-  fireEvent(element, new Event("toggle"));
+  fireEvent.click(screen.getByRole("button", { name: "Review saved runs" }));
 }
 beforeEach(() => {
   get.mockReset();
+});
+
+it("opens and closes analysis history with the saved-runs button", async () => {
+  get.mockResolvedValue(page());
+  render(<AnalysisRunHistory host="sy" workbookId="w" />);
+
+  const openButton = screen.getByRole("button", { name: "Review saved runs" });
+  expect(openButton).toHaveAttribute("aria-expanded", "false");
+  expect(get).not.toHaveBeenCalled();
+  fireEvent.click(openButton);
+  expect(screen.getByRole("button", { name: "Hide saved runs" })).toHaveAttribute("aria-expanded", "true");
+  await screen.findByRole("button", { name: /FAULT TREE/ });
+
+  fireEvent.click(screen.getByRole("button", { name: "Hide saved runs" }));
+  expect(screen.getByRole("button", { name: "Review saved runs" })).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("button", { name: /FAULT TREE/ })).not.toBeInTheDocument();
 });
 
 it("opens a historical result with changed DA revisions and preserved probability", async () => {

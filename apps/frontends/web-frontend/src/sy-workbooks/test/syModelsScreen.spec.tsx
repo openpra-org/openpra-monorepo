@@ -17,10 +17,12 @@ import {
   type FaultTreeExecuteResult,
 } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "../syWorkbookApi";
+import { createEmptyBayesianNetwork } from "../../newly-developed-methods/bayesian-network";
 import { ModelsScreen } from "../syScreens";
 
 jest.mock("../../newly-developed-methods/fault-tree", () => ({
   FaultTreeEditor: jest.fn(() => null),
+  FaultTreeResults: jest.fn(() => null),
   applyFaultTreeOperation: jest.fn(),
 }));
 
@@ -219,6 +221,21 @@ function projectedModel(): FaultTreeEditorProps["model"] {
 }
 
 describe("ModelsScreen canonical fault-tree host", () => {
+  it("shows only fault-tree probability quantification below the editor", () => {
+    const network = createEmptyBayesianNetwork("Dependency network");
+    setWorkbookContext({ sy: makeAnalysis({ dependencyBayesianNetworks: [network] }) });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+
+    expect(latestEditorProps().capabilities.canRunAnalysis).toBe(false);
+    expect(latestEditorProps().showResults).toBe(false);
+    expect(latestEditorProps().showHeaderStatus).toBe(false);
+    expect(screen.getByRole("region", { name: "Fault-tree quantification" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run probability" })).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: "Fault-tree calculation" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: "Fault-tree workflow" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Fault-tree algorithm" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/HCL configuration/)).not.toBeInTheDocument();
+  });
   beforeEach(() => {
     jest.clearAllMocks();
     mockedFaultTreeEditor.mockImplementation(() => null);
@@ -592,9 +609,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
       <ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />,
     );
 
-    await act(async () => {
-      latestEditorProps().onRun();
-    });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run probability" })); });
 
     expect(mockedValidateSyFaultTree).toHaveBeenCalledWith("sy-workbook", MODEL_ID, 7);
     expect(mockedRunSyFaultTree).toHaveBeenCalledWith("sy-workbook", MODEL_ID, 7);
@@ -634,7 +649,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
     });
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
 
-    await act(async () => latestEditorProps().onRun());
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run probability" })); });
 
     expect(await screen.findByText("The solver rejected an invalid transfer.")).toBeInTheDocument();
     expect(mockedGetSyFaultTreeResult).not.toHaveBeenCalled();
@@ -670,7 +685,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
     });
     mockedGetSyFaultTreeResult.mockResolvedValue(result);
     const { rerender } = render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
-    await act(async () => latestEditorProps().onRun());
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run probability" })); });
     await waitFor(() => expect(latestEditorProps().analysisResult).toEqual(result));
 
     setWorkbookContext({ saveStatus: "saving" });

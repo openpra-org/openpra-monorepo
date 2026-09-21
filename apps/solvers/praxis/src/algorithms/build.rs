@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 use tracing::info;
 
 use crate::algorithms::bdd_engine::{Bdd, BddRef};
+use crate::algorithms::ordering;
 use crate::algorithms::pdag::{Connective, NodeIndex, Pdag};
 use crate::algorithms::reorder::{best_order, ReorderMethod};
 use crate::algorithms::simplify;
@@ -11,6 +12,56 @@ use crate::algorithms::zbdd_engine::{ZbddEngine, ZbddRef};
 use crate::analysis::width::compute_dfs_metadata_pdag;
 use crate::core::fault_tree::FaultTree;
 use crate::{PraxisError, Result};
+
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VariableOrder {
+    Dfs,
+    Force,
+    Sloan,
+    DfsScram,
+    DfsPlain,
+    Reverse,
+    Sift,
+    Gsift,
+    Ils,
+}
+
+impl VariableOrder {
+    pub fn uses_reordering(self) -> bool {
+        matches!(self, Self::Sift | Self::Gsift | Self::Ils)
+    }
+}
+
+pub fn select_variable_order(
+    pdag: &Pdag,
+    method: VariableOrder,
+    reorder_budget: Duration,
+) -> Result<Vec<NodeIndex>> {
+    let from_map = |map: HashMap<NodeIndex, usize>| -> Vec<NodeIndex> {
+        let mut ordered: Vec<(usize, NodeIndex)> = map
+            .into_iter()
+            .map(|(event, position)| (position, event))
+            .collect();
+        ordered.sort();
+        ordered.into_iter().map(|(_, event)| event).collect()
+    };
+
+    match method {
+        VariableOrder::Dfs => Ok(compute_dfs_metadata_pdag(pdag)?.variable_order),
+        VariableOrder::Force => Ok(from_map(ordering::force_order(pdag))),
+        VariableOrder::Sloan => Ok(from_map(ordering::sloan_fac_order(pdag))),
+        VariableOrder::DfsScram => Ok(from_map(ordering::dfs_order(pdag, true))),
+        VariableOrder::DfsPlain => Ok(from_map(ordering::dfs_order(pdag, false))),
+        VariableOrder::Reverse => {
+            let mut order = compute_dfs_metadata_pdag(pdag)?.variable_order;
+            order.reverse();
+            Ok(order)
+        }
+        VariableOrder::Sift => Ok(best_order(pdag, ReorderMethod::Sift, reorder_budget)),
+        VariableOrder::Gsift => Ok(best_order(pdag, ReorderMethod::Gsift, reorder_budget)),
+        VariableOrder::Ils => Ok(best_order(pdag, ReorderMethod::Ils, reorder_budget)),
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct BuildOptions {
@@ -43,7 +94,15 @@ pub struct BddBuild {
 }
 
 pub fn build_bdd(fault_tree: &FaultTree, opts: BuildOptions) -> Result<BddBuild> {
-    build_bdd_internal(fault_tree, opts, None)
+    build_bdd_internal(fault_tree, opts, None, None)
+}
+
+pub fn build_bdd_with_variable_order(
+    fault_tree: &FaultTree,
+    opts: BuildOptions,
+    variable_order: VariableOrder,
+) -> Result<BddBuild> {
+    build_bdd_internal(fault_tree, opts, None, Some(variable_order))
 }
 
 /// Builds a BDD with an exact caller-provided basic-event order.
@@ -55,13 +114,14 @@ pub fn build_bdd_with_order(
     opts: BuildOptions,
     variable_order: &[String],
 ) -> Result<BddBuild> {
-    build_bdd_internal(fault_tree, opts, Some(variable_order))
+    build_bdd_internal(fault_tree, opts, Some(variable_order), None)
 }
 
 fn build_bdd_internal(
     fault_tree: &FaultTree,
     opts: BuildOptions,
     variable_order: Option<&[String]>,
+    variable_order_method: Option<VariableOrder>,
 ) -> Result<BddBuild> {
     let started = Instant::now();
     let mut pdag = Pdag::from_fault_tree(fault_tree)?;
@@ -76,13 +136,16 @@ fn build_bdd_internal(
     let ordering = Instant::now();
     let order = if let Some(explicit) = variable_order {
         resolve_variable_order(&pdag, explicit)?
+    } else if let Some(method) = variable_order_method {
+        select_variable_order(&pdag, method, opts.reorder_budget)?
     } else if let Some(method) = opts.reorder {
         best_order(&pdag, method, opts.reorder_budget)
     } else {
         compute_dfs_metadata_pdag(&pdag)?.variable_order
     };
     info!(
-        method = ?opts.reorder,
+        method = ?variable_order_method,
+        legacy_reorder = ?opts.reorder,
         variables = order.len(),
         elapsed_s = ordering.elapsed().as_secs_f64(),
         "build_bdd: variable order ready"

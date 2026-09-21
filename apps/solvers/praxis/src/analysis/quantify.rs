@@ -1,7 +1,13 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
-use crate::algorithms::build::{build_bdd, enumerate_event_names, BuildOptions};
-use crate::algorithms::direct_zbdd::build_zbdd_delterm_named;
+use crate::algorithms::build::{
+    build_bdd_with_variable_order, enumerate_event_names, BuildOptions, VariableOrder,
+};
+use crate::algorithms::direct_zbdd::{
+    build_zbdd_delterm_named_with_order, build_zbdd_direct_from_pdag_with_order,
+    enumerate_named_cut_sets,
+};
 use crate::algorithms::mocus::Mocus;
 use crate::algorithms::noncoherent_mocus::NonCoherentMocus;
 use crate::algorithms::pdag::Pdag;
@@ -19,6 +25,7 @@ use crate::Result;
 pub enum Engine {
     Bdd,
     Zbdd,
+    ZbddDirect,
     ZbddDelterm,
     Mocus,
     MocusPi,
@@ -44,6 +51,8 @@ pub struct Settings {
     pub ccf: bool,
     pub num_trials: usize,
     pub seed: u64,
+    pub variable_order: VariableOrder,
+    pub reorder_budget: Duration,
 }
 
 impl Default for Settings {
@@ -58,6 +67,8 @@ impl Default for Settings {
             ccf: false,
             num_trials: 10_000,
             seed: 847,
+            variable_order: VariableOrder::Dfs,
+            reorder_budget: Duration::from_secs(60),
         }
     }
 }
@@ -193,7 +204,9 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
 
     match settings.engine {
         Engine::Bdd => {
-            let built = build_bdd(ft, BuildOptions::default())?;
+            let mut options = BuildOptions::default();
+            options.reorder_budget = settings.reorder_budget;
+            let built = build_bdd_with_variable_order(ft, options, settings.variable_order)?;
             let value = if settings.limit_order.is_some() || settings.cut_off.is_some() {
                 built.bdd.probability_with_limits(
                     built.root,
@@ -209,7 +222,9 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
             });
         }
         Engine::Zbdd => {
-            let built = build_bdd(ft, BuildOptions::default())?;
+            let mut options = BuildOptions::default();
+            options.reorder_budget = settings.reorder_budget;
+            let built = build_bdd_with_variable_order(ft, options, settings.variable_order)?;
             let mut bdd = built.bdd;
             let root = built.root;
             let exact = bdd.probability(root);
@@ -247,10 +262,71 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
                 },
             });
         }
+        Engine::ZbddDirect => {
+            let pdag = Pdag::from_fault_tree(ft)?;
+            let (zbdd, zroot, names) = build_zbdd_direct_from_pdag_with_order(
+                &pdag,
+                ft,
+                settings.cut_off,
+                settings.limit_order,
+                settings.variable_order,
+                settings.reorder_budget,
+            )?;
+            let named = enumerate_named_cut_sets(&zbdd, zroot, &names);
+            let mut per = Vec::with_capacity(named.len());
+            let mut max_order = 0;
+            let mut list = Vec::with_capacity(named.len());
+            for cut_set in named {
+                let mut literals = Vec::with_capacity(cut_set.len());
+                let mut probability = 1.0;
+                for literal in cut_set {
+                    let (name, negated) = match literal.strip_prefix('~') {
+                        Some(rest) => (rest.to_string(), true),
+                        None => (literal, false),
+                    };
+                    let event_probability = probs.get(&name).copied().unwrap_or(0.0);
+                    probability *= if negated {
+                        1.0 - event_probability
+                    } else {
+                        event_probability
+                    };
+                    literals.push((name, negated));
+                }
+                max_order = max_order.max(literals.len());
+                per.push(probability);
+                list.push(CutSetOut {
+                    literals,
+                    probability,
+                });
+            }
+            list.sort_by(|left, right| left.literals.cmp(&right.literals));
+            let mut distribution = vec![0usize; max_order + 1];
+            for cut_set in &list {
+                distribution[cut_set.literals.len()] += 1;
+            }
+            result.cut_sets = Some(CutSetsOut {
+                prime_implicants: true,
+                products: list.len(),
+                distribution_by_order: distribution,
+                list,
+            });
+            let approximation = settings.approximation.unwrap_or(Approximation::Mcub);
+            result.probability = Some(ProbabilityOut {
+                value: approx_value(approximation, &per),
+                approximation,
+            });
+        }
         Engine::ZbddDelterm => {
             let pdag = Pdag::from_fault_tree(ft)?;
-            let named =
-                build_zbdd_delterm_named(&pdag, ft, settings.cut_off, settings.limit_order, None)?;
+            let named = build_zbdd_delterm_named_with_order(
+                &pdag,
+                ft,
+                settings.cut_off,
+                settings.limit_order,
+                None,
+                settings.variable_order,
+                settings.reorder_budget,
+            )?;
             let mut per = Vec::with_capacity(named.len());
             let mut max_order = 0;
             let mut list = Vec::with_capacity(named.len());
@@ -470,6 +546,25 @@ mod tests {
         let m = quantify(&ft, &s).unwrap().cut_sets.unwrap();
         assert_eq!(z.products, 2);
         assert_eq!(m.products, 2);
+    }
+
+    #[test]
+    fn direct_zbdd_and_bdd_derived_zbdd_agree_on_cut_sets() {
+        let ft = demo();
+        let mut settings = Settings {
+            engine: Engine::Zbdd,
+            approximation: Some(Approximation::Mcub),
+            limit_order: Some(2),
+            ..Default::default()
+        };
+        let expected = quantify(&ft, &settings).unwrap();
+        settings.engine = Engine::ZbddDirect;
+        let actual = quantify(&ft, &settings).unwrap();
+        let expected_cut_sets = expected.cut_sets.unwrap();
+        let actual_cut_sets = actual.cut_sets.unwrap();
+        assert_eq!(actual_cut_sets.products, expected_cut_sets.products);
+        assert_eq!(actual_cut_sets.list, expected_cut_sets.list);
+        assert_eq!(actual.probability, expected.probability);
     }
 
     #[test]

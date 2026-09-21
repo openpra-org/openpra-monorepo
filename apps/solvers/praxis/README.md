@@ -46,6 +46,18 @@ cargo clippy -- -D warnings
 cargo check
 ```
 
+## Direct ZBDD cut-set enumeration
+
+`zbdd-direct` constructs the cut-set ZBDD directly from the fault-tree PDAG. It does not build a BDD first and does not apply delete-term approximation.
+
+```bash
+praxis-cli model.xml --algorithm zbdd-direct --analysis cutsets-and-probability --approximation mcub --limit-order 6 --output result.xml
+```
+
+Order and probability limits are applied during coherent-model construction. Complemented logic is completed by exact consensus before final limits are applied. The direct algorithm currently supports fault-tree input.
+
+`zbdd-end-state` groups event-tree sequence cut sets by end-state name in one shared ZBDD manager. Its output contains grouped cut sets and does not include end-state probability.
+
 ## Hybrid Causal Logic
 
 PRAXIS can quantify selected fault-tree basic events through a discrete

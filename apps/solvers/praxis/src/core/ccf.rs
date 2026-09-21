@@ -71,7 +71,21 @@ pub enum CcfModel {
         scheme: TestingScheme,
     },
     Mgl(Vec<f64>),
+    /// SAPHIRE RASP MGL expansion. Unlike an OpenPSA member CCF group, a
+    /// RASP event is a parent basic event which SAPHIRE replaces with named
+    /// virtual subset events (for example `GROUP-AB`). The subset mapping is
+    /// retained so PRAXIS can reproduce SAPHIRE's cut-set identities.
+    RaspMgl {
+        factors: Vec<f64>,
+        virtual_events: Vec<RaspCcfEvent>,
+    },
     PhiFactor(Vec<f64>),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RaspCcfEvent {
+    pub id: String,
+    pub member_indices: Vec<usize>,
 }
 
 impl CcfModel {
@@ -153,6 +167,45 @@ impl CcfModel {
                     }
                 }
             }
+            CcfModel::RaspMgl {
+                factors,
+                virtual_events,
+            } => {
+                validate_mgl_factors(factors, member_count)?;
+                if virtual_events.is_empty() {
+                    return Err(crate::error::PraxisError::Logic(
+                        "SAPHIRE RASP MGL model requires virtual events".to_string(),
+                    ));
+                }
+
+                let mut event_ids = std::collections::HashSet::new();
+                for event in virtual_events {
+                    if event.id.is_empty() || !event_ids.insert(event.id.as_str()) {
+                        return Err(crate::error::PraxisError::Logic(
+                            "SAPHIRE RASP MGL virtual event IDs must be nonempty and unique"
+                                .to_string(),
+                        ));
+                    }
+                    if event.member_indices.is_empty()
+                        || event.member_indices.len() > factors.len() + 1
+                    {
+                        return Err(crate::error::PraxisError::Logic(format!(
+                            "SAPHIRE RASP MGL virtual event '{}' has unsupported order {}",
+                            event.id,
+                            event.member_indices.len()
+                        )));
+                    }
+                    let mut indices = std::collections::HashSet::new();
+                    for index in &event.member_indices {
+                        if *index >= member_count || !indices.insert(*index) {
+                            return Err(crate::error::PraxisError::Logic(format!(
+                                "SAPHIRE RASP MGL virtual event '{}' has invalid member indices",
+                                event.id
+                            )));
+                        }
+                    }
+                }
+            }
             CcfModel::PhiFactor(phis) => {
                 if phis.is_empty() || phis.len() > member_count {
                     return Err(crate::error::PraxisError::Logic(format!(
@@ -208,6 +261,10 @@ impl CcfModel {
                 expand_alpha_factor(group_id, members, factors, *scheme, base_probability)
             }
             CcfModel::Mgl(factors) => expand_mgl(group_id, members, factors, base_probability),
+            CcfModel::RaspMgl {
+                factors,
+                virtual_events,
+            } => expand_rasp_mgl(members, factors, virtual_events, base_probability),
             CcfModel::PhiFactor(phis) => {
                 expand_phi_factor(group_id, members, phis, base_probability)
             }
@@ -219,8 +276,13 @@ impl CcfModel {
             CcfModel::BetaFactor(_) => "Beta-Factor",
             CcfModel::AlphaFactor { .. } => "Alpha-Factor",
             CcfModel::Mgl(_) => "MGL",
+            CcfModel::RaspMgl { .. } => "SAPHIRE RASP MGL",
             CcfModel::PhiFactor(_) => "Phi-Factor",
         }
+    }
+
+    pub fn replaces_parent_event(&self) -> bool {
+        matches!(self, CcfModel::RaspMgl { .. })
     }
 }
 
@@ -317,14 +379,7 @@ fn expand_mgl(
     let max_level = factors.len() + 1;
 
     for k in 1..=max_level {
-        let reciprocal = 1.0 / binomial(n - 1, k - 1);
-        let product: f64 = factors[..k - 1].iter().product();
-        let closing = if k < max_level {
-            1.0 - factors[k - 1]
-        } else {
-            1.0
-        };
-        let per_event = reciprocal * product * closing * base_prob;
+        let per_event = mgl_subset_probability(n, k, factors, base_prob);
 
         for (i, combo) in generate_combinations(members, k).into_iter().enumerate() {
             let event_id = format!("{}-mgl-{}-{}", group_id, k, i + 1);
@@ -333,6 +388,69 @@ fn expand_mgl(
     }
 
     Ok(events)
+}
+
+fn validate_mgl_factors(factors: &[f64], member_count: usize) -> Result<()> {
+    if factors.is_empty() || factors.len() > member_count - 1 {
+        return Err(crate::error::PraxisError::Logic(format!(
+            "MGL model requires 1 to {} Greek-letter factors for {} members, got {}",
+            member_count - 1,
+            member_count,
+            factors.len()
+        )));
+    }
+    for (i, factor) in factors.iter().enumerate() {
+        if *factor < 0.0 || *factor > 1.0 {
+            return Err(crate::error::PraxisError::Mef(
+                crate::error::MefError::Domain {
+                    message: format!(
+                        "MGL factor Q_{} = {} must be in range [0, 1]",
+                        i + 1,
+                        factor
+                    ),
+                    value: Some(factor.to_string()),
+                    attribute: Some(format!("Q_{}", i + 1)),
+                },
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn mgl_subset_probability(n: usize, k: usize, factors: &[f64], base_prob: f64) -> f64 {
+    let max_level = factors.len() + 1;
+    let reciprocal = 1.0 / binomial(n - 1, k - 1);
+    let product: f64 = factors[..k - 1].iter().product();
+    let closing = if k < max_level {
+        1.0 - factors[k - 1]
+    } else {
+        1.0
+    };
+    reciprocal * product * closing * base_prob
+}
+
+fn expand_rasp_mgl(
+    members: &[String],
+    factors: &[f64],
+    virtual_events: &[RaspCcfEvent],
+    base_prob: f64,
+) -> Result<Vec<CcfEvent>> {
+    let n = members.len();
+    Ok(virtual_events
+        .iter()
+        .map(|virtual_event| {
+            let failed_members = virtual_event
+                .member_indices
+                .iter()
+                .map(|index| members[*index].clone())
+                .collect();
+            CcfEvent::new(
+                virtual_event.id.clone(),
+                failed_members,
+                mgl_subset_probability(n, virtual_event.member_indices.len(), factors, base_prob),
+            )
+        })
+        .collect())
 }
 
 fn expand_phi_factor(
@@ -1001,6 +1119,44 @@ mod tests {
         assert_eq!(events[1].id, "MGLGroup-mgl-1-2");
 
         assert_eq!(events[2].id, "MGLGroup-mgl-2-1");
+    }
+
+    #[test]
+    fn test_rasp_mgl_preserves_saphire_virtual_names_and_subsets() {
+        let group = CcfGroup::new(
+            "CCFDEMLKECSTR1",
+            vec!["A-EVENT".into(), "B-EVENT".into(), "C-EVENT".into()],
+            CcfModel::RaspMgl {
+                factors: vec![0.02, 0.0],
+                virtual_events: vec![
+                    RaspCcfEvent {
+                        id: "CCFDEMLKECSTR1-AB".into(),
+                        member_indices: vec![0, 1],
+                    },
+                    RaspCcfEvent {
+                        id: "CCFDEMLKECSTR1-AC".into(),
+                        member_indices: vec![0, 2],
+                    },
+                    RaspCcfEvent {
+                        id: "CCFDEMLKECSTR1-BC".into(),
+                        member_indices: vec![1, 2],
+                    },
+                    RaspCcfEvent {
+                        id: "CCFDEMLKECSTR1-ABC".into(),
+                        member_indices: vec![0, 1, 2],
+                    },
+                ],
+            },
+        )
+        .unwrap();
+
+        let events = group.expand(7.2e-7).unwrap();
+        assert_eq!(events.len(), 4);
+        assert_eq!(events[0].id, "CCFDEMLKECSTR1-AB");
+        assert_eq!(events[0].failed_members, vec!["A-EVENT", "B-EVENT"]);
+        assert!((events[0].probability - 7.2e-9).abs() < 1e-20);
+        assert_eq!(events[3].id, "CCFDEMLKECSTR1-ABC");
+        assert_eq!(events[3].probability, 0.0);
     }
 
     #[test]

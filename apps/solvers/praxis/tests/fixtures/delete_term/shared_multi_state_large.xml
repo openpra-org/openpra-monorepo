@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opsa-mef>
+  <!--
+    Target sequence states:
+      FT-F1=failure, FT-F2=failure, FT-F3=failure,
+      FT-S1=success, FT-S2=success, FT-S3=success.
+
+    Every functional-event fault tree references the same thirteen events:
+      X, A, B, C, D, U1, U2, U3, U4, U5, U6, U7, U8.
+  -->
+  <define-event-tree name="ET-SHARED-MULTI-STATE">
+    <define-functional-event name="FE-F1"/>
+    <define-functional-event name="FE-F2"/>
+    <define-functional-event name="FE-F3"/>
+    <define-functional-event name="FE-S1"/>
+    <define-functional-event name="FE-S2"/>
+    <define-functional-event name="FE-S3"/>
+    <define-sequence name="SEQ-TARGET"/>
+    <initial-state>
+      <fork functional-event="FE-F1">
+        <path state="failure">
+          <collect-formula><gate name="FT-F1.TOP-F1"/></collect-formula>
+          <fork functional-event="FE-F2">
+            <path state="failure">
+              <collect-formula><gate name="FT-F2.TOP-F2"/></collect-formula>
+              <fork functional-event="FE-F3">
+                <path state="failure">
+                  <collect-formula><gate name="FT-F3.TOP-F3"/></collect-formula>
+                  <fork functional-event="FE-S1">
+                    <path state="success">
+                      <collect-formula><not><gate name="FT-S1.TOP-S1"/></not></collect-formula>
+                      <fork functional-event="FE-S2">
+                        <path state="success">
+                          <collect-formula><not><gate name="FT-S2.TOP-S2"/></not></collect-formula>
+                          <fork functional-event="FE-S3">
+                            <path state="success">
+                              <collect-formula><not><gate name="FT-S3.TOP-S3"/></not></collect-formula>
+                              <sequence name="SEQ-TARGET"/>
+                            </path>
+                          </fork>
+                        </path>
+                      </fork>
+                    </path>
+                  </fork>
+                </path>
+              </fork>
+            </path>
+          </fork>
+        </path>
+      </fork>
+    </initial-state>
+  </define-event-tree>
+
+  <define-initiating-event name="IE-SHARED" event-tree="ET-SHARED-MULTI-STATE">
+    <float value="10.0"/>
+  </define-initiating-event>
+
+  <!-- RAIL = X AND (U1 OR ... OR U8). -->
+  <define-fault-tree name="FT-F1">
+    <define-gate name="TOP-F1"><or><gate name="RAIL-F1"/><gate name="AB-F1"/><gate name="CD-F1"/></or></define-gate>
+    <define-gate name="RAIL-F1"><and><basic-event name="X"/><gate name="U-F1"/></and></define-gate>
+    <define-gate name="U-F1"><or><basic-event name="U1"/><basic-event name="U2"/><basic-event name="U3"/><basic-event name="U4"/><basic-event name="U5"/><basic-event name="U6"/><basic-event name="U7"/><basic-event name="U8"/></or></define-gate>
+    <define-gate name="AB-F1"><and><basic-event name="A"/><basic-event name="B"/></and></define-gate>
+    <define-gate name="CD-F1"><and><basic-event name="C"/><basic-event name="D"/></and></define-gate>
+  </define-fault-tree>
+
+  <define-fault-tree name="FT-F2">
+    <define-gate name="TOP-F2"><or><gate name="RAIL-F2"/><gate name="AC-F2"/><gate name="BD-F2"/></or></define-gate>
+    <define-gate name="RAIL-F2"><and><basic-event name="X"/><gate name="U-F2"/></and></define-gate>
+    <define-gate name="U-F2"><or><basic-event name="U1"/><basic-event name="U2"/><basic-event name="U3"/><basic-event name="U4"/><basic-event name="U5"/><basic-event name="U6"/><basic-event name="U7"/><basic-event name="U8"/></or></define-gate>
+    <define-gate name="AC-F2"><and><basic-event name="A"/><basic-event name="C"/></and></define-gate>
+    <define-gate name="BD-F2"><and><basic-event name="B"/><basic-event name="D"/></and></define-gate>
+  </define-fault-tree>
+
+  <define-fault-tree name="FT-F3">
+    <define-gate name="TOP-F3"><or><gate name="RAIL-F3"/><gate name="AD-F3"/><gate name="BC-F3"/></or></define-gate>
+    <define-gate name="RAIL-F3"><and><basic-event name="X"/><gate name="U-F3"/></and></define-gate>
+    <define-gate name="U-F3"><or><basic-event name="U1"/><basic-event name="U2"/><basic-event name="U3"/><basic-event name="U4"/><basic-event name="U5"/><basic-event name="U6"/><basic-event name="U7"/><basic-event name="U8"/></or></define-gate>
+    <define-gate name="AD-F3"><and><basic-event name="A"/><basic-event name="D"/></and></define-gate>
+    <define-gate name="BC-F3"><and><basic-event name="B"/><basic-event name="C"/></and></define-gate>
+  </define-fault-tree>
+
+  <!--
+    Each success tree has one order-2 delete set and one deliberately large
+    order-11 set. The latter forces every success formula to reference the full
+    shared backbone without deleting an X*Ui survivor.
+  -->
+  <define-fault-tree name="FT-S1">
+    <define-gate name="TOP-S1"><or><gate name="AB-S1"/><gate name="LARGE-S1"/></or></define-gate>
+    <define-gate name="AB-S1"><and><basic-event name="A"/><basic-event name="B"/></and></define-gate>
+    <define-gate name="LARGE-S1"><and><basic-event name="X"/><basic-event name="C"/><basic-event name="D"/><basic-event name="U1"/><basic-event name="U2"/><basic-event name="U3"/><basic-event name="U4"/><basic-event name="U5"/><basic-event name="U6"/><basic-event name="U7"/><basic-event name="U8"/></and></define-gate>
+  </define-fault-tree>
+
+  <define-fault-tree name="FT-S2">
+    <define-gate name="TOP-S2"><or><gate name="AC-S2"/><gate name="LARGE-S2"/></or></define-gate>
+    <define-gate name="AC-S2"><and><basic-event name="A"/><basic-event name="C"/></and></define-gate>
+    <define-gate name="LARGE-S2"><and><basic-event name="X"/><basic-event name="B"/><basic-event name="D"/><basic-event name="U1"/><basic-event name="U2"/><basic-event name="U3"/><basic-event name="U4"/><basic-event name="U5"/><basic-event name="U6"/><basic-event name="U7"/><basic-event name="U8"/></and></define-gate>
+  </define-fault-tree>
+
+  <define-fault-tree name="FT-S3">
+    <define-gate name="TOP-S3"><or><gate name="BC-S3"/><gate name="LARGE-S3"/></or></define-gate>
+    <define-gate name="BC-S3"><and><basic-event name="B"/><basic-event name="C"/></and></define-gate>
+    <define-gate name="LARGE-S3"><and><basic-event name="X"/><basic-event name="A"/><basic-event name="D"/><basic-event name="U1"/><basic-event name="U2"/><basic-event name="U3"/><basic-event name="U4"/><basic-event name="U5"/><basic-event name="U6"/><basic-event name="U7"/><basic-event name="U8"/></and></define-gate>
+  </define-fault-tree>
+
+  <model-data>
+    <define-basic-event name="X"><float value="1e-1"/></define-basic-event>
+    <define-basic-event name="A"><float value="1e-1"/></define-basic-event>
+    <define-basic-event name="B"><float value="1e-1"/></define-basic-event>
+    <define-basic-event name="C"><float value="1e-1"/></define-basic-event>
+    <define-basic-event name="D"><float value="1e-1"/></define-basic-event>
+    <define-basic-event name="U1"><float value="1e-1"/></define-basic-event>
+    <define-basic-event name="U2"><float value="1e-2"/></define-basic-event>
+    <define-basic-event name="U3"><float value="1e-3"/></define-basic-event>
+    <define-basic-event name="U4"><float value="1e-4"/></define-basic-event>
+    <define-basic-event name="U5"><float value="1e-5"/></define-basic-event>
+    <define-basic-event name="U6"><float value="1e-6"/></define-basic-event>
+    <define-basic-event name="U7"><float value="1e-7"/></define-basic-event>
+    <define-basic-event name="U8"><float value="1e-8"/></define-basic-event>
+  </model-data>
+</opsa-mef>

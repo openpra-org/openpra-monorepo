@@ -240,22 +240,26 @@ pub fn save_pdf(dot_content: &str, output_path: &Path) -> Result<()> {
     save_with_format(dot_content, output_path, "pdf")
 }
 
-fn save_with_format(dot_content: &str, output_path: &Path, format: &str) -> Result<()> {
+pub fn save_dot(dot_content: &str, output_path: &Path) -> Result<()> {
     if let Some(parent) = output_path.parent() {
         fs::create_dir_all(parent).map_err(|e| {
             PraxisError::Io(format!("Failed to create visualization directory: {}", e))
         })?;
     }
 
-    let tmp_dot_path = output_path.with_extension("dot");
-    fs::write(&tmp_dot_path, dot_content)
-        .map_err(|e| PraxisError::Io(format!("Failed to write dot file: {}", e)))?;
+    fs::write(output_path, dot_content)
+        .map_err(|e| PraxisError::Io(format!("Failed to write dot file: {}", e)))
+}
+
+fn save_with_format(dot_content: &str, output_path: &Path, format: &str) -> Result<()> {
+    let dot_path = output_path.with_extension("dot");
+    save_dot(dot_content, &dot_path)?;
 
     let format_flag = format!("-T{}", format);
     let status = Command::new("dot")
         .args([
             &format_flag,
-            tmp_dot_path.to_str().unwrap(),
+            dot_path.to_str().unwrap(),
             "-o",
             output_path.to_str().unwrap(),
         ])
@@ -274,6 +278,28 @@ fn save_with_format(dot_content: &str, output_path: &Path, format: &str) -> Resu
         )));
     }
 
-    let _ = fs::remove_file(&tmp_dot_path);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::save_dot;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn save_dot_creates_parent_and_preserves_source() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time")
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!("praxis-viz-{nonce}"));
+        let path = directory.join("nested").join("tree.dot");
+        let source = "digraph test { a -> b; }\n";
+
+        save_dot(source, &path).expect("save DOT source");
+        assert_eq!(fs::read_to_string(&path).expect("read DOT source"), source);
+
+        let _ = fs::remove_dir_all(directory);
+    }
 }

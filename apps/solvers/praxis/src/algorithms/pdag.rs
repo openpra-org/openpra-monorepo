@@ -199,6 +199,15 @@ impl Pdag {
         index
     }
 
+    pub fn add_named_constant(&mut self, id: String, value: bool) -> NodeIndex {
+        if let Some(&index) = self.id_to_index.get(&id) {
+            return index;
+        }
+        let index = self.add_constant(value);
+        self.id_to_index.insert(id, index);
+        index
+    }
+
     pub fn get_node(&self, index: NodeIndex) -> Option<&PdagNode> {
         self.nodes.get(&index.abs())
     }
@@ -287,6 +296,10 @@ impl Pdag {
         for event in fault_tree.basic_events().values() {
             let event_id = event.element().id().to_string();
             pdag.add_basic_event(event_id);
+        }
+
+        for event in fault_tree.house_events().values() {
+            pdag.add_named_constant(event.element().id().to_string(), event.state());
         }
 
         let mut gate_cache: HashMap<String, NodeIndex> = HashMap::new();
@@ -579,6 +592,25 @@ mod tests {
         let node = pdag.get_node(gate).unwrap();
         assert!(node.is_gate());
         assert_eq!(node.id(), Some("G1"));
+    }
+
+    #[test]
+    fn test_fault_tree_house_event_becomes_named_constant() {
+        use crate::core::event::HouseEvent;
+
+        let mut ft = FaultTree::new("FT", "TOP").unwrap();
+        ft.add_house_event(HouseEvent::new("FLAG".to_string(), true).unwrap())
+            .unwrap();
+        let mut top = crate::core::gate::Gate::new("TOP".to_string(), Formula::And).unwrap();
+        top.add_operand("FLAG".to_string());
+        ft.add_gate(top).unwrap();
+
+        let pdag = Pdag::from_fault_tree(&ft).unwrap();
+        let flag = pdag.get_index("FLAG").expect("house event ID must resolve");
+        assert!(matches!(
+            pdag.get_node(flag),
+            Some(PdagNode::Constant { value: true, .. })
+        ));
     }
 
     #[test]

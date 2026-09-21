@@ -1,14 +1,18 @@
 use crate::cli::args::{Algorithm, Approximation, Args, Backend, CutOffBasis};
-use crate::cli::metadata::{display_zbdd_metadata, prompt_for_limits, ZbddSequenceMetadata};
+use crate::cli::metadata::{
+    display_zbdd_sequence_metadata, prompt_for_limits_with_defaults, ZbddSequenceSummary,
+};
 use crate::cli::optimize::{
     estimate_model_nodes, optimize_run_params_for_cpu, optimize_run_params_for_cuda,
 };
 use crate::cli::output::{writer_stdout, writer_vec};
 use praxis::algorithms::bdd_engine::{Bdd, BddRef};
+use praxis::algorithms::end_state_zbdd::EndStateZbdd;
 use praxis::algorithms::mocus::CutSet;
 use praxis::algorithms::pdag::{NodeIndex, Pdag};
 use praxis::algorithms::zbdd_engine::ZbddEngine;
 use praxis::algorithms::zbdd_engine::ZbddRef;
+use praxis::algorithms::zbdd_engine::{ZBDD_BASE, ZBDD_EMPTY};
 use praxis::analysis::sequence_formula::SequenceFormulaBuilder;
 use praxis::core::event_tree::InitiatingEvent;
 use praxis::core::fault_tree::FaultTree;
@@ -20,8 +24,11 @@ use praxis::io::reporter::{
 use praxis::mc::core::ConvergenceSettings;
 use praxis::mc::plan::{choose_run_params_for_num_trials, RunParams};
 use praxis::mc::DpEventTreeMonteCarloAnalysis;
+use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, Event};
+use quick_xml::Writer;
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::io::{BufWriter, Write};
 
 type ParsedModelWithLibs = (
     praxis::core::model::Model,
@@ -39,7 +46,40 @@ use cubecl_wgpu::WgpuRuntime;
 fn parse_model_with_libs_from_parsed(
     parsed: &EventTreeModel,
 ) -> Result<ParsedModelWithLibs, Box<dyn std::error::Error>> {
-    let model = parsed.model.clone();
+    let mut model = parsed.model.clone();
+    let fault_tree_ids: Vec<String> = model.fault_trees().keys().cloned().collect();
+    for fault_tree_id in fault_tree_ids {
+        let fault_tree = model
+            .get_fault_tree_mut(&fault_tree_id)
+            .ok_or_else(|| format!("Missing parsed fault tree '{}'", fault_tree_id))?;
+        if fault_tree.ccf_groups().is_empty() {
+            continue;
+        }
+        let mut base_probabilities = HashMap::new();
+        for (group_id, group) in fault_tree.ccf_groups() {
+            let distribution = group.distribution.as_ref().ok_or_else(|| {
+                format!(
+                    "CCF group '{}' in fault tree '{}' has no distribution",
+                    group_id, fault_tree_id
+                )
+            })?;
+            let probability = distribution.parse::<f64>().map_err(|_| {
+                format!(
+                    "CCF group '{}' in fault tree '{}' has invalid distribution '{}'",
+                    group_id, fault_tree_id, distribution
+                )
+            })?;
+            base_probabilities.insert(group_id.clone(), probability);
+        }
+        fault_tree
+            .expand_ccf_groups(&base_probabilities)
+            .map_err(|error| {
+                format!(
+                    "Failed to expand CCF groups in fault tree '{}': {}",
+                    fault_tree_id, error
+                )
+            })?;
+    }
     let initiating_events = parsed.initiating_events.clone();
     let event_trees = parsed.event_trees.clone();
 
@@ -107,22 +147,6 @@ fn sequence_below_cut_off(scale: f64, probability: f64, cut_off: Option<f64>) ->
     }
 }
 
-fn apply_zbdd_filters_et(
-    zbdd: &mut ZbddEngine,
-    root: ZbddRef,
-    limit_order: Option<usize>,
-    cut_off: Option<f64>,
-) -> ZbddRef {
-    let mut r = root;
-    if let Some(n) = limit_order {
-        r = zbdd.limit_order(r, n);
-    }
-    if let Some(p) = cut_off {
-        r = zbdd.prune_below_probability(r, p);
-    }
-    r
-}
-
 fn compute_approx_et(
     zbdd: &ZbddEngine,
     root: ZbddRef,
@@ -176,16 +200,6 @@ fn build_sequence_bdd_for(
     })
 }
 
-struct SequenceIntermediate {
-    seq_id: String,
-    event_names: Vec<Option<String>>,
-    zbdd: ZbddEngine,
-    zbdd_root: ZbddRef,
-    probability: f64,
-    ie_frequency: f64,
-    is_unconditional: bool,
-}
-
 fn analytic_zbdd_wf1_no_approx_no_limits(
     cli: &Args,
     model: &praxis::core::model::Model,
@@ -205,6 +219,7 @@ fn analytic_zbdd_wf1_no_approx_no_limits(
     } = SequenceFormulaBuilder::new(model)
         .with_complement_unity(cli.complement_unity)
         .with_delete_term(cli.delete_term)
+        .with_saphire_success(cli.saphire_success)
         .with_event_tree_library(event_tree_library)
         .build(event_tree, ie_frequency)
         .map_err(|e| {
@@ -222,30 +237,125 @@ fn analytic_zbdd_wf1_no_approx_no_limits(
     }
     all_seq_ids.sort();
 
-    let mut intermediates: Vec<SequenceIntermediate> = Vec::new();
-
-    for seq_id in &all_seq_ids {
+    let initial_limit_order = cli.limit_order.map(|value| value as usize);
+    let initial_cut_off = cli.cut_off;
+    let initial_scale = truncation_scale(cli.cut_off_basis, ie_frequency);
+    let mut meta_entries: Vec<ZbddSequenceSummary> = Vec::new();
+    for (index, seq_id) in all_seq_ids.iter().enumerate() {
+        eprintln!(
+            "Collecting cut-set statistics at the initial limits for sequence {}/{}: {}",
+            index + 1,
+            all_seq_ids.len(),
+            seq_id
+        );
         if unconditional.contains(seq_id) {
-            intermediates.push(SequenceIntermediate {
-                seq_id: seq_id.clone(),
-                event_names: Vec::new(),
-                zbdd: ZbddEngine::new(),
-                zbdd_root: praxis::algorithms::zbdd_engine::ZBDD_BASE,
-                probability: 1.0,
+            meta_entries.push(ZbddSequenceSummary::from_stats(
+                seq_id.clone(),
                 ie_frequency,
-                is_unconditional: true,
+                None,
+                ie_frequency,
+            ));
+            continue;
+        }
+        let Some(&root_idx) = sequence_roots.get(seq_id.as_str()) else {
+            meta_entries.push(ZbddSequenceSummary::from_stats(
+                seq_id.clone(),
+                0.0,
+                None,
+                ie_frequency,
+            ));
+            continue;
+        };
+
+        let successes = sequence_success_roots
+            .get(seq_id.as_str())
+            .cloned()
+            .unwrap_or_default();
+        let SequenceBdd {
+            variable_order: _,
+            bdd,
+            root: bdd_root,
+            delete_roots,
+            probability: exact_prob,
+        } = build_sequence_bdd_for(&mut pdag, &event_probs, seq_id, root_idx, &successes)?;
+        if sequence_below_cut_off(initial_scale, exact_prob, initial_cut_off) {
+            meta_entries.push(ZbddSequenceSummary::from_stats(
+                seq_id.clone(),
+                exact_prob * ie_frequency,
+                None,
+                ie_frequency,
+            ));
+            continue;
+        }
+        let (zbdd, zbdd_root) = if cli.complement_unity || cli.saphire_success {
+            let (zbdd, root, _) = praxis::algorithms::direct_zbdd::build_sequence_zbdd_from_pdag(
+                &pdag,
+                &event_probs,
+                root_idx,
+                &successes,
+                initial_cut_off,
+                initial_limit_order,
+                initial_scale,
+            )?;
+            (zbdd, root)
+        } else {
+            ZbddEngine::build_from_bdd_with_delete_terms(
+                &bdd,
+                bdd_root,
+                &delete_roots,
+                false,
+                initial_limit_order,
+                initial_cut_off,
+                initial_scale,
+            )
+        };
+        let stats = zbdd.stats(zbdd_root);
+        meta_entries.push(ZbddSequenceSummary::from_stats(
+            seq_id.clone(),
+            exact_prob * ie_frequency,
+            stats,
+            ie_frequency,
+        ));
+
+        // The BDD and ZBDD are intentionally dropped here. Interactive event-tree
+        // analysis keeps only lightweight statistics between sequences.
+        drop(zbdd);
+        drop(bdd);
+    }
+    display_zbdd_sequence_metadata(&meta_entries);
+
+    let (limit_order, cut_off) =
+        prompt_for_limits_with_defaults(cli.limit_order.map(|value| value as usize), cli.cut_off);
+
+    let mut sequences: Vec<EventTreeAnalyticSequence> = Vec::new();
+    for (index, seq_id) in all_seq_ids.iter().enumerate() {
+        eprintln!(
+            "Solving sequence {}/{} with selected limits: {}",
+            index + 1,
+            all_seq_ids.len(),
+            seq_id
+        );
+        if unconditional.contains(seq_id) {
+            let mut m = HashMap::new();
+            m.insert(0usize, 1u64);
+            sequences.push(EventTreeAnalyticSequence {
+                sequence_id: seq_id.clone(),
+                path: vec![],
+                probability: 1.0,
+                frequency: ie_frequency,
+                cut_sets: vec![CutSet::new(Vec::new())],
+                order_dist: m,
             });
             continue;
         }
         let Some(&root_idx) = sequence_roots.get(seq_id.as_str()) else {
-            intermediates.push(SequenceIntermediate {
-                seq_id: seq_id.clone(),
-                event_names: Vec::new(),
-                zbdd: ZbddEngine::new(),
-                zbdd_root: praxis::algorithms::zbdd_engine::ZBDD_EMPTY,
+            sequences.push(EventTreeAnalyticSequence {
+                sequence_id: seq_id.clone(),
+                path: vec![],
                 probability: 0.0,
-                ie_frequency,
-                is_unconditional: false,
+                frequency: 0.0,
+                cut_sets: Vec::new(),
+                order_dist: HashMap::new(),
             });
             continue;
         };
@@ -261,79 +371,51 @@ fn analytic_zbdd_wf1_no_approx_no_limits(
             delete_roots,
             probability: exact_prob,
         } = build_sequence_bdd_for(&mut pdag, &event_probs, seq_id, root_idx, &successes)?;
-        let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd_with_delete_terms(
-            &bdd,
-            bdd_root,
-            &delete_roots,
-            false,
-            None,
-            None,
-            truncation_scale(cli.cut_off_basis, ie_frequency),
-        );
+        let scale = truncation_scale(cli.cut_off_basis, ie_frequency);
 
-        let event_names = event_names_from_pdag(&pdag, &variable_order);
-
-        intermediates.push(SequenceIntermediate {
-            seq_id: seq_id.clone(),
-            event_names,
-            zbdd,
-            zbdd_root,
-            probability: exact_prob,
-            ie_frequency,
-            is_unconditional: false,
-        });
-    }
-
-    let mut meta_entries: Vec<ZbddSequenceMetadata> = Vec::new();
-    for im in &intermediates {
-        if im.is_unconditional {
-            meta_entries.push(ZbddSequenceMetadata::from_stats(
-                im.seq_id.clone(),
-                im.probability * im.ie_frequency,
-                HashMap::new(),
-                im.ie_frequency,
-            ));
-        } else {
-            let raw_stats = im.zbdd.stats_by_order(im.zbdd_root);
-            meta_entries.push(ZbddSequenceMetadata::from_stats(
-                im.seq_id.clone(),
-                im.probability * im.ie_frequency,
-                raw_stats,
-                im.ie_frequency,
-            ));
+        if sequence_below_cut_off(scale, exact_prob, cut_off) {
+            sequences.push(EventTreeAnalyticSequence {
+                sequence_id: seq_id.clone(),
+                path: vec![],
+                probability: exact_prob,
+                frequency: exact_prob * ie_frequency,
+                cut_sets: Vec::new(),
+                order_dist: HashMap::new(),
+            });
+            continue;
         }
-    }
-    display_zbdd_metadata(&meta_entries);
 
-    let (limit_order, cut_off) = prompt_for_limits();
-
-    let mut sequences: Vec<EventTreeAnalyticSequence> = Vec::new();
-    for mut im in intermediates {
-        let scale = truncation_scale(cli.cut_off_basis, im.ie_frequency);
-        let (filtered_root, cut_sets) = if im.is_unconditional {
-            (im.zbdd_root, vec![CutSet::new(Vec::new())])
-        } else if sequence_below_cut_off(scale, im.probability, cut_off) {
-            (praxis::algorithms::zbdd_engine::ZBDD_EMPTY, Vec::new())
+        let (zbdd, zbdd_root, event_names) = if cli.complement_unity || cli.saphire_success {
+            praxis::algorithms::direct_zbdd::build_sequence_zbdd_from_pdag(
+                &pdag,
+                &event_probs,
+                root_idx,
+                &successes,
+                cut_off,
+                limit_order,
+                scale,
+            )?
         } else {
-            im.zbdd.set_scale(scale);
-            let fr = apply_zbdd_filters_et(&mut im.zbdd, im.zbdd_root, limit_order, cut_off);
-            let cs = enumerate_cut_sets_et(&im.zbdd, fr, &im.event_names);
-            (fr, cs)
+            let event_names = event_names_from_pdag(&pdag, &variable_order);
+            let (zbdd, root) = ZbddEngine::build_from_bdd_with_delete_terms(
+                &bdd,
+                bdd_root,
+                &delete_roots,
+                false,
+                limit_order,
+                cut_off,
+                scale,
+            );
+            (zbdd, root, event_names)
         };
-
-        let order_dist = if im.is_unconditional {
-            let mut m = HashMap::new();
-            m.insert(0usize, 1u64);
-            m
-        } else {
-            im.zbdd.count_by_order(filtered_root)
-        };
+        let order_dist = zbdd.count_by_order(zbdd_root);
+        let cut_sets = enumerate_cut_sets_et(&zbdd, zbdd_root, &event_names);
 
         sequences.push(EventTreeAnalyticSequence {
-            sequence_id: im.seq_id,
+            sequence_id: seq_id.clone(),
             path: vec![],
-            probability: im.probability,
-            frequency: im.probability * im.ie_frequency,
+            probability: exact_prob,
+            frequency: exact_prob * ie_frequency,
             cut_sets,
             order_dist,
         });
@@ -352,7 +434,7 @@ fn analytic_zbdd_wf2_approx_no_limits(
     _verbose: bool,
 ) -> Result<Vec<EventTreeAnalyticSequence>, Box<dyn std::error::Error>> {
     let praxis::analysis::sequence_formula::SequenceFormulas {
-        mut pdag,
+        pdag,
         sequence_roots,
         sequence_success_roots,
         unconditional,
@@ -361,6 +443,7 @@ fn analytic_zbdd_wf2_approx_no_limits(
     } = SequenceFormulaBuilder::new(model)
         .with_complement_unity(cli.complement_unity)
         .with_delete_term(cli.delete_term)
+        .with_saphire_success(cli.saphire_success)
         .with_event_tree_library(event_tree_library)
         .build(event_tree, ie_frequency)
         .map_err(|e| {
@@ -378,30 +461,96 @@ fn analytic_zbdd_wf2_approx_no_limits(
     }
     all_seq_ids.sort();
 
-    let mut intermediates: Vec<SequenceIntermediate> = Vec::new();
-
-    for seq_id in &all_seq_ids {
+    let initial_limit_order = cli.limit_order.map(|value| value as usize);
+    let initial_cut_off = cli.cut_off;
+    let initial_scale = truncation_scale(cli.cut_off_basis, ie_frequency);
+    let mut meta_entries: Vec<ZbddSequenceSummary> = Vec::new();
+    for (index, seq_id) in all_seq_ids.iter().enumerate() {
+        eprintln!(
+            "Collecting cut-set statistics at the initial limits for sequence {}/{}: {}",
+            index + 1,
+            all_seq_ids.len(),
+            seq_id
+        );
         if unconditional.contains(seq_id) {
-            intermediates.push(SequenceIntermediate {
-                seq_id: seq_id.clone(),
-                event_names: Vec::new(),
-                zbdd: ZbddEngine::new(),
-                zbdd_root: praxis::algorithms::zbdd_engine::ZBDD_BASE,
-                probability: 1.0,
+            meta_entries.push(ZbddSequenceSummary::from_stats(
+                seq_id.clone(),
                 ie_frequency,
-                is_unconditional: true,
+                None,
+                ie_frequency,
+            ));
+            continue;
+        }
+        let Some(&root_idx) = sequence_roots.get(seq_id.as_str()) else {
+            meta_entries.push(ZbddSequenceSummary::from_stats(
+                seq_id.clone(),
+                0.0,
+                None,
+                ie_frequency,
+            ));
+            continue;
+        };
+
+        let successes = sequence_success_roots
+            .get(seq_id.as_str())
+            .cloned()
+            .unwrap_or_default();
+        let (zbdd, zbdd_root, _) = praxis::algorithms::direct_zbdd::build_sequence_zbdd_from_pdag(
+            &pdag,
+            &event_probs,
+            root_idx,
+            &successes,
+            initial_cut_off,
+            initial_limit_order,
+            initial_scale,
+        )?;
+        let approx_prob = compute_approx_et(&zbdd, zbdd_root, cli.approximation);
+        let stats = zbdd.stats(zbdd_root);
+        meta_entries.push(ZbddSequenceSummary::from_stats(
+            seq_id.clone(),
+            approx_prob * ie_frequency,
+            stats,
+            ie_frequency,
+        ));
+
+        // Keep only the statistics between sequences; the full decision diagrams
+        // are rebuilt with the analyst's limits during the second pass.
+        drop(zbdd);
+    }
+    display_zbdd_sequence_metadata(&meta_entries);
+
+    let (limit_order, cut_off) =
+        prompt_for_limits_with_defaults(cli.limit_order.map(|value| value as usize), cli.cut_off);
+
+    let mut sequences: Vec<EventTreeAnalyticSequence> = Vec::new();
+    for (index, seq_id) in all_seq_ids.iter().enumerate() {
+        eprintln!(
+            "Solving sequence {}/{} with selected limits: {}",
+            index + 1,
+            all_seq_ids.len(),
+            seq_id
+        );
+        if unconditional.contains(seq_id) {
+            let mut m = HashMap::new();
+            m.insert(0usize, 1u64);
+            sequences.push(EventTreeAnalyticSequence {
+                sequence_id: seq_id.clone(),
+                path: vec![],
+                probability: 1.0,
+                frequency: ie_frequency,
+                cut_sets: vec![CutSet::new(Vec::new())],
+                order_dist: m,
             });
             continue;
         }
         let Some(&root_idx) = sequence_roots.get(seq_id.as_str()) else {
-            intermediates.push(SequenceIntermediate {
-                seq_id: seq_id.clone(),
-                event_names: Vec::new(),
-                zbdd: ZbddEngine::new(),
-                zbdd_root: praxis::algorithms::zbdd_engine::ZBDD_EMPTY,
+            sequences.push(EventTreeAnalyticSequence {
+                sequence_id: seq_id.clone(),
+                path: vec![],
                 probability: 0.0,
-                ie_frequency,
-                is_unconditional: false,
+                frequency: 0.0,
+                cut_sets: Vec::new(),
+                order_dist: HashMap::new(),
             });
             continue;
         };
@@ -410,92 +559,26 @@ fn analytic_zbdd_wf2_approx_no_limits(
             .get(seq_id.as_str())
             .cloned()
             .unwrap_or_default();
-        let SequenceBdd {
-            variable_order,
-            bdd,
-            root: bdd_root,
-            delete_roots,
-            probability: _,
-        } = build_sequence_bdd_for(&mut pdag, &event_probs, seq_id, root_idx, &successes)?;
-        let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd_with_delete_terms(
-            &bdd,
-            bdd_root,
-            &delete_roots,
-            false,
-            None,
-            None,
-            truncation_scale(cli.cut_off_basis, ie_frequency),
-        );
-
-        let event_names = event_names_from_pdag(&pdag, &variable_order);
-        let approx_prob = compute_approx_et(&zbdd, zbdd_root, cli.approximation);
-
-        intermediates.push(SequenceIntermediate {
-            seq_id: seq_id.clone(),
-            event_names,
-            zbdd,
-            zbdd_root,
-            probability: approx_prob,
-            ie_frequency,
-            is_unconditional: false,
-        });
-    }
-
-    let mut meta_entries: Vec<ZbddSequenceMetadata> = Vec::new();
-    for im in &intermediates {
-        if im.is_unconditional {
-            meta_entries.push(ZbddSequenceMetadata::from_stats(
-                im.seq_id.clone(),
-                im.probability * im.ie_frequency,
-                HashMap::new(),
-                im.ie_frequency,
-            ));
-        } else {
-            let raw_stats = im.zbdd.stats_by_order(im.zbdd_root);
-            meta_entries.push(ZbddSequenceMetadata::from_stats(
-                im.seq_id.clone(),
-                im.probability * im.ie_frequency,
-                raw_stats,
-                im.ie_frequency,
-            ));
-        }
-    }
-    display_zbdd_metadata(&meta_entries);
-
-    let (limit_order, cut_off) = prompt_for_limits();
-
-    let mut sequences: Vec<EventTreeAnalyticSequence> = Vec::new();
-    for mut im in intermediates {
-        let scale = truncation_scale(cli.cut_off_basis, im.ie_frequency);
-        let (final_prob, filtered_root, cut_sets) = if im.is_unconditional {
-            (1.0, im.zbdd_root, vec![CutSet::new(Vec::new())])
-        } else if sequence_below_cut_off(scale, im.probability, cut_off) {
-            (0.0, praxis::algorithms::zbdd_engine::ZBDD_EMPTY, Vec::new())
-        } else {
-            im.zbdd.set_scale(scale);
-            let fr = apply_zbdd_filters_et(&mut im.zbdd, im.zbdd_root, limit_order, cut_off);
-            let final_p = if limit_order.is_some() || cut_off.is_some() {
-                compute_approx_et(&im.zbdd, fr, cli.approximation)
-            } else {
-                im.probability
-            };
-            let cs = enumerate_cut_sets_et(&im.zbdd, fr, &im.event_names);
-            (final_p, fr, cs)
-        };
-
-        let order_dist = if im.is_unconditional {
-            let mut m = HashMap::new();
-            m.insert(0usize, 1u64);
-            m
-        } else {
-            im.zbdd.count_by_order(filtered_root)
-        };
+        let scale = truncation_scale(cli.cut_off_basis, ie_frequency);
+        let (zbdd, zbdd_root, event_names) =
+            praxis::algorithms::direct_zbdd::build_sequence_zbdd_from_pdag(
+                &pdag,
+                &event_probs,
+                root_idx,
+                &successes,
+                cut_off,
+                limit_order,
+                scale,
+            )?;
+        let final_prob = compute_approx_et(&zbdd, zbdd_root, cli.approximation);
+        let order_dist = zbdd.count_by_order(zbdd_root);
+        let cut_sets = enumerate_cut_sets_et(&zbdd, zbdd_root, &event_names);
 
         sequences.push(EventTreeAnalyticSequence {
-            sequence_id: im.seq_id,
+            sequence_id: seq_id.clone(),
             path: vec![],
             probability: final_prob,
-            frequency: final_prob * im.ie_frequency,
+            frequency: final_prob * ie_frequency,
             cut_sets,
             order_dist,
         });
@@ -527,6 +610,7 @@ fn analytic_zbdd_wf3_no_approx_limits(
     } = SequenceFormulaBuilder::new(model)
         .with_complement_unity(cli.complement_unity)
         .with_delete_term(cli.delete_term)
+        .with_saphire_success(cli.saphire_success)
         .with_event_tree_library(event_tree_library)
         .build(event_tree, ie_frequency)
         .map_err(|e| {
@@ -612,17 +696,35 @@ fn analytic_zbdd_wf3_no_approx_limits(
             continue;
         }
 
-        let event_names = event_names_from_pdag(&pdag, &variable_order);
         let t2 = std::time::Instant::now();
-        let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd_with_delete_terms(
-            &bdd,
-            bdd_root,
-            &delete_roots,
-            false,
-            limit_order,
-            cut_off,
-            scale,
-        );
+        let (zbdd, zbdd_root, event_names) = if cli.complement_unity || cli.saphire_success {
+            // Successful event-tree paths have already been replaced by Unity
+            // in SequenceFormulaBuilder. Preserve NOT gates inside the failed
+            // fault trees and use the signed direct builder so a complemented
+            // probability-one flag is correctly impossible instead of becoming
+            // an unqualified positive cut set.
+            praxis::algorithms::direct_zbdd::build_sequence_zbdd_from_pdag(
+                &pdag,
+                &event_probs,
+                root_idx,
+                &successes,
+                cut_off,
+                limit_order,
+                scale,
+            )?
+        } else {
+            let event_names = event_names_from_pdag(&pdag, &variable_order);
+            let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd_with_delete_terms(
+                &bdd,
+                bdd_root,
+                &delete_roots,
+                false,
+                limit_order,
+                cut_off,
+                scale,
+            );
+            (zbdd, zbdd_root, event_names)
+        };
         if verbose {
             eprintln!(
                 "[{}] zbdd convert ({} delete-term system(s)): {:?}",
@@ -666,7 +768,7 @@ fn analytic_zbdd_wf4_approx_limits(
     let scale = truncation_scale(cli.cut_off_basis, ie_frequency);
 
     let praxis::analysis::sequence_formula::SequenceFormulas {
-        mut pdag,
+        pdag,
         sequence_roots,
         sequence_success_roots,
         unconditional,
@@ -675,6 +777,7 @@ fn analytic_zbdd_wf4_approx_limits(
     } = SequenceFormulaBuilder::new(model)
         .with_complement_unity(cli.complement_unity)
         .with_delete_term(cli.delete_term)
+        .with_saphire_success(cli.saphire_success)
         .with_event_tree_library(event_tree_library)
         .build(event_tree, ie_frequency)
         .map_err(|e| {
@@ -694,7 +797,13 @@ fn analytic_zbdd_wf4_approx_limits(
 
     let mut sequences: Vec<EventTreeAnalyticSequence> = Vec::new();
 
-    for seq_id in &all_seq_ids {
+    for (index, seq_id) in all_seq_ids.iter().enumerate() {
+        eprintln!(
+            "Solving sequence {}/{} at the selected limits: {}",
+            index + 1,
+            all_seq_ids.len(),
+            seq_id
+        );
         if unconditional.contains(seq_id) {
             let mut m = HashMap::new();
             m.insert(0usize, 1u64);
@@ -724,37 +833,16 @@ fn analytic_zbdd_wf4_approx_limits(
             .get(seq_id.as_str())
             .cloned()
             .unwrap_or_default();
-        let SequenceBdd {
-            variable_order,
-            bdd,
-            root: bdd_root,
-            delete_roots,
-            probability: exact_prob,
-        } = build_sequence_bdd_for(&mut pdag, &event_probs, seq_id, root_idx, &successes)?;
-
-        if sequence_below_cut_off(scale, exact_prob, cut_off) {
-            sequences.push(EventTreeAnalyticSequence {
-                sequence_id: seq_id.clone(),
-                path: vec![],
-                probability: 0.0,
-                frequency: 0.0,
-                cut_sets: Vec::new(),
-                order_dist: HashMap::new(),
-            });
-            continue;
-        }
-
-        let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd_with_delete_terms(
-            &bdd,
-            bdd_root,
-            &delete_roots,
-            false,
-            limit_order,
-            cut_off,
-            scale,
-        );
-
-        let event_names = event_names_from_pdag(&pdag, &variable_order);
+        let (zbdd, zbdd_root, event_names) =
+            praxis::algorithms::direct_zbdd::build_sequence_zbdd_from_pdag(
+                &pdag,
+                &event_probs,
+                root_idx,
+                &successes,
+                cut_off,
+                limit_order,
+                scale,
+            )?;
         let approx_prob = compute_approx_et(&zbdd, zbdd_root, cli.approximation);
         let order_dist = zbdd.count_by_order(zbdd_root);
         let cut_sets = enumerate_cut_sets_et(&zbdd, zbdd_root, &event_names);
@@ -814,24 +902,16 @@ fn run_monte_carlo_impl(
 
     if cli.visualize {
         let graphviz_ok = praxis::analysis::visualize::graphviz_available();
-        if !graphviz_ok {
-            eprintln!("Warning: Graphviz 'dot' not found in PATH. SVG output skipped.");
-        }
         for (ie, event_tree) in &pairs {
             let et_dot = praxis::analysis::visualize::generate_event_tree_dot(event_tree, &ie.id);
-            if cli.visualize_stdout {
-                println!("{}", et_dot);
-            }
-            if graphviz_ok {
-                let tree_path = cli
-                    .visualize_out_dir
-                    .join(format!("{}_tree.svg", event_tree.id));
-                if let Err(e) = praxis::analysis::visualize::save_svg(&et_dot, &tree_path) {
-                    eprintln!("Warning: Failed to save event tree diagram: {}", e);
-                } else if verbose {
-                    eprintln!("Saved event tree diagram to {}", tree_path.display());
-                }
-            }
+            crate::cli::visualization::save_outputs(
+                cli,
+                &et_dot,
+                &format!("{}_tree", event_tree.id),
+                "event-tree visualization",
+                verbose,
+                graphviz_ok,
+            );
         }
     }
 
@@ -1174,6 +1254,7 @@ fn run_analytic_impl(
 
     let pairs = select_event_trees_to_run(&initiating_events, &event_trees)?;
     let mut analytic_reports: Vec<EventTreeAnalyticReport> = Vec::new();
+    let graphviz_ok = !cli.visualize || praxis::analysis::visualize::graphviz_available();
 
     let mut all_event_probs: HashMap<String, f64> = HashMap::new();
     for ft in model.fault_trees().values() {
@@ -1194,29 +1275,21 @@ fn run_analytic_impl(
 
         if cli.visualize {
             let et_dot = praxis::analysis::visualize::generate_event_tree_dot(&event_tree, &ie.id);
-            if cli.visualize_stdout {
-                println!("{}", et_dot);
-            }
-            if praxis::analysis::visualize::graphviz_available() {
-                let tree_path = cli
-                    .visualize_out_dir
-                    .join(format!("{}_tree.svg", event_tree.id));
-                if let Err(e) = praxis::analysis::visualize::save_svg(&et_dot, &tree_path) {
-                    eprintln!("Warning: Failed to save event tree diagram: {}", e);
-                } else if verbose {
-                    eprintln!("Saved event tree diagram to {}", tree_path.display());
-                }
-            } else {
-                eprintln!("Warning: Graphviz 'dot' not found in PATH. SVG output skipped.");
-            }
+            crate::cli::visualization::save_outputs(
+                cli,
+                &et_dot,
+                &format!("{}_tree", event_tree.id),
+                "event-tree visualization",
+                verbose,
+                graphviz_ok,
+            );
         }
 
         let sequences: Vec<EventTreeAnalyticSequence> = if algorithm == Algorithm::Zbdd {
-            let has_limits = cli.limit_order.is_some() || cli.cut_off.is_some();
             let has_approx = cli.approximation.is_some();
 
-            match (has_approx, has_limits) {
-                (false, false) => analytic_zbdd_wf1_no_approx_no_limits(
+            match (has_approx, cli.interactive_truncation) {
+                (false, true) => analytic_zbdd_wf1_no_approx_no_limits(
                     cli,
                     &model,
                     &event_tree,
@@ -1225,7 +1298,7 @@ fn run_analytic_impl(
                     ie_frequency,
                     verbose,
                 )?,
-                (true, false) => analytic_zbdd_wf2_approx_no_limits(
+                (true, true) => analytic_zbdd_wf2_approx_no_limits(
                     cli,
                     &model,
                     &event_tree,
@@ -1234,7 +1307,7 @@ fn run_analytic_impl(
                     ie_frequency,
                     verbose,
                 )?,
-                (false, true) => analytic_zbdd_wf3_no_approx_limits(
+                (false, false) => analytic_zbdd_wf3_no_approx_limits(
                     cli,
                     &model,
                     &event_tree,
@@ -1243,7 +1316,7 @@ fn run_analytic_impl(
                     ie_frequency,
                     verbose,
                 )?,
-                (true, true) => analytic_zbdd_wf4_approx_limits(
+                (true, false) => analytic_zbdd_wf4_approx_limits(
                     cli,
                     &model,
                     &event_tree,
@@ -1264,6 +1337,7 @@ fn run_analytic_impl(
             } = SequenceFormulaBuilder::new(&model)
                 .with_complement_unity(cli.complement_unity)
                 .with_delete_term(cli.delete_term)
+                .with_saphire_success(cli.saphire_success)
                 .with_event_tree_library(&event_tree_library)
                 .build(&event_tree, ie_frequency)
                 .map_err(|e| {
@@ -1334,26 +1408,15 @@ fn run_analytic_impl(
 
             let has_stats = sequences.iter().any(|s| !s.order_dist.is_empty());
             if has_stats {
-                println!("\n=== Minimal Cut Sets per Sequence ===");
+                println!("\n=== Minimal Cut-Set Counts per Sequence ===");
                 for seq in &sequences {
                     if seq.order_dist.is_empty() {
                         continue;
                     }
                     let total: u64 = seq.order_dist.values().sum();
-                    let mut orders: Vec<_> = seq.order_dist.keys().cloned().collect();
-                    orders.sort();
-                    let dist: Vec<String> = orders
-                        .iter()
-                        .map(|o| format!("order-{}: {}", o, seq.order_dist[o]))
-                        .collect();
-                    println!(
-                        "  {:<18} total={:<5} [{}]",
-                        seq.sequence_id,
-                        total,
-                        dist.join(", ")
-                    );
+                    println!("  {:<18} total={}", seq.sequence_id, total);
                 }
-                println!("=====================================\n");
+                println!("===========================================\n");
             } else {
                 println!();
             }
@@ -1432,6 +1495,178 @@ pub fn run_analytic_from_parsed(
         algorithm,
         verbose,
     )
+}
+
+/// Build named end-state cut-set families in one shared ZBDD manager. This
+/// does not quantify end-state probability or write SAPHIRE end-state records.
+pub fn run_end_state_from_parsed(
+    cli: &Args,
+    parsed: &EventTreeModel,
+    verbose: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let map_path = cli
+        .end_state_map
+        .as_ref()
+        .ok_or("missing --end-state-map")?;
+    let mut end_states = HashMap::<String, String>::new();
+    for (number, raw) in fs::read_to_string(map_path)?.lines().enumerate() {
+        if raw.is_empty() || raw.starts_with('#') {
+            continue;
+        }
+        let (sequence, end_state) = raw
+            .split_once('\t')
+            .ok_or_else(|| format!("end-state map line {} must contain one tab", number + 1))?;
+        if end_state.contains('\t') || sequence.trim().is_empty() {
+            return Err(format!("invalid end-state map line {}", number + 1).into());
+        }
+        if end_states
+            .insert(sequence.trim().to_string(), end_state.trim().to_string())
+            .is_some()
+        {
+            return Err(
+                format!("duplicate sequence '{}' in end-state map", sequence.trim()).into(),
+            );
+        }
+    }
+    let (model, initiating_events, event_trees, library) =
+        parse_model_with_libs_from_parsed(parsed)?;
+    let pairs = select_event_trees_to_run(&initiating_events, &event_trees)?;
+    if pairs.len() != 1 {
+        return Err("zbdd-end-state requires exactly one event tree per input".into());
+    }
+    let (ie, event_tree) = pairs.into_iter().next().unwrap();
+    if cli.validate {
+        return Ok(());
+    }
+    let formulas = SequenceFormulaBuilder::new(&model)
+        .with_complement_unity(cli.complement_unity)
+        .with_delete_term(cli.delete_term)
+        .with_saphire_success(cli.saphire_success)
+        .with_event_tree_library(&library)
+        .build(&event_tree, ie.frequency.unwrap_or(1.0))?;
+    let mut sequence_ids: Vec<String> = formulas.sequence_roots.keys().cloned().collect();
+    for id in &formulas.unconditional {
+        if !formulas.sequence_roots.contains_key(id) {
+            sequence_ids.push(id.clone());
+        }
+    }
+    sequence_ids.sort();
+    let known_ids: HashSet<&str> = sequence_ids.iter().map(String::as_str).collect();
+    for id in end_states.keys() {
+        if !known_ids.contains(id.as_str()) {
+            return Err(format!("end-state map contains unknown sequence '{}'", id).into());
+        }
+    }
+    let scale = truncation_scale(cli.cut_off_basis, ie.frequency.unwrap_or(1.0));
+    let mut jobs = Vec::new();
+    for id in &sequence_ids {
+        let end_state = end_states
+            .get(id)
+            .ok_or_else(|| format!("sequence '{}' is missing from end-state map", id))?;
+        // SAPHIRE permits sequences without an assigned end state. They do not
+        // belong to any named aggregate; the explicit blank map row skips them.
+        if end_state.is_empty() {
+            continue;
+        }
+        let unconditional = formulas.unconditional.contains(id);
+        jobs.push(praxis::algorithms::direct_zbdd::EndStateSequence {
+            end_state: end_state.clone(),
+            failure_root: if unconditional {
+                None
+            } else {
+                Some(
+                    *formulas
+                        .sequence_roots
+                        .get(id)
+                        .ok_or_else(|| format!("sequence '{}' has no cut-set formula", id))?,
+                )
+            },
+            success_roots: if unconditional {
+                Vec::new()
+            } else {
+                formulas
+                    .sequence_success_roots
+                    .get(id)
+                    .cloned()
+                    .unwrap_or_default()
+            },
+        });
+    }
+    if verbose {
+        eprintln!("aggregating {} sequences by end state", jobs.len());
+    }
+    let (engine, groups, names) =
+        praxis::algorithms::direct_zbdd::build_end_state_zbdd_from_pdag_with_order(
+            &formulas.pdag,
+            &formulas.event_probs,
+            &jobs,
+            cli.cut_off,
+            cli.limit_order.map(|order| order as usize),
+            scale,
+            cli.effective_variable_order(),
+            cli.reorder_budget(),
+        )?;
+    let aggregate = EndStateZbdd::from_shared(engine, names, groups)?;
+
+    let destination: Box<dyn Write> = if let Some(path) = &cli.output_file {
+        Box::new(BufWriter::new(fs::File::create(path)?))
+    } else {
+        Box::new(BufWriter::new(std::io::stdout()))
+    };
+    let mut writer = Writer::new(destination);
+    writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("UTF-8"), None)))?;
+    let mut document = BytesStart::new("end-state-cut-sets");
+    document.push_attribute(("event-tree", event_tree.id.as_str()));
+    document.push_attribute(("algorithm", "zbdd-end-state"));
+    writer.write_event(Event::Start(document))?;
+    for (name, root) in aggregate.groups() {
+        let count = aggregate
+            .engine()
+            .count_by_order(root)
+            .values()
+            .fold(0_u64, |sum, count| sum.saturating_add(*count));
+        let count_text = count.to_string();
+        let nodes_text = aggregate.engine().reachable_count(root).to_string();
+        let mut group = BytesStart::new("end-state");
+        group.push_attribute(("name", name));
+        group.push_attribute(("cut-sets", count_text.as_str()));
+        group.push_attribute(("zbdd-nodes", nodes_text.as_str()));
+        writer.write_event(Event::Start(group))?;
+        if !cli.cut_set_stats_only {
+            write_end_state_products(&mut writer, &aggregate, root, &mut Vec::new())?;
+        }
+        writer.write_event(Event::End(BytesEnd::new("end-state")))?;
+        eprintln!("end-state {name}: {count} minimal cut sets, {nodes_text} ZBDD nodes");
+    }
+    writer.write_event(Event::End(BytesEnd::new("end-state-cut-sets")))?;
+    Ok(())
+}
+
+fn write_end_state_products(
+    writer: &mut Writer<Box<dyn Write>>,
+    aggregate: &EndStateZbdd,
+    root: ZbddRef,
+    path: &mut Vec<usize>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if root == ZBDD_EMPTY {
+        return Ok(());
+    }
+    if root == ZBDD_BASE {
+        writer.write_event(Event::Start(BytesStart::new("cut-set")))?;
+        for &variable in path.iter() {
+            let mut event = BytesStart::new("basic-event");
+            event.push_attribute(("name", aggregate.variable_names()[variable].as_str()));
+            writer.write_event(Event::Empty(event))?;
+        }
+        writer.write_event(Event::End(BytesEnd::new("cut-set")))?;
+        return Ok(());
+    }
+    let node = aggregate.engine().node(root);
+    write_end_state_products(writer, aggregate, node.low, path)?;
+    path.push(node.var);
+    write_end_state_products(writer, aggregate, node.high, path)?;
+    path.pop();
+    Ok(())
 }
 
 fn select_event_trees_to_run(

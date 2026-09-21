@@ -3,6 +3,7 @@ pub mod bdd_vectored;
 pub mod build;
 pub mod cycle;
 pub mod direct_zbdd;
+pub mod end_state_zbdd;
 pub mod mocus;
 pub mod modules;
 pub mod noncoherent_mocus;

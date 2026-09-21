@@ -6,7 +6,10 @@ use crate::cli::optimize::{
     estimate_fault_tree_nodes, optimize_run_params_for_cpu, optimize_run_params_for_cuda,
 };
 use praxis::algorithms::bdd_engine::Bdd as BddEngine;
-use praxis::algorithms::build::BuildOptions;
+use praxis::algorithms::build::{BuildOptions, VariableOrder};
+use praxis::algorithms::direct_zbdd::{
+    build_zbdd_direct_from_pdag_with_order, enumerate_named_cut_sets,
+};
 use praxis::algorithms::mocus::{CutSet, Mocus};
 use praxis::algorithms::noncoherent_mocus::NonCoherentMocus;
 use praxis::algorithms::pdag::{NodeIndex, Pdag};
@@ -45,7 +48,7 @@ fn cli_build_options(cli: &Args) -> BuildOptions {
         fold_constants: cli.simplify_house_events,
         splice_null_gates: cli.simplify_house_events,
         reorder: None,
-        reorder_budget: std::time::Duration::from_secs(10),
+        reorder_budget: cli.reorder_budget(),
     }
 }
 
@@ -59,8 +62,10 @@ type BuiltPdagAndBdd = (
 fn build_pdag_and_bdd(
     fault_tree: &praxis::core::fault_tree::FaultTree,
     opts: BuildOptions,
+    variable_order: VariableOrder,
 ) -> Result<BuiltPdagAndBdd, Box<dyn std::error::Error>> {
-    let built = praxis::algorithms::build::build_bdd(fault_tree, opts)?;
+    let built =
+        praxis::algorithms::build::build_bdd_with_variable_order(fault_tree, opts, variable_order)?;
     Ok((built.pdag, built.order, built.bdd, built.root))
 }
 
@@ -407,8 +412,11 @@ fn run_pre_event_tree_impl(
         if verbose {
             eprintln!("Computing top event probability using BDD...");
         }
-        let (_pdag, _order, mut bdd_engine, root) =
-            build_pdag_and_bdd(&fault_tree, cli_build_options(cli))?;
+        let (_pdag, _order, mut bdd_engine, root) = build_pdag_and_bdd(
+            &fault_tree,
+            cli_build_options(cli),
+            cli.effective_variable_order(),
+        )?;
         let p = if cli.limit_order.is_some() || cli.cut_off.is_some() {
             bdd_engine.probability_with_limits(
                 root,
@@ -456,21 +464,14 @@ fn run_pre_event_tree_impl(
             eprintln!("Generating fault tree visualization...");
         }
         let dot_content = praxis::analysis::visualize::generate_dot_from_fault_tree(&fault_tree);
-        if cli.visualize_stdout {
-            println!("{}", dot_content);
-        }
-        if praxis::analysis::visualize::graphviz_available() {
-            let out_path = cli
-                .visualize_out_dir
-                .join(format!("{}.svg", fault_tree.element().id()));
-            if let Err(e) = praxis::analysis::visualize::save_svg(&dot_content, &out_path) {
-                eprintln!("Warning: Failed to save SVG visualization: {}", e);
-            } else if verbose {
-                eprintln!("Saved fault tree visualization to {}", out_path.display());
-            }
-        } else {
-            eprintln!("Warning: Graphviz 'dot' not found in PATH. SVG output skipped.");
-        }
+        crate::cli::visualization::save_outputs(
+            cli,
+            &dot_content,
+            fault_tree.element().id(),
+            "fault-tree visualization",
+            verbose,
+            praxis::analysis::visualize::graphviz_available(),
+        );
     }
 
     let mut computed_cut_sets: Option<Vec<CutSet>> = None;
@@ -567,8 +568,11 @@ fn run_pre_event_tree_impl(
             eprintln!("\nRunning ZBDD analysis...");
         }
 
-        let (pdag, order, mut bdd, bdd_root) =
-            build_pdag_and_bdd(&fault_tree, cli_build_options(cli))?;
+        let (pdag, order, mut bdd, bdd_root) = build_pdag_and_bdd(
+            &fault_tree,
+            cli_build_options(cli),
+            cli.effective_variable_order(),
+        )?;
 
         if cli.cut_set_stats_only {
             let exact_probability = bdd.probability(bdd_root);
@@ -646,6 +650,83 @@ fn run_pre_event_tree_impl(
         let _ = (pdag, order);
     }
 
+    if cli.algorithm == Algorithm::ZbddDirect {
+        if verbose {
+            eprintln!("\nRunning direct ZBDD analysis...");
+        }
+
+        let pdag = Pdag::from_fault_tree(&fault_tree)?;
+        let build_limit_order = if cli.interactive_truncation {
+            None
+        } else {
+            cli.limit_order.map(|value| value as usize)
+        };
+        let build_cut_off = if cli.interactive_truncation {
+            None
+        } else {
+            cli.cut_off
+        };
+        let (mut zbdd, direct_root, event_names) = build_zbdd_direct_from_pdag_with_order(
+            &pdag,
+            &fault_tree,
+            build_cut_off,
+            build_limit_order,
+            cli.effective_variable_order(),
+            cli.reorder_budget(),
+        )?;
+        let approximation = cli.approximation.unwrap_or(Approximation::Mcub);
+        let direct_probability =
+            |engine: &ZbddEngine, root: praxis::algorithms::zbdd_engine::ZbddRef| {
+                compute_approx(engine, root, Some(approximation))
+            };
+
+        if cli.cut_set_stats_only {
+            let metadata = vec![ZbddSequenceMetadata::from_stats(
+                fault_tree.element().id().to_string(),
+                direct_probability(&zbdd, direct_root),
+                zbdd.stats_by_order(direct_root),
+                1.0,
+            )];
+            display_zbdd_metadata(&metadata);
+            println!("No cut sets were materialized.");
+            return Ok(FaultTreePreOutcome::ExitOk);
+        }
+
+        let direct_root = if cli.interactive_truncation {
+            let metadata = vec![ZbddSequenceMetadata::from_stats(
+                fault_tree.element().id().to_string(),
+                direct_probability(&zbdd, direct_root),
+                zbdd.stats_by_order(direct_root),
+                1.0,
+            )];
+            display_zbdd_metadata(&metadata);
+            choose_zbdd_filters_interactively(cli, &mut zbdd, direct_root)
+        } else {
+            direct_root
+        };
+
+        result.top_event_probability = direct_probability(&zbdd, direct_root);
+        let cut_sets: Vec<CutSet> = enumerate_named_cut_sets(&zbdd, direct_root, &event_names)
+            .into_iter()
+            .map(CutSet::new)
+            .collect();
+
+        if cli.print || verbosity_level > 0 {
+            print_cut_sets_summary(
+                "Direct ZBDD",
+                fault_tree.element().id(),
+                &cut_sets,
+                verbosity_level,
+            );
+        }
+        if verbose {
+            eprintln!("Direct ZBDD analysis complete!");
+            eprintln!("Minimal cut sets found: {}", cut_sets.len());
+            eprintln!("Top event probability: {}", result.top_event_probability);
+        }
+        computed_cut_sets = Some(cut_sets);
+    }
+
     if cli.algorithm == Algorithm::ZbddDelterm {
         if verbose {
             eprintln!("\nRunning delete-term ZBDD analysis (non-coherent cut sets)...");
@@ -660,6 +741,8 @@ fn run_pre_event_tree_impl(
             }),
             limit_order: cli.limit_order.map(|n| n as usize),
             cut_off: cli.cut_off,
+            variable_order: cli.effective_variable_order(),
+            reorder_budget: cli.reorder_budget(),
             ..Default::default()
         };
         let quant = praxis::analysis::quantify::quantify(&fault_tree, &settings)?;
@@ -705,7 +788,10 @@ fn run_pre_event_tree_impl(
         }
     }
 
-    if cli.algorithm == Algorithm::Mocus || cli.algorithm == Algorithm::Zbdd {
+    if matches!(
+        cli.algorithm,
+        Algorithm::Mocus | Algorithm::Zbdd | Algorithm::ZbddDirect
+    ) {
         if let Some(approximation) = cli.approximation {
             if cli.algorithm == Algorithm::Mocus {
                 if let Some(ref cut_sets) = computed_cut_sets {

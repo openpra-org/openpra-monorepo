@@ -275,6 +275,7 @@ struct JEntry {
     f: u32,
     g: u32,
     bucket: u64,
+    remaining: usize,
     mp: f64,
     thr: f64,
     result: u32,
@@ -285,6 +286,7 @@ const JEMPTY: JEntry = JEntry {
     f: 0,
     g: 0,
     bucket: 0,
+    remaining: 0,
     mp: 0.0,
     thr: 0.0,
     result: 0,
@@ -292,17 +294,17 @@ const JEMPTY: JEntry = JEntry {
 };
 
 // Open-addressing cache for the budgeted join. Within one min_prob the result of
-// join_budgeted_rec depends only on (f, g, threshold) where threshold = min_prob /
-// p_acc is the smallest product probability still worth keeping here. Keyed by
-// (f, g, mp=min_prob, bucket(thr)); each entry stores the EXACT thr it was computed
-// at and is reused only when its thr is at least as low (loose) as the query's, so
-// the reused result is a sound superset (bounded by the bucket width) cleaned by a
-// final exact truncation. min_prob is part of the key on purpose: across two
-// different min_prob values the per-product prune folds are independent floating
-// point sums, so a same-min_prob match keeps the superset exact in IEEE arithmetic,
-// not just in real arithmetic. Persisting the table across calls (Part C) is then
-// sound because every reuse is same-min_prob. A `used` flag is mandatory because
-// the join can cache ZBDD_EMPTY.
+// join_budgeted_rec depends only on (f, g, threshold, remaining order), where
+// threshold = min_prob / p_acc is the smallest product probability still worth
+// keeping here. Keyed by (f, g, mp=min_prob, bucket(thr), remaining); each entry
+// stores the EXACT thr it was computed at and is reused only when its thr is at
+// least as low (loose) as the query's, so the reused result is a sound superset
+// (bounded by the bucket width) cleaned by a final exact truncation. min_prob is
+// part of the key on purpose: across two different min_prob values the per-product
+// prune folds are independent floating point sums, so a same-min_prob match keeps
+// the superset exact in IEEE arithmetic, not just in real arithmetic. Persisting
+// the table across calls (Part C) is then sound because every reuse is
+// same-min_prob. A `used` flag is mandatory because the join can cache ZBDD_EMPTY.
 struct JoinCache {
     slots: Vec<JEntry>,
     mask: usize,
@@ -335,24 +337,26 @@ impl JoinCache {
         thr.to_bits() >> (52 - self.mant_bits)
     }
 
-    fn hash(f: u32, g: u32, bucket: u64, mp: f64) -> u64 {
+    fn hash(f: u32, g: u32, bucket: u64, mp: f64, remaining: usize) -> u64 {
         let mut h = (f as u64) | ((g as u64) << 32);
         h ^= bucket.wrapping_mul(0x9E3779B97F4A7C15);
         h ^= mp.to_bits().wrapping_mul(0xFF51AFD7ED558CCD);
+        h ^= (remaining as u64).wrapping_mul(0x94D049BB133111EB);
         h = h.wrapping_mul(0xD6E8FEB86659FD93);
         h ^= h >> 32;
         h
     }
 
-    fn get(&self, f: u32, g: u32, thr: f64, mp: f64) -> Option<u32> {
+    fn get(&self, f: u32, g: u32, thr: f64, mp: f64, remaining: usize) -> Option<u32> {
         let bucket = self.bucket(thr);
-        let mut i = (Self::hash(f, g, bucket, mp) as usize) & self.mask;
+        let mut i = (Self::hash(f, g, bucket, mp, remaining) as usize) & self.mask;
         loop {
             let e = self.slots[i];
             if !e.used {
                 return None;
             }
-            if e.f == f && e.g == g && e.bucket == bucket && e.mp == mp {
+            if e.f == f && e.g == g && e.bucket == bucket && e.mp == mp && e.remaining == remaining
+            {
                 // Reusable only if the cached threshold is at least as low (loose)
                 // as the query's, in which case the cached result is a sound superset.
                 return if e.thr <= thr { Some(e.result) } else { None };
@@ -361,8 +365,17 @@ impl JoinCache {
         }
     }
 
-    fn place(&mut self, f: u32, g: u32, bucket: u64, thr: f64, mp: f64, result: u32) {
-        let mut i = (Self::hash(f, g, bucket, mp) as usize) & self.mask;
+    fn place(
+        &mut self,
+        f: u32,
+        g: u32,
+        bucket: u64,
+        thr: f64,
+        mp: f64,
+        remaining: usize,
+        result: u32,
+    ) {
+        let mut i = (Self::hash(f, g, bucket, mp, remaining) as usize) & self.mask;
         loop {
             let e = self.slots[i];
             if !e.used {
@@ -370,6 +383,7 @@ impl JoinCache {
                     f,
                     g,
                     bucket,
+                    remaining,
                     mp,
                     thr,
                     result,
@@ -378,13 +392,15 @@ impl JoinCache {
                 self.len += 1;
                 return;
             }
-            if e.f == f && e.g == g && e.bucket == bucket && e.mp == mp {
+            if e.f == f && e.g == g && e.bucket == bucket && e.mp == mp && e.remaining == remaining
+            {
                 // Keep the lowest (loosest) threshold per key; it serves the most.
                 if thr < e.thr {
                     self.slots[i] = JEntry {
                         f,
                         g,
                         bucket,
+                        remaining,
                         mp,
                         thr,
                         result,
@@ -397,7 +413,7 @@ impl JoinCache {
         }
     }
 
-    fn insert(&mut self, f: u32, g: u32, thr: f64, mp: f64, result: u32) {
+    fn insert(&mut self, f: u32, g: u32, thr: f64, mp: f64, remaining: usize, result: u32) {
         if (self.len + 1) * 10 >= (self.mask + 1) * 7 {
             let new_cap = (self.mask + 1) * 2;
             let old = std::mem::replace(&mut self.slots, vec![JEMPTY; new_cap]);
@@ -405,12 +421,12 @@ impl JoinCache {
             self.len = 0;
             for e in old {
                 if e.used {
-                    self.place(e.f, e.g, e.bucket, e.thr, e.mp, e.result);
+                    self.place(e.f, e.g, e.bucket, e.thr, e.mp, e.remaining, e.result);
                 }
             }
         }
         let bucket = self.bucket(thr);
-        self.place(f, g, bucket, thr, mp, result);
+        self.place(f, g, bucket, thr, mp, remaining, result);
     }
 }
 
@@ -502,9 +518,9 @@ impl ZbddEngine {
             .unwrap_or(true);
         let use_computed = gc_on || array_opcache;
         let (computed, computed_mask) = if use_computed {
-            // Short-lived sequence engines should not each initialize a 1 GiB
-            // cache. Keep the GC-on setting; larger workloads can still select
-            // their measured cache size through PRAXIS_ZBDD_CACHE_BITS.
+            // GC-on keeps a small cache to protect the 1E-12 memory wall (every
+            // slot pins live nodes). GC-off has headroom, and the op-cache is
+            // capacity-bound, so default larger; 2^26 is the measured 1E-9 knee.
             let default_bits = if gc_on { 23 } else { 12 };
             let bits = std::env::var("PRAXIS_ZBDD_CACHE_BITS")
                 .ok()
@@ -629,6 +645,24 @@ impl ZbddEngine {
             stack.push(n.low);
         }
         seen.len()
+    }
+
+    /// Return every literal variable that occurs in at least one set in
+    /// `root`, without enumerating the represented set family.
+    pub(crate) fn support_variables(&self, root: ZbddRef) -> std::collections::HashSet<usize> {
+        let mut variables = std::collections::HashSet::new();
+        let mut seen = std::collections::HashSet::new();
+        let mut stack = vec![root];
+        while let Some(f) = stack.pop() {
+            if f.is_terminal() || !seen.insert(f) {
+                continue;
+            }
+            let node = self.node(f);
+            variables.insert(node.var);
+            stack.push(node.high);
+            stack.push(node.low);
+        }
+        variables
     }
 
     pub fn unique_len(&self) -> usize {
@@ -1024,11 +1058,41 @@ impl ZbddEngine {
     }
 
     pub(crate) fn join_budgeted(&mut self, f: ZbddRef, g: ZbddRef, min_prob: f64) -> ZbddRef {
+        self.join_budgeted_with_order(f, g, min_prob, usize::MAX)
+    }
+
+    /// Form the Cartesian product of two set families while refusing to create
+    /// products above `max_order`.  A zero probability floor makes this the
+    /// order-only counterpart of `join_budgeted_limited`.
+    pub(crate) fn join_limited(&mut self, f: ZbddRef, g: ZbddRef, max_order: usize) -> ZbddRef {
+        self.join_budgeted_with_order(f, g, 0.0, max_order)
+    }
+
+    pub(crate) fn join_budgeted_limited(
+        &mut self,
+        f: ZbddRef,
+        g: ZbddRef,
+        min_prob: f64,
+        max_order: usize,
+    ) -> ZbddRef {
+        self.join_budgeted_with_order(f, g, min_prob, max_order)
+    }
+
+    fn join_budgeted_with_order(
+        &mut self,
+        f: ZbddRef,
+        g: ZbddRef,
+        min_prob: f64,
+        remaining: usize,
+    ) -> ZbddRef {
         self.ensure_maxprob(f);
         self.ensure_maxprob(g);
         let persistent = self.join_bcache.is_some();
         let mut cache = self.join_bcache.take().unwrap_or_else(JoinCache::new);
-        let result = self.join_budgeted_rec(f, g, 1.0, min_prob, &mut cache);
+        // `min_prob` is expressed in the final product value. Start with the
+        // engine scale so event-tree joins compare IE frequency times the
+        // conditional product directly against the analyst's cutoff.
+        let result = self.join_budgeted_rec(f, g, self.scale, min_prob, remaining, &mut cache);
         if persistent {
             self.join_bcache = Some(cache);
         } else if self.gc_on {
@@ -1048,6 +1112,7 @@ impl ZbddEngine {
         g: ZbddRef,
         p_acc: f64,
         min_prob: f64,
+        remaining: usize,
         cache: &mut JoinCache,
     ) -> ZbddRef {
         if f.is_empty() || g.is_empty() {
@@ -1073,7 +1138,7 @@ impl ZbddEngine {
                 ZBDD_EMPTY
             };
         }
-        if let Some(r) = cache.get(f.raw(), g.raw(), min_prob / p_acc, min_prob) {
+        if let Some(r) = cache.get(f.raw(), g.raw(), min_prob / p_acc, min_prob, remaining) {
             let r = ZbddRef(r);
             self.protect(r);
             return r;
@@ -1092,13 +1157,20 @@ impl ZbddEngine {
         } else {
             (ZBDD_EMPTY, g)
         };
-        let p_hi = p_acc * p_v;
-        let j11 = self.join_budgeted_rec(f1, g1, p_hi, min_prob, cache);
-        let j10 = self.join_budgeted_rec(f1, g0, p_hi, min_prob, cache);
-        let j01 = self.join_budgeted_rec(f0, g1, p_hi, min_prob, cache);
+        let (j11, j10, j01) = if remaining == 0 {
+            (ZBDD_EMPTY, ZBDD_EMPTY, ZBDD_EMPTY)
+        } else {
+            let p_hi = p_acc * p_v;
+            let next_remaining = remaining - 1;
+            (
+                self.join_budgeted_rec(f1, g1, p_hi, min_prob, next_remaining, cache),
+                self.join_budgeted_rec(f1, g0, p_hi, min_prob, next_remaining, cache),
+                self.join_budgeted_rec(f0, g1, p_hi, min_prob, next_remaining, cache),
+            )
+        };
         let a = self.union(j11, j10);
         let hi = self.union(a, j01);
-        let lo = self.join_budgeted_rec(f0, g0, p_acc, min_prob, cache);
+        let lo = self.join_budgeted_rec(f0, g0, p_acc, min_prob, remaining, cache);
         // Part A: minimal-by-construction. Only worthwhile under GC, where the raw
         // superset spine is reclaimed; in GC-off nothing is freed so it only adds
         // interned nodes. With the minimal bit, re-minimizing is O(1).
@@ -1117,7 +1189,14 @@ impl ZbddEngine {
         self.deref(hi);
         self.deref(lo);
         self.protect(result);
-        cache.insert(f.raw(), g.raw(), min_prob / p_acc, min_prob, result.raw());
+        cache.insert(
+            f.raw(),
+            g.raw(),
+            min_prob / p_acc,
+            min_prob,
+            remaining,
+            result.raw(),
+        );
         result
     }
 
@@ -1338,6 +1417,49 @@ impl ZbddEngine {
         } else {
             self.removevar_cache.insert((f, w), result);
         }
+        result
+    }
+
+    /// Return the family of sets that contain `w`, with `w` removed from every
+    /// returned set. This is the positive ZBDD cofactor used by direct
+    /// consensus generation.
+    pub(crate) fn include_cofactor(&mut self, f: ZbddRef, w: usize) -> ZbddRef {
+        let mut cache = HashMap::new();
+        self.include_cofactor_inner(f, w, &mut cache)
+    }
+
+    fn include_cofactor_inner(
+        &mut self,
+        f: ZbddRef,
+        w: usize,
+        cache: &mut HashMap<ZbddRef, ZbddRef>,
+    ) -> ZbddRef {
+        if f.is_terminal() {
+            return ZBDD_EMPTY;
+        }
+        if let Some(&cached) = cache.get(&f) {
+            self.protect(cached);
+            return cached;
+        }
+
+        let var = self.var_of(f);
+        if var > w {
+            return ZBDD_EMPTY;
+        }
+        if var == w {
+            let high = self.node(f).high;
+            self.protect(high);
+            return high;
+        }
+
+        let high = self.node(f).high;
+        let low = self.node(f).low;
+        let high_result = self.include_cofactor_inner(high, w, cache);
+        let low_result = self.include_cofactor_inner(low, w, cache);
+        let result = self.make_node(var, high_result, low_result);
+        self.deref(high_result);
+        self.deref(low_result);
+        cache.insert(f, result);
         result
     }
 
@@ -1606,6 +1728,46 @@ impl ZbddEngine {
             merged
         };
         cache.insert(f, result.clone());
+        result
+    }
+
+    pub fn stats(&self, root: ZbddRef) -> Option<(u64, f64, f64)> {
+        let mut cache: HashMap<ZbddRef, Option<(u64, f64, f64)>> = HashMap::new();
+        self.stats_rec(root, &mut cache)
+    }
+
+    fn stats_rec(
+        &self,
+        f: ZbddRef,
+        cache: &mut HashMap<ZbddRef, Option<(u64, f64, f64)>>,
+    ) -> Option<(u64, f64, f64)> {
+        if let Some(cached) = cache.get(&f) {
+            return *cached;
+        }
+        let result = if f.is_empty() {
+            None
+        } else if f.is_base() {
+            Some((1, 1.0, 1.0))
+        } else {
+            let node = self.node(f);
+            let high = self.stats_rec(node.high, cache).map(|(count, min, max)| {
+                let probability = self.var_probs[node.var];
+                (count, min * probability, max * probability)
+            });
+            let low = self.stats_rec(node.low, cache);
+            match (high, low) {
+                (Some((high_count, high_min, high_max)), Some((low_count, low_min, low_max))) => {
+                    Some((
+                        high_count.saturating_add(low_count),
+                        high_min.min(low_min),
+                        high_max.max(low_max),
+                    ))
+                }
+                (Some(stats), None) | (None, Some(stats)) => Some(stats),
+                (None, None) => None,
+            }
+        };
+        cache.insert(f, result);
         result
     }
 
@@ -2329,6 +2491,23 @@ mod tests {
     }
 
     #[test]
+    fn stats_reports_total_count_and_global_probability_range() {
+        let mut z = ZbddEngine::new();
+        z.set_var_probs(vec![0.1, 0.2, 0.3]);
+        let order_one = z.multiply(0, ZBDD_BASE);
+        let event_two = z.multiply(2, ZBDD_BASE);
+        let order_two = z.multiply(1, event_two);
+        let root = z.union(order_one, order_two);
+
+        let (count, min, max) = z.stats(root).expect("non-empty family");
+
+        assert_eq!(count, 2);
+        assert!((min - 0.06).abs() < 1e-12);
+        assert!((max - 0.1).abs() < 1e-12);
+        assert_eq!(z.stats(ZBDD_EMPTY), None);
+    }
+
+    #[test]
     fn diagram_filters_run_before_cut_set_enumeration() {
         let mut z = ZbddEngine::new();
         z.set_var_probs(vec![0.1, 0.2, 0.3]);
@@ -2343,5 +2522,36 @@ mod tests {
         let by_probability = z.prune_below_probability(root, 0.08);
         assert_eq!(z.count_by_order(by_probability).values().sum::<u64>(), 1);
         assert_eq!(z.enumerate(by_probability), vec![vec![0]]);
+    }
+
+    #[test]
+    fn combinatorial_family_keeps_billions_of_sets_symbolic() {
+        fn choose(
+            engine: &mut ZbddEngine,
+            index: usize,
+            remaining: usize,
+            memo: &mut HashMap<(usize, usize), ZbddRef>,
+        ) -> ZbddRef {
+            if remaining == 0 {
+                return ZBDD_BASE;
+            }
+            if 34 - index < remaining {
+                return ZBDD_EMPTY;
+            }
+            if let Some(&root) = memo.get(&(index, remaining)) {
+                return root;
+            }
+            let high = choose(engine, index + 1, remaining - 1, memo);
+            let low = choose(engine, index + 1, remaining, memo);
+            let root = engine.make_node(index, high, low);
+            memo.insert((index, remaining), root);
+            root
+        }
+
+        let mut engine = ZbddEngine::new();
+        let root = choose(&mut engine, 0, 17, &mut HashMap::new());
+        let count: u64 = engine.count_by_order(root).values().sum();
+        assert_eq!(count, 2_333_606_220); // C(34, 17)
+        assert!(engine.reachable_count(root) < 1_000);
     }
 }

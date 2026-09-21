@@ -186,6 +186,7 @@ impl FaultTree {
     pub fn expand_ccf_groups(&mut self, base_probabilities: &HashMap<String, f64>) -> Result<()> {
         let mut expanded_events = Vec::new();
         let mut member_ccbes: HashMap<String, Vec<String>> = HashMap::new();
+        let mut parent_ccbes: HashMap<String, Vec<String>> = HashMap::new();
 
         for (id, ccf_group) in &self.ccf_groups {
             let base_prob = base_probabilities.get(id).ok_or_else(|| {
@@ -193,11 +194,18 @@ impl FaultTree {
             })?;
 
             for ccf_event in ccf_group.expand(*base_prob)? {
-                for member in &ccf_event.failed_members {
-                    member_ccbes
-                        .entry(member.clone())
+                if ccf_group.model.replaces_parent_event() {
+                    parent_ccbes
+                        .entry(id.clone())
                         .or_default()
                         .push(ccf_event.id.clone());
+                } else {
+                    for member in &ccf_event.failed_members {
+                        member_ccbes
+                            .entry(member.clone())
+                            .or_default()
+                            .push(ccf_event.id.clone());
+                    }
                 }
                 expanded_events.push(ccf_event);
             }
@@ -217,6 +225,26 @@ impl FaultTree {
             self.gates.insert(member, gate);
         }
 
+        for (parent, ccbe_ids) in parent_ccbes {
+            if self.gates.contains_key(&parent) {
+                return Err(PraxisError::Logic(format!(
+                    "SAPHIRE RASP CCF parent '{}' is already a gate",
+                    parent
+                )));
+            }
+            if self.basic_events.remove(&parent).is_none() {
+                return Err(PraxisError::Logic(format!(
+                    "SAPHIRE RASP CCF parent '{}' is not a basic event",
+                    parent
+                )));
+            }
+            let mut gate = Gate::new(parent.clone(), Formula::Or)?;
+            for ccbe_id in ccbe_ids {
+                gate.add_operand(ccbe_id);
+            }
+            self.gates.insert(parent, gate);
+        }
+
         Ok(())
     }
 }
@@ -224,7 +252,7 @@ impl FaultTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::ccf::{CcfModel, TestingScheme};
+    use crate::core::ccf::{CcfModel, RaspCcfEvent, TestingScheme};
     use crate::core::gate::Formula;
 
     #[test]
@@ -598,6 +626,42 @@ mod tests {
         let mgl2_1 = ft.get_basic_event("Motors-mgl-2-1");
         assert!(mgl2_1.is_some());
         assert!((mgl2_1.unwrap().probability() - 0.02).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_expand_rasp_mgl_replaces_parent_basic_event() {
+        let mut ft = FaultTree::new("RASP", "TOP").unwrap();
+        ft.add_basic_event(BasicEvent::new("RASP-PARENT".to_string(), 0.0).unwrap())
+            .unwrap();
+        let mut top = Gate::new("TOP".to_string(), Formula::Or).unwrap();
+        top.add_operand("RASP-PARENT".to_string());
+        ft.add_gate(top).unwrap();
+        ft.add_ccf_group(
+            CcfGroup::new(
+                "RASP-PARENT",
+                vec!["A".into(), "B".into(), "C".into()],
+                CcfModel::RaspMgl {
+                    factors: vec![0.02, 0.0],
+                    virtual_events: vec![RaspCcfEvent {
+                        id: "RASP-PARENT-AB".into(),
+                        member_indices: vec![0, 1],
+                    }],
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        let base = HashMap::from([("RASP-PARENT".to_string(), 7.2e-7)]);
+        ft.expand_ccf_groups(&base).unwrap();
+
+        assert!(ft.get_basic_event("RASP-PARENT").is_none());
+        let parent = ft.get_gate("RASP-PARENT").unwrap();
+        assert!(matches!(parent.formula(), Formula::Or));
+        assert_eq!(parent.operands(), &["RASP-PARENT-AB"]);
+        assert!(
+            (ft.get_basic_event("RASP-PARENT-AB").unwrap().probability() - 7.2e-9).abs() < 1e-20
+        );
     }
 
     #[test]

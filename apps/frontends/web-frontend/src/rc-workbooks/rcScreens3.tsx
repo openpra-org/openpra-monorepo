@@ -928,7 +928,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     return (
       <>
         <DrawerHead cap="Dispersion" title="Dispersion model and sampling" sub="RCAD-A to C" onClose={onClose} centered={centered} />
-        <div className={centered ? "modal__body" : "posdrawer__body"}>
+        <div className={`${centered ? "modal__body" : "posdrawer__body"} rc-transport-model-form`}>
           <RcSelectField label="Model class" value={ad.dispersionModel.modelClass} options={MODEL_CLASS_OPTIONS} onChange={(v) => patch({ dispersionModel: { ...ad.dispersionModel, modelClass: v as typeof ad.dispersionModel.modelClass } })} disabled={dis} />
           <RcTextField label="Model name" value={ad.dispersionModel.name ?? ""} onChange={(v) => patch({ dispersionModel: { ...ad.dispersionModel, name: v } })} disabled={dis} />
           <RcAreaField label="Model justification" value={ad.dispersionModel.justification} onChange={(v) => patch({ dispersionModel: { ...ad.dispersionModel, justification: v } })} disabled={dis} rows={2} />
@@ -937,14 +937,25 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
           <RcSelectField label="Spatial treatment" value={ad.spatialTreatment.approach} options={SPATIAL_OPTIONS} onChange={(v) => patch({ spatialTreatment: { ...ad.spatialTreatment, approach: v as typeof ad.spatialTreatment.approach } })} disabled={dis} />
           <RcTextField label="Grid description" value={ad.spatialTreatment.gridDescription ?? ""} onChange={(v) => patch({ spatialTreatment: { ...ad.spatialTreatment, gridDescription: v } })} disabled={dis} />
           <RcTextField label="Grid justification" value={ad.spatialTreatment.gridJustification ?? ""} onChange={(v) => patch({ spatialTreatment: { ...ad.spatialTreatment, gridJustification: v } })} disabled={dis} />
+          <RcSelectField label="Use Step 03 weather" value={ad.meteorologicalDataPerRcme ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ meteorologicalDataPerRcme: v === "yes" })} disabled={dis} />
+          <RcTextField label="Wind-field data" value={ad.windFieldData} onChange={(v) => patch({ windFieldData: v })} disabled={dis} />
+          <RcAreaField label="Weather representativeness" value={ad.windRepresentativeness ?? ""} onChange={(v) => patch({ windRepresentativeness: v })} disabled={dis} rows={2} />
           <RcSelectField label="Weather sampling" value={ms.approach} options={SAMPLING_OPTIONS} onChange={(v) => patch({ meteorologicalSampling: { ...ms, approach: v as typeof ms.approach } })} disabled={dis} />
           <RcAreaField label="Sampling technique" value={ms.technique ?? ""} onChange={(v) => patch({ meteorologicalSampling: { ...ms, technique: v } })} disabled={dis} rows={2} />
-          <RcNumberField label="Mean-shift percent" value={ms.meanShiftValidation?.meanShiftPercent ?? 0} onChange={(v) => patch({ meteorologicalSampling: { ...ms, meanShiftValidation: { performed: ms.meanShiftValidation?.performed ?? true, meanShiftPercent: v, justification: ms.meanShiftValidation?.justification } } })} disabled={dis} />
+          <RcSelectField label="Mean-shift validation" value={ms.meanShiftValidation?.performed ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ meteorologicalSampling: { ...ms, meanShiftValidation: { ...ms.meanShiftValidation, performed: v === "yes" } } })} disabled={dis} />
+          {ms.meanShiftValidation?.performed && <><RcNumberField label="Mean-shift percent (%)" value={ms.meanShiftValidation.meanShiftPercent ?? 0} onChange={(v) => patch({ meteorologicalSampling: { ...ms, meanShiftValidation: { ...ms.meanShiftValidation!, performed: true, meanShiftPercent: v } } })} disabled={dis} />
+            <RcTextField label="Mean-shift justification" value={ms.meanShiftValidation.justification ?? ""} onChange={(v) => patch({ meteorologicalSampling: { ...ms, meanShiftValidation: { ...ms.meanShiftValidation!, performed: true, justification: v } } })} disabled={dis} /></>}
           <RcSelectField label="Plume rise credited" value={ad.plumeRise.credited ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ plumeRise: { ...ad.plumeRise, credited: v === "yes" } })} disabled={dis} />
-          <RcTextField label="Plume-rise algorithms" value={ad.plumeRise.algorithmsDescription ?? ""} onChange={(v) => patch({ plumeRise: { ...ad.plumeRise, algorithmsDescription: v } })} disabled={dis} />
+          {ad.plumeRise.credited && <RcTextField label="Plume-rise algorithms" value={ad.plumeRise.algorithmsDescription ?? ""} onChange={(v) => patch({ plumeRise: { ...ad.plumeRise, algorithmsDescription: v } })} disabled={dis} />}
           <RcTextField label="Elevated-release algorithms" value={ad.elevatedReleaseAlgorithms ?? ""} onChange={(v) => patch({ elevatedReleaseAlgorithms: v })} disabled={dis} />
           <RcTextField label="Building-wake effects" value={ad.buildingWakeEffects ?? ""} onChange={(v) => patch({ buildingWakeEffects: v })} disabled={dis} />
           <RcSelectField label="Plume segmentation" value={ad.plumeSegmentation.approach} options={SEGMENTATION_OPTIONS} onChange={(v) => patch({ plumeSegmentation: { ...ad.plumeSegmentation, approach: v as typeof ad.plumeSegmentation.approach } })} disabled={dis} />
+          <RcTextField label="Segmentation description" value={ad.plumeSegmentation.description ?? ""} onChange={(v) => patch({ plumeSegmentation: { ...ad.plumeSegmentation, description: v } })} disabled={dis} />
+          <RcTextField label="Receptor locations" value={ad.receptorLocationsSpecification ?? ""} onChange={(v) => patch({ receptorLocationsSpecification: v })} disabled={dis} />
+          <RcTextField label="Site characteristics" value={ad.siteCharacteristicsConsidered ?? ""} onChange={(v) => patch({ siteCharacteristicsConsidered: v })} disabled={dis} />
+          <RcTextField label="Terrain effects" value={ad.terrainEffectsConsideration ?? ""} onChange={(v) => patch({ terrainEffectsConsideration: v })} disabled={dis} />
+          <RcAreaField label="Model limitations" value={ad.modelLimitations ?? ""} onChange={(v) => patch({ modelLimitations: v })} disabled={dis} rows={2} />
+          <RcAreaField label="Parameter uncertainty" value={ad.parameterUncertaintyCharacterization ?? ""} onChange={(v) => patch({ parameterUncertaintyCharacterization: v })} disabled={dis} rows={2} />
         </div>
       </>
     );
@@ -961,7 +972,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
         <DrawerHead cap="Deposition" title="Deposition matrix" sub="RCAD-E1 to E7" onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Dry deposition included" value={dep.dryDeposition.included ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ dryDeposition: { ...dep.dryDeposition, included: v === "yes" } })} disabled={dis} />
-          <RcSelectField label="Dry deposition approach" value={dep.dryDeposition.approach ?? "SINGLE_VELOCITY"} options={DRY_APPROACH_OPTIONS} onChange={(v) => patch({ dryDeposition: { ...dep.dryDeposition, approach: v as NonNullable<typeof dep.dryDeposition.approach> } })} disabled={dis} />
+          {dep.dryDeposition.included && <><RcSelectField label="Dry deposition approach" value={dep.dryDeposition.approach ?? "SINGLE_VELOCITY"} options={DRY_APPROACH_OPTIONS} onChange={(v) => patch({ dryDeposition: { ...dep.dryDeposition, approach: v as NonNullable<typeof dep.dryDeposition.approach> } })} disabled={dis} />
           <div className="posfield">
             <label className="posfield__label">Dry-deposition velocities (m/s)</label>
             <table className="postable">
@@ -977,9 +988,9 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
               </tbody>
             </table>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start", marginTop: 6 }} onClick={() => patch({ dryDeposition: { ...dep.dryDeposition, velocities: [...vels, { particleSize: "New size", velocity: 0 }] } })}><RCIcon.Plus /> Add velocity</button>}
-          </div>
+          </div></>}
           <RcSelectField label="Wet deposition included" value={dep.wetDeposition.included ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ wetDeposition: { ...dep.wetDeposition, included: v === "yes" } })} disabled={dis} />
-          <RcSelectField label="Precipitation-intensity dependent" value={dep.wetDeposition.precipitationIntensityDependent === true ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ wetDeposition: { ...dep.wetDeposition, precipitationIntensityDependent: v === "yes" } })} disabled={dis} />
+          {dep.wetDeposition.included && <><RcSelectField label="Precipitation-intensity dependent" value={dep.wetDeposition.precipitationIntensityDependent === true ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ wetDeposition: { ...dep.wetDeposition, precipitationIntensityDependent: v === "yes" } })} disabled={dis} />
           <div className="posfield">
             <label className="posfield__label">Washout coefficients (1/s)</label>
             <table className="postable">
@@ -995,11 +1006,12 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
               </tbody>
             </table>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start", marginTop: 6 }} onClick={() => patch({ wetDeposition: { ...dep.wetDeposition, washoutCoefficients: [...wash, { condition: "New condition", coefficient: 0 }] } })}><RCIcon.Plus /> Add coefficient</button>}
-          </div>
+          </div></>}
           <RcSelectField label="Source depletion included" value={dep.sourceDepletion.included ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ sourceDepletion: { ...dep.sourceDepletion, included: v === "yes" } })} disabled={dis} />
-          <RcSelectField label="Depletion scope" value={dep.sourceDepletion.scope ?? "DRY_AND_WET"} options={DEPLETION_SCOPE_OPTIONS} onChange={(v) => patch({ sourceDepletion: { ...dep.sourceDepletion, scope: v as NonNullable<typeof dep.sourceDepletion.scope> } })} disabled={dis} />
+          {dep.sourceDepletion.included && <><RcSelectField label="Depletion scope" value={dep.sourceDepletion.scope ?? "DRY_AND_WET"} options={DEPLETION_SCOPE_OPTIONS} onChange={(v) => patch({ sourceDepletion: { ...dep.sourceDepletion, scope: v as NonNullable<typeof dep.sourceDepletion.scope> } })} disabled={dis} />
+            {dep.sourceDepletion.scope === "DRY_ONLY_JUSTIFIED" && <RcTextField label="Wet-depletion exclusion basis" value={dep.sourceDepletion.wetExclusionJustification ?? ""} onChange={(v) => patch({ sourceDepletion: { ...dep.sourceDepletion, wetExclusionJustification: v } })} disabled={dis} />}</>}
           <RcSelectField label="Resuspension included" value={dep.resuspension.included ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ resuspension: { ...dep.resuspension, included: v === "yes" } })} disabled={dis} />
-          <RcTextField label="Resuspension description" value={dep.resuspension.description ?? ""} onChange={(v) => patch({ resuspension: { ...dep.resuspension, description: v } })} disabled={dis} />
+          {dep.resuspension.included && <RcTextField label="Resuspension description" value={dep.resuspension.description ?? ""} onChange={(v) => patch({ resuspension: { ...dep.resuspension, description: v } })} disabled={dis} />}
         </div>
       </>
     );

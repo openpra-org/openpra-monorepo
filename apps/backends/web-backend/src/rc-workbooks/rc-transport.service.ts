@@ -8,7 +8,7 @@ import type { RcLinkedDeposition, RcTransportCategory, RcTransportFile, RcTransp
 import { RcTransportInputsSchema, RcTransportSettingsSchema } from "interfaces-mef-types/zod/rc/transport";
 import { decodeRcText } from "interfaces-shared-types/rc-workbooks/source-term-parser";
 import { parseRcDecay, parseRcDeposition, parseRcDispersionReference } from "interfaces-shared-types/rc-workbooks/transport-parser";
-import { depositionMatchesSource, nobleGasGroup } from "interfaces-shared-types/rc-workbooks/transport";
+import { depositionMatchesSource, effectiveDepositionVelocity, nobleGasGroup } from "interfaces-shared-types/rc-workbooks/transport";
 import { ProjectsService } from "../projects/projects.service";
 import { WorkbookRolesService } from "../workbooks/workbook-roles.service";
 import { RcWorkbook, type RcWorkbookDocument } from "./rc-workbook.schema";
@@ -63,14 +63,21 @@ export class RcTransportService {
     const p = parsed.data, loaded = await this.load(id, actor, p.baseRevision), source = this.source(loaded, p.categoryId, p.sourceRevision), settings = p.settings;
     if (settings.groupVelocities.length !== source.values.groups.length || source.values.groups.some(g => !settings.groupVelocities.some(v => v.groupId === g.id && v.name === g.name)))
       throw new BadRequestException("Group velocities must match the current Step 01 chemical groups");
+    const old = loaded.inputs?.categories.find(c => c.categoryId === p.categoryId);
+    let deposition = old?.deposition?.data;
+    if (!deposition && source.originalFile) {
+      try { deposition = parseRcDeposition(decodeRcText(await this.documents.readSourceInput(id, source.originalFile.documentId, actor))); } catch { /* An analyst value remains valid when the source file has no deposition cards. */ }
+    }
     for (const v of settings.groupVelocities) {
       const noble = nobleGasGroup(source.values, v.groupId);
-      if (noble && (v.velocity !== 0 || v.basis !== "noble_gas") || !noble && v.basis === "noble_gas" || v.basis === "openrc_default" && v.velocity !== .003)
+      const derived = effectiveDepositionVelocity(deposition, v.groupId);
+      if (noble && (v.velocity !== 0 || v.basis !== "noble_gas") || !noble && v.basis === "noble_gas" || v.basis === "openrc_default"
+        || v.basis === "source_file" && (derived === undefined || Math.abs(v.velocity - derived) > Math.max(1e-12, Math.abs(derived) * 1e-9)))
         throw new BadRequestException("Check the deposition velocity and its stated basis");
     }
-    const next = this.initial(loaded.inputs), old = next.categories.find(c => c.categoryId === p.categoryId);
-    if (old?.deposition && !depositionMatchesSource(old.deposition.data, source.values)) throw new BadRequestException("Replace the deposition file or use Step 01 data before saving settings for the changed source groups");
-    this.setCategory(next, { ...old, categoryId: p.categoryId, settings, savedForSourceRevision: source.revision });
+    const next = this.initial(loaded.inputs), previous = next.categories.find(c => c.categoryId === p.categoryId);
+    if (previous?.deposition && !depositionMatchesSource(previous.deposition.data, source.values)) throw new BadRequestException("Replace the deposition file or use Step 01 data before saving settings for the changed source groups");
+    this.setCategory(next, { ...previous, categoryId: p.categoryId, settings, savedForSourceRevision: source.revision });
     return this.persist(loaded, next);
   }
   async importFiles(id: string, kind: "deposition" | "dispersion" | "decay", body: unknown, files: Upload[], actor: Actor) {

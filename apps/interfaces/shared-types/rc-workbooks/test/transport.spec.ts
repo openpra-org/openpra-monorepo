@@ -7,13 +7,14 @@ const fixture = (name: string) => readFileSync(resolve(__dirname, "fixtures", na
 const mel = fixture("MelMACCS-published-source-term.inp"), doe = fixture("MACCS2-DOE-published-dispersion.inp"), cs = fixture("NNDC-ENSDF-Cs137-decay.txt");
 describe("Published transport input files", () => {
   it("preserves MelMACCS bin velocities, fractions and flags separately from OpenRC settings", () => {
-    const data = parseRcDeposition(mel), source = parseRcSource(mel), settings = effectiveTransportSettings(source);
+    const data = parseRcDeposition(mel), source = parseRcSource(mel), settings = effectiveTransportSettings(source, undefined, data);
     expect(data.velocities).toHaveLength(10); expect(data.groups).toHaveLength(10);
     expect(data.velocities[0]).toBe(0.00078771);
     expect(data.groups[0]).toMatchObject({ name: "Xe", wet: false, dry: false });
     expect(data.groups[1].fractions.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 2);
     expect(settings.groupVelocities[0]).toMatchObject({ velocity: 0, basis: "noble_gas" });
-    expect(settings.groupVelocities[1]).toMatchObject({ name: "Cs", velocity: .003 });
+    expect(settings.groupVelocities[1]).toMatchObject({ name: "Cs", basis: "source_file" });
+    expect(settings.groupVelocities[1].velocity).toBeCloseTo(data.groups[1].fractions.reduce((sum, fraction, index) => sum + fraction * data.velocities[index], 0));
     expect(depositionMatchesSource(data, source)).toBe(true);
     source.groups[1].name = "Changed";
     expect(depositionMatchesSource(data, source)).toBe(false);
@@ -54,12 +55,12 @@ describe("Published transport input files", () => {
     expect(multi[0].levels).toEqual(multi[1].levels);
   });
   it("retains analyst values only for matching groups and enforces zero for actual noble gases", () => {
-    const source = parseRcSource(mel), saved = effectiveTransportSettings(source);
+    const source = parseRcSource(mel), deposition = parseRcDeposition(mel), saved = effectiveTransportSettings(source, undefined, deposition);
     saved.groupVelocities[0].velocity = 9; saved.groupVelocities[1] = { ...saved.groupVelocities[1], velocity: .006, basis: "analyst" }; saved.decayMode = "ingrowth";
     const next = effectiveTransportSettings(source, saved);
     expect(next.groupVelocities[0].velocity).toBe(0); expect(next.groupVelocities[1].velocity).toBe(.006); expect(next.decayMode).toBe("ingrowth");
     source.groups[1].name = "New";
-    expect(effectiveTransportSettings(source, saved).groupVelocities[1].velocity).toBe(.003);
+    expect(effectiveTransportSettings(source, saved, deposition).groupVelocities[1].velocity).toBeNaN();
     expect(effectiveTransportSettings(undefined).groupVelocities).toEqual([]);
   });
 });

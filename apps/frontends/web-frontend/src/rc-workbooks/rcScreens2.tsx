@@ -8,9 +8,6 @@ import { type RcDrawerContext } from "./rcScreens";
 import { RcDosePanel } from "./rcDoseInputs";
 import { RcTransportPanel } from "./rcTransport";
 import {
-  DISPERSION_CLASS_LABELS,
-  CREDIT_FENCE,
-  DEPOSITION_ROWS,
   EXPOSURE_PATHWAY_LABELS,
   EXPOSURE_PATHWAY_NOTES,
   DOSE_SPLITS,
@@ -37,116 +34,7 @@ function SplitLines({ cci, ccii }: { cci: string; ccii: string }): JSX.Element {
 
 // ─── 04 — Atmospheric Dispersion (RCAD) ────────────────────────────────────
 function DispersionScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => void }): JSX.Element {
-  const { rc, editable } = useRcWorkbook();
-  const ad = rc.atmosphericTransportAndDispersion;
-
-  function depositionCcii(id: string): { on: boolean; detail: string } {
-    switch (id) {
-      case "dry": return { on: ad.deposition.dryDeposition.included, detail: ad.deposition.dryDeposition.approach === "PER_PARTICLE_SIZE" ? "A dry-deposition velocity per particle size." : "A single dry-deposition velocity." };
-      case "wet": return { on: ad.deposition.wetDeposition.included, detail: ad.deposition.wetDeposition.precipitationIntensityDependent === true ? "Precipitation-intensity-dependent washout." : "Washout included." };
-      case "depletion": return { on: ad.deposition.sourceDepletion.included, detail: ad.deposition.sourceDepletion.scope === "DRY_AND_WET" ? "Dry and wet depletion of the plume." : "Dry depletion of the plume." };
-      default: return { on: ad.deposition.resuspension.included, detail: ad.deposition.resuspension.description ?? "Resuspension of the deposited material." };
-    }
-  }
-
-  const fenceState: Record<string, { on: boolean; detail: string }> = {
-    plumerise: { on: ad.plumeRise.credited, detail: ad.plumeRise.algorithmsDescription ?? "Credited through buoyancy algorithms." },
-    elevated: { on: (ad.elevatedReleaseAlgorithms ?? "").length > 0, detail: ad.elevatedReleaseAlgorithms ?? "Elevated-release algorithms applied with the justified height." },
-    wake: { on: (ad.buildingWakeEffects ?? "").length > 0, detail: ad.buildingWakeEffects ?? "Wake effects applied with the actual building dimensions." },
-  };
-
-  return (
-    <>
-      <RcTransportPanel />
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="The dispersion model" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCAD-A1 · A2 · A3</RcProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "dispersion", id: "dispersion" })}><RCIcon.Settings /> Edit</button>}
-          </div>
-        </div>
-        <div className="rcdisp">
-          <div className="rcdisp__main">
-            <div className="rcdisp__model">{ad.dispersionModel.name ?? DISPERSION_CLASS_LABELS[ad.dispersionModel.modelClass]}</div>
-            <p className="rcdisp__desc">{ad.dispersionModel.justification} {ad.temporalResolution.description ?? ""} {ad.spatialTreatment.gridDescription !== undefined ? `${ad.spatialTreatment.gridDescription} ${ad.spatialTreatment.gridJustification ?? ""}` : ""}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="The credit fence" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCAD-C1 · C2 · C3</RcProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "dispersion", id: "dispersion" })}><RCIcon.Settings /> Edit</button>}
-          </div>
-        </div>
-        <div className="rccredit">
-          {CREDIT_FENCE.map((f) => {
-            const Icon = RCIcon[f.icon] ?? RCIcon.NoEntry;
-            const st = fenceState[f.id];
-            return (
-              <div key={f.id} className="rccredit__row">
-                <div className="rccredit__main">
-                  <div className="rccredit__name"><Icon /> {f.name}</div>
-                  <p className="rccredit__note">{f.note}</p>
-                </div>
-                <div className="rccredit__side">
-                  <span className="rcsplit__cc rcsplit__cc--i">CC-I</span>
-                  <span className="rccredit__detail">{f.cci.detail}</span>
-                </div>
-                <div className="rccredit__side">
-                  <span className="rcsplit__cc rcsplit__cc--credit">CC-II</span>
-                  <span className="rccredit__detail">{st.detail}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="The deposition matrix" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCAD-E1 to E7</RcProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "deposition", id: "deposition" })}><RCIcon.Settings /> Edit</button>}
-          </div>
-        </div>
-        <div className="rcdepo">
-          <div className="rcdepo__row rcdepo__row--head">
-            <div className="rcdepo__cell"><span className="rcdepo__process">Deposition process</span></div>
-            <div className="rcdepo__cell"><span className="rcdepo__head-cc">CC-I</span></div>
-            <div className="rcdepo__cell"><span className="rcdepo__head-cc">CC-II</span></div>
-          </div>
-          {DEPOSITION_ROWS.map((d) => {
-            const ccii = depositionCcii(d.id);
-            return (
-              <div key={d.id} className="rcdepo__row">
-                <div className="rcdepo__cell">
-                  <span className="rcdepo__process">{d.process}</span>
-                  <span className="rcdepo__process-note">{d.note}</span>
-                </div>
-                <div className="rcdepo__cell">
-                  <span className={`rcdepo__state rcdepo__state--${d.cci.on ? "on" : "off"}`}>
-                    {d.cci.on ? <RCIcon.Check /> : <RCIcon.Close />} {d.cci.on ? "On" : "Off"}
-                  </span>
-                  <span className="rcdepo__state-detail">{d.cci.detail}</span>
-                </div>
-                <div className="rcdepo__cell">
-                  <span className={`rcdepo__state rcdepo__state--${ccii.on ? "on" : "off"}`}>
-                    {ccii.on ? <RCIcon.Check /> : <RCIcon.Close />} {ccii.on ? "On" : "Off"}
-                  </span>
-                  <span className="rcdepo__state-detail">{ccii.detail}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </>
-  );
+  return <RcTransportPanel openEditor={kind => openDrawer({ kind, id: kind })} />;
 }
 
 // ─── 05 — Dosimetry (RCDO) ─────────────────────────────────────────────────

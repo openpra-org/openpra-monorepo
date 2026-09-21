@@ -1,5 +1,5 @@
 /* Step 04 uses the shared workbook buttons, inputs and modal shell. */
-.rc-transport-input-card{width:100%}
+.rc-transport-input-card{box-sizing:border-box;width:100%;max-width:960px}
 .rc-transport{container-type:inline-size;font:13px/1.45 var(--font-ui),sans-serif;color:var(--color-text);min-width:0;width:100%;overflow-wrap:anywhere}
 .rc-transport *{box-sizing:border-box}
 .rc-transport [hidden]{display:none!important}
@@ -42,6 +42,11 @@
 .rc-transport .at-readonly{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:12px 0 19px}
 .rc-transport .at-readonly dt{font-size:12px;color:var(--color-text-muted)}
 .rc-transport .at-readonly dd{font-size:13px;margin:4px 0 0}
+.rc-transport .at-review-table{width:min(100%,760px);margin:8px 0 22px;border:1px solid var(--color-border);border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden}
+.rc-transport .at-review-table th{width:190px;background:var(--color-surface-low);color:var(--color-text-muted);font-weight:500;vertical-align:top}
+.rc-transport .at-review-table td{line-height:1.45;vertical-align:top}
+.rc-transport .at-value-basis{display:flex;align-items:center;gap:10px;min-height:30px;margin:0 0 16px;font-size:12px}
+.rc-transport .at-value-basis>span{color:var(--color-text-muted)}
 .rc-transport .at-reference{border-top:1px solid var(--color-border);padding-top:18px;margin-top:20px}
 .rc-transport .at-coverage{padding:12px;background:var(--color-surface-low);border-radius:8px;margin:17px 0}
 .rc-transport .at-coverage strong{display:block;margin-bottom:4px}
@@ -58,9 +63,13 @@
 .rc-transport :is(button,input,select,summary):focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}
 .rc-transport .at-library-list li>div{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap}
 .rc-transport .at-footer{flex-wrap:wrap}
-@container(max-width:520px){.rc-transport .at-file{align-items:start;flex-direction:column}.rc-transport .at-tabs{gap:0}.rc-transport .at-tabs button{padding:10px 8px}.rc-transport .at-fields{grid-template-columns:minmax(0,240px)}.rc-transport .at-fields select{max-width:180px}.rc-transport th,.rc-transport td{padding:8px 4px}.rc-transport .at-coefficients th,.rc-transport .at-coefficients td{padding:8px 3px;font-size:12px}.rc-transport .at-readonly{gap:12px}.rc-transport .at-footer{align-items:start}.rc-transport .at-library-list li{align-items:start;flex-wrap:wrap}}
+@container(max-width:520px){.rc-transport .at-file{align-items:start;flex-direction:column}.rc-transport .at-tabs{gap:0;overflow-x:auto}.rc-transport .at-tabs button{padding:10px 8px}.rc-transport .at-fields{grid-template-columns:minmax(0,240px)}.rc-transport .at-fields select{max-width:180px}.rc-transport th,.rc-transport td{padding:8px 4px}.rc-transport .at-coefficients th,.rc-transport .at-coefficients td{padding:8px 3px;font-size:12px}.rc-transport .at-review-table th{width:135px}.rc-transport .at-readonly{gap:12px}.rc-transport .at-footer{align-items:start}.rc-transport .at-library-list li{align-items:start;flex-wrap:wrap}}
 /* Compact tables inside the existing Step 04 editors. */
 .rc-transport-modal .postable{table-layout:fixed;max-width:560px}
 .rc-transport-modal .postable input{min-width:0}
 .rc-transport-modal .postable th:last-child:empty,.rc-transport-modal .postable td:last-child:has(button){width:86px}
+.rc-transport-modal .rc-transport-model-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:14px 18px}
+.rc-transport-modal .rc-transport-model-form>.posfield{margin:0;min-width:0}
+.rc-transport-modal .rc-transport-model-form>.posfield:has(textarea){grid-column:1/-1}
 @media(max-width:520px){.rc-transport-modal .postable th,.rc-transport-modal .postable td{padding:8px 4px}.rc-transport-modal .postable th:last-child:empty,.rc-transport-modal .postable td:last-child:has(button){width:76px}}
+@media(max-width:720px){.rc-transport-modal .rc-transport-model-form{grid-template-columns:minmax(0,1fr)}.rc-transport-modal .rc-transport-model-form>.posfield:has(textarea){grid-column:auto}}

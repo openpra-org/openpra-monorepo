@@ -15,7 +15,7 @@ export interface RcDecayParent {
 export interface RcDecayLevel { nuclide: string; energy: string; halfLife: string; metastable: boolean; betaFeeding: string }
 export interface RcDecayDetail { parent: RcDecayParent; original: string; normalization: string[]; levels: RcDecayLevel[]; offset: number }
 export interface RcTransportSettings {
-  groupVelocities: { groupId: number; name: string; velocity: number; basis: "openrc_default" | "noble_gas" | "analyst" }[];
+  groupVelocities: { groupId: number; name: string; velocity: number; basis: "source_file" | "noble_gas" | "analyst" | "openrc_default" }[];
   decayMode: "parent" | "ingrowth";
 }
 export interface RcTransportCategory {

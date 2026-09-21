@@ -10,7 +10,11 @@ function setup(options: { pending?: boolean; fail?: boolean; stale?: boolean } =
   const original: RcTransportInputs = { revision: 7, categories: [{ categoryId: "RC-1", settings: settings() }], decayFiles: [] };
   const initial = { rc: { releaseCategoryToConsequence: { releaseCategoryInputs: [{ releaseCategory: "RC-1", releaseCharacteristics: {}, sourceTerm: { revision: 3, values: {
     groups: [{ id: 1, name: "Cs" }], inventory: [{ name: "Cs-137", group: 1, activityBq: 1 }], releases: [],
-  } } }] }, atmosphericTransportAndDispersion: { transportInputs: original } }, cc: {}, nms: [] } as unknown as RcWorkbookData;
+  } } }] }, protectiveActionParameters: {}, meteorologicalData: {}, atmosphericTransportAndDispersion: { transportInputs: original,
+    dispersionModel: { modelClass: "STRAIGHT_LINE_GAUSSIAN", justification: "Test" }, temporalResolution: { approach: "STEADY_STATE" }, spatialTreatment: { approach: "CENTERLINE" },
+    meteorologicalSampling: { approach: "STATISTICAL_SAMPLING" }, meteorologicalDataPerRcme: true, plumeSegmentation: { approach: "SINGLE_PLUME" }, plumeRise: { credited: false },
+    deposition: { dryDeposition: { included: false }, wetDeposition: { included: false }, sourceDepletion: { included: false }, resuspension: { included: false } },
+  } }, cc: {}, nms: [] } as unknown as RcWorkbookData;
   let finish: () => void = () => undefined;
   const pending = new Promise<void>(resolve => { finish = resolve; });
   const importFiles = jest.fn(async (..._args: Parameters<RcTransportActions["importFiles"]>) => { if (options.pending) await pending; if (options.fail) throw new Error("Import failed"); return { ...original, revision: 8 }; });
@@ -36,9 +40,9 @@ function setup(options: { pending?: boolean; fail?: boolean; stale?: boolean } =
 }
 const drafts = () => JSON.parse(screen.getByLabelText("Drafts").textContent!);
 function upload(kind: "dispersion" | "decay") {
-  fireEvent.click(screen.getByRole("tab", { name: kind === "dispersion" ? "Dispersion" : "Radioactive decay", exact: true }));
+  fireEvent.click(screen.getByRole("tab", { name: kind === "dispersion" ? "Dispersion model" : "Radioactive decay", exact: true }));
   const button = screen.getByRole("button", { name: kind === "dispersion" ? "Import file" : "Add files", exact: true });
-  expect(button).toBeEnabled(); expect(screen.getByRole("button", { name: `Load published ${kind} example` })).toBeEnabled();
+  expect(button).toBeEnabled();
   const input = screen.getByLabelText("Import transport input files");expect(input).toBeEnabled();fireEvent.click(button);
   const file = new File(["UI test fixture"], "test-input.txt", { type: "text/plain" });
   fireEvent.change(input, { target: { files: [file] } });return file;

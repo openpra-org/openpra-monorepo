@@ -2,9 +2,11 @@ import request from "supertest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { effectiveTransportSettings } from "interfaces-shared-types/rc-workbooks/transport";
+import { parseRcDeposition } from "interfaces-shared-types/rc-workbooks/transport-parser";
 import { createSourceTermTestApp, sourceFixture } from "./source-term-test-app";
 const fixture = (name: string) => readFileSync(resolve(__dirname, "../../../../../interfaces/shared-types/rc-workbooks/test/fixtures", name));
 const doe = fixture("MACCS2-DOE-published-dispersion.inp"), cs = fixture("NNDC-ENSDF-Cs137-decay.txt"), mass = fixture("NNDC-ENSDF-2023-04-03-mass-137.txt");
+const depositionData = parseRcDeposition(sourceFixture.toString("utf8"));
 describe("RC transport HTTP and storage", () => {
   let t: Awaited<ReturnType<typeof createSourceTermTestApp>>;
   const root = "/rc-workbooks/rc-test", url = `${root}/transport`;
@@ -14,16 +16,16 @@ describe("RC transport HTTP and storage", () => {
   const http = () => t.app.getHttpServer();
   const setup = async (category = "RC-1") => (await request(http()).post(`${root}/source-terms/${category}/import`).field("baseRevision", "0").attach("file", sourceFixture, "source.inp").expect(200)).body.sourceTerm;
   const upload = (kind: string, baseRevision = 0, bytes = cs, actor = "preparer") => request(http()).post(`${url}/import/${kind}`).set("x-test-user", actor).field("baseRevision", String(baseRevision)).attach("files", bytes, "published.txt");
-  const save = (baseRevision: number, source: any, categoryId = "RC-1", settings = effectiveTransportSettings(source.values)) => request(http()).patch(url).send({ baseRevision, sourceRevision: source.revision, categoryId, settings });
+  const save = (baseRevision: number, source: any, categoryId = "RC-1", settings = effectiveTransportSettings(source.values, undefined, depositionData)) => request(http()).patch(url).send({ baseRevision, sourceRevision: source.revision, categoryId, settings });
   it("links Step 01 original bins and saves velocities independently for each category", async () => {
     const source = await setup(), second = await setup("RC-2");
     const linked = (await request(http()).get(`${url}/source/RC-1`).expect(200)).body;
     expect(linked.sourceRevision).toBe(source.revision); expect(linked.data.velocities).toHaveLength(10);
     expect((await request(http()).get(`${url}/files/${linked.file.documentId}`).expect(200)).body.text).toBe(sourceFixture.toString("utf8"));
-    const settings = effectiveTransportSettings(source.values); settings.groupVelocities[1] = { ...settings.groupVelocities[1], velocity: .006, basis: "analyst" }; settings.decayMode = "ingrowth";
+    const settings = effectiveTransportSettings(source.values, undefined, depositionData); settings.groupVelocities[1] = { ...settings.groupVelocities[1], velocity: .006, basis: "analyst" }; settings.decayMode = "ingrowth";
     const one = (await save(0, source, "RC-1", settings).expect(200)).body;
     const both = (await save(one.revision, second, "RC-2").expect(200)).body;
-    expect(both.categories[0].settings).toEqual(settings); expect(both.categories[1].settings.groupVelocities[1].velocity).toBe(.003);
+    expect(both.categories[0].settings).toEqual(settings); expect(both.categories[1].settings.groupVelocities[1]).toMatchObject({ basis: "source_file", velocity: depositionData.groups[1].fractions.reduce((sum, fraction, index) => sum + fraction * depositionData.velocities[index], 0) });
     const mef = (await request(http()).get(root).expect(200)).body.mef;
     expect(mef.atmosphericTransportAndDispersion.transportInputs).toEqual(both);
     expect(mef.releaseCategoryToConsequence.releaseCategoryInputs[0].sourceTerm).toEqual(source);
@@ -58,7 +60,7 @@ describe("RC transport HTTP and storage", () => {
     await upload("decay").attach("files", Buffer.from("invalid"), "bad.txt").expect(400); expect(t.storage.size).toBe(0);
     const source = await setup(), saved = (await save(0, source).expect(200)).body;
     await save(0, source).expect(409);
-    const bad = effectiveTransportSettings(source.values); bad.groupVelocities[0].velocity = .003;
+    const bad = effectiveTransportSettings(source.values, undefined, depositionData); bad.groupVelocities[0].velocity = .003;
     await save(saved.revision, source, "RC-1", bad).expect(400);
     await request(http()).patch(root).send({ operations: [{ op: "remove", path: ["atmosphericTransportAndDispersion", "transportInputs"] }] }).expect(409);
     await request(http()).get(`${url}/source/RC-1`).set("x-test-user", "outsider").expect(403);

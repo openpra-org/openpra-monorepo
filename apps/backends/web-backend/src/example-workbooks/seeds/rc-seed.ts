@@ -193,11 +193,15 @@ const protectiveActionParameters: ProtectiveActionAnalysis = {
     cohorts: [
       {
         name: "Compliant evacuating cohort",
+        populationPercent: 99.5,
+        compliancePercent: 100,
         description: "About 99.5 percent of the population, evacuating on the notification schedule from the emergency plan.",
         complianceAssumption: "Follows the instruction within the evacuation delay chain, with no shielding credit while in the open during transit.",
       },
       {
         name: "Non-compliant sheltered cohort",
+        populationPercent: 0.5,
+        compliancePercent: 0,
         description: "About 0.5 percent of the population, delaying or declining to evacuate and sheltered in place instead.",
         complianceAssumption: "The 0.5 percent non-compliance fraction is taken from the consequence-code convention used in the reference risk studies, not assumed to be zero.",
       },
@@ -232,14 +236,15 @@ const protectiveActionParameters: ProtectiveActionAnalysis = {
     description: "The routing follows the bounding road-network model at a 1.8 m per second effective radial speed until the site is selected and a plant-specific network is available.",
   },
   evacuationDelayComponents: [
-    { component: "GENERAL_EMERGENCY_DECLARATION", estimate: "0 min, the reference point for the chain" },
-    { component: "SITE_NOTIFIES_OFFICIALS", estimate: "+15 min, meeting the alert-and-notification objective" },
-    { component: "OFFICIALS_NOTIFY_PUBLIC", estimate: "+20 min for the public alert and instruction" },
-    { component: "PUBLIC_RECEIVES_INSTRUCTIONS", estimate: "+15 min to receive and understand the instruction" },
-    { component: "SECURE_PERSONAL_PROPERTY", estimate: "+30 min to prepare the home and gather the household" },
-    { component: "LOAD_VEHICLES", estimate: "+20 min to load the vehicles and depart" },
+    { component: "GENERAL_EMERGENCY_DECLARATION", minutes: 0, estimate: "0 min, the reference point for the chain" },
+    { component: "SITE_NOTIFIES_OFFICIALS", minutes: 15, estimate: "+15 min, meeting the alert-and-notification objective" },
+    { component: "OFFICIALS_NOTIFY_PUBLIC", minutes: 20, estimate: "+20 min for the public alert and instruction" },
+    { component: "PUBLIC_RECEIVES_INSTRUCTIONS", minutes: 15, estimate: "+15 min to receive and understand the instruction" },
+    { component: "SECURE_PERSONAL_PROPERTY", minutes: 30, estimate: "+30 min to prepare the home and gather the household" },
+    { component: "LOAD_VEHICLES", minutes: 20, estimate: "+20 min to load the vehicles and depart" },
   ],
   evacuationSpeed: {
+    speedMetresPerSecond: 1.8,
     basis: "The evacuation speeds come from the site-specific evacuation time estimate study, a bounding 1.8 m per second radial speed in congestion, not a generic free-flow value.",
     daytimeNighttimeConsidered: true,
     adverseWeatherConsidered: true,

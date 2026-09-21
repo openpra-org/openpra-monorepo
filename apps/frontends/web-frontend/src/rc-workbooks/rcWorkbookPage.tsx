@@ -7,6 +7,7 @@ import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/ra
 import type { ReleaseCategoryInputs } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { withSourceTermSummary } from "interfaces-shared-types/rc-workbooks/source-term-summary";
 import type { RcSiteReceptors } from "interfaces-mef-types/rc/site-receptors";
+import type { RcEarlyResponseModel } from "interfaces-mef-types/rc/early-response";
 import type { RcWeatherInputs } from "interfaces-mef-types/rc/weather";
 import type { RcTransportInputs } from "interfaces-mef-types/rc/transport";
 import type { RcTransportActions } from "./rcWorkbookContext";
@@ -31,6 +32,10 @@ import {
   importRcSiteInput,
   saveRcSiteSettings,
   readRcSiteOriginal,
+  importRcEarlyResponse,
+  saveRcEarlyResponse,
+  readRcEarlyResponseOriginal,
+  calculateRcEarlyResponse,
   importRcSourceTerm,
   saveRcSourceTerm,
   getRcDocumentDownload,
@@ -41,7 +46,7 @@ import {
   type RcExampleOption,
 } from "./rcWorkbookApi";
 import { RcWorkbench, type RcWorkbenchActions } from "./rcWorkbench";
-import { RcWorkbookProvider, type RcWorkbookData, type RcSourceTermActions, type RcSiteReceptorActions } from "./rcWorkbookContext";
+import { RcWorkbookProvider, type RcWorkbookData, type RcSourceTermActions, type RcSiteReceptorActions, type RcEarlyResponseActions } from "./rcWorkbookContext";
 import { useRcMefPatch } from "./useRcMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { RcDocumentsCard } from "./rcDocumentsCard";
@@ -213,6 +218,20 @@ function RcWorkbookPage(): JSX.Element {
       readOriginal: documentId => readRcSiteOriginal(id, documentId) };
   }, [id, enqueue]);
 
+  const earlyResponse = useMemo<RcEarlyResponseActions | undefined>(() => {
+    if (!id) return undefined;
+    const accept = (model: RcEarlyResponseModel) => {
+      setData(previous => previous === null ? previous : { ...previous, rc: { ...previous.rc,
+        protectiveActionParameters: { ...previous.rc.protectiveActionParameters, earlyResponseModel: model },
+      } });
+      return model;
+    };
+    return { importFile: (revision, file) => enqueue(async () => accept(await importRcEarlyResponse(id, revision, file))),
+      save: (revision, model) => enqueue(async () => accept(await saveRcEarlyResponse(id, revision, model))),
+      readOriginal: documentId => readRcEarlyResponseOriginal(id, documentId),
+      calculate: (categoryId, file) => calculateRcEarlyResponse(id, categoryId, file) };
+  }, [id, enqueue]);
+
   const weather = useMemo<RcWeatherActions | undefined>(() => {
     if (!id) return undefined;
     const accept = (inputs: RcWeatherInputs) => {
@@ -301,7 +320,7 @@ function RcWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <RcWorkbookProvider key={id} data={data} editable={editable} mutateRc={mutateRc} eventSequenceFamilySources={eventSequenceFamilySources} releaseCategorySources={releaseCategorySources} sourceTerms={sourceTerms} siteReceptors={siteReceptors} weather={weather} transport={transport} doseInputs={doseInputs} caseRecords={caseRecords}>
+    <RcWorkbookProvider key={id} data={data} editable={editable} mutateRc={mutateRc} eventSequenceFamilySources={eventSequenceFamilySources} releaseCategorySources={releaseCategorySources} sourceTerms={sourceTerms} siteReceptors={siteReceptors} earlyResponse={earlyResponse} weather={weather} transport={transport} doseInputs={doseInputs} caseRecords={caseRecords}>
       <RcWorkbench
         data={data}
         persona={persona}

@@ -5,6 +5,7 @@ import { RcSiteReceptorsSchema } from "./site-receptors";
 import { RcWeatherInputsSchema } from "./weather";
 import { RcDoseInputsSchema } from "./dose-inputs";
 import { RcTransportInputsSchema } from "./transport";
+import { RcEarlyResponseModelSchema } from "./early-response";
 import type { RadiologicalConsequenceAnalysis } from "../../rc/radiological-consequence-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
@@ -121,6 +122,17 @@ export const ReleaseCategoryToConsequenceAnalysisSchema = z.object({
 
 export const ProtectiveActionAnalysisSchema = z.object({
   siteAndReceptors: RcSiteReceptorsSchema.optional(),
+  earlyResponseModel: RcEarlyResponseModelSchema.optional(),
+  responseTiming: z.object({
+    referenceEvent: z.string().max(100).optional(),
+    referenceAfterAccidentMinutes: z.number().finite().nonnegative().optional(),
+    cohortName: z.string().max(200).optional(),
+    declarationAfterAccidentMinutes: z.number().finite().nonnegative().optional(),
+    shelterStartMinutes: z.number().finite().nonnegative().optional(),
+    evacuationStartMinutes: z.number().finite().nonnegative().optional(),
+    evacuationSpeedMetresPerSecond: z.number().finite().positive().optional(),
+    source: z.string().max(1000).optional(),
+  }).optional(),
   protectiveActionsIncluded: z.array(
     z.object({
       action: z.enum(["EVACUATION", "SHELTERING", "RELOCATION", "LAND_INTERDICTION_REMEDIATION", "FOOD_INTERDICTION_REMEDIATION"]),
@@ -132,6 +144,8 @@ export const ProtectiveActionAnalysisSchema = z.object({
     z.object({
       phase: z.enum(["EARLY", "INTERMEDIATE", "LATE_LONG_TERM"]),
       criteriaDescription: z.string(),
+      startDays: z.number().finite().nonnegative().optional(),
+      endDays: z.number().finite().nonnegative().optional(),
     }),
   ),
   sourceDocuments: z.array(
@@ -149,6 +163,8 @@ export const ProtectiveActionAnalysisSchema = z.object({
           name: z.string(),
           description: z.string(),
           complianceAssumption: z.string().optional(),
+          populationPercent: z.number().finite().min(0).max(100).optional(),
+          compliancePercent: z.number().finite().min(0).max(100).optional(),
         }),
       )
       .optional(),
@@ -171,6 +187,10 @@ export const ProtectiveActionAnalysisSchema = z.object({
         parameter: z.string(),
         value: z.string(),
         source: z.string(),
+        numericValue: z.number().finite().optional(),
+        unit: z.string().optional(),
+        action: z.enum(["EVACUATION", "SHELTERING", "RELOCATION", "LAND_INTERDICTION_REMEDIATION", "FOOD_INTERDICTION_REMEDIATION"]).optional(),
+        phase: z.enum(["EARLY", "INTERMEDIATE", "LATE_LONG_TERM"]).optional(),
       }),
     )
     .optional(),
@@ -192,12 +212,14 @@ export const ProtectiveActionAnalysisSchema = z.object({
           "LOAD_VEHICLES",
         ]),
         estimate: z.string(),
+        minutes: z.number().finite().nonnegative().optional(),
       }),
     )
     .optional(),
   evacuationSpeed: z
     .object({
       basis: z.string(),
+      speedMetresPerSecond: z.number().finite().nonnegative().optional(),
       daytimeNighttimeConsidered: z.boolean(),
       adverseWeatherConsidered: z.boolean(),
       specialEventsConsidered: z.boolean(),
@@ -215,6 +237,7 @@ export const ProtectiveActionAnalysisSchema = z.object({
   populationDistribution: z.object({
     basis: z.enum(["ASSUMED_JUSTIFIED", "DEMOGRAPHIC_SOURCES"]),
     description: z.string(),
+    sourceReference: z.string().optional(),
     justification: z.string().optional(),
     transientPopulationsIncluded: z.boolean().optional(),
     projectionAdjustments: z.string().optional(),
@@ -222,11 +245,13 @@ export const ProtectiveActionAnalysisSchema = z.object({
   landUseData: z.object({
     basis: z.enum(["GENERIC_SIMPLIFIED", "REGIONAL_SPECIFIC"]),
     description: z.string(),
+    sourceReference: z.string().optional(),
     intraRegionalAdjustments: z.string().optional(),
   }),
   plantPhysicalCharacteristics: z.object({
     basis: z.enum(["ESTIMATED", "ACTUAL"]),
     description: z.string(),
+    sourceReference: z.string().optional(),
   }),
   releaseSourceGeographicLocation: z.string(),
   boundingSiteLocationJustification: z.string().optional(),

@@ -1,5 +1,5 @@
 import type { RcCaseData } from "interfaces-mef-types/rc/case-records";
-import { caseChecks, caseReceptorIds, caseTable, caseTrialId } from "../case-records";
+import { caseChecks, caseReceptorIds, caseTable, caseTrialId, caseVersions } from "../case-records";
 const base = (): RcCaseData => ({ schemaVersion: 1, categoryId: "RC-1", source: { revision: 1, values: { groups: [{ id: 1, name: "Cesium" }], inventory: [{ name: "Cs-137", activityBq: 1e9, group: 1 }], releases: [{ id: 1, startSeconds: 0, durationSeconds: 60, fractions: [.5] }] } } });
 describe("Step 08 prepared case review", () => {
   it("distinguishes absent heights from explicit zero heights", () => {
@@ -22,8 +22,24 @@ describe("Step 08 prepared case review", () => {
   it("keeps all cell IDs addressable while paging evaluation points", () => {
     const c = base(); c.site = { revision: 1, settings: { latitude: 0, longitude: 0, receptorHeightMetres: 1.5, cellPoint: "mid" }, geometry: { kind: "cells", sectors: 64, radiiKm: Array.from({ length: 14 }, (_, i) => i + 1), abridged: false } };
     expect(caseReceptorIds(c)).toHaveLength(896); expect(caseReceptorIds(c).at(-1)).toBe("S64R14");
-    const page = caseTable(c, "receptors", 895); expect(page.rows).toEqual([["S64R14", 13500, 354.375, 1.5]]);
+    const page = caseTable(c, "receptors", 895); expect(page.rows).toEqual([["S64R14", 13500, 354.375, 1.5, null]]);
     c.site.settings.cellPoint = undefined; expect(caseTable(c, "receptors", 0).total).toBe(0);
+  });
+  it("carries population and response timing into the prepared case", () => {
+    const c = base();
+    c.site = { revision: 1, settings: { latitude: 0, longitude: 0, receptorHeightMetres: 1.5, cellPoint: "mid" },
+      geometry: { kind: "cells", sectors: 2, radiiKm: [1], abridged: false, populationByCell: [300, 700] } };
+    c.response = { protectiveActionsIncluded: [{ action: "SHELTERING", included: true, applicabilityJustification: "Study" }],
+      cohortModeling: { approach: "SINGLE_COHORT", cohorts: [{ name: "Residents", description: "", populationPercent: 100, compliancePercent: 80 }] },
+      responseTiming: { declarationAfterAccidentMinutes: 5, shelterStartMinutes: 10 } };
+    expect(caseChecks(c).find(check => check.key === "site")!.items).toEqual([]);
+    expect(caseTable(c, "receptors", 0).rows.map(row => row[4])).toEqual([300, 700]);
+    expect(caseTable(c, "response", 0).rows[0]).toEqual(["Residents", 100, 1000, 80, 800, 15, null, null]);
+    const version = caseVersions(c);
+    c.response.responseTiming!.shelterStartMinutes = 20;
+    expect(caseVersions(c)).not.toBe(version);
+    c.response.cohortModeling.cohorts![0].populationPercent = 90;
+    expect(caseChecks(c).find(check => check.key === "site")!.items.join(" ")).toContain("100%");
   });
   it("labels weather IDs and preserves unknown directions without inventing wind sectors", () => {
     const c = base(), r = { day: 365, period: 24, windSector: 2, windSpeedMetresPerSecond: 5, stabilityClass: "D" as const, rainCode: 0, rainMillimetresPerHour: 0, original: "test" };

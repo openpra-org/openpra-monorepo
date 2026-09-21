@@ -89,6 +89,8 @@ export class RcWorkbooksService {
       throw new ConflictException("Weather inputs must be saved using the meteorology editor. Reload if they changed");
     if (!isDeepStrictEqual(before.protectiveActionParameters.siteAndReceptors, parsed.data.protectiveActionParameters.siteAndReceptors))
       throw new ConflictException("Site inputs must be saved using the site and receptor editor. Reload if they changed");
+    if (!isDeepStrictEqual(before.protectiveActionParameters.earlyResponseModel, parsed.data.protectiveActionParameters.earlyResponseModel))
+      throw new ConflictException("Response inputs must be saved using the early-response editor. Reload if they changed");
     if (before.workflowState !== parsed.data.workflowState) throw new ForbiddenException("Use the workbook review actions to change workflow state");
     const oldCategories = before.releaseCategoryToConsequence.releaseCategoryInputs;
     const nextCategories = parsed.data.releaseCategoryToConsequence.releaseCategoryInputs;

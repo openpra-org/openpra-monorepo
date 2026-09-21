@@ -379,10 +379,10 @@ const PROTECTIVE_ACTION_LABELS: Record<string, { name: string; icon: string }> =
   FOOD_INTERDICTION_REMEDIATION: { name: "Food interdiction and remediation", icon: "Beaker" },
 };
 
-const INCIDENT_PHASE_LABELS: Record<string, { name: string; window: string }> = {
-  EARLY: { name: "Early phase", window: "Hours to days" },
-  INTERMEDIATE: { name: "Intermediate phase", window: "Weeks to months" },
-  LATE_LONG_TERM: { name: "Late phase", window: "Months to years" },
+const INCIDENT_PHASE_LABELS: Record<string, { name: string }> = {
+  EARLY: { name: "Early phase" },
+  INTERMEDIATE: { name: "Intermediate phase" },
+  LATE_LONG_TERM: { name: "Late phase" },
 };
 
 const EVAC_DELAY_LABELS: Record<string, string> = {
@@ -393,8 +393,6 @@ const EVAC_DELAY_LABELS: Record<string, string> = {
   SECURE_PERSONAL_PROPERTY: "People secure personal property",
   LOAD_VEHICLES: "People load vehicles and depart",
 };
-
-const EVAC_DELAY_TOTAL = "About 100 minutes from declaration to movement.";
 
 const EVAC_SPEED_FACTOR_LABELS: [keyof EvacSpeedFlags, string][] = [
   ["daytimeNighttimeConsidered", "Day and night"],
@@ -666,7 +664,6 @@ export {
   PROTECTIVE_ACTION_LABELS,
   INCIDENT_PHASE_LABELS,
   EVAC_DELAY_LABELS,
-  EVAC_DELAY_TOTAL,
   EVAC_SPEED_FACTOR_LABELS,
   SITE_DATA_BASIS_LABELS,
   MET_PERIOD_LADDER,

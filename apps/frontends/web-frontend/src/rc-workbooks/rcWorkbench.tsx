@@ -30,7 +30,7 @@ interface StepHeader {
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
     case "handoff": return { eyebrow: "Step 01 · RCRE", title: "Scope", sub: "The site fork, the nine inputs per category and the scoping declaration." };
-    case "protective": return { eyebrow: "Step 02 · RCPA", title: "Protective Actions & Site", sub: "The actions, the cohorts, the evacuation chain and the site data." };
+    case "protective": return { eyebrow: "Step 02 · RCPA", title: "Site, Population & Response", sub: "Receptor positions, population groups and response timing." };
     case "weather": return { eyebrow: "Step 03 · RCME", title: "Meteorology", sub: "The representative weather year and its data quality." };
     case "dispersion": return { eyebrow: "Step 04 · RCAD", title: "Atmospheric Dispersion", sub: "The plume model, the weather sampling, the credit fence and the deposition." };
     case "dose": return { eyebrow: "Step 05 · RCDO", title: "Dosimetry", sub: "The exposure pathways and the dose treatment." };

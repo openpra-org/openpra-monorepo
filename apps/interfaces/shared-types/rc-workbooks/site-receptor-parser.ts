@@ -27,8 +27,13 @@ export function parseRcReceptorGeometry(raw: string): RcReceptorGeometry {
     const sectors = Number(raw.match(/(\d+)\s+WIND DIRECTIONS/i)?.[1]);
     const radiiKm = numbers(raw.match(/SPATIAL DISTANCES\s+KILOMETERS\s+([\s\S]*?)\bPOPULATION/i)?.[1], "SecPop distances");
     if (radiiKm.length !== n) throw new Error("The SecPop file needs all spatial interval boundaries");
+    const populationBlock = raw.match(/^\s*POPULATION\s*\r?\n([\s\S]*?)(?=^\s*LAND FRACTION\b)/im)?.[1];
+    const populationByCell = populationBlock && !/\.\.\.|…/.test(populationBlock) ? numbers(populationBlock, "SecPop population") : undefined;
+    if (populationByCell && (populationByCell.length !== n * sectors || populationByCell.some(value => !Number.isInteger(value) || value < 0)))
+      throw new Error("SecPop population must contain one nonnegative whole-person count per cell");
     const hasCenter = /\bLatitude:|\bLongitude:/i.test(raw);
-    return RcReceptorGeometrySchema.parse({ kind: "cells", radiiKm, sectors, center: hasCenter ? parseRcSiteCoordinates(raw) : undefined, abridged: /ABRIDGED|…/i.test(raw) });
+    return RcReceptorGeometrySchema.parse({ kind: "cells", radiiKm, sectors, center: hasCenter ? parseRcSiteCoordinates(raw) : undefined,
+      abridged: /ABRIDGED|…/i.test(raw), populationByCell });
   }
   if (/^\s*(?:RE\s+)?(?:GRIDCART|DISCPOLR|EVALCART)\b/im.test(raw)) throw new Error("Import an AERMAP DISCCART list or one GRIDPOLR grid");
   if (/ELEVUNIT\s+FEET/i.test(raw)) throw new Error("Import AERMAP elevation records in metres");

@@ -3,6 +3,7 @@ import type {
   RcEvaluationSubElement,
   RcSubElement,
 } from "interfaces-mef-types/rc/radiological-consequence-analysis";
+import { receptorCount, sitePopulation } from "interfaces-shared-types/rc-workbooks/site-receptors";
 
 export const RC_SCOPE_ASPECTS = [
   { subElement: "RCPA", label: "Protective actions and site", step: "02" },
@@ -27,7 +28,11 @@ export function rcScopeTreatment(rc: RadiologicalConsequenceAnalysis, aspect: Rc
   switch (aspect) {
     case "RCPA": {
       const site = rc.protectiveActionParameters.siteAndReceptors;
-      if (site?.geometry) parts.push("Receptor geometry recorded");
+      if (site?.geometry) {
+        parts.push(count(receptorCount(site.geometry), site.geometry.kind === "cells" ? "receptor cell" : "receptor point"));
+        const population = sitePopulation(site.geometry);
+        if (population !== undefined) parts.push(`${population.toLocaleString()} people in site grid`);
+      }
       else if (site?.settings.latitude !== undefined && site.settings.longitude !== undefined) parts.push("Site location recorded");
       const actions = rc.protectiveActionParameters.protectiveActionsIncluded
         .filter((action) => action.included)

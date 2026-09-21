@@ -42,6 +42,20 @@ function RcNumberField({ label, value, onChange, disabled }: { label: string; va
   );
 }
 
+function RcOptionalNumberField({ label, value, onChange, disabled, min, max }: { label: string; value?: number; onChange: (v: number | undefined) => void; disabled: boolean; min?: number; max?: number }): JSX.Element {
+  return (
+    <div className="posfield">
+      <label className="posfield__label">{label}</label>
+      <WorkbookInput className="posfield__input posmono" type="number" step="any" min={min} max={max} value={value ?? ""} disabled={disabled}
+        onChange={(e) => {
+          if (e.target.value === "") { onChange(undefined); return; }
+          const next = Number(e.target.value);
+          if (Number.isFinite(next) && (min === undefined || next >= min) && (max === undefined || next <= max)) onChange(next);
+        }} />
+    </div>
+  );
+}
+
 function RcSelectField({ label, value, options, onChange, disabled }: { label: string; value: string; options: [string, string][]; onChange: (v: string) => void; disabled: boolean }): JSX.Element {
   return (
     <div className="posfield">
@@ -151,6 +165,7 @@ export {
   RcTextField,
   RcAreaField,
   RcNumberField,
+  RcOptionalNumberField,
   RcSelectField,
   RcStringList,
   RemoveBtn,

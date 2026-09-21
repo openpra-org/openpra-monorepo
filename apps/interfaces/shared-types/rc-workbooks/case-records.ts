@@ -2,26 +2,30 @@ import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/ra
 import type { RcCaseData, RcCaseCheck, RcCaseFile, RcCaseDataset, RcCaseTable } from "interfaces-mef-types/rc/case-records";
 import type { RcWeatherRecord } from "interfaces-mef-types/rc/weather";
 import { RcSourceTermValuesSchema } from "interfaces-mef-types/zod/rc/source-term";
-import { siteReceptorIssues, receptorCount, evaluatedReceptor } from "./site-receptors";
+import { siteReceptorIssues, receptorCount, evaluatedReceptor, sitePopulation } from "./site-receptors";
 import { weatherIssues, weatherIsReviewed, weatherSectorCount, windToward } from "./weather";
 import { decayCoverage } from "./transport";
 import { doseCoverage, dosePathways, dosePathwayNames } from "./dose-inputs";
+import { effectiveResponseTiming, responseIssues } from "./protective-response";
 
 export const caseSteps = ["source", "site", "weather", "transport", "dose"] as const;
 export const caseStepNames = { source: "Source term", site: "Site and receptors", weather: "Meteorology", transport: "Atmospheric dispersion", dose: "Dosimetry" };
 export const caseDatasets: Record<RcCaseDataset, { label: string; step: typeof caseSteps[number] }> = {
   inventory: { label: "01 · Inventory", step: "source" }, releases: { label: "01 · Release segments", step: "source" }, fractions: { label: "01 · Release fractions", step: "source" },
-  receptors: { label: "02 · Evaluation positions", step: "site" }, weather: { label: "03 · Weather trials", step: "weather" }, deposition: { label: "04 · Group deposition", step: "transport" },
+  receptors: { label: "02 · Evaluation positions", step: "site" }, response: { label: "02 · Response groups", step: "site" }, weather: { label: "03 · Weather trials", step: "weather" }, deposition: { label: "04 · Group deposition", step: "transport" },
   decay: { label: "04 · Decay coverage", step: "transport" }, dose: { label: "05 · Dose coverage", step: "dose" },
 };
 export function currentRcCase(rc: RadiologicalConsequenceAnalysis, categoryId: string): RcCaseData {
   const transport = rc.atmosphericTransportAndDispersion.transportInputs, dose = rc.dosimetry.doseInputs;
   return { schemaVersion: 1, categoryId, source: rc.releaseCategoryToConsequence.releaseCategoryInputs.find(c => c.releaseCategory === categoryId)?.sourceTerm,
-    site: rc.protectiveActionParameters.siteAndReceptors, weather: rc.meteorologicalData.weatherInputs,
+    site: rc.protectiveActionParameters.siteAndReceptors,
+    response: { protectiveActionsIncluded: rc.protectiveActionParameters.protectiveActionsIncluded, cohortModeling: rc.protectiveActionParameters.cohortModeling,
+      responseTiming: effectiveResponseTiming(rc.protectiveActionParameters), earlyResponseModel: rc.protectiveActionParameters.earlyResponseModel }, weather: rc.meteorologicalData.weatherInputs,
     transport: transport && { ...transport, categories: transport.categories.filter(c => c.categoryId === categoryId) },
     dose: dose && { ...dose, categories: dose.categories.filter(c => c.categoryId === categoryId) } };
 }
-export const caseVersions = (c: RcCaseData) => caseSteps.map(k => c[k]?.revision ?? 0).join(",");
+const responseVersion = (c: RcCaseData) => [...JSON.stringify(c.response ?? {})].reduce((hash, char) => Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0, 2166136261);
+export const caseVersions = (c: RcCaseData) => `${caseSteps.map(k => c[k]?.revision ?? 0).join(",")},${responseVersion(c)}`;
 export const caseDuration = (c: RcCaseData) => c.dose?.categories.find(d => d.categoryId === c.categoryId)?.settings?.integrationSeconds;
 export const caseReceptorCount = (c: RcCaseData) => siteReceptorIssues(c.site?.settings ?? {}, c.site?.geometry).length ? 0 : receptorCount(c.site?.geometry);
 export const caseTrialId = (r: RcWeatherRecord) => `D${String(r.day).padStart(3, "0")}P${String(r.period).padStart(2, "0")}`;
@@ -43,6 +47,7 @@ export function caseChecks(c: RcCaseData): RcCaseCheck[] {
     }
   }
   const siteItems = siteReceptorIssues(c.site?.settings ?? {}, c.site?.geometry);
+  siteItems.push(...responseIssues(c.response, c.site));
   const metItems = weatherIssues(c.weather, c.site?.settings ?? {});
   if (!c.weather?.weatherFile && c.weather?.data) metItems.push("Supply the original weather file.");
   if (c.weather?.data && !weatherIsReviewed(c.weather, c.site?.settings ?? {})) metItems.push("Review and save the weather settings for this site in Step 03.");
@@ -68,6 +73,7 @@ export function caseFiles(c: RcCaseData): RcCaseFile[] {
   const add = (kind: RcCaseFile["kind"], purpose: string, file?: RcCaseFile["file"]) => { if (file && !files.some(f => f.file.documentId === file.documentId)) files.push({ kind, purpose, file }); };
   add("source", "01 · Original inventory and release records", c.source?.originalFile);
   add("site", "02 · Original geometry", c.site?.geometryFile); add("site", "02 · Original location", c.site?.locationFile);
+  add("response", "02 · Original response records", c.response?.earlyResponseModel?.originalFile);
   add("weather", "03 · Original meteorology", c.weather?.weatherFile); add("weather", "03 · Generation settings", c.weather?.configurationFile);
   add("transport", "04 · Deposition reference", c.transport?.categories.find(v => v.categoryId === c.categoryId)?.deposition?.file);
   add("transport", "04 · Dispersion reference", c.transport?.dispersionReference?.file);
@@ -79,7 +85,7 @@ export function caseFiles(c: RcCaseData): RcCaseFile[] {
 export function caseSummaryRows(c: RcCaseData): [string, string][] {
   const s = c.source?.values, g = c.site?.geometry, w = c.weather, t = c.transport?.categories.find(v => v.categoryId === c.categoryId), coverage = decayCoverage(c.transport, s);
   return [[c.source?.originalFile?.filename ?? (s ? "Entered source values" : "Source not supplied"), `${s?.inventory.length ?? 0} nuclides · ${s?.groups.length ?? 0} groups · ${s?.releases.length ?? 0} segments`],
-    [g?.kind === "cells" ? `${receptorCount(g)} receptor cells` : `${receptorCount(g)} receptor points`, `${c.site?.settings.latitude ?? "—"}, ${c.site?.settings.longitude ?? "—"} · ${caseReceptorCount(c)} evaluation positions`],
+    [g?.kind === "cells" ? `${receptorCount(g)} receptor cells` : `${receptorCount(g)} receptor points`, `${c.site?.settings.latitude ?? "—"}, ${c.site?.settings.longitude ?? "—"} · ${caseReceptorCount(c)} evaluation positions${g?.kind === "cells" && g.populationByCell ? ` · ${g.populationByCell.reduce((sum, count) => sum + count, 0)} people` : ""}`],
     [`${w?.data?.recordCount ?? 0} imported weather records`, w?.data ? `Year ${w.settings.year ?? "—"} · ${weatherSectorCount(w) ?? "—"} wind sectors` : w?.collectionRequest ? `Collection request: ${w.collectionRequest.start} to ${w.collectionRequest.end}` : "Import weather records in Step 03"],
     [`${t?.settings?.groupVelocities.length ?? 0} group deposition velocities`, `${coverage.found.length}/${coverage.total} parent records · ${t?.settings ? t.settings.decayMode === "parent" ? "Parent decay" : "With daughter ingrowth" : "Decay mode not saved"}`],
     [caseDuration(c) === undefined ? "Integration time not saved" : `${caseDuration(c)} s integration time`, dosePathways.map(k => `${dosePathwayNames[k]} ${doseCoverage(c.dose, s, k).found.length}/${s?.inventory.length ?? 0}`).join(" · ")]];
@@ -93,7 +99,18 @@ export function caseTable(c: RcCaseData, kind: RcCaseDataset, offset: number, we
     case "inventory": fill(["Radionuclide", "Inventory (Bq)", "Group"], "Activity: Bq. Group IDs link inventory to release fractions.", s?.inventory.length ?? 0, i => { const n = s!.inventory[i]; return [n.name, n.activityBq, n.group]; }); break;
     case "releases": fill(["Segment", "Start (s)", "Duration (s)", "Height (m)"], "Times: seconds from accident start. Release height: m above ground.", s?.releases.length ?? 0, i => { const r = s!.releases[i]; return [r.id, r.startSeconds ?? null, r.durationSeconds ?? null, r.heightMetres ?? null]; }); break;
     case "fractions": fill(["Segment", "Group", "Fraction"], "Fraction of group inventory released in each segment: 0–1.", (s?.releases.length ?? 0) * (s?.groups.length ?? 0), i => { const r = s!.releases[Math.floor(i / s!.groups.length)], g = s!.groups[i % s!.groups.length]; return [r.id, `${g.id} · ${g.name}`, r.fractions[i % s!.groups.length]]; }); break;
-    case "receptors": fill(["Receptor ID", "Distance (m)", "Bearing (°)", "Height (m)"], `Distance and height: m. Bearing clockwise from ${c.site?.geometry?.kind === "cells" ? "compass" : "grid"} north.`, caseReceptorCount(c), i => { const r = evaluatedReceptor(c.site!.geometry!, c.site!.settings, i); return [r.id, r.distanceMetres, r.bearingDegrees, r.heightMetres]; }); break;
+    case "receptors": fill(["Receptor ID", "Distance (m)", "Bearing (°)", "Height (m)", "Population"], `Distance and height: m. Bearing clockwise from ${c.site?.geometry?.kind === "cells" ? "compass" : "grid"} north.`, caseReceptorCount(c), i => { const r = evaluatedReceptor(c.site!.geometry!, c.site!.settings, i); return [r.id, r.distanceMetres, r.bearingDegrees, r.heightMetres, c.site?.geometry?.kind === "cells" ? c.site.geometry.populationByCell?.[i] ?? null : null]; }); break;
+    case "response": { const groups = c.response?.cohortModeling?.cohorts ?? [], population = sitePopulation(c.site?.geometry);
+      fill(["Group", "Population share (%)", "Population (people)", "Compliance share (%)", "Complying (people)", "Shelter begins (min)", "Evacuation begins (min)", "Speed (m/s)"], "Times are measured from accident start. People are rounded from imported cell counts and group shares.", groups.length, i => {
+        const group = groups[i], timing = c.response?.responseTiming, share = group.populationPercent;
+        const groupPeople = population === undefined || share === undefined ? null : Math.round(population * share / 100);
+        const complyingPeople = population === undefined || share === undefined || group.compliancePercent === undefined ? null : Math.round(population * share * group.compliancePercent / 10000);
+        const reference = timing?.referenceAfterAccidentMinutes ?? timing?.declarationAfterAccidentMinutes;
+        const applies = !timing?.cohortName || timing.cohortName === group.name;
+        const shelter = !applies || reference === undefined || timing?.shelterStartMinutes === undefined ? null : reference + timing.shelterStartMinutes;
+        const evacuation = !applies || reference === undefined || timing?.evacuationStartMinutes === undefined ? null : reference + timing.evacuationStartMinutes;
+        return [group.name, share ?? null, groupPeople, group.compliancePercent ?? null, complyingPeople, shelter, evacuation, applies ? timing?.evacuationSpeedMetresPerSecond ?? null : null];
+      }); break; }
     case "weather": fill(["Trial ID", "Speed (m/s)", "Toward (°)", "Stability"], "Toward: degrees clockwise from north. D = day of year; P = period in file. IDs reference weather rows; no sampling is performed.", weatherRecords.length, i => { const r = weatherRecords[i]; return [caseTrialId(r), r.windSpeedMetresPerSecond, windToward(r, weatherSectorCount(c.weather)) ?? null, r.stabilityClass]; }); break;
     case "deposition": fill(["Group", "Velocity (m/s)"], "Saved group deposition velocity: m/s.", s?.groups.length ?? 0, i => { const g = s!.groups[i]; return [`${g.id} · ${g.name}`, c.transport?.categories.find(v => v.categoryId === c.categoryId)?.settings?.groupVelocities.find(v => v.groupId === g.id && v.name === g.name)?.velocity ?? null]; }); break;
     case "decay": { const covered = new Set(decayCoverage(c.transport, s).found); fill(["Radionuclide", "Parent record"], "Parent record presence by inventory nuclide. Record coverage does not check daughter chains.", s?.inventory.length ?? 0, i => [s!.inventory[i].name, covered.has(s!.inventory[i].name) ? "Present" : "Not supplied"]); break; }

@@ -5,6 +5,7 @@ import type { RcSiteReceptors } from "./site-receptors";
 import type { RcWeatherInputs } from "./weather";
 import type { RcDoseInputs } from "./dose-inputs";
 import type { RcTransportInputs } from "./transport";
+import type { RcEarlyResponseModel } from "./early-response";
 import { ParameterDistribution } from "../core/events";
 import {
   ImportanceLevel,
@@ -119,6 +120,20 @@ export interface ReleaseCategoryToConsequenceAnalysis {
 
 export interface ProtectiveActionAnalysis {
   siteAndReceptors?: RcSiteReceptors;
+  /** Canonical MACCS-style early-response inputs; legacy descriptive fields remain readable during migration. */
+  earlyResponseModel?: RcEarlyResponseModel;
+  /** Action times are relative to a named response event; its time anchors them to accident start. */
+  responseTiming?: {
+    referenceEvent?: string;
+    referenceAfterAccidentMinutes?: number;
+    cohortName?: string;
+    /** Legacy declaration anchor, used when referenceAfterAccidentMinutes is absent. */
+    declarationAfterAccidentMinutes?: number;
+    shelterStartMinutes?: number;
+    evacuationStartMinutes?: number;
+    evacuationSpeedMetresPerSecond?: number;
+    source?: string;
+  };
   protectiveActionsIncluded: {
     action: "EVACUATION" | "SHELTERING" | "RELOCATION" | "LAND_INTERDICTION_REMEDIATION" | "FOOD_INTERDICTION_REMEDIATION";
     included: boolean;
@@ -127,6 +142,8 @@ export interface ProtectiveActionAnalysis {
   incidentPhasesModeled: {
     phase: "EARLY" | "INTERMEDIATE" | "LATE_LONG_TERM";
     criteriaDescription: string;
+    startDays?: number;
+    endDays?: number;
   }[];
   sourceDocuments: {
     document: string;
@@ -139,6 +156,8 @@ export interface ProtectiveActionAnalysis {
       name: string;
       description: string;
       complianceAssumption?: string;
+      populationPercent?: number;
+      compliancePercent?: number;
     }[];
   };
   complianceAssumptions: {
@@ -153,6 +172,10 @@ export interface ProtectiveActionAnalysis {
     parameter: string;
     value: string;
     source: string;
+    numericValue?: number;
+    unit?: string;
+    action?: ProtectiveActionAnalysis["protectiveActionsIncluded"][number]["action"];
+    phase?: ProtectiveActionAnalysis["incidentPhasesModeled"][number]["phase"];
   }[];
   evacuationModeling?: {
     approach: string;
@@ -167,9 +190,11 @@ export interface ProtectiveActionAnalysis {
       | "SECURE_PERSONAL_PROPERTY"
       | "LOAD_VEHICLES";
     estimate: string;
+    minutes?: number;
   }[];
   evacuationSpeed?: {
     basis: string;
+    speedMetresPerSecond?: number;
     daytimeNighttimeConsidered: boolean;
     adverseWeatherConsidered: boolean;
     specialEventsConsidered: boolean;
@@ -182,6 +207,7 @@ export interface ProtectiveActionAnalysis {
   populationDistribution: {
     basis: "ASSUMED_JUSTIFIED" | "DEMOGRAPHIC_SOURCES";
     description: string;
+    sourceReference?: string;
     justification?: string;
     transientPopulationsIncluded?: boolean;
     projectionAdjustments?: string;
@@ -189,11 +215,13 @@ export interface ProtectiveActionAnalysis {
   landUseData: {
     basis: "GENERIC_SIMPLIFIED" | "REGIONAL_SPECIFIC";
     description: string;
+    sourceReference?: string;
     intraRegionalAdjustments?: string;
   };
   plantPhysicalCharacteristics: {
     basis: "ESTIMATED" | "ACTUAL";
     description: string;
+    sourceReference?: string;
   };
   releaseSourceGeographicLocation: string;
   boundingSiteLocationJustification?: string;

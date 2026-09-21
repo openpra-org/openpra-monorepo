@@ -15,6 +15,9 @@ export class RcWorkbookFile {
   siteInputOriginal?: boolean;
 
   @Prop({ type: Boolean, default: false })
+  responseInputOriginal?: boolean;
+
+  @Prop({ type: Boolean, default: false })
   weatherInputOriginal?: boolean;
 
   @Prop({ type: Boolean, default: false })

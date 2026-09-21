@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type JSX } from "react";
 import type { RcSiteSettings } from "interfaces-mef-types/rc/site-receptors";
 import { RcSiteSettingsSchema } from "interfaces-mef-types/zod/rc/site-receptors";
-import { cellDoseDistance, coordinateReference, receptorCount, siteReceptorIssues } from "interfaces-shared-types/rc-workbooks/site-receptors";
+import { cellDoseDistance, coordinateReference, receptorCount, sitePopulation, siteReceptorIssues } from "interfaces-shared-types/rc-workbooks/site-receptors";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { useRcWorkbook } from "./rcWorkbookContext";
@@ -87,6 +87,7 @@ export function RcSiteReceptorsPanel({ initialTab = "receptors" }: { initialTab?
             {geometry.kind !== "cells" && <span className="sr-small">{geometry.kind === "grid" ? `${geometry.radiiMetres.length} radii × ${geometry.bearingsDegrees.length} directions = ${count} points` : `${count} imported receptors`}</span>}
           </div>
           {geometry.kind === "cells" ? <>
+            {sitePopulation(geometry) !== undefined && <p className="sr-population-total">Population across all cells: <strong>{sitePopulation(geometry)!.toLocaleString()}</strong></p>}
             <RcReceptorCellGrid geometry={geometry} settings={settings} band={currentBand} sector={currentSector} onSelect={(b, s) => { setBand(b); setSector(s); setPage(Math.floor(b / 6)); }} />
             <div className="sr-settings"><label>Dose-evaluation point in each cell<select className="posfield__select" aria-label="Dose-evaluation point in each cell" disabled={disabled} value={settings.cellPoint ?? ""} onChange={e => edit({ cellPoint: e.target.value ? e.target.value as "mid" | "outer" : undefined })}>
               <option value="">Choose a position</option><option value="mid">Mid-radius, sector center</option><option value="outer">Outer edge, sector center</option>

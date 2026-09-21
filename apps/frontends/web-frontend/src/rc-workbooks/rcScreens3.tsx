@@ -27,6 +27,7 @@ import {
   RcTextField,
   RcAreaField,
   RcNumberField,
+  RcOptionalNumberField,
   RcSelectField,
   RcStringList,
   RemoveBtn,
@@ -36,7 +37,7 @@ import {
   EVAL_TYPE_OPTIONS,
   EVAL_SCOPE_OPTIONS,
   PROT_ACTION_OPTIONS,
-  COHORT_APPROACH_OPTIONS,
+  PHASE_OPTIONS,
   POP_BASIS_OPTIONS,
   LAND_BASIS_OPTIONS,
   PLANT_BASIS_OPTIONS,
@@ -64,6 +65,7 @@ import {
   RI_FB_STATUS_OPTIONS,
   RI_RESP_STATUS_OPTIONS,
 } from "./rcFields";
+import { evacuationDelayMinutes } from "./rcProtective";
 
 // ─── 08 — Quantification (RCQ) ─────────────────────────────────────────────
 function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawerContext) => void; onOpenStep?: (id: string) => void }): JSX.Element {
@@ -643,7 +645,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
       <>
         <DrawerHead cap="Protective action" title={a.action} onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
-          <RcSelectField label="Action" value={a.action} options={PROT_ACTION_OPTIONS} onChange={(v) => patch({ action: v as typeof a.action })} disabled={dis} />
+          <RcSelectField label="Action" value={a.action} options={PROT_ACTION_OPTIONS.filter(([value]) => value === a.action || !pa.protectiveActionsIncluded.some((entry, index) => index !== idx && entry.action === value))} onChange={(v) => patch({ action: v as typeof a.action })} disabled={dis} />
           <RcSelectField label="Included" value={a.included ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ included: v === "yes" })} disabled={dis} />
           <RcAreaField label="Applicability justification" value={a.applicabilityJustification ?? ""} onChange={(v) => patch({ applicabilityJustification: v })} disabled={dis} rows={2} />
           {editable && <RemoveBtn label="Remove action" onClick={remove} />}
@@ -657,14 +659,25 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const cohorts = pa.cohortModeling.cohorts ?? [];
     const c = cohorts[idx];
     if (c === undefined) return null;
-    const patch = (next: Partial<typeof c>): void => mutateRc((d) => { const cm = d.protectiveActionParameters.cohortModeling; return { ...d, protectiveActionParameters: { ...d.protectiveActionParameters, cohortModeling: { ...cm, cohorts: (cm.cohorts ?? []).map((x, j) => (j === idx ? { ...x, ...next } : x)) } } }; });
-    const remove = (): void => { mutateRc((d) => { const cm = d.protectiveActionParameters.cohortModeling; return { ...d, protectiveActionParameters: { ...d.protectiveActionParameters, cohortModeling: { ...cm, cohorts: (cm.cohorts ?? []).filter((_, j) => j !== idx) } } }; }); onClose(); };
+    const patch = (next: Partial<typeof c>): void => mutateRc((d) => { const cm = d.protectiveActionParameters.cohortModeling, previousName = cm.cohorts?.[idx]?.name;
+      const timing = d.protectiveActionParameters.responseTiming;
+      return { ...d, protectiveActionParameters: { ...d.protectiveActionParameters,
+        cohortModeling: { ...cm, cohorts: (cm.cohorts ?? []).map((x, j) => (j === idx ? { ...x, ...next } : x)) },
+        responseTiming: timing && next.name !== undefined && timing.cohortName === previousName ? { ...timing, cohortName: next.name } : timing,
+      } }; });
+    const remove = (): void => { mutateRc((d) => { const cm = d.protectiveActionParameters.cohortModeling, removed = cm.cohorts?.[idx], remaining = (cm.cohorts ?? []).filter((_, j) => j !== idx);
+      const timing = d.protectiveActionParameters.responseTiming;
+      return { ...d, protectiveActionParameters: { ...d.protectiveActionParameters,
+        cohortModeling: { ...cm, approach: remaining.length > 1 ? "MULTIPLE_COHORTS" : "SINGLE_COHORT", cohorts: remaining },
+        responseTiming: timing?.cohortName === removed?.name ? { ...timing, cohortName: undefined } : timing,
+      } }; }); onClose(); };
     return (
       <>
         <DrawerHead cap="Cohort" title={c.name} onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
-          <RcSelectField label="Cohort modeling approach" value={pa.cohortModeling.approach} options={COHORT_APPROACH_OPTIONS} onChange={(v) => mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, cohortModeling: { ...d.protectiveActionParameters.cohortModeling, approach: v as typeof pa.cohortModeling.approach } } }))} disabled={dis} />
           <RcTextField label="Name" value={c.name} onChange={(v) => patch({ name: v })} disabled={dis} />
+          <RcOptionalNumberField label="Population share (%)" value={c.populationPercent} min={0} max={100} onChange={(v) => patch({ populationPercent: v })} disabled={dis} />
+          <RcOptionalNumberField label="Complying within this cohort (%)" value={c.compliancePercent} min={0} max={100} onChange={(v) => patch({ compliancePercent: v })} disabled={dis} />
           <RcAreaField label="Description" value={c.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
           <RcAreaField label="Compliance assumption" value={c.complianceAssumption ?? ""} onChange={(v) => patch({ complianceAssumption: v })} disabled={dis} rows={2} />
           {editable && <RemoveBtn label="Remove cohort" onClick={remove} />}
@@ -696,11 +709,16 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const p = pa.incidentPhasesModeled.find((x) => x.phase === context.id);
     if (p === undefined) return null;
     const patch = (next: Partial<typeof p>): void => mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, incidentPhasesModeled: d.protectiveActionParameters.incidentPhasesModeled.map((x) => (x.phase === p.phase ? { ...x, ...next } : x)) } }));
+    const remove = (): void => { mutateRc((d) => ({ ...d, protectiveActionParameters: { ...d.protectiveActionParameters, incidentPhasesModeled: d.protectiveActionParameters.incidentPhasesModeled.filter((x) => x.phase !== p.phase) } })); onClose(); };
     return (
       <>
         <DrawerHead cap="Incident phase" title={p.phase} onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
+          <RcOptionalNumberField label="Starts after release (days)" value={p.startDays} min={0} onChange={(v) => patch({ startDays: v })} disabled={dis} />
+          <RcOptionalNumberField label="Ends after release (days)" value={p.endDays} min={0} onChange={(v) => patch({ endDays: v })} disabled={dis} />
+          {p.startDays !== undefined && p.endDays !== undefined && p.endDays <= p.startDays && <p role="alert" className="rcscope__error">End day must be after start day.</p>}
           <RcAreaField label="Criteria description" value={p.criteriaDescription} onChange={(v) => patch({ criteriaDescription: v })} disabled={dis} rows={3} />
+          {editable && <RemoveBtn label="Remove phase" onClick={remove} />}
         </div>
       </>
     );
@@ -717,8 +735,9 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
       <>
         <DrawerHead cap="Evacuation delay link" title={l.component} onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
-          <RcSelectField label="Component" value={l.component} options={EVAC_COMPONENT_OPTIONS} onChange={(v) => patch({ component: v as typeof l.component })} disabled={dis} />
-          <RcTextField label="Estimate" value={l.estimate} onChange={(v) => patch({ estimate: v })} disabled={dis} />
+          <RcSelectField label="Component" value={l.component} options={EVAC_COMPONENT_OPTIONS.filter(([value]) => value === l.component || !comps.some((entry, index) => index !== idx && entry.component === value))} onChange={(v) => patch({ component: v as typeof l.component })} disabled={dis} />
+          <RcOptionalNumberField label="Delay (minutes)" value={evacuationDelayMinutes(l)} min={0} onChange={(v) => patch({ minutes: v, estimate: v === undefined ? "" : `${v} min` })} disabled={dis} />
+          {l.minutes === undefined && l.estimate && <p className="possubtle">Original estimate: {l.estimate}</p>}
           {editable && <RemoveBtn label="Remove link" onClick={remove} />}
         </div>
       </>
@@ -737,7 +756,11 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
         <DrawerHead cap="Protection parameter" title={p.parameter} onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcTextField label="Parameter" value={p.parameter} onChange={(v) => patch({ parameter: v })} disabled={dis} />
-          <RcTextField label="Value" value={p.value} onChange={(v) => patch({ value: v })} disabled={dis} />
+          <RcSelectField label="Action" value={p.action ?? ""} options={[["", "Choose action"], ...PROT_ACTION_OPTIONS]} onChange={(v) => patch({ action: v ? v as typeof p.action : undefined })} disabled={dis} />
+          <RcSelectField label="Phase" value={p.phase ?? ""} options={[["", "Choose phase"], ...PHASE_OPTIONS]} onChange={(v) => patch({ phase: v ? v as typeof p.phase : undefined })} disabled={dis} />
+          <RcOptionalNumberField label="Numeric value" value={p.numericValue} onChange={(v) => patch({ numericValue: v })} disabled={dis} />
+          <RcTextField label="Unit" value={p.unit ?? ""} onChange={(v) => patch({ unit: v })} disabled={dis} />
+          {p.numericValue === undefined && p.value && <p className="possubtle">Original value: {p.value}</p>}
           <RcAreaField label="Source" value={p.source} onChange={(v) => patch({ source: v })} disabled={dis} rows={2} />
           {editable && <RemoveBtn label="Remove parameter" onClick={remove} />}
         </div>
@@ -755,6 +778,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
           <div className={centered ? "modal__body" : "posdrawer__body"}>
             <RcSelectField label="Basis" value={p.basis} options={POP_BASIS_OPTIONS} onChange={(v) => patch({ basis: v as typeof p.basis })} disabled={dis} />
             <RcAreaField label="Description" value={p.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
+            <RcTextField label="Data file or source reference" value={p.sourceReference ?? ""} onChange={(v) => patch({ sourceReference: v })} disabled={dis} />
             <RcAreaField label="Justification" value={p.justification ?? ""} onChange={(v) => patch({ justification: v })} disabled={dis} rows={2} />
             <RcTextField label="Projection adjustments" value={p.projectionAdjustments ?? ""} onChange={(v) => patch({ projectionAdjustments: v })} disabled={dis} />
           </div>
@@ -770,6 +794,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
           <div className={centered ? "modal__body" : "posdrawer__body"}>
             <RcSelectField label="Basis" value={l.basis} options={LAND_BASIS_OPTIONS} onChange={(v) => patch({ basis: v as typeof l.basis })} disabled={dis} />
             <RcAreaField label="Description" value={l.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
+            <RcTextField label="Data file or source reference" value={l.sourceReference ?? ""} onChange={(v) => patch({ sourceReference: v })} disabled={dis} />
             <RcTextField label="Intra-regional adjustments" value={l.intraRegionalAdjustments ?? ""} onChange={(v) => patch({ intraRegionalAdjustments: v })} disabled={dis} />
           </div>
         </>
@@ -783,6 +808,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
         <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcSelectField label="Basis" value={b.basis} options={PLANT_BASIS_OPTIONS} onChange={(v) => patch({ basis: v as typeof b.basis })} disabled={dis} />
           <RcAreaField label="Description" value={b.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
+          <RcTextField label="Data file or source reference" value={b.sourceReference ?? ""} onChange={(v) => patch({ sourceReference: v })} disabled={dis} />
         </div>
       </>
     );

@@ -13,6 +13,7 @@ const EXAMPLE_DOCUMENT_FILES = new Map<string, ExampleDocumentFile>([
   ["rc-published-decay", { file: "RC-Published-Inputs/NNDC-ENSDF-2023-04-03-mass-137.txt", filename: "NNDC-ENSDF-2023-04-03-mass-137.txt", mimeType: "text/plain; charset=utf-8" }],
   ["rc-published-input-sources", { file: "RC-Published-Inputs/sources.txt", filename: "Published-RC-inputs-sources.txt", mimeType: "text/plain; charset=utf-8" }],
   ["rc-published-health-records", { file: "RC-Published-Inputs/MACCS-Noah-health-settings-excerpt.inp", filename: "MACCS-Noah-health-settings-excerpt.inp", mimeType: "text/plain; charset=utf-8" }],
+  ["rc-published-response-records", { file: "RC-Published-Inputs/MACCS-Noah-response-settings-excerpt.inp", filename: "MACCS-Noah-response-settings-excerpt.inp", mimeType: "text/plain; charset=utf-8" }],
   ["mhtgr-benchmark", { file: "HTGR/INL-EXT-13-30176.pdf", filename: "OECD-NEA-MHTGR-350-Core-Design-Benchmark.pdf" }],
   ["mhtgr-analysis", { file: "HTGR/ISN-0022-3131.pdf", filename: "Multi-physics-analysis-of-the-MHTGR-350.pdf" }],
   ["htgr-safety", { file: "HTGR/ORNL-TM-2014-187.pdf", filename: "Overview-of-Modular-HTGR-Safety-Characterization.pdf" }],

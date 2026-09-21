@@ -38,6 +38,8 @@
 .rc-dose .ds-library .ds-file-actions{flex-wrap:wrap;justify-content:flex-end}
 .rc-dose .ds-note{font-size:12px;color:var(--color-text-muted);margin:10px 0;line-height:1.5}
 .rc-dose .ds-readonly{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:12px 0 19px}
+.rc-dose .ds-response-table-wrap{max-width:100%;overflow-x:auto;margin-top:16px}
+.rc-dose .ds-response-table-wrap table{min-width:1100px;table-layout:auto}
 .rc-dose .ds-readonly dt{font-size:12px;color:var(--color-text-muted)}
 .rc-dose .ds-readonly dd{font-size:13px;margin:4px 0 0}
 .rc-dose details{margin-top:17px;border-top:1px solid var(--color-border);padding-top:12px}

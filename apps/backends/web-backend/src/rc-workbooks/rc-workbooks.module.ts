@@ -17,6 +17,8 @@ import { RcSourceTermService } from "./rc-source-term.service";
 import { RcSourceTermController } from "./rc-source-term.controller";
 import { RcSiteReceptorsController } from "./rc-site-receptors.controller";
 import { RcSiteReceptorsService } from "./rc-site-receptors.service";
+import { RcEarlyResponseController } from "./rc-early-response.controller";
+import { RcEarlyResponseService } from "./rc-early-response.service";
 import { RcWeatherController } from "./rc-weather.controller";
 import { RcWeatherService } from "./rc-weather.service";
 import { RcTransportController } from "./rc-transport.controller";
@@ -34,8 +36,8 @@ import { RcTransportService } from "./rc-transport.service";
     ExampleWorkbooksModule,
     WorkbooksModule,
   ],
-  controllers: [RcCaseRecordsController, RcWorkbooksController, RcDocumentsController, RcSourceTermController, RcSiteReceptorsController, RcWeatherController, RcTransportController, RcDoseInputsController],
-  providers: [RcPublishedExampleService, RcCaseRecordsService, RcWorkbooksService, RcMefAdapter, RcDocumentsService, RcSourceTermService, RcSiteReceptorsService, RcWeatherService, RcTransportService, RcDoseInputsService],
+  controllers: [RcCaseRecordsController, RcWorkbooksController, RcDocumentsController, RcSourceTermController, RcSiteReceptorsController, RcEarlyResponseController, RcWeatherController, RcTransportController, RcDoseInputsController],
+  providers: [RcPublishedExampleService, RcCaseRecordsService, RcWorkbooksService, RcMefAdapter, RcDocumentsService, RcSourceTermService, RcSiteReceptorsService, RcEarlyResponseService, RcWeatherService, RcTransportService, RcDoseInputsService],
   exports: [RcWorkbooksService, RcDocumentsService],
 })
 export class RcWorkbooksModule {}

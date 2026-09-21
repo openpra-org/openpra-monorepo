@@ -17,7 +17,7 @@ export class RcPublishedExampleService {
       for (const asset of RC_PUBLISHED_FILES.filter(f => f.kind !== "reference")) {
         const bytes = readRcPublishedFile(asset.filename), metadata = publishedRcFileMetadata(asset.filename);
         const entry = await this.documents.upload(workbookId, { buffer: bytes, originalName: asset.filename, mimeType: "text/plain", size: bytes.length }, actor,
-          asset.kind === "source", asset.kind === "site", asset.kind === "weather", asset.kind === "transport", asset.kind === "dose");
+          asset.kind === "source", asset.kind === "site", asset.kind === "weather", asset.kind === "transport", asset.kind === "dose", false, asset.kind === "response");
         created.push(entry.documentId); replacements.set(metadata.documentId, { documentId: entry.documentId, uploadedAt: entry.uploadedAt });
       }
       const replace = (value: unknown): unknown => {
@@ -30,6 +30,7 @@ export class RcPublishedExampleService {
       mef.releaseCategoryToConsequence.releaseCategoryInputs.forEach(c => { if (c.sourceTerm) c.sourceTerm.revision = revision; });
       const site = mef.protectiveActionParameters.siteAndReceptors, weather = mef.meteorologicalData.weatherInputs, transport = mef.atmosphericTransportAndDispersion.transportInputs, dose = mef.dosimetry.doseInputs;
       if (site) site.revision = revision; if (weather) weather.revision = revision; if (transport) transport.revision = revision; if (dose) dose.revision = revision;
+      if (mef.protectiveActionParameters.earlyResponseModel) mef.protectiveActionParameters.earlyResponseModel.revision = revision;
       const data = currentRcCase(mef, RC_PUBLISHED_CATEGORY), checks = caseChecks(data), manifest = caseFiles(data);
       const bytes = Buffer.from(JSON.stringify({ inputs: data, checks, files: manifest }, null, 2), "utf8");
       const entry = await this.documents.upload(workbookId, { buffer: bytes, originalName: "Published-RC-input-snapshot.json", mimeType: "text/plain", size: bytes.length }, actor, false, false, false, false, false, true);

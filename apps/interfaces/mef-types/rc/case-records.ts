@@ -3,6 +3,7 @@ import type { RcSiteReceptors } from "./site-receptors";
 import type { RcWeatherInputs } from "./weather";
 import type { RcTransportInputs } from "./transport";
 import type { RcDoseInputs } from "./dose-inputs";
+import type { ProtectiveActionAnalysis } from "./radiological-consequence-analysis";
 
 /** A workbook record of saved inputs, not an executable solver input deck. */
 export interface RcCaseData {
@@ -10,6 +11,7 @@ export interface RcCaseData {
   categoryId: string;
   source?: RcSourceTerm;
   site?: RcSiteReceptors;
+  response?: Pick<ProtectiveActionAnalysis, "protectiveActionsIncluded" | "cohortModeling" | "responseTiming" | "earlyResponseModel">;
   weather?: RcWeatherInputs;
   transport?: RcTransportInputs;
   dose?: RcDoseInputs;
@@ -17,7 +19,7 @@ export interface RcCaseData {
 export type RcCaseStep = "source" | "site" | "weather" | "transport" | "dose";
 export interface RcCaseCheck { key: RcCaseStep | "links"; title: string; items: string[] }
 export interface RcCaseFile {
-  kind: RcCaseStep;
+  kind: RcCaseStep | "response";
   purpose: string;
   file: NonNullable<RcSourceTerm["originalFile"]>;
 }
@@ -52,7 +54,7 @@ export interface RcLinkedResult extends RcLinkedResultValues {
   valueSource: "transcribed";
 }
 export interface RcCaseRecords { revision: number; snapshots: RcCaseSnapshot[]; results: RcLinkedResult[] }
-export type RcCaseDataset = "inventory" | "releases" | "fractions" | "receptors" | "weather" | "deposition" | "decay" | "dose";
+export type RcCaseDataset = "inventory" | "releases" | "fractions" | "receptors" | "response" | "weather" | "deposition" | "decay" | "dose";
 export interface RcCaseTable { columns: string[]; rows: (string | number | null)[][]; units: string; offset: number; total: number }
 export interface RcCaseTextPage { text: string; offset: number; total: number }
 export interface RcCaseSelection { categoryId: string; versions: string; snapshotId?: string }

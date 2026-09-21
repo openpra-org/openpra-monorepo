@@ -12,7 +12,9 @@ import {
 } from "docx";
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { DistributionType } from "interfaces-mef-types/core/events";
+import { sitePopulation } from "interfaces-shared-types/rc-workbooks/site-receptors";
 import { RC_SCOPE_ASPECTS, rcScopeTreatment } from "./rcScope";
+import { evacuationDelayMinutes, protectionParameterQuantity, responseSummary, totalEvacuationDelay } from "./rcProtective";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({ text, heading: level, spacing: { before: 240, after: 120 }, pageBreakBefore: level === HeadingLevel.HEADING_1 });
@@ -70,7 +72,7 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
   );
 
   out.push(heading("Executive Summary", HeadingLevel.HEADING_1));
-  out.push(para(`This document presents the preliminary Radiological Consequence Analysis (RC) for ${a.name}, prepared against a ${siteLabel.toLowerCase()}. ${a.releaseCategoryToConsequence.releaseCategoryInputs.length} release categories and ${q.eventSequenceConsequences.length} event sequence families have been quantified against the ${ccLabel} capability target.`));
+  out.push(para(`This document presents the preliminary Radiological Consequence Analysis (RC) for ${a.name}, prepared against a ${siteLabel.toLowerCase()}. It records ${a.releaseCategoryToConsequence.releaseCategoryInputs.length} release categories and ${q.eventSequenceConsequences.length} event sequence families against the ${ccLabel} capability target.`));
   out.push(para(doc.resultsSummary));
 
   out.push(heading("Introduction", HeadingLevel.HEADING_1));
@@ -119,10 +121,50 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
 
   out.push(heading("Protective Action Parameters and Other Site Data", HeadingLevel.HEADING_1));
   out.push(para(doc.rcpaProcess));
-  out.push(dataTable(
-    ["Delay component", "Estimate"],
-    (a.protectiveActionParameters.evacuationDelayComponents ?? []).map((d) => [d.component, d.estimate]),
+  const pa = a.protectiveActionParameters;
+  const population = sitePopulation(pa.siteAndReceptors?.geometry), response = responseSummary(pa, population);
+  const responseEvent = pa.responseTiming?.referenceEvent?.trim() || "Emergency declaration";
+  out.push(para("This step prepares receptor positions, population groups and response times for the consequence case. It does not calculate dose."));
+  if (population !== undefined) out.push(para(`Imported site population: ${population.toLocaleString()} people.`));
+  if (response.declaration !== undefined || response.shelterAfterAccident !== undefined || response.departureAfterAccident !== undefined) out.push(dataTable(
+    ["Response event", "Minutes after accident start"],
+    [[responseEvent, response.declaration], ["Shelter begins", response.shelterAfterAccident], ["Evacuation begins", response.departureAfterAccident]]
+      .filter((row): row is [string, number] => row[1] !== undefined).map(([event, minutes]) => [event, String(minutes)]),
   ));
+  if (pa.responseTiming?.cohortName) out.push(para(`Response times apply to: ${pa.responseTiming.cohortName}.`));
+  if (pa.responseTiming?.source) out.push(para(`Response timing basis: ${pa.responseTiming.source}`));
+  if (pa.protectiveActionsIncluded.length) out.push(dataTable(
+    ["Action", "Included", "Basis"],
+    pa.protectiveActionsIncluded.map((action) => [action.action.replace(/_/g, " "), action.included ? "Yes" : "No", action.applicabilityJustification ?? ""]),
+  ));
+  if (pa.incidentPhasesModeled.length) out.push(dataTable(
+    ["Phase", "Period after release (days)", "Criteria"],
+    pa.incidentPhasesModeled.map((phase) => [phase.phase.replace(/_/g, " "), `${phase.startDays ?? "Not set"} to ${phase.endDays ?? "open"}`, phase.criteriaDescription]),
+  ));
+  if (pa.sourceDocuments.length) for (const source of pa.sourceDocuments) out.push(bullet(`${source.document}: ${source.usage}`));
+  if (pa.cohortModeling.cohorts?.length) out.push(dataTable(
+    ["Cohort", "Population (%)", "Compliance (%)", "Assumption"],
+    pa.cohortModeling.cohorts.map((cohort) => [cohort.name, String(cohort.populationPercent ?? "Not set"), String(cohort.compliancePercent ?? "Not set"), cohort.complianceAssumption ?? cohort.description]),
+  ));
+  if (pa.shelterInPlaceCredit) out.push(para(`Shelter-in-place credit: ${pa.shelterInPlaceCredit.credited ? "Credited" : "Not credited"}. ${pa.shelterInPlaceCredit.justification ?? ""}`));
+  if (pa.protectionParameters?.length) out.push(dataTable(
+    ["Protection parameter", "Value", "Unit", "Action / phase", "Source"],
+    pa.protectionParameters.map((parameter) => {
+      const quantity = protectionParameterQuantity(parameter);
+      return [parameter.parameter, quantity.value, quantity.unit, [parameter.action, parameter.phase].filter(Boolean).join(" / ") || "Not assigned", parameter.source];
+    }),
+  ));
+  if (pa.evacuationDelayComponents?.length) {
+    out.push(dataTable(["Delay component", "Minutes", "Original estimate"], pa.evacuationDelayComponents.map((delay) => [delay.component.replace(/_/g, " "), String(evacuationDelayMinutes(delay) ?? "Not set"), delay.estimate])));
+    const total = totalEvacuationDelay(pa.evacuationDelayComponents);
+    if (total !== undefined) out.push(para(`Total evacuation delay: ${total} minutes.`));
+  }
+  if (pa.evacuationSpeed) out.push(para(`Evacuation speed: ${pa.evacuationSpeed.speedMetresPerSecond ?? "Not set"} m/s. Basis: ${pa.evacuationSpeed.basis}`));
+  out.push(dataTable(["Site data", "Basis", "Source or file"], [
+    ["Population", pa.populationDistribution.basis, pa.populationDistribution.sourceReference ?? "Not recorded"],
+    ["Land use", pa.landUseData.basis, pa.landUseData.sourceReference ?? "Not recorded"],
+    ["Plant characteristics", pa.plantPhysicalCharacteristics.basis, pa.plantPhysicalCharacteristics.sourceReference ?? "Not recorded"],
+  ]));
 
   out.push(heading("Meteorological Data", HeadingLevel.HEADING_1));
   out.push(para(doc.rcmeProcess));

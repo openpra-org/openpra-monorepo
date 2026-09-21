@@ -7,6 +7,8 @@ import type { EventSequenceFamilySource, ReleaseCategorySource } from "../workbo
 import type { ReleaseCategoryInputs } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { RcSourceTermValues } from "interfaces-mef-types/rc/source-term";
 import type { RcSiteReceptors, RcSiteSettings } from "interfaces-mef-types/rc/site-receptors";
+import type { RcEarlyResponseModel } from "interfaces-mef-types/rc/early-response";
+import type { RcResponseCalculationResult } from "interfaces-mef-types/rc/early-response-calculation";
 import type { RcWeatherInputs, RcWeatherSettings, RcWeatherPage } from "interfaces-mef-types/rc/weather";
 import type { RcDoseInputs, RcDoseSettings, RcDosePathway, RcDoseFilePage, RcDoseRecord } from "interfaces-mef-types/rc/dose-inputs";
 import type { RcTransportInputs, RcTransportSettings, RcLinkedDeposition, RcDecayDetail } from "interfaces-mef-types/rc/transport";
@@ -53,6 +55,12 @@ export interface RcSiteReceptorActions {
   saveSettings: (revision: number, settings: RcSiteSettings) => Promise<RcSiteReceptors>;
   readOriginal: (documentId: string) => Promise<string>;
 }
+export interface RcEarlyResponseActions {
+  importFile: (revision: number, file: File) => Promise<RcEarlyResponseModel>;
+  save: (revision: number, model: RcEarlyResponseModel) => Promise<RcEarlyResponseModel>;
+  readOriginal: (documentId: string) => Promise<string>;
+  calculate: (categoryId: string, file: File) => Promise<RcResponseCalculationResult>;
+}
 interface SiteReceptorDraft { baseRevision: number; settings: RcSiteSettings }
 
 export interface RcSourceTermActions {
@@ -87,6 +95,7 @@ interface RcWorkbookContextValue extends RcWorkbookData {
   weatherDates?: { start: string; end: string };
   setWeatherDates: (dates: { start: string; end: string } | undefined) => void;
   siteReceptors?: RcSiteReceptorActions;
+  earlyResponse?: RcEarlyResponseActions;
   siteReceptorDraft?: SiteReceptorDraft;
   setSiteReceptorDraft: (draft: SiteReceptorDraft | undefined) => void;
   sourceTermDrafts: Record<string, SourceTermDraft | undefined>;
@@ -100,7 +109,7 @@ interface RcWorkbookContextValue extends RcWorkbookData {
 
 const RcWorkbookContext = createContext<RcWorkbookContextValue | null>(null);
 
-function RcWorkbookProvider({ data, editable, mutateRc, eventSequenceFamilySources = [], releaseCategorySources = [], sourceTerms, siteReceptors, weather, transport, doseInputs, caseRecords, children }: {
+function RcWorkbookProvider({ data, editable, mutateRc, eventSequenceFamilySources = [], releaseCategorySources = [], sourceTerms, siteReceptors, earlyResponse, weather, transport, doseInputs, caseRecords, children }: {
   data: RcWorkbookData;
   editable: boolean;
   mutateRc: (mutator: RcMutator) => void;
@@ -108,6 +117,7 @@ function RcWorkbookProvider({ data, editable, mutateRc, eventSequenceFamilySourc
   releaseCategorySources?: ReleaseCategorySource[];
   sourceTerms?: RcSourceTermActions;
   siteReceptors?: RcSiteReceptorActions;
+  earlyResponse?: RcEarlyResponseActions;
   weather?: RcWeatherActions;
   transport?: RcTransportActions;
   doseInputs?: RcDoseActions;
@@ -140,9 +150,9 @@ function RcWorkbookProvider({ data, editable, mutateRc, eventSequenceFamilySourc
     return () => window.removeEventListener("beforeunload", warn);
   }, [sourceTermDrafts, siteReceptorDraft, weatherDraft, weatherDates, transportDrafts, doseDrafts, resultDraft]);
   const value = useMemo<RcWorkbookContextValue>(
-    () => ({ ...data, caseRecords, resultDraft, setResultDraft, editable, mutateRc, eventSequenceFamilySources, releaseCategorySources, sourceTerms, sourceTermDrafts, setSourceTermDraft, siteReceptors, siteReceptorDraft, setSiteReceptorDraft,
+    () => ({ ...data, caseRecords, resultDraft, setResultDraft, editable, mutateRc, eventSequenceFamilySources, releaseCategorySources, sourceTerms, sourceTermDrafts, setSourceTermDraft, siteReceptors, earlyResponse, siteReceptorDraft, setSiteReceptorDraft,
       weather, weatherDraft, setWeatherDraft, weatherDates, setWeatherDates, transport, transportDrafts, setTransportDraft, rebaseTransportDrafts, doseInputs, doseDrafts, setDoseDraft }),
-    [data, caseRecords, resultDraft, editable, mutateRc, eventSequenceFamilySources, releaseCategorySources, sourceTerms, sourceTermDrafts, setSourceTermDraft, siteReceptors, siteReceptorDraft, weather, weatherDraft, weatherDates, transport, transportDrafts, setTransportDraft, rebaseTransportDrafts, doseInputs, doseDrafts, setDoseDraft],
+    [data, caseRecords, resultDraft, editable, mutateRc, eventSequenceFamilySources, releaseCategorySources, sourceTerms, sourceTermDrafts, setSourceTermDraft, siteReceptors, earlyResponse, siteReceptorDraft, weather, weatherDraft, weatherDates, transport, transportDrafts, setTransportDraft, rebaseTransportDrafts, doseInputs, doseDrafts, setDoseDraft],
   );
   return <RcWorkbookContext.Provider value={value}>{children}</RcWorkbookContext.Provider>;
 }

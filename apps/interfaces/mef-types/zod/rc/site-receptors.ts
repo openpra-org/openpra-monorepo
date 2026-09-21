@@ -9,12 +9,15 @@ const anchor = z.object({ localX: finite, localY: finite, utmEasting: finite, ut
 const points = z.array(z.object({ id: z.string().min(1).max(80), x: finite, y: finite, elevationMetres: finite.optional(), hillHeightMetres: finite.optional(),
   heightMetres: finite.nonnegative().optional(), radiusMetres: finite.positive().optional(), bearingDegrees: finite.min(0).lt(360).optional() })).min(1).max(100000);
 export const RcReceptorGeometrySchema: z.ZodType<RcReceptorGeometry> = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("cells"), radiiKm: increasing, sectors: z.number().int().min(1).max(360), center: coordinates.optional(), abridged: z.boolean() }),
+  z.object({ kind: z.literal("cells"), radiiKm: increasing, sectors: z.number().int().min(1).max(360), center: coordinates.optional(), abridged: z.boolean(),
+    populationByCell: z.array(z.number().int().nonnegative()).max(100000).optional() }),
   z.object({ kind: z.literal("points"), points, anchor }),
   z.object({ kind: z.literal("grid"), points, anchor, radiiMetres: increasing, bearingsDegrees: z.array(finite.min(0).lt(360)).min(1).max(360), originX: finite, originY: finite }),
 ]).superRefine((g, ctx) => {
   if (g.kind === "cells") {
     if (g.radiiKm.length * g.sectors > 100000) ctx.addIssue({ code: "custom", message: "At most 100,000 receptor cells are supported" });
+    if (g.populationByCell && g.populationByCell.length !== g.radiiKm.length * g.sectors)
+      ctx.addIssue({ code: "custom", message: "Population must cover every receptor cell" });
   } else if (new Set(g.points.map(p => p.id)).size !== g.points.length) ctx.addIssue({ code: "custom", message: "Point identifiers must be unique" });
   if (g.kind === "grid" && (g.points.length !== g.radiiMetres.length * g.bearingsDegrees.length || new Set(g.bearingsDegrees).size !== g.bearingsDegrees.length))
     ctx.addIssue({ code: "custom", message: "Grid dimensions must match unique receptor directions" });

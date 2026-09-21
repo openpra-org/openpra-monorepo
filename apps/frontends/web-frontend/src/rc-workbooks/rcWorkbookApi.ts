@@ -5,6 +5,8 @@ import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/ra
 import type { ReleaseCategoryInputs } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { RcSourceTermValues } from "interfaces-mef-types/rc/source-term";
 import type { RcSiteReceptors, RcSiteSettings } from "interfaces-mef-types/rc/site-receptors";
+import type { RcEarlyResponseModel } from "interfaces-mef-types/rc/early-response";
+import type { RcResponseCalculationResult } from "interfaces-mef-types/rc/early-response-calculation";
 import type { RcWeatherInputs, RcWeatherPage, RcWeatherSettings } from "interfaces-mef-types/rc/weather";
 import type { RcTransportInputs, RcTransportSettings, RcLinkedDeposition, RcDecayDetail } from "interfaces-mef-types/rc/transport";
 import type { RcDoseInputs, RcDoseSettings, RcDosePathway, RcDoseFilePage, RcDoseRecord } from "interfaces-mef-types/rc/dose-inputs";
@@ -73,6 +75,21 @@ export async function saveRcSiteSettings(id: string, baseRevision: number, setti
 export async function readRcSiteOriginal(id: string, documentId: string): Promise<string> {
   const result = await fetchJson<{ text: string }>(`/api/rc-workbooks/${encodeURIComponent(id)}/site-receptors/files/${encodeURIComponent(documentId)}`);
   return result.text;
+}
+
+export async function importRcEarlyResponse(id: string, baseRevision: number, file: File): Promise<RcEarlyResponseModel> {
+  const form = new FormData(); form.append("baseRevision", String(baseRevision)); form.append("file", file);
+  return postMultipart(`/api/rc-workbooks/${encodeURIComponent(id)}/early-response/import`, form);
+}
+export async function saveRcEarlyResponse(id: string, baseRevision: number, model: RcEarlyResponseModel): Promise<RcEarlyResponseModel> {
+  return patchJson(`/api/rc-workbooks/${encodeURIComponent(id)}/early-response`, { baseRevision, model });
+}
+export async function readRcEarlyResponseOriginal(id: string, documentId: string): Promise<string> {
+  return (await fetchJson<{ text: string }>(`/api/rc-workbooks/${encodeURIComponent(id)}/early-response/files/${encodeURIComponent(documentId)}`)).text;
+}
+export async function calculateRcEarlyResponse(id: string, categoryId: string, file: File): Promise<RcResponseCalculationResult> {
+  const form = new FormData(); form.append("categoryId", categoryId); form.append("file", file);
+  return postMultipart(`/api/rc-workbooks/${encodeURIComponent(id)}/early-response/calculate`, form);
 }
 
 export async function importRcSourceTerm(workbookId: string, categoryId: string, baseRevision: number, file: File): Promise<ReleaseCategoryInputs> {

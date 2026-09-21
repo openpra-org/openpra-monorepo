@@ -8,7 +8,7 @@ Inspect real numerical inputs in the redesigned RC sections. These files come fr
 
 WHAT TO INSPECT
 01 Source: 69 radionuclides, 10 chemical groups, 8 release segments. Activity is Bq; time is s; height is m. All eight release heights are explicitly zero in the published file.
-02 Site: 14 radial bands × 64 sectors = 896 cells. Site coordinates are 35.31028°, -93.23194°. The published geometry does not specify receptor height or within-cell evaluation point; those choices remain unset. Population and economic arrays are abridged in the publication and are not reconstructed.
+02 Site and response: 14 radial bands × 64 sectors = 896 cells. Site coordinates are 35.31028°, -93.23194°. The published geometry does not specify receptor height or within-cell evaluation point; those choices remain unset. Population and economic arrays are abridged and are not reconstructed. The thesis provides three cohort WTFRAC result weights: 89.55%, 9.95%, and 0.5%. It does not state WTNAME, so these are not assigned as population shares. Compliance remains unset. The 90th-percentile example uses an off-site alarm at 45 min after accident start, shelter at 33 min after alarm, evacuation at 183 min after alarm, and speed 1.8 m/s. The other cohorts have different response settings; this timeline is not applied to them.
 03 Meteorology: 24 hourly records for January 1, 2020, paired with the published 2020 request. Weather source coordinates remain 35.29890°, -93.24220°. The expert must review their use for the nearby site. The file retains 64 wind sectors, SRDT stability selection and UTC offset -5. A one-day excerpt is not labeled as annual weather data.
 04 Transport: ten chemical-group velocities use the defaults documented in the thesis: noble gases 0 m/s, other groups 0.003 m/s. Parent-only mode is the workbook's initial review choice, not a claim about the original MelMACCS case. MACCS power-law dispersion records and the unmodified ENSDF mass-137 file are available for inspection. Missing inventory decay records remain visible.
 05 Dose: published integration duration 2,592,000 s (30 days), published shielding/exposure records, and complete original EPA inhalation, cloudshine and groundshine files. Native coefficient quantities, units, age, absorption and particle-size variants are retained. They are not native MACCS DCF decks or verified OpenRC executable inputs.
@@ -29,7 +29,7 @@ Files: SecPop-Noah-published-site-excerpt.txt, MACCS-Noah-site-coordinates-excer
 
 S3. Noah Alexander Etter, A Methodology for using MACCS as a Tool for the Licensing of Non-Light Water Reactors, 2026 thesis.
 https://repository.lib.ncsu.edu/bitstreams/2af41279-fd84-46ec-a243-c4f99c1abe9a/download
-Files: MACCS-Noah-dose-settings-excerpt.inp (printed pp. 101, 110; PDF pp. 114, 123); MACCS-Noah-health-settings-excerpt.inp (printed pp. 99–100; PDF pp. 112–113). Documented OpenRC deposition defaults: printed p. 82. Selected published blocks combined in these excerpts; no numerical values created.
+Files: MACCS-Noah-dose-settings-excerpt.inp (printed pp. 101, 110; PDF pp. 114, 123); MACCS-Noah-response-settings-excerpt.inp (printed pp. 46, 110–115; PDF pp. 59, 123–128); MACCS-Noah-health-settings-excerpt.inp (printed pp. 99–100; PDF pp. 112–113). Documented OpenRC deposition defaults: printed p. 82. Selected published blocks combined in these excerpts; no numerical values created. The response excerpt is not a runnable combined MACCS deck.
 
 S4. DOE, MACCS2 Computer Code Application Guidance for Documented Safety Analysis, June 2004, printed p. 7-4 (PDF p. 101).
 https://www.energy.gov/sites/default/files/2018/07/f54/Final_MACCS2_Guidance_Report_June_1_2004_508C.pdf
@@ -65,6 +65,8 @@ MACCS-Noah-dose-settings-excerpt.inp
 6d82cb5899b97caf57833a51b868068615785aed69f563e4dcae7795de3c2e3e
 MACCS-Noah-health-settings-excerpt.inp
 c6e6fd7cb97b7d52e6782fdc3a594b271695a1cc5f1483e32e0ce01155c1a2db
+MACCS-Noah-response-settings-excerpt.inp
+84a46b9ed96f78486802050e41b5b3e8794344697087632d3b06ccf8cd5c9703
 MACCS-Noah-site-coordinates-excerpt.txt
 41d5ba2a540dbf58e40b9986ce30fa3d5f5c613beee842c06c8f8fc731d2684e
 MACCS2-DOE-published-dispersion.inp

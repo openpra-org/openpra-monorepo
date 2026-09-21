@@ -6,7 +6,7 @@ import { ExampleDocumentsController } from "../../example-workbooks/example-docu
 import { createPublishedRcSeed, RC_PUBLISHED_ID, RC_PUBLISHED_LABEL, RC_PUBLISHED_SLUG, RC_PUBLISHED_CATEGORY, RC_PUBLISHED_FILES, readRcPublishedFile } from "../../example-workbooks/seeds/rc-published-inputs-seed";
 import { RC_EXAMPLES, SEEDS } from "../../example-workbooks/seeds";
 import { RadiologicalConsequenceAnalysisSchema } from "interfaces-mef-types/zod/rc/radiological-consequence-analysis";
-import { caseFiles, caseVersions, currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
+import { caseFiles, caseTable, caseVersions, currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
 import { caseChecks } from "interfaces-shared-types/rc-workbooks/case-records";
 import { doseCoverage } from "interfaces-shared-types/rc-workbooks/dose-inputs";
 
@@ -30,6 +30,13 @@ describe("RC-only published input example", () => {
     expect(c.site!.settings).toEqual({ latitude: 35.31028, longitude: -93.23194 });
     expect(c.site!.geometry).toMatchObject({ kind: "cells", sectors: 64, abridged: true });
     expect(c.site!.geometry!.kind === "cells" && c.site!.geometry!.radiiKm.length).toBe(14);
+    expect(c.response!.cohortModeling.cohorts!.map(group => group.name)).toEqual(["90th Percentile Evacuation Cohort", "100th Percentile Evacuation Cohort", "Non-Evacuating Cohort"]);
+    expect(c.response!.cohortModeling.cohorts!.every(group => group.populationPercent === undefined && group.compliancePercent === undefined)).toBe(true);
+    expect(c.response!.responseTiming).toMatchObject({ cohortName: "90th Percentile Evacuation Cohort", referenceEvent: "Off-site alarm", referenceAfterAccidentMinutes: 45,
+      shelterStartMinutes: 33, evacuationStartMinutes: 183, evacuationSpeedMetresPerSecond: 1.8 });
+    const responseRows = caseTable(c, "response", 0).rows;
+    expect(responseRows[0].slice(5)).toEqual([78, 228, 1.8]);
+    expect(responseRows[1].slice(5)).toEqual([null, null, null]);
     expect(c.weather!.settings).toEqual({ latitude: 35.2989, longitude: -93.2422, year: 2020, windSectors: 64 });
     expect(c.weather!.data!.recordCount).toBe(24); expect(c.weather!.review).toBeUndefined();
     expect(c.dose!.categories[0].settings!.integrationSeconds).toBe(2592000);
@@ -46,7 +53,7 @@ describe("RC-only published input example", () => {
   });
   it("serves the source guide and health records as readable text", async () => {
     const controller = new ExampleDocumentsController();
-    for (const [id, filename] of [["rc-published-input-sources", "sources.txt"], ["rc-published-health-records", "MACCS-Noah-health-settings-excerpt.inp"]]) {
+    for (const [id, filename] of [["rc-published-input-sources", "sources.txt"], ["rc-published-response-records", "MACCS-Noah-response-settings-excerpt.inp"], ["rc-published-health-records", "MACCS-Noah-health-settings-excerpt.inp"]]) {
       const response = controller.getDocument(id), chunks: Buffer[] = [];
       expect(response.getHeaders().type).toBe("text/plain; charset=utf-8");
       for await (const chunk of response.getStream()) chunks.push(Buffer.from(chunk));
@@ -62,7 +69,7 @@ describe("RC-only published input example", () => {
     expect(response.hasPreviousMef).toBe(true); expect(mef.workflowState).toBe("DRAFT");
     expect(await t.workbooks.findOne({ workbookId: "rc-other" }).lean()).toEqual(other);
     const data = currentRcCase(mef, RC_PUBLISHED_CATEGORY), files = caseFiles(data), saved = mef.consequenceQuantification.caseRecords;
-    expect(files).toHaveLength(11); expect(t.storage.size).toBe(12); expect(saved.snapshots).toHaveLength(1); expect(saved.results).toEqual([]);
+    expect(files).toHaveLength(12); expect(t.storage.size).toBe(13); expect(saved.snapshots).toHaveLength(1); expect(saved.results).toEqual([]);
     expect(saved.snapshots[0]).toMatchObject({ inventoryCount: 69, receptorCount: 0, trialCount: 24, integrationSeconds: 2592000 });
     expect(saved.snapshots[0].reviewItems).toBeGreaterThan(0);
     for (const entry of files) expect([...t.storage.values()].some(bytes => bytes.equals(readRcPublishedFile(entry.file.filename)))).toBe(true);
@@ -73,7 +80,7 @@ describe("RC-only published input example", () => {
     expect(records.some((r: any) => r.value === "4.673E-09")).toBe(true);
     await request(http()).post(`${root}/unload-example`).send({}).expect(200);
     expect((await request(http()).get(root)).body.mef).toEqual(before);
-    expect(t.storage.size).toBe(12);
+    expect(t.storage.size).toBe(13);
   });
   it("uses workbook-local original IDs and newer revisions on a second load", async () => {
     const first = (await load().expect(200)).body.mef, second = (await load().expect(200)).body.mef;
@@ -97,7 +104,7 @@ describe("RC-only published input example", () => {
     });
     await load().expect(500); expect(t.storage.size).toBe(0); expect(await t.files.countDocuments({})).toBe(0); spy.mockRestore();
     const conflict = jest.spyOn(t.documents, "upload").mockImplementation(async (...args) => {
-      const entry = await real(...args); if (t.storage.size === RC_PUBLISHED_FILES.length) await t.workbooks.updateOne({ workbookId: "rc-test" }, { $inc: { __v: 1 } }); return entry;
+      const entry = await real(...args); if (t.storage.size === RC_PUBLISHED_FILES.filter(file => file.kind !== "reference").length + 1) await t.workbooks.updateOne({ workbookId: "rc-test" }, { $inc: { __v: 1 } }); return entry;
     });
     await load().expect(409); expect(t.storage.size).toBe(0); conflict.mockRestore();
   });

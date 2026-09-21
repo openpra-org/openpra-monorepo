@@ -112,6 +112,25 @@
 .rc-handoff__ri .posfield__textarea { box-sizing: border-box; min-height: 68px; }
 .rc-handoff__scope > .posfield__textarea { box-sizing: border-box; max-width: 820px; min-height: 76px; }
 .rc-handoff__compact-card { box-sizing: border-box; width: 100%; max-width: 960px; }
+.rc-step02-card { box-sizing: border-box; width: 100%; max-width: 960px; }
+.rc-step02-total { margin: 12px 0 0; font-size: 12px; color: var(--color-text-muted); }
+.rccohort__measures { font-size: 11px; color: var(--color-text-muted); }
+.rc-step02-groups { margin-top: 14px; }
+.rc-step02-groups .rccohort__card { text-align: left; cursor: pointer; width: 100%; color: inherit; font: inherit; }
+.rc-step02-result { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--color-border); font-size: 12px; }
+.rc-step02-result span { color: var(--color-text-muted); }
+.rc-step02-result strong { color: var(--color-text); font-variant-numeric: tabular-nums; text-align: right; }
+.rc-step02-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.rc-step02-action { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 1px solid var(--color-border); border-radius: 10px; padding: 11px 13px; }
+.rc-step02-action span { display: flex; flex-direction: column; gap: 3px; }
+.rc-step02-action strong { font-size: 13px; }
+.rc-step02-action small { color: var(--color-text-muted); font-size: 11px; }
+.rc-step02-timing { display: grid; grid-template-columns: repeat(3, minmax(0, 220px)); gap: 14px; margin-top: 19px; }
+.rc-step02-timing .posfield__label { display: block; }
+.rc-step02-timing .posfield__input, .rc-step02-timing-source .posfield__input { display: block; width: 100%; margin-top: 5px; }
+.rc-step02-timing-source { display: block; max-width: 688px; margin-top: 14px; }
+.rc-step02-derived { max-width: 688px; margin-top: 12px; }
+@media (max-width: 620px) { .rc-step02-actions, .rc-step02-timing { grid-template-columns: minmax(0, 1fr); } }
 .rc-handoff__choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 4px; }
 @media (max-width: 720px) { .rc-handoff__choices { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 520px) { .rc-handoff__interface-tiles { grid-template-columns: minmax(0, 1fr); } }
@@ -275,9 +294,7 @@
 .rccohort { display: grid; grid-template-columns: 1fr; gap: 10px; border: 1px solid var(--color-border); border-radius: 12px; padding: 12px; }
 @media (min-width: 860px) { .rccohort { grid-template-columns: 1fr 1fr; } }
 .rccohort__card { border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); padding: 13px 15px; display: flex; flex-direction: column; gap: 8px; border-left: 4px solid var(--rc-site); }
-.rccohort__card--refuse { border-left-color: var(--rc-credit); }
 .rccohort__name { font-weight: 700; font-size: 13.5px; color: var(--color-text); }
-.rccohort__desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin: 0; }
 .rcnum { flex-shrink: 0; min-width: 20px; font-family: var(--font-data), ui-monospace, monospace; font-size: 12.5px; font-weight: 700; color: var(--color-text-subtle); }
 .rcbtn-danger { color: var(--rc-credit-ink); border-color: rgb(179 38 30 / 0.45); }
 .rcbtn-danger:hover { background: rgb(179 38 30 / 0.09); border-color: var(--rc-credit); }

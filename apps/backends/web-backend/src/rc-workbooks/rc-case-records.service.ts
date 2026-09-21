@@ -15,7 +15,7 @@ import { RcWorkbook, type RcWorkbookDocument } from "./rc-workbook.schema";
 import { RcDocumentsService } from "./rc-documents.service";
 
 interface Actor { username: string }
-const revision = z.number().int().nonnegative(), versions = z.string().regex(/^\d+,\d+,\d+,\d+,\d+$/);
+const revision = z.number().int().nonnegative(), versions = z.string().regex(/^\d+,\d+,\d+,\d+,\d+,\d+$/);
 const reason = (e: unknown) => e instanceof z.ZodError ? e.issues.slice(0, 5).map(i => i.message).join("; ") : e instanceof Error ? e.message : "Invalid case record";
 const hash = (b: Buffer) => createHash("sha256").update(b).digest("hex");
 const selectionSchema = z.object({ categoryId: z.string().min(1).max(255), versions, snapshotId: z.string().uuid().optional() }).strict();
@@ -144,6 +144,7 @@ export class RcCaseRecordsService {
     switch (kind) {
       case "source": return this.documents.readSourceInput(id, documentId, actor);
       case "site": return this.documents.readSiteInput(id, documentId, actor);
+      case "response": return this.documents.readResponseInput(id, documentId, actor);
       case "weather": return this.documents.readWeatherInput(id, documentId, actor);
       case "transport": return this.documents.readTransportInput(id, documentId, actor);
       case "dose": return this.documents.readDoseInput(id, documentId, actor);

@@ -11,6 +11,8 @@ export interface RcCoordinateAnchor {
 }
 export type RcReceptorGeometry = {
   kind: "cells"; radiiKm: number[]; sectors: number; center?: RcSiteCoordinates; abridged: boolean;
+  /** Sector-major population counts; present only when every cell was supplied. */
+  populationByCell?: number[];
 } | {
   kind: "points"; points: RcReceptorPoint[]; anchor: RcCoordinateAnchor;
 } | {

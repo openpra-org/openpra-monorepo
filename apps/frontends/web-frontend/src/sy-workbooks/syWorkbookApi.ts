@@ -3,6 +3,7 @@ import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../ap
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type {
   FaultTreeAnalysisResult,
+  FaultTreeExecuteRequest,
   FaultTreeExecuteResult,
   FaultTreeValidateResult,
 } from "interfaces-shared-types/newly-developed-methods/fault-tree";
@@ -104,10 +105,11 @@ async function runSyFaultTree(
   workbookId: string,
   modelId: string,
   workbookRevision: number,
+  analysis: Pick<FaultTreeExecuteRequest, "calculationType" | "workflow" | "settings">,
 ): Promise<FaultTreeExecuteResult> {
   return postJson<FaultTreeExecuteResult>(
     `/api/sy-workbooks/${workbookId}/fault-trees/${modelId}/runs`,
-    { schemaVersion: "1.0.0", modelId, workbookRevision },
+    { schemaVersion: "1.0.0", modelId, workbookRevision, ...analysis },
   );
 }
 

@@ -1,4 +1,4 @@
-import { ResultCsvButton } from "../shared/resultPresentation";
+import { PagedResults, ResultCsvButton } from "../shared/resultPresentation";
 import { faultTreeResultRecords } from "../shared/probabilityResultExport";
 import {
   type ChangeEvent,
@@ -829,7 +829,10 @@ function NodeInspector({
 export function FaultTreeResults({
   analysisResult,
   resultIsStale,
-}: Pick<FaultTreeEditorProps, "analysisResult" | "resultIsStale">): JSX.Element | null {
+  basicEventCodes = {},
+}: Pick<FaultTreeEditorProps, "analysisResult" | "resultIsStale"> & {
+  basicEventCodes?: Readonly<Record<string, string>>;
+}): JSX.Element | null {
   if (analysisResult === null) return null;
   const result = analysisResult;
   return (
@@ -841,10 +844,101 @@ export function FaultTreeResults({
       </div>
       <div className="fteditor__result-metrics">
         <div className="fteditor__result-metric">
-          <span>Exact top-event probability</span>
+          <span>{result.probabilityMethod === undefined ? "Exact top-event probability" : `${result.probabilityMethod.replace(/_/g, " ")} top-event probability`}</span>
           <strong title={String(result.topEventProbability)}><ScientificProbability value={result.topEventProbability} /></strong>
         </div>
+        {result.cutSets !== undefined && (
+          <div className="fteditor__result-metric">
+            <span>{result.cutSets.primeImplicants ? "Prime implicants" : "Minimal cut sets"}</span>
+            <strong>{result.cutSets.count.toLocaleString()}</strong>
+          </div>
+        )}
       </div>
+      {result.cutSets !== undefined && (
+        <section className="fteditor__result-section" aria-label="Cut sets">
+          <div className="fteditor__result-section-heading">
+            <h4>{result.cutSets.primeImplicants ? "Prime implicants" : "Minimal cut sets"}</h4>
+            <span>{result.cutSets.count.toLocaleString()} total</span>
+          </div>
+          <PagedResults
+            items={result.cutSets.items}
+            label="Fault-tree cut sets"
+            resetKey={`${result.runId}:${result.cutSets.count}`}
+          >
+            {(items) => (
+              <div className="fteditor__result-table-wrap">
+                <table className="fteditor__result-table">
+                  <thead><tr><th>Order</th><th>Events</th><th>Probability</th></tr></thead>
+                  <tbody>
+                    {items.map((set, index) => (
+                      <tr key={`${index}:${set.literals.map((literal) => `${literal.negated ? "~" : ""}${literal.basicEventId}`).join("|")}`}>
+                        <td>{set.order}</td>
+                        <td className="fteditor__mono">{set.literals.map((literal) => `${literal.negated ? "¬" : ""}${basicEventCodes[literal.basicEventId] ?? literal.basicEventId}`).join(" · ")}</td>
+                        <td><ScientificProbability value={set.probability} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </PagedResults>
+        </section>
+      )}
+      {result.importance !== undefined && (
+        <section className="fteditor__result-section" aria-label="Importance measures">
+          <div className="fteditor__result-section-heading"><h4>Importance measures</h4><span>{result.importance.length} basic events</span></div>
+          <div className="fteditor__result-table-wrap">
+            <table className="fteditor__result-table">
+              <thead><tr><th>Basic event</th><th>Birnbaum</th><th>Criticality</th><th>Fussell-Vesely</th><th>RAW</th><th>RRW</th></tr></thead>
+              <tbody>{result.importance.map((row) => (
+                <tr key={row.basicEventId}>
+                  <td className="fteditor__mono">{row.basicEventId}</td>
+                  <td><ScientificProbability value={row.birnbaum} /></td>
+                  <td><ScientificProbability value={row.criticality} /></td>
+                  <td><ScientificProbability value={row.fussellVesely} /></td>
+                  <td>{row.riskAchievementWorth.toPrecision(6)}</td>
+                  <td>{row.riskReductionWorth.toPrecision(6)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </section>
+      )}
+      {result.uncertainty !== undefined && (
+        <section className="fteditor__result-section" aria-label="Uncertainty results">
+          <div className="fteditor__result-section-heading"><h4>Uncertainty</h4><span>{result.uncertainty.sampleCount.toLocaleString()} samples · seed {result.uncertainty.seed}</span></div>
+          <dl className="fteditor__result-definition">
+            <div><dt>Mean</dt><dd><ScientificProbability value={result.uncertainty.mean} /></dd></div>
+            <div><dt>Standard deviation</dt><dd><ScientificProbability value={result.uncertainty.standardDeviation} /></dd></div>
+            <div><dt>Error factor</dt><dd>{result.uncertainty.errorFactor.toPrecision(6)}</dd></div>
+            {result.uncertainty.quantiles.map((quantile) => (
+              <div key={quantile.probability}><dt>{quantile.probability * 100}% quantile</dt><dd><ScientificProbability value={quantile.value} /></dd></div>
+            ))}
+          </dl>
+        </section>
+      )}
+      {result.monteCarlo !== undefined && (
+        <section className="fteditor__result-section" aria-label="Monte Carlo diagnostics">
+          <div className="fteditor__result-section-heading"><h4>Monte Carlo</h4><span>seed {result.monteCarlo.seed}</span></div>
+          <dl className="fteditor__result-definition">
+            <div><dt>Trials</dt><dd>{result.monteCarlo.trials.toLocaleString()}</dd></div>
+            {result.monteCarlo.requestedTrials !== undefined && <div><dt>Requested trials</dt><dd>{result.monteCarlo.requestedTrials.toLocaleString()}{result.monteCarlo.stoppedEarly ? " · stopped early" : ""}</dd></div>}
+            <div><dt>Successes</dt><dd>{result.monteCarlo.successes.toLocaleString()}</dd></div>
+            {result.monteCarlo.varianceReduction !== undefined && <div><dt>Variance reduction</dt><dd>{result.monteCarlo.varianceReduction.replace(/_/g, " ").toLowerCase()}</dd></div>}
+            <div><dt>Standard deviation</dt><dd><ScientificProbability value={result.monteCarlo.standardDeviation} /></dd></div>
+            <div><dt>{result.monteCarlo.confidenceInterval.confidence * 100}% confidence interval</dt><dd><ScientificProbability value={result.monteCarlo.confidenceInterval.lower} /> – <ScientificProbability value={result.monteCarlo.confidenceInterval.upper} /></dd></div>
+          </dl>
+        </section>
+      )}
+      {result.sil !== undefined && (
+        <section className="fteditor__result-section" aria-label="SIL results">
+          <div className="fteditor__result-section-heading"><h4>Safety integrity level</h4></div>
+          <dl className="fteditor__result-definition">
+            <div><dt>PFD average</dt><dd><ScientificProbability value={result.sil.probabilityOfFailureOnDemand} /> · {result.sil.pfdLevel.replace("_", " ")}</dd></div>
+            <div><dt>PFH</dt><dd><ScientificProbability value={result.sil.dangerousFailureRatePerHour} /> /h · {result.sil.pfhLevel.replace("_", " ")}</dd></div>
+          </dl>
+        </section>
+      )}
       {result.validationIssues.length > 0 && (
         <div className="fteditor__run-detail">
           <p>The immutable run record contains {result.validationIssues.length} validation warning{result.validationIssues.length === 1 ? "" : "s"}.</p>
@@ -1734,7 +1828,13 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
         </section>
       )}
 
-      {showResults && <FaultTreeResults analysisResult={analysisResult} resultIsStale={resultIsStale} />}
+      {showResults && (
+        <FaultTreeResults
+          analysisResult={analysisResult}
+          resultIsStale={resultIsStale}
+          basicEventCodes={Object.fromEntries(catalogue.basicEvents.map((event) => [event.id, event.code]))}
+        />
+      )}
       {confirmationDialog}
     </div>
   );

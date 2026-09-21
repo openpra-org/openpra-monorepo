@@ -946,6 +946,88 @@ describe("FaultTreeEditor", () => {
     expect(screen.getByText("Results are stale")).toBeInTheDocument();
   });
 
+  it("shows cut sets, importance, uncertainty, Monte Carlo, and SIL result sections", () => {
+    render(<FaultTreeEditor {...editorProps({ analysisResult: {
+      ...analysisResult,
+      calculationType: "PROBABILITY_AND_CUT_SETS",
+      workflow: "MANUAL",
+      algorithm: "ZBDD",
+      probabilityMethod: "EXACT",
+      cutSets: {
+        primeImplicants: false,
+        count: 1,
+        distributionByOrder: [0, 1],
+        items: [{ order: 1, probability: 0.02, literals: [{ basicEventId: BASIC_EVENT_ID, negated: false }] }],
+      },
+      importance: [{
+        basicEventId: BASIC_EVENT_ID,
+        birnbaum: 0.5,
+        criticality: 0.25,
+        fussellVesely: 0.4,
+        riskAchievementWorth: 2,
+        riskReductionWorth: 1.5,
+      }],
+      uncertainty: {
+        mean: 0.02,
+        standardDeviation: 0.001,
+        errorFactor: 1.2,
+        quantiles: [{ probability: 0.5, value: 0.02 }],
+        sampleCount: 1_000,
+        seed: 847,
+      },
+      monteCarlo: {
+        trials: 1_000,
+        successes: 20,
+        standardDeviation: 0.004,
+        confidenceInterval: { lower: 0.012, upper: 0.028, confidence: 0.95 },
+        seed: 847,
+      },
+      sil: {
+        probabilityOfFailureOnDemand: 0.02,
+        dangerousFailureRatePerHour: 2.3e-6,
+        pfdLevel: "SIL_1",
+        pfhLevel: "SIL_1",
+      },
+    } })} />);
+
+    const cutSets = screen.getByRole("region", { name: "Cut sets" });
+    expect(cutSets).toBeInTheDocument();
+    expect(within(cutSets).getByText("BE-PUMP")).toBeInTheDocument();
+    expect(within(cutSets).queryByText(BASIC_EVENT_ID)).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Importance measures" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Uncertainty results" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Monte Carlo diagnostics" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "SIL results" })).toBeInTheDocument();
+  });
+
+  it("paginates cut sets while retaining basic-event codes", async () => {
+    const user = userEvent.setup();
+    render(<FaultTreeEditor {...editorProps({ analysisResult: {
+      ...analysisResult,
+      calculationType: "CUT_SETS",
+      workflow: "MANUAL",
+      algorithm: "ZBDD",
+      probabilityMethod: "EXACT",
+      cutSets: {
+        primeImplicants: false,
+        count: 26,
+        distributionByOrder: [0, 26],
+        items: Array.from({ length: 26 }, (_, index) => ({
+          order: 1,
+          probability: 0.02 + index * 1e-8,
+          literals: [{ basicEventId: BASIC_EVENT_ID, negated: false }],
+        })),
+      },
+    } })} />);
+
+    const pagination = screen.getByRole("navigation", { name: "Fault-tree cut sets pagination" });
+    expect(within(pagination).getByText("Page 1 of 2")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Cut sets" })).getAllByText("BE-PUMP")).toHaveLength(25);
+    await user.click(within(pagination).getByRole("button", { name: "Next" }));
+    expect(within(pagination).getByText("Page 2 of 2")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Cut sets" })).getAllByText("BE-PUMP")).toHaveLength(1);
+  });
+
   it("hides header status when the host shows save state elsewhere", () => {
     render(<FaultTreeEditor {...editorProps({ showHeaderStatus: false })} />);
 

@@ -1009,6 +1009,56 @@ describe("workbook-owned analysis-run APIs", () => {
     expect((await runs.findOne({ id: response.body.run.id }).lean().exec())?.result).toEqual(legacy);
   }, 120_000);
 
+  it("persists and returns configured PRAXIS cut-set results", async () => {
+    const settings = {
+      algorithm: "ZBDD",
+      approximation: "EXACT",
+      limitOrder: 1,
+      variableOrder: "DFS",
+      reorderBudgetSeconds: 60,
+      expandCcf: false,
+      numTrials: 10_000,
+      seed: 847,
+      missionTimeHours: 8_760,
+    };
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: FT_OR,
+        workbookRevision: 3,
+        calculationType: "PROBABILITY_AND_CUT_SETS",
+        workflow: "MANUAL",
+        settings,
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      calculationType: "PROBABILITY_AND_CUT_SETS",
+      workflow: "MANUAL",
+      algorithm: "ZBDD",
+      settings,
+      probabilityMethod: "EXACT",
+      cutSets: {
+        primeImplicants: false,
+        count: 2,
+        distributionByOrder: [0, 2],
+      },
+    });
+    expect(result.body.cutSets.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ order: 1, probability: 0.1 }),
+      expect.objectContaining({ order: 1, probability: 0.2 }),
+    ]));
+    const stored = await runs.findOne({ id: response.body.run.id }).lean().exec();
+    expect(stored?.request).toMatchObject({ calculationType: "PROBABILITY_AND_CUT_SETS", workflow: "MANUAL", settings });
+    expect(stored?.result).toEqual(result.body);
+  }, 120_000);
+
   it("returns exact NOT probability without cut-set results", async () => {
     const workbookId = "sy-workbook-not-probability";
     const mef = createSyMef();

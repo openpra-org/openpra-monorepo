@@ -221,7 +221,7 @@ function projectedModel(): FaultTreeEditorProps["model"] {
 }
 
 describe("ModelsScreen canonical fault-tree host", () => {
-  it("shows only fault-tree probability quantification below the editor", () => {
+  it("shows the PRAXIS fault-tree calculation, workflow, and algorithm controls below the editor", () => {
     const network = createEmptyBayesianNetwork("Dependency network");
     setWorkbookContext({ sy: makeAnalysis({ dependencyBayesianNetworks: [network] }) });
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
@@ -231,9 +231,9 @@ describe("ModelsScreen canonical fault-tree host", () => {
     expect(latestEditorProps().showHeaderStatus).toBe(false);
     expect(screen.getByRole("region", { name: "Fault-tree quantification" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Run probability" })).toBeInTheDocument();
-    expect(screen.queryByRole("radiogroup", { name: "Fault-tree calculation" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("radiogroup", { name: "Fault-tree workflow" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Fault-tree algorithm" })).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Probability", exact: true })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Manual" })).toBeChecked();
+    expect(screen.getByRole("combobox", { name: "Fault-tree algorithm" })).toHaveValue("BDD");
     expect(screen.queryByText(/HCL configuration/)).not.toBeInTheDocument();
   });
   beforeEach(() => {
@@ -252,6 +252,38 @@ describe("ModelsScreen canonical fault-tree host", () => {
       },
     });
     setWorkbookContext();
+  });
+
+  it("reveals compatible cut-set settings and batch model selection", () => {
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole("radio", { name: "Cut sets", exact: true }));
+    expect(screen.getByRole("combobox", { name: "Fault-tree algorithm" })).toHaveValue("ZBDD");
+    fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
+    const algorithm = screen.getByRole("combobox", { name: "Fault-tree algorithm" });
+    const advanced = screen.getByLabelText("Advanced fault-tree settings");
+    expect(algorithm.compareDocumentPosition(advanced) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(screen.getByRole("combobox", { name: "Fault-tree probability method" })).toHaveValue("EXACT");
+    expect(screen.getByRole("spinbutton", { name: "Maximum cut-set order" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Expand common-cause groups" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Batch" }));
+    expect(screen.getByRole("group", { name: "Fault trees" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run cut sets batch" })).toBeEnabled();
+  });
+
+  it("reveals Monte Carlo convergence and variance-reduction settings", () => {
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Fault-tree algorithm" }), { target: { value: "MONTE_CARLO" } });
+    fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
+    expect(screen.getByRole("spinbutton", { name: "Fault-tree trials" })).toHaveValue(10_000);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Stop when converged" }));
+    expect(screen.getByRole("spinbutton", { name: "Monte Carlo convergence delta" })).toHaveValue(0.1);
+    expect(screen.getByRole("spinbutton", { name: "Monte Carlo confidence" })).toHaveValue(0.95);
+    fireEvent.change(screen.getByRole("combobox", { name: "Monte Carlo variance reduction" }), { target: { value: "IMPORTANCE_SAMPLING" } });
+    expect(screen.queryByRole("spinbutton", { name: "Monte Carlo convergence delta" })).not.toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Importance sampling bias factor" })).toHaveValue(10);
   });
 
   it("shows an empty state when a new workbook has no system definitions", () => {
@@ -612,7 +644,11 @@ describe("ModelsScreen canonical fault-tree host", () => {
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run probability" })); });
 
     expect(mockedValidateSyFaultTree).toHaveBeenCalledWith("sy-workbook", MODEL_ID, 7);
-    expect(mockedRunSyFaultTree).toHaveBeenCalledWith("sy-workbook", MODEL_ID, 7);
+    expect(mockedRunSyFaultTree).toHaveBeenCalledWith("sy-workbook", MODEL_ID, 7, {
+      calculationType: "PROBABILITY",
+      workflow: "MANUAL",
+      settings: expect.objectContaining({ algorithm: "BDD", approximation: "EXACT" }),
+    });
     expect(mockedGetSyFaultTreeResult).toHaveBeenCalledWith("sy-workbook", MODEL_ID, RUN_ID);
     await waitFor(() => expect(latestEditorProps().analysisResult).toEqual(result));
     expect(latestEditorProps().resultIsStale).toBe(false);
@@ -621,6 +657,53 @@ describe("ModelsScreen canonical fault-tree host", () => {
     rerender(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
     expect(latestEditorProps().analysisResult).toEqual(result);
     expect(latestEditorProps().resultIsStale).toBe(true);
+  });
+
+  it("runs the selected fault trees through the batch workflow settings", async () => {
+    const timestamp = "2026-08-22T12:00:00.000Z";
+    const owner = { workbookId: "sy-workbook", modelId: MODEL_ID, workbookRevision: 7 };
+    mockedRunSyFaultTree.mockResolvedValue({
+      schemaVersion: "1.0.0",
+      run: {
+        schemaVersion: "1.0.0",
+        id: RUN_ID,
+        owner,
+        sourceWorkbooks: [{ workbookId: owner.workbookId, workbookRevision: owner.workbookRevision }],
+        methodType: "FAULT_TREE",
+        status: "SUCCEEDED",
+        requestedBy: "analyst",
+        requestedAt: timestamp,
+        startedAt: timestamp,
+        completedAt: timestamp,
+        engine: { name: "test-engine", version: "1" },
+        failure: null,
+      },
+    });
+    mockedGetSyFaultTreeResult.mockResolvedValue({
+      schemaVersion: "1.0.0",
+      runId: RUN_ID,
+      owner,
+      topGateId: "gate-top",
+      topEventProbability: 0.001,
+      calculationType: "PROBABILITY",
+      workflow: "BATCH",
+      algorithm: "BDD",
+      probabilityMethod: "EXACT",
+      validationIssues: [],
+      completedAt: timestamp,
+    });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole("radio", { name: "Batch" }));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run probability batch" })); });
+
+    expect(mockedRunSyFaultTree).toHaveBeenCalledWith(
+      "sy-workbook",
+      MODEL_ID,
+      7,
+      expect.objectContaining({ calculationType: "PROBABILITY", workflow: "BATCH" }),
+    );
+    expect(mockedGetSyFaultTreeResult).toHaveBeenCalledWith("sy-workbook", MODEL_ID, RUN_ID);
   });
 
   it("surfaces a structured failed-run message without requesting a nonexistent result", async () => {

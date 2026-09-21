@@ -1,6 +1,7 @@
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { DistributionType } from "interfaces-mef-types/core/events";
 import {
   WorkbookPraxisAdapterError,
   adaptEsEventTreeSnapshot,
@@ -278,6 +279,52 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
       expect.objectContaining({ id: "be-b", probability: { value: 0.1 } }),
     ]);
     expect(syMef).toEqual(before);
+  });
+
+  it("carries applicable CCF groups and basic-event uncertainty into the native catalogue", () => {
+    const mef = structuredClone(syMef);
+    mef.commonCauseFailureGroups = [{
+      uuid: "ccf-1",
+      name: "Shared support",
+      description: "Shared support failure",
+      scope: "INTRASYSTEM",
+      affectedComponents: [],
+      affectedSystems: ["system-1"],
+      modelType: "BETA_FACTOR",
+      modelSpecificParameters: {
+        betaFactorParameters: { beta: 0.1, totalFailureProbability: 0.2 },
+      },
+      members: { basicEvents: [{ id: "be-a" }, { id: "be-b" }] },
+      implementsSrs: [],
+    }];
+    mef.uncertaintyAnalyses = [{
+      uuid: "uncertainty-1",
+      system: "system-1",
+      propagationMethod: "MONTE_CARLO",
+      numberOfSamples: 2_000,
+      randomSeed: 847,
+      modelUncertainties: [],
+      parameterUncertainties: [{
+        parameterId: "be-a",
+        distributionType: DistributionType.BETA,
+        distributionParameters: { alpha: 2, beta: 18 },
+        basis: "Posterior uncertainty",
+      }],
+      implementsSrs: [],
+    }];
+
+    const adapted = adaptSyFaultTreeSnapshot({ workbookId: "sy-1", workbookRevision: 7, mef }, "ft-1");
+    expect(adapted.basicEventCatalogue["commonCauseFailureGroups"]).toEqual([{
+      id: "ccf-1",
+      members: ["be-a", "be-b"],
+      model: { kind: "BETA_FACTOR", beta: 0.1 },
+      totalFailureProbability: 0.2,
+    }]);
+    expect(adapted.basicEventCatalogue["uncertaintyInputs"]).toEqual([{
+      basicEventId: "be-a",
+      distributionType: "beta",
+      parameters: { alpha: 2, beta: 18 },
+    }]);
   });
 
   it("discovers and resolves typed DA-controlled probabilities without using the cached SY value", () => {

@@ -610,6 +610,86 @@
   font-variant-numeric: tabular-nums;
 }
 
+.fteditor__result-section {
+  min-width: 0;
+  border-top: 1px solid var(--color-border);
+  padding: 14px 0 2px;
+}
+
+.fteditor__result-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.fteditor__result-section-heading h4 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 12px;
+}
+
+.fteditor__result-section-heading span,
+.fteditor__result-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.fteditor__result-table-wrap {
+  max-width: 100%;
+  overflow: auto;
+}
+
+.fteditor__result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.fteditor__result-table th,
+.fteditor__result-table td {
+  border-bottom: 1px solid var(--color-border);
+  padding: 7px 9px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.fteditor__result-table th {
+  color: var(--color-text-muted);
+  font-size: 9px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.fteditor__result-definition {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px 20px;
+  margin: 0;
+}
+
+.fteditor__result-definition > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-border);
+  padding: 5px 0;
+}
+
+.fteditor__result-definition dt {
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.fteditor__result-definition dd {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
 .fteditor__scientific sup {
   position: relative;
   top: -0.1em;

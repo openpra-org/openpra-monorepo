@@ -237,8 +237,78 @@ describe("fault-tree execution and analysis-result contracts", () => {
     expect(FaultTreeExecuteResultSchema.safeParse({ schemaVersion: "1.0.0", run: queuedRun }).success).toBe(true);
   });
 
+  it("accepts cut-set, ordering, limit, CCF, and batch settings", () => {
+    expect(FaultTreeExecuteRequestSchema.safeParse({
+      ...executeRequest,
+      calculationType: "PROBABILITY_AND_CUT_SETS",
+      workflow: "BATCH",
+      settings: {
+        algorithm: "ZBDD",
+        approximation: "MCUB",
+        limitOrder: 4,
+        cutOff: 1e-12,
+        variableOrder: "SIFT",
+        reorderBudgetSeconds: 30,
+        expandCcf: true,
+        numTrials: 25_000,
+        seed: 42,
+        missionTimeHours: 24,
+      },
+    }).success).toBe(true);
+  });
+
+  it.each([
+    { calculationType: "CUT_SETS", settings: { algorithm: "BDD" } },
+    { calculationType: "IMPORTANCE", settings: { algorithm: "ZBDD" } },
+    { calculationType: "PROBABILITY", settings: { algorithm: "MONTE_CARLO", approximation: "MCUB" } },
+    { calculationType: "CUT_SETS", settings: { algorithm: "MOCUS", approximation: "EXACT" } },
+    { calculationType: "PROBABILITY", settings: { algorithm: "BDD", earlyStop: true } },
+    { calculationType: "PROBABILITY", settings: { algorithm: "MONTE_CARLO", earlyStop: true, varianceReduction: "IMPORTANCE_SAMPLING" } },
+  ])("rejects incompatible calculation settings %#", ({ calculationType, settings }) => {
+    expect(FaultTreeExecuteRequestSchema.safeParse({
+      ...executeRequest,
+      calculationType,
+      workflow: "MANUAL",
+      settings,
+    }).success).toBe(false);
+  });
+
   it("accepts exact probability results", () => {
     expect(FaultTreeAnalysisResultSchema.safeParse(analysisResult).success).toBe(true);
+  });
+
+  it("accepts extended PRAXIS fault-tree results", () => {
+    expect(FaultTreeAnalysisResultSchema.safeParse({
+      ...analysisResult,
+      calculationType: "PROBABILITY_AND_CUT_SETS",
+      workflow: "MANUAL",
+      algorithm: "ZBDD",
+      settings: {
+        algorithm: "ZBDD",
+        approximation: "EXACT",
+        variableOrder: "DFS",
+        reorderBudgetSeconds: 60,
+        expandCcf: false,
+        numTrials: 10_000,
+        seed: 847,
+        missionTimeHours: 8_760,
+      },
+      probabilityMethod: "EXACT",
+      cutSets: {
+        primeImplicants: false,
+        count: 1,
+        distributionByOrder: [0, 1],
+        items: [{ order: 1, probability: 0.02, literals: [{ basicEventId: GATE_ID, negated: false }] }],
+      },
+      importance: [{
+        basicEventId: GATE_ID,
+        birnbaum: 0.5,
+        criticality: 0.25,
+        fussellVesely: 0.4,
+        riskAchievementWorth: 2,
+        riskReductionWorth: 1.5,
+      }],
+    }).success).toBe(true);
   });
 
   it.each([0, 1])("accepts boundary probability %s", (topEventProbability) => {

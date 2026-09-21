@@ -493,6 +493,69 @@ const adaptSyFaultTreeSnapshot = (
     });
   });
 
+  const commonCauseFailureGroups = (source.mef.commonCauseFailureGroups ?? []).flatMap<Record<string, unknown>>((group) => {
+    const members = group.members?.basicEvents.map((event) => event.id) ?? [];
+    if (members.length < 2 || members.some((id) => !referencedBasicEventIds.has(id))) return [];
+    const parameters = group.modelSpecificParameters;
+    if (group.modelType === "BETA_FACTOR" && parameters?.betaFactorParameters !== undefined) {
+      return [{
+        id: group.uuid,
+        members,
+        model: { kind: "BETA_FACTOR", beta: parameters.betaFactorParameters.beta },
+        totalFailureProbability: parameters.betaFactorParameters.totalFailureProbability,
+      }];
+    }
+    if (group.modelType === "MGL" && parameters?.mglParameters !== undefined) {
+      const values = parameters.mglParameters;
+      const factors = [
+        values.beta,
+        ...(values.gamma === undefined ? [] : [values.gamma]),
+        ...(values.delta === undefined ? [] : [values.delta]),
+        ...Object.entries(values.additionalFactors ?? {}).sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true })).map(([, value]) => value),
+      ];
+      return [{
+        id: group.uuid,
+        members,
+        model: { kind: "MGL", factors },
+        totalFailureProbability: values.totalFailureProbability,
+      }];
+    }
+    if (group.modelType === "ALPHA_FACTOR" && parameters?.alphaFactorParameters !== undefined) {
+      const values = parameters.alphaFactorParameters;
+      return [{
+        id: group.uuid,
+        members,
+        model: {
+          kind: "ALPHA_FACTOR",
+          factors: Object.entries(values.alphaFactors).sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true })).map(([, value]) => value),
+        },
+        totalFailureProbability: values.totalFailureProbability,
+      }];
+    }
+    if (group.modelType === "PHI_FACTOR" && parameters?.phiFactorParameters !== undefined) {
+      const values = parameters.phiFactorParameters;
+      return [{
+        id: group.uuid,
+        members,
+        model: {
+          kind: "PHI_FACTOR",
+          factors: Object.entries(values.phiFactors).sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true })).map(([, value]) => value),
+        },
+        totalFailureProbability: values.totalFailureProbability,
+      }];
+    }
+    return [];
+  });
+  const uncertaintyInputs = (source.mef.uncertaintyAnalyses ?? [])
+    .filter((analysis) => analysis.system === model.systemReference)
+    .flatMap((analysis) => analysis.parameterUncertainties)
+    .filter((input) => referencedBasicEventIds.has(input.parameterId))
+    .map((input) => ({
+      basicEventId: input.parameterId,
+      distributionType: input.distributionType,
+      parameters: { ...input.distributionParameters },
+    }));
+
   return {
     modelSnapshot: {
       id: model.uuid,
@@ -512,6 +575,8 @@ const adaptSyFaultTreeSnapshot = (
     basicEventCatalogue: {
       projectId: source.workbookId,
       basicEvents,
+      ...(commonCauseFailureGroups.length === 0 ? {} : { commonCauseFailureGroups }),
+      ...(uncertaintyInputs.length === 0 ? {} : { uncertaintyInputs }),
     },
     controlledDataSources: [...controlledDataSources.values()],
   };

@@ -254,6 +254,8 @@ const combineFaultTrees = (
 ): FaultTreeBundle => {
   const catalogueId = `run:${runId}`;
   const basicEvents = new Map<string, Record<string, unknown>>();
+  const commonCauseFailureGroups = new Map<string, Record<string, unknown>>();
+  const uncertaintyInputs = new Map<string, Record<string, unknown>>();
   const modelSnapshots = adapters.map((adapter) => ({
     ...adapter.modelSnapshot,
     projectId: catalogueId,
@@ -274,10 +276,39 @@ const combineFaultTrees = (
       }
       basicEvents.set(id, event);
     });
+    const ccfEntries = catalogue["commonCauseFailureGroups"] ?? [];
+    if (!Array.isArray(ccfEntries)) throw new BadRequestException("Fault-tree CCF catalogue is invalid");
+    ccfEntries.forEach((entry) => {
+      const group = asRecord(entry, "fault-tree CCF group");
+      const id = group["id"];
+      if (typeof id !== "string") throw new BadRequestException("Fault-tree CCF group id is invalid");
+      const prior = commonCauseFailureGroups.get(id);
+      if (prior !== undefined && JSON.stringify(prior) !== JSON.stringify(group)) {
+        throw new BadRequestException(`CCF group '${id}' has conflicting values across contributing workbooks`);
+      }
+      commonCauseFailureGroups.set(id, group);
+    });
+    const uncertaintyEntries = catalogue["uncertaintyInputs"] ?? [];
+    if (!Array.isArray(uncertaintyEntries)) throw new BadRequestException("Fault-tree uncertainty catalogue is invalid");
+    uncertaintyEntries.forEach((entry) => {
+      const input = asRecord(entry, "fault-tree uncertainty input");
+      const id = input["basicEventId"];
+      if (typeof id !== "string") throw new BadRequestException("Fault-tree uncertainty basic-event id is invalid");
+      const prior = uncertaintyInputs.get(id);
+      if (prior !== undefined && JSON.stringify(prior) !== JSON.stringify(input)) {
+        throw new BadRequestException(`Basic event '${id}' has conflicting uncertainty inputs across contributing workbooks`);
+      }
+      uncertaintyInputs.set(id, input);
+    });
   });
   return {
     modelSnapshots,
-    resource: { projectId: catalogueId, basicEvents: [...basicEvents.values()] },
+    resource: {
+      projectId: catalogueId,
+      basicEvents: [...basicEvents.values()],
+      ...(commonCauseFailureGroups.size === 0 ? {} : { commonCauseFailureGroups: [...commonCauseFailureGroups.values()] }),
+      ...(uncertaintyInputs.size === 0 ? {} : { uncertaintyInputs: [...uncertaintyInputs.values()] }),
+    },
   };
 };
 
@@ -627,6 +658,16 @@ export class WorkbookAnalysisRunsService {
         ...common,
         topGateId: raw["topGateId"],
         topEventProbability: raw["topEventProbability"],
+        ...(raw["calculationType"] === undefined ? {} : { calculationType: raw["calculationType"] }),
+        ...(raw["workflow"] === undefined ? {} : { workflow: raw["workflow"] }),
+        ...(raw["algorithm"] === undefined ? {} : { algorithm: raw["algorithm"] }),
+        ...(raw["settings"] === undefined ? {} : { settings: raw["settings"] }),
+        ...(raw["probabilityMethod"] === undefined ? {} : { probabilityMethod: raw["probabilityMethod"] }),
+        ...(raw["cutSets"] === undefined ? {} : { cutSets: raw["cutSets"] }),
+        ...(raw["importance"] === undefined ? {} : { importance: raw["importance"] }),
+        ...(raw["uncertainty"] === undefined ? {} : { uncertainty: raw["uncertainty"] }),
+        ...(raw["monteCarlo"] === undefined ? {} : { monteCarlo: raw["monteCarlo"] }),
+        ...(raw["sil"] === undefined ? {} : { sil: raw["sil"] }),
         basicEventQuantifications: raw["basicEventQuantifications"],
         validationIssues: raw["validationIssues"] ?? [],
       });
@@ -692,8 +733,10 @@ export class WorkbookAnalysisRunsService {
     const result = { ...asRecord(value, "analysis result") };
     delete result["minimalCutSetCount"];
     delete result["leadingCutSets"];
-    delete result["cutSets"];
-    delete result["importance"];
+    if (result["calculationType"] === undefined || result["algorithm"] === undefined) {
+      delete result["cutSets"];
+      delete result["importance"];
+    }
     return result;
   }
 
@@ -1097,6 +1140,9 @@ export class WorkbookAnalysisRunsService {
       modelId: request.modelId,
       revision: owner.workbookRevision,
       requestedBy: acting.username,
+      calculationType: request.calculationType,
+      workflow: request.workflow,
+      settings: request.settings,
     };
     return this.executeRun(
       runId,

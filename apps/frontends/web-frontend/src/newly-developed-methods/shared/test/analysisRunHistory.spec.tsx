@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { AnalysisRunHistory, SavedAnalysisResult } from "../analysisRunHistory";
 import { useAnalysisSourceGuard } from "../useAnalysisSourceGuard";
 import { notifyAnalysisRun } from "../analysisRunEvents";
@@ -96,10 +96,39 @@ it("opens a historical result with changed DA revisions and preserved probabilit
   openHistory();
   await screen.findByRole("button", { name: /FAULT TREE/ });
   fireEvent.click(screen.getByRole("button", { name: /FAULT TREE/ }));
-  expect(await screen.findByText("0.01")).toBeInTheDocument();
+  expect(await screen.findByLabelText("1.00 times 10 to the power of −2")).toBeInTheDocument();
   expect(screen.getByText(/saved revision 3, current revision 4/)).toBeInTheDocument();
   expect(screen.getByText(/Historical result: sources have changed/)).toBeInTheDocument();
   expect(screen.getByText(/Native build: sha256:/)).toBeInTheDocument();
+});
+
+it("uses the saved SY basic-event codes in historical cut sets", () => {
+  const basicEventId = "00000000-0000-4000-8000-000000000049";
+  render(<SavedAnalysisResult details={{
+    ...details,
+    workbookSnapshots: [{
+      hostType: "SY",
+      identity: { workbookId: "w", workbookRevision: 1 },
+      mef: { systemBasicEvents: [{ uuid: basicEventId, code: "BE-HISTORICAL" }] },
+    }],
+    result: {
+      ...(details.result as Record<string, unknown>),
+      calculationType: "CUT_SETS",
+      workflow: "MANUAL",
+      algorithm: "ZBDD",
+      probabilityMethod: "EXACT",
+      cutSets: {
+        primeImplicants: false,
+        count: 1,
+        distributionByOrder: [0, 1],
+        items: [{ order: 1, probability: 0.01, literals: [{ basicEventId, negated: false }] }],
+      },
+    },
+  }} />);
+
+  const cutSets = screen.getByRole("region", { name: "Cut sets" });
+  expect(within(cutSets).getByText("BE-HISTORICAL")).toBeInTheDocument();
+  expect(within(cutSets).queryByText(basicEventId)).not.toBeInTheDocument();
 });
 
 it("loads older pages without discarding historical records lacking typed provenance", async () => {
@@ -126,7 +155,7 @@ it("clears a downloaded-detail view when source access is revoked on refresh", a
   );
   openHistory();
   fireEvent.click(await screen.findByRole("button", { name: /FAULT TREE/ }));
-  await screen.findByText("0.01");
+  await screen.findByLabelText("1.00 times 10 to the power of −2");
   get.mockRejectedValue(new Error("Source access revoked"));
   fireEvent.focus(window);
   await screen.findByRole("alert");

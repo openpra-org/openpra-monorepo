@@ -40,15 +40,71 @@ function uncertaintyColumns(summary?: HclUncertaintySummary): ResultCsvRecord {
 }
 
 export function faultTreeResultRecords(result: FaultTreeAnalysisResult): ResultCsvRecord[] {
+  const context = {
+    ...runCsvContext(result),
+    result_type: "FAULT_TREE",
+    top_gate_id: result.topGateId,
+    calculation_type: result.calculationType ?? "",
+    algorithm: result.algorithm ?? "",
+    probability_method: result.probabilityMethod ?? "",
+  };
   return [
     {
-      ...runCsvContext(result),
-      result_type: "FAULT_TREE",
-      top_gate_id: result.topGateId,
+      ...context,
       quantity: "top_event_probability",
       unit: "probability",
       value: result.topEventProbability,
     },
+    ...(result.cutSets?.items.map((set, index) => ({
+      ...context,
+      row_type: "CUT_SET",
+      row_index: index + 1,
+      order: set.order,
+      literals: set.literals.map((literal) => `${literal.negated ? "~" : ""}${literal.basicEventId}`).join(" "),
+      quantity: "cut_set_probability",
+      unit: "probability",
+      value: set.probability,
+    })) ?? []),
+    ...(result.importance?.flatMap((row) =>
+      ([
+        ["birnbaum", row.birnbaum],
+        ["criticality", row.criticality],
+        ["fussell_vesely", row.fussellVesely],
+        ["risk_achievement_worth", row.riskAchievementWorth],
+        ["risk_reduction_worth", row.riskReductionWorth],
+      ] as const).map(([quantity, value]) => ({
+        ...context,
+        row_type: "IMPORTANCE",
+        basic_event_id: row.basicEventId,
+        quantity,
+        unit: "ratio",
+        value,
+      })),
+    ) ?? []),
+    ...(result.uncertainty === undefined ? [] : [
+      { ...context, row_type: "UNCERTAINTY", quantity: "mean", unit: "probability", value: result.uncertainty.mean },
+      { ...context, row_type: "UNCERTAINTY", quantity: "standard_deviation", unit: "probability", value: result.uncertainty.standardDeviation },
+      { ...context, row_type: "UNCERTAINTY", quantity: "error_factor", unit: "ratio", value: result.uncertainty.errorFactor },
+      ...result.uncertainty.quantiles.map((quantile) => ({
+        ...context,
+        row_type: "UNCERTAINTY",
+        quantile: quantile.probability,
+        quantity: "quantile",
+        unit: "probability",
+        value: quantile.value,
+      })),
+    ]),
+    ...(result.monteCarlo === undefined ? [] : [
+      { ...context, row_type: "MONTE_CARLO", quantity: "trials", unit: "count", value: result.monteCarlo.trials },
+      { ...context, row_type: "MONTE_CARLO", quantity: "successes", unit: "count", value: result.monteCarlo.successes },
+      { ...context, row_type: "MONTE_CARLO", quantity: "standard_deviation", unit: "probability", value: result.monteCarlo.standardDeviation },
+      { ...context, row_type: "MONTE_CARLO", quantity: "confidence_interval_lower", unit: "probability", value: result.monteCarlo.confidenceInterval.lower },
+      { ...context, row_type: "MONTE_CARLO", quantity: "confidence_interval_upper", unit: "probability", value: result.monteCarlo.confidenceInterval.upper },
+    ]),
+    ...(result.sil === undefined ? [] : [
+      { ...context, row_type: "SIL", sil_level: result.sil.pfdLevel, quantity: "probability_of_failure_on_demand", unit: "probability", value: result.sil.probabilityOfFailureOnDemand },
+      { ...context, row_type: "SIL", sil_level: result.sil.pfhLevel, quantity: "dangerous_failure_rate", unit: "/h", value: result.sil.dangerousFailureRatePerHour },
+    ]),
   ];
 }
 

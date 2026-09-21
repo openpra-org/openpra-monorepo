@@ -21,7 +21,7 @@ import {
   type FaultTreeAnalysisResult,
 } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { SYIcon } from "./syIcons";
-import { SyFaultTreeAnalysis } from "./SyFaultTreeAnalysis";
+import { SyFaultTreeAnalysis, type FaultTreeRunConfiguration } from "./SyFaultTreeAnalysis";
 import { Badge, SYProvenanceChip } from "./syShared";
 import {
   CAPABILITY_CATEGORIES,
@@ -324,6 +324,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
   const {sourceWarning} = useAnalysisSourceGuard("sy", runtime.workbookId);
   const [selection, setSelection] = useState<FaultTreeSelection>(null);
   const [analysisResults, setAnalysisResults] = useState<Record<string, FaultTreeAnalysisResult>>({});
+  const [batchAnalysisResults, setBatchAnalysisResults] = useState<FaultTreeAnalysisResult[]>([]);
   const [runningModelId, setRunningModelId] = useState<string | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
   const [newSystemName, setNewSystemName] = useState("");
@@ -461,27 +462,41 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
     });
   }
 
-  async function runAnalysis(): Promise<void> {
+  async function runAnalysis(configuration: FaultTreeRunConfiguration, modelIds: string[]): Promise<void> {
     if (!editable || logic === undefined || runtime.workbookId === null || runtime.revision === null) {
       setRunError("Analysis is available after this workbook has been saved.");
       return;
     }
-    setRunningModelId(logic.uuid);
+    setRunningModelId(configuration.workflow === "BATCH" ? "BATCH" : logic.uuid);
     setRunError(null);
+    setBatchAnalysisResults([]);
     try {
-      const validated = await validateSyFaultTree(runtime.workbookId, logic.uuid, runtime.revision);
-      if (!validated.validation.valid) {
-        throw new Error(validated.validation.issues[0]?.message ?? "The fault tree is not ready for analysis.");
+      const completed: FaultTreeAnalysisResult[] = [];
+      const failures: string[] = [];
+      for (const modelId of modelIds) {
+        try {
+          const validated = await validateSyFaultTree(runtime.workbookId, modelId, runtime.revision);
+          if (!validated.validation.valid) {
+            throw new Error(validated.validation.issues[0]?.message ?? "The fault tree is not ready for analysis.");
+          }
+          const execution = await runSyFaultTree(runtime.workbookId, modelId, runtime.revision, configuration);
+          if (execution.run.status === "FAILED") {
+            throw new Error(execution.run.failure?.message ?? "Fault-tree analysis failed.");
+          }
+          if (execution.run.status !== "SUCCEEDED") {
+            throw new Error(`Fault-tree analysis did not complete (status: ${execution.run.status}).`);
+          }
+          const result = await getSyFaultTreeResult(runtime.workbookId, modelId, execution.run.id);
+          completed.push(result);
+          setAnalysisResults((current) => ({ ...current, [modelId]: result }));
+        } catch (error) {
+          const label = sy.systemLogicModels.find((candidate) => candidate.uuid === modelId)?.code ?? modelId;
+          failures.push(`${label}: ${error instanceof Error ? error.message : "Fault-tree analysis failed."}`);
+          if (configuration.workflow === "MANUAL") throw error;
+        }
       }
-      const execution = await runSyFaultTree(runtime.workbookId, logic.uuid, runtime.revision);
-      if (execution.run.status === "FAILED") {
-        throw new Error(execution.run.failure?.message ?? "Fault-tree analysis failed.");
-      }
-      if (execution.run.status !== "SUCCEEDED") {
-        throw new Error(`Fault-tree analysis did not complete (status: ${execution.run.status}).`);
-      }
-      const result = await getSyFaultTreeResult(runtime.workbookId, logic.uuid, execution.run.id);
-      setAnalysisResults((current) => ({ ...current, [logic.uuid]: result }));
+      setBatchAnalysisResults(configuration.workflow === "BATCH" ? completed : []);
+      if (failures.length > 0) throw new Error(failures.join(" "));
     } catch (error) {
       setRunError(error instanceof Error ? error.message : "Fault-tree analysis failed.");
     } finally {
@@ -589,16 +604,24 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
               const target = sy.systemLogicModels.find((candidate) => candidate.uuid === request.target.modelId);
               if (target !== undefined) setSysId(target.systemReference);
             }}
-            onRun={() => { void runAnalysis(); }}
+            onRun={() => undefined}
           />
           <SyFaultTreeAnalysis
             key={logic.uuid}
             exactResult={analysisResult}
+            batchResults={batchAnalysisResults}
             exactResultIsStale={analysisResult !== null && (sourceWarning !== null || runtime.saveStatus !== "saved" || analysisResult.owner.workbookRevision !== runtime.revision)}
             exactRunError={runError}
             exactRunning={runningModelId === logic.uuid}
             sourceWarning={sourceWarning}
-            onRunExact={() => { void runAnalysis(); }}
+            currentModelId={logic.uuid}
+            basicEventCodes={Object.fromEntries(catalogue.basicEvents.map((event) => [event.id, event.code]))}
+            models={sy.systemLogicModels.flatMap((candidate) =>
+              candidate.topGate === null || candidate.nonDetailedModelJustification !== undefined
+                ? []
+                : [{ id: candidate.uuid, label: `${candidate.code} · ${candidate.name}` }],
+            )}
+            onRun={(configuration, modelIds) => { void runAnalysis(configuration, modelIds); }}
           />
         </div>
       ) : logic?.nonDetailedModelJustification !== undefined ? (

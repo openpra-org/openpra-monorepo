@@ -21,9 +21,9 @@ import {
 } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import { BayesianNetworkResults, BayesianNetworkBatchResults } from "../bayesian-network/bayesianNetworkResults";
 import { HclResults } from "../hybrid-causal-logic/hclResults";
+import { FaultTreeResults } from "../fault-tree";
 import type { HclEditorRunResult, HclEventTreeOption } from "../hybrid-causal-logic/hclBindingTypes";
 import { fetchJson } from "../../api/client";
-import { ResultNumber, ResultWarnings } from "./resultPresentation";
 import { ANALYSIS_RUN_CHANGED, type AnalysisRunChanged } from "./analysisRunEvents";
 import "./css/analysisRunHistory.css";
 
@@ -40,6 +40,23 @@ function hclResult(run: AnalysisRunMetadata, value: unknown): HclEditorRunResult
   return run.methodType === "EVENT_TREE" ?
       { kind: "EVENT_TREE", result: EventTreeAnalysisResultSchema.parse(value) }
     : { kind: "FAULT_TREE", result: HclQuantificationResultSchema.parse(value) };
+}
+
+function historicalFaultTreeBasicEventCodes(details: AnalysisRunDetails): Record<string, string> {
+  const codes: Record<string, string> = {};
+  for (const source of details.workbookSnapshots) {
+    if (source.hostType !== "SY") continue;
+    const events = source.mef["systemBasicEvents"];
+    if (!Array.isArray(events)) continue;
+    for (const candidate of events) {
+      if (typeof candidate !== "object" || candidate === null) continue;
+      const event = candidate as Record<string, unknown>;
+      if (typeof event["uuid"] === "string" && typeof event["code"] === "string") {
+        codes[event["uuid"]] = event["code"];
+      }
+    }
+  }
+  return codes;
 }
 
 export function SavedAnalysisResult({ details }: { details: AnalysisRunDetails }) {
@@ -93,13 +110,11 @@ export function SavedAnalysisResult({ details }: { details: AnalysisRunDetails }
   if (details.run.methodType === "FAULT_TREE") {
     const result = FaultTreeAnalysisResultSchema.parse(details.result);
     return (
-      <>
-        <div className="analysis-history__metric">
-          <span>Top-event probability</span>
-          <strong><ResultNumber value={result.topEventProbability} /></strong>
-        </div>
-        <ResultWarnings issues={result.validationIssues} />
-      </>
+      <FaultTreeResults
+        analysisResult={result}
+        resultIsStale={details.run.freshness?.status !== "CURRENT"}
+        basicEventCodes={historicalFaultTreeBasicEventCodes(details)}
+      />
     );
   }
   if (details.run.methodType === "BAYESIAN_NETWORK") {

@@ -38,7 +38,7 @@ describe("RC-only published input example", () => {
     expect(responseRows[0].slice(5)).toEqual([78, 228, 1.8]);
     expect(responseRows[1].slice(5)).toEqual([null, null, null]);
     expect(c.weather!.settings).toEqual({ latitude: 35.2989, longitude: -93.2422, year: 2020, windSectors: 64 });
-    expect(c.weather!.data!.recordCount).toBe(24); expect(c.weather!.review).toBeUndefined();
+    expect(c.weather!.data!.recordCount).toBe(24); expect(c.weather!.trialSet).toMatchObject({ mode: "fixed_start", trialCount: 1, probabilityTotal: 1 }); expect(c.weather!.review).toBeUndefined();
     expect(c.dose!.categories[0].settings!.integrationSeconds).toBe(2592000);
     expect(doseCoverage(c.dose, source, "inhalation").found).toHaveLength(58);
     expect(doseCoverage(c.dose, source, "cloudshine").found).toHaveLength(69);

@@ -2,6 +2,7 @@ import { type RadiologicalConsequenceAnalysis, type ReleaseCategoryInputs } from
 import { type ParameterDistribution, DistributionType } from "interfaces-mef-types/core/events";
 import { isRcAspectExcluded } from "./rcScope";
 import { protectiveStepComplete } from "./rcProtective";
+import { weatherIsReviewed, weatherQualityIssues } from "interfaces-shared-types/rc-workbooks/weather";
 import {
   CONFORMANCE_ITEMS,
   RC_STEPS,
@@ -145,7 +146,8 @@ function stepsFromMef(rc: RadiologicalConsequenceAnalysis, persona: RcPersona): 
   const base = stepsForPersona(persona);
   const handoffComplete = rc.praScope.length > 0 && rc.releaseCategoryToConsequence.releaseCategoryInputs.length > 0;
   const protectiveComplete = protectiveStepComplete(rc.protectiveActionParameters);
-  const weatherComplete = rc.meteorologicalData.dataSource.length > 0;
+  const weatherComplete = weatherQualityIssues(rc.meteorologicalData).length === 0
+    && weatherIsReviewed(rc.meteorologicalData.weatherInputs, rc.protectiveActionParameters.siteAndReceptors?.settings ?? {}, rc.protectiveActionParameters.siteAndReceptors?.geometry);
   const dispersionComplete = rc.atmosphericTransportAndDispersion.dispersionModel.justification.length > 0;
   const doseComplete = rc.dosimetry.exposurePathways.length > 0;
   const healthComplete = rc.healthEffects.earlyHealthEffects.length > 0;

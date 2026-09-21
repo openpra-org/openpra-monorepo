@@ -5,10 +5,12 @@ import { createHash, randomUUID } from "crypto";
 import { z } from "zod";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { RcCaseData, RcCaseDataset, RcCaseRecords, RcCaseSelection, RcCaseSnapshot, RcCaseCheck, RcCaseFile } from "interfaces-mef-types/rc/case-records";
+import type { RcWeatherRecord } from "interfaces-mef-types/rc/weather";
 import { RcCaseRecordsSchema, RcLinkedResultValuesSchema } from "interfaces-mef-types/zod/rc/case-records";
-import { caseChecks, caseDatasets, caseDuration, caseFiles, caseReceptorCount, caseReceptorIds, caseTable, caseTrialId, caseVersions, currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
+import { caseChecks, caseDatasets, caseDuration, caseFiles, caseReceptorCount, caseReceptorIds, caseTable, caseVersions, currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
 import { decodeRcText } from "interfaces-shared-types/rc-workbooks/source-term-parser";
 import { parseRcWeather } from "interfaces-shared-types/rc-workbooks/weather-parser";
+import { generateWeatherTrials } from "interfaces-shared-types/rc-workbooks/weather-trials";
 import { ProjectsService } from "../projects/projects.service";
 import { WorkbookRolesService } from "../workbooks/workbook-roles.service";
 import { RcWorkbook, type RcWorkbookDocument } from "./rc-workbook.schema";
@@ -57,11 +59,16 @@ export class RcCaseRecordsService {
     const loaded = await this.load(id, actor);
     return p.data.snapshotId ? (await this.snapshot(id, loaded.records, p.data.snapshotId, actor)).data : this.current(loaded.mef, p.data.categoryId, p.data.versions);
   }
-  private async weatherRecords(id: string, data: RcCaseData, actor: Actor) {
-    if (!data.weather?.weatherFile) return [];
-    const bytes = await this.documents.readWeatherInput(id, data.weather.weatherFile.documentId, actor);
-    if (hash(bytes) !== data.weather.weatherFile.sha256) throw new BadRequestException("The weather original failed its file integrity check");
-    return parseRcWeather(decodeRcText(bytes)).records;
+  private async weatherTrials(id: string, data: RcCaseData, actor: Actor) {
+    if (!data.weather?.model || !data.weather.trialSet) return [];
+    let records: RcWeatherRecord[] = [];
+    if (data.weather.model.mode !== "constant") {
+      if (!data.weather.weatherFile) return [];
+      const bytes = await this.documents.readWeatherInput(id, data.weather.weatherFile.documentId, actor);
+      if (hash(bytes) !== data.weather.weatherFile.sha256) throw new BadRequestException("The weather original failed its file integrity check");
+      records = parseRcWeather(decodeRcText(bytes)).records;
+    }
+    return generateWeatherTrials(data.weather, records).trials;
   }
   private async persist(loaded: Awaited<ReturnType<RcCaseRecordsService["load"]>>, records: RcCaseRecords) {
     const { doc, mef } = loaded;
@@ -86,7 +93,7 @@ export class RcCaseRecordsService {
     const existing = records.snapshots.find(s => s.inputHash === inputHash);
     if (existing) return { records, snapshotId: existing.id };
     if (records.snapshots.length >= 100) throw new BadRequestException("This workbook already contains 100 input snapshots");
-    const checks = caseChecks(data), manifest = caseFiles(data), weather = await this.weatherRecords(id, data, actor);
+    const checks = caseChecks(data), manifest = caseFiles(data), weather = await this.weatherTrials(id, data, actor);
     // Originals stay immutable and retained; snapshots store their document IDs and byte hashes.
     for (const entry of manifest) {
       const bytes = await this.originalBytes(id, entry.kind, entry.file.documentId, actor);
@@ -106,7 +113,7 @@ export class RcCaseRecordsService {
     const loaded = await this.load(id, actor, p.data.baseRevision), { data } = await this.snapshot(id, loaded.records, p.data.result.snapshotId, actor);
     if (loaded.records!.results.length >= 1000) throw new BadRequestException("This workbook already contains 1000 linked results");
     if (!caseReceptorIds(data).includes(p.data.result.receptorId)) throw new BadRequestException("Choose a receptor from the selected input snapshot");
-    if (!(await this.weatherRecords(id, data, actor)).some(r => caseTrialId(r) === p.data.result.trialId)) throw new BadRequestException("Choose a weather trial from the selected input snapshot");
+    if (!(await this.weatherTrials(id, data, actor)).some(trial => trial.id === p.data.result.trialId)) throw new BadRequestException("Choose a weather trial from the selected input snapshot");
     const duration = caseDuration(data);
     if (!(duration !== undefined && Number.isFinite(duration) && duration > 0)) throw new BadRequestException("The selected snapshot needs a positive integration time");
     if (!upload.buffer.length || upload.buffer.length > 15 * 1024 * 1024 || !/\.(txt|out|log|csv|dat)$/i.test(upload.originalname)) throw new BadRequestException("Choose a nonempty .txt, .out, .log, .csv or .dat output up to 15 MB");
@@ -131,12 +138,12 @@ export class RcCaseRecordsService {
     this.offset(offset);
     if (!Object.prototype.hasOwnProperty.call(caseDatasets, kind)) throw new BadRequestException("Unknown input group");
     const data = await this.select(id, selection, actor);
-    return caseTable(data, kind as RcCaseDataset, offset, kind === "weather" ? await this.weatherRecords(id, data, actor) : []);
+    return caseTable(data, kind as RcCaseDataset, offset, kind === "weather" ? await this.weatherTrials(id, data, actor) : []);
   }
   async choices(id: string, snapshotId: string, kind: string, search: string, actor: Actor) {
     if (!["receptors", "weather"].includes(kind) || search.length > 255) throw new BadRequestException("Choose receptors or weather and a short ID prefix");
     const loaded = await this.load(id, actor), { data } = await this.snapshot(id, loaded.records, snapshotId, actor);
-    const ids = kind === "receptors" ? caseReceptorIds(data) : (await this.weatherRecords(id, data, actor)).map(caseTrialId);
+    const ids = kind === "receptors" ? caseReceptorIds(data) : (await this.weatherTrials(id, data, actor)).map(trial => trial.id);
     const matches = ids.filter(v => v.toLowerCase().startsWith(search.trim().toLowerCase()));
     return { ids: matches.slice(0, 25), total: matches.length };
   }

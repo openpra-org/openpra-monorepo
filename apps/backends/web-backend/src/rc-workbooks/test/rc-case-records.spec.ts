@@ -56,8 +56,8 @@ describe("RC Step 08 case records", () => {
     const receptors = (await request(http()).get(`${url}/table/receptors`).query({ ...selection(), offset: 14 }).expect(200)).body;
     expect(receptors.total).toBe(896); expect(receptors.rows[0][0]).toBe("S02R01");
     const weather = (await request(http()).get(`${url}/table/weather`).query(selection()).expect(200)).body;
-    expect(weather.total).toBe(24); expect(weather.rows[0][0]).toBe("D001P01");
-    expect(weather.units).toContain("no sampling");
+    expect(weather.total).toBe(1); expect(weather.rows[0][0]).toBe("D001P01");
+    expect(weather.units).toContain("probability weights");
     const text = (await request(http()).get(`${url}/text/structured`).query({ ...selection(), offset: 8 }).expect(200)).body;
     expect(text.offset).toBe(8); expect(text.text.split("\n")).toHaveLength(8);
     await request(http()).get(`${url}/table/receptors`).query({ ...selection(), offset: -1 }).expect(400);

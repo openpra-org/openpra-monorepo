@@ -4,6 +4,7 @@ import type {
   RcSubElement,
 } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { receptorCount, sitePopulation } from "interfaces-shared-types/rc-workbooks/site-receptors";
+import { weatherTreatmentNames } from "interfaces-shared-types/rc-workbooks/weather-trials";
 
 export const RC_SCOPE_ASPECTS = [
   { subElement: "RCPA", label: "Protective actions and site", step: "02" },
@@ -46,6 +47,7 @@ export function rcScopeTreatment(rc: RadiologicalConsequenceAnalysis, aspect: Rc
       else if (weather?.collectionRequest) parts.push("Weather collection request saved");
       else if (rc.meteorologicalData.dataSource.trim()) parts.push("Weather source recorded");
       if (weather?.configurationFile) parts.push("Generation configuration supplied");
+      if (weather?.trialSet) parts.push(`${count(weather.trialSet.trialCount, "weather trial")} · ${weatherTreatmentNames[weather.trialSet.mode]}`);
       break;
     }
     case "RCAD": {

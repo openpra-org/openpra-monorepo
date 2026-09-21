@@ -7,7 +7,7 @@ import type { RcSourceTermValues } from "interfaces-mef-types/rc/source-term";
 import type { RcSiteReceptors, RcSiteSettings } from "interfaces-mef-types/rc/site-receptors";
 import type { RcEarlyResponseModel } from "interfaces-mef-types/rc/early-response";
 import type { RcResponseCalculationResult } from "interfaces-mef-types/rc/early-response-calculation";
-import type { RcWeatherInputs, RcWeatherPage, RcWeatherSettings } from "interfaces-mef-types/rc/weather";
+import type { RcWeatherInputs, RcWeatherModel, RcWeatherPage, RcWeatherSettings, RcWeatherTrialPage } from "interfaces-mef-types/rc/weather";
 import type { RcTransportInputs, RcTransportSettings, RcLinkedDeposition, RcDecayDetail } from "interfaces-mef-types/rc/transport";
 import type { RcDoseInputs, RcDoseSettings, RcDosePathway, RcDoseFilePage, RcDoseRecord } from "interfaces-mef-types/rc/dose-inputs";
 
@@ -52,8 +52,8 @@ export async function importRcWeatherInput(id: string, kind: "weather" | "config
   const form = new FormData(); form.append("baseRevision", String(baseRevision)); form.append("file", file);
   return postMultipart(`/api/rc-workbooks/${encodeURIComponent(id)}/weather/import/${kind}`, form);
 }
-export async function saveRcWeatherSettings(id: string, baseRevision: number, settings: RcWeatherSettings, confirm: boolean): Promise<RcWeatherInputs> {
-  return patchJson(`/api/rc-workbooks/${encodeURIComponent(id)}/weather`, { baseRevision, settings, confirm });
+export async function saveRcWeatherSettings(id: string, baseRevision: number, settings: RcWeatherSettings, model: RcWeatherModel, confirm: boolean): Promise<RcWeatherInputs> {
+  return patchJson(`/api/rc-workbooks/${encodeURIComponent(id)}/weather`, { baseRevision, settings, model, confirm });
 }
 export async function prepareRcWeatherCollection(id: string, baseRevision: number, siteRevision: number, dates: { start: string; end: string }): Promise<RcWeatherInputs> {
   return postJson(`/api/rc-workbooks/${encodeURIComponent(id)}/weather/collection-request`, { baseRevision, siteRevision, dates });
@@ -63,6 +63,9 @@ export async function readRcWeatherOriginal(id: string, documentId: string): Pro
 }
 export async function readRcWeatherRecords(id: string, offset: number): Promise<RcWeatherPage> {
   return fetchJson(`/api/rc-workbooks/${encodeURIComponent(id)}/weather/records?offset=${offset}&limit=6`);
+}
+export async function readRcWeatherTrials(id: string, offset: number): Promise<RcWeatherTrialPage> {
+  return fetchJson(`/api/rc-workbooks/${encodeURIComponent(id)}/weather/trials?offset=${offset}&limit=6`);
 }
 
 export async function importRcSiteInput(id: string, kind: "location" | "geometry", baseRevision: number, file: File): Promise<RcSiteReceptors> {

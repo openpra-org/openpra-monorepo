@@ -66,6 +66,7 @@ import {
   RI_RESP_STATUS_OPTIONS,
 } from "./rcFields";
 import { evacuationDelayMinutes } from "./rcProtective";
+import { weatherRecoveryPercent } from "interfaces-shared-types/rc-workbooks/weather";
 
 // ─── 08 — Quantification (RCQ) ─────────────────────────────────────────────
 function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawerContext) => void; onOpenStep?: (id: string) => void }): JSX.Element {
@@ -809,6 +810,55 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
           <RcSelectField label="Basis" value={b.basis} options={PLANT_BASIS_OPTIONS} onChange={(v) => patch({ basis: v as typeof b.basis })} disabled={dis} />
           <RcAreaField label="Description" value={b.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
           <RcTextField label="Data file or source reference" value={b.sourceReference ?? ""} onChange={(v) => patch({ sourceReference: v })} disabled={dis} />
+        </div>
+      </>
+    );
+  }
+
+  if (context.kind === "metbasis") {
+    const met = rc.meteorologicalData;
+    const patch = (next: Partial<typeof met>): void => mutateRc((d) => ({ ...d, meteorologicalData: { ...d.meteorologicalData, ...next } }));
+    const source = met.dataSource || met.weatherInputs?.weatherFile?.filename || "";
+    const period = met.periodSelection.periodDescription || met.weatherInputs?.configuration?.dateGroups.map(group => `${group.start} to ${group.end}`).join("; ") || "";
+    return (
+      <>
+        <DrawerHead cap="Meteorology" title="Source and period" sub="RCME-A1" onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
+          <RcAreaField label="Data source" value={source} onChange={(v) => patch({ dataSource: v })} disabled={dis} rows={3} />
+          <RcAreaField label="Spatial representativeness" value={met.spatialRepresentativenessJustification} onChange={(v) => patch({ spatialRepresentativenessJustification: v })} disabled={dis} rows={3} />
+          <RcSelectField label="Period-selection approach" value={met.periodSelection.approach} options={PERIOD_APPROACH_OPTIONS} onChange={(v) => patch({ periodSelection: { ...met.periodSelection, approach: v as typeof met.periodSelection.approach } })} disabled={dis} />
+          <RcAreaField label="Period-selection basis" value={period} onChange={(v) => patch({ periodSelection: { ...met.periodSelection, periodDescription: v } })} disabled={dis} rows={3} />
+        </div>
+      </>
+    );
+  }
+
+  if (context.kind === "metquality") {
+    const met = rc.meteorologicalData;
+    const patch = (next: Partial<typeof met>): void => mutateRc((d) => ({ ...d, meteorologicalData: { ...d.meteorologicalData, ...next } }));
+    const dr = met.dataRecovery, patchDr = (next: Partial<typeof dr>): void => patch({ dataRecovery: { ...dr, ...next } });
+    const review = dr.meteorologistReview ?? { performed: false };
+    const instrumentation = met.instrumentationQuality ?? { calibratedProgram: false };
+    const recovery = weatherRecoveryPercent(met.weatherInputs) ?? dr.combinedRecoveryPercent;
+    const constant = met.weatherInputs?.model?.mode === "constant";
+    const stability = met.stabilityClassificationMethod;
+    return (
+      <>
+        <DrawerHead cap="Meteorology" title="Quality controls" sub="RCME-A2 to A4" onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
+          {!constant && <>
+            <RcAreaField label="Missing-period treatment" value={dr.substitutionTechniques ?? ""} onChange={(v) => patchDr({ substitutionTechniques: v })} disabled={dis} rows={3} />
+            {(recovery ?? 100) < 90 && <RcAreaField label="Low-recovery justification" value={dr.lowRecoveryJustification ?? ""} onChange={(v) => patchDr({ lowRecoveryJustification: v })} disabled={dis} rows={3} />}
+            <RcSelectField label="Meteorologist review" value={review.performed ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patchDr({ meteorologistReview: { ...review, performed: v === "yes" } })} disabled={dis} />
+            {review.performed && <><RcTextField label="Reviewer qualification" value={review.reviewerQualification ?? ""} onChange={(v) => patchDr({ meteorologistReview: { ...review, reviewerQualification: v } })} disabled={dis} /><RcAreaField label="Review considerations" value={review.considerations ?? ""} onChange={(v) => patchDr({ meteorologistReview: { ...review, considerations: v } })} disabled={dis} rows={3} /></>}
+            <RcSelectField label="Instrumentation program" value={instrumentation.calibratedProgram ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ instrumentationQuality: { ...instrumentation, calibratedProgram: v === "yes" } })} disabled={dis} />
+            <RcAreaField label="Instrumentation basis" value={instrumentation.description ?? ""} onChange={(v) => patch({ instrumentationQuality: { ...instrumentation, description: v } })} disabled={dis} rows={3} />
+          </>}
+          <RcSelectField label="Accuracy review" value={met.accuracyReview.performed ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ accuracyReview: { ...met.accuracyReview, performed: v === "yes" } })} disabled={dis} />
+          <RcAreaField label="Accuracy findings" value={met.accuracyReview.findings ?? ""} onChange={(v) => patch({ accuracyReview: { ...met.accuracyReview, findings: v } })} disabled={dis} rows={3} />
+          {!constant && <><RcSelectField label="Stability method" value={stability.approach} options={STABILITY_OPTIONS} onChange={(v) => patch({ stabilityClassificationMethod: { ...stability, approach: v as typeof stability.approach } })} disabled={dis} /><RcAreaField label="Stability-method basis" value={stability.description} onChange={(v) => patch({ stabilityClassificationMethod: { ...stability, description: v } })} disabled={dis} rows={3} /></>}
+          <RcAreaField label="Temporal treatment" value={met.temporalChangesAccommodation ?? ""} onChange={(v) => patch({ temporalChangesAccommodation: v })} disabled={dis} rows={3} />
+          <RcAreaField label="Parameter uncertainty" value={met.parameterUncertaintyCharacterization ?? ""} onChange={(v) => patch({ parameterUncertaintyCharacterization: v })} disabled={dis} rows={3} />
         </div>
       </>
     );

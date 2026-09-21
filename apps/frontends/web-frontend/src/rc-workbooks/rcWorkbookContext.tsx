@@ -9,7 +9,7 @@ import type { RcSourceTermValues } from "interfaces-mef-types/rc/source-term";
 import type { RcSiteReceptors, RcSiteSettings } from "interfaces-mef-types/rc/site-receptors";
 import type { RcEarlyResponseModel } from "interfaces-mef-types/rc/early-response";
 import type { RcResponseCalculationResult } from "interfaces-mef-types/rc/early-response-calculation";
-import type { RcWeatherInputs, RcWeatherSettings, RcWeatherPage } from "interfaces-mef-types/rc/weather";
+import type { RcWeatherInputs, RcWeatherModel, RcWeatherSettings, RcWeatherPage, RcWeatherTrialPage } from "interfaces-mef-types/rc/weather";
 import type { RcDoseInputs, RcDoseSettings, RcDosePathway, RcDoseFilePage, RcDoseRecord } from "interfaces-mef-types/rc/dose-inputs";
 import type { RcTransportInputs, RcTransportSettings, RcLinkedDeposition, RcDecayDetail } from "interfaces-mef-types/rc/transport";
 
@@ -43,12 +43,13 @@ interface TransportDraft { baseRevision: number; sourceRevision: number; setting
 
 export interface RcWeatherActions {
   importFile: (kind: "weather" | "configuration", revision: number, file: File) => Promise<RcWeatherInputs>;
-  saveSettings: (revision: number, settings: RcWeatherSettings, confirm: boolean) => Promise<RcWeatherInputs>;
+  saveSettings: (revision: number, settings: RcWeatherSettings, model: RcWeatherModel, confirm: boolean) => Promise<RcWeatherInputs>;
   prepareCollection: (revision: number, siteRevision: number, dates: { start: string; end: string }) => Promise<RcWeatherInputs>;
   readOriginal: (documentId: string) => Promise<string>;
   readRecords: (offset: number) => Promise<RcWeatherPage>;
+  readTrials: (offset: number) => Promise<RcWeatherTrialPage>;
 }
-interface WeatherDraft { baseRevision: number; settings: RcWeatherSettings }
+interface WeatherDraft { baseRevision: number; settings: RcWeatherSettings; model?: RcWeatherModel }
 
 export interface RcSiteReceptorActions {
   importFile: (kind: "location" | "geometry", revision: number, file: File) => Promise<RcSiteReceptors>;

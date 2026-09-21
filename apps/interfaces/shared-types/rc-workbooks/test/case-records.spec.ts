@@ -41,16 +41,16 @@ describe("Step 08 prepared case review", () => {
     c.response.cohortModeling.cohorts![0].populationPercent = 90;
     expect(caseChecks(c).find(check => check.key === "site")!.items.join(" ")).toContain("100%");
   });
-  it("labels weather IDs and preserves unknown directions without inventing wind sectors", () => {
+  it("carries generated weather trials and their probabilities into the prepared case", () => {
     const c = base(), r = { day: 365, period: 24, windSector: 2, windSpeedMetresPerSecond: 5, stabilityClass: "D" as const, rainCode: 0, rainMillimetresPerHour: 0, original: "test" };
     expect(caseTrialId(r)).toBe("D365P24");
-    expect(caseTable(c, "weather", 0, [r]).rows[0]).toEqual(["D365P24", 5, null, "D"]);
-    c.weather = { revision: 1, settings: { windSectors: 16 } };
-    expect(caseTable(c, "weather", 0, [r]).rows[0][2]).toBe(22.5);
+    const trial = { id: "D365P24", source: "file" as const, startRecordIndex: 8759, day: 365, period: 24, selectionGroup: "Fixed start", probability: 1,
+      windSpeedMetresPerSecond: 5, windTowardDegrees: 22.5, stabilityClass: "D" as const, rainMillimetresPerHour: 0, mixingHeightMetres: 500 };
+    expect(caseTable(c, "weather", 0, [trial]).rows[0]).toEqual(["D365P24", "Day 365, period 24", "Fixed start", 1, 5, 22.5, "D", 0, 500]);
   });
   it("treats a weather collection request as a request rather than available records", () => {
     const c = base(); c.weather = { revision: 1, settings: {}, collectionRequest: { status: "prepared", latitude: 0, longitude: 0, start: "2020-01-01", end: "2020-01-02", preparedAt: "2020-01-01T00:00:00Z" } };
     expect(caseTable(c, "weather", 0).total).toBe(0);
-    expect(caseChecks(c).find(v => v.key === "links")!.items.join(" ")).toContain("No weather records");
+    expect(caseChecks(c).find(v => v.key === "links")!.items.join(" ")).toContain("No generated weather trials");
   });
 });

@@ -16,7 +16,7 @@ import type { RcDoseActions } from "./rcWorkbookContext";
 import { importRcDoseInput, saveRcDoseSettings, readRcDoseOriginal, readRcDoseRecords } from "./rcWorkbookApi";
 import { importRcTransportFiles, saveRcTransportSettings, unlinkRcTransportFile, readRcTransportSource, readRcTransportOriginal, readRcTransportDecay } from "./rcWorkbookApi";
 import type { RcWeatherActions } from "./rcWorkbookContext";
-import { importRcWeatherInput, saveRcWeatherSettings, prepareRcWeatherCollection, readRcWeatherOriginal, readRcWeatherRecords } from "./rcWorkbookApi";
+import { importRcWeatherInput, saveRcWeatherSettings, prepareRcWeatherCollection, readRcWeatherOriginal, readRcWeatherRecords, readRcWeatherTrials } from "./rcWorkbookApi";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
@@ -241,9 +241,9 @@ function RcWorkbookPage(): JSX.Element {
       return inputs;
     };
     return { importFile: (kind, revision, file) => enqueue(async () => accept(await importRcWeatherInput(id, kind, revision, file))),
-      saveSettings: (revision, settings, confirm) => enqueue(async () => accept(await saveRcWeatherSettings(id, revision, settings, confirm))),
+      saveSettings: (revision, settings, model, confirm) => enqueue(async () => accept(await saveRcWeatherSettings(id, revision, settings, model, confirm))),
       prepareCollection: (revision, siteRevision, dates) => enqueue(async () => accept(await prepareRcWeatherCollection(id, revision, siteRevision, dates))),
-      readOriginal: documentId => readRcWeatherOriginal(id, documentId), readRecords: offset => readRcWeatherRecords(id, offset) };
+      readOriginal: documentId => readRcWeatherOriginal(id, documentId), readRecords: offset => readRcWeatherRecords(id, offset), readTrials: offset => readRcWeatherTrials(id, offset) };
   }, [id, enqueue]);
 
   const caseRecords = useMemo<RcCaseActions | undefined>(() => {

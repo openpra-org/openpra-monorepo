@@ -336,64 +336,7 @@ function ProtectiveScreen({ openDrawer, initialSiteTab }: { openDrawer: (ctx: Rc
 
 // ─── 03 — Meteorology (RCME) ───────────────────────────────────────────────
 function WeatherScreen({ openDrawer, onReviewSite }: { openDrawer: (ctx: RcDrawerContext) => void; onReviewSite?: () => void }): JSX.Element {
-  const { rc, editable, mutateRc } = useRcWorkbook();
-  const met = rc.meteorologicalData;
-  return (
-    <>
-      <RcMeteorologyPanel onReviewSite={onReviewSite} />
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Meteorological data quality" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCME-A1 to A4</RcProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "metdata", id: "met" })}><RCIcon.Settings /> Edit</button>}
-          </div>
-        </div>
-        <div className="rcmet">
-          <div className="rcmet__rows">
-            <div className="rcmet__row"><span className="rcmet__k"><RCIcon.Radio /> Source</span><span className="rcmet__v">{met.dataSource}</span></div>
-            <div className="rcmet__row"><span className="rcmet__k"><RCIcon.Map /> Representativeness</span><span className="rcmet__v">{met.spatialRepresentativenessJustification}</span></div>
-            <div className="rcmet__row"><span className="rcmet__k"><RCIcon.Refresh /> Substitution</span><span className="rcmet__v">{met.dataRecovery.substitutionTechniques ?? "n/a"}</span></div>
-            <div className="rcmet__row"><span className="rcmet__k"><RCIcon.Person /> Review</span><span className="rcmet__v">{[met.dataRecovery.meteorologistReview?.reviewerQualification, met.dataRecovery.meteorologistReview?.considerations].filter(Boolean).join(" ") || "n/a"}</span></div>
-            <div className="rcmet__row"><span className="rcmet__k"><RCIcon.Settings /> Instruments</span><span className="rcmet__v">{met.instrumentationQuality?.description ?? "n/a"}</span></div>
-          </div>
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Period selection" level={3} />
-          <RcProvenanceChip>RCME-A2</RcProvenanceChip>
-        </div>
-        <div className="posfield">
-          <label className="posfield__label">Period-selection description</label>
-          <WorkbookTextarea className="posfield__textarea" rows={2} value={met.periodSelection.periodDescription} disabled={!editable}
-            onChange={(e) => mutateRc((draft) => ({ ...draft, meteorologicalData: { ...draft.meteorologicalData, periodSelection: { ...draft.meteorologicalData.periodSelection, periodDescription: e.target.value } } }))} />
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Extracted parameters" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCME-A5 to A7</RcProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "metparams", id: "met" })}><RCIcon.Settings /> Edit</button>}
-          </div>
-        </div>
-        <div className="rcparam">
-          {met.extractedParameters.windSpeedAndDirection10m && <span className="rcparam__chip"><RCIcon.Wind /> Wind and direction at 10 m</span>}
-          {met.extractedParameters.stabilityClassMeasurement && <span className="rcparam__chip"><RCIcon.Layers /> Stability class</span>}
-          {met.extractedParameters.precipitation === true && <span className="rcparam__chip"><RCIcon.Rain /> Precipitation</span>}
-          {met.mixingHeights !== undefined && <span className="rcparam__chip"><RCIcon.Mountain /> Mixing heights</span>}
-        </div>
-        <div className="posfield" style={{ marginTop: 12 }}>
-          <label className="posfield__label">Stability classification method</label>
-          <WorkbookTextarea className="posfield__textarea" rows={2} value={met.stabilityClassificationMethod.description} disabled={!editable}
-            onChange={(e) => mutateRc((draft) => ({ ...draft, meteorologicalData: { ...draft.meteorologicalData, stabilityClassificationMethod: { ...draft.meteorologicalData.stabilityClassificationMethod, description: e.target.value } } }))} />
-        </div>
-      </div>
-    </>
-  );
+  return <RcMeteorologyPanel onReviewSite={onReviewSite} onEditBasis={() => openDrawer({ kind: "metbasis", id: "meteorology" })} onEditQuality={() => openDrawer({ kind: "metquality", id: "meteorology" })} />;
 }
 
 export { RcInterfaces, HandoffScreen, ProtectiveScreen, WeatherScreen, MethodChips, type RcDrawerContext };

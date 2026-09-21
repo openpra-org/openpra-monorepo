@@ -7,6 +7,7 @@ import { decodeRcText, parseRcSource } from "interfaces-shared-types/rc-workbook
 import { withSourceTermSummary } from "interfaces-shared-types/rc-workbooks/source-term-summary";
 import { parseRcReceptorGeometry, parseRcSiteCoordinates } from "interfaces-shared-types/rc-workbooks/site-receptor-parser";
 import { parseRcWeather, parseRcWeatherConfiguration } from "interfaces-shared-types/rc-workbooks/weather-parser";
+import { defaultWeatherModel, generateWeatherTrials } from "interfaces-shared-types/rc-workbooks/weather-trials";
 import { parseRcDecay, parseRcDispersionReference } from "interfaces-shared-types/rc-workbooks/transport-parser";
 import { effectiveTransportSettings } from "interfaces-shared-types/rc-workbooks/transport";
 import { parseRcDoseCoefficients, parseRcExposure } from "interfaces-shared-types/rc-workbooks/dose-input-parser";
@@ -104,7 +105,10 @@ export function createPublishedRcSeed() {
   const exposure = parseRcExposure(text("MACCS-Noah-dose-settings-excerpt.inp"));
   rc.protectiveActionParameters.protectionParameters = Object.entries(exposure.blocks[0].records).map(([parameter, value]) => ({ parameter, value: `${value}${parameter.startsWith("SEBRRATE") ? " m³/s" : " (dimensionless)"}`, numericValue: Number(value), unit: parameter.startsWith("SEBRRATE") ? "m³/s" : "dimensionless", source: "Etter thesis, printed p. 110; MACCS reference record, not an OpenRC setting" }));
   const weather = parseRcWeather(text("MacMetGen-Noah-published-day.MET")), config = parseRcWeatherConfiguration(text("MacMetGen-Noah-published-config.inp"));
-  rc.meteorologicalData.weatherInputs = { revision: 1, settings: { latitude: config.latitude, longitude: config.longitude, year: 2020, windSectors: config.windSectors }, data: weather.data, configuration: config, weatherFile: file("MacMetGen-Noah-published-day.MET"), configurationFile: file("MacMetGen-Noah-published-config.inp") };
+  const weatherInputs = { revision: 1, settings: { latitude: config.latitude, longitude: config.longitude, year: 2020, windSectors: config.windSectors }, data: weather.data, configuration: config,
+    model: defaultWeatherModel(weather.data), weatherFile: file("MacMetGen-Noah-published-day.MET"), configurationFile: file("MacMetGen-Noah-published-config.inp") };
+  const weatherTrials = generateWeatherTrials(weatherInputs, weather.records);
+  rc.meteorologicalData.weatherInputs = { ...weatherInputs, trialSet: { ...weatherTrials.summary, generatedAt: RC_PUBLISHED_DATE } };
   rc.meteorologicalData.dataSource = "Noah Etter NRC report, Appendix B.3–B.4: MacMetGen configuration and published single-day output; NAM12_2020.";
   rc.meteorologicalData.periodSelection.periodDescription = "2020-01-01: 24 hourly records. The companion request covers 2020-01-01 to 2020-12-31; the other days are not included in the publication excerpt.";
   rc.meteorologicalData.spatialRepresentativenessJustification = "Published weather coordinates 35.29890°, −93.24220° differ from the site coordinates 35.31028°, −93.23194°. Nearby-source acceptance remains for the analyst; neither location has been moved.";

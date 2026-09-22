@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { DistributionType } from "interfaces-mef-types/core/events";
 import { WorkbookOracle, assertProbability } from "./hcl-independent-oracle";
 import { analysisRequestSignal } from "../analysis-cancellation.interceptor";
 import type { Request, Response } from "express";
@@ -759,6 +760,7 @@ describe("workbook-owned analysis-run APIs", () => {
         parameterType: "PROBABILITY",
         value: 0.3,
         valueType: "POINT_ESTIMATE",
+        uncertainty: { distribution: { type: DistributionType.BETA, alpha: 3, betaParam: 7 } },
         implementsSrs: [],
       },
     ];
@@ -1007,6 +1009,44 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(restored.status).toBe(200);
     expect(restored.body).toEqual(result.body);
     expect((await runs.findOne({ id: response.body.run.id }).lean().exec())?.result).toEqual(legacy);
+  }, 120_000);
+
+  it("samples Step 07 linked DA uncertainty for a fault tree without sampled CCF members", async () => {
+    const workbookId = CONTROLLED_SY_WORKBOOK_ID;
+    const modelId = FT_OR;
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${workbookId}/fault-trees/${modelId}/runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId,
+        workbookRevision: 4,
+        calculationType: "UNCERTAINTY",
+        workflow: "MANUAL",
+        settings: {
+          algorithm: "BDD",
+          approximation: "EXACT",
+          variableOrder: "DFS",
+          reorderBudgetSeconds: 60,
+          expandCcf: true,
+          numTrials: 1_000,
+          seed: 847,
+          missionTimeHours: 8_760,
+        },
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${workbookId}/fault-trees/${modelId}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.uncertainty.sampleCount).toBe(1_000);
+    expect(result.body.uncertainty.standardDeviation).toBeGreaterThan(0);
+    expect(result.body.uncertainty.quantiles).toHaveLength(5);
+    const stored = await runs.findOne({ id: response.body.run.id }).lean().exec();
+    expect(stored?.request).toMatchObject({ calculationType: "UNCERTAINTY", uncertaintyInputSource: "DA" });
+    expect(stored?.workbookSnapshots).toEqual(expect.arrayContaining([expect.objectContaining({
+      hostType: "DA", identity: { workbookId: DA_WORKBOOK_ID, workbookRevision: 6 },
+    })]));
   }, 120_000);
 
   it("persists and returns configured PRAXIS cut-set results", async () => {

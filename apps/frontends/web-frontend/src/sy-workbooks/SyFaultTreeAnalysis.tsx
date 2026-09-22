@@ -165,7 +165,6 @@ export function SyFaultTreeAnalysis({
               ["CUT_SETS", "Cut sets"],
               ["PROBABILITY_AND_CUT_SETS", "Probability + cut sets"],
               ["IMPORTANCE", "Importance"],
-              ["UNCERTAINTY", "Uncertainty"],
               ["SIL", "SIL"],
             ] as const).map(([value, label]) => (
               <label key={value} className={calculationType === value ? "is-selected" : ""}>

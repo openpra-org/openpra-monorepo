@@ -1,4 +1,7 @@
 import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
+import { ANALYSIS_RUN_CHANGED, type AnalysisRunChanged } from "../newly-developed-methods/shared/analysisRunEvents";
+import { AnalysisRunDetailsSchema, AnalysisRunProvenanceListSchema } from "interfaces-shared-types/newly-developed-methods/shared";
+import { fetchJson } from "../api/client";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -38,7 +41,7 @@ function headersFor(stepId: string): StepHeader {
     case "ccf": return { eyebrow: "Step 04", title: "Common Cause", sub: "The block that stops the model lying about independence (SY-B1 to B4)." };
     case "deps": return { eyebrow: "Step 05", title: "Dependencies", sub: "Support, shared space, inventories and software (SY-B5 to B15)." };
     case "integrity": return { eyebrow: "Step 06", title: "Model Integrity", sub: "Plant fidelity, level of detail and nomenclature (SY-A5, A6, A30)." };
-    case "uncert": return { eyebrow: "Step 07", title: "Uncertainty", sub: "Capability, repair, uncertainty sources and pre-op gaps (SY-A29 to A33)." };
+    case "uncert": return { eyebrow: "Step 07", title: "Uncertainty analysis", sub: "Linked Data Analysis inputs, model assumptions and top-event uncertainty." };
     case "draft": return { eyebrow: "Step 08 · Draft", title: "Produce the draft", sub: "Build the SY report, then send it to review." };
     case "review": return { eyebrow: "Step 09 · Review", title: "Internal technical review", sub: "Reviewers comment, the preparer replies, all resolve before approval." };
     case "approval": return { eyebrow: "Step 10 · Approval", title: "Approval & sign-off", sub: "Everyone signs, the approver last." };
@@ -286,11 +289,46 @@ function SyWorkbench({
   renderRoster?: () => JSX.Element | null;
   renderDocuments?: () => JSX.Element | null;
 }): JSX.Element {
-  const { editable, mutateSy } = useSyWorkbook();
+  const { editable, mutateSy, runtime } = useSyWorkbook();
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
 
-  const visibleSteps = useMemo(() => stepsFromMef(data.sy, persona), [data.sy, persona]);
+  const [currentUncertaintyModelIds, setCurrentUncertaintyModelIds] = useState<ReadonlySet<string>>(() => new Set());
+  useEffect(() => {
+    const workbookId = runtime.workbookId;
+    const revision = runtime.revision;
+    if (workbookId === null || revision === null) { setCurrentUncertaintyModelIds(new Set()); return; }
+    let cancelled = false;
+    async function refresh(): Promise<void> {
+      try {
+        const base = `/api/sy-workbooks/${encodeURIComponent(workbookId!)}/analysis-runs`;
+        const found = new Set<string>();
+        let cursor: string | undefined;
+        for (let page = 0; page < 10; page++) {
+          const list = AnalysisRunProvenanceListSchema.parse(await fetchJson<unknown>(base + (cursor === undefined ? "" : `?cursor=${encodeURIComponent(cursor)}`)));
+          const candidates = list.runs.filter(({ run }) => run.methodType === "FAULT_TREE" && run.status === "SUCCEEDED"
+            && run.owner.workbookRevision === revision && run.freshness?.status === "CURRENT" && !found.has(run.owner.modelId));
+          for (const candidate of candidates) {
+            const details = AnalysisRunDetailsSchema.parse(await fetchJson<unknown>(`${base}/${candidate.run.id}/details`));
+            if (details.request["calculationType"] === "UNCERTAINTY" && details.request["uncertaintyInputSource"] === "DA") found.add(candidate.run.owner.modelId);
+          }
+          if (list.nextCursor === undefined || list.nextCursor === null) break;
+          cursor = list.nextCursor;
+        }
+        if (!cancelled) setCurrentUncertaintyModelIds(found);
+      } catch { if (!cancelled) setCurrentUncertaintyModelIds(new Set()); }
+    }
+    void refresh();
+    const changed = (event: Event): void => {
+      const detail = (event as CustomEvent<AnalysisRunChanged>).detail;
+      if (detail.host === "sy" && detail.workbookId === workbookId) void refresh();
+    };
+    window.addEventListener(ANALYSIS_RUN_CHANGED, changed);
+    return () => { cancelled = true; window.removeEventListener(ANALYSIS_RUN_CHANGED, changed); };
+  }, [runtime.workbookId, runtime.revision]);
+  const visibleSteps = useMemo(() => stepsFromMef(data.sy, persona,
+    runtime.saveStatus === "saved" ? currentUncertaintyModelIds : new Set()),
+  [data.sy, persona, currentUncertaintyModelIds, runtime.saveStatus]);
   const [searchParams] = useSearchParams();
   const requestedStepId = searchParams.get("step");
   const requestedNetworkId = searchParams.get("network");
@@ -453,7 +491,7 @@ function SyWorkbench({
           </div>
 
           {renderScreen()}
-          {["models", "deps", "uncert"].includes(stepId) && <SyAnalysisHistory />}
+          {["models", "ccf", "deps"].includes(stepId) && <SyAnalysisHistory />}
 
           <div className="posnav">
             {prev ? (

@@ -3,6 +3,7 @@ import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
+import type { ParameterDistribution } from "interfaces-mef-types/core/events";
 
 interface SyLinkedSystem {
   id: string;
@@ -45,6 +46,7 @@ interface SyControlledParameterOption {
   parameterName: string;
   parameterType: "FREQUENCY" | "PROBABILITY" | "UNAVAILABILITY" | "HUMAN_ERROR_PROBABILITY";
   value: number;
+  uncertainty?: ParameterDistribution;
 }
 
 interface SyControlledHumanFailureOption {

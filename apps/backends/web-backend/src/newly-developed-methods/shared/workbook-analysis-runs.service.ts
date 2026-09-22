@@ -516,7 +516,7 @@ export class WorkbookAnalysisRunsService {
             `DA parameter '${reference.workbookId}:${reference.entityId}' must be finite and ${quantity === "PROBABILITY" ? "between zero and one" : "non-negative"}`,
           );
         }
-        values.set(key, { value: parameter.value, quantity });
+        values.set(key, { value: parameter.value, quantity, uncertainty: parameter.uncertainty?.distribution });
         continue;
       }
 
@@ -1130,6 +1130,8 @@ export class WorkbookAnalysisRunsService {
       adaptOrThrow(() =>
         adaptSyFaultTreeSnapshot(owner, request.modelId, {
           controlledDataSourceValues: controlled.values,
+          includeControlledUncertainty: request.calculationType === "UNCERTAINTY",
+          expandCcf: request.settings.expandCcf,
         }),
       ),
     ]);
@@ -1148,7 +1150,9 @@ export class WorkbookAnalysisRunsService {
       runId,
       identity,
       "FAULT_TREE",
-      request as unknown as Record<string, unknown>,
+      request.calculationType === "UNCERTAINTY"
+        ? { ...request, uncertaintyInputSource: "DA" }
+        : request as unknown as Record<string, unknown>,
       [owner, ...controlled.sources],
       {
         schemaVersion: "1.0.0",

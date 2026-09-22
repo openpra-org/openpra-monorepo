@@ -6,6 +6,7 @@ import {
 import type { HclCalculationType } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import { WorkbookHclUncertaintyConfigurationSchema } from "interfaces-mef-types/zod/modeling";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
 import { systemBasicEventToFaultTreeBasicEvent } from "interfaces-mef-types/sy/system-models";
 import type {
   EventSequenceAnalysis,
@@ -41,11 +42,27 @@ interface AdaptedFaultTreeSnapshot {
 interface SyFaultTreeAdapterOptions {
   controlledDataSourceValues?: ReadonlyMap<string, number | ResolvedControlledDataSourceValue>;
   allowUnresolvedControlledDataSources?: boolean;
+  includeControlledUncertainty?: boolean;
+  expandCcf?: boolean;
 }
 
 interface ResolvedControlledDataSourceValue {
   value: number;
   quantity: "PROBABILITY" | "FAILURE_RATE";
+  uncertainty?: ParameterDistribution;
+}
+
+function solverDistribution(distribution: ParameterDistribution): { distributionType: string; parameters: Record<string, number> } | null {
+  switch (distribution.type) {
+    case DistributionType.BETA: return { distributionType: distribution.type, parameters: { alpha: distribution.alpha, beta: distribution.betaParam } };
+    case DistributionType.LOGNORMAL: return { distributionType: distribution.type, parameters: { median: distribution.median, errorFactor: distribution.errorFactor } };
+    case DistributionType.NORMAL: return { distributionType: distribution.type, parameters: { mean: distribution.mean, standardDeviation: distribution.stdDev } };
+    case DistributionType.UNIFORM: return { distributionType: distribution.type, parameters: { lower: distribution.lower, upper: distribution.upper } };
+    case DistributionType.GAMMA: return { distributionType: distribution.type, parameters: { shape: distribution.shape, rate: distribution.rate } };
+    case DistributionType.EXPONENTIAL: return { distributionType: distribution.type, parameters: { rate: distribution.failureRate } };
+    case DistributionType.POINT_ESTIMATE: return null;
+    default: throw new WorkbookPraxisAdapterError(`DA uncertainty distribution '${distribution.type}' is not supported for fault-tree sampling`);
+  }
 }
 
 const faultTreeControlledDataSourceKey = (
@@ -546,15 +563,44 @@ const adaptSyFaultTreeSnapshot = (
     }
     return [];
   });
-  const uncertaintyInputs = (source.mef.uncertaintyAnalyses ?? [])
-    .filter((analysis) => analysis.system === model.systemReference)
-    .flatMap((analysis) => analysis.parameterUncertainties)
-    .filter((input) => referencedBasicEventIds.has(input.parameterId))
-    .map((input) => ({
-      basicEventId: input.parameterId,
-      distributionType: input.distributionType,
-      parameters: { ...input.distributionParameters },
-    }));
+  if (options.includeControlledUncertainty === true && commonCauseFailureGroups.length > 0 && options.expandCcf !== true) {
+    throw new WorkbookPraxisAdapterError("Uncertainty analysis for this fault tree must expand its common-cause groups.");
+  }
+  const ccfMemberIds = new Set(commonCauseFailureGroups.flatMap((group) => group.members as string[]));
+  const uncertaintyInputs = options.includeControlledUncertainty === true
+    ? [...referencedBasicEventIds].flatMap((basicEventId) => {
+      const event = findByUuid(source.mef.systemBasicEvents, basicEventId, "SY basic event");
+      if (event.failureMode === "COMMON_CAUSE_FAILURE") return [];
+      const reference = event.controlledDataSource;
+      if (reference?.referenceType !== "WORKBOOK_PARAMETER") return [];
+      const value = options.controlledDataSourceValues?.get(faultTreeControlledDataSourceKey(reference));
+      const resolved = typeof value === "number" ? undefined : value;
+      if (resolved?.uncertainty === undefined) return [];
+      if (resolved.quantity === "FAILURE_RATE") {
+        throw new WorkbookPraxisAdapterError(`DA failure-rate uncertainty for '${event.code ?? basicEventId}' needs mission-time conversion before sampling`);
+      }
+      const distribution = solverDistribution(resolved.uncertainty);
+      if (distribution === null) return [];
+      const values = distribution.parameters;
+      if (Object.values(values).some((value) => !Number.isFinite(value))) {
+        throw new WorkbookPraxisAdapterError(`DA uncertainty for '${event.code ?? basicEventId}' contains a non-finite parameter`);
+      }
+      const invalid = distribution.distributionType === "beta" ? values["alpha"]! <= 0 || values["beta"]! <= 0
+        : distribution.distributionType === "lognormal" ? values["median"]! <= 0 || values["median"]! > 1 || values["errorFactor"]! < 1
+        : distribution.distributionType === "normal" ? values["mean"]! < 0 || values["mean"]! > 1 || values["standardDeviation"]! < 0
+        : distribution.distributionType === "uniform" ? values["lower"]! < 0 || values["upper"]! > 1 || values["lower"]! >= values["upper"]!
+        : distribution.distributionType === "gamma" ? values["shape"]! <= 0 || values["rate"]! <= 0
+        : distribution.distributionType === "exponential" ? values["rate"]! <= 0 : true;
+      if (invalid) throw new WorkbookPraxisAdapterError(`DA uncertainty for '${event.code ?? basicEventId}' has invalid ${distribution.distributionType} parameters`);
+      if (options.expandCcf === true && ccfMemberIds.has(basicEventId)) {
+        throw new WorkbookPraxisAdapterError(`DA uncertainty for CCF member '${event.code ?? basicEventId}' cannot be propagated through CCF expansion. Review this distribution before running uncertainty analysis.`);
+      }
+      return [{ basicEventId, ...distribution }];
+    })
+    : [];
+  if (options.includeControlledUncertainty === true && uncertaintyInputs.length === 0) {
+    throw new WorkbookPraxisAdapterError("This fault tree has no supported DA uncertainty distributions linked to its basic events.");
+  }
 
   return {
     modelSnapshot: {

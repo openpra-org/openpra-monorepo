@@ -1,9 +1,9 @@
 import { stringifyJson } from "interfaces-shared-types/json";
 import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { JSX } from "react";
+import { JSX, useState } from "react";
 import { SYIcon } from "./syIcons";
-import { Badge, SYProvenanceChip, type BadgeKind } from "./syShared";
+import { SYProvenanceChip } from "./syShared";
 import {
   SCREENING_CRITERIA,
   CCF_MODELS,
@@ -19,6 +19,9 @@ import {
 } from "./syViewData";
 import { type CcScore } from "./sySelectors";
 import { useSyWorkbook } from "./syWorkbookContext";
+import { SyUncertaintyParameters } from "./SyUncertaintyParameters";
+import { SyUncertaintyAnalysis } from "./SyUncertaintyAnalysis";
+import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { generateSyReport } from "./syDocx";
 import { type SyDrawerContext } from "./syScreens";
 import { type SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
@@ -387,154 +390,57 @@ function IntegrityScreen({ stage, openDrawer }: { stage: string; openDrawer: (ct
 }
 
 function UncertScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element {
-  const { sy, editable, mutateSy, shortOf } = useSyWorkbook();
-  function addOc(): void {
-    if (!editable) return;
-    const uuid = crypto.randomUUID();
-    mutateSy((draft) => ({
-      ...draft,
-      overCapacityConsiderations: [...(draft.overCapacityConsiderations ?? []), {
-        uuid, system: draft.systemDefinitions[0]?.uuid ?? "", potentialExceedanceScenarios: [], treatment: "CONSERVATIVE" as const, justificationForCapability: "", implementsSrs: [{ sr: "SY-A29", hlr: "A" as const }],
-      }],
-    }));
-    openDrawer({ kind: "oc", id: uuid });
-  }
-  function addUnc(): void {
-    if (!editable) return;
-    const id = crypto.randomUUID();
+  const { sy, editable, mutateSy, shortOf, runtime } = useSyWorkbook();
+  const models = sy.systemLogicModels.filter((model) => model.topGate !== null && model.nonDetailedModelJustification === undefined);
+  const [modelId, setModelId] = useState(models[0]?.uuid ?? "");
+  const model = models.find((candidate) => candidate.uuid === modelId) ?? models[0];
+  const assumptions = (sy.uncertaintyAnalyses ?? [])
+    .filter((analysis) => analysis.system === model?.systemReference)
+    .flatMap((analysis) => analysis.modelUncertainties);
+  function addAssumption(): void {
+    if (!editable || model === undefined) return;
+    const uncertaintyId = crypto.randomUUID();
     mutateSy((draft) => {
-      const list = draft.uncertaintyAnalyses ?? [];
-      const entry = { uncertaintyId: id, description: "", impact: "", isQuantified: false, treatmentApproach: "" };
-      if (list.length === 0) {
-        return { ...draft, uncertaintyAnalyses: [{ uuid: crypto.randomUUID(), system: draft.systemDefinitions[0]?.uuid ?? "", propagationMethod: "LATIN_HYPERCUBE" as const, modelUncertainties: [entry], parameterUncertainties: [], implementsSrs: [{ sr: "SY-B16", hlr: "B" as const }] }] };
-      }
-      return { ...draft, uncertaintyAnalyses: list.map((u, i) => (i === 0 ? { ...u, modelUncertainties: [...u.modelUncertainties, entry] } : u)) };
+      const analyses = [...(draft.uncertaintyAnalyses ?? [])];
+      const index = analyses.findIndex((analysis) => analysis.system === model.systemReference);
+      const entry = { uncertaintyId, description: "", impact: "", isQuantified: false, treatmentApproach: "" };
+      if (index < 0) analyses.push({
+        uuid: crypto.randomUUID(), system: model.systemReference, propagationMethod: "MONTE_CARLO",
+        modelUncertainties: [entry], parameterUncertainties: [], implementsSrs: [{ sr: "SY-B16", hlr: "B" }],
+      });
+      else analyses[index] = { ...analyses[index]!, modelUncertainties: [...analyses[index]!.modelUncertainties, entry] };
+      return { ...draft, uncertaintyAnalyses: analyses };
     });
-    openDrawer({ kind: "unc", id });
+    openDrawer({ kind: "unc", id: uncertaintyId });
   }
-  function addAssum(): void {
-    if (!editable) return;
-    const uuid = crypto.randomUUID();
-    mutateSy((draft) => ({
-      ...draft,
-      preOperationalAssumptions: [...(draft.preOperationalAssumptions ?? []), {
-        uuid, assumptionId: uuid, description: "", influenceOnDefinition: "", status: "OPEN" as const, limitations: [], riskImpact: ImportanceLevel.MEDIUM, closureBasis: "", plannedClosureActions: [], affectedElementIds: [],
-      }],
-    }));
-    openDrawer({ kind: "assum", id: uuid });
-  }
-  function addSens(): void {
-    if (!editable) return;
-    const uuid = crypto.randomUUID();
-    mutateSy((draft) => ({
-      ...draft,
-      sensitivityStudies: [...(draft.sensitivityStudies ?? []), { uuid, name: "", description: "", variedParameters: [], parameterRanges: {} }],
-    }));
-    openDrawer({ kind: "sens", id: uuid });
-  }
-  const register = [
-    ...(sy.uncertaintyAnalyses ?? []).flatMap((u) => u.modelUncertainties.map((m) => ({ id: m.uncertaintyId, kind: "unc" as const, type: "Uncertainty", tone: "progress" as BadgeKind | undefined, item: m.description, detail: m.impact, ok: m.isQuantified, status: m.isQuantified ? "Quantified" : "Open" }))),
-    ...(sy.preOperationalAssumptions ?? []).map((a) => ({ id: a.uuid, kind: "assum" as const, type: "Pre-op", tone: "warn" as BadgeKind | undefined, item: a.influenceOnDefinition, detail: a.description, ok: a.status === "CLOSED", status: a.status === "CLOSED" ? "Closed" : a.status === "IN_PROGRESS" ? "In progress" : "Open" })),
-    ...(sy.sensitivityStudies ?? []).map((st) => ({ id: st.uuid, kind: "sens" as const, type: "Sensitivity", tone: undefined as BadgeKind | undefined, item: (st.name ?? "").length > 0 ? st.name ?? "" : st.description, detail: st.results ?? "", ok: (st.results ?? "").length > 0, status: (st.results ?? "").length > 0 ? "Run" : "Pending" })),
-  ];
-  const repairRows = sy.systemLogicModels.map((m) => {
-    const modelEvents = systemLogicModelBasicEvents(sy, m);
-    const credited = modelEvents.filter((b) => b.repairModeled === true);
-    const justified = credited.every((b) => (b.repairJustification ?? "").length > 0);
-    return { id: m.uuid, system: m.systemReference, events: modelEvents.length, credited: credited.length, ok: credited.length === 0 || justified };
-  });
-  const totalEvents = repairRows.reduce((acc, r) => acc + r.events, 0);
-  const totalCredited = repairRows.reduce((acc, r) => acc + r.credited, 0);
-  const allOk = repairRows.every((r) => r.ok);
-  return (
-    <>
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Capability representation" level={3} />
-          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
-            <SYProvenanceChip>SY-A29</SYProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addOc}><SYIcon.Plus /> Add consideration</button>}
-          </div>
-        </div>
-        <p className="poscard__sub">Conservative when a rated capability might be exceeded, realistic only with supporting analysis or data. Click a row to edit it.</p>
-        <div className="syoc">
-          {(sy.overCapacityConsiderations ?? []).map((o) => {
-            const def = sy.systemDefinitions.find((x) => x.uuid === o.system);
-            const realistic = o.treatment === "REALISTIC_JUSTIFIED";
-            return (
-              <div key={o.uuid} className="syoc__row" onClick={() => openDrawer({ kind: "oc", id: o.uuid })} style={{ cursor: "pointer" }}>
-                <div>
-                  <div className="syoc__sys">{def?.name ?? o.system}</div>
-                  <div className="syoc__scn">{o.potentialExceedanceScenarios[0] ?? ""}</div>
-                  <div className="syoc__basis">{o.justificationForCapability ?? ""}</div>
-                </div>
-                <span className={`syd-method syd-method--${realistic ? "realistic" : "conservative"}`}>
-                  {realistic ? "Realistic (CC-II)" : "Conservative (CC-I)"}
-                </span>
-              </div>
-            );
-          })}
+  return <>
+    <section className="poscard">
+      <div className="poscard__head"><WorkbookSectionHeading workbook="SY" title="Fault tree scope" level={3} /><SYProvenanceChip>SY-A32</SYProvenanceChip></div>
+      <p className="poscard__sub">Assess uncertainty in the selected fault tree's top-event probability. Parameter distributions come from linked Data Analysis estimates; SY records model assumptions.</p>
+      {models.length === 0 ? <p className="possubtle">Create a detailed fault tree in Step 02 first.</p> :
+        <label className="posfield" style={{ maxWidth: 520 }}><span className="posfield__label">Fault tree</span>
+          <select className="posfield__select" aria-label="Step 07 fault tree" value={model?.uuid ?? ""} onChange={(event) => setModelId(event.target.value)}>
+            {models.map((candidate) => <option key={candidate.uuid} value={candidate.uuid}>{shortOf(candidate.systemReference)} · {candidate.code} · {candidate.name}</option>)}
+          </select>
+        </label>}
+    </section>
+    <SyUncertaintyParameters selectedModelId={model?.uuid} />
+    <section className="poscard">
+      <div className="poscard__head"><WorkbookSectionHeading workbook="SY" title="Model assumptions" level={3} />
+        <div className="posrow" style={{ gap: 8, alignItems: "center" }}><SYProvenanceChip>SY-A32 · B16</SYProvenanceChip>
+          {editable && model !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addAssumption}><SYIcon.Plus /> Add assumption</button>}
         </div>
       </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Repair credit" level={3} />
-          <SYProvenanceChip>SY-A31</SYProvenanceChip>
-        </div>
-        <p className="poscard__sub">Repair of hardware faults is not credited unless data or analysis supports it. {totalCredited === 0 ? `No repair is credited for any of the ${totalEvents} basic events.` : `${totalCredited} of ${totalEvents} basic events credit repair.`}</p>
-        <span className="sylight">
-          <span className={`sylight__dot sylight__dot--${allOk ? "s" : "f"}`} />
-          <span>{totalCredited === 0 ? "No repair credited anywhere in the model" : allOk ? "All repair credit carries a justification" : "Repair credited without a justification"}</span>
-        </span>
-        {totalCredited > 0 && (
-          <table className="postable">
-            <thead><tr><th>System</th><th>Basic events</th><th>Repair credited</th><th>Status</th></tr></thead>
-            <tbody>
-              {repairRows.map((r) => (
-                <tr key={r.id}>
-                  <td style={{ fontWeight: 600 }}>{shortOf(r.system)}</td>
-                  <td className="posmono" style={{ fontSize: 11 }}>{r.events}</td>
-                  <td className="posmono" style={{ fontSize: 11 }}>{r.credited}</td>
-                  <td><span className="sylight"><span className={`sylight__dot sylight__dot--${r.ok ? "s" : "f"}`} /> {r.ok ? "Consistent" : "Unjustified credit"}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Open items register" level={3} />
-          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
-            <SYProvenanceChip>SY-A32 · A33 · B16</SYProvenanceChip>
-            {editable && (
-              <>
-                <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addUnc}><SYIcon.Plus /> Add uncertainty</button>
-                <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addAssum}><SYIcon.Plus /> Add assumption</button>
-                <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSens}><SYIcon.Plus /> Add study</button>
-              </>
-            )}
-          </div>
-        </div>
-        <p className="poscard__sub">Model uncertainties, pre-operational assumptions and sensitivity studies, each carried to closure. Click a row to edit it.</p>
-        <table className="postable">
-          <thead><tr><th>Type</th><th>Item</th><th>Detail</th><th>Status</th></tr></thead>
-          <tbody>
-            {register.map((r) => (
-              <tr key={r.id} onClick={() => openDrawer({ kind: r.kind, id: r.id })} style={{ cursor: "pointer" }}>
-                <td><Badge kind={r.tone}>{r.type}</Badge></td>
-                <td style={{ fontWeight: 600 }}>{r.item}</td>
-                <td className="possubtle" style={{ fontSize: 12 }}>{r.detail}</td>
-                <td><span className="sylight"><span className={`sylight__dot sylight__dot--${r.ok ? "s" : "f"}`} /> {r.status}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
+      <p className="poscard__sub">Record model choices for the selected system and their possible effect on its fault trees. Open a row to edit its treatment.</p>
+      {assumptions.length === 0 ? <p className="possubtle">No model assumption recorded for {model === undefined ? "this fault tree" : shortOf(model.systemReference)}.</p> :
+        <div className="postable-wrap"><table className="postable"><thead><tr><th>Assumption</th><th>Impact</th><th>Treatment</th></tr></thead>
+          <tbody>{assumptions.map((item) => <tr key={item.uncertaintyId} className="postable__row--clickable" onClick={() => openDrawer({ kind: "unc", id: item.uncertaintyId })}>
+            <td style={{ fontWeight: 600 }}>{item.description || "Unspecified"}</td><td>{item.impact || "—"}</td><td>{item.treatmentApproach || "Open"}</td>
+          </tr>)}</tbody></table></div>}
+    </section>
+    <div className="poscard"><SyUncertaintyAnalysis selectedModelId={model?.uuid} /></div>
+    <AnalysisRunHistory host="sy" workbookId={runtime.workbookId} calculationType="UNCERTAINTY" />
+  </>;
 }
 
 function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
@@ -544,7 +450,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
   onSubmitDraft: (ready: boolean) => void;
   canSubmit: boolean;
 }): JSX.Element {
-  const { sy } = useSyWorkbook();
+  const { sy, runtime } = useSyWorkbook();
   const ready = scores.blocked === 0 && scores.warn === 0;
   function downloadJson(): void {
     const blob = new Blob([stringifyJson(sy, 2)!], { type: "application/json" });
@@ -590,7 +496,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
                 <SYIcon.Send /> Submit draft to internal review
               </button>
             )}
-            <button type="button" className="posnav__btn" onClick={() => { void generateSyReport(sy, "methodology", "", ready); }}><SYIcon.Download /> Download draft (.docx)</button>
+            <button type="button" className="posnav__btn" onClick={() => { void generateSyReport(sy, "methodology", "", ready, runtime.workbookId, runtime.revision); }}><SYIcon.Download /> Download draft (.docx)</button>
             <button type="button" className="posnav__btn" onClick={downloadJson}><SYIcon.Download /> Download JSON</button>
           </div>
         </div>

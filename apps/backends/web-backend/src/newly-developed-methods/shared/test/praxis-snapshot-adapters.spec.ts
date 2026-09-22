@@ -281,7 +281,7 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     expect(syMef).toEqual(before);
   });
 
-  it("carries applicable CCF groups and basic-event uncertainty into the native catalogue", () => {
+  it("carries applicable CCF groups but ignores legacy SY distributions", () => {
     const mef = structuredClone(syMef);
     mef.commonCauseFailureGroups = [{
       uuid: "ccf-1",
@@ -320,11 +320,29 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
       model: { kind: "BETA_FACTOR", beta: 0.1 },
       totalFailureProbability: 0.2,
     }]);
+    expect(adapted.basicEventCatalogue["uncertaintyInputs"]).toBeUndefined();
+  });
+
+  it("maps linked DA uncertainty into native inputs and rejects sampled CCF members", () => {
+    const mef = structuredClone(syMef);
+    const reference = { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: "da-1", entityId: "parameter-a" };
+    mef.systemBasicEvents[0] = { ...mef.systemBasicEvents[0]!, controlledDataSource: reference };
+    const source = { workbookId: "sy-1", workbookRevision: 7, mef };
+    const controlledDataSourceValues = new Map([[workbookParameterReferenceKey(reference), {
+      value: 0.2, quantity: "PROBABILITY" as const, uncertainty: { type: DistributionType.BETA as const, alpha: 2, betaParam: 8 },
+    }]]);
+    const adapted = adaptSyFaultTreeSnapshot(source, "ft-1", { controlledDataSourceValues, includeControlledUncertainty: true, expandCcf: true });
     expect(adapted.basicEventCatalogue["uncertaintyInputs"]).toEqual([{
-      basicEventId: "be-a",
-      distributionType: "beta",
-      parameters: { alpha: 2, beta: 18 },
+      basicEventId: "be-a", distributionType: "beta", parameters: { alpha: 2, beta: 8 },
     }]);
+    mef.commonCauseFailureGroups = [{
+      uuid: "ccf-1", name: "Shared support", description: "Shared support failure", scope: "INTRASYSTEM",
+      affectedComponents: [], affectedSystems: ["system-1"], modelType: "BETA_FACTOR",
+      modelSpecificParameters: { betaFactorParameters: { beta: 0.1, totalFailureProbability: 0.2 } },
+      members: { basicEvents: [{ id: "be-a" }, { id: "be-b" }] }, implementsSrs: [],
+    }];
+    expect(() => adaptSyFaultTreeSnapshot(source, "ft-1", { controlledDataSourceValues, includeControlledUncertainty: true, expandCcf: true }))
+      .toThrow("cannot be propagated through CCF expansion");
   });
 
   it("discovers and resolves typed DA-controlled probabilities without using the cached SY value", () => {

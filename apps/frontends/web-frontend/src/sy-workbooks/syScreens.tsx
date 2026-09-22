@@ -40,6 +40,8 @@ import {
   type SyControlledParameterOption,
 } from "./syWorkbookContext";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "./syWorkbookApi";
+import { SyCapabilityRepresentation } from "./SyCapabilityRepresentation";
+import { SyPreOperationalAssumptions } from "./SyPreOperationalAssumptions";
 
 interface SyDrawerContext {
   kind: "system" | "ccf" | "hfe" | "screening" | "exclusion" | "unavail" | "ssc" | "spc" | "inv" | "dic" | "loop" | "confirm" | "oc" | "unc" | "assum" | "sens" | "be";
@@ -568,6 +570,9 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
           <div className="eswarn" style={{ marginTop: 12 }}><span>System-level model (SY-A9). {logic.nonDetailedModelJustification}</span></div>
         )}
       </div>
+
+      <SyCapabilityRepresentation systemId={sysDef.uuid} openDrawer={openDrawer} />
+      <SyPreOperationalAssumptions systemId={sysDef.uuid} openDrawer={openDrawer} />
 
       {logic !== undefined && editorModel !== null && logic.nonDetailedModelJustification === undefined ? (
         <div className="poscard">

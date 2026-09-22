@@ -163,6 +163,7 @@ function SyWorkbookPage(): JSX.Element {
                 parameterName: parameter.name,
                 parameterType: parameter.parameterType as SyControlledParameterOption["parameterType"],
                 value: parameter.value,
+                uncertainty: parameter.uncertainty?.distribution,
               }];
             });
           });

@@ -163,9 +163,11 @@ export function downloadSavedRun(details: AnalysisRunDetails): void {
 export function AnalysisRunHistory({
   host,
   workbookId,
+  calculationType,
 }: {
   host: AnalysisRunChanged["host"];
   workbookId: string | null;
+  calculationType?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<AnalysisRunProvenance[]>([]);
@@ -186,12 +188,20 @@ export function AnalysisRunHistory({
       const response = AnalysisRunProvenanceListSchema.parse(
         await fetchJson<unknown>(base + (next ? `?cursor=${encodeURIComponent(next)}` : "")),
       );
+      const visibleRows = calculationType === undefined ? response.runs : (await Promise.all(response.runs.map(async (row) => {
+        if (row.run.methodType !== "FAULT_TREE") return null;
+        try {
+          const detail = AnalysisRunDetailsSchema.parse(await fetchJson<unknown>(`${base}/${row.run.id}/details`));
+          return detail.request["calculationType"] === calculationType
+            && (calculationType !== "UNCERTAINTY" || detail.request["uncertaintyInputSource"] === "DA") ? row : null;
+        } catch { return null; }
+      }))).filter((row): row is AnalysisRunProvenance => row !== null);
       const refreshed =
         selected.current === null ?
           null
         : AnalysisRunDetailsSchema.parse(await fetchJson<unknown>(`${base}/${selected.current}/details`));
       if (current !== request.current) return;
-      setRows(response.runs);
+      setRows(visibleRows);
       setCursor(response.nextCursor ?? null);
       setDetails(refreshed);
     } catch (caught) {
@@ -228,7 +238,7 @@ export function AnalysisRunHistory({
     setRows([]);
     setCursor(null);
     setError(null);
-  }, [host, workbookId]);
+  }, [host, workbookId, calculationType]);
   useEffect(() => {
     if (!open || workbookId === null) return;
     void load();
@@ -248,12 +258,12 @@ export function AnalysisRunHistory({
       window.removeEventListener(ANALYSIS_RUN_CHANGED, changed);
       window.removeEventListener("focus", refresh);
     };
-  }, [open, host, workbookId]);
+  }, [open, host, workbookId, calculationType]);
   if (workbookId === null) return null;
   return (
-    <section className="analysis-history" aria-label="Analysis history">
+    <section className="analysis-history" aria-label={calculationType === "UNCERTAINTY" ? "Uncertainty history" : "Analysis history"}>
       <div className="analysis-history__header">
-        <h3>Analysis history</h3>
+        <h3>{calculationType === "UNCERTAINTY" ? "Uncertainty history" : "Analysis history"}</h3>
         <button
           type="button"
           className="analysis-history__toggle"
@@ -269,7 +279,7 @@ export function AnalysisRunHistory({
       {open && (
         <div className="analysis-history__body">
           <div className="analysis-history__toolbar">
-            <p>Saved results, inputs, and source revisions for this workbook.</p>
+            <p>{calculationType === "UNCERTAINTY" ? "Saved uncertainty results, inputs, and source revisions." : "Saved results, inputs, and source revisions for this workbook."}</p>
             <button type="button" className="posnav__btn posnav__btn--sm" disabled={loading} onClick={() => void load()}>Refresh history</button>
           </div>
           {loading && <p role="status" className="analysis-history__state">Loading saved runs…</p>}

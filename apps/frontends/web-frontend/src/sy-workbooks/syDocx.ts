@@ -11,9 +11,41 @@ import {
   BorderStyle,
 } from "docx";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import { systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
+import { analysisModelBasicEvents } from "./syUncertainty";
+import { AnalysisRunDetailsSchema, AnalysisRunProvenanceListSchema } from "interfaces-shared-types/newly-developed-methods/shared";
+import { FaultTreeAnalysisResultSchema } from "interfaces-shared-types/newly-developed-methods/fault-tree";
+import { fetchJson } from "../api/client";
 
 type ReportKind = "methodology" | "system";
+interface UncertaintySummary { modelId: string; mean: number; lower: number; upper: number; samples: number }
+
+async function currentUncertaintySummaries(workbookId: string | null, revision: number | null): Promise<UncertaintySummary[]> {
+  if (workbookId === null || revision === null) return [];
+  const base = `/api/sy-workbooks/${encodeURIComponent(workbookId)}/analysis-runs`;
+  const summaries = new Map<string, UncertaintySummary>();
+  let cursor: string | undefined;
+  try {
+    for (let page = 0; page < 10; page++) {
+      const list = AnalysisRunProvenanceListSchema.parse(await fetchJson<unknown>(base + (cursor === undefined ? "" : `?cursor=${encodeURIComponent(cursor)}`)));
+      for (const { run } of list.runs) {
+        if (run.methodType !== "FAULT_TREE" || run.status !== "SUCCEEDED" || run.owner.workbookRevision !== revision
+          || run.freshness?.status !== "CURRENT" || summaries.has(run.owner.modelId)) continue;
+        const details = AnalysisRunDetailsSchema.parse(await fetchJson<unknown>(`${base}/${run.id}/details`));
+        if (details.request["calculationType"] !== "UNCERTAINTY" || details.request["uncertaintyInputSource"] !== "DA") continue;
+        const result = FaultTreeAnalysisResultSchema.safeParse(details.result);
+        if (!result.success || result.data.uncertainty === undefined) continue;
+        const quantiles = result.data.uncertainty.quantiles;
+        summaries.set(run.owner.modelId, { modelId: run.owner.modelId, mean: result.data.uncertainty.mean,
+          lower: quantiles.find((item) => item.probability === 0.05)?.value ?? quantiles[0]?.value ?? result.data.uncertainty.mean,
+          upper: quantiles.find((item) => item.probability === 0.95)?.value ?? quantiles[quantiles.length - 1]?.value ?? result.data.uncertainty.mean,
+          samples: result.data.uncertainty.sampleCount });
+      }
+      if (list.nextCursor === undefined || list.nextCursor === null) break;
+      cursor = list.nextCursor;
+    }
+  } catch { return [...summaries.values()]; }
+  return [...summaries.values()];
+}
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({ text, heading: level, spacing: { before: 240, after: 120 }, pageBreakBefore: level === HeadingLevel.HEADING_1 });
@@ -72,7 +104,7 @@ function introSection(a: SystemsAnalysis, stageLabel: string): (Paragraph | Tabl
   ];
 }
 
-function buildMethodology(a: SystemsAnalysis, final: boolean): (Paragraph | Table)[] {
+function buildMethodology(a: SystemsAnalysis, final: boolean, summaries: UncertaintySummary[]): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
   const stageLabel = a.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational";
   const ccLabel = a.capabilityCategory ?? "N/A";
@@ -116,6 +148,18 @@ function buildMethodology(a: SystemsAnalysis, final: boolean): (Paragraph | Tabl
     a.commonCauseFailureGroups.map((g) => [g.name, g.scope, g.modelType, g.dataAnalysisCCFParameterRef ?? "—"]),
   ));
 
+  out.push(heading("Uncertainty analysis", HeadingLevel.HEADING_1));
+  out.push(para("Data Analysis owns parameter estimates and distributions. Systems Analysis links those inputs to basic events and records uncertainty in model assumptions."));
+  out.push(dataTable(["System", "Model assumption", "Treatment"],
+    (a.uncertaintyAnalyses ?? []).flatMap((analysis) => analysis.modelUncertainties.map((item) => [
+      a.systemDefinitions.find((system) => system.uuid === analysis.system)?.name ?? analysis.system,
+      item.description || "—", item.treatmentApproach || "Open",
+    ]))));
+  out.push(heading("Current uncertainty results", HeadingLevel.HEADING_2));
+  out.push(dataTable(["Fault tree", "Mean", "5%", "95%", "Samples"], summaries.length === 0 ? [["No current saved run", "—", "—", "—", "—"]] :
+    summaries.map((item) => [a.systemLogicModels.find((model) => model.uuid === item.modelId)?.code ?? item.modelId,
+      item.mean.toExponential(3), item.lower.toExponential(3), item.upper.toExponential(3), item.samples.toLocaleString()])));
+
   out.push(heading("Conformance summary", HeadingLevel.HEADING_1));
   out.push(dataTable(
     ["SR", "HLR", "Category", "Status", "Evidence"],
@@ -130,12 +174,12 @@ function buildMethodology(a: SystemsAnalysis, final: boolean): (Paragraph | Tabl
   return out;
 }
 
-function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean): (Paragraph | Table)[] {
+function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean, summaries: UncertaintySummary[]): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
   const stageLabel = a.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational";
   const sysDef = a.systemDefinitions.find((s) => s.uuid === systemId) ?? a.systemDefinitions[0];
   const logic = a.systemLogicModels.find((m) => m.systemReference === sysDef.uuid);
-  const logicBasicEvents = logic === undefined ? [] : systemLogicModelBasicEvents(a, logic);
+  const logicBasicEvents = logic === undefined ? [] : analysisModelBasicEvents(a, logic);
   const ccfGroups = a.commonCauseFailureGroups.filter((g) => g.affectedSystems.includes(sysDef.uuid));
   const deps = a.systemDependencies.filter((d) => d.dependentSystem === sysDef.uuid);
 
@@ -176,8 +220,27 @@ function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean)
       : [["None", "—", "—"]],
   ));
 
+  out.push(heading("Uncertainty analysis", HeadingLevel.HEADING_1));
+  out.push(para("Parameter uncertainty distributions are maintained in Data Analysis and sampled through the linked basic events. Run results and source revisions are recorded in the workbook analysis history."));
+  out.push(dataTable(["Basic event", "DA parameter", "Source workbook"],
+    logicBasicEvents.flatMap((event) => event.controlledDataSource?.referenceType === "WORKBOOK_PARAMETER" ? [[
+      event.code ?? event.uuid, event.controlledDataSource.entityId, event.controlledDataSource.workbookId,
+    ]] : [])));
+  out.push(heading("Model assumptions", HeadingLevel.HEADING_2));
+  out.push(dataTable(["Assumption", "Impact", "Treatment"],
+    (a.uncertaintyAnalyses ?? []).filter((analysis) => analysis.system === sysDef.uuid)
+      .flatMap((analysis) => analysis.modelUncertainties.map((item) => [item.description || "—", item.impact || "—", item.treatmentApproach || "Open"]))));
+  if (a.plantStage === "PRE_OPERATIONAL") {
+    out.push(heading("Pre-operational assumptions", HeadingLevel.HEADING_2));
+    out.push(dataTable(["Assumption", "Status", "Closure basis"],
+      (a.preOperationalAssumptions ?? []).filter((item) => item.affectedElementIds.includes(sysDef.uuid) || (item.affectedElementIds.length === 0 && sysDef.uuid === a.systemDefinitions[0]?.uuid))
+        .map((item) => [item.description || "—", item.status, item.closureBasis || "—"])));
+  }
+
   out.push(heading("Results", HeadingLevel.HEADING_1));
   out.push(para("The system fault tree is quantified standalone, with the full-plant quantification performed by Event Sequence Quantification."));
+  const summary = logic === undefined ? undefined : summaries.find((item) => item.modelId === logic.uuid);
+  if (summary !== undefined) out.push(para(`Current uncertainty run: mean top-event probability ${summary.mean.toExponential(3)}, 5% quantile ${summary.lower.toExponential(3)}, 95% quantile ${summary.upper.toExponential(3)}, ${summary.samples.toLocaleString()} samples.`));
 
   out.push(heading("References", HeadingLevel.HEADING_1));
   out.push(bullet("System design description and P&ID"));
@@ -186,8 +249,9 @@ function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean)
   return out;
 }
 
-async function generateSyReport(sy: SystemsAnalysis, report: ReportKind, systemId: string, final: boolean): Promise<void> {
-  const children = report === "methodology" ? buildMethodology(sy, final) : buildSystemReport(sy, systemId, final);
+async function generateSyReport(sy: SystemsAnalysis, report: ReportKind, systemId: string, final: boolean, workbookId: string | null = null, revision: number | null = null): Promise<void> {
+  const summaries = await currentUncertaintySummaries(workbookId, revision);
+  const children = report === "methodology" ? buildMethodology(sy, final, summaries) : buildSystemReport(sy, systemId, final, summaries);
   const doc = new Document({ sections: [{ children }] });
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);

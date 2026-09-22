@@ -19,7 +19,7 @@ const SY_STEPS: SyStep[] = [
   { id: "ccf", num: "04", label: "Common Cause", sub: "Groups · shared causes", status: "idle" },
   { id: "deps", num: "05", label: "Dependencies", sub: "Support · space · inventory", status: "idle" },
   { id: "integrity", num: "06", label: "Model Integrity", sub: "Fidelity · detail · naming", status: "idle" },
-  { id: "uncert", num: "07", label: "Uncertainty", sub: "Capability · sources · pre-op", status: "idle" },
+  { id: "uncert", num: "07", label: "Uncertainty analysis", sub: "DA inputs · assumptions · results", status: "idle" },
   { id: "draft", num: "08", label: "Draft", sub: "Produce SY report", status: "idle", terminal: true },
   { id: "review", num: "09", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
   { id: "approval", num: "10", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },

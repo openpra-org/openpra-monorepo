@@ -53,4 +53,22 @@ describe("Step 08 prepared case review", () => {
     expect(caseTable(c, "weather", 0).total).toBe(0);
     expect(caseChecks(c).find(v => v.key === "links")!.items.join(" ")).toContain("No generated weather trials");
   });
+  it("tracks health and economic edits in the case version and respects excluded aspects", () => {
+    const c = base(); c.schemaVersion = 2;
+    c.health = { healthInput: { filename: "health.inp", original: "EFATAGRP001", records: [{ cardId: "EFATAGRP001", kind: "early_fatality", effect: "Lung", organ: "Lung", values: [1, 2, 3], original: "EFATAGRP001" }] },
+      earlyHealthEffects: ["Lung fatality"], latentHealthEffects: ["Cancer"], riskFactorSources: [{ source: "Body report", recognizedBody: "Body", version: "1" }],
+      earlyEffectParameters: { approach: "ORGAN_SPECIFIC_DOSE_RESPONSE", description: "" }, latentEffectParameters: { approach: "ORGAN_SPECIFIC_FACTORS", description: "" }, ageGenderHomogeneous: true } as NonNullable<RcCaseData["health"]>;
+    c.economy = { siteEconomyInput: { filename: "site.txt", original: "site", economicMultiplier: 1, expectedRegions: 1, regions: [], crops: [] },
+      decontaminationLevels: 1, costCategories: [], costParameterEstimates: [], parameterConsistencyConfirmed: false } as NonNullable<RcCaseData["economy"]>;
+    const initial = caseVersions(c);
+    expect(caseTable(c, "health", 0).rows[0][1]).toBe("Lung fatality");
+    expect(caseChecks(c).find(check => check.key === "economy")!.items.join(" ")).toContain("0 of 1");
+    c.health.riskFactorSources[0].version = "2";
+    expect(caseVersions(c)).not.toBe(initial);
+    const healthVersion = caseVersions(c);
+    c.economy.siteEconomyInput!.expectedRegions = 2;
+    expect(caseVersions(c)).not.toBe(healthVersion);
+    c.excludedSteps = ["health"];
+    expect(caseChecks(c).some(check => check.key === "health")).toBe(false);
+  });
 });

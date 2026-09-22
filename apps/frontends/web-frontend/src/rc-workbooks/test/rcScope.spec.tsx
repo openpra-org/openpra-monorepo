@@ -78,3 +78,29 @@ it("disables excluded steps and skips them in workbook navigation", () => {
   expect(screen.getByRole("button", { name: /Next: Atmospheric Dispersion/ })).toBeInTheDocument();
   expect(container.querySelector("[data-screen-label='RC — Scope']")).toBeInTheDocument();
 });
+
+it("collapses and restores the RC steps and conformance panels independently", () => {
+  const rc = createBlankRc("RC layout test", "analyst");
+  const data = { rc, cc: {}, nms: [] } as unknown as RcWorkbookData;
+  Object.defineProperty(window, "matchMedia", { configurable: true, value: () => ({ matches: false }) });
+  const { container } = render(<MemoryRouter><RcWorkbookProvider data={data} editable mutateRc={jest.fn()}>
+    <RcWorkbench data={data} persona="preparer" setPersona={jest.fn()} showPersonaPicker={false} headerMeta={{ projectName: "Test", workbookName: rc.name, workbookVersion: rc.version }} />
+  </RcWorkbookProvider></MemoryRouter>);
+
+  const shell = container.querySelector(".posw__shell");
+  expect(screen.getByRole("complementary", { name: "RC analysis steps" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Hide steps" }));
+  expect(shell).toHaveClass("posw__shell--rail-closed");
+  expect(screen.queryByRole("complementary", { name: "RC analysis steps" })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Hide checklist" }));
+  expect(shell).toHaveClass("posw__shell--rail-closed", "posw__shell--dock-closed");
+  expect(screen.getByRole("main", { name: "Step content" })).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Show steps" }));
+  expect(shell).not.toHaveClass("posw__shell--rail-closed");
+  expect(screen.getByRole("complementary", { name: "RC analysis steps" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Show conformance" }));
+  expect(shell).not.toHaveClass("posw__shell--dock-closed");
+  expect(container.querySelector(".posw__mobile-scrim")).not.toBeInTheDocument();
+});

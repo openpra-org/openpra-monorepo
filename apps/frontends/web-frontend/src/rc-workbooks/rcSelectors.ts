@@ -3,6 +3,7 @@ import { type ParameterDistribution, DistributionType } from "interfaces-mef-typ
 import { isRcAspectExcluded } from "./rcScope";
 import { protectiveStepComplete } from "./rcProtective";
 import { weatherIsReviewed, weatherQualityIssues } from "interfaces-shared-types/rc-workbooks/weather";
+import { rcEconomicCostCoverage } from "interfaces-shared-types/rc-workbooks/economic-costs";
 import {
   CONFORMANCE_ITEMS,
   RC_STEPS,
@@ -150,9 +151,18 @@ function stepsFromMef(rc: RadiologicalConsequenceAnalysis, persona: RcPersona): 
     && weatherIsReviewed(rc.meteorologicalData.weatherInputs, rc.protectiveActionParameters.siteAndReceptors?.settings ?? {}, rc.protectiveActionParameters.siteAndReceptors?.geometry);
   const dispersionComplete = rc.atmosphericTransportAndDispersion.dispersionModel.justification.length > 0;
   const doseComplete = rc.dosimetry.exposurePathways.length > 0;
-  const healthComplete = rc.healthEffects.earlyHealthEffects.length > 0;
-  const economicsComplete = rc.economicFactors.costCategories.length > 0;
-  const quantifyComplete = rc.consequenceQuantification.eventSequenceConsequences.length > 0;
+  const healthComplete = rc.healthEffects.earlyHealthEffects.some(effect => effect.trim())
+    && rc.healthEffects.latentHealthEffects.some(effect => effect.trim())
+    && rc.healthEffects.riskFactorSources.some(source => Boolean(source.source.trim() && source.recognizedBody.trim() && source.version?.trim()));
+  const economy = rc.economicFactors, siteEconomy = economy.siteEconomyInput;
+  const economicsComplete = !!siteEconomy && siteEconomy.regions.length === siteEconomy.expectedRegions
+    && (siteEconomy.sourceSiteRevision === undefined || siteEconomy.sourceSiteRevision === rc.protectiveActionParameters.siteAndReceptors?.revision)
+    && rcEconomicCostCoverage(economy).complete && economy.parameterConsistencyConfirmed;
+  const quantification = rc.consequenceQuantification;
+  const quantifyComplete = Boolean(quantification.caseRecords?.results.length)
+    && quantification.eventSequenceConsequences.some(family => family.consequenceResults.some(result => result.metric.trim() && result.unit?.trim() && Number.isFinite(result.meanValue)))
+    && quantification.outputReview.performed && quantification.resultsConfirmation.performed
+    && Boolean(quantification.resultsConfirmation.description?.trim());
   const draftComplete = rc.workflowState !== "DRAFT" && rc.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = rc.workflowState === "FINAL";
 

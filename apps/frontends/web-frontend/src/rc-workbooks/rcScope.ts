@@ -74,15 +74,19 @@ export function rcScopeTreatment(rc: RadiologicalConsequenceAnalysis, aspect: Rc
     }
     case "RCHE": {
       const effects = rc.healthEffects;
-      if (effects.earlyHealthEffects.length) parts.push(count(effects.earlyHealthEffects.length, "early effect"));
-      if (effects.latentHealthEffects.length) parts.push(count(effects.latentHealthEffects.length, "latent effect"));
-      if (effects.riskFactorSources.length) parts.push(count(effects.riskFactorSources.length, "risk-factor source"));
+      if (effects.healthInput) parts.push(count(effects.healthInput.records.length, "health parameter record"));
+      if (effects.earlyHealthEffects.some(effect => effect.trim())) parts.push(count(effects.earlyHealthEffects.filter(effect => effect.trim()).length, "early effect"));
+      if (effects.latentHealthEffects.some(effect => effect.trim())) parts.push(count(effects.latentHealthEffects.filter(effect => effect.trim()).length, "latent effect"));
+      if (effects.riskFactorSources.some(source => source.source.trim())) parts.push(count(effects.riskFactorSources.filter(source => source.source.trim()).length, "risk-factor source"));
       break;
     }
     case "RCEC": {
       const economics = rc.economicFactors;
-      if (economics.costCategories.length) parts.push(count(economics.costCategories.length, "cost category", "cost categories"));
-      if (economics.costParameterEstimates.length) parts.push(count(economics.costParameterEstimates.length, "parameter estimate"));
+      if (economics.siteEconomyInput) parts.push(`${economics.siteEconomyInput.regions.length} of ${economics.siteEconomyInput.expectedRegions} regional rows`);
+      const costs = economics.costParameterEstimates.filter(row => row.value !== undefined);
+      if (costs.length) parts.push(count(costs.length, "cost parameter"));
+      const notes = economics.costCategories.filter(row => row.category.trim());
+      if (notes.length) parts.push(count(notes.length, "category note"));
       break;
     }
     case "RCQ": {

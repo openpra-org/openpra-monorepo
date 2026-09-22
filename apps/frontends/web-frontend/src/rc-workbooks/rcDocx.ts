@@ -13,6 +13,7 @@ import {
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { DistributionType } from "interfaces-mef-types/core/events";
 import { sitePopulation } from "interfaces-shared-types/rc-workbooks/site-receptors";
+import { rcEconomicCostSpecs } from "interfaces-shared-types/rc-workbooks/economic-costs";
 import { RC_SCOPE_ASPECTS, rcScopeTreatment } from "./rcScope";
 import { evacuationDelayMinutes, protectionParameterQuantity, responseSummary, totalEvacuationDelay } from "./rcProtective";
 
@@ -179,6 +180,14 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
 
   out.push(heading("Health Effects", HeadingLevel.HEADING_1));
   out.push(para(doc.rcheProcess));
+  if (a.healthEffects.healthInput) {
+    out.push(para(`Health parameter input: ${a.healthEffects.healthInput.filename}.`));
+    out.push(dataTable(
+      ["Card", "Effect", "Organ", "File parameters", "Selected"],
+      a.healthEffects.healthInput.records.map((r) => [r.cardId, r.kind === "early_fatality" ? `${r.effect} fatality` : r.effect, r.organ, r.values.join(", "),
+        (r.kind === "latent_cancer" ? a.healthEffects.latentHealthEffects : a.healthEffects.earlyHealthEffects).includes(r.kind === "early_fatality" ? `${r.effect} fatality` : r.effect) ? "Yes" : "No"]),
+    ));
+  }
   out.push(dataTable(
     ["Risk-factor source", "Recognized body", "Version"],
     a.healthEffects.riskFactorSources.map((r) => [r.source, r.recognizedBody, r.version ?? "n/a"]),
@@ -186,6 +195,24 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
 
   out.push(heading("Economic Factors", HeadingLevel.HEADING_1));
   out.push(para(doc.rcecProcess));
+  if (a.economicFactors.decontaminationLevels !== undefined) out.push(para(`Decontamination levels: ${a.economicFactors.decontaminationLevels}.`));
+  if (a.economicFactors.siteEconomyInput) {
+    const siteEconomy = a.economicFactors.siteEconomyInput;
+    out.push(para(`Site economy file: ${siteEconomy.filename}. Economic multiplier: ${siteEconomy.economicMultiplier}. Regional rows supplied: ${siteEconomy.regions.length} of ${siteEconomy.expectedRegions}.`));
+    out.push(dataTable(["Region", "Name", "Farming share", "Dairy share", "Farm sales ($/ha/year)", "Farmland value ($/ha)", "Non-farm value ($/person)"],
+      siteEconomy.regions.map(row => [String(row.index), row.name, String(row.farmFraction), String(row.dairySalesFraction), String(row.annualFarmSalesPerHectare), String(row.farmlandValuePerHectare), String(row.nonFarmlandValuePerPerson)])));
+    if (siteEconomy.crops.length) out.push(dataTable(["Crop", "Growing days", "Farmland share"],
+      siteEconomy.crops.map(row => [row.name, `${row.growingStartDay} to ${row.growingEndDay}`, String(row.farmlandFraction)])));
+  }
+  out.push(dataTable(["Cost parameter", "Value", "Unit", "Currency year", "Source"],
+    a.economicFactors.costParameterEstimates.map(row => [row.costCode ? `${row.parameter} (${row.costCode})${row.level ? ` level ${row.level}` : ""}` : row.parameter,
+      row.value === undefined ? "Not supplied" : String(row.value), row.costCode ? rcEconomicCostSpecs[row.costCode].unit : "n/a", row.currencyYear === undefined ? "n/a" : String(row.currencyYear), row.source])));
+  out.push(dataTable(["Economic review", "Recorded basis"], [
+    ["Parameter uncertainty", a.economicFactors.parameterUncertaintyCharacterization ?? ""],
+    ["Model uncertainty sources", a.economicFactors.modelUncertainty.sources.join("; ")],
+    ["Model assumptions", a.economicFactors.modelUncertainty.assumptions.join("; ")],
+    ["Model alternatives", a.economicFactors.modelUncertainty.alternatives.join("; ")],
+  ]));
   out.push(dataTable(
     ["Cost category", "Parameters"],
     a.economicFactors.costCategories.map((c) => [c.category, c.parameterDefinitions.join("; ")]),

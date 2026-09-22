@@ -1,5 +1,5 @@
 /* Step 05 uses the shared workbook buttons, inputs and modal shell. */
-.rc-dose-input-card{width:100%}
+.rc-dose-input-card{box-sizing:border-box;width:100%;max-width:960px}
 .rc-dose{container-type:inline-size;font:13px/1.45 var(--font-ui),sans-serif;color:var(--color-text);min-width:0;width:100%;overflow-wrap:anywhere}
 .rc-dose *{box-sizing:border-box}
 .rc-dose [hidden]{display:none!important}
@@ -31,6 +31,10 @@
 .rc-dose .ds-coef-table th:first-child{width:31%}
 .rc-dose .ds-coef-table th:nth-child(2){width:27%}
 .rc-dose .ds-coef-table td small{display:block;font-size:11px;color:var(--color-text-muted);margin-top:3px}
+.rc-dose .ds-review-table{width:100%;margin:8px 0 22px;border:1px solid var(--color-border);border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden}
+.rc-dose .ds-review-table th{width:190px;background:var(--color-surface-low);color:var(--color-text-muted);font-weight:500;vertical-align:top}
+.rc-dose .ds-review-table td{line-height:1.45;vertical-align:top}
+.rc-dose .ds-pathway-table td:has(button){width:72px;text-align:right}
 .rc-dose .ds-library{margin:0 0 20px;padding:0;list-style:none}
 .rc-dose .ds-library li{border-bottom:1px solid var(--color-border);padding:12px 0;display:flex;justify-content:space-between;gap:14px;align-items:center}
 .rc-dose .ds-library li:first-child{padding-top:2px}
@@ -42,14 +46,12 @@
 .rc-dose .ds-response-table-wrap table{min-width:1100px;table-layout:auto}
 .rc-dose .ds-readonly dt{font-size:12px;color:var(--color-text-muted)}
 .rc-dose .ds-readonly dd{font-size:13px;margin:4px 0 0}
+.rc-dose .ds-value-basis{display:flex;align-items:center;gap:10px;min-height:30px;margin:0 0 16px;font-size:12px}
+.rc-dose .ds-value-basis>span{color:var(--color-text-muted)}
 .rc-dose details{margin-top:17px;border-top:1px solid var(--color-border);padding-top:12px}
 .rc-dose summary{font-size:12px;color:var(--color-primary);cursor:pointer}
 .rc-dose details table{margin-top:12px}
 .rc-dose .ds-ref-table th:first-child{width:42%}
-.rc-dose .ds-reference-values{margin-top:12px}
-.rc-dose .ds-reference-values div{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 0;border-bottom:1px solid var(--color-border)}
-.rc-dose .ds-reference-values dt{font-size:12px;color:var(--color-text-muted)}
-.rc-dose .ds-reference-values dd{margin:0;font-size:13px}
 .rc-dose .ds-pagination{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:var(--color-text-muted);margin-top:10px}
 .rc-dose .ds-pagination div{display:flex;gap:6px}
 .rc-dose .ds-file-view{margin:14px 0 20px;padding:12px;background:var(--color-surface-low);border-radius:8px}
@@ -64,4 +66,13 @@
 .rc-dose pre{max-height:360px;overflow:auto}
 .rc-dose .ds-footer{flex-wrap:wrap}
 .rc-dose :is(button,input,select,summary):focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}
-@container(max-width:520px){.rc-dose .ds-file{align-items:start;flex-direction:column}.rc-dose .ds-fields{grid-template-columns:minmax(0,360px);gap:12px}.rc-dose .ds-fields>label:first-child{max-width:180px}.rc-dose .ds-duration-fields>label:first-child{max-width:160px}.rc-dose .ds-duration-equivalent{padding-top:0}.rc-dose .ds-library li{align-items:start;flex-direction:column;gap:10px}.rc-dose .ds-library .ds-file-actions{justify-content:flex-start}.rc-dose .ds-footer{align-items:start}.rc-dose th,.rc-dose td{padding:8px 4px}.rc-dose .ds-coef-table th,.rc-dose .ds-coef-table td{font-size:12px}.rc-dose .ds-readonly{grid-template-columns:minmax(0,1fr)}}
+@container(max-width:520px){.rc-dose .ds-file{align-items:start;flex-direction:column}.rc-dose .ds-fields{grid-template-columns:minmax(0,360px);gap:12px}.rc-dose .ds-fields>label:first-child{max-width:180px}.rc-dose .ds-duration-fields>label:first-child{max-width:160px}.rc-dose .ds-duration-equivalent{padding-top:0}.rc-dose .ds-library li{align-items:start;flex-direction:column;gap:10px}.rc-dose .ds-library .ds-file-actions{justify-content:flex-start}.rc-dose .ds-footer{align-items:start}.rc-dose th,.rc-dose td{padding:8px 4px}.rc-dose .ds-review-table th{width:135px}.rc-dose .ds-coef-table th,.rc-dose .ds-coef-table td{font-size:12px}.rc-dose .ds-readonly{grid-template-columns:minmax(0,1fr)}}
+.rc-dose-modal .rc-dose-treatment-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:14px 18px}
+.rc-dose-modal .rc-dose-treatment-form>.posfield{margin:0;min-width:0}
+.rc-dose-modal .rc-dose-treatment-form>.posfield:has(textarea),.rc-dose-modal .rc-dose-treatment-form>.rc-dose-periods{grid-column:1/-1}
+.rc-dose-modal .rc-dose-periods{display:flex;flex-direction:column;gap:8px}
+.rc-dose-modal .rc-dose-periods h3{font-size:13px;margin:0}
+.rc-dose-modal .rc-dose-periods table{table-layout:fixed;margin:0}
+.rc-dose-modal .rc-dose-periods input{min-width:0}
+.rc-dose-modal .rc-dose-periods th:last-child,.rc-dose-modal .rc-dose-periods td:last-child{width:84px}
+@media(max-width:720px){.rc-dose-modal .rc-dose-treatment-form{grid-template-columns:minmax(0,1fr)}.rc-dose-modal .rc-dose-treatment-form>.posfield:has(textarea),.rc-dose-modal .rc-dose-treatment-form>.rc-dose-periods{grid-column:auto}}

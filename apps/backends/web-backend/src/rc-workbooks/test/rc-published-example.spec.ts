@@ -42,6 +42,14 @@ describe("RC-only published input example", () => {
     expect(c.dose!.categories[0].settings!.integrationSeconds).toBe(2592000);
     expect(doseCoverage(c.dose, source, "inhalation").found).toHaveLength(58);
     expect(doseCoverage(c.dose, source, "cloudshine").found).toHaveLength(69);
+    expect(rc.healthEffects.healthInput?.filename).toBe("MACCS-Noah-health-settings-excerpt.inp");
+    expect(rc.healthEffects.healthInput?.records).toHaveLength(18);
+    expect(rc.healthEffects.earlyHealthEffects).toHaveLength(3);
+    expect(rc.healthEffects.latentHealthEffects).toHaveLength(8);
+    expect(rc.economicFactors.siteEconomyInput).toMatchObject({ filename: "SecPop-Noah-published-site-excerpt.txt", economicMultiplier: 1.35, expectedRegions: 83 });
+    expect(rc.economicFactors.siteEconomyInput?.regions).toHaveLength(2);
+    expect(rc.economicFactors.siteEconomyInput?.crops).toHaveLength(7);
+    expect(rc.economicFactors.costParameterEstimates).toEqual([]);
     expect(caseChecks(c).find(g => g.key === "site")!.items.join(" ")).toContain("receptor height");
     expect(rc.consequenceQuantification.eventSequenceConsequences).toEqual([]);
     expect(rc.releaseCategoryToConsequence.releaseCategoryAndSourceTermReviewed).toBe(false);
@@ -60,6 +68,29 @@ describe("RC-only published input example", () => {
       expect(Buffer.concat(chunks)).toEqual(readRcPublishedFile(filename));
     }
   });
+  it("rejects health records altered without changing their original file", async () => {
+    const loaded = (await load().expect(200)).body.mef;
+    const altered = { ...loaded.healthEffects.healthInput.records[0], values: [999, 6.1, 2.3] };
+    await request(http()).patch(root).send({ operations: [{ op: "replace", path: ["healthEffects", "healthInput", "records", 0], value: altered }] }).expect(409);
+  });
+  it("rejects economic records altered without changing the original file", async () => {
+    await load().expect(200);
+    await request(http()).patch(root).send({ operations: [{ op: "replace", path: ["economicFactors", "siteEconomyInput", "regions", 1, "farmlandValuePerHectare"], value: 999999 }] }).expect(409);
+  });
+  it("does not allow incomplete economic inputs to be confirmed", async () => {
+    await load().expect(200);
+    await request(http()).patch(root).send({ operations: [{ op: "replace", path: ["economicFactors", "parameterConsistencyConfirmed"], value: true }] }).expect(403);
+  });
+  it("saves sourced cost values with their units and currency year", async () => {
+    await load().expect(200);
+    const row = { parameter: "Emergency evacuation", costCode: "EVACST", value: 20, currencyYear: 2020, dataBasis: "GENERIC_JUSTIFIED", source: "Analyst cost reference" };
+    const saved = (await request(http()).patch(root).send({ operations: [
+      { op: "add", path: ["economicFactors", "decontaminationLevels"], value: 1 },
+      { op: "replace", path: ["economicFactors", "costParameterEstimates"], value: [row] },
+    ] }).expect(200)).body.mef;
+    expect(saved.economicFactors.costParameterEstimates).toEqual([row]);
+    await request(http()).patch(root).send({ operations: [{ op: "replace", path: ["economicFactors", "costParameterEstimates", 0, "currencyYear"], value: null }] }).expect(403);
+  });
   it("loads original files and an incomplete snapshot without changing another workbook", async () => {
     const before = await t.reset();
     await t.workbooks.create({ workbookId: "rc-other", projectId: "project", ownerUsername: "preparer", mef: before });
@@ -69,11 +100,21 @@ describe("RC-only published input example", () => {
     expect(response.hasPreviousMef).toBe(true); expect(mef.workflowState).toBe("DRAFT");
     expect(await t.workbooks.findOne({ workbookId: "rc-other" }).lean()).toEqual(other);
     const data = currentRcCase(mef, RC_PUBLISHED_CATEGORY), files = caseFiles(data), saved = mef.consequenceQuantification.caseRecords;
+    expect(data.schemaVersion).toBe(2);
+    expect(caseTable(data, "health", 0).total).toBe(data.health!.healthInput!.records.length);
+    expect(caseTable(data, "regions", 0).total).toBe(data.economy!.siteEconomyInput!.regions.length);
+    expect(caseTable(data, "costs", 0).total).toBe(data.economy!.costParameterEstimates.length);
     expect(files).toHaveLength(12); expect(t.storage.size).toBe(13); expect(saved.snapshots).toHaveLength(1); expect(saved.results).toEqual([]);
     expect(saved.snapshots[0]).toMatchObject({ inventoryCount: 69, receptorCount: 0, trialCount: 24, integrationSeconds: 2592000 });
     expect(saved.snapshots[0].reviewItems).toBeGreaterThan(0);
     for (const entry of files) expect([...t.storage.values()].some(bytes => bytes.equals(readRcPublishedFile(entry.file.filename)))).toBe(true);
     const selection = { categoryId: RC_PUBLISHED_CATEGORY, versions: caseVersions(data), snapshotId: saved.snapshots[0].id };
+    const review = (await request(http()).get(`${root}/case-records/review`).query(selection).expect(200)).body;
+    expect(review.embedded.map((file: { filename: string }) => file.filename)).toEqual([data.health!.healthInput!.filename, data.economy!.siteEconomyInput!.filename]);
+    expect((await request(http()).get(`${root}/case-records/table/health`).query(selection).expect(200)).body.total).toBe(data.health!.healthInput!.records.length);
+    expect((await request(http()).get(`${root}/case-records/table/regions`).query(selection).expect(200)).body.total).toBe(data.economy!.siteEconomyInput!.regions.length);
+    await request(http()).get(`${root}/case-records/text/health-original`).query(selection).expect(200);
+    await request(http()).get(`${root}/case-records/text/economy-original`).query(selection).expect(200);
     for (const f of files) await request(http()).get(`${root}/case-records/text/${f.file.documentId}`).query(selection).expect(200);
     const doseFile = data.dose!.libraries.find(l => l.kind === "inhalation")!.file;
     const records = (await request(http()).get(`${root}/dose-inputs/records/${doseFile.documentId}`).query({ nuclide: "Cs-137" }).expect(200)).body;

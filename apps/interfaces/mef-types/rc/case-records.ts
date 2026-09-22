@@ -3,11 +3,11 @@ import type { RcSiteReceptors } from "./site-receptors";
 import type { RcWeatherInputs } from "./weather";
 import type { RcTransportInputs } from "./transport";
 import type { RcDoseInputs } from "./dose-inputs";
-import type { ProtectiveActionAnalysis } from "./radiological-consequence-analysis";
+import type { ProtectiveActionAnalysis, HealthEffectsAnalysis, EconomicFactorsAnalysis } from "./radiological-consequence-analysis";
 
 /** A workbook record of saved inputs, not an executable solver input deck. */
 export interface RcCaseData {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   categoryId: string;
   source?: RcSourceTerm;
   site?: RcSiteReceptors;
@@ -15,8 +15,11 @@ export interface RcCaseData {
   weather?: RcWeatherInputs;
   transport?: RcTransportInputs;
   dose?: RcDoseInputs;
+  health?: HealthEffectsAnalysis;
+  economy?: EconomicFactorsAnalysis;
+  excludedSteps?: RcCaseStep[];
 }
-export type RcCaseStep = "source" | "site" | "weather" | "transport" | "dose";
+export type RcCaseStep = "source" | "site" | "weather" | "transport" | "dose" | "health" | "economy";
 export interface RcCaseCheck { key: RcCaseStep | "links"; title: string; items: string[] }
 export interface RcCaseFile {
   kind: RcCaseStep | "response";
@@ -54,8 +57,8 @@ export interface RcLinkedResult extends RcLinkedResultValues {
   valueSource: "transcribed";
 }
 export interface RcCaseRecords { revision: number; snapshots: RcCaseSnapshot[]; results: RcLinkedResult[] }
-export type RcCaseDataset = "inventory" | "releases" | "fractions" | "receptors" | "response" | "weather" | "deposition" | "decay" | "dose";
+export type RcCaseDataset = "inventory" | "releases" | "fractions" | "receptors" | "response" | "weather" | "deposition" | "decay" | "dose" | "health" | "healthModel" | "riskSources" | "regions" | "crops" | "costs" | "economySettings";
 export interface RcCaseTable { columns: string[]; rows: (string | number | null)[][]; units: string; offset: number; total: number }
 export interface RcCaseTextPage { text: string; offset: number; total: number }
 export interface RcCaseSelection { categoryId: string; versions: string; snapshotId?: string }
-export interface RcCaseReview { files: RcCaseFile[]; checks: RcCaseCheck[] }
+export interface RcCaseReview { schemaVersion: 1 | 2; files: RcCaseFile[]; embedded: { id: "health-original" | "economy-original"; filename: string; purpose: string }[]; excludedSteps: RcCaseStep[]; checks: RcCaseCheck[] }

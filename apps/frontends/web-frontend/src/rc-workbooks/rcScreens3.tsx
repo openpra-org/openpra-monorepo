@@ -1,8 +1,8 @@
 import { RcQuantificationPanel } from "./rcQuantification";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { JSX, useState } from "react";
-import { DistributionType } from "interfaces-mef-types/core/events";
+import { JSX, useEffect, useId, useRef, useState } from "react";
+import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { type RcSubElement } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { RCIcon } from "./rcIcons";
@@ -67,13 +67,24 @@ import {
 } from "./rcFields";
 import { evacuationDelayMinutes } from "./rcProtective";
 import { weatherRecoveryPercent } from "interfaces-shared-types/rc-workbooks/weather";
+import { rcEconomicCostSpecs } from "interfaces-shared-types/rc-workbooks/economic-costs";
+import type { RcEconomicCostCode } from "interfaces-mef-types/rc/economic-inputs";
 
 // ─── 08 — Quantification (RCQ) ─────────────────────────────────────────────
 function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawerContext) => void; onOpenStep?: (id: string) => void }): JSX.Element {
   const { rc, editable, mutateRc, eventSequenceFamilySources } = useRcWorkbook();
+  const [tab, setTab] = useState<"case" | "consequences" | "review" | "basis" | "handoff">("case");
+  const tabId = useId(), tabsRef = useRef<HTMLDivElement>(null);
+  const tabLabels = { case: "Case inputs and outputs", consequences: "Consequences", review: "Output review", basis: "Basis and uncertainty", handoff: "RI feedback" } as const;
+  const tabOrder = Object.keys(tabLabels) as (keyof typeof tabLabels)[];
   const q = rc.consequenceQuantification;
   const linkedFamilySources = eventSequenceFamilySources.filter((source) =>
     source.family.releaseCategoryIds !== undefined && source.family.releaseCategoryIds.length > 0);
+  const linkedFamilyGroups = [...new Set(linkedFamilySources.map(source => source.workbookId))].map(workbookId => ({
+    workbookId,
+    name: linkedFamilySources.find(source => source.workbookId === workbookId)!.workbookName,
+    sources: linkedFamilySources.filter(source => source.workbookId === workbookId),
+  }));
   const [selectedFamilySource, setSelectedFamilySource] = useState("");
   const pd = q.uncertaintyCharacterization.phenomenaDependencies ?? [];
   function setPd(rows: NonNullable<typeof q.uncertaintyCharacterization.phenomenaDependencies>): void {
@@ -82,6 +93,10 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
   const justifications = q.outputReview.acceptanceJustifications ?? [];
   function setJustifications(rows: string[]): void {
     mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, outputReview: { ...d.consequenceQuantification.outputReview, acceptanceJustifications: rows } } }));
+  }
+  const indications = q.outputReview.indicationsFound ?? [];
+  function setIndications(rows: string[]): void {
+    mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, outputReview: { ...d.consequenceQuantification.outputReview, indicationsFound: rows } } }));
   }
   const criteria = q.riskSignificanceCriteriaUsed ?? [];
   function setCriteria(rows: NonNullable<typeof q.riskSignificanceCriteriaUsed>): void {
@@ -103,13 +118,13 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
   ];
 
   function addCode(): void {
-    mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, consequenceCodesUsed: [...d.consequenceQuantification.consequenceCodesUsed, { code: "New code" }] } }));
+    mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, consequenceCodesUsed: [...d.consequenceQuantification.consequenceCodesUsed, { code: "" }] } }));
     openDrawer({ kind: "code", id: String(q.consequenceCodesUsed.length) });
   }
   function addManualFamily(): void {
     const uuid = `RCQ-ESF-${String(q.eventSequenceConsequences.length + 1)}`;
     const family = `ESF-${String(q.eventSequenceConsequences.length + 1)}`;
-    mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, eventSequenceConsequences: [...d.consequenceQuantification.eventSequenceConsequences, { uuid, eventSequenceFamily: family, consequenceResults: [], riskSignificance: ImportanceLevel.LOW }] } }));
+    mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, eventSequenceConsequences: [...d.consequenceQuantification.eventSequenceConsequences, { uuid, eventSequenceFamily: family, consequenceResults: [] }] } }));
     openDrawer({ kind: "family", id: uuid });
   }
   function addLinkedFamily(): void {
@@ -159,7 +174,6 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
             releaseCategoryReference: source.family.releaseCategoryIds?.[0],
             sourceTermReference: source.family.representativeSourceTermId,
             consequenceResults: [],
-            riskSignificance: ImportanceLevel.LOW,
           },
         ],
       },
@@ -167,31 +181,35 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
     openDrawer({ kind: "family", id: uuid });
   }
   function addUncertainty(): void {
-    mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, modelUncertaintyAssessments: [...d.consequenceQuantification.modelUncertaintyAssessments, { sourceSubElement: "RCAD", uncertaintySource: "New model uncertainty", relatedAssumptions: [], evaluationType: "QUALITATIVE", evaluationScope: "INDIVIDUAL", effectOnMetrics: "" }] } }));
+    mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, modelUncertaintyAssessments: [...d.consequenceQuantification.modelUncertaintyAssessments, { sourceSubElement: "RCAD", uncertaintySource: "", relatedAssumptions: [], evaluationType: "QUALITATIVE", evaluationScope: "INDIVIDUAL", effectOnMetrics: "" }] } }));
     openDrawer({ kind: "uncertainty", id: String(q.modelUncertaintyAssessments.length) });
   }
   function addSensitivity(): void {
     const uuid = `SS-${String((rc.sensitivityStudies ?? []).length + 1)}`;
-    mutateRc((d) => ({ ...d, sensitivityStudies: [...(d.sensitivityStudies ?? []), { uuid, name: "New sensitivity study", description: "", variedParameters: [], parameterRanges: {}, results: "" }] }));
+    mutateRc((d) => ({ ...d, sensitivityStudies: [...(d.sensitivityStudies ?? []), { uuid, name: "", description: "", variedParameters: [], parameterRanges: {}, results: "" }] }));
     openDrawer({ kind: "sensitivity", id: uuid });
-  }
-  function addPreop(): void {
-    const uuid = `PA-${String((rc.preOperationalAssumptions ?? []).length + 1)}`;
-    mutateRc((d) => ({ ...d, preOperationalAssumptions: [...(d.preOperationalAssumptions ?? []), { uuid, assumptionId: uuid, description: "New assumption", influenceOnDefinition: "New area", status: "OPEN", limitations: [], riskImpact: ImportanceLevel.MEDIUM, closureBasis: "", plannedClosureActions: [], affectedElementIds: [] }] }));
-    openDrawer({ kind: "preop", id: uuid });
   }
   const rif = rc.riskIntegrationFeedback;
   function addRif(): void {
-    mutateRc((d) => ({ ...d, riskIntegrationFeedback: { analysisRef: "ri-generic-1", feedbackDate: "", metricFeedback: [], releaseCategoryFeedback: [], generalFeedback: "", response: { description: "", changes: [], status: "IN_PROGRESS" } } }));
+    mutateRc((d) => ({ ...d, riskIntegrationFeedback: { analysisRef: "", feedbackDate: "", metricFeedback: [], releaseCategoryFeedback: [], generalFeedback: "", response: { description: "", changes: [], status: "IN_PROGRESS" } } }));
     openDrawer({ kind: "rifeedback", id: "rif" });
   }
 
   return (
-    <>
-      <RcQuantificationPanel onOpenStep={onOpenStep} />
+    <div className="rc-step08">
+      <div className="rc-step08-tabs" role="tablist" aria-label="Consequence quantification sections" ref={tabsRef} onKeyDown={event => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const index = tabOrder.indexOf(tab);
+        const next = event.key === "Home" ? tabOrder[0] : event.key === "End" ? tabOrder.at(-1)! : tabOrder[(index + (event.key === "ArrowRight" ? 1 : tabOrder.length - 1)) % tabOrder.length];
+        setTab(next); tabsRef.current?.querySelectorAll<HTMLButtonElement>("button")[tabOrder.indexOf(next)]?.focus();
+      }}>{tabOrder.map(key => <button key={key} type="button" role="tab" id={`${tabId}-${key}`} aria-controls={`${tabId}-panel`} aria-selected={tab === key} tabIndex={tab === key ? 0 : -1} onClick={() => setTab(key)}>{tabLabels[key]}</button>)}</div>
+      <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0}>
+      {tab === "case" && <RcQuantificationPanel onOpenStep={onOpenStep} />}
+      {tab === "consequences" && <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Consequence codes" level={3} />
+          <WorkbookSectionHeading workbook="RC" title="Calculation codes" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCQ-A1 · A2</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCode}><RCIcon.Plus /> Add code</button>}
@@ -206,7 +224,7 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
                 <span className="rccode__icon"><Icon /></span>
                 <div className="rccode__main">
                   <div className="rccode__name">{c.code}</div>
-                  <div className="rccode__role">{limits[0]?.limitation ?? "Runs the consequence chain."}</div>
+                  {limits[0]?.limitation && <div className="rccode__role">{limits[0].limitation}</div>}
                 </div>
               </button>
             );
@@ -216,42 +234,42 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Consequence table" level={3} />
+          <WorkbookSectionHeading workbook="RC" title="Event-sequence consequences" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCQ-A3</RcProvenanceChip>
             {editable && linkedFamilySources.length === 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addManualFamily}><RCIcon.Plus /> Add family</button>}
           </div>
         </div>
         {editable && linkedFamilySources.length > 0 && (
-          <div className="posrow" style={{ gap: 8, alignItems: "center", marginBottom: 14 }}>
-            <select
+          <div className="rc-step08-family-select">
+            <label><span className="posfield__label">Event-sequence family</span><select
               className="posfield__select"
               aria-label="Event sequence family source"
               value={selectedFamilySource}
               onChange={(event) => setSelectedFamilySource(event.target.value)}
-              style={{ flex: 1 }}
             >
-              {linkedFamilySources.map((source) => (
-                <option key={`${source.workbookId}|${source.family.uuid}`} value={`${source.workbookId}|${source.family.uuid}`}>
-                  {source.family.uuid} · {source.family.name} · {source.family.endState} — {source.workbookName}
-                </option>
-              ))}
-            </select>
+              {linkedFamilyGroups.map(group => <optgroup key={group.workbookId} label={group.name}>
+                {group.sources.map(source => <option key={`${source.workbookId}|${source.family.uuid}`} value={`${source.workbookId}|${source.family.uuid}`}>
+                  {source.family.uuid} · {source.family.name}
+                </option>)}
+              </optgroup>)}
+            </select></label>
             <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addLinkedFamily}><RCIcon.Plus /> Add linked family</button>
           </div>
         )}
         <div className="rcfamily">
+          {q.eventSequenceConsequences.length === 0 && <p className="rc-step08-empty">No event-sequence families linked.</p>}
           {q.eventSequenceConsequences.map((f) => {
-            const sig = f.riskSignificance ?? "LOW";
+            const sig = f.riskSignificance;
             const sigClass = sig === "LOW" ? "low" : "high";
             return (
-              <div key={f.uuid ?? f.eventSequenceFamily} className="rcfamily__card" onClick={() => openDrawer({ kind: "family", id: f.uuid ?? f.eventSequenceFamily })}>
+              <button type="button" key={f.uuid ?? f.eventSequenceFamily} className="rcfamily__card" style={{ width: "100%", textAlign: "left", cursor: "pointer" }} onClick={() => openDrawer({ kind: "family", id: f.uuid ?? f.eventSequenceFamily })}>
                 <div className="rcfamily__head">
                   <div className="rcfamily__head-main">
                     <div className="rcfamily__id posmono">{f.eventSequenceFamily}{f.releaseCategoryReference !== undefined ? ` · bounds ${f.releaseCategoryReference}` : ""}</div>
                     <div className="rcfamily__name">{f.eventSequenceFamilyReference !== undefined ? "Linked Event Sequence family" : f.sourceTermReference !== undefined ? `Source term ${f.sourceTermReference}` : "Event sequence family"}</div>
                   </div>
-                  <span className={`rcfamily__sig rcfamily__sig--${sigClass}`}>{RISK_SIGNIFICANCE_LABELS[sig] ?? sig}</span>
+                  {sig && <span className={`rcfamily__sig rcfamily__sig--${sigClass}`}>{RISK_SIGNIFICANCE_LABELS[sig] ?? sig}</span>}
                 </div>
                 <div className="rcfamily__metrics">
                   {f.consequenceResults.map((m, i) => {
@@ -268,80 +286,67 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
                     );
                   })}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <RCIcon.Gauge />
-          <span>RC computes the consequence side, and RI clamps this table against the ESQ frequency to form the frequency-consequence point.</span>
-        </div>
       </div>
 
+      </>}
+      {tab === "review" && <>
       <div className="poscard">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="RC" title="Output review" level={3} />
           <RcProvenanceChip>RCQ-B1 · B2</RcProvenanceChip>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div className="posfield">
-            <label className="posfield__label">Acceptance justifications</label>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {justifications.length === 0 && <p className="posmuted" style={{ margin: 0 }}>No acceptance justifications yet.</p>}
+          <label className="rc-step08-check"><input type="checkbox" checked={q.outputReview.performed} disabled={!editable} onChange={e => mutateRc(d => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, outputReview: { ...d.consequenceQuantification.outputReview, performed: e.target.checked } } }))} />Output review performed</label>
+          <div className="rc-step08-optional">
+            <div className="rc-step08-list-head"><span className="posfield__label">Indications found</span>
+              {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setIndications([...indications, ""])}><RCIcon.Plus /> Add indication</button>}
+            </div>
+            {indications.length > 0 && <div className="rc-step08-list">{indications.map((item, i) => <div className="posrow" key={i} style={{ gap: 8 }}><WorkbookInput className="posfield__input" aria-label={`Indication ${i + 1}`} value={item} disabled={!editable} onChange={e => setIndications(indications.map((value, index) => index === i ? e.target.value : value))} />{editable && <button type="button" className="posnav__btn posnav__btn--sm rcbtn-danger" onClick={() => setIndications(indications.filter((_, index) => index !== i))}>Remove</button>}</div>)}</div>}
+          </div>
+          <div className="rc-step08-optional">
+            <div className="rc-step08-list-head"><span className="posfield__label">Reasons for accepting the output</span>
+              {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setJustifications([...justifications, ""])}><RCIcon.Plus /> Add reason</button>}
+            </div>
+            {justifications.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {justifications.map((j, i) => (
                 <div key={i} className="posrow" style={{ gap: 8, alignItems: "center" }}>
                   <span className="rcnum">{i + 1}</span>
-                  <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={j} disabled={!editable} onChange={(e) => setJustifications(justifications.map((y, k) => (k === i ? e.target.value : y)))} />
+                  <WorkbookInput className="posfield__input" aria-label={`Acceptance reason ${i + 1}`} style={{ flex: 1 }} value={j} disabled={!editable} onChange={(e) => setJustifications(justifications.map((y, k) => (k === i ? e.target.value : y)))} />
                   {editable && <button type="button" className="posnav__btn posnav__btn--sm rcbtn-danger" onClick={() => setJustifications([...justifications.slice(0, i), ...justifications.slice(i + 1)])}>Remove</button>}
                 </div>
               ))}
-              {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setJustifications([...justifications, "New acceptance justification"])}><RCIcon.Plus /> Add justification</button>}
-            </div>
+            </div>}
           </div>
-          <RcAreaField label="Results confirmation" value={q.resultsConfirmation.description ?? ""} disabled={!editable} rows={2}
+          <label className="rc-step08-check"><input type="checkbox" checked={q.resultsConfirmation.performed} disabled={!editable} onChange={e => mutateRc(d => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, resultsConfirmation: { ...d.consequenceQuantification.resultsConfirmation, performed: e.target.checked } } }))} />Results confirmed against the output</label>
+          <RcAreaField label="Confirmation basis" value={q.resultsConfirmation.description ?? ""} disabled={!editable} rows={2}
             onChange={(v) => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, resultsConfirmation: { performed: d.consequenceQuantification.resultsConfirmation.performed, description: v } } }))} />
         </div>
       </div>
 
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Risk-significant contributors" level={3} />
-          <RcProvenanceChip>RCQ-B3</RcProvenanceChip>
-        </div>
-        <div className="rccontrib">
-          {(q.riskSignificantContributors ?? []).map((c, i) => (
-            <div key={i} className="rccontrib__row">
-              <span className="rccontrib__rank posmono">{i + 1}</span>
-              <div className="rccontrib__main">
-                <WorkbookInput className="posfield__input" style={{ fontWeight: 600, marginBottom: 4 }} value={c.contributor} disabled={!editable}
-                  onChange={(e) => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, riskSignificantContributors: (d.consequenceQuantification.riskSignificantContributors ?? []).map((y, j) => (j === i ? { ...y, contributor: e.target.value } : y)) } }))} />
-                <WorkbookInput className="posfield__input" value={c.basisPerRiB} disabled={!editable}
-                  onChange={(e) => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, riskSignificantContributors: (d.consequenceQuantification.riskSignificantContributors ?? []).map((y, j) => (j === i ? { ...y, basisPerRiB: e.target.value } : y)) } }))} />
-              </div>
-              {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, riskSignificantContributors: (d.consequenceQuantification.riskSignificantContributors ?? []).filter((_, j) => j !== i) } }))}>Remove</button>}
-            </div>
-          ))}
-        </div>
-        {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ marginTop: 8 }} onClick={() => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, riskSignificantContributors: [...(d.consequenceQuantification.riskSignificantContributors ?? []), { contributor: "New contributor", basisPerRiB: "", significance: ImportanceLevel.MEDIUM }] } }))}><RCIcon.Plus /> Add contributor</button>}
-      </div>
-
+      </>}
+      {tab === "basis" && <>
       <div className="poscard">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="RC" title="Uncertainty characterization" level={3} />
           <RcProvenanceChip>RCQ-C1 · C2</RcProvenanceChip>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <RcSelectField label="Characterization level" value={q.uncertaintyCharacterization.level} options={UNCERT_LEVEL_OPTIONS} disabled={!editable}
-            onChange={(v) => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, uncertaintyCharacterization: { ...d.consequenceQuantification.uncertaintyCharacterization, level: v as typeof q.uncertaintyCharacterization.level } } }))} />
+          <div className="rc-step08-short-field"><RcSelectField label="Characterization level" value={q.uncertaintyCharacterization.level} options={UNCERT_LEVEL_OPTIONS} disabled={!editable}
+            onChange={(v) => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, uncertaintyCharacterization: { ...d.consequenceQuantification.uncertaintyCharacterization, level: v as typeof q.uncertaintyCharacterization.level } } }))} /></div>
           <div className="posfield">
             <label className="posfield__label">Uncertainty characterization description</label>
             <WorkbookTextarea className="posfield__textarea" rows={2} value={q.uncertaintyCharacterization.description} disabled={!editable}
               onChange={(e) => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, uncertaintyCharacterization: { ...d.consequenceQuantification.uncertaintyCharacterization, description: e.target.value } } }))} />
           </div>
-          <div className="posfield">
-            <label className="posfield__label">Phenomena dependencies</label>
+          {(q.uncertaintyCharacterization.level === "PROPAGATED_WITH_PHENOMENA_DEPENDENCIES" || pd.length > 0) && <div className="rc-step08-optional">
+            <div className="rc-step08-list-head"><span className="posfield__label">Phenomena dependencies</span>
+              {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setPd([...pd, { description: "", dependentPhenomena: [], treatmentMethod: "" }])}><RCIcon.Plus /> Add dependency</button>}
+            </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-              {pd.length === 0 && <p className="posmuted" style={{ margin: 0 }}>No phenomena dependencies yet.</p>}
               {pd.map((dep, i) => (
                 <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                   <span className="rcnum" style={{ marginTop: 6 }}>{i + 1}</span>
@@ -353,9 +358,8 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
                   </div>
                 </div>
               ))}
-              {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setPd([...pd, { description: "", dependentPhenomena: [], treatmentMethod: "" }])}><RCIcon.Plus /> Add dependency</button>}
             </div>
-          </div>
+          </div>}
         </div>
       </div>
 
@@ -365,10 +369,11 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
           <RcProvenanceChip>RCQ-B3 · D3</RcProvenanceChip>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div className="posfield">
-            <label className="posfield__label">Risk-significance criteria</label>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {criteria.length === 0 && <p className="posmuted" style={{ margin: 0 }}>No risk-significance criteria yet.</p>}
+          <div className="rc-step08-optional">
+            <div className="rc-step08-list-head"><span className="posfield__label">Risk-significance criteria</span>
+              {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setCriteria([...criteria, { criteriaType: "", description: "" }])}><RCIcon.Plus /> Add criterion</button>}
+            </div>
+            {criteria.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {criteria.map((c, i) => (
                 <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                   <span className="rcnum" style={{ marginTop: 6 }}>{i + 1}</span>
@@ -379,13 +384,13 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
                   </div>
                 </div>
               ))}
-              {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setCriteria([...criteria, { criteriaType: "SAFETY_GOAL", description: "" }])}><RCIcon.Plus /> Add criterion</button>}
-            </div>
+            </div>}
           </div>
-          <div className="posfield">
-            <label className="posfield__label">Risk-metric mapping</label>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {mapping.length === 0 && <p className="posmuted" style={{ margin: 0 }}>No risk-metric mappings yet.</p>}
+          <div className="rc-step08-optional">
+            <div className="rc-step08-list-head"><span className="posfield__label">Consequence-to-risk mapping</span>
+              {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setMapping([...mapping, { consequenceMetric: "", riskMetric: "", mappingDescription: "" }])}><RCIcon.Plus /> Add mapping</button>}
+            </div>
+            {mapping.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {mapping.map((m, i) => (
                 <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                   <span className="rcnum" style={{ marginTop: 6 }}>{i + 1}</span>
@@ -397,22 +402,21 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
                   </div>
                 </div>
               ))}
-              {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setMapping([...mapping, { consequenceMetric: "", riskMetric: "OTHER", mappingDescription: "" }])}><RCIcon.Plus /> Add mapping</button>}
-            </div>
+            </div>}
           </div>
-          <div className="posfield">
-            <label className="posfield__label">Quantification limitations</label>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {qlimits.length === 0 && <p className="posmuted" style={{ margin: 0 }}>No quantification limitations yet.</p>}
+          <div className="rc-step08-optional">
+            <div className="rc-step08-list-head"><span className="posfield__label">Known limitations</span>
+              {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setQlimits([...qlimits, ""])}><RCIcon.Plus /> Add limitation</button>}
+            </div>
+            {qlimits.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {qlimits.map((l, i) => (
                 <div key={i} className="posrow" style={{ gap: 8, alignItems: "center" }}>
                   <span className="rcnum">{i + 1}</span>
-                  <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={l} disabled={!editable} onChange={(e) => setQlimits(qlimits.map((y, k) => (k === i ? e.target.value : y)))} />
+                  <WorkbookInput className="posfield__input" aria-label={`Known limitation ${i + 1}`} style={{ flex: 1 }} value={l} disabled={!editable} onChange={(e) => setQlimits(qlimits.map((y, k) => (k === i ? e.target.value : y)))} />
                   {editable && <button type="button" className="posnav__btn posnav__btn--sm rcbtn-danger" onClick={() => setQlimits([...qlimits.slice(0, i), ...qlimits.slice(i + 1)])}>Remove</button>}
                 </div>
               ))}
-              {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setQlimits([...qlimits, "New limitation"])}><RCIcon.Plus /> Add limitation</button>}
-            </div>
+            </div>}
           </div>
         </div>
       </div>
@@ -421,13 +425,12 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="RC" title="Open items register" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
-            <span className="possubtle">{register.length} items · RCQ-C1, D2 and the bounding-site assumptions</span>
+            <span className="possubtle">{register.length} {register.length === 1 ? "item" : "items"}</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addUncertainty}><RCIcon.Plus /> Add uncertainty</button>}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addSensitivity}><RCIcon.Plus /> Add sensitivity</button>}
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addPreop}><RCIcon.Plus /> Add assumption</button>}
           </div>
         </div>
-        <table className="postable">
+        {register.length > 0 && <table className="postable">
           <thead><tr><th>Type</th><th>Item</th><th>Detail</th><th>SR</th></tr></thead>
           <tbody>
             {register.map((r, i) => (
@@ -439,9 +442,11 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
               </tr>
             ))}
           </tbody>
-        </table>
+        </table>}
       </div>
 
+      </>}
+      {tab === "handoff" && <>
       <div className="poscard">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="RC" title="Risk-integration feedback" level={3} />
@@ -452,7 +457,7 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
           </div>
         </div>
         {rif === undefined ? (
-          <p className="posmuted" style={{ margin: 0 }}>No risk-integration feedback yet.</p>
+          <p className="rc-step08-empty">Awaiting feedback from Risk Integration.</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div><span className="possubtle" style={{ fontWeight: 700 }}>Analysis: </span><span className="posmono">{rif.analysisRef}</span></div>
@@ -465,8 +470,70 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
           </div>
         )}
       </div>
-    </>
+      <div className="poscard">
+        <div className="poscard__head">
+          <WorkbookSectionHeading workbook="RC" title="Risk-significant contributors" level={3} />
+          <div className="posrow" style={{ gap: 10 }}>
+            <RcProvenanceChip>RCQ-B3</RcProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, riskSignificantContributors: [...(d.consequenceQuantification.riskSignificantContributors ?? []), { contributor: "", basisPerRiB: "" }] } }))}><RCIcon.Plus /> Add contributor</button>}
+          </div>
+        </div>
+        {(q.riskSignificantContributors ?? []).length > 0 && <div className="rccontrib">
+          {(q.riskSignificantContributors ?? []).map((c, i) => (
+            <div key={i} className="rccontrib__row">
+              <span className="rccontrib__rank posmono">{i + 1}</span>
+              <div className="rccontrib__main">
+                <WorkbookInput className="posfield__input" aria-label={`Contributor ${i + 1}`} style={{ fontWeight: 600, marginBottom: 4 }} value={c.contributor} disabled={!editable}
+                  onChange={(e) => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, riskSignificantContributors: (d.consequenceQuantification.riskSignificantContributors ?? []).map((y, j) => (j === i ? { ...y, contributor: e.target.value } : y)) } }))} />
+                <WorkbookInput className="posfield__input" aria-label={`Contributor basis ${i + 1}`} value={c.basisPerRiB} disabled={!editable}
+                  onChange={(e) => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, riskSignificantContributors: (d.consequenceQuantification.riskSignificantContributors ?? []).map((y, j) => (j === i ? { ...y, basisPerRiB: e.target.value } : y)) } }))} />
+              </div>
+              {editable && <button type="button" className="posnav__btn posnav__btn--sm rcbtn-danger" onClick={() => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, riskSignificantContributors: (d.consequenceQuantification.riskSignificantContributors ?? []).filter((_, j) => j !== i) } }))}>Remove</button>}
+            </div>
+          ))}
+        </div>}
+      </div>
+      </>}
+      </div>
+    </div>
   );
+}
+
+function AddConsequenceResult({ onAdd }: { onAdd: (metric: string, meanValue: number, unit: string) => void }): JSX.Element {
+  const [metric, setMetric] = useState(""), [value, setValue] = useState(""), [unit, setUnit] = useState("");
+  return <form className="rc-step08-result-form" onSubmit={event => {
+    event.preventDefault();
+    if (!metric.trim() || !value.trim() || !Number.isFinite(Number(value)) || Number(value) < 0) return;
+    onAdd(metric.trim(), Number(value), unit.trim()); setMetric(""); setValue(""); setUnit("");
+  }}>
+    <label>Metric<input className="posfield__input" required value={metric} onChange={event => setMetric(event.target.value)} /></label>
+    <label>Mean value<input className="posfield__input posmono" required type="number" min={0} step="any" value={value} onChange={event => setValue(event.target.value)} /></label>
+    <label>Unit<input className="posfield__input" value={unit} onChange={event => setUnit(event.target.value)} /></label>
+    <button type="submit" className="posnav__btn posnav__btn--sm" disabled={!metric.trim() || !value.trim() || !Number.isFinite(Number(value))}><RCIcon.Plus /> Add result</button>
+  </form>;
+}
+
+function ConsequenceNumberField({ value, onCommit, disabled }: { value: number; onCommit: (value: number) => void; disabled: boolean }): JSX.Element {
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
+  return <input className="posfield__input posmono" style={{ width: 160 }} type="number" min={0} step="any" aria-label="Mean value" value={text} disabled={disabled}
+    onChange={event => setText(event.target.value)} onBlur={() => {
+      if (text.trim() && Number.isFinite(Number(text)) && Number(text) >= 0) onCommit(Number(text));
+      else setText(String(value));
+    }} />;
+}
+
+function LognormalEditor({ distribution, disabled, onApply }: { distribution?: ParameterDistribution; disabled: boolean; onApply: (next?: ParameterDistribution) => void }): JSX.Element {
+  const current = distribution?.type === DistributionType.LOGNORMAL ? distribution : undefined;
+  const [median, setMedian] = useState(current ? String(current.median) : ""), [factor, setFactor] = useState(current ? String(current.errorFactor) : "");
+  useEffect(() => { setMedian(current ? String(current.median) : ""); setFactor(current ? String(current.errorFactor) : ""); }, [current?.median, current?.errorFactor]);
+  const valid = median.trim() && factor.trim() && Number.isFinite(Number(median)) && Number.isFinite(Number(factor)) && Number(median) >= 0 && Number(factor) >= 1;
+  return <div className="rc-step08-lognormal">
+    <label>Median<input className="posfield__input posmono" type="number" min={0} step="any" value={median} disabled={disabled} onChange={event => setMedian(event.target.value)} /></label>
+    <label>Error factor<input className="posfield__input posmono" type="number" min={1} step="any" value={factor} disabled={disabled} onChange={event => setFactor(event.target.value)} /></label>
+    {!disabled && <button type="button" className="posnav__btn posnav__btn--sm" disabled={!valid} onClick={() => onApply({ type: DistributionType.LOGNORMAL, median: Number(median), errorFactor: Number(factor) })}>Apply uncertainty</button>}
+    {!disabled && current && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setMedian(""); setFactor(""); onApply(undefined); }}>Remove uncertainty</button>}
+  </div>;
 }
 
 // ─── 09 — Draft (the report template) ──────────────────────────────────────
@@ -1022,14 +1089,15 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const p = rc.dosimetry.exposurePathways[idx];
     if (p === undefined) return null;
     const patch = (next: Partial<typeof p>): void => mutateRc((d) => ({ ...d, dosimetry: { ...d.dosimetry, exposurePathways: d.dosimetry.exposurePathways.map((x, j) => (j === idx ? { ...x, ...next } : x)) } }));
+    const choices = PATHWAY_OPTIONS.filter(([value]) => value === p.pathway || !rc.dosimetry.exposurePathways.some((item, index) => index !== idx && item.pathway === value));
     const remove = (): void => { mutateRc((d) => ({ ...d, dosimetry: { ...d.dosimetry, exposurePathways: d.dosimetry.exposurePathways.filter((_, j) => j !== idx) } })); onClose(); };
     return (
       <>
         <DrawerHead cap="Exposure pathway" title={p.pathway} onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
-          <RcSelectField label="Pathway" value={p.pathway} options={PATHWAY_OPTIONS} onChange={(v) => patch({ pathway: v as typeof p.pathway })} disabled={dis} />
+          <RcSelectField label="Pathway" value={p.pathway} options={choices} onChange={(v) => patch({ pathway: v as typeof p.pathway })} disabled={dis} />
           <RcSelectField label="Included" value={p.included ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ included: v === "yes" })} disabled={dis} />
-          <RcAreaField label="Exclusion justification" value={p.exclusionJustification ?? ""} onChange={(v) => patch({ exclusionJustification: v })} disabled={dis} rows={2} />
+          {!p.included && <RcAreaField label="Exclusion justification" value={p.exclusionJustification ?? ""} onChange={(v) => patch({ exclusionJustification: v })} disabled={dis} rows={2} />}
           {editable && <RemoveBtn label="Remove pathway" onClick={remove} />}
         </div>
       </>
@@ -1039,21 +1107,34 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
   if (context.kind === "dosetreatment") {
     const dose = rc.dosimetry;
     const patch = (next: Partial<typeof dose>): void => mutateRc((d) => ({ ...d, dosimetry: { ...d.dosimetry, ...next } }));
+    const patchPeriod = (index: number, next: Partial<typeof dose.exposurePeriods[number]>): void => patch({ exposurePeriods: dose.exposurePeriods.map((period, position) => position === index ? { ...period, ...next } : period) });
     return (
       <>
         <DrawerHead cap="Dosimetry" title="Dose treatment" sub="RCDO-A4 to B1" onClose={onClose} centered={centered} />
-        <div className={centered ? "modal__body" : "posdrawer__body"}>
+        <div className={`${centered ? "modal__body" : "posdrawer__body"} rc-dose-treatment-form`}>
+          <RcSelectField label="Use dispersion results" value={dose.dispersionResultsUsed ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ dispersionResultsUsed: v === "yes" })} disabled={dis} />
           <RcSelectField label="Cloud immersion model" value={dose.cloudImmersionModel.approach} options={IMMERSION_OPTIONS} onChange={(v) => patch({ cloudImmersionModel: { ...dose.cloudImmersionModel, approach: v as typeof dose.cloudImmersionModel.approach } })} disabled={dis} />
-          <RcTextField label="Cloud immersion description" value={dose.cloudImmersionModel.description ?? ""} onChange={(v) => patch({ cloudImmersionModel: { ...dose.cloudImmersionModel, description: v } })} disabled={dis} />
+          <RcAreaField label="Cloud immersion description" value={dose.cloudImmersionModel.description ?? ""} onChange={(v) => patch({ cloudImmersionModel: { ...dose.cloudImmersionModel, description: v } })} disabled={dis} rows={2} />
           <RcSelectField label="Breathing rates" value={dose.breathingRates.approach} options={BREATHING_OPTIONS} onChange={(v) => patch({ breathingRates: { ...dose.breathingRates, approach: v as typeof dose.breathingRates.approach } })} disabled={dis} />
-          <RcTextField label="Breathing rates description" value={dose.breathingRates.description ?? ""} onChange={(v) => patch({ breathingRates: { ...dose.breathingRates, description: v } })} disabled={dis} />
+          <RcAreaField label="Breathing-rates basis" value={dose.breathingRates.description ?? ""} onChange={(v) => patch({ breathingRates: { ...dose.breathingRates, description: v } })} disabled={dis} rows={2} />
           <RcSelectField label="Ingestion treatment" value={dose.ingestionTreatment.approach} options={INGESTION_OPTIONS} onChange={(v) => patch({ ingestionTreatment: { ...dose.ingestionTreatment, approach: v as typeof dose.ingestionTreatment.approach } })} disabled={dis} />
-          <RcTextField label="Ingestion description" value={dose.ingestionTreatment.description ?? ""} onChange={(v) => patch({ ingestionTreatment: { ...dose.ingestionTreatment, description: v } })} disabled={dis} />
+          <RcAreaField label="Ingestion basis" value={dose.ingestionTreatment.description ?? ""} onChange={(v) => patch({ ingestionTreatment: { ...dose.ingestionTreatment, description: v } })} disabled={dis} rows={2} />
           <RcAreaField label="Dose-conversion source" value={dose.dcf.source} onChange={(v) => patch({ dcf: { ...dose.dcf, source: v } })} disabled={dis} rows={2} />
           <RcSelectField label="Dose-conversion type" value={dose.dcf.type} options={DCF_TYPE_OPTIONS} onChange={(v) => patch({ dcf: { ...dose.dcf, type: v as typeof dose.dcf.type } })} disabled={dis} />
-          <RcTextField label="Groundshine integration" value={dose.groundshineIntegration ?? ""} onChange={(v) => patch({ groundshineIntegration: v })} disabled={dis} />
-          <RcTextField label="Skin beta treatment" value={dose.skinBetaTreatment ?? ""} onChange={(v) => patch({ skinBetaTreatment: v })} disabled={dis} />
-          <RcTextField label="Dose aggregation method" value={dose.doseAggregationMethod ?? ""} onChange={(v) => patch({ doseAggregationMethod: v })} disabled={dis} />
+          <RcAreaField label="Groundshine integration" value={dose.groundshineIntegration ?? ""} onChange={(v) => patch({ groundshineIntegration: v })} disabled={dis} rows={2} />
+          <RcAreaField label="Skin beta treatment" value={dose.skinBetaTreatment ?? ""} onChange={(v) => patch({ skinBetaTreatment: v })} disabled={dis} rows={2} />
+          <RcAreaField label="Shielding considerations" value={dose.shieldingConsiderations ?? ""} onChange={(v) => patch({ shieldingConsiderations: v })} disabled={dis} rows={2} />
+          <RcAreaField label="Occupancy considerations" value={dose.occupancyConsiderations ?? ""} onChange={(v) => patch({ occupancyConsiderations: v })} disabled={dis} rows={2} />
+          <RcStringList label="Receptor types" values={dose.receptorTypes ?? []} onChange={(v) => patch({ receptorTypes: v })} disabled={dis} />
+          <RcAreaField label="Dosimetry models used" value={dose.dosimetryModelsUsed ?? ""} onChange={(v) => patch({ dosimetryModelsUsed: v })} disabled={dis} rows={2} />
+          <RcAreaField label="Dose aggregation method" value={dose.doseAggregationMethod ?? ""} onChange={(v) => patch({ doseAggregationMethod: v })} disabled={dis} rows={2} />
+          <RcAreaField label="Radioactive-decay treatment" value={dose.radionuclideDecayConsideration ?? ""} onChange={(v) => patch({ radionuclideDecayConsideration: v })} disabled={dis} rows={2} />
+          <RcAreaField label="Parameter uncertainty" value={dose.parameterUncertaintyCharacterization ?? ""} onChange={(v) => patch({ parameterUncertaintyCharacterization: v })} disabled={dis} rows={2} />
+          <div className="rc-dose-periods">
+            <h3>Exposure-period basis</h3>
+            {dose.exposurePeriods.length > 0 && <table className="postable" aria-label="Exposure periods"><thead><tr><th>Period</th><th>Justification</th><th /></tr></thead><tbody>{dose.exposurePeriods.map((period, index) => <tr key={index}><td><WorkbookInput className="posfield__input" aria-label={`Exposure period ${index + 1}`} disabled={dis} value={period.period} onChange={(e) => patchPeriod(index, { period: e.target.value })} /></td><td><WorkbookInput className="posfield__input" aria-label={`Exposure-period justification ${index + 1}`} disabled={dis} value={period.justification} onChange={(e) => patchPeriod(index, { justification: e.target.value })} /></td><td>{editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ exposurePeriods: dose.exposurePeriods.filter((_, position) => position !== index) })}>Remove</button>}</td></tr>)}</tbody></table>}
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ exposurePeriods: [...dose.exposurePeriods, { period: "", justification: "" }] })}><RCIcon.Plus /> Add period</button>}
+          </div>
         </div>
       </>
     );
@@ -1071,6 +1152,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
           <RcSelectField label="Latent-effect approach" value={he.latentEffectParameters.approach} options={LATENT_EFFECT_OPTIONS} onChange={(v) => patch({ latentEffectParameters: { ...he.latentEffectParameters, approach: v as typeof he.latentEffectParameters.approach } })} disabled={dis} />
           <RcAreaField label="Latent-effect description" value={he.latentEffectParameters.description} onChange={(v) => patch({ latentEffectParameters: { ...he.latentEffectParameters, description: v } })} disabled={dis} rows={2} />
           <RcSelectField label="Age and gender homogeneous" value={he.ageGenderHomogeneous ? "yes" : "no"} options={YESNO_OPTIONS} onChange={(v) => patch({ ageGenderHomogeneous: v === "yes" })} disabled={dis} />
+          <RcAreaField label="Parameter uncertainty" value={he.parameterUncertaintyCharacterization ?? ""} onChange={(v) => patch({ parameterUncertaintyCharacterization: v })} disabled={dis} rows={2} />
         </div>
       </>
     );
@@ -1084,7 +1166,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const remove = (): void => { mutateRc((d) => ({ ...d, healthEffects: { ...d.healthEffects, riskFactorSources: d.healthEffects.riskFactorSources.filter((_, j) => j !== idx) } })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Risk-factor source" title={r.source} onClose={onClose} />
+        <DrawerHead cap="Risk-factor source" title={r.source || "Risk-factor source"} onClose={onClose} />
         <div className="posdrawer__body">
           <RcTextField label="Source" value={r.source} onChange={(v) => patch({ source: v })} disabled={dis} />
           <RcTextField label="Recognized body" value={r.recognizedBody} onChange={(v) => patch({ recognizedBody: v })} disabled={dis} />
@@ -1095,6 +1177,19 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     );
   }
 
+  if (context.kind === "econreview") {
+    const ec = rc.economicFactors;
+    const patch = (next: Partial<typeof ec>): void => mutateRc(draft => ({ ...draft, economicFactors: { ...draft.economicFactors, ...next, parameterConsistencyConfirmed: false } }));
+    const patchModel = (next: Partial<typeof ec.modelUncertainty>): void => patch({ modelUncertainty: { ...ec.modelUncertainty, ...next } });
+    return <><DrawerHead cap="Economic factors" title="Economic input review" onClose={onClose} centered={centered} />
+      <div className={centered ? "modal__body" : "posdrawer__body"}>
+        <RcAreaField label="Parameter uncertainty" value={ec.parameterUncertaintyCharacterization ?? ""} onChange={value => patch({ parameterUncertaintyCharacterization: value })} disabled={dis} rows={3} />
+        <RcStringList label="Model uncertainty sources" values={ec.modelUncertainty.sources} onChange={sources => patchModel({ sources })} disabled={dis} />
+        <RcStringList label="Model assumptions" values={ec.modelUncertainty.assumptions} onChange={assumptions => patchModel({ assumptions })} disabled={dis} />
+        <RcStringList label="Model alternatives" values={ec.modelUncertainty.alternatives} onChange={alternatives => patchModel({ alternatives })} disabled={dis} />
+      </div></>;
+  }
+
   if (context.kind === "costcategory") {
     const idx = Number(context.id);
     const c = rc.economicFactors.costCategories[idx];
@@ -1103,8 +1198,8 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const remove = (): void => { mutateRc((d) => ({ ...d, economicFactors: { ...d.economicFactors, costCategories: d.economicFactors.costCategories.filter((_, j) => j !== idx) } })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Cost category" title={c.category} onClose={onClose} />
-        <div className="posdrawer__body">
+        <DrawerHead cap="Cost category" title={c.category || "Category notes"} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
           <RcTextField label="Category" value={c.category} onChange={(v) => patch({ category: v })} disabled={dis} />
           <RcStringList label="Parameter definitions" values={c.parameterDefinitions} onChange={(v) => patch({ parameterDefinitions: v })} disabled={dis} />
           {editable && <RemoveBtn label="Remove category" onClick={remove} />}
@@ -1117,15 +1212,23 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     const idx = Number(context.id);
     const e = rc.economicFactors.costParameterEstimates[idx];
     if (e === undefined) return null;
-    const patch = (next: Partial<typeof e>): void => mutateRc((d) => ({ ...d, economicFactors: { ...d.economicFactors, costParameterEstimates: d.economicFactors.costParameterEstimates.map((x, j) => (j === idx ? { ...x, ...next } : x)) } }));
-    const remove = (): void => { mutateRc((d) => ({ ...d, economicFactors: { ...d.economicFactors, costParameterEstimates: d.economicFactors.costParameterEstimates.filter((_, j) => j !== idx) } })); onClose(); };
+    const patch = (next: Partial<typeof e>): void => mutateRc((d) => ({ ...d, economicFactors: { ...d.economicFactors, parameterConsistencyConfirmed: false, costParameterEstimates: d.economicFactors.costParameterEstimates.map((x, j) => (j === idx ? { ...x, ...next } : x)) } }));
+    const remove = (): void => { mutateRc((d) => ({ ...d, economicFactors: { ...d.economicFactors, parameterConsistencyConfirmed: false, costParameterEstimates: d.economicFactors.costParameterEstimates.filter((_, j) => j !== idx) } })); onClose(); };
+    const spec = e.costCode ? rcEconomicCostSpecs[e.costCode] : undefined;
+    const options = (Object.keys(rcEconomicCostSpecs) as RcEconomicCostCode[]).map(code => [code, `${rcEconomicCostSpecs[code].label} (${code})`] as [string, string]);
     return (
       <>
-        <DrawerHead cap="Economic parameter" title={e.parameter} onClose={onClose} />
-        <div className="posdrawer__body">
-          <RcTextField label="Parameter" value={e.parameter} onChange={(v) => patch({ parameter: v })} disabled={dis} />
+        <DrawerHead cap="Cost parameter" title={e.parameter} onClose={onClose} centered={centered} />
+        <div className={centered ? "modal__body" : "posdrawer__body"}>
+          {e.costCode ? <RcSelectField label="MACCS parameter" value={e.costCode} options={options} onChange={(v) => {
+            const code = v as RcEconomicCostCode, nextSpec = rcEconomicCostSpecs[code];
+            patch({ costCode: code, parameter: nextSpec.label, level: nextSpec.perLevel ? e.level ?? 1 : undefined, value: undefined, currencyYear: nextSpec.monetary ? e.currencyYear : undefined });
+          }} disabled={dis} /> : <RcTextField label="Parameter" value={e.parameter} onChange={(v) => patch({ parameter: v })} disabled={dis} />}
+          {spec?.perLevel && <RcSelectField label="Decontamination level" value={String(e.level ?? 1)} options={[["1", "1"], ["2", "2"], ["3", "3"]]} onChange={(v) => patch({ level: Number(v) })} disabled={dis} />}
           <RcSelectField label="Data basis" value={e.dataBasis} options={ECON_BASIS_OPTIONS} onChange={(v) => patch({ dataBasis: v as typeof e.dataBasis })} disabled={dis} />
           <RcAreaField label="Source" value={e.source} onChange={(v) => patch({ source: v })} disabled={dis} rows={2} />
+          {spec?.monetary && <RcOptionalNumberField label="Currency year" value={e.currencyYear} onChange={(v) => patch({ currencyYear: v })} disabled={dis} min={1900} max={2200} />}
+          {spec && <RcOptionalNumberField label={`Value (${spec.unit})`} value={e.value} onChange={(v) => patch({ value: v })} disabled={dis} min={spec.min} max={spec.max} />}
           <RcAreaField label="Justification" value={e.justification ?? ""} onChange={(v) => patch({ justification: v })} disabled={dis} rows={2} />
           <RcTextField label="Time-frame adjustment" value={e.timeFrameAdjustment ?? ""} onChange={(v) => patch({ timeFrameAdjustment: v })} disabled={dis} />
           {editable && <RemoveBtn label="Remove parameter" onClick={remove} />}
@@ -1161,7 +1264,7 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
                   {editable && <button type="button" className="posnav__btn posnav__btn--sm rcbtn-danger" style={{ alignSelf: "flex-start" }} onClick={() => setLims(allLims.filter((_, k) => k !== gi))}>Remove</button>}
                 </div>
               ))}
-              {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setLims([...allLims, { code: c.code, feature: "New feature", limitation: "" }])}><RCIcon.Plus /> Add limitation</button>}
+              {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setLims([...allLims, { code: c.code, feature: "", limitation: "" }])}><RCIcon.Plus /> Add limitation</button>}
             </div>
           </div>
           {editable && <RemoveBtn label="Remove code" onClick={remove} />}
@@ -1175,7 +1278,6 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
     if (f === undefined) return null;
     const patch = (next: Partial<typeof f>): void => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, eventSequenceConsequences: d.consequenceQuantification.eventSequenceConsequences.map((x) => ((x.uuid ?? x.eventSequenceFamily) === (f.uuid ?? f.eventSequenceFamily) ? { ...x, ...next } : x)) } }));
     const results = f.consequenceResults;
-    const numberValue = (n: number | undefined) => n === undefined ? "" : n !== 0 && (Math.abs(n) >= 1e6 || Math.abs(n) < 1e-3) ? n.toExponential() : n;
     const remove = (): void => { mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, eventSequenceConsequences: d.consequenceQuantification.eventSequenceConsequences.filter((x) => (x.uuid ?? x.eventSequenceFamily) !== (f.uuid ?? f.eventSequenceFamily)) } })); onClose(); };
     return (
       <>
@@ -1187,31 +1289,28 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
           </div>
           <div className="posfield-grid">
             <RcTextField label="Source-term reference" value={f.sourceTermReference ?? ""} onChange={(v) => patch({ sourceTermReference: v })} disabled={dis} />
-            <RcSelectField label="Risk significance" value={f.riskSignificance ?? "LOW"} options={SIG_OPTIONS} onChange={(v) => patch({ riskSignificance: v as ImportanceLevel })} disabled={dis} />
+            <RcSelectField label="Risk significance" value={f.riskSignificance ?? ""} options={[["", "Not assessed"], ...SIG_OPTIONS]} onChange={(v) => patch({ riskSignificance: v ? v as ImportanceLevel : undefined })} disabled={dis} />
           </div>
           <div className="posfield">
             <label className="posfield__label">Consequence results</label>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {results.map((m, i) => {
-                const median = m.uncertaintyDistribution?.type === DistributionType.LOGNORMAL ? m.uncertaintyDistribution.median : undefined;
-                const ef = m.uncertaintyDistribution?.type === DistributionType.LOGNORMAL ? m.uncertaintyDistribution.errorFactor : undefined;
                 return (
                   <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4, borderBottom: "1px dashed var(--color-border)", paddingBottom: 8 }}>
                     <div className="posrow rc-result-metric-row" style={{ gap: 6 }}>
                       <WorkbookInput className="posfield__input" aria-label="Metric" style={{ flex: "1 1 150px" }} value={m.metric} disabled={dis} onChange={(e) => patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, metric: e.target.value } : y)) })} />
-                      <WorkbookInput className="posfield__input posmono" style={{ width: 160 }} type="number" step="any" aria-label="Mean value" value={numberValue(m.meanValue)} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, meanValue: n } : y)) }); }} />
+                      <ConsequenceNumberField value={m.meanValue} disabled={dis} onCommit={value => patch({ consequenceResults: results.map((y, j) => j === i ? { ...y, meanValue: value } : y) })} />
                       <WorkbookInput className="posfield__input" aria-label="Unit" style={{ width: 110 }} value={m.unit ?? ""} disabled={dis} onChange={(e) => patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, unit: e.target.value } : y)) })} />
                       {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ consequenceResults: [...results.slice(0, i), ...results.slice(i + 1)] })}>Remove</button>}
                     </div>
                     <div className="posrow rc-result-metric-row" style={{ gap: 6 }}>
-                      <WorkbookInput className="posfield__input posmono" style={{ width: 160 }} type="number" step="any" aria-label="Median" value={numberValue(median)} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDistribution: { type: DistributionType.LOGNORMAL, median: n, errorFactor: ef ?? 3 } } : y)) }); }} />
-                      <WorkbookInput className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" aria-label="Error factor" value={numberValue(ef)} disabled={dis} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDistribution: { type: DistributionType.LOGNORMAL, median: median ?? 0, errorFactor: n } } : y)) }); }} />
+                      <LognormalEditor distribution={m.uncertaintyDistribution} disabled={dis} onApply={uncertaintyDistribution => patch({ consequenceResults: results.map((y, j) => j === i ? { ...y, uncertaintyDistribution } : y) })} />
                       <WorkbookInput className="posfield__input" aria-label="Uncertainty description" style={{ flex: "1 1 180px" }} value={m.uncertaintyDescription ?? ""} disabled={dis} onChange={(e) => patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDescription: e.target.value } : y)) })} />
                     </div>
                   </div>
                 );
               })}
-              {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => patch({ consequenceResults: [...results, { metric: "New metric", meanValue: 0, unit: "per event" }] })}><RCIcon.Plus /> Add result</button>}
+              {editable && <AddConsequenceResult onAdd={(metric, meanValue, unit) => patch({ consequenceResults: [...results, { metric, meanValue, unit: unit || undefined }] })} />}
             </div>
           </div>
           {editable && <RemoveBtn label="Remove family" onClick={remove} />}

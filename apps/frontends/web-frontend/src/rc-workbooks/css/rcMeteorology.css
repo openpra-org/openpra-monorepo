@@ -47,7 +47,7 @@
 .rc-meteorology .mw-source-table th:first-child{width:25%}
 .rc-meteorology .mw-source-table th:nth-child(2){width:35%}
 .rc-meteorology .mw-source-table td:last-child{color:var(--color-text-muted);font-size:12px}
-.rc-meteorology .mw-location-table,.rc-meteorology .mw-review-table{width:min(100%,760px);margin:8px 0 22px;border:1px solid var(--color-border);border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden}
+.rc-meteorology .mw-location-table,.rc-meteorology .mw-review-table{width:100%;margin:8px 0 22px;border:1px solid var(--color-border);border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden}
 .rc-meteorology .mw-location-table th:first-child{width:24%}
 .rc-meteorology .mw-location-table th:nth-child(2){width:35%}
 .rc-meteorology .mw-location-table td:last-child{color:var(--color-text-muted);font-size:12px}

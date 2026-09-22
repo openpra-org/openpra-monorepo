@@ -7,7 +7,7 @@ function setup() {
   const data = { rc: { releaseCategoryToConsequence: { releaseCategoryInputs: [{ releaseCategory: "RC-1", releaseCharacteristics: {} }] }, protectiveActionParameters: {}, meteorologicalData: {}, atmosphericTransportAndDispersion: {}, dosimetry: {}, consequenceQuantification: {} }, cc: {}, nms: [] } as unknown as RcWorkbookData;
   const actions: RcCaseActions = {
     saveSnapshot: jest.fn(), saveResult: jest.fn(), readTable: jest.fn(async () => ({ columns: ["Name"], rows: [], total: 0, offset: 0, units: "" })),
-    readReview: jest.fn(async () => ({ files: [], checks: [] })), readText: jest.fn(async () => ({ text: "", offset: 0, total: 0 })), readOutput: jest.fn(async () => ({ text: "", offset: 0, total: 0 })), readChoices: jest.fn(async () => ({ ids: [], total: 0 })),
+    readReview: jest.fn(async () => ({ schemaVersion: 2 as const, files: [], embedded: [], excludedSteps: [], checks: [] })), readText: jest.fn(async () => ({ text: "", offset: 0, total: 0 })), readOutput: jest.fn(async () => ({ text: "", offset: 0, total: 0 })), readChoices: jest.fn(async () => ({ ids: [], total: 0 })),
   };
   const open = jest.fn();
   function TestControls() {

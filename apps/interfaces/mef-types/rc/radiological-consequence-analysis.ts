@@ -393,6 +393,7 @@ export interface DosimetryAnalysis {
 }
 
 export interface HealthEffectsAnalysis {
+  healthInput?: import("./health-inputs").RcHealthInput;
   earlyHealthEffects: string[];
   latentHealthEffects: string[];
   earlyEffectParameters: {
@@ -415,6 +416,8 @@ export interface HealthEffectsAnalysis {
 }
 
 export interface EconomicFactorsAnalysis {
+    siteEconomyInput?: import("./economic-inputs").RcSiteEconomyInput;
+    decontaminationLevels?: number;
   costCategories: {
     category: string;
     parameterDefinitions: string[];
@@ -422,6 +425,10 @@ export interface EconomicFactorsAnalysis {
   parameterConsistencyConfirmed: boolean;
   costParameterEstimates: {
     parameter: string;
+    costCode?: import("./economic-inputs").RcEconomicCostCode;
+    value?: number;
+    level?: number;
+    currencyYear?: number;
     dataBasis: "REGIONAL_SITE_APPLICABLE" | "GENERIC_JUSTIFIED";
     source: string;
     justification?: string;

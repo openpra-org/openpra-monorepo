@@ -42,7 +42,7 @@
 .rc-transport .at-readonly{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:12px 0 19px}
 .rc-transport .at-readonly dt{font-size:12px;color:var(--color-text-muted)}
 .rc-transport .at-readonly dd{font-size:13px;margin:4px 0 0}
-.rc-transport .at-review-table{width:min(100%,760px);margin:8px 0 22px;border:1px solid var(--color-border);border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden}
+.rc-transport .at-review-table{width:100%;margin:8px 0 22px;border:1px solid var(--color-border);border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden}
 .rc-transport .at-review-table th{width:190px;background:var(--color-surface-low);color:var(--color-text-muted);font-weight:500;vertical-align:top}
 .rc-transport .at-review-table td{line-height:1.45;vertical-align:top}
 .rc-transport .at-value-basis{display:flex;align-items:center;gap:10px;min-height:30px;margin:0 0 16px;font-size:12px}

@@ -100,17 +100,17 @@
 .rcgrid--2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
 @media (min-width: 860px) { .rcgrid--2 { grid-template-columns: 1fr 1fr; } }
 
-.rc-handoff__interface-tiles { max-width: 860px; }
+.rc-handoff__interface-tiles { width: 100%; }
 .rc-handoff__wide-card { box-sizing: border-box; width: 100%; max-width: 1120px; }
 .rc-handoff__wide-card:has(.rc-ms-source),
 .rc-handoff__wide-card:has(.rc-handoff__ri) { max-width: 900px; }
-.rc-handoff__es { max-width: 1080px; overflow-x: auto; }
+.rc-handoff__es { width: 100%; overflow-x: auto; }
 .rc-handoff__es .postable { min-width: 760px; }
-.rc-handoff__ri .posfield { max-width: 700px; }
+.rc-handoff__ri .posfield { width: 100%; }
 .rc-handoff__ri .posrow { flex-wrap: wrap; }
 .rc-handoff__ri .posrow .posfield__input { box-sizing: border-box; min-width: 0; }
 .rc-handoff__ri .posfield__textarea { box-sizing: border-box; min-height: 68px; }
-.rc-handoff__scope > .posfield__textarea { box-sizing: border-box; max-width: 820px; min-height: 76px; }
+.rc-handoff__scope > .posfield__textarea { box-sizing: border-box; width: 100%; min-height: 76px; }
 .rc-handoff__compact-card { box-sizing: border-box; width: 100%; max-width: 960px; }
 .rc-step02-card { box-sizing: border-box; width: 100%; max-width: 960px; }
 .rc-step02-total { margin: 12px 0 0; font-size: 12px; color: var(--color-text-muted); }
@@ -497,3 +497,47 @@
 .rc-details-modal input[type="number"]{max-width:160px}
 .rc-details-modal .posnav__btn{align-self:flex-start;white-space:nowrap}
 .rc-details-modal .posnav__btn:disabled{opacity:.5;cursor:default}
+
+/* RC workspace: the rail, canvas and conformance panel share the viewport. */
+.rc-workspace .posw__shell{grid-template-columns:240px minmax(0,1fr) 340px;width:100%}
+.rc-workspace .posw__shell--rail-closed{grid-template-columns:0 minmax(0,1fr) 340px}
+.rc-workspace .posw__shell--dock-closed{grid-template-columns:240px minmax(0,1fr) 0}
+.rc-workspace .posw__shell--rail-closed.posw__shell--dock-closed{grid-template-columns:0 minmax(0,1fr) 0}
+.rc-workspace .posw__rail{grid-column:1;min-width:0}
+.rc-workspace .posmain{grid-column:2;min-width:0;box-sizing:border-box}
+.rc-workspace .posw__dock{grid-column:3;min-width:0}
+.rc-workspace .posrail__head-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rc-workspace .posrail__head-top .posdock__close{flex:none;line-height:0}
+.rc-workspace .posmain > .poscard,
+.rc-workspace .rc-handoff__wide-card,
+.rc-workspace .rc-handoff__compact-card,
+.rc-workspace .rc-step02-card,
+.rc-workspace .rc-site-input-card,
+.rc-workspace .rc-response-card,
+.rc-workspace .rc-weather-input-card,
+.rc-workspace .rc-transport-input-card,
+.rc-workspace .rc-dose-input-card,
+.rc-workspace .rh-card,
+.rc-workspace .re-card,
+.rc-workspace .rc-step08{width:100%;max-width:none}
+.rc-workspace .rcscope__table-wrap{max-width:none}
+@media(max-width:1100px) and (min-width:769px){
+  .rc-workspace .posw__shell,
+  .rc-workspace .posw__shell--dock-closed{grid-template-columns:220px minmax(0,1fr)}
+  .rc-workspace .posw__shell--rail-closed,
+  .rc-workspace .posw__shell--rail-closed.posw__shell--dock-closed{grid-template-columns:0 minmax(0,1fr)}
+}
+@media(max-width:1000px) and (min-width:769px){
+  .rc-workspace .poshd{position:relative;flex-wrap:wrap}
+  .rc-workspace .poshd__spacer{display:none}
+  .rc-workspace .poshd__actions{flex:1 1 100%;justify-content:flex-end;flex-wrap:wrap}
+  .rc-workspace .posw__rail{top:0;height:100vh}
+}
+@media(max-width:768px){
+  .rc-workspace .posw__shell,
+  .rc-workspace .posw__shell--dock-closed,
+  .rc-workspace .posw__shell--rail-closed,
+  .rc-workspace .posw__shell--rail-closed.posw__shell--dock-closed{grid-template-columns:minmax(0,1fr)}
+  .rc-workspace .posmain{grid-column:1}
+  .rc-workspace .rc-show-steps{display:none}
+}

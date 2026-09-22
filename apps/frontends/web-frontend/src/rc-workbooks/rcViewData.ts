@@ -22,7 +22,7 @@ const RC_STEPS: RcStep[] = [
   { id: "dispersion", num: "04", se: "RCAD", seTone: "atmos", label: "Atmospheric Dispersion", sub: "Transport the plume (A to F)", status: "idle" },
   { id: "dose", num: "05", se: "RCDO", seTone: "health", label: "Dosimetry", sub: "Concentration to dose (A to C)", status: "idle" },
   { id: "health", num: "06", se: "RCHE", seTone: "health", label: "Health Effects", sub: "Dose to risk (A to C)", status: "idle" },
-  { id: "economics", num: "07", se: "RCEC", seTone: "site", label: "Economic Factors", sub: "Tally the cost (A to C)", status: "idle" },
+  { id: "economics", num: "07", se: "RCEC", seTone: "site", label: "Economic Factors", sub: "Regional inputs and cost parameters", status: "idle" },
   { id: "quantify", num: "08", se: "RCQ", seTone: "credit", label: "Quantification", sub: "Integrate and own it (A to D)", status: "idle" },
   { id: "draft", num: "09", label: "Draft", sub: "Produce RC report", status: "idle", terminal: true },
   { id: "review", num: "10", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
@@ -522,14 +522,6 @@ const DOSE_SPLITS: DoseSplitSpec[] = [
   { id: "dcf", title: "Dose conversion factors", icon: "Sigma", cci: "Effective dose conversion factors.", ccii: "Organ-specific dose conversion factors." },
 ];
 
-const HE_PARAM_SPLITS: DoseSplitSpec[] = [
-  { id: "early", title: "Early-effect parameters", icon: "Pulse", cci: "Simplified-organ, reduced-radionuclide parameter set.", ccii: "Organ-specific dose-response parameters." },
-  { id: "latent", title: "Latent-effect parameters", icon: "Heart", cci: "Simplified effective-dose, reduced-radionuclide set.", ccii: "Organ-specific factors with the dose-rate effectiveness and the incidence and fatality split." },
-];
-
-const HE_AGE_GENDER = "The population is kept age and gender homogeneous in both columns, since the standard declines that refinement.";
-const HE_BASIS = "Every risk factor is anchored to an internationally recognized body, not a local derivation.";
-
 const COST_CATEGORY_ICONS: Record<string, string> = {
   "Evacuation cost": "Car",
   "Relocation and temporary unemployment": "Users",
@@ -678,9 +670,6 @@ export {
   EXPOSURE_PATHWAY_LABELS,
   EXPOSURE_PATHWAY_NOTES,
   DOSE_SPLITS,
-  HE_PARAM_SPLITS,
-  HE_AGE_GENDER,
-  HE_BASIS,
   COST_CATEGORY_ICONS,
   COST_PARAM_ICONS,
   RC_CODE_ICONS,

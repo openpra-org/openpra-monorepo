@@ -12,6 +12,8 @@ import { parseRcDecay, parseRcDeposition, parseRcDispersionReference } from "int
 import { effectiveTransportSettings } from "interfaces-shared-types/rc-workbooks/transport";
 import { parseRcDoseCoefficients, parseRcExposure } from "interfaces-shared-types/rc-workbooks/dose-input-parser";
 import { parseEarlyResponseRecords } from "interfaces-shared-types/rc-workbooks/early-response-parser";
+import { parseRcHealthInput, rcHealthEffectLabel } from "interfaces-shared-types/rc-workbooks/health-input-parser";
+import { parseRcSiteEconomy } from "interfaces-shared-types/rc-workbooks/economic-input-parser";
 import { createBlankRc } from "../../rc-workbooks/blank-rc";
 
 export const RC_PUBLISHED_ID = "published-rc-inputs";
@@ -134,13 +136,16 @@ export function createPublishedRcSeed() {
   rc.dosimetry.breathingRates.description = "MACCS reference SEBRRATE001/002/003 = 2.66×10⁻⁴ m³/s in the published exposure block.";
   rc.dosimetry.dcf = { source: `Original EPA FGR13PAK files: ${RC_PUBLISHED_SOURCES.dose}`, type: "EFFECTIVE" };
   rc.dosimetry.doseAggregationMethod = "No dose has been computed for this composite input-review example.";
-  rc.healthEffects.earlyHealthEffects = ["Published parameter reference: bone-marrow fatality", "Published parameter reference: pulmonary fatality", "Published parameter reference: gastrointestinal fatality"];
-  rc.healthEffects.earlyEffectParameters = { approach: "ORGAN_SPECIFIC_DOSE_RESPONSE", description: "Etter thesis p. 99, EFATAGRP: marrow α=5.6 Sv, β=6.1, threshold=2.3 Sv; lungs α=24 Sv, β=9.6, threshold=14 Sv; stomach α=12 Sv, β=9.3, threshold=6.5 Sv. Parameters only; no health consequences calculated." };
-  rc.healthEffects.latentHealthEffects = ["Leukemia", "Bone", "Breast", "Lung", "Thyroid", "Liver", "Colon", "Residual"];
-  rc.healthEffects.latentEffectParameters = { approach: "ORGAN_SPECIFIC_FACTORS", description: "Published MACCS input reference, thesis p. 100: leukemia fatality/incidence 0.0111/0.0113 per Sv; lung 0.0198/0.0208 per Sv. All 8 LCANCERS records are retained in the health-settings excerpt. These are coefficient parameters, not disease counts." };
-  rc.healthEffects.riskFactorSources = [{ source: RC_PUBLISHED_SOURCES.thesis, recognizedBody: "Published MACCS input reproduced by Noah A. Etter; model-reference values", version: "2026 thesis, pp. 99–100" }];
-  rc.economicFactors.costCategories = [{ category: "Published SecPop economic inputs", parameterDefinitions: ["Economic multiplier = 1.35 in the original header", "83 economic regions in the original header", "Partial regional values are retained as file references"] }];
-  rc.economicFactors.costParameterEstimates = [{ parameter: "Economic multiplier: 1.35 (dimensionless)", dataBasis: "REGIONAL_SITE_APPLICABLE", source: `${RC_PUBLISHED_SOURCES.site} — Appendix B.6`, justification: "Published header value; not applied again and not a calculated cost." }];
+  const healthInput = parseRcHealthInput(text("MACCS-Noah-health-settings-excerpt.inp"), "MACCS-Noah-health-settings-excerpt.inp");
+  rc.healthEffects.healthInput = healthInput;
+  rc.healthEffects.earlyHealthEffects = healthInput.records.filter(record => record.kind === "early_fatality").map(rcHealthEffectLabel);
+  rc.healthEffects.earlyEffectParameters = { approach: "ORGAN_SPECIFIC_DOSE_RESPONSE", description: "Published MACCS early-fatality and injury input cards in Etter thesis, p. 99." };
+  rc.healthEffects.latentHealthEffects = healthInput.records.filter(record => record.kind === "latent_cancer").map(rcHealthEffectLabel);
+  rc.healthEffects.latentEffectParameters = { approach: "ORGAN_SPECIFIC_FACTORS", description: "Published MACCS latent-cancer input cards in Etter thesis, p. 100." };
+  rc.healthEffects.riskFactorSources = [{ source: RC_PUBLISHED_SOURCES.thesis, recognizedBody: "", version: "2026 thesis, pp. 99–100" }];
+  rc.economicFactors.siteEconomyInput = { ...parseRcSiteEconomy(text("SecPop-Noah-published-site-excerpt.txt"), "SecPop-Noah-published-site-excerpt.txt"), sourceSiteRevision: 1 };
+  rc.economicFactors.costCategories = [];
+  rc.economicFactors.costParameterEstimates = [];
   rc.consequenceQuantification.resultsConfirmation.description = "Input-review example only. No invented OpenRC output, dose, release frequency, injury count or cost is included.";
   rc.documentation = { ...rc.documentation, processDescription: scope, inputsDescription: RC_PUBLISHED_FILES.map(f => `${f.filename} — ${f.location}\n${f.source}\n${f.method}`).join("\n\n"), appliedMethods: "Existing file parsers preserve published quantities and original files. Activity: Bq; release timing: s; height: m; native coefficient units remain in EPA headers.", resultsSummary: "Published numerical inputs and an input snapshot are supplied for interface review. Calculated-result records remain empty.",
     rcreProcess: "69 nuclides, 10 chemical groups, 8 release segments from MelMACCS Appendix C; all original numeric cards retained.", rcpaProcess: "896 cells from 14 published radial bands and 64 sectors. Three published cohort result weights and the 90th-percentile response timeline are shown; population shares and compliance are not inferred. Receptor height and within-cell evaluation choice remain unset.", rcmeProcess: rc.meteorologicalData.periodSelection.periodDescription,

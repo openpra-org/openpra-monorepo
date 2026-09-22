@@ -128,12 +128,13 @@ function WorkspaceHeader({
   );
 }
 
-function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
+function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen, onClose }: {
   stepId: string;
   setStepId: (id: string) => void;
   persona: RcPersona;
   visibleSteps: RcStep[];
   mobileOpen: boolean;
+  onClose: () => void;
 }): JSX.Element {
   const enabledSteps = visibleSteps.filter((s) => !s.excluded);
   const idx = Math.max(0, enabledSteps.findIndex((s) => s.id === stepId));
@@ -142,7 +143,9 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
   return (
     <aside className={`posw__rail${mobileOpen ? " posw__rail--mobile-open" : ""}`} aria-label="RC analysis steps">
       <div className="posrail__head">
-        <span className="posrail__eyebrow">{eyebrow}</span>
+        <div className="posrail__head-top"><span className="posrail__eyebrow">{eyebrow}</span>
+          <button type="button" className="posdock__close" onClick={onClose} aria-label="Hide steps" title="Hide steps"><RCIcon.Close /></button>
+        </div>
         <div className="posrail__progress">
           <span className="posrail__progress-num">{idx + 1}</span>
           <span className="posrail__progress-total">/ {enabledSteps.length} steps</span>
@@ -251,7 +254,7 @@ function ConformanceDock({ ccId, site, onGoToHandoff, onClose, mobileOpen }: {
 }
 
 function RcDrawer({ context, onClose }: { context: RcDrawerContext; onClose: () => void }): JSX.Element {
-  const modalLabel = ({ category: "Category details", protaction: "Protective action details", cohort: "Cohort details", sourcedoc: "Source document details", phase: "Incident phase details", evacdelay: "Evacuation delay details", protparam: "Protection parameter details", sitedata: "Site details", metbasis: "Meteorology source and period", metquality: "Meteorology quality controls", metdata: "Meteorological data quality", metparams: "Extracted parameters", dispersion: "Dispersion model and sampling", deposition: "Deposition matrix", pathway: "Exposure pathway", dosetreatment: "Dose treatment", code: "Consequence code", family: "Event sequence family", uncertainty: "Model uncertainty", sensitivity: "Sensitivity study", bounding: "Bounding-site assumption", preop: "Pre-operational assumption", rifeedback: "Risk-integration feedback" } as Record<string, string | undefined>)[context.kind];
+  const modalLabel = ({ category: "Category details", protaction: "Protective action details", cohort: "Cohort details", sourcedoc: "Source document details", phase: "Incident phase details", evacdelay: "Evacuation delay details", protparam: "Protection parameter details", sitedata: "Site details", metbasis: "Meteorology source and period", metquality: "Meteorology quality controls", metdata: "Meteorological data quality", metparams: "Extracted parameters", dispersion: "Dispersion model and sampling", deposition: "Deposition matrix", pathway: "Exposure pathway", dosetreatment: "Dose treatment", healthparams: "Health-effect treatment", riskfactor: "Risk-factor source", costcategory: "Cost category", costparam: "Cost parameter", econreview: "Economic input review", code: "Consequence code", family: "Event sequence family", uncertainty: "Model uncertainty", sensitivity: "Sensitivity study", bounding: "Bounding-site assumption", preop: "Pre-operational assumption", rifeedback: "Risk-integration feedback" } as Record<string, string | undefined>)[context.kind];
   const centered = modalLabel !== undefined;
   const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -269,7 +272,7 @@ function RcDrawer({ context, onClose }: { context: RcDrawerContext; onClose: () 
   }, [onClose]);
   return (
     <div className={centered ? "modal__backdrop" : "posdrawer-backdrop"} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div ref={dialog} className={centered ? `modal ${context.kind === "category" ? "rc-category-modal" : "rc-details-modal"}${context.kind === "dispersion" || context.kind === "deposition" ? " rc-transport-modal" : ""}` : "posdrawer"} role="dialog" aria-modal="true" aria-label={modalLabel} tabIndex={centered ? -1 : undefined}
+      <div ref={dialog} className={centered ? `modal ${context.kind === "category" ? "rc-category-modal" : "rc-details-modal"}${context.kind === "dispersion" || context.kind === "deposition" ? " rc-transport-modal" : ""}${context.kind === "pathway" || context.kind === "dosetreatment" ? " rc-dose-modal" : ""}` : "posdrawer"} role="dialog" aria-modal="true" aria-label={modalLabel} tabIndex={centered ? -1 : undefined}
         onKeyDown={e => {
           if (!centered || e.key !== "Tab") return;
           const controls = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]')).filter(el => el.getClientRects().length > 0);
@@ -328,6 +331,7 @@ function RcWorkbench({
   const [initialSiteTab, setInitialSiteTab] = useState<"location" | "receptors">("receptors");
   const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
   const [dockOpen, setDockOpen] = useState(!isNarrow);
+  const [railOpen, setRailOpen] = useState(true);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
   const [dockMobileOpen, setDockMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -445,13 +449,13 @@ function RcWorkbench({
   }
 
   return (
-    <div className={`posw${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`RC — ${step.label}`}>
+    <div className={`posw rc-workspace${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`RC — ${step.label}`}>
       {isReviewer && <div className="poshd__extbar" />}
       {isApprover && <div className="poshd__apprbar" />}
       <WorkspaceHeader persona={persona} setPersona={setPersona} workflowState={data.rc.workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailMobileOpen((v) => !v)} onToggleDock={() => { setDockOpen(true); setDockMobileOpen((v) => !v); }} />
 
-      <div className={`posw__shell${dockOpen ? "" : " posw__shell--dock-closed"}`}>
-        <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} />
+      <div className={`posw__shell${railOpen ? "" : " posw__shell--rail-closed"}${dockOpen ? "" : " posw__shell--dock-closed"}`}>
+        {(railOpen || railMobileOpen) && <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} onClose={() => { if (railMobileOpen) setRailMobileOpen(false); else setRailOpen(false); }} />}
 
         <main className="posmain" aria-label="Step content">
           <div className="posmain__head">
@@ -460,8 +464,9 @@ function RcWorkbench({
               <WorkbookSectionHeading workbook="RC" title={h.title} description={h.sub} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
+              {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm rc-show-steps" onClick={() => setRailOpen(true)}><RCIcon.Layers /> Show steps</button>}
               {!dockOpen && (
-                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setDockOpen(true); setDockMobileOpen(true); }}><RCIcon.Eye /> Show conformance</button>
+                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setDockOpen(true); setDockMobileOpen(window.matchMedia("(max-width: 1100px)").matches); }}><RCIcon.Eye /> Show conformance</button>
               )}
             </div>
           </div>

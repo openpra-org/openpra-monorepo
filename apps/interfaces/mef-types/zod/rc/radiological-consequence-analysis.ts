@@ -443,6 +443,18 @@ export const DosimetryAnalysisSchema = z.object({
 });
 
 export const HealthEffectsAnalysisSchema = z.object({
+  healthInput: z.object({
+    filename: z.string().min(1).max(255),
+    original: z.string().min(1).max(128_000),
+    records: z.array(z.object({
+      cardId: z.string().regex(/^(EFATAGRP|EINJUGRP|LCANCERS)\d{3}$/),
+      kind: z.enum(["early_fatality", "early_injury", "latent_cancer"]),
+      effect: z.string().min(1),
+      organ: z.string().min(1),
+      values: z.array(z.number().finite().nonnegative()).min(3).max(6),
+      original: z.string(),
+    })).min(1).max(500),
+  }).optional(),
   earlyHealthEffects: z.array(z.string()),
   latentHealthEffects: z.array(z.string()),
   earlyEffectParameters: z.object({
@@ -467,6 +479,18 @@ export const HealthEffectsAnalysisSchema = z.object({
 });
 
 export const EconomicFactorsAnalysisSchema = z.object({
+    decontaminationLevels: z.number().int().min(1).max(3).optional(),
+  siteEconomyInput: z.object({
+    filename: z.string().min(1).max(255), original: z.string().min(1).max(2_000_000),
+      economicMultiplier: z.number().finite().nonnegative(), expectedRegions: z.number().int().min(1).max(99),
+    regions: z.array(z.object({ index: z.number().int().positive(), name: z.string().min(1),
+      farmFraction: z.number().min(0).max(1), dairySalesFraction: z.number().min(0).max(1),
+      annualFarmSalesPerHectare: z.number().finite().nonnegative(), farmlandValuePerHectare: z.number().finite().nonnegative(),
+      nonFarmlandValuePerPerson: z.number().finite().nonnegative(), original: z.string(), })).min(1).max(999),
+    crops: z.array(z.object({ index: z.number().int().positive(), name: z.string().min(1), growingStartDay: z.number().int().min(1).max(365),
+      growingEndDay: z.number().int().min(1).max(365), farmlandFraction: z.number().min(0).max(1), original: z.string(), })).max(10),
+    sourceSiteRevision: z.number().int().nonnegative().optional(),
+  }).optional(),
   costCategories: z.array(
     z.object({
       category: z.string(),
@@ -477,6 +501,10 @@ export const EconomicFactorsAnalysisSchema = z.object({
   costParameterEstimates: z.array(
     z.object({
       parameter: z.string(),
+      costCode: z.enum(["EVACST", "RELCST", "POPCST", "LTMCST", "DLBCST", "TIMDEC", "DSRFCT", "TFWKF", "TFWKNF", "CDFRM", "FRFDL", "CDNFRM", "FRNFDL", "DPRATE", "DSRATE", "WCDMCST", "WFCDCST"]).optional(),
+      value: z.number().finite().nonnegative().optional(),
+      level: z.number().int().min(1).max(3).optional(),
+      currencyYear: z.number().int().min(1900).max(2200).optional(),
       dataBasis: z.enum(["REGIONAL_SITE_APPLICABLE", "GENERIC_JUSTIFIED"]),
       source: z.string(),
       justification: z.string().optional(),

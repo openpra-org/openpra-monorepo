@@ -103,9 +103,9 @@ describe("RC Step 08 case records", () => {
     await result(b.records.revision, values(b.snapshotId)).expect(400);
   });
   it("enforces access, review locks and current revisions for all writes", async () => {
-    const mef = await seed(); expect(caseVersions(currentRcCase(mef, "RC-1"))).toMatch(/^1,1,1,0,1,\d+$/);
+    const mef = await seed(); expect(caseVersions(currentRcCase(mef, "RC-1"))).toMatch(/^1,1,1,0,1,\d+,\d+,\d+$/);
     for (const user of ["reviewer", "viewer", "outsider"]) await save(0, expectedVersions, user).expect(403);
-    await save(0, "0,0,0,0,0,0").expect(409);
+    await save(0, "0,0,0,0,0,0,0,0").expect(409);
     const a = (await save().expect(200)).body;
     await save().expect(409);
     for (const user of ["reviewer", "viewer", "outsider"]) await result(a.records.revision, values(a.snapshotId), output, user).expect(403);

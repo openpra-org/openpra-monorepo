@@ -7,7 +7,7 @@ import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/ra
 import type { RcCaseData, RcCaseDataset, RcCaseRecords, RcCaseSelection, RcCaseSnapshot, RcCaseCheck, RcCaseFile } from "interfaces-mef-types/rc/case-records";
 import type { RcWeatherRecord } from "interfaces-mef-types/rc/weather";
 import { RcCaseRecordsSchema, RcLinkedResultValuesSchema } from "interfaces-mef-types/zod/rc/case-records";
-import { caseChecks, caseDatasets, caseDuration, caseFiles, caseReceptorCount, caseReceptorIds, caseTable, caseVersions, currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
+import { caseChecks, caseDatasets, caseDuration, caseEmbeddedFiles, caseFiles, caseReceptorCount, caseReceptorIds, caseTable, caseVersions, currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
 import { decodeRcText } from "interfaces-shared-types/rc-workbooks/source-term-parser";
 import { parseRcWeather } from "interfaces-shared-types/rc-workbooks/weather-parser";
 import { generateWeatherTrials } from "interfaces-shared-types/rc-workbooks/weather-trials";
@@ -17,10 +17,11 @@ import { RcWorkbook, type RcWorkbookDocument } from "./rc-workbook.schema";
 import { RcDocumentsService } from "./rc-documents.service";
 
 interface Actor { username: string }
-const revision = z.number().int().nonnegative(), versions = z.string().regex(/^\d+,\d+,\d+,\d+,\d+,\d+$/);
+const revision = z.number().int().nonnegative(), versions = z.string().regex(/^\d+(,\d+){7}$/);
+const readableVersions = z.string().regex(/^\d+(,\d+){5}(,\d+,\d+)?$/);
 const reason = (e: unknown) => e instanceof z.ZodError ? e.issues.slice(0, 5).map(i => i.message).join("; ") : e instanceof Error ? e.message : "Invalid case record";
 const hash = (b: Buffer) => createHash("sha256").update(b).digest("hex");
-const selectionSchema = z.object({ categoryId: z.string().min(1).max(255), versions, snapshotId: z.string().uuid().optional() }).strict();
+const selectionSchema = z.object({ categoryId: z.string().min(1).max(255), versions: readableVersions, snapshotId: z.string().uuid().optional() }).strict();
 @Injectable()
 export class RcCaseRecordsService {
   private readonly logger = new Logger(RcCaseRecordsService.name);
@@ -50,7 +51,7 @@ export class RcCaseRecordsService {
     const bytes = await this.documents.readCaseArtifact(id, summary.file.documentId, actor);
     if (hash(bytes) !== summary.file.sha256) throw new BadRequestException("The stored snapshot failed its file integrity check");
     const raw = bytes.toString("utf8"), saved = JSON.parse(raw) as { inputs: RcCaseData; checks: RcCaseCheck[]; files: RcCaseFile[] }, data = saved.inputs;
-    if (data.schemaVersion !== 1 || data.categoryId !== summary.categoryId) throw new BadRequestException("Invalid snapshot data");
+    if (![1, 2].includes(data.schemaVersion) || data.categoryId !== summary.categoryId) throw new BadRequestException("Invalid snapshot data");
     return { summary, data, checks: saved.checks, files: saved.files, raw };
   }
   private async select(id: string, selection: RcCaseSelection, actor: Actor) {
@@ -129,10 +130,10 @@ export class RcCaseRecordsService {
     if (selection.snapshotId) {
       if (!selectionSchema.safeParse(selection).success) throw new BadRequestException("Invalid case selection");
       const loaded = await this.load(id, actor), saved = await this.snapshot(id, loaded.records, selection.snapshotId, actor);
-      return { files: saved.files, checks: saved.checks };
+      return { schemaVersion: saved.data.schemaVersion, files: saved.files, embedded: caseEmbeddedFiles(saved.data), excludedSteps: saved.data.excludedSteps ?? [], checks: saved.checks };
     }
     const data = await this.select(id, selection, actor);
-    return { files: caseFiles(data), checks: caseChecks(data) };
+    return { schemaVersion: data.schemaVersion, files: caseFiles(data), embedded: caseEmbeddedFiles(data), excludedSteps: data.excludedSteps ?? [], checks: caseChecks(data) };
   }
   async table(id: string, selection: RcCaseSelection, kind: string, offset: number, actor: Actor) {
     this.offset(offset);
@@ -168,6 +169,8 @@ export class RcCaseRecordsService {
     }
     const data = await this.select(id, selection, actor);
     if (fileId === "structured") return this.textPage(JSON.stringify({ inputs: data, checks: caseChecks(data), files: caseFiles(data) }, null, 2), offset);
+    if (fileId === "health-original" && data.health?.healthInput?.original) return this.textPage(data.health.healthInput.original, offset);
+    if (fileId === "economy-original" && data.economy?.siteEconomyInput?.original) return this.textPage(data.economy.siteEconomyInput.original, offset);
     const entry = caseFiles(data).find(f => f.file.documentId === fileId);
     if (!entry) throw new NotFoundException("File is not part of the selected case");
     return this.textPage(decodeRcText(await this.originalBytes(id, entry.kind, fileId, actor)), offset);

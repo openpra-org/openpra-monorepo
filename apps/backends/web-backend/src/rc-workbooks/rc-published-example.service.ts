@@ -30,6 +30,7 @@ export class RcPublishedExampleService {
       mef.releaseCategoryToConsequence.releaseCategoryInputs.forEach(c => { if (c.sourceTerm) c.sourceTerm.revision = revision; });
       const site = mef.protectiveActionParameters.siteAndReceptors, weather = mef.meteorologicalData.weatherInputs, transport = mef.atmosphericTransportAndDispersion.transportInputs, dose = mef.dosimetry.doseInputs;
       if (site) site.revision = revision; if (weather) weather.revision = revision; if (transport) transport.revision = revision; if (dose) dose.revision = revision;
+      if (mef.economicFactors.siteEconomyInput?.sourceSiteRevision !== undefined) mef.economicFactors.siteEconomyInput.sourceSiteRevision = revision;
       if (mef.protectiveActionParameters.earlyResponseModel) mef.protectiveActionParameters.earlyResponseModel.revision = revision;
       const data = currentRcCase(mef, RC_PUBLISHED_CATEGORY), checks = caseChecks(data), manifest = caseFiles(data);
       const bytes = Buffer.from(JSON.stringify({ inputs: data, checks, files: manifest }, null, 2), "utf8");

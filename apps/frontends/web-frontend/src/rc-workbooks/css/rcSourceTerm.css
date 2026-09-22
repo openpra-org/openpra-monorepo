@@ -10,7 +10,7 @@
 .rc-ms-source .st-tabs,
 .rc-ms-source .st-panel,
 .rc-ms-source .st-footer,
-.rc-ms-source .st-empty { box-sizing: border-box; max-width: 820px; }
+.rc-ms-source .st-empty { box-sizing: border-box; width: 100%; }
 .rc-ms-source .posnav__btn { white-space: nowrap; }
 .rc-ms-source .posnav__btn:disabled { cursor: default; opacity: .5; }
 .rc-ms-source .st-review input, .rc-ms-source .st-review select { box-sizing: border-box; min-width: 0; }
@@ -78,7 +78,8 @@
 @container (max-width: 540px) {
   .rc-ms-source .st-source { align-items: start; flex-direction: column; }
   .rc-ms-source .st-fraction-layout { grid-template-columns: minmax(0, 1fr); }
-  .rc-ms-source .st-timing { gap: 8px; }
+  .rc-ms-source .st-timing { grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 8px; }
+  .rc-ms-source .st-pagination { flex-wrap: wrap; }
   .rc-ms-source .st-review th, .rc-ms-source .st-review td { padding-left: 5px; padding-right: 5px; }
 }
 @media (max-width: 520px) {

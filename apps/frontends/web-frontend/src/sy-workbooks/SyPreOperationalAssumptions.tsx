@@ -1,7 +1,5 @@
 import type { JSX } from "react";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
-import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
-import { SYIcon } from "./syIcons";
 import { SYProvenanceChip } from "./syShared";
 import { useSyWorkbook } from "./syWorkbookContext";
 import type { SyDrawerContext } from "./syScreens";
@@ -21,17 +19,20 @@ function SyPreOperationalAssumptions({ systemId, openDrawer }: { systemId: strin
     }] }));
     openDrawer({ kind: "assum", id: uuid });
   }
-  return <section className="poscard">
-    <div className="poscard__head"><WorkbookSectionHeading workbook="SY" title="Pre-operational assumptions" level={3} />
-      <div className="posrow" style={{ gap: 8, alignItems: "center" }}><SYProvenanceChip>SY-A33</SYProvenanceChip>
-        {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={add}><SYIcon.Plus /> Add assumption</button>}</div>
+  const actionLabel = editable ? "Edit" : "View";
+  return <section className="sy-review-section" aria-label="Pre-operational assumptions">
+    <div className="sy-review-title"><h3>Pre-operational assumptions</h3>
+      <div className="sy-review-actions"><SYProvenanceChip>SY-A33</SYProvenanceChip>
+        {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={add}>Add assumption</button>}</div>
     </div>
-    <p className="poscard__sub">Track assumptions about this system until plant information can confirm them.</p>
-    {rows.length === 0 ? <p className="possubtle">No pre-operational assumption recorded for this system.</p> :
-      <div className="postable-wrap"><table className="postable"><thead><tr><th>Assumption</th><th>Area</th><th>Status</th></tr></thead>
-        <tbody>{rows.map((item) => <tr key={item.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "assum", id: item.uuid })}>
-          <td>{item.description || "Unspecified"}</td><td>{item.influenceOnDefinition || "—"}</td><td>{item.status}</td>
-        </tr>)}</tbody></table></div>}
+    {rows.length === 0 ? <p className="sy-review-empty">No pre-operational assumption recorded for this system.</p> :
+      <table className="sy-review-table" aria-label="Pre-operational assumptions"><thead><tr><th scope="col">Assumption</th><th scope="col">Area</th><th scope="col">Status</th><th scope="col" className="sy-review-edit" aria-label="Actions" /></tr></thead>
+        <tbody>{rows.map((item) => <tr key={item.uuid}>
+          <td>{item.description || <span className="sy-review-none">Not recorded</span>}</td>
+          <td>{item.influenceOnDefinition || <span className="sy-review-none">Not recorded</span>}</td>
+          <td>{item.status}</td>
+          <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} assumption`} onClick={() => openDrawer({ kind: "assum", id: item.uuid })}>{actionLabel}</button></td>
+        </tr>)}</tbody></table>}
   </section>;
 }
 

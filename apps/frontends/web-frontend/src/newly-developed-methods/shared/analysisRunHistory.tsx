@@ -164,10 +164,12 @@ export function AnalysisRunHistory({
   host,
   workbookId,
   calculationType,
+  modelId,
 }: {
   host: AnalysisRunChanged["host"];
   workbookId: string | null;
   calculationType?: string;
+  modelId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<AnalysisRunProvenance[]>([]);
@@ -188,7 +190,8 @@ export function AnalysisRunHistory({
       const response = AnalysisRunProvenanceListSchema.parse(
         await fetchJson<unknown>(base + (next ? `?cursor=${encodeURIComponent(next)}` : "")),
       );
-      const visibleRows = calculationType === undefined ? response.runs : (await Promise.all(response.runs.map(async (row) => {
+      const modelRuns = modelId === undefined ? response.runs : response.runs.filter((row) => row.run.owner.modelId === modelId);
+      const visibleRows = calculationType === undefined ? modelRuns : (await Promise.all(modelRuns.map(async (row) => {
         if (row.run.methodType !== "FAULT_TREE") return null;
         try {
           const detail = AnalysisRunDetailsSchema.parse(await fetchJson<unknown>(`${base}/${row.run.id}/details`));
@@ -238,7 +241,7 @@ export function AnalysisRunHistory({
     setRows([]);
     setCursor(null);
     setError(null);
-  }, [host, workbookId, calculationType]);
+  }, [host, workbookId, calculationType, modelId]);
   useEffect(() => {
     if (!open || workbookId === null) return;
     void load();
@@ -258,7 +261,7 @@ export function AnalysisRunHistory({
       window.removeEventListener(ANALYSIS_RUN_CHANGED, changed);
       window.removeEventListener("focus", refresh);
     };
-  }, [open, host, workbookId, calculationType]);
+  }, [open, host, workbookId, calculationType, modelId]);
   if (workbookId === null) return null;
   return (
     <section className="analysis-history" aria-label={calculationType === "UNCERTAINTY" ? "Uncertainty history" : "Analysis history"}>

@@ -1,5 +1,6 @@
-import { Controller, Get, HttpCode, HttpStatus, NotFoundException, Param, StreamableFile } from "@nestjs/common";
-import { createReadStream, existsSync } from "fs";
+import { Controller, Get, NotFoundException, Param, Res } from "@nestjs/common";
+import type { Response } from "express";
+import { existsSync } from "fs";
 import { join } from "path";
 
 interface ExampleDocumentFile {
@@ -46,13 +47,11 @@ function resolveDocumentPath(file: string): string | undefined {
 @Controller("example-documents")
 export class ExampleDocumentsController {
   @Get(":element/:docId")
-  @HttpCode(HttpStatus.OK)
-  getDocument(@Param("docId") docId: string): StreamableFile {
+  getDocument(@Param("docId") docId: string, @Res() response: Response): void {
     const { path, filename } = resolveExampleDocument(docId);
     const mimeType = EXAMPLE_DOCUMENT_FILES.get(docId)?.mimeType ?? "application/pdf";
-    return new StreamableFile(createReadStream(path), {
-      type: mimeType,
-      disposition: `inline; filename="${filename}"`,
+    response.sendFile(path, { headers: { "Content-Type": mimeType, "Content-Disposition": `inline; filename="${filename}"` } }, (err) => {
+      if (err !== undefined && !response.headersSent) response.status(404).end();
     });
   }
 }

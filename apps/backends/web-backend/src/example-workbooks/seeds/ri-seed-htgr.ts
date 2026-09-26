@@ -345,13 +345,13 @@ const significantContributors: SignificantRiskContributors = {
     },
     {
       uuid: "SC-BE-2",
-      name: "Class 1E diesel common-cause failure",
+      name: "Backup gas-turbine generator common-cause failure",
       contributorType: "Basic event",
       sourceElement: TechnicalElementTypes.SYSTEMS_ANALYSIS,
-      sourceId: "CCF-AC-DG",
+      sourceId: "CCF-AC-GTG",
       importanceMetrics: { fussellVesely: 0.1, riskAchievementWorth: 3.6 },
       importanceLevel: ImportanceLevel.MEDIUM,
-      context: "The intersystem diesel group behind the loss-of-offsite-power contribution to the late family.",
+      context: "The intersystem backup generator group behind the loss-of-offsite-power contribution to the late family.",
     },
     {
       uuid: "SC-PAR-1",

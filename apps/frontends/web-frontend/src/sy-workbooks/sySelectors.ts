@@ -1,4 +1,4 @@
-import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { type SystemLogicModel, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import {
   CONFORMANCE_ITEMS,
   SY_STEPS,
@@ -8,6 +8,7 @@ import {
   type SyStep,
   type Stage,
 } from "./syViewData";
+import { ccfGroupIsReady } from "./syCcf";
 
 interface CommentView {
   id: string;
@@ -128,6 +129,10 @@ function commentsView(sy: SystemsAnalysis, now: Date = new Date()): CommentView[
   });
 }
 
+function isSystemLevelModel(model: Pick<SystemLogicModel, "nonDetailedModelJustification">): boolean {
+  return typeof model.nonDetailedModelJustification === "string";
+}
+
 function stepsForPersona(persona: SyPersona): SyStep[] {
   const ids = SY_PERSONA_STEPS[persona];
   return SY_STEPS.filter((s) => ids.includes(s.id));
@@ -138,10 +143,11 @@ function stepsFromMef(sy: SystemsAnalysis, persona: SyPersona, currentUncertaint
   const scopeComplete = sy.praScope.length > 0 || sy.systemDefinitions.length > 0;
   const modelsComplete = sy.systemLogicModels.length > 0;
   const failuresComplete = (sy.componentScreeningJustifications?.length ?? 0) > 0 || sy.humanFailureEventIntegrations.length > 0;
-  const ccfComplete = sy.commonCauseFailureGroups.length > 0;
+  const ccfComplete = sy.commonCauseFailureGroups.length > 0
+    && sy.commonCauseFailureGroups.every((group) => ccfGroupIsReady(group, sy));
   const depsComplete = sy.systemDependencies.length > 0;
   const integrityComplete = (sy.systemConfirmationRecords?.length ?? 0) > 0;
-  const detailedModels = sy.systemLogicModels.filter((model) => model.topGate !== null && model.nonDetailedModelJustification === undefined);
+  const detailedModels = sy.systemLogicModels.filter((model) => model.topGate !== null && !isSystemLevelModel(model));
   const uncertComplete = detailedModels.length > 0 && detailedModels.every((model) => currentUncertaintyModelIds.has(model.uuid))
     && (sy.uncertaintyAnalyses ?? []).every((analysis) =>
       analysis.modelUncertainties.every((item) => item.description.trim().length > 0 && item.treatmentApproach.trim().length > 0));
@@ -176,6 +182,7 @@ export {
   stepsForPersona,
   stepsFromMef,
   initialsOf,
+  isSystemLevelModel,
   type CommentView,
   type CcScore,
 };

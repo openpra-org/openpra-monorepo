@@ -2,6 +2,7 @@ import type {
   CanvasLayoutMetadata,
   FaultTreeBasicEvent,
   FaultTreeBasicEventCatalogueDefinition,
+  FaultTreeBasicEventQuantificationBasis,
   FaultTreeDefinition,
   FaultTreeGate,
   FaultTreeLeafNode,
@@ -134,6 +135,7 @@ interface FaultTreeEditorProps {
   showHeaderStatus?: boolean;
   resultIsStale: boolean;
   transferTargets?: readonly FaultTreeTransferTarget[];
+  defaultMissionTime?: Extract<FaultTreeBasicEventQuantificationBasis, { kind: "FAILURE_RATE" }>["missionTime"];
   onOperation: (operation: FaultTreeOperation) => void;
   onSelectionChange: (selection: FaultTreeSelection) => void;
   onOpenReference: (request: FaultTreeOpenReferenceRequest) => void;

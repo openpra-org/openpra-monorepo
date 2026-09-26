@@ -14,7 +14,9 @@ import {
   type Stage,
 } from "./syViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, stepsFromMef, type CommentView } from "./sySelectors";
-import { ScopeScreen, ModelsScreen, FailuresScreen, CcfScreen, type SyDrawerContext } from "./syScreens";
+import { FailuresScreen, CcfScreen, type SyDrawerContext } from "./syScreens";
+import { ScopeScreen } from "./SyScope";
+import { ModelsScreen } from "./SySystemModels";
 import { DepsScreen, IntegrityScreen, UncertScreen, DraftScreen, DrawerContent, PlaceholderScreen } from "./syScreens2";
 import { InternalReviewScreen, ReviewerCommentDock } from "./syReview";
 import { useSyWorkbook, type SyWorkbookData } from "./syWorkbookContext";
@@ -25,26 +27,27 @@ import { WorkbookSaveIndicator } from "../workbooks/workbookSaveIndicator";
 import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
 import { SyBayesianNetworkWorkspace } from "./syBayesianNetworkWorkspace";
 import "../workbooks/css/workbookWorkspace.css";
+import "../welcome/css/newProjectModal.css";
 import "./css/syScreens.css";
+import "./css/syWorkspace.css";
 
 interface StepHeader {
   eyebrow: string;
   title: string;
-  sub?: string;
 }
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "Systems from ES, top events from SC, alignments from POS (SY-A1, A2, A3)." };
-    case "models": return { eyebrow: "Step 02", title: "System Models", sub: "Boundaries, alignments and the logic model per system (HLR-SY-A)." };
-    case "failures": return { eyebrow: "Step 03", title: "Failure Modes", sub: "What goes in the model, screening and human events (SY-A16 to A28)." };
-    case "ccf": return { eyebrow: "Step 04", title: "Common Cause", sub: "The block that stops the model lying about independence (SY-B1 to B4)." };
-    case "deps": return { eyebrow: "Step 05", title: "Dependencies", sub: "Support, shared space, inventories and software (SY-B5 to B15)." };
-    case "integrity": return { eyebrow: "Step 06", title: "Model Integrity", sub: "Plant fidelity, level of detail and nomenclature (SY-A5, A6, A30)." };
-    case "uncert": return { eyebrow: "Step 07", title: "Uncertainty analysis", sub: "Linked Data Analysis inputs, model assumptions and top-event uncertainty." };
-    case "draft": return { eyebrow: "Step 08 · Draft", title: "Produce the draft", sub: "Build the SY report, then send it to review." };
-    case "review": return { eyebrow: "Step 09 · Review", title: "Internal technical review", sub: "Reviewers comment, the preparer replies, all resolve before approval." };
-    case "approval": return { eyebrow: "Step 10 · Approval", title: "Approval & sign-off", sub: "Everyone signs, the approver last." };
+    case "scope": return { eyebrow: "Step 01 · SY-A", title: "Scope" };
+    case "models": return { eyebrow: "Step 02 · SY-A", title: "System Models" };
+    case "failures": return { eyebrow: "Step 03 · SY-A", title: "Failure Modes" };
+    case "ccf": return { eyebrow: "Step 04 · SY-B", title: "Common Cause" };
+    case "deps": return { eyebrow: "Step 05 · SY-B", title: "Dependencies" };
+    case "integrity": return { eyebrow: "Step 06 · SY-A", title: "Model Integrity" };
+    case "uncert": return { eyebrow: "Step 07 · SY-A · SY-B", title: "Uncertainty analysis" };
+    case "draft": return { eyebrow: "Step 08 · Draft", title: "Produce the draft" };
+    case "review": return { eyebrow: "Step 09 · Review", title: "Internal technical review" };
+    case "approval": return { eyebrow: "Step 10 · Approval", title: "Approval & sign-off" };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -134,12 +137,13 @@ function WorkspaceHeader({
   );
 }
 
-function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
+function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen, onClose }: {
   stepId: string;
   setStepId: (id: string) => void;
   persona: SyPersona;
   visibleSteps: SyStep[];
   mobileOpen: boolean;
+  onClose: () => void;
 }): JSX.Element {
   const idx = Math.max(0, visibleSteps.findIndex((s) => s.id === stepId));
   const pct = ((idx + 1) / visibleSteps.length) * 100;
@@ -147,7 +151,10 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
   return (
     <aside className={`posw__rail${mobileOpen ? " posw__rail--mobile-open" : ""}`} aria-label="SY analysis steps">
       <div className="posrail__head">
-        <span className="posrail__eyebrow">{eyebrow}</span>
+        <div className="posrail__head-top">
+          <span className="posrail__eyebrow">{eyebrow}</span>
+          <button type="button" className="posdock__close" onClick={onClose} aria-label="Hide steps" title="Hide steps"><SYIcon.Close /></button>
+        </div>
         <div className="posrail__progress">
           <span className="posrail__progress-num">{idx + 1}</span>
           <span className="posrail__progress-total">/ {visibleSteps.length} steps</span>
@@ -163,7 +170,12 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
             <li key={s.id}>
               <button type="button" className={`posrail__step${active ? " posrail__step--active" : ""}${complete ? " posrail__step--complete" : ""}${idle ? " posrail__step--idle" : ""}`} onClick={() => setStepId(s.id)}>
                 <span className="posrail__step-num">{complete ? <SYIcon.Check /> : s.num}</span>
-                <span><span className="posrail__step-label">{s.label}</span></span>
+                <span>
+                  <span className="posrail__step-label">
+                    {s.label}
+                    {s.badges.map((badge) => <span key={badge} className="syse">{badge}</span>)}
+                  </span>
+                </span>
                 <span className="posrail__step-warn" style={{ background: "transparent" }} />
               </button>
             </li>
@@ -244,7 +256,41 @@ function ConformanceDock({ ccId, stage, onGoToScope, onClose, mobileOpen }: {
   );
 }
 
+const DIALOG_LABELS: Record<SyDrawerContext["kind"], string> = {
+  system: "System details",
+  sysdef: "System definition",
+  variant: "Success criterion by operating state",
+  alignment: "Alignment details",
+  boundary: "Model boundary",
+  states: "Operating states",
+  operations: "Operation and maintenance",
+  ccf: "Common cause group details",
+  hfe: "Human failure event details",
+  screening: "Screening details",
+  exclusion: "Exclusion details",
+  unavail: "Simultaneous unavailability details",
+  ssc: "Support success criterion details",
+  spc: "Spatial coupling details",
+  inv: "Depletable inventory details",
+  dic: "Digital I&C details",
+  loop: "Logic loop details",
+  confirm: "Confirmation record details",
+  oc: "Capacity limit details",
+  unc: "Model uncertainty details",
+  assum: "Pre-operational assumption details",
+  sens: "Sensitivity study details",
+  be: "Basic event details",
+  house: "House event details",
+  diagram: "Diagram",
+};
+
 function SyDrawer({ context, onClose }: { context: SyDrawerContext; onClose: () => void }): JSX.Element {
+  const dialog = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const trigger = document.activeElement;
+    dialog.current?.focus();
+    return () => { if (trigger instanceof HTMLElement) trigger.focus(); };
+  }, []);
   useEffect(() => {
     function onKey(e: KeyboardEvent): void { if (e.key === "Escape") onClose(); }
     document.addEventListener("keydown", onKey);
@@ -253,8 +299,25 @@ function SyDrawer({ context, onClose }: { context: SyDrawerContext; onClose: () 
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
   }, [onClose]);
   return (
-    <div className="posdrawer-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="posdrawer" role="dialog" aria-modal="true">
+    <div className="modal__backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div
+        ref={dialog}
+        className={`modal sy-details-modal${context.kind === "diagram" ? " sy-details-modal--wide" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={DIALOG_LABELS[context.kind]}
+        tabIndex={-1}
+        onKeyDown={(e) => {
+          if (e.key !== "Tab") return;
+          const controls = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]'))
+            .filter((element) => element.getClientRects().length > 0);
+          const first = controls[0];
+          const last = controls[controls.length - 1];
+          if (first === undefined || last === undefined) { e.preventDefault(); return; }
+          if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && (document.activeElement === last || document.activeElement === dialog.current)) { e.preventDefault(); first.focus(); }
+        }}
+      >
         <DrawerContent context={context} onClose={onClose} />
       </div>
     </div>
@@ -352,6 +415,7 @@ function SyWorkbench({
   const [sysId, setSysId] = useState<string>(data.sy.systemDefinitions[0]?.uuid ?? "SYS-DRACS");
   const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
   const [dockOpen, setDockOpen] = useState(!isNarrow);
+  const [railOpen, setRailOpen] = useState(true);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
   const [dockMobileOpen, setDockMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -424,11 +488,11 @@ function SyWorkbench({
       case "scope":
         return (
           <>
-            <ScopeScreen ccId={ccId} setCcId={setCcId} onAction={flash} stage={stage} setStage={setStage} />
+            <ScopeScreen ccId={ccId} setCcId={setCcId} onAction={flash} stage={stage} setStage={setStage} openDrawer={setDrawer} />
             {renderDocuments?.()}
           </>
         );
-      case "models": return <ModelsScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} />;
+      case "models": return <ModelsScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenScope={() => setStepId("scope")} />;
       case "failures": return <FailuresScreen openDrawer={setDrawer} />;
       case "ccf": return <CcfScreen openDrawer={setDrawer} />;
       case "deps": return <><SyBayesianNetworkWorkspace initialModelId={requestedNetworkId} initialEsqWorkbookId={requestedEsqWorkbookId} /><DepsScreen openDrawer={setDrawer} /></>;
@@ -469,29 +533,39 @@ function SyWorkbench({
   }
 
   return (
-    <div className={`posw${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`SY — ${step.label}`}>
+    <div className={`posw sy-workspace${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`SY — ${step.label}`}>
       {isReviewer && <div className="poshd__extbar" />}
       {isApprover && <div className="poshd__apprbar" />}
       <WorkspaceHeader persona={persona} setPersona={setPersona} workflowState={data.sy.workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailMobileOpen((v) => !v)} onToggleDock={() => { setDockOpen(true); setDockMobileOpen((v) => !v); }} />
 
-      <div className={`posw__shell${dockOpen ? "" : " posw__shell--dock-closed"}`}>
-        <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} />
+      <div className={`posw__shell${railOpen ? "" : " posw__shell--rail-closed"}${dockOpen ? "" : " posw__shell--dock-closed"}`}>
+        {(railOpen || railMobileOpen) && (
+          <StepRail
+            stepId={stepId}
+            setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }}
+            persona={persona}
+            visibleSteps={visibleSteps}
+            mobileOpen={railMobileOpen}
+            onClose={() => { if (railMobileOpen) setRailMobileOpen(false); else setRailOpen(false); }}
+          />
+        )}
 
         <main className="posmain" aria-label="Step content">
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <WorkbookSectionHeading workbook="SY" title={h.title} description={h.sub} level={1} className="posmain__title" />
+              <WorkbookSectionHeading workbook="SY" title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
+              {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm sy-show-steps" onClick={() => setRailOpen(true)}><SYIcon.Layers /> Show steps</button>}
               {!dockOpen && (
-                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setDockOpen(true); setDockMobileOpen(true); }}><SYIcon.Eye /> Show conformance</button>
+                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setDockOpen(true); setDockMobileOpen(window.matchMedia("(max-width: 1100px)").matches); }}><SYIcon.Eye /> Show conformance</button>
               )}
             </div>
           </div>
 
           {renderScreen()}
-          {["models", "ccf", "deps"].includes(stepId) && <SyAnalysisHistory />}
+          {["ccf", "deps"].includes(stepId) && <SyAnalysisHistory />}
 
           <div className="posnav">
             {prev ? (

@@ -62,6 +62,7 @@ jest.mock("../syWorkbookContext", () => ({
     shortOf: (id: string) => id,
     controlledParameters: mockControlledParameters,
     controlledHumanFailures: mockControlledHumanFailures,
+    controlledFailureModes: [],
   }),
 }));
 
@@ -80,7 +81,9 @@ describe("SY basic-event controlled probability authoring", () => {
     };
     render(<DrawerContent context={{ kind: "be", id: "be-1" }} onClose={jest.fn()} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Review the rate and mission time");
-    expect(screen.getByText("Review required")).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Failure rate" })).toHaveValue(0.001);
+    expect(screen.getByRole("spinbutton", { name: "Mission time" })).toHaveValue(100);
+    expect(screen.queryByRole("combobox", { name: "Input" })).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Data Analysis parameter" })).toBeDisabled();
     expect(mockMutateSy).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Use exponential conversion" }));

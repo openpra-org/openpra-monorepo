@@ -27,11 +27,34 @@ export const SyDependencyTypeSchema = z.enum(DependencyType);
 export const SyFailureModeTypeSchema = z.enum(FailureModeType);
 export const ComponentStateSchema = z.enum(["operational", "degraded", "failed", "recovering", "maintenance"]);
 
+export const SystemBasicEventFailureModeSourceSchema = z.object({
+  workbookId: z.string(),
+  failureModeId: z.string(),
+});
+
+export const SystemDiagramRegionSchema = z.object({
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+  width: z.number().gt(0).max(1),
+  height: z.number().gt(0).max(1),
+});
+
+export const SystemDiagramSchema = z.object({
+  uuid: z.string(),
+  title: z.string(),
+  documentId: z.string(),
+  filename: z.string(),
+  page: z.number().int().min(1),
+  region: SystemDiagramRegionSchema,
+  rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]).optional(),
+});
+
 export const SystemBasicEventSchema = z.object({
   ...BasicEventSchema.shape,
   code: z.string().trim().min(1).max(64),
   componentReference: z.string().optional(),
   failureMode: z.string().optional(),
+  failureModeSource: SystemBasicEventFailureModeSourceSchema.optional(),
   probability: z.number().optional(),
   quantificationBasis: FaultTreeBasicEventQuantificationBasisSchema.optional(),
   repairModeled: z.boolean().optional(),
@@ -332,10 +355,12 @@ export const SystemDefinitionSchema = z.object({
   description: z.string().optional(),
   abbreviation: z.string().optional(),
   boundaries: z.array(z.string()),
+  diagrams: z.array(SystemDiagramSchema).optional(),
   components: z.record(z.string(), SystemComponentSchema).optional(),
   successCriteriaIds: z.array(SuccessCriteriaIdSchema),
   successCriterion: z.string().optional(),
   missionTimeHours: z.number().optional(),
+  missionTimeRef: z.string().optional(),
   schematic: z
     .object({
       reference: z.string(),
@@ -732,9 +757,18 @@ export const SyDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const SyLinkedWorkbooksSchema = z.object({
+  ES: z.string().optional(),
+  SC: z.string().optional(),
+  POS: z.string().optional(),
+  DA: z.string().optional(),
+  HRA: z.string().optional(),
+});
+
 const CanonicalSystemsAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.SYSTEMS_ANALYSIS).shape,
   praScope: z.string(),
+  linkedWorkbooks: SyLinkedWorkbooksSchema.optional(),
   systemDefinitions: z.array(SystemDefinitionSchema),
   systemToSafetyFunctionMappings: z.array(SystemToSafetyFunctionMappingSchema),
   systemLogicModels: z.array(SystemLogicModelSchema),

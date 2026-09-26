@@ -65,7 +65,6 @@ function SyDocumentsCard({ workbookId, canEdit }: { workbookId: string; canEdit:
           </label>
         )}
       </div>
-      <p className="poscard__sub">System design descriptions, failure mode analyses, common cause parameter dossiers and method references that support these system models.</p>
       {error !== null && <p className="possubtle" style={{ color: "#b73b3b" }}>{error}</p>}
       {docs === null ? (
         <p className="possubtle">Loading documents…</p>

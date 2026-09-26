@@ -29,7 +29,6 @@ import {
   DependencyType,
   TruncationMethod,
   QuantificationApproach,
-  CircularLogicResolutionMethod,
   RiskSignificantContributorType,
   ESQ_SR_CATALOG,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
@@ -171,16 +170,16 @@ const familyQuantifications: EventSequenceFamilyQuantification[] = [
     eventSequenceFamilyRef: "ESF-LATE",
     crossPosGroupingJustification: "Grouped across the at-power and the hot-standby states, since the response is the same.",
     dependenciesConsideredInGrouping: true,
-    representativeSequenceSelectionBasis: "A station-blackout family driven by the diesel and battery availability and the recovery timing, inside the ESF-LATE screening envelope of 4.3e-5 per year.",
+    representativeSequenceSelectionBasis: "A station-blackout family driven by the backup gas-turbine generator and battery availability and the recovery timing, inside the ESF-LATE screening envelope of 4.3e-5 per year.",
     quantificationBasis: "MEAN_PROPAGATED_SOKC",
     meanFrequency: 2.4e-7,
     frequencyDistribution: { type: DistributionType.LOGNORMAL, median: 1.9e-7, errorFactor: 3 },
     percentile05: 6.3e-8,
     percentile50: 1.9e-7,
     percentile95: 5.7e-7,
-    significantUncertaintySources: ["Diesel common-cause parameter (CCF-AC-DG)", "Station battery common-cause parameter (CCF-DC-BATT)"],
+    significantUncertaintySources: ["Backup generator common-cause parameter (CCF-AC-GTG)", "Station battery common-cause parameter (CCF-DC-BATT)"],
     contributionBreakdown: [
-      { contributorRef: "Class 1E diesel common-cause failure (CCF-AC-DG)", contributorType: "CCF", fractionalContribution: 0.36 },
+      { contributorRef: "Backup gas-turbine generator common-cause failure (CCF-AC-GTG)", contributorType: "CCF", fractionalContribution: 0.36 },
       { contributorRef: "Station battery common-cause failure (CCF-DC-BATT)", contributorType: "CCF", fractionalContribution: 0.29 },
       { contributorRef: "Loss of offsite power (IE-06)", contributorType: "INITIATING_EVENT", fractionalContribution: 0.22 },
       { contributorRef: "Distributed small contributors", contributorType: "OTHER", fractionalContribution: 0.13 },
@@ -316,18 +315,7 @@ const dependencyTreatment: DependencyTreatment = {
   implementsSrs: srs("ESQ-C1", "ESQ-C2"),
 };
 
-const circularLogicResolutions: CircularLogicResolution[] = [
-  {
-    uuid: "CL-1",
-    description: "Cooling-water support and electrical support each need the other",
-    involvedElementIds: ["SYS-CCW", "SYS-1E-AC"],
-    detectionMethod: "Detected during fault-tree linking as a logic loop.",
-    resolutionMethod: CircularLogicResolutionMethod.LOGIC_TRANSFORMATION,
-    resolutionDescription: "The loop is broken by a logic transformation that preserves both support paths.",
-    neutralityJustification: "The break adds neither conservatism nor non-conservatism, since both directions are retained.",
-    implementsSrs: srs("ESQ-B5"),
-  },
-];
+const circularLogicResolutions: CircularLogicResolution[] = [];
 
 const mutuallyExclusiveEventRules: MutuallyExclusiveEventRule[] = [
   {
@@ -451,8 +439,8 @@ const linkingTransferRecords: LinkingTransferRecord[] = [
     sourceTreeDescription: "Loss-of-offsite-power tree",
     targetTreeDescription: "Station-blackout tree",
     failedEquipmentTransferred: ["Offsite power"],
-    flagSettingsTransferred: ["HE-DG-OUT"],
-    otherCharacteristicsTransferred: ["The offsite-power state and the diesel and battery alignment carry into the blackout tree."],
+    flagSettingsTransferred: ["HE-GTG-OUT"],
+    otherCharacteristicsTransferred: ["The offsite-power state and the backup generator and battery alignment carry into the blackout tree."],
     frequencyTransferred: true,
     implementsSrs: srs("ESQ-C3"),
   },
@@ -605,7 +593,7 @@ const cutsetLogicReviews: CutsetLogicReviewRecord[] = [
     uuid: "CR-2",
     sampleDescription: "Top five cutsets in the station-blackout family",
     logicCorrect: true,
-    findings: "The recovery, the diesel and the station-battery common-cause terms appear as expected.",
+    findings: "The recovery, the backup generator and the station-battery common-cause terms appear as expected.",
     implementsSrs: srs("ESQ-D1"),
   },
 ];
@@ -693,13 +681,13 @@ const riskSignificantContributors: RiskSignificantContributor[] = [
   {
     uuid: "RC-4",
     contributorType: RiskSignificantContributorType.CCF,
-    entityRef: "Class 1E diesel common-cause failure",
+    entityRef: "Backup gas-turbine generator common-cause failure",
     applicableFamilyRefs: ["EFQ-4"],
     fractionalContribution: 0.1,
     riskSignificanceCriteriaBasis: "Drives the station-blackout family.",
     reactorScope: "SINGLE_REACTOR",
     contributionPhase: "MITIGATION_FAILURE",
-    basis: "The diesel common-cause group drives the blackout family.",
+    basis: "The backup generator common-cause group drives the blackout family.",
     implementsSrs: srs("ESQ-D6"),
   },
   {
@@ -724,7 +712,7 @@ const importanceAnalyses: ImportanceAnalysisRecord[] = [
       { entityType: "CCF_GROUP", entityRef: "Shutdown-cooling train common-cause group", fussellVesely: 0.22, riskAchievementWorth: 8.4 },
       { entityType: "SYSTEM", entityRef: "Cooling-water support", fussellVesely: 0.15, riskAchievementWorth: 5.1 },
       { entityType: "HUMAN_FAILURE_EVENT", entityRef: "Operator starts the second shutdown-cooling train", fussellVesely: 0.12, riskAchievementWorth: 4.2 },
-      { entityType: "CCF_GROUP", entityRef: "Class 1E diesel common-cause group", fussellVesely: 0.1, riskAchievementWorth: 3.6 },
+      { entityType: "CCF_GROUP", entityRef: "Backup gas-turbine generator common-cause group", fussellVesely: 0.1, riskAchievementWorth: 3.6 },
       { entityType: "BASIC_EVENT", entityRef: "Reactor protection channel", fussellVesely: 0.04, riskAchievementWorth: 1.9 },
     ],
     implementsSrs: srs("ESQ-D7"),

@@ -12,6 +12,7 @@ import {
 } from "docx";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { analysisModelBasicEvents } from "./syUncertainty";
+import { isSystemLevelModel } from "./sySelectors";
 import { AnalysisRunDetailsSchema, AnalysisRunProvenanceListSchema } from "interfaces-shared-types/newly-developed-methods/shared";
 import { FaultTreeAnalysisResultSchema } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { fetchJson } from "../api/client";
@@ -104,6 +105,62 @@ function introSection(a: SystemsAnalysis, stageLabel: string): (Paragraph | Tabl
   ];
 }
 
+function modelLabel(a: SystemsAnalysis, systemId: string): string {
+  const model = a.systemLogicModels.find((candidate) => candidate.systemReference === systemId);
+  if (model === undefined) return "Not built";
+  return isSystemLevelModel(model) ? "System-level" : "Fault tree";
+}
+
+function systemDescriptions(a: SystemsAnalysis): (Paragraph | Table)[] {
+  const out: (Paragraph | Table)[] = [heading("System descriptions", HeadingLevel.HEADING_1)];
+  for (const system of a.systemDefinitions) {
+    const model = a.systemLogicModels.find((candidate) => candidate.systemReference === system.uuid);
+    const variants = (a.variableSuccessCriteria ?? []).filter((criterion) => criterion.systemReference === system.uuid);
+    const alignments = system.alignments ?? [];
+    const limits = (a.overCapacityConsiderations ?? []).filter((item) => item.system === system.uuid);
+    const assumptions = (a.preOperationalAssumptions ?? []).filter((item) => item.affectedElementIds.includes(system.uuid));
+    out.push(heading(system.abbreviation === undefined ? system.name : `${system.name} (${system.abbreviation})`, HeadingLevel.HEADING_2));
+    out.push(para(`Top event: ${system.description ?? "Not set"}`));
+    out.push(para(`Success criterion: ${system.successCriterion ?? "Not set"}`));
+    out.push(para(`Mission time: ${system.missionTimeHours === undefined ? "Not set" : `${system.missionTimeHours} h`}. Model: ${modelLabel(a, system.uuid)}${model !== undefined && isSystemLevelModel(model) ? `, because ${model.nonDetailedModelJustification ?? ""}` : ""}.`));
+    out.push(para(`Operating states: ${(system.applicablePlantOperatingStates ?? []).length === 0 ? "every operating state" : (system.applicablePlantOperatingStates ?? []).join(", ")}.`));
+    if (variants.length > 0) {
+      out.push(heading("Success criterion by operating state", HeadingLevel.HEADING_3));
+      out.push(dataTable(["Operating state", "Condition", "Success criterion"], variants.map((criterion) => [criterion.plantOperatingStateId ?? "Any", criterion.scenarioCondition ?? "—", criterion.basis || "—"])));
+    }
+    out.push(heading("Model boundary", HeadingLevel.HEADING_3));
+    if (system.boundaries.length === 0) out.push(para("No boundary recorded."));
+    for (const item of system.boundaries) out.push(bullet(item));
+    if ((system.diagrams ?? []).length > 0) {
+      out.push(heading("Diagrams", HeadingLevel.HEADING_3));
+      out.push(dataTable(["Diagram", "Source document", "Page"], (system.diagrams ?? []).map((diagram) => [diagram.title, diagram.filename, String(diagram.page)])));
+    }
+    if (alignments.length > 0) {
+      out.push(heading("Alignments", HeadingLevel.HEADING_3));
+      out.push(dataTable(["Alignment", "Normal", "Modeled", "Why not modeled"], alignments.map((alignment) => [alignment.name, alignment.isNormalAlignment ? "Yes" : "No", alignment.modeled ? "Yes" : "No", alignment.modeled ? "—" : alignment.justificationIfNotModeled ?? "—"])));
+    }
+    const operation: [string, string[] | undefined][] = [
+      ["Operating procedures", system.operatingProcedures],
+      ["Test and maintenance", system.testAndMaintenanceProcedures],
+      ["Operating limits", system.operatingLimitations],
+    ];
+    for (const [title, items] of operation) {
+      if (items === undefined || items.length === 0) continue;
+      out.push(heading(title, HeadingLevel.HEADING_3));
+      for (const item of items) out.push(bullet(item));
+    }
+    if (limits.length > 0) {
+      out.push(heading("Capacity limits", HeadingLevel.HEADING_3));
+      out.push(dataTable(["Exceedance scenario", "Treatment", "Justification"], limits.map((item) => [item.potentialExceedanceScenarios.join("; ") || "—", item.treatment === "REALISTIC_JUSTIFIED" ? "Realistic" : "Conservative", item.justificationForCapability ?? "—"])));
+    }
+    if (a.plantStage === "PRE_OPERATIONAL" && assumptions.length > 0) {
+      out.push(heading("Pre-operational assumptions", HeadingLevel.HEADING_3));
+      out.push(dataTable(["Assumption", "Status", "Closure basis"], assumptions.map((item) => [item.description || "—", item.status, item.closureBasis || "—"])));
+    }
+  }
+  return out;
+}
+
 function buildMethodology(a: SystemsAnalysis, final: boolean, summaries: UncertaintySummary[]): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
   const stageLabel = a.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational";
@@ -126,11 +183,18 @@ function buildMethodology(a: SystemsAnalysis, final: boolean, summaries: Uncerta
   out.push(heading("System breakdown structure & systems analysis", HeadingLevel.HEADING_1));
   out.push(heading("Selected systems", HeadingLevel.HEADING_2));
   out.push(dataTable(
-    ["System", "Representation", "Mission time"],
-    a.systemDefinitions.map((s) => [s.name, a.systemLogicModels.find((m) => m.systemReference === s.uuid)?.modelRepresentation ?? "—", s.missionTimeHours !== undefined ? `${s.missionTimeHours} h` : "—"]),
+    ["System", "Safety functions", "Model", "Mission time"],
+    a.systemDefinitions.map((s) => [
+      s.name,
+      (a.systemToSafetyFunctionMappings.find((mapping) => mapping.systemReference === s.uuid)?.safetyFunctions ?? []).join(", ") || "—",
+      modelLabel(a, s.uuid),
+      s.missionTimeHours !== undefined ? `${s.missionTimeHours} h` : "—",
+    ]),
   ));
   out.push(heading("Grouping retained systems", HeadingLevel.HEADING_2));
   out.push(para(doc.modeledComponentsAndFailureModes));
+
+  out.push(...systemDescriptions(a));
 
   out.push(heading("Methodologies & guidelines", HeadingLevel.HEADING_1));
   out.push(heading("Constructing fault trees", HeadingLevel.HEADING_2));
@@ -198,6 +262,10 @@ function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean,
   out.push(para(sysDef.description ?? sysDef.name));
   out.push(heading("System boundary", HeadingLevel.HEADING_2));
   for (const b of sysDef.boundaries) out.push(bullet(b));
+  if ((sysDef.diagrams ?? []).length > 0) {
+    out.push(heading("Diagrams", HeadingLevel.HEADING_2));
+    out.push(dataTable(["Diagram", "Source document", "Page"], (sysDef.diagrams ?? []).map((diagram) => [diagram.title, diagram.filename, String(diagram.page)])));
+  }
   out.push(heading("Dependency & shared components", HeadingLevel.HEADING_2));
   out.push(dataTable(
     ["Supporting system", "Type", "Detail"],

@@ -27,6 +27,7 @@ interface Props {
   exactRunning: boolean;
   sourceWarning: string | null;
   currentModelId: string;
+  defaultMissionTimeHours?: number;
   models: FaultTreeRunModelOption[];
   basicEventCodes: Readonly<Record<string, string>>;
   onRun: (configuration: FaultTreeRunConfiguration, modelIds: string[]) => void;
@@ -93,6 +94,7 @@ export function SyFaultTreeAnalysis({
   exactRunning,
   sourceWarning,
   currentModelId,
+  defaultMissionTimeHours,
   models,
   basicEventCodes,
   onRun,
@@ -101,7 +103,10 @@ export function SyFaultTreeAnalysis({
   const saveBlockedReason = analysisSaveBlock(runtime);
   const [calculationType, setCalculationType] = useState<FaultTreeCalculationType>("PROBABILITY");
   const [workflow, setWorkflow] = useState<FaultTreeWorkflow>("MANUAL");
-  const [settings, setSettings] = useState<FaultTreeAnalysisSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<FaultTreeAnalysisSettings>(() => ({
+    ...DEFAULT_SETTINGS,
+    missionTimeHours: defaultMissionTimeHours ?? DEFAULT_SETTINGS.missionTimeHours,
+  }));
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [batchModelIds, setBatchModelIds] = useState<string[]>([currentModelId]);
   const algorithms = algorithmsFor(calculationType);

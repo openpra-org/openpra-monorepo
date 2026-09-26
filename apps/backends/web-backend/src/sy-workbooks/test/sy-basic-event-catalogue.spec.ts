@@ -207,6 +207,41 @@ describe("canonical SY workbook fault-tree storage", () => {
     expect(SystemsAnalysisSchema.parse(structuredClone(migrated))).toEqual(migrated);
   });
 
+  it.each([
+    ["SFR", SY_ANALYSIS],
+    ["HTGR", SY_ANALYSIS_HTGR],
+  ])("models every %s common-cause group through native PRAXIS member expansion", (_name, analysis) => {
+    const eventById = new Map(analysis.systemBasicEvents.map((event) => [event.uuid, event]));
+    const referencedIds = new Set(
+      analysis.systemLogicModels.flatMap((model) => systemFaultTreeBasicEventIds(model)),
+    );
+    const groupedMemberIds = new Set<string>();
+
+    expect(analysis.commonCauseFailureGroups.length).toBeGreaterThan(0);
+    expect(
+      analysis.systemBasicEvents.filter((event) => event.failureMode === "COMMON_CAUSE_FAILURE"),
+    ).toEqual([]);
+
+    analysis.commonCauseFailureGroups.forEach((group) => {
+      const memberIds = group.members.basicEvents.map(({ id }) => id);
+      expect(new Set(memberIds).size).toBe(memberIds.length);
+      expect(memberIds.length).toBeGreaterThanOrEqual(2);
+      memberIds.forEach((memberId) => {
+        const event = eventById.get(memberId);
+        expect(groupedMemberIds.has(memberId)).toBe(false);
+        groupedMemberIds.add(memberId);
+        expect(event).toBeDefined();
+        expect(event?.failureMode).not.toBe("COMMON_CAUSE_FAILURE");
+        expect(event?.probability).toEqual(expect.any(Number));
+        expect(referencedIds.has(memberId)).toBe(true);
+      });
+      expect(analysis.systemLogicModels.some((model) => {
+        const modelEventIds = new Set(systemFaultTreeBasicEventIds(model));
+        return memberIds.every((memberId) => modelEventIds.has(memberId));
+      })).toBe(true);
+    });
+  });
+
   it("builds the workbook catalogue when a legacy workbook has only model-local events", () => {
     const legacy = legacyWorkbook();
     delete legacy.systemBasicEvents;

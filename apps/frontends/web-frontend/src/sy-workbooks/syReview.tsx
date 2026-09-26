@@ -111,7 +111,6 @@ function InternalReviewScreen({
             <button type="button" className={`poschip${filter === "resolved" ? " poschip--primary" : ""}`} onClick={() => setFilter("resolved")}>Resolved ({displayResolved})</button>
           </div>
         </div>
-        {isReviewStep && <p className="poscard__sub">All comments from all roles, newest first.</p>}
         {displayComments.length === 0 ? (
           <p className="posmuted" style={{ margin: 0 }}>
             {isApprovalStep && (persona === "reviewer" || persona === "approver") ? "You have no comments." : "No comments yet. Reviewers and the approver leave comments from the dock."}
@@ -158,9 +157,6 @@ function InternalReviewScreen({
             <WorkbookSectionHeading workbook="SY" title="Submit for Internal Approval" level={3} />
             {allResolved ? <Badge kind="ok">All comments resolved</Badge> : <Badge kind="warn">{openCount} open comment{openCount === 1 ? "" : "s"}</Badge>}
           </div>
-          <p className="poscard__sub" style={{ marginBottom: 14 }}>
-            The reviewer must mark every comment <strong>resolved</strong> before the workbook can advance to <strong>{approver?.name ?? "the approver"}</strong> for internal approval.
-          </p>
           <div className="posrow" style={{ gap: 10, alignItems: "center" }}>
             <span className="poscomment__foot-spacer" />
             {submitted ? (

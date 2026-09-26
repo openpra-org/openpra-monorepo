@@ -5,6 +5,7 @@ import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAna
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "./syWorkbookApi";
 import { useSyWorkbook } from "./syWorkbookContext";
 import { linkedModelInputs } from "./syUncertainty";
+import { isSystemLevelModel } from "./sySelectors";
 import "./css/syFaultTreeAnalysis.css";
 import "./css/syUncertainty.css";
 
@@ -43,7 +44,7 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
   const { sourceWarning } = useAnalysisSourceGuard("sy", runtime.workbookId);
   const saveBlockedReason = analysisSaveBlock(runtime);
   const modelOptions = useMemo(() => sy.systemLogicModels
-    .filter((model) => model.topGate !== null && model.nonDetailedModelJustification === undefined)
+    .filter((model) => model.topGate !== null && !isSystemLevelModel(model))
     .map((model) => ({
       id: model.uuid,
       label: `${sy.systemDefinitions.find(({ uuid }) => uuid === model.systemReference)?.abbreviation ?? model.systemReference} · ${model.code} · ${model.name}`,

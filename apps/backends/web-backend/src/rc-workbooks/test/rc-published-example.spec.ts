@@ -1,4 +1,5 @@
 import request from "supertest";
+import { Test } from "@nestjs/testing";
 import { createHash } from "crypto";
 import { createSourceTermTestApp } from "./source-term-test-app";
 import { ExampleWorkbooksService } from "../../example-workbooks/example-workbooks.service";
@@ -60,12 +61,20 @@ describe("RC-only published input example", () => {
     expect(() => readRcPublishedFile("../../outside.txt")).toThrow("Unknown");
   });
   it("serves the source guide and health records as readable text", async () => {
-    const controller = new ExampleDocumentsController();
-    for (const [id, filename] of [["rc-published-input-sources", "sources.txt"], ["rc-published-response-records", "MACCS-Noah-response-settings-excerpt.inp"], ["rc-published-health-records", "MACCS-Noah-health-settings-excerpt.inp"]]) {
-      const response = controller.getDocument(id), chunks: Buffer[] = [];
-      expect(response.getHeaders().type).toBe("text/plain; charset=utf-8");
-      for await (const chunk of response.getStream()) chunks.push(Buffer.from(chunk));
-      expect(Buffer.concat(chunks)).toEqual(readRcPublishedFile(filename));
+    const moduleRef = await Test.createTestingModule({ controllers: [ExampleDocumentsController] }).compile();
+    const app = moduleRef.createNestApplication();
+    await app.init();
+    try {
+      for (const [id, filename] of [["rc-published-input-sources", "sources.txt"], ["rc-published-response-records", "MACCS-Noah-response-settings-excerpt.inp"], ["rc-published-health-records", "MACCS-Noah-health-settings-excerpt.inp"]]) {
+        const response = await request(app.getHttpServer()).get(`/example-documents/rc/${id}`).expect(200);
+        expect(response.headers["content-type"]).toBe("text/plain; charset=utf-8");
+        expect(Buffer.from(response.text)).toEqual(readRcPublishedFile(filename));
+      }
+      const part = await request(app.getHttpServer()).get("/example-documents/rc/rc-published-input-sources").set("Range", "bytes=0-9").expect(206);
+      expect(part.headers["accept-ranges"]).toBe("bytes");
+      expect(Buffer.from(part.text)).toEqual(readRcPublishedFile("sources.txt").subarray(0, 10));
+    } finally {
+      await app.close();
     }
   });
   it("rejects health records altered without changing their original file", async () => {

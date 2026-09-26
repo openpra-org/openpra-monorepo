@@ -1,4 +1,4 @@
-import { type SystemsAnalysis, type SystemBasicEvent, type LegacySystemFaultTreeNode } from "interfaces-mef-types/sy/systems-analysis";
+import { type SystemDiagram, type SystemsAnalysis, type SystemBasicEvent, type LegacySystemFaultTreeNode } from "interfaces-mef-types/sy/systems-analysis";
 import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type SRReference, type SRConformance, type HlrId, type PlantStage, type SRStatus } from "interfaces-mef-types/core/pra-common";
@@ -6,6 +6,7 @@ import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/cor
 import { DistributionType } from "interfaces-mef-types/core/events";
 import { SY_SR_CATALOG } from "interfaces-mef-types/sy/systems-analysis";
 import { createExampleDependencyNetwork, createExampleHclConfiguration } from "./dependency-model-seed";
+import { SC_ANALYSIS } from "./sc-seed";
 
 const NOW = "2026-05-04T12:00:00.000Z";
 const CREATED = "2026-04-22T09:00:00.000Z";
@@ -131,6 +132,18 @@ const actEvents: SystemBasicEvent[] = [
   be("ACT-CH2-FS", "Voting channel 2 fails", "FAILURE_TO_START", 0.002),
   be("ACT-CH3-FS", "Voting channel 3 fails", "FAILURE_TO_START", 0.002),
   be("ACT-CH4-FS", "Voting channel 4 fails", "FAILURE_TO_START", 0.002),
+  be("ACT-SEN1-FS", "Sensor input module 1 fails", "FAILURE_TO_START", 0.002),
+  be("ACT-SEN2-FS", "Sensor input module 2 fails", "FAILURE_TO_START", 0.002),
+  be("ACT-SEN3-FS", "Sensor input module 3 fails", "FAILURE_TO_START", 0.002),
+  be("ACT-SEN4-FS", "Sensor input module 4 fails", "FAILURE_TO_START", 0.002),
+  be("ACT-OUT1-FS", "Output actuation module 1 fails", "FAILURE_TO_START", 0.0015),
+  be("ACT-OUT2-FS", "Output actuation module 2 fails", "FAILURE_TO_START", 0.0015),
+  be("ACT-OUT3-FS", "Output actuation module 3 fails", "FAILURE_TO_START", 0.0015),
+  be("ACT-OUT4-FS", "Output actuation module 4 fails", "FAILURE_TO_START", 0.0015),
+  be("ACT-SW1-FS", "Actuation software channel 1 fails", "FAILURE_TO_START", 0.0001),
+  be("ACT-SW2-FS", "Actuation software channel 2 fails", "FAILURE_TO_START", 0.0001),
+  be("ACT-SW3-FS", "Actuation software channel 3 fails", "FAILURE_TO_START", 0.0001),
+  be("ACT-SW4-FS", "Actuation software channel 4 fails", "FAILURE_TO_START", 0.0001),
   be("ACT-SW-CCF", "Common cause failure of the logic software", "COMMON_CAUSE_FAILURE", 0.0001),
   be("ACT-SEN-CCF", "Common cause failure of the sensor input modules", "COMMON_CAUSE_FAILURE", 0.0002),
   be("ACT-OUT-CCF", "Common cause failure of the output actuation modules", "COMMON_CAUSE_FAILURE", 0.00015),
@@ -255,18 +268,175 @@ const SYSTEM_POS: Record<string, string[]> = {
   "SYS-SUPP": ["POS-01", "POS-08"],
 };
 
+interface SystemOperationSeed {
+  alignments: { name: string; normal: boolean; modeled: boolean; description: string; whyNot?: string }[];
+  procedures: string[];
+  testMaintenance: string[];
+  limits: string[];
+}
+
+const SYSTEM_OPERATION: Record<string, SystemOperationSeed> = {
+  "SYS-RPS": {
+    alignments: [
+      { name: "Both divisions in service", normal: true, modeled: true, description: "Either division opens its scram breakers and releases the rods." },
+      { name: "One division bypassed for testing", normal: false, modeled: true, description: "The remaining division must trip alone while the other is under surveillance." },
+    ],
+    procedures: ["Reactor trip response procedure", "Manual scram procedure"],
+    testMaintenance: ["Quarterly channel functional test, one division at a time", "Scram breaker trip test and rod release timing at each refueling outage"],
+    limits: ["One trip division may be bypassed for no more than 6 hours for testing."],
+  },
+  "SYS-DRACS": {
+    alignments: [
+      { name: "All three loops in standby", normal: true, modeled: true, description: "NaK loops filled and the air dampers closed, ready to open on demand." },
+      { name: "One loop out of service for maintenance", normal: false, modeled: true, description: "Two loops must still carry the decay heat in the states that need them." },
+    ],
+    procedures: ["Decay heat removal response procedure", "DRACS damper manual opening procedure"],
+    testMaintenance: ["Quarterly air damper stroke test", "Air path and stack inspection each outage"],
+    limits: ["One DRACS loop may be out of service for up to 7 days at power."],
+  },
+  "SYS-PRIMARY": {
+    alignments: [
+      { name: "Both primary loops on pumped flow", normal: true, modeled: true, description: "Primary pumps running with both check valves open." },
+      { name: "Coastdown to natural circulation after a pump trip", normal: false, modeled: true, description: "Both loop flow paths must stay open for buoyancy-driven flow." },
+    ],
+    procedures: ["Loss of primary flow response procedure"],
+    testMaintenance: ["Check valve inspection at each outage", "Pump coastdown test after pump maintenance"],
+    limits: ["Both loop flow paths must stay open whenever natural circulation is credited."],
+  },
+  "SYS-CONF": {
+    alignments: [
+      { name: "Clean-up train running with isolation dampers open", normal: true, modeled: true, description: "The standby clean-up fan starts if the running fan stops." },
+      { name: "Running clean-up fan out of service", normal: false, modeled: true, description: "The standby fan carries the clean-up train alone." },
+    ],
+    procedures: ["Confinement isolation procedure", "Cover-gas clean-up operating procedure"],
+    testMaintenance: ["Quarterly damper closure test", "Clean-up filter test every 18 months"],
+    limits: ["The standby clean-up fan must be available whenever the running fan is out of service."],
+  },
+  "SYS-GUARD": {
+    alignments: [
+      { name: "Guard vessel dry with leak detection in service", normal: true, modeled: true, description: "The passive shell has no active alignment to change." },
+    ],
+    procedures: ["Primary sodium leak response procedure"],
+    testMaintenance: ["Guard vessel gap and shell inspection at each outage"],
+    limits: ["Leak detection must be in service whenever the primary vessel holds sodium."],
+  },
+  "SYS-1E-DC": {
+    alignments: [
+      { name: "Chargers carry the buses", normal: true, modeled: true, description: "Batteries float on the chargers and pick up the load on a charger loss." },
+      { name: "One charger out of service", normal: false, modeled: true, description: "Its battery carries the bus until the charger returns." },
+    ],
+    procedures: ["DC bus undervoltage response procedure", "Battery load-shedding procedure"],
+    testMaintenance: ["Weekly pilot-cell check", "Battery service test at each outage"],
+    limits: ["Each battery must carry the trip and actuation loads for the mission time."],
+  },
+  "SYS-ACT": {
+    alignments: [
+      { name: "Four channels in two-out-of-four voting", normal: true, modeled: true, description: "Any two channels generate the trip or isolation signal." },
+      { name: "One channel bypassed for testing", normal: false, modeled: true, description: "The logic votes two out of the three remaining channels." },
+    ],
+    procedures: ["Actuation logic surveillance procedure", "Manual trip and isolation procedure"],
+    testMaintenance: ["Quarterly channel functional test", "Software configuration check at each outage"],
+    limits: ["Only one channel may be bypassed at a time."],
+  },
+  "SYS-HVAC": {
+    alignments: [
+      { name: "One cooling train running, one in standby", normal: true, modeled: true, description: "The standby train starts on high room temperature." },
+      { name: "One cooling train out of service", normal: false, modeled: true, description: "The remaining train must hold the room below its limit alone." },
+    ],
+    procedures: ["Loss of room cooling response procedure"],
+    testMaintenance: ["Monthly standby train run", "Chiller maintenance at each outage"],
+    limits: ["Safety I&C room temperature must stay below its qualified limit."],
+  },
+  "SYS-SDHR": {
+    alignments: [
+      { name: "Intermediate loop in service with the steam side as heat sink", normal: true, modeled: true, description: "The intermediate pump runs and feedwater keeps the steam generators supplied." },
+      { name: "Intermediate loop drained for maintenance", normal: false, modeled: false, description: "The loop is unavailable as a heat path.", whyNot: "Draining is allowed only in the cold shutdown states outside this model's scope, where DRACS carries the heat." },
+    ],
+    procedures: ["Shutdown heat removal through the steam generators procedure"],
+    testMaintenance: ["Intermediate pump inspection at each outage", "Loop isolation valve stroke test each quarter"],
+    limits: ["Feedwater must be available whenever the intermediate loop is credited."],
+  },
+  "SYS-ISOL": {
+    alignments: [
+      { name: "Line isolation valves open with leak detectors in service", normal: true, modeled: true, description: "Detection closes the affected line automatically." },
+    ],
+    procedures: ["Sodium leak isolation procedure"],
+    testMaintenance: ["Quarterly isolation valve stroke test", "Leak detector calibration at each outage"],
+    limits: ["A leaking path must be isolated before the sodium level drops below the IHX inlet."],
+  },
+  "SYS-MAKEUP": {
+    alignments: [
+      { name: "Make-up pump in standby with the tank filled", normal: true, modeled: true, description: "The fill valve opens when the pump starts." },
+    ],
+    procedures: ["Sodium make-up procedure"],
+    testMaintenance: ["Monthly pump run on recirculation", "Make-up tank level check each shift"],
+    limits: ["The make-up tank must hold enough sodium to restore the pool level once."],
+  },
+  "SYS-DETECT": {
+    alignments: [
+      { name: "All level probes in service", normal: true, modeled: true, description: "Redundant probes feed the control-room alarm." },
+      { name: "One probe bypassed for calibration", normal: false, modeled: true, description: "The remaining probes must detect the falling level." },
+    ],
+    procedures: ["Low sodium level alarm response procedure"],
+    testMaintenance: ["Level probe calibration at each outage", "Monthly alarm annunciation test"],
+    limits: ["One level probe may be bypassed for no more than 8 hours."],
+  },
+  "SYS-SUPP": {
+    alignments: [
+      { name: "Detection armed and suppression charged", normal: true, modeled: true, description: "Detection starts the suppression and drain system automatically." },
+      { name: "Suppression isolated during hot work", normal: false, modeled: false, description: "Automatic discharge is blocked while hot work is under way.", whyNot: "Hot work is barred in the decay-heat-removal areas at power, so the alignment does not occur in the modeled states." },
+    ],
+    procedures: ["Sodium fire response procedure"],
+    testMaintenance: ["Semiannual detector test", "Suppression charge check at each outage"],
+    limits: ["Suppression must be charged whenever sodium is in the protected areas."],
+  },
+};
+
+const SC_CRITERION_IDS = new Set((SC_ANALYSIS.systemSuccessCriteria ?? []).map((criterion) => criterion.uuid));
+
+const MISSION_TIME_REFS: Record<string, string> = { "SYS-PRIMARY": "MT-LOFA", "SYS-SUPP": "MT-FIRE", "SYS-GUARD": "MT-RCB", "SYS-ISOL": "MT-RCB", "SYS-MAKEUP": "MT-RCB", "SYS-DETECT": "MT-RCB" };
+
+const SYSTEM_DIAGRAMS: Record<string, SystemDiagram[]> = {
+  "SYS-RPS": [{ uuid: "DGM-SYS-RPS-1", title: "Fig. 6.2. Reactor shutdown system simplified schematic", documentId: "SY-DOC-02", filename: "EBR-II level 1 probabilistic risk assessment", page: 368, region: { x: 0.1628, y: 0.1016, width: 0.7994, height: 0.7496 } }],
+  "SYS-DRACS": [{ uuid: "DGM-SYS-DRACS-1", title: "Fig. 3.19. Shutdown cooling system", documentId: "SY-DOC-02", filename: "EBR-II level 1 probabilistic risk assessment", page: 96, region: { x: 0.1038, y: 0.0551, width: 0.7334, height: 0.8359 } }],
+  "SYS-PRIMARY": [{ uuid: "DGM-SYS-PRIMARY-1", title: "Fig. 2. EBR-II primary system components and sodium flow paths", documentId: "SY-DOC-04", filename: "Benchmark analysis of EBR-II shutdown heat removal tests", page: 17, region: { x: 0.179, y: 0.259, width: 0.6226, height: 0.5504 } }],
+  "SYS-CONF": [{ uuid: "DGM-SYS-CONF-1", title: "Fig. 6.6. Shield cooling system pictorial flow diagram", documentId: "SY-DOC-02", filename: "EBR-II level 1 probabilistic risk assessment", page: 400, region: { x: 0.087, y: 0.1711, width: 0.8944, height: 0.6448 } }],
+  "SYS-GUARD": [{ uuid: "DGM-SYS-GUARD-1", title: "Figure 5.2.1.1. EBR-II primary tank vessel", documentId: "SY-DOC-03", filename: "EBR-II shutdown heat removal test benchmark specifications", page: 128, region: { x: 0.1728, y: 0.1285, width: 0.6367, height: 0.484 } }],
+  "SYS-1E-DC": [{ uuid: "DGM-SYS-1E-DC-1", title: "Fig. 6.8. Single line electrical diagram, EBR-II electrical power distribution", documentId: "SY-DOC-02", filename: "EBR-II level 1 probabilistic risk assessment", page: 413, region: { x: 0.1638, y: 0.0978, width: 0.65, height: 0.6933 } }],
+  "SYS-ACT": [{ uuid: "DGM-SYS-ACT-1", title: "Fig. 6.2. Reactor shutdown system simplified schematic", documentId: "SY-DOC-02", filename: "EBR-II level 1 probabilistic risk assessment", page: 368, region: { x: 0.1628, y: 0.1016, width: 0.7994, height: 0.7496 } }],
+  "SYS-SDHR": [{ uuid: "DGM-SYS-SDHR-1", title: "Fig. 3.7. EBR-II systems, simplified", documentId: "SY-DOC-02", filename: "EBR-II level 1 probabilistic risk assessment", page: 75, region: { x: 0.2472, y: 0.0759, width: 0.5963, height: 0.8464 }, rotation: 90 }],
+  "SYS-ISOL": [{ uuid: "DGM-SYS-ISOL-1", title: "Fig. 35. Sodium cleanup system flow diagram", documentId: "SY-DOC-01", filename: "EBR-II hazard summary report", page: 174, region: { x: 0.1058, y: 0.1713, width: 0.6684, height: 0.6638 }, rotation: 90 }],
+  "SYS-DETECT": [{ uuid: "DGM-SYS-DETECT-1", title: "Fig. 18. EBR-II instrument flow sheet", documentId: "SY-DOC-01", filename: "EBR-II hazard summary report", page: 157, region: { x: 0.0765, y: 0.0207, width: 0.8464, height: 0.8978 }, rotation: 90 }],
+  "SYS-SUPP": [{ uuid: "DGM-SYS-SUPP-1", title: "Fig. 10.2. Reactor building operating floor fire detectors", documentId: "SY-DOC-02", filename: "EBR-II level 1 probabilistic risk assessment", page: 692, region: { x: 0.0979, y: 0.057, width: 0.7818, height: 0.803 }, rotation: 90 }],
+};
+
 const systemDefinitions = SYSTEMS.map((s) => ({
   uuid: s.id,
   name: s.name,
   description: s.topEvent,
   boundaries: s.boundaries,
-  successCriteriaIds: [`SC-${s.id}`],
+  successCriteriaIds: SC_CRITERION_IDS.has(s.id) ? [s.id] : [],
   successCriterion: s.criterion,
   abbreviation: s.short,
   justificationForExclusionOfComponents: [s.excluded],
   flowDiversionConsiderations: s.diversion !== undefined ? [s.diversion] : undefined,
   missionTimeHours: s.missionHours,
+  ...(MISSION_TIME_REFS[s.id] === undefined ? {} : { missionTimeRef: MISSION_TIME_REFS[s.id] }),
+  ...(SYSTEM_DIAGRAMS[s.id] === undefined ? {} : { diagrams: SYSTEM_DIAGRAMS[s.id] }),
   applicablePlantOperatingStates: SYSTEM_POS[s.id] ?? [],
+  alignments: (SYSTEM_OPERATION[s.id]?.alignments ?? []).map((alignment, index) => ({
+    uuid: `ALN-${s.id}-${index + 1}`,
+    name: alignment.name,
+    systemReference: s.id,
+    isNormalAlignment: alignment.normal,
+    description: alignment.description,
+    modeled: alignment.modeled,
+    justificationIfNotModeled: alignment.whyNot,
+    implementsSrs: srs("SY-A7"),
+  })),
+  operatingProcedures: SYSTEM_OPERATION[s.id]?.procedures,
+  testAndMaintenanceProcedures: SYSTEM_OPERATION[s.id]?.testMaintenance,
+  operatingLimitations: SYSTEM_OPERATION[s.id]?.limits,
   modeledComponentsAndFailures: s.modeledFailures,
   informationBasis: "as-designed-as-intended" as const,
   preOperationalInformationJustification: "Models from the design package, to confirm by walkdown when as-built.",
@@ -345,10 +515,25 @@ const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
         { id: "be-ACT-CH4-FS", type: "BE", name: "Voting channel 4 fails", be: "ACT-CH4-FS", mode: "FAILURE_TO_START", source: "DA-BE-081", prob: "2.0E-3" },
       ] },
       { id: "ACT-IO", type: "OR", name: "Input or output interfaces fail", children: [
-        { id: "be-ACT-SEN-CCF", type: "BE", name: "Common cause failure of the sensor input modules", be: "ACT-SEN-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-ACT-SEN", prob: "2.0E-4", ccf: true },
-        { id: "be-ACT-OUT-CCF", type: "BE", name: "Common cause failure of the output actuation modules", be: "ACT-OUT-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-ACT-OUT", prob: "1.5E-4", ccf: true },
+        { id: "ACT-SEN-VOTE", type: "KN", k: 3, name: "Three of four sensor input modules fail", children: [
+          { id: "be-ACT-SEN1-FS", type: "BE", name: "Sensor input module 1 fails", be: "ACT-SEN1-FS", mode: "FAILURE_TO_START", source: "DA-BE-082", prob: "2.0E-3" },
+          { id: "be-ACT-SEN2-FS", type: "BE", name: "Sensor input module 2 fails", be: "ACT-SEN2-FS", mode: "FAILURE_TO_START", source: "DA-BE-082", prob: "2.0E-3" },
+          { id: "be-ACT-SEN3-FS", type: "BE", name: "Sensor input module 3 fails", be: "ACT-SEN3-FS", mode: "FAILURE_TO_START", source: "DA-BE-082", prob: "2.0E-3" },
+          { id: "be-ACT-SEN4-FS", type: "BE", name: "Sensor input module 4 fails", be: "ACT-SEN4-FS", mode: "FAILURE_TO_START", source: "DA-BE-082", prob: "2.0E-3" },
+        ] },
+        { id: "ACT-OUT-VOTE", type: "KN", k: 3, name: "Three of four output actuation modules fail", children: [
+          { id: "be-ACT-OUT1-FS", type: "BE", name: "Output actuation module 1 fails", be: "ACT-OUT1-FS", mode: "FAILURE_TO_START", source: "DA-BE-083", prob: "1.5E-3" },
+          { id: "be-ACT-OUT2-FS", type: "BE", name: "Output actuation module 2 fails", be: "ACT-OUT2-FS", mode: "FAILURE_TO_START", source: "DA-BE-083", prob: "1.5E-3" },
+          { id: "be-ACT-OUT3-FS", type: "BE", name: "Output actuation module 3 fails", be: "ACT-OUT3-FS", mode: "FAILURE_TO_START", source: "DA-BE-083", prob: "1.5E-3" },
+          { id: "be-ACT-OUT4-FS", type: "BE", name: "Output actuation module 4 fails", be: "ACT-OUT4-FS", mode: "FAILURE_TO_START", source: "DA-BE-083", prob: "1.5E-3" },
+        ] },
       ] },
-      { id: "be-ACT-SW-CCF", type: "BE", name: "Common cause failure of the logic software", be: "ACT-SW-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-ACT-SW", prob: "1.0E-4", ccf: true },
+      { id: "ACT-SW-VOTE", type: "KN", k: 3, name: "Three of four software channels fail", children: [
+        { id: "be-ACT-SW1-FS", type: "BE", name: "Actuation software channel 1 fails", be: "ACT-SW1-FS", mode: "FAILURE_TO_START", source: "DA-BE-084", prob: "1.0E-4" },
+        { id: "be-ACT-SW2-FS", type: "BE", name: "Actuation software channel 2 fails", be: "ACT-SW2-FS", mode: "FAILURE_TO_START", source: "DA-BE-084", prob: "1.0E-4" },
+        { id: "be-ACT-SW3-FS", type: "BE", name: "Actuation software channel 3 fails", be: "ACT-SW3-FS", mode: "FAILURE_TO_START", source: "DA-BE-084", prob: "1.0E-4" },
+        { id: "be-ACT-SW4-FS", type: "BE", name: "Actuation software channel 4 fails", be: "ACT-SW4-FS", mode: "FAILURE_TO_START", source: "DA-BE-084", prob: "1.0E-4" },
+      ] },
       { id: "tr-ACT-DC", type: "TR", name: "Loss of Class-1E DC power", transfer: "SYS-1E-DC" },
     ],
   },
@@ -489,18 +674,27 @@ const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
   },
 };
 
+function withoutCollapsedCcfEvents(node: LegacySystemFaultTreeNode): LegacySystemFaultTreeNode | null {
+  if (node.type === "BE") return node.mode === "COMMON_CAUSE_FAILURE" || node.ccf === true ? null : node;
+  if (node.type === "TR") return node;
+  const children = node.children.map(withoutCollapsedCcfEvents).filter((child): child is LegacySystemFaultTreeNode => child !== null);
+  return children.length === 0 ? null : { ...node, children };
+}
+
 const systemLogicModels = SYSTEMS.map((s) => ({
   uuid: `SLM-${s.id}`,
   systemReference: s.id,
   description: s.topEvent,
   modelRepresentation: s.modelRep,
-  faultTree: FAULT_TREES[s.id],
+  faultTree: FAULT_TREES[s.id] === undefined ? undefined : withoutCollapsedCcfEvents(FAULT_TREES[s.id]!),
   nonDetailedModelJustification: s.detailed ? undefined : "System-level data sufficient, no internal redundancy.",
   logicLoopResolutions: s.loops,
   implementsSrs: srs("SY-A7", "SY-A14"),
 }));
 
-const systemBasicEvents = SYSTEMS.flatMap((s) => s.events);
+const allSystemBasicEvents = SYSTEMS.flatMap((s) => s.events);
+const collapsedCcfEventIds = new Set(allSystemBasicEvents.filter((event) => event.failureMode === "COMMON_CAUSE_FAILURE").map((event) => event.uuid));
+const systemBasicEvents = allSystemBasicEvents.filter((event) => !collapsedCcfEventIds.has(event.uuid));
 
 const SUPPORT_MATRIX: { system: string; needs: { supporting: string; kind: string }[] }[] = [
   { system: "SYS-RPS", needs: [{ supporting: "SYS-1E-DC", kind: "power" }, { supporting: "SYS-ACT", kind: "signal" }] },
@@ -558,11 +752,11 @@ const CCF_GROUP_SEEDS: CcfGroupSeed[] = [
   { id: "CCF-CIS-DMP", name: "Confinement isolation dampers", scope: "INTRASYSTEM", system: "SYS-CONF", components: ["CIS-DMP-A", "CIS-DMP-B"], events: ["CIS-DMP-A-FC", "CIS-DMP-B-FC", "CIS-DMP-CCF"], modelType: "BETA_FACTOR", beta: 0.08, qt: 0.0025, shared: { hardwareDesign: true, maintenance: true }, defenses: ["Series arrangement, either damper closes the line", "Closure verification after each test"], basis: "Two series dampers of one make on one test procedure.", risk: "The series pair defeats isolation only through the common term, so the group carries the path.", daRef: "DA-CCF-16", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-HVAC-CHL", name: "Safety chillers", scope: "INTRASYSTEM", system: "SYS-HVAC", components: ["HVC-CH-A", "HVC-CH-B"], events: ["HVC-CHA-FR", "HVC-CHB-FR", "HVC-CCF-FR"], modelType: "BETA_FACTOR", beta: 0.05, qt: 0.009, shared: { hardwareDesign: true, environment: true }, defenses: ["Alternating lead and lag rotation", "Independent refrigerant circuits"], basis: "Identical chillers in one room on one cooling-water header.", risk: "Room heat-up is slow, the group matters through the long I&C mission time.", daRef: "DA-CCF-18", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-PCS-FLOW", name: "Primary loop flow paths", scope: "INTRASYSTEM", system: "SYS-PRIMARY", components: ["PCS-L1", "PCS-L2"], events: ["PCS-L1-BLK", "PCS-L2-BLK", "PCS-FLOW-CCF"], modelType: "BETA_FACTOR", beta: 0.2, qt: 0.0004, shared: { environment: true }, defenses: ["Pool cleanliness program", "Inlet screens on both loop suctions"], basis: "Both loop paths share the pool and the same debris sources.", risk: "The elevated beta reflects the single shared debris source in the common pool.", daRef: "DA-CCF-20", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
-  { id: "CCF-ACT-SEN", name: "Sensor input modules", scope: "INTERSYSTEM", system: "SYS-ACT", components: ["ACT-SEN-A", "ACT-SEN-B", "ACT-SEN-C", "ACT-SEN-D"], events: ["ACT-SEN-CCF"], modelType: "BETA_FACTOR", beta: 0.1, qt: 0.002, shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Channel-dedicated calibration", "Input comparison alarms between channels"], basis: "Identical input modules feeding every channel.", risk: "Modeled as the collapsed common term, the independent channel failures sit in the voting gate.", daRef: "DA-CCF-22", affects: ["SYS-RPS", "SYS-CONF"], srs: ["SY-B2", "SY-B3", "SY-B4"] },
-  { id: "CCF-ACT-OUT", name: "Output actuation modules", scope: "INTERSYSTEM", system: "SYS-ACT", components: ["ACT-OUT-A", "ACT-OUT-B", "ACT-OUT-C", "ACT-OUT-D"], events: ["ACT-OUT-CCF"], modelType: "BETA_FACTOR", beta: 0.1, qt: 0.0015, shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Channel-dedicated output relays", "Actuation surveillance each operating cycle"], basis: "Identical output modules driving the trip and isolation loads.", risk: "Modeled as the collapsed common term on the interface branch.", daRef: "DA-CCF-23", affects: ["SYS-RPS", "SYS-CONF"], srs: ["SY-B2", "SY-B3", "SY-B4"] },
-  { id: "CCF-ACT-SW", name: "Actuation logic software", scope: "INTERSYSTEM", system: "SYS-ACT", components: ["ACT-CPU-A", "ACT-CPU-B", "ACT-CPU-C", "ACT-CPU-D"], events: ["ACT-SW-CCF"], modelType: "BETA_FACTOR", beta: 1, qt: 0.0001, shared: { hardwareDesign: true, otherFactors: ["Common software image"] }, defenses: ["Formal software verification and validation", "Hardwired diverse trip path outside the image"], basis: "One software image runs the trip and isolation voting logic.", risk: "Beta of one, a systematic image fault fails all four channels together.", daRef: "DA-CCF-21", affects: ["SYS-RPS", "SYS-CONF"], srs: ["SY-B2", "SY-B11"] },
+  { id: "CCF-ACT-SEN", name: "Sensor input modules", scope: "INTERSYSTEM", system: "SYS-ACT", components: ["ACT-SEN-A", "ACT-SEN-B", "ACT-SEN-C", "ACT-SEN-D"], events: ["ACT-SEN1-FS", "ACT-SEN2-FS", "ACT-SEN3-FS", "ACT-SEN4-FS"], modelType: "BETA_FACTOR", beta: 0.1, qt: 0.002, shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Channel-dedicated calibration", "Input comparison alarms between channels"], basis: "Identical input modules feeding every channel.", risk: "The sensor input events carry the module contribution through their three-of-four voting gate.", daRef: "DA-CCF-22", affects: ["SYS-RPS", "SYS-CONF"], srs: ["SY-B2", "SY-B3", "SY-B4"] },
+  { id: "CCF-ACT-OUT", name: "Output actuation modules", scope: "INTERSYSTEM", system: "SYS-ACT", components: ["ACT-OUT-A", "ACT-OUT-B", "ACT-OUT-C", "ACT-OUT-D"], events: ["ACT-OUT1-FS", "ACT-OUT2-FS", "ACT-OUT3-FS", "ACT-OUT4-FS"], modelType: "BETA_FACTOR", beta: 0.1, qt: 0.0015, shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Channel-dedicated output relays", "Actuation surveillance each operating cycle"], basis: "Identical output modules driving the trip and isolation loads.", risk: "The output actuation events carry the module contribution through their three-of-four voting gate.", daRef: "DA-CCF-23", affects: ["SYS-RPS", "SYS-CONF"], srs: ["SY-B2", "SY-B3", "SY-B4"] },
+  { id: "CCF-ACT-SW", name: "Actuation logic software", scope: "INTERSYSTEM", system: "SYS-ACT", components: ["ACT-CPU-A", "ACT-CPU-B", "ACT-CPU-C", "ACT-CPU-D"], events: ["ACT-SW1-FS", "ACT-SW2-FS", "ACT-SW3-FS", "ACT-SW4-FS"], modelType: "BETA_FACTOR", beta: 1, qt: 0.0001, shared: { hardwareDesign: true, otherFactors: ["Common software image"] }, defenses: ["Formal software verification and validation", "Hardwired diverse trip path outside the image"], basis: "One software image runs the trip and isolation voting logic.", risk: "Beta of one makes the software contribution fully dependent across all four software channel events.", daRef: "DA-CCF-21", affects: ["SYS-RPS", "SYS-CONF"], srs: ["SY-B2", "SY-B11"] },
   { id: "CCF-ISOL-VLV", name: "Leak isolation valves", scope: "INTRASYSTEM", system: "SYS-ISOL", components: ["ISO-VLV-A", "ISO-VLV-B"], events: ["ISO-VLV-A-FC", "ISO-VLV-B-FC", "ISO-VLV-CCF"], modelType: "BETA_FACTOR", beta: 0.1, qt: 0.002, shared: { hardwareDesign: true, maintenance: true }, defenses: ["Redundant isolation on the line", "Closure verification after each stroke test"], basis: "Two isolation valves of one make on one test procedure.", risk: "The redundant pair loses isolation only through the common term, so the group carries the path.", daRef: "DA-CCF-25", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
-  { id: "CCF-DET-LVL", name: "Sodium level channels", scope: "INTRASYSTEM", system: "SYS-DETECT", components: ["DET-LVL-A", "DET-LVL-B"], events: ["DET-LVL-A-FS", "DET-LVL-B-FS", "DET-LVL-CCF"], modelType: "BETA_FACTOR", beta: 0.1, qt: 0.003, shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Channel-dedicated calibration", "Cross-channel comparison"], basis: "Identical level channels feeding the alarm.", risk: "Modeled as the collapsed common term, the independent channel failures sit in the AND gate.", daRef: "DA-CCF-27", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
+  { id: "CCF-DET-LVL", name: "Sodium level channels", scope: "INTRASYSTEM", system: "SYS-DETECT", components: ["DET-LVL-A", "DET-LVL-B"], events: ["DET-LVL-A-FS", "DET-LVL-B-FS", "DET-LVL-CCF"], modelType: "BETA_FACTOR", beta: 0.1, qt: 0.003, shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Channel-dedicated calibration", "Cross-channel comparison"], basis: "Identical level channels feeding the alarm.", risk: "PRAXIS expands the two independent channel events into the dependent combinations during quantification.", daRef: "DA-CCF-27", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
 ];
 
 const commonCauseFailureGroups = CCF_GROUP_SEEDS.map((g) => ({
@@ -577,7 +771,7 @@ const commonCauseFailureGroups = CCF_GROUP_SEEDS.map((g) => ({
     ? { alphaFactorParameters: { alphaFactors: g.alpha, totalFailureProbability: g.qt } }
     : { betaFactorParameters: { beta: g.beta ?? 0, totalFailureProbability: g.qt } },
   dataAnalysisCCFParameterRef: g.daRef,
-  members: { basicEvents: g.events.map((m) => ({ id: m })) },
+  members: { basicEvents: g.events.filter((id) => !collapsedCcfEventIds.has(id)).map((id) => ({ id })) },
   groupSelectionBasis: g.basis,
   defenseMechanisms: g.defenses,
   sharedCauseFactors: g.shared,
@@ -731,13 +925,13 @@ const uncertaintyAnalyses = [
   {
     uuid: "SUA-1",
     system: "SYS-DRACS",
-    propagationMethod: "LATIN_HYPERCUBE" as const,
+    propagationMethod: "MONTE_CARLO" as const,
     modelUncertainties: [
       { uncertaintyId: "MU-1", description: "DRACS damper common cause parameter", impact: "Sensitivity on the beta factor pending DA-D8.", isQuantified: false, treatmentApproach: "Sensitivity study on the beta-factor range." },
       { uncertaintyId: "MU-3", description: "Battery depletion duty", impact: "Load-shedding calculation carried as an open uncertainty.", isQuantified: false, treatmentApproach: "Bounded estimate until the calculation closes." },
     ],
     parameterUncertainties: [
-      { parameterId: "DRC-CCF-FR", distributionType: DistributionType.BETA, distributionParameters: { alpha: 2, beta: 1800 }, basis: "Alpha-factor prior pending DA-D8.", associatedComponent: "DRACS loops" },
+      { parameterId: "DRC-LP1-FR", distributionType: DistributionType.BETA, distributionParameters: { alpha: 8, beta: 992 }, basis: "Loop 1 failure-probability uncertainty from the DA parameter estimate.", associatedComponent: "DRACS loop 1" },
     ],
     implementsSrs: srs("SY-B16"),
   },
@@ -768,8 +962,8 @@ const preOperationalAssumptions = [
 }));
 
 const variableSuccessCriteria = [
-  { uuid: "VSC-DRACS-FP", systemReference: "SYS-DRACS", plantOperatingStateId: "POS-01", scenarioCondition: "Full power", successCriteriaIds: ["SC-SYS-DRACS"], basis: "Two of three DRACS loops remove decay heat. The full-power decay curve loses the single-loop race and two loops cross it at 4.3 h. Verified by a 41-probe dynamic campaign, capacity frontier 2.38 to 2.41 MW (TF-CALC-09).", implementsSrs: srs("SY-A5", "SY-B5") },
-  { uuid: "VSC-DRACS-OTHER", systemReference: "SYS-DRACS", scenarioCondition: "Operating states other than full power (POS-02 to POS-09)", successCriteriaIds: ["SC-SYS-DRACS"], basis: "One of three DRACS loops removes decay heat for the sequence mission time, since the lower decay load sits within a single loop capability.", implementsSrs: srs("SY-A5", "SY-B5") },
+  { uuid: "VSC-DRACS-FP", systemReference: "SYS-DRACS", plantOperatingStateId: "POS-01", scenarioCondition: "Full power", successCriteriaIds: ["SYS-DRACS"], basis: "Two of three DRACS loops remove decay heat. The full-power decay curve loses the single-loop race and two loops cross it at 4.3 h. Verified by a 41-probe dynamic campaign, capacity frontier 2.38 to 2.41 MW (TF-CALC-09).", implementsSrs: srs("SY-A5", "SY-B5") },
+  { uuid: "VSC-DRACS-OTHER", systemReference: "SYS-DRACS", scenarioCondition: "Operating states other than full power (POS-02 to POS-09)", successCriteriaIds: ["SYS-DRACS"], basis: "One of three DRACS loops removes decay heat for the sequence mission time, since the lower decay load sits within a single loop capability.", implementsSrs: srs("SY-A5", "SY-B5") },
 ];
 
 export const SY_ANALYSIS: SystemsAnalysis = SystemsAnalysisSchema.parse({
@@ -849,10 +1043,13 @@ export const SY_ANALYSIS: SystemsAnalysis = SystemsAnalysisSchema.parse({
   supportSystemSuccessCriteria,
   humanFailureEventIntegrations,
   exampleDocuments: [
-    { id: "SY-DOC-01", name: "EBR-II System Design Descriptions", kind: "doc", sizeLabel: "ANL", uploadedLabel: "ANL-EBR-II SDD set", extracted: "System boundaries, trains, and support dependencies for the primary, shutdown-cooling and protection systems", linked: 7, url: "/api/example-documents/sy/sfr-sdd" },
-    { id: "SY-DOC-02", name: "DRACS Reliability and Natural-Circulation Basis", kind: "doc", sizeLabel: "ANL/IAEA", uploadedLabel: "IAEA-TECDOC-1531", extracted: "Passive decay-heat-removal loop reliability, damper failure modes, and natural-circulation performance", linked: 4, url: "/api/example-documents/sy/sfr-dracs" },
-    { id: "SY-DOC-03", name: "Sodium Fast Reactor Component Failure Data Dossier", kind: "sheet", sizeLabel: "INL", uploadedLabel: "NUREG/CR-6928 + SFR overlay", extracted: "Basic-event failure rates and common-cause parameters for the modeled components", linked: 6, url: "/api/example-documents/sy/sfr-failure-data" },
-    { id: "SY-DOC-04", name: "Common-Cause Failure Parameter Estimates (Alpha Factor)", kind: "sheet", sizeLabel: "NRC", uploadedLabel: "NUREG/CR-5485", extracted: "Alpha-factor common-cause parameters applied to the redundant loop and division groups", linked: 3, url: "/api/example-documents/sy/sfr-ccf" },
+    { id: "SY-DOC-01", name: "EBR-II hazard summary report", kind: "doc", sizeLabel: "ANL", uploadedLabel: "ANL-5719", extracted: "Plant, primary and secondary sodium systems, shutdown coolers, instrumentation and safety systems", linked: 2, url: "/api/example-documents/sy/sfr-hazard" },
+    { id: "SY-DOC-02", name: "EBR-II level 1 probabilistic risk assessment", kind: "doc", sizeLabel: "ANL", uploadedLabel: "ANL-NSE-2", extracted: "System models, support dependencies and the event and fault trees behind the PRA", linked: 7, url: "/api/example-documents/sy/sfr-pra" },
+    { id: "SY-DOC-03", name: "EBR-II shutdown heat removal test benchmark specifications", kind: "doc", sizeLabel: "ANL", uploadedLabel: "ANL-ARC-226", extracted: "Primary and intermediate loop geometry, pumps and natural circulation paths", linked: 1, url: "/api/example-documents/sy/sfr-benchmark" },
+    { id: "SY-DOC-04", name: "Benchmark analysis of EBR-II shutdown heat removal tests", kind: "doc", sizeLabel: "IAEA", uploadedLabel: "IAEA-TECDOC-1819", extracted: "Loss-of-flow test conditions and primary system behavior", linked: 1, url: "/api/example-documents/sy/sfr-shrt-analysis" },
+    { id: "SY-DOC-05", name: "EBR-II inherent safety demonstration tests", kind: "doc", sizeLabel: "ANL", uploadedLabel: "CONF-850410-6", extracted: "Unprotected loss-of-flow and loss-of-heat-sink demonstrations", linked: 0, url: "/api/example-documents/sy/sfr-inherent" },
+    { id: "SY-DOC-06", name: "Component failure data", kind: "sheet", sizeLabel: "NRC", uploadedLabel: "NUREG/CR-6928", extracted: "Basic-event failure rates for the modeled components", linked: 6 },
+    { id: "SY-DOC-07", name: "Common-cause failure parameter estimates", kind: "sheet", sizeLabel: "NRC", uploadedLabel: "NUREG/CR-5485", extracted: "Alpha-factor common-cause parameters for the redundant train and division groups", linked: 3 },
   ],
   simultaneousUnavailabilityEvents,
   componentScreeningJustifications,

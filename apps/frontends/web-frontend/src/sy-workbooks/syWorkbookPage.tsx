@@ -23,18 +23,27 @@ import {
 import { SyWorkbench, type SyWorkbenchActions } from "./syWorkbench";
 import {
   SyWorkbookProvider,
+  type SyControlledFailureModeOption,
   type SyControlledHumanFailureOption,
   type SyControlledParameterOption,
+  type SyLinkCode,
+  type SyUpstream,
   type SyWorkbookData,
-  type SyLinkedInputs,
 } from "./syWorkbookContext";
 import { useSyMefPatch } from "./useSyMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { SyDocumentsCard } from "./syDocumentsCard";
 import { type SyPersona } from "./syViewData";
-import { listWorkbooks } from "../workbooks/workbookApi";
+import { type Workbook } from "interfaces-shared-types";
+import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
+import type { PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { getDaWorkbook } from "../da-workbooks/daWorkbookApi";
 import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
+import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
+import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
+import { getPosWorkbook } from "../pos-workbooks/posWorkbookApi";
+import { buildLinkedInputs, controlledFailureModeOptions, controlledHumanFailureOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "SY-A1",
@@ -59,37 +68,7 @@ interface SyBundleResponse {
   newlyDevelopedMethods: SyExampleResponse[];
 }
 
-interface LinkedScMef {
-  systemSuccessCriteria?: { uuid: string; systemId: string; description: string; requiredCapacities?: { parameter: string; value: string }[] }[];
-}
-
-interface LinkedPosMef {
-  plantOperatingStates?: { uuid: string; name: string; meanDurationHours: number; decayHeat?: { representative?: number; max?: number; units?: string } }[];
-}
-
-async function fetchSyLinkedInputs(variant: string): Promise<SyLinkedInputs> {
-  const [scBundle, posBundle] = await Promise.all([
-    fetchJson<{ sc: { mef: unknown } }>(`/api/example-workbooks/sc-bundle?example=${variant}`),
-    fetchJson<{ pos: { mef: unknown } }>(`/api/example-workbooks/pos-bundle?example=${variant}`),
-  ]);
-  const scMef = scBundle.sc.mef as LinkedScMef;
-  const posMef = posBundle.pos.mef as LinkedPosMef;
-  const label = variant === "htgr" ? "Generic HTGR" : "Generic SFR";
-  return {
-    scName: `${label} SC Workbook`,
-    posName: `${label} POS Workbook`,
-    scSystems: (scMef.systemSuccessCriteria ?? []).map((y) => ({
-      id: y.systemId,
-      name: y.description,
-      capacities: (y.requiredCapacities ?? []).map((c) => `${c.parameter}: ${c.value}`).join(" · "),
-    })),
-    posStates: (posMef.plantOperatingStates ?? []).map((st) => {
-      const rep = st.decayHeat?.representative ?? st.decayHeat?.max ?? 0;
-      const units = st.decayHeat?.units ?? "MW";
-      return { id: st.uuid, name: st.name, decayLabel: rep > 0 ? `${rep} ${units}` : "At power", durationHours: st.meanDurationHours };
-    }),
-  };
-}
+const NO_LINK_OPTIONS: Record<SyLinkCode, Workbook[]> = { ES: [], SC: [], POS: [], DA: [], HRA: [] };
 
 function SyWorkbookPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
@@ -110,6 +89,11 @@ function SyWorkbookPage(): JSX.Element {
   const [exampleOptions, setExampleOptions] = useState<SyExampleOption[]>([]);
   const [controlledParameters, setControlledParameters] = useState<SyControlledParameterOption[]>([]);
   const [controlledHumanFailures, setControlledHumanFailures] = useState<SyControlledHumanFailureOption[]>([]);
+  const [controlledFailureModes, setControlledFailureModes] = useState<SyControlledFailureModeOption[]>([]);
+  const [linkOptions, setLinkOptions] = useState<Record<SyLinkCode, Workbook[]>>(NO_LINK_OPTIONS);
+  const [linkedEs, setLinkedEs] = useState<EventSequenceAnalysis | undefined>(undefined);
+  const [linkedSc, setLinkedSc] = useState<SuccessCriteriaDevelopment | undefined>(undefined);
+  const [linkedPos, setLinkedPos] = useState<PlantOperatingStatesAnalysis | undefined>(undefined);
   const workbookName = data?.sy.name ?? "";
   const workbookVersion = data?.sy.version ?? "1";
 
@@ -139,89 +123,10 @@ function SyWorkbookPage(): JSX.Element {
           if (!cancelled) setProjectName("");
         }
         try {
-          const listing = await listWorkbooks(workbook.projectId, "DA");
-          const loaded = await Promise.allSettled(
-            listing.workbooks.map(async (entry) => ({
-              entry,
-              workbook: await getDaWorkbook(entry.id),
-            })),
-          );
-          const supported = new Set(["FREQUENCY", "PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
-          const options = loaded.flatMap((result): SyControlledParameterOption[] => {
-            if (result.status !== "fulfilled") return [];
-            return result.value.workbook.mef.parameters.flatMap((parameter) => {
-              if (
-                !supported.has(parameter.parameterType) ||
-                !Number.isFinite(parameter.value) ||
-                parameter.value < 0 ||
-                (parameter.parameterType !== "FREQUENCY" && parameter.value > 1)
-              ) return [];
-              return [{
-                workbookId: result.value.entry.id,
-                workbookName: result.value.entry.name,
-                parameterId: parameter.uuid,
-                parameterName: parameter.name,
-                parameterType: parameter.parameterType as SyControlledParameterOption["parameterType"],
-                value: parameter.value,
-                uncertainty: parameter.uncertainty?.distribution,
-              }];
-            });
-          });
-          if (!cancelled) {
-            setControlledParameters(options.sort((left, right) =>
-              [left.workbookName, left.parameterName].join(":").localeCompare(
-                [right.workbookName, right.parameterName].join(":"),
-              ),
-            ));
-          }
+          const options = await listSyLinkOptions(workbook.projectId);
+          if (!cancelled) setLinkOptions(options);
         } catch {
-          if (!cancelled) setControlledParameters([]);
-        }
-        try {
-          const listing = await listWorkbooks(workbook.projectId, "HRA");
-          const loaded = await Promise.allSettled(
-            listing.workbooks.map(async (entry) => ({
-              entry,
-              workbook: await getHrWorkbook(entry.id),
-            })),
-          );
-          const options = loaded.flatMap((result): SyControlledHumanFailureOption[] => {
-            if (result.status !== "fulfilled") return [];
-            const humanFailureEvents = new Map(
-              result.value.workbook.mef.humanFailureEvents.map((event) => [event.uuid, event]),
-            );
-            return result.value.workbook.mef.hepQuantifications.flatMap((quantification) => {
-              const humanFailureEvent = humanFailureEvents.get(quantification.hfeId);
-              const value = quantification.meanHep ?? quantification.pointEstimateHep;
-              if (
-                humanFailureEvent === undefined ||
-                value === undefined ||
-                !Number.isFinite(value) ||
-                value < 0 ||
-                value > 1
-              ) return [];
-              return [{
-                workbookId: result.value.entry.id,
-                workbookName: result.value.entry.name,
-                humanFailureEventId: humanFailureEvent.uuid,
-                humanFailureEventName: humanFailureEvent.name,
-                hfeTiming: humanFailureEvent.hfeTiming,
-                quantificationId: quantification.uuid,
-                methodology: quantification.methodology,
-                value,
-                valueKind: quantification.meanHep === undefined ? "POINT_ESTIMATE" : "MEAN",
-              }];
-            });
-          });
-          if (!cancelled) {
-            setControlledHumanFailures(options.sort((left, right) =>
-              [left.workbookName, left.humanFailureEventName, left.methodology].join(":").localeCompare(
-                [right.workbookName, right.humanFailureEventName, right.methodology].join(":"),
-              ),
-            ));
-          }
-        } catch {
-          if (!cancelled) setControlledHumanFailures([]);
+          if (!cancelled) setLinkOptions(NO_LINK_OPTIONS);
         }
       })
       .catch((err: unknown) => {
@@ -239,16 +144,76 @@ function SyWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
-  const syUuid = data?.sy.uuid ?? "";
+  const linkedIds = data?.sy.linkedWorkbooks;
+  const linkedEsId = linkedIds?.ES;
+  const linkedScId = linkedIds?.SC;
+  const linkedPosId = linkedIds?.POS;
+  const linkedDaId = linkedIds?.DA;
+  const linkedHrId = linkedIds?.HRA;
+
   useEffect(() => {
-    const variant = syUuid === "sy-generic-1" ? "sfr" : syUuid === "sy-generic-2" ? "htgr" : null;
-    if (variant === null) return;
+    if (linkedEsId === undefined) { setLinkedEs(undefined); return; }
     let cancelled = false;
-    fetchSyLinkedInputs(variant)
-      .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
-      .catch(() => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links: null })); });
+    getEsWorkbook(linkedEsId)
+      .then((res) => { if (!cancelled) setLinkedEs(res.mef); })
+      .catch(() => { if (!cancelled) setLinkedEs(undefined); });
     return () => { cancelled = true; };
-  }, [syUuid]);
+  }, [linkedEsId]);
+
+  useEffect(() => {
+    if (linkedScId === undefined) { setLinkedSc(undefined); return; }
+    let cancelled = false;
+    getScWorkbook(linkedScId)
+      .then((res) => { if (!cancelled) setLinkedSc(res.mef); })
+      .catch(() => { if (!cancelled) setLinkedSc(undefined); });
+    return () => { cancelled = true; };
+  }, [linkedScId]);
+
+  useEffect(() => {
+    if (linkedPosId === undefined) { setLinkedPos(undefined); return; }
+    let cancelled = false;
+    getPosWorkbook(linkedPosId)
+      .then((res) => { if (!cancelled) setLinkedPos(res.mef); })
+      .catch(() => { if (!cancelled) setLinkedPos(undefined); });
+    return () => { cancelled = true; };
+  }, [linkedPosId]);
+
+  useEffect(() => {
+    const entries = linkedDaId === undefined ? linkOptions.DA : linkOptions.DA.filter((entry) => entry.id === linkedDaId);
+    let cancelled = false;
+    Promise.allSettled(entries.map(async (entry) => ({ entry, workbook: await getDaWorkbook(entry.id) })))
+      .then((loaded) => {
+        if (cancelled) return;
+        const sources = loaded.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+        setControlledParameters(controlledParameterOptions(sources));
+        setControlledFailureModes(controlledFailureModeOptions(sources));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setControlledParameters([]);
+        setControlledFailureModes([]);
+      });
+    return () => { cancelled = true; };
+  }, [linkOptions.DA, linkedDaId]);
+
+  useEffect(() => {
+    const entries = linkedHrId === undefined ? linkOptions.HRA : linkOptions.HRA.filter((entry) => entry.id === linkedHrId);
+    let cancelled = false;
+    Promise.allSettled(entries.map(async (entry) => ({ entry, workbook: await getHrWorkbook(entry.id) })))
+      .then((loaded) => {
+        if (cancelled) return;
+        setControlledHumanFailures(controlledHumanFailureOptions(loaded.flatMap((result) => result.status === "fulfilled" ? [result.value] : [])));
+      })
+      .catch(() => { if (!cancelled) setControlledHumanFailures([]); });
+    return () => { cancelled = true; };
+  }, [linkOptions.HRA, linkedHrId]);
+
+  const links = useMemo(
+    () => buildLinkedInputs(linkOptions, { ES: linkedEsId, SC: linkedScId, POS: linkedPosId }, linkedEs, linkedSc, linkedPos),
+    [linkOptions, linkedEsId, linkedScId, linkedPosId, linkedEs, linkedSc, linkedPos],
+  );
+  const upstream = useMemo<SyUpstream>(() => ({ options: linkOptions }), [linkOptions]);
+  const providerData = useMemo<SyWorkbookData | null>(() => (data === null ? null : { ...data, links }), [data, links]);
 
   const updateSy = useCallback((sy: SystemsAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, sy }));
@@ -321,7 +286,7 @@ function SyWorkbookPage(): JSX.Element {
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
-  if (data === null || id === undefined) {
+  if (data === null || providerData === null || id === undefined) {
     return <div className="posw"><main className="posmain"><p className="pws-status">Loading workbook…</p></main></div>;
   }
 
@@ -345,15 +310,17 @@ function SyWorkbookPage(): JSX.Element {
 
   return (
     <SyWorkbookProvider
-      data={data}
+      data={providerData}
       editable={editable}
       mutateSy={mutateSy}
       runtime={{ workbookId: id, projectId, revision, saveStatus }}
       controlledParameters={controlledParameters}
       controlledHumanFailures={controlledHumanFailures}
+      controlledFailureModes={controlledFailureModes}
+      upstream={upstream}
     >
       <SyWorkbench
-        data={data}
+        data={providerData}
         persona={persona}
         setPersona={setPersona}
         showPersonaPicker={availablePersonas.length > 1}

@@ -311,6 +311,35 @@ describe("fault-tree execution and analysis-result contracts", () => {
     }).success).toBe(true);
   });
 
+  it("accepts generated CCF event identifiers in cut sets and importance", () => {
+    const generatedId = `${GATE_ID}-common`;
+    const result = {
+      ...analysisResult,
+      cutSets: {
+        primeImplicants: false,
+        count: 1,
+        distributionByOrder: [0, 1],
+        items: [{ order: 1, probability: 0.02, literals: [{ basicEventId: generatedId, negated: false }] }],
+      },
+      importance: [{
+        basicEventId: generatedId,
+        birnbaum: 0.5,
+        criticality: 0.25,
+        fussellVesely: 0.4,
+        riskAchievementWorth: 2,
+        riskReductionWorth: 1.5,
+      }],
+    };
+    expect(FaultTreeAnalysisResultSchema.safeParse(result).success).toBe(true);
+    expect(FaultTreeAnalysisResultSchema.safeParse({
+      ...result,
+      cutSets: {
+        ...result.cutSets,
+        items: [{ order: 1, probability: 0.02, literals: [{ basicEventId: "", negated: false }] }],
+      },
+    }).success).toBe(false);
+  });
+
   it.each([0, 1])("accepts boundary probability %s", (topEventProbability) => {
     expect(FaultTreeAnalysisResultSchema.safeParse({
       ...analysisResult, topEventProbability,

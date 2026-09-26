@@ -3,12 +3,13 @@ import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { SYProvenanceChip } from "./syShared";
 import { useSyWorkbook } from "./syWorkbookContext";
 import { analysisModelBasicEvents, linkedModelInputs } from "./syUncertainty";
+import { isSystemLevelModel } from "./sySelectors";
 import "./css/syUncertainty.css";
 
 function SyUncertaintyParameters({ selectedModelId }: { selectedModelId?: string } = {}): JSX.Element {
   const { sy, controlledParameters, shortOf } = useSyWorkbook();
   const models = useMemo(() => sy.systemLogicModels.filter((model) =>
-    model.topGate !== null && model.nonDetailedModelJustification === undefined), [sy.systemLogicModels]);
+    model.topGate !== null && !isSystemLevelModel(model)), [sy.systemLogicModels]);
   const [modelId, setModelId] = useState(models[0]?.uuid ?? "");
   useEffect(() => {
     if (!models.some((model) => model.uuid === modelId)) setModelId(models[0]?.uuid ?? "");
@@ -23,7 +24,6 @@ function SyUncertaintyParameters({ selectedModelId }: { selectedModelId?: string
       <WorkbookSectionHeading workbook="SY" title="Linked DA inputs" level={3} />
       <SYProvenanceChip>SY-A32 · DA</SYProvenanceChip>
     </div>
-    <p className="poscard__sub">Data Analysis owns the estimates and distributions. Link DA parameters to basic events in Step 02; this view shows which inputs the selected fault tree can sample.</p>
     {(sy.uncertaintyAnalyses ?? []).some((analysis) => analysis.parameterUncertainties.length > 0) &&
       <p className="syft-analysis__notice" role="status">Older distributions stored in SY remain available in the workbook data, but runs now use the linked DA distributions.</p>}
     {selectedModelId === undefined && models.length > 0 && <label className="posfield" style={{ maxWidth: 440 }}><span className="posfield__label">Fault tree</span>
@@ -31,17 +31,19 @@ function SyUncertaintyParameters({ selectedModelId }: { selectedModelId?: string
         {models.map((candidate) => <option key={candidate.uuid} value={candidate.uuid}>{shortOf(candidate.systemReference)} · {candidate.code} · {candidate.name}</option>)}
       </select>
     </label>}
-    {model === undefined ? <p className="possubtle">Create a detailed fault tree in Step 02 first.</p> : inputs.length === 0 ?
-      <p className="possubtle">No linked basic event in this fault tree has a DA uncertainty distribution. {linked.length} basic event{linked.length === 1 ? " is" : "s are"} linked to DA.</p> :
-      <div className="postable-wrap"><table className="postable syunc-parameters__table">
-        <thead><tr><th>Basic event</th><th>DA parameter</th><th>Distribution</th><th>Sampling</th></tr></thead>
-        <tbody>{inputs.map(({ event, source, distribution, issues }) => <tr key={event.uuid}>
-          <td><strong>{event.code ?? event.uuid}</strong><div className="possubtle">{event.name}</div></td>
-          <td>{source.parameterName}<div className="possubtle">{source.workbookName}</div></td>
-          <td>{distribution.type}</td>
-          <td>{issues.length === 0 ? "Ready" : <span className="syunc-parameters__issue">{issues.join(" ")}</span>}</td>
-        </tr>)}</tbody>
-      </table></div>}
+    <div className="sy-review">
+      {model === undefined ? <p className="sy-review-empty">Create a detailed fault tree in Step 02 first.</p> : inputs.length === 0 ?
+        <p className="sy-review-empty">No linked basic event in this fault tree has a DA uncertainty distribution. {linked.length} basic event{linked.length === 1 ? " is" : "s are"} linked to DA.</p> :
+        <table className="sy-review-table" aria-label="Linked DA inputs">
+          <thead><tr><th scope="col">Basic event</th><th scope="col">DA parameter</th><th scope="col">Distribution</th><th scope="col">Sampling</th></tr></thead>
+          <tbody>{inputs.map(({ event, source, distribution, issues }) => <tr key={event.uuid}>
+            <td><span className="sy-review-name posmono">{event.code ?? event.uuid}</span><span className="sy-review-sub">{event.name}</span></td>
+            <td><span>{source.parameterName}</span><span className="sy-review-sub">{source.workbookName}</span></td>
+            <td>{distribution.type}</td>
+            <td>{issues.length === 0 ? "Ready" : <span className="sy-error">{issues.join(" ")}</span>}</td>
+          </tr>)}</tbody>
+        </table>}
+    </div>
   </section>;
 }
 

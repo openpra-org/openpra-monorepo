@@ -97,6 +97,10 @@ async function deleteSyDocument(workbookId: string, documentId: string): Promise
   await deleteJson<void>(`/api/sy-workbooks/${workbookId}/documents/${documentId}`);
 }
 
+function syDocumentContentPath(workbookId: string, documentId: string): string {
+  return `/api/sy-workbooks/${workbookId}/documents/${documentId}/content`;
+}
+
 async function getSyDocumentDownload(workbookId: string, documentId: string): Promise<{ url: string; filename: string }> {
   return fetchJson<{ url: string; filename: string }>(`/api/sy-workbooks/${workbookId}/documents/${documentId}/download`);
 }
@@ -261,6 +265,7 @@ export {
   uploadSyDocument,
   deleteSyDocument,
   getSyDocumentDownload,
+  syDocumentContentPath,
   runSyFaultTree,
   validateSyFaultTree,
   getSyFaultTreeResult,

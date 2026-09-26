@@ -1011,6 +1011,146 @@ describe("workbook-owned analysis-run APIs", () => {
     expect((await runs.findOne({ id: response.body.run.id }).lean().exec())?.result).toEqual(legacy);
   }, 120_000);
 
+  it("quantifies the same SY fault tree before and after native common-cause expansion", async () => {
+    const saved = await syWorkbooks.findOne({ workbookId: SY_WORKBOOK_ID }).lean().exec() as unknown as {
+      mef: ReturnType<typeof createSyMef>;
+    };
+    const mef = structuredClone(saved.mef);
+    mef.commonCauseFailureGroups = [{
+      uuid: "ccf-run-comparison",
+      name: "Shared event mechanism",
+      description: "Two members share one failure mechanism.",
+      scope: "INTRASYSTEM",
+      affectedComponents: ["EVENT-A", "EVENT-B"],
+      affectedSystems: ["SYS-OR"],
+      modelType: "BETA_FACTOR",
+      modelSpecificParameters: {
+        betaFactorParameters: { beta: 0.1, totalFailureProbability: 0.2 },
+      },
+      members: { basicEvents: [{ id: EVENT_A }, { id: EVENT_B }] },
+      implementsSrs: [],
+    }];
+    await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef } }).exec();
+
+    const execute = async (expandCcf: boolean) => {
+      const response = await request(api.getHttpServer())
+        .post(`/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs`)
+        .send({
+          schemaVersion: "1.0.0",
+          modelId: FT_OR,
+          workbookRevision: 3,
+          calculationType: "PROBABILITY",
+          workflow: "MANUAL",
+          settings: {
+            algorithm: "BDD",
+            approximation: "EXACT",
+            variableOrder: "DFS",
+            reorderBudgetSeconds: 60,
+            expandCcf,
+            numTrials: 10_000,
+            seed: 847,
+            missionTimeHours: 8_760,
+          },
+        });
+      expect(response.status).toBe(200);
+      expect(response.body.run.status).toBe("SUCCEEDED");
+      const result = await request(api.getHttpServer()).get(
+        `/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs/${response.body.run.id}/result`,
+      );
+      expect(result.status).toBe(200);
+      expect(result.body.settings.expandCcf).toBe(expandCcf);
+      return result.body.topEventProbability as number;
+    };
+
+    try {
+      const withoutCcf = await execute(false);
+      const withCcf = await execute(true);
+      expect(withoutCcf).toBeCloseTo(0.28, 12);
+      expect(withCcf).not.toBeCloseTo(withoutCcf, 12);
+      expect(withCcf).toBeGreaterThan(withoutCcf);
+    } finally {
+      await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef: saved.mef } }).exec();
+    }
+  }, 120_000);
+
+  it("quantifies the SFR actuation model with three independent native CCF groups", async () => {
+    const workbookId = connectedExampleIds("sfr").sy;
+    const model = SY_ANALYSIS.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-ACT");
+    if (model === undefined) throw new Error("Expected the SFR actuation model");
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: model.uuid,
+        workbookRevision: 1,
+        calculationType: "PROBABILITY",
+        workflow: "MANUAL",
+        settings: {
+          algorithm: "BDD",
+          approximation: "EXACT",
+          variableOrder: "DFS",
+          reorderBudgetSeconds: 60,
+          expandCcf: true,
+          numTrials: 10_000,
+          seed: 847,
+          missionTimeHours: 8_760,
+        },
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.settings.expandCcf).toBe(true);
+    expect(result.body.topEventProbability).toBeGreaterThan(0);
+    expect(result.body.topEventProbability).toBeLessThanOrEqual(1);
+  }, 120_000);
+
+  it("returns RPS common-cause cut sets with generated event identifiers", async () => {
+    const workbookId = connectedExampleIds("sfr").sy;
+    const model = SY_ANALYSIS.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-RPS");
+    if (model === undefined) throw new Error("Expected the RPS fault-tree model");
+    const execute = async (expandCcf: boolean) => {
+      const response = await request(api.getHttpServer())
+        .post(`/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs`)
+        .send({
+          schemaVersion: "1.0.0",
+          modelId: model.uuid,
+          workbookRevision: 1,
+          calculationType: "PROBABILITY_AND_CUT_SETS",
+          workflow: "MANUAL",
+          settings: {
+            algorithm: "ZBDD",
+            approximation: "EXACT",
+            variableOrder: "DFS",
+            reorderBudgetSeconds: 60,
+            expandCcf,
+            numTrials: 10_000,
+            seed: 847,
+            missionTimeHours: 8_760,
+          },
+        });
+      expect(response.status).toBe(200);
+      expect(response.body.run.status).toBe("SUCCEEDED");
+      const result = await request(api.getHttpServer()).get(
+        `/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`,
+      );
+      expect(result.status).toBe(200);
+      expect(result.body.cutSets.count).toBeGreaterThan(0);
+      return result.body;
+    };
+    const baseline = await execute(false);
+    const expanded = await execute(true);
+    expect(baseline.cutSets.items.length).toBeGreaterThan(0);
+    expect(expanded.cutSets.items.length).toBeGreaterThan(0);
+    const groupIds = SY_ANALYSIS.commonCauseFailureGroups.map(({ uuid }) => uuid);
+    expect(expanded.cutSets.items.flatMap((item: { literals: { basicEventId: string }[] }) => item.literals)
+      .some(({ basicEventId }: { basicEventId: string }) =>
+        groupIds.some((groupId) => basicEventId.startsWith(`${groupId}-`)))).toBe(true);
+  }, 120_000);
+
   it("samples Step 07 linked DA uncertainty for a fault tree without sampled CCF members", async () => {
     const workbookId = CONTROLLED_SY_WORKBOOK_ID;
     const modelId = FT_OR;
@@ -1047,6 +1187,32 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(stored?.workbookSnapshots).toEqual(expect.arrayContaining([expect.objectContaining({
       hostType: "DA", identity: { workbookId: DA_WORKBOOK_ID, workbookRevision: 6 },
     })]));
+  }, 120_000);
+
+  it("returns Step 02 importance measures for a CCF-expanded RPS tree", async () => {
+    const workbookId = connectedExampleIds("sfr").sy;
+    const model = SY_ANALYSIS.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-RPS");
+    if (model === undefined) throw new Error("Expected the RPS fault-tree model");
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: model.uuid,
+        workbookRevision: 1,
+        calculationType: "IMPORTANCE",
+        workflow: "MANUAL",
+        settings: {
+          algorithm: "BDD", approximation: "EXACT", variableOrder: "DFS", reorderBudgetSeconds: 60,
+          expandCcf: true, numTrials: 10_000, seed: 847, missionTimeHours: 8_760,
+        },
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.importance.length).toBeGreaterThan(0);
   }, 120_000);
 
   it("persists and returns configured PRAXIS cut-set results", async () => {

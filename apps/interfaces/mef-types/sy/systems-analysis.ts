@@ -41,10 +41,34 @@ export enum FailureModeType {
 
 export type ComponentState = "operational" | "degraded" | "failed" | "recovering" | "maintenance";
 
+export interface SystemBasicEventFailureModeSource {
+  workbookId: string;
+  failureModeId: string;
+}
+
+export interface SystemDiagramRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export type SystemDiagramRotation = 0 | 90 | 180 | 270;
+
+export interface SystemDiagram extends Unique {
+  title: string;
+  documentId: string;
+  filename: string;
+  page: number;
+  region: SystemDiagramRegion;
+  rotation?: SystemDiagramRotation;
+}
+
 export interface SystemBasicEvent extends BasicEvent {
   code: string;
   componentReference?: ComponentReference;
   failureMode?: FailureModeType | string;
+  failureModeSource?: SystemBasicEventFailureModeSource;
   probability?: number;
   quantificationBasis?: FaultTreeBasicEventQuantificationBasis;
   repairModeled?: boolean;
@@ -176,10 +200,12 @@ export interface SystemDefinition extends Unique, Named {
   description?: string;
   abbreviation?: string;
   boundaries: string[];
+  diagrams?: SystemDiagram[];
   components?: Record<ComponentReference, SystemComponent>;
   successCriteriaIds: SuccessCriteriaId[];
   successCriterion?: string;
   missionTimeHours?: number;
+  missionTimeRef?: string;
   schematic?: {
     reference: string;
     description?: string;
@@ -539,8 +565,17 @@ export interface SyDocumentation {
   implementsSrs: SRReference[];
 }
 
+export interface SyLinkedWorkbooks {
+  ES?: string;
+  SC?: string;
+  POS?: string;
+  DA?: string;
+  HRA?: string;
+}
+
 export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.SYSTEMS_ANALYSIS> {
   praScope: string;
+  linkedWorkbooks?: SyLinkedWorkbooks;
 
   systemDefinitions: SystemDefinition[];
   systemToSafetyFunctionMappings: SystemToSafetyFunctionMapping[];

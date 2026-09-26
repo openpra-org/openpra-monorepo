@@ -1,10 +1,14 @@
 import { JSX, useCallback, useEffect, useState } from "react";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
+import type { PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
 import { SyWorkbench } from "./syWorkbench";
 import { SyWorkbookProvider, type SyWorkbookData } from "./syWorkbookContext";
+import { buildLinkedInputs } from "./syLinks";
 import { type SyPersona } from "./syViewData";
 
 interface SyExampleResponse {
@@ -20,6 +24,20 @@ interface SyBundleResponse {
   newlyDevelopedMethods: SyExampleResponse[];
 }
 
+interface EsBundleResponse {
+  es: { mef: EventSequenceAnalysis };
+}
+
+interface ScBundleResponse {
+  sc: { mef: SuccessCriteriaDevelopment };
+}
+
+interface PosBundleResponse {
+  pos: { mef: PlantOperatingStatesAnalysis };
+}
+
+const EXAMPLE_VARIANT = "htgr";
+
 function SyDemoPage(): JSX.Element {
   const [data, setData] = useState<SyWorkbookData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,14 +45,19 @@ function SyDemoPage(): JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
-    fetchJson<SyBundleResponse>("/api/example-workbooks/sy-bundle")
-      .then((res) => {
+    Promise.all([
+      fetchJson<SyBundleResponse>(`/api/example-workbooks/sy-bundle?example=${EXAMPLE_VARIANT}`),
+      fetchJson<EsBundleResponse>(`/api/example-workbooks/es-bundle?example=${EXAMPLE_VARIANT}`),
+      fetchJson<ScBundleResponse>(`/api/example-workbooks/sc-bundle?example=${EXAMPLE_VARIANT}`),
+      fetchJson<PosBundleResponse>(`/api/example-workbooks/pos-bundle?example=${EXAMPLE_VARIANT}`),
+    ])
+      .then(([res, es, sc, pos]) => {
         if (cancelled) return;
         setData({
           sy: res.sy.mef as SystemsAnalysis,
           cc: res.configurationControl.mef as PRAConfigurationControl,
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
-          links: null,
+          links: buildLinkedInputs({ ES: [], SC: [], POS: [], DA: [], HRA: [] }, {}, es.es.mef, sc.sc.mef, pos.pos.mef),
         });
       })
       .catch((err: unknown) => {

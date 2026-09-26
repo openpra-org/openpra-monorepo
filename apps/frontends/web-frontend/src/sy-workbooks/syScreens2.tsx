@@ -1,36 +1,51 @@
 import { stringifyJson } from "interfaces-shared-types/json";
-import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
 import { SYIcon } from "./syIcons";
-import { SYProvenanceChip } from "./syShared";
+import { DialogHead, NotRecorded, ReviewLines, ReviewTitle, SYProvenanceChip } from "./syShared";
+import { SystemDialogContent, isSystemDialogKind } from "./SySystemDialogs";
+import { EventDialogContent, isEventDialogKind } from "./SyEventDialogs";
+import { SyDiagramDialog } from "./SyDiagramDialog";
 import {
   SCREENING_CRITERIA,
   CCF_MODELS,
   SHARED_CAUSE_LABELS,
-  ccfParams,
-  ccfModelCheck,
   toExp,
   CONFIRM_METHODS,
+  RESOURCE_TYPE_LABELS,
   FAILURE_MODE_LABELS,
   SY_METHODOLOGY_TOC,
   DEP_KIND,
   type CapabilityCategory,
 } from "./syViewData";
-import { type CcScore } from "./sySelectors";
+import { isSystemLevelModel, type CcScore } from "./sySelectors";
 import { useSyWorkbook } from "./syWorkbookContext";
 import { SyUncertaintyParameters } from "./SyUncertaintyParameters";
 import { SyUncertaintyAnalysis } from "./SyUncertaintyAnalysis";
 import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { generateSyReport } from "./syDocx";
 import { type SyDrawerContext } from "./syScreens";
-import { type SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
-import { systemFaultTreeBasicEventIds, systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
+import { systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
-import { failureRateToProbability, requiresFailureRateConversionReview, FAILURE_RATE_CONVERSION_REVIEW_REQUIRED } from "interfaces-mef-types/modeling";
+import {
+  SUPPORTED_CCF_MODELS,
+  ccfParameterSummary,
+  defaultCcfParameters,
+  orderedFactors,
+  totalFailureProbability,
+  validateCcfGroup,
+  type SupportedCcfModel,
+} from "./syCcf";
 
 function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element {
   const { sy, editable, mutateSy, shortOf } = useSyWorkbook();
+  const actionLabel = editable ? "Edit" : "View";
+  const supportCriteria = sy.supportSystemSuccessCriteria ?? [];
+  const couplings = sy.environmentalDesignBasisConsiderations ?? [];
+  const inventories = sy.depletionModels ?? [];
+  const digitalRecords = sy.digitalInstrumentationAndControl ?? [];
+  const systemName = (id: string): string => sy.systemDefinitions.find((system) => system.uuid === id)?.name ?? id;
   const supportIds = new Set(sy.systemDependencies.map((d) => d.supportingSystem));
   const supportCols = sy.systemDefinitions.filter((s) => editable || supportIds.has(s.uuid)).map((s) => s.uuid);
   const short = shortOf;
@@ -121,7 +136,6 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
           <WorkbookSectionHeading title="Support dependency matrix" level={3} />
           <SYProvenanceChip>SY-B5 · SY-B6 · SY-B10</SYProvenanceChip>
         </div>
-        <p className="poscard__sub">Each row depends on the marked support systems. Click a cell to cycle it between power, signal, cooling and none.</p>
         <div className="sydep">
           <table className="sydep__table">
             <thead>
@@ -151,15 +165,26 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
             </tbody>
           </table>
         </div>
-        {loops.map((l) => (
-          <div key={l.id} className="syloop" onClick={() => openDrawer({ kind: "loop", id: l.id })} style={{ cursor: "pointer" }}>
-            <div style={{ flex: 1 }}>
-              <div className="syloop__head">Logic loop. {short(l.a)} needs {short(l.b)} for {l.ab}, {short(l.b)} needs {short(l.a)} for {l.ba}.</div>
-              <div className="syloop__res">{l.resolution ?? "No resolution recorded yet."}</div>
-            </div>
-            <span className="sylight"><span className={`sylight__dot sylight__dot--${l.resolution !== null ? "s" : "f"}`} /> {l.resolution !== null ? "Resolved" : "Unresolved"}</span>
+        {loops.length > 0 && (
+          <div className="sy-review sy-review--offset">
+            <section className="sy-review-section" aria-label="Logic loops">
+              <ReviewTitle title="Logic loops" />
+              <table className="sy-review-table" aria-label="Logic loops">
+                <thead><tr><th scope="col">Systems</th><th scope="col">Dependencies</th><th scope="col">Resolution</th><th scope="col" className="sy-review-edit" aria-label="Actions" /></tr></thead>
+                <tbody>
+                  {loops.map((l) => (
+                    <tr key={l.id}>
+                      <td><span className="sy-review-name">{`${short(l.a)} and ${short(l.b)}`}</span></td>
+                      <td><ReviewLines items={[`${short(l.a)} needs ${short(l.b)} for ${l.ab}`, `${short(l.b)} needs ${short(l.a)} for ${l.ba}`]} /></td>
+                      <td>{l.resolution ?? <span className="sy-error">Resolution required</span>}</td>
+                      <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} loop ${short(l.a)} and ${short(l.b)}`} onClick={() => openDrawer({ kind: "loop", id: l.id })}>{actionLabel}</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
           </div>
-        ))}
+        )}
       </div>
 
       <div className="poscard">
@@ -167,27 +192,26 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
           <WorkbookSectionHeading title="Support success criteria" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B7 · SY-B9 · SY-B13</SYProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSsc}><SYIcon.Plus /> Add criterion</button>}
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSsc}>Add criterion</button>}
           </div>
         </div>
-        <p className="poscard__sub">Conservative criteria at CC-I, or realistic ones for the risk-significant support systems. Click a card to edit it.</p>
-        <div className="scsys">
-          {(sy.supportSystemSuccessCriteria ?? []).map((n) => {
-            const def = sy.systemDefinitions.find((s) => s.uuid === n.systemReference);
-            return (
-              <div key={n.uuid} className="scsys__card" onClick={() => openDrawer({ kind: "ssc", id: n.uuid })} style={{ cursor: "pointer" }}>
-                <div className="scsys__head">
-                  <span className="scsys__name">{def?.name ?? n.systemReference}</span>
-                  <span className={`syd-method syd-method--${n.criteriaType.toLowerCase()}`} style={{ marginLeft: "auto" }}>{n.criteriaType === "REALISTIC" ? "Realistic" : "Conservative"}</span>
-                </div>
-                <div className="scsys__dep" style={{ borderTop: "none", paddingTop: 0, marginTop: 0 }}>{n.successCriteria}</div>
-                <div className="scsys__cap" style={{ marginTop: 8 }}>
-                  <span className="scsys__cap-k">Supports</span>
-                  <span className="scsys__cap-v" style={{ fontFamily: "inherit", fontWeight: 600 }}>{n.supportedSystems.map((x) => short(x)).join(", ")}</span>
-                </div>
-              </div>
-            );
-          })}
+        <div className="sy-review">
+          {supportCriteria.length === 0 ? <p className="sy-review-empty">No support success criteria recorded.</p> : (
+            <table className="sy-review-table" aria-label="Support success criteria">
+              <thead><tr><th scope="col">Support system</th><th scope="col">Success criterion</th><th scope="col">Supports</th><th scope="col">Basis</th><th scope="col" className="sy-review-edit" aria-label="Actions" /></tr></thead>
+              <tbody>
+                {supportCriteria.map((n) => (
+                  <tr key={n.uuid}>
+                    <td><span className="sy-review-name">{systemName(n.systemReference)}</span></td>
+                    <td>{n.successCriteria.length > 0 ? n.successCriteria : <NotRecorded />}</td>
+                    <td>{n.supportedSystems.length === 0 ? <NotRecorded /> : n.supportedSystems.map((x) => short(x)).join(", ")}</td>
+                    <td>{n.criteriaType === "REALISTIC" ? "Realistic" : "Conservative"}</td>
+                    <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} criterion for ${systemName(n.systemReference)}`} onClick={() => openDrawer({ kind: "ssc", id: n.uuid })}>{actionLabel}</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
@@ -196,26 +220,27 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
           <WorkbookSectionHeading title="Spatial and environmental couplings" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B8 · SY-B14</SYProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSpc}><SYIcon.Plus /> Add coupling</button>}
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSpc}>Add coupling</button>}
           </div>
         </div>
-        <p className="poscard__sub">Two trains in one room are not two independent coin flips, so shared space enters the model. Click a card to edit it.</p>
-        <div className="syspc">
-          {(sy.environmentalDesignBasisConsiderations ?? []).map((c) => (
-            <div key={c.uuid} className="syspc__card" onClick={() => openDrawer({ kind: "spc", id: c.uuid })} style={{ cursor: "pointer" }}>
-              <div className="syspc__head">
-                <span className="syspc__name">{short(c.systemReference)}</span>
-                <span className="sylight" style={{ marginLeft: "auto" }}><span className={`sylight__dot sylight__dot--${c.dependentFailuresIncluded === true ? "s" : "f"}`} /> {c.dependentFailuresIncluded === true ? "In the model" : "Not in the model"}</span>
-              </div>
-              <div className="syspc__affects">
-                {c.components.map((a) => <span key={a} className="syspc__affects-tag">{a}</span>)}
-              </div>
-              <div className="syspc__hazard">{c.environmentalConditions}</div>
-              <div className="syspc__affects">
-                {c.eventSequences.map((q) => <span key={q} className="poschip posmono">{q}</span>)}
-              </div>
-            </div>
-          ))}
+        <div className="sy-review">
+          {couplings.length === 0 ? <p className="sy-review-empty">No couplings recorded.</p> : (
+            <table className="sy-review-table" aria-label="Spatial and environmental couplings">
+              <thead><tr><th scope="col">System</th><th scope="col">Components</th><th scope="col">Conditions</th><th scope="col">Event sequences</th><th scope="col">Dependent failures</th><th scope="col" className="sy-review-edit" aria-label="Actions" /></tr></thead>
+              <tbody>
+                {couplings.map((c) => (
+                  <tr key={c.uuid}>
+                    <td><span className="sy-review-name">{short(c.systemReference)}</span></td>
+                    <td>{c.components.length === 0 ? <NotRecorded /> : c.components.join(", ")}</td>
+                    <td>{c.environmentalConditions.length > 0 ? c.environmentalConditions : <NotRecorded />}</td>
+                    <td>{c.eventSequences.length === 0 ? <NotRecorded /> : <span className="posmono">{c.eventSequences.join(", ")}</span>}</td>
+                    <td>{c.dependentFailuresIncluded === true ? "In the model" : "Not in the model"}</td>
+                    <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} coupling for ${short(c.systemReference)}`} onClick={() => openDrawer({ kind: "spc", id: c.uuid })}>{actionLabel}</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
@@ -224,49 +249,38 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
           <WorkbookSectionHeading title="Depletable inventories" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B12</SYProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addInv}><SYIcon.Plus /> Add inventory</button>}
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addInv}>Add inventory</button>}
           </div>
         </div>
-        <p className="poscard__sub">Each inventory is checked against the mission time, the way component times are in Success Criteria. Click a row to edit it.</p>
-        <div className="syinv">
-          {(sy.depletionModels ?? []).map((d) => {
-            const def = sy.systemDefinitions.find((s) => s.uuid === d.associatedSystem);
-            const mission = def?.missionTimeHours ?? 24;
-            const cap = d.initialQuantity;
-            const passive = cap <= 0;
-            const span = Math.max(mission, cap);
-            const cP = passive ? 100 : Math.max(5, (cap / span) * 100);
-            const mP = Math.max(5, (mission / span) * 100);
-            const supports = d.missionTimeSupported === true;
-            const unit = d.units === "hours" ? "h" : d.units;
-            return (
-              <div key={d.uuid} className="syinv__row" onClick={() => openDrawer({ kind: "inv", id: d.uuid })} style={{ cursor: "pointer" }}>
-                <div className="syinv__lead">
-                  <div>
-                    <div className="syinv__name">{d.description ?? d.resourceType}</div>
-                    <div className="syinv__note">{short(d.associatedSystem ?? "")}</div>
-                  </div>
-                </div>
-                <div className="syinv__gauge">
-                  <div className="syinv__bars">
-                    <div className="syinv__bar">
-                      <span className="syinv__bar-k">Capacity</span>
-                      <div className="syinv__track"><div className={`syinv__fill syinv__fill--cap${supports ? "" : " syinv__fill--short"}`} style={{ width: `${cP}%` }} /></div>
-                      <span className="syinv__bar-v posmono">{passive ? "Passive" : `${cap} ${unit}`}</span>
-                    </div>
-                    <div className="syinv__bar">
-                      <span className="syinv__bar-k">Mission</span>
-                      <div className="syinv__track"><div className="syinv__fill syinv__fill--mission" style={{ width: `${mP}%` }} /></div>
-                      <span className="syinv__bar-v posmono">{mission} h</span>
-                    </div>
-                  </div>
-                  <div className="syinv__verdict">
-                    <span className="sylight"><span className={`sylight__dot sylight__dot--${supports ? "s" : "f"}`} /> {supports ? "Supports the mission time" : "Falls short of the mission time"}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        <div className="sy-review">
+          {inventories.length === 0 ? <p className="sy-review-empty">No depletable inventories recorded.</p> : (
+            <table className="sy-review-table" aria-label="Depletable inventories">
+              <thead><tr><th scope="col">Inventory</th><th scope="col">System</th><th scope="col">Capacity</th><th scope="col">Mission time</th><th scope="col" className="sy-review-edit" aria-label="Actions" /></tr></thead>
+              <tbody>
+                {inventories.map((d) => {
+                  const mission = d.associatedSystem === undefined ? undefined : sy.systemDefinitions.find((system) => system.uuid === d.associatedSystem)?.missionTimeHours;
+                  const unit = d.units === "hours" ? "h" : d.units;
+                  const described = d.description !== undefined && d.description.length > 0;
+                  const label = described ? d.description : RESOURCE_TYPE_LABELS[d.resourceType];
+                  return (
+                    <tr key={d.uuid}>
+                      <td>
+                        <span className="sy-review-name">{label}</span>
+                        {described && <span className="sy-review-sub">{RESOURCE_TYPE_LABELS[d.resourceType]}</span>}
+                      </td>
+                      <td>{d.associatedSystem === undefined ? <NotRecorded /> : short(d.associatedSystem)}</td>
+                      <td>
+                        <span className="posmono sy-review-num">{d.initialQuantity <= 0 ? "Passive" : `${d.initialQuantity} ${unit}`}</span>
+                        {mission !== undefined && <span className="sy-review-sub">{`Mission ${mission} h`}</span>}
+                      </td>
+                      <td>{d.missionTimeSupported === true ? "Supported" : "Falls short"}</td>
+                      <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} ${label}`} onClick={() => openDrawer({ kind: "inv", id: d.uuid })}>{actionLabel}</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
@@ -275,27 +289,28 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
           <WorkbookSectionHeading title="Digital I&C and software" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B11</SYProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addDic}><SYIcon.Plus /> Add record</button>}
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addDic}>Add record</button>}
           </div>
         </div>
-        <p className="poscard__sub">For digital actuation this requirement is load-bearing, since software is a shared cause across systems. Click a record to edit it.</p>
-        <div className="sydigs">
-          {(sy.digitalInstrumentationAndControl ?? []).map((d) => {
-            const def = sy.systemDefinitions.find((s) => s.uuid === d.systemReference);
-            return (
-              <div key={d.uuid} className="sydig" onClick={() => openDrawer({ kind: "dic", id: d.uuid })} style={{ cursor: "pointer" }}>
-                <div className="sydig__head">
-                  <div>
-                    <div className="sydig__name">{d.name}</div>
-                    <div className="sydig__sys">{def?.name ?? d.systemReference}</div>
-                  </div>
-                </div>
-                <div className="sydig__modes">
-                  {(d.failureModes ?? []).map((m) => <span key={m} className="sydig__mode">{m}</span>)}
-                </div>
-              </div>
-            );
-          })}
+        <div className="sy-review">
+          {digitalRecords.length === 0 ? <p className="sy-review-empty">No digital I&C records.</p> : (
+            <table className="sy-review-table" aria-label="Digital I&C and software">
+              <thead><tr><th scope="col">Record</th><th scope="col">System</th><th scope="col">Failure modes</th><th scope="col" className="sy-review-edit" aria-label="Actions" /></tr></thead>
+              <tbody>
+                {digitalRecords.map((d) => (
+                  <tr key={d.uuid}>
+                    <td>
+                      {d.name.length > 0 ? <span className="sy-review-name">{d.name}</span> : <NotRecorded />}
+                      {d.methodology.length > 0 && <span className="sy-review-sub">{d.methodology}</span>}
+                    </td>
+                    <td>{systemName(d.systemReference)}</td>
+                    <td><ReviewLines items={d.failureModes ?? []} /></td>
+                    <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} ${d.name.length > 0 ? d.name : "digital record"}`} onClick={() => openDrawer({ kind: "dic", id: d.uuid })}>{actionLabel}</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </>
@@ -304,6 +319,8 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
 
 function IntegrityScreen({ stage, openDrawer }: { stage: string; openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element {
   const { sy, editable, mutateSy, shortOf } = useSyWorkbook();
+  const actionLabel = editable ? "Edit" : "View";
+  const records = sy.systemConfirmationRecords ?? [];
   const isOp = stage === "operational";
   function addConfirm(): void {
     if (!editable) return;
@@ -319,17 +336,17 @@ function IntegrityScreen({ stage, openDrawer }: { stage: string; openDrawer: (ct
   const events = sy.systemBasicEvents;
   const modeRows = Array.from(new Set(events.map((e) => e.failureMode ?? ""))).filter((m) => m.length > 0).map((mode) => {
     const of = events.filter((e) => e.failureMode === mode);
-    return { mode, label: FAILURE_MODE_LABELS[mode] ?? mode, count: of.length, example: of[0]?.uuid ?? "" };
+    return { mode, label: FAILURE_MODE_LABELS[mode] ?? mode, count: of.length, example: of[0]?.code ?? "" };
   });
-  const gates = sy.systemLogicModels.flatMap((model) => model.gates.map(({ id }) => id));
+  const gates = sy.systemLogicModels.flatMap((model) => model.gates.map(({ code }) => code));
   const transfers = sy.systemLogicModels.flatMap((model) =>
-    model.leafNodes.flatMap((leaf) => leaf.kind === "TRANSFER_REFERENCE" ? [leaf.id] : []),
+    model.leafNodes.flatMap((leaf) => leaf.kind === "TRANSFER_REFERENCE" ? [leaf.code] : []),
   );
   const otherRows = [
     { label: "Logic gate", count: gates.length, example: gates[0] ?? "" },
     { label: "Transfer gate", count: transfers.length, example: transfers[0] ?? "" },
     { label: "Common cause group", count: sy.commonCauseFailureGroups.length, example: sy.commonCauseFailureGroups[0]?.uuid ?? "" },
-    { label: "Human failure event", count: sy.humanFailureEventIntegrations.length, example: sy.humanFailureEventIntegrations[0]?.uuid ?? "" },
+    { label: "HR event", count: sy.humanFailureEventIntegrations.length, example: sy.humanFailureEventIntegrations[0]?.hfeReference ?? "" },
   ];
   return (
     <>
@@ -338,25 +355,34 @@ function IntegrityScreen({ stage, openDrawer }: { stage: string; openDrawer: (ct
           <WorkbookSectionHeading workbook="SY" title="Plant-fidelity confirmation" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>{isOp ? "SY-A5" : "SY-A6"}</SYProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addConfirm}><SYIcon.Plus /> Add record</button>}
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addConfirm}>Add record</button>}
           </div>
         </div>
-        <p className="poscard__sub">{isOp ? "Confirm the model through staff discussions and, at CC-II, plant investigations and walkdowns." : "Confirm the model matches the design intent, with walkdowns deferred to the as-built plant."} Click a row to edit it.</p>
-        <table className="postable">
-          <thead><tr><th>System</th><th>Method</th><th>Finding</th><th>Date</th></tr></thead>
-          <tbody>
-            {(sy.systemConfirmationRecords ?? []).map((c) => {
-              return (
-                <tr key={c.uuid} onClick={() => openDrawer({ kind: "confirm", id: c.uuid })} style={{ cursor: "pointer" }}>
-                  <td style={{ fontWeight: 600 }}>{c.systemReference !== undefined ? shortOf(c.systemReference) : "—"}</td>
-                  <td><span className="syd-method syd-method--review">{CONFIRM_METHODS[c.method] ?? c.method}</span></td>
-                  <td className="possubtle" style={{ fontSize: 12 }}>{c.findings}</td>
-                  <td className="posmono" style={{ fontSize: 11 }}>{c.date}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="sy-review">
+          {records.length === 0 ? <p className="sy-review-empty">No confirmation records yet.</p> : (
+            <table className="sy-review-table" aria-label="Plant-fidelity confirmation">
+              <thead><tr><th scope="col">System</th><th scope="col">Method</th><th scope="col">Finding</th><th scope="col">Date</th><th scope="col" className="sy-review-edit" aria-label="Actions" /></tr></thead>
+              <tbody>
+                {records.map((c) => {
+                  const system = c.systemReference === undefined ? undefined : shortOf(c.systemReference);
+                  const method = CONFIRM_METHODS[c.method] ?? c.method;
+                  return (
+                    <tr key={c.uuid}>
+                      <td>{system === undefined ? <NotRecorded /> : <span className="sy-review-name">{system}</span>}</td>
+                      <td>
+                        <span>{method}</span>
+                        {c.personnelRoles.length > 0 && <span className="sy-review-sub">{c.personnelRoles.join(", ")}</span>}
+                      </td>
+                      <td>{c.findings.length > 0 ? c.findings : <NotRecorded />}</td>
+                      <td className="posmono sy-review-num">{c.date.length > 0 ? c.date : <NotRecorded />}</td>
+                      <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} ${method} record${system === undefined ? "" : ` for ${system}`}`} onClick={() => openDrawer({ kind: "confirm", id: c.uuid })}>{actionLabel}</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
       <div className="poscard">
@@ -364,26 +390,27 @@ function IntegrityScreen({ stage, openDrawer }: { stage: string; openDrawer: (ct
           <WorkbookSectionHeading workbook="SY" title="Nomenclature" level={3} />
           <SYProvenanceChip>SY-A30</SYProvenanceChip>
         </div>
-        <p className="poscard__sub">One designator per component failure mode across every system, counted live from the logic models.</p>
-        <table className="postable">
-          <thead><tr><th>Identifier</th><th>In the model</th><th>Example</th></tr></thead>
-          <tbody>
-            {modeRows.map((r) => (
-              <tr key={r.mode}>
-                <td style={{ fontWeight: 600 }}>{r.label}</td>
-                <td className="posmono" style={{ fontSize: 11 }}>{r.count}</td>
-                <td className="posmono" style={{ fontSize: 11 }}>{r.example}</td>
-              </tr>
-            ))}
-            {otherRows.map((r) => (
-              <tr key={r.label}>
-                <td style={{ fontWeight: 600 }}>{r.label}</td>
-                <td className="posmono" style={{ fontSize: 11 }}>{r.count}</td>
-                <td className="posmono" style={{ fontSize: 11 }}>{r.example}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="sy-review">
+          <table className="sy-review-table" aria-label="Nomenclature">
+            <thead><tr><th scope="col">Identifier</th><th scope="col">In the model</th><th scope="col">Example</th></tr></thead>
+            <tbody>
+              {modeRows.map((r) => (
+                <tr key={r.mode}>
+                  <td><span className="sy-review-name">{r.label}</span></td>
+                  <td>{r.count}</td>
+                  <td><span className="posmono">{r.example}</span></td>
+                </tr>
+              ))}
+              {otherRows.map((r) => (
+                <tr key={r.label}>
+                  <td><span className="sy-review-name">{r.label}</span></td>
+                  <td>{r.count}</td>
+                  <td>{r.example.length > 0 ? <span className="posmono">{r.example}</span> : <span className="sy-review-none">None</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );
@@ -391,7 +418,8 @@ function IntegrityScreen({ stage, openDrawer }: { stage: string; openDrawer: (ct
 
 function UncertScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element {
   const { sy, editable, mutateSy, shortOf, runtime } = useSyWorkbook();
-  const models = sy.systemLogicModels.filter((model) => model.topGate !== null && model.nonDetailedModelJustification === undefined);
+  const actionLabel = editable ? "Edit" : "View";
+  const models = sy.systemLogicModels.filter((model) => model.topGate !== null && !isSystemLevelModel(model));
   const [modelId, setModelId] = useState(models[0]?.uuid ?? "");
   const model = models.find((candidate) => candidate.uuid === modelId) ?? models[0];
   const assumptions = (sy.uncertaintyAnalyses ?? [])
@@ -416,7 +444,6 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => vo
   return <>
     <section className="poscard">
       <div className="poscard__head"><WorkbookSectionHeading workbook="SY" title="Fault tree scope" level={3} /><SYProvenanceChip>SY-A32</SYProvenanceChip></div>
-      <p className="poscard__sub">Assess uncertainty in the selected fault tree's top-event probability. Parameter distributions come from linked Data Analysis estimates; SY records model assumptions.</p>
       {models.length === 0 ? <p className="possubtle">Create a detailed fault tree in Step 02 first.</p> :
         <label className="posfield" style={{ maxWidth: 520 }}><span className="posfield__label">Fault tree</span>
           <select className="posfield__select" aria-label="Step 07 fault tree" value={model?.uuid ?? ""} onChange={(event) => setModelId(event.target.value)}>
@@ -428,15 +455,29 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => vo
     <section className="poscard">
       <div className="poscard__head"><WorkbookSectionHeading workbook="SY" title="Model assumptions" level={3} />
         <div className="posrow" style={{ gap: 8, alignItems: "center" }}><SYProvenanceChip>SY-A32 · B16</SYProvenanceChip>
-          {editable && model !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addAssumption}><SYIcon.Plus /> Add assumption</button>}
+          {editable && model !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addAssumption}>Add assumption</button>}
         </div>
       </div>
-      <p className="poscard__sub">Record model choices for the selected system and their possible effect on its fault trees. Open a row to edit its treatment.</p>
-      {assumptions.length === 0 ? <p className="possubtle">No model assumption recorded for {model === undefined ? "this fault tree" : shortOf(model.systemReference)}.</p> :
-        <div className="postable-wrap"><table className="postable"><thead><tr><th>Assumption</th><th>Impact</th><th>Treatment</th></tr></thead>
-          <tbody>{assumptions.map((item) => <tr key={item.uncertaintyId} className="postable__row--clickable" onClick={() => openDrawer({ kind: "unc", id: item.uncertaintyId })}>
-            <td style={{ fontWeight: 600 }}>{item.description || "Unspecified"}</td><td>{item.impact || "—"}</td><td>{item.treatmentApproach || "Open"}</td>
-          </tr>)}</tbody></table></div>}
+      <div className="sy-review">
+        {assumptions.length === 0 ? <p className="sy-review-empty">No model assumption recorded for {model === undefined ? "this fault tree" : shortOf(model.systemReference)}.</p> : (
+          <table className="sy-review-table" aria-label="Model assumptions">
+            <thead><tr><th scope="col">Assumption</th><th scope="col">Impact</th><th scope="col">Treatment</th><th scope="col" className="sy-review-edit" aria-label="Actions" /></tr></thead>
+            <tbody>
+              {assumptions.map((item, index) => (
+                <tr key={item.uncertaintyId}>
+                  <td>{item.description.length > 0 ? item.description : <NotRecorded />}</td>
+                  <td>{item.impact.length > 0 ? item.impact : <NotRecorded />}</td>
+                  <td>
+                    {item.treatmentApproach.length > 0 ? <span>{item.treatmentApproach}</span> : <NotRecorded />}
+                    <span className="sy-review-sub">{item.isQuantified ? "Quantified" : "Not quantified"}</span>
+                  </td>
+                  <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} assumption ${index + 1}`} onClick={() => openDrawer({ kind: "unc", id: item.uncertaintyId })}>{actionLabel}</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </section>
     <div className="poscard"><SyUncertaintyAnalysis selectedModelId={model?.uuid} /></div>
     <AnalysisRunHistory host="sy" workbookId={runtime.workbookId} calculationType="UNCERTAINTY" />
@@ -511,9 +552,11 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     editable,
     mutateSy,
     shortOf,
-    controlledParameters,
     controlledHumanFailures,
   } = useSyWorkbook();
+  if (isSystemDialogKind(context.kind)) return <SystemDialogContent context={{ ...context, kind: context.kind }} onClose={onClose} />;
+  if (isEventDialogKind(context.kind)) return <EventDialogContent context={{ ...context, kind: context.kind }} onClose={onClose} />;
+  if (context.kind === "diagram") return <SyDiagramDialog systemId={context.id} diagramId={context.diagramId} onClose={onClose} />;
 
   if (context.kind === "exclusion") {
     const def = sy.systemDefinitions.find((x) => x.uuid === context.id);
@@ -527,13 +570,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     };
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Exclusions and diversion paths · SY-A17, A18</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Exclusions and diversion paths · SY-A17, A18" title={def.name} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Left out, with why it does not defeat the criterion</label>
               {editable
@@ -571,13 +609,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     };
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Simultaneous unavailability · SY-A27</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Simultaneous unavailability · SY-A27" title={u.description.length > 0 ? u.description : "New unavailability record"} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Planned activity</label>
               {editable ? <WorkbookInput className="posfield__input" value={u.description} onChange={(e) => patch({ description: e.target.value })} /> : <div>{u.description}</div>}
@@ -622,13 +655,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     };
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Screening justification · SY-A20</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Screening justification · SY-A20" title={c.componentId.length > 0 ? c.componentId : "New screening record"} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Component</label>
               {editable ? <WorkbookInput className="posfield__input" value={c.componentId} onChange={(e) => patch({ componentId: e.target.value })} /> : <div>{c.componentId}</div>}
@@ -663,44 +691,6 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     );
   }
 
-  if (context.kind === "system") {
-    const sysDef = sy.systemDefinitions.find((s) => s.uuid === context.id);
-    if (sysDef === undefined) return null;
-    const logic = sy.systemLogicModels.find((m) => m.systemReference === sysDef.uuid);
-    const sfRefs = sy.systemToSafetyFunctionMappings.find((m) => m.systemReference === sysDef.uuid)?.safetyFunctions ?? [];
-    return (
-      <>
-        <div className="posdrawer__head">
-          <div>
-            <div className="posdrawer__cap">System · {shortOf(sysDef.uuid)}</div>
-            <WorkbookSectionHeading workbook="SY" title={sysDef.name} cueKey="System model" description="Defines the credited safety functions, success criterion, model representation, and logic boundary for the selected system." level={2} className="posdrawer__title" />
-            <p className="posdrawer__sub">{sfRefs.length > 0 ? `${sfRefs.join(", ")} · ` : ""}{logic?.modelRepresentation ?? "System-level"}</p>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
-          <div className="sytop" style={{ margin: 0 }}>
-            <span className="sytop__icon"><SYIcon.Target /></span>
-            <div>
-              <div className="sytop__cap">Top event</div>
-              <div className="sytop__text">{sysDef.description ?? sysDef.name}</div>
-              {sysDef.successCriterion !== undefined && <div className="sytop__crit">{sysDef.successCriterion}</div>}
-            </div>
-          </div>
-          <div className="posfield-grid">
-            <div className="posfield"><label className="posfield__label">Mission time</label><div className="posmono">{sysDef.missionTimeHours !== undefined ? `${sysDef.missionTimeHours} h` : "—"}</div></div>
-            <div className="posfield"><label className="posfield__label">Modeled components</label><div className="posmono">{Object.keys(sysDef.modeledComponentsAndFailures).length}</div></div>
-            <div className="posfield"><label className="posfield__label">Basic events</label><div className="posmono">{logic === undefined ? 0 : systemLogicModelBasicEvents(sy, logic).length}</div></div>
-          </div>
-          <div>
-            <WorkbookCueLabel workbook="SY" title="Model boundary" className="essec" />
-            <div className="posrow posrow--wrap" style={{ gap: 6 }}>{sysDef.boundaries.map((b, i) => <span key={i} className="poschip">{b}</span>)}</div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
   if (context.kind === "ccf") {
     const g = sy.commonCauseFailureGroups.find((x) => x.uuid === context.id);
     if (g === undefined) return null;
@@ -724,28 +714,63 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     const shared = g.sharedCauseFactors ?? {};
     const otherList = Array.isArray(shared.otherFactors) ? shared.otherFactors : [];
     const beta = g.modelSpecificParameters?.betaFactorParameters;
+    const mgl = g.modelSpecificParameters?.mglParameters;
     const alpha = g.modelSpecificParameters?.alphaFactorParameters;
-    const qt = beta?.totalFailureProbability ?? alpha?.totalFailureProbability ?? 0;
-    const par = ccfParams(g);
-    const check = ccfModelCheck(g, sy);
+    const phi = g.modelSpecificParameters?.phiFactorParameters;
+    const qt = totalFailureProbability(g) ?? 0;
+    const par = ccfParameterSummary(g);
+    const issues = validateCcfGroup(g, sy);
+    const memberIds = g.members?.basicEvents.map(({ id }) => id) ?? [];
+    const affectedSystemIds = new Set(g.affectedSystems);
+    const eligibleEventIds = new Set(sy.systemLogicModels
+      .filter((model) => affectedSystemIds.has(model.systemReference))
+      .flatMap((model) => systemLogicModelBasicEvents(sy, model).map(({ uuid }) => uuid)));
+    const memberOptions = sy.systemBasicEvents.filter((event) =>
+      event.failureMode !== "COMMON_CAUSE_FAILURE" && (eligibleEventIds.has(event.uuid) || memberIds.includes(event.uuid)),
+    );
     const num = (v: string): number => {
       const n = Number(v);
       return Number.isFinite(n) ? n : 0;
     };
     const setModelType = (v: string): void => {
-      if (v === "ALPHA_FACTOR") {
-        patch({ modelType: v, modelSpecificParameters: { alphaFactorParameters: { alphaFactors: alpha?.alphaFactors ?? { alpha1: 0.95, alpha2: 0.035, alpha3: 0.015 }, totalFailureProbability: qt } } });
-      } else {
-        patch({ modelType: "BETA_FACTOR", modelSpecificParameters: { betaFactorParameters: { beta: beta?.beta ?? 0.05, totalFailureProbability: qt } } });
-      }
+      const modelType = SUPPORTED_CCF_MODELS.includes(v as SupportedCcfModel) ? v as SupportedCcfModel : "BETA_FACTOR";
+      patch({ modelType, modelSpecificParameters: defaultCcfParameters(modelType, memberIds.length, qt) });
     };
     const setQt = (v: number): void => {
-      if (alpha !== undefined) {
-        patch({ modelSpecificParameters: { alphaFactorParameters: { ...alpha, totalFailureProbability: v } } });
-      } else {
-        patch({ modelSpecificParameters: { betaFactorParameters: { beta: beta?.beta ?? 0, totalFailureProbability: v } } });
-      }
+      if (g.modelType === "MGL") patch({ modelSpecificParameters: { mglParameters: { beta: mgl?.beta ?? 0.05, ...(mgl?.gamma === undefined ? {} : { gamma: mgl.gamma }), ...(mgl?.delta === undefined ? {} : { delta: mgl.delta }), ...(mgl?.additionalFactors === undefined ? {} : { additionalFactors: mgl.additionalFactors }), totalFailureProbability: v } } });
+      else if (g.modelType === "ALPHA_FACTOR") patch({ modelSpecificParameters: { alphaFactorParameters: { alphaFactors: alpha?.alphaFactors ?? {}, totalFailureProbability: v } } });
+      else if (g.modelType === "PHI_FACTOR") patch({ modelSpecificParameters: { phiFactorParameters: { phiFactors: phi?.phiFactors ?? {}, totalFailureProbability: v } } });
+      else patch({ modelSpecificParameters: { betaFactorParameters: { beta: beta?.beta ?? 0.05, totalFailureProbability: v } } });
     };
+    const resizeOrderedFactors = (prefix: "alpha" | "phi", current: Record<string, number>, count: number): Record<string, number> => {
+      const values = Array.from({ length: Math.max(0, count) }, (_, index) => current[`${prefix}${index + 1}`] ?? 0);
+      const sum = values.reduce((total, value) => total + value, 0);
+      const normalized = sum > 0 ? values.map((value) => value / sum) : values.map((_, index) => index === 0 ? 1 : 0);
+      return Object.fromEntries(normalized.map((value, index) => [`${prefix}${index + 1}`, value]));
+    };
+    const setMembers = (ids: string[]): void => {
+      const unique = [...new Set(ids)];
+      if (g.modelType === "ALPHA_FACTOR") {
+        patch({ members: { basicEvents: unique.map((id) => ({ id })) }, modelSpecificParameters: { alphaFactorParameters: { alphaFactors: resizeOrderedFactors("alpha", alpha?.alphaFactors ?? {}, unique.length), totalFailureProbability: qt } } });
+      } else if (g.modelType === "PHI_FACTOR") {
+        patch({ members: { basicEvents: unique.map((id) => ({ id })) }, modelSpecificParameters: { phiFactorParameters: { phiFactors: resizeOrderedFactors("phi", phi?.phiFactors ?? {}, unique.length), totalFailureProbability: qt } } });
+      } else if (g.modelType === "MGL" && unique.length > 1) {
+        const allowed = unique.length - 1;
+        const factors = [mgl?.beta ?? 0.05, mgl?.gamma, mgl?.delta, ...orderedFactors(mgl?.additionalFactors ?? {}).map(([, value]) => value)]
+          .filter((value): value is number => value !== undefined).slice(0, allowed);
+        patch({
+          members: { basicEvents: unique.map((id) => ({ id })) },
+          modelSpecificParameters: { mglParameters: {
+            beta: factors[0] ?? 0.05,
+            ...(factors[1] === undefined ? {} : { gamma: factors[1] }),
+            ...(factors[2] === undefined ? {} : { delta: factors[2] }),
+            ...(factors.length <= 3 ? {} : { additionalFactors: Object.fromEntries(factors.slice(3).map((value, index) => [`factor${index + 4}`, value])) }),
+            totalFailureProbability: qt,
+          } },
+        });
+      } else patch({ members: { basicEvents: unique.map((id) => ({ id })) } });
+    };
+    const toggleMember = (id: string): void => setMembers(memberIds.includes(id) ? memberIds.filter((memberId) => memberId !== id) : [...memberIds, id]);
     const toggleShared = (key: "hardwareDesign" | "manufacturer" | "maintenance" | "installation" | "environment"): void => {
       patch({ sharedCauseFactors: { ...shared, [key]: shared[key] === true ? undefined : true } });
     };
@@ -757,27 +782,25 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     const parseCsv = (v: string): string[] => v.split(",").map((x) => x.trim()).filter((x) => x.length > 0);
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Common cause group · SY-B1 to B4</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Common cause group · SY-B1 to B4" title={g.name.length > 0 ? g.name : "New common cause group"} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
               {editable ? <WorkbookInput className="posfield__input" value={g.name} onChange={(e) => patch({ name: e.target.value })} /> : <div>{g.name}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">System</label>
               {editable ? (
-                <select className="posfield__select" value={owner} onChange={(e) => patch({ affectedSystems: [e.target.value, ...couples.filter((c) => c !== e.target.value)] })}>
+                <select className="posfield__select" value={owner} onChange={(e) => patch({ affectedSystems: [e.target.value, ...(g.scope === "INTERSYSTEM" ? couples.filter((c) => c !== e.target.value) : [])] })}>
                   {sy.systemDefinitions.map((d) => <option key={d.uuid} value={d.uuid}>{shortOf(d.uuid)}: {d.name}</option>)}
                 </select>
               ) : <div>{sy.systemDefinitions.find((d) => d.uuid === owner)?.name ?? owner}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Scope</label>
               {editable ? (
-                <select className="posfield__select" value={g.scope} onChange={(e) => patch({ scope: e.target.value === "INTERSYSTEM" ? "INTERSYSTEM" : "INTRASYSTEM" })}>
+                <select className="posfield__select" value={g.scope} onChange={(e) => {
+                  const scope = e.target.value === "INTERSYSTEM" ? "INTERSYSTEM" : "INTRASYSTEM";
+                  patch({ scope, affectedSystems: scope === "INTRASYSTEM" ? [owner] : [owner, ...couples] });
+                }}>
                   <option value="INTRASYSTEM">Within one system</option>
                   <option value="INTERSYSTEM">Across systems</option>
                 </select>
@@ -785,31 +808,66 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
             </div>
             <div className="posfield"><label className="posfield__label">Model</label>
               {editable ? (
-                <select className="posfield__select" value={alpha !== undefined ? "ALPHA_FACTOR" : "BETA_FACTOR"} onChange={(e) => setModelType(e.target.value)}>
-                  <option value="BETA_FACTOR">Beta factor</option>
-                  <option value="ALPHA_FACTOR">Alpha factor</option>
+                <select className="posfield__select" value={g.modelType} onChange={(e) => setModelType(e.target.value)}>
+                  {SUPPORTED_CCF_MODELS.map((modelType) => <option key={modelType} value={modelType}>{CCF_MODELS[modelType]?.label ?? modelType}</option>)}
                 </select>
               ) : <div>{CCF_MODELS[g.modelType]?.label ?? g.modelType}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Total failure probability</label>
               {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={qt} onChange={(e) => setQt(num(e.target.value))} /> : <div className="posmono">{qt}</div>}
             </div>
-            {alpha === undefined ? (
+            {g.modelType === "BETA_FACTOR" ? (
               <div className="posfield"><label className="posfield__label">Beta</label>
                 {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={beta?.beta ?? 0} onChange={(e) => patch({ modelSpecificParameters: { betaFactorParameters: { beta: num(e.target.value), totalFailureProbability: qt } } })} /> : <div className="posmono">{beta?.beta ?? 0}</div>}
               </div>
-            ) : (
-              Object.keys(alpha.alphaFactors).sort().map((k) => (
+            ) : g.modelType === "MGL" ? (
+              <>
+                {Array.from({ length: Math.max(1, memberIds.length - 1) }, (_, index) => {
+                  const current = [mgl?.beta ?? 0.05, mgl?.gamma, mgl?.delta, ...orderedFactors(mgl?.additionalFactors ?? {}).map(([, value]) => value)];
+                  const labels = ["Beta", "Gamma", "Delta"];
+                  return (
+                    <div key={index} className="posfield"><label className="posfield__label">{labels[index] ?? `Factor ${index + 1}`}</label>
+                      {editable ? <WorkbookInput className="posfield__input posmono" type="number" min="0" max="1" step="any" value={current[index] ?? 0} onChange={(e) => {
+                        const next = Array.from({ length: Math.max(1, memberIds.length - 1) }, (_, factorIndex) => factorIndex === index ? num(e.target.value) : (current[factorIndex] ?? 0));
+                        patch({ modelSpecificParameters: { mglParameters: {
+                          beta: next[0] ?? 0,
+                          ...(next[1] === undefined ? {} : { gamma: next[1] }),
+                          ...(next[2] === undefined ? {} : { delta: next[2] }),
+                          ...(next.length <= 3 ? {} : { additionalFactors: Object.fromEntries(next.slice(3).map((value, factorIndex) => [`factor${factorIndex + 4}`, value])) }),
+                          totalFailureProbability: qt,
+                        } } });
+                      }} /> : <div className="posmono">{current[index] ?? 0}</div>}
+                    </div>
+                  );
+                })}
+              </>
+            ) : g.modelType === "ALPHA_FACTOR" ? (
+              orderedFactors(alpha?.alphaFactors ?? {}).map(([k, value]) => (
                 <div key={k} className="posfield"><label className="posfield__label">Alpha {k.startsWith("alpha") ? k.slice(5) : k}</label>
-                  {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={alpha.alphaFactors[k] ?? 0} onChange={(e) => patch({ modelSpecificParameters: { alphaFactorParameters: { alphaFactors: { ...alpha.alphaFactors, [k]: num(e.target.value) }, totalFailureProbability: qt } } })} /> : <div className="posmono">{alpha.alphaFactors[k] ?? 0}</div>}
+                  {editable ? <WorkbookInput className="posfield__input posmono" type="number" min="0" max="1" step="any" value={value} onChange={(e) => patch({ modelSpecificParameters: { alphaFactorParameters: { alphaFactors: { ...(alpha?.alphaFactors ?? {}), [k]: num(e.target.value) }, totalFailureProbability: qt } } })} /> : <div className="posmono">{value}</div>}
+                </div>
+              ))
+            ) : (
+              orderedFactors(phi?.phiFactors ?? {}).map(([k, value]) => (
+                <div key={k} className="posfield"><label className="posfield__label">Phi {k.startsWith("phi") ? k.slice(3) : k}</label>
+                  {editable ? <WorkbookInput className="posfield__input posmono" type="number" min="0" max="1" step="any" value={value} onChange={(e) => patch({ modelSpecificParameters: { phiFactorParameters: { phiFactors: { ...(phi?.phiFactors ?? {}), [k]: num(e.target.value) }, totalFailureProbability: qt } } })} /> : <div className="posmono">{value}</div>}
                 </div>
               ))
             )}
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Components (comma separated)</label>
               {editable ? <WorkbookInput className="posfield__input posmono" value={csv(g.affectedComponents)} onChange={(e) => patch({ affectedComponents: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(g.affectedComponents)}</div>}
             </div>
-            <div className="posfield posfield-grid--span2"><label className="posfield__label">Model events (comma separated)</label>
-              {editable ? <WorkbookInput className="posfield__input posmono" value={csv((g.members?.basicEvents ?? []).map((b) => b.id))} onChange={(e) => patch({ members: { basicEvents: parseCsv(e.target.value).map((id) => ({ id })) } })} /> : <div className="posmono">{csv((g.members?.basicEvents ?? []).map((b) => b.id))}</div>}
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">Member basic events</label>
+              <p className="possubtle" style={{ margin: "0 0 8px" }}>Select the independent component events. PRAXIS generates the dependent combinations.</p>
+              <div className="syccf-members">
+                {memberOptions.map((event) => (
+                  <label key={event.uuid} className="syccf-members__option">
+                    <WorkbookInput type="checkbox" checked={memberIds.includes(event.uuid)} disabled={!editable} onChange={() => toggleMember(event.uuid)} />
+                    <span><strong>{event.code ?? event.uuid}</strong><small>{event.name}</small></span>
+                  </label>
+                ))}
+                {memberOptions.length === 0 && <span className="possubtle">No eligible basic events are used by the selected system models.</span>}
+              </div>
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Shared causes</label>
               <div className="sycause">
@@ -824,16 +882,18 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Other shared causes (comma separated)</label>
               {editable ? <WorkbookInput className="posfield__input" value={csv(otherList)} onChange={(e) => patch({ sharedCauseFactors: { ...shared, otherFactors: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined } })} /> : <div>{otherList.length > 0 ? csv(otherList) : "—"}</div>}
             </div>
-            <div className="posfield posfield-grid--span2"><label className="posfield__label">Couples</label>
-              <div className="sycause">
-                {sy.systemDefinitions.filter((d) => d.uuid !== owner).map((d) => (
-                  <label key={d.uuid} className="sycause__opt">
-                    <WorkbookInput type="checkbox" checked={couples.includes(d.uuid)} disabled={!editable} onChange={() => toggleCouple(d.uuid)} />
-                    {shortOf(d.uuid)}
-                  </label>
-                ))}
+            {g.scope === "INTERSYSTEM" && (
+              <div className="posfield posfield-grid--span2"><label className="posfield__label">Coupled systems</label>
+                <div className="sycause">
+                  {sy.systemDefinitions.filter((d) => d.uuid !== owner).map((d) => (
+                    <label key={d.uuid} className="sycause__opt">
+                      <WorkbookInput type="checkbox" checked={couples.includes(d.uuid)} disabled={!editable} onChange={() => toggleCouple(d.uuid)} />
+                      {shortOf(d.uuid)}
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Grouping basis (SY-B3)</label>
               {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={g.description} onChange={(e) => patch({ description: e.target.value, groupSelectionBasis: e.target.value })} /> : <div>{g.description}</div>}
             </div>
@@ -850,12 +910,13 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
               {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={g.riskSignificanceJustification ?? ""} onChange={(e) => patch({ riskSignificanceJustification: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{g.riskSignificanceJustification ?? "—"}</div>}
             </div>
           </div>
-          {par !== null && (
-            <span className="sylight">
-              <span className={`sylight__dot sylight__dot--${check.ok ? "s" : "f"}`} />
-              <span>Group probability {toExp(par.expected)}{check.eventId === null ? " · no common cause event found in the model" : ` · ${check.eventId} in the model at ${check.eventProb === null ? "—" : toExp(check.eventProb)}`}</span>
-            </span>
-          )}
+          <div className="syccf-drawer-review" aria-label="Common cause group readiness">
+            <div className="syccf-drawer-review__head">
+              <span className="sylight"><span className={`sylight__dot sylight__dot--${issues.some(({ severity }) => severity === "ERROR") ? "f" : "s"}`} /> {issues.some(({ severity }) => severity === "ERROR") ? "Needs attention" : "Ready for PRAXIS"}</span>
+              {par !== null && <span className="posmono">{par.detail}</span>}
+            </div>
+            {issues.length > 0 && <ul>{issues.map((issue) => <li key={`${issue.code}:${issue.message}`} className={`syccf-drawer-review__${issue.severity.toLowerCase()}`}>{issue.message}</li>)}</ul>}
+          </div>
           {editable && (
             <div className="posrow" style={{ justifyContent: "flex-end" }}>
               <button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}><SYIcon.Close /> Remove group</button>
@@ -889,13 +950,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     };
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Support success criteria · SY-B7, B9</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Support success criteria · SY-B7, B9" title={sy.systemDefinitions.find((d) => d.uuid === n.systemReference)?.name ?? "Support success criterion"} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">System</label>
               {editable ? (
@@ -957,13 +1013,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     const parseCsv = (v: string): string[] => v.split(",").map((x) => x.trim()).filter((x) => x.length > 0);
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Spatial and environmental coupling · SY-B8, B14</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Spatial and environmental coupling · SY-B8, B14" title={sy.systemDefinitions.find((d) => d.uuid === c.systemReference)?.name ?? "Spatial coupling"} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">System</label>
               {editable ? (
@@ -1026,13 +1077,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     const rateFor = (cap: number): number => (cap > 0 && mission > 0 ? Number((cap / mission).toFixed(3)) : 0);
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Depletable inventory · SY-B12</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Depletable inventory · SY-B12" title={d.description ?? d.resourceType} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Resource</label>
               {editable ? <WorkbookInput className="posfield__input" value={d.description ?? ""} onChange={(e) => patch({ description: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{d.description ?? "—"}</div>}
@@ -1046,7 +1092,7 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
                   <option value="air">Air</option>
                   <option value="other">Other</option>
                 </select>
-              ) : <div>{d.resourceType}</div>}
+              ) : <div>{RESOURCE_TYPE_LABELS[d.resourceType]}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">System</label>
               {editable ? (
@@ -1102,13 +1148,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     const parseCsv = (v: string): string[] => v.split(",").map((x) => x.trim()).filter((x) => x.length > 0);
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Digital I&C and software · SY-B11</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Digital I&C and software · SY-B11" title={d.name.length > 0 ? d.name : "New digital I&C record"} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
               {editable ? <WorkbookInput className="posfield__input" value={d.name} onChange={(e) => patch({ name: e.target.value })} /> : <div>{d.name}</div>}
@@ -1165,13 +1206,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     };
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Logic loop · SY-B10</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Logic loop · SY-B10" title={`${shortOf(a)} and ${shortOf(b)}`} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">{shortOf(a)} needs {shortOf(b)}</label><div>{fwd?.details ?? "—"}</div></div>
             <div className="posfield"><label className="posfield__label">{shortOf(b)} needs {shortOf(a)}</label><div>{rev?.details ?? "—"}</div></div>
@@ -1208,13 +1244,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     };
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Plant-fidelity confirmation · SY-A5, A6</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Plant-fidelity confirmation · SY-A5, A6" title={c.systemReference === undefined ? "Confirmation record" : sy.systemDefinitions.find((d) => d.uuid === c.systemReference)?.name ?? "Confirmation record"} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">System</label>
               {editable ? (
@@ -1270,13 +1301,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     };
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Capability representation · SY-A29</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Capacity limit · SY-A29" title={sy.systemDefinitions.find((d) => d.uuid === o.system)?.name ?? "Capacity limit"} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">System</label>
               {editable ? (
@@ -1330,13 +1356,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     };
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Model uncertainty · SY-B16</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Model uncertainty · SY-B16" title={m.description.length > 0 ? m.description : "New model uncertainty"} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Uncertainty</label>
               {editable ? <WorkbookInput className="posfield__input" value={m.description} onChange={(e) => patch({ description: e.target.value })} /> : <div>{m.description}</div>}
@@ -1386,13 +1407,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     };
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Pre-operational assumption · SY-A33</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Pre-operational assumption · SY-A33" title={a.influenceOnDefinition.length > 0 ? a.influenceOnDefinition : "New assumption"} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Area</label>
               {editable ? <WorkbookInput className="posfield__input" value={a.influenceOnDefinition} onChange={(e) => patch({ influenceOnDefinition: e.target.value })} /> : <div>{a.influenceOnDefinition}</div>}
@@ -1452,13 +1468,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     };
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Sensitivity study · SY-A32</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Sensitivity study · SY-A32" title={st.name ?? "New sensitivity study"} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
               {editable ? <WorkbookInput className="posfield__input" value={st.name ?? ""} onChange={(e) => patch({ name: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{st.name ?? "—"}</div>}
@@ -1478,218 +1489,6 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
               <button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}><SYIcon.Close /> Remove study</button>
             </div>
           )}
-        </div>
-      </>
-    );
-  }
-
-  if (context.kind === "be") {
-    const be: SystemBasicEvent | undefined = sy.systemBasicEvents.find((event) => event.uuid === context.id);
-    if (be === undefined) return null;
-    const ownerRef = sy.systemLogicModels.find((model) => systemFaultTreeBasicEventIds(model).includes(be.uuid))?.systemReference;
-    const beId = be.uuid;
-    const patch = (beFields: Partial<SystemBasicEvent>): void => {
-      if (!editable) return;
-      mutateSy((draft) => ({
-        ...draft,
-        systemBasicEvents: draft.systemBasicEvents.map((event) => (event.uuid === beId ? { ...event, ...beFields } : event)),
-      }));
-    };
-    const num = (v: string): number => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : 0;
-    };
-    const prob = be.probability ?? 0;
-    const rateBasis = be.quantificationBasis?.kind === "FAILURE_RATE" ? be.quantificationBasis : undefined;
-    const compatibleParameters = controlledParameters.filter((option) =>
-      rateBasis === undefined ? option.parameterType !== "FREQUENCY" : option.parameterType === "FREQUENCY",
-    );
-    const selectedParameterKey = be.controlledDataSource?.referenceType !== "WORKBOOK_PARAMETER"
-      ? ""
-      : JSON.stringify([be.controlledDataSource.workbookId, be.controlledDataSource.entityId]);
-    const selectedParameter = compatibleParameters.find((option) =>
-      JSON.stringify([option.workbookId, option.parameterId]) === selectedParameterKey,
-    );
-    const selectedHumanFailureKey = be.controlledDataSource?.referenceType !== "HUMAN_FAILURE_EVENT"
-      ? ""
-      : JSON.stringify([
-          be.controlledDataSource.workbookId,
-          be.controlledDataSource.entityId,
-          be.controlledDataSource.quantificationId,
-        ]);
-    const selectedHumanFailure = controlledHumanFailures.find((option) =>
-      JSON.stringify([
-        option.workbookId,
-        option.humanFailureEventId,
-        option.quantificationId,
-      ]) === selectedHumanFailureKey,
-    );
-    const resolvedRateBasis = rateBasis === undefined || selectedParameter === undefined
-      ? rateBasis
-      : { ...rateBasis, failureRate: { ...rateBasis.failureRate, value: selectedParameter.value } };
-    const needsReview = requiresFailureRateConversionReview(rateBasis);
-    const displayedProbability = needsReview ? undefined : resolvedRateBasis === undefined
-      ? (selectedParameter?.value ?? selectedHumanFailure?.value ?? prob)
-      : failureRateToProbability(resolvedRateBasis);
-    const isHumanError = be.failureMode === "HUMAN_ERROR";
-    const repairOk = be.repairModeled !== true || (be.repairJustification ?? "").length > 0;
-    return (
-      <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Basic event · {ownerRef === undefined ? "Workbook catalogue" : shortOf(ownerRef)}</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
-            <div className="posfield-grid">
-            <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
-              {editable ? <WorkbookInput className="posfield__input" value={be.name} onChange={(e) => patch({ name: e.target.value })} /> : <div>{be.name}</div>}
-            </div>
-            <div className="posfield"><label className="posfield__label">Identifier</label><div className="posmono">{be.uuid}</div></div>
-            <div className="posfield"><label className="posfield__label">Failure mode</label>
-              {editable ? (
-                <select
-                  className="posfield__select"
-                  value={be.failureMode ?? ""}
-                  onChange={(e) => patch({
-                    failureMode: e.target.value,
-                    controlledDataSource: undefined,
-                    dataAnalysisBasicEventRef: undefined,
-                  })}
-                >
-                  {Object.entries(FAILURE_MODE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-              ) : <div>{FAILURE_MODE_LABELS[be.failureMode ?? ""] ?? be.failureMode ?? "—"}</div>}
-            </div>
-            <div className="posfield"><label className="posfield__label">{rateBasis === undefined ? "Probability" : "Mission probability"}{be.controlledDataSource === undefined ? "" : " (controlled)"}</label>
-              {editable && be.controlledDataSource === undefined && rateBasis === undefined ? <WorkbookInput className="posfield__input posmono" type="number" min="0" max="1" step="any" value={prob} onChange={(e) => patch({ probability: num(e.target.value), quantificationBasis: { kind: "PROBABILITY" } })} /> : <div className="posmono">{displayedProbability === undefined ? "Review required" : toExp(displayedProbability)}</div>}
-            </div>
-            {needsReview && resolvedRateBasis !== undefined && (
-              <div className="posfield posfield-grid--span2">
-                <p role="alert">{FAILURE_RATE_CONVERSION_REVIEW_REQUIRED}</p>
-                <p>Rate: {resolvedRateBasis.failureRate.value} per {resolvedRateBasis.failureRate.unit}; mission time: {resolvedRateBasis.missionTime.value} {resolvedRateBasis.missionTime.unit}.</p>
-                {editable && <button type="button" className="posnav__btn" onClick={() => {
-                  const reviewed = { ...resolvedRateBasis, conversion: "EXPONENTIAL" as const };
-                  patch({ quantificationBasis: reviewed, probability: failureRateToProbability(reviewed) });
-                }}>Use exponential conversion</button>}
-              </div>
-            )}
-            <div className="posfield posfield-grid--span2"><label className="posfield__label">{isHumanError ? "Human Reliability event and HEP" : "Data Analysis parameter"}</label>
-              {editable && isHumanError ? (
-                <select
-                  aria-label="Human Reliability event and HEP"
-                  className="posfield__select"
-                  value={selectedHumanFailureKey}
-                  onChange={(event) => {
-                    const option = controlledHumanFailures.find((candidate) =>
-                      JSON.stringify([
-                        candidate.workbookId,
-                        candidate.humanFailureEventId,
-                        candidate.quantificationId,
-                      ]) === event.target.value,
-                    );
-                    if (option === undefined) {
-                      patch({ controlledDataSource: undefined });
-                      return;
-                    }
-                    patch({
-                      probability: option.value,
-                      quantificationBasis: { kind: "PROBABILITY" },
-                      controlledDataSource: {
-                        referenceType: "HUMAN_FAILURE_EVENT",
-                        workbookId: option.workbookId,
-                        entityId: option.humanFailureEventId,
-                        quantificationId: option.quantificationId,
-                      },
-                      dataAnalysisBasicEventRef: undefined,
-                    });
-                  }}
-                >
-                  <option value="">Select an HRA event and HEP</option>
-                  {selectedHumanFailure === undefined && selectedHumanFailureKey.length > 0 && (
-                    <option value={selectedHumanFailureKey}>Unavailable linked HRA quantification</option>
-                  )}
-                  {controlledHumanFailures.map((option) => {
-                    const key = JSON.stringify([
-                      option.workbookId,
-                      option.humanFailureEventId,
-                      option.quantificationId,
-                    ]);
-                    return <option key={key} value={key}>{option.workbookName} · {option.humanFailureEventName} · {option.methodology} · {toExp(option.value)}</option>;
-                  })}
-                </select>
-              ) : editable ? (
-                <select
-                  aria-label="Data Analysis parameter"
-                  className="posfield__select"
-                  value={selectedParameterKey}
-                  disabled={needsReview}
-                  onChange={(event) => {
-                    const option = compatibleParameters.find((candidate) =>
-                      JSON.stringify([candidate.workbookId, candidate.parameterId]) === event.target.value,
-                    );
-                    if (option === undefined) {
-                      patch({ controlledDataSource: undefined, dataAnalysisBasicEventRef: undefined });
-                      return;
-                    }
-                    const nextBasis = rateBasis === undefined
-                      ? { kind: "PROBABILITY" as const }
-                      : { ...rateBasis, failureRate: { ...rateBasis.failureRate, value: option.value } };
-                    patch({
-                      probability: nextBasis.kind === "FAILURE_RATE" ? failureRateToProbability(nextBasis) : option.value,
-                      quantificationBasis: nextBasis,
-                      controlledDataSource: {
-                        referenceType: "WORKBOOK_PARAMETER",
-                        workbookId: option.workbookId,
-                        entityId: option.parameterId,
-                      },
-                      dataAnalysisBasicEventRef: undefined,
-                    });
-                  }}
-                >
-                  <option value="">{rateBasis === undefined ? "Manual probability" : "Manual failure rate"}</option>
-                  {selectedParameter === undefined && selectedParameterKey.length > 0 && (
-                    <option value={selectedParameterKey}>Unavailable linked parameter</option>
-                  )}
-                  {compatibleParameters.map((option) => {
-                    const key = JSON.stringify([option.workbookId, option.parameterId]);
-                    return <option key={key} value={key}>{option.workbookName} · {option.parameterName} · {toExp(option.value)}</option>;
-                  })}
-                </select>
-              ) : isHumanError ? (
-                <div>{selectedHumanFailure === undefined
-                  ? be.controlledDataSource === undefined ? "No HRA quantification selected" : "Unavailable linked HRA quantification"
-                  : `${selectedHumanFailure.workbookName} · ${selectedHumanFailure.humanFailureEventName} · ${selectedHumanFailure.methodology}`}</div>
-              ) : (
-                <div>{selectedParameter === undefined
-                  ? be.controlledDataSource === undefined ? "Manual probability" : "Unavailable linked parameter"
-                  : `${selectedParameter.workbookName} · ${selectedParameter.parameterName}`}</div>
-              )}
-            </div>
-            <div className="posfield"><label className="posfield__label">Repair credited</label>
-              {editable ? (
-                <select className="posfield__select" value={be.repairModeled === true ? "yes" : "no"} onChange={(e) => patch({ repairModeled: e.target.value === "yes" })}>
-                  <option value="no">No</option>
-                  <option value="yes">Yes</option>
-                </select>
-              ) : <div>{be.repairModeled === true ? "Yes" : "No"}</div>}
-            </div>
-            {be.repairModeled === true && (
-              <>
-                <div className="posfield"><label className="posfield__label">Mean time to repair (h)</label>
-                  {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={be.meanTimeToRepair ?? 0} onChange={(e) => patch({ meanTimeToRepair: num(e.target.value) })} /> : <div className="posmono">{be.meanTimeToRepair ?? "—"}</div>}
-                </div>
-                <div className="posfield posfield-grid--span2"><label className="posfield__label">Repair justification (SY-A31)</label>
-                  {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={be.repairJustification ?? ""} onChange={(e) => patch({ repairJustification: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{be.repairJustification ?? "—"}</div>}
-                </div>
-              </>
-            )}
-          </div>
-          <span className="sylight">
-            <span className={`sylight__dot sylight__dot--${repairOk ? "s" : "f"}`} />
-            <span>{be.repairModeled !== true ? "No repair credited, the fault is carried as a standing failure." : repairOk ? "Repair credit carries a justification." : "Repair credited without a justification (SY-A31)."}</span>
-          </span>
         </div>
       </>
     );
@@ -1729,13 +1528,8 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     );
     return (
       <>
-        <div className="posdrawer__head posdrawer__head--bare">
-          <div>
-            <div className="posdrawer__cap">Human failure event · SY-A21, A23</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
+        <DialogHead cap="Human failure event · SY-A21, A23" title={h.taskDescription.length > 0 ? h.taskDescription : "New human failure event"} onClose={onClose} />
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Task</label>
               {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={h.taskDescription} onChange={(e) => patch({ taskDescription: e.target.value })} /> : <div>{h.taskDescription}</div>}

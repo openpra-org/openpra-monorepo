@@ -522,11 +522,12 @@ function NodeInspector({
   catalogue,
   selection,
   transferTargets,
+  defaultMissionTime,
   editable,
   canEditBasicEvents,
   commit,
   onOpenReference,
-}: Pick<FaultTreeEditorProps, "model" | "catalogue" | "selection" | "transferTargets" | "onOpenReference"> & {
+}: Pick<FaultTreeEditorProps, "model" | "catalogue" | "selection" | "transferTargets" | "defaultMissionTime" | "onOpenReference"> & {
   editable: boolean;
   canEditBasicEvents: boolean;
   commit: (operation: FaultTreeOperation) => void;
@@ -698,7 +699,7 @@ function NodeInspector({
                 const quantificationBasis: FaultTreeBasicEventQuantificationBasis = {
                   kind: "FAILURE_RATE",
                   failureRate: { value: basicEvent.probability.value, unit: "HOUR" },
-                  missionTime: { value: 8760, unit: "HOUR" },
+                  missionTime: defaultMissionTime ?? { value: 8760, unit: "HOUR" },
                   conversion: "EXPONENTIAL",
                 };
                 updateBasicEvent({
@@ -968,6 +969,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     showHeaderStatus = true,
     resultIsStale,
     transferTargets = [],
+    defaultMissionTime,
     onOperation,
     onSelectionChange,
     onOpenReference,
@@ -1794,6 +1796,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
                 catalogue={catalogue}
                 selection={selection}
                 transferTargets={transferTargets}
+                defaultMissionTime={defaultMissionTime}
                 editable={editable}
                 canEditBasicEvents={editable && capabilities.canEditBasicEvents}
                 commit={emit}

@@ -1,8 +1,5 @@
-.syunc-parameters__table { min-width: 760px; }
 .syunc-analysis__model { display: grid; grid-template-columns: minmax(88px, auto) minmax(220px, 1fr); align-items: center; gap: 12px; padding: 12px 14px 0; color: var(--color-text-muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 .syunc-analysis__model select { min-width: 0; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); padding: 8px 10px; color: var(--color-text); font: inherit; font-weight: 600; letter-spacing: 0; text-transform: none; }
-.syunc-parameters__table td { vertical-align: top; }
-.syunc-parameters__issue { margin-top: 4px; color: var(--color-error); font-size: 10px; }
 
 .syunc-analysis__results { display: grid; gap: 18px; padding-top: 18px; }
 .syunc-analysis .syunc-analysis__unavailable { color: var(--color-text-muted); }

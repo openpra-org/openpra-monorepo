@@ -23,6 +23,8 @@ import {
 import { SyWorkbench, type SyWorkbenchActions } from "./syWorkbench";
 import {
   SyWorkbookProvider,
+  type SyControlledCcfEstimateOption,
+  type SyControlledCoincidentMaintenanceOption,
   type SyControlledFailureModeOption,
   type SyControlledHumanFailureOption,
   type SyControlledParameterOption,
@@ -43,7 +45,7 @@ import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
 import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
 import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
 import { getPosWorkbook } from "../pos-workbooks/posWorkbookApi";
-import { buildLinkedInputs, controlledFailureModeOptions, controlledHumanFailureOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
+import { buildLinkedInputs, controlledCcfEstimateOptions, controlledCoincidentMaintenanceOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "SY-A1",
@@ -90,6 +92,8 @@ function SyWorkbookPage(): JSX.Element {
   const [controlledParameters, setControlledParameters] = useState<SyControlledParameterOption[]>([]);
   const [controlledHumanFailures, setControlledHumanFailures] = useState<SyControlledHumanFailureOption[]>([]);
   const [controlledFailureModes, setControlledFailureModes] = useState<SyControlledFailureModeOption[]>([]);
+  const [controlledCoincidentMaintenance, setControlledCoincidentMaintenance] = useState<SyControlledCoincidentMaintenanceOption[]>([]);
+  const [controlledCcfEstimates, setControlledCcfEstimates] = useState<SyControlledCcfEstimateOption[]>([]);
   const [linkOptions, setLinkOptions] = useState<Record<SyLinkCode, Workbook[]>>(NO_LINK_OPTIONS);
   const [linkedEs, setLinkedEs] = useState<EventSequenceAnalysis | undefined>(undefined);
   const [linkedSc, setLinkedSc] = useState<SuccessCriteriaDevelopment | undefined>(undefined);
@@ -187,11 +191,15 @@ function SyWorkbookPage(): JSX.Element {
         const sources = loaded.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
         setControlledParameters(controlledParameterOptions(sources));
         setControlledFailureModes(controlledFailureModeOptions(sources));
+        setControlledCoincidentMaintenance(controlledCoincidentMaintenanceOptions(sources));
+        setControlledCcfEstimates(controlledCcfEstimateOptions(sources));
       })
       .catch(() => {
         if (cancelled) return;
         setControlledParameters([]);
         setControlledFailureModes([]);
+        setControlledCoincidentMaintenance([]);
+        setControlledCcfEstimates([]);
       });
     return () => { cancelled = true; };
   }, [linkOptions.DA, linkedDaId]);
@@ -317,6 +325,8 @@ function SyWorkbookPage(): JSX.Element {
       controlledParameters={controlledParameters}
       controlledHumanFailures={controlledHumanFailures}
       controlledFailureModes={controlledFailureModes}
+      controlledCoincidentMaintenance={controlledCoincidentMaintenance}
+      controlledCcfEstimates={controlledCcfEstimates}
       upstream={upstream}
     >
       <SyWorkbench

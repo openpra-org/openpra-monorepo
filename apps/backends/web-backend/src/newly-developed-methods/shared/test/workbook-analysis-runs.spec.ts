@@ -1108,6 +1108,39 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(result.body.topEventProbability).toBeLessThanOrEqual(1);
   }, 120_000);
 
+  it("matches an exact enumeration of the HTGR cavity-cooling model with its published alpha factors", async () => {
+    const workbookId = connectedExampleIds("htgr").sy;
+    const model = SY_ANALYSIS_HTGR.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-RCCS");
+    if (model === undefined) throw new Error("Expected the HTGR cavity-cooling model");
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: model.uuid,
+        workbookRevision: 1,
+        calculationType: "PROBABILITY",
+        workflow: "MANUAL",
+        settings: {
+          algorithm: "BDD",
+          approximation: "EXACT",
+          variableOrder: "DFS",
+          reorderBudgetSeconds: 60,
+          expandCcf: true,
+          numTrials: 10_000,
+          seed: 847,
+          missionTimeHours: 8_760,
+        },
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.topEventProbability).toBeCloseTo(2.5740003521993564e-3, 14);
+  }, 120_000);
+
   it("returns RPS common-cause cut sets with generated event identifiers", async () => {
     const workbookId = connectedExampleIds("sfr").sy;
     const model = SY_ANALYSIS.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-RPS");

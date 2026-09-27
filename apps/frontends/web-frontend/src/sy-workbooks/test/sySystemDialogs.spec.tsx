@@ -70,13 +70,14 @@ const LINKS: SyLinkedInputs = {
   scName: "SC",
   posName: "POS",
   esName: "ES",
-  scSystems: [{ id: "SSC-CCW", systemId: SYSTEM_ID, name: "Component cooling water", capacities: "Pumps: 1 of 2 · Heat removed: 4 MW" }],
+  scSystems: [{ id: "SSC-CCW", systemId: SYSTEM_ID, name: "Component cooling water", capacities: "Pumps: 1 of 2 · Heat removed: 4 MW", supports: [] }],
   scMissionTimes: [{ id: "MT-LOCC", hours: 48, sequence: "ES-7", basis: "Cooling restored within 48 h." }],
   posStates: [
     { id: "POS-01", name: "Full power", mode: "POWER", durationHours: 8000 },
     { id: "POS-02", name: "Cold shutdown", mode: "SHUTDOWN", durationHours: 700 },
   ],
   esSafetyFunctions: [{ id: "SF-DHR", name: "Core heat removal", supportingSystems: [] }],
+  esInitiatingEvents: [],
 };
 
 const mockMutateSy = jest.fn();

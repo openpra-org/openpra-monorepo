@@ -73,6 +73,7 @@ const LINKS: SyLinkedInputs = {
   esSafetyFunctions: [
     { id: "SF-DHR", name: "Core heat removal", supportingSystems: ["Shutdown cooling system"] },
   ],
+  esInitiatingEvents: [],
 };
 
 const UPSTREAM: SyUpstream = {

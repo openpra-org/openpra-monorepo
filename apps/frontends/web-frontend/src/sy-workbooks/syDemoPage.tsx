@@ -3,12 +3,29 @@ import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import type { PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
+import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
+import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
 import { SyWorkbench } from "./syWorkbench";
-import { SyWorkbookProvider, type SyWorkbookData } from "./syWorkbookContext";
-import { buildLinkedInputs } from "./syLinks";
+import {
+  SyWorkbookProvider,
+  type SyControlledCcfEstimateOption,
+  type SyControlledCoincidentMaintenanceOption,
+  type SyControlledFailureModeOption,
+  type SyControlledHumanFailureOption,
+  type SyControlledParameterOption,
+  type SyWorkbookData,
+} from "./syWorkbookContext";
+import {
+  buildLinkedInputs,
+  controlledCcfEstimateOptions,
+  controlledCoincidentMaintenanceOptions,
+  controlledFailureModeOptions,
+  controlledHumanFailureOptions,
+  controlledParameterOptions,
+} from "./syLinks";
 import { type SyPersona } from "./syViewData";
 
 interface SyExampleResponse {
@@ -36,10 +53,29 @@ interface PosBundleResponse {
   pos: { mef: PlantOperatingStatesAnalysis };
 }
 
+interface DaBundleResponse {
+  da: { slug: string; mef: DataAnalysis };
+}
+
+interface HrBundleResponse {
+  hr: { slug: string; mef: HumanReliabilityAnalysis };
+}
+
+interface ExampleLinkedData {
+  parameters: SyControlledParameterOption[];
+  failureModes: SyControlledFailureModeOption[];
+  humanFailures: SyControlledHumanFailureOption[];
+  coincidentMaintenance: SyControlledCoincidentMaintenanceOption[];
+  ccfEstimates: SyControlledCcfEstimateOption[];
+}
+
+const NO_LINKED_DATA: ExampleLinkedData = { parameters: [], failureModes: [], humanFailures: [], coincidentMaintenance: [], ccfEstimates: [] };
+
 const EXAMPLE_VARIANT = "htgr";
 
 function SyDemoPage(): JSX.Element {
   const [data, setData] = useState<SyWorkbookData | null>(null);
+  const [linked, setLinked] = useState<ExampleLinkedData>(NO_LINKED_DATA);
   const [error, setError] = useState<string | null>(null);
   const [persona, setPersona] = useState<SyPersona>("preparer");
 
@@ -50,9 +86,20 @@ function SyDemoPage(): JSX.Element {
       fetchJson<EsBundleResponse>(`/api/example-workbooks/es-bundle?example=${EXAMPLE_VARIANT}`),
       fetchJson<ScBundleResponse>(`/api/example-workbooks/sc-bundle?example=${EXAMPLE_VARIANT}`),
       fetchJson<PosBundleResponse>(`/api/example-workbooks/pos-bundle?example=${EXAMPLE_VARIANT}`),
+      fetchJson<DaBundleResponse>(`/api/example-workbooks/da-bundle?example=${EXAMPLE_VARIANT}`),
+      fetchJson<HrBundleResponse>(`/api/example-workbooks/hr-bundle?example=${EXAMPLE_VARIANT}`),
     ])
-      .then(([res, es, sc, pos]) => {
+      .then(([res, es, sc, pos, da, hr]) => {
         if (cancelled) return;
+        const daSources = [{ entry: { id: da.da.slug, name: da.da.mef.name }, workbook: { mef: da.da.mef } }];
+        const hrSources = [{ entry: { id: hr.hr.slug, name: hr.hr.mef.name }, workbook: { mef: hr.hr.mef } }];
+        setLinked({
+          parameters: controlledParameterOptions(daSources),
+          failureModes: controlledFailureModeOptions(daSources),
+          humanFailures: controlledHumanFailureOptions(hrSources),
+          coincidentMaintenance: controlledCoincidentMaintenanceOptions(daSources),
+          ccfEstimates: controlledCcfEstimateOptions(daSources),
+        });
         setData({
           sy: res.sy.mef as SystemsAnalysis,
           cc: res.configurationControl.mef as PRAConfigurationControl,
@@ -79,7 +126,16 @@ function SyDemoPage(): JSX.Element {
   }
 
   return (
-    <SyWorkbookProvider data={data} editable={persona === "preparer"} mutateSy={mutateSy}>
+    <SyWorkbookProvider
+      data={data}
+      editable={persona === "preparer"}
+      mutateSy={mutateSy}
+      controlledParameters={linked.parameters}
+      controlledFailureModes={linked.failureModes}
+      controlledHumanFailures={linked.humanFailures}
+      controlledCoincidentMaintenance={linked.coincidentMaintenance}
+      controlledCcfEstimates={linked.ccfEstimates}
+    >
       <SyWorkbench
         data={data}
         persona={persona}

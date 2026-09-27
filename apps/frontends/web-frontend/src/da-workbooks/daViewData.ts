@@ -141,7 +141,6 @@ const DA_SR_META: Record<string, string> = {
   "DA-C2": "3 sources",
   "DA-C25": "Reuse open",
   "DA-D2": "1 adjustment open",
-  "DA-D8": "1 alpha-factor",
 };
 
 const DA_SR_LINKED_NM: Record<string, string> = {

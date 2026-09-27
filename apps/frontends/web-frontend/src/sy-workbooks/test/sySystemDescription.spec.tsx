@@ -26,6 +26,7 @@ const LINKS: SyLinkedInputs = {
     { id: "POS-01", name: "Full power", mode: "POWER", durationHours: 8000 },
     { id: "POS-03", name: "Hot standby", mode: "STANDBY", durationHours: 200 },
   ],
+  esInitiatingEvents: [],
 };
 
 function makeAnalysis(): DescriptionAnalysis {

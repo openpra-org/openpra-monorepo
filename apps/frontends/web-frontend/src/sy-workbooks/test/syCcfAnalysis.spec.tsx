@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { FaultTreeAnalysisResult, FaultTreeExecuteResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { SyCcfAnalysis } from "../SyCcfAnalysis";
@@ -73,7 +73,8 @@ describe("SY common cause PRAXIS analysis", () => {
   });
 
   it("runs the same saved fault tree without and with common cause expansion", async () => {
-    render(<SyCcfAnalysis />);
+    render(<SyCcfAnalysis currentModelId="model-1" />);
+    expect(screen.queryByRole("combobox", { name: "Common cause fault tree" })).not.toBeInTheDocument();
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run CCF comparison" })); });
 
     expect(mockedValidate).toHaveBeenCalledWith("sy-workbook", "model-1", 12);
@@ -81,11 +82,11 @@ describe("SY common cause PRAXIS analysis", () => {
     expect(mockedRun).toHaveBeenNthCalledWith(2, "sy-workbook", "model-1", 12, expect.objectContaining({ settings: expect.objectContaining({ expandCcf: true }) }));
     await waitFor(() => expect(screen.getByRole("region", { name: "Common cause comparison results" })).toBeInTheDocument());
     expect(screen.getByText("+900.00%")).toBeInTheDocument();
-    expect(screen.getByText("ccf-1")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Common cause comparison results" })).getByText("Cooling pumps")).toBeInTheDocument();
   });
 
   it("keeps advanced settings below the algorithm and shows controls only when they apply", () => {
-    render(<SyCcfAnalysis />);
+    render(<SyCcfAnalysis currentModelId="model-1" />);
     fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
 
     const algorithm = screen.getByRole("combobox", { name: "Common cause algorithm" });
@@ -106,11 +107,20 @@ describe("SY common cause PRAXIS analysis", () => {
       .mockResolvedValueOnce({ ...result("run-base", 0.0001), cutSets: { primeImplicants: false, count: 1, distributionByOrder: [0, 1], items: [{ order: 1, probability: 0.0001, literals: [{ basicEventId: "event-a", negated: false }] }] } })
       .mockResolvedValueOnce({ ...result("run-ccf", 0.001), cutSets: { primeImplicants: false, count: 26, distributionByOrder: [0, 26], items: Array.from({ length: 26 }, () => ({ order: 1, probability: 0.001, literals: [{ basicEventId: "ccf-1-common", negated: false }] })) } });
 
-    render(<SyCcfAnalysis />);
+    render(<SyCcfAnalysis currentModelId="model-1" />);
     fireEvent.click(screen.getByRole("radio", { name: "Probability + cut sets" }));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run CCF comparison" })); });
 
     expect((await screen.findAllByText("Cooling pumps · common")).length).toBe(25);
     expect(screen.getByRole("navigation", { name: "CLG · FT-CLG · Cooling fault tree expanded cut sets pagination" })).toBeInTheDocument();
+  });
+
+  it("blocks the manual run when this system's fault tree has no ready group", () => {
+    render(<SyCcfAnalysis currentModelId="model-2" />);
+
+    expect(screen.getByText("No ready group has all its member events in this fault tree. Complete a group above before running PRAXIS.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run CCF comparison" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("radio", { name: "Batch" }));
+    expect(screen.getByRole("button", { name: "Run CCF comparison batch" })).toBeEnabled();
   });
 });

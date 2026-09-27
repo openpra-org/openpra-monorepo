@@ -21,12 +21,28 @@ const SR_EVIDENCE: Record<string, string> = {
   "SY-A1": "Twelve systems identified from the Event Sequence safety functions.",
   "SY-A8": "Model boundaries set to include the components and the support interfaces.",
   "SY-A9": "Cavity cooling modeled from its duct groups, the rest in detail.",
-  "SY-A20": "Four components screened, each against a stated criterion.",
+  "SY-A16": "Every system records the failures left out, the flow diversion paths and the conditions that defeat its function.",
+  "SY-A17": "Beneficial failures are listed as left out, each with why it helps or cannot defeat the function.",
+  "SY-A18": "Flow diversion paths are recorded for each fluid system, and screened out only where they meet criterion a.",
+  "SY-A20": "12 items screened out, each against criterion a or b with its ratio from industry-average data.",
+  "SY-A21": "Pre-initiator human failure events sit in the fault trees, linked to their HR events.",
+  "SY-A23": "Post-initiator human failure events sit in the fault trees, linked to their HR events.",
+  "SY-A24": "8 isolation and trip signals recorded, each with where it is modeled or why it is left out.",
+  "SY-A27": "Two planned activities take redundant equipment out together, modeled as joint maintenance events from the DA coincident maintenance records.",
+  "SY-A28": "Each system lists the conditions, such as heat, electrical load or humidity, that defeat its function.",
   "SY-A30": "One designator per component failure mode across every system and train.",
   "SY-B1": "Common cause modeled within each redundant system.",
   "SY-B2": "Two inter-system common cause groups modeled, the station batteries and the backup gas-turbine generators.",
+  "SY-B5": "Fourteen support needs recorded. Thirteen are transfers in the fault trees, and the charger supply is left out on the load-shedding basis.",
+  "SY-B6": "Support needs set by engineering analysis for shutdown cooling, protection, DC, cavity cooling and steam-generator isolation across the operating states.",
+  "SY-B7": "Support success criteria recorded for DC, AC, cooling water, moisture monitoring and detection, realistic where risk significant.",
+  "SY-B9": "Each system carries its support interfaces for its full mission time, with the battery duty the one open item.",
+  "SY-B10": "Independence assumptions logged where the design is not fixed, for the backup generators, the chargers and the detection channels.",
+  "SY-B13": "No support is left out on a recovery procedure. The one exclusion rests on the load-shedding calculation.",
+  "SY-B15": "The make-up and isolation cues come from the detection and moisture alarms, carried as transfers into those systems.",
+  "SY-B17": "Dependency assumptions logged for the as-built confirmation, including the charger supply.",
   "SY-B3": "RCCS duct grouping basis open against the DA-D8 parameter set.",
-  "SY-B4": "RCCS duct common cause parameters pending DA-D8.",
+  "SY-B4": "RCCS duct alpha factors taken from generic rate data, with passive-duct applicability open under DA-D8.",
   "SY-B8": "Two RCCS duct groups share the cavity riser, fault tree update open.",
   "SY-B11": "Protection software common cause modeling open at CC-II.",
   "SY-B12": "Battery depletion against the 24 hour mission open.",
@@ -158,6 +174,7 @@ const rbEvents: SystemBasicEvent[] = [
   be("RB-FLT-FR", "Running filtration train fails to run", "FAILURE_TO_RUN", 0.006),
   be("RB-FLT-B-FS", "Standby filtration train fails to start", "FAILURE_TO_START", 0.003),
   hfe("RB-HFE", "Operator fails to start the standby filtration train", 0.015, "HR-POST-028"),
+  tm("RB-FLT-DMP-TM", "Running filtration train and isolation damper A out for a filter change", 0.002, "Coincident maintenance record CM-1 in Data Analysis, one filter change a year at power.", true),
 ];
 const acEvents: SystemBasicEvent[] = [
   be("AC-GT1-FS", "Backup gas-turbine generator 1 fails to start", "FAILURE_TO_START", 0.0703),
@@ -182,6 +199,7 @@ const dcEvents: SystemBasicEvent[] = [
   hfe("DC-HFE-BNK", "Both battery banks held off float after equalization", 0.002, "HR-PRE-041"),
   tm("DC-BAT-A-TM", "Battery train A on equalize charge", 0.0025, "Pre-operational assumption from the design test plan, no operating history yet.", true),
   tm("DC-BAT-B-TM", "Battery train B on equalize charge", 0.0025, "Pre-operational assumption from the design test plan, no operating history yet.", true),
+  tm("DC-BAT-AB-TM", "Both battery banks on one joint equalizing charge", 0.0025, "Coincident maintenance record CM-2 in Data Analysis, one joint equalization a year.", true),
 ];
 const ccwEvents: SystemBasicEvent[] = [
   be("CCW-PMP-A-FR", "Cooling-water pump A fails to run", "FAILURE_TO_RUN", 0.006),
@@ -206,9 +224,6 @@ interface SystemSeed {
   modelRep: string;
   topEvent: string;
   criterion: string;
-  excluded: string;
-  diversion?: string;
-  loops?: { loopId: string; resolution: string }[];
   missionHours: number;
   boundaries: string[];
   detailed: boolean;
@@ -217,18 +232,18 @@ interface SystemSeed {
 }
 
 const SYSTEMS: SystemSeed[] = [
-  { id: "SYS-RPS", short: "RPS", name: "Reactor protection system", sf: "SF-RC", modelRep: "Fault tree", topEvent: "RPS fails to trip the reactor on demand", criterion: "One of two divisions trips the reactor, or the negative temperature feedback caps power at 5 percent of nominal.", excluded: "Spurious trip, which acts to shut the plant down rather than defeat it.", missionHours: 24, boundaries: ["Flux and process sensors", "Two trip divisions", "Reserve shutdown and rod insertion"], detailed: true, events: rpsEvents, modeledFailures: { "Trip divisions": { failureModes: ["Division fails to trip", "Rods fail to insert", "Common cause of divisions"] } } },
-  { id: "SYS-SCS", short: "SCS", name: "Shutdown cooling system", sf: "SF-DHR", modelRep: "Fault tree", topEvent: "Shutdown cooling fails to remove core heat for the mission time", criterion: "Two of two trains start within 33 hours at full power, one of two in the other states.", excluded: "A single-train overcool, a beneficial failure that helps the function.", missionHours: 24, boundaries: ["Two shutdown-cooling circulators", "Shutdown heat exchangers", "Cooling-water and Class 1E supplies"], detailed: true, events: scsEvents, modeledFailures: { "Cooling trains": { failureModes: ["Circulator fails to run", "Heat exchanger fouled", "Common cause of trains"] } } },
-  { id: "SYS-RCCS", short: "RCCS", name: "Reactor cavity cooling system", sf: "SF-DHR", modelRep: "Fault tree", topEvent: "Cavity cooling fails to carry the conduction cooldown", criterion: "The passive ducts carry at least half the nominal capacity at power, a quarter shut down.", excluded: "Overcooling from excess draft, a beneficial failure.", missionHours: 72, boundaries: ["Four natural-draft duct groups", "Cavity cooling panels", "Common intake and exhaust stack"], detailed: true, events: rccsEvents, modeledFailures: { "Duct groups": { failureModes: ["Duct air path blocked", "Common cause blockage", "Stack blocked"] } } },
-  { id: "SYS-SGISO", short: "SGISO", name: "Steam-generator isolation and dump", sf: "SF-HPB", modelRep: "Fault tree", topEvent: "Steam-generator isolation and dump fails on a moisture alarm", criterion: "The affected steam generator isolates and dumps within 2 hours of the moisture alarm.", excluded: "Spurious isolation, which trips a healthy loop.", missionHours: 24, boundaries: ["Steam and feedwater isolation valves", "Steam-generator dump path", "Moisture-detection interface"], detailed: true, events: sgisoEvents, modeledFailures: { "Isolation and dump": { failureModes: ["Isolation valve fails to close", "Dump valve fails to open", "Common cause of valves"] } } },
-  { id: "SYS-HPBI", short: "HPBI", name: "Helium boundary isolation", sf: "SF-HPB", modelRep: "Fault tree", topEvent: "Helium boundary isolation fails to isolate the leaking segment", criterion: "The leaking helium segment or interfacing line is isolated at its boundary valves before the inventory reaches the depressurized band.", excluded: "Spurious isolation of a healthy segment.", missionHours: 24, boundaries: ["Segment isolation valves", "Interfacing-system boundary valves", "Leak-detection interface"], detailed: true, events: hpbiEvents, modeledFailures: { "Isolation path": { failureModes: ["Detection fails", "Isolation valve fails to close", "Common cause of valves"] } } },
-  { id: "SYS-DETECT", short: "DET", name: "Depressurization and leak detection", sf: "SF-HPB", modelRep: "Fault tree", topEvent: "Detection fails to alarm on a falling helium pressure", criterion: "Redundant pressure and leak instrumentation alarms so operators diagnose a depressurization and act.", excluded: "Spurious alarm, which prompts an unnecessary but safe operator response.", missionHours: 24, boundaries: ["Redundant primary pressure channels", "Leak and activity monitors", "Control-room alarm and indication"], detailed: true, events: detectEvents, modeledFailures: { "Detection": { failureModes: ["Pressure channel fails", "Common cause of channels", "Alarm fails"] } } },
-  { id: "SYS-HIC", short: "HIC", name: "Helium inventory and pressure control", sf: "SF-HPB", modelRep: "Fault tree", topEvent: "Helium inventory control fails to restore pressure", criterion: "The make-up path restores helium inventory, or the slow depressurization proceeds to conduction cooldown.", excluded: "Overpressure, which the relief path limits and which does not threaten the criterion.", missionHours: 24, boundaries: ["Helium make-up compressor and storage", "Pressure-control valves", "Purification interface"], detailed: true, events: hicEvents, modeledFailures: { "Make-up train": { failureModes: ["Compressor fails to start", "Control valve fails to open", "Storage unavailable"] } } },
-  { id: "SYS-RB", short: "RB", name: "Reactor building isolation and filtration", sf: "SF-CONF", modelRep: "Fault tree", topEvent: "The reactor building fails to isolate or filter on demand", criterion: "The reactor building isolates on demand and holds the design leak rate with filtration.", excluded: "Premature isolation, which closes the boundary earlier than needed.", diversion: "An unisolated penetration modeled as a bypass leak path.", missionHours: 72, boundaries: ["Building isolation dampers", "Filtered ventilation trains", "Isolation actuation signal"], detailed: true, events: rbEvents, modeledFailures: { "Isolation and filtration": { failureModes: ["Damper fails to close", "Filtration train fails to run", "Standby train fails to start", "Common cause of dampers"] } } },
-  { id: "SYS-AC", short: "AC", name: "Non-Class 1E AC power", sf: "SF-DHR", modelRep: "Fault tree", topEvent: "Non-Class 1E AC power fails to supply the shutdown-cooling loads after a loss of normal power", criterion: "Either backup gas-turbine generator, through the bus tie, energizes the energy conversion area buses and the 480 V motor control centers that feed the shutdown-cooling loads for the mission time.", excluded: "A spurious backup generator start, which does not interrupt the normal supply.", missionHours: 24, boundaries: ["Two backup gas-turbine generators in the standby power building", "4160 V energy conversion area buses and the bus tie between units", "480 V unit substations and motor control centers feeding the shutdown-cooling loads"], detailed: true, events: acEvents, modeledFailures: { "Backup generators": { failureModes: ["Fails to start", "Fails to load and run", "Fails to run", "Output breaker fails to close", "Common cause of the backup generators"] }, "480 V distribution": { failureModes: ["Motor control center fails"] } } },
-  { id: "SYS-1E-DC", short: "DC", name: "Class 1E DC power", sf: "SF-RC", modelRep: "Fault tree", topEvent: "Class 1E DC power fails to supply the protection and actuation loads", criterion: "Battery and distribution supply the DC loads for the mission time.", excluded: "A charger overvoltage trip, which disconnects the charger and leaves the battery carrying the bus.", missionHours: 24, boundaries: ["Station batteries", "DC distribution buses", "Battery chargers"], detailed: true, events: dcEvents, modeledFailures: { "Battery trains": { failureModes: ["Battery fails to run", "Common cause of batteries", "Charger fault"] } } },
-  { id: "SYS-CCW", short: "CCW", name: "Component cooling water", sf: "SF-DHR", modelRep: "Fault tree", topEvent: "Component cooling water fails to cool the shutdown coolers", criterion: "One of two cooling-water trains removes heat from the shutdown coolers.", excluded: "Overcooling from excess flow, a beneficial failure.", missionHours: 24, boundaries: ["Two cooling-water pumps", "Cooling-water heat exchangers", "Distribution headers"], detailed: true, events: ccwEvents, modeledFailures: { "Cooling-water trains": { failureModes: ["Pump fails to run", "Heat exchanger fouled", "Common cause of pumps"] } } },
-  { id: "SYS-MMS", short: "MMS", name: "Moisture-monitoring system", sf: "SF-HPB", modelRep: "Fault tree", topEvent: "Moisture monitoring fails to generate the isolation signal", criterion: "Redundant moisture monitors on both loops generate the isolation signal on demand.", excluded: "A spurious moisture signal, which isolates a healthy loop.", missionHours: 24, boundaries: ["Redundant moisture monitors", "Signal processing", "Isolation-signal interface"], detailed: true, events: mmsEvents, modeledFailures: { "Moisture monitors": { failureModes: ["Monitor fails", "Common cause of monitors"] } } },
+  { id: "SYS-RPS", short: "RPS", name: "Reactor protection system", sf: "SF-RC", modelRep: "Fault tree", topEvent: "RPS fails to trip the reactor on demand", criterion: "One of two divisions trips the reactor, or the negative temperature feedback caps power at 5 percent of nominal.", missionHours: 24, boundaries: ["Flux and process sensors", "Two trip divisions", "Reserve shutdown and rod insertion"], detailed: true, events: rpsEvents, modeledFailures: { "Trip divisions": { failureModes: ["Division fails to trip", "Rods fail to insert", "Common cause of divisions"] } } },
+  { id: "SYS-SCS", short: "SCS", name: "Shutdown cooling system", sf: "SF-DHR", modelRep: "Fault tree", topEvent: "Shutdown cooling fails to remove core heat for the mission time", criterion: "Two of two trains start within 33 hours at full power, one of two in the other states.", missionHours: 24, boundaries: ["Two shutdown-cooling circulators", "Shutdown heat exchangers", "Cooling-water and Class 1E supplies"], detailed: true, events: scsEvents, modeledFailures: { "Cooling trains": { failureModes: ["Circulator fails to run", "Heat exchanger fouled", "Common cause of trains"] } } },
+  { id: "SYS-RCCS", short: "RCCS", name: "Reactor cavity cooling system", sf: "SF-DHR", modelRep: "Fault tree", topEvent: "Cavity cooling fails to carry the conduction cooldown", criterion: "The passive ducts carry at least half the nominal capacity at power, a quarter shut down.", missionHours: 72, boundaries: ["Four natural-draft duct groups", "Cavity cooling panels", "Common intake and exhaust stack"], detailed: true, events: rccsEvents, modeledFailures: { "Duct groups": { failureModes: ["Duct air path blocked", "Common cause blockage", "Stack blocked"] } } },
+  { id: "SYS-SGISO", short: "SGISO", name: "Steam-generator isolation and dump", sf: "SF-HPB", modelRep: "Fault tree", topEvent: "Steam-generator isolation and dump fails on a moisture alarm", criterion: "The affected steam generator isolates and dumps within 2 hours of the moisture alarm.", missionHours: 24, boundaries: ["Steam and feedwater isolation valves", "Steam-generator dump path", "Moisture-detection interface"], detailed: true, events: sgisoEvents, modeledFailures: { "Isolation and dump": { failureModes: ["Isolation valve fails to close", "Dump valve fails to open", "Common cause of valves"] } } },
+  { id: "SYS-HPBI", short: "HPBI", name: "Helium boundary isolation", sf: "SF-HPB", modelRep: "Fault tree", topEvent: "Helium boundary isolation fails to isolate the leaking segment", criterion: "The leaking helium segment or interfacing line is isolated at its boundary valves before the inventory reaches the depressurized band.", missionHours: 24, boundaries: ["Segment isolation valves", "Interfacing-system boundary valves", "Leak-detection interface"], detailed: true, events: hpbiEvents, modeledFailures: { "Isolation path": { failureModes: ["Detection fails", "Isolation valve fails to close", "Common cause of valves"] } } },
+  { id: "SYS-DETECT", short: "DET", name: "Depressurization and leak detection", sf: "SF-HPB", modelRep: "Fault tree", topEvent: "Detection fails to alarm on a falling helium pressure", criterion: "Redundant pressure and leak instrumentation alarms so operators diagnose a depressurization and act.", missionHours: 24, boundaries: ["Redundant primary pressure channels", "Leak and activity monitors", "Control-room alarm and indication"], detailed: true, events: detectEvents, modeledFailures: { "Detection": { failureModes: ["Pressure channel fails", "Common cause of channels", "Alarm fails"] } } },
+  { id: "SYS-HIC", short: "HIC", name: "Helium inventory and pressure control", sf: "SF-HPB", modelRep: "Fault tree", topEvent: "Helium inventory control fails to restore pressure", criterion: "The make-up path restores helium inventory, or the slow depressurization proceeds to conduction cooldown.", missionHours: 24, boundaries: ["Helium make-up compressor and storage", "Pressure-control valves", "Purification interface"], detailed: true, events: hicEvents, modeledFailures: { "Make-up train": { failureModes: ["Compressor fails to start", "Control valve fails to open", "Storage unavailable"] } } },
+  { id: "SYS-RB", short: "RB", name: "Reactor building isolation and filtration", sf: "SF-CONF", modelRep: "Fault tree", topEvent: "The reactor building fails to isolate or filter on demand", criterion: "The reactor building isolates on demand and holds the design leak rate with filtration.", missionHours: 72, boundaries: ["Building isolation dampers", "Filtered ventilation trains", "Isolation actuation signal"], detailed: true, events: rbEvents, modeledFailures: { "Isolation and filtration": { failureModes: ["Damper fails to close", "Filtration train fails to run", "Standby train fails to start", "Common cause of dampers"] } } },
+  { id: "SYS-AC", short: "AC", name: "Non-Class 1E AC power", sf: "SF-DHR", modelRep: "Fault tree", topEvent: "Non-Class 1E AC power fails to supply the shutdown-cooling loads after a loss of normal power", criterion: "Either backup gas-turbine generator, through the bus tie, energizes the energy conversion area buses and the 480 V motor control centers that feed the shutdown-cooling loads for the mission time.", missionHours: 24, boundaries: ["Two backup gas-turbine generators in the standby power building", "4160 V energy conversion area buses and the bus tie between units", "480 V unit substations and motor control centers feeding the shutdown-cooling loads"], detailed: true, events: acEvents, modeledFailures: { "Backup generators": { failureModes: ["Fails to start", "Fails to load and run", "Fails to run", "Output breaker fails to close", "Common cause of the backup generators"] }, "480 V distribution": { failureModes: ["Motor control center fails"] } } },
+  { id: "SYS-1E-DC", short: "DC", name: "Class 1E DC power", sf: "SF-RC", modelRep: "Fault tree", topEvent: "Class 1E DC power fails to supply the protection and actuation loads", criterion: "Battery and distribution supply the DC loads for the mission time.", missionHours: 24, boundaries: ["Station batteries", "DC distribution buses", "Battery chargers"], detailed: true, events: dcEvents, modeledFailures: { "Battery trains": { failureModes: ["Battery fails to run", "Common cause of batteries", "Charger fault"] } } },
+  { id: "SYS-CCW", short: "CCW", name: "Component cooling water", sf: "SF-DHR", modelRep: "Fault tree", topEvent: "Component cooling water fails to cool the shutdown coolers", criterion: "One of two cooling-water trains removes heat from the shutdown coolers.", missionHours: 24, boundaries: ["Two cooling-water pumps", "Cooling-water heat exchangers", "Distribution headers"], detailed: true, events: ccwEvents, modeledFailures: { "Cooling-water trains": { failureModes: ["Pump fails to run", "Heat exchanger fouled", "Common cause of pumps"] } } },
+  { id: "SYS-MMS", short: "MMS", name: "Moisture-monitoring system", sf: "SF-HPB", modelRep: "Fault tree", topEvent: "Moisture monitoring fails to generate the isolation signal", criterion: "Redundant moisture monitors on both loops generate the isolation signal on demand.", missionHours: 24, boundaries: ["Redundant moisture monitors", "Signal processing", "Isolation-signal interface"], detailed: true, events: mmsEvents, modeledFailures: { "Moisture monitors": { failureModes: ["Monitor fails", "Common cause of monitors"] } } },
 ];
 
 const SYSTEM_POS: Record<string, string[]> = {
@@ -382,6 +397,147 @@ const SYSTEM_DIAGRAMS: Record<string, SystemDiagram[]> = {
   "SYS-MMS": [{ uuid: "DGM-SYS-MMS-1", title: "Figure 2-4. Simplified block diagram, steam generator isolation and dump", documentId: "SY-DOC-01", filename: "Plant protection and instrumentation system design description", page: 61, region: { x: 0.147, y: 0.28, width: 0.7396, height: 0.3604 } }],
 };
 
+const SYSTEM_FAILURE_MODES: Record<string, { leftOut: string[]; diversion: string[]; conditions: string[] }> = {
+  "SYS-RPS": {
+    leftOut: [
+      "Spurious reactor trip, which shuts the plant down rather than defeating the trip.",
+      "Control rods dropping in without a trip demand, which adds negative reactivity and helps the function.",
+    ],
+    diversion: [
+      "None. The protection system carries signals and rods, not a process fluid.",
+    ],
+    conditions: [
+      "Cabinet temperature above the qualified limit after a long loss of room cooling, which can drift the trip setpoints.",
+    ],
+  },
+  "SYS-SCS": {
+    leftOut: [
+      "A single-train overcool, which lowers core temperatures and helps the function.",
+      "A spurious circulator start, which starts cooling early and helps the function.",
+    ],
+    diversion: [
+      "Helium bypassing the core through the idle train when only one train runs. The idle circulator's shutoff valve blocks this path, and its failure is part of the circulator failure data.",
+    ],
+    conditions: [
+      "Cooling-water supply above its design temperature, which cuts the shutdown cooler duty below the decay heat.",
+      "Circulator motor room above its qualified temperature after a ventilation loss.",
+    ],
+  },
+  "SYS-RCCS": {
+    leftOut: [
+      "Overcooling from excess draft, which lowers cavity temperatures and helps the function.",
+    ],
+    diversion: [
+      "Cold inlet air short-circuiting into the hot outlet plenum through a failed plenum seal, which bypasses the cooling panels. It is counted in the duct group blockage events.",
+    ],
+    conditions: [
+      "Outdoor air above the design temperature, which lowers the natural draft and the heat removal.",
+      "Snow, ice or debris over the inlet and outlet structures in a severe winter storm.",
+    ],
+  },
+  "SYS-SGISO": {
+    leftOut: [
+      "Spurious isolation of a healthy loop, which stops that loop but does not defeat the isolation of the leaking one. The initiating event analysis covers it as a loss of the heat sink.",
+    ],
+    diversion: [
+      "None. The dump drains to the dump tank through a dedicated line with no branch.",
+    ],
+    conditions: [
+      "Dump tank back pressure above the design value, which slows the drain past the 2-hour window.",
+    ],
+  },
+  "SYS-HPBI": {
+    leftOut: [
+      "Spurious isolation of a healthy segment, which closes the boundary without a leak and does not defeat the function.",
+    ],
+    diversion: [
+      "None. Each segment has isolation valves at every penetration, so no unisolated branch remains.",
+    ],
+    conditions: [
+      "Hot helium discharged into the reactor building, which heats the valve actuators past their qualified temperature.",
+    ],
+  },
+  "SYS-DETECT": {
+    leftOut: [
+      "Spurious alarm, which prompts an unnecessary but safe operator response.",
+    ],
+    diversion: [
+      "None. The detection channels carry signals, not a process fluid.",
+    ],
+    conditions: [
+      "Hot helium discharged into the reactor building, which drifts the pressure transmitters past their accuracy band.",
+    ],
+  },
+  "SYS-HIC": {
+    leftOut: [
+      "Overpressure, which the relief path limits and which does not threaten the criterion.",
+      "A spurious make-up start, which adds helium and helps restore pressure.",
+    ],
+    diversion: [
+      "Make-up helium flowing to the purification system instead of the primary circuit. The purification isolation valve closes on the make-up signal, and its failure is part of the pressure-control valve event.",
+    ],
+    conditions: [
+      "Compressor room above its qualified temperature after a ventilation loss.",
+    ],
+  },
+  "SYS-RB": {
+    leftOut: [
+      "Premature isolation, which closes the boundary earlier than needed.",
+    ],
+    diversion: [
+      "Leakage through an unisolated building penetration, which bypasses the filters. The design leak rate in the success criterion covers it.",
+    ],
+    conditions: [
+      "Graphite dust loading the filters past the fan capacity, which cuts the filtered flow.",
+    ],
+  },
+  "SYS-AC": {
+    leftOut: [
+      "A spurious backup generator start, which does not interrupt the normal supply.",
+    ],
+    diversion: [
+      "None. The AC system carries electrical power, not a process fluid.",
+    ],
+    conditions: [
+      "Standby power building above the generators' rated ambient after a ventilation loss, which derates the gas turbines.",
+    ],
+  },
+  "SYS-1E-DC": {
+    leftOut: [
+      "A charger overvoltage trip, which disconnects the charger and leaves the battery carrying the bus.",
+    ],
+    diversion: [
+      "None. The DC system carries electrical power, not a process fluid.",
+    ],
+    conditions: [
+      "Battery room below the minimum electrolyte temperature in winter, which cuts the battery capacity.",
+      "Loads added after the load-shedding calculation, which shorten the battery duty below the mission time.",
+    ],
+  },
+  "SYS-CCW": {
+    leftOut: [
+      "Overcooling from excess flow, which lowers the cooler outlet temperature and helps the function.",
+    ],
+    diversion: [
+      "Cooling water dumped to the drain through a shutdown-cooler relief valve that opens spuriously. It is screened out under criterion a.",
+    ],
+    conditions: [
+      "Ultimate heat sink above its design temperature in summer, which cuts the heat removal below the shutdown-cooler duty.",
+    ],
+  },
+  "SYS-MMS": {
+    leftOut: [
+      "A spurious moisture signal, which isolates a healthy loop and does not defeat the isolation signal.",
+    ],
+    diversion: [
+      "None. The monitors draw a small helium sample and carry no process flow.",
+    ],
+    conditions: [
+      "Condensation in the sample lines at low ambient temperature, which masks the moisture reading.",
+    ],
+  },
+};
+
 const systemDefinitions = SYSTEMS.map((s) => ({
   uuid: s.id,
   name: s.name,
@@ -390,8 +546,9 @@ const systemDefinitions = SYSTEMS.map((s) => ({
   successCriteriaIds: SC_CRITERION_IDS.has(s.id) ? [s.id] : [],
   successCriterion: s.criterion,
   abbreviation: s.short,
-  justificationForExclusionOfComponents: [s.excluded],
-  flowDiversionConsiderations: s.diversion !== undefined ? [s.diversion] : undefined,
+  justificationForExclusionOfComponents: SYSTEM_FAILURE_MODES[s.id]?.leftOut,
+  flowDiversionConsiderations: SYSTEM_FAILURE_MODES[s.id]?.diversion,
+  functionLossConditions: SYSTEM_FAILURE_MODES[s.id]?.conditions,
   missionTimeHours: s.missionHours,
   ...(MISSION_TIME_REFS[s.id] === undefined ? {} : { missionTimeRef: MISSION_TIME_REFS[s.id] }),
   ...(SYSTEM_DIAGRAMS[s.id] === undefined ? {} : { diagrams: SYSTEM_DIAGRAMS[s.id] }),
@@ -498,6 +655,7 @@ const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
       { id: "be-HPI-VLV-CCF", type: "BE", name: "Common cause failure of the isolation valves", be: "HPI-VLV-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-HPBI-VLV", prob: "2.0E-4", ccf: true },
       { id: "be-HPI-HFE", type: "BE", name: "Operator fails to isolate the leaking segment", be: "HPI-HFE", mode: "HUMAN_ERROR", source: "HR-POST-025", prob: "5.0E-3" },
       { id: "tr-HPI-DC", type: "TR", name: "Loss of Class-1E DC to the isolation valves", transfer: "SYS-1E-DC" },
+      { id: "tr-HPI-DET", type: "TR", name: "Loss of the leak-detection signal from the pressure channels", transfer: "SYS-DETECT" },
     ],
   },
   "SYS-DETECT": {
@@ -520,18 +678,25 @@ const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
       { id: "be-HIC-STG-UN", type: "BE", name: "Helium storage unavailable", be: "HIC-STG-UN", mode: "FAILURE_TO_RUN", source: "DA-BE-229", prob: "1.0E-3" },
       { id: "be-HIC-HFE", type: "BE", name: "Operator fails to initiate helium make-up", be: "HIC-HFE", mode: "HUMAN_ERROR", source: "HR-POST-026", prob: "6.0E-3" },
       { id: "tr-HIC-AC", type: "TR", name: "Loss of non-Class 1E AC to the compressor", transfer: "SYS-AC" },
+      { id: "tr-HIC-DET", type: "TR", name: "Loss of the low-pressure alarm that cues make-up", transfer: "SYS-DETECT" },
     ],
   },
   "SYS-RB": {
     id: "RB-TOP", type: "OR", name: "Reactor building fails to isolate or filter",
     children: [
       { id: "RB-ISO", type: "AND", name: "Both isolation dampers fail to close", children: [
-        { id: "be-RB-DMP-A-FC", type: "BE", name: "Isolation damper A fails to close", be: "RB-DMP-A-FC", mode: "FAILURE_TO_START", source: "DA-BE-231", prob: "2.5E-3" },
+        { id: "RB-DMP-A", type: "OR", name: "Isolation damper A unavailable", children: [
+          { id: "be-RB-DMP-A-FC", type: "BE", name: "Isolation damper A fails to close", be: "RB-DMP-A-FC", mode: "FAILURE_TO_START", source: "DA-BE-231", prob: "2.5E-3" },
+          { id: "be-RB-FLT-DMP-TM-A", type: "BE", name: "Running filtration train and isolation damper A out for a filter change", be: "RB-FLT-DMP-TM", mode: "TEST_MAINTENANCE", source: "CM-1", prob: "2.0E-3" },
+        ] },
         { id: "be-RB-DMP-B-FC", type: "BE", name: "Isolation damper B fails to close", be: "RB-DMP-B-FC", mode: "FAILURE_TO_START", source: "DA-BE-231", prob: "2.5E-3" },
       ] },
       { id: "be-RB-DMP-CCF", type: "BE", name: "Common cause failure of the isolation dampers", be: "RB-DMP-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-RB-DMP", prob: "2.0E-4", ccf: true },
       { id: "RB-FLT", type: "AND", name: "Both filtration trains fail", children: [
-        { id: "be-RB-FLT-FR", type: "BE", name: "Running filtration train fails to run", be: "RB-FLT-FR", mode: "FAILURE_TO_RUN", source: "DA-BE-233", prob: "6.0E-3" },
+        { id: "RB-FLT-A", type: "OR", name: "Running filtration train unavailable", children: [
+          { id: "be-RB-FLT-FR", type: "BE", name: "Running filtration train fails to run", be: "RB-FLT-FR", mode: "FAILURE_TO_RUN", source: "DA-BE-233", prob: "6.0E-3" },
+          { id: "be-RB-FLT-DMP-TM-F", type: "BE", name: "Running filtration train and isolation damper A out for a filter change", be: "RB-FLT-DMP-TM", mode: "TEST_MAINTENANCE", source: "CM-1", prob: "2.0E-3" },
+        ] },
         { id: "RB-FLT-B", type: "OR", name: "Standby filtration train fails", children: [
           { id: "be-RB-FLT-B-FS", type: "BE", name: "Standby filtration train fails to start", be: "RB-FLT-B-FS", mode: "FAILURE_TO_START", source: "DA-BE-235", prob: "3.0E-3" },
           { id: "be-RB-HFE", type: "BE", name: "Operator fails to start the standby train", be: "RB-HFE", mode: "HUMAN_ERROR", source: "HR-POST-028", prob: "1.5E-2" },
@@ -580,6 +745,7 @@ const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
       ] },
       { id: "be-DC-BAT-CCF", type: "BE", name: "Common cause failure of the station batteries", be: "DC-BAT-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-DC-BATT", prob: "3.0E-4", ccf: true },
       { id: "be-DC-HFE-BNK", type: "BE", name: "Both battery banks held off float after equalization", be: "DC-HFE-BNK", mode: "HUMAN_ERROR", source: "HR-PRE-041", prob: "2.0E-3" },
+      { id: "be-DC-BAT-AB-TM", type: "BE", name: "Both battery banks on one joint equalizing charge", be: "DC-BAT-AB-TM", mode: "TEST_MAINTENANCE", source: "CM-2", prob: "2.5E-3" },
     ],
   },
   "SYS-CCW": {
@@ -628,7 +794,6 @@ const systemLogicModels = SYSTEMS.map((s) => ({
   modelRepresentation: s.modelRep,
   faultTree: FAULT_TREES[s.id] === undefined ? undefined : withoutCollapsedCcfEvents(FAULT_TREES[s.id]!),
   nonDetailedModelJustification: s.detailed ? undefined : "System-level data sufficient, no internal redundancy.",
-  logicLoopResolutions: s.loops,
   implementsSrs: srs("SY-A7", "SY-A14"),
 }));
 
@@ -636,16 +801,45 @@ const allSystemBasicEvents = SYSTEMS.flatMap((s) => s.events);
 const collapsedCcfEventIds = new Set(allSystemBasicEvents.filter((event) => event.failureMode === "COMMON_CAUSE_FAILURE").map((event) => event.uuid));
 const systemBasicEvents = allSystemBasicEvents.filter((event) => !collapsedCcfEventIds.has(event.uuid));
 
-const SUPPORT_MATRIX: { system: string; needs: { supporting: string; kind: string }[] }[] = [
-  { system: "SYS-RPS", needs: [{ supporting: "SYS-1E-DC", kind: "power" }] },
-  { system: "SYS-SCS", needs: [{ supporting: "SYS-AC", kind: "power" }, { supporting: "SYS-CCW", kind: "cooling" }] },
-  { system: "SYS-SGISO", needs: [{ supporting: "SYS-MMS", kind: "signal" }, { supporting: "SYS-1E-DC", kind: "power" }] },
-  { system: "SYS-HPBI", needs: [{ supporting: "SYS-1E-DC", kind: "power" }] },
-  { system: "SYS-DETECT", needs: [{ supporting: "SYS-1E-DC", kind: "power" }] },
-  { system: "SYS-HIC", needs: [{ supporting: "SYS-AC", kind: "power" }] },
-  { system: "SYS-RB", needs: [{ supporting: "SYS-1E-DC", kind: "power" }] },
-  { system: "SYS-CCW", needs: [{ supporting: "SYS-AC", kind: "power" }] },
-  { system: "SYS-MMS", needs: [{ supporting: "SYS-1E-DC", kind: "power" }] },
+type SupportKindSeed = "ACTUATION" | "CONTROL" | "MOTIVE_POWER" | "COOLING" | "OPERATOR_INTERFACE" | "OTHER";
+
+interface SupportNeedSeed {
+  supporting: string;
+  kind: SupportKindSeed;
+  details: string;
+  impact: string;
+  leftOut?: string;
+}
+
+const SUPPORT_MATRIX: { system: string; needs: SupportNeedSeed[] }[] = [
+  { system: "SYS-RPS", needs: [{ supporting: "SYS-1E-DC", kind: "CONTROL", details: "Class 1E DC power for the trip logic.", impact: "Both divisions lose their trip logic, so the reactor does not trip on demand." }] },
+  { system: "SYS-SCS", needs: [
+    { supporting: "SYS-AC", kind: "MOTIVE_POWER", details: "Non-Class 1E AC for the circulators and pumps, from the backup gas-turbine generators after a loss of normal power.", impact: "Both circulators stop, so forced cooling is lost." },
+    { supporting: "SYS-CCW", kind: "COOLING", details: "Cooling water for the shutdown coolers.", impact: "The shutdown coolers lose their heat sink, so the trains cannot remove core heat." },
+  ] },
+  { system: "SYS-SGISO", needs: [
+    { supporting: "SYS-MMS", kind: "ACTUATION", details: "Moisture isolation signal, and the alarm that cues the operator backup.", impact: "Neither the automatic isolation nor the operator backup starts on a moisture ingress." },
+    { supporting: "SYS-1E-DC", kind: "MOTIVE_POWER", details: "DC power for the isolation and dump valves.", impact: "The isolation and dump valves cannot change position." },
+  ] },
+  { system: "SYS-HPBI", needs: [
+    { supporting: "SYS-DETECT", kind: "ACTUATION", details: "Leak-detection signal for the isolation.", impact: "The segment valves get no signal to close on a leak." },
+    { supporting: "SYS-1E-DC", kind: "MOTIVE_POWER", details: "DC power for the isolation valves.", impact: "The segment isolation valves cannot close." },
+  ] },
+  { system: "SYS-DETECT", needs: [{ supporting: "SYS-1E-DC", kind: "CONTROL", details: "DC power for the pressure channels and the control-room alarm.", impact: "No pressure signal and no alarm on a depressurization." }] },
+  { system: "SYS-HIC", needs: [
+    { supporting: "SYS-AC", kind: "MOTIVE_POWER", details: "Non-Class 1E AC for the make-up compressor.", impact: "The make-up compressor stops, so no helium make-up flows." },
+    { supporting: "SYS-DETECT", kind: "OPERATOR_INTERFACE", details: "Low-pressure alarm that cues the operator to start make-up.", impact: "The operator gets no cue, so make-up is not started on a slow depressurization." },
+  ] },
+  { system: "SYS-RB", needs: [{ supporting: "SYS-1E-DC", kind: "CONTROL", details: "Isolation signal to close the dampers and start the filtration train.", impact: "The dampers stay open and the standby filtration train does not start." }] },
+  { system: "SYS-CCW", needs: [{ supporting: "SYS-AC", kind: "MOTIVE_POWER", details: "Non-Class 1E AC for the cooling-water pumps.", impact: "Both cooling-water pumps stop." }] },
+  { system: "SYS-MMS", needs: [{ supporting: "SYS-1E-DC", kind: "CONTROL", details: "DC power for the moisture monitors and the isolation signal.", impact: "No moisture signal and no alarm on either loop." }] },
+  { system: "SYS-1E-DC", needs: [{
+    supporting: "SYS-AC",
+    kind: "OTHER",
+    details: "AC supply to the battery chargers.",
+    impact: "The chargers stop and the batteries carry the protective loads alone.",
+    leftOut: "With load shedding, the batteries carry the protective loads for the 24 h mission without the chargers, per the battery duty and load-shedding calculation. That calculation is still under review (INV-1).",
+  }] },
 ];
 
 const systemDependencies = SUPPORT_MATRIX.flatMap((row) =>
@@ -654,10 +848,13 @@ const systemDependencies = SUPPORT_MATRIX.flatMap((row) =>
     description: `${row.system} depends on ${n.supporting}`,
     dependentSystem: row.system,
     supportingSystem: n.supporting,
-    type: "FUNCTIONAL",
-    details: n.kind,
-    impact: "Loss of the support system defeats the dependent system function.",
-    implementsSrs: srs("SY-B5", "SY-B6"),
+    type: n.kind === "OPERATOR_INTERFACE" ? "HUMAN" : "FUNCTIONAL",
+    details: n.details,
+    impact: n.impact,
+    supportKind: n.kind,
+    modeledIn: n.leftOut === undefined ? "SYSTEM_MODEL" : "EXCLUDED",
+    ...(n.leftOut === undefined ? {} : { exclusionJustification: n.leftOut }),
+    implementsSrs: n.kind === "OPERATOR_INTERFACE" ? srs("SY-B5", "SY-B15") : n.leftOut === undefined ? srs("SY-B5", "SY-B9") : srs("SY-B5", "SY-B13"),
   })),
 );
 
@@ -685,7 +882,7 @@ const CCF_GROUP_SEEDS: CcfGroupSeed[] = [
   { id: "CCF-RPS-DIV", name: "RPS trip divisions", scope: "INTRASYSTEM", system: "SYS-RPS", components: ["RPS-DV-A", "RPS-DV-B"], events: ["RPS-DVA-FS", "RPS-DVB-FS", "RPS-CCF-FS"], modelType: "BETA_FACTOR", beta: 0.06, qt: 0.0015, shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Divisional separation", "Trip channels tested on separate schedules"], basis: "Two divisions of identical design and manufacture.", risk: "Risk significant, the divisional term sits directly under the failure-to-trip top gate.", daRef: "DA-CCF-04", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-RPS-ROD", name: "Control-rod insertion", scope: "INTRASYSTEM", system: "SYS-RPS", components: ["RPS-ROD-A", "RPS-ROD-B"], events: ["RPS-RODA-FR", "RPS-RODB-FR", "RPS-ROD-CCF"], modelType: "BETA_FACTOR", beta: 0.05, qt: 0.0008, shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Gravity-assisted insertion", "Periodic rod-drop timing tests"], basis: "Identical rod-insertion drives on both divisions.", risk: "Carried at the generic screening beta, the insertion path is the last mechanical link in the trip chain.", daRef: "DA-CCF-05", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-SCS-TRAIN", name: "Shutdown-cooling trains", scope: "INTRASYSTEM", system: "SYS-SCS", components: ["SCS-TR-A", "SCS-TR-B"], events: ["SCS-TRA-FR", "SCS-TRB-FR", "SCS-CCF-FR"], modelType: "BETA_FACTOR", beta: 0.05, qt: 0.008, shared: { hardwareDesign: true, manufacturer: true, maintenance: true }, defenses: ["Alternating lead and lag rotation", "Train-dedicated cooling water"], basis: "Two circulator trains of one make on one maintenance schedule.", risk: "Risk significant, at full power both trains are required so the common term drives the top gate.", daRef: "DA-CCF-08", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
-  { id: "CCF-RCCS-DUCT", name: "Cavity cooling duct groups", scope: "INTRASYSTEM", system: "SYS-RCCS", components: ["RCC-DUCT1", "RCC-DUCT2", "RCC-DUCT3", "RCC-DUCT4"], events: ["RCC-DUCT1-BLK", "RCC-DUCT2-BLK", "RCC-DUCT3-BLK", "RCC-DUCT4-BLK", "RCC-CCF-BLK"], modelType: "BETA_FACTOR", beta: 0.1, qt: 0.002, shared: { hardwareDesign: true, environment: true }, defenses: ["Physically separated duct risers", "Debris screens on each intake"], basis: "Four duct groups share the cavity environment and the same debris sources.", risk: "The passive path fails mainly through the common blockage term, carried at the generic beta.", daRef: "DA-CCF-12", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
+  { id: "CCF-RCCS-DUCT", name: "Cavity cooling duct groups", scope: "INTRASYSTEM", system: "SYS-RCCS", components: ["RCC-DUCT1", "RCC-DUCT2", "RCC-DUCT3", "RCC-DUCT4"], events: ["RCC-DUCT1-BLK", "RCC-DUCT2-BLK", "RCC-DUCT3-BLK", "RCC-DUCT4-BLK", "RCC-CCF-BLK"], modelType: "ALPHA_FACTOR", alpha: { alpha1: 0.98059, alpha2: 0.00968, alpha3: 0.0062, alpha4: 0.00353 }, qt: 0.002, shared: { hardwareDesign: true, environment: true }, defenses: ["Physically separated duct risers", "Debris screens on each intake"], basis: "Four duct groups share the cavity environment and the same debris sources.", risk: "The passive path fails mainly through the common blockage terms, carried at the generic rate alpha factors.", daRef: "DA-CCF-12", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-SGISO-IV", name: "Steam-generator isolation valves", scope: "INTRASYSTEM", system: "SYS-SGISO", components: ["SGI-IV-A", "SGI-IV-B"], events: ["SGI-IVA-FC", "SGI-IVB-FC", "SGI-IV-CCF"], modelType: "BETA_FACTOR", beta: 0.08, qt: 0.002, shared: { hardwareDesign: true, maintenance: true }, defenses: ["Loop-dedicated valves", "Closure verification after each test"], basis: "Two isolation valves of one make on one test procedure.", risk: "The isolation pair defeats the boundary function through the common term, so the group carries the path.", daRef: "DA-CCF-16", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-HPBI-VLV", name: "Helium boundary isolation valves", scope: "INTRASYSTEM", system: "SYS-HPBI", components: ["HPI-V-A", "HPI-V-B"], events: ["HPI-VA-FC", "HPI-VB-FC", "HPI-VLV-CCF"], modelType: "BETA_FACTOR", beta: 0.1, qt: 0.002, shared: { hardwareDesign: true, maintenance: true }, defenses: ["Redundant isolation on the segment", "Closure verification after each stroke test"], basis: "Two isolation valves of one make on one test procedure.", risk: "The redundant pair loses isolation only through the common term, so the group carries the path.", daRef: "DA-CCF-25", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-DET-PCH", name: "Primary pressure channels", scope: "INTRASYSTEM", system: "SYS-DETECT", components: ["DET-PCH-A", "DET-PCH-B"], events: ["DET-PCH-A-FS", "DET-PCH-B-FS", "DET-PCH-CCF"], modelType: "BETA_FACTOR", beta: 0.1, qt: 0.003, shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Channel-dedicated calibration", "Cross-channel comparison"], basis: "Identical pressure channels feeding the alarm.", risk: "PRAXIS expands the two independent channel events into the dependent combinations during quantification.", daRef: "DA-CCF-27", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
@@ -713,36 +910,45 @@ const commonCauseFailureGroups = CCF_GROUP_SEEDS.map((g) => ({
   defenseMechanisms: g.defenses,
   sharedCauseFactors: g.shared,
   riskSignificanceJustification: g.risk,
-  dataSources: [{ reference: "SY-DOC-04", description: "Generic common cause parameters from the alpha-factor parameter estimates.", dataType: "generic" as const }],
   implementsSrs: srs(...g.srs),
 }));
 
 const humanFailureEventIntegrations = [
-  { id: "HFE-1", system: "SYS-SCS", ref: "HR-POST-018", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to start the second shutdown-cooling train.", srs: ["SY-A23"] },
-  { id: "HFE-2", system: "SYS-SGISO", ref: "HR-POST-022", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to isolate the affected steam generator.", srs: ["SY-A23"] },
-  { id: "HFE-3", system: "SYS-HPBI", ref: "HR-POST-025", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to isolate the leaking helium segment.", srs: ["SY-A23"] },
-  { id: "HFE-4", system: "SYS-HIC", ref: "HR-POST-026", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to initiate helium make-up.", srs: ["SY-A23"] },
-  { id: "HFE-5", system: "SYS-RB", ref: "HR-POST-028", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to start the standby filtration train.", srs: ["SY-A23"] },
-  { id: "HFE-6", system: "SYS-1E-DC", ref: "HR-PRE-009", type: "PRE_INITIATOR" as const, tm: true, task: "Battery charger left in the wrong mode after maintenance.", srs: ["SY-A21"] },
-  { id: "HFE-7", system: "SYS-MMS", ref: "HR-PRE-014", type: "PRE_INITIATOR" as const, tm: true, task: "Moisture monitors miscalibrated after surveillance.", srs: ["SY-A21"] },
-  { id: "HFE-8", system: "SYS-RPS", ref: "HR-PRE-031", type: "PRE_INITIATOR" as const, tm: true, task: "Protection setpoints miscalibrated after surveillance.", srs: ["SY-A21"] },
-  { id: "HFE-9", system: "SYS-RCCS", ref: "HR-PRE-018", type: "PRE_INITIATOR" as const, tm: true, task: "Cavity-cooling duct dampers left misaligned after surveillance.", srs: ["SY-A21"] },
-  { id: "HFE-10", system: "SYS-1E-DC", ref: "HR-PRE-041", type: "PRE_INITIATOR" as const, tm: true, task: "Both battery banks held off float after equalization.", srs: ["SY-A21"] },
+  { id: "HFI-RPS-HFE-CAL", event: "RPS-HFE-CAL", system: "SYS-RPS", ref: "HR-PRE-031", type: "PRE_INITIATOR" as const, tm: true, task: "Protection setpoints miscalibrated after surveillance", impact: "Setpoints miscalibrated in both divisions delay or block the trip on demand.", srs: ["SY-A21"] },
+  { id: "HFI-SCS-HFE", event: "SCS-HFE", system: "SYS-SCS", ref: "HR-POST-018", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to start the second shutdown-cooling train", impact: "The second train stays idle at full power, where two of two trains are needed.", srs: ["SY-A23"] },
+  { id: "HFI-RCC-HFE-DMP", event: "RCC-HFE-DMP", system: "SYS-RCCS", ref: "HR-PRE-018", type: "PRE_INITIATOR" as const, tm: true, task: "Cavity-cooling duct dampers left misaligned after surveillance", impact: "Dampers left partly closed cut the draft in the affected duct groups.", srs: ["SY-A21"] },
+  { id: "HFI-SGI-HFE", event: "SGI-HFE", system: "SYS-SGISO", ref: "HR-POST-022", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to isolate the affected steam generator", impact: "The leaking steam generator keeps feeding water into the primary circuit.", srs: ["SY-A23"] },
+  { id: "HFI-HPI-HFE", event: "HPI-HFE", system: "SYS-HPBI", ref: "HR-POST-025", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to isolate the leaking helium segment", impact: "The leaking segment stays open, so the helium inventory keeps falling.", srs: ["SY-A23"] },
+  { id: "HFI-HIC-HFE", event: "HIC-HFE", system: "SYS-HIC", ref: "HR-POST-026", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to initiate helium make-up", impact: "No make-up flow, so the slow depressurization runs on to conduction cooldown.", srs: ["SY-A23"] },
+  { id: "HFI-RB-HFE", event: "RB-HFE", system: "SYS-RB", ref: "HR-POST-028", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to start the standby filtration train", impact: "No filtered ventilation after the running train stops.", srs: ["SY-A23"] },
+  { id: "HFI-DC-HFE-CHG", event: "DC-HFE-CHG", system: "SYS-1E-DC", ref: "HR-PRE-009", type: "PRE_INITIATOR" as const, tm: true, task: "Charger left in the wrong mode after maintenance", impact: "Charger A left in the wrong mode, so bank A discharges instead of floating.", srs: ["SY-A21"] },
+  { id: "HFI-DC-HFE-BNK", event: "DC-HFE-BNK", system: "SYS-1E-DC", ref: "HR-PRE-041", type: "PRE_INITIATOR" as const, tm: true, task: "Both battery banks held off float after equalization", impact: "Both banks stay off float after the joint equalization, so neither can carry its bus on a charger loss.", srs: ["SY-A21"] },
+  { id: "HFI-MMS-HFE-CAL", event: "MMS-HFE-CAL", system: "SYS-MMS", ref: "HR-PRE-014", type: "PRE_INITIATOR" as const, tm: true, task: "Moisture monitors miscalibrated after surveillance", impact: "Both monitors read low, so no isolation signal on a moisture ingress.", srs: ["SY-A21"] },
 ].map((h) => ({
   uuid: h.id,
   hfeReference: h.ref,
+  basicEventId: h.event,
   system: h.system,
   taskDescription: h.task,
   hfeType: h.type,
   isTestMaintenance: h.tm,
+  impact: h.impact,
   implementsSrs: srs(...h.srs),
 }));
 
 const componentScreeningJustifications = [
-  { id: "CS-1", system: "SYS-RCCS", component: "Cavity cooling instrument isolation root valve", crit: "a" as const, basis: "Passive open valve, failure probability 4E-7 over 72 h." },
-  { id: "CS-2", system: "SYS-RB", component: "Filtration train manual balancing damper", crit: "b" as const, basis: "Leakage cannot defeat the isolation criterion, downstream of the boundary." },
-  { id: "CS-3", system: "SYS-RPS", component: "Trip cabinet indicating lamp", crit: "b" as const, basis: "Indication only, no path to the trip function." },
-  { id: "CS-4", system: "SYS-1E-DC", component: "DC bus tie isolating link", crit: "a" as const, basis: "Failure probability 7E-7 over 24 h, support contribution checked." },
+  { id: "SCR-SCS-1", system: "SYS-SCS", component: "Train A cooling-water inlet manual valve transfers closed", crit: "a" as const, basis: "4.5E-7 over 24 h from the industry-average manual valve spurious operation rate (XVM-SOP) of 1.88E-8 per hour, against 8.0E-3 for the train A circulator failing to run. The ratio is 17,700, above 100." },
+  { id: "SCR-RCCS-1", system: "SYS-RCCS", component: "Duct group 1 air damper closes spuriously", crit: "a" as const, basis: "1.2E-5 over 72 h from the industry-average air-operated damper spurious operation rate (AOD-SOP) of 1.61E-7 per hour, against 2.0E-3 for duct group 1 blockage. The ratio is 173, above 100." },
+  { id: "SCR-SGISO-1", system: "SYS-SGISO", component: "Dump line manual isolation valve transfers closed", crit: "a" as const, basis: "4.5E-7 over 24 h from the industry-average manual valve spurious operation rate (XVM-SOP) of 1.88E-8 per hour, against 1.5E-3 for the dump valve failing to open. The ratio is 3,320, above 100." },
+  { id: "SCR-HPBI-1", system: "SYS-HPBI", component: "Segment isolation valve A small external leakage", crit: "b" as const, basis: "4.5E-7 over 24 h from the industry-average motor-operated valve small external leakage rate (MOV-ELS) of 1.88E-8 per hour, against 2.0E-3 for valve A failing to close. That is 0.023 percent of the component's failures, under 1 percent, and both leave the segment open." },
+  { id: "SCR-DETECT-1", system: "SYS-DETECT", component: "Pressure channel A sensing line root valve transfers closed", crit: "a" as const, basis: "4.5E-7 over 24 h from the industry-average manual valve spurious operation rate (XVM-SOP) of 1.88E-8 per hour, against 3.0E-3 for pressure channel A failing. The ratio is 6,650, above 100." },
+  { id: "SCR-HIC-1", system: "SYS-HIC", component: "Make-up line check valve fails to open", crit: "a" as const, basis: "1.12E-5 per demand from the industry-average check valve fails-to-open probability (CKV-FTO), against 4.0E-3 for the make-up compressor failing to start. The ratio is 357, above 100." },
+  { id: "SCR-RB-1", system: "SYS-RB", component: "Running filtration train inlet damper closes spuriously", crit: "a" as const, basis: "1.2E-5 over 72 h from the industry-average air-operated damper spurious operation rate (AOD-SOP) of 1.61E-7 per hour, against 6.0E-3 for the running filtration train failing to run. The ratio is 518, above 100." },
+  { id: "SCR-AC-1", system: "SYS-AC", component: "Backup generator 1 fuel supply manual valve transfers closed", crit: "a" as const, basis: "4.5E-7 over 24 h from the industry-average manual valve spurious operation rate (XVM-SOP) of 1.88E-8 per hour, against 1.0E-1 for generator 1 failing to run. The ratio is 224,000, above 100." },
+  { id: "SCR-1E-DC-1", system: "SYS-1E-DC", component: "DC bus A fails", crit: "a" as const, basis: "1.7E-5 over 24 h from the industry-average DC bus failure rate (BUS-FTOP-DC) of 7.13E-7 per hour, against 6.0E-3 for battery train A failing to run. The ratio is 351, above 100." },
+  { id: "SCR-CCW-1", system: "SYS-CCW", component: "Train A shutdown-cooler relief valve opens spuriously", crit: "a" as const, basis: "1.3E-6 over 24 h from the industry-average relief valve spurious operation rate (RVL-SOP) of 5.46E-8 per hour, against 6.0E-3 for cooling-water pump A failing to run. The ratio is 4,580, above 100." },
+  { id: "SCR-CCW-2", system: "SYS-CCW", component: "Cooling-water pump A external rupture", crit: "b" as const, basis: "3.3E-7 over 24 h from the industry-average motor-driven pump external rupture rate (MDP-ELL) of 1.39E-8 per hour, against 6.0E-3 for pump A failing to run. That is 0.0056 percent of the component's failures, under 1 percent, and both stop the train A flow." },
+  { id: "SCR-MMS-1", system: "SYS-MMS", component: "Loop A monitor sample line isolation valve transfers closed", crit: "a" as const, basis: "4.5E-7 over 24 h from the industry-average manual valve spurious operation rate (XVM-SOP) of 1.88E-8 per hour, against 3.0E-3 for the loop A moisture monitor failing. The ratio is 6,650, above 100." },
 ].map((c) => ({
   uuid: c.id,
   systemReference: c.system,
@@ -753,31 +959,49 @@ const componentScreeningJustifications = [
 }));
 
 const supportSystemSuccessCriteria = [
-  { id: "SN-1", system: "SYS-1E-DC", type: "REALISTIC" as const, supports: ["SYS-RPS", "SYS-SGISO", "SYS-RB", "SYS-DETECT"], criterion: "One battery and one bus carry the protective loads for the mission time." },
-  { id: "SN-2", system: "SYS-AC", type: "REALISTIC" as const, supports: ["SYS-SCS", "SYS-CCW", "SYS-HIC"], criterion: "Either backup gas-turbine generator, through the bus tie, carries the shutdown-cooling loads." },
-  { id: "SN-3", system: "SYS-CCW", type: "CONSERVATIVE" as const, supports: ["SYS-SCS"], criterion: "One cooling-water train removes heat from the shutdown coolers." },
+  { id: "SN-1", system: "SYS-1E-DC", type: "REALISTIC" as const, supports: ["SYS-RPS", "SYS-SGISO", "SYS-HPBI", "SYS-DETECT", "SYS-RB", "SYS-MMS"], criterion: "One battery and one bus carry the protective loads for the 24 h mission, with load shedding done within 30 minutes of a charger loss." },
+  { id: "SN-2", system: "SYS-AC", type: "REALISTIC" as const, supports: ["SYS-SCS", "SYS-CCW", "SYS-HIC"], criterion: "Either backup gas-turbine generator, through the bus tie, carries the shutdown-cooling loads well inside the 33 hour window for starting shutdown cooling." },
+  { id: "SN-3", system: "SYS-CCW", type: "CONSERVATIVE" as const, supports: ["SYS-SCS"], criterion: "One cooling-water train removes heat from the shutdown coolers for the 24 h mission." },
+  { id: "SN-4", system: "SYS-MMS", type: "REALISTIC" as const, supports: ["SYS-SGISO"], criterion: "One of the two moisture monitors on the affected loop generates the isolation signal and the control-room alarm." },
+  { id: "SN-5", system: "SYS-DETECT", type: "CONSERVATIVE" as const, supports: ["SYS-HPBI", "SYS-HIC"], criterion: "One of the two pressure channels generates the leak-detection signal and the control-room alarm before the helium inventory reaches the depressurized band." },
 ].map((n) => ({
   uuid: n.id,
   systemReference: n.system,
   successCriteria: n.criterion,
   criteriaType: n.type,
   supportedSystems: n.supports,
-  implementsSrs: srs("SY-B6", "SY-B7"),
+  implementsSrs: srs("SY-B7", "SY-B9"),
+}));
+
+const supportSystemNeedAnalyses = [
+  { id: "NA-SCS", system: "SYS-SCS", analysis: "Shutdown-cooling support analysis", conditions: ["Full power: both circulators, both shutdown coolers and one cooling-water train", "Shutdown states: one circulator and its cooler", "Loss of normal power: the backup generators carry the circulators and pumps through the bus tie"] },
+  { id: "NA-RPS", system: "SYS-RPS", analysis: "Protection cabinet heat-up calculation", conditions: ["Loss of building ventilation at full power: the cabinets stay within their qualification for the 24 h mission, so no room-cooling support is modeled"] },
+  { id: "NA-DC", system: "SYS-1E-DC", analysis: "Battery duty and load-shedding calculation", conditions: ["Loss of normal AC with the chargers off", "Load shedding done within 30 minutes of the charger loss", "Minimum winter battery room temperature"] },
+  { id: "NA-RCCS", system: "SYS-RCCS", analysis: "Passive cavity cooling support review", conditions: ["No power, cooling water or signal needed in any operating state", "Duct dampers locked open and checked at each surveillance"] },
+  { id: "NA-SGISO", system: "SYS-SGISO", analysis: "Steam-generator isolation and dump actuation review", conditions: ["Automatic isolation on the moisture signal", "Operator backup within the 2 hour window on the same moisture alarm", "DC motive power for the isolation and dump valves"] },
+].map((a) => ({
+  uuid: a.id,
+  systemReference: a.system,
+  analysisReference: a.analysis,
+  conditionsRepresented: a.conditions,
+  implementsSrs: srs("SY-B6"),
 }));
 
 const depletionModels = [
-  { id: "INV-1", resource: "Class-1E DC battery", type: "battery" as const, system: "SYS-1E-DC", capacity: 4, mission: 24, supports: false, treatment: "Load shedding extends the duty to 24 h, calculation under review." },
-  { id: "INV-2", resource: "Helium make-up storage", type: "other" as const, system: "SYS-HIC", capacity: 24, mission: 24, supports: true, treatment: "Storage sized for the make-up demand across the mission time." },
-  { id: "INV-3", resource: "Cavity cooling air heat sink", type: "air" as const, system: "SYS-RCCS", capacity: 0, mission: 72, supports: true, treatment: "Atmospheric heat sink, no depletion." },
+  { id: "INV-1", resource: "Class 1E DC battery", type: "battery" as const, system: "SYS-1E-DC", hours: 4, supports: false, impact: "immediate-failure" as const, basis: "Lasts 4 h at the full protective load. Load shedding within 30 minutes extends the duty to the 24 h mission, and that calculation is under review." },
+  { id: "INV-2", resource: "Helium make-up storage", type: "other" as const, system: "SYS-HIC", hours: 24, supports: true, impact: "immediate-failure" as const, basis: "Storage sized for the make-up demand across the 24 h mission." },
+  { id: "INV-3", resource: "Cavity cooling air heat sink", type: "air" as const, system: "SYS-RCCS", hours: 0, supports: true, impact: undefined, basis: "The atmosphere is the heat sink, so there is no inventory to run out." },
 ].map((d) => ({
   uuid: d.id,
   resourceType: d.type,
   description: d.resource,
-  initialQuantity: d.capacity,
-  consumptionRate: d.capacity > 0 ? Number((d.capacity / d.mission).toFixed(3)) : 0,
+  initialQuantity: d.hours,
+  consumptionRate: 1,
   units: "hours",
   associatedSystem: d.system,
+  ...(d.impact === undefined ? {} : { depletionImpact: d.impact }),
   missionTimeSupported: d.supports,
+  basis: d.basis,
   implementsSrs: srs("SY-B12"),
 }));
 
@@ -787,12 +1011,28 @@ const digitalInstrumentationAndControl = [
     name: "Protection and isolation logic",
     systemReference: "SYS-RPS",
     description: "Digital protection logic for the trip and isolation functions.",
-    methodology: "Modeled per the Part II Subpart 2.7 digital I&C method, one accepted approach among others.",
+    methodology: "Division-level trip logic events, with software faults carried inside the division events and the divisional common cause group.",
     failureModes: ["Channel hardware failure", "Systematic software fault", "Common software image failure"],
-    specialConsiderations: ["Software common cause carried as a bounding term, to be modeled at CC-II (SY-B11)."],
+    specialConsiderations: ["A separate software common cause term waits for the software design, so SY-B11 stays open at CC-II.", "Cabinet cooling screened out by the protection cabinet heat-up calculation."],
     implementsSrs: srs("SY-B11"),
   },
 ];
+
+const initiationActuationSystems = [
+  { id: "IA-RPS", name: "Reactor trip actuation", system: "SYS-RPS", description: "Trips on high neutron flux, high primary pressure, low primary flow or high moisture, voted within each of the two divisions.", detailed: false, why: "Modeled at the division level with the divisional common cause group, since the channel-level design is not yet fixed.", software: "Software faults sit inside the division events and the divisional common cause group." },
+  { id: "IA-SGISO", name: "Steam-generator isolation actuation", system: "SYS-SGISO", description: "The moisture signal closes the steam and feedwater isolation valves and opens the dump valve. The operator backs up the isolation on the same alarm.", detailed: true, why: undefined, software: "No software is credited in the isolation path." },
+  { id: "IA-HPBI", name: "Helium boundary isolation actuation", system: "SYS-HPBI", description: "The leak-detection signal from the pressure channels closes the segment isolation valves, with an operator backup.", detailed: true, why: undefined, software: "No software is credited in the isolation path." },
+  { id: "IA-RB", name: "Building isolation actuation", system: "SYS-RB", description: "The protection system closes the isolation dampers and starts the filtration train on high building pressure or activity.", detailed: false, why: "Carried as the DC-powered isolation signal, since the building actuation logic is not yet designed.", software: undefined },
+].map((a) => ({
+  uuid: a.id,
+  name: a.name,
+  systemReference: a.system,
+  description: a.description,
+  detailedModeling: a.detailed,
+  ...(a.why === undefined ? {} : { justificationForNonDetailedModeling: a.why }),
+  ...(a.software === undefined ? {} : { softwareModelingApproach: a.software }),
+  implementsSrs: srs("SY-B11"),
+}));
 
 const passiveSystemsTreatments = [
   { uuid: "PST-RCCS", name: "Reactor cavity cooling", systemReference: "SYS-RCCS", description: "Decay heat rejected from the vessel to the cavity ducts by natural-draft air flow and thermal radiation, no active power.", relevantPhysicalPhenomena: ["Natural-draft air flow", "Vessel thermal radiation", "Core conduction"], uncertaintyEvaluation: "Reliability propagated by direct uncertainty quantification.", implementsSrs: srs("SY-A9") },
@@ -830,21 +1070,37 @@ const overCapacityConsiderations = [
 }));
 
 const environmentalDesignBasisConsiderations = [
-  { id: "SPC-1", system: "SYS-RCCS", components: ["RCC-DUCT1", "RCC-DUCT2"], seqs: ["IEG-11", "IEG-01"], text: "Cavity riser. A depressurization heats the cavity and can degrade two of the four duct groups on the same riser, carried through the environment factor of the duct common cause group.", included: true },
-  { id: "SPC-2", system: "SYS-SCS", components: ["SCS-TR-A", "SCS-TR-B"], seqs: ["IEG-05"], text: "Shared support cooling. Loss of component cooling water or mechanical support raises the shutdown-cooling room temperature for both trains together, carried as the cooling dependency in the support matrix.", included: true },
-  { id: "SPC-3", system: "SYS-RB", components: ["RB-DMP-A", "RB-DMP-B"], seqs: ["IEG-10", "IEG-17"], text: "Depressurization environment. A blowdown into the building can push the isolation dampers beyond their environmental qualification, so the adverse condition enters as a dependent failure.", included: true },
+  { id: "SPC-1", system: "SYS-RCCS", components: ["RCC-DUCT1", "RCC-DUCT2"], events: ["RCC-DUCT1-BLK", "RCC-DUCT2-BLK"], initiators: ["IEG-10", "IEG-11"], text: "Cavity riser. A depressurization heats the cavity and can degrade two of the four duct groups on the same riser, carried through the environment factor of the duct common cause group.", included: true, beyond: false },
+  { id: "SPC-2", system: "SYS-SCS", components: ["SCS-TR-A", "SCS-TR-B"], events: ["SCS-TRA-FR", "SCS-TRB-FR"], initiators: ["IEG-05"], text: "Shared support cooling. Loss of component cooling water or mechanical support raises the shutdown-cooling room temperature for both trains together, carried as the cooling transfer in the shutdown-cooling fault tree.", included: true, beyond: false },
+  { id: "SPC-3", system: "SYS-RB", components: ["RB-DMP-A", "RB-DMP-B"], events: ["RB-DMP-A-FC", "RB-DMP-B-FC"], initiators: ["IEG-10", "IEG-11"], text: "Depressurization environment. A blowdown into the building can push the isolation dampers beyond their environmental qualification, so the adverse condition enters as a dependent failure.", included: true, beyond: true },
+  { id: "SPC-4", system: "SYS-1E-DC", components: ["DC-BAT-A", "DC-BAT-B"], events: ["DC-BAT-A-FR", "DC-BAT-B-FR"], initiators: ["IEG-03", "IEG-04"], text: "Shared battery room. Both battery trains sit in one room, so a room fire or a room heat-up affects both together, carried through the environment factor of the battery common cause group.", included: true, beyond: false },
 ].map((e) => ({
   uuid: e.id,
   systemReference: e.system,
   components: e.components,
-  eventSequences: e.seqs,
+  eventSequences: [],
   environmentalConditions: e.text,
   dependentFailuresIncluded: e.included,
-  implementsSrs: srs("SY-B8", "SY-B14"),
+  basicEventIds: e.events,
+  initiatingEventIds: e.initiators,
+  ...(e.beyond ? { beyondQualification: true } : {}),
+  implementsSrs: e.beyond ? srs("SY-B8", "SY-B14") : srs("SY-B8"),
 }));
 
 const simultaneousUnavailabilityEvents = [
-  { uuid: "UA-3", description: "Both shutdown-cooling trains credited while one is in planned maintenance", componentIds: ["SCS-TR-A", "SCS-TR-B"], dataAnalysisRef: "DA-UA-11", plannedActivityBasis: "The surveillance plan staggers train maintenance so the second train is never out at the same time; the record confirms the planned unavailability is not simultaneous.", implementsSrs: srs("SY-A27") },
+  { uuid: "SU-RB-FILTER", systemReference: "SYS-RB", description: "Filter change on the running filtration train", componentIds: ["RB-FLT-DMP-TM"], dataAnalysisRef: "CM-1", plannedActivityBasis: "The filter change isolates the running train at damper A, so both are out for the change. Pre-operational assumption from the design maintenance plan, about 18 hours a year at power.", implementsSrs: srs("SY-A27") },
+  { uuid: "SU-DC-EQUALIZE", systemReference: "SYS-1E-DC", description: "Joint equalizing charge of both battery banks", componentIds: ["DC-BAT-AB-TM"], dataAnalysisRef: "CM-2", plannedActivityBasis: "The design test plan equalizes both banks in one evolution once a year. The chargers carry the buses meanwhile, so both batteries are unavailable for about 22 hours.", implementsSrs: srs("SY-A27") },
+];
+
+const isolationTripConditions = [
+  { uuid: "ITC-SCS-1", systemReference: "SYS-SCS", condition: "Circulator trip on high moisture in the primary coolant, which stops a train during a steam-generator leak.", modeledIn: "EVENT_SEQUENCE" as const, implementsSrs: srs("SY-A24") },
+  { uuid: "ITC-SCS-2", systemReference: "SYS-SCS", condition: "Circulator trip on high motor winding temperature, counted in the circulator fails-to-run data.", modeledIn: "SYSTEM_MODEL" as const, implementsSrs: srs("SY-A24") },
+  { uuid: "ITC-SGISO-1", systemReference: "SYS-SGISO", condition: "Dump valve closure interlock on high dump tank level.", modeledIn: "EXCLUDED" as const, exclusionJustification: "The tank holds the full loop inventory, so the interlock does not reach its setpoint during a dump.", implementsSrs: srs("SY-A24") },
+  { uuid: "ITC-HIC-1", systemReference: "SYS-HIC", condition: "Make-up compressor trip on high discharge pressure.", modeledIn: "EXCLUDED" as const, exclusionJustification: "The trip setpoint is above the highest make-up pressure, so it cannot actuate during make-up.", implementsSrs: srs("SY-A24") },
+  { uuid: "ITC-RB-1", systemReference: "SYS-RB", condition: "Filtration fan trip on high filter differential pressure, counted in the running train fails-to-run data.", modeledIn: "SYSTEM_MODEL" as const, implementsSrs: srs("SY-A24") },
+  { uuid: "ITC-AC-1", systemReference: "SYS-AC", condition: "Gas-turbine protective trips on overspeed, high exhaust temperature or low lube-oil pressure, counted in the generator fails-to-run data.", modeledIn: "SYSTEM_MODEL" as const, implementsSrs: srs("SY-A24") },
+  { uuid: "ITC-1E-DC-1", systemReference: "SYS-1E-DC", condition: "Battery output breaker trip on a downstream bus fault, counted in the battery train fails-to-run data.", modeledIn: "SYSTEM_MODEL" as const, implementsSrs: srs("SY-A24") },
+  { uuid: "ITC-CCW-1", systemReference: "SYS-CCW", condition: "Cooling-water pump trip on low suction pressure, counted in the pump fails-to-run data.", modeledIn: "SYSTEM_MODEL" as const, implementsSrs: srs("SY-A24") },
 ];
 
 const uncertaintyAnalyses = [
@@ -853,7 +1109,7 @@ const uncertaintyAnalyses = [
     system: "SYS-RCCS",
     propagationMethod: "MONTE_CARLO" as const,
     modelUncertainties: [
-      { uncertaintyId: "MU-1", description: "RCCS duct common cause parameter", impact: "Sensitivity on the beta factor pending DA-D8.", isQuantified: false, treatmentApproach: "Sensitivity study on the beta-factor range." },
+      { uncertaintyId: "MU-1", description: "RCCS duct common cause parameter", impact: "Sensitivity on the generic alpha factors pending DA-D8.", isQuantified: false, treatmentApproach: "Sensitivity study across the alpha-factor uncertainty band." },
       { uncertaintyId: "MU-3", description: "Battery depletion duty", impact: "Load-shedding calculation carried as an open uncertainty.", isQuantified: false, treatmentApproach: "Bounded estimate until the calculation closes." },
     ],
     parameterUncertainties: [
@@ -873,6 +1129,9 @@ const preOperationalAssumptions = [
   { id: "PA-2", area: "Maintenance unavailability", desc: "Assumed durations until as-operated maintenance data exists.", risk: ImportanceLevel.LOW, srs: ["SY-A26"], paths: ["simultaneousUnavailabilityEvents"] },
   { id: "PA-3", area: "Dependency modeling", desc: "Support needs from design analysis, to re-check against operation.", risk: ImportanceLevel.MEDIUM, srs: ["SY-B17"], paths: ["systemDependencies"] },
   { id: "PA-4", area: "Documentation", desc: "Systems taken free of design and construction errors, to verify as-built.", risk: ImportanceLevel.LOW, srs: ["SY-C3"], paths: ["documentation"] },
+  { id: "PA-5", area: "Dependency modeling", desc: "The two backup generators are taken as independent apart from their common cause group, with separate fuel, starting air and cubicles per the design package.", risk: ImportanceLevel.MEDIUM, srs: ["SY-B10"], paths: ["SYS-AC"] },
+  { id: "PA-6", area: "Dependency modeling", desc: "The battery chargers are taken as fed from the backup-power buses, pending the as-built single-line diagram.", risk: ImportanceLevel.MEDIUM, srs: ["SY-B10", "SY-B17"], paths: ["SYS-1E-DC"] },
+  { id: "PA-7", area: "Dependency modeling", desc: "The pressure channels and the moisture monitors are taken as independent, with separate sensing lines and power feeds.", risk: ImportanceLevel.LOW, srs: ["SY-B10"], paths: ["SYS-DETECT", "SYS-MMS"] },
 ].map((a) => ({
   uuid: a.id,
   assumptionId: a.id,
@@ -926,7 +1185,7 @@ export const SY_ANALYSIS_HTGR: SystemsAnalysis = SystemsAnalysisSchema.parse({
     openCount: 4,
     resolvedCount: 1,
     comments: [
-      { uuid: "syc-1", authorRole: "INTERNAL_REVIEWER", authorId: "rev-3", createdAt: "2026-05-02T09:14:00.000Z", associatedSr: "SY-B3", text: "The RCCS duct group rests on a shared cavity environment and shared make, so SY-B3 needs the grouping basis closed against the DA-D8 parameter set before the beta factor is final.", severity: "MAJOR", resolved: false },
+      { uuid: "syc-1", authorRole: "INTERNAL_REVIEWER", authorId: "rev-3", createdAt: "2026-05-02T09:14:00.000Z", associatedSr: "SY-B3", text: "The RCCS duct group rests on a shared cavity environment and shared make, so SY-B3 needs the grouping basis closed against the DA-D8 parameter set before the alpha factors are final.", severity: "MAJOR", resolved: false },
       { uuid: "syc-2", authorRole: "INTERNAL_REVIEWER", authorId: "rev-2", createdAt: "2026-05-02T10:30:00.000Z", associatedSr: "SY-B11", text: "The protection logic carries a single software image across the trip and isolation functions, so SY-B11 needs the software common cause modeled rather than left as a bounding term.", severity: "MAJOR", resolved: false },
       { uuid: "syc-3", authorRole: "INTERNAL_REVIEWER", authorId: "rev-3", createdAt: "2026-05-02T11:00:00.000Z", associatedSr: "SY-B12", text: "A 4 hour battery against a 24 hour mission needs the load-shedding calculation closed under SY-B12, since the current model assumes the duty without showing it.", severity: "MAJOR", resolved: false },
       { uuid: "syc-4", authorRole: "INTERNAL_REVIEWER", authorId: "rev-1", createdAt: "2026-05-03T14:05:00.000Z", associatedSr: "SY-B8", text: "Two RCCS duct groups share the cavity riser, so SY-B8 needs the riser-level dependent failure confirmed in the fault tree, not only noted in the text.", severity: "MINOR", resolved: false },
@@ -961,13 +1220,14 @@ export const SY_ANALYSIS_HTGR: SystemsAnalysis = SystemsAnalysisSchema.parse({
   dependencySearchMethodology: {
     uuid: "DSM-1",
     name: "Support-system dependency search",
-    description: "Each system row is checked against the support columns by engineering analysis, with a support-on-support loop resolved explicitly.",
-    reference: "Generic HTGR dependency search procedure",
+    description: "Every system is checked against every other system for control power, motive power, actuation signals, cooling and operator cues. Each need found is traced to a transfer in the fault trees or left out with an engineering reason, and any loop between two systems is broken the same way.",
+    reference: "NUREG-1860 dependency search approach for new designs",
     dependencyTables: [{ tableId: "DEP-MATRIX", description: "Support-system dependency matrix" }],
     systemsAnalyzed: SYSTEMS.map((s) => s.id),
     implementsSrs: srs("SY-B5", "SY-B6"),
   },
   commonCauseFailureGroups,
+  supportSystemNeedAnalyses,
   supportSystemSuccessCriteria,
   humanFailureEventIntegrations,
   exampleDocuments: [
@@ -977,11 +1237,13 @@ export const SY_ANALYSIS_HTGR: SystemsAnalysis = SystemsAnalysisSchema.parse({
     { id: "SY-DOC-04", name: "Probabilistic risk assessment, volume 1", kind: "doc", sizeLabel: "DOE", uploadedLabel: "DOE-HTGR-86-011 Rev. 3", extracted: "System descriptions, success criteria and the event and fault tree models behind the PRA", linked: 7, url: "/api/example-documents/sy/mhtgr-pra-model" },
     { id: "SY-DOC-05", name: "NRC preapplication safety evaluation", kind: "doc", sizeLabel: "NRC", uploadedLabel: "NUREG-1338", extracted: "Staff review of the protection, heat removal and helium boundary systems", linked: 0, url: "/api/example-documents/sy/mhtgr-nrc-review" },
     { id: "SY-DOC-06", name: "Component failure data", kind: "sheet", sizeLabel: "NRC", uploadedLabel: "NUREG/CR-6928", extracted: "Basic-event failure rates for the modeled components", linked: 6 },
-    { id: "SY-DOC-07", name: "Common-cause failure parameter estimates", kind: "sheet", sizeLabel: "NRC", uploadedLabel: "NUREG/CR-5485", extracted: "Alpha-factor common-cause parameters for the redundant train and division groups", linked: 3 },
+    { id: "SY-DOC-07", name: "Common-cause failure parameter estimates", kind: "sheet", sizeLabel: "INL", uploadedLabel: "INL/EXT-21-62940 Rev. 1", extracted: "Generic alpha factors for demand and rate failures in common cause groups of two to eight", linked: 3 },
   ],
   simultaneousUnavailabilityEvents,
+  isolationTripConditions,
   componentScreeningJustifications,
   environmentalDesignBasisConsiderations,
+  initiationActuationSystems,
   digitalInstrumentationAndControl,
   passiveSystemsTreatments,
   depletionModels,
@@ -992,7 +1254,7 @@ export const SY_ANALYSIS_HTGR: SystemsAnalysis = SystemsAnalysisSchema.parse({
     uuid: "sy-mu-1",
     name: "SY model uncertainty documentation",
     uncertaintySources: [
-      { source: "RCCS duct common cause parameter", impact: "Sensitivity on the beta factor pending DA-D8." },
+      { source: "RCCS duct common cause parameter", impact: "Sensitivity on the generic alpha factors pending DA-D8." },
       { source: "Protection software failure mode", impact: "Bounded estimate carried until the CC-II software model is set." },
       { source: "Battery depletion duty", impact: "Load-shedding calculation carried as an open uncertainty." },
       { source: "Supercomponent boundary for the trip cabinet", impact: "Boundary checked against the data, flagged for the as-built." },

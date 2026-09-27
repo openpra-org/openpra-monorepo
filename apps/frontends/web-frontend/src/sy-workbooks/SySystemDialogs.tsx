@@ -27,6 +27,8 @@ function referencedSystemIds(sy: SystemsAnalysis): Set<string> {
   sy.commonCauseFailureGroups.forEach((group) => group.affectedSystems.forEach((id) => ids.add(id)));
   sy.humanFailureEventIntegrations.forEach((integration) => ids.add(integration.system));
   (sy.componentScreeningJustifications ?? []).forEach((item) => ids.add(item.systemReference));
+  (sy.isolationTripConditions ?? []).forEach((item) => ids.add(item.systemReference));
+  (sy.simultaneousUnavailabilityEvents ?? []).forEach((item) => { if (item.systemReference !== undefined) ids.add(item.systemReference); });
   (sy.supportSystemSuccessCriteria ?? []).forEach((item) => {
     ids.add(item.systemReference);
     item.supportedSystems.forEach((id) => ids.add(id));
@@ -34,6 +36,8 @@ function referencedSystemIds(sy: SystemsAnalysis): Set<string> {
   (sy.environmentalDesignBasisConsiderations ?? []).forEach((item) => ids.add(item.systemReference));
   (sy.depletionModels ?? []).forEach((item) => { if (item.associatedSystem !== undefined) ids.add(item.associatedSystem); });
   (sy.digitalInstrumentationAndControl ?? []).forEach((item) => ids.add(item.systemReference));
+  (sy.initiationActuationSystems ?? []).forEach((item) => ids.add(item.systemReference));
+  (sy.supportSystemNeedAnalyses ?? []).forEach((item) => ids.add(item.systemReference));
   (sy.overCapacityConsiderations ?? []).forEach((item) => ids.add(item.system));
   (sy.systemConfirmationRecords ?? []).forEach((item) => { if (item.systemReference !== undefined) ids.add(item.systemReference); });
   (sy.uncertaintyAnalyses ?? []).forEach((item) => ids.add(item.system));
@@ -484,4 +488,4 @@ function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & 
   );
 }
 
-export { SystemDialogContent, isSystemDialogKind, referencedSystemIds, type SystemDialogKind };
+export { ListEditor, SystemDialogContent, isSystemDialogKind, referencedSystemIds, type SystemDialogKind };

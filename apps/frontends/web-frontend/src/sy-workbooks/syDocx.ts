@@ -10,9 +10,21 @@ import {
   WidthType,
   BorderStyle,
 } from "docx";
-import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { type CommonCauseFailureGroup, type SystemDefinition, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { analysisModelBasicEvents } from "./syUncertainty";
 import { isSystemLevelModel } from "./sySelectors";
+import { CCF_MODELS, RESOURCE_TYPE_LABELS, SCREENING_CRITERIA, toExp } from "./syViewData";
+import { ccfFactorText, memberEvents, sharedCauseLines, totalFailureProbability } from "./syCcf";
+import {
+  DEPENDENCY_TREATMENT_LABELS,
+  SUPPORT_KIND_LABELS,
+  dependencyLinks,
+  inventoryHours,
+  linkDescription,
+  treatmentOf,
+  type DependencyLink,
+} from "./syDependencyLinks";
+import { TREATMENT_LABELS, integrationFor, systemOutages, systemTree } from "./syFailureRecords";
 import { AnalysisRunDetailsSchema, AnalysisRunProvenanceListSchema } from "interfaces-shared-types/newly-developed-methods/shared";
 import { FaultTreeAnalysisResultSchema } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { fetchJson } from "../api/client";
@@ -111,6 +123,183 @@ function modelLabel(a: SystemsAnalysis, systemId: string): string {
   return isSystemLevelModel(model) ? "System-level" : "Fault tree";
 }
 
+function commonCauseTable(a: SystemsAnalysis, groups: readonly CommonCauseFailureGroup[]): Table {
+  const systemName = (id: string): string => {
+    const system = a.systemDefinitions.find((candidate) => candidate.uuid === id);
+    return system?.abbreviation ?? system?.name ?? id;
+  };
+  return dataTable(
+    ["Group", "Member events", "Shared causes", "Defenses", "Parameters", "Source"],
+    groups.length === 0 ? [["None", "—", "—", "—", "—", "—"]] : groups.map((group) => {
+      const total = totalFailureProbability(group);
+      const reference = group.dataAnalysisCCFParameterRef ?? "";
+      return [
+        group.scope === "INTERSYSTEM" ? `${group.name} (across ${group.affectedSystems.map(systemName).join(", ")})` : group.name,
+        memberEvents(group, a).map((event) => event.name).join(", ") || "—",
+        sharedCauseLines(group).join(", ") || "—",
+        (group.defenseMechanisms ?? []).join(", ") || "—",
+        [CCF_MODELS[group.modelType]?.label ?? group.modelType, ccfFactorText(group), total === null ? "" : `Qₜ ${toExp(total)}`].filter((part) => part.length > 0).join(" · "),
+        reference.length > 0 ? `DA ${reference}` : (group.dataSources?.[0]?.reference ?? "Typed"),
+      ];
+    }),
+  );
+}
+
+function linkTreatmentText(link: DependencyLink, record: DependencyLink["records"][number] | undefined): string {
+  const treatment = record === undefined ? (link.transfers.length > 0 ? "SYSTEM_MODEL" : undefined) : treatmentOf(record, link);
+  if (treatment === undefined) return "—";
+  const reason = treatment === "EXCLUDED" ? record?.exclusionJustification : undefined;
+  return reason === undefined ? DEPENDENCY_TREATMENT_LABELS[treatment] : `${DEPENDENCY_TREATMENT_LABELS[treatment]}. ${reason}`;
+}
+
+function linkRowsFor(a: SystemsAnalysis, links: readonly DependencyLink[], other: (link: DependencyLink) => string): string[][] {
+  const nameOf = (id: string): string => a.systemDefinitions.find((candidate) => candidate.uuid === id)?.name ?? id;
+  return links.flatMap((link) => {
+    const records = link.records.length === 0 ? [undefined] : link.records;
+    return records.map((record) => [
+      nameOf(other(link)),
+      record?.supportKind === undefined ? "—" : SUPPORT_KIND_LABELS[record.supportKind],
+      linkDescription(link, record) ?? "—",
+      linkTreatmentText(link, record),
+    ]);
+  });
+}
+
+function dependencyContent(a: SystemsAnalysis, system: SystemDefinition, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): (Paragraph | Table)[] {
+  const out: (Paragraph | Table)[] = [];
+  const nameOf = (id: string): string => a.systemDefinitions.find((candidate) => candidate.uuid === id)?.name ?? id;
+  const links = dependencyLinks(a, null);
+  const needs = links.filter((link) => link.dependentSystem === system.uuid);
+  const neededBy = links.filter((link) => link.supportingSystem === system.uuid);
+  out.push(heading("Support it needs", level));
+  out.push(dataTable(["Support system", "Kind", "What it provides", "Treatment"], needs.length > 0 ? linkRowsFor(a, needs, (link) => link.supportingSystem) : [["None", "—", "—", "—"]]));
+  if (neededBy.length > 0) {
+    out.push(heading("Systems that need it", level));
+    out.push(dataTable(["System", "Kind", "What it needs", "Treatment"], linkRowsFor(a, neededBy, (link) => link.dependentSystem)));
+  }
+  const criteria = (a.supportSystemSuccessCriteria ?? []).filter((item) => item.systemReference === system.uuid);
+  if (criteria.length > 0) {
+    out.push(heading("Support success criteria", level));
+    out.push(dataTable(["Criterion", "Basis", "Serves"], criteria.map((item) => [
+      item.successCriteria || "—",
+      item.criteriaType === "REALISTIC" ? "Realistic" : "Conservative",
+      item.supportedSystems.map(nameOf).join(", ") || "—",
+    ])));
+  }
+  const analyses = (a.supportSystemNeedAnalyses ?? []).filter((item) => item.systemReference === system.uuid);
+  if (analyses.length > 0) {
+    out.push(heading("Support need analyses", level));
+    out.push(dataTable(["Analysis", "Conditions it covers"], analyses.map((item) => [item.analysisReference || "—", item.conditionsRepresented.join("; ") || "—"])));
+  }
+  const eventNames = new Map(a.systemBasicEvents.map((event) => [event.uuid, event.name]));
+  const couplings = (a.environmentalDesignBasisConsiderations ?? []).filter((item) => item.systemReference === system.uuid);
+  if (couplings.length > 0) {
+    out.push(heading("Shared spaces and harsh conditions", level));
+    out.push(dataTable(["Condition", "Events it affects", "Initiating events", "In the model"], couplings.map((item) => [
+      item.environmentalConditions || "—",
+      (item.basicEventIds ?? []).map((id) => eventNames.get(id) ?? id).join(", ") || "—",
+      (item.initiatingEventIds ?? []).join(", ") || "—",
+      (item.dependentFailuresIncluded === true ? "Yes" : "Not yet") + (item.beyondQualification === true ? ", beyond environmental qualification" : ""),
+    ])));
+  }
+  const inventories = (a.depletionModels ?? []).filter((item) => item.associatedSystem === system.uuid);
+  if (inventories.length > 0) {
+    out.push(heading("Inventories", level));
+    out.push(dataTable(["Inventory", "Lasts", "Carries the mission", "Basis"], inventories.map((item) => {
+      const hours = inventoryHours(item);
+      const lasts = item.initialQuantity <= 0 ? "Does not deplete" : hours === null ? "—" : `${Number(hours.toPrecision(4))} h`;
+      const carries = item.missionTimeSupported === undefined ? "Not assessed" : item.missionTimeSupported ? "Yes" : "No";
+      return [item.description ?? RESOURCE_TYPE_LABELS[item.resourceType], lasts, carries, item.basis ?? "—"];
+    })));
+  }
+  const actuations = (a.initiationActuationSystems ?? []).filter((item) => item.systemReference === system.uuid);
+  const digital = (a.digitalInstrumentationAndControl ?? []).filter((item) => item.systemReference === system.uuid);
+  if (actuations.length > 0 || digital.length > 0) {
+    out.push(heading("Actuation and software", level));
+    const actuationRows = actuations.map((item) => {
+      const detail = item.detailedModeling ? "Modeled in detail." : `Modeled without detail. ${item.justificationForNonDetailedModeling ?? ""}`.trim();
+      const software = item.softwareModelingApproach === undefined ? "" : ` Software: ${item.softwareModelingApproach}`;
+      return [item.name || "—", `${detail}${software}`];
+    });
+    const digitalRows = digital.map((item) => [item.name || "—", item.methodology || "—"]);
+    out.push(dataTable(["Record", "How the model treats it"], [...actuationRows, ...digitalRows]));
+  }
+  return out;
+}
+
+function dependencySummary(a: SystemsAnalysis): (Paragraph | Table)[] {
+  const out: (Paragraph | Table)[] = [];
+  const method = a.dependencySearchMethodology;
+  if (method.description.length > 0) out.push(para(`${method.description} Reference: ${method.reference.length > 0 ? method.reference : "not recorded"}.`));
+  const nameOf = (id: string): string => a.systemDefinitions.find((candidate) => candidate.uuid === id)?.name ?? id;
+  const links = dependencyLinks(a, null);
+  out.push(dataTable(["System", "Support it needs"], a.systemDefinitions.map((system) => {
+    const needs = links.filter((link) => link.dependentSystem === system.uuid).map((link) => {
+      const record = link.records[0];
+      const kind = record?.supportKind === undefined ? "" : ` (${SUPPORT_KIND_LABELS[record.supportKind].toLowerCase()})`;
+      const leftOut = record !== undefined && treatmentOf(record, link) === "EXCLUDED" ? ", left out" : "";
+      return `${nameOf(link.supportingSystem)}${kind}${leftOut}`;
+    });
+    return [system.name, needs.length > 0 ? needs.join("; ") : "None"];
+  })));
+  return out;
+}
+
+function failureModeContent(a: SystemsAnalysis, system: SystemDefinition, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): (Paragraph | Table)[] {
+  const out: (Paragraph | Table)[] = [];
+  const tree = systemTree(a, system.uuid);
+  const eventNames = new Map(tree.events.map((event) => [event.uuid, event.name]));
+  const lists: [string, string[] | undefined][] = [
+    ["Failures left out", system.justificationForExclusionOfComponents],
+    ["Flow diversion paths", system.flowDiversionConsiderations],
+    ["Conditions that defeat the function", system.functionLossConditions],
+  ];
+  for (const [title, items] of lists) {
+    if (items === undefined || items.length === 0) continue;
+    out.push(heading(title, level));
+    for (const item of items) out.push(bullet(item));
+  }
+  const screenings = (a.componentScreeningJustifications ?? []).filter((item) => item.systemReference === system.uuid);
+  if (screenings.length > 0) {
+    out.push(heading("Screened out", level));
+    out.push(dataTable(["Left out", "Criterion", "Justification"], screenings.map((item) => [
+      item.componentId || "—",
+      `Criterion ${item.screeningCriterion}: ${SCREENING_CRITERIA.find((criterion) => criterion.code === item.screeningCriterion)?.short ?? ""}`,
+      item.quantitativeJustification || "—",
+    ])));
+  }
+  const signals = (a.isolationTripConditions ?? []).filter((item) => item.systemReference === system.uuid);
+  if (signals.length > 0) {
+    out.push(heading("Isolation and trip signals", level));
+    out.push(dataTable(["Signal", "Treatment", "Why left out"], signals.map((item) => [item.condition || "—", TREATMENT_LABELS[item.modeledIn], item.exclusionJustification ?? "—"])));
+  }
+  const outages = systemOutages(a, system.uuid, new Set(eventNames.keys()));
+  if (outages.length > 0) {
+    out.push(heading("Out of service together", level));
+    out.push(dataTable(["Planned activity", "Maintenance events", "DA record", "Basis"], outages.map((item) => [
+      item.description || "—",
+      item.componentIds.map((id) => eventNames.get(id) ?? id).join(", ") || "—",
+      item.dataAnalysisRef ?? "—",
+      item.plannedActivityBasis || "—",
+    ])));
+  }
+  const integrations = a.humanFailureEventIntegrations.filter((item) => item.system === system.uuid);
+  const humanEvents = tree.events.filter((event) => event.failureMode === "HUMAN_ERROR");
+  if (humanEvents.length > 0) {
+    out.push(heading("Human failure events", level));
+    out.push(dataTable(["Event", "Type", "HR event", "Effect on the system"], humanEvents.map((event) => {
+      const integration = integrationFor(integrations, event);
+      return [
+        event.name,
+        integration === undefined ? "—" : `${integration.hfeType === "PRE_INITIATOR" ? "Pre-initiator" : "Post-initiator"}${integration.isTestMaintenance ? ", after test or maintenance" : ""}`,
+        integration?.hfeReference || "—",
+        integration?.impact ?? "—",
+      ];
+    })));
+  }
+  return out;
+}
+
 function systemDescriptions(a: SystemsAnalysis): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [heading("System descriptions", HeadingLevel.HEADING_1)];
   for (const system of a.systemDefinitions) {
@@ -149,6 +338,8 @@ function systemDescriptions(a: SystemsAnalysis): (Paragraph | Table)[] {
       out.push(heading(title, HeadingLevel.HEADING_3));
       for (const item of items) out.push(bullet(item));
     }
+    out.push(...failureModeContent(a, system, HeadingLevel.HEADING_3));
+    out.push(...dependencyContent(a, system, HeadingLevel.HEADING_3));
     if (limits.length > 0) {
       out.push(heading("Capacity limits", HeadingLevel.HEADING_3));
       out.push(dataTable(["Exceedance scenario", "Treatment", "Justification"], limits.map((item) => [item.potentialExceedanceScenarios.join("; ") || "—", item.treatment === "REALISTIC_JUSTIFIED" ? "Realistic" : "Conservative", item.justificationForCapability ?? "—"])));
@@ -201,16 +392,14 @@ function buildMethodology(a: SystemsAnalysis, final: boolean, summaries: Uncerta
   out.push(para(doc.successCriteriaRelationship));
   out.push(heading("Dependencies", HeadingLevel.HEADING_2));
   out.push(para(doc.dependencySearchAndTables));
+  out.push(...dependencySummary(a));
   out.push(heading("Boundaries", HeadingLevel.HEADING_2));
   out.push(para(doc.systemFunctionsAndBoundaries));
   out.push(heading("Labeling scheme", HeadingLevel.HEADING_2));
   out.push(para(doc.nomenclatureConventions));
 
   out.push(heading("Common cause failure groups", HeadingLevel.HEADING_1));
-  out.push(dataTable(
-    ["Group", "Scope", "Model", "DA reference"],
-    a.commonCauseFailureGroups.map((g) => [g.name, g.scope, g.modelType, g.dataAnalysisCCFParameterRef ?? "—"]),
-  ));
+  out.push(commonCauseTable(a, a.commonCauseFailureGroups));
 
   out.push(heading("Uncertainty analysis", HeadingLevel.HEADING_1));
   out.push(para("Data Analysis owns parameter estimates and distributions. Systems Analysis links those inputs to basic events and records uncertainty in model assumptions."));
@@ -245,7 +434,6 @@ function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean,
   const logic = a.systemLogicModels.find((m) => m.systemReference === sysDef.uuid);
   const logicBasicEvents = logic === undefined ? [] : analysisModelBasicEvents(a, logic);
   const ccfGroups = a.commonCauseFailureGroups.filter((g) => g.affectedSystems.includes(sysDef.uuid));
-  const deps = a.systemDependencies.filter((d) => d.dependentSystem === sysDef.uuid);
 
   out.push(
     new Paragraph({ children: [new TextRun({ text: `${a.name} — Preliminary Systems Analysis`, bold: true, size: 48 })], spacing: { after: 60 } }),
@@ -266,20 +454,15 @@ function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean,
     out.push(heading("Diagrams", HeadingLevel.HEADING_2));
     out.push(dataTable(["Diagram", "Source document", "Page"], (sysDef.diagrams ?? []).map((diagram) => [diagram.title, diagram.filename, String(diagram.page)])));
   }
-  out.push(heading("Dependency & shared components", HeadingLevel.HEADING_2));
-  out.push(dataTable(
-    ["Supporting system", "Type", "Detail"],
-    deps.length > 0 ? deps.map((d) => [d.supportingSystem, String(d.type), d.details ?? "—"]) : [["None", "—", "—"]],
-  ));
+  out.push(heading("Dependencies", HeadingLevel.HEADING_2));
+  out.push(...dependencyContent(a, sysDef, HeadingLevel.HEADING_3));
 
   out.push(heading("Model development", HeadingLevel.HEADING_1));
   out.push(heading("Modeling approach", HeadingLevel.HEADING_2));
   out.push(para(logic?.description ?? sysDef.description ?? sysDef.name));
+  out.push(...failureModeContent(a, sysDef, HeadingLevel.HEADING_2));
   out.push(heading("Common cause failures", HeadingLevel.HEADING_2));
-  out.push(dataTable(
-    ["Group", "Model", "Members"],
-    ccfGroups.length > 0 ? ccfGroups.map((g) => [g.name, g.modelType, g.affectedComponents.join(", ")]) : [["None", "—", "—"]],
-  ));
+  out.push(commonCauseTable(a, ccfGroups));
   out.push(heading("Basic event data", HeadingLevel.HEADING_2));
   out.push(dataTable(
     ["Basic event", "Failure mode", "Probability"],

@@ -50,7 +50,7 @@ const SR_EVIDENCE: Record<string, string> = {
   "DA-D6": "Point estimates carry stated bounds where they are used.",
   "DA-D7": "Twelve common-cause groups parameterized to the Systems Analysis group set.",
   "DA-D5": "Posterior reasonableness is checked for the circulator and protection-channel updates, with the prior and the evidence agreeing.",
-  "DA-D8": "The risk-significant division, circulator, backup generator and battery groups parameterized consistently with the Systems Analysis.",
+  "DA-D8": "Generic rate alpha factors for the four cavity-cooling duct groups. The risk-significant pairs keep a beta factor, which matches the alpha-factor model for two components.",
   "DA-E3": "Pre-operational limitations documented against the parameter and assumption requirements.",
 };
 
@@ -1152,6 +1152,7 @@ const coincidentMaintenanceRecords: CoincidentMaintenanceRecord[] = [
     plannedActivityDescription: "A filter change takes the running filtration train and one isolation damper out together.",
     unavailabilityValue: 2.0e-3,
     basis: "PREOP_ASSUMPTION",
+    systemsAnalysisSimultaneousEventRef: "SU-RB-FILTER",
     implementsSrs: srs("DA-C18", "DA-C19"),
   },
   {
@@ -1161,6 +1162,7 @@ const coincidentMaintenanceRecords: CoincidentMaintenanceRecord[] = [
     plannedActivityDescription: "Equalization aligns both banks in one maintenance evolution.",
     unavailabilityValue: 2.5e-3,
     basis: "PREOP_ASSUMPTION",
+    systemsAnalysisSimultaneousEventRef: "SU-DC-EQUALIZE",
     implementsSrs: srs("DA-C18"),
   },
 ];
@@ -1290,14 +1292,14 @@ const ccfParameterEstimations: CcfParameterEstimation[] = [
   {
     uuid: "DA-CCF-12",
     ccfGroupReference: "CCF-RCCS-DUCT",
-    modelType: "BETA_FACTOR",
-    parameters: { beta: 0.1 },
+    modelType: "ALPHA_FACTOR",
+    parameters: { alpha1: 0.98059, alpha2: 0.00968, alpha3: 0.0062, alpha4: 0.00353 },
     parameterSource: "GENERIC",
     componentBoundaryConsistencyBasis: "Consistent with the component boundaries of the group\u2019s basic events.",
     genericExclusionConsistencyConfirmed: true,
     genericExclusionConsistencyBasis: "The exclusions applied to the independent database are applied to the common-cause database too.",
-    dataSources: [{ source: "Common-cause failure parameter database", sourceType: "GENERIC_INDUSTRY" }],
-    implementsSrs: srs("DA-D7"),
+    dataSources: [{ source: "INL/EXT-21-62940 Rev. 1, Section 3.1.2, generic rate alpha-factor means for a group of four, with alpha 1 taken as one minus the higher orders", sourceType: "GENERIC_INDUSTRY", timePeriod: { startDate: "2006-01-01", endDate: "2020-12-31" }, applicabilityAssessment: "Light-water reactor rate failures, including plugging and loss of heat transfer, applied to passive air-duct blockage until helium-reactor experience exists." }],
+    implementsSrs: srs("DA-D8"),
   },
   {
     uuid: "DA-CCF-16",
@@ -1398,7 +1400,7 @@ const preOperationalAssumptions = [
   { id: "PA-3", area: "Demand and exposure", desc: "Counts taken from the planned schedule, to replace with records once operating.", sr: "DA-C9", path: "demandCountRecords" },
   { id: "PA-4", area: "Unavailability and repair", desc: "Generic and assumed values logged where no records exist.", sr: "DA-C17", path: "unavailabilityDataRecords" },
   { id: "PA-5", area: "Estimation", desc: "Bayesian priors rest on technology evidence, to update with plant data.", sr: "DA-D5", path: "parameters" },
-  { id: "PA-6", area: "Common-cause estimation", desc: "Beta-factor parameters carried for every group, with the multi-parameter upgrade for the risk-significant groups deferred until plant experience exists.", sr: "DA-D8", path: "ccfParameterEstimations" },
+  { id: "PA-6", area: "Common-cause estimation", desc: "Generic alpha factors for the four duct groups and beta factors for the pairs, to update with plant experience once it exists.", sr: "DA-D8", path: "ccfParameterEstimations" },
 ].map((a) => ({
   uuid: a.id,
   assumptionId: a.id,

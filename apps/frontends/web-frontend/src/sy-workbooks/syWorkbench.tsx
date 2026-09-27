@@ -14,10 +14,14 @@ import {
   type Stage,
 } from "./syViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, stepsFromMef, type CommentView } from "./sySelectors";
-import { FailuresScreen, CcfScreen, type SyDrawerContext } from "./syScreens";
+import type { SyDrawerContext } from "./syScreens";
+import { FailureModesScreen } from "./SyFailureModes";
+import { CommonCauseScreen } from "./SyCommonCause";
+import { DependenciesScreen } from "./SyDependencies";
+import { DependencyMatrix } from "./SyDependencyMatrix";
 import { ScopeScreen } from "./SyScope";
 import { ModelsScreen } from "./SySystemModels";
-import { DepsScreen, IntegrityScreen, UncertScreen, DraftScreen, DrawerContent, PlaceholderScreen } from "./syScreens2";
+import { IntegrityScreen, UncertScreen, DraftScreen, DrawerContent, PlaceholderScreen } from "./syScreens2";
 import { InternalReviewScreen, ReviewerCommentDock } from "./syReview";
 import { useSyWorkbook, type SyWorkbookData } from "./syWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
@@ -266,14 +270,18 @@ const DIALOG_LABELS: Record<SyDrawerContext["kind"], string> = {
   operations: "Operation and maintenance",
   ccf: "Common cause group details",
   hfe: "Human failure event details",
-  screening: "Screening details",
-  exclusion: "Exclusion details",
-  unavail: "Simultaneous unavailability details",
+  screening: "Screened item details",
+  behavior: "Failure behavior",
+  trip: "Isolation and trip signal details",
+  unavail: "Out of service together details",
   ssc: "Support success criterion details",
-  spc: "Spatial coupling details",
-  inv: "Depletable inventory details",
+  spc: "Shared condition details",
+  inv: "Inventory details",
   dic: "Digital I&C details",
-  loop: "Logic loop details",
+  dep: "Support dependency details",
+  need: "Support need analysis details",
+  act: "Actuation details",
+  method: "Dependency search details",
   confirm: "Confirmation record details",
   oc: "Capacity limit details",
   unc: "Model uncertainty details",
@@ -493,9 +501,15 @@ function SyWorkbench({
           </>
         );
       case "models": return <ModelsScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenScope={() => setStepId("scope")} />;
-      case "failures": return <FailuresScreen openDrawer={setDrawer} />;
-      case "ccf": return <CcfScreen openDrawer={setDrawer} />;
-      case "deps": return <><SyBayesianNetworkWorkspace initialModelId={requestedNetworkId} initialEsqWorkbookId={requestedEsqWorkbookId} /><DepsScreen openDrawer={setDrawer} /></>;
+      case "failures": return <FailureModesScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenScope={() => setStepId("scope")} />;
+      case "ccf": return <CommonCauseScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenScope={() => setStepId("scope")} />;
+      case "deps": return (
+        <>
+          <DependenciesScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenScope={() => setStepId("scope")} />
+          <DependencyMatrix openDrawer={setDrawer} />
+          <SyBayesianNetworkWorkspace initialModelId={requestedNetworkId} initialEsqWorkbookId={requestedEsqWorkbookId} />
+        </>
+      );
       case "integrity": return <IntegrityScreen stage={stage} openDrawer={setDrawer} />;
       case "uncert": return <UncertScreen openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;

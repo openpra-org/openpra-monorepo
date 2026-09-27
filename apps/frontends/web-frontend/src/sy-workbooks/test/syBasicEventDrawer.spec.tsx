@@ -6,6 +6,7 @@ const mockMutateSy = jest.fn();
 const mockAnalysis = {
   systemDefinitions: [],
   systemLogicModels: [],
+  commonCauseFailureGroups: [],
   humanFailureEventIntegrations: [{
     uuid: "integration-1",
     hfeReference: "",
@@ -139,7 +140,7 @@ describe("SY basic-event controlled probability authoring", () => {
     render(<DrawerContent context={{ kind: "hfe", id: "integration-1" }} onClose={jest.fn()} />);
 
     fireEvent.change(screen.getByRole("combobox", {
-      name: "Integrated Human Reliability event and HEP",
+      name: "Human Reliability event and HEP",
     }), {
       target: { value: JSON.stringify(["hr-workbook", "hfe-1", "hep-1"]) },
     });

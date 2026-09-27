@@ -19,7 +19,7 @@ import "./css/syCcfAnalysis.css";
 interface CcfComparisonResult {
   modelId: string;
   modelLabel: string;
-  groupIds: string[];
+  groupNames: string[];
   withoutCcf: FaultTreeAnalysisResult;
   withCcf: FaultTreeAnalysisResult;
 }
@@ -70,7 +70,7 @@ function resultError(status: string, message?: string): Error {
   return new Error(`PRAXIS common cause quantification did not complete (status: ${status}).`);
 }
 
-export function SyCcfAnalysis(): JSX.Element {
+export function SyCcfAnalysis({ currentModelId }: { currentModelId: string }): JSX.Element {
   const { sy, editable, runtime } = useSyWorkbook();
   const { sourceWarning } = useAnalysisSourceGuard("sy", runtime.workbookId);
   const saveBlockedReason = analysisSaveBlock(runtime);
@@ -91,7 +91,6 @@ export function SyCcfAnalysis(): JSX.Element {
   }), [sy]);
   const [calculationType, setCalculationType] = useState<FaultTreeCalculationType>("PROBABILITY");
   const [workflow, setWorkflow] = useState<FaultTreeWorkflow>("MANUAL");
-  const [modelId, setModelId] = useState(modelOptions[0]?.id ?? "");
   const [batchModelIds, setBatchModelIds] = useState<string[]>(modelOptions.map(({ id }) => id));
   const [settings, setSettings] = useState<FaultTreeAnalysisSettings>(DEFAULT_SETTINGS);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -100,13 +99,12 @@ export function SyCcfAnalysis(): JSX.Element {
   const [results, setResults] = useState<CcfComparisonResult[]>([]);
 
   useEffect(() => {
-    if (!modelOptions.some(({ id }) => id === modelId)) setModelId(modelOptions[0]?.id ?? "");
     setBatchModelIds((current) => {
       const available = new Set(modelOptions.map(({ id }) => id));
       const retained = current.filter((id) => available.has(id));
       return retained.length > 0 ? retained : [...available];
     });
-  }, [modelId, modelOptions]);
+  }, [modelOptions]);
 
   const cutSets = calculationType === "PROBABILITY_AND_CUT_SETS";
   const algorithms: FaultTreeAlgorithm[] = cutSets
@@ -114,7 +112,8 @@ export function SyCcfAnalysis(): JSX.Element {
     : ["BDD", "ZBDD"];
   const usesCutSetApproximation = CUT_SET_ALGORITHMS.includes(settings.algorithm);
   const usesOrdering = !["MOCUS", "MOCUS_PI"].includes(settings.algorithm);
-  const selectedModelIds = workflow === "MANUAL" ? (modelId === "" ? [] : [modelId]) : batchModelIds;
+  const currentReady = modelOptions.some(({ id }) => id === currentModelId);
+  const selectedModelIds = workflow === "MANUAL" ? (currentReady ? [currentModelId] : []) : batchModelIds;
   const stale = results.some(({ withCcf }) =>
     runtime.saveStatus !== "saved" || runtime.revision === null || withCcf.owner.workbookRevision !== runtime.revision,
   );
@@ -149,7 +148,7 @@ export function SyCcfAnalysis(): JSX.Element {
     if (basicEventCode !== undefined) return basicEventCode;
     const group = sy.commonCauseFailureGroups.find(({ uuid }) => eventId.startsWith(`${uuid}-`));
     if (group === undefined) return eventId;
-    return `${group.name || group.uuid} · ${eventId.slice(group.uuid.length + 1).replace(/-/g, " ")}`;
+    return `${group.name || group.uuid} · ${eventId.slice(group.uuid.length + 1).split("-").join(" ")}`;
   }
 
   async function execute(model: typeof modelOptions[number], expandCcf: boolean): Promise<FaultTreeAnalysisResult> {
@@ -181,7 +180,7 @@ export function SyCcfAnalysis(): JSX.Element {
         completed.push({
           modelId: model.id,
           modelLabel: `${model.systemLabel} · ${model.label}`,
-          groupIds: model.groups.map(({ uuid }) => uuid),
+          groupNames: model.groups.map((group) => group.name || group.uuid),
           withoutCcf,
           withCcf,
         });
@@ -229,7 +228,7 @@ export function SyCcfAnalysis(): JSX.Element {
         <div className="syft-analysis__run-composer">
           <div className="syft-analysis__setup-row">
             <span className="syft-analysis__selection-summary">
-              {workflow === "BATCH" ? `${selectedModelIds.length} fault tree${selectedModelIds.length === 1 ? "" : "s"} selected` : "Compare one fault tree"}
+              {workflow === "BATCH" ? `${selectedModelIds.length} fault tree${selectedModelIds.length === 1 ? "" : "s"} selected` : "Compare this system's fault tree"}
             </span>
             <button type="button" className="posnav__btn posnav__btn--sm" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen((open) => !open)}>Advanced</button>
           </div>
@@ -244,14 +243,7 @@ export function SyCcfAnalysis(): JSX.Element {
                 </label>
               ))}
             </fieldset>
-          ) : (
-            <label className="syccf-analysis__model">
-              <span>Fault tree</span>
-              <select aria-label="Common cause fault tree" value={modelId} onChange={(event) => setModelId(event.target.value)}>
-                {modelOptions.map((model) => <option key={model.id} value={model.id}>{model.systemLabel} · {model.label} · {model.groups.length} group{model.groups.length === 1 ? "" : "s"}</option>)}
-              </select>
-            </label>
-          )}
+          ) : null}
 
           <div className="syft-analysis__execution-row">
             <div className="syft-analysis__run-fields">
@@ -310,7 +302,8 @@ export function SyCcfAnalysis(): JSX.Element {
         </div>
       </div>
 
-      {modelOptions.length === 0 && <p className="syft-analysis__notice" role="status">Complete a group with two component basic events before running PRAXIS.</p>}
+      {workflow === "MANUAL" && !currentReady && <p className="syft-analysis__notice" role="status">No ready group has all its member events in this fault tree. Complete a group above before running PRAXIS.</p>}
+      {workflow === "BATCH" && modelOptions.length === 0 && <p className="syft-analysis__notice" role="status">Complete a group with two component basic events before running PRAXIS.</p>}
       {saveBlockedReason !== null && <p className="syft-analysis__notice" role="status">{saveBlockedReason}</p>}
       {(error ?? sourceWarning) !== null && <p className="syft-analysis__error" role="alert">{error ?? sourceWarning}</p>}
       {stale && <p className="syft-analysis__notice" role="status">These results use an earlier workbook revision.</p>}
@@ -326,7 +319,7 @@ export function SyCcfAnalysis(): JSX.Element {
             return (
               <article key={`${result.withoutCcf.runId}:${result.withCcf.runId}`} className="syccf-analysis__result">
                 <div className="syccf-analysis__result-head">
-                  <div><span>{result.modelLabel}</span><strong>{result.groupIds.length} group{result.groupIds.length === 1 ? "" : "s"} expanded</strong></div>
+                  <div><span>{result.modelLabel}</span><strong>{result.groupNames.length} group{result.groupNames.length === 1 ? "" : "s"} expanded</strong></div>
                   <span>{result.withCcf.probabilityMethod ?? settings.approximation}</span>
                 </div>
                 <dl className="syccf-analysis__metrics">
@@ -336,7 +329,7 @@ export function SyCcfAnalysis(): JSX.Element {
                   <div><dt>Relative change</dt><dd>{percent(relative)}</dd></div>
                   {cutSets && <div><dt>Cut sets</dt><dd>{result.withoutCcf.cutSets?.count ?? 0} → {result.withCcf.cutSets?.count ?? 0}</dd></div>}
                 </dl>
-                <div className="syccf-analysis__groups">{result.groupIds.map((id) => <span key={id}>{id}</span>)}</div>
+                <div className="syccf-analysis__groups">{result.groupNames.map((name, index) => <span key={`${index}:${name}`}>{name}</span>)}</div>
                 {cutSets && result.withCcf.cutSets !== undefined && (
                   <section className="syccf-analysis__cut-sets" aria-label={`${result.modelLabel} expanded cut sets`}>
                     <div className="syccf-analysis__cut-sets-head">

@@ -1,0 +1,15 @@
+.sy-depmatrix{overflow-x:auto;overscroll-behavior-x:contain;border:1px solid var(--color-border);border-radius:8px}
+.sy-depmatrix table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;font-variant-numeric:tabular-nums}
+.sy-depmatrix th,.sy-depmatrix td{padding:8px;border-bottom:1px solid var(--color-border);text-align:left;vertical-align:top}
+.sy-depmatrix thead th{background:var(--color-surface-low);color:var(--color-text-muted);font-size:12px;font-weight:500;white-space:nowrap}
+.sy-depmatrix tbody th{position:sticky;left:0;z-index:1;min-width:170px;background:var(--color-surface);color:var(--color-text);font-weight:500}
+.sy-depmatrix td{min-width:92px}
+.sy-depmatrix tbody tr:last-child th,.sy-depmatrix tbody tr:last-child td{border-bottom:0}
+.sy-depmatrix__self{background:var(--color-surface-low)}
+.sy-depmatrix__cell{padding:0;border:0;background:transparent;font:inherit;color:var(--color-text);text-align:left;cursor:pointer}
+button.sy-depmatrix__cell:hover{text-decoration:underline}
+.sy-depmatrix__cell--left{color:var(--color-text-muted)}
+.sy-depmatrix__cell--error{color:var(--color-error)}
+.sy-depmatrix__cell:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}
+.sy-review-deps th:nth-child(1){width:26%}
+.sy-review-deps th:nth-child(3){width:22%}

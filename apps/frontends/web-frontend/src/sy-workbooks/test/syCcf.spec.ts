@@ -1,10 +1,15 @@
 import type { CommonCauseFailureGroup, SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import {
+  ccfFactorText,
   ccfGroupsForModel,
-  ccfParameterSummary,
   defaultCcfParameters,
+  estimateParameters,
+  matchesEstimate,
+  sharedCauseLines,
   validateCcfGroup,
+  withMemberTotals,
 } from "../syCcf";
+import type { SyControlledCcfEstimateOption } from "../syWorkbookContext";
 
 const MODEL: SystemLogicModel = {
   uuid: "model-1",
@@ -72,7 +77,7 @@ describe("SY common cause validation", () => {
     const sy = analysis();
     expect(validateCcfGroup(GROUP, sy)).toEqual([]);
     expect(ccfGroupsForModel(sy, MODEL)).toEqual([GROUP]);
-    expect(ccfParameterSummary(GROUP)).toMatchObject({ short: "β 0.1", totalFailureProbability: 0.02 });
+    expect(ccfFactorText(GROUP)).toBe("β 0.1");
   });
 
   it("rejects collapsed common cause events because PRAXIS generates them", () => {
@@ -99,5 +104,77 @@ describe("SY common cause validation", () => {
         totalFailureProbability: 0.01,
       },
     });
+  });
+
+  it("requires one member probability and a matching Qₜ", () => {
+    const sy = analysis();
+    const mixed = { ...sy, systemBasicEvents: sy.systemBasicEvents.map((event) => (event.uuid === "event-b" ? { ...event, probability: 0.03 } : event)) };
+    expect(validateCcfGroup(GROUP, mixed)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "CCF_MEMBER_MISMATCH", severity: "ERROR", message: expect.stringContaining("2.0E-2, 3.0E-2") }),
+    ]));
+
+    const stale: CommonCauseFailureGroup = { ...GROUP, modelSpecificParameters: { betaFactorParameters: { beta: 0.1, totalFailureProbability: 0.05 } } };
+    expect(validateCcfGroup(stale, analysis(stale))).toEqual([
+      expect.objectContaining({ code: "CCF_TOTAL_MISMATCH", severity: "ERROR", message: "Qₜ 5.0E-2 does not match the member events (2.0E-2)." }),
+    ]);
+  });
+
+  it("keeps Qₜ equal to the member probability when a member changes", () => {
+    const sy = analysis();
+    const raised = { ...sy, systemBasicEvents: sy.systemBasicEvents.map((event) => (event.uuid.startsWith("event-") ? { ...event, probability: 0.04 } : event)) };
+    const synced = withMemberTotals(raised, new Set(["event-a"]));
+    expect(synced.commonCauseFailureGroups[0]?.modelSpecificParameters).toEqual({ betaFactorParameters: { beta: 0.1, totalFailureProbability: 0.04 } });
+    expect(withMemberTotals(sy, new Set(["event-a"]))).toBe(sy);
+
+    const split = { ...sy, systemBasicEvents: sy.systemBasicEvents.map((event) => (event.uuid === "event-a" ? { ...event, probability: 0.04 } : event)) };
+    expect(withMemberTotals(split, new Set(["event-a"]))).toBe(split);
+  });
+
+  it("copies DA estimates into the group model and flags later drift", () => {
+    const estimate: SyControlledCcfEstimateOption = {
+      workbookId: "da-1",
+      workbookName: "Data Analysis",
+      estimateId: "DA-CCF-1",
+      groupReference: "ccf-1",
+      modelType: "ALPHA_FACTOR",
+      parameters: { "alpha-2": 0.0126, "alpha-1": 0.97912, "alpha-3": 0.00828 },
+      riskSignificant: true,
+    };
+    expect(estimateParameters(estimate, 0.02)).toEqual({
+      alphaFactorParameters: { alphaFactors: { alpha1: 0.97912, alpha2: 0.0126, alpha3: 0.00828 }, totalFailureProbability: 0.02 },
+    });
+
+    const threeMembers: CommonCauseFailureGroup = {
+      ...GROUP,
+      modelType: "ALPHA_FACTOR",
+      modelSpecificParameters: estimateParameters(estimate, 0.02),
+      members: { basicEvents: [{ id: "event-a" }, { id: "event-b" }, { id: "event-c" }] },
+      dataSources: undefined,
+    };
+    const sy = analysis(threeMembers);
+    const withThird = { ...sy, systemBasicEvents: [...sy.systemBasicEvents, { uuid: "event-c", code: "PMP-C-FS", name: "Pump C fails", eventType: "BASIC" as const, failureMode: "FAILURE_TO_START", probability: 0.02, implementsSrs: [] }] };
+    expect(matchesEstimate(threeMembers, estimate)).toBe(true);
+    expect(ccfFactorText(threeMembers)).toBe("α1 0.97912 · α2 0.0126 · α3 0.00828");
+    expect(validateCcfGroup(threeMembers, withThird, [estimate])).toEqual([]);
+
+    const drifted = { ...estimate, parameters: { ...estimate.parameters, "alpha-2": 0.0226, "alpha-1": 0.96912 } };
+    expect(validateCcfGroup(threeMembers, withThird, [drifted])).toEqual([
+      expect.objectContaining({ code: "CCF_DA_STALE", severity: "WARNING" }),
+    ]);
+    expect(validateCcfGroup(threeMembers, withThird, [{ ...estimate, estimateId: "DA-CCF-9" }])).toEqual([
+      expect.objectContaining({ code: "CCF_DA_MISSING", severity: "WARNING" }),
+    ]);
+  });
+
+  it("asks for a typed source only when no DA estimate is linked", () => {
+    const typed: CommonCauseFailureGroup = { ...GROUP, dataAnalysisCCFParameterRef: undefined, dataSources: undefined };
+    expect(validateCcfGroup(typed, analysis(typed)).map(({ code }) => code)).toEqual(["CCF_DA_REFERENCE", "CCF_SOURCE"]);
+    const linked: CommonCauseFailureGroup = { ...GROUP, dataSources: undefined };
+    expect(validateCcfGroup(linked, analysis(linked))).toEqual([]);
+  });
+
+  it("lists the shared causes in plain words", () => {
+    expect(sharedCauseLines({ ...GROUP, sharedCauseFactors: { hardwareDesign: true, environment: true, otherFactors: ["Common software image"] } }))
+      .toEqual(["Same design", "Same environment", "Common software image"]);
   });
 });

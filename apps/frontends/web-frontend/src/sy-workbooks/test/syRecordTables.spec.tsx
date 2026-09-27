@@ -1,11 +1,9 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { JSX } from "react";
 import type { SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import { CcfScreen, FailuresScreen } from "../syScreens";
-import { DepsScreen, IntegrityScreen, UncertScreen } from "../syScreens2";
+import { IntegrityScreen, UncertScreen } from "../syScreens2";
 import type { SyControlledParameterOption } from "../syWorkbookContext";
 
-jest.mock("../SyCcfAnalysis", () => ({ SyCcfAnalysis: () => null }));
 jest.mock("../SyUncertaintyAnalysis", () => ({ SyUncertaintyAnalysis: () => null }));
 jest.mock("../../newly-developed-methods/shared/analysisRunHistory", () => ({ AnalysisRunHistory: () => null }));
 
@@ -188,73 +186,6 @@ function renderScreen(screenElement: JSX.Element, editable = true): void {
 }
 
 describe("SY record tables", () => {
-  it("opens Step 03 records from their Edit buttons", () => {
-    const openDrawer = jest.fn();
-    renderScreen(<FailuresScreen openDrawer={openDrawer} />);
-
-    const exclusions = screen.getByRole("table", { name: "Exclusions and diversion paths" });
-    expect(within(exclusions).getByText("Drain valves left out")).toBeInTheDocument();
-    expect(within(exclusions).getAllByText("Not recorded")).toHaveLength(3);
-    fireEvent.click(within(exclusions).getByRole("button", { name: "Edit exclusions for Component cooling water" }));
-    expect(openDrawer).toHaveBeenCalledWith({ kind: "exclusion", id: CCW });
-
-    const screened = screen.getByRole("table", { name: "Screened components" });
-    expect(within(screened).getByRole("cell", { name: "a" })).toBeInTheDocument();
-    fireEvent.click(within(screened).getByRole("button", { name: "Edit screening V-101" }));
-    expect(openDrawer).toHaveBeenCalledWith({ kind: "screening", id: "screen-1" });
-
-    expect(screen.getByText("No simultaneous unavailability recorded.")).toBeInTheDocument();
-
-    const placed = screen.getByRole("table", { name: "Human failure events placed in the models" });
-    expect(within(placed).getByText("Post-initiator")).toBeInTheDocument();
-    expect(within(placed).getByText("Typed")).toBeInTheDocument();
-    fireEvent.click(within(placed).getByRole("button", { name: "Edit HFE-CCW-RESTART" }));
-    expect(openDrawer).toHaveBeenCalledWith({ kind: "hfe", id: "hfe-1" });
-  });
-
-  it("lists Step 04 groups by scope", () => {
-    const openDrawer = jest.fn();
-    renderScreen(<CcfScreen openDrawer={openDrawer} />);
-
-    const withinSystem = screen.getByRole("table", { name: "Common cause groups within a system" });
-    expect(within(withinSystem).getByText("PMP-A-FS, PMP-B-FS")).toBeInTheDocument();
-    fireEvent.click(within(withinSystem).getByRole("button", { name: "Edit Cooling pumps" }));
-    expect(openDrawer).toHaveBeenCalledWith({ kind: "ccf", id: "ccf-1" });
-    expect(within(screen.getByRole("region", { name: "Across systems" })).getByText("No groups defined.")).toBeInTheDocument();
-  });
-
-  it("opens Step 05 records and logic loops from their Edit buttons", () => {
-    const openDrawer = jest.fn();
-    renderScreen(<DepsScreen openDrawer={openDrawer} />);
-
-    const loops = screen.getByRole("table", { name: "Logic loops" });
-    expect(within(loops).getByText("CCW needs EPS for power")).toBeInTheDocument();
-    expect(within(loops).getByText("Resolution required")).toBeInTheDocument();
-    fireEvent.click(within(loops).getByRole("button", { name: "Edit loop CCW and EPS" }));
-    expect(openDrawer).toHaveBeenCalledWith({ kind: "loop", id: `${CCW}+${EPS}` });
-
-    fireEvent.click(screen.getByRole("button", { name: "Edit criterion for Electric power" }));
-    expect(openDrawer).toHaveBeenCalledWith({ kind: "ssc", id: "ssc-1" });
-
-    const couplings = screen.getByRole("table", { name: "Spatial and environmental couplings" });
-    expect(within(couplings).getByText("P-1A, P-1B")).toBeInTheDocument();
-    expect(within(couplings).getByText("In the model")).toBeInTheDocument();
-    fireEvent.click(within(couplings).getByRole("button", { name: "Edit coupling for CCW" }));
-    expect(openDrawer).toHaveBeenCalledWith({ kind: "spc", id: "spc-1" });
-
-    const inventories = screen.getByRole("table", { name: "Depletable inventories" });
-    expect(within(inventories).getByText("8 h")).toBeInTheDocument();
-    expect(within(inventories).getByText("Mission 24 h")).toBeInTheDocument();
-    expect(within(inventories).getByText("Falls short")).toBeInTheDocument();
-    fireEvent.click(within(inventories).getByRole("button", { name: "Edit Station battery" }));
-    expect(openDrawer).toHaveBeenCalledWith({ kind: "inv", id: "inv-1" });
-
-    const digital = screen.getByRole("table", { name: "Digital I&C and software" });
-    expect(within(digital).getByText("Spurious trip")).toBeInTheDocument();
-    fireEvent.click(within(digital).getByRole("button", { name: "Edit Pump controller" }));
-    expect(openDrawer).toHaveBeenCalledWith({ kind: "dic", id: "dic-1" });
-  });
-
   it("opens Step 06 confirmation records from their Edit buttons", () => {
     const openDrawer = jest.fn();
     renderScreen(<IntegrityScreen stage="pre_operational" openDrawer={openDrawer} />);
@@ -279,12 +210,5 @@ describe("SY record tables", () => {
     expect(within(assumptions).getByText("Not recorded")).toBeInTheDocument();
     fireEvent.click(within(assumptions).getByRole("button", { name: "Edit assumption 1" }));
     expect(openDrawer).toHaveBeenCalledWith({ kind: "unc", id: "mu-1" });
-  });
-
-  it("shows View buttons and no add actions to reviewers", () => {
-    renderScreen(<DepsScreen openDrawer={jest.fn()} />, false);
-
-    expect(screen.getByRole("button", { name: "View Pump controller" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Add record" })).not.toBeInTheDocument();
   });
 });

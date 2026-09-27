@@ -5,6 +5,7 @@ import { FAILURE_RATE_CONVERSION_REVIEW_REQUIRED, failureRateToProbability, requ
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { DialogHead } from "./syShared";
 import { FAILURE_MODE_LABELS, toExp } from "./syViewData";
+import { withMemberTotals } from "./syCcf";
 import { useSyWorkbook } from "./syWorkbookContext";
 import { syFaultTreeOperation, toFaultTreeEditorCatalogue } from "./SySystemModels";
 import type { SyDrawerContext } from "./syScreens";
@@ -80,10 +81,10 @@ function BasicEventDialog({ id, onClose }: { id: string; onClose: () => void }):
 
   function patch(fields: Partial<SystemBasicEvent>): void {
     if (!editable) return;
-    mutateSy((draft) => ({
+    mutateSy((draft) => withMemberTotals({
       ...draft,
       systemBasicEvents: draft.systemBasicEvents.map((event) => (event.uuid === be.uuid ? { ...event, ...fields } : event)),
-    }));
+    }, new Set([be.uuid])));
   }
 
   function setInput(kind: string): void {

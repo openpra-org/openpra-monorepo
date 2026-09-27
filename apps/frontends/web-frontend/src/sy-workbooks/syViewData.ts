@@ -140,7 +140,6 @@ const SY_SR_META: Record<string, string> = {
   "SY-A1": "8 systems",
   "SY-A6": "3 records",
   "SY-A9": "1 system-level",
-  "SY-A20": "4 screened",
   "SY-B2": "2 inter-system",
   "SY-B3": "Damper group open",
   "SY-B4": "DA-D8 pending",
@@ -198,19 +197,16 @@ function toExp(n: number): string {
   return n.toExponential(1).toUpperCase();
 }
 
-const SHARED_CAUSE_LABELS: Record<string, string> = {
-  hardwareDesign: "Same design",
-  manufacturer: "Same make",
-  maintenance: "Same crew",
-  installation: "Same install",
-  environment: "Same room",
-  otherFactors: "Other",
-};
+type SharedCauseKey = "hardwareDesign" | "manufacturer" | "maintenance" | "installation" | "environment";
 
-const DEP_KIND: Record<string, { label: string; cls: string }> = {
-  power: { label: "Power", cls: "syd-dep--power" },
-  signal: { label: "Signal", cls: "syd-dep--signal" },
-  cooling: { label: "Cooling", cls: "syd-dep--cooling" },
+const SHARED_CAUSE_KEYS: readonly SharedCauseKey[] = ["hardwareDesign", "manufacturer", "maintenance", "installation", "environment"];
+
+const SHARED_CAUSE_LABELS: Record<SharedCauseKey, string> = {
+  hardwareDesign: "Same design",
+  manufacturer: "Same manufacturer",
+  maintenance: "Same maintenance and test practice",
+  installation: "Same installation",
+  environment: "Same environment",
 };
 
 const FAILURE_MODE_LABELS: Record<string, string> = {
@@ -277,9 +273,17 @@ type SyGateNode = Extract<SystemFaultTreeNode, { children: SystemFaultTreeNode[]
 type SyBeNode = Extract<SystemFaultTreeNode, { type: "BE" }>;
 type SyTrNode = Extract<SystemFaultTreeNode, { type: "TR" }>;
 
-const SCREENING_CRITERIA: { code: string; label: string }[] = [
-  { code: "a", label: "Total failure probability below 1E-6 over the mission time" },
-  { code: "b", label: "Failure mode cannot defeat the system success criterion" },
+const SCREENING_CRITERIA: { code: "a" | "b"; short: string; label: string }[] = [
+  {
+    code: "a",
+    short: "100 times below the train's leading failure",
+    label: "The component's failures with the same effect are at least 100 times less likely than the most likely failure of another component in the same train.",
+  },
+  {
+    code: "b",
+    short: "Under 1 percent of the component's failures",
+    label: "The failure modes add up to less than 1 percent of the component's total failure probability and have the same effect as the modeled modes.",
+  },
 ];
 
 const SY_METHODOLOGY_TOC: [string, string][] = [
@@ -373,9 +377,9 @@ export {
   CONFORMANCE_ITEMS,
   FAILURE_MODE_TYPES,
   CCF_MODELS,
+  SHARED_CAUSE_KEYS,
   SHARED_CAUSE_LABELS,
   toExp,
-  DEP_KIND,
   CONFIRM_METHODS,
   RESOURCE_TYPE_LABELS,
   FAILURE_MODE_LABELS,

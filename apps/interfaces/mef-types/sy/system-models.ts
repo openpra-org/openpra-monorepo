@@ -446,11 +446,42 @@ function canonicalizeNormalizedFaultTreeIds(value: UnknownRecord): UnknownRecord
       })
     : value.commonCauseFailureGroups;
 
+  const humanFailureEventIntegrations = Array.isArray(value.humanFailureEventIntegrations)
+    ? value.humanFailureEventIntegrations.map((integration) => {
+        if (!isRecord(integration)) return integration;
+        const id = nonEmptyString(integration.basicEventId);
+        return id === undefined ? integration : { ...integration, basicEventId: basicEventIds.get(id) ?? id };
+      })
+    : value.humanFailureEventIntegrations;
+
+  const simultaneousUnavailabilityEvents = Array.isArray(value.simultaneousUnavailabilityEvents)
+    ? value.simultaneousUnavailabilityEvents.map((item) => {
+        if (!isRecord(item) || !Array.isArray(item.componentIds)) return item;
+        return {
+          ...item,
+          componentIds: item.componentIds.map((id) => (typeof id === "string" ? (basicEventIds.get(id) ?? id) : id)),
+        };
+      })
+    : value.simultaneousUnavailabilityEvents;
+
+  const environmentalDesignBasisConsiderations = Array.isArray(value.environmentalDesignBasisConsiderations)
+    ? value.environmentalDesignBasisConsiderations.map((item) => {
+        if (!isRecord(item) || !Array.isArray(item.basicEventIds)) return item;
+        return {
+          ...item,
+          basicEventIds: item.basicEventIds.map((id) => (typeof id === "string" ? (basicEventIds.get(id) ?? id) : id)),
+        };
+      })
+    : value.environmentalDesignBasisConsiderations;
+
   return {
     ...value,
     systemLogicModels,
     systemBasicEvents,
     ...(commonCauseFailureGroups === undefined ? {} : { commonCauseFailureGroups }),
+    ...(humanFailureEventIntegrations === undefined ? {} : { humanFailureEventIntegrations }),
+    ...(simultaneousUnavailabilityEvents === undefined ? {} : { simultaneousUnavailabilityEvents }),
+    ...(environmentalDesignBasisConsiderations === undefined ? {} : { environmentalDesignBasisConsiderations }),
   };
 }
 

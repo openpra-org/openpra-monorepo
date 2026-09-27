@@ -94,6 +94,7 @@ export interface DepletionModel extends Unique {
   associatedSystem?: SystemReference;
   depletionImpact?: "immediate-failure" | "degraded-operation";
   missionTimeSupported?: boolean;
+  basis?: string;
   implementsSrs: SRReference[];
 }
 
@@ -301,6 +302,8 @@ export interface PassiveSystemsTreatment extends Unique, Named {
   implementsSrs: SRReference[];
 }
 
+export type SupportKind = "ACTUATION" | "CONTROL" | "MOTIVE_POWER" | "COOLING" | "OPERATOR_INTERFACE" | "OTHER";
+
 export interface SystemDependency extends Unique {
   description?: string;
   dependentSystem: SystemReference;
@@ -309,6 +312,9 @@ export interface SystemDependency extends Unique {
   details?: string;
   impact?: string;
   crossReactor?: boolean;
+  supportKind?: SupportKind;
+  modeledIn?: "SYSTEM_MODEL" | "EVENT_SEQUENCE" | "EXCLUDED";
+  exclusionJustification?: string;
   implementsSrs: SRReference[];
 }
 
@@ -383,6 +389,7 @@ export interface CommonCauseFailureGroup extends Unique, Named {
 export interface HumanFailureEventIntegration extends Unique {
   hfeReference: HumanActionReference;
   hfeSource?: HumanFailureEventReference;
+  basicEventId?: string;
   system: SystemReference;
   taskDescription: string;
   hfeType: "PRE_INITIATOR" | "POST_INITIATOR";
@@ -429,6 +436,7 @@ export interface ModularizationRecord extends Unique {
 }
 
 export interface SimultaneousUnavailabilityEvent extends Unique {
+  systemReference?: SystemReference;
   description: string;
   componentIds: string[];
   plannedActivityBasis: string;
@@ -529,6 +537,9 @@ export interface EnvironmentalDesignBasisConsideration extends Unique {
   eventSequences: EventSequenceReference[];
   environmentalConditions: string;
   dependentFailuresIncluded?: boolean;
+  basicEventIds?: string[];
+  initiatingEventIds?: string[];
+  beyondQualification?: boolean;
   implementsSrs: SRReference[];
 }
 

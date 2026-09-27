@@ -47,7 +47,8 @@ interface EsqWorkbookLink {
 }
 
 function workbookBaseName(name: string): string {
-  return name.replace(/\s+—.*$/, "").trim();
+  const cut = name.indexOf("—");
+  return (cut < 0 ? name : name.slice(0, cut)).trim();
 }
 
 function SyBayesianNetworkWorkspace({
@@ -174,7 +175,6 @@ function SyBayesianNetworkWorkspace({
 
   function replaceNetwork(next: BayesianNetworkModel): void {
     analysis.invalidate();
-    // Keep evidence and bindings intact: undo restores their referenced IDs.
     mutateSy((current) => ({
       ...current,
       dependencyBayesianNetworks: (current.dependencyBayesianNetworks ?? []).map((candidate) =>
@@ -372,7 +372,7 @@ function SyBayesianNetworkWorkspace({
               {networks.map((candidate) => <option key={candidate.modelId} value={candidate.modelId}>{candidate.code} · {candidate.name}</option>)}
             </select>
           )}
-          {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={createNetwork}><span aria-hidden="true">+</span>Add network</button>}
+          {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={createNetwork}>Add network</button>}
           {editable && model !== undefined && <button type="button" className="posnav__btn posnav__btn--sm bneditor__network-delete" onClick={removeNetwork}>Delete network</button>}
         </div>
       </div>

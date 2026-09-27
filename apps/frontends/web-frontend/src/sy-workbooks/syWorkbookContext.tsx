@@ -6,11 +6,22 @@ import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
 import type { ParameterDistribution } from "interfaces-mef-types/core/events";
 import { type Workbook } from "interfaces-shared-types";
 
+interface SyLinkedSupport {
+  systemId: string;
+  nature: string;
+}
+
 interface SyLinkedSystem {
   id: string;
   systemId: string;
   name: string;
   capacities: string;
+  supports: SyLinkedSupport[];
+}
+
+interface SyLinkedInitiatingEvent {
+  id: string;
+  name: string;
 }
 
 interface SyLinkedMissionTime {
@@ -41,6 +52,7 @@ interface SyLinkedInputs {
   scMissionTimes: SyLinkedMissionTime[];
   posStates: SyLinkedPosState[];
   esSafetyFunctions: SyLinkedSafetyFunction[];
+  esInitiatingEvents: SyLinkedInitiatingEvent[];
 }
 
 type SyLinkCode = "ES" | "SC" | "POS" | "DA" | "HRA";
@@ -98,6 +110,28 @@ interface SyControlledHumanFailureOption {
   valueKind: "MEAN" | "POINT_ESTIMATE";
 }
 
+interface SyControlledCoincidentMaintenanceOption {
+  workbookId: string;
+  workbookName: string;
+  recordId: string;
+  description: string;
+  equipment: string[];
+  scope: "INTRASYSTEM" | "INTERSYSTEM";
+  basis: "ACTUAL_PLANT_EXPERIENCE" | "PREOP_ASSUMPTION";
+  value?: number;
+}
+
+interface SyControlledCcfEstimateOption {
+  workbookId: string;
+  workbookName: string;
+  estimateId: string;
+  groupReference: string;
+  modelType: "BETA_FACTOR" | "ALPHA_FACTOR" | "MGL" | "PHI_FACTOR";
+  parameters: Record<string, number>;
+  source?: string;
+  riskSignificant: boolean;
+}
+
 type SyMutator = (sy: SystemsAnalysis) => SystemsAnalysis;
 
 interface SyWorkbookContextValue extends SyWorkbookData {
@@ -107,6 +141,8 @@ interface SyWorkbookContextValue extends SyWorkbookData {
   controlledParameters: SyControlledParameterOption[];
   controlledHumanFailures: SyControlledHumanFailureOption[];
   controlledFailureModes: SyControlledFailureModeOption[];
+  controlledCoincidentMaintenance: SyControlledCoincidentMaintenanceOption[];
+  controlledCcfEstimates: SyControlledCcfEstimateOption[];
   mutateSy: (mutator: SyMutator) => void;
   shortOf: (id: string) => string;
 }
@@ -121,6 +157,8 @@ function SyWorkbookProvider({
   controlledParameters,
   controlledHumanFailures,
   controlledFailureModes,
+  controlledCoincidentMaintenance,
+  controlledCcfEstimates,
   upstream,
   children,
 }: {
@@ -132,6 +170,8 @@ function SyWorkbookProvider({
   controlledParameters?: SyControlledParameterOption[];
   controlledHumanFailures?: SyControlledHumanFailureOption[];
   controlledFailureModes?: SyControlledFailureModeOption[];
+  controlledCoincidentMaintenance?: SyControlledCoincidentMaintenanceOption[];
+  controlledCcfEstimates?: SyControlledCcfEstimateOption[];
   children: React.ReactNode;
 }): JSX.Element {
   const value = useMemo<SyWorkbookContextValue>(
@@ -143,13 +183,15 @@ function SyWorkbookProvider({
       controlledParameters: controlledParameters ?? [],
       controlledHumanFailures: controlledHumanFailures ?? [],
       controlledFailureModes: controlledFailureModes ?? [],
+      controlledCoincidentMaintenance: controlledCoincidentMaintenance ?? [],
+      controlledCcfEstimates: controlledCcfEstimates ?? [],
       mutateSy,
       shortOf: (id: string): string => {
         const def = data.sy.systemDefinitions.find((d) => d.uuid === id);
         return def?.abbreviation ?? def?.name ?? id;
       },
     }),
-    [controlledFailureModes, controlledHumanFailures, controlledParameters, data, editable, mutateSy, runtime, upstream],
+    [controlledCcfEstimates, controlledCoincidentMaintenance, controlledFailureModes, controlledHumanFailures, controlledParameters, data, editable, mutateSy, runtime, upstream],
   );
   return <SyWorkbookContext.Provider value={value}>{children}</SyWorkbookContext.Provider>;
 }
@@ -173,5 +215,9 @@ export {
   type SyControlledParameterOption,
   type SyControlledHumanFailureOption,
   type SyControlledFailureModeOption,
+  type SyControlledCoincidentMaintenanceOption,
+  type SyControlledCcfEstimateOption,
   type SyLinkedMissionTime,
+  type SyLinkedInitiatingEvent,
+  type SyLinkedSupport,
 };

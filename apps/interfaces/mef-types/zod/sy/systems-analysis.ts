@@ -84,6 +84,7 @@ export const DepletionModelSchema = z.object({
   associatedSystem: z.string().optional(),
   depletionImpact: z.enum(["immediate-failure", "degraded-operation"]).optional(),
   missionTimeSupported: z.boolean().optional(),
+  basis: z.string().optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -437,6 +438,9 @@ export const SystemDependencySchema = z.object({
   details: z.string().optional(),
   impact: z.string().optional(),
   crossReactor: z.boolean().optional(),
+  supportKind: z.enum(["ACTUATION", "CONTROL", "MOTIVE_POWER", "COOLING", "OPERATOR_INTERFACE", "OTHER"]).optional(),
+  modeledIn: z.enum(["SYSTEM_MODEL", "EVENT_SEQUENCE", "EXCLUDED"]).optional(),
+  exclusionJustification: z.string().optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -539,6 +543,7 @@ export const HumanFailureEventIntegrationSchema = z.object({
   uuid: z.string(),
   hfeReference: z.string(),
   hfeSource: HumanFailureEventReferenceSchema.optional(),
+  basicEventId: z.string().optional(),
   system: z.string(),
   taskDescription: z.string(),
   hfeType: z.enum(["PRE_INITIATOR", "POST_INITIATOR"]),
@@ -595,6 +600,7 @@ export const ModularizationRecordSchema = z.object({
 
 export const SimultaneousUnavailabilityEventSchema = z.object({
   uuid: z.string(),
+  systemReference: z.string().optional(),
   description: z.string(),
   componentIds: z.array(z.string()),
   plannedActivityBasis: z.string(),
@@ -719,6 +725,9 @@ export const EnvironmentalDesignBasisConsiderationSchema = z.object({
   eventSequences: z.array(z.string()),
   environmentalConditions: z.string(),
   dependentFailuresIncluded: z.boolean().optional(),
+  basicEventIds: z.array(z.string()).optional(),
+  initiatingEventIds: z.array(z.string()).optional(),
+  beyondQualification: z.boolean().optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 

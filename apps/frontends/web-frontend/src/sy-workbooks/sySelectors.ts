@@ -9,6 +9,7 @@ import {
   type Stage,
 } from "./syViewData";
 import { ccfGroupIsReady } from "./syCcf";
+import { dependencyErrors } from "./syDependencyLinks";
 
 interface CommentView {
   id: string;
@@ -142,10 +143,11 @@ function stepsFromMef(sy: SystemsAnalysis, persona: SyPersona, currentUncertaint
   const base = stepsForPersona(persona);
   const scopeComplete = sy.praScope.length > 0 || sy.systemDefinitions.length > 0;
   const modelsComplete = sy.systemLogicModels.length > 0;
-  const failuresComplete = (sy.componentScreeningJustifications?.length ?? 0) > 0 || sy.humanFailureEventIntegrations.length > 0;
+  const failuresComplete = sy.systemDefinitions.length > 0 && sy.systemDefinitions.every((system) =>
+    [system.justificationForExclusionOfComponents, system.flowDiversionConsiderations, system.functionLossConditions].some((items) => (items ?? []).length > 0));
   const ccfComplete = sy.commonCauseFailureGroups.length > 0
     && sy.commonCauseFailureGroups.every((group) => ccfGroupIsReady(group, sy));
-  const depsComplete = sy.systemDependencies.length > 0;
+  const depsComplete = sy.systemDependencies.length > 0 && dependencyErrors(sy, null).length === 0;
   const integrityComplete = (sy.systemConfirmationRecords?.length ?? 0) > 0;
   const detailedModels = sy.systemLogicModels.filter((model) => model.topGate !== null && !isSystemLevelModel(model));
   const uncertComplete = detailedModels.length > 0 && detailedModels.every((model) => currentUncertaintyModelIds.has(model.uuid))

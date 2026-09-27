@@ -242,6 +242,34 @@ describe("canonical SY workbook fault-tree storage", () => {
     });
   });
 
+  it.each([
+    ["SFR", SY_ANALYSIS],
+    ["HTGR", SY_ANALYSIS_HTGR],
+  ])("keeps every %s human failure event and joint outage on its canonical fault-tree event", (_name, analysis) => {
+    const eventById = new Map(analysis.systemBasicEvents.map((event) => [event.uuid, event]));
+    const treeEvents = new Map(analysis.systemLogicModels.map((model) => [model.systemReference, new Set(systemFaultTreeBasicEventIds(model))]));
+    const humanEvents = analysis.systemBasicEvents.filter((event) => event.failureMode === "HUMAN_ERROR");
+
+    expect(analysis.humanFailureEventIntegrations).toHaveLength(humanEvents.length);
+    analysis.humanFailureEventIntegrations.forEach((integration) => {
+      const eventId = integration.basicEventId ?? "";
+      expect(eventId.split("-").map((part) => part.length)).toEqual([8, 4, 4, 4, 12]);
+      expect(eventById.get(eventId)?.failureMode).toBe("HUMAN_ERROR");
+      expect(treeEvents.get(integration.system)?.has(eventId)).toBe(true);
+    });
+
+    const outages = analysis.simultaneousUnavailabilityEvents ?? [];
+    expect(outages).toHaveLength(2);
+    outages.forEach((outage) => {
+      expect(outage.componentIds).toHaveLength(1);
+      outage.componentIds.forEach((eventId) => {
+        expect(eventById.get(eventId)?.failureMode).toBe("TEST_MAINTENANCE");
+        expect(treeEvents.get(outage.systemReference ?? "")?.has(eventId)).toBe(true);
+      });
+    });
+    expect(SystemsAnalysisSchema.parse(structuredClone(analysis))).toEqual(analysis);
+  });
+
   it("builds the workbook catalogue when a legacy workbook has only model-local events", () => {
     const legacy = legacyWorkbook();
     delete legacy.systemBasicEvents;

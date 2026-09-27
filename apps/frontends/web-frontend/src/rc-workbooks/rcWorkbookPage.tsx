@@ -1,11 +1,12 @@
 import type { RcCaseRecords } from "interfaces-mef-types/rc/case-records";
 import type { RcCaseActions } from "./rcWorkbookContext";
-import { saveRcCaseSnapshot, saveRcLinkedResult, readRcCaseTable, readRcCaseText, readRcCaseReview, readRcCaseChoices, readRcCaseOutput } from "./rcWorkbookApi";
+import { saveRcCaseSnapshot, saveRcCategoryResult, removeRcCategoryResult, readRcCaseTable, readRcCaseText, readRcCaseReview, readRcCaseOutput } from "./rcWorkbookApi";
 import { JSX, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { ReleaseCategoryInputs } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { withSourceTermSummary } from "interfaces-shared-types/rc-workbooks/source-term-summary";
+import { withRcFamilyConsequences } from "interfaces-shared-types/rc-workbooks/family-consequences";
 import type { RcSiteReceptors } from "interfaces-mef-types/rc/site-receptors";
 import type { RcEarlyResponseModel } from "interfaces-mef-types/rc/early-response";
 import type { RcWeatherInputs } from "interfaces-mef-types/rc/weather";
@@ -13,8 +14,8 @@ import type { RcTransportInputs } from "interfaces-mef-types/rc/transport";
 import type { RcTransportActions } from "./rcWorkbookContext";
 import type { RcDoseInputs } from "interfaces-mef-types/rc/dose-inputs";
 import type { RcDoseActions } from "./rcWorkbookContext";
-import { importRcDoseInput, saveRcDoseSettings, readRcDoseOriginal, readRcDoseRecords } from "./rcWorkbookApi";
-import { importRcTransportFiles, saveRcTransportSettings, unlinkRcTransportFile, readRcTransportSource, readRcTransportOriginal, readRcTransportDecay } from "./rcWorkbookApi";
+import { importRcDoseInput, confirmRcDoseInputs, readRcDoseOriginal, readRcDoseRecords } from "./rcWorkbookApi";
+import { importRcTransportFiles, saveRcTransportSettings, unlinkRcTransportFile, addRcStandardDecayLibrary, readRcTransportSource, readRcTransportOriginal, readRcTransportDecay } from "./rcWorkbookApi";
 import type { RcWeatherActions } from "./rcWorkbookContext";
 import { importRcWeatherInput, saveRcWeatherSettings, prepareRcWeatherCollection, readRcWeatherOriginal, readRcWeatherRecords, readRcWeatherTrials } from "./rcWorkbookApi";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
@@ -35,7 +36,6 @@ import {
   importRcEarlyResponse,
   saveRcEarlyResponse,
   readRcEarlyResponseOriginal,
-  calculateRcEarlyResponse,
   importRcSourceTerm,
   saveRcSourceTerm,
   getRcDocumentDownload,
@@ -51,11 +51,7 @@ import { useRcMefPatch } from "./useRcMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { RcDocumentsCard } from "./rcDocumentsCard";
 import { type RcPersona } from "./rcViewData";
-import {
-  loadEsHandoffSources,
-  type EventSequenceFamilySource,
-  type ReleaseCategorySource,
-} from "../workbooks/riskWorkbookConnections";
+import { NO_RC_LINKS, listRcLinkOptions, loadRcLinkedWorkbooks, type RcLinkedWorkbookData, type RcLinks } from "./rcLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   handoff: "RCRE-A1",
@@ -96,8 +92,8 @@ function RcWorkbookPage(): JSX.Element {
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
   const [exampleOptions, setExampleOptions] = useState<RcExampleOption[]>([]);
-  const [eventSequenceFamilySources, setEventSequenceFamilySources] = useState<EventSequenceFamilySource[]>([]);
-  const [releaseCategorySources, setReleaseCategorySources] = useState<ReleaseCategorySource[]>([]);
+  const [linkOptions, setLinkOptions] = useState<RcLinks["options"]>(NO_RC_LINKS.options);
+  const [linked, setLinked] = useState<RcLinkedWorkbookData>({});
   const workbookName = data?.rc.name ?? "";
   const workbookVersion = data?.rc.version ?? "1";
 
@@ -129,18 +125,8 @@ function RcWorkbookPage(): JSX.Element {
         } catch {
           if (!cancelled) setProjectName("");
         }
-        try {
-          const sources = await loadEsHandoffSources(workbook.projectId);
-          if (!cancelled) {
-            setEventSequenceFamilySources(sources.families);
-            setReleaseCategorySources(sources.categories);
-          }
-        } catch {
-          if (!cancelled) {
-            setEventSequenceFamilySources([]);
-            setReleaseCategorySources([]);
-          }
-        }
+        const options = await listRcLinkOptions(workbook.projectId);
+        if (!cancelled) setLinkOptions(options);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -148,6 +134,14 @@ function RcWorkbookPage(): JSX.Element {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  const linkedEs = data?.rc.linkedWorkbooks?.ES, linkedMs = data?.rc.linkedWorkbooks?.MS, linkedRi = data?.rc.linkedWorkbooks?.RI;
+  useEffect(() => {
+    let cancelled = false;
+    void loadRcLinkedWorkbooks({ ES: linkedEs, MS: linkedMs, RI: linkedRi }).then((next) => { if (!cancelled) setLinked(next); });
+    return () => { cancelled = true; };
+  }, [linkedEs, linkedMs, linkedRi]);
+  const links = useMemo<RcLinks>(() => ({ options: linkOptions, ...linked }), [linkOptions, linked]);
 
   const updateRc = useCallback((rc: RadiologicalConsequenceAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, rc }));
@@ -157,8 +151,9 @@ function RcWorkbookPage(): JSX.Element {
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
   const { patch, enqueue } = useRcMefPatch(id ?? "", data?.rc ?? null, handleSaveOk, handleSaveErr);
   const mutateRc = useCallback((mutator: (rc: RadiologicalConsequenceAnalysis) => RadiologicalConsequenceAnalysis): void => {
-    setData((prev) => (prev === null ? prev : { ...prev, rc: mutator(prev.rc) }));
-    void patch(mutator);
+    const derive = (rc: RadiologicalConsequenceAnalysis) => withRcFamilyConsequences(mutator(rc));
+    setData((prev) => (prev === null ? prev : { ...prev, rc: derive(prev.rc) }));
+    void patch(derive);
   }, [patch]);
 
   const sourceTerms = useMemo<RcSourceTermActions | undefined>(() => {
@@ -175,7 +170,7 @@ function RcWorkbookPage(): JSX.Element {
     };
     return {
       importFile: (category, revision, file) => enqueue(async () => accept(await importRcSourceTerm(id, category, revision, file))),
-      saveValues: (category, revision, values) => enqueue(async () => accept(await saveRcSourceTerm(id, category, revision, values))),
+      saveValues: (category, revision, values, msSource) => enqueue(async () => accept(await saveRcSourceTerm(id, category, revision, values, msSource))),
       downloadOriginal: async (documentId) => {
         const result = await getRcDocumentDownload(id, documentId);
         window.open(result.url, "_blank", "noopener");
@@ -228,8 +223,7 @@ function RcWorkbookPage(): JSX.Element {
     };
     return { importFile: (revision, file) => enqueue(async () => accept(await importRcEarlyResponse(id, revision, file))),
       save: (revision, model) => enqueue(async () => accept(await saveRcEarlyResponse(id, revision, model))),
-      readOriginal: documentId => readRcEarlyResponseOriginal(id, documentId),
-      calculate: (categoryId, file) => calculateRcEarlyResponse(id, categoryId, file) };
+      readOriginal: documentId => readRcEarlyResponseOriginal(id, documentId) };
   }, [id, enqueue]);
 
   const weather = useMemo<RcWeatherActions | undefined>(() => {
@@ -249,12 +243,13 @@ function RcWorkbookPage(): JSX.Element {
   const caseRecords = useMemo<RcCaseActions | undefined>(() => {
     if (!id) return undefined;
     const accept = (records: RcCaseRecords) => {
-      setData(previous => previous === null ? previous : { ...previous, rc: { ...previous.rc, consequenceQuantification: { ...previous.rc.consequenceQuantification, caseRecords: records } } }); return records;
+      setData(previous => previous === null ? previous : { ...previous, rc: withRcFamilyConsequences({ ...previous.rc, consequenceQuantification: { ...previous.rc.consequenceQuantification, caseRecords: records } }) }); return records;
     };
     return { saveSnapshot: (revision, selection) => enqueue(async () => { const result = await saveRcCaseSnapshot(id, revision, selection); accept(result.records); return result; }),
-      saveResult: (revision, values, file) => enqueue(async () => accept(await saveRcLinkedResult(id, revision, values, file))),
+      saveResult: (revision, values, file) => enqueue(async () => accept(await saveRcCategoryResult(id, revision, values, file))),
+      removeResult: (revision, resultId) => enqueue(async () => accept(await removeRcCategoryResult(id, revision, resultId))),
       readTable: (selection, kind, offset) => readRcCaseTable(id, selection, kind, offset), readText: (selection, fileId, offset) => readRcCaseText(id, selection, fileId, offset),
-      readReview: selection => readRcCaseReview(id, selection), readChoices: (snapshotId, kind, search) => readRcCaseChoices(id, snapshotId, kind, search), readOutput: (resultId, offset) => readRcCaseOutput(id, resultId, offset) };
+      readReview: selection => readRcCaseReview(id, selection), readOutput: (resultId, offset) => readRcCaseOutput(id, resultId, offset) };
   }, [id, enqueue]);
 
   const doseInputs = useMemo<RcDoseActions | undefined>(() => {
@@ -263,7 +258,7 @@ function RcWorkbookPage(): JSX.Element {
       setData(previous => previous === null ? previous : { ...previous, rc: { ...previous.rc, dosimetry: { ...previous.rc.dosimetry, doseInputs: inputs } } }); return inputs;
     };
     return { importFile: (kind, revision, file, category, sourceRevision) => enqueue(async () => accept(await importRcDoseInput(id, kind, revision, file, category, sourceRevision))),
-      saveSettings: (revision, category, sourceRevision, settings) => enqueue(async () => accept(await saveRcDoseSettings(id, revision, category, sourceRevision, settings))),
+      confirm: (revision, category, sourceRevision) => enqueue(async () => accept(await confirmRcDoseInputs(id, revision, category, sourceRevision))),
       readOriginal: (documentId, offset) => readRcDoseOriginal(id, documentId, offset), readRecords: (documentId, nuclide) => readRcDoseRecords(id, documentId, nuclide) };
   }, [id, enqueue]);
 
@@ -277,6 +272,7 @@ function RcWorkbookPage(): JSX.Element {
     return { importFiles: (kind, revision, files, category, sourceRevision) => enqueue(async () => accept(await importRcTransportFiles(id, kind, revision, files, category, sourceRevision))),
       saveSettings: (revision, category, sourceRevision, settings) => enqueue(async () => accept(await saveRcTransportSettings(id, revision, category, sourceRevision, settings))),
       unlink: (revision, kind, documentId, categoryId) => enqueue(async () => accept(await unlinkRcTransportFile(id, revision, kind, documentId, categoryId))),
+      addStandardLibrary: revision => enqueue(async () => accept(await addRcStandardDecayLibrary(id, revision))),
       readSource: category => readRcTransportSource(id, category), readOriginal: documentId => readRcTransportOriginal(id, documentId), readDecay: (documentId, index, offset) => readRcTransportDecay(id, documentId, index, offset) };
   }, [id, enqueue]);
 
@@ -320,7 +316,7 @@ function RcWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <RcWorkbookProvider key={id} data={data} editable={editable} mutateRc={mutateRc} eventSequenceFamilySources={eventSequenceFamilySources} releaseCategorySources={releaseCategorySources} sourceTerms={sourceTerms} siteReceptors={siteReceptors} earlyResponse={earlyResponse} weather={weather} transport={transport} doseInputs={doseInputs} caseRecords={caseRecords}>
+    <RcWorkbookProvider key={id} data={data} editable={editable} mutateRc={mutateRc} links={links} sourceTerms={sourceTerms} siteReceptors={siteReceptors} earlyResponse={earlyResponse} weather={weather} transport={transport} doseInputs={doseInputs} caseRecords={caseRecords}>
       <RcWorkbench
         data={data}
         persona={persona}

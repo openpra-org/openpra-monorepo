@@ -26,10 +26,10 @@ export class RcEarlyResponseController {
   }
   @Post("calculate")
   @HttpCode(200)
-  @UseInterceptors(FileInterceptor("file", { storage: memoryStorage(), limits: { fileSize: 15 * 1024 * 1024, files: 1, fields: 1 } }))
-  calculate(@Param("id") id: string, @Body("categoryId") categoryId: string | undefined,
+  @UseInterceptors(FileInterceptor("file", { storage: memoryStorage(), limits: { fileSize: 15 * 1024 * 1024, files: 1, fields: 2 } }))
+  calculate(@Param("id") id: string, @Body("categoryId") categoryId: string | undefined, @Body("metricId") metricId: string | undefined,
     @UploadedFile() file: { buffer: Buffer; originalname: string } | undefined, @Req() req: AuthenticatedRequest) {
-    if (!categoryId || !file) throw new BadRequestException("Provide release category and response calculation file");
-    return this.responses.calculate(id, categoryId, file, { username: req.user!.username });
+    if (!categoryId || !metricId || !file) throw new BadRequestException("Provide release category, metric and response calculation file");
+    return this.responses.calculate(id, categoryId, metricId, file, { username: req.user!.username });
   }
 }

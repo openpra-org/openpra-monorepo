@@ -6,6 +6,7 @@ import { RcWeatherInputsSchema } from "./weather";
 import { RcDoseInputsSchema } from "./dose-inputs";
 import { RcTransportInputsSchema } from "./transport";
 import { RcEarlyResponseModelSchema } from "./early-response";
+import { RcConsequenceMetricsSchema } from "./metrics";
 import type { RadiologicalConsequenceAnalysis } from "../../rc/radiological-consequence-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
@@ -78,16 +79,28 @@ export const ReleaseCharacteristicsSchema = z.object({
   releaseUncertainties: z.string().optional(),
 });
 
+export const RcBoundingMemberSchema = z.object({
+  sequenceId: z.string(),
+  basis: z.string(),
+});
+
 export const ReleaseCategoryInputsSchema = z.object({
   releaseCategory: z.string(),
   sourceTerm: RcSourceTermSchema.optional(),
   sourceTermDefinitionRef: z.string().optional(),
   eventSequenceFamilyReferences: z.array(EventSequenceFamilyWorkbookReferenceSchema).optional(),
+  boundingMember: RcBoundingMemberSchema.optional(),
   releaseCharacteristics: ReleaseCharacteristicsSchema,
 });
 
+export const RcLinkedWorkbooksSchema = z.object({
+  ES: z.string().optional(),
+  MS: z.string().optional(),
+  RI: z.string().optional(),
+});
+
 export const RcScopeSchema = z.object({
-  consequenceMetrics: z.array(z.string()),
+  metrics: RcConsequenceMetricsSchema.optional(),
   metricSelectionApplicationBasis: z.string().optional(),
   evaluationDecisions: z.array(z.object({
     subElement: z.enum(["RCPA", "RCME", "RCAD", "RCDO", "RCHE", "RCEC", "RCQ"]),
@@ -549,6 +562,8 @@ export const ConsequenceQuantificationAnalysisSchema = z.object({
         }),
       ),
       riskSignificance: ImportanceLevelSchema.optional(),
+      origin: z.enum(["CATEGORY_RESULT", "OVERRIDE"]).optional(),
+      overrideReason: z.string().optional(),
     }),
   ),
   outputReview: z.object({
@@ -683,6 +698,7 @@ export const RcDocumentationSchema = z.object({
 export const RadiologicalConsequenceAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.CONSEQUENCE_ANALYSIS).shape,
   praScope: z.string(),
+  linkedWorkbooks: RcLinkedWorkbooksSchema.optional(),
   scope: RcScopeSchema,
   releaseCategoryToConsequence: ReleaseCategoryToConsequenceAnalysisSchema,
   protectiveActionParameters: ProtectiveActionAnalysisSchema,

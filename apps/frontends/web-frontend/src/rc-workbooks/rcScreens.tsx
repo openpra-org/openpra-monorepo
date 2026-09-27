@@ -1,6 +1,6 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { JSX, useState } from "react";
+import { JSX } from "react";
 import { type PlantStage } from "interfaces-mef-types/core/pra-common";
 import { type RcEvaluationSubElement } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { RCIcon } from "./rcIcons";
@@ -12,10 +12,12 @@ import {
   SITE_OPTIONS,
   type SiteBasis,
 } from "./rcViewData";
-import { RcMsSourceTerm } from "./rcMsSourceTerm";
+import { RcInterfaces } from "./rcInterfaces";
 import { RcProtectiveOperational } from "./rcProtectiveOperational";
 import { RcMeteorologyPanel } from "./rcMeteorology";
 import { RC_SCOPE_ASPECTS, rcScopeTreatment } from "./rcScope";
+import { RcMetricsCard } from "./rcMetrics";
+import { RC_METRIC_DEFAULT_EXCLUSION, rcAspectDecision, rcMetricsCreditingProtectiveActions } from "interfaces-shared-types/rc-workbooks/metrics";
 
 type Stage = "pre_operational" | "operational";
 
@@ -34,100 +36,6 @@ function MethodChips({ ids, label }: { ids: string[]; label?: string }): JSX.Ele
         <span key={m.id} className="hrmethod-chip" aria-label={`${m.name} · ${m.ref}`}>{m.abbr}</span>
       ))}
     </div>
-  );
-}
-
-// ─── Interfaces — the data RC exchanges with ES, MS and RI ──────────────────
-function RcInterfaces({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => void }): JSX.Element {
-  const { rc, editable, mutateRc, eventSequenceFamilySources, releaseCategorySources } = useRcWorkbook();
-  const rcc = rc.releaseCategoryToConsequence;
-  const inputs = rcc.releaseCategoryInputs;
-  const metrics = rc.scope.consequenceMetrics;
-  const [selected, setSelected] = useState<string | null>("MS");
-
-  const tiles: { code: string; name: string; handoff: string }[] = [
-    { code: "ES", name: "Event Sequence Analysis", handoff: "Provides · Release categories" },
-    { code: "MS", name: "Mechanistic Source Term", handoff: "Provides · Source term" },
-    { code: "RI", name: "Risk Integration", handoff: "Provides measures · Receives results" },
-  ];
-  const unmatchedInputs = inputs.filter((input) => !releaseCategorySources.some((source) => source.category.releaseCategoryId === input.releaseCategory));
-
-  function updateMetrics(next: string[]): void {
-    if (!editable) return;
-    mutateRc((draft) => ({ ...draft, scope: { ...draft.scope, consequenceMetrics: next } }));
-  }
-
-  return (
-    <>
-      <div className="poshandoff__grid rc-handoff__interface-tiles">
-        {tiles.map((tile) => (
-          <button key={tile.code} type="button"
-            className={`poshandoff__tile${selected === tile.code ? " poshandoff__tile--active" : ""}`}
-            onClick={() => setSelected(selected === tile.code ? null : tile.code)}>
-            <span className="poshandoff__tile-code">{tile.code}</span>
-            <span className="poshandoff__tile-name">{tile.name}</span>
-            <span className="poshandoff__tile-role">{tile.handoff}</span>
-          </button>
-        ))}
-      </div>
-
-      {selected === "ES" && (
-        <div className="rc-handoff__es" style={{ marginTop: 16 }}>
-          {releaseCategorySources.length === 0 && inputs.length === 0 ? (
-            <p className="posmuted" style={{ margin: 0 }}>No ES release categories or RC categories yet.</p>
-          ) : (
-            <table className="postable postable--mid">
-              <thead><tr><th>Matching RC category</th><th>ES category</th><th>ES families</th><th>Physical release characteristics</th></tr></thead>
-              <tbody>
-                {releaseCategorySources.map((source) => {
-                  const familyNames = eventSequenceFamilySources
-                    .filter((family) => family.workbookId === source.workbookId && family.family.releaseCategoryIds?.includes(source.category.releaseCategoryId))
-                    .map((family) => family.family.name || family.family.uuid);
-                  return <tr key={`${source.workbookId}|${source.category.uuid}`}>
-                    <td className="posmono">{inputs.some((input) => input.releaseCategory === source.category.releaseCategoryId) ? source.category.releaseCategoryId : "Not in RC"}</td>
-                    <td><div className="postable__name">{source.category.releaseCategoryId}</div><span className="postable__name-sub">{source.workbookName}</span></td>
-                    <td>{familyNames.length > 0 ? familyNames.join(", ") : "—"}</td>
-                    <td>{source.category.physicalReleaseCharacteristics.join(" · ") || "—"}</td>
-                  </tr>;
-                })}
-                {unmatchedInputs.map((input) => (
-                  <tr key={`unmatched|${input.releaseCategory}`}>
-                    <td><div className="postable__name">{input.releaseCategory}</div></td>
-                    <td>No matching ES category</td>
-                    <td>—</td>
-                    <td>—</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {selected === "MS" && <RcMsSourceTerm openDrawer={openDrawer} />}
-
-      {selected === "RI" && (
-        <div className="rc-handoff__ri" style={{ marginTop: 16 }}>
-          <div className="posfield">
-            <label className="posfield__label">Consequence metrics</label>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {metrics.map((m, i) => (
-                <div key={i} className="posrow" style={{ gap: 6 }}>
-                  <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={m} disabled={!editable} onChange={(e) => updateMetrics(metrics.map((y, j) => (j === i ? e.target.value : y)))} />
-                  {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => updateMetrics([...metrics.slice(0, i), ...metrics.slice(i + 1)])}>Remove</button>}
-                </div>
-              ))}
-              {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => updateMetrics([...metrics, "New consequence metric"])}><RCIcon.Plus /> Add metric</button>}
-            </div>
-          </div>
-          <div className="posfield" style={{ marginTop: 16 }}>
-            <label className="posfield__label">Metric selection basis</label>
-            <WorkbookTextarea className="posfield__textarea" rows={2} value={rc.scope.metricSelectionApplicationBasis ?? ""} disabled={!editable}
-              onChange={(e) => mutateRc((draft) => ({ ...draft, scope: { ...draft.scope, metricSelectionApplicationBasis: e.target.value } }))} />
-          </div>
-        </div>
-      )}
-    </>
   );
 }
 
@@ -207,12 +115,19 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
       ...draft,
       scope: {
         ...draft.scope,
-        evaluationDecisions: (draft.scope.evaluationDecisions ?? []).map((decision) => (
-          decision.subElement === subElement ? { ...decision, exclusionReason } : decision
-        )),
+        evaluationDecisions: [
+          ...(draft.scope.evaluationDecisions ?? []).filter((decision) => decision.subElement !== subElement),
+          { subElement, included: false, exclusionReason },
+        ],
       },
     }));
   }
+  function chooseInclusion(subElement: RcEvaluationSubElement, value: string): void {
+    if (value === "excluded" && rcAspectDecision({ metrics: rc.scope.metrics }, subElement).defaulted) updateExclusionReason(subElement, RC_METRIC_DEFAULT_EXCLUSION);
+    else updateScopeDecision(subElement, value === "" ? undefined : value === "included");
+  }
+  const protectiveMetrics = rcMetricsCreditingProtectiveActions(rc.scope.metrics);
+  const metricList = (metrics: { id: string }[]) => metrics.map((metric) => metric.id).join(", ");
 
   return (
     <>
@@ -220,6 +135,8 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
         <div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Interfaces" level={3} /></div>
         <RcInterfaces openDrawer={openDrawer} />
       </div>
+
+      <RcMetricsCard openDrawer={openDrawer} />
 
       <div className="poscard rc-handoff__wide-card rc-handoff__scope">
         <div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="PRA scope" level={3} /></div>
@@ -237,16 +154,21 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
             <table className="postable rcscope__table" aria-label="Evaluation by aspect">
               <thead><tr><th>Aspect</th><th>Included?</th><th>Treatment used</th><th>Reason for exclusion</th></tr></thead>
               <tbody>{RC_SCOPE_ASPECTS.map((aspect) => {
-                const decision = rc.scope.evaluationDecisions?.find((item) => item.subElement === aspect.subElement);
+                const decision = rcAspectDecision(rc.scope, aspect.subElement);
                 const treatment = rcScopeTreatment(rc, aspect.subElement);
-                const reasonMissing = decision?.included === false && !decision.exclusionReason?.trim();
+                const reasonMissing = decision.included === false && !decision.exclusionReason?.trim();
+                const hasDefault = rcAspectDecision({ metrics: rc.scope.metrics }, aspect.subElement).defaulted;
                 return <tr key={aspect.subElement}>
                   <td><strong>{aspect.label}</strong><span className="rcscope__step">Step {aspect.step}</span></td>
-                  <td><select className="posfield__select" aria-label={`${aspect.label} inclusion`} value={decision === undefined ? "" : decision.included ? "included" : "excluded"} disabled={!editable} onChange={(event) => updateScopeDecision(aspect.subElement, event.target.value === "" ? undefined : event.target.value === "included")}>
-                    <option value="">Not set</option><option value="included">Included</option><option value="excluded">Excluded</option>
-                  </select></td>
-                  <td>{decision?.included === false ? "—" : treatment || <span className="posmuted">Not recorded</span>}</td>
-                  <td>{decision?.included === false ? <><WorkbookInput className="posfield__input" aria-label={`${aspect.label} exclusion reason`} aria-invalid={reasonMissing} value={decision.exclusionReason ?? ""} disabled={!editable} onChange={(event) => updateExclusionReason(aspect.subElement, event.target.value)} />{reasonMissing && <span className="rcscope__error" role="alert">Reason required</span>}</> : "—"}</td>
+                  <td>{decision.required ? <>
+                    <strong>Required</strong>
+                    <span className="rcscope__step" title={decision.neededBy.map((metric) => metric.name).join(", ")}>Needed by {metricList(decision.neededBy)}</span>
+                    {aspect.subElement === "RCPA" && <span className="rcscope__step">{protectiveMetrics.length ? `Protective actions needed by ${metricList(protectiveMetrics)}` : "No metric credits protective actions"}</span>}
+                  </> : <select className="posfield__select" aria-label={`${aspect.label} inclusion`} value={decision.included === undefined ? "" : decision.included ? "included" : "excluded"} disabled={!editable} onChange={(event) => chooseInclusion(aspect.subElement, event.target.value)}>
+                    {!hasDefault && <option value="">Not set</option>}<option value="included">Included</option><option value="excluded">Excluded</option>
+                  </select>}</td>
+                  <td>{decision.included === false ? "—" : treatment || <span className="posmuted">Not recorded</span>}</td>
+                  <td>{decision.included === false ? <><WorkbookInput className="posfield__input" aria-label={`${aspect.label} exclusion reason`} aria-invalid={reasonMissing} value={decision.exclusionReason ?? ""} disabled={!editable} onChange={(event) => updateExclusionReason(aspect.subElement, event.target.value)} />{reasonMissing && <span className="rcscope__error" role="alert">Reason required</span>}</> : "—"}</td>
                 </tr>;
               })}</tbody>
             </table>

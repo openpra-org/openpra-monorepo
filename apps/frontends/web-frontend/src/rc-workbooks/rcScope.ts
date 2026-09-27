@@ -5,6 +5,7 @@ import type {
 } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { receptorCount, sitePopulation } from "interfaces-shared-types/rc-workbooks/site-receptors";
 import { weatherTreatmentNames } from "interfaces-shared-types/rc-workbooks/weather-trials";
+import { rcAspectDecision } from "interfaces-shared-types/rc-workbooks/metrics";
 
 export const RC_SCOPE_ASPECTS = [
   { subElement: "RCPA", label: "Protective actions and site", step: "02" },
@@ -17,7 +18,7 @@ export const RC_SCOPE_ASPECTS = [
 ] as const satisfies readonly { subElement: RcEvaluationSubElement; label: string; step: string }[];
 
 export function isRcAspectExcluded(rc: RadiologicalConsequenceAnalysis, aspect: RcSubElement): boolean {
-  return rc.scope.evaluationDecisions?.some((decision) => decision.subElement === aspect && decision.included === false) ?? false;
+  return aspect !== "RCRE" && rcAspectDecision(rc.scope, aspect).included === false;
 }
 
 function count(value: number, singular: string, plural = `${singular}s`): string {

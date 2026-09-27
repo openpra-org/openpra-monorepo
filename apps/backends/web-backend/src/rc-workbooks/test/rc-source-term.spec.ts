@@ -47,6 +47,20 @@ describe("RC Step 01 source-term HTTP and storage", () => {
     expect([...testApp.storage.values()][0]).toEqual(sourceFixture);
   });
 
+  it("records the MS source term it came from and drops the earlier file link", async () => {
+    const category = await importSource();
+    const msSource = { workbookId: "ms-1", sourceTermId: "ST-3", inventoryIds: ["SRC-H1", "SRC-H2"] };
+    const saved = (await request(http()).patch(sourceUrl).send({ baseRevision: 1, values: category.sourceTerm!.values, msSource }).expect(200)).body;
+    expect(saved.sourceTerm.msSource).toEqual(msSource);
+    expect(saved.sourceTerm.originalFile).toBeUndefined();
+    const edited = structuredClone(saved.sourceTerm.values);
+    edited.inventory[0].activityBq = 2e16;
+    const kept = (await request(http()).patch(sourceUrl).send({ baseRevision: 2, values: edited }).expect(200)).body;
+    expect(kept.sourceTerm.msSource).toEqual(msSource);
+    await request(http()).patch(sourceUrl).send({ baseRevision: 3, values: edited, msSource: { ...msSource, inventoryIds: [] } }).expect(400);
+    expect((await importSource(sourceUrl, 3)).sourceTerm!.msSource).toBeUndefined();
+  });
+
   it("saves manually entered source data without requiring a file", async () => {
     const values = { groups: [{ id: 1, name: "Cs" }], inventory: [{ name: "Cs-137", activityBq: 1e12, group: 1 }],
       releases: [{ id: 1, startSeconds: 60, durationSeconds: 3600, heightMetres: 10, fractions: [0.01] }] };

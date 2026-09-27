@@ -8,7 +8,8 @@ import {
   type RcStep,
   type SiteBasis,
 } from "./rcViewData";
-import { ccScore, commentsView, filterConformance, groupBySection, siteFromMef, stepsFromMef, type CommentView } from "./rcSelectors";
+import { ccScore, commentsView, filterConformance, groupBySection, siteFromMef, stepsFromMef, type CommentView, type RcStepChecks } from "./rcSelectors";
+import { rcSubElementChecks } from "interfaces-shared-types/rc-workbooks/step-checks";
 import { HandoffScreen, ProtectiveScreen, WeatherScreen, type RcDrawerContext } from "./rcScreens";
 import { DispersionScreen, DosimetryScreen, HealthEffectsScreen, EconomicsScreen } from "./rcScreens2";
 import { QuantifyScreen, DraftScreen, DrawerContent, PlaceholderScreen } from "./rcScreens3";
@@ -128,13 +129,14 @@ function WorkspaceHeader({
   );
 }
 
-function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen, onClose }: {
+function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen, onClose, onShowInputs }: {
   stepId: string;
   setStepId: (id: string) => void;
   persona: RcPersona;
   visibleSteps: RcStep[];
   mobileOpen: boolean;
   onClose: () => void;
+  onShowInputs?: () => void;
 }): JSX.Element {
   const enabledSteps = visibleSteps.filter((s) => !s.excluded);
   const idx = Math.max(0, enabledSteps.findIndex((s) => s.id === stepId));
@@ -175,26 +177,26 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen, onClos
           );
         })}
       </ul>
-      <div className="posrail__footer">
-        <button type="button" className="posrail__footer-btn"><RCIcon.Layers /> Show all inputs</button>
-        <button type="button" className="posrail__footer-btn"><RCIcon.Settings /> Workbook settings</button>
-      </div>
+      {onShowInputs && <div className="posrail__footer">
+        <button type="button" className="posrail__footer-btn" onClick={onShowInputs}><RCIcon.Layers /> Show all inputs</button>
+      </div>}
     </aside>
   );
 }
 
-function ConformanceDock({ ccId, site, onGoToHandoff, onClose, mobileOpen }: {
+function ConformanceDock({ ccId, site, checks, onGoToHandoff, onClose, mobileOpen }: {
   ccId: string;
   site: SiteBasis;
+  checks: RcStepChecks;
   onGoToHandoff: () => void;
   onClose: () => void;
   mobileOpen: boolean;
 }): JSX.Element {
   const { rc } = useRcWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
-  const items = useMemo(() => filterConformance(rc, ccId, site), [rc, ccId, site]);
+  const items = useMemo(() => filterConformance(rc, ccId, site, checks), [rc, ccId, site, checks]);
   const sections = useMemo(() => groupBySection(items), [items]);
-  const scores = ccScore(rc, ccId, site);
+  const scores = ccScore(rc, ccId, site, checks);
   const dashTotal = 99.9;
   const dash = (scores.percent * dashTotal) / 100;
   return (
@@ -254,7 +256,7 @@ function ConformanceDock({ ccId, site, onGoToHandoff, onClose, mobileOpen }: {
 }
 
 function RcDrawer({ context, onClose }: { context: RcDrawerContext; onClose: () => void }): JSX.Element {
-  const modalLabel = ({ category: "Category details", protaction: "Protective action details", cohort: "Cohort details", sourcedoc: "Source document details", phase: "Incident phase details", evacdelay: "Evacuation delay details", protparam: "Protection parameter details", sitedata: "Site details", metbasis: "Meteorology source and period", metquality: "Meteorology quality controls", metdata: "Meteorological data quality", metparams: "Extracted parameters", dispersion: "Dispersion model and sampling", deposition: "Deposition matrix", pathway: "Exposure pathway", dosetreatment: "Dose treatment", healthparams: "Health-effect treatment", riskfactor: "Risk-factor source", costcategory: "Cost category", costparam: "Cost parameter", econreview: "Economic input review", code: "Consequence code", family: "Event sequence family", uncertainty: "Model uncertainty", sensitivity: "Sensitivity study", bounding: "Bounding-site assumption", preop: "Pre-operational assumption", rifeedback: "Risk-integration feedback" } as Record<string, string | undefined>)[context.kind];
+  const modalLabel = ({ metric: "Consequence metric details", category: "Category details", protaction: "Protective action details", cohort: "Cohort details", sourcedoc: "Source document details", phase: "Incident phase details", evacdelay: "Evacuation delay details", protparam: "Protection parameter details", sitedata: "Site details", metbasis: "Meteorology source and period", metquality: "Meteorology quality controls", metdata: "Meteorological data quality", metparams: "Extracted parameters", dispersion: "Dispersion model and sampling", deposition: "Deposition matrix", pathway: "Exposure pathway", dosetreatment: "Dose treatment", healthparams: "Health-effect treatment", riskfactor: "Risk-factor source", costcategory: "Cost category", costparam: "Cost parameter", econreview: "Economic input review", code: "Consequence code", family: "Event sequence family", uncertainty: "Model uncertainty", sensitivity: "Sensitivity study", bounding: "Bounding-site assumption", preop: "Pre-operational assumption", rifeedback: "Risk-integration feedback" } as Record<string, string | undefined>)[context.kind];
   const centered = modalLabel !== undefined;
   const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -272,7 +274,7 @@ function RcDrawer({ context, onClose }: { context: RcDrawerContext; onClose: () 
   }, [onClose]);
   return (
     <div className={centered ? "modal__backdrop" : "posdrawer-backdrop"} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div ref={dialog} className={centered ? `modal ${context.kind === "category" ? "rc-category-modal" : "rc-details-modal"}${context.kind === "dispersion" || context.kind === "deposition" ? " rc-transport-modal" : ""}${context.kind === "pathway" || context.kind === "dosetreatment" ? " rc-dose-modal" : ""}` : "posdrawer"} role="dialog" aria-modal="true" aria-label={modalLabel} tabIndex={centered ? -1 : undefined}
+      <div ref={dialog} className={centered ? `modal ${context.kind === "category" ? "rc-category-modal" : "rc-details-modal"}${context.kind === "dispersion" || context.kind === "deposition" ? " rc-transport-modal" : ""}${context.kind === "pathway" || context.kind === "dosetreatment" ? " rc-dose-modal" : ""}${context.kind === "metric" ? " rc-metric-modal" : ""}` : "posdrawer"} role="dialog" aria-modal="true" aria-label={modalLabel} tabIndex={centered ? -1 : undefined}
         onKeyDown={e => {
           if (!centered || e.key !== "Tab") return;
           const controls = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]')).filter(el => el.getClientRects().length > 0);
@@ -317,7 +319,9 @@ function RcWorkbench({
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
 
-  const visibleSteps = useMemo(() => stepsFromMef(data.rc, persona), [data.rc, persona]);
+  const { stepLinks } = useRcWorkbook();
+  const checks = useMemo(() => rcSubElementChecks(data.rc, stepLinks), [data.rc, stepLinks]);
+  const visibleSteps = useMemo(() => stepsFromMef(data.rc, persona, checks), [data.rc, persona, checks]);
   const enabledSteps = useMemo(() => visibleSteps.filter((step) => !step.excluded), [visibleSteps]);
   const mefCcId = data.rc.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
   const mefSite = siteFromMef(data.rc);
@@ -336,6 +340,7 @@ function RcWorkbench({
   const [dockMobileOpen, setDockMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<RcDrawerContext | null>(null);
+  const [caseView, setCaseView] = useState<"default" | "inputs" | "inputs-again">("default");
   const toastTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -344,6 +349,7 @@ function RcWorkbench({
 
   function setStepId(id: string): void {
     if (!enabledSteps.some((step) => step.id === id)) return;
+    if (id !== "quantify") setCaseView("default");
     setStepIdState(id);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "auto" });
   }
@@ -368,7 +374,7 @@ function RcWorkbench({
   const submitted = actions === undefined ? demoSubmittedLocal : (workflowState === "INTERNAL_APPROVAL" || workflowState === "FINAL");
   const approved = actions === undefined ? demoApprovedLocal : workflowState === "FINAL";
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
-  const scores = ccScore(data.rc, ccId, site);
+  const scores = ccScore(data.rc, ccId, site, checks);
   const openCount = comments.filter((c) => !c.resolved).length;
   const resolvedCount = comments.filter((c) => c.resolved).length;
 
@@ -413,8 +419,8 @@ function RcWorkbench({
       case "dose": return <DosimetryScreen openDrawer={setDrawer} />;
       case "health": return <HealthEffectsScreen openDrawer={setDrawer} />;
       case "economics": return <EconomicsScreen openDrawer={setDrawer} />;
-      case "quantify": return <QuantifyScreen openDrawer={setDrawer} onOpenStep={setStepId} />;
-      case "draft": return <DraftScreen cc={cc} scores={scores} site={site} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
+      case "quantify": return <QuantifyScreen key={caseView} openDrawer={setDrawer} onOpenStep={setStepId} initialCaseTab={caseView === "default" ? undefined : "prepared"} />;
+      case "draft": return <DraftScreen cc={cc} scores={scores} site={site} conformance={filterConformance(data.rc, ccId, site, checks)} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
         <InternalReviewScreen
@@ -455,7 +461,8 @@ function RcWorkbench({
       <WorkspaceHeader persona={persona} setPersona={setPersona} workflowState={data.rc.workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailMobileOpen((v) => !v)} onToggleDock={() => { setDockOpen(true); setDockMobileOpen((v) => !v); }} />
 
       <div className={`posw__shell${railOpen ? "" : " posw__shell--rail-closed"}${dockOpen ? "" : " posw__shell--dock-closed"}`}>
-        {(railOpen || railMobileOpen) && <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} onClose={() => { if (railMobileOpen) setRailMobileOpen(false); else setRailOpen(false); }} />}
+        {(railOpen || railMobileOpen) && <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} onClose={() => { if (railMobileOpen) setRailMobileOpen(false); else setRailOpen(false); }}
+          onShowInputs={enabledSteps.some((s) => s.id === "quantify") ? () => { setCaseView((view) => view === "inputs" ? "inputs-again" : "inputs"); setStepId("quantify"); setRailMobileOpen(false); } : undefined} />}
 
         <main className="posmain" aria-label="Step content">
           <div className="posmain__head">
@@ -486,7 +493,7 @@ function RcWorkbench({
         </main>
 
         {dockOpen && (
-          <ConformanceDock ccId={ccId} site={site} onGoToHandoff={() => setStepId("handoff")} onClose={() => { setDockOpen(false); setDockMobileOpen(false); }} mobileOpen={dockMobileOpen} />
+          <ConformanceDock ccId={ccId} site={site} checks={checks} onGoToHandoff={() => setStepId("handoff")} onClose={() => { setDockOpen(false); setDockMobileOpen(false); }} mobileOpen={dockMobileOpen} />
         )}
         {(railMobileOpen || dockMobileOpen) && (
           <div className="posw__mobile-scrim" onClick={() => { setRailMobileOpen(false); setDockMobileOpen(false); }} aria-hidden="true" />

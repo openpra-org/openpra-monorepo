@@ -8,6 +8,9 @@ import { HandoffScreen } from "../rcScreens";
 import { stepsFromMef } from "../rcSelectors";
 import { RcWorkbookProvider, type RcWorkbookData } from "../rcWorkbookContext";
 import { RcWorkbench } from "../rcWorkbench";
+import { rcMetricPresets } from "interfaces-shared-types/rc-workbooks/metrics";
+
+const noChecks = { RCRE: [], RCPA: [], RCME: [], RCAD: [], RCDO: [], RCHE: [], RCEC: [], RCQ: [] };
 
 jest.mock("../../auth/AuthContext", () => ({
   useAuth: () => ({ user: { username: "analyst", roles: [] } }),
@@ -47,16 +50,55 @@ it("uses later step data for treatment and saves explicit scope decisions", () =
   const protectiveRow = within(table).getByText("Protective actions and site").closest("tr") as HTMLTableRowElement;
   fireEvent.change(screen.getByRole("combobox", { name: "Protective actions and site inclusion" }), { target: { value: "excluded" } });
   expect(within(protectiveRow).queryByText("evacuation")).not.toBeInTheDocument();
-  expect(stepsFromMef(current, "preparer").find((step) => step.id === "protective")?.excluded).toBe(true);
+  expect(stepsFromMef(current, "preparer", noChecks).find((step) => step.id === "protective")?.excluded).toBe(true);
   fireEvent.change(screen.getByRole("combobox", { name: "Protective actions and site inclusion" }), { target: { value: "included" } });
   expect(within(protectiveRow).getByText("evacuation")).toBeInTheDocument();
-  expect(stepsFromMef(current, "preparer").find((step) => step.id === "protective")?.excluded).toBeUndefined();
+  expect(stepsFromMef(current, "preparer", noChecks).find((step) => step.id === "protective")?.excluded).toBeUndefined();
 
   fireEvent.change(screen.getByRole("combobox", { name: "Economic factors inclusion" }), { target: { value: "excluded" } });
   const reason = screen.getByRole("textbox", { name: "Economic factors exclusion reason" });
   fireEvent.change(reason, { target: { value: "Dose-only application" } });
   fireEvent.blur(reason);
   expect(current.scope.evaluationDecisions).toContainEqual({ subElement: "RCEC", included: false, exclusionReason: "Dose-only application" });
+  expect(RadiologicalConsequenceAnalysisSchema.safeParse(current).success).toBe(true);
+});
+
+it("lets the metrics decide the required aspects and default the rest to excluded", () => {
+  const initial = createBlankRc("RC metric scope test", "analyst");
+  initial.scope.metrics = [{ id: "RCM-01", ...rcMetricPresets[0].metric }];
+  initial.scope.evaluationDecisions = [{ subElement: "RCAD", included: false, exclusionReason: "Stale choice" }];
+  let current: RadiologicalConsequenceAnalysis = initial;
+  function Harness() {
+    const [rc, setRc] = useState(initial);
+    return <RcWorkbookProvider data={{ rc, cc: {}, nms: [] } as unknown as RcWorkbookData} editable mutateRc={(change) => setRc((previous) => {
+      current = change(previous);
+      return current;
+    })}>
+      <HandoffScreen ccId="cc-ii" setCcId={jest.fn()} site="actual_site" setSite={jest.fn()} openDrawer={jest.fn()} />
+    </RcWorkbookProvider>;
+  }
+  render(<Harness />);
+  const table = screen.getByRole("table", { name: "Evaluation by aspect" });
+  const dispersion = within(table).getByText("Atmospheric dispersion").closest("tr") as HTMLTableRowElement;
+  expect(dispersion).toHaveTextContent("RequiredNeeded by RCM-01");
+  expect(within(dispersion).queryByRole("combobox")).not.toBeInTheDocument();
+  const site = within(table).getByText("Protective actions and site").closest("tr") as HTMLTableRowElement;
+  expect(site).toHaveTextContent("No metric credits protective actions");
+  expect(screen.getByRole("combobox", { name: "Health effects inclusion" })).toHaveValue("excluded");
+  expect(screen.getByRole("textbox", { name: "Health effects exclusion reason" })).toHaveValue("No selected metric needs it.");
+  expect(within(screen.getByRole("combobox", { name: "Health effects inclusion" })).queryByRole("option", { name: "Not set" })).not.toBeInTheDocument();
+  expect(stepsFromMef(current, "preparer", noChecks).find((step) => step.id === "health")?.excluded).toBe(true);
+  expect(stepsFromMef(current, "preparer", noChecks).find((step) => step.id === "dispersion")?.excluded).toBeUndefined();
+
+  fireEvent.change(screen.getByRole("combobox", { name: "Economic factors inclusion" }), { target: { value: "included" } });
+  expect(current.scope.evaluationDecisions).toContainEqual({ subElement: "RCEC", included: true });
+  expect(stepsFromMef(current, "preparer", noChecks).find((step) => step.id === "economics")?.excluded).toBeUndefined();
+  fireEvent.change(screen.getByRole("combobox", { name: "Economic factors inclusion" }), { target: { value: "excluded" } });
+  expect(current.scope.evaluationDecisions).toContainEqual({ subElement: "RCEC", included: false, exclusionReason: "No selected metric needs it." });
+  const reason = screen.getByRole("textbox", { name: "Economic factors exclusion reason" });
+  fireEvent.change(reason, { target: { value: "Dose-only licensing application" } });
+  fireEvent.blur(reason);
+  expect(current.scope.evaluationDecisions).toContainEqual({ subElement: "RCEC", included: false, exclusionReason: "Dose-only licensing application" });
   expect(RadiologicalConsequenceAnalysisSchema.safeParse(current).success).toBe(true);
 });
 

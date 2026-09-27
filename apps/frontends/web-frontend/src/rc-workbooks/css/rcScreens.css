@@ -102,14 +102,19 @@
 
 .rc-handoff__interface-tiles { width: 100%; }
 .rc-handoff__wide-card { box-sizing: border-box; width: 100%; max-width: 1120px; }
-.rc-handoff__wide-card:has(.rc-ms-source),
-.rc-handoff__wide-card:has(.rc-handoff__ri) { max-width: 900px; }
-.rc-handoff__es { width: 100%; overflow-x: auto; }
-.rc-handoff__es .postable { min-width: 760px; }
-.rc-handoff__ri .posfield { width: 100%; }
-.rc-handoff__ri .posrow { flex-wrap: wrap; }
-.rc-handoff__ri .posrow .posfield__input { box-sizing: border-box; min-width: 0; }
-.rc-handoff__ri .posfield__textarea { box-sizing: border-box; min-height: 68px; }
+.rc-handoff__wide-card:has(.rc-ms-source) { max-width: 900px; }
+.rc-link-lane { width: 100%; min-width: 0; margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.rc-link-select { display: flex; flex-direction: column; gap: 5px; max-width: 420px; }
+.rc-link-select .posfield__select { width: 100%; min-width: 0; }
+.rc-link-note { margin: 0; font-size: 13px; }
+.rc-link-table { width: 100%; overflow-x: auto; }
+.rc-link-table .postable { min-width: 560px; }
+.rc-link-table .posfield__select, .rc-link-table .posfield__input { box-sizing: border-box; width: 100%; min-width: 0; }
+.rc-link-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+.rc-link-lane .rcscope__title { margin: 4px 0 0; }
+.rc-link-actions { display: flex; align-items: center; gap: 8px; }
+.rc-bounding-table th:nth-child(1) { width: 18%; }
+.rc-bounding-table th:nth-child(2) { width: 30%; }
 .rc-handoff__scope > .posfield__textarea { box-sizing: border-box; width: 100%; min-height: 76px; }
 .rc-handoff__compact-card { box-sizing: border-box; width: 100%; max-width: 960px; }
 .rc-step02-card { box-sizing: border-box; width: 100%; max-width: 960px; }

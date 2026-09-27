@@ -23,7 +23,8 @@ it("imports the published site excerpt and shows only its supplied economic rows
   Object.defineProperty(file, "text", { value: async () => original });
   fireEvent.change(screen.getByLabelText("Import site economy file"), { target: { files: [file] } });
   await waitFor(() => expect(screen.getByLabelText("Supplied regional rows")).toHaveTextContent("2"));
-  expect(screen.getByText("2 of 83")).toBeInTheDocument();
+  expect(screen.getByText("Economic multiplier 1.35")).toBeInTheDocument();
+  expect(screen.getByText("2 of 83 regions supplied")).toBeInTheDocument();
   expect(screen.getByRole("table", { name: "Regional economic data" })).toHaveTextContent("MIX_CNTY83");
   expect(screen.getByRole("table", { name: "Crop seasons and shares" })).toHaveTextContent("PASTURE");
   fireEvent.click(screen.getByRole("button", { name: "View file" }));
@@ -54,5 +55,5 @@ it("reuses the original Step 02 site file", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Use Step 02 site file" }));
   await waitFor(() => expect(screen.getByLabelText("Site file revision")).toHaveTextContent(String(initial.protectiveActionParameters.siteAndReceptors!.revision)));
   expect(readOriginal).toHaveBeenCalledWith(initial.protectiveActionParameters.siteAndReceptors!.geometryFile!.documentId);
-  expect(screen.getByText("2 of 83")).toBeInTheDocument();
+  expect(screen.getByText("2 of 83 regions supplied")).toBeInTheDocument();
 });

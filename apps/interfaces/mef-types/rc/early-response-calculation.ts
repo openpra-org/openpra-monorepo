@@ -29,7 +29,7 @@ export interface RcResponseCalculationInput {
   doseRates?: RcResponseDoseRate[];
   /** Breathing rate used to form the unprotected inhalation rate, in m³/s. */
   referenceBreathingRateCubicMetresPerSecond?: number;
-  /** Step 05 integration time from accident initiation. */
+  /** End of the metric exposure window, in seconds from accident initiation. */
   integrationSeconds?: number;
 }
 

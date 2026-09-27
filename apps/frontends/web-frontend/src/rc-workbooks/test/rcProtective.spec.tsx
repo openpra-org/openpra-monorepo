@@ -42,7 +42,7 @@ it("creates a response draft without inventing population or cohort weights", as
     return <RcWorkbookProvider data={{ rc, cc: {}, nms: [] } as unknown as RcWorkbookData} editable mutateRc={(change) => setRc((previous) => {
       current = change(previous);
       return current;
-    })} earlyResponse={{ importFile: jest.fn(), readOriginal: jest.fn(), calculate: jest.fn(), save: async (_revision, model) => {
+    })} earlyResponse={{ importFile: jest.fn(), readOriginal: jest.fn(), save: async (_revision, model) => {
       const saved = { ...model, revision: 1 };
       setRc(previous => { current = { ...previous, protectiveActionParameters: { ...previous.protectiveActionParameters, earlyResponseModel: saved } }; return current; });
       return saved;
@@ -68,7 +68,7 @@ it("edits cohort timing in seconds and saves it with the response model", async 
     const [rc, setRc] = useState(initial);
     return <RcWorkbookProvider data={{ rc, cc: {}, nms: [] } as unknown as RcWorkbookData} editable mutateRc={(change) => setRc((previous) => {
       return change(previous);
-    })} earlyResponse={{ importFile: jest.fn(), readOriginal: jest.fn(), calculate: jest.fn(), save: async (_revision, model) => {
+    })} earlyResponse={{ importFile: jest.fn(), readOriginal: jest.fn(), save: async (_revision, model) => {
       savedModel = model;
       const next = { ...model, revision: 2 };
       setRc(previous => ({ ...previous, protectiveActionParameters: { ...previous.protectiveActionParameters, earlyResponseModel: next } }));

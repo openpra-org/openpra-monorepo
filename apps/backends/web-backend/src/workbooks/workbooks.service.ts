@@ -209,7 +209,35 @@ export class WorkbooksService {
       }
     }
     await this.reconcileGeneratedDependencyExamples(generated);
+    await this.linkGeneratedConsequenceExamples(generated);
     return { generated };
+  }
+
+  private async linkGeneratedConsequenceExamples(generated: GeneratedExampleWorkbook[]): Promise<void> {
+    const rcAdapter = this.elementRegistry.tryGet("RC");
+    if (rcAdapter === undefined) return;
+    for (const variant of [...new Set(generated.map(({ exampleId }) => exampleId))]) {
+      const idFor = (elementCode: string) => generated.find((entry) => entry.exampleId === variant && entry.elementCode === elementCode)?.workbookId ?? undefined;
+      const rcId = idFor("RC");
+      if (rcId === undefined) continue;
+      const loaded = await rcAdapter.load(rcId);
+      if (loaded === null) continue;
+      const mef = loaded.mef as RadiologicalConsequenceAnalysis;
+      const links = { ES: idFor("ES"), MS: idFor("MS"), RI: idFor("RI") };
+      const linkedWorkbooks = Object.fromEntries(Object.entries(links).filter(([, id]) => id !== undefined));
+      const msId = links.MS;
+      await rcAdapter.save(rcId, {
+        ...mef,
+        linkedWorkbooks,
+        releaseCategoryToConsequence: {
+          ...mef.releaseCategoryToConsequence,
+          releaseCategoryInputs: mef.releaseCategoryToConsequence.releaseCategoryInputs.map((category) =>
+            msId !== undefined && category.sourceTerm?.msSource?.workbookId.startsWith("example-") === true
+              ? { ...category, sourceTerm: { ...category.sourceTerm, msSource: { ...category.sourceTerm.msSource, workbookId: msId } } }
+              : category),
+        },
+      }, loaded.revision);
+    }
   }
 
   private async reconcileGeneratedDependencyExamples(generated: GeneratedExampleWorkbook[]): Promise<void> {

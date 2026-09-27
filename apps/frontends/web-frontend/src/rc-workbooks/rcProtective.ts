@@ -42,7 +42,8 @@ export function responseSummary(pa: ProtectiveActionAnalysis, population?: numbe
     shelterStart, departure, speed, shelterDuration: shelterStart === undefined || departure === undefined || departure < shelterStart ? undefined : departure - shelterStart };
 }
 
-export function protectiveStepComplete(pa: ProtectiveActionAnalysis): boolean {
+export function protectiveStepComplete(pa: ProtectiveActionAnalysis, protectiveActionsNeeded = true): boolean {
   if (siteReceptorIssues(pa.siteAndReceptors?.settings ?? {}, pa.siteAndReceptors?.geometry).length) return false;
+  if (!protectiveActionsNeeded) return true;
   return responseIssues({ ...pa, responseTiming: effectiveResponseTiming(pa) }, pa.siteAndReceptors).length === 0;
 }

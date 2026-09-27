@@ -16,6 +16,9 @@ export class RcTransportController {
       throw new BadRequestException("Provide transport files, an input kind and current revision");
     return this.transport.importFiles(id, kind as "deposition" | "dispersion" | "decay", { baseRevision: Number(body.baseRevision), sourceRevision: body.sourceRevision === undefined ? undefined : Number(body.sourceRevision), categoryId: body.categoryId }, files, { username: req.user!.username });
   }
+  @Post("decay/standard")
+  @HttpCode(200)
+  standardLibrary(@Param("id") id: string, @Body() body: unknown, @Req() req: AuthenticatedRequest) { return this.transport.addStandardLibrary(id, body, { username: req.user!.username }); }
   @Patch()
   save(@Param("id") id: string, @Body() body: unknown, @Req() req: AuthenticatedRequest) { return this.transport.save(id, body, { username: req.user!.username }); }
   @Post("unlink")

@@ -60,10 +60,6 @@
 .rc-meteorology details{margin-top:15px;border-top:1px solid var(--color-border);padding-top:11px}
 .rc-meteorology summary{font-size:12px;color:var(--color-primary);cursor:pointer}
 .rc-meteorology .mw-coverage{margin:17px 0;display:flex;flex-direction:column;gap:4px}
-.rc-meteorology .mw-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:15px 0 20px}
-.rc-meteorology .mw-stat-grid>div{border:1px solid var(--color-border);border-radius:8px;padding:11px;min-width:0;display:flex;flex-direction:column;gap:4px}
-.rc-meteorology .mw-stat-grid span{font-size:12px;color:var(--color-text-muted)}
-.rc-meteorology .mw-stat-grid strong{font-size:13px;overflow-wrap:anywhere}
 .rc-meteorology input[readonly]{background:var(--color-surface-low)}
 .rc-meteorology .mw-location-check .mw-section-title{margin:0}
 .rc-meteorology .mw-note{font-size:12px;color:var(--color-text-muted);margin:10px 0}
@@ -80,13 +76,12 @@
 .rc-meteorology .mw-bin-editor th:first-child{width:15%}
 .rc-meteorology .mw-bin-editor th:last-child{width:18%}
 .rc-meteorology .mw-bin-editor input{max-width:92px}
-.rc-meteorology .mw-trial-summary{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(250px,.85fr);gap:22px;margin-top:24px;align-items:start}
 .rc-meteorology .mw-summary-scroll{border:1px solid var(--color-border);border-radius:8px;max-height:330px;overflow:auto}
 .rc-meteorology .mw-summary-scroll th{position:sticky;top:0;z-index:1}
-.rc-meteorology .mw-summary-scroll th:first-child{width:55%}
-.rc-meteorology .mw-wind-rose{display:grid;gap:8px;max-height:330px;overflow:auto;padding-right:4px}
-.rc-meteorology .mw-wind-rose>div{display:grid;grid-template-columns:82px minmax(70px,1fr) 58px;gap:8px;align-items:center;font-size:12px;font-variant-numeric:tabular-nums}
-.rc-meteorology .mw-wind-rose i{display:block;height:8px;background:var(--color-surface-low);border-radius:999px;overflow:hidden}
+.rc-meteorology .mw-summary-scroll th:first-child{width:40%}
+.rc-meteorology .mw-wind-rose{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 28px;max-height:330px;overflow:auto;padding-right:4px}
+.rc-meteorology .mw-wind-rose>div{display:grid;grid-template-columns:100px minmax(50px,1fr) 58px;gap:8px;align-items:center;font-size:12px;font-variant-numeric:tabular-nums}
+.rc-meteorology .mw-wind-rose i{display:block;height:6px;background:var(--color-surface-low);border-radius:999px;overflow:hidden}
 .rc-meteorology .mw-wind-rose b{display:block;height:100%;background:var(--color-primary);border-radius:inherit}
 .rc-meteorology .mw-wind-rose strong{text-align:right;font-weight:500}
 .rc-meteorology .mw-footer{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;border-top:1px solid var(--color-border);padding-top:16px;margin-top:21px}
@@ -101,6 +96,6 @@
 .rc-meteorology :is(button,input,select,summary):focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}
 .rc-meteorology input:invalid{border-color:var(--color-error)}
 .rc-meteorology .mw-checks ul{font-size:12px;color:var(--color-text-muted);padding-left:18px}
-@container(max-width:720px){.rc-meteorology .mw-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rc-meteorology .mw-sampling-fields,.rc-meteorology .mw-constant-fields,.rc-meteorology .mw-boundary-fields{grid-template-columns:repeat(2,minmax(0,180px))}.rc-meteorology .mw-trial-summary{grid-template-columns:minmax(0,1fr)}}
+@container(max-width:720px){.rc-meteorology .mw-sampling-fields,.rc-meteorology .mw-constant-fields,.rc-meteorology .mw-boundary-fields{grid-template-columns:repeat(2,minmax(0,180px))}}
 @container(max-width:520px){.rc-meteorology .mw-file{align-items:start;flex-direction:column}.rc-meteorology .mw-encoding-fields,.rc-meteorology .mw-treatment-head,.rc-meteorology .mw-sampling-fields,.rc-meteorology .mw-constant-fields,.rc-meteorology .mw-boundary-fields{grid-template-columns:minmax(0,1fr)}.rc-meteorology th,.rc-meteorology td{padding:8px 4px}.rc-meteorology .mw-review-table th{width:135px}.rc-meteorology .mw-footer{align-items:start}.rc-meteorology .mw-tabs{gap:2px}.rc-meteorology .mw-tabs button{padding-left:8px;padding-right:8px}.rc-meteorology .mw-trials-table{min-width:650px}.rc-meteorology [role="tabpanel"]{overflow-x:auto}}
 @container(max-width:380px){.rc-meteorology .mw-detail dl,.rc-meteorology .mw-readonly{grid-template-columns:minmax(0,1fr)}}

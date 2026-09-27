@@ -1,7 +1,7 @@
 import request from "supertest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { effectiveTransportSettings } from "interfaces-shared-types/rc-workbooks/transport";
+import { decayCoverage, effectiveTransportSettings } from "interfaces-shared-types/rc-workbooks/transport";
 import { parseRcDeposition } from "interfaces-shared-types/rc-workbooks/transport-parser";
 import { createSourceTermTestApp, sourceFixture } from "./source-term-test-app";
 const fixture = (name: string) => readFileSync(resolve(__dirname, "../../../../../interfaces/shared-types/rc-workbooks/test/fixtures", name));
@@ -29,6 +29,19 @@ describe("RC transport HTTP and storage", () => {
     const mef = (await request(http()).get(root).expect(200)).body.mef;
     expect(mef.atmosphericTransportAndDispersion.transportInputs).toEqual(both);
     expect(mef.releaseCategoryToConsequence.releaseCategoryInputs[0].sourceTerm).toEqual(source);
+  });
+  it("attaches the standard decay library once and covers the published inventory", async () => {
+    const source = await setup();
+    const inputs = (await request(http()).post(`${url}/decay/standard`).send({ baseRevision: 0 }).expect(200)).body;
+    expect(inputs.decayFiles.map((entry: { file: { filename: string } }) => entry.file.filename)).toEqual(["NNDC-ENSDF-2023-04-03-standard-decay-library.txt"]);
+    expect(inputs.decayFiles[0].parents).toHaveLength(86);
+    expect(decayCoverage(inputs, source.values).missing).toEqual([]);
+    const again = (await request(http()).post(`${url}/decay/standard`).send({ baseRevision: inputs.revision }).expect(200)).body;
+    expect(again).toEqual(inputs);
+    await request(http()).post(`${url}/decay/standard`).set("x-test-user", "reviewer").send({ baseRevision: inputs.revision }).expect(403);
+    await request(http()).post(`${url}/decay/standard`).send({ baseRevision: 0 }).expect(409);
+    const detail = (await request(http()).get(`${url}/decay/${inputs.decayFiles[0].file.documentId}/0`).expect(200)).body;
+    expect(detail.parent.nuclide).toBe("H-3");
   });
   it("imports real reference and decay files, pages levels and protects original bytes", async () => {
     const ref = (await upload("dispersion", 0, doe).expect(200)).body;

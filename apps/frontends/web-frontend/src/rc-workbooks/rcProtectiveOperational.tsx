@@ -3,6 +3,7 @@ import type { RcEarlyResponseCohort, RcEarlyResponseExposure, RcEarlyResponseMod
 import { RcEarlyResponseModelSchema } from "interfaces-mef-types/zod/rc/early-response";
 import { blankEarlyResponseModel } from "interfaces-shared-types/rc-workbooks/early-response-parser";
 import { earlyResponseIssues } from "interfaces-shared-types/rc-workbooks/early-response";
+import { rcProtectiveActionsNeeded } from "interfaces-shared-types/rc-workbooks/metrics";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { useRcWorkbook } from "./rcWorkbookContext";
@@ -97,6 +98,7 @@ function RcEarlyResponseEditor(): JSX.Element {
 
   return <div className="poscard rc-response-card"><div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Early response" level={3} /></div>
     <section className="rc-response" aria-label="Early response inputs">
+      {!rcProtectiveActionsNeeded(rc.scope.metrics) && <p className="rc-response-note">No selected metric credits protective actions. These response inputs are optional.</p>}
       <div className="rc-response-file"><div><span>Response input file</span><strong>{saved?.originalFile?.filename ?? "No file selected"}</strong><small>.inp · .txt · .json</small></div>
         <div className="rc-response-actions">{canEdit && <button type="button" className="posnav__btn posnav__btn--sm" disabled={busy || dirty} onClick={() => fileRef.current?.click()}>
           {saved?.originalFile ? <RCIcon.Refresh /> : <RCIcon.Plus />} {saved?.originalFile ? "Replace file" : "Import file"}</button>}

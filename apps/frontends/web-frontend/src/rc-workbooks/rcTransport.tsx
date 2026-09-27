@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type JSX } from "react";
 import type { RcDecayDetail, RcLinkedDeposition, RcTransportFile, RcTransportSettings } from "interfaces-mef-types/rc/transport";
 import { RcTransportSettingsSchema } from "interfaces-mef-types/zod/rc/transport";
-import { decayCoverage, depositionMatchesSource, effectiveTransportSettings } from "interfaces-shared-types/rc-workbooks/transport";
+import { RC_STANDARD_DECAY_LIBRARY, decayCoverage, depositionFlagNotes, depositionMatchesSource, effectiveTransportSettings } from "interfaces-shared-types/rc-workbooks/transport";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { useRcWorkbook } from "./rcWorkbookContext";
@@ -78,6 +78,11 @@ export function RcTransportPanel({ openEditor }: { openEditor?: (kind: "dispersi
     if (kind !== "deposition") rebaseTransportDrafts(baseRevision, next.revision);
     return next;
   };
+  const addStandardLibrary = () => work(async () => {
+    if (!actions) return;
+    const baseRevision = inputs?.revision ?? 0, next = await actions.addStandardLibrary(baseRevision);
+    rebaseTransportDrafts(baseRevision, next.revision); setRaw(undefined); setParentKey(""); setLevelPage(0);
+  });
   const fileBox = (kind: FileTab) => {
     const files = inputs?.decayFiles ?? [], file = kind === "deposition" ? depositionFile : kind === "dispersion" ? inputs?.dispersionReference?.file : files.length === 1 ? files[0].file : undefined;
     const labels = { deposition: "Deposition file", dispersion: "Dispersion file", decay: "Radioactive decay file" };
@@ -85,6 +90,7 @@ export function RcTransportPanel({ openEditor }: { openEditor?: (kind: "dispersi
     return <><div className="at-file"><div className="at-file-info"><span className="at-small">{labels[kind]}</span><strong>{kind === "decay" && files.length > 1 ? `${files.length} files` : file?.filename ?? (kind === "deposition" && sourceLoading ? "Reading Step 01 file…" : "No file selected")}</strong><span className="at-small">{extensions[kind]}</span></div>
       <div className="at-file-actions">{editable && <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled || kind === "deposition" && (dirty || !source)} onClick={() => { importKind.current = kind; input.current?.click(); }}>{kind === "decay" || !file ? <RCIcon.Plus /> : <RCIcon.Refresh />} {kind === "decay" ? "Add files" : file ? "Replace file" : "Import file"}</button>}
         {file && view(file)}{kind === "decay" && file && editable && <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled || dirty} onClick={() => unlink("decay", file.documentId)}>Remove</button>}
+        {kind === "decay" && editable && !files.some(f => f.file.filename === RC_STANDARD_DECAY_LIBRARY) && <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled} onClick={() => void addStandardLibrary()}>Add standard library</button>}
       </div></div>{file && raw?.documentId === file.documentId && <pre className="at-raw" aria-label="Original transport input">{raw.text}</pre>}</>;
   };
   const ad = rc.atmosphericTransportAndDispersion;
@@ -138,6 +144,7 @@ export function RcTransportPanel({ openEditor }: { openEditor?: (kind: "dispersi
               <table className="at-bin-table" aria-label="Particle-size data"><thead><tr><th>Size bin</th><th>Bin velocity (m/s)</th><th>Group fraction (0–1)</th></tr></thead><tbody>{deposition.velocities.slice(offset, offset + 5).map((v, i) => <tr key={offset + i}><td>{offset + i + 1}</td><td>{show(v)}</td><td>{show(groupData.fractions[offset + i])}</td></tr>)}</tbody></table>
               <div className="at-pagination"><span>{offset + 1} to {Math.min(offset + 5, deposition.velocities.length)} of {deposition.velocities.length} bins</span><div><button type="button" className="posnav__btn posnav__btn--sm" disabled={!offset} onClick={() => setBinPage(binPage - 1)}>Previous</button><button type="button" className="posnav__btn posnav__btn--sm" disabled={offset + 5 >= deposition.velocities.length} onClick={() => setBinPage(binPage + 1)}>Next</button></div></div>
               <details><summary>Imported deposition flags</summary><p className="at-note">Wet: {groupData.wet === undefined ? "not specified" : groupData.wet ? "on" : "off"} · Dry: {groupData.dry === undefined ? "not specified" : groupData.dry ? "on" : "off"}</p></details>
+              {depositionFlagNotes({ wet: ad.deposition.wetDeposition.included, dry: ad.deposition.dryDeposition.included }, deposition).map(note => <p key={note.text} className={note.blocking ? "at-error" : "at-note"} role={note.blocking ? "alert" : undefined}>{note.text}</p>)}
             </> : !sourceLoading && <p className="at-note">{linked?.issue ?? "No particle-size data."}</p>}
             <details><summary>All {settings.groupVelocities.length} group velocities</summary><table aria-label="Group deposition velocities"><thead><tr><th>Chemical group</th><th>Velocity (m/s)</th><th>Basis</th></tr></thead><tbody>{settings.groupVelocities.map(g => <tr key={g.groupId}><td>{g.name}</td><td>{show(g.velocity)}</td><td>{basisLabel(g.basis)}</td></tr>)}</tbody></table></details>
           </>}</> : <><label className="at-decay-treatment">Radioactive decay treatment<select className="posfield__select" aria-label="Radioactive decay treatment" disabled={disabled || !source} value={settings.decayMode} onChange={e => edit({ decayMode: e.target.value as "parent" | "ingrowth" })}><option value="parent">Parent decay during transport</option><option value="ingrowth">Decay and daughter ingrowth</option></select></label>

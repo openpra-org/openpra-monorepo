@@ -1,5 +1,5 @@
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
-import type { RcCaseData, RcCaseCheck, RcCaseFile, RcCaseDataset, RcCaseTable, RcCaseStep } from "interfaces-mef-types/rc/case-records";
+import type { RcCaseData, RcCaseCheck, RcCaseFile, RcCaseDataset, RcCaseSnapshotMetric, RcCaseTable, RcCaseStep } from "interfaces-mef-types/rc/case-records";
 import type { RcWeatherRecord, RcWeatherTrial } from "interfaces-mef-types/rc/weather";
 import { RcSourceTermValuesSchema } from "interfaces-mef-types/zod/rc/source-term";
 import { siteReceptorIssues, receptorCount, evaluatedReceptor, sitePopulation } from "./site-receptors";
@@ -10,7 +10,9 @@ import { doseCoverage, dosePathways, dosePathwayNames } from "./dose-inputs";
 import { effectiveResponseTiming, responseIssues } from "./protective-response";
 import { rcEconomicCostCoverage, rcEconomicCostIssues, rcEconomicCostSpecs } from "./economic-costs";
 import { rcHealthEffectLabel } from "./health-input-parser";
+import { rcAspectDecision, rcMetricDurationText, rcMetricUnit, rcMetricWindowText, rcProtectiveActionsNeeded } from "./metrics";
 
+const nobleGases = ["He", "Ne", "Ar", "Kr", "Xe", "Rn"];
 export const caseSteps = ["source", "site", "weather", "transport", "dose", "health", "economy"] as const;
 export const caseStepNames = { source: "Source term", site: "Site and receptors", weather: "Meteorology", transport: "Atmospheric dispersion", dose: "Dosimetry", health: "Health effects", economy: "Economic factors" };
 export const caseDatasets: Record<RcCaseDataset, { label: string; step: typeof caseSteps[number] }> = {
@@ -24,9 +26,10 @@ export const caseDatasets: Record<RcCaseDataset, { label: string; step: typeof c
 export function currentRcCase(rc: RadiologicalConsequenceAnalysis, categoryId: string): RcCaseData {
   const transport = rc.atmosphericTransportAndDispersion.transportInputs, dose = rc.dosimetry.doseInputs;
   const aspectSteps = { RCPA: "site", RCME: "weather", RCAD: "transport", RCDO: "dose", RCHE: "health", RCEC: "economy" } as const;
-  const excludedSteps: RcCaseStep[] = (rc.scope?.evaluationDecisions ?? []).filter(decision => !decision.included && decision.subElement in aspectSteps)
-    .map(decision => aspectSteps[decision.subElement as keyof typeof aspectSteps]);
-  return { schemaVersion: 2, categoryId, source: rc.releaseCategoryToConsequence.releaseCategoryInputs.find(c => c.releaseCategory === categoryId)?.sourceTerm,
+  const scope = { metrics: rc.scope?.metrics, evaluationDecisions: rc.scope?.evaluationDecisions };
+  const excludedSteps: RcCaseStep[] = (Object.keys(aspectSteps) as (keyof typeof aspectSteps)[]).filter(aspect => rcAspectDecision(scope, aspect).included === false)
+    .map(aspect => aspectSteps[aspect]);
+  return { schemaVersion: 3, categoryId, metrics: scope.metrics ?? [], source: rc.releaseCategoryToConsequence.releaseCategoryInputs.find(c => c.releaseCategory === categoryId)?.sourceTerm,
     site: rc.protectiveActionParameters.siteAndReceptors,
     response: { protectiveActionsIncluded: rc.protectiveActionParameters.protectiveActionsIncluded, cohortModeling: rc.protectiveActionParameters.cohortModeling,
       responseTiming: effectiveResponseTiming(rc.protectiveActionParameters), earlyResponseModel: rc.protectiveActionParameters.earlyResponseModel }, weather: rc.meteorologicalData.weatherInputs,
@@ -40,8 +43,12 @@ const objectVersion = (value: unknown) => {
   for (let index = 0; index < json.length; index++) hash = Math.imul(hash ^ json.charCodeAt(index), 16777619) >>> 0;
   return hash;
 };
-export const caseVersions = (c: RcCaseData) => `${[c.source, c.site, c.weather, c.transport, c.dose].map(v => v?.revision ?? 0).join(",")},${objectVersion({ response: c.response, excludedSteps: c.excludedSteps })},${objectVersion(c.health)},${objectVersion(c.economy)}`;
-export const caseDuration = (c: RcCaseData) => c.dose?.categories.find(d => d.categoryId === c.categoryId)?.settings?.integrationSeconds;
+export const caseVersions = (c: RcCaseData) => `${[c.source, c.site, c.weather, c.transport, c.dose].map(v => v?.revision ?? 0).join(",")},${objectVersion({ response: c.response, excludedSteps: c.excludedSteps, metrics: c.metrics })},${objectVersion(c.health)},${objectVersion(c.economy)}`;
+export const caseSnapshotMetrics = (c: RcCaseData): RcCaseSnapshotMetric[] => (c.metrics ?? []).map(metric => ({ id: metric.id, name: metric.name, quantity: metric.quantity, ...(metric.window ? { windowSeconds: metric.window.seconds } : {}), unit: rcMetricUnit(metric), statistics: metric.statistics }));
+export function caseWindowsText(c: RcCaseData): string {
+  const windows = [...new Set((c.metrics ?? []).filter(metric => metric.window).map(metric => rcMetricWindowText(metric.window)))];
+  return windows.length ? windows.join(", ") : "No metric exposure windows";
+}
 export const caseReceptorCount = (c: RcCaseData) => siteReceptorIssues(c.site?.settings ?? {}, c.site?.geometry).length ? 0 : receptorCount(c.site?.geometry);
 export const caseTrialId = (r: RcWeatherRecord) => `D${String(r.day).padStart(3, "0")}P${String(r.period).padStart(2, "0")}`;
 /** IDs identify workbook weather records, not solver-generated trials. */
@@ -62,7 +69,7 @@ export function caseChecks(c: RcCaseData): RcCaseCheck[] {
     }
   }
   const siteItems = siteReceptorIssues(c.site?.settings ?? {}, c.site?.geometry);
-  siteItems.push(...responseIssues(c.response, c.site));
+  if (c.metrics === undefined || rcProtectiveActionsNeeded(c.metrics)) siteItems.push(...responseIssues(c.response, c.site));
   const metItems = weatherIssues(c.weather, c.site?.settings ?? {}, c.site?.geometry);
   if (!c.weather?.weatherFile && c.weather?.data) metItems.push("Supply the original weather file.");
   if ((c.weather?.data || c.weather?.model?.mode === "constant") && !weatherIsReviewed(c.weather, c.site?.settings ?? {}, c.site?.geometry)) metItems.push("Review and save the weather trials for this site in Step 03.");
@@ -71,11 +78,13 @@ export function caseChecks(c: RcCaseData): RcCaseCheck[] {
   if (source && (!t?.settings || source.groups.some(g => !t.settings!.groupVelocities.some(v => v.groupId === g.id && v.name === g.name)))) transportItems.push("Supply a deposition velocity for every source group.");
   const decay = decayCoverage(c.transport, source);
   if (decay.missing.length) transportItems.push(`Parent decay records missing: ${decay.missing.join(", ")}.`);
-  if (!d?.settings) doseItems.push("Save a positive integration time in Step 05.");
-  else if (!source || d.savedForSourceRevision !== c.source?.revision) doseItems.push("Review Step 05 against the current source inventory and save it.");
+  if (!source || d?.savedForSourceRevision !== c.source?.revision) doseItems.push("Confirm Step 05 against the current source inventory.");
+  const exposureSeconds = d?.exposure?.data.integrationSeconds;
+  if (exposureSeconds !== undefined && c.metrics && !c.metrics.some(metric => metric.window?.seconds === exposureSeconds))
+    doseItems.push(`The Step 05 exposure file covers ${rcMetricDurationText(exposureSeconds)}, but no metric uses that window.`);
   for (const kind of dosePathways) {
     if (!c.dose?.libraries.some(l => l.kind === kind)) doseItems.push(`Import the ${dosePathwayNames[kind].toLowerCase()} coefficient file.`);
-    else { const coverage = doseCoverage(c.dose, source, kind); if (coverage.missing.length) doseItems.push(`${dosePathwayNames[kind]} records missing: ${coverage.missing.join(", ")}.`); }
+    else { const missing = doseCoverage(c.dose, source, kind).missing.filter(name => kind !== "inhalation" || !nobleGases.includes(name.split("-")[0])); if (missing.length) doseItems.push(`${dosePathwayNames[kind]} records missing: ${missing.join(", ")}.`); }
   }
   const health = c.health;
   if (!health?.healthInput?.records.length) healthItems.push("Import health-effect parameter records in Step 06.");
@@ -102,7 +111,7 @@ export function caseChecks(c: RcCaseData): RcCaseCheck[] {
   }
   if (!caseReceptorCount(c)) links.push("No evaluation positions prepared. Complete Step 02.");
   if (!c.weather?.trialSet?.trialCount) links.push("No generated weather trials available. Complete Step 03.");
-  if (!(Number.isFinite(caseDuration(c)) && caseDuration(c)! > 0)) links.push("Integration time must be greater than zero.");
+  if (c.metrics !== undefined && !c.metrics.some(metric => metric.window)) links.push("Define a consequence metric with an exposure window in Step 01.");
   const checks: RcCaseCheck[] = [{ key: "source", title: caseStepNames.source, items: sourceItems }, { key: "site", title: caseStepNames.site, items: siteItems }, { key: "weather", title: caseStepNames.weather, items: metItems },
     { key: "transport", title: caseStepNames.transport, items: transportItems }, { key: "dose", title: caseStepNames.dose, items: doseItems },
     { key: "health", title: caseStepNames.health, items: healthItems }, { key: "economy", title: caseStepNames.economy, items: economyItems }, { key: "links", title: "Case links", items: links }];
@@ -134,7 +143,7 @@ export function caseSummaryRows(c: RcCaseData): [string, string][] {
     [g?.kind === "cells" ? `${receptorCount(g)} receptor cells` : `${receptorCount(g)} receptor points`, `${c.site?.settings.latitude ?? "—"}, ${c.site?.settings.longitude ?? "—"} · ${caseReceptorCount(c)} evaluation positions${g?.kind === "cells" && g.populationByCell ? ` · ${g.populationByCell.reduce((sum, count) => sum + count, 0)} people` : ""}`],
     [`${w?.trialSet?.trialCount ?? 0} generated weather trials`, w?.trialSet && w.model ? `${weatherTreatmentNames[w.model.mode]} · probability ${w.trialSet.probabilityTotal}` : w?.data ? `${w.data.recordCount} records awaiting trial generation` : w?.collectionRequest ? `Collection request: ${w.collectionRequest.start} to ${w.collectionRequest.end}` : "Complete Step 03"],
     [`${t?.settings?.groupVelocities.length ?? 0} group deposition velocities`, `${coverage.found.length}/${coverage.total} parent records · ${t?.settings ? t.settings.decayMode === "parent" ? "Parent decay" : "With daughter ingrowth" : "Decay mode not saved"}`],
-    [caseDuration(c) === undefined ? "Integration time not saved" : `${caseDuration(c)} s integration time`, dosePathways.map(k => `${dosePathwayNames[k]} ${doseCoverage(c.dose, s, k).found.length}/${s?.inventory.length ?? 0}`).join(" · ")],
+    [caseWindowsText(c), dosePathways.map(k => `${dosePathwayNames[k]} ${doseCoverage(c.dose, s, k).found.length}/${s?.inventory.length ?? 0}`).join(" · ")],
     [`${c.health?.healthInput?.records.length ?? 0} health parameter cards`, `${c.health?.earlyHealthEffects.length ?? 0} early effects · ${c.health?.latentHealthEffects.length ?? 0} latent effects · ${c.health?.riskFactorSources.length ?? 0} risk-factor ${c.health?.riskFactorSources.length === 1 ? "source" : "sources"}`],
     [`${c.economy?.siteEconomyInput?.regions.length ?? 0} of ${c.economy?.siteEconomyInput?.expectedRegions ?? 0} economic regions`, c.economy ? `${c.economy.siteEconomyInput?.crops.length ?? 0} crops · ${rcEconomicCostCoverage(c.economy).supplied} of ${rcEconomicCostCoverage(c.economy).required} cost values` : "No economic inputs"]];
 }
@@ -162,7 +171,7 @@ export function caseTable(c: RcCaseData, kind: RcCaseDataset, offset: number, we
     case "weather": fill(["Trial ID", "Start", "Selection group", "Probability", "Speed (m/s)", "Toward (°)", "Stability", "Rain (mm/h)", "Mixing height (m)"], "Generated Step 03 weather trials and their probability weights.", weatherTrials.length, i => { const trial = weatherTrials[i]; return [trial.id, trial.source === "constant" ? "Constant" : `Day ${trial.day}, period ${trial.period}`, trial.selectionGroup, trial.probability, trial.windSpeedMetresPerSecond, trial.windTowardDegrees, trial.stabilityClass, trial.rainMillimetresPerHour, trial.mixingHeightMetres]; }); break;
     case "deposition": fill(["Group", "Velocity (m/s)"], "Saved group deposition velocity: m/s.", s?.groups.length ?? 0, i => { const g = s!.groups[i]; return [`${g.id} · ${g.name}`, c.transport?.categories.find(v => v.categoryId === c.categoryId)?.settings?.groupVelocities.find(v => v.groupId === g.id && v.name === g.name)?.velocity ?? null]; }); break;
     case "decay": { const covered = new Set(decayCoverage(c.transport, s).found); fill(["Radionuclide", "Parent record"], "Parent record presence by inventory nuclide. Record coverage does not check daughter chains.", s?.inventory.length ?? 0, i => [s!.inventory[i].name, covered.has(s!.inventory[i].name) ? "Present" : "Not supplied"]); break; }
-    case "dose": fill(["Pathway", "Names covered", "Missing"], `Integration time: ${caseDuration(c) ?? "not saved"}${caseDuration(c) === undefined ? "" : " s"}. Coefficient quantities and units are retained in original files.`, 3, i => { const k = dosePathways[i], cv = doseCoverage(c.dose, s, k); return [dosePathwayNames[k], `${cv.found.length}/${cv.total}`, cv.missing.join(", ") || (cv.total ? "None" : "Inventory not supplied")]; }); break;
+    case "dose": fill(["Pathway", "Names covered", "Missing"], `Metric exposure windows: ${caseWindowsText(c)}. Coefficient quantities and units are retained in original files.`, 3, i => { const k = dosePathways[i], cv = doseCoverage(c.dose, s, k); return [dosePathwayNames[k], `${cv.found.length}/${cv.total}`, cv.missing.join(", ") || (cv.total ? "None" : "Inventory not supplied")]; }); break;
     case "health": { const records = c.health?.healthInput?.records ?? [];
       fill(["Card", "Effect", "Organ", "Parameters", "Selected"], "Original health parameter card values are retained in the snapshot.", records.length, i => { const record = records[i], label = rcHealthEffectLabel(record); return [record.cardId, label, record.organ, record.values.join(", "), [...(c.health?.earlyHealthEffects ?? []), ...(c.health?.latentHealthEffects ?? [])].includes(label) ? "Yes" : "No"]; }); break; }
     case "healthModel": { const h = c.health;

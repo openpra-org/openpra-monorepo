@@ -6,6 +6,7 @@ import type { RcWeatherInputs } from "./weather";
 import type { RcDoseInputs } from "./dose-inputs";
 import type { RcTransportInputs } from "./transport";
 import type { RcEarlyResponseModel } from "./early-response";
+import type { RcConsequenceMetric } from "./metrics";
 import { ParameterDistribution } from "../core/events";
 import {
   ImportanceLevel,
@@ -73,16 +74,30 @@ export interface ReleaseCharacteristics {
   releaseUncertainties?: string;
 }
 
+export interface RcBoundingMember {
+  sequenceId: string;
+  basis: string;
+}
+
 export interface ReleaseCategoryInputs {
   releaseCategory: ReleaseCategoryReference;
   sourceTerm?: RcSourceTerm;
   sourceTermDefinitionRef?: SourceTermDefinitionReference;
   eventSequenceFamilyReferences?: EventSequenceFamilyWorkbookReference[];
+  boundingMember?: RcBoundingMember;
   releaseCharacteristics: ReleaseCharacteristics;
 }
 
+export interface RcLinkedWorkbooks {
+  ES?: string;
+  MS?: string;
+  RI?: string;
+}
+
+export type RcFamilyConsequenceOrigin = "CATEGORY_RESULT" | "OVERRIDE";
+
 export interface RcScope {
-  consequenceMetrics: string[];
+  metrics?: RcConsequenceMetric[];
   metricSelectionApplicationBasis?: string;
   evaluationDecisions?: RcScopeDecision[];
   protectiveActionsModellingDegree: string;
@@ -465,6 +480,8 @@ export interface ConsequenceQuantificationAnalysis {
       uncertaintyDescription?: string;
     }[];
     riskSignificance?: ImportanceLevel;
+    origin?: RcFamilyConsequenceOrigin;
+    overrideReason?: string;
   }[];
   outputReview: {
     performed: boolean;
@@ -581,6 +598,7 @@ export interface RcDocumentation {
 export interface RadiologicalConsequenceAnalysis
   extends TechnicalElement<TechnicalElementTypes.CONSEQUENCE_ANALYSIS> {
   praScope: string;
+  linkedWorkbooks?: RcLinkedWorkbooks;
 
   scope: RcScope;
 

@@ -27,6 +27,7 @@ function DosimetryScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =>
     canAddPathway={dose.exposurePathways.length < 5}
     onEditPathway={index => openDrawer({ kind: "pathway", id: String(index) })}
     onEditTreatment={() => openDrawer({ kind: "dosetreatment", id: "dose" })}
+    onEditMetric={metricId => openDrawer({ kind: "metric", id: metricId })}
   />;
 }
 

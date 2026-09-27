@@ -3,13 +3,14 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { RadiologicalConsequenceAnalysisSchema } from "interfaces-mef-types/zod/rc/radiological-consequence-analysis";
 import type { RcSourceTerm } from "interfaces-mef-types/rc/source-term";
+import type { RcConsequenceMetric } from "interfaces-mef-types/rc/metrics";
 import { decodeRcText, parseRcSource } from "interfaces-shared-types/rc-workbooks/source-term-parser";
 import { withSourceTermSummary } from "interfaces-shared-types/rc-workbooks/source-term-summary";
 import { parseRcReceptorGeometry, parseRcSiteCoordinates } from "interfaces-shared-types/rc-workbooks/site-receptor-parser";
 import { parseRcWeather, parseRcWeatherConfiguration } from "interfaces-shared-types/rc-workbooks/weather-parser";
 import { defaultWeatherModel, generateWeatherTrials } from "interfaces-shared-types/rc-workbooks/weather-trials";
 import { parseRcDecay, parseRcDeposition, parseRcDispersionReference } from "interfaces-shared-types/rc-workbooks/transport-parser";
-import { effectiveTransportSettings } from "interfaces-shared-types/rc-workbooks/transport";
+import { RC_STANDARD_DECAY_LIBRARY, effectiveTransportSettings } from "interfaces-shared-types/rc-workbooks/transport";
 import { parseRcDoseCoefficients, parseRcExposure } from "interfaces-shared-types/rc-workbooks/dose-input-parser";
 import { parseEarlyResponseRecords } from "interfaces-shared-types/rc-workbooks/early-response-parser";
 import { parseRcHealthInput, rcHealthEffectLabel } from "interfaces-shared-types/rc-workbooks/health-input-parser";
@@ -21,6 +22,53 @@ export const RC_PUBLISHED_SLUG = "rc-published-inputs";
 export const RC_PUBLISHED_LABEL = "Published RC inputs expert review";
 export const RC_PUBLISHED_CATEGORY = "MELMACCS-APP-C";
 export const RC_PUBLISHED_DATE = "2026-09-12T00:00:00.000Z";
+const PUBLISHED_METRICS: RcConsequenceMetric[] = [
+  {
+    id: "RCM-01",
+    name: "30-day dose at the EAB",
+    quantity: "INDIVIDUAL_DOSE",
+    receptor: { kind: "EAB_MAXIMUM" },
+    window: { seconds: 2592000, start: "PLUME_ARRIVAL" },
+    protectiveActionsCredited: false,
+    statistics: { mean: true, percentiles: [5, 50, 95], exceedanceThresholds: [0.001] },
+    criterion: "Plotted with its frequency against the NEI 18-04 F-C Target, using the mean and the 5th to 95th percentile range. The LBE is risk significant when its 95th percentile dose exceeds 2.5 mrem and lies within 1% of the target. The chance of exceeding 100 mrem feeds the cumulative target of 1 per plant-year.",
+    basis: "Etter (2026), printed pp. 42 and 46 to 48: early phase of 2,592,000 s and the peak projected 30-day TEDE on the EAB ring, with the mean and percentiles over the weather trials. NEI 18-04 Rev. 1, Section 3.2.1. The thesis window counts from plume arrival. NEI 18-04 counts from release onset, which differs by the plume travel time to the EAB.",
+  },
+  {
+    id: "RCM-02",
+    name: "96-hour dose by distance",
+    quantity: "INDIVIDUAL_DOSE",
+    receptor: { kind: "DISTANCE_PROFILE" },
+    window: { seconds: 345600, start: "PLUME_ARRIVAL" },
+    protectiveActionsCredited: false,
+    statistics: { mean: true, percentiles: [50, 95], exceedanceThresholds: [0.01] },
+    criterion: "The plume exposure pathway EPZ covers the area where this dose can exceed 10 mSv (1 rem). Outside the EPZ, design-basis accidents and most release sequences must stay below 1 rem. Etter (2026) takes the first distance where the 95th percentile falls below 1 rem.",
+    basis: "Etter (2026), printed pp. 47, 48, 70 and 71: 96-hour TEDE by radial interval, with the first interval where the 95th percentile falls below 1 rem reported as an upper bound. 10 CFR 50.160. RG 1.242 Rev. 0, Appendix A: A-2(e) and A-3.5 to A-3.7.",
+  },
+  {
+    id: "RCM-03",
+    name: "Early fatality risk within 1 mile of the EAB",
+    quantity: "INDIVIDUAL_EARLY_FATALITY_RISK",
+    receptor: { kind: "AVERAGE_BEYOND_EAB", distanceKm: 1.609344 },
+    window: { seconds: 2592000, start: "PLUME_ARRIVAL" },
+    protectiveActionsCredited: true,
+    statistics: { mean: true, percentiles: [5, 50, 95], exceedanceThresholds: [] },
+    criterion: "RI multiplies this conditional risk by each LBE frequency and sums the products. The mean sum must stay below 5E-7 per plant-year (NRC safety goal QHO for early fatality).",
+    basis: "Etter (2026), printed pp. 43, 48 and 62: population-weighted early fatality risk from the EAB ring to one mile beyond it, 30-day early phase from plume arrival, three response cohorts weighted 0.8955, 0.0995 and 0.005. NEI 18-04 Rev. 1, Section 3.3.5.",
+  },
+  {
+    id: "RCM-04",
+    name: "Latent cancer fatality risk within 10 miles of the EAB",
+    quantity: "INDIVIDUAL_LATENT_CANCER_FATALITY_RISK",
+    receptor: { kind: "AVERAGE_BEYOND_EAB", distanceKm: 16.09344 },
+    window: { seconds: 2592000, start: "PLUME_ARRIVAL" },
+    protectiveActionsCredited: true,
+    statistics: { mean: true, percentiles: [5, 50, 95], exceedanceThresholds: [] },
+    criterion: "RI multiplies this conditional risk by each LBE frequency and sums the products. The mean sum must stay below 2E-6 per plant-year (NRC safety goal QHO for latent cancer).",
+    basis: "Etter (2026), printed pp. 43, 48 and 62: population-weighted latent cancer fatality risk out to 10 miles, 30-day early phase from plume arrival, no long-term phase. NEI 18-04 Rev. 1, Section 3.3.5. SOARCA (NUREG-1935, Section 5.5) adds a 50-year long-term phase.",
+  },
+];
+
 export const RC_PUBLISHED_SOURCES = {
   melmaccs: "https://maccs.sandia.gov/docs/MelMACCS%20Documents/MELMACCS_Users_Guide_4.0.0_SAND2022-13278_Update.pdf",
   site: "https://www.nrc.gov/docs/ML2520/ML25203A330.pdf",
@@ -37,6 +85,7 @@ export const RC_PUBLISHED_FILES = [
   { filename: "MacMetGen-Noah-published-config.inp", kind: "weather", source: RC_PUBLISHED_SOURCES.site, location: "Appendix B.3, printed p. 72", method: "Published 2020 generation configuration; original path placeholders retained." },
   { filename: "MACCS2-DOE-published-dispersion.inp", kind: "transport", source: RC_PUBLISHED_SOURCES.dispersion, location: "Printed p. 7-4 (PDF p. 101)", method: "Published power-law dispersion coefficient cards; a MACCS reference." },
   { filename: "NNDC-ENSDF-2023-04-03-mass-137.txt", kind: "transport", source: RC_PUBLISHED_SOURCES.decay, location: "ensdf.137, archival release 2023-04-03", method: "Unmodified mass-137 archive member; parent, level and decay records." },
+  { filename: RC_STANDARD_DECAY_LIBRARY, kind: "transport", source: RC_PUBLISHED_SOURCES.decay, location: "Decay datasets from 46 archive members, archival release 2023-04-03", method: "86 complete decay datasets copied byte for byte for the 75 radionuclides of the published and generic example inventories." },
   { filename: "MACCS-Noah-dose-settings-excerpt.inp", kind: "dose", source: RC_PUBLISHED_SOURCES.thesis, location: "Printed pp. 101 and 110 (PDF pp. 114 and 123)", method: "Published ENDEMP duration and 90th-percentile evacuation-cohort exposure records; selected blocks combined." },
   { filename: "MACCS-Noah-response-settings-excerpt.inp", kind: "response", source: RC_PUBLISHED_SOURCES.thesis, location: "Printed pp. 46 and 110–115 (PDF pp. 59 and 123–128)", method: "Selected published cohort weights and emergency-response records. WTNAME is not stated, so weights are not called population shares." },
   { filename: "FGR13INH.HDB", kind: "dose", source: RC_PUBLISHED_SOURCES.dose, location: "fgr13pak/FGR13INH.HDB", method: "Unmodified EPA archive member; original coefficient units and record alternatives." },
@@ -73,6 +122,24 @@ function parsePublishedResponseExcerpt(input: string) {
     source: `Etter thesis, Table 4 and Appendix A.3: REFPNT=ALARM; OALARM=${alarm} s; DLTSHL=${shelter} s after alarm; DLTEVA=${evacuation} s after shelter begins; ESPEED=${speed} m/s. Times converted to minutes. The timeline applies only to the ${cohorts[0].name}.` };
   return { cohorts, responseTiming };
 }
+let referenceLibraries: ReturnType<typeof readReferenceLibraries> | undefined;
+function readReferenceLibraries() {
+  const text = (name: string) => decodeRcText(readRcPublishedFile(name)), file = publishedRcFileMetadata;
+  return {
+    dispersionReference: { file: file("MACCS2-DOE-published-dispersion.inp"), data: parseRcDispersionReference(text("MACCS2-DOE-published-dispersion.inp")) },
+    decayFiles: [{ file: file("NNDC-ENSDF-2023-04-03-mass-137.txt"), parents: parseRcDecay(text("NNDC-ENSDF-2023-04-03-mass-137.txt")).map(d => d.parent) }],
+    standardDecayFiles: [{ file: file(RC_STANDARD_DECAY_LIBRARY), parents: parseRcDecay(text(RC_STANDARD_DECAY_LIBRARY)).map(d => d.parent) }],
+    doseLibraries: ([["inhalation", "FGR13INH.HDB"], ["cloudshine", "F12TIII1.EXT"], ["groundshine", "F12TIII3.EXT"]] as const).map(([kind, filename]) => {
+      const records = parseRcDoseCoefficients(text(filename), kind);
+      return { kind, file: file(filename), nuclides: [...new Set(records.map(r => r.name))], recordCount: records.length };
+    }),
+    healthInput: parseRcHealthInput(text("MACCS-Noah-health-settings-excerpt.inp"), "MACCS-Noah-health-settings-excerpt.inp"),
+  };
+}
+export function publishedRcReferenceLibraries(): ReturnType<typeof readReferenceLibraries> {
+  referenceLibraries ??= readReferenceLibraries();
+  return referenceLibraries;
+}
 export function createPublishedRcSeed() {
   const text = (name: string) => decodeRcText(readRcPublishedFile(name)), file = publishedRcFileMetadata;
   const rc = createBlankRc(RC_PUBLISHED_LABEL, "Published-source review example");
@@ -82,7 +149,7 @@ export function createPublishedRcSeed() {
   rc.modelUncertainty.uuid = "rc-published-input-uncertainty";
   const scope = "RC interface review using published input examples. The source term, site/weather examples and reference libraries have separate origins; together they are not a validated accident calculation for one plant. Numeric inputs are traced to the files and sources below. No solver has been run for this example.";
   rc.metadata.scope = scope; rc.praScope = scope;
-  rc.scope = { ...rc.scope, consequenceMetrics: ["30-day TEDE input preparation; no calculated dose"], protectiveActionsModellingDegree: "Published MACCS cohort weights, 90th-percentile response timing and shielding records for reference", meteorologyModellingDegree: "24 published hourly records plus their 2020 generation configuration", atmosphericDispersionModellingDegree: "Published source segments, MACCS coefficient references and documented OpenRC deposition defaults", dosimetryModellingDegree: "30-day integration and original EPA inhalation, cloudshine and groundshine coefficient files", healthEffectsModellingDegree: "Published MACCS model parameters for reference", economicFactorsModellingDegree: "Published SecPop excerpt; no reconstructed cost or population arrays" };
+  rc.scope = { ...rc.scope, metrics: PUBLISHED_METRICS, evaluationDecisions: [{ subElement: "RCEC", included: true }], metricSelectionApplicationBasis: "The thesis output set (Etter 2026, Table 5) defines four metrics: the LMP 30-day EAB dose, the 96-hour EPZ dose by distance and the two QHO risks. No results are calculated for this input-review example.", protectiveActionsModellingDegree: "Published MACCS cohort weights, 90th-percentile response timing and shielding records for reference", meteorologyModellingDegree: "24 published hourly records plus their 2020 generation configuration", atmosphericDispersionModellingDegree: "Published source segments, MACCS coefficient references and documented OpenRC deposition defaults", dosimetryModellingDegree: "30-day integration and original EPA inhalation, cloudshine and groundshine coefficient files", healthEffectsModellingDegree: "Published MACCS model parameters for reference", economicFactorsModellingDegree: "Published SecPop excerpt; no reconstructed cost or population arrays" };
   const source = { revision: 1, values: parseRcSource(text("MelMACCS-published-source-term.inp")), originalFile: file("MelMACCS-published-source-term.inp") };
   rc.releaseCategoryToConsequence.releaseCategoryInputs = [withSourceTermSummary({ releaseCategory: RC_PUBLISHED_CATEGORY, sourceTermDefinitionRef: "MelMACCS 4.0.0 User Guide · Appendix C", releaseCharacteristics: { releaseUncertainties: "Published sample output, not a reactor-specific mechanistic source-term claim. Release heights are explicitly zero in the original cards." }, sourceTerm: source })];
   rc.releaseCategoryToConsequence.reviewBasis = "Imported numeric values are published; expert review is pending.";
@@ -117,9 +184,9 @@ export function createPublishedRcSeed() {
   rc.meteorologicalData.timeResolution = "60 minutes; 64 wind-direction sectors; original /UTCTIM −5 retained.";
   rc.meteorologicalData.stabilityClassificationMethod = { approach: "RECOGNIZED_SOURCE", description: "SRDT: solar radiation/delta-T, selected in the published MacMetGen configuration." };
   rc.meteorologicalData.accuracyReview = { performed: false, findings: "Source excerpts are available for expert review. Annual completeness and nearby-site suitability have not been asserted." };
-  const decay = parseRcDecay(text("NNDC-ENSDF-2023-04-03-mass-137.txt"));
+  const libraries = publishedRcReferenceLibraries();
   const deposition = parseRcDeposition(text("MelMACCS-published-source-term.inp"));
-  rc.atmosphericTransportAndDispersion.transportInputs = { revision: 1, categories: [{ categoryId: RC_PUBLISHED_CATEGORY, settings: effectiveTransportSettings(source.values, undefined, deposition), savedForSourceRevision: source.revision }], decayFiles: [{ file: file("NNDC-ENSDF-2023-04-03-mass-137.txt"), parents: decay.map(d => d.parent) }], dispersionReference: { file: file("MACCS2-DOE-published-dispersion.inp"), data: parseRcDispersionReference(text("MACCS2-DOE-published-dispersion.inp")) } };
+  rc.atmosphericTransportAndDispersion.transportInputs = { revision: 1, categories: [{ categoryId: RC_PUBLISHED_CATEGORY, settings: effectiveTransportSettings(source.values, undefined, deposition), savedForSourceRevision: source.revision }], decayFiles: libraries.decayFiles, dispersionReference: libraries.dispersionReference };
   rc.atmosphericTransportAndDispersion.dispersionModel = { modelClass: "STRAIGHT_LINE_GAUSSIAN", name: "OpenRC model described in Etter thesis", justification: "Published model description, printed pp. 81–82; no transport calculation is executed by this seed." };
   rc.atmosphericTransportAndDispersion.temporalResolution.description = "The documented OpenRC model holds weather constant within a trial.";
   rc.atmosphericTransportAndDispersion.spatialTreatment = { approach: "TWO_DIMENSIONAL_GRID", gridDescription: "The 14-band, 64-sector Step 02 receptor grid.", gridJustification: "The imported SecPop geometry supplies every evaluation cell." };
@@ -130,13 +197,13 @@ export function createPublishedRcSeed() {
   rc.atmosphericTransportAndDispersion.windFieldData = "The 24 published MacMetGen weather rows are retained in Step 03.";
   rc.atmosphericTransportAndDispersion.deposition.dryDeposition = { included: true, approach: "PER_PARTICLE_SIZE", velocities: deposition.velocities.map((velocity, index) => ({ particleSize: `Published bin ${index + 1}`, velocity })) };
   rc.atmosphericTransportAndDispersion.parameterUncertaintyCharacterization = "Group deposition velocities are calculated from the published MelMACCS bin velocities and chemical-group fractions. Parent-only mode is the workbook's initial review selection; both parent-only and ingrowth modes are documented. Mass-137 ENSDF is a real reference file; other missing parent records remain visible.";
-  rc.dosimetry.doseInputs = { revision: 1, categories: [{ categoryId: RC_PUBLISHED_CATEGORY, settings: { integrationSeconds: exposure.integrationSeconds, basis: "imported" }, exposure: { file: file("MACCS-Noah-dose-settings-excerpt.inp"), data: exposure } }], libraries: ([ ["inhalation", "FGR13INH.HDB"], ["cloudshine", "F12TIII1.EXT"], ["groundshine", "F12TIII3.EXT"] ] as const).map(([kind, filename]) => { const records = parseRcDoseCoefficients(text(filename), kind); return { kind, file: file(filename), nuclides: [...new Set(records.map(r => r.name))], recordCount: records.length }; }) };
+  rc.dosimetry.doseInputs = { revision: 1, categories: [{ categoryId: RC_PUBLISHED_CATEGORY, exposure: { file: file("MACCS-Noah-dose-settings-excerpt.inp"), data: exposure } }], libraries: libraries.doseLibraries };
   rc.dosimetry.exposurePathways = ["INHALATION", "CLOUDSHINE", "GROUNDSHINE"].map(pathway => ({ pathway: pathway as "INHALATION" | "CLOUDSHINE" | "GROUNDSHINE", included: true }));
   rc.dosimetry.exposurePeriods = [{ period: "2,592,000 s = 30 days", justification: "SRENDEMP001 in the published thesis input, printed p. 101." }];
   rc.dosimetry.breathingRates.description = "MACCS reference SEBRRATE001/002/003 = 2.66×10⁻⁴ m³/s in the published exposure block.";
   rc.dosimetry.dcf = { source: `Original EPA FGR13PAK files: ${RC_PUBLISHED_SOURCES.dose}`, type: "EFFECTIVE" };
   rc.dosimetry.doseAggregationMethod = "No dose has been computed for this composite input-review example.";
-  const healthInput = parseRcHealthInput(text("MACCS-Noah-health-settings-excerpt.inp"), "MACCS-Noah-health-settings-excerpt.inp");
+  const healthInput = libraries.healthInput;
   rc.healthEffects.healthInput = healthInput;
   rc.healthEffects.earlyHealthEffects = healthInput.records.filter(record => record.kind === "early_fatality").map(rcHealthEffectLabel);
   rc.healthEffects.earlyEffectParameters = { approach: "ORGAN_SPECIFIC_DOSE_RESPONSE", description: "Published MACCS early-fatality and injury input cards in Etter thesis, p. 99." };

@@ -8,7 +8,8 @@ import type { RcLinkedDeposition, RcTransportCategory, RcTransportFile, RcTransp
 import { RcTransportInputsSchema, RcTransportSettingsSchema } from "interfaces-mef-types/zod/rc/transport";
 import { decodeRcText } from "interfaces-shared-types/rc-workbooks/source-term-parser";
 import { parseRcDecay, parseRcDeposition, parseRcDispersionReference } from "interfaces-shared-types/rc-workbooks/transport-parser";
-import { depositionMatchesSource, effectiveDepositionVelocity, nobleGasGroup } from "interfaces-shared-types/rc-workbooks/transport";
+import { RC_STANDARD_DECAY_LIBRARY, depositionMatchesSource, effectiveDepositionVelocity, nobleGasGroup } from "interfaces-shared-types/rc-workbooks/transport";
+import { readRcPublishedFile } from "../example-workbooks/seeds/rc-published-inputs-seed";
 import { ProjectsService } from "../projects/projects.service";
 import { WorkbookRolesService } from "../workbooks/workbook-roles.service";
 import { RcWorkbook, type RcWorkbookDocument } from "./rc-workbook.schema";
@@ -114,6 +115,9 @@ export class RcTransportService {
       for (const f of created) try { await this.documents.discardUnlinkedInputOriginal(id, f.documentId); } catch { this.logger.warn(`Could not clean up unsuccessful transport import ${f.documentId}`); }
       throw e;
     }
+  }
+  async addStandardLibrary(id: string, body: unknown, actor: Actor) {
+    return this.importFiles(id, "decay", body, [{ buffer: readRcPublishedFile(RC_STANDARD_DECAY_LIBRARY), originalname: RC_STANDARD_DECAY_LIBRARY }], actor);
   }
   async linkedSource(id: string, categoryId: string, actor: Actor): Promise<RcLinkedDeposition> {
     const loaded = await this.load(id, actor), source = this.source(loaded, categoryId);

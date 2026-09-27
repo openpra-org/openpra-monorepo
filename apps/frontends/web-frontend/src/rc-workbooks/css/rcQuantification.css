@@ -103,3 +103,5 @@
 @container(max-width:600px){.rc-quantification .q-input-list li{grid-template-columns:minmax(0,1fr)auto;gap:8px}.rc-quantification .q-input-list li>div:nth-child(2){grid-row:2;grid-column:1/-1}.rc-quantification .q-status{grid-column:2;grid-row:1}.rc-quantification .q-fields{grid-template-columns:minmax(0,272px)}}
 @container(max-width:480px){.rc-quantification .q-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.rc-quantification .q-tabs button{padding:10px 4px;font-size:12px}.rc-quantification .q-file-picker,.rc-quantification .q-file-list li{flex-direction:column;align-items:flex-start;gap:10px}.rc-quantification th,.rc-quantification td{padding:8px 4px;font-size:12px}}
 @media(max-width:680px){.rc-step08-family-select{align-items:stretch;flex-direction:column}.rc-step08-family-select .posnav__btn{align-self:flex-start}}
+
+.rc-quantification .q-metric-field{display:flex;flex-direction:column;gap:4px;max-width:520px;margin:10px 0}

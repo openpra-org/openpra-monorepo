@@ -4,6 +4,7 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import { isDeepStrictEqual } from "util";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { withSourceTermSummary } from "interfaces-shared-types/rc-workbooks/source-term-summary";
+import { withRcFamilyConsequences } from "interfaces-shared-types/rc-workbooks/family-consequences";
 import { parseRcHealthInput } from "interfaces-shared-types/rc-workbooks/health-input-parser";
 import { parseRcSiteEconomy } from "interfaces-shared-types/rc-workbooks/economic-input-parser";
 import { rcEconomicCostCoverage, rcEconomicCostIssues } from "interfaces-shared-types/rc-workbooks/economic-costs";
@@ -81,7 +82,8 @@ export class RcWorkbooksService {
       throw new ForbiddenException(`Invalid RC workbook payload: ${parsed.error.message}`);
     }
     const myRoles = await this.loadMyRoles(workbookId, acting.username);
-    const before = stripNulls(doc.mef) as RadiologicalConsequenceAnalysis;
+    const stored = RadiologicalConsequenceAnalysisSchema.safeParse(stripNulls(doc.mef));
+    const before = stored.success ? stored.data : stripNulls(doc.mef) as RadiologicalConsequenceAnalysis;
     if (!isDeepStrictEqual(before.consequenceQuantification.caseRecords, parsed.data.consequenceQuantification.caseRecords))
       throw new ConflictException("Use the case-record endpoints to change snapshots or linked results");
     if (!isDeepStrictEqual(before.dosimetry.doseInputs, parsed.data.dosimetry.doseInputs))
@@ -133,7 +135,7 @@ export class RcWorkbooksService {
       }
     }
     parsed.data.releaseCategoryToConsequence.releaseCategoryInputs = nextCategories.map(withSourceTermSummary);
-    doc.mef = JSON.parse(JSON.stringify(parsed.data));
+    doc.mef = JSON.parse(JSON.stringify(withRcFamilyConsequences(parsed.data)));
     try { await doc.save(); } catch (error) {
       if (error instanceof Error && error.name === "VersionError") throw new ConflictException("The workbook changed. Reload before saving");
       throw error;
@@ -154,7 +156,8 @@ export class RcWorkbooksService {
     const example = await this.exampleWorkbooksService.getRcBundle(exampleId);
     const parsed = RadiologicalConsequenceAnalysisSchema.safeParse(stripNulls(example.rc.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
-    const prepared = example.rc.slug === RC_PUBLISHED_SLUG ? await this.publishedExample.prepare(workbookId, parsed.data, doc.__v + 1, acting) : undefined;
+    const materialize = example.rc.slug === RC_PUBLISHED_SLUG || Boolean(parsed.data.consequenceQuantification.caseRecords?.snapshots.length);
+    const prepared = materialize ? await this.publishedExample.prepare(workbookId, parsed.data, doc.__v + 1, acting) : undefined;
     const cleaned = {
       ...(prepared?.mef ?? parsed.data),
       workflowState: "DRAFT",

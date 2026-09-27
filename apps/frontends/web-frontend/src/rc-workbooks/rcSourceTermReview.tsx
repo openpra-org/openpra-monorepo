@@ -66,9 +66,9 @@ export function RcSourceTermReview({ category, values, active, disabled, dirty, 
   const midpoint = Math.ceil(values.groups.length / 2);
   return <div className="st-review">
     <section className="st-source" aria-label="Source term file">
-      <div className="st-source-info"><span className="st-label">Source term file</span>
-        <strong>{source?.originalFile?.filename ?? (source ? "Manually entered source term" : "No source-term file")}</strong>
-        <span className="st-caption">.inp · .txt · .dat</span>
+      <div className="st-source-info"><span className="st-label">{source?.msSource ? "Source term" : "Source term file"}</span>
+        <strong>{source?.msSource ? `MS ${source.msSource.sourceTermId} · ${source.msSource.inventoryIds.join(", ")}` : source?.originalFile?.filename ?? (source ? "Manually entered source term" : "No source-term file")}</strong>
+        <span className="st-caption">{source?.msSource ? "Imported from the linked MS workbook" : ".inp · .txt · .dat"}</span>
       </div>
       <div className="st-file-actions">{importControl}
         {source?.originalFile && <button type="button" className="posnav__btn posnav__btn--sm" disabled={!sourceTerms} onClick={() => {

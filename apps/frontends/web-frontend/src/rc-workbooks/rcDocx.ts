@@ -11,9 +11,11 @@ import {
   BorderStyle,
 } from "docx";
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
+import type { ConformanceItem } from "./rcViewData";
 import { DistributionType } from "interfaces-mef-types/core/events";
 import { sitePopulation } from "interfaces-shared-types/rc-workbooks/site-receptors";
 import { rcEconomicCostSpecs } from "interfaces-shared-types/rc-workbooks/economic-costs";
+import { rcAspectDecision, rcMetricQuantityLabels, rcMetricReceptorText, rcMetricStatisticsText, rcMetricUnit, rcMetricWindowText } from "interfaces-shared-types/rc-workbooks/metrics";
 import { RC_SCOPE_ASPECTS, rcScopeTreatment } from "./rcScope";
 import { evacuationDelayMinutes, protectionParameterQuantity, responseSummary, totalEvacuationDelay } from "./rcProtective";
 
@@ -57,7 +59,7 @@ function val(v: number | undefined): string {
   return v === undefined ? "n/a" : v.toExponential(1).replace("e", "E");
 }
 
-function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Paragraph | Table)[] {
+function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean, conformance: ConformanceItem[]): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
   const isBounding = a.releaseCategoryToConsequence.siteInformation.isBounding;
   const siteLabel = isBounding ? "Bounding site" : "Identified site";
@@ -81,16 +83,27 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
   out.push(para(doc.processDescription));
   out.push(para(doc.inputsDescription));
   out.push(para(doc.praTaskInterfaces));
+  out.push(heading("Consequence Metrics", HeadingLevel.HEADING_2));
+  const metrics = a.scope.metrics ?? [];
+  if (a.scope.metricSelectionApplicationBasis?.trim()) out.push(para(a.scope.metricSelectionApplicationBasis));
+  if (metrics.length) {
+    out.push(dataTable(
+      ["Metric", "Quantity", "Receptors", "Exposure window", "Protective actions", "Statistics"],
+      metrics.map((m) => [m.name.trim() || m.id, `${rcMetricQuantityLabels[m.quantity]}${rcMetricUnit(m) ? ` (${rcMetricUnit(m)})` : ""}`, rcMetricReceptorText(m.receptor),
+        rcMetricWindowText(m.window), m.protectiveActionsCredited ? "Credited" : "Not credited", rcMetricStatisticsText(m)]),
+    ));
+    out.push(dataTable(["Metric", "Criterion or use", "Basis"], metrics.map((m) => [m.name.trim() || m.id, m.criterion, m.basis])));
+  } else out.push(para("No consequence metrics are defined."));
   out.push(heading("Evaluation by Aspect", HeadingLevel.HEADING_2));
   out.push(dataTable(
     ["Aspect", "Included?", "Treatment used", "Reason for exclusion"],
     RC_SCOPE_ASPECTS.map((aspect) => {
-      const decision = a.scope.evaluationDecisions?.find((item) => item.subElement === aspect.subElement);
+      const decision = rcAspectDecision(a.scope, aspect.subElement);
       return [
         `${aspect.label} (Step ${aspect.step})`,
-        decision === undefined ? "Not set" : decision.included ? "Included" : "Excluded",
-        decision?.included === false ? "—" : rcScopeTreatment(a, aspect.subElement) || "Not recorded",
-        decision?.included === false ? decision.exclusionReason?.trim() || "Not recorded" : "—",
+        decision.required ? `Required by ${decision.neededBy.map((m) => m.id).join(", ")}` : decision.included === undefined ? "Not set" : decision.included ? "Included" : "Excluded",
+        decision.included === false ? "—" : rcScopeTreatment(a, aspect.subElement) || "Not recorded",
+        decision.included === false ? decision.exclusionReason?.trim() || "Not recorded" : "—",
       ];
     }),
   ));
@@ -253,8 +266,8 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
 
   out.push(heading("Conformance summary", HeadingLevel.HEADING_1));
   out.push(dataTable(
-    ["SR", "HLR", "Category", "Status", "Evidence"],
-    a.conformanceMatrix.map((c) => [c.sr, c.hlr, c.capabilityCategory, c.status, c.evidence]),
+    ["SR", "HLR", "Status", "Basis"],
+    conformance.map((item) => [item.id, item.hlr, CONFORMANCE_STATUS_LABELS[item.status], item.meta ?? ""]),
   ));
 
   out.push(heading("References", HeadingLevel.HEADING_1));
@@ -268,8 +281,10 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
   return out;
 }
 
-async function generateRcReport(rc: RadiologicalConsequenceAnalysis, final: boolean): Promise<void> {
-  const doc = new Document({ sections: [{ children: buildChildren(rc, final) }] });
+const CONFORMANCE_STATUS_LABELS: Record<ConformanceItem["status"], string> = { ok: "Step checks pass", warn: "To review", blocked: "Not met", na: "Not applicable" };
+
+async function generateRcReport(rc: RadiologicalConsequenceAnalysis, final: boolean, conformance: ConformanceItem[]): Promise<void> {
+  const doc = new Document({ sections: [{ children: buildChildren(rc, final, conformance) }] });
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

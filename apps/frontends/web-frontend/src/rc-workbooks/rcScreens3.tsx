@@ -17,11 +17,15 @@ import {
   SS_SR,
   RC_TOC,
   type CapabilityCategory,
+  type ConformanceItem,
   type SiteBasis,
 } from "./rcViewData";
 import { lognormalBounds, type CcScore } from "./rcSelectors";
 import { type RcDrawerContext } from "./rcScreens";
 import { RcSourceTermEditor } from "./rcSourceTerm";
+import { RcMetricDrawer } from "./rcMetrics";
+import { rcFamilyReferenceMatches } from "interfaces-shared-types/rc-workbooks/step-checks";
+import { rcConsequenceMatchesFamily, rcLatestCategoryResult } from "interfaces-shared-types/rc-workbooks/family-consequences";
 import {
   DrawerHead,
   RcTextField,
@@ -71,21 +75,23 @@ import { rcEconomicCostSpecs } from "interfaces-shared-types/rc-workbooks/econom
 import type { RcEconomicCostCode } from "interfaces-mef-types/rc/economic-inputs";
 
 // ─── 08 — Quantification (RCQ) ─────────────────────────────────────────────
-function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawerContext) => void; onOpenStep?: (id: string) => void }): JSX.Element {
-  const { rc, editable, mutateRc, eventSequenceFamilySources } = useRcWorkbook();
+function QuantifyScreen({ openDrawer, onOpenStep, initialCaseTab }: { openDrawer: (ctx: RcDrawerContext) => void; onOpenStep?: (id: string) => void; initialCaseTab?: "checks" | "prepared" | "results" }): JSX.Element {
+  const { rc, editable, mutateRc, links } = useRcWorkbook();
   const [tab, setTab] = useState<"case" | "consequences" | "review" | "basis" | "handoff">("case");
   const tabId = useId(), tabsRef = useRef<HTMLDivElement>(null);
   const tabLabels = { case: "Case inputs and outputs", consequences: "Consequences", review: "Output review", basis: "Basis and uncertainty", handoff: "RI feedback" } as const;
   const tabOrder = Object.keys(tabLabels) as (keyof typeof tabLabels)[];
   const q = rc.consequenceQuantification;
-  const linkedFamilySources = eventSequenceFamilySources.filter((source) =>
-    source.family.releaseCategoryIds !== undefined && source.family.releaseCategoryIds.length > 0);
-  const linkedFamilyGroups = [...new Set(linkedFamilySources.map(source => source.workbookId))].map(workbookId => ({
-    workbookId,
-    name: linkedFamilySources.find(source => source.workbookId === workbookId)!.workbookName,
-    sources: linkedFamilySources.filter(source => source.workbookId === workbookId),
-  }));
-  const [selectedFamilySource, setSelectedFamilySource] = useState("");
+  const familyName = (entityId: string) => links.es?.eventSequenceFamilies.find((family) => family.uuid === entityId)?.name ?? "";
+  const mappedFamilies = rc.releaseCategoryToConsequence.releaseCategoryInputs.flatMap((category) => (category.eventSequenceFamilyReferences ?? []).map((reference) => ({
+    category, reference, entry: q.eventSequenceConsequences.find((entry) => rcConsequenceMatchesFamily(entry, reference)),
+  })));
+  const orphans = q.eventSequenceConsequences.filter((entry) => !mappedFamilies.some((family) => family.entry === entry));
+  const range = (categoryId: string, metricName: string) => {
+    const metric = (rc.scope.metrics ?? []).find((entry) => (entry.name.trim() || entry.id) === metricName);
+    const rows = metric ? [...(rcLatestCategoryResult(q.caseRecords, categoryId, metric.id)?.statistics.percentiles ?? [])].sort((a, b) => a.percentile - b.percentile) : [];
+    return rows.length > 1 ? `${valText(rows[0].value)} to ${valText(rows[rows.length - 1].value)}` : undefined;
+  };
   const pd = q.uncertaintyCharacterization.phenomenaDependencies ?? [];
   function setPd(rows: NonNullable<typeof q.uncertaintyCharacterization.phenomenaDependencies>): void {
     mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, uncertaintyCharacterization: { ...d.consequenceQuantification.uncertaintyCharacterization, phenomenaDependencies: rows } } }));
@@ -121,65 +127,6 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
     mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, consequenceCodesUsed: [...d.consequenceQuantification.consequenceCodesUsed, { code: "" }] } }));
     openDrawer({ kind: "code", id: String(q.consequenceCodesUsed.length) });
   }
-  function addManualFamily(): void {
-    const uuid = `RCQ-ESF-${String(q.eventSequenceConsequences.length + 1)}`;
-    const family = `ESF-${String(q.eventSequenceConsequences.length + 1)}`;
-    mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, eventSequenceConsequences: [...d.consequenceQuantification.eventSequenceConsequences, { uuid, eventSequenceFamily: family, consequenceResults: [] }] } }));
-    openDrawer({ kind: "family", id: uuid });
-  }
-  function addLinkedFamily(): void {
-    const sourceKey = selectedFamilySource.length > 0
-      ? selectedFamilySource
-      : linkedFamilySources[0] === undefined
-        ? ""
-        : `${linkedFamilySources[0].workbookId}|${linkedFamilySources[0].family.uuid}`;
-    const source = linkedFamilySources.find((candidate) =>
-      `${candidate.workbookId}|${candidate.family.uuid}` === sourceKey);
-    if (source === undefined) return;
-    const alreadyLinked = q.eventSequenceConsequences.some((record) =>
-      record.eventSequenceFamilyReference?.workbookId === source.workbookId &&
-      record.eventSequenceFamilyReference.entityId === source.family.uuid);
-    if (alreadyLinked) {
-      const existing = q.eventSequenceConsequences.find((record) =>
-        record.eventSequenceFamilyReference?.workbookId === source.workbookId &&
-        record.eventSequenceFamilyReference.entityId === source.family.uuid)!;
-      openDrawer({ kind: "family", id: existing.uuid ?? existing.eventSequenceFamily });
-      return;
-    }
-    const baseId = `RCQ-${source.family.uuid}`;
-    const uuid = q.eventSequenceConsequences.some((record) => record.uuid === baseId)
-      ? `${baseId}-${String(q.eventSequenceConsequences.length + 1)}`
-      : baseId;
-    mutateRc((draft) => ({
-      ...draft,
-      releaseCategoryToConsequence: {
-        ...draft.releaseCategoryToConsequence,
-        releaseCategoryInputs: draft.releaseCategoryToConsequence.releaseCategoryInputs.map((input) => {
-          if (source.family.releaseCategoryIds?.includes(input.releaseCategory) !== true) return input;
-          const references = input.eventSequenceFamilyReferences ?? [];
-          return references.some((reference) =>
-            reference.workbookId === source.workbookId && reference.entityId === source.family.uuid)
-            ? input
-            : { ...input, eventSequenceFamilyReferences: [...references, source.reference] };
-        }),
-      },
-      consequenceQuantification: {
-        ...draft.consequenceQuantification,
-        eventSequenceConsequences: [
-          ...draft.consequenceQuantification.eventSequenceConsequences,
-          {
-            uuid,
-            eventSequenceFamily: source.family.uuid,
-            eventSequenceFamilyReference: source.reference,
-            releaseCategoryReference: source.family.releaseCategoryIds?.[0],
-            sourceTermReference: source.family.representativeSourceTermId,
-            consequenceResults: [],
-          },
-        ],
-      },
-    }));
-    openDrawer({ kind: "family", id: uuid });
-  }
   function addUncertainty(): void {
     mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, modelUncertaintyAssessments: [...d.consequenceQuantification.modelUncertaintyAssessments, { sourceSubElement: "RCAD", uncertaintySource: "", relatedAssumptions: [], evaluationType: "QUALITATIVE", evaluationScope: "INDIVIDUAL", effectOnMetrics: "" }] } }));
     openDrawer({ kind: "uncertainty", id: String(q.modelUncertaintyAssessments.length) });
@@ -205,7 +152,7 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
         setTab(next); tabsRef.current?.querySelectorAll<HTMLButtonElement>("button")[tabOrder.indexOf(next)]?.focus();
       }}>{tabOrder.map(key => <button key={key} type="button" role="tab" id={`${tabId}-${key}`} aria-controls={`${tabId}-panel`} aria-selected={tab === key} tabIndex={tab === key ? 0 : -1} onClick={() => setTab(key)}>{tabLabels[key]}</button>)}</div>
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0}>
-      {tab === "case" && <RcQuantificationPanel onOpenStep={onOpenStep} />}
+      {tab === "case" && <RcQuantificationPanel onOpenStep={onOpenStep} initialTab={initialCaseTab} />}
       {tab === "consequences" && <>
       <div className="poscard">
         <div className="poscard__head">
@@ -235,52 +182,37 @@ function QuantifyScreen({ openDrawer, onOpenStep }: { openDrawer: (ctx: RcDrawer
       <div className="poscard">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="RC" title="Event-sequence consequences" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCQ-A3</RcProvenanceChip>
-            {editable && linkedFamilySources.length === 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addManualFamily}><RCIcon.Plus /> Add family</button>}
-          </div>
+          <RcProvenanceChip>RCQ-A3</RcProvenanceChip>
         </div>
-        {editable && linkedFamilySources.length > 0 && (
-          <div className="rc-step08-family-select">
-            <label><span className="posfield__label">Event-sequence family</span><select
-              className="posfield__select"
-              aria-label="Event sequence family source"
-              value={selectedFamilySource}
-              onChange={(event) => setSelectedFamilySource(event.target.value)}
-            >
-              {linkedFamilyGroups.map(group => <optgroup key={group.workbookId} label={group.name}>
-                {group.sources.map(source => <option key={`${source.workbookId}|${source.family.uuid}`} value={`${source.workbookId}|${source.family.uuid}`}>
-                  {source.family.uuid} · {source.family.name}
-                </option>)}
-              </optgroup>)}
-            </select></label>
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addLinkedFamily}><RCIcon.Plus /> Add linked family</button>
-          </div>
-        )}
         <div className="rcfamily">
-          {q.eventSequenceConsequences.length === 0 && <p className="rc-step08-empty">No event-sequence families linked.</p>}
-          {q.eventSequenceConsequences.map((f) => {
-            const sig = f.riskSignificance;
+          {mappedFamilies.length === 0 && orphans.length === 0 && <p className="rc-step08-empty">No event sequence families are mapped to a release category. Map them in Step 01.</p>}
+          {[...mappedFamilies, ...orphans.map((entry) => ({ category: undefined, reference: undefined, entry }))].map(({ category, reference, entry }) => {
+            const entityId = reference?.entityId ?? entry!.eventSequenceFamily;
+            const key = entry ? entry.uuid ?? entry.eventSequenceFamily : `${reference!.workbookId}|${reference!.entityId}`;
+            const sig = entry?.riskSignificance;
             const sigClass = sig === "LOW" ? "low" : "high";
+            const typed = entry !== undefined && entry.origin !== "CATEGORY_RESULT";
             return (
-              <button type="button" key={f.uuid ?? f.eventSequenceFamily} className="rcfamily__card" style={{ width: "100%", textAlign: "left", cursor: "pointer" }} onClick={() => openDrawer({ kind: "family", id: f.uuid ?? f.eventSequenceFamily })}>
+              <button type="button" key={key} className="rcfamily__card" style={{ width: "100%", textAlign: "left", cursor: "pointer" }} onClick={() => openDrawer({ kind: "family", id: key })}>
                 <div className="rcfamily__head">
                   <div className="rcfamily__head-main">
-                    <div className="rcfamily__id posmono">{f.eventSequenceFamily}{f.releaseCategoryReference !== undefined ? ` · bounds ${f.releaseCategoryReference}` : ""}</div>
-                    <div className="rcfamily__name">{f.eventSequenceFamilyReference !== undefined ? "Linked Event Sequence family" : f.sourceTermReference !== undefined ? `Source term ${f.sourceTermReference}` : "Event sequence family"}</div>
+                    <div className="rcfamily__id posmono">{entityId}{category ? ` · in ${category.releaseCategory}` : " · in no release category"}</div>
+                    <div className="rcfamily__name">{familyName(entityId) || "Event sequence family"}{typed ? " · hand-typed values" : ""}</div>
                   </div>
                   {sig && <span className={`rcfamily__sig rcfamily__sig--${sigClass}`}>{RISK_SIGNIFICANCE_LABELS[sig] ?? sig}</span>}
                 </div>
                 <div className="rcfamily__metrics">
-                  {f.consequenceResults.map((m, i) => {
+                  {!entry && <div className="rcfamily__metric"><span className="rcfamily__metric-k">Waiting for the {category?.releaseCategory} result</span></div>}
+                  {entry?.consequenceResults.map((m, i) => {
                     const bounds = lognormalBounds(m.uncertaintyDistribution);
+                    const spread = entry.origin === "CATEGORY_RESULT" && category ? range(category.releaseCategory, m.metric) : bounds !== undefined ? `${valText(bounds.p05)} to ${valText(bounds.p95)}` : undefined;
                     return (
                       <div key={i} className="rcfamily__metric">
                         <span className="rcfamily__metric-k">{m.metric}</span>
                         <div className="rcfamily__metric-vrow">
                           <span className="rcfamily__metric-v posmono">{valText(m.meanValue)}</span>
                           <span className="rcfamily__metric-u">{m.unit ?? ""}</span>
-                          {bounds !== undefined && <span className="rcfamily__metric-ci">{valText(bounds.p05)} to {valText(bounds.p95)}</span>}
+                          {spread !== undefined && <span className="rcfamily__metric-ci">{spread}</span>}
                         </div>
                       </div>
                     );
@@ -537,10 +469,11 @@ function LognormalEditor({ distribution, disabled, onApply }: { distribution?: P
 }
 
 // ─── 09 — Draft (the report template) ──────────────────────────────────────
-function DraftScreen({ cc, scores, site, onSubmitDraft, canSubmit }: {
+function DraftScreen({ cc, scores, site, conformance, onSubmitDraft, canSubmit }: {
   cc: CapabilityCategory;
   scores: CcScore;
   site: SiteBasis;
+  conformance: ConformanceItem[];
   onSubmitDraft: () => void;
   canSubmit: boolean;
 }): JSX.Element {
@@ -584,7 +517,7 @@ function DraftScreen({ cc, scores, site, onSubmitDraft, canSubmit }: {
           <WorkbookSectionHeading workbook="RC" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {canSubmit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onSubmitDraft}><RCIcon.Send /> Submit draft to internal review</button>}
-            <button type="button" className="posnav__btn" onClick={() => { void generateRcReport(rc, false); }}><RCIcon.Download /> Download draft (.docx)</button>
+            <button type="button" className="posnav__btn" onClick={() => { void generateRcReport(rc, false, conformance); }}><RCIcon.Download /> Download draft (.docx)</button>
             <button type="button" className="posnav__btn" onClick={downloadJson}><RCIcon.Download /> Download JSON</button>
           </div>
         </div>
@@ -595,21 +528,22 @@ function DraftScreen({ cc, scores, site, onSubmitDraft, canSubmit }: {
 
 // ─── Drawer content — every editable RC entity ─────────────────────────────
 function DrawerContent({ context, onClose, centered = false }: { context: RcDrawerContext; onClose: () => void; centered?: boolean }): JSX.Element | null {
-  const { rc, editable, mutateRc, sourceTermDrafts, setSourceTermDraft } = useRcWorkbook();
+  const { rc, editable, mutateRc, sourceTermDrafts, setSourceTermDraft, links } = useRcWorkbook();
   const dis = !editable;
   const rcc = rc.releaseCategoryToConsequence;
   const pa = rc.protectiveActionParameters;
   const ad = rc.atmosphericTransportAndDispersion;
   const catOptions: [string, string][] = rcc.releaseCategoryInputs.map((c) => [c.releaseCategory, c.releaseCategory]);
 
+  if (context.kind === "metric") return <RcMetricDrawer key={context.id} id={context.id} onClose={onClose} centered={centered} />;
+
   if (context.kind === "category") {
     const c = rcc.releaseCategoryInputs.find((x) => x.releaseCategory === context.id);
     if (c === undefined) return null;
-    const ch = c.releaseCharacteristics;
     const patch = (next: Partial<typeof c>): void => mutateRc((d) => ({ ...d, releaseCategoryToConsequence: { ...d.releaseCategoryToConsequence, releaseCategoryInputs: d.releaseCategoryToConsequence.releaseCategoryInputs.map((x) => (x.releaseCategory === c.releaseCategory ? { ...x, ...next } : x)) } }));
-    const patchCh = (next: Partial<typeof ch>): void => patch({ releaseCharacteristics: { ...ch, ...next } });
-    const fractions = ch.radionuclideGroupFractions ?? [];
-    const timings = ch.releasePhaseTimings ?? [];
+    const bounding = c.boundingMember ?? { sequenceId: "", basis: "" };
+    const esId = rc.linkedWorkbooks?.ES;
+    const members = esId && links.es ? links.es.eventSequenceFamilies.filter((family) => (c.eventSequenceFamilyReferences ?? []).some((reference) => rcFamilyReferenceMatches(reference, esId, family.uuid))) : [];
     const remove = (): void => { setSourceTermDraft(c.releaseCategory, undefined); mutateRc((d) => ({ ...d, releaseCategoryToConsequence: { ...d.releaseCategoryToConsequence, releaseCategoryInputs: d.releaseCategoryToConsequence.releaseCategoryInputs.filter((x) => x.releaseCategory !== c.releaseCategory) } })); onClose(); };
     return (
       <>
@@ -620,41 +554,15 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
             <RcTextField label="Source-term reference" value={c.sourceTermDefinitionRef ?? ""} onChange={(v) => patch({ sourceTermDefinitionRef: v })} disabled={dis} />
             {editable && <button type="button" className="posnav__btn posnav__btn--sm rcbtn-danger rc-category-remove" onClick={remove}>Remove category</button>}
           </div>
+          <div className="posfield-grid">
+            {members.length ? <RcSelectField label="Bounding sequence" value={bounding.sequenceId} disabled={dis}
+              options={[["", "Choose a sequence"], ...(bounding.sequenceId && !members.some((family) => family.memberSequenceIds.includes(bounding.sequenceId)) ? [[bounding.sequenceId, bounding.sequenceId] as [string, string]] : []),
+                ...members.flatMap((family) => family.memberSequenceIds.map((id): [string, string] => [id, `${id} · ${family.uuid}`]))]}
+              onChange={(v) => patch({ boundingMember: { ...bounding, sequenceId: v } })} />
+              : <RcTextField label="Bounding sequence" value={bounding.sequenceId} onChange={(v) => patch({ boundingMember: { ...bounding, sequenceId: v } })} disabled={dis} />}
+          </div>
+          <RcAreaField label="Screening basis" value={bounding.basis} rows={2} disabled={dis} onChange={(v) => patch({ boundingMember: { ...bounding, basis: v } })} />
           <RcSourceTermEditor key={c.releaseCategory} category={c} />
-          {!c.sourceTerm && <><div className="posfield">
-            <label className="posfield__label">Radionuclide group fractions</label>
-            <table className="postable">
-              <thead><tr><th>Group</th><th>Fraction</th>{editable && <th />}</tr></thead>
-              <tbody>
-                {fractions.map((g, i) => (
-                  <tr key={i}>
-                    <td><WorkbookInput className="posfield__input posmono" value={g.group} disabled={dis} onChange={(e) => patchCh({ radionuclideGroupFractions: fractions.map((y, j) => (j === i ? { ...y, group: e.target.value } : y)) })} /></td>
-                    <td><WorkbookInput className="posfield__input posmono" type="number" step="any" value={g.fraction} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchCh({ radionuclideGroupFractions: fractions.map((y, j) => (j === i ? { ...y, fraction: v } : y)) }); }} /></td>
-                    {editable && <td><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchCh({ radionuclideGroupFractions: [...fractions.slice(0, i), ...fractions.slice(i + 1)] })}>Remove</button></td>}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start", marginTop: 6 }} onClick={() => patchCh({ radionuclideGroupFractions: [...fractions, { group: "New group", fraction: 0 }] })}><RCIcon.Plus /> Add group</button>}
-          </div>
-          <div className="posfield">
-            <label className="posfield__label">Release phase timings</label>
-            <table className="postable">
-              <thead><tr><th>Start</th><th>Duration</th><th>Unit</th>{editable && <th />}</tr></thead>
-              <tbody>
-                {timings.map((t, i) => (
-                  <tr key={i}>
-                    <td><WorkbookInput className="posfield__input posmono" type="number" step="any" value={t.startTime} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchCh({ releasePhaseTimings: timings.map((y, j) => (j === i ? { ...y, startTime: v } : y)) }); }} /></td>
-                    <td><WorkbookInput className="posfield__input posmono" type="number" step="any" value={t.duration} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchCh({ releasePhaseTimings: timings.map((y, j) => (j === i ? { ...y, duration: v } : y)) }); }} /></td>
-                    <td><WorkbookInput className="posfield__input" style={{ width: 56 }} value={t.timeUnit ?? "h"} disabled={dis} onChange={(e) => patchCh({ releasePhaseTimings: timings.map((y, j) => (j === i ? { ...y, timeUnit: e.target.value } : y)) })} /></td>
-                    {editable && <td><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchCh({ releasePhaseTimings: [...timings.slice(0, i), ...timings.slice(i + 1)] })}>Remove</button></td>}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start", marginTop: 6 }} onClick={() => patchCh({ releasePhaseTimings: [...timings, { startTime: 0, duration: 0, timeUnit: "h" }] })}><RCIcon.Plus /> Add phase</button>}
-          </div>
-          </>}
         </div>
       </>
     );
@@ -1274,28 +1182,50 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
   }
 
   if (context.kind === "family") {
-    const f = rc.consequenceQuantification.eventSequenceConsequences.find((x) => (x.uuid ?? x.eventSequenceFamily) === context.id);
-    if (f === undefined) return null;
-    const patch = (next: Partial<typeof f>): void => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, eventSequenceConsequences: d.consequenceQuantification.eventSequenceConsequences.map((x) => ((x.uuid ?? x.eventSequenceFamily) === (f.uuid ?? f.eventSequenceFamily) ? { ...x, ...next } : x)) } }));
-    const results = f.consequenceResults;
-    const remove = (): void => { mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, eventSequenceConsequences: d.consequenceQuantification.eventSequenceConsequences.filter((x) => (x.uuid ?? x.eventSequenceFamily) !== (f.uuid ?? f.eventSequenceFamily)) } })); onClose(); };
+    const entries = rc.consequenceQuantification.eventSequenceConsequences;
+    const [workbookId, entityId] = context.id.includes("|") ? [context.id.slice(0, context.id.indexOf("|")), context.id.slice(context.id.indexOf("|") + 1)] : ["", ""];
+    const pending = workbookId ? { referenceType: "EVENT_SEQUENCE_FAMILY" as const, workbookId, entityId } : undefined;
+    const f = entries.find((x) => (x.uuid ?? x.eventSequenceFamily) === context.id) ?? (pending ? entries.find((x) => rcConsequenceMatchesFamily(x, pending)) : undefined);
+    const reference = f?.eventSequenceFamilyReference ?? pending;
+    const familyId = f?.eventSequenceFamily ?? entityId;
+    const category = rcc.releaseCategoryInputs.find((c) => (c.eventSequenceFamilyReferences ?? []).some((r) => f ? rcConsequenceMatchesFamily(f, r) : pending !== undefined && r.workbookId === pending.workbookId && r.entityId === pending.entityId));
+    const name = links.es?.eventSequenceFamilies.find((family) => family.uuid === familyId)?.name;
+    const key = (x: typeof entries[number]) => x.uuid ?? x.eventSequenceFamily;
+    const setEntries = (next: (rows: typeof entries) => typeof entries): void => mutateRc((d) => ({ ...d, consequenceQuantification: { ...d.consequenceQuantification, eventSequenceConsequences: next(d.consequenceQuantification.eventSequenceConsequences) } }));
+    const patch = (next: Partial<typeof entries[number]>): void => { if (f) setEntries((rows) => rows.map((x) => (key(x) === key(f) ? { ...x, ...next } : x))); };
+    const handTyped = (): void => {
+      const typed: typeof entries[number] = {
+        uuid: f?.uuid ?? `RCQ-${familyId}`, eventSequenceFamily: familyId, ...(reference ? { eventSequenceFamilyReference: reference } : {}),
+        ...(category ? { releaseCategoryReference: category.releaseCategory } : {}), ...(category?.sourceTermDefinitionRef ? { sourceTermReference: category.sourceTermDefinitionRef } : {}),
+        consequenceResults: (f?.consequenceResults ?? []).map((m) => ({ metric: m.metric, meanValue: m.meanValue, ...(m.unit ? { unit: m.unit } : {}) })),
+        ...(f?.riskSignificance ? { riskSignificance: f.riskSignificance } : {}), origin: "OVERRIDE", overrideReason: "",
+      };
+      setEntries((rows) => f ? rows.map((x) => (key(x) === key(f) ? typed : x)) : [...rows, typed]);
+    };
+    const release = (): void => { if (f) setEntries((rows) => rows.filter((x) => key(x) !== key(f))); if (!category) onClose(); };
+    const results = f?.consequenceResults ?? [];
+    const typed = f !== undefined && f.origin !== "CATEGORY_RESULT";
+    const reasonMissing = typed && !f.overrideReason?.trim();
     return (
       <>
-        <DrawerHead cap="Event sequence family" title={f.eventSequenceFamily} sub={f.releaseCategoryReference} onClose={onClose} centered={centered} />
+        <DrawerHead cap="Event sequence family" title={name ? `${familyId} · ${name}` : familyId} sub={category ? `In ${category.releaseCategory}` : "In no release category"} onClose={onClose} centered={centered} />
         <div className={centered ? "modal__body" : "posdrawer__body"}>
-          <div className="posfield-grid">
-            <RcTextField label="Family" value={f.eventSequenceFamily} onChange={(v) => patch({ eventSequenceFamily: v })} disabled={dis || f.eventSequenceFamilyReference !== undefined} />
-            <RcSelectField label="Release category" value={f.releaseCategoryReference ?? ""} options={[["", "None"], ...catOptions]} onChange={(v) => patch({ releaseCategoryReference: v.length > 0 ? v : undefined })} disabled={dis} />
-          </div>
-          <div className="posfield-grid">
-            <RcTextField label="Source-term reference" value={f.sourceTermReference ?? ""} onChange={(v) => patch({ sourceTermReference: v })} disabled={dis} />
+          {f && <div className="posfield-grid">
             <RcSelectField label="Risk significance" value={f.riskSignificance ?? ""} options={[["", "Not assessed"], ...SIG_OPTIONS]} onChange={(v) => patch({ riskSignificance: v ? v as ImportanceLevel : undefined })} disabled={dis} />
-          </div>
-          <div className="posfield">
-            <label className="posfield__label">Consequence results</label>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {results.map((m, i) => {
-                return (
+          </div>}
+          {!typed ? <>
+            <p className="posmuted">{f ? `These values are the ${category?.releaseCategory ?? "category"} results, copied to this family.` : `No ${category?.releaseCategory ?? "category"} result yet. Record it under Case inputs and outputs.`} Enter hand-typed values only for a stated reason.</p>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={handTyped}>Enter hand-typed values</button>}
+          </> : <>
+            <div className="posfield">
+              <label className="posfield__label">Reason for hand-typed values</label>
+              <WorkbookTextarea className="posfield__textarea" aria-label="Reason for hand-typed values" aria-invalid={reasonMissing} rows={2} value={f.overrideReason ?? ""} disabled={dis} onChange={(e) => patch({ overrideReason: e.target.value })} />
+              {reasonMissing && <span className="rcscope__error" role="alert">Reason required</span>}
+            </div>
+            <div className="posfield">
+              <label className="posfield__label">Consequence results</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {results.map((m, i) => (
                   <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4, borderBottom: "1px dashed var(--color-border)", paddingBottom: 8 }}>
                     <div className="posrow rc-result-metric-row" style={{ gap: 6 }}>
                       <WorkbookInput className="posfield__input" aria-label="Metric" style={{ flex: "1 1 150px" }} value={m.metric} disabled={dis} onChange={(e) => patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, metric: e.target.value } : y)) })} />
@@ -1308,12 +1238,12 @@ function DrawerContent({ context, onClose, centered = false }: { context: RcDraw
                       <WorkbookInput className="posfield__input" aria-label="Uncertainty description" style={{ flex: "1 1 180px" }} value={m.uncertaintyDescription ?? ""} disabled={dis} onChange={(e) => patch({ consequenceResults: results.map((y, j) => (j === i ? { ...y, uncertaintyDescription: e.target.value } : y)) })} />
                     </div>
                   </div>
-                );
-              })}
-              {editable && <AddConsequenceResult onAdd={(metric, meanValue, unit) => patch({ consequenceResults: [...results, { metric, meanValue, unit: unit || undefined }] })} />}
+                ))}
+                {editable && <AddConsequenceResult onAdd={(metric, meanValue, unit) => patch({ consequenceResults: [...results, { metric, meanValue, unit: unit || undefined }] })} />}
+              </div>
             </div>
-          </div>
-          {editable && <RemoveBtn label="Remove family" onClick={remove} />}
+            {editable && <RemoveBtn label={category ? "Use the category result" : "Remove hand-typed values"} onClick={release} />}
+          </>}
         </div>
       </>
     );

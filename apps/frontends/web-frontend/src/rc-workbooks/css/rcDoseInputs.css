@@ -42,8 +42,6 @@
 .rc-dose .ds-library .ds-file-actions{flex-wrap:wrap;justify-content:flex-end}
 .rc-dose .ds-note{font-size:12px;color:var(--color-text-muted);margin:10px 0;line-height:1.5}
 .rc-dose .ds-readonly{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:12px 0 19px}
-.rc-dose .ds-response-table-wrap{max-width:100%;overflow-x:auto;margin-top:16px}
-.rc-dose .ds-response-table-wrap table{min-width:1100px;table-layout:auto}
 .rc-dose .ds-readonly dt{font-size:12px;color:var(--color-text-muted)}
 .rc-dose .ds-readonly dd{font-size:13px;margin:4px 0 0}
 .rc-dose .ds-value-basis{display:flex;align-items:center;gap:10px;min-height:30px;margin:0 0 16px;font-size:12px}
@@ -76,3 +74,9 @@
 .rc-dose-modal .rc-dose-periods input{min-width:0}
 .rc-dose-modal .rc-dose-periods th:last-child,.rc-dose-modal .rc-dose-periods td:last-child{width:84px}
 @media(max-width:720px){.rc-dose-modal .rc-dose-treatment-form{grid-template-columns:minmax(0,1fr)}.rc-dose-modal .rc-dose-treatment-form>.posfield:has(textarea),.rc-dose-modal .rc-dose-treatment-form>.rc-dose-periods{grid-column:auto}}
+
+.rc-dose .ds-window-table thead th{width:auto;background:var(--color-surface-low);color:var(--color-text-muted);font-weight:500;text-align:left}
+.rc-dose .ds-window-table tbody th{width:auto;background:none;color:var(--color-text);font-weight:500}
+.rc-dose .ds-metric-link{padding:0;border:0;background:none;font:inherit;color:var(--color-primary);text-align:left;cursor:pointer}
+.rc-dose .ds-metric-link:hover{text-decoration:underline}
+.rc-dose .ds-metric-link:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}

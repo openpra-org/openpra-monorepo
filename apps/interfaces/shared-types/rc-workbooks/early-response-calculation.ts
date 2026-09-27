@@ -139,7 +139,7 @@ export function calculateEarlyResponse(model: RcEarlyResponseModel, site: RcSite
   if (input.doseRates) {
     if (!input.targetOrgan?.trim()) issues.push("Choose the organ represented by the unprotected dose rates.");
     if (!finiteNonnegative(input.integrationSeconds) || !input.integrationSeconds || !finiteNonnegative(input.referenceBreathingRateCubicMetresPerSecond) || !input.referenceBreathingRateCubicMetresPerSecond)
-      issues.push("Step 05 integration time and the dose-rate reference breathing rate must be positive.");
+      issues.push("The metric exposure window and the dose-rate reference breathing rate must be positive.");
     if (!input.plumeArrivalSecondsByCell) issues.push("Plume-arrival times are required to bound early-phase dose.");
     if (input.doseRates.some((r: RcResponseDoseRate) => !Number.isSafeInteger(r.cellIndex) || r.cellIndex < 0 || r.cellIndex >= cells ||
       !finiteNonnegative(r.startSeconds) || !finiteNonnegative(r.endSeconds) || r.endSeconds <= r.startSeconds || !r.organ || r.organ !== input.targetOrgan ||

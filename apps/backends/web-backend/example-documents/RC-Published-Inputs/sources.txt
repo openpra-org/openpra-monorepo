@@ -38,6 +38,9 @@ File: MACCS2-DOE-published-dispersion.inp. Published ATMOS power-law dispersion 
 S5. NNDC/BNL, Evaluated Nuclear Structure Data File, archival distribution 2023-04-03.
 https://www.nndc.bnl.gov/ensdfarchivals/distributions/dist23/ensdf_230403.zip
 File: NNDC-ENSDF-2023-04-03-mass-137.txt is byte-for-byte archive member ensdf.137.
+File: NNDC-ENSDF-2023-04-03-standard-decay-library.txt holds 86 complete decay datasets copied byte for byte from archive members of the same release.
+They cover the 75 radionuclides of the published source term and the generic HTGR and SFR inventories. Each dataset keeps its identification, parent, level and decay records.
+For an isomer, the datasets whose parent lies within 1 keV of its lowest excited parent state are kept. Datasets are separated by blank records.
 Archive SHA-256: d785cc0194cee046d6d98986035161464a3ead9ccc215ce3c0e295b97c3d3b4d.
 
 S6. US EPA, FGR 13 CD Supplement / FGR13PAK.
@@ -79,5 +82,7 @@ MelMACCS-published-source-term.inp
 386b4a48047cde45187dc21ca8e39b7426ee944ec0e7dc53bb3c8d809d56dd18
 NNDC-ENSDF-2023-04-03-mass-137.txt
 2e7c2a33de25ece5117a9ac6a1b620093096917e7ff89c95f94277181b39a671
+NNDC-ENSDF-2023-04-03-standard-decay-library.txt
+298e130f495485cf4afb703b4e9e48501a39b9450fa51fecb285f2dafcf8721c
 SecPop-Noah-published-site-excerpt.txt
 11b77c681ebb0d3cdb233ae0e82e791c1254dd85940fdae5c34255070829b904

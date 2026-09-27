@@ -40,7 +40,7 @@ describe("RC-only published input example", () => {
     expect(responseRows[1].slice(5)).toEqual([null, null, null]);
     expect(c.weather!.settings).toEqual({ latitude: 35.2989, longitude: -93.2422, year: 2020, windSectors: 64 });
     expect(c.weather!.data!.recordCount).toBe(24); expect(c.weather!.trialSet).toMatchObject({ mode: "fixed_start", trialCount: 1, probabilityTotal: 1 }); expect(c.weather!.review).toBeUndefined();
-    expect(c.dose!.categories[0].settings!.integrationSeconds).toBe(2592000);
+    expect(c.dose!.categories[0].exposure!.data.integrationSeconds).toBe(2592000);
     expect(doseCoverage(c.dose, source, "inhalation").found).toHaveLength(58);
     expect(doseCoverage(c.dose, source, "cloudshine").found).toHaveLength(69);
     expect(rc.healthEffects.healthInput?.filename).toBe("MACCS-Noah-health-settings-excerpt.inp");
@@ -56,7 +56,7 @@ describe("RC-only published input example", () => {
     expect(rc.releaseCategoryToConsequence.releaseCategoryAndSourceTermReviewed).toBe(false);
   });
   it("retains byte-exact government library files with independently recorded hashes", () => {
-    const expected: Record<string, string> = { "NNDC-ENSDF-2023-04-03-mass-137.txt": "2e7c2a33de25ece5117a9ac6a1b620093096917e7ff89c95f94277181b39a671", "FGR13INH.HDB": "edd7d65edd36064137ca9cf2df9ce61c6de060a0eeb937d20df0deb5b9034b0d", "F12TIII1.EXT": "ba715095d9d05c79228f13ae26bd46412de2eae26d563bd3f9ef58139c0dac41", "F12TIII3.EXT": "0e5985f467b1d90ae08ab923ddc57d02fa2f59075754a216205cef067ea114f3" };
+    const expected: Record<string, string> = { "NNDC-ENSDF-2023-04-03-mass-137.txt": "2e7c2a33de25ece5117a9ac6a1b620093096917e7ff89c95f94277181b39a671", "NNDC-ENSDF-2023-04-03-standard-decay-library.txt": "298e130f495485cf4afb703b4e9e48501a39b9450fa51fecb285f2dafcf8721c", "FGR13INH.HDB": "edd7d65edd36064137ca9cf2df9ce61c6de060a0eeb937d20df0deb5b9034b0d", "F12TIII1.EXT": "ba715095d9d05c79228f13ae26bd46412de2eae26d563bd3f9ef58139c0dac41", "F12TIII3.EXT": "0e5985f467b1d90ae08ab923ddc57d02fa2f59075754a216205cef067ea114f3" };
     for (const [name, sha] of Object.entries(expected)) expect(createHash("sha256").update(readRcPublishedFile(name)).digest("hex")).toBe(sha);
     expect(() => readRcPublishedFile("../../outside.txt")).toThrow("Unknown");
   });
@@ -109,12 +109,13 @@ describe("RC-only published input example", () => {
     expect(response.hasPreviousMef).toBe(true); expect(mef.workflowState).toBe("DRAFT");
     expect(await t.workbooks.findOne({ workbookId: "rc-other" }).lean()).toEqual(other);
     const data = currentRcCase(mef, RC_PUBLISHED_CATEGORY), files = caseFiles(data), saved = mef.consequenceQuantification.caseRecords;
-    expect(data.schemaVersion).toBe(2);
+    expect(data.schemaVersion).toBe(3);
     expect(caseTable(data, "health", 0).total).toBe(data.health!.healthInput!.records.length);
     expect(caseTable(data, "regions", 0).total).toBe(data.economy!.siteEconomyInput!.regions.length);
     expect(caseTable(data, "costs", 0).total).toBe(data.economy!.costParameterEstimates.length);
     expect(files).toHaveLength(12); expect(t.storage.size).toBe(13); expect(saved.snapshots).toHaveLength(1); expect(saved.results).toEqual([]);
-    expect(saved.snapshots[0]).toMatchObject({ inventoryCount: 69, receptorCount: 0, trialCount: 24, integrationSeconds: 2592000 });
+    expect(saved.snapshots[0]).toMatchObject({ inventoryCount: 69, receptorCount: 0, trialCount: 24 });
+    expect(saved.snapshots[0].metrics.map((m: { id: string; windowSeconds?: number }) => [m.id, m.windowSeconds])).toEqual([["RCM-01", 2592000], ["RCM-02", 345600], ["RCM-03", 2592000], ["RCM-04", 2592000]]);
     expect(saved.snapshots[0].reviewItems).toBeGreaterThan(0);
     for (const entry of files) expect([...t.storage.values()].some(bytes => bytes.equals(readRcPublishedFile(entry.file.filename)))).toBe(true);
     const selection = { categoryId: RC_PUBLISHED_CATEGORY, versions: caseVersions(data), snapshotId: saved.snapshots[0].id };
@@ -154,7 +155,7 @@ describe("RC-only published input example", () => {
     });
     await load().expect(500); expect(t.storage.size).toBe(0); expect(await t.files.countDocuments({})).toBe(0); spy.mockRestore();
     const conflict = jest.spyOn(t.documents, "upload").mockImplementation(async (...args) => {
-      const entry = await real(...args); if (t.storage.size === RC_PUBLISHED_FILES.filter(file => file.kind !== "reference").length + 1) await t.workbooks.updateOne({ workbookId: "rc-test" }, { $inc: { __v: 1 } }); return entry;
+      const entry = await real(...args); if (t.storage.size === caseFiles(currentRcCase(createPublishedRcSeed(), RC_PUBLISHED_CATEGORY)).length + 1) await t.workbooks.updateOne({ workbookId: "rc-test" }, { $inc: { __v: 1 } }); return entry;
     });
     await load().expect(409); expect(t.storage.size).toBe(0); conflict.mockRestore();
   });

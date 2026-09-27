@@ -89,9 +89,9 @@ export class RcEarlyResponseService {
     return { text: decodeRcText(await this.documents.readResponseInput(id, documentId, actor)) };
   }
 
-  async calculate(id: string, categoryId: string, file: { buffer: Buffer; originalname: string }, actor: Actor) {
-    if (!categoryId || !file.buffer.length || file.buffer.length > 15 * 1024 * 1024 || !/\.json$/i.test(file.originalname))
-      throw new BadRequestException("Choose a nonempty .json response calculation file up to 15 MB and a release category");
+  async calculate(id: string, categoryId: string, metricId: string, file: { buffer: Buffer; originalname: string }, actor: Actor) {
+    if (!categoryId || !metricId || !file.buffer.length || file.buffer.length > 15 * 1024 * 1024 || !/\.json$/i.test(file.originalname))
+      throw new BadRequestException("Choose a nonempty .json response calculation file up to 15 MB, a release category and a metric");
     let body: unknown;
     try { body = JSON.parse(decodeRcText(file.buffer)); }
     catch { throw new BadRequestException("The response calculation file must be valid JSON"); }
@@ -112,9 +112,16 @@ export class RcEarlyResponseService {
     if (!model || !site) throw new BadRequestException("Save Step 02 site and response inputs before calculating response");
     const source = mef.releaseCategoryToConsequence.releaseCategoryInputs.find(category => category.releaseCategory === categoryId)?.sourceTerm;
     const dose = mef.dosimetry.doseInputs?.categories.find(category => category.categoryId === categoryId);
-    if (!source || !dose?.settings || dose.savedForSourceRevision !== source.revision)
-      throw new BadRequestException("Save current Step 01 and Step 05 inputs for this release category first");
+    if (!source || dose?.savedForSourceRevision !== source.revision)
+      throw new BadRequestException("Confirm current Step 01 and Step 05 inputs for this release category first");
+    const metric = mef.scope.metrics?.find(item => item.id === metricId);
+    if (!metric?.window || !metric.protectiveActionsCredited) throw new BadRequestException("Choose a metric that credits protective actions and has an exposure window");
     if (!parsed.data.doseRates?.length) throw new BadRequestException("The file needs time-resolved doseRates");
-    return calculateEarlyResponse(model, site, { ...parsed.data, integrationSeconds: dose.settings.integrationSeconds } as RcResponseCalculationInput);
+    const starts = source.values.releases.map(release => release.startSeconds);
+    if (metric.window.start === "RELEASE_ONSET" && (!starts.length || starts.some(start => start === undefined)))
+      throw new BadRequestException("Supply every release start time in Step 01");
+    const onset = Math.min(...starts.map(start => start ?? 0)), arrival = parsed.data.plumeArrivalSecondsByCell?.[parsed.data.originCellIndex];
+    const origin = metric.window.start === "RELEASE_ONSET" ? onset : arrival;
+    return calculateEarlyResponse(model, site, { ...parsed.data, integrationSeconds: origin === undefined ? undefined : origin + metric.window.seconds } as RcResponseCalculationInput);
   }
 }

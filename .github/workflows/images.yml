@@ -25,7 +25,7 @@ permissions:
 
 env:
   REGISTRY: registry.openpra.org
-  MONGO_IMAGE: mongo:latest
+  MONGO_IMAGE: mongo:8.3.11
   MINIO_IMAGE: registry.openpra.org/openpra-base-minio:production-2026-09
 
 jobs:

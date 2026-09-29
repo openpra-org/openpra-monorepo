@@ -206,6 +206,8 @@ jobs:
             -e MONGO_URI=mongodb://mongodb:27017/smoke \
             -e JWT_SECRET=smoke-jwt-secret \
             -e TFA_ENC_KEY=smoke-tfa-key \
+            -e RESEND_API_KEY=smoke-resend-key \
+            -e MAIL_FROM=smoke@example.com \
             -e APP_BASE_URL=http://localhost:8080 \
             -e OAUTH_CALLBACK_BASE=http://localhost:8000/api \
             -e MINIO_ENDPOINT=minio \
@@ -220,6 +222,9 @@ jobs:
           docker run -d --name site --network smoke -p 8081:80 "$SITE_IMAGE"
           for attempt in $(seq 1 60); do
             if curl -s http://localhost:8000/api/ | grep -qF '"statusCode":404'; then
+              break
+            fi
+            if [ "$(docker inspect -f '{{.State.Running}}' backend)" != "true" ]; then
               break
             fi
             sleep 2

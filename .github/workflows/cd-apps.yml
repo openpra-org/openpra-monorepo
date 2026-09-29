@@ -12,7 +12,8 @@ permissions:
 env:
   REGISTRY: registry.openpra.org
   MONGO_IMAGE: mongo:latest
-  MINIO_IMAGE: quay.io/minio/minio:latest
+  MINIO_SOURCE_IMAGE: quay.io/minio/minio:latest
+  MINIO_IMAGE: registry.openpra.org/openpra-base-minio:production-2026-09
 
 jobs:
   build-and-push:
@@ -112,11 +113,10 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Save base images for offline load
+      - name: Save MongoDB image for offline load
         run: |
           docker pull "$MONGO_IMAGE"
-          docker pull "$MINIO_IMAGE"
-          docker save "$MONGO_IMAGE" "$MINIO_IMAGE" -o base-images.tar
+          docker save "$MONGO_IMAGE" -o base-images.tar
 
       - name: Upload base images artifact
         uses: actions/upload-artifact@v4
@@ -191,10 +191,10 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Check base images present
+      - name: Check MongoDB image present
         id: basecheck
         run: |
-          if docker image inspect "$MONGO_IMAGE" >/dev/null 2>&1 && docker image inspect "$MINIO_IMAGE" >/dev/null 2>&1; then
+          if docker image inspect "$MONGO_IMAGE" >/dev/null 2>&1; then
             echo "have=true" >> "$GITHUB_OUTPUT"
           else
             echo "have=false" >> "$GITHUB_OUTPUT"
@@ -210,6 +210,20 @@ jobs:
       - name: Load base images into the swarm node
         if: steps.basecheck.outputs.have == 'false'
         run: docker load -i base-images.tar
+
+      - name: Provide pinned MinIO image
+        run: |
+          if docker pull "$MINIO_IMAGE" >/dev/null 2>&1; then
+            echo "Using $MINIO_IMAGE from the registry"
+          elif docker image inspect "$MINIO_SOURCE_IMAGE" >/dev/null 2>&1; then
+            docker tag "$MINIO_SOURCE_IMAGE" "$MINIO_IMAGE"
+            docker push "$MINIO_IMAGE"
+            echo "Mirrored $MINIO_SOURCE_IMAGE from this node to $MINIO_IMAGE"
+          else
+            echo "::error::$MINIO_IMAGE is missing from the registry and $MINIO_SOURCE_IMAGE is missing from this node"
+            exit 1
+          fi
+          docker image inspect "$MINIO_IMAGE" --format "MinIO image {{.Id}}"
 
       - name: Check documents image present
         id: docscheck

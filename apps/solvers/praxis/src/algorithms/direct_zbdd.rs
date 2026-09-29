@@ -1487,6 +1487,10 @@ pub struct EndStateSequence {
     pub success_roots: Vec<NodeIndex>,
 }
 
+pub type EndStateRoots = BTreeMap<String, (String, ZbddRef)>;
+
+pub type EndStateBuild = (ZbddEngine, EndStateRoots, Vec<Option<String>>);
+
 pub fn build_end_state_zbdd_from_pdag(
     pdag: &Pdag,
     event_probabilities: &HashMap<String, f64>,
@@ -1494,11 +1498,7 @@ pub fn build_end_state_zbdd_from_pdag(
     cut_off: Option<f64>,
     limit_order: Option<usize>,
     scale: f64,
-) -> Result<(
-    ZbddEngine,
-    BTreeMap<String, (String, ZbddRef)>,
-    Vec<Option<String>>,
-)> {
+) -> Result<EndStateBuild> {
     build_end_state_zbdd_from_pdag_internal(
         pdag,
         event_probabilities,
@@ -1517,13 +1517,8 @@ pub fn build_end_state_zbdd_from_pdag_with_order(
     cut_off: Option<f64>,
     limit_order: Option<usize>,
     scale: f64,
-    variable_order: VariableOrder,
-    reorder_budget: std::time::Duration,
-) -> Result<(
-    ZbddEngine,
-    BTreeMap<String, (String, ZbddRef)>,
-    Vec<Option<String>>,
-)> {
+    ordering: (VariableOrder, std::time::Duration),
+) -> Result<EndStateBuild> {
     build_end_state_zbdd_from_pdag_internal(
         pdag,
         event_probabilities,
@@ -1531,7 +1526,7 @@ pub fn build_end_state_zbdd_from_pdag_with_order(
         cut_off,
         limit_order,
         scale,
-        Some((variable_order, reorder_budget)),
+        Some(ordering),
     )
 }
 
@@ -1543,11 +1538,7 @@ fn build_end_state_zbdd_from_pdag_internal(
     limit_order: Option<usize>,
     scale: f64,
     ordering: Option<(VariableOrder, std::time::Duration)>,
-) -> Result<(
-    ZbddEngine,
-    BTreeMap<String, (String, ZbddRef)>,
-    Vec<Option<String>>,
-)> {
+) -> Result<EndStateBuild> {
     let mut scoped = pdag.clone();
     let mut jobs = Vec::with_capacity(sequences.len());
     let mut all_roots = Vec::new();
@@ -1683,6 +1674,8 @@ fn build_end_state_zbdd_from_pdag_internal(
     Ok((builder.zbdd, groups, names))
 }
 
+pub type SequenceDiagnosis = (ZbddEngine, ZbddRef, ZbddRef, ZbddRef, Vec<Option<String>>);
+
 /// Diagnostic form of the event-tree sequence builder. It exposes the retained
 /// failed-system family, the successful-system delete patterns, and the final
 /// family in the same ZBDD manager for set-by-set comparison.
@@ -1694,7 +1687,7 @@ pub fn diagnose_sequence_zbdd_from_pdag(
     cut_off: Option<f64>,
     limit_order: Option<usize>,
     scale: f64,
-) -> Result<(ZbddEngine, ZbddRef, ZbddRef, ZbddRef, Vec<Option<String>>)> {
+) -> Result<SequenceDiagnosis> {
     let mut scoped = pdag.clone();
     let success_scope = match success_roots {
         [] => None,

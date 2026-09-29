@@ -1603,8 +1603,7 @@ pub fn run_end_state_from_parsed(
             cli.cut_off,
             cli.limit_order.map(|order| order as usize),
             scale,
-            cli.effective_variable_order(),
-            cli.reorder_budget(),
+            (cli.effective_variable_order(), cli.reorder_budget()),
         )?;
     let aggregate = EndStateZbdd::from_shared(engine, names, groups)?;
 

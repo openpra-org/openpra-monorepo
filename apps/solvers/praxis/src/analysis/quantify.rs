@@ -204,8 +204,10 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
 
     match settings.engine {
         Engine::Bdd => {
-            let mut options = BuildOptions::default();
-            options.reorder_budget = settings.reorder_budget;
+            let options = BuildOptions {
+                reorder_budget: settings.reorder_budget,
+                ..Default::default()
+            };
             let built = build_bdd_with_variable_order(ft, options, settings.variable_order)?;
             let value = if settings.limit_order.is_some() || settings.cut_off.is_some() {
                 built.bdd.probability_with_limits(
@@ -222,8 +224,10 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
             });
         }
         Engine::Zbdd => {
-            let mut options = BuildOptions::default();
-            options.reorder_budget = settings.reorder_budget;
+            let options = BuildOptions {
+                reorder_budget: settings.reorder_budget,
+                ..Default::default()
+            };
             let built = build_bdd_with_variable_order(ft, options, settings.variable_order)?;
             let mut bdd = built.bdd;
             let root = built.root;

@@ -365,30 +365,21 @@ impl JoinCache {
         }
     }
 
-    fn place(
-        &mut self,
-        f: u32,
-        g: u32,
-        bucket: u64,
-        thr: f64,
-        mp: f64,
-        remaining: usize,
-        result: u32,
-    ) {
+    fn place(&mut self, entry: JEntry) {
+        let JEntry {
+            f,
+            g,
+            bucket,
+            remaining,
+            mp,
+            thr,
+            ..
+        } = entry;
         let mut i = (Self::hash(f, g, bucket, mp, remaining) as usize) & self.mask;
         loop {
             let e = self.slots[i];
             if !e.used {
-                self.slots[i] = JEntry {
-                    f,
-                    g,
-                    bucket,
-                    remaining,
-                    mp,
-                    thr,
-                    result,
-                    used: true,
-                };
+                self.slots[i] = entry;
                 self.len += 1;
                 return;
             }
@@ -396,16 +387,7 @@ impl JoinCache {
             {
                 // Keep the lowest (loosest) threshold per key; it serves the most.
                 if thr < e.thr {
-                    self.slots[i] = JEntry {
-                        f,
-                        g,
-                        bucket,
-                        remaining,
-                        mp,
-                        thr,
-                        result,
-                        used: true,
-                    };
+                    self.slots[i] = entry;
                 }
                 return;
             }
@@ -421,12 +403,21 @@ impl JoinCache {
             self.len = 0;
             for e in old {
                 if e.used {
-                    self.place(e.f, e.g, e.bucket, e.thr, e.mp, e.remaining, e.result);
+                    self.place(e);
                 }
             }
         }
         let bucket = self.bucket(thr);
-        self.place(f, g, bucket, thr, mp, remaining, result);
+        self.place(JEntry {
+            f,
+            g,
+            bucket,
+            remaining,
+            mp,
+            thr,
+            result,
+            used: true,
+        });
     }
 }
 

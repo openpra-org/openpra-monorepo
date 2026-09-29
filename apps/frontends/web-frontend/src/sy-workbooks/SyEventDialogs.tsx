@@ -182,7 +182,7 @@ function BasicEventDialog({ id, onClose }: { id: string; onClose: () => void }):
             {editable ? <WorkbookInput className="posfield__input posmono" aria-label="Basic event code" value={be.code} onChange={(event) => { if (event.target.value.trim().length > 0) patch({ code: event.target.value.trim() }); }} /> : <div className="posmono">{be.code}</div>}
           </div>
           <div className="posfield"><label className="posfield__label">Failure mode source</label>
-            {controlledFailureModes.length === 0 && modeSource === undefined ? <span className="posmuted">Typed. Link a DA workbook with failure modes to pick one.</span> : editable ? (
+            {controlledFailureModes.length === 0 && modeSource === undefined ? <span className="posmuted">Typed. Link a DA workbook with failure modes in Step 01 Interfaces to pick one.</span> : editable ? (
               <select className="posfield__select" aria-label="Failure mode source" value={modeKey} onChange={(event) => setModeSource(event.target.value)}>
                 <option value="">Typed</option>
                 {!modeKnown && <option value={modeKey}>Linked failure mode unavailable</option>}
@@ -222,7 +222,9 @@ function BasicEventDialog({ id, onClose }: { id: string; onClose: () => void }):
             </div>
           )}
           <div className="posfield posfield-grid--span2"><label className="posfield__label">{sourceLabel}</label>
-            {editable ? (
+            {source === undefined && (isHuman ? controlledHumanFailures.length === 0 : controlledParameters.length === 0) ? (
+              <span className="posmuted">{isHuman ? "Typed. Link an HR workbook in Step 01 Interfaces to pick its event and HEP." : "Typed. Link a DA workbook in Step 01 Interfaces to pick a parameter."}</span>
+            ) : editable ? (
               <select className="posfield__select" aria-label={sourceLabel} value={sourceKey} disabled={needsReview} onChange={(event) => setSource(event.target.value)}>
                 <option value="">Typed</option>
                 {source !== undefined && !sourceKnown && <option value={sourceKey}>Linked source unavailable</option>}

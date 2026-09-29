@@ -2,7 +2,7 @@ import { JSX } from "react";
 import type { DepletionModel, SystemDependency } from "interfaces-mef-types/sy/systems-analysis";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
-import { NotRecorded, ReviewLines, ReviewTitle } from "./syShared";
+import { IssueLines, NoSystemsCard, NotRecorded, ReviewLines, ReviewTitle } from "./syShared";
 import { RESOURCE_TYPE_LABELS } from "./syViewData";
 import { systemTree } from "./syFailureRecords";
 import {
@@ -33,43 +33,24 @@ function linkRows(links: readonly DependencyLink[]): LinkRow[] {
   return links.flatMap((link): LinkRow[] => (link.records.length === 0 ? [{ link, record: undefined }] : link.records.map((record) => ({ link, record }))));
 }
 
-function IssueLines({ issues }: { issues: readonly DependencyIssue[] }): JSX.Element {
-  return (
-    <>
-      {issues.map((issue) => (
-        <span key={`${issue.code}:${issue.message}`} className={issue.severity === "ERROR" ? "sy-error" : "sy-warn"}>{issue.message}</span>
-      ))}
-    </>
-  );
-}
-
 function hoursLabel(item: DepletionModel): string | null {
   if (item.initialQuantity <= 0) return "Does not deplete";
   const hours = inventoryHours(item);
   return hours === null ? null : `${Number(hours.toPrecision(4))} h`;
 }
 
-function DependenciesScreen({ sysId, setSysId, openDrawer, onOpenScope }: {
+function DependenciesScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   sysId: string;
   setSysId: (id: string) => void;
   openDrawer: (ctx: SyDrawerContext) => void;
-  onOpenScope?: () => void;
+  onOpenSystems?: () => void;
 }): JSX.Element {
   const { sy, shortOf, editable, mutateSy, links } = useSyWorkbook();
   const actionLabel = editable ? "Edit" : "View";
   const found = sy.systemDefinitions.find((candidate) => candidate.uuid === sysId) ?? sy.systemDefinitions[0];
 
   if (found === undefined) {
-    return (
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Dependencies" level={3} />
-          <span className="possubtle">0 systems</span>
-        </div>
-        <p className="posmuted">No systems are in scope yet. Add the systems to model in Step 01, then trace their dependencies here.</p>
-        {onOpenScope !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary sy-model-card__scope" onClick={onOpenScope}>Go to Scope</button>}
-      </div>
-    );
+    return <NoSystemsCard title="Dependencies" purpose="trace their dependencies here." onOpenSystems={onOpenSystems} />;
   }
 
   const system = found;

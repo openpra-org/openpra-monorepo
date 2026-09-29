@@ -13,6 +13,7 @@ import {
   SyWorkbookProvider,
   type SyControlledCcfEstimateOption,
   type SyControlledCoincidentMaintenanceOption,
+  type SyControlledComponentBoundaryOption,
   type SyControlledFailureModeOption,
   type SyControlledHumanFailureOption,
   type SyControlledParameterOption,
@@ -22,9 +23,11 @@ import {
   buildLinkedInputs,
   controlledCcfEstimateOptions,
   controlledCoincidentMaintenanceOptions,
+  controlledComponentBoundaryOptions,
   controlledFailureModeOptions,
   controlledHumanFailureOptions,
   controlledParameterOptions,
+  linkExampleEvents,
 } from "./syLinks";
 import { type SyPersona } from "./syViewData";
 
@@ -67,9 +70,10 @@ interface ExampleLinkedData {
   humanFailures: SyControlledHumanFailureOption[];
   coincidentMaintenance: SyControlledCoincidentMaintenanceOption[];
   ccfEstimates: SyControlledCcfEstimateOption[];
+  componentBoundaries: SyControlledComponentBoundaryOption[];
 }
 
-const NO_LINKED_DATA: ExampleLinkedData = { parameters: [], failureModes: [], humanFailures: [], coincidentMaintenance: [], ccfEstimates: [] };
+const NO_LINKED_DATA: ExampleLinkedData = { parameters: [], failureModes: [], humanFailures: [], coincidentMaintenance: [], ccfEstimates: [], componentBoundaries: [] };
 
 const EXAMPLE_VARIANT = "htgr";
 
@@ -93,15 +97,17 @@ function SyDemoPage(): JSX.Element {
         if (cancelled) return;
         const daSources = [{ entry: { id: da.da.slug, name: da.da.mef.name }, workbook: { mef: da.da.mef } }];
         const hrSources = [{ entry: { id: hr.hr.slug, name: hr.hr.mef.name }, workbook: { mef: hr.hr.mef } }];
+        const example = res.sy.mef as SystemsAnalysis;
         setLinked({
           parameters: controlledParameterOptions(daSources),
           failureModes: controlledFailureModeOptions(daSources),
           humanFailures: controlledHumanFailureOptions(hrSources),
           coincidentMaintenance: controlledCoincidentMaintenanceOptions(daSources),
           ccfEstimates: controlledCcfEstimateOptions(daSources),
+          componentBoundaries: controlledComponentBoundaryOptions(daSources),
         });
         setData({
-          sy: res.sy.mef as SystemsAnalysis,
+          sy: { ...example, systemBasicEvents: linkExampleEvents(example.systemBasicEvents, da.da.slug, da.da.mef) },
           cc: res.configurationControl.mef as PRAConfigurationControl,
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
           links: buildLinkedInputs({ ES: [], SC: [], POS: [], DA: [], HRA: [] }, {}, es.es.mef, sc.sc.mef, pos.pos.mef),
@@ -135,6 +141,7 @@ function SyDemoPage(): JSX.Element {
       controlledHumanFailures={linked.humanFailures}
       controlledCoincidentMaintenance={linked.coincidentMaintenance}
       controlledCcfEstimates={linked.ccfEstimates}
+      controlledComponentBoundaries={linked.componentBoundaries}
     >
       <SyWorkbench
         data={data}

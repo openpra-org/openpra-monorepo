@@ -262,7 +262,7 @@ function CommonCauseDialog({ id, onClose }: { id: string; onClose: () => void })
             <ListEditor label="Defenses" items={group.defenseMechanisms ?? []} editable={editable} addLabel="Add a defense" onChange={(items) => commit({ defenseMechanisms: listOrUndefined(items) })} />
           </div>
           <div className="posfield posfield-grid--span2"><label className="posfield__label">DA common cause estimate</label>
-            {controlledCcfEstimates.length === 0 && !linked ? <span className="posmuted">Link a DA workbook in Interfaces to pick its common cause estimate.</span> : editable ? (
+            {controlledCcfEstimates.length === 0 && !linked ? <span className="posmuted">Link a DA workbook in Step 01 Interfaces to pick its common cause estimate.</span> : editable ? (
               <select className="posfield__select" aria-label="DA common cause estimate" value={linked && estimate === undefined ? reference : selectedKey} onChange={(change) => pickSource(change.target.value)}>
                 <option value="">Not linked, typed below</option>
                 {linked && estimate === undefined && <option value={reference}>{reference} · linked estimate unavailable</option>}

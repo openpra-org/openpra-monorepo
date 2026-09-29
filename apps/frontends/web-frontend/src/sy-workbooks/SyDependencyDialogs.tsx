@@ -347,7 +347,7 @@ function CouplingDialog({ id, onClose }: { id: string; onClose: () => void }): J
           })}
           <div className="posfield posfield-grid--span2" role="group" aria-label="Initiating events">
             <span className="posfield__label">Initiating events where it arises</span>
-            {initiating.length === 0 && strayInitiating.length === 0 && <span className="posmuted">Link the ES workbook in Interfaces to pick its initiating events.</span>}
+            {initiating.length === 0 && strayInitiating.length === 0 && <span className="posmuted">Link the ES workbook in Step 01 Interfaces to pick its initiating events.</span>}
             <div className="sy-dialog-checks">
               {initiating.map((event) => (
                 <label key={event.id} className="sy-dialog-check">

@@ -60,9 +60,12 @@ function makeAnalysis(): SystemsAnalysis {
     systemLogicModels: [{ ...TREE }],
     systemBasicEvents: [],
     systemDependencies: [],
+    componentDependencies: [],
+    dependencySearchMethodology: { uuid: "dsm", name: "Dependency search", description: "", reference: "", systemsAnalyzed: [SYSTEM_ID, FREE_ID], implementsSrs: [] },
     variableSuccessCriteria: [{ uuid: "var-1", systemReference: SYSTEM_ID, plantOperatingStateId: "POS-01", successCriteriaIds: [], basis: "Both pumps", implementsSrs: [] }],
     commonCauseFailureGroups: [],
     humanFailureEventIntegrations: [],
+    modelUncertainty: { uuid: "mu", name: "Model uncertainty", uncertaintySources: [], relatedAssumptions: [], reasonableAlternatives: [] },
   } as unknown as SystemsAnalysis;
 }
 
@@ -132,12 +135,29 @@ describe("SY system dialogs", () => {
     expect(created).toMatchObject({ nonDetailedModelJustification: "", topGate: null, implementsSrs: [{ sr: "SY-A9", hlr: "A" }] });
   });
 
-  it("keeps a system that other records use", () => {
-    render(<DrawerContent context={{ kind: "system", id: SYSTEM_ID }} onClose={jest.fn()} />);
-    expect(screen.getByRole("button", { name: "Remove system" })).toBeDisabled();
+  it("asks before removing a system with its fault tree and records", () => {
+    const onClose = jest.fn();
+    render(<DrawerContent context={{ kind: "system", id: SYSTEM_ID }} onClose={onClose} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove system" }));
+    expect(screen.getByText("Removing Component cooling water also removes its fault tree and 1 other record about it.")).toBeInTheDocument();
+    expect(mockMutateSy).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep system" }));
+    expect(screen.queryByRole("group", { name: "Confirm removal" })).not.toBeInTheDocument();
+    expect(mockMutateSy).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove system" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove system and records" }));
+    expect(onClose).toHaveBeenCalled();
+    const next = applyLastMutation();
+    expect(next.systemDefinitions.map(({ uuid }) => uuid)).toEqual([FREE_ID]);
+    expect(next.systemLogicModels).toEqual([]);
+    expect(next.variableSuccessCriteria).toEqual([]);
+    expect(next.dependencySearchMethodology.systemsAnalyzed).toEqual([FREE_ID]);
   });
 
-  it("removes an unused system", () => {
+  it("removes a system nothing else refers to without asking", () => {
     const onClose = jest.fn();
     render(<DrawerContent context={{ kind: "system", id: FREE_ID }} onClose={onClose} />);
 

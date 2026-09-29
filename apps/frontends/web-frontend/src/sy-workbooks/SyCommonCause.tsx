@@ -1,7 +1,7 @@
 import { Fragment, JSX } from "react";
 import type { CommonCauseFailureGroup } from "interfaces-mef-types/sy/systems-analysis";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
-import { NotRecorded, ReviewLines, ReviewTitle } from "./syShared";
+import { NoSystemsCard, NotRecorded, ReviewLines, ReviewTitle } from "./syShared";
 import { CCF_MODELS, toExp } from "./syViewData";
 import { ccfFactors, formatFactor, linkedEstimate, memberEvents, sharedCauseLines, totalFailureProbability, validateCcfGroup } from "./syCcf";
 import { systemTree } from "./syFailureRecords";
@@ -12,27 +12,18 @@ import "./css/syModels.css";
 
 type GroupScope = CommonCauseFailureGroup["scope"];
 
-function CommonCauseScreen({ sysId, setSysId, openDrawer, onOpenScope }: {
+function CommonCauseScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   sysId: string;
   setSysId: (id: string) => void;
   openDrawer: (ctx: SyDrawerContext) => void;
-  onOpenScope?: () => void;
+  onOpenSystems?: () => void;
 }): JSX.Element {
   const { sy, shortOf, editable, mutateSy, controlledCcfEstimates } = useSyWorkbook();
   const actionLabel = editable ? "Edit" : "View";
   const found = sy.systemDefinitions.find((candidate) => candidate.uuid === sysId) ?? sy.systemDefinitions[0];
 
   if (found === undefined) {
-    return (
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Common cause" level={3} />
-          <span className="possubtle">0 systems</span>
-        </div>
-        <p className="posmuted">No systems are in scope yet. Add the systems to model in Step 01, then group their common cause failures here.</p>
-        {onOpenScope !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary sy-model-card__scope" onClick={onOpenScope}>Go to Scope</button>}
-      </div>
-    );
+    return <NoSystemsCard title="Common cause" purpose="group their common cause failures here." onOpenSystems={onOpenSystems} />;
   }
 
   const system = found;

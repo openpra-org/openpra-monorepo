@@ -224,6 +224,8 @@ function projectedModel(): FaultTreeEditorProps["model"] {
   };
 }
 
+const FAULT_TREE_HINT = "Right-click a gate to add gates, basic events, house events or transfers. Give each basic event a probability in the Basic events tab. Type it, or pick a DA estimate after linking a DA workbook in Step 01.";
+
 describe("ModelsScreen canonical fault-tree host", () => {
   it("shows the PRAXIS fault-tree calculation, workflow, and algorithm controls below the editor", () => {
     const network = createEmptyBayesianNetwork("Dependency network");
@@ -231,6 +233,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
 
     openTab("Fault tree");
+    expect(screen.getByText(FAULT_TREE_HINT)).toBeInTheDocument();
     expect(latestEditorProps().capabilities.canRunAnalysis).toBe(false);
     expect(latestEditorProps().showResults).toBe(false);
     expect(latestEditorProps().showHeaderStatus).toBe(false);
@@ -299,14 +302,14 @@ describe("ModelsScreen canonical fault-tree host", () => {
       sy: makeAnalysis({ systemDefinitions: [], systemLogicModels: [], systemBasicEvents: [] }),
     });
 
-    const onOpenScope = jest.fn();
-    render(<ModelsScreen sysId="" setSysId={jest.fn()} openDrawer={jest.fn()} onOpenScope={onOpenScope} />);
+    const onOpenSystems = jest.fn();
+    render(<ModelsScreen sysId="" setSysId={jest.fn()} openDrawer={jest.fn()} onOpenSystems={onOpenSystems} />);
 
-    expect(screen.getByText(/No systems are in scope yet/)).toBeInTheDocument();
+    expect(screen.getByText((_, element) => element?.tagName === "P" && element.textContent === "No systems are in scope yet. Add them in the Systems in scope section of Step 01, then describe and build each one here.")).toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Go to Scope" }));
-    expect(onOpenScope).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("link", { name: "Systems in scope" }));
+    expect(onOpenSystems).toHaveBeenCalledTimes(1);
     expect(mockedFaultTreeEditor).not.toHaveBeenCalled();
   });
 
@@ -546,6 +549,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
     openTab("Fault tree");
 
+    expect(screen.queryByText(FAULT_TREE_HINT)).not.toBeInTheDocument();
     expect(latestEditorProps().capabilities).toEqual({
       mode: "READ_ONLY",
       canEditBasicEvents: false,
@@ -564,7 +568,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
     );
     openTab("Fault tree");
 
-    expect(screen.getByText("This system has no fault tree yet.")).toBeInTheDocument();
+    expect(screen.getByText("This system has no fault tree yet. Create it here, then right-click a gate to add its inputs.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Create fault tree" })).not.toBeInTheDocument();
     expect(mockedFaultTreeEditor).not.toHaveBeenCalled();
 

@@ -1766,7 +1766,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
             </div>
           </fieldset>
 
-          {calculationType === "BN_QUERY" && saveBlockedReason !== null && <p role="status">{saveBlockedReason}</p>}
+          {calculationType === "BN_QUERY" && saveBlockedReason !== null && <p className="bneditor__notice" role="status">{saveBlockedReason}</p>}
 
           {calculationType === "BN_QUERY" && showQueryAnalysis && quantificationWorkflow !== null && (
             <section className="bneditor__calculation-workspace" aria-label="BN query">
@@ -1836,7 +1836,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
                   </div>
                 )}
               </div>
-              {quantificationWorkflow === "BATCH" && invalidQueryScenario !== undefined && <p role="alert">Scenario {invalidQueryScenario.code} references missing or invalid BN evidence. Upload corrected rows.</p>}
+              {quantificationWorkflow === "BATCH" && invalidQueryScenario !== undefined && <p className="bneditor__error" role="alert">Scenario {invalidQueryScenario.code} references missing or invalid BN evidence. Upload corrected rows.</p>}
               {(runError ?? queryBatchError) !== null && <p className="bneditor__error" role="alert">{runError ?? queryBatchError}</p>}
               {!quantificationBlocked && quantificationWorkflow === "MANUAL" && analysisResult !== null && (
                 <BayesianNetworkResults result={analysisResult} model={model} />

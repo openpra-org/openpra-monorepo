@@ -73,6 +73,24 @@ describe("dependency example models", () => {
       integration.hfeSource.entityId === integration.hfeReference)).toBe(true);
   });
 
+  it.each(variants)("links every DA-estimated basic event in $name to its DA parameter", ({ sy, da }) => {
+    const reconciled = SystemsAnalysisSchema.parse(reconcileExampleSyDataAnalysisReferences(
+      SystemsAnalysisSchema.parse(structuredClone(sy)),
+      da,
+      "real-da-workbook",
+    ));
+    const parameters = new Map(da.parameters.map((parameter) => [parameter.uuid, parameter]));
+    const estimated = sy.systemBasicEvents.filter((event) => event.dataAnalysisBasicEventRef !== undefined && parameters.has(event.dataAnalysisBasicEventRef));
+    expect(estimated.length).toBeGreaterThan(40);
+    for (const event of estimated) {
+      const parameter = parameters.get(event.dataAnalysisBasicEventRef ?? "");
+      const linked = reconciled.systemBasicEvents.find((candidate) => candidate.uuid === event.uuid);
+      expect(linked?.controlledDataSource).toEqual({ referenceType: "WORKBOOK_PARAMETER", workbookId: "real-da-workbook", entityId: parameter?.uuid });
+      expect(linked?.probability).toBe(parameter?.value);
+      expect(linked?.dataAnalysisBasicEventRef).toBeUndefined();
+    }
+  });
+
   it.each(variants)("provides a valid, quantifiable BN and linked HCL model for $name", ({ esq, sy }) => {
     const source = EventSequenceQuantificationSchema.parse(JSON.parse(JSON.stringify(esq)));
     const reconciled = reconcileExampleEsqDependencyReferences(

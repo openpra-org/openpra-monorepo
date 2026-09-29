@@ -185,6 +185,7 @@ impl FaultTree {
 
     pub fn expand_ccf_groups(&mut self, base_probabilities: &HashMap<String, f64>) -> Result<()> {
         let mut expanded_events = Vec::new();
+        let mut sampled_totals = Vec::new();
         let mut member_ccbes: HashMap<String, Vec<String>> = HashMap::new();
         let mut parent_ccbes: HashMap<String, Vec<String>> = HashMap::new();
 
@@ -193,7 +194,38 @@ impl FaultTree {
                 PraxisError::Logic(format!("Missing base probability for CCF group '{}'", id))
             })?;
 
-            for ccf_event in ccf_group.expand(*base_prob)? {
+            let ccf_events = ccf_group.expand(*base_prob)?;
+            let values: Vec<Option<Expr>> = match &ccf_group.uncertainty {
+                Some(uncertainty) => {
+                    let name = format!("{}-qt", id);
+                    if self.parameters.contains_key(&name) {
+                        return Err(PraxisError::Logic(format!(
+                            "Parameter '{}' already exists, so CCF group '{}' cannot sample its total failure probability",
+                            name, id
+                        )));
+                    }
+                    sampled_totals.push((
+                        name.clone(),
+                        Expr::Max(vec![
+                            Expr::Min(vec![uncertainty.clone(), Expr::Constant(1.0)]),
+                            Expr::Constant(0.0),
+                        ]),
+                    ));
+                    ccf_group
+                        .expand(1.0)?
+                        .into_iter()
+                        .map(|unit| {
+                            Some(Expr::Mul(vec![
+                                Expr::Constant(unit.probability),
+                                Expr::Parameter(name.clone()),
+                            ]))
+                        })
+                        .collect()
+                }
+                None => vec![None; ccf_events.len()],
+            };
+
+            for (ccf_event, value) in ccf_events.into_iter().zip(values) {
                 if ccf_group.model.replaces_parent_event() {
                     parent_ccbes
                         .entry(id.clone())
@@ -207,12 +239,19 @@ impl FaultTree {
                             .push(ccf_event.id.clone());
                     }
                 }
-                expanded_events.push(ccf_event);
+                expanded_events.push((ccf_event, value));
             }
         }
 
-        for ccf_event in expanded_events {
-            let basic_event = BasicEvent::new(ccf_event.id, ccf_event.probability)?;
+        for (name, value) in sampled_totals {
+            self.parameters.insert(name, value);
+        }
+
+        for (ccf_event, value) in expanded_events {
+            let basic_event = match value {
+                Some(value) => BasicEvent::with_value(ccf_event.id, ccf_event.probability, value)?,
+                None => BasicEvent::new(ccf_event.id, ccf_event.probability)?,
+            };
             self.add_basic_event(basic_event)?;
         }
 
@@ -254,6 +293,8 @@ mod tests {
     use super::*;
     use crate::core::ccf::{CcfModel, RaspCcfEvent, TestingScheme};
     use crate::core::gate::Formula;
+    use rand::SeedableRng;
+    use rand_chacha::ChaCha8Rng;
 
     #[test]
     fn test_fault_tree_new_basic() {
@@ -567,6 +608,81 @@ mod tests {
         let common = ft.get_basic_event("Pumps-common");
         assert!(common.is_some());
         assert!((common.unwrap().probability() - 0.02).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_expand_ccf_groups_shares_one_sampled_total() {
+        let mut ft = FaultTree::new("FT1", "TopGate").unwrap();
+        let pumps = CcfGroup::new(
+            "Pumps",
+            vec!["P1".to_string(), "P2".to_string()],
+            CcfModel::BetaFactor(0.2),
+        )
+        .unwrap()
+        .with_uncertainty(Expr::uniform(0.01, 0.2));
+        let valves = CcfGroup::new(
+            "Valves",
+            vec!["V1".to_string(), "V2".to_string()],
+            CcfModel::BetaFactor(0.1),
+        )
+        .unwrap();
+        ft.add_ccf_group(pumps).unwrap();
+        ft.add_ccf_group(valves).unwrap();
+
+        let mut base_probs = HashMap::new();
+        base_probs.insert("Pumps".to_string(), 0.1);
+        base_probs.insert("Valves".to_string(), 0.05);
+        ft.expand_ccf_groups(&base_probs).unwrap();
+
+        let indep = ft.get_basic_event("Pumps-indep-1").unwrap();
+        assert!((indep.probability() - 0.08).abs() < 1e-12);
+        assert!(indep.value().is_some());
+        assert!(ft
+            .get_basic_event("Valves-common")
+            .unwrap()
+            .value()
+            .is_none());
+        assert!(ft.parameters().contains_key("Pumps-qt"));
+        assert!(!ft.parameters().contains_key("Valves-qt"));
+
+        let shares = [
+            ("Pumps-indep-1", 0.8),
+            ("Pumps-indep-2", 0.8),
+            ("Pumps-common", 0.2),
+        ];
+        let mut rng = ChaCha8Rng::seed_from_u64(7);
+        for _ in 0..100 {
+            let ctx = EvalContext::correlated(ft.parameters(), ft.mission_time());
+            let totals: Vec<f64> = shares
+                .iter()
+                .map(|(id, share)| {
+                    ft.get_basic_event(id)
+                        .unwrap()
+                        .sample_probability(&ctx, &mut rng)
+                        / share
+                })
+                .collect();
+            assert!((0.01..=0.2).contains(&totals[0]));
+            assert!(totals.iter().all(|total| (total - totals[0]).abs() < 1e-12));
+        }
+    }
+
+    #[test]
+    fn test_expand_ccf_groups_rejects_a_taken_total_parameter() {
+        let mut ft = FaultTree::new("FT1", "TopGate").unwrap();
+        ft.set_parameter("Pumps-qt".to_string(), Expr::constant(0.1));
+        let ccf = CcfGroup::new(
+            "Pumps",
+            vec!["P1".to_string(), "P2".to_string()],
+            CcfModel::BetaFactor(0.2),
+        )
+        .unwrap()
+        .with_uncertainty(Expr::uniform(0.01, 0.2));
+        ft.add_ccf_group(ccf).unwrap();
+
+        let mut base_probs = HashMap::new();
+        base_probs.insert("Pumps".to_string(), 0.1);
+        assert!(ft.expand_ccf_groups(&base_probs).is_err());
     }
 
     #[test]

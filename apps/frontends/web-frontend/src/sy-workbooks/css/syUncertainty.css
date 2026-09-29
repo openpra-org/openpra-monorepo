@@ -23,3 +23,8 @@
   .syunc-analysis__metrics > div:nth-child(3) { border-left: 0; padding-left: 0; }
   .syunc-analysis__quantiles { grid-template-columns: repeat(2, minmax(95px, 1fr)); }
 }
+.syunc-issues:empty { display: none; }
+.syunc-issues { margin: 0 0 8px; }
+.syunc-inputs th:nth-child(1) { width: 30%; }
+.syunc-inputs th:nth-child(3) { width: 30%; }
+.syunc-range .posfield__input.syunc-range__bound { flex: 0 0 112px; }

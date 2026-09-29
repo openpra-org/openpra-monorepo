@@ -2,7 +2,6 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { DistributionType } from "interfaces-mef-types/core/events";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { FaultTreeAnalysisResult, FaultTreeExecuteResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
-import { SyUncertaintyParameters } from "../SyUncertaintyParameters";
 import { SyUncertaintyAnalysis } from "../SyUncertaintyAnalysis";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "../syWorkbookApi";
 
@@ -51,14 +50,6 @@ describe("SY Step 07 linked uncertainty analysis", () => {
     mockedValidate.mockResolvedValue({ schemaVersion: "1.0.0", validation: { valid: true, issues: [] } });
   });
 
-  it("shows linked DA distributions without an SY editor", () => {
-    render(<SyUncertaintyParameters />);
-    expect(screen.getByText("DA estimates")).toBeInTheDocument();
-    expect(screen.getByText("Pump failure")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Add distribution" })).not.toBeInTheDocument();
-    expect(screen.getByText("Ready")).toBeInTheDocument();
-  });
-
   it("runs uncertainty with CCF expansion and displays the result", async () => {
     mockedRun.mockResolvedValue(execution());
     mockedResult.mockResolvedValue(result());
@@ -74,12 +65,16 @@ describe("SY Step 07 linked uncertainty analysis", () => {
     expect(screen.getByText("2.100E-2")).toBeInTheDocument();
   });
 
-  it("withholds a run when CCF expansion would discard a sampled DA member", () => {
+  it("withholds a run until the common cause members link one DA estimate", () => {
     sy.systemBasicEvents.push({ uuid: "event-b", code: "PMP-B-FS", name: "Pump B fails", failureMode: "FAILURE_TO_START" } as SystemsAnalysis["systemBasicEvents"][number]);
     sy.systemLogicModels[0]!.leafNodes.push({ id: "leaf-b", kind: "BASIC_EVENT_REFERENCE", basicEventId: "event-b" });
-    sy.commonCauseFailureGroups = [{ members: { basicEvents: [{ id: "event-a" }, { id: "event-b" }] } }] as SystemsAnalysis["commonCauseFailureGroups"];
-    render(<SyUncertaintyAnalysis />);
+    sy.commonCauseFailureGroups = [{ name: "Pump group", members: { basicEvents: [{ id: "event-a" }, { id: "event-b" }] } }] as SystemsAnalysis["commonCauseFailureGroups"];
+    const { unmount } = render(<SyUncertaintyAnalysis />);
     expect(screen.getByRole("button", { name: "Run uncertainty" })).toBeDisabled();
-    expect(screen.getByText(/CCF expansion cannot propagate/)).toBeInTheDocument();
+    expect(screen.getByText("PMP-A-FS: The members of Pump group link different DA estimates. Link all of them to one estimate in Step 02.")).toBeInTheDocument();
+    unmount();
+    sy.systemBasicEvents[1] = { ...sy.systemBasicEvents[1]!, controlledDataSource: reference } as SystemsAnalysis["systemBasicEvents"][number];
+    render(<SyUncertaintyAnalysis />);
+    expect(screen.getByRole("button", { name: "Run uncertainty" })).toBeEnabled();
   });
 });

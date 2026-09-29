@@ -2,12 +2,15 @@ import { type Workbook } from "interfaces-shared-types";
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import type { PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
+import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
+import type { SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
 import { listWorkbooks } from "../workbooks/workbookApi";
 import { type DaWorkbookResponse } from "../da-workbooks/daWorkbookApi";
 import { type HrWorkbookResponse } from "../hr-workbooks/hrWorkbookApi";
 import type {
   SyControlledCcfEstimateOption,
   SyControlledCoincidentMaintenanceOption,
+  SyControlledComponentBoundaryOption,
   SyControlledFailureModeOption,
   SyControlledHumanFailureOption,
   SyControlledParameterOption,
@@ -18,6 +21,8 @@ import type {
 const SY_LINK_CODES: SyLinkCode[] = ["ES", "SC", "POS", "DA", "HRA"];
 
 const SUPPORTED_PARAMETER_TYPES = new Set(["FREQUENCY", "PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
+
+const LINKABLE_PARAMETER_TYPES = new Set(["PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
 
 type LinkedEntry = Pick<Workbook, "id" | "name">;
 
@@ -120,6 +125,7 @@ function controlledParameterOptions(sources: readonly DaSource[]): SyControlledP
       ...(parameter.failureModeRef !== undefined && modes.has(parameter.failureModeRef)
         ? { failureModeId: parameter.failureModeRef, failureModeName: modes.get(parameter.failureModeRef) }
         : {}),
+      ...(parameter.componentBoundaryRef === undefined ? {} : { componentBoundaryId: parameter.componentBoundaryRef }),
     }];
     });
   }).sort((left, right) => [left.workbookName, left.parameterName].join(":").localeCompare([right.workbookName, right.parameterName].join(":")));
@@ -169,6 +175,38 @@ function controlledCoincidentMaintenanceOptions(sources: readonly DaSource[]): S
   }))).sort((left, right) => [left.workbookName, left.recordId].join(":").localeCompare([right.workbookName, right.recordId].join(":")));
 }
 
+function controlledComponentBoundaryOptions(sources: readonly DaSource[]): SyControlledComponentBoundaryOption[] {
+  return sources.flatMap(({ entry, workbook }) => workbook.mef.componentBoundaries.map((boundary) => ({
+    workbookId: entry.id,
+    workbookName: entry.name,
+    boundaryId: boundary.uuid,
+    name: boundary.name,
+    systemId: boundary.systemId,
+    description: boundary.description,
+    includedItems: [...boundary.includedItems],
+    excludedItems: [...(boundary.excludedItems ?? [])],
+    boundaryBasis: boundary.boundaryBasis,
+  }))).sort((left, right) => [left.workbookName, left.name].join(":").localeCompare([right.workbookName, right.name].join(":")));
+}
+
+function linkExampleEvents(events: readonly SystemBasicEvent[], workbookId: string, dataAnalysis: Pick<DataAnalysis, "parameters">): SystemBasicEvent[] {
+  const parameters = new Map(dataAnalysis.parameters
+    .filter((parameter) => LINKABLE_PARAMETER_TYPES.has(parameter.parameterType) && Number.isFinite(parameter.value) && parameter.value >= 0 && parameter.value <= 1)
+    .map((parameter) => [parameter.uuid, parameter]));
+  return events.map((event) => {
+    const reference = event.dataAnalysisBasicEventRef;
+    if (event.controlledDataSource?.referenceType !== undefined || typeof reference !== "string") return event;
+    const parameter = parameters.get(reference);
+    if (parameter === undefined) return event;
+    return {
+      ...event,
+      probability: parameter.value,
+      controlledDataSource: { referenceType: "WORKBOOK_PARAMETER" as const, workbookId, entityId: parameter.uuid },
+      dataAnalysisBasicEventRef: undefined,
+    };
+  });
+}
+
 function controlledCcfEstimateOptions(sources: readonly DaSource[]): SyControlledCcfEstimateOption[] {
   return sources.flatMap(({ entry, workbook }) => (workbook.mef.ccfParameterEstimations ?? []).flatMap((estimate): SyControlledCcfEstimateOption[] => {
     const modelType = estimate.modelType;
@@ -194,8 +232,10 @@ export {
   buildLinkedInputs,
   controlledCcfEstimateOptions,
   controlledCoincidentMaintenanceOptions,
+  controlledComponentBoundaryOptions,
   controlledFailureModeOptions,
   controlledHumanFailureOptions,
   controlledParameterOptions,
+  linkExampleEvents,
   listSyLinkOptions,
 };

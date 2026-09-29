@@ -1,34 +1,25 @@
 import { JSX } from "react";
 import type { SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
-import { NotRecorded, ReviewLines, ReviewTitle } from "./syShared";
+import { NoSystemsCard, NotRecorded, ReviewLines, ReviewTitle } from "./syShared";
 import { SCREENING_CRITERIA, toExp } from "./syViewData";
 import { TREATMENT_LABELS, humanFailureOption, integrationFor, systemOutages, systemTree } from "./syFailureRecords";
 import { useSyWorkbook } from "./syWorkbookContext";
 import type { SyDrawerContext } from "./syScreens";
 import "./css/syModels.css";
 
-function FailureModesScreen({ sysId, setSysId, openDrawer, onOpenScope }: {
+function FailureModesScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   sysId: string;
   setSysId: (id: string) => void;
   openDrawer: (ctx: SyDrawerContext) => void;
-  onOpenScope?: () => void;
+  onOpenSystems?: () => void;
 }): JSX.Element {
   const { sy, shortOf, editable, mutateSy, controlledHumanFailures, controlledCoincidentMaintenance } = useSyWorkbook();
   const actionLabel = editable ? "Edit" : "View";
   const found = sy.systemDefinitions.find((candidate) => candidate.uuid === sysId) ?? sy.systemDefinitions[0];
 
   if (found === undefined) {
-    return (
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Failure modes" level={3} />
-          <span className="possubtle">0 systems</span>
-        </div>
-        <p className="posmuted">No systems are in scope yet. Add the systems to model in Step 01, then review their failure modes here.</p>
-        {onOpenScope !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary sy-model-card__scope" onClick={onOpenScope}>Go to Scope</button>}
-      </div>
-    );
+    return <NoSystemsCard title="Failure modes" purpose="review their failure modes here." onOpenSystems={onOpenSystems} />;
   }
 
   const system = found;

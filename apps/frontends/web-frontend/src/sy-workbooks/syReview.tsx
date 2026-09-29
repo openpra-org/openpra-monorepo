@@ -112,7 +112,7 @@ function InternalReviewScreen({
           </div>
         </div>
         {displayComments.length === 0 ? (
-          <p className="posmuted" style={{ margin: 0 }}>
+          <p className="sy-review-empty">
             {isApprovalStep && (persona === "reviewer" || persona === "approver") ? "You have no comments." : "No comments yet. Reviewers and the approver leave comments from the dock."}
           </p>
         ) : (

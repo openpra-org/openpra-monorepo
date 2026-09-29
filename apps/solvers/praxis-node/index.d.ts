@@ -3,9 +3,11 @@
 /** Execute a versioned solver request through its method-specific adapter. */
 export declare function execute(requestJson: string): string
 
-/** Report the largest planned dense Bayesian clique table before inference.
- * This is a per-table requirement, not a total-memory estimate or reservation. */
+/**
+ * Report the largest planned dense Bayesian clique table before inference.
+ * This is a per-table requirement, not a total-memory estimate or reservation.
+ */
 export declare function preflight(requestJson: string, operation: string): string
 
-/** Validate the versioned solver transport envelope. */
+/** Validate the versioned request and its method-specific model. */
 export declare function validate(requestJson: string): string

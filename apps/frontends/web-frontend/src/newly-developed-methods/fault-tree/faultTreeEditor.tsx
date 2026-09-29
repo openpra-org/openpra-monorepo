@@ -7,6 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -28,6 +29,7 @@ import {
   importOpenPsaFaultTree,
   mergeOpenPsaImportCatalogue,
 } from "./openPsa";
+import { renderFaultTreePng } from "./faultTreeImage";
 import type {
   FaultTreeEditorCatalogue,
   FaultTreeEditorModel,
@@ -108,8 +110,8 @@ function selectionForNode(node: TreeNode): FaultTreeSelection {
     : { kind: "LEAF", leafId: node.id };
 }
 
-function clampZoom(zoom: number): number {
-  return Math.max(0.2, Math.min(2.4, zoom));
+function clampZoom(zoom: number, fittedZoom = 0.2): number {
+  return Math.max(Math.min(0.2, fittedZoom), Math.min(2.4, zoom));
 }
 
 function EditorIcon({
@@ -224,12 +226,11 @@ function fittedViewport(
   const inspectorWidth = inspectorOpen ? Math.min(FT_INSPECTOR_W, element.clientWidth) : 0;
   const availableWidth = Math.max(1, element.clientWidth - inspectorWidth);
   const availableHeight = Math.max(1, element.clientHeight);
-  const zoom = clampZoom(
-    Math.min(
-      (availableWidth - 48) / geometry.width,
-      (availableHeight - 64) / geometry.height,
-    ),
+  const fit = Math.min(
+    (availableWidth - 48) / geometry.width,
+    (availableHeight - 64) / geometry.height,
   );
+  const zoom = clampZoom(fit, fit > 0 ? fit : 0.2);
   return {
     zoom,
     x: (availableWidth - geometry.width * zoom) / 2,
@@ -956,6 +957,139 @@ export function FaultTreeResults({
   );
 }
 
+function acceptsInput(model: FaultTreeEditorModel, gate: FaultTreeGate): boolean {
+  return gate.gateType !== "NOT" || model.gateInputs.every(({ gateId }) => gateId !== gate.id);
+}
+
+function BasicEventPicker({
+  catalogue,
+  canCreate,
+  itemRole,
+  onBack,
+  onCreate,
+  onPick,
+}: {
+  catalogue: FaultTreeEditorCatalogue;
+  canCreate: boolean;
+  itemRole?: "menuitem";
+  onBack: () => void;
+  onCreate: () => void;
+  onPick: (basicEventId: string) => void;
+}): JSX.Element {
+  const [search, setSearch] = useState("");
+  const normalized = search.trim().toLocaleLowerCase();
+  const matching = catalogue.basicEvents.filter((basicEvent) => (
+    normalized === ""
+    || basicEvent.code.toLocaleLowerCase().includes(normalized)
+    || basicEvent.name.toLocaleLowerCase().includes(normalized)
+  ));
+  return (
+    <>
+      <div className="fteditor__context-header">
+        <button type="button" className="fteditor__context-back" aria-label="Back to node actions" onClick={onBack}>
+          ←
+        </button>
+        <div className="fteditor__context-title">Add basic event</div>
+      </div>
+      <button type="button" className="fteditor__context-item" role={itemRole} disabled={!canCreate} onClick={onCreate}>
+        Create new basic event
+      </button>
+      <div className="fteditor__context-separator" />
+      <label className="fteditor__context-field">
+        <span>Choose an existing basic event</span>
+        <input
+          autoFocus
+          className="fteditor__input"
+          type="search"
+          aria-label="Search basic events"
+          placeholder="Search by code or name"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </label>
+      <div className="fteditor__context-results" aria-label="Existing basic events">
+        {matching.map((basicEvent) => (
+          <button key={basicEvent.id} type="button" className="fteditor__context-item" role={itemRole} title={basicEvent.code} onClick={() => onPick(basicEvent.id)}>
+            {basicEvent.code}
+          </button>
+        ))}
+        {matching.length === 0 && <p className="fteditor__context-hint">No basic events match this search.</p>}
+      </div>
+    </>
+  );
+}
+
+type AddableLeaf = "HOUSE_EVENT" | "UNDEVELOPED_EVENT" | "TRANSFER_REFERENCE";
+
+function NodeActionsRail({
+  model,
+  catalogue,
+  target,
+  canCreateBasicEvent,
+  hasTransferTargets,
+  onAddGate,
+  onAddLeaf,
+  onCreateBasicEvent,
+  onPickBasicEvent,
+  onDelete,
+}: {
+  model: FaultTreeEditorModel;
+  catalogue: FaultTreeEditorCatalogue;
+  target: TreeNode | undefined;
+  canCreateBasicEvent: boolean;
+  hasTransferTargets: boolean;
+  onAddGate: (parentGateId?: string) => void;
+  onAddLeaf: (kind: AddableLeaf, parentGateId: string) => void;
+  onCreateBasicEvent: (parentGateId: string) => void;
+  onPickBasicEvent: (parentGateId: string, basicEventId: string) => void;
+  onDelete: (node: TreeNode) => void;
+}): JSX.Element {
+  const [pickingBasicEvent, setPickingBasicEvent] = useState(false);
+  const treeEmpty = model.gates.length === 0 && model.leafNodes.length === 0;
+  const parent = target?.kind === "GATE" && acceptsInput(model, target) ? target : undefined;
+  const hint = treeEmpty ? "Add gate creates the top gate."
+    : target === undefined ? "Select a gate to add inputs to it."
+    : target.kind !== "GATE" ? "Only gates take inputs."
+    : parent === undefined ? "This NOT gate already has its single input."
+    : hasTransferTargets ? null
+    : "Add transfer needs another fault tree to point to.";
+  const addLeaf = (kind: AddableLeaf) => (): void => {
+    if (parent !== undefined) onAddLeaf(kind, parent.id);
+  };
+
+  return (
+    <aside className="fteditor__rail" aria-label="Fault-tree node actions">
+      {pickingBasicEvent && parent !== undefined ? (
+        <BasicEventPicker
+          catalogue={catalogue}
+          canCreate={canCreateBasicEvent}
+          onBack={() => setPickingBasicEvent(false)}
+          onCreate={() => {
+            onCreateBasicEvent(parent.id);
+            setPickingBasicEvent(false);
+          }}
+          onPick={(basicEventId) => {
+            onPickBasicEvent(parent.id, basicEventId);
+            setPickingBasicEvent(false);
+          }}
+        />
+      ) : (
+        <>
+          <div className="fteditor__context-title">{parent === undefined ? "Node actions" : `Add under ${parent.code}`}</div>
+          <button type="button" className="fteditor__context-item" disabled={!treeEmpty && parent === undefined} onClick={() => onAddGate(parent?.id)}>Add gate</button>
+          <button type="button" className="fteditor__context-item" disabled={parent === undefined} onClick={() => setPickingBasicEvent(true)}>Add basic event</button>
+          <button type="button" className="fteditor__context-item" disabled={parent === undefined} onClick={addLeaf("HOUSE_EVENT")}>Add house event</button>
+          <button type="button" className="fteditor__context-item" disabled={parent === undefined} onClick={addLeaf("UNDEVELOPED_EVENT")}>Add undeveloped event</button>
+          <button type="button" className="fteditor__context-item" disabled={parent === undefined || !hasTransferTargets} onClick={addLeaf("TRANSFER_REFERENCE")}>Add transfer</button>
+          <div className="fteditor__context-separator" />
+          <button type="button" className="fteditor__context-item fteditor__context-item--danger" disabled={target === undefined} onClick={() => { if (target !== undefined) onDelete(target); }}>Delete node</button>
+          {hint !== null && <p className="fteditor__context-hint">{hint}</p>}
+        </>
+      )}
+    </aside>
+  );
+}
+
 export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   const {
     model,
@@ -978,6 +1112,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   const editable = capabilities.mode === "AUTHOR";
   const viewportRef = useRef<HTMLDivElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
+  const treeRef = useRef<HTMLDivElement>(null);
   const geometryRef = useRef({ width: 0, height: 0 });
   const inspectorOpenRef = useRef(false);
   const history = useRef<Snapshot[]>([]);
@@ -987,11 +1122,12 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   const [pan, setPan] = useState<PanState | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [contextMenu, setContextMenu] = useState<NodeContextMenuState | null>(null);
-  const [basicEventSearch, setBasicEventSearch] = useState("");
   const [operationError, setOperationError] = useState<string | null>(null);
+  const [exportingImage, setExportingImage] = useState(false);
+  const [savedImage, setSavedImage] = useState<string | null>(null);
   const { requestConfirmation, confirmationDialog } = useEditorConfirmation();
 
-  useEffect(
+  useLayoutEffect(
     () => setViewport(model.layout.viewport),
     [model.layout.viewport.x, model.layout.viewport.y, model.layout.viewport.zoom],
   );
@@ -1021,6 +1157,11 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   }, [contextMenu]);
 
   const geometry = useMemo(() => canvasGeometry(model, drag), [model, drag]);
+  const structureKey = useMemo(() => [
+    ...model.gates.map(({ id }) => id),
+    ...model.leafNodes.map(({ id }) => id),
+    ...model.gateInputs.map(({ gateId, childId, order }) => `${gateId}:${childId}:${order}`),
+  ].join(" "), [model.gates, model.leafNodes, model.gateInputs]);
   const positionedById = useMemo(() => new Map(geometry.nodes.map((positioned) => [positioned.node.id, positioned])), [geometry.nodes]);
   const selectedId = selectionId(selection);
   const invalidIds = useMemo(() => new Set(validation.flatMap((issue) => issue.entityId === undefined ? [] : [issue.entityId])), [validation]);
@@ -1038,16 +1179,12 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   const contextNodeName = contextNode?.kind === "BASIC_EVENT_REFERENCE"
     ? catalogue.basicEvents.find(({ id }) => id === contextNode.basicEventId)?.name ?? contextNode.basicEventId
     : contextNode?.name;
-  const contextCanAcceptChild = contextGate !== undefined && (
-    contextGate.gateType !== "NOT"
-    || model.gateInputs.filter(({ gateId }) => gateId === contextGate.id).length === 0
-  );
-  const normalizedBasicEventSearch = basicEventSearch.trim().toLocaleLowerCase();
-  const matchingBasicEvents = catalogue.basicEvents.filter((basicEvent) => (
-    normalizedBasicEventSearch === ""
-    || basicEvent.code.toLocaleLowerCase().includes(normalizedBasicEventSearch)
-    || basicEvent.name.toLocaleLowerCase().includes(normalizedBasicEventSearch)
-  ));
+  const contextCanAcceptChild = contextGate !== undefined && acceptsInput(model, contextGate);
+  const selectedNode: TreeNode | undefined = selection?.kind === "GATE"
+    ? model.gates.find(({ id }) => id === selection.gateId)
+    : selection?.kind === "LEAF"
+      ? model.leafNodes.find(({ id }) => id === selection.leafId)
+      : undefined;
   const existingCodes = [...model.gates.filter((gate) => "code" in gate).map((gate) => gate.code), ...model.leafNodes.filter((leaf): leaf is Exclude<FaultTreeLeafNode, { kind: "BASIC_EVENT_REFERENCE" }> => leaf.kind !== "BASIC_EVENT_REFERENCE").map((leaf) => leaf.code)];
 
   useEffect(() => {
@@ -1066,11 +1203,11 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     observer.observe(element);
     return () => observer.disconnect();
   }, [model.modelId]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = viewportRef.current;
     if (element === null || element.clientWidth === 0 || element.clientHeight === 0) return;
     setViewport(fittedViewport(element, geometryRef.current, inspectedSelectionExists));
-  }, [inspectedSelectionExists]);
+  }, [inspectedSelectionExists, structureKey]);
 
   const emit = (operation: FaultTreeOperation, recordHistory = true): void => {
     try {
@@ -1081,6 +1218,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
       }
       onOperation(operation);
       setOperationError(null);
+      setSavedImage(null);
     } catch (error) {
       if (recordHistory && operation.type !== "REPLACE_SNAPSHOT") history.current.pop();
       setOperationError(error instanceof Error ? error.message : "The fault-tree operation failed.");
@@ -1115,7 +1253,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   const zoomBy = (factor: number): void => {
     const element = viewportRef.current;
     if (element === null) return;
-    const zoom = clampZoom(viewport.zoom * factor);
+    const zoom = clampZoom(viewport.zoom * factor, fittedViewport(element, geometry, inspectedSelectionExists).zoom);
     const cx = element.clientWidth / 2;
     const cy = element.clientHeight / 2;
     const next = { zoom, x: cx - ((cx - viewport.x) / viewport.zoom) * zoom, y: cy - ((cy - viewport.y) / viewport.zoom) * zoom };
@@ -1131,8 +1269,9 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     const bounds = event.currentTarget.getBoundingClientRect();
     const px = event.clientX - bounds.left;
     const py = event.clientY - bounds.top;
+    const fittedZoom = fittedViewport(event.currentTarget, geometry, inspectedSelectionExists).zoom;
     setViewport((current) => {
-      const zoom = clampZoom(current.zoom * Math.exp(-event.deltaY * multiplier * 0.002));
+      const zoom = clampZoom(current.zoom * Math.exp(-event.deltaY * multiplier * 0.002), fittedZoom);
       return {
         zoom,
         x: px - ((px - current.x) / current.zoom) * zoom,
@@ -1225,7 +1364,6 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     const bounds = element.getBoundingClientRect();
     const menuWidth = Math.min(228, Math.max(1, element.clientWidth - 24));
     const menuHeight = Math.min(390, Math.max(1, element.clientHeight - 24));
-    setBasicEventSearch("");
     setContextMenu({
       nodeId: node.id,
       x: Math.max(12, Math.min(event.clientX - bounds.left, element.clientWidth - menuWidth - 12)),
@@ -1276,8 +1414,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     });
     setContextMenu(null);
   };
-  const deleteContextNode = (): void => {
-    if (contextNode === undefined) return;
+  const confirmDeleteNode = (node: TreeNode): void => {
     setContextMenu(null);
     requestConfirmation({
       title: "Delete this fault-tree node?",
@@ -1286,11 +1423,11 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
       tone: "danger",
     }, () => {
       emit(
-        contextNode.kind === "GATE"
-          ? { type: "DELETE_GATE", gateId: contextNode.id, subtree: true }
-          : { type: "DELETE_LEAF", leafId: contextNode.id, subtree: true },
+        node.kind === "GATE"
+          ? { type: "DELETE_GATE", gateId: node.id, subtree: true }
+          : { type: "DELETE_LEAF", leafId: node.id, subtree: true },
       );
-      if (selectedId === contextNode.id) onSelectionChange(null);
+      if (selectedId === node.id) onSelectionChange(null);
     });
   };
 
@@ -1305,6 +1442,27 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
       setOperationError(null);
     } catch (error) {
       setOperationError(error instanceof Error ? error.message : "OpenPSA export failed.");
+    }
+  };
+  const exportImage = async (): Promise<void> => {
+    const tree = treeRef.current;
+    if (tree === null) return;
+    setExportingImage(true);
+    setSavedImage(null);
+    setOperationError(null);
+    try {
+      const png = await renderFaultTreePng(tree, FT.H_GAP);
+      const fileName = `${model.code || "fault-tree"}.png`;
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(png.blob);
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      setSavedImage(`${fileName}: ${png.width.toLocaleString("en-US")} × ${png.height.toLocaleString("en-US")} px at ${Math.round(png.dotsPerInch).toLocaleString("en-US")} dpi`);
+    } catch (error) {
+      setOperationError(error instanceof Error ? error.message : "The PNG export failed.");
+    } finally {
+      setExportingImage(false);
     }
   };
   const importXml = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
@@ -1588,21 +1746,38 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
             <button type="button" className="fteditor__icon-btn" aria-label="Redo" title="Redo" disabled={future.current.length === 0} onClick={redo}><EditorIcon name="redo" /></button>
           </>
         )}
-        {(capabilities.canImport || capabilities.canExport) && (
+        {(capabilities.canImport || capabilities.canExport || capabilities.mode !== "REFERENCE_SELECTION") && (
           <details className="fteditor__menu">
             <summary className="fteditor__icon-btn" role="button" aria-label="File" title="File" aria-haspopup="menu"><EditorIcon name="file" /></summary>
             <div className="fteditor__menu-popover" role="menu">
               {capabilities.canImport && <button type="button" className="fteditor__menu-item" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); importRef.current?.click(); }}>Import OpenPSA XML</button>}
               {capabilities.canExport && <button type="button" className="fteditor__menu-item" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); exportXml(); }}>Export OpenPSA XML</button>}
+              {capabilities.mode !== "REFERENCE_SELECTION" && <button type="button" className="fteditor__menu-item" disabled={geometry.nodes.length === 0 || exportingImage} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); void exportImage(); }}>Export high-resolution PNG</button>}
             </div>
           </details>
         )}
         <input ref={importRef} className="fteditor__file" type="file" accept=".xml,application/xml,text/xml" onChange={(event) => { void importXml(event); }} />
+        <span className="fteditor__command-status" role="status">{exportingImage ? "Preparing the PNG…" : savedImage}</span>
       </div>
 
       {operationError !== null && <div className="fteditor__notice fteditor__notice--error" role="alert">{operationError}</div>}
 
-      <div className={`fteditor__workspace${inspectedSelectionExists ? " fteditor__workspace--inspecting" : ""}`}>
+      <div className={`fteditor__workspace${inspectedSelectionExists ? " fteditor__workspace--inspecting" : ""}${editable ? " fteditor__workspace--rail" : ""}`}>
+        {editable && (
+          <NodeActionsRail
+            key={selectedNode?.id ?? "none"}
+            model={model}
+            catalogue={catalogue}
+            target={selectedNode}
+            canCreateBasicEvent={capabilities.canEditBasicEvents}
+            hasTransferTargets={transferTargets.length > 0}
+            onAddGate={addGate}
+            onAddLeaf={addLeaf}
+            onCreateBasicEvent={createNewBasicEvent}
+            onPickBasicEvent={addExistingBasicEvent}
+            onDelete={confirmDeleteNode}
+          />
+        )}
         <div
           ref={viewportRef}
           className={`fteditor__viewport${pan !== null ? " is-panning" : ""}${drag !== null ? " is-dragging" : ""}`}
@@ -1638,58 +1813,14 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
               onPointerDown={(event) => event.stopPropagation()}
             >
               {contextMenu.view === "BASIC_EVENT" && contextGate !== undefined ? (
-                <>
-                  <div className="fteditor__context-header">
-                    <button
-                      type="button"
-                      className="fteditor__context-back"
-                      aria-label="Back to node actions"
-                      onClick={() => setContextMenu({ ...contextMenu, view: "ACTIONS" })}
-                    >
-                      ←
-                    </button>
-                    <div className="fteditor__context-title">Add basic event</div>
-                  </div>
-                  <button
-                    type="button"
-                    className="fteditor__context-item"
-                    role="menuitem"
-                    disabled={!capabilities.canEditBasicEvents}
-                    onClick={() => createNewBasicEvent(contextGate.id)}
-                  >
-                    Create new basic event
-                  </button>
-                  <div className="fteditor__context-separator" />
-                  <label className="fteditor__context-field">
-                    <span>Choose an existing basic event</span>
-                    <input
-                      autoFocus
-                      className="fteditor__input"
-                      type="search"
-                      aria-label="Search basic events"
-                      placeholder="Search by code or name"
-                      value={basicEventSearch}
-                      onChange={(event) => setBasicEventSearch(event.target.value)}
-                    />
-                  </label>
-                  <div className="fteditor__context-results" aria-label="Existing basic events">
-                    {matchingBasicEvents.map((basicEvent) => (
-                      <button
-                        key={basicEvent.id}
-                      type="button"
-                      className="fteditor__context-item"
-                      role="menuitem"
-                      title={basicEvent.code}
-                      onClick={() => addExistingBasicEvent(contextGate.id, basicEvent.id)}
-                    >
-                      {basicEvent.code}
-                    </button>
-                    ))}
-                    {matchingBasicEvents.length === 0 && (
-                      <p className="fteditor__context-hint">No basic events match this search.</p>
-                    )}
-                  </div>
-                </>
+                <BasicEventPicker
+                  catalogue={catalogue}
+                  canCreate={capabilities.canEditBasicEvents}
+                  itemRole="menuitem"
+                  onBack={() => setContextMenu({ ...contextMenu, view: "ACTIONS" })}
+                  onCreate={() => createNewBasicEvent(contextGate.id)}
+                  onPick={(basicEventId) => addExistingBasicEvent(contextGate.id, basicEventId)}
+                />
               ) : (
                 <>
                   <div className="fteditor__context-title">
@@ -1704,10 +1835,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
                         type="button"
                         className="fteditor__context-item"
                         role="menuitem"
-                        onClick={() => {
-                          setBasicEventSearch("");
-                          setContextMenu({ ...contextMenu, view: "BASIC_EVENT" });
-                        }}
+                        onClick={() => setContextMenu({ ...contextMenu, view: "BASIC_EVENT" })}
                       >
                         Add basic event
                       </button>
@@ -1735,7 +1863,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
                     type="button"
                     className="fteditor__context-item fteditor__context-item--danger"
                     role="menuitem"
-                    onClick={deleteContextNode}
+                    onClick={() => confirmDeleteNode(contextNode)}
                   >
                     Delete node
                   </button>
@@ -1752,7 +1880,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
           ) : (
             <div className="fteditor__stage sytree" style={{ width: geometry.width, height: geometry.height, transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})` }}>
               <div className="ftscroll">
-                <div className="ftcanvas" style={{ width: geometry.width, height: geometry.height }}>
+                <div ref={treeRef} className="ftcanvas" style={{ width: geometry.width, height: geometry.height }}>
                   <svg className="ftsvg" width={geometry.width} height={geometry.height} viewBox={`0 0 ${geometry.width} ${geometry.height}`}>
                     {lines}
                     {geometry.nodes.filter(showSymbol).map((positioned) => <FtSymbol key={`${positioned.node.id}-symbol`} node={positioned.node} cx={positioned.cx} top={positioned.top} catalogue={catalogue} />)}

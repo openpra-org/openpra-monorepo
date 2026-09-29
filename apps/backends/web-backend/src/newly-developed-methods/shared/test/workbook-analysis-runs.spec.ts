@@ -1141,6 +1141,33 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(result.body.topEventProbability).toBeCloseTo(2.5740003521993564e-3, 14);
   }, 120_000);
 
+  it("samples common cause groups from their members' DA estimate and matches the exact DRACS mean", async () => {
+    const workbookId = connectedExampleIds("sfr").sy;
+    const model = SY_ANALYSIS.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-DRACS");
+    if (model === undefined) throw new Error("Expected the DRACS fault-tree model");
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: model.uuid,
+        workbookRevision: 1,
+        calculationType: "UNCERTAINTY",
+        workflow: "MANUAL",
+        settings: {
+          algorithm: "BDD", approximation: "EXACT", variableOrder: "DFS", reorderBudgetSeconds: 60,
+          expandCcf: true, numTrials: 100_000, seed: 847, missionTimeHours: 8_760,
+        },
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.topEventProbability).toBeCloseTo(1.8559e-2, 5);
+    expect(Math.abs(result.body.uncertainty.mean / 1.8924178137e-2 - 1)).toBeLessThan(5e-3);
+  }, 120_000);
+
   it("returns RPS common-cause cut sets with generated event identifiers", async () => {
     const workbookId = connectedExampleIds("sfr").sy;
     const model = SY_ANALYSIS.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-RPS");

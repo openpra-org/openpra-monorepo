@@ -3,7 +3,6 @@ import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analy
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type SRReference, type SRConformance, type HlrId, type PlantStage, type SRStatus } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
-import { DistributionType } from "interfaces-mef-types/core/events";
 import { SY_SR_CATALOG } from "interfaces-mef-types/sy/systems-analysis";
 import { createExampleDependencyNetwork, createExampleHclConfiguration } from "./dependency-model-seed";
 import { SC_ANALYSIS } from "./sc-seed";
@@ -15,10 +14,10 @@ function srs(...codes: string[]): SRReference[] {
   return codes.map((code) => ({ sr: code, hlr: code.charAt(3) as HlrId }));
 }
 
-const WARN_SRS = new Set<string>(["SY-B3", "SY-B4", "SY-B8", "SY-B11", "SY-B12", "SY-B14"]);
+const WARN_SRS = new Set<string>(["SY-A12", "SY-B3", "SY-B4", "SY-B8", "SY-B11", "SY-B12", "SY-B14"]);
 
 const SR_EVIDENCE: Record<string, string> = {
-  "SY-A1": "Eight systems identified from the Event Sequence safety functions.",
+  "SY-A1": "Thirteen systems identified from the Event Sequence safety functions.",
   "SY-A8": "Model boundaries set to include the components and the support interfaces.",
   "SY-A9": "Guard vessel modeled at the system level, the rest in detail.",
   "SY-A16": "Every system records the failures left out, the flow diversion paths and the conditions that defeat its function.",
@@ -30,7 +29,15 @@ const SR_EVIDENCE: Record<string, string> = {
   "SY-A24": "6 isolation and trip signals recorded, each with where it is modeled or why it is left out.",
   "SY-A27": "Two planned activities take redundant equipment out together, modeled as joint maintenance events from the DA coincident maintenance records.",
   "SY-A28": "Each system lists the conditions, such as heat, electrical load or humidity, that defeat its function.",
-  "SY-A30": "One designator per component failure mode across every system and train.",
+  "SY-A30": "One code per system and one designator per failure mode, checked on every event code.",
+  "SY-A32": "Each system records its model uncertainty sources and assumptions, with sensitivity studies on the loop coupling and the battery duty.",
+  "SY-B16": "Each common cause group and the key dependency assumptions carry an uncertainty record, including the shared penetration room and the battery room cooling.",
+  "SY-C2": "Model uncertainty sources are documented per system and across the plant, citing SY-A32 and SY-B16.",
+  "SY-A6": "Each of the thirteen system models confirmed against the design intent, by design review or discussion with the designers.",
+  "SY-A11": "Each system records its level of detail against the design information, set to surface the risk-significant contributors.",
+  "SY-A12": "Each modeled component is checked against its DA boundary. The charger boundary is still open with DA (DA-A2).",
+  "SY-A13": "Nine boundaries are flagged as not verified against the industry data, among them the rod latches, the sodium pumps and the actuation software.",
+  "SY-A14": "Four supercomponents, each checked for one recovery potential and no use by another system.",
   "SY-B1": "Common cause modeled within each redundant system.",
   "SY-B2": "Four inter-system common cause groups modeled, the station batteries and the actuation sensor, output and software modules.",
   "SY-B5": "Nineteen support needs recorded. Fifteen are transfers in the fault trees, and four are left out with an engineering reason.",
@@ -121,9 +128,9 @@ const dracsEvents: SystemBasicEvent[] = [
   be("DRC-DMP1-FO", "Loop 1 air damper fails to open", "FAILURE_TO_START", 0.003),
   be("DRC-DMP2-FO", "Loop 2 air damper fails to open", "FAILURE_TO_START", 0.003),
   be("DRC-DMP3-FO", "Loop 3 air damper fails to open", "FAILURE_TO_START", 0.003),
-  be("DRC-AIR1-BLK", "Loop 1 air path blocked", "FAILURE_TO_RUN", 0.001),
-  be("DRC-AIR2-BLK", "Loop 2 air path blocked", "FAILURE_TO_RUN", 0.001),
-  be("DRC-AIR3-BLK", "Loop 3 air path blocked", "FAILURE_TO_RUN", 0.001),
+  be("DRC-AIR1-PLG", "Loop 1 air path blocked", "FAILURE_TO_RUN", 0.001),
+  be("DRC-AIR2-PLG", "Loop 2 air path blocked", "FAILURE_TO_RUN", 0.001),
+  be("DRC-AIR3-PLG", "Loop 3 air path blocked", "FAILURE_TO_RUN", 0.001),
   be("DRC-CCF-FR", "Common cause failure of all three loops", "COMMON_CAUSE_FAILURE", 0.00012),
   be("DRC-DMP-CCF", "Common cause failure of the air dampers", "COMMON_CAUSE_FAILURE", 0.0003),
   hfe("DRC-HFE-CAL", "DRACS channels miscalibrated after surveillance", 0.0024, "HR-PRE-014"),
@@ -137,8 +144,8 @@ const rpsEvents: SystemBasicEvent[] = [
   be("RPS-DVB-FS", "Division B fails to trip", "FAILURE_TO_START", 0.0015),
   be("RPS-BKA-FO", "Scram breaker A fails to open", "FAILURE_TO_START", 0.0012),
   be("RPS-BKB-FO", "Scram breaker B fails to open", "FAILURE_TO_START", 0.0012),
-  be("RPS-RODA-FR", "Division A rods fail to release", "FAILURE_TO_START", 0.0008),
-  be("RPS-RODB-FR", "Division B rods fail to release", "FAILURE_TO_START", 0.0008),
+  be("RPS-RODA-FRL", "Division A rods fail to release", "FAILURE_TO_START", 0.0008),
+  be("RPS-RODB-FRL", "Division B rods fail to release", "FAILURE_TO_START", 0.0008),
   be("RPS-CCF-FS", "Common cause failure of both divisions", "COMMON_CAUSE_FAILURE", 0.00009),
   be("RPS-ROD-CCF", "Common cause failure of the rod release", "COMMON_CAUSE_FAILURE", 0.00004),
   hfe("RPS-HFE-CAL", "Trip setpoints miscalibrated after surveillance", 0.0011, "HR-PRE-031"),
@@ -192,11 +199,11 @@ const hvacEvents: SystemBasicEvent[] = [
   be("HVC-AHA-FR", "Air handler A fails to run", "FAILURE_TO_RUN", 0.002),
   be("HVC-AHB-FR", "Air handler B fails to run", "FAILURE_TO_RUN", 0.002),
   be("HVC-CCF-FR", "Common cause failure of both trains", "COMMON_CAUSE_FAILURE", 0.00045),
-  be("HVC-TS-FLT", "Temperature instruments fail to start cooling", "FAILURE_TO_START", 0.0005),
+  be("HVC-TS-FS", "Temperature instruments fail to start cooling", "FAILURE_TO_START", 0.0005),
 ];
 const pcsEvents: SystemBasicEvent[] = [
-  be("PCS-L1-BLK", "Loop 1 flow path blocked", "FAILURE_TO_RUN", 0.0004),
-  be("PCS-L2-BLK", "Loop 2 flow path blocked", "FAILURE_TO_RUN", 0.0004),
+  be("PCS-L1-PLG", "Loop 1 flow path blocked", "FAILURE_TO_RUN", 0.0004),
+  be("PCS-L2-PLG", "Loop 2 flow path blocked", "FAILURE_TO_RUN", 0.0004),
   be("PCS-CKV1-FO", "Loop 1 check valve fails to open", "FAILURE_TO_START", 0.001),
   be("PCS-CKV2-FO", "Loop 2 check valve fails to open", "FAILURE_TO_START", 0.001),
   be("PCS-FLOW-CCF", "Common cause blockage of both flow paths", "COMMON_CAUSE_FAILURE", 0.00008),
@@ -207,12 +214,12 @@ const pcsEvents: SystemBasicEvent[] = [
 const sdhrEvents: SystemBasicEvent[] = [
   be("SDR-PMP-FR", "Intermediate sodium pump fails to run", "FAILURE_TO_RUN", 0.006),
   be("SDR-SINK-FR", "Steam-side heat sink lost", "FAILURE_TO_RUN", 0.008),
-  be("SDR-IV-FC", "Loop isolation valve spuriously closes", "FAILURE_TO_START", 0.0015),
+  be("SDR-IV-SO", "Loop isolation valve spuriously closes", "FAILURE_TO_START", 0.0015),
   tm("SDR-PMP-TM", "Intermediate pump in maintenance", 0.003, "Planned intermediate-pump maintenance in the shutdown window.", true),
-  hfe("SDH-HFE", "Operator fails to start backup decay heat removal", 0.0008, "HR-POST-005"),
+  hfe("SDR-HFE", "Operator fails to start backup decay heat removal", 0.0008, "HR-POST-005"),
 ];
 const isolEvents: SystemBasicEvent[] = [
-  be("ISO-DET-FA", "Leak detection fails to actuate isolation", "FAILURE_TO_START", 0.002),
+  be("ISO-DET-FS", "Leak detection fails to actuate isolation", "FAILURE_TO_START", 0.002),
   be("ISO-VLV-A-FC", "Isolation valve A fails to close", "FAILURE_TO_START", 0.002),
   be("ISO-VLV-B-FC", "Isolation valve B fails to close", "FAILURE_TO_START", 0.002),
   be("ISO-VLV-CCF", "Common cause failure of the isolation valves", "COMMON_CAUSE_FAILURE", 0.0002),
@@ -231,7 +238,7 @@ const detectEvents: SystemBasicEvent[] = [
   be("DET-ALM-FS", "Level alarm fails to annunciate", "FAILURE_TO_START", 0.001),
 ];
 const suppEvents: SystemBasicEvent[] = [
-  be("SUP-DET-FA", "Sodium fire detection fails", "FAILURE_TO_START", 0.003),
+  be("SUP-DET-FS", "Sodium fire detection fails", "FAILURE_TO_START", 0.003),
   be("SUP-SUP-FS", "Suppression and drain system fails to actuate", "FAILURE_TO_START", 0.005),
   hfe("SUP-HFE", "Operator fails to respond to the fire alarm", 0.02, "HR-POST-027"),
 ];
@@ -625,19 +632,19 @@ const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
         { id: "DRC-LP1", type: "OR", name: "Loop 1 fails to remove heat", children: [
           { id: "be-DRC-LP1-FR", type: "BE", name: "Loop 1 fails to maintain natural circulation", be: "DRC-LP1-FR", mode: "FAILURE_TO_RUN", source: "DA-BE-031", prob: "8.0E-3" },
           { id: "be-DRC-DMP1-FO", type: "BE", name: "Loop 1 air damper fails to open", be: "DRC-DMP1-FO", mode: "FAILURE_TO_START", source: "DA-BE-033", prob: "3.0E-3" },
-          { id: "be-DRC-AIR1-BLK", type: "BE", name: "Loop 1 air path blocked", be: "DRC-AIR1-BLK", mode: "FAILURE_TO_RUN", source: "DA-BE-035", prob: "1.0E-3" },
+          { id: "be-DRC-AIR1-PLG", type: "BE", name: "Loop 1 air path blocked", be: "DRC-AIR1-PLG", mode: "FAILURE_TO_RUN", source: "DA-BE-035", prob: "1.0E-3" },
           { id: "be-DRC-LP1-TM", type: "BE", name: "Loop 1 in staggered surveillance", be: "DRC-LP1-TM", mode: "TEST_MAINTENANCE", source: "DA-UA-01", prob: "4.0E-3" },
         ] },
         { id: "DRC-LP2", type: "OR", name: "Loop 2 fails to remove heat", children: [
           { id: "be-DRC-LP2-FR", type: "BE", name: "Loop 2 fails to maintain natural circulation", be: "DRC-LP2-FR", mode: "FAILURE_TO_RUN", source: "DA-BE-031", prob: "8.0E-3" },
           { id: "be-DRC-DMP2-FO", type: "BE", name: "Loop 2 air damper fails to open", be: "DRC-DMP2-FO", mode: "FAILURE_TO_START", source: "DA-BE-033", prob: "3.0E-3" },
-          { id: "be-DRC-AIR2-BLK", type: "BE", name: "Loop 2 air path blocked", be: "DRC-AIR2-BLK", mode: "FAILURE_TO_RUN", source: "DA-BE-035", prob: "1.0E-3" },
+          { id: "be-DRC-AIR2-PLG", type: "BE", name: "Loop 2 air path blocked", be: "DRC-AIR2-PLG", mode: "FAILURE_TO_RUN", source: "DA-BE-035", prob: "1.0E-3" },
           { id: "be-DRC-LP2-TM", type: "BE", name: "Loop 2 in staggered surveillance", be: "DRC-LP2-TM", mode: "TEST_MAINTENANCE", source: "DA-UA-01", prob: "4.0E-3" },
         ] },
         { id: "DRC-LP3", type: "OR", name: "Loop 3 fails to remove heat", children: [
           { id: "be-DRC-LP3-FR", type: "BE", name: "Loop 3 fails to maintain natural circulation", be: "DRC-LP3-FR", mode: "FAILURE_TO_RUN", source: "DA-BE-031", prob: "8.0E-3" },
           { id: "be-DRC-DMP3-FO", type: "BE", name: "Loop 3 air damper fails to open", be: "DRC-DMP3-FO", mode: "FAILURE_TO_START", source: "DA-BE-033", prob: "3.0E-3" },
-          { id: "be-DRC-AIR3-BLK", type: "BE", name: "Loop 3 air path blocked", be: "DRC-AIR3-BLK", mode: "FAILURE_TO_RUN", source: "DA-BE-035", prob: "1.0E-3" },
+          { id: "be-DRC-AIR3-PLG", type: "BE", name: "Loop 3 air path blocked", be: "DRC-AIR3-PLG", mode: "FAILURE_TO_RUN", source: "DA-BE-035", prob: "1.0E-3" },
           { id: "be-DRC-LP3-TM", type: "BE", name: "Loop 3 in staggered surveillance", be: "DRC-LP3-TM", mode: "TEST_MAINTENANCE", source: "DA-UA-01", prob: "4.0E-3" },
         ] },
       ] },
@@ -657,12 +664,12 @@ const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
         { id: "RPS-DVA", type: "OR", name: "Division A fails to insert", children: [
           { id: "be-RPS-DVA-FS", type: "BE", name: "Division A trip logic fails", be: "RPS-DVA-FS", mode: "FAILURE_TO_START", source: "DA-BE-007", prob: "1.5E-3" },
           { id: "be-RPS-BKA-FO", type: "BE", name: "Scram breaker A fails to open", be: "RPS-BKA-FO", mode: "FAILURE_TO_START", source: "DA-BE-009", prob: "1.2E-3" },
-          { id: "be-RPS-RODA-FR", type: "BE", name: "Division A rods fail to release", be: "RPS-RODA-FR", mode: "FAILURE_TO_START", source: "DA-BE-011", prob: "8.0E-4" },
+          { id: "be-RPS-RODA-FRL", type: "BE", name: "Division A rods fail to release", be: "RPS-RODA-FRL", mode: "FAILURE_TO_START", source: "DA-BE-011", prob: "8.0E-4" },
         ] },
         { id: "RPS-DVB", type: "OR", name: "Division B fails to insert", children: [
           { id: "be-RPS-DVB-FS", type: "BE", name: "Division B trip logic fails", be: "RPS-DVB-FS", mode: "FAILURE_TO_START", source: "DA-BE-007", prob: "1.5E-3" },
           { id: "be-RPS-BKB-FO", type: "BE", name: "Scram breaker B fails to open", be: "RPS-BKB-FO", mode: "FAILURE_TO_START", source: "DA-BE-009", prob: "1.2E-3" },
-          { id: "be-RPS-RODB-FR", type: "BE", name: "Division B rods fail to release", be: "RPS-RODB-FR", mode: "FAILURE_TO_START", source: "DA-BE-011", prob: "8.0E-4" },
+          { id: "be-RPS-RODB-FRL", type: "BE", name: "Division B rods fail to release", be: "RPS-RODB-FRL", mode: "FAILURE_TO_START", source: "DA-BE-011", prob: "8.0E-4" },
         ] },
       ] },
       { id: "be-RPS-CCF-FS", type: "BE", name: "Common cause failure of both divisions", be: "RPS-CCF-FS", mode: "COMMON_CAUSE_FAILURE", source: "CCF-RPS-DIV", prob: "9.0E-5", ccf: true },
@@ -770,7 +777,7 @@ const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
         ] },
       ] },
       { id: "be-HVC-CCF-FR", type: "BE", name: "Common cause failure of both trains", be: "HVC-CCF-FR", mode: "COMMON_CAUSE_FAILURE", source: "CCF-HVAC-CHL", prob: "4.5E-4", ccf: true },
-      { id: "be-HVC-TS-FLT", type: "BE", name: "Temperature instruments fail to start cooling", be: "HVC-TS-FLT", mode: "FAILURE_TO_START", source: "DA-BE-054", prob: "5.0E-4" },
+      { id: "be-HVC-TS-FS", type: "BE", name: "Temperature instruments fail to start cooling", be: "HVC-TS-FS", mode: "FAILURE_TO_START", source: "DA-BE-054", prob: "5.0E-4" },
       { id: "tr-HVC-DC", type: "TR", name: "Loss of Class-1E DC to the chillers", transfer: "SYS-1E-DC" },
     ],
   },
@@ -778,11 +785,11 @@ const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
     id: "PCS-TOP", type: "OR", name: "Primary natural circulation fails to establish",
     children: [
       { id: "PCS-LP1", type: "OR", name: "Loop 1 flow path lost", children: [
-        { id: "be-PCS-L1-BLK", type: "BE", name: "Loop 1 flow path blocked", be: "PCS-L1-BLK", mode: "FAILURE_TO_RUN", source: "DA-BE-043", prob: "4.0E-4" },
+        { id: "be-PCS-L1-PLG", type: "BE", name: "Loop 1 flow path blocked", be: "PCS-L1-PLG", mode: "FAILURE_TO_RUN", source: "DA-BE-043", prob: "4.0E-4" },
         { id: "be-PCS-CKV1-FO", type: "BE", name: "Loop 1 check valve fails to open", be: "PCS-CKV1-FO", mode: "FAILURE_TO_START", source: "DA-BE-044", prob: "1.0E-3" },
       ] },
       { id: "PCS-LP2", type: "OR", name: "Loop 2 flow path lost", children: [
-        { id: "be-PCS-L2-BLK", type: "BE", name: "Loop 2 flow path blocked", be: "PCS-L2-BLK", mode: "FAILURE_TO_RUN", source: "DA-BE-043", prob: "4.0E-4" },
+        { id: "be-PCS-L2-PLG", type: "BE", name: "Loop 2 flow path blocked", be: "PCS-L2-PLG", mode: "FAILURE_TO_RUN", source: "DA-BE-043", prob: "4.0E-4" },
         { id: "be-PCS-CKV2-FO", type: "BE", name: "Loop 2 check valve fails to open", be: "PCS-CKV2-FO", mode: "FAILURE_TO_START", source: "DA-BE-044", prob: "1.0E-3" },
       ] },
       { id: "be-PCS-FLOW-CCF", type: "BE", name: "Common cause blockage of both flow paths", be: "PCS-FLOW-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-PCS-FLOW", prob: "8.0E-5", ccf: true },
@@ -795,16 +802,16 @@ const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
     children: [
       { id: "be-SDR-PMP-FR", type: "BE", name: "Intermediate sodium pump fails to run", be: "SDR-PMP-FR", mode: "FAILURE_TO_RUN", source: "DA-BE-101", prob: "6.0E-3" },
       { id: "be-SDR-SINK-FR", type: "BE", name: "Steam-side heat sink lost", be: "SDR-SINK-FR", mode: "FAILURE_TO_RUN", source: "DA-BE-103", prob: "8.0E-3" },
-      { id: "be-SDR-IV-FC", type: "BE", name: "Loop isolation valve spuriously closes", be: "SDR-IV-FC", mode: "FAILURE_TO_START", source: "DA-BE-105", prob: "1.5E-3" },
+      { id: "be-SDR-IV-SO", type: "BE", name: "Loop isolation valve spuriously closes", be: "SDR-IV-SO", mode: "FAILURE_TO_START", source: "DA-BE-105", prob: "1.5E-3" },
       { id: "be-SDR-PMP-TM", type: "BE", name: "Intermediate pump in maintenance", be: "SDR-PMP-TM", mode: "TEST_MAINTENANCE", source: "DA-UA-03", prob: "3.0E-3" },
-      { id: "be-SDH-HFE", type: "BE", name: "Operator fails to start backup decay heat removal", be: "SDH-HFE", mode: "HUMAN_ERROR", source: "HR-POST-005", prob: "8.0E-4" },
+      { id: "be-SDR-HFE", type: "BE", name: "Operator fails to start backup decay heat removal", be: "SDR-HFE", mode: "HUMAN_ERROR", source: "HR-POST-005", prob: "8.0E-4" },
       { id: "tr-SDR-DC", type: "TR", name: "Loss of Class-1E DC to the pump", transfer: "SYS-1E-DC" },
     ],
   },
   "SYS-ISOL": {
     id: "ISO-TOP", type: "OR", name: "Leak detection and isolation fail",
     children: [
-      { id: "be-ISO-DET-FA", type: "BE", name: "Leak detection fails to actuate isolation", be: "ISO-DET-FA", mode: "FAILURE_TO_START", source: "DA-BE-107", prob: "2.0E-3" },
+      { id: "be-ISO-DET-FS", type: "BE", name: "Leak detection fails to actuate isolation", be: "ISO-DET-FS", mode: "FAILURE_TO_START", source: "DA-BE-107", prob: "2.0E-3" },
       { id: "ISO-VLV", type: "AND", name: "Both isolation valves fail to close", children: [
         { id: "be-ISO-VLV-A-FC", type: "BE", name: "Isolation valve A fails to close", be: "ISO-VLV-A-FC", mode: "FAILURE_TO_START", source: "DA-BE-109", prob: "2.0E-3" },
         { id: "be-ISO-VLV-B-FC", type: "BE", name: "Isolation valve B fails to close", be: "ISO-VLV-B-FC", mode: "FAILURE_TO_START", source: "DA-BE-109", prob: "2.0E-3" },
@@ -841,7 +848,7 @@ const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
   "SYS-SUPP": {
     id: "SUP-TOP", type: "OR", name: "Fire suppression fails to protect the decay-heat-removal path",
     children: [
-      { id: "be-SUP-DET-FA", type: "BE", name: "Sodium fire detection fails", be: "SUP-DET-FA", mode: "FAILURE_TO_START", source: "DA-BE-121", prob: "3.0E-3" },
+      { id: "be-SUP-DET-FS", type: "BE", name: "Sodium fire detection fails", be: "SUP-DET-FS", mode: "FAILURE_TO_START", source: "DA-BE-121", prob: "3.0E-3" },
       { id: "be-SUP-SUP-FS", type: "BE", name: "Suppression and drain system fails to actuate", be: "SUP-SUP-FS", mode: "FAILURE_TO_START", source: "DA-BE-123", prob: "5.0E-3" },
       { id: "be-SUP-HFE", type: "BE", name: "Operator fails to respond to the fire alarm", be: "SUP-HFE", mode: "HUMAN_ERROR", source: "HR-POST-027", prob: "2.0E-2" },
       { id: "tr-SUP-DC", type: "TR", name: "Loss of Class-1E DC to the suppression system", transfer: "SYS-1E-DC" },
@@ -979,10 +986,10 @@ const CCF_GROUP_SEEDS: CcfGroupSeed[] = [
   { id: "CCF-DRACS-DMP", name: "DRACS air dampers", scope: "INTRASYSTEM", system: "SYS-DRACS", components: ["DRC-DMP1", "DRC-DMP2", "DRC-DMP3"], events: ["DRC-DMP1-FO", "DRC-DMP2-FO", "DRC-DMP3-FO", "DRC-DMP-CCF"], modelType: "ALPHA_FACTOR", alpha: { alpha1: 0.98563, alpha2: 0.01, alpha3: 0.00437 }, qt: 0.003, shared: { hardwareDesign: true, maintenance: true }, defenses: ["Staggered damper surveillance", "Position verification after each test"], basis: "Identical dampers serviced by one crew on one procedure.", risk: "The damper terms dominate the DRACS air path, carried at the generic demand alpha factors.", daRef: "DA-CCF-15", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-RPS-DIV", name: "RPS trip divisions", scope: "INTRASYSTEM", system: "SYS-RPS", components: ["RPS-DV-A", "RPS-DV-B"], events: ["RPS-DVA-FS", "RPS-DVB-FS", "RPS-CCF-FS"], modelType: "BETA_FACTOR", beta: 0.06, qt: 0.0015, shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Divisional separation", "Trip channels tested on separate schedules"], basis: "Two divisions of identical design and manufacture.", risk: "Risk significant, the divisional term sits directly under the failure-to-scram top gate.", daRef: "DA-CCF-04", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-DC-BATT", name: "Class-1E station batteries", scope: "INTERSYSTEM", system: "SYS-1E-DC", components: ["DC-BAT-A", "DC-BAT-B"], events: ["DC-BAT-A-FR", "DC-BAT-B-FR", "DC-BAT-CCF"], modelType: "BETA_FACTOR", beta: 0.05, qt: 0.006, shared: { manufacturer: true, environment: true, maintenance: true }, defenses: ["Staggered equalize charging", "Train-dedicated chargers"], basis: "Two batteries of one make sharing one room and one maintenance schedule.", risk: "Risk significant, the battery term propagates through every DC-fed protective system.", daRef: "DA-CCF-08", affects: ["SYS-RPS", "SYS-ACT", "SYS-CONF"], srs: ["SY-B2", "SY-B3", "SY-B4"] },
-  { id: "CCF-RPS-ROD", name: "Rod-release mechanisms", scope: "INTRASYSTEM", system: "SYS-RPS", components: ["RPS-ROD-A", "RPS-ROD-B"], events: ["RPS-RODA-FR", "RPS-RODB-FR", "RPS-ROD-CCF"], modelType: "BETA_FACTOR", beta: 0.05, qt: 0.0008, shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Gravity-driven insertion with no motive power", "Periodic rod-drop timing tests"], basis: "Identical release mechanisms on both divisions.", risk: "Carried at the generic screening beta, the release path is the last mechanical link in the trip chain.", daRef: "DA-CCF-05", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
+  { id: "CCF-RPS-ROD", name: "Rod-release mechanisms", scope: "INTRASYSTEM", system: "SYS-RPS", components: ["RPS-ROD-A", "RPS-ROD-B"], events: ["RPS-RODA-FRL", "RPS-RODB-FRL", "RPS-ROD-CCF"], modelType: "BETA_FACTOR", beta: 0.05, qt: 0.0008, shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Gravity-driven insertion with no motive power", "Periodic rod-drop timing tests"], basis: "Identical release mechanisms on both divisions.", risk: "Carried at the generic screening beta, the release path is the last mechanical link in the trip chain.", daRef: "DA-CCF-05", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-CIS-DMP", name: "Confinement isolation dampers", scope: "INTRASYSTEM", system: "SYS-CONF", components: ["CIS-DMP-A", "CIS-DMP-B"], events: ["CIS-DMP-A-FC", "CIS-DMP-B-FC", "CIS-DMP-CCF"], modelType: "BETA_FACTOR", beta: 0.08, qt: 0.0025, shared: { hardwareDesign: true, maintenance: true }, defenses: ["Series arrangement, either damper closes the line", "Closure verification after each test"], basis: "Two series dampers of one make on one test procedure.", risk: "The series pair defeats isolation only through the common term, so the group carries the path.", daRef: "DA-CCF-16", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-HVAC-CHL", name: "Safety chillers", scope: "INTRASYSTEM", system: "SYS-HVAC", components: ["HVC-CH-A", "HVC-CH-B"], events: ["HVC-CHA-FR", "HVC-CHB-FR", "HVC-CCF-FR"], modelType: "BETA_FACTOR", beta: 0.05, qt: 0.009, shared: { hardwareDesign: true, environment: true }, defenses: ["Alternating lead and lag rotation", "Independent refrigerant circuits"], basis: "Identical chillers in one room on one cooling-water header.", risk: "Room heat-up is slow, the group matters through the long I&C mission time.", daRef: "DA-CCF-18", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
-  { id: "CCF-PCS-FLOW", name: "Primary loop flow paths", scope: "INTRASYSTEM", system: "SYS-PRIMARY", components: ["PCS-L1", "PCS-L2"], events: ["PCS-L1-BLK", "PCS-L2-BLK", "PCS-FLOW-CCF"], modelType: "BETA_FACTOR", beta: 0.2, qt: 0.0004, shared: { environment: true }, defenses: ["Pool cleanliness program", "Inlet screens on both loop suctions"], basis: "Both loop paths share the pool and the same debris sources.", risk: "The elevated beta reflects the single shared debris source in the common pool.", daRef: "DA-CCF-20", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
+  { id: "CCF-PCS-FLOW", name: "Primary loop flow paths", scope: "INTRASYSTEM", system: "SYS-PRIMARY", components: ["PCS-L1", "PCS-L2"], events: ["PCS-L1-PLG", "PCS-L2-PLG", "PCS-FLOW-CCF"], modelType: "BETA_FACTOR", beta: 0.2, qt: 0.0004, shared: { environment: true }, defenses: ["Pool cleanliness program", "Inlet screens on both loop suctions"], basis: "Both loop paths share the pool and the same debris sources.", risk: "The elevated beta reflects the single shared debris source in the common pool.", daRef: "DA-CCF-20", affects: [], srs: ["SY-B1", "SY-B3", "SY-B4"] },
   { id: "CCF-ACT-SEN", name: "Sensor input modules", scope: "INTERSYSTEM", system: "SYS-ACT", components: ["ACT-SEN-A", "ACT-SEN-B", "ACT-SEN-C", "ACT-SEN-D"], events: ["ACT-SEN1-FS", "ACT-SEN2-FS", "ACT-SEN3-FS", "ACT-SEN4-FS"], modelType: "ALPHA_FACTOR", alpha: { alpha1: 0.98059, alpha2: 0.00968, alpha3: 0.0062, alpha4: 0.00353 }, qt: 0.002, shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Channel-dedicated calibration", "Input comparison alarms between channels"], basis: "Identical input modules feeding every channel.", risk: "The sensor input events carry the module contribution through their three-of-four voting gate.", daRef: "DA-CCF-22", affects: ["SYS-RPS", "SYS-CONF"], srs: ["SY-B2", "SY-B3", "SY-B4"] },
   { id: "CCF-ACT-OUT", name: "Output actuation modules", scope: "INTERSYSTEM", system: "SYS-ACT", components: ["ACT-OUT-A", "ACT-OUT-B", "ACT-OUT-C", "ACT-OUT-D"], events: ["ACT-OUT1-FS", "ACT-OUT2-FS", "ACT-OUT3-FS", "ACT-OUT4-FS"], modelType: "ALPHA_FACTOR", alpha: { alpha1: 0.98566, alpha2: 0.00852, alpha3: 0.0041, alpha4: 0.00172 }, qt: 0.0015, shared: { hardwareDesign: true, manufacturer: true }, defenses: ["Channel-dedicated output relays", "Actuation surveillance each operating cycle"], basis: "Identical output modules driving the trip and isolation loads.", risk: "The output actuation events carry the module contribution through their three-of-four voting gate.", daRef: "DA-CCF-23", affects: ["SYS-RPS", "SYS-CONF"], srs: ["SY-B2", "SY-B3", "SY-B4"] },
   { id: "CCF-ACT-SW", name: "Actuation logic software", scope: "INTERSYSTEM", system: "SYS-ACT", components: ["ACT-CPU-A", "ACT-CPU-B", "ACT-CPU-C", "ACT-CPU-D"], events: ["ACT-SW1-FS", "ACT-SW2-FS", "ACT-SW3-FS", "ACT-SW4-FS"], modelType: "ALPHA_FACTOR", alpha: { alpha1: 0, alpha2: 0, alpha3: 0, alpha4: 1 }, qt: 0.0001, shared: { hardwareDesign: true, otherFactors: ["Common software image"] }, defenses: ["Formal software verification and validation", "Hardwired diverse trip path outside the image"], basis: "One software image runs the trip and isolation voting logic.", risk: "An alpha factor of one on the four-channel term makes the software contribution fully dependent across all four channel events.", daRef: "DA-CCF-21", affects: ["SYS-RPS", "SYS-CONF"], srs: ["SY-B2", "SY-B11"] },
@@ -1018,7 +1025,7 @@ const humanFailureEventIntegrations = [
   { id: "HFI-CIS-HFE-STBY", event: "CIS-HFE-STBY", system: "SYS-CONF", ref: "HR-POST-022", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to start the standby clean-up train", impact: "No clean-up flow after the running train stops.", srs: ["SY-A23"] },
   { id: "HFI-DC-HFE-CHG", event: "DC-HFE-CHG", system: "SYS-1E-DC", ref: "HR-PRE-009", type: "PRE_INITIATOR" as const, tm: true, task: "Charger left in the wrong mode after maintenance", impact: "Charger A left in the wrong mode, so bank A discharges instead of floating.", srs: ["SY-A21"] },
   { id: "HFI-DC-HFE-BNK", event: "DC-HFE-BNK", system: "SYS-1E-DC", ref: "HR-PRE-041", type: "PRE_INITIATOR" as const, tm: true, task: "Both battery banks held off float after equalization", impact: "Both banks stay off float after the joint equalization, so neither can carry its bus on a charger loss.", srs: ["SY-A21"] },
-  { id: "HFI-SDH-HFE", event: "SDH-HFE", system: "SYS-SDHR", ref: "HR-POST-005", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to start backup decay heat removal", impact: "Backup decay heat removal stays off when the intermediate loop is lost.", srs: ["SY-A23"] },
+  { id: "HFI-SDR-HFE", event: "SDR-HFE", system: "SYS-SDHR", ref: "HR-POST-005", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to start backup decay heat removal", impact: "Backup decay heat removal stays off when the intermediate loop is lost.", srs: ["SY-A23"] },
   { id: "HFI-ISO-HFE", event: "ISO-HFE", system: "SYS-ISOL", ref: "HR-POST-025", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to isolate the leak path", impact: "The leak path stays open, so the pool level keeps falling.", srs: ["SY-A23"] },
   { id: "HFI-MKU-HFE", event: "MKU-HFE", system: "SYS-MAKEUP", ref: "HR-POST-026", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to initiate make-up", impact: "No make-up flow, so the pool level keeps falling.", srs: ["SY-A23"] },
   { id: "HFI-SUP-HFE", event: "SUP-HFE", system: "SYS-SUPP", ref: "HR-POST-027", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to respond to the fire alarm", impact: "The fire grows past the cell before the operators respond.", srs: ["SY-A23"] },
@@ -1155,7 +1162,12 @@ const systemConfirmationRecords = [
   { id: "CR-5", system: "SYS-CONF", method: "DESIGN_REVIEW" as const, date: "2026-05-03", roles: ["Mechanical engineer", "Systems analyst"], findings: "Series damper arrangement and the standby clean-up train confirmed against the design package." },
   { id: "CR-6", system: "SYS-HVAC", method: "DESIGN_REVIEW" as const, date: "2026-05-04", roles: ["HVAC engineer", "Systems analyst"], findings: "Lead and lag rotation confirmed, the DC room heat-up window recorded for the logic loop." },
   { id: "CR-7", system: "SYS-PRIMARY", method: "DISCUSSIONS" as const, date: "2026-05-04", roles: ["Thermal-hydraulics analyst", "Systems lead"], findings: "Natural-circulation path and check-valve arrangement confirmed against the coastdown analysis." },
-  { id: "CR-8", system: "SYS-GUARD", method: "DESIGN_REVIEW" as const, date: "2026-05-05", roles: ["Structural engineer", "Systems lead"], findings: "Guard-vessel retention confirmed, the bounding leak case documented." },
+  { id: "CR-8", system: "SYS-GUARD", method: "DESIGN_REVIEW" as const, date: "2026-05-04", roles: ["Structural engineer", "Systems lead"], findings: "Guard-vessel retention confirmed, the bounding leak case documented." },
+  { id: "CR-9", system: "SYS-SDHR", method: "DESIGN_REVIEW" as const, date: "2026-05-02", roles: ["Mechanical engineer", "Systems analyst"], findings: "Intermediate pump, loop isolation valve and steam-side heat sink confirmed against the design package, the steam side carried as one train." },
+  { id: "CR-10", system: "SYS-ISOL", method: "DESIGN_REVIEW" as const, date: "2026-05-03", roles: ["Mechanical engineer", "I&C engineer"], findings: "Guard-vessel gap leak detectors and the two isolation valves confirmed against the design package." },
+  { id: "CR-11", system: "SYS-MAKEUP", method: "DISCUSSIONS" as const, date: "2026-05-03", roles: ["Mechanical engineer", "Systems analyst"], findings: "Make-up pump, fill valve and heated tank confirmed with the designers, the operator start cued by the level alarm." },
+  { id: "CR-12", system: "SYS-DETECT", method: "DISCUSSIONS" as const, date: "2026-05-04", roles: ["I&C engineer", "Systems analyst"], findings: "Two induction level channels and the control room alarm confirmed with the instrumentation designers." },
+  { id: "CR-13", system: "SYS-SUPP", method: "DESIGN_REVIEW" as const, date: "2026-05-04", roles: ["Fire protection engineer", "Systems analyst"], findings: "Catch pans, drains and inert gas flooding confirmed against the fire protection design, with detection on Class 1E DC." },
 ].map((c) => ({
   uuid: c.id,
   systemReference: c.system,
@@ -1165,6 +1177,93 @@ const systemConfirmationRecords = [
   findings: c.findings,
   implementsSrs: srs("SY-A6"),
 }));
+
+const modelValidations = [
+  { uuid: "LOD-DRACS", name: "Level of detail", systemReference: "SYS-DRACS", description: "Three loops, each with its loop, air damper and air path, with loop surveillance, the loop and damper common cause and the channel and damper errors. Class 1E DC enters by transfer.", techniques: ["Compared with the DRACS design description", "Checked the two-of-three full-power criterion against the model logic"], results: "Loop-level detail matches the sodium test facility data and carries the variable success criteria.", implementsSrs: srs("SY-A9", "SY-A11") },
+  { uuid: "LOD-RPS", name: "Level of detail", systemReference: "SYS-RPS", description: "Each division modeled as its trip logic, scram breaker and rod latch, with the division and rod common cause and the setpoint miscalibration. Actuation logic and Class 1E DC enter by transfer.", techniques: ["Compared with the protection system design description", "Checked each division event against its DA boundary"], results: "Division-level detail surfaces the contributors that matter, the division and rod common cause and the miscalibration.", implementsSrs: srs("SY-A9", "SY-A11") },
+  { uuid: "LOD-ACT", name: "Level of detail", systemReference: "SYS-ACT", description: "Four voting channels, each with its sensor input, output module and software, voted two of four, with common cause for each module type and for the software.", techniques: ["Compared with the digital I&C design description", "Applied the digital I&C method at CC-II"], results: "Module-level detail meets the CC-II software requirement, with the software boundary flagged under SY-A13.", implementsSrs: srs("SY-A9", "SY-A11") },
+  { uuid: "LOD-1E-DC", name: "Level of detail", systemReference: "SYS-1E-DC", description: "Two battery trains, each with its battery and charger, with the battery common cause, the equalizing outages and the charger and float errors.", techniques: ["Compared with the electrical power design information", "Checked the charger and battery boundaries against DA"], results: "Train-level detail matches the data except at the charger-to-battery interface.", issuesIdentified: ["Charger-to-battery boundary still under reconciliation with DA (DA-A2)"], implementsSrs: srs("SY-A9", "SY-A11") },
+  { uuid: "LOD-CONF", name: "Level of detail", systemReference: "SYS-CONF", description: "Two isolation dampers, the running and standby clean-up fans and the inlet valve, with the damper common cause, the joint filter change and the operator start. Actuation and Class 1E DC enter by transfer.", techniques: ["Compared with the confinement design information", "Checked the joint outage against the DA coincident maintenance record"], results: "Damper, fan and valve detail matches the data.", implementsSrs: srs("SY-A9", "SY-A11") },
+  { uuid: "LOD-HVAC", name: "Level of detail", systemReference: "SYS-HVAC", description: "Two cooling trains, each with its chiller and air handler, with the train common cause and the temperature channel that starts the standby train. Class 1E DC enters by transfer.", techniques: ["Compared with the room cooling design information"], results: "Component-level detail matches the data.", implementsSrs: srs("SY-A9", "SY-A11") },
+  { uuid: "LOD-PRIMARY", name: "Level of detail", systemReference: "SYS-PRIMARY", description: "Two loop flow paths and check valves and the thermal center, with the flow common cause and the pump trip miscalibration.", techniques: ["Compared with the coastdown and natural-circulation analysis"], results: "Loop-level detail matches the natural-circulation analysis.", implementsSrs: srs("SY-A9", "SY-A11") },
+  { uuid: "LOD-GUARD", name: "Level of detail", systemReference: "SYS-GUARD", description: "A system-level model from the structural analysis. The guard vessel is a passive barrier with no active parts.", techniques: ["Compared with the structural analysis of the bounding leak"], results: "A system-level model is enough because failure is set by the structural retention itself.", implementsSrs: srs("SY-A9", "SY-A11") },
+  { uuid: "LOD-SDHR", name: "Level of detail", systemReference: "SYS-SDHR", description: "The intermediate pump, the steam-side heat sink and the loop isolation valve, with pump maintenance and the operator start. Class 1E DC enters by transfer.", techniques: ["Compared with the intermediate loop design information"], results: "Component-level detail on the sodium side. The steam side stays one event because it is a backup path, with its boundary flagged under SY-A13.", implementsSrs: srs("SY-A9", "SY-A11") },
+  { uuid: "LOD-ISOL", name: "Level of detail", systemReference: "SYS-ISOL", description: "The leak detection channel and two isolation valves, with the valve common cause and the operator isolation. Class 1E DC and the level alarm enter by transfer.", techniques: ["Compared with the leak detection and isolation design information"], results: "Valve-level detail matches the data, with the leak detectors flagged under SY-A13.", implementsSrs: srs("SY-A9", "SY-A11") },
+  { uuid: "LOD-MAKEUP", name: "Level of detail", systemReference: "SYS-MAKEUP", description: "The make-up pump, fill valve and tank, with the operator start. Class 1E DC and the level alarm enter by transfer.", techniques: ["Compared with the make-up design information"], results: "Component-level detail matches the data, with the pump boundary flagged under SY-A13.", implementsSrs: srs("SY-A9", "SY-A11") },
+  { uuid: "LOD-DETECT", name: "Level of detail", systemReference: "SYS-DETECT", description: "Two level channels and the alarm, with the channel common cause. Class 1E DC enters by transfer.", techniques: ["Compared with the level instrumentation design information"], results: "Channel-level detail matches the design, with the probe boundary flagged under SY-A13.", implementsSrs: srs("SY-A9", "SY-A11") },
+  { uuid: "LOD-SUPP", name: "Level of detail", systemReference: "SYS-SUPP", description: "The fire detection and the suppression and drain, with the operator response. Class 1E DC enters by transfer.", techniques: ["Compared with the fire protection design"], results: "Function-level detail is enough for a single-train system, with both boundaries flagged under SY-A13.", implementsSrs: srs("SY-A9", "SY-A11") },
+];
+
+const componentBoundaryReviews = [
+  { uuid: "CBR-DRACS-CB-1", systemReference: "SYS-DRACS", componentBoundaryRef: "CB-1", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-DRACS-CB-2", systemReference: "SYS-DRACS", componentBoundaryRef: "CB-2", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-DRACS-CB-8", systemReference: "SYS-DRACS", componentBoundaryRef: "CB-8", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-RPS-CB-5", systemReference: "SYS-RPS", componentBoundaryRef: "CB-5", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-RPS-CB-6", systemReference: "SYS-RPS", componentBoundaryRef: "CB-6", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-RPS-CB-7", systemReference: "SYS-RPS", componentBoundaryRef: "CB-7", status: "NOT_VERIFIED" as const, note: "The rod data come from pressurized-water reactor rods. The latch release is outside that population, so the boundary cannot be checked until design-specific data exist.", implementsSrs: srs("SY-A12", "SY-A13") },
+  { uuid: "CBR-ACT-CB-18", systemReference: "SYS-ACT", componentBoundaryRef: "CB-18", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-ACT-CB-19", systemReference: "SYS-ACT", componentBoundaryRef: "CB-19", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-ACT-CB-20", systemReference: "SYS-ACT", componentBoundaryRef: "CB-20", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-ACT-CB-21", systemReference: "SYS-ACT", componentBoundaryRef: "CB-21", status: "NOT_VERIFIED" as const, note: "Software has no industry data boundary. The estimate follows the digital I&C method, so the fit is flagged until platform data are in hand.", implementsSrs: srs("SY-A12", "SY-A13") },
+  { uuid: "CBR-1E-DC-CB-3", systemReference: "SYS-1E-DC", componentBoundaryRef: "CB-3", status: "OPEN" as const, note: "The charger event covers a charger fault that the output breaker fails to isolate from the bank. DA still has the charger-to-battery interface under reconciliation (DA-A2), so the boundary stays open until both sides agree.", implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-1E-DC-CB-4", systemReference: "SYS-1E-DC", componentBoundaryRef: "CB-4", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-CONF-CB-15", systemReference: "SYS-CONF", componentBoundaryRef: "CB-15", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-CONF-CB-16", systemReference: "SYS-CONF", componentBoundaryRef: "CB-16", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-CONF-CB-17", systemReference: "SYS-CONF", componentBoundaryRef: "CB-17", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-HVAC-CB-12", systemReference: "SYS-HVAC", componentBoundaryRef: "CB-12", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-HVAC-CB-13", systemReference: "SYS-HVAC", componentBoundaryRef: "CB-13", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-HVAC-CB-14", systemReference: "SYS-HVAC", componentBoundaryRef: "CB-14", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-PRIMARY-CB-9", systemReference: "SYS-PRIMARY", componentBoundaryRef: "CB-9", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-PRIMARY-CB-10", systemReference: "SYS-PRIMARY", componentBoundaryRef: "CB-10", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-PRIMARY-CB-11", systemReference: "SYS-PRIMARY", componentBoundaryRef: "CB-11", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-SDHR-CB-22", systemReference: "SYS-SDHR", componentBoundaryRef: "CB-22", status: "NOT_VERIFIED" as const, note: "The pump data come from water service. The sodium pump cooling and seals are outside that population, so the fit is flagged until vendor data are in hand.", implementsSrs: srs("SY-A12", "SY-A13") },
+  { uuid: "CBR-SDHR-CB-23", systemReference: "SYS-SDHR", componentBoundaryRef: "CB-23", status: "NOT_VERIFIED" as const, note: "No industry boundary covers a whole steam-side train. Flagged until the train is split into components or plant data exist.", implementsSrs: srs("SY-A12", "SY-A13") },
+  { uuid: "CBR-SDHR-CB-24", systemReference: "SYS-SDHR", componentBoundaryRef: "CB-24", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-ISOL-CB-25", systemReference: "SYS-ISOL", componentBoundaryRef: "CB-25", status: "NOT_VERIFIED" as const, note: "Sodium leak detectors have no industry data boundary. Flagged until vendor data are in hand.", implementsSrs: srs("SY-A12", "SY-A13") },
+  { uuid: "CBR-ISOL-CB-26", systemReference: "SYS-ISOL", componentBoundaryRef: "CB-26", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-MAKEUP-CB-27", systemReference: "SYS-MAKEUP", componentBoundaryRef: "CB-27", status: "NOT_VERIFIED" as const, note: "The pump data come from water service. The sodium pump cooling and seals are outside that population, so the fit is flagged until vendor data are in hand.", implementsSrs: srs("SY-A12", "SY-A13") },
+  { uuid: "CBR-MAKEUP-CB-28", systemReference: "SYS-MAKEUP", componentBoundaryRef: "CB-28", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-MAKEUP-CB-29", systemReference: "SYS-MAKEUP", componentBoundaryRef: "CB-29", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-DETECT-CB-30", systemReference: "SYS-DETECT", componentBoundaryRef: "CB-30", status: "NOT_VERIFIED" as const, note: "Induction level probes in sodium are outside the industry sensor records. Flagged until vendor data are in hand.", implementsSrs: srs("SY-A12", "SY-A13") },
+  { uuid: "CBR-DETECT-CB-31", systemReference: "SYS-DETECT", componentBoundaryRef: "CB-31", status: "MATCHES" as const, implementsSrs: srs("SY-A12") },
+  { uuid: "CBR-SUPP-CB-32", systemReference: "SYS-SUPP", componentBoundaryRef: "CB-32", status: "NOT_VERIFIED" as const, note: "Sodium fire detectors have no industry data boundary. Flagged until vendor data are in hand.", implementsSrs: srs("SY-A12", "SY-A13") },
+  { uuid: "CBR-SUPP-CB-33", systemReference: "SYS-SUPP", componentBoundaryRef: "CB-33", status: "NOT_VERIFIED" as const, note: "No industry component matches a sodium fire suppression system. Flagged until test data for the catch pans and flooding are in hand.", implementsSrs: srs("SY-A12", "SY-A13") },
+];
+
+const modularizationRecords = [
+  { uuid: "MOD-RPS-DIV", moduleId: "Protection division channel", systemReference: "SYS-RPS", representedComponentIds: ["Trip logic channel", "Channel power supply"], basicEventIds: ["RPS-DVA-FS", "RPS-DVB-FS"], avoidsMixedRecoveryPotential: true, avoidsEventsRequiredByOtherSystems: true, justification: "Neither part of a division can be recovered once the trip demand passes, and no other system draws on the division logic. The breakers and rods stay apart because they fail in different ways.", implementsSrs: srs("SY-A14") },
+  { uuid: "MOD-DRC-LOOP", moduleId: "DRACS natural-circulation loop", systemReference: "SYS-DRACS", representedComponentIds: ["Loop piping and sodium-to-air heat exchanger", "Loop inlet and outlet welds", "Damper interface flange"], basicEventIds: ["DRC-LP1-FR", "DRC-LP2-FR", "DRC-LP3-FR"], avoidsMixedRecoveryPotential: true, avoidsEventsRequiredByOtherSystems: true, justification: "A loop cannot be recovered once natural circulation fails, and no other system uses the loops. The air dampers and air paths stay apart because they fail in different ways and carry their own data.", implementsSrs: srs("SY-A14") },
+  { uuid: "MOD-SDR-SINK", moduleId: "Steam-side heat sink", systemReference: "SYS-SDHR", representedComponentIds: ["Steam generator", "Feedwater supply", "Steam dump to the condenser"], basicEventIds: ["SDR-SINK-FR"], avoidsMixedRecoveryPotential: true, avoidsEventsRequiredByOtherSystems: true, justification: "The steam side is restored as one train, and no other modeled system draws on it. The intermediate pump and the isolation valve stay apart because the sodium side has its own data.", implementsSrs: srs("SY-A14") },
+  { uuid: "MOD-SUP-DRAIN", moduleId: "Sodium fire suppression and drain", systemReference: "SYS-SUPP", representedComponentIds: ["Catch pans and drain lines", "Inert gas flooding valves", "Actuation circuit"], basicEventIds: ["SUP-SUP-FS"], avoidsMixedRecoveryPotential: true, avoidsEventsRequiredByOtherSystems: true, justification: "The suppression acts once and cannot be recovered after the fire spreads, and no other system uses it.", implementsSrs: srs("SY-A14") },
+];
+
+const nomenclatureDesignators = [
+  { uuid: "NOM-SYS-RPS", designator: "RPS", kind: "SYSTEM" as const, meaning: "Reactor protection system", systemReference: "SYS-RPS" },
+  { uuid: "NOM-SYS-DRC", designator: "DRC", kind: "SYSTEM" as const, meaning: "Direct reactor auxiliary cooling system", systemReference: "SYS-DRACS" },
+  { uuid: "NOM-SYS-PCS", designator: "PCS", kind: "SYSTEM" as const, meaning: "Primary loop natural circulation", systemReference: "SYS-PRIMARY" },
+  { uuid: "NOM-SYS-CIS", designator: "CIS", kind: "SYSTEM" as const, meaning: "Confinement isolation and clean-up", systemReference: "SYS-CONF" },
+  { uuid: "NOM-SYS-GV", designator: "GV", kind: "SYSTEM" as const, meaning: "Guard vessel", systemReference: "SYS-GUARD" },
+  { uuid: "NOM-SYS-DC", designator: "DC", kind: "SYSTEM" as const, meaning: "Class 1E DC power", systemReference: "SYS-1E-DC" },
+  { uuid: "NOM-SYS-ACT", designator: "ACT", kind: "SYSTEM" as const, meaning: "Reactor trip and actuation logic", systemReference: "SYS-ACT" },
+  { uuid: "NOM-SYS-HVC", designator: "HVC", kind: "SYSTEM" as const, meaning: "Safety I&C room cooling", systemReference: "SYS-HVAC" },
+  { uuid: "NOM-SYS-SDR", designator: "SDR", kind: "SYSTEM" as const, meaning: "Intermediate-loop shutdown heat removal", systemReference: "SYS-SDHR" },
+  { uuid: "NOM-SYS-ISO", designator: "ISO", kind: "SYSTEM" as const, meaning: "Leak detection and isolation", systemReference: "SYS-ISOL" },
+  { uuid: "NOM-SYS-MKU", designator: "MKU", kind: "SYSTEM" as const, meaning: "Sodium make-up", systemReference: "SYS-MAKEUP" },
+  { uuid: "NOM-SYS-DET", designator: "DET", kind: "SYSTEM" as const, meaning: "Sodium level detection", systemReference: "SYS-DETECT" },
+  { uuid: "NOM-SYS-SUP", designator: "SUP", kind: "SYSTEM" as const, meaning: "Sodium fire detection and suppression", systemReference: "SYS-SUPP" },
+  { uuid: "NOM-FM-FS", designator: "FS", kind: "FAILURE_MODE" as const, meaning: "Fails on demand to start, trip or operate", failureModeRefs: ["FM-FTS", "FM-FTT", "FM-FTOP"] },
+  { uuid: "NOM-FM-FR", designator: "FR", kind: "FAILURE_MODE" as const, meaning: "Fails to run", failureModeRefs: ["FM-FTR"] },
+  { uuid: "NOM-FM-FO", designator: "FO", kind: "FAILURE_MODE" as const, meaning: "Fails to open", failureModeRefs: ["FM-FTO"] },
+  { uuid: "NOM-FM-FC", designator: "FC", kind: "FAILURE_MODE" as const, meaning: "Fails to close", failureModeRefs: ["FM-FTC"] },
+  { uuid: "NOM-FM-FRL", designator: "FRL", kind: "FAILURE_MODE" as const, meaning: "Fails to release", failureModeRefs: ["FM-FTRL"] },
+  { uuid: "NOM-FM-SO", designator: "SO", kind: "FAILURE_MODE" as const, meaning: "Spurious operation", failureModeRefs: ["FM-SO"] },
+  { uuid: "NOM-FM-PLG", designator: "PLG", kind: "FAILURE_MODE" as const, meaning: "Plugged, blocked or fouled", failureModeRefs: ["FM-PLG"] },
+  { uuid: "NOM-FM-UN", designator: "UN", kind: "FAILURE_MODE" as const, meaning: "Unavailable", failureModeRefs: ["FM-UNAV"] },
+  { uuid: "NOM-FM-FLT", designator: "FLT", kind: "FAILURE_MODE" as const, meaning: "Faults in operation", failureModeRefs: ["FM-FLT"] },
+  { uuid: "NOM-EV-HFE", designator: "HFE", kind: "EVENT_TYPE" as const, meaning: "Human failure event", eventType: "HUMAN_ERROR" as const },
+  { uuid: "NOM-EV-TM", designator: "TM", kind: "EVENT_TYPE" as const, meaning: "Out of service for test or maintenance", eventType: "TEST_MAINTENANCE" as const },
+  { uuid: "NOM-EV-CCF", designator: "CCF", kind: "EVENT_TYPE" as const, meaning: "Common cause failure", eventType: "COMMON_CAUSE_FAILURE" as const },
+];
 
 const overCapacityConsiderations = [
   { id: "OC-1", system: "SYS-DRACS", scenario: "Decay heat above the rated exchanger duty early in the sequence", treatment: "CONSERVATIVE" as const, basis: "Rated capability used at CC-I until the realistic duty is confirmed." },
@@ -1195,23 +1294,198 @@ const isolationTripConditions = [
 
 const uncertaintyAnalyses = [
   {
-    uuid: "SUA-1",
+    uuid: "SUA-RPS",
+    system: "SYS-RPS",
+    propagationMethod: "MONTE_CARLO" as const,
+    modelUncertainties: [
+      { uncertaintyId: "MU-RPS-1", description: "No credit is taken for inherent reactivity feedback on a failure to insert the rods.", impact: "Metal fuel feedback could limit power without a trip, so the model overstates the failure-to-trip consequences.", isQuantified: false, treatmentApproach: "Conservative and consistent with the SC criterion." },
+      { uncertaintyId: "MU-RPS-2", description: "Rod release uses pressurized-water reactor rod data, flagged under SY-A13.", impact: "Latched rods released by opening a holding circuit could fail more or less often than the industry drives.", isQuantified: false, treatmentApproach: "Carried through the DA distribution until design-specific data exist." },
+    ],
+    ccfUncertainties: [
+      { uncertaintyId: "CU-RPS-1", ccfGroupId: "CCF-RPS-DIV", description: "The division group uses a generic beta factor of 0.06 for the trip logic.", impact: "Divisions of one design could couple more strongly after a common maintenance error." },
+      { uncertaintyId: "CU-RPS-2", ccfGroupId: "CCF-RPS-ROD", description: "The rod release group uses a beta factor of 0.05 from pressurized-water reactor rods.", impact: "Latches of one design in one sodium environment may couple more strongly." },
+    ],
+    dependencyUncertainties: [
+      { uncertaintyId: "DU-RPS-1", supportingSystem: "SYS-ACT", description: "Both divisions take their trip signal from the shared actuation logic through one transfer.", impact: "The division redundancy does not extend to the actuation logic, so its common cause sets a floor on RPS failure." },
+    ],
+    parameterUncertainties: [],
+    implementsSrs: srs("SY-A32", "SY-B16"),
+  },
+  {
+    uuid: "SUA-DRACS",
     system: "SYS-DRACS",
     propagationMethod: "MONTE_CARLO" as const,
     modelUncertainties: [
-      { uncertaintyId: "MU-1", description: "DRACS damper common cause parameter", impact: "Sensitivity on the generic alpha factors pending DA-D8.", isQuantified: false, treatmentApproach: "Sensitivity study across the alpha-factor uncertainty band." },
-      { uncertaintyId: "MU-3", description: "Battery depletion duty", impact: "Load-shedding calculation carried as an open uncertainty.", isQuantified: false, treatmentApproach: "Bounded estimate until the calculation closes." },
+      { uncertaintyId: "MU-DRC-1", description: "Two of three loops are needed at full power, from the dynamic campaign (TF-CALC-09).", impact: "A one-of-three criterion would cut the two-of-three loop term, a small part of DRACS failure.", isQuantified: false, treatmentApproach: "Criterion from SC. The damper misalignment, DC and the channel miscalibration dominate DRACS failure." },
+      { uncertaintyId: "MU-DRC-2", description: "Loop natural circulation failures come from sodium test facility experience.", impact: "A small facility population gives a wide loop estimate.", isQuantified: false, treatmentApproach: "Carried through the DA distribution." },
     ],
-    parameterUncertainties: [
-      { parameterId: "DRC-LP1-FR", distributionType: DistributionType.BETA, distributionParameters: { alpha: 8, beta: 992 }, basis: "Loop 1 failure-probability uncertainty from the DA parameter estimate.", associatedComponent: "DRACS loop 1" },
+    ccfUncertainties: [
+      { uncertaintyId: "CU-DRC-1", ccfGroupId: "CCF-DRACS-LOOP", description: "Loop alpha factors are the generic rate means for three-member groups.", impact: "Coupling between the passive loops sets the two-of-three loop term." },
+      { uncertaintyId: "CU-DRC-2", ccfGroupId: "CCF-DRACS-DMP", description: "The damper grouping basis and its generic demand alpha factors are open against DA-D8 (SY-B3, B4).", impact: "Stronger damper coupling would fail two or more loops at once." },
     ],
-    implementsSrs: srs("SY-B16"),
+    dependencyUncertainties: [
+      { uncertaintyId: "DU-DRC-1", description: "Two DRACS loops share the north penetration room, and the fault tree update is open (SY-B8).", impact: "A room hazard could fail two loops together and defeat the two-of-three criterion." },
+      { uncertaintyId: "DU-DRC-2", supportingSystem: "SYS-1E-DC", description: "The dampers need Class 1E DC to open, carried as one transfer for all three loops.", impact: "Loss of DC fails every loop, so the DC failure probability adds directly to DRACS failure." },
+    ],
+    parameterUncertainties: [],
+    implementsSrs: srs("SY-A32", "SY-B16"),
+  },
+  {
+    uuid: "SUA-PRIMARY",
+    system: "SYS-PRIMARY",
+    propagationMethod: "MONTE_CARLO" as const,
+    modelUncertainties: [
+      { uncertaintyId: "MU-PCS-1", description: "Natural circulation is credited from the coastdown analysis, with the thermal-center margin as the sensitive variable.", impact: "A smaller elevation margin would slow or prevent natural circulation.", isQuantified: true, treatmentApproach: "Margin uncertainty is propagated in the passive system analysis (PST-PCS)." },
+    ],
+    ccfUncertainties: [
+      { uncertaintyId: "CU-PCS-1", ccfGroupId: "CCF-PCS-FLOW", description: "Blockage of both flow paths shares a beta factor of 0.2, set high for pool debris.", impact: "Debris in the pool couples the loops. The high beta factor bounds it, so the loop term may be overstated." },
+    ],
+    parameterUncertainties: [],
+    implementsSrs: srs("SY-A32", "SY-B16"),
+  },
+  {
+    uuid: "SUA-CONF",
+    system: "SYS-CONF",
+    propagationMethod: "MONTE_CARLO" as const,
+    modelUncertainties: [
+      { uncertaintyId: "MU-CIS-1", description: "Clean-up filtration is modeled as running or failed, with no credit for degraded efficiency.", impact: "Degraded filtration raises releases without failing the function, which the model does not capture.", isQuantified: false, treatmentApproach: "Outside the SY success criterion and left to the radiological consequence analysis." },
+    ],
+    ccfUncertainties: [
+      { uncertaintyId: "CU-CIS-1", ccfGroupId: "CCF-CIS-DMP", description: "The series isolation dampers share a generic beta factor of 0.08.", impact: "Dampers of one make tested together may couple more strongly than the generic factor." },
+    ],
+    dependencyUncertainties: [
+      { uncertaintyId: "DU-CIS-1", description: "Confinement dampers in the sodium-fire environment may operate beyond their qualification (SY-B14).", impact: "A sodium fire could fail both dampers together, which the model does not yet capture." },
+    ],
+    parameterUncertainties: [],
+    implementsSrs: srs("SY-A32", "SY-B16"),
+  },
+  {
+    uuid: "SUA-GUARD",
+    system: "SYS-GUARD",
+    propagationMethod: "MONTE_CARLO" as const,
+    modelUncertainties: [
+      { uncertaintyId: "MU-GV-1", description: "The guard vessel is modeled at the system level from the structural analysis of the bounding leak.", impact: "A leak larger than the bounding case or a weld flaw could defeat retention.", isQuantified: false, treatmentApproach: "System-level reliability from the structural analysis, not sampled in a fault tree." },
+    ],
+    parameterUncertainties: [],
+    implementsSrs: srs("SY-A32", "SY-B16"),
+  },
+  {
+    uuid: "SUA-1E-DC",
+    system: "SYS-1E-DC",
+    propagationMethod: "MONTE_CARLO" as const,
+    modelUncertainties: [
+      { uncertaintyId: "MU-DC-1", description: "Battery duty against the 24 hour mission rests on the load-shedding calculation (SY-B12).", impact: "If the batteries fall short, DC is lost late in the mission, which fails the trip logic, the dampers and the actuation.", isQuantified: true, treatmentApproach: "Tested in the battery duty sweep." },
+      { uncertaintyId: "MU-DC-2", description: "The charger boundary is still open against DA (SY-A12, DA-A2).", impact: "A charger fault that the output breaker fails to isolate could be counted twice or missed.", isQuantified: false, treatmentApproach: "Resolve with DA before the charger estimate is final." },
+    ],
+    ccfUncertainties: [
+      { uncertaintyId: "CU-DC-1", ccfGroupId: "CCF-DC-BATT", description: "The station batteries share a beta factor of 0.05 across both trains.", impact: "Batteries of one make on one equalizing practice may couple more strongly." },
+    ],
+    dependencyUncertainties: [
+      { uncertaintyId: "DU-DC-1", supportingSystem: "SYS-HVAC", description: "Battery room cooling is left out on the room heat-up calculation, which breaks the DC and HVAC loop.", impact: "If the room heats faster than calculated, battery capacity drops within the mission." },
+    ],
+    parameterUncertainties: [],
+    implementsSrs: srs("SY-A32", "SY-B16"),
+  },
+  {
+    uuid: "SUA-ACT",
+    system: "SYS-ACT",
+    propagationMethod: "MONTE_CARLO" as const,
+    modelUncertainties: [
+      { uncertaintyId: "MU-ACT-1", description: "Software failure is estimated per the digital I&C method at 1.0E-4 per demand per channel, flagged under SY-A13.", impact: "No industry data stand behind the software estimate, so its error factor of 10 may understate the spread.", isQuantified: false, treatmentApproach: "Carried through the DA distribution, with the software common cause in its own group." },
+    ],
+    ccfUncertainties: [
+      { uncertaintyId: "CU-ACT-1", ccfGroupId: "CCF-ACT-SW", description: "Software common cause is modeled as all four channels failing together, with the CC-II software model open (SY-B11).", impact: "The software group sets the floor on actuation failure." },
+      { uncertaintyId: "CU-ACT-2", ccfGroupId: "CCF-ACT-SEN", description: "Sensor input modules use the generic rate alpha factors for four-member groups.", impact: "Modules of one platform may couple more strongly than the industry pool." },
+      { uncertaintyId: "CU-ACT-3", ccfGroupId: "CCF-ACT-OUT", description: "Output modules use the generic demand alpha factors for four-member groups.", impact: "Modules of one platform may couple more strongly than the industry pool." },
+    ],
+    dependencyUncertainties: [
+      { uncertaintyId: "DU-ACT-1", supportingSystem: "SYS-HVAC", description: "The I&C cabinets need room cooling, carried as a transfer to HVAC.", impact: "If the cabinets tolerate a higher temperature than assumed, the HVAC transfer overstates actuation failure." },
+    ],
+    parameterUncertainties: [],
+    implementsSrs: srs("SY-A32", "SY-B16"),
+  },
+  {
+    uuid: "SUA-HVAC",
+    system: "SYS-HVAC",
+    propagationMethod: "MONTE_CARLO" as const,
+    modelUncertainties: [
+      { uncertaintyId: "MU-HVC-1", description: "The room heat-up time without cooling comes from the design heat load, with no credit for opening doors.", impact: "Operators could slow the heat-up, so the model overstates the effect of losing room cooling.", isQuantified: false, treatmentApproach: "Conservative." },
+    ],
+    ccfUncertainties: [
+      { uncertaintyId: "CU-HVC-1", ccfGroupId: "CCF-HVAC-CHL", description: "The chillers share a generic beta factor of 0.05.", impact: "Chillers of one make in one room may couple more strongly than the generic factor." },
+    ],
+    parameterUncertainties: [],
+    implementsSrs: srs("SY-A32", "SY-B16"),
+  },
+  {
+    uuid: "SUA-SDHR",
+    system: "SYS-SDHR",
+    propagationMethod: "MONTE_CARLO" as const,
+    modelUncertainties: [
+      { uncertaintyId: "MU-SDR-1", description: "The steam-side heat sink is one train-level event, flagged under SY-A13.", impact: "Failures inside the steam train and their support needs are not separated.", isQuantified: false, treatmentApproach: "Split the train into components when the design matures." },
+      { uncertaintyId: "MU-SDR-2", description: "The intermediate pump uses water-service pump data, flagged under SY-A13.", impact: "Sodium pump cooling and seals are outside that population.", isQuantified: false, treatmentApproach: "Carried through the DA distribution until vendor data exist." },
+    ],
+    parameterUncertainties: [],
+    implementsSrs: srs("SY-A32", "SY-B16"),
+  },
+  {
+    uuid: "SUA-ISOL",
+    system: "SYS-ISOL",
+    propagationMethod: "MONTE_CARLO" as const,
+    modelUncertainties: [
+      { uncertaintyId: "MU-ISO-1", description: "Sodium leak detectors in the guard-vessel gap have no industry data, flagged under SY-A13.", impact: "The detectors could fail more or less often than the generic estimate.", isQuantified: false, treatmentApproach: "Carried through the DA distribution until vendor data exist." },
+    ],
+    ccfUncertainties: [
+      { uncertaintyId: "CU-ISO-1", ccfGroupId: "CCF-ISOL-VLV", description: "The isolation valve pair shares a generic beta factor of 0.1.", impact: "Valves of one make on one stroke-test schedule may couple more strongly than the generic factor." },
+    ],
+    dependencyUncertainties: [
+      { uncertaintyId: "DU-ISO-1", supportingSystem: "SYS-DETECT", description: "The operator's cue to isolate comes from the level alarm in the detection system.", impact: "A detection failure removes the cue, so the operator backup is not independent." },
+    ],
+    parameterUncertainties: [],
+    implementsSrs: srs("SY-A32", "SY-B16"),
+  },
+  {
+    uuid: "SUA-MAKEUP",
+    system: "SYS-MAKEUP",
+    propagationMethod: "MONTE_CARLO" as const,
+    modelUncertainties: [
+      { uncertaintyId: "MU-MKU-1", description: "The make-up tank is modeled as available or unavailable, with the trace heaters inside its boundary.", impact: "A partly frozen tank could still deliver some sodium, so the model overstates make-up failure.", isQuantified: false, treatmentApproach: "Conservative." },
+      { uncertaintyId: "MU-MKU-2", description: "The make-up pump uses water-service pump data, flagged under SY-A13.", impact: "Sodium pump cooling and seals are outside that population.", isQuantified: false, treatmentApproach: "Carried through the DA distribution until vendor data exist." },
+    ],
+    dependencyUncertainties: [
+      { uncertaintyId: "DU-MKU-1", supportingSystem: "SYS-DETECT", description: "The operator starts make-up on the level alarm from the detection system.", impact: "A detection failure removes the cue, so the make-up action fails with it." },
+    ],
+    parameterUncertainties: [],
+    implementsSrs: srs("SY-A32", "SY-B16"),
+  },
+  {
+    uuid: "SUA-DETECT",
+    system: "SYS-DETECT",
+    propagationMethod: "MONTE_CARLO" as const,
+    modelUncertainties: [
+      { uncertaintyId: "MU-DET-1", description: "Induction level probes in sodium have no industry data, flagged under SY-A13.", impact: "The probes could fail more or less often than the generic estimate.", isQuantified: false, treatmentApproach: "Carried through the DA distribution until vendor data exist." },
+    ],
+    ccfUncertainties: [
+      { uncertaintyId: "CU-DET-1", ccfGroupId: "CCF-DET-LVL", description: "The two level channels share a beta factor of 0.1 and one calibration practice.", impact: "A shared calibration error couples the channels beyond the generic factor." },
+    ],
+    parameterUncertainties: [],
+    implementsSrs: srs("SY-A32", "SY-B16"),
+  },
+  {
+    uuid: "SUA-SUPP",
+    system: "SYS-SUPP",
+    propagationMethod: "MONTE_CARLO" as const,
+    modelUncertainties: [
+      { uncertaintyId: "MU-SUP-1", description: "Sodium fire detection and suppression have no industry data, flagged under SY-A13.", impact: "The estimates could be far from the real performance of the catch pans and the inert gas flooding.", isQuantified: false, treatmentApproach: "Carried through the DA distributions until test data exist." },
+    ],
+    parameterUncertainties: [],
+    implementsSrs: srs("SY-A32", "SY-B16"),
   },
 ];
 
 const sensitivityStudies: SensitivityStudy[] = [
-  { uuid: "SS-1", name: "DRACS loop CCF sweep", description: "DRACS loop common cause sweep across the 5th to 95th percentile of the three-loop alpha factor.", variedParameters: ["DRACS loop alpha 3"], parameterRanges: { "Alpha 3": [0.00489, 0.0124] }, results: "One of three holds with margin across the alpha-factor band." },
-  { uuid: "SS-2", name: "Battery duty sweep", description: "Battery duty against the mission time.", variedParameters: ["Battery duty hours"], parameterRanges: { "Duty hours": [4, 24] }, results: "Load shedding meets 24 h in the base case, slowest case open." },
+  { uuid: "SS-1", name: "DRACS loop coupling sweep", description: "Three-loop alpha 3 set to the 5th and 95th percentiles of the generic rate distribution (INL/EXT-21-62940 Rev. 1), with alpha 2 at its mean and alpha 1 taking the rest.", variedParameters: ["Alpha 3"], parameterRanges: { "Alpha 3": [0.00489, 0.0124] }, results: "DRACS failure moves from 1.849E-2 to 1.864E-2, against 1.856E-2 at the means, a change under half a percent. The two-of-three loop term runs from 1.25E-3 to 1.40E-3.", insights: "The damper misalignment, DC and the channel miscalibration dominate DRACS failure, so loop coupling is not a key source.", modelUncertaintyId: "CU-DRC-1", implementsSrs: srs("SY-A32") },
+  { uuid: "SS-2", name: "Battery duty sweep", description: "Battery duty against the mission time.", variedParameters: ["Duty hours"], parameterRanges: { "Duty hours": [4, 24] }, results: "Load shedding meets 24 h in the base case. The slowest case is still open under SY-B12.", insights: "The load-shedding calculation decides whether DC holds for the mission.", modelUncertaintyId: "MU-DC-1", implementsSrs: srs("SY-A32") },
 ];
 
 const preOperationalAssumptions = [
@@ -1291,6 +1565,10 @@ export const SY_ANALYSIS: SystemsAnalysis = SystemsAnalysisSchema.parse({
   systemLogicModels,
   systemBasicEvents,
   systemConfirmationRecords,
+  modelValidations,
+  componentBoundaryReviews,
+  modularizationRecords,
+  nomenclatureDesignators,
   plantRepresentationAccuracy: {
     scope: "PRE_OPERATIONAL",
     accuracy: ImportanceLevel.MEDIUM,
@@ -1342,13 +1620,20 @@ export const SY_ANALYSIS: SystemsAnalysis = SystemsAnalysisSchema.parse({
     uuid: "sy-mu-1",
     name: "SY model uncertainty documentation",
     uncertaintySources: [
-      { source: "DRACS damper common cause parameter", impact: "Sensitivity on the generic alpha factors pending DA-D8." },
-      { source: "Actuation software failure mode", impact: "Bounded estimate carried until the CC-II software model is set." },
-      { source: "Battery depletion duty", impact: "Load-shedding calculation carried as an open uncertainty." },
-      { source: "Supercomponent boundary for the trip cabinet", impact: "Boundary checked against the data, flagged for the as-built." },
+      { source: "Industry component data from light-water reactors applied to sodium-service pumps, valves and instruments", impact: "These estimates may not reflect sodium service, which shifts the heat removal, isolation, make-up and detection results.", applicableElements: ["SYS-SDHR", "SYS-ISOL", "SYS-MAKEUP", "SYS-DETECT", "SYS-SUPP", "SYS-PRIMARY"] },
+      { source: "Generic common cause factors from light-water reactor experience", impact: "Coupling in sodium-service and passive groups may differ, which shifts every redundant system.", applicableElements: ["SYS-RPS", "SYS-DRACS", "SYS-PRIMARY", "SYS-CONF", "SYS-1E-DC", "SYS-ACT", "SYS-HVAC", "SYS-ISOL", "SYS-DETECT"] },
+      { source: "Design information in place of the as-built plant", impact: "Models, boundaries and support needs may change at the as-built confirmation (SY-A6).", applicableElements: ["SYS-RPS", "SYS-DRACS", "SYS-PRIMARY", "SYS-CONF", "SYS-GUARD", "SYS-1E-DC", "SYS-ACT", "SYS-HVAC", "SYS-SDHR", "SYS-ISOL", "SYS-MAKEUP", "SYS-DETECT", "SYS-SUPP"] },
     ],
-    relatedAssumptions: [],
-    reasonableAlternatives: [],
+    relatedAssumptions: [
+      { assumption: "No repair of failed equipment is credited within the mission time (SY-A31).", basis: "No plant repair data exist before operation.", applicableElements: ["SYS-RPS", "SYS-DRACS", "SYS-PRIMARY", "SYS-CONF", "SYS-GUARD", "SYS-1E-DC", "SYS-ACT", "SYS-HVAC", "SYS-SDHR", "SYS-ISOL", "SYS-MAKEUP", "SYS-DETECT", "SYS-SUPP"] },
+      { assumption: "Each support system enters a fault tree through one transfer to its top event.", basis: "Train assignments of the support buses are not final in the design package.", applicableElements: ["SYS-RPS", "SYS-DRACS", "SYS-CONF", "SYS-ACT", "SYS-HVAC", "SYS-SDHR", "SYS-ISOL", "SYS-MAKEUP", "SYS-DETECT", "SYS-SUPP"] },
+      { assumption: "Mission times come from the SC workbook for each sequence family, with 72 hours for the guard vessel.", basis: "SC mission times per sequence family.", applicableElements: ["SYS-DRACS", "SYS-PRIMARY", "SYS-GUARD", "SYS-1E-DC", "SYS-HVAC", "SYS-SDHR"] },
+    ],
+    reasonableAlternatives: [
+      { alternative: "Technology-specific data from sodium facilities for all sodium-service components", reasonNotSelected: "The facility records cover only the DRACS loops, air paths, flow paths and thermal center, so the other sodium components use industry data.", applicableElements: ["SYS-SDHR", "SYS-ISOL", "SYS-MAKEUP", "SYS-DETECT", "SYS-SUPP"] },
+      { alternative: "Train-level transfers to the support systems", reasonNotSelected: "The bus and train assignments are not final, so system-level transfers stand until the as-built single-line diagrams exist.", applicableElements: ["SYS-RPS", "SYS-DRACS", "SYS-CONF", "SYS-ACT", "SYS-ISOL", "SYS-DETECT"] },
+    ],
+    requirementReference: "SY-A32, SY-B16, SY-C2",
   },
   preOperationalAssumptions,
   documentation: {
@@ -1363,13 +1648,13 @@ export const SY_ANALYSIS: SystemsAnalysis = SystemsAnalysisSchema.parse({
     dependencySearchAndTables: "Support-system dependencies set by engineering analysis in a dependency matrix, with a support-on-support loop resolved explicitly.",
     ccfGroupsAndModels: "Thirteen common cause groups, nine within a system and four across systems, consistent with the Data Analysis common cause model.",
     humanFailureEventsIncluded: "Pre-initiator and post-initiator human failure events placed in the system models and handed to Human Reliability.",
-    modularizationAndLogicLoops: "One support-on-support logic loop resolved by crediting the battery for the cooling restart window.",
-    nomenclatureConventions: "One designator per component failure mode across every system and train, which lets the quantifier link the trees.",
+    modularizationAndLogicLoops: "Supercomponents stand for the protection division channels, the DRACS loops, the steam-side heat sink and the fire suppression, each with one recovery potential and no use by another system. One support-on-support logic loop resolved by crediting the battery for the cooling restart window.",
+    nomenclatureConventions: "Event codes read system, component and failure mode, such as RPS-DVA-FS. Each system has one code and each failure mode one designator, so the same failure carries the same designator in every system and train and the quantifier links the trees.",
     digitalICTreatment: "Digital actuation logic modeled per the Part II Subpart 2.7 method, with software common cause modeled at CC-II.",
     passiveSystemsTreatment: "Passive functions treated with mechanistic models and direct uncertainty propagation for functional reliability.",
     evaluationResultsSummary: "Each system fault tree quantified standalone, with the full-plant quantification performed by Event Sequence Quantification.",
     informationSources: "Design descriptions, failure mode analyses, the common cause parameter dossier and the surveillance plan.",
-    modelUncertaintySources: "Model-uncertainty sources include the DRACS damper common cause parameter, the actuation software failure mode and the battery depletion duty.",
+    modelUncertaintySources: "Model uncertainty sources are recorded per system and across the plant, among them the feedback credit, the loop and damper coupling, the battery duty and the actuation software.",
     asBuiltLimitations: "Pre-operational: system models, dependencies and unavailability rest on design information pending as-built and as-operated confirmation.",
     praTaskInterfaces: "Interfaces with Event Sequence Analysis and Success Criteria for what to model, with Data Analysis for parameters, with Human Reliability for human events, and with Event Sequence Quantification which links the trees.",
     implementsSrs: srs("SY-C1"),

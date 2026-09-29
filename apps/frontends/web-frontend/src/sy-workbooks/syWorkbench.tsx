@@ -1,7 +1,4 @@
 import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
-import { ANALYSIS_RUN_CHANGED, type AnalysisRunChanged } from "../newly-developed-methods/shared/analysisRunEvents";
-import { AnalysisRunDetailsSchema, AnalysisRunProvenanceListSchema } from "interfaces-shared-types/newly-developed-methods/shared";
-import { fetchJson } from "../api/client";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -21,7 +18,12 @@ import { DependenciesScreen } from "./SyDependencies";
 import { DependencyMatrix } from "./SyDependencyMatrix";
 import { ScopeScreen } from "./SyScope";
 import { ModelsScreen } from "./SySystemModels";
-import { IntegrityScreen, UncertScreen, DraftScreen, DrawerContent, PlaceholderScreen } from "./syScreens2";
+import { DraftScreen, DrawerContent, PlaceholderScreen } from "./syScreens2";
+import { PlantUncertainty, UncertaintyScreen } from "./SyUncertaintyReview";
+import { runReadiness, type RunState } from "./syUncertainty";
+import { SYSTEMS_IN_SCOPE_ID } from "./syShared";
+import { isSystemLevelModel } from "./sySelectors";
+import { IntegrityScreen, NamingScheme } from "./SyIntegrity";
 import { InternalReviewScreen, ReviewerCommentDock } from "./syReview";
 import { useSyWorkbook, type SyWorkbookData } from "./syWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
@@ -283,8 +285,16 @@ const DIALOG_LABELS: Record<SyDrawerContext["kind"], string> = {
   act: "Actuation details",
   method: "Dependency search details",
   confirm: "Confirmation record details",
+  detail: "Level of detail review",
+  cbound: "Component boundary review",
+  module: "Supercomponent details",
+  naming: "Designator details",
+  convention: "Naming convention",
   oc: "Capacity limit details",
   unc: "Model uncertainty details",
+  uccf: "Common cause uncertainty details",
+  udep: "Dependency uncertainty details",
+  puc: "Plant-wide uncertainty details",
   assum: "Pre-operational assumption details",
   sens: "Sensitivity study details",
   be: "Basic event details",
@@ -360,46 +370,15 @@ function SyWorkbench({
   renderRoster?: () => JSX.Element | null;
   renderDocuments?: () => JSX.Element | null;
 }): JSX.Element {
-  const { editable, mutateSy, runtime } = useSyWorkbook();
+  const { editable, mutateSy, controlledParameters } = useSyWorkbook();
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
 
-  const [currentUncertaintyModelIds, setCurrentUncertaintyModelIds] = useState<ReadonlySet<string>>(() => new Set());
-  useEffect(() => {
-    const workbookId = runtime.workbookId;
-    const revision = runtime.revision;
-    if (workbookId === null || revision === null) { setCurrentUncertaintyModelIds(new Set()); return; }
-    let cancelled = false;
-    async function refresh(): Promise<void> {
-      try {
-        const base = `/api/sy-workbooks/${encodeURIComponent(workbookId!)}/analysis-runs`;
-        const found = new Set<string>();
-        let cursor: string | undefined;
-        for (let page = 0; page < 10; page++) {
-          const list = AnalysisRunProvenanceListSchema.parse(await fetchJson<unknown>(base + (cursor === undefined ? "" : `?cursor=${encodeURIComponent(cursor)}`)));
-          const candidates = list.runs.filter(({ run }) => run.methodType === "FAULT_TREE" && run.status === "SUCCEEDED"
-            && run.owner.workbookRevision === revision && run.freshness?.status === "CURRENT" && !found.has(run.owner.modelId));
-          for (const candidate of candidates) {
-            const details = AnalysisRunDetailsSchema.parse(await fetchJson<unknown>(`${base}/${candidate.run.id}/details`));
-            if (details.request["calculationType"] === "UNCERTAINTY" && details.request["uncertaintyInputSource"] === "DA") found.add(candidate.run.owner.modelId);
-          }
-          if (list.nextCursor === undefined || list.nextCursor === null) break;
-          cursor = list.nextCursor;
-        }
-        if (!cancelled) setCurrentUncertaintyModelIds(found);
-      } catch { if (!cancelled) setCurrentUncertaintyModelIds(new Set()); }
-    }
-    void refresh();
-    const changed = (event: Event): void => {
-      const detail = (event as CustomEvent<AnalysisRunChanged>).detail;
-      if (detail.host === "sy" && detail.workbookId === workbookId) void refresh();
-    };
-    window.addEventListener(ANALYSIS_RUN_CHANGED, changed);
-    return () => { cancelled = true; window.removeEventListener(ANALYSIS_RUN_CHANGED, changed); };
-  }, [runtime.workbookId, runtime.revision]);
-  const visibleSteps = useMemo(() => stepsFromMef(data.sy, persona,
-    runtime.saveStatus === "saved" ? currentUncertaintyModelIds : new Set()),
-  [data.sy, persona, currentUncertaintyModelIds, runtime.saveStatus]);
+  const uncertaintyReadiness = useMemo(() => new Map<string, RunState>(data.sy.systemLogicModels
+    .filter((model) => model.topGate !== null && !isSystemLevelModel(model))
+    .map((model) => [model.uuid, runReadiness(data.sy, model, controlledParameters).state])), [data.sy, controlledParameters]);
+  const visibleSteps = useMemo(() => stepsFromMef(data.sy, persona, uncertaintyReadiness),
+  [data.sy, persona, uncertaintyReadiness]);
   const [searchParams] = useSearchParams();
   const requestedStepId = searchParams.get("step");
   const requestedNetworkId = searchParams.get("network");
@@ -439,6 +418,12 @@ function SyWorkbench({
   function setStepId(id: string): void {
     setStepIdState(id);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "auto" });
+  }
+
+  const [systemsFocus, setSystemsFocus] = useState(() => typeof window !== "undefined" && window.location.hash === `#${SYSTEMS_IN_SCOPE_ID}`);
+  function openSystemsInScope(): void {
+    setStepId("scope");
+    setSystemsFocus(true);
   }
 
   function flash(msg: string): void {
@@ -496,22 +481,32 @@ function SyWorkbench({
       case "scope":
         return (
           <>
-            <ScopeScreen ccId={ccId} setCcId={setCcId} onAction={flash} stage={stage} setStage={setStage} openDrawer={setDrawer} />
+            <ScopeScreen ccId={ccId} setCcId={setCcId} onAction={flash} stage={stage} setStage={setStage} openDrawer={setDrawer} onOpenSystems={openSystemsInScope} systemsFocus={systemsFocus} onSystemsFocused={() => setSystemsFocus(false)} />
             {renderDocuments?.()}
           </>
         );
-      case "models": return <ModelsScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenScope={() => setStepId("scope")} />;
-      case "failures": return <FailureModesScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenScope={() => setStepId("scope")} />;
-      case "ccf": return <CommonCauseScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenScope={() => setStepId("scope")} />;
+      case "models": return <ModelsScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenSystems={openSystemsInScope} />;
+      case "failures": return <FailureModesScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenSystems={openSystemsInScope} />;
+      case "ccf": return <CommonCauseScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenSystems={openSystemsInScope} />;
       case "deps": return (
         <>
-          <DependenciesScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenScope={() => setStepId("scope")} />
+          <DependenciesScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenSystems={openSystemsInScope} />
           <DependencyMatrix openDrawer={setDrawer} />
           <SyBayesianNetworkWorkspace initialModelId={requestedNetworkId} initialEsqWorkbookId={requestedEsqWorkbookId} />
         </>
       );
-      case "integrity": return <IntegrityScreen stage={stage} openDrawer={setDrawer} />;
-      case "uncert": return <UncertScreen openDrawer={setDrawer} />;
+      case "integrity": return (
+        <>
+          <IntegrityScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenSystems={openSystemsInScope} />
+          <NamingScheme openDrawer={setDrawer} />
+        </>
+      );
+      case "uncert": return (
+        <>
+          <UncertaintyScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} onOpenSystems={openSystemsInScope} />
+          <PlantUncertainty openDrawer={setDrawer} />
+        </>
+      );
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (

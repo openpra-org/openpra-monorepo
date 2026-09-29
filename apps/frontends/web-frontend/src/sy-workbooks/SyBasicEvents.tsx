@@ -86,7 +86,7 @@ function SyBasicEvents({ logic, openDrawer }: {
           <h3>Basic events</h3>
           <div className="sy-review-actions"><SYProvenanceChip>SY-A19 · A30 · A31</SYProvenanceChip></div>
         </div>
-        {events.length === 0 ? <p className="sy-review-empty">No basic events in this fault tree yet.</p> : (
+        {events.length === 0 ? <p className="sy-review-empty">No basic events in this fault tree yet. Add them in the Fault tree tab by right-clicking a gate.</p> : (
           <table className="sy-review-table sy-review-events" aria-label="Basic events">
             <thead><tr><th scope="col">Event</th><th scope="col">Failure mode</th><th scope="col">Value</th><th scope="col">Data source</th><th scope="col" className="sy-review-edit" aria-label="Actions" /></tr></thead>
             <tbody>

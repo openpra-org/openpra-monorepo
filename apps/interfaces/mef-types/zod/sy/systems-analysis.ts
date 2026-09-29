@@ -595,6 +595,7 @@ export const ModularizationRecordSchema = z.object({
   avoidsMixedRecoveryPotential: z.boolean(),
   avoidsEventsRequiredByOtherSystems: z.boolean(),
   justification: z.string(),
+  basicEventIds: z.array(z.string()).optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -623,7 +624,18 @@ export const SystemUncertaintyAnalysisSchema = z.object({
   ccfUncertainties: z
     .array(
       z.object({
+        uncertaintyId: z.string(),
         ccfGroupId: z.string(),
+        description: z.string(),
+        impact: z.string(),
+      }),
+    )
+    .optional(),
+  dependencyUncertainties: z
+    .array(
+      z.object({
+        uncertaintyId: z.string(),
+        supportingSystem: z.string().optional(),
         description: z.string(),
         impact: z.string(),
       }),
@@ -679,6 +691,25 @@ export const ModelValidationSchema = z.object({
   issuesIdentified: z.array(z.string()).optional(),
   issueResolutions: z.array(z.string()).optional(),
   implementsSrs: z.array(SRReferenceSchema),
+});
+
+export const ComponentBoundaryReviewSchema = z.object({
+  uuid: z.string(),
+  systemReference: z.string(),
+  componentBoundaryRef: z.string(),
+  status: z.enum(["MATCHES", "ACCOUNTED", "OPEN", "NOT_VERIFIED"]),
+  note: z.string().optional(),
+  implementsSrs: z.array(SRReferenceSchema),
+});
+
+export const NomenclatureDesignatorSchema = z.object({
+  uuid: z.string(),
+  designator: z.string(),
+  kind: z.enum(["SYSTEM", "FAILURE_MODE", "EVENT_TYPE"]),
+  meaning: z.string(),
+  systemReference: z.string().optional(),
+  failureModeRefs: z.array(z.string()).optional(),
+  eventType: z.enum(["HUMAN_ERROR", "TEST_MAINTENANCE", "COMMON_CAUSE_FAILURE"]).optional(),
 });
 
 export const SystemToSafetyFunctionMappingSchema = z.object({
@@ -806,6 +837,8 @@ const CanonicalSystemsAnalysisSchema = z.object({
   depletionModels: z.array(DepletionModelSchema).optional(),
   overCapacityConsiderations: z.array(OverCapacityConsiderationSchema).optional(),
   modelValidations: z.array(ModelValidationSchema).optional(),
+  componentBoundaryReviews: z.array(ComponentBoundaryReviewSchema).optional(),
+  nomenclatureDesignators: z.array(NomenclatureDesignatorSchema).optional(),
   systemModelEvaluations: z.array(SystemModelEvaluationSchema).optional(),
   uncertaintyAnalyses: z.array(SystemUncertaintyAnalysisSchema).optional(),
   sensitivityStudies: z.array(SensitivityStudySchema).optional(),

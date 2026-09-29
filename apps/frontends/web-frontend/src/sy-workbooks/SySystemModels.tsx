@@ -21,6 +21,7 @@ import {
 import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
 import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { NoSystemsCard } from "./syShared";
 import { SyFaultTreeAnalysis, type FaultTreeRunConfiguration } from "./SyFaultTreeAnalysis";
 import { SyCapabilityRepresentation } from "./SyCapabilityRepresentation";
 import { SyPreOperationalAssumptions } from "./SyPreOperationalAssumptions";
@@ -175,11 +176,11 @@ function syFaultTreeOperation(
   };
 }
 
-function ModelsScreen({ sysId, setSysId, openDrawer, onOpenScope }: {
+function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   sysId: string;
   setSysId: (id: string) => void;
   openDrawer: (ctx: SyDrawerContext) => void;
-  onOpenScope?: () => void;
+  onOpenSystems?: () => void;
 }): JSX.Element {
   const {
     sy,
@@ -204,16 +205,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenScope }: {
   useEffect(() => setSelection(null), [sysId]);
 
   if (sysDef === undefined) {
-    return (
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="System models" level={3} />
-          <span className="possubtle">0 systems</span>
-        </div>
-        <p className="posmuted">No systems are in scope yet. Add the systems to model in Step 01, then describe and build each one here.</p>
-        {onOpenScope !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary sy-model-card__scope" onClick={onOpenScope}>Go to Scope</button>}
-      </div>
-    );
+    return <NoSystemsCard title="System models" purpose="describe and build each one here." onOpenSystems={onOpenSystems} />;
   }
 
   const system = sysDef;
@@ -333,13 +325,13 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenScope }: {
       return (
         <div className="sy-model-note">
           <p>This system uses a system-level model, so it has no fault tree. {logic?.nonDetailedModelJustification}</p>
-          {onOpenScope !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenScope}>Change model depth in Scope</button>}
+          {onOpenSystems !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenSystems}>Change model depth in Systems in scope</button>}
         </div>
       );
     }
     return (
       <div className="sy-model-note">
-        <p>This system has no fault tree yet.</p>
+        <p>This system has no fault tree yet. Create it here, then right-click a gate to add its inputs.</p>
         {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={createFaultTree}>Create fault tree</button>}
       </div>
     );
@@ -352,6 +344,8 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenScope }: {
       case "fault-tree":
         if (logic === undefined || editorModel === null || systemLevel) return renderNoFaultTree();
         return (
+          <>
+          {editable && <p className="poscard__sub">Right-click a gate to add gates, basic events, house events or transfers. Give each basic event a probability in the Basic events tab. Type it, or pick a DA estimate after linking a DA workbook in Step 01.</p>}
           <SyFaultTreeDiagrams
             systemId={system.uuid}
             onAddDiagram={editable ? () => openDrawer({ kind: "diagram", id: system.uuid }) : undefined}
@@ -390,6 +384,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenScope }: {
               onRun={() => undefined}
             />
           </SyFaultTreeDiagrams>
+          </>
         );
       case "basic-events":
         if (logic === undefined || systemLevel) return renderNoFaultTree();

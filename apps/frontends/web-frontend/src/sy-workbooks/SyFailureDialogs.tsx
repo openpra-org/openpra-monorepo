@@ -232,7 +232,7 @@ function OutageDialog({ id, onClose }: { id: string; onClose: () => void }): JSX
             </div>
           </div>
           <div className="posfield posfield-grid--span2"><label className="posfield__label">DA coincident maintenance record</label>
-            {controlledCoincidentMaintenance.length === 0 && item.dataAnalysisRef === undefined ? <span className="posmuted">Link a DA workbook in Interfaces to pick its coincident maintenance record.</span> : editable ? (
+            {controlledCoincidentMaintenance.length === 0 && item.dataAnalysisRef === undefined ? <span className="posmuted">Link a DA workbook in Step 01 Interfaces to pick its coincident maintenance record.</span> : editable ? (
               <select className="posfield__select" aria-label="DA coincident maintenance record" value={item.dataAnalysisRef ?? ""} onChange={(event) => patch({ dataAnalysisRef: event.target.value.length > 0 ? event.target.value : undefined })}>
                 <option value="">Not linked</option>
                 {!recordKnown && <option value={item.dataAnalysisRef}>Linked record unavailable</option>}
@@ -350,7 +350,7 @@ function HumanEventDialog({ id, onClose }: { id: string; onClose: () => void }):
           )}
           <div className="posfield posfield-grid--span2"><label className="posfield__label">Human Reliability event and HEP</label>
             {controlledHumanFailures.length === 0 && option === undefined ? (
-              <span className="posmuted">{reference === undefined ? "Link an HR workbook in Interfaces to pick its event." : `${reference}. Link its HR workbook in Interfaces to pick the event and HEP.`}</span>
+              <span className="posmuted">{reference === undefined ? "Link an HR workbook in Step 01 Interfaces to pick its event." : `${reference}. Link its HR workbook in Step 01 Interfaces to pick the event and HEP.`}</span>
             ) : editable ? (
               <select className="posfield__select" aria-label="Human Reliability event and HEP" value={optionKey} onChange={(change) => link(change.target.value)}>
                 <option value="">Not linked</option>

@@ -432,6 +432,7 @@ export interface ModularizationRecord extends Unique {
   avoidsMixedRecoveryPotential: boolean;
   avoidsEventsRequiredByOtherSystems: boolean;
   justification: string;
+  basicEventIds?: string[];
   implementsSrs: SRReference[];
 }
 
@@ -454,7 +455,14 @@ export interface SystemUncertaintyAnalysis extends BaseUncertaintyAnalysis {
     associatedComponent?: string;
   }[];
   ccfUncertainties?: {
+    uncertaintyId: string;
     ccfGroupId: string;
+    description: string;
+    impact: string;
+  }[];
+  dependencyUncertainties?: {
+    uncertaintyId: string;
+    supportingSystem?: SystemReference;
     description: string;
     impact: string;
   }[];
@@ -496,6 +504,29 @@ export interface ModelValidation extends Unique, Named {
   issuesIdentified?: string[];
   issueResolutions?: string[];
   implementsSrs: SRReference[];
+}
+
+export type ComponentBoundaryReviewStatus = "MATCHES" | "ACCOUNTED" | "OPEN" | "NOT_VERIFIED";
+
+export interface ComponentBoundaryReview extends Unique {
+  systemReference: SystemReference;
+  componentBoundaryRef: string;
+  status: ComponentBoundaryReviewStatus;
+  note?: string;
+  implementsSrs: SRReference[];
+}
+
+export type NomenclatureDesignatorKind = "SYSTEM" | "FAILURE_MODE" | "EVENT_TYPE";
+
+export type NomenclatureEventType = "HUMAN_ERROR" | "TEST_MAINTENANCE" | "COMMON_CAUSE_FAILURE";
+
+export interface NomenclatureDesignator extends Unique {
+  designator: string;
+  kind: NomenclatureDesignatorKind;
+  meaning: string;
+  systemReference?: SystemReference;
+  failureModeRefs?: string[];
+  eventType?: NomenclatureEventType;
 }
 
 export interface SystemToSafetyFunctionMapping extends Unique {
@@ -620,6 +651,8 @@ export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.
 
   overCapacityConsiderations?: OverCapacityConsideration[];
   modelValidations?: ModelValidation[];
+  componentBoundaryReviews?: ComponentBoundaryReview[];
+  nomenclatureDesignators?: NomenclatureDesignator[];
   systemModelEvaluations?: SystemModelEvaluation[];
   uncertaintyAnalyses?: SystemUncertaintyAnalysis[];
   sensitivityStudies?: SensitivityStudy[];

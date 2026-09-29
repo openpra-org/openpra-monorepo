@@ -136,21 +136,6 @@ const SY_SR_DESCRIPTIONS: Record<string, string> = {
   "SY-C3": "Document the pre-operational limitations, including freedom from design and construction errors",
 };
 
-const SY_SR_META: Record<string, string> = {
-  "SY-A1": "8 systems",
-  "SY-A6": "3 records",
-  "SY-A9": "1 system-level",
-  "SY-B2": "2 inter-system",
-  "SY-B3": "Damper group open",
-  "SY-B4": "DA-D8 pending",
-  "SY-B5": "1 loop resolved",
-  "SY-B8": "Penetration room open",
-  "SY-B11": "Software model open",
-  "SY-B12": "Battery duty open",
-  "SY-B14": "Sodium-fire open",
-  "SY-C3": "4 logged",
-};
-
 const SY_SR_LINKED_NM: Record<string, string> = {
   "SY-B11": "NM-072",
   "SY-B2": "NM-055",
@@ -169,7 +154,6 @@ function buildConformanceItems(): ConformanceItem[] {
       status: "warn" as const,
       requiredAt: ["cc-i", "cc-ii"],
       stages,
-      meta: SY_SR_META[code],
       linkedNM: SY_SR_LINKED_NM[code],
     };
   });

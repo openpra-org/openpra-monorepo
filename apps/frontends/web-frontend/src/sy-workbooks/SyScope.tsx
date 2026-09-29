@@ -1,8 +1,8 @@
-import { JSX, useId, useState } from "react";
+import { JSX, useEffect, useId, useRef, useState } from "react";
 import type { SyLinkedWorkbooks } from "interfaces-mef-types/sy/systems-analysis";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { Badge, ReviewLines } from "./syShared";
+import { Badge, ReviewLines, SYSTEMS_IN_SCOPE_ID, SystemsInScopeLink } from "./syShared";
 import { CAPABILITY_CATEGORIES, type Stage } from "./syViewData";
 import { useSyWorkbook, type SyLinkCode } from "./syWorkbookContext";
 import { isSystemLevelModel } from "./sySelectors";
@@ -80,6 +80,7 @@ function SyInterfaces(): JSX.Element {
               {options.map((workbook) => <option key={workbook.id} value={workbook.id}>{workbook.name}</option>)}
             </select>
           </div>
+          {options.length === 0 && <p className="posmuted sy-scope-note">Create one on the project page to link it here.</p>}
           {linkedId !== undefined && linked === undefined && <p className="posmuted sy-scope-note">The linked workbook is not in this project.</p>}
           {linked !== undefined && (
             <table className="postable postable--mid" aria-label={`Linked ${tile.label} workbook`}>
@@ -101,8 +102,20 @@ function SyInterfaces(): JSX.Element {
   );
 }
 
-function SystemsInScope({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element {
+function SystemsInScope({ openDrawer, focusRequested, onFocused }: {
+  openDrawer: (ctx: SyDrawerContext) => void;
+  focusRequested: boolean;
+  onFocused?: () => void;
+}): JSX.Element {
   const { sy, links, editable, mutateSy } = useSyWorkbook();
+  const card = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!focusRequested || card.current === null) return;
+    card.current.scrollIntoView({ block: "start" });
+    card.current.focus({ preventScroll: true });
+    onFocused?.();
+  }, [focusRequested, onFocused]);
   const functionNames = new Map((links?.esSafetyFunctions ?? []).map((sf) => [sf.id, sf.name]));
   const actionLabel = editable ? "Edit" : "View";
 
@@ -126,7 +139,7 @@ function SystemsInScope({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => 
   }
 
   return (
-    <div className="poscard">
+    <div className="poscard sy-systems-in-scope" id={SYSTEMS_IN_SCOPE_ID} ref={card} tabIndex={-1}>
       <div className="poscard__head">
         <WorkbookSectionHeading workbook="SY" title="Systems in scope" level={3} />
         <div className="posrow">
@@ -135,7 +148,7 @@ function SystemsInScope({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => 
         </div>
       </div>
       <div className="sy-review">
-        {sy.systemDefinitions.length === 0 ? <p className="sy-review-empty">No systems in scope yet.</p> : (
+        {sy.systemDefinitions.length === 0 ? <p className="sy-review-empty">No systems in scope yet. Add a system to start, then build its fault tree in Step 02.</p> : (
           <table className="sy-review-table sy-scope-systems" aria-label="Systems in scope">
             <thead><tr><th scope="col">System</th><th scope="col">Safety functions</th><th scope="col">Model depth</th><th scope="col" className="sy-review-edit" aria-label="Actions" /></tr></thead>
             <tbody>
@@ -171,13 +184,16 @@ function SystemsInScope({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => 
   );
 }
 
-function ScopeScreen({ ccId, setCcId, stage, setStage, onAction, openDrawer }: {
+function ScopeScreen({ ccId, setCcId, stage, setStage, onAction, openDrawer, onOpenSystems, systemsFocus = false, onSystemsFocused }: {
   ccId: string;
   setCcId: (id: string) => void;
   stage: Stage;
   setStage: (s: Stage) => void;
   onAction: (msg: string) => void;
   openDrawer: (ctx: SyDrawerContext) => void;
+  onOpenSystems?: () => void;
+  systemsFocus?: boolean;
+  onSystemsFocused?: () => void;
 }): JSX.Element {
   const { sy, editable, mutateSy } = useSyWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
@@ -203,6 +219,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction, openDrawer }: {
     <>
       <div className="poscard">
         <div className="poscard__head"><WorkbookSectionHeading workbook="SY" title="Interfaces" level={3} /></div>
+        <p className="poscard__sub">Links are optional. A linked workbook fills matching fields here, such as safety functions from ES or estimates from DA. Without links, add the systems in <SystemsInScopeLink onOpen={onOpenSystems} /> below and type the values yourself.</p>
         <SyInterfaces />
       </div>
 
@@ -218,7 +235,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction, openDrawer }: {
         />
       </div>
 
-      <SystemsInScope openDrawer={openDrawer} />
+      <SystemsInScope openDrawer={openDrawer} focusRequested={systemsFocus} onFocused={onSystemsFocused} />
 
       <div className="poscard">
         <div className="poscard__head">

@@ -1,4 +1,5 @@
 import { JSX, ReactNode } from "react";
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { SYIcon } from "./syIcons";
 
 type BadgeKind = "ok" | "warn" | "block" | "progress" | "draft";
@@ -24,6 +25,22 @@ function NotRecorded(): JSX.Element {
   return <span className="sy-review-none">Not recorded</span>;
 }
 
+interface ReviewIssue {
+  code: string;
+  severity: "ERROR" | "WARNING";
+  message: string;
+}
+
+function IssueLines({ issues }: { issues: readonly ReviewIssue[] }): JSX.Element {
+  return (
+    <>
+      {issues.map((issue) => (
+        <span key={`${issue.code}:${issue.message}`} className={issue.severity === "ERROR" ? "sy-error" : "sy-warn"}>{issue.message}</span>
+      ))}
+    </>
+  );
+}
+
 function ReviewLines({ items }: { items: readonly string[] }): JSX.Element {
   if (items.length === 0) return <NotRecorded />;
   if (items.length === 1) return <span>{items[0]}</span>;
@@ -42,6 +59,30 @@ function ReviewTitle({ title, sr, children }: { title: string; sr?: string; chil
   );
 }
 
+const SYSTEMS_IN_SCOPE_ID = "sy-systems-in-scope";
+
+function SystemsInScopeLink({ onOpen }: { onOpen?: () => void }): JSX.Element {
+  if (onOpen === undefined) return <>Systems in scope</>;
+  return (
+    <a className="sy-inline-link" href={`?step=scope#${SYSTEMS_IN_SCOPE_ID}`} onClick={(event) => { event.preventDefault(); onOpen(); }}>
+      Systems in scope
+    </a>
+  );
+}
+
+function NoSystemsCard({ title, purpose, onOpenSystems }: { title: string; purpose: string; onOpenSystems?: () => void }): JSX.Element {
+  return (
+    <div className="poscard">
+      <div className="poscard__head">
+        <WorkbookSectionHeading workbook="SY" title={title} level={3} />
+      </div>
+      <div className="sy-review">
+        <p className="sy-review-empty">No systems are in scope yet. Add them in the <SystemsInScopeLink onOpen={onOpenSystems} /> section of Step 01, then {purpose}</p>
+      </div>
+    </div>
+  );
+}
+
 function DialogHead({ cap, title, onClose }: { cap: string; title: string; onClose: () => void }): JSX.Element {
   return (
     <div className="modal__head">
@@ -54,4 +95,4 @@ function DialogHead({ cap, title, onClose }: { cap: string; title: string; onClo
   );
 }
 
-export { Badge, DialogHead, NotRecorded, ReviewLines, ReviewTitle, SYProvenanceChip, type BadgeKind };
+export { Badge, DialogHead, IssueLines, NoSystemsCard, NotRecorded, ReviewLines, ReviewTitle, SYProvenanceChip, SYSTEMS_IN_SCOPE_ID, SystemsInScopeLink, type BadgeKind, type ReviewIssue };

@@ -1,10 +1,11 @@
 import { JSX, useState } from "react";
-import type { SystemAlignment, SystemDefinition, SystemsAnalysis, VariableSuccessCriterion } from "interfaces-mef-types/sy/systems-analysis";
+import type { SystemAlignment, SystemDefinition, VariableSuccessCriterion } from "interfaces-mef-types/sy/systems-analysis";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { SYIcon } from "./syIcons";
 import { DialogHead } from "./syShared";
 import { isSystemLevelModel } from "./sySelectors";
 import { useSyWorkbook } from "./syWorkbookContext";
+import { removalMessage, withoutSystem } from "./sySystemRemoval";
 import type { SyDrawerContext } from "./syScreens";
 
 type SystemDialogKind = "system" | "sysdef" | "variant" | "alignment" | "boundary" | "states" | "operations";
@@ -13,37 +14,6 @@ const SYSTEM_DIALOG_KINDS: readonly SystemDialogKind[] = ["system", "sysdef", "v
 
 function isSystemDialogKind(kind: SyDrawerContext["kind"]): kind is SystemDialogKind {
   return SYSTEM_DIALOG_KINDS.some((candidate) => candidate === kind);
-}
-
-function referencedSystemIds(sy: SystemsAnalysis): Set<string> {
-  const ids = new Set<string>();
-  sy.systemLogicModels.forEach((model) => {
-    if (model.gates.length > 0 || model.leafNodes.length > 0) ids.add(model.systemReference);
-  });
-  sy.systemDependencies.forEach((dependency) => {
-    ids.add(dependency.dependentSystem);
-    ids.add(dependency.supportingSystem);
-  });
-  sy.commonCauseFailureGroups.forEach((group) => group.affectedSystems.forEach((id) => ids.add(id)));
-  sy.humanFailureEventIntegrations.forEach((integration) => ids.add(integration.system));
-  (sy.componentScreeningJustifications ?? []).forEach((item) => ids.add(item.systemReference));
-  (sy.isolationTripConditions ?? []).forEach((item) => ids.add(item.systemReference));
-  (sy.simultaneousUnavailabilityEvents ?? []).forEach((item) => { if (item.systemReference !== undefined) ids.add(item.systemReference); });
-  (sy.supportSystemSuccessCriteria ?? []).forEach((item) => {
-    ids.add(item.systemReference);
-    item.supportedSystems.forEach((id) => ids.add(id));
-  });
-  (sy.environmentalDesignBasisConsiderations ?? []).forEach((item) => ids.add(item.systemReference));
-  (sy.depletionModels ?? []).forEach((item) => { if (item.associatedSystem !== undefined) ids.add(item.associatedSystem); });
-  (sy.digitalInstrumentationAndControl ?? []).forEach((item) => ids.add(item.systemReference));
-  (sy.initiationActuationSystems ?? []).forEach((item) => ids.add(item.systemReference));
-  (sy.supportSystemNeedAnalyses ?? []).forEach((item) => ids.add(item.systemReference));
-  (sy.overCapacityConsiderations ?? []).forEach((item) => ids.add(item.system));
-  (sy.systemConfirmationRecords ?? []).forEach((item) => { if (item.systemReference !== undefined) ids.add(item.systemReference); });
-  (sy.uncertaintyAnalyses ?? []).forEach((item) => ids.add(item.system));
-  (sy.variableSuccessCriteria ?? []).forEach((item) => ids.add(item.systemReference));
-  (sy.preOperationalAssumptions ?? []).forEach((item) => item.affectedElementIds.forEach((id) => ids.add(id)));
-  return ids;
 }
 
 function ListEditor({ label, items, editable, addLabel, onChange }: {
@@ -88,6 +58,7 @@ function ListEditor({ label, items, editable, addLabel, onChange }: {
 
 function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & { kind: SystemDialogKind }; onClose: () => void }): JSX.Element | null {
   const { sy, links, editable, mutateSy, shortOf } = useSyWorkbook();
+  const [confirmRemoval, setConfirmRemoval] = useState<string | null>(null);
 
   function patchSystem(uuid: string, fields: Partial<SystemDefinition>): void {
     if (!editable) return;
@@ -106,7 +77,9 @@ function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & 
     const model = sy.systemLogicModels.find((candidate) => candidate.systemReference === system.uuid);
     const systemLevel = model !== undefined && isSystemLevelModel(model);
     const justification = model?.nonDetailedModelJustification ?? "";
-    const inUse = referencedSystemIds(sy).has(system.uuid);
+    const removal = withoutSystem(sy, system.uuid);
+    const removalNote = removalMessage(system.name, removal);
+    const confirming = confirmRemoval === system.uuid && removalNote !== null;
     const esFunctions = links?.esSafetyFunctions ?? [];
     const functionOptions = Array.from(new Set([...esFunctions.map((sf) => sf.id), ...functions]));
     const functionNames = new Map(esFunctions.map((sf) => [sf.id, sf.name]));
@@ -173,14 +146,16 @@ function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & 
     };
 
     const remove = (): void => {
-      if (!editable || inUse) return;
+      if (!editable) return;
+      setConfirmRemoval(null);
       onClose();
-      mutateSy((draft) => ({
-        ...draft,
-        systemDefinitions: draft.systemDefinitions.filter((candidate) => candidate.uuid !== system.uuid),
-        systemToSafetyFunctionMappings: draft.systemToSafetyFunctionMappings.filter((candidate) => candidate.systemReference !== system.uuid),
-        systemLogicModels: draft.systemLogicModels.filter((candidate) => candidate.systemReference !== system.uuid),
-      }));
+      mutateSy((draft) => withoutSystem(draft, system.uuid).analysis);
+    };
+
+    const requestRemoval = (): void => {
+      if (!editable) return;
+      if (removalNote === null) remove();
+      else setConfirmRemoval(system.uuid);
     };
 
     return (
@@ -217,7 +192,7 @@ function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & 
             )}
             <div className="posfield posfield-grid--span2" role="group" aria-label="Safety functions">
               <span className="posfield__label">Safety functions</span>
-              {functionOptions.length === 0 && <span className="posmuted">Link an ES workbook in Interfaces to choose the safety functions.</span>}
+              {functionOptions.length === 0 && <span className="posmuted">Link an ES workbook in Step 01 Interfaces to choose the safety functions.</span>}
               <div className="sy-dialog-checks">
                 {functionOptions.map((id) => (
                   <label key={id} className="sy-dialog-check">
@@ -228,12 +203,17 @@ function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & 
               </div>
             </div>
           </div>
-          {editable && (
-            <div className="posrow sy-dialog-actions">
-              {inUse && <span className="posmuted">Other records use this system, so it cannot be removed.</span>}
-              <button type="button" className="posnav__btn posnav__btn--sm" disabled={inUse} onClick={remove}><SYIcon.Close /> Remove system</button>
+          {editable && (confirming ? (
+            <div className="posrow sy-dialog-actions" role="group" aria-label="Confirm removal">
+              <span className="posmuted">{removalNote}</span>
+              <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setConfirmRemoval(null)}>Keep system</button>
+              <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={remove}>Remove system and records</button>
             </div>
-          )}
+          ) : (
+            <div className="posrow sy-dialog-actions">
+              <button type="button" className="posnav__btn posnav__btn--sm" onClick={requestRemoval}><SYIcon.Close /> Remove system</button>
+            </div>
+          ))}
         </div>
       </>
     );
@@ -292,7 +272,7 @@ function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & 
         <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">SC criterion</label>
-              {scOptions.length === 0 ? <span className="posmuted">Link an SC workbook in Interfaces to use its system success criteria.</span> : (
+              {scOptions.length === 0 ? <span className="posmuted">Link an SC workbook in Step 01 Interfaces to use its system success criteria.</span> : (
                 <select className="posfield__select" aria-label="SC criterion" value={scId} disabled={!editable} onChange={(event) => setScCriterion(event.target.value)}>
                   <option value="">Typed</option>
                   {scOptions.map((criterion) => <option key={criterion.id} value={criterion.id}>{criterion.name}</option>)}
@@ -306,7 +286,7 @@ function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & 
               {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} aria-label="Success criterion" value={system.successCriterion ?? ""} onChange={(event) => patchSystem(system.uuid, { successCriterion: event.target.value.trim().length > 0 ? event.target.value : undefined })} /> : <div>{system.successCriterion ?? ""}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">SC mission time</label>
-              {missionOptions.length === 0 ? <span className="posmuted">Link an SC workbook in Interfaces to use its mission times.</span> : (
+              {missionOptions.length === 0 ? <span className="posmuted">Link an SC workbook in Step 01 Interfaces to use its mission times.</span> : (
                 <select className="posfield__select" aria-label="SC mission time" value={missionRef} disabled={!editable} onChange={(event) => setMissionSource(event.target.value)}>
                   <option value="">Typed</option>
                   {missionOptions.map((missionTime) => <option key={missionTime.id} value={missionTime.id}>{missionTime.id} · {missionTime.hours} h{missionTime.sequence.length > 0 ? ` · ${missionTime.sequence}` : ""}</option>)}
@@ -374,7 +354,7 @@ function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & 
               {editable ? <WorkbookInput className="posfield__input" aria-label="Condition" value={item.scenarioCondition ?? ""} onChange={(event) => patch({ scenarioCondition: event.target.value.trim().length > 0 ? event.target.value.trim() : undefined })} /> : <div>{item.scenarioCondition ?? ""}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">SC criterion</label>
-              {variantScOptions.length === 0 ? <span className="posmuted">Link an SC workbook in Interfaces to use its system success criteria.</span> : (
+              {variantScOptions.length === 0 ? <span className="posmuted">Link an SC workbook in Step 01 Interfaces to use its system success criteria.</span> : (
                 <select className="posfield__select" aria-label="Variant SC criterion" value={variantScId} disabled={!editable} onChange={(event) => setVariantSource(event.target.value)}>
                   <option value="">Typed</option>
                   {variantScOptions.map((criterion) => <option key={criterion.id} value={criterion.id}>{criterion.name}</option>)}
@@ -488,4 +468,4 @@ function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & 
   );
 }
 
-export { ListEditor, SystemDialogContent, isSystemDialogKind, referencedSystemIds, type SystemDialogKind };
+export { ListEditor, SystemDialogContent, isSystemDialogKind, type SystemDialogKind };

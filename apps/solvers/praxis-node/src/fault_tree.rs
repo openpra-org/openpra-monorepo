@@ -311,6 +311,17 @@ struct CatalogueCcfGroup {
     members: Vec<String>,
     model: CatalogueCcfModel,
     total_failure_probability: f64,
+    #[serde(default)]
+    uncertainty: Option<CatalogueDistribution>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CatalogueDistribution {
+    distribution_type: String,
+    parameters: HashMap<String, f64>,
+    #[serde(default)]
+    correlation_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -328,6 +339,8 @@ struct CatalogueUncertaintyInput {
     basic_event_id: String,
     distribution_type: String,
     parameters: HashMap<String, f64>,
+    #[serde(default)]
+    correlation_key: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -581,28 +594,81 @@ fn parse_catalogue(request: &SolverRequest, project_id: &str) -> Result<BasicEve
     Ok(catalogue)
 }
 
-fn distribution_parameter(input: &CatalogueUncertaintyInput, names: &[&str]) -> Result<f64> {
+struct SampledInput<'a> {
+    subject: String,
+    distribution_type: &'a str,
+    parameters: &'a HashMap<String, f64>,
+    correlation_key: Option<&'a str>,
+}
+
+impl<'a> SampledInput<'a> {
+    fn event(input: &'a CatalogueUncertaintyInput) -> Self {
+        SampledInput {
+            subject: format!("basic event '{}'", input.basic_event_id),
+            distribution_type: &input.distribution_type,
+            parameters: &input.parameters,
+            correlation_key: input.correlation_key.as_deref(),
+        }
+    }
+
+    fn group(group_id: &str, input: &'a CatalogueDistribution) -> Self {
+        SampledInput {
+            subject: format!("CCF group '{}'", group_id),
+            distribution_type: &input.distribution_type,
+            parameters: &input.parameters,
+            correlation_key: input.correlation_key.as_deref(),
+        }
+    }
+}
+
+fn distribution_parameter(input: &SampledInput, names: &[&str]) -> Result<f64> {
     names
         .iter()
         .find_map(|name| input.parameters.get(*name).copied())
         .filter(|value| value.is_finite())
         .ok_or_else(|| {
             PraxisError::Settings(format!(
-                "uncertainty distribution '{}' for basic event '{}' requires {}",
+                "uncertainty distribution '{}' for {} requires {}",
                 input.distribution_type,
-                input.basic_event_id,
+                input.subject,
                 names.join(" or ")
             ))
         })
 }
 
-fn uncertainty_expression(input: &CatalogueUncertaintyInput) -> Result<Option<Expr>> {
+fn sampled_expression(
+    input: &SampledInput,
+    shared: &mut HashMap<String, Expr>,
+) -> Result<Option<Expr>> {
+    let Some(expression) = uncertainty_expression(input)? else {
+        return Ok(None);
+    };
+    let Some(key) = input.correlation_key else {
+        return Ok(Some(expression));
+    };
+    if let Some(existing) = shared.get(key) {
+        if *existing != expression {
+            return Err(PraxisError::Settings(format!(
+                "{} shares correlation key '{}' with a different distribution",
+                input.subject, key
+            )));
+        }
+    } else {
+        shared.insert(key.to_string(), expression);
+    }
+    Ok(Some(Expr::Parameter(key.to_string())))
+}
+
+fn uncertainty_expression(input: &SampledInput) -> Result<Option<Expr>> {
     let constant = |value| Box::new(Expr::Constant(value));
     let expression = match input.distribution_type.to_ascii_lowercase().as_str() {
         "point_estimate" | "binomial" | "poisson" => return Ok(None),
         "normal" => Expr::NormalDeviate {
             mean: constant(distribution_parameter(input, &["mean", "mu"])?),
-            sigma: constant(distribution_parameter(input, &["standardDeviation", "stdDev", "sigma"])?),
+            sigma: constant(distribution_parameter(
+                input,
+                &["standardDeviation", "stdDev", "sigma"],
+            )?),
         },
         "lognormal" | "lognormal_time" => {
             let (mu, sigma) = match (
@@ -612,17 +678,21 @@ fn uncertainty_expression(input: &CatalogueUncertaintyInput) -> Result<Option<Ex
                 (Some(mu), Some(sigma)) => (mu, sigma),
                 _ => {
                     let median = distribution_parameter(input, &["median"])?;
-                    let error_factor = distribution_parameter(input, &["errorFactor", "errorFactor95"])?;
+                    let error_factor =
+                        distribution_parameter(input, &["errorFactor", "errorFactor95"])?;
                     if median <= 0.0 || error_factor < 1.0 {
                         return Err(PraxisError::Settings(format!(
-                            "lognormal uncertainty for '{}' requires positive median and error factor at least 1",
-                            input.basic_event_id
+                            "lognormal uncertainty for {} requires positive median and error factor at least 1",
+                            input.subject
                         )));
                     }
                     (median.ln(), error_factor.ln() / LOGNORMAL_EF_QUANTILE)
                 }
             };
-            Expr::LognormalDeviate { mu: constant(mu), sigma: constant(sigma) }
+            Expr::LognormalDeviate {
+                mu: constant(mu),
+                sigma: constant(sigma),
+            }
         }
         "beta" => Expr::BetaDeviate {
             alpha: constant(distribution_parameter(input, &["alpha"])?),
@@ -630,7 +700,10 @@ fn uncertainty_expression(input: &CatalogueUncertaintyInput) -> Result<Option<Ex
         },
         "gamma" => Expr::GammaDeviate {
             shape: constant(distribution_parameter(input, &["shape", "alpha"])?),
-            rate: constant(distribution_parameter(input, &["rate", "beta", "betaParam"])?),
+            rate: constant(distribution_parameter(
+                input,
+                &["rate", "beta", "betaParam"],
+            )?),
         },
         "exponential" => Expr::GammaDeviate {
             shape: constant(1.0),
@@ -647,8 +720,8 @@ fn uncertainty_expression(input: &CatalogueUncertaintyInput) -> Result<Option<Ex
         },
         unsupported => {
             return Err(PraxisError::Settings(format!(
-                "uncertainty distribution '{}' for basic event '{}' is not supported by fault-tree sampling",
-                unsupported, input.basic_event_id
+                "uncertainty distribution '{}' for {} is not supported by fault-tree sampling",
+                unsupported, input.subject
             )))
         }
     };
@@ -774,12 +847,14 @@ fn build_fault_tree_snapshot(
     }
 
     let mut fault_tree = FaultTree::new(snapshot.id.clone(), top_gate_id.clone())?;
+    let mut shared_samples = HashMap::new();
     for (id, probability) in basic_event_probabilities {
-        let event = match uncertainty_by_event.get(&id).filter(|_| apply_uncertainty) {
-            Some(input) => match uncertainty_expression(input)? {
-                Some(expression) => BasicEvent::with_value(id, probability, expression)?,
-                None => BasicEvent::new(id, probability)?,
-            },
+        let value = match uncertainty_by_event.get(&id).filter(|_| apply_uncertainty) {
+            Some(input) => sampled_expression(&SampledInput::event(input), &mut shared_samples)?,
+            None => None,
+        };
+        let event = match value {
+            Some(expression) => BasicEvent::with_value(id, probability, expression)?,
             None => BasicEvent::new(id, probability)?,
         };
         fault_tree.add_basic_event(event)?;
@@ -803,9 +878,21 @@ fn build_fault_tree_snapshot(
         .into_iter()
         .filter(|_| include_ccf)
     {
+        let uncertainty = match group.uncertainty.as_ref().filter(|_| apply_uncertainty) {
+            Some(input) => {
+                sampled_expression(&SampledInput::group(&group.id, input), &mut shared_samples)?
+            }
+            None => None,
+        };
         let ccf = CcfGroup::new(group.id, group.members, catalogue_ccf_model(group.model))?
             .with_distribution(group.total_failure_probability.to_string());
-        fault_tree.add_ccf_group(ccf)?;
+        fault_tree.add_ccf_group(match uncertainty {
+            Some(expression) => ccf.with_uncertainty(expression),
+            None => ccf,
+        })?;
+    }
+    for (key, expression) in shared_samples {
+        fault_tree.set_parameter(key, expression);
     }
 
     Ok(FaultTreeAdapter {
@@ -1522,6 +1609,96 @@ mod tests {
             5
         );
         assert!(result["uncertainty"]["standardDeviation"].as_f64().unwrap() > 0.0);
+    }
+
+    fn sampled_pair(catalogue: Value) -> SolverRequest {
+        let mut request = request(
+            "AND",
+            None,
+            &[("A", 0.105), ("B", 0.105)],
+            &[("ref-a", "A"), ("ref-b", "B")],
+        );
+        configure(&mut request, "UNCERTAINTY", "BDD", "EXACT");
+        request.request["settings"]["numTrials"] = json!(100_000);
+        request.request["settings"]["expandCcf"] = json!(true);
+        request.resources.fault_tree_basic_event_catalogue = Some(catalogue);
+        request
+    }
+
+    fn uniform_input(event: &str, key: &str) -> Value {
+        json!({
+            "basicEventId": event,
+            "distributionType": "uniform",
+            "parameters": { "lower": 0.01, "upper": 0.2 },
+            "correlationKey": key
+        })
+    }
+
+    #[test]
+    fn samples_one_draw_for_events_sharing_an_estimate() {
+        let request = sampled_pair(json!({
+            "projectId": "project-1",
+            "basicEvents": [
+                { "id": "A", "probability": { "value": 0.105 } },
+                { "id": "B", "probability": { "value": 0.105 } }
+            ],
+            "uncertaintyInputs": [uniform_input("A", "da:pump"), uniform_input("B", "da:pump")]
+        }));
+        let mean = execute(&request).unwrap()["uncertainty"]["mean"]
+            .as_f64()
+            .unwrap();
+        assert!(
+            (mean / (0.007999 / 0.57) - 1.0).abs() < 0.01,
+            "sampled mean {mean}"
+        );
+    }
+
+    #[test]
+    fn samples_common_cause_totals_from_the_member_estimate() {
+        let request = sampled_pair(json!({
+            "projectId": "project-1",
+            "basicEvents": [
+                { "id": "A", "probability": { "value": 0.105 } },
+                { "id": "B", "probability": { "value": 0.105 } }
+            ],
+            "commonCauseFailureGroups": [{
+                "id": "CCF",
+                "members": ["A", "B"],
+                "model": { "kind": "BETA_FACTOR", "beta": 0.1 },
+                "totalFailureProbability": 0.105,
+                "uncertainty": {
+                    "distributionType": "uniform",
+                    "parameters": { "lower": 0.01, "upper": 0.2 },
+                    "correlationKey": "da:pump"
+                }
+            }],
+            "uncertaintyInputs": [uniform_input("A", "da:pump"), uniform_input("B", "da:pump")]
+        }));
+        let result = execute(&request).unwrap();
+        let point = result["topEventProbability"].as_f64().unwrap();
+        let independent = 0.0945_f64.powi(2);
+        assert!((point - (independent + 0.0105 - independent * 0.0105)).abs() < 1e-15);
+        let mean = result["uncertainty"]["mean"].as_f64().unwrap();
+        assert!(
+            (mean / 0.02169647475 - 1.0).abs() < 0.01,
+            "sampled mean {mean}"
+        );
+    }
+
+    #[test]
+    fn rejects_a_correlation_key_with_two_distributions() {
+        let mut other = uniform_input("B", "da:pump");
+        other["parameters"]["upper"] = json!(0.3);
+        let request = sampled_pair(json!({
+            "projectId": "project-1",
+            "basicEvents": [
+                { "id": "A", "probability": { "value": 0.105 } },
+                { "id": "B", "probability": { "value": 0.105 } }
+            ],
+            "uncertaintyInputs": [uniform_input("A", "da:pump"), other]
+        }));
+        let error = execute(&request).unwrap_err().to_string();
+        assert!(error.contains("correlation key 'da:pump'"), "{error}");
     }
 
     #[test]

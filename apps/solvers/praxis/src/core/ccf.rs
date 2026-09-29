@@ -1,4 +1,5 @@
 use crate::core::element::Element;
+use crate::expression::Expr;
 use crate::Result;
 use serde::{Deserialize, Serialize};
 
@@ -11,6 +12,9 @@ pub struct CcfGroup {
     pub model: CcfModel,
 
     pub distribution: Option<String>,
+
+    #[serde(skip)]
+    pub uncertainty: Option<Expr>,
 }
 
 impl CcfGroup {
@@ -30,6 +34,7 @@ impl CcfGroup {
             members,
             model,
             distribution: None,
+            uncertainty: None,
         })
     }
 
@@ -43,6 +48,11 @@ impl CcfGroup {
 
     pub fn with_distribution(mut self, distribution: String) -> Self {
         self.distribution = Some(distribution);
+        self
+    }
+
+    pub fn with_uncertainty(mut self, uncertainty: Expr) -> Self {
+        self.uncertainty = Some(uncertainty);
         self
     }
 

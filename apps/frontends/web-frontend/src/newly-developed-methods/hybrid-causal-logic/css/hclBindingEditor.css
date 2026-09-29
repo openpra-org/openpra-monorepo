@@ -265,7 +265,7 @@
   box-shadow: 0 10px 28px rgb(29 25 43 / 0.16);
 }
 
-.hcleditor__download-popover button {
+.hcleditor__download-menu .hcleditor__download-popover button {
   border: 0;
   border-radius: 6px;
   padding: 7px 9px;
@@ -278,7 +278,7 @@
   cursor: pointer;
 }
 
-.hcleditor__download-popover button:hover {
+.hcleditor__download-menu .hcleditor__download-popover button:hover {
   background: var(--color-primary-soft);
   color: var(--color-primary);
 }

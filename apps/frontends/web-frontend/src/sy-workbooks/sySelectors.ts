@@ -10,6 +10,8 @@ import {
 } from "./syViewData";
 import { ccfGroupIsReady } from "./syCcf";
 import { dependencyErrors } from "./syDependencyLinks";
+import { integrityErrors } from "./syIntegrityChecks";
+import { uncertaintyErrors, type RunState } from "./syUncertainty";
 
 interface CommentView {
   id: string;
@@ -139,7 +141,11 @@ function stepsForPersona(persona: SyPersona): SyStep[] {
   return SY_STEPS.filter((s) => ids.includes(s.id));
 }
 
-function stepsFromMef(sy: SystemsAnalysis, persona: SyPersona, currentUncertaintyModelIds: ReadonlySet<string> = new Set()): SyStep[] {
+function stepsFromMef(
+  sy: SystemsAnalysis,
+  persona: SyPersona,
+  uncertaintyReadiness: ReadonlyMap<string, RunState> = new Map(),
+): SyStep[] {
   const base = stepsForPersona(persona);
   const scopeComplete = sy.praScope.length > 0 || sy.systemDefinitions.length > 0;
   const modelsComplete = sy.systemLogicModels.length > 0;
@@ -148,11 +154,10 @@ function stepsFromMef(sy: SystemsAnalysis, persona: SyPersona, currentUncertaint
   const ccfComplete = sy.commonCauseFailureGroups.length > 0
     && sy.commonCauseFailureGroups.every((group) => ccfGroupIsReady(group, sy));
   const depsComplete = sy.systemDependencies.length > 0 && dependencyErrors(sy, null).length === 0;
-  const integrityComplete = (sy.systemConfirmationRecords?.length ?? 0) > 0;
+  const integrityComplete = sy.systemDefinitions.length > 0 && integrityErrors(sy).length === 0;
   const detailedModels = sy.systemLogicModels.filter((model) => model.topGate !== null && !isSystemLevelModel(model));
-  const uncertComplete = detailedModels.length > 0 && detailedModels.every((model) => currentUncertaintyModelIds.has(model.uuid))
-    && (sy.uncertaintyAnalyses ?? []).every((analysis) =>
-      analysis.modelUncertainties.every((item) => item.description.trim().length > 0 && item.treatmentApproach.trim().length > 0));
+  const uncertComplete = sy.systemDefinitions.length > 0 && uncertaintyErrors(sy).length === 0
+    && detailedModels.every((model) => uncertaintyReadiness.get(model.uuid) === "READY");
   const draftComplete = sy.workflowState !== "DRAFT" && sy.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = sy.workflowState === "FINAL";
 

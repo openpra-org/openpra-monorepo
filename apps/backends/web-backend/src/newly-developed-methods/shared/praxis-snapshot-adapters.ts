@@ -52,7 +52,32 @@ interface ResolvedControlledDataSourceValue {
   uncertainty?: ParameterDistribution;
 }
 
-function solverDistribution(distribution: ParameterDistribution): { distributionType: string; parameters: Record<string, number> } | null {
+interface SolverDistribution {
+  distributionType: string;
+  parameters: Record<string, number>;
+}
+
+interface SampledDistribution extends SolverDistribution {
+  correlationKey: string;
+}
+
+interface SampledInput extends SampledDistribution {
+  basicEventId: string;
+}
+
+type AdaptedCcfModel =
+  | { kind: "BETA_FACTOR"; beta: number }
+  | { kind: "MGL" | "ALPHA_FACTOR" | "PHI_FACTOR"; factors: number[] };
+
+interface AdaptedCcfGroup {
+  id: string;
+  members: string[];
+  model: AdaptedCcfModel;
+  totalFailureProbability: number;
+  uncertainty?: SampledDistribution;
+}
+
+function solverDistribution(distribution: ParameterDistribution): SolverDistribution | null {
   switch (distribution.type) {
     case DistributionType.BETA: return { distributionType: distribution.type, parameters: { alpha: distribution.alpha, beta: distribution.betaParam } };
     case DistributionType.LOGNORMAL: return { distributionType: distribution.type, parameters: { median: distribution.median, errorFactor: distribution.errorFactor } };
@@ -510,7 +535,7 @@ const adaptSyFaultTreeSnapshot = (
     });
   });
 
-  const commonCauseFailureGroups = (source.mef.commonCauseFailureGroups ?? []).flatMap<Record<string, unknown>>((group) => {
+  const commonCauseFailureGroups = (source.mef.commonCauseFailureGroups ?? []).flatMap<AdaptedCcfGroup>((group) => {
     const members = group.members?.basicEvents.map((event) => event.id) ?? [];
     if (members.length < 2 || members.some((id) => !referencedBasicEventIds.has(id))) return [];
     const parameters = group.modelSpecificParameters;
@@ -566,9 +591,8 @@ const adaptSyFaultTreeSnapshot = (
   if (options.includeControlledUncertainty === true && commonCauseFailureGroups.length > 0 && options.expandCcf !== true) {
     throw new WorkbookPraxisAdapterError("Uncertainty analysis for this fault tree must expand its common-cause groups.");
   }
-  const ccfMemberIds = new Set(commonCauseFailureGroups.flatMap((group) => group.members as string[]));
   const uncertaintyInputs = options.includeControlledUncertainty === true
-    ? [...referencedBasicEventIds].flatMap((basicEventId) => {
+    ? [...referencedBasicEventIds].flatMap<SampledInput>((basicEventId) => {
       const event = findByUuid(source.mef.systemBasicEvents, basicEventId, "SY basic event");
       if (event.failureMode === "COMMON_CAUSE_FAILURE") return [];
       const reference = event.controlledDataSource;
@@ -592,15 +616,26 @@ const adaptSyFaultTreeSnapshot = (
         : distribution.distributionType === "gamma" ? values["shape"]! <= 0 || values["rate"]! <= 0
         : distribution.distributionType === "exponential" ? values["rate"]! <= 0 : true;
       if (invalid) throw new WorkbookPraxisAdapterError(`DA uncertainty for '${event.code ?? basicEventId}' has invalid ${distribution.distributionType} parameters`);
-      if (options.expandCcf === true && ccfMemberIds.has(basicEventId)) {
-        throw new WorkbookPraxisAdapterError(`DA uncertainty for CCF member '${event.code ?? basicEventId}' cannot be propagated through CCF expansion. Review this distribution before running uncertainty analysis.`);
-      }
-      return [{ basicEventId, ...distribution }];
+      return [{ basicEventId, ...distribution, correlationKey: faultTreeControlledDataSourceKey(reference) }];
     })
     : [];
   if (options.includeControlledUncertainty === true && uncertaintyInputs.length === 0) {
     throw new WorkbookPraxisAdapterError("This fault tree has no supported DA uncertainty distributions linked to its basic events.");
   }
+  const inputByEvent = new Map(uncertaintyInputs.map((input) => [input.basicEventId, input]));
+  const sampledGroups = commonCauseFailureGroups.map((group): AdaptedCcfGroup => {
+    const inputs = group.members.flatMap((id) => inputByEvent.get(id) ?? []);
+    const [first] = inputs;
+    if (first === undefined) return group;
+    if (inputs.length < group.members.length || inputs.some((input) => input.correlationKey !== first.correlationKey)) {
+      const name = (source.mef.commonCauseFailureGroups ?? []).find((candidate) => candidate.uuid === group.id)?.name ?? group.id;
+      throw new WorkbookPraxisAdapterError(`Common cause group '${name}' members link different DA estimates. Link every member to one estimate before running uncertainty analysis.`);
+    }
+    return {
+      ...group,
+      uncertainty: { distributionType: first.distributionType, parameters: first.parameters, correlationKey: first.correlationKey },
+    };
+  });
 
   return {
     modelSnapshot: {
@@ -621,7 +656,7 @@ const adaptSyFaultTreeSnapshot = (
     basicEventCatalogue: {
       projectId: source.workbookId,
       basicEvents,
-      ...(commonCauseFailureGroups.length === 0 ? {} : { commonCauseFailureGroups }),
+      ...(sampledGroups.length === 0 ? {} : { commonCauseFailureGroups: sampledGroups }),
       ...(uncertaintyInputs.length === 0 ? {} : { uncertaintyInputs }),
     },
     controlledDataSources: [...controlledDataSources.values()],

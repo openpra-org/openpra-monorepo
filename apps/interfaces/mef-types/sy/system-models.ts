@@ -474,6 +474,16 @@ function canonicalizeNormalizedFaultTreeIds(value: UnknownRecord): UnknownRecord
       })
     : value.environmentalDesignBasisConsiderations;
 
+  const modularizationRecords = Array.isArray(value.modularizationRecords)
+    ? value.modularizationRecords.map((item) => {
+        if (!isRecord(item) || !Array.isArray(item.basicEventIds)) return item;
+        return {
+          ...item,
+          basicEventIds: item.basicEventIds.map((id) => (typeof id === "string" ? (basicEventIds.get(id) ?? id) : id)),
+        };
+      })
+    : value.modularizationRecords;
+
   return {
     ...value,
     systemLogicModels,
@@ -482,6 +492,7 @@ function canonicalizeNormalizedFaultTreeIds(value: UnknownRecord): UnknownRecord
     ...(humanFailureEventIntegrations === undefined ? {} : { humanFailureEventIntegrations }),
     ...(simultaneousUnavailabilityEvents === undefined ? {} : { simultaneousUnavailabilityEvents }),
     ...(environmentalDesignBasisConsiderations === undefined ? {} : { environmentalDesignBasisConsiderations }),
+    ...(modularizationRecords === undefined ? {} : { modularizationRecords }),
   };
 }
 

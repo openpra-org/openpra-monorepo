@@ -93,15 +93,18 @@ jest.mock("../syWorkbookContext", () => ({
   useSyWorkbook: () => mockContext,
 }));
 
-function renderScope({ sy = makeAnalysis(), links = null, editable = true, openDrawer = jest.fn(), setStage = jest.fn() }: {
+function renderScope({ sy = makeAnalysis(), links = null, editable = true, openDrawer = jest.fn(), setStage = jest.fn(), onOpenSystems, systemsFocus, onSystemsFocused }: {
   sy?: SystemsAnalysis;
   links?: SyLinkedInputs | null;
   editable?: boolean;
   openDrawer?: jest.Mock;
   setStage?: jest.Mock;
+  onOpenSystems?: jest.Mock;
+  systemsFocus?: boolean;
+  onSystemsFocused?: jest.Mock;
 } = {}): void {
   mockContext = { sy, links, editable, mutateSy: mockMutateSy, upstream: UPSTREAM };
-  render(<ScopeScreen ccId="cc-ii" setCcId={jest.fn()} stage="pre_operational" setStage={setStage} onAction={jest.fn()} openDrawer={openDrawer} />);
+  render(<ScopeScreen ccId="cc-ii" setCcId={jest.fn()} stage="pre_operational" setStage={setStage} onAction={jest.fn()} openDrawer={openDrawer} onOpenSystems={onOpenSystems} systemsFocus={systemsFocus} onSystemsFocused={onSystemsFocused} />);
 }
 
 function applyLastMutation(base: SystemsAnalysis): SystemsAnalysis {
@@ -200,6 +203,29 @@ describe("SY Scope step", () => {
     expect(setStage).toHaveBeenCalledWith("operational");
     expect(next.plantStage).toBe("OPERATIONAL");
     expect(next.systemDefinitions.map(({ informationBasis }) => informationBasis)).toEqual(["as-built-as-operated", "as-built-as-operated"]);
+  });
+
+  it("links the Interfaces hint to the Systems in scope section", () => {
+    const onOpenSystems = jest.fn();
+    renderScope({ onOpenSystems });
+
+    const link = screen.getByRole("link", { name: "Systems in scope" });
+    expect(link).toHaveAttribute("href", "?step=scope#sy-systems-in-scope");
+    fireEvent.click(link);
+    expect(onOpenSystems).toHaveBeenCalledTimes(1);
+  });
+
+  it("scrolls to and focuses Systems in scope when asked", () => {
+    const scrollIntoView = jest.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const onSystemsFocused = jest.fn();
+    renderScope({ systemsFocus: true, onSystemsFocused });
+
+    const section = document.getElementById("sy-systems-in-scope");
+    expect(section).toHaveTextContent("Systems in scope");
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+    expect(document.activeElement).toBe(section);
+    expect(onSystemsFocused).toHaveBeenCalledTimes(1);
   });
 
   it("hides editing controls from a reviewer", () => {

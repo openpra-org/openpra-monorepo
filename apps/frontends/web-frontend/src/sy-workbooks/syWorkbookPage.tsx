@@ -25,6 +25,7 @@ import {
   SyWorkbookProvider,
   type SyControlledCcfEstimateOption,
   type SyControlledCoincidentMaintenanceOption,
+  type SyControlledComponentBoundaryOption,
   type SyControlledFailureModeOption,
   type SyControlledHumanFailureOption,
   type SyControlledParameterOption,
@@ -45,7 +46,7 @@ import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
 import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
 import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
 import { getPosWorkbook } from "../pos-workbooks/posWorkbookApi";
-import { buildLinkedInputs, controlledCcfEstimateOptions, controlledCoincidentMaintenanceOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
+import { buildLinkedInputs, controlledCcfEstimateOptions, controlledCoincidentMaintenanceOptions, controlledComponentBoundaryOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "SY-A1",
@@ -94,6 +95,7 @@ function SyWorkbookPage(): JSX.Element {
   const [controlledFailureModes, setControlledFailureModes] = useState<SyControlledFailureModeOption[]>([]);
   const [controlledCoincidentMaintenance, setControlledCoincidentMaintenance] = useState<SyControlledCoincidentMaintenanceOption[]>([]);
   const [controlledCcfEstimates, setControlledCcfEstimates] = useState<SyControlledCcfEstimateOption[]>([]);
+  const [controlledComponentBoundaries, setControlledComponentBoundaries] = useState<SyControlledComponentBoundaryOption[]>([]);
   const [linkOptions, setLinkOptions] = useState<Record<SyLinkCode, Workbook[]>>(NO_LINK_OPTIONS);
   const [linkedEs, setLinkedEs] = useState<EventSequenceAnalysis | undefined>(undefined);
   const [linkedSc, setLinkedSc] = useState<SuccessCriteriaDevelopment | undefined>(undefined);
@@ -193,6 +195,7 @@ function SyWorkbookPage(): JSX.Element {
         setControlledFailureModes(controlledFailureModeOptions(sources));
         setControlledCoincidentMaintenance(controlledCoincidentMaintenanceOptions(sources));
         setControlledCcfEstimates(controlledCcfEstimateOptions(sources));
+        setControlledComponentBoundaries(controlledComponentBoundaryOptions(sources));
       })
       .catch(() => {
         if (cancelled) return;
@@ -200,6 +203,7 @@ function SyWorkbookPage(): JSX.Element {
         setControlledFailureModes([]);
         setControlledCoincidentMaintenance([]);
         setControlledCcfEstimates([]);
+        setControlledComponentBoundaries([]);
       });
     return () => { cancelled = true; };
   }, [linkOptions.DA, linkedDaId]);
@@ -327,6 +331,7 @@ function SyWorkbookPage(): JSX.Element {
       controlledFailureModes={controlledFailureModes}
       controlledCoincidentMaintenance={controlledCoincidentMaintenance}
       controlledCcfEstimates={controlledCcfEstimates}
+      controlledComponentBoundaries={controlledComponentBoundaries}
       upstream={upstream}
     >
       <SyWorkbench

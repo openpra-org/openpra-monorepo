@@ -89,6 +89,19 @@ interface SyControlledParameterOption {
   uncertainty?: ParameterDistribution;
   failureModeId?: string;
   failureModeName?: string;
+  componentBoundaryId?: string;
+}
+
+interface SyControlledComponentBoundaryOption {
+  workbookId: string;
+  workbookName: string;
+  boundaryId: string;
+  name: string;
+  systemId: string;
+  description: string;
+  includedItems: string[];
+  excludedItems: string[];
+  boundaryBasis: string;
 }
 
 interface SyControlledFailureModeOption {
@@ -143,6 +156,7 @@ interface SyWorkbookContextValue extends SyWorkbookData {
   controlledFailureModes: SyControlledFailureModeOption[];
   controlledCoincidentMaintenance: SyControlledCoincidentMaintenanceOption[];
   controlledCcfEstimates: SyControlledCcfEstimateOption[];
+  controlledComponentBoundaries: SyControlledComponentBoundaryOption[];
   mutateSy: (mutator: SyMutator) => void;
   shortOf: (id: string) => string;
 }
@@ -159,6 +173,7 @@ function SyWorkbookProvider({
   controlledFailureModes,
   controlledCoincidentMaintenance,
   controlledCcfEstimates,
+  controlledComponentBoundaries,
   upstream,
   children,
 }: {
@@ -172,6 +187,7 @@ function SyWorkbookProvider({
   controlledFailureModes?: SyControlledFailureModeOption[];
   controlledCoincidentMaintenance?: SyControlledCoincidentMaintenanceOption[];
   controlledCcfEstimates?: SyControlledCcfEstimateOption[];
+  controlledComponentBoundaries?: SyControlledComponentBoundaryOption[];
   children: React.ReactNode;
 }): JSX.Element {
   const value = useMemo<SyWorkbookContextValue>(
@@ -185,13 +201,14 @@ function SyWorkbookProvider({
       controlledFailureModes: controlledFailureModes ?? [],
       controlledCoincidentMaintenance: controlledCoincidentMaintenance ?? [],
       controlledCcfEstimates: controlledCcfEstimates ?? [],
+      controlledComponentBoundaries: controlledComponentBoundaries ?? [],
       mutateSy,
       shortOf: (id: string): string => {
         const def = data.sy.systemDefinitions.find((d) => d.uuid === id);
         return def?.abbreviation ?? def?.name ?? id;
       },
     }),
-    [controlledCcfEstimates, controlledCoincidentMaintenance, controlledFailureModes, controlledHumanFailures, controlledParameters, data, editable, mutateSy, runtime, upstream],
+    [controlledCcfEstimates, controlledComponentBoundaries, controlledCoincidentMaintenance, controlledFailureModes, controlledHumanFailures, controlledParameters, data, editable, mutateSy, runtime, upstream],
   );
   return <SyWorkbookContext.Provider value={value}>{children}</SyWorkbookContext.Provider>;
 }
@@ -217,6 +234,7 @@ export {
   type SyControlledFailureModeOption,
   type SyControlledCoincidentMaintenanceOption,
   type SyControlledCcfEstimateOption,
+  type SyControlledComponentBoundaryOption,
   type SyLinkedMissionTime,
   type SyLinkedInitiatingEvent,
   type SyLinkedSupport,

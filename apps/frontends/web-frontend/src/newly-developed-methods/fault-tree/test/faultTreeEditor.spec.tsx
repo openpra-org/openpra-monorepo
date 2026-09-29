@@ -4,12 +4,19 @@ import type { FaultTreeAnalysisResult } from "interfaces-shared-types/newly-deve
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
 import {
   FaultTreeEditor,
+  applyFaultTreeOperation,
   type FaultTreeEditorCapabilities,
   type FaultTreeEditorCatalogue,
   type FaultTreeEditorModel,
   type FaultTreeEditorProps,
   type FaultTreeOperation,
+  type FaultTreeSelection,
 } from "../index";
+import { renderFaultTreePng, type FaultTreePng } from "../faultTreeImage";
+
+jest.mock("../faultTreeImage", () => ({ renderFaultTreePng: jest.fn() }));
+
+const mockedRenderPng = jest.mocked(renderFaultTreePng);
 
 const ROOT_GATE_ID = "11111111-1111-4111-8111-111111111111";
 const BRANCH_GATE_ID = "22222222-2222-4222-8222-222222222222";
@@ -129,6 +136,18 @@ function editorProps(overrides: Partial<FaultTreeEditorProps> = {}): FaultTreeEd
     onOpenReference: jest.fn(),
     onRun: jest.fn(),
     ...overrides,
+  };
+}
+
+function stageBounds(stage: HTMLElement): { left: number; top: number; right: number; bottom: number } {
+  const [translate = "", scale = ""] = stage.style.transform.split(" scale(");
+  const [left = "", top = ""] = translate.slice("translate(".length, -1).split(", ");
+  const zoom = parseFloat(scale);
+  return {
+    left: parseFloat(left),
+    top: parseFloat(top),
+    right: parseFloat(left) + parseFloat(stage.style.width) * zoom,
+    bottom: parseFloat(top) + parseFloat(stage.style.height) * zoom,
   };
 }
 
@@ -652,6 +671,123 @@ describe("FaultTreeEditor", () => {
     expect(onOperation).toHaveBeenCalledWith({ type: "DELETE_LEAF", leafId: LEAF_ID, subtree: true });
   });
 
+  it("shows node actions on the left that follow the selected node", async () => {
+    const user = userEvent.setup();
+    const onOperation = jest.fn<void, [FaultTreeOperation]>();
+    const { rerender } = render(<FaultTreeEditor {...editorProps({ onOperation })} />);
+
+    const rail = screen.getByRole("complementary", { name: "Fault-tree node actions" });
+    expect(within(rail).getByRole("button", { name: "Add gate" })).toBeDisabled();
+    expect(within(rail).getByRole("button", { name: "Add basic event" })).toBeDisabled();
+    expect(within(rail).getByRole("button", { name: "Delete node" })).toBeDisabled();
+    expect(within(rail).getByText("Select a gate to add inputs to it.")).toBeInTheDocument();
+
+    rerender(<FaultTreeEditor {...editorProps({ onOperation, selection: { kind: "GATE", gateId: ROOT_GATE_ID } })} />);
+    const gateRail = screen.getByRole("complementary", { name: "Fault-tree node actions" });
+    expect(within(gateRail).getByText("Add under TOP")).toBeInTheDocument();
+    expect(within(gateRail).getByRole("button", { name: "Add transfer" })).toBeDisabled();
+    expect(within(gateRail).getByText("Add transfer needs another fault tree to point to.")).toBeInTheDocument();
+
+    await user.click(within(gateRail).getByRole("button", { name: "Add gate" }));
+    expect(onOperation).toHaveBeenLastCalledWith(expect.objectContaining({ type: "ADD_GATE", parentGateId: ROOT_GATE_ID }));
+    await user.click(within(gateRail).getByRole("button", { name: "Add house event" }));
+    expect(onOperation).toHaveBeenLastCalledWith(expect.objectContaining({
+      type: "ADD_LEAF",
+      parentGateId: ROOT_GATE_ID,
+      leaf: expect.objectContaining({ kind: "HOUSE_EVENT" }),
+    }));
+  });
+
+  it("adds an existing basic event from the actions column", async () => {
+    const user = userEvent.setup();
+    const onOperation = jest.fn<void, [FaultTreeOperation]>();
+    render(<FaultTreeEditor {...editorProps({ onOperation, selection: { kind: "GATE", gateId: ROOT_GATE_ID } })} />);
+
+    const rail = screen.getByRole("complementary", { name: "Fault-tree node actions" });
+    await user.click(within(rail).getByRole("button", { name: "Add basic event" }));
+    await user.type(within(rail).getByLabelText("Search basic events"), "PUMP");
+    await user.click(within(rail).getByRole("button", { name: "BE-PUMP" }));
+
+    expect(onOperation).toHaveBeenCalledWith({
+      type: "ADD_LEAF",
+      leaf: { kind: "BASIC_EVENT_REFERENCE", basicEventId: BASIC_EVENT_ID },
+      parentGateId: ROOT_GATE_ID,
+    });
+    expect(within(rail).getByRole("button", { name: "Add gate" })).toBeEnabled();
+  });
+
+  it("adds a transfer from the actions column when another fault tree exists", async () => {
+    const user = userEvent.setup();
+    const onOperation = jest.fn<void, [FaultTreeOperation]>();
+    const target = { modelId: "99999999-9999-4999-8999-999999999999", entityId: "99999999-9999-4999-8999-999999999998" };
+    render(<FaultTreeEditor {...editorProps({
+      onOperation,
+      selection: { kind: "GATE", gateId: ROOT_GATE_ID },
+      transferTargets: [{ target, code: "FT-POWER", name: "Loss of power" }],
+    })} />);
+
+    const rail = screen.getByRole("complementary", { name: "Fault-tree node actions" });
+    expect(within(rail).queryByText("Add transfer needs another fault tree to point to.")).not.toBeInTheDocument();
+    await user.click(within(rail).getByRole("button", { name: "Add transfer" }));
+    expect(onOperation).toHaveBeenCalledWith(expect.objectContaining({
+      type: "ADD_LEAF",
+      parentGateId: ROOT_GATE_ID,
+      leaf: expect.objectContaining({ kind: "TRANSFER_REFERENCE", target }),
+    }));
+  });
+
+  it("only deletes a selected event from the actions column", async () => {
+    const user = userEvent.setup();
+    const onOperation = jest.fn<void, [FaultTreeOperation]>();
+    render(<FaultTreeEditor {...editorProps({ onOperation, selection: { kind: "LEAF", leafId: LEAF_ID } })} />);
+
+    const rail = screen.getByRole("complementary", { name: "Fault-tree node actions" });
+    expect(within(rail).getByRole("button", { name: "Add gate" })).toBeDisabled();
+    expect(within(rail).getByRole("button", { name: "Add house event" })).toBeDisabled();
+    expect(within(rail).getByText("Only gates take inputs.")).toBeInTheDocument();
+
+    await user.click(within(rail).getByRole("button", { name: "Delete node" }));
+    const dialog = screen.getByRole("alertdialog", { name: "Delete this fault-tree node?" });
+    expect(onOperation).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Delete node" }));
+    expect(onOperation).toHaveBeenCalledWith({ type: "DELETE_LEAF", leafId: LEAF_ID, subtree: true });
+  });
+
+  it("keeps a NOT gate that already has its input from taking another", () => {
+    const notModel: FaultTreeEditorModel = {
+      ...model,
+      gates: [
+        model.gates[0]!,
+        { id: BRANCH_GATE_ID, kind: "GATE", gateType: "NOT", code: "G-A", name: "Train unavailable", description: "Train logic" },
+        model.gates[2]!,
+      ],
+    };
+    render(<FaultTreeEditor {...editorProps({ model: notModel, selection: { kind: "GATE", gateId: BRANCH_GATE_ID } })} />);
+
+    const rail = screen.getByRole("complementary", { name: "Fault-tree node actions" });
+    expect(within(rail).getByRole("button", { name: "Add gate" })).toBeDisabled();
+    expect(within(rail).getByRole("button", { name: "Add basic event" })).toBeDisabled();
+    expect(within(rail).getByText("This NOT gate already has its single input.")).toBeInTheDocument();
+    expect(within(rail).getByRole("button", { name: "Delete node" })).toBeEnabled();
+  });
+
+  it("creates the top gate from the actions column in an empty fault tree", async () => {
+    const user = userEvent.setup();
+    const onOperation = jest.fn<void, [FaultTreeOperation]>();
+    const empty: FaultTreeEditorModel = { ...model, topGate: null, gates: [], leafNodes: [], gateInputs: [], nodePositions: [] };
+    render(<FaultTreeEditor {...editorProps({ model: empty, onOperation })} />);
+
+    const rail = screen.getByRole("complementary", { name: "Fault-tree node actions" });
+    expect(within(rail).getByText("Add gate creates the top gate.")).toBeInTheDocument();
+    await user.click(within(rail).getByRole("button", { name: "Add gate" }));
+    expect(onOperation).toHaveBeenCalledWith(expect.objectContaining({ type: "ADD_GATE", parentGateId: undefined, setAsTopGate: true }));
+  });
+
+  it("hides the actions column outside authoring", () => {
+    render(<FaultTreeEditor {...editorProps({ capabilities: { ...authorCapabilities, mode: "READ_ONLY" } })} />);
+    expect(screen.queryByRole("complementary", { name: "Fault-tree node actions" })).not.toBeInTheDocument();
+  });
+
   it("offers the same child-authoring actions from a non-top gate", () => {
     render(<FaultTreeEditor {...editorProps()} />);
 
@@ -688,6 +824,73 @@ describe("FaultTreeEditor", () => {
     expect(screen.getByLabelText("Zoom level")).not.toHaveTextContent("100%");
   });
 
+  it("fits the whole tree beside the inspector after a node is added", async () => {
+    const user = userEvent.setup();
+    const onOperation = jest.fn<void, [FaultTreeOperation]>();
+    const selection: FaultTreeSelection = { kind: "GATE", gateId: ROOT_GATE_ID };
+    const automatic: FaultTreeEditorModel = { ...model, layout: { ...model.layout, mode: "AUTOMATIC" } };
+    const rendered = render(<FaultTreeEditor {...editorProps({ model: automatic, onOperation })} />);
+    const viewport = rendered.container.querySelector<HTMLElement>(".fteditor__viewport")!;
+    Object.defineProperties(viewport, {
+      clientWidth: { configurable: true, value: 960 },
+      clientHeight: { configurable: true, value: 680 },
+    });
+    rendered.rerender(<FaultTreeEditor {...editorProps({ model: automatic, onOperation, selection })} />);
+
+    const rail = screen.getByRole("complementary", { name: "Fault-tree node actions" });
+    await user.click(within(rail).getByRole("button", { name: "Add gate" }));
+    const added = applyFaultTreeOperation(automatic, catalogue, onOperation.mock.calls[0]![0]);
+    rendered.rerender(<FaultTreeEditor {...editorProps({ model: added.model, catalogue: added.catalogue, onOperation, selection })} />);
+
+    const bounds = stageBounds(rendered.container.querySelector<HTMLElement>(".fteditor__stage")!);
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.top).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(960 - 320);
+    expect(bounds.bottom).toBeLessThanOrEqual(680);
+  });
+
+  it("keeps the current view when only a node's details change", async () => {
+    const user = userEvent.setup();
+    const selection: FaultTreeSelection = { kind: "GATE", gateId: ROOT_GATE_ID };
+    const rendered = render(<FaultTreeEditor {...editorProps({ selection })} />);
+    const viewport = rendered.container.querySelector<HTMLElement>(".fteditor__viewport")!;
+    Object.defineProperties(viewport, {
+      clientWidth: { configurable: true, value: 960 },
+      clientHeight: { configurable: true, value: 680 },
+    });
+    await user.click(screen.getByRole("button", { name: "Zoom in" }));
+    const stage = rendered.container.querySelector<HTMLElement>(".fteditor__stage")!;
+    const zoomed = stage.style.transform;
+
+    const renamed: FaultTreeEditorModel = {
+      ...model,
+      gates: model.gates.map((gate) => gate.id === ROOT_GATE_ID ? { ...gate, name: "Loss of all cooling" } : gate),
+    };
+    rendered.rerender(<FaultTreeEditor {...editorProps({ model: renamed, selection })} />);
+
+    expect(stage.style.transform).toBe(zoomed);
+  });
+
+  it("zooms below the usual floor when only that fits the tree beside the inspector", async () => {
+    const user = userEvent.setup();
+    const selection: FaultTreeSelection = { kind: "GATE", gateId: ROOT_GATE_ID };
+    const rendered = render(<FaultTreeEditor {...editorProps()} />);
+    const viewport = rendered.container.querySelector<HTMLElement>(".fteditor__viewport")!;
+    Object.defineProperties(viewport, {
+      clientWidth: { configurable: true, value: 440 },
+      clientHeight: { configurable: true, value: 680 },
+    });
+    rendered.rerender(<FaultTreeEditor {...editorProps({ selection })} />);
+
+    const bounds = stageBounds(rendered.container.querySelector<HTMLElement>(".fteditor__stage")!);
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(440 - 320);
+    const fittedZoom = screen.getByLabelText("Zoom level").textContent;
+
+    await user.click(screen.getByRole("button", { name: "Zoom out" }));
+    expect(screen.getByLabelText("Zoom level").textContent).toBe(fittedZoom);
+  });
+
   it("uses icon-only document and canvas controls with accessible names", () => {
     render(<FaultTreeEditor {...editorProps({ capabilities: { ...authorCapabilities, canImport: true, canExport: true } })} />);
 
@@ -696,6 +899,62 @@ describe("FaultTreeEditor", () => {
       expect(control.querySelector("svg")).toBeInTheDocument();
     }
     expect(screen.queryByText("Auto layout")).not.toBeInTheDocument();
+  });
+
+  it("offers a high-resolution PNG in read-only views too", async () => {
+    const user = userEvent.setup();
+    render(<FaultTreeEditor {...editorProps({ capabilities: { ...authorCapabilities, mode: "READ_ONLY", canImport: false, canExport: false } })} />);
+
+    await user.click(screen.getByRole("button", { name: "File" }));
+    expect(screen.getByRole("button", { name: "Export high-resolution PNG" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Export OpenPSA XML" })).not.toBeInTheDocument();
+  });
+
+  it("leaves the PNG out of reference selection and empty trees", () => {
+    const { unmount } = render(<FaultTreeEditor {...editorProps({ capabilities: { ...authorCapabilities, mode: "REFERENCE_SELECTION", canImport: false, canExport: false } })} />);
+    expect(screen.queryByRole("button", { name: "File" })).not.toBeInTheDocument();
+    unmount();
+
+    const empty: FaultTreeEditorModel = { ...model, topGate: null, gates: [], leafNodes: [], gateInputs: [], nodePositions: [] };
+    render(<FaultTreeEditor {...editorProps({ model: empty })} />);
+    expect(screen.getByRole("button", { name: "Export high-resolution PNG" })).toBeDisabled();
+  });
+
+  it("saves the PNG of the drawn tree and reports its size", async () => {
+    const user = userEvent.setup();
+    let finish: (png: FaultTreePng) => void = () => undefined;
+    mockedRenderPng.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const createObjectURL = jest.fn(() => "blob:fault-tree");
+    const revokeObjectURL = jest.fn();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    const saved: string[] = [];
+    const click = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      saved.push(this.download);
+    });
+    const { container } = render(<FaultTreeEditor {...editorProps({ selection: { kind: "GATE", gateId: ROOT_GATE_ID } })} />);
+
+    await user.click(screen.getByRole("button", { name: "File" }));
+    await user.click(screen.getByRole("button", { name: "Export high-resolution PNG" }));
+    expect(mockedRenderPng).toHaveBeenCalledWith(container.querySelector(".ftcanvas"), 24);
+    expect(screen.getByText("Preparing the PNG…")).toHaveAttribute("role", "status");
+    expect(screen.getByRole("button", { name: "Export high-resolution PNG" })).toBeDisabled();
+
+    finish({ blob: new Blob(["png"], { type: "image/png" }), width: 20018, height: 13172, dotsPerInch: 1921.7 });
+    expect(await screen.findByText("FT-COOLING.png: 20,018 × 13,172 px at 1,922 dpi")).toBeInTheDocument();
+    expect(saved).toEqual(["FT-COOLING.png"]);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:fault-tree");
+    click.mockRestore();
+  });
+
+  it("explains when the browser cannot make the PNG", async () => {
+    const user = userEvent.setup();
+    mockedRenderPng.mockRejectedValue(new Error("This browser could not create a canvas for the image."));
+    render(<FaultTreeEditor {...editorProps()} />);
+
+    await user.click(screen.getByRole("button", { name: "File" }));
+    await user.click(screen.getByRole("button", { name: "Export high-resolution PNG" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("This browser could not create a canvas for the image.");
+    expect(screen.getByRole("button", { name: "Export high-resolution PNG" })).toBeEnabled();
   });
 
   it("emits a catalogue operation for a basic-event probability", async () => {

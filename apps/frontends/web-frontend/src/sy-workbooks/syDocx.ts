@@ -11,9 +11,9 @@ import {
   BorderStyle,
 } from "docx";
 import { type CommonCauseFailureGroup, type SystemDefinition, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import { analysisModelBasicEvents } from "./syUncertainty";
+import { analysisModelBasicEvents, ccfSources, dependencySources, modelSources, plantItems, systemStudies, type PlantList } from "./syUncertainty";
 import { isSystemLevelModel } from "./sySelectors";
-import { CCF_MODELS, RESOURCE_TYPE_LABELS, SCREENING_CRITERIA, toExp } from "./syViewData";
+import { CCF_MODELS, CONFIRM_METHODS, RESOURCE_TYPE_LABELS, SCREENING_CRITERIA, toExp } from "./syViewData";
 import { ccfFactorText, memberEvents, sharedCauseLines, totalFailureProbability } from "./syCcf";
 import {
   DEPENDENCY_TREATMENT_LABELS,
@@ -25,11 +25,15 @@ import {
   type DependencyLink,
 } from "./syDependencyLinks";
 import { TREATMENT_LABELS, integrationFor, systemOutages, systemTree } from "./syFailureRecords";
+import { BOUNDARY_STATUS_LABELS, DESIGNATOR_KIND_LABELS, EVENT_TYPE_LABELS, boundaryRows, confirmationRecords, detailRecords } from "./syIntegrityChecks";
+import type { SyControlledComponentBoundaryOption, SyControlledParameterOption } from "./syWorkbookContext";
 import { AnalysisRunDetailsSchema, AnalysisRunProvenanceListSchema } from "interfaces-shared-types/newly-developed-methods/shared";
 import { FaultTreeAnalysisResultSchema } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { fetchJson } from "../api/client";
 
 type ReportKind = "methodology" | "system";
+interface ReportLinks { parameters: readonly SyControlledParameterOption[]; boundaries: readonly SyControlledComponentBoundaryOption[] }
+type Heading = (typeof HeadingLevel)[keyof typeof HeadingLevel];
 interface UncertaintySummary { modelId: string; mean: number; lower: number; upper: number; samples: number }
 
 async function currentUncertaintySummaries(workbookId: string | null, revision: number | null): Promise<UncertaintySummary[]> {
@@ -300,7 +304,110 @@ function failureModeContent(a: SystemsAnalysis, system: SystemDefinition, level:
   return out;
 }
 
-function systemDescriptions(a: SystemsAnalysis): (Paragraph | Table)[] {
+function integrityContent(a: SystemsAnalysis, system: SystemDefinition, level: Heading, links: ReportLinks): (Paragraph | Table)[] {
+  const out: (Paragraph | Table)[] = [];
+  const codeOf = (eventId: string): string => a.systemBasicEvents.find((event) => event.uuid === eventId)?.code ?? eventId;
+  const records = confirmationRecords(a, system.uuid);
+  out.push(heading("Confirmation against the plant", level));
+  if (records.length === 0) out.push(para("Not confirmed against the plant yet."));
+  else out.push(dataTable(["Method", "Who took part", "Findings", "Date"], records.map((record) => [CONFIRM_METHODS[record.method] ?? record.method, record.personnelRoles.join(", ") || "—", record.findings || "—", record.date || "—"])));
+  const details = detailRecords(a, system.uuid);
+  if (details.length > 0) {
+    out.push(heading("Level of detail", level));
+    out.push(dataTable(["What the model includes", "Checked against", "Finding"], details.map((record) => [record.description || "—", record.techniques.join("; ") || "—", record.results || "—"])));
+  }
+  const reviewed = boundaryRows(a, system.uuid, links.parameters, links.boundaries).flatMap((row) => (row.review === undefined ? [] : [{ row, review: row.review }]));
+  if (reviewed.length > 0) {
+    out.push(heading("Component boundaries", level));
+    out.push(dataTable(["Events", "Data boundary", "Review", "Note"], reviewed.map(({ row, review }) => [
+      row.events.map((event) => event.code).join(", ") || "—",
+      row.boundary?.name ?? review.componentBoundaryRef,
+      BOUNDARY_STATUS_LABELS[review.status],
+      review.note ?? "—",
+    ])));
+  }
+  const modules = (a.modularizationRecords ?? []).filter((record) => record.systemReference === system.uuid);
+  if (modules.length > 0) {
+    out.push(heading("Supercomponents", level));
+    out.push(dataTable(["Supercomponent", "Stands for", "Events", "Basis"], modules.map((record) => [
+      record.moduleId || "—",
+      record.representedComponentIds.join(", ") || "—",
+      (record.basicEventIds ?? []).map(codeOf).join(", ") || "—",
+      record.justification || "—",
+    ])));
+  }
+  return out;
+}
+
+function namingTable(a: SystemsAnalysis, links: ReportLinks): Table {
+  const systems = new Map(a.systemDefinitions.map((system) => [system.uuid, system.name]));
+  const modes = new Map(links.parameters.flatMap((parameter) => (parameter.failureModeId === undefined ? [] : [[parameter.failureModeId, parameter.failureModeName ?? parameter.failureModeId] as const])));
+  const designators = a.nomenclatureDesignators ?? [];
+  return dataTable(["Designator", "Kind", "Meaning", "Applies to"], designators.length === 0 ? [["None listed", "—", "—", "—"]] : designators.map((designator) => [
+    designator.designator || "—",
+    DESIGNATOR_KIND_LABELS[designator.kind],
+    designator.meaning || "—",
+    designator.kind === "SYSTEM"
+      ? systems.get(designator.systemReference ?? "") ?? "—"
+      : designator.kind === "EVENT_TYPE"
+        ? designator.eventType === undefined ? "—" : EVENT_TYPE_LABELS[designator.eventType]
+        : (designator.failureModeRefs ?? []).map((ref) => modes.get(ref) ?? ref).join(", ") || "—",
+  ]));
+}
+
+function systemUncertaintyContent(a: SystemsAnalysis, systemId: string, level: Heading): (Paragraph | Table)[] {
+  const out: (Paragraph | Table)[] = [];
+  const groupName = (groupId: string): string => a.commonCauseFailureGroups.find((group) => group.uuid === groupId)?.name ?? groupId;
+  const systemName = (id: string): string => a.systemDefinitions.find((system) => system.uuid === id)?.name ?? id;
+  const sources = modelSources(a, systemId);
+  out.push(heading("Model uncertainty", level));
+  if (sources.length === 0) out.push(para("No model uncertainty recorded."));
+  else out.push(dataTable(["Source and assumption", "Effect on the results", "Treatment"], sources.map((item) => [
+    item.description || "—",
+    item.impact || "—",
+    `${item.treatmentApproach || "Open"}${item.isQuantified ? " Quantified." : ""}`,
+  ])));
+  const coupling = [
+    ...ccfSources(a, systemId).map((item) => [groupName(item.ccfGroupId), item.description || "—", item.impact || "—"]),
+    ...dependencySources(a, systemId).map((item) => [item.supportingSystem === undefined ? "Shared space or condition" : systemName(item.supportingSystem), item.description || "—", item.impact || "—"]),
+  ];
+  if (coupling.length > 0) {
+    out.push(heading("Common cause and dependency uncertainty", level));
+    out.push(dataTable(["Group or support", "Source", "Effect on the results"], coupling));
+  }
+  const studies = systemStudies(a, systemId);
+  if (studies.length > 0) {
+    out.push(heading("Sensitivity studies", level));
+    out.push(dataTable(["Study", "What it varies", "Result"], studies.map((study) => [
+      study.name ?? "—",
+      study.variedParameters.map((parameter) => {
+        const range = study.parameterRanges[parameter];
+        return range === undefined ? parameter : `${parameter}: ${range[0]} to ${range[1]}`;
+      }).join("; ") || "—",
+      study.results ?? "—",
+    ])));
+  }
+  return out;
+}
+
+const PLANT_TABLES: readonly [PlantList, string, string, string][] = [
+  ["sources", "Sources across systems", "Source", "Effect on the results"],
+  ["assumptions", "Related assumptions", "Assumption", "Basis"],
+  ["alternatives", "Reasonable alternatives", "Alternative", "Why it was not selected"],
+];
+
+function plantUncertaintyContent(a: SystemsAnalysis): (Paragraph | Table)[] {
+  const short = (id: string): string => a.systemDefinitions.find((system) => system.uuid === id)?.abbreviation ?? id;
+  return PLANT_TABLES.flatMap(([list, title, text, detail]) => {
+    const items = plantItems(a, list);
+    return items.length === 0 ? [] : [
+      heading(title, HeadingLevel.HEADING_2),
+      dataTable([text, detail, "Applies to"], items.map((item) => [item.text || "—", item.detail || "—", item.systems.map(short).join(", ") || "—"])),
+    ];
+  });
+}
+
+function systemDescriptions(a: SystemsAnalysis, links: ReportLinks): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [heading("System descriptions", HeadingLevel.HEADING_1)];
   for (const system of a.systemDefinitions) {
     const model = a.systemLogicModels.find((candidate) => candidate.systemReference === system.uuid);
@@ -340,6 +447,8 @@ function systemDescriptions(a: SystemsAnalysis): (Paragraph | Table)[] {
     }
     out.push(...failureModeContent(a, system, HeadingLevel.HEADING_3));
     out.push(...dependencyContent(a, system, HeadingLevel.HEADING_3));
+    out.push(...integrityContent(a, system, HeadingLevel.HEADING_3, links));
+    out.push(...systemUncertaintyContent(a, system.uuid, HeadingLevel.HEADING_3));
     if (limits.length > 0) {
       out.push(heading("Capacity limits", HeadingLevel.HEADING_3));
       out.push(dataTable(["Exceedance scenario", "Treatment", "Justification"], limits.map((item) => [item.potentialExceedanceScenarios.join("; ") || "—", item.treatment === "REALISTIC_JUSTIFIED" ? "Realistic" : "Conservative", item.justificationForCapability ?? "—"])));
@@ -352,7 +461,7 @@ function systemDescriptions(a: SystemsAnalysis): (Paragraph | Table)[] {
   return out;
 }
 
-function buildMethodology(a: SystemsAnalysis, final: boolean, summaries: UncertaintySummary[]): (Paragraph | Table)[] {
+function buildMethodology(a: SystemsAnalysis, final: boolean, summaries: UncertaintySummary[], links: ReportLinks): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
   const stageLabel = a.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational";
   const ccLabel = a.capabilityCategory ?? "N/A";
@@ -385,7 +494,7 @@ function buildMethodology(a: SystemsAnalysis, final: boolean, summaries: Uncerta
   out.push(heading("Grouping retained systems", HeadingLevel.HEADING_2));
   out.push(para(doc.modeledComponentsAndFailureModes));
 
-  out.push(...systemDescriptions(a));
+  out.push(...systemDescriptions(a, links));
 
   out.push(heading("Methodologies & guidelines", HeadingLevel.HEADING_1));
   out.push(heading("Constructing fault trees", HeadingLevel.HEADING_2));
@@ -397,17 +506,14 @@ function buildMethodology(a: SystemsAnalysis, final: boolean, summaries: Uncerta
   out.push(para(doc.systemFunctionsAndBoundaries));
   out.push(heading("Labeling scheme", HeadingLevel.HEADING_2));
   out.push(para(doc.nomenclatureConventions));
+  out.push(namingTable(a, links));
 
   out.push(heading("Common cause failure groups", HeadingLevel.HEADING_1));
   out.push(commonCauseTable(a, a.commonCauseFailureGroups));
 
   out.push(heading("Uncertainty analysis", HeadingLevel.HEADING_1));
   out.push(para("Data Analysis owns parameter estimates and distributions. Systems Analysis links those inputs to basic events and records uncertainty in model assumptions."));
-  out.push(dataTable(["System", "Model assumption", "Treatment"],
-    (a.uncertaintyAnalyses ?? []).flatMap((analysis) => analysis.modelUncertainties.map((item) => [
-      a.systemDefinitions.find((system) => system.uuid === analysis.system)?.name ?? analysis.system,
-      item.description || "—", item.treatmentApproach || "Open",
-    ]))));
+  out.push(...plantUncertaintyContent(a));
   out.push(heading("Current uncertainty results", HeadingLevel.HEADING_2));
   out.push(dataTable(["Fault tree", "Mean", "5%", "95%", "Samples"], summaries.length === 0 ? [["No current saved run", "—", "—", "—", "—"]] :
     summaries.map((item) => [a.systemLogicModels.find((model) => model.uuid === item.modelId)?.code ?? item.modelId,
@@ -427,7 +533,7 @@ function buildMethodology(a: SystemsAnalysis, final: boolean, summaries: Uncerta
   return out;
 }
 
-function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean, summaries: UncertaintySummary[]): (Paragraph | Table)[] {
+function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean, summaries: UncertaintySummary[], links: ReportLinks): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
   const stageLabel = a.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational";
   const sysDef = a.systemDefinitions.find((s) => s.uuid === systemId) ?? a.systemDefinitions[0];
@@ -461,6 +567,7 @@ function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean,
   out.push(heading("Modeling approach", HeadingLevel.HEADING_2));
   out.push(para(logic?.description ?? sysDef.description ?? sysDef.name));
   out.push(...failureModeContent(a, sysDef, HeadingLevel.HEADING_2));
+  out.push(...integrityContent(a, sysDef, HeadingLevel.HEADING_2, links));
   out.push(heading("Common cause failures", HeadingLevel.HEADING_2));
   out.push(commonCauseTable(a, ccfGroups));
   out.push(heading("Basic event data", HeadingLevel.HEADING_2));
@@ -477,10 +584,7 @@ function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean,
     logicBasicEvents.flatMap((event) => event.controlledDataSource?.referenceType === "WORKBOOK_PARAMETER" ? [[
       event.code ?? event.uuid, event.controlledDataSource.entityId, event.controlledDataSource.workbookId,
     ]] : [])));
-  out.push(heading("Model assumptions", HeadingLevel.HEADING_2));
-  out.push(dataTable(["Assumption", "Impact", "Treatment"],
-    (a.uncertaintyAnalyses ?? []).filter((analysis) => analysis.system === sysDef.uuid)
-      .flatMap((analysis) => analysis.modelUncertainties.map((item) => [item.description || "—", item.impact || "—", item.treatmentApproach || "Open"]))));
+  out.push(...systemUncertaintyContent(a, sysDef.uuid, HeadingLevel.HEADING_2));
   if (a.plantStage === "PRE_OPERATIONAL") {
     out.push(heading("Pre-operational assumptions", HeadingLevel.HEADING_2));
     out.push(dataTable(["Assumption", "Status", "Closure basis"],
@@ -500,9 +604,9 @@ function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean,
   return out;
 }
 
-async function generateSyReport(sy: SystemsAnalysis, report: ReportKind, systemId: string, final: boolean, workbookId: string | null = null, revision: number | null = null): Promise<void> {
+async function generateSyReport(sy: SystemsAnalysis, report: ReportKind, systemId: string, final: boolean, workbookId: string | null = null, revision: number | null = null, links: ReportLinks = { parameters: [], boundaries: [] }): Promise<void> {
   const summaries = await currentUncertaintySummaries(workbookId, revision);
-  const children = report === "methodology" ? buildMethodology(sy, final, summaries) : buildSystemReport(sy, systemId, final, summaries);
+  const children = report === "methodology" ? buildMethodology(sy, final, summaries, links) : buildSystemReport(sy, systemId, final, summaries, links);
   const doc = new Document({ sections: [{ children }] });
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);

@@ -31,9 +31,12 @@ describe("SY linked DA uncertainty", () => {
     expect(distributionIssues({ type: DistributionType.WEIBULL, scale: 2, shape: 2, location: 0 })).toContain("The weibull distribution is not supported for fault-tree sampling.");
   });
 
-  it("flags a CCF member distribution that expansion would drop", () => {
+  it("requires the members of a CCF group to link one DA estimate", () => {
     const withCcf = structuredClone(sy);
-    withCcf.commonCauseFailureGroups = [{ members: { basicEvents: [{ id: "event-a" }, { id: "event-b" }] } }] as SystemsAnalysis["commonCauseFailureGroups"];
-    expect(linkedModelInputs(withCcf, withCcf.systemLogicModels[0]!, parameters)[0]?.issues.join(" ")).toContain("CCF expansion cannot propagate");
+    withCcf.commonCauseFailureGroups = [{ name: "Pump group", members: { basicEvents: [{ id: "event-a" }, { id: "event-b" }] } }] as SystemsAnalysis["commonCauseFailureGroups"];
+    expect(linkedModelInputs(withCcf, withCcf.systemLogicModels[0]!, parameters)[0]?.issues.map((item) => item.message))
+      .toEqual(["The members of Pump group link different DA estimates. Link all of them to one estimate in Step 02."]);
+    withCcf.systemBasicEvents[1] = { ...withCcf.systemBasicEvents[1]!, controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "p-a" } };
+    expect(linkedModelInputs(withCcf, withCcf.systemLogicModels[0]!, parameters).map((input) => input.issues)).toEqual([[], []]);
   });
 });

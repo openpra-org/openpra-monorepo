@@ -500,8 +500,10 @@ pub fn quantify_bytes(model: &[u8], settings: &Settings) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::ccf::{CcfGroup, CcfModel};
     use crate::core::event::BasicEvent;
     use crate::core::gate::{Formula, Gate};
+    use crate::expression::Expr;
 
     fn demo() -> FaultTree {
         let mut ft = FaultTree::new("FT", "top").unwrap();
@@ -610,6 +612,44 @@ mod tests {
         let r = quantify(&ft, &s).unwrap();
         assert_eq!(r.importance.unwrap().len(), 4);
         assert!(r.uncertainty.unwrap().mean >= 0.0);
+    }
+
+    #[test]
+    fn ccf_uncertainty_samples_one_total_per_trial() {
+        let mut ft = FaultTree::new("FT", "top").unwrap();
+        let mut top = Gate::new("top".into(), Formula::And).unwrap();
+        top.add_operand("A".into());
+        top.add_operand("B".into());
+        ft.add_gate(top).unwrap();
+        for e in ["A", "B"] {
+            ft.add_basic_event(BasicEvent::new(e.into(), 0.105).unwrap())
+                .unwrap();
+        }
+        let group = CcfGroup::new(
+            "Pumps",
+            vec!["A".into(), "B".into()],
+            CcfModel::BetaFactor(0.1),
+        )
+        .unwrap()
+        .with_distribution("0.105".into())
+        .with_uncertainty(Expr::uniform(0.01, 0.2));
+        ft.add_ccf_group(group).unwrap();
+        let settings = Settings {
+            ccf: true,
+            uncertainty: true,
+            num_trials: 100_000,
+            ..Default::default()
+        };
+        let result = quantify(&ft, &settings).unwrap();
+        let point = result.probability.unwrap().value;
+        assert!(
+            (point - (0.0945_f64.powi(2) + 0.0105 - 0.0945_f64.powi(2) * 0.0105)).abs() < 1e-15
+        );
+        let mean = result.uncertainty.unwrap().mean;
+        assert!(
+            (mean / 0.02169647475 - 1.0).abs() < 0.01,
+            "sampled mean {mean}"
+        );
     }
 
     #[test]

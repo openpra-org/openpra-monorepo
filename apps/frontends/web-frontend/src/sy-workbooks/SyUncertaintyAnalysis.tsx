@@ -4,7 +4,7 @@ import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysis
 import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "./syWorkbookApi";
 import { useSyWorkbook } from "./syWorkbookContext";
-import { linkedModelInputs } from "./syUncertainty";
+import { runReadiness } from "./syUncertainty";
 import { isSystemLevelModel } from "./sySelectors";
 import "./css/syFaultTreeAnalysis.css";
 import "./css/syUncertainty.css";
@@ -45,12 +45,16 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
   const saveBlockedReason = analysisSaveBlock(runtime);
   const modelOptions = useMemo(() => sy.systemLogicModels
     .filter((model) => model.topGate !== null && !isSystemLevelModel(model))
-    .map((model) => ({
-      id: model.uuid,
-      label: `${sy.systemDefinitions.find(({ uuid }) => uuid === model.systemReference)?.abbreviation ?? model.systemReference} · ${model.code} · ${model.name}`,
-      distributionCount: linkedModelInputs(sy, model, controlledParameters).length,
-      issues: linkedModelInputs(sy, model, controlledParameters).flatMap((input) => input.issues.map((issue) => `${input.event.code ?? input.event.uuid}: ${issue}`)),
-    })), [sy, controlledParameters]);
+    .map((model) => {
+      const readiness = runReadiness(sy, model, controlledParameters);
+      return {
+        id: model.uuid,
+        label: `${sy.systemDefinitions.find(({ uuid }) => uuid === model.systemReference)?.abbreviation ?? model.systemReference} · ${model.code} · ${model.name}`,
+        distributionCount: readiness.inputs.length,
+        state: readiness.state,
+        message: readiness.message,
+      };
+    }), [sy, controlledParameters]);
   const [workflow, setWorkflow] = useState<FaultTreeWorkflow>("MANUAL");
   const [modelId, setModelId] = useState("");
   const [batchIds, setBatchIds] = useState<string[]>([]);
@@ -60,7 +64,7 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<AnalysisResult[]>([]);
 
-  const runnable = useMemo(() => modelOptions.filter(({ distributionCount, issues }) => distributionCount > 0 && issues.length === 0), [modelOptions]);
+  const runnable = useMemo(() => modelOptions.filter(({ state }) => state === "READY"), [modelOptions]);
   useEffect(() => {
     if (!modelOptions.some(({ id }) => id === modelId)) setModelId(runnable[0]?.id ?? modelOptions[0]?.id ?? "");
     setBatchIds((current) => {
@@ -145,7 +149,7 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
               <legend>Fault trees</legend>
               {modelOptions.map((model) => {
                 const canRun = runnable.some(({ id }) => id === model.id);
-                return <label key={model.id} className={canRun ? undefined : "syunc-analysis__unavailable"}><input type="checkbox" checked={batchIds.includes(model.id)} disabled={!canRun} onChange={() => toggleBatch(model.id)} /><span>{model.label}{!canRun && <small> · {model.distributionCount === 0 ? "Link DA distribution" : "Review linked distribution"}</small>}</span></label>;
+                return <label key={model.id} className={canRun ? undefined : "syunc-analysis__unavailable"}><input type="checkbox" checked={batchIds.includes(model.id)} disabled={!canRun} onChange={() => toggleBatch(model.id)} /><span>{model.label}{!canRun && <small> · {model.state === "NO_INPUTS" ? "Link DA distributions" : "Review linked distributions"}</small>}</span></label>;
               })}
             </fieldset>
           ) : selectedModelId === undefined && modelOptions.length > 0 ? (
@@ -176,7 +180,7 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
       </div>
       {modelOptions.length === 0 && <p className="syft-analysis__notice" role="status">There are no detailed fault trees available for analysis.</p>}
       {workflow === "MANUAL" && selectedModel !== undefined && selectedIds.length === 0 && <p className="syft-analysis__notice" role="status">
-        {selectedModel.distributionCount === 0 ? "Link a basic event in Step 02 to a DA parameter with a supported uncertainty distribution." : `This fault tree cannot run: ${selectedModel.issues[0]}`}
+        {selectedModel.message}
       </p>}
       {workflow === "BATCH" && runnable.length === 0 && <p className="syft-analysis__notice" role="status">Link a basic event to a DA parameter with a supported uncertainty distribution.</p>}
       {saveBlockedReason !== null && <p className="syft-analysis__notice" role="status">{saveBlockedReason}</p>}

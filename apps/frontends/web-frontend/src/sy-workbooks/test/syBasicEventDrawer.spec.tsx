@@ -95,6 +95,23 @@ describe("SY basic-event controlled probability authoring", () => {
     expect(mockAnalysis.systemBasicEvents[0]?.probability).toBe(.1);
   });
 
+  it("points to Step 01 Interfaces when no DA or HR workbook is linked", () => {
+    const parameters = mockControlledParameters.splice(0);
+    const humanFailures = mockControlledHumanFailures.splice(0);
+    try {
+      const { unmount } = render(<DrawerContent context={{ kind: "be", id: "be-1" }} onClose={jest.fn()} />);
+      expect(screen.getByText("Typed. Link a DA workbook in Step 01 Interfaces to pick a parameter.")).toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: "Data Analysis parameter" })).not.toBeInTheDocument();
+      expect(screen.getByRole("spinbutton", { name: "Probability" })).toHaveValue(0.1);
+      unmount();
+      render(<DrawerContent context={{ kind: "be", id: "be-hfe" }} onClose={jest.fn()} />);
+      expect(screen.getByText("Typed. Link an HR workbook in Step 01 Interfaces to pick its event and HEP.")).toBeInTheDocument();
+    } finally {
+      mockControlledParameters.push(...parameters);
+      mockControlledHumanFailures.push(...humanFailures);
+    }
+  });
+
   it("stores a typed DA parameter reference and its current display value", () => {
     render(<DrawerContent context={{ kind: "be", id: "be-1" }} onClose={jest.fn()} />);
 

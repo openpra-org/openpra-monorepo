@@ -49,7 +49,7 @@ function DependencyMatrix({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) =
       <div className="sy-review">
         <section className="sy-review-section" aria-label="Dependency matrix">
           <ReviewTitle title="Each row needs the systems in its columns" sr="SY-B5 · B10" />
-          {supportIds.length === 0 ? <p className="sy-review-empty">No system transfers to or records a support system yet.</p> : (
+          {supportIds.length === 0 ? <p className="sy-review-empty">No system transfers to or records a support system yet. Use Add support above, or add a transfer to a support system in a Step 02 fault tree.</p> : (
             <div className="sy-depmatrix">
               <table aria-label="Dependency matrix">
                 <thead>

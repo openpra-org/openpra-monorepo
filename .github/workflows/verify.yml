@@ -1,0 +1,156 @@
+name: "Verify: Build, Test, Lint, Type-Check & Images"
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  apps:
+    runs-on: ubuntu-latest
+    env:
+      NX_NO_CLOUD: "true"
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'" --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.17.0"
+
+      - name: Ensure pnpm available
+        run: npx -y pnpm@10.19.0 --version
+
+      - name: Install dependencies
+        run: npx -y pnpm@10.19.0 install --ignore-scripts --frozen-lockfile
+
+      - name: Install system dependencies for native builds
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            make \
+            cmake \
+            g++ \
+            git \
+            python3 \
+            curl \
+            ca-certificates \
+            libxml2-dev \
+            libomp-dev \
+            libgoogle-perftools-dev \
+            libboost-program-options-dev \
+            libboost-math-dev \
+            libboost-random-dev \
+            libboost-filesystem-dev \
+            libboost-test-dev \
+            libboost-date-time-dev \
+            libjemalloc-dev \
+            libxml2 \
+            libboost-filesystem1.74.0 \
+            libboost-program-options1.74.0 \
+            libtcmalloc-minimal4 \
+            libjemalloc2
+
+      - name: Install the pinned Rust toolchain
+        working-directory: apps/solvers/praxis-node
+        run: rustup toolchain install
+
+      - name: Build the native addons
+        run: |
+          npm --prefix apps/solvers/praxis-node run verify:vendor -- --check-git
+          node apps/solvers/praxis/tests/verify-hcl-references.mjs --check-git
+          npx -y pnpm@10.19.0 nx run solvers-praxis-node:build
+          (cd apps/solvers/scram && npx -y pnpm@10.19.0 run build)
+
+      - name: Install scram CLI
+        run: |
+          if [ -f apps/solvers/scram/build/cmake_install.cmake ]; then
+            sudo cmake --install apps/solvers/scram/build
+            sudo ldconfig
+          else
+            echo "No CMake install script found; skipping scram-cli install"
+          fi
+
+      - name: Build every project
+        run: npx -y pnpm@10.19.0 nx run-many -t build
+
+      - name: Test native addons
+        env:
+          CI: "true"
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          export LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib64:$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
+          npx -y pnpm@10.19.0 nx run solvers-praxis-node:test
+          npm --prefix apps/solvers/praxis-node run test:linux
+          npx -y pnpm@10.19.0 nx run engine-scram:test
+
+      - name: Wait for MongoDB
+        run: |
+          for i in $(seq 1 60); do
+            (echo > /dev/tcp/127.0.0.1/27017) >/dev/null 2>&1 && echo "MongoDB ready" && break
+            sleep 2
+          done
+
+      - name: Test services and applications
+        env:
+          CI: "true"
+          MONGO_URI: mongodb://localhost:27017/test
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          export LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib64:$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
+          npx -y pnpm@10.19.0 nx run-many -t test --projects=backends-web-backend,frontends-web-frontend,interfaces-shared-types -- --testTimeout=60000
+          npx -y pnpm@10.19.0 nx run praetor:test
+
+      - name: Lint
+        run: npx -y pnpm@10.19.0 nx run-many -t lint --projects=backends-web-backend,frontends-web-frontend,interfaces-mef-types,interfaces-shared-types
+
+      - name: Type-check
+        run: npx -y pnpm@10.19.0 nx run-many -t typecheck --projects=backends-web-backend,frontends-web-frontend,praetor,interfaces-mef-types,interfaces-shared-types,site
+
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/solvers/praxis
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install the pinned Rust toolchain
+        run: rustup toolchain install
+
+      - name: Install diagram renderer for visualization tests
+        run: sudo apt-get update && sudo apt-get install -y graphviz
+
+      - name: Type-check
+        run: cargo check
+
+      - name: Lint
+        run: cargo clippy -- -D warnings
+
+      - name: Test PRAXIS, including HCL equivalence and source fixtures
+        run: cargo test
+
+      - name: Test TensorBayes inference and enumeration corpus
+        run: cargo test --manifest-path ../tensorbayes/Cargo.toml
+
+      - name: Test Rust addon adapters
+        run: cargo test --manifest-path ../praxis-node/Cargo.toml --lib
+
+      - name: Build
+        run: cargo build
+
+  images:
+    uses: ./.github/workflows/images.yml
+    with:
+      smoke: true
+    secrets: inherit

@@ -1,0 +1,234 @@
+name: "Images: Web App + Site"
+
+on:
+  workflow_call:
+    inputs:
+      push:
+        type: boolean
+        default: false
+      deploy:
+        type: boolean
+        default: false
+      smoke:
+        type: boolean
+        default: false
+    outputs:
+      docs_hash:
+        value: ${{ jobs.images.outputs.docs_hash }}
+      mongo_image:
+        value: ${{ jobs.images.outputs.mongo_image }}
+      minio_image:
+        value: ${{ jobs.images.outputs.minio_image }}
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: registry.openpra.org
+  MONGO_IMAGE: mongo:latest
+  MINIO_IMAGE: registry.openpra.org/openpra-base-minio:production-2026-09
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_hash: ${{ steps.docs.outputs.docs_hash }}
+      mongo_image: ${{ steps.prep.outputs.mongo_image }}
+      minio_image: ${{ steps.prep.outputs.minio_image }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: ${{ inputs.deploy }}
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.17.0"
+
+      - name: Ensure pnpm available
+        run: npx -y pnpm@10.19.0 --version
+
+      - name: Install dependencies
+        run: npx -y pnpm@10.19.0 install --ignore-scripts --frozen-lockfile
+
+      - name: Build apps
+        env:
+          NX_NO_CLOUD: "true"
+        run: |
+          npx -y pnpm@10.19.0 nx build backends-web-backend --configuration=production
+          npx -y pnpm@10.19.0 nx build frontends-web-frontend --configuration=production
+          npx -y pnpm@10.19.0 nx build site
+
+      - name: Prepare tags
+        id: prep
+        run: |
+          BRANCH_SLUG="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+          BRANCH_SLUG="${BRANCH_SLUG//\//-}"
+          echo "branch_slug=$BRANCH_SLUG" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "mongo_image=$MONGO_IMAGE" >> "$GITHUB_OUTPUT"
+          echo "minio_image=$MINIO_IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare backend build context
+        run: |
+          mkdir -p docker-context/web-backend
+          cp dist/apps/backends/web-backend/main.js docker-context/web-backend/main.js
+          cp apps/backends/web-backend/package.json docker-context/web-backend/package.json
+          node -e '
+            const fs = require("fs");
+            const path = "docker-context/web-backend/package.json";
+            const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
+            for (const key of ["dependencies", "devDependencies"]) {
+              if (!pkg[key]) continue;
+              for (const [name, version] of Object.entries({ ...pkg[key] })) {
+                if (typeof version === "string" && version.startsWith("workspace:")) delete pkg[key][name];
+              }
+            }
+            delete pkg.devDependencies;
+            fs.writeFileSync(path, JSON.stringify(pkg, null, 2));
+          '
+          cp deploy/web/backend.Dockerfile docker-context/web-backend/Dockerfile
+
+      - name: Build documents image
+        id: docs
+        run: |
+          DOCS_SRC=dist/apps/backends/web-backend/example-documents
+          DOCS_HASH=$(find "$DOCS_SRC" -type f -exec sha256sum {} \; | sort | sha256sum | cut -c1-16)
+          echo "docs_hash=$DOCS_HASH" >> "$GITHUB_OUTPUT"
+          mkdir -p docker-context/web-backend-docs
+          cp -r "$DOCS_SRC" docker-context/web-backend-docs/example-documents
+          cp deploy/web/backend-docs.Dockerfile docker-context/web-backend-docs/Dockerfile
+          docker build -t "openpra-apps-web-backend-docs:$DOCS_HASH" docker-context/web-backend-docs
+
+      - name: Save documents image
+        if: inputs.deploy
+        run: docker save "openpra-apps-web-backend-docs:${{ steps.docs.outputs.docs_hash }}" -o backend-docs-image.tar
+
+      - name: Upload documents image artifact
+        if: inputs.deploy
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-docs-image
+          path: backend-docs-image.tar
+          retention-days: 1
+
+      - name: Save MongoDB image for offline load
+        if: inputs.deploy
+        run: |
+          docker pull "$MONGO_IMAGE"
+          docker save "$MONGO_IMAGE" -o base-images.tar
+
+      - name: Upload base images artifact
+        if: inputs.deploy
+        uses: actions/upload-artifact@v4
+        with:
+          name: base-images
+          path: base-images.tar
+          retention-days: 1
+
+      - name: Prepare frontend build context
+        run: |
+          mkdir -p docker-context/web-frontend/html
+          cp -r dist/apps/frontends/web-frontend/* docker-context/web-frontend/html/
+          cp deploy/web/nginx.conf docker-context/web-frontend/nginx.conf
+          cp deploy/web/frontend.Dockerfile docker-context/web-frontend/Dockerfile
+
+      - name: Prepare site build context
+        run: |
+          mkdir -p docker-context/site/html
+          cp -r apps/site/dist/. docker-context/site/html/
+          cp deploy/site/nginx.conf docker-context/site/nginx.conf
+          cp deploy/site/Dockerfile docker-context/site/Dockerfile
+
+      - name: Log in to self-hosted registry
+        if: inputs.push || inputs.smoke
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context/web-backend
+          file: docker-context/web-backend/Dockerfile
+          push: ${{ inputs.push }}
+          load: ${{ !inputs.push }}
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.REGISTRY }}/openpra-apps-web-backend:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/openpra-apps-web-backend:${{ steps.prep.outputs.branch_slug }}
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context/web-frontend
+          file: docker-context/web-frontend/Dockerfile
+          push: ${{ inputs.push }}
+          load: ${{ !inputs.push }}
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.prep.outputs.branch_slug }}
+
+      - name: Build site image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context/site
+          file: docker-context/site/Dockerfile
+          push: ${{ inputs.push }}
+          load: ${{ !inputs.push }}
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.REGISTRY }}/openpra-apps-site:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/openpra-apps-site:${{ steps.prep.outputs.branch_slug }}
+
+      - name: Smoke test the images
+        if: inputs.smoke
+        env:
+          BACKEND_IMAGE: ${{ env.REGISTRY }}/openpra-apps-web-backend:${{ steps.prep.outputs.short_sha }}
+          FRONTEND_IMAGE: ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.prep.outputs.short_sha }}
+          SITE_IMAGE: ${{ env.REGISTRY }}/openpra-apps-site:${{ steps.prep.outputs.short_sha }}
+          DOCS_IMAGE: openpra-apps-web-backend-docs:${{ steps.docs.outputs.docs_hash }}
+        run: |
+          docker network create smoke
+          docker run -d --name mongodb --network smoke "$MONGO_IMAGE"
+          docker run -d --name minio --network smoke -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin "$MINIO_IMAGE" server /data
+          docker volume create smoke-documents
+          docker run --rm -v smoke-documents:/dest "$DOCS_IMAGE" sh -c 'tar -C /example-documents -cf - . | tar -C /dest -xf -'
+          docker run -d --name backend --network smoke -p 8000:8000 \
+            -v smoke-documents:/app/example-documents:ro \
+            -e MONGO_URI=mongodb://mongodb:27017/smoke \
+            -e JWT_SECRET=smoke-jwt-secret \
+            -e TFA_ENC_KEY=smoke-tfa-key \
+            -e APP_BASE_URL=http://localhost:8080 \
+            -e OAUTH_CALLBACK_BASE=http://localhost:8000/api \
+            -e MINIO_ENDPOINT=minio \
+            -e MINIO_PORT=9000 \
+            -e MINIO_USE_SSL=false \
+            -e MINIO_ACCESS_KEY=minioadmin \
+            -e MINIO_SECRET_KEY=minioadmin \
+            -e MINIO_BUCKET=smoke \
+            -e MINIO_PUBLIC_URL=http://localhost:9000 \
+            "$BACKEND_IMAGE"
+          docker run -d --name frontend --network smoke -p 8080:80 "$FRONTEND_IMAGE"
+          docker run -d --name site --network smoke -p 8081:80 "$SITE_IMAGE"
+          for attempt in $(seq 1 60); do
+            if curl -s http://localhost:8000/api/ | grep -qF '"statusCode":404'; then
+              break
+            fi
+            sleep 2
+          done
+          if ! curl -s http://localhost:8000/api/ | grep -qF '"statusCode":404'; then
+            docker logs backend
+            echo "::error::The backend image did not answer on /api"
+            exit 1
+          fi
+          curl -sf http://localhost:8080/ > /dev/null || { docker logs frontend; echo "::error::The frontend image did not serve /"; exit 1; }
+          curl -sf http://localhost:8081/ > /dev/null || { docker logs site; echo "::error::The site image did not serve /"; exit 1; }
+          echo "Backend, frontend and site images start and answer."

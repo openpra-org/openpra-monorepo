@@ -6,6 +6,7 @@ import {
 import type { HclCalculationType } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import { WorkbookHclUncertaintyConfigurationSchema } from "interfaces-mef-types/zod/modeling";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
 import { systemBasicEventToFaultTreeBasicEvent } from "interfaces-mef-types/sy/system-models";
 import type {
   EventSequenceAnalysis,
@@ -41,11 +42,52 @@ interface AdaptedFaultTreeSnapshot {
 interface SyFaultTreeAdapterOptions {
   controlledDataSourceValues?: ReadonlyMap<string, number | ResolvedControlledDataSourceValue>;
   allowUnresolvedControlledDataSources?: boolean;
+  includeControlledUncertainty?: boolean;
+  expandCcf?: boolean;
 }
 
 interface ResolvedControlledDataSourceValue {
   value: number;
   quantity: "PROBABILITY" | "FAILURE_RATE";
+  uncertainty?: ParameterDistribution;
+}
+
+interface SolverDistribution {
+  distributionType: string;
+  parameters: Record<string, number>;
+}
+
+interface SampledDistribution extends SolverDistribution {
+  correlationKey: string;
+}
+
+interface SampledInput extends SampledDistribution {
+  basicEventId: string;
+}
+
+type AdaptedCcfModel =
+  | { kind: "BETA_FACTOR"; beta: number }
+  | { kind: "MGL" | "ALPHA_FACTOR" | "PHI_FACTOR"; factors: number[] };
+
+interface AdaptedCcfGroup {
+  id: string;
+  members: string[];
+  model: AdaptedCcfModel;
+  totalFailureProbability: number;
+  uncertainty?: SampledDistribution;
+}
+
+function solverDistribution(distribution: ParameterDistribution): SolverDistribution | null {
+  switch (distribution.type) {
+    case DistributionType.BETA: return { distributionType: distribution.type, parameters: { alpha: distribution.alpha, beta: distribution.betaParam } };
+    case DistributionType.LOGNORMAL: return { distributionType: distribution.type, parameters: { median: distribution.median, errorFactor: distribution.errorFactor } };
+    case DistributionType.NORMAL: return { distributionType: distribution.type, parameters: { mean: distribution.mean, standardDeviation: distribution.stdDev } };
+    case DistributionType.UNIFORM: return { distributionType: distribution.type, parameters: { lower: distribution.lower, upper: distribution.upper } };
+    case DistributionType.GAMMA: return { distributionType: distribution.type, parameters: { shape: distribution.shape, rate: distribution.rate } };
+    case DistributionType.EXPONENTIAL: return { distributionType: distribution.type, parameters: { rate: distribution.failureRate } };
+    case DistributionType.POINT_ESTIMATE: return null;
+    default: throw new WorkbookPraxisAdapterError(`DA uncertainty distribution '${distribution.type}' is not supported for fault-tree sampling`);
+  }
 }
 
 const faultTreeControlledDataSourceKey = (
@@ -493,6 +535,108 @@ const adaptSyFaultTreeSnapshot = (
     });
   });
 
+  const commonCauseFailureGroups = (source.mef.commonCauseFailureGroups ?? []).flatMap<AdaptedCcfGroup>((group) => {
+    const members = group.members?.basicEvents.map((event) => event.id) ?? [];
+    if (members.length < 2 || members.some((id) => !referencedBasicEventIds.has(id))) return [];
+    const parameters = group.modelSpecificParameters;
+    if (group.modelType === "BETA_FACTOR" && parameters?.betaFactorParameters !== undefined) {
+      return [{
+        id: group.uuid,
+        members,
+        model: { kind: "BETA_FACTOR", beta: parameters.betaFactorParameters.beta },
+        totalFailureProbability: parameters.betaFactorParameters.totalFailureProbability,
+      }];
+    }
+    if (group.modelType === "MGL" && parameters?.mglParameters !== undefined) {
+      const values = parameters.mglParameters;
+      const factors = [
+        values.beta,
+        ...(values.gamma === undefined ? [] : [values.gamma]),
+        ...(values.delta === undefined ? [] : [values.delta]),
+        ...Object.entries(values.additionalFactors ?? {}).sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true })).map(([, value]) => value),
+      ];
+      return [{
+        id: group.uuid,
+        members,
+        model: { kind: "MGL", factors },
+        totalFailureProbability: values.totalFailureProbability,
+      }];
+    }
+    if (group.modelType === "ALPHA_FACTOR" && parameters?.alphaFactorParameters !== undefined) {
+      const values = parameters.alphaFactorParameters;
+      return [{
+        id: group.uuid,
+        members,
+        model: {
+          kind: "ALPHA_FACTOR",
+          factors: Object.entries(values.alphaFactors).sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true })).map(([, value]) => value),
+        },
+        totalFailureProbability: values.totalFailureProbability,
+      }];
+    }
+    if (group.modelType === "PHI_FACTOR" && parameters?.phiFactorParameters !== undefined) {
+      const values = parameters.phiFactorParameters;
+      return [{
+        id: group.uuid,
+        members,
+        model: {
+          kind: "PHI_FACTOR",
+          factors: Object.entries(values.phiFactors).sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true })).map(([, value]) => value),
+        },
+        totalFailureProbability: values.totalFailureProbability,
+      }];
+    }
+    return [];
+  });
+  if (options.includeControlledUncertainty === true && commonCauseFailureGroups.length > 0 && options.expandCcf !== true) {
+    throw new WorkbookPraxisAdapterError("Uncertainty analysis for this fault tree must expand its common-cause groups.");
+  }
+  const uncertaintyInputs = options.includeControlledUncertainty === true
+    ? [...referencedBasicEventIds].flatMap<SampledInput>((basicEventId) => {
+      const event = findByUuid(source.mef.systemBasicEvents, basicEventId, "SY basic event");
+      if (event.failureMode === "COMMON_CAUSE_FAILURE") return [];
+      const reference = event.controlledDataSource;
+      if (reference?.referenceType !== "WORKBOOK_PARAMETER") return [];
+      const value = options.controlledDataSourceValues?.get(faultTreeControlledDataSourceKey(reference));
+      const resolved = typeof value === "number" ? undefined : value;
+      if (resolved?.uncertainty === undefined) return [];
+      if (resolved.quantity === "FAILURE_RATE") {
+        throw new WorkbookPraxisAdapterError(`DA failure-rate uncertainty for '${event.code ?? basicEventId}' needs mission-time conversion before sampling`);
+      }
+      const distribution = solverDistribution(resolved.uncertainty);
+      if (distribution === null) return [];
+      const values = distribution.parameters;
+      if (Object.values(values).some((value) => !Number.isFinite(value))) {
+        throw new WorkbookPraxisAdapterError(`DA uncertainty for '${event.code ?? basicEventId}' contains a non-finite parameter`);
+      }
+      const invalid = distribution.distributionType === "beta" ? values["alpha"]! <= 0 || values["beta"]! <= 0
+        : distribution.distributionType === "lognormal" ? values["median"]! <= 0 || values["median"]! > 1 || values["errorFactor"]! < 1
+        : distribution.distributionType === "normal" ? values["mean"]! < 0 || values["mean"]! > 1 || values["standardDeviation"]! < 0
+        : distribution.distributionType === "uniform" ? values["lower"]! < 0 || values["upper"]! > 1 || values["lower"]! >= values["upper"]!
+        : distribution.distributionType === "gamma" ? values["shape"]! <= 0 || values["rate"]! <= 0
+        : distribution.distributionType === "exponential" ? values["rate"]! <= 0 : true;
+      if (invalid) throw new WorkbookPraxisAdapterError(`DA uncertainty for '${event.code ?? basicEventId}' has invalid ${distribution.distributionType} parameters`);
+      return [{ basicEventId, ...distribution, correlationKey: faultTreeControlledDataSourceKey(reference) }];
+    })
+    : [];
+  if (options.includeControlledUncertainty === true && uncertaintyInputs.length === 0) {
+    throw new WorkbookPraxisAdapterError("This fault tree has no supported DA uncertainty distributions linked to its basic events.");
+  }
+  const inputByEvent = new Map(uncertaintyInputs.map((input) => [input.basicEventId, input]));
+  const sampledGroups = commonCauseFailureGroups.map((group): AdaptedCcfGroup => {
+    const inputs = group.members.flatMap((id) => inputByEvent.get(id) ?? []);
+    const [first] = inputs;
+    if (first === undefined) return group;
+    if (inputs.length < group.members.length || inputs.some((input) => input.correlationKey !== first.correlationKey)) {
+      const name = (source.mef.commonCauseFailureGroups ?? []).find((candidate) => candidate.uuid === group.id)?.name ?? group.id;
+      throw new WorkbookPraxisAdapterError(`Common cause group '${name}' members link different DA estimates. Link every member to one estimate before running uncertainty analysis.`);
+    }
+    return {
+      ...group,
+      uncertainty: { distributionType: first.distributionType, parameters: first.parameters, correlationKey: first.correlationKey },
+    };
+  });
+
   return {
     modelSnapshot: {
       id: model.uuid,
@@ -512,6 +656,8 @@ const adaptSyFaultTreeSnapshot = (
     basicEventCatalogue: {
       projectId: source.workbookId,
       basicEvents,
+      ...(sampledGroups.length === 0 ? {} : { commonCauseFailureGroups: sampledGroups }),
+      ...(uncertaintyInputs.length === 0 ? {} : { uncertaintyInputs }),
     },
     controlledDataSources: [...controlledDataSources.values()],
   };

@@ -7,4 +7,5 @@ pub mod metadata;
 pub mod optimize;
 pub mod output;
 pub mod run;
+pub mod visualization;
 pub mod widths;

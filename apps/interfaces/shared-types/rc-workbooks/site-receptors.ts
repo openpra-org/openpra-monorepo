@@ -2,6 +2,8 @@ import type { RcCoordinateAnchor, RcEvaluatedReceptor, RcReceptorGeometry, RcSit
 import { RcSiteSettingsSchema } from "interfaces-mef-types/zod/rc/site-receptors";
 
 export const receptorCount = (g: RcReceptorGeometry | undefined): number => !g ? 0 : g.kind === "cells" ? g.radiiKm.length * g.sectors : g.points.length;
+export const sitePopulation = (g: RcReceptorGeometry | undefined): number | undefined =>
+  g?.kind === "cells" && g.populationByCell ? g.populationByCell.reduce((sum, count) => sum + count, 0) : undefined;
 export function coordinateReference(a: RcCoordinateAnchor): string {
   const datum = ["", "NAD27", "WGS72", "WGS84", "NAD83", "Old Hawaii", "Puerto Rico / Virgin Islands"][a.datum];
   return `${datum} · UTM zone ${Math.abs(a.zone)}${a.zone < 0 ? "S" : "N"} · local X/Y in metres`;

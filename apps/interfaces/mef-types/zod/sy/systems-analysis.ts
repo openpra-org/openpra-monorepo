@@ -27,11 +27,34 @@ export const SyDependencyTypeSchema = z.enum(DependencyType);
 export const SyFailureModeTypeSchema = z.enum(FailureModeType);
 export const ComponentStateSchema = z.enum(["operational", "degraded", "failed", "recovering", "maintenance"]);
 
+export const SystemBasicEventFailureModeSourceSchema = z.object({
+  workbookId: z.string(),
+  failureModeId: z.string(),
+});
+
+export const SystemDiagramRegionSchema = z.object({
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+  width: z.number().gt(0).max(1),
+  height: z.number().gt(0).max(1),
+});
+
+export const SystemDiagramSchema = z.object({
+  uuid: z.string(),
+  title: z.string(),
+  documentId: z.string(),
+  filename: z.string(),
+  page: z.number().int().min(1),
+  region: SystemDiagramRegionSchema,
+  rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]).optional(),
+});
+
 export const SystemBasicEventSchema = z.object({
   ...BasicEventSchema.shape,
   code: z.string().trim().min(1).max(64),
   componentReference: z.string().optional(),
   failureMode: z.string().optional(),
+  failureModeSource: SystemBasicEventFailureModeSourceSchema.optional(),
   probability: z.number().optional(),
   quantificationBasis: FaultTreeBasicEventQuantificationBasisSchema.optional(),
   repairModeled: z.boolean().optional(),
@@ -61,6 +84,7 @@ export const DepletionModelSchema = z.object({
   associatedSystem: z.string().optional(),
   depletionImpact: z.enum(["immediate-failure", "degraded-operation"]).optional(),
   missionTimeSupported: z.boolean().optional(),
+  basis: z.string().optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -332,10 +356,12 @@ export const SystemDefinitionSchema = z.object({
   description: z.string().optional(),
   abbreviation: z.string().optional(),
   boundaries: z.array(z.string()),
+  diagrams: z.array(SystemDiagramSchema).optional(),
   components: z.record(z.string(), SystemComponentSchema).optional(),
   successCriteriaIds: z.array(SuccessCriteriaIdSchema),
   successCriterion: z.string().optional(),
   missionTimeHours: z.number().optional(),
+  missionTimeRef: z.string().optional(),
   schematic: z
     .object({
       reference: z.string(),
@@ -412,6 +438,9 @@ export const SystemDependencySchema = z.object({
   details: z.string().optional(),
   impact: z.string().optional(),
   crossReactor: z.boolean().optional(),
+  supportKind: z.enum(["ACTUATION", "CONTROL", "MOTIVE_POWER", "COOLING", "OPERATOR_INTERFACE", "OTHER"]).optional(),
+  modeledIn: z.enum(["SYSTEM_MODEL", "EVENT_SEQUENCE", "EXCLUDED"]).optional(),
+  exclusionJustification: z.string().optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -514,6 +543,7 @@ export const HumanFailureEventIntegrationSchema = z.object({
   uuid: z.string(),
   hfeReference: z.string(),
   hfeSource: HumanFailureEventReferenceSchema.optional(),
+  basicEventId: z.string().optional(),
   system: z.string(),
   taskDescription: z.string(),
   hfeType: z.enum(["PRE_INITIATOR", "POST_INITIATOR"]),
@@ -565,11 +595,13 @@ export const ModularizationRecordSchema = z.object({
   avoidsMixedRecoveryPotential: z.boolean(),
   avoidsEventsRequiredByOtherSystems: z.boolean(),
   justification: z.string(),
+  basicEventIds: z.array(z.string()).optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
 export const SimultaneousUnavailabilityEventSchema = z.object({
   uuid: z.string(),
+  systemReference: z.string().optional(),
   description: z.string(),
   componentIds: z.array(z.string()),
   plannedActivityBasis: z.string(),
@@ -592,7 +624,18 @@ export const SystemUncertaintyAnalysisSchema = z.object({
   ccfUncertainties: z
     .array(
       z.object({
+        uncertaintyId: z.string(),
         ccfGroupId: z.string(),
+        description: z.string(),
+        impact: z.string(),
+      }),
+    )
+    .optional(),
+  dependencyUncertainties: z
+    .array(
+      z.object({
+        uncertaintyId: z.string(),
+        supportingSystem: z.string().optional(),
         description: z.string(),
         impact: z.string(),
       }),
@@ -650,6 +693,25 @@ export const ModelValidationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const ComponentBoundaryReviewSchema = z.object({
+  uuid: z.string(),
+  systemReference: z.string(),
+  componentBoundaryRef: z.string(),
+  status: z.enum(["MATCHES", "ACCOUNTED", "OPEN", "NOT_VERIFIED"]),
+  note: z.string().optional(),
+  implementsSrs: z.array(SRReferenceSchema),
+});
+
+export const NomenclatureDesignatorSchema = z.object({
+  uuid: z.string(),
+  designator: z.string(),
+  kind: z.enum(["SYSTEM", "FAILURE_MODE", "EVENT_TYPE"]),
+  meaning: z.string(),
+  systemReference: z.string().optional(),
+  failureModeRefs: z.array(z.string()).optional(),
+  eventType: z.enum(["HUMAN_ERROR", "TEST_MAINTENANCE", "COMMON_CAUSE_FAILURE"]).optional(),
+});
+
 export const SystemToSafetyFunctionMappingSchema = z.object({
   uuid: z.string(),
   systemReference: z.string(),
@@ -694,6 +756,9 @@ export const EnvironmentalDesignBasisConsiderationSchema = z.object({
   eventSequences: z.array(z.string()),
   environmentalConditions: z.string(),
   dependentFailuresIncluded: z.boolean().optional(),
+  basicEventIds: z.array(z.string()).optional(),
+  initiatingEventIds: z.array(z.string()).optional(),
+  beyondQualification: z.boolean().optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -732,9 +797,18 @@ export const SyDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const SyLinkedWorkbooksSchema = z.object({
+  ES: z.string().optional(),
+  SC: z.string().optional(),
+  POS: z.string().optional(),
+  DA: z.string().optional(),
+  HRA: z.string().optional(),
+});
+
 const CanonicalSystemsAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.SYSTEMS_ANALYSIS).shape,
   praScope: z.string(),
+  linkedWorkbooks: SyLinkedWorkbooksSchema.optional(),
   systemDefinitions: z.array(SystemDefinitionSchema),
   systemToSafetyFunctionMappings: z.array(SystemToSafetyFunctionMappingSchema),
   systemLogicModels: z.array(SystemLogicModelSchema),
@@ -763,6 +837,8 @@ const CanonicalSystemsAnalysisSchema = z.object({
   depletionModels: z.array(DepletionModelSchema).optional(),
   overCapacityConsiderations: z.array(OverCapacityConsiderationSchema).optional(),
   modelValidations: z.array(ModelValidationSchema).optional(),
+  componentBoundaryReviews: z.array(ComponentBoundaryReviewSchema).optional(),
+  nomenclatureDesignators: z.array(NomenclatureDesignatorSchema).optional(),
   systemModelEvaluations: z.array(SystemModelEvaluationSchema).optional(),
   uncertaintyAnalyses: z.array(SystemUncertaintyAnalysisSchema).optional(),
   sensitivityStudies: z.array(SensitivityStudySchema).optional(),

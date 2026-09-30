@@ -6,6 +6,7 @@ const mockMutateSy = jest.fn();
 const mockAnalysis = {
   systemDefinitions: [],
   systemLogicModels: [],
+  commonCauseFailureGroups: [],
   humanFailureEventIntegrations: [{
     uuid: "integration-1",
     hfeReference: "",
@@ -62,6 +63,7 @@ jest.mock("../syWorkbookContext", () => ({
     shortOf: (id: string) => id,
     controlledParameters: mockControlledParameters,
     controlledHumanFailures: mockControlledHumanFailures,
+    controlledFailureModes: [],
   }),
 }));
 
@@ -80,7 +82,9 @@ describe("SY basic-event controlled probability authoring", () => {
     };
     render(<DrawerContent context={{ kind: "be", id: "be-1" }} onClose={jest.fn()} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Review the rate and mission time");
-    expect(screen.getByText("Review required")).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Failure rate" })).toHaveValue(0.001);
+    expect(screen.getByRole("spinbutton", { name: "Mission time" })).toHaveValue(100);
+    expect(screen.queryByRole("combobox", { name: "Input" })).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Data Analysis parameter" })).toBeDisabled();
     expect(mockMutateSy).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Use exponential conversion" }));
@@ -89,6 +93,23 @@ describe("SY basic-event controlled probability authoring", () => {
       quantificationBasis: { conversion: "EXPONENTIAL", failureRate: { value: .001, unit: "HOUR" }, missionTime: { value: 100, unit: "HOUR" } },
     });
     expect(mockAnalysis.systemBasicEvents[0]?.probability).toBe(.1);
+  });
+
+  it("points to Step 01 Interfaces when no DA or HR workbook is linked", () => {
+    const parameters = mockControlledParameters.splice(0);
+    const humanFailures = mockControlledHumanFailures.splice(0);
+    try {
+      const { unmount } = render(<DrawerContent context={{ kind: "be", id: "be-1" }} onClose={jest.fn()} />);
+      expect(screen.getByText("Typed. Link a DA workbook in Step 01 Interfaces to pick a parameter.")).toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: "Data Analysis parameter" })).not.toBeInTheDocument();
+      expect(screen.getByRole("spinbutton", { name: "Probability" })).toHaveValue(0.1);
+      unmount();
+      render(<DrawerContent context={{ kind: "be", id: "be-hfe" }} onClose={jest.fn()} />);
+      expect(screen.getByText("Typed. Link an HR workbook in Step 01 Interfaces to pick its event and HEP.")).toBeInTheDocument();
+    } finally {
+      mockControlledParameters.push(...parameters);
+      mockControlledHumanFailures.push(...humanFailures);
+    }
   });
 
   it("stores a typed DA parameter reference and its current display value", () => {
@@ -136,7 +157,7 @@ describe("SY basic-event controlled probability authoring", () => {
     render(<DrawerContent context={{ kind: "hfe", id: "integration-1" }} onClose={jest.fn()} />);
 
     fireEvent.change(screen.getByRole("combobox", {
-      name: "Integrated Human Reliability event and HEP",
+      name: "Human Reliability event and HEP",
     }), {
       target: { value: JSON.stringify(["hr-workbook", "hfe-1", "hep-1"]) },
     });

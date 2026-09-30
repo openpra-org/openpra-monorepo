@@ -1,0 +1,26 @@
+* Selected published MACCS records for Step 02 expert review.
+* Noah A. Etter thesis, Appendix A.2-A.3, printed pp. 110-115.
+* These are separate cohort blocks and are not a runnable combined input deck.
+* Table 4, printed p. 46, gives REFPNT = ALARM.
+
+* 90th Percentile Evacuation Cohort, Appendix A.2
+EZWTFRAC001 0.8955
+* Appendix A.3
+EZDLTEVA001 9000.
+EZDLTSHL001 1980.
+EZESPEED001 1.8
+EZOALARM001 2700.
+
+* 100th Percentile Evacuation Cohort, Appendix A.2
+EZWTFRAC001 0.0995
+* Appendix A.3
+EZDLTEVA001 25080.
+EZDLTSHL001 2700.
+EZESPEED001 25
+EZOALARM001 2700.
+
+* Non-Evacuating Cohort, Appendix A.2
+EZWTFRAC001 0.005
+
+* WTNAME is not specified in the printed thesis excerpt.
+* WTFRAC values are result weights; population shares are not inferred here.

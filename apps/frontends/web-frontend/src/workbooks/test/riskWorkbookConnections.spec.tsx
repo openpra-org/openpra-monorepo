@@ -7,7 +7,7 @@ import {
   RC_ANALYSIS_HCL,
   RI_ANALYSIS_HCL,
 } from "../../../../../backends/web-backend/src/example-workbooks/seeds/hcl-case-study-seed";
-import { QuantifyScreen } from "../../rc-workbooks/rcScreens3";
+import { RcInterfaces } from "../../rc-workbooks/rcScreens";
 import { RcWorkbookProvider } from "../../rc-workbooks/rcWorkbookContext";
 import { IntegrateScreen } from "../../ri-workbooks/riScreens";
 import { RiWorkbookProvider } from "../../ri-workbooks/riWorkbookContext";
@@ -48,37 +48,34 @@ const riskSources: RiRiskSources = {
 };
 
 describe("controlled ES/ESQ/RC/RI connections", () => {
-  it("adds an RC consequence row from a controlled ES family source", () => {
+  it("maps a controlled ES family into an RC release category", () => {
     const source = JSON.parse(JSON.stringify(RC_ANALYSIS_HCL)) as RadiologicalConsequenceAnalysis;
     let rc: RadiologicalConsequenceAnalysis = {
       ...source,
-      consequenceQuantification: {
-        ...source.consequenceQuantification,
-        eventSequenceConsequences: [],
+      linkedWorkbooks: { ES: "es-workbook" },
+      releaseCategoryToConsequence: {
+        ...source.releaseCategoryToConsequence,
+        releaseCategoryInputs: source.releaseCategoryToConsequence.releaseCategoryInputs.map((input) => ({ ...input, eventSequenceFamilyReferences: [] })),
       },
     };
     render(
       <RcWorkbookProvider
         data={{ rc, cc: {} as never, nms: [] }}
         editable
-        eventSequenceFamilySources={familySources}
+        links={{ options: { ES: [], MS: [], RI: [] }, es: ES_ANALYSIS_HCL }}
         mutateRc={(mutator) => { rc = mutator(rc); }}
       >
-        <QuantifyScreen openDrawer={jest.fn()} />
+        <RcInterfaces openDrawer={jest.fn()} />
       </RcWorkbookProvider>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /add linked family/i }));
+    fireEvent.change(screen.getByLabelText("Release category for ESF-HCL-CD"), { target: { value: "RC-CORE-DAMAGE" } });
 
-    expect(rc.consequenceQuantification.eventSequenceConsequences[0]).toEqual(expect.objectContaining({
-      eventSequenceFamily: "ESF-HCL-CD",
-      eventSequenceFamilyReference: {
-        referenceType: "EVENT_SEQUENCE_FAMILY",
-        workbookId: "es-workbook",
-        entityId: "ESF-HCL-CD",
-      },
-      releaseCategoryReference: "RC-CORE-DAMAGE",
-    }));
+    expect(rc.releaseCategoryToConsequence.releaseCategoryInputs.find((input) => input.releaseCategory === "RC-CORE-DAMAGE")?.eventSequenceFamilyReferences).toEqual([{
+      referenceType: "EVENT_SEQUENCE_FAMILY",
+      workbookId: "es-workbook",
+      entityId: "ESF-HCL-CD",
+    }]);
   });
 
   it("adds a fully linked RI input and recalculates the integrated result", () => {

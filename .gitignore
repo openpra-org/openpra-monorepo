@@ -122,6 +122,9 @@ apps/solvers/xfta/XFTA.pdf
 # Source-reference fixtures required by the HCL Rust and native addon tests.
 !/apps/solvers/praxis/tests/fixtures/
 /apps/solvers/praxis/tests/fixtures/*
+!/apps/solvers/praxis/tests/fixtures/delete_term/
+!/apps/solvers/praxis/tests/fixtures/delete_term/README.md
+!/apps/solvers/praxis/tests/fixtures/delete_term/shared_multi_state_large.xml
 !/apps/solvers/praxis/tests/fixtures/hcl_mh_uq/
 /apps/solvers/praxis/tests/fixtures/hcl_mh_uq/*
 !/apps/solvers/praxis/tests/fixtures/hcl_mh_uq/generate.py

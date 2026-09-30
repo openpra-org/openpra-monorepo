@@ -111,10 +111,9 @@ function InternalReviewScreen({
             <button type="button" className={`poschip${filter === "resolved" ? " poschip--primary" : ""}`} onClick={() => setFilter("resolved")}>Resolved ({displayResolved})</button>
           </div>
         </div>
-        {isReviewStep && <p className="poscard__sub">All comments from all roles, newest first. The reviewers coordinate with the MS and the RI teams for consistency across the consequence chain.</p>}
         {displayComments.length === 0 ? (
           <p className="posmuted" style={{ margin: 0 }}>
-            {isApprovalStep && (persona === "reviewer" || persona === "approver") ? "You have no comments." : "No comments yet. Reviewers and the approver leave comments from the dock."}
+            {isApprovalStep && (persona === "reviewer" || persona === "approver") ? "You have no comments." : "No comments yet."}
           </p>
         ) : (
           <div className="poscomments">
@@ -158,9 +157,6 @@ function InternalReviewScreen({
             <WorkbookSectionHeading workbook="RC" title="Submit for Internal Approval" level={3} />
             {allResolved ? <Badge kind="ok">All comments resolved</Badge> : <Badge kind="warn">{openCount} open comment{openCount === 1 ? "" : "s"}</Badge>}
           </div>
-          <p className="poscard__sub" style={{ marginBottom: 14 }}>
-            The reviewer must mark every comment <strong>resolved</strong> before the workbook can advance to <strong>{approver?.name ?? "the approver"}</strong> for internal approval.
-          </p>
           <div className="posrow" style={{ gap: 10, alignItems: "center" }}>
             <span className="poscomment__foot-spacer" />
             {submitted ? (
@@ -245,7 +241,7 @@ function ReviewerCommentDock({ open, onToggle, onClose, comments, onToggleResolv
           </div>
           <div className="posrevdock__body">
             {comments.length === 0 ? (
-              <p className="posrevdock__empty">No comments yet. Use the composer below to add one.</p>
+              <p className="posrevdock__empty">No comments yet.</p>
             ) : comments.map((c) => (
               <div key={c.id} className={`posrevdock__item posrevdock__item--${c.resolved ? "resolved" : "open"}`}>
                 <div className="posrevdock__item-head">
@@ -272,7 +268,7 @@ function ReviewerCommentDock({ open, onToggle, onClose, comments, onToggleResolv
           </div>
           <div className="posrevdock__composer">
             <div className="posrevdock__composer-eyebrow">Add comment</div>
-            <WorkbookTextarea className="posfield__textarea" placeholder="Anchor a finding, observation, or recommendation…" value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} />
+            <WorkbookTextarea className="posfield__textarea" aria-label="Review comment" value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} />
             <div className="posrevdock__composer-foot">
               <select className="posfield__select" value={draftSeverity} onChange={(e) => setDraftSeverity(e.target.value as "MAJOR" | "MINOR" | "OBSERVATION")} style={{ maxWidth: 140 }}>
                 <option value="MAJOR">Major</option><option value="MINOR">Minor</option><option value="OBSERVATION">Observation</option>

@@ -4,8 +4,8 @@ use quick_xml::Reader;
 use std::collections::HashMap;
 use std::io::BufRead;
 
-use crate::core::ccf::{CcfGroup, CcfModel, TestingScheme};
-use crate::core::event::BasicEvent;
+use crate::core::ccf::{CcfGroup, CcfModel, RaspCcfEvent, TestingScheme};
+use crate::core::event::{BasicEvent, HouseEvent};
 use crate::core::event_tree::{EventTree, InitiatingEvent};
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::{Formula, Gate};
@@ -530,6 +530,61 @@ fn parse_named_expression<R: BufRead>(reader: &mut Reader<R>, closing: &str) -> 
     })
 }
 
+fn parse_house_state(attrs: &[(String, String)], element: &str) -> Result<bool> {
+    let raw = attr_str(attrs, "value", element)?
+        .trim()
+        .to_ascii_lowercase();
+    match raw.as_str() {
+        "true" | "1" => Ok(true),
+        "false" | "0" => Ok(false),
+        _ => Err(
+            MefError::Validity(format!("<{}> has invalid Boolean value '{}'", element, raw)).into(),
+        ),
+    }
+}
+
+pub(crate) fn parse_house_event_value<R: BufRead>(reader: &mut Reader<R>) -> Result<bool> {
+    let mut state = None;
+    let mut buf = Vec::new();
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Empty(e)) => {
+                let name = qname_string(e.name())?;
+                if matches!(name.as_str(), "constant" | "bool" | "int" | "float") {
+                    state = Some(parse_house_state(&owned_attrs(&e)?, &name)?);
+                }
+            }
+            Ok(Event::Start(e)) => {
+                let name = qname_string(e.name())?;
+                if matches!(name.as_str(), "constant" | "bool" | "int" | "float") {
+                    state = Some(parse_house_state(&owned_attrs(&e)?, &name)?);
+                }
+                skip_subtree(reader, &name)?;
+            }
+            Ok(Event::End(e)) if e.name().as_ref() == b"define-house-event" => break,
+            Ok(Event::Eof) => {
+                return Err(MefError::Validity(
+                    "unexpected EOF while parsing <define-house-event>".to_string(),
+                )
+                .into());
+            }
+            Err(e) => {
+                return Err(MefError::Validity(format!(
+                    "XML parse error in <define-house-event>: {}",
+                    e
+                ))
+                .into());
+            }
+            _ => {}
+        }
+        buf.clear();
+    }
+    state.ok_or_else(|| {
+        MefError::Validity("<define-house-event> does not contain a Boolean constant".to_string())
+            .into()
+    })
+}
+
 fn formula_from_tag(tag: &[u8], e: &BytesStart, gate: &str) -> Result<Option<Formula>> {
     let formula = match tag {
         b"and" => Formula::And,
@@ -756,6 +811,7 @@ pub fn parse_ccf_group<R: BufRead>(
     let mut members = Vec::new();
     let mut distribution_value = None;
     let mut factors = Vec::new();
+    let mut virtual_events = Vec::new();
     let mut buf = Vec::new();
 
     loop {
@@ -804,6 +860,68 @@ pub fn parse_ccf_group<R: BufRead>(
                         }
                     }
                     b"factor" => {}
+                    b"virtual-event" => {
+                        let mut event_id = None;
+                        let mut member_indices = None;
+                        for attr in e.attributes() {
+                            let attr = attr.map_err(|error| {
+                                MefError::Validity(format!("Invalid attribute: {}", error))
+                            })?;
+                            match attr.key.as_ref() {
+                                b"name" => {
+                                    event_id = Some(
+                                        attr.unescape_value()
+                                            .map_err(|_| {
+                                                MefError::Validity(
+                                                    "Invalid virtual event name".to_string(),
+                                                )
+                                            })?
+                                            .into_owned(),
+                                    );
+                                }
+                                b"members" => {
+                                    let value = attr
+                                        .unescape_value()
+                                        .map_err(|_| {
+                                            MefError::Validity(
+                                                "Invalid virtual event member indices".to_string(),
+                                            )
+                                        })?
+                                        .into_owned();
+                                    let parsed = if value.is_empty() {
+                                        Vec::new()
+                                    } else {
+                                        value
+                                            .split(',')
+                                            .map(|part| {
+                                                part.parse::<usize>().map_err(|_| {
+                                                    MefError::Validity(format!(
+                                                        "Invalid virtual event member index '{}'",
+                                                        part
+                                                    ))
+                                                })
+                                            })
+                                            .collect::<std::result::Result<Vec<_>, _>>()?
+                                    };
+                                    member_indices = Some(parsed);
+                                }
+                                _ => {}
+                            }
+                        }
+                        virtual_events.push(RaspCcfEvent {
+                            id: event_id.ok_or_else(|| {
+                                MefError::Validity(
+                                    "SAPHIRE RASP virtual event requires a name".to_string(),
+                                )
+                            })?,
+                            member_indices: member_indices.ok_or_else(|| {
+                                MefError::Validity(
+                                    "SAPHIRE RASP virtual event requires member indices"
+                                        .to_string(),
+                                )
+                            })?,
+                        });
+                    }
                     _ => {}
                 }
             }
@@ -873,6 +991,19 @@ pub fn parse_ccf_group<R: BufRead>(
             }
             CcfModel::Mgl(factors)
         }
+        "rasp-mgl" => {
+            if factors.is_empty() {
+                return Err(MefError::Validity(format!(
+                    "SAPHIRE RASP MGL CCF group {} requires factor values",
+                    name
+                ))
+                .into());
+            }
+            CcfModel::RaspMgl {
+                factors,
+                virtual_events,
+            }
+        }
         "phi-factor" => {
             if factors.is_empty() {
                 return Err(MefError::Validity(format!(
@@ -909,6 +1040,7 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
     let mut top_gate = None;
     let mut gates = Vec::new();
     let mut basic_event_values: Vec<(String, Expr)> = Vec::new();
+    let mut house_event_values: Vec<(String, bool)> = Vec::new();
     let mut parameters: Vec<(String, Expr)> = Vec::new();
     let mut ccf_groups = Vec::new();
     let mut buf = Vec::new();
@@ -987,6 +1119,31 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
                             let value = parse_named_expression(&mut reader, "define-basic-event")?;
                             basic_event_values.push((name, value));
                         }
+                    }
+                    b"define-house-event" => {
+                        let mut event_name = None;
+                        for attr in e.attributes() {
+                            let attr = attr.map_err(|e| {
+                                MefError::Validity(format!("Invalid attribute: {}", e))
+                            })?;
+                            if attr.key.as_ref() == b"name" {
+                                event_name = Some(
+                                    attr.unescape_value()
+                                        .map_err(|_| {
+                                            MefError::Validity(
+                                                "Invalid house event name".to_string(),
+                                            )
+                                        })?
+                                        .into_owned(),
+                                );
+                            }
+                        }
+                        let name = event_name.ok_or_else(|| {
+                            MefError::Validity(
+                                "define-house-event must have a 'name' attribute".to_string(),
+                            )
+                        })?;
+                        house_event_values.push((name, parse_house_event_value(&mut reader)?));
                     }
                     b"define-parameter" => {
                         let mut parameter_name = None;
@@ -1108,6 +1265,10 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
         ft.add_basic_event(event)?;
     }
 
+    for (name, state) in house_event_values {
+        ft.add_house_event(HouseEvent::new(name, state)?)?;
+    }
+
     for ccf_group in ccf_groups {
         ft.add_ccf_group(ccf_group)?;
     }
@@ -1176,6 +1337,63 @@ mod tests {
                 _ => {}
             }
         }
+    }
+
+    #[test]
+    fn test_parse_fault_tree_named_house_event() {
+        let xml = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="FT">
+    <define-gate name="TOP"><and><house-event name="FLAG"/></and></define-gate>
+  </define-fault-tree>
+  <model-data>
+    <define-house-event name="FLAG"><constant value="true"/></define-house-event>
+  </model-data>
+</opsa-mef>"#;
+        let ft = parse_fault_tree(xml).unwrap();
+        assert!(ft.get_house_event("FLAG").unwrap().state());
+        let pdag = crate::algorithms::pdag::Pdag::from_fault_tree(&ft).unwrap();
+        let flag = pdag.get_index("FLAG").unwrap();
+        assert!(matches!(
+            pdag.get_node(flag),
+            Some(crate::algorithms::pdag::PdagNode::Constant { value: true, .. })
+        ));
+    }
+
+    fn mux_house_event_cut_sets(state: &str) -> Vec<Vec<String>> {
+        let xml = format!(
+            r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="TST-COMP">
+    <define-gate name="TST-COMP"><or><gate name="TST-COMP0"/><gate name="TST-COMP1"/></or></define-gate>
+    <define-gate name="TST-COMP0"><and><basic-event name="VLVE1-FTO"/><not><house-event name="FLAG"/></not></and></define-gate>
+    <define-gate name="TST-COMP1"><and><basic-event name="VLVE2-FTO"/><house-event name="FLAG"/></and></define-gate>
+  </define-fault-tree>
+  <model-data>
+    <define-basic-event name="VLVE1-FTO"><float value="0.0001"/></define-basic-event>
+    <define-basic-event name="VLVE2-FTO"><float value="0.0002"/></define-basic-event>
+    <define-house-event name="FLAG"><constant value="{state}"/></define-house-event>
+  </model-data>
+</opsa-mef>"#
+        );
+        let ft = parse_fault_tree(&xml).unwrap();
+        let built = crate::algorithms::build::build_bdd(&ft, Default::default()).unwrap();
+        let (zbdd, root) = crate::algorithms::zbdd_engine::ZbddEngine::build_from_bdd(
+            &built.bdd, built.root, false,
+        );
+        crate::algorithms::build::enumerate_event_names(&zbdd, root, &built.pdag, &built.order)
+    }
+
+    #[test]
+    fn named_house_event_selects_only_active_mux_branch() {
+        assert_eq!(
+            mux_house_event_cut_sets("false"),
+            vec![vec!["VLVE1-FTO".to_string()]]
+        );
+        assert_eq!(
+            mux_house_event_cut_sets("true"),
+            vec![vec!["VLVE2-FTO".to_string()]]
+        );
     }
 
     #[test]
@@ -1571,6 +1789,45 @@ mod tests {
                 assert_eq!(factors[1], 0.1);
             }
             _ => panic!("Expected MGL model"),
+        }
+    }
+
+    #[test]
+    fn test_parse_saphire_rasp_mgl() {
+        let xml = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="RaspTest">
+    <define-gate name="Top"><or><basic-event name="CCF-GROUP"/></or></define-gate>
+    <define-CCF-group name="CCF-GROUP" model="RASP-MGL">
+      <members>
+        <basic-event name="A"/><basic-event name="B"/><basic-event name="C"/>
+      </members>
+      <distribution><float value="7.2e-7"/></distribution>
+      <factors>
+        <factor level="1"><float value="0.02"/></factor>
+        <factor level="2"><float value="0"/></factor>
+      </factors>
+      <virtual-events>
+        <virtual-event name="CCF-GROUP-AB" members="0,1"/>
+        <virtual-event name="CCF-GROUP-ABC" members="0,1,2"/>
+      </virtual-events>
+    </define-CCF-group>
+  </define-fault-tree>
+  <model-data><define-basic-event name="CCF-GROUP"><float value="0"/></define-basic-event></model-data>
+</opsa-mef>"#;
+
+        let ft = parse_fault_tree(xml).unwrap();
+        let group = ft.get_ccf_group("CCF-GROUP").unwrap();
+        match &group.model {
+            CcfModel::RaspMgl {
+                factors,
+                virtual_events,
+            } => {
+                assert_eq!(factors, &vec![0.02, 0.0]);
+                assert_eq!(virtual_events[0].id, "CCF-GROUP-AB");
+                assert_eq!(virtual_events[0].member_indices, vec![0, 1]);
+            }
+            other => panic!("Expected RASP MGL model, got {other:?}"),
         }
     }
 

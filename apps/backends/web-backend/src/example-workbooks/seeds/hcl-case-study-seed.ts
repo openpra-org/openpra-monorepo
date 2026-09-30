@@ -1361,7 +1361,17 @@ const RC_ANALYSIS_HCL: RadiologicalConsequenceAnalysis = {
   praScope: "Maps each release-bearing dissertation-source event-sequence family to a transparent reference consequence index.",
   scope: {
     ...rcBase.scope,
-    consequenceMetrics: ["Reference consequence index"],
+    metrics: [{
+      id: "RCM-01",
+      name: "Reference consequence index",
+      quantity: "CUSTOM",
+      customUnit: "index per event",
+      receptor: { kind: "OTHER", description: "Not a spatial measure. One dimensionless index per event-sequence family." },
+      protectiveActionsCredited: false,
+      statistics: { mean: true, percentiles: [], exceedanceThresholds: [] },
+      criterion: "No acceptance criterion. The index only verifies the connected HCL quantification through Risk Integration.",
+      basis: "Temporary verification measure of the HCL dissertation case study, not an offsite-consequence model.",
+    }],
     metricSelectionApplicationBasis: "A dimensionless verification measure keeps the temporary example focused on the connected quantification workflow.",
   },
   releaseCategoryToConsequence: {

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { DistributionType } from "interfaces-mef-types/core/events";
 import { WorkbookOracle, assertProbability } from "./hcl-independent-oracle";
 import { analysisRequestSignal } from "../analysis-cancellation.interceptor";
 import type { Request, Response } from "express";
@@ -759,6 +760,7 @@ describe("workbook-owned analysis-run APIs", () => {
         parameterType: "PROBABILITY",
         value: 0.3,
         valueType: "POINT_ESTIMATE",
+        uncertainty: { distribution: { type: DistributionType.BETA, alpha: 3, betaParam: 7 } },
         implementsSrs: [],
       },
     ];
@@ -1007,6 +1009,320 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(restored.status).toBe(200);
     expect(restored.body).toEqual(result.body);
     expect((await runs.findOne({ id: response.body.run.id }).lean().exec())?.result).toEqual(legacy);
+  }, 120_000);
+
+  it("quantifies the same SY fault tree before and after native common-cause expansion", async () => {
+    const saved = await syWorkbooks.findOne({ workbookId: SY_WORKBOOK_ID }).lean().exec() as unknown as {
+      mef: ReturnType<typeof createSyMef>;
+    };
+    const mef = structuredClone(saved.mef);
+    mef.commonCauseFailureGroups = [{
+      uuid: "ccf-run-comparison",
+      name: "Shared event mechanism",
+      description: "Two members share one failure mechanism.",
+      scope: "INTRASYSTEM",
+      affectedComponents: ["EVENT-A", "EVENT-B"],
+      affectedSystems: ["SYS-OR"],
+      modelType: "BETA_FACTOR",
+      modelSpecificParameters: {
+        betaFactorParameters: { beta: 0.1, totalFailureProbability: 0.2 },
+      },
+      members: { basicEvents: [{ id: EVENT_A }, { id: EVENT_B }] },
+      implementsSrs: [],
+    }];
+    await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef } }).exec();
+
+    const execute = async (expandCcf: boolean) => {
+      const response = await request(api.getHttpServer())
+        .post(`/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs`)
+        .send({
+          schemaVersion: "1.0.0",
+          modelId: FT_OR,
+          workbookRevision: 3,
+          calculationType: "PROBABILITY",
+          workflow: "MANUAL",
+          settings: {
+            algorithm: "BDD",
+            approximation: "EXACT",
+            variableOrder: "DFS",
+            reorderBudgetSeconds: 60,
+            expandCcf,
+            numTrials: 10_000,
+            seed: 847,
+            missionTimeHours: 8_760,
+          },
+        });
+      expect(response.status).toBe(200);
+      expect(response.body.run.status).toBe("SUCCEEDED");
+      const result = await request(api.getHttpServer()).get(
+        `/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs/${response.body.run.id}/result`,
+      );
+      expect(result.status).toBe(200);
+      expect(result.body.settings.expandCcf).toBe(expandCcf);
+      return result.body.topEventProbability as number;
+    };
+
+    try {
+      const withoutCcf = await execute(false);
+      const withCcf = await execute(true);
+      expect(withoutCcf).toBeCloseTo(0.28, 12);
+      expect(withCcf).not.toBeCloseTo(withoutCcf, 12);
+      expect(withCcf).toBeGreaterThan(withoutCcf);
+    } finally {
+      await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef: saved.mef } }).exec();
+    }
+  }, 120_000);
+
+  it("quantifies the SFR actuation model with three independent native CCF groups", async () => {
+    const workbookId = connectedExampleIds("sfr").sy;
+    const model = SY_ANALYSIS.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-ACT");
+    if (model === undefined) throw new Error("Expected the SFR actuation model");
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: model.uuid,
+        workbookRevision: 1,
+        calculationType: "PROBABILITY",
+        workflow: "MANUAL",
+        settings: {
+          algorithm: "BDD",
+          approximation: "EXACT",
+          variableOrder: "DFS",
+          reorderBudgetSeconds: 60,
+          expandCcf: true,
+          numTrials: 10_000,
+          seed: 847,
+          missionTimeHours: 8_760,
+        },
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.settings.expandCcf).toBe(true);
+    expect(result.body.topEventProbability).toBeGreaterThan(0);
+    expect(result.body.topEventProbability).toBeLessThanOrEqual(1);
+  }, 120_000);
+
+  it("matches an exact enumeration of the HTGR cavity-cooling model with its published alpha factors", async () => {
+    const workbookId = connectedExampleIds("htgr").sy;
+    const model = SY_ANALYSIS_HTGR.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-RCCS");
+    if (model === undefined) throw new Error("Expected the HTGR cavity-cooling model");
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: model.uuid,
+        workbookRevision: 1,
+        calculationType: "PROBABILITY",
+        workflow: "MANUAL",
+        settings: {
+          algorithm: "BDD",
+          approximation: "EXACT",
+          variableOrder: "DFS",
+          reorderBudgetSeconds: 60,
+          expandCcf: true,
+          numTrials: 10_000,
+          seed: 847,
+          missionTimeHours: 8_760,
+        },
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.topEventProbability).toBeCloseTo(2.5740003521993564e-3, 14);
+  }, 120_000);
+
+  it("samples common cause groups from their members' DA estimate and matches the exact DRACS mean", async () => {
+    const workbookId = connectedExampleIds("sfr").sy;
+    const model = SY_ANALYSIS.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-DRACS");
+    if (model === undefined) throw new Error("Expected the DRACS fault-tree model");
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: model.uuid,
+        workbookRevision: 1,
+        calculationType: "UNCERTAINTY",
+        workflow: "MANUAL",
+        settings: {
+          algorithm: "BDD", approximation: "EXACT", variableOrder: "DFS", reorderBudgetSeconds: 60,
+          expandCcf: true, numTrials: 100_000, seed: 847, missionTimeHours: 8_760,
+        },
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.topEventProbability).toBeCloseTo(1.8559e-2, 5);
+    expect(Math.abs(result.body.uncertainty.mean / 1.8924178137e-2 - 1)).toBeLessThan(5e-3);
+  }, 120_000);
+
+  it("returns RPS common-cause cut sets with generated event identifiers", async () => {
+    const workbookId = connectedExampleIds("sfr").sy;
+    const model = SY_ANALYSIS.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-RPS");
+    if (model === undefined) throw new Error("Expected the RPS fault-tree model");
+    const execute = async (expandCcf: boolean) => {
+      const response = await request(api.getHttpServer())
+        .post(`/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs`)
+        .send({
+          schemaVersion: "1.0.0",
+          modelId: model.uuid,
+          workbookRevision: 1,
+          calculationType: "PROBABILITY_AND_CUT_SETS",
+          workflow: "MANUAL",
+          settings: {
+            algorithm: "ZBDD",
+            approximation: "EXACT",
+            variableOrder: "DFS",
+            reorderBudgetSeconds: 60,
+            expandCcf,
+            numTrials: 10_000,
+            seed: 847,
+            missionTimeHours: 8_760,
+          },
+        });
+      expect(response.status).toBe(200);
+      expect(response.body.run.status).toBe("SUCCEEDED");
+      const result = await request(api.getHttpServer()).get(
+        `/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`,
+      );
+      expect(result.status).toBe(200);
+      expect(result.body.cutSets.count).toBeGreaterThan(0);
+      return result.body;
+    };
+    const baseline = await execute(false);
+    const expanded = await execute(true);
+    expect(baseline.cutSets.items.length).toBeGreaterThan(0);
+    expect(expanded.cutSets.items.length).toBeGreaterThan(0);
+    const groupIds = SY_ANALYSIS.commonCauseFailureGroups.map(({ uuid }) => uuid);
+    expect(expanded.cutSets.items.flatMap((item: { literals: { basicEventId: string }[] }) => item.literals)
+      .some(({ basicEventId }: { basicEventId: string }) =>
+        groupIds.some((groupId) => basicEventId.startsWith(`${groupId}-`)))).toBe(true);
+  }, 120_000);
+
+  it("samples Step 07 linked DA uncertainty for a fault tree without sampled CCF members", async () => {
+    const workbookId = CONTROLLED_SY_WORKBOOK_ID;
+    const modelId = FT_OR;
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${workbookId}/fault-trees/${modelId}/runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId,
+        workbookRevision: 4,
+        calculationType: "UNCERTAINTY",
+        workflow: "MANUAL",
+        settings: {
+          algorithm: "BDD",
+          approximation: "EXACT",
+          variableOrder: "DFS",
+          reorderBudgetSeconds: 60,
+          expandCcf: true,
+          numTrials: 1_000,
+          seed: 847,
+          missionTimeHours: 8_760,
+        },
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${workbookId}/fault-trees/${modelId}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.uncertainty.sampleCount).toBe(1_000);
+    expect(result.body.uncertainty.standardDeviation).toBeGreaterThan(0);
+    expect(result.body.uncertainty.quantiles).toHaveLength(5);
+    const stored = await runs.findOne({ id: response.body.run.id }).lean().exec();
+    expect(stored?.request).toMatchObject({ calculationType: "UNCERTAINTY", uncertaintyInputSource: "DA" });
+    expect(stored?.workbookSnapshots).toEqual(expect.arrayContaining([expect.objectContaining({
+      hostType: "DA", identity: { workbookId: DA_WORKBOOK_ID, workbookRevision: 6 },
+    })]));
+  }, 120_000);
+
+  it("returns Step 02 importance measures for a CCF-expanded RPS tree", async () => {
+    const workbookId = connectedExampleIds("sfr").sy;
+    const model = SY_ANALYSIS.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-RPS");
+    if (model === undefined) throw new Error("Expected the RPS fault-tree model");
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: model.uuid,
+        workbookRevision: 1,
+        calculationType: "IMPORTANCE",
+        workflow: "MANUAL",
+        settings: {
+          algorithm: "BDD", approximation: "EXACT", variableOrder: "DFS", reorderBudgetSeconds: 60,
+          expandCcf: true, numTrials: 10_000, seed: 847, missionTimeHours: 8_760,
+        },
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.importance.length).toBeGreaterThan(0);
+  }, 120_000);
+
+  it("persists and returns configured PRAXIS cut-set results", async () => {
+    const settings = {
+      algorithm: "ZBDD",
+      approximation: "EXACT",
+      limitOrder: 1,
+      variableOrder: "DFS",
+      reorderBudgetSeconds: 60,
+      expandCcf: false,
+      numTrials: 10_000,
+      seed: 847,
+      missionTimeHours: 8_760,
+    };
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: FT_OR,
+        workbookRevision: 3,
+        calculationType: "PROBABILITY_AND_CUT_SETS",
+        workflow: "MANUAL",
+        settings,
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      calculationType: "PROBABILITY_AND_CUT_SETS",
+      workflow: "MANUAL",
+      algorithm: "ZBDD",
+      settings,
+      probabilityMethod: "EXACT",
+      cutSets: {
+        primeImplicants: false,
+        count: 2,
+        distributionByOrder: [0, 2],
+      },
+    });
+    expect(result.body.cutSets.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ order: 1, probability: 0.1 }),
+      expect.objectContaining({ order: 1, probability: 0.2 }),
+    ]));
+    const stored = await runs.findOne({ id: response.body.run.id }).lean().exec();
+    expect(stored?.request).toMatchObject({ calculationType: "PROBABILITY_AND_CUT_SETS", workflow: "MANUAL", settings });
+    expect(stored?.result).toEqual(result.body);
   }, 120_000);
 
   it("returns exact NOT probability without cut-set results", async () => {

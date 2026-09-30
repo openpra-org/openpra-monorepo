@@ -23,6 +23,8 @@ import { RcSourceTermService } from "../rc-source-term.service";
 import { RcSourceTermController } from "../rc-source-term.controller";
 import { RcSiteReceptorsController } from "../rc-site-receptors.controller";
 import { RcSiteReceptorsService } from "../rc-site-receptors.service";
+import { RcEarlyResponseController } from "../rc-early-response.controller";
+import { RcEarlyResponseService } from "../rc-early-response.service";
 import { RcWeatherService } from "../rc-weather.service";
 import { RcWeatherController } from "../rc-weather.controller";
 import { RcTransportController } from "../rc-transport.controller";
@@ -47,8 +49,8 @@ export async function createSourceTermTestApp() {
       { name: RcWorkbookFile.name, schema: RcWorkbookFileSchema },
       { name: WorkbookSignoff.name, schema: WorkbookSignoffSchema },
     ])],
-    controllers: [RcCaseRecordsController, RcSourceTermController, RcWorkbooksController, RcDocumentsController, RcSiteReceptorsController, RcWeatherController, RcTransportController, RcDoseInputsController],
-    providers: [RcPublishedExampleService, RcCaseRecordsService, RcSourceTermService, RcDocumentsService, RcWorkbooksService, RcMefAdapter, WorkbookElementRegistry, RcSiteReceptorsService, RcWeatherService, RcTransportService, RcDoseInputsService,
+    controllers: [RcCaseRecordsController, RcSourceTermController, RcWorkbooksController, RcDocumentsController, RcSiteReceptorsController, RcEarlyResponseController, RcWeatherController, RcTransportController, RcDoseInputsController],
+    providers: [RcPublishedExampleService, RcCaseRecordsService, RcSourceTermService, RcDocumentsService, RcWorkbooksService, RcMefAdapter, WorkbookElementRegistry, RcSiteReceptorsService, RcEarlyResponseService, RcWeatherService, RcTransportService, RcDoseInputsService,
       { provide: ExampleWorkbooksService, useValue: { getRcBundle: async () => ({ rc: { mef: createBlankRc("Example", "preparer") } }) } },
       { provide: ProjectsService, useValue: { resolveAccess: async (_id: string, actor: { username: string }) => {
         if (actor.username === "outsider") throw new ForbiddenException();

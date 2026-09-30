@@ -12,17 +12,18 @@ describe("RC dose inputs HTTP and storage", () => {
   beforeEach(async () => { await t.reset(); });
   const source = async (category = "RC-1") => (await request(http()).post(`${root}/source-terms/${category}/import`).field("baseRevision", "0").attach("file", sourceFixture, "source.inp").expect(200)).body.sourceTerm;
   const upload = (kind: string, revision = 0, bytes = inh, user = "preparer") => request(http()).post(`${url}/import/${kind}`).set("x-test-user", user).field("baseRevision", String(revision)).attach("file", bytes, "original.txt");
-  const save = (revision: number, sourceRevision: number, seconds = 2592000, categoryId = "RC-1", basis = "imported") => request(http()).patch(url).send({ baseRevision: revision, sourceRevision, categoryId, settings: { integrationSeconds: seconds, basis } });
-  it("imports exposure, saves per-category durations and preserves existing dosimetry", async () => {
+  const save = (revision: number, sourceRevision: number, categoryId = "RC-1") => request(http()).patch(url).send({ baseRevision: revision, sourceRevision, categoryId });
+  it("imports exposure, confirms each category for its source and preserves existing dosimetry", async () => {
     const first = await source(), second = await source("RC-2"), before = (await request(http()).get(root)).body.mef;
     const imported = (await upload("exposure", 0, exposure).field("categoryId", "RC-1").field("sourceRevision", String(first.revision)).expect(200)).body;
-    expect(imported.categories[0].settings).toEqual({ integrationSeconds: 2592000, basis: "imported" });
+    expect(imported.categories[0].exposure.data.integrationSeconds).toBe(2592000); expect(imported.categories[0].savedForSourceRevision).toBeUndefined();
     const saved = (await save(imported.revision, first.revision).expect(200)).body;
-    const both = (await save(saved.revision, second.revision, 86400, "RC-2", "analyst").expect(200)).body;
-    expect(both.categories[0].settings.integrationSeconds).toBe(2592000); expect(both.categories[1].settings.integrationSeconds).toBe(86400);
+    const both = (await save(saved.revision, second.revision, "RC-2").expect(200)).body;
+    expect(both.categories[0]).toEqual({ ...imported.categories[0], savedForSourceRevision: first.revision }); expect(both.categories[1]).toEqual({ categoryId: "RC-2", savedForSourceRevision: second.revision });
     const after = (await request(http()).get(root)).body.mef;
     expect(after.dosimetry.doseInputs).toEqual(both); delete after.dosimetry.doseInputs; expect(after).toEqual(before);
-    await save(both.revision, first.revision, 1).expect(400); await save(both.revision, first.revision, 0, "RC-1", "analyst").expect(400);
+    await request(http()).patch(url).send({ baseRevision: both.revision, sourceRevision: first.revision, categoryId: "RC-1", settings: { integrationSeconds: 86400, basis: "analyst" } }).expect(400);
+    await save(both.revision, first.revision, "").expect(400); await save(both.revision, first.revision, "RC-9").expect(400);
   });
   it("imports full EPA files, reads coefficients and retains originals through replacement and example loading", async () => {
     const a = (await upload("inhalation").expect(200)).body;
@@ -46,18 +47,19 @@ describe("RC dose inputs HTTP and storage", () => {
   it("rejects wrong files, unauthorized users and stale or forged edits", async () => {
     await upload("cloudshine", 0, ground).expect(400); expect(t.storage.size).toBe(0);
     await upload("inhalation", 0, inh, "reviewer").expect(403); await upload("inhalation", 0, inh, "outsider").expect(403);
-    const s = await source(), one = (await save(0, s.revision, 86400, "RC-1", "analyst").expect(200)).body;
-    await save(0, s.revision, 1, "RC-1", "analyst").expect(409);
+    const s = await source(), one = (await save(0, s.revision).expect(200)).body;
+    await save(0, s.revision).expect(409);
     await request(http()).patch(root).send({ operations: [{ op: "remove", path: ["dosimetry", "doseInputs"] }] }).expect(409);
     await request(http()).patch(`${root}/source-terms/RC-1`).send({ baseRevision: s.revision, values: s.values }).expect(200);
-    await save(one.revision, s.revision, 1, "RC-1", "analyst").expect(409);
+    await save(one.revision, s.revision).expect(409);
     await t.workbooks.updateOne({ workbookId: "rc-test" }, { $set: { "mef.workflowState": "IN_REVIEW" } });
     await upload("inhalation", one.revision).expect(403);
   });
   it("requires fresh review when the coefficient library changes", async () => {
-    const s = await source(), saved = (await save(0, s.revision, 86400, "RC-1", "analyst").expect(200)).body;
+    const s = await source(), saved = (await save(0, s.revision).expect(200)).body;
+    expect(saved.categories[0].savedForSourceRevision).toBe(s.revision);
     const imported = (await upload("cloudshine", saved.revision, cloud).expect(200)).body;
-    expect(imported.categories[0].savedForSourceRevision).toBeUndefined(); expect(imported.categories[0].settings).toEqual(saved.categories[0].settings);
+    expect(imported.categories[0]).toEqual({ categoryId: "RC-1" });
     await request(http()).get(`${url}/files/${imported.libraries[0].file.documentId}`).set("x-test-user", "outsider").expect(403);
     await request(http()).get(`${url}/files/${imported.libraries[0].file.documentId}?offset=-1`).expect(400);
   });

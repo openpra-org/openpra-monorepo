@@ -3,13 +3,13 @@ import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { RCIcon } from "./rcIcons";
 import {
-  RC_PERSONAS,
   CAPABILITY_CATEGORIES,
   type RcPersona,
   type RcStep,
   type SiteBasis,
 } from "./rcViewData";
-import { ccScore, commentsView, filterConformance, groupBySection, siteFromMef, stepsFromMef, type CommentView } from "./rcSelectors";
+import { ccScore, commentsView, filterConformance, groupBySection, siteFromMef, stepsFromMef, type CommentView, type RcStepChecks } from "./rcSelectors";
+import { rcSubElementChecks } from "interfaces-shared-types/rc-workbooks/step-checks";
 import { HandoffScreen, ProtectiveScreen, WeatherScreen, type RcDrawerContext } from "./rcScreens";
 import { DispersionScreen, DosimetryScreen, HealthEffectsScreen, EconomicsScreen } from "./rcScreens2";
 import { QuantifyScreen, DraftScreen, DrawerContent, PlaceholderScreen } from "./rcScreens3";
@@ -31,7 +31,7 @@ interface StepHeader {
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
     case "handoff": return { eyebrow: "Step 01 · RCRE", title: "Scope", sub: "The site fork, the nine inputs per category and the scoping declaration." };
-    case "protective": return { eyebrow: "Step 02 · RCPA", title: "Protective Actions & Site", sub: "The actions, the cohorts, the evacuation chain and the site data." };
+    case "protective": return { eyebrow: "Step 02 · RCPA", title: "Site, Population & Response", sub: "Receptor positions, population groups and response timing." };
     case "weather": return { eyebrow: "Step 03 · RCME", title: "Meteorology", sub: "The representative weather year and its data quality." };
     case "dispersion": return { eyebrow: "Step 04 · RCAD", title: "Atmospheric Dispersion", sub: "The plume model, the weather sampling, the credit fence and the deposition." };
     case "dose": return { eyebrow: "Step 05 · RCDO", title: "Dosimetry", sub: "The exposure pathways and the dose treatment." };
@@ -87,11 +87,11 @@ function WorkspaceHeader({
         <RCIcon.Chevron />
         <span className="poshd__crumb-current">{headerMeta.workbookName}</span>
         {personaPill !== null ? (
-          <span className={`poshd__wfstate ${personaPill.cls}`} title={RC_PERSONAS[persona].blurb}>
+          <span className={`poshd__wfstate ${personaPill.cls}`}>
             <RCIcon.Lock />{personaPill.text}
           </span>
         ) : (
-          <span className="poshd__wfstate poshd__wfstate--draft" title={workflowState}>
+          <span className="poshd__wfstate poshd__wfstate--draft">
             <span className="poshd__wfstate-dot" />{workflowState}
           </span>
         )}
@@ -101,7 +101,7 @@ function WorkspaceHeader({
 
       <div className="poshd__actions">
         {showPersonaPicker && availablePersonas.length > 1 && (
-          <label className="poshd__perspective" title="Switch perspective">
+          <label className="poshd__perspective">
             <span className="poshd__perspective-label">View as</span>
             <select className="poshd__perspective-select" value={persona} onChange={(e) => setPersona(e.target.value as RcPersona)}>
               {availablePersonas.includes("preparer") && <option value="preparer">Preparer</option>}
@@ -111,13 +111,13 @@ function WorkspaceHeader({
           </label>
         )}
         {onOpenRoles !== undefined && (
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles} title="Manage roles"><RCIcon.Settings /> Roles</button>
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles}><RCIcon.Settings /> Roles</button>
         )}
         {onLoadExample !== undefined && (
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onLoadExample} title="Replace contents with the Generic-1 example workbook"><RCIcon.Sparkle /> Load example</button>
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onLoadExample}><RCIcon.Sparkle /> Load example</button>
         )}
         {onUnloadExample !== undefined && (
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onUnloadExample} title="Restore the contents that existed before the example was loaded"><RCIcon.Close /> Unload example</button>
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onUnloadExample}><RCIcon.Close /> Unload example</button>
         )}
         <span className="poshd__save-pill"><span className="poshd__save-pill-dot" />Autosaved · v{headerMeta.workbookVersion}</span>
         <button type="button" className="posnav__btn" aria-label="History"><RCIcon.History /></button>
@@ -129,40 +129,47 @@ function WorkspaceHeader({
   );
 }
 
-function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
+function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen, onClose, onShowInputs }: {
   stepId: string;
   setStepId: (id: string) => void;
   persona: RcPersona;
   visibleSteps: RcStep[];
   mobileOpen: boolean;
+  onClose: () => void;
+  onShowInputs?: () => void;
 }): JSX.Element {
-  const idx = Math.max(0, visibleSteps.findIndex((s) => s.id === stepId));
-  const pct = ((idx + 1) / visibleSteps.length) * 100;
+  const enabledSteps = visibleSteps.filter((s) => !s.excluded);
+  const idx = Math.max(0, enabledSteps.findIndex((s) => s.id === stepId));
+  const pct = ((idx + 1) / enabledSteps.length) * 100;
   const eyebrow = persona === "reviewer" ? "Reviewer view" : persona === "approver" ? "Approver view" : "Workspace progress";
   return (
     <aside className={`posw__rail${mobileOpen ? " posw__rail--mobile-open" : ""}`} aria-label="RC analysis steps">
       <div className="posrail__head">
-        <span className="posrail__eyebrow">{eyebrow}</span>
+        <div className="posrail__head-top"><span className="posrail__eyebrow">{eyebrow}</span>
+          <button type="button" className="posdock__close" onClick={onClose} aria-label="Hide steps" title="Hide steps"><RCIcon.Close /></button>
+        </div>
         <div className="posrail__progress">
           <span className="posrail__progress-num">{idx + 1}</span>
-          <span className="posrail__progress-total">/ {visibleSteps.length} steps</span>
+          <span className="posrail__progress-total">/ {enabledSteps.length} steps</span>
         </div>
         <div className="posrail__bar"><div className="posrail__bar-fill" style={{ width: `${pct}%` }} /></div>
       </div>
       <ul className="posrail__list">
         {visibleSteps.map((s) => {
           const active = s.id === stepId;
-          const complete = s.status === "complete";
+          const excluded = s.excluded === true;
+          const complete = !excluded && s.status === "complete";
           const idle = s.status === "idle";
           return (
             <li key={s.id}>
-              <button type="button" className={`posrail__step${active ? " posrail__step--active" : ""}${complete ? " posrail__step--complete" : ""}${idle && s.terminal === true ? " posrail__step--idle" : ""}`} onClick={() => setStepId(s.id)}>
+              <button type="button" className={`posrail__step${active ? " posrail__step--active" : ""}${complete ? " posrail__step--complete" : ""}${idle && s.terminal === true ? " posrail__step--idle" : ""}${excluded ? " posrail__step--excluded" : ""}`} disabled={excluded} onClick={() => setStepId(s.id)}>
                 <span className="posrail__step-num">{complete ? <RCIcon.Check /> : s.num}</span>
                 <span>
                   <span className="posrail__step-label">
                     {s.label}
                     {s.se !== undefined && <span className={`rcse rcse--${s.seTone ?? "primary"}`} style={{ marginLeft: 6 }}>{s.se}</span>}
                   </span>
+                  {excluded && <span className="posrail__step-sub">Excluded</span>}
                 </span>
                 <span className="posrail__step-warn" style={{ background: "transparent" }} />
               </button>
@@ -170,26 +177,26 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
           );
         })}
       </ul>
-      <div className="posrail__footer">
-        <button type="button" className="posrail__footer-btn"><RCIcon.Layers /> Show all inputs</button>
-        <button type="button" className="posrail__footer-btn"><RCIcon.Settings /> Workbook settings</button>
-      </div>
+      {onShowInputs && <div className="posrail__footer">
+        <button type="button" className="posrail__footer-btn" onClick={onShowInputs}><RCIcon.Layers /> Show all inputs</button>
+      </div>}
     </aside>
   );
 }
 
-function ConformanceDock({ ccId, site, onGoToHandoff, onClose, mobileOpen }: {
+function ConformanceDock({ ccId, site, checks, onGoToHandoff, onClose, mobileOpen }: {
   ccId: string;
   site: SiteBasis;
+  checks: RcStepChecks;
   onGoToHandoff: () => void;
   onClose: () => void;
   mobileOpen: boolean;
 }): JSX.Element {
   const { rc } = useRcWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
-  const items = useMemo(() => filterConformance(rc, ccId, site), [rc, ccId, site]);
+  const items = useMemo(() => filterConformance(rc, ccId, site, checks), [rc, ccId, site, checks]);
   const sections = useMemo(() => groupBySection(items), [items]);
-  const scores = ccScore(rc, ccId, site);
+  const scores = ccScore(rc, ccId, site, checks);
   const dashTotal = 99.9;
   const dash = (scores.percent * dashTotal) / 100;
   return (
@@ -249,7 +256,7 @@ function ConformanceDock({ ccId, site, onGoToHandoff, onClose, mobileOpen }: {
 }
 
 function RcDrawer({ context, onClose }: { context: RcDrawerContext; onClose: () => void }): JSX.Element {
-  const modalLabel = ({ category: "Category details", protaction: "Protective action details", cohort: "Cohort details", sourcedoc: "Source document details", phase: "Incident phase details", evacdelay: "Evacuation delay details", protparam: "Protection parameter details", sitedata: "Site details", metdata: "Meteorological data quality", metparams: "Extracted parameters", dispersion: "Dispersion model and sampling", deposition: "Deposition matrix", pathway: "Exposure pathway", dosetreatment: "Dose treatment", code: "Consequence code", family: "Event sequence family", uncertainty: "Model uncertainty", sensitivity: "Sensitivity study", bounding: "Bounding-site assumption", preop: "Pre-operational assumption", rifeedback: "Risk-integration feedback" } as Record<string, string | undefined>)[context.kind];
+  const modalLabel = ({ metric: "Consequence metric details", category: "Category details", protaction: "Protective action details", cohort: "Cohort details", sourcedoc: "Source document details", phase: "Incident phase details", evacdelay: "Evacuation delay details", protparam: "Protection parameter details", sitedata: "Site details", metbasis: "Meteorology source and period", metquality: "Meteorology quality controls", metdata: "Meteorological data quality", metparams: "Extracted parameters", dispersion: "Dispersion model and sampling", deposition: "Deposition matrix", pathway: "Exposure pathway", dosetreatment: "Dose treatment", healthparams: "Health-effect treatment", riskfactor: "Risk-factor source", costcategory: "Cost category", costparam: "Cost parameter", econreview: "Economic input review", code: "Consequence code", family: "Event sequence family", uncertainty: "Model uncertainty", sensitivity: "Sensitivity study", bounding: "Bounding-site assumption", preop: "Pre-operational assumption", rifeedback: "Risk-integration feedback" } as Record<string, string | undefined>)[context.kind];
   const centered = modalLabel !== undefined;
   const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -267,7 +274,7 @@ function RcDrawer({ context, onClose }: { context: RcDrawerContext; onClose: () 
   }, [onClose]);
   return (
     <div className={centered ? "modal__backdrop" : "posdrawer-backdrop"} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div ref={dialog} className={centered ? `modal ${context.kind === "category" ? "rc-category-modal" : "rc-details-modal"}${context.kind === "dispersion" || context.kind === "deposition" ? " rc-transport-modal" : ""}` : "posdrawer"} role="dialog" aria-modal="true" aria-label={modalLabel} tabIndex={centered ? -1 : undefined}
+      <div ref={dialog} className={centered ? `modal ${context.kind === "category" ? "rc-category-modal" : "rc-details-modal"}${context.kind === "dispersion" || context.kind === "deposition" ? " rc-transport-modal" : ""}${context.kind === "pathway" || context.kind === "dosetreatment" ? " rc-dose-modal" : ""}${context.kind === "metric" ? " rc-metric-modal" : ""}` : "posdrawer"} role="dialog" aria-modal="true" aria-label={modalLabel} tabIndex={centered ? -1 : undefined}
         onKeyDown={e => {
           if (!centered || e.key !== "Tab") return;
           const controls = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]')).filter(el => el.getClientRects().length > 0);
@@ -312,7 +319,10 @@ function RcWorkbench({
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
 
-  const visibleSteps = useMemo(() => stepsFromMef(data.rc, persona), [data.rc, persona]);
+  const { stepLinks } = useRcWorkbook();
+  const checks = useMemo(() => rcSubElementChecks(data.rc, stepLinks), [data.rc, stepLinks]);
+  const visibleSteps = useMemo(() => stepsFromMef(data.rc, persona, checks), [data.rc, persona, checks]);
+  const enabledSteps = useMemo(() => visibleSteps.filter((step) => !step.excluded), [visibleSteps]);
   const mefCcId = data.rc.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
   const mefSite = siteFromMef(data.rc);
   const [ccId, setCcId] = useState<string>(mefCcId);
@@ -320,23 +330,26 @@ function RcWorkbench({
   useEffect(() => { setCcId(mefCcId); }, [mefCcId]);
   useEffect(() => { setSite(mefSite); }, [mefSite]);
 
-  const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "handoff");
+  const [selectedStepId, setStepIdState] = useState<string>(enabledSteps[0]?.id ?? "handoff");
+  const stepId = enabledSteps.some((step) => step.id === selectedStepId) ? selectedStepId : enabledSteps[0]?.id ?? "handoff";
   const [initialSiteTab, setInitialSiteTab] = useState<"location" | "receptors">("receptors");
   const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
   const [dockOpen, setDockOpen] = useState(!isNarrow);
+  const [railOpen, setRailOpen] = useState(true);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
   const [dockMobileOpen, setDockMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<RcDrawerContext | null>(null);
+  const [caseView, setCaseView] = useState<"default" | "inputs" | "inputs-again">("default");
   const toastTimer = useRef<number | null>(null);
 
   useEffect(() => {
-    if (visibleSteps.find((s) => s.id === stepId) === undefined) {
-      setStepIdState(visibleSteps[0]?.id ?? "handoff");
-    }
-  }, [persona, stepId, visibleSteps]);
+    if (selectedStepId !== stepId) setStepIdState(stepId);
+  }, [selectedStepId, stepId]);
 
   function setStepId(id: string): void {
+    if (!enabledSteps.some((step) => step.id === id)) return;
+    if (id !== "quantify") setCaseView("default");
     setStepIdState(id);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "auto" });
   }
@@ -361,7 +374,7 @@ function RcWorkbench({
   const submitted = actions === undefined ? demoSubmittedLocal : (workflowState === "INTERNAL_APPROVAL" || workflowState === "FINAL");
   const approved = actions === undefined ? demoApprovedLocal : workflowState === "FINAL";
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
-  const scores = ccScore(data.rc, ccId, site);
+  const scores = ccScore(data.rc, ccId, site, checks);
   const openCount = comments.filter((c) => !c.resolved).length;
   const resolvedCount = comments.filter((c) => c.resolved).length;
 
@@ -385,10 +398,10 @@ function RcWorkbench({
     actions.requestRevision("").then(() => flash("Revision requested")).catch((err: unknown) => flash((err as { message?: string }).message ?? "Could not request revision"));
   }
 
-  const idx = Math.max(0, visibleSteps.findIndex((s) => s.id === stepId));
-  const step = visibleSteps[idx] ?? visibleSteps[0];
-  const prev = visibleSteps[idx - 1];
-  const next = visibleSteps[idx + 1];
+  const idx = Math.max(0, enabledSteps.findIndex((s) => s.id === stepId));
+  const step = enabledSteps[idx] ?? enabledSteps[0];
+  const prev = enabledSteps[idx - 1];
+  const next = enabledSteps[idx + 1];
   const h = headersFor(stepId);
 
   function renderScreen(): JSX.Element {
@@ -406,8 +419,8 @@ function RcWorkbench({
       case "dose": return <DosimetryScreen openDrawer={setDrawer} />;
       case "health": return <HealthEffectsScreen openDrawer={setDrawer} />;
       case "economics": return <EconomicsScreen openDrawer={setDrawer} />;
-      case "quantify": return <QuantifyScreen openDrawer={setDrawer} onOpenStep={setStepId} />;
-      case "draft": return <DraftScreen cc={cc} scores={scores} site={site} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
+      case "quantify": return <QuantifyScreen key={caseView} openDrawer={setDrawer} onOpenStep={setStepId} initialCaseTab={caseView === "default" ? undefined : "prepared"} />;
+      case "draft": return <DraftScreen cc={cc} scores={scores} site={site} conformance={filterConformance(data.rc, ccId, site, checks)} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
         <InternalReviewScreen
@@ -442,13 +455,14 @@ function RcWorkbench({
   }
 
   return (
-    <div className={`posw${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`RC — ${step.label}`}>
+    <div className={`posw rc-workspace${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`RC — ${step.label}`}>
       {isReviewer && <div className="poshd__extbar" />}
       {isApprover && <div className="poshd__apprbar" />}
       <WorkspaceHeader persona={persona} setPersona={setPersona} workflowState={data.rc.workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailMobileOpen((v) => !v)} onToggleDock={() => { setDockOpen(true); setDockMobileOpen((v) => !v); }} />
 
-      <div className={`posw__shell${dockOpen ? "" : " posw__shell--dock-closed"}`}>
-        <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} />
+      <div className={`posw__shell${railOpen ? "" : " posw__shell--rail-closed"}${dockOpen ? "" : " posw__shell--dock-closed"}`}>
+        {(railOpen || railMobileOpen) && <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} onClose={() => { if (railMobileOpen) setRailMobileOpen(false); else setRailOpen(false); }}
+          onShowInputs={enabledSteps.some((s) => s.id === "quantify") ? () => { setCaseView((view) => view === "inputs" ? "inputs-again" : "inputs"); setStepId("quantify"); setRailMobileOpen(false); } : undefined} />}
 
         <main className="posmain" aria-label="Step content">
           <div className="posmain__head">
@@ -457,8 +471,9 @@ function RcWorkbench({
               <WorkbookSectionHeading workbook="RC" title={h.title} description={h.sub} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
+              {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm rc-show-steps" onClick={() => setRailOpen(true)}><RCIcon.Layers /> Show steps</button>}
               {!dockOpen && (
-                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setDockOpen(true); setDockMobileOpen(true); }}><RCIcon.Eye /> Show conformance</button>
+                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setDockOpen(true); setDockMobileOpen(window.matchMedia("(max-width: 1100px)").matches); }}><RCIcon.Eye /> Show conformance</button>
               )}
             </div>
           </div>
@@ -478,7 +493,7 @@ function RcWorkbench({
         </main>
 
         {dockOpen && (
-          <ConformanceDock ccId={ccId} site={site} onGoToHandoff={() => setStepId("handoff")} onClose={() => { setDockOpen(false); setDockMobileOpen(false); }} mobileOpen={dockMobileOpen} />
+          <ConformanceDock ccId={ccId} site={site} checks={checks} onGoToHandoff={() => setStepId("handoff")} onClose={() => { setDockOpen(false); setDockMobileOpen(false); }} mobileOpen={dockMobileOpen} />
         )}
         {(railMobileOpen || dockMobileOpen) && (
           <div className="posw__mobile-scrim" onClick={() => { setRailMobileOpen(false); setDockMobileOpen(false); }} aria-hidden="true" />

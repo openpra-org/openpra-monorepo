@@ -21,9 +21,9 @@ import {
 } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import { BayesianNetworkResults, BayesianNetworkBatchResults } from "../bayesian-network/bayesianNetworkResults";
 import { HclResults } from "../hybrid-causal-logic/hclResults";
+import { FaultTreeResults } from "../fault-tree";
 import type { HclEditorRunResult, HclEventTreeOption } from "../hybrid-causal-logic/hclBindingTypes";
 import { fetchJson } from "../../api/client";
-import { ResultNumber, ResultWarnings } from "./resultPresentation";
 import { ANALYSIS_RUN_CHANGED, type AnalysisRunChanged } from "./analysisRunEvents";
 import "./css/analysisRunHistory.css";
 
@@ -40,6 +40,23 @@ function hclResult(run: AnalysisRunMetadata, value: unknown): HclEditorRunResult
   return run.methodType === "EVENT_TREE" ?
       { kind: "EVENT_TREE", result: EventTreeAnalysisResultSchema.parse(value) }
     : { kind: "FAULT_TREE", result: HclQuantificationResultSchema.parse(value) };
+}
+
+function historicalFaultTreeBasicEventCodes(details: AnalysisRunDetails): Record<string, string> {
+  const codes: Record<string, string> = {};
+  for (const source of details.workbookSnapshots) {
+    if (source.hostType !== "SY") continue;
+    const events = source.mef["systemBasicEvents"];
+    if (!Array.isArray(events)) continue;
+    for (const candidate of events) {
+      if (typeof candidate !== "object" || candidate === null) continue;
+      const event = candidate as Record<string, unknown>;
+      if (typeof event["uuid"] === "string" && typeof event["code"] === "string") {
+        codes[event["uuid"]] = event["code"];
+      }
+    }
+  }
+  return codes;
 }
 
 export function SavedAnalysisResult({ details }: { details: AnalysisRunDetails }) {
@@ -93,12 +110,11 @@ export function SavedAnalysisResult({ details }: { details: AnalysisRunDetails }
   if (details.run.methodType === "FAULT_TREE") {
     const result = FaultTreeAnalysisResultSchema.parse(details.result);
     return (
-      <>
-        <p>
-          Top-event probability: <ResultNumber value={result.topEventProbability} />
-        </p>
-        <ResultWarnings issues={result.validationIssues} />
-      </>
+      <FaultTreeResults
+        analysisResult={result}
+        resultIsStale={details.run.freshness?.status !== "CURRENT"}
+        basicEventCodes={historicalFaultTreeBasicEventCodes(details)}
+      />
     );
   }
   if (details.run.methodType === "BAYESIAN_NETWORK") {
@@ -147,9 +163,13 @@ export function downloadSavedRun(details: AnalysisRunDetails): void {
 export function AnalysisRunHistory({
   host,
   workbookId,
+  calculationType,
+  modelId,
 }: {
   host: AnalysisRunChanged["host"];
   workbookId: string | null;
+  calculationType?: string;
+  modelId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<AnalysisRunProvenance[]>([]);
@@ -170,12 +190,21 @@ export function AnalysisRunHistory({
       const response = AnalysisRunProvenanceListSchema.parse(
         await fetchJson<unknown>(base + (next ? `?cursor=${encodeURIComponent(next)}` : "")),
       );
+      const modelRuns = modelId === undefined ? response.runs : response.runs.filter((row) => row.run.owner.modelId === modelId);
+      const visibleRows = calculationType === undefined ? modelRuns : (await Promise.all(modelRuns.map(async (row) => {
+        if (row.run.methodType !== "FAULT_TREE") return null;
+        try {
+          const detail = AnalysisRunDetailsSchema.parse(await fetchJson<unknown>(`${base}/${row.run.id}/details`));
+          return detail.request["calculationType"] === calculationType
+            && (calculationType !== "UNCERTAINTY" || detail.request["uncertaintyInputSource"] === "DA") ? row : null;
+        } catch { return null; }
+      }))).filter((row): row is AnalysisRunProvenance => row !== null);
       const refreshed =
         selected.current === null ?
           null
         : AnalysisRunDetailsSchema.parse(await fetchJson<unknown>(`${base}/${selected.current}/details`));
       if (current !== request.current) return;
-      setRows(response.runs);
+      setRows(visibleRows);
       setCursor(response.nextCursor ?? null);
       setDetails(refreshed);
     } catch (caught) {
@@ -212,7 +241,7 @@ export function AnalysisRunHistory({
     setRows([]);
     setCursor(null);
     setError(null);
-  }, [host, workbookId]);
+  }, [host, workbookId, calculationType, modelId]);
   useEffect(() => {
     if (!open || workbookId === null) return;
     void load();
@@ -232,66 +261,60 @@ export function AnalysisRunHistory({
       window.removeEventListener(ANALYSIS_RUN_CHANGED, changed);
       window.removeEventListener("focus", refresh);
     };
-  }, [open, host, workbookId]);
+  }, [open, host, workbookId, calculationType, modelId]);
   if (workbookId === null) return null;
   return (
-    <details
-      className="poscard analysis-history"
-      open={open}
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      <summary>Saved analysis runs</summary>
+    <section className="analysis-history" aria-label={calculationType === "UNCERTAINTY" ? "Uncertainty history" : "Analysis history"}>
+      <div className="analysis-history__header">
+        <h3>{calculationType === "UNCERTAINTY" ? "Uncertainty history" : "Analysis history"}</h3>
+        <button
+          type="button"
+          className="analysis-history__toggle"
+          aria-expanded={open}
+          onClick={() => setOpen((current) => !current)}
+        >
+          {open ? "Hide saved runs" : "Review saved runs"}
+          <svg className="analysis-history__chevron" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="m2 4 4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
       {open && (
-        <>
-          <p>Original results and inputs are preserved. Source status reflects the latest access and revision check.</p>
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => void load()}
-          >
-            Refresh history
-          </button>
-          {loading && <p role="status">Loading saved runs…</p>}
-          {error && <p role="alert">{error}</p>}
-          {!loading && !error && rows.length === 0 && <p>No accessible runs on this page.</p>}
+        <div className="analysis-history__body">
+          <div className="analysis-history__toolbar">
+            <p>{calculationType === "UNCERTAINTY" ? "Saved uncertainty results, inputs, and source revisions." : "Saved results, inputs, and source revisions for this workbook."}</p>
+            <button type="button" className="posnav__btn posnav__btn--sm" disabled={loading} onClick={() => void load()}>Refresh history</button>
+          </div>
+          {loading && <p role="status" className="analysis-history__state">Loading saved runs…</p>}
+          {error && <p role="alert" className="analysis-history__state analysis-history__state--error">{error}</p>}
+          {!loading && !error && rows.length === 0 && <p className="analysis-history__state">No accessible runs on this page.</p>}
           <div className="analysis-history__list">
             {rows.map((row) => (
               <button
                 type="button"
                 key={row.run.id}
+                className={details?.run.id === row.run.id ? "is-selected" : ""}
+                aria-pressed={details?.run.id === row.run.id}
                 onClick={() => void inspect(row.run.id)}
               >
-                <span>
-                  {row.run.methodType.replace(/_/g, " ")}
-                  {row.run.scope === "BATCH" ? " batch" : ""}
-                </span>
-                <span>
-                  {row.run.status} · {row.run.freshness?.status ?? "UNKNOWN"}
-                </span>
+                <span className="analysis-history__run-name">{row.run.methodType.replace(/_/g, " ")}{row.run.scope === "BATCH" ? " batch" : ""}</span>
+                <span className={`analysis-history__status analysis-history__status--${row.run.status.toLowerCase()}`}>{row.run.status}</span>
                 <time>{new Date(row.run.requestedAt).toLocaleString()}</time>
-                <small>{row.run.id}</small>
+                <span className="analysis-history__freshness">{row.run.freshness?.status ?? "UNKNOWN"}</span>
               </button>
             ))}
           </div>
           {cursor && (
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => void load(cursor)}
-            >
-              Older runs
-            </button>
+            <button type="button" className="posnav__btn posnav__btn--sm analysis-history__older" disabled={loading} onClick={() => void load(cursor)}>Older runs</button>
           )}
           {details && (
             <section aria-label="Saved run details">
-              <h3>Saved result</h3>
+              <div className="analysis-history__result-head"><div><span>Selected run</span><h3>Result</h3></div><span className="analysis-history__status">{details.run.status}</span></div>
               {details.run.freshness?.status !== "CURRENT" && (
-                <p role="status">Historical result: sources have changed, are missing, or could not be compared.</p>
+                <p role="status" className="analysis-history__state">Historical result: sources have changed, are missing, or could not be compared.</p>
               )}
-              <p>
-                Requested by {details.run.requestedBy} · {details.run.status}
-              </p>
-              <ul>
+              <p className="analysis-history__byline">Requested by {details.run.requestedBy} · {new Date(details.run.requestedAt).toLocaleString()}</p>
+              <ul className="analysis-history__sources">
                 {details.run.freshness?.sources.map((source) => (
                   <li key={source.workbookId}>
                     {source.workbookId}: saved revision {source.savedRevision},{" "}
@@ -300,7 +323,7 @@ export function AnalysisRunHistory({
                 ))}
               </ul>
               <SavedAnalysisResult details={details} />
-              <details>
+              <details className="analysis-history__record">
                 <summary>Run identity and recorded inputs</summary>
                 <p>Run: {details.run.id}</p>
                 <p>
@@ -334,17 +357,12 @@ export function AnalysisRunHistory({
                     </ul>
                   </details>
                 ))}
-                <button
-                  type="button"
-                  onClick={() => downloadSavedRun(details)}
-                >
-                  Download saved run
-                </button>
+                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => downloadSavedRun(details)}>Download saved run</button>
               </details>
             </section>
           )}
-        </>
+        </div>
       )}
-    </details>
+    </section>
   );
 }

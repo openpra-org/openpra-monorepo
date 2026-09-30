@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { RcSourceTerm, RcSourceTermValues } from "../../rc/source-term";
+import type { RcSourceTerm, RcSourceTermMsLink, RcSourceTermValues } from "../../rc/source-term";
 
 const nonnegative = z.number().finite().nonnegative();
 const identifier = z.number().int().min(1).max(999);
@@ -41,9 +41,16 @@ export const RcSourceTermValuesSchema: z.ZodType<RcSourceTermValues> = z.object(
   });
 });
 
+export const RcSourceTermMsLinkSchema: z.ZodType<RcSourceTermMsLink> = z.object({
+  workbookId: z.string().trim().min(1).max(255),
+  sourceTermId: z.string().trim().min(1).max(255),
+  inventoryIds: z.array(z.string().trim().min(1).max(255)).min(1).max(50),
+}).strict();
+
 export const RcSourceTermSchema: z.ZodType<RcSourceTerm> = z.object({
   revision: z.number().int().positive(),
   values: RcSourceTermValuesSchema,
+  msSource: RcSourceTermMsLinkSchema.optional(),
   originalFile: z.object({
     documentId: z.string().uuid(), filename: z.string().min(1).max(255),
     sha256: z.string().regex(/^[a-f0-9]{64}$/), size: z.number().int().positive(),

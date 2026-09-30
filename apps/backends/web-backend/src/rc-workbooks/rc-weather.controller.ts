@@ -25,4 +25,6 @@ export class RcWeatherController {
   original(@Param("id") id: string, @Param("documentId") documentId: string, @Req() req: AuthenticatedRequest) { return this.weather.original(id, documentId, { username: req.user!.username }); }
   @Get("records")
   records(@Param("id") id: string, @Query("offset") offset = "0", @Query("limit") limit = "6", @Req() req: AuthenticatedRequest) { return this.weather.records(id, Number(offset), Number(limit), { username: req.user!.username }); }
+  @Get("trials")
+  trials(@Param("id") id: string, @Query("offset") offset = "0", @Query("limit") limit = "6", @Req() req: AuthenticatedRequest) { return this.weather.trials(id, Number(offset), Number(limit), { username: req.user!.username }); }
 }

@@ -4,6 +4,10 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import { isDeepStrictEqual } from "util";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { withSourceTermSummary } from "interfaces-shared-types/rc-workbooks/source-term-summary";
+import { withRcFamilyConsequences } from "interfaces-shared-types/rc-workbooks/family-consequences";
+import { parseRcHealthInput } from "interfaces-shared-types/rc-workbooks/health-input-parser";
+import { parseRcSiteEconomy } from "interfaces-shared-types/rc-workbooks/economic-input-parser";
+import { rcEconomicCostCoverage, rcEconomicCostIssues } from "interfaces-shared-types/rc-workbooks/economic-costs";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { RadiologicalConsequenceAnalysisSchema } from "interfaces-mef-types/zod/rc/radiological-consequence-analysis";
@@ -78,7 +82,8 @@ export class RcWorkbooksService {
       throw new ForbiddenException(`Invalid RC workbook payload: ${parsed.error.message}`);
     }
     const myRoles = await this.loadMyRoles(workbookId, acting.username);
-    const before = stripNulls(doc.mef) as RadiologicalConsequenceAnalysis;
+    const stored = RadiologicalConsequenceAnalysisSchema.safeParse(stripNulls(doc.mef));
+    const before = stored.success ? stored.data : stripNulls(doc.mef) as RadiologicalConsequenceAnalysis;
     if (!isDeepStrictEqual(before.consequenceQuantification.caseRecords, parsed.data.consequenceQuantification.caseRecords))
       throw new ConflictException("Use the case-record endpoints to change snapshots or linked results");
     if (!isDeepStrictEqual(before.dosimetry.doseInputs, parsed.data.dosimetry.doseInputs))
@@ -89,6 +94,32 @@ export class RcWorkbooksService {
       throw new ConflictException("Weather inputs must be saved using the meteorology editor. Reload if they changed");
     if (!isDeepStrictEqual(before.protectiveActionParameters.siteAndReceptors, parsed.data.protectiveActionParameters.siteAndReceptors))
       throw new ConflictException("Site inputs must be saved using the site and receptor editor. Reload if they changed");
+    if (!isDeepStrictEqual(before.protectiveActionParameters.earlyResponseModel, parsed.data.protectiveActionParameters.earlyResponseModel))
+      throw new ConflictException("Response inputs must be saved using the early-response editor. Reload if they changed");
+    const healthInput = parsed.data.healthEffects.healthInput;
+    if (healthInput) {
+      let extracted;
+      try { extracted = parseRcHealthInput(healthInput.original, healthInput.filename); }
+      catch (error) { throw new ForbiddenException(error instanceof Error ? error.message : "Invalid health input"); }
+      if (!isDeepStrictEqual(extracted.records, healthInput.records))
+        throw new ConflictException("Health records must match the original input file");
+    }
+    const economicInput = parsed.data.economicFactors.siteEconomyInput;
+    if (economicInput) {
+      let extracted;
+      try { extracted = parseRcSiteEconomy(economicInput.original, economicInput.filename); }
+      catch (error) { throw new ForbiddenException(error instanceof Error ? error.message : "Invalid site economy input"); }
+      if (!isDeepStrictEqual(extracted.regions, economicInput.regions) || !isDeepStrictEqual(extracted.crops, economicInput.crops) ||
+        extracted.expectedRegions !== economicInput.expectedRegions || extracted.economicMultiplier !== economicInput.economicMultiplier)
+        throw new ConflictException("Economic records must match the original input file");
+    }
+    const economics = parsed.data.economicFactors;
+    const costIssues = rcEconomicCostIssues(economics.costParameterEstimates, economics.decontaminationLevels);
+    if (costIssues.length) throw new ForbiddenException(costIssues.join(" "));
+    if (economics.parameterConsistencyConfirmed && (!economicInput || economicInput.regions.length !== economicInput.expectedRegions ||
+      (economicInput.sourceSiteRevision !== undefined && economicInput.sourceSiteRevision !== parsed.data.protectiveActionParameters.siteAndReceptors?.revision) ||
+      !rcEconomicCostCoverage(economics).complete))
+      throw new ForbiddenException("Complete site coverage and cost parameters before confirming economic inputs");
     if (before.workflowState !== parsed.data.workflowState) throw new ForbiddenException("Use the workbook review actions to change workflow state");
     const oldCategories = before.releaseCategoryToConsequence.releaseCategoryInputs;
     const nextCategories = parsed.data.releaseCategoryToConsequence.releaseCategoryInputs;
@@ -104,7 +135,7 @@ export class RcWorkbooksService {
       }
     }
     parsed.data.releaseCategoryToConsequence.releaseCategoryInputs = nextCategories.map(withSourceTermSummary);
-    doc.mef = JSON.parse(JSON.stringify(parsed.data));
+    doc.mef = JSON.parse(JSON.stringify(withRcFamilyConsequences(parsed.data)));
     try { await doc.save(); } catch (error) {
       if (error instanceof Error && error.name === "VersionError") throw new ConflictException("The workbook changed. Reload before saving");
       throw error;
@@ -125,7 +156,8 @@ export class RcWorkbooksService {
     const example = await this.exampleWorkbooksService.getRcBundle(exampleId);
     const parsed = RadiologicalConsequenceAnalysisSchema.safeParse(stripNulls(example.rc.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
-    const prepared = example.rc.slug === RC_PUBLISHED_SLUG ? await this.publishedExample.prepare(workbookId, parsed.data, doc.__v + 1, acting) : undefined;
+    const materialize = example.rc.slug === RC_PUBLISHED_SLUG || Boolean(parsed.data.consequenceQuantification.caseRecords?.snapshots.length);
+    const prepared = materialize ? await this.publishedExample.prepare(workbookId, parsed.data, doc.__v + 1, acting) : undefined;
     const cleaned = {
       ...(prepared?.mef ?? parsed.data),
       workflowState: "DRAFT",

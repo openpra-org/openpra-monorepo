@@ -473,9 +473,13 @@ function reconcileExampleSyDataAnalysisReferences(
   }
 
   const supportedTypes = new Set(["PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
+  const parametersById = new Map(dataAnalysis.parameters.map((parameter) => [parameter.uuid, parameter]));
   let changed = false;
   const systemBasicEvents = analysis.systemBasicEvents.map((event) => {
-    const parameter = parametersByBasicEvent.get(event.uuid) ?? parametersByBasicEvent.get(event.code);
+    const named = parametersByBasicEvent.get(event.uuid) ?? parametersByBasicEvent.get(event.code);
+    const legacy = event.dataAnalysisBasicEventRef === undefined ? undefined : parametersById.get(event.dataAnalysisBasicEventRef);
+    if (named === undefined && (legacy === undefined || !supportedTypes.has(legacy.parameterType))) return event;
+    const parameter = named ?? legacy;
     if (parameter === undefined) return event;
     if (!supportedTypes.has(parameter.parameterType)) {
       throw new Error(`DA parameter '${parameter.uuid}' cannot control the probability of example basic event '${event.code}'.`);

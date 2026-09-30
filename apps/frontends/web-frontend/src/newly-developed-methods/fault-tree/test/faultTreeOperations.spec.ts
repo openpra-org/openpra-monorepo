@@ -244,14 +244,14 @@ describe("fault-tree domain operations", () => {
 
     expect(new Set(leaves.map(({ x }) => x)).size).toBe(1);
     expect(leaves.map(({ y }) => y)).toEqual([...leaves.map(({ y }) => y)].sort((left, right) => left - right));
-    expect(leaves[1].y - leaves[0].y).toBe(150);
-    expect(leaves[2].y - leaves[1].y).toBe(150);
+    expect(leaves[1].y - leaves[0].y).toBe(70);
+    expect(leaves[2].y - leaves[1].y).toBe(70);
     expect(leaves.every(({ y }) => y > positions.get(ID.left)!.y)).toBe(true);
     expect(positions.get(ID.left)!.y).toBeGreaterThan(positions.get(ID.top)!.y);
     expect(positions.get(ID.right)!.y).toBeGreaterThan(positions.get(ID.top)!.y);
   });
 
-  it("keeps non-basic terminals horizontal and puts transfers last within their parent subtree", () => {
+  it("places undeveloped events before separate house events and transfers last", () => {
     const houseId = "20000000-0000-4000-8000-000000000003";
     const undevelopedId = "20000000-0000-4000-8000-000000000004";
     const transferId = "20000000-0000-4000-8000-000000000005";
@@ -282,7 +282,7 @@ describe("fault-tree domain operations", () => {
     };
 
     const positions = new Map(computeFaultTreeAutoLayout(before).map(({ nodeId, position }) => [nodeId, position]));
-    const horizontalNodes = [houseId, undevelopedId].map((id) => positions.get(id)!);
+    const horizontalNodes = [undevelopedId, houseId].map((id) => positions.get(id)!);
     const transfer = positions.get(transferId)!;
 
     expect(new Set(horizontalNodes.map(({ y }) => y)).size).toBe(1);

@@ -12,9 +12,16 @@ export interface RcSourceTermValues {
   }[];
 }
 
+export interface RcSourceTermMsLink {
+  workbookId: string;
+  sourceTermId: string;
+  inventoryIds: string[];
+}
+
 export interface RcSourceTerm {
   revision: number;
   values: RcSourceTermValues;
+  msSource?: RcSourceTermMsLink;
   originalFile?: {
     documentId: string;
     filename: string;

@@ -4,16 +4,17 @@ use std::io::BufRead;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
 
+use crate::core::event::HouseEvent;
 use crate::core::event_tree::{
-    Branch, BranchTarget, EventTree, Fork, FunctionalEvent, InitiatingEvent, NamedBranch, Path,
-    Sequence,
+    Branch, BranchTarget, EventTree, FailureTreatment, Fork, FunctionalEvent, InitiatingEvent,
+    NamedBranch, Path, Sequence, SuccessTreatment,
 };
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::Gate;
 use crate::core::model::Model;
 use crate::error::{MefError, Result};
 
-use crate::io::parser::{parse_ccf_group, parse_element, parse_gate};
+use crate::io::parser::{parse_ccf_group, parse_element, parse_gate, parse_house_event_value};
 
 #[derive(Debug)]
 pub struct EventTreeModel {
@@ -70,6 +71,53 @@ fn required_attr(start: &BytesStart, key: &[u8], ctx: &str) -> Result<String> {
         ))
         .into()
     })
+}
+
+fn parse_functional_event(start: &BytesStart) -> Result<FunctionalEvent> {
+    let fe_id = required_attr(start, b"name", "define-functional-event")?;
+    let mut fe = FunctionalEvent::new(fe_id);
+    if let Some(value) = attr_value(start, b"failure-treatment")? {
+        fe = fe.with_failure_treatment(match value.trim() {
+            "system" => FailureTreatment::System,
+            "developed-event" => FailureTreatment::DevelopedEvent,
+            other => {
+                return Err(MefError::Validity(format!(
+                    "Unknown functional-event failure treatment '{other}'"
+                ))
+                .into())
+            }
+        });
+    }
+    if let Some(value) = attr_value(start, b"success-treatment")? {
+        fe = fe.with_success_treatment(match value.trim() {
+            "unity" => SuccessTreatment::Unity,
+            "delete-term" => SuccessTreatment::DeleteTerm,
+            "complement-system" => SuccessTreatment::ComplementSystem,
+            "complement-developed-event" => SuccessTreatment::ComplementDevelopedEvent,
+            other => {
+                return Err(MefError::Validity(format!(
+                    "Unknown functional-event success treatment '{other}'"
+                ))
+                .into())
+            }
+        });
+    }
+    if let Some(value) = attr_value(start, b"retain-leading-success")? {
+        fe = fe.with_retain_leading_success(match value.trim() {
+            "true" | "1" => true,
+            "false" | "0" => false,
+            other => {
+                return Err(MefError::Validity(format!(
+                    "Invalid retain-leading-success value '{other}'"
+                ))
+                .into())
+            }
+        });
+    }
+    if let Some(value) = attr_value(start, b"developed-event")? {
+        fe = fe.with_developed_event(value.trim().to_string());
+    }
+    Ok(fe)
 }
 
 fn skip_to_end<R: BufRead>(reader: &mut Reader<R>, end_tag: &[u8]) -> Result<()> {
@@ -396,6 +444,7 @@ fn parse_model_data<R: BufRead>(
     reader: &mut Reader<R>,
     model: &mut Model,
     parameters: &mut Parameters,
+    house_events: &mut Vec<(String, bool)>,
 ) -> Result<()> {
     let mut buf = Vec::new();
     loop {
@@ -405,6 +454,10 @@ fn parse_model_data<R: BufRead>(
                     let event_name = required_attr(&e, b"name", "define-basic-event")?;
                     let event = parse_basic_event_with_parameters(reader, &event_name, parameters)?;
                     model.add_basic_event(event)?;
+                }
+                b"define-house-event" => {
+                    let event_name = required_attr(&e, b"name", "define-house-event")?;
+                    house_events.push((event_name, parse_house_event_value(reader)?));
                 }
                 b"define-parameter" => {
                     parse_parameter_from_reader(reader, &e, parameters)?;
@@ -881,8 +934,7 @@ fn parse_event_tree_from_reader<R: BufRead>(
         match reader.read_event_into(&mut buf) {
             Ok(Event::Empty(e)) => match e.name().as_ref() {
                 b"define-functional-event" => {
-                    let fe_id = required_attr(&e, b"name", "define-functional-event")?;
-                    functional_events.push(FunctionalEvent::new(fe_id));
+                    functional_events.push(parse_functional_event(&e)?);
                 }
                 b"define-sequence" => {
                     let seq_id = required_attr(&e, b"name", "define-sequence")?;
@@ -892,8 +944,7 @@ fn parse_event_tree_from_reader<R: BufRead>(
             },
             Ok(Event::Start(e)) => match e.name().as_ref() {
                 b"define-functional-event" => {
-                    let fe_id = required_attr(&e, b"name", "define-functional-event")?;
-                    functional_events.push(FunctionalEvent::new(fe_id));
+                    functional_events.push(parse_functional_event(&e)?);
                     skip_to_end(reader, b"define-functional-event")?;
                 }
                 b"define-sequence" => {
@@ -981,6 +1032,7 @@ pub fn parse_event_tree_model_full(xml: &str) -> Result<EventTreeModel> {
     let mut initiating_events: Vec<InitiatingEvent> = Vec::new();
     let mut event_trees: Vec<EventTree> = Vec::new();
     let mut parameters = scan_parameters(xml)?;
+    let mut global_house_events: Vec<(String, bool)> = Vec::new();
 
     let mut reader = Reader::from_str(xml);
     reader.trim_text(true);
@@ -994,7 +1046,12 @@ pub fn parse_event_tree_model_full(xml: &str) -> Result<EventTreeModel> {
                     model.add_fault_tree(ft)?;
                 }
                 b"model-data" => {
-                    parse_model_data(&mut reader, &mut model, &mut parameters)?;
+                    parse_model_data(
+                        &mut reader,
+                        &mut model,
+                        &mut parameters,
+                        &mut global_house_events,
+                    )?;
                 }
                 b"define-initiating-event" => {
                     let ie = parse_initiating_event_from_reader(&mut reader, &e)?;
@@ -1027,6 +1084,19 @@ pub fn parse_event_tree_model_full(xml: &str) -> Result<EventTreeModel> {
                 for be in &model_basic_events {
                     if ft.get_basic_event(be.element().id()).is_none() {
                         let _ = ft.add_basic_event(be.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    if !global_house_events.is_empty() {
+        let ft_ids: Vec<_> = model.fault_trees().keys().cloned().collect();
+        for ft_id in ft_ids {
+            if let Some(ft) = model.get_fault_tree_mut(&ft_id) {
+                for (name, state) in &global_house_events {
+                    if ft.get_house_event(name).is_none() {
+                        ft.add_house_event(HouseEvent::new(name.clone(), *state)?)?;
                     }
                 }
             }
@@ -1150,4 +1220,36 @@ fn resolve_cross_fault_tree_gate_references(model: &mut Model) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_event_tree_model_full;
+
+    #[test]
+    fn model_data_house_event_is_available_in_every_fault_tree() {
+        let xml = r#"
+<opsa-mef>
+  <define-fault-tree name="FT1">
+    <define-gate name="TOP1"><and><house-event name="FLAG"/></and></define-gate>
+  </define-fault-tree>
+  <define-fault-tree name="FT2">
+    <define-gate name="TOP2"><or><house-event name="FLAG"/></or></define-gate>
+  </define-fault-tree>
+  <model-data>
+    <define-house-event name="FLAG"><constant value="false"/></define-house-event>
+  </model-data>
+</opsa-mef>
+"#;
+        let parsed = parse_event_tree_model_full(xml).unwrap();
+        for id in ["FT1", "FT2"] {
+            assert!(!parsed
+                .model
+                .get_fault_tree(id)
+                .unwrap()
+                .get_house_event("FLAG")
+                .unwrap()
+                .state());
+        }
+    }
 }

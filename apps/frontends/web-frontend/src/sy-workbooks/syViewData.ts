@@ -1,5 +1,4 @@
-import { SY_SR_CATALOG, type SystemFaultTreeNode, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import { systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
+import { SY_SR_CATALOG, type DepletionModel, type SystemFaultTreeNode } from "interfaces-mef-types/sy/systems-analysis";
 
 type StepStatus = "complete" | "in-progress" | "idle";
 
@@ -9,20 +8,21 @@ interface SyStep {
   label: string;
   sub: string;
   status: StepStatus;
+  badges: string[];
   terminal?: boolean;
 }
 
 const SY_STEPS: SyStep[] = [
-  { id: "scope", num: "01", label: "Scope", sub: "Systems · interfaces · setup", status: "idle" },
-  { id: "models", num: "02", label: "System Models", sub: "Boundaries · logic models", status: "idle" },
-  { id: "failures", num: "03", label: "Failure Modes", sub: "Modes · screening · events", status: "idle" },
-  { id: "ccf", num: "04", label: "Common Cause", sub: "Groups · shared causes", status: "idle" },
-  { id: "deps", num: "05", label: "Dependencies", sub: "Support · space · inventory", status: "idle" },
-  { id: "integrity", num: "06", label: "Model Integrity", sub: "Fidelity · detail · naming", status: "idle" },
-  { id: "uncert", num: "07", label: "Uncertainty", sub: "Capability · sources · pre-op", status: "idle" },
-  { id: "draft", num: "08", label: "Draft", sub: "Produce SY report", status: "idle", terminal: true },
-  { id: "review", num: "09", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
-  { id: "approval", num: "10", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
+  { id: "scope", num: "01", label: "Scope", sub: "Systems · interfaces · setup", status: "idle", badges: ["SY-A"] },
+  { id: "models", num: "02", label: "System Models", sub: "Description · fault tree · quantification", status: "idle", badges: ["SY-A"] },
+  { id: "failures", num: "03", label: "Failure Modes", sub: "Modes · screening · events", status: "idle", badges: ["SY-A"] },
+  { id: "ccf", num: "04", label: "Common Cause", sub: "Groups · shared causes", status: "idle", badges: ["SY-B"] },
+  { id: "deps", num: "05", label: "Dependencies", sub: "Support · space · inventory", status: "idle", badges: ["SY-B"] },
+  { id: "integrity", num: "06", label: "Model Integrity", sub: "Fidelity · detail · naming", status: "idle", badges: ["SY-A"] },
+  { id: "uncert", num: "07", label: "Uncertainty analysis", sub: "DA inputs · assumptions · results", status: "idle", badges: ["SY-A", "SY-B"] },
+  { id: "draft", num: "08", label: "Draft", sub: "Produce SY report", status: "idle", badges: ["SY-C"], terminal: true },
+  { id: "review", num: "09", label: "Review", sub: "Reviewer comments", status: "idle", badges: [], terminal: true },
+  { id: "approval", num: "10", label: "Approval", sub: "Everyone signs", status: "idle", badges: [], terminal: true },
 ];
 
 type SyPersona = "preparer" | "reviewer" | "approver";
@@ -136,22 +136,6 @@ const SY_SR_DESCRIPTIONS: Record<string, string> = {
   "SY-C3": "Document the pre-operational limitations, including freedom from design and construction errors",
 };
 
-const SY_SR_META: Record<string, string> = {
-  "SY-A1": "8 systems",
-  "SY-A6": "3 records",
-  "SY-A9": "1 system-level",
-  "SY-A20": "4 screened",
-  "SY-B2": "2 inter-system",
-  "SY-B3": "Damper group open",
-  "SY-B4": "DA-D8 pending",
-  "SY-B5": "1 loop resolved",
-  "SY-B8": "Penetration room open",
-  "SY-B11": "Software model open",
-  "SY-B12": "Battery duty open",
-  "SY-B14": "Sodium-fire open",
-  "SY-C3": "4 logged",
-};
-
 const SY_SR_LINKED_NM: Record<string, string> = {
   "SY-B11": "NM-072",
   "SY-B2": "NM-055",
@@ -170,7 +154,6 @@ function buildConformanceItems(): ConformanceItem[] {
       status: "warn" as const,
       requiredAt: ["cc-i", "cc-ii"],
       stages,
-      meta: SY_SR_META[code],
       linkedNM: SY_SR_LINKED_NM[code],
     };
   });
@@ -194,63 +177,20 @@ const CCF_MODELS: Record<string, { label: string }> = {
   PHI_FACTOR: { label: "Phi factor" },
 };
 
-interface CcfParameterSet {
-  betaFactorParameters?: { beta: number; totalFailureProbability: number };
-  alphaFactorParameters?: { alphaFactors: Record<string, number>; totalFailureProbability: number };
-}
-
 function toExp(n: number): string {
   return n.toExponential(1).toUpperCase();
 }
 
-function ccfParams(g: { modelSpecificParameters?: CcfParameterSet }): { short: string; detail: string; expected: number } | null {
-  const p = g.modelSpecificParameters;
-  if (p === undefined) return null;
-  if (p.betaFactorParameters !== undefined) {
-    const b = p.betaFactorParameters;
-    return { short: "β " + String(b.beta), detail: "β " + String(b.beta) + " × Q " + toExp(b.totalFailureProbability), expected: b.beta * b.totalFailureProbability };
-  }
-  if (p.alphaFactorParameters !== undefined) {
-    const a = p.alphaFactorParameters;
-    const keys = Object.keys(a.alphaFactors).sort();
-    const last = keys[keys.length - 1];
-    if (last === undefined) return null;
-    const val = a.alphaFactors[last];
-    if (val === undefined) return null;
-    const order = last.startsWith("alpha") ? last.slice(5) : last;
-    return { short: "α" + order + " " + String(val), detail: "α" + order + " " + String(val) + " × Q " + toExp(a.totalFailureProbability), expected: val * a.totalFailureProbability };
-  }
-  return null;
-}
+type SharedCauseKey = "hardwareDesign" | "manufacturer" | "maintenance" | "installation" | "environment";
 
-function ccfModelCheck(
-  g: { affectedSystems: string[]; members?: { basicEvents: { id: string }[] }; modelSpecificParameters?: CcfParameterSet },
-  analysis: Pick<SystemsAnalysis, "systemLogicModels" | "systemBasicEvents">,
-): { expected: number | null; eventId: string | null; eventProb: number | null; ok: boolean } {
-  const par = ccfParams(g);
-  const lm = analysis.systemLogicModels.find((m) => m.systemReference === g.affectedSystems[0]);
-  const evs = lm === undefined ? [] : systemLogicModelBasicEvents(analysis, lm);
-  const ids = (g.members?.basicEvents ?? []).map((b) => b.id);
-  const ccfEvent = evs.find((e) => ids.includes(e.uuid) && e.failureMode === "COMMON_CAUSE_FAILURE");
-  const membersOk = ids.length > 0 && ids.every((id) => evs.some((e) => e.uuid === id));
-  const prob = ccfEvent?.probability;
-  const match = par !== null && prob !== undefined && Math.abs(par.expected - prob) <= Math.max(par.expected, prob) * 1e-6;
-  return { expected: par === null ? null : par.expected, eventId: ccfEvent === undefined ? null : ccfEvent.uuid, eventProb: prob === undefined ? null : prob, ok: membersOk && match };
-}
+const SHARED_CAUSE_KEYS: readonly SharedCauseKey[] = ["hardwareDesign", "manufacturer", "maintenance", "installation", "environment"];
 
-const SHARED_CAUSE_LABELS: Record<string, string> = {
+const SHARED_CAUSE_LABELS: Record<SharedCauseKey, string> = {
   hardwareDesign: "Same design",
-  manufacturer: "Same make",
-  maintenance: "Same crew",
-  installation: "Same install",
-  environment: "Same room",
-  otherFactors: "Other",
-};
-
-const DEP_KIND: Record<string, { label: string; cls: string }> = {
-  power: { label: "Power", cls: "syd-dep--power" },
-  signal: { label: "Signal", cls: "syd-dep--signal" },
-  cooling: { label: "Cooling", cls: "syd-dep--cooling" },
+  manufacturer: "Same manufacturer",
+  maintenance: "Same maintenance and test practice",
+  installation: "Same installation",
+  environment: "Same environment",
 };
 
 const FAILURE_MODE_LABELS: Record<string, string> = {
@@ -266,6 +206,14 @@ const CONFIRM_METHODS: Record<string, string> = {
   PLANT_INVESTIGATION: "Plant investigation",
   WALKDOWN: "Walkdown",
   DESIGN_REVIEW: "Design review",
+};
+
+const RESOURCE_TYPE_LABELS: Record<DepletionModel["resourceType"], string> = {
+  fuel: "Fuel",
+  coolant: "Coolant",
+  battery: "Battery",
+  air: "Air",
+  other: "Other",
 };
 
 interface UpstreamLinkSpec {
@@ -309,9 +257,17 @@ type SyGateNode = Extract<SystemFaultTreeNode, { children: SystemFaultTreeNode[]
 type SyBeNode = Extract<SystemFaultTreeNode, { type: "BE" }>;
 type SyTrNode = Extract<SystemFaultTreeNode, { type: "TR" }>;
 
-const SCREENING_CRITERIA: { code: string; label: string }[] = [
-  { code: "a", label: "Total failure probability below 1E-6 over the mission time" },
-  { code: "b", label: "Failure mode cannot defeat the system success criterion" },
+const SCREENING_CRITERIA: { code: "a" | "b"; short: string; label: string }[] = [
+  {
+    code: "a",
+    short: "100 times below the train's leading failure",
+    label: "The component's failures with the same effect are at least 100 times less likely than the most likely failure of another component in the same train.",
+  },
+  {
+    code: "b",
+    short: "Under 1 percent of the component's failures",
+    label: "The failure modes add up to less than 1 percent of the component's total failure probability and have the same effect as the modeled modes.",
+  },
 ];
 
 const SY_METHODOLOGY_TOC: [string, string][] = [
@@ -405,12 +361,11 @@ export {
   CONFORMANCE_ITEMS,
   FAILURE_MODE_TYPES,
   CCF_MODELS,
+  SHARED_CAUSE_KEYS,
   SHARED_CAUSE_LABELS,
   toExp,
-  ccfParams,
-  ccfModelCheck,
-  DEP_KIND,
   CONFIRM_METHODS,
+  RESOURCE_TYPE_LABELS,
   FAILURE_MODE_LABELS,
   SY_UPSTREAM_LINKS,
   SY_SIDEWAYS_LINKS,

@@ -802,7 +802,7 @@ function computeFaultTreeAutoLayout(
       if (primary !== undefined) primaryInputByChild.set(childId, primary);
     }
 
-    const leafStackStep = rowStep;
+    const leafStackStep = nodeHeight + 4;
     const blockGap = horizontalGap + 48;
     const visitingGates = new Set<string>();
     const blockByGate = new Map<string, LayoutBlock>();
@@ -811,14 +811,13 @@ function computeFaultTreeAutoLayout(
       width: nodeWidth,
       height: nodeHeight,
     });
-    const basicEventBlock = (nodeIds: string[]): LayoutBlock => {
-      const railSpace = 16;
+    const eventStackBlock = (nodeIds: string[]): LayoutBlock => {
       return {
         positions: new Map(nodeIds.map((nodeId, index) => [
           nodeId,
-          { x: railSpace, y: index * leafStackStep },
+          { x: 0, y: index * leafStackStep },
         ])),
-        width: railSpace + nodeWidth,
+        width: nodeWidth,
         height: nodeHeight + Math.max(0, nodeIds.length - 1) * leafStackStep,
       };
     };
@@ -833,12 +832,14 @@ function computeFaultTreeAutoLayout(
         return child !== undefined && primaryInputByChild.get(child.id)?.id === input.id ? [child] : [];
       });
       const basicEvents = ownedChildren.filter(({ kind }) => kind === "BASIC_EVENT_REFERENCE");
+      const undevelopedEvents = ownedChildren.filter(({ kind }) => kind === "UNDEVELOPED_EVENT");
       const childGates = ownedChildren.filter(({ kind }) => kind === "GATE");
       const otherEvents = ownedChildren.filter(({ kind }) =>
-        kind !== "BASIC_EVENT_REFERENCE" && kind !== "GATE" && kind !== "TRANSFER_REFERENCE");
+        kind === "HOUSE_EVENT");
       const transfers = ownedChildren.filter(({ kind }) => kind === "TRANSFER_REFERENCE");
       const childBlocks: LayoutBlock[] = [
-        ...(basicEvents.length === 0 ? [] : [basicEventBlock(basicEvents.map(({ id }) => id))]),
+        ...(basicEvents.length === 0 ? [] : [eventStackBlock(basicEvents.map(({ id }) => id))]),
+        ...(undevelopedEvents.length === 0 ? [] : [eventStackBlock(undevelopedEvents.map(({ id }) => id))]),
         ...otherEvents.map(({ id }) => terminalBlock(id)),
         ...childGates.flatMap(({ id }) => visitingGates.has(id) ? [] : [gateBlock(id)]),
         ...transfers.map(({ id }) => terminalBlock(id)),

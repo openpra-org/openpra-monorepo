@@ -13,7 +13,7 @@ export const RcDispersionReferenceSchema: z.ZodType<RcDispersionReference> = z.o
   sigmaYA: z.array(positive).length(6), sigmaYB: z.array(positive).length(6), sigmaZA: z.array(positive).length(6), sigmaZB: z.array(positive).length(6), sidewaysScale: positive, verticalScale: positive,
 });
 export const RcTransportSettingsSchema: z.ZodType<RcTransportSettings> = z.object({
-  groupVelocities: z.array(z.object({ groupId: id, name: z.string().min(1).max(100), velocity: finite.min(0).max(10), basis: z.enum(["openrc_default", "noble_gas", "analyst"]) }).strict()).min(1).max(100),
+  groupVelocities: z.array(z.object({ groupId: id, name: z.string().min(1).max(100), velocity: finite.min(0).max(10), basis: z.enum(["source_file", "noble_gas", "analyst", "openrc_default"]) }).strict()).min(1).max(100),
   decayMode: z.enum(["parent", "ingrowth"]),
 }).strict().refine(v => new Set(v.groupVelocities.map(g => g.groupId)).size === v.groupVelocities.length, "Group velocities must be unique");
 const file = z.object({ documentId: z.string().uuid(), filename: z.string().min(1).max(255), sha256: z.string().regex(/^[a-f0-9]{64}$/), size: id.max(12 * 1024 * 1024), uploadedAt: z.string().datetime() });

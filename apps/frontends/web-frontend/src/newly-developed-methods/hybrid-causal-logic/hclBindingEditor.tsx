@@ -695,9 +695,9 @@ function HclBindingEditor({
                 )}
               </div>
             </div>
-            {saveBlockedReason !== null && <p role="status">{saveBlockedReason}</p>}
-            {uncertaintyError !== null && <p role="alert">{uncertaintyError}</p>}
-            {invalidScenario !== undefined && <p role="alert">Scenario {invalidScenario.code} references missing or invalid BN evidence. Repair it or disable the scenario.</p>}
+            {saveBlockedReason !== null && <p className="bneditor__notice" role="status">{saveBlockedReason}</p>}
+            {uncertaintyError !== null && <p className="bneditor__error" role="alert">{uncertaintyError}</p>}
+            {invalidScenario !== undefined && <p className="bneditor__error" role="alert">Scenario {invalidScenario.code} references missing or invalid BN evidence. Repair it or disable the scenario.</p>}
             <div className="hcleditor__execution-row">
               <div className="hcleditor__run-fields">{targetFields}</div>
               <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={running || hasBlockingIssue || (workflow === "BATCH" && enabledScenarios.length === 0) || (effectiveEvidenceMode === "HAZARD_GRID" && hazardUncertaintyBlocked) || (targetKind === "FAULT_TREE" ? executableFaultTrees.length === 0 : executableEventTrees.length === 0)} onClick={run}>
@@ -858,7 +858,7 @@ function HclBindingEditor({
                     } });
                   }}
                 />}
-                {batchInput !== null && <p role="status">Using temporary batch rows. Saved scenarios are unchanged. <button type="button" onClick={() => { batchImportEpoch.current += 1; setBatchInput(null); }}>Use saved scenarios</button></p>}
+                {batchInput !== null && <p className="bneditor__notice" role="status">Using temporary batch rows. Saved scenarios are unchanged. <button type="button" onClick={() => { batchImportEpoch.current += 1; setBatchInput(null); }}>Use saved scenarios</button></p>}
                 <HclEvidenceScenarioEditor
                     model={model}
                     configuration={batchConfiguration!}

@@ -1,7 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::algorithms::pdag::{Connective, NodeIndex, Pdag};
-use crate::core::event_tree::{Branch, BranchTarget, EventTree};
+use crate::core::event_tree::{
+    Branch, BranchTarget, EventTree, FailureTreatment, SuccessTreatment,
+};
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::Formula;
 use crate::core::model::Model;
@@ -35,6 +37,8 @@ pub struct SequenceFormulaBuilder<'a> {
 
     sequence_success_roots: HashMap<String, Vec<NodeIndex>>,
 
+    developed_probability_roots: HashMap<String, NodeIndex>,
+
     unconditional: HashSet<String>,
 
     next_synthetic: usize,
@@ -46,6 +50,8 @@ pub struct SequenceFormulaBuilder<'a> {
     complement_unity: bool,
 
     delete_term: bool,
+
+    saphire_success: bool,
 }
 
 impl<'a> SequenceFormulaBuilder<'a> {
@@ -57,12 +63,14 @@ impl<'a> SequenceFormulaBuilder<'a> {
             event_probs: HashMap::new(),
             sequence_paths: HashMap::new(),
             sequence_success_roots: HashMap::new(),
+            developed_probability_roots: HashMap::new(),
             unconditional: HashSet::new(),
             next_synthetic: 0,
             true_const: None,
             false_const: None,
             complement_unity: false,
             delete_term: false,
+            saphire_success: false,
         }
     }
 
@@ -75,6 +83,15 @@ impl<'a> SequenceFormulaBuilder<'a> {
     /// are recorded so that the products containing them can be deleted later.
     pub fn with_delete_term(mut self, on: bool) -> Self {
         self.delete_term = on;
+        self
+    }
+
+    /// Apply SAPHIRE's per-functional-event path processing. Successes use the
+    /// treatment carried by the native model regardless of path position:
+    /// Unity is omitted, delete-term roots are recorded, and explicit process
+    /// flags can retain complemented systems or developed events.
+    pub fn with_saphire_success(mut self, on: bool) -> Self {
+        self.saphire_success = on;
         self
     }
 
@@ -105,7 +122,8 @@ impl<'a> SequenceFormulaBuilder<'a> {
         et.validate()?;
 
         let initial = et.initial_state.clone();
-        self.collect_sequences(et, &initial, Vec::new(), Vec::new(), HashMap::new())?;
+        self.collect_sequences(et, &initial, Vec::new(), Vec::new(), HashMap::new(), false)?;
+        self.resolve_developed_event_probabilities()?;
 
         let mut sequence_roots = HashMap::new();
         let all_paths = std::mem::take(&mut self.sequence_paths);
@@ -120,7 +138,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
             let root = if paths.len() == 1 {
                 paths[0]
             } else {
-                if self.delete_term {
+                if self.delete_term || self.saphire_success {
                     return Err(PraxisError::Logic(format!(
                         "Delete-term needs one path per sequence, but '{}' is reached by {} (linked event trees are not supported)",
                         seq_id,
@@ -151,6 +169,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
         path_collector: Vec<NodeIndex>,
         success_collector: Vec<NodeIndex>,
         house_overrides: HashMap<String, bool>,
+        seen_failure: bool,
     ) -> Result<()> {
         let mut overrides = house_overrides;
         for (id, val) in &branch.house_event_assignments {
@@ -158,9 +177,14 @@ impl<'a> SequenceFormulaBuilder<'a> {
         }
 
         match branch.target.clone() {
-            BranchTarget::Sequence(seq_id) => {
-                self.handle_sequence(et, &seq_id, path_collector, success_collector, overrides)
-            }
+            BranchTarget::Sequence(seq_id) => self.handle_sequence(
+                et,
+                &seq_id,
+                path_collector,
+                success_collector,
+                overrides,
+                seen_failure,
+            ),
 
             BranchTarget::Fork(fork) => {
                 let fe_id = fork.functional_event_id.clone();
@@ -172,10 +196,12 @@ impl<'a> SequenceFormulaBuilder<'a> {
                 })?;
                 let fe_ft_id = fe.fault_tree_id.clone();
                 let fe_be_id = fe.basic_event_id.clone();
+                let fe_developed_id = fe.developed_event_id.clone();
 
                 for path in &fork.paths {
                     let mut new_collector = path_collector.clone();
                     let mut new_successes = success_collector.clone();
+                    let mut new_seen_failure = seen_failure;
 
                     if let Some(negated) = path.collect_formula_negated {
                         if negated && self.complement_unity && !self.delete_term {
@@ -185,10 +211,60 @@ impl<'a> SequenceFormulaBuilder<'a> {
                                 new_collector,
                                 new_successes,
                                 overrides.clone(),
+                                seen_failure,
                             )?;
                             continue;
                         }
-                        let root_idx = if let Some(ref ft_id) = fe_ft_id {
+                        if negated
+                            && self.saphire_success
+                            && !seen_failure
+                            && !fe.retain_leading_success
+                            && fe.success_treatment == SuccessTreatment::Unity
+                        {
+                            self.collect_sequences(
+                                et,
+                                &path.branch,
+                                new_collector,
+                                new_successes,
+                                overrides.clone(),
+                                false,
+                            )?;
+                            continue;
+                        }
+
+                        let use_developed_event = self.saphire_success
+                            && if negated {
+                                fe.success_treatment == SuccessTreatment::ComplementDevelopedEvent
+                            } else {
+                                fe.failure_treatment == FailureTreatment::DevelopedEvent
+                            };
+                        let root_idx = if use_developed_event {
+                            let be_id = fe_developed_id.as_ref().ok_or_else(|| {
+                                PraxisError::Logic(format!(
+                                    "Functional event '{}' requires a developed event",
+                                    fe_id
+                                ))
+                            })?;
+                            if let Some(ref ft_id) = fe_ft_id {
+                                let ft = self
+                                    .model
+                                    .get_fault_tree(ft_id)
+                                    .ok_or_else(|| {
+                                        PraxisError::Logic(format!(
+                                            "Fault tree '{}' not found for functional event '{}'",
+                                            ft_id, fe_id
+                                        ))
+                                    })?
+                                    .clone();
+                                let scope = make_scope_key(&overrides);
+                                let probability_root =
+                                    self.add_ft_scoped(&ft, &overrides, &scope)?;
+                                self.developed_probability_roots
+                                    .entry(be_id.clone())
+                                    .or_insert(probability_root);
+                            }
+                            Some(self.add_functional_event_basic(be_id, &fe_id)?)
+                        } else if let Some(ref ft_id) = fe_ft_id {
                             let ft: FaultTree = self
                                 .model
                                 .get_fault_tree(ft_id)
@@ -209,12 +285,24 @@ impl<'a> SequenceFormulaBuilder<'a> {
                         };
 
                         if let Some(root_idx) = root_idx {
-                            if negated && self.delete_term {
+                            if negated && self.saphire_success {
+                                match fe.success_treatment {
+                                    SuccessTreatment::Unity => {}
+                                    SuccessTreatment::DeleteTerm => new_successes.push(root_idx),
+                                    SuccessTreatment::ComplementSystem
+                                    | SuccessTreatment::ComplementDevelopedEvent => {
+                                        new_collector.push(-root_idx)
+                                    }
+                                }
+                            } else if negated && self.delete_term {
                                 new_successes.push(root_idx);
                             } else {
                                 let formula_idx = if negated { -root_idx } else { root_idx };
                                 new_collector.push(formula_idx);
                             }
+                        }
+                        if !negated {
+                            new_seen_failure = true;
                         }
                     }
 
@@ -224,6 +312,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
                         new_collector,
                         new_successes,
                         overrides.clone(),
+                        new_seen_failure,
                     )?;
                 }
                 Ok(())
@@ -241,7 +330,14 @@ impl<'a> SequenceFormulaBuilder<'a> {
                     })?
                     .branch
                     .clone();
-                self.collect_sequences(et, &branch, path_collector, success_collector, overrides)
+                self.collect_sequences(
+                    et,
+                    &branch,
+                    path_collector,
+                    success_collector,
+                    overrides,
+                    seen_failure,
+                )
             }
         }
     }
@@ -253,6 +349,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
         path_collector: Vec<NodeIndex>,
         success_collector: Vec<NodeIndex>,
         overrides: HashMap<String, bool>,
+        seen_failure: bool,
     ) -> Result<()> {
         let sequence = et.sequences.get(seq_id).ok_or_else(|| {
             PraxisError::Logic(format!(
@@ -270,6 +367,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
                     path_collector,
                     success_collector,
                     overrides,
+                    seen_failure,
                 );
             }
             if let Some(lib) = self.et_library {
@@ -290,11 +388,12 @@ impl<'a> SequenceFormulaBuilder<'a> {
                     path_collector,
                     success_collector,
                     overrides,
+                    seen_failure,
                 );
             }
         }
 
-        if self.delete_term && !success_collector.is_empty() {
+        if !success_collector.is_empty() {
             self.sequence_success_roots
                 .insert(seq_id.to_string(), success_collector);
         }
@@ -326,6 +425,22 @@ impl<'a> SequenceFormulaBuilder<'a> {
                 Some(idx)
             }
         })
+    }
+
+    fn resolve_developed_event_probabilities(&mut self) -> Result<()> {
+        let roots: Vec<(String, NodeIndex)> = self
+            .developed_probability_roots
+            .iter()
+            .map(|(id, root)| (id.clone(), *root))
+            .collect();
+        for (event_id, root) in roots {
+            self.pdag.set_root(root)?;
+            let (_, bdd, bdd_root) =
+                crate::algorithms::build::build_sequence_bdd(&self.pdag, &self.event_probs)?;
+            let probability = bdd.probability(bdd_root);
+            self.event_probs.insert(event_id, probability);
+        }
+        Ok(())
     }
 
     /// A system with no fault tree is quantified from a single event, so the fork
@@ -412,24 +527,22 @@ impl<'a> SequenceFormulaBuilder<'a> {
             return Ok(idx);
         }
 
-        if let Some(idx) = self.pdag.get_index(element_id) {
-            cache.insert(scoped_id, idx);
-            return Ok(idx);
-        }
-
-        let gate = ft.get_gate(element_id).ok_or_else(|| {
-            PraxisError::Logic(format!(
+        // A fault-tree-local gate must take precedence over a basic event with
+        // the same unscoped ID that was registered while another fault tree was
+        // loaded. SAPHIRE RASP CCF expansion intentionally replaces the parent
+        // basic event with a local OR gate, while the original model-data event
+        // can still be present in other fault trees.
+        let Some(gate) = ft.get_gate(element_id) else {
+            if let Some(idx) = self.pdag.get_index(element_id) {
+                cache.insert(scoped_id, idx);
+                return Ok(idx);
+            }
+            return Err(PraxisError::Logic(format!(
                 "SequenceFormulaBuilder: element '{}' not found in fault tree '{}'",
                 element_id,
                 ft.element().id()
-            ))
-        })?;
-
-        if self.complement_unity && matches!(gate.formula(), Formula::Not) {
-            let idx = self.const_true();
-            cache.insert(scoped_id, idx);
-            return Ok(idx);
-        }
+            )));
+        };
 
         let connective = Connective::from_formula(gate.formula());
         let min_number = match gate.formula() {
@@ -660,6 +773,115 @@ mod tests {
                 "{be} missing from pdag"
             );
         }
+    }
+
+    #[test]
+    fn test_fault_tree_gate_wins_over_prior_global_basic_event() {
+        let mut model = Model::new("M").unwrap();
+
+        let mut prior = FaultTree::new("FT-PRIOR", "TOP-PRIOR").unwrap();
+        let mut prior_top = Gate::new("TOP-PRIOR".to_string(), Formula::Or).unwrap();
+        prior_top.add_operand("RASP-PARENT".to_string());
+        prior.add_gate(prior_top).unwrap();
+        prior
+            .add_basic_event(BasicEvent::new("RASP-PARENT".to_string(), 0.0).unwrap())
+            .unwrap();
+        model.add_fault_tree(prior).unwrap();
+
+        let mut ccf = FaultTree::new("FT-CCF", "TOP-CCF").unwrap();
+        let mut ccf_top = Gate::new("TOP-CCF".to_string(), Formula::Or).unwrap();
+        ccf_top.add_operand("RASP-PARENT".to_string());
+        ccf.add_gate(ccf_top).unwrap();
+        let mut ccf_parent = Gate::new("RASP-PARENT".to_string(), Formula::Or).unwrap();
+        ccf_parent.add_operand("RASP-AB".to_string());
+        ccf.add_gate(ccf_parent).unwrap();
+        ccf.add_basic_event(BasicEvent::new("RASP-AB".to_string(), 7.2e-9).unwrap())
+            .unwrap();
+        model.add_fault_tree(ccf).unwrap();
+
+        let mut prior_fe = FunctionalEvent::new("FE-PRIOR".to_string());
+        prior_fe.fault_tree_id = Some("FT-PRIOR".to_string());
+        let mut ccf_fe = FunctionalEvent::new("FE-CCF".to_string());
+        ccf_fe.fault_tree_id = Some("FT-CCF".to_string());
+
+        let ccf_fork = Fork::new(
+            "FE-CCF".to_string(),
+            vec![Path::new(
+                "failure".to_string(),
+                Branch::new(BranchTarget::Sequence("SEQ".to_string())),
+            )
+            .unwrap()
+            .with_collect_formula_negated(true)],
+        )
+        .unwrap();
+        let prior_fork = Fork::new(
+            "FE-PRIOR".to_string(),
+            vec![Path::new(
+                "failure".to_string(),
+                Branch::new(BranchTarget::Fork(ccf_fork)),
+            )
+            .unwrap()
+            .with_collect_formula_negated(true)],
+        )
+        .unwrap();
+
+        let mut et = EventTree::new(
+            "ET".to_string(),
+            Branch::new(BranchTarget::Fork(prior_fork)),
+        );
+        et.add_sequence(Sequence::new("SEQ".to_string())).unwrap();
+        et.add_functional_event(prior_fe).unwrap();
+        et.add_functional_event(ccf_fe).unwrap();
+
+        let formulas = SequenceFormulaBuilder::new(&model).build(&et, 1.0).unwrap();
+        assert!(matches!(
+            formulas
+                .pdag
+                .get_node(formulas.pdag.get_index("RASP-PARENT__FT-CCF").unwrap()),
+            Some(PdagNode::Gate { .. })
+        ));
+        assert!(formulas.pdag.get_index("RASP-AB").is_some());
+    }
+
+    #[test]
+    fn test_complement_unity_preserves_internal_not_gate() {
+        let mut model = Model::new("M").unwrap();
+        let mut ft = FaultTree::new("FT-FLAG", "TOP-FLAG").unwrap();
+        let mut top = Gate::new("TOP-FLAG".to_string(), Formula::Not).unwrap();
+        top.add_operand("FLAG".to_string());
+        ft.add_gate(top).unwrap();
+        ft.add_basic_event(BasicEvent::new("FLAG".to_string(), 1.0).unwrap())
+            .unwrap();
+        model.add_fault_tree(ft).unwrap();
+
+        let mut fe = FunctionalEvent::new("FE-FLAG".to_string());
+        fe.fault_tree_id = Some("FT-FLAG".to_string());
+        let fork = Fork::new(
+            "FE-FLAG".to_string(),
+            vec![Path::new(
+                "failure".to_string(),
+                Branch::new(BranchTarget::Sequence("SEQ".to_string())),
+            )
+            .unwrap()
+            .with_collect_formula_negated(false)],
+        )
+        .unwrap();
+        let mut et = EventTree::new("ET".to_string(), Branch::new(BranchTarget::Fork(fork)));
+        et.add_sequence(Sequence::new("SEQ".to_string())).unwrap();
+        et.add_functional_event(fe).unwrap();
+
+        let formulas = SequenceFormulaBuilder::new(&model)
+            .with_complement_unity(true)
+            .build(&et, 1.0)
+            .unwrap();
+        let root = formulas.sequence_roots["SEQ"];
+        assert!(matches!(
+            formulas.pdag.get_node(root),
+            Some(PdagNode::Gate {
+                connective: Connective::Not,
+                ..
+            })
+        ));
     }
 
     #[test]
@@ -903,5 +1125,147 @@ mod tests {
 
         assert!(formulas.unconditional.contains("SEQ-1"));
         assert!(!formulas.sequence_roots.contains_key("SEQ-1"));
+    }
+
+    #[test]
+    fn test_saphire_mixed_success_treatments() {
+        let mut model = Model::new("M").unwrap();
+        model
+            .add_fault_tree(simple_ft("FT-LEAD", "G-LEAD", "L1", "L2"))
+            .unwrap();
+        model
+            .add_fault_tree(simple_ft("FT-FAIL", "G-FAIL", "F1", "F2"))
+            .unwrap();
+        model
+            .add_fault_tree(simple_ft("FT-S", "G-S", "S1", "S2"))
+            .unwrap();
+        model
+            .add_fault_tree(simple_ft("FT-D", "G-D", "D1", "D2"))
+            .unwrap();
+        model
+            .add_basic_event(BasicEvent::new("DEV-S".to_string(), 1.0).unwrap())
+            .unwrap();
+
+        let lead = FunctionalEvent::new("FE-LEAD".to_string())
+            .with_fault_tree("FT-LEAD".to_string())
+            .with_success_treatment(SuccessTreatment::DeleteTerm);
+        let failed =
+            FunctionalEvent::new("FE-FAIL".to_string()).with_fault_tree("FT-FAIL".to_string());
+        let developed = FunctionalEvent::new("FE-S".to_string())
+            .with_fault_tree("FT-S".to_string())
+            .with_success_treatment(SuccessTreatment::ComplementDevelopedEvent)
+            .with_developed_event("DEV-S".to_string());
+        let deleted = FunctionalEvent::new("FE-D".to_string())
+            .with_fault_tree("FT-D".to_string())
+            .with_success_treatment(SuccessTreatment::DeleteTerm);
+
+        let delete_fork = Fork::new(
+            "FE-D".to_string(),
+            vec![Path::new(
+                "success".to_string(),
+                Branch::new(BranchTarget::Sequence("SEQ".to_string())),
+            )
+            .unwrap()
+            .with_collect_formula_negated(true)],
+        )
+        .unwrap();
+        let developed_fork = Fork::new(
+            "FE-S".to_string(),
+            vec![Path::new(
+                "success".to_string(),
+                Branch::new(BranchTarget::Fork(delete_fork)),
+            )
+            .unwrap()
+            .with_collect_formula_negated(true)],
+        )
+        .unwrap();
+        let failed_fork = Fork::new(
+            "FE-FAIL".to_string(),
+            vec![Path::new(
+                "failure".to_string(),
+                Branch::new(BranchTarget::Fork(developed_fork)),
+            )
+            .unwrap()
+            .with_collect_formula_negated(false)],
+        )
+        .unwrap();
+        let lead_fork = Fork::new(
+            "FE-LEAD".to_string(),
+            vec![Path::new(
+                "success".to_string(),
+                Branch::new(BranchTarget::Fork(failed_fork)),
+            )
+            .unwrap()
+            .with_collect_formula_negated(true)],
+        )
+        .unwrap();
+
+        let mut et = EventTree::new("ET".to_string(), Branch::new(BranchTarget::Fork(lead_fork)));
+        et.add_sequence(Sequence::new("SEQ".to_string())).unwrap();
+        for fe in [lead, failed, developed, deleted] {
+            et.add_functional_event(fe).unwrap();
+        }
+
+        let formulas = SequenceFormulaBuilder::new(&model)
+            .with_saphire_success(true)
+            .build(&et, 1.0)
+            .unwrap();
+
+        assert!(
+            formulas.pdag.get_index("L1").is_some(),
+            "leading delete-term system was not developed"
+        );
+        assert_eq!(formulas.sequence_success_roots["SEQ"].len(), 2);
+        let dev = formulas.pdag.get_index("DEV-S").unwrap();
+        let root = formulas.sequence_roots["SEQ"];
+        let PdagNode::Gate { operands, .. } = formulas.pdag.get_node(root).unwrap() else {
+            panic!("mixed sequence must have an AND root");
+        };
+        assert!(
+            operands.contains(&-dev),
+            "developed-event success was not complemented"
+        );
+        assert!((formulas.event_probs["DEV-S"] - 0.28).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_saphire_leading_developed_success_is_retained() {
+        let mut model = Model::new("M").unwrap();
+        model
+            .add_fault_tree(simple_ft("FT-S", "G-S", "S1", "S2"))
+            .unwrap();
+        model
+            .add_basic_event(BasicEvent::new("DEV-S".to_string(), 1.0).unwrap())
+            .unwrap();
+
+        let leading = FunctionalEvent::new("FE-S".to_string())
+            .with_fault_tree("FT-S".to_string())
+            .with_success_treatment(SuccessTreatment::ComplementDevelopedEvent)
+            .with_retain_leading_success(true)
+            .with_developed_event("DEV-S".to_string());
+        let fork = Fork::new(
+            "FE-S".to_string(),
+            vec![Path::new(
+                "success".to_string(),
+                Branch::new(BranchTarget::Sequence("SEQ".to_string())),
+            )
+            .unwrap()
+            .with_collect_formula_negated(true)],
+        )
+        .unwrap();
+
+        let mut et = EventTree::new("ET".to_string(), Branch::new(BranchTarget::Fork(fork)));
+        et.add_sequence(Sequence::new("SEQ".to_string())).unwrap();
+        et.add_functional_event(leading).unwrap();
+
+        let formulas = SequenceFormulaBuilder::new(&model)
+            .with_saphire_success(true)
+            .build(&et, 1.0)
+            .unwrap();
+
+        let dev = formulas.pdag.get_index("DEV-S").unwrap();
+        assert_eq!(formulas.sequence_roots["SEQ"], -dev);
+        assert!(!formulas.unconditional.contains("SEQ"));
+        assert!((formulas.event_probs["DEV-S"] - 0.28).abs() < 1e-12);
     }
 }

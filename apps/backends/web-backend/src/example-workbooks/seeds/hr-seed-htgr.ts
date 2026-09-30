@@ -95,7 +95,7 @@ const preInitiatorScreeningRecords = [
 
 const supportSystemInitiatorOperatorContributions = [
   { id: "SIC-1", system: "SYS-1E-DC", ft: "IE-29" },
-  { id: "SIC-2", system: "SYS-1E-AC", ft: "IE-27" },
+  { id: "SIC-2", system: "SYS-AC", ft: "IE-27" },
   { id: "SIC-3", system: "SYS-CCW", ft: "IE-31" },
   { id: "SIC-4", system: "SYS-HIC", ft: "IE-40" },
   { id: "SIC-5", system: "SYS-1E-DC", ft: "IE-30" },

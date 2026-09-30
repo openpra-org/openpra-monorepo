@@ -72,7 +72,6 @@
 .hrmethod-chip { font-family: var(--font-data), ui-monospace, monospace; font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 999px; cursor: default; background: var(--color-primary); color: #fff; }
 .hrempty { padding: 28px 18px; text-align: center; }
 .hrempty__title { font-family: var(--font-display), Georgia, serif; font-size: 16px; font-weight: 700; color: var(--color-text); }
-.hrempty__hint { margin: 8px auto 0; max-width: 520px; font-size: 13px; color: var(--color-text-muted); line-height: 1.55; }
 
 /* â”€â”€â”€ Load-example modal (rclink) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .rclink-backdrop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(29, 25, 43, 0.45); backdrop-filter: blur(2px); }
@@ -100,6 +99,63 @@
 @media (min-width: 1080px) { .rcgrid { grid-template-columns: 1fr 1fr 1fr; } }
 .rcgrid--2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
 @media (min-width: 860px) { .rcgrid--2 { grid-template-columns: 1fr 1fr; } }
+
+.rc-handoff__interface-tiles { width: 100%; }
+.rc-handoff__wide-card { box-sizing: border-box; width: 100%; max-width: 1120px; }
+.rc-handoff__wide-card:has(.rc-ms-source) { max-width: 900px; }
+.rc-link-lane { width: 100%; min-width: 0; margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.rc-link-select { display: flex; flex-direction: column; gap: 5px; max-width: 420px; }
+.rc-link-select .posfield__select { width: 100%; min-width: 0; }
+.rc-link-note { margin: 0; font-size: 13px; }
+.rc-link-table { width: 100%; overflow-x: auto; }
+.rc-link-table .postable { min-width: 560px; }
+.rc-link-table .posfield__select, .rc-link-table .posfield__input { box-sizing: border-box; width: 100%; min-width: 0; }
+.rc-link-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+.rc-link-lane .rcscope__title { margin: 4px 0 0; }
+.rc-link-actions { display: flex; align-items: center; gap: 8px; }
+.rc-bounding-table th:nth-child(1) { width: 18%; }
+.rc-bounding-table th:nth-child(2) { width: 30%; }
+.rc-handoff__scope > .posfield__textarea { box-sizing: border-box; width: 100%; min-height: 76px; }
+.rc-handoff__compact-card { box-sizing: border-box; width: 100%; max-width: 960px; }
+.rc-step02-card { box-sizing: border-box; width: 100%; max-width: 960px; }
+.rc-step02-total { margin: 12px 0 0; font-size: 12px; color: var(--color-text-muted); }
+.rccohort__measures { font-size: 11px; color: var(--color-text-muted); }
+.rc-step02-groups { margin-top: 14px; }
+.rc-step02-groups .rccohort__card { text-align: left; cursor: pointer; width: 100%; color: inherit; font: inherit; }
+.rc-step02-result { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--color-border); font-size: 12px; }
+.rc-step02-result span { color: var(--color-text-muted); }
+.rc-step02-result strong { color: var(--color-text); font-variant-numeric: tabular-nums; text-align: right; }
+.rc-step02-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.rc-step02-action { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 1px solid var(--color-border); border-radius: 10px; padding: 11px 13px; }
+.rc-step02-action span { display: flex; flex-direction: column; gap: 3px; }
+.rc-step02-action strong { font-size: 13px; }
+.rc-step02-action small { color: var(--color-text-muted); font-size: 11px; }
+.rc-step02-timing { display: grid; grid-template-columns: repeat(3, minmax(0, 220px)); gap: 14px; margin-top: 19px; }
+.rc-step02-timing .posfield__label { display: block; }
+.rc-step02-timing .posfield__input, .rc-step02-timing-source .posfield__input { display: block; width: 100%; margin-top: 5px; }
+.rc-step02-timing-source { display: block; max-width: 688px; margin-top: 14px; }
+.rc-step02-derived { max-width: 688px; margin-top: 12px; }
+@media (max-width: 620px) { .rc-step02-actions, .rc-step02-timing { grid-template-columns: minmax(0, 1fr); } }
+.rc-handoff__choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 4px; }
+@media (max-width: 720px) { .rc-handoff__choices { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 520px) { .rc-handoff__interface-tiles { grid-template-columns: minmax(0, 1fr); } }
+
+.rcscope { margin-top: 18px; }
+.rcscope__title { margin: 0 0 10px; font-family: var(--font-ui), sans-serif; font-size: 13px; font-weight: 700; color: var(--color-text); }
+.rcscope__table-wrap { max-width: 1080px; overflow-x: auto; }
+.rcscope__table { width: 100%; min-width: 730px; table-layout: fixed; }
+.rcscope__table th:nth-child(1) { width: 23%; }
+.rcscope__table th:nth-child(2) { width: 17%; }
+.rcscope__table th:nth-child(3) { width: 34%; }
+.rcscope__table th:nth-child(4) { width: 26%; }
+.rcscope__table td:nth-child(3) { vertical-align: middle; }
+.rcscope__table td { vertical-align: top; line-height: 1.4; overflow-wrap: anywhere; }
+.rcscope__table td strong { font-weight: 700; }
+.rcscope__step { display: block; margin-top: 3px; font-size: 11px; color: var(--color-text-muted); }
+.rcscope__table .posfield__select, .rcscope__table .posfield__input { width: 100%; min-width: 0; font-size: 12px; }
+.rcscope__error { display: block; margin-top: 4px; font-size: 11px; color: var(--color-error); }
+.posrail__step--excluded { opacity: 0.55; cursor: not-allowed; }
+.posrail__step--excluded:hover { background: none; }
 
 /* â”€â”€â”€ Sub-element badge (RC is a composite of eight) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .rcse {
@@ -243,9 +299,7 @@
 .rccohort { display: grid; grid-template-columns: 1fr; gap: 10px; border: 1px solid var(--color-border); border-radius: 12px; padding: 12px; }
 @media (min-width: 860px) { .rccohort { grid-template-columns: 1fr 1fr; } }
 .rccohort__card { border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); padding: 13px 15px; display: flex; flex-direction: column; gap: 8px; border-left: 4px solid var(--rc-site); }
-.rccohort__card--refuse { border-left-color: var(--rc-credit); }
 .rccohort__name { font-weight: 700; font-size: 13.5px; color: var(--color-text); }
-.rccohort__desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin: 0; }
 .rcnum { flex-shrink: 0; min-width: 20px; font-family: var(--font-data), ui-monospace, monospace; font-size: 12.5px; font-weight: 700; color: var(--color-text-subtle); }
 .rcbtn-danger { color: var(--rc-credit-ink); border-color: rgb(179 38 30 / 0.45); }
 .rcbtn-danger:hover { background: rgb(179 38 30 / 0.09); border-color: var(--rc-credit); }
@@ -448,3 +502,47 @@
 .rc-details-modal input[type="number"]{max-width:160px}
 .rc-details-modal .posnav__btn{align-self:flex-start;white-space:nowrap}
 .rc-details-modal .posnav__btn:disabled{opacity:.5;cursor:default}
+
+/* RC workspace: the rail, canvas and conformance panel share the viewport. */
+.rc-workspace .posw__shell{grid-template-columns:240px minmax(0,1fr) 340px;width:100%}
+.rc-workspace .posw__shell--rail-closed{grid-template-columns:0 minmax(0,1fr) 340px}
+.rc-workspace .posw__shell--dock-closed{grid-template-columns:240px minmax(0,1fr) 0}
+.rc-workspace .posw__shell--rail-closed.posw__shell--dock-closed{grid-template-columns:0 minmax(0,1fr) 0}
+.rc-workspace .posw__rail{grid-column:1;min-width:0}
+.rc-workspace .posmain{grid-column:2;min-width:0;box-sizing:border-box}
+.rc-workspace .posw__dock{grid-column:3;min-width:0}
+.rc-workspace .posrail__head-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rc-workspace .posrail__head-top .posdock__close{flex:none;line-height:0}
+.rc-workspace .posmain > .poscard,
+.rc-workspace .rc-handoff__wide-card,
+.rc-workspace .rc-handoff__compact-card,
+.rc-workspace .rc-step02-card,
+.rc-workspace .rc-site-input-card,
+.rc-workspace .rc-response-card,
+.rc-workspace .rc-weather-input-card,
+.rc-workspace .rc-transport-input-card,
+.rc-workspace .rc-dose-input-card,
+.rc-workspace .rh-card,
+.rc-workspace .re-card,
+.rc-workspace .rc-step08{width:100%;max-width:none}
+.rc-workspace .rcscope__table-wrap{max-width:none}
+@media(max-width:1100px) and (min-width:769px){
+  .rc-workspace .posw__shell,
+  .rc-workspace .posw__shell--dock-closed{grid-template-columns:220px minmax(0,1fr)}
+  .rc-workspace .posw__shell--rail-closed,
+  .rc-workspace .posw__shell--rail-closed.posw__shell--dock-closed{grid-template-columns:0 minmax(0,1fr)}
+}
+@media(max-width:1000px) and (min-width:769px){
+  .rc-workspace .poshd{position:relative;flex-wrap:wrap}
+  .rc-workspace .poshd__spacer{display:none}
+  .rc-workspace .poshd__actions{flex:1 1 100%;justify-content:flex-end;flex-wrap:wrap}
+  .rc-workspace .posw__rail{top:0;height:100vh}
+}
+@media(max-width:768px){
+  .rc-workspace .posw__shell,
+  .rc-workspace .posw__shell--dock-closed,
+  .rc-workspace .posw__shell--rail-closed,
+  .rc-workspace .posw__shell--rail-closed.posw__shell--dock-closed{grid-template-columns:minmax(0,1fr)}
+  .rc-workspace .posmain{grid-column:1}
+  .rc-workspace .rc-show-steps{display:none}
+}

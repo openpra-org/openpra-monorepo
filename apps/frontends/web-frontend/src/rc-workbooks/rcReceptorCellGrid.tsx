@@ -15,6 +15,7 @@ export function RcReceptorCellGrid({ geometry: g, settings, band, sector, onSele
 }): JSX.Element {
   const n = g.radiiKm.length, step = 360 / g.sectors, center = sector * step, outer = g.radiiKm[band], inner = band ? g.radiiKm[band - 1] : 0;
   const start = (center - step / 2 + 360) % 360, end = (center + step / 2) % 360, distance = cellDoseDistance(g, settings, band);
+  const population = g.populationByCell?.[sector * n + band];
   const select = (b: number, s: number) => onSelect(Math.min(n - 1, Math.max(0, b)), (s + g.sectors) % g.sectors);
   return <div className="sr-cell-grid">
     <div className="sr-grid-figure">
@@ -50,6 +51,7 @@ export function RcReceptorCellGrid({ geometry: g, settings, band, sector, onSele
         <div><dt>Sector boundaries</dt><dd>{display(start)}° to {display(end)}°{start > end ? " (across north)" : ""}</dd></div>
         <div><dt>Center bearing</dt><dd>{display(center)}° clockwise from north</dd></div>
         <div><dt>Dose point distance</dt><dd>{distance === undefined ? "Choose an evaluation position" : `${display(distance)} m`}</dd></div>
+        {population !== undefined && <div><dt>Population in cell</dt><dd>{population.toLocaleString()}</dd></div>}
       </dl></div>
     </div>
   </div>;

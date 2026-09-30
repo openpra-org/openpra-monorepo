@@ -5,7 +5,7 @@ import { createHash } from "crypto";
 import { z } from "zod";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { RcDoseInputs, RcDosePathway } from "interfaces-mef-types/rc/dose-inputs";
-import { RcDoseInputsSchema, RcDoseSettingsSchema } from "interfaces-mef-types/zod/rc/dose-inputs";
+import { RcDoseInputsSchema } from "interfaces-mef-types/zod/rc/dose-inputs";
 import { decodeRcDoseText, doseLines, parseRcDoseCoefficients, parseRcExposure } from "interfaces-shared-types/rc-workbooks/dose-input-parser";
 import { ProjectsService } from "../projects/projects.service";
 import { WorkbookRolesService } from "../workbooks/workbook-roles.service";
@@ -47,11 +47,10 @@ export class RcDoseInputsService {
     return next;
   }
   async save(id: string, body: unknown, actor: Actor) {
-    const parsed = z.object({ baseRevision: revision, sourceRevision: revision, categoryId: z.string().min(1), settings: RcDoseSettingsSchema }).strict().safeParse(body);
+    const parsed = z.object({ baseRevision: revision, sourceRevision: revision, categoryId: z.string().min(1) }).strict().safeParse(body);
     if (!parsed.success) throw new BadRequestException(reason(parsed.error));
     const p = parsed.data, loaded = await this.load(id, actor, p.baseRevision), source = this.source(loaded, p.categoryId, p.sourceRevision), next = this.initial(loaded.inputs), old = next.categories.find(c => c.categoryId === p.categoryId);
-    if (p.settings.basis === "imported" && p.settings.integrationSeconds !== old?.exposure?.data.integrationSeconds) throw new BadRequestException("The imported duration must match the retained exposure file");
-    next.categories = [...next.categories.filter(c => c.categoryId !== p.categoryId), { ...old, categoryId: p.categoryId, settings: p.settings, savedForSourceRevision: source.revision }];
+    next.categories = [...next.categories.filter(c => c.categoryId !== p.categoryId), { ...old, categoryId: p.categoryId, savedForSourceRevision: source.revision }];
     return this.persist(loaded, next);
   }
   async importFile(id: string, kind: "exposure" | RcDosePathway, body: unknown, upload: { buffer: Buffer; originalname: string }, actor: Actor) {
@@ -72,7 +71,7 @@ export class RcDoseInputsService {
     const original = await this.documents.upload(id, { buffer: upload.buffer, originalName: filename, mimeType: "text/plain", size: upload.buffer.length }, actor, false, false, false, false, true);
     const file = { documentId: original.documentId, filename, sha256, uploadedAt: original.uploadedAt, size: upload.buffer.length };
     try {
-      if (exposure) next.categories = [...next.categories.filter(c => c.categoryId !== p.categoryId), { categoryId: p.categoryId!, settings: { integrationSeconds: exposure.integrationSeconds, basis: "imported" }, exposure: { file, data: exposure } }];
+      if (exposure) next.categories = [...next.categories.filter(c => c.categoryId !== p.categoryId), { categoryId: p.categoryId!, exposure: { file, data: exposure } }];
       else {
         next.libraries = [...next.libraries.filter(l => l.kind !== kind), { kind: kind as RcDosePathway, file, nuclides: [...new Set(coefficients!.map(r => r.name))], recordCount: coefficients!.length }];
         next.categories = next.categories.map(c => ({ ...c, savedForSourceRevision: undefined }));

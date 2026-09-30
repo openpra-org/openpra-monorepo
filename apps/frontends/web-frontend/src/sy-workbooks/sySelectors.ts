@@ -1,4 +1,4 @@
-import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { type SystemLogicModel, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import {
   CONFORMANCE_ITEMS,
   SY_STEPS,
@@ -8,6 +8,10 @@ import {
   type SyStep,
   type Stage,
 } from "./syViewData";
+import { ccfGroupIsReady } from "./syCcf";
+import { dependencyErrors } from "./syDependencyLinks";
+import { integrityErrors } from "./syIntegrityChecks";
+import { uncertaintyErrors, type RunState } from "./syUncertainty";
 
 interface CommentView {
   id: string;
@@ -128,20 +132,32 @@ function commentsView(sy: SystemsAnalysis, now: Date = new Date()): CommentView[
   });
 }
 
+function isSystemLevelModel(model: Pick<SystemLogicModel, "nonDetailedModelJustification">): boolean {
+  return typeof model.nonDetailedModelJustification === "string";
+}
+
 function stepsForPersona(persona: SyPersona): SyStep[] {
   const ids = SY_PERSONA_STEPS[persona];
   return SY_STEPS.filter((s) => ids.includes(s.id));
 }
 
-function stepsFromMef(sy: SystemsAnalysis, persona: SyPersona): SyStep[] {
+function stepsFromMef(
+  sy: SystemsAnalysis,
+  persona: SyPersona,
+  uncertaintyReadiness: ReadonlyMap<string, RunState> = new Map(),
+): SyStep[] {
   const base = stepsForPersona(persona);
   const scopeComplete = sy.praScope.length > 0 || sy.systemDefinitions.length > 0;
   const modelsComplete = sy.systemLogicModels.length > 0;
-  const failuresComplete = (sy.componentScreeningJustifications?.length ?? 0) > 0 || sy.humanFailureEventIntegrations.length > 0;
-  const ccfComplete = sy.commonCauseFailureGroups.length > 0;
-  const depsComplete = sy.systemDependencies.length > 0;
-  const integrityComplete = (sy.systemConfirmationRecords?.length ?? 0) > 0;
-  const uncertComplete = (sy.uncertaintyAnalyses?.length ?? 0) > 0 || (sy.preOperationalAssumptions?.length ?? 0) > 0;
+  const failuresComplete = sy.systemDefinitions.length > 0 && sy.systemDefinitions.every((system) =>
+    [system.justificationForExclusionOfComponents, system.flowDiversionConsiderations, system.functionLossConditions].some((items) => (items ?? []).length > 0));
+  const ccfComplete = sy.commonCauseFailureGroups.length > 0
+    && sy.commonCauseFailureGroups.every((group) => ccfGroupIsReady(group, sy));
+  const depsComplete = sy.systemDependencies.length > 0 && dependencyErrors(sy, null).length === 0;
+  const integrityComplete = sy.systemDefinitions.length > 0 && integrityErrors(sy).length === 0;
+  const detailedModels = sy.systemLogicModels.filter((model) => model.topGate !== null && !isSystemLevelModel(model));
+  const uncertComplete = sy.systemDefinitions.length > 0 && uncertaintyErrors(sy).length === 0
+    && detailedModels.every((model) => uncertaintyReadiness.get(model.uuid) === "READY");
   const draftComplete = sy.workflowState !== "DRAFT" && sy.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = sy.workflowState === "FINAL";
 
@@ -173,6 +189,7 @@ export {
   stepsForPersona,
   stepsFromMef,
   initialsOf,
+  isSystemLevelModel,
   type CommentView,
   type CcScore,
 };

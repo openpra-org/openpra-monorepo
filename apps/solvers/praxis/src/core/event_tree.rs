@@ -92,6 +92,20 @@ impl Sequence {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum FailureTreatment {
+    System,
+    DevelopedEvent,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SuccessTreatment {
+    Unity,
+    DeleteTerm,
+    ComplementSystem,
+    ComplementDevelopedEvent,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct FunctionalEvent {
     pub id: String,
 
@@ -106,6 +120,20 @@ pub struct FunctionalEvent {
     pub basic_event_id: Option<String>,
 
     pub success_probability: Option<f64>,
+
+    /// SAPHIRE event-tree processing can use the developed event instead of
+    /// the system fault tree on a failed path (process flags X and Y).
+    pub failure_treatment: FailureTreatment,
+
+    /// Treatment of a successful path when SAPHIRE retains its formula.
+    pub success_treatment: SuccessTreatment,
+
+    /// Explicit SAPHIRE process flags W and Y retain a complemented developed
+    /// event even when the success occurs before the first failed top event.
+    pub retain_leading_success: bool,
+
+    /// Same-named event used by SAPHIRE's developed-event treatments.
+    pub developed_event_id: Option<String>,
 }
 
 impl FunctionalEvent {
@@ -117,6 +145,10 @@ impl FunctionalEvent {
             fault_tree_id: None,
             basic_event_id: None,
             success_probability: None,
+            failure_treatment: FailureTreatment::System,
+            success_treatment: SuccessTreatment::ComplementSystem,
+            retain_leading_success: false,
+            developed_event_id: None,
         }
     }
 
@@ -142,6 +174,26 @@ impl FunctionalEvent {
 
     pub fn with_success_probability(mut self, probability: f64) -> Self {
         self.success_probability = Some(probability);
+        self
+    }
+
+    pub fn with_failure_treatment(mut self, treatment: FailureTreatment) -> Self {
+        self.failure_treatment = treatment;
+        self
+    }
+
+    pub fn with_success_treatment(mut self, treatment: SuccessTreatment) -> Self {
+        self.success_treatment = treatment;
+        self
+    }
+
+    pub fn with_retain_leading_success(mut self, retain: bool) -> Self {
+        self.retain_leading_success = retain;
+        self
+    }
+
+    pub fn with_developed_event(mut self, basic_event_id: String) -> Self {
+        self.developed_event_id = Some(basic_event_id);
         self
     }
 }

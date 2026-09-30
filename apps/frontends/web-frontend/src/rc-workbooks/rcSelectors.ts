@@ -1,5 +1,10 @@
-import { type RadiologicalConsequenceAnalysis, type ReleaseCategoryInputs } from "interfaces-mef-types/rc/radiological-consequence-analysis";
+import { type RadiologicalConsequenceAnalysis, type ReleaseCategoryInputs, type RcSubElement } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { type ParameterDistribution, DistributionType } from "interfaces-mef-types/core/events";
+import { isRcAspectExcluded } from "./rcScope";
+import { protectiveStepComplete } from "./rcProtective";
+import { weatherIsReviewed, weatherQualityIssues } from "interfaces-shared-types/rc-workbooks/weather";
+import { rcEconomicCostCoverage } from "interfaces-shared-types/rc-workbooks/economic-costs";
+import { rcAspectDecision, rcProtectiveActionsNeeded } from "interfaces-shared-types/rc-workbooks/metrics";
 import {
   CONFORMANCE_ITEMS,
   RC_STEPS,
@@ -68,22 +73,18 @@ function siteFromMef(rc: RadiologicalConsequenceAnalysis): SiteBasis {
   return rc.releaseCategoryToConsequence.siteInformation.isBounding ? "bounding_site" : "actual_site";
 }
 
-function filterConformance(rc: RadiologicalConsequenceAnalysis, ccId: string, site: SiteBasis): ConformanceItem[] {
-  const statusBySr = new Map<string, string>();
-  for (const entry of rc.conformanceMatrix) {
-    const ccUpper = ccId.replace("cc-", "").toUpperCase();
-    if (entry.capabilityCategory === `CC-${ccUpper}`) statusBySr.set(entry.sr, entry.status);
-  }
+type RcStepChecks = Record<RcSubElement, string[]>;
+
+function filterConformance(rc: RadiologicalConsequenceAnalysis, ccId: string, site: SiteBasis, checks: RcStepChecks): ConformanceItem[] {
   return CONFORMANCE_ITEMS.filter((it) => it.requiredAt.includes(ccId)).map((it) => {
     if (it.boundingOnly && site === "actual_site") {
       return { ...it, status: "na" as const, meta: "Not applicable to the identified site" };
     }
-    const matrixStatus = statusBySr.get(it.id);
-    if (matrixStatus === "MET") return { ...it, status: "ok" as const };
-    if (matrixStatus === "NOT_MET") return { ...it, status: "blocked" as const };
-    if (matrixStatus === "NOT_APPLICABLE") return { ...it, status: "na" as const };
-    if (matrixStatus === "PARTIAL") return { ...it, status: "warn" as const };
-    return { ...it, status: "warn" as const };
+    const decision = it.subElement === "RCRE" || it.subElement === "RCQ" ? undefined : rcAspectDecision(rc.scope, it.subElement);
+    if (decision?.included === false) return { ...it, status: "na" as const, meta: decision.exclusionReason?.trim() ? `Excluded · ${decision.exclusionReason.trim()}` : "Excluded" };
+    const items = checks[it.subElement];
+    if (!items.length) return { ...it, status: "ok" as const };
+    return { ...it, status: "warn" as const, meta: items.length > 1 ? `${items[0]} (${items.length - 1} more to review)` : items[0] };
   });
 }
 
@@ -97,8 +98,8 @@ function groupBySection(items: ConformanceItem[]): [string, ConformanceItem[]][]
   return Array.from(sections.entries());
 }
 
-function ccScore(rc: RadiologicalConsequenceAnalysis, ccId: string, site: SiteBasis): CcScore {
-  const items = filterConformance(rc, ccId, site);
+function ccScore(rc: RadiologicalConsequenceAnalysis, ccId: string, site: SiteBasis, checks: RcStepChecks): CcScore {
+  const items = filterConformance(rc, ccId, site, checks);
   const total = items.length;
   const na = items.filter((it) => it.status === "na").length;
   const met = items.filter((it) => it.status === "ok").length;
@@ -139,16 +140,22 @@ function stepsForPersona(persona: RcPersona): RcStep[] {
   return RC_STEPS.filter((s) => ids.includes(s.id));
 }
 
-function stepsFromMef(rc: RadiologicalConsequenceAnalysis, persona: RcPersona): RcStep[] {
+function stepsFromMef(rc: RadiologicalConsequenceAnalysis, persona: RcPersona, checks: RcStepChecks): RcStep[] {
   const base = stepsForPersona(persona);
-  const handoffComplete = rc.praScope.length > 0 && rc.releaseCategoryToConsequence.releaseCategoryInputs.length > 0;
-  const protectiveComplete = rc.protectiveActionParameters.protectiveActionsIncluded.length > 0;
-  const weatherComplete = rc.meteorologicalData.dataSource.length > 0;
+  const handoffComplete = rc.praScope.length > 0 && rc.releaseCategoryToConsequence.releaseCategoryInputs.length > 0 && checks.RCRE.length === 0;
+  const protectiveComplete = protectiveStepComplete(rc.protectiveActionParameters, rcProtectiveActionsNeeded(rc.scope.metrics));
+  const weatherComplete = weatherQualityIssues(rc.meteorologicalData).length === 0
+    && weatherIsReviewed(rc.meteorologicalData.weatherInputs, rc.protectiveActionParameters.siteAndReceptors?.settings ?? {}, rc.protectiveActionParameters.siteAndReceptors?.geometry);
   const dispersionComplete = rc.atmosphericTransportAndDispersion.dispersionModel.justification.length > 0;
   const doseComplete = rc.dosimetry.exposurePathways.length > 0;
-  const healthComplete = rc.healthEffects.earlyHealthEffects.length > 0;
-  const economicsComplete = rc.economicFactors.costCategories.length > 0;
-  const quantifyComplete = rc.consequenceQuantification.eventSequenceConsequences.length > 0;
+  const healthComplete = rc.healthEffects.earlyHealthEffects.some(effect => effect.trim())
+    && rc.healthEffects.latentHealthEffects.some(effect => effect.trim())
+    && rc.healthEffects.riskFactorSources.some(source => Boolean(source.source.trim() && source.recognizedBody.trim() && source.version?.trim()));
+  const economy = rc.economicFactors, siteEconomy = economy.siteEconomyInput;
+  const economicsComplete = !!siteEconomy && siteEconomy.regions.length === siteEconomy.expectedRegions
+    && (siteEconomy.sourceSiteRevision === undefined || siteEconomy.sourceSiteRevision === rc.protectiveActionParameters.siteAndReceptors?.revision)
+    && rcEconomicCostCoverage(economy).complete && economy.parameterConsistencyConfirmed;
+  const quantifyComplete = rc.releaseCategoryToConsequence.releaseCategoryInputs.length > 0 && (rc.scope.metrics ?? []).length > 0 && checks.RCQ.length === 0;
   const draftComplete = rc.workflowState !== "DRAFT" && rc.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = rc.workflowState === "FINAL";
 
@@ -157,6 +164,7 @@ function stepsFromMef(rc: RadiologicalConsequenceAnalysis, persona: RcPersona): 
   }
 
   return base.map((s) => {
+    if (s.se !== undefined && isRcAspectExcluded(rc, s.se)) return { ...s, status: "idle" as const, excluded: true };
     switch (s.id) {
       case "handoff": return { ...s, status: status(handoffComplete) };
       case "protective": return { ...s, status: status(protectiveComplete) };
@@ -199,4 +207,5 @@ export {
   lognormalBounds,
   type CommentView,
   type CcScore,
+  type RcStepChecks,
 };

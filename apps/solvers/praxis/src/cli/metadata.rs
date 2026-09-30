@@ -13,6 +13,37 @@ pub struct ZbddSequenceMetadata {
     pub order_stats: Vec<ZbddOrderStat>,
 }
 
+pub struct ZbddSequenceSummary {
+    pub sequence_id: String,
+    pub frequency: f64,
+    pub count: u64,
+    pub min_product: Option<f64>,
+    pub max_product: Option<f64>,
+}
+
+impl ZbddSequenceSummary {
+    pub fn from_stats(
+        sequence_id: String,
+        frequency: f64,
+        stats: Option<(u64, f64, f64)>,
+        scale: f64,
+    ) -> Self {
+        let (count, min_product, max_product) = match stats {
+            Some((count, min_product, max_product)) => {
+                (count, Some(min_product * scale), Some(max_product * scale))
+            }
+            None => (0, None, None),
+        };
+        Self {
+            sequence_id,
+            frequency,
+            count,
+            min_product,
+            max_product,
+        }
+    }
+}
+
 impl ZbddSequenceMetadata {
     pub fn from_stats(
         sequence_id: String,
@@ -71,8 +102,31 @@ pub fn display_zbdd_metadata(entries: &[ZbddSequenceMetadata]) {
     );
 }
 
-pub fn prompt_for_limits() -> (Option<usize>, Option<f64>) {
-    prompt_for_limits_with_defaults(None, None)
+pub fn display_zbdd_sequence_metadata(entries: &[ZbddSequenceSummary]) {
+    println!("\n=== ZBDD Metadata ===\n");
+    println!(
+        "{:<35} {:>15} {:>10} {:>16} {:>16}",
+        "Sequence / Top Event", "Top Value", "Count", "Max Product", "Min Product"
+    );
+    println!("{}", "-".repeat(96));
+
+    for entry in entries {
+        match (entry.max_product, entry.min_product) {
+            (Some(max_product), Some(min_product)) => println!(
+                "{:<35} {:>15.6e} {:>10} {:>16.6e} {:>16.6e}",
+                entry.sequence_id, entry.frequency, entry.count, max_product, min_product
+            ),
+            _ => println!(
+                "{:<35} {:>15.6e} {:>10} {:>16} {:>16}",
+                entry.sequence_id, entry.frequency, entry.count, "-", "-"
+            ),
+        }
+    }
+
+    println!("{}\n", "=".repeat(96));
+    println!(
+        "Product values are sequence cut-set frequencies: cut-set probability multiplied by initiating-event frequency.\n"
+    );
 }
 
 pub fn prompt_for_limits_with_defaults(

@@ -16,7 +16,7 @@ use crate::analysis::quantify::{
     Approximation, CutSetOut, CutSetsOut, ImportanceOut, ProbabilityOut, QuantResult,
     UncertaintyOut,
 };
-use crate::core::ccf::{CcfGroup, CcfModel, TestingScheme};
+use crate::core::ccf::{CcfGroup, CcfModel, RaspCcfEvent, TestingScheme};
 use crate::core::event::{BasicEvent, HouseEvent};
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::{Formula, Gate};
@@ -843,6 +843,21 @@ fn encode_ccf_model(out: &mut Vec<u8>, m: &CcfModel) {
             out.push(2);
             put_f64_vec(out, v);
         }
+        CcfModel::RaspMgl {
+            factors,
+            virtual_events,
+        } => {
+            out.push(4);
+            put_f64_vec(out, factors);
+            put_uvarint(out, virtual_events.len() as u64);
+            for event in virtual_events {
+                put_string(out, &event.id);
+                put_uvarint(out, event.member_indices.len() as u64);
+                for index in &event.member_indices {
+                    put_uvarint(out, *index as u64);
+                }
+            }
+        }
         CcfModel::PhiFactor(v) => {
             out.push(3);
             put_f64_vec(out, v);
@@ -865,6 +880,24 @@ fn decode_ccf_model(r: &mut Reader) -> Result<CcfModel> {
         }
         2 => CcfModel::Mgl(read_f64_vec(r)?),
         3 => CcfModel::PhiFactor(read_f64_vec(r)?),
+        4 => {
+            let factors = read_f64_vec(r)?;
+            let count = r.uvarint()? as usize;
+            let mut virtual_events = Vec::with_capacity(count);
+            for _ in 0..count {
+                let id = r.string()?;
+                let member_count = r.uvarint()? as usize;
+                let mut member_indices = Vec::with_capacity(member_count);
+                for _ in 0..member_count {
+                    member_indices.push(r.uvarint()? as usize);
+                }
+                virtual_events.push(RaspCcfEvent { id, member_indices });
+            }
+            CcfModel::RaspMgl {
+                factors,
+                virtual_events,
+            }
+        }
         other => {
             return Err(PraxisError::Logic(format!(
                 "PBF: unknown CCF model tag {other}"
@@ -1591,6 +1624,22 @@ mod tests {
             )
             .unwrap()
             .with_distribution("0.01".into()),
+        )
+        .unwrap();
+        ft.add_ccf_group(
+            CcfGroup::new(
+                "rasp-parent",
+                vec!["e1".into(), "e2".into(), "e3".into()],
+                CcfModel::RaspMgl {
+                    factors: vec![0.02, 0.0],
+                    virtual_events: vec![RaspCcfEvent {
+                        id: "rasp-parent-AB".into(),
+                        member_indices: vec![0, 1],
+                    }],
+                },
+            )
+            .unwrap()
+            .with_distribution("0.001".into()),
         )
         .unwrap();
 

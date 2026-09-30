@@ -98,7 +98,7 @@ export class RcDocumentsService implements OnModuleInit {
 
   async list(workbookId: string, acting: ActingUser): Promise<RcDocumentEntry[]> {
     await this.loadAuthorize(workbookId, acting, false);
-    const docs = await this.rcDocModel.find({ workbookId, sourceTermOriginal: { $ne: true }, siteInputOriginal: { $ne: true }, weatherInputOriginal: { $ne: true }, transportInputOriginal: { $ne: true }, doseInputOriginal: { $ne: true }, caseArtifactOriginal: { $ne: true } }).sort({ createdAt: 1 }).exec();
+    const docs = await this.rcDocModel.find({ workbookId, sourceTermOriginal: { $ne: true }, siteInputOriginal: { $ne: true }, responseInputOriginal: { $ne: true }, weatherInputOriginal: { $ne: true }, transportInputOriginal: { $ne: true }, doseInputOriginal: { $ne: true }, caseArtifactOriginal: { $ne: true } }).sort({ createdAt: 1 }).exec();
     return docs.map((d) => ({
       documentId: d.documentId,
       filename: d.filename,
@@ -109,7 +109,7 @@ export class RcDocumentsService implements OnModuleInit {
     }));
   }
 
-  async upload(workbookId: string, input: UploadInput, acting: ActingUser, sourceTermOriginal = false, siteInputOriginal = false, weatherInputOriginal = false, transportInputOriginal = false, doseInputOriginal = false, caseArtifactOriginal = false): Promise<RcDocumentEntry> {
+  async upload(workbookId: string, input: UploadInput, acting: ActingUser, sourceTermOriginal = false, siteInputOriginal = false, weatherInputOriginal = false, transportInputOriginal = false, doseInputOriginal = false, caseArtifactOriginal = false, responseInputOriginal = false): Promise<RcDocumentEntry> {
     const { myRoles } = await this.loadAuthorize(workbookId, acting, true);
     if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can upload documents");
     if (!ALLOWED_MIME_TYPES.has(input.mimeType)) throw new BadRequestException(`Unsupported file type: ${input.mimeType}`);
@@ -133,6 +133,7 @@ export class RcDocumentsService implements OnModuleInit {
       transportInputOriginal,
       doseInputOriginal,
       caseArtifactOriginal,
+      responseInputOriginal,
     });
     return {
       documentId,
@@ -152,6 +153,7 @@ export class RcDocumentsService implements OnModuleInit {
     if (doc.caseArtifactOriginal) throw new ForbiddenException("Case snapshots and linked outputs are retained with the workbook");
     if (doc.sourceTermOriginal) throw new ForbiddenException("Source-term originals are retained with the workbook");
     if (doc.siteInputOriginal) throw new ForbiddenException("Site-input originals are retained with the workbook");
+    if (doc.responseInputOriginal) throw new ForbiddenException("Response-input originals are retained with the workbook");
     if (doc.weatherInputOriginal) throw new ForbiddenException("Weather-input originals are retained with the workbook");
     if (doc.doseInputOriginal) throw new ForbiddenException("Dose-input originals are retained with the workbook");
     if (doc.transportInputOriginal) throw new ForbiddenException("Transport-input originals are retained with the workbook");
@@ -179,14 +181,14 @@ export class RcDocumentsService implements OnModuleInit {
   async discardUnlinkedInputOriginal(workbookId: string, documentId: string): Promise<void> {
     const workbook = await this.rcWorkbookModel.findOne({ workbookId }).exec();
     if (workbook && (JSON.stringify(workbook.mef).includes(documentId) || workbook.previousMefJson?.includes(documentId))) return;
-    const file = await this.rcDocModel.findOne({ workbookId, documentId, $or: [{ sourceTermOriginal: true }, { siteInputOriginal: true }, { weatherInputOriginal: true }, { transportInputOriginal: true }, { doseInputOriginal: true }, { caseArtifactOriginal: true }] }).exec();
+    const file = await this.rcDocModel.findOne({ workbookId, documentId, $or: [{ sourceTermOriginal: true }, { siteInputOriginal: true }, { responseInputOriginal: true }, { weatherInputOriginal: true }, { transportInputOriginal: true }, { doseInputOriginal: true }, { caseArtifactOriginal: true }] }).exec();
     if (!file) return;
     await this.client.removeObject(this.bucket, file.minioKey);
     await file.deleteOne();
   }
 
   async removeAllForWorkbook(workbookId: string, preserveSourceTerms = false): Promise<void> {
-    const filter = { workbookId, ...(preserveSourceTerms ? { sourceTermOriginal: { $ne: true }, siteInputOriginal: { $ne: true }, weatherInputOriginal: { $ne: true }, transportInputOriginal: { $ne: true }, doseInputOriginal: { $ne: true }, caseArtifactOriginal: { $ne: true } } : {}) };
+    const filter = { workbookId, ...(preserveSourceTerms ? { sourceTermOriginal: { $ne: true }, siteInputOriginal: { $ne: true }, responseInputOriginal: { $ne: true }, weatherInputOriginal: { $ne: true }, transportInputOriginal: { $ne: true }, doseInputOriginal: { $ne: true }, caseArtifactOriginal: { $ne: true } } : {}) };
     const docs = await this.rcDocModel.find(filter).exec();
     for (const d of docs) {
       try { await this.client.removeObject(this.bucket, d.minioKey); } catch (err) { this.logger.warn(`Failed to remove ${d.minioKey}`, err); }
@@ -196,6 +198,10 @@ export class RcDocumentsService implements OnModuleInit {
 
   async readSiteInput(workbookId: string, documentId: string, acting: ActingUser): Promise<Buffer> {
     return this.readInputOriginal(workbookId, documentId, acting, "siteInputOriginal", 5 * 1024 * 1024);
+  }
+
+  async readResponseInput(workbookId: string, documentId: string, acting: ActingUser): Promise<Buffer> {
+    return this.readInputOriginal(workbookId, documentId, acting, "responseInputOriginal", 5 * 1024 * 1024);
   }
 
   async readWeatherInput(workbookId: string, documentId: string, acting: ActingUser): Promise<Buffer> {
@@ -218,7 +224,7 @@ export class RcDocumentsService implements OnModuleInit {
     return this.readInputOriginal(workbookId, documentId, acting, "caseArtifactOriginal", 50 * 1024 * 1024);
   }
 
-  private async readInputOriginal(workbookId: string, documentId: string, acting: ActingUser, kind: "siteInputOriginal" | "weatherInputOriginal" | "sourceTermOriginal" | "transportInputOriginal" | "doseInputOriginal" | "caseArtifactOriginal", maxBytes: number): Promise<Buffer> {
+  private async readInputOriginal(workbookId: string, documentId: string, acting: ActingUser, kind: "siteInputOriginal" | "responseInputOriginal" | "weatherInputOriginal" | "sourceTermOriginal" | "transportInputOriginal" | "doseInputOriginal" | "caseArtifactOriginal", maxBytes: number): Promise<Buffer> {
     await this.loadAuthorize(workbookId, acting, false);
     const doc = await this.rcDocModel.findOne({ workbookId, documentId, [kind]: true }).exec();
     if (!doc) throw new NotFoundException("Input file not found");

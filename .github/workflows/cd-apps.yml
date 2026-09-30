@@ -11,159 +11,23 @@ permissions:
 
 env:
   REGISTRY: registry.openpra.org
-  MONGO_IMAGE: mongo:latest
-  MINIO_IMAGE: quay.io/minio/minio:latest
+  MINIO_SOURCE_IMAGE: quay.io/minio/minio:latest
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    outputs:
-      docs_hash: ${{ steps.docs.outputs.docs_hash }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          lfs: true
-
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20.17.0"
-
-      - name: Ensure pnpm available
-        run: npx -y pnpm@10.19.0 --version
-
-      - name: Install dependencies
-        run: npx -y pnpm@10.19.0 install --ignore-scripts --no-frozen-lockfile
-
-      - name: Build apps
-        env:
-          NX_NO_CLOUD: "true"
-        run: |
-          npx -y pnpm@10.19.0 nx build backends-web-backend --configuration=production
-          npx -y pnpm@10.19.0 nx build frontends-web-frontend --configuration=production
-          npx -y pnpm@10.19.0 nx build site
-
-      - name: Prepare tags
-        id: prep
-        run: |
-          BRANCH_SLUG="${GITHUB_REF_NAME}"
-          BRANCH_SLUG="${BRANCH_SLUG//\//-}"
-          echo "branch_slug=$BRANCH_SLUG" >> "$GITHUB_OUTPUT"
-          echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-
-      - name: Prepare backend build context
-        run: |
-          mkdir -p docker-context/web-backend
-          cp dist/apps/backends/web-backend/main.js docker-context/web-backend/main.js
-          cp apps/backends/web-backend/package.json docker-context/web-backend/package.json
-          node -e '
-            const fs = require("fs");
-            const path = "docker-context/web-backend/package.json";
-            const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
-            for (const key of ["dependencies", "devDependencies"]) {
-              if (!pkg[key]) continue;
-              for (const [name, version] of Object.entries({ ...pkg[key] })) {
-                if (typeof version === "string" && version.startsWith("workspace:")) delete pkg[key][name];
-              }
-            }
-            delete pkg.devDependencies;
-            fs.writeFileSync(path, JSON.stringify(pkg, null, 2));
-          '
-          cp deploy/web/backend.Dockerfile docker-context/web-backend/Dockerfile
-
-      - name: Build and save documents image
-        id: docs
-        run: |
-          DOCS_SRC=dist/apps/backends/web-backend/example-documents
-          DOCS_HASH=$(find "$DOCS_SRC" -type f -exec sha256sum {} \; | sort | sha256sum | cut -c1-16)
-          echo "docs_hash=$DOCS_HASH" >> "$GITHUB_OUTPUT"
-          mkdir -p docker-context/web-backend-docs
-          cp -r "$DOCS_SRC" docker-context/web-backend-docs/example-documents
-          cp deploy/web/backend-docs.Dockerfile docker-context/web-backend-docs/Dockerfile
-          docker build -t "openpra-apps-web-backend-docs:$DOCS_HASH" docker-context/web-backend-docs
-          docker save "openpra-apps-web-backend-docs:$DOCS_HASH" -o backend-docs-image.tar
-
-      - name: Upload documents image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-docs-image
-          path: backend-docs-image.tar
-          retention-days: 1
-
-      - name: Prepare frontend build context
-        run: |
-          mkdir -p docker-context/web-frontend/html
-          cp -r dist/apps/frontends/web-frontend/* docker-context/web-frontend/html/
-          cp deploy/web/nginx.conf docker-context/web-frontend/nginx.conf
-          cp deploy/web/frontend.Dockerfile docker-context/web-frontend/Dockerfile
-
-      - name: Prepare site build context
-        run: |
-          mkdir -p docker-context/site/html
-          cp -r apps/site/dist/. docker-context/site/html/
-          cp deploy/site/nginx.conf docker-context/site/nginx.conf
-          cp deploy/site/Dockerfile docker-context/site/Dockerfile
-
-      - name: Log in to self-hosted registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
-
-      - name: Save base images for offline load
-        run: |
-          docker pull "$MONGO_IMAGE"
-          docker pull "$MINIO_IMAGE"
-          docker save "$MONGO_IMAGE" "$MINIO_IMAGE" -o base-images.tar
-
-      - name: Upload base images artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: base-images
-          path: base-images.tar
-          retention-days: 1
-
-      - name: Build and push backend image
-        uses: docker/build-push-action@v6
-        with:
-          context: docker-context/web-backend
-          file: docker-context/web-backend/Dockerfile
-          push: true
-          provenance: false
-          sbom: false
-          tags: |
-            ${{ env.REGISTRY }}/openpra-apps-web-backend:${{ steps.prep.outputs.short_sha }}
-            ${{ env.REGISTRY }}/openpra-apps-web-backend:${{ steps.prep.outputs.branch_slug }}
-
-      - name: Build and push frontend image
-        uses: docker/build-push-action@v6
-        with:
-          context: docker-context/web-frontend
-          file: docker-context/web-frontend/Dockerfile
-          push: true
-          provenance: false
-          sbom: false
-          tags: |
-            ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.prep.outputs.short_sha }}
-            ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.prep.outputs.branch_slug }}
-
-      - name: Build and push site image
-        uses: docker/build-push-action@v6
-        with:
-          context: docker-context/site
-          file: docker-context/site/Dockerfile
-          push: true
-          provenance: false
-          sbom: false
-          tags: |
-            ${{ env.REGISTRY }}/openpra-apps-site:${{ steps.prep.outputs.short_sha }}
-            ${{ env.REGISTRY }}/openpra-apps-site:${{ steps.prep.outputs.branch_slug }}
+  images:
+    uses: ./.github/workflows/images.yml
+    with:
+      push: true
+      deploy: true
+    secrets: inherit
 
   deploy:
-    needs: build-and-push
+    needs: images
     runs-on: gaia1
+    env:
+      MONGO_IMAGE: ${{ needs.images.outputs.mongo_image }}
+      MINIO_IMAGE: ${{ needs.images.outputs.minio_image }}
+      DOCS_HASH: ${{ needs.images.outputs.docs_hash }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -191,10 +55,10 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Check base images present
+      - name: Check MongoDB image present
         id: basecheck
         run: |
-          if docker image inspect "$MONGO_IMAGE" >/dev/null 2>&1 && docker image inspect "$MINIO_IMAGE" >/dev/null 2>&1; then
+          if docker image inspect "$MONGO_IMAGE" >/dev/null 2>&1; then
             echo "have=true" >> "$GITHUB_OUTPUT"
           else
             echo "have=false" >> "$GITHUB_OUTPUT"
@@ -211,11 +75,27 @@ jobs:
         if: steps.basecheck.outputs.have == 'false'
         run: docker load -i base-images.tar
 
+      - name: Report MongoDB version on this node
+        run: docker image inspect "$MONGO_IMAGE" --format '{{.Id}} {{range .Config.Env}}{{.}} {{end}}'
+
+      - name: Provide pinned MinIO image
+        run: |
+          if docker pull "$MINIO_IMAGE" >/dev/null 2>&1; then
+            echo "Using $MINIO_IMAGE from the registry"
+          elif docker image inspect "$MINIO_SOURCE_IMAGE" >/dev/null 2>&1; then
+            docker tag "$MINIO_SOURCE_IMAGE" "$MINIO_IMAGE"
+            docker push "$MINIO_IMAGE"
+            echo "Mirrored $MINIO_SOURCE_IMAGE from this node to $MINIO_IMAGE"
+          else
+            echo "::error::$MINIO_IMAGE is missing from the registry and $MINIO_SOURCE_IMAGE is missing from this node"
+            exit 1
+          fi
+          docker image inspect "$MINIO_IMAGE" --format "MinIO image {{.Id}}"
+
       - name: Check documents image present
         id: docscheck
         run: |
-          HASH="${{ needs.build-and-push.outputs.docs_hash }}"
-          if docker image inspect "openpra-apps-web-backend-docs:$HASH" >/dev/null 2>&1; then
+          if docker image inspect "openpra-apps-web-backend-docs:$DOCS_HASH" >/dev/null 2>&1; then
             echo "have=true" >> "$GITHUB_OUTPUT"
           else
             echo "have=false" >> "$GITHUB_OUTPUT"
@@ -234,10 +114,9 @@ jobs:
 
       - name: Populate documents volume
         run: |
-          HASH="${{ needs.build-and-push.outputs.docs_hash }}"
-          VOL="openpra-docs-$HASH"
+          VOL="openpra-docs-$DOCS_HASH"
           docker volume create "$VOL" >/dev/null
-          docker run --rm -v "$VOL":/dest "openpra-apps-web-backend-docs:$HASH" \
+          docker run --rm -v "$VOL":/dest "openpra-apps-web-backend-docs:$DOCS_HASH" \
             sh -c 'if [ ! -f /dest/.populated ]; then tar -C /example-documents -cf - . | tar -C /dest -xf - && touch /dest/.populated; fi'
 
       - name: Deploy to Docker Swarm
@@ -250,7 +129,6 @@ jobs:
           IMAGE_MINIO: ${{ env.MINIO_IMAGE }}
           MONGO_DATABASE: openpra_main_20260821t001435z
           MINIO_BUCKET: openpra-main-20260821t001435z
-          DOCS_HASH: ${{ needs.build-and-push.outputs.docs_hash }}
           JWT_SECRET: ${{ secrets.APPS_JWT_SECRET }}
           GOOGLE_CLIENT_ID: ${{ secrets.APPS_GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.APPS_GOOGLE_CLIENT_SECRET }}

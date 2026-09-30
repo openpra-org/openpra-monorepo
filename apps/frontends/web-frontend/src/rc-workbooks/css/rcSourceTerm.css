@@ -1,11 +1,16 @@
 /* Step 01 layout only. Buttons, fields and the category modal reuse app styles. */
 .rc-ms-source { container-type: inline-size; margin-top: 22px; min-width: 0; width: 100%; font-size: 13px; line-height: 1.45; color: var(--color-text); }
 .rc-ms-source .rc-source__category { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-.rc-ms-source .rc-source__category > .posfield { flex: 1 1 240px; max-width: 420px; min-width: 0; margin: 0; }
+.rc-ms-source .rc-source__category > .posfield { flex: 1 1 220px; max-width: 320px; min-width: 0; margin: 0; }
 .rc-ms-source .rc-source__actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .rc-ms-source .rc-source__category .posfield__select,
 .rc-ms-source .rc-source__actions > .posnav__btn { box-sizing: border-box; height: 38px; min-height: 38px; }
 .rc-ms-source .st-review { min-width: 0; overflow-wrap: anywhere; }
+.rc-ms-source .st-source,
+.rc-ms-source .st-tabs,
+.rc-ms-source .st-panel,
+.rc-ms-source .st-footer,
+.rc-ms-source .st-empty { box-sizing: border-box; width: 100%; }
 .rc-ms-source .posnav__btn { white-space: nowrap; }
 .rc-ms-source .posnav__btn:disabled { cursor: default; opacity: .5; }
 .rc-ms-source .st-review input, .rc-ms-source .st-review select { box-sizing: border-box; min-width: 0; }
@@ -51,6 +56,12 @@
 .rc-ms-source .st-structure-rows { display: grid; gap: 8px; margin-bottom: 12px; max-width: 420px; }
 .rc-ms-source .st-structure-row { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 140px) auto; gap: 8px; }
 .rc-ms-source .st-structure-row--group { grid-template-columns: minmax(0, 150px) auto; justify-content: start; }
+.rc-ms-source .rc-ms-import { box-sizing: border-box; width: 100%; border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px; }
+.rc-ms-source .rc-ms-import__fields { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 24px; }
+.rc-ms-source .rc-ms-import__fields > .posfield { flex: 1 1 220px; max-width: 320px; min-width: 0; margin: 0; }
+.rc-ms-source .rc-ms-import__inventories { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.rc-ms-source .rc-ms-import__inventories label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--color-text); }
+.rc-ms-source .rc-ms-import .st-errors { margin: 0; padding-left: 18px; }
 /* Centered project-modal shell and existing category fields; no second editor. */
 .rc-category-modal .posfield { min-width: 0; }
 .rc-category-modal .rc-category-main-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; }
@@ -73,7 +84,8 @@
 @container (max-width: 540px) {
   .rc-ms-source .st-source { align-items: start; flex-direction: column; }
   .rc-ms-source .st-fraction-layout { grid-template-columns: minmax(0, 1fr); }
-  .rc-ms-source .st-timing { gap: 8px; }
+  .rc-ms-source .st-timing { grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 8px; }
+  .rc-ms-source .st-pagination { flex-wrap: wrap; }
   .rc-ms-source .st-review th, .rc-ms-source .st-review td { padding-left: 5px; padding-right: 5px; }
 }
 @media (max-width: 520px) {

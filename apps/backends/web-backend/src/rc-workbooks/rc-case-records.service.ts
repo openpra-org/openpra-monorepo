@@ -5,20 +5,25 @@ import { createHash, randomUUID } from "crypto";
 import { z } from "zod";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { RcCaseData, RcCaseDataset, RcCaseRecords, RcCaseSelection, RcCaseSnapshot, RcCaseCheck, RcCaseFile } from "interfaces-mef-types/rc/case-records";
-import { RcCaseRecordsSchema, RcLinkedResultValuesSchema } from "interfaces-mef-types/zod/rc/case-records";
-import { caseChecks, caseDatasets, caseDuration, caseFiles, caseReceptorCount, caseReceptorIds, caseTable, caseTrialId, caseVersions, currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
+import type { RcWeatherRecord } from "interfaces-mef-types/rc/weather";
+import { RcCaseRecordsSchema, RcCategoryResultValuesSchema } from "interfaces-mef-types/zod/rc/case-records";
+import { caseChecks, caseDatasets, caseEmbeddedFiles, caseFiles, caseReceptorCount, caseSnapshotMetrics, caseTable, caseVersions, currentRcCase } from "interfaces-shared-types/rc-workbooks/case-records";
+import { withRcFamilyConsequences } from "interfaces-shared-types/rc-workbooks/family-consequences";
+import { rcMetricUnit } from "interfaces-shared-types/rc-workbooks/metrics";
 import { decodeRcText } from "interfaces-shared-types/rc-workbooks/source-term-parser";
 import { parseRcWeather } from "interfaces-shared-types/rc-workbooks/weather-parser";
+import { generateWeatherTrials } from "interfaces-shared-types/rc-workbooks/weather-trials";
 import { ProjectsService } from "../projects/projects.service";
 import { WorkbookRolesService } from "../workbooks/workbook-roles.service";
 import { RcWorkbook, type RcWorkbookDocument } from "./rc-workbook.schema";
 import { RcDocumentsService } from "./rc-documents.service";
 
 interface Actor { username: string }
-const revision = z.number().int().nonnegative(), versions = z.string().regex(/^\d+,\d+,\d+,\d+,\d+$/);
+const revision = z.number().int().nonnegative(), versions = z.string().regex(/^\d+(,\d+){7}$/);
+const readableVersions = z.string().regex(/^\d+(,\d+){5}(,\d+,\d+)?$/);
 const reason = (e: unknown) => e instanceof z.ZodError ? e.issues.slice(0, 5).map(i => i.message).join("; ") : e instanceof Error ? e.message : "Invalid case record";
 const hash = (b: Buffer) => createHash("sha256").update(b).digest("hex");
-const selectionSchema = z.object({ categoryId: z.string().min(1).max(255), versions, snapshotId: z.string().uuid().optional() }).strict();
+const selectionSchema = z.object({ categoryId: z.string().min(1).max(255), versions: readableVersions, snapshotId: z.string().uuid().optional() }).strict();
 @Injectable()
 export class RcCaseRecordsService {
   private readonly logger = new Logger(RcCaseRecordsService.name);
@@ -48,7 +53,7 @@ export class RcCaseRecordsService {
     const bytes = await this.documents.readCaseArtifact(id, summary.file.documentId, actor);
     if (hash(bytes) !== summary.file.sha256) throw new BadRequestException("The stored snapshot failed its file integrity check");
     const raw = bytes.toString("utf8"), saved = JSON.parse(raw) as { inputs: RcCaseData; checks: RcCaseCheck[]; files: RcCaseFile[] }, data = saved.inputs;
-    if (data.schemaVersion !== 1 || data.categoryId !== summary.categoryId) throw new BadRequestException("Invalid snapshot data");
+    if (![1, 2, 3].includes(data.schemaVersion) || data.categoryId !== summary.categoryId) throw new BadRequestException("Invalid snapshot data");
     return { summary, data, checks: saved.checks, files: saved.files, raw };
   }
   private async select(id: string, selection: RcCaseSelection, actor: Actor) {
@@ -57,17 +62,23 @@ export class RcCaseRecordsService {
     const loaded = await this.load(id, actor);
     return p.data.snapshotId ? (await this.snapshot(id, loaded.records, p.data.snapshotId, actor)).data : this.current(loaded.mef, p.data.categoryId, p.data.versions);
   }
-  private async weatherRecords(id: string, data: RcCaseData, actor: Actor) {
-    if (!data.weather?.weatherFile) return [];
-    const bytes = await this.documents.readWeatherInput(id, data.weather.weatherFile.documentId, actor);
-    if (hash(bytes) !== data.weather.weatherFile.sha256) throw new BadRequestException("The weather original failed its file integrity check");
-    return parseRcWeather(decodeRcText(bytes)).records;
+  private async weatherTrials(id: string, data: RcCaseData, actor: Actor) {
+    if (!data.weather?.model || !data.weather.trialSet) return [];
+    let records: RcWeatherRecord[] = [];
+    if (data.weather.model.mode !== "constant") {
+      if (!data.weather.weatherFile) return [];
+      const bytes = await this.documents.readWeatherInput(id, data.weather.weatherFile.documentId, actor);
+      if (hash(bytes) !== data.weather.weatherFile.sha256) throw new BadRequestException("The weather original failed its file integrity check");
+      records = parseRcWeather(decodeRcText(bytes)).records;
+    }
+    return generateWeatherTrials(data.weather, records).trials;
   }
   private async persist(loaded: Awaited<ReturnType<RcCaseRecordsService["load"]>>, records: RcCaseRecords) {
     const { doc, mef } = loaded;
     let next: RcCaseRecords;
     try { next = RcCaseRecordsSchema.parse({ ...records, revision: doc.__v + 1 }); } catch (e) { throw new BadRequestException(reason(e)); }
-    const result = await this.workbooks.updateOne({ _id: doc._id, __v: doc.__v }, { $set: { mef: JSON.parse(JSON.stringify({ ...mef, consequenceQuantification: { ...mef.consequenceQuantification, caseRecords: next } })) }, $inc: { __v: 1 } }).exec();
+    const nextMef = withRcFamilyConsequences({ ...mef, consequenceQuantification: { ...mef.consequenceQuantification, caseRecords: next } });
+    const result = await this.workbooks.updateOne({ _id: doc._id, __v: doc.__v }, { $set: { mef: JSON.parse(JSON.stringify(nextMef)) }, $inc: { __v: 1 } }).exec();
     if (!result.modifiedCount) throw new ConflictException("The workbook changed. Reload before saving this case record");
     return next;
   }
@@ -86,7 +97,7 @@ export class RcCaseRecordsService {
     const existing = records.snapshots.find(s => s.inputHash === inputHash);
     if (existing) return { records, snapshotId: existing.id };
     if (records.snapshots.length >= 100) throw new BadRequestException("This workbook already contains 100 input snapshots");
-    const checks = caseChecks(data), manifest = caseFiles(data), weather = await this.weatherRecords(id, data, actor);
+    const checks = caseChecks(data), manifest = caseFiles(data), weather = await this.weatherTrials(id, data, actor);
     // Originals stay immutable and retained; snapshots store their document IDs and byte hashes.
     for (const entry of manifest) {
       const bytes = await this.originalBytes(id, entry.kind, entry.file.documentId, actor);
@@ -96,54 +107,61 @@ export class RcCaseRecordsService {
     const bytes = Buffer.from(JSON.stringify({ inputs: data, checks, files: manifest }, null, 2), "utf8");
     const file = await this.store(id, `${label.replace(/ /g, "-")}-inputs.json`, bytes, actor);
     const snapshot: RcCaseSnapshot = { id: file.documentId, label, categoryId: data.categoryId, file, inputHash, createdBy: actor.username,
-      reviewItems: checks.reduce((n, c) => n + c.items.length, 0), inventoryCount: data.source?.values.inventory.length ?? 0, receptorCount: caseReceptorCount(data), trialCount: weather.length, integrationSeconds: caseDuration(data) };
+      reviewItems: checks.reduce((n, c) => n + c.items.length, 0), inventoryCount: data.source?.values.inventory.length ?? 0, receptorCount: caseReceptorCount(data), trialCount: weather.length, metrics: caseSnapshotMetrics(data), versions: caseVersions(data) };
     try { return { records: await this.persist(loaded, { ...records, snapshots: [...records.snapshots, snapshot] }), snapshotId: snapshot.id }; }
     catch (e) { await this.rollback(id, file.documentId); throw e; }
   }
   async saveResult(id: string, body: unknown, upload: { buffer: Buffer; originalname: string }, actor: Actor) {
-    const p = z.object({ baseRevision: revision, result: RcLinkedResultValuesSchema }).strict().safeParse(body);
+    const p = z.object({ baseRevision: revision, result: RcCategoryResultValuesSchema }).strict().safeParse(body);
     if (!p.success) throw new BadRequestException(reason(p.error));
-    const loaded = await this.load(id, actor, p.data.baseRevision), { data } = await this.snapshot(id, loaded.records, p.data.result.snapshotId, actor);
-    if (loaded.records!.results.length >= 1000) throw new BadRequestException("This workbook already contains 1000 linked results");
-    if (!caseReceptorIds(data).includes(p.data.result.receptorId)) throw new BadRequestException("Choose a receptor from the selected input snapshot");
-    if (!(await this.weatherRecords(id, data, actor)).some(r => caseTrialId(r) === p.data.result.trialId)) throw new BadRequestException("Choose a weather trial from the selected input snapshot");
-    const duration = caseDuration(data);
-    if (!(duration !== undefined && Number.isFinite(duration) && duration > 0)) throw new BadRequestException("The selected snapshot needs a positive integration time");
-    if (!upload.buffer.length || upload.buffer.length > 15 * 1024 * 1024 || !/\.(txt|out|log|csv|dat)$/i.test(upload.originalname)) throw new BadRequestException("Choose a nonempty .txt, .out, .log, .csv or .dat output up to 15 MB");
+    const loaded = await this.load(id, actor, p.data.baseRevision), { summary, data } = await this.snapshot(id, loaded.records, p.data.result.snapshotId, actor);
+    if (loaded.records!.results.length >= 1000) throw new BadRequestException("This workbook already contains 1000 results");
+    if (data.metrics === undefined) throw new BadRequestException("This snapshot predates consequence metrics. Save a new input snapshot");
+    const metric = data.metrics.find(item => item.id === p.data.result.metricId);
+    if (!metric) throw new BadRequestException("Choose a consequence metric from the selected input snapshot");
+    const statistics = p.data.result.statistics, wanted = metric.statistics;
+    const samePercentiles = statistics.percentiles.length === wanted.percentiles.length && wanted.percentiles.every(value => statistics.percentiles.some(row => row.percentile === value));
+    const sameThresholds = statistics.exceedances.length === wanted.exceedanceThresholds.length && wanted.exceedanceThresholds.every(value => statistics.exceedances.some(row => row.threshold === value));
+    if ((statistics.mean !== undefined) !== wanted.mean || !samePercentiles || !sameThresholds) throw new BadRequestException("Enter exactly the statistics the metric asks for");
+    const name = upload.originalname.slice(Math.max(upload.originalname.lastIndexOf("/"), upload.originalname.lastIndexOf("\\")) + 1).slice(0, 255);
+    const extension = name.includes(".") ? name.slice(name.lastIndexOf(".") + 1).toLowerCase() : "";
+    if (!upload.buffer.length || upload.buffer.length > 15 * 1024 * 1024 || !["txt", "out", "log", "csv", "dat"].includes(extension)) throw new BadRequestException("Choose a nonempty .txt, .out, .log, .csv or .dat output up to 15 MB");
     try { if (!decodeRcText(upload.buffer).trim()) throw new Error("The output is empty"); } catch (e) { throw new BadRequestException(reason(e)); }
-    const filename = upload.originalname.replace(/^.*[\\/]/, "").slice(0, 255);
-    const file = await this.store(id, filename, upload.buffer, actor);
+    const file = await this.store(id, name, upload.buffer, actor);
     try {
-      return await this.persist(loaded, { ...loaded.records!, results: [...loaded.records!.results, { ...p.data.result, id: randomUUID(), file, integrationSeconds: duration!, recordedBy: actor.username, valueSource: "transcribed" }] });
+      return await this.persist(loaded, { ...loaded.records!, results: [...loaded.records!.results, { ...p.data.result, id: randomUUID(), categoryId: summary.categoryId, unit: rcMetricUnit(metric), file, recordedBy: actor.username, valueSource: "transcribed" }] });
     } catch (e) { await this.rollback(id, file.documentId); throw e; }
+  }
+  async removeResult(id: string, resultId: string, body: unknown, actor: Actor) {
+    const p = z.object({ baseRevision: revision }).strict().safeParse(body);
+    if (!p.success) throw new BadRequestException(reason(p.error));
+    const loaded = await this.load(id, actor, p.data.baseRevision), result = loaded.records?.results.find(r => r.id === resultId);
+    if (!result) throw new NotFoundException("Result not found");
+    const records = await this.persist(loaded, { ...loaded.records!, results: loaded.records!.results.filter(r => r.id !== resultId) });
+    await this.rollback(id, result.file.documentId);
+    return records;
   }
   private offset(value: number) { if (!Number.isSafeInteger(value) || value < 0 || value > 10000000) throw new BadRequestException("Use a nonnegative page offset up to 10000000"); }
   async review(id: string, selection: RcCaseSelection, actor: Actor) {
     if (selection.snapshotId) {
       if (!selectionSchema.safeParse(selection).success) throw new BadRequestException("Invalid case selection");
       const loaded = await this.load(id, actor), saved = await this.snapshot(id, loaded.records, selection.snapshotId, actor);
-      return { files: saved.files, checks: saved.checks };
+      return { schemaVersion: saved.data.schemaVersion, files: saved.files, embedded: caseEmbeddedFiles(saved.data), excludedSteps: saved.data.excludedSteps ?? [], checks: saved.checks };
     }
     const data = await this.select(id, selection, actor);
-    return { files: caseFiles(data), checks: caseChecks(data) };
+    return { schemaVersion: data.schemaVersion, files: caseFiles(data), embedded: caseEmbeddedFiles(data), excludedSteps: data.excludedSteps ?? [], checks: caseChecks(data) };
   }
   async table(id: string, selection: RcCaseSelection, kind: string, offset: number, actor: Actor) {
     this.offset(offset);
     if (!Object.prototype.hasOwnProperty.call(caseDatasets, kind)) throw new BadRequestException("Unknown input group");
     const data = await this.select(id, selection, actor);
-    return caseTable(data, kind as RcCaseDataset, offset, kind === "weather" ? await this.weatherRecords(id, data, actor) : []);
-  }
-  async choices(id: string, snapshotId: string, kind: string, search: string, actor: Actor) {
-    if (!["receptors", "weather"].includes(kind) || search.length > 255) throw new BadRequestException("Choose receptors or weather and a short ID prefix");
-    const loaded = await this.load(id, actor), { data } = await this.snapshot(id, loaded.records, snapshotId, actor);
-    const ids = kind === "receptors" ? caseReceptorIds(data) : (await this.weatherRecords(id, data, actor)).map(caseTrialId);
-    const matches = ids.filter(v => v.toLowerCase().startsWith(search.trim().toLowerCase()));
-    return { ids: matches.slice(0, 25), total: matches.length };
+    return caseTable(data, kind as RcCaseDataset, offset, kind === "weather" ? await this.weatherTrials(id, data, actor) : []);
   }
   private originalBytes(id: string, kind: string, documentId: string, actor: Actor) {
     switch (kind) {
       case "source": return this.documents.readSourceInput(id, documentId, actor);
       case "site": return this.documents.readSiteInput(id, documentId, actor);
+      case "response": return this.documents.readResponseInput(id, documentId, actor);
       case "weather": return this.documents.readWeatherInput(id, documentId, actor);
       case "transport": return this.documents.readTransportInput(id, documentId, actor);
       case "dose": return this.documents.readDoseInput(id, documentId, actor);
@@ -160,6 +178,8 @@ export class RcCaseRecordsService {
     }
     const data = await this.select(id, selection, actor);
     if (fileId === "structured") return this.textPage(JSON.stringify({ inputs: data, checks: caseChecks(data), files: caseFiles(data) }, null, 2), offset);
+    if (fileId === "health-original" && data.health?.healthInput?.original) return this.textPage(data.health.healthInput.original, offset);
+    if (fileId === "economy-original" && data.economy?.siteEconomyInput?.original) return this.textPage(data.economy.siteEconomyInput.original, offset);
     const entry = caseFiles(data).find(f => f.file.documentId === fileId);
     if (!entry) throw new NotFoundException("File is not part of the selected case");
     return this.textPage(decodeRcText(await this.originalBytes(id, entry.kind, fileId, actor)), offset);

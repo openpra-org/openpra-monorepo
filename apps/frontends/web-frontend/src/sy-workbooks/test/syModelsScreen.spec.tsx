@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type {
   SystemBasicEvent,
   SystemLogicModel,
@@ -17,10 +17,12 @@ import {
   type FaultTreeExecuteResult,
 } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "../syWorkbookApi";
-import { ModelsScreen } from "../syScreens";
+import { createEmptyBayesianNetwork } from "../../newly-developed-methods/bayesian-network";
+import { ModelsScreen } from "../SySystemModels";
 
 jest.mock("../../newly-developed-methods/fault-tree", () => ({
   FaultTreeEditor: jest.fn(() => null),
+  FaultTreeResults: jest.fn(() => null),
   applyFaultTreeOperation: jest.fn(),
 }));
 
@@ -197,6 +199,10 @@ function setWorkbookContext({
   };
 }
 
+function openTab(name: string): void {
+  fireEvent.click(screen.getByRole("tab", { name }));
+}
+
 function latestEditorProps(): FaultTreeEditorProps {
   const calls = mockedFaultTreeEditor.mock.calls;
   if (calls.length === 0) throw new Error("The canonical fault-tree editor was not rendered");
@@ -218,7 +224,27 @@ function projectedModel(): FaultTreeEditorProps["model"] {
   };
 }
 
+const FAULT_TREE_HINT = "Right-click a gate to add gates, basic events, house events or transfers. Give each basic event a probability in the Basic events tab. Type it, or pick a DA estimate after linking a DA workbook in Step 01.";
+
 describe("ModelsScreen canonical fault-tree host", () => {
+  it("shows the PRAXIS fault-tree calculation, workflow, and algorithm controls below the editor", () => {
+    const network = createEmptyBayesianNetwork("Dependency network");
+    setWorkbookContext({ sy: makeAnalysis({ dependencyBayesianNetworks: [network] }) });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+
+    openTab("Fault tree");
+    expect(screen.getByText(FAULT_TREE_HINT)).toBeInTheDocument();
+    expect(latestEditorProps().capabilities.canRunAnalysis).toBe(false);
+    expect(latestEditorProps().showResults).toBe(false);
+    expect(latestEditorProps().showHeaderStatus).toBe(false);
+    openTab("Quantification");
+    expect(screen.getByRole("region", { name: "Fault-tree quantification" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run probability" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Probability", exact: true })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Manual" })).toBeChecked();
+    expect(screen.getByRole("combobox", { name: "Fault-tree algorithm" })).toHaveValue("BDD");
+    expect(screen.queryByText(/HCL configuration/)).not.toBeInTheDocument();
+  });
   beforeEach(() => {
     jest.clearAllMocks();
     mockedFaultTreeEditor.mockImplementation(() => null);
@@ -237,17 +263,53 @@ describe("ModelsScreen canonical fault-tree host", () => {
     setWorkbookContext();
   });
 
+  it("reveals compatible cut-set settings and batch model selection", () => {
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    openTab("Quantification");
+
+    fireEvent.click(screen.getByRole("radio", { name: "Cut sets", exact: true }));
+    expect(screen.getByRole("combobox", { name: "Fault-tree algorithm" })).toHaveValue("ZBDD");
+    fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
+    const algorithm = screen.getByRole("combobox", { name: "Fault-tree algorithm" });
+    const advanced = screen.getByLabelText("Advanced fault-tree settings");
+    expect(algorithm.compareDocumentPosition(advanced) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(screen.getByRole("combobox", { name: "Fault-tree probability method" })).toHaveValue("EXACT");
+    expect(screen.getByRole("spinbutton", { name: "Maximum cut-set order" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Expand common-cause groups" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Batch" }));
+    expect(screen.getByRole("group", { name: "Fault trees" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run cut sets batch" })).toBeEnabled();
+  });
+
+  it("reveals Monte Carlo convergence and variance-reduction settings", () => {
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    openTab("Quantification");
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Fault-tree algorithm" }), { target: { value: "MONTE_CARLO" } });
+    fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
+    expect(screen.getByRole("spinbutton", { name: "Fault-tree trials" })).toHaveValue(10_000);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Stop when converged" }));
+    expect(screen.getByRole("spinbutton", { name: "Monte Carlo convergence delta" })).toHaveValue(0.1);
+    expect(screen.getByRole("spinbutton", { name: "Monte Carlo confidence" })).toHaveValue(0.95);
+    fireEvent.change(screen.getByRole("combobox", { name: "Monte Carlo variance reduction" }), { target: { value: "IMPORTANCE_SAMPLING" } });
+    expect(screen.queryByRole("spinbutton", { name: "Monte Carlo convergence delta" })).not.toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Importance sampling bias factor" })).toHaveValue(10);
+  });
+
   it("shows an empty state when a new workbook has no system definitions", () => {
     setWorkbookContext({
       sy: makeAnalysis({ systemDefinitions: [], systemLogicModels: [], systemBasicEvents: [] }),
     });
 
-    render(<ModelsScreen sysId="" setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    const onOpenSystems = jest.fn();
+    render(<ModelsScreen sysId="" setSysId={jest.fn()} openDrawer={jest.fn()} onOpenSystems={onOpenSystems} />);
 
-    expect(screen.getByText("No systems have been added to this workbook yet.")).toBeInTheDocument();
-    expect(screen.getByText("Add a system before building its fault-tree logic model.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add system" })).toBeDisabled();
+    expect(screen.getByText((_, element) => element?.tagName === "P" && element.textContent === "No systems are in scope yet. Add them in the Systems in scope section of Step 01, then describe and build each one here.")).toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "Systems in scope" }));
+    expect(onOpenSystems).toHaveBeenCalledTimes(1);
     expect(mockedFaultTreeEditor).not.toHaveBeenCalled();
   });
 
@@ -262,6 +324,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
     mockedValidateFaultTreeModel.mockReturnValue([validationIssue]);
 
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    openTab("Fault tree");
 
     expect(mockedFaultTreeEditor).toHaveBeenCalledTimes(1);
     const props = latestEditorProps();
@@ -307,6 +370,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
         parameterName: "Rate", parameterType: "FREQUENCY", value: .002 }],
     });
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    openTab("Fault tree");
     expect(latestEditorProps().catalogue.basicEvents[0]?.probability).toMatchObject({ value: .1, quantificationBasis: basis });
     expect(mockMutateSy).not.toHaveBeenCalled();
   });
@@ -336,6 +400,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
     });
 
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    openTab("Fault tree");
 
     expect(latestEditorProps().catalogue.basicEvents[0]?.probability).toEqual({
       value: 0.025,
@@ -377,6 +442,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
     });
 
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    openTab("Fault tree");
 
     expect(latestEditorProps().catalogue.basicEvents[0]?.probability).toEqual({
       value: 0.037,
@@ -424,6 +490,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
     setWorkbookContext({ sy: original });
 
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    openTab("Fault tree");
     const editorProps = latestEditorProps();
 
     act(() => editorProps.onOperation(operation));
@@ -467,6 +534,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
   it("keeps node selection in the canonical inspector until an explicit open request", () => {
     const openDrawer = jest.fn();
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={openDrawer} />);
+    openTab("Fault tree");
 
     act(() => latestEditorProps().onSelectionChange({ kind: "LEAF", leafId: "leaf-pump" }));
     expect(openDrawer).not.toHaveBeenCalled();
@@ -479,7 +547,9 @@ describe("ModelsScreen canonical fault-tree host", () => {
     setWorkbookContext({ editable: false });
 
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    openTab("Fault tree");
 
+    expect(screen.queryByText(FAULT_TREE_HINT)).not.toBeInTheDocument();
     expect(latestEditorProps().capabilities).toEqual({
       mode: "READ_ONLY",
       canEditBasicEvents: false,
@@ -496,8 +566,9 @@ describe("ModelsScreen canonical fault-tree host", () => {
     const { rerender } = render(
       <ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />,
     );
+    openTab("Fault tree");
 
-    expect(screen.getByText("No decomposed fault tree has been created for this system.")).toBeInTheDocument();
+    expect(screen.getByText("This system has no fault tree yet. Create it here, then right-click a gate to add its inputs.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Create fault tree" })).not.toBeInTheDocument();
     expect(mockedFaultTreeEditor).not.toHaveBeenCalled();
 
@@ -547,8 +618,9 @@ describe("ModelsScreen canonical fault-tree host", () => {
     setWorkbookContext({ sy: makeAnalysis({ systemLogicModels: [nonDetailed] }) });
 
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    openTab("Fault tree");
 
-    expect(screen.getByText(/a decomposed fault tree is not required/i)).toBeInTheDocument();
+    expect(screen.getByText(/uses a system-level model, so it has no fault tree/i)).toBeInTheDocument();
     expect(mockedValidateFaultTreeModel).not.toHaveBeenCalled();
     expect(mockedFaultTreeEditor).not.toHaveBeenCalled();
   });
@@ -591,13 +663,17 @@ describe("ModelsScreen canonical fault-tree host", () => {
     const { rerender } = render(
       <ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />,
     );
+    openTab("Quantification");
 
-    await act(async () => {
-      latestEditorProps().onRun();
-    });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run probability" })); });
+    openTab("Fault tree");
 
     expect(mockedValidateSyFaultTree).toHaveBeenCalledWith("sy-workbook", MODEL_ID, 7);
-    expect(mockedRunSyFaultTree).toHaveBeenCalledWith("sy-workbook", MODEL_ID, 7);
+    expect(mockedRunSyFaultTree).toHaveBeenCalledWith("sy-workbook", MODEL_ID, 7, {
+      calculationType: "PROBABILITY",
+      workflow: "MANUAL",
+      settings: expect.objectContaining({ algorithm: "BDD", approximation: "EXACT" }),
+    });
     expect(mockedGetSyFaultTreeResult).toHaveBeenCalledWith("sy-workbook", MODEL_ID, RUN_ID);
     await waitFor(() => expect(latestEditorProps().analysisResult).toEqual(result));
     expect(latestEditorProps().resultIsStale).toBe(false);
@@ -606,6 +682,54 @@ describe("ModelsScreen canonical fault-tree host", () => {
     rerender(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
     expect(latestEditorProps().analysisResult).toEqual(result);
     expect(latestEditorProps().resultIsStale).toBe(true);
+  });
+
+  it("runs the selected fault trees through the batch workflow settings", async () => {
+    const timestamp = "2026-08-22T12:00:00.000Z";
+    const owner = { workbookId: "sy-workbook", modelId: MODEL_ID, workbookRevision: 7 };
+    mockedRunSyFaultTree.mockResolvedValue({
+      schemaVersion: "1.0.0",
+      run: {
+        schemaVersion: "1.0.0",
+        id: RUN_ID,
+        owner,
+        sourceWorkbooks: [{ workbookId: owner.workbookId, workbookRevision: owner.workbookRevision }],
+        methodType: "FAULT_TREE",
+        status: "SUCCEEDED",
+        requestedBy: "analyst",
+        requestedAt: timestamp,
+        startedAt: timestamp,
+        completedAt: timestamp,
+        engine: { name: "test-engine", version: "1" },
+        failure: null,
+      },
+    });
+    mockedGetSyFaultTreeResult.mockResolvedValue({
+      schemaVersion: "1.0.0",
+      runId: RUN_ID,
+      owner,
+      topGateId: "gate-top",
+      topEventProbability: 0.001,
+      calculationType: "PROBABILITY",
+      workflow: "BATCH",
+      algorithm: "BDD",
+      probabilityMethod: "EXACT",
+      validationIssues: [],
+      completedAt: timestamp,
+    });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    openTab("Quantification");
+
+    fireEvent.click(screen.getByRole("radio", { name: "Batch" }));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run probability batch" })); });
+
+    expect(mockedRunSyFaultTree).toHaveBeenCalledWith(
+      "sy-workbook",
+      MODEL_ID,
+      7,
+      expect.objectContaining({ calculationType: "PROBABILITY", workflow: "BATCH" }),
+    );
+    expect(mockedGetSyFaultTreeResult).toHaveBeenCalledWith("sy-workbook", MODEL_ID, RUN_ID);
   });
 
   it("surfaces a structured failed-run message without requesting a nonexistent result", async () => {
@@ -633,8 +757,9 @@ describe("ModelsScreen canonical fault-tree host", () => {
       },
     });
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    openTab("Quantification");
 
-    await act(async () => latestEditorProps().onRun());
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run probability" })); });
 
     expect(await screen.findByText("The solver rejected an invalid transfer.")).toBeInTheDocument();
     expect(mockedGetSyFaultTreeResult).not.toHaveBeenCalled();
@@ -670,12 +795,176 @@ describe("ModelsScreen canonical fault-tree host", () => {
     });
     mockedGetSyFaultTreeResult.mockResolvedValue(result);
     const { rerender } = render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
-    await act(async () => latestEditorProps().onRun());
+    openTab("Quantification");
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run probability" })); });
+    openTab("Fault tree");
     await waitFor(() => expect(latestEditorProps().analysisResult).toEqual(result));
 
     setWorkbookContext({ saveStatus: "saving" });
     rerender(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
 
     expect(latestEditorProps().resultIsStale).toBe(true);
+  });
+});
+
+describe("ModelsScreen system tabs", () => {
+  const SUPPORT_ID = "system-ccw";
+
+  function analysisWithMission(overrides: Partial<SystemsAnalysis> = {}): SystemsAnalysis {
+    const base = makeAnalysis();
+    return makeAnalysis({
+      systemDefinitions: [
+        { ...base.systemDefinitions[0]!, missionTimeHours: 72 },
+        { ...base.systemDefinitions[0]!, uuid: SUPPORT_ID, name: "Component cooling water", abbreviation: "CCW" },
+      ],
+      ...overrides,
+    });
+  }
+
+  function applyLastMutation(base: SystemsAnalysis): SystemsAnalysis {
+    const calls = mockMutateSy.mock.calls;
+    const mutator = calls[calls.length - 1]![0] as (draft: SystemsAnalysis) => SystemsAnalysis;
+    return mutator(base);
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedFaultTreeEditor.mockImplementation(() => null);
+    mockedValidateFaultTreeModel.mockReturnValue([]);
+  });
+
+  it("shows the system description and opens its editors", () => {
+    const openDrawer = jest.fn();
+    setWorkbookContext({ sy: analysisWithMission() });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={openDrawer} />);
+
+    expect(screen.getByRole("tab", { name: "Description" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Remove reactor heat")).toBeInTheDocument();
+    expect(screen.getByText("72 h")).toBeInTheDocument();
+    expect(screen.getByText("Reactor vessel")).toBeInTheDocument();
+    expect(screen.queryByText("Support systems")).not.toBeInTheDocument();
+
+    const definition = screen.getByRole("region", { name: "Definition" });
+    fireEvent.click(within(definition).getByRole("button", { name: "Edit" }));
+    expect(openDrawer).toHaveBeenCalledWith({ kind: "sysdef", id: SYSTEM_ID });
+    const boundary = screen.getByRole("region", { name: "Model boundary" });
+    fireEvent.click(within(boundary).getByRole("button", { name: "Edit" }));
+    expect(openDrawer).toHaveBeenCalledWith({ kind: "boundary", id: SYSTEM_ID });
+  });
+
+  it("adds a success-criterion variant and an alignment, then opens their editors", () => {
+    const sy = analysisWithMission();
+    const openDrawer = jest.fn();
+    setWorkbookContext({ sy });
+    const randomUuid = jest.spyOn(globalThis.crypto, "randomUUID");
+    randomUuid.mockReturnValueOnce("00000000-0000-4000-8000-000000000021").mockReturnValueOnce("00000000-0000-4000-8000-000000000022");
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={openDrawer} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add variant" }));
+    expect(applyLastMutation(sy).variableSuccessCriteria).toEqual([
+      expect.objectContaining({ uuid: "00000000-0000-4000-8000-000000000021", systemReference: SYSTEM_ID, basis: "" }),
+    ]);
+    expect(openDrawer).toHaveBeenCalledWith({ kind: "variant", id: "00000000-0000-4000-8000-000000000021" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Add alignment" }));
+    expect(applyLastMutation(sy).systemDefinitions[0]!.alignments).toEqual([
+      expect.objectContaining({ uuid: "00000000-0000-4000-8000-000000000022", modeled: true, isNormalAlignment: true }),
+    ]);
+    expect(openDrawer).toHaveBeenCalledWith({ kind: "alignment", id: "00000000-0000-4000-8000-000000000022" });
+    randomUuid.mockRestore();
+  });
+
+  it("flags an alignment that is not modeled without a reason", () => {
+    const sy = analysisWithMission();
+    const withAlignment = makeAnalysis({
+      systemDefinitions: [
+        { ...sy.systemDefinitions[0]!, alignments: [{ uuid: "align-b", name: "Train B standby", systemReference: SYSTEM_ID, isNormalAlignment: false, modeled: false, implementsSrs: [] }] },
+        sy.systemDefinitions[1]!,
+      ],
+    });
+    const openDrawer = jest.fn();
+    setWorkbookContext({ sy: withAlignment });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={openDrawer} />);
+
+    const alignments = screen.getByRole("table", { name: "Alignments" });
+    expect(within(alignments).getByText("Reason required")).toBeInTheDocument();
+    fireEvent.click(within(alignments).getByRole("button", { name: "Edit Train B standby" }));
+    expect(openDrawer).toHaveBeenCalledWith({ kind: "alignment", id: "align-b" });
+  });
+
+  it("lists the tree's basic events in a read table and opens the editor from a row", () => {
+    const openDrawer = jest.fn();
+    setWorkbookContext({
+      sy: analysisWithMission({
+        systemBasicEvents: [
+          { ...BASIC_EVENT },
+          {
+            ...BASIC_EVENT,
+            uuid: "be-pump-fr",
+            code: "BE-PUMP-FR",
+            name: "Pump fails to run",
+            failureMode: "FAILURE_TO_RUN",
+            quantificationBasis: { kind: "FAILURE_RATE", failureRate: { value: 0.00003, unit: "HOUR" }, missionTime: { value: 72, unit: "HOUR" }, conversion: "EXPONENTIAL" },
+            controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "parameter-rate" },
+          },
+        ],
+        systemLogicModels: [{
+          ...LOGIC_MODEL,
+          leafNodes: [...LOGIC_MODEL.leafNodes, { id: "leaf-pump-fr", kind: "BASIC_EVENT_REFERENCE", basicEventId: "be-pump-fr" }],
+        }],
+      }),
+      controlledParameters: [{ workbookId: "da-workbook", workbookName: "Approved DA", parameterId: "parameter-rate", parameterName: "Pump run failure rate", parameterType: "FREQUENCY", value: 0.00004 }],
+    });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={openDrawer} />);
+    fireEvent.click(screen.getByRole("tab", { name: /Basic events/ }));
+
+    const table = screen.getByRole("table", { name: "Basic events" });
+    expect(within(table).queryAllByRole("textbox")).toHaveLength(0);
+    expect(within(table).queryAllByRole("combobox")).toHaveLength(0);
+    const handEntered = within(table).getByText("Pump fails to start").closest("tr")!;
+    expect(within(handEntered).getByText("2.0E-2")).toBeInTheDocument();
+    expect(within(handEntered).getAllByText("Typed")).toHaveLength(2);
+    const linked = within(table).getByText("Pump fails to run").closest("tr")!;
+    expect(within(linked).getByText("4.0E-5 /h")).toBeInTheDocument();
+    expect(within(linked).getByText("72 h mission")).toBeInTheDocument();
+    expect(within(linked).getByText("DA · Pump run failure rate")).toBeInTheDocument();
+
+    fireEvent.click(within(table).getByRole("button", { name: "Edit BE-PUMP-FS" }));
+    expect(openDrawer).toHaveBeenCalledWith({ kind: "be", id: BASIC_EVENT_ID });
+  });
+
+  it("opens a house event's editor from its row", () => {
+    const openDrawer = jest.fn();
+    const house = { id: "leaf-house", kind: "HOUSE_EVENT" as const, code: "H-TRAIN-A", name: "Train A in service", description: "", state: true };
+    setWorkbookContext({ sy: analysisWithMission({ systemLogicModels: [{ ...LOGIC_MODEL, leafNodes: [...LOGIC_MODEL.leafNodes, house] }] }) });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={openDrawer} />);
+    fireEvent.click(screen.getByRole("tab", { name: /Basic events/ }));
+
+    const table = screen.getByRole("table", { name: "House events" });
+    expect(within(table).getByText("True")).toBeInTheDocument();
+    fireEvent.click(within(table).getByRole("button", { name: "Edit H-TRAIN-A" }));
+    expect(openDrawer).toHaveBeenCalledWith({ kind: "house", id: "leaf-house", modelId: MODEL_ID });
+  });
+
+  it("passes the system mission time to the fault-tree editor and the SIL setting", () => {
+    setWorkbookContext({ sy: analysisWithMission() });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+
+    openTab("Fault tree");
+    expect(latestEditorProps().defaultMissionTime).toEqual({ value: 72, unit: "HOUR" });
+
+    openTab("Quantification");
+    fireEvent.click(screen.getByRole("radio", { name: "SIL" }));
+    fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
+    expect(screen.getByRole("spinbutton", { name: "Mission time hours" })).toHaveValue(72);
+  });
+
+  it("asks for a top gate before quantifying", () => {
+    setWorkbookContext({ sy: analysisWithMission({ systemLogicModels: [{ ...LOGIC_MODEL, topGate: null }] }) });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+
+    openTab("Quantification");
+    expect(screen.getByText("Set the top gate in the Fault tree tab before quantifying this system.")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Fault-tree quantification" })).not.toBeInTheDocument();
   });
 });

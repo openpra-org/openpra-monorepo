@@ -1,5 +1,7 @@
 use clap::Parser;
+use praxis::algorithms::build::VariableOrder;
 use std::path::PathBuf;
+use std::time::Duration;
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -8,6 +10,21 @@ pub struct Args {
 
     #[arg(long = "algorithm", value_enum, default_value_t = Algorithm::MonteCarlo)]
     pub algorithm: Algorithm,
+
+    #[arg(
+        long = "variable-order",
+        value_enum,
+        value_name = "METHOD",
+        help = "Variable ordering for BDD and ZBDD construction [possible values: dfs, force, sloan, dfs-scram, dfs-plain, reverse, sift, gsift, ils]"
+    )]
+    pub variable_order: Option<VariableOrder>,
+
+    #[arg(
+        long = "reorder-budget-seconds",
+        value_name = "SECONDS",
+        help = "Time budget for sift, gsift, or ils variable reordering"
+    )]
+    pub reorder_budget_seconds: Option<u64>,
 
     #[arg(long = "approximation", value_enum)]
     pub approximation: Option<Approximation>,
@@ -48,6 +65,13 @@ pub struct Args {
     )]
     pub cut_set_stats_only: bool,
 
+    #[arg(
+        long = "end-state-map",
+        value_name = "TSV",
+        help = "Sequence ID and end-state name TSV for --algorithm zbdd-end-state; output contains grouped cut sets without end-state probability"
+    )]
+    pub end_state_map: Option<PathBuf>,
+
     #[arg(long = "cut-off-basis", value_enum, default_value_t = CutOffBasis::Probability, help = "Interpret --cut-off as a product probability (default), or as a product frequency for event trees: probability times the initiating-event frequency, which is the SAPHIRE truncation convention")]
     pub cut_off_basis: CutOffBasis,
 
@@ -56,12 +80,6 @@ pub struct Args {
 
     #[arg(long = "time-step")]
     pub time_step: Option<f64>,
-
-    #[arg(long = "num-quantiles")]
-    pub num_quantiles: Option<u32>,
-
-    #[arg(long = "num-bins")]
-    pub num_bins: Option<u32>,
 
     #[arg(long = "validate")]
     pub validate: bool,
@@ -77,7 +95,7 @@ pub struct Args {
 
     #[arg(
         long = "visualize",
-        help = "Generate and save Graphviz (.dot) and SVG graphs of the PDAGs"
+        help = "Generate Graphviz diagrams; DOT source is always saved and rendered output is selected by --visualize-format"
     )]
     pub visualize: bool,
 
@@ -85,16 +103,17 @@ pub struct Args {
         long = "visualize-out-dir",
         value_name = "DIR",
         default_value = "./viz_output",
-        help = "Directory to save generated .dot and .svg files"
+        help = "Directory for generated DOT, SVG, and PDF visualization files"
     )]
     pub visualize_out_dir: std::path::PathBuf,
 
     #[arg(
-        long = "visualize-sequence",
-        value_name = "SEQ_ID",
-        help = "Specific sequence ID to output to stdout for event trees"
+        long = "visualize-format",
+        value_enum,
+        default_value_t = VisualizeFormat::Svg,
+        help = "Rendered visualization format; DOT source is always saved"
     )]
-    pub visualize_sequence: Option<String>,
+    pub visualize_format: VisualizeFormat,
 
     #[arg(
         long = "visualize-stdout",
@@ -131,7 +150,7 @@ pub struct Args {
 
     #[arg(
         long = "complement-unity",
-        help = "Experimental: replace every complemented formula with Unity (TRUE) when building event-tree sequence logic, matching the SCRAM/SAPHIRE minimal-cut-set convention"
+        help = "Event trees: replace each successful functional-event formula with Unity (TRUE), while preserving NOT gates inside failed fault trees, matching SAPHIRE sequence construction"
     )]
     pub complement_unity: bool,
 
@@ -140,6 +159,12 @@ pub struct Args {
         help = "Event trees: apply the delete-term rule to a succeeded system, dropping its formula and deleting every product that contains one of its cut sets (a product that fails a succeeded system is not a product of the sequence). This is the SAPHIRE/FTREX convention"
     )]
     pub delete_term: bool,
+
+    #[arg(
+        long = "saphire-success",
+        help = "Event trees: apply SAPHIRE's native per-functional-event success processing, including Unity, delete-term systems, and complemented systems or developed events"
+    )]
+    pub saphire_success: bool,
 
     #[arg(long = "early-stop")]
     pub early_stop: bool,
@@ -171,6 +196,13 @@ pub struct Args {
     #[arg(long = "output", value_name = "output-file")]
     pub output_file: Option<PathBuf>,
 
+    #[arg(
+        long = "export-model-pbf",
+        value_name = "PATH",
+        help = "Export the parsed fault-tree model as PRAXIS Boolean Format (PBF) and exit"
+    )]
+    pub export_model_pbf: Option<PathBuf>,
+
     #[arg(long = "output-format", value_enum, default_value_t = OutputFormat::Xml)]
     pub output_format: OutputFormat,
 
@@ -195,6 +227,16 @@ pub struct Args {
     pub input_file: Option<PathBuf>,
 }
 
+impl Args {
+    pub fn effective_variable_order(&self) -> VariableOrder {
+        self.variable_order.unwrap_or(VariableOrder::Dfs)
+    }
+
+    pub fn reorder_budget(&self) -> Duration {
+        Duration::from_secs(self.reorder_budget_seconds.unwrap_or(60))
+    }
+}
+
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Vrt {
     None,
@@ -206,7 +248,9 @@ pub enum Vrt {
 pub enum Algorithm {
     Bdd,
     Zbdd,
+    ZbddDirect,
     ZbddDelterm,
+    ZbddEndState,
     Mocus,
     MocusPi,
     MonteCarlo,
@@ -246,4 +290,22 @@ pub enum Backend {
 pub enum OutputFormat {
     Xml,
     Ftc,
+}
+
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VisualizeFormat {
+    Dot,
+    Svg,
+    Pdf,
+    All,
+}
+
+impl VisualizeFormat {
+    pub fn writes_svg(self) -> bool {
+        matches!(self, Self::Svg | Self::All)
+    }
+
+    pub fn writes_pdf(self) -> bool {
+        matches!(self, Self::Pdf | Self::All)
+    }
 }

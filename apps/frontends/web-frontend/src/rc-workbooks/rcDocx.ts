@@ -11,7 +11,13 @@ import {
   BorderStyle,
 } from "docx";
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
+import type { ConformanceItem } from "./rcViewData";
 import { DistributionType } from "interfaces-mef-types/core/events";
+import { sitePopulation } from "interfaces-shared-types/rc-workbooks/site-receptors";
+import { rcEconomicCostSpecs } from "interfaces-shared-types/rc-workbooks/economic-costs";
+import { rcAspectDecision, rcMetricQuantityLabels, rcMetricReceptorText, rcMetricStatisticsText, rcMetricUnit, rcMetricWindowText } from "interfaces-shared-types/rc-workbooks/metrics";
+import { RC_SCOPE_ASPECTS, rcScopeTreatment } from "./rcScope";
+import { evacuationDelayMinutes, protectionParameterQuantity, responseSummary, totalEvacuationDelay } from "./rcProtective";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({ text, heading: level, spacing: { before: 240, after: 120 }, pageBreakBefore: level === HeadingLevel.HEADING_1 });
@@ -53,7 +59,7 @@ function val(v: number | undefined): string {
   return v === undefined ? "n/a" : v.toExponential(1).replace("e", "E");
 }
 
-function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Paragraph | Table)[] {
+function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean, conformance: ConformanceItem[]): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
   const isBounding = a.releaseCategoryToConsequence.siteInformation.isBounding;
   const siteLabel = isBounding ? "Bounding site" : "Identified site";
@@ -69,7 +75,7 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
   );
 
   out.push(heading("Executive Summary", HeadingLevel.HEADING_1));
-  out.push(para(`This document presents the preliminary Radiological Consequence Analysis (RC) for ${a.name}, prepared against a ${siteLabel.toLowerCase()}. ${a.releaseCategoryToConsequence.releaseCategoryInputs.length} release categories and ${q.eventSequenceConsequences.length} event sequence families have been quantified against the ${ccLabel} capability target.`));
+  out.push(para(`This document presents the preliminary Radiological Consequence Analysis (RC) for ${a.name}, prepared against a ${siteLabel.toLowerCase()}. It records ${a.releaseCategoryToConsequence.releaseCategoryInputs.length} release categories and ${q.eventSequenceConsequences.length} event sequence families against the ${ccLabel} capability target.`));
   out.push(para(doc.resultsSummary));
 
   out.push(heading("Introduction", HeadingLevel.HEADING_1));
@@ -77,6 +83,30 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
   out.push(para(doc.processDescription));
   out.push(para(doc.inputsDescription));
   out.push(para(doc.praTaskInterfaces));
+  out.push(heading("Consequence Metrics", HeadingLevel.HEADING_2));
+  const metrics = a.scope.metrics ?? [];
+  if (a.scope.metricSelectionApplicationBasis?.trim()) out.push(para(a.scope.metricSelectionApplicationBasis));
+  if (metrics.length) {
+    out.push(dataTable(
+      ["Metric", "Quantity", "Receptors", "Exposure window", "Protective actions", "Statistics"],
+      metrics.map((m) => [m.name.trim() || m.id, `${rcMetricQuantityLabels[m.quantity]}${rcMetricUnit(m) ? ` (${rcMetricUnit(m)})` : ""}`, rcMetricReceptorText(m.receptor),
+        rcMetricWindowText(m.window), m.protectiveActionsCredited ? "Credited" : "Not credited", rcMetricStatisticsText(m)]),
+    ));
+    out.push(dataTable(["Metric", "Criterion or use", "Basis"], metrics.map((m) => [m.name.trim() || m.id, m.criterion, m.basis])));
+  } else out.push(para("No consequence metrics are defined."));
+  out.push(heading("Evaluation by Aspect", HeadingLevel.HEADING_2));
+  out.push(dataTable(
+    ["Aspect", "Included?", "Treatment used", "Reason for exclusion"],
+    RC_SCOPE_ASPECTS.map((aspect) => {
+      const decision = rcAspectDecision(a.scope, aspect.subElement);
+      return [
+        `${aspect.label} (Step ${aspect.step})`,
+        decision.required ? `Required by ${decision.neededBy.map((m) => m.id).join(", ")}` : decision.included === undefined ? "Not set" : decision.included ? "Included" : "Excluded",
+        decision.included === false ? "—" : rcScopeTreatment(a, aspect.subElement) || "Not recorded",
+        decision.included === false ? decision.exclusionReason?.trim() || "Not recorded" : "—",
+      ];
+    }),
+  ));
   out.push(heading("Quality Assurance & Freeze Date", HeadingLevel.HEADING_2));
   out.push(para(doc.rcqProcess));
   out.push(para(`Model version ${a.version}. Analysis date: ${a.metadata.analysisDate}.`));
@@ -105,10 +135,50 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
 
   out.push(heading("Protective Action Parameters and Other Site Data", HeadingLevel.HEADING_1));
   out.push(para(doc.rcpaProcess));
-  out.push(dataTable(
-    ["Delay component", "Estimate"],
-    (a.protectiveActionParameters.evacuationDelayComponents ?? []).map((d) => [d.component, d.estimate]),
+  const pa = a.protectiveActionParameters;
+  const population = sitePopulation(pa.siteAndReceptors?.geometry), response = responseSummary(pa, population);
+  const responseEvent = pa.responseTiming?.referenceEvent?.trim() || "Emergency declaration";
+  out.push(para("This step prepares receptor positions, population groups and response times for the consequence case. It does not calculate dose."));
+  if (population !== undefined) out.push(para(`Imported site population: ${population.toLocaleString()} people.`));
+  if (response.declaration !== undefined || response.shelterAfterAccident !== undefined || response.departureAfterAccident !== undefined) out.push(dataTable(
+    ["Response event", "Minutes after accident start"],
+    [[responseEvent, response.declaration], ["Shelter begins", response.shelterAfterAccident], ["Evacuation begins", response.departureAfterAccident]]
+      .filter((row): row is [string, number] => row[1] !== undefined).map(([event, minutes]) => [event, String(minutes)]),
   ));
+  if (pa.responseTiming?.cohortName) out.push(para(`Response times apply to: ${pa.responseTiming.cohortName}.`));
+  if (pa.responseTiming?.source) out.push(para(`Response timing basis: ${pa.responseTiming.source}`));
+  if (pa.protectiveActionsIncluded.length) out.push(dataTable(
+    ["Action", "Included", "Basis"],
+    pa.protectiveActionsIncluded.map((action) => [action.action.replace(/_/g, " "), action.included ? "Yes" : "No", action.applicabilityJustification ?? ""]),
+  ));
+  if (pa.incidentPhasesModeled.length) out.push(dataTable(
+    ["Phase", "Period after release (days)", "Criteria"],
+    pa.incidentPhasesModeled.map((phase) => [phase.phase.replace(/_/g, " "), `${phase.startDays ?? "Not set"} to ${phase.endDays ?? "open"}`, phase.criteriaDescription]),
+  ));
+  if (pa.sourceDocuments.length) for (const source of pa.sourceDocuments) out.push(bullet(`${source.document}: ${source.usage}`));
+  if (pa.cohortModeling.cohorts?.length) out.push(dataTable(
+    ["Cohort", "Population (%)", "Compliance (%)", "Assumption"],
+    pa.cohortModeling.cohorts.map((cohort) => [cohort.name, String(cohort.populationPercent ?? "Not set"), String(cohort.compliancePercent ?? "Not set"), cohort.complianceAssumption ?? cohort.description]),
+  ));
+  if (pa.shelterInPlaceCredit) out.push(para(`Shelter-in-place credit: ${pa.shelterInPlaceCredit.credited ? "Credited" : "Not credited"}. ${pa.shelterInPlaceCredit.justification ?? ""}`));
+  if (pa.protectionParameters?.length) out.push(dataTable(
+    ["Protection parameter", "Value", "Unit", "Action / phase", "Source"],
+    pa.protectionParameters.map((parameter) => {
+      const quantity = protectionParameterQuantity(parameter);
+      return [parameter.parameter, quantity.value, quantity.unit, [parameter.action, parameter.phase].filter(Boolean).join(" / ") || "Not assigned", parameter.source];
+    }),
+  ));
+  if (pa.evacuationDelayComponents?.length) {
+    out.push(dataTable(["Delay component", "Minutes", "Original estimate"], pa.evacuationDelayComponents.map((delay) => [delay.component.replace(/_/g, " "), String(evacuationDelayMinutes(delay) ?? "Not set"), delay.estimate])));
+    const total = totalEvacuationDelay(pa.evacuationDelayComponents);
+    if (total !== undefined) out.push(para(`Total evacuation delay: ${total} minutes.`));
+  }
+  if (pa.evacuationSpeed) out.push(para(`Evacuation speed: ${pa.evacuationSpeed.speedMetresPerSecond ?? "Not set"} m/s. Basis: ${pa.evacuationSpeed.basis}`));
+  out.push(dataTable(["Site data", "Basis", "Source or file"], [
+    ["Population", pa.populationDistribution.basis, pa.populationDistribution.sourceReference ?? "Not recorded"],
+    ["Land use", pa.landUseData.basis, pa.landUseData.sourceReference ?? "Not recorded"],
+    ["Plant characteristics", pa.plantPhysicalCharacteristics.basis, pa.plantPhysicalCharacteristics.sourceReference ?? "Not recorded"],
+  ]));
 
   out.push(heading("Meteorological Data", HeadingLevel.HEADING_1));
   out.push(para(doc.rcmeProcess));
@@ -123,6 +193,14 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
 
   out.push(heading("Health Effects", HeadingLevel.HEADING_1));
   out.push(para(doc.rcheProcess));
+  if (a.healthEffects.healthInput) {
+    out.push(para(`Health parameter input: ${a.healthEffects.healthInput.filename}.`));
+    out.push(dataTable(
+      ["Card", "Effect", "Organ", "File parameters", "Selected"],
+      a.healthEffects.healthInput.records.map((r) => [r.cardId, r.kind === "early_fatality" ? `${r.effect} fatality` : r.effect, r.organ, r.values.join(", "),
+        (r.kind === "latent_cancer" ? a.healthEffects.latentHealthEffects : a.healthEffects.earlyHealthEffects).includes(r.kind === "early_fatality" ? `${r.effect} fatality` : r.effect) ? "Yes" : "No"]),
+    ));
+  }
   out.push(dataTable(
     ["Risk-factor source", "Recognized body", "Version"],
     a.healthEffects.riskFactorSources.map((r) => [r.source, r.recognizedBody, r.version ?? "n/a"]),
@@ -130,6 +208,24 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
 
   out.push(heading("Economic Factors", HeadingLevel.HEADING_1));
   out.push(para(doc.rcecProcess));
+  if (a.economicFactors.decontaminationLevels !== undefined) out.push(para(`Decontamination levels: ${a.economicFactors.decontaminationLevels}.`));
+  if (a.economicFactors.siteEconomyInput) {
+    const siteEconomy = a.economicFactors.siteEconomyInput;
+    out.push(para(`Site economy file: ${siteEconomy.filename}. Economic multiplier: ${siteEconomy.economicMultiplier}. Regional rows supplied: ${siteEconomy.regions.length} of ${siteEconomy.expectedRegions}.`));
+    out.push(dataTable(["Region", "Name", "Farming share", "Dairy share", "Farm sales ($/ha/year)", "Farmland value ($/ha)", "Non-farm value ($/person)"],
+      siteEconomy.regions.map(row => [String(row.index), row.name, String(row.farmFraction), String(row.dairySalesFraction), String(row.annualFarmSalesPerHectare), String(row.farmlandValuePerHectare), String(row.nonFarmlandValuePerPerson)])));
+    if (siteEconomy.crops.length) out.push(dataTable(["Crop", "Growing days", "Farmland share"],
+      siteEconomy.crops.map(row => [row.name, `${row.growingStartDay} to ${row.growingEndDay}`, String(row.farmlandFraction)])));
+  }
+  out.push(dataTable(["Cost parameter", "Value", "Unit", "Currency year", "Source"],
+    a.economicFactors.costParameterEstimates.map(row => [row.costCode ? `${row.parameter} (${row.costCode})${row.level ? ` level ${row.level}` : ""}` : row.parameter,
+      row.value === undefined ? "Not supplied" : String(row.value), row.costCode ? rcEconomicCostSpecs[row.costCode].unit : "n/a", row.currencyYear === undefined ? "n/a" : String(row.currencyYear), row.source])));
+  out.push(dataTable(["Economic review", "Recorded basis"], [
+    ["Parameter uncertainty", a.economicFactors.parameterUncertaintyCharacterization ?? ""],
+    ["Model uncertainty sources", a.economicFactors.modelUncertainty.sources.join("; ")],
+    ["Model assumptions", a.economicFactors.modelUncertainty.assumptions.join("; ")],
+    ["Model alternatives", a.economicFactors.modelUncertainty.alternatives.join("; ")],
+  ]));
   out.push(dataTable(
     ["Cost category", "Parameters"],
     a.economicFactors.costCategories.map((c) => [c.category, c.parameterDefinitions.join("; ")]),
@@ -170,8 +266,8 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
 
   out.push(heading("Conformance summary", HeadingLevel.HEADING_1));
   out.push(dataTable(
-    ["SR", "HLR", "Category", "Status", "Evidence"],
-    a.conformanceMatrix.map((c) => [c.sr, c.hlr, c.capabilityCategory, c.status, c.evidence]),
+    ["SR", "HLR", "Status", "Basis"],
+    conformance.map((item) => [item.id, item.hlr, CONFORMANCE_STATUS_LABELS[item.status], item.meta ?? ""]),
   ));
 
   out.push(heading("References", HeadingLevel.HEADING_1));
@@ -185,8 +281,10 @@ function buildChildren(a: RadiologicalConsequenceAnalysis, final: boolean): (Par
   return out;
 }
 
-async function generateRcReport(rc: RadiologicalConsequenceAnalysis, final: boolean): Promise<void> {
-  const doc = new Document({ sections: [{ children: buildChildren(rc, final) }] });
+const CONFORMANCE_STATUS_LABELS: Record<ConformanceItem["status"], string> = { ok: "Step checks pass", warn: "To review", blocked: "Not met", na: "Not applicable" };
+
+async function generateRcReport(rc: RadiologicalConsequenceAnalysis, final: boolean, conformance: ConformanceItem[]): Promise<void> {
+  const doc = new Document({ sections: [{ children: buildChildren(rc, final, conformance) }] });
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

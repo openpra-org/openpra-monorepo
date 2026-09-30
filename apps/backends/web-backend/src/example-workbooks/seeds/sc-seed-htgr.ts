@@ -348,7 +348,7 @@ export const SC_ANALYSIS_HTGR: SuccessCriteriaDevelopment = {
         { parameter: "Start deadline", value: "33 h at full power", basis: "TF-CALC-H01" },
       ],
       systemDependencies: [
-        { dependentSystemId: "SYS-1E-AC", dependencyNature: "Class 1E power for the circulators and valves." },
+        { dependentSystemId: "SYS-AC", dependencyNature: "Non-Class 1E AC for the circulators and pumps, from the backup gas-turbine generators after a loss of normal power." },
         { dependentSystemId: "SYS-CCW", dependencyNature: "Cooling water for the shutdown coolers." },
       ],
       analysisReferences: ["TF-CALC-H01"],
@@ -422,7 +422,7 @@ export const SC_ANALYSIS_HTGR: SuccessCriteriaDevelopment = {
         { parameter: "Make-up capacity", value: "1 of 1 compressor train", basis: "ST-CALC-H01" },
         { parameter: "Make-up deadline", value: "180 min against the bounded leak rate", basis: "ST-CALC-H01" },
       ],
-      systemDependencies: [{ dependentSystemId: "SYS-1E-AC", dependencyNature: "Class 1E AC for the make-up compressor." }],
+      systemDependencies: [{ dependentSystemId: "SYS-AC", dependencyNature: "Non-Class 1E AC for the make-up compressor." }],
       analysisReferences: ["ST-CALC-H01"],
       overallSuccessCriteriaId: "OSC-DLOFC",
       implementsSrs: srs("SC-A5"),

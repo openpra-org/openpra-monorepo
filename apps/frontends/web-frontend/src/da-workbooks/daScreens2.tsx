@@ -6,6 +6,7 @@ import { DAIcon } from "./daIcons";
 import { Badge, DaProvenanceChip, valText } from "./daShared";
 import { useDaWorkbook } from "./daWorkbookContext";
 import { type DataAnalysisParameter, type ComponentBoundary, type ComponentGrouping, type OutlierComponent, type ExternalDataSource, type FailureEventClassification, type DemandCountRecord, type ExposureTimeRecord, type TestCredibilityReview, type UnavailabilityDataRecord, type CoincidentMaintenanceRecord, type RepairTimeRecord, type RecoveryTimeRecord, type LpsdOutageDataRecord, type CcfParameterEstimation, type DataModificationAdjustment } from "interfaces-mef-types/da/data-analysis";
+import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
 import { MethodChips, type DaDrawerContext } from "./daScreens";
 import { generateDaReport } from "./daDocx";
 import {
@@ -30,6 +31,29 @@ function groupNameMap(groupings: { uuid: string; name: string }[]): Map<string, 
   const m = new Map<string, string>();
   for (const g of groupings) m.set(g.uuid, g.name);
   return m;
+}
+
+const DA_SAMPLED_DISTRIBUTIONS = [DistributionType.BETA, DistributionType.LOGNORMAL, DistributionType.NORMAL, DistributionType.UNIFORM, DistributionType.GAMMA, DistributionType.EXPONENTIAL] as const;
+const DA_DISTRIBUTION_FIELDS: Partial<Record<DistributionType, { key: string; label: string }[]>> = {
+  [DistributionType.BETA]: [{ key: "alpha", label: "Alpha" }, { key: "betaParam", label: "Beta" }],
+  [DistributionType.LOGNORMAL]: [{ key: "median", label: "Median" }, { key: "errorFactor", label: "95% error factor" }],
+  [DistributionType.NORMAL]: [{ key: "mean", label: "Mean" }, { key: "stdDev", label: "Standard deviation" }],
+  [DistributionType.UNIFORM]: [{ key: "lower", label: "Lower" }, { key: "upper", label: "Upper" }],
+  [DistributionType.GAMMA]: [{ key: "shape", label: "Shape" }, { key: "rate", label: "Rate" }],
+  [DistributionType.EXPONENTIAL]: [{ key: "failureRate", label: "Rate" }],
+};
+
+function defaultDaDistribution(type: DistributionType, value: number, isFrequency = false): ParameterDistribution {
+  const p = isFrequency ? Math.max(0.000001, value) : Math.min(0.9999, Math.max(0.0001, value));
+  switch (type) {
+    case DistributionType.BETA: return { type, alpha: p * 1000, betaParam: (1 - p) * 1000 };
+    case DistributionType.LOGNORMAL: return { type, median: p, errorFactor: 2 };
+    case DistributionType.NORMAL: return { type, mean: p, stdDev: p / 3 };
+    case DistributionType.UNIFORM: return { type, lower: p / 2, upper: Math.min(1, p * 1.5) };
+    case DistributionType.GAMMA: return { type, shape: 2, rate: 2 / p };
+    case DistributionType.EXPONENTIAL: return { type, failureRate: 1 / p };
+    default: return { type: DistributionType.POINT_ESTIMATE, value };
+  }
 }
 
 // ─── 05 — Collect: Counts (HLR-C) ──────────────────────────────────────────
@@ -627,6 +651,26 @@ function DrawerContent({ context, onClose }: { context: DaDrawerContext; onClose
           <div className="posfield"><label className="posfield__label">Model selection basis</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.modelSelectionBasis ?? ""} disabled={!editable} onChange={(e) => patchParam({ modelSelectionBasis: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div className="posfield"><label className="posfield__label">Required data</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.requiredData ?? ""} disabled={!editable} onChange={(e) => patchParam({ requiredData: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div className="posfield"><label className="posfield__label">Multi-state applicability</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.multiPosApplicabilityJustification ?? ""} disabled={!editable} onChange={(e) => patchParam({ multiPosApplicabilityJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
+          <div className="posfield">
+            <label className="posfield__label">Parameter uncertainty distribution</label>
+            <select className="posfield__select" aria-label="DA uncertainty distribution" disabled={!editable} value={p.uncertainty?.distribution.type ?? ""} onChange={(e) => patchParam({ uncertainty: e.target.value === "" ? undefined : { ...p.uncertainty, distribution: defaultDaDistribution(e.target.value as DistributionType, p.value, p.parameterType === "FREQUENCY") } })}>
+              <option value="">No distribution</option>
+              {p.uncertainty !== undefined && !DA_SAMPLED_DISTRIBUTIONS.includes(p.uncertainty.distribution.type as typeof DA_SAMPLED_DISTRIBUTIONS[number]) && <option value={p.uncertainty.distribution.type}>{p.uncertainty.distribution.type} (existing)</option>}
+              {DA_SAMPLED_DISTRIBUTIONS.filter((type) => p.parameterType !== "FREQUENCY" || type !== DistributionType.BETA && type !== DistributionType.UNIFORM).map((type) => <option key={type} value={type}>{type}</option>)}
+            </select>
+            {p.parameterType === "FREQUENCY" && p.uncertainty !== undefined && <span className="possubtle">Failure-rate distributions are recorded in DA but cannot yet be sampled in SY Step 07.</span>}
+          </div>
+          {p.uncertainty !== undefined && (DA_DISTRIBUTION_FIELDS[p.uncertainty.distribution.type] ?? []).length > 0 && <div className="posfield-grid">
+            {(DA_DISTRIBUTION_FIELDS[p.uncertainty.distribution.type] ?? []).map(({ key, label }) => <div className="posfield" key={key}>
+              <label className="posfield__label">{label}</label>
+              <WorkbookInput className="posfield__input" aria-label={`DA ${label}`} type="number" step="any" disabled={!editable} value={(p.uncertainty!.distribution as unknown as Record<string, number>)[key] ?? ""} onChange={(e) => {
+                const value = Number(e.target.value);
+                if (!Number.isFinite(value)) return;
+                patchParam({ uncertainty: { ...p.uncertainty!, distribution: { ...p.uncertainty!.distribution, [key]: value } as ParameterDistribution } });
+              }} />
+            </div>)}
+          </div>}
+          {p.uncertainty !== undefined && <div className="posfield"><label className="posfield__label">Uncertainty sources (one per line)</label><WorkbookTextarea className="posfield__textarea" rows={2} disabled={!editable} value={(p.uncertainty.modelUncertaintySources ?? []).join("\n")} onChange={(e) => patchParam({ uncertainty: { ...p.uncertainty!, modelUncertaintySources: e.target.value.split("\n").map((x) => x.trim()).filter(Boolean) } })} /></div>}
         </div>
       </>
     );

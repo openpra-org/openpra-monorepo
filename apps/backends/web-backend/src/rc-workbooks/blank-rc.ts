@@ -32,7 +32,8 @@ export function createBlankRc(name: string, owner: string): RadiologicalConseque
     activeAuditIds: [],
     praScope: "",
     scope: {
-      consequenceMetrics: [],
+      metrics: [],
+      evaluationDecisions: [],
       protectiveActionsModellingDegree: "",
       meteorologyModellingDegree: "",
       atmosphericDispersionModellingDegree: "",

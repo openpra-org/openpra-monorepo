@@ -36,10 +36,16 @@ mod cli_importance_output;
 mod cli_mc_xml_output;
 #[path = "integration/cli/cli_mocus.rs"]
 mod cli_mocus;
+#[path = "integration/cli/cli_pbf_export.rs"]
+mod cli_pbf_export;
 #[path = "integration/cli/cli_pbf_input.rs"]
 mod cli_pbf_input;
 #[path = "integration/cli/cli_test.rs"]
 mod cli_test;
+#[path = "integration/cli/cli_variable_order.rs"]
+mod cli_variable_order;
+#[path = "integration/cli/cli_visualization.rs"]
+mod cli_visualization;
 #[path = "integration/cli/cli_xml_output_shape.rs"]
 mod cli_xml_output_shape;
 

@@ -17,8 +17,12 @@ export class RcCaseRecordsController {
   saveResult(@Param("id") id: string, @Body() body: { record?: string }, @UploadedFile() file: { buffer: Buffer; originalname: string } | undefined, @Req() req: AuthenticatedRequest) {
     if (!file) throw new BadRequestException("Select an original text output");
     let record: unknown;
-    try { record = JSON.parse(body.record ?? ""); } catch { throw new BadRequestException("Provide the linked result values"); }
+    try { record = JSON.parse(body.record ?? ""); } catch { throw new BadRequestException("Provide the result values"); }
     return this.cases.saveResult(id, record, file, { username: req.user!.username });
+  }
+  @Post("results/:resultId/remove") @HttpCode(200)
+  removeResult(@Param("id") id: string, @Param("resultId") resultId: string, @Body() body: unknown, @Req() req: AuthenticatedRequest) {
+    return this.cases.removeResult(id, resultId, body, { username: req.user!.username });
   }
   @Get("table/:kind")
   table(@Param("id") id: string, @Param("kind") kind: string, @Query() query: RcCaseSelection & { offset?: string }, @Req() req: AuthenticatedRequest) {
@@ -29,10 +33,6 @@ export class RcCaseRecordsController {
   text(@Param("id") id: string, @Param("fileId") fileId: string, @Query() query: RcCaseSelection & { offset?: string }, @Req() req: AuthenticatedRequest) {
     const { offset = "0", ...selection } = query;
     return this.cases.text(id, selection, fileId, Number(offset), { username: req.user!.username });
-  }
-  @Get("snapshots/:snapshotId/choices/:kind")
-  choices(@Param("id") id: string, @Param("snapshotId") snapshotId: string, @Param("kind") kind: string, @Query("search") search = "", @Req() req: AuthenticatedRequest) {
-    return this.cases.choices(id, snapshotId, kind, search, { username: req.user!.username });
   }
   @Get("results/:resultId/output")
   output(@Param("id") id: string, @Param("resultId") resultId: string, @Query("offset") offset = "0", @Req() req: AuthenticatedRequest) { return this.cases.output(id, resultId, Number(offset), { username: req.user!.username }); }

@@ -1,24 +1,23 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { JSX, useState } from "react";
+import { JSX } from "react";
 import { type PlantStage } from "interfaces-mef-types/core/pra-common";
+import { type RcEvaluationSubElement } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { RCIcon } from "./rcIcons";
-import { Badge, RcProvenanceChip, valText } from "./rcShared";
+import { Badge, RcProvenanceChip } from "./rcShared";
 import { useRcWorkbook } from "./rcWorkbookContext";
 import {
   CAPABILITY_CATEGORIES,
   RC_METHODS,
   SITE_OPTIONS,
-  SCOPING_ASPECTS,
-  PROTECTIVE_ACTION_LABELS,
-  INCIDENT_PHASE_LABELS,
-  EVAC_DELAY_LABELS,
-  SITE_DATA_BASIS_LABELS,
   type SiteBasis,
 } from "./rcViewData";
-import { RcMsSourceTerm } from "./rcMsSourceTerm";
-import { RcSiteReceptorsPanel } from "./rcSiteReceptors";
+import { RcInterfaces } from "./rcInterfaces";
+import { RcProtectiveOperational } from "./rcProtectiveOperational";
 import { RcMeteorologyPanel } from "./rcMeteorology";
+import { RC_SCOPE_ASPECTS, rcScopeTreatment } from "./rcScope";
+import { RcMetricsCard } from "./rcMetrics";
+import { RC_METRIC_DEFAULT_EXCLUSION, rcAspectDecision, rcMetricsCreditingProtectiveActions } from "interfaces-shared-types/rc-workbooks/metrics";
 
 type Stage = "pre_operational" | "operational";
 
@@ -34,122 +33,9 @@ function MethodChips({ ids, label }: { ids: string[]; label?: string }): JSX.Ele
     <div className="hrmethods">
       {label !== undefined && <span className="hrmethods__label">{label}</span>}
       {ms.map((m) => (
-        <span key={m.id} className="hrmethod-chip" title={`${m.name} · ${m.ref}`}>{m.abbr}</span>
+        <span key={m.id} className="hrmethod-chip" aria-label={`${m.name} · ${m.ref}`}>{m.abbr}</span>
       ))}
     </div>
-  );
-}
-
-// ─── Interfaces — the data RC exchanges with ES, MS and RI ──────────────────
-function RcInterfaces({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => void }): JSX.Element {
-  const { rc, editable, mutateRc } = useRcWorkbook();
-  const rcc = rc.releaseCategoryToConsequence;
-  const inputs = rcc.releaseCategoryInputs;
-  const metrics = rc.scope.consequenceMetrics;
-  const families = rc.consequenceQuantification.eventSequenceConsequences;
-  const [selected, setSelected] = useState<string | null>("MS");
-
-  const tiles: { code: string; name: string; role: string; direction: "in" | "out" }[] = [
-    { code: "ES", name: "Event Sequence Analysis", role: "Release categories", direction: "in" },
-    { code: "MS", name: "Mechanistic Source Term", role: "Source term", direction: "in" },
-    { code: "RI", name: "Risk Integration", role: "Consequence metric and table", direction: "out" },
-  ];
-
-  function releaseWindow(c: (typeof inputs)[number]): string {
-    if (c.sourceTerm?.values.releases.some((r) => r.startSeconds === undefined || r.durationSeconds === undefined)) return "Missing segment timing";
-    const timings = c.releaseCharacteristics.releasePhaseTimings ?? [];
-    if (timings.length === 0) return "—";
-    const start = Math.min(...timings.map((t) => t.startTime));
-    const end = Math.max(...timings.map((t) => t.startTime + t.duration));
-    return `${start} to ${end} ${timings[0].timeUnit ?? "h"}`;
-  }
-
-  function updateMetrics(next: string[]): void {
-    if (!editable) return;
-    mutateRc((draft) => ({ ...draft, scope: { ...draft.scope, consequenceMetrics: next } }));
-  }
-
-  return (
-    <>
-      <div className="poshandoff__grid">
-        {tiles.map((tile) => (
-          <button key={tile.code} type="button"
-            className={`poshandoff__tile${selected === tile.code ? " poshandoff__tile--active" : ""}`}
-            onClick={() => setSelected(selected === tile.code ? null : tile.code)}>
-            <span className="poshandoff__tile-code">{tile.code}</span>
-            <span className="poshandoff__tile-name">{tile.name}</span>
-            <span className="poshandoff__tile-role">{tile.direction === "out" ? "Delivers to · " : "Provides · "}{tile.role}</span>
-          </button>
-        ))}
-      </div>
-
-      {selected === "ES" && (
-        <div style={{ marginTop: 16 }}>
-          {inputs.length === 0 ? (
-            <p className="posmuted" style={{ margin: 0 }}>No release categories yet. Add one under the Source term interface.</p>
-          ) : (
-            <table className="postable postable--mid">
-              <thead><tr><th>Category</th><th>Source term</th><th>Plumes</th><th>Release window</th><th>Reviewed</th></tr></thead>
-              <tbody>
-                {inputs.map((c) => (
-                  <tr key={c.releaseCategory} className="postable__row--clickable" style={{ cursor: "pointer" }} onClick={() => openDrawer({ kind: "category", id: c.releaseCategory })}>
-                    <td><div className="postable__name">{c.releaseCategory}</div></td>
-                    <td className="posmono">{c.sourceTermDefinitionRef ?? "—"}</td>
-                    <td className="posmono">{c.releaseCharacteristics.numberOfPlumes ?? "—"}</td>
-                    <td className="posmono">{releaseWindow(c)}</td>
-                    <td className="posmono">{rcc.releaseCategoryAndSourceTermReviewed ? "Yes" : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {selected === "MS" && <RcMsSourceTerm openDrawer={openDrawer} />}
-
-      {selected === "RI" && (
-        <div style={{ marginTop: 16 }}>
-          <div className="posfield">
-            <label className="posfield__label">Consequence metrics</label>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {metrics.map((m, i) => (
-                <div key={i} className="posrow" style={{ gap: 6 }}>
-                  <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={m} disabled={!editable} onChange={(e) => updateMetrics(metrics.map((y, j) => (j === i ? e.target.value : y)))} />
-                  {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => updateMetrics([...metrics.slice(0, i), ...metrics.slice(i + 1)])}>Remove</button>}
-                </div>
-              ))}
-              {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => updateMetrics([...metrics, "New consequence metric"])}><RCIcon.Plus /> Add metric</button>}
-            </div>
-          </div>
-          <div className="posfield" style={{ marginTop: 16 }}>
-            <label className="posfield__label">Metric selection basis</label>
-            <WorkbookTextarea className="posfield__textarea" rows={2} value={rc.scope.metricSelectionApplicationBasis ?? ""} disabled={!editable}
-              onChange={(e) => mutateRc((draft) => ({ ...draft, scope: { ...draft.scope, metricSelectionApplicationBasis: e.target.value } }))} />
-          </div>
-          <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", margin: "16px 0 8px" }}>Consequence table delivered to Risk Integration</div>
-          {families.length === 0 ? (
-            <p className="posmuted" style={{ margin: 0 }}>No consequence families yet. They are compiled under Quantification.</p>
-          ) : (
-            <table className="postable postable--mid">
-              <thead><tr><th>Family</th><th>Category</th>{metrics.map((m) => <th key={m}>{m}</th>)}</tr></thead>
-              <tbody>
-                {families.map((f) => (
-                  <tr key={f.eventSequenceFamily} className="postable__row--clickable" style={{ cursor: "pointer" }} onClick={() => openDrawer({ kind: "family", id: f.eventSequenceFamily })}>
-                    <td><div className="postable__name">{f.eventSequenceFamily}</div></td>
-                    <td className="posmono">{f.releaseCategoryReference ?? "—"}</td>
-                    {metrics.map((m) => {
-                      const r = f.consequenceResults.find((x) => x.metric === m);
-                      return <td key={m} className="posmono">{r !== undefined ? `${valText(r.meanValue)}${r.unit !== undefined ? ` ${r.unit}` : ""}` : "—"}</td>;
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-    </>
   );
 }
 
@@ -210,51 +96,92 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
       };
     });
   }
-  function updateDegree(key: (typeof SCOPING_ASPECTS)[number]["degreeKey"], value: string): void {
+  function updateScopeDecision(subElement: RcEvaluationSubElement, included: boolean | undefined): void {
     if (!editable) return;
-    mutateRc((draft) => ({ ...draft, scope: { ...draft.scope, [key]: value } }));
+    mutateRc((draft) => ({
+      ...draft,
+      scope: {
+        ...draft.scope,
+        evaluationDecisions: [
+          ...(draft.scope.evaluationDecisions ?? []).filter((decision) => decision.subElement !== subElement),
+          ...(included === undefined ? [] : [{ subElement, included }]),
+        ],
+      },
+    }));
   }
+  function updateExclusionReason(subElement: RcEvaluationSubElement, exclusionReason: string): void {
+    if (!editable) return;
+    mutateRc((draft) => ({
+      ...draft,
+      scope: {
+        ...draft.scope,
+        evaluationDecisions: [
+          ...(draft.scope.evaluationDecisions ?? []).filter((decision) => decision.subElement !== subElement),
+          { subElement, included: false, exclusionReason },
+        ],
+      },
+    }));
+  }
+  function chooseInclusion(subElement: RcEvaluationSubElement, value: string): void {
+    if (value === "excluded" && rcAspectDecision({ metrics: rc.scope.metrics }, subElement).defaulted) updateExclusionReason(subElement, RC_METRIC_DEFAULT_EXCLUSION);
+    else updateScopeDecision(subElement, value === "" ? undefined : value === "included");
+  }
+  const protectiveMetrics = rcMetricsCreditingProtectiveActions(rc.scope.metrics);
+  const metricList = (metrics: { id: string }[]) => metrics.map((metric) => metric.id).join(", ");
 
   return (
     <>
-      <div className="poscard">
+      <div className="poscard rc-handoff__wide-card">
         <div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Interfaces" level={3} /></div>
-        <p className="poscard__sub">What flows into Radiological Consequence and what it feeds. Select an element to see the data exchanged.</p>
         <RcInterfaces openDrawer={openDrawer} />
       </div>
 
-      <div className="poscard">
+      <RcMetricsCard openDrawer={openDrawer} />
+
+      <div className="poscard rc-handoff__wide-card rc-handoff__scope">
         <div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="PRA scope" level={3} /></div>
-        <p className="poscard__sub">Describe what this radiological-consequence analysis covers, and declare aspect by aspect the degree to which each downstream sub-element is evaluated.</p>
         <WorkbookTextarea
           className="posfield__textarea"
-          placeholder="State the in-scope release categories, the consequence metrics, and explicit exclusions."
-          rows={4}
+          aria-label="PRA scope"
+          rows={3}
           value={rc.praScope}
           disabled={!editable}
           onChange={(e) => onScopeChange(e.target.value)}
         />
-        <div className="posrow" style={{ gap: 8, alignItems: "center", margin: "14px 0 8px" }}>
-          <span className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)" }}>Degree of evaluation by aspect</span>
-          <RcProvenanceChip>RCRE-B2</RcProvenanceChip>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {SCOPING_ASPECTS.map((s) => (
-            <div key={s.se} className="posfield">
-              <label className="posfield__label"><RCIcon.Layers /> {s.aspect} <span className="rcse rcse--primary" style={{ marginLeft: 6 }}>{s.se}</span></label>
-              <WorkbookTextarea className="posfield__textarea" rows={2} value={rc.scope[s.degreeKey]} disabled={!editable} onChange={(e) => updateDegree(s.degreeKey, e.target.value)} />
-            </div>
-          ))}
+        <div className="rcscope">
+          <h4 className="rcscope__title">Evaluation by aspect</h4>
+          <div className="rcscope__table-wrap">
+            <table className="postable rcscope__table" aria-label="Evaluation by aspect">
+              <thead><tr><th>Aspect</th><th>Included?</th><th>Treatment used</th><th>Reason for exclusion</th></tr></thead>
+              <tbody>{RC_SCOPE_ASPECTS.map((aspect) => {
+                const decision = rcAspectDecision(rc.scope, aspect.subElement);
+                const treatment = rcScopeTreatment(rc, aspect.subElement);
+                const reasonMissing = decision.included === false && !decision.exclusionReason?.trim();
+                const hasDefault = rcAspectDecision({ metrics: rc.scope.metrics }, aspect.subElement).defaulted;
+                return <tr key={aspect.subElement}>
+                  <td><strong>{aspect.label}</strong><span className="rcscope__step">Step {aspect.step}</span></td>
+                  <td>{decision.required ? <>
+                    <strong>Required</strong>
+                    <span className="rcscope__step" title={decision.neededBy.map((metric) => metric.name).join(", ")}>Needed by {metricList(decision.neededBy)}</span>
+                    {aspect.subElement === "RCPA" && <span className="rcscope__step">{protectiveMetrics.length ? `Protective actions needed by ${metricList(protectiveMetrics)}` : "No metric credits protective actions"}</span>}
+                  </> : <select className="posfield__select" aria-label={`${aspect.label} inclusion`} value={decision.included === undefined ? "" : decision.included ? "included" : "excluded"} disabled={!editable} onChange={(event) => chooseInclusion(aspect.subElement, event.target.value)}>
+                    {!hasDefault && <option value="">Not set</option>}<option value="included">Included</option><option value="excluded">Excluded</option>
+                  </select>}</td>
+                  <td>{decision.included === false ? "—" : treatment || <span className="posmuted">Not recorded</span>}</td>
+                  <td>{decision.included === false ? <><WorkbookInput className="posfield__input" aria-label={`${aspect.label} exclusion reason`} aria-invalid={reasonMissing} value={decision.exclusionReason ?? ""} disabled={!editable} onChange={(event) => updateExclusionReason(aspect.subElement, event.target.value)} />{reasonMissing && <span className="rcscope__error" role="alert">Reason required</span>}</> : "—"}</td>
+                </tr>;
+              })}</tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <div className="poscard">
+      <div className="poscard rc-handoff__compact-card">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="RC" title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
-        <p className="poscard__sub">Simplified modules with a collapsed population, or resolved population with the physics modules switched on and the uncertainty propagated.</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
+        <div className="rc-handoff__choices">
           {CAPABILITY_CATEGORIES.map((c) => {
             const active = c.id === ccId;
             return (
@@ -271,12 +198,11 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
         </div>
       </div>
 
-      <div className="poscard">
+      <div className="poscard rc-handoff__compact-card">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="RC" title="Site fork" level={3} />
           <RcProvenanceChip>RCRE-A1</RcProvenanceChip>
         </div>
-        <p className="poscard__sub">An identified site, or a justified bounding site.</p>
         <div className="rcsite">
           {SITE_OPTIONS.map((o) => {
             const Icon = RCIcon[o.icon] ?? RCIcon.Pin;
@@ -302,9 +228,8 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
         )}
       </div>
 
-      <div className="poscard">
+      <div className="poscard rc-handoff__compact-card">
         <div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Plant stage" level={3} /></div>
-        <p className="poscard__sub">This sets which requirements apply and where the plant-response data comes from.</p>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
             ["pre_operational", "Pre-operational", "Plant-response data comes from general or design calculations, with gaps from the not-yet-built plant written down as assumptions."],
@@ -328,284 +253,12 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
 
 // ─── 02 — Protective Actions & Site (RCPA) ─────────────────────────────────
 function ProtectiveScreen({ openDrawer, initialSiteTab }: { openDrawer: (ctx: RcDrawerContext) => void; initialSiteTab?: "location" | "receptors" }): JSX.Element {
-  const { rc, editable, mutateRc } = useRcWorkbook();
-  const pa = rc.protectiveActionParameters;
-  const cohorts = pa.cohortModeling.cohorts ?? [];
-  const speedFlags = pa.evacuationSpeed;
-  const params = pa.protectionParameters ?? [];
-
-  const siteRows = [
-    { id: "pop", name: "Population distribution", icon: "Users", note: [pa.populationDistribution.description, pa.populationDistribution.justification].filter(Boolean).join(" "), basis: pa.populationDistribution.basis },
-    { id: "land", name: "Land use", icon: "Leaf", note: pa.landUseData.description, basis: pa.landUseData.basis },
-    { id: "bldg", name: "Building dimensions and stack heights", icon: "Home", note: pa.plantPhysicalCharacteristics.description, basis: pa.plantPhysicalCharacteristics.basis },
-  ];
-
-  function addAction(): void {
-    mutateRc((draft) => ({ ...draft, protectiveActionParameters: { ...draft.protectiveActionParameters, protectiveActionsIncluded: [...draft.protectiveActionParameters.protectiveActionsIncluded, { action: "EVACUATION", included: true, applicabilityJustification: "New protective action." }] } }));
-    openDrawer({ kind: "protaction", id: String(pa.protectiveActionsIncluded.length) });
-  }
-  function addCohort(): void {
-    mutateRc((draft) => {
-      const cm = draft.protectiveActionParameters.cohortModeling;
-      return { ...draft, protectiveActionParameters: { ...draft.protectiveActionParameters, cohortModeling: { ...cm, cohorts: [...(cm.cohorts ?? []), { name: "New cohort", description: "" }] } } };
-    });
-    openDrawer({ kind: "cohort", id: String(cohorts.length) });
-  }
-  function addSourceDoc(): void {
-    mutateRc((draft) => ({ ...draft, protectiveActionParameters: { ...draft.protectiveActionParameters, sourceDocuments: [...draft.protectiveActionParameters.sourceDocuments, { document: "New source document", usage: "" }] } }));
-    openDrawer({ kind: "sourcedoc", id: String(pa.sourceDocuments.length) });
-  }
-  function addEvacDelay(): void {
-    mutateRc((draft) => ({ ...draft, protectiveActionParameters: { ...draft.protectiveActionParameters, evacuationDelayComponents: [...(draft.protectiveActionParameters.evacuationDelayComponents ?? []), { component: "LOAD_VEHICLES", estimate: "+0 min" }] } }));
-    openDrawer({ kind: "evacdelay", id: String((pa.evacuationDelayComponents ?? []).length) });
-  }
-  function addProtParam(): void {
-    mutateRc((draft) => ({ ...draft, protectiveActionParameters: { ...draft.protectiveActionParameters, protectionParameters: [...(draft.protectiveActionParameters.protectionParameters ?? []), { parameter: "New parameter", value: "", source: "" }] } }));
-    openDrawer({ kind: "protparam", id: String(params.length) });
-  }
-
-  return (
-    <>
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Protective actions" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCPA-A1</RcProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addAction}><RCIcon.Plus /> Add action</button>}
-          </div>
-        </div>
-        <p className="poscard__sub">The protective actions that reduce the dose are listed, each included with a one-line basis. Select an action to edit it.</p>
-        <div className="rcpa">
-          {pa.protectiveActionsIncluded.map((a, i) => {
-            const meta = PROTECTIVE_ACTION_LABELS[a.action];
-            const Icon = RCIcon[meta?.icon ?? "Shield"] ?? RCIcon.Shield;
-            return (
-              <button key={i} type="button" className={`rcpa__cell${a.included ? "" : " rcpa__cell--out"}`} style={{ cursor: "pointer", textAlign: "left", border: "none", width: "100%" }} onClick={() => openDrawer({ kind: "protaction", id: String(i) })}>
-                <span className="rcpa__icon"><Icon /></span>
-                <div className="rcpa__main">
-                  <div className="rcpa__name">{meta?.name ?? a.action}</div>
-                  <div className="rcpa__note">{a.applicabilityJustification ?? "n/a"}</div>
-                </div>
-                <span className={`rcpa__state rcpa__state--${a.included ? "in" : "out"}`}>{a.included ? <RCIcon.Check /> : <RCIcon.Close />}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Incident phases" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCPA-A2</RcProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSourceDoc}><RCIcon.Plus /> Add document</button>}
-          </div>
-        </div>
-        <p className="poscard__sub">The actions are structured by incident phase, since the decision basis shifts from plant status to measurements over time. Select a phase to edit its criteria.</p>
-        <div className="rcphase">
-          {pa.incidentPhasesModeled.map((p) => {
-            const meta = INCIDENT_PHASE_LABELS[p.phase];
-            return (
-              <button key={p.phase} type="button" className="rcphase__col" style={{ cursor: "pointer", textAlign: "left", width: "100%", font: "inherit", color: "inherit" }} onClick={() => openDrawer({ kind: "phase", id: p.phase })}>
-                <div className="rcphase__col-head">
-                  <span className="rcphase__dot" />
-                  <div>
-                    <div className="rcphase__name">{meta?.name ?? p.phase}</div>
-                    <div className="rcphase__window posmono">{meta?.window ?? ""}</div>
-                  </div>
-                </div>
-                <p className="rcphase__desc">{p.criteriaDescription}</p>
-              </button>
-            );
-          })}
-        </div>
-        <div className="rcbasis" style={{ marginTop: 12 }}>
-          {pa.sourceDocuments.map((d, i) => (
-            <button key={i} type="button" className="rcbasis__row" style={{ cursor: "pointer", textAlign: "left", border: "none", width: "100%" }} onClick={() => openDrawer({ kind: "sourcedoc", id: String(i) })}>
-              <span className="rcbasis__icon"><RCIcon.Doc /></span>
-              <div className="rcbasis__main">
-                <div className="rcbasis__name">{d.document}</div>
-                <div className="rcbasis__note">{d.usage}</div>
-              </div>
-              <span className="rcbasis__tag rcbasis__tag--rich">Source</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Cohort modeling" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCPA-A4 · A5</RcProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCohort}><RCIcon.Plus /> Add cohort</button>}
-          </div>
-        </div>
-        <p className="poscard__sub">One cohort at CC-I or multiple cohorts at CC-II, separating the compliers from the non-compliers. Select a cohort to edit it.</p>
-        <div className="rccohort">
-          {cohorts.map((c, i) => {
-            const refuse = c.name.toLowerCase().includes("non-compliant");
-            return (
-              <button key={i} type="button" className={`rccohort__card${refuse ? " rccohort__card--refuse" : ""}`} style={{ cursor: "pointer", textAlign: "left", border: "none", width: "100%" }} onClick={() => openDrawer({ kind: "cohort", id: String(i) })}>
-                <span className="rccohort__name">{c.name}</span>
-                <p className="rccohort__desc">{c.description}</p>
-              </button>
-            );
-          })}
-        </div>
-        <div className="posfield" style={{ marginTop: 12 }}>
-          <label className="posfield__label">Shelter-in-place credit justification</label>
-          <WorkbookTextarea className="posfield__textarea" rows={2} value={pa.shelterInPlaceCredit?.justification ?? ""} disabled={!editable}
-            onChange={(e) => mutateRc((draft) => ({ ...draft, protectiveActionParameters: { ...draft.protectiveActionParameters, shelterInPlaceCredit: { credited: draft.protectiveActionParameters.shelterInPlaceCredit?.credited ?? true, justification: e.target.value } } }))} />
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Protection parameters" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCPA-A12</RcProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addProtParam}><RCIcon.Plus /> Add parameter</button>}
-          </div>
-        </div>
-        <p className="poscard__sub">The shielding and protection factors for each action, each with its value and source. Select a row to edit it.</p>
-        {params.length === 0 ? (
-          <p className="posmuted" style={{ margin: 0 }}>No protection parameters yet.</p>
-        ) : (
-          <table className="postable">
-            <thead><tr><th>Parameter</th><th>Value</th><th>Source</th></tr></thead>
-            <tbody>
-              {params.map((p, i) => (
-                <tr key={i} className="postable__row--clickable" style={{ cursor: "pointer" }} onClick={() => openDrawer({ kind: "protparam", id: String(i) })}>
-                  <td style={{ fontWeight: 600 }}>{p.parameter}</td>
-                  <td className="posmono">{p.value}</td>
-                  <td className="possubtle" style={{ fontSize: 12 }}>{p.source}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Evacuation delay chain" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCPA-A9 · A10</RcProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addEvacDelay}><RCIcon.Plus /> Add link</button>}
-          </div>
-        </div>
-        <p className="poscard__sub">The evacuation delay is a chain from the emergency declaration to the moment people depart. Select a link to edit it.</p>
-        <div className="rcdelay">
-          {(pa.evacuationDelayComponents ?? []).map((l, i) => (
-            <button key={i} type="button" className="rcdelay__link" style={{ cursor: "pointer", textAlign: "left", border: "none", width: "100%" }} onClick={() => openDrawer({ kind: "evacdelay", id: String(i) })}>
-              <span className="rcdelay__num posmono">{i + 1}</span>
-              <span className="rcdelay__label">{EVAC_DELAY_LABELS[l.component] ?? l.component}</span>
-              <span className="rcdelay__est">{l.estimate}</span>
-            </button>
-          ))}
-        </div>
-        {speedFlags !== undefined && (
-          <div className="posfield" style={{ marginTop: 12 }}>
-            <label className="posfield__label">Evacuation speed basis</label>
-            <WorkbookTextarea className="posfield__textarea" rows={2} value={speedFlags.basis} disabled={!editable}
-              onChange={(e) => mutateRc((draft) => ({ ...draft, protectiveActionParameters: { ...draft.protectiveActionParameters, evacuationSpeed: { ...speedFlags, basis: e.target.value } } }))} />
-          </div>
-        )}
-      </div>
-
-      <RcSiteReceptorsPanel initialTab={initialSiteTab} />
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Site data" level={3} />
-          <RcProvenanceChip>RCPA-B1 · B2 · B3</RcProvenanceChip>
-        </div>
-        <p className="poscard__sub">The population, the land use and the building data are assumed and justified for the bounding site, or sourced for the identified site. Select a row to edit it.</p>
-        <div className="rcbasis">
-          {siteRows.map((d) => {
-            const Icon = RCIcon[d.icon] ?? RCIcon.Map;
-            const basis = SITE_DATA_BASIS_LABELS[d.basis] ?? { label: d.basis, kind: "simple" as const };
-            return (
-              <button key={d.id} type="button" className="rcbasis__row" style={{ cursor: "pointer", textAlign: "left", border: "none", width: "100%" }} onClick={() => openDrawer({ kind: "sitedata", id: d.id })}>
-                <span className="rcbasis__icon"><Icon /></span>
-                <div className="rcbasis__main">
-                  <div className="rcbasis__name">{d.name}</div>
-                  <div className="rcbasis__note">{d.note}</div>
-                </div>
-                <span className={`rcbasis__tag rcbasis__tag--${basis.kind}`}>{basis.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </>
-  );
+  return <RcProtectiveOperational openDrawer={openDrawer} initialSiteTab={initialSiteTab} />;
 }
 
 // ─── 03 — Meteorology (RCME) ───────────────────────────────────────────────
 function WeatherScreen({ openDrawer, onReviewSite }: { openDrawer: (ctx: RcDrawerContext) => void; onReviewSite?: () => void }): JSX.Element {
-  const { rc, editable, mutateRc } = useRcWorkbook();
-  const met = rc.meteorologicalData;
-  return (
-    <>
-      <RcMeteorologyPanel onReviewSite={onReviewSite} />
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Meteorological data quality" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCME-A1 to A4</RcProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "metdata", id: "met" })}><RCIcon.Settings /> Edit</button>}
-          </div>
-        </div>
-        <p className="poscard__sub">Hourly site data is compiled, justified as representative, at a data recovery of ninety percent or more. Select edit to change the data-quality fields.</p>
-        <div className="rcmet">
-          <div className="rcmet__rows">
-            <div className="rcmet__row"><span className="rcmet__k"><RCIcon.Radio /> Source</span><span className="rcmet__v">{met.dataSource}</span></div>
-            <div className="rcmet__row"><span className="rcmet__k"><RCIcon.Map /> Representativeness</span><span className="rcmet__v">{met.spatialRepresentativenessJustification}</span></div>
-            <div className="rcmet__row"><span className="rcmet__k"><RCIcon.Refresh /> Substitution</span><span className="rcmet__v">{met.dataRecovery.substitutionTechniques ?? "n/a"}</span></div>
-            <div className="rcmet__row"><span className="rcmet__k"><RCIcon.Person /> Review</span><span className="rcmet__v">{[met.dataRecovery.meteorologistReview?.reviewerQualification, met.dataRecovery.meteorologistReview?.considerations].filter(Boolean).join(" ") || "n/a"}</span></div>
-            <div className="rcmet__row"><span className="rcmet__k"><RCIcon.Settings /> Instruments</span><span className="rcmet__v">{met.instrumentationQuality?.description ?? "n/a"}</span></div>
-          </div>
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Period selection" level={3} />
-          <RcProvenanceChip>RCME-A2</RcProvenanceChip>
-        </div>
-        <p className="poscard__sub">A representative single year, or a multi-year evaluation to select the representative year.</p>
-        <div className="posfield">
-          <label className="posfield__label">Period-selection description</label>
-          <WorkbookTextarea className="posfield__textarea" rows={2} value={met.periodSelection.periodDescription} disabled={!editable}
-            onChange={(e) => mutateRc((draft) => ({ ...draft, meteorologicalData: { ...draft.meteorologicalData, periodSelection: { ...draft.meteorologicalData.periodSelection, periodDescription: e.target.value } } }))} />
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Extracted parameters" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCME-A5 to A7</RcProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "metparams", id: "met" })}><RCIcon.Settings /> Edit</button>}
-          </div>
-        </div>
-        <p className="poscard__sub">The wind, the stability class and the mixing height are extracted, with the precipitation added at CC-II.</p>
-        <div className="rcparam">
-          {met.extractedParameters.windSpeedAndDirection10m && <span className="rcparam__chip"><RCIcon.Wind /> Wind and direction at 10 m</span>}
-          {met.extractedParameters.stabilityClassMeasurement && <span className="rcparam__chip"><RCIcon.Layers /> Stability class</span>}
-          {met.extractedParameters.precipitation === true && <span className="rcparam__chip"><RCIcon.Rain /> Precipitation</span>}
-          {met.mixingHeights !== undefined && <span className="rcparam__chip"><RCIcon.Mountain /> Mixing heights</span>}
-        </div>
-        <div className="posfield" style={{ marginTop: 12 }}>
-          <label className="posfield__label">Stability classification method</label>
-          <WorkbookTextarea className="posfield__textarea" rows={2} value={met.stabilityClassificationMethod.description} disabled={!editable}
-            onChange={(e) => mutateRc((draft) => ({ ...draft, meteorologicalData: { ...draft.meteorologicalData, stabilityClassificationMethod: { ...draft.meteorologicalData.stabilityClassificationMethod, description: e.target.value } } }))} />
-        </div>
-      </div>
-    </>
-  );
+  return <RcMeteorologyPanel onReviewSite={onReviewSite} onEditBasis={() => openDrawer({ kind: "metbasis", id: "meteorology" })} onEditQuality={() => openDrawer({ kind: "metquality", id: "meteorology" })} />;
 }
 
-export { HandoffScreen, ProtectiveScreen, WeatherScreen, MethodChips, type RcDrawerContext };
+export { RcInterfaces, HandoffScreen, ProtectiveScreen, WeatherScreen, MethodChips, type RcDrawerContext };

@@ -93,6 +93,20 @@ describe("workbook cue content", () => {
     await userEvent.click(subsectionCue);
     expect(screen.getByRole("note")).toHaveTextContent("4.5 MW total heat removal");
   });
+
+  it("removes RC hints from section and subsection headings", () => {
+    render(
+      <>
+        <WorkbookSectionHeading workbook="RC" title="Interfaces" description="A section hint" />
+        <WorkbookCueLabel workbook="RC" title="Standard requirements" className="essec" />
+      </>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Interfaces" })).toBeInTheDocument();
+    expect(screen.getByText("Standard requirements")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^About / })).not.toBeInTheDocument();
+    expect(screen.queryByText("A section hint")).not.toBeInTheDocument();
+  });
 });
 
 describe("workbook cue coverage", () => {

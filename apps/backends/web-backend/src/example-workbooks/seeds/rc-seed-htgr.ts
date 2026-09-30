@@ -1,6 +1,7 @@
 import {
   type RadiologicalConsequenceAnalysis,
   type ReleaseCategoryInputs,
+  type ReleaseCharacteristics,
   type ProtectiveActionAnalysis,
   type MeteorologicalDataAnalysis,
   type AtmosphericDispersionAnalysis,
@@ -12,6 +13,15 @@ import {
   RC_SR_CATALOG,
 } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
+import { rcMsBoundingMember, rcSourceTermFromMs } from "interfaces-shared-types/rc-workbooks/ms-source-term";
+import { withSourceTermSummary } from "interfaces-shared-types/rc-workbooks/source-term-summary";
+import { MS_ANALYSIS_HTGR } from "./ms-seed-htgr";
+import { ES_ANALYSIS_HTGR } from "./es-seed-htgr";
+import { rcHealthEffectLabel } from "interfaces-shared-types/rc-workbooks/health-input-parser";
+import { nobleGasGroup } from "interfaces-shared-types/rc-workbooks/transport";
+import type { RcTransportSettings } from "interfaces-mef-types/rc/transport";
+import { publishedRcReferenceLibraries } from "./rc-published-inputs-seed";
+import { withExampleCaseRecords } from "./rc-example-results";
 import { DistributionType } from "interfaces-mef-types/core/events";
 import { type SRReference, type SRConformance, type SRStatus } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
@@ -79,100 +89,73 @@ const conformanceMatrix: SRConformance[] = Object.keys(RC_SR_CATALOG).flatMap((c
   }));
 });
 
+const MS_INVENTORY_IDS = ["SRC-H1", "SRC-H2"];
+
+function msCategory(releaseCategory: string, sourceTermDefinitionRef: string, releaseCharacteristics: ReleaseCharacteristics): ReleaseCategoryInputs {
+  const definition = MS_ANALYSIS_HTGR.sourceTermDefinitions.find((entry) => entry.uuid === sourceTermDefinitionRef)!;
+  const converted = rcSourceTermFromMs(definition, MS_ANALYSIS_HTGR.sourceInventories.filter((entry) => MS_INVENTORY_IDS.includes(entry.uuid)));
+  if (!converted.values || converted.issues.length) throw new Error(`HTGR ${releaseCategory} source term: ${converted.issues.join(" ")}`);
+  return withSourceTermSummary({
+    releaseCategory,
+    sourceTermDefinitionRef,
+    sourceTerm: { revision: 1, values: converted.values, msSource: { workbookId: "example-ms-htgr", sourceTermId: sourceTermDefinitionRef, inventoryIds: MS_INVENTORY_IDS } },
+    eventSequenceFamilyReferences: ES_ANALYSIS_HTGR.eventSequenceFamilies
+      .filter((family) => family.releaseCategoryIds?.includes(releaseCategory) === true)
+      .map((family) => ({ referenceType: "EVENT_SEQUENCE_FAMILY" as const, workbookId: "example-es-htgr", entityId: family.uuid })),
+    boundingMember: rcMsBoundingMember(MS_ANALYSIS_HTGR, releaseCategory),
+    releaseCharacteristics,
+  });
+}
+
 const releaseCategoryInputs: ReleaseCategoryInputs[] = [
-  {
-    releaseCategory: "RC-1",
-    sourceTermDefinitionRef: "ST-3",
-    releaseCharacteristics: {
-      numberOfPlumes: 2,
-      radionuclideGroupFractions: [
-        { group: "Xe-133", fraction: 3.0e-2 },
-        { group: "Kr-85", fraction: 3.0e-2 },
-        { group: "H-3", fraction: 1.5e-1 },
-        { group: "I-131", fraction: 5.0e-4 },
-        { group: "Cs-137", fraction: 9.0e-5 },
-        { group: "Cs-134", fraction: 7.5e-5 },
-        { group: "Ag-110m", fraction: 3.0e-4 },
-        { group: "Te-132", fraction: 1.2e-4 },
-        { group: "Sb-127", fraction: 7.5e-5 },
-        { group: "Sr-90", fraction: 9.0e-6 },
-        { group: "Ba-140", fraction: 1.2e-5 },
-        { group: "Ru-103", fraction: 6.0e-6 },
-        { group: "Ru-106", fraction: 6.0e-6 },
-        { group: "Ce-144", fraction: 1.5e-7 },
-        { group: "La-140", fraction: 1.5e-7 },
-        { group: "Pu-239", fraction: 8.0e-8 },
-        { group: "Pu-241", fraction: 8.0e-8 },
-      ],
-      importantRadionuclides: ["Xe-133", "Kr-85", "H-3", "I-131", "Cs-137", "Cs-134", "Ag-110m", "Te-132", "Sb-127", "Sr-90", "Ba-140", "Ru-103", "Ru-106", "Ce-144", "La-140", "Pu-239", "Pu-241"],
-      importantRadionuclidesJustification: "The coated-particle retention holds the refractory species, so the unfiltered release is led by the noble gases and tritium for cloudshine, the residual iodine for the thyroid intake, and the silver, cesium and strontium carried on the graphite dust.",
-      releasePhaseTimings: [
-        { startTime: 0, duration: 2, timeUnit: "h" },
-        { startTime: 2, duration: 94, timeUnit: "h" },
-      ],
-      warningTime: 6,
-      warningTimeDescription: "About 6 hours from the general emergency declaration to the significant release, from the slow conduction cooldown.",
-      hazardsImpactingProtectiveActions: "The slow heat-up gives a long warning time and leaves the road network and shelters intact in the internal-event group.",
-      releaseEnergy: 0.5,
-      releaseEnergyDescription: "0.5 MW thermal, insufficient for a credited plume rise, so the release is treated at ground level.",
-      releaseHeight: 10,
-      releaseHeightDescription: "10 m, ground level at the reactor building, with the isolation or filtration failed.",
-      releasedParticleSize: 4,
-      releasedParticleSizeDescription: "Graphite-dust dominated, coarser than a fuel aerosol, with the mode near 4 microns AMAD and a coarse tail to 30 microns.",
-      releaseUncertainties: "The release fractions carry the MS-D4 propagated distribution, dominated by the particle-failure-fraction and the dust-liftoff uncertainty.",
-    },
-  },
-  {
-    releaseCategory: "RC-2",
-    sourceTermDefinitionRef: "ST-2",
-    releaseCharacteristics: {
-      numberOfPlumes: 1,
-      radionuclideGroupFractions: [
-        { group: "Xe-133", fraction: 5.0e-3 },
-        { group: "Kr-85", fraction: 5.0e-3 },
-        { group: "H-3", fraction: 2.0e-2 },
-        { group: "I-131", fraction: 1.0e-5 },
-        { group: "Cs-137", fraction: 2.0e-6 },
-        { group: "Cs-134", fraction: 1.6e-6 },
-        { group: "Ag-110m", fraction: 5.0e-6 },
-      ],
-      importantRadionuclides: ["Xe-133", "Kr-85", "H-3", "I-131", "Cs-137", "Cs-134", "Ag-110m"],
-      importantRadionuclidesJustification: "The building filtration removes the coarse graphite dust, so the filtered release is dominated by the noble gases, the tritium and the penetrating sub-micron fraction of the iodine and cesium.",
-      releasePhaseTimings: [{ startTime: 24, duration: 48, timeUnit: "h" }],
-      warningTime: 24,
-      warningTimeDescription: "About 24 hours from the declaration to the delayed filtered release, from the slow passive heat-up.",
-      hazardsImpactingProtectiveActions: "The delayed release leaves the road network and shelters intact, so the full protective-action credit applies.",
-      releaseEnergy: 0.05,
-      releaseEnergyDescription: "0.05 MW thermal, ground level, no credited plume rise.",
-      releaseHeight: 10,
-      releaseHeightDescription: "10 m, ground level at the building vent.",
-      releasedParticleSize: 0.5,
-      releasedParticleSizeDescription: "Sub-micron to few-micron penetrating fraction after the building filtration removes the coarse dust.",
-      releaseUncertainties: "The release fractions carry the MS-D4 propagated distribution, dominated by the building filtration efficiency.",
-    },
-  },
-  {
-    releaseCategory: "RC-3",
-    sourceTermDefinitionRef: "ST-1",
-    releaseCharacteristics: {
-      numberOfPlumes: 1,
-      radionuclideGroupFractions: [
-        { group: "Xe-133", fraction: 1.0e-6 },
-        { group: "H-3", fraction: 1.0e-4 },
-      ],
-      importantRadionuclides: ["Xe-133", "H-3"],
-      importantRadionuclidesJustification: "The intact-building design-leakage release is noble gas and tritium only, so only the cloudshine and the tritium inhalation carry any dose.",
-      releasePhaseTimings: [{ startTime: 0, duration: 24, timeUnit: "h" }],
-      warningTimeDescription: "The release stays below the protective-action threshold, so no warning time is credited.",
-      hazardsImpactingProtectiveActions: "No protective action is triggered by the design-leakage release.",
-      releaseEnergyDescription: "Negligible, treated as a ground-level release.",
-      releaseHeight: 10,
-      releaseHeightDescription: "10 m, ground level at the building vent.",
-      releasedParticleSizeDescription: "No particulate, noble gas and tritium only.",
-      releaseUncertainties: "The release is characterized per MS-D2 against the building leak-rate range.",
-    },
-  },
+  msCategory("RC-1", "ST-3", {
+    importantRadionuclides: ["Xe-133", "Kr-85", "H-3", "I-131", "Cs-137", "Cs-134", "Ag-110m", "Te-132", "Sb-127", "Sr-90", "Ba-140", "Ru-103", "Ru-106", "Ce-144", "La-140", "Pu-239", "Pu-241"],
+    importantRadionuclidesJustification: "The coated-particle retention holds the refractory species, so the unfiltered release is led by the noble gases and tritium for cloudshine, the residual iodine for the thyroid intake, and the silver, cesium and strontium carried on the graphite dust.",
+    warningTime: 6,
+    warningTimeDescription: "About 6 hours from the general emergency declaration to the significant release, from the slow conduction cooldown.",
+    hazardsImpactingProtectiveActions: "The slow heat-up gives a long warning time and leaves the road network and shelters intact in the internal-event group.",
+    releaseEnergy: 0.5,
+    releaseEnergyDescription: "0.5 MW thermal, insufficient for a credited plume rise, so the release is treated at ground level.",
+    releasedParticleSize: 4,
+    releasedParticleSizeDescription: "Graphite-dust dominated, coarser than a fuel aerosol, with the mode near 4 microns AMAD and a coarse tail to 30 microns.",
+    releaseUncertainties: "The release fractions carry the MS-D4 propagated distribution, dominated by the particle-failure-fraction and the dust-liftoff uncertainty.",
+  }),
+  msCategory("RC-2", "ST-2", {
+    importantRadionuclides: ["Xe-133", "Kr-85", "H-3", "I-131", "Cs-137", "Cs-134", "Ag-110m"],
+    importantRadionuclidesJustification: "The building filtration removes the coarse graphite dust, so the filtered release is dominated by the noble gases, the tritium and the penetrating sub-micron fraction of the iodine and cesium.",
+    warningTime: 24,
+    warningTimeDescription: "About 24 hours from the declaration to the delayed filtered release, from the slow passive heat-up.",
+    hazardsImpactingProtectiveActions: "The delayed release leaves the road network and shelters intact, so the full protective-action credit applies.",
+    releaseEnergy: 0.05,
+    releaseEnergyDescription: "0.05 MW thermal, ground level, no credited plume rise.",
+    releasedParticleSize: 0.5,
+    releasedParticleSizeDescription: "Sub-micron to few-micron penetrating fraction after the building filtration removes the coarse dust.",
+    releaseUncertainties: "The release fractions carry the MS-D4 propagated distribution, dominated by the building filtration efficiency.",
+  }),
+  msCategory("RC-3", "ST-1", {
+    importantRadionuclides: ["Xe-133", "H-3"],
+    importantRadionuclidesJustification: "The intact-building design-leakage release is noble gas and tritium only, so only the cloudshine and the tritium inhalation carry any dose.",
+    warningTimeDescription: "The release stays below the protective-action threshold, so no warning time is credited.",
+    hazardsImpactingProtectiveActions: "No protective action is triggered by the design-leakage release.",
+    releaseEnergyDescription: "Negligible, treated as a ground-level release.",
+    releasedParticleSizeDescription: "No particulate, noble gas and tritium only.",
+    releaseUncertainties: "The release is characterized per MS-D2 against the building leak-rate range.",
+  }),
 ];
+
+const LIBRARIES = publishedRcReferenceLibraries();
+const SITE_RINGS_KM = [0.425, 2.034344, 6, 16.51844, 80];
+const SITE_SECTORS = 16;
+const PEOPLE_PER_SQUARE_KM = 100;
+const sitePopulation = Array.from({ length: SITE_SECTORS }, () => SITE_RINGS_KM.map((outer, band) =>
+  band === 0 ? 0 : Math.round(PEOPLE_PER_SQUARE_KM * Math.PI * (outer ** 2 - SITE_RINGS_KM[band - 1] ** 2) / SITE_SECTORS))).flat();
+
+function groupVelocities(category: ReleaseCategoryInputs): RcTransportSettings["groupVelocities"] {
+  const values = category.sourceTerm!.values;
+  return values.groups.map((group) => nobleGasGroup(values, group.id)
+    ? { groupId: group.id, name: group.name, velocity: 0, basis: "noble_gas" }
+    : { groupId: group.id, name: group.name, velocity: group.name === "H-3" ? 0 : 0.003, basis: "analyst" });
+}
 
 const protectiveActionParameters: ProtectiveActionAnalysis = {
   protectiveActionsIncluded: [
@@ -197,11 +180,15 @@ const protectiveActionParameters: ProtectiveActionAnalysis = {
     cohorts: [
       {
         name: "Compliant evacuating cohort",
+        populationPercent: 99.5,
+        compliancePercent: 100,
         description: "About 99.5 percent of the population, evacuating on the notification schedule with the long warning time from the slow heat-up.",
         complianceAssumption: "Follows the instruction within the evacuation delay chain, with no shielding credit while in the open during transit.",
       },
       {
         name: "Non-compliant sheltered cohort",
+        populationPercent: 0.5,
+        compliancePercent: 0,
         description: "About 0.5 percent of the population, delaying or declining to evacuate and sheltered in place instead.",
         complianceAssumption: "The 0.5 percent non-compliance fraction is taken from the consequence-code convention used in the reference risk studies, not assumed to be zero.",
       },
@@ -236,14 +223,15 @@ const protectiveActionParameters: ProtectiveActionAnalysis = {
     description: "The routing follows the bounding road-network model at a 1.8 m per second effective radial speed until the site is selected and a plant-specific network is available.",
   },
   evacuationDelayComponents: [
-    { component: "GENERAL_EMERGENCY_DECLARATION", estimate: "0 min, the reference point for the chain" },
-    { component: "SITE_NOTIFIES_OFFICIALS", estimate: "+15 min, meeting the alert-and-notification objective" },
-    { component: "OFFICIALS_NOTIFY_PUBLIC", estimate: "+20 min for the public alert and instruction" },
-    { component: "PUBLIC_RECEIVES_INSTRUCTIONS", estimate: "+15 min to receive and understand the instruction" },
-    { component: "SECURE_PERSONAL_PROPERTY", estimate: "+30 min to prepare the home and gather the household" },
-    { component: "LOAD_VEHICLES", estimate: "+20 min to load the vehicles and depart" },
+    { component: "GENERAL_EMERGENCY_DECLARATION", minutes: 0, estimate: "0 min, the reference point for the chain" },
+    { component: "SITE_NOTIFIES_OFFICIALS", minutes: 15, estimate: "+15 min, meeting the alert-and-notification objective" },
+    { component: "OFFICIALS_NOTIFY_PUBLIC", minutes: 20, estimate: "+20 min for the public alert and instruction" },
+    { component: "PUBLIC_RECEIVES_INSTRUCTIONS", minutes: 15, estimate: "+15 min to receive and understand the instruction" },
+    { component: "SECURE_PERSONAL_PROPERTY", minutes: 30, estimate: "+30 min to prepare the home and gather the household" },
+    { component: "LOAD_VEHICLES", minutes: 20, estimate: "+20 min to load the vehicles and depart" },
   ],
   evacuationSpeed: {
+    speedMetresPerSecond: 1.8,
     basis: "The evacuation speeds come from the site-specific evacuation time estimate study, a bounding 1.8 m per second radial speed in congestion, not a generic free-flow value.",
     daytimeNighttimeConsidered: true,
     adverseWeatherConsidered: true,
@@ -262,7 +250,7 @@ const protectiveActionParameters: ProtectiveActionAnalysis = {
   ],
   populationDistribution: {
     basis: "ASSUMED_JUSTIFIED",
-    description: "A bounding uniform population density of 100 persons per square kilometre within the 80 km analysis radius, with transients included and the demographics projected to the analysis year.",
+    description: "A bounding uniform population density of 100 persons per square kilometre within the 80 km analysis radius, with transients included and the demographics projected to the analysis year. The Step 02 grid has 16 sectors and rings at the 425 m EAB, 1 mile beyond the EAB, the 6 km population centre, 10 miles beyond the EAB and 80 km, so each metric region ends on a ring. No one lives inside the EAB.",
     justification: "The assumed density and its projection are justified to bound the candidate sites in the PRA scope until the site is selected.",
     transientPopulationsIncluded: true,
     projectionAdjustments: "The base density is projected forward to the analysis year at the regional growth rate.",
@@ -277,6 +265,11 @@ const protectiveActionParameters: ProtectiveActionAnalysis = {
     description: "The actual reactor-building dimensions and the vent heights from the plant design, used for the building-wake and the ground-level release treatment.",
   },
   releaseSourceGeographicLocation: "The release enters the atmosphere at the reactor building, 10 m above grade at ground level for every category.",
+  siteAndReceptors: {
+    revision: 1,
+    settings: {},
+    geometry: { kind: "cells", radiiKm: SITE_RINGS_KM, sectors: SITE_SECTORS, abridged: false, populationByCell: sitePopulation },
+  },
   boundingSiteLocationJustification: "The bounding-site location, a flat inland site with a 425 m exclusion-area boundary and the nearest population centre at 6 km, is justified to bound the off-site data of every candidate site.",
   parameterUncertaintyCharacterization: "The non-compliance fraction, the evacuation delay and speed, and the population density are carried as characterized parameter uncertainties.",
   modelUncertainty: {
@@ -407,7 +400,13 @@ const atmosphericTransportAndDispersion: AtmosphericDispersionAnalysis = {
   siteCharacteristicsConsidered: "The surface roughness of 10 cm and the mixing-height cap are carried in the dispersion.",
   receptorLocationsSpecification: "The receptors are the 425 m exclusion-area boundary individual and the population-grid nodes out to 80 km, including the 6 km population centre.",
   modelLimitations: "The straight-line-within-segment approximation and the flat-earth grid bound the model to the validated downwind distance of 80 km.",
-  parameterUncertaintyCharacterization: "The dry-deposition velocity for the coarse graphite dust, the washout coefficient and the dispersion-coefficient fits are carried as characterized parameter uncertainties.",
+  parameterUncertaintyCharacterization: "The dry-deposition velocity for the coarse graphite dust, the washout coefficient and the dispersion-coefficient fits are carried as characterized parameter uncertainties. In Step 04 the noble gases deposit at 0 m/s. Tritium also deposits at 0 m/s because the MS source term releases it as tritiated gas. The other groups use the OpenRC default of 0.003 m/s from Etter (2026), printed p. 82, until size-resolved graphite-dust velocities are set.",
+  transportInputs: {
+    revision: 1,
+    categories: releaseCategoryInputs.map((category) => ({ categoryId: category.releaseCategory, savedForSourceRevision: 1, settings: { decayMode: "parent" as const, groupVelocities: groupVelocities(category) } })),
+    dispersionReference: LIBRARIES.dispersionReference,
+    decayFiles: LIBRARIES.standardDecayFiles,
+  },
   modelUncertainty: {
     sources: ["Coarse-dust dry-deposition velocity", "Wet-deposition washout model"],
     assumptions: ["The flat-earth dispersion is bounded to the inland site.", "The graphite dust deposits faster than a fuel aerosol."],
@@ -455,6 +454,11 @@ const dosimetry: DosimetryAnalysis = {
   doseAggregationMethod: "The dose is aggregated across the five pathways for the total effective dose, and by organ for the early-effect thresholds.",
   radionuclideDecayConsideration: "The decay and the daughter buildup during transport and exposure are accounted for over each period.",
   parameterUncertaintyCharacterization: "The dose-conversion factors, the breathing rate, the tritium dose model and the shielding factors are carried as characterized parameter uncertainties.",
+  doseInputs: {
+    revision: 1,
+    categories: releaseCategoryInputs.map((category) => ({ categoryId: category.releaseCategory, savedForSourceRevision: 1 })),
+    libraries: LIBRARIES.doseLibraries,
+  },
   modelUncertainty: {
     sources: ["Tritium dose model", "Dose-conversion factor set"],
     assumptions: ["The dose-conversion factors come from the recognized federal and international sources."],
@@ -464,19 +468,12 @@ const dosimetry: DosimetryAnalysis = {
 };
 
 const healthEffects: HealthEffectsAnalysis = {
-  earlyHealthEffects: [
-    "Hematopoietic syndrome, with a red-marrow LD50 near 3.8 Gy under minimal medical care",
-    "Pulmonary injury from the inhaled graphite dust at a high acute lung dose",
-    "Gastrointestinal syndrome from a high acute dose to the lower large intestine",
-  ],
-  latentHealthEffects: [
-    "Latent cancer fatality across the exposed population",
-    "Latent cancer incidence across the exposed population",
-    "Thyroid nodules and cancer from the iodine intake",
-  ],
+  healthInput: LIBRARIES.healthInput,
+  earlyHealthEffects: LIBRARIES.healthInput.records.filter((record) => record.kind === "early_fatality").map(rcHealthEffectLabel),
+  latentHealthEffects: LIBRARIES.healthInput.records.filter((record) => record.kind === "latent_cancer").map(rcHealthEffectLabel),
   earlyEffectParameters: {
     approach: "ORGAN_SPECIFIC_DOSE_RESPONSE",
-    description: "Organ-specific hazard-function dose-response parameters for the red marrow, the lung and the lower large intestine, with the threshold and the LD50 by organ. The coated-particle retention keeps the boundary dose far below the acute thresholds.",
+    description: "Organ-specific hazard-function dose-response parameters for the red marrow, the lungs and the stomach, with the threshold and the dose for half the effect by organ. The parameter cards are the published MACCS records in Etter (2026), printed pp. 99 and 100. The coated-particle retention keeps the boundary dose far below the acute thresholds.",
   },
   latentEffectParameters: {
     approach: "ORGAN_SPECIFIC_FACTORS",
@@ -507,7 +504,7 @@ const economicFactors: EconomicFactorsAnalysis = {
     { category: "Loss of use", parameterDefinitions: ["The cost of the property held out of use during the recovery and interdiction period."] },
     { category: "Medical costs", parameterDefinitions: ["The cost of the medical response to the early and the latent health effects."] },
   ],
-  parameterConsistencyConfirmed: true,
+  parameterConsistencyConfirmed: false,
   costParameterEstimates: [
     {
       parameter: "Evacuation and relocation daily cost",
@@ -623,13 +620,13 @@ const consequenceQuantification: ConsequenceQuantificationAnalysis = {
     performed: true,
     indicationsFound: [],
     acceptanceJustifications: [
-      "No error statements were found in the run logs for the 1000-trial weather sample.",
-      "No silent zeros were found in the risk-significant families, and the low-consequence leakage family is expected to be near zero.",
+      "Each category result carries every statistic its metric asks for.",
+      "The only zeros are the early fatality risks, as expected for the coated-particle fuel, and the leakage category stays near zero.",
     ],
   },
   resultsConfirmation: {
     performed: true,
-    description: "The results were confirmed by examining the dose-distance trends, which fall off monotonically with distance and scale with the coated-particle release fraction as expected.",
+    description: "The results fall with the release magnitude from the unfiltered category to the design leakage, as expected. The values are illustrative example records, not the output of a code run.",
   },
   riskSignificantContributors: [
     { contributor: "Unfiltered-release category RC-1", basisPerRiB: "Drives the latent cancer risk and the population dose per HLR-RI-B.", significance: ImportanceLevel.HIGH },
@@ -805,7 +802,7 @@ const documentation: RcDocumentation = {
   processDescription: "The source term is received per category, the site and the people are characterized, the plume is transported at ground level, and the dose, the health effects and the costs are quantified per event sequence family, per ASME/ANS RA-S-1.4 HLR-RCRE through HLR-RCQ.",
   inputsDescription: "RC takes the source-term table from MS, the release-category definitions from ES, and the consequence metric from RI.",
   appliedMethods: "A segmented-plume dispersion calculation, stratified weather sampling, pathway dose integration with recognized dose-conversion libraries, recognized dose-response models and reference regional cost data, each one an accepted way to do its sub-task.",
-  resultsSummary: "Four event sequence families are quantified, and the unfiltered-release families ESF-EARLY and ESF-ATWS drive the latent cancer risk at a mean individual risk near 3.0E-5 per event and a boundary dose near 1.0E-2 Sv, well below the acute thresholds because of the coated-particle retention.",
+  resultsSummary: "Three release categories are quantified, and each result is copied to the families in its category. The unfiltered category RC-1 holds ESF-EARLY and ESF-ATWS and drives the latent cancer risk, with a mean near 4.3E-5 per event and a mean boundary dose near 1.3E-2 Sv. The values are illustrative example records.",
   rcreProcess: "The nine consequence inputs are extracted per release category, the bounding site is described and justified, and the scoping declaration covers the six downstream sub-elements.",
   rcpaProcess: "Five protective actions are modeled across three incident phases, with two cohorts, the six-link evacuation delay chain, the EPA protective-action guides and the long warning time from the slow heat-up.",
   rcpaModelUncertaintySources: "The non-compliance fraction and the bounding road-network model are the leading protective-action model uncertainties.",
@@ -830,7 +827,7 @@ const documentation: RcDocumentation = {
   implementsSrs: srs("RCPA-C3", "RCME-B3", "RCAD-F3", "RCDO-C2", "RCHE-C3", "RCEC-C3", "RCQ-D1", "RCQ-D2", "RCQ-D3"),
 };
 
-export const RC_ANALYSIS_HTGR: RadiologicalConsequenceAnalysis = {
+const BASE_ANALYSIS: RadiologicalConsequenceAnalysis = {
   uuid: "rc-generic-2",
   name: "RC Workbook 1",
   type: TechnicalElementTypes.CONSEQUENCE_ANALYSIS,
@@ -873,8 +870,54 @@ export const RC_ANALYSIS_HTGR: RadiologicalConsequenceAnalysis = {
   activeAuditIds: [],
   praScope: "Full-scope radiological consequence analysis for the Generic-2 HTGR, bounding site, capability category CC-II.",
   scope: {
-    consequenceMetrics: ["Individual early fatality risk", "Individual latent cancer fatality risk", "Individual dose at boundary", "Population dose to 80 km"],
+    metrics: [
+      {
+        id: "RCM-01",
+        name: "Individual dose at boundary",
+        quantity: "INDIVIDUAL_DOSE",
+        receptor: { kind: "EAB_MAXIMUM" },
+        window: { seconds: 2592000, start: "RELEASE_ONSET" },
+        protectiveActionsCredited: false,
+        statistics: { mean: true, percentiles: [5, 50, 95], exceedanceThresholds: [0.001] },
+        criterion: "Plotted with its frequency against the NEI 18-04 F-C Target, using the mean and the 5th to 95th percentile range. The LBE is risk significant when its 95th percentile dose exceeds 2.5 mrem and lies within 1% of the target. The chance of exceeding 100 mrem feeds the cumulative target of 1 per plant-year.",
+        basis: "NEI 18-04 Rev. 1, Section 3.2.1 and Figure 3-1 (dose at the EAB for the 30 days after release onset), Section 3.2.2 (mean dose against the target), Section 3.3.5 (5th and 95th percentiles, cumulative targets, 2.5 mrem floor). The EAB of this bounding site is at 425 m.",
+      },
+      {
+        id: "RCM-02",
+        name: "Individual early fatality risk",
+        quantity: "INDIVIDUAL_EARLY_FATALITY_RISK",
+        receptor: { kind: "AVERAGE_BEYOND_EAB", distanceKm: 1.609344 },
+        window: { seconds: 345600, start: "PLUME_ARRIVAL" },
+        protectiveActionsCredited: true,
+        statistics: { mean: true, percentiles: [5, 50, 95], exceedanceThresholds: [] },
+        criterion: "RI multiplies this conditional risk by each LBE frequency and sums the products. The mean sum must stay below 5E-7 per plant-year (NRC safety goal QHO for early fatality).",
+        basis: "NEI 18-04 Rev. 1, Section 3.3.5. RG 1.253 Rev. 0, Section C.5. The window is the early phase of this analysis, the first 4 days from plume arrival, as in the EPA PAG Manual (EPA-400/R-17/001) and RG 1.242.",
+      },
+      {
+        id: "RCM-03",
+        name: "Individual latent cancer fatality risk",
+        quantity: "INDIVIDUAL_LATENT_CANCER_FATALITY_RISK",
+        receptor: { kind: "AVERAGE_BEYOND_EAB", distanceKm: 16.09344 },
+        window: { seconds: 1577880000, start: "RELEASE_ONSET" },
+        protectiveActionsCredited: true,
+        statistics: { mean: true, percentiles: [5, 50, 95], exceedanceThresholds: [] },
+        criterion: "RI multiplies this conditional risk by each LBE frequency and sums the products. The mean sum must stay below 2E-6 per plant-year (NRC safety goal QHO for latent cancer).",
+        basis: "NEI 18-04 Rev. 1, Section 3.3.5. RG 1.253 Rev. 0, Section C.5. The window spans the early, intermediate and long-term phases of this analysis, with the 50-year long-term phase of SOARCA (NUREG-1935, Section 5.5).",
+      },
+      {
+        id: "RCM-04",
+        name: "Population dose to 80 km",
+        quantity: "POPULATION_DOSE",
+        receptor: { kind: "WITHIN_RADIUS", radiusKm: 80 },
+        window: { seconds: 1577880000, start: "RELEASE_ONSET" },
+        protectiveActionsCredited: true,
+        statistics: { mean: true, percentiles: [5, 50, 95], exceedanceThresholds: [] },
+        criterion: "Reported as a total. The guidance sets no cumulative target for population dose.",
+        basis: "The 80 km analysis radius of this bounding site. The window matches the latent cancer metric, with the 50-year long-term phase of SOARCA (NUREG-1935, Section 5.5).",
+      },
+    ],
     metricSelectionApplicationBasis: "The metric set comes from the intended application, the licensing frequency-consequence target and the quantitative health objectives.",
+    evaluationDecisions: [{ subElement: "RCEC", included: true }],
     protectiveActionsModellingDegree: "Evacuation, sheltering, relocation and interdiction are modeled with multiple cohorts and the EPA protective-action guides.",
     meteorologyModellingDegree: "A representative weather year is compiled from the onsite tower with the delta-T stability classification.",
     atmosphericDispersionModellingDegree: "A ground-level segmented-plume model is run over the sampled weather year on a two-dimensional grid.",
@@ -960,3 +1003,5 @@ export const RC_ANALYSIS_HTGR: RadiologicalConsequenceAnalysis = {
   ],
   newlyDevelopedMethodIds: ["NM-091", "NM-094", "NM-097"],
 };
+
+export const RC_ANALYSIS_HTGR: RadiologicalConsequenceAnalysis = withExampleCaseRecords(BASE_ANALYSIS, ES_ANALYSIS_HTGR, "Generic HTGR", NOW);

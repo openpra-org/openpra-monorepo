@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "**"
+      - "!gh-readonly-queue/**"
     paths:
       - "apps/docs-md/**"
       - "apps/interfaces/mef-types/**"
@@ -87,7 +88,7 @@ jobs:
           mkdir -p apps/docs-md/api/rust/praxis
           cd apps/solvers/praxis
           RUSTDOCFLAGS='-Z unstable-options --output-format json' cargo +nightly doc --no-deps 2>&1 || echo "cargo doc encountered warnings"
-          cargo docs-md --dir target/doc/ -o ../../docs-md/api/rust/praxis/
+          cargo +nightly docs-md --dir target/doc/ -o ../../docs-md/api/rust/praxis/
 
       - name: Generate Python API docs (pracciolini — lazydocs)
         run: |

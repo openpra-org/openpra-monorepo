@@ -41,10 +41,34 @@ export enum FailureModeType {
 
 export type ComponentState = "operational" | "degraded" | "failed" | "recovering" | "maintenance";
 
+export interface SystemBasicEventFailureModeSource {
+  workbookId: string;
+  failureModeId: string;
+}
+
+export interface SystemDiagramRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export type SystemDiagramRotation = 0 | 90 | 180 | 270;
+
+export interface SystemDiagram extends Unique {
+  title: string;
+  documentId: string;
+  filename: string;
+  page: number;
+  region: SystemDiagramRegion;
+  rotation?: SystemDiagramRotation;
+}
+
 export interface SystemBasicEvent extends BasicEvent {
   code: string;
   componentReference?: ComponentReference;
   failureMode?: FailureModeType | string;
+  failureModeSource?: SystemBasicEventFailureModeSource;
   probability?: number;
   quantificationBasis?: FaultTreeBasicEventQuantificationBasis;
   repairModeled?: boolean;
@@ -70,6 +94,7 @@ export interface DepletionModel extends Unique {
   associatedSystem?: SystemReference;
   depletionImpact?: "immediate-failure" | "degraded-operation";
   missionTimeSupported?: boolean;
+  basis?: string;
   implementsSrs: SRReference[];
 }
 
@@ -176,10 +201,12 @@ export interface SystemDefinition extends Unique, Named {
   description?: string;
   abbreviation?: string;
   boundaries: string[];
+  diagrams?: SystemDiagram[];
   components?: Record<ComponentReference, SystemComponent>;
   successCriteriaIds: SuccessCriteriaId[];
   successCriterion?: string;
   missionTimeHours?: number;
+  missionTimeRef?: string;
   schematic?: {
     reference: string;
     description?: string;
@@ -275,6 +302,8 @@ export interface PassiveSystemsTreatment extends Unique, Named {
   implementsSrs: SRReference[];
 }
 
+export type SupportKind = "ACTUATION" | "CONTROL" | "MOTIVE_POWER" | "COOLING" | "OPERATOR_INTERFACE" | "OTHER";
+
 export interface SystemDependency extends Unique {
   description?: string;
   dependentSystem: SystemReference;
@@ -283,6 +312,9 @@ export interface SystemDependency extends Unique {
   details?: string;
   impact?: string;
   crossReactor?: boolean;
+  supportKind?: SupportKind;
+  modeledIn?: "SYSTEM_MODEL" | "EVENT_SEQUENCE" | "EXCLUDED";
+  exclusionJustification?: string;
   implementsSrs: SRReference[];
 }
 
@@ -357,6 +389,7 @@ export interface CommonCauseFailureGroup extends Unique, Named {
 export interface HumanFailureEventIntegration extends Unique {
   hfeReference: HumanActionReference;
   hfeSource?: HumanFailureEventReference;
+  basicEventId?: string;
   system: SystemReference;
   taskDescription: string;
   hfeType: "PRE_INITIATOR" | "POST_INITIATOR";
@@ -399,10 +432,12 @@ export interface ModularizationRecord extends Unique {
   avoidsMixedRecoveryPotential: boolean;
   avoidsEventsRequiredByOtherSystems: boolean;
   justification: string;
+  basicEventIds?: string[];
   implementsSrs: SRReference[];
 }
 
 export interface SimultaneousUnavailabilityEvent extends Unique {
+  systemReference?: SystemReference;
   description: string;
   componentIds: string[];
   plannedActivityBasis: string;
@@ -420,7 +455,14 @@ export interface SystemUncertaintyAnalysis extends BaseUncertaintyAnalysis {
     associatedComponent?: string;
   }[];
   ccfUncertainties?: {
+    uncertaintyId: string;
     ccfGroupId: string;
+    description: string;
+    impact: string;
+  }[];
+  dependencyUncertainties?: {
+    uncertaintyId: string;
+    supportingSystem?: SystemReference;
     description: string;
     impact: string;
   }[];
@@ -464,6 +506,29 @@ export interface ModelValidation extends Unique, Named {
   implementsSrs: SRReference[];
 }
 
+export type ComponentBoundaryReviewStatus = "MATCHES" | "ACCOUNTED" | "OPEN" | "NOT_VERIFIED";
+
+export interface ComponentBoundaryReview extends Unique {
+  systemReference: SystemReference;
+  componentBoundaryRef: string;
+  status: ComponentBoundaryReviewStatus;
+  note?: string;
+  implementsSrs: SRReference[];
+}
+
+export type NomenclatureDesignatorKind = "SYSTEM" | "FAILURE_MODE" | "EVENT_TYPE";
+
+export type NomenclatureEventType = "HUMAN_ERROR" | "TEST_MAINTENANCE" | "COMMON_CAUSE_FAILURE";
+
+export interface NomenclatureDesignator extends Unique {
+  designator: string;
+  kind: NomenclatureDesignatorKind;
+  meaning: string;
+  systemReference?: SystemReference;
+  failureModeRefs?: string[];
+  eventType?: NomenclatureEventType;
+}
+
 export interface SystemToSafetyFunctionMapping extends Unique {
   systemReference: SystemReference;
   safetyFunctions: SafetyFunctionReference[];
@@ -503,6 +568,9 @@ export interface EnvironmentalDesignBasisConsideration extends Unique {
   eventSequences: EventSequenceReference[];
   environmentalConditions: string;
   dependentFailuresIncluded?: boolean;
+  basicEventIds?: string[];
+  initiatingEventIds?: string[];
+  beyondQualification?: boolean;
   implementsSrs: SRReference[];
 }
 
@@ -539,8 +607,17 @@ export interface SyDocumentation {
   implementsSrs: SRReference[];
 }
 
+export interface SyLinkedWorkbooks {
+  ES?: string;
+  SC?: string;
+  POS?: string;
+  DA?: string;
+  HRA?: string;
+}
+
 export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.SYSTEMS_ANALYSIS> {
   praScope: string;
+  linkedWorkbooks?: SyLinkedWorkbooks;
 
   systemDefinitions: SystemDefinition[];
   systemToSafetyFunctionMappings: SystemToSafetyFunctionMapping[];
@@ -574,6 +651,8 @@ export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.
 
   overCapacityConsiderations?: OverCapacityConsideration[];
   modelValidations?: ModelValidation[];
+  componentBoundaryReviews?: ComponentBoundaryReview[];
+  nomenclatureDesignators?: NomenclatureDesignator[];
   systemModelEvaluations?: SystemModelEvaluation[];
   uncertaintyAnalyses?: SystemUncertaintyAnalysis[];
   sensitivityStudies?: SensitivityStudy[];

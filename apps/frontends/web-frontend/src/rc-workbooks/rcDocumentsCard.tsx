@@ -60,7 +60,7 @@ function RcDocumentsCard({ workbookId, canEdit }: { workbookId?: string; canEdit
 
   const uploads = docs ?? [];
   return (
-    <div className="poscard">
+    <div className="poscard rc-handoff__wide-card">
       <div className="poscard__head">
         <WorkbookSectionHeading workbook="RC" title="Supporting documents" level={3} />
         {canEdit && workbookId !== undefined && (
@@ -70,7 +70,6 @@ function RcDocumentsCard({ workbookId, canEdit }: { workbookId?: string; canEdit
           </label>
         )}
       </div>
-      <p className="poscard__sub">The source-term table, the emergency plan, the evacuation study, the weather record, the dispersion and dose bases and the regional cost data that support this analysis.</p>
       {error !== null && <p className="possubtle" style={{ color: "#b73b3b" }}>{error}</p>}
       {exampleDocs.length > 0 && (
         <table className="postable">
@@ -111,7 +110,7 @@ function RcDocumentsCard({ workbookId, canEdit }: { workbookId?: string; canEdit
                 <td>{d.uploadedBy}</td>
                 <td style={{ textAlign: "right" }}>
                   {canEdit && (
-                    <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => onDelete(d.documentId)}><RCIcon.Close /></button>
+                    <button type="button" className="posnav__btn posnav__btn--sm" aria-label={`Remove ${d.filename}`} onClick={() => onDelete(d.documentId)}><RCIcon.Close /></button>
                   )}
                 </td>
               </tr>

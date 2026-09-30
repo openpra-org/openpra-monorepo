@@ -3,6 +3,7 @@ import { resolve } from "path";
 import { createHash } from "crypto";
 import { parseRcSource } from "interfaces-shared-types/rc-workbooks/source-term-parser";
 import { parseRcWeather } from "interfaces-shared-types/rc-workbooks/weather-parser";
+import { defaultWeatherModel, generateWeatherTrials } from "interfaces-shared-types/rc-workbooks/weather-trials";
 import { parseRcReceptorGeometry } from "interfaces-shared-types/rc-workbooks/site-receptor-parser";
 import type { createSourceTermTestApp } from "./source-term-test-app";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
@@ -21,8 +22,16 @@ export async function seedRcCase(t: Awaited<ReturnType<typeof createSourceTermTe
   const doc = await t.workbooks.findOne({ workbookId: "rc-test" }).exec(), mef = doc!.mef as RadiologicalConsequenceAnalysis;
   mef.releaseCategoryToConsequence.releaseCategoryInputs[0].sourceTerm = { revision: 1, values: source, originalFile: await store("MelMACCS-published-source-term.inp", "source") };
   mef.protectiveActionParameters.siteAndReceptors = { revision: 1, settings: { latitude: center?.latitude ?? 35, longitude: center?.longitude ?? -80, receptorHeightMetres: 1.5, cellPoint: "mid" }, geometry, geometryFile: await store("SecPop-Noah-published-site-excerpt.txt", "site") };
-  mef.meteorologicalData.weatherInputs = { revision: 1, settings: { latitude: center?.latitude ?? 35, longitude: center?.longitude ?? -80, year: 2019, windSectors: 64 }, data: weather.data, weatherFile: await store("MacMetGen-Noah-published-day.MET", "weather") };
-  mef.dosimetry.doseInputs = { revision: 1, categories: [{ categoryId: "RC-1", settings: { integrationSeconds: 2592000, basis: "analyst" }, savedForSourceRevision: 1 }], libraries: [] };
+  const weatherInputs = { revision: 1, settings: { latitude: center?.latitude ?? 35, longitude: center?.longitude ?? -80, year: 2019, windSectors: 64 as const }, data: weather.data,
+    model: defaultWeatherModel(weather.data), weatherFile: await store("MacMetGen-Noah-published-day.MET", "weather") };
+  mef.meteorologicalData.weatherInputs = { ...weatherInputs, trialSet: { ...generateWeatherTrials(weatherInputs, weather.records).summary, generatedAt: "2026-09-11T12:00:00Z" } };
+  mef.dosimetry.doseInputs = { revision: 1, categories: [{ categoryId: "RC-1", savedForSourceRevision: 1 }], libraries: [] };
+  mef.scope.metrics = [
+    { id: "RCM-01", name: "Individual dose at boundary", quantity: "INDIVIDUAL_DOSE", receptor: { kind: "EAB_MAXIMUM" }, window: { seconds: 2592000, start: "RELEASE_ONSET" },
+      protectiveActionsCredited: false, statistics: { mean: true, percentiles: [95], exceedanceThresholds: [] }, criterion: "Test criterion", basis: "Test basis" },
+    { id: "RCM-02", name: "Population dose to 80 km", quantity: "POPULATION_DOSE", receptor: { kind: "WITHIN_RADIUS", radiusKm: 80 }, window: { seconds: 1577880000, start: "RELEASE_ONSET" },
+      protectiveActionsCredited: true, statistics: { mean: true, percentiles: [], exceedanceThresholds: [] }, criterion: "Test criterion", basis: "Test basis" },
+  ];
   await t.workbooks.updateOne({ workbookId: "rc-test" }, { $set: { mef: JSON.parse(JSON.stringify(mef)), __v: 1 } }).exec();
   return mef;
 }

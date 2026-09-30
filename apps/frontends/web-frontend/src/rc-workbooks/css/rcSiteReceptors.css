@@ -1,5 +1,5 @@
 /* Step 02 uses the shared workbook buttons, inputs and centered modal shell. */
-.rc-site-input-card{width:100%}
+.rc-site-input-card{box-sizing:border-box;width:100%;max-width:960px}
 .rc-site-receptors{container-type:inline-size;font:13px/1.45 var(--font-ui),sans-serif;color:var(--color-text);min-width:0;width:100%;overflow-wrap:anywhere}
 .rc-site-receptors *{box-sizing:border-box}
 .rc-site-receptors [hidden]{display:none!important}
@@ -24,7 +24,7 @@
 .rc-site-receptors label{display:block;font-size:12px;color:var(--color-text-muted);min-width:0}
 .rc-site-receptors label input,.rc-site-receptors label select{margin-top:5px}
 .rc-site-receptors .sr-fields{display:grid;grid-template-columns:repeat(2,minmax(0,180px));gap:14px;margin:14px 0}
-.rc-site-receptors .sr-settings{display:grid;grid-template-columns:minmax(0,270px) minmax(0,240px);gap:16px;margin:17px 0}
+.rc-site-receptors .sr-settings{display:grid;grid-template-columns:minmax(0,270px) minmax(0,240px);gap:16px;width:100%;max-width:664px;margin:17px auto}
 .rc-site-receptors .sr-settings input,.rc-site-receptors .sr-single-height input{max-width:160px}
 .rc-site-receptors .sr-setting-help{display:block;font-size:12px;margin-top:5px;color:var(--color-text-muted)}
 .rc-site-receptors .sr-single-height{max-width:240px;margin:17px 0}
@@ -52,7 +52,9 @@
 .rc-site-receptors pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 Consolas,monospace;background:var(--color-surface-low);padding:13px;margin:8px 0 0}
 .rc-site-receptors :is(button,input,select,summary,svg):focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}
 .rc-site-receptors .sr-raw pre{max-height:360px;overflow:auto}
-.rc-site-receptors .sr-cell-grid{display:grid;grid-template-columns:minmax(0,360px) minmax(210px,280px);gap:24px;align-items:center;margin:18px 0 23px}
+.rc-site-receptors .sr-cell-grid{display:grid;grid-template-columns:minmax(0,360px) minmax(210px,280px);gap:24px;align-items:center;width:100%;max-width:664px;margin:18px auto 23px}
+.rc-site-receptors .sr-population-total{margin:12px auto 0;max-width:664px;font-size:12px;color:var(--color-text-muted)}
+.rc-site-receptors .sr-population-total strong{color:var(--color-text);font-variant-numeric:tabular-nums}
 .rc-site-receptors .sr-grid-figure{text-align:center;min-width:0}
 .rc-site-receptors svg.sr-polar-grid{display:block;width:100%;height:auto;max-width:none;max-height:none;aspect-ratio:1;cursor:pointer}
 .rc-site-receptors .sr-cell-related{fill:var(--color-primary-tint)}
@@ -67,5 +69,5 @@
 .rc-site-receptors .sr-cell-detail dt{font-size:12px;color:var(--color-text-muted)}
 .rc-site-receptors .sr-cell-detail dd{font-size:13px;margin:3px 0 0;font-variant-numeric:tabular-nums}
 .rc-site-receptors .sr-checks ul{font-size:12px;color:var(--color-text-muted);padding-left:18px}
-@container(max-width:620px){.rc-site-receptors .sr-cell-grid{grid-template-columns:minmax(0,1fr);gap:18px}.rc-site-receptors .sr-grid-figure{max-width:360px;width:100%;margin:auto}}
-@container(max-width:520px){.rc-site-receptors .sr-file{align-items:start;flex-direction:column}.rc-site-receptors .sr-settings{grid-template-columns:minmax(0,270px)}.rc-site-receptors th,.rc-site-receptors td{padding:8px 4px}.rc-site-receptors .sr-points{font-size:12px}.rc-site-receptors .sr-footer{align-items:start}.rc-site-receptors .sr-tabs button{padding-left:8px;padding-right:8px}}
+@container(max-width:620px){.rc-site-receptors .sr-cell-grid{grid-template-columns:minmax(0,1fr);gap:18px;max-width:360px}.rc-site-receptors .sr-grid-figure{max-width:360px;width:100%;margin:auto}.rc-site-receptors .sr-cell-inspector{width:100%;max-width:280px;margin:auto}.rc-site-receptors .sr-settings{max-width:360px;grid-template-columns:minmax(0,1fr)}}
+@container(max-width:520px){.rc-site-receptors .sr-file{align-items:start;flex-direction:column}.rc-site-receptors th,.rc-site-receptors td{padding:8px 4px}.rc-site-receptors .sr-points{font-size:12px}.rc-site-receptors .sr-footer{align-items:start}.rc-site-receptors .sr-tabs button{padding-left:8px;padding-right:8px}}

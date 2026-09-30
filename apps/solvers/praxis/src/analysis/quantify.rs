@@ -1,7 +1,13 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
-use crate::algorithms::build::{build_bdd, enumerate_event_names, BuildOptions};
-use crate::algorithms::direct_zbdd::build_zbdd_delterm_named;
+use crate::algorithms::build::{
+    build_bdd_with_variable_order, enumerate_event_names, BuildOptions, VariableOrder,
+};
+use crate::algorithms::direct_zbdd::{
+    build_zbdd_delterm_named_with_order, build_zbdd_direct_from_pdag_with_order,
+    enumerate_named_cut_sets,
+};
 use crate::algorithms::mocus::Mocus;
 use crate::algorithms::noncoherent_mocus::NonCoherentMocus;
 use crate::algorithms::pdag::Pdag;
@@ -19,6 +25,7 @@ use crate::Result;
 pub enum Engine {
     Bdd,
     Zbdd,
+    ZbddDirect,
     ZbddDelterm,
     Mocus,
     MocusPi,
@@ -44,6 +51,8 @@ pub struct Settings {
     pub ccf: bool,
     pub num_trials: usize,
     pub seed: u64,
+    pub variable_order: VariableOrder,
+    pub reorder_budget: Duration,
 }
 
 impl Default for Settings {
@@ -58,6 +67,8 @@ impl Default for Settings {
             ccf: false,
             num_trials: 10_000,
             seed: 847,
+            variable_order: VariableOrder::Dfs,
+            reorder_budget: Duration::from_secs(60),
         }
     }
 }
@@ -193,7 +204,11 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
 
     match settings.engine {
         Engine::Bdd => {
-            let built = build_bdd(ft, BuildOptions::default())?;
+            let options = BuildOptions {
+                reorder_budget: settings.reorder_budget,
+                ..Default::default()
+            };
+            let built = build_bdd_with_variable_order(ft, options, settings.variable_order)?;
             let value = if settings.limit_order.is_some() || settings.cut_off.is_some() {
                 built.bdd.probability_with_limits(
                     built.root,
@@ -209,7 +224,11 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
             });
         }
         Engine::Zbdd => {
-            let built = build_bdd(ft, BuildOptions::default())?;
+            let options = BuildOptions {
+                reorder_budget: settings.reorder_budget,
+                ..Default::default()
+            };
+            let built = build_bdd_with_variable_order(ft, options, settings.variable_order)?;
             let mut bdd = built.bdd;
             let root = built.root;
             let exact = bdd.probability(root);
@@ -247,10 +266,71 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
                 },
             });
         }
+        Engine::ZbddDirect => {
+            let pdag = Pdag::from_fault_tree(ft)?;
+            let (zbdd, zroot, names) = build_zbdd_direct_from_pdag_with_order(
+                &pdag,
+                ft,
+                settings.cut_off,
+                settings.limit_order,
+                settings.variable_order,
+                settings.reorder_budget,
+            )?;
+            let named = enumerate_named_cut_sets(&zbdd, zroot, &names);
+            let mut per = Vec::with_capacity(named.len());
+            let mut max_order = 0;
+            let mut list = Vec::with_capacity(named.len());
+            for cut_set in named {
+                let mut literals = Vec::with_capacity(cut_set.len());
+                let mut probability = 1.0;
+                for literal in cut_set {
+                    let (name, negated) = match literal.strip_prefix('~') {
+                        Some(rest) => (rest.to_string(), true),
+                        None => (literal, false),
+                    };
+                    let event_probability = probs.get(&name).copied().unwrap_or(0.0);
+                    probability *= if negated {
+                        1.0 - event_probability
+                    } else {
+                        event_probability
+                    };
+                    literals.push((name, negated));
+                }
+                max_order = max_order.max(literals.len());
+                per.push(probability);
+                list.push(CutSetOut {
+                    literals,
+                    probability,
+                });
+            }
+            list.sort_by(|left, right| left.literals.cmp(&right.literals));
+            let mut distribution = vec![0usize; max_order + 1];
+            for cut_set in &list {
+                distribution[cut_set.literals.len()] += 1;
+            }
+            result.cut_sets = Some(CutSetsOut {
+                prime_implicants: true,
+                products: list.len(),
+                distribution_by_order: distribution,
+                list,
+            });
+            let approximation = settings.approximation.unwrap_or(Approximation::Mcub);
+            result.probability = Some(ProbabilityOut {
+                value: approx_value(approximation, &per),
+                approximation,
+            });
+        }
         Engine::ZbddDelterm => {
             let pdag = Pdag::from_fault_tree(ft)?;
-            let named =
-                build_zbdd_delterm_named(&pdag, ft, settings.cut_off, settings.limit_order, None)?;
+            let named = build_zbdd_delterm_named_with_order(
+                &pdag,
+                ft,
+                settings.cut_off,
+                settings.limit_order,
+                None,
+                settings.variable_order,
+                settings.reorder_budget,
+            )?;
             let mut per = Vec::with_capacity(named.len());
             let mut max_order = 0;
             let mut list = Vec::with_capacity(named.len());
@@ -424,8 +504,10 @@ pub fn quantify_bytes(model: &[u8], settings: &Settings) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::ccf::{CcfGroup, CcfModel};
     use crate::core::event::BasicEvent;
     use crate::core::gate::{Formula, Gate};
+    use crate::expression::Expr;
 
     fn demo() -> FaultTree {
         let mut ft = FaultTree::new("FT", "top").unwrap();
@@ -473,6 +555,25 @@ mod tests {
     }
 
     #[test]
+    fn direct_zbdd_and_bdd_derived_zbdd_agree_on_cut_sets() {
+        let ft = demo();
+        let mut settings = Settings {
+            engine: Engine::Zbdd,
+            approximation: Some(Approximation::Mcub),
+            limit_order: Some(2),
+            ..Default::default()
+        };
+        let expected = quantify(&ft, &settings).unwrap();
+        settings.engine = Engine::ZbddDirect;
+        let actual = quantify(&ft, &settings).unwrap();
+        let expected_cut_sets = expected.cut_sets.unwrap();
+        let actual_cut_sets = actual.cut_sets.unwrap();
+        assert_eq!(actual_cut_sets.products, expected_cut_sets.products);
+        assert_eq!(actual_cut_sets.list, expected_cut_sets.list);
+        assert_eq!(actual.probability, expected.probability);
+    }
+
+    #[test]
     fn mocus_pi_consensus() {
         let mut ft = FaultTree::new("FT", "top").unwrap();
         let mut top = Gate::new("top".into(), Formula::Or).unwrap();
@@ -515,6 +616,44 @@ mod tests {
         let r = quantify(&ft, &s).unwrap();
         assert_eq!(r.importance.unwrap().len(), 4);
         assert!(r.uncertainty.unwrap().mean >= 0.0);
+    }
+
+    #[test]
+    fn ccf_uncertainty_samples_one_total_per_trial() {
+        let mut ft = FaultTree::new("FT", "top").unwrap();
+        let mut top = Gate::new("top".into(), Formula::And).unwrap();
+        top.add_operand("A".into());
+        top.add_operand("B".into());
+        ft.add_gate(top).unwrap();
+        for e in ["A", "B"] {
+            ft.add_basic_event(BasicEvent::new(e.into(), 0.105).unwrap())
+                .unwrap();
+        }
+        let group = CcfGroup::new(
+            "Pumps",
+            vec!["A".into(), "B".into()],
+            CcfModel::BetaFactor(0.1),
+        )
+        .unwrap()
+        .with_distribution("0.105".into())
+        .with_uncertainty(Expr::uniform(0.01, 0.2));
+        ft.add_ccf_group(group).unwrap();
+        let settings = Settings {
+            ccf: true,
+            uncertainty: true,
+            num_trials: 100_000,
+            ..Default::default()
+        };
+        let result = quantify(&ft, &settings).unwrap();
+        let point = result.probability.unwrap().value;
+        assert!(
+            (point - (0.0945_f64.powi(2) + 0.0105 - 0.0945_f64.powi(2) * 0.0105)).abs() < 1e-15
+        );
+        let mean = result.uncertainty.unwrap().mean;
+        assert!(
+            (mean / 0.02169647475 - 1.0).abs() < 0.01,
+            "sampled mean {mean}"
+        );
     }
 
     #[test]

@@ -13,6 +13,7 @@ describe("Real site/receptor file contracts", () => {
     expect(g.kind).toBe("cells"); expect(receptorCount(g)).toBe(896);
     if (g.kind !== "cells") throw new Error("Expected cells");
     expect(g.abridged).toBe(true); expect(g.radiiKm[0]).toBe(0.746);
+    expect(g.populationByCell).toBeUndefined();
     expect(g.center).toMatchObject({ latitude: 35.310276, longitude: -93.23194 });
     const settings = { latitude: 35.31028, longitude: -93.23194, cellPoint: "mid" as const, receptorHeightMetres: 1.5 };
     expect(siteReceptorIssues(settings, g)).toEqual([]);
@@ -20,6 +21,13 @@ describe("Real site/receptor file contracts", () => {
     expect(evaluatedReceptor(g, settings, 32 * 14 + 9)).toMatchObject({ id: "S33R10", distanceMetres: 36210.25, bearingDegrees: 180 });
     expect(evaluatedReceptor(g, { ...settings, cellPoint: "outer" }, 0).distanceMetres).toBe(746);
     expect(siteReceptorIssues({ ...settings, longitude: -94 }, g).join()).toContain("grid center");
+  });
+  it("uses population only when a SecPop file covers every cell", () => {
+    const complete = "2 SPATIAL INTERVALS\n2 WIND DIRECTIONS\nSPATIAL DISTANCES KILOMETERS\n1 2\nPOPULATION\n10 20\n30 40\nLAND FRACTION\n1 1\n1 1";
+    const g = parseRcReceptorGeometry(complete);
+    if (g.kind !== "cells") throw new Error("Expected cells");
+    expect(g.populationByCell).toEqual([10, 20, 30, 40]);
+    expect(() => parseRcReceptorGeometry(complete.replace("30 40", "30"))).toThrow(/one nonnegative/);
   });
   it("keeps AERMAP ground/hill elevations separate from an absent receptor height", () => {
     const g = parseRcReceptorGeometry(points);

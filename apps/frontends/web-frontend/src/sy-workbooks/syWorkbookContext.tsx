@@ -3,26 +3,67 @@ import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
+import type { ParameterDistribution } from "interfaces-mef-types/core/events";
+import { type Workbook } from "interfaces-shared-types";
+
+interface SyLinkedSupport {
+  systemId: string;
+  nature: string;
+}
 
 interface SyLinkedSystem {
   id: string;
+  systemId: string;
   name: string;
   capacities: string;
+  supports: SyLinkedSupport[];
+}
+
+interface SyLinkedInitiatingEvent {
+  id: string;
+  name: string;
+}
+
+interface SyLinkedMissionTime {
+  id: string;
+  hours: number;
+  sequence: string;
+  basis: string;
 }
 
 interface SyLinkedPosState {
   id: string;
   name: string;
-  decayLabel: string;
+  mode: string;
   durationHours: number;
+}
+
+interface SyLinkedSafetyFunction {
+  id: string;
+  name: string;
+  supportingSystems: string[];
 }
 
 interface SyLinkedInputs {
   scName: string;
   posName: string;
+  esName: string;
   scSystems: SyLinkedSystem[];
+  scMissionTimes: SyLinkedMissionTime[];
   posStates: SyLinkedPosState[];
+  esSafetyFunctions: SyLinkedSafetyFunction[];
+  esInitiatingEvents: SyLinkedInitiatingEvent[];
 }
+
+type SyLinkCode = "ES" | "SC" | "POS" | "DA" | "HRA";
+
+interface SyUpstream {
+  options: Record<SyLinkCode, Workbook[]>;
+}
+
+const EMPTY_UPSTREAM: SyUpstream = {
+  options: { ES: [], SC: [], POS: [], DA: [], HRA: [] },
+};
 
 interface SyWorkbookData {
   sy: SystemsAnalysis;
@@ -45,6 +86,29 @@ interface SyControlledParameterOption {
   parameterName: string;
   parameterType: "FREQUENCY" | "PROBABILITY" | "UNAVAILABILITY" | "HUMAN_ERROR_PROBABILITY";
   value: number;
+  uncertainty?: ParameterDistribution;
+  failureModeId?: string;
+  failureModeName?: string;
+  componentBoundaryId?: string;
+}
+
+interface SyControlledComponentBoundaryOption {
+  workbookId: string;
+  workbookName: string;
+  boundaryId: string;
+  name: string;
+  systemId: string;
+  description: string;
+  includedItems: string[];
+  excludedItems: string[];
+  boundaryBasis: string;
+}
+
+interface SyControlledFailureModeOption {
+  workbookId: string;
+  workbookName: string;
+  failureModeId: string;
+  name: string;
 }
 
 interface SyControlledHumanFailureOption {
@@ -59,13 +123,40 @@ interface SyControlledHumanFailureOption {
   valueKind: "MEAN" | "POINT_ESTIMATE";
 }
 
+interface SyControlledCoincidentMaintenanceOption {
+  workbookId: string;
+  workbookName: string;
+  recordId: string;
+  description: string;
+  equipment: string[];
+  scope: "INTRASYSTEM" | "INTERSYSTEM";
+  basis: "ACTUAL_PLANT_EXPERIENCE" | "PREOP_ASSUMPTION";
+  value?: number;
+}
+
+interface SyControlledCcfEstimateOption {
+  workbookId: string;
+  workbookName: string;
+  estimateId: string;
+  groupReference: string;
+  modelType: "BETA_FACTOR" | "ALPHA_FACTOR" | "MGL" | "PHI_FACTOR";
+  parameters: Record<string, number>;
+  source?: string;
+  riskSignificant: boolean;
+}
+
 type SyMutator = (sy: SystemsAnalysis) => SystemsAnalysis;
 
 interface SyWorkbookContextValue extends SyWorkbookData {
   editable: boolean;
   runtime: SyWorkbookRuntime;
+  upstream: SyUpstream;
   controlledParameters: SyControlledParameterOption[];
   controlledHumanFailures: SyControlledHumanFailureOption[];
+  controlledFailureModes: SyControlledFailureModeOption[];
+  controlledCoincidentMaintenance: SyControlledCoincidentMaintenanceOption[];
+  controlledCcfEstimates: SyControlledCcfEstimateOption[];
+  controlledComponentBoundaries: SyControlledComponentBoundaryOption[];
   mutateSy: (mutator: SyMutator) => void;
   shortOf: (id: string) => string;
 }
@@ -79,14 +170,24 @@ function SyWorkbookProvider({
   runtime,
   controlledParameters,
   controlledHumanFailures,
+  controlledFailureModes,
+  controlledCoincidentMaintenance,
+  controlledCcfEstimates,
+  controlledComponentBoundaries,
+  upstream,
   children,
 }: {
   data: SyWorkbookData;
   editable: boolean;
   mutateSy: (mutator: SyMutator) => void;
   runtime?: SyWorkbookRuntime;
+  upstream?: SyUpstream;
   controlledParameters?: SyControlledParameterOption[];
   controlledHumanFailures?: SyControlledHumanFailureOption[];
+  controlledFailureModes?: SyControlledFailureModeOption[];
+  controlledCoincidentMaintenance?: SyControlledCoincidentMaintenanceOption[];
+  controlledCcfEstimates?: SyControlledCcfEstimateOption[];
+  controlledComponentBoundaries?: SyControlledComponentBoundaryOption[];
   children: React.ReactNode;
 }): JSX.Element {
   const value = useMemo<SyWorkbookContextValue>(
@@ -94,15 +195,20 @@ function SyWorkbookProvider({
       ...data,
       editable,
       runtime: runtime ?? { workbookId: null, projectId: null, revision: null, saveStatus: "saved" },
+      upstream: upstream ?? EMPTY_UPSTREAM,
       controlledParameters: controlledParameters ?? [],
       controlledHumanFailures: controlledHumanFailures ?? [],
+      controlledFailureModes: controlledFailureModes ?? [],
+      controlledCoincidentMaintenance: controlledCoincidentMaintenance ?? [],
+      controlledCcfEstimates: controlledCcfEstimates ?? [],
+      controlledComponentBoundaries: controlledComponentBoundaries ?? [],
       mutateSy,
       shortOf: (id: string): string => {
         const def = data.sy.systemDefinitions.find((d) => d.uuid === id);
         return def?.abbreviation ?? def?.name ?? id;
       },
     }),
-    [controlledHumanFailures, controlledParameters, data, editable, mutateSy, runtime],
+    [controlledCcfEstimates, controlledComponentBoundaries, controlledCoincidentMaintenance, controlledFailureModes, controlledHumanFailures, controlledParameters, data, editable, mutateSy, runtime, upstream],
   );
   return <SyWorkbookContext.Provider value={value}>{children}</SyWorkbookContext.Provider>;
 }
@@ -118,8 +224,18 @@ export {
   useSyWorkbook,
   type SyWorkbookData,
   type SyLinkedInputs,
+  type SyLinkedSafetyFunction,
+  type SyLinkCode,
+  type SyUpstream,
   type SyMutator,
   type SyWorkbookRuntime,
   type SyControlledParameterOption,
   type SyControlledHumanFailureOption,
+  type SyControlledFailureModeOption,
+  type SyControlledCoincidentMaintenanceOption,
+  type SyControlledCcfEstimateOption,
+  type SyControlledComponentBoundaryOption,
+  type SyLinkedMissionTime,
+  type SyLinkedInitiatingEvent,
+  type SyLinkedSupport,
 };

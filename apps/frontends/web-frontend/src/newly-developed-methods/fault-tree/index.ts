@@ -1,4 +1,4 @@
-export { FaultTreeEditor } from "./faultTreeEditor";
+export { FaultTreeEditor, FaultTreeResults } from "./faultTreeEditor";
 export {
   FaultTreeOperationError,
   applyFaultTreeOperation,

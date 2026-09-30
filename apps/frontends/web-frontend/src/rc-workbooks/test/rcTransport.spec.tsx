@@ -10,10 +10,17 @@ function setup(options: { pending?: boolean; fail?: boolean; stale?: boolean } =
   const original: RcTransportInputs = { revision: 7, categories: [{ categoryId: "RC-1", settings: settings() }], decayFiles: [] };
   const initial = { rc: { releaseCategoryToConsequence: { releaseCategoryInputs: [{ releaseCategory: "RC-1", releaseCharacteristics: {}, sourceTerm: { revision: 3, values: {
     groups: [{ id: 1, name: "Cs" }], inventory: [{ name: "Cs-137", group: 1, activityBq: 1 }], releases: [],
-  } } }] }, atmosphericTransportAndDispersion: { transportInputs: original } }, cc: {}, nms: [] } as unknown as RcWorkbookData;
+  } } }] }, protectiveActionParameters: {}, meteorologicalData: {}, atmosphericTransportAndDispersion: { transportInputs: original,
+    dispersionModel: { modelClass: "STRAIGHT_LINE_GAUSSIAN", justification: "Test" }, temporalResolution: { approach: "STEADY_STATE" }, spatialTreatment: { approach: "CENTERLINE" },
+    meteorologicalSampling: { approach: "STATISTICAL_SAMPLING" }, meteorologicalDataPerRcme: true, plumeSegmentation: { approach: "SINGLE_PLUME" }, plumeRise: { credited: false },
+    deposition: { dryDeposition: { included: false }, wetDeposition: { included: false }, sourceDepletion: { included: false }, resuspension: { included: false } },
+  } }, cc: {}, nms: [] } as unknown as RcWorkbookData;
   let finish: () => void = () => undefined;
   const pending = new Promise<void>(resolve => { finish = resolve; });
   const importFiles = jest.fn(async (..._args: Parameters<RcTransportActions["importFiles"]>) => { if (options.pending) await pending; if (options.fail) throw new Error("Import failed"); return { ...original, revision: 8 }; });
+  const libraryParent = { index: 0, nuclide: "Cs-137", energy: "0.0", halfLife: "30.08 Y", ground: true, dataset: "137CS B- DECAY", daughter: "Ba-137", levelCount: 0 };
+  const addStandardLibrary = jest.fn(async (_revision: number): Promise<RcTransportInputs> => ({ ...original, revision: 10, decayFiles: [{ file: { documentId: "00000000-0000-4000-8000-000000000010",
+    filename: "NNDC-ENSDF-2023-04-03-standard-decay-library.txt", sha256: "a".repeat(64), size: 1, uploadedAt: "2026-09-27T00:00:00.000Z" }, parents: [libraryParent] }] }));
   const saveSettings = jest.fn(async (...[_revision, _category, _source, values]: Parameters<RcTransportActions["saveSettings"]>) => ({ ...original, revision: 9, categories: [{ categoryId: "RC-1", settings: values }] }));
   function Controls() {
     const { setTransportDraft, transportDrafts } = useRcWorkbook();
@@ -27,18 +34,18 @@ function setup(options: { pending?: boolean; fail?: boolean; stale?: boolean } =
   function Harness() {
     const [data, setData] = useState(initial);
     const accept = (inputs: RcTransportInputs) => { setData(previous => ({ ...previous, rc: { ...previous.rc, atmosphericTransportAndDispersion: { ...previous.rc.atmosphericTransportAndDispersion, transportInputs: inputs } } })); return inputs; };
-    const actions: RcTransportActions = { importFiles: async (...args) => accept(await importFiles(...args)), saveSettings: async (...args) => accept(await saveSettings(...args)), unlink: jest.fn(),
-      readSource: jest.fn(async () => ({ sourceRevision: 3 })), readOriginal: jest.fn(), readDecay: jest.fn() };
+    const actions: RcTransportActions = { importFiles: async (...args) => accept(await importFiles(...args)), saveSettings: async (...args) => accept(await saveSettings(...args)), unlink: jest.fn(), addStandardLibrary: async (revision) => accept(await addStandardLibrary(revision)),
+      readSource: jest.fn(async () => ({ sourceRevision: 3 })), readOriginal: jest.fn(), readDecay: jest.fn(async () => ({ parent: libraryParent, original: "", normalization: [], levels: [], offset: 0 })) };
     return <RcWorkbookProvider data={data} editable mutateRc={jest.fn()} transport={actions}><Controls /></RcWorkbookProvider>;
   }
   render(<Harness />);fireEvent.click(screen.getByRole("button", { name: "Edit settings" }));
-  return { importFiles, saveSettings, finish };
+  return { importFiles, saveSettings, addStandardLibrary, finish };
 }
 const drafts = () => JSON.parse(screen.getByLabelText("Drafts").textContent!);
 function upload(kind: "dispersion" | "decay") {
-  fireEvent.click(screen.getByRole("tab", { name: kind === "dispersion" ? "Dispersion" : "Radioactive decay", exact: true }));
+  fireEvent.click(screen.getByRole("tab", { name: kind === "dispersion" ? "Dispersion model" : "Radioactive decay", exact: true }));
   const button = screen.getByRole("button", { name: kind === "dispersion" ? "Import file" : "Add files", exact: true });
-  expect(button).toBeEnabled(); expect(screen.getByRole("button", { name: `Load published ${kind} example` })).toBeEnabled();
+  expect(button).toBeEnabled();
   const input = screen.getByLabelText("Import transport input files");expect(input).toBeEnabled();fireEvent.click(button);
   const file = new File(["UI test fixture"], "test-input.txt", { type: "text/plain" });
   fireEvent.change(input, { target: { files: [file] } });return file;
@@ -68,5 +75,14 @@ describe("Step 04 imports with unsaved settings", () => {
     const { importFiles } = setup({ stale: true });upload("dispersion");await waitFor(() => expect(importFiles).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByRole("button", { name: "Import file", exact: true })).toBeEnabled());
     expect(drafts()["RC-1"].baseRevision).toBe(6);expect(screen.getByText(/Transport inputs or the source changed/)).toBeInTheDocument();expect(screen.getByRole("button", { name: "Save transport inputs", exact: true })).toBeDisabled();
+  });
+  it("attaches the standard decay library and keeps drafts on the new revision", async () => {
+    const { addStandardLibrary } = setup();
+    fireEvent.click(screen.getByRole("tab", { name: "Radioactive decay" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add standard library" }));
+    await waitFor(() => expect(addStandardLibrary).toHaveBeenCalledWith(7));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Add standard library" })).not.toBeInTheDocument());
+    expect(screen.getByText("1 of 1 source isotopes have a parent half-life record")).toBeInTheDocument();
+    expect(drafts()["RC-1"].baseRevision).toBe(10);
   });
 });

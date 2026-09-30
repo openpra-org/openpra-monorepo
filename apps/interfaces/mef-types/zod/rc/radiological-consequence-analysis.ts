@@ -5,6 +5,8 @@ import { RcSiteReceptorsSchema } from "./site-receptors";
 import { RcWeatherInputsSchema } from "./weather";
 import { RcDoseInputsSchema } from "./dose-inputs";
 import { RcTransportInputsSchema } from "./transport";
+import { RcEarlyResponseModelSchema } from "./early-response";
+import { RcConsequenceMetricsSchema } from "./metrics";
 import type { RadiologicalConsequenceAnalysis } from "../../rc/radiological-consequence-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
@@ -77,17 +79,34 @@ export const ReleaseCharacteristicsSchema = z.object({
   releaseUncertainties: z.string().optional(),
 });
 
+export const RcBoundingMemberSchema = z.object({
+  sequenceId: z.string(),
+  basis: z.string(),
+});
+
 export const ReleaseCategoryInputsSchema = z.object({
   releaseCategory: z.string(),
   sourceTerm: RcSourceTermSchema.optional(),
   sourceTermDefinitionRef: z.string().optional(),
   eventSequenceFamilyReferences: z.array(EventSequenceFamilyWorkbookReferenceSchema).optional(),
+  boundingMember: RcBoundingMemberSchema.optional(),
   releaseCharacteristics: ReleaseCharacteristicsSchema,
 });
 
+export const RcLinkedWorkbooksSchema = z.object({
+  ES: z.string().optional(),
+  MS: z.string().optional(),
+  RI: z.string().optional(),
+});
+
 export const RcScopeSchema = z.object({
-  consequenceMetrics: z.array(z.string()),
+  metrics: RcConsequenceMetricsSchema.optional(),
   metricSelectionApplicationBasis: z.string().optional(),
+  evaluationDecisions: z.array(z.object({
+    subElement: z.enum(["RCPA", "RCME", "RCAD", "RCDO", "RCHE", "RCEC", "RCQ"]),
+    included: z.boolean(),
+    exclusionReason: z.string().optional(),
+  })).optional(),
   protectiveActionsModellingDegree: z.string(),
   meteorologyModellingDegree: z.string(),
   atmosphericDispersionModellingDegree: z.string(),
@@ -116,6 +135,17 @@ export const ReleaseCategoryToConsequenceAnalysisSchema = z.object({
 
 export const ProtectiveActionAnalysisSchema = z.object({
   siteAndReceptors: RcSiteReceptorsSchema.optional(),
+  earlyResponseModel: RcEarlyResponseModelSchema.optional(),
+  responseTiming: z.object({
+    referenceEvent: z.string().max(100).optional(),
+    referenceAfterAccidentMinutes: z.number().finite().nonnegative().optional(),
+    cohortName: z.string().max(200).optional(),
+    declarationAfterAccidentMinutes: z.number().finite().nonnegative().optional(),
+    shelterStartMinutes: z.number().finite().nonnegative().optional(),
+    evacuationStartMinutes: z.number().finite().nonnegative().optional(),
+    evacuationSpeedMetresPerSecond: z.number().finite().positive().optional(),
+    source: z.string().max(1000).optional(),
+  }).optional(),
   protectiveActionsIncluded: z.array(
     z.object({
       action: z.enum(["EVACUATION", "SHELTERING", "RELOCATION", "LAND_INTERDICTION_REMEDIATION", "FOOD_INTERDICTION_REMEDIATION"]),
@@ -127,6 +157,8 @@ export const ProtectiveActionAnalysisSchema = z.object({
     z.object({
       phase: z.enum(["EARLY", "INTERMEDIATE", "LATE_LONG_TERM"]),
       criteriaDescription: z.string(),
+      startDays: z.number().finite().nonnegative().optional(),
+      endDays: z.number().finite().nonnegative().optional(),
     }),
   ),
   sourceDocuments: z.array(
@@ -144,6 +176,8 @@ export const ProtectiveActionAnalysisSchema = z.object({
           name: z.string(),
           description: z.string(),
           complianceAssumption: z.string().optional(),
+          populationPercent: z.number().finite().min(0).max(100).optional(),
+          compliancePercent: z.number().finite().min(0).max(100).optional(),
         }),
       )
       .optional(),
@@ -166,6 +200,10 @@ export const ProtectiveActionAnalysisSchema = z.object({
         parameter: z.string(),
         value: z.string(),
         source: z.string(),
+        numericValue: z.number().finite().optional(),
+        unit: z.string().optional(),
+        action: z.enum(["EVACUATION", "SHELTERING", "RELOCATION", "LAND_INTERDICTION_REMEDIATION", "FOOD_INTERDICTION_REMEDIATION"]).optional(),
+        phase: z.enum(["EARLY", "INTERMEDIATE", "LATE_LONG_TERM"]).optional(),
       }),
     )
     .optional(),
@@ -187,12 +225,14 @@ export const ProtectiveActionAnalysisSchema = z.object({
           "LOAD_VEHICLES",
         ]),
         estimate: z.string(),
+        minutes: z.number().finite().nonnegative().optional(),
       }),
     )
     .optional(),
   evacuationSpeed: z
     .object({
       basis: z.string(),
+      speedMetresPerSecond: z.number().finite().nonnegative().optional(),
       daytimeNighttimeConsidered: z.boolean(),
       adverseWeatherConsidered: z.boolean(),
       specialEventsConsidered: z.boolean(),
@@ -210,6 +250,7 @@ export const ProtectiveActionAnalysisSchema = z.object({
   populationDistribution: z.object({
     basis: z.enum(["ASSUMED_JUSTIFIED", "DEMOGRAPHIC_SOURCES"]),
     description: z.string(),
+    sourceReference: z.string().optional(),
     justification: z.string().optional(),
     transientPopulationsIncluded: z.boolean().optional(),
     projectionAdjustments: z.string().optional(),
@@ -217,11 +258,13 @@ export const ProtectiveActionAnalysisSchema = z.object({
   landUseData: z.object({
     basis: z.enum(["GENERIC_SIMPLIFIED", "REGIONAL_SPECIFIC"]),
     description: z.string(),
+    sourceReference: z.string().optional(),
     intraRegionalAdjustments: z.string().optional(),
   }),
   plantPhysicalCharacteristics: z.object({
     basis: z.enum(["ESTIMATED", "ACTUAL"]),
     description: z.string(),
+    sourceReference: z.string().optional(),
   }),
   releaseSourceGeographicLocation: z.string(),
   boundingSiteLocationJustification: z.string().optional(),
@@ -413,6 +456,18 @@ export const DosimetryAnalysisSchema = z.object({
 });
 
 export const HealthEffectsAnalysisSchema = z.object({
+  healthInput: z.object({
+    filename: z.string().min(1).max(255),
+    original: z.string().min(1).max(128_000),
+    records: z.array(z.object({
+      cardId: z.string().regex(/^(EFATAGRP|EINJUGRP|LCANCERS)\d{3}$/),
+      kind: z.enum(["early_fatality", "early_injury", "latent_cancer"]),
+      effect: z.string().min(1),
+      organ: z.string().min(1),
+      values: z.array(z.number().finite().nonnegative()).min(3).max(6),
+      original: z.string(),
+    })).min(1).max(500),
+  }).optional(),
   earlyHealthEffects: z.array(z.string()),
   latentHealthEffects: z.array(z.string()),
   earlyEffectParameters: z.object({
@@ -437,6 +492,18 @@ export const HealthEffectsAnalysisSchema = z.object({
 });
 
 export const EconomicFactorsAnalysisSchema = z.object({
+    decontaminationLevels: z.number().int().min(1).max(3).optional(),
+  siteEconomyInput: z.object({
+    filename: z.string().min(1).max(255), original: z.string().min(1).max(2_000_000),
+      economicMultiplier: z.number().finite().nonnegative(), expectedRegions: z.number().int().min(1).max(99),
+    regions: z.array(z.object({ index: z.number().int().positive(), name: z.string().min(1),
+      farmFraction: z.number().min(0).max(1), dairySalesFraction: z.number().min(0).max(1),
+      annualFarmSalesPerHectare: z.number().finite().nonnegative(), farmlandValuePerHectare: z.number().finite().nonnegative(),
+      nonFarmlandValuePerPerson: z.number().finite().nonnegative(), original: z.string(), })).min(1).max(999),
+    crops: z.array(z.object({ index: z.number().int().positive(), name: z.string().min(1), growingStartDay: z.number().int().min(1).max(365),
+      growingEndDay: z.number().int().min(1).max(365), farmlandFraction: z.number().min(0).max(1), original: z.string(), })).max(10),
+    sourceSiteRevision: z.number().int().nonnegative().optional(),
+  }).optional(),
   costCategories: z.array(
     z.object({
       category: z.string(),
@@ -447,6 +514,10 @@ export const EconomicFactorsAnalysisSchema = z.object({
   costParameterEstimates: z.array(
     z.object({
       parameter: z.string(),
+      costCode: z.enum(["EVACST", "RELCST", "POPCST", "LTMCST", "DLBCST", "TIMDEC", "DSRFCT", "TFWKF", "TFWKNF", "CDFRM", "FRFDL", "CDNFRM", "FRNFDL", "DPRATE", "DSRATE", "WCDMCST", "WFCDCST"]).optional(),
+      value: z.number().finite().nonnegative().optional(),
+      level: z.number().int().min(1).max(3).optional(),
+      currencyYear: z.number().int().min(1900).max(2200).optional(),
       dataBasis: z.enum(["REGIONAL_SITE_APPLICABLE", "GENERIC_JUSTIFIED"]),
       source: z.string(),
       justification: z.string().optional(),
@@ -491,6 +562,8 @@ export const ConsequenceQuantificationAnalysisSchema = z.object({
         }),
       ),
       riskSignificance: ImportanceLevelSchema.optional(),
+      origin: z.enum(["CATEGORY_RESULT", "OVERRIDE"]).optional(),
+      overrideReason: z.string().optional(),
     }),
   ),
   outputReview: z.object({
@@ -625,6 +698,7 @@ export const RcDocumentationSchema = z.object({
 export const RadiologicalConsequenceAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.CONSEQUENCE_ANALYSIS).shape,
   praScope: z.string(),
+  linkedWorkbooks: RcLinkedWorkbooksSchema.optional(),
   scope: RcScopeSchema,
   releaseCategoryToConsequence: ReleaseCategoryToConsequenceAnalysisSchema,
   protectiveActionParameters: ProtectiveActionAnalysisSchema,

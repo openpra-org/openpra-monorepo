@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type JSX } from "react";
 import type { RcSiteSettings } from "interfaces-mef-types/rc/site-receptors";
 import { RcSiteSettingsSchema } from "interfaces-mef-types/zod/rc/site-receptors";
-import { cellDoseDistance, coordinateReference, receptorCount, siteReceptorIssues } from "interfaces-shared-types/rc-workbooks/site-receptors";
+import { cellDoseDistance, coordinateReference, receptorCount, sitePopulation, siteReceptorIssues } from "interfaces-shared-types/rc-workbooks/site-receptors";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { useRcWorkbook } from "./rcWorkbookContext";
@@ -51,18 +51,18 @@ export function RcSiteReceptorsPanel({ initialTab = "receptors" }: { initialTab?
     const file = kind === "location" ? site?.locationFile : site?.geometryFile;
     return <><div className="sr-file"><div className="sr-file-info"><span className="sr-small">{kind === "location" ? "Site coordinate file" : "Site / receptor file"}</span>
       <strong>{file?.filename ?? "No file selected"}</strong><span className="sr-small">.inp · .txt · .rec · .rou</span>
-    </div><div className="sr-file-actions">{editable && <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled || dirty} title={dirty ? "Save or discard edits before importing" : undefined} onClick={() => { importKind.current = kind; input.current?.click(); }}>{file ? <RCIcon.Refresh /> : <RCIcon.Plus />} {file ? "Replace file" : "Import file"}</button>}
+    </div><div className="sr-file-actions">{editable && <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled || dirty} onClick={() => { importKind.current = kind; input.current?.click(); }}>{file ? <RCIcon.Refresh /> : <RCIcon.Plus />} {file ? "Replace file" : "Import file"}</button>}
       {file && <button type="button" className="posnav__btn posnav__btn--sm" disabled={!actions || busy} onClick={async () => {
         if (raw?.documentId === file.documentId) { setRaw(undefined); return; }
         setBusy(true); setError("");
         try { setRaw({ documentId: file.documentId, text: await actions!.readOriginal(file.documentId) }); } catch (e) { setError(failureMessage(e)); } finally { setBusy(false); }
       }}><RCIcon.Eye /> {raw?.documentId === file.documentId ? "Hide file" : "View file"}</button>}
-    </div></div>{raw && raw.documentId === file?.documentId && <div className="sr-raw"><span className="sr-small">Original file · supplied values preserved</span><pre aria-label="Original site input">{raw.text}</pre></div>}</>;
+    </div></div>{raw && raw.documentId === file?.documentId && <div className="sr-raw"><span className="sr-small">Original file</span><pre aria-label="Original site input">{raw.text}</pre></div>}</>;
   };
   const height = () => geometry && (geometry.kind === "cells" || geometry.points.some(p => p.heightMetres === undefined))
     ? <div>{field("Receptor height above ground (m)", "receptorHeightMetres", 0)}</div>
-    : <p className="sr-note">Receptor heights imported from the file.</p>;
-  const status = busy ? "Saving…" : dirty ? "Unsaved changes" : saved ? "Site inputs saved." : !site ? "Import site data to begin" : issues.length ? undefined : "Site and receptors ready";
+    : null;
+  const status = busy ? "Saving…" : dirty ? "Unsaved changes" : saved ? "Site inputs saved." : !site ? "No site data" : issues.length ? undefined : "Site and receptors ready";
   return <div className="poscard rc-site-input-card"><div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Site and receptors" level={3} /></div>
     <section className="rc-site-receptors" aria-label="Site and receptors">
       <div className="sr-tabs" role="tablist" aria-label="Site input review" ref={tablist} onKeyDown={e => {
@@ -80,14 +80,14 @@ export function RcSiteReceptorsPanel({ initialTab = "receptors" }: { initialTab?
           {geometry && geometry.kind !== "cells" && <>
             <div className="sr-section-title"><h3>Release point in the receptor coordinate system</h3>{geometry.kind === "grid" && editable && <button type="button" className="posnav__btn posnav__btn--sm" disabled={disabled} onClick={() => edit({ releaseX: geometry.originX, releaseY: geometry.originY })}>Use grid origin</button>}</div>
             <p className="sr-small">{coordinateReference(geometry.anchor)}</p><div className="sr-fields">{field("Release X (m)", "releaseX")}{field("Release Y (m)", "releaseY")}</div>
-            <p className="sr-note">These coordinates identify the release point; the file’s anchor identifies the coordinate reference.</p>
           </>}
           <div className="sr-section-title sr-section-actions"><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setTab("receptors")}>Review receptors</button></div>
-        </> : <>{fileBox("geometry")}{!geometry ? <p className="sr-empty">Import a site grid or receptor file to review its geometry.</p> : <>
+        </> : <>{fileBox("geometry")}{!geometry ? <p className="sr-empty">No receptor geometry.</p> : <>
           <div className="sr-section-title"><h3>{geometry.kind === "cells" ? "Area grid" : geometry.kind === "grid" ? "Point grid" : "Individual points"}</h3>
             {geometry.kind !== "cells" && <span className="sr-small">{geometry.kind === "grid" ? `${geometry.radiiMetres.length} radii × ${geometry.bearingsDegrees.length} directions = ${count} points` : `${count} imported receptors`}</span>}
           </div>
           {geometry.kind === "cells" ? <>
+            {sitePopulation(geometry) !== undefined && <p className="sr-population-total">Population across all cells: <strong>{sitePopulation(geometry)!.toLocaleString()}</strong></p>}
             <RcReceptorCellGrid geometry={geometry} settings={settings} band={currentBand} sector={currentSector} onSelect={(b, s) => { setBand(b); setSector(s); setPage(Math.floor(b / 6)); }} />
             <div className="sr-settings"><label>Dose-evaluation point in each cell<select className="posfield__select" aria-label="Dose-evaluation point in each cell" disabled={disabled} value={settings.cellPoint ?? ""} onChange={e => edit({ cellPoint: e.target.value ? e.target.value as "mid" | "outer" : undefined })}>
               <option value="">Choose a position</option><option value="mid">Mid-radius, sector center</option><option value="outer">Outer edge, sector center</option>
@@ -106,7 +106,7 @@ export function RcSiteReceptorsPanel({ initialTab = "receptors" }: { initialTab?
           </div></div>
           {geometry.kind !== "cells" && <>
             <details><summary>Coordinate reference</summary><p className="sr-note">{coordinateReference(geometry.anchor)}</p><p className="sr-note">Local anchor: {show(geometry.anchor.localX)}, {show(geometry.anchor.localY)} m → UTM: {show(geometry.anchor.utmEasting)}, {show(geometry.anchor.utmNorthing)} m</p></details>
-            {geometry.points.some(p => p.elevationMetres !== undefined || p.hillHeightMetres !== undefined) && <details><summary>Imported terrain data</summary><p className="sr-note">Ground elevation and hill-height scale are separate from receptor height above ground.</p>
+            {geometry.points.some(p => p.elevationMetres !== undefined || p.hillHeightMetres !== undefined) && <details><summary>Imported terrain data</summary>
               <table aria-label="Imported terrain data"><thead><tr><th>Point</th><th>Ground elevation (m)</th><th>Hill-height scale (m)</th></tr></thead><tbody>{geometry.points.slice(offset, offset + 6).map(p => <tr key={p.id}><td>{p.id}</td><td>{show(p.elevationMetres)}</td><td>{show(p.hillHeightMetres)}</td></tr>)}</tbody></table>
             </details>}
           </>}

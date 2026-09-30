@@ -34,6 +34,16 @@ async function fetchJson<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function fetchBytes(path: string): Promise<ArrayBuffer> {
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token !== null) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(path, { method: "GET", headers });
+  if (response.status === 401) { onUnauthorized(); throw new Error("Session expired"); }
+  if (!response.ok) throw new Error(await readError(response));
+  return response.arrayBuffer();
+}
+
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   let result: T | undefined;
   try {
@@ -73,4 +83,4 @@ async function postMultipart<T>(path: string, formData: FormData): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export { fetchJson, postJson, patchJson, deleteJson, postMultipart };
+export { fetchJson, fetchBytes, postJson, patchJson, deleteJson, postMultipart };

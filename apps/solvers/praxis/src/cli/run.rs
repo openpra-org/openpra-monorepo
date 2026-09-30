@@ -4,7 +4,7 @@ use crate::cli::fault_tree;
 use crate::cli::output::{writer_stdout, writer_vec};
 use praxis::io::ftc::serialize_saphire_v2;
 use praxis::io::parser::{parse_any_mef, ParsedInput};
-use praxis::io::pbf::decode_fault_tree;
+use praxis::io::pbf::{decode_fault_tree, encode_fault_tree};
 use praxis::io::reporter::{write_comprehensive_report, AnalysisReport, EventTreeMonteCarloReport};
 use praxis::io::serializer::{write_results, write_results_with_monte_carlo};
 use std::fs;
@@ -13,14 +13,58 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
     let verbose = cli.verbosity > 0;
     let verbosity_level = cli.verbosity;
 
+    if cli.variable_order.is_some()
+        && !matches!(
+            cli.algorithm,
+            Algorithm::Bdd
+                | Algorithm::Zbdd
+                | Algorithm::ZbddDirect
+                | Algorithm::ZbddDelterm
+                | Algorithm::ZbddEndState
+        )
+    {
+        return Err("--variable-order requires a BDD or ZBDD algorithm".into());
+    }
+    if let Some(seconds) = cli.reorder_budget_seconds {
+        if seconds == 0 {
+            return Err("--reorder-budget-seconds must be greater than zero".into());
+        }
+        if !cli
+            .variable_order
+            .is_some_and(|method| method.uses_reordering())
+        {
+            return Err(
+                "--reorder-budget-seconds requires --variable-order sift, gsift, or ils".into(),
+            );
+        }
+    }
+
+    if cli.algorithm == Algorithm::ZbddEndState {
+        if cli.end_state_map.is_none() {
+            return Err("--algorithm zbdd-end-state requires --end-state-map".into());
+        }
+        if cli.approximation.is_some() || cli.interactive_truncation {
+            return Err("zbdd-end-state does not quantify or prompt for limits".into());
+        }
+        if cli.analysis != crate::cli::args::Analysis::CutsetsOnly {
+            return Err("zbdd-end-state requires --analysis cutsets-only".into());
+        }
+    } else if cli.end_state_map.is_some() {
+        return Err("--end-state-map requires --algorithm zbdd-end-state".into());
+    }
+
     if cli.approximation.is_some()
         && !matches!(
             cli.algorithm,
-            Algorithm::Mocus | Algorithm::MocusPi | Algorithm::Zbdd | Algorithm::ZbddDelterm
+            Algorithm::Mocus
+                | Algorithm::MocusPi
+                | Algorithm::Zbdd
+                | Algorithm::ZbddDirect
+                | Algorithm::ZbddDelterm
         )
     {
         eprintln!(
-            "error: the argument '--approximation <APPROXIMATION>' can only be used with '--algorithm mocus', '--algorithm mocus-pi', '--algorithm zbdd' or '--algorithm zbdd-delterm'"
+            "error: the argument '--approximation <APPROXIMATION>' can only be used with '--algorithm mocus', '--algorithm mocus-pi', '--algorithm zbdd', '--algorithm zbdd-direct' or '--algorithm zbdd-delterm'"
         );
         eprintln!();
         eprintln!("For more information, try '--help'.");
@@ -34,9 +78,14 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(2);
     }
 
-    if cli.delete_term && cli.complement_unity {
+    if [cli.delete_term, cli.complement_unity, cli.saphire_success]
+        .into_iter()
+        .filter(|selected| *selected)
+        .count()
+        > 1
+    {
         eprintln!(
-            "error: '--delete-term' and '--complement-unity' are two different treatments of a succeeded system; choose one"
+            "error: '--delete-term', '--complement-unity', and '--saphire-success' are different treatments of succeeded systems; choose one"
         );
         eprintln!();
         eprintln!("For more information, try '--help'.");
@@ -146,11 +195,15 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
     if analysis_requires_cut_sets
         && !matches!(
             cli.algorithm,
-            Algorithm::Mocus | Algorithm::Zbdd | Algorithm::ZbddDelterm
+            Algorithm::Mocus
+                | Algorithm::Zbdd
+                | Algorithm::ZbddDirect
+                | Algorithm::ZbddDelterm
+                | Algorithm::ZbddEndState
         )
     {
         eprintln!(
-            "error: the argument '--analysis <ANALYSIS>' with cut set modes can only be used with '--algorithm mocus', '--algorithm zbdd' or '--algorithm zbdd-delterm'"
+            "error: the argument '--analysis <ANALYSIS>' with cut set modes can only be used with '--algorithm mocus', '--algorithm zbdd', '--algorithm zbdd-direct' or '--algorithm zbdd-delterm'"
         );
         eprintln!();
         eprintln!("For more information, try '--help'.");
@@ -225,6 +278,26 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
         })?
     };
 
+    if let Some(output_path) = cli.export_model_pbf.as_deref() {
+        let fault_tree = match &parsed_input {
+            ParsedInput::FaultTree(fault_tree) => fault_tree,
+            ParsedInput::EventTreeModel(_) => {
+                return Err("--export-model-pbf currently requires a fault-tree input".into());
+            }
+        };
+        let model = encode_fault_tree(fault_tree)?;
+        fs::write(output_path, model).map_err(|error| {
+            format!(
+                "Failed to write PBF model file '{}': {error}",
+                output_path.display()
+            )
+        })?;
+        if verbose {
+            eprintln!("PBF model written to: {}", output_path.display());
+        }
+        return Ok(());
+    }
+
     if let Some(request_path) = cli.hcl_request.as_deref() {
         let fault_tree = match parsed_input {
             ParsedInput::FaultTree(fault_tree) => fault_tree,
@@ -255,6 +328,9 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
                 std::process::exit(2);
             }
             match cli.algorithm {
+                Algorithm::ZbddEndState => {
+                    event_tree::run_end_state_from_parsed(&cli, &event_tree_model, verbose)?;
+                }
                 Algorithm::MonteCarlo => {
                     event_tree::run_monte_carlo_from_parsed(&cli, &event_tree_model, verbose)?;
                 }
@@ -266,10 +342,13 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
                         verbose,
                     )?;
                 }
-                Algorithm::Mocus | Algorithm::MocusPi | Algorithm::ZbddDelterm => {
+                Algorithm::Mocus
+                | Algorithm::MocusPi
+                | Algorithm::ZbddDirect
+                | Algorithm::ZbddDelterm => {
                     if !cli.validate {
                         eprintln!(
-                            "error: cut-set algorithms (mocus, mocus-pi, zbdd-delterm) are not supported for event-tree inputs"
+                            "error: fault-tree cut-set algorithms (mocus, mocus-pi, zbdd-direct, zbdd-delterm) are not supported for event-tree inputs"
                         );
                         eprintln!();
                         eprintln!("For more information, try '--help'.");
@@ -286,6 +365,9 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
             return Ok(());
         }
         ParsedInput::FaultTree(fault_tree_model) => {
+            if cli.algorithm == Algorithm::ZbddEndState {
+                return Err("zbdd-end-state is supported for event-tree inputs only".into());
+            }
             if cli.cut_off_basis == CutOffBasis::Frequency {
                 eprintln!(
                     "error: '--cut-off-basis frequency' is supported for event-tree inputs only (a fault tree has no initiating-event frequency)"
@@ -294,9 +376,9 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
                 eprintln!("For more information, try '--help'.");
                 std::process::exit(2);
             }
-            if cli.delete_term {
+            if cli.delete_term || cli.saphire_success {
                 eprintln!(
-                    "error: '--delete-term' is supported for event-tree inputs only (a fault tree has no succeeded systems)"
+                    "error: succeeded-system processing is supported for event-tree inputs only"
                 );
                 eprintln!();
                 eprintln!("For more information, try '--help'.");

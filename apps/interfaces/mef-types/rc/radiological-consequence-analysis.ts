@@ -5,6 +5,8 @@ import type { RcSiteReceptors } from "./site-receptors";
 import type { RcWeatherInputs } from "./weather";
 import type { RcDoseInputs } from "./dose-inputs";
 import type { RcTransportInputs } from "./transport";
+import type { RcEarlyResponseModel } from "./early-response";
+import type { RcConsequenceMetric } from "./metrics";
 import { ParameterDistribution } from "../core/events";
 import {
   ImportanceLevel,
@@ -72,17 +74,32 @@ export interface ReleaseCharacteristics {
   releaseUncertainties?: string;
 }
 
+export interface RcBoundingMember {
+  sequenceId: string;
+  basis: string;
+}
+
 export interface ReleaseCategoryInputs {
   releaseCategory: ReleaseCategoryReference;
   sourceTerm?: RcSourceTerm;
   sourceTermDefinitionRef?: SourceTermDefinitionReference;
   eventSequenceFamilyReferences?: EventSequenceFamilyWorkbookReference[];
+  boundingMember?: RcBoundingMember;
   releaseCharacteristics: ReleaseCharacteristics;
 }
 
+export interface RcLinkedWorkbooks {
+  ES?: string;
+  MS?: string;
+  RI?: string;
+}
+
+export type RcFamilyConsequenceOrigin = "CATEGORY_RESULT" | "OVERRIDE";
+
 export interface RcScope {
-  consequenceMetrics: string[];
+  metrics?: RcConsequenceMetric[];
   metricSelectionApplicationBasis?: string;
+  evaluationDecisions?: RcScopeDecision[];
   protectiveActionsModellingDegree: string;
   meteorologyModellingDegree: string;
   atmosphericDispersionModellingDegree: string;
@@ -90,6 +107,14 @@ export interface RcScope {
   healthEffectsModellingDegree: string;
   economicFactorsModellingDegree: string;
   implementsSrs: SRReference[];
+}
+
+export type RcEvaluationSubElement = Exclude<RcSubElement, "RCRE">;
+
+export interface RcScopeDecision {
+  subElement: RcEvaluationSubElement;
+  included: boolean;
+  exclusionReason?: string;
 }
 
 export interface ReleaseCategoryToConsequenceAnalysis {
@@ -110,6 +135,20 @@ export interface ReleaseCategoryToConsequenceAnalysis {
 
 export interface ProtectiveActionAnalysis {
   siteAndReceptors?: RcSiteReceptors;
+  /** Canonical MACCS-style early-response inputs; legacy descriptive fields remain readable during migration. */
+  earlyResponseModel?: RcEarlyResponseModel;
+  /** Action times are relative to a named response event; its time anchors them to accident start. */
+  responseTiming?: {
+    referenceEvent?: string;
+    referenceAfterAccidentMinutes?: number;
+    cohortName?: string;
+    /** Legacy declaration anchor, used when referenceAfterAccidentMinutes is absent. */
+    declarationAfterAccidentMinutes?: number;
+    shelterStartMinutes?: number;
+    evacuationStartMinutes?: number;
+    evacuationSpeedMetresPerSecond?: number;
+    source?: string;
+  };
   protectiveActionsIncluded: {
     action: "EVACUATION" | "SHELTERING" | "RELOCATION" | "LAND_INTERDICTION_REMEDIATION" | "FOOD_INTERDICTION_REMEDIATION";
     included: boolean;
@@ -118,6 +157,8 @@ export interface ProtectiveActionAnalysis {
   incidentPhasesModeled: {
     phase: "EARLY" | "INTERMEDIATE" | "LATE_LONG_TERM";
     criteriaDescription: string;
+    startDays?: number;
+    endDays?: number;
   }[];
   sourceDocuments: {
     document: string;
@@ -130,6 +171,8 @@ export interface ProtectiveActionAnalysis {
       name: string;
       description: string;
       complianceAssumption?: string;
+      populationPercent?: number;
+      compliancePercent?: number;
     }[];
   };
   complianceAssumptions: {
@@ -144,6 +187,10 @@ export interface ProtectiveActionAnalysis {
     parameter: string;
     value: string;
     source: string;
+    numericValue?: number;
+    unit?: string;
+    action?: ProtectiveActionAnalysis["protectiveActionsIncluded"][number]["action"];
+    phase?: ProtectiveActionAnalysis["incidentPhasesModeled"][number]["phase"];
   }[];
   evacuationModeling?: {
     approach: string;
@@ -158,9 +205,11 @@ export interface ProtectiveActionAnalysis {
       | "SECURE_PERSONAL_PROPERTY"
       | "LOAD_VEHICLES";
     estimate: string;
+    minutes?: number;
   }[];
   evacuationSpeed?: {
     basis: string;
+    speedMetresPerSecond?: number;
     daytimeNighttimeConsidered: boolean;
     adverseWeatherConsidered: boolean;
     specialEventsConsidered: boolean;
@@ -173,6 +222,7 @@ export interface ProtectiveActionAnalysis {
   populationDistribution: {
     basis: "ASSUMED_JUSTIFIED" | "DEMOGRAPHIC_SOURCES";
     description: string;
+    sourceReference?: string;
     justification?: string;
     transientPopulationsIncluded?: boolean;
     projectionAdjustments?: string;
@@ -180,11 +230,13 @@ export interface ProtectiveActionAnalysis {
   landUseData: {
     basis: "GENERIC_SIMPLIFIED" | "REGIONAL_SPECIFIC";
     description: string;
+    sourceReference?: string;
     intraRegionalAdjustments?: string;
   };
   plantPhysicalCharacteristics: {
     basis: "ESTIMATED" | "ACTUAL";
     description: string;
+    sourceReference?: string;
   };
   releaseSourceGeographicLocation: string;
   boundingSiteLocationJustification?: string;
@@ -356,6 +408,7 @@ export interface DosimetryAnalysis {
 }
 
 export interface HealthEffectsAnalysis {
+  healthInput?: import("./health-inputs").RcHealthInput;
   earlyHealthEffects: string[];
   latentHealthEffects: string[];
   earlyEffectParameters: {
@@ -378,6 +431,8 @@ export interface HealthEffectsAnalysis {
 }
 
 export interface EconomicFactorsAnalysis {
+    siteEconomyInput?: import("./economic-inputs").RcSiteEconomyInput;
+    decontaminationLevels?: number;
   costCategories: {
     category: string;
     parameterDefinitions: string[];
@@ -385,6 +440,10 @@ export interface EconomicFactorsAnalysis {
   parameterConsistencyConfirmed: boolean;
   costParameterEstimates: {
     parameter: string;
+    costCode?: import("./economic-inputs").RcEconomicCostCode;
+    value?: number;
+    level?: number;
+    currencyYear?: number;
     dataBasis: "REGIONAL_SITE_APPLICABLE" | "GENERIC_JUSTIFIED";
     source: string;
     justification?: string;
@@ -421,6 +480,8 @@ export interface ConsequenceQuantificationAnalysis {
       uncertaintyDescription?: string;
     }[];
     riskSignificance?: ImportanceLevel;
+    origin?: RcFamilyConsequenceOrigin;
+    overrideReason?: string;
   }[];
   outputReview: {
     performed: boolean;
@@ -537,6 +598,7 @@ export interface RcDocumentation {
 export interface RadiologicalConsequenceAnalysis
   extends TechnicalElement<TechnicalElementTypes.CONSEQUENCE_ANALYSIS> {
   praScope: string;
+  linkedWorkbooks?: RcLinkedWorkbooks;
 
   scope: RcScope;
 

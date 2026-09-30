@@ -3,6 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Client } from "minio";
 import { Model } from "mongoose";
 import { randomUUID } from "crypto";
+import type { Readable } from "stream";
 import { ProjectsService } from "../projects/projects.service";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
 import { SyWorkbook, type SyWorkbookDocument } from "./sy-workbook.schema";
@@ -40,6 +41,36 @@ interface UploadInput {
 
 interface ActingUser {
   username: string;
+}
+
+export interface SyByteRange {
+  start: number;
+  end: number;
+}
+
+export interface SyDocumentContent {
+  stream: Readable;
+  mimeType: string;
+  size: number;
+  range: SyByteRange | null;
+}
+
+export function byteRange(header: string | undefined, size: number): SyByteRange | null {
+  if (header === undefined || !header.startsWith("bytes=") || size <= 0) return null;
+  const spec = (header.slice("bytes=".length).split(",")[0] ?? "").trim();
+  const dash = spec.indexOf("-");
+  if (dash < 0) return null;
+  const startText = spec.slice(0, dash).trim();
+  const endText = spec.slice(dash + 1).trim();
+  if (startText.length === 0) {
+    const suffix = Number(endText);
+    if (endText.length === 0 || !Number.isInteger(suffix) || suffix <= 0) return null;
+    return { start: Math.max(0, size - suffix), end: size - 1 };
+  }
+  const start = Number(startText);
+  const end = endText.length === 0 ? size - 1 : Math.min(Number(endText), size - 1);
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start > end || start >= size) return null;
+  return { start, end };
 }
 
 @Injectable()
@@ -157,6 +188,17 @@ export class SyDocumentsService implements OnModuleInit {
     if (!doc) throw new NotFoundException("Document not found");
     const url = await this.client.presignedGetObject(this.bucket, doc.minioKey, 60 * 5);
     return { url, filename: doc.filename };
+  }
+
+  async content(workbookId: string, documentId: string, acting: ActingUser, rangeHeader?: string): Promise<SyDocumentContent> {
+    await this.loadAuthorize(workbookId, acting, false);
+    const doc = await this.syDocModel.findOne({ workbookId, documentId }).exec();
+    if (!doc) throw new NotFoundException("Document not found");
+    const range = byteRange(rangeHeader, doc.size);
+    const stream = range === null
+      ? await this.client.getObject(this.bucket, doc.minioKey)
+      : await this.client.getPartialObject(this.bucket, doc.minioKey, range.start, range.end - range.start + 1);
+    return { stream, mimeType: doc.mimeType, size: doc.size, range };
   }
 
   async removeAllForWorkbook(workbookId: string): Promise<void> {

@@ -1,0 +1,6 @@
+.sy-integrity-issues:empty{display:none}
+.sy-integrity-issues{margin:0 0 8px}
+.sy-integrity-convention{margin:0 0 6px;font-size:13px;line-height:1.55;color:var(--color-text)}
+.sy-integrity-bounds th:nth-child(1){width:30%}
+.sy-integrity-bounds th:nth-child(2){width:28%}
+.sy-integrity-names th:nth-child(1){width:22%}

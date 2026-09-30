@@ -19,6 +19,10 @@ on:
         value: ${{ jobs.images.outputs.mongo_image }}
       minio_image:
         value: ${{ jobs.images.outputs.minio_image }}
+      praetor_image:
+        value: ${{ jobs.praetor.outputs.praetor_image }}
+      rabbitmq_image:
+        value: ${{ jobs.praetor.outputs.rabbitmq_image }}
 
 permissions:
   contents: read
@@ -27,6 +31,7 @@ env:
   REGISTRY: registry.openpra.org
   MONGO_IMAGE: mongo:8.3.11
   MINIO_IMAGE: registry.openpra.org/openpra-base-minio:production-2026-09
+  RABBITMQ_IMAGE: rabbitmq:4.3.6-alpine
 
 jobs:
   images:
@@ -237,3 +242,84 @@ jobs:
           curl -sf http://localhost:8080/ > /dev/null || { docker logs frontend; echo "::error::The frontend image did not serve /"; exit 1; }
           curl -sf http://localhost:8081/ > /dev/null || { docker logs site; echo "::error::The site image did not serve /"; exit 1; }
           echo "Backend, frontend and site images start and answer."
+
+  praetor:
+    if: inputs.smoke || inputs.deploy
+    runs-on: ubuntu-latest
+    outputs:
+      praetor_image: ${{ steps.prep.outputs.praetor_image }}
+      rabbitmq_image: ${{ steps.prep.outputs.rabbitmq_image }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare tags
+        id: prep
+        run: |
+          echo "praetor_image=openpra-apps-praetor:${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "rabbitmq_image=$RABBITMQ_IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Build PRAETOR image
+        run: docker build -f deploy/microservices/praetor/Dockerfile -t "${{ steps.prep.outputs.praetor_image }}" .
+
+      - name: Log in to self-hosted registry
+        if: inputs.smoke
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Smoke test PRAETOR quantification
+        if: inputs.smoke
+        env:
+          PRAETOR_IMAGE: ${{ steps.prep.outputs.praetor_image }}
+        run: |
+          docker network create praetor-smoke
+          docker run -d --name rabbitmq --network praetor-smoke "$RABBITMQ_IMAGE"
+          docker run -d --name minio --network praetor-smoke -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin "$MINIO_IMAGE" server /data
+          for attempt in $(seq 1 60); do
+            if docker exec rabbitmq rabbitmq-diagnostics -q ping > /dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          docker run -d --name praetor-manager --network praetor-smoke -p 3000:3000 \
+            --env-file deploy/microservices/praetor/configs/cd.stack.env \
+            -e MINIO_ACCESS_KEY=minioadmin \
+            -e MINIO_SECRET_KEY=minioadmin \
+            "$PRAETOR_IMAGE"
+          for attempt in $(seq 1 90); do
+            if curl -s -o /dev/null http://localhost:3000/q; then
+              break
+            fi
+            if [ "$(docker inspect -f '{{.State.Running}}' praetor-manager)" != "true" ]; then
+              break
+            fi
+            sleep 2
+          done
+          if ! curl -s -o /dev/null http://localhost:3000/q; then
+            docker logs praetor-manager
+            echo "::error::The PRAETOR image did not start"
+            exit 1
+          fi
+          if ! node apps/solvers/praxis-node/test/http-quantification-smoke.mjs http://localhost:3000/q; then
+            docker logs praetor-manager
+            echo "::error::PRAETOR did not quantify the smoke fault trees"
+            exit 1
+          fi
+          echo "PRAETOR starts and quantifies fault trees."
+
+      - name: Save PRAETOR and RabbitMQ images for offline load
+        if: inputs.deploy
+        run: |
+          docker pull "$RABBITMQ_IMAGE"
+          docker save "${{ steps.prep.outputs.praetor_image }}" "$RABBITMQ_IMAGE" -o praetor-images.tar
+
+      - name: Upload PRAETOR images artifact
+        if: inputs.deploy
+        uses: actions/upload-artifact@v4
+        with:
+          name: praetor-images
+          path: praetor-images.tar
+          retention-days: 1

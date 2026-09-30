@@ -290,7 +290,7 @@ jobs:
             -e MINIO_SECRET_KEY=minioadmin \
             "$PRAETOR_IMAGE"
           for attempt in $(seq 1 90); do
-            if curl -sf http://localhost:3000/q/job-types > /dev/null; then
+            if curl -s -o /dev/null http://localhost:3000/q; then
               break
             fi
             if [ "$(docker inspect -f '{{.State.Running}}' praetor-manager)" != "true" ]; then
@@ -298,7 +298,7 @@ jobs:
             fi
             sleep 2
           done
-          if ! curl -sf http://localhost:3000/q/job-types > /dev/null; then
+          if ! curl -s -o /dev/null http://localhost:3000/q; then
             docker logs praetor-manager
             echo "::error::The PRAETOR image did not start"
             exit 1

@@ -81,6 +81,65 @@ services:
         - "traefik.http.routers.${APP_NAME}-minio-https.service=${APP_NAME}-minio"
         - "traefik.http.services.${APP_NAME}-minio.loadbalancer.server.port=9000"
 
+  rabbitmq:
+    image: ${IMAGE_RABBITMQ}
+    networks:
+      - app_net
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - "node.hostname == gaia"
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+
+  praetor-manager:
+    image: ${IMAGE_PRAETOR}
+    command: ["node", "dist/src/main.js"]
+    env_file:
+      - ../microservices/praetor/configs/cd.stack.env
+    environment:
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadmin"
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    networks:
+      - app_net
+    deploy:
+      <<: *shared-replicated
+      replicas: 1
+      placement:
+        constraints:
+          - "node.hostname == gaia"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+
+  praetor-engine:
+    image: ${IMAGE_PRAETOR}
+    command: ["node", "dist/src/main-engine.js"]
+    env_file:
+      - ../microservices/praetor/configs/cd.stack.env
+    environment:
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadmin"
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    networks:
+      - app_net
+    deploy:
+      <<: *shared-replicated
+      replicas: 1
+      placement:
+        constraints:
+          - "node.hostname == gaia"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+
   backend:
     image: ${IMAGE_BACKEND}
     command: ["node", "main.js"]
@@ -115,6 +174,7 @@ services:
       MINIO_SECRET_KEY: "minioadmin"
       MINIO_BUCKET: "${MINIO_BUCKET?Variable not set}"
       MINIO_PUBLIC_URL: "https://minio-${HOST_URL?Variable not set}"
+      PRAETOR_URL: "http://praetor-manager:3000/q"
     deploy:
       <<: *shared-replicated
       replicas: 1

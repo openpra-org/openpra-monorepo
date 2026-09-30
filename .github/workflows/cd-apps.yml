@@ -27,6 +27,8 @@ jobs:
     env:
       MONGO_IMAGE: ${{ needs.images.outputs.mongo_image }}
       MINIO_IMAGE: ${{ needs.images.outputs.minio_image }}
+      PRAETOR_IMAGE: ${{ needs.images.outputs.praetor_image }}
+      RABBITMQ_IMAGE: ${{ needs.images.outputs.rabbitmq_image }}
       DOCS_HASH: ${{ needs.images.outputs.docs_hash }}
     steps:
       - name: Checkout repository
@@ -78,6 +80,26 @@ jobs:
       - name: Report MongoDB version on this node
         run: docker image inspect "$MONGO_IMAGE" --format '{{.Id}} {{range .Config.Env}}{{.}} {{end}}'
 
+      - name: Check PRAETOR images present
+        id: praetorcheck
+        run: |
+          if docker image inspect "$PRAETOR_IMAGE" >/dev/null 2>&1 && docker image inspect "$RABBITMQ_IMAGE" >/dev/null 2>&1; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download PRAETOR images artifact
+        if: steps.praetorcheck.outputs.have == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: praetor-images
+          path: .
+
+      - name: Load PRAETOR images into the swarm node
+        if: steps.praetorcheck.outputs.have == 'false'
+        run: docker load -i praetor-images.tar
+
       - name: Provide pinned MinIO image
         run: |
           if docker pull "$MINIO_IMAGE" >/dev/null 2>&1; then
@@ -127,6 +149,8 @@ jobs:
           IMAGE_FRONTEND: ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.vars.outputs.short_sha }}
           IMAGE_MONGO: ${{ env.MONGO_IMAGE }}
           IMAGE_MINIO: ${{ env.MINIO_IMAGE }}
+          IMAGE_PRAETOR: ${{ env.PRAETOR_IMAGE }}
+          IMAGE_RABBITMQ: ${{ env.RABBITMQ_IMAGE }}
           MONGO_DATABASE: openpra_main_20260821t001435z
           MINIO_BUCKET: openpra-main-20260821t001435z
           JWT_SECRET: ${{ secrets.APPS_JWT_SECRET }}

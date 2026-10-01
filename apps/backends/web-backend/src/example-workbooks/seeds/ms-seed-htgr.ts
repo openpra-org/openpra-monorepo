@@ -873,12 +873,12 @@ export const MS_ANALYSIS_HTGR: MechanisticSourceTermAnalysis = {
     analysisRef: "ri-generic-2",
     feedbackDate: NOW,
     releaseCategoryFeedback: [
-      { releaseCategoryReference: "RC-1", riskSignificance: ImportanceLevel.HIGH, insights: ["The unfiltered release category drives the dose."], recommendations: ["Prioritize the particle-failure and dust-transport phenomena."], status: "IN_PROGRESS" },
+      { releaseCategoryReference: "RC-1", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Holds ESF-EARLY and ESF-ATWS. Carries 98.7% of the 100 mrem frequency and 87.7% of the latent cancer risk."], recommendations: ["Prioritize the particle-failure and dust-transport phenomena."], status: "IN_PROGRESS" },
     ],
     sourceTermFeedback: [
-      { sourceTermDefinitionRef: "ST-3", riskSignificance: ImportanceLevel.HIGH, keyUncertainties: ["Particle failure fraction", "Dust inventory and liftoff"], status: "IN_PROGRESS" },
+      { sourceTermDefinitionRef: "ST-3", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Source term of RC-1."], keyUncertainties: ["Particle failure fraction model", "Dust inventory and liftoff model", "Building filtration and leak-path model"], status: "IN_PROGRESS" },
     ],
-    generalFeedback: "The unfiltered release category drives the dose, so prioritize the particle-failure and dust-transport phenomena.",
+    generalFeedback: "No release category is risk-significant under NEI 18-04. RC-1 carries almost all of the 100 mrem frequency and most of the latent cancer risk, so prioritize the particle-failure and dust-transport phenomena in its source term.",
     response: {
       description: "The particle-failure-fraction model is carried as the leading model uncertainty and swept in the sensitivity study.",
       changes: ["MU-1 held as the leading model uncertainty", "SS-1 sweeps the particle failure fraction"],

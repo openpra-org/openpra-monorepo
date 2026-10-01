@@ -136,7 +136,7 @@ const familyQuantifications: EventSequenceFamilyQuantification[] = [
     contributionBreakdown: [
       { contributorRef: "Helium boundary isolation common-cause failure (CCF-HPBI-VLV)", contributorType: "CCF", fractionalContribution: 0.38 },
       { contributorRef: "Cavity-cooling duct group common-cause failure (CCF-RCCS-DUCT)", contributorType: "CCF", fractionalContribution: 0.34 },
-      { contributorRef: "Loss of helium inventory control (IE-40)", contributorType: "INITIATING_EVENT", fractionalContribution: 0.2 },
+      { contributorRef: "Loss of helium inventory and pressure control (IE-40)", contributorType: "INITIATING_EVENT", fractionalContribution: 0.2 },
       { contributorRef: "Distributed small contributors", contributorType: "OTHER", fractionalContribution: 0.08 },
     ],
     implementsSrs: srs("ESQ-A1", "ESQ-A4", "ESQ-A5"),
@@ -748,7 +748,7 @@ const importanceReviews: ImportanceReviewRecord[] = [
 ];
 
 const screenedEventCumulativeAssessment = {
-  screenedInitiatingEventRefs: ["IE-35", "IE-47"],
+  screenedInitiatingEventRefs: ["IE-35"],
   cumulativeImpactAssessment: "The combined contribution of the screened-out initiating events stays well below the significance threshold.",
   affectsRiskSignificantContributors: false,
   basis: "Each screened initiator is bounded, and their sum does not change the risk-significant contributors.",
@@ -972,12 +972,12 @@ export const ESQ_ANALYSIS_HTGR: EventSequenceQuantification = {
     analysisRef: "ri-generic-2",
     feedbackDate: NOW,
     sequenceFeedback: [
-      { sequenceRef: "ESF-EARLY", riskSignificance: ImportanceLevel.HIGH, insights: ["Drives the integrated latent risk through the building-isolation failure."], recommendations: ["Refine the building isolation and recovery terms."] },
-      { sequenceRef: "ESF-ATWS", riskSignificance: ImportanceLevel.HIGH, insights: ["The second driver of the integrated risk, carried as a point estimate."], recommendations: ["Carry the dedicated failure-to-trip tree to final quantification."] },
-      { sequenceRef: "ESF-LATE", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Aggregated from three family quantifications."], recommendations: ["Keep the three-quantification aggregation visible so the family total stays auditable."] },
-      { sequenceRef: "ESF-LEAK", riskSignificance: ImportanceLevel.MEDIUM, insights: ["The highest-frequency family, above the one percent family threshold on the latent metric."], recommendations: ["Keep the helium-leak grouping under review as the building leak-rate data matures."] },
+      { sequenceRef: "ESF-EARLY", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Carries 52.9% of the 100 mrem frequency and 47% of the latent cancer risk."], recommendations: ["Refine the building isolation and recovery terms."] },
+      { sequenceRef: "ESF-ATWS", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Carries 45.8% of the 100 mrem frequency and 40.7% of the latent cancer risk."], recommendations: ["Carry the dedicated failure-to-trip tree to final quantification and give the family a frequency distribution."] },
+      { sequenceRef: "ESF-LATE", riskSignificance: ImportanceLevel.LOW, insights: ["Carries 8.84% of the latent cancer risk and 1.32% of the 100 mrem frequency."], recommendations: ["Keep the three-quantification aggregation visible so the family total stays auditable."] },
+      { sequenceRef: "ESF-LEAK", riskSignificance: ImportanceLevel.LOW, insights: ["Carries 3.49% of the latent cancer risk."], recommendations: ["Keep the helium-leak grouping under review as the building leak-rate data matures."] },
     ],
-    generalFeedback: "Risk Integration returns the family significance at the family level, the early-release pair high, with the reactor-trip and building-damper common-cause groups and the standby-filtration action flagged behind them.",
+    generalFeedback: "No family or contributor is risk-significant under NEI 18-04, and every total sits far below its target. The early-release pair still carries most of both totals, led by the reactor-trip and building-damper common-cause groups, so refine the building isolation terms and finalize the failure-to-trip tree.",
     response: {
       description: "The reactor-trip and building-damper groups are held against their data-analysis parameters and the failure-to-trip tree is scheduled for final quantification.",
       changes: ["CCF-RPS-DIV and CCF-RB-DMP held against DA-CCF-04 and DA-CCF-30", "HR-POST-028 queued for detailed treatment with the human-reliability analysis", "Dedicated failure-to-trip tree scheduled"],

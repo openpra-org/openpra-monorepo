@@ -5,7 +5,7 @@ import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/ne
 import { fetchJson } from "../api/client";
 import { RiWorkbench } from "./riWorkbench";
 import { RiDocumentsCard } from "./riDocumentsCard";
-import { RiWorkbookProvider, type RiWorkbookData } from "./riWorkbookContext";
+import { RiWorkbookProvider, EMPTY_UPSTREAM, useRiUpstream, type RiWorkbookData } from "./riWorkbookContext";
 import { type RiPersona } from "./riViewData";
 
 interface RiExampleResponse {
@@ -25,6 +25,7 @@ function RiDemoPage(): JSX.Element {
   const [data, setData] = useState<RiWorkbookData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [persona, setPersona] = useState<RiPersona>("preparer");
+  const upstream = useRiUpstream(data?.ri, EMPTY_UPSTREAM.options);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +57,7 @@ function RiDemoPage(): JSX.Element {
   }
 
   return (
-    <RiWorkbookProvider data={data} editable={persona === "preparer"} mutateRi={mutateRi}>
+    <RiWorkbookProvider data={data} editable={persona === "preparer"} mutateRi={mutateRi} upstream={upstream}>
       <RiWorkbench
         data={data}
         persona={persona}

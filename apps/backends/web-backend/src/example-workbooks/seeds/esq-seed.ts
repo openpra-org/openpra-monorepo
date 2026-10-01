@@ -782,7 +782,7 @@ const importanceReviews: ImportanceReviewRecord[] = [
 ];
 
 const screenedEventCumulativeAssessment = {
-  screenedInitiatingEventRefs: ["IE-SCR-03", "IE-SCR-07", "IE-SCR-11", "IE-SCR-14"],
+  screenedInitiatingEventRefs: ["IE-22", "IE-23"],
   cumulativeImpactAssessment: "The combined contribution of the screened-out initiating events stays well below the significance threshold.",
   affectsRiskSignificantContributors: false,
   basis: "Each screened initiator is bounded, and their sum does not change the risk-significant contributors.",
@@ -1002,6 +1002,22 @@ export const ESQ_ANALYSIS: EventSequenceQuantification = {
   modelUncertaintySourceAssessments,
   uncertaintyPropagation,
   sensitivityStudies,
+  riskIntegrationFeedback: {
+    analysisRef: "ri-generic-1",
+    feedbackDate: NOW,
+    sequenceFeedback: [
+      { sequenceRef: "ESF-LATE", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Carries 87.3% of the 100 mrem frequency and 25.2% of the latent cancer risk."], recommendations: ["Keep the three-quantification aggregation visible so the family total stays auditable.", "Refine the decay-heat removal recovery terms behind the late release."] },
+      { sequenceRef: "ESF-EARLY", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Carries 53.6% of the early fatality risk and 39.1% of the latent cancer risk."], recommendations: ["Refine the confinement isolation and recovery terms."] },
+      { sequenceRef: "ESF-ATWS", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Carries 46.4% of the early fatality risk and 33.8% of the latent cancer risk."], recommendations: ["Carry the dedicated failure-to-trip tree to final quantification and give the family a frequency distribution."] },
+      { sequenceRef: "ESF-LEAK", riskSignificance: ImportanceLevel.LOW, insights: ["Carries 1.98% of the latent cancer risk."], recommendations: ["Keep the cover-gas leak grouping under review as the leak-rate data matures."] },
+    ],
+    generalFeedback: "No family or contributor is risk-significant under NEI 18-04, and every total sits far below its target. The late release carries most of the 100 mrem frequency and the early-release pair most of the latent and early fatality risk, so refine the decay-heat removal and confinement isolation terms and finalize the failure-to-trip tree.",
+    response: {
+      description: "The DRACS loop and confinement damper groups are held against their data-analysis parameters and the failure-to-trip tree is scheduled for final quantification.",
+      changes: ["CCF-DRACS-LOOP and CCF-CIS-DMP held against their data-analysis parameters", "HR-POST-022 queued for detailed treatment with the human-reliability analysis", "Dedicated failure-to-trip tree scheduled"],
+      status: "IN_PROGRESS",
+    },
+  },
   modelUncertainty: {
     uuid: "esq-mu-1",
     name: "ESQ model uncertainty documentation",

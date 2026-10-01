@@ -888,12 +888,14 @@ export const MS_ANALYSIS: MechanisticSourceTermAnalysis = {
     analysisRef: "ri-generic-1",
     feedbackDate: NOW,
     releaseCategoryFeedback: [
-      { releaseCategoryReference: "RC-1", riskSignificance: ImportanceLevel.HIGH, insights: ["The early release category drives the dose."], recommendations: ["Prioritize the retention phenomena."], status: "IN_PROGRESS" },
+      { releaseCategoryReference: "RC-1", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Holds ESF-EARLY and ESF-ATWS. Carries 100% of the early fatality risk and 72.9% of the latent cancer risk."], recommendations: ["Prioritize the pool-scrubbing and confinement-retention phenomena."], status: "IN_PROGRESS" },
+      { releaseCategoryReference: "RC-2", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Holds ESF-LATE. Carries 87.3% of the 100 mrem frequency and 25.2% of the latent cancer risk."], recommendations: ["Confirm the late-tail revaporization release that sets the boundary dose."], status: "PENDING" },
     ],
     sourceTermFeedback: [
-      { sourceTermDefinitionRef: "ST-3", riskSignificance: ImportanceLevel.HIGH, keyUncertainties: ["Pool scrubbing decontamination factor"], status: "IN_PROGRESS" },
+      { sourceTermDefinitionRef: "ST-3", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Source term of RC-1."], keyUncertainties: ["Pool scrubbing decontamination factor model", "Sodium-air reaction aerosol source model", "Confinement leak-rate and degraded-retention model"], status: "IN_PROGRESS" },
+      { sourceTermDefinitionRef: "ST-2", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Source term of RC-2."], keyUncertainties: ["Revaporization and late-tail release model", "Iodine chemical-form split model"], status: "PENDING" },
     ],
-    generalFeedback: "The early release category drives the dose, so prioritize the retention phenomena.",
+    generalFeedback: "No release category is risk-significant under NEI 18-04. RC-1 carries all of the early fatality risk and most of the latent cancer risk, and RC-2 most of the 100 mrem frequency, so prioritize the retention phenomena of both source terms.",
     response: {
       description: "The pool scrubbing model is carried as the leading model uncertainty and swept in the sensitivity study.",
       changes: ["MU-1 held as the leading model uncertainty", "SS-1 sweeps the pool decontamination factor"],

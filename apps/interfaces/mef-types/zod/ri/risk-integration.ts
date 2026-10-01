@@ -1,11 +1,13 @@
 import { z } from "zod";
 import type { RiskIntegration } from "../../ri/risk-integration";
 import { TechnicalElementTypes } from "../../technical-element";
+import { EndState } from "../../core/events";
 import { technicalElementSchema, TechnicalElementTypesSchema } from "../technical-element";
 import { ParameterDistributionSchema } from "../core/events";
 import { ImportanceLevelSchema, SensitivityStudySchema } from "../core/shared-patterns";
 import { BaseModelUncertaintyDocumentationSchema, PreOperationalAssumptionSchema } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
+import { RcMetricQuantitySchema, RcMetricReceptorSchema } from "../rc/metrics";
 import {
   EventSequenceFamilyQuantificationReferenceSchema,
   EventSequenceFamilyWorkbookReferenceSchema,
@@ -79,6 +81,11 @@ export const RiskSignificanceCriteriaSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+const RiFloorValueSchema = z.object({
+  value: z.number(),
+  justification: z.string().optional(),
+});
+
 export const ReportingThresholdsSchema = z.object({
   minimumReportingFrequencyPerPlantYear: z.number(),
   frequencyBasis: z.enum(["STANDARD_DEFAULT", "JUSTIFIED_ALTERNATIVE"]),
@@ -86,6 +93,11 @@ export const ReportingThresholdsSchema = z.object({
   minimumReportingConsequenceDescription: z.string(),
   consequenceBasis: z.enum(["STANDARD_DEFAULT", "JUSTIFIED_ALTERNATIVE"]),
   consequenceJustification: z.string().optional(),
+  consequenceFloor: z.object({
+    backgroundMremPerYear: RiFloorValueSchema,
+    windowDays: RiFloorValueSchema,
+    sharePercent: RiFloorValueSchema,
+  }).optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -235,6 +247,7 @@ export const IntegratedRiskResultsSchema = z.object({
   }),
   multiReactorContributionsIncluded: z.boolean(),
   multiSourceContributionsIncluded: z.boolean(),
+  hazardGroupAssignments: z.array(z.object({ initiatingEventId: z.string(), hazardGroup: z.string() })).optional(),
   complianceStatus: z
     .array(
       z.object({
@@ -403,6 +416,7 @@ export const RiskIntegrationFeedbackDispatchSchema = z.object({
           z.object({
             familyRef: z.string(),
             riskSignificance: ImportanceLevelSchema.optional(),
+            significanceReason: z.string().optional(),
             insights: z.array(z.string()).optional(),
             recommendations: z.array(z.string()).optional(),
           }),
@@ -413,6 +427,7 @@ export const RiskIntegrationFeedbackDispatchSchema = z.object({
           z.object({
             entityRef: z.string(),
             riskSignificance: ImportanceLevelSchema.optional(),
+            significanceReason: z.string().optional(),
             insights: z.array(z.string()).optional(),
             recommendations: z.array(z.string()).optional(),
           }),
@@ -428,6 +443,7 @@ export const RiskIntegrationFeedbackDispatchSchema = z.object({
           z.object({
             releaseCategoryRef: z.string(),
             riskSignificance: ImportanceLevelSchema.optional(),
+            significanceReason: z.string().optional(),
             insights: z.array(z.string()).optional(),
             recommendations: z.array(z.string()).optional(),
           }),
@@ -438,6 +454,7 @@ export const RiskIntegrationFeedbackDispatchSchema = z.object({
           z.object({
             sourceTermDefinitionRef: z.string(),
             riskSignificance: ImportanceLevelSchema.optional(),
+            significanceReason: z.string().optional(),
             insights: z.array(z.string()).optional(),
             keyUncertainties: z.array(z.string()).optional(),
           }),
@@ -453,6 +470,7 @@ export const RiskIntegrationFeedbackDispatchSchema = z.object({
           z.object({
             metric: z.string(),
             riskSignificance: ImportanceLevelSchema.optional(),
+            significanceReason: z.string().optional(),
             insights: z.array(z.string()).optional(),
             recommendations: z.array(z.string()).optional(),
           }),
@@ -466,6 +484,7 @@ export const RiskIntegrationFeedbackDispatchSchema = z.object({
       z.object({
         elementCode: z.enum(["POS", "IE", "ES", "SC", "SY", "HR", "DA"]),
         riskSignificance: ImportanceLevelSchema.optional(),
+        significanceReason: z.string().optional(),
         insights: z.array(z.string()).optional(),
         recommendations: z.array(z.string()).optional(),
         generalFeedback: z.string().optional(),
@@ -492,17 +511,213 @@ export const RiDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const RiApplicationContextSchema = z.object({
+  applicationType: z.enum(["BASELINE_RISK", "FIXED_RISK_TARGET"]),
+  licensingAction: z.enum([
+    "PRE_APPLICATION",
+    "CONSTRUCTION_PERMIT",
+    "OPERATING_LICENSE",
+    "DESIGN_CERTIFICATION",
+    "COMBINED_LICENSE",
+    "STANDARD_DESIGN_APPROVAL",
+    "MANUFACTURING_LICENSE",
+  ]).optional(),
+  siteBasis: z.enum(["SITE_INDEPENDENT", "BOUNDING_SITE", "SPECIFIC_SITE"]).optional(),
+  linkedWorkbooks: z.object({
+    POS: z.string().optional(),
+    ES: z.string().optional(),
+    ESQ: z.string().optional(),
+    MS: z.string().optional(),
+    RC: z.string().optional(),
+  }),
+});
+
+const RiStatisticSchema = z.enum(["MEAN", "P05", "P50", "P95"]);
+
+const RiNumberCriterionSchema = z.object({
+  value: z.number(),
+  justification: z.string().optional(),
+});
+
+const RiStatisticCriterionSchema = z.object({
+  value: RiStatisticSchema,
+  justification: z.string().optional(),
+});
+
+export const RiCriteriaSetSchema = z.object({
+  publishedSet: z.literal("NEI_18_04_REV1"),
+  absolute: z.object({
+    fcAnchors: z.array(z.object({
+      doseRem: z.number(),
+      frequencyPerPlantYear: z.number(),
+      justification: z.string().optional(),
+    })),
+    fcStatistic: RiStatisticCriterionSchema,
+    aooLowerPerPlantYear: RiNumberCriterionSchema,
+    dbeLowerPerPlantYear: RiNumberCriterionSchema,
+    bdbeLowerPerPlantYear: RiNumberCriterionSchema,
+    categoryStatistic: RiStatisticCriterionSchema,
+    bandLowerStatistic: RiStatisticCriterionSchema,
+    bandUpperStatistic: RiStatisticCriterionSchema,
+    bdbeFloorStatistic: RiStatisticCriterionSchema,
+    highConsequenceDoseRem: RiNumberCriterionSchema.optional(),
+    highConsequenceStatistic: RiStatisticCriterionSchema.optional(),
+    lbeTargetPercent: RiNumberCriterionSchema,
+    lbeDoseFloorMrem: RiNumberCriterionSchema,
+    lbeFrequencyStatistic: RiStatisticCriterionSchema,
+    lbeDoseStatistic: RiStatisticCriterionSchema,
+    sscTargetStatistic: RiStatisticCriterionSchema,
+    sscCumulativePercent: RiNumberCriterionSchema,
+    sscCumulativeStatistic: RiStatisticCriterionSchema,
+    cumulativeTargets: z.array(z.object({
+      id: z.enum(["DOSE_100_MREM_EXCEEDANCE", "EARLY_FATALITY_RISK", "LATENT_CANCER_RISK"]),
+      limitPerPlantYear: z.number(),
+      justification: z.string().optional(),
+    })),
+    cumulativeStatistic: RiStatisticCriterionSchema,
+  }),
+  relative: z.object({
+    aggregatePercent: RiNumberCriterionSchema,
+    individualPercent: RiNumberCriterionSchema,
+    fussellVesely: RiNumberCriterionSchema,
+    riskAchievementWorth: RiNumberCriterionSchema,
+  }),
+});
+
+const RiFrequencyStatsSchema = z.object({
+  mean: z.number(),
+  p05: z.number().optional(),
+  p50: z.number().optional(),
+  p95: z.number().optional(),
+});
+
+const RiManualEntrySchema = z.object({ source: z.string() });
+
+const RiConsequenceStatsSchema = z.object({
+  mean: z.number().optional(),
+  percentiles: z.array(z.object({ percentile: z.number(), value: z.number() })),
+  exceedances: z.array(z.object({ threshold: z.number(), probability: z.number() })),
+});
+
+export const RiInputsSchema = z.object({
+  importedAt: z.string().optional(),
+  sources: z.array(z.object({
+    element: z.enum(["ES", "ESQ", "RC"]),
+    workbookId: z.string(),
+    workbookName: z.string(),
+    updatedAt: z.string().optional(),
+  })),
+  families: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    plantOperatingStateId: z.string(),
+    initiatingEventId: z.string(),
+    releaseCategoryIds: z.array(z.string()),
+    endState: z.nativeEnum(EndState),
+    memberSequenceIds: z.array(z.string()),
+    frequencySource: z.enum(["ESQ", "ES"]).optional(),
+    quantificationIds: z.array(z.string()),
+    imported: RiFrequencyStatsSchema.optional(),
+    frequency: RiFrequencyStatsSchema.optional(),
+    changeReason: z.string().optional(),
+    included: z.boolean(),
+    exclusionReason: z.string().optional(),
+    manual: RiManualEntrySchema.optional(),
+  })),
+  sequences: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    familyId: z.string().optional(),
+    plantOperatingStateId: z.string(),
+    initiatingEventId: z.string(),
+    topEvents: z.array(z.object({ event: z.string(), state: z.enum(["SUCCESS", "FAILURE", "BYPASSED"]) })),
+    endState: z.nativeEnum(EndState),
+    releaseCategoryId: z.string().optional(),
+    reactorSourceCombinations: z.array(z.string()),
+    frequencySource: z.enum(["ESQ", "ES"]).optional(),
+    imported: RiFrequencyStatsSchema.optional(),
+    frequency: RiFrequencyStatsSchema.optional(),
+    changeReason: z.string().optional(),
+    manual: RiManualEntrySchema.optional(),
+  })),
+  consequences: z.array(z.object({
+    releaseCategoryId: z.string(),
+    measure: z.string(),
+    rcMetricId: z.string(),
+    unit: z.string(),
+    sourceTermId: z.string().optional(),
+    imported: RiConsequenceStatsSchema.optional(),
+    statistics: RiConsequenceStatsSchema,
+    changeReason: z.string().optional(),
+    manual: RiManualEntrySchema.optional(),
+  })),
+  contributors: z.array(z.object({
+    familyId: z.string(),
+    quantificationId: z.string(),
+    quantificationMean: z.number(),
+    name: z.string(),
+    type: z.string(),
+    fraction: z.number(),
+    manual: RiManualEntrySchema.optional(),
+  })).optional(),
+  importance: z.array(z.object({
+    analysisId: z.string(),
+    scope: z.enum(["OVERALL", "PER_FAMILY", "PER_SEQUENCE"]),
+    familyRef: z.string().optional(),
+    sequenceRef: z.string().optional(),
+    entityType: z.string(),
+    entity: z.string(),
+    systemRef: z.string().optional(),
+    fussellVesely: z.number().optional(),
+    riskAchievementWorth: z.number().optional(),
+    riskReductionWorth: z.number().optional(),
+    birnbaum: z.number().optional(),
+    manual: RiManualEntrySchema.optional(),
+  })).optional(),
+  unavailable: z.array(z.object({ measure: z.string(), reason: z.string() })).optional(),
+});
+
+export const RiScopeExclusionSchema = z.object({
+  aspect: z.enum(["HAZARD_GROUP", "OPERATING_STATE", "SOURCE", "MODULE"]),
+  item: z.string(),
+  reason: z.string(),
+});
+
+export const RiEventCategoriesSchema = z.object({
+  cliffEdgeChecks: z.array(z.object({
+    familyId: z.string(),
+    status: z.enum(["NO_CLIFF_EDGE", "CLIFF_EDGE"]).optional(),
+    basis: z.string(),
+  })),
+});
+
 export const RiskIntegrationSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.RISK_INTEGRATION).shape,
   praScope: z.string(),
+  applicationContext: RiApplicationContextSchema.optional(),
+  criteriaSet: RiCriteriaSetSchema.optional(),
+  inputs: RiInputsSchema.optional(),
+  eventCategories: RiEventCategoriesSchema.optional(),
+  sscAssignments: z.array(z.object({ contributor: z.string(), ssc: z.string() })).optional(),
   scopeDefinition: z.object({
     consequenceMeasures: z.array(z.object({
       name: z.string(),
       description: z.string().optional(),
+      role: z.enum(["EAB_DOSE", "EARLY_FATALITY_RISK", "LATENT_CANCER_RISK"]).optional(),
+      quantity: RcMetricQuantitySchema.optional(),
+      customUnit: z.string().optional(),
+      receptor: RcMetricReceptorSchema.optional(),
+      window: z.object({
+        seconds: z.number().finite().positive(),
+        start: z.enum(["RELEASE_ONSET", "PLUME_ARRIVAL"]),
+      }).strict().optional(),
+      protectiveActionsCredited: z.boolean().optional(),
     })),
     plantOperatingStateRefs: z.array(z.string()),
     hazardGroups: z.array(z.string()),
     radioactiveMaterialSources: z.array(z.string()),
+    reactorModules: z.array(z.string()).optional(),
+    scopeExclusions: z.array(RiScopeExclusionSchema).optional(),
     eventSequenceFamilyRefs: z.array(z.string()).optional(),
     releaseCategoryRefs: z.array(z.string()).optional(),
     sourceTermDefinitionRefs: z.array(z.string()).optional(),

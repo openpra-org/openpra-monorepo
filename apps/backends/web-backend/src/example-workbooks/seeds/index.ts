@@ -19,7 +19,7 @@ import { MS_ANALYSIS } from "./ms-seed";
 import { MS_ANALYSIS_HTGR } from "./ms-seed-htgr";
 import { RC_ANALYSIS } from "./rc-seed";
 import { RC_ANALYSIS_HTGR } from "./rc-seed-htgr";
-import { RI_ANALYSIS } from "./ri-seed";
+import { RI_ANALYSIS, RI_ANALYSIS_PUBLISHED, RI_PUBLISHED_ID, RI_PUBLISHED_LABEL, RI_PUBLISHED_SLUG } from "./ri-seed";
 import { RI_ANALYSIS_HTGR } from "./ri-seed-htgr";
 import { SEISMIC_PRA_ANALYSIS } from "./seismic-pra-seed";
 import { SEISMIC_PRA_ANALYSIS_HTGR } from "./seismic-pra-seed-htgr";
@@ -174,6 +174,7 @@ const RI_EXAMPLES: PosExampleEntry[] = [
   { id: "htgr", label: "Generic HTGR", slug: RI_GENERIC_2_SLUG },
   { id: "sfr", label: "Generic SFR", slug: RI_GENERIC_1_SLUG },
   { id: HCL_CASE_ID, label: HCL_CASE_LABEL, slug: RI_HCL_CASE_SLUG },
+  { id: RI_PUBLISHED_ID, label: RI_PUBLISHED_LABEL, slug: RI_PUBLISHED_SLUG },
 ];
 
 const SEISMIC_PRA_EXAMPLES: PosExampleEntry[] = [
@@ -243,6 +244,7 @@ const SEEDS: SeedEntry[] = [
   { slug: RI_GENERIC_1_SLUG, kind: "RI", mef: RI_ANALYSIS },
   { slug: RI_GENERIC_2_SLUG, kind: "RI", mef: RI_ANALYSIS_HTGR },
   { slug: RI_HCL_CASE_SLUG, kind: "RI", mef: RI_ANALYSIS_HCL },
+  { slug: RI_PUBLISHED_SLUG, kind: "RI", mef: RI_ANALYSIS_PUBLISHED },
   { slug: SEISMIC_PRA_GENERIC_1_SLUG, kind: "S", mef: SEISMIC_PRA_ANALYSIS },
   { slug: SEISMIC_PRA_GENERIC_2_SLUG, kind: "S", mef: SEISMIC_PRA_ANALYSIS_HTGR },
   { slug: INTERNAL_FLOOD_PRA_GENERIC_1_SLUG, kind: "FL", mef: INTERNAL_FLOOD_PRA_ANALYSIS },

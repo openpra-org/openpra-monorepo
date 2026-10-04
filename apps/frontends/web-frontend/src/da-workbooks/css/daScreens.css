@@ -500,7 +500,7 @@ label.da-scope-choice .da-scope-choice__head { justify-content: flex-start; }
 .da-catalog__cell .posnav__btn, .da-catalog__in { white-space: nowrap; overflow-wrap: normal; }
 .da-catalog__in { font-size: 12px; color: var(--color-text-muted); }
 .da-catalog__used { flex-basis: 100%; font-size: 11.5px; line-height: 1.4; color: var(--color-text-muted); }
-.da-rowtable__plot { padding: 2px 8px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); font: inherit; font-size: 12px; font-weight: 600; color: var(--color-primary); cursor: pointer; }
+.da-rowtable__plot { margin-block: -3px; padding: 2px 8px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); font: inherit; font-size: 12px; font-weight: 600; color: var(--color-primary); cursor: pointer; }
 .da-rowtable__plot:hover { background: var(--color-surface-low); }
 .da-rowtable__plot[aria-expanded="true"] { background: var(--color-primary-soft); border-color: transparent; }
 .da-rowtable__plot:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
@@ -538,6 +538,7 @@ label.da-scope-choice .da-scope-choice__head { justify-content: flex-start; }
 .da-needs__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 12px; }
 .da-needs__bar .posfield__label { margin: 0; }
 .da-needs__count { font-size: 12px; color: var(--color-text-muted); }
+.da-needs__pager { display: inline-flex; flex: none; align-items: center; gap: 10px; white-space: nowrap; }
 .da-needs__meta { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: var(--color-text-muted); }
 
 .da-severity { font-weight: 600; }

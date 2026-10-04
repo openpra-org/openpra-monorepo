@@ -417,13 +417,12 @@ describe("sources and priors", () => {
   });
 
   it("ships every built-in estimate of a catalog source, each passing the entry checks", () => {
-    const builtIn = DA_SOURCE_CATALOG.filter((source) => source.dataset !== undefined);
-    expect(builtIn.map((source) => source.id)).toEqual(expect.arrayContaining([DA_INL_2020_ID, DA_NASCORD_ID, "CCF-2020", "SAND2022-14164", "SAND2020-10828", "NUREG-CR-6890", "NUREG-1715", "NUREG-1829"]));
+    expect(DA_SOURCE_CATALOG.map((source) => source.id).sort()).toEqual(["CCF-2020", "CREDO", "EBR-II-PRA", "EGG-SSRE-8875", "IAEA-TECDOC-478", "IAEA-TECDOC-719", "ICDE", "INL-2020", "MIL-HDBK-217F", "NASCORD", "NSWC-11", "NUCLARR", "NUREG-1715", "NUREG-1829", "NUREG-CR-4550", "NUREG-CR-5496", "NUREG-CR-5750", "NUREG-CR-6890", "SAND2020-10828", "SAND2022-14164", "WSRC-TR-93-262"].sort());
     const assets = readFileSync(join(__dirname, "../daCatalogAssets.mjs"), "utf-8");
-    for (const catalog of builtIn) {
-      const name = catalog.dataset ?? "";
+    for (const catalog of DA_SOURCE_CATALOG) {
+      const name = catalog.dataset;
       const entries = dataset(name);
-      expect(entries).toHaveLength(catalog.estimates ?? -1);
+      expect(entries).toHaveLength(catalog.estimates);
       expect(new Set(entries.map((entry) => entry.id)).size).toBe(entries.length);
       expect(entries.every((entry) => entry.catalogCode === entry.id)).toBe(true);
       expect(assets.includes(`"${name}"`)).toBe(true);

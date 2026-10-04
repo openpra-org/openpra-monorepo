@@ -1,4 +1,4 @@
-import { JSX, KeyboardEvent, PointerEvent, type RefObject, useEffect, useRef, useState } from "react";
+import { JSX, KeyboardEvent, PointerEvent, type RefObject, useLayoutEffect, useRef, useState } from "react";
 import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
 import { distributionCdf, distributionDensity, distributionMean, distributionQuantile } from "./daDistributions";
 import { sciText } from "./daShared";
@@ -121,7 +121,7 @@ function summaryText(distribution: ParameterDistribution): string {
 function useElementWidth(fallback: number): [RefObject<HTMLDivElement>, number] {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(fallback);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const node = ref.current;
     if (node === null) return undefined;
     const start = Math.round(node.getBoundingClientRect().width);

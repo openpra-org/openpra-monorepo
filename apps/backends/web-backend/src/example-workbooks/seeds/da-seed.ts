@@ -2187,6 +2187,15 @@ const NASCORD_ROWS: DaSourceEntry[] = [
   { id: "NAS-VLV-MOV-SOP", component: "Motor-operated sodium valve", failureMode: "Spurious operation", quantity: "PER_HOUR", table: "Valve paper, Table 2. Sodium valve failure rates", mean: 1.4e-07, p025: 1.2e-08, p975: 4.3e-07, failures: 3, exposure: 7400000, method: "Posterior mean and 95% probability interval. Bayes update of the EG&G Idaho prior, mean 5.0E-7 with error factor 10, on NaSCoRD evidence.", catalogCode: "NAS-VLV-MOV-SOP" },
 ];
 
+const WSRC_ROWS: DaSourceEntry[] = [
+  { id: "ALR-NR-I", component: "Alarm/annunciator, instrumentation and control system", failureMode: "Fails to alarm", quantity: "PER_HOUR", table: "Table 1f. Instrumentation and control system recommended generic failure rates (report page 35)", distribution: { type: DistributionType.LOGNORMAL, median: 1.12613e-05, errorFactor: 10.0 }, mean: 3e-05, method: "Table 1f recommends a lognormal with mean 3.0E-5 per hour and error factor 10 (95th over 50th percentile), so the median is mean / exp(s*s/2) with s = ln(EF)/1.6448536. Basis in Table 6f: category 2 aggregated mean 3.6E-5 per hour (EF 10), rounded.", catalogCode: "ALR-NR-I" },
+  { id: "DCT-PG-H", component: "Ducting, HVAC/exhaust system", failureMode: "Plugs, per foot of ducting", quantity: "PER_HOUR", table: "Table 1d. HVAC/exhaust system recommended generic failure rates (report page 30)", distribution: { type: DistributionType.LOGNORMAL, median: 3.75378e-09, errorFactor: 10.0 }, mean: 1e-08, method: "Table 1d recommends a lognormal with mean 1.0E-8 per hour per foot and error factor 10 (95th over 50th percentile), so the median is mean / exp(s*s/2) with s = ln(EF)/1.6448536. Basis in Table 6d: note 3, water system piping results multiplied by 100. The printed unit is per hour per foot (h-ft), so the rate is per foot of length. Table 6d keeps the earlier error factor 30 for this row (S6-DCT-PG-H-REC).", catalogCode: "DCT-PG-H" },
+  { id: "LOG-FA-I", component: "Logic module, instrumentation and control system", failureMode: "Failure", quantity: "PER_HOUR", table: "Table 1f. Instrumentation and control system recommended generic failure rates (report page 36)", distribution: { type: DistributionType.LOGNORMAL, median: 1.85876e-06, errorFactor: 5.0 }, mean: 3e-06, method: "Table 1f recommends a lognormal with mean 3.0E-6 per hour and error factor 5 (95th over 50th percentile), so the median is mean / exp(s*s/2) with s = ln(EF)/1.6448536. Basis in Table 6f: category 3 aggregated mean 3.7E-6 per hour (EF 7.7), rounded.", catalogCode: "LOG-FA-I" },
+  { id: "PLC-FA-I", component: "Programmable logic controller, instrumentation and control system", failureMode: "Failure", quantity: "PER_HOUR", table: "Table 1f. Instrumentation and control system recommended generic failure rates (report page 36)", distribution: { type: DistributionType.LOGNORMAL, median: 1.12613e-05, errorFactor: 10.0 }, mean: 3e-05, method: "Table 1f recommends a lognormal with mean 3.0E-5 per hour and error factor 10 (95th over 50th percentile), so the median is mean / exp(s*s/2) with s = ln(EF)/1.6448536. Basis in Table 6f: category 2 aggregated mean 3.2E-5 per hour (EF 10), rounded.", catalogCode: "PLC-FA-I" },
+  { id: "SCR-FA-I", component: "Modifier/signal conditioner, instrumentation and control system", failureMode: "Failure", quantity: "PER_HOUR", table: "Table 1f. Instrumentation and control system recommended generic failure rates (report page 36)", distribution: { type: DistributionType.LOGNORMAL, median: 2.40022e-07, errorFactor: 3.0 }, mean: 3e-07, method: "Table 1f recommends a lognormal with mean 3.0E-7 per hour and error factor 3 (95th over 50th percentile), so the median is mean / exp(s*s/2) with s = ln(EF)/1.6448536. Basis in Table 6f: category 3 aggregated mean 3.3E-7 per hour (EF 2.1), rounded.", catalogCode: "SCR-FA-I" },
+  { id: "TST-FA-I", component: "Sensor/transmitter/transducer/process switch, temperature, instrumentation and control system", failureMode: "Failure", quantity: "PER_HOUR", table: "Table 1f. Instrumentation and control system recommended generic failure rates (report page 35)", distribution: { type: DistributionType.LOGNORMAL, median: 8.00074e-07, errorFactor: 3.0 }, mean: 1e-06, method: "Table 1f recommends a lognormal with mean 1.0E-6 per hour and error factor 3 (95th over 50th percentile), so the median is mean / exp(s*s/2) with s = ln(EF)/1.6448536. Basis in Table 6f: category 1 aggregated mean 1.1E-6 per hour (EF 3.3), rounded.", catalogCode: "TST-FA-I" },
+];
+
 function catalogSource(catalogId: string, id: string, entries: DaSourceEntry[]): DaSource {
   const source = daCatalogSource(catalogId, id, entries);
   if (source === undefined) throw new Error(`The ${catalogId} catalog entry is missing`);
@@ -2209,27 +2218,7 @@ const sources: DaSource[] = [
     reference: "Example IE workbook, Step 09 frequency quantification, citing the EBR-II Level 1 PRA (ANL-NSE-2, Argonne National Laboratory)",
     entries: daIeQuantificationEntries(IE_ANALYSIS_SFR, ["OPERATING_DATA", "FAULT_TREE"]),
   },
-  {
-    id: "SRC-04",
-    name: "Savannah River Site generic database (WSRC-TR-93-262 Rev. 1)",
-    catalogId: "WSRC-TR-93-262",
-    kind: "GENERIC_NUCLEAR",
-    origin: "OTHER_NUCLEAR",
-    covers: "About 500 component and failure mode combinations for water, chemical process, compressed gas, ventilation, electrical and instrument systems at Savannah River nonreactor nuclear facilities.",
-    yearsTo: "1993",
-    boundaryConvention: "Each component and failure mode has an identifier and a short definition. Boundaries follow the source data, mostly NUCLARR, so they are looser than the NUREG/CR-6928 boundaries.",
-    failureCounting: "Category 1 sources give reviewed failure events with their populations and exposure. Category 2 sources add events counted more loosely, from NPRD-3, OREDA, the Idaho chemical plant, a tritium facility and LNG plants. Category 3 sources give estimates only.",
-    quality: "Over three quarters of the results rest on actual failure events. Each recommended value is a lognormal mean with an error factor, the 95th over the 50th percentile. Hourly rates may need raising for hostile radioactive or chemical service.",
-    reference: "C. H. Blanton and S. A. Eide, WSRC-TR-93-262 Rev. 1, Westinghouse Savannah River Company, June 1993",
-    entries: [
-      { id: "ALR-NR-I", component: "Alarm or annunciator", failureMode: "Fails to alarm", quantity: "PER_HOUR", distribution: { type: DistributionType.LOGNORMAL, median: 1.126e-5, errorFactor: 10 }, mean: 3e-5, method: "Recommended lognormal, Table 1f" },
-      { id: "DCT-PG-H", component: "Ventilation ducting", failureMode: "Plugs, per foot of duct", quantity: "PER_HOUR", distribution: { type: DistributionType.LOGNORMAL, median: 3.754e-9, errorFactor: 10 }, mean: 1e-8, method: "Recommended lognormal per hour per foot, Table 1d" },
-      { id: "TST-FA-I", component: "Temperature sensor or transmitter", failureMode: "Failure", quantity: "PER_HOUR", distribution: { type: DistributionType.LOGNORMAL, median: 8.001e-7, errorFactor: 3 }, mean: 1e-6, method: "Recommended lognormal, Table 1f" },
-      { id: "SCR-FA-I", component: "Signal conditioner", failureMode: "Failure", quantity: "PER_HOUR", distribution: { type: DistributionType.LOGNORMAL, median: 2.4e-7, errorFactor: 3 }, mean: 3e-7, method: "Recommended lognormal, Table 1f" },
-      { id: "LOG-FA-I", component: "Logic module", failureMode: "Failure", quantity: "PER_HOUR", distribution: { type: DistributionType.LOGNORMAL, median: 1.859e-6, errorFactor: 5 }, mean: 3e-6, method: "Recommended lognormal, Table 1f" },
-      { id: "PLC-FA-I", component: "Programmable logic controller", failureMode: "Failure", quantity: "PER_HOUR", distribution: { type: DistributionType.LOGNORMAL, median: 1.126e-5, errorFactor: 10 }, mean: 3e-5, method: "Recommended lognormal, Table 1f" },
-    ],
-  },
+  catalogSource("WSRC-TR-93-262", "SRC-04", WSRC_ROWS),
   {
     id: "SRC-05",
     name: "Initiating events workbook, design-based frequencies",
@@ -2248,6 +2237,18 @@ const sources: DaSource[] = [
   catalogSource("NUREG-1829", "SRC-09", []),
   catalogSource("NUREG-1715", "SRC-10", []),
   catalogSource("NUREG-CR-6890", "SRC-11", []),
+  catalogSource("ICDE", "SRC-12", []),
+  catalogSource("NUREG-CR-5750", "SRC-13", []),
+  catalogSource("NUREG-CR-5496", "SRC-14", []),
+  catalogSource("NUCLARR", "SRC-15", []),
+  catalogSource("EGG-SSRE-8875", "SRC-16", []),
+  catalogSource("NUREG-CR-4550", "SRC-17", []),
+  catalogSource("IAEA-TECDOC-478", "SRC-18", []),
+  catalogSource("IAEA-TECDOC-719", "SRC-19", []),
+  catalogSource("CREDO", "SRC-20", []),
+  catalogSource("EBR-II-PRA", "SRC-21", []),
+  catalogSource("MIL-HDBK-217F", "SRC-22", []),
+  catalogSource("NSWC-11", "SRC-23", []),
 ];
 
 const elicitations: DaElicitation[] = [

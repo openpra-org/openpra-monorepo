@@ -1963,6 +1963,15 @@ const NASCORD_ROWS: DaSourceEntry[] = [
 
 ];
 
+const WSRC_ROWS: DaSourceEntry[] = [
+  { id: "ALR-NR-I", component: "Alarm/annunciator, instrumentation and control system", failureMode: "Fails to alarm", quantity: "PER_HOUR", table: "Table 1f. Instrumentation and control system recommended generic failure rates (report page 35)", distribution: { type: DistributionType.LOGNORMAL, median: 1.12613e-05, errorFactor: 10.0 }, mean: 3e-05, method: "Table 1f recommends a lognormal with mean 3.0E-5 per hour and error factor 10 (95th over 50th percentile), so the median is mean / exp(s*s/2) with s = ln(EF)/1.6448536. Basis in Table 6f: category 2 aggregated mean 3.6E-5 per hour (EF 10), rounded.", catalogCode: "ALR-NR-I" },
+  { id: "CYL-LE-G", component: "Cylinder (pressurized), compressed gas system", failureMode: "Leakage (external)", quantity: "PER_HOUR", table: "Table 1c. Compressed gas system recommended generic failure rates (report page 27)", distribution: { type: DistributionType.LOGNORMAL, median: 3.75378e-08, errorFactor: 10.0 }, mean: 1e-07, method: "Table 1c recommends a lognormal with mean 1.0E-7 per hour and error factor 10 (95th over 50th percentile), so the median is mean / exp(s*s/2) with s = ln(EF)/1.6448536. Basis in Table 6c: note 8, tank results used.", catalogCode: "CYL-LE-G" },
+  { id: "DCT-PG-H", component: "Ducting, HVAC/exhaust system", failureMode: "Plugs, per foot of ducting", quantity: "PER_HOUR", table: "Table 1d. HVAC/exhaust system recommended generic failure rates (report page 30)", distribution: { type: DistributionType.LOGNORMAL, median: 3.75378e-09, errorFactor: 10.0 }, mean: 1e-08, method: "Table 1d recommends a lognormal with mean 1.0E-8 per hour per foot and error factor 10 (95th over 50th percentile), so the median is mean / exp(s*s/2) with s = ln(EF)/1.6448536. Basis in Table 6d: note 3, water system piping results multiplied by 100. The printed unit is per hour per foot (h-ft), so the rate is per foot of length. Table 6d keeps the earlier error factor 30 for this row (S6-DCT-PG-H-REC).", catalogCode: "DCT-PG-H" },
+  { id: "HTX-FL-G", component: "Heat exchanger, shell/tube, compressed gas system", failureMode: "Fouling (tubes)", quantity: "PER_HOUR", table: "Table 1c. Compressed gas system recommended generic failure rates (report page 27)", distribution: { type: DistributionType.LOGNORMAL, median: 3.75378e-06, errorFactor: 10.0 }, mean: 1e-05, method: "Table 1c recommends a lognormal with mean 1.0E-5 per hour and error factor 10 (95th over 50th percentile), so the median is mean / exp(s*s/2) with s = ln(EF)/1.6448536. Basis in Table 6c: note 4, water system result multiplied by 100, after comparing the limited compressed gas data with water system data.", catalogCode: "HTX-FL-G" },
+  { id: "MDC-FS-G", component: "Motor-driven compressor, compressed gas system", failureMode: "Fails to start", quantity: "PER_DEMAND", table: "Table 1c. Compressed gas system recommended generic failure rates (report page 27)", distribution: { type: DistributionType.LOGNORMAL, median: 0.00309794, errorFactor: 5.0 }, mean: 0.005, method: "Table 1c recommends a lognormal with mean 5.0E-3 per demand and error factor 5 (95th over 50th percentile), so the median is mean / exp(s*s/2) with s = ln(EF)/1.6448536. Basis in Table 6c: category 1 aggregated mean 7.5E-3 per demand (EF 7.1), rounded.", catalogCode: "MDC-FS-G" },
+  { id: "UST-FA-I", component: "Sensor/transmitter/transducer/process switch, humidity, instrumentation and control system", failureMode: "Failure", quantity: "PER_HOUR", table: "Table 1f. Instrumentation and control system recommended generic failure rates (report page 35)", distribution: { type: DistributionType.LOGNORMAL, median: 3.75378e-06, errorFactor: 10.0 }, mean: 1e-05, method: "Table 1f recommends a lognormal with mean 1.0E-5 per hour and error factor 10 (95th over 50th percentile), so the median is mean / exp(s*s/2) with s = ln(EF)/1.6448536. Basis in Table 6f: category 2 aggregated mean 1.2E-5 per hour (EF 10), rounded.", catalogCode: "UST-FA-I" },
+];
+
 function catalogSource(catalogId: string, id: string, entries: DaSourceEntry[]): DaSource {
   const source = daCatalogSource(catalogId, id, entries);
   if (source === undefined) throw new Error(`The ${catalogId} catalog entry is missing`);
@@ -1971,27 +1980,7 @@ function catalogSource(catalogId: string, id: string, entries: DaSourceEntry[]):
 
 const sources: DaSource[] = [
   catalogSource(DA_INL_2020_ID, "SRC-01", INL_ROWS),
-  {
-    id: "SRC-02",
-    name: "Savannah River Site generic database (WSRC-TR-93-262 Rev. 1)",
-    catalogId: "WSRC-TR-93-262",
-    kind: "GENERIC_NUCLEAR",
-    origin: "OTHER_NUCLEAR",
-    covers: "About 500 component and failure mode combinations for water, chemical process, compressed gas, ventilation, electrical and instrument systems at Savannah River nonreactor nuclear facilities.",
-    yearsTo: "1993",
-    boundaryConvention: "Each component and failure mode has an identifier and a short definition. Boundaries follow the source data, mostly NUCLARR, so they are looser than the NUREG/CR-6928 boundaries.",
-    failureCounting: "Category 1 sources give reviewed failure events with their populations and exposure. Category 2 sources add events counted more loosely, from NPRD-3, OREDA, the Idaho chemical plant, a tritium facility and LNG plants. Category 3 sources give estimates only.",
-    quality: "Over three quarters of the results rest on actual failure events. Each recommended value is a lognormal mean with an error factor, the 95th over the 50th percentile. Hourly rates may need raising for hostile radioactive or chemical service.",
-    reference: "C. H. Blanton and S. A. Eide, WSRC-TR-93-262 Rev. 1, Westinghouse Savannah River Company, June 1993",
-    entries: [
-      { id: "ALR-NR-I", component: "Alarm or annunciator", failureMode: "Fails to alarm", quantity: "PER_HOUR", distribution: { type: DistributionType.LOGNORMAL, median: 1.126e-5, errorFactor: 10 }, mean: 3e-5, method: "Recommended lognormal, Table 1f" },
-      { id: "UST-FA-I", component: "Humidity sensor or transmitter", failureMode: "Failure", quantity: "PER_HOUR", distribution: { type: DistributionType.LOGNORMAL, median: 3.754e-6, errorFactor: 10 }, mean: 1e-5, method: "Recommended lognormal, Table 1f" },
-      { id: "DCT-PG-H", component: "Ventilation ducting", failureMode: "Plugs, per foot of duct", quantity: "PER_HOUR", distribution: { type: DistributionType.LOGNORMAL, median: 3.754e-9, errorFactor: 10 }, mean: 1e-8, method: "Recommended lognormal per hour per foot, Table 1d" },
-      { id: "MDC-FS-G", component: "Motor-driven compressor, compressed gas service", failureMode: "Fails to start", quantity: "PER_DEMAND", distribution: { type: DistributionType.LOGNORMAL, median: 0.003098, errorFactor: 5 }, mean: 0.005, method: "Recommended lognormal, Table 1c" },
-      { id: "CYL-LE-G", component: "Pressurized gas cylinder", failureMode: "Leakage, external", quantity: "PER_HOUR", distribution: { type: DistributionType.LOGNORMAL, median: 3.754e-8, errorFactor: 10 }, mean: 1e-7, method: "Recommended lognormal, Table 1c" },
-      { id: "HTX-FL-G", component: "Shell and tube heat exchanger, compressed gas service", failureMode: "Fouling of the tubes", quantity: "PER_HOUR", distribution: { type: DistributionType.LOGNORMAL, median: 3.754e-6, errorFactor: 10 }, mean: 1e-5, method: "Recommended lognormal, Table 1c" },
-    ],
-  },
+  catalogSource("WSRC-TR-93-262", "SRC-02", WSRC_ROWS),
   {
     id: "SRC-03",
     name: "Fort St. Vrain helium circulator operating experience",
@@ -2032,6 +2021,18 @@ const sources: DaSource[] = [
   catalogSource("NUREG-1829", "SRC-09", []),
   catalogSource("NUREG-1715", "SRC-10", []),
   catalogSource("NUREG-CR-6890", "SRC-11", []),
+  catalogSource("ICDE", "SRC-12", []),
+  catalogSource("NUREG-CR-5750", "SRC-13", []),
+  catalogSource("NUREG-CR-5496", "SRC-14", []),
+  catalogSource("NUCLARR", "SRC-15", []),
+  catalogSource("EGG-SSRE-8875", "SRC-16", []),
+  catalogSource("NUREG-CR-4550", "SRC-17", []),
+  catalogSource("IAEA-TECDOC-478", "SRC-18", []),
+  catalogSource("IAEA-TECDOC-719", "SRC-19", []),
+  catalogSource("CREDO", "SRC-20", []),
+  catalogSource("EBR-II-PRA", "SRC-21", []),
+  catalogSource("MIL-HDBK-217F", "SRC-22", []),
+  catalogSource("NSWC-11", "SRC-23", []),
 ];
 
 const elicitations: DaElicitation[] = [

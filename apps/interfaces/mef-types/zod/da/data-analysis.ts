@@ -175,7 +175,7 @@ export const DaEvidenceKindSchema = z.enum([
 
 export const DaSourceOriginSchema = z.enum(["SAME_TECHNOLOGY", "OTHER_NUCLEAR", "NONNUCLEAR"]);
 
-export const DaEstimateQuantitySchema = z.enum(["PER_DEMAND", "PER_HOUR", "PER_YEAR", "FRACTION", "PROBABILITY", "HOURS"]);
+export const DaEstimateQuantitySchema = z.enum(["PER_DEMAND", "PER_HOUR", "PER_YEAR", "FRACTION", "PROBABILITY", "HOURS", "FACTOR"]);
 
 export const DaTransferFactorSchema = z.object({
   id: z.string(),

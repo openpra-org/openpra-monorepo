@@ -416,6 +416,7 @@ const QUANTITY_LABELS: Record<DaEstimateQuantity, string> = {
   FRACTION: "fraction",
   PROBABILITY: "probability",
   HOURS: "hours",
+  FACTOR: "factor",
 };
 
 const EXPOSURE_LABELS: Record<DaEstimateQuantity, string> = {
@@ -425,6 +426,7 @@ const EXPOSURE_LABELS: Record<DaEstimateQuantity, string> = {
   FRACTION: "hours",
   PROBABILITY: "trials",
   HOURS: "events",
+  FACTOR: "values",
 };
 
 const VERDICT_LABELS: Record<DaSourceVerdict, string> = {

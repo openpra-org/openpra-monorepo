@@ -149,6 +149,8 @@ function validDistribution(d: ParameterDistribution): boolean {
     case DistributionType.LOGNORMAL: return d.median > 0 && d.errorFactor >= 1;
     case DistributionType.NORMAL: return d.stdDev >= 0;
     case DistributionType.UNIFORM: return d.upper >= d.lower;
+    case DistributionType.WEIBULL: return d.scale > 0 && d.shape > 0 && Number.isFinite(d.location);
+    case DistributionType.EXPONENTIAL: return d.failureRate > 0;
     case DistributionType.POINT_ESTIMATE: return Number.isFinite(d.value);
     default: return false;
   }
@@ -162,6 +164,8 @@ function distributionMean(d: ParameterDistribution): number | undefined {
     case DistributionType.LOGNORMAL: return d.median * Math.exp(lognormalSigma(d.errorFactor) ** 2 / 2);
     case DistributionType.NORMAL: return d.mean;
     case DistributionType.UNIFORM: return (d.lower + d.upper) / 2;
+    case DistributionType.WEIBULL: return d.location + d.scale * Math.exp(lnGamma(1 + 1 / d.shape));
+    case DistributionType.EXPONENTIAL: return 1 / d.failureRate;
     case DistributionType.POINT_ESTIMATE: return d.value;
     default: return undefined;
   }
@@ -175,6 +179,8 @@ function distributionQuantile(d: ParameterDistribution, p: number): number | und
     case DistributionType.LOGNORMAL: return d.median * Math.exp(lognormalSigma(d.errorFactor) * normalQuantile(p));
     case DistributionType.NORMAL: return d.mean + d.stdDev * normalQuantile(p);
     case DistributionType.UNIFORM: return d.lower + (d.upper - d.lower) * p;
+    case DistributionType.WEIBULL: return d.location + d.scale * Math.pow(-Math.log(1 - p), 1 / d.shape);
+    case DistributionType.EXPONENTIAL: return -Math.log(1 - p) / d.failureRate;
     case DistributionType.POINT_ESTIMATE: return d.value;
     default: return undefined;
   }
@@ -198,6 +204,12 @@ function distributionDensity(d: ParameterDistribution, x: number): number | unde
       return Math.exp(-(z * z) / 2) / (d.stdDev * Math.sqrt(2 * Math.PI));
     }
     case DistributionType.UNIFORM: return d.upper > d.lower && x >= d.lower && x <= d.upper ? 1 / (d.upper - d.lower) : 0;
+    case DistributionType.WEIBULL: {
+      if (x <= d.location) return 0;
+      const z = (x - d.location) / d.scale;
+      return (d.shape / d.scale) * Math.pow(z, d.shape - 1) * Math.exp(-Math.pow(z, d.shape));
+    }
+    case DistributionType.EXPONENTIAL: return x < 0 ? 0 : d.failureRate * Math.exp(-d.failureRate * x);
     default: return undefined;
   }
 }
@@ -215,6 +227,8 @@ function distributionCdf(d: ParameterDistribution, x: number): number | undefine
     }
     case DistributionType.NORMAL: return d.stdDev > 0 ? normalCdf((x - d.mean) / d.stdDev) : x >= d.mean ? 1 : 0;
     case DistributionType.UNIFORM: return x <= d.lower ? 0 : x >= d.upper ? 1 : (x - d.lower) / (d.upper - d.lower);
+    case DistributionType.WEIBULL: return x <= d.location ? 0 : 1 - Math.exp(-Math.pow((x - d.location) / d.scale, d.shape));
+    case DistributionType.EXPONENTIAL: return x <= 0 ? 0 : 1 - Math.exp(-d.failureRate * x);
     case DistributionType.POINT_ESTIMATE: return x >= d.value ? 1 : 0;
     default: return undefined;
   }
@@ -231,6 +245,8 @@ function scaleDistribution(d: ParameterDistribution, factor: number): ParameterD
     case DistributionType.LOGNORMAL: return { type: DistributionType.LOGNORMAL, median: d.median * factor, errorFactor: d.errorFactor };
     case DistributionType.NORMAL: return { type: DistributionType.NORMAL, mean: d.mean * factor, stdDev: d.stdDev * factor };
     case DistributionType.UNIFORM: return { type: DistributionType.UNIFORM, lower: d.lower * factor, upper: d.upper * factor };
+    case DistributionType.WEIBULL: return { type: DistributionType.WEIBULL, scale: d.scale * factor, shape: d.shape, location: d.location * factor };
+    case DistributionType.EXPONENTIAL: return { type: DistributionType.EXPONENTIAL, failureRate: d.failureRate / factor };
     case DistributionType.POINT_ESTIMATE: return { type: DistributionType.POINT_ESTIMATE, value: d.value * factor };
     default: return undefined;
   }

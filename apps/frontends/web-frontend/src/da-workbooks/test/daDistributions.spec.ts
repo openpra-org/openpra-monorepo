@@ -43,6 +43,29 @@ describe("distribution math", () => {
     close(normalCdf(-2.5), 0.00620967, 1e-5);
   });
 
+  it("matches reference Weibull and exponential values", () => {
+    const weibull = { type: DistributionType.WEIBULL, scale: 2, shape: 1.5, location: 0 } as const;
+    close(distributionMean(weibull), 1.805490585901867);
+    close(distributionQuantile(weibull, 0.05), 0.2761025331125684);
+    close(distributionQuantile(weibull, 0.95), 4.156221275069113);
+    close(distributionCdf(weibull, 1), 0.29781149867344037);
+    close(distributionDensity(weibull, 1), 0.37239168821942203);
+    const shifted = { type: DistributionType.WEIBULL, scale: 1.3, shape: 0.7, location: 0.25 } as const;
+    close(distributionMean(shifted), 1.8955705578744686);
+    close(distributionQuantile(shifted, 0.5), 1.0201071468377738);
+    close(distributionCdf(shifted, 1), 0.49360007971749176);
+    close(distributionDensity(shifted, 1), 0.3215977066061188);
+    expect(distributionDensity(shifted, 0.2)).toBe(0);
+    const exponential = { type: DistributionType.EXPONENTIAL, failureRate: 0.5 } as const;
+    close(distributionMean(exponential), 2);
+    close(distributionQuantile(exponential, 0.05), 0.10258658877510107);
+    close(distributionQuantile(exponential, 0.95), 5.99146454710798);
+    close(distributionCdf(exponential, 1), 0.3934693402873666);
+    close(distributionDensity(exponential, 1), 0.3032653298563167);
+    close(distributionMean(scaleDistribution(weibull, 3) ?? weibull), 3 * 1.805490585901867);
+    close(distributionMean(scaleDistribution(exponential, 3) ?? exponential), 6);
+  });
+
   it("scales a distribution and keeps its shape", () => {
     expect(scaleDistribution({ type: DistributionType.GAMMA, shape: 2.5, rate: 360 }, 2)).toEqual({ type: DistributionType.GAMMA, shape: 2.5, rate: 180 });
     expect(scaleDistribution({ type: DistributionType.LOGNORMAL, median: 1e-5, errorFactor: 3 }, 10)).toEqual({ type: DistributionType.LOGNORMAL, median: 1e-4, errorFactor: 3 });

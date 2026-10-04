@@ -87,10 +87,12 @@ const DISTRIBUTION_CHOICES: { value: string; label: string }[] = [
   { value: DistributionType.GAMMA, label: "Gamma" },
   { value: DistributionType.LOGNORMAL, label: "Lognormal" },
   { value: DistributionType.NORMAL, label: "Normal" },
+  { value: DistributionType.WEIBULL, label: "Weibull" },
+  { value: DistributionType.EXPONENTIAL, label: "Exponential" },
   { value: DistributionType.POINT_ESTIMATE, label: "Point estimate" },
 ];
 
-const QUANTITY_ORDER: DaEstimateQuantity[] = ["PER_DEMAND", "PER_HOUR", "PER_YEAR", "FRACTION", "PROBABILITY", "HOURS"];
+const QUANTITY_ORDER: DaEstimateQuantity[] = ["PER_DEMAND", "PER_HOUR", "PER_YEAR", "FRACTION", "PROBABILITY", "HOURS", "FACTOR"];
 
 const PICK_LIMIT = 60;
 
@@ -130,6 +132,8 @@ function distributionText(d: ParameterDistribution | undefined): string {
     case DistributionType.GAMMA: return `Gamma(${parameterText(d.shape)}, ${parameterText(d.rate)})`;
     case DistributionType.LOGNORMAL: return `Lognormal(${parameterText(d.median)}, EF ${parameterText(d.errorFactor)})`;
     case DistributionType.NORMAL: return `Normal(${parameterText(d.mean)}, ${parameterText(d.stdDev)})`;
+    case DistributionType.WEIBULL: return d.location === 0 ? `Weibull(${parameterText(d.scale)}, ${parameterText(d.shape)})` : `Weibull(${parameterText(d.scale)}, ${parameterText(d.shape)}, from ${parameterText(d.location)})`;
+    case DistributionType.EXPONENTIAL: return `Exponential(${parameterText(d.failureRate)})`;
     case DistributionType.POINT_ESTIMATE: return `Point(${parameterText(d.value)})`;
     default: return d.type;
   }
@@ -608,6 +612,8 @@ function distributionDraft(type: string, current: ParameterDistribution | undefi
     case DistributionType.GAMMA: return current?.type === DistributionType.GAMMA ? current : { type: DistributionType.GAMMA, shape: 0.5, rate: 0.5 / base };
     case DistributionType.LOGNORMAL: return current?.type === DistributionType.LOGNORMAL ? current : { type: DistributionType.LOGNORMAL, median: base, errorFactor: 10 };
     case DistributionType.NORMAL: return current?.type === DistributionType.NORMAL ? current : { type: DistributionType.NORMAL, mean: base, stdDev: base / 2 };
+    case DistributionType.WEIBULL: return current?.type === DistributionType.WEIBULL ? current : { type: DistributionType.WEIBULL, scale: base, shape: 1, location: 0 };
+    case DistributionType.EXPONENTIAL: return current?.type === DistributionType.EXPONENTIAL ? current : { type: DistributionType.EXPONENTIAL, failureRate: 1 / base };
     case DistributionType.POINT_ESTIMATE: return { type: DistributionType.POINT_ESTIMATE, value: base };
     default: return undefined;
   }
@@ -637,6 +643,18 @@ function DistributionFields({ value, disabled, onChange }: { value: ParameterDis
       <>
         <span className="da-form__unit">mean</span><NumberInput label="Normal mean" value={value.mean} disabled={disabled} onChange={(mean) => { if (mean !== undefined) onChange({ ...value, mean }); }} />
         <span className="da-form__unit">sd</span><NumberInput label="Standard deviation" value={value.stdDev} disabled={disabled} onChange={(stdDev) => { if (stdDev !== undefined) onChange({ ...value, stdDev }); }} />
+      </>
+    );
+    case DistributionType.WEIBULL: return (
+      <>
+        <span className="da-form__unit">scale</span><NumberInput label="Weibull scale" value={value.scale} disabled={disabled} onChange={(scale) => { if (scale !== undefined) onChange({ ...value, scale }); }} />
+        <span className="da-form__unit">shape</span><NumberInput label="Weibull shape" value={value.shape} disabled={disabled} onChange={(shape) => { if (shape !== undefined) onChange({ ...value, shape }); }} />
+        <span className="da-form__unit">from</span><NumberInput label="Weibull location" value={value.location} disabled={disabled} onChange={(location) => { if (location !== undefined) onChange({ ...value, location }); }} />
+      </>
+    );
+    case DistributionType.EXPONENTIAL: return (
+      <>
+        <span className="da-form__unit">rate</span><NumberInput label="Exponential rate" value={value.failureRate} disabled={disabled} onChange={(failureRate) => { if (failureRate !== undefined) onChange({ ...value, failureRate }); }} />
       </>
     );
     case DistributionType.POINT_ESTIMATE: return <NumberInput label="Point value" value={value.value} disabled={disabled} onChange={(point) => { if (point !== undefined) onChange({ ...value, value: point }); }} />;
@@ -762,7 +780,7 @@ function CatalogWindow({ onClose, onRetarget }: { onClose: () => void; onRetarge
                   <td className="da-rowtable__wrap">{entry.name}</td>
                   <td className="da-rowtable__wrap">{entry.provides}</td>
                   <td>{EVIDENCE_KIND_LABELS[entry.kind]}</td>
-                  <td>{entry.estimates === undefined ? "Import a file" : `${entry.estimates} estimates`}</td>
+                  <td>{entry.estimates.toLocaleString()} estimates</td>
                   <td className="da-catalog__cell"><CatalogAction sourceId={inLibrary.get(entry.id)} users={sourceUsers(da, inLibrary.get(entry.id) ?? "").length} editable={editable} onAdd={() => add(entry.id)} onRemove={remove} onOpen={(id) => onRetarget({ kind: "daSource", id })} /></td>
                 </tr>
               ))}
@@ -854,10 +872,17 @@ interface EstimateChoice {
   search: string;
 }
 
+function pickDetail(entry: DaSourceEntry): string {
+  if (entry.mean !== undefined) return `mean ${sciText(entry.mean)}`;
+  if (entry.distribution?.type === DistributionType.POINT_ESTIMATE) return `value ${sciText(entry.distribution.value)}`;
+  if (entry.median !== undefined) return `median ${sciText(entry.median)}`;
+  return dataText(entry);
+}
+
 function entryChoices(da: DataAnalysis, builtIn: ReadonlyMap<string, DaSourceEntry[]>): EstimateChoice[] {
-  const entries = (da.sources ?? []).flatMap((source) => libraryEntries(source, builtIn.get(source.catalogId ?? "")).map((entry) => {
+  const entries = (da.sources ?? []).flatMap((source) => libraryEntries(source, builtIn.get(source.catalogId ?? "")).filter((entry) => entry.quantity !== "FACTOR").map((entry) => {
     const label = `${source.id} · ${entry.id} · ${entry.component} · ${entry.failureMode}`;
-    const detail = `${entry.mean === undefined ? dataText(entry) : `mean ${sciText(entry.mean)}`} · ${QUANTITY_LABELS[entry.quantity]}`;
+    const detail = `${pickDetail(entry)} · ${QUANTITY_LABELS[entry.quantity]}`;
     return { value: `S|${source.id}|${entry.id}`, label, detail, search: `${source.id} ${source.name} ${entrySearchText(entry)}`.toLowerCase() };
   }));
   const judgments = (da.elicitations ?? []).map((elicitation) => ({

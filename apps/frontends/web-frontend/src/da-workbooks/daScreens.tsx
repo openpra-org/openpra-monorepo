@@ -641,11 +641,11 @@ function NeedPager({ total, page, onPage }: { total: number; page: number; onPag
   const first = current * NEED_PAGE + 1;
   const last = Math.min(total, (current + 1) * NEED_PAGE);
   return (
-    <>
+    <span className="da-needs__pager">
       <span className="da-needs__count">{total === 0 ? "None" : `${first} to ${last} of ${total}`}</span>
       {pages > 1 && <button type="button" className="posnav__btn posnav__btn--sm" disabled={current === 0} onClick={() => onPage(current - 1)}>Previous</button>}
       {pages > 1 && <button type="button" className="posnav__btn posnav__btn--sm" disabled={current >= pages - 1} onClick={() => onPage(current + 1)}>Next</button>}
-    </>
+    </span>
   );
 }
 

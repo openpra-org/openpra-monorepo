@@ -160,7 +160,7 @@ export type DaEvidenceKind =
 
 export type DaSourceOrigin = "SAME_TECHNOLOGY" | "OTHER_NUCLEAR" | "NONNUCLEAR";
 
-export type DaEstimateQuantity = "PER_DEMAND" | "PER_HOUR" | "PER_YEAR" | "FRACTION" | "PROBABILITY" | "HOURS";
+export type DaEstimateQuantity = "PER_DEMAND" | "PER_HOUR" | "PER_YEAR" | "FRACTION" | "PROBABILITY" | "HOURS" | "FACTOR";
 
 export interface DaSourceEntry {
   id: string;

@@ -11,6 +11,8 @@ import {
   BorderStyle,
 } from "docx";
 import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
+import { EVIDENCE_KIND_LABELS, SOURCE_ORIGIN_LABELS } from "./daViewData";
+import { libraryCount } from "./daSourcing";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({ text, heading: level, spacing: { before: 240, after: 120 }, pageBreakBefore: level === HeadingLevel.HEADING_1 });
@@ -54,9 +56,10 @@ function val(v: number | undefined): string {
 
 const TYPE_LABELS: Record<string, string> = {
   FREQUENCY: "Frequency",
+  FAILURE_RATE: "Failure rate",
   PROBABILITY: "Demand probability",
   UNAVAILABILITY: "Unavailability",
-  OTHER: "Failure rate",
+  OTHER: "Other",
   CCF_PARAMETER: "CCF parameter",
   HUMAN_ERROR_PROBABILITY: "HEP",
 };
@@ -76,7 +79,8 @@ function buildChildren(a: DataAnalysis, final: boolean): (Paragraph | Table)[] {
   const doc = a.documentation;
   const params = a.parameters;
   const boundaries = a.componentBoundaries;
-  const sources = a.externalDataSources ?? [];
+  const sources = a.sources ?? [];
+  const elicitations = a.elicitations ?? [];
   const ccfs = a.ccfParameterEstimations ?? [];
 
   out.push(
@@ -121,7 +125,8 @@ function buildChildren(a: DataAnalysis, final: boolean): (Paragraph | Table)[] {
 
   out.push(heading("Data sources (generic · design · expert)", HeadingLevel.HEADING_1));
   out.push(para(doc.genericParameterSources));
-  out.push(dataTable(["Source", "Type", "Period"], sources.length > 0 ? sources.map((s) => [s.name, s.sourceType, `${s.timePeriod.start} to ${s.timePeriod.end}`]) : [["None", "—", "—"]]));
+  out.push(dataTable(["Source", "Evidence", "Origin", "Years", "Estimates"], sources.length > 0 ? sources.map((s) => [s.name, EVIDENCE_KIND_LABELS[s.kind], SOURCE_ORIGIN_LABELS[s.origin], `${s.yearsFrom ?? "?"} to ${s.yearsTo ?? "?"}`, String(libraryCount(s))]) : [["None", "—", "—", "—", "—"]]));
+  if (elicitations.length > 0) out.push(dataTable(["Elicitation", "Technical issue", "Evaluators", "Owner"], elicitations.map((e) => [e.id, e.issue, String(e.experts.filter((x) => x.role === "EVALUATOR").length), e.integrator])));
 
   out.push(heading("Data updating process", HeadingLevel.HEADING_1));
   out.push(para(doc.bayesianPriorRationales));

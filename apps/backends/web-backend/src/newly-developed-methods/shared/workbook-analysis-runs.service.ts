@@ -507,16 +507,18 @@ export class WorkbookAnalysisRunsService {
           );
         }
         const quantity = parameter.parameterType === "FREQUENCY" ? "FAILURE_RATE" : "PROBABILITY";
+        const value = parameter.value;
         if (
-          !Number.isFinite(parameter.value) ||
-          parameter.value < 0 ||
-          (quantity === "PROBABILITY" && parameter.value > 1)
+          value === undefined ||
+          !Number.isFinite(value) ||
+          value < 0 ||
+          (quantity === "PROBABILITY" && value > 1)
         ) {
           throw new BadRequestException(
             `DA parameter '${reference.workbookId}:${reference.entityId}' must be finite and ${quantity === "PROBABILITY" ? "between zero and one" : "non-negative"}`,
           );
         }
-        values.set(key, { value: parameter.value, quantity, uncertainty: parameter.uncertainty?.distribution });
+        values.set(key, { value, quantity, uncertainty: parameter.uncertainty?.distribution });
         continue;
       }
 

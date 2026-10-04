@@ -3,6 +3,8 @@ import { useParams } from "react-router-dom";
 import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
+import { type DaLinkCode } from "interfaces-mef-types/da/data-analysis";
+import { type Workbook } from "interfaces-shared-types";
 import { fetchJson } from "../api/client";
 import { getProject } from "../projects/projectApi";
 import { WorkbookRolesModal } from "../workbooks/workbookRolesModal";
@@ -13,7 +15,7 @@ import { postWorkbookComment, patchWorkbookComment, submitWorkbookForReview, req
 import { useAuth } from "../auth/AuthContext";
 import {
   getDaWorkbook,
-  fetchDaLinkedInputs,
+  listDaLinkOptions,
   getDaExampleOptions,
   loadDaExample,
   unloadDaExample,
@@ -22,7 +24,7 @@ import {
   type DaExampleOption,
 } from "./daWorkbookApi";
 import { DaWorkbench, type DaWorkbenchActions } from "./daWorkbench";
-import { DaWorkbookProvider, type DaWorkbookData } from "./daWorkbookContext";
+import { DaWorkbookProvider, EMPTY_UPSTREAM, useDaUpstream, type DaWorkbookData } from "./daWorkbookContext";
 import { useDaMefPatch } from "./useDaMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { DaDocumentsCard } from "./daDocumentsCard";
@@ -30,8 +32,8 @@ import { type DaPersona } from "./daViewData";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "DA-A1",
-  define: "DA-A1",
-  group: "DA-B1",
+  needs: "DA-A1",
+  define: "DA-A4",
   generic: "DA-C1",
   counts: "DA-C7",
   unavail: "DA-C13",
@@ -69,6 +71,7 @@ function DaWorkbookPage(): JSX.Element {
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
   const [exampleOptions, setExampleOptions] = useState<DaExampleOption[]>([]);
+  const [linkOptions, setLinkOptions] = useState<Record<DaLinkCode, Workbook[]>>(EMPTY_UPSTREAM.options);
   const workbookName = data?.da.name ?? "";
   const workbookVersion = data?.da.version ?? "1";
 
@@ -85,7 +88,6 @@ function DaWorkbookPage(): JSX.Element {
           da: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
           nms: bundle.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
-          links: null,
         });
         setMyRoles(workbook.myRoles);
         setRevision(workbook.revision);
@@ -96,6 +98,8 @@ function DaWorkbookPage(): JSX.Element {
         } catch {
           if (!cancelled) setProjectName("");
         }
+        const options = await listDaLinkOptions(workbook.projectId);
+        if (!cancelled) setLinkOptions(options);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -112,16 +116,7 @@ function DaWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
-  const daUuid = data?.da.uuid ?? "";
-  useEffect(() => {
-    const variant = daUuid === "da-generic-1" ? "sfr" : daUuid === "da-generic-2" ? "htgr" : null;
-    if (variant === null) return;
-    let cancelled = false;
-    fetchDaLinkedInputs(variant)
-      .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
-      .catch(() => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links: null })); });
-    return () => { cancelled = true; };
-  }, [daUuid]);
+  const upstream = useDaUpstream(data?.da, linkOptions);
 
   const updateDa = useCallback((da: DataAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, da }));
@@ -138,7 +133,7 @@ function DaWorkbookPage(): JSX.Element {
     setMyRoles(latest.myRoles);
     setHasPreviousMef(latest.hasPreviousMef);
   }, []);
-  const { patch } = useDaMefPatch(
+  const { patch, saveStatus } = useDaMefPatch(
     id ?? "",
     data?.da ?? null,
     revision,
@@ -213,7 +208,7 @@ function DaWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <DaWorkbookProvider data={data} editable={editable} mutateDa={mutateDa}>
+    <DaWorkbookProvider data={data} editable={editable} mutateDa={mutateDa} upstream={upstream}>
       <DaWorkbench
         data={data}
         persona={persona}
@@ -224,7 +219,7 @@ function DaWorkbookPage(): JSX.Element {
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
-        headerMeta={{ projectName, workbookName, workbookVersion }}
+        headerMeta={{ projectName, workbookName, workbookVersion, saveStatus }}
         renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />}
         renderSignCard={() => (
           <WorkbookSignCard

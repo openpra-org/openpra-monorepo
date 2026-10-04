@@ -1,20 +1,60 @@
 import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
-import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
-import { type DaLinkedInputs } from "./daWorkbookContext";
+import { type DataAnalysis, type DaLinkCode } from "interfaces-mef-types/da/data-analysis";
+import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
+import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
+import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
+import { type Workbook } from "interfaces-shared-types";
+import { listWorkbooks } from "../workbooks/workbookApi";
+import { getIeWorkbook } from "../ie-workbooks/ieWorkbookApi";
+import { getPosWorkbook } from "../pos-workbooks/posWorkbookApi";
+import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
+import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
+import { exampleLinkVariant } from "./daViewData";
 
-interface LinkedPosMef { plantOperatingStates?: { uuid: string; name: string; operatingMode?: string; meanDurationHours: number }[] }
-interface LinkedEsMef { eventSequenceFamilies?: { uuid: string; name: string }[] }
+async function listLinkOptions(projectId: string, code: DaLinkCode): Promise<Workbook[]> {
+  try {
+    return (await listWorkbooks(projectId, code)).workbooks;
+  } catch {
+    return [];
+  }
+}
 
-async function fetchDaLinkedInputs(variant: string): Promise<DaLinkedInputs> {
-  const [posB, esB] = await Promise.all([
-    fetchJson<{ pos: { mef: LinkedPosMef } }>(`/api/example-workbooks/pos-bundle?example=${variant}`),
-    fetchJson<{ es: { mef: LinkedEsMef } }>(`/api/example-workbooks/es-bundle?example=${variant}`),
+async function listDaLinkOptions(projectId: string): Promise<Record<DaLinkCode, Workbook[]>> {
+  const [SY, IE, HRA, POS, SC, ESQ] = await Promise.all([
+    listLinkOptions(projectId, "SY"),
+    listLinkOptions(projectId, "IE"),
+    listLinkOptions(projectId, "HRA"),
+    listLinkOptions(projectId, "POS"),
+    listLinkOptions(projectId, "SC"),
+    listLinkOptions(projectId, "ESQ"),
   ]);
-  return {
-    posStates: (posB.pos.mef.plantOperatingStates ?? []).map((s) => ({ id: s.uuid, name: s.name, mode: s.operatingMode ?? "—", durationHours: s.meanDurationHours })),
-    esFamilies: (esB.es.mef.eventSequenceFamilies ?? []).map((f) => ({ id: f.uuid, name: f.name })),
-  };
+  return { SY, IE, HRA, POS, SC, ESQ };
+}
+
+async function loadLinkedIe(id: string): Promise<InitiatingEventsAnalysis> {
+  const variant = exampleLinkVariant(id);
+  if (variant !== undefined) return (await fetchJson<{ ie: { mef: InitiatingEventsAnalysis } }>(`/api/example-workbooks/ie-bundle?example=${variant}`)).ie.mef;
+  return (await getIeWorkbook(id)).mef;
+}
+
+async function loadLinkedSy(id: string): Promise<SystemsAnalysis> {
+  const variant = exampleLinkVariant(id);
+  if (variant !== undefined) return (await fetchJson<{ sy: { mef: SystemsAnalysis } }>(`/api/example-workbooks/sy-bundle?example=${variant}`)).sy.mef;
+  return (await getSyWorkbook(id)).mef;
+}
+
+async function loadLinkedHr(id: string): Promise<HumanReliabilityAnalysis> {
+  const variant = exampleLinkVariant(id);
+  if (variant !== undefined) return (await fetchJson<{ hr: { mef: HumanReliabilityAnalysis } }>(`/api/example-workbooks/hr-bundle?example=${variant}`)).hr.mef;
+  return (await getHrWorkbook(id)).mef;
+}
+
+async function loadLinkedPos(id: string): Promise<PlantOperatingStatesAnalysis> {
+  const variant = exampleLinkVariant(id);
+  if (variant !== undefined) return (await fetchJson<{ pos: { mef: PlantOperatingStatesAnalysis } }>(`/api/example-workbooks/pos-bundle?example=${variant}`)).pos.mef;
+  return (await getPosWorkbook(id)).mef;
 }
 
 type DaWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
@@ -86,7 +126,11 @@ async function getDaDocumentDownload(workbookId: string, documentId: string): Pr
 }
 
 export {
-  fetchDaLinkedInputs,
+  listDaLinkOptions,
+  loadLinkedHr,
+  loadLinkedIe,
+  loadLinkedPos,
+  loadLinkedSy,
   getDaExampleOptions,
   getDaWorkbook,
   patchDaWorkbook,

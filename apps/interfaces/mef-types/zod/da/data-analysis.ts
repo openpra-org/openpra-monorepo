@@ -13,6 +13,7 @@ import { SRReferenceSchema } from "../core/pra-common";
 
 export const ParameterTypeSchema = z.enum([
   "FREQUENCY",
+  "FAILURE_RATE",
   "PROBABILITY",
   "UNAVAILABILITY",
   "CCF_PARAMETER",
@@ -163,13 +164,145 @@ export const BayesianUpdateSchema = z.object({
     .optional(),
 });
 
+export const DaEvidenceKindSchema = z.enum([
+  "PLANT_RECORDS",
+  "TECHNOLOGY",
+  "GENERIC_NUCLEAR",
+  "ANALOGOUS_INDUSTRY",
+  "ENGINEERING_MODEL",
+  "EXPERT_JUDGMENT",
+]);
+
+export const DaSourceOriginSchema = z.enum(["SAME_TECHNOLOGY", "OTHER_NUCLEAR", "NONNUCLEAR"]);
+
+export const DaEstimateQuantitySchema = z.enum(["PER_DEMAND", "PER_HOUR", "PER_YEAR", "FRACTION", "PROBABILITY", "HOURS"]);
+
+export const DaTransferFactorSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  nominal: z.number(),
+  low: z.number(),
+  high: z.number(),
+  basis: z.string(),
+});
+
+export const DaSourceUseSchema = z.object({
+  id: z.string(),
+  sourceId: z.string().optional(),
+  entryId: z.string().optional(),
+  elicitationId: z.string().optional(),
+  verdict: z.enum(["APPLIES", "SCALED", "REJECTED"]),
+  boundary: z.enum(["SAME", "ADJUSTED", "DIFFERENT"]),
+  reason: z.string(),
+  hoursPerYear: z.number().optional(),
+  standbyHours: z.number().optional(),
+  factors: z.array(DaTransferFactorSchema).optional(),
+});
+
+export const DaSourceEntrySchema = z.object({
+  id: z.string(),
+  component: z.string(),
+  failureMode: z.string(),
+  quantity: DaEstimateQuantitySchema,
+  table: z.string().optional(),
+  distribution: ParameterDistributionSchema.optional(),
+  mean: z.number().optional(),
+  p05: z.number().optional(),
+  median: z.number().optional(),
+  p95: z.number().optional(),
+  p025: z.number().optional(),
+  p975: z.number().optional(),
+  failures: z.number().optional(),
+  exposure: z.number().optional(),
+  population: z.number().optional(),
+  yearsFrom: z.string().optional(),
+  yearsTo: z.string().optional(),
+  method: z.string().optional(),
+  boundaryNote: z.string().optional(),
+  catalogCode: z.string().optional(),
+});
+
+export const DaSourceSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  catalogId: z.string().optional(),
+  kind: DaEvidenceKindSchema,
+  origin: DaSourceOriginSchema,
+  covers: z.string(),
+  yearsFrom: z.string().optional(),
+  yearsTo: z.string().optional(),
+  boundaryConvention: z.string(),
+  failureCounting: z.string(),
+  quality: z.string(),
+  reference: z.string(),
+  entries: z.array(DaSourceEntrySchema),
+});
+
+export const DaElicitationExpertSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  role: z.enum(["EVALUATOR", "PROPONENT", "RESOURCE"]),
+  outside: z.boolean(),
+  expertise: z.string(),
+  p05: z.number().optional(),
+  median: z.number().optional(),
+  p95: z.number().optional(),
+  weight: z.number().optional(),
+  acceptsResponsibility: z.boolean(),
+});
+
+export const DaJudgmentLevelSchema = z.enum(["LOW", "MEDIUM", "HIGH"]);
+
+export const DaElicitationSchema = z.object({
+  id: z.string(),
+  issue: z.string(),
+  objective: z.string(),
+  quantity: DaEstimateQuantitySchema,
+  importance: DaJudgmentLevelSchema,
+  complexity: DaJudgmentLevelSchema,
+  structure: z.enum(["SINGLE_EVALUATOR", "PANEL"]),
+  outsideReason: z.string().optional(),
+  experts: z.array(DaElicitationExpertSchema),
+  pooling: z.enum(["LINEAR", "LOGARITHMIC"]),
+  integrator: z.string(),
+  responsibility: z.enum(["INTEGRATOR", "SHARED"]),
+  completed: z.string().optional(),
+  reference: z.string().optional(),
+});
+
 export const DataAnalysisParameterSchema = z.object({
   uuid: z.string(),
   name: z.string(),
   description: z.string().optional(),
   parameterType: ParameterTypeSchema,
-  value: z.number(),
+  value: z.number().optional(),
   valueType: z.enum(["POINT_ESTIMATE", "MEAN"]),
+  quantificationModel: z
+    .enum([
+      "DEMAND_PROBABILITY",
+      "RUNNING_RATE",
+      "MISSION_PROBABILITY",
+      "STANDBY_RATE",
+      "UNAVAILABILITY",
+      "HUMAN_ERROR",
+      "NON_RECOVERY",
+      "FREQUENCY",
+      "OTHER_PROBABILITY",
+    ])
+    .optional(),
+  missionTimeHours: z.number().optional(),
+  valueMode: z.enum(["TYPED", "LINKED", "CALCULATED"]).optional(),
+  valueLink: z
+    .object({
+      element: z.enum(["SY", "IE", "HRA", "POS"]),
+      needId: z.string(),
+    })
+    .optional(),
+  stateIds: z.array(z.string()).optional(),
+  sourceUses: z.array(DaSourceUseSchema).optional(),
+  priorUseId: z.string().optional(),
+  evidenceKind: DaEvidenceKindSchema.optional(),
+  evidenceReason: z.string().optional(),
   estimationApproach: z
     .enum(["PLANT_SPECIFIC", "TECHNOLOGY_SPECIFIC", "GENERIC", "REALISTIC_COMBINED", "SIMILAR_EQUIPMENT_ADJUSTED"])
     .optional(),
@@ -491,9 +624,185 @@ export const DaDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const DaLinkCodeSchema = z.enum(["SY", "IE", "HRA", "POS", "SC", "ESQ"]);
+
+export const DaLinkedWorkbooksSchema = z.object({
+  SY: z.string().optional(),
+  IE: z.string().optional(),
+  HRA: z.string().optional(),
+  POS: z.string().optional(),
+  SC: z.string().optional(),
+  ESQ: z.string().optional(),
+});
+
+export const DaScopeKindSchema = z.enum([
+  "TEST_MAINTENANCE",
+  "REPAIR_RECOVERY",
+  "COMMON_CAUSE",
+  "INITIATING_EVENT",
+  "HUMAN_ERROR",
+  "OUTAGE",
+]);
+
+export const DaScopeDecisionSchema = z.object({
+  kind: DaScopeKindSchema,
+  included: z.boolean(),
+  exclusionReason: z.string().optional(),
+});
+
+export const DaFieldLinkSchema = z.object({
+  element: DaLinkCodeSchema,
+  workbookId: z.string(),
+  field: z.string(),
+});
+
+export const DaLinkedNumberSchema = z.object({
+  value: z.number(),
+  link: DaFieldLinkSchema.optional(),
+});
+
+export const DaDataPlanSchema = z.object({
+  freezeDate: z.string().optional(),
+  dataWindowStart: z.string().optional(),
+  dataWindowEnd: z.string().optional(),
+  modulesPerPlant: DaLinkedNumberSchema.optional(),
+});
+
+export const DaNeedKindSchema = z.enum([
+  "DEMAND",
+  "RUNNING",
+  "STANDBY",
+  "UNAVAILABILITY",
+  "HUMAN_ERROR",
+  "RECOVERY",
+  "COMMON_CAUSE",
+  "OTHER",
+]);
+
+export const DaNeedElementSchema = z.enum(["SY", "IE", "HRA", "POS"]);
+
+export const DaValueHolderSchema = z.enum(["TYPED", "DA", "HRA"]);
+
+export const DaManualEntrySchema = z.object({
+  source: z.string(),
+});
+
+export const DaNeedSourceSchema = z.object({
+  element: DaNeedElementSchema,
+  workbookId: z.string(),
+  workbookName: z.string(),
+  updatedAt: z.string().optional(),
+});
+
+export const DaNeedChangeSchema = z.object({
+  element: DaNeedElementSchema,
+  id: z.string(),
+  change: z.enum(["ADDED", "REMOVED", "CHANGED"]),
+  label: z.string().optional(),
+});
+
+export const DaBasicEventNeedSchema = z.object({
+  id: z.string(),
+  code: z.string(),
+  name: z.string(),
+  systemId: z.string().optional(),
+  systemName: z.string().optional(),
+  failureMode: z.string().optional(),
+  importedKind: DaNeedKindSchema.optional(),
+  kind: DaNeedKindSchema.optional(),
+  importedMissionTimeHours: z.number().optional(),
+  missionTimeHours: z.number().optional(),
+  testIntervalHours: z.number().optional(),
+  value: z.number().optional(),
+  valueUnit: z.enum(["PROBABILITY", "PER_HOUR"]).optional(),
+  valueHeldBy: DaValueHolderSchema.optional(),
+  valueHolderId: z.string().optional(),
+  repairCredited: z.boolean().optional(),
+  meanTimeToRepairHours: z.number().optional(),
+  changeReason: z.string().optional(),
+  parameterId: z.string().optional(),
+  included: z.boolean(),
+  exclusionReason: z.string().optional(),
+  manual: DaManualEntrySchema.optional(),
+});
+
+export const DaInitiatorNeedSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  stateIds: z.array(z.string()),
+  memberIds: z.array(z.string()),
+  meanFrequency: z.number().optional(),
+  medianFrequency: z.number().optional(),
+  errorFactor: z.number().optional(),
+  frequencyUnit: z.string().optional(),
+  frequencyBasis: z.string().optional(),
+  parameterId: z.string().optional(),
+  included: z.boolean(),
+  exclusionReason: z.string().optional(),
+  manual: DaManualEntrySchema.optional(),
+});
+
+export const DaHumanErrorNeedSchema = z.object({
+  id: z.string(),
+  hfeId: z.string(),
+  name: z.string(),
+  timing: z.enum(["PRE_INITIATOR", "AT_INITIATOR", "POST_INITIATOR"]).optional(),
+  kind: z.enum(["HUMAN_ERROR", "RECOVERY"]),
+  value: z.number().optional(),
+  valueKind: z.enum(["MEAN", "POINT_ESTIMATE"]).optional(),
+  method: z.string().optional(),
+  stateIds: z.array(z.string()),
+  parameterId: z.string().optional(),
+  included: z.boolean(),
+  exclusionReason: z.string().optional(),
+  manual: DaManualEntrySchema.optional(),
+});
+
+export const DaCcfGroupNeedSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  systemIds: z.array(z.string()),
+  memberIds: z.array(z.string()),
+  modelType: z.string().optional(),
+  factors: z.record(z.string(), z.number()).optional(),
+  totalProbability: z.number().optional(),
+  estimateRef: z.string().optional(),
+  included: z.boolean(),
+  exclusionReason: z.string().optional(),
+  manual: DaManualEntrySchema.optional(),
+});
+
+export const DaStateNeedSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  mode: z.string().optional(),
+  durationHours: z.number().optional(),
+  entriesPerYear: z.number().optional(),
+  included: z.boolean(),
+  exclusionReason: z.string().optional(),
+  manual: DaManualEntrySchema.optional(),
+});
+
+export const DaDataNeedsSchema = z.object({
+  importedAt: z.string().optional(),
+  sources: z.array(DaNeedSourceSchema),
+  changes: z.array(DaNeedChangeSchema).optional(),
+  basicEvents: z.array(DaBasicEventNeedSchema),
+  initiators: z.array(DaInitiatorNeedSchema),
+  humanErrors: z.array(DaHumanErrorNeedSchema),
+  ccfGroups: z.array(DaCcfGroupNeedSchema),
+  states: z.array(DaStateNeedSchema),
+});
+
 export const DataAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.DATA_ANALYSIS).shape,
   praScope: z.string(),
+  linkedWorkbooks: DaLinkedWorkbooksSchema.optional(),
+  scopeDecisions: z.array(DaScopeDecisionSchema).optional(),
+  dataPlan: DaDataPlanSchema.optional(),
+  dataNeeds: DaDataNeedsSchema.optional(),
+  sources: z.array(DaSourceSchema).optional(),
+  elicitations: z.array(DaElicitationSchema).optional(),
   parameters: z.array(DataAnalysisParameterSchema),
   componentBasicEvents: z.array(ComponentBasicEventSchema).optional(),
   componentBasicEventInstances: z.array(ComponentBasicEventInstanceSchema).optional(),

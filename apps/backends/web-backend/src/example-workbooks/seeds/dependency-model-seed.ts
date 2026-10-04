@@ -484,19 +484,20 @@ function reconcileExampleSyDataAnalysisReferences(
     if (!supportedTypes.has(parameter.parameterType)) {
       throw new Error(`DA parameter '${parameter.uuid}' cannot control the probability of example basic event '${event.code}'.`);
     }
-    if (!Number.isFinite(parameter.value) || parameter.value < 0 || parameter.value > 1) {
+    const value = parameter.value;
+    if (value === undefined || !Number.isFinite(value) || value < 0 || value > 1) {
       throw new Error(`DA parameter '${parameter.uuid}' must be finite and between zero and one.`);
     }
     const reference = event.controlledDataSource;
     if (
-      event.probability === parameter.value &&
+      event.probability === value &&
       reference?.workbookId === daWorkbookId &&
       reference.entityId === parameter.uuid
     ) return event;
     changed = true;
     return {
       ...event,
-      probability: parameter.value,
+      probability: value,
       controlledDataSource: {
         referenceType: "WORKBOOK_PARAMETER" as const,
         workbookId: daWorkbookId,

@@ -5,15 +5,13 @@ import { JSX } from "react";
 import { DAIcon } from "./daIcons";
 import { Badge, DaProvenanceChip, valText } from "./daShared";
 import { useDaWorkbook } from "./daWorkbookContext";
-import { type DataAnalysisParameter, type ComponentBoundary, type ComponentGrouping, type OutlierComponent, type ExternalDataSource, type FailureEventClassification, type DemandCountRecord, type ExposureTimeRecord, type TestCredibilityReview, type UnavailabilityDataRecord, type CoincidentMaintenanceRecord, type RepairTimeRecord, type RecoveryTimeRecord, type LpsdOutageDataRecord, type CcfParameterEstimation, type DataModificationAdjustment } from "interfaces-mef-types/da/data-analysis";
+import { type DataAnalysisParameter, type FailureEventClassification, type DemandCountRecord, type ExposureTimeRecord, type TestCredibilityReview, type UnavailabilityDataRecord, type CoincidentMaintenanceRecord, type RepairTimeRecord, type RecoveryTimeRecord, type LpsdOutageDataRecord, type CcfParameterEstimation, type DataModificationAdjustment } from "interfaces-mef-types/da/data-analysis";
 import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
 import { MethodChips, type DaDrawerContext } from "./daScreens";
 import { generateDaReport } from "./daDocx";
 import {
   PARAM_TYPES,
   ESTIMATION_APPROACH,
-  GROUPING_BASIS,
-  SOURCE_TYPES,
   CCF_MODEL_LABELS,
   CCF_MODEL_METHOD,
   CCF_SOURCE_LABELS,
@@ -617,9 +615,10 @@ function ListEditor({ label, items, disabled, onApply }: { label: string; items:
 
 // ─── Drawer content ─────────────────────────────────────────────────────────
 function DrawerContent({ context, onClose }: { context: DaDrawerContext; onClose: () => void }): JSX.Element | null {
-  const { da, links, editable, mutateDa } = useDaWorkbook();
+  const { da, upstream, editable, mutateDa } = useDaWorkbook();
+  const posStates = (upstream.pos?.plantOperatingStates ?? []).map((st) => ({ id: st.uuid, name: st.name }));
 
-  if (context.kind === "param" || context.kind === "estimate") {
+  if (context.kind === "estimate") {
     const p = da.parameters.find((x) => x.uuid === context.id);
     if (p === undefined) return null;
     const patchParam = (patch: Partial<DataAnalysisParameter>): void => {
@@ -643,7 +642,7 @@ function DrawerContent({ context, onClose }: { context: DaDrawerContext; onClose
             <div className="posfield"><label className="posfield__label">Value type</label><select className="posfield__select" value={p.valueType} disabled={!editable} onChange={(e) => patchParam({ valueType: e.target.value as DataAnalysisParameter["valueType"] })}><option value="MEAN">Mean</option><option value="POINT_ESTIMATE">Point estimate</option></select></div>
             <div className="posfield"><label className="posfield__label">Pedigree</label><select className="posfield__select" value={p.estimationApproach ?? ""} disabled={!editable} onChange={(e) => patchParam({ estimationApproach: e.target.value === "" ? undefined : (e.target.value as DataAnalysisParameter["estimationApproach"]) })}><option value="">—</option>{Object.entries(ESTIMATION_APPROACH).map(([id, x]) => <option key={id} value={id}>{x.label}</option>)}</select></div>
             <div className="posfield"><label className="posfield__label">Risk significance</label><select className="posfield__select" value={p.isRiskSignificant === true ? "yes" : "no"} disabled={!editable} onChange={(e) => patchParam({ isRiskSignificant: e.target.value === "yes" })}><option value="no">Not risk-significant</option><option value="yes">Risk-significant</option></select></div>
-            <div className="posfield"><label className="posfield__label">Operating state</label>{(links?.posStates ?? []).length > 0 ? <select className="posfield__select" value={p.plantOperatingStateRef ?? ""} disabled={!editable} onChange={(e) => patchParam({ plantOperatingStateRef: e.target.value === "" ? undefined : e.target.value })}><option value="">—</option>{(links?.posStates ?? []).map((st) => <option key={st.id} value={st.id}>{st.id} · {st.name}</option>)}</select> : <WorkbookInput className="posfield__input posmono" value={p.plantOperatingStateRef ?? ""} disabled={!editable} onChange={(e) => patchParam({ plantOperatingStateRef: e.target.value === "" ? undefined : e.target.value })} />}</div>
+            <div className="posfield"><label className="posfield__label">Operating state</label>{posStates.length > 0 ? <select className="posfield__select" value={p.plantOperatingStateRef ?? ""} disabled={!editable} onChange={(e) => patchParam({ plantOperatingStateRef: e.target.value === "" ? undefined : e.target.value })}><option value="">—</option>{posStates.map((st) => <option key={st.id} value={st.id}>{st.id} · {st.name}</option>)}</select> : <WorkbookInput className="posfield__input posmono" value={p.plantOperatingStateRef ?? ""} disabled={!editable} onChange={(e) => patchParam({ plantOperatingStateRef: e.target.value === "" ? undefined : e.target.value })} />}</div>
             <div className="posfield"><label className="posfield__label">Basic event</label><WorkbookInput className="posfield__input posmono" value={p.basicEventRef ?? ""} disabled={!editable} onChange={(e) => patchParam({ basicEventRef: e.target.value === "" ? undefined : e.target.value })} /></div>
             <div className="posfield"><label className="posfield__label">System</label><WorkbookInput className="posfield__input posmono" value={p.systemReference ?? ""} disabled={!editable} onChange={(e) => patchParam({ systemReference: e.target.value === "" ? undefined : e.target.value })} /></div>
             <div className="posfield"><label className="posfield__label">Component boundary</label><select className="posfield__select" value={p.componentBoundaryRef ?? ""} disabled={!editable} onChange={(e) => patchParam({ componentBoundaryRef: e.target.value === "" ? undefined : e.target.value })}><option value="">—</option>{da.componentBoundaries.map((cb) => <option key={cb.uuid} value={cb.uuid}>{cb.name}</option>)}</select></div>
@@ -653,7 +652,7 @@ function DrawerContent({ context, onClose }: { context: DaDrawerContext; onClose
           <div className="posfield"><label className="posfield__label">Multi-state applicability</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.multiPosApplicabilityJustification ?? ""} disabled={!editable} onChange={(e) => patchParam({ multiPosApplicabilityJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div className="posfield">
             <label className="posfield__label">Parameter uncertainty distribution</label>
-            <select className="posfield__select" aria-label="DA uncertainty distribution" disabled={!editable} value={p.uncertainty?.distribution.type ?? ""} onChange={(e) => patchParam({ uncertainty: e.target.value === "" ? undefined : { ...p.uncertainty, distribution: defaultDaDistribution(e.target.value as DistributionType, p.value, p.parameterType === "FREQUENCY") } })}>
+            <select className="posfield__select" aria-label="DA uncertainty distribution" disabled={!editable} value={p.uncertainty?.distribution.type ?? ""} onChange={(e) => patchParam({ uncertainty: e.target.value === "" ? undefined : { ...p.uncertainty, distribution: defaultDaDistribution(e.target.value as DistributionType, p.value ?? 0, p.parameterType === "FREQUENCY") } })}>
               <option value="">No distribution</option>
               {p.uncertainty !== undefined && !DA_SAMPLED_DISTRIBUTIONS.includes(p.uncertainty.distribution.type as typeof DA_SAMPLED_DISTRIBUTIONS[number]) && <option value={p.uncertainty.distribution.type}>{p.uncertainty.distribution.type} (existing)</option>}
               {DA_SAMPLED_DISTRIBUTIONS.filter((type) => p.parameterType !== "FREQUENCY" || type !== DistributionType.BETA && type !== DistributionType.UNIFORM).map((type) => <option key={type} value={type}>{type}</option>)}
@@ -671,189 +670,6 @@ function DrawerContent({ context, onClose }: { context: DaDrawerContext; onClose
             </div>)}
           </div>}
           {p.uncertainty !== undefined && <div className="posfield"><label className="posfield__label">Uncertainty sources (one per line)</label><WorkbookTextarea className="posfield__textarea" rows={2} disabled={!editable} value={(p.uncertainty.modelUncertaintySources ?? []).join("\n")} onChange={(e) => patchParam({ uncertainty: { ...p.uncertainty!, modelUncertaintySources: e.target.value.split("\n").map((x) => x.trim()).filter(Boolean) } })} /></div>}
-        </div>
-      </>
-    );
-  }
-
-  if (context.kind === "boundary") {
-    const b = da.componentBoundaries.find((x) => x.uuid === context.id);
-    if (b === undefined) return null;
-    const patchBoundary = (patch: Partial<ComponentBoundary>): void => {
-      mutateDa((draft) => ({ ...draft, componentBoundaries: draft.componentBoundaries.map((x) => (x.uuid === b.uuid ? { ...x, ...patch } : x)) }));
-    };
-    return (
-      <>
-        <div className="posdrawer__head">
-          <div>
-            <div className="posdrawer__cap">Component boundary · {b.uuid}</div>
-            <h2 className="posdrawer__title">{b.name}</h2>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><DAIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
-          <div className="posfield-grid">
-            <div className="posfield"><label className="posfield__label">Name</label><WorkbookInput className="posfield__input" value={b.name} disabled={!editable} onChange={(e) => patchBoundary({ name: e.target.value })} /></div>
-            <div className="posfield"><label className="posfield__label">System</label><WorkbookInput className="posfield__input posmono" value={b.systemId} disabled={!editable} onChange={(e) => patchBoundary({ systemId: e.target.value })} /></div>
-          </div>
-          <div className="posfield"><label className="posfield__label">Description</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={b.description} disabled={!editable} onChange={(e) => patchBoundary({ description: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Boundary scope</label><WorkbookInput className="posfield__input" value={b.boundaries[0] ?? ""} disabled={!editable} onChange={(e) => patchBoundary({ boundaries: [e.target.value, ...b.boundaries.slice(1)] })} /></div>
-          <div className="posfield"><label className="posfield__label">Boundary basis</label><WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={b.boundaryBasis} disabled={!editable} onChange={(e) => patchBoundary({ boundaryBasis: e.target.value })} /></div>
-          <div>
-            <WorkbookCueLabel workbook="DA" title="Included items" className="essec" />
-            {b.includedItems.map((x, i) => (
-              <div key={i} className="posrow" style={{ gap: 6, marginBottom: 6 }}>
-                <WorkbookInput className="posfield__input" value={x} disabled={!editable} onChange={(e) => patchBoundary({ includedItems: b.includedItems.map((y, j) => (j === i ? e.target.value : y)) })} />
-                {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchBoundary({ includedItems: b.includedItems.filter((_, j) => j !== i) })}><DAIcon.Close /></button>}
-              </div>
-            ))}
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchBoundary({ includedItems: [...b.includedItems, ""] })}><DAIcon.Plus /> Add item</button>}
-          </div>
-          <div>
-            <WorkbookCueLabel workbook="DA" title="Excluded items" className="essec" />
-            {(b.excludedItems ?? []).map((x, i) => (
-              <div key={i} className="posrow" style={{ gap: 6, marginBottom: 6 }}>
-                <WorkbookInput className="posfield__input" value={x} disabled={!editable} onChange={(e) => patchBoundary({ excludedItems: (b.excludedItems ?? []).map((y, j) => (j === i ? e.target.value : y)) })} />
-                {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchBoundary({ excludedItems: (b.excludedItems ?? []).filter((_, j) => j !== i) })}><DAIcon.Close /></button>}
-              </div>
-            ))}
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchBoundary({ excludedItems: [...(b.excludedItems ?? []), ""] })}><DAIcon.Plus /> Add item</button>}
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  if (context.kind === "grouping") {
-    const g = (da.componentGroupings ?? []).find((x) => x.uuid === context.id);
-    if (g === undefined) return null;
-    const patchGrouping = (patch: Partial<ComponentGrouping>): void => {
-      mutateDa((draft) => ({ ...draft, componentGroupings: (draft.componentGroupings ?? []).map((x) => (x.uuid === g.uuid ? { ...x, ...patch } : x)) }));
-    };
-    const listEditor = (label: string, items: string[], apply: (next: string[]) => void): JSX.Element => (
-      <div>
-        <WorkbookCueLabel workbook="DA" title={label} cueKey="Structured analysis subsection" className="essec" />
-        {items.map((x, i) => (
-          <div key={i} className="posrow" style={{ gap: 6, marginBottom: 6 }}>
-            <WorkbookInput className="posfield__input" value={x} disabled={!editable} onChange={(e) => apply(items.map((y, j) => (j === i ? e.target.value : y)))} />
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => apply(items.filter((_, j) => j !== i))}><DAIcon.Close /></button>}
-          </div>
-        ))}
-        {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => apply([...items, ""])}><DAIcon.Plus /> Add item</button>}
-      </div>
-    );
-    return (
-      <>
-        <div className="posdrawer__head">
-          <div>
-            <div className="posdrawer__cap">Component group · {g.uuid}</div>
-            <h2 className="posdrawer__title">{g.name}</h2>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><DAIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
-          <div className="posfield-grid">
-            <div className="posfield"><label className="posfield__label">Name</label><WorkbookInput className="posfield__input" value={g.name} disabled={!editable} onChange={(e) => patchGrouping({ name: e.target.value })} /></div>
-            <div className="posfield"><label className="posfield__label">System</label><WorkbookInput className="posfield__input posmono" value={g.systemId} disabled={!editable} onChange={(e) => patchGrouping({ systemId: e.target.value })} /></div>
-            <div className="posfield"><label className="posfield__label">Grouping basis</label><select className="posfield__select" value={g.groupingBasis} disabled={!editable} onChange={(e) => patchGrouping({ groupingBasis: e.target.value as ComponentGrouping["groupingBasis"] })}>{Object.entries(GROUPING_BASIS).map(([id, x]) => <option key={id} value={id}>{x.label} ({x.cc})</option>)}</select></div>
-          </div>
-          <div className="posfield"><label className="posfield__label">Grouping justification</label><WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={g.groupingJustification} disabled={!editable} onChange={(e) => patchGrouping({ groupingJustification: e.target.value })} /></div>
-          {listEditor("Members", g.componentIds, (next) => patchGrouping({ componentIds: next }))}
-          {listEditor("Design characteristics", g.designCharacteristics, (next) => patchGrouping({ designCharacteristics: next }))}
-          {listEditor("Service conditions", g.serviceConditions, (next) => patchGrouping({ serviceConditions: next }))}
-          {listEditor("Environmental conditions", g.environmentalConditions, (next) => patchGrouping({ environmentalConditions: next }))}
-          <div>
-            <WorkbookCueLabel workbook="DA" title="Outliers held out" className="essec" />
-            {(g.excludedOutliers ?? []).map((oid, i) => {
-              const o = (da.outlierComponents ?? []).find((x) => x.uuid === oid);
-              return (
-                <div key={oid} className="posrow" style={{ gap: 6, marginBottom: 6, alignItems: "center" }}>
-                  <span className="poschip posmono" style={{ flex: 1 }}>{o !== undefined ? o.componentId : oid}</span>
-                  {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchGrouping({ excludedOutliers: (g.excludedOutliers ?? []).filter((_, j) => j !== i) })}><DAIcon.Close /></button>}
-                </div>
-              );
-            })}
-            {editable && (
-              <select className="posfield__select" value="" onChange={(e) => { if (e.target.value !== "") patchGrouping({ excludedOutliers: [...(g.excludedOutliers ?? []), e.target.value] }); }}>
-                <option value="">Add an outlier…</option>
-                {(da.outlierComponents ?? []).filter((o) => !(g.excludedOutliers ?? []).includes(o.uuid)).map((o) => <option key={o.uuid} value={o.uuid}>{o.componentId}</option>)}
-              </select>
-            )}
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  if (context.kind === "outlier") {
-    const o = (da.outlierComponents ?? []).find((x) => x.uuid === context.id);
-    if (o === undefined) return null;
-    const patchOutlier = (patch: Partial<OutlierComponent>): void => {
-      mutateDa((draft) => ({ ...draft, outlierComponents: (draft.outlierComponents ?? []).map((x) => (x.uuid === o.uuid ? { ...x, ...patch } : x)) }));
-    };
-    return (
-      <>
-        <div className="posdrawer__head">
-          <div>
-            <div className="posdrawer__cap">Outlier · {o.uuid}</div>
-            <h2 className="posdrawer__title">{o.componentId}</h2>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><DAIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
-          <div className="posfield-grid">
-            <div className="posfield"><label className="posfield__label">Component</label><WorkbookInput className="posfield__input" value={o.componentId} disabled={!editable} onChange={(e) => patchOutlier({ componentId: e.target.value })} /></div>
-            <div className="posfield"><label className="posfield__label">System</label><WorkbookInput className="posfield__input posmono" value={o.systemId} disabled={!editable} onChange={(e) => patchOutlier({ systemId: e.target.value })} /></div>
-            <div className="posfield"><label className="posfield__label">Potential group</label><select className="posfield__select" value={o.potentialGroupId} disabled={!editable} onChange={(e) => patchOutlier({ potentialGroupId: e.target.value })}><option value="">—</option>{(da.componentGroupings ?? []).map((cg) => <option key={cg.uuid} value={cg.groupId}>{cg.name}</option>)}</select></div>
-            <div className="posfield"><label className="posfield__label">Status</label><select className="posfield__select" value={o.status} disabled={!editable} onChange={(e) => patchOutlier({ status: e.target.value as OutlierComponent["status"] })}><option value="CONFIRMED">Confirmed</option><option value="TENTATIVE">Tentative</option><option value="UNDER_REVIEW">Under review</option></select></div>
-          </div>
-          <div className="posfield"><label className="posfield__label">Exclusion reason</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={o.exclusionReason} disabled={!editable} onChange={(e) => patchOutlier({ exclusionReason: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Exclusion justification</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={o.exclusionJustification} disabled={!editable} onChange={(e) => patchOutlier({ exclusionJustification: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Alternative handling</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={o.alternativeHandling} disabled={!editable} onChange={(e) => patchOutlier({ alternativeHandling: e.target.value })} /></div>
-          <div>
-            <WorkbookCueLabel workbook="DA" title="Differentiating characteristics" className="essec" />
-            {o.differentiatingCharacteristics.map((x, i) => (
-              <div key={i} className="posrow" style={{ gap: 6, marginBottom: 6 }}>
-                <WorkbookInput className="posfield__input" value={x} disabled={!editable} onChange={(e) => patchOutlier({ differentiatingCharacteristics: o.differentiatingCharacteristics.map((y, j) => (j === i ? e.target.value : y)) })} />
-                {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchOutlier({ differentiatingCharacteristics: o.differentiatingCharacteristics.filter((_, j) => j !== i) })}><DAIcon.Close /></button>}
-              </div>
-            ))}
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchOutlier({ differentiatingCharacteristics: [...o.differentiatingCharacteristics, ""] })}><DAIcon.Plus /> Add item</button>}
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  if (context.kind === "source") {
-    const src = (da.externalDataSources ?? []).find((x) => x.uuid === context.id);
-    if (src === undefined) return null;
-    const patch = (pp: Partial<ExternalDataSource>): void => {
-      mutateDa((draft) => ({ ...draft, externalDataSources: (draft.externalDataSources ?? []).map((x) => (x.uuid === src.uuid ? { ...x, ...pp } : x)) }));
-    };
-    return (
-      <>
-        <div className="posdrawer__head">
-          <div>
-            <div className="posdrawer__cap">Data source · {src.uuid}</div>
-            <h2 className="posdrawer__title">{src.name}</h2>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><DAIcon.Close /></button>
-        </div>
-        <div className="posdrawer__body">
-          <div className="posfield"><label className="posfield__label">Name</label><WorkbookInput className="posfield__input" value={src.name} disabled={!editable} onChange={(e) => patch({ name: e.target.value })} /></div>
-          <div className="posfield-grid">
-            <div className="posfield"><label className="posfield__label">Source type</label><select className="posfield__select" value={src.sourceType} disabled={!editable} onChange={(e) => patch({ sourceType: e.target.value as ExternalDataSource["sourceType"] })}>{Object.entries(SOURCE_TYPES).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div>
-            <div className="posfield"><label className="posfield__label">Location</label><WorkbookInput className="posfield__input" value={src.sourceLocation} disabled={!editable} onChange={(e) => patch({ sourceLocation: e.target.value })} /></div>
-            <div className="posfield"><label className="posfield__label">Period start</label><WorkbookInput className="posfield__input posmono" value={src.timePeriod.start} disabled={!editable} onChange={(e) => patch({ timePeriod: { ...src.timePeriod, start: e.target.value } })} /></div>
-            <div className="posfield"><label className="posfield__label">Period end</label><WorkbookInput className="posfield__input posmono" value={src.timePeriod.end} disabled={!editable} onChange={(e) => patch({ timePeriod: { ...src.timePeriod, end: e.target.value } })} /></div>
-            <div className="posfield"><label className="posfield__label">Access method</label><WorkbookInput className="posfield__input" value={src.accessMethod} disabled={!editable} onChange={(e) => patch({ accessMethod: e.target.value })} /></div>
-            <div className="posfield"><label className="posfield__label">Data format</label><WorkbookInput className="posfield__input" value={src.dataFormat} disabled={!editable} onChange={(e) => patch({ dataFormat: e.target.value })} /></div>
-          </div>
-          <div className="posfield"><label className="posfield__label">Quality assurance</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={src.qualityAssurance ?? ""} disabled={!editable} onChange={(e) => patch({ qualityAssurance: e.target.value === "" ? undefined : e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Validation method</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={src.validationMethod ?? ""} disabled={!editable} onChange={(e) => patch({ validationMethod: e.target.value === "" ? undefined : e.target.value })} /></div>
-          <ListEditor label="Limitations" items={src.limitations ?? []} disabled={!editable} onApply={(next) => patch({ limitations: next })} />
-          <ListEditor label="Reference documentation" items={src.referenceDocumentation} disabled={!editable} onApply={(next) => patch({ referenceDocumentation: next })} />
         </div>
       </>
     );
@@ -1107,7 +923,7 @@ function DrawerContent({ context, onClose }: { context: DaDrawerContext; onClose
         <div className="posdrawer__body">
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Outage type</label><WorkbookInput className="posfield__input" value={o.outageType} disabled={!editable} onChange={(e) => patch({ outageType: e.target.value })} /></div>
-            <div className="posfield"><label className="posfield__label">Operating state</label>{(links?.posStates ?? []).length > 0 ? <select className="posfield__select" value={o.plantOperatingStateRef ?? ""} disabled={!editable} onChange={(e) => patch({ plantOperatingStateRef: e.target.value === "" ? undefined : e.target.value })}><option value="">—</option>{(links?.posStates ?? []).map((st) => <option key={st.id} value={st.id}>{st.id} · {st.name}</option>)}</select> : <WorkbookInput className="posfield__input posmono" value={o.plantOperatingStateRef ?? ""} disabled={!editable} onChange={(e) => patch({ plantOperatingStateRef: e.target.value === "" ? undefined : e.target.value })} />}</div>
+            <div className="posfield"><label className="posfield__label">Operating state</label>{posStates.length > 0 ? <select className="posfield__select" value={o.plantOperatingStateRef ?? ""} disabled={!editable} onChange={(e) => patch({ plantOperatingStateRef: e.target.value === "" ? undefined : e.target.value })}><option value="">—</option>{posStates.map((st) => <option key={st.id} value={st.id}>{st.id} · {st.name}</option>)}</select> : <WorkbookInput className="posfield__input posmono" value={o.plantOperatingStateRef ?? ""} disabled={!editable} onChange={(e) => patch({ plantOperatingStateRef: e.target.value === "" ? undefined : e.target.value })} />}</div>
             <div className="posfield"><label className="posfield__label">Duration (h)</label><WorkbookInput className="posfield__input posmono" type="number" step="any" value={o.durationHours ?? 0} disabled={!editable} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ durationHours: n }); }} /></div>
             <div className="posfield"><label className="posfield__label">Outages per year</label><WorkbookInput className="posfield__input posmono" type="number" step="any" value={o.outagesPerCalendarYear ?? 0} disabled={!editable} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) patch({ outagesPerCalendarYear: n }); }} /></div>
           </div>

@@ -3,9 +3,8 @@ import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
-import { fetchDaLinkedInputs } from "./daWorkbookApi";
 import { DaWorkbench } from "./daWorkbench";
-import { DaWorkbookProvider, type DaWorkbookData } from "./daWorkbookContext";
+import { DaWorkbookProvider, EMPTY_UPSTREAM, useDaUpstream, type DaWorkbookData } from "./daWorkbookContext";
 import { type DaPersona } from "./daViewData";
 
 interface DaExampleResponse {
@@ -35,12 +34,7 @@ function DaDemoPage(): JSX.Element {
           da: res.da.mef as DataAnalysis,
           cc: res.configurationControl.mef as PRAConfigurationControl,
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
-          links: null,
         });
-        const variant = (res.da.mef as DataAnalysis).uuid === "da-generic-2" ? "htgr" : "sfr";
-        fetchDaLinkedInputs(variant)
-          .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
-          .catch(() => undefined);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -48,6 +42,8 @@ function DaDemoPage(): JSX.Element {
       });
     return () => { cancelled = true; };
   }, []);
+
+  const upstream = useDaUpstream(data?.da, EMPTY_UPSTREAM.options);
 
   const mutateDa = useCallback((mutator: (da: DataAnalysis) => DataAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, da: mutator(prev.da) }));
@@ -61,7 +57,7 @@ function DaDemoPage(): JSX.Element {
   }
 
   return (
-    <DaWorkbookProvider data={data} editable={persona === "preparer"} mutateDa={mutateDa}>
+    <DaWorkbookProvider data={data} editable={persona === "preparer"} mutateDa={mutateDa} upstream={upstream}>
       <DaWorkbench
         data={data}
         persona={persona}

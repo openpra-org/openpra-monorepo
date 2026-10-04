@@ -108,11 +108,13 @@ function controlledParameterOptions(sources: readonly DaSource[]): SyControlledP
   return sources.flatMap(({ entry, workbook }) => {
     const modes = new Map((workbook.mef.failureModes ?? []).map((mode) => [mode.uuid, mode.name]));
     return workbook.mef.parameters.flatMap((parameter): SyControlledParameterOption[] => {
+    const value = parameter.value;
     if (
+      value === undefined ||
       !SUPPORTED_PARAMETER_TYPES.has(parameter.parameterType) ||
-      !Number.isFinite(parameter.value) ||
-      parameter.value < 0 ||
-      (parameter.parameterType !== "FREQUENCY" && parameter.value > 1)
+      !Number.isFinite(value) ||
+      value < 0 ||
+      (parameter.parameterType !== "FREQUENCY" && value > 1)
     ) return [];
     return [{
       workbookId: entry.id,
@@ -120,7 +122,7 @@ function controlledParameterOptions(sources: readonly DaSource[]): SyControlledP
       parameterId: parameter.uuid,
       parameterName: parameter.name,
       parameterType: parameter.parameterType as SyControlledParameterOption["parameterType"],
-      value: parameter.value,
+      value,
       uncertainty: parameter.uncertainty?.distribution,
       ...(parameter.failureModeRef !== undefined && modes.has(parameter.failureModeRef)
         ? { failureModeId: parameter.failureModeRef, failureModeName: modes.get(parameter.failureModeRef) }
@@ -191,7 +193,7 @@ function controlledComponentBoundaryOptions(sources: readonly DaSource[]): SyCon
 
 function linkExampleEvents(events: readonly SystemBasicEvent[], workbookId: string, dataAnalysis: Pick<DataAnalysis, "parameters">): SystemBasicEvent[] {
   const parameters = new Map(dataAnalysis.parameters
-    .filter((parameter) => LINKABLE_PARAMETER_TYPES.has(parameter.parameterType) && Number.isFinite(parameter.value) && parameter.value >= 0 && parameter.value <= 1)
+    .filter((parameter) => LINKABLE_PARAMETER_TYPES.has(parameter.parameterType) && parameter.value !== undefined && Number.isFinite(parameter.value) && parameter.value >= 0 && parameter.value <= 1)
     .map((parameter) => [parameter.uuid, parameter]));
   return events.map((event) => {
     const reference = event.dataAnalysisBasicEventRef;

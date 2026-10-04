@@ -1,4 +1,4 @@
-import { DA_SR_CATALOG } from "interfaces-mef-types/da/data-analysis";
+import { DA_SR_CATALOG, type DaBoundaryMatch, type DaEstimateQuantity, type DaEvidenceKind, type DaExpertRole, type DaJudgmentLevel, type DaLinkCode, type DaNeedElement, type DaNeedKind, type DaQuantificationModel, type DaScopeKind, type DaSourceOrigin, type DaSourceVerdict, type ParameterType } from "interfaces-mef-types/da/data-analysis";
 
 type StepStatus = "complete" | "in-progress" | "idle";
 
@@ -7,20 +7,21 @@ interface DaStep {
   num: string;
   label: string;
   sub: string;
+  hlr?: string;
   status: StepStatus;
   terminal?: boolean;
 }
 
 const DA_STEPS: DaStep[] = [
-  { id: "scope", num: "01", label: "Scope", sub: "Slots · pedigree · inputs", status: "idle" },
-  { id: "define", num: "02", label: "Define Parameters", sub: "Boundaries · models (HLR-A)", status: "idle" },
-  { id: "group", num: "03", label: "Group Populations", sub: "Homogeneous pools (HLR-B)", status: "idle" },
-  { id: "generic", num: "04", label: "Collect: Generic", sub: "Generic per state (HLR-C)", status: "idle" },
-  { id: "counts", num: "05", label: "Collect: Counts", sub: "Failures · demands · time", status: "idle" },
-  { id: "unavail", num: "06", label: "Collect: Unavailability", sub: "Maintenance · repair · outage", status: "idle" },
-  { id: "estimate", num: "07", label: "Estimate Values", sub: "Ladder · Bayes (HLR-D)", status: "idle" },
-  { id: "ccf", num: "08", label: "Common-Cause", sub: "CCF parameters (D7 to D9)", status: "idle" },
-  { id: "uncert", num: "09", label: "Uncertainty & Pre-op", sub: "Sources · assumptions", status: "idle" },
+  { id: "scope", num: "01", label: "Scope", sub: "Links · scope · data plan", hlr: "DA-A", status: "idle" },
+  { id: "needs", num: "02", label: "Data needs", sub: "Events · initiators · HEPs", hlr: "DA-A", status: "idle" },
+  { id: "define", num: "03", label: "Parameters", sub: "Models · map · populations", hlr: "DA-A", status: "idle" },
+  { id: "generic", num: "04", label: "Sources", sub: "Library · applicability · judgment", hlr: "DA-C", status: "idle" },
+  { id: "counts", num: "05", label: "Collect: Counts", sub: "Failures · demands · time", hlr: "DA-C", status: "idle" },
+  { id: "unavail", num: "06", label: "Collect: Unavailability", sub: "Maintenance · repair · outage", hlr: "DA-C", status: "idle" },
+  { id: "estimate", num: "07", label: "Estimate Values", sub: "Ladder · Bayes (HLR-D)", hlr: "DA-D", status: "idle" },
+  { id: "ccf", num: "08", label: "Common-Cause", sub: "CCF parameters (D7 to D9)", hlr: "DA-D", status: "idle" },
+  { id: "uncert", num: "09", label: "Uncertainty & Pre-op", sub: "Sources · assumptions", hlr: "DA-A", status: "idle" },
   { id: "draft", num: "10", label: "Draft", sub: "Produce DA report (HLR-E)", status: "idle", terminal: true },
   { id: "review", num: "11", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
   { id: "approval", num: "12", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
@@ -72,7 +73,6 @@ interface ConformanceItem {
   requiredAt: string[];
   stages: string[];
   meta?: string;
-  linkedNM?: string;
 }
 
 const HLR_SECTION: Record<string, string> = {
@@ -133,22 +133,6 @@ const DA_SR_DESCRIPTIONS: Record<string, string> = {
   "DA-E3": "Document the pre-operational limitations, citing the pre-operational assumption requirements",
 };
 
-const DA_SR_META: Record<string, string> = {
-  "DA-A1": "9 events",
-  "DA-A2": "1 boundary open",
-  "DA-B1": "3 groups",
-  "DA-B2": "2 excluded",
-  "DA-C2": "3 sources",
-  "DA-C25": "Reuse open",
-  "DA-D2": "1 adjustment open",
-};
-
-const DA_SR_LINKED_NM: Record<string, string> = {
-  "DA-D5": "NM-052",
-  "DA-D8": "NM-058",
-  "DA-D2": "NM-061",
-};
-
 function buildConformanceItems(): ConformanceItem[] {
   return Object.keys(DA_SR_CATALOG).map((code) => {
     const meta = DA_SR_CATALOG[code];
@@ -162,8 +146,7 @@ function buildConformanceItems(): ConformanceItem[] {
       status: "warn" as const,
       requiredAt: ["cc-i", "cc-ii"],
       stages,
-      meta: DA_SR_META[code] ?? (preOnly ? "Pre-op" : undefined),
-      linkedNM: DA_SR_LINKED_NM[code],
+      meta: preOnly ? "Pre-op" : undefined,
     };
   });
 }
@@ -178,10 +161,11 @@ interface ParamTypeSpec {
 }
 
 const PARAM_TYPES: Record<string, ParamTypeSpec> = {
-  FREQUENCY: { label: "Frequency", unit: "per year", short: "Freq", tone: "generic" },
+  FREQUENCY: { label: "Frequency", unit: "per plant-year", short: "Freq", tone: "generic" },
+  FAILURE_RATE: { label: "Failure rate", unit: "per hour", short: "Rate", tone: "plant" },
   PROBABILITY: { label: "Demand probability", unit: "per demand", short: "Prob", tone: "primary" },
   UNAVAILABILITY: { label: "Unavailability", unit: "fraction", short: "Unavail", tone: "similar" },
-  OTHER: { label: "Failure rate", unit: "per hour", short: "Rate", tone: "plant" },
+  OTHER: { label: "Other", unit: "", short: "Other", tone: "primary" },
   CCF_PARAMETER: { label: "CCF parameter", unit: "factor", short: "CCF", tone: "red" },
   HUMAN_ERROR_PROBABILITY: { label: "Human error probability", unit: "per demand", short: "HEP", tone: "primary" },
 };
@@ -215,22 +199,6 @@ const EVIDENCE_LADDER: LadderRung[] = [
   { id: "similar", label: "Similar-adjusted", tag: "Last resort", icon: "Scale", rung: "D2", color: "similar", desc: "The most similar equipment available, adjusted, with the adjustment justified." },
 ];
 
-interface ProbabilityModelSpec {
-  id: string;
-  label: string;
-  paramType: string;
-  basis: "DEMAND" | "TIME";
-  dist: string;
-  note: string;
-}
-
-const PROBABILITY_MODELS: ProbabilityModelSpec[] = [
-  { id: "PM-1", label: "Constant demand probability", paramType: "PROBABILITY", basis: "DEMAND", dist: "Beta", note: "A standby component that is asked to start, estimated per demand." },
-  { id: "PM-2", label: "Standby failure rate", paramType: "OTHER", basis: "TIME", dist: "Gamma", note: "A running or standby component failing over time, estimated per hour." },
-  { id: "PM-4", label: "Operating failure rate", paramType: "OTHER", basis: "TIME", dist: "Gamma", note: "A continuously operating component, estimated per hour." },
-  { id: "PM-5", label: "Event frequency", paramType: "FREQUENCY", basis: "TIME", dist: "Gamma", note: "An initiating event counted over calendar time, estimated per year." },
-];
-
 interface MethodSpec {
   id: string;
   abbr: string;
@@ -250,15 +218,7 @@ const DA_METHODS: Record<string, MethodSpec> = {
 
 const GROUPING_BASIS: Record<string, { label: string; cc: string }> = {
   TYPE_ONLY: { label: "Type only", cc: "CC-I" },
-  TYPE_AND_SERVICE_CONDITIONS: { label: "Type and service", cc: "CC-II" },
-};
-
-const SOURCE_TYPES: Record<string, string> = {
-  INDUSTRY_DATABASE: "Generic industry",
-  PLANT_RECORDS: "Plant records",
-  EXPERT_JUDGMENT: "Expert judgment",
-  OTHER_FACILITY_EXPERIENCE: "Other-facility experience",
-  OTHER: "Other",
+  TYPE_AND_SERVICE_CONDITIONS: { label: "Type and service conditions", cc: "CC-II" },
 };
 
 const CCF_MODEL_LABELS: Record<string, string> = {
@@ -293,40 +253,203 @@ const EXPOSURE_BASIS: Record<string, string> = {
   OPERATIONAL_RECORDS: "Operational records",
 };
 
-interface LinkSpec {
-  id: string;
-  element: string;
-  short: string;
-  icon: string;
-  workbook?: string;
-  version?: number;
-  status?: string;
-  synced?: string;
-  delivers?: string;
-  uses?: string;
-  note: string;
-  role: string;
+interface DaLinkTile {
+  code: DaLinkCode;
+  label: string;
+  name: string;
+  handoff: string;
 }
 
-const DA_UPSTREAM_LINKS: LinkSpec[] = [
-  { id: "pos", element: "Plant Operating States", short: "POS", icon: "Layers", workbook: "POS Workbook Example", version: 3, status: "approved", synced: "Apr 18, 2026", delivers: "Operating states and the outage timelines behind the time fractions", note: "A parameter applies per operating state, not across all of them.", role: "Per-state context" },
-  { id: "sy", element: "Systems Analysis", short: "SY", icon: "Settings", workbook: "SY Workbook Example", version: 2, status: "approved", synced: "May 6, 2026", delivers: "The list of basic events that need probabilities, with their boundaries", note: "SY hands DA the basic events and their boundaries to match.", role: "The shopping list" },
+const DA_LINK_TILES: DaLinkTile[] = [
+  { code: "SY", label: "SY", name: "Systems Analysis", handoff: "Provides · Basic events, common cause groups and typed values" },
+  { code: "IE", label: "IE", name: "Initiating Events", handoff: "Provides · Initiator groups, module count and typed frequencies" },
+  { code: "HRA", label: "HR", name: "Human Reliability", handoff: "Provides · Human failure events and typed HEPs" },
+  { code: "POS", label: "POS", name: "Plant Operating States", handoff: "Provides · Operating states and their durations" },
+  { code: "SC", label: "SC", name: "Success Criteria", handoff: "Provides · Mission times and failure definitions" },
+  { code: "ESQ", label: "ESQ", name: "Event Sequence Quantification", handoff: "Provides · Importance of each parameter" },
 ];
 
-const DA_OUTPUT_LINKS: LinkSpec[] = [
-  { id: "ie", element: "Initiating Events", short: "IE", icon: "Bolt", uses: "Receives the initiating-event frequencies and their data sources", note: "Sodium leak and pump-trip frequencies feed the IE quantification.", role: "Frequencies out" },
-  { id: "sy", element: "Systems Analysis", short: "SY", icon: "Settings", uses: "Receives the basic-event probabilities and the CCF parameters", note: "The fault-tree basic events resolve to DA numbers.", role: "Probabilities out" },
-  { id: "hr", element: "Human Reliability Analysis", short: "HR", icon: "Person", uses: "Shares the Bayesian estimation machinery for data-informed HEPs", note: "Used where a human reliability method draws on plant or generic data.", role: "Parameters out" },
-  { id: "esq", element: "Event Sequence Quantification", short: "ESQ", icon: "Network", uses: "Multiplies every parameter through the sequences", note: "The quantified parameters drive the sequence results.", role: "Numbers out" },
+const EXAMPLE_VARIANT_LABELS: Record<string, string> = {
+  htgr: "Generic HTGR",
+  sfr: "Generic SFR",
+  hcl: "HCL case study",
+};
+
+function exampleLinkVariant(id: string): string | undefined {
+  return id.startsWith("example-") ? id.split("-").slice(2).join("-") : undefined;
+}
+
+function exampleLinkLabel(id: string): string | undefined {
+  const variant = exampleLinkVariant(id);
+  if (variant === undefined) return undefined;
+  return `${EXAMPLE_VARIANT_LABELS[variant] ?? variant} example`;
+}
+
+interface DaScopeKindSpec {
+  kind: DaScopeKind;
+  label: string;
+  requirements: string;
+  srs: string[];
+}
+
+const DA_REQUIRED_SCOPE = { label: "Component failure rates and probabilities", requirements: "DA-C3 to C12 · DA-D1 to D5" };
+
+const DA_SCOPE_KINDS: DaScopeKindSpec[] = [
+  { kind: "TEST_MAINTENANCE", label: "Test and maintenance unavailability", requirements: "DA-C13 to C19", srs: ["DA-C13", "DA-C14", "DA-C15", "DA-C16", "DA-C17", "DA-C18", "DA-C19"] },
+  { kind: "REPAIR_RECOVERY", label: "Repair and recovery", requirements: "DA-C20 to C23 · DA-D6", srs: ["DA-C20", "DA-C21", "DA-C22", "DA-C23", "DA-D6"] },
+  { kind: "COMMON_CAUSE", label: "Common cause failures", requirements: "DA-D7 to D9", srs: ["DA-D7", "DA-D8", "DA-D9"] },
+  { kind: "INITIATING_EVENT", label: "Initiating event frequencies", requirements: "IE-C1 to C19", srs: [] },
+  { kind: "HUMAN_ERROR", label: "Human error probabilities", requirements: "HR-D · HR-G", srs: [] },
+  { kind: "OUTAGE", label: "Outage data", requirements: "DA-C24 · DA-C26", srs: ["DA-C24", "DA-C26"] },
 ];
 
-const APPLICABILITY_THEME: { sr: string; t: string }[] = [
-  { sr: "DA-A2", t: "Boundaries that match SY" },
-  { sr: "DA-B1", t: "Populations that are honest" },
-  { sr: "DA-C25", t: "Generic reuse checked per state" },
-  { sr: "DA-D5", t: "Priors that respect the evidence" },
-  { sr: "DA-D9", t: "Exclusions that are consistent" },
+const NEED_KIND_LABELS: Record<DaNeedKind, string> = {
+  DEMAND: "Fails on demand",
+  RUNNING: "Fails while running",
+  STANDBY: "Fails in standby",
+  UNAVAILABILITY: "Test or maintenance",
+  HUMAN_ERROR: "Human error",
+  RECOVERY: "Not recovered",
+  COMMON_CAUSE: "Common cause",
+  OTHER: "Other probability",
+};
+
+const NEED_KINDS: DaNeedKind[] = ["DEMAND", "RUNNING", "STANDBY", "UNAVAILABILITY", "HUMAN_ERROR", "RECOVERY", "COMMON_CAUSE", "OTHER"];
+
+const NEED_ELEMENT_LABELS: Record<DaNeedElement, string> = {
+  SY: "SY",
+  IE: "IE",
+  HRA: "HR",
+  POS: "POS",
+};
+
+const NEED_ELEMENT_PROVIDES: Record<DaNeedElement, string> = {
+  SY: "Basic events and common cause groups",
+  IE: "Initiator groups and their frequencies",
+  HRA: "Human failure events and their HEPs",
+  POS: "Operating states and their durations",
+};
+
+const FAILURE_MODE_TEXT: Record<string, string> = {
+  FAILURE_TO_START: "Fail to start",
+  FAILURE_TO_RUN: "Fail to run",
+  TEST_MAINTENANCE: "Test and maintenance",
+  HUMAN_ERROR: "Human failure event",
+  COMMON_CAUSE_FAILURE: "Common cause failure",
+  EXTERNAL_EVENT: "External event",
+  OTHER: "Other",
+};
+
+const FREQUENCY_BASIS_TEXT: Record<string, string> = {
+  OPERATING_DATA: "Operating data",
+  GENERIC_DATA: "Generic data",
+  SIMILAR_PLANT_DATA: "Similar plant data",
+  DESIGN_BASED: "Design based",
+  FAULT_TREE: "Fault tree",
+};
+
+const HFE_TIMING_TEXT: Record<string, string> = {
+  PRE_INITIATOR: "Pre-initiator",
+  AT_INITIATOR: "At initiator",
+  POST_INITIATOR: "Post-initiator",
+};
+
+const OPERATING_MODE_TEXT: Record<string, string> = {
+  POWER: "Power",
+  STARTUP: "Startup",
+  SHUTDOWN: "Shutdown",
+  REFUELING: "Refueling",
+  MAINTENANCE: "Maintenance",
+};
+
+interface DaModelSpec {
+  model: DaQuantificationModel;
+  label: string;
+  unit: string;
+  parameterType: ParameterType;
+}
+
+const QUANTIFICATION_MODELS: DaModelSpec[] = [
+  { model: "DEMAND_PROBABILITY", label: "Probability per demand", unit: "per demand", parameterType: "PROBABILITY" },
+  { model: "RUNNING_RATE", label: "Rate while running", unit: "per hour", parameterType: "FAILURE_RATE" },
+  { model: "MISSION_PROBABILITY", label: "Probability over the mission", unit: "per mission", parameterType: "PROBABILITY" },
+  { model: "STANDBY_RATE", label: "Rate in standby", unit: "per hour", parameterType: "FAILURE_RATE" },
+  { model: "UNAVAILABILITY", label: "Fraction of time out", unit: "fraction", parameterType: "UNAVAILABILITY" },
+  { model: "HUMAN_ERROR", label: "Human error probability", unit: "per demand", parameterType: "HUMAN_ERROR_PROBABILITY" },
+  { model: "NON_RECOVERY", label: "Probability of not recovering", unit: "probability", parameterType: "PROBABILITY" },
+  { model: "FREQUENCY", label: "Frequency", unit: "per plant-year", parameterType: "FREQUENCY" },
+  { model: "OTHER_PROBABILITY", label: "Probability", unit: "probability", parameterType: "PROBABILITY" },
 ];
+
+const MODELS_FOR_KIND: Record<DaNeedKind, DaQuantificationModel[]> = {
+  DEMAND: ["DEMAND_PROBABILITY"],
+  RUNNING: ["RUNNING_RATE", "MISSION_PROBABILITY"],
+  STANDBY: ["STANDBY_RATE"],
+  UNAVAILABILITY: ["UNAVAILABILITY"],
+  HUMAN_ERROR: ["HUMAN_ERROR"],
+  RECOVERY: ["NON_RECOVERY"],
+  COMMON_CAUSE: [],
+  OTHER: ["OTHER_PROBABILITY"],
+};
+
+const FAILURE_MODE_CATEGORIES = ["Demand", "Operation", "Standby", "Passive"];
+
+const EVIDENCE_KIND_LABELS: Record<DaEvidenceKind, string> = {
+  PLANT_RECORDS: "1 · Plant records",
+  TECHNOLOGY: "2 · Technology evidence",
+  GENERIC_NUCLEAR: "3 · Generic nuclear data",
+  ANALOGOUS_INDUSTRY: "4 · Analogous industries",
+  ENGINEERING_MODEL: "5 · Engineering models",
+  EXPERT_JUDGMENT: "6 · Expert judgment",
+};
+
+const SOURCE_ORIGIN_LABELS: Record<DaSourceOrigin, string> = {
+  SAME_TECHNOLOGY: "Same technology",
+  OTHER_NUCLEAR: "Other reactor or nuclear facility",
+  NONNUCLEAR: "Nonnuclear industry",
+};
+
+const QUANTITY_LABELS: Record<DaEstimateQuantity, string> = {
+  PER_DEMAND: "per demand",
+  PER_HOUR: "per hour",
+  PER_YEAR: "per year",
+  FRACTION: "fraction",
+  PROBABILITY: "probability",
+  HOURS: "hours",
+};
+
+const EXPOSURE_LABELS: Record<DaEstimateQuantity, string> = {
+  PER_DEMAND: "demands",
+  PER_HOUR: "hours",
+  PER_YEAR: "years",
+  FRACTION: "hours",
+  PROBABILITY: "trials",
+  HOURS: "events",
+};
+
+const VERDICT_LABELS: Record<DaSourceVerdict, string> = {
+  APPLIES: "Applies",
+  SCALED: "Applies with scaling",
+  REJECTED: "Does not apply",
+};
+
+const BOUNDARY_MATCH_LABELS: Record<DaBoundaryMatch, string> = {
+  SAME: "Same boundary",
+  ADJUSTED: "Adjusted to match",
+  DIFFERENT: "Different boundary",
+};
+
+const EXPERT_ROLE_LABELS: Record<DaExpertRole, string> = {
+  EVALUATOR: "Evaluator",
+  PROPONENT: "Proponent",
+  RESOURCE: "Resource expert",
+};
+
+const JUDGMENT_LEVEL_LABELS: Record<DaJudgmentLevel, string> = { LOW: "Low", MEDIUM: "Medium", HIGH: "High" };
+
+const DETECTABILITY_TEXT: Record<string, string> = { HIGH: "High", MEDIUM: "Medium", LOW: "Low", NONE: "None" };
+
+const OUTLIER_STATUS_TEXT: Record<string, string> = { CONFIRMED: "Confirmed", TENTATIVE: "Tentative", UNDER_REVIEW: "Under review" };
 
 const PA_SR: Record<string, string> = {
   "PA-1": "DA-A6",
@@ -371,9 +494,10 @@ export type {
   ConformanceStatus,
   Stage,
   LadderRung,
-  ProbabilityModelSpec,
   MethodSpec,
-  LinkSpec,
+  DaModelSpec,
+  DaLinkTile,
+  DaScopeKindSpec,
 };
 
 export {
@@ -385,18 +509,39 @@ export {
   PARAM_TYPES,
   ESTIMATION_APPROACH,
   EVIDENCE_LADDER,
-  PROBABILITY_MODELS,
   DA_METHODS,
   GROUPING_BASIS,
-  SOURCE_TYPES,
   CCF_MODEL_LABELS,
   CCF_MODEL_METHOD,
   CCF_SOURCE_LABELS,
   DEMAND_BASIS,
   EXPOSURE_BASIS,
-  DA_UPSTREAM_LINKS,
-  DA_OUTPUT_LINKS,
-  APPLICABILITY_THEME,
+  DA_LINK_TILES,
+  DA_REQUIRED_SCOPE,
+  DA_SCOPE_KINDS,
+  NEED_KIND_LABELS,
+  NEED_KINDS,
+  QUANTIFICATION_MODELS,
+  MODELS_FOR_KIND,
+  FAILURE_MODE_CATEGORIES,
+  EVIDENCE_KIND_LABELS,
+  SOURCE_ORIGIN_LABELS,
+  QUANTITY_LABELS,
+  EXPOSURE_LABELS,
+  VERDICT_LABELS,
+  BOUNDARY_MATCH_LABELS,
+  EXPERT_ROLE_LABELS,
+  JUDGMENT_LEVEL_LABELS,
+  DETECTABILITY_TEXT,
+  OUTLIER_STATUS_TEXT,
+  NEED_ELEMENT_LABELS,
+  NEED_ELEMENT_PROVIDES,
+  FAILURE_MODE_TEXT,
+  FREQUENCY_BASIS_TEXT,
+  HFE_TIMING_TEXT,
+  OPERATING_MODE_TEXT,
+  exampleLinkVariant,
+  exampleLinkLabel,
   PA_SR,
   SS_SR,
   DA_TOC,

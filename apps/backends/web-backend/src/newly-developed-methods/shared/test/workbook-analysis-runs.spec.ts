@@ -1138,7 +1138,7 @@ describe("workbook-owned analysis-run APIs", () => {
       `/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`,
     );
     expect(result.status).toBe(200);
-    expect(result.body.topEventProbability).toBeCloseTo(2.5740003521993564e-3, 14);
+    expect(result.body.topEventProbability).toBeCloseTo(4.674904890723829e-3, 14);
   }, 120_000);
 
   it("samples common cause groups from their members' DA estimate and matches the exact DRACS mean", async () => {
@@ -1164,8 +1164,8 @@ describe("workbook-owned analysis-run APIs", () => {
       `/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`,
     );
     expect(result.status).toBe(200);
-    expect(result.body.topEventProbability).toBeCloseTo(1.8559e-2, 5);
-    expect(Math.abs(result.body.uncertainty.mean / 1.8924178137e-2 - 1)).toBeLessThan(5e-3);
+    expect(result.body.topEventProbability).toBeCloseTo(1.742147785930686e-2, 14);
+    expect(Math.abs(result.body.uncertainty.mean / 1.7716057291e-2 - 1)).toBeLessThan(5e-3);
   }, 120_000);
 
   it("returns RPS common-cause cut sets with generated event identifiers", async () => {
@@ -1411,9 +1411,12 @@ describe("workbook-owned analysis-run APIs", () => {
     );
   }, 120_000);
 
-  it("resolves a controlled DA failure rate through mission-time semantics", async () => {
-    const rateSyWorkbookId = "sy-workbook-rate-semantics";
-    const rateDaWorkbookId = "da-workbook-rate-semantics";
+  it.each([
+    { parameterType: "FAILURE_RATE" as const, unit: "HOUR" as const, value: 2e-5, missionProbability: 4.798848184297884e-4 },
+    { parameterType: "FREQUENCY" as const, unit: "YEAR" as const, value: 0.03, missionProbability: 1 - Math.exp(-0.03 * 24 / 8760) },
+  ])("resolves a controlled DA $parameterType per $unit through mission-time semantics", async ({ parameterType, unit, value, missionProbability }) => {
+    const rateSyWorkbookId = `sy-workbook-rate-semantics-${unit}`;
+    const rateDaWorkbookId = `da-workbook-rate-semantics-${unit}`;
     const rateMef = createSyMef();
     rateMef.systemBasicEvents[0] = {
       ...rateMef.systemBasicEvents[0]!,
@@ -1441,9 +1444,9 @@ describe("workbook-owned analysis-run APIs", () => {
     rateDa.parameters = [
       {
         uuid: DA_PARAMETER_ID,
-        name: "Event A hourly failure rate",
-        parameterType: "FREQUENCY",
-        value: 2e-5,
+        name: "Event A failure rate",
+        parameterType,
+        value,
         valueType: "POINT_ESTIMATE",
         implementsSrs: [],
       },
@@ -1463,7 +1466,6 @@ describe("workbook-owned analysis-run APIs", () => {
     const result = await request(api.getHttpServer()).get(
       `/api/sy-workbooks/${rateSyWorkbookId}/fault-trees/${FT_OR}/runs/${response.body.run.id}/result`,
     );
-    const missionProbability = 4.798848184297884e-4;
     expect(result.status).toBe(200);
     expect(result.body.topEventProbability).toBeCloseTo(1 - (1 - missionProbability) * 0.8, 12);
     expect(result.body.basicEventQuantifications).toEqual(
@@ -1474,7 +1476,7 @@ describe("workbook-owned analysis-run APIs", () => {
           input: expect.objectContaining({
             quantificationBasis: expect.objectContaining({
               kind: "FAILURE_RATE",
-              failureRate: { value: 2e-5, unit: "HOUR" },
+              failureRate: { value, unit },
               missionTime: { value: 24, unit: "HOUR" },
             }),
           }),

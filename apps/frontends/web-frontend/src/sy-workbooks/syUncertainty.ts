@@ -140,7 +140,7 @@ function linkedModelInputs(
     if (source?.uncertainty === undefined || source.uncertainty.type === DistributionType.POINT_ESTIMATE) return [];
     const issues = distributionIssues(source.uncertainty).map((message) => issue("DISTRIBUTION", "ERROR", message));
     if (event.controlledDataSource?.referenceType !== "WORKBOOK_PARAMETER") issues.push(issue("LEGACY_LINK", "ERROR", "Linked by the old DA reference only. Pick the estimate in Step 02 so runs sample it."));
-    if (source.parameterType === "FREQUENCY" || event.quantificationBasis?.kind === "FAILURE_RATE") issues.push(issue("RATE", "ERROR", "Failure-rate sampling needs mission-time conversion."));
+    if (source.rateUnit !== undefined || event.quantificationBasis?.kind === "FAILURE_RATE") issues.push(issue("RATE", "ERROR", "Failure-rate sampling needs mission-time conversion."));
     const group = mixedGroups.get(event.uuid);
     if (group !== undefined) issues.push(issue("CCF_SOURCE", "ERROR", `The members of ${group} link different DA estimates. Link all of them to one estimate in Step 02.`));
     return [{ event, source, distribution: source.uncertainty, issues }];

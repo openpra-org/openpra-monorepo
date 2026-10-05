@@ -326,7 +326,7 @@ const significantContributors: SignificantRiskContributors = {
       sourceId: "CCF-DRACS-LOOP",
       importanceMetrics: { fussellVesely: 0.22, riskAchievementWorth: 8.4 },
       importanceLevel: ImportanceLevel.HIGH,
-      context: "The dominant cutset behind the loss-of-decay-heat family, the alpha-factor group the data analysis quantifies as DA-CCF-12.",
+      context: "The dominant cutset behind the loss-of-decay-heat family, the common cause group the data analysis quantifies as DA-CCF-12.",
     },
     {
       uuid: "SC-BE-2",
@@ -741,7 +741,7 @@ export const RI_ANALYSIS: RiskIntegration = {
       { elementCode: "SC", riskSignificance: ImportanceLevel.LOW, insights: ["DRACS carries 97.1% of the 100 mrem frequency."], recommendations: ["Keep the DRACS success criterion explicit, since its failure sits in most of every total."], generalFeedback: "No function is risk-significant. Failed DRACS appears in 82% of the latent cancer risk." },
       { elementCode: "SY", riskSignificance: ImportanceLevel.MEDIUM, significanceReason: "Its common-cause groups lead the totals, CCF-DRACS-LOOP with 18.4% of the 100 mrem frequency.", insights: ["DRACS loop common-cause failure (CCF-DRACS-LOOP) carries 18.4% of the 100 mrem frequency."], recommendations: ["Hold the DRACS loop, confinement damper and shutdown-system groups against their data-analysis parameters.", "Keep the room-cooling dependency visible in the importance review."], generalFeedback: "No contributor is risk-significant, but the DRACS loop, confinement damper and shutdown-system common-cause groups lead the totals, so confirm their logic." },
       { elementCode: "HR", riskSignificance: ImportanceLevel.MEDIUM, significanceReason: "The standby clean-up action carries 11.8% of the early fatality risk.", insights: ["Operator fails to start backup decay heat removal (HR-POST-005) carries 7.5% of the 100 mrem frequency."], recommendations: ["Treat HR-POST-022 in detail.", "Keep HR-POST-005 at detailed treatment."], generalFeedback: "No human failure event is risk-significant, but the standby clean-up and backup decay-heat actions carry up to a tenth of a total, so keep them at detailed treatment." },
-      { elementCode: "DA", riskSignificance: ImportanceLevel.MEDIUM, significanceReason: "The beta factors behind the leading common-cause groups set most of each total.", insights: ["DRACS loop common-cause failure (CCF-DRACS-LOOP) carries 18.4% of the 100 mrem frequency."], recommendations: ["Confirm the DRACS loop and confinement damper beta factors as records accrue."], generalFeedback: "No parameter drives a risk-significant item, but the beta factors behind the leading groups set most of each total, so confirm them as records accrue." },
+      { elementCode: "DA", riskSignificance: ImportanceLevel.MEDIUM, significanceReason: "The common cause factors behind the leading groups set most of each total.", insights: ["DRACS loop common-cause failure (CCF-DRACS-LOOP) carries 18.4% of the 100 mrem frequency."], recommendations: ["Confirm the DRACS loop and confinement damper beta factors as records accrue."], generalFeedback: "No parameter drives a risk-significant item, but the beta factors behind the leading groups set most of each total, so confirm them as records accrue." },
     ],
   },
   modelUncertainty: {

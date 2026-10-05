@@ -3,12 +3,14 @@ import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiatin
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { type IePosLinkStatus } from "./ieWorkbookApi";
+import { type IeDaFrequencyOption } from "./ieDaLinks";
 
 interface IeWorkbookData {
   ie: InitiatingEventsAnalysis;
   cc: PRAConfigurationControl;
   nms: NewlyDevelopedMethod[];
   posLink: IePosLinkStatus;
+  daFrequencies?: IeDaFrequencyOption[];
 }
 
 type IeMutator = (ie: InitiatingEventsAnalysis) => InitiatingEventsAnalysis;

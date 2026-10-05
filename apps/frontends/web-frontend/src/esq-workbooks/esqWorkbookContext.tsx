@@ -6,6 +6,7 @@ import type {
   EventSequence,
   EventTree,
 } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type EsqDaLink } from "./esqDaLinks";
 
 interface EsqLinkedInputs {
   posStates: { id: string; name: string; mode: string; durationHours: number }[];
@@ -23,6 +24,7 @@ interface EsqLinkedInputs {
 interface EsqWorkbookData {
   esq: EventSequenceQuantification;
   links: EsqLinkedInputs | null;
+  daLinks?: EsqDaLink[];
 }
 
 interface EsqWorkbookRuntime {

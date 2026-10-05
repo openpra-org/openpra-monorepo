@@ -8,6 +8,7 @@ import { FAILURE_MODE_LABELS, toExp } from "./syViewData";
 import { withMemberTotals } from "./syCcf";
 import { useSyWorkbook } from "./syWorkbookContext";
 import { syFaultTreeOperation, toFaultTreeEditorCatalogue } from "./SySystemModels";
+import { heldValueDiffers } from "./syLinks";
 import type { SyDrawerContext } from "./syScreens";
 
 type EventDialogKind = "be" | "house";
@@ -27,6 +28,16 @@ const TIME_UNIT_LABELS: Record<RateBasis["missionTime"]["unit"], string> = {
   DAY: "d",
   YEAR: "yr",
 };
+
+const RATE_UNIT_LABELS: Record<RateBasis["failureRate"]["unit"], string> = {
+  SECOND: "Per second",
+  MINUTE: "Per minute",
+  HOUR: "Per hour",
+  DAY: "Per day",
+  YEAR: "Per year",
+};
+
+const RATE_UNITS: readonly RateBasis["failureRate"]["unit"][] = ["HOUR", "DAY", "YEAR", "MINUTE", "SECOND"];
 
 function isEventDialogKind(kind: SyDrawerContext["kind"]): kind is EventDialogKind {
   return EVENT_DIALOG_KINDS.some((candidate) => candidate === kind);
@@ -66,10 +77,16 @@ function BasicEventDialog({ id, onClose }: { id: string; onClose: () => void }):
     : source.referenceType === "HUMAN_FAILURE_EVENT"
       ? humanFailureKey(source.workbookId, source.entityId, source.quantificationId)
       : parameterKey(source.workbookId, source.entityId);
-  const parameterOptions = controlledParameters.filter((option) => (rateBasis === undefined ? option.parameterType !== "FREQUENCY" : option.parameterType === "FREQUENCY"));
+  const parameterOptions = controlledParameters.filter((option) => (rateBasis === undefined) === (option.rateUnit === undefined));
   const linkedParameter = parameterOptions.find((option) => parameterKey(option.workbookId, option.parameterId) === sourceKey);
   const linkedHumanFailure = controlledHumanFailures.find((option) => humanFailureKey(option.workbookId, option.humanFailureEventId, option.quantificationId) === sourceKey);
   const sourceKnown = isHuman ? linkedHumanFailure !== undefined : linkedParameter !== undefined;
+  const heldDiffers = isHuman
+    ? linkedHumanFailure !== undefined && heldValueDiffers(be, linkedHumanFailure.value)
+    : linkedParameter !== undefined && heldValueDiffers(be, linkedParameter.value, linkedParameter.rateUnit);
+  const liveValue = isHuman ? linkedHumanFailure?.value : linkedParameter?.value;
+  const liveUnit = isHuman ? undefined : linkedParameter?.rateUnit;
+  const heldText = rateBasis === undefined ? (be.probability === undefined ? "no value" : toExp(be.probability)) : `${toExp(rateBasis.failureRate.value)} /${TIME_UNIT_LABELS[rateBasis.failureRate.unit]}`;
   const sourceLabel = isHuman ? "Human Reliability event and HEP" : "Data Analysis parameter";
   const failureMode = be.failureMode ?? "";
   const failureModeLabel = FAILURE_MODE_LABELS[failureMode] ?? failureMode;
@@ -151,7 +168,7 @@ function BasicEventDialog({ id, onClose }: { id: string; onClose: () => void }):
       patch({ controlledDataSource: undefined, dataAnalysisBasicEventRef: undefined });
       return;
     }
-    const nextBasis = rateBasis === undefined ? undefined : { ...rateBasis, failureRate: { ...rateBasis.failureRate, value: option.value } };
+    const nextBasis = rateBasis === undefined ? undefined : { ...rateBasis, failureRate: { value: option.value, unit: option.rateUnit ?? rateBasis.failureRate.unit } };
     patch({
       probability: nextBasis === undefined ? option.value : failureRateToProbability(nextBasis),
       quantificationBasis: nextBasis ?? { kind: "PROBABILITY" },
@@ -165,8 +182,8 @@ function BasicEventDialog({ id, onClose }: { id: string; onClose: () => void }):
 
   function applyExponential(): void {
     if (rateBasis === undefined) return;
-    const rate = linkedParameter === undefined ? rateBasis.failureRate.value : linkedParameter.value;
-    const reviewed: RateBasis = { ...rateBasis, failureRate: { ...rateBasis.failureRate, value: rate }, conversion: "EXPONENTIAL" };
+    const rate = linkedParameter === undefined ? rateBasis.failureRate : { value: linkedParameter.value, unit: linkedParameter.rateUnit ?? rateBasis.failureRate.unit };
+    const reviewed: RateBasis = { ...rateBasis, failureRate: rate, conversion: "EXPONENTIAL" };
     patch({ quantificationBasis: reviewed, probability: failureRateToProbability(reviewed) });
   }
 
@@ -235,7 +252,7 @@ function BasicEventDialog({ id, onClose }: { id: string; onClose: () => void }):
                     })
                   : parameterOptions.map((option) => {
                       const key = parameterKey(option.workbookId, option.parameterId);
-                      return <option key={key} value={key}>{option.workbookName} · {option.parameterName} · {toExp(option.value)}</option>;
+                      return <option key={key} value={key}>{option.workbookName} · {option.parameterName} · {toExp(option.value)}{option.rateUnit === undefined ? "" : ` /${TIME_UNIT_LABELS[option.rateUnit]}`}</option>;
                     })}
               </select>
             ) : (
@@ -245,6 +262,12 @@ function BasicEventDialog({ id, onClose }: { id: string; onClose: () => void }):
                 : "Linked source unavailable"}</div>
             )}
           </div>
+          {heldDiffers && liveValue !== undefined && (
+            <div className="posfield posfield-grid--span2 sy-event-review">
+              <p className="sy-warn" role="status">{isHuman ? "HR" : "DA"} now gives {toExp(liveValue)}{liveUnit === undefined ? "" : ` /${TIME_UNIT_LABELS[liveUnit]}`}. This event still holds {heldText}.</p>
+              {editable && !needsReview && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setSource(sourceKey)}>{isHuman ? "Apply HR value" : "Apply DA value"}</button>}
+            </div>
+          )}
           {source === undefined && rateBasis === undefined && (
             <div className="posfield"><label className="posfield__label">Probability</label>
               {editable ? <WorkbookInput className="posfield__input posmono" type="number" min="0" max="1" step="any" aria-label="Probability" value={be.probability ?? ""} onChange={(event) => {
@@ -259,6 +282,18 @@ function BasicEventDialog({ id, onClose }: { id: string; onClose: () => void }):
                 const rate = nonNegativeNumber(event.target.value);
                 if (rate !== undefined) setRate({ ...rateBasis, failureRate: { ...rateBasis.failureRate, value: rate } });
               }} /> : <div className="posmono">{toExp(rateBasis.failureRate.value)}</div>}
+            </div>
+          )}
+          {source === undefined && rateBasis !== undefined && (
+            <div className="posfield"><label className="posfield__label">Rate unit</label>
+              {editable ? (
+                <select className="posfield__select" aria-label="Rate unit" value={rateBasis.failureRate.unit} onChange={(event) => {
+                  const unit = RATE_UNITS.find((candidate) => candidate === event.target.value);
+                  if (unit !== undefined) setRate({ ...rateBasis, failureRate: { ...rateBasis.failureRate, unit } });
+                }}>
+                  {RATE_UNITS.map((unit) => <option key={unit} value={unit}>{RATE_UNIT_LABELS[unit]}</option>)}
+                </select>
+              ) : <div>{RATE_UNIT_LABELS[rateBasis.failureRate.unit]}</div>}
             </div>
           )}
           {needsReview && (

@@ -49,6 +49,7 @@ interface SyFaultTreeAdapterOptions {
 interface ResolvedControlledDataSourceValue {
   value: number;
   quantity: "PROBABILITY" | "FAILURE_RATE";
+  unit?: "HOUR" | "YEAR";
   uncertainty?: ParameterDistribution;
 }
 
@@ -509,7 +510,7 @@ const adaptSyFaultTreeSnapshot = (
       );
     }
     const resolvedBasis = basis?.kind === "FAILURE_RATE" && resolvedControlledValue !== undefined
-      ? { ...basis, failureRate: { ...basis.failureRate, value: resolvedControlledValue.value } }
+      ? { ...basis, failureRate: { value: resolvedControlledValue.value, unit: resolvedControlledValue.unit ?? basis.failureRate.unit } }
       : basis;
     const resolvedProbability = resolvedBasis?.kind === "FAILURE_RATE"
       ? failureRateToProbability(resolvedBasis)

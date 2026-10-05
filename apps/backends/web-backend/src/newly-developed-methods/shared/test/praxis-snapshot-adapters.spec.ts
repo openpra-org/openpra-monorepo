@@ -437,6 +437,43 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     }));
   });
 
+  it("converts a DA frequency per year over a mission time in hours", () => {
+    const mef = structuredClone(syMef);
+    const reference = {
+      referenceType: "WORKBOOK_PARAMETER" as const,
+      workbookId: "da-1",
+      entityId: "loop-a",
+    };
+    mef.systemBasicEvents[0] = {
+      ...mef.systemBasicEvents[0]!,
+      probability: 0,
+      quantificationBasis: {
+        kind: "FAILURE_RATE",
+        failureRate: { value: 0, unit: "HOUR" },
+        missionTime: { value: 24, unit: "HOUR" },
+        conversion: "EXPONENTIAL",
+      },
+      controlledDataSource: reference,
+    };
+    const adapted = adaptSyFaultTreeSnapshot(
+      { workbookId: "sy-1", workbookRevision: 7, mef },
+      "ft-1",
+      {
+        controlledDataSourceValues: new Map([[
+          workbookParameterReferenceKey(reference),
+          { value: 0.03, quantity: "FAILURE_RATE", unit: "YEAR" },
+        ]]),
+      },
+    );
+    const events = adapted.basicEventCatalogue["basicEvents"] as Array<Record<string, unknown>>;
+    expect(events[0]).toEqual(expect.objectContaining({
+      probability: expect.objectContaining({
+        value: expect.closeTo(1 - Math.exp(-0.03 * 24 / 8760), 15),
+        quantificationBasis: expect.objectContaining({ failureRate: { value: 0.03, unit: "YEAR" } }),
+      }),
+    }));
+  });
+
   it("rejects a controlled source whose quantity does not match the basic-event basis", () => {
     const mef = structuredClone(syMef);
     const reference = {

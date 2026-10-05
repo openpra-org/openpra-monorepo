@@ -1,13 +1,12 @@
 import { JSX, KeyboardEvent, PointerEvent, type RefObject, useLayoutEffect, useRef, useState } from "react";
-import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
-import { distributionCdf, distributionDensity, distributionMean, distributionQuantile } from "./daDistributions";
+import { shapeCdf, shapeDensity, shapeMean, shapePoint, shapeQuantile, type DaShape } from "./daDistributions";
 import { sciText } from "./daShared";
 
 interface DistributionSeries {
   key: string;
   label: string;
   detail: string;
-  distribution: ParameterDistribution;
+  distribution: DaShape;
 }
 
 interface Domain {
@@ -37,10 +36,11 @@ function valueText(value: number): string {
   return size >= 0.01 && size < 1e5 ? String(Number(value.toPrecision(3))) : sciText(value);
 }
 
-function bounds(distribution: ParameterDistribution): [number, number] | undefined {
-  if (distribution.type === DistributionType.POINT_ESTIMATE) return [distribution.value, distribution.value];
-  const low = distributionQuantile(distribution, 0.001);
-  const high = distributionQuantile(distribution, 0.999);
+function bounds(distribution: DaShape): [number, number] | undefined {
+  const point = shapePoint(distribution);
+  if (point !== undefined) return [point, point];
+  const low = shapeQuantile(distribution, 0.001);
+  const high = shapeQuantile(distribution, 0.999);
   if (low === undefined || high === undefined || !Number.isFinite(low) || !Number.isFinite(high)) return undefined;
   return [low, high];
 }
@@ -67,8 +67,8 @@ function axisAt(domain: Domain, value: number): number {
   return domain.log ? Math.log10(value) : value;
 }
 
-function heightAt(domain: Domain, distribution: ParameterDistribution, value: number): number | undefined {
-  const density = distributionDensity(distribution, value);
+function heightAt(domain: Domain, distribution: DaShape, value: number): number | undefined {
+  const density = shapeDensity(distribution, value);
   if (density === undefined || !Number.isFinite(density)) return undefined;
   return domain.log ? density * value * LN10 : density;
 }
@@ -109,12 +109,13 @@ function linePath(points: readonly Point[]): string {
   return points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
 }
 
-function summaryText(distribution: ParameterDistribution): string {
-  if (distribution.type === DistributionType.POINT_ESTIMATE) return `Point value ${valueText(distribution.value)}`;
-  const mean = distributionMean(distribution);
-  const p05 = distributionQuantile(distribution, 0.05);
-  const median = distributionQuantile(distribution, 0.5);
-  const p95 = distributionQuantile(distribution, 0.95);
+function summaryText(distribution: DaShape): string {
+  const point = shapePoint(distribution);
+  if (point !== undefined) return `Point value ${valueText(point)}`;
+  const mean = shapeMean(distribution);
+  const p05 = shapeQuantile(distribution, 0.05);
+  const median = shapeQuantile(distribution, 0.5);
+  const p95 = shapeQuantile(distribution, 0.95);
   return [mean === undefined ? "" : `Mean ${valueText(mean)}`, p05 === undefined ? "" : `5th ${valueText(p05)}`, median === undefined ? "" : `median ${valueText(median)}`, p95 === undefined ? "" : `95th ${valueText(p95)}`].filter((part) => part.length > 0).join(" · ");
 }
 
@@ -152,7 +153,7 @@ function DistributionChart({ series, focusKey, unit, onFocus }: { series: readon
   const focused = series.find((item) => item.key === focusKey) ?? series[0];
   const curves = series.map((item) => ({
     item,
-    values: item.distribution.type === DistributionType.POINT_ESTIMATE ? [] : grid.flatMap((at) => {
+    values: shapePoint(item.distribution) !== undefined ? [] : grid.flatMap((at) => {
       const y = heightAt(domain, item.distribution, valueAt(domain, at));
       return y === undefined ? [] : [{ at, y }];
     }),
@@ -162,10 +163,11 @@ function DistributionChart({ series, focusKey, unit, onFocus }: { series: readon
   const ticks = chartTicks(domain, plotWidth);
   const ordered = [...curves.filter((curve) => curve.item.key !== focused?.key), ...curves.filter((curve) => curve.item.key === focused?.key)];
   const focusDistribution = focused?.distribution;
-  const bandLow = focusDistribution === undefined ? undefined : distributionQuantile(focusDistribution, 0.05);
-  const bandHigh = focusDistribution === undefined ? undefined : distributionQuantile(focusDistribution, 0.95);
+  const bandLow = focusDistribution === undefined ? undefined : shapeQuantile(focusDistribution, 0.05);
+  const bandHigh = focusDistribution === undefined ? undefined : shapeQuantile(focusDistribution, 0.95);
+  const focusPoint = focusDistribution === undefined ? undefined : shapePoint(focusDistribution);
   let band = "";
-  if (focusDistribution !== undefined && focusDistribution.type !== DistributionType.POINT_ESTIMATE && bandLow !== undefined && bandHigh !== undefined && (!domain.log || bandLow > 0)) {
+  if (focusDistribution !== undefined && focusPoint === undefined && bandLow !== undefined && bandHigh !== undefined && (!domain.log || bandLow > 0)) {
     const from = axisAt(domain, bandLow);
     const to = axisAt(domain, bandHigh);
     const inside = [from, ...grid.filter((at) => at > from && at < to), to].flatMap((at) => {
@@ -176,7 +178,7 @@ function DistributionChart({ series, focusKey, unit, onFocus }: { series: readon
     const last = inside[inside.length - 1];
     if (first !== undefined && last !== undefined) band = `${linePath(inside)} L${last.x.toFixed(1)},${baseline} L${first.x.toFixed(1)},${baseline} Z`;
   }
-  const meanValue = focusDistribution === undefined || focusDistribution.type === DistributionType.POINT_ESTIMATE ? undefined : distributionMean(focusDistribution);
+  const meanValue = focusDistribution === undefined || focusPoint !== undefined ? undefined : shapeMean(focusDistribution);
   const meanHeight = meanValue === undefined || focusDistribution === undefined || (domain.log && meanValue <= 0) ? undefined : heightAt(domain, focusDistribution, meanValue);
   const cursorX = cursor === undefined ? undefined : scaleX(cursor);
   const cursorValue = cursor === undefined ? undefined : valueAt(domain, cursor);
@@ -223,8 +225,9 @@ function DistributionChart({ series, focusKey, unit, onFocus }: { series: readon
         {band.length > 0 && <path className="da-dist__band" d={band} />}
         {ordered.map(({ item, values }) => {
           const isFocus = item.key === focused?.key;
-          if (item.distribution.type === DistributionType.POINT_ESTIMATE) {
-            const x = scaleX(axisAt(domain, item.distribution.value));
+          const point = shapePoint(item.distribution);
+          if (point !== undefined) {
+            const x = scaleX(axisAt(domain, point));
             return (
               <g key={item.key}>
                 <line className={`da-dist__line${isFocus ? " da-dist__line--focus" : ""}`} x1={x} x2={x} y1={baseline} y2={TOP + 6} />
@@ -248,7 +251,7 @@ function DistributionChart({ series, focusKey, unit, onFocus }: { series: readon
         <div className="da-dist__tip" style={{ left: `${Math.min(Math.max(cursorX + 12, 0), Math.max(0, width - 230))}px` }}>
           <div className="da-dist__tip-value">{valueText(cursorValue)} {unit}</div>
           {series.map((item) => {
-            const below = distributionCdf(item.distribution, cursorValue);
+            const below = shapeCdf(item.distribution, cursorValue);
             return (
               <div key={item.key} className="da-dist__tip-row">
                 <span className={`da-dist__key${item.key === focused?.key ? " da-dist__key--focus" : ""}`} />

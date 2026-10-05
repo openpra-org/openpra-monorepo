@@ -1,4 +1,4 @@
-import { DA_SR_CATALOG, type DaBoundaryMatch, type DaEstimateQuantity, type DaEvidenceKind, type DaExpertRole, type DaJudgmentLevel, type DaLinkCode, type DaNeedElement, type DaNeedKind, type DaQuantificationModel, type DaScopeKind, type DaSourceOrigin, type DaSourceVerdict, type ParameterType } from "interfaces-mef-types/da/data-analysis";
+import { DA_SR_CATALOG, type DaBoundaryMatch, type DaCcfMethod, type DaCcfTesting, type DaCountBasis, type DaDemandKind, type DaEstimateQuantity, type DaEvidenceKind, type DaEvidenceOrigin, type DaEvidenceUnit, type DaExpertRole, type DaJudgmentLevel, type DaLinkCode, type DaMaintenanceKind, type DaMaintenanceMethod, type DaNeedElement, type DaNeedKind, type DaPriorForm, type DaQuantificationModel, type DaRecordJudgment, type DaRestorationFrom, type DaRestorationKind, type DaScopeKind, type DaSourceOrigin, type DaSourceVerdict, type ParameterType, type DaInitiatorCategory, type DaFrequencyPer, type DaFrequencyMethod, type DaSensitivityKind } from "interfaces-mef-types/da/data-analysis";
 
 type StepStatus = "complete" | "in-progress" | "idle";
 
@@ -17,14 +17,15 @@ const DA_STEPS: DaStep[] = [
   { id: "needs", num: "02", label: "Data needs", sub: "Events · initiators · HEPs", hlr: "DA-A", status: "idle" },
   { id: "define", num: "03", label: "Parameters", sub: "Models · map · populations", hlr: "DA-A", status: "idle" },
   { id: "generic", num: "04", label: "Sources", sub: "Library · applicability · judgment", hlr: "DA-C", status: "idle" },
-  { id: "counts", num: "05", label: "Collect: Counts", sub: "Failures · demands · time", hlr: "DA-C", status: "idle" },
-  { id: "unavail", num: "06", label: "Collect: Unavailability", sub: "Maintenance · repair · outage", hlr: "DA-C", status: "idle" },
-  { id: "estimate", num: "07", label: "Estimate Values", sub: "Ladder · Bayes (HLR-D)", hlr: "DA-D", status: "idle" },
-  { id: "ccf", num: "08", label: "Common-Cause", sub: "CCF parameters (D7 to D9)", hlr: "DA-D", status: "idle" },
-  { id: "uncert", num: "09", label: "Uncertainty & Pre-op", sub: "Sources · assumptions", hlr: "DA-A", status: "idle" },
-  { id: "draft", num: "10", label: "Draft", sub: "Produce DA report (HLR-E)", status: "idle", terminal: true },
-  { id: "review", num: "11", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
-  { id: "approval", num: "12", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
+  { id: "counts", num: "05", label: "Component failures", sub: "Priors · evidence · estimates", hlr: "DA-D", status: "idle" },
+  { id: "unavail", num: "06", label: "Unavailability, repair and recovery", sub: "Maintenance · repair · outages", hlr: "DA-C", status: "idle" },
+  { id: "ccf", num: "07", label: "Common cause", sub: "Groups · events · factors", hlr: "DA-D", status: "idle" },
+  { id: "ie", num: "08", label: "Initiating events", sub: "Groups · evidence · estimates", hlr: "DA-D", status: "idle" },
+  { id: "uncert", num: "09", label: "Uncertainty", sub: "Distributions · register · cases", hlr: "DA-E", status: "idle" },
+  { id: "handoffs", num: "10", label: "Hand-offs", sub: "SY · IE · HR · POS · ESQ", hlr: "DA-D", status: "idle" },
+  { id: "draft", num: "11", label: "Draft", sub: "Produce DA report (HLR-E)", status: "idle", terminal: true },
+  { id: "review", num: "12", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
+  { id: "approval", num: "13", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
 ];
 
 type DaPersona = "preparer" | "reviewer" | "approver";
@@ -153,69 +154,6 @@ function buildConformanceItems(): ConformanceItem[] {
 
 const CONFORMANCE_ITEMS: ConformanceItem[] = buildConformanceItems();
 
-interface ParamTypeSpec {
-  label: string;
-  unit: string;
-  short: string;
-  tone: string;
-}
-
-const PARAM_TYPES: Record<string, ParamTypeSpec> = {
-  FREQUENCY: { label: "Frequency", unit: "per plant-year", short: "Freq", tone: "generic" },
-  FAILURE_RATE: { label: "Failure rate", unit: "per hour", short: "Rate", tone: "plant" },
-  PROBABILITY: { label: "Demand probability", unit: "per demand", short: "Prob", tone: "primary" },
-  UNAVAILABILITY: { label: "Unavailability", unit: "fraction", short: "Unavail", tone: "similar" },
-  OTHER: { label: "Other", unit: "", short: "Other", tone: "primary" },
-  CCF_PARAMETER: { label: "CCF parameter", unit: "factor", short: "CCF", tone: "red" },
-  HUMAN_ERROR_PROBABILITY: { label: "Human error probability", unit: "per demand", short: "HEP", tone: "primary" },
-};
-
-interface ApproachSpec {
-  label: string;
-  rung: "plant" | "generic" | "similar";
-}
-
-const ESTIMATION_APPROACH: Record<string, ApproachSpec> = {
-  PLANT_SPECIFIC: { label: "Plant-specific", rung: "plant" },
-  TECHNOLOGY_SPECIFIC: { label: "Technology-specific", rung: "generic" },
-  GENERIC: { label: "Generic", rung: "generic" },
-  REALISTIC_COMBINED: { label: "Realistic combined", rung: "plant" },
-  SIMILAR_EQUIPMENT_ADJUSTED: { label: "Similar-adjusted", rung: "similar" },
-};
-
-interface LadderRung {
-  id: string;
-  label: string;
-  tag: string;
-  icon: string;
-  rung: string;
-  color: "plant" | "generic" | "similar";
-  desc: string;
-}
-
-const EVIDENCE_LADDER: LadderRung[] = [
-  { id: "plant", label: "Plant-specific", tag: "Strongest pedigree", icon: "Database", rung: "C3 to C12 · D1 · D4", color: "plant", desc: "Counts of failures, demands and time from this plant in this operating state." },
-  { id: "generic", label: "Generic", tag: "Technology evidence", icon: "Layers", rung: "C1 · C2 · D1", color: "generic", desc: "Recognized industry sources and technology experience from other facilities." },
-  { id: "similar", label: "Similar-adjusted", tag: "Last resort", icon: "Scale", rung: "D2", color: "similar", desc: "The most similar equipment available, adjusted, with the adjustment justified." },
-];
-
-interface MethodSpec {
-  id: string;
-  abbr: string;
-  name: string;
-  ref: string;
-}
-
-const DA_METHODS: Record<string, MethodSpec> = {
-  mle: { id: "mle", abbr: "MLE", name: "Maximum likelihood estimation", ref: "NUREG/CR-6823" },
-  bayes: { id: "bayes", abbr: "Bayes", name: "Bayesian parameter estimation", ref: "NUREG/CR-6823" },
-  jeffreys: { id: "jeffreys", abbr: "Jeffreys", name: "Jeffreys noninformative prior", ref: "NUREG/CR-6823" },
-  empbayes: { id: "empbayes", abbr: "Emp-Bayes", name: "Empirical Bayes population variability", ref: "NUREG/CR-6823" },
-  beta: { id: "beta", abbr: "Beta", name: "Beta-factor common-cause model", ref: "NUREG/CR-5485" },
-  alpha: { id: "alpha", abbr: "Alpha", name: "Alpha-factor common-cause model", ref: "NUREG/CR-5485" },
-  mgl: { id: "mgl", abbr: "MGL", name: "Multiple Greek Letter common-cause model", ref: "NUREG/CR-5485" },
-};
-
 const GROUPING_BASIS: Record<string, { label: string; cc: string }> = {
   TYPE_ONLY: { label: "Type only", cc: "CC-I" },
   TYPE_AND_SERVICE_CONDITIONS: { label: "Type and service conditions", cc: "CC-II" },
@@ -229,28 +167,15 @@ const CCF_MODEL_LABELS: Record<string, string> = {
   OTHER_EQUIVALENT: "Equivalent model",
 };
 
-const CCF_MODEL_METHOD: Record<string, string> = {
-  BETA_FACTOR: "beta",
-  ALPHA_FACTOR: "alpha",
-  MGL: "mgl",
-  PHI_FACTOR: "beta",
-  OTHER_EQUIVALENT: "beta",
+const CCF_TESTING_LABELS: Record<DaCcfTesting, string> = {
+  STAGGERED: "Staggered",
+  NON_STAGGERED: "Non-staggered",
 };
 
-const CCF_SOURCE_LABELS: Record<string, string> = {
-  GENERIC: "Generic",
-  PLANT_EXPERIENCE_CONSISTENT: "Plant-experience consistent",
-};
-
-const DEMAND_BASIS: Record<string, string> = {
-  ANNUALIZED_PLANNED: "Annualized plan",
-  ACTUAL_PRACTICE_RECORDS: "Actual records",
-  PREOP_EXPECTED_PERFORMANCE: "Planned schedule",
-};
-
-const EXPOSURE_BASIS: Record<string, string> = {
-  ESTIMATED_FROM_TEST_PRACTICES: "Estimated from plan",
-  OPERATIONAL_RECORDS: "Operational records",
+const CCF_METHOD_LABELS: Record<DaCcfMethod, string> = {
+  PRIOR: "Published factors as they are",
+  BAYES: "Updated with events",
+  TYPED: "Typed",
 };
 
 interface DaLinkTile {
@@ -449,22 +374,136 @@ const EXPERT_ROLE_LABELS: Record<DaExpertRole, string> = {
 
 const JUDGMENT_LEVEL_LABELS: Record<DaJudgmentLevel, string> = { LOW: "Low", MEDIUM: "Medium", HIGH: "High" };
 
+const PRIOR_FORM_LABELS: Record<DaPriorForm, string> = {
+  AS_PUBLISHED: "As published",
+  CONSTRAINED_NONINFORMATIVE: "Constrained noninformative",
+  JEFFREYS: "Jeffreys",
+};
+
+const ESTIMATE_METHOD_LABELS: Record<"PRIOR" | "BAYES" | "POPULATION" | "TYPED", string> = {
+  PRIOR: "Prior as is",
+  BAYES: "Bayes update",
+  POPULATION: "Population variability",
+  TYPED: "Typed",
+};
+
+const COMPUTATION_LABELS: Record<"PRIOR" | "CONJUGATE" | "NUMERICAL" | "HIERARCHICAL", string> = {
+  PRIOR: "No update",
+  CONJUGATE: "Conjugate",
+  NUMERICAL: "Numerical integration",
+  HIERARCHICAL: "Hierarchical Bayes",
+};
+
+const OUTPUT_FIT_LABELS: Record<"EXACT" | "RARE_EVENT" | "LOGNORMAL" | "BETA", string> = {
+  EXACT: "Exact",
+  RARE_EVENT: "Rate times mission time",
+  LOGNORMAL: "Fitted lognormal",
+  BETA: "Fitted beta",
+};
+
+const EVIDENCE_ORIGIN_LABELS: Record<DaEvidenceOrigin, string> = {
+  PLANT_RECORDS: "Plant records",
+  TECHNOLOGY: "Technology evidence",
+};
+
+const EVIDENCE_UNIT_LABELS: Record<DaEvidenceUnit, string> = {
+  DEMANDS: "demands",
+  HOURS: "hours",
+  YEARS: "years",
+};
+
+const JUDGMENT_LABELS: Record<DaRecordJudgment, string> = {
+  OPEN: "Not judged",
+  FAILURE: "Counts",
+  NOT_FAILURE: "Not a failure",
+  REPEAT: "Repeat",
+  EXCLUDED: "Excluded",
+};
+
+const DEMAND_KIND_LABELS: Record<DaDemandKind, string> = {
+  SURVEILLANCE: "Surveillance test",
+  MAINTENANCE: "Maintenance act",
+  OTHER_COMPONENT: "Test of another component",
+  OPERATIONAL: "Operation",
+};
+
+const MAINTENANCE_KIND_LABELS: Record<DaMaintenanceKind, string> = {
+  TRAIN: "Train or component",
+  COINCIDENT: "Coincident, redundant equipment out together",
+};
+
+const MAINTENANCE_METHOD_LABELS: Record<DaMaintenanceMethod | "TYPED", string> = {
+  PLANNED: "Planned program",
+  RECORDS: "Plant records",
+  GENERIC: "Published value",
+  TYPED: "Typed",
+};
+
+const RESTORATION_KIND_LABELS: Record<DaRestorationKind, string> = {
+  REPAIR: "Repair",
+  RECOVERY: "Recovery",
+};
+
+const RESTORATION_FROM_LABELS: Record<DaRestorationFrom | "TYPED", string> = {
+  SOURCES: "Library sources",
+  RECORDS: "Restoration times",
+  TYPED: "Typed",
+};
+
+const UNAVAILABILITY_FIT_LABELS: Record<"CONSTRAINED" | "MOMENTS" | "PUBLISHED" | "TYPED", string> = {
+  CONSTRAINED: "Constrained noninformative beta",
+  MOMENTS: "Beta matched to the mean and spread",
+  PUBLISHED: "Published distribution",
+  TYPED: "Typed",
+};
+
+const INITIATOR_CATEGORY_LABELS: Record<DaInitiatorCategory, string> = {
+  I: "I · Any reactor",
+  II: "II · Common plant system",
+  III: "III · Design system, common parts",
+  IV: "IV · Design-specific event",
+};
+
+const FREQUENCY_PER_LABELS: Record<DaFrequencyPer, string> = {
+  CRITICAL_YEAR: "Per critical year",
+  CALENDAR_YEAR: "Per calendar year",
+  SHUTDOWN_YEAR: "Per shutdown year",
+};
+
+const FREQUENCY_METHOD_LABELS: Record<DaFrequencyMethod, string> = {
+  PRIOR: "Source as it is",
+  BAYES: "Updated with events",
+};
+
+const FREQUENCY_MODE_LABELS: Record<"CALCULATED" | "TYPED" | "LINKED", string> = {
+  CALCULATED: "Estimated in DA",
+  TYPED: "Typed in DA",
+  LINKED: "Imported from IE",
+};
+
+const FREQUENCY_FIT_LABELS: Record<"EXACT" | "LOGNORMAL" | "GAMMA_MOMENTS", string> = {
+  EXACT: "Exact",
+  LOGNORMAL: "Lognormal fitted to the 5th and 95th",
+  GAMMA_MOMENTS: "Gamma matched to the summed mean and variance",
+};
+
+const SENSITIVITY_KIND_LABELS: Record<DaSensitivityKind, string> = {
+  FACTOR: "Transfer factors at their bounds",
+  PRIOR_FORM: "Another prior form",
+  SOURCE: "Another source",
+  TESTING: "The other testing scheme",
+  RANGE: "A typed range",
+};
+
+const COUNT_BASIS_LABELS: Record<DaCountBasis, string> = {
+  RECORDS: "Plant records, data window",
+  ANNUALIZED_PLAN: "Annualized plan, per year",
+  PLANNED_SCHEDULE: "Planned schedule, per year",
+};
+
 const DETECTABILITY_TEXT: Record<string, string> = { HIGH: "High", MEDIUM: "Medium", LOW: "Low", NONE: "None" };
 
 const OUTLIER_STATUS_TEXT: Record<string, string> = { CONFIRMED: "Confirmed", TENTATIVE: "Tentative", UNDER_REVIEW: "Under review" };
-
-const PA_SR: Record<string, string> = {
-  "PA-1": "DA-A6",
-  "PA-2": "DA-C2",
-  "PA-3": "DA-C9",
-  "PA-4": "DA-C17",
-  "PA-5": "DA-D5",
-};
-
-const SS_SR: Record<string, string> = {
-  "SS-1": "DA-E2",
-  "SS-2": "DA-D5",
-};
 
 const DA_TOC: [string, string][] = [
   ["Executive summary", "5"],
@@ -495,8 +534,6 @@ export type {
   ConformanceItem,
   ConformanceStatus,
   Stage,
-  LadderRung,
-  MethodSpec,
   DaModelSpec,
   DaLinkTile,
   DaScopeKindSpec,
@@ -508,16 +545,10 @@ export {
   DA_PERSONA_STEPS,
   CAPABILITY_CATEGORIES,
   CONFORMANCE_ITEMS,
-  PARAM_TYPES,
-  ESTIMATION_APPROACH,
-  EVIDENCE_LADDER,
-  DA_METHODS,
   GROUPING_BASIS,
   CCF_MODEL_LABELS,
-  CCF_MODEL_METHOD,
-  CCF_SOURCE_LABELS,
-  DEMAND_BASIS,
-  EXPOSURE_BASIS,
+  CCF_TESTING_LABELS,
+  CCF_METHOD_LABELS,
   DA_LINK_TILES,
   DA_REQUIRED_SCOPE,
   DA_SCOPE_KINDS,
@@ -534,6 +565,20 @@ export {
   BOUNDARY_MATCH_LABELS,
   EXPERT_ROLE_LABELS,
   JUDGMENT_LEVEL_LABELS,
+  PRIOR_FORM_LABELS,
+  ESTIMATE_METHOD_LABELS,
+  COMPUTATION_LABELS,
+  OUTPUT_FIT_LABELS,
+  EVIDENCE_ORIGIN_LABELS,
+  EVIDENCE_UNIT_LABELS,
+  JUDGMENT_LABELS,
+  DEMAND_KIND_LABELS,
+  COUNT_BASIS_LABELS,
+  MAINTENANCE_KIND_LABELS,
+  MAINTENANCE_METHOD_LABELS,
+  RESTORATION_KIND_LABELS,
+  RESTORATION_FROM_LABELS,
+  UNAVAILABILITY_FIT_LABELS,
   DETECTABILITY_TEXT,
   OUTLIER_STATUS_TEXT,
   NEED_ELEMENT_LABELS,
@@ -544,7 +589,11 @@ export {
   OPERATING_MODE_TEXT,
   exampleLinkVariant,
   exampleLinkLabel,
-  PA_SR,
-  SS_SR,
   DA_TOC,
+  INITIATOR_CATEGORY_LABELS,
+  FREQUENCY_PER_LABELS,
+  FREQUENCY_METHOD_LABELS,
+  FREQUENCY_MODE_LABELS,
+  FREQUENCY_FIT_LABELS,
+  SENSITIVITY_KIND_LABELS,
 };

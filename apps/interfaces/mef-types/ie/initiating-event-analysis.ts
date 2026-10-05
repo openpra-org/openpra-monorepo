@@ -11,6 +11,7 @@ import { HazardOperabilityStudy } from "../cross-cutting/methods/hazop";
 import { ProcessHazardAnalysis } from "../cross-cutting/methods/process-hazard-analysis";
 import { OperatingExperienceReview } from "../cross-cutting/methods/operating-experience-review";
 import { GenericInitiatorCatalogue } from "../cross-cutting/methods/generic-initiator-catalogue";
+import type { WorkbookParameterReference } from "../modeling/references";
 
 export type PlantOperatingStateReference = string;
 export type SafetyFunctionReference = string;
@@ -153,6 +154,7 @@ export interface InitiatingEventGroup extends Unique, Named {
   applicableStates: PlantOperatingStateReference[];
   affectedReactorOrSourceCombinations?: string[];
   meanFrequency?: Frequency | FrequencyWithDistribution;
+  controlledDataSource?: WorkbookParameterReference;
   riskImportance?: ImportanceLevel;
   implementsSrs: SRReference[];
 }

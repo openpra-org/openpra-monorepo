@@ -9,6 +9,7 @@ import {
   PreOperationalAssumptionSchema,
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
+import { WorkbookParameterReferenceSchema } from "../modeling/references";
 
 export const HfeTimingSchema = z.enum(["PRE_INITIATOR", "AT_INITIATOR", "POST_INITIATOR"]);
 export const HfeImpactLevelSchema = z.enum(["FUNCTION", "SYSTEM", "TRAIN", "COMPONENT"]);
@@ -136,6 +137,7 @@ export const HepQuantificationSchema = z.object({
   isRiskSignificant: z.boolean(),
   pointEstimateHep: z.number().optional(),
   meanHep: z.number().optional(),
+  controlledDataSource: WorkbookParameterReferenceSchema.optional(),
   cognitionContribution: z.number().optional(),
   executionContribution: z.number().optional(),
   performanceShapingFactors: z.array(PerformanceShapingFactorAssessmentSchema).optional(),

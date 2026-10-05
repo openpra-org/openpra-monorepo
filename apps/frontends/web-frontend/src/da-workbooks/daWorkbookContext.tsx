@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { type DataAnalysis, type DaLinkCode } from "interfaces-mef-types/da/data-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -6,8 +6,13 @@ import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiatin
 import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
+import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { type Workbook } from "interfaces-shared-types";
-import { loadLinkedHr, loadLinkedIe, loadLinkedPos, loadLinkedSy } from "./daWorkbookApi";
+import { loadLinkedEsq, loadLinkedHr, loadLinkedIe, loadLinkedPos, loadLinkedSy } from "./daWorkbookApi";
+import { withEstimates } from "./daFailures";
+import { withUnavailability } from "./daUnavailability";
+import { withCcf } from "./daCcf";
+import { withFrequencies } from "./daFrequencies";
 
 interface DaWorkbookData {
   da: DataAnalysis;
@@ -23,6 +28,7 @@ interface DaUpstream {
   ie?: InitiatingEventsAnalysis;
   hr?: HumanReliabilityAnalysis;
   pos?: PlantOperatingStatesAnalysis;
+  esq?: EventSequenceQuantification;
 }
 
 const EMPTY_UPSTREAM: DaUpstream = {
@@ -59,7 +65,8 @@ function useDaUpstream(da: DataAnalysis | undefined, options: Record<DaLinkCode,
   const ie = useLinkedMef(links?.IE, loadLinkedIe);
   const hr = useLinkedMef(links?.HRA, loadLinkedHr);
   const pos = useLinkedMef(links?.POS, loadLinkedPos);
-  return useMemo<DaUpstream>(() => ({ options, sy, ie, hr, pos }), [options, sy, ie, hr, pos]);
+  const esq = useLinkedMef(links?.ESQ, loadLinkedEsq);
+  return useMemo<DaUpstream>(() => ({ options, sy, ie, hr, pos, esq }), [options, sy, ie, hr, pos, esq]);
 }
 
 function DaWorkbookProvider({ data, editable, mutateDa, upstream = EMPTY_UPSTREAM, children }: {
@@ -69,9 +76,10 @@ function DaWorkbookProvider({ data, editable, mutateDa, upstream = EMPTY_UPSTREA
   upstream?: DaUpstream;
   children: React.ReactNode;
 }): JSX.Element {
+  const mutateWithEstimates = useCallback((mutator: DaMutator): void => mutateDa((da) => withCcf(withFrequencies(withUnavailability(withEstimates(mutator(da)))))), [mutateDa]);
   const value = useMemo<DaWorkbookContextValue>(
-    () => ({ ...data, editable, mutateDa, upstream }),
-    [data, editable, mutateDa, upstream],
+    () => ({ ...data, editable, mutateDa: mutateWithEstimates, upstream }),
+    [data, editable, mutateWithEstimates, upstream],
   );
   return <DaWorkbookContext.Provider value={value}>{children}</DaWorkbookContext.Provider>;
 }

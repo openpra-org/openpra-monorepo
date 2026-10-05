@@ -28,7 +28,9 @@ const TREE: SystemLogicModel = {
   implementsSrs: [],
 };
 
-function makeAnalysis(repairModeled: boolean): SystemsAnalysis {
+type BasicEvent = SystemsAnalysis["systemBasicEvents"][number];
+
+function makeAnalysis(repairModeled: boolean, event: Partial<BasicEvent> = {}): SystemsAnalysis {
   return {
     systemDefinitions: [{
       uuid: SYSTEM_ID,
@@ -50,6 +52,7 @@ function makeAnalysis(repairModeled: boolean): SystemsAnalysis {
       probability: 0.01,
       repairModeled,
       implementsSrs: [],
+      ...event,
     }],
     systemToSafetyFunctionMappings: [],
     systemDependencies: [],
@@ -70,7 +73,25 @@ const mockParameters = [{
   value: 0.003,
   failureModeId: "FM-FTS",
   failureModeName: "Fails to start",
+}, {
+  workbookId: "da-1",
+  workbookName: "Approved DA",
+  parameterId: "DA-RATE-1",
+  parameterName: "Cooling-water pump fails to run",
+  parameterType: "FAILURE_RATE" as const,
+  value: 2e-5,
+  rateUnit: "HOUR" as const,
+}, {
+  workbookId: "da-1",
+  workbookName: "Approved DA",
+  parameterId: "DA-LOOP",
+  parameterName: "Loss of offsite power",
+  parameterType: "FREQUENCY" as const,
+  value: 0.03,
+  rateUnit: "YEAR" as const,
 }];
+
+const RATE_BASIS = { kind: "FAILURE_RATE" as const, failureRate: { value: 1e-5, unit: "HOUR" as const }, missionTime: { value: 72, unit: "HOUR" as const }, conversion: "EXPONENTIAL" as const };
 
 jest.mock("../syWorkbookContext", () => ({
   useSyWorkbook: () => ({
@@ -157,6 +178,50 @@ describe("SY event dialogs", () => {
       failureModeSource: { workbookId: "da-1", failureModeId: "FM-FTS" },
       controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "DA-BE-1" },
     });
+  });
+
+  it("links a DA rate per hour and a DA frequency per year with their units", () => {
+    mockAnalysis = makeAnalysis(false, { quantificationBasis: RATE_BASIS });
+    render(<EventDialogContent context={{ kind: "be", id: "be-pump" }} onClose={jest.fn()} />);
+
+    const picker = screen.getByRole("combobox", { name: "Data Analysis parameter" });
+    expect(screen.getByRole("option", { name: "Approved DA · Loss of offsite power · 3.0E-2 /yr" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Cooling-water pump fails to start/ })).toBeNull();
+    fireEvent.change(picker, { target: { value: JSON.stringify(["da-1", "DA-LOOP"]) } });
+    const yearly = applyLastMutation().systemBasicEvents[0]!;
+    expect(yearly.quantificationBasis).toEqual({ ...RATE_BASIS, failureRate: { value: 0.03, unit: "YEAR" } });
+    expect(yearly.probability).toBeCloseTo(1 - Math.exp(-0.03 * 72 / 8760), 12);
+    fireEvent.change(picker, { target: { value: JSON.stringify(["da-1", "DA-RATE-1"]) } });
+    const hourly = applyLastMutation().systemBasicEvents[0]!;
+    expect(hourly.quantificationBasis).toEqual({ ...RATE_BASIS, failureRate: { value: 2e-5, unit: "HOUR" } });
+    expect(hourly.probability).toBeCloseTo(1 - Math.exp(-2e-5 * 72), 12);
+  });
+
+  it("types a rate in the unit the analyst picks", () => {
+    mockAnalysis = makeAnalysis(false, { quantificationBasis: RATE_BASIS });
+    render(<EventDialogContent context={{ kind: "be", id: "be-pump" }} onClose={jest.fn()} />);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Rate unit" }), { target: { value: "YEAR" } });
+    const typed = applyLastMutation().systemBasicEvents[0]!;
+    expect(typed.quantificationBasis).toEqual({ ...RATE_BASIS, failureRate: { value: 1e-5, unit: "YEAR" } });
+    expect(typed.probability).toBeCloseTo(1 - Math.exp(-1e-5 * 72 / 8760), 15);
+  });
+
+  it("flags a DA value that changed and applies it", () => {
+    mockAnalysis = makeAnalysis(false, { probability: 0.002, controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "DA-BE-1" } });
+    render(<EventDialogContent context={{ kind: "be", id: "be-pump" }} onClose={jest.fn()} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("DA now gives 3.0E-3. This event still holds 2.0E-3.");
+    fireEvent.click(screen.getByRole("button", { name: "Apply DA value" }));
+    expect(applyLastMutation().systemBasicEvents[0]).toMatchObject({ probability: 0.003, controlledDataSource: { entityId: "DA-BE-1" } });
+  });
+
+  it("says nothing while the held value matches DA", () => {
+    mockAnalysis = makeAnalysis(false, { probability: 0.003, controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "DA-BE-1" } });
+    render(<EventDialogContent context={{ kind: "be", id: "be-pump" }} onClose={jest.fn()} />);
+
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Apply DA value" })).toBeNull();
   });
 
   it("sets a house event's state through the fault-tree operation", () => {

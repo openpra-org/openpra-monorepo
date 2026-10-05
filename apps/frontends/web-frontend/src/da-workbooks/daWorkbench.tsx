@@ -11,9 +11,16 @@ import {
 } from "./daViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, stepsFromMef, type CommentView } from "./daSelectors";
 import { ScopeScreen, DataNeedsScreen, NeedWindow, ParametersScreen, type DaDrawerContext } from "./daScreens";
-import { CountsScreen, UnavailScreen, EstimateScreen, CcfScreen, UncertScreen, DraftScreen, DrawerContent, PlaceholderScreen } from "./daScreens2";
+import { DraftScreen, PlaceholderScreen } from "./daScreens2";
+import { CCF_WINDOW_KINDS, CcfScreen, CcfWindows } from "./daCcfScreen";
+import { FREQUENCY_WINDOW_KINDS, FrequencyScreen, FrequencyWindows } from "./daFrequencyScreen";
+import { UNCERTAINTY_WINDOW_KINDS, UncertaintyScreen, UncertaintyWindows } from "./daUncertaintyScreen";
+import { HANDOFF_WINDOW_KINDS, HandoffScreen, HandoffWindows } from "./daHandoffScreen";
+import { handoffsComplete } from "./daHandoffs";
+import { FAILURE_WIDE_KINDS, FAILURE_WINDOW_KINDS, FailureWindows, FailuresScreen } from "./daFailuresScreen";
 import { InternalReviewScreen, ReviewerCommentDock } from "./daReview";
 import { SOURCE_WINDOW_KINDS, SourceWindows, SourcesScreen, WIDE_WINDOW_KINDS } from "./daSourcesScreen";
+import { UNAVAILABILITY_WINDOW_KINDS, UnavailabilityScreen, UnavailabilityWindows } from "./daUnavailabilityScreen";
 import { useDaWorkbook, type DaWorkbookData } from "./daWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
@@ -35,11 +42,12 @@ function headersFor(stepId: string): StepHeader {
     case "needs": return { area: "HLR-DA-A", title: "Data needs" };
     case "define": return { area: "HLR-DA-A · B", title: "Parameters" };
     case "generic": return { area: "HLR-DA-C · D", title: "Sources" };
-    case "counts": return { area: "HLR-DA-C", title: "Collect: Counts" };
-    case "unavail": return { area: "HLR-DA-C", title: "Collect: Unavailability" };
-    case "estimate": return { area: "HLR-DA-D", title: "Estimate Values" };
-    case "ccf": return { area: "HLR-DA-D", title: "Common-Cause" };
-    case "uncert": return { area: "HLR-DA-A", title: "Uncertainty & Pre-op" };
+    case "counts": return { area: "HLR-DA-C · D", title: "Component failures" };
+    case "unavail": return { area: "HLR-DA-C · D", title: "Unavailability, repair and recovery" };
+    case "ccf": return { area: "HLR-DA-D", title: "Common cause" };
+    case "ie": return { area: "HLR-DA-D", title: "Initiating events" };
+    case "uncert": return { area: "HLR-DA-E", title: "Uncertainty" };
+    case "handoffs": return { area: "HLR-DA-D", title: "Hand-offs" };
     case "draft": return { area: "Draft", title: "Produce the draft" };
     case "review": return { area: "Review", title: "Internal technical review" };
     case "approval": return { area: "Approval", title: "Approval & sign-off" };
@@ -268,9 +276,42 @@ const WINDOW_LABELS: Partial<Record<DaDrawerContext["kind"], string>> = {
   daElicitation: "Expert elicitation",
   daCatalog: "Source catalog",
   daImport: "Import estimates",
+  daPrior: "Prior",
+  daEvidence: "Evidence",
+  daEstimate: "Estimate",
+  daRecordSet: "Record set",
+  daRecord: "Record",
+  daRecordImport: "Import records",
+  daRule: "Counting rule",
+  daDesignChange: "Design change",
+  daDemand: "Demands",
+  daHours: "Hours",
+  daMaintenance: "Unavailability",
+  daRestoration: "Repair or recovery",
+  daOutage: "Outage",
+  daCcfGroup: "Common cause group",
+  daCcfEvents: "Shared-cause events",
+  daCcfFactors: "Common cause factors",
+  daFrequency: "Initiating event frequency",
+  daDistribution: "Distribution",
+  daUncertaintySource: "Model uncertainty",
+  daSensitivity: "Sensitivity case",
+  daAssumption: "Pre-operational assumption",
+  daImportance: "Importance",
 };
 
-function DaModal({ context, onClose, onRetarget }: { context: DaDrawerContext; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void }): JSX.Element {
+function WindowBody({ context, onClose, onRetarget, onToast }: { context: DaDrawerContext; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void; onToast: (message: string) => void }): JSX.Element | null {
+  if (SOURCE_WINDOW_KINDS.has(context.kind)) return <SourceWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
+  if (FAILURE_WINDOW_KINDS.has(context.kind)) return <FailureWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
+  if (UNAVAILABILITY_WINDOW_KINDS.has(context.kind)) return <UnavailabilityWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
+  if (CCF_WINDOW_KINDS.has(context.kind)) return <CcfWindows context={context} onClose={onClose} onRetarget={onRetarget} onToast={onToast} />;
+  if (FREQUENCY_WINDOW_KINDS.has(context.kind)) return <FrequencyWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
+  if (UNCERTAINTY_WINDOW_KINDS.has(context.kind)) return <UncertaintyWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
+  if (HANDOFF_WINDOW_KINDS.has(context.kind)) return <HandoffWindows context={context} onClose={onClose} />;
+  return <NeedWindow context={context} onClose={onClose} onRetarget={onRetarget} />;
+}
+
+function DaModal({ context, onClose, onRetarget, onToast }: { context: DaDrawerContext; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void; onToast: (message: string) => void }): JSX.Element {
   const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -288,7 +329,7 @@ function DaModal({ context, onClose, onRetarget }: { context: DaDrawerContext; o
     <div className="modal__backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div
         ref={dialog}
-        className={`modal da-form-modal${WIDE_WINDOW_KINDS.has(context.kind) ? " da-form-modal--wide" : ""}`}
+        className={`modal da-form-modal${WIDE_WINDOW_KINDS.has(context.kind) || FAILURE_WIDE_KINDS.has(context.kind) ? " da-form-modal--wide" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label={WINDOW_LABELS[context.kind] ?? "Details"}
@@ -303,32 +344,7 @@ function DaModal({ context, onClose, onRetarget }: { context: DaDrawerContext; o
           else if (!e.shiftKey && (document.activeElement === last || document.activeElement === dialog.current)) { e.preventDefault(); first.focus(); }
         }}
       >
-        {SOURCE_WINDOW_KINDS.has(context.kind)
-          ? <SourceWindows context={context} onClose={onClose} onRetarget={onRetarget} />
-          : <NeedWindow context={context} onClose={onClose} onRetarget={onRetarget} />}
-      </div>
-    </div>
-  );
-}
-
-function DaDrawer({ context, onClose, onRetarget }: { context: DaDrawerContext; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void }): JSX.Element {
-  return WINDOW_LABELS[context.kind] === undefined
-    ? <DaSideDrawer context={context} onClose={onClose} />
-    : <DaModal context={context} onClose={onClose} onRetarget={onRetarget} />;
-}
-
-function DaSideDrawer({ context, onClose }: { context: DaDrawerContext; onClose: () => void }): JSX.Element {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent): void { if (e.key === "Escape") onClose(); }
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
-  }, [onClose]);
-  return (
-    <div className="posdrawer-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="posdrawer" role="dialog" aria-modal="true">
-        <DrawerContent context={context} onClose={onClose} />
+        <WindowBody context={context} onClose={onClose} onRetarget={onRetarget} onToast={onToast} />
       </div>
     </div>
   );
@@ -365,7 +381,8 @@ function DaWorkbench({
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
 
-  const visibleSteps = useMemo(() => stepsFromMef(data.da, persona), [data.da, persona]);
+  const { upstream } = useDaWorkbook();
+  const visibleSteps = useMemo(() => stepsFromMef(data.da, persona, handoffsComplete(data.da, upstream)), [data.da, persona, upstream]);
   const mefCcId = data.da.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
   const mefStage: Stage = data.da.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
   const [ccId, setCcId] = useState<string>(mefCcId);
@@ -402,7 +419,7 @@ function DaWorkbench({
   function flash(msg: string): void {
     setToast(msg);
     if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), 2200);
+    toastTimer.current = window.setTimeout(() => setToast(null), Math.max(2200, msg.split(" ").length * 300));
   }
 
   const { user: authUser } = useAuth();
@@ -455,11 +472,12 @@ function DaWorkbench({
       case "needs": return <DataNeedsScreen openDrawer={setDrawer} />;
       case "define": return <ParametersScreen openDrawer={setDrawer} />;
       case "generic": return <SourcesScreen openDrawer={setDrawer} />;
-      case "counts": return <CountsScreen openDrawer={setDrawer} />;
-      case "unavail": return <UnavailScreen openDrawer={setDrawer} />;
-      case "estimate": return <EstimateScreen openDrawer={setDrawer} />;
+      case "counts": return <FailuresScreen openDrawer={setDrawer} />;
+      case "unavail": return <UnavailabilityScreen openDrawer={setDrawer} />;
       case "ccf": return <CcfScreen openDrawer={setDrawer} />;
-      case "uncert": return <UncertScreen openDrawer={setDrawer} />;
+      case "ie": return <FrequencyScreen openDrawer={setDrawer} />;
+      case "uncert": return <UncertaintyScreen openDrawer={setDrawer} />;
+      case "handoffs": return <HandoffScreen openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
@@ -539,8 +557,8 @@ function DaWorkbench({
         )}
       </div>
 
-      {drawer !== null && <DaDrawer context={drawer} onClose={() => setDrawer(null)} onRetarget={setDrawer} />}
-      {toast !== null && <div className="postoast" role="status">{toast}</div>}
+      {drawer !== null && <DaModal context={drawer} onClose={() => setDrawer(null)} onRetarget={setDrawer} onToast={flash} />}
+      {toast !== null && <div className="postoast da-toast" role="status">{toast}</div>}
 
       {(isReviewer || isApprover) && (
         <ReviewerCommentDock

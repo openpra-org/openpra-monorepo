@@ -20,6 +20,7 @@ import {
 } from "./esqWorkbookApi";
 import { EsqWorkbench, type EsqWorkbenchActions } from "./esqWorkbench";
 import { EsqWorkbookProvider, type EsqWorkbookData } from "./esqWorkbookContext";
+import { loadEsqDaLinks } from "./esqDaLinks";
 import { useEsqMefPatch } from "./useEsqMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { EsqDocumentsCard } from "./esqDocumentsCard";
@@ -80,6 +81,10 @@ function EsqWorkbookPage(): JSX.Element {
         });
         setMyRoles(workbook.myRoles);
         setProjectId(workbook.projectId);
+        const variant = workbook.mef.uuid === "esq-generic-1" ? "sfr" : workbook.mef.uuid === "esq-generic-2" ? "htgr" : workbook.mef.uuid === "esq-hcl-case-study" ? "hcl" : undefined;
+        void loadEsqDaLinks(workbook.projectId, workbook.mef, variant).then((daLinks) => {
+          if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daLinks }));
+        });
         setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
         try {

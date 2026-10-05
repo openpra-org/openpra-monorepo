@@ -592,9 +592,9 @@ const DA_ANALYSIS_HCL: DataAnalysis = {
     valueType: "POINT_ESTIMATE",
     evidenceKind: "GENERIC_NUCLEAR",
     evidenceReason: "The case study is a code-verification model with no plant records. Its inputs are the case study's own values.",
+    uncertaintyNote: "Kept as a point value. The original data package is not public, so no distribution is given.",
     priorUseId: "U-1",
     sourceUses: [{ id: "U-1", sourceId: "SRC-01", entryId: event.uuid, verdict: "APPLIES", boundary: "SAME", reason: "The executable example's own input for this event." }],
-    estimationApproach: "GENERIC",
     basicEventRef: event.uuid,
     modelSelectionBasis: "Reconstructed point estimate used by the executable dissertation-source HCL example.",
       dataSources: [{
@@ -604,11 +604,14 @@ const DA_ANALYSIS_HCL: DataAnalysis = {
     }],
     implementsSrs: [],
   })),
-  modelUncertainty: {
-    ...daBase.modelUncertainty,
-    uuid: id(3, 1),
-    name: "HCL case-study data-analysis model uncertainty",
-  },
+  uncertaintyRegister: [{
+    id: "MU-1",
+    source: "Unpublished source-model details and the reconstruction of compact fault trees",
+    impact: "The point values reproduce the executable example's inputs. The original data package is not public, so no distribution is given.",
+    parameterIds: systemBasicEvents.filter((event) => event.failureMode !== "HUMAN_ERROR").map((event) => event.uuid),
+    alternatives: [{ id: "A-1", alternative: "Recover the original model package and its data.", reasonNotSelected: "The package is not public." }],
+    key: false,
+  }],
   documentation: {
     ...daBase.documentation,
     processDescription: "Maintains one revisioned probability parameter for every non-human basic event used by the case-study fault trees.",

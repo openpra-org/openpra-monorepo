@@ -1,6 +1,7 @@
 import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
 import { z } from "zod";
 import type {
+  CcfParameterEstimation,
   DataAnalysis,
   DataAnalysisParameter,
   DaElicitation,
@@ -15,6 +16,7 @@ import { DaSourceEntrySchema } from "interfaces-mef-types/zod/da/data-analysis";
 import { DA_SOURCE_CATALOG } from "interfaces-mef-types/da/generic-sources";
 import { distributionMean, distributionQuantile, judgmentComponent, lognormalFromMean, poolJudgments, scaleDistribution, validDistribution, type LogComponent, type PooledJudgment } from "./daDistributions";
 import type { DaFindingSeverity, DaNeedFinding } from "./daSelectors";
+import { templateEntryIds } from "./daCcf";
 
 const EVIDENCE_ORDER: DaEvidenceKind[] = ["PLANT_RECORDS", "TECHNOLOGY", "GENERIC_NUCLEAR", "ANALOGOUS_INDUSTRY", "ENGINEERING_MODEL", "EXPERT_JUDGMENT"];
 
@@ -25,7 +27,7 @@ const QUANTITIES_FOR_MODEL: Record<DaQuantificationModel, DaEstimateQuantity[]> 
   STANDBY_RATE: ["PER_HOUR"],
   UNAVAILABILITY: ["FRACTION"],
   HUMAN_ERROR: ["PER_DEMAND", "PROBABILITY"],
-  NON_RECOVERY: ["PROBABILITY"],
+  NON_RECOVERY: ["PROBABILITY", "HOURS"],
   FREQUENCY: ["PER_YEAR"],
   OTHER_PROBABILITY: ["PROBABILITY", "PER_DEMAND"],
 };
@@ -176,12 +178,20 @@ function needsStandbyHours(da: DataAnalysis, use: DaSourceUse, model: DaQuantifi
   return !QUANTITIES_FOR_MODEL[model].includes("PER_HOUR") && QUANTITIES_FOR_MODEL[model].includes("PER_DEMAND");
 }
 
+function templateUses(estimate: CcfParameterEstimation, sourceId: string, entryId?: string): boolean {
+  if (estimate.priorSourceId !== sourceId || estimate.priorTemplate === undefined) return false;
+  if (entryId === undefined) return true;
+  return estimate.groupSize !== undefined && templateEntryIds(estimate.priorTemplate, estimate.groupSize).includes(entryId);
+}
+
 function sourceUsers(da: DataAnalysis, sourceId: string): string[] {
-  return da.parameters.filter((parameter) => (parameter.sourceUses ?? []).some((use) => use.sourceId === sourceId)).map((parameter) => parameter.uuid);
+  const parameters = da.parameters.filter((parameter) => (parameter.sourceUses ?? []).some((use) => use.sourceId === sourceId)).map((parameter) => parameter.uuid);
+  return [...parameters, ...(da.ccfParameterEstimations ?? []).filter((estimate) => templateUses(estimate, sourceId)).map((estimate) => estimate.uuid)];
 }
 
 function entryUsers(da: DataAnalysis, sourceId: string, entryId: string): string[] {
-  return da.parameters.filter((parameter) => (parameter.sourceUses ?? []).some((use) => use.sourceId === sourceId && use.entryId === entryId)).map((parameter) => parameter.uuid);
+  const parameters = da.parameters.filter((parameter) => (parameter.sourceUses ?? []).some((use) => use.sourceId === sourceId && use.entryId === entryId)).map((parameter) => parameter.uuid);
+  return [...parameters, ...(da.ccfParameterEstimations ?? []).filter((estimate) => templateUses(estimate, sourceId, entryId)).map((estimate) => estimate.uuid)];
 }
 
 function elicitationUsers(da: DataAnalysis, elicitationId: string): string[] {
@@ -189,7 +199,15 @@ function elicitationUsers(da: DataAnalysis, elicitationId: string): string[] {
 }
 
 function needsSourcing(parameter: DataAnalysisParameter): boolean {
-  return parameter.valueMode !== "LINKED";
+  if (parameter.valueMode === "LINKED") return false;
+  if (parameter.quantificationModel === "UNAVAILABILITY") return parameter.valueMode === "CALCULATED" && parameter.maintenance?.method === "GENERIC";
+  if (parameter.quantificationModel === "NON_RECOVERY") return parameter.valueMode === "CALCULATED" && parameter.restoration?.from === "SOURCES";
+  if (parameter.quantificationModel === "FREQUENCY") return parameter.valueMode === "CALCULATED";
+  return true;
+}
+
+function needsPrior(parameter: DataAnalysisParameter): boolean {
+  return needsSourcing(parameter) && parameter.quantificationModel !== "NON_RECOVERY" && parameter.quantificationModel !== "FREQUENCY";
 }
 
 function sourceFindings(da: DataAnalysis): DaNeedFinding[] {
@@ -236,8 +254,9 @@ function sourceFindings(da: DataAnalysis): DaNeedFinding[] {
       continue;
     }
     const prior = priorUse(parameter);
-    if (prior === undefined) findings.push({ severity: "error", check: "No prior", item, detail: "Choose the source the estimate starts from.", target });
-    else if (prior.verdict === "REJECTED") findings.push({ severity: "error", check: "Rejected prior", item, detail: "The prior comes from a source marked as not applying.", target });
+    if (prior === undefined) {
+      if (needsPrior(parameter)) findings.push({ severity: "error", check: "No prior", item, detail: "Choose the source the estimate starts from.", target });
+    } else if (prior.verdict === "REJECTED") findings.push({ severity: "error", check: "Rejected prior", item, detail: "The prior comes from a source marked as not applying.", target });
     const usedKinds: DaEvidenceKind[] = [];
     for (const use of uses) {
       const base = sourceUseBase(da, use);
@@ -301,7 +320,7 @@ function sourceFindings(da: DataAnalysis): DaNeedFinding[] {
 
 function sourcesComplete(da: DataAnalysis): boolean {
   if ((da.sources ?? []).length === 0) return false;
-  if (da.parameters.some((parameter) => needsSourcing(parameter) && priorUse(parameter) === undefined)) return false;
+  if (da.parameters.some((parameter) => needsPrior(parameter) && priorUse(parameter) === undefined)) return false;
   return !sourceFindings(da).some((finding) => finding.severity === "error");
 }
 
@@ -531,6 +550,7 @@ function withoutSource(da: DataAnalysis, sourceId: string, entryId?: string): Da
       if (parameter.priorUseId !== undefined && !kept.some((use) => use.id === parameter.priorUseId)) next.priorUseId = undefined;
       return next;
     }),
+    ccfParameterEstimations: da.ccfParameterEstimations?.map((estimate) => (templateUses(estimate, sourceId, entryId) ? { ...estimate, priorSourceId: undefined, priorTemplate: undefined } : estimate)),
   };
 }
 
@@ -566,6 +586,7 @@ export {
   libraryCount,
   libraryEntries,
   needsHoursPerYear,
+  needsPrior,
   needsSourcing,
   nextCode,
   parameterPrior,

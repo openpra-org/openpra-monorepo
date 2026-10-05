@@ -105,11 +105,11 @@ function toFaultTreeEditorCatalogue(
           ]))
         : undefined;
       const basis = projected.probability.quantificationBasis;
-      if (controlledParameter !== undefined && basis?.kind === "FAILURE_RATE" && controlledParameter.parameterType === "FREQUENCY") {
-        const resolvedBasis = { ...basis, failureRate: { ...basis.failureRate, value: controlledParameter.value } };
+      if (controlledParameter !== undefined && basis?.kind === "FAILURE_RATE" && controlledParameter.rateUnit !== undefined) {
+        const resolvedBasis = { ...basis, failureRate: { value: controlledParameter.value, unit: controlledParameter.rateUnit } };
         return { ...projected, probability: { ...projected.probability, value: failureRateToProbability(resolvedBasis), quantificationBasis: resolvedBasis } };
       }
-      if (controlledParameter !== undefined && basis?.kind !== "FAILURE_RATE" && controlledParameter.parameterType !== "FREQUENCY") {
+      if (controlledParameter !== undefined && basis?.kind !== "FAILURE_RATE" && controlledParameter.rateUnit === undefined) {
         return { ...projected, probability: { ...projected.probability, value: controlledParameter.value } };
       }
       return controlledHumanFailureValue === undefined || basis?.kind === "FAILURE_RATE"

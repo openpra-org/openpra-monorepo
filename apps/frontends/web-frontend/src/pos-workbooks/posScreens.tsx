@@ -48,6 +48,7 @@ import {
 } from "./posSelectors";
 import { usePosWorkbook } from "./posWorkbookContext";
 import { computePosReportToc } from "./posDocx";
+import { linkedDaOutage, outageDiffers, withOutageSource, type PosDaOutageOption } from "./posDaLinks";
 
 interface DrawerContext {
   kind: "state" | "evolution" | "group";
@@ -1721,6 +1722,23 @@ function FrequencyEditor({ row, canEdit, mefPatchDebounced }: {
   canEdit: boolean;
   mefPatchDebounced?: (mutator: Mutator) => void;
 }): JSX.Element {
+  const { pos, daOutages } = usePosWorkbook();
+  const state = pos.plantOperatingStates.find((candidate) => candidate.uuid === row.uuid);
+  const options = (daOutages ?? []).filter((option) => option.stateId === row.uuid);
+  const sourceId = row.outageWorkbookId;
+  const linked = state === undefined ? undefined : linkedDaOutage(state, daOutages ?? []);
+  const changed = state !== undefined && linked !== undefined && outageDiffers(state, linked);
+  function importOutage(option: PosDaOutageOption | undefined): void {
+    if (!canEdit || mefPatchDebounced === undefined) return;
+    if (option === undefined) {
+      mefPatchDebounced((d) => withOutageSource(d, row.uuid, undefined));
+      return;
+    }
+    mefPatchDebounced((d) => withOutageSource(patchStateQuant(d, row.uuid, { durationHours: option.hoursPerYear, frequencyPerYear: option.entriesPerYear }), row.uuid, option.workbookId));
+  }
+  function chooseSource(workbookId: string): void {
+    importOutage(options.find((option) => option.workbookId === workbookId));
+  }
   const [durationText, setDurationText] = useState(String(row.durationHours));
   const [freqText, setFreqText] = useState(String(row.frequencyPerYear));
   const [basisText, setBasisText] = useState(row.basis);
@@ -1747,14 +1765,34 @@ function FrequencyEditor({ row, canEdit, mefPatchDebounced }: {
     <div className="poscard">
       <div className="poscard__head"><PosSectionHeading title={canEdit ? "Edit duration & frequency" : "Duration & frequency (read-only)"} description="Quantifies how often the state occurs and how long it persists for annualized risk calculations. For example, 2.0 entries per year with a mean duration of 168 hours." /></div>
       <div className="posfield-grid">
-        <div className="posfield">
-          <label className="posfield__label">Mean duration (h/yr)</label>
-          <WorkbookInput className="posfield__input" value={durationText} disabled={!canEdit} onChange={(e) => onDuration(e.target.value)} />
-        </div>
-        <div className="posfield">
-          <label className="posfield__label">Entry frequency (per year)</label>
-          <WorkbookInput className="posfield__input" value={freqText} disabled={!canEdit} onChange={(e) => onFreq(e.target.value)} />
-        </div>
+        {(options.length > 0 || sourceId !== undefined) && (
+          <div className="posfield posfield-grid--span2">
+            <label className="posfield__label">Hours from</label>
+            <select className="posfield__input" aria-label="Hours from" value={sourceId ?? ""} disabled={!canEdit} onChange={(e) => chooseSource(e.target.value)}>
+              <option value="">Typed in POS</option>
+              {sourceId !== undefined && linked === undefined && <option value={sourceId}>Linked DA outages unavailable</option>}
+              {options.map((option) => <option key={option.workbookId} value={option.workbookId}>{option.workbookName} · {option.outageIds.join(", ")} · {formatDuration(option.hoursPerYear)} · entered {formatFrequency(option.entriesPerYear)}</option>)}
+            </select>
+          </div>
+        )}
+        {changed && linked !== undefined && (
+          <div className="posfield posfield-grid--span2">
+            <p className="posmuted" role="status">DA now gives {formatDuration(linked.hoursPerYear)}, entered {formatFrequency(linked.entriesPerYear)}. This state still holds {formatDuration(row.durationHours)}, entered {formatFrequency(row.frequencyPerYear)}.</p>
+            {canEdit && <div><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => importOutage(linked)}>Apply DA value</button></div>}
+          </div>
+        )}
+        {sourceId === undefined && (
+          <div className="posfield">
+            <label className="posfield__label">Mean duration (h/yr)</label>
+            <WorkbookInput className="posfield__input" value={durationText} disabled={!canEdit} onChange={(e) => onDuration(e.target.value)} />
+          </div>
+        )}
+        {sourceId === undefined && (
+          <div className="posfield">
+            <label className="posfield__label">Entry frequency (per year)</label>
+            <WorkbookInput className="posfield__input" value={freqText} disabled={!canEdit} onChange={(e) => onFreq(e.target.value)} />
+          </div>
+        )}
         <div className="posfield posfield-grid--span2">
           <label className="posfield__label">Basis</label>
           <WorkbookInput className="posfield__input" value={basisText} placeholder="Cite the cycle-plan section or vendor letter…" disabled={!canEdit} onChange={(e) => onBasis(e.target.value)} />
@@ -1875,7 +1913,10 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
                       <span className="postable__name-sub">{s.description}</span>
                     </td>
                     <td className="mono">{s.mode}</td>
-                    <td className="mono">{formatDuration(s.durationHours)}</td>
+                    <td className="mono">
+                      {formatDuration(s.durationHours)}
+                      {s.outageWorkbookId !== undefined && <span className="postable__name-sub">From DA</span>}
+                    </td>
                     <td className="mono">{s.frequencyPerYear === 0 && s.mode === "POWER" ? "Base state" : formatFrequency(s.frequencyPerYear)}</td>
                     <td className="mono">{(s.durationFraction * 100).toFixed(1)} %</td>
                     <td>
@@ -1894,7 +1935,7 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
                       <td />
                       <td colSpan={7}>
                         <fieldset disabled={!canEdit} className="postable__expand-body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
-                          <FrequencyEditor row={s} canEdit={canEdit} mefPatchDebounced={mefPatchDebounced} />
+                          <FrequencyEditor key={`${s.uuid}:${s.outageWorkbookId ?? ""}`} row={s} canEdit={canEdit} mefPatchDebounced={mefPatchDebounced} />
                           <PreopAssumptionCard assumption={preops[0]} />
                         </fieldset>
                       </td>

@@ -26,6 +26,7 @@ import {
 } from "./esqViewData";
 import { familyMeanFrequency, type CcScore } from "./esqSelectors";
 import { EsqBayesianNetworkWorkspace } from "./esqBayesianNetworkWorkspace";
+import { caseDiffers, caseOptions, daTargets, linkedCase, linkedRegister, registerDiffers, registerKey, registerOptions, withAssessmentSource, withImportedCases, withImportedRegister } from "./esqDaLinks";
 
 // ─── 05 — Dependencies (HLR-C) ─────────────────────────────────────────────
 function DependScreen({ openDrawer, initialNetworkId = null, initialSourceWorkbookId = null }: {
@@ -424,15 +425,35 @@ function ResultsScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => 
 }
 
 // ─── 08 — Uncertainty & Pre-op (HLR-E closeout) ────────────────────────────
+function rangeText(ranges: Record<string, [number, number]>): string {
+  return Object.entries(ranges).map(([id, [low, high]]) => `${id} ${valText(low)} to ${valText(high)}`).join(" · ");
+}
+
 function UncertScreen({ stage, openDrawer }: { stage: Stage; openDrawer: (ctx: EsqDrawerContext) => void }): JSX.Element {
-  const { esq, editable, mutateEsq } = useEsqWorkbook();
+  const { esq, editable, mutateEsq, daLinks } = useEsqWorkbook();
   const funnel = esq.modelUncertaintySourceAssessments ?? [];
   const sokc = esq.uncertaintyPropagation.stateOfKnowledgeCorrelation;
   void stage;
-  const register: { type: string; tone: string; item: string; detail: string; srs: string }[] = [
+  const daRegister = registerOptions(daLinks ?? []);
+  const daCases = caseOptions(daLinks ?? []);
+  const changedInDa = (u: ModelUncertaintySourceAssessment): boolean => {
+    const linked = linkedRegister(u, daRegister);
+    return linked !== undefined && registerDiffers(u, linked);
+  };
+  const importedRegister = new Set(funnel.flatMap((u) => (u.dataAnalysisSourceRef === undefined ? [] : [registerKey(u.dataAnalysisSourceRef.workbookId, u.dataAnalysisSourceRef.sourceId)])));
+  const registerToImport = daRegister.filter((option) => !importedRegister.has(registerKey(option.workbookId, option.entry.id))).length;
+  const casesToImport = daCases.filter((option) => {
+    const study = (esq.sensitivityStudies ?? []).find((candidate) => linkedCase(candidate, [option]) !== undefined);
+    return study === undefined || caseDiffers(study, option);
+  }).length;
+  const register: { type: string; tone: string; item: string; detail: string; srs: string; from?: string }[] = [
     ...esq.modelUncertainty.uncertaintySources.map((u) => ({ type: "Uncertainty", tone: "progress", item: u.source, detail: u.impact, srs: "ESQ-E1" })),
     ...(esq.preOperationalAssumptions ?? []).map((x) => ({ type: "Pre-op", tone: "warn", item: x.influenceOnDefinition, detail: x.description, srs: "ESQ-C17" })),
-    ...(esq.sensitivityStudies ?? []).map((x) => ({ type: "Sensitivity", tone: "", item: x.name ?? "Sensitivity study", detail: x.results ?? "", srs: "ESQ-E2" })),
+    ...(esq.sensitivityStudies ?? []).map((x) => {
+      const linked = linkedCase(x, daCases);
+      const from = x.dataAnalysisCaseRef === undefined ? undefined : linked === undefined ? `From DA ${x.dataAnalysisCaseRef.caseId}, no longer in DA` : caseDiffers(x, linked) ? `From DA ${linked.item.id}, changed in DA` : `From DA ${linked.item.id}`;
+      return { type: "Sensitivity", tone: "", item: x.name ?? "Sensitivity study", detail: x.results ?? rangeText(x.parameterRanges), srs: "ESQ-E2", ...(from === undefined ? {} : { from }) };
+    }),
   ];
   function addFunnel(): void {
     const n = funnel.reduce((m, x) => { const v = Number(x.uuid.split("-").pop()); return Number.isNaN(v) ? m : Math.max(m, v); }, 0) + 1;
@@ -447,6 +468,7 @@ function UncertScreen({ stage, openDrawer }: { stage: Stage; openDrawer: (ctx: E
           <WorkbookSectionHeading workbook="ESQ" title="The uncertainty funnel" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-E1</EsqProvenanceChip>
+            {editable && registerToImport > 0 && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateEsq((d) => withImportedRegister(d, daRegister))}>Import {registerToImport} from DA</button>}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addFunnel}><ESQIcon.Plus /> Add source</button>}
           </div>
         </div>
@@ -459,8 +481,15 @@ function UncertScreen({ stage, openDrawer }: { stage: Stage; openDrawer: (ctx: E
             <tbody>
               {funnel.map((u) => (
                 <tr key={u.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "funnel", id: u.uuid })} style={{ cursor: "pointer" }}>
-                  <td><span className="poschip posmono">{u.sourceElementCode}</span></td>
-                  <td><div className="postable__name">{u.uncertaintySource}</div><div className="possubtle" style={{ fontSize: 12 }}>{u.effectOnFamilyFrequencies}</div></td>
+                  <td>
+                    <span className="poschip posmono">{u.sourceElementCode}</span>
+                    {u.dataAnalysisSourceRef !== undefined && <div className="possubtle posmono">{u.dataAnalysisSourceRef.sourceId}</div>}
+                  </td>
+                  <td>
+                    <div className="postable__name">{u.uncertaintySource}</div>
+                    <div className="possubtle" style={{ fontSize: 12 }}>{u.effectOnFamilyFrequencies}</div>
+                    {changedInDa(u) && <div className="possubtle">Changed in DA</div>}
+                  </td>
                   <td><span className={`esqstate esqstate--${u.evaluationType === "QUANTITATIVE" ? "on" : "off"}`}><span className="esqstate__dot" />{u.evaluationType === "QUANTITATIVE" ? "Quantitative" : "Qualitative"}</span></td>
                 </tr>
               ))}
@@ -490,7 +519,10 @@ function UncertScreen({ stage, openDrawer }: { stage: Stage; openDrawer: (ctx: E
       <div className="poscard">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="ESQ" title="Open items register" level={3} />
-          <span className="possubtle">ESQ-C16, C17, E1, E2, F5</span>
+          <div className="posrow" style={{ gap: 10 }}>
+            <span className="possubtle">ESQ-C16, C17, E1, E2, F5</span>
+            {editable && casesToImport > 0 && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateEsq((d) => withImportedCases(d, daCases))}>Import {casesToImport} DA sensitivity case{casesToImport === 1 ? "" : "s"}</button>}
+          </div>
         </div>
         <p className="poscard__sub">The uncertainty sources, the pre-operational assumptions and the sensitivity studies feed the documentation.</p>
         <table className="postable">
@@ -499,7 +531,7 @@ function UncertScreen({ stage, openDrawer }: { stage: Stage; openDrawer: (ctx: E
             {register.map((r, i) => (
               <tr key={i}>
                 <td><span className={`posbadge${r.tone !== "" ? ` posbadge--${r.tone}` : ""}`}>{r.tone !== "" && <span className="posbadge__dot" />}{r.type}</span></td>
-                <td><div className="postable__name">{r.item}</div></td>
+                <td><div className="postable__name">{r.item}</div>{r.from !== undefined && <div className="possubtle">{r.from}</div>}</td>
                 <td className="possubtle" style={{ fontSize: 12 }}>{r.detail}</td>
                 <td className="posmono" style={{ fontSize: 11 }}>{r.srs}</td>
               </tr>
@@ -570,7 +602,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
 
 // ─── Drawer content (family / barrier) ─────────────────────────────────────
 function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClose: () => void }): JSX.Element | null {
-  const { esq, links, editable, mutateEsq } = useEsqWorkbook();
+  const { esq, links, editable, mutateEsq, daLinks } = useEsqWorkbook();
 
   if (context.kind === "family") {
     const f = esq.familyQuantifications.find((x) => x.uuid === context.id);
@@ -1214,6 +1246,11 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
     if (u === undefined) return null;
     const patch = (p: Partial<ModelUncertaintySourceAssessment>): void => { mutateEsq((dr) => ({ ...dr, modelUncertaintySourceAssessments: (dr.modelUncertaintySourceAssessments ?? []).map((x) => (x.uuid === u.uuid ? { ...x, ...p } : x)) })); };
     const remove = (): void => { mutateEsq((dr) => ({ ...dr, modelUncertaintySourceAssessments: (dr.modelUncertaintySourceAssessments ?? []).filter((x) => x.uuid !== u.uuid) })); onClose(); };
+    const daRegister = registerOptions(daLinks ?? []);
+    const ref = u.dataAnalysisSourceRef;
+    const refKey = ref === undefined ? "" : registerKey(ref.workbookId, ref.sourceId);
+    const linked = linkedRegister(u, daRegister);
+    const chooseSource = (key: string): void => { mutateEsq((dr) => withAssessmentSource(dr, u.uuid, daRegister.find((option) => registerKey(option.workbookId, option.entry.id) === key))); };
     return (
       <>
         <div className="posdrawer__head">
@@ -1225,8 +1262,23 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             <div className="posfield"><label className="posfield__label">Source element</label><select className="posfield__select" value={u.sourceElementCode} disabled={!editable} onChange={(e) => patch({ sourceElementCode: e.target.value as ModelUncertaintySourceAssessment["sourceElementCode"] })}>{["POS", "IE", "ES", "SC", "SY", "HR", "DA", "ESQ"].map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
             <div className="posfield"><label className="posfield__label">Evaluation</label><select className="posfield__select" value={u.evaluationType} disabled={!editable} onChange={(e) => patch({ evaluationType: e.target.value as ModelUncertaintySourceAssessment["evaluationType"] })}><option value="QUALITATIVE">Qualitative</option><option value="QUANTITATIVE">Quantitative</option></select></div>
           </div>
-          <div className="posfield"><label className="posfield__label">Uncertainty source</label><WorkbookInput className="posfield__input" value={u.uncertaintySource} disabled={!editable} onChange={(e) => patch({ uncertaintySource: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Effect on family frequencies</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={u.effectOnFamilyFrequencies} disabled={!editable} onChange={(e) => patch({ effectOnFamilyFrequencies: e.target.value })} /></div>
+          {(daRegister.length > 0 || ref !== undefined) && (
+            <div className="posfield"><label className="posfield__label">Text from</label>
+              <select className="posfield__select" aria-label="Text from" value={refKey} disabled={!editable} onChange={(e) => chooseSource(e.target.value)}>
+                <option value="">Typed in ESQ</option>
+                {ref !== undefined && linked === undefined && <option value={refKey}>Linked DA entry unavailable</option>}
+                {daRegister.map((option) => <option key={registerKey(option.workbookId, option.entry.id)} value={registerKey(option.workbookId, option.entry.id)}>{option.workbookName} · {option.entry.id} · {option.entry.source}</option>)}
+              </select>
+            </div>
+          )}
+          {linked !== undefined && registerDiffers(u, linked) && (
+            <div className="posfield">
+              <p className="posmuted" role="status">DA changed the text of {linked.entry.id}. This stream still holds the earlier text.</p>
+              {editable && <div><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => chooseSource(refKey)}>Apply DA text</button></div>}
+            </div>
+          )}
+          {ref === undefined && <div className="posfield"><label className="posfield__label">Uncertainty source</label><WorkbookInput className="posfield__input" value={u.uncertaintySource} disabled={!editable} onChange={(e) => patch({ uncertaintySource: e.target.value })} /></div>}
+          {ref === undefined && <div className="posfield"><label className="posfield__label">Effect on family frequencies</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={u.effectOnFamilyFrequencies} disabled={!editable} onChange={(e) => patch({ effectOnFamilyFrequencies: e.target.value })} /></div>}
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>{u.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}</div>
           {editable && <button type="button" className="posnav__btn" style={{ alignSelf: "flex-start" }} onClick={remove}>Remove source</button>}
         </div>
@@ -1310,6 +1362,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
     const patchMeasures = (next: typeof measures): void => { mutateEsq((dr) => ({ ...dr, importanceAnalyses: (dr.importanceAnalyses ?? []).map((x) => (x.uuid === rec.uuid ? { ...x, measures: next } : x)) })); };
     const unexpected = rev?.unexpectedResults ?? [];
     const patchUnexpected = (next: typeof unexpected): void => { mutateEsq((dr) => ({ ...dr, importanceReviews: (dr.importanceReviews ?? []).map((x, i) => (i === 0 ? { ...x, unexpectedResults: next } : x)) })); };
+    const targets = daTargets(daLinks ?? []);
     return (
       <>
         <div className="posdrawer__head">
@@ -1319,11 +1372,20 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
         <div className="posdrawer__body">
           <WorkbookCueLabel workbook="ESQ" title="Importance measures" className="essec" />
           {measures.map((m, i) => (
-            <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
-              <WorkbookInput className="posfield__input" style={{ flex: 2 }} value={m.entityRef} disabled={!editable} onChange={(e) => patchMeasures(measures.map((y, j) => (j === i ? { ...y, entityRef: e.target.value } : y)))} />
-              <WorkbookInput className="posfield__input posmono" type="number" step="any" style={{ width: 84 }} title="Fussell-Vesely" value={m.fussellVesely ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchMeasures(measures.map((y, j) => (j === i ? { ...y, fussellVesely: v } : y))); }} />
-              <WorkbookInput className="posfield__input posmono" type="number" step="any" style={{ width: 84 }} title="Risk achievement worth" value={m.riskAchievementWorth ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchMeasures(measures.map((y, j) => (j === i ? { ...y, riskAchievementWorth: v } : y))); }} />
-              {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patchMeasures(measures.filter((_, j) => j !== i))}><ESQIcon.Close /></button>}
+            <div key={i} className="posfield">
+              <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+                <WorkbookInput className="posfield__input" style={{ flex: 2 }} value={m.entityRef} disabled={!editable} onChange={(e) => patchMeasures(measures.map((y, j) => (j === i ? { ...y, entityRef: e.target.value } : y)))} />
+                <WorkbookInput className="posfield__input posmono" type="number" step="any" style={{ width: 84 }} title="Fussell-Vesely" value={m.fussellVesely ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchMeasures(measures.map((y, j) => (j === i ? { ...y, fussellVesely: v } : y))); }} />
+                <WorkbookInput className="posfield__input posmono" type="number" step="any" style={{ width: 84 }} title="Risk achievement worth" value={m.riskAchievementWorth ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchMeasures(measures.map((y, j) => (j === i ? { ...y, riskAchievementWorth: v } : y))); }} />
+                {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patchMeasures(measures.filter((_, j) => j !== i))}><ESQIcon.Close /></button>}
+              </div>
+              {(targets.length > 0 || m.dataAnalysisParameterRef !== undefined) && (
+                <select className="posfield__select" aria-label={`DA item for ${m.entityRef}`} value={m.dataAnalysisParameterRef ?? ""} disabled={!editable} onChange={(e) => patchMeasures(measures.map((y, j) => (j === i ? { ...y, dataAnalysisParameterRef: e.target.value === "" ? undefined : e.target.value } : y)))}>
+                  <option value="">No DA item</option>
+                  {m.dataAnalysisParameterRef !== undefined && !targets.some((t) => t.id === m.dataAnalysisParameterRef) && <option value={m.dataAnalysisParameterRef}>{m.dataAnalysisParameterRef} · not in the linked DA</option>}
+                  {targets.map((t) => <option key={t.id} value={t.id}>{t.id} · {t.name}</option>)}
+                </select>
+              )}
             </div>
           ))}
           {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchMeasures([...measures, { entityType: "BASIC_EVENT", entityRef: "", fussellVesely: 0, riskAchievementWorth: 1 }])}><ESQIcon.Plus /> Add measure</button>}

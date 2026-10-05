@@ -6,6 +6,7 @@ import {
 } from "../../ie/initiating-event-analysis";
 import type { InitiatingEventsAnalysis } from "../../ie/initiating-event-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
+import { WorkbookParameterReferenceSchema } from "../modeling/references";
 import { technicalElementSchema } from "../technical-element";
 import {
   FrequencySchema,
@@ -165,6 +166,7 @@ export const InitiatingEventGroupSchema = z.object({
   applicableStates: z.array(z.string()),
   affectedReactorOrSourceCombinations: z.array(z.string()).optional(),
   meanFrequency: FrequencyValueSchema.optional(),
+  controlledDataSource: WorkbookParameterReferenceSchema.optional(),
   riskImportance: ImportanceLevelSchema.optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });

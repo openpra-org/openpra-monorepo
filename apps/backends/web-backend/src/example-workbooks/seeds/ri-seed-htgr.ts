@@ -341,7 +341,7 @@ const significantContributors: SignificantRiskContributors = {
       sourceId: "CCF-SCS-TRAIN",
       importanceMetrics: { fussellVesely: 0.22, riskAchievementWorth: 8.4 },
       importanceLevel: ImportanceLevel.MEDIUM,
-      context: "The top of the frequency-side importance ranking and the dominant cutset behind the pressurized loss-of-forced-cooling family, about two percent of the latent metric, the beta-factor group the data analysis quantifies as DA-CCF-08.",
+      context: "The top of the frequency-side importance ranking and the dominant cutset behind the pressurized loss-of-forced-cooling family, about two percent of the latent metric, the common cause group the data analysis quantifies as DA-CCF-08.",
     },
     {
       uuid: "SC-BE-2",
@@ -370,7 +370,7 @@ const significantContributors: SignificantRiskContributors = {
       sourceId: "CCF-RPS-DIV",
       riskContribution: 0.19,
       importanceLevel: ImportanceLevel.HIGH,
-      context: "Fifty-two percent of the failure-to-trip family and about nineteen percent of the latent metric, the beta-factor group the data analysis quantifies as DA-CCF-04.",
+      context: "Fifty-two percent of the failure-to-trip family and about nineteen percent of the latent metric, the common cause group the data analysis quantifies as DA-CCF-04.",
     },
     {
       uuid: "SC-BE-4",
@@ -380,7 +380,7 @@ const significantContributors: SignificantRiskContributors = {
       sourceId: "CCF-RB-DMP",
       riskContribution: 0.16,
       importanceLevel: ImportanceLevel.HIGH,
-      context: "Thirty-four percent of the early-release family and about sixteen percent of the latent metric, the beta-factor group the data analysis quantifies as DA-CCF-30.",
+      context: "Thirty-four percent of the early-release family and about sixteen percent of the latent metric, the common cause group the data analysis quantifies as DA-CCF-30.",
     },
     {
       uuid: "SC-BE-5",
@@ -390,7 +390,7 @@ const significantContributors: SignificantRiskContributors = {
       sourceId: "CCF-RPS-ROD",
       riskContribution: 0.12,
       importanceLevel: ImportanceLevel.MEDIUM,
-      context: "Thirty-three percent of the failure-to-trip family and about twelve percent of the latent metric, the beta-factor group the data analysis quantifies as DA-CCF-05.",
+      context: "Thirty-three percent of the failure-to-trip family and about twelve percent of the latent metric, the common cause group the data analysis quantifies as DA-CCF-05.",
     },
     {
       uuid: "SC-BE-6",
@@ -798,7 +798,7 @@ export const RI_ANALYSIS_HTGR: RiskIntegration = {
         { entityRef: "Control rods fail to insert (CCF-RPS-ROD)", riskSignificance: ImportanceLevel.MEDIUM, significanceReason: "Carries 15.1% of the 100 mrem frequency through the failure-to-trip family.", insights: ["Carries 15.1% of the 100 mrem frequency and 13.4% of the latent cancer risk."], recommendations: ["Close the control-rod insertion group with the dedicated failure-to-trip tree."] },
         { entityRef: "Operator fails to start the standby filtration train (HR-POST-028)", riskSignificance: ImportanceLevel.MEDIUM, significanceReason: "Carries 11.6% of the 100 mrem frequency on a screening point estimate.", insights: ["Carries 11.6% of the 100 mrem frequency and 10.3% of the latent cancer risk."], recommendations: ["Upgrade the standby-filtration action from its screening point estimate to detailed treatment."] },
         { entityRef: "Cavity-cooling duct group common-cause failure (CCF-RCCS-DUCT)", riskSignificance: ImportanceLevel.MEDIUM, significanceReason: "Carries 10.6% of the latent cancer risk across the cooling-challenge families.", insights: ["Carries 10.6% of the latent cancer risk and 10.3% of the 100 mrem frequency."], recommendations: ["Close the cavity-duct blockage sensitivity with the data analysis."] },
-        { entityRef: "Shutdown-cooling train common-cause failure (CCF-SCS-TRAIN)", riskSignificance: ImportanceLevel.LOW, insights: ["Carries 1.73% of the latent cancer risk and 0.258% of the 100 mrem frequency."], recommendations: ["Hold the beta-factor group against DA-CCF-08 as records accrue."] },
+        { entityRef: "Shutdown-cooling train common-cause failure (CCF-SCS-TRAIN)", riskSignificance: ImportanceLevel.LOW, insights: ["Carries 1.73% of the latent cancer risk and 0.258% of the 100 mrem frequency."], recommendations: ["Hold the common cause group against DA-CCF-08 as records accrue."] },
         { entityRef: "Operator fails to start the second shutdown-cooling train (HR-POST-018)", riskSignificance: ImportanceLevel.LOW, insights: ["Carries 0.76% of the latent cancer risk and 0.113% of the 100 mrem frequency."], recommendations: ["Keep the second-train action at detailed treatment."] },
       ],
       generalFeedback: "No family or contributor is risk-significant under NEI 18-04, and every total sits far below its target. The early-release pair still carries most of both totals, led by the reactor-trip and building-damper common-cause groups, so refine the building isolation terms and finalize the failure-to-trip tree.",
@@ -827,7 +827,7 @@ export const RI_ANALYSIS_HTGR: RiskIntegration = {
       { elementCode: "SC", riskSignificance: ImportanceLevel.LOW, insights: ["CONF carries 52.9% of the 100 mrem frequency."], recommendations: ["Keep the confinement and reactor-trip success criteria explicit, since their failures sit in most of the latent cancer risk."], generalFeedback: "No function is risk-significant. Failed confinement and failed reactor trip appear in 47% and 41% of the latent cancer risk." },
       { elementCode: "SY", riskSignificance: ImportanceLevel.MEDIUM, significanceReason: "Its common-cause groups are the largest contributors, led by CCF-RPS-DIV with 23.8% of the 100 mrem frequency.", insights: ["Reactor trip divisions fail (CCF-RPS-DIV) carries 23.8% of the 100 mrem frequency."], recommendations: ["Hold the CCF-RPS-DIV and CCF-RB-DMP groups against DA-CCF-04 and DA-CCF-30.", "Close the cavity-duct blockage sensitivity with the data analysis."], generalFeedback: "No contributor is risk-significant, but the reactor-trip, building-damper, control-rod and cavity-duct common-cause groups lead every total, so confirm their logic." },
       { elementCode: "HR", riskSignificance: ImportanceLevel.MEDIUM, significanceReason: "The standby-filtration action carries 11.6% of the 100 mrem frequency on a screening point estimate.", insights: ["Operator fails to start the standby filtration train (HR-POST-028) carries 11.6% of the 100 mrem frequency."], recommendations: ["Upgrade HR-POST-028 from its screening point estimate to detailed treatment.", "Keep HR-POST-018 at detailed treatment."], generalFeedback: "No human failure event is risk-significant, but the standby-filtration action carries a tenth of each total on a screening estimate, so upgrade it." },
-      { elementCode: "DA", riskSignificance: ImportanceLevel.MEDIUM, significanceReason: "The beta factors behind the leading common-cause groups set most of each total.", insights: ["Reactor trip divisions fail (CCF-RPS-DIV) carries 23.8% of the 100 mrem frequency."], recommendations: ["Confirm DA-CCF-04 and DA-CCF-30 as plant records accrue.", "Hold DA-CCF-08 for the shutdown-cooling group."], generalFeedback: "No parameter drives a risk-significant item, but the beta factors behind the reactor-trip and building-damper groups set most of each total, so confirm them as records accrue." },
+      { elementCode: "DA", riskSignificance: ImportanceLevel.MEDIUM, significanceReason: "The common cause factors behind the leading groups set most of each total.", insights: ["Reactor trip divisions fail (CCF-RPS-DIV) carries 23.8% of the 100 mrem frequency."], recommendations: ["Confirm DA-CCF-04 and DA-CCF-30 as plant records accrue.", "Hold DA-CCF-08 for the shutdown-cooling group."], generalFeedback: "No parameter drives a risk-significant item, but the beta factors behind the reactor-trip and building-damper groups set most of each total, so confirm them as records accrue." },
     ],
   },
   modelUncertainty: {

@@ -308,7 +308,7 @@ const dependencyTreatment: DependencyTreatment = {
   postInitiatorHfeDependencyBasis: "The joint-HEP floor built in the human reliability analysis binds the product at the cutset level.",
   ccfTreatment: {
     modelingApproach: "Common-cause basic events carried inside the system fault trees.",
-    parameterBasis: "The alpha-factor and beta-factor parameters supplied by the data analysis.",
+    parameterBasis: "The alpha-factor and MGL parameters supplied by the data analysis.",
     ccfGroupRefs: ["CCF-SCS-TRAIN", "CCF-DC-BATT"],
   },
   recoveryDependencyTreatment: "Recovery actions are applied with their dependence on the cause carried explicitly.",
@@ -709,11 +709,11 @@ const importanceAnalyses: ImportanceAnalysisRecord[] = [
     uuid: "IMP-1",
     scope: "OVERALL",
     measures: [
-      { entityType: "CCF_GROUP", entityRef: "Shutdown-cooling train common-cause group", fussellVesely: 0.22, riskAchievementWorth: 8.4 },
+      { entityType: "CCF_GROUP", entityRef: "Shutdown-cooling train common-cause group", fussellVesely: 0.22, riskAchievementWorth: 8.4, dataAnalysisParameterRef: "DA-CCF-08" },
       { entityType: "SYSTEM", entityRef: "Cooling-water support", fussellVesely: 0.15, riskAchievementWorth: 5.1 },
       { entityType: "HUMAN_FAILURE_EVENT", entityRef: "Operator starts the second shutdown-cooling train", fussellVesely: 0.12, riskAchievementWorth: 4.2 },
-      { entityType: "CCF_GROUP", entityRef: "Backup gas-turbine generator common-cause group", fussellVesely: 0.1, riskAchievementWorth: 3.6 },
-      { entityType: "BASIC_EVENT", entityRef: "Reactor protection channel", fussellVesely: 0.04, riskAchievementWorth: 1.9 },
+      { entityType: "CCF_GROUP", entityRef: "Backup gas-turbine generator common-cause group", fussellVesely: 0.1, riskAchievementWorth: 3.6, dataAnalysisParameterRef: "DA-CCF-06" },
+      { entityType: "BASIC_EVENT", entityRef: "Reactor protection channel", fussellVesely: 0.04, riskAchievementWorth: 1.9, dataAnalysisParameterRef: "DA-BE-201" },
     ],
     implementsSrs: srs("ESQ-D7"),
   },
@@ -722,7 +722,7 @@ const importanceAnalyses: ImportanceAnalysisRecord[] = [
     scope: "PER_FAMILY",
     familyRef: "EFQ-1",
     measures: [
-      { entityType: "CCF_GROUP", entityRef: "Shutdown-cooling train common-cause group", fussellVesely: 0.41, riskAchievementWorth: 12.5 },
+      { entityType: "CCF_GROUP", entityRef: "Shutdown-cooling train common-cause group", fussellVesely: 0.41, riskAchievementWorth: 12.5, dataAnalysisParameterRef: "DA-CCF-08" },
       { entityType: "SYSTEM", entityRef: "Cooling-water support", fussellVesely: 0.27, riskAchievementWorth: 6.8 },
       { entityType: "HUMAN_FAILURE_EVENT", entityRef: "Operator starts the second shutdown-cooling train", fussellVesely: 0.18, riskAchievementWorth: 4.4 },
     ],
@@ -764,6 +764,12 @@ const modelUncertaintySourceAssessments: ModelUncertaintySourceAssessment[] = [
   { uuid: "UF-6", sourceElementCode: "HR", uncertaintySource: "Human-error probabilities", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Drives the human-action cutsets.", implementsSrs: srs("ESQ-E1") },
   { uuid: "UF-7", sourceElementCode: "DA", uncertaintySource: "Parameter distributions", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Sets the spread of the family-frequency distribution.", implementsSrs: srs("ESQ-E1") },
   { uuid: "UF-8", sourceElementCode: "ESQ", uncertaintySource: "Truncation and approximation", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Bounds the residual computational error.", implementsSrs: srs("ESQ-E1") },
+  { uuid: "UF-9", sourceElementCode: "DA", uncertaintySource: "Similar-equipment adjustment for the moisture monitors", relatedAssumptions: ["Nonnuclear moisture analyzers fail like the helium moisture monitors once the sampling factor is applied."], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "The monitors take nonnuclear moisture-analyzer data adjusted for sampling helium at pressure. Over the factor's range the monitor probability runs from 1.80E-3 to 1.08E-2.", dataAnalysisSourceRef: { workbookId: "example-da-htgr", sourceId: "MU-1" }, implementsSrs: srs("ESQ-E1") },
+  { uuid: "UF-10", sourceElementCode: "DA", uncertaintySource: "Fort St. Vrain circulator incidents and the circulator prior", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Two of fifteen incidents count. Counting every removal would raise the circulator rate about six times, and the published compressor prior would raise it 9.2 times.", dataAnalysisSourceRef: { workbookId: "example-da-htgr", sourceId: "MU-2" }, implementsSrs: srs("ESQ-E1") },
+  { uuid: "UF-11", sourceElementCode: "DA", uncertaintySource: "Planned demand, exposure and maintenance counts", relatedAssumptions: ["The planned surveillance and maintenance schedule stands in for operating records."], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Demands, run hours and maintenance hours come from the planned schedule until operating records exist. Each train unavailability moves in proportion to its maintenance hours.", dataAnalysisSourceRef: { workbookId: "example-da-htgr", sourceId: "MU-3" }, implementsSrs: srs("ESQ-E1") },
+  { uuid: "UF-12", sourceElementCode: "DA", uncertaintySource: "Coincident-maintenance assumption", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "The joint equalizing charge takes both battery banks out together for 22 h a year. The value is assumed until plant experience confirms it.", dataAnalysisSourceRef: { workbookId: "example-da-htgr", sourceId: "MU-4" }, implementsSrs: srs("ESQ-E1") },
+  { uuid: "UF-13", sourceElementCode: "DA", uncertaintySource: "Initiating-event frequencies for a design with no operating history", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Twenty-one group frequencies rest on IE fault trees, generic data and design-based estimates. At the 2020 industry rates loss of offsite power would drop 2.8 times.", dataAnalysisSourceRef: { workbookId: "example-da-htgr", sourceId: "MU-5" }, implementsSrs: srs("ESQ-E1") },
+  { uuid: "UF-14", sourceElementCode: "DA", uncertaintySource: "Common cause factors from the CCF 2020 data", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Each group takes generic factors for its size, and its testing scheme decides what Systems Analysis receives. Testing the shutdown-cooling trains on one day would make both failing together 2.0 times more likely.", dataAnalysisSourceRef: { workbookId: "example-da-htgr", sourceId: "MU-6" }, implementsSrs: srs("ESQ-E1") },
 ];
 
 const uncertaintyPropagation: UncertaintyPropagation = {
@@ -798,6 +804,12 @@ const sensitivityStudies: SensitivityStudy[] = [
   { uuid: "SS-1", name: "Truncation sensitivity", description: "Sweep of the truncation cutoff below the chosen value.", variedParameters: ["Truncation cutoff"], parameterRanges: { "Truncation cutoff": [1e-14, 1e-12] }, results: "The family frequencies hold within a few percent below the chosen cutoff." },
   { uuid: "SS-2", name: "State-of-knowledge correlation sweep", description: "Sweep of the correlation handling between shared estimates.", variedParameters: ["Correlation"], parameterRanges: { Correlation: [0, 1] }, results: "Ignoring the correlation would understate the loss-of-forced-cooling mean by about a third." },
   { uuid: "SS-3", name: "Barrier-capacity sweep", description: "Sweep of the functional-containment capacity range.", variedParameters: ["Capacity factor"], parameterRanges: { "Capacity factor": [0.5, 2] }, results: "The early-release family stays below the threshold across the capacity range." },
+  { uuid: "DA-SS-1", name: "Similar-equipment sweep", description: "The moisture monitors rest on nonnuclear moisture analyzers. Their sampling factor goes to its bounds of 0.5 and 3.", variedParameters: ["DA-BE-249"], parameterRanges: { "DA-BE-249": [0.0017999991380299935, 0.01079999482817996] }, results: "The monitor probability runs from 1.80E-3 to 1.08E-2 per demand, against 3.60E-3 for the nominal factor.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-1" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-2", name: "Prior-form comparison", description: "The circulator update repeated with the published compressor prior in place of the constrained noninformative one.", variedParameters: ["DA-BE-205"], parameterRanges: { "DA-BE-205": [0.00023231949896163585, 0.0021345981527612773] }, results: "With the published prior the 24 h circulator probability is 2.13E-3, 9.2 times the 2.32E-4 of the base case. The published prior conflicts with the Fort St. Vrain counts, so it stays a sensitivity case.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-2" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-3", name: "Train maintenance sweep", description: "Shutdown-cooling train maintenance between half and twice the planned 35 h a year.", variedParameters: ["DA-UA-11"], parameterRanges: { "DA-UA-11": [0.001997716894977169, 0.007990867579908675] }, results: "The train unavailability runs from 2.00E-3 to 7.99E-3, against 4.00E-3 for the plan.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-3" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-4", name: "Coincident-maintenance sweep", description: "The joint battery equalization unavailability from none to 5.0E-3.", variedParameters: ["DA-UA-16"], parameterRanges: { "DA-UA-16": [0, 0.005] }, results: "The planned joint charge gives 2.51E-3, inside the swept range.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-4" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-5", name: "Offsite power at the 2020 rates", description: "Loss of offsite power at the 2020 industry rates, power and shutdown, against the IE group that also holds loss of normal AC.", variedParameters: ["DA-IE-03"], parameterRanges: { "DA-IE-03": [0.034228276390151025, 0.0975] }, results: "The 2020 rates give 3.42E-2 per year over the group's states, 2.8 times below the IE group frequency of 9.75E-2.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-5" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-6", name: "Shutdown-cooling testing scheme", description: "The two shutdown-cooling trains tested on one day instead of staggered.", variedParameters: ["DA-CCF-08"], parameterRanges: { "DA-CCF-08": [1.688196518623768e-06, 3.3520347999712423e-06] }, results: "Both trains failing together rises from 1.69E-6 to 3.35E-6, 2.0 times the staggered value.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-6" }, implementsSrs: srs("ESQ-E2") },
 ];
 
 const preOperationalAssumptions = [

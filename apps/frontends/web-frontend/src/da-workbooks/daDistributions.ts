@@ -16,18 +16,18 @@ function lnGamma(x: number): number {
   return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(sum);
 }
 
-function gammaP(a: number, x: number): number {
-  if (x <= 0) return 0;
-  if (x < a + 1) {
-    let term = 1 / a;
-    let sum = term;
-    for (let n = 1; n < 1000; n += 1) {
-      term *= x / (a + n);
-      sum += term;
-      if (Math.abs(term) < Math.abs(sum) * 1e-15) break;
-    }
-    return sum * Math.exp(-x + a * Math.log(x) - lnGamma(a));
+function gammaSeries(a: number, x: number): number {
+  let term = 1 / a;
+  let sum = term;
+  for (let n = 1; n < 1000; n += 1) {
+    term *= x / (a + n);
+    sum += term;
+    if (Math.abs(term) < Math.abs(sum) * 1e-15) break;
   }
+  return sum * Math.exp(-x + a * Math.log(x) - lnGamma(a));
+}
+
+function gammaFraction(a: number, x: number): number {
   let b = x + 1 - a;
   let c = 1 / 1e-300;
   let d = 1 / b;
@@ -44,7 +44,17 @@ function gammaP(a: number, x: number): number {
     h *= delta;
     if (Math.abs(delta - 1) < 1e-15) break;
   }
-  return 1 - Math.exp(-x + a * Math.log(x) - lnGamma(a)) * h;
+  return Math.exp(-x + a * Math.log(x) - lnGamma(a)) * h;
+}
+
+function gammaP(a: number, x: number): number {
+  if (x <= 0) return 0;
+  return x < a + 1 ? gammaSeries(a, x) : 1 - gammaFraction(a, x);
+}
+
+function gammaQ(a: number, x: number): number {
+  if (x <= 0) return 1;
+  return x < a + 1 ? 1 - gammaSeries(a, x) : gammaFraction(a, x);
 }
 
 function betaContinuedFraction(x: number, a: number, b: number): number {
@@ -167,6 +177,27 @@ function distributionMean(d: ParameterDistribution): number | undefined {
     case DistributionType.WEIBULL: return d.location + d.scale * Math.exp(lnGamma(1 + 1 / d.shape));
     case DistributionType.EXPONENTIAL: return 1 / d.failureRate;
     case DistributionType.POINT_ESTIMATE: return d.value;
+    default: return undefined;
+  }
+}
+
+function distributionVariance(d: ParameterDistribution): number | undefined {
+  if (!validDistribution(d)) return undefined;
+  switch (d.type) {
+    case DistributionType.BETA: {
+      const total = d.alpha + d.betaParam;
+      return (d.alpha * d.betaParam) / (total * total * (total + 1));
+    }
+    case DistributionType.GAMMA: return d.shape / (d.rate * d.rate);
+    case DistributionType.LOGNORMAL: {
+      const sigma = lognormalSigma(d.errorFactor);
+      return d.median * d.median * Math.exp(sigma * sigma) * (Math.exp(sigma * sigma) - 1);
+    }
+    case DistributionType.NORMAL: return d.stdDev * d.stdDev;
+    case DistributionType.UNIFORM: return (d.upper - d.lower) ** 2 / 12;
+    case DistributionType.WEIBULL: return d.scale * d.scale * (Math.exp(lnGamma(1 + 2 / d.shape)) - Math.exp(2 * lnGamma(1 + 1 / d.shape)));
+    case DistributionType.EXPONENTIAL: return 1 / (d.failureRate * d.failureRate);
+    case DistributionType.POINT_ESTIMATE: return 0;
     default: return undefined;
   }
 }
@@ -299,20 +330,146 @@ function poolJudgments(parts: readonly LogComponent[], pooling: "LINEAR" | "LOGA
   return { mean, p05, median, p95, distribution: fitted };
 }
 
+interface DaCurve {
+  us: number[];
+  fu: number[];
+  cdf: number[];
+  mean: number;
+}
+
+type DaShape = ParameterDistribution | DaCurve;
+
+function isCurve(shape: DaShape): shape is DaCurve {
+  return "us" in shape;
+}
+
+function curveFromLog(us: readonly number[], logw: readonly number[]): DaCurve | undefined {
+  if (us.length < 3 || us.length !== logw.length) return undefined;
+  const top = Math.max(...logw.filter((value) => Number.isFinite(value)));
+  if (!Number.isFinite(top)) return undefined;
+  const w = logw.map((value) => (Number.isFinite(value) ? Math.exp(value - top) : 0));
+  const cdf = [0];
+  let total = 0;
+  let moment = 0;
+  for (let i = 1; i < us.length; i += 1) {
+    const du = (us[i] ?? 0) - (us[i - 1] ?? 0);
+    const left = w[i - 1] ?? 0;
+    const right = w[i] ?? 0;
+    total += ((left + right) / 2) * du;
+    moment += ((left * Math.exp(us[i - 1] ?? 0) + right * Math.exp(us[i] ?? 0)) / 2) * du;
+    cdf.push(total);
+  }
+  if (!(total > 0)) return undefined;
+  return { us: [...us], fu: w.map((value) => value / total), cdf: cdf.map((value) => Math.min(1, value / total)), mean: moment / total };
+}
+
+function locate(values: readonly number[], x: number): number {
+  let lo = 0;
+  let hi = values.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if ((values[mid] ?? 0) <= x) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+
+function interpolate(xs: readonly number[], ys: readonly number[], x: number): number {
+  const first = xs[0] ?? 0;
+  const last = xs[xs.length - 1] ?? 0;
+  if (x <= first) return ys[0] ?? 0;
+  if (x >= last) return ys[ys.length - 1] ?? 0;
+  const i = locate(xs, x);
+  const x0 = xs[i] ?? 0;
+  const x1 = xs[i + 1] ?? 0;
+  const y0 = ys[i] ?? 0;
+  const y1 = ys[i + 1] ?? 0;
+  return x1 > x0 ? y0 + ((y1 - y0) * (x - x0)) / (x1 - x0) : y0;
+}
+
+function curveQuantile(curve: DaCurve, p: number): number {
+  const i = Math.min(Math.max(locate(curve.cdf, p), 0), curve.cdf.length - 2);
+  let k = i;
+  while (k < curve.cdf.length - 2 && (curve.cdf[k + 1] ?? 0) < p) k += 1;
+  const c0 = curve.cdf[k] ?? 0;
+  const c1 = curve.cdf[k + 1] ?? 0;
+  const u0 = curve.us[k] ?? 0;
+  const u1 = curve.us[k + 1] ?? 0;
+  const u = c1 > c0 ? u0 + ((u1 - u0) * (p - c0)) / (c1 - c0) : u0;
+  return Math.exp(u);
+}
+
+function curveMoment(curve: DaCurve, power: number): number {
+  let sum = 0;
+  for (let i = 1; i < curve.us.length; i += 1) {
+    const u0 = curve.us[i - 1] ?? 0;
+    const u1 = curve.us[i] ?? 0;
+    sum += (((curve.fu[i - 1] ?? 0) * Math.exp(power * u0) + (curve.fu[i] ?? 0) * Math.exp(power * u1)) / 2) * (u1 - u0);
+  }
+  return sum;
+}
+
+function shapeMean(shape: DaShape): number | undefined {
+  return isCurve(shape) ? shape.mean : distributionMean(shape);
+}
+
+function shapeVariance(shape: DaShape): number | undefined {
+  if (!isCurve(shape)) return distributionVariance(shape);
+  return Math.max(0, curveMoment(shape, 2) - shape.mean * shape.mean);
+}
+
+function shapeQuantile(shape: DaShape, p: number): number | undefined {
+  return isCurve(shape) ? curveQuantile(shape, p) : distributionQuantile(shape, p);
+}
+
+function shapeCdf(shape: DaShape, x: number): number | undefined {
+  if (!isCurve(shape)) return distributionCdf(shape, x);
+  if (x <= 0) return 0;
+  return Math.min(1, Math.max(0, interpolate(shape.us, shape.cdf, Math.log(x))));
+}
+
+function shapeDensity(shape: DaShape, x: number): number | undefined {
+  if (!isCurve(shape)) return distributionDensity(shape, x);
+  if (x <= 0) return 0;
+  const u = Math.log(x);
+  const first = shape.us[0] ?? 0;
+  const last = shape.us[shape.us.length - 1] ?? 0;
+  if (u < first || u > last) return 0;
+  return interpolate(shape.us, shape.fu, u) / x;
+}
+
+function shapePoint(shape: DaShape): number | undefined {
+  return !isCurve(shape) && shape.type === DistributionType.POINT_ESTIMATE ? shape.value : undefined;
+}
+
 export {
   betaP,
+  curveFromLog,
+  curveMoment,
   distributionCdf,
   distributionDensity,
   distributionMean,
   distributionQuantile,
+  distributionVariance,
   gammaP,
+  gammaQ,
+  isCurve,
   judgmentComponent,
+  lnGamma,
   lognormalFromMean,
   normalCdf,
   normalQuantile,
   poolJudgments,
   scaleDistribution,
+  shapeCdf,
+  shapeDensity,
+  shapeMean,
+  shapePoint,
+  shapeQuantile,
+  shapeVariance,
   validDistribution,
+  type DaCurve,
+  type DaShape,
   type LogComponent,
   type PooledJudgment,
 };

@@ -84,8 +84,9 @@ interface SyControlledParameterOption {
   workbookName: string;
   parameterId: string;
   parameterName: string;
-  parameterType: "FREQUENCY" | "PROBABILITY" | "UNAVAILABILITY" | "HUMAN_ERROR_PROBABILITY";
+  parameterType: "FREQUENCY" | "FAILURE_RATE" | "PROBABILITY" | "UNAVAILABILITY" | "HUMAN_ERROR_PROBABILITY";
   value: number;
+  rateUnit?: "HOUR" | "YEAR";
   uncertainty?: ParameterDistribution;
   failureModeId?: string;
   failureModeName?: string;

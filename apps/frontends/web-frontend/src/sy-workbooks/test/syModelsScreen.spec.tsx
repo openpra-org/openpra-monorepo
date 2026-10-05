@@ -144,8 +144,9 @@ let mockWorkbookContext: {
     workbookName: string;
     parameterId: string;
     parameterName: string;
-    parameterType: "PROBABILITY" | "FREQUENCY";
+    parameterType: "PROBABILITY" | "FREQUENCY" | "FAILURE_RATE";
     value: number;
+    rateUnit?: "HOUR" | "YEAR";
   }>;
   controlledHumanFailures: Array<{
     workbookId: string;
@@ -367,7 +368,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
       sy: makeAnalysis({ systemBasicEvents: [{ ...BASIC_EVENT, probability: .1, quantificationBasis: basis,
         controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "parameter-1" } }] }),
       controlledParameters: [{ workbookId: "da-workbook", workbookName: "DA", parameterId: "parameter-1",
-        parameterName: "Rate", parameterType: "FREQUENCY", value: .002 }],
+        parameterName: "Rate", parameterType: "FAILURE_RATE", rateUnit: "HOUR", value: .002 }],
     });
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
     openTab("Fault tree");
@@ -907,13 +908,29 @@ describe("ModelsScreen system tabs", () => {
             quantificationBasis: { kind: "FAILURE_RATE", failureRate: { value: 0.00003, unit: "HOUR" }, missionTime: { value: 72, unit: "HOUR" }, conversion: "EXPONENTIAL" },
             controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "parameter-rate" },
           },
+          {
+            ...BASIC_EVENT,
+            uuid: "be-loop",
+            code: "BE-LOOP",
+            name: "Offsite power lost in the mission",
+            failureMode: "OTHER",
+            quantificationBasis: { kind: "FAILURE_RATE", failureRate: { value: 0.03, unit: "YEAR" }, missionTime: { value: 72, unit: "HOUR" }, conversion: "EXPONENTIAL" },
+            controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "parameter-loop" },
+          },
         ],
         systemLogicModels: [{
           ...LOGIC_MODEL,
-          leafNodes: [...LOGIC_MODEL.leafNodes, { id: "leaf-pump-fr", kind: "BASIC_EVENT_REFERENCE", basicEventId: "be-pump-fr" }],
+          leafNodes: [
+            ...LOGIC_MODEL.leafNodes,
+            { id: "leaf-pump-fr", kind: "BASIC_EVENT_REFERENCE", basicEventId: "be-pump-fr" },
+            { id: "leaf-loop", kind: "BASIC_EVENT_REFERENCE", basicEventId: "be-loop" },
+          ],
         }],
       }),
-      controlledParameters: [{ workbookId: "da-workbook", workbookName: "Approved DA", parameterId: "parameter-rate", parameterName: "Pump run failure rate", parameterType: "FREQUENCY", value: 0.00004 }],
+      controlledParameters: [
+        { workbookId: "da-workbook", workbookName: "Approved DA", parameterId: "parameter-rate", parameterName: "Pump run failure rate", parameterType: "FAILURE_RATE", rateUnit: "HOUR", value: 0.00004 },
+        { workbookId: "da-workbook", workbookName: "Approved DA", parameterId: "parameter-loop", parameterName: "Loss of offsite power", parameterType: "FREQUENCY", rateUnit: "YEAR", value: 0.03 },
+      ],
     });
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={openDrawer} />);
     fireEvent.click(screen.getByRole("tab", { name: /Basic events/ }));
@@ -928,6 +945,10 @@ describe("ModelsScreen system tabs", () => {
     expect(within(linked).getByText("4.0E-5 /h")).toBeInTheDocument();
     expect(within(linked).getByText("72 h mission")).toBeInTheDocument();
     expect(within(linked).getByText("DA · Pump run failure rate")).toBeInTheDocument();
+    expect(within(linked).getByText("Value changed in DA")).toBeInTheDocument();
+    const yearly = within(table).getByText("Offsite power lost in the mission").closest("tr")!;
+    expect(within(yearly).getByText("3.0E-2 /yr")).toBeInTheDocument();
+    expect(within(yearly).queryByText("Value changed in DA")).toBeNull();
 
     fireEvent.click(within(table).getByRole("button", { name: "Edit BE-PUMP-FS" }));
     expect(openDrawer).toHaveBeenCalledWith({ kind: "be", id: BASIC_EVENT_ID });

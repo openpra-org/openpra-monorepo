@@ -2,7 +2,7 @@ import { type Workbook } from "interfaces-shared-types";
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import type { PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
-import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
+import type { DataAnalysis, ParameterType } from "interfaces-mef-types/da/data-analysis";
 import type { SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
 import { listWorkbooks } from "../workbooks/workbookApi";
 import { type DaWorkbookResponse } from "../da-workbooks/daWorkbookApi";
@@ -20,7 +20,9 @@ import type {
 
 const SY_LINK_CODES: SyLinkCode[] = ["ES", "SC", "POS", "DA", "HRA"];
 
-const SUPPORTED_PARAMETER_TYPES = new Set(["FREQUENCY", "PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
+const SUPPORTED_PARAMETER_TYPES = new Set(["FREQUENCY", "FAILURE_RATE", "PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
+
+const RATE_UNITS: Partial<Record<ParameterType, "HOUR" | "YEAR">> = { FAILURE_RATE: "HOUR", FREQUENCY: "YEAR" };
 
 const LINKABLE_PARAMETER_TYPES = new Set(["PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
 
@@ -109,12 +111,13 @@ function controlledParameterOptions(sources: readonly DaSource[]): SyControlledP
     const modes = new Map((workbook.mef.failureModes ?? []).map((mode) => [mode.uuid, mode.name]));
     return workbook.mef.parameters.flatMap((parameter): SyControlledParameterOption[] => {
     const value = parameter.value;
+    const rateUnit = RATE_UNITS[parameter.parameterType];
     if (
       value === undefined ||
       !SUPPORTED_PARAMETER_TYPES.has(parameter.parameterType) ||
       !Number.isFinite(value) ||
       value < 0 ||
-      (parameter.parameterType !== "FREQUENCY" && value > 1)
+      (rateUnit === undefined && value > 1)
     ) return [];
     return [{
       workbookId: entry.id,
@@ -123,6 +126,7 @@ function controlledParameterOptions(sources: readonly DaSource[]): SyControlledP
       parameterName: parameter.name,
       parameterType: parameter.parameterType as SyControlledParameterOption["parameterType"],
       value,
+      ...(rateUnit === undefined ? {} : { rateUnit }),
       uncertainty: parameter.uncertainty?.distribution,
       ...(parameter.failureModeRef !== undefined && modes.has(parameter.failureModeRef)
         ? { failureModeId: parameter.failureModeRef, failureModeName: modes.get(parameter.failureModeRef) }
@@ -131,6 +135,16 @@ function controlledParameterOptions(sources: readonly DaSource[]): SyControlledP
     }];
     });
   }).sort((left, right) => [left.workbookName, left.parameterName].join(":").localeCompare([right.workbookName, right.parameterName].join(":")));
+}
+
+function sameHeldValue(held: number | undefined, value: number): boolean {
+  return held !== undefined && Math.abs(held - value) <= 1e-9 * Math.max(Math.abs(held), Math.abs(value));
+}
+
+function heldValueDiffers(event: SystemBasicEvent, value: number, rateUnit?: "HOUR" | "YEAR"): boolean {
+  const basis = event.quantificationBasis;
+  if (basis?.kind === "FAILURE_RATE") return rateUnit !== undefined && (!sameHeldValue(basis.failureRate.value, value) || basis.failureRate.unit !== rateUnit);
+  return rateUnit === undefined && !sameHeldValue(event.probability, value);
 }
 
 function controlledFailureModeOptions(sources: readonly DaSource[]): SyControlledFailureModeOption[] {
@@ -165,15 +179,15 @@ function controlledHumanFailureOptions(sources: readonly HrSource[]): SyControll
 }
 
 function controlledCoincidentMaintenanceOptions(sources: readonly DaSource[]): SyControlledCoincidentMaintenanceOption[] {
-  return sources.flatMap(({ entry, workbook }) => (workbook.mef.coincidentMaintenanceRecords ?? []).map((record) => ({
+  return sources.flatMap(({ entry, workbook }) => workbook.mef.parameters.filter((parameter) => parameter.quantificationModel === "UNAVAILABILITY" && parameter.maintenance?.kind === "COINCIDENT").map((parameter): SyControlledCoincidentMaintenanceOption => ({
     workbookId: entry.id,
     workbookName: entry.name,
-    recordId: record.uuid,
-    description: record.plannedActivityDescription,
-    equipment: record.redundantEquipmentIds,
-    scope: record.scope,
-    basis: record.basis,
-    ...(record.unavailabilityValue === undefined ? {} : { value: record.unavailabilityValue }),
+    recordId: parameter.uuid,
+    description: parameter.description ?? parameter.name,
+    equipment: [...(parameter.maintenance?.equipment ?? [])],
+    scope: parameter.maintenance?.scope ?? "INTRASYSTEM",
+    basis: parameter.maintenance?.method === "RECORDS" ? "ACTUAL_PLANT_EXPERIENCE" : "PREOP_ASSUMPTION",
+    ...(parameter.value === undefined ? {} : { value: parameter.value }),
   }))).sort((left, right) => [left.workbookName, left.recordId].join(":").localeCompare([right.workbookName, right.recordId].join(":")));
 }
 
@@ -238,6 +252,7 @@ export {
   controlledFailureModeOptions,
   controlledHumanFailureOptions,
   controlledParameterOptions,
+  heldValueDiffers,
   linkExampleEvents,
   listSyLinkOptions,
 };

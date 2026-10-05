@@ -4,6 +4,7 @@ import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
 import { fetchHrLinkedInputs } from "./hrWorkbookApi";
+import { loadHrDaHeps } from "./hrDaLinks";
 import { HrWorkbench } from "./hrWorkbench";
 import { HrWorkbookProvider, type HrWorkbookData } from "./hrWorkbookContext";
 import { type HrPersona } from "./hrViewData";
@@ -41,6 +42,9 @@ function HrDemoPage(): JSX.Element {
         fetchHrLinkedInputs(variant)
           .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
           .catch(() => undefined);
+        void loadHrDaHeps(null, res.hr.mef as HumanReliabilityAnalysis, variant).then((daHeps) => {
+          if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daHeps }));
+        });
       })
       .catch((err: unknown) => {
         if (cancelled) return;

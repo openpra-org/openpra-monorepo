@@ -399,7 +399,7 @@ export function daIeQuantificationEntries(analysis: InitiatingEventsAnalysis, ba
       const errorFactor = frequency.distribution?.parameters[1];
       if (frequency.distribution?.type === DistributionType.LOGNORMAL && errorFactor !== undefined && errorFactor > 1) {
         const sigma = Math.log(errorFactor) / Z95;
-        entry.distribution = { type: DistributionType.LOGNORMAL, median: Number((frequency.value / Math.exp((sigma * sigma) / 2)).toPrecision(4)), errorFactor };
+        entry.distribution = { type: DistributionType.LOGNORMAL, median: frequency.value / Math.exp((sigma * sigma) / 2), errorFactor };
       }
     }
     if (wanted(quantification.basis) && !taken.has(entry.id)) {

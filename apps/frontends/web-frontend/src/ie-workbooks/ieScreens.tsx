@@ -32,6 +32,7 @@ import { buildWorksheetModel, buildPhaModel, buildOeModel, buildCatalogueModel }
 import { IeFrequencyQuantificationEditor } from "../newly-developed-methods/ie-frequency-quantification/ieFrequencyQuantificationEditor";
 import { generateIeReport, computeIeReportToc } from "./ieDocx";
 import { AutoTextarea } from "./ieDrawer";
+import { daOptionKey, heldDiffers, linkedDaOption, withImportedFrequency, withTypedGroupFrequency } from "./ieDaLinks";
 
 const EDITOR_METHOD_IDS = new Set(["MLD", "HBFT", "FMEA", "HAZOP", "PHA", "OEREV", "GENLIST"]);
 
@@ -1153,7 +1154,8 @@ function FreqInput({ value, onChange }: { value: number; onChange: (v: number) =
 }
 
 function FrequencyScreen(): JSX.Element {
-  const { ie, editable, mutateIe } = useIeWorkbook();
+  const { ie, editable, mutateIe, daFrequencies } = useIeWorkbook();
+  const daOptions = daFrequencies ?? [];
   const records: InitiatingEventFrequencyQuantification[] = ie.quantifications;
   const groups = ie.initiatingEventGroups;
   const initiators = ie.initiators;
@@ -1187,11 +1189,15 @@ function FrequencyScreen(): JSX.Element {
     mutateIe((draft) => ({ ...draft, quantifications: draft.quantifications.map((q) => (q.initiatorOrGroupId === id ? { ...q, ...patch } : q)) }));
   };
   const patchMean = (id: string, n: number): void => {
-    mutateIe((draft) => ({ ...draft, quantifications: draft.quantifications.map((q) => {
+    mutateIe((draft) => withTypedGroupFrequency({ ...draft, quantifications: draft.quantifications.map((q) => {
       if (q.initiatorOrGroupId !== id) return q;
       const mf = typeof q.meanFrequency === "object" ? { ...q.meanFrequency, value: n } : n;
       return { ...q, meanFrequency: mf };
-    }) }));
+    }) }, id));
+  };
+  const chooseValueFrom = (id: string, key: string): void => {
+    const option = daOptions.find((candidate) => daOptionKey(candidate.workbookId, candidate.parameterId) === key);
+    mutateIe((draft) => withImportedFrequency(draft, id, option));
   };
   const changeTarget = (oldId: string, newId: string): void => {
     if (newId === oldId || newId === "") return;
@@ -1224,20 +1230,23 @@ function FrequencyScreen(): JSX.Element {
   const numberOfModules = ie.metadata.plantIdentity?.numberOfModules ?? 1;
   const [openQuantId, setOpenQuantId] = useState<string | null>(null);
   const setQuantSources = (id: string, nextSources: FrequencyDataSource[], nextPrimary: string | undefined, rolled: number | null): void => {
-    mutateIe((draft) => ({ ...draft, quantifications: draft.quantifications.map((q) => {
-      if (q.initiatorOrGroupId !== id) return q;
-      const primary = nextSources.find((s) => s.uuid === nextPrimary);
-      const updated: InitiatingEventFrequencyQuantification = {
-        ...q,
-        dataSources: nextSources,
-        primaryDataSourceId: nextPrimary,
-        basis: primary !== undefined ? primary.basis : q.basis,
-      };
-      if (rolled !== null && rolled > 0) {
-        updated.meanFrequency = typeof q.meanFrequency === "object" ? { ...q.meanFrequency, value: rolled } : rolled;
-      }
-      return updated;
-    }) }));
+    mutateIe((draft) => {
+      const heldByDa = draft.initiatingEventGroups.some((g) => g.uuid === id && g.controlledDataSource !== undefined);
+      return withTypedGroupFrequency({ ...draft, quantifications: draft.quantifications.map((q) => {
+        if (q.initiatorOrGroupId !== id) return q;
+        const primary = nextSources.find((s) => s.uuid === nextPrimary);
+        const updated: InitiatingEventFrequencyQuantification = {
+          ...q,
+          dataSources: nextSources,
+          primaryDataSourceId: nextPrimary,
+          basis: primary !== undefined ? primary.basis : q.basis,
+        };
+        if (rolled !== null && rolled > 0 && !heldByDa) {
+          updated.meanFrequency = typeof q.meanFrequency === "object" ? { ...q.meanFrequency, value: rolled } : rolled;
+        }
+        return updated;
+      }) }, id);
+    });
   };
   const openQuant = openQuantId !== null ? records.find((q) => q.initiatorOrGroupId === openQuantId) : undefined;
   useEffect(() => {
@@ -1299,6 +1308,11 @@ function FrequencyScreen(): JSX.Element {
               {ranked.map((q) => {
                 const id = q.initiatorOrGroupId;
                 const isOpen = expanded.has(id);
+                const group = groups.find((g) => g.uuid === id);
+                const daSource = group?.controlledDataSource;
+                const daKey = daSource === undefined ? "" : daOptionKey(daSource.workbookId, daSource.entityId);
+                const daLinked = linkedDaOption(group, daOptions);
+                const daChanged = daLinked !== undefined && heldDiffers(group?.meanFrequency, daLinked.value);
                 return (
                   <Fragment key={id}>
                     <tr className="postable__row--clickable" onClick={() => toggle(id)}>
@@ -1307,9 +1321,12 @@ function FrequencyScreen(): JSX.Element {
                         <div className="postable__name"><span className="posmono">{id}</span></div>
                         <span className="postable__name-sub">{labelFor(id)}{isPreop(id) ? " · pre-op" : ""}</span>
                       </td>
-                      <td className="mono">{fmtFreq(q.meanFrequency)}</td>
+                      <td className="mono">
+                        {fmtFreq(q.meanFrequency)}
+                        {daChanged && <span className="postable__name-sub">Changed in DA</span>}
+                      </td>
                       <td><span className="poschip">{BASIS_LABEL[q.basis] ?? q.basis}</span></td>
-                      <td className="mono">{(q.dataSources ?? []).length}</td>
+                      <td className="mono">{daSource === undefined ? (q.dataSources ?? []).length : "DA"}</td>
                     </tr>
                     {isOpen && (
                       <tr className="postable__expand-row">
@@ -1323,26 +1340,51 @@ function FrequencyScreen(): JSX.Element {
                                   {[{ id, label: `${id} · ${labelFor(id)}` }, ...availableTargets].map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                                 </select>
                               </div>
-                              <div className="posfield">
-                                <label className="posfield__label">Mean frequency (per plant-yr)</label>
-                                <div className="iefreq__entry">
-                                  <FreqInput value={freqValue(q.meanFrequency)} onChange={(n) => patchMean(id, n)} />
-                                  <span className="iefreq__entry-unit">per plant-yr</span>
+                              {group !== undefined && (
+                                <div className="posfield">
+                                  <label className="posfield__label">Value from</label>
+                                  {daOptions.length === 0 && daSource === undefined ? <span className="posmuted">Typed in IE. Add a DA workbook to the project to import its estimate.</span> : (
+                                    <select className="posfield__input" aria-label="Value from" value={daKey} onChange={(e) => chooseValueFrom(id, e.target.value)}>
+                                      <option value="">Typed in IE</option>
+                                      {daSource !== undefined && daLinked === undefined && <option value={daKey}>Linked DA parameter unavailable</option>}
+                                      {daOptions.map((o) => {
+                                        const key = daOptionKey(o.workbookId, o.parameterId);
+                                        return <option key={key} value={key}>{o.workbookName} · {o.parameterId} · {fmtFreq(o.value)}</option>;
+                                      })}
+                                    </select>
+                                  )}
                                 </div>
-                              </div>
+                              )}
+                              {daSource === undefined && (
+                                <div className="posfield">
+                                  <label className="posfield__label">Mean frequency (per plant-yr)</label>
+                                  <div className="iefreq__entry">
+                                    <FreqInput value={freqValue(q.meanFrequency)} onChange={(n) => patchMean(id, n)} />
+                                    <span className="iefreq__entry-unit">per plant-yr</span>
+                                  </div>
+                                </div>
+                              )}
+                              {daChanged && daLinked !== undefined && (
+                                <div className="posfield posfield-grid--span2">
+                                  <p className="posmuted" role="status">DA now gives {fmtFreq(daLinked.value)} per plant-yr. This group still holds {fmtFreq(group?.meanFrequency)}.</p>
+                                  {editable && <div><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => chooseValueFrom(id, daKey)}>Apply DA value</button></div>}
+                                </div>
+                              )}
                               <div className="posfield">
                                 <label className="posfield__label">Basis</label>
                                 <select className="posfield__input" value={q.basis} onChange={(e) => patchQuant(id, { basis: e.target.value as FreqBasis })}>
                                   {FREQ_BASIS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                                 </select>
                               </div>
-                              <div className="posfield">
-                                <label className="posfield__label">Data sources</label>
-                                <div className="iefreq__sources">
-                                  <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setOpenQuantId(id)}>Open quantifier →</button>
-                                  <span className="possubtle">{(q.dataSources ?? []).length} source{(q.dataSources ?? []).length === 1 ? "" : "s"}</span>
+                              {daSource === undefined && (
+                                <div className="posfield">
+                                  <label className="posfield__label">Data sources</label>
+                                  <div className="iefreq__sources">
+                                    <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setOpenQuantId(id)}>Open quantifier →</button>
+                                    <span className="possubtle">{(q.dataSources ?? []).length} source{(q.dataSources ?? []).length === 1 ? "" : "s"}</span>
+                                  </div>
                                 </div>
-                              </div>
+                              )}
                               <div className="posfield posfield-grid--span2">
                                 <label className="posfield__label">Flags</label>
                                 <div className="posrow posrow--wrap" style={{ gap: 6 }}>

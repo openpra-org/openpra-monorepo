@@ -5,12 +5,14 @@ import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiatin
 import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
+import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { type Workbook } from "interfaces-shared-types";
 import { listWorkbooks } from "../workbooks/workbookApi";
 import { getIeWorkbook } from "../ie-workbooks/ieWorkbookApi";
 import { getPosWorkbook } from "../pos-workbooks/posWorkbookApi";
 import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
 import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
+import { getEsqWorkbook } from "../esq-workbooks/esqWorkbookApi";
 import { exampleLinkVariant } from "./daViewData";
 
 async function listLinkOptions(projectId: string, code: DaLinkCode): Promise<Workbook[]> {
@@ -55,6 +57,12 @@ async function loadLinkedPos(id: string): Promise<PlantOperatingStatesAnalysis> 
   const variant = exampleLinkVariant(id);
   if (variant !== undefined) return (await fetchJson<{ pos: { mef: PlantOperatingStatesAnalysis } }>(`/api/example-workbooks/pos-bundle?example=${variant}`)).pos.mef;
   return (await getPosWorkbook(id)).mef;
+}
+
+async function loadLinkedEsq(id: string): Promise<EventSequenceQuantification> {
+  const variant = exampleLinkVariant(id);
+  if (variant !== undefined) return (await fetchJson<{ esq: { mef: EventSequenceQuantification } }>(`/api/example-workbooks/esq-bundle?example=${variant}`)).esq.mef;
+  return (await getEsqWorkbook(id)).mef;
 }
 
 type DaWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
@@ -127,6 +135,7 @@ async function getDaDocumentDownload(workbookId: string, documentId: string): Pr
 
 export {
   listDaLinkOptions,
+  loadLinkedEsq,
   loadLinkedHr,
   loadLinkedIe,
   loadLinkedPos,

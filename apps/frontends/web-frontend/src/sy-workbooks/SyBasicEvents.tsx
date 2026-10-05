@@ -3,6 +3,7 @@ import type { SystemBasicEvent, SystemLogicModel } from "interfaces-mef-types/sy
 import { systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
 import { requiresFailureRateConversionReview } from "interfaces-mef-types/modeling";
 import { SYProvenanceChip } from "./syShared";
+import { heldValueDiffers } from "./syLinks";
 import { FAILURE_MODE_LABELS, toExp } from "./syViewData";
 import { useSyWorkbook, type SyControlledHumanFailureOption, type SyControlledParameterOption } from "./syWorkbookContext";
 import type { SyDrawerContext } from "./syScreens";
@@ -43,16 +44,16 @@ function SyBasicEvents({ logic, openDrawer }: {
     if (requiresFailureRateConversionReview(rateBasis)) return <span className="sy-error">Review the conversion</span>;
     const parameter = linkedParameter(event, controlledParameters);
     if (rateBasis !== undefined) {
-      const rate = parameter?.parameterType === "FREQUENCY" ? parameter.value : rateBasis.failureRate.value;
+      const rate = parameter?.rateUnit === undefined ? rateBasis.failureRate : { value: parameter.value, unit: parameter.rateUnit };
       return (
         <>
-          <div className="posmono">{toExp(rate)} /{TIME_UNIT_LABELS[rateBasis.failureRate.unit]}</div>
+          <div className="posmono">{toExp(rate.value)} /{TIME_UNIT_LABELS[rate.unit]}</div>
           <span className="sy-review-sub">{rateBasis.missionTime.value} {TIME_UNIT_LABELS[rateBasis.missionTime.unit]} mission</span>
         </>
       );
     }
     const humanFailure = linkedHumanFailure(event, controlledHumanFailures);
-    const value = parameter !== undefined && parameter.parameterType !== "FREQUENCY" ? parameter.value : humanFailure?.value ?? event.probability;
+    const value = parameter !== undefined && parameter.rateUnit === undefined ? parameter.value : humanFailure?.value ?? event.probability;
     return value === undefined ? <span className="sy-error">Not set</span> : <span className="posmono">{toExp(value)}</span>;
   }
 
@@ -64,6 +65,7 @@ function SyBasicEvents({ logic, openDrawer }: {
         <>
           <div>DA · {parameter.parameterName}</div>
           <span className="sy-review-sub">{parameter.workbookName}</span>
+          {heldValueDiffers(event, parameter.value, parameter.rateUnit) && <span className="sy-review-sub sy-warn">Value changed in DA</span>}
         </>
       );
     }
@@ -73,6 +75,7 @@ function SyBasicEvents({ logic, openDrawer }: {
         <>
           <div>HR · {humanFailure.humanFailureEventName}</div>
           <span className="sy-review-sub">{humanFailure.workbookName} · {humanFailure.methodology}</span>
+          {heldValueDiffers(event, humanFailure.value) && <span className="sy-review-sub sy-warn">Value changed in HR</span>}
         </>
       );
     }

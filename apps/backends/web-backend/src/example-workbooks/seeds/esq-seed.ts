@@ -178,10 +178,10 @@ const familyQuantifications: EventSequenceFamilyQuantification[] = [
     percentile05: 6.3e-8,
     percentile50: 1.9e-7,
     percentile95: 5.7e-7,
-    significantUncertaintySources: ["Offsite-power recovery time (Data Analysis RC-1)", "Station battery common-cause parameter (CCF-DC-BATT)"],
+    significantUncertaintySources: ["Offsite-power recovery time (Data Analysis DA-RC-01)", "Station battery common-cause parameter (CCF-DC-BATT)"],
     contributionBreakdown: [
       { contributorRef: "Station battery common-cause failure (CCF-DC-BATT)", contributorType: "CCF", fractionalContribution: 0.36 },
-      { contributorRef: "Battery depletion before offsite-power recovery (Data Analysis RC-1)", contributorType: "EQUIPMENT_FAILURE", fractionalContribution: 0.29 },
+      { contributorRef: "Battery depletion before offsite-power recovery (Data Analysis DA-RC-01)", contributorType: "EQUIPMENT_FAILURE", fractionalContribution: 0.29 },
       { contributorRef: "Loss of normal (off-site) power (IE-04)", contributorType: "INITIATING_EVENT", fractionalContribution: 0.22 },
       { contributorRef: "Distributed small contributors", contributorType: "OTHER", fractionalContribution: 0.13 },
     ],
@@ -309,7 +309,7 @@ const dependencyTreatment: DependencyTreatment = {
   postInitiatorHfeDependencyBasis: "The joint-HEP floor built in the human reliability analysis binds the product at the cutset level.",
   ccfTreatment: {
     modelingApproach: "Common-cause basic events carried inside the system fault trees.",
-    parameterBasis: "The alpha-factor and beta-factor parameters supplied by the data analysis.",
+    parameterBasis: "The alpha-factor and MGL parameters supplied by the data analysis.",
     ccfGroupRefs: ["CCF-DRACS-LOOP", "CCF-DC-BATT"],
   },
   recoveryDependencyTreatment: "Recovery actions are applied with their dependence on the cause carried explicitly.",
@@ -743,11 +743,11 @@ const importanceAnalyses: ImportanceAnalysisRecord[] = [
     uuid: "IMP-1",
     scope: "OVERALL",
     measures: [
-      { entityType: "CCF_GROUP", entityRef: "DRACS loop common-cause group", fussellVesely: 0.22, riskAchievementWorth: 8.4 },
+      { entityType: "CCF_GROUP", entityRef: "DRACS loop common-cause group", fussellVesely: 0.22, riskAchievementWorth: 8.4, dataAnalysisParameterRef: "DA-CCF-12" },
       { entityType: "SYSTEM", entityRef: "Room cooling support", fussellVesely: 0.15, riskAchievementWorth: 5.1 },
       { entityType: "HUMAN_FAILURE_EVENT", entityRef: "Operator starts backup DHR", fussellVesely: 0.12, riskAchievementWorth: 4.2 },
-      { entityType: "CCF_GROUP", entityRef: "Station battery common-cause group", fussellVesely: 0.1, riskAchievementWorth: 3.6 },
-      { entityType: "BASIC_EVENT", entityRef: "Reactor protection channel", fussellVesely: 0.04, riskAchievementWorth: 1.9 },
+      { entityType: "CCF_GROUP", entityRef: "Station battery common-cause group", fussellVesely: 0.1, riskAchievementWorth: 3.6, dataAnalysisParameterRef: "DA-CCF-08" },
+      { entityType: "BASIC_EVENT", entityRef: "Reactor protection channel", fussellVesely: 0.04, riskAchievementWorth: 1.9, dataAnalysisParameterRef: "DA-BE-007" },
     ],
     implementsSrs: srs("ESQ-D7"),
   },
@@ -756,7 +756,7 @@ const importanceAnalyses: ImportanceAnalysisRecord[] = [
     scope: "PER_FAMILY",
     familyRef: "EFQ-1",
     measures: [
-      { entityType: "CCF_GROUP", entityRef: "DRACS loop common-cause group", fussellVesely: 0.41, riskAchievementWorth: 12.5 },
+      { entityType: "CCF_GROUP", entityRef: "DRACS loop common-cause group", fussellVesely: 0.41, riskAchievementWorth: 12.5, dataAnalysisParameterRef: "DA-CCF-12" },
       { entityType: "SYSTEM", entityRef: "Room cooling support", fussellVesely: 0.27, riskAchievementWorth: 6.8 },
       { entityType: "HUMAN_FAILURE_EVENT", entityRef: "Operator starts backup DHR", fussellVesely: 0.18, riskAchievementWorth: 4.4 },
     ],
@@ -798,6 +798,12 @@ const modelUncertaintySourceAssessments: ModelUncertaintySourceAssessment[] = [
   { uuid: "UF-6", sourceElementCode: "HR", uncertaintySource: "Human-error probabilities", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Drives the human-action cutsets.", implementsSrs: srs("ESQ-E1") },
   { uuid: "UF-7", sourceElementCode: "DA", uncertaintySource: "Parameter distributions", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Sets the spread of the family-frequency distribution.", implementsSrs: srs("ESQ-E1") },
   { uuid: "UF-8", sourceElementCode: "ESQ", uncertaintySource: "Truncation and approximation", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Bounds the residual computational error.", implementsSrs: srs("ESQ-E1") },
+  { uuid: "UF-9", sourceElementCode: "DA", uncertaintySource: "Similar-equipment adjustment for sodium service", relatedAssumptions: ["LWR pumps, level probes and detectors fail like their sodium-service counterparts once the service factor is applied."], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "LWR pump, level and fire-detection data are adjusted for sodium service. Over the factor's range the make-up pump probability runs from 5.88E-4 to 2.94E-3.", dataAnalysisSourceRef: { workbookId: "example-da-sfr", sourceId: "MU-1" }, implementsSrs: srs("ESQ-E1") },
+  { uuid: "UF-10", sourceElementCode: "DA", uncertaintySource: "EBR-II shutdown-system hours read through the planned test interval", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "The module probability depends on the hours each demand covers. Monthly to semiannual tests give 2.36E-4 to 3.05E-4 per demand.", dataAnalysisSourceRef: { workbookId: "example-da-sfr", sourceId: "MU-2" }, implementsSrs: srs("ESQ-E1") },
+  { uuid: "UF-11", sourceElementCode: "DA", uncertaintySource: "Planned demand, exposure and maintenance counts", relatedAssumptions: ["The planned surveillance and maintenance schedule stands in for operating records."], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Demands, run hours and maintenance hours come from the planned schedule until operating records exist. Each train unavailability moves in proportion to its maintenance hours.", dataAnalysisSourceRef: { workbookId: "example-da-sfr", sourceId: "MU-3" }, implementsSrs: srs("ESQ-E1") },
+  { uuid: "UF-12", sourceElementCode: "DA", uncertaintySource: "Coincident-maintenance assumption", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "The joint equalizing charge takes both battery banks out together for 22 h a year. The value is assumed until plant experience confirms it.", dataAnalysisSourceRef: { workbookId: "example-da-sfr", sourceId: "MU-4" }, implementsSrs: srs("ESQ-E1") },
+  { uuid: "UF-13", sourceElementCode: "DA", uncertaintySource: "Initiating-event frequencies from EBR-II experience and design estimates", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Thirteen group frequencies rest on EBR-II counts, EBR-II fault trees and design-based estimates. At the LWR offsite power rate, loss of electric power would drop 9.9 times.", dataAnalysisSourceRef: { workbookId: "example-da-sfr", sourceId: "MU-5" }, implementsSrs: srs("ESQ-E1") },
+  { uuid: "UF-14", sourceElementCode: "DA", uncertaintySource: "Common cause factors from the CCF 2020 data", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Each group takes generic factors for its size, and its testing scheme decides what Systems Analysis receives. Testing the DRACS loops on one day would make all three failing together 2.9 times more likely.", dataAnalysisSourceRef: { workbookId: "example-da-sfr", sourceId: "MU-6" }, implementsSrs: srs("ESQ-E1") },
 ];
 
 const uncertaintyPropagation: UncertaintyPropagation = {
@@ -832,6 +838,12 @@ const sensitivityStudies: SensitivityStudy[] = [
   { uuid: "SS-1", name: "Truncation sensitivity", description: "Sweep of the truncation cutoff below the chosen value.", variedParameters: ["Truncation cutoff"], parameterRanges: { "Truncation cutoff": [1e-14, 1e-12] }, results: "The family frequencies hold within a few percent below the chosen cutoff." },
   { uuid: "SS-2", name: "State-of-knowledge correlation sweep", description: "Sweep of the correlation handling between shared estimates.", variedParameters: ["Correlation"], parameterRanges: { Correlation: [0, 1] }, results: "Ignoring the correlation would understate the loss-of-cooling mean by about a third." },
   { uuid: "SS-3", name: "Barrier-capacity sweep", description: "Sweep of the guard-vessel capacity range.", variedParameters: ["Capacity factor"], parameterRanges: { "Capacity factor": [0.5, 2] }, results: "The leak family stays below the threshold across the capacity range." },
+  { uuid: "DA-SS-1", name: "Similar-equipment sweep", description: "The sodium make-up pump rests on LWR pump data adjusted for sodium service. The factor goes to its bounds of 1 and 5.", variedParameters: ["DA-BE-111"], parameterRanges: { "DA-BE-111": [0.0005877225608803913, 0.0029386128044019567] }, results: "The pump probability runs from 5.88E-4 to 2.94E-3 per demand, against 1.18E-3 for the nominal factor.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-1" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-2", name: "Test-interval sweep", description: "The sensor input module estimate with monthly and semiannual channel tests in place of quarterly ones.", variedParameters: ["DA-BE-082"], parameterRanges: { "DA-BE-082": [0.00023558505611735828, 0.00030480034508374184] }, results: "The module probability is 2.36E-4 per demand with monthly tests and 3.05E-4 with semiannual tests, against 2.86E-4 for the planned quarterly tests.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-2" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-3", name: "Pump maintenance sweep", description: "Intermediate pump maintenance between half and twice the planned 26 h a year.", variedParameters: ["DA-UA-03"], parameterRanges: { "DA-UA-03": [0.0014840182648401827, 0.005936073059360731] }, results: "The pump unavailability runs from 1.48E-3 to 5.94E-3, against 2.97E-3 for the plan.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-3" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-4", name: "Coincident-maintenance sweep", description: "The joint battery equalization unavailability from none to 5.0E-3.", variedParameters: ["DA-UA-05"], parameterRanges: { "DA-UA-05": [0, 0.005] }, results: "The planned joint charge gives 2.51E-3, inside the swept range.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-4" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-5", name: "Electric power at the LWR rate", description: "Loss of electric power at the 2020 LWR offsite power rate, against the EBR-II record of no losses in five years.", variedParameters: ["DA-IE-02"], parameterRanges: { "DA-IE-02": [0.020220548035077744, 0.2] }, results: "The LWR rate gives 2.02E-2 per year over the group's power states, 9.9 times below the EBR-II based value of 0.2.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-5" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-6", name: "DRACS loop testing scheme", description: "The three DRACS loops tested on one day instead of staggered.", variedParameters: ["DA-CCF-12"], parameterRanges: { "DA-CCF-12": [5.7262743742437295e-05, 0.000166919703950549] }, results: "All three loops failing together rises from 5.73E-5 to 1.67E-4, 2.9 times the staggered value.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-6" }, implementsSrs: srs("ESQ-E2") },
 ];
 
 const preOperationalAssumptions = [

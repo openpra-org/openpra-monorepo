@@ -1,6 +1,6 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { JSX, useId, useState } from "react";
+import { Fragment, JSX, useId, useState } from "react";
 import type {
   ComponentBoundary,
   ComponentGrouping,
@@ -24,7 +24,8 @@ import type {
   OutlierComponent,
 } from "interfaces-mef-types/da/data-analysis";
 import { DAIcon } from "./daIcons";
-import { Badge, DaProvenanceChip, DaTabs, FormFoot, FormRow, ModalHead, sciText } from "./daShared";
+import { Badge, DaProvenanceChip, DaTabs, DetailRow, DetailToggle, FieldList, FormFoot, FormRow, ModalHead, rowClass, sciText } from "./daShared";
+import { useElementWidth } from "./daDistributionChart";
 import { useDaWorkbook } from "./daWorkbookContext";
 import {
   CAPABILITY_CATEGORIES,
@@ -45,10 +46,6 @@ import {
   OPERATING_MODE_TEXT,
   OUTLIER_STATUS_TEXT,
   QUANTIFICATION_MODELS,
-  EVIDENCE_LADDER,
-  PARAM_TYPES,
-  ESTIMATION_APPROACH,
-  DA_METHODS,
   exampleLinkLabel,
   type Stage,
 } from "./daViewData";
@@ -87,41 +84,8 @@ import {
 } from "./daSelectors";
 
 interface DaDrawerContext {
-  kind: "estimate" | "failuredef" | "demand" | "exposure" | "testcred" | "unavail" | "coincident" | "repair" | "recovery" | "outage" | "ccf" | "uncsource" | "preop" | "sens" | "datamod" | "needEvent" | "needInitiator" | "needHuman" | "needCcf" | "needState" | "daParameter" | "daBoundary" | "daFailureMode" | "daGroup" | "daOutlier" | "daSource" | "daEntry" | "daSourcing" | "daElicitation" | "daCatalog" | "daImport";
+  kind: "needEvent" | "needInitiator" | "needHuman" | "needCcf" | "needState" | "daParameter" | "daBoundary" | "daFailureMode" | "daGroup" | "daOutlier" | "daSource" | "daEntry" | "daSourcing" | "daElicitation" | "daCatalog" | "daImport" | "daPrior" | "daEvidence" | "daEstimate" | "daRecordSet" | "daRecord" | "daRecordImport" | "daRule" | "daDesignChange" | "daDemand" | "daHours" | "daMaintenance" | "daRestoration" | "daOutage" | "daCcfGroup" | "daCcfEvents" | "daCcfFactors" | "daFrequency" | "daDistribution" | "daUncertaintySource" | "daSensitivity" | "daAssumption" | "daImportance";
   id: string;
-}
-
-function MethodChips({ ids, label }: { ids: string[]; label?: string }): JSX.Element | null {
-  const ms = ids.map((id) => DA_METHODS[id]).filter((m): m is (typeof DA_METHODS)[string] => m !== undefined);
-  if (ms.length === 0) return null;
-  return (
-    <div className="hrmethods">
-      {label !== undefined && <span className="hrmethods__label">{label}</span>}
-      {ms.map((m) => (
-        <span key={m.id} className="hrmethod-chip" title={`${m.name} · ${m.ref}`}>{m.abbr}</span>
-      ))}
-    </div>
-  );
-}
-
-function ParamTypePill({ type }: { type: string }): JSX.Element {
-  const t = PARAM_TYPES[type];
-  return <span className={`daptype daptype--${t?.tone ?? "primary"}`}>{t?.short ?? type}</span>;
-}
-
-function RungPill({ approach }: { approach?: string }): JSX.Element {
-  const a = approach !== undefined ? ESTIMATION_APPROACH[approach] : undefined;
-  return <span className={`darung darung--${a?.rung ?? "generic"}`}>{a?.label ?? "Generic"}</span>;
-}
-
-function LadderPosition({ rung }: { rung: string }): JSX.Element {
-  return (
-    <div className="daladpos">
-      {EVIDENCE_LADDER.map((r) => (
-        <span key={r.id} className={`daladpos__rung daladpos__rung--${r.color}${r.color === rung ? " daladpos__rung--on" : ""}`} title={r.label}>{r.label}</span>
-      ))}
-    </div>
-  );
 }
 
 const WORKBOOK_STATUS_LABEL: Record<string, string> = {
@@ -620,9 +584,9 @@ function NeedSourcesCard(): JSX.Element {
               return (
                 <tr key={element}>
                   <td>{NEED_ELEMENT_LABELS[element]}</td>
-                  <td>{name}{id !== undefined && !loaded[element] && <span className="da-rowtable__tag">Not loaded</span>}</td>
-                  <td>{NEED_ELEMENT_PROVIDES[element]}</td>
-                  <td>{source === undefined ? "—" : source.workbookName}</td>
+                  <td className="da-rowtable__text">{name}{id !== undefined && !loaded[element] && <span className="da-rowtable__tag">Not loaded</span>}</td>
+                  <td className="da-rowtable__text">{NEED_ELEMENT_PROVIDES[element]}</td>
+                  <td className="da-rowtable__text">{source === undefined ? "—" : source.workbookName}</td>
                   <td className="da-rowtable__num">{source === undefined ? "—" : counts[element]}</td>
                 </tr>
               );
@@ -653,6 +617,8 @@ function BasicEventNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openD
   const [system, setSystem] = useState("");
   const [kind, setKind] = useState("");
   const [page, setPage] = useState(0);
+  const [openId, setOpenId] = useState("");
+  const [wrapRef, wrapWidth] = useElementWidth(0);
   const filterId = useId();
   if (needs.basicEvents.length === 0) return <p className="posmuted">No basic event yet. Import them above or add them by hand.</p>;
   const systems = [...new Set(needs.basicEvents.flatMap((need) => (need.systemName === undefined ? [] : [need.systemName])))].sort();
@@ -676,28 +642,41 @@ function BasicEventNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openD
         </select>
         <NeedPager total={rows.length} page={current} onPage={setPage} />
       </div>
-      <div className="da-table-wrap">
+      <div className="da-table-wrap" ref={wrapRef}>
         <table className="postable da-rowtable" aria-label="Basic events">
           <thead>
-            <tr><th>Event</th><th>Name</th><th>System</th><th>Failure mode</th><th>Event type</th><th>Mission (h)</th><th>Test interval (h)</th><th>Value</th><th>Held by</th></tr>
+            <tr><th className="da-rowtable__pick">Details</th><th>Event</th><th>Name</th><th>Event type</th><th>Value</th></tr>
           </thead>
           <tbody>
-            {shown.map((need) => (
-              <tr key={need.id} className={need.included ? undefined : "da-rowtable__muted"}>
-                <td>
-                  <button type="button" className="da-rowtable__name" onClick={() => openDrawer({ kind: "needEvent", id: need.id })}>{need.code.trim().length > 0 ? need.code : need.id}</button>
-                  <NeedTags change={needChangeOf(needs, "SY", need.id)} manual={need.manual} edited={basicEventEdited(need)} excluded={!need.included} />
-                </td>
-                <td className="da-rowtable__wrap">{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
-                <td>{need.systemName ?? "—"}</td>
-                <td>{need.failureMode === undefined ? "—" : FAILURE_MODE_TEXT[need.failureMode] ?? need.failureMode}</td>
-                <td>{need.kind === undefined ? "Not set" : NEED_KIND_LABELS[need.kind]}</td>
-                <td className="da-rowtable__num">{need.kind === "RUNNING" ? plainNumber(need.missionTimeHours) : "—"}</td>
-                <td className="da-rowtable__num">{need.kind === "STANDBY" ? plainNumber(need.testIntervalHours) : "—"}</td>
-                <td className="da-rowtable__num">{need.value === undefined ? "—" : `${sciText(need.value)}${need.valueUnit === "PER_HOUR" ? " /h" : ""}`}</td>
-                <td>{heldByText(need)}</td>
-              </tr>
-            ))}
+            {shown.map((need) => {
+              const open = need.id === openId;
+              const code = need.code.trim().length > 0 ? need.code : need.id;
+              return (
+                <Fragment key={need.id}>
+                  <tr className={rowClass(!need.included, open)} onClick={() => { if (!open) setOpenId(need.id); }}>
+                    <td className="da-rowtable__pick"><DetailToggle open={open} label={code} onToggle={() => setOpenId(open ? "" : need.id)} /></td>
+                    <td className="da-rowtable__text">
+                      <button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "needEvent", id: need.id }); }}>{code}</button>
+                      <NeedTags change={needChangeOf(needs, "SY", need.id)} manual={need.manual} edited={basicEventEdited(need)} excluded={!need.included} />
+                    </td>
+                    <td className="da-rowtable__text">{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
+                    <td className="da-rowtable__text">{need.kind === undefined ? "Not set" : NEED_KIND_LABELS[need.kind]}</td>
+                    <td className="da-rowtable__num">{need.value === undefined ? "—" : `${sciText(need.value)}${need.valueUnit === "PER_HOUR" ? " /h" : ""}`}</td>
+                  </tr>
+                  {open && (
+                    <DetailRow span={5} width={wrapWidth - 18}>
+                      <FieldList items={[
+                        { label: "System", value: need.systemName ?? "—" },
+                        { label: "Failure mode", value: need.failureMode === undefined ? "—" : FAILURE_MODE_TEXT[need.failureMode] ?? need.failureMode },
+                        { label: "Mission (h)", value: need.kind === "RUNNING" ? plainNumber(need.missionTimeHours) : "—" },
+                        { label: "Test interval (h)", value: need.kind === "STANDBY" ? plainNumber(need.testIntervalHours) : "—" },
+                        { label: "Held by", value: heldByText(need) },
+                      ]} />
+                    </DetailRow>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -706,30 +685,42 @@ function BasicEventNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openD
 }
 
 function InitiatorNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
+  const [openId, setOpenId] = useState("");
+  const [wrapRef, wrapWidth] = useElementWidth(0);
   if (needs.initiators.length === 0) return <p className="posmuted">No initiator group yet. Import them above or add them by hand.</p>;
   return (
-    <div className="da-table-wrap">
+    <div className="da-table-wrap" ref={wrapRef}>
       <table className="postable da-rowtable" aria-label="Initiator groups">
         <thead>
-          <tr><th>Group</th><th>Name</th><th>Operating states</th><th>Members</th><th>Mean (/plant-year)</th><th>5th</th><th>95th</th><th>IE basis</th></tr>
+          <tr><th className="da-rowtable__pick">Details</th><th>Group</th><th>Name</th><th>Mean (/plant-year)</th><th>IE basis</th></tr>
         </thead>
         <tbody>
           {needs.initiators.map((need) => {
             const band = initiatorBand(need);
+            const open = need.id === openId;
             return (
-              <tr key={need.id} className={need.included ? undefined : "da-rowtable__muted"}>
-                <td>
-                  <button type="button" className="da-rowtable__name" onClick={() => openDrawer({ kind: "needInitiator", id: need.id })}>{need.id}</button>
-                  <NeedTags change={needChangeOf(needs, "IE", need.id)} manual={need.manual} excluded={!need.included} />
-                </td>
-                <td className="da-rowtable__wrap">{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
-                <td>{listCell(need.stateIds, "states")}</td>
-                <td>{listCell(need.memberIds, "initiators")}</td>
-                <td className="da-rowtable__num">{statText(need.meanFrequency)}</td>
-                <td className="da-rowtable__num">{statText(band.p05)}</td>
-                <td className="da-rowtable__num">{statText(band.p95)}</td>
-                <td>{need.frequencyBasis === undefined ? "—" : FREQUENCY_BASIS_TEXT[need.frequencyBasis] ?? need.frequencyBasis}</td>
-              </tr>
+              <Fragment key={need.id}>
+                <tr className={rowClass(!need.included, open)} onClick={() => { if (!open) setOpenId(need.id); }}>
+                  <td className="da-rowtable__pick"><DetailToggle open={open} label={need.id} onToggle={() => setOpenId(open ? "" : need.id)} /></td>
+                  <td className="da-rowtable__text">
+                    <button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "needInitiator", id: need.id }); }}>{need.id}</button>
+                    <NeedTags change={needChangeOf(needs, "IE", need.id)} manual={need.manual} excluded={!need.included} />
+                  </td>
+                  <td className="da-rowtable__text">{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
+                  <td className="da-rowtable__num">{statText(need.meanFrequency)}</td>
+                  <td className="da-rowtable__text">{need.frequencyBasis === undefined ? "—" : FREQUENCY_BASIS_TEXT[need.frequencyBasis] ?? need.frequencyBasis}</td>
+                </tr>
+                {open && (
+                  <DetailRow span={5} width={wrapWidth - 18}>
+                    <FieldList items={[
+                      { label: "Operating states", value: need.stateIds.length === 0 ? "—" : need.stateIds.join(", ") },
+                      { label: "Members", value: need.memberIds.length === 0 ? "—" : need.memberIds.join(", ") },
+                      { label: "5th percentile", value: statText(band.p05) },
+                      { label: "95th percentile", value: statText(band.p95) },
+                    ]} />
+                  </DetailRow>
+                )}
+              </Fragment>
             );
           })}
         </tbody>
@@ -739,28 +730,43 @@ function InitiatorNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openDr
 }
 
 function HumanErrorNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
+  const [openId, setOpenId] = useState("");
+  const [wrapRef, wrapWidth] = useElementWidth(0);
   if (needs.humanErrors.length === 0) return <p className="posmuted">No human failure event yet. Import them above or add them by hand.</p>;
   return (
-    <div className="da-table-wrap">
+    <div className="da-table-wrap" ref={wrapRef}>
       <table className="postable da-rowtable" aria-label="Human failure events">
         <thead>
-          <tr><th>Event</th><th>Name</th><th>Timing</th><th>Event type</th><th>Value</th><th>Value type</th><th>Operating states</th></tr>
+          <tr><th className="da-rowtable__pick">Details</th><th>Event</th><th>Name</th><th>Event type</th><th>Value</th></tr>
         </thead>
         <tbody>
-          {needs.humanErrors.map((need) => (
-            <tr key={need.id} className={need.included ? undefined : "da-rowtable__muted"}>
-              <td>
-                <button type="button" className="da-rowtable__name" onClick={() => openDrawer({ kind: "needHuman", id: need.id })}>{need.hfeId}</button>
-                <NeedTags change={needChangeOf(needs, "HRA", need.id)} manual={need.manual} excluded={!need.included} />
-              </td>
-              <td className="da-rowtable__wrap" title={need.method}>{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
-              <td>{need.timing === undefined ? "—" : HFE_TIMING_TEXT[need.timing] ?? need.timing}</td>
-              <td>{NEED_KIND_LABELS[need.kind]}</td>
-              <td className="da-rowtable__num">{statText(need.value)}</td>
-              <td>{need.valueKind === undefined ? "—" : need.valueKind === "MEAN" ? "Mean" : "Point estimate"}</td>
-              <td>{listCell(need.stateIds, "states")}</td>
-            </tr>
-          ))}
+          {needs.humanErrors.map((need) => {
+            const open = need.id === openId;
+            return (
+              <Fragment key={need.id}>
+                <tr className={rowClass(!need.included, open)} onClick={() => { if (!open) setOpenId(need.id); }}>
+                  <td className="da-rowtable__pick"><DetailToggle open={open} label={need.hfeId} onToggle={() => setOpenId(open ? "" : need.id)} /></td>
+                  <td className="da-rowtable__text">
+                    <button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "needHuman", id: need.id }); }}>{need.hfeId}</button>
+                    <NeedTags change={needChangeOf(needs, "HRA", need.id)} manual={need.manual} excluded={!need.included} />
+                  </td>
+                  <td className="da-rowtable__text">{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
+                  <td className="da-rowtable__text">{NEED_KIND_LABELS[need.kind]}</td>
+                  <td className="da-rowtable__num">{statText(need.value)}</td>
+                </tr>
+                {open && (
+                  <DetailRow span={5} width={wrapWidth - 18}>
+                    <FieldList items={[
+                      { label: "Timing", value: need.timing === undefined ? "—" : HFE_TIMING_TEXT[need.timing] ?? need.timing },
+                      { label: "Value type", value: need.valueKind === undefined ? "—" : need.valueKind === "MEAN" ? "Mean" : "Point estimate" },
+                      { label: "Method", value: need.method !== undefined && need.method.trim().length > 0 ? need.method : "—" },
+                      { label: "Operating states", value: need.stateIds.length === 0 ? "—" : need.stateIds.join(", ") },
+                    ]} />
+                  </DetailRow>
+                )}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -768,31 +774,44 @@ function HumanErrorNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openD
 }
 
 function CcfGroupNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
+  const [openId, setOpenId] = useState("");
+  const [wrapRef, wrapWidth] = useElementWidth(0);
   if (needs.ccfGroups.length === 0) return <p className="posmuted">No common cause group yet. Import them above or add them by hand.</p>;
   const codeOf = new Map(needs.basicEvents.map((need) => [need.id, need.code]));
   return (
-    <div className="da-table-wrap">
+    <div className="da-table-wrap" ref={wrapRef}>
       <table className="postable da-rowtable" aria-label="Common cause groups">
         <thead>
-          <tr><th>Group</th><th>Name</th><th>Systems</th><th>Members</th><th>Model</th><th>Factors</th><th>Total probability</th><th>Held by</th></tr>
+          <tr><th className="da-rowtable__pick">Details</th><th>Group</th><th>Name</th><th>Model</th><th>Total probability</th></tr>
         </thead>
         <tbody>
           {needs.ccfGroups.map((need) => {
             const factors = Object.entries(need.factors ?? {}).map(([key, value]) => `${key} ${sciText(value)}`);
+            const members = need.memberIds.map((member) => codeOf.get(member) ?? member);
+            const open = need.id === openId;
             return (
-              <tr key={need.id} className={need.included ? undefined : "da-rowtable__muted"}>
-                <td>
-                  <button type="button" className="da-rowtable__name" onClick={() => openDrawer({ kind: "needCcf", id: need.id })}>{need.id}</button>
-                  <NeedTags change={needChangeOf(needs, "SY", need.id)} manual={need.manual} excluded={!need.included} />
-                </td>
-                <td className="da-rowtable__wrap">{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
-                <td>{listCell(need.systemIds, "systems")}</td>
-                <td>{listCell(need.memberIds.map((member) => codeOf.get(member) ?? member), "members")}</td>
-                <td>{need.modelType === undefined ? "—" : CCF_MODEL_LABELS[need.modelType] ?? need.modelType}</td>
-                <td className="da-rowtable__mono">{factors.length === 0 ? "—" : factors.join(" · ")}</td>
-                <td className="da-rowtable__num">{statText(need.totalProbability)}</td>
-                <td>{need.manual !== undefined ? "—" : need.estimateRef === undefined ? "Typed in SY" : `DA · ${need.estimateRef}`}</td>
-              </tr>
+              <Fragment key={need.id}>
+                <tr className={rowClass(!need.included, open)} onClick={() => { if (!open) setOpenId(need.id); }}>
+                  <td className="da-rowtable__pick"><DetailToggle open={open} label={need.id} onToggle={() => setOpenId(open ? "" : need.id)} /></td>
+                  <td className="da-rowtable__text">
+                    <button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "needCcf", id: need.id }); }}>{need.id}</button>
+                    <NeedTags change={needChangeOf(needs, "SY", need.id)} manual={need.manual} excluded={!need.included} />
+                  </td>
+                  <td className="da-rowtable__text">{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
+                  <td className="da-rowtable__text">{need.modelType === undefined ? "—" : CCF_MODEL_LABELS[need.modelType] ?? need.modelType}</td>
+                  <td className="da-rowtable__num">{statText(need.totalProbability)}</td>
+                </tr>
+                {open && (
+                  <DetailRow span={5} width={wrapWidth - 18}>
+                    <FieldList items={[
+                      { label: "Systems", value: need.systemIds.length === 0 ? "—" : need.systemIds.join(", ") },
+                      { label: "Members", value: members.length === 0 ? "—" : members.join(", ") },
+                      { label: "Factors", value: factors.length === 0 ? "—" : factors.join(" · ") },
+                      { label: "Held by", value: need.manual !== undefined ? "—" : need.estimateRef === undefined ? "Typed in SY" : `DA · ${need.estimateRef}` },
+                    ]} />
+                  </DetailRow>
+                )}
+              </Fragment>
             );
           })}
         </tbody>
@@ -802,28 +821,42 @@ function CcfGroupNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openDra
 }
 
 function StateNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
+  const [openId, setOpenId] = useState("");
+  const [wrapRef, wrapWidth] = useElementWidth(0);
   if (needs.states.length === 0) return <p className="posmuted">No operating state yet. Import them above or add them by hand.</p>;
   const shares = stateShares(needs.states);
   return (
-    <div className="da-table-wrap">
+    <div className="da-table-wrap" ref={wrapRef}>
       <table className="postable da-rowtable" aria-label="Operating states">
         <thead>
-          <tr><th>State</th><th>Name</th><th>Mode</th><th>Duration (h)</th><th>Entries per year</th><th>% Share</th></tr>
+          <tr><th className="da-rowtable__pick">Details</th><th>State</th><th>Name</th><th>Duration (h)</th><th>% Share</th></tr>
         </thead>
         <tbody>
-          {needs.states.map((need) => (
-            <tr key={need.id} className={need.included ? undefined : "da-rowtable__muted"}>
-              <td>
-                <button type="button" className="da-rowtable__name" onClick={() => openDrawer({ kind: "needState", id: need.id })}>{need.id}</button>
-                <NeedTags change={needChangeOf(needs, "POS", need.id)} manual={need.manual} excluded={!need.included} />
-              </td>
-              <td className="da-rowtable__wrap">{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
-              <td>{need.mode === undefined ? "—" : OPERATING_MODE_TEXT[need.mode] ?? need.mode}</td>
-              <td className="da-rowtable__num">{plainNumber(need.durationHours)}</td>
-              <td className="da-rowtable__num">{need.entriesPerYear === 0 ? "Base state" : plainNumber(need.entriesPerYear)}</td>
-              <td className="da-rowtable__num">{percentText(shares.get(need.id))}</td>
-            </tr>
-          ))}
+          {needs.states.map((need) => {
+            const open = need.id === openId;
+            return (
+              <Fragment key={need.id}>
+                <tr className={rowClass(!need.included, open)} onClick={() => { if (!open) setOpenId(need.id); }}>
+                  <td className="da-rowtable__pick"><DetailToggle open={open} label={need.id} onToggle={() => setOpenId(open ? "" : need.id)} /></td>
+                  <td className="da-rowtable__text">
+                    <button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "needState", id: need.id }); }}>{need.id}</button>
+                    <NeedTags change={needChangeOf(needs, "POS", need.id)} manual={need.manual} excluded={!need.included} />
+                  </td>
+                  <td className="da-rowtable__text">{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
+                  <td className="da-rowtable__num">{plainNumber(need.durationHours)}</td>
+                  <td className="da-rowtable__num">{percentText(shares.get(need.id))}</td>
+                </tr>
+                {open && (
+                  <DetailRow span={5} width={wrapWidth - 18}>
+                    <FieldList items={[
+                      { label: "Mode", value: need.mode === undefined ? "—" : OPERATING_MODE_TEXT[need.mode] ?? need.mode },
+                      { label: "Entries per year", value: need.entriesPerYear === 0 ? "Base state" : plainNumber(need.entriesPerYear) },
+                    ]} />
+                  </DetailRow>
+                )}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -1401,6 +1434,8 @@ function ParametersTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
   const { da } = useDaWorkbook();
   const [model, setModel] = useState("");
   const [page, setPage] = useState(0);
+  const [openId, setOpenId] = useState("");
+  const [wrapRef, wrapWidth] = useElementWidth(0);
   const filterId = useId();
   if (da.parameters.length === 0) return <p className="posmuted">No parameter yet. Map the events automatically in the event map, or add one by hand.</p>;
   const events = new Map<string, string[]>();
@@ -1422,27 +1457,39 @@ function ParametersTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
         </select>
         <NeedPager total={rows.length} page={current} onPage={setPage} />
       </div>
-      <div className="da-table-wrap">
+      <div className="da-table-wrap" ref={wrapRef}>
         <table className="postable da-rowtable" aria-label="Parameters">
           <thead>
-            <tr><th>Parameter</th><th>Name</th><th>Model</th><th>Unit</th><th>Value</th><th>Value type</th><th>Value from</th><th>Events</th><th>States</th></tr>
+            <tr><th className="da-rowtable__pick">Details</th><th>Parameter</th><th>Name</th><th>Model</th><th>Value</th><th>Unit</th></tr>
           </thead>
           <tbody>
             {shown.map((parameter) => {
               const spec = modelSpecOf(parameter.quantificationModel);
               const unit = parameter.quantificationModel === "MISSION_PROBABILITY" && parameter.missionTimeHours !== undefined ? `per ${plainNumber(parameter.missionTimeHours)} h` : spec?.unit ?? "—";
+              const open = parameter.uuid === openId;
+              const mapped = events.get(parameter.uuid) ?? [];
+              const states = parameterStates(parameter);
               return (
-                <tr key={parameter.uuid}>
-                  <td><button type="button" className="da-rowtable__name" onClick={() => openDrawer({ kind: "daParameter", id: parameter.uuid })}>{parameter.uuid}</button></td>
-                  <td className="da-rowtable__wrap">{parameter.name.trim().length > 0 ? parameter.name : "Unnamed"}</td>
-                  <td>{spec?.label ?? "Not set"}</td>
-                  <td>{unit}</td>
-                  <td className="da-rowtable__num">{statText(parameter.value)}</td>
-                  <td>{parameter.value === undefined ? "—" : VALUE_TYPE_TEXT[parameter.valueType] ?? parameter.valueType}</td>
-                  <td>{parameterValueText(da, parameter)}</td>
-                  <td>{listCell(events.get(parameter.uuid) ?? [], "events")}</td>
-                  <td>{listCell(parameterStates(parameter), "states")}</td>
-                </tr>
+                <Fragment key={parameter.uuid}>
+                  <tr className={rowClass(false, open)} onClick={() => { if (!open) setOpenId(parameter.uuid); }}>
+                    <td className="da-rowtable__pick"><DetailToggle open={open} label={parameter.uuid} onToggle={() => setOpenId(open ? "" : parameter.uuid)} /></td>
+                    <td><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daParameter", id: parameter.uuid }); }}>{parameter.uuid}</button></td>
+                    <td className="da-rowtable__text">{parameter.name.trim().length > 0 ? parameter.name : "Unnamed"}</td>
+                    <td className="da-rowtable__text">{spec?.label ?? "Not set"}</td>
+                    <td className="da-rowtable__num">{statText(parameter.value)}</td>
+                    <td>{unit}</td>
+                  </tr>
+                  {open && (
+                    <DetailRow span={6} width={wrapWidth - 18}>
+                      <FieldList items={[
+                        { label: "Value type", value: parameter.value === undefined ? "—" : VALUE_TYPE_TEXT[parameter.valueType] ?? parameter.valueType },
+                        { label: "Value from", value: parameterValueText(da, parameter) },
+                        { label: "Events", value: mapped.length === 0 ? "—" : mapped.join(", ") },
+                        { label: "States", value: states.length === 0 ? "—" : states.join(", ") },
+                      ]} />
+                    </DetailRow>
+                  )}
+                </Fragment>
               );
             })}
           </tbody>
@@ -1457,6 +1504,8 @@ function EventMapTable({ unmapped }: { unmapped: number }): JSX.Element {
   const [source, setSource] = useState("");
   const [show, setShow] = useState("all");
   const [page, setPage] = useState(0);
+  const [openKey, setOpenKey] = useState("");
+  const [wrapRef, wrapWidth] = useElementWidth(0);
   const filterId = useId();
   const views = mappableNeeds(da.dataNeeds).filter((need) => need.included);
   if (da.dataNeeds === undefined) return <p className="posmuted">Import the data needs in Step 02 first.</p>;
@@ -1483,31 +1532,42 @@ function EventMapTable({ unmapped }: { unmapped: number }): JSX.Element {
         </select>
         <NeedPager total={rows.length} page={current} onPage={setPage} />
       </div>
-      <div className="da-table-wrap">
+      <div className="da-table-wrap" ref={wrapRef}>
         <table className="postable da-rowtable" aria-label="Event map">
           <thead>
-            <tr><th>Event</th><th>Name</th><th>From</th><th>Event type</th><th>Value</th><th>Parameter</th><th>Model</th></tr>
+            <tr><th className="da-rowtable__pick">Details</th><th>Event</th><th>Name</th><th>Event type</th><th>Parameter</th></tr>
           </thead>
           <tbody>
             {shown.map((need) => {
               const allowed = modelsForNeed(need);
               const mapped = need.parameterId === undefined ? undefined : byId.get(need.parameterId);
               const options = da.parameters.filter((parameter) => parameter.uuid === need.parameterId || parameter.quantificationModel === undefined || allowed.includes(parameter.quantificationModel));
+              const key = `${need.element}:${need.id}`;
+              const open = key === openKey;
               return (
-                <tr key={`${need.element}:${need.id}`}>
-                  <td>{need.code}</td>
-                  <td className="da-rowtable__wrap">{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
-                  <td>{need.element === "SY" ? `SY${need.systemName === undefined ? "" : ` · ${need.systemName}`}` : NEED_ELEMENT_LABELS[need.element]}</td>
-                  <td>{need.element === "IE" ? "Initiator" : need.kind === undefined ? "Not set" : NEED_KIND_LABELS[need.kind]}</td>
-                  <td className="da-rowtable__num">{statText(need.value)}</td>
-                  <td>
-                    <select className="posfield__select" aria-label={`Parameter for ${need.code}`} value={need.parameterId ?? ""} disabled={!editable} onChange={(event) => mutateDa((draft) => withNeedParameter(draft, need.element, need.id, event.target.value.length === 0 ? undefined : event.target.value))}>
-                      <option value="">Not mapped</option>
-                      {options.map((parameter) => <option key={parameter.uuid} value={parameter.uuid}>{parameter.uuid}</option>)}
-                    </select>
-                  </td>
-                  <td>{mapped === undefined ? "—" : modelSpecOf(mapped.quantificationModel)?.label ?? "Not set"}</td>
-                </tr>
+                <Fragment key={key}>
+                  <tr className={rowClass(false, open)} onClick={() => { if (!open) setOpenKey(key); }}>
+                    <td className="da-rowtable__pick"><DetailToggle open={open} label={need.code} onToggle={() => setOpenKey(open ? "" : key)} /></td>
+                    <td className="da-rowtable__text">{need.code}</td>
+                    <td className="da-rowtable__text">{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
+                    <td className="da-rowtable__text">{need.element === "IE" ? "Initiator" : need.kind === undefined ? "Not set" : NEED_KIND_LABELS[need.kind]}</td>
+                    <td>
+                      <select className="posfield__select" aria-label={`Parameter for ${need.code}`} value={need.parameterId ?? ""} disabled={!editable} onClick={(event) => event.stopPropagation()} onChange={(event) => mutateDa((draft) => withNeedParameter(draft, need.element, need.id, event.target.value.length === 0 ? undefined : event.target.value))}>
+                        <option value="">Not mapped</option>
+                        {options.map((parameter) => <option key={parameter.uuid} value={parameter.uuid}>{parameter.uuid}</option>)}
+                      </select>
+                    </td>
+                  </tr>
+                  {open && (
+                    <DetailRow span={5} width={wrapWidth - 18}>
+                      <FieldList items={[
+                        { label: "From", value: need.element === "SY" ? `SY${need.systemName === undefined ? "" : ` · ${need.systemName}`}` : NEED_ELEMENT_LABELS[need.element] },
+                        { label: "Value", value: statText(need.value) },
+                        { label: "Model", value: mapped === undefined ? "—" : modelSpecOf(mapped.quantificationModel)?.label ?? "Not set" },
+                      ]} />
+                    </DetailRow>
+                  )}
+                </Fragment>
               );
             })}
           </tbody>
@@ -1524,16 +1584,14 @@ function BoundariesTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
   return (
     <div className="da-table-wrap">
       <table className="postable da-rowtable" aria-label="Component boundaries">
-        <thead><tr><th>Boundary</th><th>Name</th><th>System</th><th>Included</th><th>Excluded</th><th>Parameters</th></tr></thead>
+        <thead><tr><th>Boundary</th><th>Name</th><th>System</th><th>Parameters</th></tr></thead>
         <tbody>
           {da.componentBoundaries.map((boundary) => (
             <tr key={boundary.uuid}>
               <td><button type="button" className="da-rowtable__name" onClick={() => openDrawer({ kind: "daBoundary", id: boundary.uuid })}>{boundary.uuid}</button></td>
-              <td className="da-rowtable__wrap">{boundary.name.trim().length > 0 ? boundary.name : "Unnamed"}</td>
-              <td>{systemName(da, boundary.systemId)}</td>
-              <td>{listCell(boundary.includedItems, "parts")}</td>
-              <td>{listCell(boundary.excludedItems ?? [], "parts")}</td>
-              <td>{listCell(da.parameters.filter((parameter) => parameter.componentBoundaryRef === boundary.uuid).map((parameter) => parameter.uuid), "parameters")}</td>
+              <td className="da-rowtable__text">{boundary.name.trim().length > 0 ? boundary.name : "Unnamed"}</td>
+              <td className="da-rowtable__text">{systemName(da, boundary.systemId)}</td>
+              <td className="da-rowtable__text">{listCell(da.parameters.filter((parameter) => parameter.componentBoundaryRef === boundary.uuid).map((parameter) => parameter.uuid), "parameters")}</td>
             </tr>
           ))}
         </tbody>
@@ -1549,15 +1607,14 @@ function FailureModesTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) 
   return (
     <div className="da-table-wrap">
       <table className="postable da-rowtable" aria-label="Failure modes">
-        <thead><tr><th>Mode</th><th>Name</th><th>Category</th><th>Detectability</th><th>Parameters</th></tr></thead>
+        <thead><tr><th>Mode</th><th>Name</th><th>Category</th><th>Parameters</th></tr></thead>
         <tbody>
           {modes.map((mode) => (
             <tr key={mode.uuid}>
               <td><button type="button" className="da-rowtable__name" onClick={() => openDrawer({ kind: "daFailureMode", id: mode.uuid })}>{mode.uuid}</button></td>
-              <td className="da-rowtable__wrap" title={mode.mechanismOfFailure}>{mode.name.trim().length > 0 ? mode.name : "Unnamed"}</td>
-              <td>{mode.category.length > 0 ? mode.category : "—"}</td>
-              <td>{DETECTABILITY_TEXT[mode.detectability] ?? mode.detectability}</td>
-              <td>{listCell(da.parameters.filter((parameter) => parameter.failureModeRef === mode.uuid).map((parameter) => parameter.uuid), "parameters")}</td>
+              <td className="da-rowtable__text" title={mode.mechanismOfFailure}>{mode.name.trim().length > 0 ? mode.name : "Unnamed"}</td>
+              <td className="da-rowtable__text">{mode.category.length > 0 ? mode.category : "—"}</td>
+              <td className="da-rowtable__text">{listCell(da.parameters.filter((parameter) => parameter.failureModeRef === mode.uuid).map((parameter) => parameter.uuid), "parameters")}</td>
             </tr>
           ))}
         </tbody>
@@ -1573,16 +1630,14 @@ function GroupsTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => voi
   return (
     <div className="da-table-wrap">
       <table className="postable da-rowtable" aria-label="Populations">
-        <thead><tr><th>Group</th><th>Name</th><th>System</th><th>Members</th><th>Grouped by</th><th>Parameters</th></tr></thead>
+        <thead><tr><th>Group</th><th>Name</th><th>System</th><th>Parameters</th></tr></thead>
         <tbody>
           {groups.map((group) => (
             <tr key={group.uuid}>
               <td><button type="button" className="da-rowtable__name" onClick={() => openDrawer({ kind: "daGroup", id: group.uuid })}>{group.uuid}</button></td>
-              <td className="da-rowtable__wrap">{group.name.trim().length > 0 ? group.name : "Unnamed"}</td>
-              <td>{systemName(da, group.systemId)}</td>
-              <td>{listCell(group.componentIds, "members")}</td>
-              <td>{GROUPING_BASIS[group.groupingBasis]?.label ?? group.groupingBasis}</td>
-              <td>{listCell(da.parameters.filter((parameter) => parameter.componentGroupRef === group.uuid).map((parameter) => parameter.uuid), "parameters")}</td>
+              <td className="da-rowtable__text">{group.name.trim().length > 0 ? group.name : "Unnamed"}</td>
+              <td className="da-rowtable__text">{systemName(da, group.systemId)}</td>
+              <td className="da-rowtable__text">{listCell(da.parameters.filter((parameter) => parameter.componentGroupRef === group.uuid).map((parameter) => parameter.uuid), "parameters")}</td>
             </tr>
           ))}
         </tbody>
@@ -1598,16 +1653,14 @@ function OutliersTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => v
   return (
     <div className="da-table-wrap">
       <table className="postable da-rowtable" aria-label="Outliers">
-        <thead><tr><th>Outlier</th><th>Component</th><th>System</th><th>Group</th><th>Reason</th><th>Status</th></tr></thead>
+        <thead><tr><th>Outlier</th><th>Component</th><th>System</th><th>Status</th></tr></thead>
         <tbody>
           {outliers.map((outlier) => (
             <tr key={outlier.uuid}>
               <td><button type="button" className="da-rowtable__name" onClick={() => openDrawer({ kind: "daOutlier", id: outlier.uuid })}>{outlier.uuid}</button></td>
-              <td className="da-rowtable__wrap">{outlier.componentId.trim().length > 0 ? outlier.componentId : "Unnamed"}</td>
-              <td>{systemName(da, outlier.systemId)}</td>
-              <td>{outlier.potentialGroupId.length > 0 ? outlier.potentialGroupId : "—"}</td>
-              <td className="da-rowtable__wrap">{outlier.exclusionReason.trim().length > 0 ? outlier.exclusionReason : "—"}</td>
-              <td>{OUTLIER_STATUS_TEXT[outlier.status] ?? outlier.status}</td>
+              <td className="da-rowtable__text">{outlier.componentId.trim().length > 0 ? outlier.componentId : "Unnamed"}</td>
+              <td className="da-rowtable__text">{systemName(da, outlier.systemId)}</td>
+              <td className="da-rowtable__text">{OUTLIER_STATUS_TEXT[outlier.status] ?? outlier.status}</td>
             </tr>
           ))}
         </tbody>
@@ -2018,19 +2071,20 @@ function OutlierWindow({ id, onClose }: { id: string; onClose: () => void }): JS
 
 export {
   AreaRow,
+  InclusionRows,
+  LinesRow,
   NEED_PAGE,
   NeedChecksTable,
   NeedPager,
   listCell,
+  listFromText,
   numberFrom,
+  plainNumber,
   statText,
+  systemOptions,
   ScopeScreen,
   DataNeedsScreen,
   NeedWindow,
   ParametersScreen,
-  MethodChips,
-  LadderPosition,
-  ParamTypePill,
-  RungPill,
   type DaDrawerContext,
 };

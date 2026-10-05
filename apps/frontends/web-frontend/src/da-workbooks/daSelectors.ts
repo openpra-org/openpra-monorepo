@@ -1,5 +1,4 @@
 import {
-  type BayesianUpdate,
   type DaBasicEventNeed,
   type DaCcfGroupNeed,
   type DaDataNeeds,
@@ -15,10 +14,10 @@ import {
   type DaScopeDecision,
   type DaScopeKind,
   type DaStateNeed,
+  type DaValueHolder,
   type DataAnalysis,
   type DataAnalysisParameter,
   type ParameterType,
-  type Uncertainty,
 } from "interfaces-mef-types/da/data-analysis";
 import { type CommonCauseFailureGroup, type SystemBasicEvent, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-models";
@@ -29,7 +28,12 @@ import { type QuantificationTimeUnit } from "interfaces-mef-types/modeling";
 import { type Workbook } from "interfaces-shared-types";
 import { type DaUpstream } from "./daWorkbookContext";
 import { sourcesComplete } from "./daSourcing";
-import { type ParameterDistribution, DistributionType } from "interfaces-mef-types/core/events";
+import { failuresComplete } from "./daFailures";
+import { unavailabilityComplete } from "./daUnavailability";
+import { ccfComplete, ccfFactorsOf } from "./daCcf";
+import { frequenciesComplete, stateShares } from "./daFrequencies";
+import { uncertaintyComplete } from "./daUncertainty";
+import { DistributionType } from "interfaces-mef-types/core/events";
 import {
   CONFORMANCE_ITEMS,
   DA_SCOPE_KINDS,
@@ -76,11 +80,6 @@ interface CcScore {
 
 const MS_PER_HOUR = 1000 * 60 * 60;
 const MS_PER_DAY = MS_PER_HOUR * 24;
-
-function fmtValue(v: number | undefined | null): string {
-  if (v === undefined || v === null) return "—";
-  return v.toExponential(1).replace("e", "E");
-}
 
 function initialsOf(name: string): string {
   const cleaned = name.startsWith("Dr. ") ? name.slice(4) : name;
@@ -264,6 +263,9 @@ function initiatorNeeds(ie: InitiatingEventsAnalysis): DaInitiatorNeed[] {
     }
     const basis = ie.quantifications.find((quantification) => quantification.initiatorOrGroupId === group.uuid)?.basis;
     if (basis !== undefined) need.frequencyBasis = basis;
+    const source = group.controlledDataSource;
+    need.valueHeldBy = source === undefined ? "TYPED" : "DA";
+    if (source !== undefined) need.valueHolderId = source.entityId;
     return need;
   });
 }
@@ -286,6 +288,9 @@ function humanErrorNeeds(hr: HumanReliabilityAnalysis): DaHumanErrorNeed[] {
       included: true,
     };
     if (event !== undefined) need.timing = event.hfeTiming;
+    const source = quantification.controlledDataSource;
+    need.valueHeldBy = source === undefined ? "TYPED" : "DA";
+    if (source !== undefined) need.valueHolderId = source.entityId;
     if (typeof quantification.meanHep === "number") {
       need.value = quantification.meanHep;
       need.valueKind = "MEAN";
@@ -299,27 +304,6 @@ function humanErrorNeeds(hr: HumanReliabilityAnalysis): DaHumanErrorNeed[] {
     .filter((event) => !quantified.has(event.uuid))
     .map((event): DaHumanErrorNeed => ({ id: event.uuid, hfeId: event.uuid, name: event.name, timing: event.hfeTiming, kind: "HUMAN_ERROR", stateIds: [...event.applicablePlantOperatingStates], included: true }));
   return [...rows, ...unquantified];
-}
-
-function ccfFactorsOf(group: CommonCauseFailureGroup): { factors: Record<string, number>; total?: number } {
-  const parameters = group.modelSpecificParameters;
-  if (parameters?.betaFactorParameters !== undefined) {
-    return { factors: { beta: parameters.betaFactorParameters.beta }, total: parameters.betaFactorParameters.totalFailureProbability };
-  }
-  if (parameters?.alphaFactorParameters !== undefined) {
-    return { factors: { ...parameters.alphaFactorParameters.alphaFactors }, total: parameters.alphaFactorParameters.totalFailureProbability };
-  }
-  if (parameters?.mglParameters !== undefined) {
-    const mgl = parameters.mglParameters;
-    const factors: Record<string, number> = { beta: mgl.beta, ...(mgl.additionalFactors ?? {}) };
-    if (typeof mgl.gamma === "number") factors.gamma = mgl.gamma;
-    if (typeof mgl.delta === "number") factors.delta = mgl.delta;
-    return { factors, total: mgl.totalFailureProbability };
-  }
-  if (parameters?.phiFactorParameters !== undefined) {
-    return { factors: { ...parameters.phiFactorParameters.phiFactors }, total: parameters.phiFactorParameters.totalFailureProbability };
-  }
-  return { factors: {} };
 }
 
 function ccfGroupNeeds(sy: SystemsAnalysis): DaCcfGroupNeed[] {
@@ -341,6 +325,7 @@ function stateNeeds(pos: PlantOperatingStatesAnalysis): DaStateNeed[] {
     if (Number.isFinite(state.meanDurationHours)) need.durationHours = state.meanDurationHours;
     const entries = typeof state.meanEntryFrequency === "number" ? state.meanEntryFrequency : state.meanEntryFrequency.value;
     if (Number.isFinite(entries)) need.entriesPerYear = entries;
+    need.valueHeldBy = state.outageSource === undefined ? "TYPED" : "DA";
     return need;
   });
 }
@@ -397,11 +382,11 @@ function basicEventKey(need: DaBasicEventNeed): string {
 }
 
 function initiatorKey(need: DaInitiatorNeed): string {
-  return JSON.stringify([need.name, need.stateIds, need.memberIds, need.meanFrequency, need.medianFrequency, need.errorFactor, need.frequencyUnit, need.frequencyBasis]);
+  return JSON.stringify([need.name, need.stateIds, need.memberIds, need.meanFrequency, need.medianFrequency, need.errorFactor, need.frequencyUnit, need.frequencyBasis, need.valueHeldBy, need.valueHolderId]);
 }
 
 function humanErrorKey(need: DaHumanErrorNeed): string {
-  return JSON.stringify([need.hfeId, need.name, need.timing, need.kind, need.value, need.valueKind, need.method, need.stateIds]);
+  return JSON.stringify([need.hfeId, need.name, need.timing, need.kind, need.value, need.valueKind, need.method, need.stateIds, need.valueHeldBy, need.valueHolderId]);
 }
 
 function ccfGroupKey(need: DaCcfGroupNeed): string {
@@ -409,7 +394,7 @@ function ccfGroupKey(need: DaCcfGroupNeed): string {
 }
 
 function stateKey(need: DaStateNeed): string {
-  return JSON.stringify([need.name, need.mode, need.durationHours, need.entriesPerYear]);
+  return JSON.stringify([need.name, need.mode, need.durationHours, need.entriesPerYear, need.valueHeldBy]);
 }
 
 function mergeBasicEvents(previous: readonly DaBasicEventNeed[], next: readonly DaBasicEventNeed[], changes: DaNeedChange[]): DaBasicEventNeed[] {
@@ -493,16 +478,6 @@ function needChangeOf(needs: DaDataNeeds, element: DaNeedElement, id: string): D
   return needs.changes?.find((change) => change.element === element && change.id === id)?.change;
 }
 
-function stateShares(states: readonly DaStateNeed[]): Map<string, number> {
-  const total = states.reduce((sum, state) => sum + (state.durationHours ?? 0), 0);
-  const shares = new Map<string, number>();
-  if (total <= 0) return shares;
-  for (const state of states) {
-    if (state.durationHours !== undefined) shares.set(state.id, state.durationHours / total);
-  }
-  return shares;
-}
-
 function initiatorBand(need: DaInitiatorNeed): { p05?: number; p95?: number } {
   if (need.medianFrequency === undefined || need.errorFactor === undefined || need.errorFactor <= 0) return {};
   return { p05: need.medianFrequency / need.errorFactor, p95: need.medianFrequency * need.errorFactor };
@@ -510,7 +485,7 @@ function initiatorBand(need: DaInitiatorNeed): { p05?: number; p95?: number } {
 
 type DaFindingSeverity = "error" | "warning" | "note";
 
-type DaNeedWindowKind = "needEvent" | "needInitiator" | "needHuman" | "needCcf" | "needState" | "daParameter" | "daBoundary" | "daFailureMode" | "daGroup" | "daOutlier" | "daSource" | "daEntry" | "daSourcing" | "daElicitation";
+type DaNeedWindowKind = "needEvent" | "needInitiator" | "needHuman" | "needCcf" | "needState" | "daParameter" | "daBoundary" | "daFailureMode" | "daGroup" | "daOutlier" | "daSource" | "daEntry" | "daSourcing" | "daElicitation" | "daPrior" | "daEvidence" | "daEstimate" | "daRecordSet" | "daRecord" | "daRule" | "daDesignChange" | "daDemand" | "daHours" | "daMaintenance" | "daRestoration" | "daOutage" | "daCcfGroup" | "daCcfEvents" | "daCcfFactors" | "daFrequency" | "daDistribution" | "daUncertaintySource" | "daSensitivity" | "daAssumption" | "daImportance";
 
 interface DaNeedFinding {
   severity: DaFindingSeverity;
@@ -747,6 +722,7 @@ interface DaMappableNeed {
   value?: number;
   valueType: "MEAN" | "POINT_ESTIMATE";
   ownerTyped: boolean;
+  heldBy?: DaValueHolder;
   parameterId?: string;
   missionTimeHours?: number;
   valueUnit?: "PROBABILITY" | "PER_HOUR";
@@ -777,6 +753,7 @@ function mappableNeeds(needs: DaDataNeeds | undefined): DaMappableNeed[] {
       value: need.value,
       valueType: "POINT_ESTIMATE",
       ownerTyped: need.manual === undefined && need.valueHeldBy === "TYPED" && need.value !== undefined,
+      heldBy: need.valueHeldBy,
       parameterId: need.parameterId,
       missionTimeHours: need.missionTimeHours,
       valueUnit: need.valueUnit,
@@ -792,7 +769,8 @@ function mappableNeeds(needs: DaDataNeeds | undefined): DaMappableNeed[] {
     included: need.included,
     value: need.meanFrequency,
     valueType: "MEAN",
-    ownerTyped: need.manual === undefined && need.meanFrequency !== undefined,
+    ownerTyped: need.manual === undefined && need.valueHeldBy !== "DA" && need.meanFrequency !== undefined,
+    heldBy: need.valueHeldBy,
     parameterId: need.parameterId,
     stateIds: need.stateIds,
   }));
@@ -805,7 +783,8 @@ function mappableNeeds(needs: DaDataNeeds | undefined): DaMappableNeed[] {
     included: need.included,
     value: need.value,
     valueType: need.valueKind === "MEAN" ? "MEAN" : "POINT_ESTIMATE",
-    ownerTyped: need.manual === undefined && need.value !== undefined,
+    ownerTyped: need.manual === undefined && need.valueHeldBy !== "DA" && need.value !== undefined,
+    heldBy: need.valueHeldBy,
     parameterId: need.parameterId,
     stateIds: need.stateIds,
   }));
@@ -903,6 +882,7 @@ function withAutoMapping(da: DataAnalysis): DataAnalysis {
   const humanErrors = needs.humanErrors.map((need) => {
     const view = viewOf("HRA", need.id);
     if (!need.included || need.parameterId !== undefined || view === undefined) return need;
+    if (need.valueHeldBy === "DA" && need.valueHolderId !== undefined && ids.has(need.valueHolderId)) return { ...need, parameterId: need.valueHolderId };
     const existing = parameters.find((parameter) => parameter.basicEventRef === need.hfeId && parameter.parameterType === "HUMAN_ERROR_PROBABILITY");
     if (existing !== undefined) return { ...need, parameterId: existing.uuid };
     if (!view.ownerTyped) return need;
@@ -913,6 +893,7 @@ function withAutoMapping(da: DataAnalysis): DataAnalysis {
   const initiators = needs.initiators.map((need) => {
     const view = viewOf("IE", need.id);
     if (!need.included || need.parameterId !== undefined || view === undefined) return need;
+    if (need.valueHeldBy === "DA" && need.valueHolderId !== undefined && ids.has(need.valueHolderId)) return { ...need, parameterId: need.valueHolderId };
     const only = need.memberIds.length === 1 ? need.memberIds[0] : undefined;
     const existing = parameters.find((parameter) => parameter.parameterType === "FREQUENCY" && parameter.basicEventRef !== undefined && (parameter.basicEventRef === need.id || parameter.basicEventRef === only));
     if (existing !== undefined) return { ...need, parameterId: existing.uuid };
@@ -959,7 +940,7 @@ function withLinkedValuesSynced(da: DataAnalysis): DataAnalysis {
     const link = parameter.valueLink;
     if (parameter.valueMode !== "LINKED" || link === undefined) return parameter;
     const need = views.find((view) => view.element === link.element && view.id === link.needId);
-    if (need === undefined) return parameter;
+    if (need === undefined || need.heldBy === "DA") return parameter;
     let next = parameter;
     if (need.value !== undefined && (need.value !== parameter.value || need.valueType !== parameter.valueType)) next = { ...next, value: need.value, valueType: need.valueType };
     if (need.stateIds.length > 0 && !sameList(need.stateIds, parameterStates(parameter))) next = { ...next, stateIds: [...need.stateIds] };
@@ -1167,17 +1148,17 @@ function stepsForPersona(persona: DaPersona): DaStep[] {
   return DA_STEPS.filter((s) => ids.includes(s.id));
 }
 
-function stepsFromMef(da: DataAnalysis, persona: DaPersona): DaStep[] {
+function stepsFromMef(da: DataAnalysis, persona: DaPersona, handoffsDone = false): DaStep[] {
   const base = stepsForPersona(persona);
   const scopeComplete = scopeItemsToComplete(da).length === 0;
   const needsDone = needsComplete(da);
   const parametersDone = parametersComplete(da);
   const genericComplete = sourcesComplete(da);
-  const countsComplete = (da.demandCountRecords?.length ?? 0) > 0 || (da.exposureTimeRecords?.length ?? 0) > 0;
-  const unavailComplete = (da.unavailabilityDataRecords?.length ?? 0) > 0;
-  const estimateComplete = da.parameters.some((p) => p.probabilityModel !== undefined);
-  const ccfComplete = (da.ccfParameterEstimations?.length ?? 0) > 0;
-  const uncertComplete = (da.preOperationalAssumptions?.length ?? 0) > 0 || da.modelUncertainty.uncertaintySources.length > 0;
+  const countsComplete = failuresComplete(da);
+  const unavailComplete = unavailabilityComplete(da);
+  const commonCauseComplete = ccfComplete(da);
+  const initiatorsComplete = frequenciesComplete(da);
+  const uncertComplete = uncertaintyComplete(da);
   const draftComplete = da.workflowState !== "DRAFT" && da.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = da.workflowState === "FINAL";
 
@@ -1193,66 +1174,15 @@ function stepsFromMef(da: DataAnalysis, persona: DaPersona): DaStep[] {
       case "generic": return { ...s, status: status(genericComplete) };
       case "counts": return { ...s, status: status(countsComplete) };
       case "unavail": return { ...s, status: status(unavailComplete) };
-      case "estimate": return { ...s, status: status(estimateComplete) };
-      case "ccf": return { ...s, status: status(ccfComplete) };
+      case "ccf": return { ...s, status: status(commonCauseComplete) };
+      case "ie": return { ...s, status: status(initiatorsComplete) };
       case "uncert": return { ...s, status: status(uncertComplete) };
+      case "handoffs": return { ...s, status: status(handoffsDone) };
       case "draft": return { ...s, status: status(draftComplete) };
       case "review": return { ...s, status: status(reviewComplete) };
       default: return { ...s, status: "idle" as const };
     }
   });
-}
-
-function distLabel(dist: ParameterDistribution | undefined): string {
-  if (dist === undefined) return "—";
-  switch (dist.type) {
-    case DistributionType.BETA: return "Beta";
-    case DistributionType.GAMMA: return "Gamma";
-    case DistributionType.LOGNORMAL: return "Lognormal";
-    case DistributionType.LOGNORMAL_TIME: return "Lognormal";
-    case DistributionType.NORMAL: return "Normal";
-    case DistributionType.UNIFORM: return "Uniform";
-    case DistributionType.EXPONENTIAL: return "Exponential";
-    case DistributionType.WEIBULL: return "Weibull";
-    case DistributionType.POISSON: return "Poisson";
-    case DistributionType.BINOMIAL: return "Binomial";
-    case DistributionType.POINT_ESTIMATE: return "Point estimate";
-    default: return "—";
-  }
-}
-
-function modelBasis(param: DataAnalysisParameter): "DEMAND" | "TIME" {
-  return param.probabilityModel?.distribution.type === DistributionType.BETA ? "DEMAND" : "TIME";
-}
-
-function paramIsWarn(param: DataAnalysisParameter): boolean {
-  return param.similarEquipmentAdjustment !== undefined && param.valueType === "POINT_ESTIMATE";
-}
-
-function methodIdsForParameter(param: DataAnalysisParameter): string[] {
-  const bu = param.bayesianUpdate;
-  if (bu !== undefined && bu.performed) {
-    const method = bu.method.toLowerCase();
-    const prior = method.includes("empirical") || method.includes("population") ? "empbayes" : method.includes("jeffreys") ? "jeffreys" : "bayes";
-    return ["bayes", prior];
-  }
-  return ["mle"];
-}
-
-function uncertaintyText(uncertainty: Uncertainty | undefined, riskSignificant: boolean): string {
-  const dist = uncertainty?.distribution;
-  if (dist !== undefined && dist.type === DistributionType.LOGNORMAL) {
-    return `Lognormal with an error factor of ${dist.errorFactor}${riskSignificant ? ", risk-significant." : "."}`;
-  }
-  return "Point value with a stated bound at CC-I.";
-}
-
-function posteriorText(bu: BayesianUpdate): string {
-  const dist = bu.posterior?.distribution;
-  if (dist !== undefined && dist.type === DistributionType.LOGNORMAL) {
-    return `${fmtValue(dist.median)} · EF ${dist.errorFactor}`;
-  }
-  return "Posterior estimated";
 }
 
 export {
@@ -1298,13 +1228,6 @@ export {
   stepsForPersona,
   stepsFromMef,
   initialsOf,
-  fmtValue,
-  distLabel,
-  modelBasis,
-  paramIsWarn,
-  methodIdsForParameter,
-  uncertaintyText,
-  posteriorText,
   type CommentView,
   type CcScore,
 };

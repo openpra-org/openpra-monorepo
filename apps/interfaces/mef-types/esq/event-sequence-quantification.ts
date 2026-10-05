@@ -480,6 +480,7 @@ export interface ModelUncertaintySourceAssessment extends Unique {
   evaluationType: "QUALITATIVE" | "QUANTITATIVE";
   evaluationScope: "INDIVIDUAL" | "COMBINATION";
   effectOnFamilyFrequencies: string;
+  dataAnalysisSourceRef?: { workbookId: string; sourceId: string };
   implementsSrs: SRReference[];
 }
 

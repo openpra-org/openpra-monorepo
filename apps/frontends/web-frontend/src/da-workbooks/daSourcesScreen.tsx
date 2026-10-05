@@ -1,4 +1,4 @@
-import { Fragment, JSX, KeyboardEvent, type ReactNode, useEffect, useId, useMemo, useState } from "react";
+import { Fragment, JSX, KeyboardEvent, useEffect, useId, useMemo, useState } from "react";
 import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
 import type {
   DataAnalysis,
@@ -20,7 +20,7 @@ import type {
 import { DA_SOURCE_CATALOG, daCatalogSource } from "interfaces-mef-types/da/generic-sources";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
-import { DaProvenanceChip, DaTabs, FormFoot, FormRow, ModalHead, sciText } from "./daShared";
+import { ClampCell, DaProvenanceChip, DaTabs, DetailRow, FieldList, FormFoot, FormRow, ModalHead, PlotToggle, sciText } from "./daShared";
 import { distributionQuantile, judgmentComponent } from "./daDistributions";
 import { DistributionChart, useElementWidth, type DistributionSeries } from "./daDistributionChart";
 import { useDaWorkbook } from "./daWorkbookContext";
@@ -50,6 +50,7 @@ import {
   libraryCount,
   libraryEntries,
   needsHoursPerYear,
+  needsPrior,
   needsSourcing,
   nextCode,
   parameterPrior,
@@ -178,31 +179,23 @@ function waitingSources(sources: readonly DaSource[], builtIn: ReadonlyMap<strin
   return sources.filter((source) => source.catalogId !== undefined && catalogDataset(source.catalogId) !== undefined && !builtIn.has(source.catalogId)).length;
 }
 
-function PlotToggle({ open, label, onToggle }: { open: boolean; label: string; onToggle: () => void }): JSX.Element {
-  return (
-    <button type="button" className="da-rowtable__plot" aria-expanded={open} aria-label={`${open ? "Hide" : "Plot"} the distribution of ${label}`} onClick={(event) => { event.stopPropagation(); onToggle(); }}>
-      {open ? "Hide" : "Plot"}
-    </button>
-  );
-}
-
-function DetailRow({ span, width, children }: { span: number; width: number; children: ReactNode }): JSX.Element {
-  return (
-    <tr className="da-rowtable__detail-row">
-      <td colSpan={span} className="da-rowtable__detail">
-        <div className="da-rowtable__detail-inner" style={width > 0 ? { width: `${width}px` } : undefined}>{children}</div>
-      </td>
-    </tr>
-  );
-}
-
-function EstimateDetail({ entry }: { entry: DaSourceEntry }): JSX.Element {
+function EstimateDetail({ source, entry }: { source: DaSource; entry: DaSourceEntry }): JSX.Element {
   const fit = entryFit(entry);
-  if (fit === undefined) return <p className="posmuted">This estimate has no value to plot.</p>;
   return (
     <>
-      {fit.basis !== "PRINTED" && <p className="da-needs__meta da-needs__meta--lead">{FIT_NOTES[fit.basis]}</p>}
-      <DistributionChart series={[{ key: entry.id, label: entry.id, detail: "", distribution: fit.distribution }]} unit={QUANTITY_LABELS[entry.quantity]} />
+      <FieldList items={[
+        { label: "Source", value: `${source.id} · ${source.name}` },
+        { label: "Distribution", value: distributionText(entry.distribution ?? entryDistribution(entry)) },
+        { label: "5th percentile", value: statText(entry.p05) },
+        { label: "95th percentile", value: statText(entry.p95) },
+        { label: "Data", value: dataText(entry) },
+      ]} />
+      {fit === undefined ? <p className="posmuted">This estimate has no value to plot.</p> : (
+        <>
+          {fit.basis !== "PRINTED" && <p className="da-needs__meta da-needs__meta--lead">{FIT_NOTES[fit.basis]}</p>}
+          <DistributionChart series={[{ key: entry.id, label: entry.id, detail: "", distribution: fit.distribution }]} unit={QUANTITY_LABELS[entry.quantity]} />
+        </>
+      )}
     </>
   );
 }
@@ -216,7 +209,24 @@ function ParameterDetail({ parameter }: { parameter: DataAnalysisParameter }): J
   });
   const focusKey = focus !== undefined && results.some((item) => item.use.id === focus) ? focus : results.find((item) => item.use.id === parameter.priorUseId)?.use.id ?? results[0]?.use.id;
   const anchor = results.find((item) => item.use.id === focusKey);
-  if (anchor === undefined) return <p className="posmuted">No considered source has a value to plot yet.</p>;
+  const prior = parameterPrior(da, parameter);
+  const fields = (
+    <FieldList items={[
+      { label: "Model", value: modelSpecOf(parameter.quantificationModel)?.label ?? "Not set" },
+      { label: "Evidence", value: parameter.evidenceKind === undefined ? "—" : EVIDENCE_KIND_LABELS[parameter.evidenceKind] },
+      { label: "5th percentile", value: statText(prior?.p05) },
+      { label: "95th percentile", value: statText(prior?.p95) },
+      { label: "Considered", value: String((parameter.sourceUses ?? []).length) },
+    ]} />
+  );
+  if (anchor === undefined) {
+    return (
+      <>
+        {fields}
+        <p className="posmuted">No considered source has a value to plot yet.</p>
+      </>
+    );
+  }
   const plotted = results.filter((item) => item.result.quantity === anchor.result.quantity);
   const series: DistributionSeries[] = plotted.map(({ use, result }) => ({
     key: use.id,
@@ -227,6 +237,7 @@ function ParameterDetail({ parameter }: { parameter: DataAnalysisParameter }): J
   const left = results.length - plotted.length;
   return (
     <>
+      {fields}
       <p className="da-needs__meta da-needs__meta--lead">Each curve is a considered source after its unit conversion and transfer factors.</p>
       <DistributionChart series={series} focusKey={focusKey} unit={QUANTITY_LABELS[anchor.result.quantity]} onFocus={setFocus} />
       {left > 0 && <p className="da-needs__meta">{left} considered {left === 1 ? "source is" : "sources are"} in another unit and {left === 1 ? "is" : "are"} not plotted.</p>}
@@ -245,11 +256,21 @@ function JudgmentDetail({ elicitation }: { elicitation: DaElicitation }): JSX.El
     return [{ key: expert.id, label: expert.name.trim().length > 0 ? expert.name : expert.id, detail: stated ? `weight ${expert.weight ?? 0}` : "", distribution: { type: DistributionType.LOGNORMAL, median: Math.exp(part.mu), errorFactor: Math.exp(Z95 * part.sigma) } }];
   });
   const series: DistributionSeries[] = [...(pooled === undefined ? [] : [{ key: "POOLED", label: "Pooled result", detail: elicitation.pooling === "LINEAR" ? "Linear pool, fitted lognormal" : "Logarithmic pool", distribution: pooled.distribution }]), ...experts];
-  if (series.length === 0) return <p className="posmuted">No evaluator has given a full set of percentiles yet.</p>;
   return (
     <>
-      <p className="da-needs__meta da-needs__meta--lead">Each expert curve is a lognormal with that expert's median and the spread of their 5th and 95th percentiles.</p>
-      <DistributionChart series={series} focusKey={series.some((item) => item.key === focus) ? focus : series[0]?.key} unit={QUANTITY_LABELS[elicitation.quantity]} onFocus={setFocus} />
+      <FieldList items={[
+        { label: "Evaluators", value: String(evaluators.length) },
+        { label: "Pooling", value: elicitation.pooling === "LINEAR" ? "Linear" : "Logarithmic" },
+        { label: "5th percentile", value: pooled === undefined ? "—" : statText(distributionQuantile(pooled.distribution, 0.05)) },
+        { label: "95th percentile", value: pooled === undefined ? "—" : statText(distributionQuantile(pooled.distribution, 0.95)) },
+        { label: "Owner", value: elicitation.integrator.trim().length > 0 ? elicitation.integrator : "—" },
+      ]} />
+      {series.length === 0 ? <p className="posmuted">No evaluator has given a full set of percentiles yet.</p> : (
+        <>
+          <p className="da-needs__meta da-needs__meta--lead">Each expert curve is a lognormal with that expert's median and the spread of their 5th and 95th percentiles.</p>
+          <DistributionChart series={series} focusKey={series.some((item) => item.key === focus) ? focus : series[0]?.key} unit={QUANTITY_LABELS[elicitation.quantity]} onFocus={setFocus} />
+        </>
+      )}
     </>
   );
 }
@@ -261,17 +282,15 @@ function LibraryTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
   return (
     <div className="da-table-wrap">
       <table className="postable da-rowtable" aria-label="Source library">
-        <thead><tr><th>Source</th><th>Name</th><th>Evidence</th><th>Origin</th><th>Years</th><th>Estimates</th><th>Used by</th></tr></thead>
+        <thead><tr><th>Source</th><th>Name</th><th>Years</th><th>Estimates</th><th>Used by</th></tr></thead>
         <tbody>
           {sources.map((source) => (
             <tr key={source.id}>
               <td><button type="button" className="da-rowtable__name" onClick={() => openDrawer({ kind: "daSource", id: source.id })}>{source.id}</button></td>
-              <td className="da-rowtable__wrap">{source.name.trim().length > 0 ? source.name : "Unnamed"}</td>
-              <td>{EVIDENCE_KIND_LABELS[source.kind]}</td>
-              <td>{SOURCE_ORIGIN_LABELS[source.origin]}</td>
+              <td className="da-rowtable__text">{source.name.trim().length > 0 ? source.name : "Unnamed"}</td>
               <td>{yearsText(source.yearsFrom, source.yearsTo)}</td>
               <td className="da-rowtable__num">{libraryCount(source)}</td>
-              <td>{listCell(sourceUsers(da, source.id), "parameters")}</td>
+              <td className="da-rowtable__text">{listCell(sourceUsers(da, source.id), "parameters")}</td>
             </tr>
           ))}
         </tbody>
@@ -327,29 +346,25 @@ function EstimatesTable({ sourceId, setSourceId, selected, onSelect, openDrawer 
       {rows.length === 0 ? <p className="posmuted">{words.length > 0 || unit !== "" ? "No estimate matches." : waiting > 0 ? "" : "No estimate yet. Add a built-in source, import a file, or add an estimate by hand."}</p> : (
         <div className="da-table-wrap" ref={wrapRef}>
           <table className="postable da-rowtable" aria-label="Estimates">
-            <thead><tr><th className="da-rowtable__pick">Plot</th><th>Source</th><th>Estimate</th><th>Component</th><th>Failure mode</th><th>Unit</th><th>Distribution</th><th>Mean</th><th>5th</th><th>95th</th><th>Data</th><th>Years</th></tr></thead>
+            <thead><tr><th className="da-rowtable__pick">Plot</th><th>Estimate</th><th className="da-rowtable__text">Component and failure mode</th><th>Mean</th><th>Unit</th><th>Years</th></tr></thead>
             <tbody>
               {shown.map(({ source, entry }) => {
-                const distribution = entryDistribution(entry);
                 const key = `${source.id}|${entry.id}`;
                 const open = key === selected;
                 return (
                   <Fragment key={key}>
                   <tr className={open ? "da-rowtable__row--on" : undefined} onClick={() => { if (!open) onSelect(key); }}>
                     <td className="da-rowtable__pick"><PlotToggle open={open} label={entry.id} onToggle={() => onSelect(open ? "" : key)} /></td>
-                    <td>{source.id}</td>
-                    <td><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daEntry", id: `${source.id}|${entry.id}` }); }}>{entry.id}</button></td>
-                    <td className="da-rowtable__wrap">{entry.component.trim().length > 0 ? entry.component : "—"}</td>
-                    <td className="da-rowtable__wrap">{entry.failureMode.trim().length > 0 ? entry.failureMode : "—"}</td>
-                    <td>{QUANTITY_LABELS[entry.quantity]}</td>
-                    <td>{distributionText(entry.distribution ?? distribution)}</td>
+                    <td className="da-rowtable__text"><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daEntry", id: `${source.id}|${entry.id}` }); }}>{entry.id}</button></td>
+                    <td className="da-rowtable__text">
+                      {entry.component.trim().length > 0 ? entry.component : "—"}
+                      {entry.failureMode.trim().length > 0 && <span className="da-rowtable__sub">{entry.failureMode}</span>}
+                    </td>
                     <td className="da-rowtable__num">{statText(entry.mean)}</td>
-                    <td className="da-rowtable__num">{statText(entry.p05)}</td>
-                    <td className="da-rowtable__num">{statText(entry.p95)}</td>
-                    <td>{dataText(entry)}</td>
+                    <td>{QUANTITY_LABELS[entry.quantity]}</td>
                     <td>{yearsText(entry.yearsFrom, entry.yearsTo)}</td>
                   </tr>
-                  {open && <DetailRow span={12} width={wrapWidth - 16}><EstimateDetail entry={entry} /></DetailRow>}
+                  {open && <DetailRow span={6} width={wrapWidth - 18}><EstimateDetail source={source} entry={entry} /></DetailRow>}
                   </Fragment>
                 );
               })}
@@ -370,7 +385,7 @@ function ApplicabilityTable({ selected, onSelect, openDrawer }: { selected: stri
   const parameters = da.parameters.filter(needsSourcing);
   const linked = da.parameters.length - parameters.length;
   if (da.parameters.length === 0) return <p className="posmuted">Define the parameters in Step 03 first.</p>;
-  const rows = parameters.filter((parameter) => show === "all" || parameterPrior(da, parameter) === undefined);
+  const rows = parameters.filter((parameter) => show === "all" || (needsPrior(parameter) && parameterPrior(da, parameter) === undefined));
   const pages = Math.max(1, Math.ceil(rows.length / NEED_PAGE));
   const current = Math.min(page, pages - 1);
   const shown = rows.slice(current * NEED_PAGE, (current + 1) * NEED_PAGE);
@@ -387,29 +402,24 @@ function ApplicabilityTable({ selected, onSelect, openDrawer }: { selected: stri
       </div>
       <div className="da-table-wrap" ref={wrapRef}>
         <table className="postable da-rowtable" aria-label="Applicability">
-          <thead><tr><th className="da-rowtable__pick">Plot</th><th>Parameter</th><th>Name</th><th>Model</th><th>Evidence</th><th>Prior from</th><th>Prior mean</th><th>5th</th><th>95th</th><th>Unit</th><th>Considered</th></tr></thead>
+          <thead><tr><th className="da-rowtable__pick">Plot</th><th>Parameter</th><th>Name</th><th>Prior from</th><th>Prior mean</th><th>Unit</th></tr></thead>
           <tbody>
             {shown.map((parameter) => {
               const prior = parameterPrior(da, parameter);
               const use = (parameter.sourceUses ?? []).find((candidate) => candidate.id === parameter.priorUseId);
-              const from = use === undefined ? "—" : use.elicitationId !== undefined ? use.elicitationId : `${sources.get(use.sourceId ?? "")?.id ?? "?"} · ${use.entryId ?? "?"}`;
+              const from = !needsPrior(parameter) ? (parameter.quantificationModel === "FREQUENCY" ? "Parts in Step 08" : "Parts in Step 06") : use === undefined ? "—" : use.elicitationId !== undefined ? use.elicitationId : `${sources.get(use.sourceId ?? "")?.id ?? "?"} · ${use.entryId ?? "?"}`;
               const open = parameter.uuid === selected;
               return (
                 <Fragment key={parameter.uuid}>
                 <tr className={open ? "da-rowtable__row--on" : undefined} onClick={() => { if (!open) onSelect(parameter.uuid); }}>
                   <td className="da-rowtable__pick"><PlotToggle open={open} label={parameter.uuid} onToggle={() => onSelect(open ? "" : parameter.uuid)} /></td>
                   <td><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daSourcing", id: parameter.uuid }); }}>{parameter.uuid}</button></td>
-                  <td className="da-rowtable__wrap">{parameter.name.trim().length > 0 ? parameter.name : "Unnamed"}</td>
-                  <td>{modelSpecOf(parameter.quantificationModel)?.label ?? "Not set"}</td>
-                  <td>{parameter.evidenceKind === undefined ? "—" : EVIDENCE_KIND_LABELS[parameter.evidenceKind]}</td>
-                  <td>{from}{use?.verdict === "SCALED" ? " · scaled" : ""}</td>
+                  <td className="da-rowtable__text">{parameter.name.trim().length > 0 ? parameter.name : "Unnamed"}</td>
+                  <td className="da-rowtable__text">{from}{use?.verdict === "SCALED" ? " · scaled" : ""}</td>
                   <td className="da-rowtable__num">{statText(prior?.mean)}</td>
-                  <td className="da-rowtable__num">{statText(prior?.p05)}</td>
-                  <td className="da-rowtable__num">{statText(prior?.p95)}</td>
                   <td>{prior === undefined ? "—" : QUANTITY_LABELS[prior.quantity]}</td>
-                  <td className="da-rowtable__num">{(parameter.sourceUses ?? []).length}</td>
                 </tr>
-                {open && <DetailRow span={11} width={wrapWidth - 16}><ParameterDetail parameter={parameter} /></DetailRow>}
+                {open && <DetailRow span={6} width={wrapWidth - 18}><ParameterDetail parameter={parameter} /></DetailRow>}
                 </Fragment>
               );
             })}
@@ -429,28 +439,22 @@ function JudgmentTable({ selected, onSelect, openDrawer }: { selected: string; o
   return (
     <div className="da-table-wrap" ref={wrapRef}>
       <table className="postable da-rowtable" aria-label="Expert judgment">
-        <thead><tr><th className="da-rowtable__pick">Plot</th><th>Elicitation</th><th>Issue</th><th>Unit</th><th>Evaluators</th><th>Pooling</th><th>Mean</th><th>5th</th><th>95th</th><th>Owner</th><th>Used by</th></tr></thead>
+        <thead><tr><th className="da-rowtable__pick">Plot</th><th>Elicitation</th><th>Issue</th><th>Mean</th><th>Unit</th><th>Used by</th></tr></thead>
         <tbody>
           {elicitations.map((elicitation) => {
             const pooled = elicitationResult(elicitation);
-            const result = pooled === undefined ? undefined : { mean: pooled.mean, p05: distributionQuantile(pooled.distribution, 0.05), p95: distributionQuantile(pooled.distribution, 0.95) };
             const open = elicitation.id === selected;
             return (
               <Fragment key={elicitation.id}>
               <tr className={open ? "da-rowtable__row--on" : undefined} onClick={() => { if (!open) onSelect(elicitation.id); }}>
                 <td className="da-rowtable__pick"><PlotToggle open={open} label={elicitation.id} onToggle={() => onSelect(open ? "" : elicitation.id)} /></td>
                 <td><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daElicitation", id: elicitation.id }); }}>{elicitation.id}</button></td>
-                <td className="da-rowtable__wrap">{elicitation.issue.trim().length > 0 ? elicitation.issue : "—"}</td>
+                <ClampCell text={elicitation.issue} />
+                <td className="da-rowtable__num">{statText(pooled?.mean)}</td>
                 <td>{QUANTITY_LABELS[elicitation.quantity]}</td>
-                <td className="da-rowtable__num">{elicitation.experts.filter((expert) => expert.role === "EVALUATOR").length}</td>
-                <td>{elicitation.pooling === "LINEAR" ? "Linear" : "Logarithmic"}</td>
-                <td className="da-rowtable__num">{statText(result?.mean)}</td>
-                <td className="da-rowtable__num">{statText(result?.p05)}</td>
-                <td className="da-rowtable__num">{statText(result?.p95)}</td>
-                <td className="da-rowtable__wrap">{elicitation.integrator.trim().length > 0 ? elicitation.integrator : "—"}</td>
-                <td>{listCell(elicitationUsers(da, elicitation.id), "parameters")}</td>
+                <td className="da-rowtable__text">{listCell(elicitationUsers(da, elicitation.id), "parameters")}</td>
               </tr>
-              {open && <DetailRow span={11} width={wrapWidth - 16}><JudgmentDetail elicitation={elicitation} /></DetailRow>}
+              {open && <DetailRow span={6} width={wrapWidth - 18}><JudgmentDetail elicitation={elicitation} /></DetailRow>}
               </Fragment>
             );
           })}
@@ -472,7 +476,7 @@ function SourcesScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => v
   const sources = da.sources ?? [];
   const entryCount = sources.reduce((sum, source) => sum + libraryCount(source), 0);
   const sourced = da.parameters.filter(needsSourcing);
-  const withPrior = sourced.filter((parameter) => parameterPrior(da, parameter) !== undefined).length;
+  const withPrior = sourced.filter((parameter) => !needsPrior(parameter) || parameterPrior(da, parameter) !== undefined).length;
   const selected = sources.find((source) => source.id === sourceId);
   const tabs: { id: SourcesTab; label: string }[] = [
     { id: "library", label: `Library (${sources.length})` },
@@ -1237,4 +1241,23 @@ function SourceWindows({ context, onClose, onRetarget }: { context: DaDrawerCont
   }
 }
 
-export { SOURCE_WINDOW_KINDS, SourceWindows, SourcesScreen, WIDE_WINDOW_KINDS, distributionText };
+export {
+  DISTRIBUTION_CHOICES,
+  DistributionFields,
+  EstimatePicker,
+  NumberInput,
+  SOURCE_WINDOW_KINDS,
+  SourceWindows,
+  SourcesScreen,
+  TextRow,
+  WIDE_WINDOW_KINDS,
+  YearsRow,
+  distributionDraft,
+  distributionText,
+  entrySearchText,
+  isQuantity,
+  useBuiltInEntries,
+  waitingSources,
+  yearsText,
+  type EstimateChoice,
+};

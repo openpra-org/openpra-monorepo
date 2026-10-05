@@ -489,6 +489,7 @@ export const ModelUncertaintySourceAssessmentSchema = z.object({
   evaluationType: z.enum(["QUALITATIVE", "QUANTITATIVE"]),
   evaluationScope: z.enum(["INDIVIDUAL", "COMBINATION"]),
   effectOnFamilyFrequencies: z.string(),
+  dataAnalysisSourceRef: z.object({ workbookId: z.string(), sourceId: z.string() }).optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 

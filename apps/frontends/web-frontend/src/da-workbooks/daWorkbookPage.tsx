@@ -35,9 +35,8 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   needs: "DA-A1",
   define: "DA-A4",
   generic: "DA-C1",
-  counts: "DA-C7",
+  counts: "DA-D1",
   unavail: "DA-C13",
-  estimate: "DA-D1",
   ccf: "DA-D7",
   uncert: "DA-A5",
 };

@@ -16,6 +16,50 @@ function DaProvenanceChip({ children }: { children: ReactNode }): JSX.Element {
   return <span className="esprov">{children}</span>;
 }
 
+function PlotToggle({ open, label, onToggle }: { open: boolean; label: string; onToggle: () => void }): JSX.Element {
+  return (
+    <button type="button" className="da-rowtable__plot" aria-expanded={open} aria-label={`${open ? "Hide" : "Plot"} the distribution of ${label}`} onClick={(event) => { event.stopPropagation(); onToggle(); }}>
+      {open ? "Hide" : "Plot"}
+    </button>
+  );
+}
+
+function DetailToggle({ open, label, onToggle }: { open: boolean; label: string; onToggle: () => void }): JSX.Element {
+  return (
+    <button type="button" className="da-rowtable__plot" aria-expanded={open} aria-label={`${open ? "Hide" : "Show"} the details of ${label}`} onClick={(event) => { event.stopPropagation(); onToggle(); }}>
+      {open ? "Hide" : "Show"}
+    </button>
+  );
+}
+
+function DetailRow({ span, width, children }: { span: number; width: number; children: ReactNode }): JSX.Element {
+  return (
+    <tr className="da-rowtable__detail-row">
+      <td colSpan={span} className="da-rowtable__detail">
+        <div className="da-rowtable__detail-inner" style={width > 0 ? { width: `${width}px` } : undefined}>{children}</div>
+      </td>
+    </tr>
+  );
+}
+
+function FieldList({ items }: { items: { label: string; value: string }[] }): JSX.Element {
+  return (
+    <dl className="da-fields">
+      {items.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}
+    </dl>
+  );
+}
+
+function ClampCell({ text }: { text: string }): JSX.Element {
+  const value = text.trim();
+  return <td className="da-rowtable__text da-rowtable__long">{value.length === 0 ? "—" : <div className="da-rowtable__clamp" title={value}>{value}</div>}</td>;
+}
+
+function rowClass(muted: boolean, open: boolean): string | undefined {
+  const names = [muted ? "da-rowtable__muted" : "", open ? "da-rowtable__row--on" : ""].filter((name) => name.length > 0);
+  return names.length === 0 ? undefined : names.join(" ");
+}
+
 function FormRow({ label, htmlFor, top = false, children }: { label: string; htmlFor?: string; top?: boolean; children: ReactNode }): JSX.Element {
   return (
     <div className={`da-form__row${top ? " da-form__row--top" : ""}`}>
@@ -104,4 +148,4 @@ function valText(v: number | undefined | null): string {
   return v.toExponential(1).replace("e", "E");
 }
 
-export { Badge, DaProvenanceChip, DaTabs, FormFoot, FormRow, ModalHead, sciText, valText, type BadgeKind };
+export { Badge, ClampCell, DaProvenanceChip, DaTabs, DetailRow, DetailToggle, FieldList, FormFoot, FormRow, ModalHead, PlotToggle, rowClass, sciText, valText, type BadgeKind };

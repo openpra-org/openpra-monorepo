@@ -5,6 +5,7 @@ import { fetchEsqLinkedInputs } from "./esqWorkbookApi";
 import { EsqWorkbench } from "./esqWorkbench";
 import { EsqWorkbookProvider, type EsqWorkbookData } from "./esqWorkbookContext";
 import { type EsqPersona } from "./esqViewData";
+import { loadEsqDaLinks } from "./esqDaLinks";
 
 interface EsqExampleResponse {
   slug: string;
@@ -35,6 +36,9 @@ function EsqDemoPage(): JSX.Element {
         fetchEsqLinkedInputs(variant)
           .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
           .catch(() => undefined);
+        void loadEsqDaLinks(null, res.esq.mef as EventSequenceQuantification, variant).then((daLinks) => {
+          if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daLinks }));
+        });
       })
       .catch((err: unknown) => {
         if (cancelled) return;

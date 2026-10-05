@@ -491,6 +491,7 @@ export class WorkbookAnalysisRunsService {
 
     const values = new Map<string, ResolvedControlledDataSourceValue>();
     const probabilityParameterTypes = new Set(["PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
+    const rateUnits = new Map<string, "HOUR" | "YEAR">([["FAILURE_RATE", "HOUR"], ["FREQUENCY", "YEAR"]]);
     for (const [key, { reference }] of uniqueReferences) {
       if (reference.referenceType === "WORKBOOK_PARAMETER") {
         const workbook = daWorkbooks.get(key)!;
@@ -501,12 +502,13 @@ export class WorkbookAnalysisRunsService {
           );
         }
         const parameter = matches[0]!;
-        if (!probabilityParameterTypes.has(parameter.parameterType) && parameter.parameterType !== "FREQUENCY") {
+        const rateUnit = rateUnits.get(parameter.parameterType);
+        if (!probabilityParameterTypes.has(parameter.parameterType) && rateUnit === undefined) {
           throw new BadRequestException(
             `DA parameter '${reference.workbookId}:${reference.entityId}' has type '${parameter.parameterType}', which cannot control a fault-tree quantitative input`,
           );
         }
-        const quantity = parameter.parameterType === "FREQUENCY" ? "FAILURE_RATE" : "PROBABILITY";
+        const quantity = rateUnit === undefined ? "PROBABILITY" : "FAILURE_RATE";
         const value = parameter.value;
         if (
           value === undefined ||
@@ -518,7 +520,7 @@ export class WorkbookAnalysisRunsService {
             `DA parameter '${reference.workbookId}:${reference.entityId}' must be finite and ${quantity === "PROBABILITY" ? "between zero and one" : "non-negative"}`,
           );
         }
-        values.set(key, { value, quantity, uncertainty: parameter.uncertainty?.distribution });
+        values.set(key, { value, quantity, ...(rateUnit === undefined ? {} : { unit: rateUnit }), uncertainty: parameter.uncertainty?.distribution });
         continue;
       }
 

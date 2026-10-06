@@ -1,9 +1,9 @@
 import { JSX, useCallback, useEffect, useState } from "react";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { fetchJson } from "../api/client";
-import { fetchEsqLinkedInputs } from "./esqWorkbookApi";
 import { EsqWorkbench } from "./esqWorkbench";
-import { EsqWorkbookProvider, type EsqWorkbookData } from "./esqWorkbookContext";
+import { EsqWorkbookProvider, useEsqUpstream, type EsqWorkbookData } from "./esqWorkbookContext";
+import { NO_LINK_OPTIONS } from "./esqLinks";
 import { type EsqPersona } from "./esqViewData";
 import { loadEsqDaLinks } from "./esqDaLinks";
 
@@ -28,14 +28,8 @@ function EsqDemoPage(): JSX.Element {
     fetchJson<EsqBundleResponse>("/api/example-workbooks/esq-bundle")
       .then((res) => {
         if (cancelled) return;
-        setData({
-          esq: res.esq.mef as EventSequenceQuantification,
-          links: null,
-        });
+        setData({ esq: res.esq.mef as EventSequenceQuantification });
         const variant = (res.esq.mef as EventSequenceQuantification).uuid === "esq-generic-2" ? "htgr" : "sfr";
-        fetchEsqLinkedInputs(variant)
-          .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
-          .catch(() => undefined);
         void loadEsqDaLinks(null, res.esq.mef as EventSequenceQuantification, variant).then((daLinks) => {
           if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daLinks }));
         });
@@ -46,6 +40,8 @@ function EsqDemoPage(): JSX.Element {
       });
     return () => { cancelled = true; };
   }, []);
+
+  const upstream = useEsqUpstream(data?.esq, NO_LINK_OPTIONS);
 
   const mutateEsq = useCallback((mutator: (esq: EventSequenceQuantification) => EventSequenceQuantification): void => {
     setData((prev) => (prev === null ? prev : { ...prev, esq: mutator(prev.esq) }));
@@ -59,7 +55,7 @@ function EsqDemoPage(): JSX.Element {
   }
 
   return (
-    <EsqWorkbookProvider data={data} editable={persona === "preparer"} mutateEsq={mutateEsq}>
+    <EsqWorkbookProvider data={data} editable={persona === "preparer"} mutateEsq={mutateEsq} upstream={upstream}>
       <EsqWorkbench
         data={data}
         persona={persona}

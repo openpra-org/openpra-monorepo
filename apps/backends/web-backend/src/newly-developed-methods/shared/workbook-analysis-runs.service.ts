@@ -33,8 +33,13 @@ import {
   BayesianNetworkBatchAnalysisResultSchema,
   BayesianNetworkStoredResultSchema,
   BayesianNetworkExecuteRequestSchema,
+  EsqModelRunResultSchema,
+  EsqPostRunResultSchema,
+  EsqImportanceRunResultSchema,
+  EsqUncertaintyRunResultSchema,
   EventTreeAnalysisResultSchema,
   EventTreeExecuteRequestSchema,
+  EventTreeSequenceCutSetsSchema,
   FaultTreeAnalysisResultSchema,
   FaultTreeExecuteRequestSchema,
   HclEventTreeExecuteRequestSchema,
@@ -48,6 +53,8 @@ import {
   HclHazardConvolutionResultSchema,
   HCL_HAZARD_CONVOLUTION_POINT_ONLY,
   HclQuantificationResultSchema,
+  LoadCapacityAnalysisResultSchema,
+  WorkbookModelIdSchema,
   createImmutableAnalysisRunContext,
 } from "interfaces-shared-types/newly-developed-methods";
 import type {
@@ -60,6 +67,18 @@ import type {
   AnalysisRunTrace,
   AnalysisRunWorkbookSnapshot,
   BayesianNetworkExecuteRequest,
+  EsqBarrierCellRunRequest,
+  EsqEventTreeRunRequest,
+  EsqModelRunRequest,
+  EsqModelRunResult,
+  EsqImportanceRunRequest,
+  EsqImportanceRunResult,
+  EsqUncertaintyRunRequest,
+  EsqUncertaintyRunResult,
+  EsqSensitivityRunRequest,
+  EsqPostRunRequest,
+  EsqPostRunResult,
+  EventTreeAnalysisResult,
   EventTreeExecuteRequest,
   FaultTreeExecuteRequest,
   HclEventTreeExecuteRequest,
@@ -110,11 +129,11 @@ import type {
 } from "./praxis-snapshot-adapters";
 import { PraetorAnalysisClient } from "./praetor-analysis.client";
 
-interface ActingUser {
+export interface ActingUser {
   username: string;
 }
 
-interface LoadedWorkbook<TMef> extends WorkbookMefSnapshot<TMef> {
+export interface LoadedWorkbook<TMef> extends WorkbookMefSnapshot<TMef> {
   hostType: WorkbookMethodHostType;
   projectId: string;
   ownerUsername: string;
@@ -176,7 +195,27 @@ interface ExecutedHclBatch {
   hazardConvolution?: HclHazardConvolutionResult;
 }
 
-type PublicResultKind = "FAULT_TREE" | "BAYESIAN_NETWORK" | "EVENT_TREE" | "HYBRID_CAUSAL_LOGIC";
+export interface EsqPreparedTreeRun {
+  treeId: string;
+  runId: string;
+  owner: WorkbookModelSnapshotIdentity;
+  initiatorFrequency: number | null;
+  request: Record<string, unknown>;
+  envelope: SolverEnvelope | null;
+  failure: string | null;
+  models: WorkbookModelAddress[];
+}
+
+export interface EsqTreeRunOutcome {
+  treeId: string;
+  runId: string;
+  initiatorFrequency: number | null;
+  status: "SUCCEEDED" | "FAILED";
+  result: EventTreeAnalysisResult | null;
+  failure: string | null;
+}
+
+type PublicResultKind = "FAULT_TREE" | "BAYESIAN_NETWORK" | "EVENT_TREE" | "HYBRID_CAUSAL_LOGIC" | "LOAD_CAPACITY";
 
 
 const parseRequest = <T>(schema: z.ZodType<T>, value: unknown): T => {
@@ -248,7 +287,7 @@ const uniqueWorkbooks = <T extends LoadedWorkbook<unknown>>(values: T[]): T[] =>
 const crossReferenceKey = (reference: WorkbookCrossReference): string =>
   JSON.stringify(Object.fromEntries(Object.entries(reference).sort(([left], [right]) => left.localeCompare(right))));
 
-const combineFaultTrees = (
+export const combineFaultTrees = (
   runId: string,
   adapters: AdaptedFaultTreeSnapshot[],
 ): FaultTreeBundle => {
@@ -704,6 +743,18 @@ export class WorkbookAnalysisRunsService {
         validationIssues: raw["validationIssues"] ?? [],
       });
     }
+    if (kind === "LOAD_CAPACITY") {
+      return LoadCapacityAnalysisResultSchema.parse({
+        ...common,
+        method: raw["method"],
+        pointProbability: raw["pointProbability"],
+        quadratureError: raw["quadratureError"] ?? null,
+        unit: raw["unit"] ?? null,
+        uncertainty: raw["uncertainty"] ?? null,
+        curve: raw["curve"],
+        validationIssues: raw["validationIssues"] ?? [],
+      });
+    }
     if (kind === "EVENT_TREE") {
       return EventTreeAnalysisResultSchema.parse({
         ...common,
@@ -712,6 +763,10 @@ export class WorkbookAnalysisRunsService {
         endStateAggregates: raw["endStateAggregates"],
         frequencySemantics: raw["frequencySemantics"],
         ...(raw["compilationReuse"] === undefined ? {} : { compilationReuse: raw["compilationReuse"] }),
+        ...(raw["cutSetAnalysis"] === undefined ? {} : { cutSetAnalysis: raw["cutSetAnalysis"] }),
+        ...(raw["families"] === undefined ? {} : { families: raw["families"] }),
+        ...(raw["importance"] === undefined ? {} : { importance: raw["importance"] }),
+        ...(raw["sampling"] === undefined ? {} : { sampling: raw["sampling"] }),
         validationIssues: raw["validationIssues"] ?? [],
       });
     }
@@ -745,7 +800,14 @@ export class WorkbookAnalysisRunsService {
   }
 
   private probabilitySequences(value: unknown): unknown {
-    return Array.isArray(value) ? value.map((sequence) => this.withoutUnavailableAnalyses(sequence)) : value;
+    return Array.isArray(value) ? value.map((sequence) => this.eventTreeSequence(sequence)) : value;
+  }
+
+  private eventTreeSequence(value: unknown): Record<string, unknown> {
+    const result = this.withoutUnavailableAnalyses(value);
+    const cutSets = EventTreeSequenceCutSetsSchema.safeParse(asRecord(value, "event-tree sequence")["cutSets"]);
+    if (cutSets.success) result["cutSets"] = cutSets.data;
+    return result;
   }
 
   private async executeRun(
@@ -1307,6 +1369,224 @@ export class WorkbookAnalysisRunsService {
     }));
   }
 
+  async executePreparedEventTreeRun(input: {
+    runId: string;
+    owner: WorkbookModelSnapshotIdentity;
+    request: EsqEventTreeRunRequest;
+    sources: Array<LoadedWorkbook<EventSequenceQuantification> | LoadedWorkbook<SystemsAnalysis>>;
+    envelope: SolverEnvelope;
+    models: WorkbookModelAddress[];
+    acting: ActingUser;
+  }): Promise<AnalysisRunMetadata> {
+    return this.executeRun(
+      input.runId,
+      input.owner,
+      "EVENT_TREE",
+      { ...input.request, logic: { ...input.request.logic } },
+      input.sources,
+      input.envelope,
+      "EVENT_TREE",
+      input.acting,
+      this.createAnalysisRunTrace(input.sources, { targetType: "EVENT_TREE", model: input.owner }, input.models, []),
+    );
+  }
+
+  async executePreparedLoadCapacityRun(input: {
+    runId: string;
+    owner: WorkbookModelSnapshotIdentity;
+    request: EsqBarrierCellRunRequest;
+    sources: Array<LoadedWorkbook<EventSequenceQuantification>>;
+    envelope: SolverEnvelope;
+    acting: ActingUser;
+  }): Promise<AnalysisRunMetadata> {
+    return this.executeRun(
+      input.runId,
+      input.owner,
+      "LOAD_CAPACITY",
+      { ...input.request, settings: { ...input.request.settings } },
+      input.sources,
+      input.envelope,
+      "LOAD_CAPACITY",
+      input.acting,
+      this.createAnalysisRunTrace(
+        input.sources,
+        { targetType: "LOAD_CAPACITY", model: input.owner },
+        [{ workbookId: input.owner.workbookId, modelId: input.owner.modelId }],
+        [],
+      ),
+    );
+  }
+
+  async executeEsqModelRun(input: {
+    owner: WorkbookModelSnapshotIdentity;
+    request: EsqModelRunRequest | EsqPostRunRequest | EsqImportanceRunRequest | EsqUncertaintyRunRequest | EsqSensitivityRunRequest;
+    sources: Array<LoadedWorkbook<EventSequenceQuantification> | LoadedWorkbook<SystemsAnalysis>>;
+    trees: EsqPreparedTreeRun[];
+    summarize: (batchId: string, completedAt: string, outcomes: EsqTreeRunOutcome[]) => EsqModelRunResult | EsqPostRunResult | EsqImportanceRunResult | EsqUncertaintyRunResult;
+    stored?: (result: EventTreeAnalysisResult) => EventTreeAnalysisResult;
+    acting: ActingUser;
+  }): Promise<AnalysisRunMetadata> {
+    const context = createImmutableAnalysisRunContext({
+      owner: input.owner,
+      sourceWorkbooks: uniqueWorkbooks(input.sources).map((source) => ({
+        workbookId: source.workbookId,
+        workbookRevision: source.workbookRevision,
+      })),
+      workbookSnapshots: this.createSnapshots(input.sources),
+    });
+    const batchId = randomUUID();
+    const requestedAt = new Date();
+    const shared = {
+      schemaVersion: "1.0.0",
+      sourceWorkbooks: context.sourceWorkbooks,
+      workbookSnapshots: context.workbookSnapshots,
+      methodType: "EVENT_TREE",
+      status: "QUEUED",
+      requestedBy: input.acting.username,
+      requestedAt,
+      startedAt: null,
+      completedAt: null,
+      engine: null,
+      failure: null,
+      result: null,
+    };
+    const ids = [batchId, ...input.trees.map((tree) => tree.runId)];
+    await this.runModel.insertMany([
+      {
+        ...shared,
+        owner: context.owner,
+        id: batchId,
+        scope: "BATCH",
+        batchId: null,
+        request: structuredClone({ ...input.request }),
+        nativeRequest: null,
+        ...this.createAnalysisRunTrace(
+          input.sources,
+          { targetType: "EVENT_TREE", model: input.owner },
+          input.trees.flatMap((tree) => tree.models),
+          [],
+        ),
+      },
+      ...input.trees.map((tree) => ({
+        ...shared,
+        owner: tree.owner,
+        id: tree.runId,
+        scope: "SCENARIO",
+        batchId,
+        request: structuredClone(tree.request),
+        nativeRequest: tree.envelope === null ? null : structuredClone(tree.envelope),
+        ...this.createAnalysisRunTrace(input.sources, { targetType: "EVENT_TREE", model: tree.owner }, tree.models, []),
+      })),
+    ]);
+    const startedAt = new Date();
+    await this.runModel
+      .updateMany({ id: { $in: ids }, status: "QUEUED" }, { $set: { status: "RUNNING", startedAt } })
+      .exec();
+    let engine: AnalysisRunMetadata["engine"] = null;
+    try {
+      const outcomes: EsqTreeRunOutcome[] = [];
+      for (const tree of input.trees) {
+        const base = { treeId: tree.treeId, runId: tree.runId, initiatorFrequency: tree.initiatorFrequency };
+        if (tree.envelope === null) {
+          const failure = { kind: "VALIDATION", code: "ESQ_RUN_BUILD", message: tree.failure ?? "This event tree could not be built.", details: {} };
+          await this.runModel
+            .updateOne({ id: tree.runId, status: "RUNNING" }, { $set: { status: "FAILED", completedAt: new Date(), failure } })
+            .exec();
+          outcomes.push({ ...base, status: "FAILED", result: null, failure: failure.message });
+          continue;
+        }
+        const response = await this.praetor.execute(tree.envelope);
+        const treeEngine = response.engine ?? null;
+        engine = treeEngine ?? engine;
+        const finished = new Date();
+        if (response.error !== undefined) {
+          await this.runModel
+            .updateOne(
+              { id: tree.runId, status: "RUNNING" },
+              { $set: { status: "FAILED", completedAt: finished, engine: treeEngine, failure: response.error } },
+            )
+            .exec();
+          outcomes.push({ ...base, status: "FAILED", result: null, failure: response.error.message });
+          continue;
+        }
+        let result: EventTreeAnalysisResult;
+        try {
+          result = EventTreeAnalysisResultSchema.parse(
+            this.publicResult("EVENT_TREE", response.result, tree.runId, tree.owner, finished.toISOString(), tree.request),
+          );
+        } catch (error) {
+          if (error instanceof BadGatewayException) throw error;
+          throw new BadGatewayException("Praetor returned an invalid native solver result");
+        }
+        await this.runModel
+          .updateOne(
+            { id: tree.runId, status: "RUNNING" },
+            { $set: { status: "SUCCEEDED", completedAt: finished, result: input.stored === undefined ? result : input.stored(result), failure: null, engine: treeEngine } },
+          )
+          .exec();
+        outcomes.push({ ...base, status: "SUCCEEDED", result, failure: null });
+      }
+      const completedAt = new Date();
+      const made = input.summarize(batchId, completedAt.toISOString(), outcomes);
+      const summary = made.kind === "ESQ_MODEL_RUN" ? EsqModelRunResultSchema.parse(made)
+        : made.kind === "ESQ_POST_RUN" ? EsqPostRunResultSchema.parse(made)
+        : made.kind === "ESQ_IMPORTANCE_RUN" ? EsqImportanceRunResultSchema.parse(made)
+        : EsqUncertaintyRunResultSchema.parse(made);
+      const failedCount = outcomes.filter((outcome) => outcome.status === "FAILED").length;
+      const firstFailure = outcomes.find((outcome) => outcome.failure !== null)?.failure;
+      const solved = failedCount < outcomes.length;
+      const failure = solved ? null : {
+        kind: "VALIDATION",
+        code: "ESQ_MODEL_RUN_FAILED",
+        message: `${String(failedCount)} of ${String(outcomes.length)} event trees failed.${firstFailure === undefined ? "" : ` First: ${firstFailure}`}`,
+        details: {},
+      };
+      await this.runModel
+        .updateOne(
+          { id: batchId, status: "RUNNING" },
+          { $set: { status: solved ? "SUCCEEDED" : "FAILED", completedAt, result: solved ? summary : null, failure, engine } },
+        )
+        .exec();
+      return AnalysisRunMetadataSchema.parse({
+        schemaVersion: "1.0.0",
+        id: batchId,
+        owner: input.owner,
+        sourceWorkbooks: context.sourceWorkbooks,
+        methodType: "EVENT_TREE",
+        scope: "BATCH",
+        batchId: null,
+        status: solved ? "SUCCEEDED" : "FAILED",
+        requestedBy: input.acting.username,
+        requestedAt: requestedAt.toISOString(),
+        startedAt: startedAt.toISOString(),
+        completedAt: completedAt.toISOString(),
+        engine,
+        failure,
+      });
+    } catch (error) {
+      const completedAt = new Date();
+      await this.runModel
+        .updateMany(
+          { id: { $in: ids }, status: "RUNNING" },
+          {
+            $set: {
+              status: "FAILED",
+              completedAt,
+              engine,
+              failure: {
+                kind: "TRANSPORT",
+                code: "PRAETOR_FAILURE",
+                message: error instanceof Error ? error.message : String(error),
+                details: {},
+              },
+            },
+          },
+        )
+        .exec();
+      throw error;
+    }
+  }
+
   @WithWorkbookSnapshots()
   async executeEventTree(
     workbookId: string,
@@ -1356,6 +1636,7 @@ export class WorkbookAnalysisRunsService {
           revision: owner.workbookRevision,
           mode: request.mode,
           requestedBy: acting.username,
+          expandCcf: true,
         },
         modelSnapshots: [
           ...eventTreeModelIds.map((eventTreeModelId) =>
@@ -2331,6 +2612,14 @@ export class WorkbookAnalysisRunsService {
         if (snapshot === undefined) throw new NotFoundException("Run source permissions cannot be verified");
         // Preserve access to a deleted source only when its original project is recorded.
         if (snapshot.projectId !== undefined) await this.projectsService.resolveAccess(snapshot.projectId, acting);
+        if (saved.workbookId.startsWith("example-")) {
+          return {
+            workbookId: saved.workbookId,
+            savedRevision: saved.workbookRevision,
+            currentRevision: saved.workbookRevision,
+            status: "CURRENT" as const,
+          };
+        }
         const key = `${snapshot.hostType}:${saved.workbookId}`;
         let pending = cache.get(key);
         if (pending === undefined) {
@@ -2397,8 +2686,12 @@ export class WorkbookAnalysisRunsService {
     workbookId: string,
     acting: ActingUser,
     cursor?: string,
+    modelId?: string,
   ): Promise<AnalysisRunProvenanceList> {
     await this.authorizeRunOwner(hostType, workbookId, acting);
+    if (modelId !== undefined && !WorkbookModelIdSchema.safeParse(modelId).success) {
+      throw new BadRequestException("Invalid analysis-history model filter");
+    }
     let before: { requestedAt: Date; id: string } | undefined;
     if (cursor !== undefined) {
       try {
@@ -2419,6 +2712,7 @@ export class WorkbookAnalysisRunsService {
       .find({
         "owner.workbookId": workbookId,
         scope: { $ne: "SCENARIO" },
+        ...(modelId === undefined ? {} : { "owner.modelId": modelId }),
         ...(before === undefined ?
           {}
         : {
@@ -2476,10 +2770,18 @@ export class WorkbookAnalysisRunsService {
 
   private storedResult(run: AnalysisRunRecord): unknown {
     if (run.status !== "SUCCEEDED" || run.result === null) return null;
-    if (run.scope === "BATCH") return HclBatchExecuteResultSchema.parse(run.result);
+    if (run.scope === "BATCH") {
+      const batch = asRecord(run.result, "batch");
+      if (batch["kind"] === "ESQ_MODEL_RUN") return EsqModelRunResultSchema.parse(batch);
+      if (batch["kind"] === "ESQ_POST_RUN") return EsqPostRunResultSchema.parse(batch);
+      if (batch["kind"] === "ESQ_IMPORTANCE_RUN") return EsqImportanceRunResultSchema.parse(batch);
+      if (batch["kind"] === "ESQ_UNCERTAINTY_RUN") return EsqUncertaintyRunResultSchema.parse(batch);
+      return HclBatchExecuteResultSchema.parse(batch);
+    }
     if (run.methodType === "FAULT_TREE")
       return FaultTreeAnalysisResultSchema.parse(this.withoutUnavailableAnalyses(run.result));
     if (run.methodType === "BAYESIAN_NETWORK") return BayesianNetworkStoredResultSchema.parse(run.result);
+    if (run.methodType === "LOAD_CAPACITY") return LoadCapacityAnalysisResultSchema.parse(run.result);
     if (run.methodType === "EVENT_TREE") {
       const result = asRecord(run.result, "event-tree result");
       return EventTreeAnalysisResultSchema.parse({
@@ -2512,8 +2814,8 @@ export class WorkbookAnalysisRunsService {
   ): Promise<AnalysisRunDetails> {
     const { run, metadata } = await this.readAuthorizedRun(hostType, workbookId, runId, acting);
     let nativeRequest = run.nativeRequest ?? null;
-    if (run.scope === "SCENARIO" && run.batchId !== null) {
-      const parent = await this.readAuthorizedRun(hostType, workbookId, run.batchId, acting, run.owner.modelId);
+    if (run.scope === "SCENARIO" && run.batchId !== null && nativeRequest === null) {
+      const parent = await this.readAuthorizedRun(hostType, workbookId, run.batchId, acting);
       nativeRequest = parent.run.nativeRequest ?? null;
     }
     const children =

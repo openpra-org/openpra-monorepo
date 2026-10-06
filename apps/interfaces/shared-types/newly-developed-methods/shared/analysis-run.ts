@@ -254,7 +254,7 @@ const HclEventTreeRunTargetSchema = z
 
 const WorkbookModelRunTargetSchema = z
   .object({
-    targetType: z.enum(["FAULT_TREE", "EVENT_TREE"]),
+    targetType: z.enum(["FAULT_TREE", "EVENT_TREE", "LOAD_CAPACITY"]),
     model: WorkbookModelSnapshotIdentitySchema,
   })
   .strict();

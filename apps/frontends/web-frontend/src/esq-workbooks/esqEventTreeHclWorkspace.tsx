@@ -51,6 +51,7 @@ interface OwnedConfiguration extends OwnedNetwork {
 }
 
 interface EsqEventTreeHclWorkspaceProps {
+  mode: "NETWORK" | "RUNS";
   onRunComplete?: () => void;
   onNetworkAvailabilityChange?: (available: boolean) => void;
   initialNetworkId?: string | null;
@@ -91,13 +92,22 @@ function configurationMatchesEventTree(
   return eventTree.faultTrees.some((reference) => configured.has(`${reference.workbookId}:${reference.modelId}`));
 }
 
+function plainWorkbookName(name: string): string {
+  const cut = name.indexOf("—");
+  if (cut <= 0) return name;
+  const head = name.slice(0, cut);
+  return head.trimEnd().length < head.length ? head.trimEnd() : name;
+}
+
 function EsqEventTreeHclWorkspace({
+  mode,
   onRunComplete,
   onNetworkAvailabilityChange,
   initialNetworkId = null,
   initialSourceWorkbookId = null,
 }: EsqEventTreeHclWorkspaceProps): JSX.Element {
-  const { esq, editable, mutateEsq, runtime } = useEsqWorkbook();
+  const { esq, editable: workbookEditable, mutateEsq, runtime } = useEsqWorkbook();
+  const editable = workbookEditable && mode === "NETWORK";
   const {sourceEpoch, sourceWarning} = useAnalysisSourceGuard("esq", runtime.workbookId);
   const [syNetworks, setSyNetworks] = useState<OwnedNetwork[]>([]);
   const [syConfigurations, setSyConfigurations] = useState<OwnedConfiguration[]>([]);
@@ -495,10 +505,11 @@ function EsqEventTreeHclWorkspace({
           onAnalysisInputChange={analysis.invalidate}
           editable={displayedNetwork.owner === "ESQ" && editable}
           readOnlyNotice={displayedNetwork.owner === "SY" ? {
-            message: `This network is linked from ${displayedNetwork.workbookName.replace(/\s+—.*$/, "")} and is read-only here. Open that workbook's Dependencies step to import XDSL or manage groups.`,
+            message: `This network is linked from ${plainWorkbookName(displayedNetwork.workbookName)} and is read-only here. Open that workbook's Dependencies step to import XDSL or manage groups.`,
             sourceHref: `/sy-workbooks/${encodeURIComponent(displayedNetwork.workbookId)}?step=deps&network=${encodeURIComponent(displayedNetwork.network.modelId)}&esqWorkbook=${encodeURIComponent(runtime.workbookId ?? "")}`,
             sourceLabel: "Open Systems workbook",
           } : undefined}
+          showAnalysis={mode === "RUNS"}
           showQueryAnalysis={false}
           hclScope="EVENT_TREE"
           evidence={evidence}

@@ -76,7 +76,7 @@ function Harness({ host = "SY", saveStatus = "saved", revision = 1 }: {
     hclConfigurations: [configuration("esq")] }) as unknown as EventSequenceQuantification);
   mockSyContext = { sy, editable: true, mutateSy: setSy, runtime: { workbookId: "sy", revision, saveStatus } };
   mockEsqContext = { esq, editable: true, mutateEsq: setEsq, runtime: { workbookId: "esq", projectId: "project", revision, saveStatus } };
-  return <ToastProvider>{host === "SY" ? <SyBayesianNetworkWorkspace /> : <EsqEventTreeHclWorkspace />}</ToastProvider>;
+  return <ToastProvider>{host === "SY" ? <SyBayesianNetworkWorkspace /> : <EsqEventTreeHclWorkspace mode="RUNS" />}</ToastProvider>;
 }
 type RunKind = "BN" | "BN_BATCH" | "FT" | "FT_BATCH" | "ET" | "ET_BATCH";
 function run(kind: RunKind) {

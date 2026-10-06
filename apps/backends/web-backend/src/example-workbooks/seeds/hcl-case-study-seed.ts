@@ -1281,6 +1281,8 @@ const ESQ_ANALYSIS_HCL: EventSequenceQuantification = {
     lastModifiedBy: OWNER,
   },
   praScope: "Exact BN inference and HCL quantification over the linked case-study fault trees and event trees.",
+  linkedWorkbooks: { ES: "example-es-hcl", SY: "example-sy-hcl", DA: "example-da-hcl", HRA: "example-hr-hcl", IE: "example-ie-hcl", RI: "example-ri-hcl" },
+  quantificationPlan: { modulesPerPlant: { value: 1 } },
   familyQuantifications: hclFamilyQuantifications,
   bayesianNetworks: [],
   hclConfigurations: [],
@@ -1293,10 +1295,16 @@ const ESQ_ANALYSIS_HCL: EventSequenceQuantification = {
     scopeCoverage: {
       radionuclideSources: ["REACTOR-CORE"],
       initiatingEventGroups: ["IEG-LOOP-HCL"],
-      hazardGroups: ["SEISMIC", "EXTERNAL_FLOOD", "INTERNAL_FIRE"],
+      hazardGroups: ["Internal events", "Seismic events", "External floods", "Internal fires"],
       plantOperatingStates: ["POS-FULL-POWER"],
       plantEvolutions: ["LOOP", "SBO", "FLEX"],
     },
+    scopeExclusions: [
+      { aspect: "HAZARD_GROUP", item: "Internal floods", reason: "Not part of the dissertation case study." },
+      { aspect: "HAZARD_GROUP", item: "High winds", reason: "Not part of the dissertation case study." },
+      { aspect: "HAZARD_GROUP", item: "Other internal and external hazards", reason: "Not part of the dissertation case study." },
+    ],
+    multiReactorInclusionBasis: "The case study models one reactor unit.",
     systemDependenciesAccounted: true,
   },
   quantificationMethods: {

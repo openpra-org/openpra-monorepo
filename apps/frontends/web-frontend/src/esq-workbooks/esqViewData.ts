@@ -1,4 +1,12 @@
-import { ESQ_SR_CATALOG } from "interfaces-mef-types/esq/event-sequence-quantification";
+import {
+  ESQ_SR_CATALOG,
+  type EsqFrequencyBasis,
+  type EsqLinkCode,
+  type EsqModelElement,
+  type EsqModuleCounting,
+  type EsqScopeAspect,
+  type EsqStateWeighting,
+} from "interfaces-mef-types/esq/event-sequence-quantification";
 
 type StepStatus = "complete" | "in-progress" | "idle";
 
@@ -7,22 +15,25 @@ interface EsqStep {
   num: string;
   label: string;
   sub: string;
+  hlr?: string;
   status: StepStatus;
   terminal?: boolean;
 }
 
 const ESQ_STEPS: EsqStep[] = [
-  { id: "scope", num: "01", label: "Scope", sub: "Six elements converge", status: "idle" },
-  { id: "integrate", num: "02", label: "Integrate & Quantify", sub: "Families · frequencies (A)", status: "idle" },
-  { id: "solve", num: "03", label: "Solve & Converge", sub: "Codes · truncation (B)", status: "idle" },
-  { id: "logic", num: "04", label: "Logic Integrity", sub: "Loops · flags · mutex (B)", status: "idle" },
-  { id: "depend", num: "05", label: "Dependencies", sub: "HFE · phenomena (C)", status: "idle" },
-  { id: "barriers", num: "06", label: "Barriers", sub: "Challenge · capacity (C)", status: "idle" },
-  { id: "results", num: "07", label: "Review Results", sub: "Contributors · screening (D)", status: "idle" },
-  { id: "uncert", num: "08", label: "Uncertainty & Pre-op", sub: "The funnel · SOKC (E)", status: "idle" },
-  { id: "draft", num: "09", label: "Draft", sub: "Produce ESQ report (F)", status: "idle", terminal: true },
-  { id: "review", num: "10", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
-  { id: "approval", num: "11", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
+  { id: "scope", num: "01", label: "Scope", sub: "Links · coverage · plan", hlr: "ESQ-A", status: "idle" },
+  { id: "model", num: "02", label: "Model", sub: "Sequences · links · values", hlr: "ESQ-A", status: "idle" },
+  { id: "logic", num: "03", label: "Logic", sub: "Flags · loops · exclusions · runs", hlr: "ESQ-B", status: "idle" },
+  { id: "barriers", num: "04", label: "Barriers and phenomena", sub: "Modes · load and capacity · credits", hlr: "ESQ-C", status: "idle" },
+  { id: "solve", num: "05", label: "Solve and converge", sub: "Runs · families · convergence", hlr: "ESQ-B", status: "idle" },
+  { id: "post", num: "06", label: "Post-processing", sub: "Exclusions · recovery · HFE combinations", hlr: "ESQ-C", status: "idle" },
+  { id: "results", num: "07", label: "Results review", sub: "Cut sets · contributors · importance", hlr: "ESQ-D", status: "idle" },
+  { id: "uncert", num: "08", label: "Uncertainty", sub: "Inputs · shared draws · families", hlr: "ESQ-E", status: "idle" },
+  { id: "sens", num: "09", label: "Sensitivity", sub: "Register · cases · pre-operational", hlr: "ESQ-E", status: "idle" },
+  { id: "handoff", num: "10", label: "Hand-offs", sub: "RI · MS · DA · HR and IE", hlr: "ESQ-F", status: "idle" },
+  { id: "draft", num: "11", label: "Draft", sub: "Produce ESQ report (F)", status: "idle", terminal: true },
+  { id: "review", num: "12", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
+  { id: "approval", num: "13", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
 ];
 
 type EsqPersona = "preparer" | "reviewer" | "approver";
@@ -176,63 +187,145 @@ function buildConformanceItems(): ConformanceItem[] {
 
 const CONFORMANCE_ITEMS: ConformanceItem[] = buildConformanceItems();
 
-interface MethodSpec {
-  id: string;
-  abbr: string;
-  name: string;
-  ref: string;
-}
-
-const ESQ_METHODS: Record<string, MethodSpec> = {
-  ftlink: { id: "ftlink", abbr: "FT-link", name: "Fault-tree linking", ref: "NUREG/CR-2300" },
-  etbc: { id: "etbc", abbr: "ET-BC", name: "Event-tree boundary conditions", ref: "NUREG/CR-2300" },
-  bdd: { id: "bdd", abbr: "BDD", name: "Binary decision diagram solution", ref: "NUREG/CR-2300" },
-  mcub: { id: "mcub", abbr: "MCUB", name: "Minimal cutset upper bound", ref: "NUREG/CR-2300" },
-  exact: { id: "exact", abbr: "Exact", name: "Exact Boolean solution", ref: "NUREG/CR-2300" },
-  montecarlo: { id: "montecarlo", abbr: "Monte-Carlo", name: "Monte Carlo uncertainty propagation", ref: "NUREG/CR-6823" },
-  fv: { id: "fv", abbr: "F-V", name: "Fussell-Vesely importance", ref: "NUREG/CR-3385" },
-  raw: { id: "raw", abbr: "RAW", name: "Risk achievement worth", ref: "NUREG/CR-3385" },
-};
-
-interface LinkSpec {
-  id: string;
-  code: string;
-  element: string;
-  icon: string;
-  workbook?: string;
-  version?: number;
-  status?: string;
-  synced?: string;
-  delivers?: string;
-  uses?: string;
-  note: string;
-  role: string;
-}
-
-const ESQ_UPSTREAM_LINKS: LinkSpec[] = [
-  { id: "ie", code: "IE", element: "Initiating Events", icon: "Bolt", workbook: "IE Workbook Example", version: 3, status: "approved", synced: "Apr 30, 2026", delivers: "The initiating-event group frequencies and the screened-out set", note: "IE supplies the frequencies and the screened events ESQ later audits.", role: "Frequencies in" },
-  { id: "es", code: "ES", element: "Event Sequence Analysis", icon: "Tree", workbook: "ES Workbook Example", version: 3, status: "approved", synced: "May 20, 2026", delivers: "The sequence topology and the end states", note: "ES hands ESQ the scenarios to quantify and the dependencies to preserve.", role: "Topology in" },
-  { id: "sc", code: "SC", element: "Success Criteria", icon: "Target", workbook: "SC Workbook Example", version: 2, status: "approved", synced: "Apr 22, 2026", delivers: "The success criteria the branch logic is checked against", note: "SC sets the thresholds the quantified branches are tested against.", role: "Criteria in" },
-  { id: "sy", code: "SY", element: "Systems Analysis", icon: "Settings", workbook: "SY Workbook Example", version: 2, status: "approved", synced: "May 6, 2026", delivers: "The Boolean system logic and the house events", note: "SY supplies the fault-tree logic substituted for each branch question.", role: "Logic in" },
-  { id: "hr", code: "HR", element: "Human Reliability Analysis", icon: "Person", workbook: "HR Workbook Example", version: 2, status: "approved", synced: "May 14, 2026", delivers: "The human failure events and the joint-dependency rules", note: "HR supplies the human error probabilities and the joint-HEP floor machinery.", role: "HEPs in" },
-  { id: "da", code: "DA", element: "Data Analysis", icon: "Database", workbook: "DA Workbook Example", version: 2, status: "in_review", synced: "May 8, 2026", delivers: "The basic-event and common-cause parameters with distributions", note: "DA binds the numeric values and the uncertainty distributions to the leaves.", role: "Parameters in" },
-];
-
-const ESQ_DOWNSTREAM_LINKS: LinkSpec[] = [
-  { id: "ri", code: "RI", element: "Risk Integration", icon: "Gauge", uses: "Receives the family frequencies and the risk-significance criteria", note: "RI defines the risk-significance criteria ESQ applies and consumes its results.", role: "Risk numbers out" },
-  { id: "ms", code: "MS", element: "Mechanistic Source Term", icon: "Atom", uses: "Receives the release-category resolution behind each family", note: "MS picks up the plant damage states and release categories ESQ resolves.", role: "Release inputs out" },
-];
-
-interface QuantBasisSpec {
+interface EsqLinkTile {
+  code: EsqLinkCode;
   label: string;
-  kind: "point" | "mean" | "mean-rs";
+  name: string;
+  handoff: string;
 }
 
-const QUANT_BASIS_LABELS: Record<string, QuantBasisSpec> = {
-  POINT_ESTIMATE: { label: "Point estimate", kind: "point" },
-  MEAN_PROPAGATED_SOKC: { label: "Mean · SOKC propagated", kind: "mean-rs" },
-  MEAN_RISK_SIGNIFICANT_PARAMETERS: { label: "Mean · risk-significant parameters", kind: "mean" },
+const ESQ_LINK_TILES: EsqLinkTile[] = [
+  { code: "ES", label: "ES", name: "Event Sequence Analysis", handoff: "Provides · Event trees, sequences, families and release categories" },
+  { code: "SY", label: "SY", name: "Systems Analysis", handoff: "Provides · Fault tree tops, basic events and common cause groups" },
+  { code: "DA", label: "DA", name: "Data Analysis", handoff: "Provides · Values, distributions and the uncertainty register" },
+  { code: "HRA", label: "HR", name: "Human Reliability", handoff: "Provides · HEPs, recoveries and dependence levels" },
+  { code: "IE", label: "IE", name: "Initiating Events", handoff: "Provides · Initiator groups, frequencies and the module count" },
+  { code: "POS", label: "POS", name: "Plant Operating States", handoff: "Provides · Operating states, their hours and the sources" },
+  { code: "SC", label: "SC", name: "Success Criteria", handoff: "Provides · Success criteria and mission times" },
+  { code: "HS", label: "HS", name: "Hazards Screening", handoff: "Provides · Hazard uncertainties and pre-operational assumptions" },
+  { code: "RI", label: "RI", name: "Risk Integration", handoff: "Provides · Significance of families and contributors" },
+];
+
+const EXAMPLE_VARIANT_LABELS: Record<string, string> = {
+  htgr: "Generic HTGR",
+  sfr: "Generic SFR",
+  hcl: "HCL case study",
 };
+
+function exampleLinkVariant(id: string): string | undefined {
+  return id.startsWith("example-") ? id.split("-").slice(2).join("-") : undefined;
+}
+
+function exampleLinkLabel(id: string): string | undefined {
+  const variant = exampleLinkVariant(id);
+  if (variant === undefined) return undefined;
+  return `${EXAMPLE_VARIANT_LABELS[variant] ?? variant} example`;
+}
+
+const ESQ_HAZARD_GROUPS: string[] = [
+  "Internal events",
+  "Internal floods",
+  "Internal fires",
+  "Seismic events",
+  "High winds",
+  "External floods",
+  "Other internal and external hazards",
+];
+
+const ESQ_EXTERNAL_HAZARD_GROUPS: string[] = [
+  "Seismic events",
+  "High winds",
+  "External floods",
+  "Other internal and external hazards",
+];
+
+interface EsqScopeAspectSpec {
+  aspect: EsqScopeAspect;
+  label: string;
+  item: string;
+  fromEs: boolean;
+}
+
+const ESQ_SCOPE_ASPECTS: EsqScopeAspectSpec[] = [
+  { aspect: "HAZARD_GROUP", label: "Hazard groups", item: "hazard group", fromEs: false },
+  { aspect: "OPERATING_STATE", label: "Operating states", item: "operating state", fromEs: true },
+  { aspect: "SOURCE", label: "Sources", item: "source", fromEs: false },
+  { aspect: "INITIATOR_GROUP", label: "Initiator groups", item: "initiator group", fromEs: true },
+];
+
+const FREQUENCY_BASIS_OPTIONS: { id: EsqFrequencyBasis; label: string }[] = [
+  { id: "PER_PLANT_YEAR", label: "Per plant-year" },
+  { id: "PER_REACTOR_YEAR", label: "Per reactor-year" },
+];
+
+const STATE_WEIGHTING_OPTIONS: { id: EsqStateWeighting; label: string }[] = [
+  { id: "POS_HOURS", label: "Hours in each state, from POS" },
+  { id: "TYPED_SHARES", label: "Share typed for each state" },
+];
+
+const MODULE_COUNTING_OPTIONS: { id: EsqModuleCounting; label: string }[] = [
+  { id: "EACH_MODULE", label: "Counted for each module" },
+  { id: "ONCE_PER_PLANT", label: "Counted once per plant" },
+];
+
+type EsqPlanKey = "frequencyBasis" | "stateWeighting" | "moduleCounting" | "reportingFloorPerYear" | "convergenceStepPercent";
+
+const ESQ_PLAN_LABELS: Record<EsqPlanKey, string> = {
+  frequencyBasis: "Frequency basis",
+  stateWeighting: "State weighting",
+  moduleCounting: "Single-module sequences",
+  reportingFloorPerYear: "Reporting floor",
+  convergenceStepPercent: "Convergence step",
+};
+
+const ESQ_PLAN_SOURCES: Record<EsqPlanKey, string> = {
+  frequencyBasis: "NEI 18-04",
+  stateWeighting: "RA-S-1.4 definitions",
+  moduleCounting: "Analyst choice",
+  reportingFloorPerYear: "RI-A4 · RG 1.247",
+  convergenceStepPercent: "ESQ-N-4 example",
+};
+
+const ESQ_MODEL_ELEMENTS: EsqModelElement[] = ["ES", "SY", "DA", "HRA", "IE", "POS", "SC"];
+
+const MODEL_ELEMENT_LABELS: Record<EsqModelElement, string> = {
+  ES: "ES",
+  SY: "SY",
+  DA: "DA",
+  HRA: "HR",
+  IE: "IE",
+  POS: "POS",
+  SC: "SC",
+};
+
+const MODEL_ELEMENT_PROVIDES: Record<EsqModelElement, string> = {
+  ES: "Event trees, sequences and families",
+  SY: "Fault tree tops, basic events, common cause groups and equipment qualification",
+  DA: "Parameter values and distributions",
+  HRA: "Human error probabilities and post-initiator actions",
+  IE: "Initiator group frequencies and barrier impacts",
+  POS: "Hours in each operating state, sources and barriers",
+  SC: "Barrier criteria and challenge loads",
+};
+
+const END_STATE_LABELS: Record<string, string> = {
+  SUCCESSFUL_MITIGATION: "Successful mitigation",
+  RADIONUCLIDE_RELEASE: "Release",
+};
+
+const EVIDENCE_KIND_LABELS: Record<string, string> = {
+  PLANT_RECORDS: "1 · Plant records",
+  TECHNOLOGY: "2 · Technology evidence",
+  GENERIC_NUCLEAR: "3 · Generic nuclear data",
+  ANALOGOUS_INDUSTRY: "4 · Analogous industries",
+  ENGINEERING_MODEL: "5 · Engineering models",
+  EXPERT_JUDGMENT: "6 · Expert judgment",
+};
+
+const PLANT_STAGES: { id: Stage; title: string; body: string }[] = [
+  { id: "pre_operational", title: "Pre-operational", body: "Design calculations and borrowed data stand in for the as-built plant. Assumptions that must close before operation are listed." },
+  { id: "operational", title: "Operational", body: "The as-built, as-operated plant and its records confirm the model and its results." },
+];
 
 const CONTRIBUTOR_TYPE_LABELS: Record<string, string> = {
   CCF: "Common-cause",
@@ -249,24 +342,6 @@ const CONTRIBUTOR_TYPE_LABELS: Record<string, string> = {
   HAZARD_GROUP: "Hazard group",
 };
 
-const MUTEX_TREATMENT_LABELS: Record<string, string> = {
-  LOGIC_ELIMINATION: "Logic prevents it",
-  CUTSET_DELETION: "Cutset deleted",
-};
-
-const CIRCULAR_METHOD_LABELS: Record<string, string> = {
-  CONDITIONAL_SPLIT_FRACTIONS: "Conditional split fractions",
-  TRANSFER_GATES: "Transfer gates",
-  ITERATIVE_CONVERGENCE: "Iterative convergence",
-  LOGIC_TRANSFORMATION: "Logic transformation",
-};
-
-const MODULE_TYPE_LABELS: Record<string, string> = {
-  MODULE: "Module",
-  SUBTREE: "Subtree",
-  SPLIT_FRACTION: "Split fraction",
-};
-
 const CONTRIBUTOR_TYPE_ENTRIES: [string, string][] = [
   ["CCF", "Common-cause"],
   ["EQUIPMENT_FAILURE", "Equipment"],
@@ -279,20 +354,6 @@ const CONTRIBUTOR_TYPE_ENTRIES: [string, string][] = [
   ["PLANT_DAMAGE_STATE", "Damage state"],
 ];
 
-const DEPENDENCY_TYPE_LABELS: Record<string, string> = {
-  FUNCTIONAL: "Functional",
-  PHYSICAL: "Physical",
-  HUMAN: "Human",
-  OPERATIONAL: "Operational",
-  PHENOMENOLOGICAL: "Phenomenological",
-  COMMON_CAUSE: "Common-cause",
-};
-
-const CHALLENGE_BASIS_LABELS: Record<string, string> = {
-  CONSERVATIVE_GENERIC_ESTIMATE: "Conservative estimate",
-  REALISTIC_PLANT_SPECIFIC_CALCULATION: "Realistic calculation",
-};
-
 const EXT_HAZARD_BASIS_LABELS: Record<string, string> = {
   ESTIMATED: "Capacity estimated",
   FRAGILITY_CURVES: "Fragility curves",
@@ -300,36 +361,12 @@ const EXT_HAZARD_BASIS_LABELS: Record<string, string> = {
 
 
 
-const SOLUTION_METHOD_LABELS: Record<string, string> = {
-  MCUB: "Minimal cutset upper bound",
-  EXACT: "Exact Boolean solution",
-  RARE_EVENT: "Rare-event approximation",
-};
-
 const PROPAGATION_LABELS: Record<string, string> = {
   MONTE_CARLO: "Monte Carlo sampling",
   LATIN_HYPERCUBE: "Latin hypercube sampling",
   ANALYTICAL: "Analytical propagation",
   OTHER: "Other",
 };
-
-const APPROACH_LABELS: Record<string, string> = {
-  FAULT_TREE_LINKING: "Fault-tree linking",
-  EVENT_TREE_BOUNDARY_CONDITIONS: "Event trees with boundary conditions",
-  BINARY_DECISION_DIAGRAM: "Binary decision diagram",
-  MARKOV_MODEL: "Markov model",
-  DISCRETE_EVENT_SIMULATION: "Discrete-event simulation",
-  MONTE_CARLO_SIMULATION: "Monte Carlo simulation",
-};
-
-const TRUNCATION_METHOD_LABELS: Record<string, string> = {
-  ABSOLUTE_FREQUENCY: "Absolute frequency",
-  PERCENTAGE_OF_TOTAL: "Percentage of total",
-  SIGNIFICANT_DIGITS: "Significant digits",
-  RELATIVE_CONTRIBUTION: "Relative contribution",
-};
-
-
 
 const ESQ_TOC: [string, string][] = [
   ["Executive summary", "5"],
@@ -352,8 +389,11 @@ const ESQ_TOC: [string, string][] = [
   ["Barrier challenge & capacity", "15"],
   ["Risk-significant contributors & importance", "16"],
   ["Screening audit", "17"],
-  ["Model uncertainty & sensitivity", "18"],
-  ["Limitations for applications", "19"],
+  ["Uncertainty results", "18"],
+  ["Model uncertainty & sensitivity", "19"],
+  ["Pre-operational assumptions", "20"],
+  ["Hand-offs", "21"],
+  ["Limitations for applications", "22"],
 ];
 
 export type {
@@ -365,8 +405,9 @@ export type {
   ConformanceItem,
   ConformanceStatus,
   Stage,
-  MethodSpec,
-  LinkSpec,
+  EsqLinkTile,
+  EsqScopeAspectSpec,
+  EsqPlanKey,
 };
 
 export {
@@ -375,21 +416,26 @@ export {
   ESQ_PERSONA_STEPS,
   CAPABILITY_CATEGORIES,
   CONFORMANCE_ITEMS,
-  ESQ_METHODS,
-  ESQ_UPSTREAM_LINKS,
-  ESQ_DOWNSTREAM_LINKS,
-  QUANT_BASIS_LABELS,
+  ESQ_LINK_TILES,
+  ESQ_HAZARD_GROUPS,
+  ESQ_EXTERNAL_HAZARD_GROUPS,
+  ESQ_SCOPE_ASPECTS,
+  FREQUENCY_BASIS_OPTIONS,
+  STATE_WEIGHTING_OPTIONS,
+  MODULE_COUNTING_OPTIONS,
+  ESQ_PLAN_LABELS,
+  ESQ_PLAN_SOURCES,
+  ESQ_MODEL_ELEMENTS,
+  MODEL_ELEMENT_LABELS,
+  MODEL_ELEMENT_PROVIDES,
+  END_STATE_LABELS,
+  EVIDENCE_KIND_LABELS,
+  PLANT_STAGES,
+  exampleLinkVariant,
+  exampleLinkLabel,
   CONTRIBUTOR_TYPE_LABELS,
-  MUTEX_TREATMENT_LABELS,
-  CIRCULAR_METHOD_LABELS,
-  MODULE_TYPE_LABELS,
-  DEPENDENCY_TYPE_LABELS,
   CONTRIBUTOR_TYPE_ENTRIES,
-  CHALLENGE_BASIS_LABELS,
   EXT_HAZARD_BASIS_LABELS,
-  APPROACH_LABELS,
-  SOLUTION_METHOD_LABELS,
   PROPAGATION_LABELS,
-  TRUNCATION_METHOD_LABELS,
   ESQ_TOC,
 };

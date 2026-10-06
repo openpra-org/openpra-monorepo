@@ -27,10 +27,10 @@ function Workbook({ editable = true, initial = empty, changed = jest.fn(), initi
   initialSourceWorkbookId?: string | null;
 }) {
   const [esq, setEsq] = useState(initial);
-  return <ToastProvider><EsqWorkbookProvider data={{ esq, links: null }} editable={editable}
+  return <ToastProvider><EsqWorkbookProvider data={{ esq }} editable={editable}
     runtime={{ workbookId: "local-esq", projectId: "project", revision: 1, saveStatus: "saved" }}
     mutateEsq={(mutate) => setEsq((current) => { const next = mutate(current); changed(next); return next; })}>
-    <EsqEventTreeHclWorkspace initialNetworkId={initialNetworkId} initialSourceWorkbookId={initialSourceWorkbookId} />
+    <EsqEventTreeHclWorkspace mode="NETWORK" initialNetworkId={initialNetworkId} initialSourceWorkbookId={initialSourceWorkbookId} />
   </EsqWorkbookProvider></ToastProvider>;
 }
 

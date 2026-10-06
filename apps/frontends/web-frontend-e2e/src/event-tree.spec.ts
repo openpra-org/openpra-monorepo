@@ -211,16 +211,13 @@ test("creates, edits, reloads, validates, links, and quantifies the canonical ev
   expect(Object.values(tree.branches)[0]?.paths.map((path) => path.state).sort()).toEqual(["FAILURE", "SUCCESS"]);
 });
 
-test("uses the canonical event-tree component for the ESQ read-only host", async ({ page }, testInfo) => {
+test("opens the ESQ solve step with its run tabs", async ({ page }) => {
   await page.addInitScript((jwt) => window.localStorage.setItem("id_token", jwt), token);
   await page.goto(`/esq-workbooks/${esqWorkbookId}`);
-  await page.getByRole("button", { name: "Integrate & Quantify", exact: true }).click();
+  await page.getByRole("button", { name: "Solve and converge", exact: true }).click();
 
-  await expect(page.getByRole("heading", { name: "Linked event-tree model" })).toBeVisible();
-  const editor = page.getByTestId("event-tree-editor");
-  await expect(editor).toBeVisible();
-  await expect(editor.getByText("Reactor trip?").first()).toBeVisible();
-  await expect(editor.getByRole("button", { name: "Add functional event" })).toHaveCount(0);
-  await expect(editor.getByRole("button", { name: "Undo event-tree edit" })).toHaveCount(0);
-  await editor.screenshot({ path: testInfo.outputPath("event-tree-read-only.png") });
+  await expect(page.getByRole("heading", { name: "Model runs" })).toBeVisible();
+  for (const name of ["Runs", "Sequences", "Cut sets", "Convergence", "Verification"]) {
+    await expect(page.getByRole("tab", { name, exact: true })).toBeVisible();
+  }
 });

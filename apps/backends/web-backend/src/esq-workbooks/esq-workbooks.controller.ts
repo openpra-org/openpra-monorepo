@@ -6,9 +6,16 @@ import { EsqWorkbooksService, type EsqWorkbookResponse } from "./esq-workbooks.s
 import { parseRevisionedWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
 import { parseExpectedWorkbookRevision } from "../workbooks/workbook-revision";
 import { WorkbookAnalysisRunsService } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
+import { EsqModelRunsService } from "./esq-model-runs.service";
 import type {
   AnalysisRunMetadata,
+  EsqImportanceRunResult,
+  EsqModelRunResult,
+  EsqPostRunResult,
+  EsqUncertaintyRunResult,
+  EventTreeAnalysisResult,
   HclBatchExecuteResult,
+  LoadCapacityAnalysisResult,
 } from "interfaces-shared-types/newly-developed-methods";
 
 @UseInterceptors(AnalysisCancellationInterceptor)
@@ -18,6 +25,7 @@ export class EsqWorkbooksController {
   constructor(
     private readonly esqWorkbooksService: EsqWorkbooksService,
     private readonly analysisRunsService: WorkbookAnalysisRunsService,
+    private readonly modelRunsService: EsqModelRunsService,
   ) {}
 
   @Get(":id")
@@ -27,8 +35,8 @@ export class EsqWorkbooksController {
   }
 
   @Get(":id/analysis-runs")
-  listAnalysisRuns(@Param("id") id: string, @Req() req: AuthenticatedRequest, @Query("cursor") cursor?: string) {
-    return this.analysisRunsService.listRunProvenance("ESQ", id, { username: req.user!.username }, cursor);
+  listAnalysisRuns(@Param("id") id: string, @Req() req: AuthenticatedRequest, @Query("cursor") cursor?: string, @Query("modelId") modelId?: string) {
+    return this.analysisRunsService.listRunProvenance("ESQ", id, { username: req.user!.username }, cursor, modelId);
   }
 
   @Get(":id/analysis-runs/:runId")
@@ -39,6 +47,173 @@ export class EsqWorkbooksController {
   @Get(":id/analysis-runs/:runId/details")
   analysisRunDetails(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
     return this.analysisRunsService.getRunDetails("ESQ", id, runId, { username: req.user!.username });
+  }
+
+  @Post(":id/event-trees/:treeId/runs")
+  @HttpCode(HttpStatus.OK)
+  async runEventTree(
+    @Param("id") id: string,
+    @Param("treeId") treeId: string,
+    @Body() body: object,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ schemaVersion: "1.0.0"; run: AnalysisRunMetadata }> {
+    return {
+      schemaVersion: "1.0.0",
+      run: await this.modelRunsService.runEventTree(id, treeId, body, { username: req.user!.username }),
+    };
+  }
+
+  @Get(":id/event-trees/:treeId/runs/:runId/result")
+  @HttpCode(HttpStatus.OK)
+  getEventTreeResult(
+    @Param("id") id: string,
+    @Param("treeId") treeId: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<EventTreeAnalysisResult> {
+    return this.modelRunsService.getEventTreeResult(id, treeId, runId, { username: req.user!.username });
+  }
+
+  @Post(":id/model-runs")
+  @HttpCode(HttpStatus.OK)
+  async runModel(
+    @Param("id") id: string,
+    @Body() body: object,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ schemaVersion: "1.0.0"; run: AnalysisRunMetadata }> {
+    return {
+      schemaVersion: "1.0.0",
+      run: await this.modelRunsService.runModel(id, body, { username: req.user!.username }),
+    };
+  }
+
+  @Get(":id/model-runs/:runId/result")
+  @HttpCode(HttpStatus.OK)
+  getModelResult(
+    @Param("id") id: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<EsqModelRunResult> {
+    return this.modelRunsService.getModelResult(id, runId, { username: req.user!.username });
+  }
+
+  @Post(":id/post-runs")
+  @HttpCode(HttpStatus.OK)
+  async runPost(
+    @Param("id") id: string,
+    @Body() body: object,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ schemaVersion: "1.0.0"; run: AnalysisRunMetadata }> {
+    return {
+      schemaVersion: "1.0.0",
+      run: await this.modelRunsService.runPost(id, body, { username: req.user!.username }),
+    };
+  }
+
+  @Get(":id/post-runs/:runId/result")
+  @HttpCode(HttpStatus.OK)
+  getPostResult(
+    @Param("id") id: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<EsqPostRunResult> {
+    return this.modelRunsService.getPostResult(id, runId, { username: req.user!.username });
+  }
+
+  @Post(":id/importance-runs")
+  @HttpCode(HttpStatus.OK)
+  async runImportance(
+    @Param("id") id: string,
+    @Body() body: object,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ schemaVersion: "1.0.0"; run: AnalysisRunMetadata }> {
+    return {
+      schemaVersion: "1.0.0",
+      run: await this.modelRunsService.runImportance(id, body, { username: req.user!.username }),
+    };
+  }
+
+  @Get(":id/importance-runs/:runId/result")
+  @HttpCode(HttpStatus.OK)
+  getImportanceResult(
+    @Param("id") id: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<EsqImportanceRunResult> {
+    return this.modelRunsService.getImportanceResult(id, runId, { username: req.user!.username });
+  }
+
+  @Post(":id/uncertainty-runs")
+  @HttpCode(HttpStatus.OK)
+  async runUncertainty(
+    @Param("id") id: string,
+    @Body() body: object,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ schemaVersion: "1.0.0"; run: AnalysisRunMetadata }> {
+    return {
+      schemaVersion: "1.0.0",
+      run: await this.modelRunsService.runUncertainty(id, body, { username: req.user!.username }),
+    };
+  }
+
+  @Get(":id/uncertainty-runs/:runId/result")
+  @HttpCode(HttpStatus.OK)
+  getUncertaintyResult(
+    @Param("id") id: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<EsqUncertaintyRunResult> {
+    return this.modelRunsService.getUncertaintyResult(id, runId, { username: req.user!.username });
+  }
+
+  @Post(":id/sensitivity-cases/:caseId/runs")
+  @HttpCode(HttpStatus.OK)
+  async runSensitivity(
+    @Param("id") id: string,
+    @Param("caseId") caseId: string,
+    @Body() body: object,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ schemaVersion: "1.0.0"; run: AnalysisRunMetadata }> {
+    return {
+      schemaVersion: "1.0.0",
+      run: await this.modelRunsService.runSensitivity(id, caseId, body, { username: req.user!.username }),
+    };
+  }
+
+  @Get(":id/sensitivity-cases/:caseId/runs/:runId/result")
+  @HttpCode(HttpStatus.OK)
+  getSensitivityResult(
+    @Param("id") id: string,
+    @Param("caseId") caseId: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<EsqModelRunResult> {
+    return this.modelRunsService.getSensitivityResult(id, caseId, runId, { username: req.user!.username });
+  }
+
+  @Post(":id/barrier-cells/:cellId/runs")
+  @HttpCode(HttpStatus.OK)
+  async runBarrierCell(
+    @Param("id") id: string,
+    @Param("cellId") cellId: string,
+    @Body() body: object,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ schemaVersion: "1.0.0"; run: AnalysisRunMetadata }> {
+    return {
+      schemaVersion: "1.0.0",
+      run: await this.modelRunsService.runBarrierCell(id, cellId, body, { username: req.user!.username }),
+    };
+  }
+
+  @Get(":id/barrier-cells/:cellId/runs/:runId/result")
+  @HttpCode(HttpStatus.OK)
+  getBarrierCellResult(
+    @Param("id") id: string,
+    @Param("cellId") cellId: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<LoadCapacityAnalysisResult> {
+    return this.modelRunsService.getBarrierCellResult(id, cellId, runId, { username: req.user!.username });
   }
 
   @Patch(":id")

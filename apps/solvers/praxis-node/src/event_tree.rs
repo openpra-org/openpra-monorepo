@@ -19,13 +19,15 @@ use praxis::{PraxisError, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::fault_tree::build_fault_tree_for_model;
+use crate::fault_tree::{build_expanded_fault_tree_for_model, build_fault_tree_for_model};
 use crate::hybrid_causal_logic::build_event_tree_context;
 use crate::transport::SolverRequest;
 
 const EVENT_TREE_METHOD: &str = "EVENT_TREE";
 
+mod cut_sets;
 mod linked;
+mod measures;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -40,6 +42,18 @@ struct EventTreeExecuteRequest {
     requested_by: String,
     evidence_batch: Option<Vec<EventTreeEvidenceRow>>,
     hazard_convolution: Option<HazardConvolutionRequest>,
+    #[serde(default)]
+    expand_ccf: bool,
+    #[serde(default)]
+    cut_sets: Option<cut_sets::CutSetsInput>,
+    #[serde(default)]
+    sequence_families: HashMap<String, String>,
+    #[serde(default)]
+    importance: Option<measures::ImportanceInput>,
+    #[serde(default)]
+    sampling: Option<measures::SamplingInput>,
+    #[serde(default)]
+    overrides: Option<measures::OverridesInput>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -221,6 +235,11 @@ struct EventTreeAdapter {
     hcl_context: Option<EventTreeHclContext>,
     evidence_batch: Option<Vec<EventTreeEvidenceRow>>,
     hazard_convolution: Option<HazardConvolutionRequest>,
+    cut_sets: Option<cut_sets::CutSetsInput>,
+    sequence_families: HashMap<String, String>,
+    expand_ccf: bool,
+    importance: Option<measures::ImportanceInput>,
+    sampling: Option<measures::SamplingInput>,
 }
 
 fn serialization_error(context: &str, error: impl std::fmt::Display) -> PraxisError {
@@ -280,6 +299,49 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
             "Uncertainty execution requires HCL mode.".into(),
         ));
     }
+    if execute.expand_ccf && matches!(execute.mode, EventTreeExecutionMode::HybridCausalLogic) {
+        return Err(PraxisError::Hcl(
+            "Common-cause expansion is not available for HCL event-tree runs.".into(),
+        ));
+    }
+    if let Some(cut_sets) = &execute.cut_sets {
+        if matches!(execute.mode, EventTreeExecutionMode::HybridCausalLogic)
+            || execute.evidence_batch.is_some()
+            || execute.hazard_convolution.is_some()
+        {
+            return Err(PraxisError::Settings(
+                "Cut sets are available for independent event-tree runs without evidence batches or hazard convolution."
+                    .into(),
+            ));
+        }
+        cut_sets.validate()?;
+    }
+    if execute.importance.is_some() || execute.sampling.is_some() {
+        if matches!(execute.mode, EventTreeExecutionMode::HybridCausalLogic)
+            || execute.evidence_batch.is_some()
+            || execute.hazard_convolution.is_some()
+            || execute.cut_sets.is_some()
+        {
+            return Err(PraxisError::Settings(
+                "Importance and sampling are available for exact independent event-tree runs without cut sets, evidence batches or hazard convolution."
+                    .into(),
+            ));
+        }
+        if let Some(importance) = &execute.importance {
+            importance.validate()?;
+        }
+        if let Some(sampling) = &execute.sampling {
+            sampling.validate()?;
+        }
+    }
+    if let Some(overrides) = &execute.overrides {
+        if matches!(execute.mode, EventTreeExecutionMode::HybridCausalLogic) {
+            return Err(PraxisError::Settings(
+                "Probability overrides are available for independent event-tree runs.".into(),
+            ));
+        }
+        overrides.validate()?;
+    }
     let event_tree_snapshots = parse_event_tree_snapshots(request)?;
     let snapshot = event_tree_snapshots
         .get(&execute.model_id)
@@ -323,7 +385,11 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
     let mut model = Model::new(format!("event-tree-{}", snapshot.id))?;
     let added_fault_trees: HashSet<String> = linked.fault_trees.keys().cloned().collect();
     for (id, top) in &linked.fault_trees {
-        let adapter = build_fault_tree_for_model(request, id)?;
+        let adapter = if execute.expand_ccf {
+            build_expanded_fault_tree_for_model(request, id)?
+        } else {
+            build_fault_tree_for_model(request, id)?
+        };
         if &adapter.top_gate_id != top {
             return Err(PraxisError::Logic(format!(
                 "fault tree '{id}' uses top gate '{}' instead of '{top}'",
@@ -331,6 +397,9 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
             )));
         }
         model.add_fault_tree(adapter.fault_tree)?;
+    }
+    if let Some(overrides) = &execute.overrides {
+        overrides.apply(&mut model)?;
     }
 
     let hcl_context = match execute.mode {
@@ -379,6 +448,11 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
         hcl_context,
         evidence_batch: execute.evidence_batch,
         hazard_convolution: execute.hazard_convolution,
+        cut_sets: execute.cut_sets,
+        sequence_families: execute.sequence_families,
+        expand_ccf: execute.expand_ccf,
+        importance: execute.importance,
+        sampling: execute.sampling,
     })
 }
 
@@ -467,6 +541,12 @@ pub(crate) fn preflight(request: &SolverRequest, executing: bool) -> Result<Valu
 
 pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
     let adapter = build_adapter(request)?;
+    if adapter.importance.is_some() || adapter.sampling.is_some() {
+        return measures::execute(&adapter, adapter.importance.as_ref(), adapter.sampling.as_ref());
+    }
+    if let Some(settings) = &adapter.cut_sets {
+        return cut_sets::execute(&adapter, settings);
+    }
     if let Some(rows) = &adapter.evidence_batch {
         validate_evidence_rows(rows)?;
         if adapter.hazard_convolution.is_some() {
@@ -1431,6 +1511,137 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("transfer loop"));
+    }
+
+    #[test]
+    fn expands_common_cause_groups_the_same_way_in_every_linked_fault_tree() {
+        let pump = |id: &str, event: &str| json!({ "id": id, "kind": "BASIC_EVENT_REFERENCE", "basicEventId": event });
+        let request = |expand: bool| {
+            SolverRequest::from_json(
+                &json!({
+                    "schemaVersion": "1.0.0",
+                    "request": {
+                        "schemaVersion": "1.0.0",
+                        "methodType": "EVENT_TREE",
+                        "modelId": "ET",
+                        "revision": 2,
+                        "mode": "INDEPENDENT",
+                        "requestedBy": "analyst",
+                        "expandCcf": expand
+                    },
+                    "modelSnapshots": [
+                        {
+                            "id": "FT-A", "projectId": "P", "methodType": "FAULT_TREE", "revision": 2,
+                            "topGate": { "gateId": "TOP-A" },
+                            "gates": [{ "id": "TOP-A", "gateType": "AND" }],
+                            "leafNodes": [pump("LEAF-A", "PUMP-A"), pump("LEAF-B", "PUMP-B")],
+                            "gateInputs": [
+                                { "id": "IN-A", "gateId": "TOP-A", "childId": "LEAF-A", "order": 0 },
+                                { "id": "IN-B", "gateId": "TOP-A", "childId": "LEAF-B", "order": 1 }
+                            ]
+                        },
+                        {
+                            "id": "FT-B", "projectId": "P", "methodType": "FAULT_TREE", "revision": 2,
+                            "topGate": { "gateId": "TOP-B" },
+                            "gates": [{ "id": "TOP-B", "gateType": "OR" }],
+                            "leafNodes": [pump("LEAF-ONE", "PUMP-A")],
+                            "gateInputs": [{ "id": "IN-ONE", "gateId": "TOP-B", "childId": "LEAF-ONE", "order": 0 }]
+                        },
+                        {
+                            "id": "ET",
+                            "methodType": "EVENT_TREE",
+                            "revision": 2,
+                            "initiatingEvent": { "target": { "modelId": "IE", "entityId": "IE-1" } },
+                            "initiatingEventFrequency": { "value": 1.0 },
+                            "functionalEvents": [
+                                { "id": "FE-A", "name": "Both trains", "order": 0 },
+                                { "id": "FE-B", "name": "Train A", "order": 1 }
+                            ],
+                            "functionalEventFaultTreeLinks": [
+                                { "functionalEventId": "FE-A", "faultTreeTopGate": { "modelId": "FT-A", "entityId": "TOP-A" } },
+                                { "functionalEventId": "FE-B", "faultTreeTopGate": { "modelId": "FT-B", "entityId": "TOP-B" } }
+                            ],
+                            "endStates": [{ "id": "SAFE" }, { "id": "RELEASE" }],
+                            "sequences": [
+                                sequence("SS", "SUCCESS", "SUCCESS", "SAFE"),
+                                sequence("SF", "SUCCESS", "FAILURE", "SAFE"),
+                                sequence("FS", "FAILURE", "SUCCESS", "SAFE"),
+                                sequence("FF", "FAILURE", "FAILURE", "RELEASE")
+                            ]
+                        }
+                    ],
+                    "resources": {
+                        "faultTreeBasicEventCatalogue": {
+                            "projectId": "P",
+                            "basicEvents": [
+                                { "id": "PUMP-A", "probability": { "value": 0.01 } },
+                                { "id": "PUMP-B", "probability": { "value": 0.01 } }
+                            ],
+                            "commonCauseFailureGroups": [{
+                                "id": "PUMPS",
+                                "members": ["PUMP-A", "PUMP-B"],
+                                "model": { "kind": "BETA_FACTOR", "beta": 0.1 },
+                                "totalFailureProbability": 0.01
+                            }]
+                        }
+                    }
+                })
+                .to_string(),
+            )
+            .unwrap()
+        };
+        let probabilities = |expand: bool| -> HashMap<String, f64> {
+            execute(&request(expand)).unwrap()["sequences"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|sequence| {
+                    (
+                        sequence["sequenceId"].as_str().unwrap().to_string(),
+                        sequence["conditionalProbability"].as_f64().unwrap(),
+                    )
+                })
+                .collect()
+        };
+
+        let independent = probabilities(false);
+        assert!((independent["FF"] - 1e-4).abs() < 1e-15);
+        assert!((independent["SF"] - (0.01 - 1e-4)).abs() < 1e-15);
+
+        let (single, common) = (0.009, 0.001);
+        let both = common + (1.0 - common) * single * single;
+        let train_a = 1.0 - (1.0 - single) * (1.0 - common);
+        let expanded = probabilities(true);
+        assert!((expanded["FF"] - both).abs() < 1e-15);
+        assert!(expanded["FS"].abs() < 1e-15);
+        assert!((expanded["SF"] - (train_a - both)).abs() < 1e-15);
+        assert!((expanded["SS"] - (1.0 - train_a)).abs() < 1e-15);
+    }
+
+    #[test]
+    fn refuses_common_cause_expansion_in_hcl_mode() {
+        let request = SolverRequest::from_json(
+            &json!({
+                "schemaVersion": "1.0.0",
+                "request": {
+                    "schemaVersion": "1.0.0",
+                    "methodType": "EVENT_TREE",
+                    "modelId": "ET",
+                    "revision": 2,
+                    "mode": "HYBRID_CAUSAL_LOGIC",
+                    "requestedBy": "analyst",
+                    "expandCcf": true
+                },
+                "modelSnapshots": [],
+                "resources": {}
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let error = execute(&request).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("Common-cause expansion is not available for HCL event-tree runs."));
     }
 
     fn fault_tree(id: &str, top: &str, reference: &str) -> Value {

@@ -31,6 +31,7 @@ interface EsqDaCaseOption {
   target?: string;
   low?: number;
   high?: number;
+  base?: number;
 }
 
 function byId(left: string, right: string): number {
@@ -130,6 +131,7 @@ function caseOptions(links: readonly EsqDaLink[]): EsqDaCaseOption[] {
       ...(target === undefined ? {} : { target }),
       ...(result.problem === undefined && result.low !== undefined ? { low: result.low } : {}),
       ...(result.problem === undefined && result.high !== undefined ? { high: result.high } : {}),
+      ...(result.problem === undefined && result.base !== undefined ? { base: result.base } : {}),
     };
   }));
 }

@@ -386,7 +386,7 @@ function SyBayesianNetworkWorkspace({
           editable={editable}
           workbookNotice={targetEsqWorkbook === undefined || runtime.workbookId === null ? undefined : {
             message: `This network is available in ${workbookBaseName(targetEsqWorkbook.name)}.`,
-            sourceHref: `/esq-workbooks/${encodeURIComponent(targetEsqWorkbook.id)}?step=depend&sourceWorkbook=${encodeURIComponent(runtime.workbookId)}&network=${encodeURIComponent(model.modelId)}`,
+            sourceHref: `/esq-workbooks/${encodeURIComponent(targetEsqWorkbook.id)}?step=logic&sourceWorkbook=${encodeURIComponent(runtime.workbookId)}&network=${encodeURIComponent(model.modelId)}`,
             sourceLabel: "Open Event Sequence Quantification workbook",
           }}
           hclScope="FAULT_TREE"

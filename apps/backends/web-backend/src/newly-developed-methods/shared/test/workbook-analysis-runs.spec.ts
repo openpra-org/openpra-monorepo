@@ -33,9 +33,19 @@ import { EsWorkbook, EsWorkbookSchema } from "../../../es-workbooks/es-workbook.
 import { EsWorkbooksController } from "../../../es-workbooks/es-workbooks.controller";
 import { EsWorkbooksService } from "../../../es-workbooks/es-workbooks.service";
 import { createBlankEsq } from "../../../esq-workbooks/blank-esq";
-import { EsqWorkbook, EsqWorkbookSchema } from "../../../esq-workbooks/esq-workbook.schema";
+import { EsqWorkbook, EsqWorkbookSchema, type EsqWorkbookDocument } from "../../../esq-workbooks/esq-workbook.schema";
 import { EsqWorkbooksController } from "../../../esq-workbooks/esq-workbooks.controller";
 import { EsqWorkbooksService } from "../../../esq-workbooks/esq-workbooks.service";
+import { EsqModelRunsService } from "../../../esq-workbooks/esq-model-runs.service";
+import { ExampleWorkbooksService } from "../../../example-workbooks/example-workbooks.service";
+import { esqSequenceRunId, esqTreeRunId } from "interfaces-mef-types/esq/esq-run-inputs";
+import { esqCellRunId } from "interfaces-mef-types/esq/esq-barrier-inputs";
+import { esqModelRunId, solveInputsKey } from "interfaces-mef-types/esq/esq-solve-inputs";
+import { esqPostRunId } from "interfaces-mef-types/esq/esq-post-inputs";
+import { esqImportanceRunId, esqUncertaintyRunId, uncertaintyInputsKey } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { caseInputsKey, esqSensitivityRunId } from "interfaces-mef-types/esq/esq-sensitivity-inputs";
+import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-models";
+import type { EsqEventTreeRunLogic } from "interfaces-shared-types/newly-developed-methods";
 import { ProjectsService } from "../../../projects/projects.service";
 import {
   DA_ANALYSIS_HCL,
@@ -686,6 +696,8 @@ describe("workbook-owned analysis-run APIs", () => {
         { provide: SyWorkbooksService, useValue: {} },
         { provide: EsWorkbooksService, useValue: {} },
         { provide: EsqWorkbooksService, useValue: {} },
+        EsqModelRunsService,
+        { provide: ExampleWorkbooksService, useValue: { findBySlug: jest.fn() } },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -1897,6 +1909,533 @@ describe("workbook-owned analysis-run APIs", () => {
       annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_760 },
       annualizedInitiatingEventFrequency: { value: 0.01, unit: "PER_YEAR" },
     });
+  }, 120_000);
+
+  it("runs an ESQ event tree from its Step 02 snapshot and applies Step 03 flags", async () => {
+    const workbookId = "esq-logic-runs";
+    const sy = createSyMef();
+    const esq = createBlankEsq("Logic runs", USERNAME);
+    esq.model = {
+      importedAt: "2026-10-05T12:00:00.000Z",
+      sources: [{ element: "SY", workbookId: SY_WORKBOOK_ID, workbookName: "Run fixtures" }],
+      trees: [{ id: "ET-1", code: "ET-1", name: "Tree", initiatorId: "IE-1", stateId: "S-1", functionIds: ["F-OR", "F-AND"], transferEntry: false }],
+      sequences: [
+        { id: "Q-1", code: "Q-1", treeId: "ET-1", path: { "F-OR": "SUCCESS", "F-AND": "SUCCESS" }, endState: "SUCCESSFUL_MITIGATION" },
+        { id: "Q-2", code: "Q-2", treeId: "ET-1", path: { "F-OR": "SUCCESS", "F-AND": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE" },
+        { id: "Q-3", code: "Q-3", treeId: "ET-1", path: { "F-OR": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE" },
+      ],
+      families: [],
+      functions: [
+        { id: "F-OR", name: "Either", treeIds: ["ET-1"], esLinks: [{ treeId: "ET-1", top: { workbookId: SY_WORKBOOK_ID, modelId: FT_OR, gateId: TOP_OR } }] },
+        { id: "F-AND", name: "Both", treeIds: ["ET-1"], esLinks: [{ treeId: "ET-1", top: { workbookId: SY_WORKBOOK_ID, modelId: FT_AND, gateId: TOP_AND } }] },
+      ],
+      tops: sy.systemLogicModels.map((model) => ({
+        modelId: model.uuid,
+        gateId: model.topGate?.gateId ?? "",
+        code: model.code,
+        name: model.name,
+        eventIds: systemFaultTreeBasicEventIds(model),
+        transferModelIds: model.leafNodes.flatMap((leaf) => (leaf.kind === "TRANSFER_REFERENCE" ? [leaf.target.modelId] : [])),
+        gates: model.gates.map((gate) => ({ id: gate.id, code: gate.code, name: gate.name })),
+        houseEvents: model.leafNodes.flatMap((leaf) => (leaf.kind === "HOUSE_EVENT" ? [{ id: leaf.id, code: leaf.code, name: leaf.name, state: leaf.state }] : [])),
+      })),
+      initiators: [{ id: "IE-1", name: "Initiator", stateIds: ["S-1"], meanFrequency: 2 }],
+      states: [{ id: "S-1", name: "Power", hours: 8000 }],
+      events: sy.systemBasicEvents.map((event) => ({ id: event.uuid, code: event.code, name: event.name, heldBy: "TYPED", value: event.probability ?? 0, valueUnit: "PROBABILITY" })),
+      ccfGroups: [],
+      parameters: [],
+      humanEvents: [],
+    };
+    const esqWorkbooks = api.get<Model<EsqWorkbookDocument>>(getModelToken(EsqWorkbook.name));
+    await esqWorkbooks.create({ workbookId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 2, mef: esq });
+    const asSet: EsqEventTreeRunLogic = { flags: true, loopBreaks: "AS_SET", exclusions: true, expandCcf: true };
+    const run = (logic: EsqEventTreeRunLogic, workbookRevision: number) => request(api.getHttpServer())
+      .post(`/api/esq-workbooks/${workbookId}/event-trees/ET-1/runs`)
+      .send({ schemaVersion: "1.0.0", treeId: "ET-1", workbookRevision, logic });
+    const sequences = async (runId: string): Promise<{ sequenceId: string; conditionalProbability: number; annualFrequency: number }[]> => {
+      const result = await request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/event-trees/ET-1/runs/${runId}/result`);
+      expect(result.status).toBe(200);
+      return result.body.sequences;
+    };
+
+    const base = await run(asSet, 2);
+    expect(base.status).toBe(200);
+    const details = await request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/analysis-runs/${base.body.run.id}/details`);
+    expect(details.body.nativeRequest.request).toMatchObject({ methodType: "EVENT_TREE", mode: "INDEPENDENT", expandCcf: true });
+    expect(base.body.run).toMatchObject({ status: "SUCCEEDED", owner: { workbookId, modelId: esqTreeRunId("ET-1"), workbookRevision: 2 } });
+    expect(base.body.run.sourceWorkbooks).toEqual([
+      { workbookId, workbookRevision: 2 },
+      { workbookId: SY_WORKBOOK_ID, workbookRevision: 3 },
+    ]);
+    expect(await sequences(base.body.run.id)).toEqual([
+      expect.objectContaining({ sequenceId: esqSequenceRunId("ET-1", "Q-1"), conditionalProbability: expect.closeTo(0.72, 12), annualFrequency: expect.closeTo(1.44, 12) }),
+      expect.objectContaining({ sequenceId: esqSequenceRunId("ET-1", "Q-2"), conditionalProbability: 0 }),
+      expect.objectContaining({ sequenceId: esqSequenceRunId("ET-1", "Q-3"), conditionalProbability: expect.closeTo(0.28, 12), annualFrequency: expect.closeTo(0.56, 12) }),
+    ]);
+
+    const flaggedMef = { ...esq, logic: { flags: [{ id: "FL-1", name: "A failed", target: { kind: "EVENT" as const, id: EVENT_A }, state: true, groupIds: ["IE-1"], stateIds: [], basis: "Test." }] } };
+    await esqWorkbooks.updateOne({ workbookId }, { $set: { revision: 3, mef: flaggedMef } }).exec();
+    expect((await run(asSet, 2)).status).toBe(409);
+    const flagged = await run(asSet, 3);
+    expect(flagged.status).toBe(200);
+    expect(await sequences(flagged.body.run.id)).toEqual([
+      expect.objectContaining({ conditionalProbability: 0 }),
+      expect.objectContaining({ conditionalProbability: 0 }),
+      expect.objectContaining({ conditionalProbability: expect.closeTo(1, 12), annualFrequency: expect.closeTo(2, 12) }),
+    ]);
+    const unflagged = await run({ ...asSet, flags: false, expandCcf: false }, 3);
+    const unflaggedDetails = await request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/analysis-runs/${unflagged.body.run.id}/details`);
+    expect(unflaggedDetails.body.nativeRequest.request.expandCcf).toBe(false);
+    expect(await sequences(unflagged.body.run.id)).toEqual([
+      expect.objectContaining({ conditionalProbability: expect.closeTo(0.72, 12) }),
+      expect.objectContaining({ conditionalProbability: 0 }),
+      expect.objectContaining({ conditionalProbability: expect.closeTo(0.28, 12) }),
+    ]);
+
+    const model = flaggedMef.model;
+    if (model === undefined) throw new Error("fixture has no model");
+    await esqWorkbooks.updateOne({ workbookId }, { $set: { revision: 4, mef: { ...flaggedMef, model: { ...model, functions: [] } } } }).exec();
+    const unlinked = await run(asSet, 4);
+    expect(unlinked.status).toBe(400);
+    expect(unlinked.body.message).toBe("F-OR in ET-1 is not linked. Link it in Step 02.");
+  }, 120_000);
+
+  it("runs a Step 04 load and capacity cell through PRAXIS", async () => {
+    const workbookId = "esq-barrier-cells";
+    const esq = createBlankEsq("Barrier cells", USERNAME);
+    esq.model = {
+      importedAt: "2026-10-05T12:00:00.000Z",
+      sources: [],
+      trees: [],
+      sequences: [],
+      families: [],
+      functions: [],
+      tops: [],
+      initiators: [],
+      states: [],
+      events: [],
+      ccfGroups: [],
+      parameters: [{ id: "P-WIN", name: "Time to the fuel limit", parameterType: "OTHER", value: 33.35, valueType: "POINT_ESTIMATE", distribution: { type: DistributionType.LOGNORMAL, median: 33.35, errorFactor: 1.287 } }],
+      humanEvents: [],
+    };
+    const cell = { barrierId: "Fuel coating", modeId: "FM-1", familyId: "F-REL", mechanismIds: [], basis: "REALISTIC" as const, use: "SPLIT_FRACTION" as const };
+    esq.barrierWork = {
+      barriers: [{ barrierId: "Fuel coating", modes: [{ id: "FM-1", name: "Coating failure", kind: "GROSS", location: "Core" }] }],
+      cells: [
+        { ...cell, id: "BC-1", variable: "Time to the fuel limit", unit: "h", load: { distribution: { type: DistributionType.POINT_ESTIMATE, value: 48 }, basis: "Release category window." }, capacity: { parameterId: "P-WIN", basis: "Heat-up window." } },
+        {
+          ...cell,
+          id: "BC-2",
+          variable: "Peak fuel temperature",
+          unit: "C",
+          load: { distribution: { type: DistributionType.NORMAL, mean: 1500, stdDev: 50 }, basis: "Heat-up runs." },
+          capacity: { distribution: { type: DistributionType.NORMAL, mean: 1800, stdDev: 60 }, uncertain: [{ parameter: "mean", distribution: { type: DistributionType.NORMAL, mean: 1800, stdDev: 20 } }], basis: "Heating tests." },
+        },
+        { ...cell, id: "BC-3", variable: "Bad", unit: "", load: { distribution: { type: DistributionType.POINT_ESTIMATE, value: 1 }, basis: "" }, capacity: { distribution: { type: DistributionType.LOGNORMAL, median: 2, errorFactor: 0.5 }, basis: "" } },
+      ],
+    };
+    const esqWorkbooks = api.get<Model<EsqWorkbookDocument>>(getModelToken(EsqWorkbook.name));
+    await esqWorkbooks.create({ workbookId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 2, mef: esq });
+    const settings = { sampling: "LATIN_HYPERCUBE", samples: 400, seed: 7, curvePoints: 5 };
+    const run = (cellId: string, workbookRevision: number) => request(api.getHttpServer())
+      .post(`/api/esq-workbooks/${workbookId}/barrier-cells/${cellId}/runs`)
+      .send({ schemaVersion: "1.0.0", cellId, workbookRevision, settings });
+    const resultOf = async (cellId: string, runId: string) => {
+      const response = await request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/barrier-cells/${cellId}/runs/${runId}/result`);
+      expect(response.status).toBe(200);
+      return response.body;
+    };
+
+    const window = await run("BC-1", 2);
+    expect(window.status).toBe(200);
+    expect(window.body.run).toMatchObject({ status: "SUCCEEDED", methodType: "LOAD_CAPACITY", owner: { workbookId, modelId: esqCellRunId("BC-1"), workbookRevision: 2 } });
+    const details = await request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/analysis-runs/${window.body.run.id}/details`);
+    expect(details.body.nativeRequest.request).toMatchObject({ methodType: "LOAD_CAPACITY", modelId: esqCellRunId("BC-1"), revision: 2, settings });
+    expect(details.body.nativeRequest.modelSnapshots[0]).toMatchObject({ methodType: "LOAD_CAPACITY", unit: "h", capacity: { distribution: { type: "lognormal", median: 33.35, errorFactor: 1.287 }, uncertainParameters: [] } });
+    expect(details.body.request).toMatchObject({ cellId: "BC-1", settings });
+    const windowResult = await resultOf("BC-1", window.body.run.id);
+    expect(windowResult).toMatchObject({ method: "POINT_LOAD", unit: "h", uncertainty: null });
+    expect(windowResult.pointProbability).toBeCloseTo(0.9911988023824635, 9);
+    expect(windowResult.curve).toHaveLength(5);
+
+    const temperature = await run("BC-2", 2);
+    expect(temperature.status).toBe(200);
+    const temperatureResult = await resultOf("BC-2", temperature.body.run.id);
+    expect(temperatureResult.method).toBe("CLOSED_FORM_NORMAL");
+    expect(temperatureResult.pointProbability / 6.124050385493965e-5).toBeCloseTo(1, 8);
+    expect(temperatureResult.uncertainty).toMatchObject({ sampling: "LATIN_HYPERCUBE", samples: 400, seed: 7 });
+    expect(temperatureResult.uncertainty.mean).toBeGreaterThan(temperatureResult.pointProbability);
+    expect(temperatureResult.curve[0]).toEqual(expect.objectContaining({ p05: expect.any(Number), p95: expect.any(Number) }));
+
+    const bad = await run("BC-3", 2);
+    expect(bad.status).toBe(400);
+    expect(bad.body.message).toBe("BC-3: Capacity needs an error factor of at least 1.");
+    expect((await run("BC-9", 2)).status).toBe(400);
+    expect((await run("BC-1", 1)).status).toBe(409);
+  }, 120_000);
+
+  it("solves every Step 05 tree in one model run and sums the families across trees", async () => {
+    const workbookId = "esq-model-runs";
+    const sy = createSyMef();
+    const esq = createBlankEsq("Model runs", USERNAME);
+    const tree = (id: string, initiatorId: string, stateId: string) => ({ id, code: id, name: id, initiatorId, stateId, functionIds: ["F-OR", "F-AND"], transferEntry: false });
+    const sequences = (treeId: string, prefix: string) => [
+      { id: `${prefix}-1`, code: `${prefix}-1`, treeId, path: { "F-OR": "SUCCESS" as const, "F-AND": "SUCCESS" as const }, endState: "SUCCESSFUL_MITIGATION", familyId: "F-OK" },
+      { id: `${prefix}-2`, code: `${prefix}-2`, treeId, path: { "F-OR": "SUCCESS" as const, "F-AND": "FAILURE" as const }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
+      { id: `${prefix}-3`, code: `${prefix}-3`, treeId, path: { "F-OR": "FAILURE" as const }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
+    ];
+    const link = (functionId: string, modelId: string, gateId: string) => ({
+      id: functionId,
+      name: functionId,
+      treeIds: ["ET-1", "ET-2", "ET-3"],
+      esLinks: ["ET-1", "ET-2", "ET-3"].map((treeId) => ({ treeId, top: { workbookId: SY_WORKBOOK_ID, modelId, gateId } })),
+    });
+    esq.model = {
+      importedAt: "2026-10-05T12:00:00.000Z",
+      sources: [{ element: "SY", workbookId: SY_WORKBOOK_ID, workbookName: "Run fixtures" }],
+      trees: [tree("ET-1", "IE-1", "S-1"), tree("ET-2", "IE-1", "S-2"), tree("ET-3", "IE-2", "S-1")],
+      sequences: [...sequences("ET-1", "Q"), ...sequences("ET-2", "R"), ...sequences("ET-3", "T")],
+      families: [
+        { id: "F-OK", name: "Safe", releaseCategoryIds: [] },
+        { id: "F-REL", name: "Release", releaseCategoryIds: ["RC-1"] },
+      ],
+      functions: [link("F-OR", FT_OR, TOP_OR), link("F-AND", FT_AND, TOP_AND)],
+      tops: sy.systemLogicModels.map((model) => ({
+        modelId: model.uuid,
+        gateId: model.topGate?.gateId ?? "",
+        code: model.code,
+        name: model.name,
+        eventIds: systemFaultTreeBasicEventIds(model),
+        transferModelIds: model.leafNodes.flatMap((leaf) => (leaf.kind === "TRANSFER_REFERENCE" ? [leaf.target.modelId] : [])),
+        gates: model.gates.map((gate) => ({ id: gate.id, code: gate.code, name: gate.name })),
+        houseEvents: model.leafNodes.flatMap((leaf) => (leaf.kind === "HOUSE_EVENT" ? [{ id: leaf.id, code: leaf.code, name: leaf.name, state: leaf.state }] : [])),
+      })),
+      initiators: [
+        { id: "IE-1", name: "Initiator", stateIds: ["S-1", "S-2"], meanFrequency: 2 },
+        { id: "IE-2", name: "Unquantified initiator", stateIds: ["S-1"] },
+      ],
+      states: [{ id: "S-1", name: "Power", hours: 6000 }, { id: "S-2", name: "Shutdown", hours: 2000 }],
+      events: sy.systemBasicEvents.map((event) => ({ id: event.uuid, code: event.code, name: event.name, heldBy: "TYPED", value: event.probability ?? 0, valueUnit: "PROBABILITY" })),
+      ccfGroups: [],
+      parameters: [],
+      humanEvents: [],
+    };
+    const esqWorkbooks = api.get<Model<EsqWorkbookDocument>>(getModelToken(EsqWorkbook.name));
+    await esqWorkbooks.create({ workbookId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 2, mef: esq });
+    const logic: EsqEventTreeRunLogic = { flags: true, loopBreaks: "AS_SET", exclusions: true, expandCcf: true };
+    const run = (body: object) => request(api.getHttpServer()).post(`/api/esq-workbooks/${workbookId}/model-runs`).send({ schemaVersion: "1.0.0", workbookRevision: 2, logic, ...body });
+    const summaryOf = async (runId: string) => {
+      const response = await request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/model-runs/${runId}/result`);
+      expect(response.status).toBe(200);
+      return response.body;
+    };
+
+    const exact = await run({ calculation: "EXACT" });
+    expect(exact.status).toBe(200);
+    expect(exact.body.run).toMatchObject({ status: "SUCCEEDED", scope: "BATCH", methodType: "EVENT_TREE", owner: { workbookId, modelId: esqModelRunId(), workbookRevision: 2 } });
+    const exactSummary = await summaryOf(exact.body.run.id);
+    expect(exactSummary).toMatchObject({ kind: "ESQ_MODEL_RUN", calculation: "EXACT", cutSets: null, peakProbability: null, inputs: solveInputsKey(esq) });
+    expect(exactSummary.trees).toEqual([
+      expect.objectContaining({ treeId: "ET-1", status: "SUCCEEDED", initiatorFrequency: 1.5, failure: null }),
+      expect.objectContaining({ treeId: "ET-2", status: "SUCCEEDED", initiatorFrequency: 0.5, failure: null }),
+      expect.objectContaining({ treeId: "ET-3", status: "FAILED", initiatorFrequency: null, failure: "ET-3 has no initiator frequency. Complete the Initiators tab of Step 02." }),
+    ]);
+    const exactFamilies = new Map<string, { annualFrequency: number; sequenceCount: number; cutSetCount: number | null; sweep: unknown[]; states: { stateId: string; annualFrequency: number }[] }>(
+      exactSummary.families.map((family: { familyId: string; annualFrequency: number; sequenceCount: number; cutSetCount: number | null; sweep: unknown[]; states: { stateId: string; annualFrequency: number }[] }) => [family.familyId, family]),
+    );
+    expect(exactFamilies.get("F-REL")?.annualFrequency).toBeCloseTo(0.56, 12);
+    expect(exactFamilies.get("F-OK")?.annualFrequency).toBeCloseTo(1.44, 12);
+    expect(exactFamilies.get("F-REL")).toMatchObject({ sequenceCount: 4, cutSetCount: null, sweep: [] });
+    expect(exactFamilies.get("F-REL")?.states).toEqual([
+      { stateId: "S-1", annualFrequency: expect.closeTo(0.42, 12), sweep: [] },
+      { stateId: "S-2", annualFrequency: expect.closeTo(0.14, 12), sweep: [] },
+    ]);
+    expect(exactSummary.sequences).toHaveLength(6);
+    expect(exactSummary.sequences[2]).toMatchObject({ treeId: "ET-1", sequenceIds: ["Q-3"], familyId: "F-REL", endState: "RADIONUCLIDE_RELEASE", cutSetCount: null });
+
+    const history = await request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/analysis-runs`);
+    expect(history.body.runs.map((row: { run: { id: string } }) => row.run.id)).toEqual([exact.body.run.id]);
+    const details = await request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/analysis-runs/${exact.body.run.id}/details`);
+    expect(details.status).toBe(200);
+    expect(details.body.members).toHaveLength(3);
+    const failedChild = exactSummary.trees[2].runId;
+    const childDetails = await request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/analysis-runs/${failedChild}/details`);
+    expect(childDetails.body.run).toMatchObject({ status: "FAILED", scope: "SCENARIO", failure: { code: "ESQ_RUN_BUILD" } });
+    const childResult = await request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/event-trees/ET-1/runs/${exactSummary.trees[0].runId}/result`);
+    expect(childResult.status).toBe(200);
+    expect(childResult.body.sequences).toHaveLength(3);
+
+    const cutOffs = [0.1, 0.01, 0.001];
+    const cutSetRun = await run({ calculation: "CUT_SETS", cutSets: { basis: "FREQUENCY", cutOffs, quantifier: "MCUB", keep: 10 } });
+    expect(cutSetRun.status).toBe(200);
+    const summary = await summaryOf(cutSetRun.body.run.id);
+    expect(summary.cutSets).toEqual({ basis: "FREQUENCY", cutOffs, quantifier: "MCUB", keep: 10 });
+    expect(summary.peakProbability).toBeCloseTo(0.28, 12);
+    expect(summary.eventCodes).toMatchObject({ [EVENT_A]: "EVENT-A", [EVENT_B]: "EVENT-B" });
+    const release = summary.families.find((family: { familyId: string }) => family.familyId === "F-REL");
+    expect(release.annualFrequency).toBeCloseTo(0.56, 12);
+    expect(release.cutSetCount).toBe(4);
+    expect(release.sweep.map((point: { count: number }) => point.count)).toEqual([3, 4, 4]);
+    expect(release.sweep[0].annualFrequency).toBeCloseTo(0.52, 12);
+    expect(release.sweep[1].annualFrequency).toBeCloseTo(0.56, 12);
+    expect(release.states).toEqual([
+      expect.objectContaining({ stateId: "S-1", annualFrequency: expect.closeTo(0.42, 12) }),
+      expect.objectContaining({ stateId: "S-2", annualFrequency: expect.closeTo(0.14, 12) }),
+    ]);
+    expect(release.states[1].sweep.map((point: { count: number }) => point.count)).toEqual([1, 2, 2]);
+    expect(release.cutSets.map((cutSet: { treeId: string; basicEventIds: string[] }) => `${cutSet.treeId}:${cutSet.basicEventIds.join("+")}`)).toEqual([
+      `ET-1:${EVENT_B}`,
+      `ET-1:${EVENT_A}`,
+      `ET-2:${EVENT_B}`,
+      `ET-2:${EVENT_A}`,
+    ]);
+    expect(release.cutSets[0].annualFrequency).toBeCloseTo(0.3, 12);
+    const safe = summary.families.find((family: { familyId: string }) => family.familyId === "F-OK");
+    expect(safe.annualFrequency).toBeCloseTo(2, 12);
+    const deleted = summary.sequences.find((sequence: { sequenceIds: string[] }) => sequence.sequenceIds[0] === "Q-2");
+    expect(deleted).toMatchObject({ cutSetCount: 0, conditionalProbability: 0 });
+    const child = await request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/event-trees/ET-1/runs/${summary.trees[0].runId}/result`);
+    expect(child.body.cutSetAnalysis).toEqual({ basis: "FREQUENCY", cutOffs, quantifier: "MCUB", keep: 10 });
+    expect(child.body.sequences[2].cutSets).toMatchObject({ count: 2, failedCount: 2, distributionByOrder: [0, 2] });
+    expect(child.body.families).toEqual(expect.arrayContaining([expect.objectContaining({ familyId: "F-REL", count: 2 })]));
+
+    const historyOf = (modelId: string) => request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/analysis-runs`).query({ modelId });
+    expect((await historyOf(esqModelRunId())).body.runs.map((row: { run: { id: string } }) => row.run.id)).toEqual([cutSetRun.body.run.id, exact.body.run.id]);
+    expect((await historyOf(esqTreeRunId("ET-1"))).body.runs).toEqual([]);
+    expect((await historyOf("model-run")).status).toBe(400);
+
+    expect((await run({ calculation: "EXACT", cutSets: { basis: "FREQUENCY", cutOffs, quantifier: "MCUB", keep: 10 } })).status).toBe(400);
+    expect((await run({ calculation: "CUT_SETS" })).status).toBe(400);
+    expect((await run({ calculation: "EXACT", workbookRevision: 1 })).status).toBe(409);
+  }, 120_000);
+
+  it("searches HFE combinations, checks deletions and applies Step 06 rules as logic", async () => {
+    const workbookId = "esq-post-runs";
+    const sy = createSyMef();
+    const esq = createBlankEsq("Post runs", USERNAME);
+    esq.model = {
+      importedAt: "2026-10-05T12:00:00.000Z",
+      sources: [{ element: "SY", workbookId: SY_WORKBOOK_ID, workbookName: "Run fixtures" }],
+      trees: [{ id: "ET-1", code: "ET-1", name: "Tree", initiatorId: "IE-1", stateId: "S-1", functionIds: ["F-AND"], transferEntry: false }],
+      sequences: [
+        { id: "Q-1", code: "Q-1", treeId: "ET-1", path: { "F-AND": "SUCCESS" }, endState: "SUCCESSFUL_MITIGATION", familyId: "F-OK" },
+        { id: "Q-2", code: "Q-2", treeId: "ET-1", path: { "F-AND": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
+      ],
+      families: [{ id: "F-OK", name: "Safe", releaseCategoryIds: [] }, { id: "F-REL", name: "Release", releaseCategoryIds: [] }],
+      functions: [{ id: "F-AND", name: "Both", treeIds: ["ET-1"], esLinks: [{ treeId: "ET-1", top: { workbookId: SY_WORKBOOK_ID, modelId: FT_AND, gateId: TOP_AND } }] }],
+      tops: sy.systemLogicModels.map((model) => ({
+        modelId: model.uuid,
+        gateId: model.topGate?.gateId ?? "",
+        code: model.code,
+        name: model.name,
+        eventIds: systemFaultTreeBasicEventIds(model),
+        transferModelIds: model.leafNodes.flatMap((leaf) => (leaf.kind === "TRANSFER_REFERENCE" ? [leaf.target.modelId] : [])),
+        gates: model.gates.map((gate) => ({ id: gate.id, code: gate.code, name: gate.name })),
+        houseEvents: model.leafNodes.flatMap((leaf) => (leaf.kind === "HOUSE_EVENT" ? [{ id: leaf.id, code: leaf.code, name: leaf.name, state: leaf.state }] : [])),
+      })),
+      initiators: [{ id: "IE-1", name: "Initiator", stateIds: ["S-1"], meanFrequency: 2 }],
+      states: [{ id: "S-1", name: "Power", hours: 8000 }],
+      events: sy.systemBasicEvents.map((event) => {
+        if (event.uuid === EVENT_A) return { id: event.uuid, code: event.code, name: event.name, heldBy: "HRA" as const, holderId: "H-A" };
+        if (event.uuid === EVENT_B) return { id: event.uuid, code: event.code, name: event.name, heldBy: "HRA" as const, holderId: "H-B" };
+        return { id: event.uuid, code: event.code, name: event.name, heldBy: "TYPED" as const, value: event.probability ?? 0, valueUnit: "PROBABILITY" as const };
+      }),
+      ccfGroups: [],
+      parameters: [],
+      humanEvents: [
+        { id: "H-A", name: "Operator fails to start A", timing: "POST_INITIATOR", value: 0.1, riskSignificant: false, distributionGiven: false },
+        { id: "H-B", name: "Operator fails to start B", timing: "POST_INITIATOR", value: 0.2, riskSignificant: false, distributionGiven: false },
+      ],
+      jointFloor: { id: "JHF-1", value: 1e-5, justification: "Floor." },
+    };
+    const esqWorkbooks = api.get<Model<EsqWorkbookDocument>>(getModelToken(EsqWorkbook.name));
+    await esqWorkbooks.create({ workbookId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 2, mef: esq });
+    const logic: EsqEventTreeRunLogic = { flags: true, loopBreaks: "AS_SET", exclusions: true, expandCcf: true, recovery: true, dependency: true };
+    const post = (revision: number, body: object) => request(api.getHttpServer()).post(`/api/esq-workbooks/${workbookId}/post-runs`).send({ schemaVersion: "1.0.0", workbookRevision: revision, logic, cutOff: 1e-12, ...body });
+    const postResult = async (runId: string) => (await request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/post-runs/${runId}/result`)).body;
+    const model = (revision: number, runLogic: EsqEventTreeRunLogic) => request(api.getHttpServer()).post(`/api/esq-workbooks/${workbookId}/model-runs`).send({ schemaVersion: "1.0.0", workbookRevision: revision, logic: runLogic, calculation: "EXACT" });
+    const release = async (runId: string): Promise<number> => {
+      const summary = (await request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/model-runs/${runId}/result`)).body;
+      return summary.families.find((family: { familyId: string }) => family.familyId === "F-REL").annualFrequency;
+    };
+
+    expect((await post(2, { purpose: "COMBINATIONS" })).status).toBe(400);
+    expect((await post(2, { purpose: "DELETIONS" })).status).toBe(400);
+    const search = await post(2, { purpose: "COMBINATIONS", raisedHep: 0.8 });
+    expect(search.status).toBe(200);
+    expect(search.body.run).toMatchObject({ status: "SUCCEEDED", scope: "BATCH", owner: { modelId: esqPostRunId() } });
+    const searched = await postResult(search.body.run.id);
+    expect(searched).toMatchObject({ kind: "ESQ_POST_RUN", purpose: "COMBINATIONS", raisedHep: 0.8, cutOff: 1e-12, inputs: solveInputsKey(esq, { combinations: false }) });
+    expect(searched.combinations).toEqual([{ eventIds: [EVENT_A, EVENT_B].sort(), treeIds: ["ET-1"], cutSetCount: 1, nominalFrequency: expect.closeTo(0.04, 12) }]);
+
+    const excluded = { ...esq, logic: { exclusions: [{ id: "EX-1", eventIds: [EVENT_A, EVENT_B], basis: "Never in maintenance together." }] } };
+    await esqWorkbooks.updateOne({ workbookId }, { $set: { revision: 3, mef: excluded } }).exec();
+    const deletions = await post(3, { purpose: "DELETIONS" });
+    expect(deletions.status).toBe(200);
+    expect((await postResult(deletions.body.run.id)).deletions).toEqual([{ exclusionId: "EX-1", treeIds: ["ET-1"], cutSetCount: 1, nominalFrequency: expect.closeTo(0.04, 12) }]);
+
+    const dependent = { ...esq, postWork: { combinations: [{ id: "HC-1", eventIds: [EVENT_A, EVENT_B], ofRecord: "TYPED" as const, typed: { joint: 0.05, source: "Hand assessment." }, groupIds: [], stateIds: [], basis: "Same crew." }] } };
+    await esqWorkbooks.updateOne({ workbookId }, { $set: { revision: 4, mef: dependent } }).exec();
+    const withJoint = await model(4, logic);
+    expect(withJoint.status).toBe(200);
+    expect(await release(withJoint.body.run.id)).toBeCloseTo(0.1, 12);
+    expect(await release((await model(4, { ...logic, dependency: false })).body.run.id)).toBeCloseTo(0.04, 12);
+
+    const recovered = {
+      ...esq,
+      model: { ...esq.model, recoveries: [{ id: "REC-A", name: "Restart A", hfeId: "H-A", level: "SEQUENCE" as const, sequenceIds: [], hep: 0.5, feasibility: { procedure: true, training: true, cues: true, crew: true, time: true, access: true, equipment: true } }] },
+      postWork: { recoveries: [{ id: "REC-A", groupIds: [], stateIds: [], credited: true, basis: "Remote start." }] },
+    };
+    await esqWorkbooks.updateOne({ workbookId }, { $set: { revision: 5, mef: recovered } }).exec();
+    expect(await release((await model(5, logic)).body.run.id)).toBeCloseTo(0.02, 12);
+    expect(await release((await model(5, { ...logic, recovery: false })).body.run.id)).toBeCloseTo(0.04, 12);
+  }, 120_000);
+
+  it("ranks importance, samples paired families and runs sensitivity cases through PRAXIS", async () => {
+    const workbookId = "esq-measure-runs";
+    const sy = createSyMef();
+    const esq = createBlankEsq("Measure runs", USERNAME);
+    esq.model = {
+      importedAt: "2026-10-05T12:00:00.000Z",
+      sources: [{ element: "SY", workbookId: SY_WORKBOOK_ID, workbookName: "Run fixtures" }],
+      trees: [{ id: "ET-1", code: "ET-1", name: "Tree", initiatorId: "IE-1", stateId: "S-1", functionIds: ["F-OR", "F-AND"], transferEntry: false }],
+      sequences: [
+        { id: "Q-1", code: "Q-1", treeId: "ET-1", path: { "F-OR": "SUCCESS", "F-AND": "SUCCESS" }, endState: "SUCCESSFUL_MITIGATION", familyId: "F-OK" },
+        { id: "Q-2", code: "Q-2", treeId: "ET-1", path: { "F-OR": "SUCCESS", "F-AND": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
+        { id: "Q-3", code: "Q-3", treeId: "ET-1", path: { "F-OR": "FAILURE" }, endState: "RADIONUCLIDE_RELEASE", familyId: "F-REL" },
+      ],
+      families: [{ id: "F-OK", name: "Safe", releaseCategoryIds: [] }, { id: "F-REL", name: "Release", releaseCategoryIds: ["RC-1"] }],
+      functions: [
+        { id: "F-OR", name: "Either", treeIds: ["ET-1"], esLinks: [{ treeId: "ET-1", top: { workbookId: SY_WORKBOOK_ID, modelId: FT_OR, gateId: TOP_OR } }] },
+        { id: "F-AND", name: "Both", treeIds: ["ET-1"], esLinks: [{ treeId: "ET-1", top: { workbookId: SY_WORKBOOK_ID, modelId: FT_AND, gateId: TOP_AND } }] },
+      ],
+      tops: sy.systemLogicModels.map((model) => ({
+        modelId: model.uuid,
+        gateId: model.topGate?.gateId ?? "",
+        code: model.code,
+        name: model.name,
+        eventIds: systemFaultTreeBasicEventIds(model),
+        transferModelIds: model.leafNodes.flatMap((leaf) => (leaf.kind === "TRANSFER_REFERENCE" ? [leaf.target.modelId] : [])),
+        gates: model.gates.map((gate) => ({ id: gate.id, code: gate.code, name: gate.name })),
+        houseEvents: model.leafNodes.flatMap((leaf) => (leaf.kind === "HOUSE_EVENT" ? [{ id: leaf.id, code: leaf.code, name: leaf.name, state: leaf.state }] : [])),
+      })),
+      initiators: [{ id: "IE-1", name: "Initiator", stateIds: ["S-1"], meanFrequency: 2 }],
+      states: [{ id: "S-1", name: "Power", hours: 8000 }],
+      events: sy.systemBasicEvents.map((event) => {
+        if (event.uuid === EVENT_A) return { id: event.uuid, code: event.code, name: event.name, heldBy: "DA" as const, holderId: "P-1", systemId: "SYS-1", systemName: "Cooling" };
+        if (event.uuid === EVENT_B) return { id: event.uuid, code: event.code, name: event.name, heldBy: "TYPED" as const, value: 0.2, valueUnit: "PROBABILITY" as const, systemId: "SYS-1", systemName: "Cooling" };
+        return { id: event.uuid, code: event.code, name: event.name, heldBy: "TYPED" as const, value: event.probability ?? 0, valueUnit: "PROBABILITY" as const };
+      }),
+      ccfGroups: [],
+      parameters: [{ id: "P-1", name: "Pump fails", parameterType: "PROBABILITY", value: 0.1, valueType: "MEAN", distribution: { type: DistributionType.LOGNORMAL, median: 0.08, errorFactor: 3 } }],
+      humanEvents: [],
+    };
+    esq.uncertaintyWork = { spreads: [{ key: `EVENT:${EVENT_B}`, errorFactor: 3, source: "Generic spread for typed pump values." }] };
+    esq.sensitivityWork = {
+      cases: [
+        { id: "SC-1", name: "Pump at 0.2", kind: "PARAMETER", target: "P-1", value: 0.2, basis: "Upper data bound." },
+        { id: "SC-2", name: "Cooling failed", kind: "GROUP_FAILED", target: "SYSTEM:SYS-1", basis: "Bounding case." },
+        { id: "SC-3", name: "Pump B perfect", kind: "EVENT", target: EVENT_B, value: 0, basis: "Lower bound." },
+        { id: "SC-4", name: "Missing", kind: "PARAMETER", target: "P-9", value: 0.2, basis: "None." },
+      ],
+    };
+    const esqWorkbooks = api.get<Model<EsqWorkbookDocument>>(getModelToken(EsqWorkbook.name));
+    await esqWorkbooks.create({ workbookId, projectId: PROJECT_ID, ownerUsername: USERNAME, revision: 2, mef: esq });
+    const logic: EsqEventTreeRunLogic = { flags: true, loopBreaks: "AS_SET", exclusions: true, expandCcf: true };
+    const post = (path: string, body: object) => request(api.getHttpServer()).post(`/api/esq-workbooks/${workbookId}/${path}`).send({ schemaVersion: "1.0.0", workbookRevision: 2, logic, ...body });
+    const read = async (path: string) => {
+      const response = await request(api.getHttpServer()).get(`/api/esq-workbooks/${workbookId}/${path}`);
+      expect(response.status).toBe(200);
+      return response.body;
+    };
+    const change = (target: { changes: { familyId: string; decrease: number; increase: number }[] }, familyId: string) => target.changes.find((entry) => entry.familyId === familyId);
+
+    const ranked = await post("importance-runs", {});
+    expect(ranked.status).toBe(200);
+    expect(ranked.body.run).toMatchObject({ status: "SUCCEEDED", scope: "BATCH", owner: { workbookId, modelId: esqImportanceRunId(), workbookRevision: 2 } });
+    const importance = await read(`importance-runs/${ranked.body.run.id}/result`);
+    expect(importance).toMatchObject({ kind: "ESQ_IMPORTANCE_RUN", inputs: solveInputsKey(esq), logic });
+    const base = new Map(importance.families.map((family: { familyId: string; base: number }) => [family.familyId, family.base]));
+    expect(base.get("F-REL")).toBeCloseTo(0.56, 12);
+    expect(base.get("F-OK")).toBeCloseTo(1.44, 12);
+    const targets = new Map(importance.targets.map((target: { id: string }) => [target.id, target]));
+    const eventA = targets.get(`EVENT:${EVENT_A}`);
+    expect(eventA).toMatchObject({ kind: "EVENT", role: "BASIC", label: "EVENT-A", probability: expect.closeTo(0.1, 12) });
+    expect(change(eventA, "F-REL")).toEqual({ familyId: "F-REL", decrease: expect.closeTo(0.16, 12), increase: expect.closeTo(1.44, 12) });
+    expect(change(eventA, "F-OK")).toEqual({ familyId: "F-OK", decrease: expect.closeTo(-0.16, 12), increase: expect.closeTo(-1.44, 12) });
+    expect(change(targets.get(`EVENT:${EVENT_B}`), "F-REL")).toEqual({ familyId: "F-REL", decrease: expect.closeTo(0.36, 12), increase: expect.closeTo(1.44, 12) });
+    expect(targets.get("PARAMETER:P-1")).toMatchObject({ kind: "PARAMETER", role: null, label: "Pump fails (P-1)", ref: "P-1" });
+    expect(change(targets.get("PARAMETER:P-1"), "F-REL")).toEqual({ familyId: "F-REL", decrease: expect.closeTo(0.16, 12), increase: expect.closeTo(1.44, 12) });
+    expect(targets.get("SYSTEM:SYS-1")).toMatchObject({ kind: "SYSTEM", label: "Cooling (SYS-1)" });
+    expect(change(targets.get("SYSTEM:SYS-1"), "F-REL")).toEqual({ familyId: "F-REL", decrease: expect.closeTo(0.56, 12), increase: expect.closeTo(1.44, 12) });
+
+    const sample = (body: object) => post("uncertainty-runs", { trials: 2000, seed: 11, method: "LATIN_HYPERCUBE", correlation: "SHARED", ...body });
+    const sampled = await sample({});
+    expect(sampled.status).toBe(200);
+    expect(sampled.body.run.owner.modelId).toBe(esqUncertaintyRunId());
+    const uncertainty = await read(`uncertainty-runs/${sampled.body.run.id}/result`);
+    expect(uncertainty).toMatchObject({ kind: "ESQ_UNCERTAINTY_RUN", inputs: uncertaintyInputsKey(esq), trials: 2000, seed: 11, method: "LATIN_HYPERCUBE", correlation: "SHARED" });
+    const families = new Map<string, { point: number; mean: number; p05: number; p50: number; p95: number; values: number[]; endState: string | null }>(
+      uncertainty.families.map((family: { familyId: string; point: number; mean: number; p05: number; p50: number; p95: number; values: number[]; endState: string | null }) => [family.familyId, family]),
+    );
+    const release = families.get("F-REL");
+    const safe = families.get("F-OK");
+    if (release === undefined || safe === undefined) throw new Error("the run lost a family");
+    expect(release.point).toBeCloseTo(0.56, 12);
+    expect(release.values).toHaveLength(2000);
+    release.values.forEach((value, trial) => expect(value + (safe.values[trial] ?? 0)).toBeCloseTo(2, 4));
+    expect(Math.abs(release.mean / 0.558632 - 1)).toBeLessThan(0.03);
+    expect(release.p05).toBeLessThan(release.p50);
+    expect(release.p50).toBeLessThan(release.p95);
+    expect(uncertainty.total).toMatchObject({ point: expect.closeTo(0.56, 12), mean: expect.closeTo(release.mean, 12) });
+    expect(uncertainty.keys).toEqual(expect.arrayContaining([
+      { key: "PARAMETER:P-1", label: "Pump fails (P-1)", source: "DA", distribution: { type: "LOGNORMAL", median: 0.08, errorFactor: 3 }, events: 1 },
+      { key: `EVENT:${EVENT_B}`, label: "EVENT-B · Event B", source: "TYPED", distribution: { type: "LOGNORMAL", median: expect.closeTo(0.2 / Math.exp((Math.log(3) / 1.6448536269514722) ** 2 / 2), 12), errorFactor: 3 }, events: 1 },
+    ]));
+    expect(uncertainty.unsampled).toEqual([{ id: "INITIATOR:IE-1", label: "Initiator (IE-1)", reason: "The initiator frequency has no distribution. Type an error factor." }]);
+    const childId = uncertainty.trees[0].runId;
+    const child = await read(`event-trees/ET-1/runs/${childId}/result`);
+    expect(child.sampling.families.every((family: { values: number[] }) => family.values.length === 0)).toBe(true);
+    const childDetails = await read(`analysis-runs/${childId}/details`);
+    expect(childDetails.nativeRequest.request.sampling).toMatchObject({
+      trials: 2000,
+      seed: 11,
+      method: "LATIN_HYPERCUBE",
+      events: expect.arrayContaining([
+        { id: EVENT_A, key: "PARAMETER:P-1", form: "PROBABILITY", scale: expect.closeTo(1, 12) },
+        { id: EVENT_B, key: `EVENT:${EVENT_B}`, form: "PROBABILITY", scale: expect.closeTo(1, 12) },
+      ]),
+    });
+    expect(childDetails.nativeRequest.request.sampling.initiator).toBeUndefined();
+    const again = await read(`uncertainty-runs/${(await sample({})).body.run.id}/result`);
+    expect(again.families.find((family: { familyId: string }) => family.familyId === "F-REL").values).toEqual(release.values);
+    const independent = await sample({ correlation: "INDEPENDENT" });
+    const independentChild = (await read(`uncertainty-runs/${independent.body.run.id}/result`)).trees[0].runId;
+    const independentKeys = (await read(`analysis-runs/${independentChild}/details`)).nativeRequest.request.sampling.keys.map((entry: { key: string }) => entry.key);
+    expect(independentKeys.sort()).toEqual([`EVENT:${EVENT_B}@${EVENT_B}`, `PARAMETER:P-1@${EVENT_A}`].sort());
+    expect((await sample({ trials: 50 })).status).toBe(400);
+
+    const runCase = (caseId: string, body: object = {}) => post(`sensitivity-cases/${caseId}/runs`, { caseId, calculation: "EXACT", ...body });
+    const caseRelease = async (caseId: string, runId: string): Promise<number> => {
+      const summary = await read(`sensitivity-cases/${caseId}/runs/${runId}/result`);
+      expect(summary).toMatchObject({ kind: "ESQ_MODEL_RUN", caseId, inputs: caseInputsKey(esq, caseId) });
+      return summary.families.find((family: { familyId: string }) => family.familyId === "F-REL").annualFrequency;
+    };
+    const raised = await runCase("SC-1");
+    expect(raised.status).toBe(200);
+    expect(raised.body.run.owner.modelId).toBe(esqSensitivityRunId("SC-1"));
+    expect(await caseRelease("SC-1", raised.body.run.id)).toBeCloseTo(0.72, 12);
+    expect(await caseRelease("SC-2", (await runCase("SC-2")).body.run.id)).toBeCloseTo(2, 12);
+    expect(await caseRelease("SC-3", (await runCase("SC-3")).body.run.id)).toBeCloseTo(0.2, 12);
+    const cutSetCase = await runCase("SC-1", { calculation: "CUT_SETS", cutSets: { basis: "FREQUENCY", cutOffs: [1e-3], quantifier: "MCUB", keep: 5 } });
+    expect(cutSetCase.status).toBe(200);
+    expect(await caseRelease("SC-1", cutSetCase.body.run.id)).toBeCloseTo(0.72, 12);
+    const missing = await runCase("SC-4");
+    expect(missing.status).toBe(400);
+    expect(missing.body.message).toBe("Missing: The model holds no DA parameter P-9.");
+    expect((await post("sensitivity-cases/SC-1/runs", { caseId: "SC-2", calculation: "EXACT" })).status).toBe(400);
+    expect((await runCase("SC-9")).status).toBe(404);
+    expect((await runCase("SC-1", { workbookRevision: 1 })).status).toBe(409);
   }, 120_000);
 
   it("returns complete transfer paths through the backend while preserving shared FT events", async () => {

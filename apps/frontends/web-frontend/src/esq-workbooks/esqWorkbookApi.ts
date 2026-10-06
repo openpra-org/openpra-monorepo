@@ -2,12 +2,6 @@ import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type {
-  DynamicRun,
-  EventSequence,
-  EventTree,
-} from "interfaces-mef-types/es/event-sequence-analysis";
-import { type EsqLinkedInputs } from "./esqWorkbookContext";
-import type {
   BayesianNetworkAnalysisResult,
   BayesianNetworkExecuteResult,
 } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
@@ -25,63 +19,42 @@ import type {
   HclCalculationType,
   HclQuantificationResult,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
-import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
-
-interface LinkedPosMef { plantOperatingStates?: { uuid: string; name: string; operatingMode?: string; meanDurationHours: number }[] }
-interface LinkedIeMef { initiatingEventGroups?: { uuid: string; name: string; meanFrequency?: { value: number } }[] }
-interface LinkedEsMef {
-  eventSequenceFamilies?: { uuid: string; name: string }[];
-  eventTrees?: EventTree[];
-  eventSequences?: EventSequence[];
-  dynamicRuns?: DynamicRun[];
-}
-interface LinkedScMef { missionTimes?: { uuid: string; eventSequenceReference: string; missionTimeHours: number }[] }
-interface LinkedSyMef { systemDefinitions?: { uuid: string; name: string }[] }
-interface LinkedHrMef { hepQuantifications?: { uuid: string; hfeId?: string; meanHep?: number; pointEstimateHep?: number }[] }
-interface LinkedDaMef { parameters?: { uuid: string; name: string; value: number }[] }
-
-async function fetchEsqLinkedInputs(variant: string): Promise<EsqLinkedInputs> {
-  if (variant === "hcl") {
-    const [ieB, esB, syB] = await Promise.all([
-      fetchJson<{ ie: { mef: LinkedIeMef } }>(`/api/example-workbooks/ie-bundle?example=${variant}`),
-      fetchJson<{ es: { mef: LinkedEsMef } }>(`/api/example-workbooks/es-bundle?example=${variant}`),
-      fetchJson<{ sy: { mef: LinkedSyMef } }>(`/api/example-workbooks/sy-bundle?example=${variant}`),
-    ]);
-    return {
-      posStates: [],
-      ieGroups: (ieB.ie.mef.initiatingEventGroups ?? []).filter((group) => group.meanFrequency !== undefined).map((group) => ({ id: group.uuid, name: group.name, frequency: group.meanFrequency?.value ?? 0 })),
-      esFamilies: (esB.es.mef.eventSequenceFamilies ?? []).map((family) => ({ id: family.uuid, name: family.name })),
-      eventTrees: esB.es.mef.eventTrees ?? [],
-      eventSequences: esB.es.mef.eventSequences ?? [],
-      dynamicRuns: esB.es.mef.dynamicRuns ?? [],
-      scMissionTimes: [],
-      sySystems: (syB.sy.mef.systemDefinitions ?? []).map((system) => ({ id: system.uuid, name: system.name })),
-      hrActions: [],
-      daParams: [],
-    };
-  }
-  const [posB, ieB, esB, scB, syB, hrB, daB] = await Promise.all([
-    fetchJson<{ pos: { mef: LinkedPosMef } }>(`/api/example-workbooks/pos-bundle?example=${variant}`),
-    fetchJson<{ ie: { mef: LinkedIeMef } }>(`/api/example-workbooks/ie-bundle?example=${variant}`),
-    fetchJson<{ es: { mef: LinkedEsMef } }>(`/api/example-workbooks/es-bundle?example=${variant}`),
-    fetchJson<{ sc: { mef: LinkedScMef } }>(`/api/example-workbooks/sc-bundle?example=${variant}`),
-    fetchJson<{ sy: { mef: LinkedSyMef } }>(`/api/example-workbooks/sy-bundle?example=${variant}`),
-    fetchJson<{ hr: { mef: LinkedHrMef } }>(`/api/example-workbooks/hr-bundle?example=${variant}`),
-    fetchJson<{ da: { mef: LinkedDaMef } }>(`/api/example-workbooks/da-bundle?example=${variant}`),
-  ]);
-  return {
-    posStates: (posB.pos.mef.plantOperatingStates ?? []).map((s) => ({ id: s.uuid, name: s.name, mode: s.operatingMode ?? "—", durationHours: s.meanDurationHours })),
-    ieGroups: (ieB.ie.mef.initiatingEventGroups ?? []).filter((g) => g.meanFrequency !== undefined).map((g) => ({ id: g.uuid, name: g.name, frequency: g.meanFrequency?.value ?? 0 })),
-    esFamilies: (esB.es.mef.eventSequenceFamilies ?? []).map((f) => ({ id: f.uuid, name: f.name })),
-    eventTrees: esB.es.mef.eventTrees ?? [],
-    eventSequences: esB.es.mef.eventSequences ?? [],
-    dynamicRuns: esB.es.mef.dynamicRuns ?? [],
-    scMissionTimes: (scB.sc.mef.missionTimes ?? []).map((m) => ({ id: m.uuid, sequence: m.eventSequenceReference, hours: m.missionTimeHours })),
-    sySystems: (syB.sy.mef.systemDefinitions ?? []).map((s) => ({ id: s.uuid, name: s.name })),
-    hrActions: (hrB.hr.mef.hepQuantifications ?? []).map((h) => ({ id: h.uuid, hfe: h.hfeId ?? "—", mean: h.meanHep ?? h.pointEstimateHep ?? 0 })),
-    daParams: (daB.da.mef.parameters ?? []).map((p) => ({ id: p.uuid, name: p.name, value: p.value })),
-  };
-}
+import {
+  EsqEventTreeRunRequestSchema,
+  EsqImportanceRunResultSchema,
+  EsqModelRunResultSchema,
+  EsqPostRunResultSchema,
+  EsqUncertaintyRunResultSchema,
+  EventTreeAnalysisResultSchema,
+  type EsqEventTreeRunLogic,
+  type EsqImportanceRunResult,
+  type EsqModelCalculation,
+  type EsqModelRunResult,
+  type EsqPostRunPurpose,
+  type EsqPostRunResult,
+  type EsqUncertaintyCorrelation,
+  type EsqUncertaintyRunResult,
+  type EventTreeSamplingMethod,
+  type EventTreeAnalysisResult,
+  type EventTreeCutSetSettings,
+  type EventTreeExecuteResult,
+} from "interfaces-shared-types/newly-developed-methods/event-tree";
+import {
+  AnalysisRunDetailsSchema,
+  AnalysisRunProvenanceListSchema,
+  type AnalysisRunDetails,
+  type AnalysisRunProvenanceList,
+} from "interfaces-shared-types/newly-developed-methods/shared";
+import { esqTreeRunId } from "interfaces-mef-types/esq/esq-run-inputs";
+import { esqCellRunId } from "interfaces-mef-types/esq/esq-barrier-inputs";
+import { esqModelRunId } from "interfaces-mef-types/esq/esq-solve-inputs";
+import {
+  EsqBarrierCellRunRequestSchema,
+  LoadCapacityAnalysisResultSchema,
+  type LoadCapacityAnalysisResult,
+  type LoadCapacityExecuteResult,
+  type LoadCapacityRunSettings,
+} from "interfaces-shared-types/newly-developed-methods/load-capacity";
 
 type EsqWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
 
@@ -296,8 +269,218 @@ async function getEsqHclEventTreeResult(
   );
 }
 
+interface EsqTreeRun {
+  id: string;
+  requestedAt: string;
+  revision: number;
+  status: string;
+  logic?: EsqEventTreeRunLogic;
+  result?: EventTreeAnalysisResult;
+  failure?: string;
+}
+
+async function runEsqEventTree(workbookId: string, treeId: string, workbookRevision: number, logic: EsqEventTreeRunLogic): Promise<EventTreeExecuteResult> {
+  return postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/event-trees/${encodeURIComponent(treeId)}/runs`, {
+    schemaVersion: "1.0.0",
+    treeId,
+    workbookRevision,
+    logic,
+  });
+}
+
+async function getEsqRunDetails(workbookId: string, runId: string): Promise<AnalysisRunDetails> {
+  return AnalysisRunDetailsSchema.parse(await fetchJson<AnalysisRunDetails>(`/api/esq-workbooks/${workbookId}/analysis-runs/${runId}/details`));
+}
+
+async function listEsqRunsOf(workbookId: string, modelId: string): Promise<AnalysisRunProvenanceList> {
+  return AnalysisRunProvenanceListSchema.parse(await fetchJson<AnalysisRunProvenanceList>(`/api/esq-workbooks/${workbookId}/analysis-runs?modelId=${encodeURIComponent(modelId)}`));
+}
+
+async function listEsqTreeRuns(workbookId: string, treeId: string, limit = 12): Promise<EsqTreeRun[]> {
+  const modelId = esqTreeRunId(treeId);
+  const list = await listEsqRunsOf(workbookId, modelId);
+  const rows = list.runs.filter((row) => row.run.owner.modelId === modelId && row.run.methodType === "EVENT_TREE").slice(0, limit);
+  return Promise.all(rows.map(async (row): Promise<EsqTreeRun> => {
+    const run: EsqTreeRun = { id: row.run.id, requestedAt: row.run.requestedAt, revision: row.run.owner.workbookRevision, status: row.run.status };
+    const failure = row.run.failure?.message;
+    if (failure !== undefined) run.failure = failure;
+    if (row.run.status !== "SUCCEEDED") return run;
+    const details = await getEsqRunDetails(workbookId, row.run.id);
+    const request = EsqEventTreeRunRequestSchema.safeParse(details.request);
+    if (request.success) run.logic = request.data.logic;
+    const result = EventTreeAnalysisResultSchema.safeParse(details.result);
+    if (result.success) run.result = result.data;
+    return run;
+  }));
+}
+
+interface EsqCellRunEntry {
+  id: string;
+  requestedAt: string;
+  revision: number;
+  status: string;
+  settings?: LoadCapacityRunSettings;
+  result?: LoadCapacityAnalysisResult;
+  failure?: string;
+}
+
+async function runEsqBarrierCell(workbookId: string, cellId: string, workbookRevision: number, settings: LoadCapacityRunSettings): Promise<LoadCapacityExecuteResult> {
+  return postJson<LoadCapacityExecuteResult>(`/api/esq-workbooks/${workbookId}/barrier-cells/${encodeURIComponent(cellId)}/runs`, {
+    schemaVersion: "1.0.0",
+    cellId,
+    workbookRevision,
+    settings,
+  });
+}
+
+async function listEsqCellRuns(workbookId: string, cellId: string, limit = 12): Promise<EsqCellRunEntry[]> {
+  const modelId = esqCellRunId(cellId);
+  const list = await listEsqRunsOf(workbookId, modelId);
+  const rows = list.runs.filter((row) => row.run.owner.modelId === modelId && row.run.methodType === "LOAD_CAPACITY").slice(0, limit);
+  return Promise.all(rows.map(async (row): Promise<EsqCellRunEntry> => {
+    const run: EsqCellRunEntry = { id: row.run.id, requestedAt: row.run.requestedAt, revision: row.run.owner.workbookRevision, status: row.run.status };
+    const failure = row.run.failure?.message;
+    if (failure !== undefined) run.failure = failure;
+    if (row.run.status !== "SUCCEEDED") return run;
+    const details = await getEsqRunDetails(workbookId, row.run.id);
+    const request = EsqBarrierCellRunRequestSchema.safeParse(details.request);
+    if (request.success) run.settings = request.data.settings;
+    const result = LoadCapacityAnalysisResultSchema.safeParse(details.result);
+    if (result.success) run.result = result.data;
+    return run;
+  }));
+}
+
+interface EsqModelRunEntry {
+  id: string;
+  requestedAt: string;
+  revision: number;
+  status: string;
+  failure?: string;
+}
+
+async function runEsqModel(
+  workbookId: string,
+  workbookRevision: number,
+  logic: EsqEventTreeRunLogic,
+  calculation: EsqModelCalculation,
+  cutSets: EventTreeCutSetSettings | undefined,
+): Promise<EventTreeExecuteResult> {
+  return postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/model-runs`, {
+    schemaVersion: "1.0.0",
+    workbookRevision,
+    logic,
+    calculation,
+    ...(cutSets === undefined ? {} : { cutSets }),
+  });
+}
+
+async function getEsqModelRunResult(workbookId: string, runId: string): Promise<EsqModelRunResult> {
+  return EsqModelRunResultSchema.parse(await fetchJson<EsqModelRunResult>(`/api/esq-workbooks/${workbookId}/model-runs/${runId}/result`));
+}
+
+async function listEsqModelRuns(workbookId: string, limit = 12): Promise<EsqModelRunEntry[]> {
+  const modelId = esqModelRunId();
+  const list = await listEsqRunsOf(workbookId, modelId);
+  return list.runs
+    .filter((row) => row.run.owner.modelId === modelId && row.run.scope === "BATCH")
+    .slice(0, limit)
+    .map((row) => {
+      const run: EsqModelRunEntry = { id: row.run.id, requestedAt: row.run.requestedAt, revision: row.run.owner.workbookRevision, status: row.run.status };
+      const failure = row.run.failure?.message;
+      if (failure !== undefined) run.failure = failure;
+      return run;
+    });
+}
+
+async function runEsqPost(
+  workbookId: string,
+  workbookRevision: number,
+  logic: EsqEventTreeRunLogic,
+  purpose: EsqPostRunPurpose,
+  cutOff: number,
+  raisedHep?: number,
+): Promise<EventTreeExecuteResult> {
+  return postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/post-runs`, {
+    schemaVersion: "1.0.0",
+    workbookRevision,
+    logic,
+    purpose,
+    cutOff,
+    ...(raisedHep === undefined ? {} : { raisedHep }),
+  });
+}
+
+async function getEsqPostResult(workbookId: string, runId: string): Promise<EsqPostRunResult> {
+  return EsqPostRunResultSchema.parse(await fetchJson<EsqPostRunResult>(`/api/esq-workbooks/${workbookId}/post-runs/${runId}/result`));
+}
+
+async function runEsqImportance(workbookId: string, workbookRevision: number, logic: EsqEventTreeRunLogic): Promise<EventTreeExecuteResult> {
+  return postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/importance-runs`, { schemaVersion: "1.0.0", workbookRevision, logic });
+}
+
+async function getEsqImportanceResult(workbookId: string, runId: string): Promise<EsqImportanceRunResult> {
+  return EsqImportanceRunResultSchema.parse(await fetchJson<EsqImportanceRunResult>(`/api/esq-workbooks/${workbookId}/importance-runs/${runId}/result`));
+}
+
+interface EsqUncertaintySettings {
+  trials: number;
+  seed: number;
+  method: EventTreeSamplingMethod;
+  correlation: EsqUncertaintyCorrelation;
+}
+
+async function runEsqUncertainty(workbookId: string, workbookRevision: number, logic: EsqEventTreeRunLogic, settings: EsqUncertaintySettings): Promise<EventTreeExecuteResult> {
+  return postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/uncertainty-runs`, { schemaVersion: "1.0.0", workbookRevision, logic, ...settings });
+}
+
+async function getEsqUncertaintyResult(workbookId: string, runId: string): Promise<EsqUncertaintyRunResult> {
+  return EsqUncertaintyRunResultSchema.parse(await fetchJson<EsqUncertaintyRunResult>(`/api/esq-workbooks/${workbookId}/uncertainty-runs/${runId}/result`));
+}
+
+async function runEsqSensitivity(
+  workbookId: string,
+  caseId: string,
+  workbookRevision: number,
+  logic: EsqEventTreeRunLogic,
+  calculation: EsqModelCalculation,
+  cutSets: EventTreeCutSetSettings | undefined,
+): Promise<EventTreeExecuteResult> {
+  return postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/sensitivity-cases/${encodeURIComponent(caseId)}/runs`, {
+    schemaVersion: "1.0.0",
+    workbookRevision,
+    caseId,
+    logic,
+    calculation,
+    ...(cutSets === undefined ? {} : { cutSets }),
+  });
+}
+
+async function getEsqSensitivityResult(workbookId: string, caseId: string, runId: string): Promise<EsqModelRunResult> {
+  return EsqModelRunResultSchema.parse(await fetchJson<EsqModelRunResult>(`/api/esq-workbooks/${workbookId}/sensitivity-cases/${encodeURIComponent(caseId)}/runs/${runId}/result`));
+}
+
 export {
-  fetchEsqLinkedInputs,
+  runEsqModel,
+  runEsqPost,
+  getEsqPostResult,
+  runEsqImportance,
+  getEsqImportanceResult,
+  runEsqUncertainty,
+  getEsqUncertaintyResult,
+  runEsqSensitivity,
+  getEsqSensitivityResult,
+  type EsqUncertaintySettings,
+  getEsqModelRunResult,
+  listEsqModelRuns,
+  type EsqModelRunEntry,
+  runEsqEventTree,
+  getEsqRunDetails,
+  listEsqTreeRuns,
+  runEsqBarrierCell,
+  listEsqCellRuns,
+  type EsqCellRunEntry,
+  type EsqTreeRun,
   getEsqExampleOptions,
   getEsqWorkbook,
   patchEsqWorkbook,

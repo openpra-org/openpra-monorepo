@@ -9,6 +9,7 @@ mod evidence_batch;
 mod fault_tree;
 mod hazard_sweep;
 mod hybrid_causal_logic;
+mod load_capacity;
 mod resource_preflight;
 mod transport;
 
@@ -65,6 +66,7 @@ pub fn validate(request_json: String) -> Result<String> {
                 Some("BAYESIAN_NETWORK") => bayesian_network::validate(&request),
                 Some("EVENT_TREE") => event_tree::validate(&request),
                 Some("HYBRID_CAUSAL_LOGIC") => hybrid_causal_logic::validate(&request),
+                Some("LOAD_CAPACITY") => load_capacity::validate(&request),
                 _ => Err(PraxisError::IllegalOperation(
                     "unsupported solver method".to_string(),
                 )),
@@ -92,6 +94,7 @@ pub fn execute(request_json: String) -> Result<String> {
                 Some("BAYESIAN_NETWORK") => bayesian_network::execute(&request),
                 Some("EVENT_TREE") => event_tree::execute(&request),
                 Some("HYBRID_CAUSAL_LOGIC") => hybrid_causal_logic::execute(&request),
+                Some("LOAD_CAPACITY") => load_capacity::execute(&request),
                 _ => Err(PraxisError::IllegalOperation(
                     "unsupported solver method".to_string(),
                 )),

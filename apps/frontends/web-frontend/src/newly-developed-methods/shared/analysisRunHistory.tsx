@@ -13,7 +13,18 @@ import {
   HclBatchExecuteResultSchema,
   HclQuantificationResultSchema,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
-import { EventTreeAnalysisResultSchema } from "interfaces-shared-types/newly-developed-methods/event-tree";
+import {
+  EsqImportanceRunResultSchema,
+  EsqModelRunResultSchema,
+  EsqPostRunResultSchema,
+  EsqUncertaintyRunResultSchema,
+  EventTreeAnalysisResultSchema,
+  type EsqImportanceRunResult,
+  type EsqModelRunResult,
+  type EsqPostRunResult,
+  type EsqUncertaintyRunResult,
+} from "interfaces-shared-types/newly-developed-methods/event-tree";
+import { LoadCapacityAnalysisResultSchema } from "interfaces-shared-types/newly-developed-methods/load-capacity";
 import { FaultTreeAnalysisResultSchema } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import {
   BayesianNetworkModelSchema,
@@ -59,6 +70,83 @@ function historicalFaultTreeBasicEventCodes(details: AnalysisRunDetails): Record
   return codes;
 }
 
+const QUANTIFIER_TEXT: Record<string, string> = { MCUB: "upper bound", RARE_EVENT: "rare event", EXACT: "exact" };
+
+function EsqModelRunSaved({ result }: { result: EsqModelRunResult }) {
+  const solved = result.trees.filter((tree) => tree.status === "SUCCEEDED").length;
+  const settings = result.cutSets;
+  const metrics: { label: string; value: string }[] = [
+    ...(result.caseId === undefined ? [] : [{ label: "Sensitivity case", value: result.caseId }]),
+    { label: "Calculation", value: settings === null ? "Exact" : `Cut sets · ${QUANTIFIER_TEXT[settings.quantifier] ?? settings.quantifier}` },
+    { label: "Event trees solved", value: `${solved} of ${result.trees.length}` },
+    ...(settings === null ? [] : [{ label: "Lowest cutoff", value: (settings.cutOffs[settings.cutOffs.length - 1] ?? 0).toExponential(0) }]),
+    ...result.families.map((family) => ({ label: `${family.familyId} per year`, value: family.annualFrequency.toExponential(4) })),
+  ];
+  return (
+    <div>
+      {metrics.map((metric) => (
+        <div key={metric.label} className="analysis-history__metric"><span>{metric.label}</span><strong>{metric.value}</strong></div>
+      ))}
+    </div>
+  );
+}
+
+function EsqPostRunSaved({ result }: { result: EsqPostRunResult }) {
+  const solved = result.trees.filter((tree) => tree.status === "SUCCEEDED").length;
+  const metrics: { label: string; value: string }[] = [
+    { label: "Purpose", value: result.purpose === "COMBINATIONS" ? "HFE combinations" : "Deletion check" },
+    { label: "Event trees solved", value: `${solved} of ${result.trees.length}` },
+    { label: "Cutoff per year", value: result.cutOff.toExponential(0) },
+    ...(result.raisedHep === null ? [] : [{ label: "Raised HEP", value: String(result.raisedHep) }]),
+    ...(result.purpose === "COMBINATIONS"
+      ? [{ label: "Combinations found", value: String(result.combinations.length) }]
+      : result.deletions.map((finding) => ({ label: `${finding.exclusionId} cut sets`, value: String(finding.cutSetCount) }))),
+  ];
+  return (
+    <div>
+      {metrics.map((metric) => (
+        <div key={metric.label} className="analysis-history__metric"><span>{metric.label}</span><strong>{metric.value}</strong></div>
+      ))}
+    </div>
+  );
+}
+
+function EsqImportanceRunSaved({ result }: { result: EsqImportanceRunResult }) {
+  const solved = result.trees.filter((tree) => tree.status === "SUCCEEDED").length;
+  const metrics: { label: string; value: string }[] = [
+    { label: "Purpose", value: "Importance by exact conditioning" },
+    { label: "Event trees solved", value: `${solved} of ${result.trees.length}` },
+    { label: "Items ranked", value: String(result.targets.length) },
+    { label: "Events never moving a family", value: String(result.silentEventIds.length) },
+    ...result.families.map((family) => ({ label: `${family.familyId} per year`, value: family.base.toExponential(4) })),
+  ];
+  return (
+    <div>
+      {metrics.map((metric) => (
+        <div key={metric.label} className="analysis-history__metric"><span>{metric.label}</span><strong>{metric.value}</strong></div>
+      ))}
+    </div>
+  );
+}
+
+function EsqUncertaintyRunSaved({ result }: { result: EsqUncertaintyRunResult }) {
+  const solved = result.trees.filter((tree) => tree.status === "SUCCEEDED").length;
+  const metrics: { label: string; value: string }[] = [
+    { label: "Purpose", value: result.correlation === "SHARED" ? "Sampling with shared draws" : "Sampling with independent draws" },
+    { label: "Event trees solved", value: `${solved} of ${result.trees.length}` },
+    { label: "Trials", value: `${result.trials} · seed ${result.seed}` },
+    ...(result.total === null ? [] : [{ label: "Release total mean per year", value: result.total.mean.toExponential(4) }]),
+    ...result.families.map((family) => ({ label: `${family.familyId} mean per year`, value: family.mean.toExponential(4) })),
+  ];
+  return (
+    <div>
+      {metrics.map((metric) => (
+        <div key={metric.label} className="analysis-history__metric"><span>{metric.label}</span><strong>{metric.value}</strong></div>
+      ))}
+    </div>
+  );
+}
+
 export function SavedAnalysisResult({ details }: { details: AnalysisRunDetails }) {
   const eventTreeOptions: HclEventTreeOption[] = details.workbookSnapshots.flatMap((source) => {
     const trees = source.mef["eventTrees"];
@@ -81,6 +169,14 @@ export function SavedAnalysisResult({ details }: { details: AnalysisRunDetails }
     });
   });
   if (details.result === null) return <p>{details.run.failure?.message ?? "No numerical result was recorded."}</p>;
+  const modelRun = EsqModelRunResultSchema.safeParse(details.result);
+  if (details.run.scope === "BATCH" && modelRun.success) return <EsqModelRunSaved result={modelRun.data} />;
+  const postRun = EsqPostRunResultSchema.safeParse(details.result);
+  if (details.run.scope === "BATCH" && postRun.success) return <EsqPostRunSaved result={postRun.data} />;
+  const importanceRun = EsqImportanceRunResultSchema.safeParse(details.result);
+  if (details.run.scope === "BATCH" && importanceRun.success) return <EsqImportanceRunSaved result={importanceRun.data} />;
+  const uncertaintyRun = EsqUncertaintyRunResultSchema.safeParse(details.result);
+  if (details.run.scope === "BATCH" && uncertaintyRun.success) return <EsqUncertaintyRunSaved result={uncertaintyRun.data} />;
   if (details.run.scope === "BATCH") {
     const batch = HclBatchExecuteResultSchema.parse(details.result);
     const members = new Map(details.members?.map((row) => [row.run.id, row]));
@@ -115,6 +211,29 @@ export function SavedAnalysisResult({ details }: { details: AnalysisRunDetails }
         resultIsStale={details.run.freshness?.status !== "CURRENT"}
         basicEventCodes={historicalFaultTreeBasicEventCodes(details)}
       />
+    );
+  }
+  if (details.run.methodType === "LOAD_CAPACITY") {
+    const result = LoadCapacityAnalysisResultSchema.parse(details.result);
+    const sampled = result.uncertainty;
+    const metrics: { label: string; value: string }[] = [
+      { label: "Method", value: result.method.split("_").join(" ").toLowerCase() },
+      { label: "P(fail) at the central values", value: result.pointProbability.toExponential(4) },
+    ];
+    if (sampled !== null) {
+      metrics.push(
+        { label: "Mean over the samples", value: sampled.mean.toExponential(4) },
+        { label: "5th percentile", value: sampled.p05.toExponential(4) },
+        { label: "95th percentile", value: sampled.p95.toExponential(4) },
+        { label: "Samples", value: `${sampled.samples} · seed ${sampled.seed}` },
+      );
+    }
+    return (
+      <div>
+        {metrics.map((metric) => (
+          <div key={metric.label} className="analysis-history__metric"><span>{metric.label}</span><strong>{metric.value}</strong></div>
+        ))}
+      </div>
     );
   }
   if (details.run.methodType === "BAYESIAN_NETWORK") {

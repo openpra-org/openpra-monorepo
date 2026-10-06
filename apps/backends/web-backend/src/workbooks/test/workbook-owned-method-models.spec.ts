@@ -15,6 +15,7 @@ import { EsqWorkbooksController } from "../../esq-workbooks/esq-workbooks.contro
 import { EsqWorkbook, EsqWorkbookSchema } from "../../esq-workbooks/esq-workbook.schema";
 import { EsqWorkbooksService } from "../../esq-workbooks/esq-workbooks.service";
 import { EsqDocumentsService } from "../../esq-workbooks/esq-documents.service";
+import { EsqModelRunsService } from "../../esq-workbooks/esq-model-runs.service";
 import { createBlankEsq } from "../../esq-workbooks/blank-esq";
 import { ExampleWorkbooksService } from "../../example-workbooks/example-workbooks.service";
 import { SY_ANALYSIS } from "../../example-workbooks/seeds/sy-seed";
@@ -297,6 +298,7 @@ describe("workbook-owned method-model APIs", () => {
         { provide: EsqDocumentsService, useValue: esqDocuments },
         { provide: WorkbookDependencyDiscoveryService, useValue: dependencyDiscovery },
         { provide: WorkbookAnalysisRunsService, useValue: {} },
+        { provide: EsqModelRunsService, useValue: {} },
       ],
     })
       .overrideGuard(JwtAuthGuard)

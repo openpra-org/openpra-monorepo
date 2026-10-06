@@ -846,6 +846,7 @@ fn build_fault_tree_snapshot(
         inputs.sort_by_key(|input| input.order);
     }
 
+    let referenced_events: HashSet<String> = basic_event_probabilities.keys().cloned().collect();
     let mut fault_tree = FaultTree::new(snapshot.id.clone(), top_gate_id.clone())?;
     let mut shared_samples = HashMap::new();
     for (id, probability) in basic_event_probabilities {
@@ -877,6 +878,12 @@ fn build_fault_tree_snapshot(
     for group in common_cause_failure_groups
         .into_iter()
         .filter(|_| include_ccf)
+        .filter(|group| {
+            group
+                .members
+                .iter()
+                .any(|member| referenced_events.contains(member))
+        })
     {
         let uncertainty = match group.uncertainty.as_ref().filter(|_| apply_uncertainty) {
             Some(input) => {
@@ -910,6 +917,29 @@ pub(crate) fn build_fault_tree_for_model(
 ) -> Result<FaultTreeAdapter> {
     let snapshot = find_snapshot(request, model_id, None)?;
     build_fault_tree_snapshot(request, snapshot, false, false)
+}
+
+pub(crate) fn build_expanded_fault_tree_for_model(
+    request: &SolverRequest,
+    model_id: &str,
+) -> Result<FaultTreeAdapter> {
+    let snapshot = find_snapshot(request, model_id, None)?;
+    let mut adapter = build_fault_tree_snapshot(request, snapshot, false, true)?;
+    let mut totals = HashMap::new();
+    for (id, group) in adapter.fault_tree.ccf_groups() {
+        let total = group
+            .distribution
+            .as_deref()
+            .and_then(|value| value.parse::<f64>().ok())
+            .ok_or_else(|| {
+                PraxisError::Logic(format!("CCF group '{id}' has no total failure probability"))
+            })?;
+        totals.insert(id.clone(), total);
+    }
+    if !totals.is_empty() {
+        adapter.fault_tree.expand_ccf_groups(&totals)?;
+    }
+    Ok(adapter)
 }
 
 fn build_fault_tree(

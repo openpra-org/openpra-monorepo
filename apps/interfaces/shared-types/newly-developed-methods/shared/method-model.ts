@@ -74,7 +74,7 @@ import type {
   WorkbookParameterReference,
 } from "interfaces-mef-types/modeling";
 
-const MethodTypeSchema = z.enum(["FAULT_TREE", "BAYESIAN_NETWORK", "EVENT_TREE", "HYBRID_CAUSAL_LOGIC"]);
+const MethodTypeSchema = z.enum(["FAULT_TREE", "BAYESIAN_NETWORK", "EVENT_TREE", "HYBRID_CAUSAL_LOGIC", "LOAD_CAPACITY"]);
 
 const CURRENT_WORKBOOK_METHOD_SCHEMA_VERSION = "1.0.0" as const;
 const WorkbookMethodSchemaVersionSchema = z.literal(CURRENT_WORKBOOK_METHOD_SCHEMA_VERSION);

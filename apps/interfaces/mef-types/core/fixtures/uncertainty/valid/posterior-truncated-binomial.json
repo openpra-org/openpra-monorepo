@@ -1,0 +1,36 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PROBABILITY",
+        "law": {
+          "family": "POSTERIOR",
+          "prior": {
+            "family": "TRUNCATED",
+            "law": {
+              "family": "LOGNORMAL",
+              "mean": 0.01,
+              "errorFactor": 5,
+              "level": 0.95
+            },
+            "lower": null,
+            "upper": 1
+          },
+          "evidence": [
+            {
+              "likelihood": "BINOMIAL",
+              "failures": 2,
+              "exposure": 150
+            }
+          ]
+        }
+      }
+    }
+  }
+]

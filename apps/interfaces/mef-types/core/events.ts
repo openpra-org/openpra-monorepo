@@ -1,4 +1,5 @@
 import { Named, Unique } from "./meta";
+import type { UncertainExpression } from "./uncertainty";
 
 export type Frequency = number;
 
@@ -101,6 +102,11 @@ export interface FrequencyWithDistribution {
     parameters: number[];
   };
   source?: string;
+}
+
+export interface UncertainFrequency {
+  expression: UncertainExpression;
+  basis: FrequencyUnit;
 }
 
 export enum FrequencyUnit {

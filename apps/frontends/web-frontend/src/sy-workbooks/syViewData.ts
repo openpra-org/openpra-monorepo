@@ -1,3 +1,4 @@
+import type { CcfFactorModel } from "interfaces-mef-types/core/uncertainty";
 import { SY_SR_CATALOG, type DepletionModel, type SystemFaultTreeNode } from "interfaces-mef-types/sy/systems-analysis";
 
 type StepStatus = "complete" | "in-progress" | "idle";
@@ -170,7 +171,7 @@ const FAILURE_MODE_TYPES: Record<string, { label: string; short: string }> = {
   EXTERNAL_EVENT: { label: "External event", short: "EX" },
 };
 
-const CCF_MODELS: Record<string, { label: string }> = {
+const CCF_MODELS: Record<CcfFactorModel["model"], { label: string }> = {
   BETA_FACTOR: { label: "Beta factor" },
   ALPHA_FACTOR: { label: "Alpha factor" },
   MGL: { label: "Multiple Greek letter" },

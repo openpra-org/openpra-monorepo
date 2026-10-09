@@ -52,7 +52,7 @@ camelCase fields and model snapshots. Neither contract can replace the other.
 | HCL FT/ET evidence scenarios and compilation reuse | One FT request per invocation | Supported; FT reuses one BDD, ET reuses its sequence BDDs | Main quantifier/cache semantics; [application batching](analysis/mod.rs) |
 | ET sequences, shared events and FT/ET transfers | FT input only | Supported with separate sequence BDDs | PRAXIS [sequence formulas](../analysis/sequence_formula.rs), main HCL, HCL_MH [path enumeration](../../../../../resources/HCL_MH/et/et_compiler.py) |
 | Sequence annual frequency and end-state totals | Not exposed | Supported; sum sequence frequencies and aligned UQ samples | [ET adapter](../../../praxis-node/src/event_tree.rs); approved sequence-sum and unit-conversion exceptions |
-| FT/CPT uncertainty, MC/LHS, vector evaluation, seismic fragility, PGA bins and seven summaries | Not exposed | Explicit `UNCERTAINTY` selection for HCL FT/ET, including evidence batches | HCL_MH [uncertainty source map](uncertainty/SOURCE.md), using main TensorBayes inference |
+| FT/CPT uncertainty, MC/LHS, vector evaluation, seismic fragility, PGA bins and seven summaries | Not exposed | Explicit `UNCERTAINTY` selection for HCL FT/ET, including evidence batches | PRAXIS uncertainty contract and sampler, HCL_MH vector evaluation and summaries, see the [uncertainty map](uncertainty/SOURCE.md) |
 | Point hazard convolution | Not exposed | Supported for probability batches | HCL_MH [weighting and aggregation](HAZARD_SOURCE.md) |
 | Cartesian hazard scenarios, exclusions and limits | Not exposed | Source generator exposed through addon/backend and GUI | HCL_MH [scenario-generation source map](HAZARD_SWEEP_SOURCE.md) |
 | BDD order | Explicit order, otherwise normal PRAXIS order | BN-first default; explicit API order wins; GUI displays the order but cannot edit it | Main explicit-order API; HCL_MH [ordering port](ordering.rs) |
@@ -115,13 +115,11 @@ cache. The compiled junction tree and bindings remain reusable.
   frequency once. End-state frequency sums the corresponding sequence frequencies.
   This uses the approved sequence method and assumes mutually exclusive paths;
   it performs no general Boolean-union/disjointness calculation.
-- **Uncertainty:** generate paired FT/CPT sample vectors, then evaluate each BDD
-  using HCL_MH's vector recurrence `low + p * (high - low)`. FT LHS uses strata
-  and inverse CDFs; BN-prior LHS preserves the source's Beta/Gamma sorting and
-  shuffling routine. Fragility shares one sampled capacity across that component's
-  CPT rows; PGA bins convert sampled frequencies using the source Poisson/linear
-  formulas. All expressions, clipping, draw order and dependencies are specified
-  in the [uncertainty source map](uncertainty/SOURCE.md).
+- **Uncertainty:** draw paired FT and CPT samples with the PRAXIS sampler, then
+  evaluate each BDD using HCL_MH's vector recurrence `low + p * (high - low)`.
+  Fragility shares one median draw across the CPT rows of its node. PGA bins use
+  the Poisson or linear formula. Nothing is clipped. See the
+  [uncertainty map](uncertainty/SOURCE.md).
 - **Summaries:** mean, population SD (`sqrt(sum((x - mean)^2) / N)`), minimum, maximum,
   median and linear-interpolated 5th/95th percentiles follow HCL_MH/NumPy.
   End-state UQ sums aligned sequence samples before summarizing; it does not add

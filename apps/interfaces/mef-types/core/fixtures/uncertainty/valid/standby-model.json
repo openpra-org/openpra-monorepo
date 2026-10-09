@@ -1,0 +1,36 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "standby"
+    },
+    "expression": {
+      "node": "MODEL",
+      "model": {
+        "form": "STANDBY",
+        "rate": {
+          "node": "VALUE",
+          "value": {
+            "unit": "PER_HOUR",
+            "law": {
+              "family": "GAMMA",
+              "shape": 1.5,
+              "rate": 300000
+            }
+          }
+        },
+        "testInterval": {
+          "node": "VALUE",
+          "value": {
+            "unit": "HOURS",
+            "law": {
+              "family": "POINT",
+              "value": 2190
+            }
+          }
+        }
+      }
+    }
+  }
+]

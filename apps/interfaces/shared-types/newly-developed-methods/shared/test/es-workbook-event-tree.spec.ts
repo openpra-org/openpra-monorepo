@@ -13,11 +13,11 @@ const eventTree = (): EventTree => ({
   name: "Loss of forced primary flow",
   initiatingEventId: "IEG-01",
   initiatingEventFrequency: {
-    value: 0.01,
-    controlledDataSource: {
-      workbookId: "da-workbook",
-      parameterId: PARAMETER_ID,
+    expression: {
+      node: "PARAMETER",
+      reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: PARAMETER_ID },
     },
+    annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_760 },
   },
   functionalEvents: {
     [FUNCTIONAL_EVENT_ID]: {
@@ -60,6 +60,11 @@ describe("ES workbook-owned event trees", () => {
     );
     expect(parsed.canvas).toEqual(eventTree().canvas);
     expect(parsed.endStateIds).toEqual(eventTree().endStateIds);
+  });
+
+  it("rejects the replaced numeric initiating-event frequency", () => {
+    expect(EventTreeSchema.safeParse({ ...eventTree(), initiatingEventFrequency: { value: 0.01 } }).success).toBe(false);
+    expect(EventTreeSchema.safeParse({ ...eventTree(), initiatingEventFrequency: { value: 0.01, unit: "PER_YEAR" } }).success).toBe(false);
   });
 
   it("rejects non-UUID event-tree end-state identities", () => {

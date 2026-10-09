@@ -2,13 +2,18 @@ import { PagedResults, ResultCsvButton, ResultWarnings } from "../shared/resultP
 import { eventTreeResultRecords } from "../shared/probabilityResultExport";
 import { type JSX, useEffect, useId, useMemo, useState } from "react";
 import type { FunctionalEvent, SystemStatus } from "interfaces-mef-types/es/event-sequence-analysis";
-import { DEFAULT_ANNUALIZATION_CONVENTION } from "interfaces-mef-types/modeling";
+import { DEFAULT_ANNUALIZATION_CONVENTION, type AnnualizationBasis, type EventTreeInitiatingEventFrequency } from "interfaces-mef-types/modeling";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import {
   applyEventTreeOperation,
   createEventTreePresentation,
+  initiatingFrequencyUnit,
   orderedFunctionalEvents,
   uniqueFunctionalEventCode,
+  type FrequencyParameterTable,
+  type InitiatingFrequencyUnit,
 } from "./eventTreeOperations";
+import { ExpressionEditor, draftFor, type ParameterOption } from "../shared/uncertainEditor";
 import {
   ClassicEventTreeDiagram,
   DynamicEventSequenceDiagram,
@@ -34,6 +39,26 @@ const PATH_STATE: Record<SystemStatus, { label: string; short: string; className
   BYPASSED: { label: "Bypassed", short: "B", className: "bypassed" },
 };
 
+const FREQUENCY_UNITS: Array<{ id: InitiatingFrequencyUnit; label: string }> = [
+  { id: "PER_YEAR", label: "Per year" },
+  { id: "PER_HOUR", label: "Per hour" },
+];
+
+const ANNUALIZATION_BASES: Array<{ id: AnnualizationBasis; label: string }> = [
+  { id: "PLANT_YEAR", label: "Plant year" },
+  { id: "CALENDAR_YEAR", label: "Calendar year" },
+  { id: "REACTOR_YEAR", label: "Reactor year" },
+  { id: "CRITICAL_YEAR", label: "Critical year" },
+];
+
+const NO_FREQUENCY_OPTIONS: readonly ParameterOption[] = [];
+
+const NO_FREQUENCY_PARAMETERS: FrequencyParameterTable = new Map();
+
+function newFrequencyExpression(): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PER_YEAR", law: draftFor("POINT", { family: "POINT", value: Number.NaN }, "PER_YEAR") } };
+}
+
 type ContextMenu =
   | { kind: "functional-event"; id: string; x: number; y: number }
   | { kind: "sequence"; id: string; x: number; y: number };
@@ -44,6 +69,8 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
     eventSequences,
     availableInitiatingEvents,
     availableTransfers,
+    frequencyOptions = NO_FREQUENCY_OPTIONS,
+    frequencyParameters = NO_FREQUENCY_PARAMETERS,
     sequenceFamilyOptions = [],
     releaseCategoryOptions = [],
     dynamicRun,
@@ -211,6 +238,15 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
     onSelectionChange(functionalEventId);
   };
 
+  const frequency = model.initiatingEventFrequency;
+  const frequencyUnit = frequency === undefined ? "PER_YEAR" : initiatingFrequencyUnit(frequency.expression, frequencyParameters);
+  const annualization = frequency?.annualization ?? DEFAULT_ANNUALIZATION_CONVENTION;
+  const setFrequency = (changes: Partial<EventTreeInitiatingEventFrequency>): void => {
+    const expression = changes.expression ?? frequency?.expression;
+    if (expression === undefined) return;
+    commit({ kind: "UPDATE_TREE", changes: { initiatingEventFrequency: { expression, annualization: changes.annualization ?? annualization } } });
+  };
+
   const showFrequency = analysisResult !== null;
   const resultByEndState = new Map((analysisResult?.endStateAggregates ?? []).map((aggregate) => [aggregate.endStateId, aggregate.annualFrequency]));
   const endStateLabel = (endStateId: string): string => {
@@ -282,7 +318,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
             const selected = availableInitiatingEvents.find((option) => option.id === event.target.value);
             commit({ kind: "UPDATE_TREE", changes: {
               initiatingEventId: event.target.value,
-              ...(model.initiatingEventFrequency === undefined && selected?.frequency !== undefined ? { initiatingEventFrequency: { value: selected.frequency, unit: "PER_YEAR", annualization: DEFAULT_ANNUALIZATION_CONVENTION } } : {}),
+              ...(frequency === undefined && selected?.frequency !== undefined ? { initiatingEventFrequency: selected.frequency } : {}),
             } });
           }}>
             {!availableInitiatingEvents.some((option) => option.id === model.initiatingEventId) && <option value={model.initiatingEventId}>{model.initiatingEventId}</option>}
@@ -290,49 +326,41 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
           </select>
         </label>
         <label className="et-editor__field">
-          <span>Initiating-event frequency</span>
-          <input key={`${model.uuid}-frequency-${String(model.initiatingEventFrequency?.value ?? "")}`} aria-label="Initiating-event frequency" type="number" min="0" step="any" disabled={!capabilities.author} defaultValue={model.initiatingEventFrequency?.value ?? ""} onBlur={(event) => {
-            const value = Number(event.currentTarget.value);
-            if (event.currentTarget.value.length > 0 && Number.isFinite(value) && value >= 0 && value !== model.initiatingEventFrequency?.value) commit({ kind: "UPDATE_TREE", changes: { initiatingEventFrequency: { value, unit: model.initiatingEventFrequency?.unit ?? "PER_YEAR", annualization: model.initiatingEventFrequency?.annualization ?? DEFAULT_ANNUALIZATION_CONVENTION } } });
-          }} />
-        </label>
-        <label className="et-editor__field">
           <span>Frequency unit</span>
-          <select aria-label="Initiating-event frequency unit" value={model.initiatingEventFrequency?.unit ?? "PER_YEAR"} disabled={!capabilities.author || model.initiatingEventFrequency === undefined} onChange={(event) => {
-            if (model.initiatingEventFrequency === undefined) return;
-            commit({ kind: "UPDATE_TREE", changes: { initiatingEventFrequency: { ...model.initiatingEventFrequency, unit: event.target.value as NonNullable<typeof model.initiatingEventFrequency>["unit"], annualization: model.initiatingEventFrequency.annualization ?? DEFAULT_ANNUALIZATION_CONVENTION } } });
+          <select aria-label="Initiating-event frequency unit" value={frequencyUnit} disabled={!capabilities.author || frequency?.expression.node !== "VALUE"} onChange={(event) => {
+            const unit = FREQUENCY_UNITS.find((option) => option.id === event.target.value)?.id;
+            if (frequency?.expression.node !== "VALUE" || unit === undefined) return;
+            setFrequency({ expression: { node: "VALUE", value: { unit, law: frequency.expression.value.law } } });
           }}>
-            <option value="PER_SECOND">Per second</option>
-            <option value="PER_MINUTE">Per minute</option>
-            <option value="PER_HOUR">Per hour</option>
-            <option value="PER_DAY">Per day</option>
-            <option value="PER_YEAR">Per year</option>
+            {FREQUENCY_UNITS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
           </select>
         </label>
         <label className="et-editor__field">
           <span>Annualization basis</span>
-          <select aria-label="Annualization basis" aria-describedby={annualizationHelpId} value={model.initiatingEventFrequency?.annualization?.basis ?? "PLANT_YEAR"} disabled={!capabilities.author || model.initiatingEventFrequency === undefined} onChange={(event) => {
-            if (model.initiatingEventFrequency === undefined) return;
-            const annualization = model.initiatingEventFrequency.annualization ?? DEFAULT_ANNUALIZATION_CONVENTION;
-            commit({ kind: "UPDATE_TREE", changes: { initiatingEventFrequency: { ...model.initiatingEventFrequency, unit: model.initiatingEventFrequency.unit ?? "PER_YEAR", annualization: { ...annualization, basis: event.target.value as typeof annualization.basis } } } });
+          <select aria-label="Annualization basis" aria-describedby={annualizationHelpId} value={annualization.basis} disabled={!capabilities.author || frequency === undefined} onChange={(event) => {
+            const basis = ANNUALIZATION_BASES.find((option) => option.id === event.target.value)?.id;
+            if (basis !== undefined) setFrequency({ annualization: { ...annualization, basis } });
           }}>
-            <option value="PLANT_YEAR">Plant year</option>
-            <option value="CALENDAR_YEAR">Calendar year</option>
-            <option value="REACTOR_YEAR">Reactor year</option>
-            <option value="CRITICAL_YEAR">Critical year</option>
+            {ANNUALIZATION_BASES.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
           </select>
           <small id={annualizationHelpId} className="et-editor__context-hint">Year basis is a label. Exposure hours control conversion to annual frequency. Per-year inputs are already annual.</small>
         </label>
         <label className="et-editor__field">
           <span>Exposure hours / year</span>
-          <input key={`${model.uuid}-annual-hours-${String(model.initiatingEventFrequency?.annualization?.hoursPerYear ?? DEFAULT_ANNUALIZATION_CONVENTION.hoursPerYear)}`} aria-label="Annualization hours per year" aria-describedby={annualizationHelpId} type="number" min="0" step="any" disabled={!capabilities.author || model.initiatingEventFrequency === undefined} defaultValue={model.initiatingEventFrequency?.annualization?.hoursPerYear ?? DEFAULT_ANNUALIZATION_CONVENTION.hoursPerYear} onBlur={(event) => {
-            if (model.initiatingEventFrequency === undefined) return;
+          <input key={`${model.uuid}-annual-hours-${String(annualization.hoursPerYear)}`} aria-label="Annualization hours per year" aria-describedby={annualizationHelpId} type="number" min="0" step="any" disabled={!capabilities.author || frequency === undefined} defaultValue={annualization.hoursPerYear} onBlur={(event) => {
             const hoursPerYear = Number(event.currentTarget.value);
             if (!Number.isFinite(hoursPerYear) || hoursPerYear <= 0) return;
-            const annualization = model.initiatingEventFrequency.annualization ?? DEFAULT_ANNUALIZATION_CONVENTION;
-            if (hoursPerYear !== annualization.hoursPerYear) commit({ kind: "UPDATE_TREE", changes: { initiatingEventFrequency: { ...model.initiatingEventFrequency, unit: model.initiatingEventFrequency.unit ?? "PER_YEAR", annualization: { ...annualization, hoursPerYear } } } });
+            if (hoursPerYear !== annualization.hoursPerYear) setFrequency({ annualization: { ...annualization, hoursPerYear } });
           }} />
         </label>
+        <div className="et-editor__frequency" role="group" aria-label="Initiating-event frequency">
+          <span className="et-editor__frequency-label">Initiating-event frequency</span>
+          {frequency !== undefined ? (
+            <ExpressionEditor expression={frequency.expression} unit={frequencyUnit} options={frequencyOptions} disabled={!capabilities.author} onChange={(expression) => setFrequency({ expression })} />
+          ) : capabilities.author ? (
+            <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setFrequency({ expression: newFrequencyExpression() })}>Add a frequency</button>
+          ) : <span className="et-editor__context-hint">No frequency yet.</span>}
+        </div>
         <label className="et-editor__field">
           <span>Safe end-state ID</span>
           <input key={`${model.uuid}-safe-${model.endStateIds?.SUCCESSFUL_MITIGATION ?? ""}`} aria-label="Safe end-state identifier" placeholder="Workbook entity UUID" disabled={!capabilities.author} defaultValue={model.endStateIds?.SUCCESSFUL_MITIGATION ?? ""} onBlur={(event) => {
@@ -386,7 +414,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
                   </div>
                 )}
               </div>
-              {representation === "event-tree" && <ClassicEventTreeDiagram view={presentation} activeSequenceId={activeSequenceId} selectedEntityId={selection} showFrequency={showFrequency} canEdit={capabilities.author} onHover={setHoveredSequenceId} onSelect={selectSequence} onSelectFunctionalEvent={selectFunctionalEvent} onFunctionalEventContext={openFunctionalEventContext} onSequenceContext={openSequenceContext} onReorderFunctionalEvent={(functionalEventId, targetIndex) => commit({ kind: "REORDER_FUNCTIONAL_EVENT", functionalEventId, targetIndex })} />}
+              {representation === "event-tree" && <ClassicEventTreeDiagram view={presentation} activeSequenceId={activeSequenceId} selectedEntityId={selection} showFrequency={showFrequency} frequencyParameters={frequencyParameters} canEdit={capabilities.author} onHover={setHoveredSequenceId} onSelect={selectSequence} onSelectFunctionalEvent={selectFunctionalEvent} onFunctionalEventContext={openFunctionalEventContext} onSequenceContext={openSequenceContext} onReorderFunctionalEvent={(functionalEventId, targetIndex) => commit({ kind: "REORDER_FUNCTIONAL_EVENT", functionalEventId, targetIndex })} />}
               {representation === "event-sequence-diagram" && <EventSequenceDiagram view={presentation} activeSequenceId={activeSequenceId} selectedEntityId={selection} onHover={setHoveredSequenceId} onSelectSequence={selectSequence} onSelectFunctionalEvent={selectFunctionalEvent} onFunctionalEventContext={openFunctionalEventContext} onSequenceContext={openSequenceContext} />}
               {representation === "dynamic" && dynamicRun !== undefined && <DynamicEventSequenceDiagram run={dynamicRun} sequences={new Map(presentation.sequences.map((sequence) => [sequence.id, sequence]))} activeSequenceId={activeSequenceId} onHover={setHoveredSequenceId} onSelect={selectSequence} />}
               {representation === "table" && (

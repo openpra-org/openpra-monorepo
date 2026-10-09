@@ -33,6 +33,7 @@ import { useIeMefPatch } from "./useIeMefPatch";
 import { IePosLinkModal } from "./iePosLinkModal";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { type IePersona } from "./ieViewData";
+import { loadIeDaFrequencies } from "./ieDaLinks";
 
 interface IeExampleResponse {
   slug: string;
@@ -103,6 +104,9 @@ function IeWorkbookPage(): JSX.Element {
         });
         setMyRoles(workbook.myRoles);
         setHasPreviousMef(workbook.hasPreviousMef);
+        void loadIeDaFrequencies(workbook.projectId, workbook.mef).then((daFrequencies) => {
+          if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daFrequencies }));
+        });
         try {
           const project = await getProject(workbook.projectId);
           if (!cancelled) setProjectName(project.name);

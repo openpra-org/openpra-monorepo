@@ -17,6 +17,7 @@ import { rcMsBoundingMember, rcSourceTermFromMs } from "interfaces-shared-types/
 import { withSourceTermSummary } from "interfaces-shared-types/rc-workbooks/source-term-summary";
 import { MS_ANALYSIS } from "./ms-seed";
 import { ES_ANALYSIS } from "./es-seed";
+import { withExampleCaseRecords } from "./rc-example-results";
 import { DistributionType } from "interfaces-mef-types/core/events";
 import { type SRReference, type SRConformance, type SRStatus } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
@@ -930,14 +931,15 @@ const BASE_ANALYSIS: RadiologicalConsequenceAnalysis = {
     analysisRef: "ri-generic-1",
     feedbackDate: NOW,
     metricFeedback: [
-      { metric: "Individual latent cancer fatality risk", riskSignificance: ImportanceLevel.HIGH, insights: ["The early-release families drive the individual latent-cancer risk."], recommendations: ["Prioritize the source-term retention and the evacuation timing."] },
-      { metric: "Individual dose at boundary", riskSignificance: ImportanceLevel.MEDIUM, insights: ["The boundary dose stays below the early-fatality threshold with the evacuation credit."], recommendations: ["Confirm the evacuation-timing credit at the selected site."] },
+      { metric: "Individual latent cancer fatality risk", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Individual latent cancer fatality risk is 3.33E-11 per plant-year against a limit of 2E-6. RC-1 carries 72.9% of it."], recommendations: ["Prioritize the source-term retention and the evacuation timing."] },
+      { metric: "Individual dose at boundary", riskSignificance: ImportanceLevel.LOW, insights: ["Frequency of exceeding 100 mrem is 7.63E-7 per plant-year against a limit of 1. Site-boundary individual dose is 1.22E-8 Sv per plant-year. RC-2 carries 87.3% of it."], recommendations: ["Confirm the RC-2 late-release dose, which sets most of the 100 mrem frequency."] },
+      { metric: "Individual early fatality risk", riskSignificance: ImportanceLevel.LOW, insights: ["Individual early fatality risk is 1.57E-14 per plant-year against a limit of 5E-7. RC-1 carries 100% of it."], recommendations: ["Keep the RC-1 early dose and its evacuation credit under review."] },
     ],
     releaseCategoryFeedback: [
-      { releaseCategoryReference: "RC-1", riskSignificance: ImportanceLevel.HIGH, insights: ["The early release drives the individual and the population dose."], recommendations: ["Tighten the pool-scrubbing and confinement-retention uncertainty."], status: "IN_PROGRESS" },
-      { releaseCategoryReference: "RC-2", riskSignificance: ImportanceLevel.MEDIUM, insights: ["The filtered release is a minor contributor to the risk."], recommendations: ["No further action is needed at this stage."], status: "ADDRESSED" },
+      { releaseCategoryReference: "RC-1", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Holds ESF-EARLY and ESF-ATWS. Carries 100% of the early fatality risk and 72.9% of the latent cancer risk."], recommendations: ["Tighten the pool-scrubbing and confinement-retention uncertainty."], status: "IN_PROGRESS" },
+      { releaseCategoryReference: "RC-2", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Holds ESF-LATE. Carries 87.3% of the 100 mrem frequency and 25.2% of the latent cancer risk."], recommendations: ["Confirm the late-release dose at the site boundary."], status: "PENDING" },
     ],
-    generalFeedback: "Risk Integration confirms the early-release category drives the individual and the population risk, so the retention phenomena and the evacuation timing are the priorities for the consequence side.",
+    generalFeedback: "No measure is risk-significant under NEI 18-04. RC-1 sets the latent and early fatality risks and RC-2 the 100 mrem frequency, so the retention phenomena and the evacuation timing stay the consequence-side priorities.",
     response: {
       description: "The pool-scrubbing decontamination factor and the non-compliance fraction are carried as the leading model uncertainties and swept in the sensitivity studies.",
       changes: ["Wet-deposition washout and non-compliance fraction held as the leading uncertainties", "Weather-year and evacuation-delay sensitivities retained"],
@@ -970,17 +972,4 @@ const BASE_ANALYSIS: RadiologicalConsequenceAnalysis = {
   newlyDevelopedMethodIds: ["NM-091", "NM-094", "NM-097"],
 };
 
-const HAND_TYPED_REASON = "Example values entered by hand for each family. No category results are recorded for this example yet.";
-
-export const RC_ANALYSIS: RadiologicalConsequenceAnalysis = {
-  ...BASE_ANALYSIS,
-  consequenceQuantification: {
-    ...BASE_ANALYSIS.consequenceQuantification,
-    eventSequenceConsequences: BASE_ANALYSIS.consequenceQuantification.eventSequenceConsequences.map((entry) => ({
-      ...entry,
-      eventSequenceFamilyReference: releaseCategoryInputs.flatMap((category) => category.eventSequenceFamilyReferences ?? []).find((reference) => reference.entityId === entry.eventSequenceFamily),
-      origin: "OVERRIDE" as const,
-      overrideReason: HAND_TYPED_REASON,
-    })),
-  },
-};
+export const RC_ANALYSIS: RadiologicalConsequenceAnalysis = withExampleCaseRecords(BASE_ANALYSIS, ES_ANALYSIS, "Generic SFR", NOW);

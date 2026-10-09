@@ -1,0 +1,52 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PER_HOUR",
+        "law": {
+          "family": "MIXTURE",
+          "components": [
+            {
+              "weight": 0.5,
+              "law": {
+                "family": "GAMMA",
+                "shape": 1,
+                "rate": 100000
+              }
+            },
+            {
+              "weight": 0.5,
+              "law": {
+                "family": "MIXTURE",
+                "components": [
+                  {
+                    "weight": 0.5,
+                    "law": {
+                      "family": "GAMMA",
+                      "shape": 1,
+                      "rate": 100000
+                    }
+                  },
+                  {
+                    "weight": 0.5,
+                    "law": {
+                      "family": "GAMMA",
+                      "shape": 2,
+                      "rate": 100000
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+]

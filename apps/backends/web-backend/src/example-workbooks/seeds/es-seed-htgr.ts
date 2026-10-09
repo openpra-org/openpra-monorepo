@@ -1,4 +1,4 @@
-import { type EventSequenceAnalysis, DependencyType } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type EventSequenceAnalysis, type EventTree, DependencyType } from "interfaces-mef-types/es/event-sequence-analysis";
 import { EndState } from "interfaces-mef-types/core/events";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
@@ -12,8 +12,36 @@ import {
   GEN_RC_FREQUENCY,
 } from "./es-seed-dynamic-htgr.generated";
 import { createExampleDependencyEventTree } from "./dependency-model-seed";
+import { withSystemTops } from "./es-seed-system-tops";
+import { SY_ANALYSIS_HTGR } from "./sy-seed-htgr";
 
 const NOW = "2026-04-22T12:00:00.000Z";
+
+const FUNCTION_SYSTEMS: Record<string, string> = {
+  RT: "SYS-RPS",
+  SCS: "SYS-SCS",
+  RCCS: "SYS-RCCS",
+  CONF: "SYS-RB",
+  DETECT: "SYS-DETECT",
+  MAKEUP: "SYS-HIC",
+};
+
+const ISOLATION_SYSTEMS: Record<string, string> = {
+  "IEG-09": "SYS-HPBI",
+  "IEG-13": "SYS-SGISO",
+  "IEG-14": "SYS-SGISO",
+  "IEG-15": "SYS-SGISO",
+  "IEG-16": "SYS-SGISO",
+  "IEG-17": "SYS-HPBI",
+  "IEG-18": "SYS-HPBI",
+  "IEG-20": "SYS-SGISO",
+};
+
+function systemOf(tree: EventTree, functionId: string): string | undefined {
+  return functionId === "ISOL" ? ISOLATION_SYSTEMS[tree.initiatingEventId] : FUNCTION_SYSTEMS[functionId];
+}
+
+const LINKED_EVENT_TREES = withSystemTops(GEN_EVENT_TREES, SY_ANALYSIS_HTGR, "example-sy-htgr", systemOf);
 
 export const ES_ANALYSIS_HTGR: EventSequenceAnalysis = {
   uuid: "es-generic-2",
@@ -100,7 +128,7 @@ export const ES_ANALYSIS_HTGR: EventSequenceAnalysis = {
     { uuid: "ESF-EARLY", name: "Building isolation failure, unfiltered release", groupingCriteriaId: "GC-1", representativeInitiatingEventId: "IEG-21", representativePlantOperatingStateId: "POS-01", representativePlantResponse: "The challenge reaches a reactor building whose isolation or filtration has failed, giving the largest unfiltered release the design can produce.", releaseCategoryIds: ["RC-1"], memberSequenceIds: GEN_FAMILY_MEMBERS["ESF-EARLY"], endState: EndState.RADIONUCLIDE_RELEASE, meanFrequency: GEN_FAMILY_FREQUENCY["ESF-EARLY"], similarityBasis: "At CC-II, confirm EHN-5 and EHW-8 (different source terms and timing) are not hidden by the chosen worst-case sequence.", implementsSrs: [] },
     { uuid: "ESF-ATWS", name: "Unprotected (failure-to-trip) transients", groupingCriteriaId: "GC-1", representativeInitiatingEventId: "IEG-17", representativePlantOperatingStateId: "POS-01", representativePlantResponse: "The reactor fails to trip; the negative temperature coefficient caps the power while passive cavity cooling absorbs it, and the dedicated ATWS tree resolves the release.", releaseCategoryIds: ["RC-1"], memberSequenceIds: GEN_FAMILY_MEMBERS["ESF-ATWS"], endState: EndState.RADIONUCLIDE_RELEASE, meanFrequency: GEN_FAMILY_FREQUENCY["ESF-ATWS"], similarityBasis: "Transfers to the ATWS tree (ES-A13); frequency is provisional until that tree is quantified in ESQ.", implementsSrs: [] },
   ],
-  eventTrees: [...GEN_EVENT_TREES, createExampleDependencyEventTree()],
+  eventTrees: [...LINKED_EVENT_TREES, createExampleDependencyEventTree()],
   dynamicRuns: GEN_DYNAMIC_RUNS,
   operatorActionWindows: [
     {

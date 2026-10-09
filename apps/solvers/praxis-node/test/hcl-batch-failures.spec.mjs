@@ -15,7 +15,7 @@ function requestForKind(kind, calculation) {
   for (const v of table.rows[0].values) v.probability = v.stateId === "False" ? 1 : 0;
   const settings = request.modelSnapshots.find((s) => s.id === "HCL").solverSettings;
   settings.uncertainty.sampleCount = 11;
-  settings.uncertainty.cptRowDistributions = [];
+  settings.uncertainty.cptRows = [];
   return request;
 }
 const row = (index, impossible) => ({scenarioId: `row-${index}`, observations: impossible ? [{nodeId:"A", stateId:"True"}] : []});

@@ -42,35 +42,37 @@ describe("Event-tree initiating and functional-event contracts", () => {
     expect(EventTreeInitiatingEventReferenceSchema.safeParse(initiatingEvent).success).toBe(true);
   });
 
-  it.each([0, 0.001, 2.5])("accepts non-negative initiating-event frequency %s", (value) => {
-    expect(EventTreeInitiatingEventFrequencySchema.safeParse({ value }).success).toBe(true);
+  const perYear = (value: number) => ({ node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value } } });
+  const daFrequency = (workbookId: string) => ({
+    node: "PARAMETER",
+    reference: { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: FREQUENCY_PARAMETER_ID },
   });
 
-  it("accepts an optional controlled frequency source", () => {
-    expect(
-      EventTreeInitiatingEventFrequencySchema.safeParse({
-        value: 0.001,
-        controlledDataSource: { workbookId: "ie-workbook-1", parameterId: FREQUENCY_PARAMETER_ID },
-      }).success,
-    ).toBe(true);
+  it.each([0, 0.001, 2.5])("accepts a point initiating-event frequency %s", (value) => {
+    expect(EventTreeInitiatingEventFrequencySchema.safeParse({ expression: perYear(value) }).success).toBe(true);
   });
 
-  it("accepts explicit frequency units and annualization semantics", () => {
+  it("accepts a frequency linked to a DA frequency parameter", () => {
+    expect(EventTreeInitiatingEventFrequencySchema.safeParse({ expression: daFrequency("da-workbook-1") }).success).toBe(true);
+  });
+
+  it("accepts an uncertain per-hour frequency with annualization semantics", () => {
     expect(EventTreeInitiatingEventFrequencySchema.safeParse({
-      value: 2e-5,
-      unit: "PER_HOUR",
+      expression: { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "LOGNORMAL", mean: 2e-5, errorFactor: 3, level: 0.95 } } },
       annualization: { basis: "CRITICAL_YEAR", hoursPerYear: 7_000 },
     }).success).toBe(true);
   });
 
   it.each([
-    { value: -0.001 },
-    { value: Number.NaN },
-    { value: Number.POSITIVE_INFINITY },
-    { value: 0.001, controlledDataSource: { workbookId: "", parameterId: FREQUENCY_PARAMETER_ID } },
-    { value: 0.001, controlledDataSource: { workbookId: "ie-workbook-1", parameterId: "IE-FREQUENCY" } },
-    { value: 0.001, unit: "per-year" },
-    { value: 0.001, unit: "PER_HOUR", annualization: { basis: "PLANT_YEAR", hoursPerYear: 0 } },
+    { expression: perYear(Number.NaN) },
+    { expression: perYear(Number.POSITIVE_INFINITY) },
+    { expression: daFrequency("") },
+    { expression: { node: "VALUE", value: { unit: "PER_MONTH", law: { family: "POINT", value: 0.001 } } } },
+    { expression: perYear(0.001), annualization: { basis: "PLANT_YEAR", hoursPerYear: 0 } },
+    { expression: perYear(0.001), controlledDataSource: { workbookId: "da-workbook-1", parameterId: FREQUENCY_PARAMETER_ID } },
+    { expression: perYear(0.001), unit: "PER_YEAR" },
+    { value: 0.001 },
+    { value: 2e-5, unit: "PER_HOUR" },
   ])("rejects malformed initiating-event frequency %#", (candidate) => {
     expect(EventTreeInitiatingEventFrequencySchema.safeParse(candidate).success).toBe(false);
   });

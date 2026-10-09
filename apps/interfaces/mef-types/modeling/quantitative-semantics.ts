@@ -1,3 +1,6 @@
+import type { UncertainExpression, UncertainUnit } from "../core/uncertainty";
+import type { FaultTreeBasicEvent, FaultTreeBasicEventProbability } from "./fault-tree";
+
 type QuantificationTimeUnit = "SECOND" | "MINUTE" | "HOUR" | "DAY" | "YEAR";
 
 interface QuantificationDuration {
@@ -76,6 +79,34 @@ function failureRateToProbability(
   return 1 - Math.exp(-exposure);
 }
 
+function typedPoint(unit: UncertainUnit, value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit, law: { family: "POINT", value } } };
+}
+
+function legacyBasicEventExpression(probability: FaultTreeBasicEventProbability): UncertainExpression | undefined {
+  if (probability.expression !== undefined) return probability.expression;
+  if (probability.controlledDataSource !== undefined) return undefined;
+  const basis = probability.quantificationBasis;
+  if (basis?.kind === "FAILURE_RATE") {
+    if (requiresFailureRateConversionReview(basis)) return undefined;
+    return {
+      node: "MODEL",
+      model: {
+        form: "MISSION",
+        rate: typedPoint("PER_HOUR", basis.failureRate.value / HOURS_PER_TIME_UNIT[basis.failureRate.unit]),
+        missionTime: typedPoint("HOURS", basis.missionTime.value * HOURS_PER_TIME_UNIT[basis.missionTime.unit]),
+      },
+    };
+  }
+  return Number.isFinite(probability.value) ? typedPoint("PROBABILITY", probability.value) : undefined;
+}
+
+function withBasicEventExpression(event: FaultTreeBasicEvent): FaultTreeBasicEvent {
+  if (event.probability.expression !== undefined) return event;
+  const expression = legacyBasicEventExpression(event.probability);
+  return expression === undefined ? event : { ...event, probability: { value: event.probability.value, expression } };
+}
+
 function annualizeFrequency(
   value: number,
   unit: EventFrequencyUnit,
@@ -98,6 +129,8 @@ export {
   requiresFailureRateConversionReview,
   annualizeFrequency,
   failureRateToProbability,
+  legacyBasicEventExpression,
+  withBasicEventExpression,
 };
 export type {
   AnnualizationBasis,

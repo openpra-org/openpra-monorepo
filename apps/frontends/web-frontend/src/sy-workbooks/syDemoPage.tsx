@@ -16,6 +16,7 @@ import {
   type SyControlledComponentBoundaryOption,
   type SyControlledFailureModeOption,
   type SyControlledHumanFailureOption,
+  type SyControlledLegacyParameterOption,
   type SyControlledParameterOption,
   type SyWorkbookData,
 } from "./syWorkbookContext";
@@ -26,9 +27,12 @@ import {
   controlledComponentBoundaryOptions,
   controlledFailureModeOptions,
   controlledHumanFailureOptions,
+  controlledLegacyParameterOptions,
   controlledParameterOptions,
   linkExampleEvents,
+  linkExampleGroups,
 } from "./syLinks";
+import { SC_EXAMPLE_PREFIX } from "../sc-workbooks/scMissionTimeSources";
 import { type SyPersona } from "./syViewData";
 
 interface SyExampleResponse {
@@ -66,6 +70,7 @@ interface HrBundleResponse {
 
 interface ExampleLinkedData {
   parameters: SyControlledParameterOption[];
+  legacyParameters: SyControlledLegacyParameterOption[];
   failureModes: SyControlledFailureModeOption[];
   humanFailures: SyControlledHumanFailureOption[];
   coincidentMaintenance: SyControlledCoincidentMaintenanceOption[];
@@ -73,7 +78,7 @@ interface ExampleLinkedData {
   componentBoundaries: SyControlledComponentBoundaryOption[];
 }
 
-const NO_LINKED_DATA: ExampleLinkedData = { parameters: [], failureModes: [], humanFailures: [], coincidentMaintenance: [], ccfEstimates: [], componentBoundaries: [] };
+const NO_LINKED_DATA: ExampleLinkedData = { parameters: [], legacyParameters: [], failureModes: [], humanFailures: [], coincidentMaintenance: [], ccfEstimates: [], componentBoundaries: [] };
 
 const EXAMPLE_VARIANT = "htgr";
 
@@ -100,6 +105,7 @@ function SyDemoPage(): JSX.Element {
         const example = res.sy.mef as SystemsAnalysis;
         setLinked({
           parameters: controlledParameterOptions(daSources),
+          legacyParameters: controlledLegacyParameterOptions(daSources),
           failureModes: controlledFailureModeOptions(daSources),
           humanFailures: controlledHumanFailureOptions(hrSources),
           coincidentMaintenance: controlledCoincidentMaintenanceOptions(daSources),
@@ -107,10 +113,10 @@ function SyDemoPage(): JSX.Element {
           componentBoundaries: controlledComponentBoundaryOptions(daSources),
         });
         setData({
-          sy: { ...example, systemBasicEvents: linkExampleEvents(example.systemBasicEvents, da.da.slug, da.da.mef) },
+          sy: { ...example, systemBasicEvents: linkExampleEvents(example, da.da.slug, da.da.mef), commonCauseFailureGroups: linkExampleGroups(example, da.da.slug, da.da.mef) },
           cc: res.configurationControl.mef as PRAConfigurationControl,
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
-          links: buildLinkedInputs({ ES: [], SC: [], POS: [], DA: [], HRA: [] }, {}, es.es.mef, sc.sc.mef, pos.pos.mef),
+          links: buildLinkedInputs({ ES: [], SC: [], POS: [], DA: [], HRA: [] }, { SC: `${SC_EXAMPLE_PREFIX}${EXAMPLE_VARIANT}` }, es.es.mef, sc.sc.mef, pos.pos.mef, []),
         });
       })
       .catch((err: unknown) => {
@@ -137,6 +143,7 @@ function SyDemoPage(): JSX.Element {
       editable={persona === "preparer"}
       mutateSy={mutateSy}
       controlledParameters={linked.parameters}
+      controlledLegacyParameters={linked.legacyParameters}
       controlledFailureModes={linked.failureModes}
       controlledHumanFailures={linked.humanFailures}
       controlledCoincidentMaintenance={linked.coincidentMaintenance}

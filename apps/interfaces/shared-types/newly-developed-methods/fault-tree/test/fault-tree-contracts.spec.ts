@@ -13,6 +13,7 @@ import {
   FaultTreeUndevelopedEventSchema,
 } from "..";
 import { SystemFaultTreeGateSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
+import { legacyBasicEventExpression, withBasicEventExpression } from "interfaces-mef-types/modeling/quantitative-semantics";
 
 const GATE_ID = "123e4567-e89b-42d3-a456-426614174100";
 const LEAF_ID = "123e4567-e89b-42d3-a456-426614174101";
@@ -257,5 +258,33 @@ describe("workbook basic-event catalogue contracts", () => {
     { ...catalogue, faultTreeId: TARGET_MODEL_ID },
   ])("rejects malformed workbook catalogue %#", (candidate) => {
     expect(FaultTreeBasicEventCatalogueSchema.safeParse(candidate).success).toBe(false);
+  });
+});
+
+describe("editor-owned basic-event values", () => {
+  const typed = (unit: "PROBABILITY" | "PER_HOUR" | "HOURS", value: number) => ({ node: "VALUE" as const, value: { unit, law: { family: "POINT" as const, value } } });
+  const rate = { kind: "FAILURE_RATE" as const, failureRate: { value: 0.24, unit: "DAY" as const }, missionTime: { value: 2, unit: "DAY" as const }, conversion: "EXPONENTIAL" as const };
+
+  it("reads a stored probability as a typed point and a rate with a mission time as a mission model", () => {
+    expect(legacyBasicEventExpression({ value: 0.02 })).toEqual(typed("PROBABILITY", 0.02));
+    expect(legacyBasicEventExpression({ value: 0.02, quantificationBasis: { kind: "PROBABILITY" } })).toEqual(typed("PROBABILITY", 0.02));
+    expect(legacyBasicEventExpression({ value: 0.38, quantificationBasis: rate })).toEqual({
+      node: "MODEL",
+      model: { form: "MISSION", rate: typed("PER_HOUR", 0.01), missionTime: typed("HOURS", 48) },
+    });
+  });
+
+  it("leaves a linear conversion, a linked record and a missing value for the analyst", () => {
+    expect(legacyBasicEventExpression({ value: 0.1, quantificationBasis: { ...rate, conversion: "LINEAR" } })).toBeUndefined();
+    expect(legacyBasicEventExpression({ value: 0.1, controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: PARAMETER_ID } })).toBeUndefined();
+    expect(legacyBasicEventExpression({ value: Number.NaN })).toBeUndefined();
+  });
+
+  it("drops the old fields once a value is typed and keeps every converted event valid", () => {
+    const event = { id: BASIC_EVENT_ID, code: "BE-1", name: "Pump fails", description: "", probability: { value: 0.38, quantificationBasis: rate } };
+    const converted = withBasicEventExpression(event);
+    expect(converted.probability).not.toHaveProperty("quantificationBasis");
+    expect(FaultTreeBasicEventProbabilitySchema.safeParse(converted.probability).success).toBe(true);
+    expect(withBasicEventExpression(converted)).toBe(converted);
   });
 });

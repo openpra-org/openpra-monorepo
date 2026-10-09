@@ -1,15 +1,25 @@
 import { useEffect, useMemo, useState, type JSX } from "react";
-import type { FaultTreeAnalysisResult, FaultTreeAnalysisSettings, FaultTreeWorkflow } from "interfaces-shared-types/newly-developed-methods/fault-tree";
+import type { FaultTreeAnalysisSettings, FaultTreeWorkflow } from "interfaces-shared-types/newly-developed-methods/fault-tree";
+import type { UncertaintySamplingMethod } from "interfaces-shared-types/newly-developed-methods/shared";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
 import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "./syWorkbookApi";
 import { useSyWorkbook } from "./syWorkbookContext";
+import { linkedMissionTimeTable } from "./syMissionTimes";
 import { runReadiness } from "./syUncertainty";
 import { isSystemLevelModel } from "./sySelectors";
+import { SyUncertaintyResults, type UncertaintyResultEntry } from "./SyUncertaintyResults";
 import "./css/syFaultTreeAnalysis.css";
 import "./css/syUncertainty.css";
 
-interface AnalysisResult { modelId: string; label: string; distributionCount: number; result: FaultTreeAnalysisResult }
+type AnalysisResult = UncertaintyResultEntry;
+
+const SAMPLING_LABELS: Record<UncertaintySamplingMethod, string> = {
+  MONTE_CARLO: "Monte Carlo",
+  LATIN_HYPERCUBE: "Latin hypercube",
+};
+
+const SAMPLING_METHODS: readonly UncertaintySamplingMethod[] = ["MONTE_CARLO", "LATIN_HYPERCUBE"];
 
 const DEFAULT_SETTINGS: FaultTreeAnalysisSettings = {
   algorithm: "BDD",
@@ -19,6 +29,7 @@ const DEFAULT_SETTINGS: FaultTreeAnalysisSettings = {
   expandCcf: true,
   numTrials: 10_000,
   seed: 847,
+  samplingMethod: "MONTE_CARLO",
   missionTimeHours: 8_760,
   earlyStop: false,
   convergenceDelta: 0.1,
@@ -31,30 +42,26 @@ const DEFAULT_SETTINGS: FaultTreeAnalysisSettings = {
   stratifyEvents: 4,
 };
 
-function probability(value: number): string {
-  return Number.isFinite(value) ? value.toExponential(3).toUpperCase() : "—";
-}
-
-function measure(value: number): string {
-  return Number.isFinite(value) ? value.toPrecision(5) : "—";
+function isSamplingMethod(value: string): value is UncertaintySamplingMethod {
+  return SAMPLING_METHODS.some((method) => method === value);
 }
 
 function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string } = {}): JSX.Element {
-  const { sy, controlledParameters, editable, runtime } = useSyWorkbook();
+  const { sy, controlledParameters, editable, runtime, links } = useSyWorkbook();
   const { sourceWarning } = useAnalysisSourceGuard("sy", runtime.workbookId);
   const saveBlockedReason = analysisSaveBlock(runtime);
   const modelOptions = useMemo(() => sy.systemLogicModels
     .filter((model) => model.topGate !== null && !isSystemLevelModel(model))
     .map((model) => {
-      const readiness = runReadiness(sy, model, controlledParameters);
+      const readiness = runReadiness(sy, model, controlledParameters, linkedMissionTimeTable(links));
       return {
         id: model.uuid,
         label: `${sy.systemDefinitions.find(({ uuid }) => uuid === model.systemReference)?.abbreviation ?? model.systemReference} · ${model.code} · ${model.name}`,
-        distributionCount: readiness.inputs.length,
+        distributionCount: readiness.inputs.filter((input) => input.uncertain).length,
         state: readiness.state,
         message: readiness.message,
       };
-    }), [sy, controlledParameters]);
+    }), [sy, controlledParameters, links]);
   const [workflow, setWorkflow] = useState<FaultTreeWorkflow>("MANUAL");
   const [modelId, setModelId] = useState("");
   const [batchIds, setBatchIds] = useState<string[]>([]);
@@ -149,7 +156,7 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
               <legend>Fault trees</legend>
               {modelOptions.map((model) => {
                 const canRun = runnable.some(({ id }) => id === model.id);
-                return <label key={model.id} className={canRun ? undefined : "syunc-analysis__unavailable"}><input type="checkbox" checked={batchIds.includes(model.id)} disabled={!canRun} onChange={() => toggleBatch(model.id)} /><span>{model.label}{!canRun && <small> · {model.state === "NO_INPUTS" ? "Link DA distributions" : "Review linked distributions"}</small>}</span></label>;
+                return <label key={model.id} className={canRun ? undefined : "syunc-analysis__unavailable"}><input type="checkbox" checked={batchIds.includes(model.id)} disabled={!canRun} onChange={() => toggleBatch(model.id)} /><span>{model.label}{!canRun && <small> · {model.state === "NO_INPUTS" ? "No uncertain values" : "Set every basic event value"}</small>}</span></label>;
               })}
             </fieldset>
           ) : selectedModelId === undefined && modelOptions.length > 0 ? (
@@ -158,7 +165,12 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
             </select></label>
           ) : null}
           <div className="syft-analysis__execution-row">
-            <div className="syft-analysis__run-fields"><label className="syft-analysis__run-field"><span>Algorithm</span><select aria-label="Uncertainty algorithm" value="BDD" disabled><option value="BDD">BDD exact probability</option></select></label></div>
+            <div className="syft-analysis__run-fields">
+              <label className="syft-analysis__run-field"><span>Algorithm</span><select aria-label="Uncertainty algorithm" value="BDD" disabled><option value="BDD">BDD exact probability</option></select></label>
+              <label className="syft-analysis__run-field"><span>Sampling</span><select aria-label="Uncertainty sampling method" value={settings.samplingMethod} onChange={(event) => { if (isSamplingMethod(event.target.value)) updateSettings({ samplingMethod: event.target.value }); }}>
+                {SAMPLING_METHODS.map((method) => <option key={method} value={method}>{SAMPLING_LABELS[method]}</option>)}
+              </select></label>
+            </div>
             <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={running || !editable || saveBlockedReason !== null || sourceWarning !== null || selectedIds.length === 0 || !settingsValid} onClick={() => { void run(); }}>
               {running ? "Running…" : `Run uncertainty${workflow === "BATCH" ? " batch" : ""}`}
             </button>
@@ -182,26 +194,11 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
       {workflow === "MANUAL" && selectedModel !== undefined && selectedIds.length === 0 && <p className="syft-analysis__notice" role="status">
         {selectedModel.message}
       </p>}
-      {workflow === "BATCH" && runnable.length === 0 && <p className="syft-analysis__notice" role="status">Link a basic event to a DA parameter with a supported uncertainty distribution.</p>}
+      {workflow === "BATCH" && runnable.length === 0 && <p className="syft-analysis__notice" role="status">Give a basic event an uncertain value, or link a DA estimate that has one.</p>}
       {saveBlockedReason !== null && <p className="syft-analysis__notice" role="status">{saveBlockedReason}</p>}
       {(error ?? sourceWarning) !== null && <p className="syft-analysis__error" role="alert">{error ?? sourceWarning}</p>}
       {stale && <p className="syft-analysis__notice" role="status">These results use an earlier workbook revision.</p>}
-      {results.length > 0 && <section className="syunc-analysis__results" aria-label="Uncertainty results">
-        <h3>{workflow === "BATCH" ? "Analysis results" : "Analysis result"}</h3>
-        {results.map(({ label, distributionCount, result }) => <article key={result.runId} className="syunc-analysis__result">
-          <div className="syunc-analysis__result-head"><strong>{label}</strong><span>{distributionCount} DA input distribution{distributionCount === 1 ? "" : "s"}</span></div>
-          {result.uncertainty !== undefined && <>
-            <dl className="syunc-analysis__metrics">
-              <div><dt>Nominal top event</dt><dd>{probability(result.topEventProbability)}</dd></div>
-              <div><dt>Mean</dt><dd>{probability(result.uncertainty.mean)}</dd></div>
-              <div><dt>Standard deviation</dt><dd>{probability(result.uncertainty.standardDeviation)}</dd></div>
-              <div><dt>Error factor</dt><dd>{measure(result.uncertainty.errorFactor)}</dd></div>
-            </dl>
-            <div className="syunc-analysis__quantiles" aria-label="Probability quantiles">{result.uncertainty.quantiles.map((quantile) => <div key={quantile.probability}><span>{quantile.probability * 100}% quantile</span><strong>{probability(quantile.value)}</strong></div>)}</div>
-            <span className="possubtle">{result.uncertainty.sampleCount.toLocaleString()} Monte Carlo samples · seed {result.uncertainty.seed}</span>
-          </>}
-        </article>)}
-      </section>}
+      {results.length > 0 && <SyUncertaintyResults entries={results} batch={workflow === "BATCH"} />}
     </section>
   );
 }

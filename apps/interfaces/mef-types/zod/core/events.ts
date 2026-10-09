@@ -2,6 +2,7 @@ import { z } from "zod";
 import { DistributionType, FrequencyUnit } from "../../core/events";
 import type { ParameterDistribution } from "../../core/events";
 import { NamedSchema, UniqueSchema } from "./meta";
+import { UncertainExpressionSchema } from "./uncertainty";
 
 export const FrequencySchema = z.number();
 
@@ -86,6 +87,11 @@ export const ParameterDistributionSchema = z.discriminatedUnion("type", [
 ]);
 
 export const FrequencyUnitSchema = z.enum(FrequencyUnit);
+
+export const UncertainFrequencySchema = z.strictObject({
+  expression: UncertainExpressionSchema,
+  basis: FrequencyUnitSchema,
+});
 
 export const FrequencyWithDistributionSchema = z.object({
   value: FrequencySchema,

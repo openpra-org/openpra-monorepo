@@ -2,15 +2,16 @@ import type {
   CanvasLayoutMetadata,
   FaultTreeBasicEvent,
   FaultTreeBasicEventCatalogueDefinition,
-  FaultTreeBasicEventQuantificationBasis,
   FaultTreeDefinition,
   FaultTreeGate,
   FaultTreeLeafNode,
   FaultTreeNodePosition,
   MethodEntityReference,
 } from "interfaces-mef-types/modeling";
+import type { UncertainExpression, UncertainParameter } from "interfaces-mef-types/core/uncertainty";
 import type { FaultTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
+import type { ParameterOption } from "../shared/uncertainEditor";
 
 /**
  * The normalized, controlled model consumed by every fault-tree host.
@@ -135,7 +136,11 @@ interface FaultTreeEditorProps {
   showHeaderStatus?: boolean;
   resultIsStale: boolean;
   transferTargets?: readonly FaultTreeTransferTarget[];
-  defaultMissionTime?: Extract<FaultTreeBasicEventQuantificationBasis, { kind: "FAILURE_RATE" }>["missionTime"];
+  defaultMissionTime?: UncertainExpression;
+  daParameterOptions?: readonly ParameterOption[];
+  missionTimeOptions?: readonly ParameterOption[];
+  parameterTable?: ReadonlyMap<string, UncertainParameter>;
+  readOnlyBasicEventValues?: Readonly<Record<string, string>>;
   onOperation: (operation: FaultTreeOperation) => void;
   onSelectionChange: (selection: FaultTreeSelection) => void;
   onOpenReference: (request: FaultTreeOpenReferenceRequest) => void;

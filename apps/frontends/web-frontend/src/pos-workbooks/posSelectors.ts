@@ -658,8 +658,7 @@ interface PreOpAssumptionView {
 
 function preOpsForState(pos: PlantOperatingStatesAnalysis, stateId: string): PreOpAssumptionView[] {
   const s = pos.plantOperatingStates.find((x) => x.uuid === stateId);
-  if (s === undefined || s.preOperationalAssumptions === undefined) return [];
-  return s.preOperationalAssumptions.map((a) => ({
+  return (s?.preOperationalAssumptions ?? []).map((a) => ({
     id: a.uuid,
     ownerLabel: stateId,
     appliesTo: a.influenceOnDefinition,
@@ -979,6 +978,7 @@ interface QuantStateView {
   durationFraction: number;
   retained: boolean;
   hasPreopAssumption: boolean;
+  outageWorkbookId?: string;
 }
 
 function quantStatesView(pos: PlantOperatingStatesAnalysis): QuantStateView[] {
@@ -995,6 +995,7 @@ function quantStatesView(pos: PlantOperatingStatesAnalysis): QuantStateView[] {
     durationFraction: s.meanDurationHours / cycle,
     retained: !screenedOut.has(s.uuid),
     hasPreopAssumption: (s.preOperationalAssumptions ?? []).length > 0,
+    ...(s.outageSource === undefined ? {} : { outageWorkbookId: s.outageSource.workbookId }),
   }));
 }
 

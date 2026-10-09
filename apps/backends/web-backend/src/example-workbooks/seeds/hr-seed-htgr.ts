@@ -80,7 +80,7 @@ const preInitiatorScreeningRecords = [
   { id: "PS-4", activityId: "RA-4", screenedOut: false, justification: "Restoration error can leave one shutdown-cooling train unavailable, so it is carried as a defined event.", srs: ["HR-B1"] },
   { id: "PS-5", activityId: "RA-5", screenedOut: true, justification: "Stroke-test misalignment is caught by the post-test indication before any state transition (Data Analysis TC-4, both change-of-state modes exercised).", multiState: "Administrative control detects the error before the state changes.", srs: ["HR-B1", "HR-B2"] },
   { id: "PS-6", activityId: "RA-6", screenedOut: false, justification: "Common alignment across the four passive cooling ducts is multi-train, so it may not be screened out.", srs: ["HR-B1", "HR-B3"] },
-  { id: "PS-7", activityId: "RA-7", screenedOut: false, justification: "Aligning both redundant battery banks in one evolution is multi-train, so it may not be screened out (coincident two-train work carried in Data Analysis CM-2).", srs: ["HR-B1", "HR-B3"] },
+  { id: "PS-7", activityId: "RA-7", screenedOut: false, justification: "Aligning both redundant battery banks in one evolution is multi-train, so it may not be screened out (coincident two-train work carried in Data Analysis DA-UA-16).", srs: ["HR-B1", "HR-B3"] },
 ].map((s) => ({
   uuid: s.id,
   activityId: s.activityId,
@@ -289,7 +289,7 @@ const specialQuant: HepQuantification[] = [
 }));
 
 const recoveryQuant: HepQuantification[] = [
-  { id: "REC-Q-1", hfe: "HR-POST-018", methodology: "Detailed recovery credit for restarting shutdown cooling from the remote panel, with the recovery-time basis from Data Analysis RC-3 (remote-panel shutdown-cooling restart).", mean: 8.0e-2, unc: "Lognormal with an error factor of 4 on the recovery action.", srs: ["HR-H4", "HR-G1"] },
+  { id: "REC-Q-1", hfe: "HR-POST-018", methodology: "Detailed recovery credit for restarting shutdown cooling from the remote panel, with the restart-time basis from Data Analysis DA-RC-02 (remote-panel shutdown-cooling restart).", mean: 8.0e-2, unc: "Lognormal with an error factor of 4 on the recovery action.", srs: ["HR-H4", "HR-G1"] },
   { id: "REC-Q-2", hfe: "HR-AT-003", methodology: "Recovery credit for restarting the forced-cooling train, with high dependence carried explicitly for a self-caused loss.", mean: 2.0e-1, unc: "Point recovery value, high dependence on the self-caused loss carried in DEP-2.", srs: ["HR-H4", "HR-H5"] },
   { id: "REC-Q-3", hfe: "HR-PRE-022", methodology: "Recovery credit for re-aligning a misaligned shutdown-cooling train during the event.", mean: 1.5e-1, unc: "Point recovery value, local access under review.", srs: ["HR-H4"] },
 ].map((q) => ({
@@ -328,7 +328,7 @@ const dependencyAssessments: HfeDependencyAssessment[] = [
     hfeIds: ["HR-PRE-014", "HR-PRE-018", "HR-PRE-031"],
     commonElements: ["Same instrument crew across the moisture-monitor, RCCS and RPS calibrations", "Common calibration procedure", "Shared calibration standard", "Same shift"],
     dependenceLevel: "HIGH",
-    jointHep: 1.2e-3,
+    jointHep: 6.0e-4,
     implementsSrs: srs("HR-D7"),
   },
   {
@@ -351,7 +351,7 @@ const dependencyAssessments: HfeDependencyAssessment[] = [
     eventSequenceId: "ESF-LATE",
     commonElements: ["Same operator", "Same forced-cooling maneuver", "Recovery of a self-caused loss"],
     dependenceLevel: "HIGH",
-    jointHep: 6.0e-4,
+    jointHep: 1.8e-3,
     belowFloor: false,
     includesRecoveryHfe: true,
     includesInitiatorCausingHfe: true,
@@ -390,7 +390,7 @@ const dependencyAssessments: HfeDependencyAssessment[] = [
     eventSequenceId: "ESF-LATE",
     commonElements: ["Same crew for the failed start and the remote-panel restart"],
     dependenceLevel: "MODERATE",
-    jointHep: 1.2e-4,
+    jointHep: 3.2e-4,
     belowFloor: false,
     includesRecoveryHfe: true,
     includesInitiatorCausingHfe: false,
@@ -403,7 +403,7 @@ const dependencyAssessments: HfeDependencyAssessment[] = [
     eventSequenceId: "ESF-LATE",
     commonElements: ["Restoration error and its in-event re-alignment by the same maintenance crew"],
     dependenceLevel: "MODERATE",
-    jointHep: 1.5e-3,
+    jointHep: 2.7e-3,
     belowFloor: false,
     includesRecoveryHfe: true,
     includesInitiatorCausingHfe: false,

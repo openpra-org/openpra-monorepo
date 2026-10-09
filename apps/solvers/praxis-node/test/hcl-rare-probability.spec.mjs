@@ -12,7 +12,6 @@ for (const probability of [0, 1e-15, 1e-100]) {
         sampler: "MC",
         sample_count: 10,
         seed: 42,
-        cpt_probability_clip_epsilon: 0,
         basic_event_distributions: [],
         cpt_row_distributions: [],
       },

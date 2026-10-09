@@ -15,6 +15,7 @@ import { EsqWorkbooksController } from "../../esq-workbooks/esq-workbooks.contro
 import { EsqWorkbook, EsqWorkbookSchema } from "../../esq-workbooks/esq-workbook.schema";
 import { EsqWorkbooksService } from "../../esq-workbooks/esq-workbooks.service";
 import { EsqDocumentsService } from "../../esq-workbooks/esq-documents.service";
+import { EsqModelRunsService } from "../../esq-workbooks/esq-model-runs.service";
 import { createBlankEsq } from "../../esq-workbooks/blank-esq";
 import { ExampleWorkbooksService } from "../../example-workbooks/example-workbooks.service";
 import { SY_ANALYSIS } from "../../example-workbooks/seeds/sy-seed";
@@ -151,7 +152,7 @@ function createEventTreeMef(): EventSequenceAnalysis {
       uuid: "ET-01",
       name: "Loss of flow",
       initiatingEventId: "IE-01",
-      initiatingEventFrequency: { value: 0.02 },
+      initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 0.02 } } } },
       functionalEvents: {},
       sequences: {},
       branches: {},
@@ -242,6 +243,7 @@ describe("workbook-owned method-model APIs", () => {
     getSyBundle: jest.Mock;
     getEsBundle: jest.Mock;
     getEsqBundle: jest.Mock;
+    projectMissionTimeSources: jest.Mock;
   };
   let syDocuments: { removeAllForWorkbook: jest.Mock };
   let esDocuments: { removeAllForWorkbook: jest.Mock };
@@ -267,6 +269,7 @@ describe("workbook-owned method-model APIs", () => {
       getSyBundle: jest.fn().mockResolvedValue({ sy: { mef: createBlankSy("SY example", "analyst") } }),
       getEsBundle: jest.fn().mockResolvedValue({ es: { mef: createBlankEs("ES example", "analyst") } }),
       getEsqBundle: jest.fn().mockResolvedValue({ esq: { mef: createBlankEsq("ESQ example", "analyst") } }),
+      projectMissionTimeSources: jest.fn().mockResolvedValue([]),
     };
     syDocuments = { removeAllForWorkbook: jest.fn().mockResolvedValue(undefined) };
     esDocuments = { removeAllForWorkbook: jest.fn().mockResolvedValue(undefined) };
@@ -297,6 +300,7 @@ describe("workbook-owned method-model APIs", () => {
         { provide: EsqDocumentsService, useValue: esqDocuments },
         { provide: WorkbookDependencyDiscoveryService, useValue: dependencyDiscovery },
         { provide: WorkbookAnalysisRunsService, useValue: {} },
+        { provide: EsqModelRunsService, useValue: {} },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -569,7 +573,7 @@ describe("workbook-owned method-model APIs", () => {
     expect(patched.body.mef.eventTrees[0]).toMatchObject({
       uuid: "ET-01",
       name: "Updated loss of flow",
-      initiatingEventFrequency: { value: 0.02 },
+      initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 0.02 } } } },
     });
     expect((esDocument.mef as EventSequenceAnalysis).eventTrees?.[0]?.name).toBe(
       "Updated loss of flow",

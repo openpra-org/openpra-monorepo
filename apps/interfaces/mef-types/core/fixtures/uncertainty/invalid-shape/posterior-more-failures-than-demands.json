@@ -1,0 +1,32 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PROBABILITY",
+        "law": {
+          "family": "POSTERIOR",
+          "prior": {
+            "family": "BETA",
+            "alpha": 1,
+            "beta": 10,
+            "lower": 0,
+            "upper": 1
+          },
+          "evidence": [
+            {
+              "likelihood": "BINOMIAL",
+              "failures": 5,
+              "exposure": 3
+            }
+          ]
+        }
+      }
+    }
+  }
+]

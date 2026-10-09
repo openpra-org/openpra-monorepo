@@ -1,0 +1,21 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PER_HOUR",
+        "law": {
+          "family": "LOGNORMAL",
+          "mean": 0.00001,
+          "errorFactor": 1,
+          "level": 0.95
+        }
+      }
+    }
+  }
+]

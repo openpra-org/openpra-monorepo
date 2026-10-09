@@ -1,5 +1,6 @@
 import { type SeismicPRA } from "interfaces-mef-types/seismic/seismic-pra";
 import { seismicPraVariant, type SeismicPraLinkedInputs } from "./seismicPraWorkbookContext";
+import { numberText } from "../newly-developed-methods/shared/uncertainText";
 
 interface SeismicPraInterfaceRow {
   id: string;
@@ -151,7 +152,7 @@ function seismicPraInterfaceLanes(
         name: mission.id,
         values: [
           mission.eventSequence,
-          `${mission.hours} h`,
+          mission.hours === undefined ? "—" : `${numberText(mission.hours)} h`,
           mission.riskSignificant === undefined ? "—" : mission.riskSignificant ? "Yes" : "No",
         ],
       })),
@@ -167,7 +168,7 @@ function seismicPraInterfaceLanes(
         id: system.id,
         name: `${system.id} · ${system.name}`,
         values: [
-          system.missionTimeHours === undefined ? "—" : `${system.missionTimeHours} h`,
+          system.missionHours === undefined ? "—" : `${numberText(system.missionHours)} h`,
           list(system.applicableStates),
           system.basicEventCount === undefined ? "—" : String(system.basicEventCount),
         ],

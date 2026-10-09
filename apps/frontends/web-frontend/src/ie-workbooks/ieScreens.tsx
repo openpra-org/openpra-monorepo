@@ -10,7 +10,8 @@ import {
   type InitiatingEventScreeningRecord,
   type HazardAnalysis,
 } from "interfaces-mef-types/ie/initiating-event-analysis";
-import { type Frequency, type FrequencyWithDistribution } from "interfaces-mef-types/core/events";
+import type { FrequencyUnit } from "interfaces-mef-types/core/events";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
 import { IEIcon } from "./ieIcons";
 import { Badge } from "./ieShared";
@@ -30,8 +31,22 @@ import { OperatingExperienceEditor } from "../newly-developed-methods/operating-
 import { GenericCatalogueEditor } from "../newly-developed-methods/generic-catalogue/genericCatalogueEditor";
 import { buildWorksheetModel, buildPhaModel, buildOeModel, buildCatalogueModel } from "./methodEditorAdapters";
 import { IeFrequencyQuantificationEditor } from "../newly-developed-methods/ie-frequency-quantification/ieFrequencyQuantificationEditor";
+import { BASIS_CHOICES, DEFAULT_FREQUENCY_BASIS, basisText, frequencyText } from "../newly-developed-methods/ie-frequency-quantification/frequencySources";
+import { pointText, pointValue, useFrequencyPoints, type FrequencyPoint } from "../newly-developed-methods/ie-frequency-quantification/frequencyValues";
+import { FrequencyLawField } from "../newly-developed-methods/ie-frequency-quantification/frequencyLawField";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { generateIeReport, computeIeReportToc } from "./ieDocx";
 import { AutoTextarea } from "./ieDrawer";
+import {
+  daOptionKey,
+  daParameterLabel,
+  useDaFrequencyTable,
+  heldDiffers,
+  linkedDaOption,
+  withImportedFrequency,
+  withTypedGroupFrequency,
+  type IeDaFrequencyOption,
+} from "./ieDaLinks";
 
 const EDITOR_METHOD_IDS = new Set(["MLD", "HBFT", "FMEA", "HAZOP", "PHA", "OEREV", "GENLIST"]);
 
@@ -44,18 +59,12 @@ const IE_FAULT_TREE_READ_ONLY_CAPABILITIES: FaultTreeEditorCapabilities = {
   canRunAnalysis: false,
 };
 
-function freqValue(f: Frequency | FrequencyWithDistribution): number {
-  return typeof f === "number" ? f : f.value;
-}
+const NO_DA_OPTIONS: IeDaFrequencyOption[] = [];
 
-function fmtFreq(f: Frequency | FrequencyWithDistribution | undefined): string {
-  if (f === undefined) return "—";
-  const v = freqValue(f);
-  if (!isFinite(v) || v <= 0) return "—";
-  const exp = Math.floor(Math.log10(v));
-  const mantissa = v / Math.pow(10, exp);
-  const sign = exp < 0 ? "-" : "+";
-  return `${mantissa.toFixed(1)}E${sign}${String(Math.abs(exp)).padStart(2, "0")}`;
+function byMeanDescending(left: number | undefined, right: number | undefined): number {
+  if (left === undefined) return right === undefined ? 0 : 1;
+  if (right === undefined) return -1;
+  return right - left;
 }
 
 const LOG_MIN = -6.5;
@@ -186,7 +195,10 @@ interface IfaceLane {
 }
 
 function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreenProps): JSX.Element {
-  const { ie, posLink, editable, mutateIe } = useIeWorkbook();
+  const { ie, posLink, editable, mutateIe, daFrequencies } = useIeWorkbook();
+  const daTable = useDaFrequencyTable(daFrequencies ?? NO_DA_OPTIONS);
+  const groupEntries = useMemo(() => ie.initiatingEventGroups.flatMap((g) => (g.frequency === undefined ? [] : [{ key: g.uuid, expression: g.frequency.expression }])), [ie.initiatingEventGroups]);
+  const groupPoints = useFrequencyPoints(groupEntries, daTable);
   const linked = posLink.linkedPosWorkbookId !== null;
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
 
@@ -224,7 +236,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
           name: s.name,
           values: [
             s.operatingMode,
-            s.meanEntryFrequency === 0 && s.operatingMode === "POWER" ? "Base state" : fmtFreq(s.meanEntryFrequency),
+            s.meanEntryFrequency === 0 && s.operatingMode === "POWER" ? "Base state" : frequencyText(s.meanEntryFrequency),
             fmtDur(s.meanDurationHours),
             totalStateHours > 0 ? `${((s.meanDurationHours / totalStateHours) * 100).toFixed(1)} %` : "—",
             String(ie.initiators.filter((i) => i.applicableStates.includes(s.id)).length),
@@ -243,8 +255,8 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
       },
       {
         code: "ESQ", element: "Event Sequence Quantification", role: "Frequencies", direction: "out",
-        columns: ["Group", "Mean (per plant-yr)", "Risk"], empty: "No quantifications yet.",
-        rows: groups.map((g) => ({ id: g.uuid, name: g.name, values: [fmtFreq(g.meanFrequency), g.riskImportance ?? "—"] })),
+        columns: ["Group", "Mean frequency", "Risk"], empty: "No quantifications yet.",
+        rows: groups.map((g) => ({ id: g.uuid, name: g.name, values: [g.frequency === undefined ? "—" : `${pointText(groupPoints.get(g.uuid))} ${basisText(g.frequency.basis)}`, g.riskImportance ?? "—"] })),
       },
       {
         code: "HR", element: "Human Reliability", role: "Support fault trees", direction: "out",
@@ -257,7 +269,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
         rows: groups.map((g) => ({ id: g.uuid, name: g.name, values: [g.challengedSafetyFunctions.join(" · ")] })),
       },
     ];
-  }, [ie, posLink, totalStateHours]);
+  }, [ie, posLink, totalStateHours, groupPoints]);
   const selectedIfaceLane = ifaceLanes.find((l) => l.code === selectedTe);
 
   return (
@@ -702,7 +714,6 @@ function IdentifyScreen(): JSX.Element {
           </div>
           <div className="iespectrum__legend">
             {INITIATOR_CATEGORIES.map((c) => {
-              const n = initiators.filter((i) => i.category === c.id).length;
               const isActive = activeCat === c.id;
               return (
                 <button key={c.id} type="button" className={`iespectrum__leg${isActive ? " iespectrum__leg--active" : ""}`} onClick={() => setActiveCat(isActive ? null : c.id)}>
@@ -1128,36 +1139,34 @@ const FREQ_BASIS_OPTIONS: { value: FreqBasis; label: string }[] = [
   { value: "FAULT_TREE", label: "Fault tree" },
 ];
 
-function FreqInput({ value, onChange }: { value: number; onChange: (v: number) => void }): JSX.Element {
-  const [text, setText] = useState<string>(value > 0 ? String(value) : "");
-  const [focused, setFocused] = useState(false);
-  useEffect(() => {
-    if (!focused) setText(value > 0 ? String(value) : "");
-  }, [value, focused]);
-  return (
-    <WorkbookInput
-      className="iefreq__input"
-      type="text"
-      inputMode="decimal"
-      value={text}
-      placeholder="e.g. 3e-2"
-      onFocus={() => setFocused(true)}
-      onBlur={() => {
-        setFocused(false);
-        const next = Number(text);
-        if (text.trim() !== "" && isFinite(next) && next >= 0 && next !== value) onChange(next);
-      }}
-      onChange={(e) => setText(e.target.value)}
-    />
-  );
+function heldMessage(daPoint: FrequencyPoint | undefined, heldPoint: FrequencyPoint | undefined, basis: FrequencyUnit): string {
+  const unit = basisText(basis);
+  const daText = pointText(daPoint);
+  if (heldPoint === undefined) return `DA now gives ${daText} ${unit}. This group holds no frequency yet.`;
+  const heldText = pointText(heldPoint);
+  if (daPoint?.status === "ready" && heldPoint.status === "ready" && daText === heldText) return `DA now gives a different spread around the same mean, ${daText} ${unit}.`;
+  return `DA now gives ${daText} ${unit}. This group still holds ${heldText}.`;
 }
 
 function FrequencyScreen(): JSX.Element {
-  const { ie, editable, mutateIe } = useIeWorkbook();
+  const { ie, editable, mutateIe, daFrequencies } = useIeWorkbook();
+  const daOptions = daFrequencies ?? NO_DA_OPTIONS;
+  const daTable = useDaFrequencyTable(daOptions);
+  const describe = useMemo(() => {
+    const label = daParameterLabel(daOptions);
+    return (expression: UncertainExpression): string => expressionText(expression, label);
+  }, [daOptions]);
   const records: InitiatingEventFrequencyQuantification[] = ie.quantifications;
   const groups = ie.initiatingEventGroups;
   const initiators = ie.initiators;
-  const ranked = [...records].sort((a, b) => freqValue(b.meanFrequency) - freqValue(a.meanFrequency));
+  const entries = useMemo(() => [
+    ...records.flatMap((q) => (q.frequency === undefined ? [] : [{ key: `Q:${q.initiatorOrGroupId}`, expression: q.frequency.expression }])),
+    ...groups.flatMap((g) => (g.frequency === undefined ? [] : [{ key: `G:${g.uuid}`, expression: g.frequency.expression }])),
+    ...daOptions.map((o) => ({ key: `D:${daOptionKey(o.workbookId, o.parameterId)}`, expression: o.estimate })),
+  ], [records, groups, daOptions]);
+  const points = useFrequencyPoints(entries, daTable);
+  const quantPoint = (id: string): FrequencyPoint | undefined => points.get(`Q:${id}`);
+  const ranked = [...records].sort((a, b) => byMeanDescending(pointValue(quantPoint(a.initiatorOrGroupId)), pointValue(quantPoint(b.initiatorOrGroupId))));
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (id: string): void => {
     setExpanded((prev) => {
@@ -1186,12 +1195,21 @@ function FrequencyScreen(): JSX.Element {
   const patchQuant = (id: string, patch: Partial<InitiatingEventFrequencyQuantification>): void => {
     mutateIe((draft) => ({ ...draft, quantifications: draft.quantifications.map((q) => (q.initiatorOrGroupId === id ? { ...q, ...patch } : q)) }));
   };
-  const patchMean = (id: string, n: number): void => {
-    mutateIe((draft) => ({ ...draft, quantifications: draft.quantifications.map((q) => {
-      if (q.initiatorOrGroupId !== id) return q;
-      const mf = typeof q.meanFrequency === "object" ? { ...q.meanFrequency, value: n } : n;
-      return { ...q, meanFrequency: mf };
-    }) }));
+  const setTypedFrequency = (id: string, expression: UncertainExpression): void => {
+    mutateIe((draft) => withTypedGroupFrequency({
+      ...draft,
+      quantifications: draft.quantifications.map((q) => (q.initiatorOrGroupId === id ? { ...q, frequency: { expression, basis: q.frequency?.basis ?? DEFAULT_FREQUENCY_BASIS } } : q)),
+    }, id));
+  };
+  const setFrequencyBasis = (id: string, basis: FrequencyUnit): void => {
+    mutateIe((draft) => withTypedGroupFrequency({
+      ...draft,
+      quantifications: draft.quantifications.map((q) => (q.initiatorOrGroupId === id && q.frequency !== undefined ? { ...q, frequency: { ...q.frequency, basis } } : q)),
+    }, id));
+  };
+  const chooseValueFrom = (id: string, key: string): void => {
+    const option = daOptions.find((candidate) => daOptionKey(candidate.workbookId, candidate.parameterId) === key);
+    mutateIe((draft) => withImportedFrequency(draft, id, option, daOptions));
   };
   const changeTarget = (oldId: string, newId: string): void => {
     if (newId === oldId || newId === "") return;
@@ -1204,9 +1222,10 @@ function FrequencyScreen(): JSX.Element {
     const used = new Set(records.map((q) => q.initiatorOrGroupId));
     const firstFree = [...groups.map((g) => g.uuid), ...initiators.map((i) => i.uuid)].find((id) => !used.has(id));
     if (firstFree === undefined) return;
+    const held = groups.find((g) => g.uuid === firstFree)?.frequency;
     const created: InitiatingEventFrequencyQuantification = {
       initiatorOrGroupId: firstFree,
-      meanFrequency: 0,
+      ...(held === undefined ? {} : { frequency: held }),
       basis: "GENERIC_DATA",
       plantCalendarYearBasis: false,
       posTimeFractionApplied: false,
@@ -1221,23 +1240,23 @@ function FrequencyScreen(): JSX.Element {
     mutateIe((draft) => ({ ...draft, quantifications: draft.quantifications.filter((q) => q.initiatorOrGroupId !== id) }));
   };
 
-  const numberOfModules = ie.metadata.plantIdentity?.numberOfModules ?? 1;
+  const numberOfModules = ie.metadata.plantIdentity?.numberOfModules;
   const [openQuantId, setOpenQuantId] = useState<string | null>(null);
-  const setQuantSources = (id: string, nextSources: FrequencyDataSource[], nextPrimary: string | undefined, rolled: number | null): void => {
-    mutateIe((draft) => ({ ...draft, quantifications: draft.quantifications.map((q) => {
-      if (q.initiatorOrGroupId !== id) return q;
-      const primary = nextSources.find((s) => s.uuid === nextPrimary);
-      const updated: InitiatingEventFrequencyQuantification = {
-        ...q,
-        dataSources: nextSources,
-        primaryDataSourceId: nextPrimary,
-        basis: primary !== undefined ? primary.basis : q.basis,
-      };
-      if (rolled !== null && rolled > 0) {
-        updated.meanFrequency = typeof q.meanFrequency === "object" ? { ...q.meanFrequency, value: rolled } : rolled;
-      }
-      return updated;
-    }) }));
+  const setQuantSources = (id: string, nextSources: FrequencyDataSource[], nextPrimary: string | undefined, expression: UncertainExpression | undefined): void => {
+    mutateIe((draft) => {
+      const heldByDa = draft.initiatingEventGroups.some((g) => g.uuid === id && g.controlledDataSource !== undefined);
+      return withTypedGroupFrequency({ ...draft, quantifications: draft.quantifications.map((q) => {
+        if (q.initiatorOrGroupId !== id) return q;
+        const primary = nextSources.find((s) => s.uuid === nextPrimary);
+        const updated: InitiatingEventFrequencyQuantification = {
+          ...q,
+          dataSources: nextSources,
+          primaryDataSourceId: nextPrimary,
+          basis: primary !== undefined ? primary.basis : q.basis,
+        };
+        return heldByDa || expression === undefined ? updated : { ...updated, frequency: { expression, basis: q.frequency?.basis ?? DEFAULT_FREQUENCY_BASIS } };
+      }) }, id);
+    });
   };
   const openQuant = openQuantId !== null ? records.find((q) => q.initiatorOrGroupId === openQuantId) : undefined;
   useEffect(() => {
@@ -1255,11 +1274,12 @@ function FrequencyScreen(): JSX.Element {
           <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Annual frequencies" level={3} /></div>
           <div className="iefreq">
             <div className="iefreq__axis">
-              {ticks.map((t) => <span key={t} className="iefreq__tick" style={{ left: `${freqToPct(parseFloat(t))}%` }}>{fmtFreq(parseFloat(t))}</span>)}
+              {ticks.map((t) => <span key={t} className="iefreq__tick" style={{ left: `${freqToPct(parseFloat(t))}%` }}>{frequencyText(parseFloat(t))}</span>)}
             </div>
             {ranked.map((r) => {
-              const mean = freqValue(r.meanFrequency);
-              const high = r.basis === "FAULT_TREE" || mean >= 1;
+              const point = quantPoint(r.initiatorOrGroupId);
+              const mean = pointValue(point);
+              const high = r.basis === "FAULT_TREE" || (mean !== undefined && mean >= 1);
               const preop = isPreop(r.initiatorOrGroupId);
               return (
                 <div key={r.initiatorOrGroupId} className="iefreq__row">
@@ -1269,8 +1289,11 @@ function FrequencyScreen(): JSX.Element {
                     {preop && <span className="poschip" style={{ fontSize: 10, padding: "1px 6px", background: "rgba(184,106,0,0.1)", color: "var(--color-warning)" }}><IEIcon.Warn /> Pre-op</span>}
                   </div>
                   <div className="iefreq__track">
-                    <div className={`iefreq__fill${high ? " iefreq__fill--high" : ""}`} style={{ width: `${freqToPct(mean)}%` }} />
-                    <span className="iefreq__val">{fmtFreq(r.meanFrequency)}<span className="iefreq__unit"> per plant-yr</span></span>
+                    <div className={`iefreq__fill${high ? " iefreq__fill--high" : ""}`} style={{ width: `${mean === undefined ? 0 : freqToPct(mean)}%` }} />
+                    <span className="iefreq__val">
+                      {r.frequency === undefined ? "—" : pointText(point)}
+                      {r.frequency !== undefined && <span className="iefreq__unit"> {basisText(r.frequency.basis)}</span>}
+                    </span>
                   </div>
                   <div className="iefreq__meta">
                     <span className="poschip">{BASIS_LABEL[r.basis] ?? r.basis}</span>
@@ -1294,11 +1317,17 @@ function FrequencyScreen(): JSX.Element {
           <p className="posmuted" style={{ margin: 0 }}>No quantifications yet.{editable ? (availableTargets.length > 0 ? " Use Add quantification to start." : " Identify initiators (Step 3) or groups (Step 6) first.") : ""}</p>
         ) : (
           <table className="postable postable--expandable postable--mid">
-            <thead><tr><th style={{ width: 28 }} /><th>Target</th><th>Mean (per plant-yr)</th><th>Basis</th><th>Sources</th></tr></thead>
+            <thead><tr><th style={{ width: 28 }} /><th>Target</th><th>Mean frequency</th><th>Basis</th><th>Sources</th></tr></thead>
             <tbody>
               {ranked.map((q) => {
                 const id = q.initiatorOrGroupId;
                 const isOpen = expanded.has(id);
+                const group = groups.find((g) => g.uuid === id);
+                const daSource = group?.controlledDataSource;
+                const daKey = daSource === undefined ? "" : daOptionKey(daSource.workbookId, daSource.entityId);
+                const daLinked = linkedDaOption(group, daOptions);
+                const daChanged = daLinked !== undefined && heldDiffers(group, daLinked);
+                const point = quantPoint(id);
                 return (
                   <Fragment key={id}>
                     <tr className="postable__row--clickable" onClick={() => toggle(id)}>
@@ -1307,9 +1336,13 @@ function FrequencyScreen(): JSX.Element {
                         <div className="postable__name"><span className="posmono">{id}</span></div>
                         <span className="postable__name-sub">{labelFor(id)}{isPreop(id) ? " · pre-op" : ""}</span>
                       </td>
-                      <td className="mono">{fmtFreq(q.meanFrequency)}</td>
+                      <td className="mono">
+                        {q.frequency === undefined ? "—" : pointText(point)}
+                        {q.frequency !== undefined && <span className="postable__name-sub">{basisText(q.frequency.basis)}</span>}
+                        {daChanged && <span className="postable__name-sub">Changed in DA</span>}
+                      </td>
                       <td><span className="poschip">{BASIS_LABEL[q.basis] ?? q.basis}</span></td>
-                      <td className="mono">{(q.dataSources ?? []).length}</td>
+                      <td className="mono">{daSource === undefined ? (q.dataSources ?? []).length : "DA"}</td>
                     </tr>
                     {isOpen && (
                       <tr className="postable__expand-row">
@@ -1323,26 +1356,64 @@ function FrequencyScreen(): JSX.Element {
                                   {[{ id, label: `${id} · ${labelFor(id)}` }, ...availableTargets].map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                                 </select>
                               </div>
-                              <div className="posfield">
-                                <label className="posfield__label">Mean frequency (per plant-yr)</label>
-                                <div className="iefreq__entry">
-                                  <FreqInput value={freqValue(q.meanFrequency)} onChange={(n) => patchMean(id, n)} />
-                                  <span className="iefreq__entry-unit">per plant-yr</span>
+                              {group !== undefined && (
+                                <div className="posfield">
+                                  <label className="posfield__label">Value from</label>
+                                  {daOptions.length === 0 && daSource === undefined ? <span className="posmuted">Typed in IE. Add a DA workbook to the project to import its estimate.</span> : (
+                                    <select className="posfield__input" aria-label="Value from" value={daKey} onChange={(e) => chooseValueFrom(id, e.target.value)}>
+                                      <option value="">Typed in IE</option>
+                                      {daSource !== undefined && daLinked === undefined && <option value={daKey}>Linked DA parameter unavailable</option>}
+                                      {daOptions.map((o) => {
+                                        const key = daOptionKey(o.workbookId, o.parameterId);
+                                        return <option key={key} value={key}>{o.workbookName} · {o.parameterId} · {pointText(points.get(`D:${key}`))}</option>;
+                                      })}
+                                    </select>
+                                  )}
                                 </div>
-                              </div>
+                              )}
+                              {daSource === undefined && (
+                                <div className="posfield posfield-grid--span2">
+                                  <label className="posfield__label">Frequency</label>
+                                  <FrequencyLawField expression={q.frequency?.expression} mean={pointValue(point)} describe={describe} editable={editable} addLabel="Add a frequency" onChange={(expression) => setTypedFrequency(id, expression)} />
+                                  {point?.status === "failed" && <p className="posmuted">PRAXIS could not evaluate this frequency. {point.error}</p>}
+                                </div>
+                              )}
+                              {daSource === undefined && (
+                                <div className="posfield">
+                                  <label className="posfield__label">Counted per</label>
+                                  <select className="posfield__input" aria-label="Counted per" value={q.frequency?.basis ?? DEFAULT_FREQUENCY_BASIS} disabled={q.frequency === undefined} onChange={(e) => {
+                                    const basis = BASIS_CHOICES.find((candidate) => candidate === e.target.value);
+                                    if (basis !== undefined) setFrequencyBasis(id, basis);
+                                  }}>
+                                    {q.frequency !== undefined && !BASIS_CHOICES.includes(q.frequency.basis) && <option value={q.frequency.basis}>{basisText(q.frequency.basis)}</option>}
+                                    {BASIS_CHOICES.map((basis) => <option key={basis} value={basis}>{basisText(basis)}</option>)}
+                                  </select>
+                                </div>
+                              )}
+                              {daChanged && daLinked !== undefined && (
+                                <div className="posfield posfield-grid--span2">
+                                  <p className="posmuted" role="status">{heldMessage(points.get(`D:${daKey}`), group?.frequency === undefined ? undefined : points.get(`G:${id}`), group?.frequency?.basis ?? DEFAULT_FREQUENCY_BASIS)}</p>
+                                  {editable && <div><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => chooseValueFrom(id, daKey)}>Apply DA value</button></div>}
+                                </div>
+                              )}
                               <div className="posfield">
                                 <label className="posfield__label">Basis</label>
-                                <select className="posfield__input" value={q.basis} onChange={(e) => patchQuant(id, { basis: e.target.value as FreqBasis })}>
+                                <select className="posfield__input" value={q.basis} onChange={(e) => {
+                                  const basis = FREQ_BASIS_OPTIONS.find((o) => o.value === e.target.value);
+                                  if (basis !== undefined) patchQuant(id, { basis: basis.value });
+                                }}>
                                   {FREQ_BASIS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                                 </select>
                               </div>
-                              <div className="posfield">
-                                <label className="posfield__label">Data sources</label>
-                                <div className="iefreq__sources">
-                                  <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setOpenQuantId(id)}>Open quantifier →</button>
-                                  <span className="possubtle">{(q.dataSources ?? []).length} source{(q.dataSources ?? []).length === 1 ? "" : "s"}</span>
+                              {daSource === undefined && (
+                                <div className="posfield">
+                                  <label className="posfield__label">Data sources</label>
+                                  <div className="iefreq__sources">
+                                    <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setOpenQuantId(id)}>Open quantifier →</button>
+                                    <span className="possubtle">{(q.dataSources ?? []).length} source{(q.dataSources ?? []).length === 1 ? "" : "s"}</span>
+                                  </div>
                                 </div>
-                              </div>
+                              )}
                               <div className="posfield posfield-grid--span2">
                                 <label className="posfield__label">Flags</label>
                                 <div className="posrow posrow--wrap" style={{ gap: 6 }}>
@@ -1385,8 +1456,11 @@ function FrequencyScreen(): JSX.Element {
               sources={openQuant.dataSources ?? []}
               primaryId={openQuant.primaryDataSourceId}
               numberOfModules={numberOfModules}
+              basis={openQuant.frequency?.basis ?? DEFAULT_FREQUENCY_BASIS}
+              table={daTable}
+              describe={describe}
               editable={editable}
-              onChange={(ns, np, rolled) => setQuantSources(openQuant.initiatorOrGroupId, ns, np, rolled)}
+              onChange={(ns, np, expression) => setQuantSources(openQuant.initiatorOrGroupId, ns, np, expression)}
             />
           </div>
         </div>
@@ -1402,7 +1476,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
   onSubmitDraft: (ready: boolean) => void;
   canSubmit: boolean;
 }): JSX.Element {
-  const { ie } = useIeWorkbook();
+  const { ie, daFrequencies } = useIeWorkbook();
   const ready = scores.blocked === 0;
   const toc = computeIeReportToc(ie);
   function downloadJson(): void {
@@ -1454,7 +1528,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
                 <IEIcon.Send /> {ready ? "Submit draft to internal review" : "Submit working draft to review"}
               </button>
             )}
-            <button type="button" className="posnav__btn" onClick={() => { void generateIeReport(ie, ready); }}>
+            <button type="button" className="posnav__btn" onClick={() => { void generateIeReport(ie, ready, daFrequencies ?? NO_DA_OPTIONS); }}>
               <IEIcon.Download /> Download draft (.docx)
             </button>
             <button type="button" className="posnav__btn" onClick={downloadJson}>

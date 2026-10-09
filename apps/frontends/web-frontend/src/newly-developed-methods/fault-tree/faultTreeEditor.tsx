@@ -14,12 +14,15 @@ import {
 } from "react";
 import type {
   FaultTreeBasicEvent,
-  FaultTreeBasicEventQuantificationBasis,
+  FaultTreeBasicEventProbability,
   FaultTreeGate,
   FaultTreeLeafNode,
   FaultTreeNodePosition,
 } from "interfaces-mef-types/modeling";
-import { failureRateToProbability, requiresFailureRateConversionReview, FAILURE_RATE_CONVERSION_REVIEW_REQUIRED } from "interfaces-mef-types/modeling";
+import { legacyBasicEventExpression, requiresFailureRateConversionReview, FAILURE_RATE_CONVERSION_REVIEW_REQUIRED } from "interfaces-mef-types/modeling";
+import { canonicalJson, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { ExpressionEditor, defaultExpression, defaultPoint, type ModelForm, type ParameterOption } from "../shared/uncertainEditor";
+import { pointText, storedPoint, useBasicEventPoints, withImportedPoints, type BasicEventPoint } from "./faultTreeValues";
 import {
   createFaultTreeAutoLayoutOperation,
   computeFaultTreeAutoLayout,
@@ -53,6 +56,25 @@ const FT = {
 };
 const FT_ROW = FT.NODE_H + FT.SYM_GAP + FT.SYM_H + FT.LEVEL_GAP;
 const FT_INSPECTOR_W = 320;
+const VALUE_MODELS: readonly ModelForm[] = ["MISSION", "STANDBY"];
+const PENDING_POINT: BasicEventPoint = { status: "pending" };
+
+function draftKey(basicEventId: string): string {
+  return `draft:${basicEventId}`;
+}
+
+function seedExpression(probability: FaultTreeBasicEventProbability): UncertainExpression {
+  const basis = probability.quantificationBasis;
+  const reviewed = basis?.kind === "FAILURE_RATE"
+    ? legacyBasicEventExpression({ value: probability.value, quantificationBasis: { ...basis, conversion: "EXPONENTIAL" } })
+    : legacyBasicEventExpression({ value: probability.value });
+  return reviewed ?? defaultExpression("PROBABILITY");
+}
+
+function pointSentence(point: BasicEventPoint): string {
+  if (point.status === "ready") return `Point value ${pointText(point)}. `;
+  return point.status === "pending" ? "Point value … " : `${point.error} `;
+}
 
 type TreeNode = FaultTreeGate | FaultTreeLeafNode;
 
@@ -405,6 +427,7 @@ function FtBox({
   selected,
   invalid,
   catalogue,
+  points,
   transferTargets,
   resultProbability,
   readOnly,
@@ -419,6 +442,7 @@ function FtBox({
   selected: boolean;
   invalid: boolean;
   catalogue: FaultTreeEditorCatalogue;
+  points: ReadonlyMap<string, BasicEventPoint>;
   transferTargets: readonly FaultTreeTransferTarget[];
   resultProbability?: number;
   readOnly: boolean;
@@ -480,6 +504,7 @@ function FtBox({
   if (node.kind === "BASIC_EVENT_REFERENCE") {
     const basicEvent = catalogue.basicEvents.find(({ id }) => id === node.basicEventId);
     const presentation = catalogue.presentations?.find(({ basicEventId }) => basicEventId === node.basicEventId);
+    const point = storedPoint(basicEvent, points);
     return (
       <button
         type="button"
@@ -494,7 +519,7 @@ function FtBox({
         <span className="ftbox__name" title={basicEvent?.name ?? node.basicEventId}>{basicEvent?.name ?? node.basicEventId}</span>
         <span className="ftbox__be-meta">
           <span className="ftbox__id">{basicEvent?.code ?? node.basicEventId}</span>
-          <span className="ftbox__prob">{formatNodeProbability(basicEvent?.probability.value)}</span>
+          <span className="ftbox__prob" title={point.status === "failed" ? point.error : undefined}>{pointText(point)}</span>
         </span>
       </button>
     );
@@ -518,20 +543,69 @@ function FtBox({
   );
 }
 
+function BasicEventValue({
+  basicEvent,
+  draft,
+  points,
+  options,
+  defaultMissionTime,
+  disabled,
+  onDraft,
+}: {
+  basicEvent: FaultTreeBasicEvent;
+  draft: UncertainExpression | undefined;
+  points: ReadonlyMap<string, BasicEventPoint>;
+  options: readonly ParameterOption[];
+  defaultMissionTime: UncertainExpression | undefined;
+  disabled: boolean;
+  onDraft: (expression: UncertainExpression) => void;
+}): JSX.Element {
+  const saved = basicEvent.probability.expression;
+  const seed = saved ?? seedExpression(basicEvent.probability);
+  const review = saved === undefined && requiresFailureRateConversionReview(basicEvent.probability.quantificationBasis);
+  const point = draft === undefined ? storedPoint(basicEvent, points) : (points.get(draftKey(basicEvent.id)) ?? PENDING_POINT);
+  return (
+    <div className="fteditor__field">
+      <span>Value</span>
+      <ExpressionEditor expression={draft ?? seed} unit="PROBABILITY" options={options} models={VALUE_MODELS} defaultTime={defaultMissionTime} disabled={disabled} onChange={onDraft} />
+      {saved === undefined && draft === undefined && !disabled && (
+        <div>
+          {review
+            ? <p role="alert">{FAILURE_RATE_CONVERSION_REVIEW_REQUIRED}</p>
+            : <p className="fteditor__hint">This value uses an older form. Save it to keep it as a typed value.</p>}
+          <button type="button" className="fteditor__btn" onClick={() => onDraft(seed)}>Save this value</button>
+        </div>
+      )}
+      {draft !== undefined && point.status === "failed"
+        ? <p className="fteditor__field-error" role="alert">Not saved. {point.error}</p>
+        : <p className="fteditor__hint">Point value {pointText(point)}</p>}
+    </div>
+  );
+}
+
 function NodeInspector({
   model,
   catalogue,
   selection,
   transferTargets,
   defaultMissionTime,
+  readOnlyBasicEventValues,
+  points,
+  drafts,
+  options,
   editable,
   canEditBasicEvents,
   commit,
+  onDraft,
   onOpenReference,
-}: Pick<FaultTreeEditorProps, "model" | "catalogue" | "selection" | "transferTargets" | "defaultMissionTime" | "onOpenReference"> & {
+}: Pick<FaultTreeEditorProps, "model" | "catalogue" | "selection" | "transferTargets" | "defaultMissionTime" | "readOnlyBasicEventValues" | "onOpenReference"> & {
+  points: ReadonlyMap<string, BasicEventPoint>;
+  drafts: ReadonlyMap<string, UncertainExpression>;
+  options: readonly ParameterOption[];
   editable: boolean;
   canEditBasicEvents: boolean;
   commit: (operation: FaultTreeOperation) => void;
+  onDraft: (basicEventId: string, expression: UncertainExpression) => void;
 }): JSX.Element | null {
   const id = selectionId(selection);
   const gate = model.gates.find((candidate) => candidate.id === id);
@@ -543,6 +617,7 @@ function NodeInspector({
     ? catalogue.basicEvents.find(({ id: basicEventId }) => basicEventId === leaf.basicEventId)
     : selectedBasicEvent;
   const nodeId = gate?.id ?? leaf?.id;
+  const readOnlyValue = basicEvent === undefined ? undefined : readOnlyBasicEventValues?.[basicEvent.id];
   const parentInputs = nodeId === undefined ? [] : model.gateInputs.filter(({ childId }) => childId === nodeId);
   const inputCount = gate === undefined ? 0 : model.gateInputs.filter(({ gateId }) => gateId === gate.id).length;
 
@@ -679,124 +754,22 @@ function NodeInspector({
           <CommitField label="Code" value={basicEvent.code} disabled={!canEditBasicEvents} required maxLength={64} onCommit={(code) => updateBasicEvent({ ...basicEvent, code })} />
           <CommitField label="Name" value={basicEvent.name} disabled={!canEditBasicEvents} required maxLength={200} onCommit={(name) => updateBasicEvent({ ...basicEvent, name })} />
           <CommitField label="Description" value={basicEvent.description} disabled={!canEditBasicEvents} multiline maxLength={10_000} onCommit={(description) => updateBasicEvent({ ...basicEvent, description })} />
-          <label className="fteditor__field">
-            <span>Quantification input</span>
-            <select
-              className="fteditor__select"
-              aria-label="Basic-event quantification input"
-              value={basicEvent.probability.quantificationBasis?.kind ?? "PROBABILITY"}
+          {readOnlyValue !== undefined ? (
+            <div className="fteditor__field">
+              <span>Value</span>
+              <output className="fteditor__value">{readOnlyValue}</output>
+              <p className="fteditor__hint">{pointSentence(storedPoint(basicEvent, points))}Edit the value in the basic event window.</p>
+              {leaf === undefined && <button type="button" className="fteditor__btn" onClick={() => onOpenReference({ kind: "BASIC_EVENT", basicEventId: basicEvent.id })}>Open basic event</button>}
+            </div>
+          ) : (
+            <BasicEventValue
+              basicEvent={basicEvent}
+              draft={drafts.get(basicEvent.id)}
+              points={points}
+              options={options}
+              defaultMissionTime={defaultMissionTime}
               disabled={!canEditBasicEvents}
-              onChange={(event) => {
-                if (event.target.value === "PROBABILITY") {
-                  updateBasicEvent({
-                    ...basicEvent,
-                    probability: {
-                      ...basicEvent.probability,
-                      quantificationBasis: { kind: "PROBABILITY" },
-                    },
-                  });
-                  return;
-                }
-                const quantificationBasis: FaultTreeBasicEventQuantificationBasis = {
-                  kind: "FAILURE_RATE",
-                  failureRate: { value: basicEvent.probability.value, unit: "HOUR" },
-                  missionTime: defaultMissionTime ?? { value: 8760, unit: "HOUR" },
-                  conversion: "EXPONENTIAL",
-                };
-                updateBasicEvent({
-                  ...basicEvent,
-                  probability: {
-                    ...basicEvent.probability,
-                    value: failureRateToProbability(quantificationBasis),
-                    quantificationBasis,
-                  },
-                });
-              }}
-            >
-              <option value="PROBABILITY">Probability</option>
-              <option value="FAILURE_RATE">Failure rate and mission time</option>
-            </select>
-          </label>
-          {basicEvent.probability.quantificationBasis?.kind === "FAILURE_RATE" ? (() => {
-            const basis = basicEvent.probability.quantificationBasis;
-            const needsReview = requiresFailureRateConversionReview(basis);
-            const updateBasis = (
-              next: Extract<FaultTreeBasicEventQuantificationBasis, { kind: "FAILURE_RATE" }>,
-            ): void => updateBasicEvent({
-              ...basicEvent,
-              probability: {
-                ...basicEvent.probability,
-                value: failureRateToProbability(next),
-                quantificationBasis: next,
-              },
-            });
-            return (
-              <>
-                <CommitField
-                  label="Failure rate"
-                  value={String(basis.failureRate.value)}
-                  type="number"
-                  min={0}
-                  disabled={!canEditBasicEvents || needsReview}
-                  onCommit={(value) => {
-                    const rate = Number(value);
-                    if (Number.isFinite(rate) && rate >= 0) updateBasis({ ...basis, failureRate: { ...basis.failureRate, value: rate } });
-                  }}
-                />
-                <label className="fteditor__field">
-                  <span>Failure-rate unit</span>
-                  <select className="fteditor__select" value={basis.failureRate.unit} disabled={!canEditBasicEvents || needsReview} onChange={(event) => updateBasis({ ...basis, failureRate: { ...basis.failureRate, unit: event.target.value as typeof basis.failureRate.unit } })}>
-                    <option value="SECOND">Per second</option>
-                    <option value="MINUTE">Per minute</option>
-                    <option value="HOUR">Per hour</option>
-                    <option value="DAY">Per day</option>
-                    <option value="YEAR">Per year</option>
-                  </select>
-                </label>
-                <CommitField
-                  label="Mission time"
-                  value={String(basis.missionTime.value)}
-                  type="number"
-                  min={0}
-                  disabled={!canEditBasicEvents || needsReview}
-                  onCommit={(value) => {
-                    const duration = Number(value);
-                    if (Number.isFinite(duration) && duration > 0) updateBasis({ ...basis, missionTime: { ...basis.missionTime, value: duration } });
-                  }}
-                />
-                <label className="fteditor__field">
-                  <span>Mission-time unit</span>
-                  <select className="fteditor__select" value={basis.missionTime.unit} disabled={!canEditBasicEvents || needsReview} onChange={(event) => updateBasis({ ...basis, missionTime: { ...basis.missionTime, unit: event.target.value as typeof basis.missionTime.unit } })}>
-                    <option value="SECOND">Seconds</option>
-                    <option value="MINUTE">Minutes</option>
-                    <option value="HOUR">Hours</option>
-                    <option value="DAY">Days</option>
-                    <option value="YEAR">Years</option>
-                  </select>
-                </label>
-                {needsReview ? (
-                  <div>
-                    <p role="alert">{FAILURE_RATE_CONVERSION_REVIEW_REQUIRED}</p>
-                    <button type="button" className="fteditor__btn" disabled={!canEditBasicEvents}
-                      onClick={() => updateBasis({ ...basis, conversion: "EXPONENTIAL" })}>Use exponential conversion</button>
-                  </div>
-                ) : (
-                  <p className="fteditor__hint">Exponential conversion · Mission probability: {formatNodeProbability(basicEvent.probability.value)}</p>
-                )}
-              </>
-            );
-          })() : (
-            <CommitField
-              label="Probability (0–1)"
-              value={String(basicEvent.probability.value)}
-              type="number"
-              min={0}
-              max={1}
-              disabled={!canEditBasicEvents}
-              onCommit={(value) => {
-                const probability = Number(value);
-                if (Number.isFinite(probability) && probability >= 0 && probability <= 1) updateBasicEvent({ ...basicEvent, probability: { ...basicEvent.probability, value: probability } });
-              }}
+              onDraft={(expression) => onDraft(basicEvent.id, expression)}
             />
           )}
         </>
@@ -908,11 +881,11 @@ export function FaultTreeResults({
       )}
       {result.uncertainty !== undefined && (
         <section className="fteditor__result-section" aria-label="Uncertainty results">
-          <div className="fteditor__result-section-heading"><h4>Uncertainty</h4><span>{result.uncertainty.sampleCount.toLocaleString()} samples · seed {result.uncertainty.seed}</span></div>
+          <div className="fteditor__result-section-heading"><h4>Uncertainty</h4><span>{result.uncertainty.sampleCount.toLocaleString()} {result.uncertainty.samplingMethod === "LATIN_HYPERCUBE" ? "Latin hypercube" : "Monte Carlo"} samples · seed {result.uncertainty.seed}</span></div>
           <dl className="fteditor__result-definition">
             <div><dt>Mean</dt><dd><ScientificProbability value={result.uncertainty.mean} /></dd></div>
             <div><dt>Standard deviation</dt><dd><ScientificProbability value={result.uncertainty.standardDeviation} /></dd></div>
-            <div><dt>Error factor</dt><dd>{result.uncertainty.errorFactor.toPrecision(6)}</dd></div>
+            <div><dt>Standard error</dt><dd><ScientificProbability value={result.uncertainty.standardError} /></dd></div>
             {result.uncertainty.quantiles.map((quantile) => (
               <div key={quantile.probability}><dt>{quantile.probability * 100}% quantile</dt><dd><ScientificProbability value={quantile.value} /></dd></div>
             ))}
@@ -1104,6 +1077,10 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     resultIsStale,
     transferTargets = [],
     defaultMissionTime,
+    daParameterOptions,
+    missionTimeOptions,
+    parameterTable,
+    readOnlyBasicEventValues,
     onOperation,
     onSelectionChange,
     onOpenReference,
@@ -1126,6 +1103,14 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   const [exportingImage, setExportingImage] = useState(false);
   const [savedImage, setSavedImage] = useState<string | null>(null);
   const { requestConfirmation, confirmationDialog } = useEditorConfirmation();
+  const draftsRef = useRef(new Map<string, UncertainExpression>());
+  const [draftVersion, setDraftVersion] = useState(0);
+  const valueOptions = useMemo(() => [...(daParameterOptions ?? []), ...(missionTimeOptions ?? [])], [daParameterOptions, missionTimeOptions]);
+  const pointEntries = useMemo(() => [
+    ...catalogue.basicEvents.flatMap((event) => (event.probability.expression === undefined ? [] : [{ key: event.id, expression: event.probability.expression }])),
+    ...[...draftsRef.current].map(([id, expression]) => ({ key: draftKey(id), expression })),
+  ], [catalogue.basicEvents, draftVersion]);
+  const points = useBasicEventPoints(pointEntries, parameterTable);
 
   useLayoutEffect(
     () => setViewport(model.layout.viewport),
@@ -1223,6 +1208,27 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
       if (recordHistory && operation.type !== "REPLACE_SNAPSHOT") history.current.pop();
       setOperationError(error instanceof Error ? error.message : "The fault-tree operation failed.");
     }
+  };
+
+  useEffect(() => {
+    const ready = [...draftsRef.current].flatMap(([id, expression]) => {
+      const state = points.get(draftKey(id));
+      return state?.status === "ready" ? [{ id, expression, point: state.point }] : [];
+    });
+    if (ready.length === 0) return;
+    ready.forEach(({ id }) => draftsRef.current.delete(id));
+    setDraftVersion((current) => current + 1);
+    for (const { id, expression, point } of ready) {
+      const event = catalogue.basicEvents.find((candidate) => candidate.id === id);
+      if (event === undefined) continue;
+      const unchanged = event.probability.expression !== undefined && canonicalJson(event.probability.expression) === canonicalJson(expression) && event.probability.value === point;
+      if (!unchanged) emit({ type: "UPDATE_BASIC_EVENT", basicEventId: id, basicEvent: { ...event, probability: { value: point, expression } } });
+    }
+  });
+
+  const saveDraft = (basicEventId: string, expression: UncertainExpression): void => {
+    draftsRef.current.set(basicEventId, expression);
+    setDraftVersion((current) => current + 1);
   };
 
   const undo = (): void => {
@@ -1408,7 +1414,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
         code,
         name: "New basic event",
         description: "",
-        probability: { value: 0 },
+        probability: { value: defaultPoint("PROBABILITY"), expression: defaultExpression("PROBABILITY") },
       },
       parentGateId,
     });
@@ -1471,10 +1477,11 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     if (file === undefined) return;
     try {
       const imported = importOpenPsaFaultTree(await file.text());
+      const basicEvents = await withImportedPoints(imported.catalogue.basicEvents, parameterTable);
       emit({
         type: "REPLACE_SNAPSHOT",
         model: { ...imported.model, modelId: model.modelId },
-        catalogue: mergeOpenPsaImportCatalogue(catalogue, imported.catalogue),
+        catalogue: mergeOpenPsaImportCatalogue(catalogue, { ...imported.catalogue, basicEvents }),
       });
     } catch (error) {
       setOperationError(error instanceof Error ? error.message : "OpenPSA import failed.");
@@ -1892,6 +1899,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
                       selected={selectedId === positioned.node.id}
                       invalid={invalidIds.has(positioned.node.id)}
                       catalogue={catalogue}
+                      points={points}
                       transferTargets={transferTargets}
                       resultProbability={positioned.node.id === model.topGate?.gateId && !resultIsStale ? analysisResult?.topEventProbability : undefined}
                       readOnly={!editable || !capabilities.canEditLayout}
@@ -1925,9 +1933,14 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
                 selection={selection}
                 transferTargets={transferTargets}
                 defaultMissionTime={defaultMissionTime}
+                readOnlyBasicEventValues={readOnlyBasicEventValues}
+                points={points}
+                drafts={draftsRef.current}
+                options={valueOptions}
                 editable={editable}
                 canEditBasicEvents={editable && capabilities.canEditBasicEvents}
                 commit={emit}
+                onDraft={saveDraft}
                 onOpenReference={onOpenReference}
               />
             </div>

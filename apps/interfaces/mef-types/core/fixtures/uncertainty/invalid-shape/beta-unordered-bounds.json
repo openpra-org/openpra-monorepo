@@ -1,0 +1,22 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PROBABILITY",
+        "law": {
+          "family": "BETA",
+          "alpha": 1,
+          "beta": 10,
+          "lower": 1,
+          "upper": 0
+        }
+      }
+    }
+  }
+]

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import type { SyDocumentation, SystemBasicEvent, SystemLogicModel } from "interfaces-mef-types/sy/systems-analysis";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { carriesUncertainExpression, type SyDocumentation, type SystemBasicEvent, type SystemLogicModel } from "interfaces-mef-types/sy/systems-analysis";
 import { IntegrityScreen, NamingScheme } from "../SyIntegrity";
 import { DrawerContent } from "../syScreens2";
 import {
@@ -37,11 +38,19 @@ interface MockContext {
 
 const SHORT = new Map([[CCW, "CCW"], [EPS, "EPS"], [GV, "GV"]]);
 
+function point(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
+}
+
+function linked(entityId: string): UncertainExpression {
+  return { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId } };
+}
+
 const PARAMETERS: SyControlledParameterOption[] = [
-  { workbookId: "da-1", workbookName: "DA", parameterId: "DA-PMP", parameterName: "Pump fails to run", parameterType: "PROBABILITY", value: 0.006, failureModeId: "FM-FTR", failureModeName: "Fails to run", componentBoundaryId: "CB-PMP" },
-  { workbookId: "da-1", workbookName: "DA", parameterId: "DA-HX", parameterName: "Heat exchanger fouled", parameterType: "PROBABILITY", value: 0.002, failureModeId: "FM-PLG", failureModeName: "Plugged or fouled" },
-  { workbookId: "da-1", workbookName: "DA", parameterId: "DA-VLV", parameterName: "Valve fails to open", parameterType: "PROBABILITY", value: 0.001, failureModeId: "FM-FTO", failureModeName: "Fails to open", componentBoundaryId: "CB-VLV" },
-  { workbookId: "da-1", workbookName: "DA", parameterId: "DA-BAT", parameterName: "Battery fails", parameterType: "PROBABILITY", value: 0.004, failureModeId: "FM-FTR", failureModeName: "Fails to run", componentBoundaryId: "CB-BAT" },
+  { workbookId: "da-1", workbookName: "DA", parameterId: "DA-PMP", parameterName: "Pump fails to run", unit: "PROBABILITY", estimate: point(0.006), failureModeId: "FM-FTR", failureModeName: "Fails to run", componentBoundaryId: "CB-PMP" },
+  { workbookId: "da-1", workbookName: "DA", parameterId: "DA-HX", parameterName: "Heat exchanger fouled", unit: "PROBABILITY", estimate: point(0.002), failureModeId: "FM-PLG", failureModeName: "Plugged or fouled" },
+  { workbookId: "da-1", workbookName: "DA", parameterId: "DA-VLV", parameterName: "Valve fails to open", unit: "PROBABILITY", estimate: point(0.001), failureModeId: "FM-FTO", failureModeName: "Fails to open", componentBoundaryId: "CB-VLV" },
+  { workbookId: "da-1", workbookName: "DA", parameterId: "DA-BAT", parameterName: "Battery fails", unit: "PROBABILITY", estimate: point(0.004), failureModeId: "FM-FTR", failureModeName: "Fails to run", componentBoundaryId: "CB-BAT" },
 ];
 
 const BOUNDARIES: SyControlledComponentBoundaryOption[] = [
@@ -78,11 +87,12 @@ function tree(systemReference: string, events: readonly string[]): SystemLogicMo
 }
 
 function system(uuid: string, name: string) {
-  return { uuid, name, abbreviation: SHORT.get(uuid), boundaries: [], successCriteriaIds: [], missionTimeHours: 24, modeledComponentsAndFailures: {}, informationBasis: "as-designed-as-intended" as const, implementsSrs: [] };
+  return { uuid, name, abbreviation: SHORT.get(uuid), boundaries: [], successCriteriaIds: [], missionTime: { node: "VALUE" as const, value: { unit: "HOURS" as const, law: { family: "POINT" as const, value: 24 } } }, modeledComponentsAndFailures: {}, informationBasis: "as-designed-as-intended" as const, implementsSrs: [] };
 }
 
 function event(uuid: string, code: string, name: string, failureMode: string, extra: Partial<SystemBasicEvent> = {}): SystemBasicEvent {
-  return { uuid, code, name, eventType: "BASIC", failureMode, probability: 0.001, implementsSrs: [], ...extra };
+  const value = carriesUncertainExpression(failureMode) ? { expression: point(0.001) } : { probability: 0.001 };
+  return { uuid, code, name, eventType: "BASIC", failureMode, ...value, implementsSrs: [], ...extra };
 }
 
 function makeAnalysis(): Fixture {
@@ -96,15 +106,15 @@ function makeAnalysis(): Fixture {
       { ...tree(GV, []), modelRepresentation: "System-level", nonDetailedModelJustification: "Passive shell.", topGate: null, gates: [], leafNodes: [], gateInputs: [] },
     ],
     systemBasicEvents: [
-      event("PMP-A", "CCW-PMP-A-FR", "Pump A fails to run", "FAILURE_TO_RUN", { dataAnalysisBasicEventRef: "DA-PMP" }),
-      event("PMP-B", "CCW-PMP-B-FR", "Pump B fails to run", "FAILURE_TO_RUN", { dataAnalysisBasicEventRef: "DA-PMP" }),
-      event("HX-A", "CCW-HXA-BLK", "Heat exchanger A fouled", "FAILURE_TO_RUN", { dataAnalysisBasicEventRef: "DA-HX" }),
-      event("VLV", "CCW-VLV-FC", "Discharge valve fails to open", "FAILURE_TO_START", { controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "DA-VLV" } }),
+      event("PMP-A", "CCW-PMP-A-FR", "Pump A fails to run", "FAILURE_TO_RUN", { expression: linked("DA-PMP") }),
+      event("PMP-B", "CCW-PMP-B-FR", "Pump B fails to run", "FAILURE_TO_RUN", { expression: linked("DA-PMP") }),
+      event("HX-A", "CCW-HXA-BLK", "Heat exchanger A fouled", "FAILURE_TO_RUN", { expression: linked("DA-HX") }),
+      event("VLV", "CCW-VLV-FC", "Discharge valve fails to open", "FAILURE_TO_START", { expression: linked("DA-VLV") }),
       event("STR", "CCW-STR-PLG", "Strainer plugged", "FAILURE_TO_RUN"),
       event("CCW-HFE", "CCW-HFE", "Operator fails to restart a pump", "HUMAN_ERROR"),
       event("CCW-TM", "CCW-TR-TM", "One train in maintenance", "TEST_MAINTENANCE"),
-      event("BAT-A", "EPS-BAT-A-FR", "Battery A fails", "FAILURE_TO_RUN", { dataAnalysisBasicEventRef: "DA-BAT" }),
-      event("BAT-B", "DC-BAT-B-FR", "Battery B fails", "FAILURE_TO_RUN", { dataAnalysisBasicEventRef: "DA-BAT" }),
+      event("BAT-A", "EPS-BAT-A-FR", "Battery A fails", "FAILURE_TO_RUN", { expression: linked("DA-BAT") }),
+      event("BAT-B", "DC-BAT-B-FR", "Battery B fails", "FAILURE_TO_RUN", { expression: linked("DA-BAT") }),
     ],
     systemConfirmationRecords: [{ uuid: "CR-CCW", systemReference: CCW, method: "DESIGN_REVIEW", date: "2026-09-01", personnelRoles: ["Systems engineer"], findings: "Matches the drawings.", implementsSrs: [{ sr: "SY-A6", hlr: "A" }] }],
     modelValidations: [{

@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 
-const baseUrl = (process.argv[2] ?? process.env.PRAETOR_URL ?? "http://127.0.0.1:3000/q").replace(
-  /\/$/,
-  "",
-);
+const requestedUrl = process.argv[2] ?? process.env.PRAETOR_URL ?? "http://127.0.0.1:3000/q";
+const baseUrl = requestedUrl.endsWith("/") ? requestedUrl.slice(0, -1) : requestedUrl;
+
+const valued = (unit, law) => ({ node: "VALUE", value: { unit, law } });
+const pointValue = (unit, value) => valued(unit, { family: "POINT", value });
+const probability = (value) => pointValue("PROBABILITY", value);
 
 function envelope(request, modelSnapshots, resources) {
   return {
@@ -36,14 +38,15 @@ function faultTree(id, topGateId, gateType, basicEventIds, k) {
   };
 }
 
-function catalogue(probabilities) {
+function catalogue(probabilities, extra = {}) {
   return {
     faultTreeBasicEventCatalogue: {
       projectId: "platform-smoke",
       basicEvents: Object.entries(probabilities).map(([id, value]) => ({
         id,
-        probability: { value },
+        expression: probability(value),
       })),
+      ...extra,
     },
   };
 }
@@ -181,7 +184,7 @@ const et = {
   methodType: "EVENT_TREE",
   revision: 2,
   initiatingEvent: { target: { modelId: "IE", entityId: "IE-1" } },
-  initiatingEventFrequency: { value: 0.01 },
+  initiatingEventFrequency: { expression: pointValue("PER_YEAR", 0.01) },
   functionalEvents: [{ id: "FE", name: "Safety function", order: 0 }],
   functionalEventFaultTreeLinks: [
     { functionalEventId: "FE", faultTreeTopGate: { modelId: "FT-ET", entityId: "TOP-ET" } },
@@ -213,6 +216,130 @@ assert.deepEqual(
   etResult.endStateAggregates.map((aggregate) => aggregate.annualFrequency),
   [0.002, 0.008],
 );
+assert.deepEqual(etResult.frequencySemantics.annualizedInitiatingEventFrequency, { value: 0.01, unit: "PER_YEAR" });
+
+const hourlyResult = await execute(
+  envelope(
+    { methodType: "EVENT_TREE", modelId: "ET", revision: 2, mode: "INDEPENDENT" },
+    [
+      etFt,
+      {
+        ...et,
+        initiatingEventFrequency: {
+          expression: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-smoke", entityId: "loop" } },
+          annualization: { basis: "CRITICAL_YEAR", hoursPerYear: 8000 },
+        },
+      },
+    ],
+    catalogue(
+      { E: 0.2 },
+      {
+        uncertaintyParameters: [
+          {
+            reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-smoke", entityId: "loop" },
+            expression: pointValue("PER_HOUR", 1e-6),
+          },
+        ],
+      },
+    ),
+  ),
+);
+assert.ok(Math.abs(hourlyResult.frequencySemantics.annualizedInitiatingEventFrequency.value - 0.008) < 1e-15);
+assert.ok(Math.abs(hourlyResult.sequences[1].annualFrequency - 0.0016) < 1e-15);
+
+const ccfFt = faultTree("FT-CCF", "TOP-CCF", "AND", ["A", "B"]);
+const ccfResult = await execute(
+  envelope(
+    { methodType: "FAULT_TREE", modelId: "FT-CCF", revision: 2, settings: { expandCcf: true } },
+    [ccfFt],
+    catalogue(
+      { A: 0.2, B: 0.2 },
+      {
+        commonCauseFailureGroups: [
+          {
+            id: "CCF-AB",
+            members: ["A", "B"],
+            factors: { model: "BETA_FACTOR", beta: pointValue("FRACTION", 0.1) },
+            total: probability(0.2),
+          },
+        ],
+      },
+    ),
+  ),
+);
+assert.ok(Math.abs(ccfResult.topEventProbability - (0.02 + 0.18 * 0.18 - 0.02 * 0.18 * 0.18)) < 1e-12);
+
+const alphaResult = await execute(
+  envelope(
+    { methodType: "FAULT_TREE", modelId: "FT-CCF", revision: 2, settings: { expandCcf: true } },
+    [ccfFt],
+    catalogue(
+      { A: 0.2, B: 0.2 },
+      {
+        commonCauseFailureGroups: [
+          {
+            id: "CCF-AB",
+            members: ["A", "B"],
+            factors: {
+              model: "ALPHA_FACTOR",
+              testing: "STAGGERED",
+              alphas: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-smoke", entityId: "alphas" } },
+            },
+            total: probability(0.2),
+          },
+        ],
+        uncertaintyVectors: [
+          {
+            reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-smoke", entityId: "alphas" },
+            vector: { family: "DIRICHLET", concentrations: [9, 1] },
+          },
+        ],
+      },
+    ),
+  ),
+);
+assert.ok(Math.abs(alphaResult.topEventProbability - ccfResult.topEventProbability) < 1e-12);
+
+const loadCapacityResult = await execute(
+  envelope(
+    {
+      methodType: "LOAD_CAPACITY",
+      modelId: "CELL",
+      revision: 2,
+      settings: { sampling: "LATIN_HYPERCUBE", samples: 400, seed: 7, curvePoints: 5 },
+    },
+    [
+      {
+        id: "CELL",
+        methodType: "LOAD_CAPACITY",
+        revision: 2,
+        load: { law: { family: "NORMAL", mean: 1500, standardDeviation: 50 }, fields: [] },
+        capacity: {
+          law: { family: "NORMAL", mean: 1800, standardDeviation: 60 },
+          fields: [
+            {
+              field: "mean",
+              value: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-smoke", entityId: "capacity" } },
+            },
+          ],
+        },
+        unit: "degC",
+        uncertaintyParameters: [
+          {
+            reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-smoke", entityId: "capacity" },
+            expression: valued("QUANTITY", { family: "NORMAL", mean: 1800, standardDeviation: 20 }),
+          },
+        ],
+        uncertaintyVectors: [],
+      },
+    ],
+  ),
+);
+assert.equal(loadCapacityResult.method, "CLOSED_FORM_NORMAL");
+assert.ok(Math.abs(loadCapacityResult.pointProbability / 6.124050385493965e-5 - 1) < 1e-8);
+assert.deepEqual(loadCapacityResult.pointCapacity, { family: "NORMAL", mean: 1800, standardDeviation: 60 });
+assert.equal(loadCapacityResult.uncertainty.law.points.length, 101);
+assert.equal(loadCapacityResult.quadratureError, undefined);
 
 const hclFt = faultTree("FT-HCL", "TOP-HCL", "AND", ["A", "B"]);
 const hclBn = {
@@ -311,7 +438,7 @@ const hclEt = {
   methodType: "EVENT_TREE",
   revision: 2,
   initiatingEvent: { target: { modelId: "IE", entityId: "IE-HCL" } },
-  initiatingEventFrequency: { value: 0.01 },
+  initiatingEventFrequency: { expression: pointValue("PER_YEAR", 0.01) },
   functionalEvents: [
     { id: "FE-A", name: "First function", order: 0 },
     { id: "FE-B", name: "Second function", order: 1 },
@@ -391,6 +518,8 @@ console.log(
     faultTree: ftResult.topEventProbability,
     bayesianNetwork: bnResult.marginals[0].values.map((value) => value.probability),
     eventTree: etResult.sequences.map((sequence) => sequence.conditionalProbability),
+    commonCause: ccfResult.topEventProbability,
+    loadCapacity: loadCapacityResult.pointProbability,
     hybridCausalLogic: hclResult.probability,
     hybridCausalLogicEventTree: hclEtResult.sequences.map(
       (sequence) => sequence.conditionalProbability,

@@ -7,8 +7,10 @@ import type {
   EventSequenceAnalysis,
   EventTree,
 } from "interfaces-mef-types/es/event-sequence-analysis";
-import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import type { DataAnalysis, DataAnalysisParameter } from "interfaces-mef-types/da/data-analysis";
+import { carriesUncertainExpression, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { isComponentModel, type DataAnalysis, type DataAnalysisParameter } from "interfaces-mef-types/da/data-analysis";
+import { expressionReferences, mapModelArguments, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
@@ -221,7 +223,7 @@ function createExampleDependencyEventTree(): EventTree {
     name: "Protection dependency demonstration",
     description: "A compact event tree that demonstrates independent and HCL-linked quantification of the reactor-protection top event.",
     initiatingEventId: "IEG-DEPENDENCY-DEMO",
-    initiatingEventFrequency: { value: 0.01 },
+    initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 0.01 } } } },
     functionalEvents: {
       [id.functionalEvent]: {
         uuid: id.functionalEvent,
@@ -458,6 +460,21 @@ function reconcileExampleEventTreeDependencyReferences(
   };
 }
 
+function relinkedExpression(expression: UncertainExpression, parameterIds: ReadonlySet<string>, workbookId: string): UncertainExpression {
+  switch (expression.node) {
+    case "VALUE":
+      return expression;
+    case "PARAMETER":
+      return parameterIds.has(expression.reference.entityId)
+        ? { node: "PARAMETER", reference: { ...expression.reference, workbookId } }
+        : expression;
+    case "OPERATION":
+      return { ...expression, operands: expression.operands.map((operand) => relinkedExpression(operand, parameterIds, workbookId)) };
+    case "MODEL":
+      return { node: "MODEL", model: mapModelArguments(expression.model, (argument) => relinkedExpression(argument, parameterIds, workbookId)) };
+  }
+}
+
 function reconcileExampleSyDataAnalysisReferences(
   analysis: SystemsAnalysis,
   dataAnalysis: DataAnalysis,
@@ -474,29 +491,39 @@ function reconcileExampleSyDataAnalysisReferences(
 
   const supportedTypes = new Set(["PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
   const parametersById = new Map(dataAnalysis.parameters.map((parameter) => [parameter.uuid, parameter]));
+  const parameterIds = new Set(parametersById.keys());
   let changed = false;
   const systemBasicEvents = analysis.systemBasicEvents.map((event) => {
+    if (carriesUncertainExpression(event.failureMode)) {
+      const expression = event.expression;
+      if (expression === undefined) return event;
+      const stale = expressionReferences(expression).some((reference) => parameterIds.has(reference.entityId) && reference.workbookId !== daWorkbookId);
+      if (!stale) return event;
+      changed = true;
+      return { ...event, expression: relinkedExpression(expression, parameterIds, daWorkbookId) };
+    }
     const named = parametersByBasicEvent.get(event.uuid) ?? parametersByBasicEvent.get(event.code);
     const legacy = event.dataAnalysisBasicEventRef === undefined ? undefined : parametersById.get(event.dataAnalysisBasicEventRef);
     if (named === undefined && (legacy === undefined || !supportedTypes.has(legacy.parameterType))) return event;
     const parameter = named ?? legacy;
     if (parameter === undefined) return event;
-    if (!supportedTypes.has(parameter.parameterType)) {
+    if (!supportedTypes.has(parameter.parameterType) || isComponentModel(parameter.quantificationModel)) {
       throw new Error(`DA parameter '${parameter.uuid}' cannot control the probability of example basic event '${event.code}'.`);
     }
-    if (!Number.isFinite(parameter.value) || parameter.value < 0 || parameter.value > 1) {
+    const value = parameter.value;
+    if (value === undefined || !Number.isFinite(value) || value < 0 || value > 1) {
       throw new Error(`DA parameter '${parameter.uuid}' must be finite and between zero and one.`);
     }
     const reference = event.controlledDataSource;
     if (
-      event.probability === parameter.value &&
+      event.probability === value &&
       reference?.workbookId === daWorkbookId &&
       reference.entityId === parameter.uuid
     ) return event;
     changed = true;
     return {
       ...event,
-      probability: parameter.value,
+      probability: value,
       controlledDataSource: {
         referenceType: "WORKBOOK_PARAMETER" as const,
         workbookId: daWorkbookId,
@@ -506,7 +533,181 @@ function reconcileExampleSyDataAnalysisReferences(
     };
   });
 
-  return changed ? { ...analysis, systemBasicEvents } : analysis;
+  const commonCauseFailureGroups = analysis.commonCauseFailureGroups.map((group) => {
+    const stale = expressionReferences(group.total).some((reference) => parameterIds.has(reference.entityId) && reference.workbookId !== daWorkbookId);
+    if (!stale) return group;
+    changed = true;
+    return { ...group, total: relinkedExpression(group.total, parameterIds, daWorkbookId) };
+  });
+
+  return changed ? { ...analysis, systemBasicEvents, commonCauseFailureGroups } : analysis;
+}
+
+const EXAMPLE_SC_PREFIX = "example-sc-";
+
+interface ExampleMissionTimeLink {
+  ids: ReadonlySet<string>;
+  workbookId: string;
+  from?: string;
+}
+
+interface ProjectMissionTimeSource {
+  sc: SuccessCriteriaDevelopment;
+  workbookId: string;
+}
+
+type MissionTimeReconciler<T> = (mef: T, sc: SuccessCriteriaDevelopment, scWorkbookId: string, from?: string) => T;
+
+function missionTimeIds(sc: SuccessCriteriaDevelopment): Set<string> {
+  return new Set([...sc.missionTimes, ...(sc.componentMissionTimes ?? [])].map((entry) => entry.uuid));
+}
+
+function exampleMissionTimeLink(sc: SuccessCriteriaDevelopment, scWorkbookId: string, from?: string): ExampleMissionTimeLink {
+  return { ids: missionTimeIds(sc), workbookId: scWorkbookId, ...(from === undefined ? {} : { from }) };
+}
+
+function linksExample(workbookId: string, link: ExampleMissionTimeLink): boolean {
+  return link.from === undefined ? workbookId.startsWith(EXAMPLE_SC_PREFIX) : workbookId === link.from;
+}
+
+function relinkedMissionTime(expression: UncertainExpression, link: ExampleMissionTimeLink): UncertainExpression {
+  switch (expression.node) {
+    case "VALUE":
+      return expression;
+    case "PARAMETER":
+      return linksExample(expression.reference.workbookId, link) && link.ids.has(expression.reference.entityId)
+        ? { node: "PARAMETER", reference: { ...expression.reference, workbookId: link.workbookId } }
+        : expression;
+    case "OPERATION":
+      return { ...expression, operands: expression.operands.map((operand) => relinkedMissionTime(operand, link)) };
+    case "MODEL":
+      return { node: "MODEL", model: mapModelArguments(expression.model, (argument) => relinkedMissionTime(argument, link)) };
+  }
+}
+
+function relinkedOptional(expression: UncertainExpression | undefined, link: ExampleMissionTimeLink): UncertainExpression | undefined {
+  return expression === undefined ? undefined : relinkedMissionTime(expression, link);
+}
+
+function relinkedScLink(id: string | undefined, link: ExampleMissionTimeLink): string | undefined {
+  return id !== undefined && linksExample(id, link) ? link.workbookId : id;
+}
+
+function present(expression: UncertainExpression | undefined): UncertainExpression[] {
+  return expression === undefined ? [] : [expression];
+}
+
+function syMissionTimeExpressions(analysis: SystemsAnalysis): UncertainExpression[] {
+  return [
+    ...analysis.systemDefinitions.flatMap((definition) => present(definition.missionTime)),
+    ...analysis.systemBasicEvents.flatMap((event) => present(event.expression)),
+    ...analysis.commonCauseFailureGroups.map((group) => group.total),
+  ];
+}
+
+function daMissionTimeExpressions(dataAnalysis: DataAnalysis): UncertainExpression[] {
+  const needs = dataAnalysis.dataNeeds;
+  return [
+    ...dataAnalysis.parameters.flatMap((parameter) => [...present(parameter.estimate), ...present(parameter.missionTime)]),
+    ...(needs?.basicEvents ?? []).flatMap((need) => [...present(need.expression), ...present(need.importedMissionTime), ...present(need.missionTime)]),
+    ...(needs?.ccfGroups ?? []).flatMap((group) => present(group.total)),
+  ];
+}
+
+function esqMissionTimeExpressions(quantification: EventSequenceQuantification): UncertainExpression[] {
+  const model = quantification.model;
+  if (model === undefined) return [];
+  return [
+    ...model.trees.flatMap((tree) => present(tree.missionTime)),
+    ...model.events.flatMap((event) => [...present(event.expression), ...present(event.missionTime)]),
+    ...model.parameters.flatMap((parameter) => [...present(parameter.estimate), ...present(parameter.missionTime)]),
+    ...model.ccfGroups.flatMap((group) => present(group.total)),
+  ];
+}
+
+function exampleMissionTimeReferences(expressions: readonly UncertainExpression[]): Map<string, Set<string>> {
+  const byExample = new Map<string, Set<string>>();
+  for (const reference of expressions.flatMap(expressionReferences)) {
+    if (!reference.workbookId.startsWith(EXAMPLE_SC_PREFIX)) continue;
+    const ids = byExample.get(reference.workbookId) ?? new Set<string>();
+    ids.add(reference.entityId);
+    byExample.set(reference.workbookId, ids);
+  }
+  return byExample;
+}
+
+function holdsAll(source: ProjectMissionTimeSource, ids: ReadonlySet<string>): boolean {
+  const held = missionTimeIds(source.sc);
+  return [...ids].every((id) => held.has(id));
+}
+
+function projectMissionTimeSource(sources: readonly ProjectMissionTimeSource[], ids: ReadonlySet<string>): ProjectMissionTimeSource | undefined {
+  return sources.find((source) => holdsAll(source, ids));
+}
+
+function relinkExampleMissionTimes<T>(mef: T, expressions: readonly UncertainExpression[], sources: readonly ProjectMissionTimeSource[], reconcile: MissionTimeReconciler<T>): T {
+  let relinked = mef;
+  for (const [from, ids] of exampleMissionTimeReferences(expressions)) {
+    const target = projectMissionTimeSource(sources, ids);
+    if (target !== undefined) relinked = reconcile(relinked, target.sc, target.workbookId, from);
+  }
+  return relinked;
+}
+
+function reconcileExampleSyMissionTimeReferences(analysis: SystemsAnalysis, sc: SuccessCriteriaDevelopment, scWorkbookId: string, from?: string): SystemsAnalysis {
+  const link = exampleMissionTimeLink(sc, scWorkbookId, from);
+  return {
+    ...analysis,
+    ...(analysis.linkedWorkbooks === undefined ? {} : { linkedWorkbooks: { ...analysis.linkedWorkbooks, SC: relinkedScLink(analysis.linkedWorkbooks.SC, link) } }),
+    systemDefinitions: analysis.systemDefinitions.map((definition) => (definition.missionTime === undefined ? definition : { ...definition, missionTime: relinkedMissionTime(definition.missionTime, link) })),
+    systemBasicEvents: analysis.systemBasicEvents.map((event) => (event.expression === undefined ? event : { ...event, expression: relinkedMissionTime(event.expression, link) })),
+    commonCauseFailureGroups: analysis.commonCauseFailureGroups.map((group) => ({ ...group, total: relinkedMissionTime(group.total, link) })),
+  };
+}
+
+function reconcileExampleDaMissionTimeReferences(dataAnalysis: DataAnalysis, sc: SuccessCriteriaDevelopment, scWorkbookId: string, from?: string): DataAnalysis {
+  const link = exampleMissionTimeLink(sc, scWorkbookId, from);
+  const needs = dataAnalysis.dataNeeds;
+  return {
+    ...dataAnalysis,
+    ...(dataAnalysis.linkedWorkbooks === undefined ? {} : { linkedWorkbooks: { ...dataAnalysis.linkedWorkbooks, SC: relinkedScLink(dataAnalysis.linkedWorkbooks.SC, link) } }),
+    parameters: dataAnalysis.parameters.map((parameter) => ({
+      ...parameter,
+      estimate: relinkedOptional(parameter.estimate, link),
+      missionTime: relinkedOptional(parameter.missionTime, link),
+    })),
+    ...(needs === undefined ? {} : {
+      dataNeeds: {
+        ...needs,
+        basicEvents: needs.basicEvents.map((need) => ({
+          ...need,
+          expression: relinkedOptional(need.expression, link),
+          importedMissionTime: relinkedOptional(need.importedMissionTime, link),
+          missionTime: relinkedOptional(need.missionTime, link),
+        })),
+        ccfGroups: needs.ccfGroups.map((group) => ({ ...group, total: relinkedOptional(group.total, link) })),
+      },
+    }),
+  };
+}
+
+function reconcileExampleEsqMissionTimeReferences(quantification: EventSequenceQuantification, sc: SuccessCriteriaDevelopment, scWorkbookId: string, from?: string): EventSequenceQuantification {
+  const link = exampleMissionTimeLink(sc, scWorkbookId, from);
+  const model = quantification.model;
+  return {
+    ...quantification,
+    ...(quantification.linkedWorkbooks === undefined ? {} : { linkedWorkbooks: { ...quantification.linkedWorkbooks, SC: relinkedScLink(quantification.linkedWorkbooks.SC, link) } }),
+    ...(model === undefined ? {} : {
+      model: {
+        ...model,
+        sources: model.sources.map((source) => (source.element === "SC" ? { ...source, workbookId: relinkedScLink(source.workbookId, link) ?? source.workbookId } : source)),
+        trees: model.trees.map((tree) => ({ ...tree, missionTime: relinkedOptional(tree.missionTime, link) })),
+        events: model.events.map((event) => ({ ...event, expression: relinkedOptional(event.expression, link), missionTime: relinkedOptional(event.missionTime, link) })),
+        parameters: model.parameters.map((parameter) => ({ ...parameter, estimate: relinkedOptional(parameter.estimate, link), missionTime: relinkedOptional(parameter.missionTime, link) })),
+        ccfGroups: model.ccfGroups.map((group) => ({ ...group, total: relinkedOptional(group.total, link) })),
+      },
+    }),
+  };
 }
 
 function primaryHepQuantification(
@@ -801,4 +1002,12 @@ export {
   reconcileExampleEsqDependencyReferences,
   reconcileExampleSyDependencyOwnership,
   reconcileExampleEventTreeDependencyReferences,
+  reconcileExampleDaMissionTimeReferences,
+  reconcileExampleEsqMissionTimeReferences,
+  reconcileExampleSyMissionTimeReferences,
+  relinkExampleMissionTimes,
+  daMissionTimeExpressions,
+  esqMissionTimeExpressions,
+  syMissionTimeExpressions,
+  type ProjectMissionTimeSource,
 };

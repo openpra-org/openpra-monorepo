@@ -1,7 +1,8 @@
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { SensitivityStudy, BaseUncertaintyAnalysis, SuccessCriteriaId } from "../core/shared-patterns";
-import { BasicEvent, DistributionType } from "../core/events";
+import { BasicEvent } from "../core/events";
+import type { CcfFactorModel, UncertainExpression } from "../core/uncertainty";
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption, PlantRepresentationAccuracy } from "../core/documentation";
 import { Component, ComponentReference, ComponentTypeReference } from "../core/component";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
@@ -64,11 +65,18 @@ export interface SystemDiagram extends Unique {
   rotation?: SystemDiagramRotation;
 }
 
+export const NON_COMPONENT_FAILURE_MODES: readonly string[] = ["HUMAN_ERROR", "COMMON_CAUSE_FAILURE"];
+
+export function carriesUncertainExpression(failureMode: FailureModeType | string | undefined): boolean {
+  return typeof failureMode !== "string" || !NON_COMPONENT_FAILURE_MODES.includes(failureMode);
+}
+
 export interface SystemBasicEvent extends BasicEvent {
   code: string;
   componentReference?: ComponentReference;
   failureMode?: FailureModeType | string;
   failureModeSource?: SystemBasicEventFailureModeSource;
+  expression?: UncertainExpression;
   probability?: number;
   quantificationBasis?: FaultTreeBasicEventQuantificationBasis;
   repairModeled?: boolean;
@@ -205,8 +213,7 @@ export interface SystemDefinition extends Unique, Named {
   components?: Record<ComponentReference, SystemComponent>;
   successCriteriaIds: SuccessCriteriaId[];
   successCriterion?: string;
-  missionTimeHours?: number;
-  missionTimeRef?: string;
+  missionTime?: UncertainExpression;
   schematic?: {
     reference: string;
     description?: string;
@@ -334,28 +341,8 @@ export interface CommonCauseFailureGroup extends Unique, Named {
   scope: "INTRASYSTEM" | "INTERSYSTEM";
   affectedComponents: string[];
   affectedSystems: SystemReference[];
-  modelType: "BETA_FACTOR" | "MGL" | "ALPHA_FACTOR" | "PHI_FACTOR" | string;
-  modelSpecificParameters?: {
-    betaFactorParameters?: {
-      beta: number;
-      totalFailureProbability: number;
-    };
-    mglParameters?: {
-      beta: number;
-      gamma?: number;
-      delta?: number;
-      additionalFactors?: Record<string, number>;
-      totalFailureProbability: number;
-    };
-    alphaFactorParameters?: {
-      alphaFactors: Record<string, number>;
-      totalFailureProbability: number;
-    };
-    phiFactorParameters?: {
-      phiFactors: Record<string, number>;
-      totalFailureProbability: number;
-    };
-  };
+  factors: CcfFactorModel;
+  total: UncertainExpression;
   dataAnalysisCCFParameterRef?: string;
   members?: {
     basicEvents: {
@@ -447,13 +434,6 @@ export interface SimultaneousUnavailabilityEvent extends Unique {
 
 export interface SystemUncertaintyAnalysis extends BaseUncertaintyAnalysis {
   system: SystemReference;
-  parameterUncertainties: {
-    parameterId: string;
-    distributionType: DistributionType;
-    distributionParameters: Record<string, number>;
-    basis: string;
-    associatedComponent?: string;
-  }[];
   ccfUncertainties?: {
     uncertaintyId: string;
     ccfGroupId: string;

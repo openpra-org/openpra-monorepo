@@ -353,25 +353,8 @@ fn run_pre_event_tree_impl(
             eprintln!("Expanding CCF groups...");
         }
 
-        let mut base_probabilities = std::collections::HashMap::new();
-
-        for (id, ccf_group) in fault_tree.ccf_groups() {
-            if let Some(ref dist_str) = ccf_group.distribution {
-                if let Ok(base_prob) = dist_str.parse::<f64>() {
-                    base_probabilities.insert(id.clone(), base_prob);
-                } else if verbose {
-                    eprintln!(
-                        "Warning: Could not parse distribution value '{}' for CCF group '{}'",
-                        dist_str, id
-                    );
-                }
-            } else if verbose {
-                eprintln!("Warning: CCF group '{}' has no distribution value", id);
-            }
-        }
-
         fault_tree
-            .expand_ccf_groups(&base_probabilities)
+            .expand_ccf_groups()
             .map_err(|e| format!("Failed to expand CCF groups: {}", e))?;
 
         if verbose {
@@ -1198,53 +1181,42 @@ pub fn run_post_event_tree(
 
         if !has_distributions {
             eprintln!("\nWarning: No probability distributions defined for basic events; every sample returns the point estimate.");
-            eprintln!("Give a basic event a stochastic expression so uncertainty can propagate, for example:");
-            eprintln!("  <define-basic-event name=\"E1\"><lognormal-deviate><float value=\"0.01\"/><float value=\"3\"/></lognormal-deviate></define-basic-event>");
-            eprintln!("  <define-basic-event name=\"E2\"><normal-deviate><float value=\"0.01\"/><float value=\"0.002\"/></normal-deviate></define-basic-event>\n");
+            eprintln!("Give a basic event a law inside 0 to 1, or a formula over uncertain parameters, for example:");
+            eprintln!("  <define-basic-event name=\"E1\"><beta-deviate><float value=\"0.5\"/><float value=\"499.5\"/></beta-deviate></define-basic-event>");
+            eprintln!("  <define-parameter name=\"lambda\"><lognormal-deviate><float value=\"1e-5\"/><float value=\"3\"/><float value=\"0.95\"/></lognormal-deviate></define-parameter>
+");
         }
 
-        match praxis::analysis::uncertainty::propagate_uncertainty(
-            &fault_tree,
-            cli.num_trials as usize,
-            Some(cli.seed),
-        ) {
+        let plan = praxis::core::distribution_sampling::SamplingPlan {
+            method: praxis::core::distribution_sampling::SamplingMethod::MonteCarlo,
+            trials: cli.num_trials as usize,
+            seed: cli.seed,
+        };
+        match praxis::analysis::uncertainty::propagate_uncertainty(&fault_tree, &plan) {
             Ok(uncertainty_result) => {
                 if cli.print || verbose {
-                    println!("\n=== Uncertainty Quantification Results ===");
+                    println!("
+=== Uncertainty Quantification Results ===");
                     println!("Monte Carlo trials: {}", cli.num_trials);
                     println!("Random seed: {}", cli.seed);
                     println!();
                     println!("Top Event Probability Distribution:");
-                    println!("  Mean:              {:.6e}", uncertainty_result.mean());
-                    println!("  Standard Deviation: {:.6e}", uncertainty_result.sigma());
+                    println!("  Mean:                     {:.6e}", uncertainty_result.mean());
                     println!(
-                        "  Error Factor:       {:.4}",
-                        uncertainty_result.error_factor()
+                        "  Standard deviation:       {:.6e}",
+                        uncertainty_result.standard_deviation()
+                    );
+                    println!(
+                        "  Standard error of mean:   {:.6e}",
+                        uncertainty_result.standard_error()
                     );
                     println!();
-
-                    let (ci_lower, ci_upper) = uncertainty_result.confidence_interval();
-                    println!("95% Confidence Interval:");
-                    println!("  [{:.6e}, {:.6e}]", ci_lower, ci_upper);
-                    println!();
-
-                    let quantiles = uncertainty_result.quantiles();
-                    let quantile_labels = [5.0, 25.0, 50.0, 75.0, 95.0];
-                    println!("Quantile Distribution:");
-                    for (i, &value) in quantiles.iter().enumerate() {
-                        println!("  {:.1}%: {:.6e}", quantile_labels[i], value);
+                    println!("Quantiles:");
+                    for quantile in uncertainty_result.quantiles() {
+                        println!("  {:.1}%: {:.6e}", quantile.probability * 100.0, quantile.value);
                     }
-
-                    println!();
-                    println!("Uncertainty Analysis Guide:");
-                    println!("  Mean: Expected value of top event probability");
-                    println!("  Std Dev: Spread of uncertainty around the mean");
-                    println!("  Error Factor: Ratio of 95th to 5th percentile (EF=Q95/Q5)");
-                    println!(
-                        "  Confidence Intervals: Ranges containing true value with given confidence"
-                    );
-                    println!("  Quantiles: Percentile values of the distribution");
-                    println!("=========================================\n");
+                    println!("=========================================
+");
                 }
 
                 if verbose {
@@ -1404,9 +1376,7 @@ pub fn run_post_event_tree(
             println!("CCF Group: {}", id);
             println!("  Model: {:?}", ccf_group.model);
             println!("  Members: {}", ccf_group.members.join(", "));
-            if let Some(ref dist) = ccf_group.distribution {
-                println!("  Distribution: {}", dist);
-            }
+            println!("  Total: {:?}", ccf_group.total);
 
             if verbosity_level >= 2 {
                 let ccf_prefix = format!("{}-", id);

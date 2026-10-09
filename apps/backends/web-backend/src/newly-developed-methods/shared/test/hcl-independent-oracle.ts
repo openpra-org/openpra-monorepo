@@ -3,6 +3,9 @@ import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-deve
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { EventSequenceAnalysis, EventTree } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
+import { DataAnalysisSchema } from "interfaces-mef-types/zod/da/data-analysis";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { stripNulls } from "../../../pos-workbooks/mef-normalize";
 import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import type { WorkbookBayesianNetwork, WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
 import type {
@@ -11,9 +14,6 @@ import type {
 } from "interfaces-shared-types/newly-developed-methods/shared";
 import type { PraetorAnalysisClient } from "../praetor-analysis.client";
 
-/** Test-only counterparts of main's tests/hcl_equivalence.rs: deterministic
- * unified BN and bounded full-state enumeration. No production FT/ET adapter,
- * BDD, HCL traversal or result-derived sequence formula is used here. */
 type Observation = { nodeId: string; stateId: string };
 type Top = WorkbookModelAddress & { entityId: string };
 type Condition = { top: Top; failure: boolean };
@@ -147,6 +147,9 @@ class UnifiedNetwork {
             return values.every(Boolean);
           case "OR":
             return values.some(Boolean);
+          case "XOR":
+            assert.equal(values.length, 2);
+            return values[0] !== values[1];
           case "NOT":
             assert.equal(values.length, 1);
             return !values[0];
@@ -161,8 +164,6 @@ class UnifiedNetwork {
   }
 
   sequence(conditions: Condition[]): string {
-    // Associative binary ANDs keep deterministic CPTs bounded. This changes
-    // only the verification model, never the production sequence BDD.
     const literals = conditions.map((row) => {
       const top = this.top(row.top);
       return row.failure ? top : this.binary("success", [top], ([state]) => state === "false");
@@ -263,7 +264,8 @@ export class WorkbookOracle {
     const event = this.systems(workbookId).systemBasicEvents.find((row) => row.uuid === id)!;
     assert.ok(event, `Missing original event ${id}`);
     const ref = event.controlledDataSource;
-    let value = event.probability;
+    let value = event.expression === undefined ? event.probability : this.pointOf(event.expression);
+    assert.ok(event.expression === undefined || value !== undefined, "This oracle reads only point probabilities and DA point estimates");
     if (ref?.referenceType === "WORKBOOK_PARAMETER") {
       const parameter = (this.mef(ref.workbookId) as unknown as DataAnalysis).parameters.find(
         (row) => row.uuid === ref.entityId,
@@ -280,6 +282,26 @@ export class WorkbookOracle {
       value = quantification.meanHep ?? quantification.pointEstimateHep;
     }
     assert.ok(typeof value === "number" && value >= 0 && value <= 1, "Invalid oracle event probability");
+    return value;
+  }
+  private resolved(expression: UncertainExpression): UncertainExpression | undefined {
+    if (expression.node !== "PARAMETER") return expression;
+    const { workbookId, entityId } = expression.reference;
+    const estimate = DataAnalysisSchema.parse(stripNulls(this.mef(workbookId))).parameters.find((row) => row.uuid === entityId)?.estimate;
+    return estimate === undefined ? undefined : this.resolved(estimate);
+  }
+  private pointOf(expression: UncertainExpression): number | undefined {
+    const resolved = this.resolved(expression);
+    if (resolved?.node !== "VALUE") return undefined;
+    return resolved.value.law.family === "POINT" ? resolved.value.law.value : undefined;
+  }
+  private annualFrequency(tree: EventTree): number {
+    const frequency = tree.initiatingEventFrequency;
+    assert.ok(frequency, "Missing source initiating-event frequency");
+    const resolved = this.resolved(frequency.expression);
+    assert.ok(resolved?.node === "VALUE" && resolved.value.unit === "PER_YEAR", "This oracle reads only frequencies per year");
+    const value = this.pointOf(resolved);
+    assert.ok(value !== undefined && value >= 0, "This oracle reads only point frequencies");
     return value;
   }
   sequences(reference: WorkbookModelAddress): OracleSequence[] {
@@ -308,7 +330,7 @@ export class WorkbookOracle {
         const endStateId = sequence.endState === undefined ? undefined : tree.endStateIds?.[sequence.endState];
         assert.ok(endStateId);
         return [
-          { chain: next, conditions: combined, endStateId, initiatingFrequency: root.initiatingEventFrequency!.value },
+          { chain: next, conditions: combined, endStateId, initiatingFrequency: this.annualFrequency(root) },
         ];
       });
     };
@@ -364,5 +386,48 @@ export class WorkbookOracle {
   enumerate(sequence: OracleSequence, observations: Observation[] = []): number {
     const bn = new UnifiedNetwork(this);
     return bn.enumerate(bn.sequence(sequence.conditions), this.evidence(observations));
+  }
+}
+
+const Z_LIMIT = 5;
+
+export interface PopulationSummary {
+  sampleCount: number;
+  mean: number;
+  standardDeviation: number;
+  minimum: number;
+  percentile05: number;
+  median: number;
+  percentile95: number;
+  maximum: number;
+}
+
+export function assertPopulation(summary: PopulationSummary, reference: number[], label: string): void {
+  const n1 = summary.sampleCount;
+  const n2 = reference.length;
+  assert.ok(n2 > 1, `${label}: the reference needs samples`);
+  for (const value of [summary.mean, summary.standardDeviation, summary.minimum, summary.percentile05, summary.median, summary.percentile95, summary.maximum]) {
+    assert.ok(Number.isFinite(value), `${label}: nonfinite summary`);
+  }
+  assert.ok(
+    summary.minimum <= summary.percentile05 && summary.percentile05 <= summary.median
+      && summary.median <= summary.percentile95 && summary.percentile95 <= summary.maximum,
+    `${label}: summary order`,
+  );
+  const mean = reference.reduce((sum, value) => sum + value, 0) / n2;
+  const variance = reference.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (n2 - 1);
+  const error = Math.sqrt(summary.standardDeviation ** 2 / n1 + variance / n2);
+  assert.ok(
+    Math.abs(summary.mean - mean) <= Z_LIMIT * error + 1e-12 * Math.max(Math.abs(mean), 1e-300),
+    `${label}: mean ${summary.mean} against reference ${mean}, standard error ${error}`,
+  );
+  for (const [probability, value] of [[0.05, summary.percentile05], [0.5, summary.median], [0.95, summary.percentile95]] as const) {
+    const below = reference.filter((sample) => sample < value).length / n2;
+    const atOrBelow = reference.filter((sample) => sample <= value).length / n2;
+    const tolerance = Z_LIMIT * Math.sqrt(probability * (1 - probability) * (1 / n1 + 1 / n2)) + 1 / n1 + 1 / n2;
+    assert.ok(
+      probability >= below - tolerance && probability <= atOrBelow + tolerance,
+      `${label}: reference fraction around the ${probability} quantile ${value} is ${below} to ${atOrBelow}`,
+    );
   }
 }

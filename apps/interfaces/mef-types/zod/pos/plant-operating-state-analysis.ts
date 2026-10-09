@@ -219,6 +219,7 @@ export const PlantOperatingStateSchema = z.object({
   meanTimeAfterShutdownHours: z.number().optional(),
   durationAndCycleTimingBasis: z.string().optional(),
   meanEntryFrequency: FrequencyValueSchema,
+  outageSource: z.object({ workbookId: z.string() }).optional(),
   decayHeatLevelDefined: z.boolean(),
   decayHeatBasis: z.string().optional(),
   timeVaryingConditions: z.array(TimeVaryingConditionSchema).optional(),

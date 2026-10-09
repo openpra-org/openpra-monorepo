@@ -1,0 +1,26 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PROBABILITY",
+        "law": {
+          "family": "POSTERIOR",
+          "prior": null,
+          "evidence": [
+            {
+              "likelihood": "POISSON",
+              "failures": 1,
+              "exposure": 100
+            }
+          ]
+        }
+      }
+    }
+  }
+]

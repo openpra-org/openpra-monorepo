@@ -1,5 +1,6 @@
 import { Unique, Named } from "../core/meta";
-import { InitiatingEvent, Frequency, FrequencyWithDistribution } from "../core/events";
+import { InitiatingEvent, type UncertainFrequency } from "../core/events";
+import type { UncertainExpression } from "../core/uncertainty";
 import { ImportanceLevel, SensitivityStudy, ScreeningStatus, SuccessCriteriaId } from "../core/shared-patterns";
 import { PreOperationalAssumption, BaseModelUncertaintyDocumentation, PlantRepresentationAccuracy } from "../core/documentation";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
@@ -11,6 +12,7 @@ import { HazardOperabilityStudy } from "../cross-cutting/methods/hazop";
 import { ProcessHazardAnalysis } from "../cross-cutting/methods/process-hazard-analysis";
 import { OperatingExperienceReview } from "../cross-cutting/methods/operating-experience-review";
 import { GenericInitiatorCatalogue } from "../cross-cutting/methods/generic-initiator-catalogue";
+import type { WorkbookParameterReference } from "../modeling/references";
 
 export type PlantOperatingStateReference = string;
 export type SafetyFunctionReference = string;
@@ -152,7 +154,8 @@ export interface InitiatingEventGroup extends Unique, Named {
   challengedSafetyFunctions: SafetyFunctionReference[];
   applicableStates: PlantOperatingStateReference[];
   affectedReactorOrSourceCombinations?: string[];
-  meanFrequency?: Frequency | FrequencyWithDistribution;
+  frequency?: UncertainFrequency;
+  controlledDataSource?: WorkbookParameterReference;
   riskImportance?: ImportanceLevel;
   implementsSrs: SRReference[];
 }
@@ -170,8 +173,6 @@ export type FrequencyDataPedigree =
   | "TECHNOLOGY_INDEPENDENT"
   | "OTHER_INDUSTRY"
   | "TEST_DATA";
-
-export type FrequencyDistributionFamily = "POINT" | "GAMMA" | "LOGNORMAL" | "BETA";
 
 export interface FrequencyFaultTreeParentLink {
   inputId: string;
@@ -204,6 +205,7 @@ export interface FrequencyFaultTreeNode {
   /** Stores an unreferenced shared basic event without inventing a leaf reference. */
   catalogueOnly?: boolean;
   probability?: number;
+  expression?: UncertainExpression;
   houseState?: boolean;
   transferTarget?: FrequencyFaultTreeTransferTarget;
 }
@@ -219,15 +221,14 @@ export interface FrequencyDataSource {
   exposureModuleYears?: number;
   priorMean?: number;
   priorWeightPseudoEvents?: number;
-  distributionFamily?: FrequencyDistributionFamily;
-  distributionParameters?: number[];
-  faultTreeTopMean?: number;
+  estimate?: UncertainExpression;
+  faultTreeTop?: UncertainExpression;
   faultTree?: FrequencyFaultTreeNode[];
 }
 
 export interface InitiatingEventFrequencyQuantification {
   initiatorOrGroupId: string;
-  meanFrequency: Frequency | FrequencyWithDistribution;
+  frequency?: UncertainFrequency;
   basis: FrequencyQuantificationBasis;
   plantCalendarYearBasis: boolean;
   posTimeFractionApplied: boolean;

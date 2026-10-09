@@ -3,6 +3,7 @@ import { EndState } from "interfaces-mef-types/core/events";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type SRReference, type SRConformance, type HlrId, type PlantStage } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 
 const NOW = "2026-04-22T12:00:00.000Z";
 const CREATED = "2026-04-02T09:00:00.000Z";
@@ -12,6 +13,10 @@ const HLR_PATHS: Record<string, string[]> = {
   B: ["engineeringAnalyses"],
   C: ["documentation"],
 };
+
+function hours(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value } } };
+}
 
 function srs(...codes: string[]): SRReference[] {
   return codes.map((code) => ({ sr: code, hlr: code.charAt(3) as HlrId }));
@@ -509,17 +514,17 @@ export const SC_ANALYSIS: SuccessCriteriaDevelopment = {
     },
   ],
   missionTimes: [
-    { uuid: "MT-LOHS", eventSequenceReference: "ESL-2", missionTimeHours: 96, basis: "DRACS reaches a safe stable state within 96 h (TF-CALC-09, v3).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-09"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
-    { uuid: "MT-LOFA", eventSequenceReference: "ESF-1", missionTimeHours: 24, basis: "Natural circulation stabilizes within 18 h (TF-CALC-12).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-12"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
-    { uuid: "MT-RCB", eventSequenceReference: "ESR-4", missionTimeHours: 72, basis: "Guard-vessel path misses a stable state within 24 h.", safeStableStateAchievedWithinMissionTime: false, treatmentWhenNotAchieved: "EXTENDED_MISSION_TIME", treatmentJustification: "Extended to 72 h and re-run, not written off (CC-II).", analysisReferences: ["TF-CALC-14"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
-    { uuid: "MT-SEIS", eventSequenceReference: "ESS-1", missionTimeHours: 72, basis: "Passive cooldown reaches a safe stable state within 48 h (ST-CALC-21).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["ST-CALC-21"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
-    { uuid: "MT-FIRE", eventSequenceReference: "ESI-1", missionTimeHours: 24, basis: "Suppression timing not yet confirmed within 24 h.", safeStableStateAchievedWithinMissionTime: false, treatmentWhenNotAchieved: "ADDITIONAL_EVALUATION", treatmentJustification: "Further evaluation open, pending F-PRA suppression timing (CC-II).", analysisReferences: ["TF-CALC-17"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
+    { uuid: "MT-LOHS", eventSequenceReference: "ESL-2", missionTime: hours(96), basis: "DRACS reaches a safe stable state within 96 h (TF-CALC-09, v3).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-09"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
+    { uuid: "MT-LOFA", eventSequenceReference: "ESF-1", missionTime: hours(24), basis: "Natural circulation stabilizes within 18 h (TF-CALC-12).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-12"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
+    { uuid: "MT-RCB", eventSequenceReference: "ESR-4", missionTime: hours(72), basis: "Guard-vessel path misses a stable state within 24 h.", safeStableStateAchievedWithinMissionTime: false, treatmentWhenNotAchieved: "EXTENDED_MISSION_TIME", treatmentJustification: "Extended to 72 h and re-run, not written off (CC-II).", analysisReferences: ["TF-CALC-14"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
+    { uuid: "MT-SEIS", eventSequenceReference: "ESS-1", missionTime: hours(72), basis: "Passive cooldown reaches a safe stable state within 48 h (ST-CALC-21).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["ST-CALC-21"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
+    { uuid: "MT-FIRE", eventSequenceReference: "ESI-1", missionTime: hours(24), basis: "Suppression timing not yet confirmed within 24 h.", safeStableStateAchievedWithinMissionTime: false, treatmentWhenNotAchieved: "ADDITIONAL_EVALUATION", treatmentJustification: "Further evaluation open, pending F-PRA suppression timing (CC-II).", analysisReferences: ["TF-CALC-17"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
   ],
   componentMissionTimes: [
-    { uuid: "CMT-1", componentId: "Class-1E DC battery", missionTimeHours: 24, eventSequenceReference: "ESL-2", analysisReferences: ["TF-CALC-09"], implementsSrs: srs("SC-A8") },
-    { uuid: "CMT-2", componentId: "DRACS air damper actuator", missionTimeHours: 24, eventSequenceReference: "ESL-2", analysisReferences: ["TF-CALC-09"], implementsSrs: srs("SC-A8") },
-    { uuid: "CMT-3", componentId: "Cover-gas clean-up blower", missionTimeHours: 8, eventSequenceReference: "ESR-4", shorterMissionTimeJustification: "8 h duty against a 72 h sequence, justified by aerosol settling.", analysisReferences: ["ST-CALC-05"], implementsSrs: srs("SC-A8") },
-    { uuid: "CMT-4", componentId: "Leak-detection instrument", missionTimeHours: 72, eventSequenceReference: "ESR-4", analysisReferences: ["TF-CALC-14"], implementsSrs: srs("SC-A8") },
+    { uuid: "CMT-1", componentId: "Class-1E DC battery", missionTime: hours(24), eventSequenceReference: "ESL-2", analysisReferences: ["TF-CALC-09"], implementsSrs: srs("SC-A8") },
+    { uuid: "CMT-2", componentId: "DRACS air damper actuator", missionTime: hours(24), eventSequenceReference: "ESL-2", analysisReferences: ["TF-CALC-09"], implementsSrs: srs("SC-A8") },
+    { uuid: "CMT-3", componentId: "Cover-gas clean-up blower", missionTime: hours(8), eventSequenceReference: "ESR-4", shorterMissionTimeJustification: "8 h duty against a 72 h sequence, justified by aerosol settling.", analysisReferences: ["ST-CALC-05"], implementsSrs: srs("SC-A8") },
+    { uuid: "CMT-4", componentId: "Leak-detection instrument", missionTime: hours(72), eventSequenceReference: "ESR-4", analysisReferences: ["TF-CALC-14"], implementsSrs: srs("SC-A8") },
   ],
   engineeringAnalyses: [
     { uuid: "TF-CALC-06", analysisId: "TF-CALC-06", usesRealisticMethods: true, analysisType: AnalysisType.THERMAL_HYDRAULIC, description: "Cladding-limit timing, loss of heat sink", computerCode: "SAS4A/SASSYS-1", codeVersion: "5.5", validationVerificationBasis: "V&V per Part II Subpart 2.7, benchmarked to EBR-II SHRT-45R.", applicabilityToPlantConditions: "Validated for SFR loss-of-flow and heat-sink transients.", keyParametersAndResults: {}, reasonablenessReview: { performed: true, method: "Independent reasonableness review", conclusion: "Results judged reasonable and acceptable." }, supportedSuccessCriteria: ["SC-DHR-LOHS", "SC-DHR-LOFA"], implementsSrs: srs("SC-B1", "SC-B4", "SC-B8") },

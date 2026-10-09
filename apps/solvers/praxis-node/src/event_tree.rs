@@ -9,23 +9,27 @@ use praxis::analysis::event_tree_quantification::{
 use praxis::core::event_tree::{
     Branch, BranchTarget, EventTree, Fork, FunctionalEvent, Path, Sequence,
 };
+use praxis::core::distribution::{UncertainExpression, UncertainUnit};
+use praxis::core::distribution_sampling::{SamplingPlan, TimeBase, UncertaintyProgram};
 use praxis::core::model::Model;
+use praxis::expression::Expr;
 use praxis::hcl::{HclEvidenceSpec, HclUncertaintySummary};
 use praxis::quantitative::{
-    annualize_frequency, prepare_hazard_weights, AnnualizationConvention, FrequencyUnit,
-    HazardWeightSummary,
+    prepare_hazard_weights, AnnualizationConvention, FrequencyUnit, HazardWeightSummary,
 };
 use praxis::{PraxisError, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::fault_tree::build_fault_tree_for_model;
+use crate::fault_tree::{build_expanded_fault_tree_for_model, build_fault_tree_for_model};
 use crate::hybrid_causal_logic::build_event_tree_context;
 use crate::transport::SolverRequest;
 
 const EVENT_TREE_METHOD: &str = "EVENT_TREE";
 
+mod cut_sets;
 mod linked;
+mod measures;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -40,6 +44,18 @@ struct EventTreeExecuteRequest {
     requested_by: String,
     evidence_batch: Option<Vec<EventTreeEvidenceRow>>,
     hazard_convolution: Option<HazardConvolutionRequest>,
+    #[serde(default)]
+    expand_ccf: bool,
+    #[serde(default)]
+    cut_sets: Option<cut_sets::CutSetsInput>,
+    #[serde(default)]
+    sequence_families: HashMap<String, String>,
+    #[serde(default)]
+    importance: Option<measures::ImportanceInput>,
+    #[serde(default)]
+    sampling: Option<measures::SamplingInput>,
+    #[serde(default)]
+    overrides: Option<measures::OverridesInput>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -103,12 +119,65 @@ struct InitiatingEventReference {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct InitiatingEventFrequency {
-    value: f64,
-    #[serde(default)]
-    unit: FrequencyUnit,
+    expression: UncertainExpression,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     annualization: Option<AnnualizationConvention>,
+}
+
+struct Initiator {
+    program: UncertaintyProgram,
+    target: Expr,
+}
+
+fn frequency_error(value: f64, place: String) -> PraxisError {
+    PraxisError::Settings(format!(
+        "the initiating event frequency is {value} in {place}, not a finite value of at least 0"
+    ))
+}
+
+impl Initiator {
+    fn new(
+        request: &SolverRequest,
+        input: &InitiatingEventFrequency,
+        annualization: AnnualizationConvention,
+    ) -> Result<(Initiator, f64)> {
+        if !annualization.hours_per_year.is_finite() || annualization.hours_per_year <= 0.0 {
+            return Err(PraxisError::Settings(
+                "annualization hours must be finite and greater than zero".to_string(),
+            ));
+        }
+        let base = TimeBase::Years {
+            hours_per_year: annualization.hours_per_year,
+        };
+        let (table, vectors) = crate::fault_tree::catalogue_tables(request)?;
+        let program = UncertaintyProgram::from_table_in(&table, base)?.with_vectors(&vectors)?;
+        let target = UncertaintyProgram::target_in(
+            &table,
+            &input.expression,
+            "initiator",
+            UncertainUnit::PerYear,
+            base,
+        )?;
+        let point = program.point(&target)?;
+        if !point.is_finite() || point < 0.0 {
+            return Err(frequency_error(point, "the point value".to_string()));
+        }
+        Ok((Initiator { program, target }, point))
+    }
+
+    fn sample(&self, plan: &SamplingPlan) -> Result<Vec<f64>> {
+        let column = self
+            .program
+            .sample(&[&self.target], plan)?
+            .pop()
+            .ok_or_else(|| PraxisError::Logic("the initiating event frequency was not sampled".to_string()))?;
+        if let Some((trial, value)) = column.iter().enumerate().find(|(_, value)| **value < 0.0) {
+            return Err(frequency_error(*value, format!("trial {}", trial + 1)));
+        }
+        Ok(column)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -221,6 +290,12 @@ struct EventTreeAdapter {
     hcl_context: Option<EventTreeHclContext>,
     evidence_batch: Option<Vec<EventTreeEvidenceRow>>,
     hazard_convolution: Option<HazardConvolutionRequest>,
+    cut_sets: Option<cut_sets::CutSetsInput>,
+    sequence_families: HashMap<String, String>,
+    expand_ccf: bool,
+    importance: Option<measures::ImportanceInput>,
+    sampling: Option<measures::SamplingInput>,
+    initiator: Initiator,
 }
 
 fn serialization_error(context: &str, error: impl std::fmt::Display) -> PraxisError {
@@ -280,6 +355,49 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
             "Uncertainty execution requires HCL mode.".into(),
         ));
     }
+    if execute.expand_ccf && matches!(execute.mode, EventTreeExecutionMode::HybridCausalLogic) {
+        return Err(PraxisError::Hcl(
+            "Common-cause expansion is not available for HCL event-tree runs.".into(),
+        ));
+    }
+    if let Some(cut_sets) = &execute.cut_sets {
+        if matches!(execute.mode, EventTreeExecutionMode::HybridCausalLogic)
+            || execute.evidence_batch.is_some()
+            || execute.hazard_convolution.is_some()
+        {
+            return Err(PraxisError::Settings(
+                "Cut sets are available for independent event-tree runs without evidence batches or hazard convolution."
+                    .into(),
+            ));
+        }
+        cut_sets.validate()?;
+    }
+    if execute.importance.is_some() || execute.sampling.is_some() {
+        if matches!(execute.mode, EventTreeExecutionMode::HybridCausalLogic)
+            || execute.evidence_batch.is_some()
+            || execute.hazard_convolution.is_some()
+            || execute.cut_sets.is_some()
+        {
+            return Err(PraxisError::Settings(
+                "Importance and sampling are available for exact independent event-tree runs without cut sets, evidence batches or hazard convolution."
+                    .into(),
+            ));
+        }
+        if let Some(importance) = &execute.importance {
+            importance.validate()?;
+        }
+        if let Some(sampling) = &execute.sampling {
+            sampling.validate()?;
+        }
+    }
+    if let Some(overrides) = &execute.overrides {
+        if matches!(execute.mode, EventTreeExecutionMode::HybridCausalLogic) {
+            return Err(PraxisError::Settings(
+                "Probability overrides are available for independent event-tree runs.".into(),
+            ));
+        }
+        overrides.validate()?;
+    }
     let event_tree_snapshots = parse_event_tree_snapshots(request)?;
     let snapshot = event_tree_snapshots
         .get(&execute.model_id)
@@ -306,11 +424,8 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
         .initiating_event_frequency
         .annualization
         .unwrap_or_default();
-    let annualized_initiating_event_frequency = annualize_frequency(
-        snapshot.initiating_event_frequency.value,
-        snapshot.initiating_event_frequency.unit,
-        annualization,
-    )?;
+    let (initiator, annualized_initiating_event_frequency) =
+        Initiator::new(request, &snapshot.initiating_event_frequency, annualization)?;
     if snapshot.initiating_event.target.model_id.trim().is_empty()
         || snapshot.initiating_event.target.entity_id.trim().is_empty()
     {
@@ -323,7 +438,14 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
     let mut model = Model::new(format!("event-tree-{}", snapshot.id))?;
     let added_fault_trees: HashSet<String> = linked.fault_trees.keys().cloned().collect();
     for (id, top) in &linked.fault_trees {
-        let adapter = build_fault_tree_for_model(request, id)?;
+        let sampled = execute.sampling.is_some()
+            || (matches!(execute.mode, EventTreeExecutionMode::HybridCausalLogic)
+                && execute.calculation_type == HclCalculationType::Uncertainty);
+        let adapter = if execute.expand_ccf {
+            build_expanded_fault_tree_for_model(request, id, sampled)?
+        } else {
+            build_fault_tree_for_model(request, id, sampled)?
+        };
         if &adapter.top_gate_id != top {
             return Err(PraxisError::Logic(format!(
                 "fault tree '{id}' uses top gate '{}' instead of '{top}'",
@@ -331,6 +453,9 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
             )));
         }
         model.add_fault_tree(adapter.fault_tree)?;
+    }
+    if let Some(overrides) = &execute.overrides {
+        overrides.apply(&mut model)?;
     }
 
     let hcl_context = match execute.mode {
@@ -379,6 +504,12 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
         hcl_context,
         evidence_batch: execute.evidence_batch,
         hazard_convolution: execute.hazard_convolution,
+        cut_sets: execute.cut_sets,
+        sequence_families: execute.sequence_families,
+        expand_ccf: execute.expand_ccf,
+        importance: execute.importance,
+        sampling: execute.sampling,
+        initiator,
     })
 }
 
@@ -467,6 +598,12 @@ pub(crate) fn preflight(request: &SolverRequest, executing: bool) -> Result<Valu
 
 pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
     let adapter = build_adapter(request)?;
+    if adapter.importance.is_some() || adapter.sampling.is_some() {
+        return measures::execute(&adapter, adapter.importance.as_ref(), adapter.sampling.as_ref());
+    }
+    if let Some(settings) = &adapter.cut_sets {
+        return cut_sets::execute(&adapter, settings);
+    }
     if let Some(rows) = &adapter.evidence_batch {
         validate_evidence_rows(rows)?;
         if adapter.hazard_convolution.is_some() {
@@ -499,6 +636,15 @@ fn event_tree_result_json(
     let mut aggregate_by_end_state: HashMap<String, f64> = HashMap::new();
     let mut aggregate_samples_by_end_state: HashMap<String, Vec<f64>> = HashMap::new();
     let mut sequences = Vec::with_capacity(adapter.snapshot.sequences.len());
+    let sampled_plan = adapter
+        .hcl_context
+        .as_ref()
+        .and_then(|context| context.sampling_plan())
+        .filter(|_| probabilities.iter().any(|result| result.uncertainty_samples.is_some()));
+    let initiator_samples = match sampled_plan {
+        Some(plan) => Some(adapter.initiator.sample(&plan)?),
+        None => None,
+    };
     for sequence in &adapter.snapshot.sequences {
         let quantified = probability_by_sequence
             .get(sequence.id.as_str())
@@ -519,12 +665,25 @@ fn event_tree_result_json(
             let samples = quantified.uncertainty_samples.as_ref().ok_or_else(|| {
                 PraxisError::Hcl("event-tree uncertainty is missing its samples".to_string())
             })?;
-            // Apply the frequency conversion to each paired sample before
-            // calling HCL_MH's summary routine; scaling summaries rounds differently.
-            let annual_samples: Vec<f64> = samples
-                .iter()
-                .map(|sample| sample * adapter.initiating_event_frequency)
-                .collect();
+            let annual_samples: Vec<f64> = match &initiator_samples {
+                Some(frequencies) => {
+                    if frequencies.len() != samples.len() {
+                        return Err(PraxisError::Hcl(
+                            "event-tree uncertainty pairs a different number of frequency samples"
+                                .to_string(),
+                        ));
+                    }
+                    samples
+                        .iter()
+                        .zip(frequencies)
+                        .map(|(sample, frequency)| sample * frequency)
+                        .collect()
+                }
+                None => samples
+                    .iter()
+                    .map(|sample| sample * adapter.initiating_event_frequency)
+                    .collect(),
+            };
             let annual_summary =
                 HclUncertaintySummary::from_samples(&annual_samples, summary.seed)?;
             let aggregate = aggregate_samples_by_end_state
@@ -599,10 +758,7 @@ fn event_tree_result_json(
         "sequences": sequences,
         "endStateAggregates": end_state_aggregates,
         "frequencySemantics": {
-            "initiatingEventFrequency": {
-                "value": adapter.initiating_event_frequency_input.value,
-                "unit": adapter.initiating_event_frequency_input.unit
-            },
+            "initiatingEventFrequency": adapter.initiating_event_frequency_input,
             "annualization": adapter.annualization,
             "annualizedInitiatingEventFrequency": {
                 "value": adapter.initiating_event_frequency,
@@ -641,7 +797,7 @@ fn execute_batch(adapter: &EventTreeAdapter, rows: &[EventTreeEvidenceRow]) -> R
             &evidence,
             &assignments,
         )?;
-        let integration = event_tree_hazard_convolution_json(rows, hazard, &weighted, &adapter)?;
+        let integration = event_tree_hazard_convolution_json(rows, hazard, &weighted, adapter)?;
         (weighted.quantification, Some(integration))
     } else {
         (
@@ -665,7 +821,7 @@ fn execute_batch(adapter: &EventTreeAdapter, rows: &[EventTreeEvidenceRow]) -> R
         .enumerate()
         .map(|(index, row)| match evaluated.get(&index) {
             Some(probabilities) => {
-                event_tree_result_json(&adapter, probabilities, Some(&row.scenario_id))
+                event_tree_result_json(adapter, probabilities, Some(&row.scenario_id))
             }
             None => Ok(json!({"scenarioId": row.scenario_id, "status": "skipped_zero_weight"})),
         })
@@ -948,7 +1104,7 @@ mod tests {
             "modelSnapshots": [fault_tree("FT", "TOP", "REF"), {
                 "id":"ET","methodType":"EVENT_TREE","revision":1,
                 "initiatingEvent":{"target":{"modelId":"IE","entityId":"IE"}},
-                "initiatingEventFrequency":{"value":1.0},
+                "initiatingEventFrequency":{"expression":crate::fault_tree::tests::per_year(1.0)},
                 "functionalEvents":[{"id":"FE","name":"System","order":0}],
                 "functionalEventFaultTreeLinks":[{"functionalEventId":"FE","faultTreeTopGate":{"modelId":"FT","entityId":"TOP"}}],
                 "endStates":[{"id":"ALL"}],
@@ -957,7 +1113,7 @@ mod tests {
                     {"id":"S1","path":[{"functionalEventId":"FE","outcome":"SUCCESS"}],"result":{"kind":"END_STATE","endStateId":"ALL"}}
                 ]
             }],
-            "resources":{"faultTreeBasicEventCatalogue":{"projectId":"P","basicEvents":[{"id":"SHARED","probability":{"value":0.2}}]}}
+            "resources":{"faultTreeBasicEventCatalogue":{"projectId":"P","basicEvents":[crate::fault_tree::tests::point_event("SHARED", 0.2)]}}
         }).to_string()).unwrap();
         let mut adapter = super::build_adapter(&request).unwrap();
         for case in reference["cases"].as_array().unwrap() {
@@ -1043,7 +1199,7 @@ mod tests {
                         "methodType": "EVENT_TREE",
                         "revision": 2,
                         "initiatingEvent": { "target": { "modelId": "IE", "entityId": "IE-1" } },
-                        "initiatingEventFrequency": { "value": 0.01 },
+                        "initiatingEventFrequency": { "expression": crate::fault_tree::tests::per_year(0.01) },
                         "functionalEvents": [
                             { "id": "FE-A", "name": "A", "order": 0 },
                             { "id": "FE-B", "name": "B", "order": 1 }
@@ -1064,7 +1220,7 @@ mod tests {
                 "resources": {
                     "faultTreeBasicEventCatalogue": {
                         "projectId": "P",
-                        "basicEvents": [{ "id": "SHARED", "probability": { "value": 0.2 } }]
+                        "basicEvents": [crate::fault_tree::tests::point_event("SHARED", 0.2)]
                     }
                 }
             })
@@ -1124,7 +1280,7 @@ mod tests {
                     "methodType": "EVENT_TREE",
                     "revision": 1,
                     "initiatingEvent": { "target": { "modelId": "IE", "entityId": "IE-1" } },
-                    "initiatingEventFrequency": { "value": 0.01 },
+                    "initiatingEventFrequency": { "expression": crate::fault_tree::tests::per_year(0.01) },
                     "functionalEvents": [{ "id": "FE-A", "name": "A", "order": 0 }],
                     "functionalEventFaultTreeLinks": [],
                     "endStates": [{ "id": "SAFE" }],
@@ -1172,8 +1328,7 @@ mod tests {
                     "revision": 1,
                     "initiatingEvent": { "target": { "modelId": "IE", "entityId": "IE-1" } },
                     "initiatingEventFrequency": {
-                        "value": 2.0e-5,
-                        "unit": "PER_HOUR",
+                        "expression": crate::fault_tree::tests::value("PER_HOUR", json!({ "family": "POINT", "value": 2.0e-5 })),
                         "annualization": { "basis": "CRITICAL_YEAR", "hoursPerYear": 7000.0 }
                     },
                     "functionalEvents": [{ "id": "FE-A", "name": "A", "order": 0 }],
@@ -1196,8 +1351,12 @@ mod tests {
         let result = execute(&request).unwrap();
         assert!((result["sequences"][0]["annualFrequency"].as_f64().unwrap() - 0.14).abs() < 1e-15);
         assert_eq!(
-            result["frequencySemantics"]["initiatingEventFrequency"]["unit"],
+            result["frequencySemantics"]["initiatingEventFrequency"]["expression"]["value"]["unit"],
             "PER_HOUR"
+        );
+        assert_eq!(
+            result["frequencySemantics"]["annualizedInitiatingEventFrequency"]["value"],
+            result["sequences"][0]["annualFrequency"]
         );
         assert_eq!(
             result["frequencySemantics"]["annualization"]["basis"],
@@ -1220,7 +1379,7 @@ mod tests {
             snapshots.push(json!({
                 "id": format!("ET-{i}"), "methodType": "EVENT_TREE", "revision": 1,
                 "initiatingEvent": {"target": {"modelId": "IE", "entityId": "IE-1"}},
-                "initiatingEventFrequency": {"value": 0.01},
+                "initiatingEventFrequency": {"expression": crate::fault_tree::tests::per_year(0.01)},
                 "functionalEvents": [{"id": format!("FE-{i}"), "name": event, "order": 0}],
                 "functionalEventFaultTreeLinks": [{"functionalEventId": format!("FE-{i}"),
                     "faultTreeTopGate": {"modelId": format!("FT-{i}"), "entityId": format!("TOP-{i}")}}],
@@ -1240,7 +1399,7 @@ mod tests {
                 "mode": "INDEPENDENT", "requestedBy": "analyst"},
             "modelSnapshots": snapshots,
             "resources": {"faultTreeBasicEventCatalogue": {"projectId": "P", "basicEvents": catalogue.into_iter()
-                .map(|(id, probability)| json!({"id": id, "probability": {"value": probability}})).collect::<Vec<_>>()}}
+                .map(|(id, probability)| crate::fault_tree::tests::point_event(id, probability)).collect::<Vec<_>>()}}
         }).to_string()).unwrap()
     }
 
@@ -1431,6 +1590,137 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("transfer loop"));
+    }
+
+    #[test]
+    fn expands_common_cause_groups_the_same_way_in_every_linked_fault_tree() {
+        let pump = |id: &str, event: &str| json!({ "id": id, "kind": "BASIC_EVENT_REFERENCE", "basicEventId": event });
+        let request = |expand: bool| {
+            SolverRequest::from_json(
+                &json!({
+                    "schemaVersion": "1.0.0",
+                    "request": {
+                        "schemaVersion": "1.0.0",
+                        "methodType": "EVENT_TREE",
+                        "modelId": "ET",
+                        "revision": 2,
+                        "mode": "INDEPENDENT",
+                        "requestedBy": "analyst",
+                        "expandCcf": expand
+                    },
+                    "modelSnapshots": [
+                        {
+                            "id": "FT-A", "projectId": "P", "methodType": "FAULT_TREE", "revision": 2,
+                            "topGate": { "gateId": "TOP-A" },
+                            "gates": [{ "id": "TOP-A", "gateType": "AND" }],
+                            "leafNodes": [pump("LEAF-A", "PUMP-A"), pump("LEAF-B", "PUMP-B")],
+                            "gateInputs": [
+                                { "id": "IN-A", "gateId": "TOP-A", "childId": "LEAF-A", "order": 0 },
+                                { "id": "IN-B", "gateId": "TOP-A", "childId": "LEAF-B", "order": 1 }
+                            ]
+                        },
+                        {
+                            "id": "FT-B", "projectId": "P", "methodType": "FAULT_TREE", "revision": 2,
+                            "topGate": { "gateId": "TOP-B" },
+                            "gates": [{ "id": "TOP-B", "gateType": "OR" }],
+                            "leafNodes": [pump("LEAF-ONE", "PUMP-A")],
+                            "gateInputs": [{ "id": "IN-ONE", "gateId": "TOP-B", "childId": "LEAF-ONE", "order": 0 }]
+                        },
+                        {
+                            "id": "ET",
+                            "methodType": "EVENT_TREE",
+                            "revision": 2,
+                            "initiatingEvent": { "target": { "modelId": "IE", "entityId": "IE-1" } },
+                            "initiatingEventFrequency": { "expression": crate::fault_tree::tests::per_year(1.0) },
+                            "functionalEvents": [
+                                { "id": "FE-A", "name": "Both trains", "order": 0 },
+                                { "id": "FE-B", "name": "Train A", "order": 1 }
+                            ],
+                            "functionalEventFaultTreeLinks": [
+                                { "functionalEventId": "FE-A", "faultTreeTopGate": { "modelId": "FT-A", "entityId": "TOP-A" } },
+                                { "functionalEventId": "FE-B", "faultTreeTopGate": { "modelId": "FT-B", "entityId": "TOP-B" } }
+                            ],
+                            "endStates": [{ "id": "SAFE" }, { "id": "RELEASE" }],
+                            "sequences": [
+                                sequence("SS", "SUCCESS", "SUCCESS", "SAFE"),
+                                sequence("SF", "SUCCESS", "FAILURE", "SAFE"),
+                                sequence("FS", "FAILURE", "SUCCESS", "SAFE"),
+                                sequence("FF", "FAILURE", "FAILURE", "RELEASE")
+                            ]
+                        }
+                    ],
+                    "resources": {
+                        "faultTreeBasicEventCatalogue": {
+                            "projectId": "P",
+                            "basicEvents": [
+                                crate::fault_tree::tests::point_event("PUMP-A", 0.01),
+                                crate::fault_tree::tests::point_event("PUMP-B", 0.01)
+                            ],
+                            "commonCauseFailureGroups": [{
+                                "id": "PUMPS",
+                                "members": ["PUMP-A", "PUMP-B"],
+                                "factors": crate::fault_tree::tests::beta_factor(0.1),
+                                "total": crate::fault_tree::tests::point(0.01)
+                            }]
+                        }
+                    }
+                })
+                .to_string(),
+            )
+            .unwrap()
+        };
+        let probabilities = |expand: bool| -> HashMap<String, f64> {
+            execute(&request(expand)).unwrap()["sequences"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|sequence| {
+                    (
+                        sequence["sequenceId"].as_str().unwrap().to_string(),
+                        sequence["conditionalProbability"].as_f64().unwrap(),
+                    )
+                })
+                .collect()
+        };
+
+        let independent = probabilities(false);
+        assert!((independent["FF"] - 1e-4).abs() < 1e-15);
+        assert!((independent["SF"] - (0.01 - 1e-4)).abs() < 1e-15);
+
+        let (single, common) = (0.009, 0.001);
+        let both = common + (1.0 - common) * single * single;
+        let train_a = 1.0 - (1.0 - single) * (1.0 - common);
+        let expanded = probabilities(true);
+        assert!((expanded["FF"] - both).abs() < 1e-15);
+        assert!(expanded["FS"].abs() < 1e-15);
+        assert!((expanded["SF"] - (train_a - both)).abs() < 1e-15);
+        assert!((expanded["SS"] - (1.0 - train_a)).abs() < 1e-15);
+    }
+
+    #[test]
+    fn refuses_common_cause_expansion_in_hcl_mode() {
+        let request = SolverRequest::from_json(
+            &json!({
+                "schemaVersion": "1.0.0",
+                "request": {
+                    "schemaVersion": "1.0.0",
+                    "methodType": "EVENT_TREE",
+                    "modelId": "ET",
+                    "revision": 2,
+                    "mode": "HYBRID_CAUSAL_LOGIC",
+                    "requestedBy": "analyst",
+                    "expandCcf": true
+                },
+                "modelSnapshots": [],
+                "resources": {}
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let error = execute(&request).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("Common-cause expansion is not available for HCL event-tree runs."));
     }
 
     fn fault_tree(id: &str, top: &str, reference: &str) -> Value {

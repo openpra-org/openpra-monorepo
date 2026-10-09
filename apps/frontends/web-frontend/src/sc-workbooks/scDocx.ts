@@ -11,6 +11,8 @@ import {
   BorderStyle,
 } from "docx";
 import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
+import { pointsOf } from "../newly-developed-methods/shared/uncertaintyPoints";
+import { expressionText, numberText } from "../newly-developed-methods/shared/uncertainText";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({
@@ -57,7 +59,7 @@ function endStateLabel(s: string): string {
   return s === "SUCCESSFUL_MITIGATION" ? "Safe stable state" : "Radionuclide release";
 }
 
-function buildChildren(a: SuccessCriteriaDevelopment, final: boolean): (Paragraph | Table)[] {
+function buildChildren(a: SuccessCriteriaDevelopment, final: boolean, points: ReadonlyMap<string, string>): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
   const stageLabel = a.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational";
   const ccLabel = a.capabilityCategory ?? "N/A";
@@ -116,8 +118,8 @@ function buildChildren(a: SuccessCriteriaDevelopment, final: boolean): (Paragrap
   ));
   out.push(heading("Event-specific functional SC & mission times", HeadingLevel.HEADING_2));
   out.push(dataTable(
-    ["Sequence", "Mission time", "Reaches safe state", "Basis"],
-    a.missionTimes.map((m) => [m.eventSequenceReference, `${m.missionTimeHours} h`, m.safeStableStateAchievedWithinMissionTime ? "Yes" : "No (treatment applied)", m.basis]),
+    ["Sequence", "Mission time", "Point value", "Reaches safe state", "Basis"],
+    a.missionTimes.map((m) => [m.eventSequenceReference, expressionText(m.missionTime), points.get(m.uuid) ?? "Not available", m.safeStableStateAchievedWithinMissionTime ? "Yes" : "No (treatment applied)", m.basis]),
   ));
   out.push(heading("Success criteria basis", HeadingLevel.HEADING_2));
   out.push(dataTable(
@@ -155,8 +157,22 @@ function buildChildren(a: SuccessCriteriaDevelopment, final: boolean): (Paragrap
   return out;
 }
 
+async function missionTimePoints(sc: SuccessCriteriaDevelopment): Promise<Map<string, string>> {
+  const entries = sc.missionTimes.map((m) => ({ key: m.uuid, expression: m.missionTime, unit: "HOURS" as const }));
+  try {
+    const points = await pointsOf(entries, new Map());
+    return new Map(entries.map((entry) => {
+      const point = points.get(entry.key);
+      return [entry.key, point === undefined ? "Not available" : `${numberText(point)} h`];
+    }));
+  } catch (error) {
+    const reason = error instanceof Error ? `Not available: ${error.message}` : "Not available";
+    return new Map(entries.map((entry) => [entry.key, reason]));
+  }
+}
+
 async function generateScReport(sc: SuccessCriteriaDevelopment, final: boolean): Promise<void> {
-  const doc = new Document({ sections: [{ children: buildChildren(sc, final) }] });
+  const doc = new Document({ sections: [{ children: buildChildren(sc, final, await missionTimePoints(sc)) }] });
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

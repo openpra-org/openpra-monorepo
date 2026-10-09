@@ -1,361 +1,264 @@
 import { useState, type JSX } from "react";
+import type { UncertainExpression, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
 import type {
   BayesianNetworkNode,
   HclCptGenerator,
+  HclCptGeneratorUncertainty,
   HclUncertaintySettings,
   WorkbookModelAddress,
 } from "interfaces-mef-types/modeling";
 import { HclCptGeneratorSchema } from "interfaces-mef-types/zod/modeling";
 import type { BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
+import { ExpressionEditor } from "../shared/uncertainEditor";
 
-type GeneratorType = HclCptGenerator["type"];
+type GeneratorKind = HclCptGenerator["kind"];
 
-function NumberField({
-  label,
-  value,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  disabled: boolean;
-  onChange: (value: number) => boolean;
-}): JSX.Element {
+type FragilityGenerator = Extract<HclCptGenerator, { kind: "SEISMIC_FRAGILITY" }>;
+
+type PgaBinsGenerator = Extract<HclCptGenerator, { kind: "SEISMIC_PGA_BINS" }>;
+
+const GENERATOR_LABELS: Record<GeneratorKind, string> = {
+  SEISMIC_FRAGILITY: "Seismic fragility",
+  SEISMIC_PGA_BINS: "PGA bins",
+};
+
+function point(unit: UncertainUnit, value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit, law: { family: "POINT", value } } };
+}
+
+function isGeneratorKind(value: string): value is GeneratorKind {
+  return value === "SEISMIC_FRAGILITY" || value === "SEISMIC_PGA_BINS";
+}
+
+function parsedNumber(text: string): number | undefined {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return undefined;
+  const value = Number(trimmed);
+  return Number.isFinite(value) ? value : undefined;
+}
+
+function NumberField({ label, value, disabled, onChange }: { label: string; value: number; disabled: boolean; onChange: (value: number) => boolean }): JSX.Element {
   return (
     <label>
       <span>{label}</span>
       <input
         key={value}
-        type="number"
-        step="any"
-        defaultValue={value}
+        type="text"
+        inputMode="decimal"
+        defaultValue={String(value)}
         disabled={disabled}
         onBlur={(event) => {
-          const input = event.target.value.trim();
-          if (!input || !onChange(Number(input))) event.target.value = String(value);
+          const next = parsedNumber(event.target.value);
+          if (next === undefined || !onChange(next)) event.target.value = String(value);
         }}
       />
     </label>
   );
 }
 
-function StateSelect({
-  label,
-  value,
-  states,
-  disabled,
-  onChange,
-}: {
+function StateSelect({ label, value, states, disabled, onChange }: {
   label: string;
   value: string;
-  states: { id: string; code: string }[];
+  states: readonly { id: string; code: string }[];
   disabled: boolean;
   onChange: (id: string) => void;
 }): JSX.Element {
   return (
     <label>
       <span>{label}</span>
-      <select
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {states.map((s) => (
-          <option
-            key={s.id}
-            value={s.id}
-          >
-            {s.code}
-          </option>
-        ))}
+      <select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+        {states.map((state) => <option key={state.id} value={state.id}>{state.code}</option>)}
       </select>
     </label>
   );
 }
 
-function GeneratorParameters({
-  generator: g,
-  node,
-  parents,
-  disabled,
-  onChange,
-  onError,
-}: {
-  generator: HclCptGenerator;
-  node: BayesianNetworkNode;
-  parents: BayesianNetworkNode[];
-  disabled: boolean;
-  onChange: (g: HclCptGenerator) => void;
-  onError: (message: string) => void;
-}): JSX.Element {
-  const update = (candidate: HclCptGenerator): boolean => {
-    const parsed = HclCptGeneratorSchema.safeParse(candidate);
-    if (!parsed.success) {
-      onError(parsed.error.issues[0]?.message ?? "Invalid seismic parameters");
-      return false;
-    }
-    onChange(parsed.data);
-    return true;
-  };
-  if (g.type === "seismic_fragility") {
-    const parent = parents.find((p) => p.id === g.pgaParentId);
-    return (
-      <>
-        <p>
-          Use the same acceleration units for median capacity and PGA centers. One sampled capacity applies to every
-          row.
-        </p>
-        <div className="hcleditor__uncertainty-parameters">
-          <StateSelect
-            label="PGA parent"
-            value={g.pgaParentId}
-            states={parents}
-            disabled={disabled}
-            onChange={(id) => {
-              const selected = parents.find((p) => p.id === id)!;
-              update({ ...g, pgaParentId: id, pgaCenters: selected.states.map((s) => ({ stateId: s.id, value: 0 })) });
-            }}
-          />
-          <StateSelect
-            label="Failure state"
-            value={g.trueStateId}
-            states={node.states}
-            disabled={disabled}
-            onChange={(id) => update({ ...g, trueStateId: id, falseStateId: node.states.find((s) => s.id !== id)!.id })}
-          />
-          <NumberField
-            label="Median capacity (theta)"
-            value={g.theta}
-            disabled={disabled}
-            onChange={(theta) => update({ ...g, theta })}
-          />
-          <NumberField
-            label="Randomness (beta R)"
-            value={g.betaR}
-            disabled={disabled}
-            onChange={(betaR) => update({ ...g, betaR })}
-          />
-          <NumberField
-            label="Uncertainty (beta U)"
-            value={g.betaU}
-            disabled={disabled}
-            onChange={(betaU) => update({ ...g, betaU })}
-          />
-          {g.pgaCenters.map((center, index) => (
-            <NumberField
-              key={center.stateId}
-              label={`PGA center: ${parent?.states.find((s) => s.id === center.stateId)?.code ?? center.stateId}`}
-              value={center.value}
-              disabled={disabled}
-              onChange={(value) =>
-                update({ ...g, pgaCenters: g.pgaCenters.map((c, i) => (i === index ? { ...c, value } : c)) })
-              }
-            />
-          ))}
-        </div>
-      </>
-    );
-  }
+function SlotField({ label, children }: { label: string; children: JSX.Element }): JSX.Element {
   return (
-    <>
-      <p>Use frequency and mission-time units that agree. Probabilities exceeding a total of one are rejected.</p>
-      <div className="hcleditor__uncertainty-parameters">
-        <StateSelect
-          label="No-earthquake state"
-          value={g.noneStateId}
-          states={node.states}
-          disabled={disabled}
-          onChange={(id) =>
-            update({
-              ...g,
-              noneStateId: id,
-              bins: node.states
-                .filter((s) => s.id !== id)
-                .map(
-                  (s) =>
-                    g.bins.find((b) => b.stateId === s.id) ?? { stateId: s.id, medianFrequency: 0, errorFactor95: 2 },
-                ),
-            })
-          }
-        />
-        <NumberField
-          label="Mission time"
-          value={g.missionTime}
-          disabled={disabled}
-          onChange={(missionTime) => update({ ...g, missionTime })}
-        />
-        <label>
-          <span>Frequency conversion</span>
-          <select
-            value={g.frequencyToProbability}
-            disabled={disabled}
-            onChange={(event) => update({ ...g, frequencyToProbability: event.target.value as "poisson" | "linear" })}
-          >
-            <option value="poisson">Poisson</option>
-            <option value="linear">Linear</option>
-          </select>
-        </label>
-        {g.bins.map((bin, index) => (
-          <fieldset key={bin.stateId}>
-            <legend>{node.states.find((s) => s.id === bin.stateId)?.code ?? bin.stateId}</legend>
-            <NumberField
-              label="Median frequency"
-              value={bin.medianFrequency}
-              disabled={disabled}
-              onChange={(medianFrequency) =>
-                update({ ...g, bins: g.bins.map((b, i) => (i === index ? { ...b, medianFrequency } : b)) })
-              }
-            />
-            <NumberField
-              label="95% error factor"
-              value={bin.errorFactor95}
-              disabled={disabled}
-              onChange={(errorFactor95) =>
-                update({ ...g, bins: g.bins.map((b, i) => (i === index ? { ...b, errorFactor95 } : b)) })
-              }
-            />
-          </fieldset>
-        ))}
-      </div>
-    </>
+    <fieldset className="hcleditor__uncertainty-slot">
+      <legend>{label}</legend>
+      {children}
+    </fieldset>
   );
 }
 
-export function HclSeismicGeneratorControls({
-  model,
-  reference,
-  settings,
-  disabled,
-  onChange,
-  onError,
-}: {
+function fragilityDraft(node: BayesianNetworkNode, parent: BayesianNetworkNode): FragilityGenerator | undefined {
+  const failure = node.states[1];
+  if (failure === undefined) return undefined;
+  return {
+    kind: "SEISMIC_FRAGILITY",
+    pgaParentId: parent.id,
+    trueStateId: failure.id,
+    falseStateId: node.states[0].id,
+    median: point("QUANTITY", 1),
+    randomness: point("FACTOR", 1),
+    demands: parent.states.map((state) => ({ stateId: state.id, demand: 0 })),
+  };
+}
+
+function pgaBinsDraft(node: BayesianNetworkNode): PgaBinsGenerator {
+  return {
+    kind: "SEISMIC_PGA_BINS",
+    noneStateId: node.states[0].id,
+    missionTime: point("YEARS", 1),
+    conversion: "POISSON",
+    bins: node.states.slice(1).map((state) => ({ stateId: state.id, frequency: point("PER_YEAR", 0) })),
+  };
+}
+
+function FragilityParameters({ generator, node, parents, disabled, update }: {
+  generator: FragilityGenerator;
+  node: BayesianNetworkNode;
+  parents: readonly BayesianNetworkNode[];
+  disabled: boolean;
+  update: (generator: HclCptGenerator) => boolean;
+}): JSX.Element {
+  const parent = parents.find((candidate) => candidate.id === generator.pgaParentId);
+  return (
+    <div className="hcleditor__uncertainty-generator">
+      <p>P = Φ(ln(demand / median) / randomness). Use one acceleration unit for the median and the demands. Give the median a lognormal law to carry the capacity uncertainty, β U. Every row shares one median draw.</p>
+      <div className="hcleditor__uncertainty-parameters">
+        <StateSelect label="PGA parent" value={generator.pgaParentId} states={parents} disabled={disabled} onChange={(id) => {
+          const selected = parents.find((candidate) => candidate.id === id);
+          if (selected !== undefined) update({ ...generator, pgaParentId: id, demands: selected.states.map((state) => ({ stateId: state.id, demand: 0 })) });
+        }} />
+        <StateSelect label="Failure state" value={generator.trueStateId} states={node.states} disabled={disabled} onChange={(id) => {
+          const other = node.states.find((state) => state.id !== id);
+          if (other !== undefined) update({ ...generator, trueStateId: id, falseStateId: other.id });
+        }} />
+      </div>
+      <SlotField label="Median capacity">
+        <ExpressionEditor expression={generator.median} unit="QUANTITY" disabled={disabled} onChange={(median) => update({ ...generator, median })} />
+      </SlotField>
+      <SlotField label="Randomness, β R">
+        <ExpressionEditor expression={generator.randomness} unit="FACTOR" disabled={disabled} onChange={(randomness) => update({ ...generator, randomness })} />
+      </SlotField>
+      <div className="hcleditor__uncertainty-parameters" role="group" aria-label="Demand per PGA state">
+        {generator.demands.map((entry, index) => (
+          <NumberField
+            key={entry.stateId}
+            label={`Demand at ${parent?.states.find((state) => state.id === entry.stateId)?.code ?? entry.stateId}`}
+            value={entry.demand}
+            disabled={disabled}
+            onChange={(demand) => update({ ...generator, demands: generator.demands.map((item, at) => (at === index ? { ...item, demand } : item)) })}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PgaBinsParameters({ generator, node, disabled, update }: {
+  generator: PgaBinsGenerator;
+  node: BayesianNetworkNode;
+  disabled: boolean;
+  update: (generator: HclCptGenerator) => boolean;
+}): JSX.Element {
+  return (
+    <div className="hcleditor__uncertainty-generator">
+      <p>Each bin turns its frequency into a probability over the mission time. The none state takes the rest. A total above one is an error.</p>
+      <div className="hcleditor__uncertainty-parameters">
+        <StateSelect label="No-earthquake state" value={generator.noneStateId} states={node.states} disabled={disabled} onChange={(id) => update({
+          ...generator,
+          noneStateId: id,
+          bins: node.states.filter((state) => state.id !== id).map((state) => generator.bins.find((bin) => bin.stateId === state.id) ?? { stateId: state.id, frequency: point("PER_YEAR", 0) }),
+        })} />
+        <label>
+          <span>Frequency conversion</span>
+          <select value={generator.conversion} disabled={disabled} onChange={(event) => update({ ...generator, conversion: event.target.value === "LINEAR" ? "LINEAR" : "POISSON" })}>
+            <option value="POISSON">Poisson, 1 − exp(−f t)</option>
+            <option value="LINEAR">Linear, f t</option>
+          </select>
+        </label>
+      </div>
+      <SlotField label="Mission time">
+        <ExpressionEditor expression={generator.missionTime} unit="YEARS" disabled={disabled} onChange={(missionTime) => update({ ...generator, missionTime })} />
+      </SlotField>
+      {generator.bins.map((bin, index) => (
+        <SlotField key={bin.stateId} label={`Frequency of ${node.states.find((state) => state.id === bin.stateId)?.code ?? bin.stateId}`}>
+          <ExpressionEditor expression={bin.frequency} unit="PER_YEAR" disabled={disabled} onChange={(frequency) => update({ ...generator, bins: generator.bins.map((item, at) => (at === index ? { ...item, frequency } : item)) })} />
+        </SlotField>
+      ))}
+    </div>
+  );
+}
+
+function HclSeismicGeneratorControls({ model, reference, settings, disabled, onChange, onError }: {
   model: BayesianNetworkModel;
   reference: WorkbookModelAddress;
   settings: HclUncertaintySettings;
   disabled: boolean;
   onChange: (settings: HclUncertaintySettings) => void;
-  onError: (message: string) => void;
+  onError: (message: string | null) => void;
 }): JSX.Element {
-  const [type, setType] = useState<GeneratorType>("seismic_fragility");
+  const [kind, setKind] = useState<GeneratorKind>("SEISMIC_FRAGILITY");
   const [nodeId, setNodeId] = useState("");
-  const generators = settings.cptGenerators ?? [];
+  const generators = settings.cptGenerators;
   const parentsOf = (id: string): BayesianNetworkNode[] =>
-    (model.conditionalProbabilityTables.find((t) => t.nodeId === id)?.parents ?? []).flatMap((p) =>
-      model.nodes.filter((n) => n.id === p.nodeId),
-    );
-  const options = model.nodes.filter(
-    (n) =>
-      !generators.some((g) => g.bayesianNetworkNode.entityId === n.id) &&
-      !settings.cptRowDistributions.some((r) => r.bayesianNetworkNode.entityId === n.id) &&
-      (type === "seismic_fragility" ?
-        n.states.length === 2 && parentsOf(n.id).length > 0
-      : parentsOf(n.id).length === 0),
-  );
-  const selected = options.find((n) => n.id === nodeId) ?? options[0];
+    (model.conditionalProbabilityTables.find((table) => table.nodeId === id)?.parents ?? []).flatMap((parent) => model.nodes.filter((node) => node.id === parent.nodeId));
+  const options = model.nodes.filter((node) =>
+    !generators.some((definition) => definition.bayesianNetworkNode.entityId === node.id)
+    && !settings.cptRows.some((row) => row.bayesianNetworkNode.entityId === node.id)
+    && (kind === "SEISMIC_FRAGILITY" ? node.states.length === 2 && parentsOf(node.id).length > 0 : node.states.length >= 2 && parentsOf(node.id).length === 0));
+  const selected = options.find((node) => node.id === nodeId) ?? options[0];
+
+  function replace(index: number, generator: HclCptGenerator): boolean {
+    const parsed = HclCptGeneratorSchema.safeParse(generator);
+    if (!parsed.success) {
+      onError(parsed.error.issues[0]?.message ?? "Check the seismic parameters.");
+      return false;
+    }
+    onChange({ ...settings, cptGenerators: generators.map((definition, at) => (at === index ? { ...definition, generator: parsed.data } : definition)) });
+    onError(null);
+    return true;
+  }
+
+  function add(): void {
+    if (selected === undefined) return;
+    const parent = parentsOf(selected.id)[0];
+    const generator = kind === "SEISMIC_FRAGILITY" ? (parent === undefined ? undefined : fragilityDraft(selected, parent)) : pgaBinsDraft(selected);
+    if (generator === undefined) {
+      onError("A fragility node needs two states and a PGA parent.");
+      return;
+    }
+    const definition: HclCptGeneratorUncertainty = {
+      bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: reference.workbookId, modelId: reference.modelId, entityId: selected.id },
+      generator,
+    };
+    onChange({ ...settings, cptGenerators: [...generators, definition] });
+    onError(null);
+  }
+
   return (
-    <section className="hcleditor__uncertainty-section">
+    <section className="hcleditor__uncertainty-section" aria-label="Seismic CPT generators">
       <div className="hcleditor__uncertainty-section-head">
-        <strong>Seismic CPT generators</strong>
+        <div><strong>Seismic CPT generators</strong><span>A generator builds every row of one node from its seismic parameters.</span></div>
       </div>
-      <p>Set component and hazard parameters before running uncertainty.</p>
       {!disabled && (
-        <div className="hcleditor__uncertainty-add">
+        <div className="hcleditor__uncertainty-add hcleditor__uncertainty-add--event">
           <label>
             <span>Generator</span>
-            <select
-              value={type}
-              onChange={(event) => setType(event.target.value as GeneratorType)}
-            >
-              <option value="seismic_fragility">Seismic fragility</option>
-              <option value="seismic_pga_bins">PGA bins</option>
+            <select value={kind} onChange={(event) => { if (isGeneratorKind(event.target.value)) setKind(event.target.value); }}>
+              <option value="SEISMIC_FRAGILITY">{GENERATOR_LABELS.SEISMIC_FRAGILITY}</option>
+              <option value="SEISMIC_PGA_BINS">{GENERATOR_LABELS.SEISMIC_PGA_BINS}</option>
             </select>
           </label>
-          <StateSelect
-            label="Generator node"
-            value={selected?.id ?? ""}
-            states={options}
-            disabled={options.length === 0}
-            onChange={setNodeId}
-          />
-          <button
-            type="button"
-            disabled={!selected}
-            onClick={() => {
-              if (!selected) return;
-              const parent = parentsOf(selected.id)[0];
-              const generator: HclCptGenerator =
-                type === "seismic_fragility" ?
-                  {
-                    type,
-                    pgaParentId: parent!.id,
-                    theta: 1,
-                    betaR: 1,
-                    betaU: 0,
-                    trueStateId: selected.states[1].id,
-                    falseStateId: selected.states[0].id,
-                    pgaCenters: parent!.states.map((s) => ({ stateId: s.id, value: 0 })),
-                  }
-                : {
-                    type,
-                    noneStateId: selected.states[0].id,
-                    missionTime: 8760,
-                    frequencyToProbability: "poisson",
-                    bins: selected.states
-                      .slice(1)
-                      .map((s) => ({ stateId: s.id, medianFrequency: 0, errorFactor95: 2 })),
-                  };
-              onChange({
-                ...settings,
-                cptGenerators: [
-                  ...generators,
-                  {
-                    bayesianNetworkNode: {
-                      ...reference,
-                      referenceType: "BAYESIAN_NETWORK_NODE",
-                      entityId: selected.id,
-                    },
-                    generator,
-                  },
-                ],
-              });
-            }}
-          >
-            Add generator
-          </button>
+          <StateSelect label="Generator node" value={selected?.id ?? ""} states={options} disabled={options.length === 0} onChange={setNodeId} />
+          <button type="button" disabled={selected === undefined} onClick={add}>Add generator</button>
         </div>
       )}
       {generators.map((definition, index) => {
-        const node = model.nodes.find((n) => n.id === definition.bayesianNetworkNode.entityId);
+        const node = model.nodes.find((candidate) => candidate.id === definition.bayesianNetworkNode.entityId);
+        const generator = definition.generator;
         return (
-          <details
-            key={definition.bayesianNetworkNode.entityId}
-            className="hcleditor__uncertainty-item"
-          >
-            <summary>
-              {node?.code ?? definition.bayesianNetworkNode.entityId} ·{" "}
-              {definition.generator.type === "seismic_fragility" ? "Seismic fragility" : "PGA bins"}
-            </summary>
-            {node ?
-              <GeneratorParameters
-                generator={definition.generator}
-                node={node}
-                parents={parentsOf(node.id)}
-                disabled={disabled}
-                onError={onError}
-                onChange={(generator) =>
-                  onChange({
-                    ...settings,
-                    cptGenerators: generators.map((g, i) => (i === index ? { ...g, generator } : g)),
-                  })
-                }
-              />
-            : <p role="alert">The configured BN node is missing.</p>}
+          <details key={definition.bayesianNetworkNode.entityId} className="hcleditor__uncertainty-item">
+            <summary>{node?.code ?? definition.bayesianNetworkNode.entityId} · {GENERATOR_LABELS[generator.kind]}</summary>
+            {node === undefined ? <p role="alert">The configured BN node is missing.</p>
+              : generator.kind === "SEISMIC_FRAGILITY"
+                ? <FragilityParameters generator={generator} node={node} parents={parentsOf(node.id)} disabled={disabled} update={(next) => replace(index, next)} />
+                : <PgaBinsParameters generator={generator} node={node} disabled={disabled} update={(next) => replace(index, next)} />}
             {!disabled && (
-              <button
-                type="button"
-                className="hcleditor__uncertainty-delete"
-                onClick={() => onChange({ ...settings, cptGenerators: generators.filter((_, i) => i !== index) })}
-              >
+              <button type="button" className="hcleditor__uncertainty-delete" onClick={() => onChange({ ...settings, cptGenerators: generators.filter((_, at) => at !== index) })}>
                 Delete generator
               </button>
             )}
@@ -365,3 +268,5 @@ export function HclSeismicGeneratorControls({
     </section>
   );
 }
+
+export { HclSeismicGeneratorControls };

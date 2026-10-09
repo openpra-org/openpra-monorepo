@@ -80,7 +80,7 @@ describe("Systems Analysis Bayesian-network workspace", () => {
     expect(screen.getByRole("combobox", { name: "Bayesian network" })).toHaveValue(linked.modelId);
     expect(screen.getByRole("link", { name: "Open Event Sequence Quantification workbook" })).toHaveAttribute(
       "href",
-      `/esq-workbooks/esq-workbook?step=depend&sourceWorkbook=sy-workbook&network=${linked.modelId}`,
+      `/esq-workbooks/esq-workbook?step=logic&sourceWorkbook=sy-workbook&network=${linked.modelId}`,
     );
   });
 });

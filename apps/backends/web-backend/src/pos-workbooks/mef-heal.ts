@@ -1,8 +1,11 @@
+import { holdsLaw } from "./mef-normalize";
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function healMef(restored: unknown, template: unknown): unknown {
+  if (isPlainObject(restored) && holdsLaw(restored)) return restored;
   if (isPlainObject(template)) {
     const restoredObj = isPlainObject(restored) ? restored : {};
     const out: Record<string, unknown> = {};

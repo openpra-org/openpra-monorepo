@@ -33,13 +33,6 @@ export function createBlankDa(name: string, owner: string): DataAnalysis {
     praScope: "",
     parameters: [],
     componentBoundaries: [],
-    modelUncertainty: {
-      uuid: randomUUID(),
-      name: "DA model uncertainty documentation",
-      uncertaintySources: [],
-      relatedAssumptions: [],
-      reasonableAlternatives: [],
-    },
     documentation: {
       processDescription: "",
       systemComponentBoundaries: "",

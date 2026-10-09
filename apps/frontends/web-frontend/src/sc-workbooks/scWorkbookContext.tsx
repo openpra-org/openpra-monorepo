@@ -13,7 +13,7 @@ interface ScLinkedPosState {
 interface ScLinkedIeGroup {
   id: string;
   name: string;
-  frequency: number;
+  frequency?: number;
   stateCount: number;
 }
 

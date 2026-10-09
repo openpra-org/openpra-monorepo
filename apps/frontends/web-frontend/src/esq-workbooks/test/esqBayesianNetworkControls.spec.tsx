@@ -27,10 +27,10 @@ function Workbook({ editable = true, initial = empty, changed = jest.fn(), initi
   initialSourceWorkbookId?: string | null;
 }) {
   const [esq, setEsq] = useState(initial);
-  return <ToastProvider><EsqWorkbookProvider data={{ esq, links: null }} editable={editable}
+  return <ToastProvider><EsqWorkbookProvider data={{ esq }} editable={editable}
     runtime={{ workbookId: "local-esq", projectId: "project", revision: 1, saveStatus: "saved" }}
     mutateEsq={(mutate) => setEsq((current) => { const next = mutate(current); changed(next); return next; })}>
-    <EsqEventTreeHclWorkspace initialNetworkId={initialNetworkId} initialSourceWorkbookId={initialSourceWorkbookId} />
+    <EsqEventTreeHclWorkspace mode="NETWORK" initialNetworkId={initialNetworkId} initialSourceWorkbookId={initialSourceWorkbookId} />
   </EsqWorkbookProvider></ToastProvider>;
 }
 
@@ -43,25 +43,25 @@ it("creates a network, imports XDSL and groups its nodes through the actual ESQ 
   const user = userEvent.setup();
   const changed = jest.fn();
   const { container } = render(<Workbook changed={changed} />);
-  await user.click(await screen.findByRole("button", { name: "Add network", exact: true }));
-  expect(screen.getByRole("button", { name: "Manage groups", exact: true })).toBeEnabled();
-  await user.click(screen.getByRole("button", { name: "File", exact: true }));
-  await user.click(screen.getByRole("menuitem", { name: "Import XDSL", exact: true }));
+  await user.click(await screen.findByRole("button", { name: "Add network" }));
+  expect(screen.getByRole("button", { name: "Manage groups" })).toBeEnabled();
+  await user.click(screen.getByRole("button", { name: "File" }));
+  await user.click(screen.getByRole("menuitem", { name: "Import XDSL" }));
   const file = new File([], "grouping-demo.xdsl");
   Object.defineProperty(file, "text", { value: async () => sample });
   fireEvent.change(container.querySelector('input[type="file"][accept*=".xdsl"]')!, { target: { files: [file] } });
   const confirmation = await screen.findByRole("alertdialog", { name: "Replace this Bayesian network?" });
   await user.click(within(confirmation).getByRole("button", { name: "Replace network" }));
-  expect(screen.getByRole("button", { name: "BN node Power supply", exact: true })).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Manage groups", exact: true }));
-  await user.type(screen.getByRole("textbox", { name: "Group name", exact: true }), "Power systems");
+  expect(screen.getByRole("button", { name: "BN node Power supply" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Manage groups" }));
+  await user.type(screen.getByRole("textbox", { name: "Group name" }), "Power systems");
   await user.click(screen.getByLabelText("Include Power in group", { exact: true }));
-  await user.click(screen.getByRole("button", { name: "Create group", exact: true }));
+  await user.click(screen.getByRole("button", { name: "Create group" }));
   const stored = (changed.mock.lastCall![0] as EventSequenceQuantification).bayesianNetworks[0]!;
   expect(stored.nodes).toHaveLength(5);
   expect(readBayesianNetworkSubmodels(stored).find((group) => group.name === "Power systems")!.nodeIds).toHaveLength(1);
   await user.selectOptions(screen.getByLabelText("BN graph view", { exact: true }), "SUBMODELS");
-  expect(screen.getByRole("button", { name: "Open submodel Power systems", exact: true })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Open submodel Power systems" })).toBeInTheDocument();
 });
 
 it("explains linked-network restrictions beside visible controls and links to the owner", async () => {
@@ -75,9 +75,9 @@ it("explains linked-network restrictions beside visible controls and links to th
   const changed = jest.fn();
   render(<Workbook changed={changed} />);
   await user.selectOptions(await screen.findByLabelText("Dependency configuration"), "SY:source-sy:hcl");
-  expect(screen.getByRole("button", { name: "Manage groups", exact: true })).toBeDisabled();
-  await user.click(screen.getByRole("button", { name: "File", exact: true }));
-  expect(screen.getByRole("menuitem", { name: "Import XDSL", exact: true })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Manage groups" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "File" }));
+  expect(screen.getByRole("menuitem", { name: "Import XDSL" })).toBeDisabled();
   expect(screen.getByText(/linked from Source systems and is read-only here/)).toBeInTheDocument();
   expect(screen.queryByText(/linked from Source systems — Fault Trees/)).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Open Systems workbook" })).toHaveAttribute(
@@ -113,9 +113,9 @@ it("selects the linked Systems Analysis network from an ESQ deep link", async ()
 it("explains workbook permissions when a local network cannot be edited", async () => {
   const user = userEvent.setup();
   render(<Workbook editable={false} initial={{ ...empty, bayesianNetworks: [importBayesianNetworkXdsl(sample)] }} />);
-  expect(screen.getByRole("button", { name: "Manage groups", exact: true })).toBeDisabled();
-  await user.click(screen.getByRole("button", { name: "File", exact: true }));
-  expect(screen.getByRole("menuitem", { name: "Import XDSL", exact: true })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Manage groups" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "File" }));
+  expect(screen.getByRole("menuitem", { name: "Import XDSL" })).toBeDisabled();
   expect(screen.getByText(/Editing requires the preparer role/)).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Open Systems workbook" })).not.toBeInTheDocument();
 });

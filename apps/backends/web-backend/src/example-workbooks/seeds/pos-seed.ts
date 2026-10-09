@@ -213,6 +213,7 @@ interface StateSpec {
   uiStatus?: "ok" | "warn" | "draft";
   uiStatusMessage?: string;
   docsLinked?: number;
+  outageSource?: PlantOperatingState["outageSource"];
 }
 
 function makeState(spec: StateSpec): PlantOperatingState {
@@ -251,6 +252,7 @@ function makeState(spec: StateSpec): PlantOperatingState {
     uiStatus: spec.uiStatus,
     uiStatusMessage: spec.uiStatusMessage,
     docsLinked: spec.docsLinked,
+    ...(spec.outageSource === undefined ? {} : { outageSource: spec.outageSource }),
   };
 }
 
@@ -453,6 +455,7 @@ const plantOperatingStates: PlantOperatingState[] = [
     name: "Refuelling, vessel open",
     evolutionId: "EV-03",
     operatingMode: OperatingMode.REFUELING,
+    outageSource: { workbookId: "example-da-htgr" },
     description: "The reactor vessel is open and prismatic fuel blocks are being moved. The primary boundary is open to the refuelling floor.",
     temperature: range(40, 80, "°C", 60),
     pressure: range(0.1, 0.1, "MPa"),
@@ -536,6 +539,7 @@ const plantOperatingStates: PlantOperatingState[] = [
     name: "Maintenance, SCS out of service",
     evolutionId: "EV-05",
     operatingMode: OperatingMode.MAINTENANCE,
+    outageSource: { workbookId: "example-da-htgr" },
     description: "Reactor shut down with the Shutdown Cooling System out of service for maintenance. Decay heat removal relies on the remaining cooling path.",
     temperature: range(40, 120, "°C", 80),
     pressure: range(0.1, 0.5, "MPa", 0.1),

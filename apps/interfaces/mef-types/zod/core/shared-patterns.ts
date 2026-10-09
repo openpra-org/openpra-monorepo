@@ -17,6 +17,7 @@ export const SensitivityStudySchema = z.object({
   insights: z.string().optional(),
   impact: z.string().optional(),
   modelUncertaintyId: z.string().optional(),
+  dataAnalysisCaseRef: z.object({ workbookId: z.string(), caseId: z.string() }).optional(),
   implementsSrs: z.array(SRReferenceSchema).optional(),
   elementSpecificProperties: z.record(z.string(), z.unknown()).optional(),
 });

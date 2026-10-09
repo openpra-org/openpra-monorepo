@@ -9,6 +9,7 @@ import {
 import { ComponentReference } from "../core/component";
 import { EndState } from "../core/events";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
+import type { UncertainExpression } from "../core/uncertainty";
 
 export type PlantOperatingStateReference = string;
 export type InitiatingEventReference = string;
@@ -166,7 +167,7 @@ export interface SharedResourceDefinition extends Unique, Named {
 
 export interface MissionTimeDefinition extends Unique {
   eventSequenceReference: EventSequenceReference;
-  missionTimeHours: number;
+  missionTime: UncertainExpression;
   basis: string;
   safeStableStateAchievedWithinMissionTime: boolean;
   treatmentWhenNotAchieved?: "CONSERVATIVE_END_STATE" | "EXTENDED_MISSION_TIME" | "ADDITIONAL_EVALUATION";
@@ -178,7 +179,7 @@ export interface MissionTimeDefinition extends Unique {
 
 export interface ComponentMissionTimeDefinition extends Unique {
   componentId: ComponentReference;
-  missionTimeHours: number;
+  missionTime: UncertainExpression;
   eventSequenceReference: EventSequenceReference;
   shorterMissionTimeJustification?: string;
   analysisReferences: EngineeringAnalysisReference[];

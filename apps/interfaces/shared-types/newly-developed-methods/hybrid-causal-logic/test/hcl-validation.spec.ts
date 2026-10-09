@@ -136,16 +136,17 @@ const configuration = HclConfigurationModelSchema.parse({
 
 describe("HCL semantic validation", () => {
   it.each([
-    [{ family: "BETA", alpha: 2, beta: 8, trueStateId: TRUE_STATE_ID }, true],
-    [{ family: "BETA", alpha: 2, beta: 8, trueStateId: BASIC_EVENT_ID }, false],
-    [{ family: "DIRICHLET", alpha: [8, 2] }, true],
-    [{ family: "DIRICHLET", alpha: [8, 1, 1] }, false],
-  ])("checks the CPT prior against the referenced BN states: %j", (prior, valid) => {
+    [{ node: "VALUE", law: { family: "DIRICHLET", concentrations: [8, 2] } }, true],
+    [{ node: "VALUE", law: { family: "DIRICHLET", concentrations: [8, 1, 1] } }, false],
+    [{ node: "VALUE", law: { family: "FIXED", values: [0.2, 0.8] } }, true],
+    [{ node: "VALUE", law: { family: "FIXED", values: [0.2, 0.3, 0.5] } }, false],
+    [{ node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "CPT-ROW-1" } }, true],
+  ])("checks the CPT row vector against the referenced BN states: %j", (row, valid) => {
     const model = HclConfigurationModelSchema.parse({ ...configuration, solverSettings: {
       ...configuration.solverSettings,
-      uncertainty: { sampleCount: 513, seed: 42, sampler: "LHS", basicEventDistributions: [], cptRowDistributions: [{
+      uncertainty: { sampleCount: 513, seed: 42, sampler: "LHS", basicEvents: [], cptGenerators: [], cptRows: [{
         bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: BN_WORKBOOK_ID, modelId: BN_ID, entityId: NODE_ID },
-        cptRowId: bayesianNetwork.conditionalProbabilityTables[0]!.rows[0]!.id, prior,
+        cptRowId: bayesianNetwork.conditionalProbabilityTables[0]!.rows[0]!.id, row,
       }] },
     } });
     const issues = validateHclConfigurationModel(model, { bayesianNetworks: [{ workbookId: BN_WORKBOOK_ID, model: bayesianNetwork }], faultTrees: [{ workbookId: FT_WORKBOOK_ID, model: faultTree }] });
@@ -222,9 +223,13 @@ describe("HCL semantic validation", () => {
 describe("seismic generators resolve against the BN", () => {
   it.each([FALSE_STATE_ID, GATE_ID])("checks PGA-bin state coverage: %s", (noneStateId) => {
     const model = HclConfigurationModelSchema.parse({ ...configuration, solverSettings: { ...configuration.solverSettings,
-      uncertainty: { sampleCount: 100, seed: 42, basicEventDistributions: [], cptRowDistributions: [], cptGenerators: [{
+      uncertainty: { sampleCount: 100, seed: 42, sampler: "MC", basicEvents: [], cptRows: [], cptGenerators: [{
         bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: BN_WORKBOOK_ID, modelId: BN_ID, entityId: NODE_ID },
-        generator: { type: "seismic_pga_bins", noneStateId, missionTime: 1, frequencyToProbability: "poisson", bins: [{ stateId: TRUE_STATE_ID, medianFrequency: .01, errorFactor95: 2 }] },
+        generator: {
+          kind: "SEISMIC_PGA_BINS", noneStateId, conversion: "POISSON",
+          missionTime: { node: "VALUE", value: { unit: "YEARS", law: { family: "POINT", value: 1 } } },
+          bins: [{ stateId: TRUE_STATE_ID, frequency: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "LOGNORMAL", mean: .0107, errorFactor: 2, level: .95 } } } }],
+        },
       }] },
     } });
     const issues = validateHclConfigurationModel(model, { bayesianNetworks: [{ workbookId: BN_WORKBOOK_ID, model: bayesianNetwork }], faultTrees: [{ workbookId: FT_WORKBOOK_ID, model: faultTree }] });
@@ -232,9 +237,14 @@ describe("seismic generators resolve against the BN", () => {
   });
   it("rejects fragility whose PGA node is not a parent", () => {
     const model = HclConfigurationModelSchema.parse({ ...configuration, solverSettings: { ...configuration.solverSettings,
-      uncertainty: { sampleCount: 100, seed: 42, basicEventDistributions: [], cptRowDistributions: [], cptGenerators: [{
+      uncertainty: { sampleCount: 100, seed: 42, sampler: "MC", basicEvents: [], cptRows: [], cptGenerators: [{
         bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: BN_WORKBOOK_ID, modelId: BN_ID, entityId: NODE_ID },
-        generator: { type: "seismic_fragility", pgaParentId: NODE_ID, theta: .5, betaR: .3, betaU: 0, trueStateId: TRUE_STATE_ID, falseStateId: FALSE_STATE_ID, pgaCenters: [{ stateId: TRUE_STATE_ID, value: .5 }, { stateId: FALSE_STATE_ID, value: 0 }] },
+        generator: {
+          kind: "SEISMIC_FRAGILITY", pgaParentId: NODE_ID, trueStateId: TRUE_STATE_ID, falseStateId: FALSE_STATE_ID,
+          median: { node: "VALUE", value: { unit: "QUANTITY", law: { family: "POINT", value: .5 } } },
+          randomness: { node: "VALUE", value: { unit: "QUANTITY", law: { family: "POINT", value: .3 } } },
+          demands: [{ stateId: TRUE_STATE_ID, demand: .5 }, { stateId: FALSE_STATE_ID, demand: 0 }],
+        },
       }] },
     } });
     const issues = validateHclConfigurationModel(model, { bayesianNetworks: [{ workbookId: BN_WORKBOOK_ID, model: bayesianNetwork }] });

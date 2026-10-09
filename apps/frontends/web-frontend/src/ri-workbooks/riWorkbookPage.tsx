@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
+import { type Workbook } from "interfaces-shared-types";
 import { fetchJson } from "../api/client";
 import { getProject } from "../projects/projectApi";
 import { WorkbookRolesModal } from "../workbooks/workbookRolesModal";
@@ -16,20 +17,22 @@ import {
   getRiExamples,
   loadRiExample,
   unloadRiExample,
+  listRiLinkOptions,
   type RiWorkbookRoleName,
   type RiExampleOption,
 } from "./riWorkbookApi";
 import { RiWorkbench, type RiWorkbenchActions } from "./riWorkbench";
-import { RiWorkbookProvider, type RiWorkbookData } from "./riWorkbookContext";
+import { RiWorkbookProvider, EMPTY_UPSTREAM, useRiUpstream, type RiWorkbookData } from "./riWorkbookContext";
 import { useRiMefPatch } from "./useRiMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { RiDocumentsCard } from "./riDocumentsCard";
-import { type RiPersona } from "./riViewData";
+import { type RiLinkCode, type RiPersona } from "./riViewData";
+
 import { loadRiRiskSources, type RiRiskSources } from "../workbooks/riskWorkbookConnections";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
-  converge: "RI-B1",
-  criteria: "RI-A1",
+  application: "RI-A1",
+  inputs: "RI-B1",
   integrate: "RI-B2",
   aggregate: "RI-B3",
   uncertainty: "RI-C1",
@@ -69,6 +72,7 @@ function RiWorkbookPage(): JSX.Element {
     familyQuantifications: [],
     consequenceResults: [],
   });
+  const [linkOptions, setLinkOptions] = useState<Record<RiLinkCode, Workbook[]>>(EMPTY_UPSTREAM.options);
   const workbookName = data?.ri.name ?? "";
   const workbookVersion = data?.ri.version ?? "1";
 
@@ -100,6 +104,8 @@ function RiWorkbookPage(): JSX.Element {
         } catch {
           if (!cancelled) setProjectName("");
         }
+        const options = await listRiLinkOptions(workbook.projectId);
+        if (!cancelled) setLinkOptions(options);
         try {
           const sources = await loadRiRiskSources(workbook.projectId);
           if (!cancelled) setRiskSources(sources);
@@ -113,6 +119,8 @@ function RiWorkbookPage(): JSX.Element {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  const upstream = useRiUpstream(data?.ri, linkOptions);
 
   const updateRi = useCallback((ri: RiskIntegration): void => {
     setData((prev) => (prev === null ? prev : { ...prev, ri }));
@@ -188,7 +196,7 @@ function RiWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <RiWorkbookProvider data={data} editable={editable} mutateRi={mutateRi} riskSources={riskSources}>
+    <RiWorkbookProvider data={data} editable={editable} mutateRi={mutateRi} riskSources={riskSources} upstream={upstream}>
       <RiWorkbench
         data={data}
         persona={persona}
@@ -225,6 +233,7 @@ function RiWorkbookPage(): JSX.Element {
         <LoadExampleModal
           exampleName="RI"
           exampleOptions={exampleOptions}
+          exampleNotices={{ "published-ri-inputs": "Every frequency and dose in this example comes from the Kemmerer Unit 1 PSAR Rev. 1 and the applicant's RCI response, entered by hand with its source. Where the PSAR gives only plant totals, the workbook records the gap instead of inventing a value." }}
           onCancel={() => setLoadExOpen(false)}
           onConfirm={async (exampleId) => {
             const res = await loadRiExample(id, exampleId);

@@ -5,7 +5,9 @@ import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiatin
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import { fetchJson } from "../api/client";
+import { EXAMPLE_PREFIX, daFrequencyOptions } from "../ie-workbooks/ieDaLinks";
 import { EsWorkbench } from "./esWorkbench";
 import { EsWorkbookProvider, type EsWorkbookData } from "./esWorkbookContext";
 import { EsDocumentsCard } from "./esDocumentsCard";
@@ -35,6 +37,10 @@ interface IeBundleResponse {
 
 interface SyBundleResponse {
   sy: { mef: unknown };
+}
+
+interface DaBundleResponse {
+  da: { mef: DataAnalysis };
 }
 
 function buildDemoPosLink(pos: PlantOperatingStatesAnalysis): EsPosLinkStatus {
@@ -81,10 +87,11 @@ function EsDemoPage(): JSX.Element {
       .then(async (res) => {
         const es = res.es.mef as EventSequenceAnalysis;
         const variant = es.uuid === "es-generic-2" ? "htgr" : "sfr";
-        const [posRes, ieRes, syRes] = await Promise.all([
+        const [posRes, ieRes, syRes, daRes] = await Promise.all([
           fetchJson<PosBundleResponse>(`/api/example-workbooks/pos-bundle?example=${variant}`).catch((): PosBundleResponse | null => null),
           fetchJson<IeBundleResponse>(`/api/example-workbooks/ie-bundle?example=${variant}`).catch((): IeBundleResponse | null => null),
           fetchJson<SyBundleResponse>(`/api/example-workbooks/sy-bundle?example=${variant}`).catch((): SyBundleResponse | null => null),
+          fetchJson<DaBundleResponse>(`/api/example-workbooks/da-bundle?example=${variant}`).catch((): DaBundleResponse | null => null),
         ]);
         if (cancelled) return;
         setData({
@@ -93,6 +100,7 @@ function EsDemoPage(): JSX.Element {
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
           posLink: posRes !== null ? buildDemoPosLink(posRes.pos.mef as PlantOperatingStatesAnalysis) : EMPTY_POS_LINK,
           ieLink: ieRes !== null ? buildDemoIeLink(ieRes.ie.mef as InitiatingEventsAnalysis) : EMPTY_IE_LINK,
+          daFrequencies: daRes === null ? [] : daFrequencyOptions([{ id: `${EXAMPLE_PREFIX}${variant}`, name: daRes.da.mef.name, mef: daRes.da.mef }]),
           ...(syRes === null ? {} : {
             faultTreeSource: {
               workbookId: `example-sy-${variant}`,

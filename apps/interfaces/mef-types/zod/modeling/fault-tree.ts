@@ -10,6 +10,7 @@ import {
   HumanFailureEventReferenceSchema,
   WorkbookParameterReferenceSchema,
 } from "./references";
+import { UncertainExpressionSchema } from "../core/uncertainty";
 import type {
   FaultTreeAndGate,
   FaultTreeBasicEvent,
@@ -132,11 +133,20 @@ const FaultTreeControlledDataSourceReferenceSchema = z.union([
 
 const FaultTreeBasicEventProbabilitySchema = z
   .object({
-    value: z.number().min(0, "Probability cannot be less than zero").max(1, "Probability cannot exceed one"),
+    value: z.union([z.number().min(0, "Probability cannot be less than zero").max(1, "Probability cannot exceed one"), z.nan()]),
+    expression: UncertainExpressionSchema.optional(),
     quantificationBasis: FaultTreeBasicEventQuantificationBasisSchema.optional(),
     controlledDataSource: FaultTreeControlledDataSourceReferenceSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((probability, context) => {
+    if (Number.isNaN(probability.value) && probability.expression === undefined) {
+      context.addIssue({ code: "custom", path: ["value"], message: "Probability must be a number between zero and one" });
+    }
+    if (probability.expression !== undefined && (probability.quantificationBasis !== undefined || probability.controlledDataSource !== undefined)) {
+      context.addIssue({ code: "custom", path: ["expression"], message: "An expression carries its own model and its own data source" });
+    }
+  });
 
 const FaultTreeBasicEventSchema = FaultTreeEntityIdentitySchema.extend({
   probability: FaultTreeBasicEventProbabilitySchema,

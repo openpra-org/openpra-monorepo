@@ -1,6 +1,7 @@
 import { stringifyJson } from "interfaces-shared-types/json";
 import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
 import { type JSX, useEffect, useMemo, useState } from "react";
+import { carriesUncertainExpression, type SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
 import type {
   BayesianNetworkEvidenceConfiguration,
   HclEvidenceScenario,
@@ -24,12 +25,16 @@ import type {
   HclEditorScenarioRunResult,
   HclFaultTreeOption,
   HclCalculationType,
+  HclSyValue,
 } from "../newly-developed-methods/hybrid-causal-logic";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { useEditorConfirmation } from "../newly-developed-methods/shared";
 import { analysisSaveBlock, useAnalysisScope } from "../newly-developed-methods/shared/useAnalysisScope";
 import { listWorkbooks } from "../workbooks/workbookApi";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
-import { useSyWorkbook } from "./syWorkbookContext";
+import { useSyWorkbook, type SyControlledParameterOption } from "./syWorkbookContext";
+import { linkedOptions, parameterLabel } from "./syBasicEventValues";
+import { toExp } from "./syViewData";
 import {
   getSyBayesianNetworkResult,
   getSyBayesianNetworkBatchResult,
@@ -46,6 +51,19 @@ interface EsqWorkbookLink {
   name: string;
 }
 
+function syValueOf(event: SystemBasicEvent, options: readonly SyControlledParameterOption[]): HclSyValue | undefined {
+  if (carriesUncertainExpression(event.failureMode)) {
+    const expression = event.expression;
+    if (expression === undefined) return undefined;
+    return {
+      expression,
+      text: expressionText(expression, parameterLabel(options)),
+      daLinks: linkedOptions(expression, options).map((option) => `${option.workbookName} · ${option.parameterName}`),
+    };
+  }
+  return event.probability === undefined ? undefined : { text: toExp(event.probability), daLinks: [] };
+}
+
 function workbookBaseName(name: string): string {
   const cut = name.indexOf("—");
   return (cut < 0 ? name : name.slice(0, cut)).trim();
@@ -58,7 +76,7 @@ function SyBayesianNetworkWorkspace({
   initialModelId?: string | null;
   initialEsqWorkbookId?: string | null;
 } = {}): JSX.Element {
-  const { sy, editable, mutateSy, runtime } = useSyWorkbook();
+  const { sy, editable, mutateSy, runtime, controlledParameters } = useSyWorkbook();
   const networks = sy.dependencyBayesianNetworks ?? [];
   const configurations = sy.dependencyHclConfigurations ?? [];
   const [esqWorkbooks, setEsqWorkbooks] = useState<EsqWorkbookLink[]>([]);
@@ -134,9 +152,12 @@ function SyBayesianNetworkWorkspace({
         topGateId: logic.topGate?.gateId ?? null,
         basicEvents: sy.systemBasicEvents
           .filter((event) => usedEventIds.has(event.uuid))
-          .map((event) => ({ id: event.uuid, code: event.code, name: event.name })),
+          .map((event) => {
+            const syValue = syValueOf(event, controlledParameters);
+            return { id: event.uuid, code: event.code, name: event.name, ...(syValue === undefined ? {} : { syValue }) };
+          }),
       };
-    }), [runtime.workbookId, sy.systemBasicEvents, sy.systemLogicModels]);
+    }), [controlledParameters, runtime.workbookId, sy.systemBasicEvents, sy.systemLogicModels]);
 
   const validation = model === undefined ? [] : validateBayesianNetworkModel(model, {
     evidence,
@@ -386,7 +407,7 @@ function SyBayesianNetworkWorkspace({
           editable={editable}
           workbookNotice={targetEsqWorkbook === undefined || runtime.workbookId === null ? undefined : {
             message: `This network is available in ${workbookBaseName(targetEsqWorkbook.name)}.`,
-            sourceHref: `/esq-workbooks/${encodeURIComponent(targetEsqWorkbook.id)}?step=depend&sourceWorkbook=${encodeURIComponent(runtime.workbookId)}&network=${encodeURIComponent(model.modelId)}`,
+            sourceHref: `/esq-workbooks/${encodeURIComponent(targetEsqWorkbook.id)}?step=logic&sourceWorkbook=${encodeURIComponent(runtime.workbookId)}&network=${encodeURIComponent(model.modelId)}`,
             sourceLabel: "Open Event Sequence Quantification workbook",
           }}
           hclScope="FAULT_TREE"

@@ -1,6 +1,7 @@
 import { JSX, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import { type EventSequenceQuantification, type EsqLinkCode } from "interfaces-mef-types/esq/event-sequence-quantification";
+import { type Workbook } from "interfaces-shared-types";
 import { getProject } from "../projects/projectApi";
 import { WorkbookRolesModal } from "../workbooks/workbookRolesModal";
 import { WorkbookApprovalTable } from "../workbooks/workbookApprovalTable";
@@ -9,7 +10,6 @@ import { WorkbookRoster } from "../workbooks/workbookRoster";
 import { postWorkbookComment, patchWorkbookComment, submitWorkbookForReview, requestWorkbookRevision } from "../workbooks/workbookReviewApi";
 import { useAuth } from "../auth/AuthContext";
 import {
-  fetchEsqLinkedInputs,
   getEsqExampleOptions,
   getEsqWorkbook,
   loadEsqExample,
@@ -19,7 +19,9 @@ import {
   type EsqWorkbookRoleName,
 } from "./esqWorkbookApi";
 import { EsqWorkbench, type EsqWorkbenchActions } from "./esqWorkbench";
-import { EsqWorkbookProvider, type EsqWorkbookData } from "./esqWorkbookContext";
+import { EsqWorkbookProvider, useEsqUpstream, type EsqWorkbookData } from "./esqWorkbookContext";
+import { NO_LINK_OPTIONS, listEsqLinkOptions } from "./esqLinks";
+import { loadEsqDaLinks } from "./esqDaLinks";
 import { useEsqMefPatch } from "./useEsqMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { EsqDocumentsCard } from "./esqDocumentsCard";
@@ -27,7 +29,6 @@ import { type EsqPersona } from "./esqViewData";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "ESQ-A2",
-  integrate: "ESQ-A1",
   solve: "ESQ-B3",
   logic: "ESQ-B9",
   depend: "ESQ-C2",
@@ -63,6 +64,7 @@ function EsqWorkbookPage(): JSX.Element {
   const [projectName, setProjectName] = useState<string>("");
   const [projectId, setProjectId] = useState<string | null>(null);
   const [exampleOptions, setExampleOptions] = useState<EsqExampleOption[]>([]);
+  const [linkOptions, setLinkOptions] = useState<Record<EsqLinkCode, Workbook[]>>(NO_LINK_OPTIONS);
   const workbookName = data?.esq.name ?? "";
   const workbookVersion = data?.esq.version ?? "1";
 
@@ -74,12 +76,13 @@ function EsqWorkbookPage(): JSX.Element {
     getEsqWorkbook(id)
       .then(async (workbook) => {
         if (cancelled) return;
-        setData({
-          esq: workbook.mef,
-          links: null,
-        });
+        setData({ esq: workbook.mef });
         setMyRoles(workbook.myRoles);
         setProjectId(workbook.projectId);
+        const variant = workbook.mef.uuid === "esq-generic-1" ? "sfr" : workbook.mef.uuid === "esq-generic-2" ? "htgr" : workbook.mef.uuid === "esq-hcl-case-study" ? "hcl" : undefined;
+        void loadEsqDaLinks(workbook.projectId, workbook.mef, variant).then((daLinks) => {
+          if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daLinks }));
+        });
         setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
         try {
@@ -88,6 +91,8 @@ function EsqWorkbookPage(): JSX.Element {
         } catch {
           if (!cancelled) setProjectName("");
         }
+        const options = await listEsqLinkOptions(workbook.projectId);
+        if (!cancelled) setLinkOptions(options);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -104,23 +109,7 @@ function EsqWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
-  const esqUuid = data?.esq.uuid ?? "";
-  useEffect(() => {
-    const variant = esqUuid === "esq-generic-1"
-      ? "sfr"
-      : esqUuid === "esq-generic-2"
-        ? "htgr"
-        : esqUuid === "esq-hcl-case-study"
-          ? "hcl"
-          : null;
-    setData((prev) => prev === null || prev.links === null ? prev : { ...prev, links: null });
-    if (variant === null) return;
-    let cancelled = false;
-    fetchEsqLinkedInputs(variant)
-      .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
-      .catch(() => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links: null })); });
-    return () => { cancelled = true; };
-  }, [esqUuid]);
+  const upstream = useEsqUpstream(data?.esq, linkOptions);
 
   const updateEsq = useCallback((esq: EventSequenceQuantification): void => {
     setData((prev) => (prev === null ? prev : { ...prev, esq }));
@@ -221,6 +210,7 @@ function EsqWorkbookPage(): JSX.Element {
       editable={editable}
       runtime={{ workbookId: id, projectId, revision, saveStatus }}
       mutateEsq={mutateEsq}
+      upstream={upstream}
     >
       <EsqWorkbench
         data={data}

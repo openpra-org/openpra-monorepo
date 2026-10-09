@@ -201,6 +201,7 @@ interface StateSpec {
   uiStatus?: "ok" | "warn" | "draft";
   uiStatusMessage?: string;
   docsLinked?: number;
+  outageSource?: PlantOperatingState["outageSource"];
 }
 
 function makeState(spec: StateSpec): PlantOperatingState {
@@ -239,6 +240,7 @@ function makeState(spec: StateSpec): PlantOperatingState {
     uiStatus: spec.uiStatus,
     uiStatusMessage: spec.uiStatusMessage,
     docsLinked: spec.docsLinked,
+    ...(spec.outageSource === undefined ? {} : { outageSource: spec.outageSource }),
   };
 }
 
@@ -364,6 +366,7 @@ const plantOperatingStates: PlantOperatingState[] = [
     name: "Refuelling under sodium",
     evolutionId: "EV-03",
     operatingMode: OperatingMode.REFUELING,
+    outageSource: { workbookId: "example-da-sfr" },
     description: "Reactor shut down and subassemblies moved through the rotating plugs and the gripper while the pool stays sealed at 371 C under argon. Fuel handling penetrations are active. The pool is never opened to air.",
     temperature: range(355, 390, "°C", 371),
     pressure: range(0.10, 0.12, "MPa", 0.11),
@@ -452,6 +455,7 @@ const plantOperatingStates: PlantOperatingState[] = [
     name: "Maintenance, shutdown cooler out of service",
     evolutionId: "EV-05",
     operatingMode: OperatingMode.MAINTENANCE,
+    outageSource: { workbookId: "example-da-sfr" },
     description: "Reactor shut down with one NaK shutdown cooler out of service for maintenance. Decay heat removal relies on the remaining cooler and natural circulation.",
     temperature: range(300, 380, "°C", 350),
     pressure: range(0.10, 0.12, "MPa", 0.11),

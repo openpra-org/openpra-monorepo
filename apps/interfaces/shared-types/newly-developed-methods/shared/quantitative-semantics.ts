@@ -1,97 +1,72 @@
 import { z } from "zod";
-import {
-  AnnualizationConventionSchema,
-  EventFrequencyUnitSchema,
-  FaultTreeBasicEventQuantificationBasisSchema,
-} from "interfaces-mef-types/zod/modeling";
-import type {
-  AnnualizationConvention,
-  EventFrequencyUnit,
-  FaultTreeBasicEventQuantificationBasis,
-} from "interfaces-mef-types/modeling";
+import { AnnualizationConventionSchema, EventTreeInitiatingEventFrequencySchema } from "interfaces-mef-types/zod/modeling";
+import type { AnnualizationConvention, EventTreeInitiatingEventFrequency } from "interfaces-mef-types/modeling";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { UncertainExpressionSchema } from "interfaces-mef-types/zod/core/uncertainty";
 import { WorkbookEntityIdSchema } from "./method-model";
 import type { WorkbookEntityId } from "./method-model";
 
-interface BasicEventQuantificationInput {
-  value: number;
-  quantificationBasis?: FaultTreeBasicEventQuantificationBasis;
-}
-
 interface BasicEventQuantificationTrace {
   basicEventId: WorkbookEntityId;
-  input: BasicEventQuantificationInput;
-  resolvedProbability: number;
+  expression: UncertainExpression;
+  pointProbability: number;
 }
 
-interface TypedEventFrequency {
+interface AnnualizedEventFrequency {
   value: number;
-  unit: EventFrequencyUnit;
+  unit: "PER_YEAR";
 }
 
 interface EventTreeFrequencySemantics {
-  initiatingEventFrequency: TypedEventFrequency;
+  initiatingEventFrequency: EventTreeInitiatingEventFrequency;
   annualization: AnnualizationConvention;
-  annualizedInitiatingEventFrequency: TypedEventFrequency & { unit: "PER_YEAR" };
+  annualizedInitiatingEventFrequency: AnnualizedEventFrequency;
 }
 
 const ProbabilitySchema = z.number().min(0).max(1);
 
-const BasicEventQuantificationInputSchema = z
-  .object({
-    value: ProbabilitySchema,
-    quantificationBasis: FaultTreeBasicEventQuantificationBasisSchema.optional(),
-  })
-  .strict();
-
 const BasicEventQuantificationTraceSchema = z
   .object({
     basicEventId: WorkbookEntityIdSchema,
-    input: BasicEventQuantificationInputSchema,
-    resolvedProbability: ProbabilitySchema,
+    expression: UncertainExpressionSchema,
+    pointProbability: ProbabilitySchema,
   })
   .strict();
 
-const TypedEventFrequencySchema = z
+const AnnualizedEventFrequencySchema = z
   .object({
-    value: z.number().nonnegative(),
-    unit: EventFrequencyUnitSchema,
+    value: z.number().finite().nonnegative(),
+    unit: z.literal("PER_YEAR"),
   })
   .strict();
 
 const EventTreeFrequencySemanticsSchema = z
   .object({
-    initiatingEventFrequency: TypedEventFrequencySchema,
+    initiatingEventFrequency: EventTreeInitiatingEventFrequencySchema,
     annualization: AnnualizationConventionSchema,
-    annualizedInitiatingEventFrequency: TypedEventFrequencySchema.extend({
-      unit: z.literal("PER_YEAR"),
-    }).strict(),
+    annualizedInitiatingEventFrequency: AnnualizedEventFrequencySchema,
   })
   .strict();
 
 type Expect<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-type _AssertBasicEventInput = Expect<
-  Equal<z.infer<typeof BasicEventQuantificationInputSchema>, BasicEventQuantificationInput>
->;
 type _AssertBasicEventTrace = Expect<
   Equal<z.infer<typeof BasicEventQuantificationTraceSchema>, BasicEventQuantificationTrace>
 >;
-type _AssertTypedFrequency = Expect<
-  Equal<z.infer<typeof TypedEventFrequencySchema>, TypedEventFrequency>
+type _AssertAnnualizedFrequency = Expect<
+  Equal<z.infer<typeof AnnualizedEventFrequencySchema>, AnnualizedEventFrequency>
 >;
 type _AssertFrequencySemantics = Expect<
   Equal<z.infer<typeof EventTreeFrequencySemanticsSchema>, EventTreeFrequencySemantics>
 >;
 
 export {
-  BasicEventQuantificationInputSchema,
+  AnnualizedEventFrequencySchema,
   BasicEventQuantificationTraceSchema,
   EventTreeFrequencySemanticsSchema,
-  TypedEventFrequencySchema,
 };
 export type {
-  BasicEventQuantificationInput,
+  AnnualizedEventFrequency,
   BasicEventQuantificationTrace,
   EventTreeFrequencySemantics,
-  TypedEventFrequency,
 };

@@ -1,6 +1,8 @@
 import { EventSequenceAnalysisSchema } from "interfaces-mef-types/zod/es/event-sequence-analysis";
 import { EventSequenceQuantificationSchema } from "interfaces-mef-types/zod/esq/event-sequence-quantification";
 import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
+import { carriesUncertainExpression } from "interfaces-mef-types/sy/systems-analysis";
+import { isComponentModel } from "interfaces-mef-types/da/data-analysis";
 import { RadiologicalConsequenceAnalysisSchema } from "interfaces-mef-types/zod/rc/radiological-consequence-analysis";
 import { RiskIntegrationSchema } from "interfaces-mef-types/zod/ri/risk-integration";
 import { validateBayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
@@ -80,14 +82,20 @@ describe("dependency example models", () => {
       "real-da-workbook",
     ));
     const parameters = new Map(da.parameters.map((parameter) => [parameter.uuid, parameter]));
-    const estimated = sy.systemBasicEvents.filter((event) => event.dataAnalysisBasicEventRef !== undefined && parameters.has(event.dataAnalysisBasicEventRef));
+    const components = sy.systemBasicEvents.filter((event) => carriesUncertainExpression(event.failureMode));
+    const estimated = components.flatMap((event) => {
+      const expression = event.expression;
+      return expression?.node === "PARAMETER" && parameters.has(expression.reference.entityId) ? [{ event, entityId: expression.reference.entityId }] : [];
+    });
     expect(estimated.length).toBeGreaterThan(40);
-    for (const event of estimated) {
-      const parameter = parameters.get(event.dataAnalysisBasicEventRef ?? "");
+    expect(estimated).toHaveLength(components.length);
+    for (const { event, entityId } of estimated) {
       const linked = reconciled.systemBasicEvents.find((candidate) => candidate.uuid === event.uuid);
-      expect(linked?.controlledDataSource).toEqual({ referenceType: "WORKBOOK_PARAMETER", workbookId: "real-da-workbook", entityId: parameter?.uuid });
-      expect(linked?.probability).toBe(parameter?.value);
-      expect(linked?.dataAnalysisBasicEventRef).toBeUndefined();
+      expect(isComponentModel(parameters.get(entityId)?.quantificationModel)).toBe(true);
+      expect(linked?.expression).toEqual({ node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "real-da-workbook", entityId } });
+      expect(linked).not.toHaveProperty("probability");
+      expect(linked).not.toHaveProperty("controlledDataSource");
+      expect(linked).not.toHaveProperty("dataAnalysisBasicEventRef");
     }
   });
 

@@ -10,6 +10,7 @@ import { EsqWorkbooksService } from "./esq-workbooks.service";
 import { EsqMefAdapter } from "./esq-mef-adapter";
 import { EsqDocumentsController } from "./esq-documents.controller";
 import { EsqDocumentsService } from "./esq-documents.service";
+import { EsqModelRunsService } from "./esq-model-runs.service";
 import { NewlyDevelopedMethodsSharedModule } from "../newly-developed-methods/shared/newly-developed-methods-shared.module";
 
 @Module({
@@ -24,7 +25,7 @@ import { NewlyDevelopedMethodsSharedModule } from "../newly-developed-methods/sh
     NewlyDevelopedMethodsSharedModule,
   ],
   controllers: [EsqWorkbooksController, EsqDocumentsController],
-  providers: [EsqWorkbooksService, EsqMefAdapter, EsqDocumentsService],
+  providers: [EsqWorkbooksService, EsqMefAdapter, EsqDocumentsService, EsqModelRunsService],
   exports: [EsqWorkbooksService, EsqDocumentsService],
 })
 export class EsqWorkbooksModule {}

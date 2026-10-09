@@ -1,10 +1,14 @@
 import { JSX } from "react";
-import type { SystemBasicEvent, SystemLogicModel } from "interfaces-mef-types/sy/systems-analysis";
+import { carriesUncertainExpression, type SystemBasicEvent, type SystemLogicModel } from "interfaces-mef-types/sy/systems-analysis";
 import { systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
 import { requiresFailureRateConversionReview } from "interfaces-mef-types/modeling";
-import { SYProvenanceChip } from "./syShared";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
+import { PointValue, SYProvenanceChip } from "./syShared";
+import { heldValueDiffers } from "./syLinks";
 import { FAILURE_MODE_LABELS, toExp } from "./syViewData";
-import { useSyWorkbook, type SyControlledHumanFailureOption, type SyControlledParameterOption } from "./syWorkbookContext";
+import { linkedOptions, missingReferences, useEventPoints } from "./syBasicEventValues";
+import { linkedMissionTimes, useSyValueSources } from "./syMissionTimes";
+import { useSyWorkbook, type SyControlledHumanFailureOption, type SyControlledLegacyParameterOption } from "./syWorkbookContext";
 import type { SyDrawerContext } from "./syScreens";
 
 type RateBasis = Extract<NonNullable<SystemBasicEvent["quantificationBasis"]>, { kind: "FAILURE_RATE" }>;
@@ -17,7 +21,7 @@ const TIME_UNIT_LABELS: Record<RateBasis["missionTime"]["unit"], string> = {
   YEAR: "yr",
 };
 
-function linkedParameter(event: SystemBasicEvent, options: readonly SyControlledParameterOption[]): SyControlledParameterOption | undefined {
+function linkedParameter(event: SystemBasicEvent, options: readonly SyControlledLegacyParameterOption[]): SyControlledLegacyParameterOption | undefined {
   const source = event.controlledDataSource;
   if (source === undefined || source.referenceType !== "WORKBOOK_PARAMETER") return undefined;
   return options.find((option) => option.workbookId === source.workbookId && option.parameterId === source.entityId);
@@ -33,37 +37,72 @@ function SyBasicEvents({ logic, openDrawer }: {
   logic: SystemLogicModel;
   openDrawer: (context: SyDrawerContext) => void;
 }): JSX.Element {
-  const { sy, editable, controlledParameters, controlledHumanFailures } = useSyWorkbook();
+  const { sy, editable, controlledParameters, controlledLegacyParameters, controlledHumanFailures } = useSyWorkbook();
   const actionLabel = editable ? "Edit" : "View";
   const events = systemLogicModelBasicEvents(sy, logic);
   const houseEvents = logic.leafNodes.flatMap((leaf) => (leaf.kind === "HOUSE_EVENT" ? [leaf] : []));
+  const values = useSyValueSources();
+  const points = useEventPoints(events, values.table);
+  const label = values.label;
+
+  function componentValueCell(event: SystemBasicEvent): JSX.Element {
+    if (event.expression === undefined) return <span className="sy-error">Not set</span>;
+    return (
+      <>
+        <div><PointValue state={points.get(event.uuid)} /></div>
+        <span className="sy-review-sub">{expressionText(event.expression, label)}</span>
+      </>
+    );
+  }
+
+  function componentSourceCell(event: SystemBasicEvent): JSX.Element {
+    const sources = linkedOptions(event.expression, controlledParameters);
+    const missionTimes = linkedMissionTimes(event.expression, values.missionTimeOptions);
+    const missing = missingReferences(event.expression, values.table);
+    if (sources.length === 0 && missionTimes.length === 0 && missing.length === 0) return <span>Typed</span>;
+    return (
+      <>
+        {sources.map((source) => (
+          <div key={`${source.workbookId}:${source.parameterId}`}>
+            <div>DA · {source.parameterName}</div>
+            <span className="sy-review-sub">{source.workbookName}</span>
+          </div>
+        ))}
+        {missionTimes.map((option) => <div key={option.label}>SC · {option.label}</div>)}
+        {missing.length > 0 && <span className="sy-error">Linked source unavailable</span>}
+      </>
+    );
+  }
 
   function valueCell(event: SystemBasicEvent): JSX.Element {
+    if (carriesUncertainExpression(event.failureMode)) return componentValueCell(event);
     const rateBasis = event.quantificationBasis?.kind === "FAILURE_RATE" ? event.quantificationBasis : undefined;
     if (requiresFailureRateConversionReview(rateBasis)) return <span className="sy-error">Review the conversion</span>;
-    const parameter = linkedParameter(event, controlledParameters);
+    const parameter = linkedParameter(event, controlledLegacyParameters);
     if (rateBasis !== undefined) {
-      const rate = parameter?.parameterType === "FREQUENCY" ? parameter.value : rateBasis.failureRate.value;
+      const rate = parameter?.rateUnit === undefined ? rateBasis.failureRate : { value: parameter.value, unit: parameter.rateUnit };
       return (
         <>
-          <div className="posmono">{toExp(rate)} /{TIME_UNIT_LABELS[rateBasis.failureRate.unit]}</div>
+          <div className="posmono">{toExp(rate.value)} /{TIME_UNIT_LABELS[rate.unit]}</div>
           <span className="sy-review-sub">{rateBasis.missionTime.value} {TIME_UNIT_LABELS[rateBasis.missionTime.unit]} mission</span>
         </>
       );
     }
     const humanFailure = linkedHumanFailure(event, controlledHumanFailures);
-    const value = parameter !== undefined && parameter.parameterType !== "FREQUENCY" ? parameter.value : humanFailure?.value ?? event.probability;
+    const value = parameter !== undefined && parameter.rateUnit === undefined ? parameter.value : humanFailure?.value ?? event.probability;
     return value === undefined ? <span className="sy-error">Not set</span> : <span className="posmono">{toExp(value)}</span>;
   }
 
   function sourceCell(event: SystemBasicEvent): JSX.Element {
+    if (carriesUncertainExpression(event.failureMode)) return componentSourceCell(event);
     if (event.controlledDataSource === undefined) return <span>Typed</span>;
-    const parameter = linkedParameter(event, controlledParameters);
+    const parameter = linkedParameter(event, controlledLegacyParameters);
     if (parameter !== undefined) {
       return (
         <>
           <div>DA · {parameter.parameterName}</div>
           <span className="sy-review-sub">{parameter.workbookName}</span>
+          {heldValueDiffers(event, parameter.value, parameter.rateUnit) && <span className="sy-review-sub sy-warn">Value changed in DA</span>}
         </>
       );
     }
@@ -73,6 +112,7 @@ function SyBasicEvents({ logic, openDrawer }: {
         <>
           <div>HR · {humanFailure.humanFailureEventName}</div>
           <span className="sy-review-sub">{humanFailure.workbookName} · {humanFailure.methodology}</span>
+          {heldValueDiffers(event, humanFailure.value) && <span className="sy-review-sub sy-warn">Value changed in HR</span>}
         </>
       );
     }

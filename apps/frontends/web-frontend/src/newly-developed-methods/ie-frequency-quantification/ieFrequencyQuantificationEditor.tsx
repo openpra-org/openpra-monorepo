@@ -1,10 +1,11 @@
 import { JSX, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import type { FrequencyUnit } from "interfaces-mef-types/core/events";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import {
   type FrequencyDataSource,
   type FrequencyQuantificationBasis,
   type FrequencyDataPedigree,
-  type FrequencyDistributionFamily,
   type FrequencyFaultTreeNode,
 } from "interfaces-mef-types/ie/initiating-event-analysis";
 import {
@@ -16,7 +17,10 @@ import {
   type FaultTreeSelection,
 } from "../fault-tree";
 import { validateFaultTreeModel } from "interfaces-shared-types/newly-developed-methods/fault-tree";
-import { sourceMean, moduleAdjusted, fmtFreq } from "./frequencyMath";
+import type { UncertaintyState } from "../shared/useUncertainty";
+import { basisText, frequencyText, primarySource, sourceExpression, type SourceExpression } from "./frequencySources";
+import { pointText, pointValue, useFrequencyPoints, useFrequencySpread, type FrequencySpread, type ParameterTable } from "./frequencyValues";
+import { FrequencyLawField } from "./frequencyLawField";
 import "./css/ieFrequencyQuantification.css";
 
 const BASIS_OPTIONS: { value: FrequencyQuantificationBasis; label: string }[] = [
@@ -48,20 +52,6 @@ const PEDIGREE_BY_BASIS: Partial<Record<FrequencyQuantificationBasis, { value: F
     { value: "TECHNOLOGY_SPECIFIC", label: "This reactor's design" },
     { value: "TEST_DATA", label: "Reactor-specific test data" },
   ],
-};
-
-const FAMILY_OPTIONS: { value: FrequencyDistributionFamily; label: string }[] = [
-  { value: "POINT", label: "Point value" },
-  { value: "GAMMA", label: "Gamma" },
-  { value: "LOGNORMAL", label: "Lognormal" },
-  { value: "BETA", label: "Beta" },
-];
-
-const PARAM_LABELS: Record<FrequencyDistributionFamily, string[]> = {
-  POINT: ["Mean value"],
-  GAMMA: ["Shape alpha", "Rate beta"],
-  LOGNORMAL: ["Median", "Error factor"],
-  BETA: ["alpha", "beta"],
 };
 
 function isDistributionBasis(basis: FrequencyQuantificationBasis): boolean {
@@ -136,6 +126,10 @@ function frequencyNodeInputs(
       order,
     }];
   });
+}
+
+function typedProbability(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
 }
 
 function legacyBasicEventId(nodeId: string): string {
@@ -214,12 +208,14 @@ function frequencyFaultTreeToEditor(
     if (node.nodeType !== "BASIC") continue;
     const id = node.basicEventId ?? legacyBasicEventId(node.id);
     const existing = basicEvents.get(id);
+    const value = node.probability ?? existing?.probability.value ?? 0;
+    const expression = node.expression ?? existing?.probability.expression ?? typedProbability(value);
     basicEvents.set(id, {
       id,
       code: node.basicEventCode ?? node.code ?? existing?.code ?? node.id,
       name: existing?.name ?? node.label,
       description: existing?.description ?? node.detail ?? "",
-      probability: { value: node.probability ?? existing?.probability.value ?? 0 },
+      probability: { value, expression },
     });
   }
 
@@ -371,6 +367,7 @@ function editorToFrequencyFaultTree(
       const event = catalogue.basicEvents.find(({ id }) => id === leaf.basicEventId);
       const basicEventId = event?.id ?? leaf.basicEventId;
       const probability = event?.probability.value ?? 0;
+      const expression = event?.probability.expression;
       converted.set(leaf.id, {
         ...common,
         label: event?.name ?? leaf.basicEventId,
@@ -380,6 +377,7 @@ function editorToFrequencyFaultTree(
           : {}),
         ...(event === undefined ? {} : basicEventCodeFieldsFor(leaf.id, event.code)),
         ...(previous?.probability !== undefined || probability !== 0 ? { probability } : {}),
+        ...(expression === undefined ? {} : { expression }),
         ...(detailFor(leaf.id, event?.description ?? "") === undefined
           ? {}
           : { detail: detailFor(leaf.id, event?.description ?? "") }),
@@ -428,6 +426,7 @@ function editorToFrequencyFaultTree(
       ...(event.id === legacyBasicEventId(nodeId) ? {} : { basicEventId: event.id }),
       ...basicEventCodeFieldsFor(nodeId, event.code),
       ...(event.probability.value === 0 ? {} : { probability: event.probability.value }),
+      ...(event.probability.expression === undefined ? {} : { expression: event.probability.expression }),
       ...(event.description.length === 0 ? {} : { detail: event.description }),
     });
   }
@@ -441,11 +440,11 @@ function editorToFrequencyFaultTree(
   return [...result, ...converted.values()];
 }
 
-function NumField({ value, onChange, disabled, placeholder }: { value: number | undefined; onChange: (v: number) => void; disabled: boolean; placeholder?: string }): JSX.Element {
-  const [text, setText] = useState<string>(value !== undefined && value !== 0 ? String(value) : "");
+function NumField({ value, onChange, disabled, placeholder }: { value: number | undefined; onChange: (v: number | undefined) => void; disabled: boolean; placeholder?: string }): JSX.Element {
+  const [text, setText] = useState<string>(value === undefined ? "" : String(value));
   const [focused, setFocused] = useState(false);
   useEffect(() => {
-    if (!focused) setText(value !== undefined && value !== 0 ? String(value) : "");
+    if (!focused) setText(value === undefined ? "" : String(value));
   }, [value, focused]);
   return (
     <input
@@ -460,8 +459,12 @@ function NumField({ value, onChange, disabled, placeholder }: { value: number | 
       onChange={(e) => {
         const t = e.target.value;
         setText(t);
+        if (t.trim() === "") {
+          onChange(undefined);
+          return;
+        }
         const n = Number(t);
-        if (t.trim() !== "" && isFinite(n) && n >= 0) onChange(n);
+        if (Number.isFinite(n) && n >= 0) onChange(n);
       }}
     />
   );
@@ -470,13 +473,30 @@ function NumField({ value, onChange, disabled, placeholder }: { value: number | 
 interface IeFrequencyQuantificationEditorProps {
   sources: FrequencyDataSource[];
   primaryId: string | undefined;
-  numberOfModules: number;
+  numberOfModules: number | undefined;
+  basis: FrequencyUnit;
+  table: ParameterTable;
+  describe: (expression: UncertainExpression) => string;
   editable: boolean;
-  onChange: (sources: FrequencyDataSource[], primaryId: string | undefined, rolledMean: number | null) => void;
+  onChange: (sources: FrequencyDataSource[], primaryId: string | undefined, frequency: UncertainExpression | undefined) => void;
 }
 
-export function IeFrequencyQuantificationEditor({ sources, primaryId, numberOfModules, editable, onChange }: IeFrequencyQuantificationEditorProps): JSX.Element {
-  const effectivePrimary = sources.find((s) => s.uuid === primaryId) ?? sources[0];
+function spreadText(spread: UncertaintyState<FrequencySpread> | undefined): string {
+  if (spread === undefined || spread.status === "pending") return "PRAXIS is working out the spread.";
+  if (spread.status === "failed") return `PRAXIS could not give the spread. ${spread.error}`;
+  const from = spread.value.trials === null ? "" : ` from ${spread.value.trials.toLocaleString("en-US")} samples`;
+  return `5th percentile ${frequencyText(spread.value.lower)}, 95th percentile ${frequencyText(spread.value.upper)}${from}.`;
+}
+
+function heroCaption(count: number, primary: SourceExpression | undefined, spread: UncertaintyState<FrequencySpread> | undefined): string {
+  const sources = `${count} data source${count === 1 ? "" : "s"}. The primary source sets the frequency.`;
+  if (primary === undefined) return sources;
+  if (primary.kind === "MISSING") return `${sources} The primary source is not complete, so the frequency stays as stored. ${primary.problem}`;
+  return `${sources} ${spreadText(spread)}`;
+}
+
+export function IeFrequencyQuantificationEditor({ sources, primaryId, numberOfModules, basis, table, describe, editable, onChange }: IeFrequencyQuantificationEditorProps): JSX.Element {
+  const effectivePrimary = primarySource(sources, primaryId);
   const [openIds, setOpenIds] = useState<Set<string>>(() => new Set(effectivePrimary !== undefined ? [effectivePrimary.uuid] : []));
   const [treeSourceId, setTreeSourceId] = useState<string | null>(null);
   const [faultTreeSelection, setFaultTreeSelection] = useState<FaultTreeSelection>(null);
@@ -497,6 +517,14 @@ export function IeFrequencyQuantificationEditor({ sources, primaryId, numberOfMo
         : frequencyFaultTreeToEditor(treeSource.uuid, treeSource.label, treeNodes),
     [treeNodes, treeSource],
   );
+  const results = useMemo(() => new Map(sources.map((s) => [s.uuid, sourceExpression(s, numberOfModules)])), [sources, numberOfModules]);
+  const entries = useMemo(() => sources.flatMap((s) => {
+    const result = results.get(s.uuid);
+    return result?.kind === "READY" ? [{ key: s.uuid, expression: result.expression }] : [];
+  }), [sources, results]);
+  const points = useFrequencyPoints(entries, table);
+  const primaryResult = effectivePrimary === undefined ? undefined : results.get(effectivePrimary.uuid);
+  const spread = useFrequencySpread(primaryResult?.kind === "READY" ? primaryResult.expression : undefined, table);
 
   useEffect(() => setFaultTreeSelection(null), [treeSourceId]);
 
@@ -513,23 +541,17 @@ export function IeFrequencyQuantificationEditor({ sources, primaryId, numberOfMo
   };
 
   const emit = (next: FrequencyDataSource[], nextPrimary: string | undefined): void => {
-    const primary = next.find((s) => s.uuid === nextPrimary) ?? next[0];
-    const rolled = primary !== undefined ? moduleAdjusted(sourceMean(primary), primary.perModule, numberOfModules) : null;
-    onChange(next, primary?.uuid, rolled);
+    const primary = primarySource(next, nextPrimary);
+    const result = primary === undefined ? undefined : sourceExpression(primary, numberOfModules);
+    onChange(next, primary?.uuid, result?.kind === "READY" ? result.expression : undefined);
   };
   const patch = (uuid: string, p: Partial<FrequencyDataSource>): void => {
     emit(sources.map((s) => (s.uuid === uuid ? { ...s, ...p } : s)), primaryId);
   };
-  const changeBasis = (s: FrequencyDataSource, basis: FrequencyQuantificationBasis): void => {
-    const allowed = (PEDIGREE_BY_BASIS[basis] ?? []).map((o) => o.value);
+  const changeBasis = (s: FrequencyDataSource, basisValue: FrequencyQuantificationBasis): void => {
+    const allowed = (PEDIGREE_BY_BASIS[basisValue] ?? []).map((o) => o.value);
     const pedigree = s.pedigree !== undefined && allowed.includes(s.pedigree) ? s.pedigree : undefined;
-    patch(s.uuid, { basis, pedigree });
-  };
-  const setParam = (s: FrequencyDataSource, i: number, v: number): void => {
-    const arr = [...(s.distributionParameters ?? [])];
-    while (arr.length <= i) arr.push(0);
-    arr[i] = v;
-    patch(s.uuid, { distributionParameters: arr });
+    patch(s.uuid, { basis: basisValue, pedigree });
   };
   const add = (): void => {
     const created: FrequencyDataSource = {
@@ -538,8 +560,6 @@ export function IeFrequencyQuantificationEditor({ sources, primaryId, numberOfMo
       basis: "GENERIC_DATA",
       perModule: false,
       sourceReference: "",
-      distributionFamily: "POINT",
-      distributionParameters: [0],
     };
     setOpenIds((prev) => new Set(prev).add(created.uuid));
     emit([...sources, created], primaryId ?? created.uuid);
@@ -553,10 +573,10 @@ export function IeFrequencyQuantificationEditor({ sources, primaryId, numberOfMo
     <div className="iefq">
       <div className="iefq__hero">
         <div className="iefq__hero-block">
-          <span className="iefq__hero-val">{fmtFreq(effectivePrimary !== undefined ? moduleAdjusted(sourceMean(effectivePrimary), effectivePrimary.perModule, numberOfModules) : null)}</span>
-          <span className="iefq__hero-unit">per plant-yr</span>
+          <span className="iefq__hero-val">{effectivePrimary === undefined || primaryResult?.kind !== "READY" ? "—" : pointText(points.get(effectivePrimary.uuid))}</span>
+          <span className="iefq__hero-unit">{basisText(basis)}</span>
         </div>
-        <span className="iefq__hero-cap">{sources.length} data source{sources.length === 1 ? "" : "s"} · the primary source sets the frequency. Click a source to expand it; right-click a fault-tree node to edit.</span>
+        <span className="iefq__hero-cap">{heroCaption(sources.length, primaryResult, spread)}</span>
         <span className="iefq__hero-spacer" />
         <div className="iefq__hero-actions">
           <button type="button" className="iefq__ghost" onClick={() => setAll(true)}>Expand all</button>
@@ -572,9 +592,9 @@ export function IeFrequencyQuantificationEditor({ sources, primaryId, numberOfMo
           sources.map((s) => {
             const isPrimary = effectivePrimary !== undefined && s.uuid === effectivePrimary.uuid;
             const isOpen = openIds.has(s.uuid);
-            const family = s.distributionFamily ?? "POINT";
             const pedigreeOptions = PEDIGREE_BY_BASIS[s.basis] ?? [];
-            const mean = moduleAdjusted(sourceMean(s), s.perModule, numberOfModules);
+            const result = results.get(s.uuid);
+            const point = points.get(s.uuid);
             return (
               <div key={s.uuid} className={`iefq-card${isPrimary ? " iefq-card--primary" : ""}`}>
                 <div className="iefq-card__bar">
@@ -589,7 +609,7 @@ export function IeFrequencyQuantificationEditor({ sources, primaryId, numberOfMo
                     ? <input className="iefq-card__label" value={s.label} onChange={(e) => patch(s.uuid, { label: e.target.value })} />
                     : <button type="button" className="iefq-card__label-text" onClick={() => toggleOpen(s.uuid)}>{s.label}</button>}
                   <span className="iefq-card__chip">{BASIS_SHORT[s.basis] ?? s.basis}</span>
-                  <span className="iefq-card__mean">{fmtFreq(mean)}</span>
+                  <span className="iefq-card__mean">{result?.kind === "READY" ? pointText(point) : "Incomplete"}</span>
                   {editable && <button type="button" className="iefq-card__del" onClick={() => del(s.uuid)} aria-label="Delete data source">✕</button>}
                 </div>
 
@@ -598,7 +618,10 @@ export function IeFrequencyQuantificationEditor({ sources, primaryId, numberOfMo
                     <div className="iefq-row">
                       <div className="iefq-field">
                         <span className="iefq-field__label">Basis</span>
-                        <select className="iefq-select" value={s.basis} disabled={!editable} onChange={(e) => changeBasis(s, e.target.value as FrequencyQuantificationBasis)}>
+                        <select className="iefq-select" value={s.basis} disabled={!editable} onChange={(e) => {
+                          const next = BASIS_OPTIONS.find((o) => o.value === e.target.value);
+                          if (next !== undefined) changeBasis(s, next.value);
+                        }}>
                           {BASIS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                       </div>
@@ -623,52 +646,41 @@ export function IeFrequencyQuantificationEditor({ sources, primaryId, numberOfMo
                         <div className="iefq-row">
                           <div className="iefq-field">
                             <span className="iefq-field__label">Events observed</span>
-                            <NumField value={s.eventCount} disabled={!editable} placeholder="0" onChange={(v) => patch(s.uuid, { eventCount: v })} />
+                            <NumField value={s.eventCount} disabled={!editable} placeholder="Not entered" onChange={(v) => patch(s.uuid, { eventCount: v })} />
                           </div>
                           <div className="iefq-field">
                             <span className="iefq-field__label">Exposure (reactor-yr)</span>
-                            <NumField value={s.exposureModuleYears} disabled={!editable} placeholder="e.g. 15" onChange={(v) => patch(s.uuid, { exposureModuleYears: v })} />
+                            <NumField value={s.exposureModuleYears} disabled={!editable} placeholder="Not entered" onChange={(v) => patch(s.uuid, { exposureModuleYears: v })} />
                           </div>
                         </div>
                         <div className="iefq-row">
                           <div className="iefq-field">
                             <span className="iefq-field__label">Prior mean (optional)</span>
-                            <NumField value={s.priorMean} disabled={!editable} placeholder="noninformative" onChange={(v) => patch(s.uuid, { priorMean: v })} />
+                            <NumField value={s.priorMean} disabled={!editable} placeholder="Jeffreys" onChange={(v) => patch(s.uuid, { priorMean: v })} />
                           </div>
                           <div className="iefq-field">
                             <span className="iefq-field__label">Prior weight (pseudo-events)</span>
-                            <NumField value={s.priorWeightPseudoEvents} disabled={!editable} placeholder="noninformative" onChange={(v) => patch(s.uuid, { priorWeightPseudoEvents: v })} />
+                            <NumField value={s.priorWeightPseudoEvents} disabled={!editable} placeholder="Jeffreys" onChange={(v) => patch(s.uuid, { priorWeightPseudoEvents: v })} />
                           </div>
                         </div>
-                        <div className="iefq-note">Gamma-Poisson update. With no prior it uses a noninformative Jeffreys prior, giving (events + 0.5) / exposure.</div>
+                        <div className="iefq-note">PRAXIS updates the prior with the events over the exposure. A prior mean and weight give a gamma prior. With neither, the Jeffreys prior gives a mean of (events + 0.5) / exposure.</div>
                       </div>
                     )}
 
                     {isDistributionBasis(s.basis) && (
                       <div className="iefq-section">
-                        <div className="iefq-section__title">Read a value or distribution</div>
+                        <div className="iefq-section__title">Estimate</div>
                         <div className="iefq-row">
                           <div className="iefq-field">
                             <span className="iefq-field__label">Data lineage</span>
-                            <select className="iefq-select" value={s.pedigree ?? ""} disabled={!editable} onChange={(e) => patch(s.uuid, { pedigree: e.target.value === "" ? undefined : (e.target.value as FrequencyDataPedigree) })}>
+                            <select className="iefq-select" value={s.pedigree ?? ""} disabled={!editable} onChange={(e) => patch(s.uuid, { pedigree: pedigreeOptions.find((o) => o.value === e.target.value)?.value })}>
                               <option value="">Not specified</option>
                               {pedigreeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                             </select>
                           </div>
-                          <div className="iefq-field">
-                            <span className="iefq-field__label">Distribution</span>
-                            <select className="iefq-select" value={family} disabled={!editable} onChange={(e) => patch(s.uuid, { distributionFamily: e.target.value as FrequencyDistributionFamily })}>
-                              {FAMILY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                            </select>
-                          </div>
                         </div>
-                        <div className="iefq-row">
-                          {PARAM_LABELS[family].map((lbl, i) => (
-                            <div key={lbl} className="iefq-field">
-                              <span className="iefq-field__label">{lbl}</span>
-                              <NumField value={s.distributionParameters?.[i]} disabled={!editable} onChange={(v) => setParam(s, i, v)} />
-                            </div>
-                          ))}
+                        <div className="iefq-section__body">
+                          <FrequencyLawField expression={s.estimate} mean={pointValue(point)} describe={describe} editable={editable} addLabel="Add an estimate" onChange={(estimate) => patch(s.uuid, { estimate })} />
                         </div>
                       </div>
                     )}
@@ -676,19 +688,19 @@ export function IeFrequencyQuantificationEditor({ sources, primaryId, numberOfMo
                     {s.basis === "FAULT_TREE" && (
                       <div className="iefq-section">
                         <div className="iefq-section__title">Fault tree</div>
-                        <div className="iefq-row">
-                          <div className="iefq-field">
-                            <span className="iefq-field__label">Top-event mean frequency</span>
-                            <NumField value={s.faultTreeTopMean} disabled={!editable} placeholder="e.g. 1e-3" onChange={(v) => patch(s.uuid, { faultTreeTopMean: v })} />
-                          </div>
+                        <div className="iefq-section__body">
+                          <span className="iefq-field__label">Top event frequency</span>
+                          <FrequencyLawField expression={s.faultTreeTop} mean={pointValue(point)} describe={describe} editable={editable} addLabel="Add the top event frequency" onChange={(faultTreeTop) => patch(s.uuid, { faultTreeTop })} />
                         </div>
                         <div className="iefq-ftsummary">
-                          <span className="iefq-ftsummary__text">{s.faultTree?.length ?? 1} node{(s.faultTree?.length ?? 1) === 1 ? "" : "s"} · open the full-screen editor to view, pan, zoom and edit the tree.</span>
+                          <span className="iefq-ftsummary__text">{s.faultTree?.length ?? 1} node{(s.faultTree?.length ?? 1) === 1 ? "" : "s"}. Open the full-screen editor to view, pan, zoom and edit the tree.</span>
                           <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setTreeSourceId(s.uuid)}>Open fault tree editor →</button>
                         </div>
                       </div>
                     )}
 
+                    {result?.kind === "MISSING" && <div className="iefq-problem" role="status">{result.problem}</div>}
+                    {result?.kind === "READY" && point?.status === "failed" && <div className="iefq-problem" role="status">PRAXIS could not evaluate this source. {point.error}</div>}
                   </>
                 )}
               </div>

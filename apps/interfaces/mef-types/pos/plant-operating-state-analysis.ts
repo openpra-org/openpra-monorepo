@@ -10,6 +10,10 @@ export type ScreeningCriterion = "SCR-1" | "SCR-2" | "SCR-3" | "ALTERNATE";
 
 export type SystemStatus = "YES" | "NO" | "STANDBY" | "OOS";
 
+export interface PosOutageSource {
+  workbookId: string;
+}
+
 export enum OperatingMode {
   POWER = "POWER",
   STARTUP = "STARTUP",
@@ -215,6 +219,7 @@ export interface PlantOperatingState extends Unique, Named {
   meanTimeAfterShutdownHours?: number;
   durationAndCycleTimingBasis?: string;
   meanEntryFrequency: Frequency | FrequencyWithDistribution;
+  outageSource?: PosOutageSource;
   decayHeatLevelDefined: boolean;
   decayHeatBasis?: string;
 

@@ -2,7 +2,6 @@
 //! See uncertainty/SOURCE.md and uncertainty/LICENSES.txt for provenance.
 
 // loops_utils.h.src DOUBLE_pairwise_sum for contiguous float64 values.
-// Shared with the existing CPT row normalization; do not reorder the input.
 pub(super) fn numpy_sum(values: &[f64]) -> f64 {
     let n = values.len();
     if n < 8 {

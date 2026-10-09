@@ -5,12 +5,12 @@ import { RIIcon } from "./riIcons";
 
 function DrawerHead({ cap, title, sub, onClose }: { cap: string; title: string; sub?: string; onClose: () => void }): JSX.Element {
   return (
-    <div className="posdrawer__head">
+    <div className="modal__head">
       <div>
         <div className="posdrawer__cap">{cap}</div>
-        <WorkbookSectionHeading workbook="RI" title={title} cueKey={cap} description={sub} level={2} className="posdrawer__title" />
+        <WorkbookSectionHeading workbook="RI" title={title} cueKey={cap} description={sub} level={2} className="modal__title" />
       </div>
-      <button type="button" className="posdrawer__close" onClick={onClose}><RIIcon.Close /></button>
+      <button type="button" className="modal__close" onClick={onClose} aria-label="Close"><RIIcon.Close /></button>
     </div>
   );
 }
@@ -83,22 +83,6 @@ function SrChips({ srs }: { srs: { sr: string }[] }): JSX.Element {
   );
 }
 
-const APP_TYPE_OPTIONS: [string, string][] = [
-  ["FIXED_RISK_TARGET", "Fixed risk target"],
-  ["BASELINE_RISK", "Baseline risk"],
-];
-
-const CRITERIA_SOURCE_OPTIONS: [string, string][] = [
-  ["TABLE_1_9_1", "Table 1.9-1"],
-  ["TABLE_1_9_2", "Table 1.9-2"],
-  ["ALTERNATE", "Justified alternate"],
-];
-
-const BASIS_OPTIONS: [string, string][] = [
-  ["STANDARD_DEFAULT", "Standard default"],
-  ["JUSTIFIED_ALTERNATIVE", "Justified alternative"],
-];
-
 const METRIC_OPTIONS: [string, string][] = [
   ["INDIVIDUAL_EARLY_FATALITY_RISK", "Individual early fatality risk"],
   ["INDIVIDUAL_LATENT_CANCER_FATALITY_RISK", "Individual latent cancer fatality risk"],
@@ -127,13 +111,6 @@ const COMPLIANCE_OPTIONS: [string, string][] = [
   ["COMPLIANT", "Compliant"],
   ["NON_COMPLIANT", "Not compliant"],
   ["INDETERMINATE", "Indeterminate"],
-];
-
-const CRITERIA_TYPE_OPTIONS: [string, string][] = [
-  ["QHO", "Quantitative health objective"],
-  ["SAFETY_GOAL", "Safety goal"],
-  ["DESIGN_OBJECTIVE", "Design objective"],
-  ["OTHER", "Other"],
 ];
 
 const IMPORTANCE_OPTIONS: [string, string][] = [
@@ -235,15 +212,6 @@ function labelOf(options: [string, string][], value: string): string {
   return options.find(([v]) => v === value)?.[1] ?? value;
 }
 
-const THRESHOLD_LEVELS: { key: "eventSequence" | "eventSequenceFamily" | "system" | "component" | "basicEvent" | "humanFailureEvent"; label: string }[] = [
-  { key: "eventSequence", label: "Event sequence" },
-  { key: "eventSequenceFamily", label: "Event sequence family" },
-  { key: "system", label: "Systems" },
-  { key: "component", label: "Components" },
-  { key: "basicEvent", label: "Basic events" },
-  { key: "humanFailureEvent", label: "Human failure events" },
-];
-
 export {
   DrawerHead,
   RiTextField,
@@ -253,11 +221,7 @@ export {
   RiStringList,
   RemoveBtn,
   SrChips,
-  APP_TYPE_OPTIONS,
-  CRITERIA_SOURCE_OPTIONS,
-  BASIS_OPTIONS,
   METRIC_OPTIONS,
-  CRITERIA_TYPE_OPTIONS,
   CALC_LEVEL_OPTIONS,
   USED_OPTIONS,
   CONFIRMED_OPTIONS,
@@ -275,6 +239,5 @@ export {
   RECORDED_OPTIONS,
   CONSIDERED_OPTIONS,
   VERIFIED_OPTIONS,
-  THRESHOLD_LEVELS,
   labelOf,
 };

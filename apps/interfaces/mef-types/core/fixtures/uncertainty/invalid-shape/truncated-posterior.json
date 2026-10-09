@@ -1,0 +1,31 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PROBABILITY",
+        "law": {
+          "family": "TRUNCATED",
+          "law": {
+            "family": "POSTERIOR",
+            "prior": null,
+            "evidence": [
+              {
+                "likelihood": "BINOMIAL",
+                "failures": 1,
+                "exposure": 100
+              }
+            ]
+          },
+          "lower": null,
+          "upper": 0.5
+        }
+      }
+    }
+  }
+]

@@ -6,12 +6,12 @@ import {
   MethodModelReferenceSchema,
   WorkbookEntityIdSchema,
 } from "./shared";
-import { AnnualizationConventionSchema, EventFrequencyUnitSchema } from "./quantitative-semantics";
+import { AnnualizationConventionSchema } from "./quantitative-semantics";
+import { UncertainExpressionSchema } from "../core/uncertainty";
 import type {
   EventTreeBranchOutcome,
   EventTreeBranchResult,
   EventTreeCanvasLayout,
-  EventTreeControlledDataSourceReference,
   EventTreeDefinition,
   EventTreeEndState,
   EventTreeEndStateBranchResult,
@@ -40,19 +40,10 @@ const EventTreeInitiatingEventReferenceSchema = z
   })
   .strict();
 
-const EventTreeControlledDataSourceReferenceSchema = z
-  .object({
-    workbookId: z.string().trim().min(1, "Workbook id is required"),
-    parameterId: WorkbookEntityIdSchema,
-  })
-  .strict();
-
 const EventTreeInitiatingEventFrequencySchema = z
   .object({
-    value: z.number().nonnegative("Initiating-event frequency cannot be negative"),
-    unit: EventFrequencyUnitSchema.optional(),
+    expression: UncertainExpressionSchema,
     annualization: AnnualizationConventionSchema.optional(),
-    controlledDataSource: EventTreeControlledDataSourceReferenceSchema.optional(),
   })
   .strict();
 
@@ -143,9 +134,6 @@ type _AssertEventTreeEntityIdentity = Expect<
 type _AssertEventTreeInitiatingEventReference = Expect<
   Equal<z.infer<typeof EventTreeInitiatingEventReferenceSchema>, EventTreeInitiatingEventReference>
 >;
-type _AssertEventTreeControlledDataSourceReference = Expect<
-  Equal<z.infer<typeof EventTreeControlledDataSourceReferenceSchema>, EventTreeControlledDataSourceReference>
->;
 type _AssertEventTreeInitiatingEventFrequency = Expect<
   Equal<z.infer<typeof EventTreeInitiatingEventFrequencySchema>, EventTreeInitiatingEventFrequency>
 >;
@@ -188,7 +176,6 @@ type _AssertEventTreeDefinition = Expect<
 export {
   EventTreeEntityIdentitySchema,
   EventTreeInitiatingEventReferenceSchema,
-  EventTreeControlledDataSourceReferenceSchema,
   EventTreeInitiatingEventFrequencySchema,
   EventTreeFunctionalEventSchema,
   EventTreeFunctionalEventFaultTreeLinkSchema,

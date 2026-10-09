@@ -1,0 +1,25 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "x"
+    },
+    "expression": {
+      "node": "OPERATION",
+      "operation": "ADD",
+      "operands": [
+        {
+          "node": "VALUE",
+          "value": {
+            "unit": "FACTOR",
+            "law": {
+              "family": "POINT",
+              "value": 1
+            }
+          }
+        }
+      ]
+    }
+  }
+]

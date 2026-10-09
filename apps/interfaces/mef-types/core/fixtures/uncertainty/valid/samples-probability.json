@@ -1,0 +1,28 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PROBABILITY",
+        "law": {
+          "family": "SAMPLES",
+          "values": [
+            0.001,
+            0.002,
+            0.0015,
+            0.004
+          ],
+          "weights": [],
+          "smoothing": {
+            "kind": "NONE"
+          }
+        }
+      }
+    }
+  }
+]

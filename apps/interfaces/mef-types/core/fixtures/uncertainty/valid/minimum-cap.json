@@ -1,0 +1,54 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "capped"
+    },
+    "expression": {
+      "node": "OPERATION",
+      "operation": "MIN",
+      "operands": [
+        {
+          "node": "VALUE",
+          "value": {
+            "unit": "PROBABILITY",
+            "law": {
+              "family": "POINT",
+              "value": 1
+            }
+          }
+        },
+        {
+          "node": "OPERATION",
+          "operation": "MULTIPLY",
+          "operands": [
+            {
+              "node": "VALUE",
+              "value": {
+                "unit": "FACTOR",
+                "law": {
+                  "family": "POINT",
+                  "value": 2
+                }
+              }
+            },
+            {
+              "node": "VALUE",
+              "value": {
+                "unit": "PROBABILITY",
+                "law": {
+                  "family": "BETA",
+                  "alpha": 0.5,
+                  "beta": 499.5,
+                  "lower": 0,
+                  "upper": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

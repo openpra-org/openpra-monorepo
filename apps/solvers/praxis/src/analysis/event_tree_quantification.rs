@@ -5,7 +5,9 @@ use tensorbayes::{BayesianGraph, CompileHeuristic, CompiledJunctionTree, StateIn
 use crate::algorithms::build::build_sequence_bdd_with_successes;
 use crate::algorithms::pdag::PdagNode;
 use crate::analysis::sequence_formula::SequenceFormulaBuilder;
+use crate::core::distribution_sampling::SamplingPlan;
 use crate::core::event_tree::EventTree;
+use crate::core::fault_tree::FaultTree;
 use crate::core::model::Model;
 use crate::hcl::{conditional_evidence_probabilities_for_network, prepare_hazard_evidence};
 use crate::hcl::{
@@ -58,6 +60,10 @@ impl EventTreeHclContext {
     pub fn with_uncertainty(mut self, uncertainty: Option<HclUncertaintySettings>) -> Self {
         self.uncertainty = uncertainty;
         self
+    }
+
+    pub fn sampling_plan(&self) -> Option<SamplingPlan> {
+        self.uncertainty.as_ref().map(HclUncertaintySettings::plan)
     }
 }
 
@@ -204,7 +210,7 @@ fn quantify_event_tree_sequences_batch_internal(
         }
     }
     let compiled_hcl = match hcl {
-        Some(context) => Some(CompiledHclContext::new(context)?),
+        Some(context) => Some(CompiledHclContext::new(context, model)?),
         None => None,
     };
     let hazard_evidence = match (hcl, hazard_assignment_rows) {
@@ -372,9 +378,12 @@ type HclSequenceEvaluation = (
 );
 
 impl CompiledHclContext {
-    fn new(context: &EventTreeHclContext) -> Result<Self> {
+    fn new(context: &EventTreeHclContext, model: &Model) -> Result<Self> {
         let tree =
             CompiledJunctionTree::compile(context.network.clone(), CompileHeuristic::MinFill)?;
+        let mut sources: Vec<(&String, &FaultTree)> = model.fault_trees().iter().collect();
+        sources.sort_by(|left, right| left.0.cmp(right.0));
+        let sources: Vec<&FaultTree> = sources.into_iter().map(|(_, tree)| tree).collect();
         Ok(Self {
             network: context.network.clone(),
             tree,
@@ -382,7 +391,7 @@ impl CompiledHclContext {
             uncertainty: context
                 .uncertainty
                 .as_ref()
-                .map(|settings| PreparedHclUncertainty::new(&context.network, settings))
+                .map(|settings| PreparedHclUncertainty::new(&context.network, settings, &sources))
                 .transpose()?,
         })
     }
@@ -529,7 +538,7 @@ mod tests {
     use crate::core::model::Model;
     use crate::hcl::{
         CanonicalBayesianNetwork, CanonicalBayesianVariable, HclBindingSpec,
-        HclCptRowUncertaintySpec, HclEvidenceSpec, HclUncertaintySettings,
+        HclEvidenceSpec, HclUncertaintySettings,
     };
 
     fn single_event_tree(id: &str, event: &str, probability: f64) -> FaultTree {
@@ -691,19 +700,22 @@ mod tests {
                 },
             ])
             .with_uncertainty(Some(HclUncertaintySettings {
-                cpt_generators: vec![],
-                sampler: Default::default(),
-                cpt_probability_clip_epsilon: 0.0,
                 sample_count: 200,
                 seed: 2026,
-                basic_event_distributions: vec![],
-                cpt_row_distributions: vec![HclCptRowUncertaintySpec {
+                sampler: crate::hcl::HclSampler::MonteCarlo,
+                basic_events: vec![],
+                cpt_rows: vec![crate::hcl::HclCptRowUncertainty {
                     node: "NODE-B".to_string(),
                     row_index: 1,
-                    prior: crate::hcl::HclCptPrior::Dirichlet {
-                        alpha: vec![5.0, 20.0],
+                    row: crate::core::distribution::UncertainVector::Value {
+                        law: crate::core::distribution::VectorLaw::Dirichlet {
+                            concentrations: vec![5.0, 20.0],
+                        },
                     },
                 }],
+                cpt_generators: vec![],
+                uncertainty_parameters: vec![],
+                uncertainty_vectors: vec![],
             }));
 
         let results = quantify_event_tree_sequences(&model, &event_tree, Some(&hcl)).unwrap();

@@ -11,8 +11,17 @@ import {
   type Stage,
 } from "./esqViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, stepsFromMef, type CommentView } from "./esqSelectors";
-import { ScopeScreen, IntegrateScreen, SolveScreen, LogicScreen, type EsqDrawerContext } from "./esqScreens";
-import { DependScreen, BarriersScreen, ResultsScreen, UncertScreen, DraftScreen, DrawerContent, PlaceholderScreen } from "./esqScreens2";
+import { ScopeScreen } from "./esqScreens";
+import { ModelScreen, ModelWindows, MODEL_WINDOW_LABELS, type EsqWindowContext } from "./esqModelScreen";
+import { LogicScreen, LogicWindows, LOGIC_WINDOW_KINDS, LOGIC_WINDOW_LABELS } from "./esqLogicScreen";
+import { BarrierScreen, BarrierWindows, BARRIER_WINDOW_KINDS, BARRIER_WINDOW_LABELS } from "./esqBarrierScreen";
+import { SolveScreen, SolveWindows, SOLVE_WINDOW_KINDS, SOLVE_WINDOW_LABELS } from "./esqSolveScreen";
+import { PostScreen, PostWindows, POST_WINDOW_KINDS, POST_WINDOW_LABELS } from "./esqPostScreen";
+import { ResultsScreen, ResultsWindows, RESULTS_WINDOW_KINDS, RESULTS_WINDOW_LABELS } from "./esqResultsScreen";
+import { UncertScreen, UncertWindows, UNCERT_WINDOW_KINDS, UNCERT_WINDOW_LABELS } from "./esqUncertaintyScreen";
+import { SensScreen, SensWindows, SENS_WINDOW_KINDS, SENS_WINDOW_LABELS } from "./esqSensitivityScreen";
+import { HandoffScreen, HandoffWindows, HANDOFF_WINDOW_KINDS, HANDOFF_WINDOW_LABELS } from "./esqHandoffScreen";
+import { DraftScreen, PlaceholderScreen } from "./esqScreens2";
 import { InternalReviewScreen, ReviewerCommentDock } from "./esqReview";
 import { useEsqWorkbook, type EsqWorkbookData } from "./esqWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
@@ -21,28 +30,30 @@ import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import { WorkbookSaveIndicator } from "../workbooks/workbookSaveIndicator";
 import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
 import "../workbooks/css/workbookWorkspace.css";
+import "../welcome/css/newProjectModal.css";
 import "./css/esqScreens.css";
 
 interface StepHeader {
-  eyebrow: string;
+  area: string;
   title: string;
-  sub?: string;
 }
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "The six elements that converge and the capability target." };
-    case "integrate": return { eyebrow: "Step 02", title: "Integrate & Quantify", sub: "Families and family frequencies from the integrated model (ESQ-A)." };
-    case "solve": return { eyebrow: "Step 03", title: "Solve & Converge", sub: "The codes, the truncation and the solution method (ESQ-B)." };
-    case "logic": return { eyebrow: "Step 04", title: "Logic Integrity", sub: "Loops, flags, mutual exclusivity and modules (ESQ-B)." };
-    case "depend": return { eyebrow: "Step 05", title: "Dependencies", sub: "The human-reliability handshake and the phenomena (ESQ-C)." };
-    case "barriers": return { eyebrow: "Step 06", title: "Barriers", sub: "The barrier challenges and capacities (ESQ-C)." };
-    case "results": return { eyebrow: "Step 07", title: "Review Results", sub: "The contributors, the importance and the screening audit (ESQ-D)." };
-    case "uncert": return { eyebrow: "Step 08", title: "Uncertainty & Pre-op", sub: "The funnel, the correlation and the pre-operational assumptions (ESQ-E)." };
-    case "draft": return { eyebrow: "Step 09 · Draft", title: "Produce the draft", sub: "Build the ESQ report, then send it to review (ESQ-F)." };
-    case "review": return { eyebrow: "Step 10 · Review", title: "Internal technical review", sub: "Reviewers comment, the preparer replies, all resolve before approval." };
-    case "approval": return { eyebrow: "Step 11 · Approval", title: "Approval & sign-off", sub: "Everyone signs, the approver last." };
-    default: return { eyebrow: "", title: "" };
+    case "scope": return { area: "HLR-ESQ-A", title: "Scope" };
+    case "model": return { area: "HLR-ESQ-A · C", title: "Model" };
+    case "solve": return { area: "HLR-ESQ-A · B", title: "Solve and converge" };
+    case "logic": return { area: "HLR-ESQ-B", title: "Logic" };
+    case "post": return { area: "HLR-ESQ-A · B · C", title: "Post-processing" };
+    case "barriers": return { area: "HLR-ESQ-A · C", title: "Barriers and phenomena" };
+    case "results": return { area: "HLR-ESQ-D · F", title: "Results review" };
+    case "uncert": return { area: "HLR-ESQ-A · E", title: "Uncertainty" };
+    case "sens": return { area: "HLR-ESQ-C · E · F", title: "Sensitivity" };
+    case "handoff": return { area: "HLR-ESQ-F", title: "Hand-offs" };
+    case "draft": return { area: "Draft", title: "Produce the draft" };
+    case "review": return { area: "Review", title: "Internal technical review" };
+    case "approval": return { area: "Approval", title: "Approval & sign-off" };
+    default: return { area: "", title: "" };
   }
 }
 
@@ -116,7 +127,7 @@ function WorkspaceHeader({
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles} title="Manage roles"><ESQIcon.Settings /> Roles</button>
         )}
         {onLoadExample !== undefined && (
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onLoadExample} title="Replace contents with the Generic-1 example workbook"><ESQIcon.Sparkle /> Load example</button>
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onLoadExample} title="Replace contents with a packaged example workbook"><ESQIcon.Sparkle /> Load example</button>
         )}
         {onUnloadExample !== undefined && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onUnloadExample} title="Restore the contents that existed before the example was loaded"><ESQIcon.Close /> Unload example</button>
@@ -131,12 +142,13 @@ function WorkspaceHeader({
   );
 }
 
-function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
+function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen, onClose }: {
   stepId: string;
   setStepId: (id: string) => void;
   persona: EsqPersona;
   visibleSteps: EsqStep[];
   mobileOpen: boolean;
+  onClose: () => void;
 }): JSX.Element {
   const idx = Math.max(0, visibleSteps.findIndex((s) => s.id === stepId));
   const pct = ((idx + 1) / visibleSteps.length) * 100;
@@ -144,7 +156,10 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
   return (
     <aside className={`posw__rail${mobileOpen ? " posw__rail--mobile-open" : ""}`} aria-label="ESQ analysis steps">
       <div className="posrail__head">
-        <span className="posrail__eyebrow">{eyebrow}</span>
+        <div className="posrail__head-top">
+          <span className="posrail__eyebrow">{eyebrow}</span>
+          <button type="button" className="posdock__close" onClick={onClose} aria-label="Hide steps" title="Hide steps"><ESQIcon.Close /></button>
+        </div>
         <div className="posrail__progress">
           <span className="posrail__progress-num">{idx + 1}</span>
           <span className="posrail__progress-total">/ {visibleSteps.length} steps</span>
@@ -158,9 +173,14 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
           const idle = s.status === "idle";
           return (
             <li key={s.id}>
-              <button type="button" className={`posrail__step${active ? " posrail__step--active" : ""}${complete ? " posrail__step--complete" : ""}${idle ? " posrail__step--idle" : ""}`} onClick={() => setStepId(s.id)}>
+              <button type="button" className={`posrail__step${active ? " posrail__step--active" : ""}${complete ? " posrail__step--complete" : ""}${idle && s.terminal === true ? " posrail__step--idle" : ""}`} onClick={() => setStepId(s.id)}>
                 <span className="posrail__step-num">{complete ? <ESQIcon.Check /> : s.num}</span>
-                <span><span className="posrail__step-label">{s.label}</span></span>
+                <span>
+                  <span className="posrail__step-label">
+                    {s.label}
+                    {s.hlr !== undefined && <span className="esqhlr">{s.hlr}</span>}
+                  </span>
+                </span>
                 <span className="posrail__step-warn" style={{ background: "transparent" }} />
               </button>
             </li>
@@ -241,7 +261,25 @@ function ConformanceDock({ ccId, stage, onGoToScope, onClose, mobileOpen }: {
   );
 }
 
-function EsqDrawer({ context, onClose }: { context: EsqDrawerContext; onClose: () => void }): JSX.Element {
+const WINDOW_LABELS: Record<EsqWindowContext["kind"], string> = {
+  ...MODEL_WINDOW_LABELS,
+  ...LOGIC_WINDOW_LABELS,
+  ...BARRIER_WINDOW_LABELS,
+  ...SOLVE_WINDOW_LABELS,
+  ...POST_WINDOW_LABELS,
+  ...RESULTS_WINDOW_LABELS,
+  ...UNCERT_WINDOW_LABELS,
+  ...SENS_WINDOW_LABELS,
+  ...HANDOFF_WINDOW_LABELS,
+};
+
+function EsqModal({ context, onClose, onRetarget }: { context: EsqWindowContext; onClose: () => void; onRetarget: (ctx: EsqWindowContext) => void }): JSX.Element {
+  const dialog = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialog.current?.focus();
+    return () => { trigger?.focus(); };
+  }, []);
   useEffect(() => {
     function onKey(e: KeyboardEvent): void { if (e.key === "Escape") onClose(); }
     document.addEventListener("keydown", onKey);
@@ -250,9 +288,33 @@ function EsqDrawer({ context, onClose }: { context: EsqDrawerContext; onClose: (
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
   }, [onClose]);
   return (
-    <div className="posdrawer-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="posdrawer" role="dialog" aria-modal="true">
-        <DrawerContent context={context} onClose={onClose} />
+    <div className="modal__backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div
+        ref={dialog}
+        className="modal esq-form-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={WINDOW_LABELS[context.kind]}
+        tabIndex={-1}
+        onKeyDown={(e) => {
+          if (e.key !== "Tab") return;
+          const controls = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]')).filter((el) => el.getClientRects().length > 0);
+          const first = controls[0];
+          const last = controls[controls.length - 1];
+          if (first === undefined || last === undefined) { e.preventDefault(); return; }
+          if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && (document.activeElement === last || document.activeElement === dialog.current)) { e.preventDefault(); first.focus(); }
+        }}
+      >
+        {LOGIC_WINDOW_KINDS.has(context.kind) ? <LogicWindows context={context} onClose={onClose} />
+          : BARRIER_WINDOW_KINDS.has(context.kind) ? <BarrierWindows context={context} onClose={onClose} />
+          : SOLVE_WINDOW_KINDS.has(context.kind) ? <SolveWindows context={context} onClose={onClose} />
+          : POST_WINDOW_KINDS.has(context.kind) ? <PostWindows context={context} onClose={onClose} />
+          : RESULTS_WINDOW_KINDS.has(context.kind) ? <ResultsWindows context={context} onClose={onClose} />
+          : UNCERT_WINDOW_KINDS.has(context.kind) ? <UncertWindows context={context} onClose={onClose} />
+          : SENS_WINDOW_KINDS.has(context.kind) ? <SensWindows context={context} onClose={onClose} />
+          : HANDOFF_WINDOW_KINDS.has(context.kind) ? <HandoffWindows context={context} onClose={onClose} />
+          : <ModelWindows context={context} onClose={onClose} onRetarget={onRetarget} />}
       </div>
     </div>
   );
@@ -289,7 +351,8 @@ function EsqWorkbench({
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
 
-  const visibleSteps = useMemo(() => stepsFromMef(data.esq, persona), [data.esq, persona]);
+  const { upstream } = useEsqWorkbook();
+  const visibleSteps = useMemo(() => stepsFromMef(data.esq, persona, upstream), [data.esq, persona, upstream]);
   const [searchParams] = useSearchParams();
   const requestedStepId = searchParams.get("step");
   const requestedNetworkId = searchParams.get("network");
@@ -312,10 +375,11 @@ function EsqWorkbench({
       : visibleSteps[0]?.id ?? "scope");
   const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
   const [dockOpen, setDockOpen] = useState(!isNarrow);
+  const [railOpen, setRailOpen] = useState(true);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
   const [dockMobileOpen, setDockMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [drawer, setDrawer] = useState<EsqDrawerContext | null>(null);
+  const [windowCtx, setWindowCtx] = useState<EsqWindowContext | null>(null);
   const toastTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -332,7 +396,7 @@ function EsqWorkbench({
   function flash(msg: string): void {
     setToast(msg);
     if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), 2200);
+    toastTimer.current = window.setTimeout(() => setToast(null), Math.max(2200, msg.split(" ").length * 300));
   }
 
   const { user: authUser } = useAuth();
@@ -381,20 +445,16 @@ function EsqWorkbench({
 
   function renderScreen(): JSX.Element {
     switch (stepId) {
-      case "scope":
-        return (
-          <>
-            <ScopeScreen ccId={ccId} setCcId={setCcId} onAction={flash} stage={stage} setStage={setStage} />
-            {renderDocuments?.()}
-          </>
-        );
-      case "integrate": return <IntegrateScreen openDrawer={setDrawer} />;
-      case "solve": return <SolveScreen openDrawer={setDrawer} />;
-      case "logic": return <LogicScreen openDrawer={setDrawer} />;
-      case "depend": return <DependScreen openDrawer={setDrawer} initialNetworkId={requestedNetworkId} initialSourceWorkbookId={requestedSourceWorkbookId} />;
-      case "barriers": return <BarriersScreen openDrawer={setDrawer} />;
-      case "results": return <ResultsScreen openDrawer={setDrawer} />;
-      case "uncert": return <UncertScreen stage={stage} openDrawer={setDrawer} />;
+      case "scope": return <ScopeScreen ccId={ccId} setCcId={setCcId} stage={stage} setStage={setStage} documents={renderDocuments?.() ?? null} />;
+      case "model": return <ModelScreen openWindow={setWindowCtx} />;
+      case "solve": return <SolveScreen openWindow={setWindowCtx} />;
+      case "logic": return <LogicScreen openWindow={setWindowCtx} initialNetworkId={requestedNetworkId} initialSourceWorkbookId={requestedSourceWorkbookId} />;
+      case "post": return <PostScreen openWindow={setWindowCtx} />;
+      case "barriers": return <BarrierScreen openWindow={setWindowCtx} />;
+      case "results": return <ResultsScreen openWindow={setWindowCtx} />;
+      case "uncert": return <UncertScreen openWindow={setWindowCtx} />;
+      case "sens": return <SensScreen openWindow={setWindowCtx} />;
+      case "handoff": return <HandoffScreen openWindow={setWindowCtx} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
@@ -430,29 +490,30 @@ function EsqWorkbench({
   }
 
   return (
-    <div className={`posw${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`ESQ — ${step.label}`}>
+    <div className={`posw esq-workspace${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`ESQ · ${step.label}`}>
       {isReviewer && <div className="poshd__extbar" />}
       {isApprover && <div className="poshd__apprbar" />}
       <WorkspaceHeader persona={persona} setPersona={setPersona} workflowState={data.esq.workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailMobileOpen((v) => !v)} onToggleDock={() => { setDockOpen(true); setDockMobileOpen((v) => !v); }} />
 
-      <div className={`posw__shell${dockOpen ? "" : " posw__shell--dock-closed"}`}>
-        <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} />
+      <div className={`posw__shell${railOpen ? "" : " posw__shell--rail-closed"}${dockOpen ? "" : " posw__shell--dock-closed"}`}>
+        {(railOpen || railMobileOpen) && <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} onClose={() => { if (railMobileOpen) setRailMobileOpen(false); else setRailOpen(false); }} />}
 
         <main className="posmain" aria-label="Step content">
           <div className="posmain__head">
             <div className="posmain__title-block">
-              <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <WorkbookSectionHeading workbook="ESQ" title={h.title} description={h.sub} level={1} className="posmain__title" />
+              <div className="posmain__eyebrow">{h.area.length > 0 ? `Step ${step.num} · ${h.area}` : ""}</div>
+              <WorkbookSectionHeading workbook="ESQ" title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
+              {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm esq-show-steps" onClick={() => setRailOpen(true)}><ESQIcon.Layers /> Show steps</button>}
               {!dockOpen && (
-                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setDockOpen(true); setDockMobileOpen(true); }}><ESQIcon.Eye /> Show conformance</button>
+                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setDockOpen(true); setDockMobileOpen(window.matchMedia("(max-width: 1100px)").matches); }}><ESQIcon.Eye /> Show conformance</button>
               )}
             </div>
           </div>
 
           {renderScreen()}
-          {["depend", "results"].includes(stepId) && <EsqAnalysisHistory />}
+          {["logic", "barriers", "solve", "post", "results", "uncert", "sens"].includes(stepId) && <EsqAnalysisHistory />}
 
           <div className="posnav">
             {prev ? (
@@ -474,8 +535,8 @@ function EsqWorkbench({
         )}
       </div>
 
-      {drawer !== null && <EsqDrawer context={drawer} onClose={() => setDrawer(null)} />}
-      {toast !== null && <div className="postoast" role="status">{toast}</div>}
+      {windowCtx !== null && <EsqModal context={windowCtx} onClose={() => setWindowCtx(null)} onRetarget={setWindowCtx} />}
+      {toast !== null && <div className="postoast esq-toast" role="status">{toast}</div>}
 
       {(isReviewer || isApprover) && (
         <ReviewerCommentDock

@@ -81,6 +81,9 @@ function cloneBasicEvent(basicEvent: FaultTreeBasicEvent): FaultTreeBasicEvent {
     ...basicEvent,
     probability: {
       ...basicEvent.probability,
+      ...(basicEvent.probability.expression === undefined
+        ? {}
+        : { expression: structuredClone(basicEvent.probability.expression) }),
       ...(basicEvent.probability.quantificationBasis === undefined
         ? {}
         : { quantificationBasis: structuredClone(basicEvent.probability.quantificationBasis) }),

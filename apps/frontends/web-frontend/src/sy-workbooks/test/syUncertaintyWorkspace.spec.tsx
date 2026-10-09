@@ -1,24 +1,25 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { DistributionType } from "interfaces-mef-types/core/events";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { FaultTreeAnalysisResult, FaultTreeExecuteResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { SyUncertaintyAnalysis } from "../SyUncertaintyAnalysis";
+import { SyUncertaintyResults } from "../SyUncertaintyResults";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "../syWorkbookApi";
 
 jest.mock("../../newly-developed-methods/shared/useAnalysisSourceGuard", () => ({ useAnalysisSourceGuard: () => ({ sourceWarning: null }) }));
 jest.mock("../syWorkbookApi", () => ({ getSyFaultTreeResult: jest.fn(), runSyFaultTree: jest.fn(), validateSyFaultTree: jest.fn() }));
 
-const reference = { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "da-param" };
+const linked: UncertainExpression = { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "da-param" } };
+const typed: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.02 } } };
 let sy = {
   systemDefinitions: [{ uuid: "system-1", name: "Cooling", abbreviation: "CLG" }],
   systemLogicModels: [{ uuid: "model-1", code: "FT-CLG", name: "Cooling fault tree", systemReference: "system-1", topGate: { gateId: "top" },
     leafNodes: [{ id: "leaf-a", kind: "BASIC_EVENT_REFERENCE", basicEventId: "event-a" }] }],
-  systemBasicEvents: [{ uuid: "event-a", code: "PMP-A-FS", name: "Pump A fails", eventType: "BASIC", failureMode: "FAILURE_TO_START", probability: 0.02,
-    controlledDataSource: reference }],
+  systemBasicEvents: [{ uuid: "event-a", code: "PMP-A-FS", name: "Pump A fails", eventType: "BASIC", failureMode: "FAILURE_TO_START", expression: linked }],
   commonCauseFailureGroups: [], uncertaintyAnalyses: [],
 } as unknown as SystemsAnalysis;
-let controlledParameters = [{ workbookId: "da-workbook", workbookName: "DA estimates", parameterId: "da-param", parameterName: "Pump failure", parameterType: "PROBABILITY" as const, value: 0.02,
-  uncertainty: { type: DistributionType.BETA, alpha: 2, betaParam: 98 } }];
+const ESTIMATE: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "BETA", alpha: 2, beta: 98, lower: 0, upper: 1 } } };
+let controlledParameters = [{ workbookId: "da-workbook", workbookName: "DA estimates", parameterId: "da-param", parameterName: "Pump failure", unit: "PROBABILITY" as const, estimate: ESTIMATE }];
 
 jest.mock("../syWorkbookContext", () => ({ useSyWorkbook: () => ({
   sy, controlledParameters, editable: true, shortOf: () => "CLG",
@@ -37,43 +38,69 @@ function execution(): FaultTreeExecuteResult {
 function result(): FaultTreeAnalysisResult {
   return { schemaVersion: "1.0.0", runId: "run-unc", owner: { workbookId: "sy-workbook", modelId: "model-1", workbookRevision: 12 },
     topGateId: "top", topEventProbability: 0.02, validationIssues: [], completedAt: timestamp,
-    uncertainty: { mean: 0.021, standardDeviation: 0.004, errorFactor: 1.1, sampleCount: 1000, seed: 9,
+    uncertainty: { mean: 0.021, standardDeviation: 0.004, standardError: 0.000126, sampleCount: 4, seed: 9, samplingMethod: "LATIN_HYPERCUBE",
+      samples: [0.018, 0.02, 0.022, 0.024],
       quantiles: [0.05, 0.25, 0.5, 0.75, 0.95].map((probability) => ({ probability, value: 0.02 })) } };
 }
 
 describe("SY Step 07 linked uncertainty analysis", () => {
   beforeEach(() => {
     sy = structuredClone(sy);
-    controlledParameters = [{ workbookId: "da-workbook", workbookName: "DA estimates", parameterId: "da-param", parameterName: "Pump failure", parameterType: "PROBABILITY", value: 0.02,
-      uncertainty: { type: DistributionType.BETA, alpha: 2, betaParam: 98 } }];
+    controlledParameters = [{ workbookId: "da-workbook", workbookName: "DA estimates", parameterId: "da-param", parameterName: "Pump failure", unit: "PROBABILITY", estimate: ESTIMATE }];
     jest.clearAllMocks();
     mockedValidate.mockResolvedValue({ schemaVersion: "1.0.0", validation: { valid: true, issues: [] } });
   });
 
-  it("runs uncertainty with CCF expansion and displays the result", async () => {
+  it("runs uncertainty with the chosen sampling and shows the summary and the samples", async () => {
     mockedRun.mockResolvedValue(execution());
     mockedResult.mockResolvedValue(result());
     render(<SyUncertaintyAnalysis />);
+    fireEvent.change(screen.getByRole("combobox", { name: "Uncertainty sampling method" }), { target: { value: "LATIN_HYPERCUBE" } });
     fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
     fireEvent.change(screen.getByRole("spinbutton", { name: "Uncertainty samples" }), { target: { value: "1000" } });
     fireEvent.change(screen.getByRole("spinbutton", { name: "Uncertainty seed" }), { target: { value: "9" } });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run uncertainty" })); });
     expect(mockedRun).toHaveBeenCalledWith("sy-workbook", "model-1", 12, expect.objectContaining({
-      calculationType: "UNCERTAINTY", settings: expect.objectContaining({ numTrials: 1000, seed: 9, expandCcf: true }),
+      calculationType: "UNCERTAINTY", settings: expect.objectContaining({ numTrials: 1000, seed: 9, expandCcf: true, samplingMethod: "LATIN_HYPERCUBE" }),
     }));
     await waitFor(() => expect(screen.getByRole("region", { name: "Uncertainty results" })).toBeInTheDocument());
-    expect(screen.getByText("2.100E-2")).toBeInTheDocument();
+    const card = screen.getByRole("article", { name: "Uncertainty result for CLG · FT-CLG · Cooling fault tree" });
+    const values = within(card).getByRole("table", { name: "Summary values for CLG · FT-CLG · Cooling fault tree" });
+    expect(within(values).getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Point estimate", "5th percentile", "Median", "Mean", "95th percentile"]);
+    expect(within(values).getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["2.000E-2", "2.000E-2", "2.000E-2", "2.100E-2", "2.000E-2"]);
+    expect(card).toHaveTextContent("4 Latin hypercube samples · seed 9 · standard deviation 4.000E-3 · standard error of the mean 1.260E-4");
+    expect(within(card).getByRole("img", { name: /^Distribution of the sampled top event probability/ })).toBeInTheDocument();
+    fireEvent.click(within(card).getByRole("button", { name: "Cumulative" }));
+    expect(within(card).getByRole("button", { name: "Cumulative" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(card).getByRole("img", { name: /^Cumulative share of samples/ })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Batch summary" })).not.toBeInTheDocument();
   });
 
-  it("withholds a run until the common cause members link one DA estimate", () => {
+  it("opens a batch with one interval row per fault tree", () => {
+    const first = result();
+    const second: FaultTreeAnalysisResult = { ...result(), runId: "run-two", topEventProbability: 3e-6,
+      uncertainty: { ...result().uncertainty!, mean: 3.4e-6, samples: [0, 1e-6, 3e-6, 9e-6], quantiles: [0.05, 0.25, 0.5, 0.75, 0.95].map((probability) => ({ probability, value: probability * 1e-5 })) } };
+    render(<SyUncertaintyResults batch entries={[
+      { modelId: "model-1", label: "CLG · FT-CLG", distributionCount: 2, result: first },
+      { modelId: "model-2", label: "RPS · RPS-TOP", distributionCount: 1, result: second },
+    ]} />);
+    const batch = screen.getByRole("region", { name: "Batch summary" });
+    expect(within(batch).getByRole("button", { name: "RPS · RPS-TOP" })).toBeInTheDocument();
+    expect(within(batch).getByLabelText("5th percentile 5.000E-7, 95th percentile 9.500E-6")).toBeInTheDocument();
+    expect(batch).toHaveTextContent("1E-7");
+    expect(batch).toHaveTextContent("1E-1");
+    expect(screen.getAllByRole("article")).toHaveLength(2);
+    expect(screen.getByText("1 sample is exactly 0 and not drawn on the log scale.")).toBeInTheDocument();
+  });
+
+  it("withholds a run until every component event has a value and one value is uncertain", () => {
     sy.systemBasicEvents.push({ uuid: "event-b", code: "PMP-B-FS", name: "Pump B fails", failureMode: "FAILURE_TO_START" } as SystemsAnalysis["systemBasicEvents"][number]);
     sy.systemLogicModels[0]!.leafNodes.push({ id: "leaf-b", kind: "BASIC_EVENT_REFERENCE", basicEventId: "event-b" });
-    sy.commonCauseFailureGroups = [{ name: "Pump group", members: { basicEvents: [{ id: "event-a" }, { id: "event-b" }] } }] as SystemsAnalysis["commonCauseFailureGroups"];
     const { unmount } = render(<SyUncertaintyAnalysis />);
     expect(screen.getByRole("button", { name: "Run uncertainty" })).toBeDisabled();
-    expect(screen.getByText("PMP-A-FS: The members of Pump group link different DA estimates. Link all of them to one estimate in Step 02.")).toBeInTheDocument();
+    expect(screen.getByText("PMP-B-FS: No value yet. Set it in Step 02.")).toBeInTheDocument();
     unmount();
-    sy.systemBasicEvents[1] = { ...sy.systemBasicEvents[1]!, controlledDataSource: reference } as SystemsAnalysis["systemBasicEvents"][number];
+    sy.systemBasicEvents[1] = { ...sy.systemBasicEvents[1]!, expression: typed } as SystemsAnalysis["systemBasicEvents"][number];
     render(<SyUncertaintyAnalysis />);
     expect(screen.getByRole("button", { name: "Run uncertainty" })).toBeEnabled();
   });

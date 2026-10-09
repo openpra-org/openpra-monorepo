@@ -12,6 +12,8 @@ import type {
 } from "interfaces-mef-types/sy/systems-analysis";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { DialogHead } from "./syShared";
+import { useSystemHours } from "./syMissionTimes";
+import { hoursPoint, hoursText } from "../sc-workbooks/scMissionTimePoints";
 import { ListEditor } from "./SySystemDialogs";
 import { RESOURCE_TYPE_LABELS } from "./syViewData";
 import { systemTree } from "./syFailureRecords";
@@ -385,9 +387,11 @@ function CouplingDialog({ id, onClose }: { id: string; onClose: () => void }): J
 function InventoryDialog({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
   const { sy, editable, mutateSy, shortOf } = useSyWorkbook();
   const found = (sy.depletionModels ?? []).find((candidate) => candidate.uuid === id);
+  const owner = sy.systemDefinitions.find((system) => system.uuid === found?.associatedSystem);
+  const ownerHours = useSystemHours(owner === undefined ? [] : [owner]).get(owner?.uuid ?? "");
+  const ownerPoint = hoursPoint(ownerHours);
   if (found === undefined) return null;
   const item = found;
-  const owner = sy.systemDefinitions.find((system) => system.uuid === item.associatedSystem);
   const depletes = item.initialQuantity > 0;
   const hours = inventoryHours(item);
 
@@ -427,7 +431,7 @@ function InventoryDialog({ id, onClose }: { id: string; onClose: () => void }): 
             ) : <div>{RESOURCE_TYPE_LABELS[item.resourceType]}</div>}
           </div>
           <label className="sy-dialog-check">
-            <input type="checkbox" checked={!depletes} disabled={!editable} onChange={(change) => patch(change.target.checked ? { initialQuantity: 0, consumptionRate: 1, units: "hours" } : { initialQuantity: owner?.missionTimeHours ?? 24, consumptionRate: 1, units: "hours" })} />
+            <input type="checkbox" checked={!depletes} disabled={!editable || (!depletes && ownerPoint === undefined)} onChange={(change) => { if (change.target.checked) patch({ initialQuantity: 0, consumptionRate: 1, units: "hours" }); else if (ownerPoint !== undefined) patch({ initialQuantity: ownerPoint, consumptionRate: 1, units: "hours" }); }} />
             <span>Does not deplete</span>
           </label>
           {depletes && (
@@ -435,7 +439,7 @@ function InventoryDialog({ id, onClose }: { id: string; onClose: () => void }): 
               {editable ? <WorkbookInput className="posfield__input posmono" type="number" min="0" step="any" aria-label="Lasts (hours)" value={hours ?? ""} onChange={(change) => setHours(change.target.value)} /> : <div className="posmono">{hours ?? ""}</div>}
             </div>
           )}
-          <div className="posfield"><label className="posfield__label">Carries the {owner?.missionTimeHours === undefined ? "" : `${owner.missionTimeHours} h `}mission time</label>
+          <div className="posfield"><label className="posfield__label">Carries the {owner?.missionTime === undefined ? "" : `${hoursText(ownerHours)} `}mission time</label>
             {editable ? (
               <select className="posfield__select" aria-label="Carries the mission time" value={item.missionTimeSupported === undefined ? "" : item.missionTimeSupported ? "yes" : "no"} onChange={(change) => patch({ missionTimeSupported: change.target.value === "" ? undefined : change.target.value === "yes" })}>
                 <option value="">Not assessed</option>

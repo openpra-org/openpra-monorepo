@@ -1,0 +1,25 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PROBABILITY",
+        "law": {
+          "family": "TRUNCATED",
+          "law": {
+            "family": "UNIFORM",
+            "lower": 0,
+            "upper": 0.1
+          },
+          "lower": 0.5,
+          "upper": 0.9
+        }
+      }
+    }
+  }
+]

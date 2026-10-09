@@ -7,6 +7,9 @@ import { isSystemLevelModel } from "./sySelectors";
 import { useSyWorkbook } from "./syWorkbookContext";
 import { removalMessage, withoutSystem } from "./sySystemRemoval";
 import type { SyDrawerContext } from "./syScreens";
+import { ExpressionEditor, defaultExpression } from "../newly-developed-methods/shared/uncertainEditor";
+import { hoursText } from "../sc-workbooks/scMissionTimePoints";
+import { useSyValueSources, useSystemHours } from "./syMissionTimes";
 
 type SystemDialogKind = "system" | "sysdef" | "variant" | "alignment" | "boundary" | "states" | "operations";
 
@@ -52,6 +55,33 @@ function ListEditor({ label, items, editable, addLabel, onChange }: {
           <button type="button" className="posnav__btn posnav__btn--sm" disabled={draft.trim().length === 0} onClick={add}><SYIcon.Plus /> Add</button>
         </div>
       )}
+    </div>
+  );
+}
+
+function SystemMissionTimeField({ system, editable, onChange }: {
+  system: SystemDefinition;
+  editable: boolean;
+  onChange: (missionTime: SystemDefinition["missionTime"]) => void;
+}): JSX.Element {
+  const values = useSyValueSources();
+  const point = useSystemHours([system]).get(system.uuid);
+  const missionTime = system.missionTime;
+  return (
+    <div className="posfield posfield-grid--span2"><span className="posfield__label">Mission time (hours)</span>
+      {missionTime === undefined ? (
+        <div className="sy-event-review">
+          <p className="posmuted">No mission time yet.</p>
+          {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onChange(defaultExpression("HOURS"))}>Add a mission time</button>}
+        </div>
+      ) : (
+        <>
+          <ExpressionEditor expression={missionTime} unit="HOURS" options={values.missionTimeOptions} disabled={!editable} onChange={onChange} />
+          <span className="sy-review-sub">Point value {hoursText(point)}</span>
+          {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onChange(undefined)}>Remove mission time</button>}
+        </>
+      )}
+      {values.missionTimeOptions.length === 0 && <span className="posmuted">Typed. Link an SC workbook in Step 01 Interfaces to use its mission times.</span>}
     </div>
   );
 }
@@ -256,16 +286,6 @@ function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & 
         systemLogicModels: draft.systemLogicModels.map((candidate) => (candidate.systemReference === system.uuid ? { ...candidate, description } : candidate)),
       }));
     };
-    const scMissionTimes = links?.scMissionTimes ?? [];
-    const missionRef = system.missionTimeRef ?? "";
-    const missionOptions = missionRef.length === 0 || scMissionTimes.some((missionTime) => missionTime.id === missionRef)
-      ? scMissionTimes
-      : [...scMissionTimes, { id: missionRef, hours: system.missionTimeHours ?? 0, sequence: "", basis: "" }];
-    const setMissionSource = (id: string): void => {
-      const missionTime = scMissionTimes.find((candidate) => candidate.id === id);
-      if (missionTime === undefined) patchSystem(system.uuid, { missionTimeRef: undefined });
-      else patchSystem(system.uuid, { missionTimeRef: missionTime.id, missionTimeHours: missionTime.hours });
-    };
     return (
       <>
         <DialogHead cap={`System definition · ${shortOf(system.uuid)}`} title={system.name} onClose={onClose} />
@@ -285,23 +305,7 @@ function SystemDialogContent({ context, onClose }: { context: SyDrawerContext & 
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Success criterion</label>
               {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} aria-label="Success criterion" value={system.successCriterion ?? ""} onChange={(event) => patchSystem(system.uuid, { successCriterion: event.target.value.trim().length > 0 ? event.target.value : undefined })} /> : <div>{system.successCriterion ?? ""}</div>}
             </div>
-            <div className="posfield"><label className="posfield__label">SC mission time</label>
-              {missionOptions.length === 0 ? <span className="posmuted">Link an SC workbook in Step 01 Interfaces to use its mission times.</span> : (
-                <select className="posfield__select" aria-label="SC mission time" value={missionRef} disabled={!editable} onChange={(event) => setMissionSource(event.target.value)}>
-                  <option value="">Typed</option>
-                  {missionOptions.map((missionTime) => <option key={missionTime.id} value={missionTime.id}>{missionTime.id} · {missionTime.hours} h{missionTime.sequence.length > 0 ? ` · ${missionTime.sequence}` : ""}</option>)}
-                </select>
-              )}
-            </div>
-            {missionRef.length === 0 && (
-              <div className="posfield"><label className="posfield__label">Mission time (h)</label>
-                {editable ? <WorkbookInput className="posfield__input posmono" type="number" min="0" step="any" aria-label="Mission time (h)" value={system.missionTimeHours ?? ""} onChange={(event) => {
-                  const hours = Number(event.target.value);
-                  if (event.target.value.trim().length === 0) patchSystem(system.uuid, { missionTimeHours: undefined });
-                  else if (Number.isFinite(hours) && hours > 0) patchSystem(system.uuid, { missionTimeHours: hours });
-                }} /> : <div className="posmono">{system.missionTimeHours ?? ""}</div>}
-              </div>
-            )}
+            <SystemMissionTimeField system={system} editable={editable} onChange={(missionTime) => patchSystem(system.uuid, { missionTime })} />
           </div>
         </div>
       </>

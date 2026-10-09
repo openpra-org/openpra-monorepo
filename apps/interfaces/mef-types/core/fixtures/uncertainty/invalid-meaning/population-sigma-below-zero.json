@@ -1,0 +1,42 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PER_HOUR",
+        "law": {
+          "family": "POPULATION",
+          "mu": {
+            "family": "UNIFORM",
+            "lower": -13.8,
+            "upper": -4.6
+          },
+          "sigma": {
+            "family": "NORMAL",
+            "mean": 1,
+            "standardDeviation": 0.5
+          },
+          "upper": null,
+          "evidence": [
+            {
+              "likelihood": "POISSON",
+              "failures": 1,
+              "exposure": 100000
+            },
+            {
+              "likelihood": "POISSON",
+              "failures": 4,
+              "exposure": 200000
+            }
+          ],
+          "target": null
+        }
+      }
+    }
+  }
+]

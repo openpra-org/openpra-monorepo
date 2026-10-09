@@ -24,7 +24,7 @@ fn windows_headers(source: &Path, destination: &Path) {
                 .unwrap_or(rest.len());
             output.push_str(
                 if matches!(&rest[..end], "log" | "exp" | "pow" | "sin" | "cos") {
-                    "hcl_windows_math::"
+                    "praxis_windows_math::"
                 } else {
                     "std::"
                 },
@@ -62,5 +62,5 @@ fn main() {
         .flag_if_supported("/fp:precise")
         .flag_if_supported("-ffp-contract=off")
         .warnings(false)
-        .compile("hcl_scipy_quantiles");
+        .compile("praxis_special_functions");
 }

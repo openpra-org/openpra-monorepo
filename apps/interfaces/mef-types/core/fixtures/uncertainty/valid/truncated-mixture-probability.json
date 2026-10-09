@@ -1,0 +1,43 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PROBABILITY",
+        "law": {
+          "family": "TRUNCATED",
+          "law": {
+            "family": "MIXTURE",
+            "components": [
+              {
+                "weight": 0.5,
+                "law": {
+                  "family": "LOGNORMAL",
+                  "mean": 0.001,
+                  "errorFactor": 3,
+                  "level": 0.95
+                }
+              },
+              {
+                "weight": 0.5,
+                "law": {
+                  "family": "LOGNORMAL",
+                  "mean": 0.003,
+                  "errorFactor": 5,
+                  "level": 0.95
+                }
+              }
+            ]
+          },
+          "lower": null,
+          "upper": 1
+        }
+      }
+    }
+  }
+]

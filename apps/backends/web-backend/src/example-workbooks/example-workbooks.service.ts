@@ -1,7 +1,11 @@
 import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
+import { SuccessCriteriaDevelopmentSchema } from "interfaces-mef-types/zod/sc/success-criteria-development";
 import { ExampleWorkbook, type ExampleWorkbookDocument } from "./example-workbook.schema";
+import { ScWorkbook, type ScWorkbookDocument } from "../sc-workbooks/sc-workbook.schema";
+import { stripNulls } from "../pos-workbooks/mef-normalize";
+import type { ProjectMissionTimeSource } from "./seeds/dependency-model-seed";
 import { SEEDS, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, MS_EXAMPLES, RC_EXAMPLES, RI_EXAMPLES, SEISMIC_PRA_EXAMPLES, INTERNAL_FLOOD_PRA_EXAMPLES, INTERNAL_FIRE_PRA_EXAMPLES, HSA_EXAMPLES, HIGH_WINDS_PRA_EXAMPLES, EXTERNAL_FLOOD_PRA_EXAMPLES, OTHER_HAZARDS_PRA_EXAMPLES, CC_GENERIC_1_SLUG } from "./seeds";
 
 export interface ExampleWorkbookResponse {
@@ -144,7 +148,18 @@ export class ExampleWorkbooksService implements OnModuleInit {
 
   constructor(
     @InjectModel(ExampleWorkbook.name) private readonly exampleModel: Model<ExampleWorkbookDocument>,
+    @InjectModel(ScWorkbook.name) private readonly scWorkbookModel: Model<ScWorkbookDocument>,
   ) {}
+
+  async projectMissionTimeSources(projectId: string): Promise<ProjectMissionTimeSource[]> {
+    const docs = await this.scWorkbookModel.find({ projectId }).sort({ updatedAt: -1 }).exec();
+    return docs.flatMap((doc) => {
+      const parsed = SuccessCriteriaDevelopmentSchema.safeParse(stripNulls(doc.mef));
+      if (parsed.success) return [{ sc: parsed.data, workbookId: doc.workbookId }];
+      this.logger.warn(`SC workbook ${doc.workbookId} failed validation, so example mission time links stay on the example.`);
+      return [];
+    });
+  }
 
   async onModuleInit(): Promise<void> {
     let upserted = 0;

@@ -1,7 +1,7 @@
 import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
-import { type RiskIntegration, type ConsequenceMeasure, type RiskMetric, type CompiledRiskInput, type RiskContributor, type ModelUncertaintySource, type ScreenedItemLedgerEntry, type RiskUncertaintyAnalysis, type RiskIntegrationMethod } from "interfaces-mef-types/ri/risk-integration";
+import { type RiskIntegration, type RiskMetric, type CompiledRiskInput, type RiskContributor, type ModelUncertaintySource, type ScreenedItemLedgerEntry, type RiskUncertaintyAnalysis, type RiskIntegrationMethod } from "interfaces-mef-types/ri/risk-integration";
 import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
@@ -16,11 +16,7 @@ import {
   RiStringList,
   RemoveBtn,
   SrChips,
-  APP_TYPE_OPTIONS,
-  CRITERIA_SOURCE_OPTIONS,
-  BASIS_OPTIONS,
   METRIC_OPTIONS,
-  CRITERIA_TYPE_OPTIONS,
   CALC_LEVEL_OPTIONS,
   USED_OPTIONS,
   CONFIRMED_OPTIONS,
@@ -38,7 +34,6 @@ import {
   RECORDED_OPTIONS,
   CONSIDERED_OPTIONS,
   VERIFIED_OPTIONS,
-  THRESHOLD_LEVELS,
   labelOf,
 } from "./riFields";
 import { useRiWorkbook } from "./riWorkbookContext";
@@ -51,7 +46,7 @@ import {
   type CapabilityCategory,
 } from "./riViewData";
 import { familySignificance, contributorRollup, findContributor, lognormalBounds, metricRollup, type ContributorBucketKey, type CcScore } from "./riSelectors";
-import { type RiDrawerContext } from "./riScreens";
+import { AggregationNoteDrawer, CliffEdgeDrawer, InputConsequenceDrawer, InputContributorDrawer, InputFamilyDrawer, InputGapDrawer, InputImportanceDrawer, InputSequenceDrawer, MeasureDrawer, HandoffDrawer, ScreenedItemDrawer, SensitivityStudyDrawer, SscAssignmentDrawer, UncertaintyAnalysisDrawer, UncertaintySourceDrawer, type RiDrawerContext } from "./riScreens";
 import {
   consequenceMetricMatches,
   meanFrequencyValue,
@@ -708,22 +703,6 @@ function DraftScreen({ cc, scores, onSubmitDraft, canSubmit }: {
 }
 
 // ─── Drawer content ────────────────────────────────────────────────────────
-type Criteria = RiskIntegration["riskSignificanceCriteria"][number];
-type Thresholds = RiskIntegration["reportingThresholds"];
-
-function toCriteriaSource(v: string): Criteria["criteriaSource"] {
-  if (v === "TABLE_1_9_1") return "TABLE_1_9_1";
-  if (v === "ALTERNATE") return "ALTERNATE";
-  return "TABLE_1_9_2";
-}
-
-function toAppType(v: string): Criteria["applicationType"] {
-  return v === "BASELINE_RISK" ? "BASELINE_RISK" : "FIXED_RISK_TARGET";
-}
-
-function toBasis(v: string): "STANDARD_DEFAULT" | "JUSTIFIED_ALTERNATIVE" {
-  return v === "JUSTIFIED_ALTERNATIVE" ? "JUSTIFIED_ALTERNATIVE" : "STANDARD_DEFAULT";
-}
 
 function toCompliance(v: string): "COMPLIANT" | "NON_COMPLIANT" | "INDETERMINATE" {
   if (v === "NON_COMPLIANT") return "NON_COMPLIANT";
@@ -731,131 +710,25 @@ function toCompliance(v: string): "COMPLIANT" | "NON_COMPLIANT" | "INDETERMINATE
   return "COMPLIANT";
 }
 
-function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose: () => void }): JSX.Element | null {
+function DrawerContent({ context, onClose, onRetarget }: { context: RiDrawerContext; onClose: () => void; onRetarget: (ctx: RiDrawerContext) => void }): JSX.Element | null {
   const { ri, editable, mutateRi, riskSources } = useRiWorkbook();
   const dis = !editable;
 
-  if (context.kind === "measures") {
-    const measures = ri.scopeDefinition.consequenceMeasures;
-    const setMeasures = (next: ConsequenceMeasure[]): void => {
-      mutateRi((d) => ({ ...d, scopeDefinition: { ...d.scopeDefinition, consequenceMeasures: next } }));
-    };
-    return (
-      <>
-        <DrawerHead cap="Consequence measures · RI-A1" title="Consequence measures" sub="The measures come from the intended applications and set the metric vocabulary for the consequence side." onClose={onClose} />
-        <div className="posdrawer__body">
-          {measures.length === 0 && <p className="posmuted" style={{ margin: 0 }}>No consequence measures yet.</p>}
-          {measures.map((m, i) => (
-            <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-              <span className="rinum" style={{ marginTop: 6 }}>{i + 1}</span>
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
-                <RiTextField label="Measure" value={m.name} onChange={(v) => setMeasures(measures.map((y, j) => (j === i ? { ...y, name: v } : y)))} disabled={dis} placeholder="e.g. Site-boundary individual dose" />
-                <RiAreaField label="Description" value={m.description ?? ""} onChange={(v) => setMeasures(measures.map((y, j) => (j === i ? { ...y, description: v } : y)))} disabled={dis} rows={2} />
-                {editable && (
-                  <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setMeasures([...measures.slice(0, i), ...measures.slice(i + 1)])}>Remove</button>
-                )}
-              </div>
-            </div>
-          ))}
-          {editable && (
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ alignSelf: "flex-start" }} onClick={() => setMeasures([...measures, { name: "", description: "" }])}><RIIcon.Plus /> Add measure</button>
-          )}
-        </div>
-      </>
-    );
-  }
-
-  if (context.kind === "floors") {
-    const t = ri.reportingThresholds;
-    const patch = (next: Partial<Thresholds>): void => {
-      mutateRi((d) => ({ ...d, reportingThresholds: { ...d.reportingThresholds, ...next } }));
-    };
-    return (
-      <>
-        <DrawerHead cap="Reporting floors · RI-A4 · A5" title="Reporting floors" sub="Below these floors the PRA cannot believe its own numbers." onClose={onClose} />
-        <div className="posdrawer__body">
-          <div className="posfield-grid">
-            <RiNumberField label="Minimum reporting frequency (per plant-year)" value={t.minimumReportingFrequencyPerPlantYear} onChange={(v) => patch({ minimumReportingFrequencyPerPlantYear: v })} disabled={dis} />
-            <RiSelectField label="Frequency basis" value={t.frequencyBasis} options={BASIS_OPTIONS} onChange={(v) => patch({ frequencyBasis: toBasis(v) })} disabled={dis} />
-            {t.frequencyBasis === "JUSTIFIED_ALTERNATIVE" && (
-              <div className="posfield posfield-grid--span2">
-                <RiAreaField label="Frequency justification" value={t.frequencyJustification ?? ""} onChange={(v) => patch({ frequencyJustification: v })} disabled={dis} rows={2} />
-              </div>
-            )}
-            <div className="posfield posfield-grid--span2">
-              <RiTextField label="Minimum reporting consequence" value={t.minimumReportingConsequenceDescription} onChange={(v) => patch({ minimumReportingConsequenceDescription: v })} disabled={dis} />
-            </div>
-            <RiSelectField label="Consequence basis" value={t.consequenceBasis} options={BASIS_OPTIONS} onChange={(v) => patch({ consequenceBasis: toBasis(v) })} disabled={dis} />
-            {t.consequenceBasis === "JUSTIFIED_ALTERNATIVE" && (
-              <div className="posfield posfield-grid--span2">
-                <RiAreaField label="Consequence justification" value={t.consequenceJustification ?? ""} onChange={(v) => patch({ consequenceJustification: v })} disabled={dis} rows={2} />
-              </div>
-            )}
-          </div>
-          <SrChips srs={t.implementsSrs} />
-        </div>
-      </>
-    );
-  }
-
-  if (context.kind === "criteria") {
-    const c = ri.riskSignificanceCriteria.find((x) => x.uuid === context.id);
-    if (c === undefined) return null;
-    const patch = (next: Partial<Criteria>): void => {
-      mutateRi((d) => ({ ...d, riskSignificanceCriteria: d.riskSignificanceCriteria.map((x) => (x.uuid === c.uuid ? { ...x, ...next } : x)) }));
-    };
-    const remove = (): void => {
-      onClose();
-      mutateRi((d) => ({ ...d, riskSignificanceCriteria: d.riskSignificanceCriteria.filter((x) => x.uuid !== c.uuid) }));
-    };
-    const isAbsolute = c.applicationType === "FIXED_RISK_TARGET";
-    const levels = isAbsolute ? c.absoluteThresholds : c.relativeThresholds;
-    const setLevel = (key: (typeof THRESHOLD_LEVELS)[number]["key"], v: number): void => {
-      patch(isAbsolute
-        ? { absoluteThresholds: { ...c.absoluteThresholds, [key]: v } }
-        : { relativeThresholds: { ...c.relativeThresholds, [key]: v } });
-    };
-    return (
-      <>
-        <DrawerHead cap="Risk-significance criteria" title={c.name.length > 0 ? c.name : "Untitled criteria"} sub={isAbsolute ? "Fixed risk target · absolute thresholds" : "Baseline risk · relative thresholds"} onClose={onClose} />
-        <div className="posdrawer__body">
-          <div className="posfield-grid">
-            <div className="posfield posfield-grid--span2">
-              <RiTextField label="Name" value={c.name} onChange={(v) => patch({ name: v })} disabled={dis} />
-            </div>
-            <RiSelectField label="Application" value={c.applicationType} options={APP_TYPE_OPTIONS} onChange={(v) => patch({ applicationType: toAppType(v) })} disabled={dis} />
-            <RiSelectField label="Criteria source" value={c.criteriaSource} options={CRITERIA_SOURCE_OPTIONS} onChange={(v) => patch({ criteriaSource: toCriteriaSource(v) })} disabled={dis} />
-            <RiSelectField label="Criteria type" value={String(c.criteriaType)} options={CRITERIA_TYPE_OPTIONS} onChange={(v) => patch({ criteriaType: v })} disabled={dis} />
-            <RiSelectField label="Risk metric" value={String(c.metricType)} options={METRIC_OPTIONS} onChange={(v) => patch({ metricType: v })} disabled={dis} />
-            {c.criteriaSource === "ALTERNATE" && (
-              <div className="posfield posfield-grid--span2">
-                <RiAreaField label="Alternate justification" value={c.alternateJustification ?? ""} onChange={(v) => patch({ alternateJustification: v })} disabled={dis} rows={2} />
-              </div>
-            )}
-            <div className="posfield posfield-grid--span2">
-              <RiAreaField label="Description" value={c.description ?? ""} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
-            </div>
-          </div>
-
-          <div>
-            <WorkbookCueLabel workbook="RI" title={isAbsolute ? "Absolute thresholds (per plant-year)" : "Relative thresholds (fraction of the total)"} cueKey="Risk-significance thresholds" className="essec" />
-            <div className="posfield-grid">
-              {THRESHOLD_LEVELS.map((lv) => (
-                <RiNumberField key={lv.key} label={lv.label} value={levels?.[lv.key] ?? 0} onChange={(v) => setLevel(lv.key, v)} disabled={dis} />
-              ))}
-            </div>
-          </div>
-
-          <RiAreaField label="Justification" value={c.justification} onChange={(v) => patch({ justification: v })} disabled={dis} rows={4} />
-          <RiStringList label="Intended applications" values={c.intendedApplications ?? []} onChange={(v) => patch({ intendedApplications: v })} disabled={dis} />
-          <RiStringList label="References" values={c.references ?? []} onChange={(v) => patch({ references: v })} disabled={dis} />
-
-          <SrChips srs={c.implementsSrs} />
-          {editable && <RemoveBtn label="Remove criteria" onClick={remove} />}
-        </div>
-      </>
-    );
-  }
+  if (context.kind === "measure") return <MeasureDrawer index={Number(context.id)} onClose={onClose} />;
+  if (context.kind === "inputFamily") return <InputFamilyDrawer id={context.id} onClose={onClose} onRetarget={onRetarget} />;
+  if (context.kind === "inputSequence") return <InputSequenceDrawer id={context.id} onClose={onClose} onRetarget={onRetarget} />;
+  if (context.kind === "inputContributor") return <InputContributorDrawer id={context.id} onClose={onClose} />;
+  if (context.kind === "inputImportance") return <InputImportanceDrawer id={context.id} onClose={onClose} />;
+  if (context.kind === "inputGap") return <InputGapDrawer id={context.id} onClose={onClose} />;
+  if (context.kind === "inputConsequence") return <InputConsequenceDrawer id={context.id} onClose={onClose} />;
+  if (context.kind === "cliffEdge") return <CliffEdgeDrawer id={context.id} onClose={onClose} />;
+  if (context.kind === "aggregationNote") return <AggregationNoteDrawer id={context.id} onClose={onClose} />;
+  if (context.kind === "sscAssignment") return <SscAssignmentDrawer id={context.id} onClose={onClose} />;
+  if (context.kind === "uncertaintySource") return <UncertaintySourceDrawer id={context.id} onClose={onClose} />;
+  if (context.kind === "screenedItem") return <ScreenedItemDrawer id={context.id} onClose={onClose} />;
+  if (context.kind === "uncertaintyAnalysis") return <UncertaintyAnalysisDrawer id={context.id} onClose={onClose} />;
+  if (context.kind === "sensitivityStudy") return <SensitivityStudyDrawer id={context.id} onClose={onClose} />;
+  if (context.kind === "handoff") return <HandoffDrawer id={context.id} onClose={onClose} />;
 
   if (context.kind === "calc") {
     const a = ri.integratedRiskResults.calculationApproach;
@@ -869,7 +742,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     return (
       <>
         <DrawerHead cap="Calculation approach · RI-B2" title="Calculation approach" sub="How the integrated risk is totaled, plotted and drawn." onClose={onClose} />
-        <div className="posdrawer__body">
+        <div className="modal__body">
           <div className="posfield-grid">
             <RiSelectField label="Calculation type" value={level} options={CALC_LEVEL_OPTIONS} onChange={setLevel} disabled={dis} />
             <RiSelectField label="Sum of products" value={a.sumOfProducts === true ? "yes" : "no"} options={USED_OPTIONS} onChange={(v) => patch({ sumOfProducts: v === "yes" })} disabled={dis} />
@@ -909,7 +782,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     return (
       <>
         <DrawerHead cap="Risk metric · RI-B2" title={m.name.length > 0 ? m.name : "Untitled metric"} sub={m.consequenceMeasureRef !== undefined && m.consequenceMeasureRef.length > 0 ? `Sums ${m.consequenceMeasureRef.toLowerCase()} across the compiled families` : undefined} onClose={onClose} />
-        <div className="posdrawer__body">
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <RiTextField label="Name" value={m.name} onChange={(v) => patch({ name: v })} disabled={dis} />
@@ -971,7 +844,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     return (
       <>
         <DrawerHead cap="Aggregation review · RI-B3 · B4" title="Aggregation honesty" sub="The per-hazard-group review, the multi-unit terms and the key assumptions behind the sum." onClose={onClose} />
-        <div className="posdrawer__body">
+        <div className="modal__body">
           <RiAreaField label="Description" value={a.description} onChange={(v) => patchAggr({ description: v })} disabled={dis} rows={2} />
           <div className="posfield-grid">
             <RiSelectField label="Per-source and per-hazard contributions identified" value={a.perSourceHazardContributionsIdentified ? "yes" : "no"} options={CONFIRMED_OPTIONS} onChange={(v) => patchAggr({ perSourceHazardContributionsIdentified: v === "yes" })} disabled={dis} />
@@ -1042,7 +915,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     return (
       <>
         <DrawerHead cap="Hazard group · RI-B3" title={g.hazardGroup} sub={`${Math.round(g.contribution * 1000) / 10} percent of the integrated total`} onClose={onClose} />
-        <div className="posdrawer__body">
+        <div className="modal__body">
           <div className="posfield-grid">
             <RiTextField label="Hazard group" value={g.hazardGroup} onChange={(v) => patchGroup({ hazardGroup: v })} disabled={dis} />
             <RiNumberField label="Contribution (fraction of the total)" value={g.contribution} onChange={(v) => patchGroup({ contribution: v })} disabled={dis} />
@@ -1065,7 +938,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     return (
       <>
         <DrawerHead cap="Grouping adequacy · RI-B5 · C2" title="Anti-masking review" sub="The within-family variation, the category selection and the grouping-uncertainty check." onClose={onClose} />
-        <div className="posdrawer__body">
+        <div className="modal__body">
           <RiAreaField label="Within-family variation" value={gar.variationNotSignificantJustification} onChange={(v) => patchGar({ variationNotSignificantJustification: v })} disabled={dis} rows={3} />
           <RiAreaField label="Release-category selection" value={gar.releaseCategorySelectionSufficiency} onChange={(v) => patchGar({ releaseCategorySelectionSufficiency: v })} disabled={dis} rows={3} />
           <RiAreaField label="Family assignment" value={gar.familyAssignmentSufficiency} onChange={(v) => patchGar({ familyAssignmentSufficiency: v })} disabled={dis} rows={3} />
@@ -1127,7 +1000,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     return (
       <>
         <DrawerHead cap="Risk-significant contributor · RI-B6" title={c.name.length > 0 ? c.name : "Untitled contributor"} sub={`${row.kind} · ${c.sourceId}`} onClose={onClose} />
-        <div className="posdrawer__body">
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <RiTextField label="Name" value={c.name} onChange={(v) => patch({ name: v })} disabled={dis} />
@@ -1153,7 +1026,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     return (
       <>
         <DrawerHead cap="Contributor roll-up · RI-B6" title="Derivation basis" sub="How the contributors are ranked and what the roll-up teaches." onClose={onClose} />
-        <div className="posdrawer__body">
+        <div className="modal__body">
           <RiAreaField label="Derivation basis" value={sc.insightDerivationBasis ?? ""} onChange={(v) => patch({ insightDerivationBasis: v })} disabled={dis} rows={3} />
           <RiAreaField label="Description" value={sc.description ?? ""} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
           <RiStringList label="Insights" values={sc.insights ?? []} onChange={(v) => patch({ insights: v })} disabled={dis} />
@@ -1180,7 +1053,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     return (
       <>
         <DrawerHead cap="Model-uncertainty source · RI-C1" title={u.name.length > 0 ? u.name : "Untitled source"} sub={ELEMENT_CODE_BY_TYPE[u.originatingElement] ?? ""} onClose={onClose} />
-        <div className="posdrawer__body">
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <RiTextField label="Name" value={u.name} onChange={(v) => patch({ name: v })} disabled={dis} />
@@ -1214,7 +1087,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     return (
       <>
         <DrawerHead cap="Screened item · RI-C1" title={s.itemRef.length > 0 ? s.itemRef : "Untitled item"} sub={`${s.screeningElementCode} · ${labelOf(SCREENED_ITEM_TYPE_OPTIONS, s.itemType)}`} onClose={onClose} />
-        <div className="posdrawer__body">
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <RiTextField label="Screened item" value={s.itemRef} onChange={(v) => patch({ itemRef: v })} disabled={dis} />
@@ -1247,7 +1120,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     return (
       <>
         <DrawerHead cap="Uncertainty propagation · RI-C3 · C4" title={u.name ?? "Integrated risk uncertainty"} sub={labelOf(CHAR_LEVEL_OPTIONS, u.characterizationLevel)} onClose={onClose} />
-        <div className="posdrawer__body">
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <RiTextField label="Name" value={u.name ?? ""} onChange={(v) => patch({ name: v })} disabled={dis} />
@@ -1312,7 +1185,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     return (
       <>
         <DrawerHead cap="Sensitivity study · RI-D2" title={s.name ?? "Sensitivity study"} sub={s.description} onClose={onClose} />
-        <div className="posdrawer__body">
+        <div className="modal__body">
           <div className="posfield-grid">
             <RiTextField label="Name" value={s.name ?? ""} onChange={(v) => patch({ name: v })} disabled={dis} />
             <RiTextField label="Impact" value={s.impact ?? ""} onChange={(v) => patch({ impact: v })} disabled={dis} placeholder="What the study moves" />
@@ -1364,7 +1237,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
       return (
         <>
           <DrawerHead cap="Feedback dispatch · RI-D1" title="Event Sequence Quantification" sub="The family significance and the contributor insights sent back to the quantification." onClose={onClose} />
-          <div className="posdrawer__body">
+          <div className="modal__body">
             <RiAreaField label="General feedback" value={fb.generalFeedback ?? ""} onChange={(v) => patchEsq({ generalFeedback: v })} disabled={dis} rows={2} />
             <div>
               <WorkbookCueLabel workbook="RI" title="Family feedback" className="essec" />
@@ -1413,7 +1286,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
       return (
         <>
           <DrawerHead cap="Feedback dispatch · RI-D1" title="Mechanistic Source Term" sub="The release-category and source-term significance sent back to the source term." onClose={onClose} />
-          <div className="posdrawer__body">
+          <div className="modal__body">
             <RiAreaField label="General feedback" value={fb.generalFeedback ?? ""} onChange={(v) => patchMs({ generalFeedback: v })} disabled={dis} rows={2} />
             <div>
               <WorkbookCueLabel workbook="RI" title="Release-category feedback" className="essec" />
@@ -1460,7 +1333,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
       return (
         <>
           <DrawerHead cap="Feedback dispatch · RI-D1" title="Radiological Consequence" sub="The metric significance sent back to the consequence analysis." onClose={onClose} />
-          <div className="posdrawer__body">
+          <div className="modal__body">
             <RiAreaField label="General feedback" value={fb.generalFeedback ?? ""} onChange={(v) => patchRc({ generalFeedback: v })} disabled={dis} rows={2} />
             <div>
               <WorkbookCueLabel workbook="RI" title="Metric feedback" className="essec" />
@@ -1497,7 +1370,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     return (
       <>
         <DrawerHead cap="Feedback dispatch · RI-D1" title={ELEMENT_NAME_BY_CODE[code] ?? code} sub={`The risk significance sent back to ${code}.`} onClose={onClose} />
-        <div className="posdrawer__body">
+        <div className="modal__body">
           <div className="posfield-grid">
             <RiSelectField label="Significance" value={entry.riskSignificance ?? "LOW"} options={IMPORTANCE_OPTIONS} onChange={(v) => { const lv = setImportanceIn(v); if (lv !== undefined) patchEntry({ riskSignificance: lv }); }} disabled={dis} />
           </div>
@@ -1526,7 +1399,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
     return (
       <>
         <DrawerHead cap="Integration method · RI-B7" title={m.name.length > 0 ? m.name : "Untitled method"} sub={m.verificationStatus?.verified === true ? "Verified" : "Not verified"} onClose={onClose} />
-        <div className="posdrawer__body">
+        <div className="modal__body">
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <RiTextField label="Name" value={m.name} onChange={(v) => patch({ name: v })} disabled={dis} />
@@ -1672,7 +1545,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
           sub={`${sig === "HIGH" ? "High" : sig === "MEDIUM" ? "Medium" : "Low"} significance${f.releaseCategoryRef !== undefined ? ` · bounds ${f.releaseCategoryRef}` : ""}`}
           onClose={onClose}
         />
-        <div className="posdrawer__body">
+        <div className="modal__body">
           <div className="posfield-grid">
             {familyOptions.length > 0
               ? <RiSelectField label="Event sequence family source" value={selectedFamilyKey} options={familyOptions} onChange={relinkFamily} disabled={dis} />

@@ -25,7 +25,7 @@ import {
 import type { RevisionedWorkbookPatchBody } from "interfaces-shared-types/workbooks";
 import { WorkbookDependencyDiscoveryService } from "../newly-developed-methods/shared/workbook-dependency-discovery.service";
 import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook.schema";
-import { reconcileExampleEsqDependencyReferences } from "../example-workbooks/seeds/dependency-model-seed";
+import { esqMissionTimeExpressions, reconcileExampleEsqDependencyReferences, reconcileExampleEsqMissionTimeReferences, relinkExampleMissionTimes } from "../example-workbooks/seeds/dependency-model-seed";
 import { SY_EXAMPLES } from "../example-workbooks/seeds";
 
 export interface EsqWorkbookResponse {
@@ -196,7 +196,8 @@ export class EsqWorkbooksService {
     if (syDocument !== null && systems?.success === true) {
       reconciled = reconcileExampleEsqDependencyReferences(sourceParsed.data, workbookId, systems.data, syDocument.workbookId);
     }
-    const parsed = EventSequenceQuantificationSchema.safeParse(reconciled);
+    const missionTimes = await this.exampleWorkbooksService.projectMissionTimeSources(doc.projectId);
+    const parsed = EventSequenceQuantificationSchema.safeParse(relinkExampleMissionTimes(reconciled, esqMissionTimeExpressions(reconciled), missionTimes, reconcileExampleEsqMissionTimeReferences));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const cleaned = {
       ...parsed.data,

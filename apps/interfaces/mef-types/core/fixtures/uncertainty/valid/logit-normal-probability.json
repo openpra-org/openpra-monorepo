@@ -1,0 +1,20 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PROBABILITY",
+        "law": {
+          "family": "LOGIT_NORMAL",
+          "mu": -6.9,
+          "sigma": 1.2
+        }
+      }
+    }
+  }
+]

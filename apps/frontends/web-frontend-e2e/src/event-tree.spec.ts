@@ -32,7 +32,10 @@ interface EsWorkbookResponse {
     eventTrees: Array<{
       uuid: string;
       name: string;
-      initiatingEventFrequency?: { value: number };
+      initiatingEventFrequency?: {
+        expression: { node: string; value?: { unit: string; law: { family: string; value?: number } } };
+        annualization?: { basis: string; hoursPerYear: number };
+      };
       functionalEvents: Record<string, { uuid: string; name: string; faultTreeTopEvent?: { workbookId: string; modelId: string; entityId: string } }>;
       sequences: Record<string, { functionalEventStates?: Record<string, string> }>;
       branches: Record<string, { paths: Array<{ state: string }> }>;
@@ -138,8 +141,12 @@ test("creates, edits, reloads, validates, links, and quantifies the canonical ev
     await editor.getByLabel("Event-tree name").press("Tab");
   });
   await waitForEsSave(page, async () => {
-    await editor.getByLabel("Initiating-event frequency").fill("0.01");
-    await editor.getByLabel("Initiating-event frequency").press("Tab");
+    await editor.getByRole("button", { name: "Add a frequency" }).click();
+  });
+  const frequency = editor.getByRole("group", { name: "Initiating-event frequency" });
+  await waitForEsSave(page, async () => {
+    await frequency.getByRole("textbox", { name: "Value" }).fill("0.02");
+    await frequency.getByRole("textbox", { name: "Value" }).press("Tab");
   });
   await waitForEsSave(page, async () => {
     await editor.getByRole("button", { name: "Add functional event" }).click();
@@ -200,7 +207,10 @@ test("creates, edits, reloads, validates, links, and quantifies the canonical ev
   const persisted = await json<EsWorkbookResponse>(await api.get(`/api/es-workbooks/${esWorkbookId}`), "Reload the persisted event tree");
   expect(persisted.mef.eventTrees).toHaveLength(1);
   const tree = persisted.mef.eventTrees[0]!;
-  expect(tree.initiatingEventFrequency).toEqual({ value: 0.01 });
+  expect(tree.initiatingEventFrequency).toEqual({
+    expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 0.02 } } },
+    annualization: { basis: "PLANT_YEAR", hoursPerYear: 8760 },
+  });
   expect(Object.values(tree.functionalEvents)).toEqual([
     expect.objectContaining({
       name: "Reactor trip",
@@ -211,16 +221,13 @@ test("creates, edits, reloads, validates, links, and quantifies the canonical ev
   expect(Object.values(tree.branches)[0]?.paths.map((path) => path.state).sort()).toEqual(["FAILURE", "SUCCESS"]);
 });
 
-test("uses the canonical event-tree component for the ESQ read-only host", async ({ page }, testInfo) => {
+test("opens the ESQ solve step with its run tabs", async ({ page }) => {
   await page.addInitScript((jwt) => window.localStorage.setItem("id_token", jwt), token);
   await page.goto(`/esq-workbooks/${esqWorkbookId}`);
-  await page.getByRole("button", { name: "Integrate & Quantify", exact: true }).click();
+  await page.getByRole("button", { name: "Solve and converge", exact: true }).click();
 
-  await expect(page.getByRole("heading", { name: "Linked event-tree model" })).toBeVisible();
-  const editor = page.getByTestId("event-tree-editor");
-  await expect(editor).toBeVisible();
-  await expect(editor.getByText("Reactor trip?").first()).toBeVisible();
-  await expect(editor.getByRole("button", { name: "Add functional event" })).toHaveCount(0);
-  await expect(editor.getByRole("button", { name: "Undo event-tree edit" })).toHaveCount(0);
-  await editor.screenshot({ path: testInfo.outputPath("event-tree-read-only.png") });
+  await expect(page.getByRole("heading", { name: "Model runs" })).toBeVisible();
+  for (const name of ["Runs", "Sequences", "Cut sets", "Convergence", "Verification"]) {
+    await expect(page.getByRole("tab", { name, exact: true })).toBeVisible();
+  }
 });

@@ -32,6 +32,7 @@ const DEFAULT_SETTINGS: FaultTreeAnalysisSettings = {
   expandCcf: false,
   numTrials: 10_000,
   seed: 847,
+  samplingMethod: "MONTE_CARLO",
   missionTimeHours: 8_760,
   earlyStop: false,
   convergenceDelta: 0.1,

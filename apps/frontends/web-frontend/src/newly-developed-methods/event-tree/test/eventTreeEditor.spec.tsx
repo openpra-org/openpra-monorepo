@@ -1,15 +1,38 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { EndState } from "interfaces-mef-types/core/events";
 import type { EventSequence, EventTree } from "interfaces-mef-types/es/event-sequence-analysis";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import { applyEventTreeOperation } from "../eventTreeOperations";
 import { EventTreeEditor } from "../eventTreeEditor";
 import type { EventTreeOperation } from "../eventTreeTypes";
+import { evaluateUncertainty } from "../../shared/uncertaintyApi";
+import { praxisUncertainty, settledWithPraxis } from "../../shared/test/praxisUncertainty";
+
+jest.mock("../../shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
+
+beforeEach(() => {
+  jest.mocked(evaluateUncertainty).mockImplementation(praxisUncertainty);
+});
+
+async function praxisSettled(): Promise<void> {
+  await act(async () => {
+    await settledWithPraxis(() => undefined);
+  });
+}
+
+const perYear = (value: number): UncertainExpression => ({ node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value } } });
+
+const EMPTY_RESULT: EventTreeAnalysisResult = {
+  schemaVersion: "1.0.0", runId: "run", owner: { workbookId: "workbook", workbookRevision: 1, modelId: "ET-1" },
+  mode: "INDEPENDENT", completedAt: "2026-01-01T00:00:00Z", validationIssues: [], endStateAggregates: [], sequences: [],
+};
 
 const model = applyEventTreeOperation({
   uuid: "ET-1",
   name: "Loss of flow",
   initiatingEventId: "IE-1",
-  initiatingEventFrequency: { value: 0.01 },
+  initiatingEventFrequency: { expression: perYear(0.01) },
   functionalEvents: {},
   sequences: {},
   branches: {},
@@ -125,34 +148,153 @@ describe("EventTreeEditor", () => {
     expect(results.getByText("0.06")).toBeInTheDocument();
   });
 
-  it("persists explicit initiating-frequency and annualization units", () => {
+  it("edits the initiating frequency as an uncertain expression", () => {
+    const { onOperation } = renderEditor();
+    const frequency = within(screen.getByRole("group", { name: "Initiating-event frequency" }));
+    const value = frequency.getByLabelText("Value");
+
+    fireEvent.focus(value);
+    fireEvent.change(value, { target: { value: "0.02" } });
+    fireEvent.blur(value);
+    fireEvent.change(frequency.getByLabelText("Law"), { target: { value: "LOGNORMAL" } });
+
+    expect(onOperation).toHaveBeenCalledWith({
+      kind: "UPDATE_TREE",
+      changes: { initiatingEventFrequency: { expression: perYear(0.02), annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_760 } } },
+    });
+    expect(onOperation).toHaveBeenLastCalledWith({
+      kind: "UPDATE_TREE",
+      changes: { initiatingEventFrequency: expect.objectContaining({ expression: { node: "VALUE", value: { unit: "PER_YEAR", law: expect.objectContaining({ family: "LOGNORMAL", mean: 0.01 }) } } }) },
+    });
+    expect(screen.queryByRole("spinbutton", { name: "Initiating-event frequency" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the time basis in the expression unit and the annualization beside it", () => {
     const { onOperation } = renderEditor();
 
-    fireEvent.change(screen.getByLabelText("Initiating-event frequency unit"), {
-      target: { value: "PER_HOUR" },
-    });
-    fireEvent.change(screen.getByLabelText("Annualization basis"), {
-      target: { value: "CRITICAL_YEAR" },
+    expect(Array.from(screen.getByLabelText<HTMLSelectElement>("Initiating-event frequency unit").options).map((option) => option.value)).toEqual(["PER_YEAR", "PER_HOUR"]);
+    fireEvent.change(screen.getByLabelText("Initiating-event frequency unit"), { target: { value: "PER_HOUR" } });
+    fireEvent.change(screen.getByLabelText("Annualization basis"), { target: { value: "CRITICAL_YEAR" } });
+    fireEvent.blur(screen.getByLabelText("Annualization hours per year"), { target: { value: "7000" } });
+
+    expect(onOperation.mock.calls.map(([operation]) => operation)).toEqual([
+      { kind: "UPDATE_TREE", changes: { initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "POINT", value: 0.01 } } }, annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_760 } } } },
+      { kind: "UPDATE_TREE", changes: { initiatingEventFrequency: { expression: perYear(0.01), annualization: { basis: "CRITICAL_YEAR", hoursPerYear: 8_760 } } } },
+      { kind: "UPDATE_TREE", changes: { initiatingEventFrequency: { expression: perYear(0.01), annualization: { basis: "PLANT_YEAR", hoursPerYear: 7_000 } } } },
+    ]);
+  });
+
+  it("offers to add a frequency when the tree has none", () => {
+    const { onOperation, unmount } = renderEditor({ model: { ...model, initiatingEventFrequency: undefined } });
+
+    expect(screen.getByLabelText("Initiating-event frequency unit")).toBeDisabled();
+    expect(screen.getByLabelText("Annualization basis")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Add a frequency" }));
+    expect(onOperation).toHaveBeenCalledWith({
+      kind: "UPDATE_TREE",
+      changes: { initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: expect.any(Number) } } }, annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_760 } } },
     });
 
-    expect(onOperation).toHaveBeenCalledWith(expect.objectContaining({
-      kind: "UPDATE_TREE",
-      changes: {
-        initiatingEventFrequency: expect.objectContaining({
-          unit: "PER_HOUR",
-          annualization: expect.objectContaining({ basis: "PLANT_YEAR", hoursPerYear: 8_760 }),
-        }),
-      },
-    }));
-    expect(onOperation).toHaveBeenCalledWith(expect.objectContaining({
-      kind: "UPDATE_TREE",
-      changes: {
-        initiatingEventFrequency: expect.objectContaining({
-          unit: "PER_YEAR",
-          annualization: expect.objectContaining({ basis: "CRITICAL_YEAR", hoursPerYear: 8_760 }),
-        }),
-      },
-    }));
+    unmount();
+    renderEditor({ model: { ...model, initiatingEventFrequency: undefined }, capabilities: { author: false } });
+    expect(screen.queryByRole("button", { name: "Add a frequency" })).not.toBeInTheDocument();
+    expect(screen.getByText("No frequency yet.")).toBeInTheDocument();
+  });
+
+  it("seeds a missing frequency from the chosen initiating event", () => {
+    const seeded = { expression: perYear(3e-3), annualization: { basis: "REACTOR_YEAR", hoursPerYear: 8_000 } } as const;
+    const { onOperation } = renderEditor({
+      model: { ...model, initiatingEventFrequency: undefined },
+      availableInitiatingEvents: [{ id: "IE-1", name: "Loss of flow" }, { id: "IE-2", name: "Loss of heat sink", frequency: seeded }],
+    });
+    fireEvent.change(screen.getByLabelText("Initiating event"), { target: { value: "IE-2" } });
+    expect(onOperation).toHaveBeenCalledWith({ kind: "UPDATE_TREE", changes: { initiatingEventId: "IE-2", initiatingEventFrequency: seeded } });
+  });
+
+  it("shows the PRAXIS point of the initiating frequency in the tree header", async () => {
+    const { container, rerender } = renderEditor({ representation: "event-tree", analysisResult: EMPTY_RESULT });
+    const header = (): string => container.querySelector(".estree__ie-freq")?.textContent ?? "";
+    expect(header()).toBe("…");
+    await praxisSettled();
+    expect(header()).toBe("1.00e-2 /yr");
+
+    const perHour: EventTree = { ...model, initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "LOGNORMAL", mean: 2e-5, errorFactor: 3, level: 0.95 } } } } };
+    rerender(<EventTreeEditor
+      model={perHour}
+      eventSequences={[]}
+      availableInitiatingEvents={[{ id: "IE-1", name: "Loss of flow" }]}
+      availableTransfers={[]}
+      representation="event-tree"
+      capabilities={{ author: true, quantification: true }}
+      selection={null}
+      validation={[]}
+      analysisResult={EMPTY_RESULT}
+      onOperation={jest.fn()}
+      onRepresentationChange={jest.fn()}
+      onSelectionChange={jest.fn()}
+    />);
+    await praxisSettled();
+    expect(header()).toBe("2.00e-5 /h");
+  });
+
+  it("names a frequency PRAXIS cannot evaluate", async () => {
+    const linked: EventTree = { ...model, initiatingEventFrequency: { expression: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "IE-FREQ-UNKNOWN" } } } };
+    const { container } = renderEditor({ model: linked, representation: "event-tree", analysisResult: EMPTY_RESULT });
+    await praxisSettled();
+    const header = container.querySelector(".estree__ie-freq");
+    expect(header?.textContent).toBe("Not available");
+    expect(header?.getAttribute("title")).toContain("IE-FREQ-UNKNOWN");
+  });
+
+  describe("linked and composed frequencies", () => {
+    const yearly = { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "DA-IE-01" } as const;
+    const hourly = { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "DA-IE-02" } as const;
+    const frequencyParameters = new Map([
+      [`${yearly.workbookId}:${yearly.entityId}`, { reference: yearly, expression: perYear(4e-2) }],
+      [`${hourly.workbookId}:${hourly.entityId}`, { reference: hourly, expression: { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "POINT", value: 3e-6 } } } as const }],
+    ]);
+    const frequencyOptions = [
+      { reference: yearly, label: "DA-IE-01 in Plant DA", unit: "PER_YEAR" },
+      { reference: hourly, label: "DA-IE-02 in Plant DA", unit: "PER_HOUR" },
+    ] as const;
+    const withFrequency = (expression: UncertainExpression): EventTree => ({ ...model, initiatingEventFrequency: { expression } });
+    const header = (container: HTMLElement): HTMLElement | null => container.querySelector(".estree__ie-freq");
+
+    it("offers DA frequency links of the same unit and links one", () => {
+      const { onOperation } = renderEditor({ frequencyOptions, frequencyParameters });
+      const source = within(screen.getByRole("group", { name: "Initiating-event frequency" })).getByLabelText<HTMLSelectElement>("Source");
+      expect(Array.from(source.options).map((option) => option.textContent)).toEqual(["Typed here", "DA-IE-01 in Plant DA"]);
+      fireEvent.change(source, { target: { value: "da-1:DA-IE-01" } });
+      expect(onOperation).toHaveBeenCalledWith({
+        kind: "UPDATE_TREE",
+        changes: { initiatingEventFrequency: { expression: { node: "PARAMETER", reference: yearly }, annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_760 } } },
+      });
+    });
+
+    it("shows the PRAXIS point of a linked frequency in the unit of the DA parameter", async () => {
+      const { container } = renderEditor({ model: withFrequency({ node: "PARAMETER", reference: hourly }), representation: "event-tree", analysisResult: EMPTY_RESULT, frequencyOptions, frequencyParameters });
+      expect(screen.getByLabelText<HTMLSelectElement>("Initiating-event frequency unit").value).toBe("PER_HOUR");
+      expect(within(screen.getByRole("group", { name: "Initiating-event frequency" })).getByLabelText<HTMLSelectElement>("Source").value).toBe("da-1:DA-IE-02");
+      await praxisSettled();
+      expect(header(container)?.textContent).toBe("3.00e-6 /h");
+    });
+
+    it("shows the PRAXIS point of a composed frequency and says it is composed", async () => {
+      const composed: UncertainExpression = { node: "OPERATION", operation: "MULTIPLY", operands: [{ node: "PARAMETER", reference: yearly }, { node: "VALUE", value: { unit: "FACTOR", law: { family: "POINT", value: 0.5 } } }] };
+      const { container } = renderEditor({ model: withFrequency(composed), representation: "event-tree", analysisResult: EMPTY_RESULT, frequencyOptions, frequencyParameters });
+      expect(screen.getByText("Composed: (DA-IE-01 in Plant DA × 0.5)")).toBeInTheDocument();
+      expect(within(screen.getByRole("group", { name: "Initiating-event frequency" })).queryByLabelText("Value")).not.toBeInTheDocument();
+      await praxisSettled();
+      expect(header(container)?.textContent).toBe("2.00e-2 /yr");
+    });
+
+    it("never converts a mix of per-year and per-hour terms with a fixed year", async () => {
+      const mixed: UncertainExpression = { node: "OPERATION", operation: "ADD", operands: [{ node: "PARAMETER", reference: yearly }, { node: "PARAMETER", reference: hourly }] };
+      const { container } = renderEditor({ model: withFrequency(mixed), representation: "event-tree", analysisResult: EMPTY_RESULT, frequencyParameters });
+      await praxisSettled();
+      expect(header(container)?.textContent).toBe("Mixed units");
+      expect(jest.mocked(evaluateUncertainty).mock.calls.flatMap(([request]) => request.expressions.map((query) => query.expression))).not.toContainEqual(mixed);
+    });
   });
 
   it("lets an author add the first functional event without showing a plus icon", () => {

@@ -1,8 +1,16 @@
 import { InitiatingEventsAnalysisSchema } from "interfaces-mef-types/zod/ie/initiating-event-analysis";
+import { FrequencyUnit } from "interfaces-mef-types/core/events";
 import { ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
+import type { InitiatingEventGroup } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { createBlankIe } from "../blank-ie";
 import { IE_ANALYSIS } from "../../example-workbooks/seeds/ie-seed";
 import { IE_ANALYSIS_SFR } from "../../example-workbooks/seeds/ie-seed-sfr";
+
+function linkedByReference(group: InitiatingEventGroup): boolean {
+  const link = group.controlledDataSource;
+  const expression = group.frequency?.expression;
+  return link !== undefined && expression?.node === "PARAMETER" && expression.reference.workbookId === link.workbookId && expression.reference.entityId === link.entityId;
+}
 
 describe("IE MEF builders", () => {
   it("creates a blank IE that conforms to the IE Zod schema", () => {
@@ -67,16 +75,18 @@ describe("IE MEF builders", () => {
     expect(records.filter((r) => !r.retained).every((r) => r.criterion !== undefined)).toBe(true);
   });
 
-  it("quantifies every group through step 09 (mean and lognormal uncertainty)", () => {
+  it("quantifies every group through step 09 (DA estimates linked by reference, lognormal sources)", () => {
     const quant = IE_ANALYSIS.quantifications;
-    const groupIds = new Set(IE_ANALYSIS.initiatingEventGroups.map((g) => g.uuid));
-    expect(quant.length).toBe(groupIds.size);
-    expect(quant.every((q) => groupIds.has(q.initiatorOrGroupId))).toBe(true);
-    expect(quant.every((q) => {
-      const f = q.meanFrequency;
-      return (typeof f === "number" ? f : f.value) > 0;
+    const groups = new Map(IE_ANALYSIS.initiatingEventGroups.map((g) => [g.uuid, g]));
+    expect(quant.length).toBe(groups.size);
+    expect(quant.every((q) => q.frequency !== undefined && q.frequency.basis === FrequencyUnit.PER_PLANT_YEAR)).toBe(true);
+    expect(quant.every((q) => JSON.stringify(q.frequency) === JSON.stringify(groups.get(q.initiatorOrGroupId)?.frequency))).toBe(true);
+    expect(IE_ANALYSIS.initiatingEventGroups.every(linkedByReference)).toBe(true);
+    const sources = quant.flatMap((q) => q.dataSources ?? []);
+    expect(sources.every((source) => {
+      const expression = source.estimate ?? source.faultTreeTop;
+      return expression?.node === "VALUE" && expression.value.unit === "PER_YEAR" && expression.value.law.family === "LOGNORMAL" && expression.value.law.level === 0.95;
     })).toBe(true);
-    expect(IE_ANALYSIS.initiatingEventGroups.every((g) => g.meanFrequency !== undefined)).toBe(true);
   });
 });
 
@@ -128,15 +138,15 @@ describe("Generic SFR IE example seed", () => {
     expect(records.filter((r) => !r.retained).every((r) => r.criterion !== undefined)).toBe(true);
   });
 
-  it("quantifies every SFR group (mean and uncertainty)", () => {
+  it("quantifies every SFR group (DA links by reference, typed hazards and operating-data counts)", () => {
     const quant = IE_ANALYSIS_SFR.quantifications;
-    const groupIds = new Set(IE_ANALYSIS_SFR.initiatingEventGroups.map((g) => g.uuid));
-    expect(quant.length).toBe(groupIds.size);
-    expect(quant.every((q) => groupIds.has(q.initiatorOrGroupId))).toBe(true);
-    expect(quant.every((q) => {
-      const f = q.meanFrequency;
-      return (typeof f === "number" ? f : f.value) > 0;
-    })).toBe(true);
-    expect(IE_ANALYSIS_SFR.initiatingEventGroups.every((g) => g.meanFrequency !== undefined)).toBe(true);
+    const groups = new Map(IE_ANALYSIS_SFR.initiatingEventGroups.map((g) => [g.uuid, g]));
+    expect(quant.length).toBe(groups.size);
+    expect(quant.every((q) => q.frequency !== undefined && JSON.stringify(q.frequency) === JSON.stringify(groups.get(q.initiatorOrGroupId)?.frequency))).toBe(true);
+    const typed = IE_ANALYSIS_SFR.initiatingEventGroups.filter((g) => !linkedByReference(g)).map((g) => g.uuid);
+    expect(typed).toEqual(["HZ-FIRE", "HZ-SEIS"]);
+    const operating = quant.flatMap((q) => (q.dataSources ?? []).filter((source) => source.basis === "OPERATING_DATA"));
+    expect(operating.length).toBeGreaterThan(0);
+    expect(operating.every((source) => source.eventCount !== undefined && (source.exposureModuleYears ?? 0) > 0 && source.estimate === undefined)).toBe(true);
   });
 });

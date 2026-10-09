@@ -1,7 +1,11 @@
 use crate::core::element::Element;
-use crate::expression::{EvalContext, Expr};
+use crate::expression::Expr;
 use crate::Result;
-use rand::Rng;
+
+fn keyed_probability_value(id: &str, mut value: Expr) -> Result<Expr> {
+    value.assign_draw_keys(&format!("event:{}", id));
+    Ok(value)
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BasicEvent {
@@ -35,7 +39,7 @@ impl BasicEvent {
 
     pub fn with_value(id: String, probability: f64, value: Expr) -> Result<Self> {
         let mut event = Self::new(id, probability)?;
-        event.value = Some(value);
+        event.set_value(Some(value))?;
         Ok(event)
     }
 
@@ -77,18 +81,12 @@ impl BasicEvent {
         self.initiator = initiator;
     }
 
-    pub fn set_value(&mut self, value: Option<Expr>) {
-        self.value = value;
-    }
-
-    pub fn sample_probability<R: Rng>(&self, ctx: &EvalContext, rng: &mut R) -> f64 {
-        match &self.value {
-            Some(expr) => expr
-                .sample(ctx, rng)
-                .unwrap_or(self.probability)
-                .clamp(0.0, 1.0),
-            None => self.probability,
-        }
+    pub fn set_value(&mut self, value: Option<Expr>) -> Result<()> {
+        self.value = match value {
+            Some(value) => Some(keyed_probability_value(self.element.id(), value)?),
+            None => None,
+        };
+        Ok(())
     }
 }
 
@@ -124,13 +122,7 @@ impl HouseEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::SeedableRng;
-    use rand_chacha::ChaCha8Rng;
-    use std::collections::HashMap;
-
-    fn b(expr: Expr) -> Box<Expr> {
-        Box::new(expr)
-    }
+    use crate::core::distribution::Law;
 
     #[test]
     fn test_basic_event_new_valid() {
@@ -158,52 +150,23 @@ mod tests {
 
     #[test]
     fn test_basic_event_with_value() {
-        let event = BasicEvent::with_value(
-            "E1".to_string(),
-            0.5,
-            Expr::NormalDeviate {
-                mean: b(Expr::Constant(0.5)),
-                sigma: b(Expr::Constant(0.1)),
-            },
-        )
-        .unwrap();
+        let truncated = Law::Truncated {
+            law: Box::new(Law::Normal {
+                mean: 0.5,
+                standard_deviation: 0.1,
+            }),
+            lower: Some(0.0),
+            upper: Some(1.0),
+        };
+        let event = BasicEvent::with_value("E1".to_string(), 0.5, Expr::draw(truncated)).unwrap();
         assert_eq!(event.probability(), 0.5);
-        assert!(event.value().is_some());
+        assert_eq!(event.value().unwrap().draws()[0].0, "event:E1");
     }
 
     #[test]
-    fn test_sample_probability_without_value_is_nominal() {
-        let params = HashMap::new();
-        let ctx = EvalContext::new(&params, 1.0, 1.0);
-        let event = BasicEvent::new("E1".to_string(), 0.123).unwrap();
-        let mut rng = ChaCha8Rng::seed_from_u64(42);
-        for _ in 0..10 {
-            assert_eq!(event.sample_probability(&ctx, &mut rng), 0.123);
-        }
-    }
-
-    #[test]
-    fn test_sample_probability_with_value_varies_around_mean() {
-        let params = HashMap::new();
-        let ctx = EvalContext::new(&params, 1.0, 1.0);
-        let event = BasicEvent::with_value(
-            "E1".to_string(),
-            0.5,
-            Expr::NormalDeviate {
-                mean: b(Expr::Constant(0.5)),
-                sigma: b(Expr::Constant(0.1)),
-            },
-        )
-        .unwrap();
-        let mut rng = ChaCha8Rng::seed_from_u64(42);
-        let samples: Vec<f64> = (0..1000)
-            .map(|_| event.sample_probability(&ctx, &mut rng))
-            .collect();
-        for value in &samples {
-            assert!((0.0..=1.0).contains(value));
-        }
-        let mean: f64 = samples.iter().sum::<f64>() / samples.len() as f64;
-        assert!((mean - 0.5).abs() < 0.05);
+    fn test_basic_event_takes_a_law_with_tails_beyond_probability() {
+        assert!(BasicEvent::with_value("E1".to_string(), 0.5, Expr::normal(0.5, 0.1)).is_ok());
+        assert!(BasicEvent::with_value("E1".to_string(), 0.5, Expr::beta(2.0, 2.0)).is_ok());
     }
 
     #[test]

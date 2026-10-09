@@ -5,6 +5,12 @@ import {
   frequencyFaultTreeToEditor,
 } from "../ieFrequencyQuantificationEditor";
 
+function withTypedValues(nodes: readonly FrequencyFaultTreeNode[]): FrequencyFaultTreeNode[] {
+  return nodes.map((node) => (node.nodeType === "BASIC"
+    ? { ...node, expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: node.probability ?? 0 } } } }
+    : node));
+}
+
 describe("IE frequency canonical fault-tree conversion", () => {
   it("round-trips every legacy node type, gate type, K value, order, and detail", () => {
     const nodes: FrequencyFaultTreeNode[] = [
@@ -53,7 +59,8 @@ describe("IE frequency canonical fault-tree conversion", () => {
       nodes,
     );
 
-    expect(roundTripped).toEqual(nodes);
+    expect(roundTripped).toEqual(withTypedValues(nodes));
+    expect(roundTripped.every((node) => FrequencyFaultTreeNodeSchema.safeParse(node).success)).toBe(true);
     expect(snapshot.model.gates[0]).toMatchObject({ gateType: "K_OF_N", k: 2 });
     expect(snapshot.model.leafNodes.map(({ kind }) => kind)).toEqual([
       "BASIC_EVENT_REFERENCE",
@@ -149,7 +156,7 @@ describe("IE frequency canonical fault-tree conversion", () => {
     expect(snapshot.catalogue.basicEvents).toContainEqual(expect.objectContaining({
       id: "SHARED-BASIC-EVENT",
       code: "PUMP-FAIL",
-      probability: { value: 0.004 },
+      probability: { value: 0.004, expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.004 } } } },
     }));
     expect(snapshot.model.leafNodes).toContainEqual(expect.objectContaining({
       id: "HOUSE",
@@ -162,7 +169,7 @@ describe("IE frequency canonical fault-tree conversion", () => {
       target: { modelId: "TARGET-MODEL", entityId: "TARGET-GATE" },
     }));
 
-    expect(editorToFrequencyFaultTree(snapshot.model, snapshot.catalogue, nodes)).toEqual(nodes);
+    expect(editorToFrequencyFaultTree(snapshot.model, snapshot.catalogue, nodes)).toEqual(withTypedValues(nodes));
     expect(nodes.every((node) => FrequencyFaultTreeNodeSchema.safeParse(node).success)).toBe(true);
   });
 

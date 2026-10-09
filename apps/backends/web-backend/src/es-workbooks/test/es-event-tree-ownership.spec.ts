@@ -13,7 +13,7 @@ describe("ES workbook event-tree ownership", () => {
         uuid: "ET-01",
         name: "Loss of flow",
         initiatingEventId: "IE-01",
-        initiatingEventFrequency: { value: 0.02 },
+        initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 0.02 } } } },
         functionalEvents: {
           [FUNCTIONAL_EVENT_ID]: {
             uuid: FUNCTIONAL_EVENT_ID,
@@ -45,7 +45,7 @@ describe("ES workbook event-tree ownership", () => {
     const parsed = EventSequenceAnalysisSchema.parse(JSON.parse(JSON.stringify(mef)));
 
     expect(parsed.eventTrees).toHaveLength(1);
-    expect(parsed.eventTrees?.[0].initiatingEventFrequency).toEqual({ value: 0.02 });
+    expect(parsed.eventTrees?.[0].initiatingEventFrequency).toEqual({ expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 0.02 } } } });
     expect(parsed.eventTrees?.[0].functionalEvents[FUNCTIONAL_EVENT_ID].faultTreeTopEvent).toEqual({
       referenceType: "FAULT_TREE_TOP_EVENT",
       workbookId: "sy-workbook",

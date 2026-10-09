@@ -445,7 +445,6 @@ interface EventTreeView {
   missionTimeUnits?: string;
   description?: string;
   mitigationStrategy?: string;
-  ieFreq?: number;
   applicableStates: string[];
   functionalEvents: FeView[];
   node: TreeNodeView | SeqLeafRef;
@@ -505,8 +504,6 @@ function eventTreesView(es: EventSequenceAnalysis): EventTreeView[] {
         path: paths.get(s.uuid) ?? {},
       };
     });
-    const derivedIeFrequency = sequences.reduce((sum, s) => sum + (s.meanFrequency ?? 0), 0);
-    const ieFreq = tree.initiatingEventFrequency?.value ?? (derivedIeFrequency > 0 ? derivedIeFrequency : undefined);
     const memberStates = new Set<string>();
     if (tree.plantOperatingStateId !== undefined) memberStates.add(tree.plantOperatingStateId);
     for (const s of Object.values(tree.sequences)) {
@@ -522,7 +519,6 @@ function eventTreesView(es: EventSequenceAnalysis): EventTreeView[] {
       missionTimeUnits: tree.missionTimeUnits,
       description: tree.description,
       mitigationStrategy: tree.mitigationStrategy,
-      ieFreq,
       applicableStates: Array.from(memberStates),
       functionalEvents: fes.map((fe) => ({ id: fe.uuid, label: fe.label ?? fe.name, sub: fe.description ?? "", scId: ES_FE_SC_MAP[fe.uuid] })),
       node: tree.initialState.branchId.length > 0 ? buildNode(tree.initialState.branchId) : { seq: "" },

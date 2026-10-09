@@ -1,7 +1,12 @@
 pub mod ccf;
+pub mod distribution;
+pub mod distribution_math;
+pub mod distribution_operations;
+pub mod distribution_sampling;
 pub mod element;
 pub mod event;
 pub mod event_tree;
 pub mod fault_tree;
 pub mod gate;
 pub mod model;
+pub mod special_functions;

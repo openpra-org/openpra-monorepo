@@ -21,6 +21,8 @@ import {
 import { type CcScore } from "./hrSelectors";
 import { useHrWorkbook } from "./hrWorkbookContext";
 import { generateHrReport } from "./hrDocx";
+import { HrHepValueFields } from "./hrHepValueFields";
+import { withRecoveryHep } from "./hrDaLinks";
 import { NamedIcon, type HrDrawerContext } from "./hrScreens";
 import { type HumanReliabilityAnalysis, type HepQuantification, type DependenceLevel } from "interfaces-mef-types/hr/human-reliability-analysis";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
@@ -1280,7 +1282,6 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     };
     const csv = (xs: string[]): string => xs.join(", ");
     const parseCsv = (v: string): string[] => v.split(",").map((x) => x.trim()).filter((x) => x.length > 0);
-    const num = (v: string): number | undefined => { const n = Number(v); return v.length === 0 || Number.isNaN(n) ? undefined : n; };
     const unc = q.uncertaintyCharacterization ?? { riskSignificant: q.isRiskSignificant, method: "", probabilisticRepresentationProvided: false };
     return (
       <>
@@ -1309,12 +1310,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                   </select>
                 : <div>{q.isRiskSignificant ? "Yes" : "No"}</div>}
             </div>
-            <div className="posfield"><label className="posfield__label">Point estimate HEP</label>
-              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={q.pointEstimateHep ?? ""} onChange={(e) => patch({ pointEstimateHep: num(e.target.value) })} /> : <div className="posmono">{q.pointEstimateHep !== undefined ? hepText(q.pointEstimateHep) : "—"}</div>}
-            </div>
-            <div className="posfield"><label className="posfield__label">Mean HEP</label>
-              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={q.meanHep ?? ""} onChange={(e) => patch({ meanHep: num(e.target.value) })} /> : <div className="posmono">{q.meanHep !== undefined ? hepText(q.meanHep) : "—"}</div>}
-            </div>
+            <HrHepValueFields quantification={q} />
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Plant or design-specific factors (comma separated)</label>
               {editable ? <WorkbookInput className="posfield__input" value={csv(q.plantSpecificInformationUsed ?? [])} onChange={(e) => patch({ plantSpecificInformationUsed: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(q.plantSpecificInformationUsed ?? []) || "—"}</div>}
             </div>
@@ -1529,12 +1525,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                   </select>
                 : <div>{q.isRiskSignificant ? "Yes" : "No"}</div>}
             </div>
-            <div className="posfield"><label className="posfield__label">Point estimate HEP</label>
-              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={q.pointEstimateHep ?? ""} onChange={(e) => patch({ pointEstimateHep: num(e.target.value) })} /> : <div className="posmono">{q.pointEstimateHep !== undefined ? hepText(q.pointEstimateHep) : "—"}</div>}
-            </div>
-            <div className="posfield"><label className="posfield__label">Mean HEP</label>
-              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={q.meanHep ?? ""} onChange={(e) => patch({ meanHep: num(e.target.value) })} /> : <div className="posmono">{q.meanHep !== undefined ? hepText(q.meanHep) : "—"}</div>}
-            </div>
+            <HrHepValueFields quantification={q} />
             <div className="posfield"><label className="posfield__label">Cognition contribution</label>
               {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={q.cognitionContribution ?? ""} onChange={(e) => patch({ cognitionContribution: num(e.target.value) })} /> : <div className="posmono">{q.cognitionContribution !== undefined ? hepText(q.cognitionContribution) : "—"}</div>}
             </div>
@@ -1782,6 +1773,11 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     const csv = (xs: string[]): string => xs.join(", ");
     const parseCsv = (v: string): string[] => v.split(",").map((x) => x.trim()).filter((x) => x.length > 0);
     const postHfes = hr.humanFailureEvents.filter((x) => x.hfeTiming !== "PRE_INITIATOR");
+    const recoveryHep = hr.hepQuantifications.find((x) => x.uuid === r.hepQuantificationId);
+    const patchRecoveryHep = (fields: Partial<HepQuantification>): void => {
+      if (!editable || recoveryHep === undefined) return;
+      mutateHr((draft) => ({ ...draft, hepQuantifications: draft.hepQuantifications.map((x) => (x.uuid === recoveryHep.uuid ? { ...x, ...fields } : x)) }));
+    };
     const bool = (v: boolean, on: (val: boolean) => void) => (editable
       ? <select className="posfield__select" value={v ? "yes" : "no"} onChange={(e) => on(e.target.value === "yes")}><option value="yes">Yes</option><option value="no">No</option></select>
       : <div>{v ? "Yes" : "No"}</div>);
@@ -1818,6 +1814,18 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             <div className="posfield"><label className="posfield__label">Recovery quantification id</label>
               {editable ? <WorkbookInput className="posfield__input posmono" value={r.hepQuantificationId} onChange={(e) => patch({ hepQuantificationId: e.target.value })} /> : <div className="posmono">{r.hepQuantificationId}</div>}
             </div>
+            {recoveryHep === undefined ? (
+              <div className="posfield posfield-grid--span2"><label className="posfield__label">Recovery HEP</label>
+                {editable ? <div><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateHr((draft) => withRecoveryHep(draft, r.uuid))}><HRIcon.Plus /> Add recovery HEP</button></div> : <div className="posmuted">No recovery HEP yet.</div>}
+              </div>
+            ) : (
+              <>
+                <div className="posfield posfield-grid--span2"><label className="posfield__label">Recovery HEP basis</label>
+                  {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} aria-label="Recovery HEP basis" value={recoveryHep.methodology} onChange={(e) => patchRecoveryHep({ methodology: e.target.value })} /> : <div>{recoveryHep.methodology.length > 0 ? recoveryHep.methodology : "—"}</div>}
+                </div>
+                <HrHepValueFields quantification={recoveryHep} />
+              </>
+            )}
             <div className="posfield"><label className="posfield__label">Dependence assessment id</label>
               {editable ? <WorkbookInput className="posfield__input posmono" value={r.dependencyAssessmentId ?? ""} onChange={(e) => patch({ dependencyAssessmentId: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div className="posmono">{r.dependencyAssessmentId ?? "—"}</div>}
             </div>

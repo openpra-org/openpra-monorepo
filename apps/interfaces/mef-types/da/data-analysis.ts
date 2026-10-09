@@ -1,8 +1,9 @@
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Unique, Named } from "../core/meta";
-import { BasicEvent, FrequencyUnit, ParameterDistribution } from "../core/events";
+import { BasicEvent, ParameterDistribution, type UncertainFrequency } from "../core/events";
+import type { BaseLaw, CcfFactorModel, Law, TruncatedLaw, UncertainExpression } from "../core/uncertainty";
 import { SuccessCriteriaId, SensitivityStudy } from "../core/shared-patterns";
-import { BaseAssumption, BaseModelUncertaintyDocumentation, PreOperationalAssumption } from "../core/documentation";
+import { BaseAssumption, PreOperationalAssumption } from "../core/documentation";
 import { ComponentReference, ComponentTypeReference } from "../core/component";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
 
@@ -13,6 +14,7 @@ export type CcfGroupReference = string;
 
 export type ParameterType =
   | "FREQUENCY"
+  | "FAILURE_RATE"
   | "PROBABILITY"
   | "UNAVAILABILITY"
   | "CCF_PARAMETER"
@@ -109,42 +111,402 @@ export interface Uncertainty {
   sensitivityStudies?: SensitivityStudy[];
 }
 
-export interface BayesianUpdate {
-  performed: boolean;
-  method: string;
-  convergenceCriteria?: number;
-  prior?: {
-    distribution: ParameterDistribution;
-    source?: string;
-  };
-  posterior?: {
-    distribution: ParameterDistribution;
-  };
-  posteriorReasonablenessCheck?: {
-    evidenceStage: "PLANT_SPECIFIC" | "TECHNOLOGY_SPECIFIC";
-    evidenceWeightAssessment: string;
-    reasonable: boolean;
-    basis: string;
-  };
-  validation?: {
-    method: string;
-    results: string;
-    issues?: string[];
-  };
+export type DaQuantificationModel =
+  | "DEMAND_PROBABILITY"
+  | "RUNNING_RATE"
+  | "MISSION_PROBABILITY"
+  | "STANDBY_RATE"
+  | "UNAVAILABILITY"
+  | "HUMAN_ERROR"
+  | "NON_RECOVERY"
+  | "FREQUENCY"
+  | "OTHER_PROBABILITY";
+
+export const DA_COMPONENT_MODELS: readonly DaQuantificationModel[] = [
+  "DEMAND_PROBABILITY",
+  "RUNNING_RATE",
+  "MISSION_PROBABILITY",
+  "STANDBY_RATE",
+  "OTHER_PROBABILITY",
+  "UNAVAILABILITY",
+];
+
+export function isComponentModel(model: DaQuantificationModel | undefined): boolean {
+  return model !== undefined && DA_COMPONENT_MODELS.includes(model);
+}
+
+export const DA_ESTIMATE_MODELS: readonly DaQuantificationModel[] = [...DA_COMPONENT_MODELS, "FREQUENCY"];
+
+export function holdsEstimate(model: DaQuantificationModel | undefined): boolean {
+  return model !== undefined && DA_ESTIMATE_MODELS.includes(model);
+}
+
+export interface DaParameterValueLink {
+  element: "SY" | "IE" | "HRA" | "POS";
+  needId: string;
+}
+
+export type DaEvidenceKind =
+  | "PLANT_RECORDS"
+  | "TECHNOLOGY"
+  | "GENERIC_NUCLEAR"
+  | "ANALOGOUS_INDUSTRY"
+  | "ENGINEERING_MODEL"
+  | "EXPERT_JUDGMENT";
+
+export type DaSourceOrigin = "SAME_TECHNOLOGY" | "OTHER_NUCLEAR" | "NONNUCLEAR";
+
+export type DaEstimateQuantity = "PER_DEMAND" | "PER_HOUR" | "PER_YEAR" | "FRACTION" | "PROBABILITY" | "HOURS" | "FACTOR";
+
+export const DA_LAW_QUANTITIES: readonly DaEstimateQuantity[] = ["PER_DEMAND", "PER_HOUR", "PER_YEAR", "PROBABILITY", "FRACTION", "FACTOR"];
+
+export function entryHoldsLaw(quantity: DaEstimateQuantity): boolean {
+  return DA_LAW_QUANTITIES.includes(quantity);
+}
+
+export interface DaSourceEntry {
+  id: string;
+  component: string;
+  failureMode: string;
+  quantity: DaEstimateQuantity;
+  table?: string;
+  law?: Law;
+  distribution?: ParameterDistribution;
+  mean?: number;
+  p05?: number;
+  median?: number;
+  p95?: number;
+  p025?: number;
+  p975?: number;
+  failures?: number;
+  exposure?: number;
+  population?: number;
+  yearsFrom?: string;
+  yearsTo?: string;
+  method?: string;
+  boundaryNote?: string;
+  catalogCode?: string;
+}
+
+export interface DaSource {
+  id: string;
+  name: string;
+  catalogId?: string;
+  kind: DaEvidenceKind;
+  origin: DaSourceOrigin;
+  covers: string;
+  yearsFrom?: string;
+  yearsTo?: string;
+  boundaryConvention: string;
+  failureCounting: string;
+  quality: string;
+  reference: string;
+  entries: DaSourceEntry[];
+}
+
+export interface DaTransferFactor {
+  id: string;
+  name: string;
+  nominal: number;
+  low: number;
+  high: number;
+  basis: string;
+}
+
+export type DaSourceVerdict = "APPLIES" | "SCALED" | "REJECTED";
+
+export type DaBoundaryMatch = "SAME" | "ADJUSTED" | "DIFFERENT";
+
+export interface DaSourceUse {
+  id: string;
+  sourceId?: string;
+  entryId?: string;
+  elicitationId?: string;
+  verdict: DaSourceVerdict;
+  boundary: DaBoundaryMatch;
+  reason: string;
+  hoursPerYear?: number;
+  standbyHours?: number;
+  factors?: DaTransferFactor[];
+}
+
+export type DaPriorForm = "AS_PUBLISHED" | "CONSTRAINED_NONINFORMATIVE" | "JEFFREYS";
+
+export type DaEstimateMethod = "PRIOR" | "BAYES" | "POPULATION";
+
+export type DaEvidenceOrigin = "PLANT_RECORDS" | "TECHNOLOGY";
+
+export type DaEvidenceUnit = "DEMANDS" | "HOURS" | "YEARS";
+
+export interface DaEvidence {
+  id: string;
+  origin: DaEvidenceOrigin;
+  label?: string;
+  failuresFrom: "TYPED" | "ENTRY" | "RECORDS";
+  exposureFrom: "TYPED" | "ENTRY" | "DEMANDS_AND_HOURS";
+  sourceId?: string;
+  entryId?: string;
+  recordSetId?: string;
+  failures?: number;
+  exposure?: number;
+  unit?: DaEvidenceUnit;
+  hoursPerDemand?: number;
+  hoursPerYear?: number;
+  yearsFrom?: string;
+  yearsTo?: string;
+  boundary: DaBoundaryMatch;
+  reason: string;
+  included: boolean;
+  exclusionReason?: string;
+}
+
+export type DaRecordJudgment = "OPEN" | "FAILURE" | "NOT_FAILURE" | "REPEAT" | "EXCLUDED";
+
+export interface DaFailureRecord {
+  id: string;
+  date?: string;
+  unit?: string;
+  description: string;
+  reference?: string;
+  judgment: DaRecordJudgment;
+  parameterId?: string;
+  repeatOf?: string;
+  reason?: string;
+}
+
+export interface DaRecordSet {
+  id: string;
+  name: string;
+  origin: DaEvidenceOrigin;
+  sourceId?: string;
+  yearsFrom?: string;
+  yearsTo?: string;
+  reference: string;
+  records: DaFailureRecord[];
+}
+
+export type DaDemandKind = "SURVEILLANCE" | "MAINTENANCE" | "OTHER_COMPONENT" | "OPERATIONAL";
+
+export type DaCountBasis = "RECORDS" | "ANNUALIZED_PLAN" | "PLANNED_SCHEDULE";
+
+export interface DaDemandCount {
+  id: string;
+  groupId: string;
+  kind: DaDemandKind;
+  activity: string;
+  count: number;
+  failureModeIds: string[];
+  basis: DaCountBasis;
+  reference?: string;
+}
+
+export interface DaHourCount {
+  id: string;
+  groupId: string;
+  runHours?: number;
+  standbyHours?: number;
+  basis: DaCountBasis;
+  reference?: string;
+}
+
+export type DaMaintenanceKind = "TRAIN" | "COINCIDENT";
+
+export type DaMaintenanceMethod = "PLANNED" | "RECORDS" | "GENERIC";
+
+export interface DaMaintenanceActivity {
+  id: string;
+  activity: string;
+  perYear: number;
+  hoursEach: number;
+  hoursLow?: number;
+  hoursHigh?: number;
+  disablesFunction: boolean;
+  chargedTo?: SystemReference;
+  reason?: string;
+  reference?: string;
+}
+
+export interface DaOutOfServiceRecord {
+  id: string;
+  date?: string;
+  activity: string;
+  hours: number;
+  disablesFunction: boolean;
+  chargedTo?: SystemReference;
+  reference?: string;
+}
+
+export interface DaMaintenanceBasis {
+  kind: DaMaintenanceKind;
+  method: DaMaintenanceMethod;
+  requiredHoursPerYear?: number;
+  requiredReason?: string;
+  trains?: number;
+  trainsReason?: string;
+  activities?: DaMaintenanceActivity[];
+  records?: DaOutOfServiceRecord[];
+  overlapIds?: string[];
+  equipment?: string[];
+  scope?: "INTRASYSTEM" | "INTERSYSTEM";
+  basis?: string;
+}
+
+export type DaRestorationKind = "REPAIR" | "RECOVERY";
+
+export type DaRestorationFrom = "SOURCES" | "RECORDS";
+
+export interface DaRestorationTime {
+  id: string;
+  hours: number;
+  date?: string;
+  reference?: string;
+}
+
+export interface DaRestorationPart {
+  useId: string;
+  weight?: number;
+  weightSourceId?: string;
+  weightEntryId?: string;
+  sampleSize?: number;
+}
+
+export interface DaRestorationBasis {
+  kind: DaRestorationKind;
+  subject: string;
+  from: DaRestorationFrom;
+  parts?: DaRestorationPart[];
+  comparison?: DaRestorationPart[];
+  times?: DaRestorationTime[];
+  windowHours?: number;
+  windowReason?: string;
+  sequence?: string;
+  basis?: string;
+}
+
+export interface DaOutage {
+  id: string;
+  evolution: string;
+  outageType: string;
+  stateId?: string;
+  start?: string;
+  hours: number;
+  perYear: number;
+  configurations?: string[];
+  basis: DaCountBasis;
+  reference?: string;
+  valueFrom?: "TYPED" | "POS";
+}
+
+export type DaExpertRole = "EVALUATOR" | "PROPONENT" | "RESOURCE";
+
+export interface DaElicitationExpert {
+  id: string;
+  name: string;
+  role: DaExpertRole;
+  outside: boolean;
+  expertise: string;
+  p05?: number;
+  median?: number;
+  p95?: number;
+  weight?: number;
+  acceptsResponsibility: boolean;
+}
+
+export type DaJudgmentLevel = "LOW" | "MEDIUM" | "HIGH";
+
+export interface DaElicitation {
+  id: string;
+  issue: string;
+  objective: string;
+  quantity: DaEstimateQuantity;
+  importance: DaJudgmentLevel;
+  complexity: DaJudgmentLevel;
+  structure: "SINGLE_EVALUATOR" | "PANEL";
+  outsideReason?: string;
+  experts: DaElicitationExpert[];
+  pooling: "LINEAR" | "LOGARITHMIC";
+  integrator: string;
+  responsibility: "INTEGRATOR" | "SHARED";
+  completed?: string;
+  reference?: string;
+}
+
+export type DaInitiatorCategory = "I" | "II" | "III" | "IV";
+
+export type DaFrequencyPer = "CRITICAL_YEAR" | "CALENDAR_YEAR" | "SHUTDOWN_YEAR";
+
+export type DaFrequencyMethod = "PRIOR" | "BAYES";
+
+export interface DaFrequencyPart {
+  id: string;
+  label: string;
+  memberIds?: string[];
+  per: DaFrequencyPer;
+  stateIds?: string[];
+  useId?: string;
+  priorForm?: DaPriorForm;
+  method?: DaFrequencyMethod;
+  evidence?: DaEvidence[];
+  reason?: string;
+}
+
+export interface DaFrequencyComparison {
+  id: string;
+  useId: string;
+  per: DaFrequencyPer;
+  reason?: string;
+}
+
+export interface DaFrequencyBasis {
+  category?: DaInitiatorCategory;
+  categoryReason?: string;
+  siteWide?: boolean;
+  siteWideReason?: string;
+  parts: DaFrequencyPart[];
+  comparisons?: DaFrequencyComparison[];
+  basis?: string;
+}
+
+export interface DaImportance {
+  from: "TYPED" | "ESQ";
+  fussellVesely?: number;
+  riskAchievementWorth?: number;
+  entryIds?: string[];
+  importedAt?: string;
+}
+
+export interface DaPopulationHyperprior {
+  mu: BaseLaw | TruncatedLaw;
+  sigma: BaseLaw | TruncatedLaw;
 }
 
 export interface DataAnalysisParameter extends Unique, Named {
   description?: string;
   parameterType: ParameterType;
-  value: number;
-  valueType: "POINT_ESTIMATE" | "MEAN";
-  estimationApproach?:
-    | "PLANT_SPECIFIC"
-    | "TECHNOLOGY_SPECIFIC"
-    | "GENERIC"
-    | "REALISTIC_COMBINED"
-    | "SIMILAR_EQUIPMENT_ADJUSTED";
+  value?: number;
+  valueType?: "POINT_ESTIMATE" | "MEAN";
+  estimate?: UncertainExpression;
+  quantificationModel?: DaQuantificationModel;
+  missionTime?: UncertainExpression;
+  valueMode?: "TYPED" | "LINKED" | "CALCULATED";
+  valueLink?: DaParameterValueLink;
+  stateIds?: string[];
+  sourceUses?: DaSourceUse[];
+  priorUseId?: string;
+  evidenceKind?: DaEvidenceKind;
+  evidenceReason?: string;
+  priorForm?: DaPriorForm;
+  priorFormReason?: string;
+  estimateMethod?: DaEstimateMethod;
+  estimateReason?: string;
+  populationTargetId?: string;
+  populationHyperprior?: DaPopulationHyperprior;
+  evidence?: DaEvidence[];
+  maintenance?: DaMaintenanceBasis;
+  restoration?: DaRestorationBasis;
+  frequency?: DaFrequencyBasis;
   isRiskSignificant?: boolean;
+  importance?: DaImportance;
   basicEventRef?: string;
   componentGroupRef?: string;
   systemReference?: SystemReference;
@@ -154,34 +516,10 @@ export interface DataAnalysisParameter extends Unique, Named {
   multiPosApplicabilityJustification?: string;
   componentBoundaryRef?: string;
   basicEventBoundaryRef?: string;
-  probabilityModel?: ProbabilityModel;
   modelSelectionBasis?: string;
   requiredData?: string;
-  genericEvidence?: {
-    source: string;
-    applicability: string;
-    timePeriod?: {
-      startDate: string;
-      endDate: string;
-    };
-    events?: number;
-    exposureTime?: number;
-    exposureUnit?: FrequencyUnit;
-  };
-  plantSpecificEvidence?: {
-    events: number;
-    exposureTime: number;
-    exposureUnit: FrequencyUnit;
-    applicability: string;
-  };
-  dataExclusionJustifications?: string[];
-  bayesianUpdate?: BayesianUpdate;
-  similarEquipmentAdjustment?: {
-    sourceEquipment: string;
-    adjustments: string;
-    justification: string;
-  };
   uncertainty?: Uncertainty;
+  uncertaintyNote?: string;
   dataSources?: DataSource[];
   assumptions?: BaseAssumption[];
   sensitivityStudies?: SensitivityStudy[];
@@ -281,120 +619,61 @@ export interface FailureEventClassification extends Unique {
   implementsSrs: SRReference[];
 }
 
-export interface DemandCountRecord extends Unique {
-  componentGroupRef: string;
-  plantOperatingStateRef?: PlantOperatingStateReference;
-  surveillanceTestDemands?: number;
-  maintenanceActDemands?: number;
-  operationalDemands?: number;
-  additionalDemandSources?: {
-    source: string;
-    count: number;
-  }[];
-  totalDemands: number;
-  basis: "ANNUALIZED_PLANNED" | "ACTUAL_PRACTICE_RECORDS" | "PREOP_EXPECTED_PERFORMANCE";
-  sourceRecords?: string[];
-  implementsSrs: SRReference[];
+export type DaCcfTesting = "STAGGERED" | "NON_STAGGERED";
+
+export type DaCcfMethod = "PRIOR" | "BAYES" | "TYPED";
+
+export interface DaCcfEvent {
+  id: string;
+  recordId?: string;
+  description?: string;
+  date?: string;
+  impact: number[];
+  included: boolean;
+  reason: string;
 }
 
-export interface ExposureTimeRecord extends Unique {
-  componentGroupRef: string;
-  plantOperatingStateRef?: PlantOperatingStateReference;
-  standbyHours?: number;
-  operatingHours?: number;
-  basis: "ESTIMATED_FROM_TEST_PRACTICES" | "OPERATIONAL_RECORDS";
-  sourceRecords?: string[];
-  implementsSrs: SRReference[];
-}
-
-export interface TestCredibilityReview extends Unique {
-  testProcedureReference: string;
-  componentGroupRef?: string;
-  failureModesExercised: string[];
-  failureModesNotExercised: string[];
-  demandCreditingDecision: string;
-  implementsSrs: SRReference[];
-}
-
-export interface UnavailabilityDataRecord extends Unique {
-  componentOrTrainReference: string;
-  systemReference?: SystemReference;
-  plantOperatingStateRef?: PlantOperatingStateReference;
-  contributingActivities: {
-    activity: string;
-    durationHours: number;
-    disablesFunction: boolean;
-  }[];
-  assignedToSupportSystem?: SystemReference;
-  preOperationalGenericJustification?: string;
-  preOperationalAssumptionsBasis?: string;
-  implementsSrs: SRReference[];
-}
-
-export interface CoincidentMaintenanceRecord extends Unique {
-  redundantEquipmentIds: string[];
-  scope: "INTRASYSTEM" | "INTERSYSTEM";
-  plannedActivityDescription: string;
-  unavailabilityValue?: number;
-  basis: "ACTUAL_PLANT_EXPERIENCE" | "PREOP_ASSUMPTION";
-  systemsAnalysisSimultaneousEventRef?: string;
-  implementsSrs: SRReference[];
-}
-
-export interface RepairTimeRecord extends Unique {
-  sscReference: string;
-  repairEvents: {
-    eventReference?: string;
-    identificationToRestorationHours: number;
-  }[];
-  industryExperienceReferences?: string[];
-  preOperationalAssumptionsBasis?: string;
-  plantOperatingStateInfluences?: string;
-  eventSequenceInfluences?: string;
-  implementsSrs: SRReference[];
-}
-
-export interface RecoveryTimeRecord extends Unique {
-  functionLost: string;
-  recoveryEvents: {
-    eventReference?: string;
-    identificationToRestorationHours: number;
-  }[];
-  genericSourceReferences?: string[];
-  plantOperatingStateInfluences?: string;
-  eventSequenceInfluences?: string;
-  implementsSrs: SRReference[];
-}
-
-export interface LpsdOutageDataRecord extends Unique {
-  plantOperatingStateRef?: PlantOperatingStateReference;
-  evolutionType?: string;
-  outageType: string;
-  calendarYear?: number;
-  startTime?: string;
-  durationHours?: number;
-  specialMaintenanceConfigurations?: string[];
-  outagesPerCalendarYear?: number;
-  posDataLinkBasis?: string;
-  implementsSrs: SRReference[];
+export interface DaCcfEvidence {
+  id: string;
+  label?: string;
+  origin: DaEvidenceOrigin;
+  recordSetId?: string;
+  population: number;
+  independentFailures: number;
+  events: DaCcfEvent[];
+  boundary: DaBoundaryMatch;
+  reason: string;
+  included: boolean;
+  exclusionReason?: string;
 }
 
 export interface CcfParameterEstimation extends Unique {
   ccfGroupReference: CcfGroupReference;
-  modelType: "BETA_FACTOR" | "ALPHA_FACTOR" | "MGL" | "PHI_FACTOR" | "OTHER_EQUIVALENT";
-  parameters: Record<string, number>;
+  name?: string;
+  groupSize?: number;
+  memberParameterId?: string;
+  testing?: DaCcfTesting;
+  testingReason?: string;
+  method?: DaCcfMethod;
+  priorSourceId?: string;
+  priorTemplate?: string;
+  priorReason?: string;
+  evidence?: DaCcfEvidence[];
+  estimateReason?: string;
+  factors?: CcfFactorModel;
   isRiskSignificant?: boolean;
+  importance?: DaImportance;
   parameterSource: "GENERIC" | "PLANT_EXPERIENCE_CONSISTENT";
   componentBoundaryConsistencyBasis: string;
   genericExclusionConsistencyConfirmed?: boolean;
   genericExclusionConsistencyBasis?: string;
   dataSources?: DataSource[];
-  uncertainty?: Uncertainty;
   implementsSrs: SRReference[];
 }
 
 export interface DataModificationAdjustment extends Unique {
   modificationDescription: string;
+  effectiveDate?: string;
   affectedParameterIds: string[];
   pastDataDisposition: "ADJUSTED" | "DISCARDED" | "RETAINED_WITH_JUSTIFICATION";
   basis: string;
@@ -423,8 +702,222 @@ export interface DaDocumentation {
   implementsSrs: SRReference[];
 }
 
+export type DaLinkCode = "SY" | "IE" | "HRA" | "POS" | "SC" | "ESQ";
+
+export interface DaLinkedWorkbooks {
+  SY?: string;
+  IE?: string;
+  HRA?: string;
+  POS?: string;
+  SC?: string;
+  ESQ?: string;
+}
+
+export type DaScopeKind =
+  | "TEST_MAINTENANCE"
+  | "REPAIR_RECOVERY"
+  | "COMMON_CAUSE"
+  | "INITIATING_EVENT"
+  | "HUMAN_ERROR"
+  | "OUTAGE";
+
+export interface DaScopeDecision {
+  kind: DaScopeKind;
+  included: boolean;
+  exclusionReason?: string;
+}
+
+export interface DaFieldLink {
+  element: DaLinkCode;
+  workbookId: string;
+  field: string;
+}
+
+export interface DaLinkedNumber {
+  value: number;
+  link?: DaFieldLink;
+}
+
+export interface DaDataPlan {
+  freezeDate?: string;
+  dataWindowStart?: string;
+  dataWindowEnd?: string;
+  modulesPerPlant?: DaLinkedNumber;
+}
+
+export type DaNeedKind =
+  | "DEMAND"
+  | "RUNNING"
+  | "STANDBY"
+  | "UNAVAILABILITY"
+  | "HUMAN_ERROR"
+  | "RECOVERY"
+  | "COMMON_CAUSE"
+  | "OTHER";
+
+export type DaNeedElement = "SY" | "IE" | "HRA" | "POS";
+
+export type DaValueHolder = "TYPED" | "DA" | "HRA";
+
+export interface DaManualEntry {
+  source: string;
+}
+
+export interface DaNeedSource {
+  element: DaNeedElement;
+  workbookId: string;
+  workbookName: string;
+  updatedAt?: string;
+}
+
+export interface DaNeedChange {
+  element: DaNeedElement;
+  id: string;
+  change: "ADDED" | "REMOVED" | "CHANGED";
+  label?: string;
+}
+
+export interface DaBasicEventNeed {
+  id: string;
+  code: string;
+  name: string;
+  systemId?: string;
+  systemName?: string;
+  failureMode?: string;
+  importedKind?: DaNeedKind;
+  kind?: DaNeedKind;
+  importedMissionTime?: UncertainExpression;
+  missionTime?: UncertainExpression;
+  testIntervalHours?: number;
+  value?: number;
+  valueUnit?: "PROBABILITY" | "PER_HOUR";
+  expression?: UncertainExpression;
+  valueHeldBy?: DaValueHolder;
+  valueHolderId?: string;
+  repairCredited?: boolean;
+  meanTimeToRepairHours?: number;
+  changeReason?: string;
+  parameterId?: string;
+  included: boolean;
+  exclusionReason?: string;
+  manual?: DaManualEntry;
+}
+
+export interface DaInitiatorNeed {
+  id: string;
+  name: string;
+  stateIds: string[];
+  memberIds: string[];
+  frequency?: UncertainFrequency;
+  frequencyBasis?: string;
+  valueHeldBy?: DaValueHolder;
+  valueHolderId?: string;
+  parameterId?: string;
+  included: boolean;
+  exclusionReason?: string;
+  manual?: DaManualEntry;
+}
+
+export interface DaHumanErrorNeed {
+  id: string;
+  hfeId: string;
+  name: string;
+  timing?: "PRE_INITIATOR" | "AT_INITIATOR" | "POST_INITIATOR";
+  kind: "HUMAN_ERROR" | "RECOVERY";
+  value?: number;
+  valueKind?: "MEAN" | "POINT_ESTIMATE";
+  method?: string;
+  stateIds: string[];
+  valueHeldBy?: DaValueHolder;
+  valueHolderId?: string;
+  parameterId?: string;
+  included: boolean;
+  exclusionReason?: string;
+  manual?: DaManualEntry;
+}
+
+export interface DaCcfGroupNeed {
+  id: string;
+  name: string;
+  systemIds: string[];
+  memberIds: string[];
+  factors?: CcfFactorModel;
+  total?: UncertainExpression;
+  estimateRef?: string;
+  included: boolean;
+  exclusionReason?: string;
+  manual?: DaManualEntry;
+}
+
+export interface DaStateNeed {
+  id: string;
+  name: string;
+  mode?: string;
+  durationHours?: number;
+  entriesPerYear?: number;
+  valueHeldBy?: DaValueHolder;
+  included: boolean;
+  exclusionReason?: string;
+  manual?: DaManualEntry;
+}
+
+export interface DaDataNeeds {
+  importedAt?: string;
+  sources: DaNeedSource[];
+  changes?: DaNeedChange[];
+  basicEvents: DaBasicEventNeed[];
+  initiators: DaInitiatorNeed[];
+  humanErrors: DaHumanErrorNeed[];
+  ccfGroups: DaCcfGroupNeed[];
+  states: DaStateNeed[];
+}
+
+export interface DaUncertaintyAlternative {
+  id: string;
+  alternative: string;
+  reasonNotSelected: string;
+}
+
+export interface DaUncertaintySource {
+  id: string;
+  source: string;
+  impact: string;
+  parameterIds: string[];
+  estimateIds?: string[];
+  assumption?: string;
+  assumptionBasis?: string;
+  alternatives: DaUncertaintyAlternative[];
+  key: boolean;
+  keyReason?: string;
+  sensitivityIds?: string[];
+  assumptionIds?: string[];
+}
+
+export type DaSensitivityKind = "FACTOR" | "PRIOR_FORM" | "SOURCE" | "TESTING" | "RANGE";
+
+export interface DaSensitivityCase {
+  id: string;
+  name: string;
+  kind: DaSensitivityKind;
+  parameterId?: string;
+  estimateId?: string;
+  useId?: string;
+  priorForm?: DaPriorForm;
+  testing?: DaCcfTesting;
+  low?: number;
+  high?: number;
+  reason: string;
+  results?: string;
+}
+
 export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS> {
   praScope: string;
+  linkedWorkbooks?: DaLinkedWorkbooks;
+  scopeDecisions?: DaScopeDecision[];
+  dataPlan?: DaDataPlan;
+  dataNeeds?: DaDataNeeds;
+  sources?: DaSource[];
+  elicitations?: DaElicitation[];
 
   parameters: DataAnalysisParameter[];
   componentBasicEvents?: ComponentBasicEvent[];
@@ -441,21 +934,17 @@ export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DAT
   dataConsistencyChecks?: DataConsistencyCheck[];
 
   failureEventClassifications?: FailureEventClassification[];
-  demandCountRecords?: DemandCountRecord[];
-  exposureTimeRecords?: ExposureTimeRecord[];
-  testCredibilityReviews?: TestCredibilityReview[];
-  unavailabilityDataRecords?: UnavailabilityDataRecord[];
-  coincidentMaintenanceRecords?: CoincidentMaintenanceRecord[];
-  repairTimeRecords?: RepairTimeRecord[];
-  recoveryTimeRecords?: RecoveryTimeRecord[];
-  lpsdOutageDataRecords?: LpsdOutageDataRecord[];
+  recordSets?: DaRecordSet[];
+  demandCounts?: DaDemandCount[];
+  hourCounts?: DaHourCount[];
+  outages?: DaOutage[];
 
   ccfParameterEstimations?: CcfParameterEstimation[];
   dataModificationAdjustments?: DataModificationAdjustment[];
 
-  modelUncertainty: BaseModelUncertaintyDocumentation;
+  uncertaintyRegister?: DaUncertaintySource[];
   preOperationalAssumptions?: PreOperationalAssumption[];
-  sensitivityStudies?: SensitivityStudy[];
+  sensitivityCases?: DaSensitivityCase[];
 
   documentation: DaDocumentation;
 

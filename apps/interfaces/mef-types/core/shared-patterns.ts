@@ -18,6 +18,7 @@ export interface SensitivityStudy extends Unique {
   insights?: string;
   impact?: string;
   modelUncertaintyId?: string;
+  dataAnalysisCaseRef?: { workbookId: string; caseId: string };
   implementsSrs?: SRReference[];
   elementSpecificProperties?: Record<string, unknown>;
 }

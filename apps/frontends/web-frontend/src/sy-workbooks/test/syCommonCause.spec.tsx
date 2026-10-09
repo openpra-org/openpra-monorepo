@@ -1,8 +1,21 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { CcfFactorModel, UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import type { CommonCauseFailureGroup, SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { CommonCauseScreen } from "../SyCommonCause";
 import { DrawerContent } from "../syScreens2";
-import type { SyControlledCcfEstimateOption } from "../syWorkbookContext";
+import type { SyControlledCcfEstimateOption, SyControlledParameterOption } from "../syWorkbookContext";
+
+jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => jest.requireActual("./syUncertaintyPraxis"));
+
+function point(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
+}
+
+function fraction(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "FRACTION", law: { family: "POINT", value } } };
+}
+
+const PUMP_ALPHAS: CcfFactorModel = { model: "ALPHA_FACTOR", testing: "NON_STAGGERED", alphas: { node: "VALUE", law: { family: "FIXED", values: [0.97912, 0.0126, 0.00828] } } };
 
 const CCW = "SYS-CCW";
 const EPS = "SYS-EPS";
@@ -20,6 +33,7 @@ interface MockContext {
   mutateSy: jest.Mock;
   shortOf: (id: string) => string;
   controlledCcfEstimates: SyControlledCcfEstimateOption[];
+  controlledParameters: SyControlledParameterOption[];
   runtime: { workbookId: string; projectId: string; revision: number; saveStatus: "saved" };
 }
 
@@ -65,8 +79,8 @@ const PUMPS: CommonCauseFailureGroup = {
   scope: "INTRASYSTEM",
   affectedComponents: ["P-A", "P-B", "P-C"],
   affectedSystems: [CCW],
-  modelType: "ALPHA_FACTOR",
-  modelSpecificParameters: { alphaFactorParameters: { alphaFactors: { alpha1: 0.97912, alpha2: 0.0126, alpha3: 0.00828 }, totalFailureProbability: 0.006 } },
+  factors: PUMP_ALPHAS,
+  total: point(0.006),
   dataAnalysisCCFParameterRef: "DA-CCF-1",
   members: { basicEvents: [{ id: "PMP-A-FR" }, { id: "PMP-B-FR" }, { id: "PMP-C-FR" }] },
   groupSelectionBasis: "Three pumps of one make on one maintenance schedule.",
@@ -82,8 +96,8 @@ const BATTERIES: CommonCauseFailureGroup = {
   scope: "INTERSYSTEM",
   affectedComponents: ["BAT-A", "BAT-B"],
   affectedSystems: [EPS, CCW],
-  modelType: "BETA_FACTOR",
-  modelSpecificParameters: { betaFactorParameters: { beta: 0.05, totalFailureProbability: 0.004 } },
+  factors: { model: "BETA_FACTOR", beta: fraction(0.05) },
+  total: point(0.004),
   members: { basicEvents: [{ id: "BAT-A-FR" }, { id: "BAT-B-FR" }] },
   groupSelectionBasis: "Two batteries in one room.",
   sharedCauseFactors: { environment: true, otherFactors: ["One charger vendor"] },
@@ -98,8 +112,8 @@ const VALVES: CommonCauseFailureGroup = {
   scope: "INTRASYSTEM",
   affectedComponents: [],
   affectedSystems: [CCW],
-  modelType: "BETA_FACTOR",
-  modelSpecificParameters: { betaFactorParameters: { beta: 0.1, totalFailureProbability: 0.002 } },
+  factors: { model: "BETA_FACTOR", beta: fraction(0.1) },
+  total: point(0.002),
   dataAnalysisCCFParameterRef: "DA-CCF-2",
   members: { basicEvents: [{ id: "VLV-A-FO" }, { id: "VLV-B-FO" }] },
   groupSelectionBasis: "Two valves of one make.",
@@ -119,15 +133,15 @@ function makeAnalysis(groups: CommonCauseFailureGroup[] = [PUMPS, BATTERIES, VAL
       SYSTEM_LEVEL,
     ],
     systemBasicEvents: [
-      { uuid: "PMP-A-FR", code: "PMP-A-FR", name: "Pump A fails to run", eventType: "BASIC", failureMode: "FAILURE_TO_RUN", probability: 0.006, implementsSrs: [] },
-      { uuid: "PMP-B-FR", code: "PMP-B-FR", name: "Pump B fails to run", eventType: "BASIC", failureMode: "FAILURE_TO_RUN", probability: 0.006, implementsSrs: [] },
-      { uuid: "PMP-C-FR", code: "PMP-C-FR", name: "Pump C fails to run", eventType: "BASIC", failureMode: "FAILURE_TO_RUN", probability: 0.006, implementsSrs: [] },
-      { uuid: "VLV-A-FO", code: "VLV-A-FO", name: "Valve A fails to open", eventType: "BASIC", failureMode: "FAILURE_TO_OPEN", probability: 0.002, implementsSrs: [] },
-      { uuid: "VLV-B-FO", code: "VLV-B-FO", name: "Valve B fails to open", eventType: "BASIC", failureMode: "FAILURE_TO_OPEN", probability: 0.003, implementsSrs: [] },
+      { uuid: "PMP-A-FR", code: "PMP-A-FR", name: "Pump A fails to run", eventType: "BASIC", failureMode: "FAILURE_TO_RUN", expression: point(0.006), implementsSrs: [] },
+      { uuid: "PMP-B-FR", code: "PMP-B-FR", name: "Pump B fails to run", eventType: "BASIC", failureMode: "FAILURE_TO_RUN", expression: point(0.006), implementsSrs: [] },
+      { uuid: "PMP-C-FR", code: "PMP-C-FR", name: "Pump C fails to run", eventType: "BASIC", failureMode: "FAILURE_TO_RUN", expression: point(0.006), implementsSrs: [] },
+      { uuid: "VLV-A-FO", code: "VLV-A-FO", name: "Valve A fails to open", eventType: "BASIC", failureMode: "FAILURE_TO_OPEN", expression: point(0.002), implementsSrs: [] },
+      { uuid: "VLV-B-FO", code: "VLV-B-FO", name: "Valve B fails to open", eventType: "BASIC", failureMode: "FAILURE_TO_OPEN", expression: point(0.003), implementsSrs: [] },
       { uuid: "CCW-HFE", code: "CCW-HFE", name: "Operator fails to restart the pump", eventType: "BASIC", failureMode: "HUMAN_ERROR", probability: 0.003, implementsSrs: [] },
-      { uuid: "CCW-TM-A", code: "CCW-TM-A", name: "Train A in maintenance", eventType: "BASIC", failureMode: "TEST_MAINTENANCE", probability: 0.004, implementsSrs: [] },
-      { uuid: "BAT-A-FR", code: "BAT-A-FR", name: "Battery A fails", eventType: "BASIC", failureMode: "FAILURE_TO_RUN", probability: 0.004, componentReference: "BAT-A", implementsSrs: [] },
-      { uuid: "BAT-B-FR", code: "BAT-B-FR", name: "Battery B fails", eventType: "BASIC", failureMode: "FAILURE_TO_RUN", probability: 0.004, componentReference: "BAT-B", implementsSrs: [] },
+      { uuid: "CCW-TM-A", code: "CCW-TM-A", name: "Train A in maintenance", eventType: "BASIC", failureMode: "TEST_MAINTENANCE", expression: point(0.004), implementsSrs: [] },
+      { uuid: "BAT-A-FR", code: "BAT-A-FR", name: "Battery A fails", eventType: "BASIC", failureMode: "FAILURE_TO_RUN", expression: point(0.004), componentReference: "BAT-A", implementsSrs: [] },
+      { uuid: "BAT-B-FR", code: "BAT-B-FR", name: "Battery B fails", eventType: "BASIC", failureMode: "FAILURE_TO_RUN", expression: point(0.004), componentReference: "BAT-B", implementsSrs: [] },
     ],
     commonCauseFailureGroups: groups,
   };
@@ -139,8 +153,7 @@ const ESTIMATES: SyControlledCcfEstimateOption[] = [
     workbookName: "DA Workbook 1",
     estimateId: "DA-CCF-1",
     groupReference: "ccf-pumps",
-    modelType: "ALPHA_FACTOR",
-    parameters: { alpha1: 0.97912, alpha2: 0.0126, alpha3: 0.00828 },
+    factors: PUMP_ALPHAS,
     source: "Generic rate alpha factors, groups of three",
     riskSignificant: true,
   },
@@ -149,8 +162,7 @@ const ESTIMATES: SyControlledCcfEstimateOption[] = [
     workbookName: "DA Workbook 1",
     estimateId: "DA-CCF-3",
     groupReference: "ccf-batt",
-    modelType: "BETA_FACTOR",
-    parameters: { beta: 0.0079 },
+    factors: { model: "BETA_FACTOR", beta: fraction(0.0079) },
     riskSignificant: false,
   },
 ];
@@ -168,6 +180,7 @@ function setContext(editable = true, groups?: CommonCauseFailureGroup[]): void {
     mutateSy: jest.fn(),
     shortOf: (id) => (id === CCW ? "CCW" : id === EPS ? "EPS" : id === GV ? "GV" : id),
     controlledCcfEstimates: ESTIMATES,
+    controlledParameters: [],
     runtime: { workbookId: "sy-1", projectId: "project-1", revision: 3, saveStatus: "saved" },
   };
 }
@@ -188,7 +201,7 @@ describe("SY Step 04 common cause", () => {
     mockCcfAnalysis.mockClear();
   });
 
-  it("reviews one system's groups with member names, shared causes and DA parameters", () => {
+  it("reviews one system's groups with member names, shared causes, DA factors and the Qₜ point", async () => {
     const openDrawer = jest.fn();
     render(<CommonCauseScreen sysId={CCW} setSysId={jest.fn()} openDrawer={openDrawer} />);
 
@@ -197,10 +210,10 @@ describe("SY Step 04 common cause", () => {
     const pumps = within(withinSystem).getAllByRole("row")[1]!;
     expect(within(pumps).getByText("Pump C fails to run")).toBeInTheDocument();
     expect(within(pumps).getByText("Same maintenance and test practice")).toBeInTheDocument();
-    expect(within(pumps).getByText("Alpha factor")).toBeInTheDocument();
-    expect(within(pumps).getByText((_, element) => element?.classList.contains("sy-review-factors") === true && element.textContent === "α1 0.97912 · α2 0.0126 · α3 0.00828")).toBeInTheDocument();
+    expect(within(pumps).getByText("Alpha factor, non-staggered testing")).toBeInTheDocument();
+    expect(within(pumps).getByText("α1 0.97912 · α2 0.0126 · α3 0.00828")).toHaveClass("sy-review-factors");
     expect(within(pumps).getByText("DA DA-CCF-1 · DA Workbook 1")).toBeInTheDocument();
-    expect(within(pumps).getByText("6.0E-3")).toBeInTheDocument();
+    await waitFor(() => expect(within(pumps).getByText("6.0E-3")).toBeInTheDocument());
     fireEvent.click(within(withinSystem).getByRole("button", { name: "Edit Cooling pumps" }));
     expect(openDrawer).toHaveBeenCalledWith({ kind: "ccf", id: "ccf-pumps" });
 
@@ -215,11 +228,11 @@ describe("SY Step 04 common cause", () => {
   it("shows setup problems on the row", () => {
     render(<CommonCauseScreen sysId={CCW} setSysId={jest.fn()} openDrawer={jest.fn()} />);
     const valves = within(screen.getByRole("table", { name: "Within this system" })).getAllByRole("row")[2]!;
-    expect(within(valves).getByText("The member events carry different probabilities (2.0E-3, 3.0E-3). Give every member the same probability in Step 02.")).toHaveClass("sy-error");
+    expect(within(valves).getByText("The member events hold different values, so Qₜ stays as typed. Give every member the same value in Step 02 to take Qₜ from them.")).toHaveClass("sy-warn");
     expect(within(valves).getByText("The linked DA estimate DA-CCF-2 is not in the linked DA workbook.")).toHaveClass("sy-warn");
   });
 
-  it("adds an empty group owned by the shown system", () => {
+  it("adds an empty group owned by the shown system with typed factors and an unset Qₜ", () => {
     const openDrawer = jest.fn();
     render(<CommonCauseScreen sysId={EPS} setSysId={jest.fn()} openDrawer={openDrawer} />);
     expect(screen.getByText("No common cause group within this system.")).toBeInTheDocument();
@@ -227,8 +240,14 @@ describe("SY Step 04 common cause", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add group across systems" }));
     const groups = lastMutation().commonCauseFailureGroups;
     const added = groups[groups.length - 1];
-    expect(added).toMatchObject({ scope: "INTERSYSTEM", affectedSystems: [EPS], name: "", members: { basicEvents: [] } });
-    expect(added?.modelSpecificParameters).toBeUndefined();
+    expect(added).toMatchObject({
+      scope: "INTERSYSTEM",
+      affectedSystems: [EPS],
+      name: "",
+      members: { basicEvents: [] },
+      factors: { model: "BETA_FACTOR", beta: fraction(0.050000000000000044) },
+      total: point(0),
+    });
     expect(openDrawer).toHaveBeenLastCalledWith({ kind: "ccf", id: added?.uuid });
   });
 
@@ -244,31 +263,34 @@ describe("SY Step 04 common cause", () => {
     expect(screen.getByRole("button", { name: "View Cooling pumps" })).toBeInTheDocument();
   });
 
-  it("links a DA estimate, copies its model and writes Qₜ from the members", () => {
+  it("links a DA estimate and copies its factors exactly", () => {
     render(<DrawerContent context={{ kind: "ccf", id: "ccf-batt" }} onClose={jest.fn()} />);
-    expect(screen.getByRole("spinbutton", { name: "Beta" })).toHaveValue(0.05);
+    const typedBeta = within(screen.getByRole("group", { name: "Beta factor" })).getByRole("textbox", { name: "Value" });
+    expect(typedBeta).toHaveValue("0.05");
     const source = screen.getByRole("combobox", { name: "DA common cause estimate" });
     const option = within(source).getByRole("option", { name: "DA Workbook 1 · DA-CCF-3 for ccf-batt · Beta factor β 0.0079" });
     fireEvent.change(source, { target: { value: option.getAttribute("value") } });
 
     expect(groupAfterMutation("ccf-batt")).toMatchObject({
       dataAnalysisCCFParameterRef: "DA-CCF-3",
-      modelType: "BETA_FACTOR",
-      modelSpecificParameters: { betaFactorParameters: { beta: 0.0079, totalFailureProbability: 0.004 } },
+      factors: { model: "BETA_FACTOR", beta: fraction(0.0079) },
+      total: point(0.004),
       dataSources: undefined,
     });
   });
 
-  it("hides typed factors once a DA estimate is linked", () => {
+  it("shows linked factors read-only", () => {
     render(<DrawerContent context={{ kind: "ccf", id: "ccf-pumps" }} onClose={jest.fn()} />);
     expect(screen.queryByRole("combobox", { name: "Model" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("spinbutton", { name: "Alpha 1" })).not.toBeInTheDocument();
+    const factors = screen.getByRole("group", { name: "Factors" });
+    expect(factors).toHaveTextContent("Alpha factor, non-staggered testing");
+    expect(factors).toHaveTextContent("α1 0.97912 · α2 0.0126 · α3 0.00828");
     expect(screen.getByRole("group", { name: "Member events in CCW" })).toBeInTheDocument();
     expect(within(screen.getByRole("group", { name: "Member events in CCW" })).queryByText("Operator fails to restart the pump")).not.toBeInTheDocument();
     expect(within(screen.getByRole("group", { name: "Member events in CCW" })).queryByText("Train A in maintenance")).not.toBeInTheDocument();
   });
 
-  it("keeps members, components and Qₜ in step", () => {
+  it("keeps members, components, typed factors and Qₜ in step", async () => {
     const pair: CommonCauseFailureGroup = {
       ...BATTERIES,
       uuid: "ccf-pair",
@@ -277,28 +299,31 @@ describe("SY Step 04 common cause", () => {
       affectedSystems: [EPS],
       affectedComponents: [],
       members: { basicEvents: [{ id: "BAT-A-FR" }] },
-      modelSpecificParameters: { betaFactorParameters: { beta: 0.05, totalFailureProbability: 0.001 } },
+      factors: { model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "VALUE", law: { family: "FIXED", values: [1] } } },
+      total: point(0.001),
     };
     setContext(true, [pair]);
     render(<DrawerContent context={{ kind: "ccf", id: "ccf-pair" }} onClose={jest.fn()} />);
-    fireEvent.click(screen.getByRole("checkbox", { name: "Battery B fails 4.0E-3" }));
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: "Battery B fails 4.0E-3 4.00E-3" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("checkbox", { name: "Battery B fails 4.0E-3 4.00E-3" }));
 
     expect(groupAfterMutation("ccf-pair")).toMatchObject({
       members: { basicEvents: [{ id: "BAT-A-FR" }, { id: "BAT-B-FR" }] },
       affectedComponents: ["BAT-A", "BAT-B"],
-      modelSpecificParameters: { betaFactorParameters: { beta: 0.05, totalFailureProbability: 0.004 } },
+      factors: { model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "VALUE", law: { family: "FIXED", values: [0.95, 0.05] } } },
+      total: point(0.004),
     });
   });
 
   it("edits typed factors, shared causes, defenses and coupled systems", () => {
     render(<DrawerContent context={{ kind: "ccf", id: "ccf-batt" }} onClose={jest.fn()} />);
-    const beta = screen.getByRole("spinbutton", { name: "Beta" });
+    const beta = within(screen.getByRole("group", { name: "Beta factor" })).getByRole("textbox", { name: "Value" });
     fireEvent.change(beta, { target: { value: "0.08" } });
     fireEvent.blur(beta);
-    expect(groupAfterMutation("ccf-batt")?.modelSpecificParameters).toEqual({ betaFactorParameters: { beta: 0.08, totalFailureProbability: 0.004 } });
+    expect(groupAfterMutation("ccf-batt")?.factors).toEqual({ model: "BETA_FACTOR", beta: fraction(0.08) });
 
     fireEvent.change(screen.getByRole("combobox", { name: "Model" }), { target: { value: "ALPHA_FACTOR" } });
-    expect(groupAfterMutation("ccf-batt")?.modelSpecificParameters).toEqual({ alphaFactorParameters: { alphaFactors: { alpha1: 0.95, alpha2: 0.05 }, totalFailureProbability: 0.004 } });
+    expect(groupAfterMutation("ccf-batt")?.factors).toEqual({ model: "ALPHA_FACTOR", testing: "NON_STAGGERED", alphas: { node: "VALUE", law: { family: "FIXED", values: [0.95, 0.05] } } });
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Same manufacturer" }));
     expect(groupAfterMutation("ccf-batt")?.sharedCauseFactors).toEqual({ environment: true, manufacturer: true, otherFactors: ["One charger vendor"] });
@@ -312,24 +337,43 @@ describe("SY Step 04 common cause", () => {
     expect(groupAfterMutation("ccf-batt")?.affectedSystems).toEqual([EPS, CCW, GV]);
   });
 
-  it("offers the fixes for a stale Qₜ and drifted DA values", () => {
+  it("takes Qₜ from the shared member value and lets the analyst type a law when members differ", async () => {
+    setContext(true);
+    const { unmount } = render(<DrawerContent context={{ kind: "ccf", id: "ccf-batt" }} onClose={jest.fn()} />);
+    const shared = screen.getByRole("group", { name: "Total failure probability" });
+    expect(shared).toHaveTextContent("From the member value.");
+    await waitFor(() => expect(within(shared).getByText("4.0E-3")).toBeInTheDocument());
+    expect(within(shared).queryByRole("textbox", { name: "Value" })).not.toBeInTheDocument();
+    unmount();
+
+    render(<DrawerContent context={{ kind: "ccf", id: "ccf-valves" }} onClose={jest.fn()} />);
+    const typed = screen.getByRole("group", { name: "Total failure probability" });
+    const total = within(typed).getByRole("textbox", { name: "Value" });
+    fireEvent.change(total, { target: { value: "0.0025" } });
+    fireEvent.blur(total);
+    expect(groupAfterMutation("ccf-valves")?.total).toEqual(point(0.0025));
+
+    fireEvent.change(within(typed).getByRole("combobox", { name: "Law" }), { target: { value: "LOGNORMAL" } });
+    expect(groupAfterMutation("ccf-valves")?.total).toEqual({ node: "VALUE", value: { unit: "PROBABILITY", law: { family: "LOGNORMAL", mean: 0.002, errorFactor: 3, level: 0.95 } } });
+  });
+
+  it("offers the fixes for a stale Qₜ and drifted DA factors", () => {
     const stale: CommonCauseFailureGroup = {
       ...PUMPS,
-      modelSpecificParameters: { alphaFactorParameters: { alphaFactors: { alpha1: 0.95, alpha2: 0.035, alpha3: 0.015 }, totalFailureProbability: 0.008 } },
+      factors: { model: "ALPHA_FACTOR", testing: "NON_STAGGERED", alphas: { node: "VALUE", law: { family: "FIXED", values: [0.95, 0.035, 0.015] } } },
+      total: point(0.008),
     };
     setContext(true, [stale]);
     render(<DrawerContent context={{ kind: "ccf", id: "ccf-pumps" }} onClose={jest.fn()} />);
     const problems = screen.getByRole("group", { name: "Setup problems" });
-    expect(within(problems).getByText("Qₜ 8.0E-3 does not match the member events (6.0E-3).")).toBeInTheDocument();
-    expect(within(problems).getByText("The model or factors differ from DA estimate DA-CCF-1.")).toBeInTheDocument();
+    expect(within(problems).getByText("Qₜ differs from the value the member events share.")).toBeInTheDocument();
+    expect(within(problems).getByText("The factors differ from DA estimate DA-CCF-1.")).toBeInTheDocument();
 
-    fireEvent.click(within(problems).getByRole("button", { name: "Use the member probability" }));
-    expect(groupAfterMutation("ccf-pumps")?.modelSpecificParameters?.alphaFactorParameters?.totalFailureProbability).toBe(0.006);
+    fireEvent.click(within(problems).getByRole("button", { name: "Use the member value" }));
+    expect(groupAfterMutation("ccf-pumps")?.total).toEqual(point(0.006));
 
     fireEvent.click(within(problems).getByRole("button", { name: "Apply the DA values" }));
-    expect(groupAfterMutation("ccf-pumps")?.modelSpecificParameters).toEqual({
-      alphaFactorParameters: { alphaFactors: { alpha1: 0.97912, alpha2: 0.0126, alpha3: 0.00828 }, totalFailureProbability: 0.006 },
-    });
+    expect(groupAfterMutation("ccf-pumps")).toMatchObject({ factors: PUMP_ALPHAS, total: point(0.006) });
   });
 
   it("removes a group with a text-only action", () => {

@@ -60,7 +60,7 @@ function RiDocumentsCard({ workbookId, canEdit }: { workbookId?: string; canEdit
 
   const uploads = docs ?? [];
   return (
-    <div className="poscard">
+    <div className="poscard ri-handoff__wide-card">
       <div className="poscard__head">
         <WorkbookSectionHeading workbook="RI" title="Supporting documents" level={3} />
         {canEdit && workbookId !== undefined && (
@@ -70,7 +70,6 @@ function RiDocumentsCard({ workbookId, canEdit }: { workbookId?: string; canEdit
           </label>
         )}
       </div>
-      <p className="poscard__sub">The family frequencies, the consequence table, the intended-application definition, the model-uncertainty registers and the screened-item logs that support this integration.</p>
       {error !== null && <p className="possubtle" style={{ color: "#b73b3b" }}>{error}</p>}
       {exampleDocs.length > 0 && (
         <table className="postable">
@@ -111,7 +110,7 @@ function RiDocumentsCard({ workbookId, canEdit }: { workbookId?: string; canEdit
                 <td>{d.uploadedBy}</td>
                 <td style={{ textAlign: "right" }}>
                   {canEdit && (
-                    <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => onDelete(d.documentId)}><RIIcon.Close /></button>
+                    <button type="button" className="posnav__btn posnav__btn--sm" aria-label={`Remove ${d.filename}`} onClick={() => onDelete(d.documentId)}><RIIcon.Close /></button>
                   )}
                 </td>
               </tr>

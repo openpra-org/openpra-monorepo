@@ -1,30 +1,43 @@
 .syunc-analysis__model { display: grid; grid-template-columns: minmax(88px, auto) minmax(220px, 1fr); align-items: center; gap: 12px; padding: 12px 14px 0; color: var(--color-text-muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 .syunc-analysis__model select { min-width: 0; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); padding: 8px 10px; color: var(--color-text); font: inherit; font-weight: 600; letter-spacing: 0; text-transform: none; }
 
-.syunc-analysis__results { display: grid; gap: 18px; padding-top: 18px; }
 .syunc-analysis .syunc-analysis__unavailable { color: var(--color-text-muted); }
 .syunc-analysis__unavailable small { font-size: 10px; }
-.syunc-analysis__results > h3 { margin: 0; font-size: 14px; }
-.syunc-analysis__result { display: grid; gap: 14px; border-top: 1px solid var(--color-border); padding-top: 14px; }
-.syunc-analysis__result-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
-.syunc-analysis__result-head strong { font-size: 13px; }
-.syunc-analysis__result-head span { color: var(--color-text-muted); font-size: 10px; }
-.syunc-analysis__metrics { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); margin: 0; }
-.syunc-analysis__metrics > div { display: grid; gap: 4px; border-left: 1px solid var(--color-border); padding: 2px 16px; }
-.syunc-analysis__metrics > div:first-child { border-left: 0; padding-left: 0; }
-.syunc-analysis__metrics dt { color: var(--color-text-muted); font-size: 9.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
-.syunc-analysis__metrics dd { margin: 0; font-family: var(--font-data), ui-monospace, monospace; font-size: 13px; font-weight: 700; }
-.syunc-analysis__quantiles { display: grid; grid-template-columns: repeat(5, minmax(95px, 1fr)); gap: 10px; }
-.syunc-analysis__quantiles > div { display: grid; gap: 4px; border-top: 1px solid var(--color-border); padding-top: 10px; }
-.syunc-analysis__quantiles span { color: var(--color-text-muted); font-size: 10px; font-weight: 750; }
-.syunc-analysis__quantiles strong { font-family: var(--font-data), ui-monospace, monospace; font-size: 12px; }
-@media (max-width: 900px) {
-  .syunc-analysis__metrics { grid-template-columns: repeat(2, minmax(120px, 1fr)); row-gap: 14px; }
-  .syunc-analysis__metrics > div:nth-child(3) { border-left: 0; padding-left: 0; }
-  .syunc-analysis__quantiles { grid-template-columns: repeat(2, minmax(95px, 1fr)); }
-}
 .syunc-issues:empty { display: none; }
 .syunc-issues { margin: 0 0 8px; }
 .syunc-inputs th:nth-child(1) { width: 30%; }
-.syunc-inputs th:nth-child(3) { width: 30%; }
+.syunc-inputs th:nth-child(3) { width: 18%; }
 .syunc-range .posfield__input.syunc-range__bound { flex: 0 0 112px; }
+
+.syunc-results { display: grid; gap: 16px; padding-top: 18px; }
+.syunc-results > h3 { margin: 0; font-size: 14px; }
+.syunc-result, .syunc-batch { display: grid; gap: 12px; min-width: 0; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); padding: 14px 16px; }
+.syunc-result__head, .syunc-batch__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+.syunc-result__head strong, .syunc-batch__head strong { font-size: 13px; }
+.syunc-result__head span, .syunc-batch__head span { color: var(--color-text-muted); font-size: 11px; }
+.syunc-result__views { display: flex; gap: 6px; }
+.syunc-result__views .posnav__btn[aria-pressed="true"] { border-color: var(--color-primary); color: var(--color-primary); }
+.syunc-result__chart { display: block; width: 100%; height: auto; }
+.syunc-result__axis { stroke: var(--color-border); stroke-width: 1; }
+.syunc-result__tick, .syunc-result__marker-label { fill: var(--color-text-muted); font-family: var(--font-data), ui-monospace, monospace; font-size: 11px; }
+.syunc-result__bar { fill: color-mix(in srgb, var(--color-primary) 16%, transparent); stroke: var(--color-primary); stroke-width: .5; }
+.syunc-result__curve { fill: none; stroke: var(--color-primary); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.syunc-result__marker { stroke: var(--color-text-muted); stroke-width: 1; }
+.syunc-result__point { stroke: var(--color-text); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.syunc-result__point-label { fill: var(--color-text); font-size: 11px; }
+.syunc-result__note { margin: 0; color: var(--color-text-muted); font-size: 11px; }
+.syunc-result__values { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.syunc-result__values th { padding: 0 6px 4px 0; color: var(--color-text-muted); font-size: 11px; font-weight: 600; text-align: left; }
+.syunc-result__values td { padding: 0 6px 0 0; font-family: var(--font-data), ui-monospace, monospace; font-size: 12px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.syunc-result__details { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid var(--color-border); padding-top: 10px; color: var(--color-text-muted); font-size: 11px; }
+.syunc-batch__grid { display: grid; grid-template-columns: minmax(0, 1.3fr) 84px 84px minmax(0, 1.6fr); gap: 8px 10px; align-items: center; font-size: 12px; }
+.syunc-batch__row { display: contents; }
+.syunc-batch__label { color: var(--color-text-muted); font-size: 11px; }
+.syunc-batch__name { min-width: 0; overflow: hidden; border: 0; background: none; padding: 0; color: var(--color-text); font: inherit; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.syunc-batch__name:hover, .syunc-batch__name:focus-visible { color: var(--color-primary); text-decoration: underline; }
+.syunc-batch__value { font-family: var(--font-data), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.syunc-batch__track { position: relative; height: 14px; border-bottom: 1px solid var(--color-border); }
+.syunc-batch__interval { position: absolute; top: 6px; height: 2px; background: var(--color-primary); }
+.syunc-batch__mean { position: absolute; top: 3px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--color-primary); box-shadow: 0 0 0 2px var(--color-surface); }
+.syunc-batch__point { position: absolute; top: 1px; height: 12px; border-left: 1.5px dashed var(--color-text); }
+.syunc-batch__scale { display: flex; justify-content: space-between; color: var(--color-text-muted); font-family: var(--font-data), ui-monospace, monospace; font-size: 11px; }

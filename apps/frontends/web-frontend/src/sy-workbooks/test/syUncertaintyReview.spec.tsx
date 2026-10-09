@@ -1,10 +1,10 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { DistributionType } from "interfaces-mef-types/core/events";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { UncertainExpression, UncertainParameter } from "interfaces-mef-types/core/uncertainty";
 import type { SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
-import type { SystemBasicEvent, SystemLogicModel } from "interfaces-mef-types/sy/systems-analysis";
+import { carriesUncertainExpression, type SystemBasicEvent, type SystemLogicModel } from "interfaces-mef-types/sy/systems-analysis";
 import { PlantUncertainty, UncertaintyScreen } from "../SyUncertaintyReview";
 import { DrawerContent } from "../syScreens2";
-import { linkExampleEvents } from "../syLinks";
+import { linkExampleEvents, linkExampleGroups } from "../syLinks";
 import {
   coverageIssues,
   inputRows,
@@ -16,8 +16,11 @@ import {
 } from "../syUncertainty";
 import type { SyControlledParameterOption } from "../syWorkbookContext";
 
+const NO_SC: ReadonlyMap<string, UncertainParameter> = new Map();
+
 jest.mock("../SyUncertaintyAnalysis", () => ({ SyUncertaintyAnalysis: ({ selectedModelId }: { selectedModelId?: string }) => `Run for ${selectedModelId ?? "none"}` }));
 jest.mock("../../newly-developed-methods/shared/analysisRunHistory", () => ({ AnalysisRunHistory: () => null }));
+jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => jest.requireActual("./syUncertaintyPraxis"));
 
 const CCW = "SYS-CCW";
 const EPS = "SYS-EPS";
@@ -36,10 +39,18 @@ interface MockContext {
 
 const SHORT = new Map([[CCW, "CCW"], [EPS, "EPS"], [GV, "GV"]]);
 
+function point(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
+}
+
+function linked(entityId: string, workbookId = "da-1"): UncertainExpression {
+  return { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId } };
+}
+
 const PARAMETERS: SyControlledParameterOption[] = [
-  { workbookId: "da-1", workbookName: "DA", parameterId: "DA-PMP", parameterName: "Pump fails to run", parameterType: "PROBABILITY", value: 0.002, uncertainty: { type: DistributionType.BETA, alpha: 1, betaParam: 499 } },
-  { workbookId: "da-1", workbookName: "DA", parameterId: "DA-HX", parameterName: "Heat exchanger fouled", parameterType: "PROBABILITY", value: 0.001 },
-  { workbookId: "da-1", workbookName: "DA", parameterId: "DA-BAT", parameterName: "Battery fails", parameterType: "PROBABILITY", value: 0.004, uncertainty: { type: DistributionType.LOGNORMAL, median: 0.002, errorFactor: 3 } },
+  { workbookId: "da-1", workbookName: "DA", parameterId: "DA-PMP", parameterName: "Pump fails to run", unit: "PROBABILITY", estimate: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "BETA", alpha: 1, beta: 499, lower: 0, upper: 1 } } } },
+  { workbookId: "da-1", workbookName: "DA", parameterId: "DA-HX", parameterName: "Heat exchanger fouled", unit: "PROBABILITY", estimate: point(0.001) },
+  { workbookId: "da-1", workbookName: "DA", parameterId: "DA-BAT", parameterName: "Battery fails", unit: "PROBABILITY", estimate: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "LOGNORMAL", mean: 0.004, errorFactor: 3, level: 0.95 } } } },
 ];
 
 function tree(systemReference: string, events: readonly string[]): SystemLogicModel {
@@ -63,11 +74,12 @@ function tree(systemReference: string, events: readonly string[]): SystemLogicMo
 }
 
 function system(uuid: string, name: string) {
-  return { uuid, name, abbreviation: SHORT.get(uuid), boundaries: [], successCriteriaIds: [], missionTimeHours: 24, modeledComponentsAndFailures: {}, informationBasis: "as-designed-as-intended" as const, implementsSrs: [] };
+  return { uuid, name, abbreviation: SHORT.get(uuid), boundaries: [], successCriteriaIds: [], missionTime: { node: "VALUE" as const, value: { unit: "HOURS" as const, law: { family: "POINT" as const, value: 24 } } }, modeledComponentsAndFailures: {}, informationBasis: "as-designed-as-intended" as const, implementsSrs: [] };
 }
 
 function event(uuid: string, code: string, name: string, failureMode: string, extra: Partial<SystemBasicEvent> = {}): SystemBasicEvent {
-  return { uuid, code, name, eventType: "BASIC", failureMode, probability: 0.002, implementsSrs: [], ...extra };
+  const value = carriesUncertainExpression(failureMode) ? { expression: point(0.002) } : { probability: 0.002 };
+  return { uuid, code, name, eventType: "BASIC", failureMode, ...value, implementsSrs: [], ...extra };
 }
 
 function study(uuid: string, tested: string, ranges: Record<string, [number, number]>, results?: string): SensitivityStudy {
@@ -83,12 +95,12 @@ function makeAnalysis(): Fixture {
       { ...tree(GV, []), modelRepresentation: "System-level", nonDetailedModelJustification: "Passive shell.", topGate: null, gates: [], leafNodes: [], gateInputs: [] },
     ],
     systemBasicEvents: [
-      event("PMP-A", "CCW-PMP-A-FR", "Pump A fails to run", "FAILURE_TO_RUN", { controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "DA-PMP" } }),
-      event("PMP-B", "CCW-PMP-B-FR", "Pump B fails to run", "FAILURE_TO_RUN", { dataAnalysisBasicEventRef: "DA-PMP" }),
-      event("HX-A", "CCW-HXA-PLG", "Heat exchanger A fouled", "FAILURE_TO_RUN", { controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "DA-HX" } }),
+      event("PMP-A", "CCW-PMP-A-FR", "Pump A fails to run", "FAILURE_TO_RUN", { expression: linked("DA-PMP") }),
+      event("PMP-B", "CCW-PMP-B-FR", "Pump B fails to run", "FAILURE_TO_RUN", { expression: linked("DA-PMP") }),
+      event("HX-A", "CCW-HXA-PLG", "Heat exchanger A fouled", "FAILURE_TO_RUN", { expression: linked("DA-HX") }),
       event("CCW-TM", "CCW-TR-TM", "One train in maintenance", "TEST_MAINTENANCE"),
       event("CCW-HFE", "CCW-HFE", "Operator fails to restart a pump", "HUMAN_ERROR", { dataAnalysisBasicEventRef: "HR-POST-001" }),
-      event("BAT-A", "EPS-BAT-A-FR", "Battery A fails", "FAILURE_TO_RUN", { controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "DA-BAT" } }),
+      event("BAT-A", "EPS-BAT-A-FR", "Battery A fails", "FAILURE_TO_RUN", { expression: linked("DA-BAT") }),
       event("BAT-B", "EPS-BAT-B-FR", "Battery B fails", "FAILURE_TO_RUN"),
     ],
     commonCauseFailureGroups: [{
@@ -98,8 +110,8 @@ function makeAnalysis(): Fixture {
       scope: "INTRASYSTEM",
       affectedComponents: ["P-A", "P-B"],
       affectedSystems: [CCW],
-      modelType: "BETA_FACTOR",
-      modelSpecificParameters: { betaFactorParameters: { beta: 0.05, totalFailureProbability: 0.002 } },
+      factors: { model: "BETA_FACTOR", beta: { node: "VALUE", value: { unit: "FRACTION", law: { family: "POINT", value: 0.05 } } } },
+      total: linked("DA-PMP"),
       members: { basicEvents: [{ id: "PMP-A" }, { id: "PMP-B" }] },
       implementsSrs: [],
     }],
@@ -116,7 +128,6 @@ function makeAnalysis(): Fixture {
         { uncertaintyId: "DU-1", supportingSystem: EPS, description: "Power reaches both pumps through one transfer.", impact: "A single bus fault is not modeled." },
         { uncertaintyId: "DU-2", description: "Both pumps share one room.", impact: "A room flood fails both pumps." },
       ],
-      parameterUncertainties: [],
       implementsSrs: [{ sr: "SY-A32", hlr: "A" }, { sr: "SY-B16", hlr: "B" }],
     }],
     sensitivityStudies: [
@@ -169,45 +180,59 @@ function modelOf(sy: Fixture, systemId: string): SystemLogicModel {
 }
 
 describe("SY Step 07 checks", () => {
-  it("tells why a fault tree can or cannot sample its DA distributions", () => {
+  it("tells why a fault tree can or cannot run an uncertainty analysis", () => {
     const sy = makeAnalysis();
-    const legacy = runReadiness(sy, modelOf(sy, CCW), PARAMETERS);
-    expect(legacy.state).toBe("NEEDS_FIX");
-    expect(legacy.message).toBe("CCW-PMP-B-FR: Linked by the old DA reference only. Pick the estimate in Step 02 so runs sample it.");
+    expect(runReadiness(sy, modelOf(sy, CCW), PARAMETERS, NO_SC).state).toBe("READY");
 
-    const linked = { ...sy, systemBasicEvents: linkExampleEvents(sy.systemBasicEvents, "da-1", { parameters: [{ uuid: "DA-PMP", name: "Pump", parameterType: "PROBABILITY", value: 0.002, valueType: "MEAN", implementsSrs: [] }] }) };
-    expect(runReadiness(linked, modelOf(linked, CCW), PARAMETERS).state).toBe("READY");
+    const unset = { ...sy, systemBasicEvents: sy.systemBasicEvents.map((item) => (item.uuid === "PMP-B" ? { ...item, expression: undefined } : item)) };
+    expect(runReadiness(unset, modelOf(unset, CCW), PARAMETERS, NO_SC)).toMatchObject({ state: "NEEDS_FIX", message: "CCW-PMP-B-FR: No value yet. Set it in Step 02." });
 
-    const split = { ...linked, systemBasicEvents: linked.systemBasicEvents.map((item) => item.uuid === "PMP-B"
-      ? { ...item, controlledDataSource: { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: "da-1", entityId: "DA-BAT" } }
-      : item) };
-    const mixed = runReadiness(split, modelOf(split, CCW), PARAMETERS);
-    expect(mixed.state).toBe("NEEDS_FIX");
-    expect(mixed.message).toBe("CCW-PMP-A-FR: The members of Cooling-water pumps link different DA estimates. Link all of them to one estimate in Step 02.");
-    expect(runReadiness(sy, modelOf(sy, EPS), []).state).toBe("NO_INPUTS");
+    const split = { ...sy, systemBasicEvents: sy.systemBasicEvents.map((item) => (item.uuid === "PMP-B" ? { ...item, expression: linked("DA-BAT") } : item)) };
+    const mixed = runReadiness(split, modelOf(split, CCW), PARAMETERS, NO_SC);
+    expect(mixed.state).toBe("READY");
+    expect(mixed.inputs.find((input) => input.event.uuid === "PMP-A")?.issues).toEqual([]);
+    expect(runReadiness(sy, modelOf(sy, EPS), [], NO_SC).state).toBe("NO_INPUTS");
   });
 
-  it("links example events to their DA estimates and leaves other references alone", () => {
+  it("points example events at the linked DA workbook and leaves human failure references alone", () => {
     const sy = makeAnalysis();
-    const linked = { ...sy, systemBasicEvents: linkExampleEvents(sy.systemBasicEvents, "da-example", { parameters: [{ uuid: "DA-PMP", name: "Pump", parameterType: "PROBABILITY", value: 0.0021, valueType: "MEAN", implementsSrs: [] }] }) };
-    expect(linked.systemBasicEvents.find((item) => item.uuid === "PMP-B")).toMatchObject({
-      probability: 0.0021,
-      controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-example", entityId: "DA-PMP" },
-      dataAnalysisBasicEventRef: undefined,
-    });
-    expect(linked.systemBasicEvents.find((item) => item.uuid === "PMP-A")?.controlledDataSource?.workbookId).toBe("da-1");
-    expect(linked.systemBasicEvents.find((item) => item.uuid === "CCW-HFE")?.dataAnalysisBasicEventRef).toBe("HR-POST-001");
+    const hours: UncertainExpression = { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: 24 } } };
+    const example = {
+      ...sy,
+      systemBasicEvents: sy.systemBasicEvents.map((item) => {
+        if (item.uuid === "PMP-B") return { ...item, expression: linked("DA-PMP", "example-da-htgr") };
+        if (item.uuid === "HX-A") return { ...item, expression: { node: "MODEL" as const, model: { form: "MISSION" as const, rate: linked("DA-RUN", "example-da-htgr"), missionTime: hours } } };
+        return item;
+      }),
+    };
+    const parameters = [
+      { uuid: "DA-PMP", name: "Pump", parameterType: "PROBABILITY" as const, quantificationModel: "DEMAND_PROBABILITY" as const, estimate: point(0.0021), implementsSrs: [] },
+      { uuid: "DA-RUN", name: "Exchanger", parameterType: "FAILURE_RATE" as const, quantificationModel: "RUNNING_RATE" as const, estimate: { node: "VALUE" as const, value: { unit: "PER_HOUR" as const, law: { family: "POINT" as const, value: 1e-5 } } }, implementsSrs: [] },
+    ];
+    const events = linkExampleEvents(example, "da-example", { parameters });
+    expect(events.find((item) => item.uuid === "PMP-B")?.expression).toEqual(linked("DA-PMP", "da-example"));
+    expect(events.find((item) => item.uuid === "HX-A")?.expression).toEqual({ node: "MODEL", model: { form: "MISSION", rate: linked("DA-RUN", "da-example"), missionTime: hours } });
+    expect(events.find((item) => item.uuid === "PMP-A")?.expression).toEqual(linked("DA-PMP", "da-example"));
+    expect(events.find((item) => item.uuid === "BAT-A")?.expression).toEqual(linked("DA-BAT"));
+    expect(events.find((item) => item.uuid === "BAT-B")?.expression).toEqual(point(0.002));
+    expect(events.find((item) => item.uuid === "CCW-HFE")?.dataAnalysisBasicEventRef).toBe("HR-POST-001");
+    expect(events.find((item) => item.uuid === "CCW-HFE")).not.toHaveProperty("expression");
+
+    const groups = linkExampleGroups({ commonCauseFailureGroups: example.commonCauseFailureGroups.map((group) => ({ ...group, total: linked("DA-PMP", "example-da-htgr") })) }, "da-example", { parameters });
+    expect(groups[0]?.total).toEqual(linked("DA-PMP", "da-example"));
+    expect(linkExampleGroups({ commonCauseFailureGroups: [{ ...example.commonCauseFailureGroups[0]!, total: linked("DA-BAT", "example-da-htgr") }] }, "da-example", { parameters })[0]?.total).toEqual(linked("DA-BAT", "example-da-htgr"));
   });
 
-  it("lists each input with its link status", () => {
+  it("lists each component input with its issues", () => {
     const sy = makeAnalysis();
-    const codes = new Map(inputRows(sy, CCW, PARAMETERS).map((row) => [row.event.uuid, row.issues.map((item) => item.code)]));
-    expect([...codes.keys()]).toEqual(["PMP-A", "PMP-B", "HX-A", "CCW-TM"]);
-    expect(codes.get("PMP-A")).toEqual([]);
-    expect(codes.get("PMP-B")).toEqual(["LEGACY_LINK"]);
-    expect(codes.get("HX-A")).toEqual(["NO_DISTRIBUTION"]);
-    expect(codes.get("CCW-TM")).toEqual([]);
-    expect(inputRows(sy, EPS, PARAMETERS).find((row) => row.event.uuid === "BAT-B")?.issues[0]?.message).toBe("No DA estimate is linked, so the run keeps its point value.");
+    const rows = inputRows(sy, CCW, PARAMETERS, NO_SC);
+    expect(rows.map((row) => [row.event.uuid, row.uncertain, row.issues.map((item) => item.code)])).toEqual([
+      ["PMP-A", true, []],
+      ["PMP-B", true, []],
+      ["HX-A", false, []],
+      ["CCW-TM", false, []],
+    ]);
+    expect(inputRows(sy, EPS, [], NO_SC).find((row) => row.event.uuid === "BAT-A")?.issues[0]?.message).toBe("It links a value that is not in the linked DA or SC workbook.");
   });
 
   it("checks coverage, studies and plant-wide items", () => {
@@ -233,14 +258,15 @@ describe("SY Step 07 checks", () => {
 describe("SY Step 07 screen", () => {
   beforeEach(() => setContext());
 
-  it("reviews one system's inputs, uncertainty sources and studies", () => {
+  it("reviews one system's inputs, uncertainty sources and studies", async () => {
     const openDrawer = jest.fn();
     render(<UncertaintyScreen sysId={CCW} setSysId={jest.fn()} openDrawer={openDrawer} />);
 
-    const inputs = screen.getByRole("table", { name: "DA inputs" });
-    expect(within(rowOf(inputs, "CCW-PMP-A-FR")).getByText("Beta, alpha 1, beta 499")).toBeInTheDocument();
-    expect(within(rowOf(inputs, "CCW-PMP-B-FR")).getByText("Linked by the old DA reference only. Pick the estimate in Step 02 so runs sample it.")).toHaveClass("sy-error");
-    expect(within(rowOf(inputs, "CCW-HXA-PLG")).getByText("Point value")).toBeInTheDocument();
+    const inputs = screen.getByRole("table", { name: "Input values" });
+    expect(within(rowOf(inputs, "CCW-PMP-A-FR")).getByText("Pump fails to run")).toBeInTheDocument();
+    expect(within(rowOf(inputs, "CCW-PMP-A-FR")).getByText("Sampled in runs")).toBeInTheDocument();
+    expect(within(rowOf(inputs, "CCW-HXA-PLG")).getByText("Fixed value")).toBeInTheDocument();
+    await waitFor(() => expect(within(rowOf(inputs, "CCW-HXA-PLG")).getByText("1.0E-3")).toBeInTheDocument());
     expect(within(inputs).queryByText("CCW-HFE")).not.toBeInTheDocument();
     fireEvent.click(within(inputs).getByRole("button", { name: "Edit CCW-PMP-B-FR" }));
     expect(openDrawer).toHaveBeenLastCalledWith({ kind: "be", id: "PMP-B" });

@@ -10,37 +10,48 @@ import {
   type Stage,
 } from "./daViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, stepsFromMef, type CommentView } from "./daSelectors";
-import { ScopeScreen, DefineScreen, GroupScreen, GenericScreen, type DaDrawerContext } from "./daScreens";
-import { CountsScreen, UnavailScreen, EstimateScreen, CcfScreen, UncertScreen, DraftScreen, DrawerContent, PlaceholderScreen } from "./daScreens2";
+import { ScopeScreen, DataNeedsScreen, NeedWindow, ParametersScreen, type DaDrawerContext } from "./daScreens";
+import { DraftScreen, PlaceholderScreen } from "./daScreens2";
+import { CCF_WINDOW_KINDS, CcfScreen, CcfWindows } from "./daCcfScreen";
+import { FREQUENCY_WINDOW_KINDS, FrequencyScreen, FrequencyWindows } from "./daFrequencyScreen";
+import { UNCERTAINTY_WINDOW_KINDS, UncertaintyScreen, UncertaintyWindows } from "./daUncertaintyScreen";
+import { HANDOFF_WINDOW_KINDS, HandoffScreen, HandoffWindows } from "./daHandoffScreen";
+import { handoffsComplete } from "./daHandoffs";
+import { FAILURE_WIDE_KINDS, FAILURE_WINDOW_KINDS, FailureWindows, FailuresScreen } from "./daFailuresScreen";
 import { InternalReviewScreen, ReviewerCommentDock } from "./daReview";
+import { SOURCE_WINDOW_KINDS, SourceWindows, SourcesScreen, WIDE_WINDOW_KINDS } from "./daSourcesScreen";
+import { UNAVAILABILITY_WINDOW_KINDS, UnavailabilityScreen, UnavailabilityWindows } from "./daUnavailabilityScreen";
 import { useDaWorkbook, type DaWorkbookData } from "./daWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
+import { WorkbookSaveIndicator } from "../workbooks/workbookSaveIndicator";
+import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
 import "../workbooks/css/workbookWorkspace.css";
+import "../welcome/css/newProjectModal.css";
 import "./css/daScreens.css";
 
 interface StepHeader {
-  eyebrow: string;
+  area: string;
   title: string;
-  sub?: string;
 }
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "The slots, the pedigree and the inputs that feed DA." };
-    case "define": return { eyebrow: "Step 02", title: "Define Parameters", sub: "Boundaries and probability models (HLR-A)." };
-    case "group": return { eyebrow: "Step 03", title: "Group Populations", sub: "Homogeneous populations and outliers (HLR-B)." };
-    case "generic": return { eyebrow: "Step 04", title: "Collect: Generic", sub: "Generic and technology sources per state (HLR-C)." };
-    case "counts": return { eyebrow: "Step 05", title: "Collect: Counts", sub: "Failure definition, demands and exposure time." };
-    case "unavail": return { eyebrow: "Step 06", title: "Collect: Unavailability", sub: "Maintenance, coincident, repair and outage data." };
-    case "estimate": return { eyebrow: "Step 07", title: "Estimate Values", sub: "The evidence ladder and Bayesian estimates (HLR-D)." };
-    case "ccf": return { eyebrow: "Step 08", title: "Common-Cause", sub: "Common-cause parameters and consistent exclusion (D7 to D9)." };
-    case "uncert": return { eyebrow: "Step 09", title: "Uncertainty & Pre-op", sub: "Model-uncertainty sources and pre-operational assumptions." };
-    case "draft": return { eyebrow: "Step 10 · Draft", title: "Produce the draft", sub: "Build the DA report, then send it to review (HLR-E)." };
-    case "review": return { eyebrow: "Step 11 · Review", title: "Internal technical review", sub: "Reviewers comment, the preparer replies, all resolve before approval." };
-    case "approval": return { eyebrow: "Step 12 · Approval", title: "Approval & sign-off", sub: "Everyone signs, the approver last." };
-    default: return { eyebrow: "", title: "" };
+    case "scope": return { area: "HLR-DA-A", title: "Scope" };
+    case "needs": return { area: "HLR-DA-A", title: "Data needs" };
+    case "define": return { area: "HLR-DA-A · B", title: "Parameters" };
+    case "generic": return { area: "HLR-DA-C · D", title: "Sources" };
+    case "counts": return { area: "HLR-DA-C · D", title: "Component failures" };
+    case "unavail": return { area: "HLR-DA-C · D", title: "Unavailability, repair and recovery" };
+    case "ccf": return { area: "HLR-DA-D", title: "Common cause" };
+    case "ie": return { area: "HLR-DA-D", title: "Initiating events" };
+    case "uncert": return { area: "HLR-DA-E", title: "Uncertainty" };
+    case "handoffs": return { area: "HLR-DA-D", title: "Hand-offs" };
+    case "draft": return { area: "Draft", title: "Produce the draft" };
+    case "review": return { area: "Review", title: "Internal technical review" };
+    case "approval": return { area: "Approval", title: "Approval & sign-off" };
+    default: return { area: "", title: "" };
   }
 }
 
@@ -48,6 +59,7 @@ interface HeaderMeta {
   projectName: string;
   workbookName: string;
   workbookVersion: string;
+  saveStatus?: RevisionedSaveStatus;
 }
 
 function WorkspaceHeader({
@@ -113,12 +125,12 @@ function WorkspaceHeader({
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles} title="Manage roles"><DAIcon.Settings /> Roles</button>
         )}
         {onLoadExample !== undefined && (
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onLoadExample} title="Replace contents with the Generic-1 example workbook"><DAIcon.Sparkle /> Load example</button>
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onLoadExample} title="Replace contents with a packaged example workbook"><DAIcon.Sparkle /> Load example</button>
         )}
         {onUnloadExample !== undefined && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onUnloadExample} title="Restore the contents that existed before the example was loaded"><DAIcon.Close /> Unload example</button>
         )}
-        <span className="poshd__save-pill"><span className="poshd__save-pill-dot" />Autosaved · v{headerMeta.workbookVersion}</span>
+        <WorkbookSaveIndicator status={headerMeta.saveStatus} workbookVersion={headerMeta.workbookVersion} />
         <button type="button" className="posnav__btn" aria-label="History"><DAIcon.History /></button>
         {onToggleDock !== undefined && (
           <button type="button" className="posw__mobile-toggle" onClick={onToggleDock} aria-label="Open conformance"><DAIcon.Eye /> Conformance</button>
@@ -128,12 +140,13 @@ function WorkspaceHeader({
   );
 }
 
-function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
+function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen, onClose }: {
   stepId: string;
   setStepId: (id: string) => void;
   persona: DaPersona;
   visibleSteps: DaStep[];
   mobileOpen: boolean;
+  onClose: () => void;
 }): JSX.Element {
   const idx = Math.max(0, visibleSteps.findIndex((s) => s.id === stepId));
   const pct = ((idx + 1) / visibleSteps.length) * 100;
@@ -141,7 +154,10 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
   return (
     <aside className={`posw__rail${mobileOpen ? " posw__rail--mobile-open" : ""}`} aria-label="DA analysis steps">
       <div className="posrail__head">
-        <span className="posrail__eyebrow">{eyebrow}</span>
+        <div className="posrail__head-top">
+          <span className="posrail__eyebrow">{eyebrow}</span>
+          <button type="button" className="posdock__close" onClick={onClose} aria-label="Hide steps" title="Hide steps"><DAIcon.Close /></button>
+        </div>
         <div className="posrail__progress">
           <span className="posrail__progress-num">{idx + 1}</span>
           <span className="posrail__progress-total">/ {visibleSteps.length} steps</span>
@@ -155,19 +171,20 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
           const idle = s.status === "idle";
           return (
             <li key={s.id}>
-              <button type="button" className={`posrail__step${active ? " posrail__step--active" : ""}${complete ? " posrail__step--complete" : ""}${idle ? " posrail__step--idle" : ""}`} onClick={() => setStepId(s.id)}>
+              <button type="button" className={`posrail__step${active ? " posrail__step--active" : ""}${complete ? " posrail__step--complete" : ""}${idle && s.terminal === true ? " posrail__step--idle" : ""}`} onClick={() => setStepId(s.id)}>
                 <span className="posrail__step-num">{complete ? <DAIcon.Check /> : s.num}</span>
-                <span><span className="posrail__step-label">{s.label}</span></span>
+                <span>
+                  <span className="posrail__step-label">
+                    {s.label}
+                    {s.hlr !== undefined && <span className="dahlr">{s.hlr}</span>}
+                  </span>
+                </span>
                 <span className="posrail__step-warn" style={{ background: "transparent" }} />
               </button>
             </li>
           );
         })}
       </ul>
-      <div className="posrail__footer">
-        <button type="button" className="posrail__footer-btn"><DAIcon.Layers /> Show all inputs</button>
-        <button type="button" className="posrail__footer-btn"><DAIcon.Settings /> Workbook settings</button>
-      </div>
     </aside>
   );
 }
@@ -242,7 +259,65 @@ function ConformanceDock({ ccId, stage, onGoToScope, onClose, mobileOpen }: {
   );
 }
 
-function DaDrawer({ context, onClose }: { context: DaDrawerContext; onClose: () => void }): JSX.Element {
+const WINDOW_LABELS: Partial<Record<DaDrawerContext["kind"], string>> = {
+  needEvent: "Basic event",
+  needInitiator: "Initiator group",
+  needHuman: "Human failure event",
+  needCcf: "Common cause group",
+  needState: "Operating state",
+  daParameter: "Parameter",
+  daBoundary: "Component boundary",
+  daFailureMode: "Failure mode",
+  daGroup: "Population",
+  daOutlier: "Outlier",
+  daSource: "Source",
+  daEntry: "Estimate",
+  daSourcing: "Applicability",
+  daElicitation: "Expert elicitation",
+  daCatalog: "Source catalog",
+  daImport: "Import estimates",
+  daPrior: "Prior",
+  daEvidence: "Evidence",
+  daEstimate: "Estimate",
+  daRecordSet: "Record set",
+  daRecord: "Record",
+  daRecordImport: "Import records",
+  daRule: "Counting rule",
+  daDesignChange: "Design change",
+  daDemand: "Demands",
+  daHours: "Hours",
+  daMaintenance: "Unavailability",
+  daRestoration: "Repair or recovery",
+  daOutage: "Outage",
+  daCcfGroup: "Common cause group",
+  daCcfEvents: "Shared-cause events",
+  daCcfFactors: "Common cause factors",
+  daFrequency: "Initiating event frequency",
+  daDistribution: "Distribution",
+  daUncertaintySource: "Model uncertainty",
+  daSensitivity: "Sensitivity case",
+  daAssumption: "Pre-operational assumption",
+  daImportance: "Importance",
+};
+
+function WindowBody({ context, onClose, onRetarget }: { context: DaDrawerContext; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void }): JSX.Element | null {
+  if (SOURCE_WINDOW_KINDS.has(context.kind)) return <SourceWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
+  if (FAILURE_WINDOW_KINDS.has(context.kind)) return <FailureWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
+  if (UNAVAILABILITY_WINDOW_KINDS.has(context.kind)) return <UnavailabilityWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
+  if (CCF_WINDOW_KINDS.has(context.kind)) return <CcfWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
+  if (FREQUENCY_WINDOW_KINDS.has(context.kind)) return <FrequencyWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
+  if (UNCERTAINTY_WINDOW_KINDS.has(context.kind)) return <UncertaintyWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
+  if (HANDOFF_WINDOW_KINDS.has(context.kind)) return <HandoffWindows context={context} onClose={onClose} />;
+  return <NeedWindow context={context} onClose={onClose} onRetarget={onRetarget} />;
+}
+
+function DaModal({ context, onClose, onRetarget }: { context: DaDrawerContext; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void }): JSX.Element {
+  const dialog = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialog.current?.focus();
+    return () => { trigger?.focus(); };
+  }, []);
   useEffect(() => {
     function onKey(e: KeyboardEvent): void { if (e.key === "Escape") onClose(); }
     document.addEventListener("keydown", onKey);
@@ -251,9 +326,25 @@ function DaDrawer({ context, onClose }: { context: DaDrawerContext; onClose: () 
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
   }, [onClose]);
   return (
-    <div className="posdrawer-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="posdrawer" role="dialog" aria-modal="true">
-        <DrawerContent context={context} onClose={onClose} />
+    <div className="modal__backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div
+        ref={dialog}
+        className={`modal da-form-modal${WIDE_WINDOW_KINDS.has(context.kind) || FAILURE_WIDE_KINDS.has(context.kind) ? " da-form-modal--wide" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={WINDOW_LABELS[context.kind] ?? "Details"}
+        tabIndex={-1}
+        onKeyDown={(e) => {
+          if (e.key !== "Tab") return;
+          const controls = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]')).filter((el) => el.getClientRects().length > 0);
+          const first = controls[0];
+          const last = controls[controls.length - 1];
+          if (first === undefined || last === undefined) { e.preventDefault(); return; }
+          if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && (document.activeElement === last || document.activeElement === dialog.current)) { e.preventDefault(); first.focus(); }
+        }}
+      >
+        <WindowBody context={context} onClose={onClose} onRetarget={onRetarget} />
       </div>
     </div>
   );
@@ -290,7 +381,8 @@ function DaWorkbench({
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
 
-  const visibleSteps = useMemo(() => stepsFromMef(data.da, persona), [data.da, persona]);
+  const { upstream } = useDaWorkbook();
+  const visibleSteps = useMemo(() => stepsFromMef(data.da, persona, handoffsComplete(data.da, upstream)), [data.da, persona, upstream]);
   const mefCcId = data.da.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
   const mefStage: Stage = data.da.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
   const [ccId, setCcId] = useState<string>(mefCcId);
@@ -306,6 +398,7 @@ function DaWorkbench({
   const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "scope");
   const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
   const [dockOpen, setDockOpen] = useState(!isNarrow);
+  const [railOpen, setRailOpen] = useState(true);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
   const [dockMobileOpen, setDockMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -326,7 +419,7 @@ function DaWorkbench({
   function flash(msg: string): void {
     setToast(msg);
     if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), 2200);
+    toastTimer.current = window.setTimeout(() => setToast(null), Math.max(2200, msg.split(" ").length * 300));
   }
 
   const { user: authUser } = useAuth();
@@ -375,21 +468,16 @@ function DaWorkbench({
 
   function renderScreen(): JSX.Element {
     switch (stepId) {
-      case "scope":
-        return (
-          <>
-            <ScopeScreen ccId={ccId} setCcId={setCcId} onAction={flash} stage={stage} setStage={setStage} />
-            {renderDocuments?.()}
-          </>
-        );
-      case "define": return <DefineScreen openDrawer={setDrawer} />;
-      case "group": return <GroupScreen openDrawer={setDrawer} />;
-      case "generic": return <GenericScreen openDrawer={setDrawer} />;
-      case "counts": return <CountsScreen openDrawer={setDrawer} />;
-      case "unavail": return <UnavailScreen openDrawer={setDrawer} />;
-      case "estimate": return <EstimateScreen openDrawer={setDrawer} />;
+      case "scope": return <ScopeScreen ccId={ccId} setCcId={setCcId} stage={stage} setStage={setStage} documents={renderDocuments?.() ?? null} />;
+      case "needs": return <DataNeedsScreen openDrawer={setDrawer} />;
+      case "define": return <ParametersScreen openDrawer={setDrawer} />;
+      case "generic": return <SourcesScreen openDrawer={setDrawer} />;
+      case "counts": return <FailuresScreen openDrawer={setDrawer} />;
+      case "unavail": return <UnavailabilityScreen openDrawer={setDrawer} />;
       case "ccf": return <CcfScreen openDrawer={setDrawer} />;
-      case "uncert": return <UncertScreen openDrawer={setDrawer} />;
+      case "ie": return <FrequencyScreen openDrawer={setDrawer} />;
+      case "uncert": return <UncertaintyScreen openDrawer={setDrawer} />;
+      case "handoffs": return <HandoffScreen openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
@@ -425,23 +513,24 @@ function DaWorkbench({
   }
 
   return (
-    <div className={`posw${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`DA — ${step.label}`}>
+    <div className={`posw da-workspace${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`DA — ${step.label}`}>
       {isReviewer && <div className="poshd__extbar" />}
       {isApprover && <div className="poshd__apprbar" />}
       <WorkspaceHeader persona={persona} setPersona={setPersona} workflowState={data.da.workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailMobileOpen((v) => !v)} onToggleDock={() => { setDockOpen(true); setDockMobileOpen((v) => !v); }} />
 
-      <div className={`posw__shell${dockOpen ? "" : " posw__shell--dock-closed"}`}>
-        <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} />
+      <div className={`posw__shell${railOpen ? "" : " posw__shell--rail-closed"}${dockOpen ? "" : " posw__shell--dock-closed"}`}>
+        {(railOpen || railMobileOpen) && <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} onClose={() => { if (railMobileOpen) setRailMobileOpen(false); else setRailOpen(false); }} />}
 
         <main className="posmain" aria-label="Step content">
           <div className="posmain__head">
             <div className="posmain__title-block">
-              <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <WorkbookSectionHeading workbook="DA" title={h.title} description={h.sub} level={1} className="posmain__title" />
+              <div className="posmain__eyebrow">{h.area.length > 0 ? `Step ${step.num} · ${h.area}` : ""}</div>
+              <WorkbookSectionHeading workbook="DA" title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
+              {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm da-show-steps" onClick={() => setRailOpen(true)}><DAIcon.Layers /> Show steps</button>}
               {!dockOpen && (
-                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setDockOpen(true); setDockMobileOpen(true); }}><DAIcon.Eye /> Show conformance</button>
+                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setDockOpen(true); setDockMobileOpen(window.matchMedia("(max-width: 1100px)").matches); }}><DAIcon.Eye /> Show conformance</button>
               )}
             </div>
           </div>
@@ -468,8 +557,8 @@ function DaWorkbench({
         )}
       </div>
 
-      {drawer !== null && <DaDrawer context={drawer} onClose={() => setDrawer(null)} />}
-      {toast !== null && <div className="postoast" role="status">{toast}</div>}
+      {drawer !== null && <DaModal context={drawer} onClose={() => setDrawer(null)} onRetarget={setDrawer} />}
+      {toast !== null && <div className="postoast da-toast" role="status">{toast}</div>}
 
       {(isReviewer || isApprover) && (
         <ReviewerCommentDock

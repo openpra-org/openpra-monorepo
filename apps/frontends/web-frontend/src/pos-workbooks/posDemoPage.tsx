@@ -44,6 +44,7 @@ import { InternalReviewScreen, ReviewerCommentDock } from "./posReview";
 import { Drawer } from "./posDrawer";
 import { generatePosReport } from "./posDocx";
 import { PosWorkbookProvider, type PosWorkbookData } from "./posWorkbookContext";
+import { loadPosDaOutages } from "./posDaLinks";
 import { PosHelpButton, PosSectionHeading } from "./posHelp";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
@@ -811,10 +812,14 @@ function PosDemoPage(): JSX.Element {
       fetchJson<PosBundleResponse>(`/api/example-workbooks/pos-bundle?example=${encodeURIComponent(selected)}`)
         .then((res) => {
           if (cancelled) return;
+          const pos = res.pos.mef as PlantOperatingStatesAnalysis;
           setData({
-            pos: res.pos.mef as PlantOperatingStatesAnalysis,
+            pos,
             cc: res.configurationControl.mef as PRAConfigurationControl,
             nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
+          });
+          void loadPosDaOutages(null, pos, selected).then((daOutages) => {
+            if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daOutages }));
           });
         })
         .catch((err: unknown) => {

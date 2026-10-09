@@ -39,13 +39,13 @@ interface SeismicPraLinkedInputs {
   scMissionTimes: {
     id: string;
     eventSequence: string;
-    hours: number;
+    hours?: number;
     riskSignificant?: boolean;
   }[];
   sySystems: {
     id: string;
     name: string;
-    missionTimeHours?: number;
+    missionHours?: number;
     applicableStates: string[];
     basicEventCount?: number;
   }[];
@@ -60,7 +60,7 @@ interface SeismicPraLinkedInputs {
     id: string;
     name: string;
     parameterType: string;
-    value: number;
+    value?: number;
     basicEvent: string;
     system: string;
   }[];

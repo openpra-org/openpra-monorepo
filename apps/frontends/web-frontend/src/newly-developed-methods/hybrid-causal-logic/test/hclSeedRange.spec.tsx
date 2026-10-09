@@ -10,7 +10,7 @@ const configuration: WorkbookHclConfiguration = {
   bayesianNetwork: { workbookId: "esq", modelId: TEST_ID.model },
   faultTrees: [{ workbookId: "sy", modelId: id(2) }], bindings: [], baseEvidence: { observations: [] },
   solverSettings: { variableOrder: null, foldConstants: true, spliceNullGates: true,
-    uncertainty: { sampleCount: 31, seed: 42, sampler: "MC", basicEventDistributions: [], cptRowDistributions: [] } },
+    uncertainty: { sampleCount: 31, seed: 42, sampler: "MC", basicEvents: [], cptRows: [], cptGenerators: [] } },
 };
 const tree = { workbookId: "sy", workbookName: "Systems", modelId: id(2), modelCode: "FT", modelName: "FT", topGateId: id(3), basicEvents: [] };
 

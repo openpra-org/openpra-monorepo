@@ -1,0 +1,21 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "HOURS",
+        "law": {
+          "family": "TRIANGULAR",
+          "lower": 2,
+          "mode": 9,
+          "upper": 8
+        }
+      }
+    }
+  }
+]

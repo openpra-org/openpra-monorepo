@@ -1,11 +1,27 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { DrawerContent } from "../syScreens2";
 import type { SyLinkedInputs } from "../syWorkbookContext";
+import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
+import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
+import { scMissionTimeOptions, scMissionTimeTable, type ScMissionTimes } from "../../sc-workbooks/scMissionTimeLinks";
 
 jest.mock("../syWorkbookApi", () => ({
   listSyDocuments: jest.fn(() => Promise.resolve([])),
 }));
+jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
+
+function hours(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value } } };
+}
+
+const SC_WORKBOOK = "sc-1";
+
+const SC: ScMissionTimes = {
+  missionTimes: [{ uuid: "MT-LOCC", eventSequenceReference: "ES-7", missionTime: hours(48), basis: "Cooling restored within 48 h.", safeStableStateAchievedWithinMissionTime: true, analysisReferences: [], implementsSrs: [] }],
+  componentMissionTimes: [],
+};
 
 const SYSTEM_ID = "SYS-CCW";
 const FREE_ID = "SYS-FIRE";
@@ -37,7 +53,7 @@ function makeAnalysis(): SystemsAnalysis {
         description: "Old top event",
         boundaries: ["Two pumps"],
         successCriteriaIds: [],
-        missionTimeHours: 24,
+        missionTime: hours(24),
         applicablePlantOperatingStates: ["POS-01"],
         alignments: [{ uuid: "align-a", name: "One pump running", systemReference: SYSTEM_ID, isNormalAlignment: true, modeled: true, implementsSrs: [] }],
         operatingProcedures: [],
@@ -50,7 +66,6 @@ function makeAnalysis(): SystemsAnalysis {
         name: "Fire water",
         boundaries: [],
         successCriteriaIds: [],
-        missionTimeHours: 24,
         modeledComponentsAndFailures: {},
         informationBasis: "as-designed-as-intended",
         implementsSrs: [],
@@ -74,7 +89,8 @@ const LINKS: SyLinkedInputs = {
   posName: "POS",
   esName: "ES",
   scSystems: [{ id: "SSC-CCW", systemId: SYSTEM_ID, name: "Component cooling water", capacities: "Pumps: 1 of 2 · Heat removed: 4 MW", supports: [] }],
-  scMissionTimes: [{ id: "MT-LOCC", hours: 48, sequence: "ES-7", basis: "Cooling restored within 48 h." }],
+  scMissionTimeOptions: scMissionTimeOptions(SC_WORKBOOK, SC),
+  scMissionTimeTable: scMissionTimeTable(SC_WORKBOOK, SC),
   posStates: [
     { id: "POS-01", name: "Full power", mode: "POWER", durationHours: 8000 },
     { id: "POS-02", name: "Cold shutdown", mode: "SHUTDOWN", durationHours: 700 },
@@ -112,10 +128,17 @@ function commit(element: HTMLElement, value: string): void {
   fireEvent.blur(element);
 }
 
+async function settled(): Promise<void> {
+  await act(async () => {
+    await settledWithPraxis(() => undefined);
+  });
+}
+
 describe("SY system dialogs", () => {
   beforeEach(() => {
     mockMutateSy.mockClear();
     mockAnalysis = makeAnalysis();
+    jest.mocked(evaluateUncertainty).mockImplementation(praxisUncertainty);
   });
 
   it("maps a system to an ES safety function", () => {
@@ -174,8 +197,8 @@ describe("SY system dialogs", () => {
     expect(next.systemDefinitions[0]!.description).toBe("Cooling water fails to cool the shutdown coolers");
     expect(next.systemLogicModels[0]!.description).toBe("Cooling water fails to cool the shutdown coolers");
 
-    commit(screen.getByRole("spinbutton", { name: "Mission time (h)" }), "72");
-    expect(applyLastMutation().systemDefinitions[0]!.missionTimeHours).toBe(72);
+    commit(screen.getByRole("textbox", { name: "Value" }), "72");
+    expect(applyLastMutation().systemDefinitions[0]!.missionTime).toEqual(hours(72));
   });
 
   it("takes the success criterion from the linked SC workbook", () => {
@@ -197,16 +220,33 @@ describe("SY system dialogs", () => {
     expect(next.systemLogicModels[0]!.description).toBe("Component cooling water fails to meet its success criterion");
   });
 
-  it("takes the mission time from SC and hides the typed field", () => {
+  it("links the mission time to SC and shows the PRAXIS point", async () => {
     const { rerender } = render(<DrawerContent context={{ kind: "sysdef", id: SYSTEM_ID }} onClose={jest.fn()} />);
+    await settled();
+    expect(screen.getByText("Point value 24 h")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByRole("combobox", { name: "SC mission time" }), { target: { value: "MT-LOCC" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Source" }), { target: { value: `${SC_WORKBOOK}:MT-LOCC` } });
     const next = applyLastMutation();
-    expect(next.systemDefinitions[0]).toMatchObject({ missionTimeRef: "MT-LOCC", missionTimeHours: 48 });
+    expect(next.systemDefinitions[0]!.missionTime).toEqual({ node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: SC_WORKBOOK, entityId: "MT-LOCC" } });
 
     mockAnalysis = next;
     rerender(<DrawerContent context={{ kind: "sysdef", id: SYSTEM_ID }} onClose={jest.fn()} />);
-    expect(screen.queryByRole("spinbutton", { name: "Mission time (h)" })).not.toBeInTheDocument();
+    await settled();
+    expect(screen.queryByRole("textbox", { name: "Value" })).not.toBeInTheDocument();
+    expect(screen.getByText("Point value 48 h")).toBeInTheDocument();
+  });
+
+  it("adds and removes a typed mission time", () => {
+    const { rerender } = render(<DrawerContent context={{ kind: "sysdef", id: FREE_ID }} onClose={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add a mission time" }));
+    const added = applyLastMutation().systemDefinitions[1]!.missionTime;
+    expect(added).toMatchObject({ node: "VALUE", value: { unit: "HOURS", law: { family: "POINT" } } });
+
+    mockAnalysis = applyLastMutation();
+    rerender(<DrawerContent context={{ kind: "sysdef", id: FREE_ID }} onClose={jest.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Remove mission time" }));
+    expect(applyLastMutation().systemDefinitions[1]!.missionTime).toBeUndefined();
   });
 
   it("takes a variant success criterion from SC", () => {

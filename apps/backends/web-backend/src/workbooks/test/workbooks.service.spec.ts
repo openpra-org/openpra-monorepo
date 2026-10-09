@@ -121,11 +121,20 @@ describe("WorkbooksService", () => {
       let syMef = {
         systemLogicModels: [],
         dependencyHclConfigurations: [],
+        commonCauseFailureGroups: [],
         systemBasicEvents: [{
           uuid: "be-1",
           code: "BE-1",
           name: "Pump fails",
           eventType: "BASIC",
+          expression: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da", entityId: "parameter-1" } },
+          implementsSrs: [],
+        }, {
+          uuid: "be-ccf",
+          code: "CCF-1",
+          name: "Pumps fail together",
+          eventType: "BASIC",
+          failureMode: "COMMON_CAUSE_FAILURE",
           probability: 0.9,
           implementsSrs: [],
         }, {
@@ -152,9 +161,17 @@ describe("WorkbooksService", () => {
           uuid: "parameter-1",
           name: "Pump failure probability",
           parameterType: "PROBABILITY",
+          quantificationModel: "DEMAND_PROBABILITY",
+          estimate: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "BETA", alpha: 0.5, beta: 19.5, lower: 0, upper: 1 } } },
+          basicEventRef: "be-1",
+          implementsSrs: [],
+        }, {
+          uuid: "parameter-2",
+          name: "Pump common cause probability",
+          parameterType: "PROBABILITY",
           value: 0.025,
           valueType: "POINT_ESTIMATE",
-          basicEventRef: "be-1",
+          basicEventRef: "be-ccf",
           implementsSrs: [],
         }],
       };
@@ -216,14 +233,25 @@ describe("WorkbooksService", () => {
       expect(syAdapter.save).toHaveBeenCalledWith(
         "sy-workbook",
         expect.objectContaining({
-          systemBasicEvents: expect.arrayContaining([expect.objectContaining({
-            probability: 0.025,
-            controlledDataSource: {
-              referenceType: "WORKBOOK_PARAMETER",
-              workbookId: "da-workbook",
-              entityId: "parameter-1",
+          systemBasicEvents: expect.arrayContaining([
+            {
+              uuid: "be-1",
+              code: "BE-1",
+              name: "Pump fails",
+              eventType: "BASIC",
+              expression: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "parameter-1" } },
+              implementsSrs: [],
             },
-          })]),
+            expect.objectContaining({
+              uuid: "be-ccf",
+              probability: 0.025,
+              controlledDataSource: {
+                referenceType: "WORKBOOK_PARAMETER",
+                workbookId: "da-workbook",
+                entityId: "parameter-2",
+              },
+            }),
+          ]),
         }),
         2,
       );

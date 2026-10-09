@@ -43,10 +43,13 @@ import {
   EventTreeEditor,
   applyEventTreeOperation,
   createEmptyEventTree,
+  initiatingFrequencyUnit,
   validateEventTree,
   type EventTreeOperation,
   type EventTreeRepresentation,
 } from "../newly-developed-methods/event-tree";
+import type { ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
+import { daParameterKey, daParameterLabel, daReference, useDaFrequencyTable, type IeDaFrequencyOption } from "../ie-workbooks/ieDaLinks";
 import "./css/esScreens.css";
 
 function fmtExp(n: number | undefined): string {
@@ -1056,8 +1059,16 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
 
 
 
+const NO_DA_FREQUENCIES: IeDaFrequencyOption[] = [];
+
 function SequencesScreen(): JSX.Element {
-  const { es, posLink, ieLink, projectId, faultTreeSource, editable, mutateEs, runtime } = useEsWorkbook();
+  const { es, posLink, ieLink, projectId, faultTreeSource, editable, mutateEs, runtime, daFrequencies } = useEsWorkbook();
+  const daOptions = daFrequencies ?? NO_DA_FREQUENCIES;
+  const frequencyParameters = useDaFrequencyTable(daOptions);
+  const frequencyOptions = useMemo<ParameterOption[]>(() => {
+    const label = daParameterLabel(daOptions);
+    return daOptions.map((option) => ({ reference: daReference(option), label: label(daParameterKey(option)), unit: initiatingFrequencyUnit(option.estimate, frequencyParameters) }));
+  }, [daOptions, frequencyParameters]);
   const coverage = useMemo(() => coverageView(es, posLink), [es, posLink]);
   const [treeId, setTreeId] = useState<string>(es.eventTrees?.[0]?.uuid ?? "");
   const [representation, setRepresentation] = useState<EventTreeRepresentation>("event-sequence-diagram");
@@ -1162,6 +1173,8 @@ function SequencesScreen(): JSX.Element {
           model={model}
           eventSequences={es.eventSequences}
           availableInitiatingEvents={ieLink.initiators.map((initiator) => ({ id: initiator.id, name: initiator.name }))}
+          frequencyOptions={frequencyOptions}
+          frequencyParameters={frequencyParameters}
           availableTransfers={trees.filter((tree) => tree.uuid !== model.uuid).map((tree) => ({ id: tree.uuid, name: tree.name, sequenceIds: Object.keys(tree.sequences) }))}
           sequenceFamilyOptions={es.eventSequenceFamilies.map((family) => ({ id: family.uuid, name: family.name }))}
           releaseCategoryOptions={ES_RELEASE_CATEGORIES.map((category) => ({ id: category.id, name: category.name }))}

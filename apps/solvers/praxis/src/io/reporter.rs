@@ -549,25 +549,24 @@ fn write_uncertainty_section<W: Write>(
     writer.write_event(Event::Text(BytesText::new(&uncertainty.mean().to_string())))?;
     writer.write_event(Event::End(BytesEnd::new("mean")))?;
 
-    writer.write_event(Event::Start(BytesStart::new("sigma")))?;
+    writer.write_event(Event::Start(BytesStart::new("standard-deviation")))?;
     writer.write_event(Event::Text(BytesText::new(
-        &uncertainty.sigma().to_string(),
+        &uncertainty.standard_deviation().to_string(),
     )))?;
-    writer.write_event(Event::End(BytesEnd::new("sigma")))?;
+    writer.write_event(Event::End(BytesEnd::new("standard-deviation")))?;
 
-    writer.write_event(Event::Start(BytesStart::new("error-factor")))?;
+    writer.write_event(Event::Start(BytesStart::new("standard-error")))?;
     writer.write_event(Event::Text(BytesText::new(
-        &uncertainty.error_factor().to_string(),
+        &uncertainty.standard_error().to_string(),
     )))?;
-    writer.write_event(Event::End(BytesEnd::new("error-factor")))?;
+    writer.write_event(Event::End(BytesEnd::new("standard-error")))?;
 
     writer.write_event(Event::Start(BytesStart::new("quantiles")))?;
-    let quantile_levels = [0.05, 0.25, 0.50, 0.75, 0.95];
-    for (level, value) in quantile_levels.iter().zip(uncertainty.quantiles().iter()) {
+    for quantile in uncertainty.quantiles() {
         let mut q_elem = BytesStart::new("quantile");
-        q_elem.push_attribute(("level", level.to_string().as_str()));
+        q_elem.push_attribute(("level", quantile.probability.to_string().as_str()));
         writer.write_event(Event::Start(q_elem))?;
-        writer.write_event(Event::Text(BytesText::new(&value.to_string())))?;
+        writer.write_event(Event::Text(BytesText::new(&quantile.value.to_string())))?;
         writer.write_event(Event::End(BytesEnd::new("quantile")))?;
     }
     writer.write_event(Event::End(BytesEnd::new("quantiles")))?;

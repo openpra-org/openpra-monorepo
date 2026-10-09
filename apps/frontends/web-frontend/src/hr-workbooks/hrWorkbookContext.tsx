@@ -2,6 +2,7 @@ import React, { createContext, useContext, useMemo } from "react";
 import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
+import { type HrDaHepOption } from "./hrDaLinks";
 
 interface HrLinkedInputs {
   posStates: { id: string; name: string; mode: string; durationHours: number }[];
@@ -18,6 +19,7 @@ interface HrWorkbookData {
   cc: PRAConfigurationControl;
   nms: NewlyDevelopedMethod[];
   links: HrLinkedInputs | null;
+  daHeps?: HrDaHepOption[];
 }
 
 type HrMutator = (hr: HumanReliabilityAnalysis) => HumanReliabilityAnalysis;

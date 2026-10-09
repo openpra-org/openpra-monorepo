@@ -1,3 +1,5 @@
+import { LAW_FAMILIES } from "interfaces-mef-types/core/uncertainty";
+
 type PreserveNull = (path: readonly (string | number)[]) => boolean;
 
 function stripNulls(
@@ -17,7 +19,12 @@ function stripNulls(
   }
   if (typeof value === "object") {
     const out: Record<string, unknown> = {};
+    const law = holdsLaw(value);
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (law && v === null) {
+        out[k] = null;
+        continue;
+      }
       const cleaned = stripNulls(v, preserveNull, [...path, k]);
       if (cleaned !== undefined) out[k] = cleaned;
     }
@@ -26,5 +33,10 @@ function stripNulls(
   return value;
 }
 
-export { stripNulls };
+function holdsLaw(value: object): boolean {
+  const family = Object.entries(value).find(([key]) => key === "family")?.[1];
+  return typeof family === "string" && LAW_FAMILIES.includes(family);
+}
+
+export { holdsLaw, stripNulls };
 export type { PreserveNull };

@@ -11,6 +11,15 @@ import {
   BorderStyle,
 } from "docx";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import { logicViewOf } from "./esqLogic";
+import { barriersViewOf, cellRecordText, modeLabel, sideSourceText, MECHANISM_KIND_LABELS, MODE_KIND_LABELS } from "./esqBarriers";
+import { parameterLabelOf } from "./esqModel";
+import { BASIS_LABELS, CALCULATION_LABELS, QUANTIFIER_LABELS, SOURCE_LABELS, pctText, solveViewOf } from "./esqSolve";
+import { runLogicText } from "./esqLogic";
+import { JOINT_SOURCE_LABELS, LEVEL_LABELS, postViewOf } from "./esqPost";
+import { FEASIBILITY_LABELS } from "./esqBarriers";
+import { CONSISTENCY_LABELS, CONSISTENCY_TOPICS, IMPORTANCE_KIND_LABELS, fourDigits } from "./esqResults";
+import { METHOD_LABELS } from "./esqUncertainty";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({ text, heading: level, spacing: { before: 240, after: 120 }, pageBreakBefore: level === HeadingLevel.HEADING_1 });
@@ -52,15 +61,10 @@ function val(v: number | undefined): string {
   return v === undefined ? "—" : v.toExponential(1).replace("e", "E");
 }
 
-function meanOf(meanFrequency: number | { value: number }): number {
-  return typeof meanFrequency === "number" ? meanFrequency : meanFrequency.value;
+function differenceText(compared: number, base: number | undefined): string {
+  if (base === undefined || base === 0) return "—";
+  return pctText((100 * (compared - base)) / base);
 }
-
-const QUANT_BASIS: Record<string, string> = {
-  POINT_ESTIMATE: "Point estimate",
-  MEAN_PROPAGATED_SOKC: "Mean, SOKC propagated",
-  MEAN_RISK_SIGNIFICANT_PARAMETERS: "Mean, risk-significant parameters",
-};
 
 function buildChildren(a: EventSequenceQuantification, final: boolean): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
@@ -68,7 +72,8 @@ function buildChildren(a: EventSequenceQuantification, final: boolean): (Paragra
   const ccLabel = a.capabilityCategory ?? "N/A";
   const doc = a.documentation;
   const families = a.familyQuantifications;
-  const trunc = a.quantificationMethods.truncation;
+  const solve = solveViewOf(a);
+  const run = solve?.run;
 
   out.push(
     new Paragraph({ children: [new TextRun({ text: `${a.name} — ${stageLabel} PRA Model`, bold: true, size: 48 })], spacing: { after: 60 } }),
@@ -78,7 +83,8 @@ function buildChildren(a: EventSequenceQuantification, final: boolean): (Paragra
   );
 
   out.push(heading("Executive summary", HeadingLevel.HEADING_1));
-  out.push(para(`This document presents the preliminary Event Sequence Quantification (ESQ) for ${a.name}, prepared during the ${stageLabel.toLowerCase()} stage. ${families.length} event-sequence families, ${a.barrierQuantifications.length} radionuclide barriers and ${a.riskSignificantContributors.length} risk-significant contributors have been recorded against the ${ccLabel} capability target.`));
+  const barriers = barriersViewOf(a);
+  out.push(para(`This document presents the preliminary Event Sequence Quantification (ESQ) for ${a.name}, prepared during the ${stageLabel.toLowerCase()} stage. ${solve?.families.length ?? families.length} event-sequence families, ${barriers?.barriers.length ?? 0} radionuclide barriers and ${a.riskSignificantContributors.length} risk-significant contributors have been recorded against the ${ccLabel} capability target.`));
 
   out.push(heading("Introduction", HeadingLevel.HEADING_1));
   out.push(heading("Purpose, scope & relationship", HeadingLevel.HEADING_2));
@@ -110,8 +116,8 @@ function buildChildren(a: EventSequenceQuantification, final: boolean): (Paragra
   out.push(heading("Event sequence family frequencies", HeadingLevel.HEADING_1));
   out.push(para(doc.familyFrequenciesAndContributions));
   out.push(dataTable(
-    ["Family", "Reference", "Basis", "Mean (/yr)", "P95 (/yr)"],
-    families.map((f) => [f.name, f.eventSequenceFamilyRef, QUANT_BASIS[f.quantificationBasis] ?? f.quantificationBasis, val(meanOf(f.meanFrequency)), val(f.percentile95)]),
+    ["Family", "Name", "Value (/yr)", "From", "Sequences", "Converged at"],
+    (solve?.families ?? []).map((f) => [f.id, f.name, val(f.value), f.source === undefined ? "Not chosen" : SOURCE_LABELS[f.source], String(f.family.members.length), f.convergence === undefined ? "—" : f.convergence.convergedAt === undefined ? "Not converged" : val(f.convergence.convergedAt)]),
   ));
 
   out.push(heading("Contribution breakdown", HeadingLevel.HEADING_1));
@@ -120,44 +126,132 @@ function buildChildren(a: EventSequenceQuantification, final: boolean): (Paragra
     families.flatMap((f) => (f.contributionBreakdown ?? []).map((c) => [f.name, c.contributorRef, c.contributorType, `${Math.round(c.fractionalContribution * 100)}%`])),
   ));
 
+  out.push(heading("Quantification configuration", HeadingLevel.HEADING_1));
+  out.push(para(run === undefined
+    ? "No PRAXIS run is kept as the values of record."
+    : `PRAXIS run ${run.runId} of ${run.at}, workbook revision ${String(run.revision)}${solve?.stale === true ? ", older than its inputs" : ""}. ${CALCULATION_LABELS[run.calculation]}${run.quantifier === undefined ? "" : `, ${QUANTIFIER_LABELS[run.quantifier].toLowerCase()}`}${run.basis === undefined ? "" : `, cutoff on ${BASIS_LABELS[run.basis].toLowerCase()}`}${run.limitOrder === undefined ? "" : `, order limit ${String(run.limitOrder)}`}. ${runLogicText(run.logic)}.`));
+  if (solve?.work.rareEventReason !== undefined) out.push(para(`Rare event: ${solve.work.rareEventReason}`));
+
   out.push(heading("Truncation convergence records", HeadingLevel.HEADING_1));
-  out.push(para(trunc.basisForSelection));
+  out.push(para(`A family converges where a one-decade step changes it less than the step before and by less than ${String(solve?.stepPercent ?? 5)}%.`));
   out.push(dataTable(
-    ["Cutoff (/yr)", "Family frequency (/yr)", "Change"],
-    trunc.truncationProgression.map((c) => [val(c), val(trunc.frequencyAtTruncation[c]), trunc.percentageChangeAtTruncation[c] !== undefined ? `${trunc.percentageChangeAtTruncation[c]}%` : "base"]),
+    ["Family", "Cutoff", "Cut sets", "Frequency (/yr)", "Change"],
+    (solve?.families ?? []).flatMap((f) => {
+      const convergence = f.convergence;
+      if (convergence === undefined) return [];
+      return (f.solve?.run?.sweep ?? []).map((point, index) => [f.id, val(point.cutOff), String(point.count), val(point.annualFrequency), pctText(convergence.changes[index])]);
+    }),
+  ));
+
+  out.push(heading("Code verification", HeadingLevel.HEADING_1));
+  out.push(dataTable(
+    ["Family", "PRAXIS (/yr)", "Compared (/yr)", "From", "Difference"],
+    (solve?.families ?? []).flatMap((f) => {
+      const base = f.solve?.run?.annualFrequency;
+      const rows: string[][] = [];
+      if (f.solve?.typed !== undefined) rows.push([f.id, val(base), val(f.solve.typed.annualFrequency), f.solve.typed.source, differenceText(f.solve.typed.annualFrequency, base)]);
+      if (f.solve?.imported !== undefined) rows.push([f.id, val(base), val(f.solve.imported.annualFrequency), "ES workbook", differenceText(f.solve.imported.annualFrequency, base)]);
+      return rows;
+    }),
   ));
 
   out.push(heading("Cutset review records", HeadingLevel.HEADING_1));
   out.push(para(doc.cutsetReviewProcess));
+  const reviewWork = a.review ?? {};
+  const eventCode = new Map((a.model?.events ?? []).map((event) => [event.id, event.code]));
   out.push(dataTable(
-    ["Sample", "Logic", "Findings"],
-    [
-      ...a.cutsetLogicReviews.map((c) => [c.sampleDescription, c.logicCorrect ? "Correct" : "Issue", c.findings]),
-      ...a.nonSignificantSampleReviews.map((c) => [c.sampleDescription, c.physicallyMeaningful ? "Meaningful" : "Issue", c.findings]),
-    ],
+    ["Family", "Cut set", "Frequency (/yr)", "Significant", "Logic", "Note"],
+    (reviewWork.cutSetReviews ?? []).filter((c) => c.verdict !== undefined).map((c) => [c.familyId, c.eventIds.map((id) => eventCode.get(id) ?? id).join(" · "), val(c.annualFrequency), c.significant ? "Yes" : "No", c.verdict === "CORRECT" ? "Correct" : "Issue", c.note]),
   ));
+  out.push(heading("Consistency of the results", HeadingLevel.HEADING_2));
+  out.push(dataTable(
+    ["Checked against", "Result", "Note"],
+    CONSISTENCY_TOPICS.map((topic) => {
+      const entry = reviewWork.consistency?.find((item) => item.topic === topic);
+      return [CONSISTENCY_LABELS[topic], entry?.consistent === undefined ? "Not checked" : entry.consistent ? "Consistent" : "Inconsistent", entry?.note ?? ""];
+    }),
+  ));
+  const comparison = reviewWork.comparison;
+  if (comparison !== undefined && !comparison.possible) out.push(para(`No similar plant is compared. ${comparison.reason}`));
+  if (comparison !== undefined && comparison.possible) {
+    out.push(dataTable(["Plant", "Source", "Family", "Value (/yr)", "Differences"], comparison.plants.map((plant) => [plant.name, plant.source, plant.familyId ?? "Release total", val(plant.value), plant.note])));
+  }
 
   out.push(heading("Flag, mutex & recovery treatment", HeadingLevel.HEADING_1));
   out.push(para(doc.mutuallyExclusiveEventsEliminated));
+  const logic = logicViewOf(a);
   out.push(dataTable(
-    ["Flag", "State", "Effect"],
-    (a.flagEventSettings ?? []).map((f) => [f.name, f.state ? "TRUE" : "FALSE", f.effect]),
+    ["Flag", "Sets", "State", "Applies to", "Basis"],
+    (logic?.flags ?? []).map((f) => [f.flag.name.trim().length > 0 ? f.flag.name : f.flag.id, f.target, f.flag.state ? "TRUE" : "FALSE", f.trees.map((tree) => tree.code).join(", "), f.flag.basis]),
+  ));
+  out.push(dataTable(
+    ["Support loop", "Cut at", "State", "Basis"],
+    (logic?.loops ?? []).flatMap((loop) => loop.edges.flatMap((edge) => (edge.cut === undefined ? [] : [[loop.codes.join(", "), `${edge.fromCode} to ${edge.toCode}`, edge.cut.state ? "TRUE" : "FALSE", edge.cut.basis]]))),
+  ));
+  const post = postViewOf(a);
+  const deletions = post?.work.deletions;
+  out.push(dataTable(
+    ["Exclusion", "Events", "Basis", "Cut sets deleted", "Frequency (/yr)"],
+    (post?.exclusions ?? []).map((x) => [x.exclusion.id, x.codes.join(", "), x.exclusion.basis, deletions === undefined || !x.checkable ? "—" : String(x.finding?.cutSetCount ?? 0), val(x.finding?.nominalFrequency)]),
+  ));
+  if (deletions !== undefined) out.push(para(`Deleted combinations listed by PRAXIS run ${deletions.runId} of ${deletions.at} at a cutoff of ${val(deletions.cutOff)} per year${post?.deletionsStale === true ? ", older than its inputs" : ""}.`));
+  out.push(dataTable(
+    ["Recovery", "Recovers", "Non-recovery HEP", "From", "Credited", "Feasibility not shown", "Basis"],
+    (post?.recoveries ?? []).map((r) => [r.recovery.id, r.codes.join(", "), val(r.recovery.value), r.recovery.source === undefined ? "Not chosen" : r.recovery.source === "HRA" ? "HR" : r.recovery.rule?.typed?.source ?? "Typed", r.recovery.credited ? "Yes" : "No", r.recovery.missing.length === 0 ? "None" : r.recovery.missing.map((key) => FEASIBILITY_LABELS[key]).join(", "), r.recovery.rule?.basis ?? ""]),
   ));
 
   out.push(heading("Dependency treatment", HeadingLevel.HEADING_1));
   out.push(para(doc.intermediateStateDependencyTreatment));
   out.push(para(a.dependencyTreatment.postInitiatorHfeDependencyBasis));
+  const search = post?.work.search;
+  out.push(para(search === undefined
+    ? "No PRAXIS search for cut sets with several human failure events is kept."
+    : `PRAXIS run ${search.runId} of ${search.at} found the cut sets with two or more human failure events, with each HEP at ${String(search.raisedHep)} and a cutoff of ${val(search.cutOff)} per year${post?.searchStale === true ? ". It is older than its inputs" : ""}.`));
+  out.push(para(post?.floor === undefined ? "No joint HEP floor is set." : `Joint HEP floor ${val(post.floor)}${post.work.floor === undefined ? " from HR" : `, typed from ${post.work.floor.source}`}. No joint HEP goes below it unless a waiver gives the reason.`));
+  out.push(dataTable(
+    ["Combination", "Events", "Joint HEP", "From", "Level", "Nominal (/yr)", "Basis"],
+    (post?.combinations ?? []).map((c) => [c.entry?.combination.id ?? "Not assessed", c.codes.join(", "), val(c.entry?.joint), c.entry?.source === undefined ? "—" : JOINT_SOURCE_LABELS[c.entry.source], c.entry?.level === undefined ? "—" : LEVEL_LABELS[c.entry.level], val(c.finding?.nominalFrequency), c.entry?.combination.basis ?? ""]),
+  ));
+
+  out.push(heading("Post-processing results", HeadingLevel.HEADING_1));
+  out.push(para(post?.work.comparison === undefined
+    ? "No run without the post-processing rules is kept."
+    : `PRAXIS run ${post.work.comparison.runId} of ${post.work.comparison.at} repeats the run of record with recovery and HFE dependency off${post.comparisonStale ? ". It is older than its inputs" : ""}.`));
+  out.push(dataTable(
+    ["Family", "Without the rules (/yr)", "With the rules (/yr)", "Change"],
+    (post?.results ?? []).map((r) => [r.familyId, val(r.without), val(r.withRules), r.withRules === undefined ? "—" : differenceText(r.withRules, r.without)]),
+  ));
 
   out.push(heading("Barrier challenge & capacity", HeadingLevel.HEADING_1));
   out.push(para(doc.barrierChallengeTreatment));
   out.push(para(doc.barrierCapacityBasis));
   out.push(dataTable(
-    ["Barrier", "Failure modes", "Challenge basis", "Capacity basis"],
-    a.barrierQuantifications.map((b) => [b.name, b.failureModes.map((m) => m.failureMode).join("; "), b.challengeAssessment.basis, b.capacityEvaluation.basis]),
+    ["Barrier", "Failure mode", "Kind", "Location"],
+    (barriers?.barriers ?? []).flatMap((b) => (b.modes.length === 0 ? [[b.name, "—", "—", "—"]] : b.modes.map((m) => [b.name, modeLabel(m), MODE_KIND_LABELS[m.kind], m.location]))),
+  ));
+  out.push(dataTable(
+    ["Mechanism", "Kind", "Barrier", "Status", "Basis"],
+    (barriers?.mechanisms ?? []).map((m) => [m.mechanism.name, MECHANISM_KIND_LABELS[m.mechanism.kind], m.barrier?.name ?? m.mechanism.barrierId, m.mechanism.screening === undefined ? "Retained" : `Screened ${m.mechanism.screening.criterion}`, m.mechanism.screening?.basis ?? m.mechanism.basis]),
+  ));
+  out.push(dataTable(
+    ["Cell", "Barrier mode", "Family or hazard", "Load", "Capacity", "P(fail)"],
+    [...(barriers?.cells ?? []), ...(barriers?.hazardCells ?? [])].map((c) => [c.cell.id, `${c.barrier?.name ?? c.cell.barrierId} · ${modeLabel(c.mode)}`, c.cell.hazardGroup ?? c.cell.familyId ?? "—", sideSourceText(c.cell.load, c.cell.unit), sideSourceText(c.cell.capacity, c.cell.unit), cellRecordText(c.cell, parameterLabelOf(a))]),
+  ));
+  out.push(dataTable(
+    ["Credit", "Kind", "Families", "Decision", "Basis"],
+    (barriers?.credits ?? []).map((c) => [c.credit.name, c.credit.kind === "EQUIPMENT" ? "Equipment" : "Action", c.credit.familyIds.join(", "), c.credit.credited ? "Credited" : "Not credited", c.credit.basis]),
   ));
 
   out.push(heading("Risk-significant contributors & importance", HeadingLevel.HEADING_1));
   out.push(para(doc.riskSignificantContributorsDocumentation));
+  const ranking = reviewWork.importance;
+  out.push(para(ranking === undefined
+    ? "No importance ranking is kept."
+    : `PRAXIS run ${ranking.runId} of ${ranking.at} sets each event and group to failure and to success on the exact sequence diagrams. Items are significant above FV ${fourDigits(ranking.thresholds?.fussellVesely ?? 0.005)} or RAW ${fourDigits(ranking.thresholds?.riskAchievementWorth ?? 2)} over the release families.`));
+  out.push(dataTable(
+    ["Item", "Kind", "Largest FV", "Largest RAW"],
+    (ranking?.significant ?? []).map((entry) => [entry.label, IMPORTANCE_KIND_LABELS[entry.kind], fourDigits(entry.fussellVesely), fourDigits(entry.riskAchievementWorth)]),
+  ));
   out.push(dataTable(
     ["Contributor", "Type", "Fraction", "Basis"],
     a.riskSignificantContributors.map((c) => [c.entityRef, c.contributorType, c.fractionalContribution !== undefined ? `${Math.round(c.fractionalContribution * 100)}%` : "—", c.riskSignificanceCriteriaBasis]),
@@ -166,10 +260,52 @@ function buildChildren(a: EventSequenceQuantification, final: boolean): (Paragra
 
   out.push(heading("Screening audit", HeadingLevel.HEADING_1));
   out.push(para(a.screenedEventCumulativeAssessment?.cumulativeImpactAssessment ?? "No screened-event assessment recorded."));
+  out.push(dataTable(
+    ["Initiator", "Frequency (/yr)", "Conditional bound", "Family joined", "Basis"],
+    (reviewWork.screened ?? []).map((bound) => [bound.groupId, val(bound.frequency), val(bound.conditional), bound.familyId ?? "Release total", bound.basis]),
+  ));
+
+  out.push(heading("Uncertainty results", HeadingLevel.HEADING_1));
+  const sampled = a.uncertaintyWork?.run;
+  out.push(para(sampled === undefined
+    ? "No sampling run is kept."
+    : `PRAXIS run ${sampled.runId} of ${sampled.at}: ${String(sampled.trials)} trials, seed ${String(sampled.seed)}, ${METHOD_LABELS[sampled.method].toLowerCase()} sampling, one draw per input shared by every event bound to it. Each family sums its sequences trial by trial.`));
+  out.push(dataTable(
+    ["Family", "Point (/yr)", "Mean (/yr)", "5th", "Median", "95th"],
+    [
+      ...(sampled?.families ?? []).map((f) => [f.familyId, val(f.point), val(f.mean), val(f.p05), val(f.p50), val(f.p95)]),
+      ...(sampled?.total === undefined ? [] : [["Release total", val(sampled.total.point), val(sampled.total.mean), val(sampled.total.p05), val(sampled.total.p50), val(sampled.total.p95)]]),
+    ],
+  ));
+  const independent = a.uncertaintyWork?.independent;
+  if (independent?.total !== undefined && sampled?.total !== undefined) out.push(para(`With independent draws the release total mean is ${val(independent.total.mean)} per year, against ${val(sampled.total.mean)} with shared draws.`));
 
   out.push(heading("Model uncertainty & sensitivity", HeadingLevel.HEADING_1));
   out.push(para(doc.uncertaintySourcesDocumentation));
-  for (const s of a.sensitivityStudies ?? []) out.push(bullet(`${s.name ?? "Sensitivity study"}: ${s.results ?? ""}`));
+  out.push(dataTable(
+    ["Source", "From", "Evaluation", "Effect on the families"],
+    (a.modelUncertaintySourceAssessments ?? []).map((m) => [m.uncertaintySource, m.sourceElementCode, m.evaluationType === "QUANTITATIVE" ? "Case run" : "Qualitative", m.effectOnFamilyFrequencies]),
+  ));
+  out.push(dataTable(
+    ["Case", "Changes", "Result"],
+    (a.sensitivityStudies ?? []).map((study) => [study.name ?? study.uuid, study.description, study.results ?? "Not run"]),
+  ));
+
+  out.push(heading("Pre-operational assumptions", HeadingLevel.HEADING_1));
+  out.push(dataTable(
+    ["Assumption", "From", "Status", "Impact", "Closure"],
+    (a.preOperationalAssumptions ?? []).map((item) => [item.description, (item.affectedTechnicalElementCodes ?? []).join(", "), item.status, item.riskImpact, item.closureBasis]),
+  ));
+
+  out.push(heading("Hand-offs", HeadingLevel.HEADING_1));
+  const published = a.handoffWork?.published;
+  out.push(para(published === undefined
+    ? "The family package is not published."
+    : `Published ${published.at} from revision ${String(published.revision)}: ${String(published.families)} families and ${String(published.measures)} importance measures.`));
+  out.push(dataTable(
+    ["RI item", "Response", "Status", "Sent to"],
+    (a.handoffWork?.responses ?? []).map((response) => [response.ref, response.response, response.status, response.sentTo ?? "Kept in ESQ"]),
+  ));
 
   out.push(heading("Limitations for applications", HeadingLevel.HEADING_1));
   out.push(para(doc.limitationsForApplications));

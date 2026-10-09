@@ -40,7 +40,8 @@ import type {
   FaultTreeLeafNode,
   FaultTreeNodePosition,
 } from "interfaces-mef-types/modeling";
-import { DistributionType, EndState, FrequencyUnit } from "interfaces-mef-types/core/events";
+import { EndState, FrequencyUnit, type UncertainFrequency } from "interfaces-mef-types/core/events";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { ImportanceLevel, ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
 
 const NOW = "2026-08-24T12:00:00.000Z";
@@ -199,6 +200,18 @@ const HUMAN_BASIC_EVENT_META: Partial<Record<BasicEventKey, {
   },
 };
 
+const COMPONENT_EVENT_KEYS = BASIC_EVENT_KEYS.filter((key) => HUMAN_BASIC_EVENT_META[key] === undefined);
+
+const DA_LINK = "example-da-hcl";
+
+function pointProbability(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
+}
+
+function daEstimate(parameterId: string): UncertainExpression {
+  return { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: DA_LINK, entityId: parameterId } };
+}
+
 const systemBasicEvents: SystemBasicEvent[] = BASIC_EVENT_KEYS.map((key) => {
   const human = HUMAN_BASIC_EVENT_META[key];
   return {
@@ -207,10 +220,9 @@ const systemBasicEvents: SystemBasicEvent[] = BASIC_EVENT_KEYS.map((key) => {
     name: BASIC_EVENT_META[key].name,
     eventType: "BASIC",
     failureMode: human === undefined ? "OTHER" : "HUMAN_ERROR",
-    probability: BASIC_EVENT_META[key].probability,
     ...(human === undefined
-      ? {}
-      : { attributes: [{ name: "hfeReference", value: human.hfeId }] }),
+      ? { expression: daEstimate(BASIC_EVENT_IDS[key]) }
+      : { probability: BASIC_EVENT_META[key].probability, attributes: [{ name: "hfeReference", value: human.hfeId }] }),
     repairModeled: false,
     implementsSrs: [],
   };
@@ -393,6 +405,11 @@ const loopInitiator: InitiatorDefinition = {
   implementsSrs: [],
 };
 
+const LOOP_GROUP_FREQUENCY: UncertainFrequency = {
+  expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: LOOP_FREQUENCY } } },
+  basis: FrequencyUnit.PER_PLANT_YEAR,
+};
+
 const loopGroup: InitiatingEventGroup = {
   uuid: "IEG-LOOP-HCL",
   name: "Loss of offsite power",
@@ -405,19 +422,14 @@ const loopGroup: InitiatingEventGroup = {
   comparableImpactAcrossMembers: true,
   challengedSafetyFunctions: ["Reactivity control", "Core heat removal", "Electrical support"],
   applicableStates: ["POS-FULL-POWER"],
-  meanFrequency: {
-    value: LOOP_FREQUENCY,
-    units: FrequencyUnit.PER_PLANT_YEAR,
-    distribution: { type: DistributionType.POINT_ESTIMATE, parameters: [LOOP_FREQUENCY] },
-    source: "Chapter 9 baseline case calibration: 2.82E-6/yr divided by 3.37E-6 conditional core-damage probability.",
-  },
+  frequency: LOOP_GROUP_FREQUENCY,
   riskImportance: ImportanceLevel.HIGH,
   implementsSrs: [],
 };
 
 const loopQuantification: InitiatingEventFrequencyQuantification = {
   initiatorOrGroupId: loopGroup.uuid,
-  meanFrequency: loopGroup.meanFrequency!,
+  frequency: LOOP_GROUP_FREQUENCY,
   basis: "DESIGN_BASED",
   plantCalendarYearBasis: true,
   posTimeFractionApplied: true,
@@ -550,15 +562,53 @@ const DA_ANALYSIS_HCL: DataAnalysis = {
     lastModifiedBy: OWNER,
   },
   praScope: "Authoritative probability parameters consumed by the dissertation-source SY fault trees.",
-  parameters: systemBasicEvents.filter((event) => event.failureMode !== "HUMAN_ERROR").map((event) => ({
-    uuid: event.uuid,
-    name: `${event.code} probability`,
-    description: event.name,
+  linkedWorkbooks: { SY: "example-sy-hcl", IE: "example-ie-hcl", HRA: "example-hr-hcl", ESQ: "example-esq-hcl" },
+  scopeDecisions: [
+    { kind: "TEST_MAINTENANCE", included: false, exclusionReason: "The case-study fault trees model no test or maintenance unavailability events." },
+    { kind: "REPAIR_RECOVERY", included: false, exclusionReason: "The case-study fault trees credit no repair or recovery." },
+    { kind: "COMMON_CAUSE", included: false, exclusionReason: "Shared failures are modeled by the hybrid causal logic network, not by common cause groups." },
+    { kind: "INITIATING_EVENT", included: true },
+    { kind: "HUMAN_ERROR", included: true },
+    { kind: "OUTAGE", included: false, exclusionReason: "The case study covers full-power operation only." },
+  ],
+  dataPlan: {
+    freezeDate: "2026-08-24",
+    modulesPerPlant: { value: 1 },
+  },
+  sources: [{
+    id: "SRC-01",
+    name: "HCL case-study inputs, reconstructed",
+    kind: "GENERIC_NUCLEAR",
+    origin: "SAME_TECHNOLOGY",
+    covers: "Point probabilities for every non-human basic event in the HCL case-study fault trees.",
+    boundaryConvention: "Each value belongs to one basic event of the compact case-study fault trees and takes that event's definition.",
+    failureCounting: "No failures are counted. Each value is the input of the executable example.",
+    quality: "Reconstructed from the executable dissertation-source example. The original data package and its years are not public, so the values stay provisional.",
+    reference: "Dissertation-source HCL case study, executable example inputs",
+    entries: COMPONENT_EVENT_KEYS.map((key) => ({
+      id: BASIC_EVENT_IDS[key],
+      component: BASIC_EVENT_META[key].code,
+      failureMode: BASIC_EVENT_META[key].name,
+      quantity: "PROBABILITY",
+      law: { family: "POINT", value: BASIC_EVENT_META[key].probability },
+      mean: BASIC_EVENT_META[key].probability,
+      method: "Point estimate from the executable example",
+    })),
+  }],
+  parameters: COMPONENT_EVENT_KEYS.map((key) => ({
+    uuid: BASIC_EVENT_IDS[key],
+    name: `${BASIC_EVENT_META[key].code} probability`,
+    description: BASIC_EVENT_META[key].name,
     parameterType: "PROBABILITY",
-    value: event.probability ?? 0,
-    valueType: "POINT_ESTIMATE",
-    estimationApproach: "GENERIC",
-    basicEventRef: event.uuid,
+    quantificationModel: "OTHER_PROBABILITY",
+    estimate: pointProbability(BASIC_EVENT_META[key].probability),
+    estimateReason: "Typed from the executable dissertation-source example, which gives this event a point probability.",
+    evidenceKind: "GENERIC_NUCLEAR",
+    evidenceReason: "The case study is a code-verification model with no plant records. Its inputs are the case study's own values.",
+    uncertaintyNote: "Kept as a point value. The original data package is not public, so no distribution is given.",
+    priorUseId: "U-1",
+    sourceUses: [{ id: "U-1", sourceId: "SRC-01", entryId: BASIC_EVENT_IDS[key], verdict: "APPLIES", boundary: "SAME", reason: "The executable example's own input for this event." }],
+    basicEventRef: BASIC_EVENT_IDS[key],
     modelSelectionBasis: "Reconstructed point estimate used by the executable dissertation-source HCL example.",
       dataSources: [{
         source: "Dissertation-source case-study reconstruction",
@@ -567,11 +617,14 @@ const DA_ANALYSIS_HCL: DataAnalysis = {
     }],
     implementsSrs: [],
   })),
-  modelUncertainty: {
-    ...daBase.modelUncertainty,
-    uuid: id(3, 1),
-    name: "HCL case-study data-analysis model uncertainty",
-  },
+  uncertaintyRegister: [{
+    id: "MU-1",
+    source: "Unpublished source-model details and the reconstruction of compact fault trees",
+    impact: "The point values reproduce the executable example's inputs. The original data package is not public, so no distribution is given.",
+    parameterIds: COMPONENT_EVENT_KEYS.map((key) => BASIC_EVENT_IDS[key]),
+    alternatives: [{ id: "A-1", alternative: "Recover the original model package and its data.", reasonNotSelected: "The package is not public." }],
+    key: false,
+  }],
   documentation: {
     ...daBase.documentation,
     processDescription: "Maintains one revisioned probability parameter for every non-human basic event used by the case-study fault trees.",
@@ -848,7 +901,7 @@ function createEventTree(treeKey: TreeKey): EventTree {
     label: treeKey,
     description: `${treeKey} portion of the connected LOOP → SBO → FLEX dissertation sequence.`,
     initiatingEventId: treeKey === "LOOP" ? "IEG-LOOP-HCL" : `${treeKey}-TRANSFER-ENTRY`,
-    initiatingEventFrequency: { value: treeKey === "LOOP" ? LOOP_FREQUENCY : 1 },
+    initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: treeKey === "LOOP" ? LOOP_FREQUENCY : 1 } } } },
     plantOperatingStateId: "POS-FULL-POWER",
     functionalEvents,
     sequences,
@@ -1241,6 +1294,8 @@ const ESQ_ANALYSIS_HCL: EventSequenceQuantification = {
     lastModifiedBy: OWNER,
   },
   praScope: "Exact BN inference and HCL quantification over the linked case-study fault trees and event trees.",
+  linkedWorkbooks: { ES: "example-es-hcl", SY: "example-sy-hcl", DA: "example-da-hcl", HRA: "example-hr-hcl", IE: "example-ie-hcl", RI: "example-ri-hcl" },
+  quantificationPlan: { modulesPerPlant: { value: 1 } },
   familyQuantifications: hclFamilyQuantifications,
   bayesianNetworks: [],
   hclConfigurations: [],
@@ -1253,10 +1308,16 @@ const ESQ_ANALYSIS_HCL: EventSequenceQuantification = {
     scopeCoverage: {
       radionuclideSources: ["REACTOR-CORE"],
       initiatingEventGroups: ["IEG-LOOP-HCL"],
-      hazardGroups: ["SEISMIC", "EXTERNAL_FLOOD", "INTERNAL_FIRE"],
+      hazardGroups: ["Internal events", "Seismic events", "External floods", "Internal fires"],
       plantOperatingStates: ["POS-FULL-POWER"],
       plantEvolutions: ["LOOP", "SBO", "FLEX"],
     },
+    scopeExclusions: [
+      { aspect: "HAZARD_GROUP", item: "Internal floods", reason: "Not part of the dissertation case study." },
+      { aspect: "HAZARD_GROUP", item: "High winds", reason: "Not part of the dissertation case study." },
+      { aspect: "HAZARD_GROUP", item: "Other internal and external hazards", reason: "Not part of the dissertation case study." },
+    ],
+    multiReactorInclusionBasis: "The case study models one reactor unit.",
     systemDependenciesAccounted: true,
   },
   quantificationMethods: {

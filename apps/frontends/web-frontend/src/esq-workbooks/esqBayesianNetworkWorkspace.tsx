@@ -7,6 +7,6 @@ function EsqBayesianNetworkWorkspace({
   initialNetworkId?: string | null;
   initialSourceWorkbookId?: string | null;
 }) {
-  return <EsqEventTreeHclWorkspace initialNetworkId={initialNetworkId} initialSourceWorkbookId={initialSourceWorkbookId} />;
+  return <EsqEventTreeHclWorkspace mode="NETWORK" initialNetworkId={initialNetworkId} initialSourceWorkbookId={initialSourceWorkbookId} />;
 }
 export { EsqBayesianNetworkWorkspace };

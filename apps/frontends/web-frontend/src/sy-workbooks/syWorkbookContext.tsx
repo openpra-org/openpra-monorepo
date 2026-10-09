@@ -3,7 +3,8 @@ import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
-import type { ParameterDistribution } from "interfaces-mef-types/core/events";
+import type { CcfFactorModel, UncertainExpression, UncertainParameter, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
+import type { ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
 import { type Workbook } from "interfaces-shared-types";
 
 interface SyLinkedSupport {
@@ -24,13 +25,6 @@ interface SyLinkedInitiatingEvent {
   name: string;
 }
 
-interface SyLinkedMissionTime {
-  id: string;
-  hours: number;
-  sequence: string;
-  basis: string;
-}
-
 interface SyLinkedPosState {
   id: string;
   name: string;
@@ -49,7 +43,8 @@ interface SyLinkedInputs {
   posName: string;
   esName: string;
   scSystems: SyLinkedSystem[];
-  scMissionTimes: SyLinkedMissionTime[];
+  scMissionTimeOptions: ParameterOption[];
+  scMissionTimeTable: ReadonlyMap<string, UncertainParameter>;
   posStates: SyLinkedPosState[];
   esSafetyFunctions: SyLinkedSafetyFunction[];
   esInitiatingEvents: SyLinkedInitiatingEvent[];
@@ -84,12 +79,21 @@ interface SyControlledParameterOption {
   workbookName: string;
   parameterId: string;
   parameterName: string;
-  parameterType: "FREQUENCY" | "PROBABILITY" | "UNAVAILABILITY" | "HUMAN_ERROR_PROBABILITY";
-  value: number;
-  uncertainty?: ParameterDistribution;
+  estimate: UncertainExpression;
+  unit: UncertainUnit;
   failureModeId?: string;
   failureModeName?: string;
   componentBoundaryId?: string;
+}
+
+interface SyControlledLegacyParameterOption {
+  workbookId: string;
+  workbookName: string;
+  parameterId: string;
+  parameterName: string;
+  parameterType: "FREQUENCY" | "FAILURE_RATE" | "PROBABILITY" | "UNAVAILABILITY" | "HUMAN_ERROR_PROBABILITY";
+  value: number;
+  rateUnit?: "HOUR" | "YEAR";
 }
 
 interface SyControlledComponentBoundaryOption {
@@ -139,8 +143,7 @@ interface SyControlledCcfEstimateOption {
   workbookName: string;
   estimateId: string;
   groupReference: string;
-  modelType: "BETA_FACTOR" | "ALPHA_FACTOR" | "MGL" | "PHI_FACTOR";
-  parameters: Record<string, number>;
+  factors: CcfFactorModel;
   source?: string;
   riskSignificant: boolean;
 }
@@ -152,6 +155,7 @@ interface SyWorkbookContextValue extends SyWorkbookData {
   runtime: SyWorkbookRuntime;
   upstream: SyUpstream;
   controlledParameters: SyControlledParameterOption[];
+  controlledLegacyParameters: SyControlledLegacyParameterOption[];
   controlledHumanFailures: SyControlledHumanFailureOption[];
   controlledFailureModes: SyControlledFailureModeOption[];
   controlledCoincidentMaintenance: SyControlledCoincidentMaintenanceOption[];
@@ -169,6 +173,7 @@ function SyWorkbookProvider({
   mutateSy,
   runtime,
   controlledParameters,
+  controlledLegacyParameters,
   controlledHumanFailures,
   controlledFailureModes,
   controlledCoincidentMaintenance,
@@ -183,6 +188,7 @@ function SyWorkbookProvider({
   runtime?: SyWorkbookRuntime;
   upstream?: SyUpstream;
   controlledParameters?: SyControlledParameterOption[];
+  controlledLegacyParameters?: SyControlledLegacyParameterOption[];
   controlledHumanFailures?: SyControlledHumanFailureOption[];
   controlledFailureModes?: SyControlledFailureModeOption[];
   controlledCoincidentMaintenance?: SyControlledCoincidentMaintenanceOption[];
@@ -197,6 +203,7 @@ function SyWorkbookProvider({
       runtime: runtime ?? { workbookId: null, projectId: null, revision: null, saveStatus: "saved" },
       upstream: upstream ?? EMPTY_UPSTREAM,
       controlledParameters: controlledParameters ?? [],
+      controlledLegacyParameters: controlledLegacyParameters ?? [],
       controlledHumanFailures: controlledHumanFailures ?? [],
       controlledFailureModes: controlledFailureModes ?? [],
       controlledCoincidentMaintenance: controlledCoincidentMaintenance ?? [],
@@ -208,7 +215,7 @@ function SyWorkbookProvider({
         return def?.abbreviation ?? def?.name ?? id;
       },
     }),
-    [controlledCcfEstimates, controlledComponentBoundaries, controlledCoincidentMaintenance, controlledFailureModes, controlledHumanFailures, controlledParameters, data, editable, mutateSy, runtime, upstream],
+    [controlledCcfEstimates, controlledComponentBoundaries, controlledCoincidentMaintenance, controlledFailureModes, controlledHumanFailures, controlledLegacyParameters, controlledParameters, data, editable, mutateSy, runtime, upstream],
   );
   return <SyWorkbookContext.Provider value={value}>{children}</SyWorkbookContext.Provider>;
 }
@@ -230,12 +237,12 @@ export {
   type SyMutator,
   type SyWorkbookRuntime,
   type SyControlledParameterOption,
+  type SyControlledLegacyParameterOption,
   type SyControlledHumanFailureOption,
   type SyControlledFailureModeOption,
   type SyControlledCoincidentMaintenanceOption,
   type SyControlledCcfEstimateOption,
   type SyControlledComponentBoundaryOption,
-  type SyLinkedMissionTime,
   type SyLinkedInitiatingEvent,
   type SyLinkedSupport,
 };

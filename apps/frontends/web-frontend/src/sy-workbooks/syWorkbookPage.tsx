@@ -28,6 +28,7 @@ import {
   type SyControlledComponentBoundaryOption,
   type SyControlledFailureModeOption,
   type SyControlledHumanFailureOption,
+  type SyControlledLegacyParameterOption,
   type SyControlledParameterOption,
   type SyLinkCode,
   type SyUpstream,
@@ -45,8 +46,9 @@ import { getDaWorkbook } from "../da-workbooks/daWorkbookApi";
 import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
 import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
 import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
+import { useReferencedScSources } from "./syMissionTimes";
 import { getPosWorkbook } from "../pos-workbooks/posWorkbookApi";
-import { buildLinkedInputs, controlledCcfEstimateOptions, controlledCoincidentMaintenanceOptions, controlledComponentBoundaryOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
+import { buildLinkedInputs, controlledCcfEstimateOptions, controlledCoincidentMaintenanceOptions, controlledComponentBoundaryOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledLegacyParameterOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "SY-A1",
@@ -91,6 +93,7 @@ function SyWorkbookPage(): JSX.Element {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [exampleOptions, setExampleOptions] = useState<SyExampleOption[]>([]);
   const [controlledParameters, setControlledParameters] = useState<SyControlledParameterOption[]>([]);
+  const [controlledLegacyParameters, setControlledLegacyParameters] = useState<SyControlledLegacyParameterOption[]>([]);
   const [controlledHumanFailures, setControlledHumanFailures] = useState<SyControlledHumanFailureOption[]>([]);
   const [controlledFailureModes, setControlledFailureModes] = useState<SyControlledFailureModeOption[]>([]);
   const [controlledCoincidentMaintenance, setControlledCoincidentMaintenance] = useState<SyControlledCoincidentMaintenanceOption[]>([]);
@@ -192,6 +195,7 @@ function SyWorkbookPage(): JSX.Element {
         if (cancelled) return;
         const sources = loaded.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
         setControlledParameters(controlledParameterOptions(sources));
+        setControlledLegacyParameters(controlledLegacyParameterOptions(sources));
         setControlledFailureModes(controlledFailureModeOptions(sources));
         setControlledCoincidentMaintenance(controlledCoincidentMaintenanceOptions(sources));
         setControlledCcfEstimates(controlledCcfEstimateOptions(sources));
@@ -200,6 +204,7 @@ function SyWorkbookPage(): JSX.Element {
       .catch(() => {
         if (cancelled) return;
         setControlledParameters([]);
+        setControlledLegacyParameters([]);
         setControlledFailureModes([]);
         setControlledCoincidentMaintenance([]);
         setControlledCcfEstimates([]);
@@ -220,9 +225,11 @@ function SyWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, [linkOptions.HRA, linkedHrId]);
 
+  const scReferenced = useReferencedScSources(data?.sy ?? null, controlledParameters, linkedScId, linkedSc);
+
   const links = useMemo(
-    () => buildLinkedInputs(linkOptions, { ES: linkedEsId, SC: linkedScId, POS: linkedPosId }, linkedEs, linkedSc, linkedPos),
-    [linkOptions, linkedEsId, linkedScId, linkedPosId, linkedEs, linkedSc, linkedPos],
+    () => buildLinkedInputs(linkOptions, { ES: linkedEsId, SC: linkedScId, POS: linkedPosId }, linkedEs, linkedSc, linkedPos, scReferenced),
+    [linkOptions, linkedEsId, linkedScId, linkedPosId, linkedEs, linkedSc, linkedPos, scReferenced],
   );
   const upstream = useMemo<SyUpstream>(() => ({ options: linkOptions }), [linkOptions]);
   const providerData = useMemo<SyWorkbookData | null>(() => (data === null ? null : { ...data, links }), [data, links]);
@@ -327,6 +334,7 @@ function SyWorkbookPage(): JSX.Element {
       mutateSy={mutateSy}
       runtime={{ workbookId: id, projectId, revision, saveStatus }}
       controlledParameters={controlledParameters}
+      controlledLegacyParameters={controlledLegacyParameters}
       controlledHumanFailures={controlledHumanFailures}
       controlledFailureModes={controlledFailureModes}
       controlledCoincidentMaintenance={controlledCoincidentMaintenance}

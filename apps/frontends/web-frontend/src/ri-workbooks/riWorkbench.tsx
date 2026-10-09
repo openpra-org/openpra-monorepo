@@ -10,34 +10,37 @@ import {
   type RiStep,
 } from "./riViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, appTypeFromMef, stepsFromMef, type CommentView } from "./riSelectors";
-import { ConvergeScreen, CriteriaScreen, IntegrateScreen, type RiDrawerContext } from "./riScreens";
-import { AggregateScreen, UncertaintyScreen, FeedbackScreen, DraftScreen, DrawerContent, PlaceholderScreen } from "./riScreens2";
+import { ApplicationScreen, CategoriesScreen, ContributorsScreen, FcScreen, HandoffsScreen, InputsScreen, IntegratedRiskScreen, UncertaintyStepScreen, type RiDrawerContext } from "./riScreens";
+import { DraftScreen, DrawerContent, PlaceholderScreen } from "./riScreens2";
 import { InternalReviewScreen, ReviewerCommentDock } from "./riReview";
 import { useRiWorkbook, type RiWorkbookData } from "./riWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import "../workbooks/css/workbookWorkspace.css";
+import "../welcome/css/newProjectModal.css";
 import "./css/riScreens.css";
 
 interface StepHeader {
-  eyebrow: string;
+  area: string;
   title: string;
   sub?: string;
 }
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "converge": return { eyebrow: "Step 01 · HLR-RI-B", title: "Scope", sub: "The two pipelines, the family frequencies and the family consequences." };
-    case "criteria": return { eyebrow: "Step 02 · HLR-RI-A", title: "Significance Criteria", sub: "The consequence measures, the application fork and the reporting floors." };
-    case "integrate": return { eyebrow: "Step 03 · HLR-RI-B", title: "Integrate & Compute", sub: "The sum, the frequency-consequence plot and the exceedance curve." };
-    case "aggregate": return { eyebrow: "Step 04 · HLR-RI-B", title: "Aggregation & Contributors", sub: "The per-hazard honesty, the anti-masking review and the contributor roll-up." };
-    case "uncertainty": return { eyebrow: "Step 05 · HLR-RI-C", title: "Risk Uncertainty", sub: "The master register, the grouping review and the propagation fork." };
-    case "feedback": return { eyebrow: "Step 06 · HLR-RI-D", title: "Feedback & Dispatch", sub: "The risk significance dispatched back to every upstream element." };
-    case "draft": return { eyebrow: "Step 07 · Draft", title: "Produce the draft", sub: "Build the RI report, then send it to review." };
-    case "review": return { eyebrow: "Step 08 · Review", title: "Internal technical review", sub: "Reviewers comment, the preparer replies, all resolve before approval." };
-    case "approval": return { eyebrow: "Step 09 · Approval", title: "Approval & sign-off", sub: "Everyone signs, the approver last." };
-    default: return { eyebrow: "", title: "" };
+    case "application": return { area: "HLR-RI-A", title: "Application", sub: "The decision, the criteria set, the measures and the scope." };
+    case "inputs": return { area: "HLR-RI-B", title: "Inputs", sub: "The families, sequences and consequences imported from ES, ESQ and RC." };
+    case "categories": return { area: "HLR-RI-B", title: "Event Categories", sub: "Each family's AOO, DBE or BDBE category from the Step 01 criteria." };
+    case "fc": return { area: "HLR-RI-B", title: "Frequency-Consequence", sub: "Each licensing basis event against the F-C target, with its risk significance and margins." };
+    case "integrate": return { area: "HLR-RI-B", title: "Integrated Risk", sub: "The plant's total risk against each cumulative target, where it comes from, and how often each dose is exceeded." };
+    case "aggregate": return { area: "HLR-RI-B", title: "Contributors and SSCs", sub: "What drives each total, grouped by SSC, with ESQ's importance measures." };
+    case "uncertainty": return { area: "HLR-RI-C", title: "Uncertainty", sub: "The key uncertainties and screened items of every element, the grouping review, the propagated totals and the sensitivity studies." };
+    case "feedback": return { area: "HLR-RI-D", title: "Hand-offs", sub: "What RI sends back to ESQ, MS, RC and the elements behind them, and what each has recorded." };
+    case "draft": return { area: "Draft", title: "Produce the draft", sub: "Build the RI report, then send it to review." };
+    case "review": return { area: "Review", title: "Internal technical review", sub: "Reviewers comment, the preparer replies, all resolve before approval." };
+    case "approval": return { area: "Approval", title: "Approval & sign-off", sub: "Everyone signs, the approver last." };
+    default: return { area: "", title: "" };
   }
 }
 
@@ -125,12 +128,13 @@ function WorkspaceHeader({
   );
 }
 
-function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
+function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen, onClose }: {
   stepId: string;
   setStepId: (id: string) => void;
   persona: RiPersona;
   visibleSteps: RiStep[];
   mobileOpen: boolean;
+  onClose: () => void;
 }): JSX.Element {
   const idx = Math.max(0, visibleSteps.findIndex((s) => s.id === stepId));
   const pct = ((idx + 1) / visibleSteps.length) * 100;
@@ -138,7 +142,9 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
   return (
     <aside className={`posw__rail${mobileOpen ? " posw__rail--mobile-open" : ""}`} aria-label="RI analysis steps">
       <div className="posrail__head">
-        <span className="posrail__eyebrow">{eyebrow}</span>
+        <div className="posrail__head-top"><span className="posrail__eyebrow">{eyebrow}</span>
+          <button type="button" className="posdock__close" onClick={onClose} aria-label="Hide steps" title="Hide steps"><RIIcon.Close /></button>
+        </div>
         <div className="posrail__progress">
           <span className="posrail__progress-num">{idx + 1}</span>
           <span className="posrail__progress-total">/ {visibleSteps.length} steps</span>
@@ -174,7 +180,47 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
   );
 }
 
-function RiDrawer({ context, onClose }: { context: RiDrawerContext; onClose: () => void }): JSX.Element {
+const DRAWER_LABELS: Record<RiDrawerContext["kind"], string> = {
+  family: "Event sequence family",
+  measure: "Consequence measure",
+  inputFamily: "Event sequence family",
+  inputSequence: "Event sequence",
+  inputConsequence: "Consequence result",
+  inputContributor: "Contributor",
+  inputImportance: "Importance measure",
+  inputGap: "Measure without results",
+  cliffEdge: "Cliff-edge check",
+  aggregationNote: "Detail and conservatism",
+  sscAssignment: "Contributor SSC",
+  uncertaintySource: "Model uncertainty",
+  screenedItem: "Screened item",
+  uncertaintyAnalysis: "Uncertainty characterization",
+  sensitivityStudy: "Sensitivity study",
+  handoff: "Hand-off item",
+  calc: "Calculation approach",
+  metric: "Risk metric",
+  aggregation: "Aggregation review",
+  hazardgroup: "Hazard group",
+  grouping: "Grouping adequacy",
+  contributor: "Risk-significant contributor",
+  contribbasis: "Contributor roll-up",
+  musource: "Model-uncertainty source",
+  screened: "Screened item",
+  propagation: "Uncertainty propagation",
+  sensitivity: "Sensitivity study",
+  dispatch: "Feedback dispatch",
+  method: "Integration method",
+};
+
+const FORM_MODAL_KINDS: RiDrawerContext["kind"][] = ["measure", "inputFamily", "inputSequence", "inputConsequence", "inputContributor", "inputImportance", "inputGap", "cliffEdge", "aggregationNote", "sscAssignment", "uncertaintySource", "screenedItem", "uncertaintyAnalysis", "sensitivityStudy", "handoff"];
+
+function RiDrawer({ context, onClose, onRetarget }: { context: RiDrawerContext; onClose: () => void; onRetarget: (ctx: RiDrawerContext) => void }): JSX.Element {
+  const dialog = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialog.current?.focus();
+    return () => { trigger?.focus(); };
+  }, []);
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
       if (e.key === "Escape") onClose();
@@ -188,9 +234,25 @@ function RiDrawer({ context, onClose }: { context: RiDrawerContext; onClose: () 
     };
   }, [onClose]);
   return (
-    <div className="posdrawer-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="posdrawer" role="dialog" aria-modal="true">
-        <DrawerContent context={context} onClose={onClose} />
+    <div className="modal__backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div
+        ref={dialog}
+        className={`modal ri-details-modal${FORM_MODAL_KINDS.includes(context.kind) ? " ri-form-modal" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={DRAWER_LABELS[context.kind]}
+        tabIndex={-1}
+        onKeyDown={(e) => {
+          if (e.key !== "Tab") return;
+          const controls = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]')).filter((el) => el.getClientRects().length > 0);
+          const first = controls[0];
+          const last = controls[controls.length - 1];
+          if (first === undefined || last === undefined) { e.preventDefault(); return; }
+          if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && (document.activeElement === last || document.activeElement === dialog.current)) { e.preventDefault(); first.focus(); }
+        }}
+      >
+        <DrawerContent context={context} onClose={onClose} onRetarget={onRetarget} />
       </div>
     </div>
   );
@@ -305,9 +367,10 @@ function RiWorkbench({
   useEffect(() => { setAppType(mefAppType); }, [mefAppType]);
 
   const [drawer, setDrawer] = useState<RiDrawerContext | null>(null);
-  const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "converge");
+  const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "application");
   const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
   const [dockOpen, setDockOpen] = useState(!isNarrow);
+  const [railOpen, setRailOpen] = useState(true);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
   const [dockMobileOpen, setDockMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -315,7 +378,7 @@ function RiWorkbench({
 
   useEffect(() => {
     if (visibleSteps.find((s) => s.id === stepId) === undefined) {
-      setStepIdState(visibleSteps[0]?.id ?? "converge");
+      setStepIdState(visibleSteps[0]?.id ?? "application");
     }
   }, [persona, stepId, visibleSteps]);
 
@@ -376,18 +439,14 @@ function RiWorkbench({
 
   function renderScreen(): JSX.Element {
     switch (stepId) {
-      case "converge":
-        return (
-          <>
-            <ConvergeScreen />
-            {renderDocuments?.()}
-          </>
-        );
-      case "criteria": return <CriteriaScreen appType={appType} setAppType={setAppType} openDrawer={setDrawer} />;
-      case "integrate": return <IntegrateScreen ccId={ccId} openDrawer={setDrawer} />;
-      case "aggregate": return <AggregateScreen openDrawer={setDrawer} />;
-      case "uncertainty": return <UncertaintyScreen openDrawer={setDrawer} />;
-      case "feedback": return <FeedbackScreen openDrawer={setDrawer} />;
+      case "application": return <ApplicationScreen appType={appType} setAppType={setAppType} openDrawer={setDrawer} documents={renderDocuments?.() ?? null} />;
+      case "inputs": return <InputsScreen openDrawer={setDrawer} />;
+      case "categories": return <CategoriesScreen openDrawer={setDrawer} />;
+      case "fc": return <FcScreen openDrawer={setDrawer} />;
+      case "integrate": return <IntegratedRiskScreen openDrawer={setDrawer} />;
+      case "aggregate": return <ContributorsScreen openDrawer={setDrawer} />;
+      case "uncertainty": return <UncertaintyStepScreen openDrawer={setDrawer} />;
+      case "feedback": return <HandoffsScreen openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
@@ -423,23 +482,24 @@ function RiWorkbench({
   }
 
   return (
-    <div className={`posw${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`RI — ${step.label}`}>
+    <div className={`posw ri-workspace${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`RI — ${step.label}`}>
       {isReviewer && <div className="poshd__extbar" />}
       {isApprover && <div className="poshd__apprbar" />}
       <WorkspaceHeader persona={persona} setPersona={setPersona} workflowState={data.ri.workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailMobileOpen((v) => !v)} onToggleDock={() => { setDockOpen(true); setDockMobileOpen((v) => !v); }} />
 
-      <div className={`posw__shell${dockOpen ? "" : " posw__shell--dock-closed"}`}>
-        <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} />
+      <div className={`posw__shell${railOpen ? "" : " posw__shell--rail-closed"}${dockOpen ? "" : " posw__shell--dock-closed"}`}>
+        {(railOpen || railMobileOpen) && <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} onClose={() => { if (railMobileOpen) setRailMobileOpen(false); else setRailOpen(false); }} />}
 
         <main className="posmain" aria-label="Step content">
           <div className="posmain__head">
             <div className="posmain__title-block">
-              <div className="posmain__eyebrow">{h.eyebrow}</div>
+              <div className="posmain__eyebrow">{h.area.length > 0 ? `Step ${step.num} · ${h.area}` : ""}</div>
               <WorkbookSectionHeading workbook="RI" title={h.title} description={h.sub} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
+              {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm ri-show-steps" onClick={() => setRailOpen(true)}><RIIcon.Layers /> Show steps</button>}
               {!dockOpen && (
-                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setDockOpen(true); setDockMobileOpen(true); }}><RIIcon.Eye /> Show conformance</button>
+                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setDockOpen(true); setDockMobileOpen(window.matchMedia("(max-width: 1100px)").matches); }}><RIIcon.Eye /> Show conformance</button>
               )}
             </div>
           </div>
@@ -459,14 +519,14 @@ function RiWorkbench({
         </main>
 
         {dockOpen && (
-          <ConformanceDock ccId={ccId} appType={appType} onGoToCriteria={() => setStepId("criteria")} onClose={() => { setDockOpen(false); setDockMobileOpen(false); }} mobileOpen={dockMobileOpen} />
+          <ConformanceDock ccId={ccId} appType={appType} onGoToCriteria={() => setStepId("application")} onClose={() => { setDockOpen(false); setDockMobileOpen(false); }} mobileOpen={dockMobileOpen} />
         )}
         {(railMobileOpen || dockMobileOpen) && (
           <div className="posw__mobile-scrim" onClick={() => { setRailMobileOpen(false); setDockMobileOpen(false); }} aria-hidden="true" />
         )}
       </div>
 
-      {drawer !== null && <RiDrawer context={drawer} onClose={() => setDrawer(null)} />}
+      {drawer !== null && <RiDrawer context={drawer} onClose={() => setDrawer(null)} onRetarget={setDrawer} />}
 
       {toast !== null && <div className="postoast" role="status">{toast}</div>}
 

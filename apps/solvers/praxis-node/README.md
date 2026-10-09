@@ -138,30 +138,28 @@ Point hazard runs remain available with saved uncertainty settings; requesting
 algorithms are unchanged. Older addon callers that relied on saved settings to
 trigger sampling must now send `calculationType: "UNCERTAINTY"`.
 
-MC and LHS support beta, uniform, normal, lognormal, logit-normal, gamma,
-exponential and triangular FT probability distributions. `sampler` selects `MC`
-or `LHS` for both FT and BN inputs, using HCL_MH's corresponding routines.
-Omitted settings retain MC; new UI configurations default to LHS. The old
-`basicEventSampler` field remains a read alias.
+Uncertainty settings are `{ sampleCount, seed, sampler, basicEvents, cptRows,
+cptGenerators, uncertaintyParameters, uncertaintyVectors }`. `sampler` is `MC` or
+`LHS`. Every draw comes from the PRAXIS uncertainty contract and its one sampler.
+`basicEvents` entries `{ faultTreeBasicEvent: { entityId }, expression }` override
+the catalogue expression of an event. Events without an override sample their
+catalogue expression. Events with neither stay points. `cptRows` entries
+`{ bayesianNetworkNode, cptRowId, row }` hold a Dirichlet or fixed vector in BN
+state order. The catalogue parameter and vector tables are merged with the
+settings tables. A parameter defined twice with different expressions is an error.
 
-CPT rows accept `prior: {family:"BETA", alpha, beta, trueStateId}` or
-`prior: {family:"DIRICHLET", alpha:[...]}` in BN state order. Optional
-`cptProbabilityClipEpsilon` defaults to zero and affects Beta and fragility probabilities. BN LHS follows the source's sorting/shuffling routine, not the FT
-inverse-CDF routine. Former `equivalentSampleSize` records must be explicitly
-reconfigured; the old solver path is removed.
+`cptGenerators` entries carry `kind` and `bayesianNetworkNode`.
+`SEISMIC_FRAGILITY` takes `pgaParentId`, `trueStateId`, `falseStateId`, `median`,
+`randomness` and `demands: [{ stateId, demand }]`. One median draw per trial serves
+every row of the node. `SEISMIC_PGA_BINS` takes `noneStateId`, `missionTime`,
+`conversion` (`POISSON` or `LINEAR`) and `bins: [{ stateId, frequency }]`. A node
+uses row uncertainty or one generator. A bin total above 1 is an error.
+Nothing is clipped. See [the uncertainty map](../praxis/src/hcl/uncertainty/SOURCE.md).
 
-`cptGenerators` supports HCL_MH seismic fragility and root PGA bins, using
-MC or the source generator LHS routine. A node uses row priors or one generator.
-Fragility shifts one capacity curve per sample; PGA bins support Poisson and
-linear conversion and reject excessive totals. Both use the existing vectorized
-FT/ET uncertainty path. See the source map for fields, ordering and verification.
-
-The addon builds the Rust sampling port and the original SciPy inverse-CDF
-kernels. A C++17 compiler is required at build time; Python is not required at
-runtime. The Praetor builder already installs g++. Kernel sources, pinned
-revisions and verification are documented in
-[the source map](../praxis/src/hcl/uncertainty/SOURCE.md). Original dependency
-notices ship with the addon in `THIRD_PARTY_NOTICES.txt`.
+The addon builds the vendored special-function kernels used by the PRAXIS law math. A C++17
+compiler is required at build time. Python is not required at runtime. The Praetor
+builder already installs g++. Original dependency notices ship with the addon in
+`THIRD_PARTY_NOTICES.txt`.
 
 ## Point hazard convolution
 

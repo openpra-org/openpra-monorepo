@@ -27,6 +27,7 @@ import {
 } from "./posWorkbookApi";
 import { PosWorkbench } from "./posDemoPage";
 import { PosWorkbookProvider, type PosWorkbookData } from "./posWorkbookContext";
+import { loadPosDaOutages } from "./posDaLinks";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { type PosPersona } from "./posViewData";
 import { useMefPatch } from "./useMefPatch";
@@ -99,6 +100,9 @@ function PosWorkbookPage(): JSX.Element {
         setHasPreviousMef(workbook.hasPreviousMef);
         setDocuments(docs);
         setProjectId(workbook.projectId);
+        void loadPosDaOutages(workbook.projectId, workbook.mef).then((daOutages) => {
+          if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daOutages }));
+        });
         try {
           const project = await getProject(workbook.projectId);
           if (!cancelled) setProjectName(project.name);

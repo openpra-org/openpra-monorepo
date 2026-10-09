@@ -4,6 +4,8 @@ import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { pointsOf, workbookParameterTable, type EstimateRecord } from "../newly-developed-methods/shared/uncertaintyPoints";
 import { getProject } from "../projects/projectApi";
 import { WorkbookRolesModal } from "../workbooks/workbookRolesModal";
 import { WorkbookApprovalTable } from "../workbooks/workbookApprovalTable";
@@ -54,7 +56,11 @@ interface LinkedPosMef {
 }
 
 interface LinkedIeMef {
-  initiatingEventGroups?: { uuid: string; name: string; meanFrequency?: { value?: number } | number; applicableStates?: string[] }[];
+  initiatingEventGroups?: { uuid: string; name: string; frequency?: { expression: UncertainExpression }; applicableStates?: string[] }[];
+}
+
+interface LinkedDaMef {
+  parameters?: EstimateRecord[];
 }
 
 interface LinkedEsMef {
@@ -64,14 +70,20 @@ interface LinkedEsMef {
 }
 
 async function fetchLinkedInputs(variant: string): Promise<ScLinkedInputs> {
-  const [posBundle, ieBundle, esBundle] = await Promise.all([
-    fetchJson<{ pos: { mef: unknown } }>(`/api/example-workbooks/pos-bundle?example=${variant}`),
-    fetchJson<{ ie: { mef: unknown } }>(`/api/example-workbooks/ie-bundle?example=${variant}`),
-    fetchJson<{ es: { mef: unknown } }>(`/api/example-workbooks/es-bundle?example=${variant}`),
+  const [posBundle, ieBundle, esBundle, daBundle] = await Promise.all([
+    fetchJson<{ pos: { mef: LinkedPosMef } }>(`/api/example-workbooks/pos-bundle?example=${variant}`),
+    fetchJson<{ ie: { mef: LinkedIeMef } }>(`/api/example-workbooks/ie-bundle?example=${variant}`),
+    fetchJson<{ es: { mef: LinkedEsMef } }>(`/api/example-workbooks/es-bundle?example=${variant}`),
+    fetchJson<{ da: { mef: LinkedDaMef } }>(`/api/example-workbooks/da-bundle?example=${variant}`),
   ]);
-  const posMef = posBundle.pos.mef as LinkedPosMef;
-  const ieMef = ieBundle.ie.mef as LinkedIeMef;
-  const esMef = esBundle.es.mef as LinkedEsMef;
+  const posMef = posBundle.pos.mef;
+  const ieMef = ieBundle.ie.mef;
+  const esMef = esBundle.es.mef;
+  const daTable = workbookParameterTable(`example-da-${variant}`, daBundle.da.mef.parameters ?? []);
+  const frequencies = await pointsOf(
+    (ieMef.initiatingEventGroups ?? []).flatMap((g) => (g.frequency === undefined ? [] : [{ key: g.uuid, expression: g.frequency.expression, unit: "PER_YEAR" as const }])),
+    daTable,
+  );
   const label = variant === "htgr" ? "Generic HTGR" : "Generic SFR";
   return {
     posName: `${label} POS Workbook`,
@@ -85,7 +97,7 @@ async function fetchLinkedInputs(variant: string): Promise<ScLinkedInputs> {
     ieGroups: (ieMef.initiatingEventGroups ?? []).map((g) => ({
       id: g.uuid,
       name: g.name,
-      frequency: typeof g.meanFrequency === "number" ? g.meanFrequency : (g.meanFrequency?.value ?? 0),
+      frequency: frequencies.get(g.uuid),
       stateCount: (g.applicableStates ?? []).length,
     })),
     esFunctions: (esMef.keySafetyFunctions ?? []).map((f) => ({ id: f.id, name: f.name })),

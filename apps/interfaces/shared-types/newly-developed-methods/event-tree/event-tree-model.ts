@@ -11,7 +11,6 @@ interface EventTreeModel extends EventTreeDefinition {
 export type {
   EventTreeEntityIdentity,
   EventTreeInitiatingEventReference,
-  EventTreeControlledDataSourceReference,
   EventTreeInitiatingEventFrequency,
   EventTreeFunctionalEvent,
   EventTreeFunctionalEventFaultTreeLink,

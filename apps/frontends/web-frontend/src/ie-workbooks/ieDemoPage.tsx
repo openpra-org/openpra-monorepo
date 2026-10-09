@@ -8,6 +8,8 @@ import { IeWorkbench } from "./ieWorkbench";
 import { IeWorkbookProvider, type IeWorkbookData } from "./ieWorkbookContext";
 import { type IePosLinkStatus } from "./ieWorkbookApi";
 import { type IePersona } from "./ieViewData";
+import { EXAMPLE_PREFIX, daFrequencyOptions } from "./ieDaLinks";
+import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 
 interface IeExampleResponse {
   slug: string;
@@ -24,6 +26,10 @@ interface IeBundleResponse {
 
 interface PosBundleResponse {
   pos: { mef: unknown };
+}
+
+interface DaBundleResponse {
+  da: { mef: DataAnalysis };
 }
 
 interface IeExampleOption {
@@ -89,8 +95,9 @@ function IeDemoPage(): JSX.Element {
     Promise.all([
       fetchJson<IeBundleResponse>(`/api/example-workbooks/ie-bundle${query}`),
       fetchJson<PosBundleResponse>(`/api/example-workbooks/pos-bundle${query}`),
+      fetchJson<DaBundleResponse>(`/api/example-workbooks/da-bundle${query}`).catch((): DaBundleResponse | null => null),
     ])
-      .then(([res, posRes]) => {
+      .then(([res, posRes, daRes]) => {
         if (cancelled) return;
         const ie = res.ie.mef as InitiatingEventsAnalysis;
         const pos = posRes.pos.mef as PlantOperatingStatesAnalysis;
@@ -99,6 +106,7 @@ function IeDemoPage(): JSX.Element {
           cc: res.configurationControl.mef as PRAConfigurationControl,
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
           posLink: buildPosLink(ie, pos),
+          daFrequencies: daRes === null ? [] : daFrequencyOptions([{ id: `${EXAMPLE_PREFIX}${selected}`, name: daRes.da.mef.name, mef: daRes.da.mef }]),
         });
       })
       .catch((err: unknown) => {

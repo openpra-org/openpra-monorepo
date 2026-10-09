@@ -1,0 +1,45 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "x"
+    },
+    "expression": {
+      "node": "OPERATION",
+      "operation": "DIVIDE",
+      "operands": [
+        {
+          "node": "VALUE",
+          "value": {
+            "unit": "FACTOR",
+            "law": {
+              "family": "POINT",
+              "value": 1
+            }
+          }
+        },
+        {
+          "node": "VALUE",
+          "value": {
+            "unit": "FACTOR",
+            "law": {
+              "family": "POINT",
+              "value": 2
+            }
+          }
+        },
+        {
+          "node": "VALUE",
+          "value": {
+            "unit": "FACTOR",
+            "law": {
+              "family": "POINT",
+              "value": 3
+            }
+          }
+        }
+      ]
+    }
+  }
+]

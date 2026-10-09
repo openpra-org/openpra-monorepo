@@ -11,6 +11,7 @@ import {
   PreOperationalAssumptionSchema,
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
+import { UncertainExpressionSchema } from "../core/uncertainty";
 
 export const ScEndStateSchema = z.enum(EndState);
 export const AnalysisTypeSchema = z.enum(AnalysisType);
@@ -176,7 +177,7 @@ export const SharedResourceDefinitionSchema = z.object({
 export const MissionTimeDefinitionSchema = z.object({
   uuid: z.string(),
   eventSequenceReference: z.string(),
-  missionTimeHours: z.number(),
+  missionTime: UncertainExpressionSchema,
   basis: z.string(),
   safeStableStateAchievedWithinMissionTime: z.boolean(),
   treatmentWhenNotAchieved: z.enum(["CONSERVATIVE_END_STATE", "EXTENDED_MISSION_TIME", "ADDITIONAL_EVALUATION"]).optional(),
@@ -189,7 +190,7 @@ export const MissionTimeDefinitionSchema = z.object({
 export const ComponentMissionTimeDefinitionSchema = z.object({
   uuid: z.string(),
   componentId: z.string(),
-  missionTimeHours: z.number(),
+  missionTime: UncertainExpressionSchema,
   eventSequenceReference: z.string(),
   shorterMissionTimeJustification: z.string().optional(),
   analysisReferences: z.array(z.string()),

@@ -963,15 +963,15 @@ const BASE_ANALYSIS: RadiologicalConsequenceAnalysis = {
     analysisRef: "ri-generic-2",
     feedbackDate: NOW,
     metricFeedback: [
-      { metric: "Individual latent cancer fatality risk", riskSignificance: ImportanceLevel.HIGH, insights: ["The early-release families drive the individual latent-cancer risk."], recommendations: ["Hold the dust-deposition and dose-response models in the register."] },
-      { metric: "Individual dose at boundary", riskSignificance: ImportanceLevel.MEDIUM, insights: ["The boundary dose stays two decades below the early-fatality threshold without evacuation credit."], recommendations: ["Confirm the coarse-dust deposition velocity at the selected site."] },
-      { metric: "Population dose to 80 km", riskSignificance: ImportanceLevel.LOW, insights: ["The population-dose risk totals 5.5E-5 person-Sv per plant-year, reported without a cumulative target."], recommendations: ["Carry the population-dose table forward at each source-term revision."] },
+      { metric: "Individual latent cancer fatality risk", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Individual latent cancer fatality risk is 4.73E-12 per plant-year against a limit of 2E-6. RC-1 carries 87.7% of it."], recommendations: ["Hold the dust-deposition and dose-response models in the register."] },
+      { metric: "Individual dose at boundary", riskSignificance: ImportanceLevel.LOW, insights: ["Frequency of exceeding 100 mrem is 9.83E-8 per plant-year against a limit of 1. Individual dose at boundary is 1.38E-9 Sv per plant-year. RC-1 carries 98.7% of it."], recommendations: ["Confirm the coarse-dust deposition velocity at the selected site."] },
+      { metric: "Population dose to 80 km", riskSignificance: ImportanceLevel.LOW, insights: ["Population dose to 80 km is 7.13E-5 person-Sv per plant-year. RC-1 carries 85% of it."], recommendations: ["Carry the population-dose table forward at each source-term revision."] },
     ],
     releaseCategoryFeedback: [
-      { releaseCategoryReference: "RC-1", riskSignificance: ImportanceLevel.HIGH, insights: ["The unfiltered release drives the individual and the population dose."], recommendations: ["Tighten the particle-failure and dust-transport uncertainty."], status: "IN_PROGRESS" },
-      { releaseCategoryReference: "RC-2", riskSignificance: ImportanceLevel.MEDIUM, insights: ["The filtered release is a minor contributor to the risk."], recommendations: ["No further action is needed at this stage."], status: "ADDRESSED" },
+      { releaseCategoryReference: "RC-1", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Holds ESF-EARLY and ESF-ATWS. Carries 98.7% of the 100 mrem frequency and 87.7% of the latent cancer risk."], recommendations: ["Tighten the particle-failure and dust-transport uncertainty."], status: "IN_PROGRESS" },
+      { releaseCategoryReference: "RC-2", riskSignificance: ImportanceLevel.LOW, insights: ["Carries 8.84% of the latent cancer risk and 1.32% of the 100 mrem frequency."], recommendations: ["No further action is needed at this stage."], status: "ADDRESSED" },
     ],
-    generalFeedback: "Risk Integration confirms the unfiltered category drives the individual risk, so the dust deposition and the dose-response models are the priorities for the consequence side.",
+    generalFeedback: "No measure is risk-significant under NEI 18-04. RC-1 carries 88% of the latent cancer risk and 99% of the 100 mrem frequency, so the dust deposition and the dose-response models stay the consequence-side priorities.",
     response: {
       description: "The coarse-dust deposition velocity and the non-compliance fraction are carried as the leading model uncertainties and swept in the sensitivity studies.",
       changes: ["Coarse-dust deposition velocity and non-compliance fraction held as the leading uncertainties", "Weather-year and dust-deposition sensitivities retained"],

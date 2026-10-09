@@ -1,0 +1,42 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PROBABILITY",
+        "law": {
+          "family": "POPULATION",
+          "mu": {
+            "family": "UNIFORM",
+            "lower": -13.8,
+            "upper": -4.6
+          },
+          "sigma": {
+            "family": "UNIFORM",
+            "lower": 0.1,
+            "upper": 3
+          },
+          "upper": null,
+          "evidence": [
+            {
+              "likelihood": "BINOMIAL",
+              "failures": 1,
+              "exposure": 500
+            },
+            {
+              "likelihood": "BINOMIAL",
+              "failures": 3,
+              "exposure": 400
+            }
+          ],
+          "target": null
+        }
+      }
+    }
+  }
+]

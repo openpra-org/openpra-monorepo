@@ -1,5 +1,8 @@
 import { type JSX, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DynamicRun } from "interfaces-mef-types/es/event-sequence-analysis";
+import type { EventTreeInitiatingEventFrequency } from "interfaces-mef-types/modeling";
+import { parametersFor, useExpressionSummaries, type ExpressionQuery } from "../shared/useUncertainty";
+import { frequencyRateUnits, type FrequencyParameterTable, type InitiatingFrequencyUnit } from "./eventTreeOperations";
 import type {
   EventTreeLeafReference,
   EventTreeNodeView,
@@ -9,6 +12,25 @@ import type {
 
 function formatExponential(value: number | undefined): string {
   return value === undefined ? "—" : value.toExponential(2);
+}
+
+const FREQUENCY_SUFFIX: Record<InitiatingFrequencyUnit, string> = { PER_YEAR: "/yr", PER_HOUR: "/h" };
+
+const NO_PARAMETERS: FrequencyParameterTable = new Map();
+
+function InitiatingFrequency({ frequency, parameters }: { frequency: EventTreeInitiatingEventFrequency; parameters: FrequencyParameterTable }): JSX.Element {
+  const units = useMemo(() => frequencyRateUnits(frequency.expression, parameters), [frequency.expression, parameters]);
+  const unit = units[0] ?? "PER_YEAR";
+  const mixed = units.length > 1;
+  const queries = useMemo<ExpressionQuery[]>(
+    () => (mixed ? [] : [{ expression: frequency.expression, unit, probabilities: [], parameters: parametersFor([frequency.expression], parameters) }]),
+    [frequency.expression, mixed, parameters, unit],
+  );
+  const [state] = useExpressionSummaries(queries);
+  if (mixed) return <div className="estree__ie-freq" title="This frequency mixes per-year and per-hour terms. A run converts them with the exposure hours of this tree.">Mixed units</div>;
+  if (state === undefined || state.status === "pending") return <div className="estree__ie-freq">…</div>;
+  if (state.status === "failed") return <div className="estree__ie-freq" title={state.error}>Not available</div>;
+  return <div className="estree__ie-freq">{formatExponential(state.value.point)} {FREQUENCY_SUFFIX[unit]}</div>;
 }
 
 function DiagramViewport({ width, height, children }: { width: number; height: number; children: JSX.Element }): JSX.Element {
@@ -171,11 +193,12 @@ function SequenceOutcome({ sequence }: { sequence: EventTreeSequenceView }): JSX
   );
 }
 
-function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, showFrequency, canEdit, onHover, onSelect, onSelectFunctionalEvent, onFunctionalEventContext, onSequenceContext, onReorderFunctionalEvent }: {
+function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, showFrequency, frequencyParameters = NO_PARAMETERS, canEdit, onHover, onSelect, onSelectFunctionalEvent, onFunctionalEventContext, onSequenceContext, onReorderFunctionalEvent }: {
   view: EventTreePresentationView;
   activeSequenceId: string | null;
   selectedEntityId: string | null;
   showFrequency: boolean;
+  frequencyParameters?: FrequencyParameterTable;
   canEdit: boolean;
   onHover: (sequenceId: string | null) => void;
   onSelect: (sequenceId: string) => void;
@@ -221,7 +244,7 @@ function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, sho
         <div className="estree__ie" style={{ top: layout.rootY }}>
           <div className="estree__ie-cap">Initiator</div>
           <div className="estree__ie-id">{view.initiatingEventId}</div>
-          {showFrequency && view.initiatingEventFrequency !== undefined && <div className="estree__ie-freq">{formatExponential(view.initiatingEventFrequency)} {({ PER_SECOND: "/s", PER_MINUTE: "/min", PER_HOUR: "/h", PER_DAY: "/day", PER_YEAR: "/yr" } as const)[view.initiatingEventFrequencyUnit ?? "PER_YEAR"]}</div>}
+          {showFrequency && view.initiatingEventFrequency !== undefined && <InitiatingFrequency frequency={view.initiatingEventFrequency} parameters={frequencyParameters} />}
         </div>
         <svg className="estree__svg" width={layout.width} height={layout.height} aria-hidden="true">
           {layout.segments.map((segment, index) => <line key={index} className={`estree__seg${highlighted(segment.sequences) ? " estree__seg--hot" : ""}`} x1={segment.x1} y1={segment.y1} x2={segment.x2} y2={segment.y2} />)}

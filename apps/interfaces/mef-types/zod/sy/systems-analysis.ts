@@ -1,9 +1,10 @@
 import { z } from "zod";
 import type { SystemsAnalysis, SystemFaultTreeNode } from "../../sy/systems-analysis";
-import { DependencyType, FailureModeType } from "../../sy/systems-analysis";
+import { DependencyType, FailureModeType, carriesUncertainExpression } from "../../sy/systems-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
-import { BasicEventSchema, DistributionTypeSchema } from "../core/events";
+import { BasicEventSchema } from "../core/events";
+import { CcfFactorModelSchema, UncertainExpressionSchema } from "../core/uncertainty";
 import { ComponentSchema } from "../core/component";
 import { BaseUncertaintyAnalysisSchema, SensitivityStudySchema, SuccessCriteriaIdSchema } from "../core/shared-patterns";
 import {
@@ -55,6 +56,7 @@ export const SystemBasicEventSchema = z.object({
   componentReference: z.string().optional(),
   failureMode: z.string().optional(),
   failureModeSource: SystemBasicEventFailureModeSourceSchema.optional(),
+  expression: UncertainExpressionSchema.optional(),
   probability: z.number().optional(),
   quantificationBasis: FaultTreeBasicEventQuantificationBasisSchema.optional(),
   repairModeled: z.boolean().optional(),
@@ -72,6 +74,16 @@ export const SystemBasicEventSchema = z.object({
     )
     .optional(),
   implementsSrs: z.array(SRReferenceSchema),
+}).superRefine((event, context) => {
+  if (carriesUncertainExpression(event.failureMode)) {
+    for (const field of ["probability", "quantificationBasis", "controlledDataSource", "dataAnalysisBasicEventRef"] as const) {
+      if (event[field] !== undefined) {
+        context.addIssue({ code: "custom", path: [field], message: "A component basic event keeps its value in the expression field" });
+      }
+    }
+  } else if (event.expression !== undefined) {
+    context.addIssue({ code: "custom", path: ["expression"], message: "Only a component basic event holds an uncertain expression" });
+  }
 });
 
 export const DepletionModelSchema = z.object({
@@ -360,8 +372,7 @@ export const SystemDefinitionSchema = z.object({
   components: z.record(z.string(), SystemComponentSchema).optional(),
   successCriteriaIds: z.array(SuccessCriteriaIdSchema),
   successCriterion: z.string().optional(),
-  missionTimeHours: z.number().optional(),
-  missionTimeRef: z.string().optional(),
+  missionTime: UncertainExpressionSchema.optional(),
   schematic: z
     .object({
       reference: z.string(),
@@ -463,38 +474,8 @@ export const CommonCauseFailureGroupSchema = z.object({
   scope: z.enum(["INTRASYSTEM", "INTERSYSTEM"]),
   affectedComponents: z.array(z.string()),
   affectedSystems: z.array(z.string()),
-  modelType: z.string(),
-  modelSpecificParameters: z
-    .object({
-      betaFactorParameters: z
-        .object({
-          beta: z.number(),
-          totalFailureProbability: z.number(),
-        })
-        .optional(),
-      mglParameters: z
-        .object({
-          beta: z.number(),
-          gamma: z.number().optional(),
-          delta: z.number().optional(),
-          additionalFactors: z.record(z.string(), z.number()).optional(),
-          totalFailureProbability: z.number(),
-        })
-        .optional(),
-      alphaFactorParameters: z
-        .object({
-          alphaFactors: z.record(z.string(), z.number()),
-          totalFailureProbability: z.number(),
-        })
-        .optional(),
-      phiFactorParameters: z
-        .object({
-          phiFactors: z.record(z.string(), z.number()),
-          totalFailureProbability: z.number(),
-        })
-        .optional(),
-    })
-    .optional(),
+  factors: CcfFactorModelSchema,
+  total: UncertainExpressionSchema,
   dataAnalysisCCFParameterRef: z.string().optional(),
   members: z
     .object({
@@ -612,15 +593,6 @@ export const SimultaneousUnavailabilityEventSchema = z.object({
 export const SystemUncertaintyAnalysisSchema = z.object({
   ...BaseUncertaintyAnalysisSchema.shape,
   system: z.string(),
-  parameterUncertainties: z.array(
-    z.object({
-      parameterId: z.string(),
-      distributionType: DistributionTypeSchema,
-      distributionParameters: z.record(z.string(), z.number()),
-      basis: z.string(),
-      associatedComponent: z.string().optional(),
-    }),
-  ),
   ccfUncertainties: z
     .array(
       z.object({

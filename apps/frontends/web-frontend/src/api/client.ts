@@ -9,6 +9,15 @@ function authHeaders(): Record<string, string> {
   return base;
 }
 
+class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
 async function readError(response: Response): Promise<string> {
   const text = await response.text().catch(() => "");
   if (!text) return response.statusText;
@@ -25,7 +34,7 @@ async function request(method: string, path: string, body?: unknown): Promise<Re
   if (body !== undefined) init.body = stringifyJson(body);
   const response = await fetch(path, init);
   if (response.status === 401) { onUnauthorized(); throw new Error("Session expired"); }
-  if (!response.ok) throw new Error(await readError(response));
+  if (!response.ok) throw new ApiError(await readError(response), response.status);
   return response;
 }
 
@@ -83,4 +92,4 @@ async function postMultipart<T>(path: string, formData: FormData): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export { fetchJson, fetchBytes, postJson, patchJson, deleteJson, postMultipart };
+export { ApiError, fetchJson, fetchBytes, postJson, patchJson, deleteJson, postMultipart };

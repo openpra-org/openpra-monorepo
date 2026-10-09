@@ -1,19 +1,65 @@
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import { DistributionType } from "interfaces-mef-types/core/events";
+import type { HumanFailureEventReference, WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
+import {
+  parameterReferenceKey,
+  type UncertainExpression,
+  type UncertainParameter,
+  type UncertainValue,
+  type UncertainVectorParameter,
+} from "interfaces-mef-types/core/uncertainty";
+import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
+import type { HclUncertaintySettings } from "interfaces-mef-types/modeling/hybrid-causal-logic";
+import { LoadCapacityModelSnapshotSchema } from "interfaces-shared-types/newly-developed-methods/load-capacity";
+import { createBlankSy } from "../../../sy-workbooks/blank-sy";
 import {
   WorkbookPraxisAdapterError,
   adaptEsEventTreeSnapshot,
   adaptEsqBayesianNetworkSnapshot,
+  adaptLoadCapacitySnapshot,
   adaptSyBayesianNetworkSnapshot,
   adaptEsqHclSnapshot,
   adaptSyFaultTreeSnapshot,
-  collectSyFaultTreeControlledDataSources,
-  workbookParameterReferenceKey,
+  collectEsEventTreeReferences,
+  collectHclUncertaintyReferences,
+  collectLoadCapacityReferences,
+  collectSyFaultTreeReferences,
+  faultTreeControlledDataSourceKey,
+  type PraxisModelSnapshot,
 } from "../praxis-snapshot-adapters";
 
-const syMef = {
+const probability = (value: number): UncertainExpression => ({
+  node: "VALUE",
+  value: { unit: "PROBABILITY", law: { family: "POINT", value } },
+});
+
+const daReference = (entityId: string): WorkbookParameterReference => ({
+  referenceType: "WORKBOOK_PARAMETER",
+  workbookId: "da-1",
+  entityId,
+});
+
+const reading = (entityId: string): UncertainExpression => ({ node: "PARAMETER", reference: daReference(entityId) });
+
+const valued = (unit: UncertainValue["unit"], value: number): UncertainExpression => ({
+  node: "VALUE",
+  value: { unit, law: { family: "POINT", value } },
+});
+
+const vectorTable = (entries: UncertainVectorParameter[]): ReadonlyMap<string, UncertainVectorParameter> =>
+  new Map(entries.map((entry) => [parameterReferenceKey(entry.reference), entry]));
+
+const estimate = (entityId: string, value: UncertainValue): UncertainParameter => ({
+  reference: daReference(entityId),
+  expression: { node: "VALUE", value },
+});
+
+const parameterTable = (entries: UncertainParameter[]): ReadonlyMap<string, UncertainParameter> =>
+  new Map(entries.map((entry) => [parameterReferenceKey(entry.reference), entry]));
+
+const syMef: SystemsAnalysis = {
+  ...createBlankSy("SY", "analyst"),
   systemLogicModels: [
     {
       uuid: "ft-1",
@@ -46,16 +92,18 @@ const syMef = {
     },
   ],
   systemBasicEvents: [
-    { uuid: "be-a", code: "BE-A", name: "Event A", probability: 0.2 },
+    { uuid: "be-a", code: "BE-A", name: "Event A", eventType: "BASIC", expression: probability(0.2), implementsSrs: [] },
     {
       uuid: "be-b",
       code: "BE-B",
       name: "Event B",
       description: "Backup",
-      probability: 0.1,
+      eventType: "BASIC",
+      expression: probability(0.1),
+      implementsSrs: [],
     },
   ],
-} as SystemsAnalysis;
+};
 
 type SyLogicModel = SystemsAnalysis["systemLogicModels"][number];
 
@@ -209,7 +257,7 @@ const esMef = {
       uuid: "et-1",
       name: "Event tree",
       initiatingEventId: "initiator-1",
-      initiatingEventFrequency: { value: 0.01 },
+      initiatingEventFrequency: { expression: valued("PER_YEAR", 0.01) },
       functionalEvents: {
         second: {
           uuid: "fe-2",
@@ -274,14 +322,23 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
       expect.objectContaining({ id: "or-gate", gateType: "OR" }),
     ]);
     expect(adapted.modelSnapshot["gateInputs"]).toHaveLength(3);
-    expect(adapted.basicEventCatalogue["basicEvents"]).toEqual([
-      expect.objectContaining({ id: "be-a", probability: { value: 0.2 } }),
-      expect.objectContaining({ id: "be-b", probability: { value: 0.1 } }),
-    ]);
+    expect(adapted.basicEventCatalogue).toEqual({
+      projectId: "sy-1",
+      basicEvents: [
+        { id: "be-a", expression: probability(0.2) },
+        { id: "be-b", expression: probability(0.1) },
+      ],
+      commonCauseFailureGroups: [],
+      uncertaintyParameters: [],
+      uncertaintyVectors: [],
+    });
+    expect(adapted.parameterReferences).toEqual([]);
+    expect(adapted.vectorReferences).toEqual([]);
+    expect(adapted.legacyReferences).toEqual([]);
     expect(syMef).toEqual(before);
   });
 
-  it("carries applicable CCF groups but ignores legacy SY distributions", () => {
+  it("carries applicable CCF groups and ignores SY uncertainty settings", () => {
     const mef = structuredClone(syMef);
     mef.commonCauseFailureGroups = [{
       uuid: "ccf-1",
@@ -290,10 +347,8 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
       scope: "INTRASYSTEM",
       affectedComponents: [],
       affectedSystems: ["system-1"],
-      modelType: "BETA_FACTOR",
-      modelSpecificParameters: {
-        betaFactorParameters: { beta: 0.1, totalFailureProbability: 0.2 },
-      },
+      factors: { model: "BETA_FACTOR", beta: valued("FRACTION", 0.1) },
+      total: probability(0.2),
       members: { basicEvents: [{ id: "be-a" }, { id: "be-b" }] },
       implementsSrs: [],
     }];
@@ -304,160 +359,257 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
       numberOfSamples: 2_000,
       randomSeed: 847,
       modelUncertainties: [],
-      parameterUncertainties: [{
-        parameterId: "be-a",
-        distributionType: DistributionType.BETA,
-        distributionParameters: { alpha: 2, beta: 18 },
-        basis: "Posterior uncertainty",
-      }],
       implementsSrs: [],
     }];
 
     const adapted = adaptSyFaultTreeSnapshot({ workbookId: "sy-1", workbookRevision: 7, mef }, "ft-1");
-    expect(adapted.basicEventCatalogue["commonCauseFailureGroups"]).toEqual([{
+    expect(adapted.basicEventCatalogue.commonCauseFailureGroups).toEqual([{
       id: "ccf-1",
       members: ["be-a", "be-b"],
-      model: { kind: "BETA_FACTOR", beta: 0.1 },
-      totalFailureProbability: 0.2,
+      factors: { model: "BETA_FACTOR", beta: valued("FRACTION", 0.1) },
+      total: probability(0.2),
     }]);
-    expect(adapted.basicEventCatalogue["uncertaintyInputs"]).toBeUndefined();
+    expect(adapted.basicEventCatalogue.uncertaintyParameters).toEqual([]);
+    expect(adapted.basicEventCatalogue.uncertaintyVectors).toEqual([]);
+    mef.commonCauseFailureGroups[0]!.members = { basicEvents: [{ id: "be-a" }, { id: "be-outside" }] };
+    expect(adaptSyFaultTreeSnapshot({ workbookId: "sy-1", workbookRevision: 7, mef }, "ft-1").basicEventCatalogue.commonCauseFailureGroups).toEqual([]);
+    mef.commonCauseFailureGroups[0]!.members = { basicEvents: [] };
+    expect(adaptSyFaultTreeSnapshot({ workbookId: "sy-1", workbookRevision: 7, mef }, "ft-1").basicEventCatalogue.commonCauseFailureGroups).toEqual([]);
+    mef.commonCauseFailureGroups[0]!.members = { basicEvents: [{ id: "be-a" }] };
+    expect(() => adaptSyFaultTreeSnapshot({ workbookId: "sy-1", workbookRevision: 7, mef }, "ft-1"))
+      .toThrow(expect.objectContaining({ code: "SY_CCF_GROUP_TOO_SMALL", details: { groupId: "ccf-1" } }));
   });
 
-  it("maps linked DA uncertainty into correlated inputs and samples a CCF group from its members' estimate", () => {
+  it("sends DA estimates as parameters and keeps the CCF total the group holds", () => {
     const mef = structuredClone(syMef);
-    const reference = { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: "da-1", entityId: "parameter-a" };
-    const correlationKey = workbookParameterReferenceKey(reference);
-    mef.systemBasicEvents[0] = { ...mef.systemBasicEvents[0]!, controlledDataSource: reference };
+    const reference = daReference("parameter-a");
+    const parameter = estimate("parameter-a", {
+      unit: "PROBABILITY",
+      law: { family: "BETA", alpha: 2, beta: 8, lower: 0, upper: 1 },
+    });
+    mef.systemBasicEvents[0] = { ...mef.systemBasicEvents[0]!, expression: reading("parameter-a") };
     const source = { workbookId: "sy-1", workbookRevision: 7, mef };
-    const controlledDataSourceValues = new Map([[correlationKey, {
-      value: 0.2, quantity: "PROBABILITY" as const, uncertainty: { type: DistributionType.BETA as const, alpha: 2, betaParam: 8 },
-    }]]);
-    const options = { controlledDataSourceValues, includeControlledUncertainty: true, expandCcf: true };
-    const sampled = { distributionType: "beta", parameters: { alpha: 2, beta: 8 }, correlationKey };
-    expect(adaptSyFaultTreeSnapshot(source, "ft-1", options).basicEventCatalogue["uncertaintyInputs"])
-      .toEqual([{ basicEventId: "be-a", ...sampled }]);
+    expect(() => adaptSyFaultTreeSnapshot(source, "ft-1"))
+      .toThrow(expect.objectContaining({ code: "UNCERTAINTY_PARAMETER_UNRESOLVED", details: { reference } }));
+    const options = { parameters: parameterTable([parameter]) };
+    const single = adaptSyFaultTreeSnapshot(source, "ft-1", options);
+    expect(single.basicEventCatalogue.basicEvents).toEqual([
+      { id: "be-a", expression: reading("parameter-a") },
+      { id: "be-b", expression: probability(0.1) },
+    ]);
+    expect(single.basicEventCatalogue.uncertaintyParameters).toEqual([parameter]);
+    expect(single.parameterReferences).toEqual([reference]);
+    mef.systemBasicEvents[1] = { ...mef.systemBasicEvents[1]!, expression: reading("parameter-a") };
     mef.commonCauseFailureGroups = [{
       uuid: "ccf-1", name: "Shared support", description: "Shared support failure", scope: "INTRASYSTEM",
-      affectedComponents: [], affectedSystems: ["system-1"], modelType: "BETA_FACTOR",
-      modelSpecificParameters: { betaFactorParameters: { beta: 0.1, totalFailureProbability: 0.2 } },
+      affectedComponents: [], affectedSystems: ["system-1"],
+      factors: { model: "MGL", factors: [valued("FRACTION", 0.1), valued("FRACTION", 0.3)] },
+      total: probability(0.2),
       members: { basicEvents: [{ id: "be-a" }, { id: "be-b" }] }, implementsSrs: [],
     }];
-    expect(() => adaptSyFaultTreeSnapshot(source, "ft-1", options))
-      .toThrow("Common cause group 'Shared support' members link different DA estimates");
-    mef.systemBasicEvents[1] = { ...mef.systemBasicEvents[1]!, controlledDataSource: reference };
-    const adapted = adaptSyFaultTreeSnapshot(source, "ft-1", options);
-    expect(adapted.basicEventCatalogue["uncertaintyInputs"])
-      .toEqual([{ basicEventId: "be-a", ...sampled }, { basicEventId: "be-b", ...sampled }]);
-    expect(adapted.basicEventCatalogue["commonCauseFailureGroups"])
-      .toEqual([expect.objectContaining({ id: "ccf-1", totalFailureProbability: 0.2, uncertainty: sampled })]);
+    expect(adaptSyFaultTreeSnapshot(source, "ft-1", options).basicEventCatalogue.commonCauseFailureGroups).toEqual([{
+      id: "ccf-1",
+      members: ["be-a", "be-b"],
+      factors: { model: "MGL", factors: [valued("FRACTION", 0.1), valued("FRACTION", 0.3)] },
+      total: probability(0.2),
+    }]);
+    mef.commonCauseFailureGroups[0]!.total = reading("parameter-a");
+    const shared = adaptSyFaultTreeSnapshot(source, "ft-1", options);
+    expect(shared.basicEventCatalogue.commonCauseFailureGroups[0]?.total).toEqual(reading("parameter-a"));
+    expect(shared.basicEventCatalogue.uncertaintyParameters).toEqual([parameter]);
   });
 
-  it("discovers and resolves typed DA-controlled probabilities without using the cached SY value", () => {
+  it("builds parameter and vector tables for every CCF factor reference", () => {
     const mef = structuredClone(syMef);
-    const reference = {
-      referenceType: "WORKBOOK_PARAMETER" as const,
-      workbookId: "da-1",
-      entityId: "parameter-a",
+    const beta = estimate("beta-a", { unit: "FRACTION", law: { family: "BETA", alpha: 1, beta: 19, lower: 0, upper: 1 } });
+    const alphas: UncertainVectorParameter = {
+      reference: daReference("alphas-a"),
+      vector: { family: "DIRICHLET", concentrations: [880.1, 12.01] },
+    };
+    mef.commonCauseFailureGroups = [
+      {
+        uuid: "ccf-beta", name: "Beta group", description: "", scope: "INTRASYSTEM",
+        affectedComponents: [], affectedSystems: ["system-1"],
+        factors: { model: "BETA_FACTOR", beta: reading("beta-a") },
+        total: probability(0.2),
+        members: { basicEvents: [{ id: "be-a" }, { id: "be-b" }] }, implementsSrs: [],
+      },
+      {
+        uuid: "ccf-alpha", name: "Alpha group", description: "", scope: "INTRASYSTEM",
+        affectedComponents: [], affectedSystems: ["system-1"],
+        factors: { model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "PARAMETER", reference: daReference("alphas-a") } },
+        total: probability(0.2),
+        members: { basicEvents: [{ id: "be-a" }, { id: "be-b" }] }, implementsSrs: [],
+      },
+    ];
+    const source = { workbookId: "sy-1", workbookRevision: 7, mef };
+    expect(collectSyFaultTreeReferences(source, "ft-1")).toEqual({
+      parameterReferences: [daReference("beta-a")],
+      vectorReferences: [daReference("alphas-a")],
+      legacyReferences: [],
+    });
+    expect(() => adaptSyFaultTreeSnapshot(source, "ft-1", { parameters: parameterTable([beta]) }))
+      .toThrow(expect.objectContaining({ code: "UNCERTAINTY_PARAMETER_UNRESOLVED", details: { reference: daReference("alphas-a") } }));
+    const adapted = adaptSyFaultTreeSnapshot(source, "ft-1", {
+      parameters: parameterTable([beta]),
+      vectors: vectorTable([alphas]),
+    });
+    expect(adapted.basicEventCatalogue.commonCauseFailureGroups.map((group) => group.factors)).toEqual([
+      { model: "BETA_FACTOR", beta: reading("beta-a") },
+      { model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "PARAMETER", reference: daReference("alphas-a") } },
+    ]);
+    expect(adapted.basicEventCatalogue.uncertaintyParameters).toEqual([beta]);
+    expect(adapted.basicEventCatalogue.uncertaintyVectors).toEqual([alphas]);
+    expect(adapted.vectorReferences).toEqual([daReference("alphas-a")]);
+  });
+
+  it("collects component and legacy references and resolves legacy values without the cached SY value", () => {
+    const mef = structuredClone(syMef);
+    const daLegacy: WorkbookParameterReference = daReference("parameter-hep");
+    const hraLegacy: HumanFailureEventReference = {
+      referenceType: "HUMAN_FAILURE_EVENT",
+      workbookId: "hr-1",
+      entityId: "hfe-b",
+      quantificationId: "hep-b",
     };
     mef.systemBasicEvents[0] = {
-      ...mef.systemBasicEvents[0]!,
+      uuid: "be-a",
+      code: "BE-A",
+      name: "Event A",
+      eventType: "BASIC",
+      failureMode: "HUMAN_ERROR",
       probability: 0.99,
-      controlledDataSource: reference,
+      controlledDataSource: daLegacy,
+      implementsSrs: [],
     };
+    mef.systemBasicEvents[1] = {
+      uuid: "be-b",
+      code: "BE-B",
+      name: "Event B",
+      eventType: "BASIC",
+      failureMode: "HUMAN_ERROR",
+      controlledDataSource: hraLegacy,
+      implementsSrs: [],
+    };
+    mef.systemBasicEvents.push({ uuid: "be-c", code: "BE-C", name: "Event C", eventType: "BASIC", expression: reading("parameter-c"), implementsSrs: [] });
+    mef.systemLogicModels[0]!.leafNodes.push({ id: "leaf-c", kind: "BASIC_EVENT_REFERENCE", basicEventId: "be-c" });
+    mef.systemLogicModels[0]!.gateInputs.push({ id: "or-gate:leaf-c:1", gateId: "or-gate", childId: "leaf-c", order: 1 });
     const source = { workbookId: "sy-1", workbookRevision: 7, mef };
 
-    expect(collectSyFaultTreeControlledDataSources(source, "ft-1")).toEqual([reference]);
-    expect(() => adaptSyFaultTreeSnapshot(source, "ft-1")).toThrow(
-      "could not resolve controlled DA parameter",
-    );
-    const adapted = adaptSyFaultTreeSnapshot(source, "ft-1", {
-      controlledDataSourceValues: new Map([[workbookParameterReferenceKey(reference), 0.35]]),
+    expect(collectSyFaultTreeReferences(source, "ft-1")).toEqual({
+      parameterReferences: [daReference("parameter-c")],
+      vectorReferences: [],
+      legacyReferences: [daLegacy, hraLegacy],
     });
-    expect(adapted.basicEventCatalogue["basicEvents"]).toEqual([
-      expect.objectContaining({
-        id: "be-a",
-        probability: { value: 0.35, controlledDataSource: reference },
-      }),
-      expect.objectContaining({ id: "be-b", probability: { value: 0.1 } }),
+    const parameters = parameterTable([estimate("parameter-c", { unit: "PROBABILITY", law: { family: "POINT", value: 0.01 } })]);
+    expect(() => adaptSyFaultTreeSnapshot(source, "ft-1", { parameters })).toThrow(
+      "SY basic event 'BE-A' could not resolve controlled DA parameter 'da-1:parameter-hep'",
+    );
+    expect(() => adaptSyFaultTreeSnapshot(source, "ft-1", {
+      parameters,
+      legacyValues: new Map([[faultTreeControlledDataSourceKey(daLegacy), 0.35]]),
+    })).toThrow("SY basic event 'BE-B' could not resolve controlled HRA quantification 'hr-1:hfe-b'");
+    const adapted = adaptSyFaultTreeSnapshot(source, "ft-1", {
+      parameters,
+      legacyValues: new Map([
+        [faultTreeControlledDataSourceKey(daLegacy), 0.35],
+        [faultTreeControlledDataSourceKey(hraLegacy), 0.004],
+      ]),
+    });
+    expect(adapted.basicEventCatalogue.basicEvents).toEqual([
+      { id: "be-a", expression: legacyExpression("PROBABILITY", 0.35) },
+      { id: "be-b", expression: legacyExpression("PROBABILITY", 0.004) },
+      { id: "be-c", expression: reading("parameter-c") },
     ]);
+    expect(adapted.legacyReferences).toEqual([daLegacy, hraLegacy]);
   });
 
-  it("rejects saved FT linear conversion with an addressable review error", () => {
+  it("refuses a component event with no expression with an addressable error", () => {
     const mef = structuredClone(syMef);
-    mef.systemBasicEvents[0] = { ...mef.systemBasicEvents[0]!, quantificationBasis: {
-      kind: "FAILURE_RATE", conversion: "LINEAR",
-      failureRate: { value: .001, unit: "HOUR" }, missionTime: { value: 100, unit: "HOUR" },
-    } };
+    mef.systemBasicEvents[0] = {
+      uuid: "be-a",
+      code: "BE-A",
+      name: "Event A",
+      eventType: "BASIC",
+      probability: 0.2,
+      quantificationBasis: {
+        kind: "FAILURE_RATE", conversion: "LINEAR",
+        failureRate: { value: .001, unit: "HOUR" }, missionTime: { value: 100, unit: "HOUR" },
+      },
+      implementsSrs: [],
+    };
     const original = structuredClone(mef);
-    expect(() => adaptSyFaultTreeSnapshot({ workbookId: "sy-1", workbookRevision: 7, mef }, "ft-1"))
-      .toThrow(expect.objectContaining({ code: "SY_FAILURE_RATE_CONVERSION_REVIEW_REQUIRED", details: { basicEventId: "be-a" } }));
+    const source = { workbookId: "sy-1", workbookRevision: 7, mef };
+    expect(() => adaptSyFaultTreeSnapshot(source, "ft-1"))
+      .toThrow(expect.objectContaining({ code: "SY_BASIC_EVENT_VALUE_MISSING", details: { basicEventId: "be-a" } }));
+    expect(collectSyFaultTreeReferences(source, "ft-1")).toEqual({ parameterReferences: [], vectorReferences: [], legacyReferences: [] });
     expect(mef).toEqual(original);
   });
 
-  it("resolves a DA-controlled failure rate and derives its mission probability", () => {
+  it("sends a mission model over a DA rate with the rate estimate as a parameter", () => {
     const mef = structuredClone(syMef);
-    const reference = {
-      referenceType: "WORKBOOK_PARAMETER" as const,
-      workbookId: "da-1",
-      entityId: "rate-a",
-    };
-    mef.systemBasicEvents[0] = {
-      ...mef.systemBasicEvents[0]!,
-      probability: 0,
-      quantificationBasis: {
-        kind: "FAILURE_RATE",
-        failureRate: { value: 0, unit: "HOUR" },
-        missionTime: { value: 24, unit: "HOUR" },
-        conversion: "EXPONENTIAL",
+    const mission: UncertainExpression = {
+      node: "MODEL",
+      model: {
+        form: "MISSION",
+        rate: reading("rate-a"),
+        missionTime: { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: 24 } } },
       },
-      controlledDataSource: reference,
     };
+    const rate = estimate("rate-a", { unit: "PER_HOUR", law: { family: "POINT", value: 2e-5 } });
+    mef.systemBasicEvents[0] = { ...mef.systemBasicEvents[0]!, expression: mission };
     const adapted = adaptSyFaultTreeSnapshot(
       { workbookId: "sy-1", workbookRevision: 7, mef },
       "ft-1",
-      {
-        controlledDataSourceValues: new Map([[
-          workbookParameterReferenceKey(reference),
-          { value: 2e-5, quantity: "FAILURE_RATE" },
-        ]]),
-      },
+      { parameters: parameterTable([rate]) },
     );
-    const events = adapted.basicEventCatalogue["basicEvents"] as Array<Record<string, unknown>>;
-    expect(events[0]).toEqual(expect.objectContaining({
-      id: "be-a",
-      probability: expect.objectContaining({
-        value: 0.0004798848184297544, // HCL_MH calculation type 3.
-        quantificationBasis: {
-          kind: "FAILURE_RATE",
-          failureRate: { value: 2e-5, unit: "HOUR" },
-          missionTime: { value: 24, unit: "HOUR" },
-          conversion: "EXPONENTIAL",
-        },
-      }),
-    }));
+    expect(adapted.basicEventCatalogue.basicEvents[0]).toEqual({ id: "be-a", expression: mission });
+    expect(adapted.basicEventCatalogue.uncertaintyParameters).toEqual([rate]);
   });
 
-  it("rejects a controlled source whose quantity does not match the basic-event basis", () => {
+  it("keeps a per-year rate and a mission time in hours in their own units", () => {
     const mef = structuredClone(syMef);
-    const reference = {
-      referenceType: "WORKBOOK_PARAMETER" as const,
-      workbookId: "da-1",
-      entityId: "rate-a",
+    const mission: UncertainExpression = {
+      node: "MODEL",
+      model: {
+        form: "MISSION",
+        rate: reading("loop-a"),
+        missionTime: { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: 24 } } },
+      },
     };
-    mef.systemBasicEvents[0] = {
-      ...mef.systemBasicEvents[0]!,
-      controlledDataSource: reference,
-    };
-    expect(() => adaptSyFaultTreeSnapshot(
+    const frequency = estimate("loop-a", { unit: "PER_YEAR", law: { family: "GAMMA", shape: 1.5, rate: 50 } });
+    mef.systemBasicEvents[0] = { ...mef.systemBasicEvents[0]!, expression: mission };
+    const adapted = adaptSyFaultTreeSnapshot(
       { workbookId: "sy-1", workbookRevision: 7, mef },
       "ft-1",
-      {
-        controlledDataSourceValues: new Map([[
-          workbookParameterReferenceKey(reference),
-          { value: 2e-5, quantity: "FAILURE_RATE" },
-        ]]),
+      { parameters: parameterTable([frequency]) },
+    );
+    expect(adapted.basicEventCatalogue.basicEvents[0]?.expression).toEqual(mission);
+    expect(adapted.basicEventCatalogue.uncertaintyParameters).toEqual([frequency]);
+  });
+
+  it("resolves nested parameter references and names the one it cannot resolve", () => {
+    const mef = structuredClone(syMef);
+    const scaled: UncertainParameter = {
+      reference: daReference("demand-a"),
+      expression: {
+        node: "OPERATION",
+        operation: "MULTIPLY",
+        operands: [reading("demand-b"), { node: "VALUE", value: { unit: "FACTOR", law: { family: "POINT", value: 2 } } }],
       },
-    )).toThrow("expects a probability source");
+    };
+    const generic = estimate("demand-b", {
+      unit: "PROBABILITY",
+      law: { family: "TRUNCATED", law: { family: "LOGNORMAL", mean: 1e-3, errorFactor: 3, level: 0.95 }, lower: null, upper: 1 },
+    });
+    mef.systemBasicEvents[0] = { ...mef.systemBasicEvents[0]!, expression: reading("demand-a") };
+    const source = { workbookId: "sy-1", workbookRevision: 7, mef };
+    expect(() => adaptSyFaultTreeSnapshot(source, "ft-1", { parameters: parameterTable([scaled]) }))
+      .toThrow(expect.objectContaining({ code: "UNCERTAINTY_PARAMETER_UNRESOLVED", details: { reference: daReference("demand-b") } }));
+    const adapted = adaptSyFaultTreeSnapshot(source, "ft-1", { parameters: parameterTable([scaled, generic]) });
+    expect(adapted.basicEventCatalogue.uncertaintyParameters).toEqual([scaled, generic]);
+    expect(adapted.parameterReferences).toEqual([daReference("demand-a"), daReference("demand-b")]);
+    expect(collectSyFaultTreeReferences(source, "ft-1").parameterReferences).toEqual([daReference("demand-a")]);
   });
 
   it.each([false, true])("expands 6,000 nested gates without call-stack recursion (transfers: %s)", (transfers) => {
@@ -486,11 +638,8 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     expect(new Set(gates.map(({ id }) => id)).size).toBe(depth);
     expect(adapted.modelSnapshot["gateInputs"]).toHaveLength(depth);
     expect(adapted.modelSnapshot["leafNodes"]).toHaveLength(1);
-    expect(adapted.basicEventCatalogue["basicEvents"]).toEqual([
-      expect.objectContaining({ id: "be-a", probability: { value: 0.2 } }),
-    ]);
+    expect(adapted.basicEventCatalogue.basicEvents).toEqual([{ id: "be-a", expression: probability(0.2) }]);
 
-    // A back edge at the same depth must still produce a structured cycle error.
     if (transfers) {
       const last = mef.systemLogicModels[depth - 1];
       last.leafNodes = [transfer("back", "root", "g0")];
@@ -513,7 +662,7 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
       code: "BE-C",
       name: "Event C",
       eventType: "BASIC",
-      probability: 0.05,
+      expression: probability(0.05),
       implementsSrs: [],
     });
     mef.systemLogicModels = [
@@ -611,16 +760,11 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     expect(inputs).toContainEqual(
       expect.objectContaining({ gateId: middleTopId, childId: childTopId, order: 1 }),
     );
-    expect(adapted.basicEventCatalogue["basicEvents"]).toEqual([
-      expect.objectContaining({ id: "be-a", probability: { value: 0.2 } }),
-      expect.objectContaining({ id: "be-b", probability: { value: 0.1 } }),
-      expect.objectContaining({ id: "be-c", probability: { value: 0.05 } }),
+    expect(adapted.basicEventCatalogue.basicEvents).toEqual([
+      { id: "be-a", expression: probability(0.2) },
+      { id: "be-b", expression: probability(0.1) },
+      { id: "be-c", expression: probability(0.05) },
     ]);
-    expect(
-      (adapted.basicEventCatalogue["basicEvents"] as Array<{ id: string }>).filter(
-        ({ id }) => id === "be-a",
-      ),
-    ).toHaveLength(1);
     const childReferenceC = leaves.find(({ basicEventId }) => basicEventId === "be-c");
     expect(adapted.modelSnapshot["nodePositions"]).toEqual([
       { nodeId: childTopId, position: { x: 20, y: 30 } },
@@ -855,9 +999,10 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
       id: "et-1",
       methodType: "EVENT_TREE",
       revision: 3,
-      initiatingEventFrequency: { value: 0.01 },
+      initiatingEventFrequency: { expression: valued("PER_YEAR", 0.01) },
       hclConfiguration: { configuration: { modelId: "hcl-1" } },
     });
+    expect(adapted["initiatingEventFrequency"]).toEqual({ expression: valued("PER_YEAR", 0.01) });
     expect(adapted["functionalEvents"]).toEqual([
       { id: "fe-1", name: "First", order: 0 },
       { id: "fe-2", name: "Second", order: 1 },
@@ -936,8 +1081,8 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
   it("omits saved uncertainty before validating its contents on probability runs", () => {
     const mef = structuredClone(esqMef);
     const settings = mef.hclConfigurations[0]!.solverSettings;
-    settings.uncertainty = { sampleCount: 10, seed: 42, basicEventDistributions: [], cptRowDistributions: [],
-      cptGenerators: [{ generator: { family: "UNREVIEWED" } }] } as unknown as NonNullable<typeof settings.uncertainty>;
+    settings.uncertainty = { sampleCount: 10, seed: 42, sampler: "MC", basicEvents: [], cptRows: [],
+      cptGenerators: [{ generator: { kind: "UNREVIEWED" } }] };
     const before = structuredClone(mef);
     const source = { workbookId: "esq-1", workbookRevision: 9, mef };
     expect(adaptEsqHclSnapshot(source, "hcl-1")["solverSettings"]).not.toHaveProperty("uncertainty");
@@ -995,9 +1140,7 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     ]);
   });
 
-  // Execution validation uses real workbook identities and current references.
-  const uncertaintyFixture = () => {
-    const ids: Record<string, string> = {
+  const ids: Record<string, string> = {
     "bn-1": "b8fcb955-7ed8-54dc-8547-b21211f35650",
     "node-1": "726a04e3-a685-5681-ac94-efe34c05944e",
     "ft-1": "0635ed46-91fc-51be-a5c5-02f675f3fb9b",
@@ -1009,95 +1152,190 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     "false": "dcd6ab13-3645-5ece-90c0-8a4e6fcb808a",
     "true": "7ae29d4a-ad3d-5579-9252-1060b79fba57",
     "root-row": "d3f8ce23-70e1-5d1c-8a57-c7f5f76fb893",
-    "row-1": "769c6a5d-266d-5653-8444-e46aadeff59b"
-};
-    return JSON.parse(JSON.stringify(esqMef, (_key, value) => typeof value === "string"
+    "row-1": "769c6a5d-266d-5653-8444-e46aadeff59b",
+  };
+  const uncertaintyFixture = (): EventSequenceQuantification =>
+    JSON.parse(JSON.stringify(esqMef, (_key, value) => typeof value === "string"
       ? value === "FAULT_TREE_BASIC_EVENT_CATALOGUE" ? "FAULT_TREE_BASIC_EVENT" : ids[value] ?? value
       : value)) as EventSequenceQuantification;
+  const node = {
+    referenceType: "BAYESIAN_NETWORK_NODE" as const,
+    workbookId: "esq-1",
+    modelId: ids["bn-1"]!,
+    entityId: ids["node-1"]!,
+  };
+  const nativeNode = { modelId: ids["bn-1"]!, entityId: ids["node-1"]! };
+  const adaptUncertainty = (
+    settings: HclUncertaintySettings,
+    sources: Parameters<typeof adaptEsqHclSnapshot>[5] = {},
+  ): PraxisModelSnapshot => {
+    const mef = uncertaintyFixture();
+    mef.hclConfigurations[0]!.solverSettings.uncertainty = settings;
+    return adaptEsqHclSnapshot(
+      { workbookId: "esq-1", workbookRevision: 9, mef },
+      ids["hcl-1"]!,
+      "UNCERTAINTY",
+      undefined,
+      undefined,
+      sources,
+    );
   };
 
-  it.each(([undefined, "MC", "LHS"] as const).flatMap((sampler) => (["BETA", "DIRICHLET"] as const).map((family) => [sampler, family] as const)))("adapts CPT priors with sampler %s / %s into the PRAXIS HCL snapshot", (sampler, family) => {
-    const prior = family === "BETA" ? { family, alpha: 2, beta: 8, trueStateId: "123e4567-e89b-42d3-a456-426614174702" } as const : { family, alpha: [80, 20] };
-    const mef = uncertaintyFixture();
-    mef.hclConfigurations[0]!.solverSettings.uncertainty = {
+  it.each(["MC", "LHS"] as const)("adapts %s basic-event overrides and CPT rows with their parameter tables", (sampler) => {
+    const override = estimate("override-b", { unit: "PROBABILITY", law: { family: "BETA", alpha: 2, beta: 18, lower: 0, upper: 1 } });
+    const row: UncertainVectorParameter = { reference: daReference("row-prior"), vector: { family: "DIRICHLET", concentrations: [80, 20] } };
+    const settings: HclUncertaintySettings = {
       sampleCount: 500,
       seed: 2026,
-      sampler: sampler,
-      cptProbabilityClipEpsilon: 0.01,
-      basicEventDistributions: [{
-        faultTreeBasicEvent: {
-          referenceType: "FAULT_TREE_BASIC_EVENT",
-          workbookId: "sy-1",
-          entityId: "1e86ecf0-df01-5bde-8d0c-39df2d5947d1",
-        },
-        distribution: { family: "BETA", alpha: 2, beta: 18 },
+      sampler,
+      basicEvents: [{
+        faultTreeBasicEvent: { referenceType: "FAULT_TREE_BASIC_EVENT", workbookId: "sy-1", entityId: ids["be-b"]! },
+        expression: reading("override-b"),
       }],
-      cptRowDistributions: [{
-        bayesianNetworkNode: {
-          referenceType: "BAYESIAN_NETWORK_NODE",
-          workbookId: "esq-1",
-          modelId: "b8fcb955-7ed8-54dc-8547-b21211f35650",
-          entityId: "726a04e3-a685-5681-ac94-efe34c05944e",
-        },
-        cptRowId: "769c6a5d-266d-5653-8444-e46aadeff59b",
-        prior,
-      }],
+      cptRows: [
+        { bayesianNetworkNode: node, cptRowId: ids["row-1"]!, row: { node: "PARAMETER", reference: daReference("row-prior") } },
+        { bayesianNetworkNode: node, cptRowId: ids["root-row"]!, row: { node: "VALUE", law: { family: "DIRICHLET", concentrations: [7, 3] } } },
+      ],
+      cptGenerators: [],
     };
-
-    const adapted = adaptEsqHclSnapshot(
-      { workbookId: "esq-1", workbookRevision: 9, mef },
-      "be2caff7-2730-5de2-9525-fc1564e9e73c",
-      "UNCERTAINTY",
-    );
-
-    expect(adapted["solverSettings"]).toMatchObject({
+    const mef = uncertaintyFixture();
+    mef.hclConfigurations[0]!.solverSettings.uncertainty = settings;
+    expect(collectHclUncertaintyReferences(mef.hclConfigurations[0]!, "UNCERTAINTY")).toEqual({
+      parameterReferences: [daReference("override-b")],
+      vectorReferences: [daReference("row-prior")],
+    });
+    expect(collectHclUncertaintyReferences(mef.hclConfigurations[0]!, "PROBABILITY")).toEqual({
+      parameterReferences: [],
+      vectorReferences: [],
+    });
+    expect(() => adaptUncertainty(settings, { parameters: parameterTable([override]) }))
+      .toThrow(expect.objectContaining({ code: "UNCERTAINTY_PARAMETER_UNRESOLVED", details: { reference: daReference("row-prior") } }));
+    expect(adaptUncertainty(settings, { parameters: parameterTable([override]), vectors: vectorTable([row]) })["solverSettings"]).toEqual({
+      variableOrder: null,
+      foldConstants: true,
+      spliceNullGates: true,
       uncertainty: {
         sampleCount: 500,
         seed: 2026,
-        sampler: sampler ?? "MC",
-        cptProbabilityClipEpsilon: 0.01,
-        basicEventDistributions: [{
-          faultTreeBasicEvent: { entityId: "1e86ecf0-df01-5bde-8d0c-39df2d5947d1" },
-          distribution: { family: "BETA", alpha: 2, beta: 18 },
-        }],
-        cptRowDistributions: [{
-          bayesianNetworkNode: { modelId: "b8fcb955-7ed8-54dc-8547-b21211f35650", entityId: "726a04e3-a685-5681-ac94-efe34c05944e" },
-          cptRowId: "769c6a5d-266d-5653-8444-e46aadeff59b",
-          prior,
-        }],
+        sampler,
+        basicEvents: [{ faultTreeBasicEvent: { entityId: ids["be-b"] }, expression: reading("override-b") }],
+        cptRows: [
+          { bayesianNetworkNode: nativeNode, cptRowId: ids["row-1"], row: { node: "PARAMETER", reference: daReference("row-prior") } },
+          { bayesianNetworkNode: nativeNode, cptRowId: ids["root-row"], row: { node: "VALUE", law: { family: "DIRICHLET", concentrations: [7, 3] } } },
+        ],
+        cptGenerators: [],
+        uncertaintyParameters: [override],
+        uncertaintyVectors: [row],
       },
     });
   });
 
-  it("normalizes the old FT sampler spelling without losing LHS", () => {
-    const mef = uncertaintyFixture();
-    mef.hclConfigurations[0]!.solverSettings.uncertainty = Object.assign({ sampleCount: 100, seed: 42, basicEventDistributions: [], cptRowDistributions: [] }, { basicEventSampler: "LHS" });
-    const adapted = adaptEsqHclSnapshot({ workbookId: "esq-1", workbookRevision: 9, mef }, "be2caff7-2730-5de2-9525-fc1564e9e73c", "UNCERTAINTY");
-    expect(adapted["solverSettings"]).toMatchObject({ uncertainty: { sampler: "LHS" } });
-    expect(JSON.stringify(adapted["solverSettings"])).not.toContain("basicEventSampler");
+  it("rejects the removed sampler alias, clip setting and prior fields", () => {
+    const base = { sampleCount: 100, seed: 42, sampler: "LHS", basicEvents: [], cptRows: [], cptGenerators: [] };
+    const drafts = [
+      { ...base, sampler: undefined, basicEventSampler: "LHS" },
+      { ...base, cptProbabilityClipEpsilon: 0.01 },
+      { ...base, basicEventDistributions: [] },
+      { ...base, cptRows: [{ bayesianNetworkNode: node, cptRowId: ids["row-1"], prior: { family: "DIRICHLET", alpha: [8, 2] } }] },
+      { ...base, cptRows: [{ bayesianNetworkNode: node, cptRowId: ids["row-1"], equivalentSampleSize: 100 }] },
+    ];
+    for (const draft of drafts) {
+      const mef = uncertaintyFixture();
+      Object.assign(mef.hclConfigurations[0]!.solverSettings, { uncertainty: draft });
+      expect(() => adaptEsqHclSnapshot({ workbookId: "esq-1", workbookRevision: 9, mef }, ids["hcl-1"]!, "UNCERTAINTY"))
+        .toThrow("Invalid uncertainty settings");
+    }
   });
 
-  it.each(["seismic_fragility", "seismic_pga_bins"] as const)("transports %s generator parameters unchanged", (type) => {
+  it.each(["SEISMIC_FRAGILITY", "SEISMIC_PGA_BINS"] as const)("flattens %s generators with their node and parameter tables", (kind) => {
     const a = "123e4567-e89b-42d3-a456-426614174702", b = "123e4567-e89b-42d3-a456-426614174703";
-    const generator = type === "seismic_fragility"
-      ? { type, pgaParentId: a, theta: .5, betaR: .3, betaU: .2, trueStateId: a, falseStateId: b, pgaCenters: [{ stateId: a, value: .5 }, { stateId: b, value: 0 }] }
-      : { type, noneStateId: b, missionTime: 1, frequencyToProbability: "linear" as const, bins: [{ stateId: a, medianFrequency: .01, errorFactor95: 2 }] };
-    const mef = uncertaintyFixture();
-    mef.hclConfigurations[0]!.solverSettings.uncertainty = { sampleCount: 513, seed: 42, sampler: "LHS", basicEventDistributions: [], cptRowDistributions: [], cptGenerators: [{ bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: "esq-1", modelId: "b8fcb955-7ed8-54dc-8547-b21211f35650", entityId: "726a04e3-a685-5681-ac94-efe34c05944e" }, generator }] };
-    const adapted = adaptEsqHclSnapshot({ workbookId: "esq-1", workbookRevision: 9, mef }, "be2caff7-2730-5de2-9525-fc1564e9e73c", "UNCERTAINTY");
-    expect(adapted["solverSettings"]).toMatchObject({ uncertainty: { sampler: "LHS", cptGenerators: [{ bayesianNetworkNode: { modelId: "b8fcb955-7ed8-54dc-8547-b21211f35650", entityId: "726a04e3-a685-5681-ac94-efe34c05944e" }, generator }] } });
-    Object.assign(generator, { type: "invented_generator" });
-    expect(() => adaptEsqHclSnapshot({ workbookId: "esq-1", workbookRevision: 9, mef }, "be2caff7-2730-5de2-9525-fc1564e9e73c", "UNCERTAINTY")).toThrow("Invalid uncertainty settings");
+    const median = estimate("median-a", { unit: "QUANTITY", law: { family: "LOGNORMAL", mean: 0.52, errorFactor: 1.4, level: 0.95 } });
+    const frequency = estimate("bin-a", { unit: "PER_YEAR", law: { family: "LOGNORMAL", mean: 0.011, errorFactor: 2, level: 0.95 } });
+    const generator = kind === "SEISMIC_FRAGILITY"
+      ? {
+          kind, pgaParentId: a, trueStateId: a, falseStateId: b,
+          median: reading("median-a"), randomness: valued("FACTOR", 0.3),
+          demands: [{ stateId: a, demand: 0.5 }, { stateId: b, demand: 0 }],
+        }
+      : {
+          kind, noneStateId: b, missionTime: valued("YEARS", 1), conversion: "LINEAR" as const,
+          bins: [{ stateId: a, frequency: reading("bin-a") }],
+        };
+    const settings: HclUncertaintySettings = {
+      sampleCount: 513, seed: 42, sampler: "LHS", basicEvents: [], cptRows: [],
+      cptGenerators: [{ bayesianNetworkNode: node, generator }],
+    };
+    const parameter = kind === "SEISMIC_FRAGILITY" ? median : frequency;
+    expect(adaptUncertainty(settings, { parameters: parameterTable([parameter]) })["solverSettings"]).toEqual({
+      variableOrder: null,
+      foldConstants: true,
+      spliceNullGates: true,
+      uncertainty: {
+        sampleCount: 513, seed: 42, sampler: "LHS", basicEvents: [], cptRows: [],
+        cptGenerators: [{ ...generator, bayesianNetworkNode: nativeNode }],
+        uncertaintyParameters: [parameter],
+        uncertaintyVectors: [],
+      },
+    });
+    expect(() => adaptUncertainty(settings)).toThrow(`Parameter 'da-1:${kind === "SEISMIC_FRAGILITY" ? "median-a" : "bin-a"}' could not be resolved`);
+    const invented = { ...settings, cptGenerators: [{ bayesianNetworkNode: node, generator: { ...generator, kind: "INVENTED_GENERATOR" } }] };
+    expect(() => adaptUncertainty(invented as HclUncertaintySettings)).toThrow("Invalid uncertainty settings");
   });
 
-  it("rejects an ESS-only CPT row before creating an executable snapshot", () => {
-    const mef = uncertaintyFixture();
-    const legacy = { sampleCount: 100, seed: 42, basicEventDistributions: [], cptRowDistributions: [{
-      bayesianNetworkNode: { referenceType: "BAYESIAN_NETWORK_NODE", workbookId: "esq-1", modelId: "b8fcb955-7ed8-54dc-8547-b21211f35650", entityId: "726a04e3-a685-5681-ac94-efe34c05944e" },
-      cptRowId: "769c6a5d-266d-5653-8444-e46aadeff59b", equivalentSampleSize: 100,
-    }] };
-    Object.assign(mef.hclConfigurations[0]!.solverSettings, { uncertainty: legacy });
-    expect(() => adaptEsqHclSnapshot({ workbookId: "esq-1", workbookRevision: 9, mef }, "be2caff7-2730-5de2-9525-fc1564e9e73c", "UNCERTAINTY")).toThrow("Invalid uncertainty settings");
+  it("collects initiator references and keeps the annualization of an event tree", () => {
+    const mef = structuredClone(esMef);
+    const tree = mef.eventTrees![0]!;
+    tree.initiatingEventFrequency = {
+      expression: {
+        node: "OPERATION",
+        operation: "MULTIPLY",
+        operands: [reading("loop-a"), valued("FACTOR", 2)],
+      },
+      annualization: { basis: "CRITICAL_YEAR", hoursPerYear: 7_000 },
+    };
+    const source = { workbookId: "es-1", workbookRevision: 3, mef };
+    expect(collectEsEventTreeReferences(source, ["et-1"])).toEqual({
+      parameterReferences: [daReference("loop-a")],
+      vectorReferences: [],
+    });
+    expect(adaptEsEventTreeSnapshot(source, "et-1")["initiatingEventFrequency"]).toEqual(tree.initiatingEventFrequency);
+    delete tree.initiatingEventFrequency;
+    expect(collectEsEventTreeReferences(source, ["et-1"])).toEqual({ parameterReferences: [], vectorReferences: [] });
+    expect(() => adaptEsEventTreeSnapshot(source, "et-1")).toThrow("has no initiating-event frequency");
+  });
+
+  it("builds a load and capacity snapshot with the tables its fields reach", () => {
+    const shared = estimate("capacity-mean", {
+      unit: "QUANTITY",
+      law: { family: "NORMAL", mean: 1800, standardDeviation: 20 },
+    });
+    const input = {
+      id: "cell-1",
+      revision: 4,
+      load: { law: { family: "NORMAL" as const, mean: 1500, standardDeviation: 50 }, fields: [] },
+      capacity: {
+        law: { family: "NORMAL" as const, mean: 1800, standardDeviation: 60 },
+        fields: [{ field: "mean", value: reading("capacity-mean") }],
+      },
+      unit: "degC",
+    };
+    expect(collectLoadCapacityReferences(input)).toEqual({ parameterReferences: [daReference("capacity-mean")], vectorReferences: [] });
+    expect(() => adaptLoadCapacitySnapshot(input))
+      .toThrow(expect.objectContaining({ code: "UNCERTAINTY_PARAMETER_UNRESOLVED" }));
+    const snapshot = adaptLoadCapacitySnapshot(input, { parameters: parameterTable([shared]) });
+    expect(snapshot).toEqual({
+      id: "cell-1",
+      methodType: "LOAD_CAPACITY",
+      revision: 4,
+      load: input.load,
+      capacity: input.capacity,
+      unit: "degC",
+      uncertaintyParameters: [shared],
+      uncertaintyVectors: [],
+    });
+    expect(LoadCapacityModelSnapshotSchema.safeParse(snapshot).success).toBe(true);
+    const { unit: _unit, ...withoutUnit } = input;
+    expect(adaptLoadCapacitySnapshot(withoutUnit, { parameters: parameterTable([shared]) })).not.toHaveProperty("unit");
   });
 
   it("fails deterministically when a requested workbook model cannot be resolved", () => {

@@ -9,7 +9,11 @@
 #include "windows_math.h"
 #endif
 #include <boost/math/special_functions/beta.hpp>
+#include <boost/math/special_functions/gamma.hpp>
+#include <xsf/cephes/ndtr.h>
 #include <xsf/cephes/ndtri.h>
+#include <xsf/cephes/gamma.h>
+#include <xsf/cephes/igam.h>
 #include <xsf/cephes/igami.h>
 #include <xsf/cephes/unity.h>
 
@@ -36,29 +40,43 @@ RealType user_overflow_error(const char*, const char*, const RealType&) {
 }
 }}}
 
+namespace {
+using namespace boost::math::policies;
+using StatsPolicy = policy<domain_error<ignore_error>,
+    overflow_error<user_error>, evaluation_error<user_error>,
+    promote_double<false>>;
+}
+
 extern "C" {
-struct HclQuantileResult { double value; int status; };
+struct PraxisSpecialResult { double value; int status; };
 
 // CPython math.erf also delegates to the platform C math function.
-double hcl_math_erf(double x) noexcept { return std::erf(x); }
+double praxis_math_erf(double x) noexcept { return std::erf(x); }
 
-HclQuantileResult hcl_scipy_quantile(int family, double q, double a, double b) noexcept {
+PraxisSpecialResult praxis_special_function(int function, double x, double a, double b) noexcept {
     kernel_status = 0;
     double value = std::numeric_limits<double>::quiet_NaN();
     try {
-        if (family == 0) {
-            using namespace boost::math::policies;
-            using BetaPolicyForStats = policy<domain_error<ignore_error>,
-                overflow_error<user_error>, evaluation_error<user_error>,
-                promote_double<false>>;
-            value = boost::math::ibeta_inv(a, b, q, BetaPolicyForStats());
-        } else if (family == 1) {
-            value = xsf::cephes::ndtri(q);
-        } else if (family == 2) {
-            value = xsf::cephes::igami(a, q);
-        } else if (family == 3) {
-            // scipy.stats.expon._ppf: -scipy.special.log1p(-q).
-            value = -xsf::cephes::log1p(-q);
+        switch (function) {
+        case 0: value = boost::math::ibeta_inv(a, b, x, StatsPolicy()); break;
+        case 1: value = xsf::cephes::ndtri(x); break;
+        case 2: value = xsf::cephes::igami(a, x); break;
+        // scipy.stats.expon._ppf: -scipy.special.log1p(-q).
+        case 3: value = -xsf::cephes::log1p(-x); break;
+        case 4: value = boost::math::ibeta(a, b, x, StatsPolicy()); break;
+        case 5: value = boost::math::ibetac(a, b, x, StatsPolicy()); break;
+        case 6: value = boost::math::ibetac_inv(a, b, x, StatsPolicy()); break;
+        case 7: value = boost::math::ibeta_derivative(a, b, x, StatsPolicy()); break;
+        case 8: value = xsf::cephes::igam(a, x); break;
+        case 9: value = xsf::cephes::igamc(a, x); break;
+        case 10: value = xsf::cephes::igamci(a, x); break;
+        case 11: value = boost::math::gamma_p_derivative(a, x, StatsPolicy()); break;
+        case 12: value = xsf::cephes::ndtr(x); break;
+        case 13: value = xsf::cephes::log1p(x); break;
+        case 14: value = xsf::cephes::expm1(x); break;
+        case 15: value = xsf::cephes::Gamma(x); break;
+        case 16: value = xsf::cephes::lgam(x); break;
+        default: kernel_status = 2; break;
         }
     } catch (const std::overflow_error&) {
         value = std::numeric_limits<double>::infinity();

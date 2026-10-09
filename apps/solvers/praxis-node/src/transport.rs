@@ -34,7 +34,14 @@ impl SolverRequest {
         }
         if !matches!(
             request.request["methodType"].as_str(),
-            Some("FAULT_TREE" | "BAYESIAN_NETWORK" | "EVENT_TREE" | "HYBRID_CAUSAL_LOGIC")
+            Some(
+                "FAULT_TREE"
+                    | "BAYESIAN_NETWORK"
+                    | "EVENT_TREE"
+                    | "HYBRID_CAUSAL_LOGIC"
+                    | "LOAD_CAPACITY"
+                    | "UNCERTAINTY"
+            )
         ) {
             return Err(TransportError::UnsupportedMethodType {
                 received: request.request["methodType"].clone(),

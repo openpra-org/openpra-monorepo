@@ -20,10 +20,10 @@ mod uncertainty;
 
 pub use analysis::{
     analyze_hcl, quantify_hcl_batch, quantify_hcl_hazard_grid_batch, HclAnalysisResult,
-    HclAnalysisSettings, HclBasicEventUncertaintySpec, HclBatchCompilationStats, HclBatchResult,
-    HclCptGenerator, HclCptGeneratorSpec, HclCptPrior, HclCptRowUncertaintySpec,
-    HclHazardGridBatchResult, HclPgaBin, HclPgaCenter, HclPgaFrequencyConversion,
-    HclProbabilityDistribution, HclSampler, HclUncertaintySettings, HclUncertaintySummary,
+    HclAnalysisSettings, HclBasicEventUncertainty, HclBatchCompilationStats, HclBatchResult,
+    HclCptGenerator, HclCptGeneratorSpec, HclCptRowUncertainty, HclFragilityDemand,
+    HclHazardGridBatchResult, HclPgaBin, HclPgaFrequencyConversion, HclSampler,
+    HclUncertaintySettings, HclUncertaintySummary,
 };
 pub use api::quantify_hcl;
 pub use bayesian::{

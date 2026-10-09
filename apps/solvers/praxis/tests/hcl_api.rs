@@ -4,7 +4,7 @@ use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::{Formula, Gate};
 use praxis::hcl::{
     analyze_hcl, parse_xdsl, quantify_hcl, CanonicalBayesianNetwork, CanonicalBayesianVariable,
-    HclAnalysisSettings, HclBindingSpec, HclCptRowUncertaintySpec, HclEvidenceSpec, HclModel,
+    HclAnalysisSettings, HclBindingSpec, HclEvidenceSpec, HclModel,
     HclRequest, HclSettings, HclUncertaintySettings,
 };
 use tensorbayes::{EvidenceBatch, ExecutionEngine};
@@ -238,19 +238,22 @@ fn hcl_uncertainty_samples_bn_parameters_inside_praxis() {
     .with_bindings(bindings());
     let settings = HclAnalysisSettings {
         uncertainty: Some(HclUncertaintySettings {
-            cpt_generators: vec![],
-            sampler: Default::default(),
-            cpt_probability_clip_epsilon: 0.0,
             sample_count: 500,
             seed: 2026,
-            basic_event_distributions: vec![],
-            cpt_row_distributions: vec![HclCptRowUncertaintySpec {
+            sampler: praxis::hcl::HclSampler::MonteCarlo,
+            basic_events: vec![],
+            cpt_rows: vec![praxis::hcl::HclCptRowUncertainty {
                 node: "B".to_string(),
                 row_index: 1,
-                prior: praxis::hcl::HclCptPrior::Dirichlet {
-                    alpha: vec![5.0, 20.0],
+                row: praxis::core::distribution::UncertainVector::Value {
+                    law: praxis::core::distribution::VectorLaw::Dirichlet {
+                        concentrations: vec![5.0, 20.0],
+                    },
                 },
             }],
+            cpt_generators: vec![],
+            uncertainty_parameters: vec![],
+            uncertainty_vectors: vec![],
         }),
         ..HclAnalysisSettings::default()
     };

@@ -12,8 +12,24 @@ import {
   GEN_RC_FREQUENCY,
 } from "./es-seed-dynamic.generated";
 import { createExampleDependencyEventTree } from "./dependency-model-seed";
+import { withSystemTops } from "./es-seed-system-tops";
+import { SY_ANALYSIS } from "./sy-seed";
 
 const NOW = "2026-04-22T12:00:00.000Z";
+
+const FUNCTION_SYSTEMS: Record<string, string> = {
+  RT: "SYS-RPS",
+  NC: "SYS-PRIMARY",
+  SDHR: "SYS-SDHR",
+  DRACS: "SYS-DRACS",
+  ISOL: "SYS-ISOL",
+  DETECT: "SYS-DETECT",
+  MAKEUP: "SYS-MAKEUP",
+  SUPP: "SYS-SUPP",
+  CONF: "SYS-CONF",
+};
+
+const LINKED_EVENT_TREES = withSystemTops(GEN_EVENT_TREES, SY_ANALYSIS, "example-sy-sfr", (_tree, functionId) => FUNCTION_SYSTEMS[functionId]);
 
 export const ES_ANALYSIS: EventSequenceAnalysis = {
   uuid: "es-generic-1",
@@ -101,7 +117,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
     { uuid: "ESF-EARLY", name: "Confinement failure, early release", groupingCriteriaId: "GC-1", representativeInitiatingEventId: "IEG-12", representativePlantOperatingStateId: "POS-05", representativePlantResponse: "DHR and confinement both fail, giving the earliest and largest release.", releaseCategoryIds: ["RC-1"], memberSequenceIds: GEN_FAMILY_MEMBERS["ESF-EARLY"], endState: EndState.RADIONUCLIDE_RELEASE, meanFrequency: GEN_FAMILY_FREQUENCY["ESF-EARLY"], similarityBasis: "At CC-II, confirm ESL-4 and ESR-5 (different timing) are not hidden by the chosen worst-case sequence.", implementsSrs: [] },
     { uuid: "ESF-ATWS", name: "Unprotected (ATWS) transients", groupingCriteriaId: "GC-1", representativeInitiatingEventId: "IEG-08", representativePlantOperatingStateId: "POS-01", representativePlantResponse: "The reactor fails to trip; inherent reactivity feedback is credited in the dedicated ATWS tree before the release is resolved.", releaseCategoryIds: ["RC-1"], memberSequenceIds: GEN_FAMILY_MEMBERS["ESF-ATWS"], endState: EndState.RADIONUCLIDE_RELEASE, meanFrequency: GEN_FAMILY_FREQUENCY["ESF-ATWS"], similarityBasis: "Transfers to the ATWS tree (ES-A13); frequency is provisional until that tree is quantified in ESQ.", implementsSrs: [] },
   ],
-  eventTrees: [...GEN_EVENT_TREES, createExampleDependencyEventTree()],
+  eventTrees: [...LINKED_EVENT_TREES, createExampleDependencyEventTree()],
   dynamicRuns: GEN_DYNAMIC_RUNS,
   operatorActionWindows: [
     {
@@ -178,7 +194,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
         involvedSystems: ["DRACS", "Class-1E DC power", "RPS", "Intermediate loop", "Guard vessel"],
         dependencies: [
           { uuid: "DEP-1", dependentElement: "DRACS dampers", dependedUponElement: "Class-1E DC power", dependencyType: DependencyType.FUNCTIONAL, description: "All three DRACS air dampers fail open on loss of DC power, but their position read-out and auto-start signal share the same DC bus that also feeds the RPS logic.", applicableInitiatingEvents: ["IEG-03", "IEG-01", "IEG-07"], timePhased: false, importanceLevel: ImportanceLevel.HIGH, implementsSrs: [] },
-          { uuid: "DEP-2", dependentElement: "DRACS loops A/B/C", dependedUponElement: "Shared sodium-to-air design", dependencyType: DependencyType.COMMON_CAUSE, description: "The three DRACS loops are identical passive sodium-to-air heat exchangers, so one shared cause such as air-side blockage or freezing can fail all three, handled with common-cause (CCF) alpha factors.", applicableInitiatingEvents: ["IEG-03", "IEG-01", "IEG-07"], timePhased: false, importanceLevel: ImportanceLevel.HIGH, implementsSrs: [] },
+          { uuid: "DEP-2", dependentElement: "DRACS loops A/B/C", dependedUponElement: "Shared sodium-to-air design", dependencyType: DependencyType.COMMON_CAUSE, description: "The three DRACS loops are identical passive sodium-to-air heat exchangers, so one shared cause such as air-side blockage or freezing can fail all three, handled with common-cause (CCF) factors from alpha-factor data.", applicableInitiatingEvents: ["IEG-03", "IEG-01", "IEG-07"], timePhased: false, importanceLevel: ImportanceLevel.HIGH, implementsSrs: [] },
           { uuid: "DEP-3", dependentElement: "Align backup DHR (HFE-12)", dependedUponElement: "Diagnose loss of heat sink (HFE-08)", dependencyType: DependencyType.HUMAN, description: "The operator can only line up the backup decay-heat path if the earlier diagnosis worked, so the two linked actions share one joint human-error probability.", applicableInitiatingEvents: ["IEG-03"], timePhased: true, importanceLevel: ImportanceLevel.MEDIUM, implementsSrs: [] },
           { uuid: "DEP-4", dependentElement: "Sodium-pool fire", dependedUponElement: "DRACS actuation + RPS cabling", dependencyType: DependencyType.PHENOMENOLOGICAL, description: "A sodium leak that catches fire makes the primary cell hot and smoky, damaging cable trays shared by DRACS start-up and the RPS, treated as a phenomenological link rather than a separate failure.", applicableInitiatingEvents: ["IEG-07", "IEG-03"], timePhased: true, importanceLevel: ImportanceLevel.HIGH, implementsSrs: [] },
           { uuid: "DEP-5", dependentElement: "Intermediate-loop pumps", dependedUponElement: "Shared maintenance window", dependencyType: DependencyType.OPERATIONAL, description: "Both intermediate-loop pumps are serviced in the same outage, so the chance of both being out for maintenance is handled as a state-dependent split fraction in POS-04.", applicableInitiatingEvents: ["IEG-03"], timePhased: false, importanceLevel: ImportanceLevel.LOW, implementsSrs: [] },

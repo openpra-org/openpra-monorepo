@@ -23,10 +23,26 @@ import { type GenericInitiatorCatalogue } from "interfaces-mef-types/cross-cutti
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type SRConformance, type SRReference } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel, ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
-import { FrequencyUnit, DistributionType } from "interfaces-mef-types/core/events";
+import { FrequencyUnit, type UncertainFrequency } from "interfaces-mef-types/core/events";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 
 function sr(code: string, hlr: SRReference["hlr"]): SRReference {
   return { sr: code, hlr };
+}
+
+const DA_LINK_ID = "example-da-htgr";
+
+function daLink(entityId: string): WorkbookParameterReference {
+  return { referenceType: "WORKBOOK_PARAMETER", workbookId: DA_LINK_ID, entityId };
+}
+
+function daFrequency(entityId: string): UncertainFrequency {
+  return { expression: { node: "PARAMETER", reference: daLink(entityId) }, basis: FrequencyUnit.PER_PLANT_YEAR };
+}
+
+function lognormalFrequency(mean: number, errorFactor: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "LOGNORMAL", mean, errorFactor, level: 0.95 } } };
 }
 
 const BOTH: SRConformance["applicableToStage"] = ["OPERATIONAL", "PRE_OPERATIONAL"];
@@ -2534,7 +2550,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-07"],
-    meanFrequency: { value: 2.943, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [2.53, 2.3] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-01"),
+    controlledDataSource: daLink("DA-IE-01"),
     riskImportance: ImportanceLevel.HIGH,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2550,7 +2567,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat"],
     applicableStates: ["POS-04", "POS-05", "POS-07", "POS-09"],
-    meanFrequency: { value: 0.054, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.02016, 10.1] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-02"),
+    controlledDataSource: daLink("DA-IE-02"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2566,7 +2584,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat", "Control reactivity"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-06", "POS-07", "POS-08"],
-    meanFrequency: { value: 0.0975, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.07786, 2.8] }, source: "Step-09 quantification, GENERIC_DATA basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-03"),
+    controlledDataSource: daLink("DA-IE-03"),
     riskImportance: ImportanceLevel.HIGH,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2582,7 +2601,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Control reactivity", "Remove core heat", "Maintain radionuclide barriers"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-06", "POS-08"],
-    meanFrequency: { value: 0.023, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.01213, 6] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-04"),
+    controlledDataSource: daLink("DA-IE-04"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2598,7 +2618,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat", "Maintain radionuclide barriers"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-08"],
-    meanFrequency: { value: 0.12, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.07201, 4.7] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-05"),
+    controlledDataSource: daLink("DA-IE-05"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2614,7 +2635,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Control reactivity"],
     applicableStates: ["POS-01", "POS-02", "POS-03"],
-    meanFrequency: { value: 0.015, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.007759, 6] }, source: "Step-09 quantification, DESIGN_BASED basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-06"),
+    controlledDataSource: daLink("DA-IE-06"),
     riskImportance: ImportanceLevel.LOW,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2630,7 +2652,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Control reactivity", "Remove core heat"],
     applicableStates: ["POS-01", "POS-02", "POS-03"],
-    meanFrequency: { value: 0.0165, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.009667, 4.7] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-07"),
+    controlledDataSource: daLink("DA-IE-07"),
     riskImportance: ImportanceLevel.LOW,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2646,7 +2669,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Control reactivity"],
     applicableStates: ["POS-03", "POS-05", "POS-06"],
-    meanFrequency: { value: 0.0145, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.007447, 6.1] }, source: "Step-09 quantification, GENERIC_DATA basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-08"),
+    controlledDataSource: daLink("DA-IE-08"),
     riskImportance: ImportanceLevel.LOW,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2662,7 +2686,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Maintain radionuclide barriers", "Remove core heat"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-08"],
-    meanFrequency: { value: 0.01, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.003753, 10.1] }, source: "Step-09 quantification, DESIGN_BASED basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-09"),
+    controlledDataSource: daLink("DA-IE-09"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2678,7 +2703,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Maintain radionuclide barriers", "Remove core heat"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-08"],
-    meanFrequency: { value: 0.003, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.0009389, 10.7] }, source: "Step-09 quantification, DESIGN_BASED basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-10"),
+    controlledDataSource: daLink("DA-IE-10"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2694,7 +2720,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat", "Maintain radionuclide barriers", "Limit chemical attack (air/water ingress)"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-08"],
-    meanFrequency: { value: 5e-05, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [9.557e-06, 20] }, source: "Step-09 quantification, DESIGN_BASED basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-11"),
+    controlledDataSource: daLink("DA-IE-11"),
     riskImportance: ImportanceLevel.HIGH,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2710,7 +2737,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Maintain radionuclide barriers", "Remove core heat"],
     applicableStates: ["POS-04", "POS-05", "POS-08"],
-    meanFrequency: { value: 0.018, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.006729, 10] }, source: "Step-09 quantification, GENERIC_DATA basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-12"),
+    controlledDataSource: daLink("DA-IE-12"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2726,7 +2754,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Limit chemical attack (air/water ingress)", "Control reactivity"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04"],
-    meanFrequency: { value: 0.01363, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.00922, 4.1] }, source: "Step-09 quantification, GENERIC_DATA basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-13"),
+    controlledDataSource: daLink("DA-IE-13"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2742,7 +2771,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Limit chemical attack (air/water ingress)", "Control reactivity", "Maintain radionuclide barriers"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05"],
-    meanFrequency: { value: 0.0055, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.003258, 4.8] }, source: "Step-09 quantification, GENERIC_DATA basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-14"),
+    controlledDataSource: daLink("DA-IE-14"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2758,7 +2788,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Limit chemical attack (air/water ingress)", "Maintain radionuclide barriers", "Control reactivity"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04"],
-    meanFrequency: { value: 8e-05, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [9.48e-06, 29.9] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-15"),
+    controlledDataSource: daLink("DA-IE-15"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2774,7 +2805,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Limit chemical attack (air/water ingress)", "Remove core heat"],
     applicableStates: ["POS-04", "POS-05", "POS-06", "POS-08"],
-    meanFrequency: { value: 0.006, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.002253, 10] }, source: "Step-09 quantification, GENERIC_DATA basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-16"),
+    controlledDataSource: daLink("DA-IE-16"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2790,7 +2822,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Maintain radionuclide barriers"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-06"],
-    meanFrequency: { value: 0.008, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.004207, 6] }, source: "Step-09 quantification, DESIGN_BASED basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-17"),
+    controlledDataSource: daLink("DA-IE-17"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2806,7 +2839,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Maintain radionuclide barriers"],
     applicableStates: ["POS-06"],
-    meanFrequency: { value: 0.008, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.004215, 5.9] }, source: "Step-09 quantification, GENERIC_DATA basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-18"),
+    controlledDataSource: daLink("DA-IE-18"),
     riskImportance: ImportanceLevel.LOW,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2822,7 +2856,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat", "Maintain radionuclide barriers"],
     applicableStates: ["POS-05", "POS-06", "POS-08"],
-    meanFrequency: { value: 0.01, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.003756, 9.9] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-19"),
+    controlledDataSource: daLink("DA-IE-19"),
     riskImportance: ImportanceLevel.LOW,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2838,7 +2873,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Limit chemical attack (air/water ingress)", "Maintain radionuclide barriers", "Control reactivity", "Remove core heat"],
     applicableStates: ["POS-01", "POS-02", "POS-03"],
-    meanFrequency: { value: 0.0008, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.0001525, 20.1] }, source: "Step-09 quantification, DESIGN_BASED basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-20"),
+    controlledDataSource: daLink("DA-IE-20"),
     riskImportance: ImportanceLevel.HIGH,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -2854,7 +2890,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Maintain radionuclide barriers"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-08"],
-    meanFrequency: { value: 0.03, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.01136, 9.9] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-21"),
+    controlledDataSource: daLink("DA-IE-21"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -3241,38 +3278,52 @@ function buildGroupFaultTree(q: InitiatingEventFrequencyQuantification): Frequen
   return [top, ...children];
 }
 
+const GROUP_LOGNORMALS: Record<string, { mean: number; errorFactor: number }> = {
+  "IEG-01": { mean: 2.943, errorFactor: 2.3 },
+  "IEG-02": { mean: 0.054, errorFactor: 10.1 },
+  "IEG-03": { mean: 0.0975, errorFactor: 2.8 },
+  "IEG-04": { mean: 0.023, errorFactor: 6 },
+  "IEG-05": { mean: 0.12, errorFactor: 4.7 },
+  "IEG-06": { mean: 0.015, errorFactor: 6 },
+  "IEG-07": { mean: 0.0165, errorFactor: 4.7 },
+  "IEG-08": { mean: 0.0145, errorFactor: 6.1 },
+  "IEG-09": { mean: 0.01, errorFactor: 10.1 },
+  "IEG-10": { mean: 0.003, errorFactor: 10.7 },
+  "IEG-11": { mean: 5e-5, errorFactor: 20 },
+  "IEG-12": { mean: 0.018, errorFactor: 10 },
+  "IEG-13": { mean: 0.01363, errorFactor: 4.1 },
+  "IEG-14": { mean: 0.0055, errorFactor: 4.8 },
+  "IEG-15": { mean: 8e-5, errorFactor: 29.9 },
+  "IEG-16": { mean: 0.006, errorFactor: 10 },
+  "IEG-17": { mean: 0.008, errorFactor: 6 },
+  "IEG-18": { mean: 0.008, errorFactor: 5.9 },
+  "IEG-19": { mean: 0.01, errorFactor: 9.9 },
+  "IEG-20": { mean: 0.0008, errorFactor: 20.1 },
+  "IEG-21": { mean: 0.03, errorFactor: 9.9 },
+};
+
 function withDataSources(q: InitiatingEventFrequencyQuantification): InitiatingEventFrequencyQuantification {
-  const mf = q.meanFrequency;
-  const value = typeof mf === "number" ? mf : mf.value;
-  const dist = typeof mf === "object" ? mf.distribution : undefined;
-  const ef = dist?.parameters[1] ?? 3;
-  const sigma = Math.log(ef) / 1.645;
-  const median = value / Math.exp((sigma * sigma) / 2);
-  const source: FrequencyDataSource = {
+  const published = GROUP_LOGNORMALS[q.initiatorOrGroupId];
+  if (published === undefined) throw new Error(`The IE example has no published frequency for ${q.initiatorOrGroupId}.`);
+  if (q.basis === "OPERATING_DATA") throw new Error(`The IE example has no event counts for ${q.initiatorOrGroupId}.`);
+  const estimate = lognormalFrequency(published.mean, published.errorFactor);
+  const base: FrequencyDataSource = {
     uuid: "DS-1",
     label: QUANT_SOURCE_LABEL[q.basis],
     basis: q.basis,
     perModule: false,
     sourceReference: QUANT_SOURCE_REFERENCE[q.basis],
   };
-  if (q.basis === "FAULT_TREE") {
-    source.faultTreeTopMean = value;
-    source.faultTree = buildGroupFaultTree(q);
-  } else if (q.basis === "OPERATING_DATA") {
-    source.distributionFamily = "POINT";
-    source.distributionParameters = [value];
-  } else {
-    source.distributionFamily = "LOGNORMAL";
-    source.distributionParameters = [median, ef];
-    source.pedigree = QUANT_SOURCE_PEDIGREE[q.basis];
-  }
+  const source: FrequencyDataSource = q.basis === "FAULT_TREE"
+    ? { ...base, faultTreeTop: estimate, faultTree: buildGroupFaultTree(q) }
+    : { ...base, estimate, pedigree: QUANT_SOURCE_PEDIGREE[q.basis] };
   return { ...q, dataSources: [source], primaryDataSourceId: "DS-1" };
 }
 
 const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   {
     initiatorOrGroupId: "IEG-01",
-    meanFrequency: { value: 2.943, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [2.53, 2.3] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-01"),
     basis: "FAULT_TREE",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3300,7 +3351,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-02",
-    meanFrequency: { value: 0.054, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.02016, 10.1] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-02"),
     basis: "FAULT_TREE",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3325,7 +3376,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-03",
-    meanFrequency: { value: 0.0975, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.07786, 2.8] }, source: "Step-09 quantification, GENERIC_DATA basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-03"),
     basis: "GENERIC_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3345,7 +3396,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-04",
-    meanFrequency: { value: 0.023, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.01213, 6] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-04"),
     basis: "FAULT_TREE",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3370,7 +3421,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-05",
-    meanFrequency: { value: 0.12, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.07201, 4.7] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-05"),
     basis: "FAULT_TREE",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3395,7 +3446,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-06",
-    meanFrequency: { value: 0.015, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.007759, 6] }, source: "Step-09 quantification, DESIGN_BASED basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-06"),
     basis: "DESIGN_BASED",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3415,7 +3466,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-07",
-    meanFrequency: { value: 0.0165, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.009667, 4.7] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-07"),
     basis: "FAULT_TREE",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3443,7 +3494,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-08",
-    meanFrequency: { value: 0.0145, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.007447, 6.1] }, source: "Step-09 quantification, GENERIC_DATA basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-08"),
     basis: "GENERIC_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3467,7 +3518,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-09",
-    meanFrequency: { value: 0.01, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.003753, 10.1] }, source: "Step-09 quantification, DESIGN_BASED basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-09"),
     basis: "DESIGN_BASED",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3483,7 +3534,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-10",
-    meanFrequency: { value: 0.003, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.0009389, 10.7] }, source: "Step-09 quantification, DESIGN_BASED basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-10"),
     basis: "DESIGN_BASED",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3505,7 +3556,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-11",
-    meanFrequency: { value: 5e-05, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [9.557e-06, 20] }, source: "Step-09 quantification, DESIGN_BASED basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-11"),
     basis: "DESIGN_BASED",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3527,7 +3578,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-12",
-    meanFrequency: { value: 0.018, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.006729, 10] }, source: "Step-09 quantification, GENERIC_DATA basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-12"),
     basis: "GENERIC_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3551,7 +3602,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-13",
-    meanFrequency: { value: 0.01363, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.00922, 4.1] }, source: "Step-09 quantification, GENERIC_DATA basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-13"),
     basis: "GENERIC_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3571,7 +3622,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-14",
-    meanFrequency: { value: 0.0055, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.003258, 4.8] }, source: "Step-09 quantification, GENERIC_DATA basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-14"),
     basis: "GENERIC_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3595,7 +3646,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-15",
-    meanFrequency: { value: 8e-05, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [9.48e-06, 29.9] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-15"),
     basis: "FAULT_TREE",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3626,7 +3677,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-16",
-    meanFrequency: { value: 0.006, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.002253, 10] }, source: "Step-09 quantification, GENERIC_DATA basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-16"),
     basis: "GENERIC_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3646,7 +3697,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-17",
-    meanFrequency: { value: 0.008, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.004207, 6] }, source: "Step-09 quantification, DESIGN_BASED basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-17"),
     basis: "DESIGN_BASED",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3662,7 +3713,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-18",
-    meanFrequency: { value: 0.008, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.004215, 5.9] }, source: "Step-09 quantification, GENERIC_DATA basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-18"),
     basis: "GENERIC_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3686,7 +3737,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-19",
-    meanFrequency: { value: 0.01, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.003756, 9.9] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-19"),
     basis: "FAULT_TREE",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3711,7 +3762,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-20",
-    meanFrequency: { value: 0.0008, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.0001525, 20.1] }, source: "Step-09 quantification, DESIGN_BASED basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-20"),
     basis: "DESIGN_BASED",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3733,7 +3784,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-21",
-    meanFrequency: { value: 0.03, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.01136, 9.9] }, source: "Step-09 quantification, FAULT_TREE basis; generic industry, HTGR design, and gas-cooled fleet data." },
+    frequency: daFrequency("DA-IE-21"),
     basis: "FAULT_TREE",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -3904,7 +3955,7 @@ export const IE_ANALYSIS: InitiatingEventsAnalysis = {
       "The data are generic United States power-reactor initiating-event data for the data-rich transients and support-system losses, the gas-cooled fleet experience from AVR, THTR-300, and Fort St. Vrain together with the MHTGR design records for the HTGR-specific events, and standard human-reliability sources for the operator-induced initiators. The reactor-trip, turbine-trip, loss-of-feedwater, loss-of-heat-sink, and loss-of-offsite-power rates follow the NUREG/CR-5750 categories. The component-failure and standby-demand rates follow NUREG/CR-6928. The primary-boundary break and steam-generator-tube failure frequencies are design-based and anchored to the MHTGR safety analysis. Each rate is adjusted to the Generic HTGR design, and the generic-to-design differences are recorded with each group.",
     modelUncertaintySources: PENDING,
     asBuiltLimitations: "Pre-operational; assumptions close at commissioning.",
-    praTaskInterfaces: "Feeds Event Sequence Analysis and Event Sequence Quantification, with the loss-of-forced-cooling, moisture-ingress, vital-DC, offsite-power, helium-inventory and shutdown-cooling group frequencies carried in Data Analysis (DA-P-040, DA-P-066, DA-P-071 to DA-P-074).",
+    praTaskInterfaces: "Feeds Event Sequence Analysis and Event Sequence Quantification, with all twenty-one group frequencies estimated in Data Analysis (DA-IE-01 to DA-IE-21) and imported here in the frequency step.",
     implementsSrs: [sr("IE-D1", "D")],
   },
 };

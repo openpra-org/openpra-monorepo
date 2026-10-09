@@ -3,3 +3,4 @@ export * from "./analysis-run";
 export * from "./workbook-dependencies";
 export * from "./validation";
 export * from "./quantitative-semantics";
+export * from "./uncertainty-api";

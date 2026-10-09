@@ -4,10 +4,22 @@ import {
   validateBayesianNetworkModules,
 } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import type { HclCalculationType } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
+import type { LoadCapacityModelSnapshot } from "interfaces-shared-types/newly-developed-methods/load-capacity";
 import { WorkbookHclUncertaintyConfigurationSchema } from "interfaces-mef-types/zod/modeling";
-import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
-import { systemBasicEventToFaultTreeBasicEvent } from "interfaces-mef-types/sy/system-models";
+import { carriesUncertainExpression, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import {
+  ccfFactorExpressions,
+  ccfFactorVector,
+  expressionReferences,
+  parameterReferenceKey,
+  type AleatoryVariable,
+  type CcfFactorModel,
+  type UncertainExpression,
+  type UncertainParameter,
+  type UncertainVector,
+  type UncertainVectorParameter,
+} from "interfaces-mef-types/core/uncertainty";
+import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
 import type {
   EventSequenceAnalysis,
   EventTree,
@@ -16,8 +28,8 @@ import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event
 import type { WorkbookModelAddress } from "interfaces-shared-types/newly-developed-methods";
 import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import type { FaultTreeControlledDataSourceReference } from "interfaces-mef-types/modeling/fault-tree";
-import { failureRateToProbability, requiresFailureRateConversionReview, FAILURE_RATE_CONVERSION_REVIEW_REQUIRED } from "interfaces-mef-types/modeling/quantitative-semantics";
 import type { BayesianNetworkEvidenceConfiguration } from "interfaces-mef-types/modeling/bayesian-network";
+import type { HclCptGenerator, HclSampler, HclUncertaintySettings } from "interfaces-mef-types/modeling/hybrid-causal-logic";
 import type { WorkbookBayesianNetwork, WorkbookHclConfiguration } from "interfaces-mef-types/modeling/workbook-models";
 import { createHash } from "crypto";
 
@@ -29,66 +41,110 @@ interface WorkbookMefSnapshot<TMef> {
 
 interface PraxisModelSnapshot extends Record<string, unknown> {
   id: string;
-  methodType: "FAULT_TREE" | "BAYESIAN_NETWORK" | "EVENT_TREE" | "HYBRID_CAUSAL_LOGIC";
+  methodType: "FAULT_TREE" | "BAYESIAN_NETWORK" | "EVENT_TREE" | "HYBRID_CAUSAL_LOGIC" | "LOAD_CAPACITY";
   revision: number;
 }
 
-interface AdaptedFaultTreeSnapshot {
-  modelSnapshot: PraxisModelSnapshot;
-  basicEventCatalogue: Record<string, unknown>;
-  controlledDataSources: FaultTreeControlledDataSourceReference[];
+interface CatalogueBasicEvent {
+  id: string;
+  expression: UncertainExpression;
 }
 
-interface SyFaultTreeAdapterOptions {
-  controlledDataSourceValues?: ReadonlyMap<string, number | ResolvedControlledDataSourceValue>;
-  allowUnresolvedControlledDataSources?: boolean;
-  includeControlledUncertainty?: boolean;
-  expandCcf?: boolean;
-}
-
-interface ResolvedControlledDataSourceValue {
-  value: number;
-  quantity: "PROBABILITY" | "FAILURE_RATE";
-  uncertainty?: ParameterDistribution;
-}
-
-interface SolverDistribution {
-  distributionType: string;
-  parameters: Record<string, number>;
-}
-
-interface SampledDistribution extends SolverDistribution {
-  correlationKey: string;
-}
-
-interface SampledInput extends SampledDistribution {
-  basicEventId: string;
-}
-
-type AdaptedCcfModel =
-  | { kind: "BETA_FACTOR"; beta: number }
-  | { kind: "MGL" | "ALPHA_FACTOR" | "PHI_FACTOR"; factors: number[] };
-
-interface AdaptedCcfGroup {
+interface CatalogueCcfGroup {
   id: string;
   members: string[];
-  model: AdaptedCcfModel;
-  totalFailureProbability: number;
-  uncertainty?: SampledDistribution;
+  factors: CcfFactorModel;
+  total: UncertainExpression;
 }
 
-function solverDistribution(distribution: ParameterDistribution): SolverDistribution | null {
-  switch (distribution.type) {
-    case DistributionType.BETA: return { distributionType: distribution.type, parameters: { alpha: distribution.alpha, beta: distribution.betaParam } };
-    case DistributionType.LOGNORMAL: return { distributionType: distribution.type, parameters: { median: distribution.median, errorFactor: distribution.errorFactor } };
-    case DistributionType.NORMAL: return { distributionType: distribution.type, parameters: { mean: distribution.mean, standardDeviation: distribution.stdDev } };
-    case DistributionType.UNIFORM: return { distributionType: distribution.type, parameters: { lower: distribution.lower, upper: distribution.upper } };
-    case DistributionType.GAMMA: return { distributionType: distribution.type, parameters: { shape: distribution.shape, rate: distribution.rate } };
-    case DistributionType.EXPONENTIAL: return { distributionType: distribution.type, parameters: { rate: distribution.failureRate } };
-    case DistributionType.POINT_ESTIMATE: return null;
-    default: throw new WorkbookPraxisAdapterError(`DA uncertainty distribution '${distribution.type}' is not supported for fault-tree sampling`);
-  }
+interface UncertaintyTables {
+  uncertaintyParameters: UncertainParameter[];
+  uncertaintyVectors: UncertainVectorParameter[];
 }
+
+interface UncertaintyReferences {
+  parameterReferences: WorkbookParameterReference[];
+  vectorReferences: WorkbookParameterReference[];
+}
+
+interface UncertaintySources {
+  parameters?: ReadonlyMap<string, UncertainParameter>;
+  vectors?: ReadonlyMap<string, UncertainVectorParameter>;
+}
+
+interface FaultTreeBasicEventCatalogue extends UncertaintyTables {
+  projectId: string;
+  basicEvents: CatalogueBasicEvent[];
+  commonCauseFailureGroups: CatalogueCcfGroup[];
+}
+
+interface AdaptedFaultTreeSnapshot extends UncertaintyReferences {
+  modelSnapshot: PraxisModelSnapshot;
+  basicEventCatalogue: FaultTreeBasicEventCatalogue;
+  legacyReferences: FaultTreeControlledDataSourceReference[];
+}
+
+interface SyFaultTreeAdapterOptions extends UncertaintySources {
+  legacyValues?: ReadonlyMap<string, number>;
+  collectOnly?: boolean;
+}
+
+interface NativeEntityReference {
+  modelId: string;
+  entityId: string;
+}
+
+interface HclNativeUncertainty extends UncertaintyTables {
+  sampleCount: number;
+  seed: number;
+  sampler: HclSampler;
+  basicEvents: { faultTreeBasicEvent: { entityId: string }; expression: UncertainExpression }[];
+  cptRows: { bayesianNetworkNode: NativeEntityReference; cptRowId: string; row: UncertainVector }[];
+  cptGenerators: Array<HclCptGenerator & { bayesianNetworkNode: NativeEntityReference }>;
+}
+
+interface HclNativeSolverSettings {
+  variableOrder: string[] | null;
+  foldConstants: boolean;
+  spliceNullGates: boolean;
+  uncertainty?: HclNativeUncertainty;
+}
+
+interface LoadCapacitySnapshotInput {
+  id: string;
+  revision: number;
+  load: AleatoryVariable;
+  capacity: AleatoryVariable;
+  unit?: string;
+}
+
+const NO_REFERENCES: UncertaintyReferences = { parameterReferences: [], vectorReferences: [] };
+
+const legacyEdgeValue = (value: number): UncertainExpression => legacyExpression("PROBABILITY", value);
+
+const uniqueReferences = (references: WorkbookParameterReference[]): WorkbookParameterReference[] => {
+  const unique = new Map<string, WorkbookParameterReference>();
+  for (const reference of references) {
+    const key = parameterReferenceKey(reference);
+    if (!unique.has(key)) unique.set(key, { ...reference });
+  }
+  return [...unique.values()];
+};
+
+const joinReferences = (...sets: UncertaintyReferences[]): UncertaintyReferences => ({
+  parameterReferences: uniqueReferences(sets.flatMap((set) => set.parameterReferences)),
+  vectorReferences: uniqueReferences(sets.flatMap((set) => set.vectorReferences)),
+});
+
+const referencesOf = (expressions: UncertainExpression[], vectors: UncertainVector[] = []): UncertaintyReferences => ({
+  parameterReferences: uniqueReferences(expressions.flatMap(expressionReferences)),
+  vectorReferences: uniqueReferences(vectors.flatMap((vector) => (vector.node === "PARAMETER" ? [vector.reference] : []))),
+});
+
+const ccfFactorReferences = (factors: CcfFactorModel): UncertaintyReferences => {
+  const vector = ccfFactorVector(factors);
+  return referencesOf(ccfFactorExpressions(factors), vector === undefined ? [] : [vector]);
+};
 
 const faultTreeControlledDataSourceKey = (
   reference: FaultTreeControlledDataSourceReference,
@@ -99,17 +155,11 @@ const faultTreeControlledDataSourceKey = (
   reference.referenceType === "HUMAN_FAILURE_EVENT" ? reference.quantificationId : null,
 ]);
 
-const workbookParameterReferenceKey = (
-  reference: Pick<WorkbookParameterReference, "workbookId" | "entityId">,
-): string => faultTreeControlledDataSourceKey({
-  referenceType: "WORKBOOK_PARAMETER",
-  workbookId: reference.workbookId,
-  entityId: reference.entityId,
-});
-
 type WorkbookPraxisAdapterErrorCode =
   | "WORKBOOK_PRAXIS_ADAPTER_ERROR"
-  | "SY_FAILURE_RATE_CONVERSION_REVIEW_REQUIRED"
+  | "SY_BASIC_EVENT_VALUE_MISSING"
+  | "SY_CCF_GROUP_TOO_SMALL"
+  | "UNCERTAINTY_PARAMETER_UNRESOLVED"
   | "SY_FAULT_TREE_GRAPH_CYCLE"
   | "SY_FAULT_TREE_GRAPH_REFERENCE_INVALID"
   | "SY_FAULT_TREE_GATE_INPUT_ID_COLLISION"
@@ -160,6 +210,70 @@ const stableUuid = (value: string): string => {
   const hex = bytes.toString("hex");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 };
+
+const resolveUncertaintyTables = (
+  references: UncertaintyReferences,
+  sources: UncertaintySources,
+): UncertaintyTables & UncertaintyReferences => {
+  const parameters = new Map<string, UncertainParameter>();
+  const reached = new Map<string, WorkbookParameterReference>();
+  for (const reference of uniqueReferences(references.parameterReferences)) {
+    reached.set(parameterReferenceKey(reference), reference);
+  }
+  const pending = [...reached.values()];
+  for (let reference = pending.pop(); reference !== undefined; reference = pending.pop()) {
+    const key = parameterReferenceKey(reference);
+    if (parameters.has(key)) continue;
+    const parameter = sources.parameters?.get(key);
+    if (parameter === undefined) {
+      throw new WorkbookPraxisAdapterError(
+        `Parameter '${reference.workbookId}:${reference.entityId}' could not be resolved`,
+        "UNCERTAINTY_PARAMETER_UNRESOLVED",
+        { reference },
+      );
+    }
+    parameters.set(key, parameter);
+    for (const nested of expressionReferences(parameter.expression)) {
+      const nestedKey = parameterReferenceKey(nested);
+      if (!reached.has(nestedKey)) reached.set(nestedKey, { ...nested });
+      pending.push(nested);
+    }
+  }
+  const vectorReferences = uniqueReferences(references.vectorReferences);
+  const uncertaintyVectors = vectorReferences.map((reference) => {
+    const vector = sources.vectors?.get(parameterReferenceKey(reference));
+    if (vector === undefined) {
+      throw new WorkbookPraxisAdapterError(
+        `Vector parameter '${reference.workbookId}:${reference.entityId}' could not be resolved`,
+        "UNCERTAINTY_PARAMETER_UNRESOLVED",
+        { reference },
+      );
+    }
+    return vector;
+  });
+  return {
+    uncertaintyParameters: [...parameters.values()],
+    uncertaintyVectors,
+    parameterReferences: [...reached.values()],
+    vectorReferences,
+  };
+};
+
+const adaptSyCcfGroup = (group: SystemsAnalysis["commonCauseFailureGroups"][number]): CatalogueCcfGroup[] => {
+  const members = group.members?.basicEvents.map((event) => event.id) ?? [];
+  if (members.length === 0) return [];
+  if (members.length === 1) {
+    throw new WorkbookPraxisAdapterError(
+      `SY common cause group '${group.uuid}' needs two or more members`,
+      "SY_CCF_GROUP_TOO_SMALL",
+      { groupId: group.uuid },
+    );
+  }
+  return [{ id: group.uuid, members, factors: group.factors, total: group.total }];
+};
+
+const ccfGroupReferences = (group: CatalogueCcfGroup): UncertaintyReferences =>
+  joinReferences(ccfFactorReferences(group.factors), referencesOf([group.total]));
 
 const adaptSyFaultTreeSnapshot = (
   source: WorkbookMefSnapshot<SystemsAnalysis>,
@@ -392,8 +506,6 @@ const adaptSyFaultTreeSnapshot = (
   modelGate(model, model.topGate.gateId, false);
   enterGate(model, model.topGate.gateId, false);
 
-  // Resume each parent's next input after its child, preserving recursive DFS
-  // order without using one JavaScript call frame per gate or transfer.
   while (frames.length > 0) {
     const frame = frames[frames.length - 1];
     if (frame.nextInput === frame.inputs.length) {
@@ -475,167 +587,58 @@ const adaptSyFaultTreeSnapshot = (
     }
   }
 
-  const controlledDataSources = new Map<string, FaultTreeControlledDataSourceReference>();
-  const basicEvents = [...referencedBasicEventIds].map((basicEventId) => {
+  const legacyReferences = new Map<string, FaultTreeControlledDataSourceReference>();
+  const expressionOf = (basicEventId: string): UncertainExpression | undefined => {
     const event = findByUuid(source.mef.systemBasicEvents, basicEventId, "SY basic event");
-    if (requiresFailureRateConversionReview(event.quantificationBasis)) {
-      throw new WorkbookPraxisAdapterError(
-        `SY basic event '${basicEventId}': ${FAILURE_RATE_CONVERSION_REVIEW_REQUIRED}`,
-        "SY_FAILURE_RATE_CONVERSION_REVIEW_REQUIRED",
-        { basicEventId },
-      );
-    }
-    const controlled = event.controlledDataSource;
-    const controlledValue = controlled === undefined
-      ? undefined
-      : options.controlledDataSourceValues?.get(faultTreeControlledDataSourceKey(controlled));
-    const resolvedControlledValue = typeof controlledValue === "number"
-      ? { value: controlledValue, quantity: "PROBABILITY" as const }
-      : controlledValue;
-    if (
-      controlled !== undefined
-      && resolvedControlledValue === undefined
-      && options.allowUnresolvedControlledDataSources !== true
-    ) {
-      throw new WorkbookPraxisAdapterError(
-        `SY basic event '${basicEventId}' could not resolve controlled ${controlled.referenceType === "HUMAN_FAILURE_EVENT" ? "HRA quantification" : "DA parameter"} '${controlled.workbookId}:${controlled.entityId}'`,
-      );
-    }
-    const basis = event.quantificationBasis;
-    const expectedQuantity = basis?.kind === "FAILURE_RATE" ? "FAILURE_RATE" : "PROBABILITY";
-    if (resolvedControlledValue !== undefined && resolvedControlledValue.quantity !== expectedQuantity) {
-      throw new WorkbookPraxisAdapterError(
-        `SY basic event '${basicEventId}' expects a ${expectedQuantity.toLowerCase().replace("_", " ")} source but its controlled value is ${resolvedControlledValue.quantity.toLowerCase().replace("_", " ")}`,
-      );
-    }
-    const resolvedBasis = basis?.kind === "FAILURE_RATE" && resolvedControlledValue !== undefined
-      ? { ...basis, failureRate: { ...basis.failureRate, value: resolvedControlledValue.value } }
-      : basis;
-    const resolvedProbability = resolvedBasis?.kind === "FAILURE_RATE"
-      ? failureRateToProbability(resolvedBasis)
-      : (resolvedControlledValue?.value ?? event.probability);
-    if (controlled !== undefined) {
-      controlledDataSources.set(faultTreeControlledDataSourceKey(controlled), { ...controlled });
-    }
-    if (
-      (resolvedProbability === undefined || !Number.isFinite(resolvedProbability)) &&
-      !(controlled !== undefined && options.allowUnresolvedControlledDataSources === true)
-    ) {
-      if (controlled !== undefined) {
+    if (carriesUncertainExpression(event.failureMode)) {
+      if (event.expression === undefined) {
+        if (options.collectOnly === true) return undefined;
         throw new WorkbookPraxisAdapterError(
-          `SY basic event '${basicEventId}' could not resolve controlled ${controlled.referenceType === "HUMAN_FAILURE_EVENT" ? "HRA quantification" : "DA parameter"} '${controlled.workbookId}:${controlled.entityId}'`,
+          `SY basic event '${event.code}' has no value`,
+          "SY_BASIC_EVENT_VALUE_MISSING",
+          { basicEventId },
         );
       }
-      throw new WorkbookPraxisAdapterError(`SY basic event '${basicEventId}' has no finite probability`);
+      return event.expression;
     }
-    return systemBasicEventToFaultTreeBasicEvent({
-      ...event,
-      probability: resolvedProbability,
-      quantificationBasis: resolvedBasis,
-    });
+    const controlled = event.controlledDataSource;
+    if (controlled !== undefined) {
+      const key = faultTreeControlledDataSourceKey(controlled);
+      legacyReferences.set(key, { ...controlled });
+      if (options.collectOnly === true) return undefined;
+      const value = options.legacyValues?.get(key);
+      if (value === undefined) {
+        throw new WorkbookPraxisAdapterError(
+          `SY basic event '${event.code}' could not resolve controlled ${controlled.referenceType === "HUMAN_FAILURE_EVENT" ? "HRA quantification" : "DA parameter"} '${controlled.workbookId}:${controlled.entityId}'`,
+        );
+      }
+      return legacyEdgeValue(value);
+    }
+    if (event.probability !== undefined && Number.isFinite(event.probability)) return legacyEdgeValue(event.probability);
+    if (options.collectOnly === true) return undefined;
+    throw new WorkbookPraxisAdapterError(
+      `SY basic event '${event.code}' has no value`,
+      "SY_BASIC_EVENT_VALUE_MISSING",
+      { basicEventId },
+    );
+  };
+  const basicEvents = [...referencedBasicEventIds].flatMap((basicEventId): CatalogueBasicEvent[] => {
+    const expression = expressionOf(basicEventId);
+    return expression === undefined ? [] : [{ id: basicEventId, expression }];
   });
 
-  const commonCauseFailureGroups = (source.mef.commonCauseFailureGroups ?? []).flatMap<AdaptedCcfGroup>((group) => {
+  const commonCauseFailureGroups = (source.mef.commonCauseFailureGroups ?? []).flatMap((group) => {
     const members = group.members?.basicEvents.map((event) => event.id) ?? [];
-    if (members.length < 2 || members.some((id) => !referencedBasicEventIds.has(id))) return [];
-    const parameters = group.modelSpecificParameters;
-    if (group.modelType === "BETA_FACTOR" && parameters?.betaFactorParameters !== undefined) {
-      return [{
-        id: group.uuid,
-        members,
-        model: { kind: "BETA_FACTOR", beta: parameters.betaFactorParameters.beta },
-        totalFailureProbability: parameters.betaFactorParameters.totalFailureProbability,
-      }];
-    }
-    if (group.modelType === "MGL" && parameters?.mglParameters !== undefined) {
-      const values = parameters.mglParameters;
-      const factors = [
-        values.beta,
-        ...(values.gamma === undefined ? [] : [values.gamma]),
-        ...(values.delta === undefined ? [] : [values.delta]),
-        ...Object.entries(values.additionalFactors ?? {}).sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true })).map(([, value]) => value),
-      ];
-      return [{
-        id: group.uuid,
-        members,
-        model: { kind: "MGL", factors },
-        totalFailureProbability: values.totalFailureProbability,
-      }];
-    }
-    if (group.modelType === "ALPHA_FACTOR" && parameters?.alphaFactorParameters !== undefined) {
-      const values = parameters.alphaFactorParameters;
-      return [{
-        id: group.uuid,
-        members,
-        model: {
-          kind: "ALPHA_FACTOR",
-          factors: Object.entries(values.alphaFactors).sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true })).map(([, value]) => value),
-        },
-        totalFailureProbability: values.totalFailureProbability,
-      }];
-    }
-    if (group.modelType === "PHI_FACTOR" && parameters?.phiFactorParameters !== undefined) {
-      const values = parameters.phiFactorParameters;
-      return [{
-        id: group.uuid,
-        members,
-        model: {
-          kind: "PHI_FACTOR",
-          factors: Object.entries(values.phiFactors).sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true })).map(([, value]) => value),
-        },
-        totalFailureProbability: values.totalFailureProbability,
-      }];
-    }
-    return [];
+    return members.some((id) => !referencedBasicEventIds.has(id)) ? [] : adaptSyCcfGroup(group);
   });
-  if (options.includeControlledUncertainty === true && commonCauseFailureGroups.length > 0 && options.expandCcf !== true) {
-    throw new WorkbookPraxisAdapterError("Uncertainty analysis for this fault tree must expand its common-cause groups.");
-  }
-  const uncertaintyInputs = options.includeControlledUncertainty === true
-    ? [...referencedBasicEventIds].flatMap<SampledInput>((basicEventId) => {
-      const event = findByUuid(source.mef.systemBasicEvents, basicEventId, "SY basic event");
-      if (event.failureMode === "COMMON_CAUSE_FAILURE") return [];
-      const reference = event.controlledDataSource;
-      if (reference?.referenceType !== "WORKBOOK_PARAMETER") return [];
-      const value = options.controlledDataSourceValues?.get(faultTreeControlledDataSourceKey(reference));
-      const resolved = typeof value === "number" ? undefined : value;
-      if (resolved?.uncertainty === undefined) return [];
-      if (resolved.quantity === "FAILURE_RATE") {
-        throw new WorkbookPraxisAdapterError(`DA failure-rate uncertainty for '${event.code ?? basicEventId}' needs mission-time conversion before sampling`);
-      }
-      const distribution = solverDistribution(resolved.uncertainty);
-      if (distribution === null) return [];
-      const values = distribution.parameters;
-      if (Object.values(values).some((value) => !Number.isFinite(value))) {
-        throw new WorkbookPraxisAdapterError(`DA uncertainty for '${event.code ?? basicEventId}' contains a non-finite parameter`);
-      }
-      const invalid = distribution.distributionType === "beta" ? values["alpha"]! <= 0 || values["beta"]! <= 0
-        : distribution.distributionType === "lognormal" ? values["median"]! <= 0 || values["median"]! > 1 || values["errorFactor"]! < 1
-        : distribution.distributionType === "normal" ? values["mean"]! < 0 || values["mean"]! > 1 || values["standardDeviation"]! < 0
-        : distribution.distributionType === "uniform" ? values["lower"]! < 0 || values["upper"]! > 1 || values["lower"]! >= values["upper"]!
-        : distribution.distributionType === "gamma" ? values["shape"]! <= 0 || values["rate"]! <= 0
-        : distribution.distributionType === "exponential" ? values["rate"]! <= 0 : true;
-      if (invalid) throw new WorkbookPraxisAdapterError(`DA uncertainty for '${event.code ?? basicEventId}' has invalid ${distribution.distributionType} parameters`);
-      return [{ basicEventId, ...distribution, correlationKey: faultTreeControlledDataSourceKey(reference) }];
-    })
-    : [];
-  if (options.includeControlledUncertainty === true && uncertaintyInputs.length === 0) {
-    throw new WorkbookPraxisAdapterError("This fault tree has no supported DA uncertainty distributions linked to its basic events.");
-  }
-  const inputByEvent = new Map(uncertaintyInputs.map((input) => [input.basicEventId, input]));
-  const sampledGroups = commonCauseFailureGroups.map((group): AdaptedCcfGroup => {
-    const inputs = group.members.flatMap((id) => inputByEvent.get(id) ?? []);
-    const [first] = inputs;
-    if (first === undefined) return group;
-    if (inputs.length < group.members.length || inputs.some((input) => input.correlationKey !== first.correlationKey)) {
-      const name = (source.mef.commonCauseFailureGroups ?? []).find((candidate) => candidate.uuid === group.id)?.name ?? group.id;
-      throw new WorkbookPraxisAdapterError(`Common cause group '${name}' members link different DA estimates. Link every member to one estimate before running uncertainty analysis.`);
-    }
-    return {
-      ...group,
-      uncertainty: { distributionType: first.distributionType, parameters: first.parameters, correlationKey: first.correlationKey },
-    };
-  });
+
+  const direct = joinReferences(
+    referencesOf(basicEvents.map((event) => event.expression)),
+    ...commonCauseFailureGroups.map(ccfGroupReferences),
+  );
+  const tables: UncertaintyTables & UncertaintyReferences = options.collectOnly === true
+    ? { ...direct, uncertaintyParameters: [], uncertaintyVectors: [] }
+    : resolveUncertaintyTables(direct, options);
 
   return {
     modelSnapshot: {
@@ -656,20 +659,23 @@ const adaptSyFaultTreeSnapshot = (
     basicEventCatalogue: {
       projectId: source.workbookId,
       basicEvents,
-      ...(sampledGroups.length === 0 ? {} : { commonCauseFailureGroups: sampledGroups }),
-      ...(uncertaintyInputs.length === 0 ? {} : { uncertaintyInputs }),
+      commonCauseFailureGroups,
+      uncertaintyParameters: tables.uncertaintyParameters,
+      uncertaintyVectors: tables.uncertaintyVectors,
     },
-    controlledDataSources: [...controlledDataSources.values()],
+    parameterReferences: tables.parameterReferences,
+    vectorReferences: tables.vectorReferences,
+    legacyReferences: [...legacyReferences.values()],
   };
 };
 
-const collectSyFaultTreeControlledDataSources = (
+const collectSyFaultTreeReferences = (
   source: WorkbookMefSnapshot<SystemsAnalysis>,
   modelId: string,
-): FaultTreeControlledDataSourceReference[] =>
-  adaptSyFaultTreeSnapshot(source, modelId, {
-    allowUnresolvedControlledDataSources: true,
-  }).controlledDataSources;
+): Pick<AdaptedFaultTreeSnapshot, "parameterReferences" | "vectorReferences" | "legacyReferences"> => {
+  const { parameterReferences, vectorReferences, legacyReferences } = adaptSyFaultTreeSnapshot(source, modelId, { collectOnly: true });
+  return { parameterReferences, vectorReferences, legacyReferences };
+};
 
 const adaptEsqBayesianNetworkSnapshot = (
   source: WorkbookMefSnapshot<EventSequenceQuantification>,
@@ -724,7 +730,8 @@ const adaptEsEventTreeSnapshot = (
   hclConfiguration?: WorkbookModelAddress,
 ): PraxisModelSnapshot => {
   const tree = findByUuid(source.mef.eventTrees ?? [], modelId, "ES event tree");
-  if (tree.initiatingEventFrequency === undefined) {
+  const frequency = tree.initiatingEventFrequency;
+  if (frequency === undefined) {
     throw new WorkbookPraxisAdapterError(`ES event tree '${modelId}' has no initiating-event frequency`);
   }
   const functionalEvents = orderedFunctionalEvents(tree).map((event, order) => ({
@@ -800,7 +807,10 @@ const adaptEsEventTreeSnapshot = (
     initiatingEvent: {
       target: { modelId: source.workbookId, entityId: tree.initiatingEventId },
     },
-    initiatingEventFrequency: tree.initiatingEventFrequency,
+    initiatingEventFrequency: {
+      expression: frequency.expression,
+      ...(frequency.annualization === undefined ? {} : { annualization: { ...frequency.annualization } }),
+    },
     functionalEvents,
     functionalEventFaultTreeLinks: links,
     endStates: [...endStateIds].map((id) => ({ id })),
@@ -812,49 +822,96 @@ const adaptEsEventTreeSnapshot = (
   };
 };
 
+const collectEsEventTreeReferences = (
+  source: WorkbookMefSnapshot<EventSequenceAnalysis>,
+  modelIds: string[],
+): UncertaintyReferences =>
+  referencesOf(modelIds.flatMap((modelId) => {
+    const frequency = findByUuid(source.mef.eventTrees ?? [], modelId, "ES event tree").initiatingEventFrequency;
+    return frequency === undefined ? [] : [frequency.expression];
+  }));
+
+const missingHclUncertainty = (): WorkbookPraxisAdapterError =>
+  new WorkbookPraxisAdapterError("Uncertainty execution requires saved uncertainty settings.");
+
+const hclUncertaintySettings = (
+  configuration: WorkbookHclConfiguration,
+  calculationType: HclCalculationType,
+): HclUncertaintySettings | undefined => {
+  if (calculationType !== "UNCERTAINTY") return undefined;
+  if (configuration.solverSettings.uncertainty === undefined) throw missingHclUncertainty();
+  const parsed = WorkbookHclUncertaintyConfigurationSchema.safeParse(configuration);
+  if (!parsed.success) {
+    throw new WorkbookPraxisAdapterError(`Invalid uncertainty settings: ${parsed.error.message}`);
+  }
+  const settings = parsed.data.solverSettings.uncertainty;
+  if (settings === undefined) throw missingHclUncertainty();
+  return settings;
+};
+
+const hclGeneratorExpressions = (generator: HclCptGenerator): UncertainExpression[] =>
+  generator.kind === "SEISMIC_FRAGILITY"
+    ? [generator.median, generator.randomness]
+    : [generator.missionTime, ...generator.bins.map((bin) => bin.frequency)];
+
+const hclSettingsReferences = (settings: HclUncertaintySettings): UncertaintyReferences =>
+  referencesOf(
+    [
+      ...settings.basicEvents.map((entry) => entry.expression),
+      ...settings.cptGenerators.flatMap((entry) => hclGeneratorExpressions(entry.generator)),
+    ],
+    settings.cptRows.map((entry) => entry.row),
+  );
+
+const collectHclUncertaintyReferences = (
+  configuration: WorkbookHclConfiguration,
+  calculationType: HclCalculationType,
+): UncertaintyReferences => {
+  const settings = hclUncertaintySettings(configuration, calculationType);
+  return settings === undefined ? NO_REFERENCES : hclSettingsReferences(settings);
+};
+
 const adaptHclSolverSettings = (
   configuration: WorkbookHclConfiguration,
   calculationType: HclCalculationType,
-): Record<string, unknown> => {
-  const input = calculationType === "UNCERTAINTY" ? configuration.solverSettings.uncertainty : undefined;
-  if (calculationType === "UNCERTAINTY" && input === undefined) {
-    throw new WorkbookPraxisAdapterError("Uncertainty execution requires saved uncertainty settings.");
-  }
-  const parsed = input === undefined ? undefined : WorkbookHclUncertaintyConfigurationSchema.safeParse(configuration);
-  if (parsed && !parsed.success) {
-    throw new WorkbookPraxisAdapterError(`Invalid uncertainty settings: ${parsed.error.message}`);
-  }
-  const uncertainty = parsed?.success ? parsed.data.solverSettings.uncertainty : undefined;
-  return {
+  sources: UncertaintySources,
+): HclNativeSolverSettings => {
+  const point = {
     variableOrder: configuration.solverSettings.variableOrder,
     foldConstants: configuration.solverSettings.foldConstants,
     spliceNullGates: configuration.solverSettings.spliceNullGates,
-    ...(uncertainty === undefined ? {} : {
-      uncertainty: {
-        sampleCount: uncertainty.sampleCount,
-        seed: uncertainty.seed,
-        sampler: uncertainty.sampler ?? "MC",
-        cptProbabilityClipEpsilon: uncertainty.cptProbabilityClipEpsilon ?? 0,
-        basicEventDistributions: uncertainty.basicEventDistributions.map((definition) => ({
-          faultTreeBasicEvent: {
-            entityId: definition.faultTreeBasicEvent.entityId,
-          },
-          distribution: definition.distribution,
-        })),
-        ...(uncertainty.cptGenerators === undefined ? {} : { cptGenerators: uncertainty.cptGenerators.map((definition) => ({
-          bayesianNetworkNode: { modelId: definition.bayesianNetworkNode.modelId, entityId: definition.bayesianNetworkNode.entityId },
-          generator: definition.generator,
-        })) }),
-        cptRowDistributions: uncertainty.cptRowDistributions.map((definition) => ({
-          bayesianNetworkNode: {
-            modelId: definition.bayesianNetworkNode.modelId,
-            entityId: definition.bayesianNetworkNode.entityId,
-          },
-          cptRowId: definition.cptRowId,
-          prior: definition.prior,
-        })),
-      },
-    }),
+  };
+  const settings = hclUncertaintySettings(configuration, calculationType);
+  if (settings === undefined) return point;
+  const tables = resolveUncertaintyTables(hclSettingsReferences(settings), sources);
+  return {
+    ...point,
+    uncertainty: {
+      sampleCount: settings.sampleCount,
+      seed: settings.seed,
+      sampler: settings.sampler,
+      basicEvents: settings.basicEvents.map((entry) => ({
+        faultTreeBasicEvent: { entityId: entry.faultTreeBasicEvent.entityId },
+        expression: entry.expression,
+      })),
+      cptRows: settings.cptRows.map((entry) => ({
+        bayesianNetworkNode: {
+          modelId: entry.bayesianNetworkNode.modelId,
+          entityId: entry.bayesianNetworkNode.entityId,
+        },
+        cptRowId: entry.cptRowId,
+        row: entry.row,
+      })),
+      cptGenerators: settings.cptGenerators.map((entry) => ({
+        ...entry.generator,
+        bayesianNetworkNode: {
+          modelId: entry.bayesianNetworkNode.modelId,
+          entityId: entry.bayesianNetworkNode.entityId,
+        },
+      })),
+      uncertaintyParameters: tables.uncertaintyParameters,
+      uncertaintyVectors: tables.uncertaintyVectors,
+    },
   };
 };
 
@@ -864,6 +921,7 @@ const adaptEsqHclSnapshot = (
   calculationType: HclCalculationType = "PROBABILITY",
   faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
   baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
+  sources: UncertaintySources = {},
 ): PraxisModelSnapshot => {
   const configuration = source.mef.hclConfigurations.find(
     (candidate) => candidate.modelId === modelId,
@@ -873,7 +931,7 @@ const adaptEsqHclSnapshot = (
   }
 
   return adaptHclConfigurationSnapshot(
-    source, configuration, calculationType, faultTreeBasicEventIdsByModel, baseEvidenceOverride,
+    source, configuration, calculationType, faultTreeBasicEventIdsByModel, baseEvidenceOverride, configuration.faultTrees, sources,
   );
 };
 
@@ -884,6 +942,7 @@ const adaptHclConfigurationSnapshot = (
   faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
   baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
   effectiveFaultTrees = configuration.faultTrees,
+  sources: UncertaintySources = {},
 ): PraxisModelSnapshot => {
   const bindings = configuration.bindings.flatMap((binding) =>
     effectiveFaultTrees
@@ -917,7 +976,7 @@ const adaptHclConfigurationSnapshot = (
     })),
     bindings,
     baseEvidence: baseEvidenceOverride ?? configuration.baseEvidence,
-    solverSettings: adaptHclSolverSettings(configuration, calculationType),
+    solverSettings: adaptHclSolverSettings(configuration, calculationType, sources),
   };
 };
 
@@ -928,6 +987,7 @@ const adaptSyHclSnapshot = (
   faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
   baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
   effectiveFaultTrees?: WorkbookModelAddress[],
+  sources: UncertaintySources = {},
 ): PraxisModelSnapshot => {
   const configuration = (source.mef.dependencyHclConfigurations ?? []).find(
     (candidate) => candidate.modelId === modelId,
@@ -942,15 +1002,43 @@ const adaptSyHclSnapshot = (
     faultTreeBasicEventIdsByModel,
     baseEvidenceOverride,
     effectiveFaultTrees,
+    sources,
   );
+};
+
+const collectLoadCapacityReferences = (
+  input: Pick<LoadCapacitySnapshotInput, "load" | "capacity">,
+): UncertaintyReferences =>
+  referencesOf([...input.load.fields, ...input.capacity.fields].map((entry) => entry.value));
+
+const adaptLoadCapacitySnapshot = (
+  input: LoadCapacitySnapshotInput,
+  sources: UncertaintySources = {},
+): LoadCapacityModelSnapshot & PraxisModelSnapshot => {
+  const tables = resolveUncertaintyTables(collectLoadCapacityReferences(input), sources);
+  return {
+    id: input.id,
+    methodType: "LOAD_CAPACITY",
+    revision: input.revision,
+    load: input.load,
+    capacity: input.capacity,
+    ...(input.unit === undefined ? {} : { unit: input.unit }),
+    uncertaintyParameters: tables.uncertaintyParameters,
+    uncertaintyVectors: tables.uncertaintyVectors,
+  };
 };
 
 export {
   WorkbookPraxisAdapterError,
-  collectSyFaultTreeControlledDataSources,
-  workbookParameterReferenceKey,
+  collectSyFaultTreeReferences,
+  collectEsEventTreeReferences,
+  collectHclUncertaintyReferences,
+  collectLoadCapacityReferences,
   faultTreeControlledDataSourceKey,
+  resolveUncertaintyTables,
   adaptSyFaultTreeSnapshot,
+  adaptSyCcfGroup,
+  adaptLoadCapacitySnapshot,
   adaptEsqBayesianNetworkSnapshot,
   adaptSyBayesianNetworkSnapshot,
   adaptEsEventTreeSnapshot,
@@ -963,6 +1051,12 @@ export type {
   WorkbookMefSnapshot,
   PraxisModelSnapshot,
   AdaptedFaultTreeSnapshot,
+  CatalogueBasicEvent,
+  CatalogueCcfGroup,
+  FaultTreeBasicEventCatalogue,
+  LoadCapacitySnapshotInput,
   SyFaultTreeAdapterOptions,
-  ResolvedControlledDataSourceValue,
+  UncertaintyReferences,
+  UncertaintySources,
+  UncertaintyTables,
 };

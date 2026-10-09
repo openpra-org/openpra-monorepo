@@ -2,6 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { DrawerContent } from "../syScreens2";
 
+jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => jest.requireActual("./syUncertaintyPraxis"));
+
 const mockMutateSy = jest.fn();
 const mockAnalysis = {
   systemDefinitions: [],
@@ -21,6 +23,14 @@ const mockAnalysis = {
     code: "BE-1",
     name: "Pump fails",
     eventType: "BASIC",
+    expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.1 } } },
+    implementsSrs: [],
+  }, {
+    uuid: "be-ccf",
+    code: "CCF-1",
+    name: "Pumps fail together",
+    eventType: "BASIC",
+    failureMode: "COMMON_CAUSE_FAILURE",
     probability: 0.1,
     implementsSrs: [],
   }, {
@@ -39,8 +49,18 @@ const mockControlledParameters = [{
   workbookName: "Approved DA",
   parameterId: "parameter-1",
   parameterName: "Pump demand failure",
-  parameterType: "PROBABILITY" as const,
-  value: 0.025,
+  estimate: { node: "VALUE" as const, value: { unit: "PROBABILITY" as const, law: { family: "POINT" as const, value: 0.025 } } },
+  unit: "PROBABILITY" as const,
+}];
+
+const mockControlledLegacyParameters = [{
+  workbookId: "da-workbook",
+  workbookName: "Approved DA",
+  parameterId: "parameter-rate",
+  parameterName: "Pump group rate",
+  parameterType: "FAILURE_RATE" as const,
+  value: 0.002,
+  rateUnit: "HOUR" as const,
 }];
 
 const mockControlledHumanFailures = [{
@@ -62,6 +82,7 @@ jest.mock("../syWorkbookContext", () => ({
     mutateSy: mockMutateSy,
     shortOf: (id: string) => id,
     controlledParameters: mockControlledParameters,
+    controlledLegacyParameters: mockControlledLegacyParameters,
     controlledHumanFailures: mockControlledHumanFailures,
     controlledFailureModes: [],
   }),
@@ -75,12 +96,12 @@ describe("SY basic-event controlled probability authoring", () => {
     mockAnalysis.systemBasicEvents = structuredClone(originalEvents);
   });
 
-  it("shows legacy rate settings without calculating and converts only on review", () => {
-    mockAnalysis.systemBasicEvents[0]!.quantificationBasis = {
+  it("shows legacy rate settings on a common cause event without calculating and converts only on review", () => {
+    mockAnalysis.systemBasicEvents[1]!.quantificationBasis = {
       kind: "FAILURE_RATE", conversion: "LINEAR",
       failureRate: { value: .001, unit: "HOUR" }, missionTime: { value: 100, unit: "HOUR" },
     };
-    render(<DrawerContent context={{ kind: "be", id: "be-1" }} onClose={jest.fn()} />);
+    render(<DrawerContent context={{ kind: "be", id: "be-ccf" }} onClose={jest.fn()} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Review the rate and mission time");
     expect(screen.getByRole("spinbutton", { name: "Failure rate" })).toHaveValue(0.001);
     expect(screen.getByRole("spinbutton", { name: "Mission time" })).toHaveValue(100);
@@ -89,47 +110,46 @@ describe("SY basic-event controlled probability authoring", () => {
     expect(mockMutateSy).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Use exponential conversion" }));
     const next = mockMutateSy.mock.calls[0]![0](mockAnalysis) as SystemsAnalysis;
-    expect(next.systemBasicEvents[0]).toMatchObject({ probability: .09516258196404048,
+    expect(next.systemBasicEvents[1]).toMatchObject({ probability: .09516258196404048,
       quantificationBasis: { conversion: "EXPONENTIAL", failureRate: { value: .001, unit: "HOUR" }, missionTime: { value: 100, unit: "HOUR" } },
     });
-    expect(mockAnalysis.systemBasicEvents[0]?.probability).toBe(.1);
+    expect(mockAnalysis.systemBasicEvents[1]?.probability).toBe(.1);
   });
 
   it("points to Step 01 Interfaces when no DA or HR workbook is linked", () => {
     const parameters = mockControlledParameters.splice(0);
+    const legacyParameters = mockControlledLegacyParameters.splice(0);
     const humanFailures = mockControlledHumanFailures.splice(0);
     try {
       const { unmount } = render(<DrawerContent context={{ kind: "be", id: "be-1" }} onClose={jest.fn()} />);
       expect(screen.getByText("Typed. Link a DA workbook in Step 01 Interfaces to pick a parameter.")).toBeInTheDocument();
-      expect(screen.queryByRole("combobox", { name: "Data Analysis parameter" })).not.toBeInTheDocument();
-      expect(screen.getByRole("spinbutton", { name: "Probability" })).toHaveValue(0.1);
+      expect(screen.queryByRole("combobox", { name: "Source" })).not.toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Value" })).toHaveValue("0.1");
       unmount();
       render(<DrawerContent context={{ kind: "be", id: "be-hfe" }} onClose={jest.fn()} />);
       expect(screen.getByText("Typed. Link an HR workbook in Step 01 Interfaces to pick its event and HEP.")).toBeInTheDocument();
     } finally {
       mockControlledParameters.push(...parameters);
+      mockControlledLegacyParameters.push(...legacyParameters);
       mockControlledHumanFailures.push(...humanFailures);
     }
   });
 
-  it("stores a typed DA parameter reference and its current display value", () => {
+  it("stores the DA parameter reference as the expression and no cached value", () => {
     render(<DrawerContent context={{ kind: "be", id: "be-1" }} onClose={jest.fn()} />);
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Data Analysis parameter" }), {
-      target: { value: JSON.stringify(["da-workbook", "parameter-1"]) },
+    fireEvent.change(screen.getByRole("combobox", { name: "Source" }), {
+      target: { value: "da-workbook:parameter-1" },
     });
 
     expect(mockMutateSy).toHaveBeenCalledTimes(1);
     const next = mockMutateSy.mock.calls[0]![0](mockAnalysis) as SystemsAnalysis;
-    expect(next.systemBasicEvents[0]).toMatchObject({
-      probability: 0.025,
-      controlledDataSource: {
-        referenceType: "WORKBOOK_PARAMETER",
-        workbookId: "da-workbook",
-        entityId: "parameter-1",
-      },
-    });
-    expect(next.systemBasicEvents[0]?.dataAnalysisBasicEventRef).toBeUndefined();
+    expect(next.systemBasicEvents[0]).toEqual(expect.objectContaining({
+      expression: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "parameter-1" } },
+    }));
+    expect(next.systemBasicEvents[0]).not.toHaveProperty("probability");
+    expect(next.systemBasicEvents[0]).not.toHaveProperty("controlledDataSource");
+    expect(next.systemBasicEvents[0]).not.toHaveProperty("dataAnalysisBasicEventRef");
   });
 
   it("stores the exact HRA event and HEP quantification for a human-error event", () => {
@@ -141,7 +161,7 @@ describe("SY basic-event controlled probability authoring", () => {
 
     expect(mockMutateSy).toHaveBeenCalledTimes(1);
     const next = mockMutateSy.mock.calls[0]![0](mockAnalysis) as SystemsAnalysis;
-    expect(next.systemBasicEvents[1]).toMatchObject({
+    expect(next.systemBasicEvents[2]).toMatchObject({
       probability: 0.037,
       controlledDataSource: {
         referenceType: "HUMAN_FAILURE_EVENT",
@@ -150,7 +170,7 @@ describe("SY basic-event controlled probability authoring", () => {
         quantificationId: "hep-1",
       },
     });
-    expect(next.systemBasicEvents[1]?.dataAnalysisBasicEventRef).toBeUndefined();
+    expect(next.systemBasicEvents[2]?.dataAnalysisBasicEventRef).toBeUndefined();
   });
 
   it("links a Systems Analysis HFE integration to the same exact HRA quantification", () => {

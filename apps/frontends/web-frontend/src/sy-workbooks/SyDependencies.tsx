@@ -20,6 +20,8 @@ import {
   type DependencyLink,
 } from "./syDependencyLinks";
 import { useSyWorkbook } from "./syWorkbookContext";
+import { useSystemHours } from "./syMissionTimes";
+import { hoursText } from "../sc-workbooks/scMissionTimePoints";
 import type { SyDrawerContext } from "./syScreens";
 import "./css/syModels.css";
 import "./css/syDependencies.css";
@@ -48,6 +50,7 @@ function DependenciesScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   const { sy, shortOf, editable, mutateSy, links } = useSyWorkbook();
   const actionLabel = editable ? "Edit" : "View";
   const found = sy.systemDefinitions.find((candidate) => candidate.uuid === sysId) ?? sy.systemDefinitions[0];
+  const missionHours = useSystemHours(found === undefined ? [] : [found]).get(found?.uuid ?? "");
 
   if (found === undefined) {
     return <NoSystemsCard title="Dependencies" purpose="trace their dependencies here." onOpenSystems={onOpenSystems} />;
@@ -72,7 +75,6 @@ function DependenciesScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   const assumptions = (sy.preOperationalAssumptions ?? []).filter((item) =>
     item.affectedElementIds.includes(system.uuid) && (item.implementsSrs ?? []).some((reference) => reference.sr === "SY-B10" || reference.sr === "SY-B17"));
   const initiatingNames = new Map((links?.esInitiatingEvents ?? []).map((event) => [event.id, event.name]));
-  const mission = system.missionTimeHours;
 
   function openLink(row: LinkRow): void {
     if (row.record !== undefined) {
@@ -381,7 +383,7 @@ function DependenciesScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
                       </td>
                       <td className="posmono sy-review-num">{lasts === null ? <NotRecorded /> : lasts}</td>
                       <td>
-                        <span className="posmono sy-review-num">{mission === undefined ? "Not recorded" : `${mission} h`}</span>
+                        <span className="posmono sy-review-num">{system.missionTime === undefined ? "Not recorded" : hoursText(missionHours)}</span>
                         <span className="sy-review-sub">{item.missionTimeSupported === true ? "Carries it" : item.missionTimeSupported === false ? "Falls short" : "Not assessed"}</span>
                       </td>
                       <td>{item.basis !== undefined && item.basis.length > 0 ? item.basis : <NotRecorded />}</td>

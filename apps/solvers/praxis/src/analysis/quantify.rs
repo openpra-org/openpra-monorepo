@@ -15,7 +15,8 @@ use crate::algorithms::zbdd_engine::ZbddEngine;
 use crate::analysis::approximations;
 use crate::analysis::fault_tree::FaultTreeAnalysis;
 use crate::analysis::importance::ImportanceAnalysis;
-use crate::analysis::uncertainty::propagate_uncertainty;
+use crate::analysis::uncertainty::{propagate_uncertainty, QuantileValue};
+use crate::core::distribution_sampling::{SamplingMethod, SamplingPlan};
 use crate::core::fault_tree::FaultTree;
 use crate::error::PraxisError;
 use crate::mc::DpMonteCarloAnalysis;
@@ -51,6 +52,7 @@ pub struct Settings {
     pub ccf: bool,
     pub num_trials: usize,
     pub seed: u64,
+    pub sampling: SamplingMethod,
     pub variable_order: VariableOrder,
     pub reorder_budget: Duration,
 }
@@ -67,6 +69,7 @@ impl Default for Settings {
             ccf: false,
             num_trials: 10_000,
             seed: 847,
+            sampling: SamplingMethod::MonteCarlo,
             variable_order: VariableOrder::Dfs,
             reorder_budget: Duration::from_secs(60),
         }
@@ -107,8 +110,9 @@ pub struct ImportanceOut {
 pub struct UncertaintyOut {
     pub mean: f64,
     pub standard_deviation: f64,
-    pub error_factor: f64,
-    pub quantiles: Vec<f64>,
+    pub standard_error: f64,
+    pub quantiles: Vec<QuantileValue>,
+    pub samples: Vec<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -174,15 +178,7 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
     let mut owned;
     let ft: &FaultTree = if settings.ccf && !fault_tree.ccf_groups().is_empty() {
         owned = fault_tree.clone();
-        let mut base = HashMap::new();
-        for (id, group) in owned.ccf_groups() {
-            if let Some(dist) = &group.distribution {
-                if let Ok(p) = dist.parse::<f64>() {
-                    base.insert(id.clone(), p);
-                }
-            }
-        }
-        owned.expand_ccf_groups(&base)?;
+        owned.expand_ccf_groups()?;
         &owned
     } else {
         fault_tree
@@ -476,13 +472,19 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
     }
 
     if settings.uncertainty {
-        let analysis = propagate_uncertainty(ft, settings.num_trials, Some(settings.seed))
+        let plan = SamplingPlan {
+            method: settings.sampling,
+            trials: settings.num_trials,
+            seed: settings.seed,
+        };
+        let analysis = propagate_uncertainty(ft, &plan)
             .map_err(|e| PraxisError::Logic(format!("uncertainty failed: {e}")))?;
         result.uncertainty = Some(UncertaintyOut {
             mean: analysis.mean(),
-            standard_deviation: analysis.sigma(),
-            error_factor: analysis.error_factor(),
+            standard_deviation: analysis.standard_deviation(),
+            standard_error: analysis.standard_error(),
             quantiles: analysis.quantiles().to_vec(),
+            samples: analysis.samples().to_vec(),
         });
     }
 
@@ -632,11 +634,10 @@ mod tests {
         let group = CcfGroup::new(
             "Pumps",
             vec!["A".into(), "B".into()],
-            CcfModel::BetaFactor(0.1),
+            CcfModel::BetaFactor(Expr::Constant(0.1)),
+            Expr::uniform(0.01, 0.2),
         )
-        .unwrap()
-        .with_distribution("0.105".into())
-        .with_uncertainty(Expr::uniform(0.01, 0.2));
+        .unwrap();
         ft.add_ccf_group(group).unwrap();
         let settings = Settings {
             ccf: true,

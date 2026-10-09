@@ -1,4 +1,6 @@
 import { fetchJson } from "../../api/client";
+import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
+import { praxisUncertainty } from "../../newly-developed-methods/shared/test/praxisUncertainty";
 import { fetchSeismicPraLinkedInputs, seismicPraVariant } from "../seismicPraWorkbookApi";
 
 jest.mock("../../api/client", () => ({
@@ -8,6 +10,7 @@ jest.mock("../../api/client", () => ({
   postJson: jest.fn(),
   postMultipart: jest.fn(),
 }));
+jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
 
 const mockFetchJson = fetchJson as jest.MockedFunction<typeof fetchJson>;
 
@@ -23,16 +26,16 @@ function mockLinkedBundles(variant: "htgr" | "sfr"): void {
       screeningRecords: [{ posId: "POS-X", retained: false }],
     } } });
     if (path.includes("/ie-bundle")) return Promise.resolve({ ie: { mef: {
-      initiatingEventGroups: [{ uuid: "IEG-01", name: "Loss of cooling", meanFrequency: isSfr ? 0.79 : { value: 2.943 }, applicableStates: ["POS-01"], riskImportance: "HIGH" }],
+      initiatingEventGroups: [{ uuid: "IEG-01", name: "Loss of cooling", frequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: isSfr ? 0.79 : 2.943 } } } }, applicableStates: ["POS-01"], riskImportance: "HIGH" }],
     } } });
     if (path.includes("/es-bundle")) return Promise.resolve({ es: { mef: {
       eventSequenceFamilies: [{ uuid: "ESF-01", name: "Safe state", endState: "SUCCESSFUL_MITIGATION", memberSequenceIds: ["ES-1", "ES-2"] }],
     } } });
     if (path.includes("/sc-bundle")) return Promise.resolve({ sc: { mef: {
-      missionTimes: [{ uuid: "MT-01", eventSequenceReference: "ES-1", missionTimeHours: isSfr ? 96 : 72, isRiskSignificant: true }],
+      missionTimes: [{ uuid: "MT-01", eventSequenceReference: "ES-1", missionTime: { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: isSfr ? 96 : 72 } } }, isRiskSignificant: true }],
     } } });
     if (path.includes("/sy-bundle")) return Promise.resolve({ sy: { mef: {
-      systemDefinitions: [{ uuid: "SYS-01", name: isSfr ? "DRACS" : "RCCS", missionTimeHours: 24, applicablePlantOperatingStates: ["POS-01"] }],
+      systemDefinitions: [{ uuid: "SYS-01", name: isSfr ? "DRACS" : "RCCS", missionTime: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: `example-sc-${variant}`, entityId: "MT-01" } }, applicablePlantOperatingStates: ["POS-01"] }],
       systemBasicEvents: [
         { uuid: "BE-01", name: "Pump failure" },
         { uuid: "BE-02", name: "Valve failure" },
@@ -67,6 +70,7 @@ function mockLinkedBundles(variant: "htgr" | "sfr"): void {
 describe("Seismic PRA linked inputs", () => {
   beforeEach(() => {
     mockFetchJson.mockReset();
+    jest.mocked(evaluateUncertainty).mockImplementation(praxisUncertainty);
   });
 
   it.each(["htgr", "sfr"] as const)("loads and maps the %s technical-element bundles", async (variant) => {
@@ -83,6 +87,7 @@ describe("Seismic PRA linked inputs", () => {
     expect(links.ieGroups[0].meanFrequency).toBe(variant === "sfr" ? 0.79 : 2.943);
     expect(links.esFamilies[0].memberCount).toBe(2);
     expect(links.scMissionTimes[0].hours).toBe(variant === "sfr" ? 96 : 72);
+    expect(links.sySystems[0].missionHours).toBe(variant === "sfr" ? 96 : 72);
     expect(links.sySystems[0].basicEventCount).toBe(3);
     expect(links.hrActions[0].humanErrorProbability).toBe(variant === "sfr" ? 0.08 : 0.045);
     expect(links.daParameters[0].basicEvent).toBe("BE-01");

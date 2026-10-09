@@ -1,6 +1,7 @@
 import { JSX, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import { expressionReferences } from "interfaces-mef-types/core/uncertainty";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
@@ -33,6 +34,7 @@ import { EsPosLinkModal } from "./esPosLinkModal";
 import { EsIeLinkModal } from "./esIeLinkModal";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { EsDocumentsCard } from "./esDocumentsCard";
+import { loadDaFrequencies } from "../ie-workbooks/ieDaLinks";
 import { type EsPersona } from "./esViewData";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
@@ -100,6 +102,10 @@ function EsWorkbookPage(): JSX.Element {
         });
         setMyRoles(workbook.myRoles);
         setRevision(workbook.revision);
+        const linkedDa = (workbook.mef.eventTrees ?? []).flatMap((tree) => (tree.initiatingEventFrequency === undefined ? [] : expressionReferences(tree.initiatingEventFrequency.expression).map((reference) => reference.workbookId)));
+        void loadDaFrequencies(workbook.projectId, linkedDa).then((daFrequencies) => {
+          if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daFrequencies }));
+        });
         setHasPreviousMef(workbook.hasPreviousMef);
         try {
           const project = await getProject(workbook.projectId);

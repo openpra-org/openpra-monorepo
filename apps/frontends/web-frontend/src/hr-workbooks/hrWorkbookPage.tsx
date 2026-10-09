@@ -27,6 +27,7 @@ import { useHrMefPatch } from "./useHrMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { HrDocumentsCard } from "./hrDocumentsCard";
 import { type HrPersona } from "./hrViewData";
+import { loadHrDaHeps } from "./hrDaLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "HR-A1",
@@ -90,6 +91,9 @@ function HrWorkbookPage(): JSX.Element {
         setMyRoles(workbook.myRoles);
         setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
+        void loadHrDaHeps(workbook.projectId, workbook.mef).then((daHeps) => {
+          if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daHeps }));
+        });
         try {
           const project = await getProject(workbook.projectId);
           if (!cancelled) setProjectName(project.name);

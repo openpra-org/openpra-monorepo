@@ -1,15 +1,15 @@
 .ftunc-results { display: grid; gap: 16px; padding-top: 18px; }
 .ftunc-results > h3 { margin: 0; font-size: 14px; }
 .ftunc-result, .ftunc-batch { display: grid; gap: 12px; min-width: 0; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); padding: 14px 16px; }
-.ftunc-result__head, .ftunc-batch__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
-.ftunc-result__head strong, .ftunc-batch__head strong { font-size: 13px; }
-.ftunc-result__head span, .ftunc-batch__head span { color: var(--color-text-muted); font-size: 11px; }
+.ftunc-batch__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ftunc-batch__head strong { font-size: 13px; }
+.ftunc-batch__head span { color: var(--color-text-muted); font-size: 11px; }
 .ftunc-result__views { display: flex; gap: 6px; }
 .ftunc-result__view { display: inline-flex; align-items: center; min-height: 28px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); padding: 4px 10px; color: var(--color-text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .ftunc-result__view:hover { border-color: var(--color-primary); }
 .ftunc-result__view:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
 .ftunc-result__view[aria-pressed="true"] { border-color: var(--color-primary); color: var(--color-primary); }
-.ftunc-result__chart { display: block; width: 100%; height: auto; }
+.ftunc-result svg.ftunc-result__chart { display: block; width: 100%; height: auto; }
 .ftunc-result__axis { stroke: var(--color-border); stroke-width: 1; }
 .ftunc-result__tick, .ftunc-result__marker-label { fill: var(--color-text-muted); font-family: var(--font-data), ui-monospace, monospace; font-size: 11px; }
 .ftunc-result__bar { fill: color-mix(in srgb, var(--color-primary) 16%, transparent); stroke: var(--color-primary); stroke-width: .5; }

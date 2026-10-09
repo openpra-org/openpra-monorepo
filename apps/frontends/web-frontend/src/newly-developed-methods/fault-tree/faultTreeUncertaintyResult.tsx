@@ -182,10 +182,6 @@ function FaultTreeUncertaintyCard({ entry }: { entry: FaultTreeUncertaintyEntry 
   const samples = uncertainty.samples;
   return (
     <article id={resultAnchor(result)} className="ftunc-result" aria-label={label === undefined ? "Uncertainty result" : `Uncertainty result for ${label}`}>
-      <div className="ftunc-result__head">
-        <strong>{label ?? "Uncertainty"}</strong>
-        {distributionCount !== undefined && <span>{`${distributionCount} uncertain input${distributionCount === 1 ? "" : "s"}`}</span>}
-      </div>
       <div className="ftunc-result__views" role="group" aria-label="Chart view">
         {CHART_VIEWS.map((option) => (
           <button key={option.view} type="button" className="ftunc-result__view" aria-pressed={view === option.view} onClick={() => setView(option.view)}>{option.label}</button>
@@ -197,7 +193,7 @@ function FaultTreeUncertaintyCard({ entry }: { entry: FaultTreeUncertaintyEntry 
         <tbody><tr>{values.map(({ name, value }) => <td key={name}>{probability(value)}</td>)}</tr></tbody>
       </table>
       <div className="ftunc-result__details">
-        <span>{`${uncertainty.sampleCount.toLocaleString()} ${SAMPLING_LABELS[uncertainty.samplingMethod]} samples · seed ${uncertainty.seed} · standard deviation ${probability(uncertainty.standardDeviation)} · standard error of the mean ${probability(uncertainty.standardError)}`}</span>
+        <span>{`${distributionCount === undefined ? "" : `${distributionCount} uncertain input${distributionCount === 1 ? "" : "s"} · `}${uncertainty.sampleCount.toLocaleString()} ${SAMPLING_LABELS[uncertainty.samplingMethod]} samples · seed ${uncertainty.seed} · standard deviation ${probability(uncertainty.standardDeviation)} · standard error of the mean ${probability(uncertainty.standardError)}`}</span>
         {samples.length > 0 && <ResultCsvButton filename={`${label ?? `ft-${result.runId}`} samples.csv`} records={() => [...samples].sort((left, right) => left - right).map((value, index) => ({ rank: index + 1, top_event_probability: value }))} />}
       </div>
     </article>

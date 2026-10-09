@@ -9,14 +9,25 @@
 .ftunc-result__view:hover { border-color: var(--color-primary); }
 .ftunc-result__view:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
 .ftunc-result__view[aria-pressed="true"] { border-color: var(--color-primary); color: var(--color-primary); }
-.ftunc-result svg.ftunc-result__chart { display: block; width: 100%; height: auto; }
-.ftunc-result__axis { stroke: var(--color-border); stroke-width: 1; }
-.ftunc-result__tick, .ftunc-result__marker-label { fill: var(--color-text-muted); font-family: var(--font-data), ui-monospace, monospace; font-size: 11px; }
-.ftunc-result__bar { fill: color-mix(in srgb, var(--color-primary) 16%, transparent); stroke: var(--color-primary); stroke-width: .5; }
-.ftunc-result__curve { fill: none; stroke: var(--color-primary); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.ftunc-result__marker { stroke: var(--color-text-muted); stroke-width: 1; }
-.ftunc-result__point { stroke: var(--color-text); stroke-width: 1.5; stroke-dasharray: 4 3; }
-.ftunc-result__point-label { fill: var(--color-text); font-size: 11px; }
+.ftunc-chart { display: grid; gap: 10px; min-width: 0; }
+.ftunc-chart__frame { width: 100%; min-width: 0; overflow: hidden; }
+.ftunc-result .ftunc-chart svg.ftunc-chart__svg { display: block; width: auto; height: auto; max-width: none; }
+.ftunc-chart__number { fill: var(--color-text-muted); font-family: var(--font-data), ui-monospace, monospace; font-size: 11px; font-variant-numeric: tabular-nums; }
+.ftunc-chart__axis { stroke: var(--color-border); stroke-width: 1; }
+.ftunc-chart__grid { stroke: var(--color-border); stroke-width: 1; stroke-dasharray: 2 3; }
+.ftunc-chart__percentile { stroke: var(--color-text-muted); stroke-width: 1; stroke-dasharray: 1 3; }
+.ftunc-chart__bar { fill: color-mix(in srgb, var(--color-primary) 32%, transparent); }
+.ftunc-chart__curve { fill: none; stroke: var(--color-primary); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.ftunc-chart__median { stroke: var(--color-text-muted); stroke-width: 1; }
+.ftunc-chart__mean { stroke: var(--color-primary); stroke-width: 1.5; }
+.ftunc-chart__point { stroke: var(--color-text); stroke-width: 1; stroke-dasharray: 3 3; }
+.ftunc-chart__legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; margin: 0; padding: 0; list-style: none; color: var(--color-text-muted); font-family: var(--font-ui); font-size: 11px; }
+.ftunc-chart__legend li { display: inline-flex; align-items: center; gap: 6px; }
+.ftunc-chart__key { display: inline-block; flex: 0 0 auto; width: 16px; height: 0; }
+.ftunc-chart__key--percentile { border-top: 1px dotted var(--color-text-muted); }
+.ftunc-chart__key--median { border-top: 1px solid var(--color-text-muted); }
+.ftunc-chart__key--mean { border-top: 2px solid var(--color-primary); }
+.ftunc-chart__key--point { border-top: 1px dashed var(--color-text); }
 .ftunc-result__note { margin: 0; color: var(--color-text-muted); font-size: 11px; }
 .ftunc-result__values { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .ftunc-result__values th { padding: 0 6px 4px 0; color: var(--color-text-muted); font-size: 11px; font-weight: 600; text-align: left; }

@@ -1,4 +1,4 @@
-import { useMemo, useState, type JSX } from "react";
+import { useCallback, useMemo, useRef, useState, type JSX } from "react";
 import type { FaultTreeAnalysisResult, FaultTreeUncertaintyResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import type { UncertaintySamplingMethod } from "interfaces-shared-types/newly-developed-methods/shared";
 import { ResultCsvButton } from "../shared/resultPresentation";
@@ -12,8 +12,6 @@ interface FaultTreeUncertaintyEntry {
 
 interface DecadeRange { low: number; high: number }
 
-interface Marker { value: number; label: string }
-
 type ChartView = "DISTRIBUTION" | "CUMULATIVE";
 
 const SAMPLING_LABELS: Record<UncertaintySamplingMethod, string> = {
@@ -26,16 +24,14 @@ const CHART_VIEWS: readonly { view: ChartView; label: string }[] = [
   { view: "CUMULATIVE", label: "Cumulative" },
 ];
 
-const WIDTH = 640;
-const HEIGHT = 190;
-const LEFT = 36;
-const RIGHT = 616;
-const TOP = 14;
-const BASE = 160;
-const PLOT_TOP = TOP + 30;
+const DEFAULT_WIDTH = 640;
+const CHART_HEIGHT = 220;
+const PLOT_LEFT = 34;
+const PLOT_RIGHT_GAP = 24;
+const PLOT_TOP = 10;
+const PLOT_BASE = 196;
 const BIN_COUNT = 40;
 const CURVE_POINTS = 240;
-const LABEL_GAP = 46;
 
 function probability(value: number | undefined): string {
   return value !== undefined && Number.isFinite(value) ? value.toExponential(3).toUpperCase() : "Not given";
@@ -57,10 +53,6 @@ function decadeRange(values: readonly number[]): DecadeRange | undefined {
   const low = Math.floor(Math.log10(smallest));
   const high = Math.ceil(Math.log10(largest));
   return high > low ? { low, high } : { low: low - 1, high: low + 1 };
-}
-
-function scale(range: DecadeRange): (value: number) => number {
-  return (value) => LEFT + ((Math.log10(value) - range.low) / (range.high - range.low)) * (RIGHT - LEFT);
 }
 
 function decadeTicks(range: DecadeRange): number[] {
@@ -86,18 +78,6 @@ function largestCount(counts: readonly number[]): number {
   return largest;
 }
 
-function labelRows(markers: readonly Marker[], x: (value: number) => number): number[] {
-  const rows: number[] = [];
-  const lastInRow = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
-  for (const marker of markers) {
-    const position = x(marker.value);
-    const row = position - (lastInRow[0] ?? Number.NEGATIVE_INFINITY) >= LABEL_GAP ? 0 : 1;
-    lastInRow[row] = position;
-    rows.push(row);
-  }
-  return rows;
-}
-
 function sampleNote(uncertainty: FaultTreeUncertaintyResult, view: ChartView): string | undefined {
   const stored = uncertainty.samples.length;
   if (stored === 0) return `This result holds no samples, so the chart shows the summary values without the ${view === "DISTRIBUTION" ? "distribution" : "cumulative curve"}.`;
@@ -105,61 +85,92 @@ function sampleNote(uncertainty: FaultTreeUncertaintyResult, view: ChartView): s
   return undefined;
 }
 
+function useChartWidth(): [(element: HTMLDivElement | null) => void, number] {
+  const [width, setWidth] = useState(DEFAULT_WIDTH);
+  const observer = useRef<ResizeObserver | null>(null);
+  const attach = useCallback((element: HTMLDivElement | null) => {
+    observer.current?.disconnect();
+    observer.current = null;
+    if (element === null) return;
+    const measure = (): void => {
+      const measured = Math.floor(element.getBoundingClientRect().width);
+      if (measured > 0) setWidth(measured);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    observer.current = new ResizeObserver(measure);
+    observer.current.observe(element);
+  }, []);
+  return [attach, width];
+}
+
 function DistributionChart({ uncertainty, point, view }: { uncertainty: FaultTreeUncertaintyResult; point: number; view: ChartView }): JSX.Element {
-  const markers = useMemo<Marker[]>(() => [
-    { value: quantileAt(uncertainty, 0.05), label: "5th" },
-    { value: quantileAt(uncertainty, 0.5), label: "median" },
-    { value: uncertainty.mean, label: "mean" },
-    { value: quantileAt(uncertainty, 0.95), label: "95th" },
-  ].flatMap((marker) => (marker.value !== undefined && marker.value > 0 ? [{ value: marker.value, label: marker.label }] : []))
-    .sort((left, right) => left.value - right.value), [uncertainty]);
+  const [attachFrame, width] = useChartWidth();
+  const low = quantileAt(uncertainty, 0.05);
+  const median = quantileAt(uncertainty, 0.5);
+  const high = quantileAt(uncertainty, 0.95);
   const sorted = useMemo(() => [...uncertainty.samples].sort((left, right) => left - right), [uncertainty.samples]);
-  const range = useMemo(() => decadeRange([...sorted, point, ...markers.map((marker) => marker.value)]), [sorted, point, markers]);
+  const range = useMemo(() => decadeRange([...sorted, point, uncertainty.mean, low ?? 0, median ?? 0, high ?? 0]), [sorted, point, uncertainty.mean, low, median, high]);
   const zeros = sorted.filter((sample) => !(sample > 0)).length;
   const note = sampleNote(uncertainty, view);
   if (range === undefined) {
     return <p className="ftunc-result__note" role="status">{sorted.length > 0 ? "Every sample is 0, so there is no spread to draw." : "This result holds no samples and no value above 0 to draw."}</p>;
   }
-  const x = scale(range);
-  const rows = labelRows(markers, x);
+  const right = Math.max(PLOT_LEFT + 80, width - PLOT_RIGHT_GAP);
+  const x = (value: number): number => PLOT_LEFT + ((Math.log10(value) - range.low) / (range.high - range.low)) * (right - PLOT_LEFT);
+  const y = (share: number): number => PLOT_BASE - share * (PLOT_BASE - PLOT_TOP);
   const counts = view === "DISTRIBUTION" && sorted.length > 0 ? histogram(sorted, range) : [];
   const largest = largestCount(counts);
-  const binWidth = (RIGHT - LEFT) / BIN_COUNT;
-  const height = BASE - PLOT_TOP;
+  const binWidth = (right - PLOT_LEFT) / BIN_COUNT;
   const step = Math.max(1, Math.floor(sorted.length / CURVE_POINTS));
   const curve = view === "CUMULATIVE"
     ? sorted.flatMap((sample, index) => (sample > 0 && (index % step === 0 || index === sorted.length - 1)
-      ? [`${x(sample).toFixed(1)},${(BASE - ((index + 1) / sorted.length) * height).toFixed(1)}`]
+      ? [`${x(sample).toFixed(1)},${y((index + 1) / sorted.length).toFixed(1)}`]
       : [])).join(" ")
     : "";
+  const vertical = (value: number | undefined, className: string): JSX.Element | null => (value === undefined || !(value > 0)
+    ? null
+    : <line className={className} x1={x(value)} y1={PLOT_TOP} x2={x(value)} y2={PLOT_BASE} />);
   const label = view === "DISTRIBUTION"
     ? "Distribution of the sampled top event probability on a log scale"
     : "Cumulative share of samples against the top event probability on a log scale";
   return (
-    <>
-      <svg className="ftunc-result__chart" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={`${label}, marked at the 5th percentile, median, mean, 95th percentile and point estimate`}>
-        <line className="ftunc-result__axis" x1={LEFT} y1={BASE} x2={RIGHT} y2={BASE} />
-        {decadeTicks(range).map((decade) => (
-          <text key={decade} className="ftunc-result__tick" x={x(10 ** decade)} y={BASE + 16} textAnchor="middle">{`1E${decade}`}</text>
-        ))}
-        {counts.map((count, index) => (count === 0 ? null : (
-          <rect key={index} className="ftunc-result__bar" x={LEFT + index * binWidth + 1} y={BASE - (count / largest) * height} width={Math.max(1, binWidth - 2)} height={(count / largest) * height} />
-        )))}
-        {curve !== "" && <polyline className="ftunc-result__curve" points={curve} />}
-        {markers.map((marker, index) => (
-          <g key={marker.label}>
-            <line className="ftunc-result__marker" x1={x(marker.value)} y1={TOP + 8 + (rows[index] ?? 0) * 12} x2={x(marker.value)} y2={BASE} />
-            <text className="ftunc-result__marker-label" x={x(marker.value)} y={TOP + 4 + (rows[index] ?? 0) * 12} textAnchor="middle">{marker.label}</text>
-          </g>
-        ))}
-        {point > 0 && <>
-          <line className="ftunc-result__point" x1={x(point)} y1={PLOT_TOP - 4} x2={x(point)} y2={BASE} />
-          <text className="ftunc-result__point-label" x={x(point) + 4} y={PLOT_TOP + 6}>point</text>
-        </>}
-      </svg>
+    <div className="ftunc-chart">
+      <div ref={attachFrame} className="ftunc-chart__frame">
+        <svg className="ftunc-chart__svg" width={width} height={CHART_HEIGHT} viewBox={`0 0 ${width} ${CHART_HEIGHT}`} role="img" aria-label={`${label}, marked at the 5th percentile, median, mean, 95th percentile and point estimate`}>
+          {view === "CUMULATIVE" && [0, 0.5, 1].map((share) => (
+            <g key={share}>
+              <line className="ftunc-chart__grid" x1={PLOT_LEFT} y1={y(share)} x2={right} y2={y(share)} />
+              <text className="ftunc-chart__number" x={PLOT_LEFT - 6} y={y(share) + 4} textAnchor="end">{share === 0.5 ? "0.5" : String(share)}</text>
+            </g>
+          ))}
+          {counts.map((count, index) => (count === 0 ? null : (
+            <rect key={index} className="ftunc-chart__bar" x={PLOT_LEFT + index * binWidth + 0.5} y={y(count / largest)} width={Math.max(1, binWidth - 1)} height={PLOT_BASE - y(count / largest)} />
+          )))}
+          {curve !== "" && <polyline className="ftunc-chart__curve" points={curve} />}
+          {vertical(low, "ftunc-chart__percentile")}
+          {vertical(high, "ftunc-chart__percentile")}
+          {vertical(median, "ftunc-chart__median")}
+          {vertical(uncertainty.mean, "ftunc-chart__mean")}
+          {vertical(point, "ftunc-chart__point")}
+          <line className="ftunc-chart__axis" x1={PLOT_LEFT} y1={PLOT_BASE} x2={right} y2={PLOT_BASE} />
+          {decadeTicks(range).map((decade) => (
+            <g key={decade}>
+              <line className="ftunc-chart__axis" x1={x(10 ** decade)} y1={PLOT_BASE} x2={x(10 ** decade)} y2={PLOT_BASE + 4} />
+              <text className="ftunc-chart__number" x={x(10 ** decade)} y={PLOT_BASE + 17} textAnchor="middle">{`1E${decade}`}</text>
+            </g>
+          ))}
+        </svg>
+      </div>
+      <ul className="ftunc-chart__legend" aria-label="Chart legend">
+        <li><span className="ftunc-chart__key ftunc-chart__key--percentile" aria-hidden="true" />5th and 95th percentiles</li>
+        <li><span className="ftunc-chart__key ftunc-chart__key--median" aria-hidden="true" />Median</li>
+        <li><span className="ftunc-chart__key ftunc-chart__key--mean" aria-hidden="true" />Mean</li>
+        <li><span className="ftunc-chart__key ftunc-chart__key--point" aria-hidden="true" />Point estimate</li>
+      </ul>
       {note !== undefined && <p className="ftunc-result__note" role="status">{note}</p>}
       {zeros > 0 && <p className="ftunc-result__note">{`${zeros.toLocaleString()} sample${zeros === 1 ? " is" : "s are"} exactly 0 and not drawn on the log scale.`}</p>}
-    </>
+    </div>
   );
 }
 

@@ -3,6 +3,7 @@ import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty"
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { FaultTreeAnalysisResult, FaultTreeExecuteResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { SyUncertaintyAnalysis } from "../SyUncertaintyAnalysis";
+import { SyUncertaintyResults } from "../SyUncertaintyResults";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "../syWorkbookApi";
 
 jest.mock("../../newly-developed-methods/shared/useAnalysisSourceGuard", () => ({ useAnalysisSourceGuard: () => ({ sourceWarning: null }) }));
@@ -63,13 +64,33 @@ describe("SY Step 07 linked uncertainty analysis", () => {
       calculationType: "UNCERTAINTY", settings: expect.objectContaining({ numTrials: 1000, seed: 9, expandCcf: true, samplingMethod: "LATIN_HYPERCUBE" }),
     }));
     await waitFor(() => expect(screen.getByRole("region", { name: "Uncertainty results" })).toBeInTheDocument());
-    expect(screen.getByText("2.100E-2")).toBeInTheDocument();
-    expect(screen.getByText("1.260E-4")).toBeInTheDocument();
-    expect(screen.queryByText("Error factor")).not.toBeInTheDocument();
-    expect(screen.getByText("4 Latin hypercube samples · seed 9")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Show samples" }));
-    const bins = screen.getByRole("table", { name: "Samples for CLG · FT-CLG · Cooling fault tree" });
-    expect(within(bins).getAllByRole("row")).toHaveLength(13);
+    const card = screen.getByRole("article", { name: "Uncertainty result for CLG · FT-CLG · Cooling fault tree" });
+    const values = within(card).getByRole("table", { name: "Summary values for CLG · FT-CLG · Cooling fault tree" });
+    expect(within(values).getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Point estimate", "5th percentile", "Median", "Mean", "95th percentile"]);
+    expect(within(values).getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["2.000E-2", "2.000E-2", "2.000E-2", "2.100E-2", "2.000E-2"]);
+    expect(card).toHaveTextContent("4 Latin hypercube samples · seed 9 · standard deviation 4.000E-3 · standard error of the mean 1.260E-4");
+    expect(within(card).getByRole("img", { name: /^Distribution of the sampled top event probability/ })).toBeInTheDocument();
+    fireEvent.click(within(card).getByRole("button", { name: "Cumulative" }));
+    expect(within(card).getByRole("button", { name: "Cumulative" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(card).getByRole("img", { name: /^Cumulative share of samples/ })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Batch summary" })).not.toBeInTheDocument();
+  });
+
+  it("opens a batch with one interval row per fault tree", () => {
+    const first = result();
+    const second: FaultTreeAnalysisResult = { ...result(), runId: "run-two", topEventProbability: 3e-6,
+      uncertainty: { ...result().uncertainty!, mean: 3.4e-6, samples: [0, 1e-6, 3e-6, 9e-6], quantiles: [0.05, 0.25, 0.5, 0.75, 0.95].map((probability) => ({ probability, value: probability * 1e-5 })) } };
+    render(<SyUncertaintyResults batch entries={[
+      { modelId: "model-1", label: "CLG · FT-CLG", distributionCount: 2, result: first },
+      { modelId: "model-2", label: "RPS · RPS-TOP", distributionCount: 1, result: second },
+    ]} />);
+    const batch = screen.getByRole("region", { name: "Batch summary" });
+    expect(within(batch).getByRole("button", { name: "RPS · RPS-TOP" })).toBeInTheDocument();
+    expect(within(batch).getByLabelText("5th percentile 5.000E-7, 95th percentile 9.500E-6")).toBeInTheDocument();
+    expect(batch).toHaveTextContent("1E-7");
+    expect(batch).toHaveTextContent("1E-1");
+    expect(screen.getAllByRole("article")).toHaveLength(2);
+    expect(screen.getByText("1 sample is exactly 0 and not drawn on the log scale.")).toBeInTheDocument();
   });
 
   it("withholds a run until every component event has a value and one value is uncertain", () => {

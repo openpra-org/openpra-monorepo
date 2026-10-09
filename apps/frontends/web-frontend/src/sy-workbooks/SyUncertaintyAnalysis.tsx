@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type JSX } from "react";
-import type { FaultTreeAnalysisResult, FaultTreeAnalysisSettings, FaultTreeUncertaintyResult, FaultTreeWorkflow } from "interfaces-shared-types/newly-developed-methods/fault-tree";
+import type { FaultTreeAnalysisSettings, FaultTreeWorkflow } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import type { UncertaintySamplingMethod } from "interfaces-shared-types/newly-developed-methods/shared";
-import { ResultCsvButton } from "../newly-developed-methods/shared/resultPresentation";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
 import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "./syWorkbookApi";
@@ -9,12 +8,11 @@ import { useSyWorkbook } from "./syWorkbookContext";
 import { linkedMissionTimeTable } from "./syMissionTimes";
 import { runReadiness } from "./syUncertainty";
 import { isSystemLevelModel } from "./sySelectors";
+import { SyUncertaintyResults, type UncertaintyResultEntry } from "./SyUncertaintyResults";
 import "./css/syFaultTreeAnalysis.css";
 import "./css/syUncertainty.css";
 
-interface AnalysisResult { modelId: string; label: string; distributionCount: number; result: FaultTreeAnalysisResult }
-
-interface SampleBin { lower: number; upper: number; count: number }
+type AnalysisResult = UncertaintyResultEntry;
 
 const SAMPLING_LABELS: Record<UncertaintySamplingMethod, string> = {
   MONTE_CARLO: "Monte Carlo",
@@ -22,8 +20,6 @@ const SAMPLING_LABELS: Record<UncertaintySamplingMethod, string> = {
 };
 
 const SAMPLING_METHODS: readonly UncertaintySamplingMethod[] = ["MONTE_CARLO", "LATIN_HYPERCUBE"];
-
-const BIN_COUNT = 12;
 
 const DEFAULT_SETTINGS: FaultTreeAnalysisSettings = {
   algorithm: "BDD",
@@ -46,63 +42,8 @@ const DEFAULT_SETTINGS: FaultTreeAnalysisSettings = {
   stratifyEvents: 4,
 };
 
-function probability(value: number): string {
-  return Number.isFinite(value) ? value.toExponential(3).toUpperCase() : "—";
-}
-
 function isSamplingMethod(value: string): value is UncertaintySamplingMethod {
   return SAMPLING_METHODS.some((method) => method === value);
-}
-
-function sampleBins(samples: readonly number[]): SampleBin[] {
-  const sorted = [...samples].sort((left, right) => left - right);
-  const lowest = sorted[0];
-  const highest = sorted[sorted.length - 1];
-  if (lowest === undefined || highest === undefined) return [];
-  if (lowest === highest) return [{ lower: lowest, upper: highest, count: sorted.length }];
-  const logarithmic = lowest > 0 && highest / lowest >= 100;
-  const edge = (index: number): number => (logarithmic
-    ? lowest * (highest / lowest) ** (index / BIN_COUNT)
-    : lowest + ((highest - lowest) * index) / BIN_COUNT);
-  return Array.from({ length: BIN_COUNT }, (_, index) => {
-    const lower = edge(index);
-    const upper = index === BIN_COUNT - 1 ? highest : edge(index + 1);
-    const count = sorted.filter((value) => value >= lower && (index === BIN_COUNT - 1 ? value <= upper : value < upper)).length;
-    return { lower, upper, count };
-  });
-}
-
-function SampleView({ label, uncertainty }: { label: string; uncertainty: FaultTreeUncertaintyResult }): JSX.Element {
-  const [open, setOpen] = useState(false);
-  const bins = useMemo(() => (open ? sampleBins(uncertainty.samples) : []), [open, uncertainty.samples]);
-  const largest = Math.max(1, ...bins.map((bin) => bin.count));
-  return (
-    <div className="syunc-analysis__samples">
-      <div className="syunc-analysis__samples-head">
-        <button type="button" className="posnav__btn posnav__btn--sm" aria-expanded={open} onClick={() => setOpen((current) => !current)}>{open ? "Hide samples" : "Show samples"}</button>
-        <ResultCsvButton filename={`${label} samples.csv`} records={() => [...uncertainty.samples].sort((left, right) => left - right).map((value, index) => ({ rank: index + 1, top_event_probability: value }))} />
-      </div>
-      {open && (
-        <table className="sy-review-table syunc-analysis__bins" aria-label={`Samples for ${label}`}>
-          <thead><tr><th scope="col">From</th><th scope="col">To</th><th scope="col">Samples</th></tr></thead>
-          <tbody>
-            {bins.map((bin) => (
-              <tr key={`${bin.lower}:${bin.upper}`}>
-                <td className="posmono">{probability(bin.lower)}</td>
-                <td className="posmono">{probability(bin.upper)}</td>
-                <td>
-                  <div className="syunc-analysis__bin">
-                    <span className="syunc-analysis__bin-count">{bin.count.toLocaleString()}</span>
-                    <span className="syunc-analysis__bin-track"><span className="syunc-analysis__bin-fill" style={{ width: `${(bin.count / largest) * 100}%` }} /></span>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
 }
 
 function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string } = {}): JSX.Element {
@@ -257,23 +198,7 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
       {saveBlockedReason !== null && <p className="syft-analysis__notice" role="status">{saveBlockedReason}</p>}
       {(error ?? sourceWarning) !== null && <p className="syft-analysis__error" role="alert">{error ?? sourceWarning}</p>}
       {stale && <p className="syft-analysis__notice" role="status">These results use an earlier workbook revision.</p>}
-      {results.length > 0 && <section className="syunc-analysis__results" aria-label="Uncertainty results">
-        <h3>{workflow === "BATCH" ? "Analysis results" : "Analysis result"}</h3>
-        {results.map(({ label, distributionCount, result }) => <article key={result.runId} className="syunc-analysis__result">
-          <div className="syunc-analysis__result-head"><strong>{label}</strong><span>{distributionCount} uncertain input{distributionCount === 1 ? "" : "s"}</span></div>
-          {result.uncertainty !== undefined && <>
-            <dl className="syunc-analysis__metrics">
-              <div><dt>Point estimate</dt><dd>{probability(result.topEventProbability)}</dd></div>
-              <div><dt>Mean</dt><dd>{probability(result.uncertainty.mean)}</dd></div>
-              <div><dt>Standard deviation</dt><dd>{probability(result.uncertainty.standardDeviation)}</dd></div>
-              <div><dt>Standard error</dt><dd>{probability(result.uncertainty.standardError)}</dd></div>
-            </dl>
-            <div className="syunc-analysis__quantiles" aria-label="Probability quantiles">{result.uncertainty.quantiles.map((quantile) => <div key={quantile.probability}><span>{quantile.probability * 100}% quantile</span><strong>{probability(quantile.value)}</strong></div>)}</div>
-            <span className="possubtle">{result.uncertainty.sampleCount.toLocaleString()} {SAMPLING_LABELS[result.uncertainty.samplingMethod]} samples · seed {result.uncertainty.seed}</span>
-            <SampleView label={label} uncertainty={result.uncertainty} />
-          </>}
-        </article>)}
-      </section>}
+      {results.length > 0 && <SyUncertaintyResults entries={results} batch={workflow === "BATCH"} />}
     </section>
   );
 }

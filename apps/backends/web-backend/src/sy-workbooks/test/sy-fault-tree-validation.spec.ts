@@ -84,7 +84,7 @@ describe("SY fault-tree validation", () => {
     ] }, { username: "reviewer" })).rejects.toThrow("A component basic event keeps its value in the expression field");
     expect(update).not.toHaveBeenCalled();
     document.mef.systemBasicEvents[componentIndex]!.quantificationBasis = structuredClone(legacyBasis);
-    await expect(service.findOne("sy-workbook", { username: "reviewer" })).rejects.toThrow("A component basic event keeps its value in the expression field");
+    await expect(service.findOne("sy-workbook", { username: "reviewer" })).rejects.toThrow("This workbook was saved in an older format and could not be converted. Workbook sy-workbook. The server log has the details.");
     expect(document.revision).toBe(7);
   });
 

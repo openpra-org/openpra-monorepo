@@ -2,10 +2,14 @@ import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/com
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { SuccessCriteriaDevelopmentSchema } from "interfaces-mef-types/zod/sc/success-criteria-development";
+import { DataAnalysisSchema } from "interfaces-mef-types/zod/da/data-analysis";
+import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 import { ExampleWorkbook, type ExampleWorkbookDocument } from "./example-workbook.schema";
 import { ScWorkbook, type ScWorkbookDocument } from "../sc-workbooks/sc-workbook.schema";
+import { DaWorkbook, type DaWorkbookDocument } from "../da-workbooks/da-workbook.schema";
+import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook.schema";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
-import type { ProjectMissionTimeSource } from "./seeds/dependency-model-seed";
+import type { ProjectDataAnalysisSource, ProjectMissionTimeSource, ProjectSystemsSource } from "./seeds/dependency-model-seed";
 import { SEEDS, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, MS_EXAMPLES, RC_EXAMPLES, RI_EXAMPLES, SEISMIC_PRA_EXAMPLES, INTERNAL_FLOOD_PRA_EXAMPLES, INTERNAL_FIRE_PRA_EXAMPLES, HSA_EXAMPLES, HIGH_WINDS_PRA_EXAMPLES, EXTERNAL_FLOOD_PRA_EXAMPLES, OTHER_HAZARDS_PRA_EXAMPLES, CC_GENERIC_1_SLUG } from "./seeds";
 
 export interface ExampleWorkbookResponse {
@@ -149,6 +153,8 @@ export class ExampleWorkbooksService implements OnModuleInit {
   constructor(
     @InjectModel(ExampleWorkbook.name) private readonly exampleModel: Model<ExampleWorkbookDocument>,
     @InjectModel(ScWorkbook.name) private readonly scWorkbookModel: Model<ScWorkbookDocument>,
+    @InjectModel(DaWorkbook.name) private readonly daWorkbookModel: Model<DaWorkbookDocument>,
+    @InjectModel(SyWorkbook.name) private readonly syWorkbookModel: Model<SyWorkbookDocument>,
   ) {}
 
   async projectMissionTimeSources(projectId: string): Promise<ProjectMissionTimeSource[]> {
@@ -157,6 +163,26 @@ export class ExampleWorkbooksService implements OnModuleInit {
       const parsed = SuccessCriteriaDevelopmentSchema.safeParse(stripNulls(doc.mef));
       if (parsed.success) return [{ sc: parsed.data, workbookId: doc.workbookId }];
       this.logger.warn(`SC workbook ${doc.workbookId} failed validation, so example mission time links stay on the example.`);
+      return [];
+    });
+  }
+
+  async projectDataAnalysisSources(projectId: string): Promise<ProjectDataAnalysisSource[]> {
+    const docs = await this.daWorkbookModel.find({ projectId }).sort({ updatedAt: -1 }).exec();
+    return docs.flatMap((doc) => {
+      const parsed = DataAnalysisSchema.safeParse(stripNulls(doc.mef));
+      if (parsed.success) return [{ da: parsed.data, workbookId: doc.workbookId }];
+      this.logger.warn(`DA workbook ${doc.workbookId} failed validation, so example DA links stay on the example.`);
+      return [];
+    });
+  }
+
+  async projectSystemsSources(projectId: string): Promise<ProjectSystemsSource[]> {
+    const docs = await this.syWorkbookModel.find({ projectId }).sort({ updatedAt: -1 }).exec();
+    return docs.flatMap((doc) => {
+      const parsed = SystemsAnalysisSchema.safeParse(stripNulls(doc.mef));
+      if (parsed.success) return [{ sy: parsed.data, workbookId: doc.workbookId }];
+      this.logger.warn(`SY workbook ${doc.workbookId} failed validation, so example SY links stay on the example.`);
       return [];
     });
   }

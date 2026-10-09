@@ -14,6 +14,7 @@ import { createBlankSeismicPra } from "./blank-seismic-pra";
 import { SeismicPraDocumentsService } from "./seismic-pra-documents.service";
 import { SeismicPraWorkbook, type SeismicPraWorkbookDocument } from "./seismic-pra-workbook.schema";
 import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
+import { storedPriorRejection } from "../workbooks/stored-workbook-format";
 
 export interface SeismicPraWorkbookResponse {
   workbookId: string;
@@ -145,7 +146,7 @@ export class SeismicPraWorkbooksService {
     const restoredObj = restored as { name?: string; owner?: string };
     const healed = healMef(restored, createBlankSeismicPra(restoredObj.name ?? "Seismic PRA Workbook", restoredObj.owner ?? acting.username));
     const parsed = SeismicPRASchema.safeParse(healed);
-    if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedPriorRejection("seismic PRA", workbookId, parsed.error.message);
     doc.mef = parsed.data;
     doc.previousMefJson = null;
     await doc.save();

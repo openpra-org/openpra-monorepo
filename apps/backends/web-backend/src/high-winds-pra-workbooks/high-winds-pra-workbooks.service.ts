@@ -13,6 +13,7 @@ import { Workbook, type WorkbookDocument } from "../workbooks/workbook.schema";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { createBlankHighWindsPra } from "./blank-high-winds-pra";
 import { HighWindsPraWorkbook, type HighWindsPraWorkbookDocument } from "./high-winds-pra-workbook.schema";
+import { storedPriorRejection } from "../workbooks/stored-workbook-format";
 
 export interface HighWindsPraWorkbookResponse {
   workbookId: string;
@@ -130,7 +131,7 @@ export class HighWindsPraWorkbooksService {
     const restoredObject = restored as { name?: string; owner?: string };
     const healed = healMef(restored, createBlankHighWindsPra(restoredObject.name ?? "High Winds PRA Workbook", restoredObject.owner ?? acting.username));
     const parsed = HighWindsPRASchema.safeParse(healed);
-    if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedPriorRejection("high winds PRA", workbookId, parsed.error.message);
     doc.mef = parsed.data;
     doc.previousMefJson = null;
     await doc.save();

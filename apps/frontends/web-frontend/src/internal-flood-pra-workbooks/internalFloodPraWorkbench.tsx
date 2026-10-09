@@ -76,7 +76,7 @@ export interface InternalFloodPraWorkbenchProps {
 export function InternalFloodPraWorkbench({ persona, setPersona, availablePersonas = ["preparer", "reviewer", "approver"], showPersonaPicker = true, onOpenRoles, onLoadExample, onUnloadExample, headerMeta, actions, renderApprovalTable, renderSignCard, renderRoster, exampleOptions, selectedExample, onSelectExample }: InternalFloodPraWorkbenchProps): JSX.Element {
   const [stepId, setStepId] = useState(persona === "reviewer" ? "review" : persona === "approver" ? "approval" : "analysis-basis");
   const [railOpen, setRailOpen] = useState(false);
-  const [dockOpen, setDockOpen] = useState(true);
+  const [dockOpen, setDockOpen] = useState(false);
   useEffect(() => {
     function closeOverlaysAtCompactWidths(): void {
       if (window.innerWidth <= 1100) setDockOpen(false);

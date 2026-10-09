@@ -149,6 +149,7 @@ import {
 import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import type { FaultTreeControlledDataSourceReference } from "interfaces-mef-types/modeling/fault-tree";
 import { PraetorAnalysisClient } from "./praetor-analysis.client";
+import { storedWorkbookRejection } from "../../workbooks/stored-workbook-format";
 
 export interface ActingUser {
   username: string;
@@ -396,7 +397,7 @@ export class WorkbookAnalysisRunsService {
       if (!document) throw new NotFoundException("SY workbook not found");
       const parsed = SystemsAnalysisSchema.safeParse(stripNulls(document.mef));
       if (!parsed.success)
-        throw new BadRequestException(`Stored SY workbook failed validation: ${parsed.error.message}`);
+        throw storedWorkbookRejection("SY", workbookId, parsed.error.message);
       return {
         hostType: "SY",
         workbookId,
@@ -415,7 +416,7 @@ export class WorkbookAnalysisRunsService {
       if (!document) throw new NotFoundException("ES workbook not found");
       const parsed = EventSequenceAnalysisSchema.safeParse(stripNulls(document.mef));
       if (!parsed.success)
-        throw new BadRequestException(`Stored ES workbook failed validation: ${parsed.error.message}`);
+        throw storedWorkbookRejection("ES", workbookId, parsed.error.message);
       return {
         hostType: "ES",
         workbookId,
@@ -434,7 +435,7 @@ export class WorkbookAnalysisRunsService {
       if (!document) throw new NotFoundException("ESQ workbook not found");
       const parsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(document.mef));
       if (!parsed.success)
-        throw new BadRequestException(`Stored ESQ workbook failed validation: ${parsed.error.message}`);
+        throw storedWorkbookRejection("ESQ", workbookId, parsed.error.message);
       return {
         hostType: "ESQ",
         workbookId,
@@ -453,7 +454,7 @@ export class WorkbookAnalysisRunsService {
       if (!document) throw new NotFoundException("DA workbook not found");
       const parsed = DataAnalysisSchema.safeParse(stripNulls(document.mef));
       if (!parsed.success) {
-        throw new BadRequestException(`Stored DA workbook failed validation: ${parsed.error.message}`);
+        throw storedWorkbookRejection("DA", workbookId, parsed.error.message);
       }
       return {
         hostType: "DA",
@@ -473,7 +474,7 @@ export class WorkbookAnalysisRunsService {
       if (!document) throw new NotFoundException("HRA workbook not found");
       const parsed = HumanReliabilityAnalysisSchema.safeParse(stripNulls(document.mef));
       if (!parsed.success) {
-        throw new BadRequestException(`Stored HRA workbook failed validation: ${parsed.error.message}`);
+        throw storedWorkbookRejection("HRA", workbookId, parsed.error.message);
       }
       return {
         hostType: "HRA",
@@ -493,7 +494,7 @@ export class WorkbookAnalysisRunsService {
       if (!document) throw new NotFoundException("SC workbook not found");
       const parsed = SuccessCriteriaDevelopmentSchema.safeParse(stripNulls(document.mef));
       if (!parsed.success) {
-        throw new BadRequestException(`Stored SC workbook failed validation: ${parsed.error.message}`);
+        throw storedWorkbookRejection("SC", workbookId, parsed.error.message);
       }
       return {
         hostType: "SC",

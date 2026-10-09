@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { stringifyJson } from "interfaces-shared-types/json";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
@@ -34,7 +34,17 @@ import {
 } from "../workbooks/workbook-revision";
 import type { RevisionedWorkbookPatchBody } from "interfaces-shared-types/workbooks";
 import { WorkbookDependencyDiscoveryService } from "../newly-developed-methods/shared/workbook-dependency-discovery.service";
-import { reconcileExampleSyDependencyOwnership, reconcileExampleSyMissionTimeReferences, relinkExampleMissionTimes, syMissionTimeExpressions } from "../example-workbooks/seeds/dependency-model-seed";
+import {
+  keptExampleLinkMessage,
+  reconcileExampleSyDataAnalysisLinks,
+  reconcileExampleSyDependencyOwnership,
+  reconcileExampleSyMissionTimeReferences,
+  relinkExampleDataAnalysis,
+  relinkExampleMissionTimes,
+  syDataAnalysisLinks,
+  syMissionTimeExpressions,
+} from "../example-workbooks/seeds/dependency-model-seed";
+import { storedPriorRejection, storedWorkbookRejection } from "../workbooks/stored-workbook-format";
 
 export interface SyWorkbookResponse {
   workbookId: string;
@@ -68,7 +78,7 @@ function toFaultTreeModel(model: SystemsAnalysis["systemLogicModels"][number]): 
 
 function toResponse(doc: SyWorkbookDocument, myRoles: WorkbookRoleName[]): SyWorkbookResponse {
   const parsed = SystemsAnalysisSchema.safeParse(stripNulls(doc.mef));
-  if (!parsed.success) throw new BadRequestException(`Stored SY workbook failed validation: ${parsed.error.message}`);
+  if (!parsed.success) throw storedWorkbookRejection("SY", doc.workbookId, parsed.error.message);
   return {
     workbookId: doc.workbookId,
     projectId: doc.projectId,
@@ -83,6 +93,8 @@ function toResponse(doc: SyWorkbookDocument, myRoles: WorkbookRoleName[]): SyWor
 
 @Injectable()
 export class SyWorkbooksService {
+  private readonly logger = new Logger(SyWorkbooksService.name);
+
   constructor(
     @InjectModel(SyWorkbook.name) private readonly syWorkbookModel: Model<SyWorkbookDocument>,
     @InjectModel(WorkbookSignoff.name) private readonly signoffModel: Model<WorkbookSignoffDocument>,
@@ -122,7 +134,7 @@ export class SyWorkbooksService {
     assertExpectedWorkbookRevision(doc, patch.expectedRevision);
     const current = SystemsAnalysisSchema.safeParse(stripNulls(doc.mef));
     if (!current.success) {
-      throw new BadRequestException(`Stored SY workbook failed validation: ${current.error.message}`);
+      throw storedWorkbookRejection("SY", workbookId, current.error.message);
     }
     const parsed = SystemsAnalysisSchema.safeParse(
       stripNulls(mergeWorkbookPatch(current.data, patch.operations)),
@@ -169,7 +181,7 @@ export class SyWorkbooksService {
 
     const parsedMef = SystemsAnalysisSchema.safeParse(stripNulls(doc.mef));
     if (!parsedMef.success) {
-      throw new BadRequestException(`Stored SY workbook failed validation: ${parsedMef.error.message}`);
+      throw storedWorkbookRejection("SY", workbookId, parsedMef.error.message);
     }
     const logic = parsedMef.data.systemLogicModels.find(({ uuid }) => uuid === request.modelId);
     if (logic === undefined) throw new NotFoundException("SY fault tree not found");
@@ -259,8 +271,11 @@ export class SyWorkbooksService {
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const missionTimes = await this.exampleWorkbooksService.projectMissionTimeSources(doc.projectId);
     const relinked = relinkExampleMissionTimes(parsed.data, syMissionTimeExpressions(parsed.data), missionTimes, reconcileExampleSyMissionTimeReferences);
+    const dataAnalyses = await this.exampleWorkbooksService.projectDataAnalysisSources(doc.projectId);
+    const linked = relinkExampleDataAnalysis(relinked, syDataAnalysisLinks(relinked), dataAnalyses, reconcileExampleSyDataAnalysisLinks);
+    linked.kept.forEach((kept) => this.logger.warn(keptExampleLinkMessage("SY", "DA", kept)));
     const cleaned = {
-      ...reconcileExampleSyDependencyOwnership(relinked, workbookId),
+      ...reconcileExampleSyDependencyOwnership(linked.mef, workbookId),
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };
@@ -302,7 +317,7 @@ export class SyWorkbooksService {
     const template = createBlankSy(restoredObj.name ?? "SY Workbook", restoredObj.owner ?? acting.username);
     const healed = healMef(restored, template);
     const parsed = SystemsAnalysisSchema.safeParse(healed);
-    if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedPriorRejection("SY", workbookId, parsed.error.message);
     const updatedDoc = await this.syWorkbookModel
       .findOneAndUpdate(
         createWorkbookRevisionFilter(workbookId, expectedRevision),

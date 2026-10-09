@@ -12,6 +12,7 @@ import { createBlankSc } from "./blank-sc";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
 import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
+import { storedPriorRejection } from "../workbooks/stored-workbook-format";
 
 export interface ScWorkbookResponse {
   workbookId: string;
@@ -121,7 +122,7 @@ export class ScWorkbooksService {
     const template = createBlankSc(restoredObj.name ?? "SC Workbook", restoredObj.owner ?? acting.username);
     const healed = healMef(restored, template);
     const parsed = SuccessCriteriaDevelopmentSchema.safeParse(healed);
-    if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedPriorRejection("SC", workbookId, parsed.error.message);
     doc.mef = parsed.data;
     doc.previousMefJson = null;
     await doc.save();

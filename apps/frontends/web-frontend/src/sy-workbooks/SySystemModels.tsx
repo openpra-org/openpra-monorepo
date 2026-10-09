@@ -42,13 +42,14 @@ import { toExp } from "./syViewData";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "./syWorkbookApi";
 import { isSystemLevelModel } from "./sySelectors";
 import type { SyDrawerContext } from "./syScreens";
-import { SyFaultTreeDiagrams } from "./SyFaultTreeDiagrams";
+import { SyDiagramPanel } from "./SyDiagramPanel";
 import "./css/syModels.css";
 
-type ModelTab = "description" | "fault-tree" | "basic-events" | "quantification" | "assumptions";
+type ModelTab = "description" | "diagram" | "fault-tree" | "basic-events" | "quantification" | "assumptions";
 
 const MODEL_TABS: { id: ModelTab; label: string }[] = [
   { id: "description", label: "Description" },
+  { id: "diagram", label: "Diagram" },
   { id: "fault-tree", label: "Fault tree" },
   { id: "basic-events", label: "Basic events" },
   { id: "quantification", label: "Quantification" },
@@ -402,54 +403,53 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
     switch (tab) {
       case "description":
         return <SySystemDescription systemId={system.uuid} openDrawer={openDrawer} />;
-      case "fault-tree":
-        if (logic === undefined || editorModel === null || systemLevel) return renderNoFaultTree();
+      case "diagram":
         return (
-          <>
-          {editable && <p className="poscard__sub">Right-click a gate to add gates, basic events, house events or transfers. Give each basic event a value in the Basic events tab. Type it, or link a DA estimate after linking a DA workbook in Step 01.</p>}
-          <SyFaultTreeDiagrams
+          <SyDiagramPanel
             systemId={system.uuid}
             onAddDiagram={editable ? () => openDrawer({ kind: "diagram", id: system.uuid }) : undefined}
             onEditDiagram={editable ? (diagramId) => openDrawer({ kind: "diagram", id: system.uuid, diagramId }) : undefined}
-          >
-            <FaultTreeEditor
-              model={editorModel}
-              catalogue={catalogue}
-              readOnlyBasicEventValues={readOnlyValues(sy.systemBasicEvents, catalogue, values.label)}
-              capabilities={{
-                mode: editable ? "AUTHOR" : "READ_ONLY",
-                canEditBasicEvents: editable,
-                canEditLayout: editable,
-                canImport: editable,
-                canExport: true,
-                canRunAnalysis: false,
-              }}
-              selection={selection}
-              validation={validation}
-              saveState={runtime.saveStatus}
-              analysisResult={analysisResult}
-              showResults={false}
-              showHeaderStatus={false}
-              resultIsStale={resultIsStale}
-              transferTargets={transferTargets}
-              defaultMissionTime={system.missionTime}
-              daParameterOptions={editorOptions(controlledParameters)}
-              missionTimeOptions={values.missionTimeOptions}
-              parameterTable={values.table}
-              onOperation={applyOperation}
-              onSelectionChange={setSelection}
-              onOpenReference={(request) => {
-                if (request.kind === "BASIC_EVENT") {
-                  openDrawer({ kind: "be", id: request.basicEventId });
-                  return;
-                }
-                const target = sy.systemLogicModels.find((candidate) => candidate.uuid === request.target.modelId);
-                if (target !== undefined) setSysId(target.systemReference);
-              }}
-              onRun={() => undefined}
-            />
-          </SyFaultTreeDiagrams>
-          </>
+          />
+        );
+      case "fault-tree":
+        if (logic === undefined || editorModel === null || systemLevel) return renderNoFaultTree();
+        return (
+          <FaultTreeEditor
+            model={editorModel}
+            catalogue={catalogue}
+            readOnlyBasicEventValues={readOnlyValues(sy.systemBasicEvents, catalogue, values.label)}
+            capabilities={{
+              mode: editable ? "AUTHOR" : "READ_ONLY",
+              canEditBasicEvents: editable,
+              canEditLayout: editable,
+              canImport: editable,
+              canExport: true,
+              canRunAnalysis: false,
+            }}
+            selection={selection}
+            validation={validation}
+            saveState={runtime.saveStatus}
+            analysisResult={analysisResult}
+            showResults={false}
+            showHeaderStatus={false}
+            resultIsStale={resultIsStale}
+            transferTargets={transferTargets}
+            defaultMissionTime={system.missionTime}
+            daParameterOptions={editorOptions(controlledParameters)}
+            missionTimeOptions={values.missionTimeOptions}
+            parameterTable={values.table}
+            onOperation={applyOperation}
+            onSelectionChange={setSelection}
+            onOpenReference={(request) => {
+              if (request.kind === "BASIC_EVENT") {
+                openDrawer({ kind: "be", id: request.basicEventId });
+                return;
+              }
+              const target = sy.systemLogicModels.find((candidate) => candidate.uuid === request.target.modelId);
+              if (target !== undefined) setSysId(target.systemReference);
+            }}
+            onRun={() => undefined}
+          />
         );
       case "basic-events":
         if (logic === undefined || systemLevel) return renderNoFaultTree();

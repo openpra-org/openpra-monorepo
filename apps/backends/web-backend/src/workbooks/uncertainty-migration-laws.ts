@@ -81,11 +81,20 @@ class PraxisAnswers {
 
 class ConversionScope {
   readonly issues: string[] = [];
+  private waiting = 0;
 
   constructor(
     readonly answers: PraxisAnswers,
     readonly label: string,
   ) {}
+
+  get pending(): number {
+    return this.waiting;
+  }
+
+  follow(trial: ConversionScope): void {
+    this.waiting += trial.pending;
+  }
 
   report(message: string): void {
     this.issues.push(`${this.label}: ${message}`);
@@ -95,6 +104,7 @@ class ConversionScope {
     const answer = this.answers.law(operation);
     if (answer.status === "READY") return answer.value;
     if (answer.status === "FAILED") this.report(`PRAXIS could not form ${what}. ${answer.error}`);
+    else this.waiting += 1;
     return undefined;
   }
 
@@ -102,6 +112,7 @@ class ConversionScope {
     const answer = this.answers.quantile({ value: STANDARD_NORMAL, probability: UPPER_PERCENTILE });
     if (answer.status === "READY") return answer.value;
     if (answer.status === "FAILED") this.report(`PRAXIS could not give the standard normal percentile for ${what}. ${answer.error}`);
+    else this.waiting += 1;
     return undefined;
   }
 }
@@ -134,6 +145,11 @@ function recordAnswers(questions: PraxisQuestions, response: UncertaintyResponse
     const value = summary.quantiles.find((quantile) => quantile.probability === question.probability)?.value;
     answers.answerQuantile(key, value === undefined ? { status: "FAILED", error: "PRAXIS returned no percentile." } : { status: "READY", value });
   }
+}
+
+function failQuestions(questions: PraxisQuestions, error: string, answers: PraxisAnswers): void {
+  for (const [key] of questions.laws) answers.answerLaw(key, { status: "FAILED", error });
+  for (const [key] of questions.quantiles) answers.answerQuantile(key, { status: "FAILED", error });
 }
 
 function openQuestions(answers: PraxisAnswers): number {
@@ -273,6 +289,7 @@ export {
   PraxisAnswers,
   UPPER_PERCENTILE,
   boundedLaw,
+  failQuestions,
   figuresLaw,
   frequencyBasis,
   lognormalFit,

@@ -10,6 +10,7 @@ import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysis
 import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
 import { PagedResults } from "../newly-developed-methods/shared/resultPresentation";
 import { ccfGroupsForModel } from "./syCcf";
+import { FAULT_TREE_ALGORITHM_LABELS } from "./SyFaultTreeAnalysis";
 import { isSystemLevelModel } from "./sySelectors";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "./syWorkbookApi";
 import { useSyWorkbook } from "./syWorkbookContext";
@@ -43,15 +44,6 @@ const DEFAULT_SETTINGS: FaultTreeAnalysisSettings = {
   importanceSamplingMaxEvents: 32,
   importanceSamplingMinimumProbability: 1e-12,
   stratifyEvents: 4,
-};
-
-const ALGORITHM_LABELS: Partial<Record<FaultTreeAlgorithm, string>> = {
-  BDD: "BDD exact probability",
-  ZBDD: "ZBDD cut sets",
-  ZBDD_DIRECT: "Direct ZBDD",
-  ZBDD_DELTERM: "ZBDD deletion-term",
-  MOCUS: "MOCUS",
-  MOCUS_PI: "MOCUS prime implicants",
 };
 
 const CUT_SET_ALGORITHMS: FaultTreeAlgorithm[] = ["ZBDD", "ZBDD_DIRECT", "ZBDD_DELTERM", "MOCUS", "MOCUS_PI"];
@@ -251,7 +243,7 @@ export function SyCcfAnalysis({ currentModelId }: { currentModelId: string }): J
               <label className="syft-analysis__run-field">
                 <span>Algorithm</span>
                 <select aria-label="Common cause algorithm" value={settings.algorithm} onChange={(event) => changeAlgorithm(event.target.value as FaultTreeAlgorithm)}>
-                  {algorithms.map((algorithm) => <option key={algorithm} value={algorithm}>{ALGORITHM_LABELS[algorithm]}</option>)}
+                  {algorithms.map((algorithm) => <option key={algorithm} value={algorithm}>{FAULT_TREE_ALGORITHM_LABELS[algorithm]}</option>)}
                 </select>
               </label>
             </div>

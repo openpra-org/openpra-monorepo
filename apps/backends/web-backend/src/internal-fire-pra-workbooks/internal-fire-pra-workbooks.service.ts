@@ -13,6 +13,7 @@ import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/work
 import { createBlankInternalFirePra } from "./blank-internal-fire-pra";
 import { InternalFirePraWorkbook, type InternalFirePraWorkbookDocument } from "./internal-fire-pra-workbook.schema";
 import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
+import { storedPriorRejection } from "../workbooks/stored-workbook-format";
 
 export interface InternalFirePraWorkbookResponse {
   workbookId: string;
@@ -130,7 +131,7 @@ export class InternalFirePraWorkbooksService {
     const restoredObject = restored as { name?: string; owner?: string };
     const healed = healMef(restored, createBlankInternalFirePra(restoredObject.name ?? "Internal Fire PRA Workbook", restoredObject.owner ?? acting.username));
     const parsed = InternalFirePRASchema.safeParse(healed);
-    if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedPriorRejection("internal fire PRA", workbookId, parsed.error.message);
     doc.mef = parsed.data;
     doc.previousMefJson = null;
     await doc.save();

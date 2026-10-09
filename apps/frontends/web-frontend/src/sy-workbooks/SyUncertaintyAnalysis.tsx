@@ -8,11 +8,12 @@ import { useSyWorkbook } from "./syWorkbookContext";
 import { linkedMissionTimeTable } from "./syMissionTimes";
 import { runReadiness } from "./syUncertainty";
 import { isSystemLevelModel } from "./sySelectors";
-import { SyUncertaintyResults, type UncertaintyResultEntry } from "./SyUncertaintyResults";
+import { FaultTreeUncertaintyResults, type FaultTreeUncertaintyEntry } from "../newly-developed-methods/fault-tree";
+import { FAULT_TREE_ALGORITHM_LABELS } from "./SyFaultTreeAnalysis";
 import "./css/syFaultTreeAnalysis.css";
 import "./css/syUncertainty.css";
 
-type AnalysisResult = UncertaintyResultEntry;
+type AnalysisResult = FaultTreeUncertaintyEntry & { modelId: string; label: string; distributionCount: number };
 
 const SAMPLING_LABELS: Record<UncertaintySamplingMethod, string> = {
   MONTE_CARLO: "Monte Carlo",
@@ -166,7 +167,7 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
           ) : null}
           <div className="syft-analysis__execution-row">
             <div className="syft-analysis__run-fields">
-              <label className="syft-analysis__run-field"><span>Algorithm</span><select aria-label="Uncertainty algorithm" value="BDD" disabled><option value="BDD">BDD exact probability</option></select></label>
+              <label className="syft-analysis__run-field"><span>Algorithm</span><select aria-label="Uncertainty algorithm" value={settings.algorithm} onChange={(event) => { if (event.target.value === "BDD") updateSettings({ algorithm: "BDD" }); }}><option value="BDD">{FAULT_TREE_ALGORITHM_LABELS.BDD}</option></select></label>
               <label className="syft-analysis__run-field"><span>Sampling</span><select aria-label="Uncertainty sampling method" value={settings.samplingMethod} onChange={(event) => { if (isSamplingMethod(event.target.value)) updateSettings({ samplingMethod: event.target.value }); }}>
                 {SAMPLING_METHODS.map((method) => <option key={method} value={method}>{SAMPLING_LABELS[method]}</option>)}
               </select></label>
@@ -198,7 +199,7 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
       {saveBlockedReason !== null && <p className="syft-analysis__notice" role="status">{saveBlockedReason}</p>}
       {(error ?? sourceWarning) !== null && <p className="syft-analysis__error" role="alert">{error ?? sourceWarning}</p>}
       {stale && <p className="syft-analysis__notice" role="status">These results use an earlier workbook revision.</p>}
-      {results.length > 0 && <SyUncertaintyResults entries={results} batch={workflow === "BATCH"} />}
+      {results.length > 0 && <FaultTreeUncertaintyResults entries={results} batch={workflow === "BATCH"} />}
     </section>
   );
 }

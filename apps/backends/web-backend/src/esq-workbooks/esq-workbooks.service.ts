@@ -1,5 +1,5 @@
 import { stringifyJson } from "interfaces-shared-types/json";
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
@@ -25,8 +25,21 @@ import {
 import type { RevisionedWorkbookPatchBody } from "interfaces-shared-types/workbooks";
 import { WorkbookDependencyDiscoveryService } from "../newly-developed-methods/shared/workbook-dependency-discovery.service";
 import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook.schema";
-import { esqMissionTimeExpressions, reconcileExampleEsqDependencyReferences, reconcileExampleEsqMissionTimeReferences, relinkExampleMissionTimes } from "../example-workbooks/seeds/dependency-model-seed";
+import {
+  esqDataAnalysisLinks,
+  esqMissionTimeExpressions,
+  esqSystemsLinks,
+  keptExampleLinkMessage,
+  reconcileExampleEsqDataAnalysisLinks,
+  reconcileExampleEsqDependencyReferences,
+  reconcileExampleEsqMissionTimeReferences,
+  reconcileExampleEsqSystemsLinks,
+  relinkExampleDataAnalysis,
+  relinkExampleMissionTimes,
+  relinkExampleSystems,
+} from "../example-workbooks/seeds/dependency-model-seed";
 import { SY_EXAMPLES } from "../example-workbooks/seeds";
+import { storedPriorRejection, storedWorkbookRejection } from "../workbooks/stored-workbook-format";
 
 export interface EsqWorkbookResponse {
   workbookId: string;
@@ -45,7 +58,7 @@ interface ActingUser {
 
 function toResponse(doc: EsqWorkbookDocument, myRoles: WorkbookRoleName[]): EsqWorkbookResponse {
   const parsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(doc.mef));
-  if (!parsed.success) throw new BadRequestException(`Stored ESQ workbook failed validation: ${parsed.error.message}`);
+  if (!parsed.success) throw storedWorkbookRejection("ESQ", doc.workbookId, parsed.error.message);
   return {
     workbookId: doc.workbookId,
     projectId: doc.projectId,
@@ -60,6 +73,8 @@ function toResponse(doc: EsqWorkbookDocument, myRoles: WorkbookRoleName[]): EsqW
 
 @Injectable()
 export class EsqWorkbooksService {
+  private readonly logger = new Logger(EsqWorkbooksService.name);
+
   constructor(
     @InjectModel(EsqWorkbook.name) private readonly esqWorkbookModel: Model<EsqWorkbookDocument>,
     @InjectModel(SyWorkbook.name) private readonly syWorkbookModel: Model<SyWorkbookDocument>,
@@ -197,7 +212,14 @@ export class EsqWorkbooksService {
       reconciled = reconcileExampleEsqDependencyReferences(sourceParsed.data, workbookId, systems.data, syDocument.workbookId);
     }
     const missionTimes = await this.exampleWorkbooksService.projectMissionTimeSources(doc.projectId);
-    const parsed = EventSequenceQuantificationSchema.safeParse(relinkExampleMissionTimes(reconciled, esqMissionTimeExpressions(reconciled), missionTimes, reconcileExampleEsqMissionTimeReferences));
+    const relinked = relinkExampleMissionTimes(reconciled, esqMissionTimeExpressions(reconciled), missionTimes, reconcileExampleEsqMissionTimeReferences);
+    const dataAnalyses = await this.exampleWorkbooksService.projectDataAnalysisSources(doc.projectId);
+    const daLinked = relinkExampleDataAnalysis(relinked, esqDataAnalysisLinks(relinked), dataAnalyses, reconcileExampleEsqDataAnalysisLinks);
+    daLinked.kept.forEach((kept) => this.logger.warn(keptExampleLinkMessage("ESQ", "DA", kept)));
+    const projectSystems = await this.exampleWorkbooksService.projectSystemsSources(doc.projectId);
+    const syLinked = relinkExampleSystems(daLinked.mef, esqSystemsLinks(daLinked.mef), projectSystems, reconcileExampleEsqSystemsLinks);
+    syLinked.kept.forEach((kept) => this.logger.warn(keptExampleLinkMessage("ESQ", "SY", kept)));
+    const parsed = EventSequenceQuantificationSchema.safeParse(syLinked.mef);
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const cleaned = {
       ...parsed.data,
@@ -242,7 +264,7 @@ export class EsqWorkbooksService {
     const template = createBlankEsq(restoredObj.name ?? "ESQ Workbook", restoredObj.owner ?? acting.username);
     const healed = healMef(restored, template);
     const parsed = EventSequenceQuantificationSchema.safeParse(healed);
-    if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedPriorRejection("ESQ", workbookId, parsed.error.message);
     const updatedDoc = await this.esqWorkbookModel
       .findOneAndUpdate(
         createWorkbookRevisionFilter(workbookId, expectedRevision),

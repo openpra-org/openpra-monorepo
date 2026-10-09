@@ -64,6 +64,7 @@ import { summarizeEsqModelRun } from "./esq-model-run-summary";
 import { summarizeEsqPostRun, type EsqPostTreeInfo } from "./esq-post-run-summary";
 import { caseOverridesFor, importanceGroupsFor, importanceSpecFor, sampledBuild, type EsqSampling, type EsqSamplingTally } from "./esq-measure-run-builder";
 import { summarizeEsqImportanceRun, summarizeEsqUncertaintyRun } from "./esq-measure-run-summary";
+import { storedWorkbookRejection } from "../workbooks/stored-workbook-format";
 
 function sequenceFamilies(esq: EventSequenceQuantification, model: EsqModel, rootId: string): Record<string, string> {
   const treeIds = transferTreeIds(model, rootId);
@@ -93,7 +94,7 @@ export class EsqModelRunsService {
     const document = await this.esqWorkbookModel.findOne({ workbookId }).exec();
     if (!document) throw new NotFoundException("ESQ workbook not found");
     const parsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(document.mef));
-    if (!parsed.success) throw new BadRequestException(`Stored ESQ workbook failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedWorkbookRejection("ESQ", workbookId, parsed.error.message);
     return {
       hostType: "ESQ",
       workbookId,
@@ -127,7 +128,7 @@ export class EsqModelRunsService {
     if (!document) throw new NotFoundException("The linked SY workbook was not found. Relink SY in Step 01.");
     await this.projectsService.resolveAccess(document.projectId, acting);
     const parsed = SystemsAnalysisSchema.safeParse(stripNulls(document.mef));
-    if (!parsed.success) throw new BadRequestException(`Stored SY workbook failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedWorkbookRejection("SY", workbookId, parsed.error.message);
     return {
       hostType: "SY",
       workbookId,
@@ -161,7 +162,7 @@ export class EsqModelRunsService {
     if (!document) throw new NotFoundException("The linked SC workbook was not found. Relink SC in Step 01.");
     await this.projectsService.resolveAccess(document.projectId, acting);
     const parsed = SuccessCriteriaDevelopmentSchema.safeParse(stripNulls(document.mef));
-    if (!parsed.success) throw new BadRequestException(`Stored SC workbook failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedWorkbookRejection("SC", workbookId, parsed.error.message);
     return {
       hostType: "SC",
       workbookId,

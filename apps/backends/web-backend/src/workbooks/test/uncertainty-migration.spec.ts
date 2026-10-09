@@ -607,6 +607,59 @@ describe("uncertainty contract conversions", () => {
     expect([field(record0, "factors"), field(record0, "total")]).toEqual([undefined, point("PROBABILITY", 0.006915089995696231)]);
   });
 
+  it("converts ESQ parameter records saved between the contract passes", () => {
+    const oldModel = record(field(esqHtgrOld, "model"));
+    const daParameters = lookups.daParameters.get("da-wb") ?? new Map<string, DaParameterFacts>();
+    const frequencyIds = records(field(oldModel, "parameters")).flatMap((entry) => (daParameters.get(String(field(entry, "id")))?.quantificationModel === "FREQUENCY" ? [String(field(entry, "id"))] : []));
+    expect(frequencyIds.length).toBeGreaterThan(0);
+    const full = convertEsq(esqHtgrOld);
+    const fullParameters = records(field(record(field(full, "model")), "parameters"));
+    const passOne = fullParameters.map((entry) => {
+      const id = String(field(entry, "id"));
+      if (frequencyIds.includes(id)) return { ...byId(field(oldModel, "parameters"), "id", id), quantificationModel: "FREQUENCY" };
+      return field(entry, "estimate") === undefined ? entry : { ...entry, missionTimeHours: 24 };
+    });
+    expect(esqIssue({ ...full, model: { ...record(field(full, "model")), parameters: passOne } })).toBeDefined();
+    const between = convertEsq({ ...esqHtgrOld, model: { ...oldModel, parameters: passOne } });
+    expect(records(field(record(field(between, "model")), "parameters"))).toEqual(fullParameters);
+    expect(esqIssue(between)).toBeUndefined();
+    expect(convertEsq(between)).toBe(between);
+
+    const frequency = records(field(fixture("da-htgr"), "parameters")).find((candidate) => field(candidate, "quantificationModel") === "FREQUENCY" && field(candidate, "valueType") === "MEAN");
+    if (frequency === undefined) throw new Error("The fixture lacks a mean frequency.");
+    const distribution = record(field(record(field(frequency, "uncertainty")), "distribution"));
+    const typed = { id: "ESQ-FREQ-1", name: "Typed frequency", parameterType: "FREQUENCY", quantificationModel: "FREQUENCY", value: field(frequency, "value") ?? null, valueType: "MEAN", distribution, missionTimeHours: 8 };
+    const unlinked = convertEsq({ ...fixture("esq-sfr"), linkedWorkbooks: without(record(field(fixture("esq-sfr"), "linkedWorkbooks")), ["DA", "SY"]), model: { ...record(field(fixture("esq-sfr"), "model")), parameters: [typed] } });
+    expect(records(field(record(field(unlinked, "model")), "parameters"))).toEqual([{
+      id: "ESQ-FREQ-1",
+      name: "Typed frequency",
+      parameterType: "FREQUENCY",
+      quantificationModel: "FREQUENCY",
+      estimate: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "LOGNORMAL", mean: field(frequency, "value"), errorFactor: field(distribution, "errorFactor"), level: 0.95 } } },
+      missionTime: point("HOURS", 8),
+    }]);
+    for (const entry of records(field(record(field(unlinked, "model")), "parameters"))) expect(EsqParameterRecordSchema.safeParse(entry).success).toBe(true);
+  });
+
+  it("keeps pass-one DA estimates and needs and converts their old mission hours", () => {
+    const parameters = records(field(daHtgr, "parameters"));
+    const demand = parameters.find((candidate) => field(candidate, "quantificationModel") === "DEMAND_PROBABILITY");
+    if (demand === undefined) throw new Error("The fixture lacks a demand parameter.");
+    const estimated = { ...demand, valueMode: "TYPED", estimate: point("PROBABILITY", 0.001) };
+    const held = String(field(demand, "uuid"));
+    const passOneNeed = { id: "N-1", code: "N-1", name: "Held by DA", failureMode: "FAILURE_TO_RUN", expression: { node: "MODEL", model: { form: "MISSION", rate: parameter("da-wb", held), missionTime: point("HOURS", 24) } }, valueHeldBy: "DA", valueHolderId: held, importedMissionTimeHours: 24, missionTimeHours: 24, included: true };
+    const needs = { sources: [], initiators: [], humanErrors: [], ccfGroups: [], states: [], basicEvents: [passOneNeed] };
+    const passOne = { ...daHtgr, parameters: parameters.map((candidate) => (candidate === demand ? { ...estimated, missionTimeHours: 24 } : candidate)), dataNeeds: needs };
+    expect(daIssue(passOne)).toBeUndefined();
+    const next = convertDa(passOne, "da-wb");
+    expect(jsonTextOf(next)).not.toBe(jsonTextOf(passOne));
+    expect(byId(field(next, "parameters"), "uuid", held)).toEqual(estimated);
+    const need = records(field(record(field(next, "dataNeeds")), "basicEvents"))[0] ?? {};
+    expect(need).toEqual({ ...without(passOneNeed, ["importedMissionTimeHours", "missionTimeHours"]), importedMissionTime: point("HOURS", 24), missionTime: point("HOURS", 24) });
+    expect(daIssue(next)).toBeUndefined();
+    expect(jsonTextOf(convertDa(next, "da-wb"))).toBe(jsonTextOf(next));
+  });
+
   it("converts typed ESQ initiator choices and barrier cells", () => {
     const data = fixture("esq-records");
     const old = fixture("esq-htgr");

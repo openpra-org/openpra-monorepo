@@ -248,8 +248,6 @@ function projectedModel(): FaultTreeEditorProps["model"] {
   };
 }
 
-const FAULT_TREE_HINT = "Right-click a gate to add gates, basic events, house events or transfers. Give each basic event a value in the Basic events tab. Type it, or link a DA estimate after linking a DA workbook in Step 01.";
-
 describe("ModelsScreen canonical fault-tree host", () => {
   it("shows the PRAXIS fault-tree calculation, workflow, and algorithm controls below the editor", () => {
     const network = createEmptyBayesianNetwork("Dependency network");
@@ -257,7 +255,8 @@ describe("ModelsScreen canonical fault-tree host", () => {
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
 
     openTab("Fault tree");
-    expect(screen.getByText(FAULT_TREE_HINT)).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel")).toBeEmptyDOMElement();
+    expect(screen.queryByRole("radiogroup", { name: "Fault tree view" })).not.toBeInTheDocument();
     expect(latestEditorProps().capabilities.canRunAnalysis).toBe(false);
     expect(latestEditorProps().showResults).toBe(false);
     expect(latestEditorProps().showHeaderStatus).toBe(false);
@@ -267,6 +266,12 @@ describe("ModelsScreen canonical fault-tree host", () => {
     expect(screen.getByRole("radio", { name: "Probability", exact: true })).toBeChecked();
     expect(screen.getByRole("radio", { name: "Manual" })).toBeChecked();
     expect(screen.getByRole("combobox", { name: "Fault-tree algorithm" })).toHaveValue("BDD");
+    expect(within(screen.getByRole("combobox", { name: "Fault-tree algorithm" })).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Direct BDD", "BDD-to-ZBDD", "Direct ZBDD", "ZBDD delete-term", "MOCUS", "MOCUS prime implicants", "Direct Monte Carlo",
+    ]);
+    fireEvent.click(screen.getByRole("radio", { name: "Importance" }));
+    expect(screen.getByRole("combobox", { name: "Fault-tree algorithm" })).toBeEnabled();
+    expect(within(screen.getByRole("combobox", { name: "Fault-tree algorithm" })).getAllByRole("option").map((option) => option.textContent)).toEqual(["Direct BDD"]);
     expect(screen.queryByText(/HCL configuration/)).not.toBeInTheDocument();
   });
   beforeEach(() => {
@@ -293,6 +298,9 @@ describe("ModelsScreen canonical fault-tree host", () => {
 
     fireEvent.click(screen.getByRole("radio", { name: "Cut sets", exact: true }));
     expect(screen.getByRole("combobox", { name: "Fault-tree algorithm" })).toHaveValue("ZBDD");
+    expect(within(screen.getByRole("combobox", { name: "Fault-tree algorithm" })).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "BDD-to-ZBDD", "Direct ZBDD", "ZBDD delete-term", "MOCUS", "MOCUS prime implicants",
+    ]);
     fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
     const algorithm = screen.getByRole("combobox", { name: "Fault-tree algorithm" });
     const advanced = screen.getByLabelText("Advanced fault-tree settings");
@@ -600,7 +608,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
     openTab("Fault tree");
 
-    expect(screen.queryByText(FAULT_TREE_HINT)).not.toBeInTheDocument();
+    expect(screen.getByRole("tabpanel")).toBeEmptyDOMElement();
     expect(latestEditorProps().capabilities).toEqual({
       mode: "READ_ONLY",
       canEditBasicEvents: false,
@@ -882,6 +890,47 @@ describe("ModelsScreen system tabs", () => {
     jest.clearAllMocks();
     mockedFaultTreeEditor.mockImplementation(() => null);
     mockedValidateFaultTreeModel.mockReturnValue([]);
+  });
+
+  it("puts the system diagrams in their own tab between the description and the fault tree", () => {
+    const openDrawer = jest.fn();
+    setWorkbookContext({ sy: analysisWithMission() });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={openDrawer} />);
+
+    expect(screen.getAllByRole("tab").map((tab) => tab.childNodes[0]?.textContent)).toEqual(["Description", "Diagram", "Fault tree", "Basic events", "Quantification", "Assumptions"]);
+    openTab("Diagram");
+    expect(screen.getByRole("tab", { name: "Diagram" })).toHaveAttribute("aria-selected", "true");
+    const diagrams = screen.getByRole("region", { name: "Diagrams" });
+    expect(within(diagrams).getByText("No diagrams for this system yet.")).toBeInTheDocument();
+    fireEvent.click(within(diagrams).getByRole("button", { name: "Add diagram" }));
+    expect(openDrawer).toHaveBeenCalledWith({ kind: "diagram", id: SYSTEM_ID });
+    expect(mockedFaultTreeEditor).not.toHaveBeenCalled();
+
+    openTab("Fault tree");
+    expect(screen.queryByRole("region", { name: "Diagrams" })).not.toBeInTheDocument();
+    expect(mockedFaultTreeEditor).toHaveBeenCalled();
+  });
+
+  it("moves between the system tabs with the keyboard", () => {
+    setWorkbookContext({ sy: analysisWithMission() });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+
+    const tablist = screen.getByRole("tablist", { name: "System model sections" });
+    screen.getByRole("tab", { name: "Description" }).focus();
+    fireEvent.keyDown(tablist, { key: "ArrowRight" });
+    expect(screen.getByRole("tab", { name: "Diagram" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Diagram" })).toHaveFocus();
+    expect(screen.getByRole("region", { name: "Diagrams" })).toBeInTheDocument();
+    fireEvent.keyDown(tablist, { key: "ArrowRight" });
+    expect(screen.getByRole("tab", { name: "Fault tree" })).toHaveFocus();
+    fireEvent.keyDown(tablist, { key: "ArrowLeft" });
+    expect(screen.getByRole("tab", { name: "Diagram" })).toHaveFocus();
+    fireEvent.keyDown(tablist, { key: "End" });
+    expect(screen.getByRole("tab", { name: "Assumptions" })).toHaveAttribute("aria-selected", "true");
+    fireEvent.keyDown(tablist, { key: "Home" });
+    expect(screen.getByRole("tab", { name: "Description" })).toHaveFocus();
+    fireEvent.keyDown(tablist, { key: "ArrowLeft" });
+    expect(screen.getByRole("tab", { name: "Assumptions" })).toHaveFocus();
   });
 
   it("shows the system description and opens its editors", async () => {

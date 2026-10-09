@@ -2,14 +2,23 @@ import type {
   EsqBayesianNetwork,
   EsqHclConfiguration,
 } from "interfaces-mef-types/esq/workbook-models";
-import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type { EsqCellSide, EsqFunctionTarget, EsqTopReference, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type {
   EventSequenceAnalysis,
   EventTree,
 } from "interfaces-mef-types/es/event-sequence-analysis";
 import { carriesUncertainExpression, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { isComponentModel, type DataAnalysis, type DataAnalysisParameter } from "interfaces-mef-types/da/data-analysis";
-import { expressionReferences, mapModelArguments, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import {
+  ccfFactorExpressions,
+  ccfFactorVector,
+  expressionReferences,
+  mapModelArguments,
+  type CcfFactorModel,
+  type UncertainExpression,
+  type UncertainVector,
+} from "interfaces-mef-types/core/uncertainty";
+import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
@@ -460,19 +469,48 @@ function reconcileExampleEventTreeDependencyReferences(
   };
 }
 
-function relinkedExpression(expression: UncertainExpression, parameterIds: ReadonlySet<string>, workbookId: string): UncertainExpression {
+type ReferenceRewire = (reference: WorkbookParameterReference) => WorkbookParameterReference;
+
+function rewiredExpression(expression: UncertainExpression, rewire: ReferenceRewire): UncertainExpression {
   switch (expression.node) {
     case "VALUE":
       return expression;
     case "PARAMETER":
-      return parameterIds.has(expression.reference.entityId)
-        ? { node: "PARAMETER", reference: { ...expression.reference, workbookId } }
-        : expression;
+      return { node: "PARAMETER", reference: rewire(expression.reference) };
     case "OPERATION":
-      return { ...expression, operands: expression.operands.map((operand) => relinkedExpression(operand, parameterIds, workbookId)) };
+      return { ...expression, operands: expression.operands.map((operand) => rewiredExpression(operand, rewire)) };
     case "MODEL":
-      return { node: "MODEL", model: mapModelArguments(expression.model, (argument) => relinkedExpression(argument, parameterIds, workbookId)) };
+      return { node: "MODEL", model: mapModelArguments(expression.model, (argument) => rewiredExpression(argument, rewire)) };
   }
+}
+
+function rewiredVector(vector: UncertainVector, rewire: ReferenceRewire): UncertainVector {
+  return vector.node === "PARAMETER" ? { node: "PARAMETER", reference: rewire(vector.reference) } : vector;
+}
+
+function rewiredFactors(factors: CcfFactorModel, expressions: ReferenceRewire, vectors: ReferenceRewire): CcfFactorModel {
+  switch (factors.model) {
+    case "BETA_FACTOR":
+      return { ...factors, beta: rewiredExpression(factors.beta, expressions) };
+    case "MGL":
+      return { ...factors, factors: factors.factors.map((factor) => rewiredExpression(factor, expressions)) };
+    case "ALPHA_FACTOR":
+      return { ...factors, alphas: rewiredVector(factors.alphas, vectors) };
+    case "PHI_FACTOR":
+      return { ...factors, phis: rewiredVector(factors.phis, vectors) };
+  }
+}
+
+function heldIn(ids: ReadonlySet<string>, workbookId: string): ReferenceRewire {
+  return (reference) => (ids.has(reference.entityId) ? { ...reference, workbookId } : reference);
+}
+
+function staleIn(ids: ReadonlySet<string>, workbookId: string): (reference: WorkbookParameterReference) => boolean {
+  return (reference) => ids.has(reference.entityId) && reference.workbookId !== workbookId;
+}
+
+function relinkedExpression(expression: UncertainExpression, parameterIds: ReadonlySet<string>, workbookId: string): UncertainExpression {
+  return rewiredExpression(expression, heldIn(parameterIds, workbookId));
 }
 
 function reconcileExampleSyDataAnalysisReferences(
@@ -492,12 +530,15 @@ function reconcileExampleSyDataAnalysisReferences(
   const supportedTypes = new Set(["PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
   const parametersById = new Map(dataAnalysis.parameters.map((parameter) => [parameter.uuid, parameter]));
   const parameterIds = new Set(parametersById.keys());
+  const estimateIds = new Set((dataAnalysis.ccfParameterEstimations ?? []).map((estimate) => estimate.uuid));
+  const staleParameter = staleIn(parameterIds, daWorkbookId);
+  const staleEstimate = staleIn(estimateIds, daWorkbookId);
   let changed = false;
   const systemBasicEvents = analysis.systemBasicEvents.map((event) => {
     if (carriesUncertainExpression(event.failureMode)) {
       const expression = event.expression;
       if (expression === undefined) return event;
-      const stale = expressionReferences(expression).some((reference) => parameterIds.has(reference.entityId) && reference.workbookId !== daWorkbookId);
+      const stale = expressionReferences(expression).some(staleParameter);
       if (!stale) return event;
       changed = true;
       return { ...event, expression: relinkedExpression(expression, parameterIds, daWorkbookId) };
@@ -534,10 +575,16 @@ function reconcileExampleSyDataAnalysisReferences(
   });
 
   const commonCauseFailureGroups = analysis.commonCauseFailureGroups.map((group) => {
-    const stale = expressionReferences(group.total).some((reference) => parameterIds.has(reference.entityId) && reference.workbookId !== daWorkbookId);
+    const vector = ccfFactorVector(group.factors);
+    const stale = [group.total, ...ccfFactorExpressions(group.factors)].flatMap(expressionReferences).some(staleParameter)
+      || (vector?.node === "PARAMETER" && staleEstimate(vector.reference));
     if (!stale) return group;
     changed = true;
-    return { ...group, total: relinkedExpression(group.total, parameterIds, daWorkbookId) };
+    return {
+      ...group,
+      total: relinkedExpression(group.total, parameterIds, daWorkbookId),
+      factors: rewiredFactors(group.factors, heldIn(parameterIds, daWorkbookId), heldIn(estimateIds, daWorkbookId)),
+    };
   });
 
   return changed ? { ...analysis, systemBasicEvents, commonCauseFailureGroups } : analysis;
@@ -571,18 +618,9 @@ function linksExample(workbookId: string, link: ExampleMissionTimeLink): boolean
 }
 
 function relinkedMissionTime(expression: UncertainExpression, link: ExampleMissionTimeLink): UncertainExpression {
-  switch (expression.node) {
-    case "VALUE":
-      return expression;
-    case "PARAMETER":
-      return linksExample(expression.reference.workbookId, link) && link.ids.has(expression.reference.entityId)
-        ? { node: "PARAMETER", reference: { ...expression.reference, workbookId: link.workbookId } }
-        : expression;
-    case "OPERATION":
-      return { ...expression, operands: expression.operands.map((operand) => relinkedMissionTime(operand, link)) };
-    case "MODEL":
-      return { node: "MODEL", model: mapModelArguments(expression.model, (argument) => relinkedMissionTime(argument, link)) };
-  }
+  return rewiredExpression(expression, (reference) => (linksExample(reference.workbookId, link) && link.ids.has(reference.entityId)
+    ? { ...reference, workbookId: link.workbookId }
+    : reference));
 }
 
 function relinkedOptional(expression: UncertainExpression | undefined, link: ExampleMissionTimeLink): UncertainExpression | undefined {
@@ -707,6 +745,425 @@ function reconcileExampleEsqMissionTimeReferences(quantification: EventSequenceQ
         ccfGroups: model.ccfGroups.map((group) => ({ ...group, total: relinkedOptional(group.total, link) })),
       },
     }),
+  };
+}
+
+const EXAMPLE_DA_PREFIX = "example-da-";
+const EXAMPLE_SY_PREFIX = "example-sy-";
+
+type DataAnalysisLinkKind = "PARAMETER" | "CCF_ESTIMATE" | "FAILURE_MODE" | "SOURCE" | "CASE";
+
+type SystemsLinkKind = "MODEL" | "BASIC_EVENT";
+
+interface ExampleLinkEntity<K extends string> {
+  kind: K;
+  id: string;
+}
+
+interface ExampleLink<K extends string> {
+  workbookId: string;
+  entity?: ExampleLinkEntity<K>;
+}
+
+interface ProjectDataAnalysisSource {
+  da: DataAnalysis;
+  workbookId: string;
+}
+
+interface ProjectSystemsSource {
+  sy: SystemsAnalysis;
+  workbookId: string;
+}
+
+interface KeptExampleLink {
+  from: string;
+  linkedValues: number;
+}
+
+interface ExampleRelink<T> {
+  mef: T;
+  kept: KeptExampleLink[];
+}
+
+type HeldIds<K extends string> = Record<K, ReadonlySet<string>>;
+
+type ExampleLinkReconciler<T> = (mef: T, workbookId: string, from: string) => T;
+
+function exampleLinkGroups<K extends string>(links: readonly ExampleLink<K>[], prefix: string): Map<string, Map<string, ExampleLinkEntity<K>>> {
+  const groups = new Map<string, Map<string, ExampleLinkEntity<K>>>();
+  for (const link of links) {
+    if (!link.workbookId.startsWith(prefix)) continue;
+    const entities = groups.get(link.workbookId) ?? new Map<string, ExampleLinkEntity<K>>();
+    if (link.entity !== undefined) entities.set(`${link.entity.kind}:${link.entity.id}`, link.entity);
+    groups.set(link.workbookId, entities);
+  }
+  return groups;
+}
+
+function relinkExampleLinks<T, S extends { workbookId: string }, K extends string>(
+  mef: T,
+  links: readonly ExampleLink<K>[],
+  prefix: string,
+  sources: readonly S[],
+  held: (source: S) => HeldIds<K>,
+  reconcile: ExampleLinkReconciler<T>,
+): ExampleRelink<T> {
+  const holdings = sources.map((source) => ({ workbookId: source.workbookId, ids: held(source) }));
+  const kept: KeptExampleLink[] = [];
+  let relinked = mef;
+  for (const [from, group] of exampleLinkGroups(links, prefix)) {
+    const entities = [...group.values()];
+    const target = entities.length === 0
+      ? undefined
+      : holdings.find((holding) => entities.every((entity) => holding.ids[entity.kind].has(entity.id)));
+    if (target === undefined) kept.push({ from, linkedValues: entities.length });
+    else relinked = reconcile(relinked, target.workbookId, from);
+  }
+  return { mef: relinked, kept };
+}
+
+function dataAnalysisHeldIds(source: ProjectDataAnalysisSource): HeldIds<DataAnalysisLinkKind> {
+  const da = source.da;
+  return {
+    PARAMETER: new Set(da.parameters.map((parameter) => parameter.uuid)),
+    CCF_ESTIMATE: new Set((da.ccfParameterEstimations ?? []).map((estimate) => estimate.uuid)),
+    FAILURE_MODE: new Set((da.failureModes ?? []).map((mode) => mode.uuid)),
+    SOURCE: new Set((da.uncertaintyRegister ?? []).map((entry) => entry.id)),
+    CASE: new Set((da.sensitivityCases ?? []).map((item) => item.id)),
+  };
+}
+
+function systemsHeldIds(source: ProjectSystemsSource): HeldIds<SystemsLinkKind> {
+  const sy = source.sy;
+  return {
+    MODEL: new Set([...sy.systemLogicModels.map((model) => model.uuid), ...(sy.dependencyBayesianNetworks ?? []).map((network) => network.modelId)]),
+    BASIC_EVENT: new Set(sy.systemBasicEvents.map((event) => event.uuid)),
+  };
+}
+
+function relinkExampleDataAnalysis<T>(
+  mef: T,
+  links: readonly ExampleLink<DataAnalysisLinkKind>[],
+  sources: readonly ProjectDataAnalysisSource[],
+  reconcile: ExampleLinkReconciler<T>,
+): ExampleRelink<T> {
+  return relinkExampleLinks(mef, links, EXAMPLE_DA_PREFIX, sources, dataAnalysisHeldIds, reconcile);
+}
+
+function relinkExampleSystems<T>(
+  mef: T,
+  links: readonly ExampleLink<SystemsLinkKind>[],
+  sources: readonly ProjectSystemsSource[],
+  reconcile: ExampleLinkReconciler<T>,
+): ExampleRelink<T> {
+  return relinkExampleLinks(mef, links, EXAMPLE_SY_PREFIX, sources, systemsHeldIds, reconcile);
+}
+
+function keptExampleLinkMessage(element: string, source: string, kept: KeptExampleLink): string {
+  return kept.linkedValues === 0
+    ? `${element} links to ${kept.from} stay on the example because they name no ${source} value to match.`
+    : `${element} links to ${kept.from} stay on the example because no project ${source} workbook holds all ${String(kept.linkedValues)} linked values.`;
+}
+
+function workbookLinks<K extends string>(workbookId: string | undefined): ExampleLink<K>[] {
+  return workbookId === undefined ? [] : [{ workbookId }];
+}
+
+function entityLink<K extends string>(workbookId: string, kind: K, id: string): ExampleLink<K> {
+  return { workbookId, entity: { kind, id } };
+}
+
+function parameterLinks(expression: UncertainExpression | undefined): ExampleLink<DataAnalysisLinkKind>[] {
+  return expression === undefined
+    ? []
+    : expressionReferences(expression).map((reference) => entityLink<DataAnalysisLinkKind>(reference.workbookId, "PARAMETER", reference.entityId));
+}
+
+function factorLinks(factors: CcfFactorModel | undefined): ExampleLink<DataAnalysisLinkKind>[] {
+  if (factors === undefined) return [];
+  const vector = ccfFactorVector(factors);
+  return [
+    ...ccfFactorExpressions(factors).flatMap((expression) => parameterLinks(expression)),
+    ...(vector?.node === "PARAMETER" ? [entityLink<DataAnalysisLinkKind>(vector.reference.workbookId, "CCF_ESTIMATE", vector.reference.entityId)] : []),
+  ];
+}
+
+function movedFrom(from: string, to: string): ReferenceRewire {
+  return (reference) => (reference.workbookId === from ? { ...reference, workbookId: to } : reference);
+}
+
+function movedWorkbook(workbookId: string, from: string, to: string): string {
+  return workbookId === from ? to : workbookId;
+}
+
+function linkedTo(current: string | undefined, from: string, to: string): string {
+  return current === undefined ? to : movedWorkbook(current, from, to);
+}
+
+function syDataAnalysisLinks(analysis: SystemsAnalysis): ExampleLink<DataAnalysisLinkKind>[] {
+  return [
+    ...workbookLinks<DataAnalysisLinkKind>(analysis.linkedWorkbooks?.DA),
+    ...analysis.systemDefinitions.flatMap((definition) => parameterLinks(definition.missionTime)),
+    ...analysis.systemBasicEvents.flatMap((event) => {
+      const controlled = event.controlledDataSource;
+      const mode = event.failureModeSource;
+      return [
+        ...parameterLinks(event.expression),
+        ...(controlled?.referenceType === "WORKBOOK_PARAMETER" ? [entityLink<DataAnalysisLinkKind>(controlled.workbookId, "PARAMETER", controlled.entityId)] : []),
+        ...(mode === undefined ? [] : [entityLink<DataAnalysisLinkKind>(mode.workbookId, "FAILURE_MODE", mode.failureModeId)]),
+      ];
+    }),
+    ...analysis.commonCauseFailureGroups.flatMap((group) => [...parameterLinks(group.total), ...factorLinks(group.factors)]),
+  ];
+}
+
+function reconcileExampleSyDataAnalysisLinks(analysis: SystemsAnalysis, daWorkbookId: string, from: string): SystemsAnalysis {
+  const move = movedFrom(from, daWorkbookId);
+  return {
+    ...analysis,
+    linkedWorkbooks: { ...analysis.linkedWorkbooks, DA: linkedTo(analysis.linkedWorkbooks?.DA, from, daWorkbookId) },
+    systemDefinitions: analysis.systemDefinitions.map((definition) => (definition.missionTime === undefined
+      ? definition
+      : { ...definition, missionTime: rewiredExpression(definition.missionTime, move) })),
+    systemBasicEvents: analysis.systemBasicEvents.map((event) => {
+      const controlled = event.controlledDataSource;
+      const mode = event.failureModeSource;
+      return {
+        ...event,
+        ...(event.expression === undefined ? {} : { expression: rewiredExpression(event.expression, move) }),
+        ...(controlled?.referenceType === "WORKBOOK_PARAMETER" ? { controlledDataSource: move(controlled) } : {}),
+        ...(mode === undefined ? {} : { failureModeSource: { ...mode, workbookId: movedWorkbook(mode.workbookId, from, daWorkbookId) } }),
+      };
+    }),
+    commonCauseFailureGroups: analysis.commonCauseFailureGroups.map((group) => ({
+      ...group,
+      total: rewiredExpression(group.total, move),
+      factors: rewiredFactors(group.factors, move, move),
+    })),
+  };
+}
+
+function cellSideLinks(side: EsqCellSide | undefined, held: (id: string) => ExampleLink<DataAnalysisLinkKind>[]): ExampleLink<DataAnalysisLinkKind>[] {
+  if (side === undefined) return [];
+  if (side.source === "DA") return held(side.parameterId);
+  if (side.source === "TYPED") return side.variable.fields.flatMap((field) => parameterLinks(field.value));
+  return [];
+}
+
+function esqDataAnalysisLinks(quantification: EventSequenceQuantification): ExampleLink<DataAnalysisLinkKind>[] {
+  const linked = quantification.linkedWorkbooks?.DA;
+  const held = (kind: DataAnalysisLinkKind, id: string | undefined): ExampleLink<DataAnalysisLinkKind>[] =>
+    (linked === undefined || id === undefined ? [] : [entityLink(linked, kind, id)]);
+  const heldParameter = (id: string): ExampleLink<DataAnalysisLinkKind>[] => held("PARAMETER", id);
+  const model = quantification.model;
+  const decisions = quantification.modelDecisions;
+  return [
+    ...workbookLinks<DataAnalysisLinkKind>(linked),
+    ...(model?.sources ?? []).flatMap((source) => (source.element === "DA" ? workbookLinks<DataAnalysisLinkKind>(source.workbookId) : [])),
+    ...(model?.trees ?? []).flatMap((tree) => parameterLinks(tree.missionTime)),
+    ...(model?.events ?? []).flatMap((event) => [
+      ...parameterLinks(event.expression),
+      ...parameterLinks(event.missionTime),
+      ...(event.heldBy === "DA" ? held("PARAMETER", event.holderId) : []),
+    ]),
+    ...(model?.parameters ?? []).flatMap((parameter) => [...parameterLinks(parameter.estimate), ...parameterLinks(parameter.missionTime)]),
+    ...(model?.ccfGroups ?? []).flatMap((group) => [...parameterLinks(group.total), ...factorLinks(group.factors), ...held("CCF_ESTIMATE", group.estimateRef)]),
+    ...(model?.initiators ?? []).flatMap((initiator) => [
+      ...parameterLinks(initiator.frequency?.expression),
+      ...(initiator.heldBy === "DA" ? held("PARAMETER", initiator.holderId) : []),
+    ]),
+    ...(decisions?.initiatorChoices ?? []).flatMap((choice) => [
+      ...parameterLinks(choice.expression),
+      ...(choice.source === "DA" ? held("PARAMETER", choice.parameterId) : []),
+    ]),
+    ...(decisions?.valueBindings ?? []).flatMap((binding) => (binding.heldBy === "DA" ? held("PARAMETER", binding.holderId) : [])),
+    ...(quantification.barrierWork?.cells ?? []).flatMap((cell) => [
+      ...cellSideLinks(cell.load, heldParameter),
+      ...cellSideLinks(cell.capacity, heldParameter),
+      ...parameterLinks(cell.typed?.expression),
+    ]),
+    ...quantification.uncertaintyPropagation.parameterUncertainties.flatMap((entry) => parameterLinks(entry.estimate)),
+    ...(quantification.modelUncertaintySourceAssessments ?? []).flatMap((assessment) => {
+      const reference = assessment.dataAnalysisSourceRef;
+      return reference === undefined ? [] : [entityLink<DataAnalysisLinkKind>(reference.workbookId, "SOURCE", reference.sourceId)];
+    }),
+    ...(quantification.sensitivityStudies ?? []).flatMap((study) => {
+      const reference = study.dataAnalysisCaseRef;
+      return reference === undefined ? [] : [entityLink<DataAnalysisLinkKind>(reference.workbookId, "CASE", reference.caseId)];
+    }),
+    ...(quantification.sensitivityWork?.cases ?? []).flatMap((item) => {
+      const reference = item.daCaseRef;
+      return reference === undefined ? [] : [entityLink<DataAnalysisLinkKind>(reference.workbookId, "CASE", reference.caseId)];
+    }),
+  ];
+}
+
+function rewiredSide(side: EsqCellSide, rewire: ReferenceRewire): EsqCellSide {
+  return side.source === "TYPED"
+    ? { ...side, variable: { ...side.variable, fields: side.variable.fields.map((field) => ({ ...field, value: rewiredExpression(field.value, rewire) })) } }
+    : side;
+}
+
+function reconcileExampleEsqDataAnalysisLinks(quantification: EventSequenceQuantification, daWorkbookId: string, from: string): EventSequenceQuantification {
+  const move = movedFrom(from, daWorkbookId);
+  const moveId = (workbookId: string): string => movedWorkbook(workbookId, from, daWorkbookId);
+  const moved = (expression: UncertainExpression): UncertainExpression => rewiredExpression(expression, move);
+  const model = quantification.model;
+  const decisions = quantification.modelDecisions;
+  const choices = decisions?.initiatorChoices;
+  const barrierWork = quantification.barrierWork;
+  const cells = barrierWork?.cells;
+  const assessments = quantification.modelUncertaintySourceAssessments;
+  const studies = quantification.sensitivityStudies;
+  const sensitivityWork = quantification.sensitivityWork;
+  const cases = sensitivityWork?.cases;
+  return {
+    ...quantification,
+    linkedWorkbooks: { ...quantification.linkedWorkbooks, DA: linkedTo(quantification.linkedWorkbooks?.DA, from, daWorkbookId) },
+    ...(model === undefined ? {} : {
+      model: {
+        ...model,
+        sources: model.sources.map((source) => (source.element === "DA" ? { ...source, workbookId: moveId(source.workbookId) } : source)),
+        trees: model.trees.map((tree) => (tree.missionTime === undefined ? tree : { ...tree, missionTime: moved(tree.missionTime) })),
+        events: model.events.map((event) => ({
+          ...event,
+          ...(event.expression === undefined ? {} : { expression: moved(event.expression) }),
+          ...(event.missionTime === undefined ? {} : { missionTime: moved(event.missionTime) }),
+        })),
+        parameters: model.parameters.map((parameter) => ({
+          ...parameter,
+          ...(parameter.estimate === undefined ? {} : { estimate: moved(parameter.estimate) }),
+          ...(parameter.missionTime === undefined ? {} : { missionTime: moved(parameter.missionTime) }),
+        })),
+        ccfGroups: model.ccfGroups.map((group) => ({
+          ...group,
+          ...(group.total === undefined ? {} : { total: moved(group.total) }),
+          ...(group.factors === undefined ? {} : { factors: rewiredFactors(group.factors, move, move) }),
+        })),
+        initiators: model.initiators.map((initiator) => (initiator.frequency === undefined
+          ? initiator
+          : { ...initiator, frequency: { ...initiator.frequency, expression: moved(initiator.frequency.expression) } })),
+      },
+    }),
+    ...(choices === undefined ? {} : {
+      modelDecisions: { ...decisions, initiatorChoices: choices.map((choice) => (choice.expression === undefined ? choice : { ...choice, expression: moved(choice.expression) })) },
+    }),
+    ...(cells === undefined ? {} : {
+      barrierWork: {
+        ...barrierWork,
+        cells: cells.map((cell) => ({
+          ...cell,
+          ...(cell.load === undefined ? {} : { load: rewiredSide(cell.load, move) }),
+          ...(cell.capacity === undefined ? {} : { capacity: rewiredSide(cell.capacity, move) }),
+          ...(cell.typed === undefined ? {} : { typed: { ...cell.typed, expression: moved(cell.typed.expression) } }),
+        })),
+      },
+    }),
+    uncertaintyPropagation: {
+      ...quantification.uncertaintyPropagation,
+      parameterUncertainties: quantification.uncertaintyPropagation.parameterUncertainties.map((entry) => (entry.estimate === undefined
+        ? entry
+        : { ...entry, estimate: moved(entry.estimate) })),
+    },
+    ...(assessments === undefined ? {} : {
+      modelUncertaintySourceAssessments: assessments.map((assessment) => (assessment.dataAnalysisSourceRef === undefined
+        ? assessment
+        : { ...assessment, dataAnalysisSourceRef: { ...assessment.dataAnalysisSourceRef, workbookId: moveId(assessment.dataAnalysisSourceRef.workbookId) } })),
+    }),
+    ...(studies === undefined ? {} : {
+      sensitivityStudies: studies.map((study) => (study.dataAnalysisCaseRef === undefined
+        ? study
+        : { ...study, dataAnalysisCaseRef: { ...study.dataAnalysisCaseRef, workbookId: moveId(study.dataAnalysisCaseRef.workbookId) } })),
+    }),
+    ...(cases === undefined ? {} : {
+      sensitivityWork: {
+        ...sensitivityWork,
+        cases: cases.map((item) => (item.daCaseRef === undefined ? item : { ...item, daCaseRef: { ...item.daCaseRef, workbookId: moveId(item.daCaseRef.workbookId) } })),
+      },
+    }),
+  };
+}
+
+function topLinks(top: EsqTopReference): ExampleLink<SystemsLinkKind>[] {
+  return [entityLink<SystemsLinkKind>(top.workbookId, "MODEL", top.modelId)];
+}
+
+function targetLinks(target: EsqFunctionTarget | undefined): ExampleLink<SystemsLinkKind>[] {
+  return target?.kind === "FAULT_TREE" ? topLinks(target.top) : [];
+}
+
+function esqSystemsLinks(quantification: EventSequenceQuantification): ExampleLink<SystemsLinkKind>[] {
+  const linked = quantification.linkedWorkbooks?.SY;
+  const held = (kind: SystemsLinkKind, id: string | undefined): ExampleLink<SystemsLinkKind>[] =>
+    (linked === undefined || id === undefined ? [] : [entityLink(linked, kind, id)]);
+  const model = quantification.model;
+  return [
+    ...workbookLinks<SystemsLinkKind>(linked),
+    ...(model?.sources ?? []).flatMap((source) => (source.element === "SY" ? workbookLinks<SystemsLinkKind>(source.workbookId) : [])),
+    ...(model?.functions ?? []).flatMap((record) => record.esLinks.flatMap((link) => topLinks(link.top))),
+    ...(model?.tops ?? []).flatMap((top) => held("MODEL", top.modelId)),
+    ...(model?.events ?? []).flatMap((event) => held("BASIC_EVENT", event.id)),
+    ...(quantification.modelDecisions?.functionLinks ?? []).flatMap((link) => [
+      ...targetLinks(link.target),
+      ...(link.rules ?? []).flatMap((rule) => targetLinks(rule.target)),
+    ]),
+    ...(quantification.logic?.flags ?? []).flatMap((flag) => [
+      ...held("MODEL", flag.target?.modelId),
+      ...(flag.target?.kind === "EVENT" ? held("BASIC_EVENT", flag.target.id) : []),
+    ]),
+    ...(quantification.logic?.exclusions ?? []).flatMap((exclusion) => exclusion.eventIds.flatMap((id) => held("BASIC_EVENT", id))),
+    ...quantification.hclConfigurations.flatMap((configuration) => [
+      entityLink<SystemsLinkKind>(configuration.bayesianNetwork.workbookId, "MODEL", configuration.bayesianNetwork.modelId),
+      ...configuration.faultTrees.map((faultTree) => entityLink<SystemsLinkKind>(faultTree.workbookId, "MODEL", faultTree.modelId)),
+      ...configuration.bindings.flatMap((binding) => [
+        entityLink<SystemsLinkKind>(binding.faultTreeBasicEvent.workbookId, "BASIC_EVENT", binding.faultTreeBasicEvent.entityId),
+        entityLink<SystemsLinkKind>(binding.bayesianNetworkNode.workbookId, "MODEL", binding.bayesianNetworkNode.modelId),
+      ]),
+    ]),
+  ];
+}
+
+function reconcileExampleEsqSystemsLinks(quantification: EventSequenceQuantification, syWorkbookId: string, from: string): EventSequenceQuantification {
+  const moveId = (workbookId: string): string => movedWorkbook(workbookId, from, syWorkbookId);
+  const movedTarget = (target: EsqFunctionTarget): EsqFunctionTarget => (target.kind === "FAULT_TREE"
+    ? { ...target, top: { ...target.top, workbookId: moveId(target.top.workbookId) } }
+    : target);
+  const model = quantification.model;
+  const decisions = quantification.modelDecisions;
+  const functionLinks = decisions?.functionLinks;
+  return {
+    ...quantification,
+    linkedWorkbooks: { ...quantification.linkedWorkbooks, SY: linkedTo(quantification.linkedWorkbooks?.SY, from, syWorkbookId) },
+    ...(model === undefined ? {} : {
+      model: {
+        ...model,
+        sources: model.sources.map((source) => (source.element === "SY" ? { ...source, workbookId: moveId(source.workbookId) } : source)),
+        functions: model.functions.map((record) => ({
+          ...record,
+          esLinks: record.esLinks.map((link) => ({ ...link, top: { ...link.top, workbookId: moveId(link.top.workbookId) } })),
+        })),
+      },
+    }),
+    ...(functionLinks === undefined ? {} : {
+      modelDecisions: {
+        ...decisions,
+        functionLinks: functionLinks.map((link) => ({
+          ...link,
+          ...(link.target === undefined ? {} : { target: movedTarget(link.target) }),
+          ...(link.rules === undefined ? {} : { rules: link.rules.map((rule) => ({ ...rule, target: movedTarget(rule.target) })) }),
+        })),
+      },
+    }),
+    hclConfigurations: quantification.hclConfigurations.map((configuration) => ({
+      ...configuration,
+      bayesianNetwork: { ...configuration.bayesianNetwork, workbookId: moveId(configuration.bayesianNetwork.workbookId) },
+      faultTrees: configuration.faultTrees.map((faultTree) => ({ ...faultTree, workbookId: moveId(faultTree.workbookId) })),
+      bindings: configuration.bindings.map((binding) => ({
+        ...binding,
+        faultTreeBasicEvent: { ...binding.faultTreeBasicEvent, workbookId: moveId(binding.faultTreeBasicEvent.workbookId) },
+        bayesianNetworkNode: { ...binding.bayesianNetworkNode, workbookId: moveId(binding.bayesianNetworkNode.workbookId) },
+      })),
+    })),
   };
 }
 
@@ -1009,5 +1466,18 @@ export {
   daMissionTimeExpressions,
   esqMissionTimeExpressions,
   syMissionTimeExpressions,
+  esqDataAnalysisLinks,
+  esqSystemsLinks,
+  keptExampleLinkMessage,
+  reconcileExampleEsqDataAnalysisLinks,
+  reconcileExampleEsqSystemsLinks,
+  reconcileExampleSyDataAnalysisLinks,
+  relinkExampleDataAnalysis,
+  relinkExampleSystems,
+  syDataAnalysisLinks,
+  type ExampleRelink,
+  type KeptExampleLink,
+  type ProjectDataAnalysisSource,
   type ProjectMissionTimeSource,
+  type ProjectSystemsSource,
 };

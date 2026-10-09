@@ -13,6 +13,7 @@ import { Workbook, type WorkbookDocument } from "../workbooks/workbook.schema";
 import { createBlankInternalFloodPra } from "./blank-internal-flood-pra";
 import { InternalFloodPraWorkbook, type InternalFloodPraWorkbookDocument } from "./internal-flood-pra-workbook.schema";
 import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
+import { storedPriorRejection } from "../workbooks/stored-workbook-format";
 
 export interface InternalFloodPraWorkbookResponse { workbookId: string; projectId: string; ownerUsername: string; mef: unknown; myRoles: WorkbookRoleName[]; hasPreviousMef: boolean; updatedAt: string }
 interface ActingUser { username: string }
@@ -86,7 +87,7 @@ export class InternalFloodPraWorkbooksService {
     if (state !== "DRAFT" && state !== "REVISION_REQUIRED") throw new ForbiddenException(`Cannot unload from state ${state}`);
     const restored: unknown = JSON.parse(doc.previousMefJson); const restoredObj = restored as { name?: string; owner?: string };
     const healed = healMef(restored, createBlankInternalFloodPra(restoredObj.name ?? "Internal Flood PRA Workbook", restoredObj.owner ?? acting.username));
-    const parsed = InternalFloodPRASchema.safeParse(healed); if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
+    const parsed = InternalFloodPRASchema.safeParse(healed); if (!parsed.success) throw storedPriorRejection("internal flood PRA", workbookId, parsed.error.message);
     doc.mef = parsed.data; doc.previousMefJson = null; await doc.save(); return toResponse(doc, myRoles);
   }
 }

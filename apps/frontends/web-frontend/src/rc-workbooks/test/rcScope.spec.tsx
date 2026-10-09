@@ -130,6 +130,9 @@ it("collapses and restores the RC steps and conformance panels independently", (
   </RcWorkbookProvider></MemoryRouter>);
 
   const shell = container.querySelector(".posw__shell");
+  expect(shell).toHaveClass("posw__shell--dock-closed");
+  fireEvent.click(screen.getByRole("button", { name: "Show conformance" }));
+  expect(shell).not.toHaveClass("posw__shell--dock-closed");
   expect(screen.getByRole("complementary", { name: "RC analysis steps" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Hide steps" }));
   expect(shell).toHaveClass("posw__shell--rail-closed");

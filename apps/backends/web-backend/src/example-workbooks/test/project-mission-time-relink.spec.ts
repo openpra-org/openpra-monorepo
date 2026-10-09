@@ -13,6 +13,7 @@ import { DaWorkbook } from "../../da-workbooks/da-workbook.schema";
 import { DaDocumentsService } from "../../da-workbooks/da-documents.service";
 import { ProjectsService } from "../../projects/projects.service";
 import { ScWorkbook } from "../../sc-workbooks/sc-workbook.schema";
+import { SyWorkbook } from "../../sy-workbooks/sy-workbook.schema";
 import { WorkbookRolesService } from "../../workbooks/workbook-roles.service";
 import { WorkbookSignoff } from "../../workbooks/workbook-signoff.schema";
 import { ExampleWorkbook } from "../example-workbook.schema";
@@ -138,6 +139,7 @@ describe("loading the DA example into a project", () => {
         ExampleWorkbooksService,
         { provide: getModelToken(ExampleWorkbook.name), useValue: { findOne: () => ({ exec: async () => ({ slug: "da-generic-2", kind: "DA", mef: DA_ANALYSIS_HTGR, updatedAt: new Date("2026-10-09T00:00:00Z") }) }), find: () => ({ sort: () => ({ exec: async () => [] }) }) } },
         { provide: getModelToken(ScWorkbook.name), useValue: { find: () => ({ sort: () => ({ exec: async () => scDocuments }) }) } },
+        { provide: getModelToken(SyWorkbook.name), useValue: { find: () => ({ sort: () => ({ exec: async () => [] }) }) } },
         {
           provide: getModelToken(DaWorkbook.name),
           useValue: {

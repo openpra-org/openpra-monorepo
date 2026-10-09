@@ -236,11 +236,23 @@ function convertCcfEstimations(mef: JsonRecord, scope: ConversionScope): JsonRec
   return withArray(mef, "ccfParameterEstimations", (estimate) => convertCcfEstimation(estimate, sources, scope));
 }
 
-function daCcfFacts(original: JsonRecord, converted: JsonRecord): Map<string, DaCcfFacts> {
-  const oldById = new Map((arrayField(original, "ccfParameterEstimations") ?? []).flatMap((estimate) => {
+function oldDaFactorsById(original: JsonRecord): Map<string, OldFactors | undefined> {
+  return new Map((arrayField(original, "ccfParameterEstimations") ?? []).flatMap((estimate) => {
     const id = isRecord(estimate) ? textField(estimate, "uuid") : undefined;
     return id === undefined || !isRecord(estimate) ? [] : [[id, oldDaFactors(estimate)] as const];
   }));
+}
+
+function daCcfFactsWithOriginal(facts: ReadonlyMap<string, DaCcfFacts>, original: JsonRecord): Map<string, DaCcfFacts> {
+  const oldById = oldDaFactorsById(original);
+  return new Map([...facts].map(([id, fact]) => {
+    const old = oldById.get(id);
+    return [id, old === undefined ? fact : { ...fact, old }];
+  }));
+}
+
+function daCcfFacts(original: JsonRecord, converted: JsonRecord): Map<string, DaCcfFacts> {
+  const oldById = oldDaFactorsById(original);
   const facts = new Map<string, DaCcfFacts>();
   for (const estimate of arrayField(converted, "ccfParameterEstimations") ?? []) {
     if (!isRecord(estimate)) continue;
@@ -374,8 +386,8 @@ function convertSyGroups(mef: JsonRecord, daCcf: DaCcfLookup, scope: ConversionS
   return withArray(mef, "commonCauseFailureGroups", (group) => convertSyGroup(group, events, linkedDa, daCcf, scope));
 }
 
-function syCcfFacts(original: JsonRecord, converted: JsonRecord): Map<string, SyCcfFacts> {
-  const oldById = new Map((arrayField(original, "commonCauseFailureGroups") ?? []).flatMap((group) => {
+function oldSyGroupsById(original: JsonRecord): Map<string, { model?: string; total?: number }> {
+  return new Map((arrayField(original, "commonCauseFailureGroups") ?? []).flatMap((group) => {
     if (!isRecord(group)) return [];
     const id = textField(group, "uuid");
     const model = textField(group, "modelType");
@@ -385,6 +397,18 @@ function syCcfFacts(original: JsonRecord, converted: JsonRecord): Map<string, Sy
     const total = values === undefined ? undefined : numberField(values, "totalFailureProbability");
     return id === undefined ? [] : [[id, { model, total }] as const];
   }));
+}
+
+function syCcfFactsWithOriginal(facts: ReadonlyMap<string, SyCcfFacts>, original: JsonRecord): Map<string, SyCcfFacts> {
+  const oldById = oldSyGroupsById(original);
+  return new Map([...facts].map(([id, fact]) => {
+    const old = oldById.get(id);
+    return [id, { ...fact, ...(old?.model === undefined ? {} : { oldModel: old.model }), ...(old?.total === undefined ? {} : { oldTotal: old.total }) }];
+  }));
+}
+
+function syCcfFacts(original: JsonRecord, converted: JsonRecord): Map<string, SyCcfFacts> {
+  const oldById = oldSyGroupsById(original);
   const facts = new Map<string, SyCcfFacts>();
   for (const group of arrayField(converted, "commonCauseFailureGroups") ?? []) {
     if (!isRecord(group)) continue;
@@ -420,6 +444,8 @@ export {
   convertEsqCcfRecord,
   convertSyGroups,
   daCcfFacts,
+  daCcfFactsWithOriginal,
   syCcfFacts,
+  syCcfFactsWithOriginal,
 };
 export type { DaCcfFacts, DaCcfLookup, SyCcfFacts, SyCcfLookup };

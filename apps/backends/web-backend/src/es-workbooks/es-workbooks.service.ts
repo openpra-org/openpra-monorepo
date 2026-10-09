@@ -1,5 +1,5 @@
 import { stringifyJson } from "interfaces-shared-types/json";
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
@@ -27,6 +27,7 @@ import { WorkbookDependencyDiscoveryService } from "../newly-developed-methods/s
 import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook.schema";
 import { reconcileExampleEventTreeDependencyReferences } from "../example-workbooks/seeds/dependency-model-seed";
 import { SY_EXAMPLES } from "../example-workbooks/seeds";
+import { storedPriorRejection, storedWorkbookRejection } from "../workbooks/stored-workbook-format";
 
 export interface EsWorkbookResponse {
   workbookId: string;
@@ -47,7 +48,7 @@ interface ActingUser {
 
 function toResponse(doc: EsWorkbookDocument, myRoles: WorkbookRoleName[]): EsWorkbookResponse {
   const parsed = EventSequenceAnalysisSchema.safeParse(stripNulls(doc.mef));
-  if (!parsed.success) throw new BadRequestException(`Stored ES workbook failed validation: ${parsed.error.message}`);
+  if (!parsed.success) throw storedWorkbookRejection("ES", doc.workbookId, parsed.error.message);
   return {
     workbookId: doc.workbookId,
     projectId: doc.projectId,
@@ -225,7 +226,7 @@ export class EsWorkbooksService {
     const template = createBlankEs(restoredObj.name ?? "ES Workbook", restoredObj.owner ?? acting.username);
     const healed = healMef(restored, template);
     const parsed = EventSequenceAnalysisSchema.safeParse(healed);
-    if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedPriorRejection("ES", workbookId, parsed.error.message);
     const updatedDoc = await this.esWorkbookModel
       .findOneAndUpdate(
         createWorkbookRevisionFilter(workbookId, expectedRevision),

@@ -207,7 +207,7 @@ function SeismicPraWorkbench({ persona, setPersona, availablePersonas = ["prepar
         : "scope",
   );
   const [railOpen, setRailOpen] = useState(false);
-  const [dockOpen, setDockOpen] = useState(true);
+  const [dockOpen, setDockOpen] = useState(false);
   const active = STEPS.find((step) => step.id === stepId) ?? STEPS[0];
   const index = STEPS.indexOf(active);
   const previous = STEPS[index - 1];

@@ -89,10 +89,40 @@ fn truncated_laws_give_a_spread_inside_probability() {
     assert!(result.samples().iter().all(|value| (0.0..=1.0).contains(value)));
 }
 
+fn lognormal(mean: f64, error_factor: f64) -> Expr {
+    Expr::draw(Law::Lognormal {
+        mean,
+        error_factor,
+        level: 0.95,
+    })
+}
+
 #[test]
-fn untruncated_laws_cannot_quantify_a_basic_event() {
-    assert!(BasicEvent::with_value("E1".to_string(), 0.1, Expr::normal(0.1, 0.02)).is_err());
-    assert!(BasicEvent::with_value("E1".to_string(), 0.1, Expr::gamma(2.0, 20.0)).is_err());
+fn untruncated_laws_quantify_while_every_trial_stays_inside_probability() {
+    let ft = two_event_tree(
+        "TailTest",
+        Formula::Or,
+        BasicEvent::with_value("E1".to_string(), 1e-3, lognormal(1e-3, 3.0)).unwrap(),
+        BasicEvent::with_value("E2".to_string(), 0.01, Expr::normal(0.01, 0.002)).unwrap(),
+    );
+    for sampling in [plan(4000, 17), hypercube(4000, 17)] {
+        let result = propagate_uncertainty(&ft, &sampling).unwrap();
+        assert!(result.samples().iter().all(|value| (0.0..=1.0).contains(value)));
+        let exact = 1e-3 + 0.01 - 1e-3 * 0.01;
+        assert!((result.mean() - exact).abs() < 5.0 * result.standard_error());
+    }
+}
+
+#[test]
+fn a_trial_outside_probability_stops_the_run_and_names_the_event() {
+    let ft = two_event_tree(
+        "WideTest",
+        Formula::Or,
+        BasicEvent::with_value("E1".to_string(), 0.2, lognormal(0.2, 8.0)).unwrap(),
+        BasicEvent::with_value("E2".to_string(), 0.01, Expr::uniform(0.005, 0.015)).unwrap(),
+    );
+    let error = propagate_uncertainty(&ft, &plan(4000, 5)).unwrap_err().to_string();
+    assert!(error.contains("basic event 'E1'") && error.contains("outside 0 to 1"), "{error}");
 }
 
 #[test]

@@ -401,6 +401,11 @@ fn bound_overrides_unknown_samplers_and_laws_outside_probability_fail() {
         error_factor: 8.0,
         level: 0.95,
     });
+    assert!(validate_hcl_uncertainty_settings(&graph, &settings).is_ok());
+    settings.basic_events[0].expression = probability(Law::Uniform {
+        lower: 1.5,
+        upper: 2.0,
+    });
     assert!(validate_hcl_uncertainty_settings(&graph, &settings).is_err());
     let mut json = serde_json::to_value(plain_settings(HclSampler::MonteCarlo, 50, 3)).unwrap();
     json["sampler"] = "APPROXIMATE".into();

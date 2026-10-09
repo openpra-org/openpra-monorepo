@@ -4,7 +4,7 @@ import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success
 import type { PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { isComponentModel, type DataAnalysis, type ParameterType } from "interfaces-mef-types/da/data-analysis";
 import { carriesUncertainExpression, type CommonCauseFailureGroup, type SystemBasicEvent, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import { expressionReferences, mapModelArguments, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { mapModelArguments, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { listWorkbooks } from "../workbooks/workbookApi";
 import { type DaWorkbookResponse } from "../da-workbooks/daWorkbookApi";
 import { type HrWorkbookResponse } from "../hr-workbooks/hrWorkbookApi";
@@ -20,17 +20,11 @@ import type {
   SyLinkedInputs,
 } from "./syWorkbookContext";
 import { componentUnit } from "./syBasicEventValues";
-import { scMissionTimeOptions, scMissionTimeTable, type ScMissionTimes } from "../sc-workbooks/scMissionTimeLinks";
-import { fetchJson } from "../api/client";
+import { scMissionTimeOptions, scMissionTimeTable } from "../sc-workbooks/scMissionTimeLinks";
+import { type ScMissionTimeSource } from "../sc-workbooks/scMissionTimeSources";
+import { type LinkRoot } from "../newly-developed-methods/shared/uncertaintyLinks";
 
 const SY_LINK_CODES: SyLinkCode[] = ["ES", "SC", "POS", "DA", "HRA"];
-
-const SC_EXAMPLE_PREFIX = "example-sc-";
-
-interface ScMissionTimeSource {
-  workbookId: string;
-  sc: ScMissionTimes;
-}
 
 const SUPPORTED_PARAMETER_TYPES = new Set(["FREQUENCY", "FAILURE_RATE", "PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
 
@@ -84,10 +78,11 @@ function buildLinkedInputs(
   es: EventSequenceAnalysis | undefined,
   sc: SuccessCriteriaDevelopment | undefined,
   pos: PlantOperatingStatesAnalysis | undefined,
-  scExamples: readonly ScMissionTimeSource[],
+  scReferenced: readonly ScMissionTimeSource[],
 ): SyLinkedInputs | null {
-  if (es === undefined && sc === undefined && pos === undefined && scExamples.length === 0) return null;
-  const scSources: ScMissionTimeSource[] = [...(sc === undefined || ids.SC === undefined ? [] : [{ workbookId: ids.SC, sc }]), ...scExamples];
+  if (es === undefined && sc === undefined && pos === undefined && scReferenced.length === 0) return null;
+  const linked = sc === undefined || ids.SC === undefined ? [] : [{ workbookId: ids.SC, sc }];
+  const scSources: ScMissionTimeSource[] = [...linked, ...scReferenced.filter((source) => linked.every((entry) => entry.workbookId !== source.workbookId))];
   return {
     esName: workbookName(options.ES, ids.ES),
     scName: workbookName(options.SC, ids.SC),
@@ -296,22 +291,12 @@ function linkExampleGroups(sy: Pick<SystemsAnalysis, "commonCauseFailureGroups">
 
 type MissionTimeHolders = Pick<SystemsAnalysis, "systemDefinitions" | "systemBasicEvents" | "commonCauseFailureGroups">;
 
-function exampleScIds(sy: MissionTimeHolders): string[] {
-  const expressions = [
-    ...sy.systemDefinitions.flatMap((system) => (system.missionTime === undefined ? [] : [system.missionTime])),
-    ...sy.systemBasicEvents.flatMap((event) => (event.expression === undefined ? [] : [event.expression])),
-    ...sy.commonCauseFailureGroups.map((group) => group.total),
+function syLinkRoots(sy: MissionTimeHolders): LinkRoot[] {
+  return [
+    ...sy.systemDefinitions.flatMap((system) => (system.missionTime === undefined ? [] : [{ expression: system.missionTime, missionTime: true }])),
+    ...sy.systemBasicEvents.flatMap((event) => (event.expression === undefined ? [] : [{ expression: event.expression, missionTime: false }])),
+    ...sy.commonCauseFailureGroups.map((group) => ({ expression: group.total, missionTime: false })),
   ];
-  const ids = expressions.flatMap(expressionReferences).map((reference) => reference.workbookId);
-  return [...new Set(ids.filter((id) => id.startsWith(SC_EXAMPLE_PREFIX)))].sort();
-}
-
-async function loadExampleScMissionTimes(ids: readonly string[]): Promise<ScMissionTimeSource[]> {
-  const loaded = await Promise.allSettled(ids.map(async (workbookId) => {
-    const bundle = await fetchJson<{ sc: { mef: SuccessCriteriaDevelopment } }>(`/api/example-workbooks/sc-bundle?example=${encodeURIComponent(workbookId.slice(SC_EXAMPLE_PREFIX.length))}`);
-    return { workbookId, sc: { missionTimes: bundle.sc.mef.missionTimes, componentMissionTimes: bundle.sc.mef.componentMissionTimes ?? [] } };
-  }));
-  return loaded.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
 }
 
 function controlledCcfEstimateOptions(sources: readonly DaSource[]): SyControlledCcfEstimateOption[] {
@@ -332,7 +317,6 @@ function controlledCcfEstimateOptions(sources: readonly DaSource[]): SyControlle
 }
 
 export {
-  SC_EXAMPLE_PREFIX,
   SY_LINK_CODES,
   buildLinkedInputs,
   controlledCcfEstimateOptions,
@@ -345,8 +329,6 @@ export {
   heldValueDiffers,
   linkExampleEvents,
   linkExampleGroups,
-  exampleScIds,
-  loadExampleScMissionTimes,
   listSyLinkOptions,
-  type ScMissionTimeSource,
+  syLinkRoots,
 };

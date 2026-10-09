@@ -429,12 +429,12 @@ function scalarFactors(factors: CcfFactorModel): UncertainExpression[] {
   return factors.model === "MGL" ? factors.factors : [];
 }
 
-function outOfRange(factors: CcfFactorModel): boolean {
+function factorRange(factors: CcfFactorModel): "OUTSIDE" | "CROSSES" | undefined {
   const domain = unitBounds("FRACTION");
-  return scalarFactors(factors).flatMap(valueNodes).some((value) => {
-    const bounds = lawBounds(value.law);
-    return !(bounds.lower >= domain.lower && bounds.upper <= domain.upper);
-  });
+  const bounds = scalarFactors(factors).flatMap(valueNodes).map((value) => lawBounds(value.law));
+  if (bounds.some((bound) => bound.upper < domain.lower || bound.lower > domain.upper)) return "OUTSIDE";
+  if (bounds.some((bound) => bound.lower < domain.lower || bound.upper > domain.upper)) return "CROSSES";
+  return undefined;
 }
 
 function modelText(factors: CcfFactorModel): string {
@@ -500,7 +500,9 @@ function estimateFindings(da: DataAnalysis, estimate: CcfParameterEstimation, ch
   if (method === "TYPED") {
     const typed = estimate.factors;
     if (result.problem !== undefined) findings.push({ severity: "error", check: "Cannot use", item, detail: result.problem, target: factors });
-    if (typed !== undefined && outOfRange(typed)) findings.push({ severity: "error", check: "Out of range", item, detail: "Each factor lies between 0 and 1. Truncate a law that leaves that range.", target: factors });
+    const range = typed === undefined ? undefined : factorRange(typed);
+    if (range === "OUTSIDE") findings.push({ severity: "error", check: "Out of range", item, detail: "A factor lies entirely outside 0 to 1.", target: factors });
+    if (range === "CROSSES") findings.push({ severity: "warning", check: "Can leave range", item, detail: "A factor law can leave 0 to 1. A run stops on any trial outside that range. Truncate the law to be safe.", target: factors });
     if (typed?.model === "ALPHA_FACTOR" && estimate.testing !== undefined && typed.testing !== estimate.testing) findings.push({ severity: "warning", check: "Testing differs", item, detail: `The typed alpha factors are for ${TESTING_TEXT[typed.testing]} testing, but the group is tested ${TESTING_TEXT[estimate.testing]}.`, target: factors });
     if (typed?.model === "BETA_FACTOR" && ccTwo && estimate.isRiskSignificant === true && size !== undefined && size > 2) findings.push({ severity: "error", check: "Model too coarse", item, detail: "A risk-significant group of more than two needs alpha factors, MGL or another multi-parameter model at Capability Category II (DA-D7).", target: factors });
     if (blank(estimate.estimateReason)) findings.push({ severity: "warning", check: "No basis", item, detail: "Say where the typed factors come from.", target: factors });

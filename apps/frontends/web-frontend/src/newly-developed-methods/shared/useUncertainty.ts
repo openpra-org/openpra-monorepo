@@ -18,7 +18,7 @@ import type {
   UncertaintySampling,
 } from "interfaces-shared-types/newly-developed-methods/shared";
 import { ApiError } from "../../api/client";
-import { evaluateUncertainty } from "./uncertaintyApi";
+import { evaluateResolved } from "./uncertaintyLinks";
 
 type UncertaintyState<T> = { status: "pending" } | { status: "ready"; value: T } | { status: "failed"; error: string };
 
@@ -155,7 +155,7 @@ function send(batch: Batch, parameters: UncertainParameter[]): Promise<void> {
     operations: batch.operations.map(([, operation], index) => ({ id: String(index), operation })),
   };
   inFlight += 1;
-  return evaluateUncertainty(request)
+  return evaluateResolved(request)
     .then(
       (response) => {
         settle(laws, batch.laws.map(([key]) => key), response.laws);

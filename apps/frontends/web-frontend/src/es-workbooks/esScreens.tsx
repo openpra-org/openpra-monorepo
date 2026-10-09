@@ -49,7 +49,7 @@ import {
   type EventTreeRepresentation,
 } from "../newly-developed-methods/event-tree";
 import type { ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
-import { daParameterKey, daParameterLabel, daParameterTable, daReference, type IeDaFrequencyOption } from "../ie-workbooks/ieDaLinks";
+import { daParameterKey, daParameterLabel, daReference, useDaFrequencyTable, type IeDaFrequencyOption } from "../ie-workbooks/ieDaLinks";
 import "./css/esScreens.css";
 
 function fmtExp(n: number | undefined): string {
@@ -1064,7 +1064,7 @@ const NO_DA_FREQUENCIES: IeDaFrequencyOption[] = [];
 function SequencesScreen(): JSX.Element {
   const { es, posLink, ieLink, projectId, faultTreeSource, editable, mutateEs, runtime, daFrequencies } = useEsWorkbook();
   const daOptions = daFrequencies ?? NO_DA_FREQUENCIES;
-  const frequencyParameters = useMemo(() => daParameterTable(daOptions), [daOptions]);
+  const frequencyParameters = useDaFrequencyTable(daOptions);
   const frequencyOptions = useMemo<ParameterOption[]>(() => {
     const label = daParameterLabel(daOptions);
     return daOptions.map((option) => ({ reference: daReference(option), label: label(daParameterKey(option)), unit: initiatingFrequencyUnit(option.estimate, frequencyParameters) }));

@@ -4,6 +4,7 @@ import { Model } from "mongoose";
 import { DataAnalysisSchema } from "interfaces-mef-types/zod/da/data-analysis";
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
+import { daMissionTimeExpressions, reconcileExampleDaMissionTimeReferences, relinkExampleMissionTimes } from "../example-workbooks/seeds/dependency-model-seed";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { DaWorkbook, type DaWorkbookDocument } from "./da-workbook.schema";
@@ -111,8 +112,9 @@ export class DaWorkbooksService {
     const example = await this.exampleWorkbooksService.getDaBundle(exampleId);
     const parsed = DataAnalysisSchema.safeParse(stripNulls(example.da.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
+    const missionTimes = await this.exampleWorkbooksService.projectMissionTimeSources(doc.projectId);
     const cleaned = {
-      ...parsed.data,
+      ...relinkExampleMissionTimes(parsed.data, daMissionTimeExpressions(parsed.data), missionTimes, reconcileExampleDaMissionTimeReferences),
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };

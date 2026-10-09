@@ -46,8 +46,9 @@ import { getDaWorkbook } from "../da-workbooks/daWorkbookApi";
 import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
 import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
 import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
+import { useReferencedScSources } from "./syMissionTimes";
 import { getPosWorkbook } from "../pos-workbooks/posWorkbookApi";
-import { buildLinkedInputs, exampleScIds, loadExampleScMissionTimes, type ScMissionTimeSource, controlledCcfEstimateOptions, controlledCoincidentMaintenanceOptions, controlledComponentBoundaryOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledLegacyParameterOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
+import { buildLinkedInputs, controlledCcfEstimateOptions, controlledCoincidentMaintenanceOptions, controlledComponentBoundaryOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledLegacyParameterOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "SY-A1",
@@ -102,7 +103,6 @@ function SyWorkbookPage(): JSX.Element {
   const [linkedEs, setLinkedEs] = useState<EventSequenceAnalysis | undefined>(undefined);
   const [linkedSc, setLinkedSc] = useState<SuccessCriteriaDevelopment | undefined>(undefined);
   const [linkedPos, setLinkedPos] = useState<PlantOperatingStatesAnalysis | undefined>(undefined);
-  const [scExamples, setScExamples] = useState<ScMissionTimeSource[]>([]);
   const workbookName = data?.sy.name ?? "";
   const workbookVersion = data?.sy.version ?? "1";
 
@@ -225,19 +225,11 @@ function SyWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, [linkOptions.HRA, linkedHrId]);
 
-  const scExampleKey = data === null ? "" : exampleScIds(data.sy).join(" ");
-  useEffect(() => {
-    const ids = scExampleKey.length === 0 ? [] : scExampleKey.split(" ");
-    let cancelled = false;
-    loadExampleScMissionTimes(ids)
-      .then((loaded) => { if (!cancelled) setScExamples(loaded); })
-      .catch(() => { if (!cancelled) setScExamples([]); });
-    return () => { cancelled = true; };
-  }, [scExampleKey]);
+  const scReferenced = useReferencedScSources(data?.sy ?? null, controlledParameters, linkedScId, linkedSc);
 
   const links = useMemo(
-    () => buildLinkedInputs(linkOptions, { ES: linkedEsId, SC: linkedScId, POS: linkedPosId }, linkedEs, linkedSc, linkedPos, scExamples),
-    [linkOptions, linkedEsId, linkedScId, linkedPosId, linkedEs, linkedSc, linkedPos, scExamples],
+    () => buildLinkedInputs(linkOptions, { ES: linkedEsId, SC: linkedScId, POS: linkedPosId }, linkedEs, linkedSc, linkedPos, scReferenced),
+    [linkOptions, linkedEsId, linkedScId, linkedPosId, linkedEs, linkedSc, linkedPos, scReferenced],
   );
   const upstream = useMemo<SyUpstream>(() => ({ options: linkOptions }), [linkOptions]);
   const providerData = useMemo<SyWorkbookData | null>(() => (data === null ? null : { ...data, links }), [data, links]);

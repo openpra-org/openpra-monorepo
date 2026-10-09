@@ -13,7 +13,7 @@
           "family": "BETA",
           "alpha": 1,
           "beta": 10,
-          "lower": 0,
+          "lower": 1.5,
           "upper": 2
         }
       }

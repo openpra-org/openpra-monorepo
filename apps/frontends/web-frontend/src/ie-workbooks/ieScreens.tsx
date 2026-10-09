@@ -40,7 +40,7 @@ import { AutoTextarea } from "./ieDrawer";
 import {
   daOptionKey,
   daParameterLabel,
-  daParameterTable,
+  useDaFrequencyTable,
   heldDiffers,
   linkedDaOption,
   withImportedFrequency,
@@ -196,7 +196,7 @@ interface IfaceLane {
 
 function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreenProps): JSX.Element {
   const { ie, posLink, editable, mutateIe, daFrequencies } = useIeWorkbook();
-  const daTable = useMemo(() => daParameterTable(daFrequencies ?? NO_DA_OPTIONS), [daFrequencies]);
+  const daTable = useDaFrequencyTable(daFrequencies ?? NO_DA_OPTIONS);
   const groupEntries = useMemo(() => ie.initiatingEventGroups.flatMap((g) => (g.frequency === undefined ? [] : [{ key: g.uuid, expression: g.frequency.expression }])), [ie.initiatingEventGroups]);
   const groupPoints = useFrequencyPoints(groupEntries, daTable);
   const linked = posLink.linkedPosWorkbookId !== null;
@@ -1151,7 +1151,7 @@ function heldMessage(daPoint: FrequencyPoint | undefined, heldPoint: FrequencyPo
 function FrequencyScreen(): JSX.Element {
   const { ie, editable, mutateIe, daFrequencies } = useIeWorkbook();
   const daOptions = daFrequencies ?? NO_DA_OPTIONS;
-  const daTable = useMemo(() => daParameterTable(daOptions), [daOptions]);
+  const daTable = useDaFrequencyTable(daOptions);
   const describe = useMemo(() => {
     const label = daParameterLabel(daOptions);
     return (expression: UncertainExpression): string => expressionText(expression, label);

@@ -5,7 +5,8 @@ import { fetchJson } from "../../api/client";
 import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
 import { pointsOf } from "../../newly-developed-methods/shared/uncertaintyPoints";
 import { praxisUncertainty } from "../../newly-developed-methods/shared/test/praxisUncertainty";
-import { buildLinkedInputs, exampleScIds, loadExampleScMissionTimes } from "../syLinks";
+import { buildLinkedInputs, syLinkRoots } from "../syLinks";
+import { linkedScWorkbookIds, loadScMissionTimeSources } from "../../sc-workbooks/scMissionTimeSources";
 import { syValueSources } from "../syMissionTimes";
 import { SY_ANALYSIS } from "../../../../../backends/web-backend/src/example-workbooks/seeds/sy-seed";
 import { SY_ANALYSIS_HTGR } from "../../../../../backends/web-backend/src/example-workbooks/seeds/sy-seed-htgr";
@@ -34,6 +35,10 @@ const SC_BUNDLE = {
   },
 };
 
+function exampleScIds(sy: Pick<SystemsAnalysis, "systemDefinitions" | "systemBasicEvents" | "commonCauseFailureGroups">): string[] {
+  return linkedScWorkbookIds(syLinkRoots(sy), new Map());
+}
+
 const SY: Pick<SystemsAnalysis, "systemDefinitions" | "systemBasicEvents" | "commonCauseFailureGroups"> = {
   systemDefinitions: [
     { uuid: "SYS-RCCS", name: "RCCS", boundaries: [], successCriteriaIds: [], missionTime: link(EXAMPLE_SC, "MT-DLOFC"), modeledComponentsAndFailures: {}, informationBasis: "as-designed-as-intended", implementsSrs: [] },
@@ -57,7 +62,7 @@ describe("SY example SC mission time links", () => {
 
   it("loads the example SC bundle and feeds its mission times to the options and the PRAXIS table", async () => {
     jest.mocked(fetchJson).mockResolvedValue(SC_BUNDLE);
-    const examples = await loadExampleScMissionTimes(exampleScIds(SY));
+    const examples = await loadScMissionTimeSources(exampleScIds(SY));
     expect(fetchJson).toHaveBeenCalledWith("/api/example-workbooks/sc-bundle?example=htgr");
 
     const links = buildLinkedInputs({ ES: [], SC: [], POS: [], DA: [], HRA: [] }, {}, undefined, undefined, undefined, examples);
@@ -79,7 +84,7 @@ describe("SY example SC mission time links", () => {
   ] as const)("resolves every %s example system mission time through PRAXIS", async (variant, sy, sc) => {
     expect(exampleScIds(sy)).toEqual([`example-sc-${variant}`]);
     jest.mocked(fetchJson).mockResolvedValue({ sc: { mef: sc } });
-    const links = buildLinkedInputs({ ES: [], SC: [], POS: [], DA: [], HRA: [] }, {}, undefined, undefined, undefined, await loadExampleScMissionTimes(exampleScIds(sy)));
+    const links = buildLinkedInputs({ ES: [], SC: [], POS: [], DA: [], HRA: [] }, {}, undefined, undefined, undefined, await loadScMissionTimeSources(exampleScIds(sy)));
     const linked = sy.systemDefinitions.flatMap((system) => (system.missionTime === undefined ? [] : [{ key: system.uuid, expression: system.missionTime, unit: "HOURS" as const }]));
     expect(linked).toHaveLength(sy.systemDefinitions.length);
     const points = await pointsOf(linked, syValueSources([], links).table);
@@ -88,7 +93,7 @@ describe("SY example SC mission time links", () => {
 
   it("keeps a missing example bundle out of the links", async () => {
     jest.mocked(fetchJson).mockRejectedValue(new Error("Not found"));
-    expect(await loadExampleScMissionTimes([EXAMPLE_SC])).toEqual([]);
+    expect(await loadScMissionTimeSources([EXAMPLE_SC])).toEqual([]);
     expect(buildLinkedInputs({ ES: [], SC: [], POS: [], DA: [], HRA: [] }, {}, undefined, undefined, undefined, [])).toBeNull();
   });
 });

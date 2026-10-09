@@ -50,7 +50,7 @@ const CC: PRAConfigurationControl = {
   invokedPriorToFirstPeerReview: false,
 };
 
-const UPSTREAM = { options: { SY: [], IE: [], HRA: [], POS: [], SC: [], ESQ: [] }, scExamples: [], ie: IE_ANALYSIS, pos: POS_ANALYSIS };
+const UPSTREAM = { options: { SY: [], IE: [], HRA: [], POS: [], SC: [], ESQ: [] }, scReferenced: [], ie: IE_ANALYSIS, pos: POS_ANALYSIS };
 
 const DATASETS = join(__dirname, "../../../../../interfaces/mef-types/da");
 

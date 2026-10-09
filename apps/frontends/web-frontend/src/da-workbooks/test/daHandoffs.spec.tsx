@@ -53,7 +53,7 @@ const CC: PRAConfigurationControl = {
   invokedPriorToFirstPeerReview: false,
 };
 
-const UPSTREAM: DaUpstream = { options: { SY: [], IE: [], HRA: [], POS: [], SC: [], ESQ: [] }, scExamples: [], sy: SY_ANALYSIS_HTGR, ie: IE_ANALYSIS, hr: HR_ANALYSIS_HTGR, pos: POS_ANALYSIS, esq: ESQ_ANALYSIS_HTGR };
+const UPSTREAM: DaUpstream = { options: { SY: [], IE: [], HRA: [], POS: [], SC: [], ESQ: [] }, scReferenced: [], sy: SY_ANALYSIS_HTGR, ie: IE_ANALYSIS, hr: HR_ANALYSIS_HTGR, pos: POS_ANALYSIS, esq: ESQ_ANALYSIS_HTGR };
 
 function imported(seed: DataAnalysis): DataAnalysis {
   const merged = withLinkedValuesSynced({ ...seed, dataNeeds: withNeedsMerged(seed.dataNeeds, daImportNeeds(seed, UPSTREAM, NOW)) });

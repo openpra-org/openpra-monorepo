@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { type UncertainFrequency } from "interfaces-mef-types/core/events";
 import {
   canonicalJson,
@@ -12,6 +13,8 @@ import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/r
 import { fetchJson } from "../api/client";
 import { listWorkbooks } from "../workbooks/workbookApi";
 import { DEFAULT_FREQUENCY_BASIS } from "../newly-developed-methods/ie-frequency-quantification/frequencySources";
+import { type LinkRoot } from "../newly-developed-methods/shared/uncertaintyLinks";
+import { useLinkedScSources, withScSources } from "../sc-workbooks/scMissionTimeSources";
 
 const EXAMPLE_PREFIX = "example-da-";
 
@@ -45,6 +48,14 @@ function daParameterKey(option: Pick<IeDaFrequencyOption, "workbookId" | "parame
 
 function daParameterTable(options: readonly IeDaFrequencyOption[]): Map<string, UncertainParameter> {
   return new Map(options.map((option) => [daParameterKey(option), { reference: daReference(option), expression: option.estimate }]));
+}
+
+const NO_ROOTS: readonly LinkRoot[] = [];
+
+function useDaFrequencyTable(options: readonly IeDaFrequencyOption[]): Map<string, UncertainParameter> {
+  const base = useMemo(() => daParameterTable(options), [options]);
+  const sources = useLinkedScSources(NO_ROOTS, base);
+  return useMemo(() => (sources.length === 0 ? base : withScSources(base, sources)), [base, sources]);
 }
 
 function daParameterLabel(options: readonly IeDaFrequencyOption[]): (key: string) => string {
@@ -185,6 +196,7 @@ export {
   daParameterLabel,
   daParameterTable,
   daReference,
+  useDaFrequencyTable,
   heldDiffers,
   linkedDaOption,
   loadDaFrequencies,

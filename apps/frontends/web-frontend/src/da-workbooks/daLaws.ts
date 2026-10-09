@@ -32,7 +32,7 @@ import {
 } from "../newly-developed-methods/shared/useUncertainty";
 import { entryFit, priorUse } from "./daSourcing";
 import { scMissionTimeEntries } from "../sc-workbooks/scMissionTimeLinks";
-import { type ScMissionTimeSource } from "../sy-workbooks/syLinks";
+import { type ScMissionTimeSource } from "../sc-workbooks/scMissionTimeSources";
 
 type DaLawState = { status: "pending" } | { status: "ready"; law: Law } | { status: "failed"; error: string } | { status: "missing"; problem: string };
 

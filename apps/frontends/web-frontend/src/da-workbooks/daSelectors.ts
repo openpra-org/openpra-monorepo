@@ -1069,15 +1069,18 @@ function valueNodes(expression: UncertainExpression): UncertainValue[] {
   }
 }
 
-function rangeProblem(expression: UncertainExpression): string | undefined {
+function rangeFinding(expression: UncertainExpression): Pick<DaNeedFinding, "severity" | "check" | "detail"> | undefined {
+  let crossing: Pick<DaNeedFinding, "severity" | "check" | "detail"> | undefined;
   for (const value of valueNodes(expression)) {
     const bounds = lawBounds(value.law);
     const domain = unitBounds(value.unit);
     const law = familyText(value.law.family).toLowerCase();
-    if (!(bounds.lower >= domain.lower)) return `The ${law} law goes below 0. Truncate it at 0, or pick a law that stays in range.`;
-    if (!(bounds.upper <= domain.upper)) return `The ${law} law goes above 1, but it is a probability. Truncate it at 1, or pick a law that stays in range.`;
+    if (bounds.upper < domain.lower) return { severity: "error", check: "Out of range", detail: `The ${law} law lies entirely below 0. Pick values in range.` };
+    if (bounds.lower > domain.upper) return { severity: "error", check: "Out of range", detail: `The ${law} law lies entirely above 1, but it is a probability. Pick values in range.` };
+    if (crossing === undefined && bounds.lower < domain.lower) crossing = { severity: "warning", check: "Can leave range", detail: `The ${law} law can go below 0. A run stops on any trial below 0. Truncate it at 0 to be safe.` };
+    if (crossing === undefined && bounds.upper > domain.upper) crossing = { severity: "warning", check: "Can leave range", detail: `The ${law} law can go above 1. A run stops on any trial above 1. Truncate it at 1 to be safe.` };
   }
-  return undefined;
+  return crossing;
 }
 
 function parameterFindings(da: DataAnalysis): DaNeedFinding[] {
@@ -1144,8 +1147,8 @@ function parameterFindings(da: DataAnalysis): DaNeedFinding[] {
     if (value !== undefined && (!Number.isFinite(value) || value < 0 || (model !== undefined && PROBABILITY_MODELS_SET.has(model) && value > 1))) {
       findings.push({ severity: "error", check: "Out of range", item, detail: model !== undefined && PROBABILITY_MODELS_SET.has(model) ? "A probability must lie between 0 and 1." : "The value cannot be negative.", target });
     }
-    const range = component && parameter.estimate !== undefined ? rangeProblem(parameter.estimate) : undefined;
-    if (range !== undefined) findings.push({ severity: "error", check: "Out of range", item, detail: range, target });
+    const range = component && parameter.estimate !== undefined ? rangeFinding(parameter.estimate) : undefined;
+    if (range !== undefined) findings.push({ ...range, item, target });
     if ((component ? parameter.estimate === undefined : value === undefined) && parameter.valueMode !== "LINKED") findings.push({ severity: "note", check: "Not estimated", item, detail: "This parameter has no value yet.", target });
     const states = parameterStates(parameter);
     const statesOwned = linkedNeed !== undefined && linkedNeed.stateIds.length > 0;

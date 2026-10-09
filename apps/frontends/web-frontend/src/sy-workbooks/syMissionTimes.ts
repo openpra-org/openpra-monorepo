@@ -4,6 +4,9 @@ import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-mod
 import type { SystemBasicEvent, SystemDefinition, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
 import { useHoursPoints, type HoursState } from "../sc-workbooks/scMissionTimePoints";
+import { scMissionTimeTable, type ScMissionTimes } from "../sc-workbooks/scMissionTimeLinks";
+import { useLinkedScSources, type ScMissionTimeSource } from "../sc-workbooks/scMissionTimeSources";
+import { syLinkRoots } from "./syLinks";
 import { editorOptions, parameterLabel, valueTable, type ParameterTable } from "./syBasicEventValues";
 import { useSyWorkbook, type SyControlledParameterOption, type SyLinkedInputs } from "./syWorkbookContext";
 
@@ -57,10 +60,19 @@ function basicEventMissionTime(sy: Pick<SystemsAnalysis, "systemDefinitions" | "
   return modelMissionTime(event.expression) ?? ownerSystem(sy, event.uuid)?.missionTime;
 }
 
+function useReferencedScSources(sy: SystemsAnalysis | null, parameters: readonly SyControlledParameterOption[], linkedScId: string | undefined, linkedSc: ScMissionTimes | undefined): ScMissionTimeSource[] {
+  const roots = useMemo(() => (sy === null ? [] : syLinkRoots(sy)), [sy]);
+  const table = useMemo(
+    () => valueTable(parameters, linkedScId === undefined || linkedSc === undefined ? NO_MISSION_TIMES : scMissionTimeTable(linkedScId, linkedSc)),
+    [parameters, linkedScId, linkedSc],
+  );
+  return useLinkedScSources(roots, table);
+}
+
 function useSystemHours(systems: readonly SystemDefinition[]): Map<string, HoursState> {
   const { table } = useSyValueSources();
   const entries = useMemo(() => systems.flatMap((system) => (system.missionTime === undefined ? [] : [{ key: system.uuid, expression: system.missionTime }])), [systems]);
   return useHoursPoints(entries, table);
 }
 
-export { basicEventMissionTime, linkedMissionTimeTable, linkedMissionTimes, ownerSystem, syValueSources, useSyValueSources, useSystemHours, type SyValueSources };
+export { basicEventMissionTime, linkedMissionTimeTable, linkedMissionTimes, ownerSystem, syValueSources, useReferencedScSources, useSyValueSources, useSystemHours, type SyValueSources };

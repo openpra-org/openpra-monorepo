@@ -1,6 +1,6 @@
 import { SC_ANALYSIS } from "../../../../../backends/web-backend/src/example-workbooks/seeds/sc-seed";
 import { SC_ANALYSIS_HTGR } from "../../../../../backends/web-backend/src/example-workbooks/seeds/sc-seed-htgr";
-import type { ScMissionTimeSource } from "../../sy-workbooks/syLinks";
+import type { ScMissionTimeSource } from "../../sc-workbooks/scMissionTimeSources";
 import { setDaMissionTimes } from "../daLaws";
 import { scSequenceFamilies } from "../daWorkbookContext";
 

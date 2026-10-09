@@ -4,7 +4,7 @@ import {
   type UncertainParameter,
   type UncertainUnit,
 } from "interfaces-mef-types/core/uncertainty";
-import { evaluateUncertainty } from "./uncertaintyApi";
+import { evaluateResolved } from "./uncertaintyLinks";
 import { parametersFor } from "./useUncertainty";
 
 interface PointEntry {
@@ -37,7 +37,7 @@ function estimateUnit(expression: UncertainExpression): UncertainUnit | undefine
 async function pointsOf(entries: readonly PointEntry[], table: ReadonlyMap<string, UncertainParameter>): Promise<Map<string, number>> {
   const points = new Map<string, number>();
   if (entries.length === 0) return points;
-  const response = await evaluateUncertainty({
+  const response = await evaluateResolved({
     parameters: parametersFor(entries.map((entry) => entry.expression), table),
     laws: [],
     operations: [],

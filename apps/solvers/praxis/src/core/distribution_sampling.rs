@@ -307,7 +307,7 @@ pub fn require_probability(subject: &str, trial: Option<usize>, value: f64) -> R
     let place = trial.map_or("the point value".to_string(), |trial| format!("trial {}", trial + 1));
     Err(PraxisError::Mef(MefError::Domain {
         message: format!(
-            "{} is {} in {}, outside 0 to 1. Bound its formula, for example with MIN.",
+            "{} is {} in {}, outside 0 to 1. Truncate its law at 0 and 1, or bound its formula with MIN.",
             subject, value, place
         ),
         value: Some(value.to_string()),

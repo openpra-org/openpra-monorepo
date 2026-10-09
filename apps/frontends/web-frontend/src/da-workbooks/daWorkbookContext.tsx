@@ -10,7 +10,11 @@ import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event
 import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import { type Workbook } from "interfaces-shared-types";
 import { useUncertaintyVersion } from "../newly-developed-methods/shared/useUncertainty";
-import { exampleScIds, loadExampleScMissionTimes, type ScMissionTimeSource } from "../sy-workbooks/syLinks";
+import { type UncertainExpression, type UncertainParameter } from "interfaces-mef-types/core/uncertainty";
+import { syLinkRoots } from "../sy-workbooks/syLinks";
+import { scMissionTimeTable } from "../sc-workbooks/scMissionTimeLinks";
+import { useLinkedScSources, type ScMissionTimeSource } from "../sc-workbooks/scMissionTimeSources";
+import { type LinkRoot } from "../newly-developed-methods/shared/uncertaintyLinks";
 import { loadLinkedEsq, loadLinkedHr, loadLinkedIe, loadLinkedPos, loadLinkedSc, loadLinkedSy } from "./daWorkbookApi";
 import { setDaMissionTimes } from "./daLaws";
 import { withEstimates } from "./daFailures";
@@ -35,18 +39,38 @@ interface DaUpstream {
   pos?: PlantOperatingStatesAnalysis;
   esq?: EventSequenceQuantification;
   sc?: SuccessCriteriaDevelopment;
-  scExamples: ScMissionTimeSource[];
+  scReferenced: ScMissionTimeSource[];
 }
 
 const EMPTY_UPSTREAM: DaUpstream = {
   options: { SY: [], IE: [], HRA: [], POS: [], SC: [], ESQ: [] },
-  scExamples: [],
+  scReferenced: [],
 };
 
-function daMissionTimeSources(da: DataAnalysis, upstream: DaUpstream): ScMissionTimeSource[] {
-  const linked = da.linkedWorkbooks?.SC;
-  return [...(linked === undefined || upstream.sc === undefined ? [] : [{ workbookId: linked, sc: upstream.sc }]), ...upstream.scExamples];
+function linkedScSource(da: DataAnalysis | undefined, sc: SuccessCriteriaDevelopment | undefined): ScMissionTimeSource[] {
+  const linked = da?.linkedWorkbooks?.SC;
+  return linked === undefined || sc === undefined ? [] : [{ workbookId: linked, sc }];
 }
+
+function daMissionTimeSources(da: DataAnalysis, upstream: DaUpstream): ScMissionTimeSource[] {
+  const linked = linkedScSource(da, upstream.sc);
+  return [...linked, ...upstream.scReferenced.filter((source) => linked.every((entry) => entry.workbookId !== source.workbookId))];
+}
+
+function root(expression: UncertainExpression | undefined, missionTime: boolean): LinkRoot[] {
+  return expression === undefined ? [] : [{ expression, missionTime }];
+}
+
+function daLinkRoots(da: DataAnalysis): LinkRoot[] {
+  const needs = da.dataNeeds;
+  return [
+    ...da.parameters.flatMap((parameter) => [...root(parameter.estimate, false), ...root(parameter.missionTime, true)]),
+    ...(needs?.basicEvents ?? []).flatMap((need) => [...root(need.expression, false), ...root(need.importedMissionTime, true), ...root(need.missionTime, true)]),
+    ...(needs?.ccfGroups ?? []).flatMap((group) => root(group.total, false)),
+  ];
+}
+
+const NO_PARAMETERS: ReadonlyMap<string, UncertainParameter> = new Map();
 
 function scSequenceFamilies(sc: Pick<SuccessCriteriaDevelopment, "overallSuccessCriteria"> | undefined): Map<string, string[]> {
   const families = new Map<string, string[]>();
@@ -96,17 +120,13 @@ function useDaUpstream(da: DataAnalysis | undefined, options: Record<DaLinkCode,
   const pos = useLinkedMef(links?.POS, loadLinkedPos);
   const esq = useLinkedMef(links?.ESQ, loadLinkedEsq);
   const sc = useLinkedMef(links?.SC, loadLinkedSc);
-  const [scExamples, setScExamples] = useState<ScMissionTimeSource[]>([]);
-  const scExampleKey = sy === undefined ? "" : exampleScIds(sy).join(" ");
-  useEffect(() => {
-    const ids = scExampleKey.length === 0 ? [] : scExampleKey.split(" ");
-    let cancelled = false;
-    loadExampleScMissionTimes(ids)
-      .then((loaded) => { if (!cancelled) setScExamples(loaded); })
-      .catch(() => { if (!cancelled) setScExamples([]); });
-    return () => { cancelled = true; };
-  }, [scExampleKey]);
-  return useMemo<DaUpstream>(() => ({ options, workbookId, sy, ie, hr, pos, esq, sc, scExamples }), [options, workbookId, sy, ie, hr, pos, esq, sc, scExamples]);
+  const scRoots = useMemo(() => [...(da === undefined ? [] : daLinkRoots(da)), ...(sy === undefined ? [] : syLinkRoots(sy))], [da, sy]);
+  const scBaseTable = useMemo(() => {
+    const [linked] = linkedScSource(da, sc);
+    return linked === undefined ? NO_PARAMETERS : scMissionTimeTable(linked.workbookId, linked.sc);
+  }, [da, sc]);
+  const scReferenced = useLinkedScSources(scRoots, scBaseTable);
+  return useMemo<DaUpstream>(() => ({ options, workbookId, sy, ie, hr, pos, esq, sc, scReferenced }), [options, workbookId, sy, ie, hr, pos, esq, sc, scReferenced]);
 }
 
 function DaWorkbookProvider({ data, editable, mutateDa, upstream = EMPTY_UPSTREAM, children }: {

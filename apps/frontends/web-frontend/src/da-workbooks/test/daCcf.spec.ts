@@ -221,7 +221,9 @@ describe("common cause checks", () => {
     const coarse = estimate({ method: "TYPED", factors: { model: "BETA_FACTOR", beta: fraction(0.05) }, isRiskSignificant: true, estimateReason: "Old value" });
     expect(await checks(analysis([coarse]))).toContain("error:Model too coarse:DA-CCF-1");
     const wide = estimate({ method: "TYPED", factors: { model: "BETA_FACTOR", beta: { node: "VALUE", value: { unit: "FRACTION", law: { family: "LOGNORMAL", mean: 0.3, errorFactor: 10, level: 0.95 } } } }, estimateReason: "Judgment" });
-    expect(await checks(analysis([wide]))).toContain("error:Out of range:DA-CCF-1");
+    expect(await checks(analysis([wide]))).toContain("warning:Can leave range:DA-CCF-1");
+    const outside = estimate({ method: "TYPED", factors: { model: "BETA_FACTOR", beta: { node: "VALUE", value: { unit: "FRACTION", law: { family: "UNIFORM", lower: 1.2, upper: 1.5 } } } }, estimateReason: "Judgment" });
+    expect(await checks(analysis([outside]))).toContain("error:Out of range:DA-CCF-1");
     const scheme = estimate({ method: "TYPED", factors: fixedAlphas([0.98, 0.01, 0.01], "NON_STAGGERED"), estimateReason: "Typed" });
     expect(await checks(analysis([scheme]))).toContain("warning:Testing differs:DA-CCF-1");
     const short = estimate({ method: "TYPED", factors: fixedAlphas([0.98, 0.02], "STAGGERED"), estimateReason: "Typed" });
@@ -260,7 +262,7 @@ describe("examples", () => {
     const options = { SY: [], IE: [], HRA: [], POS: [], SC: [], ESQ: [] };
     for (const [da, sy] of [[DA_ANALYSIS_HTGR, SY_ANALYSIS_HTGR], [DA_ANALYSIS, SY_ANALYSIS]] as const) {
       expect(await settledWithPraxis(() => withCcf(da))).toBe(da);
-      const linked: DataAnalysis = { ...da, dataNeeds: daImportNeeds(da, { options, sy, scExamples: [] }, "2026-10-04T00:00:00.000Z") };
+      const linked: DataAnalysis = { ...da, dataNeeds: daImportNeeds(da, { options, sy, scReferenced: [] }, "2026-10-04T00:00:00.000Z") };
       expect((await checks(linked)).filter((line) => !line.startsWith("note:"))).toEqual([]);
       expect(await settledWithPraxis(() => ccfComplete(linked))).toBe(true);
     }

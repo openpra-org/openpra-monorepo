@@ -77,7 +77,7 @@ import {
   type EsqResolvedLink,
 } from "interfaces-mef-types/esq/esq-run-inputs";
 import { scMissionTimeEntries, scMissionTimeTable } from "../sc-workbooks/scMissionTimeLinks";
-import { type ScMissionTimeSource } from "../sy-workbooks/syLinks";
+import { type ScMissionTimeSource } from "../sc-workbooks/scMissionTimeSources";
 import { parametersFor, peekExpression, requestExpression } from "../newly-developed-methods/shared/useUncertainty";
 import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
 import { type EsqUpstream } from "./esqLinks";
@@ -1065,9 +1065,9 @@ function daReferenceOf(esq: EventSequenceQuantification, parameterId: string): W
   return workbookId === undefined ? undefined : { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: parameterId };
 }
 
-function missionTimeSourcesOf(esq: EventSequenceQuantification, upstream: Pick<EsqUpstream, "sc" | "scExamples">): ScMissionTimeSource[] {
+function missionTimeSourcesOf(esq: EventSequenceQuantification, upstream: Pick<EsqUpstream, "sc" | "scReferenced">): ScMissionTimeSource[] {
   const workbookId = linkOf(esq, "SC");
-  return [...(workbookId === undefined || upstream.sc === undefined ? [] : [{ workbookId, sc: upstream.sc }]), ...upstream.scExamples];
+  return [...(workbookId === undefined || upstream.sc === undefined ? [] : [{ workbookId, sc: upstream.sc }]), ...upstream.scReferenced];
 }
 
 function scTableOf(sources: readonly ScMissionTimeSource[]): Map<string, UncertainParameter> {
@@ -1515,7 +1515,7 @@ function valueFindings(esq: EventSequenceQuantification, model: EsqModel, values
   return findings;
 }
 
-function missionTimeTableOf(esq: EventSequenceQuantification, upstream: Pick<EsqUpstream, "sc" | "scExamples">): Map<string, UncertainParameter> | undefined {
+function missionTimeTableOf(esq: EventSequenceQuantification, upstream: Pick<EsqUpstream, "sc" | "scReferenced">): Map<string, UncertainParameter> | undefined {
   return linkOf(esq, "SC") !== undefined && upstream.sc === undefined ? undefined : scTableOf(missionTimeSourcesOf(esq, upstream));
 }
 

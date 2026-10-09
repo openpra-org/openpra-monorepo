@@ -20,7 +20,7 @@ const CIRCULATOR_PRIOR_RATE = 0.5 / (90.5 / 785000);
 
 linkScExamples();
 
-const SCREEN_UPSTREAM = { ...EMPTY_UPSTREAM, scExamples: SC_EXAMPLES };
+const SCREEN_UPSTREAM = { ...EMPTY_UPSTREAM, scReferenced: SC_EXAMPLES };
 
 beforeEach(() => {
   jest.mocked(evaluateUncertainty).mockImplementation(praxisUncertainty);

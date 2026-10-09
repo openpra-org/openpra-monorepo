@@ -682,9 +682,9 @@ impl UncertainValue {
             )));
         }
         let (domain_low, domain_high) = self.unit.domain();
-        if low < domain_low || high > domain_high {
+        if low > domain_high || high < domain_low {
             return Err(meaning_error(format!(
-                "The {} law for a {} value reaches outside [{}, {}]",
+                "The {} law for a {} value lies entirely outside [{}, {}]",
                 self.law.family(),
                 self.unit.label(),
                 domain_low,

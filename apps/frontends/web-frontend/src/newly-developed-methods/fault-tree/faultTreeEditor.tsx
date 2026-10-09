@@ -73,7 +73,7 @@ function seedExpression(probability: FaultTreeBasicEventProbability): UncertainE
 
 function pointSentence(point: BasicEventPoint): string {
   if (point.status === "ready") return `Point value ${pointText(point)}. `;
-  return point.status === "pending" ? "Point value … " : "";
+  return point.status === "pending" ? "Point value … " : `${point.error} `;
 }
 
 type TreeNode = FaultTreeGate | FaultTreeLeafNode;

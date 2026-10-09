@@ -2106,12 +2106,12 @@ mod tests {
     }
 
     #[test]
-    fn rejects_a_bare_lognormal_deviate_on_a_basic_event() {
+    fn accepts_a_bare_lognormal_deviate_on_a_basic_event() {
         let xml = single_event_fault_tree(
             r#"<lognormal-deviate><float value="0.01"/><float value="3.0"/><float value="0.95"/></lognormal-deviate>"#,
             "",
         );
-        assert!(parse_fault_tree(&xml).is_err());
+        assert!(parse_fault_tree(&xml).is_ok());
     }
 
     #[test]

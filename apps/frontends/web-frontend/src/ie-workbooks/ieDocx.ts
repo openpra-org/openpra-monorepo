@@ -12,7 +12,7 @@ import {
 } from "docx";
 import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { INITIATOR_CATEGORIES, categoryById } from "./ieViewData";
-import { evaluateUncertainty } from "../newly-developed-methods/shared/uncertaintyApi";
+import { evaluateResolved } from "../newly-developed-methods/shared/uncertaintyLinks";
 import { parametersFor } from "../newly-developed-methods/shared/useUncertainty";
 import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { FREQUENCY_UNIT, basisText, frequencyText } from "../newly-developed-methods/ie-frequency-quantification/frequencySources";
@@ -71,7 +71,7 @@ async function frequencyMeans(a: InitiatingEventsAnalysis, options: readonly IeD
   const valued = a.quantifications.flatMap((q) => (q.frequency === undefined ? [] : [{ id: q.initiatorOrGroupId, expression: q.frequency.expression, basis: q.frequency.basis }]));
   if (valued.length === 0) return new Map();
   try {
-    const response = await evaluateUncertainty({
+    const response = await evaluateResolved({
       parameters: parametersFor(valued.map(({ expression }) => expression), daParameterTable(options)),
       laws: [],
       expressions: valued.map(({ expression }, index) => ({ id: String(index), expression, unit: FREQUENCY_UNIT, probabilities: [] })),

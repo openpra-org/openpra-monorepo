@@ -30,7 +30,7 @@ import type { SyControlledComponentBoundaryOption, SyControlledParameterOption, 
 import { AnalysisRunDetailsSchema, AnalysisRunProvenanceListSchema } from "interfaces-shared-types/newly-developed-methods/shared";
 import { FaultTreeAnalysisResultSchema } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { fetchJson } from "../api/client";
-import { evaluateUncertainty } from "../newly-developed-methods/shared/uncertaintyApi";
+import { evaluateResolved } from "../newly-developed-methods/shared/uncertaintyLinks";
 import { parametersFor } from "../newly-developed-methods/shared/useUncertainty";
 import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { linkedOptions } from "./syBasicEventValues";
@@ -51,7 +51,7 @@ async function eventPoints(events: readonly SystemBasicEvent[], links: ReportLin
   const valued = events.flatMap((event) => (carriesUncertainExpression(event.failureMode) && event.expression !== undefined ? [{ id: event.uuid, expression: event.expression }] : []));
   if (valued.length === 0) return new Map();
   try {
-    const response = await evaluateUncertainty({
+    const response = await evaluateResolved({
       parameters: parametersFor(valued.map(({ expression }) => expression), syValueSources(links.parameters, links.missionTimes).table),
       laws: [],
       expressions: valued.map(({ expression }, index) => ({ id: String(index), expression, unit: "PROBABILITY", probabilities: [] })),

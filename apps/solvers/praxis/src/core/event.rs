@@ -1,23 +1,8 @@
 use crate::core::element::Element;
-use crate::error::{MefError, PraxisError};
 use crate::expression::Expr;
 use crate::Result;
 
 fn keyed_probability_value(id: &str, mut value: Expr) -> Result<Expr> {
-    if let Expr::Draw { law, .. } = &value {
-        let (low, high) = law.support();
-        if low < 0.0 || high > 1.0 {
-            return Err(PraxisError::Mef(MefError::Domain {
-                message: format!(
-                    "basic event '{}' takes a {} law that reaches outside 0 to 1. Truncate it explicitly.",
-                    id,
-                    law.family()
-                ),
-                value: None,
-                attribute: Some("value".to_string()),
-            }));
-        }
-    }
     value.assign_draw_keys(&format!("event:{}", id));
     Ok(value)
 }
@@ -179,8 +164,8 @@ mod tests {
     }
 
     #[test]
-    fn test_basic_event_rejects_a_law_outside_probability() {
-        assert!(BasicEvent::with_value("E1".to_string(), 0.5, Expr::normal(0.5, 0.1)).is_err());
+    fn test_basic_event_takes_a_law_with_tails_beyond_probability() {
+        assert!(BasicEvent::with_value("E1".to_string(), 0.5, Expr::normal(0.5, 0.1)).is_ok());
         assert!(BasicEvent::with_value("E1".to_string(), 0.5, Expr::beta(2.0, 2.0)).is_ok());
     }
 

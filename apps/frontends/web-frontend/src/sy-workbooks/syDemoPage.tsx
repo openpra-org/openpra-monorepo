@@ -31,8 +31,8 @@ import {
   controlledParameterOptions,
   linkExampleEvents,
   linkExampleGroups,
-  SC_EXAMPLE_PREFIX,
 } from "./syLinks";
+import { SC_EXAMPLE_PREFIX } from "../sc-workbooks/scMissionTimeSources";
 import { type SyPersona } from "./syViewData";
 
 interface SyExampleResponse {

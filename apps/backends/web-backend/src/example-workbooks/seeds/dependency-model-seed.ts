@@ -548,10 +548,26 @@ const EXAMPLE_SC_PREFIX = "example-sc-";
 interface ExampleMissionTimeLink {
   ids: ReadonlySet<string>;
   workbookId: string;
+  from?: string;
 }
 
-function exampleMissionTimeLink(sc: SuccessCriteriaDevelopment, scWorkbookId: string): ExampleMissionTimeLink {
-  return { ids: new Set([...sc.missionTimes, ...(sc.componentMissionTimes ?? [])].map((entry) => entry.uuid)), workbookId: scWorkbookId };
+interface ProjectMissionTimeSource {
+  sc: SuccessCriteriaDevelopment;
+  workbookId: string;
+}
+
+type MissionTimeReconciler<T> = (mef: T, sc: SuccessCriteriaDevelopment, scWorkbookId: string, from?: string) => T;
+
+function missionTimeIds(sc: SuccessCriteriaDevelopment): Set<string> {
+  return new Set([...sc.missionTimes, ...(sc.componentMissionTimes ?? [])].map((entry) => entry.uuid));
+}
+
+function exampleMissionTimeLink(sc: SuccessCriteriaDevelopment, scWorkbookId: string, from?: string): ExampleMissionTimeLink {
+  return { ids: missionTimeIds(sc), workbookId: scWorkbookId, ...(from === undefined ? {} : { from }) };
+}
+
+function linksExample(workbookId: string, link: ExampleMissionTimeLink): boolean {
+  return link.from === undefined ? workbookId.startsWith(EXAMPLE_SC_PREFIX) : workbookId === link.from;
 }
 
 function relinkedMissionTime(expression: UncertainExpression, link: ExampleMissionTimeLink): UncertainExpression {
@@ -559,7 +575,7 @@ function relinkedMissionTime(expression: UncertainExpression, link: ExampleMissi
     case "VALUE":
       return expression;
     case "PARAMETER":
-      return expression.reference.workbookId.startsWith(EXAMPLE_SC_PREFIX) && link.ids.has(expression.reference.entityId)
+      return linksExample(expression.reference.workbookId, link) && link.ids.has(expression.reference.entityId)
         ? { node: "PARAMETER", reference: { ...expression.reference, workbookId: link.workbookId } }
         : expression;
     case "OPERATION":
@@ -574,11 +590,72 @@ function relinkedOptional(expression: UncertainExpression | undefined, link: Exa
 }
 
 function relinkedScLink(id: string | undefined, link: ExampleMissionTimeLink): string | undefined {
-  return id !== undefined && id.startsWith(EXAMPLE_SC_PREFIX) ? link.workbookId : id;
+  return id !== undefined && linksExample(id, link) ? link.workbookId : id;
 }
 
-function reconcileExampleSyMissionTimeReferences(analysis: SystemsAnalysis, sc: SuccessCriteriaDevelopment, scWorkbookId: string): SystemsAnalysis {
-  const link = exampleMissionTimeLink(sc, scWorkbookId);
+function present(expression: UncertainExpression | undefined): UncertainExpression[] {
+  return expression === undefined ? [] : [expression];
+}
+
+function syMissionTimeExpressions(analysis: SystemsAnalysis): UncertainExpression[] {
+  return [
+    ...analysis.systemDefinitions.flatMap((definition) => present(definition.missionTime)),
+    ...analysis.systemBasicEvents.flatMap((event) => present(event.expression)),
+    ...analysis.commonCauseFailureGroups.map((group) => group.total),
+  ];
+}
+
+function daMissionTimeExpressions(dataAnalysis: DataAnalysis): UncertainExpression[] {
+  const needs = dataAnalysis.dataNeeds;
+  return [
+    ...dataAnalysis.parameters.flatMap((parameter) => [...present(parameter.estimate), ...present(parameter.missionTime)]),
+    ...(needs?.basicEvents ?? []).flatMap((need) => [...present(need.expression), ...present(need.importedMissionTime), ...present(need.missionTime)]),
+    ...(needs?.ccfGroups ?? []).flatMap((group) => present(group.total)),
+  ];
+}
+
+function esqMissionTimeExpressions(quantification: EventSequenceQuantification): UncertainExpression[] {
+  const model = quantification.model;
+  if (model === undefined) return [];
+  return [
+    ...model.trees.flatMap((tree) => present(tree.missionTime)),
+    ...model.events.flatMap((event) => [...present(event.expression), ...present(event.missionTime)]),
+    ...model.parameters.flatMap((parameter) => [...present(parameter.estimate), ...present(parameter.missionTime)]),
+    ...model.ccfGroups.flatMap((group) => present(group.total)),
+  ];
+}
+
+function exampleMissionTimeReferences(expressions: readonly UncertainExpression[]): Map<string, Set<string>> {
+  const byExample = new Map<string, Set<string>>();
+  for (const reference of expressions.flatMap(expressionReferences)) {
+    if (!reference.workbookId.startsWith(EXAMPLE_SC_PREFIX)) continue;
+    const ids = byExample.get(reference.workbookId) ?? new Set<string>();
+    ids.add(reference.entityId);
+    byExample.set(reference.workbookId, ids);
+  }
+  return byExample;
+}
+
+function holdsAll(source: ProjectMissionTimeSource, ids: ReadonlySet<string>): boolean {
+  const held = missionTimeIds(source.sc);
+  return [...ids].every((id) => held.has(id));
+}
+
+function projectMissionTimeSource(sources: readonly ProjectMissionTimeSource[], ids: ReadonlySet<string>): ProjectMissionTimeSource | undefined {
+  return sources.find((source) => holdsAll(source, ids));
+}
+
+function relinkExampleMissionTimes<T>(mef: T, expressions: readonly UncertainExpression[], sources: readonly ProjectMissionTimeSource[], reconcile: MissionTimeReconciler<T>): T {
+  let relinked = mef;
+  for (const [from, ids] of exampleMissionTimeReferences(expressions)) {
+    const target = projectMissionTimeSource(sources, ids);
+    if (target !== undefined) relinked = reconcile(relinked, target.sc, target.workbookId, from);
+  }
+  return relinked;
+}
+
+function reconcileExampleSyMissionTimeReferences(analysis: SystemsAnalysis, sc: SuccessCriteriaDevelopment, scWorkbookId: string, from?: string): SystemsAnalysis {
+  const link = exampleMissionTimeLink(sc, scWorkbookId, from);
   return {
     ...analysis,
     ...(analysis.linkedWorkbooks === undefined ? {} : { linkedWorkbooks: { ...analysis.linkedWorkbooks, SC: relinkedScLink(analysis.linkedWorkbooks.SC, link) } }),
@@ -588,8 +665,8 @@ function reconcileExampleSyMissionTimeReferences(analysis: SystemsAnalysis, sc: 
   };
 }
 
-function reconcileExampleDaMissionTimeReferences(dataAnalysis: DataAnalysis, sc: SuccessCriteriaDevelopment, scWorkbookId: string): DataAnalysis {
-  const link = exampleMissionTimeLink(sc, scWorkbookId);
+function reconcileExampleDaMissionTimeReferences(dataAnalysis: DataAnalysis, sc: SuccessCriteriaDevelopment, scWorkbookId: string, from?: string): DataAnalysis {
+  const link = exampleMissionTimeLink(sc, scWorkbookId, from);
   const needs = dataAnalysis.dataNeeds;
   return {
     ...dataAnalysis,
@@ -614,8 +691,8 @@ function reconcileExampleDaMissionTimeReferences(dataAnalysis: DataAnalysis, sc:
   };
 }
 
-function reconcileExampleEsqMissionTimeReferences(quantification: EventSequenceQuantification, sc: SuccessCriteriaDevelopment, scWorkbookId: string): EventSequenceQuantification {
-  const link = exampleMissionTimeLink(sc, scWorkbookId);
+function reconcileExampleEsqMissionTimeReferences(quantification: EventSequenceQuantification, sc: SuccessCriteriaDevelopment, scWorkbookId: string, from?: string): EventSequenceQuantification {
+  const link = exampleMissionTimeLink(sc, scWorkbookId, from);
   const model = quantification.model;
   return {
     ...quantification,
@@ -928,4 +1005,9 @@ export {
   reconcileExampleDaMissionTimeReferences,
   reconcileExampleEsqMissionTimeReferences,
   reconcileExampleSyMissionTimeReferences,
+  relinkExampleMissionTimes,
+  daMissionTimeExpressions,
+  esqMissionTimeExpressions,
+  syMissionTimeExpressions,
+  type ProjectMissionTimeSource,
 };

@@ -334,7 +334,7 @@ describe("parameterFindings", () => {
     expect(differs).toEqual(["OTHER-SEQUENCE", "TYPED"]);
   });
 
-  it("flags a component estimate whose law leaves its unit", async () => {
+  it("flags a component estimate whose law lies outside its unit or can leave it", async () => {
     const lognormal = { family: "LOGNORMAL" as const, mean: 0.2, errorFactor: 10, level: 0.95 };
     const da: DataAnalysis = {
       ...blankDa(needs({})),
@@ -345,11 +345,11 @@ describe("parameterFindings", () => {
         component("DA-CUT", { quantificationModel: "DEMAND_PROBABILITY", estimate: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "TRUNCATED", law: lognormal, lower: null, upper: 1 } } } }),
       ],
     };
-    const range = await settledWithPraxis(() => parameterFindings(da).filter((finding) => finding.check === "Out of range").map((finding) => `${finding.severity} ${finding.item}: ${finding.detail}`));
+    const range = await settledWithPraxis(() => parameterFindings(da).filter((finding) => finding.check === "Out of range" || finding.check === "Can leave range").map((finding) => `${finding.severity} ${finding.item}: ${finding.detail}`));
     expect(range).toEqual([
-      "error DA-POINT: The point law goes above 1, but it is a probability. Truncate it at 1, or pick a law that stays in range.",
-      "error DA-WIDE: The lognormal law goes above 1, but it is a probability. Truncate it at 1, or pick a law that stays in range.",
-      "error DA-RATE: The normal law goes below 0. Truncate it at 0, or pick a law that stays in range.",
+      "error DA-POINT: The point law lies entirely above 1, but it is a probability. Pick values in range.",
+      "warning DA-WIDE: The lognormal law can go above 1. A run stops on any trial above 1. Truncate it at 1 to be safe.",
+      "warning DA-RATE: The normal law can go below 0. A run stops on any trial below 0. Truncate it at 0 to be safe.",
     ]);
   });
 

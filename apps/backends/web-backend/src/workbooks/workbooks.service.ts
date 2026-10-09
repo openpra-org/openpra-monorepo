@@ -267,6 +267,10 @@ export class WorkbooksService {
       const scEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "SC");
       const scLoaded = scAdapter === undefined || scEntry?.workbookId === null || scEntry?.workbookId === undefined ? null : await scAdapter.load(scEntry.workbookId);
       const missionTimes = scLoaded === null || scEntry?.workbookId === null || scEntry?.workbookId === undefined ? undefined : { sc: scLoaded.mef as SuccessCriteriaDevelopment, workbookId: scEntry.workbookId };
+      if (daAdapter !== undefined && missionTimes !== undefined && daEntry?.workbookId !== null && daEntry?.workbookId !== undefined) {
+        const dataAnalysis = await daAdapter.load(daEntry.workbookId);
+        if (dataAnalysis !== null) await daAdapter.save(daEntry.workbookId, reconcileExampleDaMissionTimeReferences(dataAnalysis.mef as DataAnalysis, missionTimes.sc, missionTimes.workbookId), dataAnalysis.revision);
+      }
       if (syEntry?.workbookId === null || syEntry?.workbookId === undefined) continue;
 
       let systems = await syAdapter.load(syEntry.workbookId);
@@ -281,11 +285,7 @@ export class WorkbooksService {
       if (systems === null || systems.revision === undefined) continue;
 
       if (daAdapter !== undefined && daEntry?.workbookId !== null && daEntry?.workbookId !== undefined) {
-        let dataAnalysis = await daAdapter.load(daEntry.workbookId);
-        if (dataAnalysis !== null && missionTimes !== undefined) {
-          await daAdapter.save(daEntry.workbookId, reconcileExampleDaMissionTimeReferences(dataAnalysis.mef as DataAnalysis, missionTimes.sc, missionTimes.workbookId), dataAnalysis.revision);
-          dataAnalysis = await daAdapter.load(daEntry.workbookId);
-        }
+        const dataAnalysis = await daAdapter.load(daEntry.workbookId);
         if (dataAnalysis !== null) {
           const reconciledSystems = reconcileExampleSyDataAnalysisReferences(
             systems.mef as SystemsAnalysis,

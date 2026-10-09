@@ -66,8 +66,8 @@ linkScExamples();
 
 beforeAll(async () => {
   jest.mocked(evaluateUncertainty).mockImplementation(praxisUncertainty);
-  HTGR = await settledWithPraxis(() => imported(DA_ANALYSIS_HTGR, { options: OPTIONS, ie: IE_ANALYSIS, pos: POS_ANALYSIS, scExamples: [] }));
-  SFR = await settledWithPraxis(() => imported(DA_ANALYSIS, { options: OPTIONS, ie: IE_ANALYSIS_SFR, pos: POS_ANALYSIS_SFR, scExamples: [] }));
+  HTGR = await settledWithPraxis(() => imported(DA_ANALYSIS_HTGR, { options: OPTIONS, ie: IE_ANALYSIS, pos: POS_ANALYSIS, scReferenced: [] }));
+  SFR = await settledWithPraxis(() => imported(DA_ANALYSIS, { options: OPTIONS, ie: IE_ANALYSIS_SFR, pos: POS_ANALYSIS_SFR, scReferenced: [] }));
 });
 
 beforeEach(() => {

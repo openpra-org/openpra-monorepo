@@ -1,12 +1,7 @@
 import { useMemo } from "react";
-import {
-  expressionReferences,
-  parameterReferenceKey,
-  type UncertainExpression,
-  type UncertainParameter,
-} from "interfaces-mef-types/core/uncertainty";
+import type { UncertainExpression, UncertainParameter } from "interfaces-mef-types/core/uncertainty";
 import type { FaultTreeBasicEvent } from "interfaces-mef-types/modeling";
-import { evaluateUncertainty } from "../shared/uncertaintyApi";
+import { evaluateResolved, unresolvedLink } from "../shared/uncertaintyLinks";
 import { parametersFor, useExpressionSummaries, type ExpressionQuery } from "../shared/useUncertainty";
 
 type ParameterTable = ReadonlyMap<string, UncertainParameter>;
@@ -22,24 +17,19 @@ const NO_PARAMETERS: ParameterTable = new Map();
 
 const PENDING: BasicEventPoint = { status: "pending" };
 
-const UNLINKED = "A linked value is not available here.";
-
-function linksResolve(expression: UncertainExpression, table: ParameterTable): boolean {
-  const used = parametersFor([expression], table);
-  return [expression, ...used.map((parameter) => parameter.expression)]
-    .flatMap(expressionReferences)
-    .every((reference) => table.has(parameterReferenceKey(reference)));
-}
-
 function pointQuery(expression: UncertainExpression, table: ParameterTable): ExpressionQuery {
   return { expression, unit: "PROBABILITY", probabilities: [], parameters: parametersFor([expression], table) };
 }
 
 function useBasicEventPoints(entries: readonly PointEntry[], table: ParameterTable = NO_PARAMETERS): Map<string, BasicEventPoint> {
-  const resolvable = useMemo(() => entries.filter((entry) => linksResolve(entry.expression, table)), [entries, table]);
+  const unresolved = useMemo(() => new Map(entries.flatMap((entry) => {
+    const error = unresolvedLink(entry.expression, "PROBABILITY", table);
+    return error === undefined ? [] : [[entry.key, error] as const];
+  })), [entries, table]);
+  const resolvable = useMemo(() => entries.filter((entry) => !unresolved.has(entry.key)), [entries, unresolved]);
   const queries = useMemo(() => resolvable.map((entry) => pointQuery(entry.expression, table)), [resolvable, table]);
   const states = useExpressionSummaries(queries);
-  const points = new Map<string, BasicEventPoint>(entries.map((entry) => [entry.key, { status: "failed", error: UNLINKED }]));
+  const points = new Map<string, BasicEventPoint>([...unresolved].map(([key, error]) => [key, { status: "failed", error }]));
   resolvable.forEach((entry, index) => {
     const state = states[index];
     if (state === undefined || state.status === "pending") points.set(entry.key, PENDING);
@@ -66,7 +56,7 @@ function pointText(point: BasicEventPoint): string {
 async function withImportedPoints(events: readonly FaultTreeBasicEvent[], table: ParameterTable = NO_PARAMETERS): Promise<FaultTreeBasicEvent[]> {
   const open = events.flatMap((event) => (Number.isNaN(event.probability.value) && event.probability.expression !== undefined ? [{ event, expression: event.probability.expression }] : []));
   if (open.length === 0) return [...events];
-  const response = await evaluateUncertainty({
+  const response = await evaluateResolved({
     parameters: parametersFor(open.map((entry) => entry.expression), table),
     laws: [],
     operations: [],

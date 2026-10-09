@@ -1040,11 +1040,28 @@ describe("FaultTreeEditor", () => {
     expect(operation.basicEvent.probability).not.toHaveProperty("quantificationBasis");
   });
 
-  it("keeps a value PRAXIS rejects out of the record and says why", async () => {
+  it("saves a lognormal probability with its PRAXIS point", async () => {
     const onOperation = jest.fn<void, [FaultTreeOperation]>();
     render(<FaultTreeEditor {...editorProps({ catalogue: ownedCatalogue, selection: { kind: "LEAF", leafId: LEAF_ID }, onOperation })} />);
 
     fireEvent.change(screen.getByLabelText("Law"), { target: { value: "LOGNORMAL" } });
+    await praxisSettled();
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    const operation = onOperation.mock.calls[0]?.[0];
+    if (operation?.type !== "UPDATE_BASIC_EVENT") throw new Error("Expected a basic-event update");
+    const expression = operation.basicEvent.probability.expression;
+    if (expression?.node !== "VALUE" || expression.value.law.family !== "LOGNORMAL") throw new Error("Expected a lognormal value");
+    expect(operation.basicEvent.probability.value).toBeCloseTo(expression.value.law.mean, 12);
+  });
+
+  it("keeps a value PRAXIS rejects out of the record and says why", async () => {
+    const onOperation = jest.fn<void, [FaultTreeOperation]>();
+    render(<FaultTreeEditor {...editorProps({ catalogue: ownedCatalogue, selection: { kind: "LEAF", leafId: LEAF_ID }, onOperation })} />);
+
+    const value = screen.getByLabelText("Value");
+    fireEvent.change(value, { target: { value: "1.5" } });
+    fireEvent.blur(value);
     await praxisSettled();
 
     expect(screen.getByRole("alert")).toHaveTextContent("Not saved.");

@@ -437,7 +437,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
 
     expect(latestEditorProps().validation).toEqual([]);
     await waitFor(() => expect(latestEditorProps().validation).toEqual([expect.objectContaining({
-      message: "BE-PUMP-FS: MEF Error: Undefined Element Error: parameter 'da-workbook:parameter-gone' not found",
+      message: "BE-PUMP-FS: Linked value parameter-gone is in workbook da-workbook, which is not loaded.",
     })]));
   });
 
@@ -1014,7 +1014,7 @@ describe("ModelsScreen system tabs", () => {
     expect(within(linkedRow).queryByText("Value changed in DA")).toBeNull();
     const gone = within(table).getByText("Valve fails to open").closest("tr")!;
     expect(within(gone).getByText("Linked source unavailable")).toHaveClass("sy-error");
-    await waitFor(() => expect(within(gone).getByText("MEF Error: Undefined Element Error: parameter 'da-workbook:parameter-gone' not found")).toHaveClass("sy-error"));
+    await waitFor(() => expect(within(gone).getByText("Linked value parameter-gone is in workbook da-workbook, which is not loaded.")).toHaveClass("sy-error"));
     const human = within(table).getByText("Operator fails to start the pump").closest("tr")!;
     expect(within(human).getByText("3.0E-3")).toBeInTheDocument();
     expect(within(human).getByText("Value changed in DA")).toBeInTheDocument();

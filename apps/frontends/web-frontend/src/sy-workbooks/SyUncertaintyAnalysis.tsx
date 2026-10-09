@@ -263,7 +263,7 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
           <div className="syunc-analysis__result-head"><strong>{label}</strong><span>{distributionCount} uncertain input{distributionCount === 1 ? "" : "s"}</span></div>
           {result.uncertainty !== undefined && <>
             <dl className="syunc-analysis__metrics">
-              <div><dt>Point top event</dt><dd>{probability(result.topEventProbability)}</dd></div>
+              <div><dt>Point estimate</dt><dd>{probability(result.topEventProbability)}</dd></div>
               <div><dt>Mean</dt><dd>{probability(result.uncertainty.mean)}</dd></div>
               <div><dt>Standard deviation</dt><dd>{probability(result.uncertainty.standardDeviation)}</dd></div>
               <div><dt>Standard error</dt><dd>{probability(result.uncertainty.standardError)}</dd></div>

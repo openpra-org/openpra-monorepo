@@ -388,8 +388,11 @@ mod tests {
                 "probabilities": [0.05, 0.5, 0.95],
                 "curveProbabilities": [0.1, 0.5, 0.9]
             }, {
-                "id": "outside",
+                "id": "tail",
                 "value": { "unit": "PROBABILITY", "law": { "family": "LOGNORMAL", "mean": 0.1, "errorFactor": 3.0, "level": 0.95 } }
+            }, {
+                "id": "outside",
+                "value": { "unit": "PROBABILITY", "law": { "family": "UNIFORM", "lower": 1.5, "upper": 2.0 } }
             }]
         }));
         let beta = &result["laws"][0];
@@ -399,7 +402,8 @@ mod tests {
         let curve = beta["curve"].as_array().unwrap();
         assert!((curve[1]["cumulative"].as_f64().unwrap() - 0.5).abs() < 1e-14);
         assert!(curve[1]["density"].as_f64().unwrap() > 0.0);
-        assert!(result["laws"][1]["error"].as_str().unwrap().contains("LOGNORMAL"));
+        assert!((result["laws"][1]["mean"].as_f64().unwrap() - 0.1).abs() < 1e-12);
+        assert!(result["laws"][2]["error"].as_str().unwrap().contains("UNIFORM"));
     }
 
     #[test]

@@ -244,6 +244,8 @@ describe("workbook-owned method-model APIs", () => {
     getEsBundle: jest.Mock;
     getEsqBundle: jest.Mock;
     projectMissionTimeSources: jest.Mock;
+    projectDataAnalysisSources: jest.Mock;
+    projectSystemsSources: jest.Mock;
   };
   let syDocuments: { removeAllForWorkbook: jest.Mock };
   let esDocuments: { removeAllForWorkbook: jest.Mock };
@@ -270,6 +272,8 @@ describe("workbook-owned method-model APIs", () => {
       getEsBundle: jest.fn().mockResolvedValue({ es: { mef: createBlankEs("ES example", "analyst") } }),
       getEsqBundle: jest.fn().mockResolvedValue({ esq: { mef: createBlankEsq("ESQ example", "analyst") } }),
       projectMissionTimeSources: jest.fn().mockResolvedValue([]),
+      projectDataAnalysisSources: jest.fn().mockResolvedValue([]),
+      projectSystemsSources: jest.fn().mockResolvedValue([]),
     };
     syDocuments = { removeAllForWorkbook: jest.fn().mockResolvedValue(undefined) };
     esDocuments = { removeAllForWorkbook: jest.fn().mockResolvedValue(undefined) };

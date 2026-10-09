@@ -13,6 +13,7 @@ import { Workbook, type WorkbookDocument } from "../workbooks/workbook.schema";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { createBlankExternalFloodPra } from "./blank-external-flood-pra";
 import { ExternalFloodPraWorkbook, type ExternalFloodPraWorkbookDocument } from "./external-flood-pra-workbook.schema";
+import { storedPriorRejection } from "../workbooks/stored-workbook-format";
 
 export interface ExternalFloodPraWorkbookResponse {
   workbookId: string;
@@ -130,7 +131,7 @@ export class ExternalFloodPraWorkbooksService {
     const restoredObject = restored as { name?: string; owner?: string };
     const healed = healMef(restored, createBlankExternalFloodPra(restoredObject.name ?? "External Flood PRA Workbook", restoredObject.owner ?? acting.username));
     const parsed = ExternalFloodPRASchema.safeParse(healed);
-    if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedPriorRejection("external flood PRA", workbookId, parsed.error.message);
     doc.mef = parsed.data;
     doc.previousMefJson = null;
     await doc.save();

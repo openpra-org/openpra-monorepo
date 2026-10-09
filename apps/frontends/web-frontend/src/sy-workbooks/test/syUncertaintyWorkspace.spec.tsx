@@ -3,7 +3,7 @@ import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty"
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { FaultTreeAnalysisResult, FaultTreeExecuteResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { SyUncertaintyAnalysis } from "../SyUncertaintyAnalysis";
-import { SyUncertaintyResults } from "../SyUncertaintyResults";
+import { FaultTreeUncertaintyResults } from "../../newly-developed-methods/fault-tree";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "../syWorkbookApi";
 
 jest.mock("../../newly-developed-methods/shared/useAnalysisSourceGuard", () => ({ useAnalysisSourceGuard: () => ({ sourceWarning: null }) }));
@@ -51,6 +51,15 @@ describe("SY Step 07 linked uncertainty analysis", () => {
     mockedValidate.mockResolvedValue({ schemaVersion: "1.0.0", validation: { valid: true, issues: [] } });
   });
 
+  it("offers Direct BDD as the one enabled uncertainty algorithm", () => {
+    render(<SyUncertaintyAnalysis />);
+    const algorithm = screen.getByRole("combobox", { name: "Uncertainty algorithm" });
+    expect(algorithm).toBeEnabled();
+    expect(algorithm).toHaveValue("BDD");
+    expect(within(algorithm).getAllByRole("option").map((option) => option.textContent)).toEqual(["Direct BDD"]);
+    expect(within(screen.getByRole("combobox", { name: "Uncertainty sampling method" })).getAllByRole("option").map((option) => option.textContent)).toEqual(["Monte Carlo", "Latin hypercube"]);
+  });
+
   it("runs uncertainty with the chosen sampling and shows the summary and the samples", async () => {
     mockedRun.mockResolvedValue(execution());
     mockedResult.mockResolvedValue(result());
@@ -80,9 +89,9 @@ describe("SY Step 07 linked uncertainty analysis", () => {
     const first = result();
     const second: FaultTreeAnalysisResult = { ...result(), runId: "run-two", topEventProbability: 3e-6,
       uncertainty: { ...result().uncertainty!, mean: 3.4e-6, samples: [0, 1e-6, 3e-6, 9e-6], quantiles: [0.05, 0.25, 0.5, 0.75, 0.95].map((probability) => ({ probability, value: probability * 1e-5 })) } };
-    render(<SyUncertaintyResults batch entries={[
-      { modelId: "model-1", label: "CLG · FT-CLG", distributionCount: 2, result: first },
-      { modelId: "model-2", label: "RPS · RPS-TOP", distributionCount: 1, result: second },
+    render(<FaultTreeUncertaintyResults batch entries={[
+      { label: "CLG · FT-CLG", distributionCount: 2, result: first },
+      { label: "RPS · RPS-TOP", distributionCount: 1, result: second },
     ]} />);
     const batch = screen.getByRole("region", { name: "Batch summary" });
     expect(within(batch).getByRole("button", { name: "RPS · RPS-TOP" })).toBeInTheDocument();

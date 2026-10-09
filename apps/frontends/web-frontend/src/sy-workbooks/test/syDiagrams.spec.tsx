@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import type { SystemDiagram, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { DrawerContent } from "../syScreens2";
 import { SySystemDiagrams } from "../SySystemDiagrams";
-import { SyFaultTreeDiagrams } from "../SyFaultTreeDiagrams";
+import { SyDiagramPanel } from "../SyDiagramPanel";
 import { diagramDocuments, loadDiagramSource, matchPage, pageAspect, rankHits, renderDiagram, resolveDiagramDocument, roundRegion, searchPdf, type SyDiagramSource } from "../syDiagrams";
 import { listSyDocuments, type SyDocumentEntry } from "../syWorkbookApi";
 
@@ -111,7 +111,6 @@ describe("SY diagrams", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    window.localStorage.clear();
     jest.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     jest.mocked(loadDiagramSource).mockResolvedValue(SOURCE);
     jest.mocked(renderDiagram).mockImplementation(() => ({ done: Promise.resolve(document.createElement("canvas")), cancel: jest.fn() }));
@@ -277,12 +276,8 @@ describe("SY diagrams", () => {
 
   it("fits the whole diagram in the diagram view", async () => {
     setContext(makeAnalysis([DIAGRAM]));
-    render(<SyFaultTreeDiagrams systemId={SYSTEM_ID}><div>Fault tree editor</div></SyFaultTreeDiagrams>);
+    render(<SyDiagramPanel systemId={SYSTEM_ID} />);
 
-    expect(screen.getAllByRole("radio").map((option) => option.textContent)).toEqual(["Fault tree", "Diagram"]);
-    expect(screen.getByRole("radio", { name: "Fault tree" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.queryByRole("region", { name: "Diagrams" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("radio", { name: "Diagram" }));
     const panel = screen.getByRole("region", { name: "Diagrams" });
     expect(await within(panel).findByRole("img", { name: DIAGRAM.title })).toBeInTheDocument();
     await waitFor(() => expect(renderDiagram).toHaveBeenLastCalledWith(SOURCE, 9, DIAGRAM.region, 645));
@@ -297,41 +292,11 @@ describe("SY diagrams", () => {
     await waitFor(() => expect(renderDiagram).toHaveBeenLastCalledWith(SOURCE, 9, DIAGRAM.region, 645));
   });
 
-  it("switches the fault tree out for the diagram and back", async () => {
-    window.localStorage.setItem("sy.faultTreeView", "split");
-    setContext(makeAnalysis([DIAGRAM]));
-    render(<SyFaultTreeDiagrams systemId={SYSTEM_ID}><div>Fault tree editor</div></SyFaultTreeDiagrams>);
-
-    expect(screen.getByRole("radio", { name: "Fault tree" })).toHaveAttribute("aria-checked", "true");
-    fireEvent.click(screen.getByRole("radio", { name: "Diagram" }));
-    expect(screen.getByRole("radio", { name: "Diagram" })).toHaveAttribute("aria-checked", "true");
-    expect(await screen.findByRole("img", { name: DIAGRAM.title })).toBeInTheDocument();
-    expect(screen.getByText("Fault tree editor")).not.toBeVisible();
-    expect(window.localStorage.getItem("sy.faultTreeView")).toBe("diagram");
-
-    const view = screen.getByRole("radiogroup", { name: "Fault tree view" });
-    screen.getByRole("radio", { name: "Diagram" }).focus();
-    fireEvent.keyDown(view, { key: "Home" });
-    expect(screen.getByRole("radio", { name: "Fault tree" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("radio", { name: "Fault tree" })).toHaveFocus();
-    expect(screen.getByText("Fault tree editor")).toBeVisible();
-    expect(screen.queryByRole("region", { name: "Diagrams" })).not.toBeInTheDocument();
-    fireEvent.keyDown(view, { key: "ArrowLeft" });
-    expect(screen.getByRole("radio", { name: "Diagram" })).toHaveAttribute("aria-checked", "true");
-    fireEvent.keyDown(view, { key: "ArrowRight" });
-    expect(screen.getByRole("radio", { name: "Fault tree" })).toHaveAttribute("aria-checked", "true");
-    fireEvent.keyDown(view, { key: "End" });
-    expect(screen.getByRole("radio", { name: "Diagram" })).toHaveAttribute("aria-checked", "true");
-    expect(await screen.findByRole("img", { name: DIAGRAM.title })).toBeInTheDocument();
-    expect(screen.getByText("Fault tree editor")).not.toBeVisible();
-  });
-
-  it("edits and removes the shown diagram from the fault tree panel", async () => {
-    window.localStorage.setItem("sy.faultTreeView", "diagram");
+  it("adds, edits and removes the shown diagram from the diagram panel", async () => {
     setContext(makeAnalysis([DIAGRAM]));
     const onAddDiagram = jest.fn();
     const onEditDiagram = jest.fn();
-    render(<SyFaultTreeDiagrams systemId={SYSTEM_ID} onAddDiagram={onAddDiagram} onEditDiagram={onEditDiagram}><div>Fault tree editor</div></SyFaultTreeDiagrams>);
+    render(<SyDiagramPanel systemId={SYSTEM_ID} onAddDiagram={onAddDiagram} onEditDiagram={onEditDiagram} />);
 
     const panel = screen.getByRole("region", { name: "Diagrams" });
     await within(panel).findByRole("img", { name: DIAGRAM.title });
@@ -344,9 +309,8 @@ describe("SY diagrams", () => {
   });
 
   it("hides the edit actions from reviewers", async () => {
-    window.localStorage.setItem("sy.faultTreeView", "diagram");
     setContext(makeAnalysis([DIAGRAM]), false);
-    render(<SyFaultTreeDiagrams systemId={SYSTEM_ID}><div>Fault tree editor</div></SyFaultTreeDiagrams>);
+    render(<SyDiagramPanel systemId={SYSTEM_ID} />);
 
     const panel = screen.getByRole("region", { name: "Diagrams" });
     await within(panel).findByRole("img", { name: DIAGRAM.title });
@@ -355,9 +319,8 @@ describe("SY diagrams", () => {
   });
 
   it("turns a sideways figure upright", async () => {
-    window.localStorage.setItem("sy.faultTreeView", "diagram");
     setContext(makeAnalysis([{ ...DIAGRAM, rotation: 90 }]));
-    render(<SyFaultTreeDiagrams systemId={SYSTEM_ID}><div>Fault tree editor</div></SyFaultTreeDiagrams>);
+    render(<SyDiagramPanel systemId={SYSTEM_ID} />);
 
     const image = await screen.findByRole("img", { name: DIAGRAM.title });
     await waitFor(() => expect(image).toHaveAttribute("width", "150"));
@@ -365,11 +328,10 @@ describe("SY diagrams", () => {
     expect(renderDiagram).toHaveBeenLastCalledWith(SOURCE, 9, DIAGRAM.region, 514);
   });
 
-  it("offers to add a diagram from the fault tree when there is none", async () => {
-    window.localStorage.setItem("sy.faultTreeView", "diagram");
+  it("offers to add a diagram when there is none", async () => {
     setContext(makeAnalysis());
     const onAddDiagram = jest.fn();
-    render(<SyFaultTreeDiagrams systemId={SYSTEM_ID} onAddDiagram={onAddDiagram}><div>Fault tree editor</div></SyFaultTreeDiagrams>);
+    render(<SyDiagramPanel systemId={SYSTEM_ID} onAddDiagram={onAddDiagram} />);
 
     expect(screen.getByText("No diagrams for this system yet.")).toBeInTheDocument();
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Add diagram" })); });

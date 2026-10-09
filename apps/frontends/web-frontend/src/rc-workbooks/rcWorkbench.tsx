@@ -333,8 +333,7 @@ function RcWorkbench({
   const [selectedStepId, setStepIdState] = useState<string>(enabledSteps[0]?.id ?? "handoff");
   const stepId = enabledSteps.some((step) => step.id === selectedStepId) ? selectedStepId : enabledSteps[0]?.id ?? "handoff";
   const [initialSiteTab, setInitialSiteTab] = useState<"location" | "receptors">("receptors");
-  const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
-  const [dockOpen, setDockOpen] = useState(!isNarrow);
+  const [dockOpen, setDockOpen] = useState(false);
   const [railOpen, setRailOpen] = useState(true);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
   const [dockMobileOpen, setDockMobileOpen] = useState(false);

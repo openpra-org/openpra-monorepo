@@ -14,6 +14,7 @@ import {
   readWorkbookRevision,
   workbookRevisionConflict,
 } from "../workbooks/workbook-revision";
+import { storedWorkbookRejection } from "../workbooks/stored-workbook-format";
 
 @Injectable()
 export class SyMefAdapter implements WorkbookElementAdapter, OnModuleInit {
@@ -43,7 +44,7 @@ export class SyMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     const doc = await this.syWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) return null;
     const parsed = SystemsAnalysisSchema.safeParse(stripNulls(doc.mef));
-    if (!parsed.success) throw new BadRequestException(`Stored SY workbook failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedWorkbookRejection("SY", workbookId, parsed.error.message);
     return {
       projectId: doc.projectId,
       ownerUsername: doc.ownerUsername,

@@ -1,76 +1,17 @@
-import { useLayoutEffect, useRef, useState, type JSX, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type JSX, type PointerEvent } from "react";
 import { SyDiagramView, capturePointer, useElementSize } from "./SyDiagramCanvas";
 import { withoutDiagram } from "./syDiagrams";
 import { useSyWorkbook } from "./syWorkbookContext";
 import "./css/syDiagrams.css";
 
-type FaultTreeView = "tree" | "diagram";
-
-const VIEW_KEY = "sy.faultTreeView";
 const ZOOM_STEPS = [1, 1.5, 2, 3, 4];
 const FIT_INSET = 24;
-const VIEWS: readonly { id: FaultTreeView; label: string }[] = [
-  { id: "tree", label: "Fault tree" },
-  { id: "diagram", label: "Diagram" },
-];
-
-function readView(): FaultTreeView {
-  try {
-    return window.localStorage.getItem(VIEW_KEY) === "diagram" ? "diagram" : "tree";
-  } catch {
-    return "tree";
-  }
-}
 
 function unit(value: number): number {
   return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0.5;
 }
 
-function writeView(view: FaultTreeView): void {
-  try {
-    window.localStorage.setItem(VIEW_KEY, view);
-  } catch {
-    return;
-  }
-}
-
-function ViewSwitch({ view, onChange }: { view: FaultTreeView; onChange: (view: FaultTreeView) => void }): JSX.Element {
-  const group = useRef<HTMLDivElement>(null);
-
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    event.preventDefault();
-    const current = VIEWS.findIndex((option) => option.id === view);
-    const next = event.key === "Home" ? 0 : event.key === "End" ? VIEWS.length - 1 : (current + (event.key === "ArrowRight" ? 1 : -1) + VIEWS.length) % VIEWS.length;
-    const target = VIEWS[next];
-    if (target === undefined) return;
-    onChange(target.id);
-    group.current?.querySelectorAll<HTMLButtonElement>("button")[next]?.focus();
-  }
-
-  return (
-    <div ref={group} className="sy-ft-switch" role="radiogroup" aria-label="Fault tree view" onKeyDown={onKeyDown}>
-      {VIEWS.map((option) => {
-        const active = option.id === view;
-        return (
-          <button
-            key={option.id}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            tabIndex={active ? 0 : -1}
-            className={`sy-ft-switch__option${active ? " sy-ft-switch__option--active" : ""}`}
-            onClick={() => onChange(option.id)}
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function DiagramPanel({ systemId, onAddDiagram, onEditDiagram }: {
+function SyDiagramPanel({ systemId, onAddDiagram, onEditDiagram }: {
   systemId: string;
   onAddDiagram?: () => void;
   onEditDiagram?: (diagramId: string) => void;
@@ -184,28 +125,4 @@ function DiagramPanel({ systemId, onAddDiagram, onEditDiagram }: {
   );
 }
 
-function SyFaultTreeDiagrams({ systemId, onAddDiagram, onEditDiagram, children }: {
-  systemId: string;
-  onAddDiagram?: () => void;
-  onEditDiagram?: (diagramId: string) => void;
-  children: ReactNode;
-}): JSX.Element {
-  const [view, setView] = useState<FaultTreeView>(readView);
-
-  function change(next: FaultTreeView): void {
-    setView(next);
-    writeView(next);
-  }
-
-  return (
-    <div className="sy-ft-wrap">
-      <div className="sy-ft-wrap__bar">
-        <ViewSwitch view={view} onChange={change} />
-      </div>
-      <div className="sy-ft-wrap__editor" hidden={view === "diagram"}>{children}</div>
-      {view === "diagram" && <DiagramPanel systemId={systemId} onAddDiagram={onAddDiagram} onEditDiagram={onEditDiagram} />}
-    </div>
-  );
-}
-
-export { SyFaultTreeDiagrams };
+export { SyDiagramPanel };

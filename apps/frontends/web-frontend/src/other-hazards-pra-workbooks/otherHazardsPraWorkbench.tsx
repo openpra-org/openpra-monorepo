@@ -402,7 +402,7 @@ export function OtherHazardsPraWorkbench({
     : "analysis-basis",
   );
   const [railOpen, setRailOpen] = useState(false);
-  const [dockOpen, setDockOpen] = useState(true);
+  const [dockOpen, setDockOpen] = useState(false);
   useEffect(() => {
     const resize = (): void => {
       if (window.innerWidth <= 1100) setDockOpen(false);

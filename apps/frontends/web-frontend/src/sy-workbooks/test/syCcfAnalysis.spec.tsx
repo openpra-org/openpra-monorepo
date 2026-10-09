@@ -94,6 +94,7 @@ describe("SY common cause PRAXIS analysis", () => {
     const algorithm = screen.getByRole("combobox", { name: "Common cause algorithm" });
     const advanced = screen.getByRole("region", { name: "Advanced common cause settings" });
     expect(algorithm.compareDocumentPosition(advanced) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(within(algorithm).getAllByRole("option").map((option) => option.textContent)).toEqual(["Direct BDD", "BDD-to-ZBDD"]);
     expect(screen.queryByRole("spinbutton", { name: "Common cause reorder budget seconds" })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByRole("combobox", { name: "Common cause variable order" }), { target: { value: "SIFT" } });
@@ -101,6 +102,9 @@ describe("SY common cause PRAXIS analysis", () => {
 
     fireEvent.click(screen.getByRole("radio", { name: "Probability + cut sets" }));
     expect(screen.getByRole("combobox", { name: "Common cause probability method" })).toBeInTheDocument();
+    expect(within(screen.getByRole("combobox", { name: "Common cause algorithm" })).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "BDD-to-ZBDD", "Direct ZBDD", "ZBDD delete-term", "MOCUS", "MOCUS prime implicants",
+    ]);
   });
 
   it("pages expanded cut sets and labels generated CCF events with the group name", async () => {

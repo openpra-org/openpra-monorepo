@@ -204,10 +204,13 @@ export function SavedAnalysisResult({ details }: { details: AnalysisRunDetails }
     );
   }
   if (details.run.methodType === "FAULT_TREE") {
-    const result = FaultTreeAnalysisResultSchema.parse(details.result);
+    const parsed = FaultTreeAnalysisResultSchema.safeParse(details.result);
+    if (!parsed.success) {
+      return <p role="status" className="analysis-history__state">This saved result uses an older result format, so it cannot be drawn here. Download the saved run to read it.</p>;
+    }
     return (
       <FaultTreeResults
-        analysisResult={result}
+        analysisResult={parsed.data}
         resultIsStale={details.run.freshness?.status !== "CURRENT"}
         basicEventCodes={historicalFaultTreeBasicEventCodes(details)}
       />
@@ -218,12 +221,13 @@ export function SavedAnalysisResult({ details }: { details: AnalysisRunDetails }
     const sampled = result.uncertainty;
     const metrics: { label: string; value: string }[] = [
       { label: "Method", value: result.method.split("_").join(" ").toLowerCase() },
-      { label: "P(fail) at the central values", value: result.pointProbability.toExponential(4) },
+      { label: "Point estimate", value: result.pointProbability.toExponential(4) },
     ];
     if (sampled !== null) {
       metrics.push(
-        { label: "Mean over the samples", value: sampled.mean.toExponential(4) },
         { label: "5th percentile", value: sampled.p05.toExponential(4) },
+        { label: "Median", value: sampled.p50.toExponential(4) },
+        { label: "Mean", value: sampled.mean.toExponential(4) },
         { label: "95th percentile", value: sampled.p95.toExponential(4) },
         { label: "Samples", value: `${sampled.samples} · seed ${sampled.seed}` },
       );

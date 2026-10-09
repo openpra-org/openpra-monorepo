@@ -467,8 +467,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
 
   const initialStep = visibleSteps[0]?.id ?? "setup";
   const [stepId, setStepIdState] = useState<string>(initialStep);
-  const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
-  const [dockOpen, setDockOpen] = useState(!isMobile);
+  const [dockOpen, setDockOpen] = useState(false);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
   const [dockMobileOpen, setDockMobileOpen] = useState(false);
   const [drawer, setDrawer] = useState<DrawerContext | null>(null);

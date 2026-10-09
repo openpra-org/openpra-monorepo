@@ -13,6 +13,7 @@ import { Workbook, type WorkbookDocument } from "../workbooks/workbook.schema";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { createBlankOtherHazardsPra } from "./blank-other-hazards-pra";
 import { OtherHazardsPraWorkbook, type OtherHazardsPraWorkbookDocument } from "./other-hazards-pra-workbook.schema";
+import { storedPriorRejection } from "../workbooks/stored-workbook-format";
 
 export interface OtherHazardsPraWorkbookResponse {
   workbookId: string;
@@ -130,7 +131,7 @@ export class OtherHazardsPraWorkbooksService {
     const restoredObject = restored as { name?: string; owner?: string };
     const healed = healMef(restored, createBlankOtherHazardsPra(restoredObject.name ?? "Other Hazards PRA Workbook", restoredObject.owner ?? acting.username));
     const parsed = OtherHazardsPRASchema.safeParse(healed);
-    if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedPriorRejection("other hazards PRA", workbookId, parsed.error.message);
     doc.mef = parsed.data;
     doc.previousMefJson = null;
     await doc.save();

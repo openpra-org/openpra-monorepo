@@ -20,6 +20,7 @@ import {
   readWorkbookRevision,
   workbookRevisionConflict,
 } from "../workbooks/workbook-revision";
+import { storedPriorRejection, storedWorkbookRejection } from "../workbooks/stored-workbook-format";
 
 export interface DaWorkbookResponse {
   workbookId: string;
@@ -80,7 +81,7 @@ export class DaWorkbooksService {
     assertExpectedWorkbookRevision(doc, patch.expectedRevision);
     const current = DataAnalysisSchema.safeParse(stripNulls(doc.mef));
     if (!current.success) {
-      throw new BadRequestException(`Stored DA workbook failed validation: ${current.error.message}`);
+      throw storedWorkbookRejection("DA", workbookId, current.error.message);
     }
     const parsed = DataAnalysisSchema.safeParse(stripNulls(mergeWorkbookPatch(current.data, patch.operations)));
     if (!parsed.success) {
@@ -150,7 +151,7 @@ export class DaWorkbooksService {
     const template = createBlankDa(restoredObj.name ?? "DA Workbook", restoredObj.owner ?? acting.username);
     const healed = healMef(restored, template);
     const parsed = DataAnalysisSchema.safeParse(healed);
-    if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedPriorRejection("DA", workbookId, parsed.error.message);
     const updatedDoc = await this.daWorkbookModel
       .findOneAndUpdate(
         createWorkbookRevisionFilter(workbookId, expectedRevision),

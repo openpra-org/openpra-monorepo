@@ -55,14 +55,14 @@ const DEFAULT_SETTINGS: FaultTreeAnalysisSettings = {
   stratifyEvents: 4,
 };
 
-const ALGORITHM_LABELS: Record<FaultTreeAlgorithm, string> = {
-  BDD: "BDD exact probability",
-  ZBDD: "ZBDD cut sets",
+const FAULT_TREE_ALGORITHM_LABELS: Record<FaultTreeAlgorithm, string> = {
+  BDD: "Direct BDD",
+  ZBDD: "BDD-to-ZBDD",
   ZBDD_DIRECT: "Direct ZBDD",
-  ZBDD_DELTERM: "ZBDD deletion-term",
+  ZBDD_DELTERM: "ZBDD delete-term",
   MOCUS: "MOCUS",
   MOCUS_PI: "MOCUS prime implicants",
-  MONTE_CARLO: "Monte Carlo",
+  MONTE_CARLO: "Direct Monte Carlo",
 };
 
 const CUT_SET_ALGORITHMS: FaultTreeAlgorithm[] = ["ZBDD", "ZBDD_DIRECT", "ZBDD_DELTERM", "MOCUS", "MOCUS_PI"];
@@ -217,7 +217,7 @@ export function SyFaultTreeAnalysis({
             <label className="syft-analysis__run-field">
               <span>Algorithm</span>
               <select aria-label="Fault-tree algorithm" value={settings.algorithm} onChange={(event) => changeAlgorithm(event.target.value as FaultTreeAlgorithm)}>
-                {algorithms.map((algorithm) => <option key={algorithm} value={algorithm}>{ALGORITHM_LABELS[algorithm]}</option>)}
+                {algorithms.map((algorithm) => <option key={algorithm} value={algorithm}>{FAULT_TREE_ALGORITHM_LABELS[algorithm]}</option>)}
               </select>
             </label>
           </div>
@@ -335,4 +335,5 @@ export function SyFaultTreeAnalysis({
   );
 }
 
+export { FAULT_TREE_ALGORITHM_LABELS };
 export type { FaultTreeRunConfiguration, FaultTreeRunModelOption };

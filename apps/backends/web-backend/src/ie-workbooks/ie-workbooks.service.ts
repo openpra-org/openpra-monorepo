@@ -12,6 +12,7 @@ import { createBlankIe } from "./blank-ie";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
 import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
+import { storedPriorRejection } from "../workbooks/stored-workbook-format";
 
 export interface IeWorkbookResponse {
   workbookId: string;
@@ -125,7 +126,7 @@ export class IeWorkbooksService {
     const template = createBlankIe(restoredObj.name ?? "IE Workbook", restoredObj.owner ?? acting.username);
     const healed = healMef(restored, template);
     const parsed = InitiatingEventsAnalysisSchema.safeParse(healed);
-    if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
+    if (!parsed.success) throw storedPriorRejection("IE", workbookId, parsed.error.message);
     doc.mef = parsed.data;
     doc.previousMefJson = null;
     doc.linkedPosWorkbookId = null;

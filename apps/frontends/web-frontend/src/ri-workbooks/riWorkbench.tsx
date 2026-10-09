@@ -368,8 +368,7 @@ function RiWorkbench({
 
   const [drawer, setDrawer] = useState<RiDrawerContext | null>(null);
   const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "application");
-  const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
-  const [dockOpen, setDockOpen] = useState(!isNarrow);
+  const [dockOpen, setDockOpen] = useState(false);
   const [railOpen, setRailOpen] = useState(true);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
   const [dockMobileOpen, setDockMobileOpen] = useState(false);

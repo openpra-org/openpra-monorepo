@@ -1279,6 +1279,13 @@ describe("FaultTreeEditor", () => {
     expect(within(results).queryByText(/stale/i)).not.toBeInTheDocument();
   });
 
+  it("names the Direct Monte Carlo top-event probability", () => {
+    render(<FaultTreeEditor {...editorProps({ analysisResult: { ...analysisResult, calculationType: "PROBABILITY", algorithm: "MONTE_CARLO", probabilityMethod: "MONTE_CARLO" } })} />);
+
+    const results = screen.getByLabelText("Fault-tree analysis results");
+    expect(within(results).getByText("Direct Monte Carlo top-event probability")).toBeInTheDocument();
+  });
+
   it("renders the warning details captured with a completed run", () => {
     render(
       <FaultTreeEditor
@@ -1364,10 +1371,14 @@ describe("FaultTreeEditor", () => {
     expect(within(cutSets).queryByText(BASIC_EVENT_ID)).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Importance measures" })).toBeInTheDocument();
     const uncertainty = screen.getByRole("region", { name: "Uncertainty results" });
-    expect(within(uncertainty).getByText("1,000 Latin hypercube samples · seed 847")).toBeInTheDocument();
-    expect(within(uncertainty).getByText("Standard error")).toBeInTheDocument();
+    expect(within(uncertainty).getByText("1,000 Latin hypercube samples · seed 847 · standard deviation 1.000E-3 · standard error of the mean 3.000E-5")).toBeInTheDocument();
+    expect(within(uncertainty).getByRole("img", { name: "Distribution of the sampled top event probability on a log scale, marked at the 5th percentile, median, mean, 95th percentile and point estimate" })).toBeInTheDocument();
+    expect(within(uncertainty).getByRole("status")).toHaveTextContent("The chart draws the 2 stored samples of 1,000.");
+    expect(within(within(uncertainty).getByRole("table", { name: "Summary values" })).getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["2.000E-2", "Not given", "2.000E-2", "2.000E-2", "Not given"]);
+    fireEvent.click(within(uncertainty).getByRole("button", { name: "Cumulative" }));
+    expect(within(uncertainty).getByRole("img", { name: "Cumulative share of samples against the top event probability on a log scale, marked at the 5th percentile, median, mean, 95th percentile and point estimate" })).toBeInTheDocument();
     expect(within(uncertainty).queryByText("Error factor")).not.toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Monte Carlo diagnostics" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Direct Monte Carlo diagnostics" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "SIL results" })).toBeInTheDocument();
   });
 

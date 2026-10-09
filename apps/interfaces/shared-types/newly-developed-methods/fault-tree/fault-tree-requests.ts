@@ -284,10 +284,10 @@ const FaultTreeExecuteRequestSchema = z
       context.addIssue({ code: "custom", path: ["settings", "algorithm"], message: "This calculation requires a cut-set algorithm" });
     }
     if (["IMPORTANCE", "UNCERTAINTY", "SIL"].includes(request.calculationType) && algorithm !== "BDD") {
-      context.addIssue({ code: "custom", path: ["settings", "algorithm"], message: "This calculation requires the BDD algorithm" });
+      context.addIssue({ code: "custom", path: ["settings", "algorithm"], message: "This calculation requires the Direct BDD algorithm" });
     }
     if (algorithm === "MONTE_CARLO" && request.calculationType !== "PROBABILITY") {
-      context.addIssue({ code: "custom", path: ["calculationType"], message: "Monte Carlo supports probability calculations" });
+      context.addIssue({ code: "custom", path: ["calculationType"], message: "Direct Monte Carlo supports probability calculations" });
     }
     if (["BDD", "MONTE_CARLO"].includes(algorithm) && approximation !== "EXACT") {
       context.addIssue({ code: "custom", path: ["settings", "approximation"], message: "This algorithm does not use a cut-set approximation" });
@@ -299,7 +299,7 @@ const FaultTreeExecuteRequestSchema = z
       context.addIssue({ code: "custom", path: ["settings", "varianceReduction"], message: "Variance reduction cannot be combined with early stopping" });
     }
     if ((request.settings.earlyStop || request.settings.varianceReduction !== "NONE") && algorithm !== "MONTE_CARLO") {
-      context.addIssue({ code: "custom", path: ["settings", "algorithm"], message: "Monte Carlo controls require the Monte Carlo algorithm" });
+      context.addIssue({ code: "custom", path: ["settings", "algorithm"], message: "Direct Monte Carlo controls require the Direct Monte Carlo algorithm" });
     }
     if (["IMPORTANCE", "UNCERTAINTY", "SIL"].includes(request.calculationType)
       && (request.settings.limitOrder !== undefined || request.settings.cutOff !== undefined)) {

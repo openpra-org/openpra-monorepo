@@ -30,11 +30,13 @@ import { HighWindsPraWorkbook, type HighWindsPraWorkbookDocument } from "../high
 import { IeWorkbook, type IeWorkbookDocument } from "../ie-workbooks/ie-workbook.schema";
 import { InternalFirePraWorkbook, type InternalFirePraWorkbookDocument } from "../internal-fire-pra-workbooks/internal-fire-pra-workbook.schema";
 import { InternalFloodPraWorkbook, type InternalFloodPraWorkbookDocument } from "../internal-flood-pra-workbooks/internal-flood-pra-workbook.schema";
+import { analysisRequestSignal } from "../newly-developed-methods/shared/analysis-cancellation.interceptor";
 import { AnalysisRunRecord, type AnalysisRunRecordDocument } from "../newly-developed-methods/shared/analysis-run-record.schema";
 import { UncertaintyService } from "../newly-developed-methods/shared/uncertainty.service";
 import { OtherHazardsPraWorkbook, type OtherHazardsPraWorkbookDocument } from "../other-hazards-pra-workbooks/other-hazards-pra-workbook.schema";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { SeismicPraWorkbook, type SeismicPraWorkbookDocument } from "../seismic-pra-workbooks/seismic-pra-workbook.schema";
+import { modelPayloadStore, type ModelPayloadReference } from "../storage/model-payload-store";
 import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook.schema";
 import { createWorkbookRevisionFilter, readWorkbookRevision } from "./workbook-revision";
 import {
@@ -48,8 +50,10 @@ import {
   convertScMef,
   convertSyMef,
   daCcfFacts,
+  daCcfFactsWithOriginal,
   daDatasetIndex,
   daIssue,
+  daIssueAndFacts,
   daNeedsDatasets,
   esIssue,
   esqIssue,
@@ -67,13 +71,14 @@ import {
   previousIeIssue,
   previousScIssue,
   previousSyIssue,
-  openQuestions,
   questionRequest,
   recordAnswers,
   scIssue,
   scMissionTimeIds,
   syCcfFacts,
+  syCcfFactsWithOriginal,
   syIssue,
+  textField,
   without,
   type DaCcfFacts,
   type DaDatasetIndex,
@@ -84,10 +89,10 @@ import {
   type PraxisQuestions,
   type SyCcfFacts,
 } from "./uncertainty-migration";
+import { numberField, recordField } from "./uncertainty-migration-json";
+import { failQuestions } from "./uncertainty-migration-laws";
 
 const UNCERTAINTY_MIGRATION_ID = "uncertainty-contract-2026-10";
-
-const UNCERTAINTY_MIGRATION_FLAG = "RUN_UNCERTAINTY_MIGRATION";
 
 const MIGRATIONS_COLLECTION = "migrations";
 
@@ -99,9 +104,12 @@ const SC_COLLECTION = "sc_workbooks";
 
 const MAX_PRAXIS_ROUNDS = 4;
 
+const PRAXIS_WAIT_MS = 30_000;
+
 const EMPTY_DATASETS: DaDatasetIndex = new Map();
 
 const DATASET_DIRECTORIES: readonly string[] = [
+  join(__dirname, "da-datasets"),
   join(process.cwd(), "apps", "interfaces", "mef-types", "da"),
   join(process.cwd(), "..", "..", "interfaces", "mef-types", "da"),
   join(__dirname, "..", "..", "..", "..", "interfaces", "mef-types", "da"),
@@ -121,10 +129,15 @@ interface StoredWorkbook {
   previousMefJson?: string | null;
 }
 
+interface WorkbookRow {
+  _id: Types.ObjectId;
+  workbookId?: string;
+}
+
 interface WorkbookAccess {
   element: WorkbookElement;
   collection: string;
-  ids(): Promise<Types.ObjectId[]>;
+  rows(): Promise<WorkbookRow[]>;
   read(id: Types.ObjectId): Promise<StoredWorkbook | null>;
   original(id: Types.ObjectId): Promise<object | null>;
   update(record: StoredWorkbook, changes: object): Promise<number>;
@@ -165,37 +178,76 @@ interface RunRow {
   batchId?: string | null;
 }
 
-interface MigrationRecord {
-  _id: string;
-  completedAt: Date;
-  summary: UncertaintyMigrationSummary;
+interface RawRun {
+  _id: Types.ObjectId;
+  id?: string;
+  batchId?: string | null;
+  owner?: { workbookId?: string } | null;
 }
 
-interface ConvertedWorkbook {
+interface BackupRecord {
+  migration: string;
+  collection: string;
+  workbookId?: string | null;
+  backedUpAt: Date;
+  document: object;
+}
+
+interface StoredParts {
+  mef?: JsonRecord;
+  mefIssue?: string;
+  daFacts?: Map<string, DaParameterFacts>;
+  hasPrevious: boolean;
+  previous?: JsonRecord;
+  previousIssue?: string;
+}
+
+interface PartResult {
+  value: JsonRecord;
+  changed: boolean;
+  issues: string[];
+  pending: number;
+}
+
+interface Attempt {
   mef?: JsonRecord;
   mefChanged: boolean;
-  previous?: string;
+  previous?: JsonRecord;
   previousChanged: boolean;
   issues: string[];
+  pending: number;
 }
 
 interface WorkbookTally {
   collection: string;
   read: number;
+  current: number;
   converted: number;
+  left: number;
 }
 
 interface RunTally {
   read: number;
   kept: number;
   moved: number;
+  checkedThrough: Types.ObjectId | null;
 }
 
-interface UncertaintyMigrationSummary {
-  applied: boolean;
+interface UncertaintyConversionSummary {
   praxisAnswers: number;
   workbooks: WorkbookTally[];
   runs: RunTally;
+}
+
+interface AuditRecord {
+  migration: string;
+  startedAt: Date;
+  completedAt: Date;
+  summary: UncertaintyConversionSummary;
+}
+
+interface ConversionOptions {
+  praxisWaitMs?: number;
 }
 
 interface MutableLookups {
@@ -204,6 +256,22 @@ interface MutableLookups {
   syCcf: Map<string, ReadonlyMap<string, SyCcfFacts>>;
   scMissionTimes: Map<string, ReadonlySet<string>>;
   scProjects: Map<string, string[]>;
+}
+
+interface UnresolvedOriginal {
+  element: "DA" | "SY";
+  collection: string;
+}
+
+interface ConversionState {
+  answers: PraxisAnswers;
+  lookups: MutableLookups;
+  unresolved: Map<string, UnresolvedOriginal>;
+  failedDa: Set<string>;
+  failedSy: Set<string>;
+  praxisWaitMs: number;
+  praxisFailure?: string;
+  backupIndexed: boolean;
 }
 
 function iso(value: Date | string): string {
@@ -220,6 +288,55 @@ function emptyLookups(): MutableLookups {
 
 function asJson(value: object | null | undefined): JsonRecord | undefined {
   return jsonRecordOf(stringifyJson(value ?? null));
+}
+
+function sentence(text: string): string {
+  const trimmed = text.trim();
+  return trimmed.endsWith(".") ? trimmed : `${trimmed}.`;
+}
+
+function previousRecord(text: string): JsonRecord | undefined {
+  try {
+    return jsonRecordOf(text);
+  } catch {
+    return undefined;
+  }
+}
+
+function payloadReference(value: Json | undefined): ModelPayloadReference | undefined {
+  if (!isRecord(value) || field(value, "format") !== "json-gzip-v1") return undefined;
+  const key = textField(value, "key");
+  const sha256 = textField(value, "sha256");
+  const bytes = numberField(value, "bytes");
+  return key === undefined || sha256 === undefined || bytes === undefined ? undefined : { format: "json-gzip-v1", key, sha256, bytes };
+}
+
+function collectWorkbookIds(value: Json, ids: Set<string>): void {
+  if (Array.isArray(value)) {
+    for (const item of value) collectWorkbookIds(item, ids);
+    return;
+  }
+  if (!isRecord(value)) return;
+  if (field(value, "referenceType") === "WORKBOOK_PARAMETER") {
+    const id = textField(value, "workbookId");
+    if (id !== undefined) ids.add(id);
+  }
+  for (const item of Object.values(value)) collectWorkbookIds(item, ids);
+}
+
+function linkedWorkbookIds(mef: JsonRecord, ids: Set<string>): void {
+  for (const value of Object.values(recordField(mef, "linkedWorkbooks") ?? {})) {
+    if (typeof value === "string" && value.trim().length > 0) ids.add(value.trim());
+  }
+  collectWorkbookIds(mef, ids);
+}
+
+function withinDeadline<T>(work: () => Promise<T>, milliseconds: number): Promise<T> {
+  const signal = AbortSignal.timeout(milliseconds);
+  return new Promise<T>((resolve, reject) => {
+    signal.addEventListener("abort", () => reject(new Error(`No answer came within ${milliseconds / 1000} seconds.`)), { once: true });
+    analysisRequestSignal.run(signal, work).then(resolve, reject);
+  });
 }
 
 function withoutUnavailableAnalyses(result: JsonRecord): JsonRecord {
@@ -339,9 +456,8 @@ function workbookAccess<T>(element: WorkbookElement, model: Model<T>, revisioned
   return {
     element,
     collection: model.collection.collectionName,
-    async ids() {
-      const rows = await model.find({}, { _id: 1 }).sort({ _id: 1 }).lean<{ _id: Types.ObjectId }[]>().exec();
-      return rows.map((row) => row._id);
+    rows() {
+      return model.find({}, { _id: 1, workbookId: 1 }).sort({ _id: 1 }).lean<WorkbookRow[]>().exec();
     },
     read(id) {
       return model.findOne({ _id: id }).lean<StoredWorkbook>().exec();
@@ -364,9 +480,8 @@ function collectionAccess(element: WorkbookElement, connection: Connection, coll
   return {
     element,
     collection,
-    async ids() {
-      const rows = await documents().find({}, { projection: { _id: 1 }, sort: { _id: 1 } }).toArray();
-      return rows.map((row) => row._id);
+    rows() {
+      return documents().find({}, { projection: { _id: 1, workbookId: 1 }, sort: { _id: 1 } }).toArray();
     },
     read(id) {
       return documents().findOne({ _id: id });
@@ -433,51 +548,215 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap(): Promise<void> {
-    if (process.env[UNCERTAINTY_MIGRATION_FLAG] !== "true") {
-      this.logger.log(`The uncertainty contract migration is pending. Set ${UNCERTAINTY_MIGRATION_FLAG}=true and restart the backend to run it.`);
-      return;
+    try {
+      await this.run();
+    } catch (error) {
+      this.logger.error(`The stored workbook check stopped. ${sentence(error instanceof Error ? error.message : String(error))} The backend starts anyway.`);
     }
-    await this.run();
   }
 
-  async run(): Promise<UncertaintyMigrationSummary> {
+  async run(options: ConversionOptions = {}): Promise<UncertaintyConversionSummary> {
+    const startedAt = new Date();
+    const state: ConversionState = {
+      answers: new PraxisAnswers(),
+      lookups: emptyLookups(),
+      unresolved: new Map(),
+      failedDa: new Set(),
+      failedSy: new Set(),
+      praxisWaitMs: options.praxisWaitMs ?? PRAXIS_WAIT_MS,
+      backupIndexed: false,
+    };
     try {
-      return await this.migrate();
+      const workbooks: WorkbookTally[] = [];
+      for (const access of this.accesses) workbooks.push(await this.convertCollection(access, state));
+      const runs = await this.checkRuns();
+      const summary: UncertaintyConversionSummary = { praxisAnswers: state.answers.answered(), workbooks, runs };
+      await this.connection.collection<AuditRecord>(MIGRATIONS_COLLECTION).insertOne({ migration: UNCERTAINTY_MIGRATION_ID, startedAt, completedAt: new Date(), summary });
+      this.report(summary);
+      return summary;
     } finally {
       this.datasets = undefined;
     }
   }
 
-  private async migrate(): Promise<UncertaintyMigrationSummary> {
-    const migrations = this.connection.collection<MigrationRecord>(MIGRATIONS_COLLECTION);
-    if ((await migrations.findOne({ _id: UNCERTAINTY_MIGRATION_ID })) !== null) {
-      this.logger.log("The uncertainty contract migration already ran.");
-      return { applied: false, praxisAnswers: 0, workbooks: [], runs: { read: 0, kept: 0, moved: 0 } };
+  private report(summary: UncertaintyConversionSummary): void {
+    const total = (pick: (tally: WorkbookTally) => number): number => summary.workbooks.reduce((sum, tally) => sum + pick(tally), 0);
+    for (const tally of summary.workbooks) {
+      if (tally.converted === 0 && tally.left === 0) continue;
+      this.logger.log(`${tally.collection}: ${tally.converted} converted and backed up, ${tally.left} left as stored, ${tally.current} already current.`);
     }
-    this.logger.log("The uncertainty contract migration started.");
-    const answers = await this.settleAnswers();
-    const lookups = await this.validate(answers);
-    const workbooks: WorkbookTally[] = [];
-    for (const access of this.accesses) workbooks.push(await this.writeWorkbooks(access, answers, lookups));
-    const runs = await this.migrateRuns();
-    const summary: UncertaintyMigrationSummary = { applied: true, praxisAnswers: answers.answered(), workbooks, runs };
-    await migrations.insertOne({ _id: UNCERTAINTY_MIGRATION_ID, completedAt: new Date(), summary });
-    for (const tally of workbooks) {
-      this.logger.log(`${tally.collection}: ${tally.read} read, ${tally.converted} converted and backed up.`);
+    this.logger.log(`Stored workbook check finished. ${total((tally) => tally.converted)} converted, ${total((tally) => tally.left)} left as stored, ${total((tally) => tally.current)} already current. ${summary.runs.moved} analysis runs moved to ${BACKUP_COLLECTION}.`);
+  }
+
+  private async convertCollection(access: WorkbookAccess, state: ConversionState): Promise<WorkbookTally> {
+    const tally: WorkbookTally = { collection: access.collection, read: 0, current: 0, converted: 0, left: 0 };
+    for (const row of await access.rows()) await this.processDocument(access, row, state, tally);
+    return tally;
+  }
+
+  private async processDocument(access: WorkbookAccess, row: WorkbookRow, state: ConversionState, tally: WorkbookTally): Promise<void> {
+    let workbookId = row.workbookId ?? `document ${row._id.toHexString()}`;
+    try {
+      const record = await access.read(row._id);
+      if (record === null) return;
+      tally.read += 1;
+      workbookId = record.workbookId;
+      const parts = this.partsOf(access.element, record);
+      if (access.element === "SC") this.rememberScTimes(record, parts.mef, state.lookups);
+      const first = this.convertParts(access, record, parts, state);
+      if (first.issues.length === 0 && first.pending === 0 && !first.mefChanged && !first.previousChanged) {
+        tally.current += 1;
+        this.rememberCurrent(access, record, parts, state);
+        return;
+      }
+      const issue = this.blocker(access.element, parts, state) ?? (await this.convertAndWrite(access, record, parts, first, state));
+      if (issue === undefined) {
+        tally.converted += 1;
+        return;
+      }
+      tally.left += 1;
+      this.leave(access, workbookId, issue, state);
+    } catch (error) {
+      tally.left += 1;
+      this.leave(access, workbookId, `The conversion stopped. ${sentence(error instanceof Error ? error.message : String(error))}`, state);
     }
-    this.logger.log(`${RUNS_COLLECTION}: ${runs.read} read, ${runs.kept} kept, ${runs.moved} moved to ${BACKUP_COLLECTION}.`);
-    this.logger.log(`PRAXIS answered ${answers.answered()} law questions.`);
-    this.logger.log("The uncertainty contract migration finished.");
-    return summary;
+  }
+
+  private leave(access: WorkbookAccess, workbookId: string, issue: string, state: ConversionState): void {
+    this.logger.warn(`${access.collection} ${workbookId} was left as stored. ${issue}`);
+    if (access.element === "DA") state.failedDa.add(workbookId);
+    if (access.element === "SY") state.failedSy.add(workbookId);
+  }
+
+  private linkedIds(parts: StoredParts): Set<string> {
+    const ids = new Set<string>();
+    for (const mef of [parts.mef, parts.previous]) {
+      if (mef !== undefined) linkedWorkbookIds(mef, ids);
+    }
+    return ids;
+  }
+
+  private blocker(element: WorkbookElement, parts: StoredParts, state: ConversionState): string | undefined {
+    const watched = element === "SY" ? [state.failedDa] : element === "ESQ" ? [state.failedDa, state.failedSy] : [];
+    if (watched.length === 0) return undefined;
+    for (const id of this.linkedIds(parts)) {
+      if (watched.some((failed) => failed.has(id))) return `It links workbook ${id}, which could not be converted.`;
+    }
+    return undefined;
+  }
+
+  private partsOf(element: WorkbookElement, record: StoredWorkbook): StoredParts {
+    const parts: StoredParts = { hasPrevious: false };
+    const mef = asJson(record.mef);
+    if (mef !== undefined) {
+      parts.mef = mef;
+      if (element === "DA") {
+        const checked = daIssueAndFacts(mef);
+        parts.mefIssue = checked.issue;
+        parts.daFacts = checked.facts;
+      } else parts.mefIssue = this.mefIssue(element, mef);
+    }
+    const text = record.previousMefJson;
+    if (typeof text === "string" && text.length > 0) {
+      parts.hasPrevious = true;
+      parts.previous = previousRecord(text);
+      if (parts.previous !== undefined) parts.previousIssue = this.previousIssue(element, parts.previous, record.ownerUsername);
+    }
+    return parts;
+  }
+
+  private async convertAndWrite(access: WorkbookAccess, record: StoredWorkbook, parts: StoredParts, first: Attempt, state: ConversionState): Promise<string | undefined> {
+    let attempt = first;
+    if ((access.element === "SY" || access.element === "ESQ") && (await this.resolveOriginals(parts, state))) attempt = this.convertParts(access, record, parts, state);
+    for (let round = 0; attempt.issues.length === 0 && attempt.pending > 0; round += 1) {
+      if (round === MAX_PRAXIS_ROUNDS) return `It still waits for ${attempt.pending} PRAXIS answers after ${MAX_PRAXIS_ROUNDS} requests.`;
+      await this.ask(state);
+      attempt = this.convertParts(access, record, parts, state);
+    }
+    const issue = attempt.issues[0];
+    if (issue !== undefined) return issue;
+    if (!(await this.write(access, record, attempt))) return "It changed while it was being converted. It converts at the next start.";
+    this.remember(access, record, parts.mef, attempt.mef ?? parts.mef, state.lookups);
+    return undefined;
+  }
+
+  private convertParts(access: WorkbookAccess, record: StoredWorkbook, parts: StoredParts, state: ConversionState): Attempt {
+    const attempt: Attempt = { mefChanged: false, previousChanged: false, issues: [], pending: 0 };
+    if (parts.mef === undefined) attempt.issues.push("It holds no MEF object.");
+    else {
+      const part = this.convertPart(access, record, parts.mef, "mef", parts.mefIssue, state, (mef) => this.mefIssue(access.element, mef));
+      attempt.mef = part.value;
+      attempt.mefChanged = part.changed;
+      attempt.issues.push(...part.issues);
+      attempt.pending += part.pending;
+    }
+    if (!parts.hasPrevious) return attempt;
+    if (parts.previous === undefined) attempt.issues.push("previousMefJson is not a JSON object.");
+    else {
+      const part = this.convertPart(access, record, parts.previous, "previousMefJson", parts.previousIssue, state, (mef) => this.previousIssue(access.element, mef, record.ownerUsername));
+      attempt.previous = part.value;
+      attempt.previousChanged = part.changed;
+      attempt.issues.push(...part.issues);
+      attempt.pending += part.pending;
+    }
+    return attempt;
+  }
+
+  private convertPart(access: WorkbookAccess, record: StoredWorkbook, source: JsonRecord, label: string, storedIssue: string | undefined, state: ConversionState, check: (mef: JsonRecord) => string | undefined): PartResult {
+    const scope = new ConversionScope(state.answers, label);
+    const value = this.convertMef(access.element, source, record, state.lookups, scope);
+    const changed = value !== source && jsonTextOf(value) !== jsonTextOf(source);
+    const issues = [...scope.issues];
+    if (issues.length === 0 && scope.pending === 0) {
+      const issue = changed ? check(value) : storedIssue;
+      if (issue !== undefined) issues.push(`${label} does not parse${changed ? " after conversion" : ""}. ${issue}`);
+    }
+    return { value, changed, issues, pending: scope.pending };
+  }
+
+  private async ask(state: ConversionState): Promise<void> {
+    const questions = state.answers.questions();
+    const failure = state.praxisFailure ?? (await this.answer(questions, state));
+    if (failure !== undefined) failQuestions(questions, failure, state.answers);
+  }
+
+  private async answer(questions: PraxisQuestions, state: ConversionState): Promise<string | undefined> {
+    try {
+      const response = await withinDeadline(() => this.uncertaintyService.evaluate(questionRequest(questions)), state.praxisWaitMs);
+      recordAnswers(questions, response, state.answers);
+      return undefined;
+    } catch (error) {
+      const failure = `PRAXIS did not answer. ${sentence(error instanceof Error ? error.message : String(error))}`;
+      state.praxisFailure = failure;
+      this.logger.warn(`${failure} Workbooks that need its answers stay as stored until the next start.`);
+      return failure;
+    }
+  }
+
+  private async write(access: WorkbookAccess, record: StoredWorkbook, attempt: Attempt): Promise<boolean> {
+    const changes = {
+      ...(attempt.mefChanged && attempt.mef !== undefined ? { mef: attempt.mef } : {}),
+      ...(attempt.previousChanged && attempt.previous !== undefined ? { previousMefJson: jsonTextOf(attempt.previous) } : {}),
+    };
+    if (Object.keys(changes).length === 0) return false;
+    const original = await access.original(record._id);
+    if (original === null) return false;
+    await this.connection.collection(BACKUP_COLLECTION).insertOne({
+      migration: UNCERTAINTY_MIGRATION_ID,
+      collection: access.collection,
+      workbookId: record.workbookId,
+      projectId: record.projectId,
+      backedUpAt: new Date(),
+      document: original,
+    });
+    return (await access.update(record, changes)) === 1;
   }
 
   private loadDatasets(): DaDatasetIndex {
     if (this.datasets !== undefined) return this.datasets;
     const first = DA_SOURCE_CATALOG[0]?.dataset ?? "";
     const directory = DATASET_DIRECTORIES.find((candidate) => existsSync(join(candidate, first)));
-    if (directory === undefined) {
-      throw new Error("The DA datasets were not found. Run the migration from the repository root.");
-    }
+    if (directory === undefined) throw new Error("The DA datasets were not found next to the backend.");
     const datasets = daDatasetIndex(DA_SOURCE_CATALOG.map((source) => {
       const rows: Json = JSON.parse(readFileSync(join(directory, source.dataset), "utf8"));
       return { dataset: source.dataset, rows };
@@ -488,17 +767,6 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
 
   private datasetsFor(mef: JsonRecord): DaDatasetIndex {
     return daNeedsDatasets(mef) ? this.loadDatasets() : EMPTY_DATASETS;
-  }
-
-  private previousOf(record: StoredWorkbook): JsonRecord | undefined {
-    const text = record.previousMefJson;
-    if (typeof text !== "string" || text.length === 0) return undefined;
-    try {
-      return jsonRecordOf(text);
-    } catch {
-      this.logger.warn(`Workbook ${record.workbookId} keeps its previous MEF because it is not valid JSON.`);
-      return undefined;
-    }
   }
 
   private convertMef(element: WorkbookElement, mef: JsonRecord, record: StoredWorkbook, lookups: MigrationLookups, scope: ConversionScope): JsonRecord {
@@ -558,160 +826,124 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
     }
   }
 
-  private convertWorkbook(access: WorkbookAccess, record: StoredWorkbook, answers: PraxisAnswers, lookups: MigrationLookups): ConvertedWorkbook {
-    const issues: string[] = [];
-    const text = stringifyJson(record.mef ?? null);
-    const stored = jsonRecordOf(text);
-    let converted: ConvertedWorkbook = { mefChanged: false, previousChanged: false, issues };
-    if (stored === undefined) {
-      issues.push(`${access.collection} ${record.workbookId} holds no MEF object.`);
-    } else {
-      const scope = new ConversionScope(answers, `${access.collection} ${record.workbookId} mef`);
-      const mef = this.convertMef(access.element, stored, record, lookups, scope);
-      issues.push(...scope.issues);
-      const issue = this.mefIssue(access.element, mef);
-      if (issue !== undefined) issues.push(`${access.collection} ${record.workbookId} mef does not parse after conversion. ${issue}`);
-      converted = { ...converted, mef, mefChanged: jsonTextOf(mef) !== text };
-    }
-    const previous = this.previousOf(record);
-    if (previous !== undefined) {
-      const scope = new ConversionScope(answers, `${access.collection} ${record.workbookId} previousMefJson`);
-      const mef = this.convertMef(access.element, previous, record, lookups, scope);
-      issues.push(...scope.issues);
-      const issue = this.previousIssue(access.element, mef, record.ownerUsername);
-      if (issue !== undefined) issues.push(`${access.collection} ${record.workbookId} previousMefJson does not parse after conversion. ${issue}`);
-      const next = jsonTextOf(mef);
-      converted = { ...converted, previous: next, previousChanged: next !== jsonTextOf(previous) };
-    }
-    return converted;
+  private rememberScTimes(record: StoredWorkbook, mef: JsonRecord | undefined, lookups: MutableLookups): void {
+    if (mef === undefined || lookups.scMissionTimes.has(record.workbookId)) return;
+    lookups.scMissionTimes.set(record.workbookId, scMissionTimeIds(mef));
+    lookups.scProjects.set(record.projectId, [...(lookups.scProjects.get(record.projectId) ?? []), record.workbookId]);
   }
 
-  private remember(access: WorkbookAccess, record: StoredWorkbook, converted: ConvertedWorkbook, lookups: MutableLookups): void {
-    const mef = converted.mef;
-    const original = asJson(record.mef);
-    if (mef === undefined || original === undefined) return;
-    if (access.element === "SC") {
-      lookups.scMissionTimes.set(record.workbookId, scMissionTimeIds(mef));
-      lookups.scProjects.set(record.projectId, [...(lookups.scProjects.get(record.projectId) ?? []), record.workbookId]);
-    } else if (access.element === "DA") {
-      const facts = parsedDaFacts(mef);
-      if (facts !== undefined) lookups.daParameters.set(record.workbookId, facts);
-      lookups.daCcf.set(record.workbookId, daCcfFacts(original, mef));
+  private rememberCurrent(access: WorkbookAccess, record: StoredWorkbook, parts: StoredParts, state: ConversionState): void {
+    const mef = parts.mef;
+    if (mef === undefined) return;
+    if (access.element === "DA") {
+      if (parts.daFacts !== undefined) state.lookups.daParameters.set(record.workbookId, parts.daFacts);
+      state.lookups.daCcf.set(record.workbookId, daCcfFacts(mef, mef));
+      state.unresolved.set(record.workbookId, { element: "DA", collection: access.collection });
     } else if (access.element === "SY") {
-      lookups.syCcf.set(record.workbookId, syCcfFacts(original, mef));
+      state.lookups.syCcf.set(record.workbookId, syCcfFacts(mef, mef));
+      state.unresolved.set(record.workbookId, { element: "SY", collection: access.collection });
     }
   }
 
-  private async pass(answers: PraxisAnswers): Promise<{ lookups: MigrationLookups; issues: string[] }> {
-    const lookups = emptyLookups();
-    const issues: string[] = [];
-    for (const access of this.accesses) {
-      for (const id of await access.ids()) {
-        const record = await access.read(id);
-        if (record === null) continue;
-        const converted = this.convertWorkbook(access, record, answers, lookups);
-        issues.push(...converted.issues);
-        this.remember(access, record, converted, lookups);
+  private async resolveOriginals(parts: StoredParts, state: ConversionState): Promise<boolean> {
+    let changed = false;
+    for (const id of this.linkedIds(parts)) {
+      const unresolved = state.unresolved.get(id);
+      if (unresolved === undefined) continue;
+      const original = await this.backupMef(unresolved.collection, id, state);
+      state.unresolved.delete(id);
+      if (original === undefined) continue;
+      if (unresolved.element === "DA") {
+        const facts = state.lookups.daCcf.get(id);
+        if (facts !== undefined) state.lookups.daCcf.set(id, daCcfFactsWithOriginal(facts, original));
+      } else {
+        const facts = state.lookups.syCcf.get(id);
+        if (facts !== undefined) state.lookups.syCcf.set(id, syCcfFactsWithOriginal(facts, original));
       }
+      changed = true;
     }
-    return { lookups, issues };
+    return changed;
   }
 
-  private async settleAnswers(): Promise<PraxisAnswers> {
-    const answers = new PraxisAnswers();
-    for (let round = 0; round < MAX_PRAXIS_ROUNDS; round += 1) {
-      await this.pass(answers);
-      if (openQuestions(answers) === 0) return answers;
-      await this.ask(answers.questions(), answers);
+  private remember(access: WorkbookAccess, record: StoredWorkbook, original: JsonRecord | undefined, current: JsonRecord | undefined, lookups: MutableLookups): void {
+    if (original === undefined || current === undefined) return;
+    if (access.element === "DA") {
+      const facts = parsedDaFacts(current);
+      if (facts !== undefined) lookups.daParameters.set(record.workbookId, facts);
+      lookups.daCcf.set(record.workbookId, daCcfFacts(original, current));
+    } else if (access.element === "SY") {
+      lookups.syCcf.set(record.workbookId, syCcfFacts(original, current));
     }
-    throw new Error(`The uncertainty contract migration stopped. PRAXIS questions were still open after ${MAX_PRAXIS_ROUNDS} rounds. Nothing was written.`);
   }
 
-  private async ask(questions: PraxisQuestions, answers: PraxisAnswers): Promise<void> {
-    recordAnswers(questions, await this.uncertaintyService.evaluate(questionRequest(questions)), answers);
-    const open = openQuestions(answers);
-    if (open > 0) throw new Error(`The uncertainty contract migration stopped. PRAXIS left ${open} questions unanswered. Nothing was written.`);
-  }
-
-  private async validate(answers: PraxisAnswers): Promise<MigrationLookups> {
-    const { lookups, issues } = await this.pass(answers);
-    const open = openQuestions(answers);
-    if (open > 0) issues.push(`PRAXIS left ${open} questions unanswered.`);
-    if (issues.length > 0) {
-      for (const issue of issues) this.logger.error(issue);
-      throw new Error(`The uncertainty contract migration stopped. ${issues.length} problems were found in the converted documents. Nothing was written. The first problem is this. ${issues[0]}`);
+  private async backupMef(collection: string, workbookId: string, state: ConversionState): Promise<JsonRecord | undefined> {
+    const backups = this.connection.collection<BackupRecord>(BACKUP_COLLECTION);
+    if (!state.backupIndexed) {
+      await backups.createIndex({ collection: 1, workbookId: 1, backedUpAt: 1 });
+      state.backupIndexed = true;
     }
-    return lookups;
+    const [earliest] = await backups
+      .find({ collection, workbookId }, { sort: { backedUpAt: 1, _id: 1 }, limit: 1, projection: { "document.mef": 1, "document.modelPayloadReferences": 1 } })
+      .toArray();
+    const document = earliest === undefined ? undefined : asJson(earliest.document);
+    if (document === undefined) return undefined;
+    const reference = payloadReference(field(recordField(document, "modelPayloadReferences") ?? {}, "mef"));
+    return reference === undefined ? recordField(document, "mef") : jsonRecordOf(stringifyJson(await modelPayloadStore.get(reference)));
   }
 
-  private async writeWorkbooks(access: WorkbookAccess, answers: PraxisAnswers, lookups: MigrationLookups): Promise<WorkbookTally> {
-    let read = 0;
-    let converted = 0;
-    for (const id of await access.ids()) {
-      const record = await access.read(id);
-      if (record === null) continue;
-      read += 1;
-      const result = this.convertWorkbook(access, record, answers, lookups);
-      if (result.issues.length > 0) {
-        throw new Error(`The uncertainty contract migration stopped. ${result.issues[0]}`);
-      }
-      if (!result.mefChanged && !result.previousChanged) continue;
-      const original = await access.original(record._id);
-      if (original === null) throw new Error(`${access.collection} ${record.workbookId} disappeared during the migration.`);
-      await this.connection.collection(BACKUP_COLLECTION).insertOne({
-        migration: UNCERTAINTY_MIGRATION_ID,
-        collection: access.collection,
-        workbookId: record.workbookId,
-        projectId: record.projectId,
-        backedUpAt: new Date(),
-        document: original,
-      });
-      const changes = {
-        ...(result.mefChanged && result.mef !== undefined ? { mef: result.mef } : {}),
-        ...(result.previousChanged && result.previous !== undefined ? { previousMefJson: result.previous } : {}),
-      };
-      if ((await access.update(record, changes)) !== 1) {
-        throw new Error(`${access.collection} ${record.workbookId} changed during the migration. Run the migration again.`);
-      }
-      converted += 1;
-    }
-    return { collection: access.collection, read, converted };
+  private async runsCheckedThrough(): Promise<Types.ObjectId | null> {
+    const [latest] = await this.connection
+      .collection<AuditRecord>(MIGRATIONS_COLLECTION)
+      .find({ migration: UNCERTAINTY_MIGRATION_ID }, { sort: { _id: -1 }, limit: 1 })
+      .toArray();
+    return latest?.summary.runs.checkedThrough ?? null;
   }
 
-  private async migrateRuns(): Promise<RunTally> {
-    const rows = await this.runModel.find({}, { _id: 1, id: 1, batchId: 1 }).sort({ _id: 1 }).lean<RunRow[]>().exec();
+  private async checkRuns(): Promise<RunTally> {
+    const since = await this.runsCheckedThrough();
+    const rows = await this.runModel.find(since === null ? {} : { _id: { $gt: since } }, { _id: 1, id: 1, batchId: 1 }).sort({ _id: 1 }).lean<RunRow[]>().exec();
     const failing = new Map<string, string>();
-    const owners = new Map<string, string>();
+    let checkedThrough = since;
+    let contiguous = true;
     for (const row of rows) {
-      const run = await this.runModel.findOne({ _id: row._id }).lean<StoredRun>().exec();
-      if (run === null) continue;
-      const owner = run.owner?.workbookId;
-      if (owner !== undefined) owners.set(row.id, owner);
-      const issue = runIssue(run);
-      if (issue !== undefined && !failing.has(groupOf(row))) failing.set(groupOf(row), issue);
+      try {
+        const run = await this.runModel.findOne({ _id: row._id }).lean<StoredRun>().exec();
+        const issue = run === null ? undefined : runIssue(run);
+        if (issue !== undefined && !failing.has(groupOf(row))) failing.set(groupOf(row), issue);
+        if (contiguous) checkedThrough = row._id;
+      } catch (error) {
+        contiguous = false;
+        this.logger.warn(`${RUNS_COLLECTION} run ${row.id} could not be checked. ${sentence(error instanceof Error ? error.message : String(error))} It is checked at the next start.`);
+      }
     }
-    let moved = 0;
-    for (const row of rows) {
-      const reason = failing.get(groupOf(row));
-      if (reason === undefined) continue;
-      const original = await this.runModel.collection.findOne({ _id: row._id });
-      if (original === null) continue;
+    const moved = new Set<string>();
+    for (const [group, reason] of failing) {
+      for (const id of await this.moveRuns(group, reason)) moved.add(id);
+    }
+    if (moved.size > 0) this.logger.warn(`${moved.size} stored analysis runs fail the current schemas. They moved to ${BACKUP_COLLECTION}.`);
+    const kept = rows.filter((row) => !moved.has(row._id.toHexString())).length;
+    return { read: rows.length, kept, moved: moved.size, checkedThrough };
+  }
+
+  private async moveRuns(group: string, reason: string): Promise<string[]> {
+    const runs = this.connection.collection<RawRun>(RUNS_COLLECTION);
+    const moved: string[] = [];
+    for (const original of await runs.find({ $or: [{ id: group }, { batchId: group }] }).toArray()) {
       await this.connection.collection(BACKUP_COLLECTION).insertOne({
         migration: UNCERTAINTY_MIGRATION_ID,
         collection: RUNS_COLLECTION,
-        runId: row.id,
-        workbookId: owners.get(row.id) ?? null,
+        runId: original.id ?? null,
+        workbookId: original.owner?.workbookId ?? null,
         reason,
         backedUpAt: new Date(),
         document: original,
       });
-      await this.runModel.collection.deleteOne({ _id: row._id });
-      moved += 1;
+      await runs.deleteOne({ _id: original._id });
+      moved.push(original._id.toHexString());
     }
-    if (moved > 0) this.logger.warn(`${moved} stored analysis runs fail the current schemas. They moved to ${BACKUP_COLLECTION}.`);
-    return { read: rows.length, kept: rows.length - moved, moved };
+    return moved;
   }
 }
 
-export { BACKUP_COLLECTION, MIGRATIONS_COLLECTION, UNCERTAINTY_MIGRATION_FLAG, UNCERTAINTY_MIGRATION_ID, runIssue };
-export type { UncertaintyMigrationSummary };
+export { BACKUP_COLLECTION, MIGRATIONS_COLLECTION, UNCERTAINTY_MIGRATION_ID, runIssue };
+export type { UncertaintyConversionSummary, WorkbookTally };

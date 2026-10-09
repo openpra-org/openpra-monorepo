@@ -1,4 +1,5 @@
 export { FaultTreeEditor, FaultTreeResults } from "./faultTreeEditor";
+export { FaultTreeUncertaintyCard, FaultTreeUncertaintyResults, type FaultTreeUncertaintyEntry } from "./faultTreeUncertaintyResult";
 export {
   FaultTreeOperationError,
   applyFaultTreeOperation,

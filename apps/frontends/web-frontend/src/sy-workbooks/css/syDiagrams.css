@@ -28,16 +28,6 @@
 .sy-review-table .sy-review-edit--trio{width:220px}
 .sy-review-row-actions{display:flex;justify-content:flex-end;gap:6px}
 
-.sy-ft-wrap{display:flex;flex-direction:column;gap:10px;min-width:0}
-.sy-ft-wrap__bar{display:flex;justify-content:flex-start}
-.sy-ft-switch{display:inline-flex;border:1px solid var(--color-border);border-radius:8px;overflow:hidden;background:var(--color-surface)}
-.sy-ft-switch__option{padding:6px 14px;border:0;border-right:1px solid var(--color-border);background:transparent;color:var(--color-text-muted);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
-.sy-ft-switch__option:last-child{border-right:0}
-.sy-ft-switch__option:hover{color:var(--color-text)}
-.sy-ft-switch__option--active{background:var(--color-primary-soft);color:var(--color-primary)}
-.sy-ft-switch__option:focus-visible{outline:2px solid var(--color-primary);outline-offset:-2px}
-.sy-ft-wrap__editor{display:flex;flex-direction:column;min-width:0}
-.sy-ft-wrap__editor[hidden]{display:none}
 .sy-ft-diagrams{display:flex;flex-direction:column;gap:8px;min-width:0}
 .sy-ft-diagrams__bar{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}
 .sy-ft-diagrams__bar .posfield__select{flex:0 1 420px;min-width:0}

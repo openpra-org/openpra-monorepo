@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { createSeismicPraExample } from "../../../../../backends/web-backend/src/example-workbooks/seeds/seismic-pra-seed-factory";
@@ -299,6 +299,8 @@ describe("Seismic PRA Step 13 risk integration", () => {
     expect(screen.getByText("Approval", { selector: ".srail__step-name" }))
       .toBeInTheDocument();
 
+    expect(screen.queryByLabelText("Conformance checklist")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show conformance" }));
     const conformance = screen.getByLabelText("Conformance checklist");
     expect(within(conformance).getByRole("heading", { name: "Conformance" }))
       .toBeInTheDocument();

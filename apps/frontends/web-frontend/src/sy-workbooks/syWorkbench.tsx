@@ -401,8 +401,7 @@ function SyWorkbench({
       ? requestedStepId!
       : visibleSteps[0]?.id ?? "scope");
   const [sysId, setSysId] = useState<string>(data.sy.systemDefinitions[0]?.uuid ?? "SYS-DRACS");
-  const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
-  const [dockOpen, setDockOpen] = useState(!isNarrow);
+  const [dockOpen, setDockOpen] = useState(false);
   const [railOpen, setRailOpen] = useState(true);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
   const [dockMobileOpen, setDockMobileOpen] = useState(false);

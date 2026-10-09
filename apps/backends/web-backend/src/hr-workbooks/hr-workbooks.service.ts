@@ -19,6 +19,7 @@ import {
   readWorkbookRevision,
   workbookRevisionConflict,
 } from "../workbooks/workbook-revision";
+import { storedWorkbookRejection } from "../workbooks/stored-workbook-format";
 
 export interface HrWorkbookResponse {
   workbookId: string;
@@ -79,7 +80,7 @@ export class HrWorkbooksService {
     assertExpectedWorkbookRevision(doc, patch.expectedRevision);
     const current = HumanReliabilityAnalysisSchema.safeParse(stripNulls(doc.mef));
     if (!current.success) {
-      throw new BadRequestException(`Stored HR workbook failed validation: ${current.error.message}`);
+      throw storedWorkbookRejection("HR", workbookId, current.error.message);
     }
     const parsed = HumanReliabilityAnalysisSchema.safeParse(
       stripNulls(mergeWorkbookPatch(current.data, patch.operations)),

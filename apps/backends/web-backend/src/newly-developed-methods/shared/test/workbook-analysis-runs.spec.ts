@@ -22,6 +22,7 @@ import {
   Req,
   Res,
 } from "@nestjs/common";
+import { Logger } from "@nestjs/common";
 import { getModelToken, MongooseModule } from "@nestjs/mongoose";
 import { Test } from "@nestjs/testing";
 import type { NestExpressApplication } from "@nestjs/platform-express";
@@ -1013,7 +1014,7 @@ describe("workbook-owned analysis-run APIs", () => {
       ] as const) {
         const response = await request(api.getHttpServer()).post(url).send(body);
         expect(response.status).toBe(400);
-        expect(JSON.stringify(response.body)).toContain("A component basic event keeps its value in the expression field");
+        expect(response.body.message).toBe(`This workbook was saved in an older format and could not be converted. Workbook ${SY_WORKBOOK_ID}. The server log has the details.`);
       }
       expect(executeSpy).not.toHaveBeenCalled();
       expect(await runs.countDocuments()).toBe(count);
@@ -2865,6 +2866,7 @@ describe("workbook-owned analysis-run APIs", () => {
     else binding.faultTreeBasicEvent.entityId = "40000000-0000-4000-8000-000000000099";
     if (variant === "unused-catalogue-event") sy.systemBasicEvents.push({ ...sy.systemBasicEvents[0]!, uuid: binding.faultTreeBasicEvent.entityId, code: "UNUSED-TEST" });
     const before = await runs.countDocuments(), spy = jest.spyOn(praetorClient, "execute");
+    const errors = jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
     try {
       await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef } }).exec();
       await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef: sy } }).exec();
@@ -2875,13 +2877,16 @@ describe("workbook-owned analysis-run APIs", () => {
           ...(batch ? { evidenceScenarioIds: [SCENARIO_A_TRUE, SCENARIO_A_FALSE] } : {}),
         });
       expect(response.status).toBe(400);
-      expect(response.body.message).toContain(variant === "undeclared-workbook"
-        ? "Binding basic event must belong to a declared fault-tree workbook" : `HCL binding '${binding.id}'`);
+      if (variant === "undeclared-workbook") {
+        expect(response.body.message).toBe(`This workbook was saved in an older format and could not be converted. Workbook ${ESQ_WORKBOOK_ID}. The server log has the details.`);
+        expect(errors.mock.calls.map(([message]) => String(message)).join(" ")).toContain("Binding basic event must belong to a declared fault-tree workbook");
+      } else expect(response.body.message).toContain(`HCL binding '${binding.id}'`);
       expect(spy).not.toHaveBeenCalled();
       expect(await runs.countDocuments()).toBe(before);
       expect(((await workbooks.findOne({ workbookId: ESQ_WORKBOOK_ID }).lean().exec()) as unknown as { mef: unknown }).mef).toEqual(mef);
     } finally {
       spy.mockRestore();
+      errors.mockRestore();
       await workbooks.updateOne({ workbookId: ESQ_WORKBOOK_ID }, { $set: { mef: original.mef } }).exec();
       await syWorkbooks.updateOne({ workbookId: SY_WORKBOOK_ID }, { $set: { mef: originalSy.mef } }).exec();
     }

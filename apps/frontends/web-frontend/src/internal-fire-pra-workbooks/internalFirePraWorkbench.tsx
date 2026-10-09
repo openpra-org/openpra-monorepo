@@ -59,7 +59,7 @@ export interface InternalFirePraWorkbenchProps {
 export function InternalFirePraWorkbench({ persona, setPersona, availablePersonas = ["preparer", "reviewer", "approver"], showPersonaPicker = true, onOpenRoles, onLoadExample, onUnloadExample, headerMeta, actions, renderApprovalTable, renderSignCard, renderRoster, exampleOptions, selectedExample, onSelectExample }: InternalFirePraWorkbenchProps): JSX.Element {
   const [stepId, setStepId] = useState(persona === "reviewer" ? "review" : persona === "approver" ? "approval" : "analysis-basis");
   const [railOpen, setRailOpen] = useState(false);
-  const [dockOpen, setDockOpen] = useState(true);
+  const [dockOpen, setDockOpen] = useState(false);
   useEffect(() => { const resize = (): void => { if (window.innerWidth <= 1100) setDockOpen(false); if (window.innerWidth <= 768) setRailOpen(false); }; resize(); window.addEventListener("resize", resize); return () => window.removeEventListener("resize", resize); }, []);
   const active = INTERNAL_FIRE_STEP_DEFINITIONS.find((step) => step.id === stepId) ?? INTERNAL_FIRE_STEP_DEFINITIONS[0]!;
   const index = INTERNAL_FIRE_STEP_DEFINITIONS.indexOf(active);

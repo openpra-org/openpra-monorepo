@@ -30,7 +30,9 @@ import {
   convertEsqCcfRecord,
   convertSyGroups,
   daCcfFacts,
+  daCcfFactsWithOriginal,
   syCcfFacts,
+  syCcfFactsWithOriginal,
   type DaCcfFacts,
   type DaCcfLookup,
   type SyCcfFacts,
@@ -303,7 +305,10 @@ function entryOutcome(entry: JsonRecord, dataset: string | undefined, datasets: 
     const trial = new ConversionScope(scope.answers, scope.label);
     const law = storedDistributionLaw(field(entry, "distribution"), numberField(entry, "mean"), trial, entryWhat(entry));
     if (law !== undefined) return { kind: "LAW", law };
-    if (trial.issues.length === 0) return { kind: "WAIT" };
+    if (trial.issues.length === 0) {
+      scope.follow(trial);
+      return { kind: "WAIT" };
+    }
   }
   return figureOutcome(entry, quantity, scope);
 }
@@ -341,19 +346,22 @@ function convertDaSource(source: JsonRecord, datasets: DaDatasetIndex, scope: Co
   return withArray(source, "entries", (entry) => convertDaEntry(entry, dataset, datasets, scope));
 }
 
-function typedEstimate(parameter: JsonRecord, unit: UncertainUnit, scope: ConversionScope): EstimateOutcome {
-  const what = `DA parameter ${textField(parameter, "uuid") ?? "?"}`;
-  const uncertainty = recordField(parameter, "uncertainty");
-  const distribution = uncertainty === undefined ? undefined : recordField(uncertainty, "distribution");
-  const value = numberField(parameter, "value");
+function figureEstimate(holder: JsonRecord, distribution: JsonRecord | undefined, unit: UncertainUnit, scope: ConversionScope, what: string): EstimateOutcome {
+  const value = numberField(holder, "value");
   if (distribution !== undefined && field(distribution, "type") !== DistributionType.POINT_ESTIMATE) {
-    const mean = field(parameter, "valueType") === "MEAN" ? value : undefined;
+    const mean = field(holder, "valueType") === "MEAN" ? value : undefined;
     const law = storedDistributionLaw(distribution, mean, scope, what);
     return law === undefined ? { kind: "WAIT" } : { kind: "VALUE", expression: valueExpression(unit, law) };
   }
   if (value !== undefined) return { kind: "VALUE", expression: pointExpression(unit, value) };
   const point = distribution === undefined ? undefined : numberField(distribution, "value");
   return point === undefined ? { kind: "NONE" } : { kind: "VALUE", expression: pointExpression(unit, point) };
+}
+
+function typedEstimate(parameter: JsonRecord, unit: UncertainUnit, scope: ConversionScope): EstimateOutcome {
+  const uncertainty = recordField(parameter, "uncertainty");
+  const distribution = uncertainty === undefined ? undefined : recordField(uncertainty, "distribution");
+  return figureEstimate(parameter, distribution, unit, scope, `DA parameter ${textField(parameter, "uuid") ?? "?"}`);
 }
 
 function daParameterMission(parameter: JsonRecord, scope: ConversionScope): JsonRecord {
@@ -731,17 +739,36 @@ function esqParameterMission(record: JsonRecord, scope: ConversionScope): JsonRe
 }
 
 function convertEsqParameter(record: JsonRecord, daParameters: ReadonlyMap<string, DaParameterFacts> | undefined, scope: ConversionScope): JsonRecord {
-  return esqParameterMission(convertEsqParameterValue(record, daParameters), scope);
+  return esqParameterMission(convertEsqParameterValue(record, daParameters, scope), scope);
 }
 
-function convertEsqParameterValue(record: JsonRecord, daParameters: ReadonlyMap<string, DaParameterFacts> | undefined): JsonRecord {
-  if (present(record, "quantificationModel")) return record;
+function esqOwnEstimate(record: JsonRecord, kept: JsonRecord, model: DaQuantificationModel, scope: ConversionScope): JsonRecord {
+  const stored = storedExpression(record, "estimate");
+  if (stored !== undefined) return { ...kept, quantificationModel: model, estimate: jsonOf(stored) };
+  const unit = ESTIMATE_UNITS[model];
+  if (unit === undefined) {
+    scope.report(`${esqWhat("parameter", record)} holds old ${model} values that have no estimate unit.`);
+    return record;
+  }
+  const outcome = figureEstimate(record, recordField(record, "distribution"), unit, scope, esqWhat("parameter", record));
+  if (outcome.kind === "WAIT") return record;
+  return outcome.kind === "NONE" ? { ...kept, quantificationModel: model } : { ...kept, quantificationModel: model, estimate: jsonOf(outcome.expression) };
+}
+
+function convertEsqParameterValue(record: JsonRecord, daParameters: ReadonlyMap<string, DaParameterFacts> | undefined, scope: ConversionScope): JsonRecord {
+  const stored = modelOf(field(record, "quantificationModel"));
+  if (present(record, "quantificationModel") && stored === undefined) return record;
   const id = textField(record, "id");
   const facts = id === undefined ? undefined : daParameters?.get(id);
-  const model = facts?.quantificationModel;
-  if (facts === undefined || model === undefined || !holdsEstimate(model)) return record;
-  const kept = without(record, [...(model === "FREQUENCY" ? ESQ_FREQUENCY_VALUE_FIELDS : ESQ_PARAMETER_VALUE_FIELDS), "estimate"]);
-  return { ...kept, quantificationModel: model, ...(facts.estimate === undefined ? {} : { estimate: jsonOf(facts.estimate) }) };
+  const model = stored ?? facts?.quantificationModel;
+  if (model === undefined || !holdsEstimate(model)) return record;
+  const oldFields = model === "FREQUENCY" ? ESQ_FREQUENCY_VALUE_FIELDS : ESQ_PARAMETER_VALUE_FIELDS;
+  if (stored !== undefined && !oldFields.some((key) => present(record, key))) return record;
+  const kept = without(record, [...oldFields, "estimate"]);
+  if (facts !== undefined && facts.quantificationModel === model) {
+    return { ...kept, quantificationModel: model, ...(facts.estimate === undefined ? {} : { estimate: jsonOf(facts.estimate) }) };
+  }
+  return esqOwnEstimate(record, kept, model, scope);
 }
 
 function withStandardErrors(record: JsonRecord): JsonRecord {
@@ -801,6 +828,11 @@ function syIssue(mef: JsonRecord): string | undefined {
 function daIssue(mef: JsonRecord): string | undefined {
   const parsed = DataAnalysisSchema.safeParse(stripNulls(mef));
   return parsed.success ? undefined : firstIssue(parsed.error);
+}
+
+function daIssueAndFacts(mef: JsonRecord): { issue?: string; facts?: Map<string, DaParameterFacts> } {
+  const parsed = DataAnalysisSchema.safeParse(stripNulls(mef));
+  return parsed.success ? { facts: daParameterFacts(parsed.data) } : { issue: firstIssue(parsed.error) };
 }
 
 function esqIssue(mef: JsonRecord): string | undefined {
@@ -867,8 +899,10 @@ export {
   convertScMef,
   convertSyMef,
   daCcfFacts,
+  daCcfFactsWithOriginal,
   daDatasetIndex,
   daIssue,
+  daIssueAndFacts,
   daNeedsDatasets,
   daParameterFacts,
   esIssue,
@@ -894,6 +928,7 @@ export {
   scIssue,
   scMissionTimeIds,
   syCcfFacts,
+  syCcfFactsWithOriginal,
   syIssue,
   textField,
   without,

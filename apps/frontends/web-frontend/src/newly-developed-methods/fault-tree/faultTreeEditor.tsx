@@ -33,6 +33,7 @@ import {
   mergeOpenPsaImportCatalogue,
 } from "./openPsa";
 import { renderFaultTreePng } from "./faultTreeImage";
+import { FaultTreeUncertaintyCard } from "./faultTreeUncertaintyResult";
 import type {
   FaultTreeEditorCatalogue,
   FaultTreeEditorModel,
@@ -819,7 +820,7 @@ export function FaultTreeResults({
       </div>
       <div className="fteditor__result-metrics">
         <div className="fteditor__result-metric">
-          <span>{result.probabilityMethod === undefined ? "Exact top-event probability" : `${result.probabilityMethod.replace(/_/g, " ")} top-event probability`}</span>
+          <span>{result.probabilityMethod === undefined ? "Exact top-event probability" : result.probabilityMethod === "MONTE_CARLO" ? "Direct Monte Carlo top-event probability" : `${result.probabilityMethod.split("_").join(" ")} top-event probability`}</span>
           <strong title={String(result.topEventProbability)}><ScientificProbability value={result.topEventProbability} /></strong>
         </div>
         {result.cutSets !== undefined && (
@@ -881,20 +882,12 @@ export function FaultTreeResults({
       )}
       {result.uncertainty !== undefined && (
         <section className="fteditor__result-section" aria-label="Uncertainty results">
-          <div className="fteditor__result-section-heading"><h4>Uncertainty</h4><span>{result.uncertainty.sampleCount.toLocaleString()} {result.uncertainty.samplingMethod === "LATIN_HYPERCUBE" ? "Latin hypercube" : "Monte Carlo"} samples · seed {result.uncertainty.seed}</span></div>
-          <dl className="fteditor__result-definition">
-            <div><dt>Mean</dt><dd><ScientificProbability value={result.uncertainty.mean} /></dd></div>
-            <div><dt>Standard deviation</dt><dd><ScientificProbability value={result.uncertainty.standardDeviation} /></dd></div>
-            <div><dt>Standard error</dt><dd><ScientificProbability value={result.uncertainty.standardError} /></dd></div>
-            {result.uncertainty.quantiles.map((quantile) => (
-              <div key={quantile.probability}><dt>{quantile.probability * 100}% quantile</dt><dd><ScientificProbability value={quantile.value} /></dd></div>
-            ))}
-          </dl>
+          <FaultTreeUncertaintyCard entry={{ result }} />
         </section>
       )}
       {result.monteCarlo !== undefined && (
-        <section className="fteditor__result-section" aria-label="Monte Carlo diagnostics">
-          <div className="fteditor__result-section-heading"><h4>Monte Carlo</h4><span>seed {result.monteCarlo.seed}</span></div>
+        <section className="fteditor__result-section" aria-label="Direct Monte Carlo diagnostics">
+          <div className="fteditor__result-section-heading"><h4>Direct Monte Carlo</h4><span>seed {result.monteCarlo.seed}</span></div>
           <dl className="fteditor__result-definition">
             <div><dt>Trials</dt><dd>{result.monteCarlo.trials.toLocaleString()}</dd></div>
             {result.monteCarlo.requestedTrials !== undefined && <div><dt>Requested trials</dt><dd>{result.monteCarlo.requestedTrials.toLocaleString()}{result.monteCarlo.stoppedEarly ? " · stopped early" : ""}</dd></div>}

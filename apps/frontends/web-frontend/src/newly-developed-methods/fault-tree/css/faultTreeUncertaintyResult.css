@@ -1,0 +1,35 @@
+.ftunc-results { display: grid; gap: 16px; padding-top: 18px; }
+.ftunc-results > h3 { margin: 0; font-size: 14px; }
+.ftunc-result, .ftunc-batch { display: grid; gap: 12px; min-width: 0; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); padding: 14px 16px; }
+.ftunc-result__head, .ftunc-batch__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ftunc-result__head strong, .ftunc-batch__head strong { font-size: 13px; }
+.ftunc-result__head span, .ftunc-batch__head span { color: var(--color-text-muted); font-size: 11px; }
+.ftunc-result__views { display: flex; gap: 6px; }
+.ftunc-result__view { display: inline-flex; align-items: center; min-height: 28px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); padding: 4px 10px; color: var(--color-text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.ftunc-result__view:hover { border-color: var(--color-primary); }
+.ftunc-result__view:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+.ftunc-result__view[aria-pressed="true"] { border-color: var(--color-primary); color: var(--color-primary); }
+.ftunc-result__chart { display: block; width: 100%; height: auto; }
+.ftunc-result__axis { stroke: var(--color-border); stroke-width: 1; }
+.ftunc-result__tick, .ftunc-result__marker-label { fill: var(--color-text-muted); font-family: var(--font-data), ui-monospace, monospace; font-size: 11px; }
+.ftunc-result__bar { fill: color-mix(in srgb, var(--color-primary) 16%, transparent); stroke: var(--color-primary); stroke-width: .5; }
+.ftunc-result__curve { fill: none; stroke: var(--color-primary); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ftunc-result__marker { stroke: var(--color-text-muted); stroke-width: 1; }
+.ftunc-result__point { stroke: var(--color-text); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.ftunc-result__point-label { fill: var(--color-text); font-size: 11px; }
+.ftunc-result__note { margin: 0; color: var(--color-text-muted); font-size: 11px; }
+.ftunc-result__values { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.ftunc-result__values th { padding: 0 6px 4px 0; color: var(--color-text-muted); font-size: 11px; font-weight: 600; text-align: left; }
+.ftunc-result__values td { padding: 0 6px 0 0; font-family: var(--font-data), ui-monospace, monospace; font-size: 12px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ftunc-result__details { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid var(--color-border); padding-top: 10px; color: var(--color-text-muted); font-size: 11px; }
+.ftunc-batch__grid { display: grid; grid-template-columns: minmax(0, 1.3fr) 84px 84px minmax(0, 1.6fr); gap: 8px 10px; align-items: center; font-size: 12px; }
+.ftunc-batch__row { display: contents; }
+.ftunc-batch__label { color: var(--color-text-muted); font-size: 11px; }
+.ftunc-batch__name { min-width: 0; overflow: hidden; border: 0; background: none; padding: 0; color: var(--color-text); font: inherit; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.ftunc-batch__name:hover, .ftunc-batch__name:focus-visible { color: var(--color-primary); text-decoration: underline; }
+.ftunc-batch__value { font-family: var(--font-data), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.ftunc-batch__track { position: relative; height: 14px; border-bottom: 1px solid var(--color-border); }
+.ftunc-batch__interval { position: absolute; top: 6px; height: 2px; background: var(--color-primary); }
+.ftunc-batch__mean { position: absolute; top: 3px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--color-primary); box-shadow: 0 0 0 2px var(--color-surface); }
+.ftunc-batch__point { position: absolute; top: 1px; height: 12px; border-left: 1.5px dashed var(--color-text); }
+.ftunc-batch__scale { display: flex; justify-content: space-between; color: var(--color-text-muted); font-family: var(--font-data), ui-monospace, monospace; font-size: 11px; }

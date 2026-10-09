@@ -273,6 +273,16 @@ describe("fault-tree execution and analysis-result contracts", () => {
     }).success).toBe(false);
   });
 
+  it.each([
+    { calculationType: "UNCERTAINTY", settings: { algorithm: "ZBDD" }, message: "This calculation requires the Direct BDD algorithm" },
+    { calculationType: "CUT_SETS", settings: { algorithm: "MONTE_CARLO" }, message: "Direct Monte Carlo supports probability calculations" },
+    { calculationType: "PROBABILITY", settings: { algorithm: "BDD", earlyStop: true }, message: "Direct Monte Carlo controls require the Direct Monte Carlo algorithm" },
+  ])("names the algorithm in the rejection $message", ({ calculationType, settings, message }) => {
+    const parsed = FaultTreeExecuteRequestSchema.safeParse({ ...executeRequest, calculationType, workflow: "MANUAL", settings });
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues.map((issue) => issue.message)).toContain(message);
+  });
+
   it("accepts exact probability results", () => {
     expect(FaultTreeAnalysisResultSchema.safeParse(analysisResult).success).toBe(true);
   });

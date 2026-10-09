@@ -14,7 +14,9 @@ import { importanceGroupsOf } from "interfaces-mef-types/esq/esq-measure-inputs"
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
+import { expressionText, unitText } from "../newly-developed-methods/shared/uncertainText";
 import { useEsqWorkbook } from "./esqWorkbookContext";
+import { parameterLabelOf } from "./esqModel";
 import {
   ChecksRow,
   DetailRow,
@@ -42,6 +44,7 @@ import {
   ORIGINS,
   REGISTER_KIND_LABELS,
   STATUS_LABELS,
+  caseCurrentOf,
   caseRunProblem,
   caseRunRequest,
   nextCaseId,
@@ -563,7 +566,7 @@ function targetOptions(esq: EventSequenceQuantification, kind: EsqCaseKind): { v
     case "PARAMETER": return model.parameters.map((parameter) => ({ value: parameter.id, label: `${parameter.name} (${parameter.id})` }));
     case "CCF_TOTAL": return model.ccfGroups.map((group) => ({ value: group.id, label: `${group.name} (${group.id})` }));
     case "HEP": return model.humanEvents.map((human) => ({ value: human.id, label: `${human.name} (${human.id})` }));
-    case "EVENT": return model.events.filter((event) => event.valueUnit !== "PER_HOUR").map((event) => ({ value: event.id, label: blank(event.name) ? event.code : `${event.code} · ${event.name}` }));
+    case "EVENT": return model.events.map((event) => ({ value: event.id, label: blank(event.name) ? event.code : `${event.code} · ${event.name}` }));
     case "GROUP_FAILED": return importanceGroupsOf(esq).map((group) => ({ value: group.key, label: group.label }));
     case "FLAG": return (esq.logic?.flags ?? []).map((flag) => ({ value: flag.id, label: flag.name }));
     default: return [];
@@ -580,6 +583,9 @@ function CaseWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.E
   const dis = !editable;
   const options = targetOptions(esq, entry.kind);
   const usesValue = entry.kind === "PARAMETER" || entry.kind === "CCF_TOTAL" || entry.kind === "HEP" || entry.kind === "EVENT";
+  const now = caseCurrentOf(esq, entry);
+  const label = parameterLabelOf(esq);
+  const nowText = now === undefined ? undefined : now.expression !== undefined ? expressionText(now.expression, label) : now.value !== undefined ? sciText(now.value) : "No value";
 
   function save(next: EsqSensitivityCase): void {
     if (!editable) return;
@@ -625,6 +631,7 @@ function CaseWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.E
         )}
         {usesValue && (
           <>
+            {nowText !== undefined && <FormRow label="Value now"><span className="esq-form__note">{nowText}</span></FormRow>}
             <FormRow label="New value" htmlFor={`${fieldId}-value`}>
               <WorkbookInput id={`${fieldId}-value`} type="number" className="posfield__input esq-form__number" value={entry.value ?? ""} disabled={dis} onChange={(event) => {
                 const text = event.target.value.trim();
@@ -632,6 +639,7 @@ function CaseWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.E
                 if (text.length === 0) save(without("value"));
                 else if (Number.isFinite(value) && value >= 0) save({ ...without("factor"), value });
               }} />
+              {now !== undefined && <span className="esq-form__unit">{unitText(now.unit)}</span>}
             </FormRow>
             <FormRow label="Or a factor" htmlFor={`${fieldId}-factor`}>
               <WorkbookInput id={`${fieldId}-factor`} type="number" className="posfield__input esq-form__number" value={entry.factor ?? ""} disabled={dis} onChange={(event) => {
@@ -641,6 +649,7 @@ function CaseWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.E
                 else if (Number.isFinite(factor) && factor > 0) save({ ...without("value"), factor });
               }} />
             </FormRow>
+            {now?.expression !== undefined && <p className="esq-meta">A new value replaces the distribution with a point. A factor scales the whole value and keeps its distribution.</p>}
           </>
         )}
         {entry.kind === "FLAG" && (

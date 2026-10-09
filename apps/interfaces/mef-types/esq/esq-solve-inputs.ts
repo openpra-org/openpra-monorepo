@@ -3,7 +3,8 @@ import type {
   EsqSolveWork,
   EventSequenceQuantification,
 } from "./event-sequence-quantification";
-import { canonical, cellValueOfRecord } from "./esq-barrier-inputs";
+import { canonicalJson } from "../core/uncertainty";
+import { cellExpressionOfRecord } from "./esq-barrier-inputs";
 import { esqStableId, hash32 } from "./esq-run-inputs";
 
 function esqModelRunId(): string {
@@ -47,8 +48,7 @@ function solveInputsKey(esq: EventSequenceQuantification, options: { combination
       groupId: choice.groupId,
       source: choice.source,
       parameterId: choice.parameterId,
-      mean: choice.mean,
-      errorFactor: choice.errorFactor,
+      expression: choice.expression,
       shares: choice.shares,
     })),
     sequences: (decisions.sequenceChoices ?? []).map((choice) => ({ sequenceId: choice.sequenceId, familyId: choice.familyId })),
@@ -56,7 +56,7 @@ function solveInputsKey(esq: EventSequenceQuantification, options: { combination
     flags: (logic.flags ?? []).map((flag) => ({ id: flag.id, target: flag.target, state: flag.state, groupIds: flag.groupIds, stateIds: flag.stateIds })),
     loopBreaks: (logic.loopBreaks ?? []).map((entry) => ({ fromModelId: entry.fromModelId, toModelId: entry.toModelId, state: entry.state })),
     exclusions: (logic.exclusions ?? []).map((exclusion) => ({ id: exclusion.id, eventIds: exclusion.eventIds })),
-    cells: (esq.barrierWork?.cells ?? []).map((cell) => ({ id: cell.id, value: cellValueOfRecord(cell) ?? null })),
+    cells: (esq.barrierWork?.cells ?? []).map((cell) => ({ id: cell.id, value: cellExpressionOfRecord(cell) ?? null })),
     scope: (esq.modelIntegration.scopeExclusions ?? []).map((exclusion) => ({ aspect: exclusion.aspect, item: exclusion.item })),
     recoveries: post.recoveries?.map((rule) => ({
       id: rule.id,
@@ -88,7 +88,7 @@ function solveInputsKey(esq: EventSequenceQuantification, options: { combination
       moduleCounting: plan.moduleCounting?.value,
     },
   };
-  const text = JSON.stringify(canonical(payload));
+  const text = canonicalJson(payload);
   return [0x9747b28c, 0x2f1e3d4c].map((seed) => hash32(text, seed).toString(16).padStart(8, "0")).join("");
 }
 

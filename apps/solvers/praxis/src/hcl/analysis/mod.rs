@@ -4,10 +4,10 @@
 mod model;
 
 pub use model::{
-    HclAnalysisResult, HclAnalysisSettings, HclBasicEventUncertaintySpec, HclBatchCompilationStats,
-    HclBatchResult, HclCptGenerator, HclCptGeneratorSpec, HclCptPrior, HclCptRowUncertaintySpec,
-    HclHazardGridBatchResult, HclPgaBin, HclPgaCenter, HclPgaFrequencyConversion,
-    HclProbabilityDistribution, HclSampler, HclUncertaintySettings, HclUncertaintySummary,
+    HclAnalysisResult, HclAnalysisSettings, HclBasicEventUncertainty, HclBatchCompilationStats,
+    HclBatchResult, HclCptGenerator, HclCptGeneratorSpec, HclCptRowUncertainty,
+    HclFragilityDemand, HclHazardGridBatchResult, HclPgaBin, HclPgaFrequencyConversion,
+    HclSampler, HclUncertaintySettings, HclUncertaintySummary,
 };
 
 use std::time::Duration;
@@ -170,7 +170,9 @@ fn quantify_hcl_batch_internal(
     let uncertainty = settings
         .uncertainty
         .as_ref()
-        .map(|uncertainty| PreparedHclUncertainty::new(model.network(), uncertainty))
+        .map(|uncertainty| {
+            PreparedHclUncertainty::new(model.network(), uncertainty, &[model.fault_tree()])
+        })
         .transpose()?;
     let mut results = Vec::with_capacity(scenario_indices.len());
     for &index in &scenario_indices {
@@ -275,7 +277,7 @@ mod tests {
     use crate::core::gate::{Formula, Gate};
     use crate::hcl::{
         CanonicalBayesianNetwork, CanonicalBayesianVariable, HclAnalysisSettings, HclBindingSpec,
-        HclCptRowUncertaintySpec, HclEvidenceSpec, HclModel, HclUncertaintySettings,
+        HclEvidenceSpec, HclModel, HclUncertaintySettings,
     };
 
     fn model(evidence: Vec<HclEvidenceSpec>) -> HclModel {
@@ -575,19 +577,22 @@ mod tests {
         let rows = vec![observed("TRUE"), observed("FALSE")];
         let settings = HclAnalysisSettings {
             uncertainty: Some(HclUncertaintySettings {
-                cpt_generators: vec![],
-                sampler: Default::default(),
-                cpt_probability_clip_epsilon: 0.0,
                 sample_count: 200,
                 seed: 2026,
-                basic_event_distributions: vec![],
-                cpt_row_distributions: vec![HclCptRowUncertaintySpec {
+                sampler: crate::hcl::HclSampler::MonteCarlo,
+                basic_events: vec![],
+                cpt_rows: vec![crate::hcl::HclCptRowUncertainty {
                     node: "NODE-A".to_string(),
                     row_index: 0,
-                    prior: crate::hcl::HclCptPrior::Dirichlet {
-                        alpha: vec![16.0, 4.0],
+                    row: crate::core::distribution::UncertainVector::Value {
+                        law: crate::core::distribution::VectorLaw::Dirichlet {
+                            concentrations: vec![5.0, 20.0],
+                        },
                     },
                 }],
+                cpt_generators: vec![],
+                uncertainty_parameters: vec![],
+                uncertainty_vectors: vec![],
             }),
             ..HclAnalysisSettings::default()
         };

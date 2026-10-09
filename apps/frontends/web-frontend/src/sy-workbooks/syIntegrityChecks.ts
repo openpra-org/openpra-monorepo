@@ -13,6 +13,7 @@ import type {
 } from "interfaces-mef-types/sy/systems-analysis";
 import { systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
 import type { SyControlledComponentBoundaryOption, SyControlledParameterOption } from "./syWorkbookContext";
+import { linkedOptions } from "./syBasicEventValues";
 
 type IntegrityAnalysis = Pick<SystemsAnalysis,
   | "plantStage"
@@ -122,12 +123,7 @@ function systemName(sy: Pick<SystemsAnalysis, "systemDefinitions">, systemId: st
 }
 
 function eventParameter(event: SystemBasicEvent, parameters: readonly SyControlledParameterOption[]): SyControlledParameterOption | undefined {
-  const source = event.controlledDataSource;
-  if (source?.referenceType === "WORKBOOK_PARAMETER") {
-    return parameters.find((parameter) => parameter.workbookId === source.workbookId && parameter.parameterId === source.entityId);
-  }
-  const legacy = event.dataAnalysisBasicEventRef;
-  return legacy === undefined ? undefined : parameters.find((parameter) => parameter.parameterId === legacy);
+  return linkedOptions(event.expression, parameters)[0];
 }
 
 function reviewIssues(review: ComponentBoundaryReview | undefined, preOperational: boolean): IntegrityIssue[] {

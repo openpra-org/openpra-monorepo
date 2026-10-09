@@ -300,18 +300,18 @@ const WINDOW_LABELS: Partial<Record<DaDrawerContext["kind"], string>> = {
   daImportance: "Importance",
 };
 
-function WindowBody({ context, onClose, onRetarget, onToast }: { context: DaDrawerContext; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void; onToast: (message: string) => void }): JSX.Element | null {
+function WindowBody({ context, onClose, onRetarget }: { context: DaDrawerContext; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void }): JSX.Element | null {
   if (SOURCE_WINDOW_KINDS.has(context.kind)) return <SourceWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
   if (FAILURE_WINDOW_KINDS.has(context.kind)) return <FailureWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
   if (UNAVAILABILITY_WINDOW_KINDS.has(context.kind)) return <UnavailabilityWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
-  if (CCF_WINDOW_KINDS.has(context.kind)) return <CcfWindows context={context} onClose={onClose} onRetarget={onRetarget} onToast={onToast} />;
+  if (CCF_WINDOW_KINDS.has(context.kind)) return <CcfWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
   if (FREQUENCY_WINDOW_KINDS.has(context.kind)) return <FrequencyWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
   if (UNCERTAINTY_WINDOW_KINDS.has(context.kind)) return <UncertaintyWindows context={context} onClose={onClose} onRetarget={onRetarget} />;
   if (HANDOFF_WINDOW_KINDS.has(context.kind)) return <HandoffWindows context={context} onClose={onClose} />;
   return <NeedWindow context={context} onClose={onClose} onRetarget={onRetarget} />;
 }
 
-function DaModal({ context, onClose, onRetarget, onToast }: { context: DaDrawerContext; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void; onToast: (message: string) => void }): JSX.Element {
+function DaModal({ context, onClose, onRetarget }: { context: DaDrawerContext; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void }): JSX.Element {
   const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -344,7 +344,7 @@ function DaModal({ context, onClose, onRetarget, onToast }: { context: DaDrawerC
           else if (!e.shiftKey && (document.activeElement === last || document.activeElement === dialog.current)) { e.preventDefault(); first.focus(); }
         }}
       >
-        <WindowBody context={context} onClose={onClose} onRetarget={onRetarget} onToast={onToast} />
+        <WindowBody context={context} onClose={onClose} onRetarget={onRetarget} />
       </div>
     </div>
   );
@@ -557,7 +557,7 @@ function DaWorkbench({
         )}
       </div>
 
-      {drawer !== null && <DaModal context={drawer} onClose={() => setDrawer(null)} onRetarget={setDrawer} onToast={flash} />}
+      {drawer !== null && <DaModal context={drawer} onClose={() => setDrawer(null)} onRetarget={setDrawer} />}
       {toast !== null && <div className="postoast da-toast" role="status">{toast}</div>}
 
       {(isReviewer || isApprover) && (

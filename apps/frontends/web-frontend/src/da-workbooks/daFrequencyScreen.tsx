@@ -15,27 +15,29 @@ import type {
   DaPriorForm,
   DaSourceEntry,
 } from "interfaces-mef-types/da/data-analysis";
+import { expressionReferences } from "interfaces-mef-types/core/uncertainty";
+import type { UncertaintyLawSummary } from "interfaces-shared-types/newly-developed-methods/shared";
+import { useUncertaintyVersion, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
-import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { DaProvenanceChip, DaTabs, DetailRow, DetailToggle, FieldList, FormFoot, FormRow, ModalHead, PlotToggle } from "./daShared";
 import { DistributionChart, useElementWidth, type DistributionSeries } from "./daDistributionChart";
-import { frequencyEstimate, frequencyFindings, frequencyParameters, modulesOf, perLabel, shareOf, stateShares, type DaFrequencyEstimate } from "./daFrequencies";
+import { frequencyEstimate, frequencyFindings, frequencyParameters, modulesOf, perLabel, shareOf, stateShares, type DaFrequencyComputation, type DaFrequencyEstimate, type DaFrequencyPartEstimate } from "./daFrequencies";
+import { expressionSpread, lawSummary, parameterPoint, pointState, quantileOf } from "./daLaws";
 import { libraryEntries, nextCode, withStoredEntry } from "./daSourcing";
 import { nextParameterId } from "./daSelectors";
 import { useDaWorkbook } from "./daWorkbookContext";
 import {
   BOUNDARY_MATCH_LABELS,
   EVIDENCE_ORIGIN_LABELS,
-  FREQUENCY_FIT_LABELS,
   FREQUENCY_METHOD_LABELS,
   FREQUENCY_MODE_LABELS,
   FREQUENCY_PER_LABELS,
   INITIATOR_CATEGORY_LABELS,
   PRIOR_FORM_LABELS,
 } from "./daViewData";
-import { AreaRow, NEED_PAGE, NeedChecksTable, NeedPager, numberFrom, statText, type DaDrawerContext } from "./daScreens";
+import { AreaRow, EstimateRows, NEED_PAGE, NeedChecksTable, NeedPager, PraxisValue, estimateText, praxisText, spreadFields, statText, waitNote, type DaDrawerContext } from "./daScreens";
 import { EstimatePicker, NumberInput, TextRow, entrySearchText, useBuiltInEntries, waitingSources, type EstimateChoice } from "./daSourcesScreen";
-import { TypedValueRows, useText } from "./daUnavailabilityScreen";
+import { useText } from "./daUnavailabilityScreen";
 
 type FrequencyTab = "groups" | "evidence" | "estimates" | "comparison" | "checks";
 
@@ -47,6 +49,11 @@ const TAB_HEADS: Record<FrequencyTab, { title: string; sr: string }> = {
   estimates: { title: "Estimates", sr: "DA-D1 · DA-D3 · IE-C19" },
   comparison: { title: "Comparison", sr: "IE-C16" },
   checks: { title: "Initiating event checks", sr: "IE-C1 to C19 · DA-D1 to D3" },
+};
+
+const COMPUTATION_LABELS: Record<DaFrequencyComputation, string> = {
+  PRIOR: "Source as it is",
+  POSTERIOR: "Bayes update with Poisson events",
 };
 
 const FREQUENCY_WINDOW_KINDS: ReadonlySet<string> = new Set(["daFrequency"]);
@@ -77,6 +84,12 @@ function needOf(da: DataAnalysis, parameter: DataAnalysisParameter): DaInitiator
   const needs = da.dataNeeds?.initiators ?? [];
   if (parameter.valueLink?.element === "IE") return needs.find((need) => need.id === parameter.valueLink?.needId);
   return needs.find((need) => need.parameterId === parameter.uuid);
+}
+
+function needPoint(need: DaInitiatorNeed | undefined): UncertaintyState<number> | undefined {
+  const expression = need?.frequency?.expression;
+  if (expression === undefined || expressionReferences(expression).length > 0) return undefined;
+  return pointState(expression, "PER_YEAR");
 }
 
 function groupText(da: DataAnalysis, parameter: DataAnalysisParameter): string {
@@ -118,11 +131,13 @@ function orderedParameters(da: DataAnalysis): DataAnalysisParameter[] {
 
 function GroupDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const need = needOf(da, parameter);
   const shares = stateShares(da.dataNeeds?.states ?? []);
   const states = (need?.stateIds ?? parameter.stateIds ?? []).map((id) => `${id} ${shares.get(id) === undefined ? "(no duration)" : `${Number(((shares.get(id) ?? 0) * 100).toPrecision(3))}%`}`);
   const basis = parameter.frequency;
-  const ieValue = need?.meanFrequency === undefined ? "—" : `${statText(need.meanFrequency)} per plant-year, ${need.valueHeldBy === "DA" ? `imported from ${need.valueHolderId ?? "DA"}` : "typed in IE"}`;
+  const held = need?.frequency;
+  const ieValue = held === undefined ? "—" : `${praxisText(needPoint(need))} ${held.basis.split("-").join(" ")}, ${need?.valueHeldBy === "DA" ? `imported from ${need.valueHolderId ?? "DA"}` : "typed in IE"}`;
   return (
     <FieldList items={[
       { label: "Group", value: need === undefined ? "Not imported" : `${need.id} · ${need.name}` },
@@ -138,6 +153,7 @@ function GroupDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.E
 
 function EvidenceDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const estimate = frequencyEstimate(da, parameter);
   const items = estimate.parts.flatMap((part) => part.evidence.map((item) => ({
     label: `${part.part.label} · ${item.label}`,
@@ -146,61 +162,95 @@ function EvidenceDetail({ parameter }: { parameter: DataAnalysisParameter }): JS
   return items.length === 0 ? <p className="posmuted">No events counted. The estimate rests on its sources.</p> : <FieldList items={items} />;
 }
 
+function summaryText(state: UncertaintyState<UncertaintyLawSummary> | undefined): string {
+  if (state === undefined) return "—";
+  if (state.status === "pending") return "…";
+  if (state.status === "failed") return `PRAXIS failed: ${state.error}`;
+  return `mean ${statText(state.value.mean)}, 5th ${statText(quantileOf(state.value, 0.05))}, 95th ${statText(quantileOf(state.value, 0.95))}`;
+}
+
+function partItems(da: DataAnalysis, estimate: DaFrequencyEstimate, part: DaFrequencyPartEstimate): { label: string; value: string }[] {
+  const basis = part.posterior === undefined ? undefined : lawSummary("PER_YEAR", part.posterior, true);
+  const plant = part.law === undefined ? undefined : lawSummary("PER_YEAR", part.law, true);
+  const share = part.part.per === "CALENDAR_YEAR" ? "no state share" : `share ${Number(((part.share.share ?? 0) * 100).toPrecision(3))}% (${part.share.counted.join(", ")})`;
+  return [
+    { label: part.part.label, value: part.problem ?? `${part.use === undefined ? "No source" : useText(da, part.use)}, ${PRIOR_FORM_LABELS[part.form].toLowerCase()}, ${part.method === undefined ? "no method" : FREQUENCY_METHOD_LABELS[part.method].toLowerCase()}${part.computation === undefined ? "" : `, ${COMPUTATION_LABELS[part.computation].toLowerCase()}`}` },
+    { label: `${part.part.label}, ${perLabel(part.part.per)}`, value: summaryText(basis) },
+    { label: `${part.part.label}, to the plant`, value: part.factor === undefined ? "—" : `${share}${estimate.siteWide ? ", site-wide" : `, × ${estimate.modules} modules`}, ${summaryText(plant)}` },
+  ];
+}
+
+function estimateSeries(estimate: DaFrequencyEstimate): { series: DistributionSeries[]; states: (UncertaintyState<UncertaintyLawSummary> | undefined)[] } {
+  const series: DistributionSeries[] = [];
+  const states: (UncertaintyState<UncertaintyLawSummary> | undefined)[] = [];
+  const single = estimate.parts.length === 1;
+  for (const part of estimate.parts) {
+    if (part.law === undefined) continue;
+    const state = lawSummary("PER_YEAR", part.law, true);
+    states.push(state);
+    if (state.status === "ready") series.push(single ? { key: "total", label: "Estimate", detail: "per plant-year", summary: state.value } : { key: `part-${part.part.id}`, label: part.part.label, detail: "contribution", summary: state.value });
+    if (!single || part.prior === undefined || part.computation !== "POSTERIOR") continue;
+    const prior = lawSummary("PER_YEAR", part.prior, true);
+    states.push(prior);
+    if (prior.status === "ready") series.push({ key: `prior-${part.part.id}`, label: "Before the events", detail: `${part.form === "CONSTRAINED_NONINFORMATIVE" ? "widened source" : "source"}, ${perLabel(part.part.per)}`, summary: prior.value });
+  }
+  return { series, states };
+}
+
 function EstimateDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [focus, setFocus] = useState("");
   const estimate = frequencyEstimate(da, parameter);
   const mode = modeOf(parameter);
-  const series = useMemo<DistributionSeries[]>(() => {
-    const list: DistributionSeries[] = [];
-    if (estimate.distribution !== undefined) list.push({ key: "total", label: "Estimate", detail: "per plant-year", distribution: estimate.distribution });
-    for (const part of estimate.parts) {
-      if (estimate.parts.length > 1 && part.distribution !== undefined) list.push({ key: `part-${part.part.id}`, label: part.part.label, detail: "contribution", distribution: part.distribution });
-      if (estimate.parts.length === 1 && part.prior !== undefined && part.factor !== undefined && part.output !== undefined && part.computation !== "PRIOR") list.push({ key: `prior-${part.part.id}`, label: "Before the events", detail: `${part.form === "CONSTRAINED_NONINFORMATIVE" ? "widened source" : "source"}, ${perLabel(part.part.per)}`, distribution: part.prior });
-    }
-    return list;
-  }, [estimate]);
   if (mode !== "CALCULATED") {
-    const distribution = parameter.uncertainty?.distribution;
+    const held = parameter.estimate;
+    const law = held?.node === "VALUE" ? lawSummary("PER_YEAR", held.value.law, true) : undefined;
     return (
       <>
         <FieldList items={[
           { label: "Value from", value: FREQUENCY_MODE_LABELS[mode] },
-          { label: "Mean", value: parameter.value === undefined ? "—" : `${statText(parameter.value)} per plant-year` },
+          { label: "Estimate", value: estimateText(held) },
+          { label: "Mean", value: praxisText(parameterPoint(parameter), " per plant-year") },
+          ...spreadFields(held === undefined ? undefined : expressionSpread(held, "PER_YEAR")),
         ]} />
-        {distribution !== undefined && <DistributionChart series={[{ key: "value", label: parameter.uuid, detail: "per plant-year", distribution }]} unit="per plant-year" />}
+        {law?.status === "ready" && <DistributionChart series={[{ key: "value", label: parameter.uuid, detail: "per plant-year", summary: law.value }]} unit="per plant-year" />}
       </>
     );
   }
-  const items = estimate.parts.flatMap((part) => [
-    { label: part.part.label, value: part.problem ?? `${part.use === undefined ? "No source" : useText(da, part.use)}, ${PRIOR_FORM_LABELS[part.form].toLowerCase()}, ${part.method === undefined ? "no method" : FREQUENCY_METHOD_LABELS[part.method].toLowerCase()}` },
-    { label: `${part.part.label}, ${perLabel(part.part.per)}`, value: part.output === undefined ? "—" : `mean ${statText(part.output.summary.mean)}, 5th ${statText(part.output.summary.p05)}, 95th ${statText(part.output.summary.p95)}` },
-    { label: `${part.part.label}, to the plant`, value: part.factor === undefined ? "—" : `${part.part.per === "CALENDAR_YEAR" ? "no state share" : `share ${Number(((part.share.share ?? 0) * 100).toPrecision(3))}% (${part.share.counted.join(", ")})`}${estimate.siteWide ? ", site-wide" : `, × ${estimate.modules} modules`}, gives ${statText(part.mean)}` },
-  ]);
-  items.push({ label: "Estimate", value: estimate.mean === undefined ? estimate.problem ?? "—" : `mean ${statText(estimate.mean)}, 5th ${statText(estimate.p05)}, median ${statText(estimate.median)}, 95th ${statText(estimate.p95)} per plant-year` });
-  if (estimate.fit !== undefined) items.push({ label: "Distribution", value: FREQUENCY_FIT_LABELS[estimate.fit] });
+  const { series, states } = estimateSeries(estimate);
+  const items = estimate.parts.flatMap((part) => partItems(da, estimate, part));
+  const held = estimate.estimate;
+  items.push({ label: "Estimate", value: held === undefined ? estimate.problem ?? (estimate.pending ? "…" : "—") : estimateText(held) });
+  if (held !== undefined) items.push({ label: "Mean", value: praxisText(pointState(held, "PER_YEAR"), " per plant-year") }, ...spreadFields(expressionSpread(held, "PER_YEAR")));
+  const note = waitNote(states);
   return (
     <>
       <FieldList items={items} />
-      {series.length > 0 && <DistributionChart series={series} focusKey={series.some((item) => item.key === focus) ? focus : "total"} unit="per plant-year" onFocus={setFocus} />}
+      {note !== undefined && <p className="posmuted">{note}</p>}
+      {series.length > 0 && <DistributionChart series={series} focusKey={series.some((item) => item.key === focus) ? focus : series[0]?.key} unit="per plant-year" onFocus={setFocus} />}
     </>
   );
 }
 
 function ComparisonDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const estimate = frequencyEstimate(da, parameter);
   const need = needOf(da, parameter);
   const items = estimate.comparisons.map((comparison) => ({
     label: `${comparison.label}, ${perLabel(comparison.comparison.per)}`,
-    value: comparison.problem ?? `${statText(comparison.value)} per plant-year, the estimate is ${ratioText(comparison.ratio)}${comparison.comparison.reason !== undefined && comparison.comparison.reason.trim().length > 0 ? `. ${comparison.comparison.reason}` : ""}`,
+    value: comparison.problem ?? (comparison.pending ? "…" : `${statText(comparison.value)} per plant-year, the estimate is ${ratioText(comparison.ratio)}${comparison.comparison.reason !== undefined && comparison.comparison.reason.trim().length > 0 ? `. ${comparison.comparison.reason}` : ""}`),
   }));
-  if (need?.meanFrequency !== undefined && need.valueHeldBy !== "DA") items.push({ label: "IE's typed value", value: `${statText(need.meanFrequency)} per plant-year${estimate.mean !== undefined && need.meanFrequency > 0 ? `, the estimate is ${ratioText(estimate.mean / need.meanFrequency)}` : ""}` });
+  const theirs = need?.valueHeldBy === "DA" ? undefined : needPoint(need);
+  const ours = estimate.estimate === undefined ? undefined : pointState(estimate.estimate, "PER_YEAR");
+  if (theirs !== undefined) items.push({ label: "IE's typed value", value: `${praxisText(theirs, " per plant-year")}${theirs.status === "ready" && ours?.status === "ready" && theirs.value > 0 ? `, the estimate is ${ratioText(ours.value / theirs.value)}` : ""}` });
   return items.length === 0 ? <p className="posmuted">No comparison yet. Compare with a generic or earlier value in the frequency window (IE-C16).</p> : <FieldList items={items} />;
 }
 
 function FrequencyTable({ tab, selected, onSelect, openDrawer }: { tab: Exclude<FrequencyTab, "checks">; selected: string; onSelect: (key: string) => void; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [page, setPage] = useState(0);
   const [show, setShow] = useState("all");
   const filterId = useId();
@@ -227,8 +277,8 @@ function FrequencyTable({ tab, selected, onSelect, openDrawer }: { tab: Exclude<
       const totals = evidenceTotals(estimate);
       return <>{group}<td className="da-rowtable__num">{mode === "CALCULATED" ? totals.events : "—"}</td><td className="da-rowtable__num">{mode === "CALCULATED" ? Number(totals.years.toPrecision(4)) : "—"}</td></>;
     }
-    if (tab === "estimates") return <>{group}<td className="da-rowtable__num">{mode === "CALCULATED" && estimate.problem !== undefined ? <span className="da-severity da-severity--error">Cannot compute</span> : statText(parameter.value)}</td></>;
-    return <>{group}<td className="da-rowtable__num">{statText(parameter.value)}</td><td className="da-rowtable__num">{ratioText(largestGap(estimate))}</td></>;
+    if (tab === "estimates") return <>{group}<td className="da-rowtable__num">{mode === "CALCULATED" && estimate.problem !== undefined ? <span className="da-severity da-severity--error">Cannot compute</span> : <PraxisValue state={parameterPoint(parameter)} />}</td></>;
+    return <>{group}<td className="da-rowtable__num"><PraxisValue state={parameterPoint(parameter)} /></td><td className="da-rowtable__num">{ratioText(largestGap(estimate))}</td></>;
   }
   return (
     <>
@@ -278,13 +328,14 @@ function unmappedGroups(da: DataAnalysis): DaInitiatorNeed[] {
 
 function FrequencyScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da, editable, mutateDa } = useDaWorkbook();
+  useUncertaintyVersion();
   const [tab, setTab] = useState<FrequencyTab>("groups");
   const [keys, setKeys] = useState<Record<string, string>>({});
   const tabId = useId();
   const parameters = frequencyParameters(da);
   const findings = frequencyFindings(da);
   const missing = unmappedGroups(da);
-  const estimated = parameters.filter((parameter) => parameter.valueMode === "CALCULATED" && frequencyEstimate(da, parameter).problem === undefined).length;
+  const estimated = parameters.filter((parameter) => { if (parameter.valueMode !== "CALCULATED") return false; const estimate = frequencyEstimate(da, parameter); return estimate.problem === undefined && !estimate.pending; }).length;
   const events = parameters.reduce((total, parameter) => total + (parameter.valueMode === "CALCULATED" ? evidenceTotals(frequencyEstimate(da, parameter)).events : 0), 0);
   const tabs: { id: FrequencyTab; label: string }[] = [
     { id: "groups", label: `Groups (${parameters.length})` },
@@ -303,7 +354,7 @@ function FrequencyScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
         const id = nextParameterId(ids);
         ids.add(id);
         created.set(need.id, id);
-        return { uuid: id, name: need.name, parameterType: "FREQUENCY", valueType: "MEAN", quantificationModel: "FREQUENCY", valueMode: "CALCULATED", stateIds: [...need.stateIds], basicEventRef: need.id, frequency: { parts: [] }, implementsSrs: [{ sr: "DA-D1", hlr: "D" }, { sr: "DA-D3", hlr: "D" }] };
+        return { uuid: id, name: need.name, parameterType: "FREQUENCY", quantificationModel: "FREQUENCY", valueMode: "CALCULATED", stateIds: [...need.stateIds], basicEventRef: need.id, frequency: { parts: [] }, implementsSrs: [{ sr: "DA-D1", hlr: "D" }, { sr: "DA-D3", hlr: "D" }] };
       });
       const needs = draft.dataNeeds;
       return {
@@ -589,7 +640,7 @@ function FrequencyWindow({ id, onClose, onRetarget }: { id: string; onClose: () 
           </select>
         </FormRow>
         {mode === "LINKED" && <p className="da-needs__meta">{need === undefined ? "No imported IE group maps to this parameter." : `The value follows IE's ${need.id}${need.valueHeldBy === "DA" ? ", which IE imports from DA. Pick one owner." : "."}`}</p>}
-        {mode === "TYPED" && <TypedValueRows parameter={parameter} disabled={dis} onPatch={patch} />}
+        {mode === "TYPED" && <EstimateRows parameter={parameter} disabled={dis} onPatch={patch} />}
         {mode === "CALCULATED" && (
           <>
             <FormRow label="Category" htmlFor={fid("category")}>

@@ -14,7 +14,6 @@ export type {
   HclBaseEvidence,
   HclEvidenceScenario,
   HclHazardGridDefinition,
-  HclBasicEventProbabilityDistribution,
   HclBasicEventUncertainty,
   HclCptRowUncertainty,
   HclUncertaintySettings,
@@ -23,6 +22,5 @@ export type {
 } from "interfaces-mef-types/modeling";
 export type { HclConfigurationModel };
 
-// HCL_MH hazard_convolution.py::ensure_hazard_convolution_supported.
 export const HCL_HAZARD_CONVOLUTION_POINT_ONLY =
   "Hazard convolution supports point runs only. Select probability or use evidence scenarios.";

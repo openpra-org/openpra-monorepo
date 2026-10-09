@@ -7,7 +7,8 @@ import { HclUncertaintyReview } from "../hclUncertaintyReview";
 import { TEST_ID, testBayesianNetworkModel } from "../../bayesian-network/test/bayesianNetworkTestModel";
 
 const id = (n: number) => `20000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
-const valid = { sampleCount: 10, seed: 42, sampler: "MC", basicEventDistributions: [], cptRowDistributions: [] };
+const valid = { sampleCount: 10, seed: 42, sampler: "MC", basicEvents: [], cptRows: [], cptGenerators: [] };
+const retired = { sampleCount: 10, seed: 42, sampler: "MC", basicEventDistributions: [], cptRowDistributions: [], cptProbabilityClipEpsilon: 0 };
 const configuration: WorkbookHclConfiguration = {
   modelId: id(1), code: "HCL", name: "HCL", description: "",
   bayesianNetwork: { workbookId: "esq", modelId: TEST_ID.model },
@@ -18,7 +19,7 @@ const configuration: WorkbookHclConfiguration = {
 };
 const tree = { workbookId: "sy", workbookName: "Systems", modelId: id(2), modelCode: "FT", modelName: "FT", topGateId: id(4), basicEvents: [] };
 
-it.each([null, "legacy", [], {}, { ...valid, sampler: "BAD" }, { ...valid, basicEventDistributions: null }])(
+it.each([null, "legacy", [], {}, { ...valid, sampler: "BAD" }, { ...valid, basicEvents: null }, retired])(
   "allows point runs and blocks uncertainty without changing saved draft %j", (uncertainty) => {
     const conf = { ...configuration, solverSettings: { ...configuration.solverSettings, uncertainty } };
     const before = structuredClone(conf), onChange = jest.fn(), onRun = jest.fn();

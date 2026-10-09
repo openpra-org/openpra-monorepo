@@ -36,9 +36,10 @@ import {
   EsqUncertaintyCorrelationSchema,
   EventTreeCutSetSettingsSchema,
   EventTreeExecutionModeSchema,
-  EventTreeSamplingDistributionSchema,
   EventTreeSamplingMethodSchema,
 } from "./event-tree-requests";
+import type { UncertainExpression, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
+import { UncertainExpressionSchema, UncertainUnitSchema } from "interfaces-mef-types/zod/core/uncertainty";
 import type {
   EsqEventTreeRunLogic,
   EsqModelCalculation,
@@ -46,7 +47,6 @@ import type {
   EsqUncertaintyCorrelation,
   EventTreeCutSetSettings,
   EventTreeExecutionMode,
-  EventTreeSamplingDistribution,
   EventTreeSamplingMethod,
 } from "./event-tree-requests";
 import {
@@ -239,6 +239,7 @@ interface EsqUncertaintyStatistics {
   point: number;
   mean: number;
   standardDeviation: number;
+  standardError: number;
   p05: number;
   p50: number;
   p95: number;
@@ -254,7 +255,8 @@ interface EsqUncertaintyKey {
   key: string;
   label: string;
   source: string;
-  distribution: EventTreeSamplingDistribution;
+  expression: UncertainExpression;
+  unit: UncertainUnit;
   events: number;
 }
 
@@ -736,6 +738,7 @@ const EsqUncertaintyStatisticsSchema = z
     point: FrequencySchema,
     mean: FrequencySchema,
     standardDeviation: FrequencySchema,
+    standardError: FrequencySchema,
     p05: FrequencySchema,
     p50: FrequencySchema,
     p95: FrequencySchema,
@@ -770,7 +773,8 @@ const EsqUncertaintyRunResultSchema = z
           key: z.string().min(1),
           label: z.string().min(1),
           source: z.string(),
-          distribution: EventTreeSamplingDistributionSchema,
+          expression: UncertainExpressionSchema,
+          unit: UncertainUnitSchema,
           events: z.number().int().nonnegative(),
         })
         .strict(),

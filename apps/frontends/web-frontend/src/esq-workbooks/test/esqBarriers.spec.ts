@@ -1,6 +1,6 @@
 import type { EsqCell, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { DistributionType } from "interfaces-mef-types/core/events";
-import { cellInputsKey, cellValueOfRecord, resolveCell, resolveSide } from "interfaces-mef-types/esq/esq-barrier-inputs";
+import type { Law, UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { cellExpressionOfRecord, cellInputsKey, lawFieldNames, resolveCell } from "interfaces-mef-types/esq/esq-barrier-inputs";
 import { modelViewOf, withFunctionLink, withModelImported } from "../esqModel";
 import {
   barriersComplete,
@@ -13,6 +13,14 @@ import {
 } from "../esqBarriers";
 import { stepsFromMef } from "../esqSelectors";
 import { NOW, barrierEsq, barrierUpstream, modeledEsq, windowCell } from "./esqBarrierFixtures";
+
+function probability(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
+}
+
+function quantity(law: Law): UncertainExpression {
+  return { node: "VALUE", value: { unit: "QUANTITY", law } };
+}
 
 function checks(esq: EventSequenceQuantification): string[] {
   return (barriersViewOf(esq)?.findings ?? []).map((finding) => `${finding.severity}:${finding.check}:${finding.item}`);
@@ -37,7 +45,7 @@ function completeEsq(): EventSequenceQuantification {
     esq = withMechanism(esq, `PH-${name}`, { id: `PH-${name}`, barrierId: name, modeIds: [`${name}-G`], kind: "PHENOMENON", name: `${name} overpressure`, familyIds: [], basis: "Pressure analysis." });
   }
   const cell = cellOfView(esq, "BC-1");
-  return withCell(esq, "BC-1", { ...cell, typed: { value: 0.99, basis: "Window runs." }, ofRecord: "TYPED", use: "END_STATE_ATTRIBUTE" });
+  return withCell(esq, "BC-1", { ...cell, typed: { expression: probability(0.99), basis: "Window runs." }, ofRecord: "TYPED", use: "END_STATE_ATTRIBUTE" });
 }
 
 describe("ESQ Step 04 barriers and phenomena", () => {
@@ -64,7 +72,7 @@ describe("ESQ Step 04 barriers and phenomena", () => {
       feasibilityNote: "Access during the event is under review.",
     })]);
     expect(model?.actions?.[0]?.feasibility?.access).toBe(false);
-    expect(model?.parameters.find((parameter) => parameter.id === "P-WIN")?.distribution).toEqual({ type: DistributionType.LOGNORMAL, median: 33.35, errorFactor: 1.287 });
+    expect(model?.parameters.find((parameter) => parameter.id === "P-WIN")?.estimate).toEqual(quantity({ family: "LOGNORMAL", mean: 33.74468539677077, errorFactor: 1.287, level: 0.95 }));
     const again = withModelImported(esq, barrierUpstream(), NOW);
     expect(again.model?.changes).toEqual([]);
   });
@@ -92,10 +100,14 @@ describe("ESQ Step 04 barriers and phenomena", () => {
     expect(checks(esq)).toContain("warning:Not used:BC-1");
     const removed = withCell(esq, "BC-1", undefined);
     expect(checks(removed)).toContain("warning:No probability:Fuel coating · F-REL");
-    const typed = withCell(esq, "BC-1", { ...cellOfView(esq, "BC-1"), typed: { value: 0.99, basis: "" }, ofRecord: "TYPED" });
+    const typed = withCell(esq, "BC-1", { ...cellOfView(esq, "BC-1"), typed: { expression: probability(0.99), basis: "" }, ofRecord: "TYPED" });
     expect(checks(typed)).toContain("error:Typed without a basis:BC-1");
     expect(checks(typed)).not.toContain("error:No value of record:BC-1");
-    expect(cellValueOfRecord(cellOfView(typed, "BC-1"))).toBe(0.99);
+    expect(cellExpressionOfRecord(cellOfView(typed, "BC-1"))).toEqual(probability(0.99));
+    const { load: _load, capacity: _capacity, ...bare } = cellOfView(typed, "BC-1");
+    const typedOnly = withCell(typed, "BC-1", bare);
+    expect(checks(typedOnly)).toContain("note:Cannot run:BC-1");
+    expect(checks(withCell(typedOnly, "BC-1", { ...bare, ofRecord: undefined }))).toContain("error:Cannot run:BC-1");
   });
 
   it("feeds a Step 04 cell to a Step 02 split fraction", () => {
@@ -104,7 +116,7 @@ describe("ESQ Step 04 barriers and phenomena", () => {
     expect(checks(esq)).not.toContain("warning:Not used:BC-1");
     const model = modelViewOf(esq);
     expect(model?.findings.map((finding) => `${finding.check}:${finding.item}`)).toContain("No Step 04 value:COOL");
-    const valued = withCell(esq, "BC-1", { ...cellOfView(esq, "BC-1"), typed: { value: 0.99, basis: "Window runs." }, ofRecord: "TYPED" });
+    const valued = withCell(esq, "BC-1", { ...cellOfView(esq, "BC-1"), typed: { expression: probability(0.99), basis: "Window runs." }, ofRecord: "TYPED" });
     expect(modelViewOf(valued)?.findings.map((finding) => finding.check)).not.toContain("No Step 04 value");
     const gone = withCell(valued, "BC-1", undefined);
     expect(modelViewOf(gone)?.findings.map((finding) => `${finding.check}:${finding.item}`)).toContain("Step 04 cell missing:COOL");
@@ -115,35 +127,38 @@ describe("ESQ Step 04 barriers and phenomena", () => {
     const cell = cellOfView(esq, "BC-1");
     const run = withCellRun(esq, "BC-1", { runId: "run-1", revision: 4, at: NOW, method: "POINT_LOAD", inputs: cellInputsKey(cell), point: 0.9912 });
     expect(cellOfView(run, "BC-1").ofRecord).toBe("RUN");
-    expect(cellValueOfRecord(cellOfView(run, "BC-1"))).toBe(0.9912);
+    expect(cellExpressionOfRecord(cellOfView(run, "BC-1"))).toEqual(probability(0.9912));
     expect(checks(run)).not.toContain("warning:Run out of date:BC-1");
-    const sampled = withCellRun(esq, "BC-1", { runId: "run-2", revision: 4, at: NOW, method: "POINT_LOAD", inputs: cellInputsKey(cell), point: 0.9912, mean: 0.98, p05: 0.9, p50: 0.99, p95: 0.999, samples: 2000, sampling: "LATIN_HYPERCUBE" });
-    expect(cellValueOfRecord(cellOfView(sampled, "BC-1"))).toBe(0.98);
-    const changed = withCell(run, "BC-1", { ...cellOfView(run, "BC-1"), capacity: { ...cell.capacity, distribution: { type: DistributionType.LOGNORMAL, median: 30, errorFactor: 1.287 } } });
+    const law: Law = { family: "TABULATED", points: [{ probability: 0, value: 0.9 }, { probability: 0.5, value: 0.99 }, { probability: 1, value: 0.999 }], scale: "LINEAR" };
+    const sampled = withCellRun(esq, "BC-1", { runId: "run-2", revision: 4, at: NOW, method: "POINT_LOAD", inputs: cellInputsKey(cell), point: 0.9912, mean: 0.98, p05: 0.9, p50: 0.99, p95: 0.999, samples: 2000, sampling: "LATIN_HYPERCUBE", law });
+    expect(cellExpressionOfRecord(cellOfView(sampled, "BC-1"))).toEqual({ node: "VALUE", value: { unit: "PROBABILITY", law } });
+    const changed = withCell(run, "BC-1", { ...cellOfView(run, "BC-1"), capacity: { source: "TYPED", variable: { law: { family: "LOGNORMAL", mean: 30, errorFactor: 1.287, level: 0.95 }, fields: [] }, basis: "" } });
     expect(checks(changed)).toContain("warning:Run out of date:BC-1");
   });
 
-  it("refuses bad laws, foreign parameters and mixed correlation keys", () => {
-    const model = barrierEsq().model;
+  it("names unknown fields, time units, foreign parameters and laws DA cannot give", () => {
+    const esq = barrierEsq();
     const base = windowCell("BC-9");
-    expect(resolveCell({ ...base, capacity: { ...base.capacity, distribution: { type: DistributionType.LOGNORMAL, median: 33.35, errorFactor: 0.9 } } }, model).problem).toBe("Capacity needs an error factor of at least 1.");
-    expect(resolveCell({ ...base, capacity: { ...base.capacity, uncertain: [{ parameter: "stdDev", distribution: { type: DistributionType.LOGNORMAL, median: 1, errorFactor: 2 } }] } }, model).problem).toBe("Capacity has no parameter stdDev to sample.");
-    const shared = resolveCell({
-      ...base,
-      load: { distribution: { type: DistributionType.NORMAL, mean: 1500, stdDev: 50 }, uncertain: [{ parameter: "mean", distribution: { type: DistributionType.NORMAL, mean: 1500, stdDev: 20 }, correlationKey: "K" }], basis: "" },
-      capacity: { distribution: { type: DistributionType.NORMAL, mean: 1800, stdDev: 60 }, uncertain: [{ parameter: "mean", distribution: { type: DistributionType.NORMAL, mean: 1800, stdDev: 20 }, correlationKey: "K" }], basis: "" },
-    }, model);
-    expect(shared.problem).toBe("Correlation key K joins parameters with different distributions.");
-    expect(resolveCell({ ...base, capacity: { parameterId: "P-WIN", basis: "" } }, model).cell?.capacity.distribution).toEqual({ type: DistributionType.LOGNORMAL, median: 33.35, errorFactor: 1.287 });
-    expect(resolveCell({ ...base, capacity: { parameterId: "P-IE", basis: "" } }, model).problem).toBe("Capacity takes P-IE, which has no distribution PRAXIS can integrate.");
-    expect(resolveCell({ ...base, load: { basis: "" } }, model).problem).toBe("Load has no distribution.");
+    const variable = (fields: { field: string; value: UncertainExpression }[]) => ({ source: "TYPED" as const, variable: { law: { family: "LOGNORMAL" as const, mean: 33.7, errorFactor: 1.287, level: 0.95 }, fields }, basis: "" });
+    expect(lawFieldNames({ family: "TRUNCATED", law: { family: "NORMAL", mean: 1, standardDeviation: 2 }, lower: 0, upper: null })).toEqual(["lower", "law.mean", "law.standardDeviation"]);
+    expect(resolveCell({ ...base, capacity: variable([{ field: "median", value: quantity({ family: "POINT", value: 30 }) }]) }, esq).problem).toBe("The capacity law has no field median to make uncertain.");
+    expect(resolveCell({ ...base, capacity: variable([{ field: "mean", value: quantity({ family: "POINT", value: 30 }) }, { field: "mean", value: quantity({ family: "POINT", value: 31 }) }]) }, esq).problem).toBe("The capacity makes mean uncertain twice.");
+    expect(resolveCell({ ...base, capacity: variable([{ field: "mean", value: { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: 30 } } } }]) }, esq).problem).toBe("The capacity field mean is typed per time or in time units. Type it as a quantity in the cell unit.");
+    expect(resolveCell({ ...base, capacity: variable([{ field: "mean", value: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-other", entityId: "P-WIN" } } }]) }, esq).problem).toBe("The capacity reads P-WIN from a workbook that Step 01 does not link as DA.");
+    const linked = resolveCell({ ...base, capacity: variable([{ field: "mean", value: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "P-WIN" } } }]) }, esq);
+    expect(linked.cell?.parameters.map((parameter) => parameter.reference.entityId)).toEqual(["P-WIN"]);
+    expect(resolveCell({ ...base, capacity: { source: "DA", parameterId: "P-WIN", basis: "" } }, esq).cell?.capacity).toEqual({ kind: "VARIABLE", variable: { law: { family: "LOGNORMAL", mean: 33.74468539677077, errorFactor: 1.287, level: 0.95 }, fields: [] } });
+    expect(resolveCell({ ...base, capacity: { source: "DA", parameterId: "P-SF", basis: "" } }, esq).problem).toBe("The capacity takes Shutdown cooling demand, which has no estimate in DA.");
+    expect(resolveCell({ ...base, capacity: { source: "DA", parameterId: "P-MIX", basis: "" } }, esq).problem).toBe("The capacity takes Scaled window, whose DA estimate is not one law.");
+    const { load: _load, ...noLoad } = base;
+    expect(resolveCell(noLoad, esq).problem).toBe("The cell has no load.");
   });
 
-  it("turns a fragility into a lognormal capacity with an uncertain median", () => {
-    const side = resolveSide({ fragility: { median: 2.08, betaR: 0.23, betaU: 0.3 }, basis: "Vessel fragility." }, [], "Capacity").side;
-    expect(side?.distribution).toEqual({ type: DistributionType.LOGNORMAL, median: 2.08, errorFactor: Math.exp(1.6448536269514722 * 0.23) });
-    expect(side?.uncertainParameters).toEqual([{ parameter: "median", distribution: { type: DistributionType.LOGNORMAL, median: 2.08, errorFactor: Math.exp(1.6448536269514722 * 0.3) } }]);
-    expect(resolveSide({ fragility: { median: 2.08, betaR: 0.23, betaU: 0 }, basis: "" }, [], "Capacity").side?.uncertainParameters).toEqual([]);
+  it("keeps a fragility as median and betas and names a median that is not above zero", () => {
+    const esq = barrierEsq();
+    const base = windowCell("BC-9");
+    expect(resolveCell({ ...base, capacity: { source: "FRAGILITY", fragility: { median: 2.08, betaR: 0.23, betaU: 0.3 }, basis: "Vessel fragility." } }, esq).cell?.capacity).toEqual({ kind: "FRAGILITY", fragility: { median: 2.08, betaR: 0.23, betaU: 0.3 } });
+    expect(resolveCell({ ...base, capacity: { source: "FRAGILITY", fragility: { median: 0, betaR: 0.23, betaU: 0.3 }, basis: "" } }, esq).problem).toBe("The capacity fragility needs a median above zero.");
   });
 
   it("checks credits against qualification and feasibility", () => {
@@ -169,7 +184,7 @@ describe("ESQ Step 04 barriers and phenomena", () => {
     const seismic: EventSequenceQuantification = { ...esq, modelIntegration: { ...esq.modelIntegration, scopeCoverage: { ...esq.modelIntegration.scopeCoverage, hazardGroups: ["Internal events", "Seismic events"] } } };
     expect(barriersViewOf(seismic)?.hazards).toEqual(["Seismic events"]);
     expect(checks(seismic)).toContain("warning:No hazard mechanism:Seismic events");
-    const cell: EsqCell = { ...windowCell("BC-2"), hazardGroup: "Seismic events", familyId: undefined, capacity: { fragility: { median: 2.08, betaR: 0.23, betaU: 0.3 }, basis: "Vessel fragility." }, load: { distribution: { type: DistributionType.UNIFORM, lower: 0.5, upper: 1 }, basis: "Ground motion bin." } };
+    const cell: EsqCell = { ...windowCell("BC-2"), hazardGroup: "Seismic events", familyId: undefined, capacity: { source: "FRAGILITY", fragility: { median: 2.08, betaR: 0.23, betaU: 0.3 }, basis: "Vessel fragility." }, load: { source: "TYPED", variable: { law: { family: "UNIFORM", lower: 0.5, upper: 1 }, fields: [] }, basis: "Ground motion bin." } };
     const { familyId: _family, ...hazardCell } = cell;
     const withHazard = withCell(seismic, "BC-2", hazardCell);
     expect(barriersViewOf(withHazard)?.hazardCells.map((entry) => entry.cell.id)).toEqual(["BC-2"]);

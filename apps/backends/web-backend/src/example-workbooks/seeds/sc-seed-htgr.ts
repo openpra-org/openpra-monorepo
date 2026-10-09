@@ -3,6 +3,7 @@ import { EndState } from "interfaces-mef-types/core/events";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type SRReference, type SRConformance, type HlrId, type PlantStage } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 
 const NOW = "2026-04-22T12:00:00.000Z";
 const CREATED = "2026-04-02T09:00:00.000Z";
@@ -12,6 +13,10 @@ const HLR_PATHS: Record<string, string[]> = {
   B: ["engineeringAnalyses"],
   C: ["documentation"],
 };
+
+function hours(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value } } };
+}
 
 function srs(...codes: string[]): SRReference[] {
   return codes.map((code) => ({ sr: code, hlr: code.charAt(3) as HlrId }));
@@ -557,17 +562,17 @@ export const SC_ANALYSIS_HTGR: SuccessCriteriaDevelopment = {
     },
   ],
   missionTimes: [
-    { uuid: "MT-PLOFC", eventSequenceReference: "EHP-1", missionTimeHours: 24, basis: "Both trains catch the decay curve at 7.6 h, stable well within 24 h (TF-CALC-H01).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-H01"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
-    { uuid: "MT-DLOFC", eventSequenceReference: "EHG-1", missionTimeHours: 72, basis: "The depressurized conduction cooldown peaks late, so the mission runs 72 h (TF-CALC-H01).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-H01"], isRiskSignificant: false, implementsSrs: srs("SC-A7") },
-    { uuid: "MT-INGRESS", eventSequenceReference: "EHT-1", missionTimeHours: 24, basis: "Isolation and dump complete within 2 h, cooling stable within 24 h (TF-CALC-H03).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-H03"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
-    { uuid: "MT-SCSL", eventSequenceReference: "EHB-P04-1", missionTimeHours: 24, basis: "Cavity cooling carries the shutdown decay load from the start (TF-CALC-H01).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-H01"], isRiskSignificant: false, implementsSrs: srs("SC-A7") },
-    { uuid: "MT-RELIEF", eventSequenceReference: "EHU-P02-6", missionTimeHours: 24, basis: "The relief-lift path is a release sequence, carried with a conservative end state.", safeStableStateAchievedWithinMissionTime: false, treatmentWhenNotAchieved: "CONSERVATIVE_END_STATE", treatmentJustification: "Kept as a release with no safe-state credit, handed to ESQ under RC-3 (CC-II).", analysisReferences: ["ST-CALC-H01"], isRiskSignificant: false, implementsSrs: srs("SC-A7") },
+    { uuid: "MT-PLOFC", eventSequenceReference: "EHP-1", missionTime: hours(24), basis: "Both trains catch the decay curve at 7.6 h, stable well within 24 h (TF-CALC-H01).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-H01"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
+    { uuid: "MT-DLOFC", eventSequenceReference: "EHG-1", missionTime: hours(72), basis: "The depressurized conduction cooldown peaks late, so the mission runs 72 h (TF-CALC-H01).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-H01"], isRiskSignificant: false, implementsSrs: srs("SC-A7") },
+    { uuid: "MT-INGRESS", eventSequenceReference: "EHT-1", missionTime: hours(24), basis: "Isolation and dump complete within 2 h, cooling stable within 24 h (TF-CALC-H03).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-H03"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
+    { uuid: "MT-SCSL", eventSequenceReference: "EHB-P04-1", missionTime: hours(24), basis: "Cavity cooling carries the shutdown decay load from the start (TF-CALC-H01).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-H01"], isRiskSignificant: false, implementsSrs: srs("SC-A7") },
+    { uuid: "MT-RELIEF", eventSequenceReference: "EHU-P02-6", missionTime: hours(24), basis: "The relief-lift path is a release sequence, carried with a conservative end state.", safeStableStateAchievedWithinMissionTime: false, treatmentWhenNotAchieved: "CONSERVATIVE_END_STATE", treatmentJustification: "Kept as a release with no safe-state credit, handed to ESQ under RC-3 (CC-II).", analysisReferences: ["ST-CALC-H01"], isRiskSignificant: false, implementsSrs: srs("SC-A7") },
   ],
   componentMissionTimes: [
-    { uuid: "CMT-1", componentId: "Class 1E battery", missionTimeHours: 24, eventSequenceReference: "EHL-1", analysisReferences: ["TF-CALC-H01"], implementsSrs: srs("SC-A8") },
-    { uuid: "CMT-2", componentId: "SCS circulator", missionTimeHours: 24, eventSequenceReference: "EHP-1", analysisReferences: ["TF-CALC-H01"], implementsSrs: srs("SC-A8") },
-    { uuid: "CMT-3", componentId: "Moisture monitor", missionTimeHours: 2, eventSequenceReference: "EHT-1", shorterMissionTimeJustification: "2 h duty covers the isolation window, after which the dump is complete.", analysisReferences: ["TF-CALC-H03"], implementsSrs: srs("SC-A8") },
-    { uuid: "CMT-4", componentId: "Building filter train", missionTimeHours: 72, eventSequenceReference: "EHG-1", analysisReferences: ["ST-CALC-H01"], implementsSrs: srs("SC-A8") },
+    { uuid: "CMT-1", componentId: "Class 1E battery", missionTime: hours(24), eventSequenceReference: "EHL-1", analysisReferences: ["TF-CALC-H01"], implementsSrs: srs("SC-A8") },
+    { uuid: "CMT-2", componentId: "SCS circulator", missionTime: hours(24), eventSequenceReference: "EHP-1", analysisReferences: ["TF-CALC-H01"], implementsSrs: srs("SC-A8") },
+    { uuid: "CMT-3", componentId: "Moisture monitor", missionTime: hours(2), eventSequenceReference: "EHT-1", shorterMissionTimeJustification: "2 h duty covers the isolation window, after which the dump is complete.", analysisReferences: ["TF-CALC-H03"], implementsSrs: srs("SC-A8") },
+    { uuid: "CMT-4", componentId: "Building filter train", missionTime: hours(72), eventSequenceReference: "EHG-1", analysisReferences: ["ST-CALC-H01"], implementsSrs: srs("SC-A8") },
   ],
   engineeringAnalyses: [
     { uuid: "TF-CALC-H01", analysisId: "TF-CALC-H01", usesRealisticMethods: true, analysisType: AnalysisType.THERMAL_HYDRAULIC, description: "Coupled sequence campaign for cooling criteria and windows", computerCode: "Plant conduction-cooldown model, DDET-coupled", codeVersion: "4.1.1", validationVerificationBasis: "76 engine probes, every outcome matched the closed-form heat balance within 0.5 minutes.", applicabilityToPlantConditions: "Forced cooling and conduction cooldown across all nine operating states.", keyParametersAndResults: { "Fuel-limit window at full power": "33.3 h", "Fuel-limit window at load follow": "50 h", "SCS trains at full power": "2 of 2", "SCS trains elsewhere": "1 of 2", "RCCS minimum capacity at power": "half of nominal", "RCCS minimum capacity shut down": "quarter of nominal" }, reasonablenessReview: { performed: true, method: "Independent reasonableness review", conclusion: "Results judged reasonable and consistent with the design heatup analyses." }, supportedSuccessCriteria: ["OSC-PLOFC", "OSC-DLOFC"], implementsSrs: srs("SC-B1", "SC-B4", "SC-B8") },

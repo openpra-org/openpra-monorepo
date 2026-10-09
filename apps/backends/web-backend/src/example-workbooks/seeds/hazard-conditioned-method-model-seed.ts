@@ -1,10 +1,15 @@
 import { randomUUID } from "crypto";
 import type { EventSequence, EventTree } from "interfaces-mef-types/es/event-sequence-analysis";
 import { EndState } from "interfaces-mef-types/core/events";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import type { HazardConditionedMethodModels } from "interfaces-mef-types/hazard-conditioned-models";
 import type {
   WorkbookFaultTree,
 } from "interfaces-mef-types/modeling";
+
+function typedProbability(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
+}
 
 function createHazardConditionedMethodModels(
   hazardCode: string,
@@ -52,7 +57,7 @@ function createHazardConditionedMethodModels(
     name: `${hazardName} response event tree`,
     description: `Success and failure response paths conditioned on ${hazardName}.`,
     initiatingEventId,
-    initiatingEventFrequency: { value: 1e-3 },
+    initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 1e-3 } } } },
     endStateIds: {
       SUCCESSFUL_MITIGATION: successEndStateId,
       RADIONUCLIDE_RELEASE: releaseEndStateId,
@@ -114,8 +119,8 @@ function createHazardConditionedMethodModels(
     initiatingEventFaultTrees: [faultTree],
     faultTreeCatalogue: {
       basicEvents: [
-        { id: hazardEventId, code: `${hazardCode}-HAZ`, name: `${hazardName} demand exceeds screening level`, description: `The ${hazardName} demand exceeds the retained screening level.`, probability: { value: 1e-3 } },
-        { id: mitigationEventId, code: `${hazardCode}-MIT-F`, name: "Hazard mitigation unavailable", description: `Credited mitigation is unavailable during the ${hazardName} demand.`, probability: { value: 1e-2 } },
+        { id: hazardEventId, code: `${hazardCode}-HAZ`, name: `${hazardName} demand exceeds screening level`, description: `The ${hazardName} demand exceeds the retained screening level.`, probability: { value: 1e-3, expression: typedProbability(1e-3) } },
+        { id: mitigationEventId, code: `${hazardCode}-MIT-F`, name: "Hazard mitigation unavailable", description: `Credited mitigation is unavailable during the ${hazardName} demand.`, probability: { value: 1e-2, expression: typedProbability(1e-2) } },
       ],
     },
     eventTrees: [eventTree],

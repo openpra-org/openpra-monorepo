@@ -9,12 +9,11 @@ import {
   type EsqBarrierWork,
   type EsqCell,
   type EsqCellRun,
+  type EsqCellSide,
   type EsqCellUse,
   type EsqCredit,
   type EsqCriterionRecord,
   type EsqImpactRecord,
-  type EsqLaw,
-  type EsqLawParameter,
   type EsqMechanism,
   type EsqMechanismKind,
   type EsqModel,
@@ -22,15 +21,15 @@ import {
   type EsqQualificationRecord,
   type EventSequenceQuantification,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { DistributionType } from "interfaces-mef-types/core/events";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import {
   barrierWorkOf,
+  cellExpressionOfRecord,
   cellRunStale,
-  cellValueOfRecord,
-  lawParameters,
-  lawValue,
+  cellRunValue,
   resolveCell,
 } from "interfaces-mef-types/esq/esq-barrier-inputs";
+import { expressionText, lawText } from "../newly-developed-methods/shared/uncertainText";
 import { modelViewOf, sameItem, type EsqFindingSeverity } from "./esqModel";
 import { ESQ_EXTERNAL_HAZARD_GROUPS } from "./esqViewData";
 
@@ -70,7 +69,8 @@ interface EsqCellView {
   barrier?: EsqBarrierView;
   mode?: EsqBarrierMode;
   familyName?: string;
-  value?: number;
+  runValue?: number;
+  expression?: UncertainExpression;
   stale: boolean;
   problem?: string;
   usedBy: string[];
@@ -115,45 +115,6 @@ const MECHANISM_KIND_LABELS: Record<EsqMechanismKind, string> = { PHENOMENON: "P
 
 const CELL_USE_LABELS: Record<EsqCellUse, string> = { SPLIT_FRACTION: "Split fraction", END_STATE_ATTRIBUTE: "End-state attribute" };
 
-const LAW_LABELS: Record<EsqLaw["type"], string> = {
-  [DistributionType.LOGNORMAL]: "Lognormal",
-  [DistributionType.NORMAL]: "Normal",
-  [DistributionType.UNIFORM]: "Uniform",
-  [DistributionType.EXPONENTIAL]: "Exponential",
-  [DistributionType.WEIBULL]: "Weibull",
-  [DistributionType.GAMMA]: "Gamma",
-  [DistributionType.BETA]: "Beta",
-  [DistributionType.POINT_ESTIMATE]: "Point value",
-};
-
-const LAW_TYPES: EsqLaw["type"][] = [
-  DistributionType.POINT_ESTIMATE,
-  DistributionType.NORMAL,
-  DistributionType.LOGNORMAL,
-  DistributionType.UNIFORM,
-  DistributionType.EXPONENTIAL,
-  DistributionType.WEIBULL,
-  DistributionType.GAMMA,
-  DistributionType.BETA,
-];
-
-const LAW_PARAMETER_LABELS: Record<EsqLawParameter, string> = {
-  value: "Value",
-  mean: "Mean",
-  stdDev: "Standard deviation",
-  median: "Median",
-  errorFactor: "Error factor",
-  lower: "Lower bound",
-  upper: "Upper bound",
-  failureRate: "Rate",
-  scale: "Scale",
-  shape: "Shape",
-  location: "Location",
-  rate: "Rate",
-  alpha: "Alpha",
-  betaParam: "Beta",
-};
-
 const FEASIBILITY_LABELS: Record<keyof EsqActionFeasibility, string> = {
   procedure: "Procedure",
   training: "Training",
@@ -192,58 +153,26 @@ function numberText(value: number): string {
   return `${Number(mantissa)}E${Number(exponent)}`;
 }
 
-function lawText(law: EsqLaw | undefined, unit: string): string {
-  if (law === undefined) return "Not set";
+function sideSourceText(side: EsqCellSide | undefined, unit: string): string {
+  if (side === undefined) return "Not set";
   const suffix = unit.trim().length > 0 ? ` ${unit.trim()}` : "";
-  const parts = lawParameters(law).map((parameter) => {
-    const value = lawValue(law, parameter);
-    const withUnit = parameter === "errorFactor" || parameter === "shape" || parameter === "alpha" || parameter === "betaParam" || parameter === "rate" || parameter === "failureRate" ? "" : suffix;
-    return `${LAW_PARAMETER_LABELS[parameter].toLowerCase()} ${value === undefined ? "—" : numberText(value)}${withUnit}`;
-  });
-  return `${LAW_LABELS[law.type]}, ${parts.join(", ")}`;
+  if (side.source === "FRAGILITY") return `Fragility, median ${numberText(side.fragility.median)}${suffix}, randomness ${numberText(side.fragility.betaR)}, uncertainty ${numberText(side.fragility.betaU)}`;
+  if (side.source === "DA") return `DA · ${side.parameterId}`;
+  const sampled = side.variable.fields.length;
+  return `${lawText(side.variable.law)}${suffix.length > 0 ? ` in${suffix}` : ""}${sampled > 0 ? ` · ${sampled} uncertain` : ""}`;
 }
 
-function lawCenter(law: EsqLaw | undefined): number {
-  if (law === undefined) return 1;
-  switch (law.type) {
-    case DistributionType.POINT_ESTIMATE: return law.value;
-    case DistributionType.NORMAL: return law.mean;
-    case DistributionType.LOGNORMAL: return law.median;
-    case DistributionType.UNIFORM: return (law.lower + law.upper) / 2;
-    case DistributionType.EXPONENTIAL: return law.failureRate > 0 ? 1 / law.failureRate : 1;
-    case DistributionType.WEIBULL: return law.location + law.scale;
-    case DistributionType.GAMMA: return law.rate > 0 ? law.shape / law.rate : 1;
-    case DistributionType.BETA: return law.alpha + law.betaParam > 0 ? law.alpha / (law.alpha + law.betaParam) : 0.5;
+function cellRecordText(cell: EsqCell, parameterLabel: (key: string) => string): string {
+  if (cell.ofRecord === "RUN") {
+    const value = cellRunValue(cell);
+    return value === undefined ? "No run kept" : numberText(value);
   }
+  if (cell.ofRecord === "TYPED" && cell.typed !== undefined) return expressionText(cell.typed.expression, parameterLabel);
+  return "—";
 }
 
-function convertLaw(from: EsqLaw | undefined, type: EsqLaw["type"]): EsqLaw {
-  const center = lawCenter(from);
-  const finiteCenter = Number.isFinite(center) ? center : 1;
-  const positive = finiteCenter > 0 ? finiteCenter : 1;
-  switch (type) {
-    case DistributionType.POINT_ESTIMATE: return { type, value: finiteCenter };
-    case DistributionType.NORMAL: return { type, mean: finiteCenter, stdDev: Math.abs(finiteCenter) > 0 ? Math.abs(finiteCenter) / 10 : 1 };
-    case DistributionType.LOGNORMAL: return { type, median: positive, errorFactor: 2 };
-    case DistributionType.UNIFORM: return finiteCenter === 0 ? { type, lower: -1, upper: 1 } : { type, lower: Math.min(finiteCenter * 0.9, finiteCenter * 1.1), upper: Math.max(finiteCenter * 0.9, finiteCenter * 1.1) };
-    case DistributionType.EXPONENTIAL: return { type, failureRate: 1 / positive };
-    case DistributionType.WEIBULL: return { type, scale: positive, shape: 2, location: 0 };
-    case DistributionType.GAMMA: return { type, shape: 2, rate: 2 / positive };
-    case DistributionType.BETA: return { type, alpha: 2, betaParam: 2 };
-  }
-}
-
-function withLawValue(law: EsqLaw, parameter: EsqLawParameter, value: number): EsqLaw {
-  switch (law.type) {
-    case DistributionType.POINT_ESTIMATE: return parameter === "value" ? { ...law, value } : law;
-    case DistributionType.NORMAL: return parameter === "mean" ? { ...law, mean: value } : parameter === "stdDev" ? { ...law, stdDev: value } : law;
-    case DistributionType.LOGNORMAL: return parameter === "median" ? { ...law, median: value } : parameter === "errorFactor" ? { ...law, errorFactor: value } : law;
-    case DistributionType.UNIFORM: return parameter === "lower" ? { ...law, lower: value } : parameter === "upper" ? { ...law, upper: value } : law;
-    case DistributionType.EXPONENTIAL: return parameter === "failureRate" ? { ...law, failureRate: value } : law;
-    case DistributionType.WEIBULL: return parameter === "scale" ? { ...law, scale: value } : parameter === "shape" ? { ...law, shape: value } : parameter === "location" ? { ...law, location: value } : law;
-    case DistributionType.GAMMA: return parameter === "shape" ? { ...law, shape: value } : parameter === "rate" ? { ...law, rate: value } : law;
-    case DistributionType.BETA: return parameter === "alpha" ? { ...law, alpha: value } : parameter === "betaParam" ? { ...law, betaParam: value } : law;
-  }
+function cellSamples(cell: EsqCell): boolean {
+  return [cell.load, cell.capacity].some((side) => (side?.source === "TYPED" && side.variable.fields.length > 0) || (side?.source === "FRAGILITY" && side.fragility.betaU > 0));
 }
 
 function modeLabel(mode: EsqBarrierMode | undefined): string {
@@ -305,14 +234,16 @@ function cellViews(esq: EventSequenceQuantification, model: EsqModel, cells: rea
   return cells.map((cell) => {
     const barrier = barriers.find((candidate) => candidate.id === cell.barrierId);
     const mode = barrier?.modes.find((candidate) => candidate.id === cell.modeId);
-    const resolved = resolveCell(cell, model);
+    const resolved = resolveCell(cell, esq);
     const view: EsqCellView = { cell, stale: cellRunStale(cell), usedBy: uses.get(cell.id) ?? [] };
     if (barrier !== undefined) view.barrier = barrier;
     if (mode !== undefined) view.mode = mode;
     const family = cell.familyId === undefined ? undefined : families.find((candidate) => candidate.id === cell.familyId);
     if (family !== undefined) view.familyName = family.name;
-    const value = cellValueOfRecord(cell);
-    if (value !== undefined) view.value = value;
+    const runValue = cell.ofRecord === "RUN" ? cellRunValue(cell) : undefined;
+    if (runValue !== undefined) view.runValue = runValue;
+    const expression = cellExpressionOfRecord(cell);
+    if (expression !== undefined) view.expression = expression;
     if (resolved.problem !== undefined) view.problem = resolved.problem;
     return view;
   });
@@ -411,16 +342,16 @@ function cellFindings(view: EsqBarriersView, esq: EventSequenceQuantification): 
     }
     if (blank(cell.variable)) findings.push({ severity: "warning", check: "Variable not named", item, detail: "Name the variable the load and capacity compare, such as peak fuel temperature.", target });
     if (cell.mechanismIds.length === 0) findings.push({ severity: "warning", check: "No mechanism", item, detail: "Name the phenomena behind the load.", target });
-    if (entry.problem !== undefined) findings.push({ severity: "error", check: "Cannot run", item, detail: entry.problem, target });
-    if (blank(cell.load.basis) || blank(cell.capacity.basis)) findings.push({ severity: "warning", check: "Basis missing", item, detail: "Give the analysis behind the load and the capacity (ESQ-C5, C14).", target });
-    if (entry.value === undefined) findings.push({ severity: "error", check: "No value of record", item, detail: "Run the cell in the Results tab or type its probability (ESQ-A3).", target });
+    if (entry.problem !== undefined) findings.push({ severity: cell.ofRecord === "TYPED" ? "note" : "error", check: "Cannot run", item, detail: entry.problem, target });
+    if ((cell.load !== undefined && blank(cell.load.basis)) || (cell.capacity !== undefined && blank(cell.capacity.basis))) findings.push({ severity: "warning", check: "Basis missing", item, detail: "Give the analysis behind the load and the capacity (ESQ-C5, C14).", target });
+    if (entry.expression === undefined) findings.push({ severity: "error", check: "No value of record", item, detail: "Run the cell in the Results tab or type its probability (ESQ-A3).", target });
     if (cell.ofRecord === "RUN" && entry.stale) findings.push({ severity: "warning", check: "Run out of date", item, detail: "The load or capacity changed after the run of record. Run it again.", target });
     if (cell.ofRecord === "TYPED" && blank(cell.typed?.basis)) findings.push({ severity: "error", check: "Typed without a basis", item, detail: "Give the source of the typed probability.", target });
     if (cc === "CC-II" && cell.basis === "CONSERVATIVE") findings.push({ severity: "note", check: "Conservative at CC-II", item, detail: "CC-II needs realistic loads and capacities for risk-significant families (ESQ-A9, C5, C14).", target });
     if (cc === "CC-II" && cell.basis === "REALISTIC" && blank(cell.aging)) findings.push({ severity: "warning", check: "Aging not stated", item, detail: "State how in-service aging enters the capacity (ESQ-C14).", target });
     if (cell.use === "SPLIT_FRACTION" && entry.usedBy.length === 0) findings.push({ severity: "warning", check: "Not used", item, detail: "No Step 02 function takes this cell as its split fraction. Link it in Step 02 or make it an end-state attribute.", target });
     if (preOperational && blank(cell.assumption?.calculation)) findings.push({ severity: "warning", check: "Assumption not recorded", item, detail: "Record the design calculation behind this cell as a pre-operational assumption (ESQ-C17).", target });
-    if (cell.hazardGroup !== undefined && cc === "CC-II" && cell.capacity.fragility === undefined) findings.push({ severity: "warning", check: "No fragility", item, detail: "CC-II calculates fragility curves for hazard capacity (ESQ-C15).", target });
+    if (cell.hazardGroup !== undefined && cc === "CC-II" && cell.capacity?.source !== "FRAGILITY") findings.push({ severity: "warning", check: "No fragility", item, detail: "CC-II calculates fragility curves for hazard capacity (ESQ-C15).", target });
   }
   for (const barrier of view.barriers) {
     for (const mechanism of barrier.mechanisms) {
@@ -599,15 +530,12 @@ export {
   CELL_USE_LABELS,
   FEASIBILITY_KEYS,
   FEASIBILITY_LABELS,
-  LAW_LABELS,
-  LAW_PARAMETER_LABELS,
-  LAW_TYPES,
   MECHANISM_KIND_LABELS,
   MODE_KIND_LABELS,
   barriersComplete,
   barriersViewOf,
-  convertLaw,
-  lawText,
+  cellRecordText,
+  cellSamples,
   modeLabel,
   nextBarrierId,
   nextCellId,
@@ -615,11 +543,11 @@ export {
   nextMechanismId,
   nextModeId,
   numberText,
+  sideSourceText,
   withBarrierEntry,
   withCell,
   withCellRun,
   withCredit,
-  withLawValue,
   withMechanism,
   withPhenomenaLogic,
   type EsqBarrierFinding,

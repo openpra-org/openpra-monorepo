@@ -35,7 +35,7 @@ function makeAnalysis(overrides: Partial<SystemsAnalysis> = {}): SystemsAnalysis
         description: "Cooling water fails",
         boundaries: [],
         successCriteriaIds: [],
-        missionTimeHours: 24,
+        missionTime: { node: "VALUE" as const, value: { unit: "HOURS" as const, law: { family: "POINT" as const, value: 24 } } },
         modeledComponentsAndFailures: {},
         informationBasis: "as-designed-as-intended",
         implementsSrs: [],
@@ -45,7 +45,7 @@ function makeAnalysis(overrides: Partial<SystemsAnalysis> = {}): SystemsAnalysis
         name: "Fire water",
         boundaries: [],
         successCriteriaIds: [],
-        missionTimeHours: 24,
+        missionTime: { node: "VALUE" as const, value: { unit: "HOURS" as const, law: { family: "POINT" as const, value: 24 } } },
         modeledComponentsAndFailures: {},
         informationBasis: "as-designed-as-intended",
         implementsSrs: [],
@@ -68,7 +68,8 @@ const LINKS: SyLinkedInputs = {
   posName: "",
   esName: "ES workbook",
   scSystems: [],
-  scMissionTimes: [],
+  scMissionTimeOptions: [],
+  scMissionTimeTable: new Map(),
   posStates: [],
   esSafetyFunctions: [
     { id: "SF-DHR", name: "Core heat removal", supportingSystems: ["Shutdown cooling system"] },
@@ -164,7 +165,7 @@ describe("SY Scope step", () => {
     expect(openDrawer).toHaveBeenCalledWith({ kind: "system", id: NEW_SYSTEM });
   });
 
-  it("adds a system with a 24 hour mission time and opens its editor", () => {
+  it("adds a system without a mission time and opens its editor", () => {
     const sy = makeAnalysis();
     const openDrawer = jest.fn();
     jest.spyOn(globalThis.crypto, "randomUUID").mockReturnValue("00000000-0000-4000-8000-000000000010");
@@ -172,8 +173,9 @@ describe("SY Scope step", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Add system" }));
     expect(applyLastMutation(sy).systemDefinitions).toContainEqual(
-      expect.objectContaining({ uuid: "00000000-0000-4000-8000-000000000010", name: "New system", missionTimeHours: 24, informationBasis: "as-designed-as-intended" }),
+      expect.objectContaining({ uuid: "00000000-0000-4000-8000-000000000010", name: "New system", informationBasis: "as-designed-as-intended" }),
     );
+    expect(applyLastMutation(sy).systemDefinitions.find((system) => system.name === "New system")).not.toHaveProperty("missionTime");
     expect(openDrawer).toHaveBeenCalledWith({ kind: "system", id: "00000000-0000-4000-8000-000000000010" });
   });
 

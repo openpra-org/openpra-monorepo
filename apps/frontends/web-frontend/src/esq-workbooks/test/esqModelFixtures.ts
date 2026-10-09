@@ -6,6 +6,7 @@ import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-rel
 import type { InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import type { PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { DistributionType, EndState, FrequencyUnit } from "interfaces-mef-types/core/events";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { EMPTY_UPSTREAM, type EsqUpstream } from "../esqLinks";
 import { blankEsq } from "./esqFixtures";
 
@@ -93,27 +94,45 @@ function model(id: string, system: string, events: string[], transfers: string[]
 
 const NO_GROUPS: CommonCauseFailureGroup[] = [];
 
+const PUMP_ESTIMATE: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "TRUNCATED", law: { family: "LOGNORMAL", mean: 2e-3, errorFactor: 5, level: 0.95 }, lower: null, upper: 1 } } };
+
+const FAN_RATE_ESTIMATE: UncertainExpression = { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "LOGNORMAL", mean: 2e-5, errorFactor: 3, level: 0.95 } } };
+
+function daParameter(id: string): UncertainExpression {
+  return { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: id } };
+}
+
+function fanMission(rate: UncertainExpression): UncertainExpression {
+  return { node: "MODEL", model: { form: "MISSION", rate, missionTime: { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: 24 } } } } };
+}
+
+const FAN_TYPED: UncertainExpression = fanMission({ node: "VALUE", value: { unit: "PER_HOUR", law: { family: "POINT", value: 2e-5 } } });
+
+const DIVISION_TYPED: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 1e-4 } } };
+
 const SY = {
   systemDefinitions: [
     { uuid: "SYS-COOL", name: "Cooling system", abbreviation: "COOL", modeledComponentsAndFailures: {} },
-    { uuid: "SYS-SUP", name: "Support system", abbreviation: "SUP", missionTimeHours: 24, modeledComponentsAndFailures: {} },
+    { uuid: "SYS-SUP", name: "Support system", abbreviation: "SUP", missionTime: { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: 24 } } }, modeledComponentsAndFailures: {} },
     { uuid: "SYS-RPS", name: "Protection system", abbreviation: "RPS", modeledComponentsAndFailures: {} },
   ],
   systemLogicModels: [model("COOL", "SYS-COOL", ["E-1"], ["SUP"]), model("SUP", "SYS-SUP", ["E-2", "E-3"]), model("RPS", "SYS-RPS", ["E-4"])],
   systemBasicEvents: [
-    { uuid: "E-1", code: "COOL-PMP-FS", name: "Pump fails to start", probability: 2e-3, failureMode: "FAILURE_TO_START", controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "P-1" } },
+    { uuid: "E-1", code: "COOL-PMP-FS", name: "Pump fails to start", failureMode: "FAILURE_TO_START", expression: daParameter("P-1") },
     { uuid: "E-2", code: "SUP-HFE", name: "Operator fails to align", probability: 1e-3, failureMode: "HUMAN_ERROR", dataAnalysisBasicEventRef: "HFE-1" },
-    { uuid: "E-3", code: "SUP-FAN-FR", name: "Fan fails to run", probability: 5e-4, failureMode: "FAILURE_TO_RUN" },
-    { uuid: "E-4", code: "RPS-DIV-FS", name: "Division fails to trip", probability: 1e-4, failureMode: "FAILURE_TO_START" },
+    { uuid: "E-3", code: "SUP-FAN-FR", name: "Fan fails to run", failureMode: "FAILURE_TO_RUN", expression: FAN_TYPED },
+    { uuid: "E-4", code: "RPS-DIV-FS", name: "Division fails to trip", failureMode: "FAILURE_TO_START", expression: DIVISION_TYPED },
   ],
   commonCauseFailureGroups: NO_GROUPS,
 } as SystemsAnalysis;
 
 const DA = {
   parameters: [
-    { uuid: "P-1", name: "Pump fails to start", parameterType: "PROBABILITY", value: 2e-3, valueType: "MEAN", uncertainty: { distribution: { type: DistributionType.LOGNORMAL, median: 1.2e-3, errorFactor: 5 } }, evidenceKind: "GENERIC_NUCLEAR" },
-    { uuid: "P-IE", name: "Loss of cooling", parameterType: "FREQUENCY", value: 3, valueType: "MEAN" },
-    { uuid: "P-PT", name: "Division fails to trip", parameterType: "PROBABILITY", value: 1e-4, valueType: "POINT_ESTIMATE" },
+    { uuid: "P-1", name: "Pump fails to start", parameterType: "PROBABILITY", quantificationModel: "DEMAND_PROBABILITY", estimate: PUMP_ESTIMATE, evidenceKind: "GENERIC_NUCLEAR" },
+    { uuid: "P-IE", name: "Loss of cooling", parameterType: "FREQUENCY", quantificationModel: "FREQUENCY", estimate: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 3 } } } },
+    { uuid: "P-PT", name: "Division fails to trip", parameterType: "PROBABILITY", quantificationModel: "DEMAND_PROBABILITY", estimate: DIVISION_TYPED },
+    { uuid: "P-FR", name: "Fan fails to run", parameterType: "FAILURE_RATE", quantificationModel: "RUNNING_RATE", estimate: FAN_RATE_ESTIMATE },
+    { uuid: "P-SF", name: "Shutdown cooling demand", parameterType: "PROBABILITY", value: 0.01, valueType: "MEAN", uncertainty: { distribution: { type: DistributionType.LOGNORMAL, median: 8e-3, errorFactor: 3 } } },
   ],
 } as DataAnalysis;
 
@@ -127,7 +146,7 @@ const IE = {
     uuid: "IEG-01",
     name: "Loss of cooling",
     applicableStates: ["POS-01", "POS-02"],
-    meanFrequency: { value: 2.943, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [2.5889, 2.3] } },
+    frequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "LOGNORMAL", mean: 2.943, errorFactor: 2.3, level: 0.95 } } }, basis: FrequencyUnit.PER_PLANT_YEAR },
   }],
 } as InitiatingEventsAnalysis;
 
@@ -146,4 +165,4 @@ function linkedEsq(): EventSequenceQuantification {
   return { ...blankEsq(), linkedWorkbooks: { ES: "es-1", SY: "sy-1", DA: "da-1", HRA: "hr-1", IE: "ie-1", POS: "pos-1" } };
 }
 
-export { linkedEsq, modelUpstream };
+export { PUMP_ESTIMATE, daParameter, fanMission, linkedEsq, modelUpstream };

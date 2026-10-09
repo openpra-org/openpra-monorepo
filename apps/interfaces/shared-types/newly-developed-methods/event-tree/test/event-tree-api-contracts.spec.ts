@@ -8,7 +8,6 @@ import {
   EsqSensitivityRunRequestSchema,
   EsqUncertaintyRunRequestSchema,
   EsqUncertaintyRunResultSchema,
-  EventTreeSamplingDistributionSchema,
   EventTreeAnalysisResultSchema,
   EventTreeCreateRequestSchema,
   EventTreeCreateResultSchema,
@@ -56,7 +55,7 @@ const model = {
   initiatingEvent: {
     target: { modelId: INITIATING_MODEL_ID, entityId: INITIATING_EVENT_ID },
   },
-  initiatingEventFrequency: { value: 0.001 },
+  initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 0.001 } } } },
   functionalEvents: [functionalEvent],
   functionalEventFaultTreeLinks: [
     {
@@ -142,7 +141,8 @@ describe("Event-tree model and create contracts", () => {
     { ...model, revision: 0 },
     { ...model, id: MODEL_ID },
     { ...model, projectId: "project-mhtgr" },
-    { ...model, initiatingEventFrequency: { value: -0.001 } },
+    { ...model, initiatingEventFrequency: { value: 0.001 } },
+    { ...model, initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: Number.NaN } } } } },
     { ...model, localState: true },
   ])("rejects malformed model %#", (candidate) => {
     expect(EventTreeModelSchema.safeParse(candidate).success).toBe(false);
@@ -465,7 +465,9 @@ describe("ESQ importance, uncertainty and sensitivity run contracts", () => {
   const logic = { flags: true, loopBreaks: "AS_SET", exclusions: true, expandCcf: true, recovery: true, dependency: true } as const;
   const owner = { workbookId: "esq-workbook", workbookRevision: 7, modelId: MODEL_ID };
   const tree = { treeId: "ET-PLOFC", runId: RUN_ID, status: "SUCCEEDED", initiatorFrequency: 2.72, failure: null } as const;
-  const stats = { point: 5.8e-5, mean: 7.6e-5, standardDeviation: 1.1e-4, p05: 4.8e-6, p50: 3.5e-5, p95: 2.7e-4 };
+  const stats = { point: 5.8e-5, mean: 7.6e-5, standardDeviation: 1.1e-4, standardError: 3.5e-6, p05: 4.8e-6, p50: 3.5e-5, p95: 2.7e-4 };
+  const lognormal = { family: "LOGNORMAL", mean: 1.2e-3, errorFactor: 5, level: 0.95 } as const;
+  const pumpStart = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "TRUNCATED", law: lognormal, lower: null, upper: 1 } } } as const;
   const importance = {
     schemaVersion: "1.0.0",
     kind: "ESQ_IMPORTANCE_RUN",
@@ -497,7 +499,7 @@ describe("ESQ importance, uncertainty and sensitivity run contracts", () => {
     trees: [tree],
     families: [{ familyId: "F-REL", endState: "RADIONUCLIDE_RELEASE", ...stats, values: [3.5e-5, 7.1e-5] }],
     total: stats,
-    keys: [{ key: "PARAMETER:P-1", label: "Pump fails to start (P-1)", source: "DA", distribution: { type: "LOGNORMAL", median: 1.2e-3, errorFactor: 5 }, events: 2 }],
+    keys: [{ key: "PARAMETER:P-1", label: "Pump fails to start (P-1)", source: "DA", expression: pumpStart, unit: "PROBABILITY", events: 2 }],
     unsampled: [{ id: "INITIATOR:IE-1", label: "Loss of flow (IE-1)", reason: "The initiator frequency has no distribution. Type an error factor." }],
   } as const;
 
@@ -532,12 +534,17 @@ describe("ESQ importance, uncertainty and sensitivity run contracts", () => {
   });
 
   it("rejects malformed summaries and distributions", () => {
+    const [key] = uncertainty.keys;
+    const withKey = (change: object): object => ({ ...uncertainty, keys: [{ ...key, ...change }] });
     expect(EsqImportanceRunResultSchema.safeParse({ ...importance, kind: "ESQ_MODEL_RUN" }).success).toBe(false);
     expect(EsqImportanceRunResultSchema.safeParse({ ...importance, targets: [{ ...importance.targets[0], kind: "MODULE" }] }).success).toBe(false);
     expect(EsqUncertaintyRunResultSchema.safeParse({ ...uncertainty, method: "SOBOL" }).success).toBe(false);
-    expect(EventTreeSamplingDistributionSchema.safeParse({ type: "UNIFORM", lower: 2, upper: 1 }).success).toBe(false);
-    expect(EventTreeSamplingDistributionSchema.safeParse({ type: "LOGNORMAL", median: 1e-3, errorFactor: 0.5 }).success).toBe(false);
-    expect(EventTreeSamplingDistributionSchema.safeParse({ type: "BETA", alpha: 0.5, beta: 120 }).success).toBe(true);
+    expect(EsqUncertaintyRunResultSchema.safeParse({ ...uncertainty, total: { point: stats.point, mean: stats.mean, standardDeviation: stats.standardDeviation, p05: stats.p05, p50: stats.p50, p95: stats.p95 } }).success).toBe(false);
+    expect(EsqUncertaintyRunResultSchema.safeParse(withKey({ expression: { ...pumpStart, value: { ...pumpStart.value, law: { family: "UNIFORM", lower: 2e-3, upper: 1e-3 } } } })).success).toBe(false);
+    expect(EsqUncertaintyRunResultSchema.safeParse(withKey({ expression: { ...pumpStart, value: { ...pumpStart.value, law: { ...pumpStart.value.law, law: { ...lognormal, errorFactor: 0.5 } } } } })).success).toBe(false);
+    expect(EsqUncertaintyRunResultSchema.safeParse(withKey({ expression: { ...pumpStart, value: { ...pumpStart.value, law: { family: "BETA", alpha: 0.5, beta: 120, lower: 0, upper: 1 } } } })).success).toBe(true);
+    expect(EsqUncertaintyRunResultSchema.safeParse({ ...uncertainty, keys: [{ key: key.key, label: key.label, source: key.source, distribution: { type: "LOGNORMAL", median: 1.2e-3, errorFactor: 5 }, events: key.events }] }).success).toBe(false);
+    expect(EsqUncertaintyRunResultSchema.safeParse(withKey({ unit: "PER_MONTH" })).success).toBe(false);
   });
 
   it("carries the importance and sampling sections of a tree run", () => {

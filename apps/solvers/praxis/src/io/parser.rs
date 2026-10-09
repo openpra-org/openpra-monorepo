@@ -4,14 +4,16 @@ use quick_xml::Reader;
 use std::collections::HashMap;
 use std::io::BufRead;
 
-use crate::core::ccf::{CcfGroup, CcfModel, RaspCcfEvent, TestingScheme};
+use crate::core::ccf::{alphas_key, fixed_components, phis_key, CcfGroup, CcfModel, RaspCcfEvent};
 use crate::core::event::{BasicEvent, HouseEvent};
 use crate::core::event_tree::{EventTree, InitiatingEvent};
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::{Formula, Gate};
 use crate::core::model::Model;
 use crate::error::{MefError, Result};
-use crate::expression::expr::{inverse_normal_cdf, LOGNORMAL_EF_QUANTILE};
+use crate::core::distribution::{CcfTesting, Law, QuantilePoint, TabulatedScale};
+use crate::core::distribution_math::NORMAL_QUANTILE_95;
+use crate::core::distribution_sampling::require_probability;
 use crate::expression::{EvalContext, Expr};
 
 #[derive(Debug)]
@@ -78,11 +80,11 @@ pub fn parse_element<R: BufRead>(reader: &mut Reader<R>, name: &str) -> Result<B
 }
 
 fn build_basic_event(name: &str, nominal: f64, value: Expr) -> Result<BasicEvent> {
-    let clamped = nominal.clamp(0.0, 1.0);
+    require_probability(&format!("basic event '{}'", name), None, nominal)?;
     if matches!(value, Expr::Constant(_)) {
-        BasicEvent::new(name.to_string(), clamped)
+        BasicEvent::new(name.to_string(), nominal)
     } else {
-        BasicEvent::with_value(name.to_string(), clamped, value)
+        BasicEvent::with_value(name.to_string(), nominal, value)
     }
 }
 
@@ -294,31 +296,45 @@ fn make_expr(name: &str, attrs: &[(String, String)], children: Vec<Expr>) -> Res
         }
 
         "uniform-deviate" => {
-            let (lower, upper) = take_two(children, name)?;
-            Ok(Expr::UniformDeviate { lower, upper })
+            let values = constant_arguments(children, name, 2)?;
+            law_expr(Law::Uniform {
+                lower: values[0],
+                upper: values[1],
+            })
         }
         "normal-deviate" => {
-            let (mean, sigma) = take_two(children, name)?;
-            Ok(Expr::NormalDeviate { mean, sigma })
+            let values = constant_arguments(children, name, 2)?;
+            law_expr(Law::Normal {
+                mean: values[0],
+                standard_deviation: values[1],
+            })
         }
         "lognormal-deviate" => lognormal_deviate_expr(children),
         "gamma-deviate" => {
-            let (shape, rate) = take_two(children, name)?;
-            Ok(Expr::GammaDeviate { shape, rate })
+            let values = constant_arguments(children, name, 2)?;
+            law_expr(Law::Gamma {
+                shape: values[0],
+                rate: 1.0 / values[1],
+            })
         }
         "beta-deviate" => {
-            let (alpha, beta) = take_two(children, name)?;
-            Ok(Expr::BetaDeviate { alpha, beta })
+            let values = constant_arguments(children, name, 2)?;
+            law_expr(Law::Beta {
+                alpha: values[0],
+                beta: values[1],
+                lower: 0.0,
+                upper: 1.0,
+            })
         }
         "triangular-deviate" => {
-            let (lower, mode, upper) = take_three(children, name)?;
-            Ok(Expr::TriangularDeviate { lower, mode, upper })
+            let values = constant_arguments(children, name, 3)?;
+            law_expr(Law::Triangular {
+                lower: values[0],
+                mode: values[1],
+                upper: values[2],
+            })
         }
-
-        "histogram" => Err(MefError::Validity(
-            "<histogram> in XML is not yet supported; supply it through the Boolean contract expression form".to_string(),
-        )
-        .into()),
+        "histogram" => histogram_expr(children),
 
         other => Err(
             MefError::Validity(format!("unsupported expression element <{}>", other)).into(),
@@ -326,39 +342,90 @@ fn make_expr(name: &str, attrs: &[(String, String)], children: Vec<Expr>) -> Res
     }
 }
 
+fn constant_arguments(children: Vec<Expr>, element: &str, count: usize) -> Result<Vec<f64>> {
+    if children.len() != count {
+        return Err(MefError::Validity(format!(
+            "<{}> requires exactly {} arguments",
+            element, count
+        ))
+        .into());
+    }
+    let empty = HashMap::new();
+    let ctx = EvalContext::constant(&empty, 1.0);
+    children
+        .iter()
+        .map(|child| {
+            if !child.draws().is_empty() || !child.parameter_names().is_empty() {
+                return Err(MefError::Validity(format!(
+                    "<{}> arguments must be numbers, not uncertain or named values",
+                    element
+                ))
+                .into());
+            }
+            child.evaluate(&ctx)
+        })
+        .collect()
+}
+
+fn law_expr(law: Law) -> Result<Expr> {
+    law.check_shape()?;
+    Ok(Expr::draw(law))
+}
+
 fn lognormal_deviate_expr(children: Vec<Expr>) -> Result<Expr> {
-    if children.len() != 2 && children.len() != 3 {
+    match children.len() {
+        2 => {
+            let values = constant_arguments(children, "lognormal-deviate", 2)?;
+            let (mu, sigma) = (values[0], values[1]);
+            law_expr(Law::Lognormal {
+                mean: (mu + 0.5 * sigma * sigma).exp(),
+                error_factor: (NORMAL_QUANTILE_95 * sigma).exp(),
+                level: 0.95,
+            })
+        }
+        3 => {
+            let values = constant_arguments(children, "lognormal-deviate", 3)?;
+            law_expr(Law::Lognormal {
+                mean: values[0],
+                error_factor: values[1],
+                level: values[2],
+            })
+        }
+        _ => Err(MefError::Validity(
+            "<lognormal-deviate> requires (mu, sigma) or (mean, error-factor, level)".to_string(),
+        )
+        .into()),
+    }
+}
+
+fn histogram_expr(children: Vec<Expr>) -> Result<Expr> {
+    if children.len() < 3 || children.len().is_multiple_of(2) {
         return Err(MefError::Validity(
-            "<lognormal-deviate> requires (mean, error-factor) or (mean, error-factor, level)"
-                .to_string(),
+            "<histogram> requires a lower boundary and at least one <bin>".to_string(),
         )
         .into());
     }
-    let level = if children.len() == 3 {
-        let empty = HashMap::new();
-        let ctx = EvalContext::constant(&empty, 1.0);
-        children[2].evaluate(&ctx)?
-    } else {
-        0.95
-    };
-    let z = if (level - 0.95).abs() < 1e-12 {
-        LOGNORMAL_EF_QUANTILE
-    } else {
-        inverse_normal_cdf(level)
-    };
-    let mean = children[0].clone();
-    let error_factor = children[1].clone();
-    let sigma = Expr::Div(vec![Expr::Ln(Box::new(error_factor)), Expr::Constant(z)]);
-    let mu = Expr::Sub(vec![
-        Expr::Ln(Box::new(mean)),
-        Expr::Div(vec![
-            Expr::Mul(vec![sigma.clone(), sigma.clone()]),
-            Expr::Constant(2.0),
-        ]),
-    ]);
-    Ok(Expr::LognormalDeviate {
-        mu: Box::new(mu),
-        sigma: Box::new(sigma),
+    let count = children.len();
+    let values = constant_arguments(children, "histogram", count)?;
+    let total: f64 = values[1..].chunks(2).map(|bin| bin[1]).sum();
+    let mut points = vec![QuantilePoint {
+        probability: 0.0,
+        value: values[0],
+    }];
+    let mut running = 0.0;
+    for bin in values[1..].chunks(2) {
+        running += bin[1];
+        points.push(QuantilePoint {
+            probability: running / total,
+            value: bin[0],
+        });
+    }
+    if let Some(last) = points.last_mut() {
+        last.probability = 1.0;
+    }
+    law_expr(Law::Tabulated {
+        points,
+        scale: TabulatedScale::Linear,
     })
 }
 
@@ -452,7 +519,17 @@ fn read_expr_children<R: BufRead>(reader: &mut Reader<R>, parent: &str) -> Resul
                 let name = qname_string(e.name())?;
                 let attrs = owned_attrs(&e)?;
                 let nested = read_expr_children(reader, &name)?;
-                children.push(make_expr(&name, &attrs, nested)?);
+                if name == "bin" && parent == "histogram" && nested.len() == 2 {
+                    children.extend(nested);
+                } else if name == "bin" {
+                    return Err(MefError::Validity(
+                        "<bin> belongs inside <histogram> and holds a boundary and a weight"
+                            .to_string(),
+                    )
+                    .into());
+                } else {
+                    children.push(make_expr(&name, &attrs, nested)?);
+                }
             }
             Ok(Event::End(e)) => {
                 if qname_string(e.name())? == parent {
@@ -957,63 +1034,39 @@ pub fn parse_ccf_group<R: BufRead>(
         .into());
     }
 
+    let total = distribution_value.ok_or_else(|| {
+        MefError::Validity(format!("CCF group {} requires a distribution", name))
+    })?;
+    if factors.is_empty() {
+        return Err(MefError::Validity(format!(
+            "CCF group {} requires factor values",
+            name
+        ))
+        .into());
+    }
+    let constants = |values: Vec<f64>| values.into_iter().map(Expr::Constant).collect();
     let model = match model_type.to_lowercase().as_str() {
         "beta-factor" => {
-            if factors.is_empty() {
+            if factors.len() != 1 {
                 return Err(MefError::Validity(format!(
-                    "Beta-Factor CCF group {} requires a factor value",
-                    name
+                    "Beta-Factor CCF group {} takes one factor, not {}",
+                    name,
+                    factors.len()
                 ))
                 .into());
             }
-            CcfModel::BetaFactor(factors[0])
+            CcfModel::BetaFactor(Expr::Constant(factors[0]))
         }
-        "alpha-factor" => {
-            if factors.is_empty() {
-                return Err(MefError::Validity(format!(
-                    "Alpha-Factor CCF group {} requires factor values",
-                    name
-                ))
-                .into());
-            }
-            CcfModel::AlphaFactor {
-                factors,
-                scheme: TestingScheme::NonStaggered,
-            }
-        }
-        "mgl" => {
-            if factors.is_empty() {
-                return Err(MefError::Validity(format!(
-                    "MGL CCF group {} requires factor values",
-                    name
-                ))
-                .into());
-            }
-            CcfModel::Mgl(factors)
-        }
-        "rasp-mgl" => {
-            if factors.is_empty() {
-                return Err(MefError::Validity(format!(
-                    "SAPHIRE RASP MGL CCF group {} requires factor values",
-                    name
-                ))
-                .into());
-            }
-            CcfModel::RaspMgl {
-                factors,
-                virtual_events,
-            }
-        }
-        "phi-factor" => {
-            if factors.is_empty() {
-                return Err(MefError::Validity(format!(
-                    "Phi-Factor CCF group {} requires factor values",
-                    name
-                ))
-                .into());
-            }
-            CcfModel::PhiFactor(factors)
-        }
+        "alpha-factor" => CcfModel::AlphaFactor {
+            testing: CcfTesting::NonStaggered,
+            alphas: fixed_components(&alphas_key(name), factors)?,
+        },
+        "mgl" => CcfModel::Mgl(constants(factors)),
+        "rasp-mgl" => CcfModel::RaspMgl {
+            factors: constants(factors),
+            virtual_events,
+        },
+        "phi-factor" => CcfModel::PhiFactor(fixed_components(&phis_key(name), factors)?),
         _ => {
             return Err(MefError::Validity(format!(
                 "Unknown CCF model type '{}' for group {}",
@@ -1023,13 +1076,7 @@ pub fn parse_ccf_group<R: BufRead>(
         }
     };
 
-    let mut ccf_group = CcfGroup::new(name, members, model)?;
-
-    if let Some(dist_value) = distribution_value {
-        ccf_group = ccf_group.with_distribution(dist_value.to_string());
-    }
-
-    Ok(ccf_group)
+    CcfGroup::new(name, members, model, Expr::Constant(total))
 }
 
 pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
@@ -1682,10 +1729,8 @@ mod tests {
         assert_eq!(ccf.members[0], "Pump1");
         assert_eq!(ccf.members[1], "Pump2");
 
-        match &ccf.model {
-            CcfModel::BetaFactor(beta) => assert_eq!(*beta, 0.2),
-            _ => panic!("Expected BetaFactor model"),
-        }
+        assert_eq!(ccf.model, CcfModel::BetaFactor(Expr::Constant(0.2)));
+        assert_eq!(ccf.total, Expr::Constant(0.1));
     }
 
     #[test]
@@ -1730,17 +1775,13 @@ mod tests {
         let ccf = ft.get_ccf_group("Pumps").unwrap();
         assert_eq!(ccf.members.len(), 3);
 
-        match &ccf.model {
+        assert_eq!(
+            ccf.model,
             CcfModel::AlphaFactor {
-                factors: alphas, ..
-            } => {
-                assert_eq!(alphas.len(), 3);
-                assert_eq!(alphas[0], 0.7);
-                assert_eq!(alphas[1], 0.2);
-                assert_eq!(alphas[2], 0.1);
+                testing: CcfTesting::NonStaggered,
+                alphas: fixed_components(&alphas_key("Pumps"), vec![0.7, 0.2, 0.1]).unwrap(),
             }
-            _ => panic!("Expected AlphaFactor model"),
-        }
+        );
     }
 
     #[test]
@@ -1782,14 +1823,10 @@ mod tests {
         let ccf = ft.get_ccf_group("Valves").unwrap();
         assert_eq!(ccf.members.len(), 3);
 
-        match &ccf.model {
-            CcfModel::Mgl(factors) => {
-                assert_eq!(factors.len(), 2);
-                assert_eq!(factors[0], 0.2);
-                assert_eq!(factors[1], 0.1);
-            }
-            _ => panic!("Expected MGL model"),
-        }
+        assert_eq!(
+            ccf.model,
+            CcfModel::Mgl(vec![Expr::Constant(0.2), Expr::Constant(0.1)])
+        );
     }
 
     #[test]
@@ -1823,7 +1860,7 @@ mod tests {
                 factors,
                 virtual_events,
             } => {
-                assert_eq!(factors, &vec![0.02, 0.0]);
+                assert_eq!(factors, &vec![Expr::Constant(0.02), Expr::Constant(0.0)]);
                 assert_eq!(virtual_events[0].id, "CCF-GROUP-AB");
                 assert_eq!(virtual_events[0].member_indices, vec![0, 1]);
             }
@@ -1913,7 +1950,7 @@ mod tests {
         let ccf = ft.get_ccf_group("Pumps").unwrap();
         assert_eq!(ccf.element().id(), "Pumps");
         assert_eq!(ccf.members.len(), 3);
-        assert!(ccf.distribution.is_some());
+        assert_eq!(ccf.total, Expr::Constant(0.1));
     }
 
     #[test]
@@ -2032,14 +2069,10 @@ mod tests {
         let ccf = ft.get_ccf_group("Components").unwrap();
         assert_eq!(ccf.members.len(), 2);
 
-        match &ccf.model {
-            CcfModel::PhiFactor(phis) => {
-                assert_eq!(phis.len(), 2);
-                assert_eq!(phis[0], 0.5);
-                assert_eq!(phis[1], 0.5);
-            }
-            _ => panic!("Expected PhiFactor model"),
-        }
+        assert_eq!(
+            ccf.model,
+            CcfModel::PhiFactor(fixed_components(&phis_key("Components"), vec![0.5, 0.5]).unwrap())
+        );
     }
 
     fn single_event_fault_tree(event_body: &str, extra: &str) -> String {
@@ -2073,15 +2106,43 @@ mod tests {
     }
 
     #[test]
-    fn parses_lognormal_deviate_mean_matches_input() {
+    fn rejects_a_bare_lognormal_deviate_on_a_basic_event() {
         let xml = single_event_fault_tree(
-            r#"<lognormal-deviate><float value="0.01"/><float value="3.0"/></lognormal-deviate>"#,
+            r#"<lognormal-deviate><float value="0.01"/><float value="3.0"/><float value="0.95"/></lognormal-deviate>"#,
+            "",
+        );
+        assert!(parse_fault_tree(&xml).is_err());
+    }
+
+    #[test]
+    fn accepts_an_explicitly_bounded_lognormal_deviate() {
+        let xml = single_event_fault_tree(
+            r#"<min><lognormal-deviate><float value="0.01"/><float value="3.0"/><float value="0.95"/></lognormal-deviate><float value="1"/></min>"#,
             "",
         );
         let ft = parse_fault_tree(&xml).unwrap();
         let event = ft.get_basic_event("A").unwrap();
-        assert!((event.probability() - 0.01).abs() < 1e-9);
-        assert!(event.value().is_some());
+        assert!((event.probability() - 0.01).abs() < 1e-15);
+        assert_eq!(event.value().unwrap().draws()[0].0, "event:A/0");
+    }
+
+    #[test]
+    fn reads_deviates_with_their_standard_meaning() {
+        let xml = single_event_fault_tree(
+            r#"<exponential><parameter name="rate"/><float value="1"/></exponential>"#,
+            r#"<define-parameter name="rate"><lognormal-deviate><float value="-9.0"/><float value="0.5"/></lognormal-deviate></define-parameter>
+               <define-parameter name="three"><lognormal-deviate><float value="1e-4"/><float value="3"/><float value="0.9"/></lognormal-deviate></define-parameter>
+               <define-parameter name="gamma"><gamma-deviate><float value="2"/><float value="0.005"/></gamma-deviate></define-parameter>
+               <define-parameter name="histogram"><histogram><float value="0"/><bin><float value="0.2"/><float value="1"/></bin><bin><float value="0.4"/><float value="3"/></bin></histogram></define-parameter>"#,
+        );
+        let ft = parse_fault_tree(&xml).unwrap();
+        let empty = HashMap::new();
+        let ctx = EvalContext::constant(&empty, 1.0);
+        let mean = |name: &str| ft.parameters()[name].evaluate(&ctx).unwrap();
+        assert!((mean("rate") - (-9.0f64 + 0.125).exp()).abs() < 1e-18);
+        assert!((mean("three") - 1e-4).abs() < 1e-19);
+        assert!((mean("gamma") - 0.01).abs() < 1e-17);
+        assert!((mean("histogram") - (0.1 * 0.25 + 0.3 * 0.75)).abs() < 1e-15);
     }
 
     #[test]

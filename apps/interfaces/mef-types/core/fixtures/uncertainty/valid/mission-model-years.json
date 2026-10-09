@@ -1,0 +1,36 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "fails-in-year"
+    },
+    "expression": {
+      "node": "MODEL",
+      "model": {
+        "form": "MISSION",
+        "rate": {
+          "node": "VALUE",
+          "value": {
+            "unit": "PER_YEAR",
+            "law": {
+              "family": "GAMMA",
+              "shape": 0.5,
+              "rate": 120
+            }
+          }
+        },
+        "missionTime": {
+          "node": "VALUE",
+          "value": {
+            "unit": "YEARS",
+            "law": {
+              "family": "POINT",
+              "value": 1
+            }
+          }
+        }
+      }
+    }
+  }
+]

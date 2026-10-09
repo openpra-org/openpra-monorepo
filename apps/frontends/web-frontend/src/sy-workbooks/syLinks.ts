@@ -2,8 +2,9 @@ import { type Workbook } from "interfaces-shared-types";
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import type { PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
-import type { DataAnalysis, ParameterType } from "interfaces-mef-types/da/data-analysis";
-import type { SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
+import { isComponentModel, type DataAnalysis, type ParameterType } from "interfaces-mef-types/da/data-analysis";
+import { carriesUncertainExpression, type CommonCauseFailureGroup, type SystemBasicEvent, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { expressionReferences, mapModelArguments, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { listWorkbooks } from "../workbooks/workbookApi";
 import { type DaWorkbookResponse } from "../da-workbooks/daWorkbookApi";
 import { type HrWorkbookResponse } from "../hr-workbooks/hrWorkbookApi";
@@ -13,12 +14,23 @@ import type {
   SyControlledComponentBoundaryOption,
   SyControlledFailureModeOption,
   SyControlledHumanFailureOption,
+  SyControlledLegacyParameterOption,
   SyControlledParameterOption,
   SyLinkCode,
   SyLinkedInputs,
 } from "./syWorkbookContext";
+import { componentUnit } from "./syBasicEventValues";
+import { scMissionTimeOptions, scMissionTimeTable, type ScMissionTimes } from "../sc-workbooks/scMissionTimeLinks";
+import { fetchJson } from "../api/client";
 
 const SY_LINK_CODES: SyLinkCode[] = ["ES", "SC", "POS", "DA", "HRA"];
+
+const SC_EXAMPLE_PREFIX = "example-sc-";
+
+interface ScMissionTimeSource {
+  workbookId: string;
+  sc: ScMissionTimes;
+}
 
 const SUPPORTED_PARAMETER_TYPES = new Set(["FREQUENCY", "FAILURE_RATE", "PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
 
@@ -72,8 +84,10 @@ function buildLinkedInputs(
   es: EventSequenceAnalysis | undefined,
   sc: SuccessCriteriaDevelopment | undefined,
   pos: PlantOperatingStatesAnalysis | undefined,
+  scExamples: readonly ScMissionTimeSource[],
 ): SyLinkedInputs | null {
-  if (es === undefined && sc === undefined && pos === undefined) return null;
+  if (es === undefined && sc === undefined && pos === undefined && scExamples.length === 0) return null;
+  const scSources: ScMissionTimeSource[] = [...(sc === undefined || ids.SC === undefined ? [] : [{ workbookId: ids.SC, sc }]), ...scExamples];
   return {
     esName: workbookName(options.ES, ids.ES),
     scName: workbookName(options.SC, ids.SC),
@@ -90,12 +104,8 @@ function buildLinkedInputs(
       capacities: criterion.requiredCapacities.map((capacity) => `${capacity.parameter}: ${capacity.value}`).join(" · "),
       supports: (criterion.systemDependencies ?? []).map((dependency) => ({ systemId: dependency.dependentSystemId, nature: dependency.dependencyNature })),
     })),
-    scMissionTimes: (sc?.missionTimes ?? []).map((missionTime) => ({
-      id: missionTime.uuid,
-      hours: missionTime.missionTimeHours,
-      sequence: missionTime.eventSequenceReference,
-      basis: missionTime.basis,
-    })),
+    scMissionTimeOptions: scSources.flatMap((source) => scMissionTimeOptions(source.workbookId, source.sc)),
+    scMissionTimeTable: new Map(scSources.flatMap((source) => [...scMissionTimeTable(source.workbookId, source.sc)])),
     esInitiatingEvents: esInitiatingEvents(es),
     posStates: (pos?.plantOperatingStates ?? []).map((state) => ({
       id: state.uuid,
@@ -106,13 +116,42 @@ function buildLinkedInputs(
   };
 }
 
+function failureModeFields(modes: ReadonlyMap<string, string>, failureModeRef: string | undefined): Pick<SyControlledParameterOption, "failureModeId" | "failureModeName"> {
+  const name = failureModeRef === undefined ? undefined : modes.get(failureModeRef);
+  return failureModeRef === undefined || name === undefined ? {} : { failureModeId: failureModeRef, failureModeName: name };
+}
+
+function optionOrder(left: { workbookName: string; parameterName: string }, right: { workbookName: string; parameterName: string }): number {
+  return [left.workbookName, left.parameterName].join(":").localeCompare([right.workbookName, right.parameterName].join(":"));
+}
+
 function controlledParameterOptions(sources: readonly DaSource[]): SyControlledParameterOption[] {
   return sources.flatMap(({ entry, workbook }) => {
     const modes = new Map((workbook.mef.failureModes ?? []).map((mode) => [mode.uuid, mode.name]));
     return workbook.mef.parameters.flatMap((parameter): SyControlledParameterOption[] => {
+      const model = parameter.quantificationModel;
+      const estimate = parameter.estimate;
+      if (model === undefined || !isComponentModel(model) || estimate === undefined) return [];
+      return [{
+        workbookId: entry.id,
+        workbookName: entry.name,
+        parameterId: parameter.uuid,
+        parameterName: parameter.name,
+        estimate,
+        unit: componentUnit(model),
+        ...failureModeFields(modes, parameter.failureModeRef),
+        ...(parameter.componentBoundaryRef === undefined ? {} : { componentBoundaryId: parameter.componentBoundaryRef }),
+      }];
+    });
+  }).sort(optionOrder);
+}
+
+function controlledLegacyParameterOptions(sources: readonly DaSource[]): SyControlledLegacyParameterOption[] {
+  return sources.flatMap(({ entry, workbook }) => workbook.mef.parameters.flatMap((parameter): SyControlledLegacyParameterOption[] => {
     const value = parameter.value;
     const rateUnit = RATE_UNITS[parameter.parameterType];
     if (
+      isComponentModel(parameter.quantificationModel) ||
       value === undefined ||
       !SUPPORTED_PARAMETER_TYPES.has(parameter.parameterType) ||
       !Number.isFinite(value) ||
@@ -124,17 +163,11 @@ function controlledParameterOptions(sources: readonly DaSource[]): SyControlledP
       workbookName: entry.name,
       parameterId: parameter.uuid,
       parameterName: parameter.name,
-      parameterType: parameter.parameterType as SyControlledParameterOption["parameterType"],
+      parameterType: parameter.parameterType as SyControlledLegacyParameterOption["parameterType"],
       value,
       ...(rateUnit === undefined ? {} : { rateUnit }),
-      uncertainty: parameter.uncertainty?.distribution,
-      ...(parameter.failureModeRef !== undefined && modes.has(parameter.failureModeRef)
-        ? { failureModeId: parameter.failureModeRef, failureModeName: modes.get(parameter.failureModeRef) }
-        : {}),
-      ...(parameter.componentBoundaryRef === undefined ? {} : { componentBoundaryId: parameter.componentBoundaryRef }),
     }];
-    });
-  }).sort((left, right) => [left.workbookName, left.parameterName].join(":").localeCompare([right.workbookName, right.parameterName].join(":")));
+  })).sort(optionOrder);
 }
 
 function sameHeldValue(held: number | undefined, value: number): boolean {
@@ -205,38 +238,93 @@ function controlledComponentBoundaryOptions(sources: readonly DaSource[]): SyCon
   }))).sort((left, right) => [left.workbookName, left.name].join(":").localeCompare([right.workbookName, right.name].join(":")));
 }
 
-function linkExampleEvents(events: readonly SystemBasicEvent[], workbookId: string, dataAnalysis: Pick<DataAnalysis, "parameters">): SystemBasicEvent[] {
-  const parameters = new Map(dataAnalysis.parameters
-    .filter((parameter) => LINKABLE_PARAMETER_TYPES.has(parameter.parameterType) && parameter.value !== undefined && Number.isFinite(parameter.value) && parameter.value >= 0 && parameter.value <= 1)
-    .map((parameter) => [parameter.uuid, parameter]));
-  return events.map((event) => {
+type ExampleAnalysis = Pick<SystemsAnalysis, "systemBasicEvents">;
+
+type DaParameter = DataAnalysis["parameters"][number];
+
+function relinkedExpression(expression: UncertainExpression, parameters: ReadonlyMap<string, DaParameter>, workbookId: string): UncertainExpression {
+  switch (expression.node) {
+    case "VALUE":
+      return expression;
+    case "PARAMETER":
+      return parameters.has(expression.reference.entityId) ? { node: "PARAMETER", reference: { ...expression.reference, workbookId } } : expression;
+    case "OPERATION":
+      return { ...expression, operands: expression.operands.map((operand) => relinkedExpression(operand, parameters, workbookId)) };
+    case "MODEL":
+      return { node: "MODEL", model: mapModelArguments(expression.model, (argument) => relinkedExpression(argument, parameters, workbookId)) };
+  }
+}
+
+function linkHumanExampleEvent(event: SystemBasicEvent, workbookId: string, parameter: DaParameter | undefined): SystemBasicEvent {
+  const value = parameter?.value;
+  if (
+    parameter === undefined ||
+    event.controlledDataSource?.referenceType !== undefined ||
+    isComponentModel(parameter.quantificationModel) ||
+    !LINKABLE_PARAMETER_TYPES.has(parameter.parameterType) ||
+    value === undefined ||
+    !Number.isFinite(value) ||
+    value < 0 ||
+    value > 1
+  ) return event;
+  return {
+    ...event,
+    probability: value,
+    controlledDataSource: { referenceType: "WORKBOOK_PARAMETER" as const, workbookId, entityId: parameter.uuid },
+    dataAnalysisBasicEventRef: undefined,
+  };
+}
+
+function linkComponentExampleEvent(event: SystemBasicEvent, workbookId: string, parameters: ReadonlyMap<string, DaParameter>): SystemBasicEvent {
+  const expression = event.expression;
+  return expression === undefined ? event : { ...event, expression: relinkedExpression(expression, parameters, workbookId) };
+}
+
+function linkExampleEvents(sy: ExampleAnalysis, workbookId: string, dataAnalysis: Pick<DataAnalysis, "parameters">): SystemBasicEvent[] {
+  const parameters = new Map(dataAnalysis.parameters.map((parameter) => [parameter.uuid, parameter]));
+  return sy.systemBasicEvents.map((event) => {
+    if (carriesUncertainExpression(event.failureMode)) return linkComponentExampleEvent(event, workbookId, parameters);
     const reference = event.dataAnalysisBasicEventRef;
-    if (event.controlledDataSource?.referenceType !== undefined || typeof reference !== "string") return event;
-    const parameter = parameters.get(reference);
-    if (parameter === undefined) return event;
-    return {
-      ...event,
-      probability: parameter.value,
-      controlledDataSource: { referenceType: "WORKBOOK_PARAMETER" as const, workbookId, entityId: parameter.uuid },
-      dataAnalysisBasicEventRef: undefined,
-    };
+    return linkHumanExampleEvent(event, workbookId, typeof reference === "string" ? parameters.get(reference) : undefined);
   });
+}
+
+function linkExampleGroups(sy: Pick<SystemsAnalysis, "commonCauseFailureGroups">, workbookId: string, dataAnalysis: Pick<DataAnalysis, "parameters">): CommonCauseFailureGroup[] {
+  const parameters = new Map(dataAnalysis.parameters.map((parameter) => [parameter.uuid, parameter]));
+  return sy.commonCauseFailureGroups.map((group) => ({ ...group, total: relinkedExpression(group.total, parameters, workbookId) }));
+}
+
+type MissionTimeHolders = Pick<SystemsAnalysis, "systemDefinitions" | "systemBasicEvents" | "commonCauseFailureGroups">;
+
+function exampleScIds(sy: MissionTimeHolders): string[] {
+  const expressions = [
+    ...sy.systemDefinitions.flatMap((system) => (system.missionTime === undefined ? [] : [system.missionTime])),
+    ...sy.systemBasicEvents.flatMap((event) => (event.expression === undefined ? [] : [event.expression])),
+    ...sy.commonCauseFailureGroups.map((group) => group.total),
+  ];
+  const ids = expressions.flatMap(expressionReferences).map((reference) => reference.workbookId);
+  return [...new Set(ids.filter((id) => id.startsWith(SC_EXAMPLE_PREFIX)))].sort();
+}
+
+async function loadExampleScMissionTimes(ids: readonly string[]): Promise<ScMissionTimeSource[]> {
+  const loaded = await Promise.allSettled(ids.map(async (workbookId) => {
+    const bundle = await fetchJson<{ sc: { mef: SuccessCriteriaDevelopment } }>(`/api/example-workbooks/sc-bundle?example=${encodeURIComponent(workbookId.slice(SC_EXAMPLE_PREFIX.length))}`);
+    return { workbookId, sc: { missionTimes: bundle.sc.mef.missionTimes, componentMissionTimes: bundle.sc.mef.componentMissionTimes ?? [] } };
+  }));
+  return loaded.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
 }
 
 function controlledCcfEstimateOptions(sources: readonly DaSource[]): SyControlledCcfEstimateOption[] {
   return sources.flatMap(({ entry, workbook }) => (workbook.mef.ccfParameterEstimations ?? []).flatMap((estimate): SyControlledCcfEstimateOption[] => {
-    const modelType = estimate.modelType;
-    if (modelType === "OTHER_EQUIVALENT") return [];
-    const values = Object.values(estimate.parameters);
-    if (values.length === 0 || values.some((value) => !Number.isFinite(value) || value < 0 || value > 1)) return [];
+    const factors = estimate.factors;
+    if (factors === undefined) return [];
     const source = estimate.dataSources?.[0]?.source;
     return [{
       workbookId: entry.id,
       workbookName: entry.name,
       estimateId: estimate.uuid,
       groupReference: estimate.ccfGroupReference,
-      modelType,
-      parameters: { ...estimate.parameters },
+      factors,
       ...(source === undefined || source.trim().length === 0 ? {} : { source }),
       riskSignificant: estimate.isRiskSignificant === true,
     }];
@@ -244,6 +332,7 @@ function controlledCcfEstimateOptions(sources: readonly DaSource[]): SyControlle
 }
 
 export {
+  SC_EXAMPLE_PREFIX,
   SY_LINK_CODES,
   buildLinkedInputs,
   controlledCcfEstimateOptions,
@@ -251,8 +340,13 @@ export {
   controlledComponentBoundaryOptions,
   controlledFailureModeOptions,
   controlledHumanFailureOptions,
+  controlledLegacyParameterOptions,
   controlledParameterOptions,
   heldValueDiffers,
   linkExampleEvents,
+  linkExampleGroups,
+  exampleScIds,
+  loadExampleScMissionTimes,
   listSyLinkOptions,
+  type ScMissionTimeSource,
 };

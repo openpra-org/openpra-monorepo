@@ -1,0 +1,13 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "x"
+    },
+    "expression": {
+      "node": "CONSTANT",
+      "value": 1
+    }
+  }
+]

@@ -1,4 +1,5 @@
 import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
+import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { ccScore, filterConformance, commentsView, stepsFromMef } from "../ieSelectors";
 
 function baseIe(overrides: Partial<InitiatingEventsAnalysis> = {}): InitiatingEventsAnalysis {
@@ -29,9 +30,13 @@ function baseIe(overrides: Partial<InitiatingEventsAnalysis> = {}): InitiatingEv
     applicablePlantOperatingStates: [],
     initiators: [],
     initiatingEventGroups: [],
-    completenessSearch: { functionalCategoriesCovered: [], perSystemSearchPerformed: false, perSupportSystemSearchPerformed: false, multiReactorEventsAddressed: false, radioactiveSourceMechanismsAddressed: false, implementsSrs: [] },
+    completenessSearch: { functionalCategoriesCovered: [], perSystemSearchPerformed: false, perSupportSystemSearchPerformed: false, multipleFailureInitiatorsIncluded: false, temporaryAlignmentsConsidered: false, multiReactorEventsAddressed: false, radioactiveSourceMechanismsAddressed: false, implementsSrs: [] },
+    sourceMechanisms: [],
+    identificationReviews: [],
+    plantRepresentationAccuracy: { scope: "PRE_OPERATIONAL", accuracy: ImportanceLevel.MEDIUM, basis: "", detailConsistentWithPlant: false, sufficientForRiskSignificantContributors: false, sufficiencyJustification: "", highConfidenceAreas: [], lowerConfidenceAreas: [], improvementPlans: [], implementsSrs: [] },
     quantifications: [],
     screeningRecords: [],
+    modelUncertainty: { uuid: "ie-mu", name: "IE model uncertainty", uncertaintySources: [], relatedAssumptions: [], reasonableAlternatives: [] },
     documentation: {
       processDescription: "", inputSources: "", appliedMethods: "", resultsSummary: "",
       functionalCategoriesConsidered: "", plantUniqueInitiatorsSearch: "", stateSpecificInitiatorsSearch: "",

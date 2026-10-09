@@ -6,6 +6,9 @@ import type { EsqModel, EsqTreeRecord, EventSequenceQuantification } from "inter
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { EventSequenceQuantificationSchema } from "interfaces-mef-types/zod/esq/event-sequence-quantification";
 import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
+import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
+import { SuccessCriteriaDevelopmentSchema } from "interfaces-mef-types/zod/sc/success-criteria-development";
+import { parameterReferenceKey, type UncertainParameter } from "interfaces-mef-types/core/uncertainty";
 import { esqSequenceRunId, esqTreeRunId, transferTreeIds, treesInScope } from "interfaces-mef-types/esq/esq-run-inputs";
 import { esqCellRunId } from "interfaces-mef-types/esq/esq-barrier-inputs";
 import { esqModelRunId, sequenceFamilyOf, solveInputsKey } from "interfaces-mef-types/esq/esq-solve-inputs";
@@ -38,11 +41,13 @@ import {
   type LoadCapacityAnalysisResult,
 } from "interfaces-shared-types/newly-developed-methods";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
-import { SY_EXAMPLES } from "../example-workbooks/seeds";
+import { SC_EXAMPLES, SY_EXAMPLES } from "../example-workbooks/seeds";
 import { ProjectsService } from "../projects/projects.service";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook.schema";
+import { ScWorkbook, type ScWorkbookDocument } from "../sc-workbooks/sc-workbook.schema";
 import { WorkbookModelAccessService } from "../workbooks/workbook-model-access.service";
+import { UncertaintyService } from "../newly-developed-methods/shared/uncertainty.service";
 import { assertExpectedWorkbookRevision, readWorkbookRevision } from "../workbooks/workbook-revision";
 import {
   combineFaultTrees,
@@ -57,7 +62,7 @@ import { buildEsqEventTreeRun, EsqRunBuildError, type EsqRunBuild } from "./esq-
 import { buildEsqCellRun, type EsqCellRunBuild } from "./esq-barrier-run-builder";
 import { summarizeEsqModelRun } from "./esq-model-run-summary";
 import { summarizeEsqPostRun, type EsqPostTreeInfo } from "./esq-post-run-summary";
-import { caseOverridesFor, importanceGroupsFor, importanceSpecFor, samplingSpecFor, type EsqSamplingTally } from "./esq-measure-run-builder";
+import { caseOverridesFor, importanceGroupsFor, importanceSpecFor, sampledBuild, type EsqSampling, type EsqSamplingTally } from "./esq-measure-run-builder";
 import { summarizeEsqImportanceRun, summarizeEsqUncertaintyRun } from "./esq-measure-run-summary";
 
 function sequenceFamilies(esq: EventSequenceQuantification, model: EsqModel, rootId: string): Record<string, string> {
@@ -71,24 +76,17 @@ function sequenceFamilies(esq: EventSequenceQuantification, model: EsqModel, roo
   return families;
 }
 
-function catalogueCodes(resource: Record<string, unknown>, codes: Record<string, string>): void {
-  const events: unknown = resource["basicEvents"];
-  if (!Array.isArray(events)) return;
-  for (const entry of events as unknown[]) {
-    if (typeof entry !== "object" || entry === null || !("id" in entry) || typeof entry.id !== "string") continue;
-    codes[entry.id] = "code" in entry && typeof entry.code === "string" && entry.code.length > 0 ? entry.code : entry.id;
-  }
-}
-
 @Injectable()
 export class EsqModelRunsService {
   constructor(
     @InjectModel(EsqWorkbook.name) private readonly esqWorkbookModel: Model<EsqWorkbookDocument>,
     @InjectModel(SyWorkbook.name) private readonly syWorkbookModel: Model<SyWorkbookDocument>,
+    @InjectModel(ScWorkbook.name) private readonly scWorkbookModel: Model<ScWorkbookDocument>,
     private readonly exampleWorkbooksService: ExampleWorkbooksService,
     private readonly accessService: WorkbookModelAccessService,
     private readonly projectsService: ProjectsService,
     private readonly analysisRunsService: WorkbookAnalysisRunsService,
+    private readonly uncertainty: UncertaintyService,
   ) {}
 
   private async loadEsq(workbookId: string): Promise<LoadedWorkbook<EventSequenceQuantification>> {
@@ -141,6 +139,52 @@ export class EsqModelRunsService {
     };
   }
 
+  private async loadSc(workbookId: string, owner: LoadedWorkbook<EventSequenceQuantification>, acting: ActingUser): Promise<LoadedWorkbook<SuccessCriteriaDevelopment>> {
+    if (workbookId.startsWith("example-")) {
+      const variant = workbookId.split("-").slice(2).join("-");
+      const entry = SC_EXAMPLES.find((candidate) => candidate.id === variant);
+      if (entry === undefined) throw new NotFoundException(`SC example ${variant} not found`);
+      const example = await this.exampleWorkbooksService.findBySlug(entry.slug);
+      const parsed = SuccessCriteriaDevelopmentSchema.safeParse(stripNulls(example.mef));
+      if (!parsed.success) throw new BadRequestException(`The SC example failed validation: ${parsed.error.message}`);
+      return {
+        hostType: "SC",
+        workbookId,
+        workbookRevision: 1,
+        projectId: owner.projectId,
+        ownerUsername: owner.ownerUsername,
+        mef: parsed.data,
+        document: { revision: 1, mef: parsed.data },
+      };
+    }
+    const document = await this.scWorkbookModel.findOne({ workbookId }).exec();
+    if (!document) throw new NotFoundException("The linked SC workbook was not found. Relink SC in Step 01.");
+    await this.projectsService.resolveAccess(document.projectId, acting);
+    const parsed = SuccessCriteriaDevelopmentSchema.safeParse(stripNulls(document.mef));
+    if (!parsed.success) throw new BadRequestException(`Stored SC workbook failed validation: ${parsed.error.message}`);
+    return {
+      hostType: "SC",
+      workbookId,
+      workbookRevision: 1,
+      projectId: document.projectId,
+      ownerUsername: document.ownerUsername,
+      mef: parsed.data,
+      document: { mef: document.mef },
+    };
+  }
+
+  private async loadMissionTimes(owner: LoadedWorkbook<EventSequenceQuantification>, acting: ActingUser): Promise<{ sources: LoadedWorkbook<SuccessCriteriaDevelopment>[]; missionTimes: Map<string, UncertainParameter> }> {
+    const missionTimes = new Map<string, UncertainParameter>();
+    const workbookId = owner.mef.linkedWorkbooks?.SC;
+    if (workbookId === undefined) return { sources: [], missionTimes };
+    const sc = await this.loadSc(workbookId, owner, acting);
+    for (const entry of [...sc.mef.missionTimes, ...(sc.mef.componentMissionTimes ?? [])]) {
+      const reference = { referenceType: "WORKBOOK_PARAMETER" as const, workbookId, entityId: entry.uuid };
+      missionTimes.set(parameterReferenceKey(reference), { reference, expression: entry.missionTime });
+    }
+    return { sources: [sc], missionTimes };
+  }
+
   async runEventTree(workbookId: string, treeId: string, body: object, acting: ActingUser): Promise<AnalysisRunMetadata> {
     const parsed = EsqEventTreeRunRequestSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
@@ -152,6 +196,7 @@ export class EsqModelRunsService {
     const syLink = owner.mef.model?.sources.find((source) => source.element === "SY");
     if (syLink === undefined) throw new BadRequestException("The Step 02 import holds no SY workbook. Link SY in Step 01 and import the model.");
     const sy = await this.loadSy(syLink.workbookId, owner, acting);
+    const sc = await this.loadMissionTimes(owner, acting);
     let build: EsqRunBuild;
     try {
       build = buildEsqEventTreeRun({
@@ -160,6 +205,7 @@ export class EsqModelRunsService {
         sy: sy.mef,
         syWorkbookId: sy.workbookId,
         syRevision: sy.workbookRevision,
+        missionTimes: sc.missionTimes,
         esqWorkbookId: workbookId,
         esqRevision: owner.workbookRevision,
         logic: request.logic,
@@ -169,12 +215,12 @@ export class EsqModelRunsService {
       throw error;
     }
     const runId = randomUUID();
-    const faultTrees = combineFaultTrees(runId, build.faultTrees);
+    const faultTrees = combineFaultTrees(runId, build.faultTrees, build.initiatorTables);
     return this.analysisRunsService.executePreparedEventTreeRun({
       runId,
       owner: { workbookId, modelId: build.rootModelId, workbookRevision: owner.workbookRevision },
       request,
-      sources: [owner, sy],
+      sources: [owner, sy, ...sc.sources],
       envelope: {
         schemaVersion: "1.0.0",
         request: {
@@ -208,13 +254,15 @@ export class EsqModelRunsService {
     const syLink = model.sources.find((source) => source.element === "SY");
     if (syLink === undefined) throw new BadRequestException("The Step 02 import holds no SY workbook. Link SY in Step 01 and import the model.");
     const sy = await this.loadSy(syLink.workbookId, owner, acting);
-    return { owner, model, roots, sy };
+    const sc = await this.loadMissionTimes(owner, acting);
+    return { owner, model, roots, sy, sc };
   }
 
   private prepareTrees(input: {
     workbookId: string;
     owner: LoadedWorkbook<EventSequenceQuantification>;
     sy: LoadedWorkbook<SystemsAnalysis>;
+    missionTimes: ReadonlyMap<string, UncertainParameter>;
     roots: readonly EsqTreeRecord[];
     schemaVersion: string;
     workbookRevision: number;
@@ -224,6 +272,7 @@ export class EsqModelRunsService {
     esq?: EventSequenceQuantification;
     acting: ActingUser;
     extras: (build: EsqRunBuild, root: EsqTreeRecord) => Record<string, unknown>;
+    transform?: (build: EsqRunBuild, root: EsqTreeRecord) => EsqRunBuild;
     eventCodes: Record<string, string>;
     builds: Map<string, EsqRunBuild>;
   }): EsqPreparedTreeRun[] {
@@ -232,14 +281,15 @@ export class EsqModelRunsService {
       const runId = randomUUID();
       const treeOwner = { workbookId, modelId: esqTreeRunId(root.id), workbookRevision: owner.workbookRevision };
       const childRequest = { schemaVersion: input.schemaVersion, treeId: root.id, workbookRevision: input.workbookRevision, logic: { ...input.logic } };
-      let build: EsqRunBuild;
+      let built: EsqRunBuild;
       try {
-        build = buildEsqEventTreeRun({
+        built = buildEsqEventTreeRun({
           esq: input.esq ?? owner.mef,
           treeId: root.id,
           sy: sy.mef,
           syWorkbookId: sy.workbookId,
           syRevision: sy.workbookRevision,
+          missionTimes: input.missionTimes,
           esqWorkbookId: workbookId,
           esqRevision: owner.workbookRevision,
           logic: input.logic,
@@ -248,16 +298,16 @@ export class EsqModelRunsService {
         });
       } catch (error) {
         if (!(error instanceof EsqRunBuildError)) throw error;
-        return { treeId: root.id, runId, owner: treeOwner, initiatorFrequency: null, request: childRequest, envelope: null, failure: error.message, models: [] };
+        return { treeId: root.id, runId, owner: treeOwner, request: childRequest, envelope: null, failure: error.message, models: [] };
       }
+      const build = input.transform === undefined ? built : input.transform(built, root);
       input.builds.set(root.id, build);
-      const faultTrees = combineFaultTrees(runId, build.faultTrees);
-      catalogueCodes(faultTrees.resource, input.eventCodes);
+      const faultTrees = combineFaultTrees(runId, build.faultTrees, build.initiatorTables);
+      Object.assign(input.eventCodes, build.eventCodes);
       return {
         treeId: root.id,
         runId,
         owner: treeOwner,
-        initiatorFrequency: build.frequency,
         request: childRequest,
         envelope: {
           schemaVersion: "1.0.0",
@@ -287,13 +337,14 @@ export class EsqModelRunsService {
     const parsed = EsqModelRunRequestSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
     const request = parsed.data;
-    const { owner, model, roots, sy } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const { owner, model, roots, sy, sc } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
     const eventCodes: Record<string, string> = {};
     const cutSets = request.cutSets;
     const trees = this.prepareTrees({
       workbookId,
       owner,
       sy,
+      missionTimes: sc.missionTimes,
       roots,
       schemaVersion: request.schemaVersion,
       workbookRevision: request.workbookRevision,
@@ -308,7 +359,7 @@ export class EsqModelRunsService {
     return this.analysisRunsService.executeEsqModelRun({
       owner: modelOwner,
       request,
-      sources: [owner, sy],
+      sources: [owner, sy, ...sc.sources],
       trees,
       summarize: (batchId, completedAt, outcomes) => summarizeEsqModelRun({
         esq: owner.mef,
@@ -328,7 +379,7 @@ export class EsqModelRunsService {
     const parsed = EsqPostRunRequestSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
     const request = parsed.data;
-    const { owner, roots, sy } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const { owner, roots, sy, sc } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
     const combinations = request.purpose === "COMBINATIONS";
     const logic: EsqEventTreeRunLogic = combinations ? { ...request.logic, dependency: false } : { ...request.logic, exclusions: false, dependency: false };
     const exclusions = (owner.mef.logic?.exclusions ?? []).flatMap((exclusion) => {
@@ -342,6 +393,7 @@ export class EsqModelRunsService {
       workbookId,
       owner,
       sy,
+      missionTimes: sc.missionTimes,
       roots,
       schemaVersion: request.schemaVersion,
       workbookRevision: request.workbookRevision,
@@ -364,7 +416,7 @@ export class EsqModelRunsService {
     return this.analysisRunsService.executeEsqModelRun({
       owner: postOwner,
       request,
-      sources: [owner, sy],
+      sources: [owner, sy, ...sc.sources],
       trees,
       summarize: (batchId, completedAt, outcomes) => summarizeEsqPostRun({
         request,
@@ -386,7 +438,7 @@ export class EsqModelRunsService {
     const parsed = EsqImportanceRunRequestSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
     const request = parsed.data;
-    const { owner, model, roots, sy } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const { owner, model, roots, sy, sc } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
     const groups = importanceGroupsFor(owner.mef, request.logic);
     const eventCodes: Record<string, string> = {};
     const builds = new Map<string, EsqRunBuild>();
@@ -395,6 +447,7 @@ export class EsqModelRunsService {
       workbookId,
       owner,
       sy,
+      missionTimes: sc.missionTimes,
       roots,
       schemaVersion: request.schemaVersion,
       workbookRevision: request.workbookRevision,
@@ -413,7 +466,7 @@ export class EsqModelRunsService {
     return this.analysisRunsService.executeEsqModelRun({
       owner: runOwner,
       request,
-      sources: [owner, sy],
+      sources: [owner, sy, ...sc.sources],
       trees,
       summarize: (batchId, completedAt, outcomes) => summarizeEsqImportanceRun({
         esq: owner.mef,
@@ -436,15 +489,17 @@ export class EsqModelRunsService {
     const parsed = EsqUncertaintyRunRequestSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
     const request = parsed.data;
-    const { owner, model, roots, sy } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const { owner, model, roots, sy, sc } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
     const inputs = new Map(sampledInputsOf(owner.mef).map((input) => [input.key, input]));
     const tally: EsqSamplingTally = { used: new Map(), unsampled: new Map() };
     const families = new Map<string, Record<string, string>>();
+    const samplings = new Map<string, EsqSampling>();
     const settings = { trials: request.trials, seed: request.seed, method: request.method, correlation: request.correlation };
     const trees = this.prepareTrees({
       workbookId,
       owner,
       sy,
+      missionTimes: sc.missionTimes,
       roots,
       schemaVersion: request.schemaVersion,
       workbookRevision: request.workbookRevision,
@@ -452,10 +507,15 @@ export class EsqModelRunsService {
       acting,
       eventCodes: {},
       builds: new Map(),
-      extras: (build, root) => {
+      transform: (build, root) => {
+        const sampled = sampledBuild({ esq: owner.mef, build, root, logic: request.logic, settings, inputs, tally, esqWorkbookId: workbookId });
+        samplings.set(root.id, sampled.sampling);
+        return sampled.build;
+      },
+      extras: (_build, root) => {
         const map = sequenceFamilies(owner.mef, model, root.id);
         families.set(root.id, map);
-        return { sampling: samplingSpecFor({ esq: owner.mef, build, root, logic: request.logic, settings, inputs, tally }), sequenceFamilies: map };
+        return { sampling: samplings.get(root.id), sequenceFamilies: map };
       },
     });
     const runOwner = { workbookId, modelId: esqUncertaintyRunId(), workbookRevision: owner.workbookRevision };
@@ -463,7 +523,7 @@ export class EsqModelRunsService {
     return this.analysisRunsService.executeEsqModelRun({
       owner: runOwner,
       request,
-      sources: [owner, sy],
+      sources: [owner, sy, ...sc.sources],
       trees,
       stored: (result) => (result.sampling === undefined ? result : { ...result, sampling: { ...result.sampling, families: result.sampling.families.map((family) => ({ familyId: family.familyId, values: [] })) } }),
       summarize: (batchId, completedAt, outcomes) => summarizeEsqUncertaintyRun({
@@ -479,7 +539,7 @@ export class EsqModelRunsService {
         seed: request.seed,
         method: request.method,
         correlation: request.correlation,
-        keys: [...tally.used.entries()].map(([entry, use]) => ({ key: entry, label: use.input.label, source: use.input.source ?? "TYPED", law: use.law, events: use.events.size })),
+        keys: [...tally.used.entries()].flatMap(([entry, use]) => (use.input.expression === undefined ? [] : [{ key: entry, label: use.input.label, source: use.input.source ?? "TYPED", expression: use.input.expression, unit: use.input.unit, events: use.events.size }])),
         unsampled: [...tally.unsampled.values()],
       }),
       acting,
@@ -491,7 +551,7 @@ export class EsqModelRunsService {
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
     const request = parsed.data;
     if (request.caseId !== caseId) throw new BadRequestException("Route case id must match the request caseId");
-    const { owner, model, roots, sy } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const { owner, model, roots, sy, sc } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
     const entry = caseOf(owner.mef, caseId);
     if (entry === undefined) throw new NotFoundException(`Step 09 holds no case ${caseId}.`);
     const applied = applySensitivityCase(owner.mef, entry);
@@ -504,6 +564,7 @@ export class EsqModelRunsService {
       workbookId,
       owner,
       sy,
+      missionTimes: sc.missionTimes,
       roots,
       schemaVersion: request.schemaVersion,
       workbookRevision: request.workbookRevision,
@@ -533,7 +594,7 @@ export class EsqModelRunsService {
     return this.analysisRunsService.executeEsqModelRun({
       owner: runOwner,
       request,
-      sources: [owner, sy],
+      sources: [owner, sy, ...sc.sources],
       trees,
       summarize: (batchId, completedAt, outcomes) => ({
         ...summarizeEsqModelRun({ esq: applied.esq, request: modelRequest, batchId, owner: runOwner, completedAt, inputs, outcomes, eventCodes }),
@@ -577,7 +638,7 @@ export class EsqModelRunsService {
     assertExpectedWorkbookRevision(owner.document, request.workbookRevision);
     let build: EsqCellRunBuild;
     try {
-      build = buildEsqCellRun({ esq: owner.mef, cellId, esqRevision: owner.workbookRevision });
+      build = await buildEsqCellRun({ esq: owner.mef, cellId, esqRevision: owner.workbookRevision }, (fit) => this.uncertainty.evaluate(fit));
     } catch (error) {
       if (error instanceof EsqRunBuildError) throw new BadRequestException(error.message);
       throw error;

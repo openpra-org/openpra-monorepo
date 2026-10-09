@@ -12,6 +12,10 @@ import type {
 } from "interfaces-shared-types/newly-developed-methods";
 import type { EsqTreeRunOutcome } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
 
+function initiatorFrequencyOf(outcome: EsqTreeRunOutcome): number | null {
+  return outcome.result?.frequencySemantics?.annualizedInitiatingEventFrequency.value ?? null;
+}
+
 interface EsqModelRunSummaryInput {
   esq: EventSequenceQuantification;
   request: EsqModelRunRequest;
@@ -149,7 +153,7 @@ function summarizeEsqModelRun(input: EsqModelRunSummaryInput): EsqModelRunResult
       treeId: outcome.treeId,
       runId: outcome.runId,
       status: outcome.status,
-      initiatorFrequency: outcome.initiatorFrequency,
+      initiatorFrequency: initiatorFrequencyOf(outcome),
       failure: outcome.failure,
     })),
     sequences,
@@ -160,4 +164,4 @@ function summarizeEsqModelRun(input: EsqModelRunSummaryInput): EsqModelRunResult
   };
 }
 
-export { summarizeEsqModelRun, type EsqModelRunSummaryInput };
+export { initiatorFrequencyOf, summarizeEsqModelRun, type EsqModelRunSummaryInput };

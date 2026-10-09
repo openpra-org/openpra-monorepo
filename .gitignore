@@ -104,6 +104,8 @@ traefik/
 fixtures/
 !apps/interfaces/shared-types/rc-workbooks/test/fixtures/
 !apps/interfaces/shared-types/rc-workbooks/test/fixtures/**
+!apps/interfaces/mef-types/core/fixtures/
+!apps/interfaces/mef-types/core/fixtures/**
 registry/
 docker-compose.yml
 docker-compose.infra.yml

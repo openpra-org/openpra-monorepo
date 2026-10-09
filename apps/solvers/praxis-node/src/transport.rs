@@ -40,6 +40,7 @@ impl SolverRequest {
                     | "EVENT_TREE"
                     | "HYBRID_CAUSAL_LOGIC"
                     | "LOAD_CAPACITY"
+                    | "UNCERTAINTY"
             )
         ) {
             return Err(TransportError::UnsupportedMethodType {

@@ -1,8 +1,17 @@
-import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
+import { ccfFactorExpressions, ccfFactorVector, type CcfFactorModel, type UncertainExpression, type UncertainVector } from "interfaces-mef-types/core/uncertainty";
 import type { SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
-import type { CommonCauseFailureGroup, SystemBasicEvent, SystemsAnalysis, SystemLogicModel, SystemUncertaintyAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import {
+  carriesUncertainExpression,
+  type CommonCauseFailureGroup,
+  type SystemBasicEvent,
+  type SystemsAnalysis,
+  type SystemLogicModel,
+  type SystemUncertaintyAnalysis,
+} from "interfaces-mef-types/sy/systems-analysis";
 import { systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
-import { eventParameter, treeEvents } from "./syIntegrityChecks";
+import { treeEvents } from "./syIntegrityChecks";
+import { ccfGroupsForModel, type CcfAnalysis } from "./syCcf";
+import { expressionUncertain, linkedOptions, missingReferences, valueTable, type ParameterTable } from "./syBasicEventValues";
 import type { SyControlledParameterOption } from "./syWorkbookContext";
 
 interface UncertaintyIssue {
@@ -11,17 +20,11 @@ interface UncertaintyIssue {
   message: string;
 }
 
-interface LinkedInput {
+interface UncertaintyInput {
   event: SystemBasicEvent;
-  source: SyControlledParameterOption;
-  distribution: ParameterDistribution;
-  issues: UncertaintyIssue[];
-}
-
-interface InputRow {
-  event: SystemBasicEvent;
-  source?: SyControlledParameterOption;
-  distribution?: ParameterDistribution;
+  expression?: UncertainExpression;
+  sources: SyControlledParameterOption[];
+  uncertain: boolean;
   issues: UncertaintyIssue[];
 }
 
@@ -29,7 +32,7 @@ type RunState = "READY" | "NO_INPUTS" | "NEEDS_FIX";
 
 interface RunReadiness {
   state: RunState;
-  inputs: LinkedInput[];
+  inputs: UncertaintyInput[];
   message: string;
 }
 
@@ -57,45 +60,6 @@ function blank(value: string | undefined): boolean {
   return (value ?? "").trim().length === 0;
 }
 
-function distributionIssues(distribution: ParameterDistribution): string[] {
-  const values = Object.values(distribution).filter((value): value is number => typeof value === "number");
-  if (values.some((value) => !Number.isFinite(value))) return ["Distribution parameters must be finite."];
-  switch (distribution.type) {
-    case DistributionType.BETA:
-      return distribution.alpha > 0 && distribution.betaParam > 0 ? [] : ["Beta alpha and beta must be positive."];
-    case DistributionType.LOGNORMAL:
-      return distribution.median > 0 && distribution.median <= 1 && distribution.errorFactor >= 1 ? [] : ["Lognormal median must be in (0, 1] and error factor at least one."];
-    case DistributionType.NORMAL:
-      return distribution.mean >= 0 && distribution.mean <= 1 && distribution.stdDev >= 0 ? [] : ["Normal mean must be in [0, 1] and standard deviation non-negative."];
-    case DistributionType.UNIFORM:
-      return distribution.lower >= 0 && distribution.lower < distribution.upper && distribution.upper <= 1 ? [] : ["Uniform bounds must satisfy 0 ≤ lower < upper ≤ 1."];
-    case DistributionType.GAMMA:
-      return distribution.shape > 0 && distribution.rate > 0 ? [] : ["Gamma shape and rate must be positive."];
-    case DistributionType.EXPONENTIAL:
-      return distribution.failureRate > 0 ? [] : ["Exponential rate must be positive."];
-    default:
-      return [`The ${distribution.type} distribution is not supported for fault-tree sampling.`];
-  }
-}
-
-function formatValue(value: number): string {
-  const size = Math.abs(value);
-  return size >= 0.01 && size < 1000 ? String(Number(value.toPrecision(4))) : value.toExponential(1).toUpperCase();
-}
-
-function distributionLabel(distribution: ParameterDistribution): string {
-  switch (distribution.type) {
-    case DistributionType.BETA: return `Beta, alpha ${formatValue(distribution.alpha)}, beta ${formatValue(distribution.betaParam)}`;
-    case DistributionType.LOGNORMAL: return `Lognormal, median ${formatValue(distribution.median)}, error factor ${formatValue(distribution.errorFactor)}`;
-    case DistributionType.NORMAL: return `Normal, mean ${formatValue(distribution.mean)}, standard deviation ${formatValue(distribution.stdDev)}`;
-    case DistributionType.UNIFORM: return `Uniform, ${formatValue(distribution.lower)} to ${formatValue(distribution.upper)}`;
-    case DistributionType.GAMMA: return `Gamma, shape ${formatValue(distribution.shape)}, rate ${formatValue(distribution.rate)}`;
-    case DistributionType.EXPONENTIAL: return `Exponential, rate ${formatValue(distribution.failureRate)}`;
-    case DistributionType.POINT_ESTIMATE: return `Point value ${formatValue(distribution.value)}`;
-    default: return distribution.type;
-  }
-}
-
 function analysisModelBasicEvents(sy: Pick<SystemsAnalysis, "systemLogicModels" | "systemBasicEvents">, model: SystemLogicModel): SystemBasicEvent[] {
   const events = new Map<string, SystemBasicEvent>();
   const visited = new Set<string>();
@@ -114,48 +78,56 @@ function analysisModelBasicEvents(sy: Pick<SystemsAnalysis, "systemLogicModels" 
   return [...events.values()];
 }
 
-function linkedModelInputs(
+function vectorUncertain(vector: UncertainVector | undefined): boolean {
+  if (vector === undefined) return false;
+  return vector.node === "PARAMETER" || vector.law.family === "DIRICHLET";
+}
+
+function factorsUncertain(factors: CcfFactorModel, table: ParameterTable): boolean {
+  return vectorUncertain(ccfFactorVector(factors)) || ccfFactorExpressions(factors).some((expression) => expressionUncertain(expression, table));
+}
+
+function ccfUncertain(sy: CcfAnalysis, model: SystemLogicModel, table: ParameterTable): boolean {
+  return ccfGroupsForModel(sy, model).some((group) => factorsUncertain(group.factors, table) || expressionUncertain(group.total, table));
+}
+
+function eventInput(event: SystemBasicEvent, parameters: readonly SyControlledParameterOption[], table: ParameterTable): UncertaintyInput {
+  const expression = event.expression;
+  const issues: UncertaintyIssue[] = [];
+  if (expression === undefined) issues.push(issue("NO_VALUE", "ERROR", "No value yet. Set it in Step 02."));
+  if (missingReferences(expression, table).length > 0) issues.push(issue("SOURCE_MISSING", "WARNING", "It links a value that is not in the linked DA or SC workbook."));
+  return {
+    event,
+    ...(expression === undefined ? {} : { expression }),
+    sources: linkedOptions(expression, parameters),
+    uncertain: expression !== undefined && expressionUncertain(expression, table),
+    issues,
+  };
+}
+
+function modelInputs(
   sy: Pick<SystemsAnalysis, "systemLogicModels" | "systemBasicEvents" | "commonCauseFailureGroups">,
   model: SystemLogicModel,
   parameters: readonly SyControlledParameterOption[],
-): LinkedInput[] {
-  const events = analysisModelBasicEvents(sy, model);
-  const eventById = new Map(events.map((event) => [event.uuid, event]));
-  const sampledSource = (id: string): string | undefined => {
-    const event = eventById.get(id);
-    const source = event === undefined ? undefined : eventParameter(event, parameters);
-    return source?.uncertainty === undefined || source.uncertainty.type === DistributionType.POINT_ESTIMATE ? undefined : `${source.workbookId}/${source.parameterId}`;
-  };
-  const mixedGroups = new Map<string, string>();
-  (sy.commonCauseFailureGroups ?? []).forEach((group) => {
-    const members = group.members?.basicEvents.map((member) => member.id) ?? [];
-    if (members.length < 2 || members.some((id) => !eventById.has(id))) return;
-    const sources = members.map(sampledSource);
-    const sampled = new Set(sources.filter((key) => key !== undefined));
-    if (sampled.size === 0 || (sampled.size === 1 && sources.every((key) => key !== undefined))) return;
-    members.forEach((id) => mixedGroups.set(id, group.name));
-  });
-  return events.filter((event) => event.failureMode !== "COMMON_CAUSE_FAILURE").flatMap((event): LinkedInput[] => {
-    const source = eventParameter(event, parameters);
-    if (source?.uncertainty === undefined || source.uncertainty.type === DistributionType.POINT_ESTIMATE) return [];
-    const issues = distributionIssues(source.uncertainty).map((message) => issue("DISTRIBUTION", "ERROR", message));
-    if (event.controlledDataSource?.referenceType !== "WORKBOOK_PARAMETER") issues.push(issue("LEGACY_LINK", "ERROR", "Linked by the old DA reference only. Pick the estimate in Step 02 so runs sample it."));
-    if (source.rateUnit !== undefined || event.quantificationBasis?.kind === "FAILURE_RATE") issues.push(issue("RATE", "ERROR", "Failure-rate sampling needs mission-time conversion."));
-    const group = mixedGroups.get(event.uuid);
-    if (group !== undefined) issues.push(issue("CCF_SOURCE", "ERROR", `The members of ${group} link different DA estimates. Link all of them to one estimate in Step 02.`));
-    return [{ event, source, distribution: source.uncertainty, issues }];
-  });
+  missionTimes: ParameterTable,
+): UncertaintyInput[] {
+  const events = analysisModelBasicEvents(sy, model).filter((event) => carriesUncertainExpression(event.failureMode));
+  const table = valueTable(parameters, missionTimes);
+  return events.map((event) => eventInput(event, parameters, table));
 }
 
 function runReadiness(
-  sy: Pick<SystemsAnalysis, "systemLogicModels" | "systemBasicEvents" | "commonCauseFailureGroups">,
+  sy: Pick<SystemsAnalysis, "systemDefinitions" | "systemLogicModels" | "systemBasicEvents" | "commonCauseFailureGroups">,
   model: SystemLogicModel,
   parameters: readonly SyControlledParameterOption[],
+  missionTimes: ParameterTable,
 ): RunReadiness {
-  const inputs = linkedModelInputs(sy, model, parameters);
-  if (inputs.length === 0) return { state: "NO_INPUTS", inputs, message: "No basic event in this fault tree has a DA distribution. Link a DA workbook in Step 01 Interfaces, then pick each event's estimate in Step 02." };
+  const inputs = modelInputs(sy, model, parameters, missionTimes);
   const blocking = inputs.flatMap((input) => input.issues.filter((item) => item.severity === "ERROR").map((item) => `${input.event.code}: ${item.message}`));
   if (blocking.length > 0) return { state: "NEEDS_FIX", inputs, message: blocking[0] ?? "" };
+  if (!inputs.some((input) => input.uncertain) && !ccfUncertain(sy, model, valueTable(parameters, missionTimes))) {
+    return { state: "NO_INPUTS", inputs, message: "No basic event or common cause group in this fault tree holds an uncertain value. Give one a distribution, or link a DA estimate that has one." };
+  }
   return { state: "READY", inputs, message: "" };
 }
 
@@ -163,20 +135,15 @@ function inputRows(
   sy: Pick<SystemsAnalysis, "systemLogicModels" | "systemBasicEvents" | "commonCauseFailureGroups">,
   systemId: string,
   parameters: readonly SyControlledParameterOption[],
-): InputRow[] {
+  missionTimes: ParameterTable,
+): UncertaintyInput[] {
   const model = sy.systemLogicModels.find((candidate) => candidate.systemReference === systemId);
   if (model === undefined) return [];
-  const linked = new Map(linkedModelInputs(sy, model, parameters).map((input) => [input.event.uuid, input]));
-  return treeEvents(sy, systemId)
-    .filter((event) => event.failureMode !== "HUMAN_ERROR" && event.failureMode !== "COMMON_CAUSE_FAILURE")
-    .map((event): InputRow => {
-      const input = linked.get(event.uuid);
-      if (input !== undefined) return { event, source: input.source, distribution: input.distribution, issues: input.issues };
-      const source = eventParameter(event, parameters);
-      if (source !== undefined) return { event, source, issues: [issue("NO_DISTRIBUTION", "WARNING", "The DA estimate has no distribution, so the run keeps its point value.")] };
-      if (event.failureMode === "TEST_MAINTENANCE") return { event, issues: [] };
-      return { event, issues: [issue("NO_ESTIMATE", "WARNING", "No DA estimate is linked, so the run keeps its point value.")] };
-    });
+  const inputs = new Map(modelInputs(sy, model, parameters, missionTimes).map((input) => [input.event.uuid, input]));
+  return treeEvents(sy, systemId).flatMap((event) => {
+    const input = inputs.get(event.uuid);
+    return input === undefined ? [] : [input];
+  });
 }
 
 function systemAnalyses(sy: Pick<SystemsAnalysis, "uncertaintyAnalyses">, systemId: string): SystemUncertaintyAnalysis[] {
@@ -293,7 +260,6 @@ function newSystemAnalysis(systemId: string): SystemUncertaintyAnalysis {
     system: systemId,
     propagationMethod: "MONTE_CARLO",
     modelUncertainties: [],
-    parameterUncertainties: [],
     implementsSrs: [{ sr: "SY-A32", hlr: "A" }, { sr: "SY-B16", hlr: "B" }],
   };
 }
@@ -330,10 +296,8 @@ export {
   coverageIssues,
   dependencySourceIssues,
   dependencySources,
-  distributionIssues,
-  distributionLabel,
   inputRows,
-  linkedModelInputs,
+  modelInputs,
   modelSourceIssues,
   modelSources,
   ownedCcfGroups,
@@ -350,12 +314,11 @@ export {
   withSystemAnalysis,
   type CcfSource,
   type DependencySource,
-  type InputRow,
-  type LinkedInput,
   type ModelSource,
   type PlantList,
   type RunReadiness,
   type RunState,
   type UncertaintyAnalysis,
+  type UncertaintyInput,
   type UncertaintyIssue,
 };

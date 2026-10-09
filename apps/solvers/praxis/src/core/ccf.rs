@@ -1,41 +1,55 @@
+use std::collections::HashSet;
+
+use crate::core::distribution::{
+    CcfFactorModel, CcfTesting, UncertainParameter, UncertainUnit, VectorLaw,
+};
+use crate::core::distribution_sampling::{require_probability, UncertaintyProgram};
 use crate::core::element::Element;
+use crate::error::{MefError, PraxisError};
 use crate::expression::Expr;
 use crate::Result;
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CcfGroup {
     element: Element,
-
     pub members: Vec<String>,
-
     pub model: CcfModel,
+    pub total: Expr,
+}
 
-    pub distribution: Option<String>,
-
-    #[serde(skip)]
-    pub uncertainty: Option<Expr>,
+fn structure_error(message: String) -> PraxisError {
+    PraxisError::Mef(MefError::Validity(message))
 }
 
 impl CcfGroup {
-    pub fn new(id: impl Into<String>, members: Vec<String>, model: CcfModel) -> Result<Self> {
+    pub fn new(
+        id: impl Into<String>,
+        members: Vec<String>,
+        mut model: CcfModel,
+        mut total: Expr,
+    ) -> Result<Self> {
         let element = Element::new(id.into())?;
-
         if members.len() < 2 {
-            return Err(crate::error::PraxisError::Logic(
-                "CCF group must have at least 2 members".to_string(),
-            ));
+            return Err(structure_error(format!(
+                "common cause group '{}' needs at least 2 members",
+                element.id()
+            )));
         }
-
-        model.validate(members.len())?;
-
-        Ok(CcfGroup {
+        model.validate(element.id(), members.len())?;
+        total.assign_draw_keys(&format!("ccf:{}/total", element.id()));
+        model.assign_draw_keys(element.id());
+        let group = CcfGroup {
             element,
             members,
             model,
-            distribution: None,
-            uncertainty: None,
-        })
+            total,
+        };
+        for (subject, check) in group.checks() {
+            if let Expr::Constant(value) = check {
+                require_probability(&subject, None, value)?;
+            }
+        }
+        Ok(group)
     }
 
     pub fn element(&self) -> &Element {
@@ -46,239 +60,305 @@ impl CcfGroup {
         &mut self.element
     }
 
-    pub fn with_distribution(mut self, distribution: String) -> Self {
-        self.distribution = Some(distribution);
-        self
-    }
-
-    pub fn with_uncertainty(mut self, uncertainty: Expr) -> Self {
-        self.uncertainty = Some(uncertainty);
-        self
-    }
-
     pub fn size(&self) -> usize {
         self.members.len()
     }
 
-    pub fn expand(&self, base_probability: f64) -> Result<Vec<CcfEvent>> {
+    pub fn checks(&self) -> Vec<(String, Expr)> {
+        let id = self.element.id();
+        let mut checks = vec![(
+            format!("common cause group '{}' total", id),
+            self.total.clone(),
+        )];
+        checks.extend(self.model.checks(id));
+        checks
+    }
+
+    pub fn expand(&self) -> Result<Vec<CcfEvent>> {
         self.model
-            .expand(self.element.id(), &self.members, base_probability)
+            .expand(self.element.id(), &self.members, &self.total)
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum TestingScheme {
-    #[default]
-    NonStaggered,
-    Staggered,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CcfModel {
-    BetaFactor(f64),
+    BetaFactor(Expr),
     AlphaFactor {
-        factors: Vec<f64>,
-        scheme: TestingScheme,
+        testing: CcfTesting,
+        alphas: Vec<Expr>,
     },
-    Mgl(Vec<f64>),
-    /// SAPHIRE RASP MGL expansion. Unlike an OpenPSA member CCF group, a
-    /// RASP event is a parent basic event which SAPHIRE replaces with named
-    /// virtual subset events (for example `GROUP-AB`). The subset mapping is
-    /// retained so PRAXIS can reproduce SAPHIRE's cut-set identities.
+    Mgl(Vec<Expr>),
     RaspMgl {
-        factors: Vec<f64>,
+        factors: Vec<Expr>,
         virtual_events: Vec<RaspCcfEvent>,
     },
-    PhiFactor(Vec<f64>),
+    PhiFactor(Vec<Expr>),
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RaspCcfEvent {
     pub id: String,
     pub member_indices: Vec<usize>,
 }
 
+pub fn alphas_key(group_id: &str) -> String {
+    format!("ccf:{}/alphas", group_id)
+}
+
+pub fn phis_key(group_id: &str) -> String {
+    format!("ccf:{}/phis", group_id)
+}
+
+pub fn fixed_components(key: &str, values: Vec<f64>) -> Result<Vec<Expr>> {
+    let law = VectorLaw::Fixed { values };
+    law.check_shape()?;
+    Ok((0..law.len())
+        .map(|index| Expr::Component {
+            key: key.to_string(),
+            index,
+            law: Box::new(law.clone()),
+        })
+        .collect())
+}
+
+fn scalar_factor(
+    table: &[UncertainParameter],
+    expression: &crate::core::distribution::UncertainExpression,
+    key: String,
+) -> Result<Expr> {
+    UncertaintyProgram::target(table, expression, &key, UncertainUnit::Fraction)
+}
+
 impl CcfModel {
-    pub fn validate(&self, member_count: usize) -> Result<()> {
+    pub fn from_factors(
+        group_id: &str,
+        factors: &CcfFactorModel,
+        table: &[UncertainParameter],
+        program: &UncertaintyProgram,
+    ) -> Result<CcfModel> {
+        factors.check_shape()?;
+        Ok(match factors {
+            CcfFactorModel::BetaFactor { beta } => CcfModel::BetaFactor(scalar_factor(
+                table,
+                beta,
+                format!("ccf:{}/beta", group_id),
+            )?),
+            CcfFactorModel::Mgl { factors } => CcfModel::Mgl(
+                factors
+                    .iter()
+                    .enumerate()
+                    .map(|(index, factor)| {
+                        scalar_factor(
+                            table,
+                            factor,
+                            format!("ccf:{}/factor/{}", group_id, index + 1),
+                        )
+                    })
+                    .collect::<Result<Vec<Expr>>>()?,
+            ),
+            CcfFactorModel::AlphaFactor { testing, alphas } => CcfModel::AlphaFactor {
+                testing: *testing,
+                alphas: program.vector_components(alphas, &alphas_key(group_id))?,
+            },
+            CcfFactorModel::PhiFactor { phis } => {
+                CcfModel::PhiFactor(program.vector_components(phis, &phis_key(group_id))?)
+            }
+        })
+    }
+
+    fn assign_draw_keys(&mut self, group_id: &str) {
         match self {
-            CcfModel::BetaFactor(beta) => {
-                if *beta < 0.0 || *beta > 1.0 {
-                    return Err(crate::error::PraxisError::Mef(
-                        crate::error::MefError::Domain {
-                            message: "Beta factor must be in range [0, 1]".to_string(),
-                            value: Some(beta.to_string()),
-                            attribute: Some("beta".to_string()),
-                        },
-                    ));
+            CcfModel::BetaFactor(beta) => beta.assign_draw_keys(&format!("ccf:{}/beta", group_id)),
+            CcfModel::AlphaFactor { alphas, .. } => {
+                for alpha in alphas {
+                    alpha.assign_draw_keys(&alphas_key(group_id));
                 }
             }
-            CcfModel::AlphaFactor {
-                factors: alphas, ..
-            } => {
-                if alphas.len() != member_count {
-                    return Err(crate::error::PraxisError::Logic(format!(
-                        "Alpha-Factor model requires {} parameters for {} members, got {}",
-                        member_count,
-                        member_count,
-                        alphas.len()
-                    )));
-                }
-
-                for (i, alpha) in alphas.iter().enumerate() {
-                    if *alpha < 0.0 || *alpha > 1.0 {
-                        return Err(crate::error::PraxisError::Mef(
-                            crate::error::MefError::Domain {
-                                message: format!(
-                                    "Alpha factor α_{} = {} must be in range [0, 1]",
-                                    i + 1,
-                                    alpha
-                                ),
-                                value: Some(alpha.to_string()),
-                                attribute: Some(format!("alpha_{}", i + 1)),
-                            },
-                        ));
-                    }
-                }
-
-                let sum: f64 = alphas.iter().sum();
-                if (sum - 1.0).abs() > 1e-6 {
-                    return Err(crate::error::PraxisError::Mef(
-                        crate::error::MefError::Domain {
-                            message: format!("Alpha factors must sum to 1, got {}", sum),
-                            value: Some(sum.to_string()),
-                            attribute: Some("alpha_sum".to_string()),
-                        },
-                    ));
+            CcfModel::PhiFactor(phis) => {
+                for phi in phis {
+                    phi.assign_draw_keys(&phis_key(group_id));
                 }
             }
-            CcfModel::Mgl(factors) => {
-                if factors.is_empty() || factors.len() > member_count - 1 {
-                    return Err(crate::error::PraxisError::Logic(format!(
-                        "MGL model requires 1 to {} Greek-letter factors for {} members, got {}",
-                        member_count - 1,
-                        member_count,
-                        factors.len()
-                    )));
-                }
-
-                for (i, q) in factors.iter().enumerate() {
-                    if *q < 0.0 || *q > 1.0 {
-                        return Err(crate::error::PraxisError::Mef(
-                            crate::error::MefError::Domain {
-                                message: format!(
-                                    "MGL factor Q_{} = {} must be in range [0, 1]",
-                                    i + 1,
-                                    q
-                                ),
-                                value: Some(q.to_string()),
-                                attribute: Some(format!("Q_{}", i + 1)),
-                            },
-                        ));
-                    }
+            CcfModel::Mgl(factors) | CcfModel::RaspMgl { factors, .. } => {
+                for (index, factor) in factors.iter_mut().enumerate() {
+                    factor.assign_draw_keys(&format!("ccf:{}/factor/{}", group_id, index + 1));
                 }
             }
+        }
+    }
+
+    pub fn validate(&self, group_id: &str, member_count: usize) -> Result<()> {
+        match self {
+            CcfModel::BetaFactor(_) => Ok(()),
+            CcfModel::AlphaFactor { alphas, .. } => {
+                same_size(group_id, "alpha factor", alphas.len(), member_count)
+            }
+            CcfModel::PhiFactor(phis) => same_size(group_id, "phi factor", phis.len(), member_count),
+            CcfModel::Mgl(factors) => mgl_size(group_id, factors.len(), member_count),
             CcfModel::RaspMgl {
                 factors,
                 virtual_events,
             } => {
-                validate_mgl_factors(factors, member_count)?;
+                mgl_size(group_id, factors.len(), member_count)?;
                 if virtual_events.is_empty() {
-                    return Err(crate::error::PraxisError::Logic(
-                        "SAPHIRE RASP MGL model requires virtual events".to_string(),
-                    ));
+                    return Err(structure_error(format!(
+                        "common cause group '{}' needs virtual events",
+                        group_id
+                    )));
                 }
-
-                let mut event_ids = std::collections::HashSet::new();
+                let mut event_ids = HashSet::new();
                 for event in virtual_events {
                     if event.id.is_empty() || !event_ids.insert(event.id.as_str()) {
-                        return Err(crate::error::PraxisError::Logic(
-                            "SAPHIRE RASP MGL virtual event IDs must be nonempty and unique"
-                                .to_string(),
-                        ));
+                        return Err(structure_error(format!(
+                            "common cause group '{}' needs unique, named virtual events",
+                            group_id
+                        )));
                     }
                     if event.member_indices.is_empty()
                         || event.member_indices.len() > factors.len() + 1
                     {
-                        return Err(crate::error::PraxisError::Logic(format!(
-                            "SAPHIRE RASP MGL virtual event '{}' has unsupported order {}",
+                        return Err(structure_error(format!(
+                            "virtual event '{}' of common cause group '{}' has order {}, outside 1 to {}",
                             event.id,
-                            event.member_indices.len()
+                            group_id,
+                            event.member_indices.len(),
+                            factors.len() + 1
                         )));
                     }
-                    let mut indices = std::collections::HashSet::new();
+                    let mut indices = HashSet::new();
                     for index in &event.member_indices {
                         if *index >= member_count || !indices.insert(*index) {
-                            return Err(crate::error::PraxisError::Logic(format!(
-                                "SAPHIRE RASP MGL virtual event '{}' has invalid member indices",
-                                event.id
+                            return Err(structure_error(format!(
+                                "virtual event '{}' of common cause group '{}' names an unknown or repeated member",
+                                event.id, group_id
                             )));
                         }
                     }
                 }
+                Ok(())
             }
-            CcfModel::PhiFactor(phis) => {
-                if phis.is_empty() || phis.len() > member_count {
-                    return Err(crate::error::PraxisError::Logic(format!(
-                        "Phi-Factor model requires 1 to {} factors for {} members, got {}",
-                        member_count,
-                        member_count,
-                        phis.len()
-                    )));
-                }
+        }
+    }
 
-                for (i, phi) in phis.iter().enumerate() {
-                    if *phi < 0.0 || *phi > 1.0 {
-                        return Err(crate::error::PraxisError::Mef(
-                            crate::error::MefError::Domain {
-                                message: format!(
-                                    "Phi factor φ_{} = {} must be in range [0, 1]",
-                                    i + 1,
-                                    phi
-                                ),
-                                value: Some(phi.to_string()),
-                                attribute: Some(format!("phi_{}", i + 1)),
-                            },
+    pub fn checks(&self, group_id: &str) -> Vec<(String, Expr)> {
+        match self {
+            CcfModel::BetaFactor(beta) => vec![(
+                format!("common cause group '{}' beta factor", group_id),
+                beta.clone(),
+            )],
+            CcfModel::Mgl(factors) | CcfModel::RaspMgl { factors, .. } => factors
+                .iter()
+                .enumerate()
+                .map(|(index, factor)| {
+                    (
+                        format!("common cause group '{}' MGL factor {}", group_id, index + 1),
+                        factor.clone(),
+                    )
+                })
+                .collect(),
+            CcfModel::AlphaFactor { .. } | CcfModel::PhiFactor(_) => Vec::new(),
+        }
+    }
+
+    pub fn expand(&self, group_id: &str, members: &[String], total: &Expr) -> Result<Vec<CcfEvent>> {
+        let n = members.len();
+        let mut events = Vec::new();
+        match self {
+            CcfModel::BetaFactor(beta) => {
+                let independent = product(
+                    vec![Expr::Sub(vec![Expr::Constant(1.0), beta.clone()])],
+                    total,
+                );
+                for (index, member) in members.iter().enumerate() {
+                    events.push(CcfEvent::new(
+                        format!("{}-indep-{}", group_id, index + 1),
+                        vec![member.clone()],
+                        independent.clone(),
+                    ));
+                }
+                events.push(CcfEvent::new(
+                    format!("{}-common", group_id),
+                    members.to_vec(),
+                    product(vec![beta.clone()], total),
+                ));
+            }
+            CcfModel::AlphaFactor { testing, alphas } => {
+                let weighted = Expr::Add(
+                    alphas
+                        .iter()
+                        .enumerate()
+                        .map(|(index, alpha)| {
+                            product(vec![Expr::Constant((index + 1) as f64)], alpha)
+                        })
+                        .collect(),
+                );
+                for k in 1..=n {
+                    let alpha = alphas[k - 1].clone();
+                    let value = match testing {
+                        CcfTesting::NonStaggered => product(
+                            vec![
+                                Expr::Constant(k as f64 / binomial(n - 1, k - 1)),
+                                Expr::Div(vec![alpha, weighted.clone()]),
+                            ],
+                            total,
+                        ),
+                        CcfTesting::Staggered => product(
+                            vec![Expr::Constant(1.0 / binomial(n - 1, k - 1)), alpha],
+                            total,
+                        ),
+                    };
+                    for (index, combination) in combinations(members, k).into_iter().enumerate() {
+                        events.push(CcfEvent::new(
+                            format!("{}-alpha-{}-{}", group_id, k, index + 1),
+                            combination,
+                            value.clone(),
                         ));
                     }
                 }
-
-                let sum: f64 = phis.iter().sum();
-                if (sum - 1.0).abs() > 1e-6 {
-                    return Err(crate::error::PraxisError::Mef(
-                        crate::error::MefError::Domain {
-                            message: format!("Phi factors must sum to 1, got {}", sum),
-                            value: Some(sum.to_string()),
-                            attribute: Some("phi_sum".to_string()),
-                        },
-                    ));
+            }
+            CcfModel::Mgl(factors) => {
+                for k in 1..=factors.len() + 1 {
+                    let value = mgl_subset(n, k, factors, total);
+                    for (index, combination) in combinations(members, k).into_iter().enumerate() {
+                        events.push(CcfEvent::new(
+                            format!("{}-mgl-{}-{}", group_id, k, index + 1),
+                            combination,
+                            value.clone(),
+                        ));
+                    }
                 }
             }
-        }
-        Ok(())
-    }
-
-    pub fn expand(
-        &self,
-        group_id: &str,
-        members: &[String],
-        base_probability: f64,
-    ) -> Result<Vec<CcfEvent>> {
-        match self {
-            CcfModel::BetaFactor(beta) => {
-                expand_beta_factor(group_id, members, *beta, base_probability)
-            }
-            CcfModel::AlphaFactor { factors, scheme } => {
-                expand_alpha_factor(group_id, members, factors, *scheme, base_probability)
-            }
-            CcfModel::Mgl(factors) => expand_mgl(group_id, members, factors, base_probability),
             CcfModel::RaspMgl {
                 factors,
                 virtual_events,
-            } => expand_rasp_mgl(members, factors, virtual_events, base_probability),
+            } => {
+                for virtual_event in virtual_events {
+                    events.push(CcfEvent::new(
+                        virtual_event.id.clone(),
+                        virtual_event
+                            .member_indices
+                            .iter()
+                            .map(|index| members[*index].clone())
+                            .collect(),
+                        mgl_subset(n, virtual_event.member_indices.len(), factors, total),
+                    ));
+                }
+            }
             CcfModel::PhiFactor(phis) => {
-                expand_phi_factor(group_id, members, phis, base_probability)
+                for (level, phi) in phis.iter().enumerate() {
+                    let k = level + 1;
+                    let value = product(vec![phi.clone()], total);
+                    for (index, combination) in combinations(members, k).into_iter().enumerate() {
+                        events.push(CcfEvent::new(
+                            format!("{}-phi-{}-{}", group_id, k, index + 1),
+                            combination,
+                            value.clone(),
+                        ));
+                    }
+                }
             }
         }
+        Ok(events)
     }
 
     pub fn model_name(&self) -> &'static str {
@@ -286,7 +366,7 @@ impl CcfModel {
             CcfModel::BetaFactor(_) => "Beta-Factor",
             CcfModel::AlphaFactor { .. } => "Alpha-Factor",
             CcfModel::Mgl(_) => "MGL",
-            CcfModel::RaspMgl { .. } => "SAPHIRE RASP MGL",
+            CcfModel::RaspMgl { .. } => "RASP MGL",
             CcfModel::PhiFactor(_) => "Phi-Factor",
         }
     }
@@ -296,190 +376,65 @@ impl CcfModel {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+fn same_size(group_id: &str, name: &str, count: usize, member_count: usize) -> Result<()> {
+    if count == member_count {
+        return Ok(());
+    }
+    Err(structure_error(format!(
+        "common cause group '{}' has {} members but {} {} values",
+        group_id, member_count, count, name
+    )))
+}
+
+fn mgl_size(group_id: &str, count: usize, member_count: usize) -> Result<()> {
+    if count >= 1 && count < member_count {
+        return Ok(());
+    }
+    Err(structure_error(format!(
+        "common cause group '{}' has {} members and needs 1 to {} MGL factors, not {}",
+        group_id,
+        member_count,
+        member_count - 1,
+        count
+    )))
+}
+
+fn product(mut factors: Vec<Expr>, total: &Expr) -> Expr {
+    factors.retain(|factor| *factor != Expr::Constant(1.0));
+    factors.push(total.clone());
+    if factors.len() == 1 {
+        return factors.remove(0);
+    }
+    Expr::Mul(factors)
+}
+
+fn mgl_subset(n: usize, k: usize, factors: &[Expr], total: &Expr) -> Expr {
+    let mut terms = vec![Expr::Constant(1.0 / binomial(n - 1, k - 1))];
+    terms.extend(factors[..k - 1].iter().cloned());
+    if k <= factors.len() {
+        terms.push(Expr::Sub(vec![Expr::Constant(1.0), factors[k - 1].clone()]));
+    }
+    product(terms, total)
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct CcfEvent {
     pub id: String,
-
     pub failed_members: Vec<String>,
-
-    pub probability: f64,
-
+    pub value: Expr,
     pub order: usize,
 }
 
 impl CcfEvent {
-    pub fn new(id: String, failed_members: Vec<String>, probability: f64) -> Self {
+    pub fn new(id: String, failed_members: Vec<String>, value: Expr) -> Self {
         let order = failed_members.len();
         CcfEvent {
             id,
             failed_members,
-            probability,
+            value,
             order,
         }
     }
-}
-
-fn expand_beta_factor(
-    group_id: &str,
-    members: &[String],
-    beta: f64,
-    base_prob: f64,
-) -> Result<Vec<CcfEvent>> {
-    let mut events = Vec::new();
-
-    let indep_prob = (1.0 - beta) * base_prob;
-    for (i, member) in members.iter().enumerate() {
-        let event_id = format!("{}-indep-{}", group_id, i + 1);
-        events.push(CcfEvent::new(event_id, vec![member.clone()], indep_prob));
-    }
-
-    let common_prob = beta * base_prob;
-    let event_id = format!("{}-common", group_id);
-    events.push(CcfEvent::new(event_id, members.to_vec(), common_prob));
-
-    Ok(events)
-}
-
-fn expand_alpha_factor(
-    group_id: &str,
-    members: &[String],
-    alphas: &[f64],
-    scheme: TestingScheme,
-    base_prob: f64,
-) -> Result<Vec<CcfEvent>> {
-    let mut events = Vec::new();
-    let n = members.len();
-    let alpha_total: f64 = alphas
-        .iter()
-        .enumerate()
-        .map(|(index, alpha)| (index + 1) as f64 * alpha)
-        .sum();
-
-    for k in 1..=n {
-        let alpha_k = alphas[k - 1];
-        let reciprocal = 1.0 / binomial(n - 1, k - 1);
-        let per_event = match scheme {
-            TestingScheme::NonStaggered => {
-                if alpha_total == 0.0 {
-                    0.0
-                } else {
-                    k as f64 * reciprocal * (alpha_k / alpha_total) * base_prob
-                }
-            }
-            TestingScheme::Staggered => reciprocal * alpha_k * base_prob,
-        };
-
-        for (i, combo) in generate_combinations(members, k).into_iter().enumerate() {
-            let event_id = format!("{}-alpha-{}-{}", group_id, k, i + 1);
-            events.push(CcfEvent::new(event_id, combo, per_event));
-        }
-    }
-
-    Ok(events)
-}
-
-fn expand_mgl(
-    group_id: &str,
-    members: &[String],
-    factors: &[f64],
-    base_prob: f64,
-) -> Result<Vec<CcfEvent>> {
-    let mut events = Vec::new();
-    let n = members.len();
-    let max_level = factors.len() + 1;
-
-    for k in 1..=max_level {
-        let per_event = mgl_subset_probability(n, k, factors, base_prob);
-
-        for (i, combo) in generate_combinations(members, k).into_iter().enumerate() {
-            let event_id = format!("{}-mgl-{}-{}", group_id, k, i + 1);
-            events.push(CcfEvent::new(event_id, combo, per_event));
-        }
-    }
-
-    Ok(events)
-}
-
-fn validate_mgl_factors(factors: &[f64], member_count: usize) -> Result<()> {
-    if factors.is_empty() || factors.len() > member_count - 1 {
-        return Err(crate::error::PraxisError::Logic(format!(
-            "MGL model requires 1 to {} Greek-letter factors for {} members, got {}",
-            member_count - 1,
-            member_count,
-            factors.len()
-        )));
-    }
-    for (i, factor) in factors.iter().enumerate() {
-        if *factor < 0.0 || *factor > 1.0 {
-            return Err(crate::error::PraxisError::Mef(
-                crate::error::MefError::Domain {
-                    message: format!(
-                        "MGL factor Q_{} = {} must be in range [0, 1]",
-                        i + 1,
-                        factor
-                    ),
-                    value: Some(factor.to_string()),
-                    attribute: Some(format!("Q_{}", i + 1)),
-                },
-            ));
-        }
-    }
-    Ok(())
-}
-
-fn mgl_subset_probability(n: usize, k: usize, factors: &[f64], base_prob: f64) -> f64 {
-    let max_level = factors.len() + 1;
-    let reciprocal = 1.0 / binomial(n - 1, k - 1);
-    let product: f64 = factors[..k - 1].iter().product();
-    let closing = if k < max_level {
-        1.0 - factors[k - 1]
-    } else {
-        1.0
-    };
-    reciprocal * product * closing * base_prob
-}
-
-fn expand_rasp_mgl(
-    members: &[String],
-    factors: &[f64],
-    virtual_events: &[RaspCcfEvent],
-    base_prob: f64,
-) -> Result<Vec<CcfEvent>> {
-    let n = members.len();
-    Ok(virtual_events
-        .iter()
-        .map(|virtual_event| {
-            let failed_members = virtual_event
-                .member_indices
-                .iter()
-                .map(|index| members[*index].clone())
-                .collect();
-            CcfEvent::new(
-                virtual_event.id.clone(),
-                failed_members,
-                mgl_subset_probability(n, virtual_event.member_indices.len(), factors, base_prob),
-            )
-        })
-        .collect())
-}
-
-fn expand_phi_factor(
-    group_id: &str,
-    members: &[String],
-    phis: &[f64],
-    base_prob: f64,
-) -> Result<Vec<CcfEvent>> {
-    let mut events = Vec::new();
-
-    for k in 1..=phis.len() {
-        let per_event = phis[k - 1] * base_prob;
-        for (i, combo) in generate_combinations(members, k).into_iter().enumerate() {
-            let event_id = format!("{}-phi-{}-{}", group_id, k, i + 1);
-            events.push(CcfEvent::new(event_id, combo, per_event));
-        }
-    }
-
-    Ok(events)
 }
 
 fn binomial(n: usize, k: usize) -> f64 {
@@ -494,7 +449,7 @@ fn binomial(n: usize, k: usize) -> f64 {
     result
 }
 
-fn generate_combinations(items: &[String], k: usize) -> Vec<Vec<String>> {
+fn combinations(items: &[String], k: usize) -> Vec<Vec<String>> {
     let n = items.len();
     if k > n || k == 0 {
         return vec![];
@@ -502,740 +457,270 @@ fn generate_combinations(items: &[String], k: usize) -> Vec<Vec<String>> {
     if k == n {
         return vec![items.to_vec()];
     }
-
     let mut result = Vec::new();
     let mut indices: Vec<usize> = (0..k).collect();
-
     loop {
-        let combo: Vec<String> = indices.iter().map(|&i| items[i].clone()).collect();
-        result.push(combo);
-
-        let mut pos = k;
-        while pos > 0 && indices[pos - 1] == n - k + pos - 1 {
-            pos -= 1;
+        result.push(indices.iter().map(|&i| items[i].clone()).collect());
+        let mut position = k;
+        while position > 0 && indices[position - 1] == n - k + position - 1 {
+            position -= 1;
         }
-
-        if pos == 0 {
+        if position == 0 {
             break;
         }
-
-        indices[pos - 1] += 1;
-        for j in pos..k {
+        indices[position - 1] += 1;
+        for j in position..k {
             indices[j] = indices[j - 1] + 1;
         }
     }
-
     result
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
+    use crate::core::distribution::{
+        Law, ParameterReference, ParameterReferenceType, UncertainExpression, UncertainValue,
+        UncertainVector, UncertainVectorParameter,
+    };
+    use crate::core::distribution_sampling::{SamplingMethod, SamplingPlan};
+    use crate::expression::EvalContext;
 
-    #[test]
-    fn test_ccf_group_creation() {
-        let members = vec!["E1".to_string(), "E2".to_string()];
-        let model = CcfModel::BetaFactor(0.1);
-        let group = CcfGroup::new("CCF1", members.clone(), model).unwrap();
-
-        assert_eq!(group.element().id(), "CCF1");
-        assert_eq!(group.members, members);
-        assert_eq!(group.size(), 2);
+    fn names(count: usize) -> Vec<String> {
+        (1..=count).map(|index| format!("E{}", index)).collect()
     }
 
-    #[test]
-    fn test_ccf_group_requires_min_two_members() {
-        let members = vec!["E1".to_string()];
-        let model = CcfModel::BetaFactor(0.1);
-        let result = CcfGroup::new("CCF1", members, model);
-
-        assert!(result.is_err());
+    fn numbers(values: &[f64]) -> Vec<Expr> {
+        values.iter().map(|value| Expr::Constant(*value)).collect()
     }
 
-    #[test]
-    fn test_beta_factor_validation() {
-        let model = CcfModel::BetaFactor(0.5);
-        assert!(model.validate(2).is_ok());
-
-        let invalid = CcfModel::BetaFactor(1.5);
-        assert!(invalid.validate(2).is_err());
-
-        let negative = CcfModel::BetaFactor(-0.1);
-        assert!(negative.validate(2).is_err());
-    }
-
-    fn alpha(factors: Vec<f64>) -> CcfModel {
+    fn alpha(group: &str, testing: CcfTesting, values: &[f64]) -> CcfModel {
         CcfModel::AlphaFactor {
-            factors,
-            scheme: TestingScheme::NonStaggered,
+            testing,
+            alphas: fixed_components(&alphas_key(group), values.to_vec()).unwrap(),
         }
     }
 
-    #[test]
-    fn test_alpha_factor_validation() {
-        let model = alpha(vec![0.7, 0.3]);
-        assert!(model.validate(2).is_ok());
-
-        let wrong_count = alpha(vec![0.7, 0.3]);
-        assert!(wrong_count.validate(3).is_err());
-
-        let wrong_sum = alpha(vec![0.5, 0.3]);
-        assert!(wrong_sum.validate(2).is_err());
+    fn group(id: &str, count: usize, model: CcfModel, total: f64) -> CcfGroup {
+        CcfGroup::new(id, names(count), model, Expr::Constant(total)).unwrap()
     }
 
-    #[test]
-    fn test_beta_factor_expansion() {
-        let members = vec!["E1".to_string(), "E2".to_string()];
-        let beta = 0.1;
-        let base_prob = 0.01;
-
-        let events = expand_beta_factor("CCF1", &members, beta, base_prob).unwrap();
-
-        assert_eq!(events.len(), 3);
-
-        assert!((events[0].probability - 0.009).abs() < 1e-9);
-        assert!((events[1].probability - 0.009).abs() < 1e-9);
-
-        assert!((events[2].probability - 0.001).abs() < 1e-9);
-        assert_eq!(events[2].failed_members.len(), 2);
+    fn points(group: &CcfGroup) -> Vec<(String, Vec<String>, f64)> {
+        let parameters = HashMap::new();
+        let context = EvalContext::constant(&parameters, 1.0);
+        group
+            .expand()
+            .unwrap()
+            .into_iter()
+            .map(|event| {
+                let value = event.value.evaluate(&context).unwrap();
+                (event.id, event.failed_members, value)
+            })
+            .collect()
     }
 
-    #[test]
-    fn test_generate_combinations() {
-        let items = vec!["A".to_string(), "B".to_string(), "C".to_string()];
-
-        let combos_1 = generate_combinations(&items, 1);
-        assert_eq!(combos_1.len(), 3);
-
-        let combos_2 = generate_combinations(&items, 2);
-        assert_eq!(combos_2.len(), 3);
-
-        let combos_3 = generate_combinations(&items, 3);
-        assert_eq!(combos_3.len(), 1);
-    }
-
-    #[test]
-    fn test_ccf_event_order() {
-        let event = CcfEvent::new(
-            "CCF1-common".to_string(),
-            vec!["E1".to_string(), "E2".to_string(), "E3".to_string()],
-            0.001,
-        );
-
-        assert_eq!(event.order, 3);
-    }
-
-    #[test]
-    fn test_beta_factor_two_components() {
-        let group = CcfGroup::new(
-            "Pumps",
-            vec!["PumpOne".to_string(), "PumpTwo".to_string()],
-            CcfModel::BetaFactor(0.2),
-        )
-        .unwrap();
-
-        let base_prob = 0.1;
-        let events = group.expand(base_prob).unwrap();
-
-        assert_eq!(events.len(), 3);
-
-        assert!((events[0].probability - 0.08).abs() < 1e-9);
-        assert_eq!(events[0].failed_members, vec!["PumpOne"]);
-        assert_eq!(events[0].order, 1);
-
-        assert!((events[1].probability - 0.08).abs() < 1e-9);
-        assert_eq!(events[1].failed_members, vec!["PumpTwo"]);
-        assert_eq!(events[1].order, 1);
-
-        assert!((events[2].probability - 0.02).abs() < 1e-9);
-        assert_eq!(events[2].failed_members.len(), 2);
-        assert_eq!(events[2].order, 2);
-    }
-
-    #[test]
-    fn test_beta_factor_three_components() {
-        let group = CcfGroup::new(
-            "Valves",
-            vec![
-                "ValveOne".to_string(),
-                "ValveTwo".to_string(),
-                "ValveThree".to_string(),
-            ],
-            CcfModel::BetaFactor(0.2),
-        )
-        .unwrap();
-
-        let base_prob = 0.1;
-        let events = group.expand(base_prob).unwrap();
-
-        assert_eq!(events.len(), 4);
-
-        for event in events.iter().take(3) {
-            assert!((event.probability - 0.08).abs() < 1e-9);
-            assert_eq!(event.order, 1);
-        }
-
-        assert!((events[3].probability - 0.02).abs() < 1e-9);
-        assert_eq!(events[3].failed_members.len(), 3);
-        assert_eq!(events[3].order, 3);
-    }
-
-    #[test]
-    fn test_beta_factor_high_beta() {
-        let group = CcfGroup::new(
-            "CCF1",
-            vec!["E1".to_string(), "E2".to_string()],
-            CcfModel::BetaFactor(0.8),
-        )
-        .unwrap();
-
-        let base_prob = 0.5;
-        let events = group.expand(base_prob).unwrap();
-
-        assert!((events[0].probability - 0.1).abs() < 1e-9);
-        assert!((events[1].probability - 0.1).abs() < 1e-9);
-
-        assert!((events[2].probability - 0.4).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_beta_factor_low_beta() {
-        let group = CcfGroup::new(
-            "CCF2",
-            vec!["E1".to_string(), "E2".to_string()],
-            CcfModel::BetaFactor(0.05),
-        )
-        .unwrap();
-
-        let base_prob = 0.2;
-        let events = group.expand(base_prob).unwrap();
-
-        assert!((events[0].probability - 0.19).abs() < 1e-9);
-        assert!((events[1].probability - 0.19).abs() < 1e-9);
-
-        assert!((events[2].probability - 0.01).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_beta_factor_zero_beta() {
-        let group = CcfGroup::new(
-            "CCF3",
-            vec!["E1".to_string(), "E2".to_string()],
-            CcfModel::BetaFactor(0.0),
-        )
-        .unwrap();
-
-        let base_prob = 0.1;
-        let events = group.expand(base_prob).unwrap();
-
-        assert!((events[0].probability - 0.1).abs() < 1e-9);
-        assert!((events[1].probability - 0.1).abs() < 1e-9);
-
-        assert!((events[2].probability).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_beta_factor_one_beta() {
-        let group = CcfGroup::new(
-            "CCF4",
-            vec!["E1".to_string(), "E2".to_string()],
-            CcfModel::BetaFactor(1.0),
-        )
-        .unwrap();
-
-        let base_prob = 0.1;
-        let events = group.expand(base_prob).unwrap();
-
-        assert!((events[0].probability).abs() < 1e-9);
-        assert!((events[1].probability).abs() < 1e-9);
-
-        assert!((events[2].probability - 0.1).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_beta_factor_event_names() {
-        let group = CcfGroup::new(
-            "PumpGroup",
-            vec!["P1".to_string(), "P2".to_string(), "P3".to_string()],
-            CcfModel::BetaFactor(0.15),
-        )
-        .unwrap();
-
-        let events = group.expand(0.05).unwrap();
-
-        assert_eq!(events[0].id, "PumpGroup-indep-1");
-        assert_eq!(events[1].id, "PumpGroup-indep-2");
-        assert_eq!(events[2].id, "PumpGroup-indep-3");
-        assert_eq!(events[3].id, "PumpGroup-common");
-    }
-
-    #[test]
-    fn test_beta_factor_probability_conservation() {
-        let group = CcfGroup::new(
-            "CCF5",
-            vec!["E1".to_string(), "E2".to_string()],
-            CcfModel::BetaFactor(0.3),
-        )
-        .unwrap();
-
-        let base_prob = 0.2;
-        let events = group.expand(base_prob).unwrap();
-
-        let total = events[0].probability + events[1].probability + events[2].probability;
-        let expected = (2.0 - 0.3) * base_prob;
-
-        assert!((total - expected).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_beta_factor_large_group() {
-        let members: Vec<String> = (1..=5).map(|i| format!("E{}", i)).collect();
-        let group = CcfGroup::new("CCF6", members, CcfModel::BetaFactor(0.25)).unwrap();
-
-        let base_prob = 0.08;
-        let events = group.expand(base_prob).unwrap();
-
-        assert_eq!(events.len(), 6);
-
-        for event in events.iter().take(5) {
-            assert!((event.probability - 0.06).abs() < 1e-9);
-            assert_eq!(event.order, 1);
-        }
-
-        assert!((events[5].probability - 0.02).abs() < 1e-9);
-        assert_eq!(events[5].order, 5);
-    }
-
-    #[test]
-    fn test_beta_factor_validation_out_of_range() {
-        let result1 = CcfGroup::new(
-            "Bad1",
-            vec!["E1".to_string(), "E2".to_string()],
-            CcfModel::BetaFactor(-0.1),
-        );
-        assert!(result1.is_err());
-
-        let result2 = CcfGroup::new(
-            "Bad2",
-            vec!["E1".to_string(), "E2".to_string()],
-            CcfModel::BetaFactor(1.5),
-        );
-        assert!(result2.is_err());
-    }
-
-    #[test]
-    fn test_alpha_factor_three_components() {
-        let group = CcfGroup::new(
-            "Pumps",
-            vec![
-                "PumpOne".to_string(),
-                "PumpTwo".to_string(),
-                "PumpThree".to_string(),
-            ],
-            alpha(vec![0.7, 0.2, 0.1]),
-        )
-        .unwrap();
-
-        let base_prob = 0.1;
-        let events = group.expand(base_prob).unwrap();
-        let alpha_t = 0.7 + 2.0 * 0.2 + 3.0 * 0.1;
-
-        assert_eq!(events.len(), 7);
-
-        for event in events.iter().take(3) {
-            assert!((event.probability - (0.7 / alpha_t) * base_prob).abs() < 1e-9);
-            assert_eq!(event.order, 1);
-        }
-        for event in events.iter().take(6).skip(3) {
-            assert!((event.probability - (2.0 / 2.0) * (0.2 / alpha_t) * base_prob).abs() < 1e-9);
-            assert_eq!(event.order, 2);
-        }
-        assert!((events[6].probability - (3.0 / 1.0) * (0.1 / alpha_t) * base_prob).abs() < 1e-9);
-        assert_eq!(events[6].order, 3);
-    }
-
-    #[test]
-    fn test_alpha_factor_two_components() {
-        let group = CcfGroup::new(
-            "Valves",
-            vec!["V1".to_string(), "V2".to_string()],
-            alpha(vec![0.6, 0.4]),
-        )
-        .unwrap();
-
-        let base_prob = 0.05;
-        let events = group.expand(base_prob).unwrap();
-        let alpha_t = 0.6 + 2.0 * 0.4;
-
-        assert_eq!(events.len(), 3);
-        assert!((events[0].probability - (0.6 / alpha_t) * base_prob).abs() < 1e-9);
-        assert!((events[1].probability - (0.6 / alpha_t) * base_prob).abs() < 1e-9);
-        assert!((events[2].probability - 2.0 * (0.4 / alpha_t) * base_prob).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_alpha_factor_equal_distribution() {
-        let group = CcfGroup::new(
-            "Equal",
-            vec!["E1".to_string(), "E2".to_string(), "E3".to_string()],
-            alpha(vec![1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0]),
-        )
-        .unwrap();
-
-        let base_prob = 0.3;
-        let events = group.expand(base_prob).unwrap();
-
-        assert_eq!(events.len(), 7);
-
-        assert!((events[0].probability - events[1].probability).abs() < 1e-9);
-        assert!((events[1].probability - events[2].probability).abs() < 1e-9);
-
-        assert!((events[3].probability - events[4].probability).abs() < 1e-9);
-        assert!((events[4].probability - events[5].probability).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_alpha_factor_extreme_single_failure() {
-        let group = CcfGroup::new(
-            "SingleOnly",
-            vec!["E1".to_string(), "E2".to_string()],
-            alpha(vec![1.0, 0.0]),
-        )
-        .unwrap();
-
-        let base_prob = 0.2;
-        let events = group.expand(base_prob).unwrap();
-
-        assert!((events[0].probability - 0.2).abs() < 1e-9);
-        assert!((events[1].probability - 0.2).abs() < 1e-9);
-        assert!((events[2].probability).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_alpha_factor_extreme_total_failure() {
-        let group = CcfGroup::new(
-            "TotalOnly",
-            vec!["E1".to_string(), "E2".to_string(), "E3".to_string()],
-            alpha(vec![0.0, 0.0, 1.0]),
-        )
-        .unwrap();
-
-        let base_prob = 0.15;
-        let events = group.expand(base_prob).unwrap();
-
-        for event in events.iter().take(6) {
-            assert!(event.probability.abs() < 1e-9);
-        }
-
-        assert!((events[6].probability - 0.15).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_alpha_factor_marginal_preservation() {
-        let members = vec!["E1".to_string(), "E2".to_string(), "E3".to_string()];
-        let group =
-            CcfGroup::new("Conservation", members.clone(), alpha(vec![0.5, 0.3, 0.2])).unwrap();
-
-        let base_prob = 0.25;
-        let events = group.expand(base_prob).unwrap();
-
-        let marginal: f64 = events
+    fn marginal(events: &[(String, Vec<String>, f64)], member: &str) -> f64 {
+        events
             .iter()
-            .filter(|e| e.failed_members.contains(&members[0]))
-            .map(|e| e.probability)
-            .sum();
-        assert!((marginal - base_prob).abs() < 1e-9);
+            .filter(|(_, members, _)| members.iter().any(|name| name == member))
+            .map(|(_, _, value)| value)
+            .sum()
     }
 
     #[test]
-    fn test_alpha_factor_staggered_scheme() {
-        let members = vec!["E1".to_string(), "E2".to_string(), "E3".to_string()];
-        let model = CcfModel::AlphaFactor {
-            factors: vec![0.7, 0.2, 0.1],
-            scheme: TestingScheme::Staggered,
+    fn groups_need_two_members_and_matching_vector_lengths() {
+        assert!(CcfGroup::new("G", names(1), CcfModel::BetaFactor(Expr::Constant(0.1)), Expr::Constant(0.1)).is_err());
+        assert!(CcfGroup::new("G", names(3), alpha("G", CcfTesting::NonStaggered, &[0.7, 0.3]), Expr::Constant(0.1)).is_err());
+        let phis = CcfModel::PhiFactor(fixed_components(&phis_key("G"), vec![0.5, 0.5]).unwrap());
+        assert!(CcfGroup::new("G", names(3), phis, Expr::Constant(0.1)).is_err());
+        assert!(CcfGroup::new("G", names(2), CcfModel::Mgl(numbers(&[0.1, 0.2])), Expr::Constant(0.1)).is_err());
+        assert!(fixed_components("k", vec![0.5, 0.3]).is_err());
+    }
+
+    #[test]
+    fn constant_factors_and_totals_outside_zero_to_one_name_the_group() {
+        for (model, total) in [
+            (CcfModel::BetaFactor(Expr::Constant(1.5)), 0.1),
+            (CcfModel::BetaFactor(Expr::Constant(-0.1)), 0.1),
+            (CcfModel::Mgl(numbers(&[1.2])), 0.1),
+            (CcfModel::BetaFactor(Expr::Constant(0.1)), 1.2),
+        ] {
+            let error = CcfGroup::new("Pumps", names(2), model, Expr::Constant(total)).unwrap_err();
+            assert!(error.to_string().contains("common cause group 'Pumps'"), "{error}");
+        }
+    }
+
+    #[test]
+    fn beta_factor_splits_the_total() {
+        let events = points(&group("Pumps", 3, CcfModel::BetaFactor(Expr::Constant(0.2)), 0.1));
+        assert_eq!(events.len(), 4);
+        assert_eq!(events[0].0, "Pumps-indep-1");
+        assert_eq!(events[3].0, "Pumps-common");
+        for event in &events[..3] {
+            assert!((event.2 - 0.08).abs() < 1e-15);
+            assert_eq!(event.1.len(), 1);
+        }
+        assert!((events[3].2 - 0.02).abs() < 1e-15);
+        assert_eq!(events[3].1.len(), 3);
+        assert!((marginal(&events, "E1") - 0.1).abs() < 1e-15);
+    }
+
+    #[test]
+    fn non_staggered_alpha_factor_follows_its_formula() {
+        let events = points(&group("Pumps", 3, alpha("Pumps", CcfTesting::NonStaggered, &[0.7, 0.2, 0.1]), 0.1));
+        let weighted = 0.7 + 2.0 * 0.2 + 3.0 * 0.1;
+        assert_eq!(events.len(), 7);
+        for event in &events[..3] {
+            assert!((event.2 - 0.7 / weighted * 0.1).abs() < 1e-15);
+        }
+        for event in &events[3..6] {
+            assert!((event.2 - 2.0 / 2.0 * 0.2 / weighted * 0.1).abs() < 1e-15);
+        }
+        assert!((events[6].2 - 3.0 * 0.1 / weighted * 0.1).abs() < 1e-15);
+        assert!((marginal(&events, "E2") - 0.1).abs() < 1e-15);
+        assert_eq!(events[0].0, "Pumps-alpha-1-1");
+        assert_eq!(events[3].0, "Pumps-alpha-2-1");
+    }
+
+    #[test]
+    fn staggered_alpha_factor_follows_its_formula() {
+        let events = points(&group("Pumps", 3, alpha("Pumps", CcfTesting::Staggered, &[0.7, 0.2, 0.1]), 0.1));
+        for event in &events[..3] {
+            assert!((event.2 - 0.07).abs() < 1e-15);
+        }
+        for event in &events[3..6] {
+            assert!((event.2 - 0.5 * 0.2 * 0.1).abs() < 1e-15);
+        }
+        assert!((events[6].2 - 0.01).abs() < 1e-15);
+        assert!((marginal(&events, "E1") - 0.1).abs() < 1e-15);
+    }
+
+    #[test]
+    fn mgl_reduces_to_the_beta_factor_and_keeps_marginals() {
+        let events = points(&group("Valves", 3, CcfModel::Mgl(numbers(&[0.1, 0.5])), 0.1));
+        assert_eq!(events.len(), 7);
+        for event in &events[..3] {
+            assert!((event.2 - 0.9 * 0.1).abs() < 1e-15);
+        }
+        for event in &events[3..6] {
+            assert!((event.2 - 0.5 * 0.1 * 0.5 * 0.1).abs() < 1e-15);
+        }
+        assert!((events[6].2 - 0.1 * 0.5 * 0.1).abs() < 1e-15);
+        assert_eq!(events[0].0, "Valves-mgl-1-1");
+        let large = points(&group("Large", 5, CcfModel::Mgl(numbers(&[0.1, 0.2, 0.3, 0.4])), 0.1));
+        assert_eq!(large.len(), 31);
+        assert!((marginal(&large, "E1") - 0.1).abs() < 1e-15);
+        let pair = points(&group("Pair", 2, CcfModel::Mgl(numbers(&[0.2])), 0.1));
+        let beta = points(&group("Pair", 2, CcfModel::BetaFactor(Expr::Constant(0.2)), 0.1));
+        for (left, right) in pair.iter().zip(&beta) {
+            assert!((left.2 - right.2).abs() < 1e-15);
+        }
+    }
+
+    #[test]
+    fn phi_factor_assigns_each_level() {
+        let phis = CcfModel::PhiFactor(fixed_components(&phis_key("Phi"), vec![0.6, 0.3, 0.1]).unwrap());
+        let events = points(&group("Phi", 3, phis, 0.1));
+        assert_eq!(events.len(), 7);
+        assert!((events[0].2 - 0.06).abs() < 1e-15);
+        assert!((events[3].2 - 0.03).abs() < 1e-15);
+        assert!((events[6].2 - 0.01).abs() < 1e-15);
+        assert_eq!(events[6].0, "Phi-phi-3-1");
+    }
+
+    #[test]
+    fn rasp_mgl_keeps_virtual_names_and_subsets() {
+        let model = CcfModel::RaspMgl {
+            factors: numbers(&[0.02, 0.0]),
+            virtual_events: vec![
+                RaspCcfEvent { id: "G-AB".into(), member_indices: vec![0, 1] },
+                RaspCcfEvent { id: "G-ABC".into(), member_indices: vec![0, 1, 2] },
+            ],
         };
-        let group = CcfGroup::new("Stag", members.clone(), model).unwrap();
-
-        let base_prob = 0.1;
-        let events = group.expand(base_prob).unwrap();
-
-        for event in events.iter().take(3) {
-            assert!((event.probability - 0.7 * base_prob).abs() < 1e-9);
-        }
-        for event in events.iter().take(6).skip(3) {
-            assert!((event.probability - (1.0 / 2.0) * 0.2 * base_prob).abs() < 1e-9);
-        }
-        assert!((events[6].probability - 0.1 * base_prob).abs() < 1e-9);
-
-        let marginal: f64 = events
-            .iter()
-            .filter(|e| e.failed_members.contains(&members[0]))
-            .map(|e| e.probability)
-            .sum();
-        assert!((marginal - base_prob).abs() < 1e-9);
+        let events = points(&group("G", 3, model, 7.2e-7));
+        assert_eq!(events[0].0, "G-AB");
+        assert_eq!(events[0].1, vec!["E1", "E2"]);
+        assert!((events[0].2 - 7.2e-9).abs() < 1e-20);
+        assert_eq!(events[1].2, 0.0);
+        let repeated = CcfModel::RaspMgl {
+            factors: numbers(&[0.02]),
+            virtual_events: vec![RaspCcfEvent { id: "G-AA".into(), member_indices: vec![0, 0] }],
+        };
+        assert!(CcfGroup::new("G", names(3), repeated, Expr::Constant(0.1)).is_err());
     }
 
-    #[test]
-    fn test_alpha_factor_event_names() {
-        let group = CcfGroup::new(
-            "TestGroup",
-            vec!["A".to_string(), "B".to_string()],
-            alpha(vec![0.7, 0.3]),
-        )
-        .unwrap();
-
-        let events = group.expand(0.1).unwrap();
-
-        assert_eq!(events[0].id, "TestGroup-alpha-1-1");
-        assert_eq!(events[1].id, "TestGroup-alpha-1-2");
-
-        assert_eq!(events[2].id, "TestGroup-alpha-2-1");
-    }
-
-    #[test]
-    fn test_alpha_factor_validation_sum_not_one() {
-        let result = CcfGroup::new(
-            "BadSum",
-            vec!["E1".to_string(), "E2".to_string()],
-            alpha(vec![0.5, 0.3]),
-        );
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_alpha_factor_validation_out_of_range() {
-        let result = CcfGroup::new(
-            "BadRange",
-            vec!["E1".to_string(), "E2".to_string()],
-            alpha(vec![1.5, -0.5]),
-        );
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_mgl_three_components() {
-        let group = CcfGroup::new(
-            "Pumps",
-            vec![
-                "PumpOne".to_string(),
-                "PumpTwo".to_string(),
-                "PumpThree".to_string(),
-            ],
-            CcfModel::Mgl(vec![0.1, 0.5]),
-        )
-        .unwrap();
-
-        let base_prob = 0.1;
-        let events = group.expand(base_prob).unwrap();
-
-        assert_eq!(events.len(), 7);
-
-        for event in events.iter().take(3) {
-            assert!((event.probability - (1.0 - 0.1) * base_prob).abs() < 1e-9);
-            assert_eq!(event.order, 1);
-        }
-        for event in events.iter().take(6).skip(3) {
-            assert!((event.probability - (1.0 / 2.0) * 0.1 * (1.0 - 0.5) * base_prob).abs() < 1e-9);
-            assert_eq!(event.order, 2);
-        }
-        assert!((events[6].probability - 0.1 * 0.5 * base_prob).abs() < 1e-9);
-        assert_eq!(events[6].order, 3);
-    }
-
-    #[test]
-    fn test_mgl_two_components() {
-        let group = CcfGroup::new(
-            "Valves",
-            vec!["V1".to_string(), "V2".to_string()],
-            CcfModel::Mgl(vec![0.2]),
-        )
-        .unwrap();
-
-        let base_prob = 0.1;
-        let events = group.expand(base_prob).unwrap();
-
-        assert_eq!(events.len(), 3);
-        assert!((events[0].probability - (1.0 - 0.2) * base_prob).abs() < 1e-9);
-        assert!((events[1].probability - (1.0 - 0.2) * base_prob).abs() < 1e-9);
-        assert!((events[2].probability - 0.2 * base_prob).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_mgl_marginal_preservation() {
-        let members = vec![
-            "E1".to_string(),
-            "E2".to_string(),
-            "E3".to_string(),
-            "E4".to_string(),
-        ];
-        let group =
-            CcfGroup::new("Mgl4", members.clone(), CcfModel::Mgl(vec![0.1, 0.4, 0.5])).unwrap();
-
-        let base_prob = 0.1;
-        let events = group.expand(base_prob).unwrap();
-
-        assert_eq!(events.len(), 15);
-        let marginal: f64 = events
-            .iter()
-            .filter(|e| e.failed_members.contains(&members[0]))
-            .map(|e| e.probability)
-            .sum();
-        assert!((marginal - base_prob).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_mgl_reduces_to_beta_for_two_members() {
-        let members = vec!["E1".to_string(), "E2".to_string()];
-        let base_prob = 0.1;
-        let mgl = CcfGroup::new("Mgl", members.clone(), CcfModel::Mgl(vec![0.2]))
-            .unwrap()
-            .expand(base_prob)
-            .unwrap();
-        let beta = CcfGroup::new("Beta", members, CcfModel::BetaFactor(0.2))
-            .unwrap()
-            .expand(base_prob)
-            .unwrap();
-
-        assert_eq!(mgl.len(), beta.len());
-        let mgl_total: f64 = mgl.iter().map(|e| e.probability).sum();
-        let beta_total: f64 = beta.iter().map(|e| e.probability).sum();
-        assert!((mgl_total - beta_total).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_mgl_uses_base_prob() {
-        let members = vec!["E1".to_string(), "E2".to_string(), "E3".to_string()];
-        let group = CcfGroup::new("Scale", members, CcfModel::Mgl(vec![0.1, 0.5])).unwrap();
-
-        let low = group.expand(0.1).unwrap();
-        let high = group.expand(0.2).unwrap();
-        for (a, b) in low.iter().zip(high.iter()) {
-            assert!((2.0 * a.probability - b.probability).abs() < 1e-9);
+    fn reference(entity: &str) -> ParameterReference {
+        ParameterReference {
+            reference_type: ParameterReferenceType::WorkbookParameter,
+            workbook_id: "da".to_string(),
+            entity_id: entity.to_string(),
         }
     }
 
     #[test]
-    fn test_mgl_event_names() {
-        let group = CcfGroup::new(
-            "MGLGroup",
-            vec!["A".to_string(), "B".to_string()],
-            CcfModel::Mgl(vec![0.2]),
-        )
-        .unwrap();
-
-        let events = group.expand(0.1).unwrap();
-
-        assert_eq!(events[0].id, "MGLGroup-mgl-1-1");
-        assert_eq!(events[1].id, "MGLGroup-mgl-1-2");
-
-        assert_eq!(events[2].id, "MGLGroup-mgl-2-1");
-    }
-
-    #[test]
-    fn test_rasp_mgl_preserves_saphire_virtual_names_and_subsets() {
-        let group = CcfGroup::new(
-            "CCFDEMLKECSTR1",
-            vec!["A-EVENT".into(), "B-EVENT".into(), "C-EVENT".into()],
-            CcfModel::RaspMgl {
-                factors: vec![0.02, 0.0],
-                virtual_events: vec![
-                    RaspCcfEvent {
-                        id: "CCFDEMLKECSTR1-AB".into(),
-                        member_indices: vec![0, 1],
-                    },
-                    RaspCcfEvent {
-                        id: "CCFDEMLKECSTR1-AC".into(),
-                        member_indices: vec![0, 2],
-                    },
-                    RaspCcfEvent {
-                        id: "CCFDEMLKECSTR1-BC".into(),
-                        member_indices: vec![1, 2],
-                    },
-                    RaspCcfEvent {
-                        id: "CCFDEMLKECSTR1-ABC".into(),
-                        member_indices: vec![0, 1, 2],
-                    },
-                ],
+    fn contract_factors_lower_to_keyed_draws_and_shared_vectors() {
+        let table = vec![UncertainParameter {
+            reference: reference("beta"),
+            expression: UncertainExpression::Value {
+                value: UncertainValue {
+                    unit: UncertainUnit::Fraction,
+                    law: Law::Beta { alpha: 2.0, beta: 18.0, lower: 0.0, upper: 1.0 },
+                },
             },
+        }];
+        let vectors = vec![UncertainVectorParameter {
+            reference: reference("alphas"),
+            vector: VectorLaw::Dirichlet { concentrations: vec![30.0, 6.0, 4.0] },
+        }];
+        let program = UncertaintyProgram::from_table(&table).unwrap().with_vectors(&vectors).unwrap();
+        let beta = CcfModel::from_factors(
+            "Pumps",
+            &CcfFactorModel::BetaFactor { beta: UncertainExpression::Parameter { reference: reference("beta") } },
+            &table,
+            &program,
         )
         .unwrap();
-
-        let events = group.expand(7.2e-7).unwrap();
-        assert_eq!(events.len(), 4);
-        assert_eq!(events[0].id, "CCFDEMLKECSTR1-AB");
-        assert_eq!(events[0].failed_members, vec!["A-EVENT", "B-EVENT"]);
-        assert!((events[0].probability - 7.2e-9).abs() < 1e-20);
-        assert_eq!(events[3].id, "CCFDEMLKECSTR1-ABC");
-        assert_eq!(events[3].probability, 0.0);
-    }
-
-    #[test]
-    fn test_mgl_validation_out_of_range() {
-        let result = CcfGroup::new(
-            "BadRange",
-            vec!["E1".to_string(), "E2".to_string()],
-            CcfModel::Mgl(vec![1.5]),
-        );
-        assert!(result.is_err());
-
-        let result2 = CcfGroup::new(
-            "BadRange2",
-            vec!["E1".to_string(), "E2".to_string()],
-            CcfModel::Mgl(vec![-0.05]),
-        );
-        assert!(result2.is_err());
-    }
-
-    #[test]
-    fn test_mgl_validation_too_many_factors() {
-        let result = CcfGroup::new(
-            "TooMany",
-            vec!["E1".to_string(), "E2".to_string()],
-            CcfModel::Mgl(vec![0.1, 0.2]),
-        );
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_mgl_large_group() {
-        let members: Vec<String> = (1..=5).map(|i| format!("E{}", i)).collect();
-        let group = CcfGroup::new(
-            "LargeMGL",
-            members.clone(),
-            CcfModel::Mgl(vec![0.1, 0.2, 0.3, 0.4]),
+        assert_eq!(beta, CcfModel::BetaFactor(Expr::Parameter("da:beta".to_string())));
+        let shared = CcfFactorModel::AlphaFactor {
+            testing: CcfTesting::Staggered,
+            alphas: UncertainVector::Parameter { reference: reference("alphas") },
+        };
+        let pumps = CcfModel::from_factors("Pumps", &shared, &table, &program).unwrap();
+        let valves = CcfModel::from_factors("Valves", &shared, &table, &program).unwrap();
+        let (CcfModel::AlphaFactor { alphas: left, .. }, CcfModel::AlphaFactor { alphas: right, .. }) = (&pumps, &valves) else {
+            panic!("alpha models expected");
+        };
+        assert_eq!(left, right);
+        let typed = CcfModel::from_factors(
+            "Pumps",
+            &CcfFactorModel::AlphaFactor {
+                testing: CcfTesting::NonStaggered,
+                alphas: UncertainVector::Value { law: VectorLaw::Dirichlet { concentrations: vec![9.0, 1.0] } },
+            },
+            &table,
+            &program,
         )
         .unwrap();
-
-        let base_prob = 0.1;
-        let events = group.expand(base_prob).unwrap();
-
-        assert_eq!(events.len(), 31);
-        assert_eq!(events[30].order, 5);
-
-        let marginal: f64 = events
+        let CcfModel::AlphaFactor { alphas, .. } = typed else {
+            panic!("alpha model expected");
+        };
+        assert!(matches!(&alphas[0], Expr::Component { key, .. } if key == "ccf:Pumps/alphas"));
+        let group = CcfGroup::new("Pumps", names(3), pumps, Expr::Constant(0.1)).unwrap();
+        let expanded = group.expand().unwrap();
+        let program = UncertaintyProgram::from_expressions(program.into_parameters(), 1.0);
+        let targets: Vec<&Expr> = expanded.iter().map(|event| &event.value).collect();
+        let plan = SamplingPlan { method: SamplingMethod::MonteCarlo, trials: 200, seed: 3 };
+        let columns = program.sample(&targets, &plan).unwrap();
+        let marginals = columns[0]
             .iter()
-            .filter(|e| e.failed_members.contains(&members[0]))
-            .map(|e| e.probability)
-            .sum();
-        assert!((marginal - base_prob).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_phi_factor_direct_assignment() {
-        let members = vec!["E1".to_string(), "E2".to_string(), "E3".to_string()];
-        let group =
-            CcfGroup::new("Phi", members, CcfModel::PhiFactor(vec![0.6, 0.3, 0.1])).unwrap();
-
-        let base_prob = 0.1;
-        let events = group.expand(base_prob).unwrap();
-
-        assert_eq!(events.len(), 7);
-        for event in events.iter().take(3) {
-            assert!((event.probability - 0.6 * base_prob).abs() < 1e-9);
+            .zip(&columns[3])
+            .zip(&columns[4])
+            .zip(&columns[6])
+            .map(|(((first, second), third), fourth)| first + second + third + fourth);
+        for (trial, marginal) in marginals.enumerate() {
+            assert!((marginal - 0.1).abs() < 1e-15, "trial {trial}: {marginal}");
         }
-        for event in events.iter().take(6).skip(3) {
-            assert!((event.probability - 0.3 * base_prob).abs() < 1e-9);
-        }
-        assert!((events[6].probability - 0.1 * base_prob).abs() < 1e-9);
     }
 }

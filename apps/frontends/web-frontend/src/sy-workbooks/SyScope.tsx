@@ -23,8 +23,6 @@ const WORKBOOK_STATUS_LABEL: Record<string, string> = {
   complete: "Complete",
 };
 
-const DEFAULT_MISSION_TIME_HOURS = 24;
-
 function SyInterfaces(): JSX.Element {
   const { sy, editable, mutateSy, upstream } = useSyWorkbook();
   const [selected, setSelected] = useState<SyLinkCode | null>("ES");
@@ -129,7 +127,6 @@ function SystemsInScope({ openDrawer, focusRequested, onFocused }: {
         name: "New system",
         boundaries: [],
         successCriteriaIds: [],
-        missionTimeHours: DEFAULT_MISSION_TIME_HOURS,
         modeledComponentsAndFailures: {},
         informationBasis: draft.plantStage === "OPERATIONAL" ? "as-built-as-operated" : "as-designed-as-intended",
         implementsSrs: [{ sr: "SY-A1", hlr: "A" }],

@@ -2,7 +2,10 @@ import { z } from "zod";
 import type { DataAnalysis } from "../../da/data-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
-import { BasicEventSchema, ParameterDistributionSchema } from "../core/events";
+import { BasicEventSchema, ParameterDistributionSchema, UncertainFrequencySchema } from "../core/events";
+import { BaseLawSchema, CcfFactorModelSchema, LawSchema, TruncatedLawSchema, UncertainExpressionSchema } from "../core/uncertainty";
+import { entryHoldsLaw, holdsEstimate } from "../../da/data-analysis";
+import { carriesUncertainExpression } from "../../sy/systems-analysis";
 import { SensitivityStudySchema, SuccessCriteriaIdSchema } from "../core/shared-patterns";
 import {
   BaseAssumptionSchema,
@@ -172,6 +175,7 @@ export const DaSourceEntrySchema = z.object({
   failureMode: z.string(),
   quantity: DaEstimateQuantitySchema,
   table: z.string().optional(),
+  law: LawSchema.optional(),
   distribution: ParameterDistributionSchema.optional(),
   mean: z.number().optional(),
   p05: z.number().optional(),
@@ -187,6 +191,13 @@ export const DaSourceEntrySchema = z.object({
   method: z.string().optional(),
   boundaryNote: z.string().optional(),
   catalogCode: z.string().optional(),
+}).superRefine((entry, context) => {
+  if (entryHoldsLaw(entry.quantity) && entry.distribution !== undefined) {
+    context.addIssue({ code: "custom", path: ["distribution"], message: "This estimate keeps its law in the law field" });
+  }
+  if (!entryHoldsLaw(entry.quantity) && entry.law !== undefined) {
+    context.addIssue({ code: "custom", path: ["law"], message: "This estimate keeps its distribution in the distribution field" });
+  }
 });
 
 export const DaSourceSchema = z.object({
@@ -432,13 +443,19 @@ export const DaImportanceSchema = z.object({
   importedAt: z.string().optional(),
 });
 
+export const DaPopulationHyperpriorSchema = z.object({
+  mu: z.union([BaseLawSchema, TruncatedLawSchema]),
+  sigma: z.union([BaseLawSchema, TruncatedLawSchema]),
+});
+
 export const DataAnalysisParameterSchema = z.object({
   uuid: z.string(),
   name: z.string(),
   description: z.string().optional(),
   parameterType: ParameterTypeSchema,
   value: z.number().optional(),
-  valueType: z.enum(["POINT_ESTIMATE", "MEAN"]),
+  valueType: z.enum(["POINT_ESTIMATE", "MEAN"]).optional(),
+  estimate: UncertainExpressionSchema.optional(),
   quantificationModel: z
     .enum([
       "DEMAND_PROBABILITY",
@@ -452,7 +469,7 @@ export const DataAnalysisParameterSchema = z.object({
       "OTHER_PROBABILITY",
     ])
     .optional(),
-  missionTimeHours: z.number().optional(),
+  missionTime: UncertainExpressionSchema.optional(),
   valueMode: z.enum(["TYPED", "LINKED", "CALCULATED"]).optional(),
   valueLink: z
     .object({
@@ -470,6 +487,7 @@ export const DataAnalysisParameterSchema = z.object({
   estimateMethod: DaEstimateMethodSchema.optional(),
   estimateReason: z.string().optional(),
   populationTargetId: z.string().optional(),
+  populationHyperprior: DaPopulationHyperpriorSchema.optional(),
   evidence: z.array(DaEvidenceSchema).optional(),
   maintenance: DaMaintenanceBasisSchema.optional(),
   restoration: DaRestorationBasisSchema.optional(),
@@ -493,6 +511,26 @@ export const DataAnalysisParameterSchema = z.object({
   assumptions: z.array(BaseAssumptionSchema).optional(),
   sensitivityStudies: z.array(SensitivityStudySchema).optional(),
   implementsSrs: z.array(SRReferenceSchema),
+}).superRefine((parameter, context) => {
+  if (holdsEstimate(parameter.quantificationModel)) {
+    for (const field of ["value", "valueType", "uncertainty", "missionTime"] as const) {
+      if (parameter[field] !== undefined) {
+        context.addIssue({ code: "custom", path: [field], message: "This parameter keeps its estimate in the estimate field" });
+      }
+    }
+    if (parameter.quantificationModel === "FREQUENCY" && parameter.populationHyperprior !== undefined) {
+      context.addIssue({ code: "custom", path: ["populationHyperprior"], message: "Only a component parameter holds a population hyperprior" });
+    }
+  } else {
+    if (parameter.valueType === undefined) {
+      context.addIssue({ code: "custom", path: ["valueType"], message: "This parameter needs its value type" });
+    }
+    for (const field of ["estimate", "populationHyperprior"] as const) {
+      if (parameter[field] !== undefined) {
+        context.addIssue({ code: "custom", path: [field], message: "Only a component or frequency parameter holds an uncertain estimate" });
+      }
+    }
+  }
 });
 
 export const ComponentBoundarySchema = z.object({
@@ -637,8 +675,7 @@ export const CcfParameterEstimationSchema = z.object({
   priorReason: z.string().optional(),
   evidence: z.array(DaCcfEvidenceSchema).optional(),
   estimateReason: z.string().optional(),
-  modelType: z.enum(["BETA_FACTOR", "ALPHA_FACTOR", "MGL", "PHI_FACTOR", "OTHER_EQUIVALENT"]),
-  parameters: z.record(z.string(), z.number()),
+  factors: CcfFactorModelSchema.optional(),
   isRiskSignificant: z.boolean().optional(),
   importance: DaImportanceSchema.optional(),
   parameterSource: z.enum(["GENERIC", "PLANT_EXPERIENCE_CONSISTENT"]),
@@ -646,7 +683,6 @@ export const CcfParameterEstimationSchema = z.object({
   genericExclusionConsistencyConfirmed: z.boolean().optional(),
   genericExclusionConsistencyBasis: z.string().optional(),
   dataSources: z.array(DataSourceSchema).optional(),
-  uncertainty: UncertaintySchema.optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -768,11 +804,12 @@ export const DaBasicEventNeedSchema = z.object({
   failureMode: z.string().optional(),
   importedKind: DaNeedKindSchema.optional(),
   kind: DaNeedKindSchema.optional(),
-  importedMissionTimeHours: z.number().optional(),
-  missionTimeHours: z.number().optional(),
+  importedMissionTime: UncertainExpressionSchema.optional(),
+  missionTime: UncertainExpressionSchema.optional(),
   testIntervalHours: z.number().optional(),
   value: z.number().optional(),
   valueUnit: z.enum(["PROBABILITY", "PER_HOUR"]).optional(),
+  expression: UncertainExpressionSchema.optional(),
   valueHeldBy: DaValueHolderSchema.optional(),
   valueHolderId: z.string().optional(),
   repairCredited: z.boolean().optional(),
@@ -782,6 +819,16 @@ export const DaBasicEventNeedSchema = z.object({
   included: z.boolean(),
   exclusionReason: z.string().optional(),
   manual: DaManualEntrySchema.optional(),
+}).superRefine((need, context) => {
+  if (carriesUncertainExpression(need.failureMode)) {
+    for (const field of ["value", "valueUnit"] as const) {
+      if (need[field] !== undefined) {
+        context.addIssue({ code: "custom", path: [field], message: "A component event keeps its value in the expression field" });
+      }
+    }
+  } else if (need.expression !== undefined) {
+    context.addIssue({ code: "custom", path: ["expression"], message: "Only a component event holds an uncertain expression" });
+  }
 });
 
 export const DaInitiatorNeedSchema = z.object({
@@ -789,10 +836,7 @@ export const DaInitiatorNeedSchema = z.object({
   name: z.string(),
   stateIds: z.array(z.string()),
   memberIds: z.array(z.string()),
-  meanFrequency: z.number().optional(),
-  medianFrequency: z.number().optional(),
-  errorFactor: z.number().optional(),
-  frequencyUnit: z.string().optional(),
+  frequency: UncertainFrequencySchema.optional(),
   frequencyBasis: z.string().optional(),
   valueHeldBy: DaValueHolderSchema.optional(),
   valueHolderId: z.string().optional(),
@@ -825,9 +869,8 @@ export const DaCcfGroupNeedSchema = z.object({
   name: z.string(),
   systemIds: z.array(z.string()),
   memberIds: z.array(z.string()),
-  modelType: z.string().optional(),
-  factors: z.record(z.string(), z.number()).optional(),
-  totalProbability: z.number().optional(),
+  factors: CcfFactorModelSchema.optional(),
+  total: UncertainExpressionSchema.optional(),
   estimateRef: z.string().optional(),
   included: z.boolean(),
   exclusionReason: z.string().optional(),

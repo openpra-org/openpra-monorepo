@@ -3,7 +3,6 @@ import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-rel
 import type { InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { BarrierStatus, SourceLocation, type PlantOperatingStatesAnalysis, type RadioactiveSource, type RadionuclideTransportBarrier } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import type { RadionuclideBarrierCriterion, SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
-import { DistributionType } from "interfaces-mef-types/core/events";
 import { ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
 import { type EsqUpstream } from "../esqLinks";
 import { withModelImported } from "../esqModel";
@@ -52,7 +51,8 @@ function barrierUpstream(): EsqUpstream {
       },
     ],
   } as PlantOperatingStatesAnalysis;
-  upstream.sc = { radionuclideBarrierCriteria: [CRITERION] } as SuccessCriteriaDevelopment;
+  const missionTimes: SuccessCriteriaDevelopment["missionTimes"] = [];
+  upstream.sc = { radionuclideBarrierCriteria: [CRITERION], missionTimes } as SuccessCriteriaDevelopment;
   const ie = upstream.ie;
   if (ie === undefined) throw new Error("fixture has no IE");
   upstream.ie = {
@@ -95,7 +95,8 @@ function barrierUpstream(): EsqUpstream {
   if (da === undefined) throw new Error("fixture has no DA");
   da.parameters = [
     ...da.parameters,
-    { uuid: "P-WIN", name: "Time to the fuel limit", parameterType: "OTHER", value: 33.35, valueType: "POINT_ESTIMATE", uncertainty: { distribution: { type: DistributionType.LOGNORMAL, median: 33.35, errorFactor: 1.287 } } },
+    { uuid: "P-WIN", name: "Time to the fuel limit", parameterType: "OTHER", quantificationModel: "OTHER_PROBABILITY", estimate: { node: "VALUE", value: { unit: "QUANTITY", law: { family: "LOGNORMAL", mean: 33.74468539677077, errorFactor: 1.287, level: 0.95 } } } },
+    { uuid: "P-MIX", name: "Scaled window", parameterType: "OTHER", quantificationModel: "OTHER_PROBABILITY", estimate: { node: "OPERATION", operation: "MULTIPLY", operands: [{ node: "VALUE", value: { unit: "FACTOR", law: { family: "POINT", value: 2 } } }, { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "P-WIN" } }] } },
   ] as typeof da.parameters;
   return upstream;
 }
@@ -115,8 +116,8 @@ function windowCell(id: string): EsqCell {
     variable: "Time to the fuel limit",
     unit: "h",
     basis: "REALISTIC",
-    load: { distribution: { type: DistributionType.POINT_ESTIMATE, value: 48 }, basis: "The 48 h window that defines the release category." },
-    capacity: { distribution: { type: DistributionType.LOGNORMAL, median: 33.35, errorFactor: 1.287 }, basis: "Heat-up window from the success criteria runs." },
+    load: { source: "TYPED", variable: { law: { family: "POINT", value: 48 }, fields: [] }, basis: "The 48 h window that defines the release category." },
+    capacity: { source: "TYPED", variable: { law: { family: "LOGNORMAL", mean: 33.74468539677077, errorFactor: 1.287, level: 0.95 }, fields: [] }, basis: "Heat-up window from the success criteria runs." },
     aging: "Burnup and fluence at end of life are inside the window runs.",
     use: "SPLIT_FRACTION",
     assumption: { calculation: "Core heat-up calculation", closure: "Confirmed by the as-built thermal analysis." },

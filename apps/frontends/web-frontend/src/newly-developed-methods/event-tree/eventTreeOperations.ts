@@ -6,7 +6,9 @@ import type {
   FunctionalEvent,
   SystemStatus,
 } from "interfaces-mef-types/es/event-sequence-analysis";
-import { DEFAULT_ANNUALIZATION_CONVENTION } from "interfaces-mef-types/modeling";
+import { DEFAULT_ANNUALIZATION_CONVENTION, type EventTreeInitiatingEventFrequency } from "interfaces-mef-types/modeling";
+import { lawBounds, parameterReferenceKey, type UncertainExpression, type UncertainParameter, type UncertainUnit } from "interfaces-mef-types/core/uncertainty";
+import { UncertainExpressionSchema } from "interfaces-mef-types/zod/core/uncertainty";
 import { EndState } from "interfaces-mef-types/core/events";
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import { v5 as uuidV5 } from "uuid";
@@ -20,6 +22,42 @@ import type {
 
 const MAX_FUNCTIONAL_EVENTS = 10;
 const EVENT_TREE_ENTITY_NAMESPACE = "39c9df12-4a98-5e99-8d6a-a763bb27fca1";
+
+type InitiatingFrequencyUnit = "PER_YEAR" | "PER_HOUR";
+
+const INITIATING_FREQUENCY_UNITS: ReadonlySet<UncertainUnit> = new Set<UncertainUnit>(["PER_YEAR", "PER_HOUR"]);
+
+type FrequencyParameterTable = ReadonlyMap<string, UncertainParameter>;
+
+const NO_FREQUENCY_PARAMETERS: FrequencyParameterTable = new Map();
+
+function frequencyRateUnits(expression: UncertainExpression, table: FrequencyParameterTable = NO_FREQUENCY_PARAMETERS, seen: ReadonlySet<string> = new Set()): InitiatingFrequencyUnit[] {
+  switch (expression.node) {
+    case "VALUE":
+      return expression.value.unit === "PER_YEAR" || expression.value.unit === "PER_HOUR" ? [expression.value.unit] : [];
+    case "PARAMETER": {
+      const key = parameterReferenceKey(expression.reference);
+      const parameter = table.get(key);
+      return parameter === undefined || seen.has(key) ? [] : frequencyRateUnits(parameter.expression, table, new Set([...seen, key]));
+    }
+    case "OPERATION":
+      return [...new Set(expression.operands.flatMap((operand) => frequencyRateUnits(operand, table, seen)))];
+    case "MODEL":
+      return [];
+  }
+}
+
+function initiatingFrequencyUnit(expression: UncertainExpression, table: FrequencyParameterTable = NO_FREQUENCY_PARAMETERS): InitiatingFrequencyUnit {
+  const units = frequencyRateUnits(expression, table);
+  return units.length === 1 && units[0] === "PER_HOUR" ? "PER_HOUR" : "PER_YEAR";
+}
+
+function pointInitiatingFrequency(value: number): EventTreeInitiatingEventFrequency {
+  return {
+    expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value } } },
+    annualization: { ...DEFAULT_ANNUALIZATION_CONVENTION },
+  };
+}
 
 function topologyEntityId(value: string): string {
   return uuidV5(value, EVENT_TREE_ENTITY_NAMESPACE);
@@ -320,11 +358,7 @@ function createEmptyEventTree(
     uuid,
     name: "New event tree",
     initiatingEventId,
-    initiatingEventFrequency: initiatingEventFrequency === undefined ? undefined : {
-      value: initiatingEventFrequency,
-      unit: "PER_YEAR",
-      annualization: { ...DEFAULT_ANNUALIZATION_CONVENTION },
-    },
+    initiatingEventFrequency: initiatingEventFrequency === undefined ? undefined : pointInitiatingFrequency(initiatingEventFrequency),
     plantOperatingStateId,
     endStateIds: {
       SUCCESSFUL_MITIGATION: crypto.randomUUID(),
@@ -355,10 +389,11 @@ function validateEventTree(model: EventTree, allTrees: Array<EventTree | string>
   };
   if (model.name.trim().length === 0) error("ET_NAME_REQUIRED", "Event-tree name is required.", model.uuid);
   if (model.initiatingEventId.trim().length === 0) error("ET_INITIATOR_REQUIRED", "Select an initiating event.", model.uuid);
-  const frequency = model.initiatingEventFrequency?.value;
-  if (frequency === undefined || !Number.isFinite(frequency) || frequency < 0) {
-    error("ET_FREQUENCY_REQUIRED", "Enter a finite, non-negative initiating-event frequency.", model.uuid);
-  }
+  const frequency = model.initiatingEventFrequency;
+  if (frequency === undefined) error("ET_FREQUENCY_REQUIRED", "Enter an initiating-event frequency.", model.uuid);
+  else if (!UncertainExpressionSchema.safeParse(frequency.expression).success) error("ET_FREQUENCY_INVALID", "The initiating-event frequency is not a valid expression.", model.uuid);
+  else if (frequency.expression.node === "VALUE" && !INITIATING_FREQUENCY_UNITS.has(frequency.expression.value.unit)) error("ET_FREQUENCY_UNIT", "The initiating-event frequency must be per year or per hour.", model.uuid);
+  else if (frequency.expression.node === "VALUE" && lawBounds(frequency.expression.value.law).lower < 0) error("ET_FREQUENCY_NEGATIVE", "The initiating-event frequency cannot go below zero.", model.uuid);
   const events = orderedFunctionalEvents(model);
   const derivedPaths = sequencePathsFromTopology(model);
   if (events.length === 0) error("ET_FUNCTIONAL_EVENT_REQUIRED", "Add at least one functional event.", model.uuid);
@@ -446,8 +481,7 @@ function createEventTreePresentation(
     id: model.uuid,
     name: model.name,
     initiatingEventId: model.initiatingEventId,
-    initiatingEventFrequency: model.initiatingEventFrequency?.value,
-    initiatingEventFrequencyUnit: model.initiatingEventFrequency?.unit ?? "PER_YEAR",
+    initiatingEventFrequency: model.initiatingEventFrequency,
     functionalEvents: events.map((event) => ({
       id: event.uuid,
       code: event.label ?? event.uuid,
@@ -480,8 +514,12 @@ export {
   applyEventTreeOperation,
   createEmptyEventTree,
   createEventTreePresentation,
+  frequencyRateUnits,
+  initiatingFrequencyUnit,
   orderedFunctionalEvents,
   sequencePathsFromTopology,
   uniqueFunctionalEventCode,
   validateEventTree,
+  type FrequencyParameterTable,
+  type InitiatingFrequencyUnit,
 };

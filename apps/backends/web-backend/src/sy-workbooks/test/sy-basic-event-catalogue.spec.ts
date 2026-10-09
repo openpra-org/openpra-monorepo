@@ -1,4 +1,6 @@
 import type { SystemBasicEvent, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
 import {
   applyFaultTreeBasicEventToSystemBasicEvent,
   systemBasicEventToFaultTreeBasicEvent,
@@ -200,9 +202,10 @@ describe("canonical SY workbook fault-tree storage", () => {
       uuid: expect.stringMatching(UUID_PATTERN),
       code: "BE-A",
       name: "Migrated event",
-      probability: 0.123456,
-      dataAnalysisBasicEventRef: "DA-MIGRATED",
+      expression: legacyExpression("PROBABILITY", 0.123456),
     });
+    expect(migratedEvent).not.toHaveProperty("probability");
+    expect(migratedEvent).not.toHaveProperty("dataAnalysisBasicEventRef");
 
     expect(SystemsAnalysisSchema.parse(structuredClone(migrated))).toEqual(migrated);
   });
@@ -232,7 +235,8 @@ describe("canonical SY workbook fault-tree storage", () => {
         groupedMemberIds.add(memberId);
         expect(event).toBeDefined();
         expect(event?.failureMode).not.toBe("COMMON_CAUSE_FAILURE");
-        expect(event?.probability).toEqual(expect.any(Number));
+        expect(event?.expression).toBeDefined();
+        expect(event?.probability).toBeUndefined();
         expect(referencedIds.has(memberId)).toBe(true);
       });
       expect(analysis.systemLogicModels.some((model) => {
@@ -280,10 +284,42 @@ describe("canonical SY workbook fault-tree storage", () => {
         uuid: expect.stringMatching(UUID_PATTERN),
         code: "BE-A",
         name: "Migrated event",
-        probability: 0.123456,
+        expression: legacyExpression("PROBABILITY", 0.123456),
       }),
     ]);
+    expect(migrated.systemBasicEvents[0]).not.toHaveProperty("probability");
     expect(migrated.systemLogicModels[0]).not.toHaveProperty("basicEvents");
+  });
+
+  it("keeps the probability and source of a legacy human event", () => {
+    const legacy = {
+      ...createBlankSy("Legacy SY", "owner"),
+      systemBasicEvents: undefined,
+      systemLogicModels: [{
+        uuid: "MODEL-H",
+        systemReference: "SYS-H",
+        description: "Model H description",
+        modelRepresentation: "Fault tree",
+        faultTree: {
+          id: "TOP-H",
+          type: "OR",
+          name: "Model H top gate",
+          children: [
+            { id: "LEAF-H", type: "BE", name: "Operator fails to align", be: "BE-H", mode: "HUMAN_ERROR", source: "HR-ALIGN", prob: "0.003" },
+            { id: "LEAF-P", type: "BE", name: "Pump fails to start", be: "BE-P", mode: "FAILURE_TO_START", source: "DA-PUMP", prob: "0.002" },
+          ],
+        },
+        implementsSrs: [],
+      }],
+    };
+    const migrated = SystemsAnalysisSchema.parse(legacy);
+    const human = migrated.systemBasicEvents.find((event) => event.code === "BE-H");
+    const pump = migrated.systemBasicEvents.find((event) => event.code === "BE-P");
+    expect(human).toMatchObject({ failureMode: "HUMAN_ERROR", probability: 0.003, dataAnalysisBasicEventRef: "HR-ALIGN" });
+    expect(human).not.toHaveProperty("expression");
+    expect(pump).toMatchObject({ failureMode: "FAILURE_TO_START", expression: legacyExpression("PROBABILITY", 0.002) });
+    expect(pump).not.toHaveProperty("probability");
+    expect(pump).not.toHaveProperty("dataAnalysisBasicEventRef");
   });
 
   it("rejects duplicate catalogue IDs and unresolved normalized leaves", () => {
@@ -372,28 +408,35 @@ describe("canonical SY workbook fault-tree storage", () => {
       description: "",
     });
     expect(Number.isNaN(projected.probability.value)).toBe(true);
+    expect(projected.probability).not.toHaveProperty("expression");
     expect(applyFaultTreeBasicEventToSystemBasicEvent(source, projected)).toEqual(source);
     expect(
       applyFaultTreeBasicEventToSystemBasicEvent(source, { ...projected, code: "EDITED" }),
     ).toEqual({ ...source, code: "EDITED" });
-    const controlled = applyFaultTreeBasicEventToSystemBasicEvent(source, {
-      ...projected,
-      probability: {
-        value: 0.1,
-        controlledDataSource: {
-          referenceType: "WORKBOOK_PARAMETER",
-          workbookId: "workbook",
-          entityId: "parameter",
-        },
-      },
-    });
-    expect(controlled).toMatchObject({
+    const controlledDataSource = {
+      referenceType: "WORKBOOK_PARAMETER" as const,
+      workbookId: "workbook",
+      entityId: "parameter",
+    };
+    const legacyEdit = { ...projected, probability: { value: 0.1, controlledDataSource } };
+    expect(applyFaultTreeBasicEventToSystemBasicEvent(source, legacyEdit)).toEqual(source);
+
+    const reading: UncertainExpression = { node: "PARAMETER", reference: controlledDataSource };
+    const valued: SystemBasicEvent = { ...source, expression: reading };
+    const projectedValue = systemBasicEventToFaultTreeBasicEvent(valued);
+    expect(projectedValue.probability.expression).toEqual(reading);
+    expect(Number.isNaN(projectedValue.probability.value)).toBe(true);
+    expect(applyFaultTreeBasicEventToSystemBasicEvent(source, projectedValue)).toEqual(valued);
+    const typed = legacyExpression("PROBABILITY", 0.2);
+    expect(applyFaultTreeBasicEventToSystemBasicEvent(valued, {
+      ...projectedValue,
+      probability: { value: Number.NaN, expression: typed },
+    })).toEqual({ ...source, expression: typed });
+
+    const human: SystemBasicEvent = { ...source, failureMode: "HUMAN_ERROR" };
+    expect(applyFaultTreeBasicEventToSystemBasicEvent(human, legacyEdit)).toMatchObject({
       probability: 0.1,
-      controlledDataSource: {
-        referenceType: "WORKBOOK_PARAMETER",
-        workbookId: "workbook",
-        entityId: "parameter",
-      },
+      controlledDataSource,
     });
   });
 

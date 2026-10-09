@@ -54,7 +54,11 @@ function postUpstream(hrJoint = 1.6e-4): EsqUpstream {
     { uuid: "DEP-2", scope: "WITHIN_SEQUENCE", hfeIds: ["HFE-2"], dependenceLevel: "HIGH", jointHep: 0.011, includesRecoveryHfe: true },
   ] as HumanReliabilityAnalysis["dependencyAssessments"];
   hr.jointHepFloor = { uuid: "JHF-1", minimumJointProbability: 1e-5, justification: "Joint HEP floor of the HRA guidance." } as HumanReliabilityAnalysis["jointHepFloor"];
-  sy.systemBasicEvents = sy.systemBasicEvents.map((event) => (event.uuid === "E-3" ? { ...event, code: "SUP-FAN-HFE", name: "Operator fails to start the fan", dataAnalysisBasicEventRef: "HFE-2" } : event));
+  sy.systemBasicEvents = sy.systemBasicEvents.map((event) => {
+    if (event.uuid !== "E-3") return event;
+    const { expression: _component, ...rest } = event;
+    return { ...rest, code: "SUP-FAN-HFE", name: "Operator fails to start the fan", failureMode: "HUMAN_ERROR", probability: 5e-4, dataAnalysisBasicEventRef: "HFE-2" };
+  });
   return upstream;
 }
 

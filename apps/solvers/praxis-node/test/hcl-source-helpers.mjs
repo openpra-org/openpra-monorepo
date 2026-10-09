@@ -1,4 +1,70 @@
 import assert from "node:assert/strict";
+
+const Z95 = 1.6448536269514722;
+const SOURCE_EF_QUANTILE = 1.645;
+const Z_LIMIT = 5;
+
+export const valued = (unit, law) => ({ node: "VALUE", value: { unit, law } });
+export const pointValue = (unit, value) => valued(unit, { family: "POINT", value });
+export const probability = (value) => pointValue("PROBABILITY", value);
+
+const sourceLognormal = (median, sigma) => ({
+  family: "LOGNORMAL",
+  mean: median * Math.exp(0.5 * sigma * sigma),
+  errorFactor: Math.exp(Z95 * sigma),
+  level: 0.95,
+});
+
+function eventLaw(distribution) {
+  if (distribution.family === "UNIFORM") return { family: "UNIFORM", lower: distribution.lower, upper: distribution.upper };
+  if (distribution.family === "BETA") return { family: "BETA", alpha: distribution.alpha, beta: distribution.beta, lower: 0, upper: 1 };
+  throw new Error(`fixture family ${distribution.family} has no direct conversion`);
+}
+
+function dirichletRow(prior, states) {
+  const concentrations =
+    prior.family === "DIRICHLET" ? prior.alpha : states.map((state) => (state === prior.true_state ? prior.alpha : prior.beta));
+  return { node: "VALUE", law: { family: "DIRICHLET", concentrations } };
+}
+
+function generatorFor(spec) {
+  const source = spec.generator;
+  const node = { modelId: "BN", entityId: spec.node };
+  if (source.type === "seismic_fragility") {
+    return {
+      kind: "SEISMIC_FRAGILITY",
+      bayesianNetworkNode: node,
+      pgaParentId: source.pgaParentId,
+      trueStateId: source.trueStateId,
+      falseStateId: source.falseStateId,
+      median:
+        source.betaU === 0 ? pointValue("QUANTITY", source.theta) : valued("QUANTITY", sourceLognormal(source.theta, source.betaU)),
+      randomness: pointValue("FACTOR", source.betaR),
+      demands: source.pgaCenters.map((center) => ({ stateId: center.stateId, demand: center.value })),
+    };
+  }
+  return {
+    kind: "SEISMIC_PGA_BINS",
+    bayesianNetworkNode: node,
+    noneStateId: source.noneStateId,
+    missionTime: pointValue("YEARS", source.missionTime),
+    conversion: source.frequencyToProbability.toUpperCase(),
+    bins: source.bins.map((bin) => ({
+      stateId: bin.stateId,
+      frequency:
+        bin.medianFrequency === 0 ?
+          pointValue("PER_YEAR", 0)
+        : valued("PER_YEAR", sourceLognormal(bin.medianFrequency, Math.log(bin.errorFactor95) / SOURCE_EF_QUANTILE)),
+    })),
+  };
+}
+
+export function sourceResolvesTails(settings) {
+  return settings.cpt_row_distributions.every(
+    (row) => row.prior.family !== "DIRICHLET" || row.prior.alpha.every((value) => value === 0 || value >= 0.1),
+  );
+}
+
 export function requestFor(c, mixed = false) {
   const variables = new Map(c.variables.map((v) => [v.name, v]));
   const settings = c.settings;
@@ -51,14 +117,11 @@ export function requestFor(c, mixed = false) {
     });
     return { nodeId: v.name, parents: v.parents.map((nodeId, order) => ({ nodeId, order })), rows };
   });
-  const priors = settings.cpt_row_distributions.map((r) => {
-    const prior = { ...r.prior };
-    if (prior.true_state !== undefined) {
-      prior.trueStateId = prior.true_state;
-      delete prior.true_state;
-    }
-    return { bayesianNetworkNode: { modelId: "BN", entityId: r.node }, cptRowId: `${r.node}-${r.row_index}`, prior };
-  });
+  const cptRows = settings.cpt_row_distributions.map((r) => ({
+    bayesianNetworkNode: { modelId: "BN", entityId: r.node },
+    cptRowId: `${r.node}-${r.row_index}`,
+    row: dirichletRow(r.prior, variables.get(r.node).states),
+  }));
   return {
     schemaVersion: "1.0.0",
     request: {
@@ -92,20 +155,12 @@ export function requestFor(c, mixed = false) {
             sampler: settings.sampler,
             sampleCount: settings.sample_count,
             seed: settings.seed,
-            cptProbabilityClipEpsilon: settings.cpt_probability_clip_epsilon,
-            basicEventDistributions: settings.basic_event_distributions.map((e) => ({
+            basicEvents: settings.basic_event_distributions.map((e) => ({
               faultTreeBasicEvent: { entityId: e.event },
-              distribution: e.distribution,
+              expression: valued("PROBABILITY", eventLaw(e.distribution)),
             })),
-            cptRowDistributions: priors,
-            ...(settings.cpt_generators ?
-              {
-                cptGenerators: settings.cpt_generators.map((g) => ({
-                  bayesianNetworkNode: { modelId: "BN", entityId: g.node },
-                  generator: g.generator,
-                })),
-              }
-            : {}),
+            cptRows,
+            cptGenerators: (settings.cpt_generators ?? []).map(generatorFor),
           },
         },
       },
@@ -134,11 +189,12 @@ export function requestFor(c, mixed = false) {
     resources: {
       faultTreeBasicEventCatalogue: {
         projectId: "P",
-        basicEvents: events.map((id) => ({ id, probability: { value: 0.2 } })),
+        basicEvents: events.map((id) => ({ id, expression: probability(0.2) })),
       },
     },
   };
 }
+
 export function checkProbability(actual, expected) {
   assert.ok(Number.isFinite(actual) && Number.isFinite(expected));
   if (expected === 0) assert.equal(actual, 0);
@@ -148,33 +204,55 @@ export function checkProbability(actual, expected) {
   }
 }
 
-export function checkSummary(actual, samples) {
+function moments(samples) {
   const mean = samples.reduce((sum, x) => sum + x, 0) / samples.length;
-  assert.equal(actual.sampleCount, samples.length);
-  checkProbability(actual.mean, mean);
-  checkProbability(actual.minimum, Math.min(...samples));
-  checkProbability(actual.maximum, Math.max(...samples));
-  assert.equal(Object.hasOwn(actual, "coefficientOfVariation"), false);
+  const variance = samples.reduce((sum, x) => sum + (x - mean) ** 2, 0) / Math.max(samples.length - 1, 1);
+  return { mean, variance };
 }
 
-export function checkSourceSummary(actual, expected, sampleCount, seed) {
-  assert.equal(actual.sampleCount, sampleCount);
-  assert.equal(actual.seed, seed);
-  assert.equal(Object.hasOwn(actual, "coefficientOfVariation"), false);
-  for (const [field, value] of Object.entries(expected)) {
-    assert.ok(Number.isFinite(actual[field]), field);
-    // A constant total such as P(success)+P(failure) has only floating-point
-    // noise in its SD. Bound that noise by the total's scale, not relative SD.
-    const sdRoundoff = 8 * Number.EPSILON * Math.abs(expected.mean);
-    if (field === "standardDeviation" && value <= sdRoundoff) {
-      assert.ok(Math.abs(actual[field] - value) <= sdRoundoff, field);
-      continue;
-    }
-    if (value !== 0) assert.ok(actual[field] > 0, `${field}: positive value was lost`);
+export function checkPopulation(summary, reference, label = "") {
+  const n1 = summary.sampleCount;
+  const n2 = reference.length;
+  assert.equal(Object.hasOwn(summary, "coefficientOfVariation"), false);
+  for (const field of ["mean", "standardDeviation", "minimum", "percentile05", "median", "percentile95", "maximum"]) {
+    assert.ok(Number.isFinite(summary[field]), `${label} ${field}`);
+  }
+  assert.ok(
+    summary.minimum <= summary.percentile05 && summary.percentile05 <= summary.median
+      && summary.median <= summary.percentile95 && summary.percentile95 <= summary.maximum,
+    `${label}: summary order`,
+  );
+  const { mean, variance } = moments(reference);
+  const error = Math.sqrt((summary.standardDeviation ** 2) / n1 + variance / n2);
+  assert.ok(
+    Math.abs(summary.mean - mean) <= Z_LIMIT * error + 1e-12 * Math.max(Math.abs(mean), 1e-300),
+    `${label}: mean ${summary.mean} against reference ${mean}, standard error ${error}`,
+  );
+  for (const [p, value] of [[0.05, summary.percentile05], [0.5, summary.median], [0.95, summary.percentile95]]) {
+    const below = reference.filter((x) => x < value).length / n2;
+    const atOrBelow = reference.filter((x) => x <= value).length / n2;
+    const tolerance = Z_LIMIT * Math.sqrt(p * (1 - p) * (1 / n1 + 1 / n2)) + 1 / n1 + 1 / n2;
     assert.ok(
-      Math.abs(actual[field] - value) <=
-        (value === 0 ? 0 : Math.min(1e-3 * Math.abs(value), 5e-16 + 2e-14 * Math.abs(value))),
-      `${field}: native ${actual[field]} != source ${value}`,
+      p >= below - tolerance && p <= atOrBelow + tolerance,
+      `${label}: reference fraction around the ${p} quantile ${value} is ${below} to ${atOrBelow}`,
+    );
+  }
+}
+
+export function checkMean(summary, expected, label = "") {
+  const error = summary.standardDeviation / Math.sqrt(summary.sampleCount);
+  assert.ok(
+    Math.abs(summary.mean - expected) <= Z_LIMIT * error + 1e-12 * Math.max(Math.abs(expected), 1e-300),
+    `${label}: mean ${summary.mean} against exact ${expected}, standard error ${error}`,
+  );
+}
+
+export function checkScaled(actual, base, factor, label = "") {
+  for (const field of ["mean", "standardDeviation", "minimum", "percentile05", "median", "percentile95", "maximum"]) {
+    const expected = base[field] * factor;
+    assert.ok(
+      Math.abs(actual[field] - expected) <= 1e-12 * Math.abs(expected) + 1e-300,
+      `${label} ${field}: ${actual[field]} against ${expected}`,
     );
   }
 }
@@ -198,7 +276,7 @@ export function withEventTree(request, combinedEndState = false) {
     methodType: "EVENT_TREE",
     revision: 1,
     initiatingEvent: { target: { modelId: "IE", entityId: "IE-1" } },
-    initiatingEventFrequency: { value: 0.01 },
+    initiatingEventFrequency: { expression: pointValue("PER_YEAR", 0.01) },
     functionalEvents: [{ id: "FE", name: "System", order: 0 }],
     functionalEventFaultTreeLinks: [{ functionalEventId: "FE", faultTreeTopGate: { modelId: "FT", entityId: "TOP" } }],
     endStates: combinedEndState ? [{ id: "ALL" }] : [{ id: "SAFE" }, { id: "RELEASE" }],

@@ -1,135 +1,127 @@
+use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
+
+use crate::core::distribution_sampling::{require_probability, SamplingPlan, UncertaintyProgram};
 use crate::error::PraxisError;
 use crate::mc::stats;
-use serde::{Deserialize, Serialize};
+
+pub const DEFAULT_QUANTILE_PROBABILITIES: [f64; 5] = [0.05, 0.25, 0.5, 0.75, 0.95];
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct QuantileValue {
+    pub probability: f64,
+    pub value: f64,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UncertaintyAnalysis {
     mean: f64,
+    standard_deviation: f64,
+    standard_error: f64,
+    quantiles: Vec<QuantileValue>,
+    samples: Vec<f64>,
+}
 
-    sigma: f64,
-
-    error_factor: f64,
-
-    confidence_interval: (f64, f64),
-
-    num_samples: usize,
-
-    quantiles: Vec<f64>,
+fn linear_quantile(sorted: &[f64], probability: f64) -> f64 {
+    let position = probability * (sorted.len() - 1) as f64;
+    let index = position.floor() as usize;
+    let fraction = position - index as f64;
+    if index + 1 < sorted.len() {
+        sorted[index] * (1.0 - fraction) + sorted[index + 1] * fraction
+    } else {
+        sorted[index]
+    }
 }
 
 impl UncertaintyAnalysis {
-    pub fn from_samples(mut samples: Vec<f64>) -> Result<Self, PraxisError> {
+    pub fn from_samples(samples: Vec<f64>) -> Result<Self, PraxisError> {
+        Self::from_samples_at(samples, &DEFAULT_QUANTILE_PROBABILITIES)
+    }
+
+    pub fn from_samples_at(samples: Vec<f64>, probabilities: &[f64]) -> Result<Self, PraxisError> {
         if samples.is_empty() {
             return Err(PraxisError::Logic(
                 "Cannot create uncertainty analysis from empty samples".to_string(),
             ));
         }
-
-        for (i, &sample) in samples.iter().enumerate() {
-            if !(0.0..=1.0).contains(&sample) {
-                return Err(PraxisError::Logic(format!(
-                    "Sample {} has invalid probability: {}. Must be in [0,1]",
-                    i, sample
-                )));
-            }
+        for (index, sample) in samples.iter().enumerate() {
+            require_probability("the top event", Some(index), *sample)?;
         }
-
-        let num_samples = samples.len();
-
+        if let Some(bad) = probabilities.iter().find(|p| !(0.0..=1.0).contains(*p)) {
+            return Err(PraxisError::Settings(format!(
+                "quantile probability {} lies outside 0 to 1",
+                bad
+            )));
+        }
         let mean = stats::mean(&samples);
-        let sigma = stats::std_dev(&samples);
-
-        let (ci_lower, ci_upper) = stats::confidence_interval(&samples, 0.95);
-
-        let error_factor = if mean > 0.0 { ci_upper / mean } else { 1.0 };
-
-        samples.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        let quantiles = vec![
-            Self::calculate_quantile(&samples, 0.05),
-            Self::calculate_quantile(&samples, 0.25),
-            Self::calculate_quantile(&samples, 0.50),
-            Self::calculate_quantile(&samples, 0.75),
-            Self::calculate_quantile(&samples, 0.95),
-        ];
-
+        let standard_deviation = stats::std_dev(&samples);
+        let standard_error = standard_deviation / (samples.len() as f64).sqrt();
+        let mut sorted = samples.clone();
+        sorted.sort_by(|a, b| a.total_cmp(b));
+        let quantiles = probabilities
+            .iter()
+            .map(|probability| QuantileValue {
+                probability: *probability,
+                value: linear_quantile(&sorted, *probability),
+            })
+            .collect();
         Ok(UncertaintyAnalysis {
             mean,
-            sigma,
-            error_factor,
-            confidence_interval: (ci_lower, ci_upper),
-            num_samples,
+            standard_deviation,
+            standard_error,
             quantiles,
+            samples,
         })
-    }
-
-    fn calculate_quantile(sorted_samples: &[f64], p: f64) -> f64 {
-        if sorted_samples.is_empty() {
-            return 0.0;
-        }
-
-        let n = sorted_samples.len();
-        let index = (p * (n - 1) as f64).floor() as usize;
-        let frac = p * (n - 1) as f64 - index as f64;
-
-        if index + 1 < n {
-            sorted_samples[index] * (1.0 - frac) + sorted_samples[index + 1] * frac
-        } else {
-            sorted_samples[index]
-        }
     }
 
     pub fn mean(&self) -> f64 {
         self.mean
     }
 
-    pub fn sigma(&self) -> f64 {
-        self.sigma
+    pub fn standard_deviation(&self) -> f64 {
+        self.standard_deviation
     }
 
-    pub fn error_factor(&self) -> f64 {
-        self.error_factor
-    }
-
-    pub fn confidence_interval(&self) -> (f64, f64) {
-        self.confidence_interval
+    pub fn standard_error(&self) -> f64 {
+        self.standard_error
     }
 
     pub fn num_samples(&self) -> usize {
-        self.num_samples
+        self.samples.len()
     }
 
-    pub fn quantiles(&self) -> &[f64] {
+    pub fn quantiles(&self) -> &[QuantileValue] {
         &self.quantiles
     }
 
-    pub fn median(&self) -> f64 {
-        self.quantiles[2]
+    pub fn quantile(&self, probability: f64) -> Option<f64> {
+        self.quantiles
+            .iter()
+            .find(|quantile| quantile.probability == probability)
+            .map(|quantile| quantile.value)
     }
 
-    pub fn iqr(&self) -> f64 {
-        self.quantiles[3] - self.quantiles[1]
-    }
-
-    pub fn coefficient_of_variation(&self) -> f64 {
-        if self.mean > 0.0 {
-            self.sigma / self.mean
-        } else {
-            f64::INFINITY
-        }
+    pub fn samples(&self) -> &[f64] {
+        &self.samples
     }
 }
 
 pub fn propagate_uncertainty(
     fault_tree: &crate::core::fault_tree::FaultTree,
-    num_trials: usize,
-    seed: Option<u64>,
+    plan: &SamplingPlan,
+) -> Result<UncertaintyAnalysis, PraxisError> {
+    propagate_uncertainty_at(fault_tree, plan, &DEFAULT_QUANTILE_PROBABILITIES)
+}
+
+pub fn propagate_uncertainty_at(
+    fault_tree: &crate::core::fault_tree::FaultTree,
+    plan: &SamplingPlan,
+    probabilities: &[f64],
 ) -> Result<UncertaintyAnalysis, PraxisError> {
     use crate::algorithms::bdd_vectored::probability_vectored;
-    use crate::expression::EvalContext;
-    use crate::mc::prng::initialize_rng;
-    use std::collections::HashMap;
 
-    if num_trials == 0 {
+    if plan.trials == 0 {
         return Err(PraxisError::Logic(
             "Number of trials must be greater than zero".to_string(),
         ));
@@ -142,7 +134,6 @@ pub fn propagate_uncertainty(
     .map_err(|e| PraxisError::Logic(format!("BDD construction failed: {}", e)))?;
     let bdd = built.bdd;
     let root = built.root;
-
     let nominal = bdd.var_probs().to_vec();
 
     let mut var_pos: HashMap<String, usize> = HashMap::new();
@@ -156,340 +147,186 @@ pub fn propagate_uncertainty(
         }
     }
 
-    const CHUNK: usize = 4096;
-    let mission_time = fault_tree.mission_time();
-    let mut samples = Vec::with_capacity(num_trials);
-    let mut rng = initialize_rng(seed);
+    let mut uncertain: Vec<(&String, usize, &crate::expression::Expr)> = fault_tree
+        .basic_events()
+        .iter()
+        .filter_map(|(id, event)| {
+            let position = var_pos.get(id)?;
+            event.value().map(|value| (id, *position, value))
+        })
+        .collect();
+    uncertain.sort_by(|left, right| left.0.cmp(right.0));
 
-    let mut remaining = num_trials;
-    while remaining > 0 {
-        let chunk = remaining.min(CHUNK);
-        let mut columns: Vec<Vec<f64>> = nominal.iter().map(|&p| vec![p; chunk]).collect();
-
-        let mut rows: Vec<Vec<f64>> = Vec::with_capacity(chunk);
-        for _ in 0..chunk {
-            let ctx = EvalContext::correlated(fault_tree.parameters(), mission_time);
-            let mut row = nominal.clone();
-            for (event_id, event) in fault_tree.basic_events() {
-                let sampled = event.sample_probability(&ctx, &mut rng);
-                if let Some(&pos) = var_pos.get(event_id) {
-                    row[pos] = sampled;
-                }
-            }
-            rows.push(row);
+    let program = UncertaintyProgram::from_expressions(
+        fault_tree.parameters().clone(),
+        fault_tree.mission_time(),
+    );
+    let checks = fault_tree.probability_checks();
+    let targets: Vec<&crate::expression::Expr> = checks
+        .iter()
+        .map(|(_, check)| check)
+        .chain(uncertain.iter().map(|entry| entry.2))
+        .collect();
+    let mut checked = program.sample(&targets, plan)?;
+    let sampled = checked.split_off(checks.len());
+    for ((subject, _), column) in checks.iter().zip(&checked) {
+        for (trial, value) in column.iter().enumerate() {
+            require_probability(subject, Some(trial), *value)?;
         }
-        for (pos, col) in columns.iter_mut().enumerate() {
-            for (j, row) in rows.iter().enumerate() {
-                col[j] = row[pos];
-            }
+    }
+    for ((id, _, _), column) in uncertain.iter().zip(&sampled) {
+        for (trial, value) in column.iter().enumerate() {
+            require_probability(&format!("basic event '{}'", id), Some(trial), *value)?;
         }
-
-        samples.extend(probability_vectored(&bdd, root, &columns, chunk));
-        remaining -= chunk;
     }
 
-    UncertaintyAnalysis::from_samples(samples)
+    const CHUNK: usize = 4096;
+    let mut samples = Vec::with_capacity(plan.trials);
+    let mut start = 0;
+    while start < plan.trials {
+        let chunk = (plan.trials - start).min(CHUNK);
+        let mut columns: Vec<Vec<f64>> = nominal.iter().map(|&p| vec![p; chunk]).collect();
+        for ((_, position, _), column) in uncertain.iter().zip(&sampled) {
+            columns[*position].copy_from_slice(&column[start..start + chunk]);
+        }
+        samples.extend(probability_vectored(&bdd, root, &columns, chunk));
+        start += chunk;
+    }
+
+    UncertaintyAnalysis::from_samples_at(samples, probabilities)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::distribution::Law;
+    use crate::core::distribution_sampling::SamplingMethod;
+    use crate::core::event::BasicEvent;
+    use crate::core::fault_tree::FaultTree;
+    use crate::core::gate::{Formula, Gate};
+    use crate::expression::Expr;
+
+    fn plan(trials: usize, seed: u64) -> SamplingPlan {
+        SamplingPlan {
+            method: SamplingMethod::MonteCarlo,
+            trials,
+            seed,
+        }
+    }
+
+    fn or_tree() -> FaultTree {
+        let mut ft = FaultTree::new("Test".to_string(), "G1".to_string()).unwrap();
+        let mut gate = Gate::new("G1".to_string(), Formula::Or).unwrap();
+        gate.add_operand("E1".to_string());
+        gate.add_operand("E2".to_string());
+        ft.add_gate(gate).unwrap();
+        ft
+    }
 
     #[test]
-    fn test_uncertainty_analysis_basic() {
+    fn summary_statistics_follow_the_samples() {
         let samples = vec![0.1, 0.12, 0.11, 0.13, 0.12, 0.10, 0.11, 0.12, 0.11, 0.10];
-        let analysis = UncertaintyAnalysis::from_samples(samples).unwrap();
-
-        assert!((analysis.mean() - 0.112).abs() < 0.01);
-        assert!(analysis.sigma() > 0.0);
+        let analysis = UncertaintyAnalysis::from_samples(samples.clone()).unwrap();
+        assert!((analysis.mean() - 0.112).abs() < 1e-12);
+        assert!(analysis.standard_deviation() > 0.0);
+        assert!(
+            (analysis.standard_error() - analysis.standard_deviation() / 10f64.sqrt()).abs() < 1e-15
+        );
+        assert_eq!(analysis.samples(), samples.as_slice());
         assert_eq!(analysis.num_samples(), 10);
     }
 
     #[test]
-    fn test_uncertainty_analysis_empty_samples() {
-        let samples: Vec<f64> = vec![];
-        let result = UncertaintyAnalysis::from_samples(samples);
-        assert!(result.is_err());
+    fn rejects_empty_and_out_of_range_samples() {
+        assert!(UncertaintyAnalysis::from_samples(vec![]).is_err());
+        assert!(UncertaintyAnalysis::from_samples(vec![0.1, 1.5]).is_err());
+        assert!(UncertaintyAnalysis::from_samples(vec![0.1, -0.1]).is_err());
     }
 
     #[test]
-    fn test_uncertainty_analysis_invalid_sample() {
-        let samples = vec![0.1, 0.2, 1.5, 0.3];
-        let result = UncertaintyAnalysis::from_samples(samples);
-        assert!(result.is_err());
+    fn quantiles_use_linear_interpolation_at_the_chosen_probabilities() {
+        let samples: Vec<f64> = (0..=100).map(|x| x as f64 / 100.0).collect();
+        let analysis = UncertaintyAnalysis::from_samples_at(samples, &[0.05, 0.5, 0.99]).unwrap();
+        assert!((analysis.quantile(0.05).unwrap() - 0.05).abs() < 1e-12);
+        assert!((analysis.quantile(0.5).unwrap() - 0.5).abs() < 1e-12);
+        assert!((analysis.quantile(0.99).unwrap() - 0.99).abs() < 1e-12);
+        assert!(analysis.quantile(0.25).is_none());
     }
 
     #[test]
-    fn test_uncertainty_analysis_negative_sample() {
-        let samples = vec![0.1, 0.2, -0.1, 0.3];
-        let result = UncertaintyAnalysis::from_samples(samples);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_quantiles() {
-        let samples: Vec<f64> = (1..=100).map(|x| x as f64 / 100.0).collect();
-        let analysis = UncertaintyAnalysis::from_samples(samples).unwrap();
-
-        let quantiles = analysis.quantiles();
-        assert_eq!(quantiles.len(), 5);
-
-        assert!((quantiles[0] - 0.05).abs() < 0.02);
-
-        assert!((quantiles[2] - 0.50).abs() < 0.02);
-        assert!((analysis.median() - 0.50).abs() < 0.02);
-
-        assert!((quantiles[4] - 0.95).abs() < 0.02);
-    }
-
-    #[test]
-    fn test_confidence_interval() {
-        let samples: Vec<f64> = (1..=100)
-            .map(|x| 0.5 + (x as f64 - 50.0) / 1000.0)
-            .collect();
-        let analysis = UncertaintyAnalysis::from_samples(samples).unwrap();
-
-        let (lower, upper) = analysis.confidence_interval();
-
-        assert!(lower <= analysis.mean());
-        assert!(upper >= analysis.mean());
-
-        assert!(upper - lower > 0.0);
-        assert!(upper - lower < 0.2);
-    }
-
-    #[test]
-    fn test_error_factor() {
-        let samples = vec![0.1, 0.12, 0.11, 0.13, 0.12, 0.10, 0.11, 0.12, 0.11, 0.10];
-        let analysis = UncertaintyAnalysis::from_samples(samples).unwrap();
-
-        let ef = analysis.error_factor();
-        assert!(ef >= 1.0);
-        assert!(ef < 2.0);
-    }
-
-    #[test]
-    fn test_iqr() {
-        let samples: Vec<f64> = (1..=100).map(|x| x as f64 / 100.0).collect();
-        let analysis = UncertaintyAnalysis::from_samples(samples).unwrap();
-
-        let iqr = analysis.iqr();
-
-        assert!((iqr - 0.5).abs() < 0.1);
-    }
-
-    #[test]
-    fn test_coefficient_of_variation() {
-        let samples = vec![0.1, 0.12, 0.11, 0.13, 0.12, 0.10, 0.11, 0.12, 0.11, 0.10];
-        let analysis = UncertaintyAnalysis::from_samples(samples).unwrap();
-
-        let cv = analysis.coefficient_of_variation();
-
-        assert!(cv > 0.0);
-        assert!(cv < 1.0);
-    }
-
-    #[test]
-    fn test_coefficient_of_variation_zero_mean() {
-        let samples = vec![0.0, 0.0, 0.0, 0.0, 0.0];
-        let analysis = UncertaintyAnalysis::from_samples(samples).unwrap();
-
-        let cv = analysis.coefficient_of_variation();
-
-        assert!(cv.is_infinite());
-    }
-
-    #[test]
-    fn test_single_sample() {
-        let samples = vec![0.5];
-        let analysis = UncertaintyAnalysis::from_samples(samples).unwrap();
-
-        assert_eq!(analysis.mean(), 0.5);
-        assert_eq!(analysis.sigma(), 0.0);
-        assert_eq!(analysis.median(), 0.5);
-    }
-
-    #[test]
-    fn test_uniform_distribution() {
-        let samples: Vec<f64> = (0..1000).map(|x| 0.4 + 0.2 * (x as f64 / 1000.0)).collect();
-        let analysis = UncertaintyAnalysis::from_samples(samples).unwrap();
-
-        assert!((analysis.mean() - 0.5).abs() < 0.01);
-
-        assert!((analysis.sigma() - 0.0577).abs() < 0.01);
-    }
-
-    #[test]
-    fn test_clone() {
-        let samples = vec![0.1, 0.2, 0.3, 0.4, 0.5];
-        let analysis = UncertaintyAnalysis::from_samples(samples).unwrap();
-
-        let cloned = analysis.clone();
-
-        assert_eq!(analysis.mean(), cloned.mean());
-        assert_eq!(analysis.sigma(), cloned.sigma());
-        assert_eq!(analysis.num_samples(), cloned.num_samples());
-    }
-
-    #[test]
-    fn test_high_variance_data() {
-        let samples = vec![0.01, 0.05, 0.1, 0.5, 0.9, 0.95, 0.99];
-        let analysis = UncertaintyAnalysis::from_samples(samples).unwrap();
-
-        assert!(analysis.sigma() > 0.3);
-
-        assert!(analysis.error_factor() > 1.5);
-
-        assert!(analysis.iqr() > 0.5);
-    }
-
-    #[test]
-    fn test_propagate_uncertainty_without_distributions() {
-        use crate::core::event::BasicEvent;
-        use crate::core::fault_tree::FaultTree;
-        use crate::core::gate::{Formula, Gate};
-
-        let mut ft = FaultTree::new("Test".to_string(), "G1".to_string()).unwrap();
-        let mut gate = Gate::new("G1".to_string(), Formula::Or).unwrap();
-        gate.add_operand("E1".to_string());
-        gate.add_operand("E2".to_string());
-        ft.add_gate(gate).unwrap();
-
+    fn point_values_alone_give_no_spread() {
+        let mut ft = or_tree();
         ft.add_basic_event(BasicEvent::new("E1".to_string(), 0.1).unwrap())
             .unwrap();
         ft.add_basic_event(BasicEvent::new("E2".to_string(), 0.2).unwrap())
             .unwrap();
-
-        let analysis = propagate_uncertainty(&ft, 100, Some(42)).unwrap();
-
-        let expected = 0.28;
-        assert!((analysis.mean() - expected).abs() < 0.05);
-        assert!(analysis.sigma() < 0.05);
+        let analysis = propagate_uncertainty(&ft, &plan(100, 42)).unwrap();
+        assert!((analysis.mean() - 0.28).abs() < 1e-12);
+        assert!(analysis.standard_deviation() <= 100.0 * f64::EPSILON * analysis.mean());
     }
 
     #[test]
-    fn test_propagate_uncertainty_with_distributions() {
-        use crate::core::event::BasicEvent;
-        use crate::core::fault_tree::FaultTree;
-        use crate::core::gate::{Formula, Gate};
-        use crate::expression::Expr;
-
-        let mut ft = FaultTree::new("Test".to_string(), "G1".to_string()).unwrap();
-        let mut gate = Gate::new("G1".to_string(), Formula::Or).unwrap();
-        gate.add_operand("E1".to_string());
-        gate.add_operand("E2".to_string());
-        ft.add_gate(gate).unwrap();
-
+    fn one_shared_parameter_moves_every_event_together() {
+        let mut ft = or_tree();
+        ft.set_parameter("p".to_string(), Expr::uniform(0.0, 0.5));
         ft.add_basic_event(
-            BasicEvent::with_value("E1".to_string(), 0.1, Expr::normal(0.1, 0.02)).unwrap(),
+            BasicEvent::with_value("E1".to_string(), 0.25, Expr::Parameter("p".to_string())).unwrap(),
         )
         .unwrap();
-
         ft.add_basic_event(
-            BasicEvent::with_value("E2".to_string(), 0.2, Expr::normal(0.2, 0.03)).unwrap(),
+            BasicEvent::with_value("E2".to_string(), 0.25, Expr::Parameter("p".to_string())).unwrap(),
         )
         .unwrap();
-
-        let analysis = propagate_uncertainty(&ft, 200, Some(42)).unwrap();
-
-        assert!(analysis.sigma() > 0.01);
-        assert!(analysis.mean() > 0.15 && analysis.mean() < 0.35);
-
-        let (lower, upper) = analysis.confidence_interval();
-        assert!(lower < analysis.mean());
-        assert!(upper > analysis.mean());
+        let analysis = propagate_uncertainty(&ft, &plan(2000, 7)).unwrap();
+        let expected = 0.5 - 1.0 / 12.0;
+        assert!((analysis.mean() - expected).abs() < 5.0 * analysis.standard_error());
     }
 
     #[test]
-    fn test_propagate_uncertainty_uniform_distribution() {
-        use crate::core::event::BasicEvent;
-        use crate::core::fault_tree::FaultTree;
-        use crate::core::gate::{Formula, Gate};
-        use crate::expression::Expr;
-
-        let mut ft = FaultTree::new("Test".to_string(), "G1".to_string()).unwrap();
-        let mut gate = Gate::new("G1".to_string(), Formula::Or).unwrap();
-        gate.add_operand("E1".to_string());
-        ft.add_gate(gate).unwrap();
-
+    fn the_same_seed_repeats_and_another_seed_differs() {
+        let mut ft = or_tree();
         ft.add_basic_event(
-            BasicEvent::with_value("E1".to_string(), 0.5, Expr::uniform(0.4, 0.6)).unwrap(),
+            BasicEvent::with_value("E1".to_string(), 0.1, Expr::beta(2.0, 18.0)).unwrap(),
         )
         .unwrap();
-
-        let analysis = propagate_uncertainty(&ft, 500, Some(42)).unwrap();
-
-        assert!((analysis.mean() - 0.5).abs() < 0.1);
-
-        assert!(analysis.sigma() > 0.01);
-        assert!(analysis.sigma() < 0.1);
+        ft.add_basic_event(
+            BasicEvent::with_value(
+                "E2".to_string(),
+                0.2,
+                Expr::draw(Law::Truncated {
+                    law: Box::new(Law::Normal {
+                        mean: 0.2,
+                        standard_deviation: 0.03,
+                    }),
+                    lower: Some(0.0),
+                    upper: Some(1.0),
+                }),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let first = propagate_uncertainty(&ft, &plan(500, 12345)).unwrap();
+        let again = propagate_uncertainty(&ft, &plan(500, 12345)).unwrap();
+        let other = propagate_uncertainty(&ft, &plan(500, 54321)).unwrap();
+        assert_eq!(first.samples(), again.samples());
+        assert_ne!(first.samples(), other.samples());
     }
 
     #[test]
-    fn test_propagate_uncertainty_zero_trials() {
-        use crate::core::fault_tree::FaultTree;
-
-        let ft = FaultTree::new("Test".to_string(), "G1".to_string()).unwrap();
-
-        let result = propagate_uncertainty(&ft, 0, None);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_propagate_uncertainty_reproducible() {
-        use crate::core::event::BasicEvent;
-        use crate::core::fault_tree::FaultTree;
-        use crate::core::gate::{Formula, Gate};
-        use crate::expression::Expr;
-
-        let mut ft = FaultTree::new("Test".to_string(), "G1".to_string()).unwrap();
-        let mut gate = Gate::new("G1".to_string(), Formula::Or).unwrap();
-        gate.add_operand("E1".to_string());
-        ft.add_gate(gate).unwrap();
-
+    fn a_formula_above_one_stops_the_run() {
+        let mut ft = or_tree();
         ft.add_basic_event(
-            BasicEvent::with_value("E1".to_string(), 0.1, Expr::normal(0.1, 0.02)).unwrap(),
+            BasicEvent::with_value(
+                "E1".to_string(),
+                0.5,
+                Expr::Mul(vec![Expr::Constant(3.0), Expr::uniform(0.0, 0.4)]),
+            )
+            .unwrap(),
         )
         .unwrap();
-
-        let analysis1 = propagate_uncertainty(&ft, 100, Some(123)).unwrap();
-        let analysis2 = propagate_uncertainty(&ft, 100, Some(123)).unwrap();
-
-        assert_eq!(analysis1.mean(), analysis2.mean());
-        assert_eq!(analysis1.sigma(), analysis2.sigma());
-    }
-
-    #[test]
-    fn test_propagate_uncertainty_shared_parameter_correlation() {
-        use crate::core::event::BasicEvent;
-        use crate::core::fault_tree::FaultTree;
-        use crate::core::gate::{Formula, Gate};
-        use crate::expression::Expr;
-
-        let mut ft = FaultTree::new("Test".to_string(), "G1".to_string()).unwrap();
-        let mut gate = Gate::new("G1".to_string(), Formula::And).unwrap();
-        gate.add_operand("E1".to_string());
-        gate.add_operand("E2".to_string());
-        ft.add_gate(gate).unwrap();
-
-        ft.set_parameter("p".to_string(), Expr::uniform(0.0, 1.0));
-        ft.add_basic_event(
-            BasicEvent::with_value("E1".to_string(), 0.5, Expr::Parameter("p".to_string()))
-                .unwrap(),
-        )
-        .unwrap();
-        ft.add_basic_event(
-            BasicEvent::with_value("E2".to_string(), 0.5, Expr::Parameter("p".to_string()))
-                .unwrap(),
-        )
-        .unwrap();
-
-        let analysis = propagate_uncertainty(&ft, 20000, Some(42)).unwrap();
-
-        assert!(
-            (analysis.mean() - 1.0 / 3.0).abs() < 0.02,
-            "shared parameter p makes the AND top equal p^2, so the mean should approach E[p^2]=1/3, not the independent 1/4; got {}",
-            analysis.mean()
-        );
+        ft.add_basic_event(BasicEvent::new("E2".to_string(), 0.2).unwrap())
+            .unwrap();
+        let error = propagate_uncertainty(&ft, &plan(200, 3)).unwrap_err();
+        assert!(error.to_string().contains("basic event 'E1'"));
     }
 }

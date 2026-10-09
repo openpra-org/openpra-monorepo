@@ -38,20 +38,28 @@ import {
   type EventSequenceQuantification,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { type EventSequenceAnalysis, type EventTree, type FunctionalEvent } from "interfaces-mef-types/es/event-sequence-analysis";
-import { type CommonCauseFailureGroup, type SystemBasicEvent, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { carriesUncertainExpression, type CommonCauseFailureGroup, type SystemBasicEvent, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-models";
-import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
+import { holdsEstimate, isComponentModel, type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
-import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
+import { DistributionType } from "interfaces-mef-types/core/events";
+import {
+  canonicalJson,
+  expressionReferences,
+  mapModelArguments,
+  parameterReferenceKey,
+  type UncertainExpression,
+  type UncertainParameter,
+} from "interfaces-mef-types/core/uncertainty";
+import { type WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
-import { canonical, cellOf, cellValueOfRecord } from "interfaces-mef-types/esq/esq-barrier-inputs";
+import { cellExpressionOfRecord, cellOf } from "interfaces-mef-types/esq/esq-barrier-inputs";
+import { hasUncertainty, parameterUnit } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { sequenceFamilyOf } from "interfaces-mef-types/esq/esq-solve-inputs";
 import { type QuantificationTimeUnit } from "interfaces-mef-types/modeling";
 import { type Workbook } from "interfaces-shared-types";
-import { distributionQuantile } from "../da-workbooks/daDistributions";
-import { familyOf } from "../da-workbooks/daUncertainty";
 import {
   excludedBy,
   functionLinkOf,
@@ -68,6 +76,10 @@ import {
   type EsqGroupState,
   type EsqResolvedLink,
 } from "interfaces-mef-types/esq/esq-run-inputs";
+import { scMissionTimeEntries, scMissionTimeTable } from "../sc-workbooks/scMissionTimeLinks";
+import { type ScMissionTimeSource } from "../sy-workbooks/syLinks";
+import { parametersFor, peekExpression, requestExpression } from "../newly-developed-methods/shared/useUncertainty";
+import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
 import { type EsqUpstream } from "./esqLinks";
 import { ESQ_MODEL_ELEMENTS, MODEL_ELEMENT_LABELS, exampleLinkLabel } from "./esqViewData";
 
@@ -81,9 +93,11 @@ const HOURS_PER_UNIT: Record<QuantificationTimeUnit, number> = {
 
 const RELEASE_END_STATE = "RADIONUCLIDE_RELEASE";
 
+const EXAMPLE_SC_PREFIX = "example-sc-";
+
 const RUNNING_MODES = new Set(["FAILURE_TO_RUN"]);
 
-type EsqModelWindowKind = "esqSequence" | "esqFamily" | "esqFunction" | "esqInitiator" | "esqValue";
+type EsqModelWindowKind = "esqSequence" | "esqTree" | "esqFamily" | "esqFunction" | "esqInitiator" | "esqValue";
 
 type EsqFindingSeverity = "error" | "warning" | "note";
 
@@ -153,15 +167,22 @@ interface EsqValueView {
   binding?: EsqValueBinding;
   heldBy: EsqValueHolder;
   holderId?: string;
+  component: boolean;
+  expression?: UncertainExpression;
+  problem?: string;
   value?: number;
   valueType?: "MEAN" | "POINT_ESTIMATE";
-  p05?: number;
-  p95?: number;
-  distributionType?: string;
   parameter?: EsqParameterRecord;
   human?: EsqHumanRecord;
-  missionTimeHours?: number;
+  missionTime?: UncertainExpression;
   functionIds: string[];
+}
+
+type EsqMissionPoint = { status: "pending" } | { status: "ready"; hours: number } | { status: "failed"; error: string };
+
+interface EsqReferenceProblem {
+  check: string;
+  detail: string;
 }
 
 interface EsqModelView {
@@ -212,15 +233,6 @@ function listText(items: readonly string[], shown = 3): string {
   return `${items.slice(0, shown).join(", ")} and ${items.length - shown} more`;
 }
 
-function hoursFrom(value: number | undefined, units: string | undefined): number | undefined {
-  if (value === undefined || !Number.isFinite(value) || value <= 0) return undefined;
-  const unit = (units ?? "h").trim().toLowerCase();
-  if (unit === "d" || unit === "day" || unit === "days") return value * 24;
-  if (unit === "min" || unit === "mins" || unit === "minute" || unit === "minutes") return value / 60;
-  if (unit === "s" || unit === "sec" || unit === "second" || unit === "seconds") return value / 3600;
-  return value;
-}
-
 function transferEntryInitiators(es: EventSequenceAnalysis): string[] {
   const trees = es.eventTrees ?? [];
   const targets = new Set(trees.flatMap((tree) => texts(Object.values(tree.transfers ?? {}).map((transfer) => transfer?.targetEventTreeId))));
@@ -260,8 +272,6 @@ function treeRecords(es: EventSequenceAnalysis): EsqTreeRecord[] {
     };
     const stateId = textOf(tree.plantOperatingStateId);
     if (stateId !== undefined) record.stateId = stateId;
-    const mission = hoursFrom(finite(tree.missionTime), textOf(tree.missionTimeUnits));
-    if (mission !== undefined) record.missionTimeHours = mission;
     return record;
   });
 }
@@ -392,22 +402,8 @@ function topRecords(sy: SystemsAnalysis): EsqTopRecord[] {
 function initiatorRecords(ie: InitiatingEventsAnalysis): EsqInitiatorRecord[] {
   return ie.initiatingEventGroups.map((group) => {
     const record: EsqInitiatorRecord = { id: group.uuid, name: textOf(group.name) ?? group.uuid, stateIds: texts(group.applicableStates) };
-    const frequency = group.meanFrequency ?? undefined;
-    if (typeof frequency === "number") {
-      if (Number.isFinite(frequency) && frequency > 0) record.meanFrequency = frequency;
-    } else if (frequency !== undefined) {
-      const value = finite(frequency.value);
-      if (value !== undefined && value > 0) record.meanFrequency = value;
-      const unit = textOf(frequency.units);
-      if (unit !== undefined) record.frequencyUnit = unit;
-      const distribution = frequency.distribution ?? undefined;
-      const median = finite(distribution?.parameters?.[0]);
-      const errorFactor = finite(distribution?.parameters?.[1]);
-      if (distribution?.type === DistributionType.LOGNORMAL && median !== undefined && errorFactor !== undefined) {
-        record.medianFrequency = median;
-        record.errorFactor = errorFactor;
-      }
-    }
+    const frequency = group.frequency ?? undefined;
+    if (frequency !== undefined) record.frequency = structuredClone(frequency);
     const holderId = textOf(group.controlledDataSource?.entityId);
     record.heldBy = holderId === undefined ? "TYPED" : "DA";
     if (holderId !== undefined) record.holderId = holderId;
@@ -437,6 +433,12 @@ function eventHolder(event: SystemBasicEvent, parameterIds: ReadonlySet<string>,
   return { heldBy: "TYPED" };
 }
 
+function componentHolder(expression: UncertainExpression | undefined, parameterIds: ReadonlySet<string>): Pick<EsqEventRecord, "heldBy" | "holderId"> {
+  const ids = unique((expression === undefined ? [] : expressionReferences(expression)).map((reference) => reference.entityId)).filter((id) => parameterIds.has(id));
+  const [only, ...others] = ids;
+  return only !== undefined && others.length === 0 ? { heldBy: "DA", holderId: only } : { heldBy: "TYPED" };
+}
+
 function eventRecords(sy: SystemsAnalysis, parameterIds: ReadonlySet<string>, hfeIds: ReadonlySet<string>): EsqEventRecord[] {
   const systemOf = new Map<string, string>();
   for (const model of sy.systemLogicModels) {
@@ -448,13 +450,20 @@ function eventRecords(sy: SystemsAnalysis, parameterIds: ReadonlySet<string>, hf
   }
   const definitions = new Map(sy.systemDefinitions.map((definition) => [definition.uuid, definition]));
   return sy.systemBasicEvents.map((event) => {
-    const record: EsqEventRecord = { id: event.uuid, code: textOf(event.code) ?? event.uuid, name: textOf(event.name) ?? "", ...eventHolder(event, parameterIds, hfeIds) };
+    const mode = typeof event.failureMode === "string" ? textOf(event.failureMode) : undefined;
+    const component = carriesUncertainExpression(mode);
+    const expression = component ? event.expression ?? undefined : undefined;
+    const holder = component ? componentHolder(expression, parameterIds) : eventHolder(event, parameterIds, hfeIds);
+    const record: EsqEventRecord = { id: event.uuid, code: textOf(event.code) ?? event.uuid, name: textOf(event.name) ?? "", ...holder };
     const systemId = systemOf.get(event.uuid);
     const definition = systemId === undefined ? undefined : definitions.get(systemId);
     if (systemId !== undefined) record.systemId = systemId;
     if (definition !== undefined) record.systemName = textOf(definition.abbreviation) ?? textOf(definition.name) ?? systemId;
-    const mode = typeof event.failureMode === "string" ? textOf(event.failureMode) : undefined;
     if (mode !== undefined) record.failureMode = mode;
+    if (component) {
+      if (expression !== undefined) record.expression = structuredClone(expression);
+      return record;
+    }
     const basis = event.quantificationBasis ?? undefined;
     if (basis?.kind === "FAILURE_RATE") {
       const rate = finite(basis.failureRate?.value);
@@ -465,66 +474,36 @@ function eventRecords(sy: SystemsAnalysis, parameterIds: ReadonlySet<string>, hf
         record.value = rate / rateUnit;
         record.valueUnit = "PER_HOUR";
       }
-      if (mission !== undefined && missionUnit !== undefined) record.missionTimeHours = mission * missionUnit;
+      if (mission !== undefined && missionUnit !== undefined) record.missionTime = legacyExpression("HOURS", mission * missionUnit);
     } else {
       const probability = finite(event.probability);
       if (probability !== undefined) {
         record.value = probability;
         record.valueUnit = "PROBABILITY";
       }
-      const mission = finite(definition?.missionTimeHours);
-      if (mission !== undefined) record.missionTimeHours = mission;
+      const mission = definition?.missionTime ?? undefined;
+      if (mission !== undefined) record.missionTime = structuredClone(mission);
     }
     return record;
   });
 }
 
-function ccfTotal(group: CommonCauseFailureGroup): number | undefined {
-  const parameters = group.modelSpecificParameters ?? undefined;
-  return finite(parameters?.alphaFactorParameters?.totalFailureProbability)
-    ?? finite(parameters?.mglParameters?.totalFailureProbability)
-    ?? finite(parameters?.betaFactorParameters?.totalFailureProbability)
-    ?? finite(parameters?.phiFactorParameters?.totalFailureProbability);
-}
-
 function ccfRecords(sy: SystemsAnalysis): EsqCcfRecord[] {
-  return sy.commonCauseFailureGroups.map((group) => {
+  return sy.commonCauseFailureGroups.map((group: CommonCauseFailureGroup) => {
     const record: EsqCcfRecord = {
       id: group.uuid,
       name: textOf(group.name) ?? group.uuid,
       systemIds: texts(group.affectedSystems),
       memberIds: texts((group.members?.basicEvents ?? []).map((member) => member?.id)),
     };
-    const modelType = textOf(group.modelType);
-    if (modelType !== undefined) record.modelType = modelType;
-    const total = ccfTotal(group);
-    if (total !== undefined) record.totalProbability = total;
+    const factors = group.factors ?? undefined;
+    if (factors !== undefined) record.factors = structuredClone(factors);
+    const total = group.total ?? undefined;
+    if (total !== undefined) record.total = structuredClone(total);
     const reference = textOf(group.dataAnalysisCCFParameterRef);
     if (reference !== undefined) record.estimateRef = reference;
     return record;
   });
-}
-
-function finiteAll(values: readonly (number | null | undefined)[]): boolean {
-  return values.every((value) => typeof value === "number" && Number.isFinite(value));
-}
-
-function distributionOf(distribution: ParameterDistribution | null | undefined): ParameterDistribution | undefined {
-  if (distribution === null || distribution === undefined) return undefined;
-  switch (distribution.type) {
-    case DistributionType.LOGNORMAL: return finiteAll([distribution.median, distribution.errorFactor]) ? { type: distribution.type, median: distribution.median, errorFactor: distribution.errorFactor } : undefined;
-    case DistributionType.NORMAL: return finiteAll([distribution.mean, distribution.stdDev]) ? { type: distribution.type, mean: distribution.mean, stdDev: distribution.stdDev } : undefined;
-    case DistributionType.UNIFORM: return finiteAll([distribution.lower, distribution.upper]) ? { type: distribution.type, lower: distribution.lower, upper: distribution.upper } : undefined;
-    case DistributionType.EXPONENTIAL: return finiteAll([distribution.failureRate]) ? { type: distribution.type, failureRate: distribution.failureRate } : undefined;
-    case DistributionType.WEIBULL: return finiteAll([distribution.scale, distribution.shape, distribution.location]) ? { type: distribution.type, scale: distribution.scale, shape: distribution.shape, location: distribution.location } : undefined;
-    case DistributionType.GAMMA: return finiteAll([distribution.shape, distribution.rate]) ? { type: distribution.type, shape: distribution.shape, rate: distribution.rate } : undefined;
-    case DistributionType.BETA: return finiteAll([distribution.alpha, distribution.betaParam]) ? { type: distribution.type, alpha: distribution.alpha, betaParam: distribution.betaParam } : undefined;
-    case DistributionType.POINT_ESTIMATE: return finiteAll([distribution.value]) ? { type: distribution.type, value: distribution.value } : undefined;
-    case DistributionType.LOGNORMAL_TIME: return finiteAll([distribution.mean, distribution.stdDev]) ? { type: distribution.type, mean: distribution.mean, stdDev: distribution.stdDev } : undefined;
-    case DistributionType.BINOMIAL: return finiteAll([distribution.probability, distribution.trials]) ? { type: distribution.type, probability: distribution.probability, trials: distribution.trials } : undefined;
-    case DistributionType.POISSON: return finiteAll([distribution.rate]) ? { type: distribution.type, rate: distribution.rate } : undefined;
-    default: return undefined;
-  }
 }
 
 function parameterRecords(da: DataAnalysis): EsqParameterRecord[] {
@@ -533,24 +512,23 @@ function parameterRecords(da: DataAnalysis): EsqParameterRecord[] {
       id: parameter.uuid,
       name: textOf(parameter.name) ?? parameter.uuid,
       parameterType: textOf(parameter.parameterType) ?? "OTHER",
-      valueType: parameter.valueType === "MEAN" ? "MEAN" : "POINT_ESTIMATE",
     };
-    const value = finite(parameter.value);
-    if (value !== undefined) record.value = value;
-    const distribution = parameter.uncertainty?.distribution ?? undefined;
-    if (distribution !== undefined && distribution.type !== DistributionType.POINT_ESTIMATE) {
-      record.distributionType = familyOf(distribution);
-      const p05 = finite(distributionQuantile(distribution, 0.05));
-      const p95 = finite(distributionQuantile(distribution, 0.95));
-      if (p05 !== undefined) record.p05 = p05;
-      if (p95 !== undefined) record.p95 = p95;
-    }
-    const mission = finite(parameter.missionTimeHours);
-    if (mission !== undefined) record.missionTimeHours = mission;
+    const model = parameter.quantificationModel ?? undefined;
+    if (model !== undefined) record.quantificationModel = model;
     const evidence = textOf(parameter.evidenceKind);
     if (evidence !== undefined) record.evidenceKind = evidence;
-    const law = distributionOf(distribution);
-    if (law !== undefined) record.distribution = law;
+    if (holdsEstimate(model)) {
+      const estimate = parameter.estimate ?? undefined;
+      if (estimate !== undefined) record.estimate = structuredClone(estimate);
+      return record;
+    }
+    record.valueType = parameter.valueType === "MEAN" ? "MEAN" : "POINT_ESTIMATE";
+    const value = finite(parameter.value);
+    if (value !== undefined) record.value = value;
+    const mission = parameter.missionTime ?? undefined;
+    if (mission !== undefined) record.missionTime = structuredClone(mission);
+    const distribution = parameter.uncertainty?.distribution ?? undefined;
+    if (distribution !== undefined) record.distribution = structuredClone(distribution);
     return record;
   });
 }
@@ -874,22 +852,47 @@ function floorField(hr: HumanReliabilityAnalysis): { jointFloor?: EsqJointFloorR
   return floor === undefined ? {} : { jointFloor: floor };
 }
 
-function tableChanges<T>(table: EsqModelTable, previous: readonly T[], next: readonly T[], idOf: (row: T) => string, labelOf: (row: T) => string, changes: EsqModelChange[]): void {
+function tableChanges<T extends object>(table: EsqModelTable, previous: readonly T[], next: readonly T[], idOf: (row: T) => string, labelOf: (row: T) => string, changes: EsqModelChange[]): void {
   const before = new Map(previous.map((row) => [idOf(row), row]));
   const nextIds = new Set(next.map(idOf));
   for (const row of next) {
     const old = before.get(idOf(row));
     if (old === undefined) changes.push({ table, id: idOf(row), change: "ADDED" });
-    else if (JSON.stringify(canonical(old)) !== JSON.stringify(canonical(row))) changes.push({ table, id: idOf(row), change: "CHANGED" });
+    else if (canonicalJson(old) !== canonicalJson(row)) changes.push({ table, id: idOf(row), change: "CHANGED" });
   }
   for (const [id, old] of before) {
     if (!nextIds.has(id)) changes.push({ table, id, change: "REMOVED", label: labelOf(old) });
   }
 }
 
+function withTreeMissionTimes(previous: EsqModel | undefined, next: EsqModel): EsqModel {
+  const kept = new Map((previous?.trees ?? []).flatMap((tree) => (tree.missionTime === undefined ? [] : [[tree.id, tree.missionTime] as const])));
+  if (kept.size === 0) return next;
+  return {
+    ...next,
+    trees: next.trees.map((tree) => {
+      const missionTime = kept.get(tree.id);
+      return missionTime === undefined ? tree : { ...tree, missionTime };
+    }),
+  };
+}
+
+function withTreeMissionTime(esq: EventSequenceQuantification, treeId: string, missionTime: UncertainExpression | undefined): EventSequenceQuantification {
+  const model = esq.model;
+  if (model === undefined) return esq;
+  const trees = model.trees.map((tree) => {
+    if (tree.id !== treeId) return tree;
+    const next: EsqTreeRecord = { ...tree };
+    if (missionTime === undefined) delete next.missionTime;
+    else next.missionTime = missionTime;
+    return next;
+  });
+  return { ...esq, model: { ...model, trees } };
+}
+
 function withModelImported(esq: EventSequenceQuantification, upstream: EsqUpstream, now: string): EventSequenceQuantification {
-  const next = importModel(esq, upstream, now);
   const previous = esq.model;
+  const next = withTreeMissionTimes(previous, importModel(esq, upstream, now));
   if (previous?.importedAt === undefined) return { ...esq, model: next };
   const changes: EsqModelChange[] = [];
   tableChanges("TREE", previous.trees, next.trees, (row) => row.id, (row) => row.code, changes);
@@ -1057,7 +1060,86 @@ function eventFunctionsOf(model: EsqModel, functions: readonly EsqFunctionView[]
   return out;
 }
 
-function valueViews(esq: EventSequenceQuantification, model: EsqModel, functions: readonly EsqFunctionView[]): EsqValueView[] {
+function daReferenceOf(esq: EventSequenceQuantification, parameterId: string): WorkbookParameterReference | undefined {
+  const workbookId = linkOf(esq, "DA");
+  return workbookId === undefined ? undefined : { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: parameterId };
+}
+
+function missionTimeSourcesOf(esq: EventSequenceQuantification, upstream: Pick<EsqUpstream, "sc" | "scExamples">): ScMissionTimeSource[] {
+  const workbookId = linkOf(esq, "SC");
+  return [...(workbookId === undefined || upstream.sc === undefined ? [] : [{ workbookId, sc: upstream.sc }]), ...upstream.scExamples];
+}
+
+function scTableOf(sources: readonly ScMissionTimeSource[]): Map<string, UncertainParameter> {
+  return new Map(sources.flatMap((source) => [...scMissionTimeTable(source.workbookId, source.sc)]));
+}
+
+function parameterTableOf(esq: EventSequenceQuantification, sources: readonly ScMissionTimeSource[] = []): Map<string, UncertainParameter> {
+  const table = scTableOf(sources);
+  for (const parameter of esq.model?.parameters ?? []) {
+    const reference = daReferenceOf(esq, parameter.id);
+    if (reference === undefined || parameter.estimate === undefined || !holdsEstimate(parameter.quantificationModel)) continue;
+    table.set(parameterReferenceKey(reference), { reference, expression: parameter.estimate });
+  }
+  return table;
+}
+
+function parameterLabelOf(esq: EventSequenceQuantification, sources: readonly ScMissionTimeSource[] = []): (key: string) => string {
+  const labels = new Map<string, string>(sources.flatMap((source) => scMissionTimeEntries(source.workbookId, source.sc).map((entry) => [parameterReferenceKey(entry.reference), entry.label] as const)));
+  for (const parameter of esq.model?.parameters ?? []) {
+    const reference = daReferenceOf(esq, parameter.id);
+    if (reference !== undefined) labels.set(parameterReferenceKey(reference), parameter.id);
+  }
+  return (key) => labels.get(key) ?? key.slice(key.indexOf(":") + 1);
+}
+
+function substituted(expression: UncertainExpression, from: string, to: UncertainExpression): UncertainExpression {
+  switch (expression.node) {
+    case "VALUE": return expression;
+    case "PARAMETER": return parameterReferenceKey(expression.reference) === from ? to : expression;
+    case "OPERATION": return { ...expression, operands: expression.operands.map((operand) => substituted(operand, from, to)) };
+    case "MODEL": return { node: "MODEL", model: mapModelArguments(expression.model, (argument) => substituted(argument, from, to)) };
+  }
+}
+
+function inlinedExpression(expression: UncertainExpression, table: ReadonlyMap<string, UncertainParameter>, seen: ReadonlySet<string> = new Set()): UncertainExpression {
+  switch (expression.node) {
+    case "VALUE": return expression;
+    case "PARAMETER": {
+      const key = parameterReferenceKey(expression.reference);
+      const parameter = table.get(key);
+      return parameter === undefined || seen.has(key) ? expression : inlinedExpression(parameter.expression, table, new Set([...seen, key]));
+    }
+    case "OPERATION": return { ...expression, operands: expression.operands.map((operand) => inlinedExpression(operand, table, seen)) };
+    case "MODEL": return { node: "MODEL", model: mapModelArguments(expression.model, (argument) => inlinedExpression(argument, table, seen)) };
+  }
+}
+
+function missionTimeOf(expression: UncertainExpression | undefined): UncertainExpression | undefined {
+  return expression?.node === "MODEL" && expression.model.form === "MISSION" ? expression.model.missionTime : undefined;
+}
+
+function readsMissionTime(esq: EventSequenceQuantification, reference: WorkbookParameterReference): boolean {
+  const workbookId = linkOf(esq, "SC");
+  return reference.workbookId.startsWith(EXAMPLE_SC_PREFIX) || (workbookId !== undefined && reference.workbookId.trim() === workbookId.trim());
+}
+
+function boundExpression(esq: EventSequenceQuantification, event: EsqEventRecord, parameter: EsqParameterRecord): Pick<EsqValueView, "expression" | "problem"> {
+  if (parameter.estimate === undefined) return { problem: `DA gives ${parameter.name} no estimate. Give it one in DA and import again.` };
+  const reference = daReferenceOf(esq, parameter.id);
+  if (reference === undefined) return { problem: "Step 01 links no DA workbook. Link it and import again." };
+  const own: UncertainExpression = { node: "PARAMETER", reference };
+  const key = parameterReferenceKey(reference);
+  const imported = event.expression;
+  const references = imported === undefined ? [] : expressionReferences(imported).filter((entry) => !readsMissionTime(esq, entry));
+  if (imported !== undefined && references.some((entry) => parameterReferenceKey(entry) === key)) return { expression: imported };
+  if (parameterUnit(parameter) === "PROBABILITY") return { expression: own };
+  const [only, ...others] = references;
+  if (imported === undefined || only === undefined || others.length > 0) return { problem: `${parameter.name} is a rate. Bind it only to an event whose SY value is a mission or standby model of one rate.` };
+  return { expression: substituted(imported, parameterReferenceKey(only), own) };
+}
+
+function valueViews(esq: EventSequenceQuantification, model: EsqModel, functions: readonly EsqFunctionView[], table: ReadonlyMap<string, UncertainParameter>): EsqValueView[] {
   const reached = eventFunctionsOf(model, functions);
   const events = model.events.flatMap((event): EsqValueView[] => {
     const functionIds = reached.get(event.id);
@@ -1065,7 +1147,8 @@ function valueViews(esq: EventSequenceQuantification, model: EsqModel, functions
     const binding = valueBindingOf(esq, event.id);
     const heldBy = binding?.heldBy ?? event.heldBy;
     const holderId = binding?.holderId ?? event.holderId;
-    const view: EsqValueView = { kind: "EVENT", id: event.id, code: event.code, name: event.name, event, heldBy, functionIds };
+    const component = carriesUncertainExpression(event.failureMode);
+    const view: EsqValueView = { kind: "EVENT", id: event.id, code: event.code, name: event.name, event, heldBy, component, functionIds };
     if (event.systemName !== undefined) view.systemName = event.systemName;
     if (binding !== undefined) view.binding = binding;
     if (holderId !== undefined) view.holderId = holderId;
@@ -1073,28 +1156,37 @@ function valueViews(esq: EventSequenceQuantification, model: EsqModel, functions
     const human = heldBy === "HRA" ? model.humanEvents.find((candidate) => candidate.id === holderId) : undefined;
     if (parameter !== undefined) {
       view.parameter = parameter;
-      if (parameter.value !== undefined) view.value = parameter.value;
-      view.valueType = parameter.valueType;
-      if (parameter.p05 !== undefined) view.p05 = parameter.p05;
-      if (parameter.p95 !== undefined) view.p95 = parameter.p95;
-      if (parameter.distributionType !== undefined) view.distributionType = parameter.distributionType;
+      if (isComponentModel(parameter.quantificationModel) && !component) {
+        view.problem = `${parameter.name} is a component estimate. It cannot set ${event.code}.`;
+      } else if (isComponentModel(parameter.quantificationModel)) {
+        const bound = boundExpression(esq, event, parameter);
+        if (bound.expression !== undefined) view.expression = bound.expression;
+        if (bound.problem !== undefined) view.problem = bound.problem;
+      } else if (holdsEstimate(parameter.quantificationModel)) {
+        view.problem = `${parameter.name} is a frequency. It cannot set ${event.code}.`;
+      } else {
+        if (parameter.value !== undefined) view.value = parameter.value;
+        if (parameter.valueType !== undefined) view.valueType = parameter.valueType;
+      }
     } else if (human !== undefined) {
       view.human = human;
       if (human.value !== undefined) view.value = human.value;
       if (human.valueType !== undefined) view.valueType = human.valueType;
     }
-    if (view.value === undefined && binding === undefined && event.value !== undefined) view.value = event.value;
-    const running = event.valueUnit === "PER_HOUR" || (event.failureMode !== undefined && RUNNING_MODES.has(event.failureMode));
-    const mission = parameter?.missionTimeHours ?? event.missionTimeHours;
-    if (running && mission !== undefined) view.missionTimeHours = mission;
+    const open = view.value === undefined && view.expression === undefined && view.problem === undefined && binding === undefined;
+    if (open && component && event.expression !== undefined) view.expression = event.expression;
+    if (open && !component && event.value !== undefined) view.value = event.value;
+    const running = event.valueUnit === "PER_HOUR" || (event.failureMode !== undefined && RUNNING_MODES.has(event.failureMode)) || parameter?.quantificationModel === "MISSION_PROBABILITY";
+    const mission = view.expression === undefined ? (running ? parameter?.missionTime ?? event.missionTime : undefined) : missionTimeOf(inlinedExpression(view.expression, table));
+    if (mission !== undefined) view.missionTime = mission;
     return [view];
   });
   const groups = model.ccfGroups.flatMap((group): EsqValueView[] => {
     const functionIds = unique(group.memberIds.flatMap((member) => reached.get(member) ?? []));
     if (functionIds.length === 0) return [];
-    const view: EsqValueView = { kind: "CCF", id: group.id, code: group.id, name: group.name, ccf: group, heldBy: group.estimateRef === undefined ? "TYPED" : "DA", functionIds };
+    const view: EsqValueView = { kind: "CCF", id: group.id, code: group.id, name: group.name, ccf: group, heldBy: group.estimateRef === undefined ? "TYPED" : "DA", component: false, functionIds };
     if (group.estimateRef !== undefined) view.holderId = group.estimateRef;
-    if (group.totalProbability !== undefined) view.value = group.totalProbability;
+    if (group.total !== undefined) view.expression = group.total;
     const systems = unique(group.systemIds);
     if (systems.length > 0) view.systemName = model.tops.find((top) => top.systemId === systems[0])?.systemName ?? systems[0];
     return [view];
@@ -1193,7 +1285,7 @@ function splitFindings(esq: EventSequenceQuantification, model: EsqModel, target
   if (target.cellId !== undefined) {
     const cell = cellOf(esq, target.cellId);
     if (cell === undefined) findings.push({ severity: "error", check: "Step 04 cell missing", item, detail: `${where} takes cell ${target.cellId}, which Step 04 no longer has.`, target: findingTarget });
-    else if (cellValueOfRecord(cell) === undefined) findings.push({ severity: "error", check: "No Step 04 value", item, detail: `${where} takes cell ${cell.id}, which has no value of record yet. Run it or type a value in Step 04.`, target: findingTarget });
+    else if (cellExpressionOfRecord(cell) === undefined) findings.push({ severity: "error", check: "No Step 04 value", item, detail: `${where} takes cell ${cell.id}, which has no value of record yet. Run it or type a value in Step 04.`, target: findingTarget });
     return findings;
   }
   if (target.parameterId !== undefined) {
@@ -1208,17 +1300,67 @@ function splitFindings(esq: EventSequenceQuantification, model: EsqModel, target
   return findings;
 }
 
-function functionFindings(esq: EventSequenceQuantification, model: EsqModel, functions: readonly EsqFunctionView[], values: readonly EsqValueView[]): EsqModelFinding[] {
+function missionPoint(expression: UncertainExpression, table: ReadonlyMap<string, UncertainParameter>): EsqMissionPoint {
+  const query = { expression, unit: "HOURS" as const, probabilities: [], parameters: parametersFor([expression], table) };
+  const state = peekExpression(query);
+  if (state.status === "pending") {
+    requestExpression(query);
+    return { status: "pending" };
+  }
+  return state.status === "failed" ? state : { status: "ready", hours: state.value.point };
+}
+
+function hoursText(hours: number): string {
+  return String(Number(hours.toPrecision(4)));
+}
+
+function missionFindings(model: EsqModel, functions: readonly EsqFunctionView[], values: readonly EsqValueView[], table: ReadonlyMap<string, UncertainParameter>): EsqModelFinding[] {
   const findings: EsqModelFinding[] = [];
-  const cc = esq.capabilityCategory;
   const runningByModel = new Map<string, EsqValueView[]>();
   for (const value of values) {
-    if (value.kind !== "EVENT" || value.missionTimeHours === undefined) continue;
+    if (value.kind !== "EVENT" || value.missionTime === undefined) continue;
     for (const top of model.tops) {
       if (!top.eventIds.includes(value.id)) continue;
       runningByModel.set(top.modelId, [...(runningByModel.get(top.modelId) ?? []), value]);
     }
   }
+  const asked = new Set(functions.flatMap((view) => view.resolved.map(({ tree }) => tree.id)));
+  const untimed = model.trees.filter((tree) => asked.has(tree.id) && tree.missionTime === undefined).map((tree) => tree.code);
+  if (untimed.length > 0) findings.push({ severity: "note", check: "No tree mission time", item: listText(untimed), detail: `Give ${untimed.length === 1 ? "this tree" : "these trees"} a mission time in the Trees tab, typed or linked to SC. The mission time check skips ${untimed.length === 1 ? "it" : "them"}.` });
+  const unchecked = new Map<string, string>();
+  for (const view of functions) {
+    const id = view.record.id;
+    const target = { kind: "esqFunction" as const, id };
+    const shortTrees: { tree: string; events: string[]; hours: number; mission: number }[] = [];
+    for (const { tree, link } of view.resolved) {
+      if (tree.missionTime === undefined || link.target?.kind !== "FAULT_TREE") continue;
+      const treePoint = missionPoint(tree.missionTime, table);
+      if (treePoint.status === "failed") unchecked.set(tree.code, treePoint.error);
+      if (treePoint.status !== "ready") continue;
+      const running = reachedModels(model, link.target.top.modelId).flatMap((modelId) => runningByModel.get(modelId) ?? []);
+      const short: { code: string; hours: number }[] = [];
+      for (const value of running) {
+        if (value.missionTime === undefined) continue;
+        const point = missionPoint(value.missionTime, table);
+        if (point.status === "failed") unchecked.set(value.code, point.error);
+        if (point.status === "ready" && point.hours < treePoint.hours) short.push({ code: value.code, hours: point.hours });
+      }
+      if (short.length > 0) shortTrees.push({ tree: tree.code, events: unique(short.map((entry) => entry.code)), hours: Math.min(...short.map((entry) => entry.hours)), mission: treePoint.hours });
+    }
+    if (shortTrees.length > 0) {
+      const events = unique(shortTrees.flatMap((entry) => entry.events));
+      const hours = Math.min(...shortTrees.map((entry) => entry.hours));
+      const mission = Math.max(...shortTrees.map((entry) => entry.mission));
+      findings.push({ severity: "warning", check: "Mission time", item: id, detail: `${plural(shortTrees.length, "tree")} that ask ${id} last up to ${hoursText(mission)} h (${listText(shortTrees.map((entry) => entry.tree))}), but ${listText(events)} ${events.length === 1 ? "is" : "are"} quantified for ${hoursText(hours)} h.`, target });
+    }
+  }
+  for (const [item, error] of unchecked) findings.push({ severity: "warning", check: "Mission time not checked", item, detail: `PRAXIS gave no mission time for ${item}: ${error}` });
+  return findings;
+}
+
+function functionFindings(esq: EventSequenceQuantification, model: EsqModel, functions: readonly EsqFunctionView[]): EsqModelFinding[] {
+  const findings: EsqModelFinding[] = [];
+  const cc = esq.capabilityCategory;
   for (const view of functions) {
     const id = view.record.id;
     const target = { kind: "esqFunction" as const, id };
@@ -1239,27 +1381,13 @@ function functionFindings(esq: EventSequenceQuantification, model: EsqModel, fun
       if (rule.groupIds.length === 0 && rule.stateIds.length === 0) findings.push({ severity: "warning", check: "Rule matches every tree", item: label, detail: "Pick initiator groups or operating states, or set the default link instead.", target });
       else if (!view.trees.some((tree) => ruleMatches(rule, tree))) findings.push({ severity: "warning", check: "Rule matches no tree", item: label, detail: "No tree in scope has these initiator groups and operating states.", target });
     });
-    const shortTrees: { tree: string; events: string[]; hours: number; mission: number }[] = [];
-    for (const { tree, link } of view.resolved) {
-      if (tree.missionTimeHours === undefined || link.target?.kind !== "FAULT_TREE") continue;
-      const missionTime = tree.missionTimeHours;
-      const running = reachedModels(model, link.target.top.modelId).flatMap((modelId) => runningByModel.get(modelId) ?? []);
-      const short = running.filter((value) => (value.missionTimeHours ?? missionTime) < missionTime);
-      if (short.length > 0) shortTrees.push({ tree: tree.code, events: unique(short.map((value) => value.code)), hours: Math.min(...short.map((value) => value.missionTimeHours ?? missionTime)), mission: missionTime });
-    }
-    if (shortTrees.length > 0) {
-      const events = unique(shortTrees.flatMap((entry) => entry.events));
-      const hours = Math.min(...shortTrees.map((entry) => entry.hours));
-      const mission = Math.max(...shortTrees.map((entry) => entry.mission));
-      findings.push({ severity: "warning", check: "Mission time", item: id, detail: `${plural(shortTrees.length, "tree")} that ask ${id} last up to ${mission} h (${listText(shortTrees.map((entry) => entry.tree))}), but its running events ${listText(events)} ${events.length === 1 ? "is" : "are"} quantified for ${hours} h.`, target });
-    }
   }
   const orphanLinks = (decisionsOf(esq).functionLinks ?? []).filter((link) => !model.functions.some((record) => record.id === link.functionId));
   for (const link of orphanLinks) findings.push({ severity: "note", check: "Link not used", item: link.functionId, detail: `ES no longer has ${link.functionId}. Its link is kept but not used.` });
   return findings;
 }
 
-function initiatorFindings(esq: EventSequenceQuantification, model: EsqModel, initiators: readonly EsqInitiatorView[]): EsqModelFinding[] {
+function initiatorFindings(esq: EventSequenceQuantification, model: EsqModel, initiators: readonly EsqInitiatorView[], table: ReadonlyMap<string, UncertainParameter>): EsqModelFinding[] {
   const findings: EsqModelFinding[] = [];
   const weighting = stateWeightingOf(esq);
   const posImported = model.sources.some((source) => source.element === "POS");
@@ -1270,12 +1398,19 @@ function initiatorFindings(esq: EventSequenceQuantification, model: EsqModel, in
       findings.push({ severity: "error", check: "Not in IE", item: view.id, detail: model.sources.some((source) => source.element === "IE") ? `ES starts trees with ${view.id}, but IE does not list it. Type its frequency or take it from DA.` : `Link IE in Step 01 and import, or type the frequency of ${view.id}.`, target });
     } else if (view.source === "DA" && view.parameter === undefined) {
       findings.push({ severity: "error", check: "DA parameter missing", item: view.id, detail: view.choice?.parameterId === undefined ? "Pick the DA parameter." : `The imported DA workbook does not hold ${view.choice.parameterId}.`, target });
-    } else if (view.mean === undefined) {
+    } else if (view.source === "DA" && view.parameter?.estimate === undefined) {
+      findings.push({ severity: "error", check: "No DA estimate", item: view.id, detail: `DA gives ${view.parameter?.name ?? view.choice?.parameterId ?? "the parameter"} no frequency estimate.`, target });
+    } else if (view.source === "DA" && linkOf(esq, "DA") === undefined) {
+      findings.push({ severity: "error", check: "DA workbook not linked", item: view.id, detail: "Link the DA workbook in Step 01 to take the frequency from it.", target });
+    } else if (view.given === undefined) {
       findings.push({ severity: "error", check: "No frequency", item: view.id, detail: `${view.id} has no frequency. Take it from IE or DA, or type it.`, target });
+    }
+    if (view.given !== undefined) {
+      for (const problem of referenceProblems(esq, model, view.given, view.id)) findings.push({ severity: "error", check: problem.check, item: view.id, detail: problem.detail, target });
     }
     if (view.source === "TYPED") {
       if (blank(view.choice?.basis)) findings.push({ severity: "warning", check: "No basis", item: view.id, detail: "Give the basis of the typed frequency.", target });
-      if (cc === "CC-II" && view.errorFactor === undefined) findings.push({ severity: "warning", check: "No distribution", item: view.id, detail: "CC-II propagates a distribution. Give an error factor (ESQ-A8).", target });
+      if (cc === "CC-II" && view.given !== undefined && !hasUncertainty(inlinedExpression(view.given, table))) findings.push({ severity: "warning", check: "No distribution", item: view.id, detail: "CC-II propagates a distribution. Give the typed frequency a law (ESQ-A8).", target });
     }
     if (view.unit === "per-critical-year") findings.push({ severity: "warning", check: "Frequency unit", item: view.id, detail: "IE gives this frequency per critical year. ESQ works per plant-year.", target });
     if (view.unit === "per-demand") findings.push({ severity: "error", check: "Frequency unit", item: view.id, detail: "IE gives this value per demand. An initiator needs a frequency.", target });
@@ -1305,7 +1440,42 @@ function initiatorFindings(esq: EventSequenceQuantification, model: EsqModel, in
   return findings;
 }
 
-function valueFindings(esq: EventSequenceQuantification, model: EsqModel, values: readonly EsqValueView[]): EsqModelFinding[] {
+function referenceProblems(esq: EventSequenceQuantification, model: EsqModel, expression: UncertainExpression, code: string, missionTimes?: ReadonlyMap<string, UncertainParameter>): EsqReferenceProblem[] {
+  const workbookId = linkOf(esq, "DA");
+  const problems: EsqReferenceProblem[] = [];
+  const seen = new Set<string>();
+  const pending = expressionReferences(expression);
+  while (pending.length > 0) {
+    const reference = pending.pop();
+    if (reference === undefined) break;
+    const key = parameterReferenceKey(reference);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (readsMissionTime(esq, reference)) {
+      const missionTime = missionTimes?.get(key);
+      if (missionTimes !== undefined && missionTime === undefined) problems.push({ check: "SC mission time missing", detail: `${code} reads mission time ${reference.entityId}, which the linked SC workbook does not hold.` });
+      if (missionTime !== undefined) pending.push(...expressionReferences(missionTime.expression));
+      continue;
+    }
+    if (workbookId === undefined || reference.workbookId.trim() !== workbookId.trim()) {
+      problems.push({ check: "Workbook not linked", detail: `${code} reads ${reference.entityId} from a workbook that Step 01 does not link as DA or SC.` });
+      continue;
+    }
+    const parameter = model.parameters.find((entry) => entry.id === reference.entityId.trim());
+    if (parameter === undefined) {
+      problems.push({ check: "DA parameter missing", detail: `${code} reads DA parameter ${reference.entityId}, which the Step 02 import does not hold.` });
+      continue;
+    }
+    if (!holdsEstimate(parameter.quantificationModel) || parameter.estimate === undefined) {
+      problems.push({ check: "No DA estimate", detail: `${code} reads ${parameter.name}, which has no estimate in DA.` });
+      continue;
+    }
+    pending.push(...expressionReferences(parameter.estimate));
+  }
+  return problems;
+}
+
+function valueFindings(esq: EventSequenceQuantification, model: EsqModel, values: readonly EsqValueView[], table: ReadonlyMap<string, UncertainParameter>, missionTimes: ReadonlyMap<string, UncertainParameter> | undefined): EsqModelFinding[] {
   const findings: EsqModelFinding[] = [];
   const daImported = model.sources.some((source) => source.element === "DA");
   const hrImported = model.sources.some((source) => source.element === "HRA");
@@ -1320,20 +1490,36 @@ function valueFindings(esq: EventSequenceQuantification, model: EsqModel, values
     if (value.binding !== undefined && blank(value.binding.reason)) findings.push({ severity: "error", check: "Changed without a reason", item: value.code, detail: "The value source differs from SY. Give the reason.", target });
     if (value.heldBy === "DA" && daImported && value.parameter === undefined) findings.push({ severity: "error", check: "DA parameter missing", item: value.code, detail: `${value.code} takes its value from ${value.holderId ?? "DA"}, which the imported DA workbook does not hold.`, target });
     if (value.heldBy === "HRA" && hrImported && value.human === undefined) findings.push({ severity: "error", check: "HR event missing", item: value.code, detail: `${value.code} takes its value from ${value.holderId ?? "HR"}, which the imported HR workbook does not hold.`, target });
-    if (value.value === undefined) {
+    if (value.problem !== undefined) {
+      findings.push({ severity: "error", check: "Value cannot be used", item: value.code, detail: value.problem, target });
+      continue;
+    }
+    if (value.value === undefined && value.expression === undefined) {
       findings.push({ severity: "error", check: "No value", item: value.code, detail: `${value.code} has no value.`, target });
       continue;
     }
+    const holderMissing = value.heldBy === "DA" && value.parameter === undefined;
+    if (value.expression !== undefined && !holderMissing) {
+      for (const problem of referenceProblems(esq, model, value.expression, value.code, missionTimes)) findings.push({ severity: "error", check: problem.check, item: value.code, detail: problem.detail, target });
+    }
     if (value.heldBy === "TYPED") findings.push({ severity: "warning", check: "Not bound", item: value.code, detail: "SY types this value. Bind it to a DA parameter or an HR event.", target });
     if (cc !== "CC-II") continue;
+    if (value.expression !== undefined) {
+      if (!hasUncertainty(inlinedExpression(value.expression, table))) findings.push({ severity: "warning", check: "No distribution", item: value.code, detail: `${value.code} has no uncertainty to propagate at CC-II. Give it a law in ${value.heldBy === "DA" ? "DA" : "SY"} (ESQ-A8).`, target });
+      continue;
+    }
     if (value.valueType === "POINT_ESTIMATE") findings.push({ severity: "warning", check: "Point estimate at CC-II", item: value.code, detail: "CC-II quantifies with mean values (ESQ-A5, A8).", target });
-    if (value.parameter !== undefined && value.parameter.distributionType === undefined) findings.push({ severity: "warning", check: "No distribution", item: value.code, detail: `${value.parameter.id} has no distribution to propagate at CC-II (ESQ-A8).`, target });
+    if (value.parameter !== undefined && (value.parameter.distribution === undefined || value.parameter.distribution.type === DistributionType.POINT_ESTIMATE)) findings.push({ severity: "warning", check: "No distribution", item: value.code, detail: `${value.parameter.id} has no distribution to propagate at CC-II (ESQ-A8).`, target });
     if (value.human?.assessmentType === "CONSERVATIVE_ESTIMATE" && value.human.riskSignificant) findings.push({ severity: "warning", check: "Screening value", item: value.code, detail: `${value.human.id} is risk-significant but keeps a conservative estimate. CC-II needs a detailed assessment (ESQ-A8).`, target });
   }
   return findings;
 }
 
-function modelViewOf(esq: EventSequenceQuantification, options?: Record<EsqLinkCode, Workbook[]>): EsqModelView | undefined {
+function missionTimeTableOf(esq: EventSequenceQuantification, upstream: Pick<EsqUpstream, "sc" | "scExamples">): Map<string, UncertainParameter> | undefined {
+  return linkOf(esq, "SC") !== undefined && upstream.sc === undefined ? undefined : scTableOf(missionTimeSourcesOf(esq, upstream));
+}
+
+function modelViewOf(esq: EventSequenceQuantification, options?: Record<EsqLinkCode, Workbook[]>, missionTimes?: ReadonlyMap<string, UncertainParameter>): EsqModelView | undefined {
   const model = esq.model;
   if (model?.importedAt === undefined) return undefined;
   const trees = treesInScope(esq, model);
@@ -1341,7 +1527,8 @@ function modelViewOf(esq: EventSequenceQuantification, options?: Record<EsqLinkC
   const families = familyViews(esq, model, sequences);
   const functions = functionViews(esq, model, trees);
   const initiators = initiatorViews(esq, model, trees);
-  const values = valueViews(esq, model, functions);
+  const table = parameterTableOf(esq);
+  const values = valueViews(esq, model, functions, table);
   const treeIds = new Set(model.trees.map((tree) => tree.id));
   const outOfScope = model.sequences.filter((sequence) => treeIds.has(sequence.treeId)).length - sequences.length;
   const findings = [
@@ -1349,9 +1536,10 @@ function modelViewOf(esq: EventSequenceQuantification, options?: Record<EsqLinkC
     ...(model.sources.some((source) => source.element === "ES") && sequences.length === 0 ? [{ severity: "error" as const, check: "No sequence in scope", item: "Sequences", detail: "Step 01 leaves every event tree out of scope." }] : []),
     ...sequenceFindings(model, sequences, families),
     ...familyFindings(families),
-    ...functionFindings(esq, model, functions, values),
-    ...initiatorFindings(esq, model, initiators),
-    ...valueFindings(esq, model, values),
+    ...functionFindings(esq, model, functions),
+    ...(missionTimes === undefined ? [] : missionFindings(model, functions, values, new Map([...table, ...missionTimes]))),
+    ...initiatorFindings(esq, model, initiators, table),
+    ...valueFindings(esq, model, values, table, missionTimes),
   ];
   return { model, trees, sequences, outOfScope, families, functions, initiators, values, findings: sortFindings(findings) };
 }
@@ -1467,7 +1655,14 @@ export {
   withFamilyRenamed,
   withFamilyRemoved,
   familyIdTaken,
+  missionTimeSourcesOf,
+  missionTimeTableOf,
+  parameterLabelOf,
+  parameterTableOf,
+  referenceProblems,
+  withTreeMissionTime,
   type EsqModelWindowKind,
+  type EsqReferenceProblem,
   type EsqFindingSeverity,
   type EsqModelFinding,
   type EsqResolvedLink,

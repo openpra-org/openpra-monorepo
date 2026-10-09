@@ -17,13 +17,21 @@ import type {
   DaSourceVerdict,
   DaTransferFactor,
 } from "interfaces-mef-types/da/data-analysis";
+import { entryHoldsLaw } from "interfaces-mef-types/da/data-analysis";
+import { lawWithinUnit, type Law } from "interfaces-mef-types/core/uncertainty";
+import { legacyLaw } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
+import type { UncertaintyLawSummary } from "interfaces-shared-types/newly-developed-methods/shared";
 import { DA_SOURCE_CATALOG, daCatalogSource } from "interfaces-mef-types/da/generic-sources";
+import { useUncertaintyVersion, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
+import { lawText } from "../newly-developed-methods/shared/uncertainText";
+import { LawEditor, draftFor } from "../newly-developed-methods/shared/uncertainEditor";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { ClampCell, DaProvenanceChip, DaTabs, DetailRow, FieldList, FormFoot, FormRow, ModalHead, PlotToggle, sciText } from "./daShared";
 import { distributionQuantile, judgmentComponent } from "./daDistributions";
 import { DistributionChart, useElementWidth, type DistributionSeries } from "./daDistributionChart";
 import { useDaWorkbook } from "./daWorkbookContext";
+import { elicitationLaw, lawParameter, lawSummary, operationLaw, parameterPriorLaw, quantileOf, quantityUnit, sourceUseLaw, type DaLawState } from "./daLaws";
 import {
   BOUNDARY_MATCH_LABELS,
   EVIDENCE_KIND_LABELS,
@@ -55,6 +63,7 @@ import {
   nextCode,
   parameterPrior,
   parseDelimited,
+  priorUse,
   sourceFindings,
   sourceUsers,
   sourceUseBase,
@@ -66,7 +75,7 @@ import {
   type DaFitBasis,
   type DaImportField,
 } from "./daSourcing";
-import { AreaRow, NEED_PAGE, NeedChecksTable, NeedPager, listCell, numberFrom, statText, type DaDrawerContext } from "./daScreens";
+import { AreaRow, NEED_PAGE, NeedChecksTable, NeedPager, PraxisValue, listCell, numberFrom, praxisText, statText, waitNote, type DaDrawerContext } from "./daScreens";
 
 type SourcesTab = "library" | "estimates" | "applicability" | "judgment" | "checks";
 
@@ -179,7 +188,52 @@ function waitingSources(sources: readonly DaSource[], builtIn: ReadonlyMap<strin
   return sources.filter((source) => source.catalogId !== undefined && catalogDataset(source.catalogId) !== undefined && !builtIn.has(source.catalogId)).length;
 }
 
+function summaryValue(state: UncertaintyState<UncertaintyLawSummary> | undefined, read: (summary: UncertaintyLawSummary) => number | undefined): UncertaintyState<number> | undefined {
+  if (state === undefined || state.status !== "ready") return state;
+  const value = read(state.value);
+  return value === undefined ? undefined : { status: "ready", value };
+}
+
+function lawStateSummary(state: DaLawState, quantity: DaEstimateQuantity, curve: boolean): UncertaintyState<UncertaintyLawSummary> | undefined {
+  if (state.status === "missing") return undefined;
+  if (state.status !== "ready") return state;
+  const unit = quantityUnit(quantity);
+  return lawSummary(unit, lawWithinUnit(unit, state.law), curve);
+}
+
+function entryLawSummary(entry: DaSourceEntry, curve: boolean): UncertaintyState<UncertaintyLawSummary> | undefined {
+  if (!entryHoldsLaw(entry.quantity) || entry.law === undefined) return undefined;
+  const unit = quantityUnit(entry.quantity);
+  return lawSummary(unit, lawWithinUnit(unit, entry.law), curve);
+}
+
+function entryMean(entry: DaSourceEntry): UncertaintyState<number> | undefined {
+  if (entry.mean !== undefined) return { status: "ready", value: entry.mean };
+  return summaryValue(entryLawSummary(entry, false), (summary) => summary.mean);
+}
+
+function LawEstimateDetail({ source, entry }: { source: DaSource; entry: DaSourceEntry }): JSX.Element {
+  useUncertaintyVersion();
+  const state = entryLawSummary(entry, true);
+  const note = waitNote([state]);
+  return (
+    <>
+      <FieldList items={[
+        { label: "Source", value: `${source.id} · ${source.name}` },
+        { label: "Distribution", value: entry.law === undefined ? "—" : lawText(entry.law) },
+        { label: "5th percentile", value: praxisText(summaryValue(state, (summary) => quantileOf(summary, 0.05))) },
+        { label: "95th percentile", value: praxisText(summaryValue(state, (summary) => quantileOf(summary, 0.95))) },
+        { label: "Data", value: dataText(entry) },
+      ]} />
+      {entry.law === undefined && <p className="posmuted">This estimate has no distribution yet. Give it one in its edit window.</p>}
+      {note !== undefined && <p className="posmuted">{note}</p>}
+      {state?.status === "ready" && <DistributionChart series={[{ key: entry.id, label: entry.id, detail: "", summary: state.value }]} unit={QUANTITY_LABELS[entry.quantity]} />}
+    </>
+  );
+}
+
 function EstimateDetail({ source, entry }: { source: DaSource; entry: DaSourceEntry }): JSX.Element {
+  if (entryHoldsLaw(entry.quantity)) return <LawEstimateDetail source={source} entry={entry} />;
   const fit = entryFit(entry);
   return (
     <>
@@ -200,9 +254,71 @@ function EstimateDetail({ source, entry }: { source: DaSource; entry: DaSourceEn
   );
 }
 
+function sourceUseLabel(use: DaSourceUse): string {
+  return use.elicitationId ?? `${use.sourceId ?? "?"} · ${use.entryId ?? "?"}`;
+}
+
+function sourceUseDetail(parameter: DataAnalysisParameter, use: DaSourceUse): string {
+  return [use.id === parameter.priorUseId ? "Prior" : "", VERDICT_LABELS[use.verdict], use.verdict === "SCALED" ? "nominal factors" : ""].filter((part) => part.length > 0).join(", ");
+}
+
+function priorLawSummary(da: DataAnalysis, parameter: DataAnalysisParameter, curve: boolean): UncertaintyState<UncertaintyLawSummary> | undefined {
+  const state = parameterPriorLaw(da, parameter);
+  if (state.status === "missing") return undefined;
+  if (state.status !== "ready") return state;
+  return lawSummary(quantityUnit(state.value.quantity), state.value.law, curve);
+}
+
+function hasPrior(da: DataAnalysis, parameter: DataAnalysisParameter): boolean {
+  return lawParameter(parameter) ? parameterPriorLaw(da, parameter).status !== "missing" : parameterPrior(da, parameter) !== undefined;
+}
+
+function LawParameterDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.Element {
+  const { da } = useDaWorkbook();
+  useUncertaintyVersion();
+  const [focus, setFocus] = useState<string | undefined>(undefined);
+  const states = (parameter.sourceUses ?? []).map((use) => ({ use, state: sourceUseLaw(da, use) }));
+  const results = states.flatMap(({ use, state }) => (state.status === "ready" ? [{ use, quantity: state.value.quantity, law: state.value.law }] : []));
+  const focusKey = focus !== undefined && results.some((item) => item.use.id === focus) ? focus : results.find((item) => item.use.id === parameter.priorUseId)?.use.id ?? results[0]?.use.id;
+  const anchor = results.find((item) => item.use.id === focusKey);
+  const prior = priorLawSummary(da, parameter, false);
+  const fields = (
+    <FieldList items={[
+      { label: "Model", value: modelSpecOf(parameter.quantificationModel)?.label ?? "Not set" },
+      { label: "Evidence", value: parameter.evidenceKind === undefined ? "—" : EVIDENCE_KIND_LABELS[parameter.evidenceKind] },
+      { label: "5th percentile", value: praxisText(summaryValue(prior, (summary) => quantileOf(summary, 0.05))) },
+      { label: "95th percentile", value: praxisText(summaryValue(prior, (summary) => quantileOf(summary, 0.95))) },
+      { label: "Considered", value: String((parameter.sourceUses ?? []).length) },
+    ]} />
+  );
+  const waiting = waitNote(states.map(({ state }) => (state.status === "missing" ? undefined : state.status === "ready" ? { status: "ready" as const } : state)));
+  if (anchor === undefined) {
+    return (
+      <>
+        {fields}
+        <p className="posmuted">{waiting ?? "No considered source has a distribution to plot yet."}</p>
+      </>
+    );
+  }
+  const plotted = results.filter((item) => item.quantity === anchor.quantity).map((item) => ({ ...item, summary: lawSummary(quantityUnit(item.quantity), item.law, true) }));
+  const series: DistributionSeries[] = plotted.flatMap(({ use, summary }) => (summary.status === "ready" ? [{ key: use.id, label: sourceUseLabel(use), detail: sourceUseDetail(parameter, use), summary: summary.value }] : []));
+  const note = waiting ?? waitNote(plotted.map((item) => item.summary));
+  const left = results.length - plotted.length;
+  return (
+    <>
+      {fields}
+      <p className="da-needs__meta da-needs__meta--lead">Each curve is a considered source after its unit conversion and transfer factors.</p>
+      {note !== undefined && <p className="posmuted">{note}</p>}
+      {series.length > 0 && <DistributionChart series={series} focusKey={series.some((item) => item.key === focusKey) ? focusKey : series[0]?.key} unit={QUANTITY_LABELS[anchor.quantity]} onFocus={setFocus} />}
+      {left > 0 && <p className="da-needs__meta">{left} considered {left === 1 ? "source is" : "sources are"} in another unit and {left === 1 ? "is" : "are"} not plotted.</p>}
+    </>
+  );
+}
+
 function ParameterDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.Element {
   const { da } = useDaWorkbook();
   const [focus, setFocus] = useState<string | undefined>(undefined);
+  if (lawParameter(parameter)) return <LawParameterDetail parameter={parameter} />;
   const results = (parameter.sourceUses ?? []).flatMap((use) => {
     const result = sourceUseResult(da, use);
     return result === undefined ? [] : [{ use, result }];
@@ -228,12 +344,7 @@ function ParameterDetail({ parameter }: { parameter: DataAnalysisParameter }): J
     );
   }
   const plotted = results.filter((item) => item.result.quantity === anchor.result.quantity);
-  const series: DistributionSeries[] = plotted.map(({ use, result }) => ({
-    key: use.id,
-    label: use.elicitationId ?? `${use.sourceId ?? "?"} · ${use.entryId ?? "?"}`,
-    detail: [use.id === parameter.priorUseId ? "Prior" : "", VERDICT_LABELS[use.verdict], use.verdict === "SCALED" ? "nominal factors" : ""].filter((part) => part.length > 0).join(", "),
-    distribution: result.distribution,
-  }));
+  const series: DistributionSeries[] = plotted.map(({ use, result }) => ({ key: use.id, label: sourceUseLabel(use), detail: sourceUseDetail(parameter, use), distribution: result.distribution }));
   const left = results.length - plotted.length;
   return (
     <>
@@ -245,8 +356,50 @@ function ParameterDetail({ parameter }: { parameter: DataAnalysisParameter }): J
   );
 }
 
+function expertLaw(expert: DaElicitationExpert): DaLawState | undefined {
+  const { p05, median, p95 } = expert;
+  if (p05 === undefined || median === undefined || p95 === undefined || !(p05 > 0 && median > p05 && p95 > median)) return undefined;
+  return operationLaw({ kind: "LOGNORMAL_FIT", mean: null, median, quantiles: [{ probability: 0.05, value: p05 }, { probability: 0.95, value: p95 }] });
+}
+
+function LawJudgmentDetail({ elicitation }: { elicitation: DaElicitation }): JSX.Element {
+  useUncertaintyVersion();
+  const [focus, setFocus] = useState("POOLED");
+  const pooled = lawStateSummary(elicitationLaw(elicitation), elicitation.quantity, true);
+  const evaluators = elicitation.experts.filter((expert) => expert.role === "EVALUATOR");
+  const stated = evaluators.some((expert) => expert.weight !== undefined);
+  const experts = evaluators.flatMap((expert) => {
+    const state = expertLaw(expert);
+    return state === undefined ? [] : [{ expert, summary: lawStateSummary(state, elicitation.quantity, true) }];
+  });
+  const series: DistributionSeries[] = [
+    ...(pooled?.status === "ready" ? [{ key: "POOLED", label: "Pooled result", detail: elicitation.pooling === "LINEAR" ? "Linear pool" : "Logarithmic pool", summary: pooled.value }] : []),
+    ...experts.flatMap(({ expert, summary }) => (summary?.status === "ready" ? [{ key: expert.id, label: expert.name.trim().length > 0 ? expert.name : expert.id, detail: stated ? `weight ${expert.weight ?? 0}` : "", summary: summary.value }] : [])),
+  ];
+  const note = waitNote([pooled, ...experts.map((item) => item.summary)]);
+  return (
+    <>
+      <FieldList items={[
+        { label: "Evaluators", value: String(evaluators.length) },
+        { label: "Pooling", value: elicitation.pooling === "LINEAR" ? "Linear" : "Logarithmic" },
+        { label: "5th percentile", value: praxisText(summaryValue(pooled, (summary) => quantileOf(summary, 0.05))) },
+        { label: "95th percentile", value: praxisText(summaryValue(pooled, (summary) => quantileOf(summary, 0.95))) },
+        { label: "Owner", value: elicitation.integrator.trim().length > 0 ? elicitation.integrator : "—" },
+      ]} />
+      {note !== undefined && <p className="posmuted">{note}</p>}
+      {series.length === 0 ? note === undefined && <p className="posmuted">No evaluator has given a full set of percentiles yet.</p> : (
+        <>
+          <p className="da-needs__meta da-needs__meta--lead">Each expert curve is a lognormal fitted to that expert's 5th, 50th and 95th percentiles.</p>
+          <DistributionChart series={series} focusKey={series.some((item) => item.key === focus) ? focus : series[0]?.key} unit={QUANTITY_LABELS[elicitation.quantity]} onFocus={setFocus} />
+        </>
+      )}
+    </>
+  );
+}
+
 function JudgmentDetail({ elicitation }: { elicitation: DaElicitation }): JSX.Element {
   const [focus, setFocus] = useState("POOLED");
+  if (entryHoldsLaw(elicitation.quantity)) return <LawJudgmentDetail elicitation={elicitation} />;
   const pooled = elicitationResult(elicitation);
   const evaluators = elicitation.experts.filter((expert) => expert.role === "EVALUATOR");
   const stated = evaluators.some((expert) => expert.weight !== undefined);
@@ -301,6 +454,7 @@ function LibraryTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
 
 function EstimatesTable({ sourceId, setSourceId, selected, onSelect, openDrawer }: { sourceId: string; setSourceId: (id: string) => void; selected: string; onSelect: (key: string) => void; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [page, setPage] = useState(0);
   const [used, setUsed] = useState("all");
   const [unit, setUnit] = useState("");
@@ -360,7 +514,7 @@ function EstimatesTable({ sourceId, setSourceId, selected, onSelect, openDrawer 
                       {entry.component.trim().length > 0 ? entry.component : "—"}
                       {entry.failureMode.trim().length > 0 && <span className="da-rowtable__sub">{entry.failureMode}</span>}
                     </td>
-                    <td className="da-rowtable__num">{statText(entry.mean)}</td>
+                    <td className="da-rowtable__num"><PraxisValue state={entryMean(entry)} /></td>
                     <td>{QUANTITY_LABELS[entry.quantity]}</td>
                     <td>{yearsText(entry.yearsFrom, entry.yearsTo)}</td>
                   </tr>
@@ -376,8 +530,20 @@ function EstimatesTable({ sourceId, setSourceId, selected, onSelect, openDrawer 
   );
 }
 
+function priorCells(da: DataAnalysis, parameter: DataAnalysisParameter): { mean: UncertaintyState<number> | undefined; unit: string } {
+  if (!lawParameter(parameter)) {
+    const prior = parameterPrior(da, parameter);
+    return { mean: prior === undefined ? undefined : { status: "ready", value: prior.mean }, unit: prior === undefined ? "—" : QUANTITY_LABELS[prior.quantity] };
+  }
+  const state = parameterPriorLaw(da, parameter);
+  if (state.status === "missing") return { mean: undefined, unit: "—" };
+  if (state.status !== "ready") return { mean: state, unit: "—" };
+  return { mean: summaryValue(lawSummary(quantityUnit(state.value.quantity), state.value.law), (summary) => summary.mean), unit: QUANTITY_LABELS[state.value.quantity] };
+}
+
 function ApplicabilityTable({ selected, onSelect, openDrawer }: { selected: string; onSelect: (key: string) => void; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [page, setPage] = useState(0);
   const [show, setShow] = useState("all");
   const filterId = useId();
@@ -385,7 +551,7 @@ function ApplicabilityTable({ selected, onSelect, openDrawer }: { selected: stri
   const parameters = da.parameters.filter(needsSourcing);
   const linked = da.parameters.length - parameters.length;
   if (da.parameters.length === 0) return <p className="posmuted">Define the parameters in Step 03 first.</p>;
-  const rows = parameters.filter((parameter) => show === "all" || (needsPrior(parameter) && parameterPrior(da, parameter) === undefined));
+  const rows = parameters.filter((parameter) => show === "all" || (needsPrior(parameter) && !hasPrior(da, parameter)));
   const pages = Math.max(1, Math.ceil(rows.length / NEED_PAGE));
   const current = Math.min(page, pages - 1);
   const shown = rows.slice(current * NEED_PAGE, (current + 1) * NEED_PAGE);
@@ -405,7 +571,7 @@ function ApplicabilityTable({ selected, onSelect, openDrawer }: { selected: stri
           <thead><tr><th className="da-rowtable__pick">Plot</th><th>Parameter</th><th>Name</th><th>Prior from</th><th>Prior mean</th><th>Unit</th></tr></thead>
           <tbody>
             {shown.map((parameter) => {
-              const prior = parameterPrior(da, parameter);
+              const prior = priorCells(da, parameter);
               const use = (parameter.sourceUses ?? []).find((candidate) => candidate.id === parameter.priorUseId);
               const from = !needsPrior(parameter) ? (parameter.quantificationModel === "FREQUENCY" ? "Parts in Step 08" : "Parts in Step 06") : use === undefined ? "—" : use.elicitationId !== undefined ? use.elicitationId : `${sources.get(use.sourceId ?? "")?.id ?? "?"} · ${use.entryId ?? "?"}`;
               const open = parameter.uuid === selected;
@@ -416,8 +582,8 @@ function ApplicabilityTable({ selected, onSelect, openDrawer }: { selected: stri
                   <td><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daSourcing", id: parameter.uuid }); }}>{parameter.uuid}</button></td>
                   <td className="da-rowtable__text">{parameter.name.trim().length > 0 ? parameter.name : "Unnamed"}</td>
                   <td className="da-rowtable__text">{from}{use?.verdict === "SCALED" ? " · scaled" : ""}</td>
-                  <td className="da-rowtable__num">{statText(prior?.mean)}</td>
-                  <td>{prior === undefined ? "—" : QUANTITY_LABELS[prior.quantity]}</td>
+                  <td className="da-rowtable__num"><PraxisValue state={prior.mean} /></td>
+                  <td>{prior.unit}</td>
                 </tr>
                 {open && <DetailRow span={6} width={wrapWidth - 18}><ParameterDetail parameter={parameter} /></DetailRow>}
                 </Fragment>
@@ -431,8 +597,17 @@ function ApplicabilityTable({ selected, onSelect, openDrawer }: { selected: stri
   );
 }
 
+function judgmentMean(elicitation: DaElicitation): UncertaintyState<number> | undefined {
+  if (!entryHoldsLaw(elicitation.quantity)) {
+    const pooled = elicitationResult(elicitation);
+    return pooled === undefined ? undefined : { status: "ready", value: pooled.mean };
+  }
+  return summaryValue(lawStateSummary(elicitationLaw(elicitation), elicitation.quantity, false), (summary) => summary.mean);
+}
+
 function JudgmentTable({ selected, onSelect, openDrawer }: { selected: string; onSelect: (key: string) => void; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [wrapRef, wrapWidth] = useElementWidth(0);
   const elicitations = da.elicitations ?? [];
   if (elicitations.length === 0) return <p className="posmuted">No elicitation. Use one only where no applicable data exist (DA-D2), following Section 4.2.</p>;
@@ -442,7 +617,6 @@ function JudgmentTable({ selected, onSelect, openDrawer }: { selected: string; o
         <thead><tr><th className="da-rowtable__pick">Plot</th><th>Elicitation</th><th>Issue</th><th>Mean</th><th>Unit</th><th>Used by</th></tr></thead>
         <tbody>
           {elicitations.map((elicitation) => {
-            const pooled = elicitationResult(elicitation);
             const open = elicitation.id === selected;
             return (
               <Fragment key={elicitation.id}>
@@ -450,7 +624,7 @@ function JudgmentTable({ selected, onSelect, openDrawer }: { selected: string; o
                 <td className="da-rowtable__pick"><PlotToggle open={open} label={elicitation.id} onToggle={() => onSelect(open ? "" : elicitation.id)} /></td>
                 <td><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daElicitation", id: elicitation.id }); }}>{elicitation.id}</button></td>
                 <ClampCell text={elicitation.issue} />
-                <td className="da-rowtable__num">{statText(pooled?.mean)}</td>
+                <td className="da-rowtable__num"><PraxisValue state={judgmentMean(elicitation)} /></td>
                 <td>{QUANTITY_LABELS[elicitation.quantity]}</td>
                 <td className="da-rowtable__text">{listCell(elicitationUsers(da, elicitation.id), "parameters")}</td>
               </tr>
@@ -466,6 +640,7 @@ function JudgmentTable({ selected, onSelect, openDrawer }: { selected: string; o
 
 function SourcesScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da, editable, mutateDa } = useDaWorkbook();
+  useUncertaintyVersion();
   const [tab, setTab] = useState<SourcesTab>("library");
   const [sourceId, setSourceId] = useState("");
   const [entryKey, setEntryKey] = useState("");
@@ -476,7 +651,7 @@ function SourcesScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => v
   const sources = da.sources ?? [];
   const entryCount = sources.reduce((sum, source) => sum + libraryCount(source), 0);
   const sourced = da.parameters.filter(needsSourcing);
-  const withPrior = sourced.filter((parameter) => !needsPrior(parameter) || parameterPrior(da, parameter) !== undefined).length;
+  const withPrior = sourced.filter((parameter) => !needsPrior(parameter) || hasPrior(da, parameter)).length;
   const selected = sources.find((source) => source.id === sourceId);
   const tabs: { id: SourcesTab; label: string }[] = [
     { id: "library", label: `Library (${sources.length})` },
@@ -666,6 +841,27 @@ function DistributionFields({ value, disabled, onChange }: { value: ParameterDis
   }
 }
 
+function quantityChange(entry: DaSourceEntry, quantity: DaEstimateQuantity): Partial<DaSourceEntry> {
+  const holds = entryHoldsLaw(quantity);
+  const unit = quantityUnit(quantity);
+  if (holds && entryHoldsLaw(entry.quantity)) return { quantity, law: entry.law === undefined ? undefined : lawWithinUnit(unit, entry.law) };
+  if (!holds) return { quantity, law: undefined };
+  const law = entry.distribution === undefined ? undefined : legacyLaw(entry.distribution);
+  return { quantity, distribution: undefined, law: law === undefined ? undefined : lawWithinUnit(unit, law) };
+}
+
+function EntryLawRow({ entry, disabled, onChange }: { entry: DaSourceEntry; disabled: boolean; onChange: (law: Law) => void }): JSX.Element {
+  const unit = quantityUnit(entry.quantity);
+  const save = (law: Law): void => onChange(lawWithinUnit(unit, law));
+  return (
+    <FormRow label="Distribution" top>
+      {entry.law !== undefined ? <LawEditor law={entry.law} unit={unit} disabled={disabled} onChange={save} /> : disabled ? <span className="da-form__unit">None</span> : (
+        <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => save(draftFor("POINT", { family: "POINT", value: entry.mean ?? entry.median ?? Number.NaN }, unit))}>Add a distribution</button>
+      )}
+    </FormRow>
+  );
+}
+
 function EntryWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
   const { da, editable, mutateDa } = useDaWorkbook();
   const fieldId = useId();
@@ -700,17 +896,19 @@ function EntryWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.
         <TextRow label="Component" value={entry.component} disabled={dis} onChange={(component) => patch({ component })} />
         <AreaRow label="Failure mode" value={entry.failureMode} disabled={dis} onChange={(failureMode) => patch({ failureMode })} />
         <FormRow label="Unit" htmlFor={`${fieldId}-unit`}>
-          <select id={`${fieldId}-unit`} className="posfield__select" value={entry.quantity} disabled={dis} onChange={(event) => { if (isQuantity(event.target.value)) patch({ quantity: event.target.value }); }}>
+          <select id={`${fieldId}-unit`} className="posfield__select" value={entry.quantity} disabled={dis} onChange={(event) => { if (isQuantity(event.target.value)) patch(quantityChange(entry, event.target.value)); }}>
             {QUANTITY_ORDER.map((quantity) => <option key={quantity} value={quantity}>{QUANTITY_LABELS[quantity]}</option>)}
           </select>
         </FormRow>
         <TextRow label="Table in the source" value={entry.table ?? ""} disabled={dis} onChange={(table) => patch({ table: table.trim().length === 0 ? undefined : table })} />
-        <FormRow label="Distribution" htmlFor={`${fieldId}-dist`}>
-          <select id={`${fieldId}-dist`} className="posfield__select" value={distribution?.type ?? ""} disabled={dis} onChange={(event) => patch({ distribution: distributionDraft(event.target.value, distribution, entry.mean) })}>
-            {DISTRIBUTION_CHOICES.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
-          </select>
-          {distribution !== undefined && <DistributionFields value={distribution} disabled={dis} onChange={(next) => patch({ distribution: next })} />}
-        </FormRow>
+        {entryHoldsLaw(entry.quantity) ? <EntryLawRow entry={entry} disabled={dis} onChange={(law) => patch({ law })} /> : (
+          <FormRow label="Distribution" htmlFor={`${fieldId}-dist`}>
+            <select id={`${fieldId}-dist`} className="posfield__select" value={distribution?.type ?? ""} disabled={dis} onChange={(event) => patch({ distribution: distributionDraft(event.target.value, distribution, entry.mean) })}>
+              {DISTRIBUTION_CHOICES.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
+            </select>
+            {distribution !== undefined && <DistributionFields value={distribution} disabled={dis} onChange={(next) => patch({ distribution: next })} />}
+          </FormRow>
+        )}
         <FormRow label="Mean" htmlFor={`${fieldId}-mean`}>
           <WorkbookInput id={`${fieldId}-mean`} className="posfield__input da-form__number" type="number" min="0" step="any" value={entry.mean ?? ""} disabled={dis} onChange={(event) => numberFrom(event.target.value, (mean) => patch({ mean }))} />
           <span className="da-form__unit">{QUANTITY_LABELS[entry.quantity]}</span>
@@ -799,6 +997,7 @@ function CatalogWindow({ onClose, onRetarget }: { onClose: () => void; onRetarge
 
 function ImportWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
   const { da, editable, mutateDa } = useDaWorkbook();
+  useUncertaintyVersion();
   const fieldId = useId();
   const [text, setText] = useState("");
   const [mapping, setMapping] = useState<Partial<Record<DaImportField, number>> | undefined>(undefined);
@@ -825,7 +1024,7 @@ function ImportWindow({ id, onClose }: { id: string; onClose: () => void }): JSX
     setMapping(next);
   }
   function importRows(): void {
-    if (!editable || result.entries.length === 0) return;
+    if (!editable || result.entries.length === 0 || result.pending > 0) return;
     mutateDa((draft) => ({ ...draft, sources: (draft.sources ?? []).map((candidate) => (candidate.id === id ? { ...candidate, entries: [...candidate.entries, ...result.entries] } : candidate)) }));
     onClose();
   }
@@ -859,11 +1058,12 @@ function ImportWindow({ id, onClose }: { id: string; onClose: () => void }): JSX
               ))}
             </div>
             <p className="da-needs__meta">{result.entries.length} {result.entries.length === 1 ? "row is" : "rows are"} ready to import. {result.skipped} {result.skipped === 1 ? "row lacks" : "rows lack"} a unit, a name or a value and will be skipped.</p>
+            {result.pending > 0 && <p className="da-needs__meta">{result.pending} {result.pending === 1 ? "row waits" : "rows wait"} for PRAXIS to fit a lognormal to the printed values.</p>}
           </>
         )}
       </div>
       <FormFoot onClose={onClose}>
-        {editable && <button type="button" className="posnav__btn posnav__btn--sm" disabled={result.entries.length === 0} onClick={importRows}>Import {result.entries.length} {result.entries.length === 1 ? "row" : "rows"}</button>}
+        {editable && <button type="button" className="posnav__btn posnav__btn--sm" disabled={result.entries.length === 0 || result.pending > 0} onClick={importRows}>Import {result.entries.length} {result.entries.length === 1 ? "row" : "rows"}</button>}
       </FormFoot>
     </>
   );
@@ -878,6 +1078,7 @@ interface EstimateChoice {
 
 function pickDetail(entry: DaSourceEntry): string {
   if (entry.mean !== undefined) return `mean ${sciText(entry.mean)}`;
+  if (entry.law?.family === "POINT") return `value ${sciText(entry.law.value)}`;
   if (entry.distribution?.type === DistributionType.POINT_ESTIMATE) return `value ${sciText(entry.distribution.value)}`;
   if (entry.median !== undefined) return `median ${sciText(entry.median)}`;
   return dataText(entry);
@@ -1070,7 +1271,7 @@ function SourcingWindow({ id, onClose }: { id: string; onClose: () => void }): J
   if (parameter === undefined) return null;
   const dis = !editable;
   const uses = parameter.sourceUses ?? [];
-  const prior = parameterPrior(da, parameter);
+  const prior = lawParameter(parameter) ? undefined : parameterPrior(da, parameter);
   const waiting = waitingSources(sources, builtIn);
   function patch(next: Partial<DataAnalysisParameter>): void {
     if (!editable) return;
@@ -1112,7 +1313,7 @@ function SourcingWindow({ id, onClose }: { id: string; onClose: () => void }): J
         ))}
         {waiting > 0 && uses.length > 0 && <p className="da-needs__meta">Loading the built-in estimates of {waiting} {waiting === 1 ? "source" : "sources"}.</p>}
         {uses.length === 0 && <p className="posmuted">No source is considered yet.</p>}
-        {prior === undefined && uses.length > 0 && <p className="posmuted">Mark the source the estimate starts from as the prior.</p>}
+        {(lawParameter(parameter) ? priorUse(parameter) === undefined : prior === undefined) && uses.length > 0 && <p className="posmuted">Mark the source the estimate starts from as the prior.</p>}
       </div>
       <FormFoot onClose={onClose}>
         {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addUse}>Consider a source</button>}
@@ -1255,7 +1456,6 @@ export {
   distributionDraft,
   distributionText,
   entrySearchText,
-  isQuantity,
   useBuiltInEntries,
   waitingSources,
   yearsText,

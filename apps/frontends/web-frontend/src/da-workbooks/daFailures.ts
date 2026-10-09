@@ -1,4 +1,3 @@
-import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
 import type {
   DataAnalysis,
   DataAnalysisParameter,
@@ -11,34 +10,54 @@ import type {
   DaRecordSet,
   DaSourceEntry,
 } from "interfaces-mef-types/da/data-analysis";
-import { isCurve, shapeMean, shapePoint, shapeQuantile, type DaShape } from "./daDistributions";
 import {
-  bayesUpdate,
-  conflictProbability,
-  constrainedNoninformative,
-  evidenceAlone,
-  laplaceTest,
-  outputFor,
-  peakCount,
-  poolTest,
-  populationUpdate,
-  predictive,
-  priorWeight,
-  type DaOutput,
-  type DaScale,
-  type DaTerm,
-  type DaUpdatePrior,
-} from "./daEstimates";
-import { parameterPrior, priorUse } from "./daSourcing";
+  canonicalJson,
+  modelArguments,
+  type BaseLaw,
+  type EvidenceTerm,
+  type Law,
+  type PopulationLaw,
+  type TruncatedLaw,
+  type UncertainExpression,
+  type UncertainUnit,
+} from "interfaces-mef-types/core/uncertainty";
+import type { UncertaintyLawSummary } from "interfaces-shared-types/newly-developed-methods/shared";
+import { uncertaintyVersion, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
+import { constrainedLaw, daParameterTableVersion, expressionPoint, lawSummary, operationAnswer, parameterPriorLaw, quantileOf } from "./daLaws";
+import { priorUse } from "./daSourcing";
 import type { DaFindingSeverity, DaNeedFinding } from "./daSelectors";
 
 const FAILURE_MODELS: ReadonlySet<DaQuantificationModel> = new Set(["DEMAND_PROBABILITY", "RUNNING_RATE", "MISSION_PROBABILITY", "STANDBY_RATE", "OTHER_PROBABILITY"]);
 
 const RANK: Record<DaFindingSeverity, number> = { error: 0, warning: 1, note: 2 };
 
+const JEFFREYS_PROBABILITY: BaseLaw = { family: "BETA", alpha: 0.5, beta: 0.5, lower: 0, upper: 1 };
+
+const SIGMA_LOW = 0.025;
+
+const SIGMA_HIGH = 3;
+
+const MU_REACH = 5;
+
+const RATE_QUANTITIES: ReadonlySet<DaEstimateQuantity> = new Set(["PER_HOUR"]);
+
+const PROBABILITY_QUANTITIES: ReadonlySet<DaEstimateQuantity> = new Set(["PER_DEMAND", "PROBABILITY", "FRACTION"]);
+
+const QUANTITY_TEXT: Record<DaEstimateQuantity, string> = {
+  PER_DEMAND: "per demand",
+  PROBABILITY: "a probability",
+  FRACTION: "a fraction",
+  PER_HOUR: "per hour",
+  PER_YEAR: "per year",
+  HOURS: "in hours",
+  FACTOR: "a factor",
+};
+
+type DaScale = "PROBABILITY" | "RATE";
+
 type DaFailureMethod = "PRIOR" | "BAYES" | "POPULATION" | "TYPED";
 
-type DaFailureComputation = "PRIOR" | "CONJUGATE" | "NUMERICAL" | "HIERARCHICAL";
+type DaFailureComputation = "PRIOR" | "POSTERIOR" | "POPULATION";
 
 interface DaResolvedEvidence {
   evidence: DaEvidence;
@@ -48,45 +67,64 @@ interface DaResolvedEvidence {
   unit?: DaEvidenceUnit;
   yearsFrom?: string;
   yearsTo?: string;
-  term?: DaTerm;
+  term?: EvidenceTerm;
+  waiting?: boolean;
   problem?: string;
 }
 
+type DaMissionHours = { status: "ready"; hours: number } | { status: "pending" } | { status: "missing"; problem: string };
+
 interface DaPublishedPrior {
-  shape: ParameterDistribution;
+  law: Law;
   quantity: DaEstimateQuantity;
   label: string;
 }
 
 interface DaFailureEstimate {
   scale?: DaScale;
-  missionHours?: number;
+  missionTime?: UncertainExpression;
   unit: string;
   thetaUnit: string;
+  lawUnit?: UncertainUnit;
   published?: DaPublishedPrior;
   form: DaPriorForm;
-  prior?: DaShape;
+  prior?: Law;
+  priorPending: boolean;
+  priorProblem?: string;
   evidence: DaResolvedEvidence[];
-  terms: DaTerm[];
+  terms: EvidenceTerm[];
   method?: DaFailureMethod;
   computation?: DaFailureComputation;
-  posterior?: DaShape;
-  output?: DaOutput;
+  posterior?: Law;
+  estimate?: UncertainExpression;
+  pending: boolean;
   problem?: string;
 }
 
-interface DaHeavyResult {
-  computation?: DaFailureComputation;
-  posterior?: DaShape;
-  output?: DaOutput;
+interface DaPublishedState {
+  published?: DaPublishedPrior;
+  pending: boolean;
   problem?: string;
 }
 
-const heavyCache = new Map<string, DaHeavyResult>();
+interface DaPriorChoice {
+  prior?: Law | null;
+  pending: boolean;
+  problem?: string;
+}
 
-const estimateCache = new WeakMap<DataAnalysis, Map<string, DaFailureEstimate>>();
+interface DaFailureCheck {
+  findings: DaNeedFinding[];
+  pending: boolean;
+}
 
-const findingCache = new WeakMap<DataAnalysis, DaNeedFinding[]>();
+const estimateCache = new WeakMap<DataAnalysis, { version: string; values: Map<string, DaFailureEstimate> }>();
+
+const checkCache = new WeakMap<DataAnalysis, { version: string; check: DaFailureCheck }>();
+
+function cacheVersion(): string {
+  return `${uncertaintyVersion()}:${daParameterTableVersion()}`;
+}
 
 function blank(text: string | undefined): boolean {
   return text === undefined || text.trim().length === 0;
@@ -102,7 +140,7 @@ function failureParameters(da: DataAnalysis): DataAnalysisParameter[] {
 
 function methodOf(parameter: DataAnalysisParameter): DaFailureMethod | undefined {
   if (parameter.valueMode === "CALCULATED") return parameter.estimateMethod;
-  if (parameter.valueMode === "TYPED" || (parameter.valueMode === undefined && parameter.value !== undefined)) return "TYPED";
+  if (parameter.valueMode === "TYPED" || (parameter.valueMode === undefined && parameter.estimate !== undefined)) return "TYPED";
   return undefined;
 }
 
@@ -110,11 +148,13 @@ function formOf(parameter: DataAnalysisParameter): DaPriorForm {
   return parameter.priorForm ?? "AS_PUBLISHED";
 }
 
-function publishedPrior(da: DataAnalysis, parameter: DataAnalysisParameter): DaPublishedPrior | undefined {
-  const result = parameterPrior(da, parameter);
+function publishedState(da: DataAnalysis, parameter: DataAnalysisParameter): DaPublishedState {
+  const state = parameterPriorLaw(da, parameter);
+  if (state.status === "pending") return { pending: true };
+  if (state.status === "failed") return { pending: false, problem: `PRAXIS could not form the prior: ${state.error}` };
+  if (state.status === "missing") return { pending: false, problem: state.problem };
   const use = priorUse(parameter);
-  if (result === undefined || use === undefined) return undefined;
-  return { shape: result.distribution, quantity: result.quantity, label: use.elicitationId ?? `${use.sourceId ?? "?"} · ${use.entryId ?? "?"}` };
+  return { pending: false, published: { law: state.value.law, quantity: state.value.quantity, label: use?.elicitationId ?? `${use?.sourceId ?? "?"} · ${use?.entryId ?? "?"}` } };
 }
 
 function entryOf(da: DataAnalysis, sourceId: string | undefined, entryId: string | undefined): DaSourceEntry | undefined {
@@ -191,18 +231,41 @@ function evidenceLabel(da: DataAnalysis, evidence: DaEvidence): string {
   return evidence.origin === "PLANT_RECORDS" ? "Plant counts" : "Typed counts";
 }
 
-function parameterScale(da: DataAnalysis, parameter: DataAnalysisParameter): DaScale | undefined {
+function scaleOf(da: DataAnalysis, parameter: DataAnalysisParameter, published: DaPublishedPrior | undefined): DaScale | undefined {
   const model = parameter.quantificationModel;
   if (model === "RUNNING_RATE" || model === "STANDBY_RATE") return "RATE";
   if (model === "DEMAND_PROBABILITY" || model === "OTHER_PROBABILITY") return "PROBABILITY";
   if (model !== "MISSION_PROBABILITY") return undefined;
-  const published = publishedPrior(da, parameter);
-  if (published !== undefined && formOf(parameter) !== "JEFFREYS") return published.quantity === "PER_HOUR" ? "RATE" : "PROBABILITY";
+  if (published !== undefined && formOf(parameter) !== "JEFFREYS") return RATE_QUANTITIES.has(published.quantity) ? "RATE" : "PROBABILITY";
   const units = (parameter.evidence ?? []).map((evidence) => evidence.exposureFrom === "ENTRY" ? unitOfQuantity(entryOf(da, evidence.sourceId, evidence.entryId)?.quantity ?? "FACTOR") : evidence.exposureFrom === "DEMANDS_AND_HOURS" ? "HOURS" : evidence.unit);
   return units.includes("DEMANDS") ? "PROBABILITY" : "RATE";
 }
 
-function resolveEvidence(da: DataAnalysis, parameter: DataAnalysisParameter, scale: DaScale | undefined): DaResolvedEvidence[] {
+function parameterScale(da: DataAnalysis, parameter: DataAnalysisParameter): DaScale | undefined {
+  return scaleOf(da, parameter, publishedState(da, parameter).published);
+}
+
+function estimateMissionTime(da: DataAnalysis, parameter: DataAnalysisParameter): { missionTime?: UncertainExpression; problem?: string } {
+  const needs = (da.dataNeeds?.basicEvents ?? []).filter((need) => need.included && need.parameterId === parameter.uuid);
+  const times = needs.flatMap((need) => (need.missionTime === undefined ? [] : [need.missionTime]));
+  const [first] = times;
+  const estimate = parameter.estimate;
+  const linked = estimate?.node === "MODEL" && estimate.model.form === "MISSION" ? estimate.model.missionTime : undefined;
+  if (linked !== undefined) return { missionTime: linked };
+  if (first === undefined) return { problem: needs.length === 0 ? "Map a basic event to this parameter. Its mission time sets the mission of the estimate." : "The basic events mapped to this parameter give no mission time. Set it in Step 02." };
+  if (times.length < needs.length || times.some((time) => canonicalJson(time) !== canonicalJson(first))) return { problem: "The basic events mapped to this parameter have different mission times. Align them in Step 02 or split the parameter." };
+  return { missionTime: first };
+}
+
+function missionHoursOf(missionTime: UncertainExpression | undefined, problem: string | undefined): DaMissionHours {
+  if (missionTime === undefined) return { status: "missing", problem: problem ?? "No mission time." };
+  const state = expressionPoint(missionTime, "HOURS");
+  if (state.status === "pending") return { status: "pending" };
+  if (state.status === "failed") return { status: "missing", problem: `PRAXIS could not give the mission time: ${state.error}` };
+  return { status: "ready", hours: state.value.point };
+}
+
+function resolveEvidence(da: DataAnalysis, parameter: DataAnalysisParameter, scale: DaScale | undefined, mission: () => DaMissionHours): DaResolvedEvidence[] {
   return (parameter.evidence ?? []).map((evidence) => {
     const label = evidenceLabel(da, evidence);
     const entry = entryOf(da, evidence.sourceId, evidence.entryId);
@@ -241,26 +304,29 @@ function resolveEvidence(da: DataAnalysis, parameter: DataAnalysisParameter, sca
       if (resolved.unit === "DEMANDS") return { ...resolved, problem: "Failures in demands cannot update a rate per hour." };
       if (resolved.unit === "YEARS") {
         if (evidence.hoursPerYear === undefined || !(evidence.hoursPerYear > 0)) return { ...resolved, problem: "Enter the hours of exposure in a year, 8760 for a calendar year." };
-        return { ...resolved, term: { kind: "POISSON", failures, exposure: exposure * evidence.hoursPerYear } };
+        return { ...resolved, term: { likelihood: "POISSON", failures, exposure: exposure * evidence.hoursPerYear } };
       }
-      return { ...resolved, term: { kind: "POISSON", failures, exposure } };
+      return { ...resolved, term: { likelihood: "POISSON", failures, exposure } };
     }
     if (resolved.unit === "DEMANDS") {
       if (failures > exposure) return { ...resolved, problem: "There are more failures than demands." };
-      return { ...resolved, term: { kind: "BINOMIAL", failures, exposure } };
+      return { ...resolved, term: { likelihood: "BINOMIAL", failures, exposure } };
     }
-    const perDemand = evidence.hoursPerDemand ?? (parameter.quantificationModel === "MISSION_PROBABILITY" ? parameter.missionTimeHours : undefined);
+    const missionHours = evidence.hoursPerDemand === undefined && parameter.quantificationModel === "MISSION_PROBABILITY" ? mission() : undefined;
+    if (missionHours?.status === "pending") return { ...resolved, waiting: true };
+    if (missionHours?.status === "missing") return { ...resolved, problem: missionHours.problem };
+    const perDemand = evidence.hoursPerDemand ?? (missionHours?.status === "ready" ? missionHours.hours : undefined);
     if (perDemand === undefined || !(perDemand > 0)) return { ...resolved, problem: "Enter the hours each demand covers, half the test interval for a standby failure." };
     if (resolved.unit === "YEARS") {
       if (evidence.hoursPerYear === undefined || !(evidence.hoursPerYear > 0)) return { ...resolved, problem: "Enter the hours of exposure in a year, 8760 for a calendar year." };
-      return { ...resolved, term: { kind: "POISSON", failures, exposure: (exposure * evidence.hoursPerYear) / perDemand } };
+      return { ...resolved, term: { likelihood: "POISSON", failures, exposure: (exposure * evidence.hoursPerYear) / perDemand } };
     }
-    return { ...resolved, term: { kind: "POISSON", failures, exposure: exposure / perDemand } };
+    return { ...resolved, term: { likelihood: "POISSON", failures, exposure: exposure / perDemand } };
   });
 }
 
 function unitLabel(parameter: DataAnalysisParameter, scale: DaScale | undefined): string {
-  if (parameter.quantificationModel === "MISSION_PROBABILITY") return parameter.missionTimeHours === undefined ? "per mission" : `per ${Number(parameter.missionTimeHours.toPrecision(6))} h mission`;
+  if (parameter.quantificationModel === "MISSION_PROBABILITY") return "per mission";
   return scale === "RATE" ? "per hour" : "per demand";
 }
 
@@ -269,134 +335,200 @@ function thetaLabel(parameter: DataAnalysisParameter, scale: DaScale | undefined
   return parameter.quantificationModel === "MISSION_PROBABILITY" ? unitLabel(parameter, scale) : "per demand";
 }
 
-function updatePrior(form: DaPriorForm, published: DaPublishedPrior | undefined, scale: DaScale): { prior?: DaUpdatePrior; shape?: DaShape; problem?: string } {
-  if (form === "JEFFREYS") {
-    if (scale === "RATE") return { prior: { kind: "JEFFREYS_RATE" } };
-    const shape: ParameterDistribution = { type: DistributionType.BETA, alpha: 0.5, betaParam: 0.5 };
-    return { prior: { kind: "PROPER", shape }, shape };
-  }
-  if (published === undefined) return { problem: "No prior. Choose the source the estimate starts from in Step 04 Applicability." };
-  if (form === "AS_PUBLISHED") return { prior: { kind: "PROPER", shape: published.shape }, shape: published.shape };
-  const mean = shapeMean(published.shape);
-  const cni = mean === undefined ? undefined : constrainedNoninformative(mean, scale);
-  if (cni === undefined) return { problem: "The prior's mean cannot carry a constrained noninformative prior." };
-  return { prior: { kind: "PROPER", shape: cni }, shape: cni };
+function scaleUnit(scale: DaScale): UncertainUnit {
+  return scale === "RATE" ? "PER_HOUR" : "PROBABILITY";
 }
 
-function heavyKey(parts: Record<string, string | number | boolean | undefined>, shape: DaShape | undefined, terms: readonly DaTerm[]): string {
-  const shapeKey = shape === undefined ? "" : isCurve(shape) ? `curve:${shape.mean}:${shape.us.length}:${shape.us[0] ?? 0}` : JSON.stringify(shape);
-  return JSON.stringify({ parts, shapeKey, terms });
+function fitsScale(quantity: DaEstimateQuantity, scale: DaScale): boolean {
+  return scale === "RATE" ? RATE_QUANTITIES.has(quantity) : PROBABILITY_QUANTITIES.has(quantity);
 }
 
-function heavy(key: string, run: () => DaHeavyResult): DaHeavyResult {
-  const cached = heavyCache.get(key);
-  if (cached !== undefined) return cached;
-  const result = run();
-  if (heavyCache.size > 400) heavyCache.clear();
-  heavyCache.set(key, result);
-  return result;
+function priorChoice(form: DaPriorForm, state: DaPublishedState, scale: DaScale): DaPriorChoice {
+  if (form === "JEFFREYS") return { prior: scale === "RATE" ? null : JEFFREYS_PROBABILITY, pending: false };
+  if (state.pending) return { pending: true };
+  const published = state.published;
+  if (published === undefined) return { pending: false, problem: state.problem ?? "No prior. Choose the source the estimate starts from in Step 04 Applicability." };
+  if (!fitsScale(published.quantity, scale)) return { pending: false, problem: `The Step 04 prior is ${QUANTITY_TEXT[published.quantity]}, but this parameter needs a value ${scale === "RATE" ? "per hour" : "per demand"}. Convert it in Step 04 Applicability.` };
+  if (form === "AS_PUBLISHED") return { prior: published.law, pending: false };
+  const constrained = constrainedLaw(published.law, scale === "PROBABILITY" ? "BINOMIAL" : "POISSON");
+  if (constrained.status === "pending") return { pending: true };
+  if (constrained.status === "failed") return { pending: false, problem: `PRAXIS could not form the constrained noninformative prior: ${constrained.error}` };
+  if (constrained.status === "missing") return { pending: false, problem: constrained.problem };
+  return { prior: constrained.law, pending: false };
 }
 
-function parameterEstimate(da: DataAnalysis, parameter: DataAnalysisParameter): DaFailureEstimate {
-  let byParameter = estimateCache.get(da);
-  if (byParameter === undefined) {
-    byParameter = new Map();
-    estimateCache.set(da, byParameter);
-  }
-  const cached = byParameter.get(parameter.uuid);
-  if (cached !== undefined) return cached;
-  const estimate = computeEstimate(da, parameter);
-  byParameter.set(parameter.uuid, estimate);
-  return estimate;
+function posteriorOf(prior: Law | null, terms: EvidenceTerm[]): Law | string {
+  if (prior === null) return { family: "POSTERIOR", prior: null, evidence: terms };
+  if (prior.family === "POSTERIOR") return { family: "POSTERIOR", prior: prior.prior, evidence: [...prior.evidence, ...terms] };
+  if (prior.family === "POPULATION") return "A population law cannot be updated again. Use it as published or pick a source with its own law.";
+  return { family: "POSTERIOR", prior, evidence: terms };
+}
+
+function hyperpriorOf(parameter: DataAnalysisParameter, terms: readonly EvidenceTerm[]): { mu: BaseLaw | TruncatedLaw; sigma: BaseLaw | TruncatedLaw } {
+  if (parameter.populationHyperprior !== undefined) return parameter.populationHyperprior;
+  const centers = terms.map((term) => Math.log((term.failures + 0.5) / term.exposure));
+  return {
+    mu: { family: "UNIFORM", lower: Math.min(...centers) - MU_REACH, upper: Math.max(...centers) + MU_REACH },
+    sigma: { family: "UNIFORM", lower: SIGMA_LOW, upper: SIGMA_HIGH },
+  };
+}
+
+function lawExpression(unit: UncertainUnit, law: Law, missionTime: UncertainExpression | undefined): UncertainExpression {
+  const value: UncertainExpression = { node: "VALUE", value: { unit, law } };
+  if (missionTime === undefined) return value;
+  return { node: "MODEL", model: { form: "MISSION", rate: value, missionTime } };
+}
+
+function estimateExpression(estimate: DaFailureEstimate, law: Law): UncertainExpression | undefined {
+  return estimate.lawUnit === undefined ? undefined : lawExpression(estimate.lawUnit, law, estimate.missionTime);
+}
+
+function evidenceAloneLaw(terms: readonly EvidenceTerm[], scale: DaScale): Law | undefined {
+  if (terms.length === 0) return undefined;
+  return { family: "POSTERIOR", prior: scale === "RATE" ? null : JEFFREYS_PROBABILITY, evidence: [...terms] };
+}
+
+function summaryOf(estimate: DaFailureEstimate, law: Law | undefined): UncertaintyState<UncertaintyLawSummary> | undefined {
+  return law === undefined || estimate.lawUnit === undefined ? undefined : lawSummary(estimate.lawUnit, law, true);
+}
+
+function finish(base: DaFailureEstimate, computation: DaFailureComputation, law: Law): DaFailureEstimate {
+  const lawUnit = base.lawUnit;
+  if (lawUnit === undefined) return { ...base, problem: "The parameter has no failure model." };
+  const done: DaFailureEstimate = { ...base, computation, posterior: law, estimate: lawExpression(lawUnit, law, base.missionTime) };
+  const summary = lawSummary(lawUnit, law, true);
+  if (summary.status === "pending") return { ...done, pending: true };
+  if (summary.status === "failed") return { ...done, problem: `PRAXIS could not compute the estimate: ${summary.error}` };
+  return done;
 }
 
 function computeEstimate(da: DataAnalysis, parameter: DataAnalysisParameter): DaFailureEstimate {
-  const scale = parameterScale(da, parameter);
+  const state = publishedState(da, parameter);
+  const scale = scaleOf(da, parameter, state.published);
   const form = formOf(parameter);
-  const published = publishedPrior(da, parameter);
-  const evidence = resolveEvidence(da, parameter, scale);
+  const mission: { missionTime?: UncertainExpression; problem?: string } = parameter.quantificationModel === "MISSION_PROBABILITY" ? estimateMissionTime(da, parameter) : {};
+  let missionHours: DaMissionHours | undefined;
+  const evidence = resolveEvidence(da, parameter, scale, () => {
+    missionHours = missionHours ?? missionHoursOf(mission.missionTime, mission.problem);
+    return missionHours;
+  });
   const terms = evidence.flatMap((item) => (item.evidence.included && item.term !== undefined ? [item.term] : []));
   const method = methodOf(parameter);
-  const missionHours = scale === "RATE" && parameter.quantificationModel === "MISSION_PROBABILITY" ? parameter.missionTimeHours : undefined;
-  const base: DaFailureEstimate = { scale, missionHours, unit: unitLabel(parameter, scale), thetaUnit: thetaLabel(parameter, scale), published, form, evidence, terms, method };
+  const missionTime = scale === "RATE" ? mission.missionTime : undefined;
+  const base: DaFailureEstimate = { scale, missionTime, unit: unitLabel(parameter, scale), thetaUnit: thetaLabel(parameter, scale), lawUnit: scale === undefined ? undefined : scaleUnit(scale), published: state.published, form, priorPending: false, evidence, terms, method, pending: false };
   if (scale === undefined) return { ...base, problem: "The parameter has no failure model." };
-  if (parameter.quantificationModel === "MISSION_PROBABILITY" && scale === "RATE" && !(parameter.missionTimeHours !== undefined && parameter.missionTimeHours > 0)) return { ...base, problem: "Enter the mission time in Step 03." };
-  const chosen = updatePrior(form, published, scale);
-  const withPrior: DaFailureEstimate = { ...base, prior: chosen.shape };
+  if (method !== "TYPED" && evidence.some((item) => item.evidence.included && item.waiting === true)) return { ...base, pending: true };
+  if (parameter.quantificationModel === "MISSION_PROBABILITY" && scale === "RATE" && method !== "TYPED" && mission.missionTime === undefined) return { ...base, problem: mission.problem ?? "No mission time." };
+  const chosen = priorChoice(form, state, scale);
+  const withPrior: DaFailureEstimate = { ...base, prior: chosen.prior ?? undefined, priorPending: chosen.pending, priorProblem: chosen.problem };
   if (method === undefined) return { ...withPrior, problem: "Choose how the estimate is made." };
-  if (method === "TYPED") return withPrior;
+  if (method === "TYPED") return { ...withPrior, estimate: parameter.estimate };
   if (method === "POPULATION") {
     if (terms.length < 2) return { ...withPrior, problem: "Population variability needs at least two evidence sets in the update." };
-    const targetIndex = parameter.populationTargetId === undefined ? undefined : evidence.filter((item) => item.evidence.included && item.term !== undefined).findIndex((item) => item.evidence.id === parameter.populationTargetId);
+    if (!terms.some((term) => term.failures > 0)) return { ...withPrior, problem: "Population variability needs at least one failure across the sets." };
+    const included = evidence.filter((item) => item.evidence.included && item.term !== undefined);
+    const targetIndex = parameter.populationTargetId === undefined ? null : included.findIndex((item) => item.evidence.id === parameter.populationTargetId);
     if (targetIndex === -1) return { ...withPrior, problem: "The population target is not among the evidence sets in the update." };
-    const key = heavyKey({ method, scale, missionHours, targetIndex }, undefined, terms);
-    const result = heavy(key, () => {
-      const population = populationUpdate(terms, scale, targetIndex);
-      if (population === undefined) return { problem: "Population variability needs at least one failure across the sets." };
-      const posterior = population.target ?? population.predictive;
-      const output = outputFor(posterior, missionHours);
-      return output === undefined ? { problem: "The estimate cannot be summarized." } : { computation: "HIERARCHICAL", posterior, output };
-    });
-    return { ...withPrior, ...result };
+    const hyper = hyperpriorOf(parameter, terms);
+    const population: PopulationLaw = { family: "POPULATION", mu: hyper.mu, sigma: hyper.sigma, upper: scale === "PROBABILITY" ? 1 : null, evidence: terms, target: targetIndex };
+    return finish(withPrior, "POPULATION", population);
   }
+  if (chosen.pending) return { ...withPrior, pending: true };
   if (chosen.problem !== undefined || chosen.prior === undefined) return { ...withPrior, problem: chosen.problem ?? "No prior." };
   const prior = chosen.prior;
   if (method === "PRIOR") {
-    if (prior.kind !== "PROPER" || form === "JEFFREYS") return { ...withPrior, problem: "A Jeffreys prior is not an estimate on its own. Use it in a Bayes update." };
-    const shape = prior.shape;
-    const key = heavyKey({ method, scale, missionHours }, shape, []);
-    return { ...withPrior, ...heavy(key, () => {
-      const output = outputFor(shape, missionHours);
-      return output === undefined ? { problem: "The prior cannot be summarized." } : { computation: "PRIOR", posterior: shape, output };
-    }) };
+    if (prior === null || form === "JEFFREYS") return { ...withPrior, problem: "A Jeffreys prior is not an estimate on its own. Use it in a Bayes update." };
+    return finish(withPrior, "PRIOR", prior);
   }
-  if (prior.kind === "PROPER" && shapePoint(prior.shape) !== undefined) return { ...withPrior, problem: "A point value cannot be updated. Use the constrained noninformative form." };
+  if (prior !== null && prior.family === "POINT") return { ...withPrior, problem: "A point value cannot be updated. Use the constrained noninformative form." };
   if (terms.length === 0) {
-    if (prior.kind !== "PROPER" || form === "JEFFREYS") return { ...withPrior, problem: "A Jeffreys prior needs evidence to update." };
-    const shape = prior.shape;
-    const key = heavyKey({ method: "PRIOR", scale, missionHours }, shape, []);
-    return { ...withPrior, ...heavy(key, () => {
-      const output = outputFor(shape, missionHours);
-      return output === undefined ? { problem: "The prior cannot be summarized." } : { computation: "PRIOR", posterior: shape, output };
-    }) };
+    if (prior === null || form === "JEFFREYS") return { ...withPrior, problem: "A Jeffreys prior needs evidence to update." };
+    return finish(withPrior, "PRIOR", prior);
   }
-  const key = heavyKey({ method, scale, missionHours, prior: prior.kind }, prior.kind === "PROPER" ? prior.shape : undefined, terms);
-  return { ...withPrior, ...heavy(key, () => {
-    const update = bayesUpdate(prior, terms, scale);
-    if (update === undefined) return { problem: "The update cannot be computed with this prior and evidence." };
-    const output = outputFor(update.shape, missionHours);
-    return output === undefined ? { problem: "The estimate cannot be summarized." } : { computation: update.computation, posterior: update.shape, output };
-  }) };
+  const posterior = posteriorOf(prior, terms);
+  if (typeof posterior === "string") return { ...withPrior, problem: posterior };
+  return finish(withPrior, "POSTERIOR", posterior);
 }
 
-function sameNumber(a: number | undefined, b: number | undefined): boolean {
-  if (a === undefined || b === undefined) return a === b;
-  return a === b || Math.abs(a - b) <= 1e-9 * Math.max(Math.abs(a), Math.abs(b));
+function parameterEstimate(da: DataAnalysis, parameter: DataAnalysisParameter): DaFailureEstimate {
+  const version = cacheVersion();
+  let cached = estimateCache.get(da);
+  if (cached === undefined || cached.version !== version) {
+    cached = { version, values: new Map() };
+    estimateCache.set(da, cached);
+  }
+  const known = cached.values.get(parameter.uuid);
+  if (known !== undefined) return known;
+  const estimate = computeEstimate(da, parameter);
+  cached.values.set(parameter.uuid, estimate);
+  return estimate;
 }
 
-function sameDistribution(a: ParameterDistribution | undefined, b: ParameterDistribution | undefined): boolean {
-  if (a === undefined || b === undefined) return a === b;
-  if (a.type !== b.type) return false;
-  const left = Object.entries(a);
-  const right = new Map(Object.entries(b));
-  if (left.length !== right.size) return false;
-  return left.every(([key, value]) => {
-    const other = right.get(key);
-    return typeof value === "number" && typeof other === "number" ? sameNumber(value, other) : value === other;
-  });
+function estimateSummary(estimate: DaFailureEstimate): UncertaintyState<UncertaintyLawSummary> | undefined {
+  return summaryOf(estimate, estimate.posterior);
+}
+
+function priorSummary(estimate: DaFailureEstimate): UncertaintyState<UncertaintyLawSummary> | undefined {
+  return summaryOf(estimate, estimate.prior);
+}
+
+function publishedSummary(estimate: DaFailureEstimate): UncertaintyState<UncertaintyLawSummary> | undefined {
+  return estimate.published === undefined || estimate.scale === undefined || !fitsScale(estimate.published.quantity, estimate.scale) ? undefined : summaryOf(estimate, estimate.published.law);
+}
+
+function priorWorth(summary: UncertaintyLawSummary, scale: DaScale): number | undefined {
+  const deviation = summary.standardDeviation;
+  if (deviation === null || !(deviation > 0) || !(summary.mean > 0)) return undefined;
+  const variance = deviation * deviation;
+  const worth = scale === "RATE" ? summary.mean / variance : (summary.mean * (1 - summary.mean)) / variance - 1;
+  return worth > 0 && Number.isFinite(worth) ? worth : undefined;
+}
+
+function peakCount(summary: UncertaintyLawSummary): number {
+  const top = Math.max(0, ...summary.peaks.map((peak) => peak.density));
+  const peaks = summary.peaks.filter((peak) => peak.density > 0.05 * top).sort((left, right) => left.x - right.x);
+  let count = peaks.length > 0 ? 1 : 0;
+  for (let index = 1; index < peaks.length; index += 1) {
+    const left = peaks[index - 1];
+    const right = peaks[index];
+    if (left === undefined || right === undefined) continue;
+    const between = summary.valleys.filter((valley) => valley.x > left.x && valley.x < right.x).map((valley) => valley.density);
+    if (between.length > 0 && Math.min(...between) < 0.8 * Math.min(left.density, right.density)) count += 1;
+  }
+  return count;
+}
+
+function hasSpread(expression: UncertainExpression): boolean {
+  switch (expression.node) {
+    case "VALUE":
+      return expression.value.law.family !== "POINT";
+    case "PARAMETER":
+      return true;
+    case "OPERATION":
+      return expression.operands.some(hasSpread);
+    case "MODEL":
+      return modelArguments(expression.model).some(hasSpread);
+  }
+}
+
+function sameExpression(left: UncertainExpression | undefined, right: UncertainExpression | undefined): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return canonicalJson(left) === canonicalJson(right);
 }
 
 function withEstimates(da: DataAnalysis): DataAnalysis {
   let changed = false;
   const parameters = da.parameters.map((parameter) => {
     if (!isFailureParameter(parameter) || parameter.valueMode !== "CALCULATED") return parameter;
-    const output = parameterEstimate(da, parameter).output;
-    if (output === undefined) return parameter;
-    const value = output.summary.mean;
-    const distribution = output.distribution;
-    if (sameNumber(parameter.value, value) && parameter.valueType === "MEAN" && sameDistribution(parameter.uncertainty?.distribution, distribution)) return parameter;
+    const estimate = parameterEstimate(da, parameter);
+    if (estimate.estimate === undefined || estimate.pending || estimate.problem !== undefined) return parameter;
+    if (sameExpression(parameter.estimate, estimate.estimate) && parameter.value === undefined && parameter.valueType === undefined && parameter.uncertainty === undefined) return parameter;
     changed = true;
-    return { ...parameter, value, valueType: "MEAN" as const, uncertainty: { ...(parameter.uncertainty ?? {}), distribution } };
+    const next: DataAnalysisParameter = { ...parameter, estimate: estimate.estimate };
+    delete next.value;
+    delete next.valueType;
+    delete next.uncertainty;
+    return next;
   });
   return changed ? { ...da, parameters } : da;
 }
@@ -405,14 +537,38 @@ function sciShort(value: number): string {
   return Number(value.toPrecision(2)).toExponential().replace("e+", "E").replace("e", "E");
 }
 
-function shapeRange90(shape: DaShape | undefined): [number, number] | undefined {
-  if (shape === undefined) return undefined;
-  const low = shapeQuantile(shape, 0.05);
-  const high = shapeQuantile(shape, 0.95);
-  return low === undefined || high === undefined ? undefined : [low, high];
+function pooledTerm(terms: readonly EvidenceTerm[]): EvidenceTerm | undefined {
+  const first = terms[0];
+  if (first === undefined || terms.some((term) => term.likelihood !== first.likelihood)) return undefined;
+  return { likelihood: first.likelihood, failures: terms.reduce((total, term) => total + term.failures, 0), exposure: terms.reduce((total, term) => total + term.exposure, 0) };
 }
 
-function parameterFindingsFor(da: DataAnalysis, parameter: DataAnalysisParameter, findings: DaNeedFinding[]): void {
+function readyLaw(state: UncertaintyState<UncertaintyLawSummary> | undefined, check: DaFailureCheck): UncertaintyLawSummary | undefined {
+  if (state === undefined) return undefined;
+  if (state.status === "pending") {
+    check.pending = true;
+    return undefined;
+  }
+  return state.status === "ready" ? state.value : undefined;
+}
+
+function pointOf(expression: UncertainExpression | undefined, unit: UncertainUnit, check: DaFailureCheck): number | undefined {
+  if (expression === undefined) return undefined;
+  const state = expressionPoint(expression, unit);
+  if (state.status === "pending") {
+    check.pending = true;
+    return undefined;
+  }
+  return state.status === "ready" ? state.value.point : undefined;
+}
+
+function estimateUnit(estimate: DaFailureEstimate): UncertainUnit | undefined {
+  if (estimate.lawUnit === undefined) return undefined;
+  return estimate.missionTime === undefined ? estimate.lawUnit : "PROBABILITY";
+}
+
+function parameterFindingsFor(da: DataAnalysis, parameter: DataAnalysisParameter, check: DaFailureCheck): void {
+  const findings = check.findings;
   const item = parameter.uuid;
   const estimateTarget = { kind: "daEstimate" as const, id: parameter.uuid };
   const evidenceTarget = { kind: "daEvidence" as const, id: parameter.uuid };
@@ -441,14 +597,14 @@ function parameterFindingsFor(da: DataAnalysis, parameter: DataAnalysisParameter
     }
   }
   if (method === "TYPED") {
-    const distribution = parameter.uncertainty?.distribution;
-    if (parameter.value === undefined) findings.push({ severity: "error", check: "No value", item, detail: "Type the estimate, or let DA calculate it.", target: estimateTarget });
-    if (distribution === undefined || distribution.type === DistributionType.POINT_ESTIMATE) findings.push({ severity: "warning", check: "No uncertainty", item, detail: "Give the typed estimate a distribution (DA-D3).", target: estimateTarget });
-    else {
-      const mean = shapeMean(distribution);
-      if (mean !== undefined && parameter.value !== undefined && Math.abs(mean - parameter.value) > 0.05 * Math.abs(parameter.value)) findings.push({ severity: "warning", check: "Mean differs", item, detail: `The value is ${sciShort(parameter.value)}, but the distribution's mean is ${sciShort(mean)}.`, target: estimateTarget });
-    }
+    const typed = parameter.estimate;
+    if (typed === undefined) findings.push({ severity: "error", check: "No value", item, detail: "Type the estimate, or let DA calculate it.", target: estimateTarget });
+    else if (!hasSpread(typed)) findings.push({ severity: "warning", check: "No uncertainty", item, detail: "Give the typed estimate a distribution (DA-D3).", target: estimateTarget });
     if (blank(parameter.estimateReason)) findings.push({ severity: "warning", check: "No basis", item, detail: "Say where the typed estimate comes from.", target: estimateTarget });
+    return;
+  }
+  if (estimate.pending) {
+    check.pending = true;
     return;
   }
   if (estimate.problem !== undefined) {
@@ -457,35 +613,36 @@ function parameterFindingsFor(da: DataAnalysis, parameter: DataAnalysisParameter
   }
   if (estimate.form !== "AS_PUBLISHED" && blank(parameter.priorFormReason)) findings.push({ severity: "warning", check: "No prior reason", item, detail: "Say why the prior is not used as published.", target: priorTarget });
   const includedEvidence = estimate.evidence.filter((resolved) => resolved.evidence.included);
-  const posterior = estimate.posterior;
-  const output = estimate.output;
+  const scale = estimate.scale;
+  const posterior = readyLaw(estimateSummary(estimate), check);
+  const prior = estimate.method === "POPULATION" ? undefined : readyLaw(priorSummary(estimate), check);
   if (method === "PRIOR") {
     if (includedEvidence.length > 0) findings.push({ severity: ccTwo ? "error" : "warning", check: "Evidence not used", item, detail: "Evidence is in the update but the prior is used as is. Update it, even with zero failures (DA-D1).", target: estimateTarget });
-    if (estimate.prior !== undefined && shapePoint(estimate.prior) !== undefined) findings.push({ severity: "warning", check: "No uncertainty", item, detail: "A point value carries no uncertainty (DA-D3). Use the constrained noninformative form or another source.", target: priorTarget });
+    if (estimate.prior !== undefined && estimate.prior.family === "POINT") findings.push({ severity: "warning", check: "No uncertainty", item, detail: "A point value carries no uncertainty (DA-D3). Use the constrained noninformative form or another source.", target: priorTarget });
     if (parameter.isRiskSignificant === true && ccTwo && includedEvidence.length === 0) findings.push({ severity: "note", check: "Generic estimate", item, detail: "This risk-significant parameter has no plant or technology evidence yet, so the generic estimate stands (DA-D1).", target: evidenceTarget });
   }
   if (method === "BAYES" && estimate.terms.length === 0) findings.push({ severity: "note", check: "Nothing to update", item, detail: "No evidence is in the update, so the estimate equals the prior.", target: evidenceTarget });
   if (method === "BAYES" && estimate.terms.length > 0 && estimate.prior !== undefined && estimate.form !== "JEFFREYS") {
-    const pooled = estimate.terms.every((term) => term.kind === "POISSON") ? { kind: "POISSON" as const } : estimate.terms.every((term) => term.kind === "BINOMIAL") ? { kind: "BINOMIAL" as const } : undefined;
+    const pooled = pooledTerm(estimate.terms);
     if (pooled !== undefined) {
-      const failures = estimate.terms.reduce((total, term) => total + term.failures, 0);
-      const exposure = estimate.terms.reduce((total, term) => total + term.exposure, 0);
-      const check = estimate.scale === undefined ? undefined : predictive(estimate.prior, { kind: pooled.kind, failures, exposure }, estimate.scale);
-      if (check !== undefined) {
-        const p = conflictProbability(check, failures);
-        if (p < 0.05) findings.push({ severity: blank(parameter.estimateReason) ? "warning" : "note", check: "Prior and evidence conflict", item, detail: `${failures} ${failures === 1 ? "failure" : "failures"} against ${Number(check.expected.toPrecision(3))} expected under the prior, P = ${sciShort(p)}. Investigate before updating (${operating ? "DA-D4" : "DA-D5"}).`, target: priorTarget });
+      const answer = operationAnswer({ kind: "PRIOR_PREDICTIVE", law: estimate.prior, term: pooled });
+      if (answer.status === "pending") check.pending = true;
+      else if (answer.status === "ready" && "expected" in answer.value) {
+        const predictive = answer.value;
+        const p = pooled.failures >= predictive.expected ? predictive.atLeast : predictive.atMost;
+        if (p < 0.05) findings.push({ severity: blank(parameter.estimateReason) ? "warning" : "note", check: "Prior and evidence conflict", item, detail: `${pooled.failures} ${pooled.failures === 1 ? "failure" : "failures"} against ${Number(predictive.expected.toPrecision(3))} expected under the prior, P = ${sciShort(p)}. Investigate before updating (${operating ? "DA-D4" : "DA-D5"}).`, target: priorTarget });
       }
     }
   }
-  if (method === "BAYES" && estimate.form === "JEFFREYS" && estimate.published !== undefined && output !== undefined) {
+  if (method === "BAYES" && estimate.form === "JEFFREYS" && estimate.published !== undefined && posterior !== undefined) {
     const failures = estimate.terms.reduce((total, term) => total + term.failures, 0);
-    const publishedMean = shapeMean(estimate.published.shape);
-    const thetaMean = posterior === undefined ? undefined : shapeMean(posterior);
-    if (failures === 0 && publishedMean !== undefined && thetaMean !== undefined && thetaMean > 3 * publishedMean) findings.push({ severity: "warning", check: "Too little exposure", item, detail: "With zero failures and little exposure, the Jeffreys estimate overstates a reliable component's failure probability.", target: priorTarget });
+    const published = readyLaw(publishedSummary(estimate), check);
+    if (failures === 0 && published !== undefined && posterior.mean > 3 * published.mean) findings.push({ severity: "warning", check: "Too little exposure", item, detail: "With zero failures and little exposure, the Jeffreys estimate overstates a reliable component's failure probability.", target: priorTarget });
   }
-  if ((method === "BAYES" || method === "POPULATION") && estimate.terms.length >= 2) {
-    const test = poolTest(estimate.terms);
-    if (test !== undefined && test.p < 0.05 && method === "BAYES") findings.push({ severity: "warning", check: "Sets differ", item, detail: `The evidence sets do not pool (chi-square P = ${sciShort(test.p)}${test.small ? ", small counts" : ""}). Use population variability or split the parameter (DA-B2).`, target: evidenceTarget });
+  if (method === "BAYES" && estimate.terms.length >= 2 && estimate.terms.some((term) => term.failures > 0) && pooledTerm(estimate.terms) !== undefined) {
+    const answer = operationAnswer({ kind: "HOMOGENEITY", terms: estimate.terms });
+    if (answer.status === "pending") check.pending = true;
+    else if (answer.status === "ready" && "smallExpected" in answer.value && answer.value.probability < 0.05) findings.push({ severity: "warning", check: "Sets differ", item, detail: `The evidence sets do not pool (chi-square P = ${sciShort(answer.value.probability)}${answer.value.smallExpected ? ", small counts" : ""}). Use population variability or split the parameter (DA-B2).`, target: evidenceTarget });
   }
   for (const resolved of includedEvidence) {
     if (resolved.evidence.failuresFrom !== "RECORDS") continue;
@@ -496,30 +653,26 @@ function parameterFindingsFor(da: DataAnalysis, parameter: DataAnalysisParameter
     });
     const start = decimalYear(resolved.yearsFrom);
     const endYear = decimalYear(resolved.yearsTo);
-    if (start === undefined || endYear === undefined) continue;
-    const trend = laplaceTest(times, Math.floor(start), Math.floor(endYear) + 1);
-    if (trend !== undefined && trend.p < 0.05) findings.push({ severity: "warning", check: "Trend", item, detail: `The counted failures in ${resolved.label} ${trend.u > 0 ? "rise" : "fall"} over time (Laplace test P = ${sciShort(trend.p)}). A constant rate may not hold (DA-B2).`, target: evidenceTarget });
+    if (start === undefined || endYear === undefined || times.length < 3) continue;
+    const answer = operationAnswer({ kind: "LAPLACE_TREND", times, start: Math.floor(start), end: Math.floor(endYear) + 1 });
+    if (answer.status === "pending") check.pending = true;
+    else if (answer.status === "ready" && "statistic" in answer.value && !("degreesOfFreedom" in answer.value) && answer.value.probability < 0.05) findings.push({ severity: "warning", check: "Trend", item, detail: `The counted failures in ${resolved.label} ${answer.value.statistic > 0 ? "rise" : "fall"} over time (Laplace test P = ${sciShort(answer.value.probability)}). A constant rate may not hold (DA-B2).`, target: evidenceTarget });
   }
-  if (posterior !== undefined && isCurve(posterior) && peakCount(posterior) > 1) findings.push({ severity: "warning", check: "Two peaks", item, detail: "The posterior has more than one peak. The prior and the evidence may describe different equipment.", target: estimateTarget });
-  if (method === "BAYES" && posterior !== undefined && estimate.terms.length > 0) {
-    const range = shapeRange90(estimate.prior);
-    const mean = shapeMean(posterior);
-    if (range !== undefined && mean !== undefined && (mean < range[0] || mean > range[1]) && blank(parameter.estimateReason)) findings.push({ severity: "warning", check: "Outside the prior", item, detail: "The posterior mean lies outside the prior's 5th to 95th range. Say why in the estimate's reason (DA-N-27).", target: estimateTarget });
+  if (posterior !== undefined && peakCount(posterior) > 1) findings.push({ severity: "warning", check: "Two peaks", item, detail: "The estimate has more than one peak. The prior and the evidence may describe different equipment.", target: estimateTarget });
+  if (method === "BAYES" && posterior !== undefined && prior !== undefined && estimate.terms.length > 0) {
+    const low = quantileOf(prior, 0.05);
+    const high = quantileOf(prior, 0.95);
+    if (low !== undefined && high !== undefined && (posterior.mean < low || posterior.mean > high) && blank(parameter.estimateReason)) findings.push({ severity: "warning", check: "Outside the prior", item, detail: "The posterior mean lies outside the prior's 5th to 95th range. Say why in the estimate's reason (DA-N-27).", target: estimateTarget });
   }
-  if (output !== undefined && estimate.published !== undefined) {
-    const published = estimate.published.shape;
-    const missionHours = estimate.missionHours;
-    const before = heavy(heavyKey({ method: "PUBLISHED", missionHours }, published, []), () => {
-      const result = outputFor(published, missionHours);
-      return result === undefined ? {} : { output: result };
-    }).output?.summary.mean;
-    const after = output.summary.mean;
-    if (before !== undefined && before > 0 && after > 0) {
+  const unit = estimateUnit(estimate);
+  if (unit !== undefined && scale !== undefined && estimate.published !== undefined && fitsScale(estimate.published.quantity, scale)) {
+    const after = pointOf(estimate.estimate, unit, check);
+    const before = pointOf(estimateExpression(estimate, estimate.published.law), unit, check);
+    if (before !== undefined && after !== undefined && before > 0 && after > 0) {
       const ratio = Math.max(after / before, before / after);
       if (ratio >= 5 && blank(parameter.estimateReason)) findings.push({ severity: "warning", check: "Far from the prior", item, detail: `The estimate is ${Number(ratio.toPrecision(2))} times ${after > before ? "higher" : "lower"} than the Step 04 prior. Explain the difference in the estimate's reason.`, target: estimateTarget });
     }
   }
-  if (output !== undefined && output.fitError !== undefined && output.fitError > 0.1) findings.push({ severity: "note", check: "Fitted distribution", item, detail: `The stored ${output.fit === "BETA" ? "beta" : "lognormal"} differs from the exact result by ${Math.round(output.fitError * 100)}% at the 5th or 95th percentile.`, target: estimateTarget });
 }
 
 function recordFindings(da: DataAnalysis, findings: DaNeedFinding[]): void {
@@ -589,26 +742,33 @@ function exposureFindings(da: DataAnalysis, findings: DaNeedFinding[]): void {
   }
 }
 
-function failureFindings(da: DataAnalysis): DaNeedFinding[] {
-  const cached = findingCache.get(da);
-  if (cached !== undefined) return cached;
-  const findings: DaNeedFinding[] = [];
-  for (const parameter of failureParameters(da)) parameterFindingsFor(da, parameter, findings);
-  recordFindings(da, findings);
-  exposureFindings(da, findings);
-  const sorted = findings
+function failureCheck(da: DataAnalysis): DaFailureCheck {
+  const version = cacheVersion();
+  const cached = checkCache.get(da);
+  if (cached !== undefined && cached.version === version) return cached.check;
+  const check: DaFailureCheck = { findings: [], pending: false };
+  for (const parameter of failureParameters(da)) parameterFindingsFor(da, parameter, check);
+  recordFindings(da, check.findings);
+  exposureFindings(da, check.findings);
+  const sorted = check.findings
     .map((finding, index) => ({ finding, index }))
     .sort((a, b) => RANK[a.finding.severity] - RANK[b.finding.severity] || a.index - b.index)
     .map(({ finding }) => finding);
-  findingCache.set(da, sorted);
-  return sorted;
+  const result = { findings: sorted, pending: check.pending };
+  checkCache.set(da, { version, check: result });
+  return result;
+}
+
+function failureFindings(da: DataAnalysis): DaNeedFinding[] {
+  return failureCheck(da).findings;
 }
 
 function failuresComplete(da: DataAnalysis): boolean {
   const parameters = failureParameters(da);
   if (parameters.length === 0) return false;
-  if (parameters.some((parameter) => parameter.value === undefined)) return false;
-  return !failureFindings(da).some((finding) => finding.severity === "error");
+  if (parameters.some((parameter) => parameter.estimate === undefined)) return false;
+  const check = failureCheck(da);
+  return !check.pending && !check.findings.some((finding) => finding.severity === "error");
 }
 
 function recordUsers(da: DataAnalysis, setId: string): string[] {
@@ -629,17 +789,30 @@ function withoutRecordSet(da: DataAnalysis, setId: string): DataAnalysis {
 
 export {
   FAILURE_MODELS,
+  MU_REACH,
+  SIGMA_HIGH,
+  SIGMA_LOW,
   countedRecords,
   decimalYear,
-  evidenceAlone,
+  estimateExpression,
+  estimateSummary,
+  estimateUnit,
+  evidenceAloneLaw,
   failureFindings,
   failureParameters,
   failuresComplete,
+  hasSpread,
+  hyperpriorOf,
   isFailureParameter,
+  lawExpression,
   methodOf,
+  estimateMissionTime,
   parameterEstimate,
   parameterScale,
-  priorWeight,
+  peakCount,
+  priorSummary,
+  priorWorth,
+  publishedSummary,
   recordUsers,
   withEstimates,
   withoutRecordSet,
@@ -648,4 +821,5 @@ export {
   type DaFailureMethod,
   type DaPublishedPrior,
   type DaResolvedEvidence,
+  type DaScale,
 };

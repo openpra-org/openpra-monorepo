@@ -16,6 +16,7 @@ import {
   type EsqTreeRecord,
   type EventSequenceQuantification,
 } from "./event-sequence-quantification";
+import type { UncertainExpression } from "../core/uncertainty";
 
 type EsqLinkOrigin = "RULE" | "ESQ" | "ES" | "NONE";
 
@@ -30,7 +31,7 @@ interface EsqGroupState {
   name: string;
   hours?: number;
   share?: number;
-  frequency?: number;
+  expression?: UncertainExpression;
   applicable: boolean;
   treeIds: string[];
 }
@@ -42,12 +43,10 @@ interface EsqGroupFrequency {
   choice?: EsqInitiatorChoice;
   source: EsqInitiatorSource;
   parameter?: EsqParameterRecord;
-  rawMean?: number;
+  given?: UncertainExpression;
   unit?: string;
   factor: number;
-  mean?: number;
-  medianFrequency?: number;
-  errorFactor?: number;
+  expression?: UncertainExpression;
   states: EsqGroupState[];
   hours?: number;
 }
@@ -96,8 +95,15 @@ function uniqueTexts(items: readonly string[]): string[] {
   return out;
 }
 
-function finiteNumber(value: number | undefined): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+function scaledBy(expression: UncertainExpression, factor: number, unit: "FACTOR" | "FRACTION"): UncertainExpression {
+  if (factor === 1) return expression;
+  return { node: "OPERATION", operation: "MULTIPLY", operands: [expression, { node: "VALUE", value: { unit, law: { family: "POINT", value: factor } } }] };
+}
+
+function daParameterExpression(esq: EventSequenceQuantification, parameterId: string): UncertainExpression | undefined {
+  const workbookId = esq.linkedWorkbooks?.DA;
+  if (workbookId === undefined || workbookId.trim().length === 0) return undefined;
+  return { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: parameterId } };
 }
 
 function esqTreeRunId(treeId: string): string {
@@ -224,23 +230,21 @@ function groupFrequency(esq: EventSequenceQuantification, model: EsqModel, group
   if (record !== undefined) view.record = record;
   if (choice !== undefined) view.choice = choice;
   if (source === "IE") {
-    if (record?.meanFrequency !== undefined) view.rawMean = record.meanFrequency;
-    if (record?.frequencyUnit !== undefined) view.unit = record.frequencyUnit;
-    if (record?.medianFrequency !== undefined) view.medianFrequency = record.medianFrequency;
-    if (record?.errorFactor !== undefined) view.errorFactor = record.errorFactor;
+    if (record?.frequency !== undefined) {
+      view.given = record.frequency.expression;
+      view.unit = record.frequency.basis;
+    }
   } else if (source === "DA") {
     const parameter = model.parameters.find((candidate) => candidate.id === choice?.parameterId);
     if (parameter !== undefined) view.parameter = parameter;
-    if (parameter?.value !== undefined) view.rawMean = parameter.value;
+    const given = parameter?.estimate === undefined ? undefined : daParameterExpression(esq, parameter.id);
+    if (given !== undefined) view.given = given;
     view.unit = "per-plant-year";
-  } else {
-    const mean = finiteNumber(choice?.mean);
-    if (mean !== undefined) view.rawMean = mean;
-    const errorFactor = finiteNumber(choice?.errorFactor);
-    if (errorFactor !== undefined) view.errorFactor = errorFactor;
+  } else if (choice?.expression !== undefined) {
+    view.given = choice.expression;
   }
   view.factor = source === "TYPED" ? 1 : moduleFactorFor(esq, view.unit);
-  if (view.rawMean !== undefined) view.mean = view.rawMean * view.factor;
+  if (view.given !== undefined) view.expression = scaledBy(view.given, view.factor, "FACTOR");
   const treeStates = allTrees.flatMap((tree) => (tree.stateId === undefined ? [] : [tree.stateId]));
   const applicable = record !== undefined && record.stateIds.length > 0 ? record.stateIds : uniqueTexts(treeStates);
   const stateIds = uniqueTexts([...applicable, ...treeStates]);
@@ -265,21 +269,21 @@ function groupFrequency(esq: EventSequenceQuantification, model: EsqModel, group
     }
     if (share !== undefined) {
       entry.share = share;
-      if (view.mean !== undefined) entry.frequency = view.mean * share;
+      if (view.expression !== undefined) entry.expression = scaledBy(view.expression, share, "FRACTION");
     }
     return entry;
   });
   return view;
 }
 
-function treeFrequency(esq: EventSequenceQuantification, model: EsqModel, tree: EsqTreeRecord): number | undefined {
+function treeFrequency(esq: EventSequenceQuantification, model: EsqModel, tree: EsqTreeRecord): UncertainExpression | undefined {
   if (tree.transferEntry) return undefined;
   const group = groupFrequency(esq, model, tree.initiatorId, model.trees);
   if (tree.stateId === undefined) {
     const only = group.states.length === 1 ? group.states[0] : undefined;
-    return only?.frequency;
+    return only?.expression;
   }
-  return group.states.find((state) => state.stateId === tree.stateId)?.frequency;
+  return group.states.find((state) => state.stateId === tree.stateId)?.expression;
 }
 
 function reachedModels(model: EsqModel, start: string): string[] {
@@ -391,6 +395,7 @@ function transferLoops(model: EsqModel, cut: readonly EsqLoopBreak[] = []): EsqT
 export {
   sameItem,
   hash32,
+  daParameterExpression,
   esqStableId,
   esqTreeRunId,
   esqFunctionRunId,

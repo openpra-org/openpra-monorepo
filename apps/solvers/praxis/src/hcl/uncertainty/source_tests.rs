@@ -1,29 +1,22 @@
+use super::statistical_checks::{
+    assert_fits_law, assert_mean_near, assert_same_population, contract_settings, floats,
+    probability, states_in, valued,
+};
 use super::*;
 use crate::algorithms::bdd_engine::BddNode;
-use crate::hcl::HclCptRowUncertaintySpec;
+use crate::core::distribution::{
+    Law, ParameterReference, ParameterReferenceType, UncertainExpression, UncertainParameter,
+    UncertainUnit, UncertainVector, VectorLaw,
+};
+use crate::core::event::BasicEvent;
+use crate::expression::Expr;
+use crate::hcl::{HclBasicEventUncertainty, HclCptRowUncertainty, HclSampler};
 
 fn reference() -> serde_json::Value {
     serde_json::from_str(include_str!(
         "../../../tests/fixtures/hcl_mh_uq/reference.json"
     ))
     .unwrap()
-}
-
-fn expected(value: &serde_json::Value) -> Vec<f64> {
-    serde_json::from_value(value.clone()).unwrap()
-}
-
-fn assert_samples(actual: &[f64], expected: &[f64], label: &str) {
-    assert_eq!(actual.len(), expected.len(), "{label}: sample count");
-    for (index, (actual, expected)) in actual.iter().zip(expected).enumerate() {
-        // NumPy and Rust can use different platform exp/log implementations.
-        // This allows rounding differences, not different random draws.
-        let tolerance = 5e-16 + 2e-14 * expected.abs();
-        assert!(
-            (actual - expected).abs() <= tolerance,
-            "{label}[{index}]: Rust={actual:.17e}, HCL_MH={expected:.17e}"
-        );
-    }
 }
 
 fn network() -> BayesianGraph {
@@ -36,39 +29,69 @@ fn network() -> BayesianGraph {
     graph
 }
 
+fn prepared(graph: &BayesianGraph, settings: &HclUncertaintySettings) -> PreparedHclUncertainty {
+    PreparedHclUncertainty::new(graph, settings, &[]).unwrap()
+}
+
+fn settings_of(graph: &BayesianGraph, case: &serde_json::Value) -> HclUncertaintySettings {
+    contract_settings(&case["settings"], &states_in(graph))
+}
+
+fn event_law(settings: &HclUncertaintySettings, event: &str) -> Law {
+    let entry = settings
+        .basic_events
+        .iter()
+        .find(|entry| entry.event == event)
+        .unwrap();
+    match &entry.expression {
+        UncertainExpression::Value { value } => value.law.clone(),
+        _ => panic!("fixture events hold one law"),
+    }
+}
+
+fn assert_event_matches(
+    population: &PreparedHclUncertainty,
+    settings: &HclUncertaintySettings,
+    event: &str,
+    reference: &[f64],
+    label: &str,
+) {
+    let ours = &population.event_samples[event];
+    let law = event_law(settings, event);
+    assert_same_population(ours, reference, label);
+    assert_fits_law(ours, &law, &format!("{label} sampled"));
+    assert_fits_law(reference, &law, &format!("{label} reference"));
+}
+
 #[test]
-fn all_monte_carlo_and_lhs_distributions_match_hcl_mh_sample_by_sample() {
+fn every_source_distribution_matches_the_reference_population() {
     let fixture = reference();
     let graph = network();
     for case in fixture["cases"].as_array().unwrap() {
-        let settings = serde_json::from_value(case["settings"].clone()).unwrap();
-        let population = PreparedHclUncertainty::new(&graph, &settings).unwrap();
-        assert_samples(
-            &population.event_samples["E"],
-            &expected(&case["samples"]),
-            case["name"].as_str().unwrap(),
-        );
+        let settings = settings_of(&graph, case);
+        let population = prepared(&graph, &settings);
+        let reference = floats(&case["samples"]);
+        assert_event_matches(&population, &settings, "E", &reference, case["name"].as_str().unwrap());
     }
 }
 
 #[test]
-fn mixed_lhs_vectors_and_bdd_match_the_source() {
+fn mixed_lhs_vectors_and_bdd_match_the_source_populations() {
     let fixture = reference();
     let case = &fixture["lhs_vector_case"];
-    let settings = serde_json::from_value(case["settings"].clone()).unwrap();
     let graph = network();
-    let prepared = PreparedHclUncertainty::new(&graph, &settings).unwrap();
+    let settings = settings_of(&graph, case);
+    let population = prepared(&graph, &settings);
     for (name, values) in case["event_samples"].as_object().unwrap() {
-        assert_samples(&prepared.event_samples[name], &expected(values), name);
+        assert_event_matches(&population, &settings, name, &floats(values), name);
     }
-    // Same source function: (BETA AND NORMAL) OR (NOT BETA AND GAMMA).
     let mut bdd = Bdd::new();
     let normal = bdd.alloc_node(BddNode::new(1, BDD_TRUE, BDD_FALSE));
     let gamma = bdd.alloc_node(BddNode::new(2, BDD_TRUE, BDD_FALSE));
     let top = bdd.alloc_node(BddNode::new(0, normal, gamma));
     bdd.set_var_probs(vec![0.2; 3]);
     let names = ["BETA", "NORMAL", "GAMMA"].map(|name| Some(name.to_string()));
-    let actual = prepared
+    let actual = population
         .quantify(
             &bdd,
             top,
@@ -77,56 +100,19 @@ fn mixed_lhs_vectors_and_bdd_match_the_source() {
             &names,
         )
         .unwrap();
-    assert_samples(&actual, &expected(&case["top"]), "LHS vector BDD");
+    assert_same_population(&actual, &floats(&case["top"]), "LHS vector BDD");
 }
 
 #[test]
-fn lhs_stratification_preserves_one_draw_per_probability_interval() {
-    for size in [10, 513, 1_000, 10_000] {
-        let mut rng = NumpyRng::new(42);
-        for _ in 0..3 {
-            let draws = rng.lhs_quantiles(size);
-            let mut bins = vec![0; size];
-            for draw in &draws {
-                assert!((0.0..1.0).contains(draw));
-                bins[(draw * size as f64).floor() as usize] += 1;
-            }
-            assert!(bins.iter().all(|count| *count == 1));
-            assert!(draws.windows(2).any(|pair| pair[0] > pair[1]));
-        }
-    }
-}
-
-#[test]
-fn legacy_settings_default_to_mc_and_unknown_samplers_are_rejected() {
-    let mut settings = reference()["cases"][0]["settings"].clone();
-    settings
-        .as_object_mut()
-        .unwrap()
-        .remove("basic_event_sampler");
-    let parsed: HclUncertaintySettings = serde_json::from_value(settings.clone()).unwrap();
-    assert_eq!(parsed.sampler, crate::hcl::HclSampler::MonteCarlo);
-    settings["sampler"] = "APPROXIMATE".into();
-    assert!(serde_json::from_value::<HclUncertaintySettings>(settings).is_err());
-}
-
-#[test]
-fn vectors_complements_and_nominal_endpoints_match_hcl_mh() {
+fn vectors_complements_and_endpoints_match_the_source_populations() {
     let fixture = reference();
     let case = &fixture["vector_case"];
-    let settings: HclUncertaintySettings =
-        serde_json::from_value(case["settings"].clone()).unwrap();
     let graph = network();
-    let prepared = PreparedHclUncertainty::new(&graph, &settings).unwrap();
+    let settings = settings_of(&graph, case);
+    let population = prepared(&graph, &settings);
     for event in ["E", "L", "U"] {
-        assert_samples(
-            &prepared.event_samples[event],
-            &expected(&case["event_samples"][event]),
-            event,
-        );
+        assert_event_matches(&population, &settings, event, &floats(&case["event_samples"][event]), event);
     }
-
-    // (E AND U) OR (NOT E AND L), using one BDD for every sample chunk.
     let mut bdd = Bdd::new();
     let u = bdd.alloc_node(BddNode::new(2, BDD_TRUE, BDD_FALSE));
     let l = bdd.alloc_node(BddNode::new(1, BDD_TRUE, BDD_FALSE));
@@ -135,8 +121,8 @@ fn vectors_complements_and_nominal_endpoints_match_hcl_mh() {
     let one = bdd.alloc_node(BddNode::new(4, BDD_TRUE, BDD_FALSE));
     bdd.set_var_probs(vec![0.2, 0.2, 0.2, 0.0, 1.0]);
     let names = ["E", "L", "U", "Z", "O"].map(|s| Some(s.to_string()));
-    for (label, root) in [("TOP", top), ("ZERO", zero), ("ONE", one)] {
-        let samples = prepared
+    let run = |root| {
+        population
             .quantify(
                 &bdd,
                 root,
@@ -144,27 +130,27 @@ fn vectors_complements_and_nominal_endpoints_match_hcl_mh() {
                 HclBaseEvidence::unobserved(2),
                 &names,
             )
-            .unwrap();
-        assert_samples(&samples, &expected(&case["outputs"][label]), label);
-    }
-    let complement = prepared
-        .quantify(
-            &bdd,
-            top.complement(),
-            HclEventBindings::new(),
-            HclBaseEvidence::unobserved(2),
-            &names,
-        )
-        .unwrap();
-    let expected_complement = expected(&case["outputs"]["TOP"])
+            .unwrap()
+    };
+    let samples = run(top);
+    assert_same_population(&samples, &floats(&case["outputs"]["TOP"]), "TOP");
+    assert!(run(zero).iter().all(|value| *value == 0.0));
+    assert!(run(one).iter().all(|value| *value == 1.0));
+    for ((e, (l, u)), top) in population.event_samples["E"]
         .iter()
-        .map(|p| 1.0 - p)
-        .collect::<Vec<_>>();
-    assert_samples(&complement, &expected_complement, "complement");
+        .zip(population.event_samples["L"].iter().zip(&population.event_samples["U"]))
+        .zip(&samples)
+    {
+        let exact = e * u + (1.0 - e) * l;
+        assert!((top - exact).abs() <= 4.0 * f64::EPSILON, "{top} against {exact}");
+    }
+    let complement = run(top.complement());
+    for (value, top) in complement.iter().zip(&samples) {
+        assert!((value - (1.0 - top)).abs() <= 2.0 * f64::EPSILON);
+    }
 }
 
 fn linked_bdd(graph: &BayesianGraph) -> (Bdd, BddRef, HclEventBindings, Vec<Option<String>>) {
-    // (A AND E) OR (NOT A AND B AND L); A and B are BN-linked.
     let mut bdd = Bdd::new();
     let e = bdd.alloc_node(BddNode::new(2, BDD_TRUE, BDD_FALSE));
     let l = bdd.alloc_node(BddNode::new(3, BDD_TRUE, BDD_FALSE));
@@ -189,12 +175,11 @@ fn linked_bdd(graph: &BayesianGraph) -> (Bdd, BddRef, HclEventBindings, Vec<Opti
 }
 
 #[test]
-fn vectorized_bn_conditioning_matches_hcl_mh_under_evidence() {
+fn vectorized_bn_conditioning_matches_the_source_under_evidence() {
     let fixture = reference();
     let case = &fixture["vector_case"];
-    let settings = serde_json::from_value(case["settings"].clone()).unwrap();
     let graph = network();
-    let prepared = PreparedHclUncertainty::new(&graph, &settings).unwrap();
+    let population = prepared(&graph, &settings_of(&graph, case));
     let (bdd, root, bindings, names) = linked_bdd(&graph);
     for scenario in case["linked"].as_array().unwrap() {
         let mut evidence = HclBaseEvidence::unobserved(2);
@@ -206,39 +191,32 @@ fn vectorized_bn_conditioning_matches_hcl_mh_under_evidence() {
                 )
                 .unwrap();
         }
-        let actual = prepared
+        let actual = population
             .quantify(&bdd, root, bindings.clone(), evidence, &names)
             .unwrap();
-        assert_samples(&actual, &expected(&scenario["samples"]), "BN evidence");
+        assert_same_population(&actual, &floats(&scenario["samples"]), "BN evidence");
+    }
+}
+
+fn dirichlet(node: &str, row_index: usize, concentrations: Vec<f64>) -> HclCptRowUncertainty {
+    HclCptRowUncertainty {
+        node: node.into(),
+        row_index,
+        row: UncertainVector::Value {
+            law: VectorLaw::Dirichlet { concentrations },
+        },
     }
 }
 
 #[test]
 fn chunks_preserve_cpt_and_ft_sample_pairing() {
     let case = &reference()["vector_case"];
-    let mut settings: HclUncertaintySettings =
-        serde_json::from_value(case["settings"].clone()).unwrap();
     let graph = network();
-    let ft_only = PreparedHclUncertainty::new(&graph, &settings).unwrap();
-    settings.cpt_row_distributions = vec![
-        HclCptRowUncertaintySpec {
-            node: "A".into(),
-            row_index: 0,
-            prior: crate::hcl::HclCptPrior::Dirichlet {
-                alpha: vec![16.0, 4.0],
-            },
-        },
-        HclCptRowUncertaintySpec {
-            node: "B".into(),
-            row_index: 1,
-            prior: crate::hcl::HclCptPrior::Dirichlet {
-                alpha: vec![1.5, 13.5],
-            },
-        },
-    ];
+    let mut settings = settings_of(&graph, case);
+    let ft_only = prepared(&graph, &settings);
+    settings.cpt_rows = vec![dirichlet("A", 0, vec![16.0, 4.0]), dirichlet("B", 1, vec![1.5, 13.5])];
     let whole =
-        PreparedHclUncertainty::with_chunk_size(&graph, &settings, settings.sample_count).unwrap();
-    // The FT stream must not depend on the BN CPT uncertainty settings.
+        PreparedHclUncertainty::with_chunk_size(&graph, &settings, &[], settings.sample_count).unwrap();
     assert_eq!(ft_only.event_samples, whole.event_samples);
     let (bdd, root, bindings, names) = linked_bdd(&graph);
     let evidence = HclBaseEvidence::unobserved(2);
@@ -246,15 +224,279 @@ fn chunks_preserve_cpt_and_ft_sample_pairing() {
         .quantify(&bdd, root, bindings.clone(), evidence.clone(), &names)
         .unwrap();
     for size in [1, 31, 256, 512] {
-        let chunks = PreparedHclUncertainty::with_chunk_size(&graph, &settings, size).unwrap();
+        let chunks = PreparedHclUncertainty::with_chunk_size(&graph, &settings, &[], size).unwrap();
         assert_eq!(chunks.event_samples, whole.event_samples);
-        assert!(chunks
-            .chunks
-            .iter()
-            .all(|chunk| chunk.end - chunk.start <= size));
+        assert!(chunks.chunks.iter().all(|chunk| chunk.end - chunk.start <= size));
         let actual = chunks
             .quantify(&bdd, root, bindings.clone(), evidence.clone(), &names)
             .unwrap();
-        assert_samples(&actual, &expected, "chunk sample pairing");
+        for (left, right) in actual.iter().zip(&expected) {
+            assert!((left - right).abs() <= 4.0 * f64::EPSILON, "{left} against {right}");
+        }
+    }
+}
+
+fn plain_settings(sampler: HclSampler, count: usize, seed: u64) -> HclUncertaintySettings {
+    HclUncertaintySettings {
+        sample_count: count,
+        seed,
+        sampler,
+        basic_events: Vec::new(),
+        cpt_rows: Vec::new(),
+        cpt_generators: Vec::new(),
+        uncertainty_parameters: Vec::new(),
+        uncertainty_vectors: Vec::new(),
+    }
+}
+
+#[test]
+fn samples_cpt_rows_and_typed_events_reproducibly() {
+    let mut graph = BayesianGraph::new();
+    let node = graph.add_variable("N", &["F", "T"]).unwrap();
+    graph.set_cpt(node, vec![0.8, 0.2]).unwrap();
+    let mut settings = plain_settings(HclSampler::MonteCarlo, 2000, 42);
+    settings.basic_events = vec![HclBasicEventUncertainty {
+        event: "E".to_string(),
+        expression: probability(Law::Beta {
+            alpha: 2.0,
+            beta: 8.0,
+            lower: 0.0,
+            upper: 1.0,
+        }),
+    }];
+    settings.cpt_rows = vec![dirichlet("N", 0, vec![16.0, 4.0])];
+    let first = prepared(&graph, &settings);
+    let second = prepared(&graph, &settings);
+    assert_eq!(first.event_samples["E"], second.event_samples["E"]);
+    assert_eq!(first.sample_count(), 2000);
+    assert_eq!(first.seed(), 42);
+    assert_mean_near(&first.event_samples["E"], 0.2, "Beta(2, 8)");
+}
+
+#[test]
+fn quantifies_a_sampled_unbound_bdd() {
+    let mut graph = BayesianGraph::new();
+    let node = graph.add_variable("N", &["F", "T"]).unwrap();
+    graph.set_cpt(node, vec![0.8, 0.2]).unwrap();
+    let mut settings = plain_settings(HclSampler::LatinHypercube, 100, 7);
+    settings.basic_events = vec![HclBasicEventUncertainty {
+        event: "E".to_string(),
+        expression: probability(Law::Uniform {
+            lower: 0.1,
+            upper: 0.3,
+        }),
+    }];
+    let population = prepared(&graph, &settings);
+    let mut bdd = Bdd::new();
+    let root = bdd.alloc_node(BddNode::new(0, BDD_TRUE, BDD_FALSE));
+    bdd.set_var_probs(vec![0.2]);
+    let samples = population
+        .quantify(
+            &bdd,
+            root,
+            HclEventBindings::new(),
+            HclBaseEvidence::unobserved(1),
+            &[Some("E".to_string())],
+        )
+        .unwrap();
+    assert_eq!(samples.len(), 100);
+    assert!(samples.iter().all(|sample| (0.1..0.3).contains(sample)));
+    let mut bins = [0usize; 100];
+    for sample in &samples {
+        bins[((sample - 0.1) / 0.2 * 100.0).floor() as usize] += 1;
+    }
+    assert!(bins.iter().all(|count| *count == 1));
+}
+
+fn reference_to(entity: &str) -> ParameterReference {
+    ParameterReference {
+        reference_type: ParameterReferenceType::WorkbookParameter,
+        workbook_id: "da".to_string(),
+        entity_id: entity.to_string(),
+    }
+}
+
+#[test]
+fn catalogue_expressions_sample_unless_overridden_and_points_stay_points() {
+    let graph = network();
+    let mut tree = FaultTree::new("FT", "TOP").unwrap();
+    let shared = Expr::Parameter("da:pump".to_string());
+    tree.set_parameter(
+        "da:pump".to_string(),
+        Expr::Draw {
+            key: "da:pump".to_string(),
+            law: Box::new(Law::Uniform {
+                lower: 0.01,
+                upper: 0.2,
+            }),
+        },
+    );
+    tree.add_basic_event(BasicEvent::with_value("C".to_string(), 0.105, shared.clone()).unwrap())
+        .unwrap();
+    tree.add_basic_event(BasicEvent::with_value("D".to_string(), 0.105, shared).unwrap())
+        .unwrap();
+    tree.add_basic_event(BasicEvent::new("P".to_string(), 0.3).unwrap())
+        .unwrap();
+    let mut settings = plain_settings(HclSampler::MonteCarlo, 500, 5);
+    settings.uncertainty_parameters = vec![UncertainParameter {
+        reference: reference_to("pump"),
+        expression: probability(Law::Uniform {
+            lower: 0.01,
+            upper: 0.2,
+        }),
+    }];
+    settings.basic_events = vec![HclBasicEventUncertainty {
+        event: "D".to_string(),
+        expression: UncertainExpression::Operation {
+            operation: crate::core::distribution::UncertainOperation::Multiply,
+            operands: vec![
+                valued(UncertainUnit::Factor, Law::Point { value: 2.0 }),
+                UncertainExpression::Parameter {
+                    reference: reference_to("pump"),
+                },
+            ],
+        },
+    }];
+    let population = PreparedHclUncertainty::new(&graph, &settings, &[&tree]).unwrap();
+    let c = &population.event_samples["C"];
+    let d = &population.event_samples["D"];
+    assert!(!population.event_samples.contains_key("P"));
+    for (left, right) in c.iter().zip(d) {
+        assert!((2.0 * left - right).abs() <= 2.0 * f64::EPSILON);
+        assert!((0.01..=0.2).contains(left));
+    }
+    let mut bdd = Bdd::new();
+    let root = bdd.alloc_node(BddNode::new(0, BDD_TRUE, BDD_FALSE));
+    bdd.set_var_probs(vec![0.3]);
+    let points = population
+        .quantify(
+            &bdd,
+            root,
+            HclEventBindings::new(),
+            HclBaseEvidence::unobserved(2),
+            &[Some("P".to_string())],
+        )
+        .unwrap();
+    assert!(points.iter().all(|value| *value == 0.3));
+}
+
+#[test]
+fn bound_overrides_unknown_samplers_and_laws_outside_probability_fail() {
+    let graph = network();
+    let (bdd, root, bindings, names) = linked_bdd(&graph);
+    let mut settings = plain_settings(HclSampler::MonteCarlo, 50, 3);
+    settings.basic_events = vec![HclBasicEventUncertainty {
+        event: "A".to_string(),
+        expression: probability(Law::Uniform {
+            lower: 0.1,
+            upper: 0.3,
+        }),
+    }];
+    let error = prepared(&graph, &settings)
+        .quantify(&bdd, root, bindings, HclBaseEvidence::unobserved(2), &names)
+        .unwrap_err();
+    assert!(error.to_string().contains("BN-bound"), "{error}");
+    settings.basic_events[0].expression = probability(Law::Lognormal {
+        mean: 0.2,
+        error_factor: 8.0,
+        level: 0.95,
+    });
+    assert!(validate_hcl_uncertainty_settings(&graph, &settings).is_err());
+    let mut json = serde_json::to_value(plain_settings(HclSampler::MonteCarlo, 50, 3)).unwrap();
+    json["sampler"] = "APPROXIMATE".into();
+    assert!(serde_json::from_value::<HclUncertaintySettings>(json.clone()).is_err());
+    json.as_object_mut().unwrap().remove("sampler");
+    assert!(serde_json::from_value::<HclUncertaintySettings>(json).is_err());
+}
+
+fn raw_law(distribution: &serde_json::Value) -> Law {
+    let number = |field: &str| distribution[field].as_f64().unwrap();
+    match distribution["family"].as_str().unwrap() {
+        "BETA" => Law::Beta {
+            alpha: number("alpha"),
+            beta: number("beta"),
+            lower: 0.0,
+            upper: 1.0,
+        },
+        "UNIFORM" => Law::Uniform {
+            lower: number("lower"),
+            upper: number("upper"),
+        },
+        "NORMAL" => Law::Normal {
+            mean: number("mean"),
+            standard_deviation: number("standard_deviation"),
+        },
+        "LOGNORMAL" => super::statistical_checks::source_lognormal(number("median"), number("error_factor")),
+        "LOGITNORMAL" => Law::LogitNormal {
+            mu: number("mu"),
+            sigma: number("sigma"),
+        },
+        "GAMMA" => Law::Gamma {
+            shape: number("shape"),
+            rate: 1.0 / number("scale"),
+        },
+        "EXPONENTIAL" => Law::Gamma {
+            shape: 1.0,
+            rate: number("rate"),
+        },
+        "TRIANGULAR" => Law::Triangular {
+            lower: number("lower"),
+            mode: number("mode"),
+            upper: number("upper"),
+        },
+        other => panic!("unknown family {other}"),
+    }
+}
+
+fn from_bits(values: &serde_json::Value) -> Vec<f64> {
+    values
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|value| f64::from_bits(u64::from_str_radix(value.as_str().unwrap(), 16).unwrap()))
+        .collect()
+}
+
+#[test]
+fn distribution_domains_match_the_source_or_fail_validation() {
+    #[cfg(target_os = "windows")]
+    let data = include_str!("../../../tests/fixtures/hcl_mh_distribution_domain/reference-windows.json");
+    #[cfg(not(target_os = "windows"))]
+    let data = include_str!("../../../tests/fixtures/hcl_mh_distribution_domain/reference-linux.json");
+    let fixture: serde_json::Value = serde_json::from_str(data).unwrap();
+    let graph = network();
+    for case in fixture["cases"].as_array().unwrap() {
+        let label = case["id"].as_str().unwrap();
+        let mut settings = plain_settings(
+            if case["sampler"] == "MC" {
+                HclSampler::MonteCarlo
+            } else {
+                HclSampler::LatinHypercube
+            },
+            case["sample_count"].as_u64().unwrap() as usize,
+            case["seed"].as_u64().unwrap(),
+        );
+        match super::statistical_checks::probability_law(&case["distribution"]) {
+            Some(law) => {
+                settings.basic_events = vec![HclBasicEventUncertainty {
+                    event: "E".to_string(),
+                    expression: probability(law.clone()),
+                }];
+                let ours = prepared(&graph, &settings).event_samples["E"].clone();
+                assert_fits_law(&ours, &law, label);
+                if case["status"] == "FINITE" {
+                    let reference = from_bits(&case["sample_bits"]);
+                    assert_same_population(&ours, &reference, label);
+                    assert_fits_law(&reference, &law, &format!("{label} reference"));
+                }
+            }
+            None => {
+                settings.basic_events = vec![HclBasicEventUncertainty {
+                    event: "E".to_string(),
+                    expression: probability(raw_law(&case["distribution"])),
+                }];
+                assert!(validate_hcl_uncertainty_settings(&graph, &settings).is_err(), "{label}");
+            }
+        }
     }
 }

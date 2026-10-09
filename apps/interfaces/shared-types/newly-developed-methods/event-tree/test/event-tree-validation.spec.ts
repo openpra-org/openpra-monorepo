@@ -4,6 +4,7 @@ import {
   ValidationIssueSchema,
 } from "../../shared";
 import type { EventTreeModel } from "..";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import {
   validateEventTreeEndStates,
   validateEventTreeAnalysisReady,
@@ -36,6 +37,8 @@ const TARGET_EVENT_TREE_ID = "123e4567-e89b-42d3-a456-426614174617";
 const TARGET_SEQUENCE_ID = "123e4567-e89b-42d3-a456-426614174618";
 const owner = { workbookId: "es-workbook", workbookRevision: 1, modelId: MODEL_ID } as const;
 
+const perYear = (value: number): UncertainExpression => ({ node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value } } });
+
 const model: EventTreeModel = {
   modelId: MODEL_ID,
   code: "ET-ULOF",
@@ -44,7 +47,7 @@ const model: EventTreeModel = {
   initiatingEvent: {
     target: { modelId: INITIATING_EVENT_MODEL_ID, entityId: INITIATING_EVENT_ID },
   },
-  initiatingEventFrequency: { value: 0.001 },
+  initiatingEventFrequency: { expression: perYear(0.001) },
   functionalEvents: [
     {
       id: FIRST_FUNCTIONAL_EVENT_ID,
@@ -356,7 +359,7 @@ describe("event-tree FT-link and initiating-frequency validation", () => {
     expect(
       validateEventTreeFaultTreeLinksAndFrequency({
         ...model,
-        initiatingEventFrequency: { value: 0 },
+        initiatingEventFrequency: { expression: perYear(0) },
       }),
     ).toEqual([]);
   });
@@ -373,22 +376,64 @@ describe("event-tree FT-link and initiating-frequency validation", () => {
     ]);
   });
 
-  it.each([-0.001, Number.NaN, Number.POSITIVE_INFINITY])(
-    "rejects invalid initiating-event frequency %s",
+  it("accepts a frequency linked to a DA frequency parameter", () => {
+    expect(
+      validateEventTreeFaultTreeLinksAndFrequency({
+        ...model,
+        initiatingEventFrequency: {
+          expression: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "IE-FREQ-1" } },
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects a frequency expression the schema refuses, %s",
     (value) => {
       expect(
         validateEventTreeFaultTreeLinksAndFrequency({
           ...model,
-          initiatingEventFrequency: { value },
+          initiatingEventFrequency: { expression: perYear(value) },
         }),
       ).toEqual([
         expect.objectContaining({
           code: "ET_INITIATING_EVENT_FREQUENCY_INVALID",
-          fieldPath: ["initiatingEventFrequency", "value"],
+          fieldPath: ["initiatingEventFrequency", "expression"],
         }),
       ]);
     },
   );
+
+  it.each<UncertainExpression>([
+    perYear(-0.001),
+    { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "NORMAL", mean: 1e-5, standardDeviation: 1e-5 } } },
+  ])("rejects a typed frequency that reaches below zero %#", (expression) => {
+    expect(
+      validateEventTreeFaultTreeLinksAndFrequency({
+        ...model,
+        initiatingEventFrequency: { expression },
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        code: "ET_INITIATING_EVENT_FREQUENCY_INVALID",
+        fieldPath: ["initiatingEventFrequency", "expression", "value", "law"],
+      }),
+    ]);
+  });
+
+  it("rejects a typed frequency that is not per year or per hour", () => {
+    expect(
+      validateEventTreeFaultTreeLinksAndFrequency({
+        ...model,
+        initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.001 } } } },
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        code: "ET_INITIATING_EVENT_FREQUENCY_UNIT",
+        fieldPath: ["initiatingEventFrequency", "expression", "value", "unit"],
+      }),
+    ]);
+  });
 
   it("requires exactly one FT link per functional event", () => {
     expect(

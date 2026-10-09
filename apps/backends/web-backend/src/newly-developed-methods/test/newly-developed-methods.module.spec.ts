@@ -10,6 +10,8 @@ import { NewlyDevelopedMethodsSharedModule } from "../shared/newly-developed-met
 import { PraetorAnalysisClient } from "../shared/praetor-analysis.client";
 import { WorkbookDependencyDiscoveryService } from "../shared/workbook-dependency-discovery.service";
 import { WorkbookAnalysisRunsService } from "../shared/workbook-analysis-runs.service";
+import { UncertaintyController } from "../shared/uncertainty.controller";
+import { UncertaintyService } from "../shared/uncertainty.service";
 import { WorkbooksModule } from "../../workbooks/workbooks.module";
 import { WorkbookModelAccessService } from "../../workbooks/workbook-model-access.service";
 
@@ -66,11 +68,12 @@ describe("NewlyDevelopedMethodsModule", () => {
     expect(violations).toEqual([]);
     expect(
       Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, NewlyDevelopedMethodsSharedModule) ?? [],
-    ).toEqual([]);
+    ).toEqual([UncertaintyController]);
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, NewlyDevelopedMethodsSharedModule)).toEqual([
       PraetorAnalysisClient,
       WorkbookDependencyDiscoveryService,
       WorkbookAnalysisRunsService,
+      UncertaintyService,
     ]);
   });
 

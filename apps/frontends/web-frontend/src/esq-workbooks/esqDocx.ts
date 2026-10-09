@@ -12,7 +12,8 @@ import {
 } from "docx";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { logicViewOf } from "./esqLogic";
-import { barriersViewOf, lawText, modeLabel, MECHANISM_KIND_LABELS, MODE_KIND_LABELS } from "./esqBarriers";
+import { barriersViewOf, cellRecordText, modeLabel, sideSourceText, MECHANISM_KIND_LABELS, MODE_KIND_LABELS } from "./esqBarriers";
+import { parameterLabelOf } from "./esqModel";
 import { BASIS_LABELS, CALCULATION_LABELS, QUANTIFIER_LABELS, SOURCE_LABELS, pctText, solveViewOf } from "./esqSolve";
 import { runLogicText } from "./esqLogic";
 import { JOINT_SOURCE_LABELS, LEVEL_LABELS, postViewOf } from "./esqPost";
@@ -234,7 +235,7 @@ function buildChildren(a: EventSequenceQuantification, final: boolean): (Paragra
   ));
   out.push(dataTable(
     ["Cell", "Barrier mode", "Family or hazard", "Load", "Capacity", "P(fail)"],
-    [...(barriers?.cells ?? []), ...(barriers?.hazardCells ?? [])].map((c) => [c.cell.id, `${c.barrier?.name ?? c.cell.barrierId} · ${modeLabel(c.mode)}`, c.cell.hazardGroup ?? c.cell.familyId ?? "—", c.cell.load.parameterId ?? lawText(c.cell.load.distribution, c.cell.unit), c.cell.capacity.fragility === undefined ? c.cell.capacity.parameterId ?? lawText(c.cell.capacity.distribution, c.cell.unit) : `Fragility, median ${c.cell.capacity.fragility.median}`, val(c.value)]),
+    [...(barriers?.cells ?? []), ...(barriers?.hazardCells ?? [])].map((c) => [c.cell.id, `${c.barrier?.name ?? c.cell.barrierId} · ${modeLabel(c.mode)}`, c.cell.hazardGroup ?? c.cell.familyId ?? "—", sideSourceText(c.cell.load, c.cell.unit), sideSourceText(c.cell.capacity, c.cell.unit), cellRecordText(c.cell, parameterLabelOf(a))]),
   ));
   out.push(dataTable(
     ["Credit", "Kind", "Families", "Decision", "Basis"],

@@ -9,11 +9,9 @@ import type {
 import {
   ccfInputKey,
   eventInputKey,
-  lawMean,
   sampledInputsOf,
   uncertaintyInputsKey,
   type EsqSampledInput,
-  type EsqSamplingLaw,
 } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { resolvedRecoveries } from "interfaces-mef-types/esq/esq-post-inputs";
 import { solveWorkOf } from "interfaces-mef-types/esq/esq-solve-inputs";
@@ -36,8 +34,7 @@ interface EsqInputRow {
   input: EsqSampledInput;
   spread?: EsqSpread;
   significant: boolean;
-  mean?: number;
-  raise?: number;
+  sampled: boolean;
 }
 
 interface EsqUncertaintyFamilyRow {
@@ -63,8 +60,6 @@ interface EsqUncertaintyView {
   findings: EsqUncertaintyFinding[];
 }
 
-const Z95 = 1.6448536269514722;
-
 const FINDING_RANK: Record<EsqFindingSeverity, number> = { error: 0, warning: 1, note: 2 };
 
 const DEFAULT_TRIALS = 10_000;
@@ -78,8 +73,9 @@ const STANDARD_ERRORS = 3;
 const METHOD_LABELS: Record<EventTreeSamplingMethod, string> = { MONTE_CARLO: "Monte Carlo", LATIN_HYPERCUBE: "Latin hypercube" };
 
 const SOURCE_LABELS: Record<string, string> = {
-  DA: "DA distribution",
-  IE: "IE lognormal",
+  DA: "DA estimate",
+  SY: "SY value",
+  IE: "IE estimate",
   STEP_02: "Typed in Step 02",
   STEP_04: "Step 04 cell",
   STEP_06: "Typed in Step 06",
@@ -103,37 +99,6 @@ function uncertaintyWorkOf(esq: EventSequenceQuantification): EsqUncertaintyWork
 
 function withUncertaintyWork(esq: EventSequenceQuantification, fn: (work: EsqUncertaintyWork) => EsqUncertaintyWork): EventSequenceQuantification {
   return { ...esq, uncertaintyWork: fn(uncertaintyWorkOf(esq)) };
-}
-
-function squaredVariation(law: EsqSamplingLaw): number {
-  switch (law.type) {
-    case "POINT": return 0;
-    case "LOGNORMAL": {
-      const sigma = Math.log(law.errorFactor) / Z95;
-      return Math.exp(sigma * sigma) - 1;
-    }
-    case "NORMAL": return law.mean === 0 ? 0 : (law.standardDeviation / law.mean) ** 2;
-    case "GAMMA": return 1 / law.shape;
-    case "BETA": return law.beta / (law.alpha * (law.alpha + law.beta + 1));
-    case "UNIFORM": {
-      const mean = (law.lower + law.upper) / 2;
-      return mean === 0 ? 0 : (law.upper - law.lower) ** 2 / 12 / (mean * mean);
-    }
-    case "EXPONENTIAL": return 1;
-  }
-}
-
-function lawText(law: EsqSamplingLaw): string {
-  const n = (value: number): string => String(Number(value.toPrecision(3)));
-  switch (law.type) {
-    case "POINT": return `Point ${n(law.value)}`;
-    case "LOGNORMAL": return `Lognormal, median ${n(law.median)}, EF ${n(law.errorFactor)}`;
-    case "NORMAL": return `Normal, mean ${n(law.mean)}, SD ${n(law.standardDeviation)}`;
-    case "GAMMA": return `Gamma, shape ${n(law.shape)}, rate ${n(law.rate)}`;
-    case "BETA": return `Beta, α ${n(law.alpha)}, β ${n(law.beta)}`;
-    case "UNIFORM": return `Uniform, ${n(law.lower)} to ${n(law.upper)}`;
-    case "EXPONENTIAL": return `Exponential, rate ${n(law.rate)}`;
-  }
 }
 
 function significantInputKeys(esq: EventSequenceQuantification): Set<string> {
@@ -168,13 +133,9 @@ function inputRows(esq: EventSequenceQuantification): EsqInputRow[] {
   const significant = significantInputKeys(esq);
   const spreads = new Map((uncertaintyWorkOf(esq).spreads ?? []).map((spread) => [spread.key, spread]));
   return sampledInputsOf(esq).map((input) => {
-    const row: EsqInputRow = { input, significant: significant.has(input.key) };
-    const spread = spreads.get(input.key);
+    const row: EsqInputRow = { input, significant: significant.has(input.key), sampled: input.uncertain };
+    const spread = input.contract ? undefined : spreads.get(input.key);
     if (spread !== undefined) row.spread = spread;
-    if (input.law !== undefined) {
-      row.mean = lawMean(input.law);
-      row.raise = 1 + squaredVariation(input.law);
-    }
     return row;
   }).sort((a, b) => Number(b.significant) - Number(a.significant) || a.input.label.localeCompare(b.input.label));
 }
@@ -195,6 +156,7 @@ function uncertaintyRecordOf(result: EsqUncertaintyRunResult): EsqUncertaintyRec
       point: family.point,
       mean: family.mean,
       standardDeviation: family.standardDeviation,
+      standardError: family.standardError,
       p05: family.p05,
       p50: family.p50,
       p95: family.p95,
@@ -223,10 +185,9 @@ function uncertaintyRunProblem(result: EsqUncertaintyRunResult, esq: EventSequen
   return undefined;
 }
 
-function standardErrors(stats: { mean: number; point: number; standardDeviation: number }, trials: number): number | undefined {
-  const error = stats.standardDeviation / Math.sqrt(trials);
-  if (!(error > 0)) return undefined;
-  return (stats.mean - stats.point) / error;
+function standardErrors(stats: { mean: number; point: number; standardError: number }): number | undefined {
+  if (!(stats.standardError > 0)) return undefined;
+  return (stats.mean - stats.point) / stats.standardError;
 }
 
 function uncertaintyFindings(view: Omit<EsqUncertaintyView, "findings">): EsqUncertaintyFinding[] {
@@ -240,7 +201,7 @@ function uncertaintyFindings(view: Omit<EsqUncertaintyView, "findings">): EsqUnc
     if (view.runStale) findings.push({ severity: "error", check: "Sampling older than its inputs", item: "Uncertainty", detail: "The model, values or spreads changed after the run. Run the sampling again." });
     if (view.solveRun !== undefined && !sameLogic(run.logic, view.solveRun.logic)) findings.push({ severity: "warning", check: "Sampled with other logic", item: "Uncertainty", detail: "The sampling used logic settings that differ from the run of record. Run it again." });
     for (const family of run.families) {
-      const errors = standardErrors(family, run.trials);
+      const errors = standardErrors(family);
       if (errors === undefined || Math.abs(errors) <= STANDARD_ERRORS) continue;
       findings.push({ severity: "note", check: "Mean away from the point value", item: family.familyId, detail: `The sampled mean is ${Number(errors.toPrecision(3))} standard errors from the point value. Shared draws of skewed inputs raise the mean, so check that the difference comes from them (ESQ-E2).` });
     }
@@ -248,7 +209,7 @@ function uncertaintyFindings(view: Omit<EsqUncertaintyView, "findings">): EsqUnc
   if (view.independent !== undefined && view.independentStale) findings.push({ severity: "warning", check: "Comparison older than its inputs", item: "Correlation", detail: "Run the comparison without shared draws again." });
   const fixed: string[] = [];
   for (const row of view.inputs) {
-    if (row.input.law !== undefined) continue;
+    if (row.sampled) continue;
     const target = { kind: "esqUncertInput" as const, id: row.input.key };
     if (row.significant) {
       findings.push(view.categoryTwo
@@ -260,7 +221,7 @@ function uncertaintyFindings(view: Omit<EsqUncertaintyView, "findings">): EsqUnc
   }
   if (fixed.length > 0) {
     const shown = fixed.slice(0, 3).join(", ");
-    findings.push({ severity: "warning", check: "Inputs at their point values", item: `${fixed.length} inputs`, detail: `${shown}${fixed.length > 3 ? ` and ${fixed.length - 3} more` : ""} have no distribution and stay fixed in every trial. Type an error factor in the Inputs tab or give a distribution upstream.` });
+    findings.push({ severity: "warning", check: "Inputs at their point values", item: `${fixed.length} inputs`, detail: `${shown}${fixed.length > 3 ? ` and ${fixed.length - 3} more` : ""} have no distribution and stay fixed in every trial. Give component values a law in DA or SY. Type an error factor in the Inputs tab for the others.` });
   }
   for (const row of view.inputs) {
     if (row.spread !== undefined && row.spread.source.trim().length === 0) findings.push({ severity: "error", check: "Typed spread without a source", item: row.input.label, detail: "Name the document or judgment the error factor comes from.", target: { kind: "esqUncertInput", id: row.input.key } });
@@ -289,7 +250,7 @@ function uncertaintyViewOf(esq: EventSequenceQuantification): EsqUncertaintyView
     model: modelView.model,
     work,
     inputs,
-    shared: inputs.filter((row) => row.input.users.length > 1 && row.input.law !== undefined),
+    shared: inputs.filter((row) => row.input.users.length > 1 && row.sampled),
     runStale: run !== undefined && run.inputs !== key,
     independentStale: independent !== undefined && independent.inputs !== key,
     families,
@@ -314,9 +275,7 @@ export {
   METHOD_LABELS,
   SOURCE_LABELS,
   STANDARD_ERRORS,
-  lawText,
   significantInputKeys,
-  squaredVariation,
   standardErrors,
   uncertaintyComplete,
   uncertaintyRecordOf,

@@ -58,8 +58,8 @@ const faultTreeRequestJson = JSON.stringify({
     faultTreeBasicEventCatalogue: {
       projectId: "project-1",
       basicEvents: [
-        { id: "A", probability: { value: 0.1 } },
-        { id: "B", probability: { value: 0.2 } },
+        { id: "A", expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.1 } } } },
+        { id: "B", expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.2 } } } },
       ],
     },
   },
@@ -129,7 +129,13 @@ const bayesianNetworkRequestJson = JSON.stringify({
   ],
 });
 
-test("converts failure rates before native FT execution using HCL_MH source values", () => {
+const pointOf = (unit, value) => ({ node: "VALUE", value: { unit, law: { family: "POINT", value } } });
+const mission = (rate, rateUnit, time, timeUnit) => ({
+  node: "MODEL",
+  model: { form: "MISSION", rate: pointOf(rateUnit, rate), missionTime: pointOf(timeUnit, time) },
+});
+
+test("quantifies mission models within one rounding step of the HCL_MH source values", () => {
   const addon = require("..");
   const reference = JSON.parse(readFileSync(new URL(
     "../../praxis/tests/fixtures/hcl_mh_failure_rate/reference.json", import.meta.url,
@@ -137,57 +143,45 @@ test("converts failure rates before native FT execution using HCL_MH source valu
   for (const c of reference.cases) {
     const request = JSON.parse(faultTreeRequestJson);
     const events = request.resources.faultTreeBasicEventCatalogue.basicEvents;
-    events[0].probability = {
-      value: 0.75, // Deliberately stale; native execution must resolve the rate.
-      quantificationBasis: {
-        kind: "FAILURE_RATE",
-        failureRate: { value: c.rate, unit: "HOUR" },
-        missionTime: { value: c.time, unit: "HOUR" },
-        conversion: "EXPONENTIAL",
-      },
-    };
-    events[1].probability.value = 0;
+    events[0].expression = mission(c.rate, "PER_HOUR", c.time, "HOURS");
+    events[1].expression = pointOf("PROBABILITY", 0);
     const output = JSON.parse(addon.execute(JSON.stringify(request)));
     assert.equal(output.error, undefined, c.name);
+    const expected = Number(c.probability);
     const trace = output.result.basicEventQuantifications.find((e) => e.basicEventId === "A");
-    assert.equal(trace.resolvedProbability, Number(c.probability), c.name);
-    assert.equal(output.result.topEventProbability, Number(c.probability), c.name);
+    for (const actual of [trace.pointProbability, output.result.topEventProbability]) {
+      assert.ok(Math.abs(actual - expected) <= Number.EPSILON, `${c.name}: ${actual} != ${expected}`);
+    }
   }
 });
 
-test("uses 8760-hour years in native FT rate and mission-time conversion", () => {
+test("uses 8760-hour years in native mission model unit conversion", () => {
   const addon = require("..");
   for (const [rate, rateUnit, time, timeUnit, exposure] of [
-    [0.2, "YEAR", 365, "DAY", 0.2],
-    [0.001, "HOUR", 1, "YEAR", 8.76],
+    [0.2, "PER_YEAR", 8760, "HOURS", 0.2],
+    [0.001, "PER_HOUR", 1, "YEARS", 8.76],
   ]) {
     const request = JSON.parse(faultTreeRequestJson);
     const events = request.resources.faultTreeBasicEventCatalogue.basicEvents;
-    events[0].probability.quantificationBasis = {
-      kind: "FAILURE_RATE", conversion: "EXPONENTIAL",
-      failureRate: { value: rate, unit: rateUnit },
-      missionTime: { value: time, unit: timeUnit },
-    };
-    events[1].probability.value = 0;
+    events[0].expression = mission(rate, rateUnit, time, timeUnit);
+    events[1].expression = pointOf("PROBABILITY", 0);
     const output = JSON.parse(addon.execute(JSON.stringify(request)));
     assert.equal(output.error, undefined, JSON.stringify(output));
-    assert.equal(output.result.topEventProbability, 1 - Math.exp(-exposure));
+    const expected = -Math.expm1(-exposure);
+    assert.ok(Math.abs(output.result.topEventProbability - expected) <= 4 * Number.EPSILON * expected);
   }
 });
 
-test("rejects removed FT conversions at native validation and execution", () => {
+test("rejects the removed probability field at native validation and execution", () => {
   const addon = require("..");
-  for (const conversion of ["LINEAR", "UNKNOWN"]) {
-    const request = JSON.parse(faultTreeRequestJson);
-    request.resources.faultTreeBasicEventCatalogue.basicEvents[0].probability.quantificationBasis = {
-      kind: "FAILURE_RATE", conversion,
-      failureRate: { value: .001, unit: "HOUR" }, missionTime: { value: 100, unit: "HOUR" },
-    };
-    for (const operation of ["validate", "execute"]) {
-      const output = JSON.parse(addon[operation](JSON.stringify(request)));
-      assert.match(output.error.message, /review the rate and mission time/);
-      assert.equal(output.result, undefined);
-    }
+  const request = JSON.parse(faultTreeRequestJson);
+  const event = request.resources.faultTreeBasicEventCatalogue.basicEvents[0];
+  delete event.expression;
+  event.probability = { value: 0.1 };
+  for (const operation of ["validate", "execute"]) {
+    const output = JSON.parse(addon[operation](JSON.stringify(request)));
+    assert.match(output.error.message, /unknown field `probability`/);
+    assert.equal(output.result, undefined);
   }
 });
 

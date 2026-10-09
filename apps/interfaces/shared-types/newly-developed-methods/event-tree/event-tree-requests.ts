@@ -139,15 +139,6 @@ type EventTreeSamplingMethod = "MONTE_CARLO" | "LATIN_HYPERCUBE";
 
 type EsqUncertaintyCorrelation = "SHARED" | "INDEPENDENT";
 
-type EventTreeSamplingDistribution =
-  | { type: "POINT"; value: number }
-  | { type: "LOGNORMAL"; median: number; errorFactor: number }
-  | { type: "NORMAL"; mean: number; standardDeviation: number }
-  | { type: "GAMMA"; shape: number; rate: number }
-  | { type: "BETA"; alpha: number; beta: number }
-  | { type: "UNIFORM"; lower: number; upper: number }
-  | { type: "EXPONENTIAL"; rate: number };
-
 interface EsqImportanceRunRequest {
   schemaVersion: WorkbookMethodSchemaVersion;
   workbookRevision: WorkbookRevision;
@@ -334,22 +325,6 @@ const EventTreeSamplingMethodSchema = z.enum(["MONTE_CARLO", "LATIN_HYPERCUBE"])
 
 const EsqUncertaintyCorrelationSchema = z.enum(["SHARED", "INDEPENDENT"]);
 
-const PositiveSchema = z.number().finite().positive();
-
-const EventTreeSamplingDistributionSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("POINT"), value: z.number().finite().nonnegative() }).strict(),
-  z.object({ type: z.literal("LOGNORMAL"), median: PositiveSchema, errorFactor: z.number().finite().min(1) }).strict(),
-  z.object({ type: z.literal("NORMAL"), mean: z.number().finite(), standardDeviation: z.number().finite().nonnegative() }).strict(),
-  z.object({ type: z.literal("GAMMA"), shape: PositiveSchema, rate: PositiveSchema }).strict(),
-  z.object({ type: z.literal("BETA"), alpha: PositiveSchema, beta: PositiveSchema }).strict(),
-  z.object({ type: z.literal("UNIFORM"), lower: z.number().finite(), upper: z.number().finite() }).strict(),
-  z.object({ type: z.literal("EXPONENTIAL"), rate: PositiveSchema }).strict(),
-]).superRefine((distribution, context) => {
-  if (distribution.type === "UNIFORM" && !(distribution.lower < distribution.upper)) {
-    context.addIssue({ code: "custom", path: ["upper"], message: "The upper bound must exceed the lower bound" });
-  }
-});
-
 const EsqImportanceRunRequestSchema = z
   .object({
     schemaVersion: WorkbookMethodSchemaVersionSchema,
@@ -391,9 +366,6 @@ const EsqSensitivityRunRequestSchema = z
 
 type Expect<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-type _AssertEventTreeSamplingDistribution = Expect<
-  Equal<z.infer<typeof EventTreeSamplingDistributionSchema>, EventTreeSamplingDistribution>
->;
 type _AssertEsqImportanceRunRequest = Expect<
   Equal<z.infer<typeof EsqImportanceRunRequestSchema>, EsqImportanceRunRequest>
 >;
@@ -453,7 +425,6 @@ export {
   EsqPostRunRequestSchema,
   EventTreeSamplingMethodSchema,
   EsqUncertaintyCorrelationSchema,
-  EventTreeSamplingDistributionSchema,
   EsqImportanceRunRequestSchema,
   EsqUncertaintyRunRequestSchema,
   EsqSensitivityRunRequestSchema,
@@ -478,7 +449,6 @@ export type {
   EsqPostRunRequest,
   EventTreeSamplingMethod,
   EsqUncertaintyCorrelation,
-  EventTreeSamplingDistribution,
   EsqImportanceRunRequest,
   EsqUncertaintyRunRequest,
   EsqSensitivityRunRequest,

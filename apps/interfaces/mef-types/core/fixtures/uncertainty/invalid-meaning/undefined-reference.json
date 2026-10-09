@@ -1,0 +1,33 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "x"
+    },
+    "expression": {
+      "node": "MODEL",
+      "model": {
+        "form": "MISSION",
+        "rate": {
+          "node": "PARAMETER",
+          "reference": {
+            "referenceType": "WORKBOOK_PARAMETER",
+            "workbookId": "da-example",
+            "entityId": "missing"
+          }
+        },
+        "missionTime": {
+          "node": "VALUE",
+          "value": {
+            "unit": "HOURS",
+            "law": {
+              "family": "POINT",
+              "value": 24
+            }
+          }
+        }
+      }
+    }
+  }
+]

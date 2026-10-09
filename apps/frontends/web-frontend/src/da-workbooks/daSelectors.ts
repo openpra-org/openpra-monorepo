@@ -19,7 +19,15 @@ import {
   type DataAnalysisParameter,
   type ParameterType,
 } from "interfaces-mef-types/da/data-analysis";
-import { type CommonCauseFailureGroup, type SystemBasicEvent, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { carriesUncertainExpression, type SystemBasicEvent, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { canonicalJson, expressionReferences, lawBounds, modelArguments, unitBounds, type UncertainExpression, type UncertainUnit, type UncertainValue } from "interfaces-mef-types/core/uncertainty";
+import { familyText } from "../newly-developed-methods/shared/uncertainText";
+import { holdsEstimate } from "interfaces-mef-types/da/data-analysis";
+import { FrequencyUnit } from "interfaces-mef-types/core/events";
+import { componentUnit, daMissionTimes, lawParameter, parameterPoint, pointState, readyNumber } from "./daLaws";
+import { type WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
+import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
+import { basicEventMissionTime } from "../sy-workbooks/syMissionTimes";
 import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-models";
 import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
@@ -30,10 +38,9 @@ import { type DaUpstream } from "./daWorkbookContext";
 import { sourcesComplete } from "./daSourcing";
 import { failuresComplete } from "./daFailures";
 import { unavailabilityComplete } from "./daUnavailability";
-import { ccfComplete, ccfFactorsOf } from "./daCcf";
+import { ccfComplete } from "./daCcf";
 import { frequenciesComplete, stateShares } from "./daFrequencies";
 import { uncertaintyComplete } from "./daUncertainty";
-import { DistributionType } from "interfaces-mef-types/core/events";
 import {
   CONFORMANCE_ITEMS,
   DA_SCOPE_KINDS,
@@ -150,6 +157,12 @@ const HOURS_PER_UNIT: Record<QuantificationTimeUnit, number> = {
   YEAR: 8760,
 };
 
+const HOURS_PER_TIME_UNIT: Partial<Record<UncertainUnit, number>> = {
+  HOURS: 1,
+  MINUTES: 1 / 60,
+  YEARS: 8760,
+};
+
 const KIND_BY_FAILURE_MODE: Record<string, DaNeedKind> = {
   FAILURE_TO_START: "DEMAND",
   FAILURE_TO_RUN: "RUNNING",
@@ -187,19 +200,97 @@ function failureModeOf(event: SystemBasicEvent): string | undefined {
   return typeof mode === "string" && mode.trim().length > 0 ? mode : undefined;
 }
 
+function timeHours(expression: UncertainExpression): number | undefined {
+  if (expression.node !== "VALUE" || expression.value.law.family !== "POINT") return undefined;
+  const factor = HOURS_PER_TIME_UNIT[expression.value.unit];
+  return factor === undefined ? undefined : expression.value.law.value * factor;
+}
+
+function modelTimes(expression: UncertainExpression | undefined): { kind?: DaNeedKind; testIntervalHours?: number } {
+  if (expression?.node !== "MODEL") return {};
+  const model = expression.model;
+  if (model.form === "MISSION") return { kind: "RUNNING" };
+  if (model.form === "STANDBY") return { kind: "STANDBY", testIntervalHours: timeHours(model.testInterval) };
+  return {};
+}
+
+function missionModelTime(estimate: UncertainExpression | undefined): UncertainExpression | undefined {
+  return estimate?.node === "MODEL" && estimate.model.form === "MISSION" ? estimate.model.missionTime : undefined;
+}
+
+function missionTimeText(expression: UncertainExpression, hours: number | undefined): string {
+  if (expression.node === "PARAMETER") return `mission time ${expression.reference.entityId}`;
+  return hours === undefined ? "another mission time" : `${Number(hours.toPrecision(6))} h`;
+}
+
+function scTimeOf(reference: WorkbookParameterReference): { component: boolean; sequence: string } | undefined {
+  for (const source of daMissionTimes().sources) {
+    if (source.workbookId !== reference.workbookId) continue;
+    const mission = source.sc.missionTimes.find((entry) => entry.uuid === reference.entityId);
+    if (mission !== undefined) return { component: false, sequence: mission.eventSequenceReference };
+    const component = (source.sc.componentMissionTimes ?? []).find((entry) => entry.uuid === reference.entityId);
+    if (component !== undefined) return { component: true, sequence: component.eventSequenceReference };
+  }
+  return undefined;
+}
+
+function justifiedComponentTime(estimate: UncertainExpression, need: UncertainExpression): boolean {
+  if (estimate.node !== "PARAMETER" || need.node !== "PARAMETER") return false;
+  const component = scTimeOf(estimate.reference);
+  const mission = scTimeOf(need.reference);
+  if (component?.component !== true || mission === undefined || mission.component) return false;
+  if (component.sequence === mission.sequence) return true;
+  const families = daMissionTimes().families;
+  const ofComponent = families.get(component.sequence) ?? [];
+  const ofMission = families.get(mission.sequence) ?? [];
+  return ofComponent.includes(mission.sequence) || ofComponent.some((family) => ofMission.includes(family));
+}
+
+function missionTimeDiffers(estimate: UncertainExpression | undefined, need: UncertainExpression | undefined): { need: string; estimate: string } | undefined {
+  if (estimate === undefined || need === undefined || canonicalJson(estimate) === canonicalJson(need)) return undefined;
+  if (justifiedComponentTime(estimate, need)) return undefined;
+  const ours = readyNumber(pointState(estimate, "HOURS"));
+  const theirs = readyNumber(pointState(need, "HOURS"));
+  if (estimate.node === "PARAMETER" && need.node === "PARAMETER") return { need: missionTimeText(need, theirs), estimate: missionTimeText(estimate, ours) };
+  if (ours === undefined || theirs === undefined || ours === theirs) return undefined;
+  return { need: missionTimeText(need, theirs), estimate: missionTimeText(estimate, ours) };
+}
+
+function expressionValueUnit(expression: UncertainExpression | undefined): "PROBABILITY" | "PER_HOUR" | undefined {
+  if (expression === undefined) return undefined;
+  if (expression.node === "MODEL") return expression.model.form === "MISSION" || expression.model.form === "STANDBY" ? "PER_HOUR" : "PROBABILITY";
+  if (expression.node === "VALUE") return expression.value.unit === "PER_HOUR" || expression.value.unit === "PER_YEAR" ? "PER_HOUR" : "PROBABILITY";
+  return "PROBABILITY";
+}
+
+function linkedEstimate(expression: UncertainExpression, unit: UncertainUnit | undefined): UncertainExpression {
+  if (unit !== "PER_HOUR" || expression.node !== "MODEL") return expression;
+  const model = expression.model;
+  return model.form === "MISSION" || model.form === "STANDBY" ? model.rate : expression;
+}
+
 function importedKindOf(event: SystemBasicEvent): DaNeedKind | undefined {
+  if (carriesUncertainExpression(event.failureMode)) {
+    const kind = modelTimes(event.expression).kind;
+    if (kind !== undefined) return kind;
+  }
   if (event.quantificationBasis?.kind === "FAILURE_RATE") return "RUNNING";
   const mode = failureModeOf(event);
   return mode === undefined ? undefined : KIND_BY_FAILURE_MODE[mode];
 }
 
-function eventValue(event: SystemBasicEvent): Pick<DaBasicEventNeed, "value" | "valueUnit"> {
+function eventValue(event: SystemBasicEvent): Pick<DaBasicEventNeed, "value" | "valueUnit" | "expression"> {
+  if (carriesUncertainExpression(event.failureMode)) return event.expression === undefined ? {} : { expression: event.expression };
   const basis = event.quantificationBasis;
   if (basis?.kind === "FAILURE_RATE") return { value: basis.failureRate.value / HOURS_PER_UNIT[basis.failureRate.unit], valueUnit: "PER_HOUR" };
   return typeof event.probability === "number" && Number.isFinite(event.probability) ? { value: event.probability, valueUnit: "PROBABILITY" } : {};
 }
 
 function eventHolder(event: SystemBasicEvent, parameterIds: ReadonlySet<string>, hfeIds: ReadonlySet<string>): Pick<DaBasicEventNeed, "valueHeldBy" | "valueHolderId"> {
+  if (carriesUncertainExpression(event.failureMode)) {
+    const held = (event.expression === undefined ? [] : expressionReferences(event.expression)).find((reference) => parameterIds.has(reference.entityId.trim()));
+    return held === undefined ? { valueHeldBy: "TYPED" } : { valueHeldBy: "DA", valueHolderId: held.entityId.trim() };
+  }
   const source = event.controlledDataSource;
   if (source?.referenceType === "WORKBOOK_PARAMETER") return { valueHeldBy: "DA", valueHolderId: source.entityId };
   if (source?.referenceType === "HUMAN_FAILURE_EVENT") return { valueHeldBy: "HRA", valueHolderId: source.entityId };
@@ -221,7 +312,8 @@ function basicEventNeeds(sy: SystemsAnalysis, parameterIds: ReadonlySet<string>,
     const systemId = systemOf.get(event.uuid);
     const definition = systemId === undefined ? undefined : definitions.get(systemId);
     const basis = event.quantificationBasis;
-    const missionTime = basis?.kind === "FAILURE_RATE" ? basis.missionTime.value * HOURS_PER_UNIT[basis.missionTime.unit] : definition?.missionTimeHours;
+    const times = carriesUncertainExpression(event.failureMode) ? modelTimes(event.expression) : {};
+    const missionTime = basicEventMissionTime(sy, event) ?? (basis?.kind === "FAILURE_RATE" ? legacyExpression("HOURS", basis.missionTime.value * HOURS_PER_UNIT[basis.missionTime.unit]) : undefined);
     const kind = importedKindOf(event);
     const mode = failureModeOf(event);
     const need: DaBasicEventNeed = { id: event.uuid, code: event.code, name: event.name, included: true, ...eventValue(event), ...eventHolder(event, parameterIds, hfeIds) };
@@ -232,10 +324,11 @@ function basicEventNeeds(sy: SystemsAnalysis, parameterIds: ReadonlySet<string>,
       need.importedKind = kind;
       need.kind = kind;
     }
-    if (typeof missionTime === "number" && Number.isFinite(missionTime)) {
-      need.importedMissionTimeHours = missionTime;
-      need.missionTimeHours = missionTime;
+    if (missionTime !== undefined) {
+      need.importedMissionTime = structuredClone(missionTime);
+      need.missionTime = structuredClone(missionTime);
     }
+    if (times.testIntervalHours !== undefined && Number.isFinite(times.testIntervalHours)) need.testIntervalHours = times.testIntervalHours;
     if (event.repairModeled === true) {
       need.repairCredited = true;
       if (typeof event.meanTimeToRepair === "number") need.meanTimeToRepairHours = event.meanTimeToRepair;
@@ -247,20 +340,7 @@ function basicEventNeeds(sy: SystemsAnalysis, parameterIds: ReadonlySet<string>,
 function initiatorNeeds(ie: InitiatingEventsAnalysis): DaInitiatorNeed[] {
   return ie.initiatingEventGroups.map((group) => {
     const need: DaInitiatorNeed = { id: group.uuid, name: group.name, stateIds: [...group.applicableStates], memberIds: [...group.memberInitiatorIds], included: true };
-    const frequency = group.meanFrequency;
-    if (typeof frequency === "number") {
-      if (Number.isFinite(frequency) && frequency > 0) need.meanFrequency = frequency;
-    } else if (frequency instanceof Object) {
-      if (Number.isFinite(frequency.value) && frequency.value > 0) need.meanFrequency = frequency.value;
-      need.frequencyUnit = frequency.units;
-      const distribution = frequency.distribution;
-      const median = distribution?.parameters[0];
-      const errorFactor = distribution?.parameters[1];
-      if (distribution?.type === DistributionType.LOGNORMAL && typeof median === "number" && typeof errorFactor === "number") {
-        need.medianFrequency = median;
-        need.errorFactor = errorFactor;
-      }
-    }
+    if (group.frequency !== undefined) need.frequency = { expression: group.frequency.expression, basis: group.frequency.basis };
     const basis = ie.quantifications.find((quantification) => quantification.initiatorOrGroupId === group.uuid)?.basis;
     if (basis !== undefined) need.frequencyBasis = basis;
     const source = group.controlledDataSource;
@@ -308,11 +388,7 @@ function humanErrorNeeds(hr: HumanReliabilityAnalysis): DaHumanErrorNeed[] {
 
 function ccfGroupNeeds(sy: SystemsAnalysis): DaCcfGroupNeed[] {
   return sy.commonCauseFailureGroups.map((group) => {
-    const need: DaCcfGroupNeed = { id: group.uuid, name: group.name, systemIds: [...group.affectedSystems], memberIds: (group.members?.basicEvents ?? []).map((member) => member.id), included: true };
-    if (group.modelType.length > 0) need.modelType = group.modelType;
-    const { factors, total } = ccfFactorsOf(group);
-    if (Object.keys(factors).length > 0) need.factors = factors;
-    if (typeof total === "number" && Number.isFinite(total)) need.totalProbability = total;
+    const need: DaCcfGroupNeed = { id: group.uuid, name: group.name, systemIds: [...group.affectedSystems], memberIds: (group.members?.basicEvents ?? []).map((member) => member.id), included: true, factors: group.factors, total: group.total };
     const reference = group.dataAnalysisCCFParameterRef;
     if (typeof reference === "string" && reference.length > 0) need.estimateRef = reference;
     return need;
@@ -378,11 +454,11 @@ function daImportNeeds(da: DataAnalysis, upstream: DaUpstream, now: string): DaD
 }
 
 function basicEventKey(need: DaBasicEventNeed): string {
-  return JSON.stringify([need.code, need.name, need.systemId, need.failureMode, need.importedKind, need.importedMissionTimeHours, need.value, need.valueUnit, need.valueHeldBy, need.valueHolderId, need.repairCredited, need.meanTimeToRepairHours]);
+  return JSON.stringify([need.code, need.name, need.systemId, need.failureMode, need.importedKind, need.importedMissionTime === undefined ? null : canonicalJson(need.importedMissionTime), need.value, need.valueUnit, need.expression === undefined ? null : canonicalJson(need.expression), need.valueHeldBy, need.valueHolderId, need.repairCredited, need.meanTimeToRepairHours]);
 }
 
 function initiatorKey(need: DaInitiatorNeed): string {
-  return JSON.stringify([need.name, need.stateIds, need.memberIds, need.meanFrequency, need.medianFrequency, need.errorFactor, need.frequencyUnit, need.frequencyBasis, need.valueHeldBy, need.valueHolderId]);
+  return JSON.stringify([need.name, need.stateIds, need.memberIds, need.frequency === undefined ? null : canonicalJson(need.frequency), need.frequencyBasis, need.valueHeldBy, need.valueHolderId]);
 }
 
 function humanErrorKey(need: DaHumanErrorNeed): string {
@@ -390,7 +466,7 @@ function humanErrorKey(need: DaHumanErrorNeed): string {
 }
 
 function ccfGroupKey(need: DaCcfGroupNeed): string {
-  return JSON.stringify([need.name, need.systemIds, need.memberIds, need.modelType, need.factors, need.totalProbability, need.estimateRef]);
+  return JSON.stringify([need.name, need.systemIds, need.memberIds, need.factors === undefined ? null : canonicalJson(need.factors), need.total === undefined ? null : canonicalJson(need.total), need.estimateRef]);
 }
 
 function stateKey(need: DaStateNeed): string {
@@ -408,12 +484,13 @@ function mergeBasicEvents(previous: readonly DaBasicEventNeed[], next: readonly 
     }
     if (basicEventKey(old) !== basicEventKey(need)) changes.push({ element: "SY", id: need.id, change: "CHANGED" });
     const kind = old.kind !== old.importedKind ? old.kind : need.importedKind;
-    const missionTimeHours = old.missionTimeHours !== old.importedMissionTimeHours ? old.missionTimeHours : need.importedMissionTimeHours;
-    const { kind: _kind, missionTimeHours: _missionTime, ...base } = need;
+    const missionTime = sameMissionTime(old.missionTime, old.importedMissionTime) ? need.importedMissionTime : old.missionTime;
+    const { kind: _kind, missionTime: _missionTime, ...base } = need;
     const result: DaBasicEventNeed = { ...base, included: old.included };
     if (kind !== undefined) result.kind = kind;
-    if (missionTimeHours !== undefined) result.missionTimeHours = missionTimeHours;
+    if (missionTime !== undefined) result.missionTime = missionTime;
     if (old.testIntervalHours !== undefined) result.testIntervalHours = old.testIntervalHours;
+    else if (need.testIntervalHours !== undefined) result.testIntervalHours = need.testIntervalHours;
     if (old.changeReason !== undefined) result.changeReason = old.changeReason;
     if (old.exclusionReason !== undefined) result.exclusionReason = old.exclusionReason;
     if (old.parameterId !== undefined) result.parameterId = old.parameterId;
@@ -464,8 +541,12 @@ function withNeedsMerged(previous: DaDataNeeds | undefined, next: DaDataNeeds): 
   return previous.importedAt === undefined ? merged : { ...merged, changes };
 }
 
+function sameMissionTime(left: UncertainExpression | undefined, right: UncertainExpression | undefined): boolean {
+  return left === undefined || right === undefined ? left === right : canonicalJson(left) === canonicalJson(right);
+}
+
 function basicEventEdited(need: DaBasicEventNeed): boolean {
-  return need.manual === undefined && (need.kind !== need.importedKind || need.missionTimeHours !== need.importedMissionTimeHours);
+  return need.manual === undefined && (need.kind !== need.importedKind || !sameMissionTime(need.missionTime, need.importedMissionTime));
 }
 
 function needManualCount(needs: DaDataNeeds | undefined): number {
@@ -476,11 +557,6 @@ function needManualCount(needs: DaDataNeeds | undefined): number {
 
 function needChangeOf(needs: DaDataNeeds, element: DaNeedElement, id: string): DaNeedChange["change"] | undefined {
   return needs.changes?.find((change) => change.element === element && change.id === id)?.change;
-}
-
-function initiatorBand(need: DaInitiatorNeed): { p05?: number; p95?: number } {
-  if (need.medianFrequency === undefined || need.errorFactor === undefined || need.errorFactor <= 0) return {};
-  return { p05: need.medianFrequency / need.errorFactor, p95: need.medianFrequency * need.errorFactor };
 }
 
 type DaFindingSeverity = "error" | "warning" | "note";
@@ -525,7 +601,7 @@ function scopeLabel(kind: DaScopeKind): string {
   return (DA_SCOPE_KINDS.find((spec) => spec.kind === kind)?.label ?? kind).toLowerCase();
 }
 
-function frequencyUnitText(unit: string): string {
+function frequencyUnitText(unit: FrequencyUnit): string {
   return unit.split("-").join(" ");
 }
 
@@ -580,7 +656,7 @@ function basicEventFindings(da: DataAnalysis, needs: DaDataNeeds): DaNeedFinding
     }
     if (basicEventEdited(need) && blank(need.changeReason)) findings.push({ severity: "error", check: "Edited without a reason", item, detail: "The event type or mission time differs from SY. Give the reason.", target });
     if (need.kind === undefined) findings.push({ severity: "error", check: "No event type", item, detail: "SY gives no failure mode that sets the event type. Set the event type.", target });
-    if (need.kind === "RUNNING" && (need.missionTimeHours === undefined || need.missionTimeHours <= 0)) findings.push({ severity: "error", check: "No mission time", item, detail: "Enter the mission time for this running failure.", target });
+    if (need.kind === "RUNNING" && need.missionTime === undefined) findings.push({ severity: "error", check: "No mission time", item, detail: "Enter the mission time for this running failure.", target });
     if (need.kind === "STANDBY" && (need.testIntervalHours === undefined || need.testIntervalHours <= 0)) findings.push({ severity: "error", check: "No test interval", item, detail: "Enter the test interval for this standby failure.", target });
     const scope = need.kind === undefined ? undefined : KIND_SCOPE[need.kind];
     if (scope !== undefined && scopeIsExcluded(da, scope)) findings.push({ severity: "warning", check: "Out of scope", item, detail: `Step 01 leaves ${scopeLabel(scope)} out of scope, but SY models this event.`, target });
@@ -608,8 +684,8 @@ function initiatorFindings(da: DataAnalysis, needs: DaDataNeeds): DaNeedFinding[
       if (blank(need.exclusionReason)) findings.push({ severity: "error", check: "Excluded without a reason", item: need.id, detail: "Give the reason this group is left out.", target });
       continue;
     }
-    if (need.meanFrequency === undefined) findings.push({ severity: "note", check: "No frequency yet", item: need.id, detail: need.manual === undefined ? "IE holds no frequency for this group yet." : "DA estimates this frequency.", target });
-    if (need.frequencyUnit !== undefined && need.frequencyUnit !== "per-plant-year") findings.push({ severity: "warning", check: "Frequency unit", item: need.id, detail: `IE gives this frequency ${frequencyUnitText(need.frequencyUnit)}. DA works per plant-year.`, target });
+    if (need.frequency === undefined) findings.push({ severity: "note", check: "No frequency yet", item: need.id, detail: need.manual === undefined ? "IE holds no frequency for this group yet." : "DA estimates this frequency.", target });
+    if (need.frequency !== undefined && need.frequency.basis !== FrequencyUnit.PER_PLANT_YEAR) findings.push({ severity: "warning", check: "Frequency unit", item: need.id, detail: `IE gives this frequency ${frequencyUnitText(need.frequency.basis)}. DA works per plant-year.`, target });
     const strayStates = stateIds.size === 0 ? [] : need.stateIds.filter((state) => !stateIds.has(state));
     if (strayStates.length > 0) findings.push({ severity: "warning", check: "Unknown state", item: need.id, detail: `${strayStates.join(", ")} ${strayStates.length === 1 ? "is" : "are"} not among the operating states.`, target });
   }
@@ -720,11 +796,12 @@ interface DaMappableNeed {
   kind?: DaNeedKind;
   included: boolean;
   value?: number;
+  expression?: UncertainExpression;
   valueType: "MEAN" | "POINT_ESTIMATE";
   ownerTyped: boolean;
   heldBy?: DaValueHolder;
   parameterId?: string;
-  missionTimeHours?: number;
+  missionTime?: UncertainExpression;
   valueUnit?: "PROBABILITY" | "PER_HOUR";
   stateIds: string[];
   systemId?: string;
@@ -751,12 +828,13 @@ function mappableNeeds(needs: DaDataNeeds | undefined): DaMappableNeed[] {
       kind: need.kind,
       included: need.included,
       value: need.value,
+      expression: need.expression,
       valueType: "POINT_ESTIMATE",
-      ownerTyped: need.manual === undefined && need.valueHeldBy === "TYPED" && need.value !== undefined,
+      ownerTyped: need.manual === undefined && need.valueHeldBy === "TYPED" && (need.value !== undefined || need.expression !== undefined),
       heldBy: need.valueHeldBy,
       parameterId: need.parameterId,
-      missionTimeHours: need.missionTimeHours,
-      valueUnit: need.valueUnit,
+      missionTime: need.missionTime,
+      valueUnit: need.valueUnit ?? expressionValueUnit(need.expression),
       stateIds: [],
       systemId: need.systemId,
       systemName: need.systemName,
@@ -767,9 +845,9 @@ function mappableNeeds(needs: DaDataNeeds | undefined): DaMappableNeed[] {
     code: need.id,
     name: need.name,
     included: need.included,
-    value: need.meanFrequency,
+    expression: need.frequency?.expression,
     valueType: "MEAN",
-    ownerTyped: need.manual === undefined && need.valueHeldBy !== "DA" && need.meanFrequency !== undefined,
+    ownerTyped: need.manual === undefined && need.valueHeldBy !== "DA" && need.frequency !== undefined,
     heldBy: need.valueHeldBy,
     parameterId: need.parameterId,
     stateIds: need.stateIds,
@@ -823,16 +901,22 @@ function withNeedParameter(da: DataAnalysis, element: DaMapElement, needId: stri
   const need = mappableNeeds(nextNeeds).find((candidate) => candidate.element === element && candidate.id === needId);
   const parameters = da.parameters.map((parameter) => {
     if (parameter.uuid !== parameterId || parameter.quantificationModel !== undefined || need === undefined) return parameter;
-    return withModel(parameter, defaultModelFor(need, parameter.parameterType), need.missionTimeHours);
+    return withModel(parameter, defaultModelFor(need, parameter.parameterType));
   });
   return { ...da, dataNeeds: nextNeeds, parameters };
 }
 
-function withModel(parameter: DataAnalysisParameter, model: DaQuantificationModel | undefined, missionTimeHours?: number): DataAnalysisParameter {
+function withModel(parameter: DataAnalysisParameter, model: DaQuantificationModel | undefined): DataAnalysisParameter {
   const spec = modelSpecOf(model);
   if (model === undefined || spec === undefined) return parameter;
   const next: DataAnalysisParameter = { ...parameter, quantificationModel: model, parameterType: spec.parameterType };
-  if (model === "MISSION_PROBABILITY" && next.missionTimeHours === undefined && missionTimeHours !== undefined) next.missionTimeHours = missionTimeHours;
+  if (holdsEstimate(model)) {
+    const unit = componentUnit(next);
+    if (next.estimate === undefined && next.value !== undefined && unit !== undefined) next.estimate = { node: "VALUE", value: { unit, law: { family: "POINT", value: next.value } } };
+    delete next.value;
+    delete next.valueType;
+    delete next.uncertainty;
+  }
   return next;
 }
 
@@ -852,16 +936,19 @@ function linkedParameter(id: string, need: DaMappableNeed, model: DaQuantificati
     uuid: id,
     name: need.name.trim().length > 0 ? need.name : need.code,
     parameterType: spec?.parameterType ?? "PROBABILITY",
-    valueType: need.valueType,
     quantificationModel: model,
     valueMode: "LINKED",
     valueLink: { element: need.element, needId: need.id },
     implementsSrs: [{ sr: "DA-A1", hlr: "A" }],
   };
-  if (need.value !== undefined) parameter.value = need.value;
+  if (holdsEstimate(model)) {
+    if (need.expression !== undefined) parameter.estimate = linkedEstimate(need.expression, componentUnit(parameter));
+  } else {
+    parameter.valueType = need.valueType;
+    if (need.value !== undefined) parameter.value = need.value;
+  }
   if (need.stateIds.length > 0) parameter.stateIds = [...need.stateIds];
   if (need.systemId !== undefined) parameter.systemReference = need.systemId;
-  if (model === "MISSION_PROBABILITY" && need.missionTimeHours !== undefined) parameter.missionTimeHours = need.missionTimeHours;
   return parameter;
 }
 
@@ -920,7 +1007,7 @@ function withAutoMapping(da: DataAnalysis): DataAnalysis {
   const withModels = parameters.map((parameter) => {
     if (parameter.quantificationModel !== undefined) return parameter;
     const first = mapped.find((need) => need.parameterId === parameter.uuid);
-    return first === undefined ? parameter : withModel(parameter, defaultModelFor(first, parameter.parameterType), first.missionTimeHours);
+    return first === undefined ? parameter : withModel(parameter, defaultModelFor(first, parameter.parameterType));
   });
   return { ...da, parameters: withModels, dataNeeds: nextNeeds };
 }
@@ -942,7 +1029,15 @@ function withLinkedValuesSynced(da: DataAnalysis): DataAnalysis {
     const need = views.find((view) => view.element === link.element && view.id === link.needId);
     if (need === undefined || need.heldBy === "DA") return parameter;
     let next = parameter;
-    if (need.value !== undefined && (need.value !== parameter.value || need.valueType !== parameter.valueType)) next = { ...next, value: need.value, valueType: need.valueType };
+    if (lawParameter(parameter)) {
+      const expression = need.expression === undefined ? undefined : linkedEstimate(need.expression, componentUnit(parameter));
+      if (expression !== undefined && (parameter.estimate === undefined || canonicalJson(parameter.estimate) !== canonicalJson(expression) || parameter.value !== undefined || parameter.valueType !== undefined || parameter.uncertainty !== undefined)) {
+        next = { ...next, estimate: expression };
+        delete next.value;
+        delete next.valueType;
+        delete next.uncertainty;
+      }
+    } else if (need.value !== undefined && (need.value !== parameter.value || need.valueType !== parameter.valueType)) next = { ...next, value: need.value, valueType: need.valueType };
     if (need.stateIds.length > 0 && !sameList(need.stateIds, parameterStates(parameter))) next = { ...next, stateIds: [...need.stateIds] };
     if (next !== parameter) changed = true;
     return next;
@@ -961,7 +1056,28 @@ function parameterValueText(da: DataAnalysis, parameter: DataAnalysisParameter):
     return `Linked · ${NEED_ELEMENT_LABELS[link.element]} ${need?.code ?? link.needId}`;
   }
   if (parameter.valueMode === "CALCULATED") return "Calculated in DA";
-  return parameter.value === undefined ? "Not estimated" : "Typed in DA";
+  const held = lawParameter(parameter) ? parameter.estimate !== undefined : parameter.value !== undefined;
+  return held ? "Typed in DA" : "Not estimated";
+}
+
+function valueNodes(expression: UncertainExpression): UncertainValue[] {
+  switch (expression.node) {
+    case "VALUE": return [expression.value];
+    case "PARAMETER": return [];
+    case "OPERATION": return expression.operands.flatMap(valueNodes);
+    case "MODEL": return modelArguments(expression.model).flatMap(valueNodes);
+  }
+}
+
+function rangeProblem(expression: UncertainExpression): string | undefined {
+  for (const value of valueNodes(expression)) {
+    const bounds = lawBounds(value.law);
+    const domain = unitBounds(value.unit);
+    const law = familyText(value.law.family).toLowerCase();
+    if (!(bounds.lower >= domain.lower)) return `The ${law} law goes below 0. Truncate it at 0, or pick a law that stays in range.`;
+    if (!(bounds.upper <= domain.upper)) return `The ${law} law goes above 1, but it is a probability. Truncate it at 1, or pick a law that stays in range.`;
+  }
+  return undefined;
 }
 
 function parameterFindings(da: DataAnalysis): DaNeedFinding[] {
@@ -992,8 +1108,9 @@ function parameterFindings(da: DataAnalysis): DaNeedFinding[] {
       const allowed = modelsForNeed(need).map((candidate) => modelSpecOf(candidate)?.label.toLowerCase() ?? candidate);
       findings.push({ severity: "error", check: "Model does not fit", item, detail: allowed.length === 0 ? `${parameter.uuid} uses ${modelSpecOf(model)?.label.toLowerCase() ?? model}, but this event has no event type.` : `This event needs ${allowed.join(" or ")}, but ${parameter.uuid} uses ${modelSpecOf(model)?.label.toLowerCase() ?? model}.`, target: { kind: "daParameter", id: parameter.uuid } });
     }
-    if (model === "MISSION_PROBABILITY" && parameter.missionTimeHours !== undefined && need.missionTimeHours !== undefined && Math.abs(parameter.missionTimeHours - need.missionTimeHours) > 1e-9) {
-      findings.push({ severity: "error", check: "Mission time differs", item, detail: `This event runs ${need.missionTimeHours} h, but ${parameter.uuid} is for ${parameter.missionTimeHours} h. Correct the event's mission time in Step 02, use a rate while running, or split the parameter.`, target: { kind: "daParameter", id: parameter.uuid } });
+    const differs = model === "MISSION_PROBABILITY" ? missionTimeDiffers(missionModelTime(parameter.estimate), need.missionTime) : undefined;
+    if (differs !== undefined) {
+      findings.push({ severity: "error", check: "Mission time differs", item, detail: `This event runs ${differs.need}, but the estimate of ${parameter.uuid} is for ${differs.estimate}. Correct the event's mission time in Step 02, link the estimate to the same mission time, or split the parameter.`, target: { kind: "daParameter", id: parameter.uuid } });
     }
     const covered = parameterStates(parameter);
     const uncovered = need.stateIds.filter((state) => !covered.includes(state));
@@ -1001,8 +1118,11 @@ function parameterFindings(da: DataAnalysis): DaNeedFinding[] {
       findings.push({ severity: "error", check: "States not covered", item, detail: `This event applies in ${uncovered.join(", ")}, which ${parameter.uuid} does not cover (DA-A2).`, target: { kind: "daParameter", id: parameter.uuid } });
     }
     const comparable = need.element !== "SY" || (need.valueUnit === "PER_HOUR") === (model === "RUNNING_RATE" || model === "STANDBY_RATE");
-    if (need.ownerTyped && need.value !== undefined && parameter.valueMode !== "LINKED" && parameter.value !== undefined && comparable && !sameValue(need.value, parameter.value)) {
-      findings.push({ severity: "warning", check: "Values differ", item, detail: `${NEED_ELEMENT_LABELS[need.element]} holds ${Number(need.value.toPrecision(4))}, but ${parameter.uuid} holds ${Number(parameter.value.toPrecision(4))}. Link the parameter to the ${NEED_ELEMENT_LABELS[need.element]} value, or settle on one value.`, target: { kind: "daParameter", id: parameter.uuid } });
+    const unit = componentUnit(parameter);
+    const theirs = lawParameter(parameter) ? (need.expression === undefined || unit === undefined ? undefined : readyNumber(pointState(linkedEstimate(need.expression, unit), unit))) : need.value;
+    const ours = readyNumber(parameterPoint(parameter));
+    if (need.ownerTyped && theirs !== undefined && parameter.valueMode !== "LINKED" && ours !== undefined && comparable && !sameValue(theirs, ours)) {
+      findings.push({ severity: "warning", check: "Values differ", item, detail: `${NEED_ELEMENT_LABELS[need.element]} holds ${Number(theirs.toPrecision(4))}, but ${parameter.uuid} holds ${Number(ours.toPrecision(4))}. Link the parameter to the ${NEED_ELEMENT_LABELS[need.element]} value, or settle on one value.`, target: { kind: "daParameter", id: parameter.uuid } });
     }
   }
   for (const parameter of da.parameters) {
@@ -1011,19 +1131,22 @@ function parameterFindings(da: DataAnalysis): DaNeedFinding[] {
     const mapped = needs.filter((need) => need.parameterId === parameter.uuid);
     const model = parameter.quantificationModel;
     if (model === undefined) findings.push({ severity: "error", check: "No model", item, detail: "Set the quantification model.", target });
-    if (model === "MISSION_PROBABILITY" && parameter.missionTimeHours === undefined) findings.push({ severity: "error", check: "No mission time", item, detail: "Enter the mission time this probability covers.", target });
+    if (model === "MISSION_PROBABILITY" && parameter.valueMode !== "CALCULATED" && parameter.estimate !== undefined && missionModelTime(parameter.estimate) === undefined && !mapped.some((need) => need.missionTime !== undefined)) findings.push({ severity: "error", check: "No mission time", item, detail: "Enter the mission time this probability covers.", target });
     if (mapped.length === 0) findings.push({ severity: "warning", check: "Not used", item, detail: "No event maps to this parameter.", target });
     const link = parameter.valueMode === "LINKED" ? parameter.valueLink : undefined;
     const linkedNeed = link === undefined ? undefined : needs.find((need) => need.element === link.element && need.id === link.needId && need.parameterId === parameter.uuid);
     if (parameter.valueMode === "LINKED") {
       if (linkedNeed === undefined) findings.push({ severity: "error", check: "Link broken", item, detail: "The linked event no longer maps to this parameter. Link another event or type the value.", target });
-      else if (linkedNeed.value === undefined) findings.push({ severity: "error", check: "Link broken", item, detail: "The linked event no longer holds a value. Type the value instead.", target });
+      else if (linkedNeed.value === undefined && linkedNeed.expression === undefined) findings.push({ severity: "error", check: "Link broken", item, detail: "The linked event no longer holds a value. Type the value instead.", target });
     }
-    const value = parameter.value;
+    const component = lawParameter(parameter);
+    const value = component ? undefined : parameter.value;
     if (value !== undefined && (!Number.isFinite(value) || value < 0 || (model !== undefined && PROBABILITY_MODELS_SET.has(model) && value > 1))) {
       findings.push({ severity: "error", check: "Out of range", item, detail: model !== undefined && PROBABILITY_MODELS_SET.has(model) ? "A probability must lie between 0 and 1." : "The value cannot be negative.", target });
     }
-    if (value === undefined && parameter.valueMode !== "LINKED") findings.push({ severity: "note", check: "Not estimated", item, detail: "This parameter has no value yet.", target });
+    const range = component && parameter.estimate !== undefined ? rangeProblem(parameter.estimate) : undefined;
+    if (range !== undefined) findings.push({ severity: "error", check: "Out of range", item, detail: range, target });
+    if ((component ? parameter.estimate === undefined : value === undefined) && parameter.valueMode !== "LINKED") findings.push({ severity: "note", check: "Not estimated", item, detail: "This parameter has no value yet.", target });
     const states = parameterStates(parameter);
     const statesOwned = linkedNeed !== undefined && linkedNeed.stateIds.length > 0;
     if (!statesOwned && states.length > 1 && blank(parameter.multiPosApplicabilityJustification)) findings.push({ severity: "error", check: "States without a reason", item, detail: "Give the reason this value holds in each of its operating states (DA-C25).", target });
@@ -1187,6 +1310,7 @@ function stepsFromMef(da: DataAnalysis, persona: DaPersona, handoffsDone = false
 
 export {
   COMPONENT_MODELS,
+  linkedEstimate,
   mappableNeeds,
   modelSpecOf,
   modelsForNeed,
@@ -1209,7 +1333,6 @@ export {
   daNeedsImportReady,
   daNeedsLinked,
   emptyNeeds,
-  initiatorBand,
   needChangeOf,
   needManualCount,
   nextNeedId,

@@ -1,7 +1,7 @@
 import type { EventSequence } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { HazardConditionedMethodModels } from "interfaces-mef-types/hazard-conditioned-models";
-import type { WorkbookFaultTree } from "interfaces-mef-types/modeling";
-import { type JSX, useEffect, useState } from "react";
+import { withBasicEventExpression, type WorkbookFaultTree } from "interfaces-mef-types/modeling";
+import { type JSX, useEffect, useMemo, useState } from "react";
 import { POSIcon } from "../pos-workbooks/posIcons";
 import {
   EventTreeEditor,
@@ -93,6 +93,7 @@ function HazardFaultTreeEditor({ models, editable, onChange }: HazardModelEditor
   const [selection, setSelection] = useState<FaultTreeSelection>(null);
   const selected = models.initiatingEventFaultTrees.find((model) => model.modelId === selectedId)
     ?? models.initiatingEventFaultTrees[0];
+  const catalogue = useMemo(() => ({ basicEvents: models.faultTreeCatalogue.basicEvents.map(withBasicEventExpression) }), [models.faultTreeCatalogue]);
   useEffect(() => {
     if (selected !== undefined && selectedId !== selected.modelId) setSelectedId(selected.modelId);
   }, [selected, selectedId]);
@@ -103,7 +104,7 @@ function HazardFaultTreeEditor({ models, editable, onChange }: HazardModelEditor
   };
   if (selected === undefined) return <EmptyModel type="initiating-event fault tree" editable={editable} onAdd={add} />;
   const operate = (operation: FaultTreeOperation): void => {
-    const result = applyFaultTreeOperation(selected, models.faultTreeCatalogue, operation);
+    const result = applyFaultTreeOperation(selected, catalogue, operation);
     onChange({
       ...models,
       initiatingEventFaultTrees: models.initiatingEventFaultTrees.map((model) => model.modelId === selected.modelId ? result.model : model),
@@ -128,7 +129,7 @@ function HazardFaultTreeEditor({ models, editable, onChange }: HazardModelEditor
       />
       <FaultTreeEditor
         model={selected}
-        catalogue={models.faultTreeCatalogue}
+        catalogue={catalogue}
         capabilities={{ mode: editable ? "AUTHOR" : "READ_ONLY", canEditBasicEvents: editable, canEditLayout: editable, canImport: editable, canExport: true, canRunAnalysis: false }}
         selection={selection}
         validation={[]}
@@ -188,7 +189,7 @@ function HazardEventTreeEditor({ models, editable, onChange }: HazardModelEditor
       <EventTreeEditor
         model={selected}
         eventSequences={models.eventSequences.filter((sequence) => sequence.eventTreeId === selected.uuid)}
-        availableInitiatingEvents={models.eventTrees.map((tree) => ({ id: tree.initiatingEventId, name: tree.name, frequency: tree.initiatingEventFrequency?.value }))}
+        availableInitiatingEvents={models.eventTrees.map((tree) => ({ id: tree.initiatingEventId, name: tree.name, ...(tree.initiatingEventFrequency === undefined ? {} : { frequency: tree.initiatingEventFrequency }) }))}
         availableTransfers={models.eventTrees.filter((tree) => tree.uuid !== selected.uuid).map((tree) => ({ id: tree.uuid, name: tree.name, sequenceIds: Object.keys(tree.sequences) }))}
         representation={representation}
         capabilities={{ author: editable }}

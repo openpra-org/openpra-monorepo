@@ -23,6 +23,8 @@ import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/cor
 import { type PreOperationalAssumption } from "interfaces-mef-types/core/documentation";
 import { useScWorkbook } from "./scWorkbookContext";
 import { generateScReport } from "./scDocx";
+import { ExpressionEditor, defaultExpression } from "../newly-developed-methods/shared/uncertainEditor";
+import { hoursPoint, hoursText, useHoursPoints } from "./scMissionTimePoints";
 
 interface ScIfaceLane {
   key: string;
@@ -109,7 +111,7 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
     {
       key: "in-IE", code: "IE", element: "Initiating Events", role: "Initiating-event groups", direction: "in",
       columns: ["Initiating-event group", "Frequency (/yr)", "States"],
-      rows: (links?.ieGroups ?? []).map((g) => ({ id: g.id, name: `${g.id} · ${g.name}`, values: [g.frequency.toExponential(1), String(g.stateCount)] })),
+      rows: (links?.ieGroups ?? []).map((g) => ({ id: g.id, name: `${g.id} · ${g.name}`, values: [g.frequency === undefined ? "—" : g.frequency.toExponential(1), String(g.stateCount)] })),
       empty: "Load an example to pull the initiating-event groups and frequencies.",
     },
     {
@@ -999,12 +1001,13 @@ function MissionScreen(): JSX.Element {
   const { sc, links, editable, mutateSc } = useScWorkbook();
   const seqInfo = links?.esSequenceInfo ?? {};
   const MAX_H = 96;
-  const pct = (h: number): number => Math.max(4, Math.min(100, (h / MAX_H) * 100));
+  const pct = (h: number | undefined): number => (h === undefined ? 0 : Math.max(4, Math.min(100, (h / MAX_H) * 100)));
   const minPct = (24 / MAX_H) * 100;
   const [openMtId, setOpenMtId] = useState<string | null>(null);
   const openMt = sc.missionTimes.find((m) => m.uuid === openMtId) ?? null;
   const [openCmtId, setOpenCmtId] = useState<string | null>(null);
   const openCmt = (sc.componentMissionTimes ?? []).find((c) => c.uuid === openCmtId) ?? null;
+  const points = useHoursPoints([...sc.missionTimes, ...(sc.componentMissionTimes ?? [])].map((m) => ({ key: m.uuid, expression: m.missionTime })));
 
   function patchMt(uuid: string, patch: Partial<(typeof sc.missionTimes)[number]>): void {
     if (!editable) return;
@@ -1013,7 +1016,7 @@ function MissionScreen(): JSX.Element {
   function addMt(): void {
     if (!editable) return;
     const id = crypto.randomUUID();
-    mutateSc((draft) => ({ ...draft, missionTimes: [...draft.missionTimes, { uuid: id, eventSequenceReference: "", missionTimeHours: 24, basis: "", safeStableStateAchievedWithinMissionTime: true, analysisReferences: [], implementsSrs: [{ sr: "SC-A7", hlr: "A" }] }] }));
+    mutateSc((draft) => ({ ...draft, missionTimes: [...draft.missionTimes, { uuid: id, eventSequenceReference: "", missionTime: defaultExpression("HOURS"), basis: "", safeStableStateAchievedWithinMissionTime: true, analysisReferences: [], implementsSrs: [{ sr: "SC-A7", hlr: "A" }] }] }));
     setOpenMtId(id);
   }
   function removeMt(uuid: string): void {
@@ -1028,7 +1031,7 @@ function MissionScreen(): JSX.Element {
   function addCmt(): void {
     if (!editable) return;
     const id = crypto.randomUUID();
-    mutateSc((draft) => ({ ...draft, componentMissionTimes: [...(draft.componentMissionTimes ?? []), { uuid: id, componentId: "", missionTimeHours: 24, eventSequenceReference: "", analysisReferences: [], implementsSrs: [{ sr: "SC-A8", hlr: "A" }] }] }));
+    mutateSc((draft) => ({ ...draft, componentMissionTimes: [...(draft.componentMissionTimes ?? []), { uuid: id, componentId: "", missionTime: defaultExpression("HOURS"), eventSequenceReference: "", analysisReferences: [], implementsSrs: [{ sr: "SC-A8", hlr: "A" }] }] }));
     setOpenCmtId(id);
   }
   function removeCmt(uuid: string): void {
@@ -1071,13 +1074,13 @@ function MissionScreen(): JSX.Element {
                 </div>
                 <div className="scmt__gauge">
                   <div className="scmt__gauge-head">
-                    <span className="scmt__gauge-val">{m.missionTimeHours} h</span>
+                    <span className="scmt__gauge-val">{hoursText(points.get(m.uuid))}</span>
                     <span className={`scmt__reach scmt__reach--${reaches ? "ok" : "no"}`}>
                       <span className={`scqlight__dot scqlight__dot--${reaches ? "s" : "f"}`} />{reaches ? "Reaches safe state" : "Treatment applied"}
                     </span>
                   </div>
                   <div className="scmt__track" style={{ marginTop: 14 }}>
-                    <div className={`scmt__fill ${reaches ? "scmt__fill--ok" : "scmt__fill--warn"}`} style={{ width: `${pct(m.missionTimeHours)}%` }} />
+                    <div className={`scmt__fill ${reaches ? "scmt__fill--ok" : "scmt__fill--warn"}`} style={{ width: `${pct(hoursPoint(points.get(m.uuid)))}%` }} />
                     <div className="scmt__min" style={{ left: `${minPct}%` }}><span className="scmt__min-lab">24 h min</span></div>
                   </div>
                 </div>
@@ -1106,8 +1109,9 @@ function MissionScreen(): JSX.Element {
                     {editable ? <WorkbookInput className="posfield__input posmono" value={m.eventSequenceReference} onChange={(e) => patchMt(m.uuid, { eventSequenceReference: e.target.value })} /> : <div className="posmono">{m.eventSequenceReference}</div>}
                     {seqInfo[m.eventSequenceReference] !== undefined && <div className="possubtle" style={{ fontSize: 11.5, marginTop: 4 }}>{`${seqInfo[m.eventSequenceReference].scenario} → ${seqInfo[m.eventSequenceReference].outcome}`}</div>}
                   </div>
-                  <div className="posfield"><label className="posfield__label">Mission time (h)</label>
-                    {editable ? <WorkbookInput className="posfield__input posmono" value={String(m.missionTimeHours)} onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) patchMt(m.uuid, { missionTimeHours: v }); }} /> : <div className="posmono">{m.missionTimeHours} h</div>}
+                  <div className="posfield posfield-grid--span2"><span className="posfield__label">Mission time (hours)</span>
+                    <ExpressionEditor expression={m.missionTime} unit="HOURS" disabled={!editable} onChange={(missionTime) => patchMt(m.uuid, { missionTime })} />
+                    <div className="possubtle" style={{ fontSize: 11.5, marginTop: 4 }}>Point value {hoursText(points.get(m.uuid))}</div>
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Basis</label>
                     {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={m.basis} onChange={(e) => patchMt(m.uuid, { basis: e.target.value })} /> : <div>{m.basis}</div>}
@@ -1184,8 +1188,9 @@ function MissionScreen(): JSX.Element {
                   <div className="posfield"><label className="posfield__label">Component</label>
                     {editable ? <WorkbookInput className="posfield__input" value={c.componentId} onChange={(e) => patchCmt(c.uuid, { componentId: e.target.value })} /> : <div>{c.componentId}</div>}
                   </div>
-                  <div className="posfield"><label className="posfield__label">Component time (h)</label>
-                    {editable ? <WorkbookInput className="posfield__input posmono" value={String(c.missionTimeHours)} onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) patchCmt(c.uuid, { missionTimeHours: v }); }} /> : <div className="posmono">{c.missionTimeHours} h</div>}
+                  <div className="posfield posfield-grid--span2"><span className="posfield__label">Component time (hours)</span>
+                    <ExpressionEditor expression={c.missionTime} unit="HOURS" disabled={!editable} onChange={(missionTime) => patchCmt(c.uuid, { missionTime })} />
+                    <div className="possubtle" style={{ fontSize: 11.5, marginTop: 4 }}>Point value {hoursText(points.get(c.uuid))}</div>
                   </div>
                   <div className="posfield"><label className="posfield__label">Sequence</label>
                     {editable ? <WorkbookInput className="posfield__input posmono" value={c.eventSequenceReference} onChange={(e) => patchCmt(c.uuid, { eventSequenceReference: e.target.value })} /> : <div className="posmono">{c.eventSequenceReference}</div>}
@@ -1231,7 +1236,7 @@ function MissionScreen(): JSX.Element {
                     <td style={{ fontWeight: 600 }}>{c.componentId}
                       {justified && <div className="possubtle" style={{ fontSize: 11.5, marginTop: 2, fontWeight: 400 }}>{c.shorterMissionTimeJustification}</div>}
                     </td>
-                    <td className="posmono">{c.missionTimeHours} h</td>
+                    <td className="posmono">{hoursText(points.get(c.uuid))}</td>
                     <td className="posmono">{c.eventSequenceReference}</td>
                     <td>{justified ? <Badge kind="warn">Justified</Badge> : <Badge kind="ok">Direct</Badge>}</td>
                   </tr>

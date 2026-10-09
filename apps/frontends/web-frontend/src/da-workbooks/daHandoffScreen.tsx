@@ -1,11 +1,14 @@
 import { Fragment, JSX, useId, useState } from "react";
 import type { DataAnalysisParameter } from "interfaces-mef-types/da/data-analysis";
+import { useUncertaintyVersion } from "../newly-developed-methods/shared/useUncertainty";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { DaProvenanceChip, DaTabs, DetailRow, DetailToggle, FieldList, FormFoot, FormRow, ModalHead } from "./daShared";
 import { useElementWidth } from "./daDistributionChart";
 import { FV_SIGNIFICANT, RAW_SIGNIFICANT, handoffFindings, handoffView, withImportanceFromEsq, type DaHandoffElement, type DaHandoffRow, type DaHandoffStatus } from "./daHandoffs";
 import { useDaWorkbook } from "./daWorkbookContext";
-import { NEED_PAGE, NeedChecksTable, NeedPager, statText, type DaDrawerContext } from "./daScreens";
+import { parameterPoint } from "./daLaws";
+import { factorsText } from "./daCcf";
+import { NEED_PAGE, NeedChecksTable, NeedPager, estimateText, praxisText, statText, type DaDrawerContext } from "./daScreens";
 import { NumberInput } from "./daSourcesScreen";
 
 type HandoffTab = "summary" | DaHandoffElement | "importance" | "checks";
@@ -52,6 +55,7 @@ function statusClass(status: DaHandoffStatus): string {
 
 function SummaryTable(): JSX.Element {
   const { da, upstream } = useDaWorkbook();
+  useUncertaintyVersion();
   const view = handoffView(da, upstream);
   const loaded: Record<DaHandoffElement, boolean> = { SY: upstream.sy !== undefined, IE: upstream.ie !== undefined, HRA: upstream.hr !== undefined, POS: upstream.pos !== undefined, ESQ: upstream.esq !== undefined };
   return (
@@ -84,6 +88,33 @@ function SummaryTable(): JSX.Element {
 }
 
 function RowDetail({ row }: { row: DaHandoffRow }): JSX.Element {
+  const { da } = useDaWorkbook();
+  useUncertaintyVersion();
+  if (row.daFactors !== undefined || row.consumerFactors !== undefined) {
+    return (
+      <FieldList items={[
+        { label: "Name", value: row.name },
+        { label: "Value from", value: row.holder === "DA" ? `DA ${row.target ?? ""}`.trim() : `Typed in ${ELEMENT_CODES[row.element]}` },
+        { label: "DA factors", value: row.daFactors === undefined ? "—" : factorsText(row.daFactors) },
+        { label: `${ELEMENT_CODES[row.element]} factors`, value: row.consumerFactors === undefined ? "—" : factorsText(row.consumerFactors) },
+        { label: "Status", value: row.detail === undefined ? STATUS_LABELS[row.status] : `${STATUS_LABELS[row.status]}. ${row.detail}` },
+      ]} />
+    );
+  }
+  if (row.daExpression !== undefined || row.consumerExpression !== undefined) {
+    const parameter = row.target === undefined ? undefined : da.parameters.find((candidate) => candidate.uuid === row.target);
+    const unit = row.unit === "estimate" ? "" : ` ${row.unit}`;
+    return (
+      <FieldList items={[
+        { label: "Name", value: row.name },
+        { label: "Value from", value: row.holder === "DA" ? `DA ${row.target ?? ""}`.trim() : `Typed in ${ELEMENT_CODES[row.element]}` },
+        { label: "DA estimate", value: estimateText(row.daExpression) },
+        { label: "DA value", value: parameter === undefined ? "—" : praxisText(parameterPoint(parameter), unit) },
+        { label: `${ELEMENT_CODES[row.element]} estimate`, value: estimateText(row.consumerExpression) },
+        { label: "Status", value: row.detail === undefined ? STATUS_LABELS[row.status] : `${STATUS_LABELS[row.status]}. ${row.detail}` },
+      ]} />
+    );
+  }
   return (
     <FieldList items={[
       { label: "Name", value: row.name },
@@ -97,6 +128,7 @@ function RowDetail({ row }: { row: DaHandoffRow }): JSX.Element {
 
 function ElementTable({ element }: { element: DaHandoffElement }): JSX.Element {
   const { da, upstream } = useDaWorkbook();
+  useUncertaintyVersion();
   const [page, setPage] = useState(0);
   const [show, setShow] = useState("all");
   const [selected, setSelected] = useState("");
@@ -196,6 +228,7 @@ function ImportanceTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
 
 function HandoffScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da, upstream, editable, mutateDa } = useDaWorkbook();
+  useUncertaintyVersion();
   const [tab, setTab] = useState<HandoffTab>("summary");
   const tabId = useId();
   const findings = handoffFindings(da, upstream);

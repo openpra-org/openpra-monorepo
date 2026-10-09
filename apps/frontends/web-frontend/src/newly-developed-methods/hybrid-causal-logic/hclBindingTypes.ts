@@ -1,5 +1,6 @@
 import type { BayesianNetworkEvidenceConfiguration, WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
 import type { ReactNode } from "react";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import type { BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type {
@@ -12,6 +13,12 @@ import type {
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
 
+interface HclSyValue {
+  expression?: UncertainExpression;
+  text: string;
+  daLinks: string[];
+}
+
 interface HclFaultTreeOption {
   workbookId: string;
   workbookName: string;
@@ -23,6 +30,7 @@ interface HclFaultTreeOption {
     id: string;
     code: string;
     name: string;
+    syValue?: HclSyValue;
   }>;
 }
 
@@ -106,4 +114,5 @@ export type {
   QuantificationWorkflow,
   HclEventTreeOption,
   HclFaultTreeOption,
+  HclSyValue,
 };

@@ -1,6 +1,7 @@
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Unique, Named } from "../core/meta";
-import { BasicEvent, ParameterDistribution } from "../core/events";
+import { BasicEvent, ParameterDistribution, type UncertainFrequency } from "../core/events";
+import type { BaseLaw, CcfFactorModel, Law, TruncatedLaw, UncertainExpression } from "../core/uncertainty";
 import { SuccessCriteriaId, SensitivityStudy } from "../core/shared-patterns";
 import { BaseAssumption, PreOperationalAssumption } from "../core/documentation";
 import { ComponentReference, ComponentTypeReference } from "../core/component";
@@ -121,6 +122,25 @@ export type DaQuantificationModel =
   | "FREQUENCY"
   | "OTHER_PROBABILITY";
 
+export const DA_COMPONENT_MODELS: readonly DaQuantificationModel[] = [
+  "DEMAND_PROBABILITY",
+  "RUNNING_RATE",
+  "MISSION_PROBABILITY",
+  "STANDBY_RATE",
+  "OTHER_PROBABILITY",
+  "UNAVAILABILITY",
+];
+
+export function isComponentModel(model: DaQuantificationModel | undefined): boolean {
+  return model !== undefined && DA_COMPONENT_MODELS.includes(model);
+}
+
+export const DA_ESTIMATE_MODELS: readonly DaQuantificationModel[] = [...DA_COMPONENT_MODELS, "FREQUENCY"];
+
+export function holdsEstimate(model: DaQuantificationModel | undefined): boolean {
+  return model !== undefined && DA_ESTIMATE_MODELS.includes(model);
+}
+
 export interface DaParameterValueLink {
   element: "SY" | "IE" | "HRA" | "POS";
   needId: string;
@@ -138,12 +158,19 @@ export type DaSourceOrigin = "SAME_TECHNOLOGY" | "OTHER_NUCLEAR" | "NONNUCLEAR";
 
 export type DaEstimateQuantity = "PER_DEMAND" | "PER_HOUR" | "PER_YEAR" | "FRACTION" | "PROBABILITY" | "HOURS" | "FACTOR";
 
+export const DA_LAW_QUANTITIES: readonly DaEstimateQuantity[] = ["PER_DEMAND", "PER_HOUR", "PER_YEAR", "PROBABILITY", "FRACTION", "FACTOR"];
+
+export function entryHoldsLaw(quantity: DaEstimateQuantity): boolean {
+  return DA_LAW_QUANTITIES.includes(quantity);
+}
+
 export interface DaSourceEntry {
   id: string;
   component: string;
   failureMode: string;
   quantity: DaEstimateQuantity;
   table?: string;
+  law?: Law;
   distribution?: ParameterDistribution;
   mean?: number;
   p05?: number;
@@ -448,13 +475,19 @@ export interface DaImportance {
   importedAt?: string;
 }
 
+export interface DaPopulationHyperprior {
+  mu: BaseLaw | TruncatedLaw;
+  sigma: BaseLaw | TruncatedLaw;
+}
+
 export interface DataAnalysisParameter extends Unique, Named {
   description?: string;
   parameterType: ParameterType;
   value?: number;
-  valueType: "POINT_ESTIMATE" | "MEAN";
+  valueType?: "POINT_ESTIMATE" | "MEAN";
+  estimate?: UncertainExpression;
   quantificationModel?: DaQuantificationModel;
-  missionTimeHours?: number;
+  missionTime?: UncertainExpression;
   valueMode?: "TYPED" | "LINKED" | "CALCULATED";
   valueLink?: DaParameterValueLink;
   stateIds?: string[];
@@ -467,6 +500,7 @@ export interface DataAnalysisParameter extends Unique, Named {
   estimateMethod?: DaEstimateMethod;
   estimateReason?: string;
   populationTargetId?: string;
+  populationHyperprior?: DaPopulationHyperprior;
   evidence?: DaEvidence[];
   maintenance?: DaMaintenanceBasis;
   restoration?: DaRestorationBasis;
@@ -626,8 +660,7 @@ export interface CcfParameterEstimation extends Unique {
   priorReason?: string;
   evidence?: DaCcfEvidence[];
   estimateReason?: string;
-  modelType: "BETA_FACTOR" | "ALPHA_FACTOR" | "MGL" | "PHI_FACTOR" | "OTHER_EQUIVALENT";
-  parameters: Record<string, number>;
+  factors?: CcfFactorModel;
   isRiskSignificant?: boolean;
   importance?: DaImportance;
   parameterSource: "GENERIC" | "PLANT_EXPERIENCE_CONSISTENT";
@@ -635,7 +668,6 @@ export interface CcfParameterEstimation extends Unique {
   genericExclusionConsistencyConfirmed?: boolean;
   genericExclusionConsistencyBasis?: string;
   dataSources?: DataSource[];
-  uncertainty?: Uncertainty;
   implementsSrs: SRReference[];
 }
 
@@ -754,11 +786,12 @@ export interface DaBasicEventNeed {
   failureMode?: string;
   importedKind?: DaNeedKind;
   kind?: DaNeedKind;
-  importedMissionTimeHours?: number;
-  missionTimeHours?: number;
+  importedMissionTime?: UncertainExpression;
+  missionTime?: UncertainExpression;
   testIntervalHours?: number;
   value?: number;
   valueUnit?: "PROBABILITY" | "PER_HOUR";
+  expression?: UncertainExpression;
   valueHeldBy?: DaValueHolder;
   valueHolderId?: string;
   repairCredited?: boolean;
@@ -775,10 +808,7 @@ export interface DaInitiatorNeed {
   name: string;
   stateIds: string[];
   memberIds: string[];
-  meanFrequency?: number;
-  medianFrequency?: number;
-  errorFactor?: number;
-  frequencyUnit?: string;
+  frequency?: UncertainFrequency;
   frequencyBasis?: string;
   valueHeldBy?: DaValueHolder;
   valueHolderId?: string;
@@ -811,9 +841,8 @@ export interface DaCcfGroupNeed {
   name: string;
   systemIds: string[];
   memberIds: string[];
-  modelType?: string;
-  factors?: Record<string, number>;
-  totalProbability?: number;
+  factors?: CcfFactorModel;
+  total?: UncertainExpression;
   estimateRef?: string;
   included: boolean;
   exclusionReason?: string;

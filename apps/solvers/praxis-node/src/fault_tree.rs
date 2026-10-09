@@ -5,15 +5,18 @@ use praxis::algorithms::build::VariableOrder;
 use praxis::analysis::fault_tree::FaultTreeAnalysis;
 use praxis::analysis::quantify::{quantify, Approximation, Engine, Settings};
 use praxis::analysis::sil::{Sil, SilLevel};
-use praxis::core::ccf::{CcfGroup, CcfModel, TestingScheme};
+use praxis::core::ccf::{CcfGroup, CcfModel};
 use praxis::core::event::{BasicEvent, HouseEvent};
 use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::{Formula, Gate};
-use praxis::expression::expr::LOGNORMAL_EF_QUANTILE;
+use praxis::core::distribution::{
+    CcfFactorModel, UncertainExpression, UncertainParameter, UncertainUnit,
+    UncertainVectorParameter,
+};
+use praxis::core::distribution_sampling::{require_probability, SamplingMethod, UncertaintyProgram};
 use praxis::expression::Expr;
 use praxis::mc::core::{ConvergenceSettings, VrtMode, VrtSettings};
 use praxis::mc::DpMonteCarloAnalysis;
-use praxis::quantitative::{resolve_basic_event_probability, BasicEventQuantificationBasis};
 use praxis::{PraxisError, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -134,6 +137,9 @@ fn default_importance_sampling_minimum_probability() -> f64 {
 fn default_stratify_events() -> usize {
     4
 }
+fn default_sampling_method() -> SamplingMethod {
+    SamplingMethod::MonteCarlo
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -156,6 +162,8 @@ struct FaultTreeAnalysisSettings {
     num_trials: usize,
     #[serde(default = "default_seed")]
     seed: u64,
+    #[serde(default = "default_sampling_method")]
+    sampling_method: SamplingMethod,
     #[serde(default = "default_mission_time_hours")]
     mission_time_hours: f64,
     #[serde(default)]
@@ -190,6 +198,7 @@ impl Default for FaultTreeAnalysisSettings {
             expand_ccf: false,
             num_trials: default_num_trials(),
             seed: default_seed(),
+            sampling_method: default_sampling_method(),
             mission_time_hours: default_mission_time_hours(),
             early_stop: false,
             convergence_delta: default_convergence_delta(),
@@ -288,20 +297,23 @@ struct FaultTreeGateInput {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct BasicEventCatalogue {
     project_id: String,
     basic_events: Vec<CatalogueBasicEvent>,
     #[serde(default)]
     common_cause_failure_groups: Vec<CatalogueCcfGroup>,
     #[serde(default)]
-    uncertainty_inputs: Vec<CatalogueUncertaintyInput>,
+    uncertainty_parameters: Vec<UncertainParameter>,
+    #[serde(default)]
+    uncertainty_vectors: Vec<UncertainVectorParameter>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct CatalogueBasicEvent {
     id: String,
-    probability: CatalogueProbability,
+    expression: UncertainExpression,
 }
 
 #[derive(Debug, Deserialize)]
@@ -309,54 +321,16 @@ struct CatalogueBasicEvent {
 struct CatalogueCcfGroup {
     id: String,
     members: Vec<String>,
-    model: CatalogueCcfModel,
-    total_failure_probability: f64,
-    #[serde(default)]
-    uncertainty: Option<CatalogueDistribution>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct CatalogueDistribution {
-    distribution_type: String,
-    parameters: HashMap<String, f64>,
-    #[serde(default)]
-    correlation_key: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE")]
-enum CatalogueCcfModel {
-    BetaFactor { beta: f64 },
-    Mgl { factors: Vec<f64> },
-    AlphaFactor { factors: Vec<f64> },
-    PhiFactor { factors: Vec<f64> },
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct CatalogueUncertaintyInput {
-    basic_event_id: String,
-    distribution_type: String,
-    parameters: HashMap<String, f64>,
-    #[serde(default)]
-    correlation_key: Option<String>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CatalogueProbability {
-    value: f64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    quantification_basis: Option<BasicEventQuantificationBasis>,
+    factors: CcfFactorModel,
+    total: UncertainExpression,
 }
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct BasicEventQuantificationRecord {
     basic_event_id: String,
-    input: CatalogueProbability,
-    resolved_probability: f64,
+    expression: UncertainExpression,
+    point_probability: f64,
 }
 
 pub(crate) struct FaultTreeAdapter {
@@ -573,7 +547,7 @@ pub(crate) fn basic_event_ids_for_model(
         .collect())
 }
 
-fn parse_catalogue(request: &SolverRequest, project_id: &str) -> Result<BasicEventCatalogue> {
+fn catalogue_value(request: &SolverRequest) -> Result<BasicEventCatalogue> {
     let value = request
         .resources
         .fault_tree_basic_event_catalogue
@@ -583,8 +557,22 @@ fn parse_catalogue(request: &SolverRequest, project_id: &str) -> Result<BasicEve
                 "fault-tree execution requires a project basic-event catalogue".to_string(),
             )
         })?;
-    let catalogue: BasicEventCatalogue = serde_json::from_value(value.clone())
-        .map_err(|error| serialization_error("invalid fault-tree basic-event catalogue", error))?;
+    serde_json::from_value(value.clone())
+        .map_err(|error| serialization_error("invalid fault-tree basic-event catalogue", error))
+}
+
+pub(crate) fn catalogue_tables(
+    request: &SolverRequest,
+) -> Result<(Vec<UncertainParameter>, Vec<UncertainVectorParameter>)> {
+    if request.resources.fault_tree_basic_event_catalogue.is_none() {
+        return Ok((Vec::new(), Vec::new()));
+    }
+    let catalogue = catalogue_value(request)?;
+    Ok((catalogue.uncertainty_parameters, catalogue.uncertainty_vectors))
+}
+
+fn parse_catalogue(request: &SolverRequest, project_id: &str) -> Result<BasicEventCatalogue> {
+    let catalogue = catalogue_value(request)?;
     if catalogue.project_id != project_id {
         return Err(PraxisError::Logic(format!(
             "basic-event catalogue project '{}' does not match fault-tree project '{}'",
@@ -594,150 +582,74 @@ fn parse_catalogue(request: &SolverRequest, project_id: &str) -> Result<BasicEve
     Ok(catalogue)
 }
 
-struct SampledInput<'a> {
-    subject: String,
-    distribution_type: &'a str,
-    parameters: &'a HashMap<String, f64>,
-    correlation_key: Option<&'a str>,
+struct ResolvedCcfGroup {
+    id: String,
+    members: Vec<String>,
+    model: CcfModel,
+    total: Expr,
 }
 
-impl<'a> SampledInput<'a> {
-    fn event(input: &'a CatalogueUncertaintyInput) -> Self {
-        SampledInput {
-            subject: format!("basic event '{}'", input.basic_event_id),
-            distribution_type: &input.distribution_type,
-            parameters: &input.parameters,
-            correlation_key: input.correlation_key.as_deref(),
-        }
-    }
-
-    fn group(group_id: &str, input: &'a CatalogueDistribution) -> Self {
-        SampledInput {
-            subject: format!("CCF group '{}'", group_id),
-            distribution_type: &input.distribution_type,
-            parameters: &input.parameters,
-            correlation_key: input.correlation_key.as_deref(),
-        }
-    }
+struct ResolvedCatalogue {
+    program: UncertaintyProgram,
+    events: HashMap<String, (f64, Expr)>,
+    groups: Vec<ResolvedCcfGroup>,
+    records: Vec<BasicEventQuantificationRecord>,
 }
 
-fn distribution_parameter(input: &SampledInput, names: &[&str]) -> Result<f64> {
-    names
-        .iter()
-        .find_map(|name| input.parameters.get(*name).copied())
-        .filter(|value| value.is_finite())
-        .ok_or_else(|| {
-            PraxisError::Settings(format!(
-                "uncertainty distribution '{}' for {} requires {}",
-                input.distribution_type,
-                input.subject,
-                names.join(" or ")
-            ))
-        })
-}
-
-fn sampled_expression(
-    input: &SampledInput,
-    shared: &mut HashMap<String, Expr>,
-) -> Result<Option<Expr>> {
-    let Some(expression) = uncertainty_expression(input)? else {
-        return Ok(None);
-    };
-    let Some(key) = input.correlation_key else {
-        return Ok(Some(expression));
-    };
-    if let Some(existing) = shared.get(key) {
-        if *existing != expression {
-            return Err(PraxisError::Settings(format!(
-                "{} shares correlation key '{}' with a different distribution",
-                input.subject, key
+fn resolve_catalogue(catalogue: BasicEventCatalogue) -> Result<ResolvedCatalogue> {
+    let parameters = catalogue.uncertainty_parameters;
+    let program =
+        UncertaintyProgram::from_table(&parameters)?.with_vectors(&catalogue.uncertainty_vectors)?;
+    let mut events = HashMap::with_capacity(catalogue.basic_events.len());
+    let mut records = Vec::with_capacity(catalogue.basic_events.len());
+    for event in catalogue.basic_events {
+        let target = UncertaintyProgram::target(
+            &parameters,
+            &event.expression,
+            &format!("event:{}", event.id),
+            UncertainUnit::Probability,
+        )?;
+        let point = program.point(&target)?;
+        require_probability(&format!("basic event '{}'", event.id), None, point)?;
+        records.push(BasicEventQuantificationRecord {
+            basic_event_id: event.id.clone(),
+            expression: event.expression,
+            point_probability: point,
+        });
+        if events.insert(event.id.clone(), (point, target)).is_some() {
+            return Err(PraxisError::Logic(format!(
+                "basic-event catalogue contains duplicate id '{}'",
+                event.id
             )));
         }
-    } else {
-        shared.insert(key.to_string(), expression);
     }
-    Ok(Some(Expr::Parameter(key.to_string())))
-}
-
-fn uncertainty_expression(input: &SampledInput) -> Result<Option<Expr>> {
-    let constant = |value| Box::new(Expr::Constant(value));
-    let expression = match input.distribution_type.to_ascii_lowercase().as_str() {
-        "point_estimate" | "binomial" | "poisson" => return Ok(None),
-        "normal" => Expr::NormalDeviate {
-            mean: constant(distribution_parameter(input, &["mean", "mu"])?),
-            sigma: constant(distribution_parameter(
-                input,
-                &["standardDeviation", "stdDev", "sigma"],
-            )?),
-        },
-        "lognormal" | "lognormal_time" => {
-            let (mu, sigma) = match (
-                input.parameters.get("mu").copied(),
-                input.parameters.get("sigma").copied(),
-            ) {
-                (Some(mu), Some(sigma)) => (mu, sigma),
-                _ => {
-                    let median = distribution_parameter(input, &["median"])?;
-                    let error_factor =
-                        distribution_parameter(input, &["errorFactor", "errorFactor95"])?;
-                    if median <= 0.0 || error_factor < 1.0 {
-                        return Err(PraxisError::Settings(format!(
-                            "lognormal uncertainty for {} requires positive median and error factor at least 1",
-                            input.subject
-                        )));
-                    }
-                    (median.ln(), error_factor.ln() / LOGNORMAL_EF_QUANTILE)
-                }
-            };
-            Expr::LognormalDeviate {
-                mu: constant(mu),
-                sigma: constant(sigma),
-            }
-        }
-        "beta" => Expr::BetaDeviate {
-            alpha: constant(distribution_parameter(input, &["alpha"])?),
-            beta: constant(distribution_parameter(input, &["beta", "betaParam"])?),
-        },
-        "gamma" => Expr::GammaDeviate {
-            shape: constant(distribution_parameter(input, &["shape", "alpha"])?),
-            rate: constant(distribution_parameter(
-                input,
-                &["rate", "beta", "betaParam"],
-            )?),
-        },
-        "exponential" => Expr::GammaDeviate {
-            shape: constant(1.0),
-            rate: constant(distribution_parameter(input, &["rate", "lambda"])?),
-        },
-        "uniform" => Expr::UniformDeviate {
-            lower: constant(distribution_parameter(input, &["lower", "min"])?),
-            upper: constant(distribution_parameter(input, &["upper", "max"])?),
-        },
-        "triangular" => Expr::TriangularDeviate {
-            lower: constant(distribution_parameter(input, &["lower", "min"])?),
-            mode: constant(distribution_parameter(input, &["mode"])?),
-            upper: constant(distribution_parameter(input, &["upper", "max"])?),
-        },
-        unsupported => {
-            return Err(PraxisError::Settings(format!(
-                "uncertainty distribution '{}' for {} is not supported by fault-tree sampling",
-                unsupported, input.subject
-            )))
-        }
-    };
-    Ok(Some(expression))
-}
-
-fn catalogue_ccf_model(model: CatalogueCcfModel) -> CcfModel {
-    match model {
-        CatalogueCcfModel::BetaFactor { beta } => CcfModel::BetaFactor(beta),
-        CatalogueCcfModel::Mgl { factors } => CcfModel::Mgl(factors),
-        CatalogueCcfModel::AlphaFactor { factors } => CcfModel::AlphaFactor {
-            factors,
-            scheme: TestingScheme::NonStaggered,
-        },
-        CatalogueCcfModel::PhiFactor { factors } => CcfModel::PhiFactor(factors),
+    let mut groups = Vec::with_capacity(catalogue.common_cause_failure_groups.len());
+    for group in catalogue.common_cause_failure_groups {
+        let total = UncertaintyProgram::target(
+            &parameters,
+            &group.total,
+            &format!("ccf:{}/total", group.id),
+            UncertainUnit::Probability,
+        )?;
+        require_probability(
+            &format!("common cause group '{}' total", group.id),
+            None,
+            program.point(&total)?,
+        )?;
+        let model = CcfModel::from_factors(&group.id, &group.factors, &parameters, &program)?;
+        groups.push(ResolvedCcfGroup {
+            id: group.id,
+            members: group.members,
+            model,
+            total,
+        });
     }
+    Ok(ResolvedCatalogue {
+        program,
+        events,
+        groups,
+        records,
+    })
 }
 
 fn build_fault_tree_snapshot(
@@ -751,40 +663,12 @@ fn build_fault_tree_snapshot(
         .as_ref()
         .map(|top_gate| top_gate.gate_id.clone())
         .ok_or_else(|| PraxisError::Logic("fault-tree snapshot has no top gate".to_string()))?;
-    let catalogue = parse_catalogue(request, &snapshot.project_id)?;
-    let BasicEventCatalogue {
-        basic_events: catalogue_events,
-        common_cause_failure_groups,
-        uncertainty_inputs,
-        ..
-    } = catalogue;
-    let uncertainty_by_event: HashMap<String, CatalogueUncertaintyInput> = uncertainty_inputs
-        .into_iter()
-        .map(|input| (input.basic_event_id.clone(), input))
-        .collect();
-
-    let mut catalogue_probabilities = HashMap::with_capacity(catalogue_events.len());
-    let mut basic_event_quantifications = Vec::with_capacity(catalogue_events.len());
-    for event in catalogue_events {
-        let resolved_probability = resolve_basic_event_probability(
-            event.probability.value,
-            event.probability.quantification_basis.as_ref(),
-        )?;
-        basic_event_quantifications.push(BasicEventQuantificationRecord {
-            basic_event_id: event.id.clone(),
-            input: event.probability,
-            resolved_probability,
-        });
-        if catalogue_probabilities
-            .insert(event.id.clone(), resolved_probability)
-            .is_some()
-        {
-            return Err(PraxisError::Logic(format!(
-                "basic-event catalogue contains duplicate id '{}'",
-                event.id
-            )));
-        }
-    }
+    let ResolvedCatalogue {
+        program,
+        events: catalogue_events,
+        groups: common_cause_failure_groups,
+        records: basic_event_quantifications,
+    } = resolve_catalogue(parse_catalogue(request, &snapshot.project_id)?)?;
 
     let mut aliases = HashMap::with_capacity(snapshot.leaf_nodes.len());
     let mut basic_event_probabilities = HashMap::new();
@@ -792,9 +676,9 @@ fn build_fault_tree_snapshot(
     for leaf in snapshot.leaf_nodes {
         match leaf {
             FaultTreeLeaf::BasicEventReference { id, basic_event_id } => {
-                let probability = catalogue_probabilities
+                let resolved = catalogue_events
                     .get(&basic_event_id)
-                    .copied()
+                    .cloned()
                     .ok_or_else(|| {
                         PraxisError::Logic(format!(
                             "basic-event reference '{}' cannot resolve catalogue event '{}'",
@@ -802,7 +686,7 @@ fn build_fault_tree_snapshot(
                         ))
                     })?;
                 aliases.insert(id, basic_event_id.clone());
-                basic_event_probabilities.insert(basic_event_id, probability);
+                basic_event_probabilities.insert(basic_event_id, resolved);
             }
             FaultTreeLeaf::HouseEvent { id, state } => {
                 aliases.insert(id.clone(), id.clone());
@@ -848,15 +732,11 @@ fn build_fault_tree_snapshot(
 
     let referenced_events: HashSet<String> = basic_event_probabilities.keys().cloned().collect();
     let mut fault_tree = FaultTree::new(snapshot.id.clone(), top_gate_id.clone())?;
-    let mut shared_samples = HashMap::new();
-    for (id, probability) in basic_event_probabilities {
-        let value = match uncertainty_by_event.get(&id).filter(|_| apply_uncertainty) {
-            Some(input) => sampled_expression(&SampledInput::event(input), &mut shared_samples)?,
-            None => None,
-        };
-        let event = match value {
-            Some(expression) => BasicEvent::with_value(id, probability, expression)?,
-            None => BasicEvent::new(id, probability)?,
+    for (id, (probability, target)) in basic_event_probabilities {
+        let event = if apply_uncertainty {
+            BasicEvent::with_value(id, probability, target)?
+        } else {
+            BasicEvent::new(id, probability)?
         };
         fault_tree.add_basic_event(event)?;
     }
@@ -885,21 +765,15 @@ fn build_fault_tree_snapshot(
                 .any(|member| referenced_events.contains(member))
         })
     {
-        let uncertainty = match group.uncertainty.as_ref().filter(|_| apply_uncertainty) {
-            Some(input) => {
-                sampled_expression(&SampledInput::group(&group.id, input), &mut shared_samples)?
-            }
-            None => None,
-        };
-        let ccf = CcfGroup::new(group.id, group.members, catalogue_ccf_model(group.model))?
-            .with_distribution(group.total_failure_probability.to_string());
-        fault_tree.add_ccf_group(match uncertainty {
-            Some(expression) => ccf.with_uncertainty(expression),
-            None => ccf,
-        })?;
+        fault_tree.add_ccf_group(CcfGroup::new(
+            group.id,
+            group.members,
+            group.model,
+            group.total,
+        )?)?;
     }
-    for (key, expression) in shared_samples {
-        fault_tree.set_parameter(key, expression);
+    for (name, expression) in program.into_parameters() {
+        fault_tree.set_parameter(name, expression);
     }
 
     Ok(FaultTreeAdapter {
@@ -914,31 +788,20 @@ fn build_fault_tree_snapshot(
 pub(crate) fn build_fault_tree_for_model(
     request: &SolverRequest,
     model_id: &str,
+    apply_uncertainty: bool,
 ) -> Result<FaultTreeAdapter> {
     let snapshot = find_snapshot(request, model_id, None)?;
-    build_fault_tree_snapshot(request, snapshot, false, false)
+    build_fault_tree_snapshot(request, snapshot, apply_uncertainty, false)
 }
 
 pub(crate) fn build_expanded_fault_tree_for_model(
     request: &SolverRequest,
     model_id: &str,
+    apply_uncertainty: bool,
 ) -> Result<FaultTreeAdapter> {
     let snapshot = find_snapshot(request, model_id, None)?;
-    let mut adapter = build_fault_tree_snapshot(request, snapshot, false, true)?;
-    let mut totals = HashMap::new();
-    for (id, group) in adapter.fault_tree.ccf_groups() {
-        let total = group
-            .distribution
-            .as_deref()
-            .and_then(|value| value.parse::<f64>().ok())
-            .ok_or_else(|| {
-                PraxisError::Logic(format!("CCF group '{id}' has no total failure probability"))
-            })?;
-        totals.insert(id.clone(), total);
-    }
-    if !totals.is_empty() {
-        adapter.fault_tree.expand_ccf_groups(&totals)?;
-    }
+    let mut adapter = build_fault_tree_snapshot(request, snapshot, apply_uncertainty, true)?;
+    adapter.fault_tree.expand_ccf_groups()?;
     Ok(adapter)
 }
 
@@ -1012,6 +875,7 @@ fn analysis_settings(request: &FaultTreeExecuteRequest) -> Settings {
         ccf: request.settings.expand_ccf,
         num_trials: request.settings.num_trials,
         seed: request.settings.seed,
+        sampling: request.settings.sampling_method,
         variable_order,
         reorder_budget: Duration::from_secs_f64(request.settings.reorder_budget_seconds),
     }
@@ -1146,17 +1010,15 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
                 .collect::<Vec<_>>()
         });
     let uncertainty = quantified.as_ref().and_then(|result| result.uncertainty.as_ref()).map(|value| {
-        let levels = [0.05, 0.25, 0.5, 0.75, 0.95];
         json!({
             "mean": value.mean,
             "standardDeviation": value.standard_deviation,
-            "errorFactor": value.error_factor,
-            "quantiles": levels.iter().zip(value.quantiles.iter()).map(|(probability, quantile)| json!({
-                "probability": probability,
-                "value": quantile
-            })).collect::<Vec<_>>(),
+            "standardError": value.standard_error,
+            "quantiles": value.quantiles,
+            "samples": value.samples,
             "sampleCount": execute.settings.num_trials,
-            "seed": execute.settings.seed
+            "seed": execute.settings.seed,
+            "samplingMethod": execute.settings.sampling_method
         })
     });
     let sil = if matches!(execute.calculation_type, FaultTreeCalculationType::Sil) {
@@ -1198,11 +1060,50 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use serde_json::{json, Value};
 
     use super::execute;
     use crate::transport::SolverRequest;
+
+    pub(crate) fn value(unit: &str, law: Value) -> Value {
+        json!({ "node": "VALUE", "value": { "unit": unit, "law": law } })
+    }
+
+    pub(crate) fn point(probability: f64) -> Value {
+        value("PROBABILITY", json!({ "family": "POINT", "value": probability }))
+    }
+
+    pub(crate) fn point_event(id: &str, probability: f64) -> Value {
+        json!({ "id": id, "expression": point(probability) })
+    }
+
+    pub(crate) fn per_year(frequency: f64) -> Value {
+        crate::fault_tree::tests::value("PER_YEAR", json!({ "family": "POINT", "value": frequency }))
+    }
+
+    pub(crate) fn fraction(value: f64) -> Value {
+        crate::fault_tree::tests::value("FRACTION", json!({ "family": "POINT", "value": value }))
+    }
+
+    pub(crate) fn beta_factor(beta: f64) -> Value {
+        json!({ "model": "BETA_FACTOR", "beta": fraction(beta) })
+    }
+
+    fn pump_parameter() -> Value {
+        json!({ "referenceType": "WORKBOOK_PARAMETER", "workbookId": "da", "entityId": "pump" })
+    }
+
+    fn pump_table(upper: f64) -> Value {
+        json!([{
+            "reference": pump_parameter(),
+            "expression": value("PROBABILITY", json!({ "family": "UNIFORM", "lower": 0.01, "upper": upper }))
+        }])
+    }
+
+    fn pump_event(id: &str) -> Value {
+        json!({ "id": id, "expression": { "node": "PARAMETER", "reference": pump_parameter() } })
+    }
 
     fn request(
         gate_type: &str,
@@ -1250,7 +1151,7 @@ mod tests {
             .collect();
         let basic_events: Vec<Value> = probabilities
             .iter()
-            .map(|(id, probability)| json!({ "id": id, "probability": { "value": probability } }))
+            .map(|(id, probability)| point_event(id, *probability))
             .collect();
 
         SolverRequest::from_json(
@@ -1309,39 +1210,26 @@ mod tests {
     }
 
     #[test]
-    fn converts_failure_rate_and_mission_time_before_fault_tree_analysis() {
+    fn quantifies_a_mission_model_with_its_point_inputs() {
         let mut request = request("OR", None, &[("A", 0.0)], &[("ref-a", "A")]);
         request.resources.fault_tree_basic_event_catalogue = Some(json!({
             "projectId": "project-1",
             "basicEvents": [{
                 "id": "A",
-                "probability": {
-                    "value": 0.0,
-                    "quantificationBasis": {
-                        "kind": "FAILURE_RATE",
-                        "failureRate": { "value": 2.0e-5, "unit": "HOUR" },
-                        "missionTime": { "value": 24.0, "unit": "HOUR" },
-                        "conversion": "EXPONENTIAL"
-                    }
-                }
+                "expression": { "node": "MODEL", "model": {
+                    "form": "MISSION",
+                    "rate": value("PER_HOUR", json!({ "family": "POINT", "value": 2.0e-5 })),
+                    "missionTime": value("HOURS", json!({ "family": "POINT", "value": 24.0 }))
+                } }
             }]
         }));
 
         let result = execute(&request).unwrap();
-        let expected = 0.0004798848184297544; // HCL_MH calculation type 3.
-        assert!((result["topEventProbability"].as_f64().unwrap() - expected).abs() < 1e-15);
-        assert_eq!(
-            result["basicEventQuantifications"][0]["input"]["quantificationBasis"]["kind"],
-            "FAILURE_RATE"
-        );
-        assert!(
-            (result["basicEventQuantifications"][0]["resolvedProbability"]
-                .as_f64()
-                .unwrap()
-                - expected)
-                .abs()
-                < 1e-15
-        );
+        let expected = -(-4.8e-4f64).exp_m1();
+        assert!((result["topEventProbability"].as_f64().unwrap() - expected).abs() < 1e-18);
+        let record = &result["basicEventQuantifications"][0];
+        assert_eq!(record["expression"]["model"]["form"], "MISSION");
+        assert!((record["pointProbability"].as_f64().unwrap() - expected).abs() < 1e-18);
     }
 
     #[test]
@@ -1623,22 +1511,22 @@ mod tests {
     fn exposes_uncertainty_sampling_summary() {
         let mut request = request("OR", None, &[("A", 0.1)], &[("ref-a", "A")]);
         configure(&mut request, "UNCERTAINTY", "BDD", "EXACT");
+        request.request["settings"]["samplingMethod"] = json!("LATIN_HYPERCUBE");
         request.resources.fault_tree_basic_event_catalogue = Some(json!({
             "projectId": "project-1",
-            "basicEvents": [{ "id": "A", "probability": { "value": 0.1 } }],
-            "uncertaintyInputs": [{
-                "basicEventId": "A",
-                "distributionType": "beta",
-                "parameters": { "alpha": 2.0, "beta": 18.0 }
-            }]
+            "basicEvents": [{ "id": "A", "expression": value("PROBABILITY", json!({
+                "family": "BETA", "alpha": 2.0, "beta": 18.0, "lower": 0.0, "upper": 1.0
+            })) }]
         }));
         let result = execute(&request).unwrap();
-        assert_eq!(result["uncertainty"]["sampleCount"], 2_000);
-        assert_eq!(
-            result["uncertainty"]["quantiles"].as_array().unwrap().len(),
-            5
-        );
-        assert!(result["uncertainty"]["standardDeviation"].as_f64().unwrap() > 0.0);
+        let uncertainty = &result["uncertainty"];
+        assert_eq!(uncertainty["sampleCount"], 2_000);
+        assert_eq!(uncertainty["samplingMethod"], "LATIN_HYPERCUBE");
+        assert_eq!(uncertainty["samples"].as_array().unwrap().len(), 2_000);
+        assert_eq!(uncertainty["quantiles"].as_array().unwrap().len(), 5);
+        assert!(uncertainty["standardError"].as_f64().unwrap() > 0.0);
+        assert!(((uncertainty["mean"].as_f64().unwrap() - 0.1) / 0.1).abs() < 0.01);
+        assert!((result["topEventProbability"].as_f64().unwrap() - 0.1).abs() < 1e-15);
     }
 
     fn sampled_pair(catalogue: Value) -> SolverRequest {
@@ -1655,24 +1543,12 @@ mod tests {
         request
     }
 
-    fn uniform_input(event: &str, key: &str) -> Value {
-        json!({
-            "basicEventId": event,
-            "distributionType": "uniform",
-            "parameters": { "lower": 0.01, "upper": 0.2 },
-            "correlationKey": key
-        })
-    }
-
     #[test]
     fn samples_one_draw_for_events_sharing_an_estimate() {
         let request = sampled_pair(json!({
             "projectId": "project-1",
-            "basicEvents": [
-                { "id": "A", "probability": { "value": 0.105 } },
-                { "id": "B", "probability": { "value": 0.105 } }
-            ],
-            "uncertaintyInputs": [uniform_input("A", "da:pump"), uniform_input("B", "da:pump")]
+            "basicEvents": [pump_event("A"), pump_event("B")],
+            "uncertaintyParameters": pump_table(0.2)
         }));
         let mean = execute(&request).unwrap()["uncertainty"]["mean"]
             .as_f64()
@@ -1687,22 +1563,14 @@ mod tests {
     fn samples_common_cause_totals_from_the_member_estimate() {
         let request = sampled_pair(json!({
             "projectId": "project-1",
-            "basicEvents": [
-                { "id": "A", "probability": { "value": 0.105 } },
-                { "id": "B", "probability": { "value": 0.105 } }
-            ],
+            "basicEvents": [pump_event("A"), pump_event("B")],
             "commonCauseFailureGroups": [{
                 "id": "CCF",
                 "members": ["A", "B"],
-                "model": { "kind": "BETA_FACTOR", "beta": 0.1 },
-                "totalFailureProbability": 0.105,
-                "uncertainty": {
-                    "distributionType": "uniform",
-                    "parameters": { "lower": 0.01, "upper": 0.2 },
-                    "correlationKey": "da:pump"
-                }
+                "factors": crate::fault_tree::tests::beta_factor(0.1),
+                "total": { "node": "PARAMETER", "reference": pump_parameter() }
             }],
-            "uncertaintyInputs": [uniform_input("A", "da:pump"), uniform_input("B", "da:pump")]
+            "uncertaintyParameters": pump_table(0.2)
         }));
         let result = execute(&request).unwrap();
         let point = result["topEventProbability"].as_f64().unwrap();
@@ -1716,19 +1584,33 @@ mod tests {
     }
 
     #[test]
-    fn rejects_a_correlation_key_with_two_distributions() {
-        let mut other = uniform_input("B", "da:pump");
-        other["parameters"]["upper"] = json!(0.3);
+    fn rejects_a_parameter_defined_twice() {
+        let mut table = pump_table(0.2);
+        table
+            .as_array_mut()
+            .unwrap()
+            .push(pump_table(0.3)[0].clone());
+        let request = sampled_pair(json!({
+            "projectId": "project-1",
+            "basicEvents": [pump_event("A"), pump_event("B")],
+            "uncertaintyParameters": table
+        }));
+        let error = execute(&request).unwrap_err().to_string();
+        assert!(error.contains("da:pump"), "{error}");
+    }
+
+    #[test]
+    fn refuses_a_basic_event_law_that_leaves_probability() {
         let request = sampled_pair(json!({
             "projectId": "project-1",
             "basicEvents": [
-                { "id": "A", "probability": { "value": 0.105 } },
-                { "id": "B", "probability": { "value": 0.105 } }
-            ],
-            "uncertaintyInputs": [uniform_input("A", "da:pump"), other]
+                { "id": "A", "expression": value("PROBABILITY", json!({
+                    "family": "LOGNORMAL", "mean": 0.1, "errorFactor": 3.0, "level": 0.95
+                })) },
+                point_event("B", 0.105)
+            ]
         }));
-        let error = execute(&request).unwrap_err().to_string();
-        assert!(error.contains("correlation key 'da:pump'"), "{error}");
+        assert!(execute(&request).is_err());
     }
 
     #[test]
@@ -1793,19 +1675,142 @@ mod tests {
         request.request["settings"]["expandCcf"] = json!(true);
         request.resources.fault_tree_basic_event_catalogue = Some(json!({
             "projectId": "project-1",
-            "basicEvents": [
-                { "id": "A", "probability": { "value": 0.1 } },
-                { "id": "B", "probability": { "value": 0.1 } }
-            ],
+            "basicEvents": [point_event("A", 0.1), point_event("B", 0.1)],
             "commonCauseFailureGroups": [{
                 "id": "CCF",
                 "members": ["A", "B"],
-                "model": { "kind": "BETA_FACTOR", "beta": 0.1 },
-                "totalFailureProbability": 0.1
+                "factors": crate::fault_tree::tests::beta_factor(0.1),
+                "total": point(0.1)
             }]
         }));
         let result = execute(&request).unwrap();
         assert_eq!(result["settings"]["expandCcf"], true);
         assert!(result["topEventProbability"].as_f64().unwrap() > 0.0);
+    }
+
+    fn vector_reference(entity: &str) -> Value {
+        json!({ "referenceType": "WORKBOOK_PARAMETER", "workbookId": "da", "entityId": entity })
+    }
+
+    fn alpha_group(id: &str, members: [&str; 2], testing: &str, alphas: Value) -> Value {
+        json!({
+            "id": id,
+            "members": members,
+            "factors": { "model": "ALPHA_FACTOR", "testing": testing, "alphas": alphas },
+            "total": point(0.3)
+        })
+    }
+
+    fn ccf_request(gate_type: &str, events: &[&str], top: &[&str], groups: Value, vectors: Value) -> SolverRequest {
+        let references: Vec<(&str, &str)> = top.iter().map(|id| (*id, *id)).collect();
+        let probabilities: Vec<(&str, f64)> = events.iter().map(|id| (*id, 0.3)).collect();
+        let mut request = request(gate_type, None, &probabilities, &references);
+        configure(&mut request, "UNCERTAINTY", "BDD", "EXACT");
+        request.request["settings"]["expandCcf"] = json!(true);
+        request.request["settings"]["numTrials"] = json!(400);
+        request.resources.fault_tree_basic_event_catalogue = Some(json!({
+            "projectId": "project-1",
+            "basicEvents": events.iter().map(|id| point_event(id, 0.3)).collect::<Vec<_>>(),
+            "commonCauseFailureGroups": groups,
+            "uncertaintyVectors": vectors
+        }));
+        request
+    }
+
+    #[test]
+    fn honors_the_alpha_factor_testing_scheme() {
+        let fixed = json!({ "node": "VALUE", "law": { "family": "FIXED", "values": [0.8, 0.2] } });
+        for (testing, single, common) in [
+            ("NON_STAGGERED", 0.8 / 1.2 * 0.3, 2.0 * 0.2 / 1.2 * 0.3),
+            ("STAGGERED", 0.8 * 0.3, 0.2 * 0.3),
+        ] {
+            let mut request = ccf_request(
+                "AND",
+                &["A", "B"],
+                &["A", "B"],
+                json!([alpha_group("G", ["A", "B"], testing, fixed.clone())]),
+                json!([]),
+            );
+            configure(&mut request, "PROBABILITY", "BDD", "EXACT");
+            request.request["settings"]["expandCcf"] = json!(true);
+            let result = execute(&request).unwrap();
+            let both = common + (1.0 - common) * single * single;
+            let top = result["topEventProbability"].as_f64().unwrap();
+            assert!((top - both).abs() < 1e-15, "{testing}: {top} against {both}");
+        }
+    }
+
+    #[test]
+    fn a_shared_vector_parameter_gives_every_group_one_draw_per_trial() {
+        let shared = json!({ "node": "PARAMETER", "reference": vector_reference("alphas") });
+        let table = json!([{
+            "reference": vector_reference("alphas"),
+            "vector": { "family": "DIRICHLET", "concentrations": [3.0, 2.0] }
+        }]);
+        let groups = json!([
+            alpha_group("G1", ["A", "B"], "NON_STAGGERED", shared.clone()),
+            alpha_group("G2", ["C", "D"], "NON_STAGGERED", shared)
+        ]);
+        let events = ["A", "B", "C", "D"];
+        let single = execute(&ccf_request("OR", &events, &["A"], groups.clone(), table.clone())).unwrap();
+        let joint = execute(&ccf_request("AND", &events, &["A", "C"], groups, table)).unwrap();
+        let single = single["uncertainty"]["samples"].as_array().unwrap();
+        let joint = joint["uncertainty"]["samples"].as_array().unwrap();
+        let mut spread = 0.0_f64;
+        for (alone, together) in single.iter().zip(joint) {
+            let alone = alone.as_f64().unwrap();
+            let together = together.as_f64().unwrap();
+            assert!((together - alone * alone).abs() <= 1e-15, "{together} against {alone}");
+            spread = spread.max((alone - single[0].as_f64().unwrap()).abs());
+        }
+        assert!(spread > 1e-3);
+    }
+
+    #[test]
+    fn rejects_factor_vectors_and_draws_outside_their_group() {
+        let three = json!({ "node": "VALUE", "law": { "family": "DIRICHLET", "concentrations": [3.0, 2.0, 1.0] } });
+        let error = execute(&ccf_request(
+            "OR",
+            &["A", "B"],
+            &["A"],
+            json!([alpha_group("G", ["A", "B"], "STAGGERED", three)]),
+            json!([]),
+        ))
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("common cause group 'G'"), "{error}");
+        let missing = json!({ "node": "PARAMETER", "reference": vector_reference("absent") });
+        assert!(execute(&ccf_request(
+            "OR",
+            &["A", "B"],
+            &["A"],
+            json!([alpha_group("G", ["A", "B"], "STAGGERED", missing)]),
+            json!([]),
+        ))
+        .is_err());
+        let doubled = json!({ "node": "OPERATION", "operation": "MULTIPLY", "operands": [
+            value("FACTOR", json!({ "family": "POINT", "value": 2.0 })),
+            value("FRACTION", json!({ "family": "UNIFORM", "lower": 0.0, "upper": 0.9 }))
+        ] });
+        let error = execute(&ccf_request(
+            "OR",
+            &["A", "B"],
+            &["A"],
+            json!([{ "id": "G", "members": ["A", "B"], "factors": { "model": "BETA_FACTOR", "beta": doubled }, "total": point(0.3) }]),
+            json!([]),
+        ))
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("common cause group 'G' beta factor") && error.contains("trial"), "{error}");
+        let error = execute(&ccf_request(
+            "OR",
+            &["A", "B"],
+            &["A"],
+            json!([{ "id": "G", "members": ["A", "B"], "factors": { "model": "MGL", "factors": [fraction(0.1), fraction(0.2)] }, "total": point(0.3) }]),
+            json!([]),
+        ))
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("MGL factors"), "{error}");
     }
 }

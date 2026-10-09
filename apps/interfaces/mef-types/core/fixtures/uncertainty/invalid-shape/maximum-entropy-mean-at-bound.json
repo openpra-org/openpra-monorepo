@@ -1,0 +1,21 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PROBABILITY",
+        "law": {
+          "family": "MAXIMUM_ENTROPY",
+          "lower": 0,
+          "mean": 0,
+          "upper": 0.1
+        }
+      }
+    }
+  }
+]

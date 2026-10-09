@@ -1,0 +1,19 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PROBABILITY",
+        "law": {
+          "family": "CONSTRAINED_NONINFORMATIVE",
+          "mean": 1
+        }
+      }
+    }
+  }
+]

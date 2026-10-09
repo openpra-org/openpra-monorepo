@@ -28,6 +28,7 @@ import {
   type SyControlledComponentBoundaryOption,
   type SyControlledFailureModeOption,
   type SyControlledHumanFailureOption,
+  type SyControlledLegacyParameterOption,
   type SyControlledParameterOption,
   type SyLinkCode,
   type SyUpstream,
@@ -46,7 +47,7 @@ import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
 import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
 import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
 import { getPosWorkbook } from "../pos-workbooks/posWorkbookApi";
-import { buildLinkedInputs, controlledCcfEstimateOptions, controlledCoincidentMaintenanceOptions, controlledComponentBoundaryOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
+import { buildLinkedInputs, exampleScIds, loadExampleScMissionTimes, type ScMissionTimeSource, controlledCcfEstimateOptions, controlledCoincidentMaintenanceOptions, controlledComponentBoundaryOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledLegacyParameterOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "SY-A1",
@@ -91,6 +92,7 @@ function SyWorkbookPage(): JSX.Element {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [exampleOptions, setExampleOptions] = useState<SyExampleOption[]>([]);
   const [controlledParameters, setControlledParameters] = useState<SyControlledParameterOption[]>([]);
+  const [controlledLegacyParameters, setControlledLegacyParameters] = useState<SyControlledLegacyParameterOption[]>([]);
   const [controlledHumanFailures, setControlledHumanFailures] = useState<SyControlledHumanFailureOption[]>([]);
   const [controlledFailureModes, setControlledFailureModes] = useState<SyControlledFailureModeOption[]>([]);
   const [controlledCoincidentMaintenance, setControlledCoincidentMaintenance] = useState<SyControlledCoincidentMaintenanceOption[]>([]);
@@ -100,6 +102,7 @@ function SyWorkbookPage(): JSX.Element {
   const [linkedEs, setLinkedEs] = useState<EventSequenceAnalysis | undefined>(undefined);
   const [linkedSc, setLinkedSc] = useState<SuccessCriteriaDevelopment | undefined>(undefined);
   const [linkedPos, setLinkedPos] = useState<PlantOperatingStatesAnalysis | undefined>(undefined);
+  const [scExamples, setScExamples] = useState<ScMissionTimeSource[]>([]);
   const workbookName = data?.sy.name ?? "";
   const workbookVersion = data?.sy.version ?? "1";
 
@@ -192,6 +195,7 @@ function SyWorkbookPage(): JSX.Element {
         if (cancelled) return;
         const sources = loaded.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
         setControlledParameters(controlledParameterOptions(sources));
+        setControlledLegacyParameters(controlledLegacyParameterOptions(sources));
         setControlledFailureModes(controlledFailureModeOptions(sources));
         setControlledCoincidentMaintenance(controlledCoincidentMaintenanceOptions(sources));
         setControlledCcfEstimates(controlledCcfEstimateOptions(sources));
@@ -200,6 +204,7 @@ function SyWorkbookPage(): JSX.Element {
       .catch(() => {
         if (cancelled) return;
         setControlledParameters([]);
+        setControlledLegacyParameters([]);
         setControlledFailureModes([]);
         setControlledCoincidentMaintenance([]);
         setControlledCcfEstimates([]);
@@ -220,9 +225,19 @@ function SyWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, [linkOptions.HRA, linkedHrId]);
 
+  const scExampleKey = data === null ? "" : exampleScIds(data.sy).join(" ");
+  useEffect(() => {
+    const ids = scExampleKey.length === 0 ? [] : scExampleKey.split(" ");
+    let cancelled = false;
+    loadExampleScMissionTimes(ids)
+      .then((loaded) => { if (!cancelled) setScExamples(loaded); })
+      .catch(() => { if (!cancelled) setScExamples([]); });
+    return () => { cancelled = true; };
+  }, [scExampleKey]);
+
   const links = useMemo(
-    () => buildLinkedInputs(linkOptions, { ES: linkedEsId, SC: linkedScId, POS: linkedPosId }, linkedEs, linkedSc, linkedPos),
-    [linkOptions, linkedEsId, linkedScId, linkedPosId, linkedEs, linkedSc, linkedPos],
+    () => buildLinkedInputs(linkOptions, { ES: linkedEsId, SC: linkedScId, POS: linkedPosId }, linkedEs, linkedSc, linkedPos, scExamples),
+    [linkOptions, linkedEsId, linkedScId, linkedPosId, linkedEs, linkedSc, linkedPos, scExamples],
   );
   const upstream = useMemo<SyUpstream>(() => ({ options: linkOptions }), [linkOptions]);
   const providerData = useMemo<SyWorkbookData | null>(() => (data === null ? null : { ...data, links }), [data, links]);
@@ -327,6 +342,7 @@ function SyWorkbookPage(): JSX.Element {
       mutateSy={mutateSy}
       runtime={{ workbookId: id, projectId, revision, saveStatus }}
       controlledParameters={controlledParameters}
+      controlledLegacyParameters={controlledLegacyParameters}
       controlledHumanFailures={controlledHumanFailures}
       controlledFailureModes={controlledFailureModes}
       controlledCoincidentMaintenance={controlledCoincidentMaintenance}

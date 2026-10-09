@@ -84,7 +84,8 @@ export function faultTreeResultRecords(result: FaultTreeAnalysisResult): ResultC
     ...(result.uncertainty === undefined ? [] : [
       { ...context, row_type: "UNCERTAINTY", quantity: "mean", unit: "probability", value: result.uncertainty.mean },
       { ...context, row_type: "UNCERTAINTY", quantity: "standard_deviation", unit: "probability", value: result.uncertainty.standardDeviation },
-      { ...context, row_type: "UNCERTAINTY", quantity: "error_factor", unit: "ratio", value: result.uncertainty.errorFactor },
+      { ...context, row_type: "UNCERTAINTY", quantity: "standard_error", unit: "probability", value: result.uncertainty.standardError },
+      { ...context, row_type: "UNCERTAINTY", quantity: "sample_count", unit: "count", value: result.uncertainty.sampleCount, sampling_method: result.uncertainty.samplingMethod, seed: result.uncertainty.seed },
       ...result.uncertainty.quantiles.map((quantile) => ({
         ...context,
         row_type: "UNCERTAINTY",
@@ -92,6 +93,14 @@ export function faultTreeResultRecords(result: FaultTreeAnalysisResult): ResultC
         quantity: "quantile",
         unit: "probability",
         value: quantile.value,
+      })),
+      ...result.uncertainty.samples.map((sample, index) => ({
+        ...context,
+        row_type: "UNCERTAINTY_SAMPLE",
+        sample_index: index + 1,
+        quantity: "top_event_probability",
+        unit: "probability",
+        value: sample,
       })),
     ]),
     ...(result.monteCarlo === undefined ? [] : [

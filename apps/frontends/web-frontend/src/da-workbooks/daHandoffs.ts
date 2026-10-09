@@ -1,7 +1,10 @@
-import type { DataAnalysis, DataAnalysisParameter, CcfParameterEstimation } from "interfaces-mef-types/da/data-analysis";
-import type { SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
+import { isComponentModel, type DataAnalysis, type DataAnalysisParameter, type CcfParameterEstimation } from "interfaces-mef-types/da/data-analysis";
+import { canonicalJson, expressionReferences, type CcfFactorModel, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { carriesUncertainExpression, type CommonCauseFailureGroup, type SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
+import type { InitiatingEventGroup } from "interfaces-mef-types/ie/initiating-event-analysis";
+import { uncertaintyVersion } from "../newly-developed-methods/shared/useUncertainty";
+import { parameterPoint, readyNumber } from "./daLaws";
 import type { ImportanceMeasureEntry } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { ccfFactorsOf, mglValues, orderedValues } from "./daCcf";
 import { sensitivityResult } from "./daUncertainty";
 import type { DaUpstream } from "./daWorkbookContext";
 import type { DaFindingSeverity, DaNeedFinding } from "./daSelectors";
@@ -29,6 +32,10 @@ interface DaHandoffRow {
   target?: string;
   daValue?: number;
   consumerValue?: number;
+  daExpression?: UncertainExpression;
+  consumerExpression?: UncertainExpression;
+  daFactors?: CcfFactorModel;
+  consumerFactors?: CcfFactorModel;
   unit: string;
   status: DaHandoffStatus;
   detail?: string;
@@ -51,9 +58,13 @@ interface DaHandoffView {
   importance: DaImportanceRow[];
 }
 
-const viewCache = new WeakMap<DataAnalysis, WeakMap<DaUpstream, DaHandoffView>>();
+const viewCache = new WeakMap<DataAnalysis, WeakMap<DaUpstream, { version: number; view: DaHandoffView }>>();
 
-const findingCache = new WeakMap<DataAnalysis, WeakMap<DaUpstream, DaNeedFinding[]>>();
+const findingCache = new WeakMap<DataAnalysis, WeakMap<DaUpstream, { version: number; findings: DaNeedFinding[] }>>();
+
+function pointOf(parameter: DataAnalysisParameter): number | undefined {
+  return readyNumber(parameterPoint(parameter));
+}
 
 function same(a: number | undefined, b: number | undefined): boolean {
   if (a === undefined || b === undefined) return a === b;
@@ -66,7 +77,22 @@ function unitOf(parameter: DataAnalysisParameter): string {
   return "probability";
 }
 
-function syRow(da: DataAnalysis, event: SystemBasicEvent, hfeIds: ReadonlySet<string>): DaHandoffRow | undefined {
+function componentRow(da: DataAnalysis, event: SystemBasicEvent, self: string | undefined): DaHandoffRow {
+  const base = { element: "SY" as const, id: event.uuid, code: event.code ?? event.uuid, name: event.name, consumerExpression: event.expression };
+  const expression = event.expression;
+  const ours = (expression === undefined ? [] : expressionReferences(expression)).filter((reference) => self === undefined || reference.workbookId.trim() === self.trim());
+  const first = ours[0];
+  if (first === undefined) return { ...base, holder: "TYPED", unit: "estimate", status: "TYPED", detail: expression === undefined ? "SY holds no estimate for this event yet." : undefined };
+  const parameter = da.parameters.find((candidate) => candidate.uuid === first.entityId.trim());
+  if (parameter === undefined) return { ...base, holder: "DA", target: first.entityId, unit: "estimate", status: "MISSING", detail: `${first.entityId} is not in this workbook.` };
+  const row = { ...base, holder: "DA" as const, target: parameter.uuid, daValue: pointOf(parameter), daExpression: parameter.estimate, unit: unitOf(parameter) };
+  if (!isComponentModel(parameter.quantificationModel)) return { ...row, status: "UNITS", detail: `${parameter.uuid} is not a component estimate.` };
+  if (parameter.estimate === undefined) return { ...row, status: "MISSING", detail: `${parameter.uuid} has no estimate yet.` };
+  return { ...row, status: "IN_STEP" };
+}
+
+function syRow(da: DataAnalysis, event: SystemBasicEvent, hfeIds: ReadonlySet<string>, self: string | undefined): DaHandoffRow | undefined {
+  if (carriesUncertainExpression(event.failureMode)) return componentRow(da, event, self);
   const link = event.controlledDataSource;
   const legacy = event.dataAnalysisBasicEventRef;
   if (link?.referenceType === "HUMAN_FAILURE_EVENT" || (link === undefined && legacy !== undefined && hfeIds.has(legacy))) return undefined;
@@ -91,16 +117,40 @@ function syRow(da: DataAnalysis, event: SystemBasicEvent, hfeIds: ReadonlySet<st
   return { ...row, status: same(parameter.value, cached) ? "IN_STEP" : "CHANGED" };
 }
 
-function ccfRow(da: DataAnalysis, group: { uuid: string; name: string; modelType: string; dataAnalysisCCFParameterRef?: string }, factors: Record<string, number>): DaHandoffRow {
-  const base = { element: "SY" as const, id: group.uuid, code: group.uuid, name: group.name, unit: "factors" };
+function ccfRow(da: DataAnalysis, group: CommonCauseFailureGroup): DaHandoffRow {
+  const base = { element: "SY" as const, id: group.uuid, code: group.uuid, name: group.name, unit: "factors", consumerFactors: group.factors };
   const reference = group.dataAnalysisCCFParameterRef;
   if (reference === undefined) return { ...base, holder: "TYPED", status: "TYPED" };
   const estimate = (da.ccfParameterEstimations ?? []).find((candidate) => candidate.uuid === reference);
   if (estimate === undefined) return { ...base, holder: "DA", target: reference, status: "MISSING", detail: `${reference} is not in this workbook.` };
-  const ours = estimate.modelType === "MGL" ? mglValues(estimate.parameters) : orderedValues(estimate.parameters);
-  const theirs = group.modelType === "MGL" ? mglValues(factors) : orderedValues(factors);
-  const inStep = group.modelType === estimate.modelType && ours.length === theirs.length && ours.every((value, index) => same(value, theirs[index]));
-  return { ...base, holder: "DA", target: estimate.uuid, status: inStep ? "IN_STEP" : "CHANGED", detail: inStep ? undefined : "The model or factors differ from the DA estimate." };
+  const ours = estimate.factors;
+  if (ours === undefined) return { ...base, holder: "DA", target: estimate.uuid, status: "MISSING", detail: `${estimate.uuid} has no factors yet.` };
+  const inStep = canonicalJson(ours) === canonicalJson(group.factors);
+  return { ...base, holder: "DA", target: estimate.uuid, daFactors: ours, status: inStep ? "IN_STEP" : "CHANGED", detail: inStep ? undefined : "The model or factors differ from the DA estimate." };
+}
+
+function frequencyInStep(held: UncertainExpression | undefined, parameterId: string, estimate: UncertainExpression): boolean {
+  if (held === undefined) return false;
+  if (held.node === "PARAMETER") return held.reference.entityId.trim() === parameterId;
+  return canonicalJson(held) === canonicalJson(estimate);
+}
+
+function ieRow(da: DataAnalysis, group: InitiatingEventGroup): DaHandoffRow {
+  const held = group.frequency?.expression;
+  const base = { element: "IE" as const, id: group.uuid, code: group.uuid, name: group.name, consumerExpression: held, unit: "per year" };
+  const link = group.controlledDataSource;
+  if (link === undefined) {
+    const mapped = (da.dataNeeds?.initiators ?? []).find((need) => need.id === group.uuid)?.parameterId;
+    const parameter = mapped === undefined ? undefined : da.parameters.find((candidate) => candidate.uuid === mapped);
+    return { ...base, holder: "TYPED", target: parameter?.uuid, daExpression: parameter?.valueMode === "LINKED" ? undefined : parameter?.estimate, status: "TYPED" };
+  }
+  const parameter = da.parameters.find((candidate) => candidate.uuid === link.entityId);
+  if (parameter === undefined) return { ...base, holder: "DA", target: link.entityId, status: "MISSING", detail: `${link.entityId} is not in this workbook.` };
+  if (parameter.quantificationModel !== "FREQUENCY") return { ...base, holder: "DA", target: parameter.uuid, status: "UNITS", detail: "IE imports a parameter that is not a frequency." };
+  const estimate = parameter.estimate;
+  if (estimate === undefined) return { ...base, holder: "DA", target: parameter.uuid, status: "MISSING", detail: `${parameter.uuid} has no estimate yet.` };
+  const inStep = frequencyInStep(held, parameter.uuid, estimate);
+  return { ...base, holder: "DA", target: parameter.uuid, daExpression: estimate, status: inStep ? "IN_STEP" : "CHANGED", detail: inStep ? undefined : "IE holds another frequency than the DA estimate." };
 }
 
 function frequencyValue(value: number | { value: number } | undefined): number | undefined {
@@ -114,28 +164,14 @@ function buildRows(da: DataAnalysis, upstream: DaUpstream): DaHandoffRow[] {
   if (sy !== undefined) {
     const hfeIds = new Set((upstream.hr?.humanFailureEvents ?? []).map((event) => event.uuid));
     for (const event of sy.systemBasicEvents) {
-      const row = syRow(da, event, hfeIds);
+      const row = syRow(da, event, hfeIds, upstream.workbookId);
       if (row !== undefined) rows.push(row);
     }
-    for (const group of sy.commonCauseFailureGroups) rows.push(ccfRow(da, group, ccfFactorsOf(group).factors));
+    for (const group of sy.commonCauseFailureGroups) rows.push(ccfRow(da, group));
   }
   const ie = upstream.ie;
   if (ie !== undefined) {
-    for (const group of ie.initiatingEventGroups) {
-      const cached = frequencyValue(group.meanFrequency);
-      const base = { element: "IE" as const, id: group.uuid, code: group.uuid, name: group.name, consumerValue: cached, unit: "per year" };
-      const link = group.controlledDataSource;
-      if (link === undefined) {
-        const mapped = (da.dataNeeds?.initiators ?? []).find((need) => need.id === group.uuid)?.parameterId;
-        const parameter = mapped === undefined ? undefined : da.parameters.find((candidate) => candidate.uuid === mapped);
-        rows.push({ ...base, holder: "TYPED", target: parameter?.uuid, daValue: parameter?.valueMode === "LINKED" ? undefined : parameter?.value, status: "TYPED" });
-        continue;
-      }
-      const parameter = da.parameters.find((candidate) => candidate.uuid === link.entityId);
-      if (parameter === undefined) rows.push({ ...base, holder: "DA", target: link.entityId, status: "MISSING", detail: `${link.entityId} is not in this workbook.` });
-      else if (parameter.parameterType !== "FREQUENCY") rows.push({ ...base, holder: "DA", target: parameter.uuid, daValue: parameter.value, status: "UNITS", detail: "IE imports a parameter that is not a frequency." });
-      else rows.push({ ...base, holder: "DA", target: parameter.uuid, daValue: parameter.value, status: same(parameter.value, cached) ? "IN_STEP" : "CHANGED" });
-    }
+    for (const group of ie.initiatingEventGroups) rows.push(ieRow(da, group));
   }
   const hr = upstream.hr;
   if (hr !== undefined) {
@@ -247,10 +283,11 @@ function handoffView(da: DataAnalysis, upstream: DaUpstream): DaHandoffView {
     byUpstream = new WeakMap();
     viewCache.set(da, byUpstream);
   }
+  const version = uncertaintyVersion();
   const cached = byUpstream.get(upstream);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined && cached.version === version) return cached.view;
   const view = { rows: buildRows(da, upstream), importance: importanceRows(da, upstream) };
-  byUpstream.set(upstream, view);
+  byUpstream.set(upstream, { version, view });
   return view;
 }
 
@@ -268,8 +305,9 @@ function handoffFindings(da: DataAnalysis, upstream: DaUpstream): DaNeedFinding[
     byUpstream = new WeakMap();
     findingCache.set(da, byUpstream);
   }
+  const version = uncertaintyVersion();
   const cached = byUpstream.get(upstream);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined && cached.version === version) return cached.findings;
   const findings: DaNeedFinding[] = [];
   const view = handoffView(da, upstream);
   const ccTwo = da.capabilityCategory !== "CC-I";
@@ -292,7 +330,7 @@ function handoffFindings(da: DataAnalysis, upstream: DaUpstream): DaNeedFinding[
     .map((finding, index) => ({ finding, index }))
     .sort((a, b) => RANK[a.finding.severity] - RANK[b.finding.severity] || a.index - b.index)
     .map(({ finding }) => finding);
-  byUpstream.set(upstream, sorted);
+  byUpstream.set(upstream, { version, findings: sorted });
   return sorted;
 }
 

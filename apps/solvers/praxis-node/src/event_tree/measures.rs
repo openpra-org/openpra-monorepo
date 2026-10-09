@@ -4,11 +4,14 @@ use praxis::analysis::event_tree_quantification::{
     EventTreeBddDiagnostics, EventTreeSequenceDiagnostics, EventTreeSequenceProbability,
 };
 use praxis::analysis::sequence_measures::{
-    compile_sequence_diagrams, draw_key, importance_by_family, sample_families, ImportanceGroup,
-    KeyDistribution, SampleForm, SampledFrequency, SampledVariable, SamplingMethod,
+    compile_sequence_diagrams, importance_by_family, sample_families, ImportanceGroup,
     SequenceDiagram,
 };
+use praxis::core::distribution_sampling::{
+    require_probability, SamplingMethod, SamplingPlan, UncertaintyProgram,
+};
 use praxis::core::model::Model;
+use praxis::expression::Expr;
 use praxis::{PraxisError, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -35,90 +38,12 @@ pub(super) struct ImportanceInput {
     groups: Vec<ImportanceGroupInput>,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub(super) enum SamplingMethodInput {
-    MonteCarlo,
-    LatinHypercube,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE", rename_all_fields = "camelCase")]
-pub(super) enum DistributionInput {
-    Point { value: f64 },
-    Lognormal { median: f64, error_factor: f64 },
-    Normal { mean: f64, standard_deviation: f64 },
-    Gamma { shape: f64, rate: f64 },
-    Beta { alpha: f64, beta: f64 },
-    Uniform { lower: f64, upper: f64 },
-    Exponential { rate: f64 },
-}
-
-impl DistributionInput {
-    fn law(self) -> KeyDistribution {
-        match self {
-            DistributionInput::Point { value } => KeyDistribution::Point { value },
-            DistributionInput::Lognormal { median, error_factor } => KeyDistribution::LogNormal { median, error_factor },
-            DistributionInput::Normal { mean, standard_deviation } => KeyDistribution::Normal { mean, standard_deviation },
-            DistributionInput::Gamma { shape, rate } => KeyDistribution::Gamma { shape, rate },
-            DistributionInput::Beta { alpha, beta } => KeyDistribution::Beta { alpha, beta },
-            DistributionInput::Uniform { lower, upper } => KeyDistribution::Uniform { lower, upper },
-            DistributionInput::Exponential { rate } => KeyDistribution::Exponential { rate },
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct SamplingKeyInput {
-    key: String,
-    distribution: DistributionInput,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub(super) enum SampleFormInput {
-    Probability,
-    Rate,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct SampledEventInput {
-    id: String,
-    key: String,
-    form: SampleFormInput,
-    scale: f64,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct SampledCcfGroupInput {
-    id: String,
-    key: String,
-    scale: f64,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(super) struct SampledInitiatorInput {
-    key: String,
-    scale: f64,
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct SamplingInput {
     trials: usize,
     seed: u64,
-    method: SamplingMethodInput,
-    keys: Vec<SamplingKeyInput>,
-    #[serde(default)]
-    events: Vec<SampledEventInput>,
-    #[serde(default)]
-    ccf_groups: Vec<SampledCcfGroupInput>,
-    #[serde(default)]
-    initiator: Option<SampledInitiatorInput>,
+    method: SamplingMethod,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -161,7 +86,7 @@ impl OverridesInput {
             for fault_tree in model.fault_trees().values() {
                 if let Some(group) = fault_tree.ccf_groups().get(&entry.id) {
                     found = true;
-                    let expanded: Vec<String> = group.expand(1.0)?.into_iter().map(|event| event.id).collect();
+                    let expanded: Vec<String> = group.expand()?.into_iter().map(|event| event.id).collect();
                     let present = expanded.iter().any(|id| fault_tree.basic_events().contains_key(id));
                     let ids = if present { expanded } else { group.members.clone() };
                     targets.extend(ids.into_iter().map(|id| (id, entry.probability)));
@@ -211,41 +136,6 @@ impl SamplingInput {
         if self.trials == 0 || self.trials > MAX_TRIALS {
             return Err(PraxisError::Settings(format!("sampling needs between 1 and {MAX_TRIALS} trials")));
         }
-        let mut keys = HashSet::new();
-        for entry in &self.keys {
-            if entry.key.trim().is_empty() || !keys.insert(entry.key.as_str()) {
-                return Err(PraxisError::Settings(format!(
-                    "sampling key '{}' must be present and unique",
-                    entry.key
-                )));
-            }
-            entry.distribution.law().validate(&entry.key)?;
-        }
-        let known = |key: &str| keys.contains(key);
-        let positive = |value: f64| value.is_finite() && value > 0.0;
-        let mut events = HashSet::new();
-        for event in &self.events {
-            if !known(&event.key) || !positive(event.scale) || !events.insert(event.id.as_str()) {
-                return Err(PraxisError::Settings(format!(
-                    "sampled event '{}' needs a known key, a positive scale and one entry",
-                    event.id
-                )));
-            }
-        }
-        let mut groups = HashSet::new();
-        for group in &self.ccf_groups {
-            if !known(&group.key) || !positive(group.scale) || !groups.insert(group.id.as_str()) {
-                return Err(PraxisError::Settings(format!(
-                    "sampled common cause group '{}' needs a known key, a positive scale and one entry",
-                    group.id
-                )));
-            }
-        }
-        if let Some(initiator) = &self.initiator {
-            if !known(&initiator.key) || !positive(initiator.scale) {
-                return Err(PraxisError::Settings("the sampled initiator needs a known key and a positive scale".to_string()));
-            }
-        }
         Ok(())
     }
 }
@@ -253,7 +143,6 @@ impl SamplingInput {
 struct CcfTerm {
     group_id: String,
     members: Vec<String>,
-    unit: f64,
 }
 
 fn ccf_terms(adapter: &EventTreeAdapter) -> Result<HashMap<String, CcfTerm>> {
@@ -263,13 +152,12 @@ fn ccf_terms(adapter: &EventTreeAdapter) -> Result<HashMap<String, CcfTerm>> {
     }
     for fault_tree in adapter.model.fault_trees().values() {
         for (group_id, group) in fault_tree.ccf_groups() {
-            for event in group.expand(1.0)? {
+            for event in group.expand()? {
                 terms.insert(
                     event.id,
                     CcfTerm {
                         group_id: group_id.clone(),
                         members: event.failed_members,
-                        unit: event.probability,
                     },
                 );
             }
@@ -358,63 +246,64 @@ fn sampling_json(
     adapter: &EventTreeAdapter,
     diagrams: &[SequenceDiagram],
     family_of: &HashMap<String, String>,
-    terms: &HashMap<String, CcfTerm>,
     input: &SamplingInput,
 ) -> Result<Value> {
-    let method = match input.method {
-        SamplingMethodInput::MonteCarlo => SamplingMethod::MonteCarlo,
-        SamplingMethodInput::LatinHypercube => SamplingMethod::LatinHypercube,
-    };
-    let index_of: HashMap<&str, usize> = input
-        .keys
-        .iter()
-        .enumerate()
-        .map(|(index, entry)| (entry.key.as_str(), index))
-        .collect();
-    let draws = input
-        .keys
-        .iter()
-        .map(|entry| draw_key(&entry.key, &entry.distribution.law(), input.seed, input.trials, method))
-        .collect::<Result<Vec<_>>>()?;
-    let mut variables: HashMap<String, SampledVariable> = HashMap::new();
-    for event in &input.events {
-        let form = match event.form {
-            SampleFormInput::Probability => SampleForm::Probability,
-            SampleFormInput::Rate => SampleForm::Rate,
-        };
-        variables.insert(
-            event.id.clone(),
-            SampledVariable { key: index_of[event.key.as_str()], form, scale: event.scale },
-        );
-    }
-    let groups: HashMap<&str, &SampledCcfGroupInput> = input
-        .ccf_groups
-        .iter()
-        .map(|group| (group.id.as_str(), group))
-        .collect();
-    for (id, term) in terms {
-        if let Some(group) = groups.get(term.group_id.as_str()) {
-            variables.insert(
-                id.clone(),
-                SampledVariable {
-                    key: index_of[group.key.as_str()],
-                    form: SampleForm::Probability,
-                    scale: term.unit * group.scale,
-                },
-            );
+    let mut parameters: HashMap<String, Expr> = HashMap::new();
+    let mut events: BTreeMap<String, &Expr> = BTreeMap::new();
+    let mut checks: BTreeMap<&str, &Expr> = BTreeMap::new();
+    let mut mission_time = None;
+    for fault_tree in adapter.model.fault_trees().values() {
+        for (subject, check) in fault_tree.probability_checks() {
+            checks.entry(subject.as_str()).or_insert(check);
+        }
+        mission_time.get_or_insert(fault_tree.mission_time());
+        for (name, expression) in fault_tree.parameters() {
+            match parameters.get(name) {
+                Some(existing) if existing != expression => {
+                    return Err(PraxisError::Settings(format!(
+                        "uncertain parameter '{name}' has two different definitions"
+                    )))
+                }
+                Some(_) => {}
+                None => {
+                    parameters.insert(name.clone(), expression.clone());
+                }
+            }
+        }
+        for (id, event) in fault_tree.basic_events() {
+            if let Some(value) = event.value() {
+                events.entry(id.clone()).or_insert(value);
+            }
         }
     }
-    let initiator = input
-        .initiator
-        .as_ref()
-        .map(|source| SampledFrequency { key: index_of[source.key.as_str()], scale: source.scale });
+    let program = UncertaintyProgram::from_expressions(parameters, mission_time.unwrap_or(1.0));
+    let targets: Vec<&Expr> = checks.values().chain(events.values()).copied().collect();
+    let plan = SamplingPlan {
+        method: input.method,
+        trials: input.trials,
+        seed: input.seed,
+    };
+    let mut checked = program.sample(&targets, &plan)?;
+    let columns = checked.split_off(checks.len());
+    for (subject, column) in checks.keys().zip(&checked) {
+        for (trial, value) in column.iter().enumerate() {
+            require_probability(subject, Some(trial), *value)?;
+        }
+    }
+    let initiator = adapter.initiator.sample(&plan)?;
+    let mut variables: HashMap<String, Vec<f64>> = HashMap::with_capacity(events.len());
+    for (id, column) in events.keys().zip(columns) {
+        for (trial, value) in column.iter().enumerate() {
+            require_probability(&format!("basic event '{id}'"), Some(trial), *value)?;
+        }
+        variables.insert(id.clone(), column);
+    }
     let families = sample_families(
         diagrams,
         family_of,
         adapter.initiating_event_frequency,
-        initiator.as_ref(),
+        Some(&initiator),
         &variables,
-        &draws,
         input.trials,
     )?;
     let used: BTreeSet<&str> = diagrams
@@ -463,7 +352,7 @@ pub(super) fn execute(
         value["importance"] = importance_json(adapter, &diagrams, &family_of, &terms, input);
     }
     if let Some(input) = sampling {
-        value["sampling"] = sampling_json(adapter, &diagrams, &family_of, &terms, input)?;
+        value["sampling"] = sampling_json(adapter, &diagrams, &family_of, input)?;
     }
     Ok(value)
 }
@@ -503,6 +392,10 @@ mod tests {
     }
 
     fn request(extra: Value, ccf: bool) -> SolverRequest {
+        request_with(extra, ccf, Vec::new(), json!([]))
+    }
+
+    fn request_with(extra: Value, ccf: bool, replaced: Vec<Value>, parameters: Value) -> SolverRequest {
         let mut request = json!({
             "schemaVersion": "1.0.0", "methodType": "EVENT_TREE", "modelId": "ET", "revision": 1,
             "mode": "INDEPENDENT", "requestedBy": "analyst",
@@ -511,12 +404,21 @@ mod tests {
         for (key, value) in extra.as_object().unwrap() {
             request[key] = value.clone();
         }
-        let events: Vec<Value> = [("X", X), ("Y", Y), ("Z", Z)].iter().map(|(id, value)| json!({ "id": id, "probability": { "value": value } })).collect();
-        let mut catalogue = json!({ "projectId": "P", "basicEvents": events });
+        let events: Vec<Value> = [("X", X), ("Y", Y), ("Z", Z)]
+            .iter()
+            .map(|(id, value)| {
+                replaced
+                    .iter()
+                    .find(|event| event["id"] == *id)
+                    .cloned()
+                    .unwrap_or_else(|| crate::fault_tree::tests::point_event(id, *value))
+            })
+            .collect();
+        let mut catalogue = json!({ "projectId": "P", "basicEvents": events, "uncertaintyParameters": parameters });
         if ccf {
             request["expandCcf"] = json!(true);
             catalogue["commonCauseFailureGroups"] = json!([{
-                "id": "G", "members": ["X", "Z"], "model": { "kind": "BETA_FACTOR", "beta": 0.1 }, "totalFailureProbability": 0.15
+                "id": "G", "members": ["X", "Z"], "factors": crate::fault_tree::tests::beta_factor(0.1), "total": crate::fault_tree::tests::point(0.15)
             }]);
         }
         let paths = [
@@ -531,7 +433,7 @@ mod tests {
         let tree = json!({
             "id": "ET", "methodType": "EVENT_TREE", "revision": 1,
             "initiatingEvent": { "target": { "modelId": "IE", "entityId": "IE-1" } },
-            "initiatingEventFrequency": { "value": 2.0 },
+            "initiatingEventFrequency": { "expression": crate::fault_tree::tests::per_year(2.0) },
             "functionalEvents": [{ "id": "FE-A", "name": "A", "order": 0 }, { "id": "FE-B", "name": "B", "order": 1 }],
             "functionalEventFaultTreeLinks": [
                 { "functionalEventId": "FE-A", "faultTreeTopGate": { "modelId": "A", "entityId": "TOP-A" } },
@@ -624,12 +526,20 @@ mod tests {
         assert_eq!(variables.iter().map(|variable| variable["id"].as_str().unwrap()).collect::<Vec<_>>(), ["X", "Y", "Z"]);
     }
 
-    fn sampling(keys: Value, events: Value, extra: Value) -> Value {
-        let mut input = json!({ "trials": 20000, "seed": 5, "method": "LATIN_HYPERCUBE", "keys": keys, "events": events });
+    fn sampling(events: Vec<Value>, parameters: Value, extra: Value) -> Value {
+        sampling_from(events, parameters, extra, None)
+    }
+
+    fn sampling_from(events: Vec<Value>, parameters: Value, extra: Value, initiator: Option<Value>) -> Value {
+        let mut input = json!({ "trials": 20000, "seed": 5, "method": "LATIN_HYPERCUBE" });
         for (key, value) in extra.as_object().unwrap() {
             input[key] = value.clone();
         }
-        execute(&request(json!({ "sampling": input }), false)).unwrap()
+        let mut request = request_with(json!({ "sampling": input }), false, events, parameters);
+        if let Some(initiator) = initiator {
+            request.model_snapshots[2]["initiatingEventFrequency"] = initiator;
+        }
+        execute(&request).unwrap()
     }
 
     fn values(result: &Value, id: &str) -> Vec<f64> {
@@ -640,9 +550,26 @@ mod tests {
         values.iter().sum::<f64>() / values.len() as f64
     }
 
+    fn parameter(entity: &str) -> Value {
+        json!({ "referenceType": "WORKBOOK_PARAMETER", "workbookId": "da", "entityId": entity })
+    }
+
+    fn uses(id: &str, entity: &str) -> Value {
+        json!({ "id": id, "expression": { "node": "PARAMETER", "reference": parameter(entity) } })
+    }
+
+    fn lognormal(entity: &str, mean: f64) -> Value {
+        json!({ "reference": parameter(entity), "expression": crate::fault_tree::tests::value("PROBABILITY", json!({
+            "family": "TRUNCATED",
+            "law": { "family": "LOGNORMAL", "mean": mean, "errorFactor": 3.0, "level": 0.95 },
+            "lower": null,
+            "upper": 1.0
+        })) })
+    }
+
     #[test]
-    fn point_draws_reproduce_the_exact_families_in_every_trial() {
-        let result = sampling(json!([{ "key": "K", "distribution": { "type": "POINT", "value": X } }]), json!([{ "id": "X", "key": "K", "form": "PROBABILITY", "scale": 1.0 }]), json!({}));
+    fn point_inputs_reproduce_the_exact_families_in_every_trial() {
+        let result = sampling(Vec::new(), json!([]), json!({}));
         for (family_id, value) in families_by_enumeration([X, Y, Z]) {
             for trial in values(&result, &family_id) {
                 near(trial, value);
@@ -651,13 +578,15 @@ mod tests {
     }
 
     #[test]
-    fn a_shared_key_correlates_its_events() {
-        let law = json!({ "type": "LOGNORMAL", "median": 0.005, "errorFactor": 3.0 });
-        let both = json!([{ "id": "X", "key": "K", "form": "PROBABILITY", "scale": 1.0 }, { "id": "Z", "key": "K", "form": "PROBABILITY", "scale": 1.0 }]);
-        let shared = sampling(json!([{ "key": "K", "distribution": law }]), both.clone(), json!({}));
-        let apart = sampling(json!([{ "key": "K1", "distribution": law }, { "key": "K2", "distribution": law }]), json!([{ "id": "X", "key": "K1", "form": "PROBABILITY", "scale": 1.0 }, { "id": "Z", "key": "K2", "form": "PROBABILITY", "scale": 1.0 }]), json!({}));
+    fn a_shared_parameter_correlates_its_events() {
+        let m = 0.006;
         let sigma = 3.0_f64.ln() / 1.644_853_626_951_472_2;
-        let m = 0.005 * (0.5 * sigma * sigma).exp();
+        let shared = sampling(vec![uses("X", "pump"), uses("Z", "pump")], json!([lognormal("pump", m)]), json!({}));
+        let apart = sampling(
+            vec![uses("X", "pump-a"), uses("Z", "pump-b")],
+            json!([lognormal("pump-a", m), lognormal("pump-b", m)]),
+            json!({}),
+        );
         let product = |result: &Value| -> f64 {
             let terms: Vec<f64> = values(result, "RELEASE").iter().map(|value| (value / 2.0 - Y) / (1.0 - Y)).collect();
             mean(&terms) / (m * m)
@@ -666,22 +595,46 @@ mod tests {
         let apart_ratio = product(&apart);
         assert!((shared_ratio / (sigma * sigma).exp() - 1.0).abs() < 0.04, "shared ratio {shared_ratio} expected {}", (sigma * sigma).exp());
         assert!((apart_ratio - 1.0).abs() < 0.04, "apart ratio {apart_ratio}");
-        let again = sampling(json!([{ "key": "K", "distribution": law }]), both, json!({}));
+        let again = sampling(vec![uses("X", "pump"), uses("Z", "pump")], json!([lognormal("pump", m)]), json!({}));
         assert_eq!(values(&shared, "RELEASE"), values(&again, "RELEASE"));
     }
 
     #[test]
-    fn a_sampled_initiator_and_a_rate_scale_each_trial() {
-        let result = sampling(
-            json!([{ "key": "IE", "distribution": { "type": "POINT", "value": 3.0 } }, { "key": "L", "distribution": { "type": "POINT", "value": 0.002 } }]),
-            json!([{ "id": "Z", "key": "L", "form": "RATE", "scale": 100.0 }]),
-            json!({ "initiator": { "key": "IE", "scale": 0.5 } }),
-        );
-        let z = 1.0 - (-0.2_f64).exp();
+    fn a_sampled_initiator_and_a_mission_model_set_each_trial() {
+        let mission = json!({ "id": "Z", "expression": { "node": "MODEL", "model": {
+            "form": "MISSION",
+            "rate": crate::fault_tree::tests::value("PER_HOUR", json!({ "family": "POINT", "value": 0.002 })),
+            "missionTime": crate::fault_tree::tests::value("HOURS", json!({ "family": "POINT", "value": 100.0 }))
+        } } });
+        let initiator = json!({ "expression": crate::fault_tree::tests::per_year(1.5) });
+        let result = sampling_from(vec![mission], json!([]), json!({}), Some(initiator));
+        let z = -(-0.2_f64).exp_m1();
         for (family_id, value) in families_by_enumeration([X, Y, z]) {
             for trial in values(&result, &family_id) {
-                near(trial, value * 0.75);
+                assert!((trial - value * 0.75).abs() <= 1e-14 * value, "{family_id}: {trial} against {}", value * 0.75);
             }
+        }
+    }
+
+    #[test]
+    fn the_tree_frequency_is_sampled_with_its_own_annualization() {
+        let initiator = json!({
+            "expression": crate::fault_tree::tests::value("PER_HOUR", json!({ "family": "UNIFORM", "lower": 1.0e-4, "upper": 3.0e-4 })),
+            "annualization": { "basis": "CRITICAL_YEAR", "hoursPerYear": 7000.0 }
+        });
+        let sampled = sampling_from(Vec::new(), json!([]), json!({}), Some(initiator.clone()));
+        let mut point_request = request(json!({}), false);
+        point_request.model_snapshots[2]["initiatingEventFrequency"] = initiator;
+        let point = execute(&point_request).unwrap();
+        assert!((point["frequencySemantics"]["annualizedInitiatingEventFrequency"]["value"].as_f64().unwrap() - 1.4).abs() < 1e-12);
+        for (family_id, value) in families_by_enumeration([X, Y, Z]) {
+            let per_frequency = value / 2.0;
+            let trials = values(&sampled, &family_id);
+            for trial in &trials {
+                let frequency = trial / per_frequency;
+                assert!((0.7 - 1e-12..=2.1 + 1e-12).contains(&frequency), "{family_id}: {frequency}");
+            }
+            assert!((mean(&trials) / per_frequency - 1.4).abs() < 1e-3, "{family_id}");
         }
     }
 
@@ -695,11 +648,7 @@ mod tests {
         near(total, 0.15 * 0.9 * 2.0 + 0.15 * 0.1);
         assert!(change(family(&result["importance"]["families"], "RELEASE"), "groups", "key", "CCF-G").is_some());
         let plain = execute(&request(json!({}), true)).unwrap();
-        let point = execute(&request(json!({ "sampling": {
-            "trials": 3, "seed": 1, "method": "MONTE_CARLO",
-            "keys": [{ "key": "Q", "distribution": { "type": "POINT", "value": 0.15 } }],
-            "ccfGroups": [{ "id": "G", "key": "Q", "scale": 1.0 }]
-        } }), true)).unwrap();
+        let point = execute(&request(json!({ "sampling": { "trials": 3, "seed": 1, "method": "MONTE_CARLO" } }), true)).unwrap();
         let release: f64 = plain["sequences"].as_array().unwrap().iter().filter(|sequence| sequence["sequenceId"] == "FF").map(|sequence| sequence["annualFrequency"].as_f64().unwrap()).sum();
         for trial in values(&point, "RELEASE") {
             near(trial, release);
@@ -709,9 +658,9 @@ mod tests {
     #[test]
     fn refuses_invalid_measure_requests() {
         let bad = [
-            json!({ "sampling": { "trials": 0, "seed": 1, "method": "MONTE_CARLO", "keys": [] } }),
-            json!({ "sampling": { "trials": 5, "seed": 1, "method": "MONTE_CARLO", "keys": [], "events": [{ "id": "X", "key": "K", "form": "PROBABILITY", "scale": 1.0 }] } }),
-            json!({ "sampling": { "trials": 5, "seed": 1, "method": "MONTE_CARLO", "keys": [{ "key": "K", "distribution": { "type": "LOGNORMAL", "median": 0.01, "errorFactor": 0.5 } }] } }),
+            json!({ "sampling": { "trials": 0, "seed": 1, "method": "MONTE_CARLO" } }),
+            json!({ "sampling": { "trials": 5, "seed": 1, "method": "MONTE_CARLO", "keys": [] } }),
+            json!({ "sampling": { "trials": 5, "seed": 1, "method": "MONTE_CARLO", "initiator": crate::fault_tree::tests::point(0.5) } }),
             json!({ "importance": { "groups": [{ "key": "A", "events": ["X"] }, { "key": "A", "events": ["Z"] }] } }),
             json!({ "importance": { "groups": [{ "key": "A" }] } }),
             json!({ "importance": {}, "cutSets": { "basis": "FREQUENCY", "cutOffs": [0.1], "quantifier": "MCUB", "keep": 1 } }),

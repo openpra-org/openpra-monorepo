@@ -230,6 +230,23 @@ describe("probability and uncertainty result fidelity", () => {
     expect(JSON.stringify(rows)).not.toMatch(/cut.?set|importance/i);
   });
 
+  it("exports FT uncertainty with the standard error and every sample", () => {
+    const rows = faultTreeResultRecords({
+      ...common,
+      topGateId: "top",
+      topEventProbability: 1e-3,
+      basicEventQuantifications: [],
+      uncertainty: { mean: 1.1e-3, standardDeviation: 2e-4, standardError: 6e-6, quantiles: [{ probability: 0.95, value: 1.5e-3 }],
+        samples: [9e-4, 1.3e-3], sampleCount: 2, seed: 7, samplingMethod: "LATIN_HYPERCUBE" },
+    });
+    expect(rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row_type: "UNCERTAINTY", quantity: "standard_error", value: 6e-6 }),
+      expect.objectContaining({ row_type: "UNCERTAINTY", quantity: "sample_count", value: 2, sampling_method: "LATIN_HYPERCUBE", seed: 7 }),
+      expect.objectContaining({ row_type: "UNCERTAINTY_SAMPLE", sample_index: 2, value: 1.3e-3 }),
+    ]));
+    expect(rows.some((row) => row["quantity"] === "error_factor")).toBe(false);
+  });
+
   it("shows all seven UQ statistics and their exact values", () => {
     renderHcl(ft, null, true);
     const region = within(screen.getByLabelText("Uncertainty results"));

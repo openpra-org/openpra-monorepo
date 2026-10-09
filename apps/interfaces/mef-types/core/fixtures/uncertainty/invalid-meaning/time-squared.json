@@ -1,0 +1,35 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "x"
+    },
+    "expression": {
+      "node": "OPERATION",
+      "operation": "MULTIPLY",
+      "operands": [
+        {
+          "node": "VALUE",
+          "value": {
+            "unit": "HOURS",
+            "law": {
+              "family": "POINT",
+              "value": 24
+            }
+          }
+        },
+        {
+          "node": "VALUE",
+          "value": {
+            "unit": "HOURS",
+            "law": {
+              "family": "POINT",
+              "value": 24
+            }
+          }
+        }
+      ]
+    }
+  }
+]

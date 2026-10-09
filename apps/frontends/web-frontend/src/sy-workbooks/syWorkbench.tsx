@@ -26,6 +26,7 @@ import { isSystemLevelModel } from "./sySelectors";
 import { IntegrityScreen, NamingScheme } from "./SyIntegrity";
 import { InternalReviewScreen, ReviewerCommentDock } from "./syReview";
 import { useSyWorkbook, type SyWorkbookData } from "./syWorkbookContext";
+import { linkedMissionTimeTable } from "./syMissionTimes";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
@@ -376,7 +377,7 @@ function SyWorkbench({
 
   const uncertaintyReadiness = useMemo(() => new Map<string, RunState>(data.sy.systemLogicModels
     .filter((model) => model.topGate !== null && !isSystemLevelModel(model))
-    .map((model) => [model.uuid, runReadiness(data.sy, model, controlledParameters).state])), [data.sy, controlledParameters]);
+    .map((model) => [model.uuid, runReadiness(data.sy, model, controlledParameters, linkedMissionTimeTable(data.links)).state])), [data.sy, data.links, controlledParameters]);
   const visibleSteps = useMemo(() => stepsFromMef(data.sy, persona, uncertaintyReadiness),
   [data.sy, persona, uncertaintyReadiness]);
   const [searchParams] = useSearchParams();

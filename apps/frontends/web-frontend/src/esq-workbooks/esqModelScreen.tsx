@@ -6,12 +6,19 @@ import {
   type EsqFunctionTarget,
   type EsqInitiatorChoice,
   type EsqModel,
+  type EsqParameterRecord,
   type EsqSplitFractionTarget,
   type EsqValueHolder,
   type EventSequenceQuantification,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
+import { holdsEstimate, isComponentModel } from "interfaces-mef-types/da/data-analysis";
+import type { CcfFactorModel, UncertainExpression, UncertainVector } from "interfaces-mef-types/core/uncertainty";
+import { CcfFactorEditor, ExpressionEditor, MissionTimeEditor, type ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
+import { useUncertaintyVersion } from "../newly-developed-methods/shared/useUncertainty";
+import { scMissionTimeOptions } from "../sc-workbooks/scMissionTimeLinks";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import {
   DetailRow,
@@ -22,17 +29,24 @@ import {
   FormFoot,
   FormRow,
   ModalHead,
+  pointText,
   rowClass,
   sciText,
   useElementWidth,
+  useExpressionPoints,
+  type EsqPointEntry,
 } from "./esqShared";
 import {
   familyIdTaken,
   modelChangeOf,
   modelImportReady,
+  missionTimeSourcesOf,
+  missionTimeTableOf,
   modelLinked,
   modelViewOf,
   nextFamilyId,
+  parameterLabelOf,
+  parameterTableOf,
   sequenceChoiceOf,
   stateWeightingOf,
   topOf,
@@ -44,6 +58,7 @@ import {
   withInitiatorChoice,
   withModelImported,
   withSequenceChoice,
+  withTreeMissionTime,
   withValueBinding,
   type EsqFamilyView,
   type EsqFindingSeverity,
@@ -63,7 +78,8 @@ import { type EsqResultsWindowKind } from "./esqResults";
 import { type EsqUncertaintyWindowKind } from "./esqUncertainty";
 import { type EsqSensitivityWindowKind } from "./esqSensitivity";
 import { type EsqHandoffWindowKind } from "./esqHandoff";
-import { barrierWorkOf, cellValueOfRecord } from "interfaces-mef-types/esq/esq-barrier-inputs";
+import { barrierWorkOf } from "interfaces-mef-types/esq/esq-barrier-inputs";
+import { cellRecordText } from "./esqBarriers";
 import {
   END_STATE_LABELS,
   ESQ_MODEL_ELEMENTS,
@@ -73,7 +89,7 @@ import {
   exampleLinkLabel,
 } from "./esqViewData";
 
-type ModelTab = "sequences" | "families" | "functions" | "initiators" | "values" | "checks";
+type ModelTab = "sequences" | "trees" | "families" | "functions" | "initiators" | "values" | "checks";
 
 interface EsqWindowContext {
   kind:
@@ -95,6 +111,7 @@ const SEVERITY_TEXT: Record<EsqFindingSeverity, string> = { error: "Error", warn
 
 const TAB_HEADS: Record<ModelTab, { title: string; sr: string; add?: string }> = {
   sequences: { title: "Sequences", sr: "ESQ-A2 · ESQ-C3" },
+  trees: { title: "Event trees", sr: "ESQ-A2" },
   families: { title: "Families", sr: "ESQ-A1", add: "Add family" },
   functions: { title: "Functions", sr: "ESQ-A2" },
   initiators: { title: "Initiator frequencies", sr: "ESQ-A2" },
@@ -102,10 +119,11 @@ const TAB_HEADS: Record<ModelTab, { title: string; sr: string; add?: string }> =
   checks: { title: "Model checks", sr: "ESQ-A1 · ESQ-A2 · ESQ-A8 · ESQ-C3" },
 };
 
-const MODEL_WINDOW_KINDS: ReadonlySet<string> = new Set<EsqModelWindowKind>(["esqSequence", "esqFamily", "esqFunction", "esqInitiator", "esqValue"]);
+const MODEL_WINDOW_KINDS: ReadonlySet<string> = new Set<EsqModelWindowKind>(["esqSequence", "esqTree", "esqFamily", "esqFunction", "esqInitiator", "esqValue"]);
 
 const MODEL_WINDOW_LABELS: Record<EsqModelWindowKind, string> = {
   esqSequence: "Sequence",
+  esqTree: "Event tree",
   esqFamily: "Family",
   esqFunction: "Function",
   esqInitiator: "Initiator group",
@@ -141,6 +159,41 @@ function numberFrom(text: string, apply: (value: number | undefined) => void): v
   }
   const value = Number(text);
   if (Number.isFinite(value) && value >= 0) apply(value);
+}
+
+const DEFAULT_FREQUENCY = 1e-2;
+
+const CCF_MODEL_TEXT: Record<CcfFactorModel["model"], string> = { BETA_FACTOR: "Beta factor", MGL: "Multiple Greek letter", ALPHA_FACTOR: "Alpha factor", PHI_FACTOR: "Phi factor" };
+
+function vectorText(vector: UncertainVector, label: (key: string) => string): string {
+  if (vector.node === "PARAMETER") return label(`${vector.reference.workbookId}:${vector.reference.entityId}`);
+  const values = vector.law.family === "DIRICHLET" ? vector.law.concentrations : vector.law.values;
+  return `${vector.law.family === "DIRICHLET" ? "Dirichlet" : "Fixed"} (${values.map((value) => String(Number(value.toPrecision(4)))).join(", ")})`;
+}
+
+function ccfFactorsText(factors: CcfFactorModel | undefined, label: (key: string) => string): string {
+  if (factors === undefined) return "Not given";
+  switch (factors.model) {
+    case "BETA_FACTOR": return `${CCF_MODEL_TEXT.BETA_FACTOR} ${expressionText(factors.beta, label)}`;
+    case "MGL": return `${CCF_MODEL_TEXT.MGL} ${factors.factors.map((factor) => expressionText(factor, label)).join(", ")}`;
+    case "ALPHA_FACTOR": return `${CCF_MODEL_TEXT.ALPHA_FACTOR}, ${factors.testing === "STAGGERED" ? "staggered" : "non-staggered"}, ${vectorText(factors.alphas, label)}`;
+    case "PHI_FACTOR": return `${CCF_MODEL_TEXT.PHI_FACTOR} ${vectorText(factors.phis, label)}`;
+  }
+}
+
+function frequencyOptions(esq: EventSequenceQuantification): ParameterOption[] {
+  const workbookId = esq.linkedWorkbooks?.DA;
+  if (workbookId === undefined || workbookId.length === 0) return [];
+  return (esq.model?.parameters ?? []).flatMap((parameter) => (parameter.quantificationModel === "FREQUENCY" && parameter.estimate !== undefined
+    ? [{ reference: { referenceType: "WORKBOOK_PARAMETER" as const, workbookId, entityId: parameter.id }, label: `DA · ${parameter.id} · ${parameter.name}`, unit: "PER_YEAR" as const }]
+    : []));
+}
+
+function initiatorPointEntries(initiators: readonly EsqInitiatorView[]): EsqPointEntry[] {
+  return initiators.flatMap((entry) => [
+    ...(entry.expression === undefined ? [] : [{ key: entry.id, expression: entry.expression, unit: "PER_YEAR" as const }]),
+    ...entry.states.flatMap((state) => (state.expression === undefined || !state.applicable ? [] : [{ key: `${entry.id}:${state.stateId}`, expression: state.expression, unit: "PER_YEAR" as const }])),
+  ]);
 }
 
 function frequencyUnitLabel(esq: EventSequenceQuantification): string {
@@ -438,6 +491,38 @@ function FamiliesTable({ view, openWindow }: { view: EsqModelView; openWindow: (
   );
 }
 
+function TreesTable({ view, openWindow }: { view: EsqModelView; openWindow: (ctx: EsqWindowContext) => void }): JSX.Element {
+  const { esq, upstream } = useEsqWorkbook();
+  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const label = useMemo(() => parameterLabelOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const entries = useMemo(() => view.trees.flatMap((tree): EsqPointEntry[] => (tree.missionTime === undefined ? [] : [{ key: tree.id, expression: tree.missionTime, unit: "HOURS" }])), [view.trees]);
+  const points = useExpressionPoints(entries, table);
+  if (view.trees.length === 0) return <p className="posmuted">No event tree in scope. Check the coverage in Step 01.</p>;
+  return (
+    <div className="esq-table-wrap">
+      <table className="postable esq-rowtable" aria-label="Event trees">
+        <thead>
+          <tr><th>Tree</th><th>Initiator</th><th>State</th><th>Mission time</th><th>Hours</th></tr>
+        </thead>
+        <tbody>
+          {view.trees.map((tree) => (
+            <tr key={tree.id}>
+              <td className="esq-rowtable__text">
+                <button type="button" className="esq-rowtable__name" onClick={() => openWindow({ kind: "esqTree", id: tree.id })}>{tree.code}</button>
+                <ChangeTags change={modelChangeOf(view.model, "TREE", tree.id)} />
+              </td>
+              <td className="esq-rowtable__text">{tree.initiatorId}</td>
+              <td className="esq-rowtable__text">{tree.stateId ?? "—"}</td>
+              <td className="esq-rowtable__text">{tree.missionTime === undefined ? "Not set" : expressionText(tree.missionTime, label)}</td>
+              <td className="esq-rowtable__num">{tree.missionTime === undefined ? "—" : pointText(points.get(tree.id))}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function FunctionsTable({ view, openWindow }: { view: EsqModelView; openWindow: (ctx: EsqWindowContext) => void }): JSX.Element {
   const [openId, setOpenId] = useState("");
   const [wrapRef, wrapWidth] = useElementWidth(0);
@@ -453,7 +538,6 @@ function FunctionsTable({ view, openWindow }: { view: EsqModelView; openWindow: 
             const id = entry.record.id;
             const open = id === openId;
             const linked = entry.record.esLinks.filter((link) => entry.trees.some((tree) => tree.id === link.treeId)).length;
-            const missions = entry.trees.flatMap((tree) => (tree.missionTimeHours === undefined ? [] : [tree.missionTimeHours]));
             return (
               <Fragment key={id}>
                 <tr className={rowClass(false, open)} onClick={() => { if (!open) setOpenId(id); }}>
@@ -475,7 +559,6 @@ function FunctionsTable({ view, openWindow }: { view: EsqModelView; openWindow: 
                       { label: "Rules", value: (entry.link?.rules ?? []).length === 0 ? "—" : (entry.link?.rules ?? []).map((rule) => ruleText(view.model, rule)).join(" · ") },
                       { label: "Linked in ES", value: `${linked} of ${entry.trees.length} trees` },
                       { label: "Not linked", value: listValue(entry.unlinked.map((tree) => tree.code)) },
-                      { label: "Tree mission time (h)", value: missions.length === 0 ? "—" : plainNumber(Math.max(...missions)) },
                     ]} />
                   </DetailRow>
                 )}
@@ -489,9 +572,13 @@ function FunctionsTable({ view, openWindow }: { view: EsqModelView; openWindow: 
 }
 
 function InitiatorsTable({ view, openWindow }: { view: EsqModelView; openWindow: (ctx: EsqWindowContext) => void }): JSX.Element {
-  const { esq } = useEsqWorkbook();
+  const { esq, upstream } = useEsqWorkbook();
   const [openId, setOpenId] = useState("");
   const [wrapRef, wrapWidth] = useElementWidth(0);
+  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const label = useMemo(() => parameterLabelOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const entries = useMemo(() => initiatorPointEntries(view.initiators), [view.initiators]);
+  const points = useExpressionPoints(entries, table);
   if (view.initiators.length === 0) return <p className="posmuted">No initiator group in scope. Import the event trees above.</p>;
   const unit = frequencyUnitLabel(esq);
   const weighting = stateWeightingOf(esq);
@@ -504,9 +591,6 @@ function InitiatorsTable({ view, openWindow }: { view: EsqModelView; openWindow:
         <tbody>
           {view.initiators.map((entry) => {
             const open = entry.id === openId;
-            const band = entry.medianFrequency !== undefined && entry.errorFactor !== undefined && entry.errorFactor > 0
-              ? `${sciText(entry.medianFrequency * entry.factor / entry.errorFactor)} to ${sciText(entry.medianFrequency * entry.factor * entry.errorFactor)}`
-              : "—";
             return (
               <Fragment key={entry.id}>
                 <tr className={rowClass(false, open)} onClick={() => { if (!open) setOpenId(entry.id); }}>
@@ -516,7 +600,7 @@ function InitiatorsTable({ view, openWindow }: { view: EsqModelView; openWindow:
                     <ChangeTags change={modelChangeOf(view.model, "INITIATOR", entry.id)} edited={entry.choice !== undefined && entry.choice.source !== "IE"} />
                   </td>
                   <td className="esq-rowtable__text">{entry.name}</td>
-                  <td className="esq-rowtable__num">{statText(entry.mean)}</td>
+                  <td className="esq-rowtable__num">{entry.expression === undefined ? "—" : pointText(points.get(entry.id))}</td>
                   <td className="esq-rowtable__text">{initiatorFromText(entry)}</td>
                 </tr>
                 {open && (
@@ -524,10 +608,10 @@ function InitiatorsTable({ view, openWindow }: { view: EsqModelView; openWindow:
                     <FieldList items={[
                       ...entry.states.map((state) => ({
                         label: `${state.stateId}${state.treeIds.length === 0 ? " · no tree" : ""}`,
-                        value: state.applicable ? `${statText(state.frequency)} · ${percentText(state.share)}` : "Not in IE",
+                        value: state.applicable ? `${state.expression === undefined ? "—" : pointText(points.get(`${entry.id}:${state.stateId}`))} · ${percentText(state.share)}` : "Not in IE",
                       })),
                       { label: weighting === "POS_HOURS" ? "Hours in its states" : "State weighting", value: weighting === "POS_HOURS" ? plainNumber(entry.hours) : "Typed shares" },
-                      { label: "5th to 95th", value: band },
+                      { label: "Frequency as given", value: entry.given === undefined ? "—" : expressionText(entry.given, label) },
                       { label: "Module factor", value: entry.factor === 1 ? "1" : plainNumber(entry.factor) },
                     ]} />
                   </DetailRow>
@@ -541,7 +625,47 @@ function InitiatorsTable({ view, openWindow }: { view: EsqModelView; openWindow:
   );
 }
 
+function valuePointEntries(values: readonly EsqValueView[]): EsqPointEntry[] {
+  return values.flatMap((value) => (value.expression === undefined ? [] : [{ key: `${value.kind}:${value.id}`, expression: value.expression, unit: "PROBABILITY" as const }]));
+}
+
+function valueCellText(value: EsqValueView, point: string): string {
+  if (value.expression !== undefined) return point;
+  if (value.value === undefined) return "—";
+  return `${sciText(value.value)}${value.event?.valueUnit === "PER_HOUR" && value.parameter === undefined && value.human === undefined ? " /h" : ""}`;
+}
+
+function valueDetailItems(view: EsqModelView, value: EsqValueView, label: (key: string) => string): { label: string; value: string }[] {
+  const evidence = value.parameter?.evidenceKind !== undefined ? EVIDENCE_KIND_LABELS[value.parameter.evidenceKind] ?? value.parameter.evidenceKind : value.human?.assessmentType === undefined ? "—" : value.human.assessmentType === "DETAILED_ASSESSMENT" ? "Detailed assessment" : "Conservative estimate";
+  if (value.kind === "CCF") {
+    return [
+      { label: "System", value: value.systemName ?? "—" },
+      { label: "Factors", value: ccfFactorsText(value.ccf?.factors, label) },
+      { label: "Group total", value: value.expression === undefined ? "Not given" : expressionText(value.expression, label) },
+      { label: "Members", value: listValue(value.ccf?.memberIds.map((member) => view.model.events.find((event) => event.id === member)?.code ?? member) ?? []) },
+      { label: "Functions", value: listValue(value.functionIds) },
+    ];
+  }
+  if (value.expression !== undefined || value.problem !== undefined) {
+    return [
+      { label: "System", value: value.systemName ?? "—" },
+      { label: "Value", value: value.expression === undefined ? value.problem ?? "—" : expressionText(value.expression, label) },
+      { label: "Evidence", value: evidence },
+      { label: "Functions", value: listValue(value.functionIds) },
+    ];
+  }
+  return [
+    { label: "System", value: value.systemName ?? "—" },
+    { label: "Value type", value: value.valueType === undefined ? "—" : value.valueType === "MEAN" ? "Mean" : "Point estimate" },
+    { label: "Distribution", value: value.parameter?.distribution !== undefined ? "Given in DA" : value.human?.distributionGiven === true ? "Given in HR" : "—" },
+    { label: "Mission time", value: value.missionTime === undefined ? "—" : expressionText(value.missionTime, label) },
+    { label: "Evidence", value: evidence },
+    { label: "Functions", value: listValue(value.functionIds) },
+  ];
+}
+
 function ValuesTable({ view, openWindow }: { view: EsqModelView; openWindow: (ctx: EsqWindowContext) => void }): JSX.Element {
+  const { esq, upstream } = useEsqWorkbook();
   const [system, setSystem] = useState("");
   const [from, setFrom] = useState("");
   const [kind, setKind] = useState("");
@@ -549,10 +673,14 @@ function ValuesTable({ view, openWindow }: { view: EsqModelView; openWindow: (ct
   const [openId, setOpenId] = useState("");
   const [wrapRef, wrapWidth] = useElementWidth(0);
   const filterId = useId();
+  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const label = useMemo(() => parameterLabelOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const rows = useMemo(() => view.values.filter((value: EsqValueView) => (system === "" || value.systemName === system) && (from === "" || value.heldBy === from) && (kind === "" || value.kind === kind)), [view.values, system, from, kind]);
+  const { current, shown } = useMemo(() => pageOf(rows, page), [rows, page]);
+  const entries = useMemo(() => valuePointEntries(shown), [shown]);
+  const points = useExpressionPoints(entries, table);
   if (view.values.length === 0) return <p className="posmuted">No basic event is reached yet. Link the functions to fault tree tops first.</p>;
   const systems = [...new Set(view.values.flatMap((value) => (value.systemName === undefined ? [] : [value.systemName])))].sort();
-  const rows = view.values.filter((value: EsqValueView) => (system === "" || value.systemName === system) && (from === "" || value.heldBy === from) && (kind === "" || value.kind === kind));
-  const { current, shown } = pageOf(rows, page);
   return (
     <>
       <div className="esq-bar">
@@ -590,32 +718,16 @@ function ValuesTable({ view, openWindow }: { view: EsqModelView; openWindow: (ct
                   <tr className={rowClass(false, open)} onClick={() => { if (!open) setOpenId(key); }}>
                     <td className="esq-rowtable__pick"><DetailToggle open={open} label={value.code} onToggle={() => setOpenId(open ? "" : key)} /></td>
                     <td className="esq-rowtable__text">
-                      {value.kind === "EVENT" ? (
-                        <button type="button" className="esq-rowtable__name" onClick={(event) => { event.stopPropagation(); openWindow({ kind: "esqValue", id: value.id }); }}>{value.code}</button>
-                      ) : value.code}
+                      <button type="button" className="esq-rowtable__name" onClick={(event) => { event.stopPropagation(); openWindow({ kind: "esqValue", id: value.id }); }}>{value.code}</button>
                       <ChangeTags change={modelChangeOf(view.model, value.kind === "EVENT" ? "EVENT" : "CCF", value.id)} edited={value.binding !== undefined} />
                     </td>
                     <td className="esq-rowtable__text">{value.name}</td>
-                    <td className="esq-rowtable__num">{value.value === undefined ? "—" : `${sciText(value.value)}${value.event?.valueUnit === "PER_HOUR" && value.parameter === undefined && value.human === undefined ? " /h" : ""}`}</td>
+                    <td className="esq-rowtable__num">{valueCellText(value, pointText(points.get(key)))}</td>
                     <td className="esq-rowtable__text">{holderText(value.heldBy, value.holderId)}</td>
                   </tr>
                   {open && (
                     <DetailRow span={5} width={wrapWidth - 18}>
-                      <FieldList items={value.kind === "EVENT" ? [
-                        { label: "System", value: value.systemName ?? "—" },
-                        { label: "Value type", value: value.valueType === undefined ? "—" : value.valueType === "MEAN" ? "Mean" : "Point estimate" },
-                        { label: "Distribution", value: value.distributionType ?? (value.human?.distributionGiven === true ? "Given in HR" : "—") },
-                        { label: "5th percentile", value: statText(value.p05) },
-                        { label: "95th percentile", value: statText(value.p95) },
-                        { label: "Mission time (h)", value: plainNumber(value.missionTimeHours) },
-                        { label: "Evidence", value: value.parameter?.evidenceKind !== undefined ? EVIDENCE_KIND_LABELS[value.parameter.evidenceKind] ?? value.parameter.evidenceKind : value.human?.assessmentType === undefined ? "—" : value.human.assessmentType === "DETAILED_ASSESSMENT" ? "Detailed assessment" : "Conservative estimate" },
-                        { label: "Functions", value: listValue(value.functionIds) },
-                      ] : [
-                        { label: "System", value: value.systemName ?? "—" },
-                        { label: "Model", value: value.ccf?.modelType ?? "—" },
-                        { label: "Members", value: listValue(value.ccf?.memberIds.map((member) => view.model.events.find((event) => event.id === member)?.code ?? member) ?? []) },
-                        { label: "Functions", value: listValue(value.functionIds) },
-                      ]} />
+                      <FieldList items={valueDetailItems(view, value, label)} />
                     </DetailRow>
                   )}
                 </Fragment>
@@ -660,10 +772,13 @@ function ModelScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => vo
   const { esq, editable, mutateEsq, upstream } = useEsqWorkbook();
   const [tab, setTab] = useState<ModelTab>("sequences");
   const tabId = useId();
-  const view = useMemo(() => modelViewOf(esq, upstream.options), [esq, upstream.options]);
+  const version = useUncertaintyVersion();
+  const missionTimes = useMemo(() => missionTimeTableOf(esq, upstream), [esq, upstream]);
+  const view = useMemo(() => (version < 0 ? undefined : modelViewOf(esq, upstream.options, missionTimes)), [esq, upstream.options, missionTimes, version]);
   const count = (n: number): string => (view === undefined ? "" : ` (${n})`);
   const tabs: { id: ModelTab; label: string }[] = [
     { id: "sequences", label: `Sequences${count(view?.sequences.length ?? 0)}` },
+    { id: "trees", label: `Trees${count(view?.trees.length ?? 0)}` },
     { id: "families", label: `Families${count(view?.families.length ?? 0)}` },
     { id: "functions", label: `Functions${count(view?.functions.length ?? 0)}` },
     { id: "initiators", label: `Initiators${count(view?.initiators.length ?? 0)}` },
@@ -698,6 +813,8 @@ function ModelScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => vo
             <p className="posmuted">Nothing is imported yet. Import from the linked workbooks above.</p>
           ) : tab === "sequences" ? (
             <SequencesTable view={view} openWindow={openWindow} />
+          ) : tab === "trees" ? (
+            <TreesTable view={view} openWindow={openWindow} />
           ) : tab === "families" ? (
             <FamiliesTable view={view} openWindow={openWindow} />
           ) : tab === "functions" ? (
@@ -859,8 +976,9 @@ function targetFrom(value: string, model: EsqModel, syWorkbookId: string): EsqFu
 function SplitRows({ target, model, disabled, onChange }: { target: EsqSplitFractionTarget; model: EsqModel; disabled: boolean; onChange: (next: EsqSplitFractionTarget) => void }): JSX.Element {
   const { esq } = useEsqWorkbook();
   const id = useId();
-  const parameters = model.parameters.filter((parameter) => SPLIT_PARAMETER_TYPES.has(parameter.parameterType));
+  const parameters = model.parameters.filter((parameter) => SPLIT_PARAMETER_TYPES.has(parameter.parameterType) && !isComponentModel(parameter.quantificationModel));
   const cells = (barrierWorkOf(esq).cells ?? []).filter((cell) => cell.use === "SPLIT_FRACTION" || cell.id === target.cellId);
+  const label = parameterLabelOf(esq);
   const from = target.cellId !== undefined ? `cell:${target.cellId}` : target.parameterId === undefined ? "typed" : `da:${target.parameterId}`;
   return (
     <>
@@ -871,7 +989,7 @@ function SplitRows({ target, model, disabled, onChange }: { target: EsqSplitFrac
           else onChange(next === "typed" ? { kind: "SPLIT_FRACTION" } : { kind: "SPLIT_FRACTION", parameterId: next.slice(3) });
         }}>
           <option value="typed">Typed in ESQ</option>
-          {cells.map((cell) => <option key={cell.id} value={`cell:${cell.id}`}>{`Step 04 · ${cell.id}${cell.familyId === undefined ? "" : ` · ${cell.familyId}`} · ${statText(cellValueOfRecord(cell))}`}</option>)}
+          {cells.map((cell) => <option key={cell.id} value={`cell:${cell.id}`}>{`Step 04 · ${cell.id}${cell.familyId === undefined ? "" : ` · ${cell.familyId}`} · ${cellRecordText(cell, label)}`}</option>)}
           {target.cellId !== undefined && !cells.some((cell) => cell.id === target.cellId) && <option value={`cell:${target.cellId}`}>{`Step 04 · ${target.cellId} · removed`}</option>}
           {parameters.map((parameter) => <option key={parameter.id} value={`da:${parameter.id}`}>{`DA · ${parameter.id} · ${statText(parameter.value)}`}</option>)}
         </select>
@@ -1019,9 +1137,11 @@ function InitiatorWindow({ id, onClose }: { id: string; onClose: () => void }): 
   const choice = entry.choice;
   const dis = !editable;
   const weighting = stateWeightingOf(esq);
-  const parameters = view.model.parameters.filter((parameter) => parameter.parameterType === "FREQUENCY");
-  const unit = frequencyUnitLabel(esq);
+  const parameters = view.model.parameters.filter((parameter) => parameter.quantificationModel === "FREQUENCY" && holdsEstimate(parameter.quantificationModel));
+  const options = frequencyOptions(esq);
+  const label = parameterLabelOf(esq);
   const base: EsqInitiatorChoice = choice ?? { groupId: id, source: "IE" };
+  const typedStart: UncertainExpression = base.expression ?? entry.record?.frequency?.expression ?? { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: DEFAULT_FREQUENCY } } };
 
   function save(next: EsqInitiatorChoice): void {
     if (!editable) return;
@@ -1032,7 +1152,7 @@ function InitiatorWindow({ id, onClose }: { id: string; onClose: () => void }): 
   function setSource(value: string): void {
     const shares = base.shares === undefined ? {} : { shares: base.shares };
     if (value === "ie") save({ groupId: id, source: "IE", ...shares });
-    else if (value === "typed") save({ groupId: id, source: "TYPED", ...shares, ...(base.mean === undefined ? {} : { mean: base.mean }), ...(base.errorFactor === undefined ? {} : { errorFactor: base.errorFactor }), ...(base.basis === undefined ? {} : { basis: base.basis }) });
+    else if (value === "typed") save({ groupId: id, source: "TYPED", ...shares, expression: typedStart, ...(base.basis === undefined ? {} : { basis: base.basis }) });
     else save({ groupId: id, source: "DA", parameterId: value.slice(3), ...shares });
   }
 
@@ -1049,22 +1169,18 @@ function InitiatorWindow({ id, onClose }: { id: string; onClose: () => void }): 
       <div className="modal__body esq-form">
         <FormRow label="Frequency from" htmlFor={`${fieldId}-from`}>
           <select id={`${fieldId}-from`} className="posfield__select" value={sourceValue} disabled={dis} onChange={(event) => setSource(event.target.value)}>
-            <option value="ie">{entry.record?.meanFrequency === undefined ? "IE" : `IE · ${sciText(entry.record.meanFrequency)}`}</option>
-            {parameters.map((parameter) => <option key={parameter.id} value={`da:${parameter.id}`}>{`DA · ${parameter.id} · ${statText(parameter.value)}`}</option>)}
+            <option value="ie">{entry.record?.frequency === undefined ? "IE" : `IE · ${expressionText(entry.record.frequency.expression, label)}`}</option>
+            {parameters.map((parameter) => <option key={parameter.id} value={`da:${parameter.id}`}>{`DA · ${parameter.id} · ${parameter.estimate === undefined ? "no estimate" : expressionText(parameter.estimate, label)}`}</option>)}
             {base.source === "DA" && base.parameterId !== undefined && !parameters.some((parameter) => parameter.id === base.parameterId) && <option value={`da:${base.parameterId}`}>{`DA · ${base.parameterId} · not imported`}</option>}
             <option value="typed">Typed in ESQ</option>
           </select>
         </FormRow>
         {base.source === "TYPED" && (
           <>
-            <FormRow label="Mean" htmlFor={`${fieldId}-mean`}>
-              <WorkbookInput id={`${fieldId}-mean`} type="number" className="posfield__input esq-form__number" value={base.mean ?? ""} disabled={dis} onChange={(event) => numberFrom(event.target.value, (mean) => save({ ...base, mean }))} />
-              <span className="esq-form__unit">{unit}</span>
+            <FormRow label="Frequency" top>
+              <ExpressionEditor expression={typedStart} unit="PER_YEAR" options={options} disabled={dis} onChange={(expression) => save({ ...base, expression })} />
             </FormRow>
-            <FormRow label="Error factor" htmlFor={`${fieldId}-ef`}>
-              <WorkbookInput id={`${fieldId}-ef`} type="number" className="posfield__input esq-form__number" value={base.errorFactor ?? ""} disabled={dis} onChange={(event) => numberFrom(event.target.value, (errorFactor) => save({ ...base, errorFactor }))} />
-              <span className="esq-form__unit">lognormal</span>
-            </FormRow>
+            <p className="esq-meta">{esq.quantificationPlan?.frequencyBasis?.value === "PER_REACTOR_YEAR" ? "Type the frequency per reactor-year." : "Type the frequency per plant-year."}</p>
             <ReasonRow label="Basis" value={base.basis ?? ""} disabled={dis} onChange={(basis) => save({ ...base, basis })} />
           </>
         )}
@@ -1089,17 +1205,72 @@ function InitiatorWindow({ id, onClose }: { id: string; onClose: () => void }): 
   );
 }
 
+function TreeWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
+  const { esq, editable, mutateEsq, upstream } = useEsqWorkbook();
+  const scWorkbookId = esq.linkedWorkbooks?.SC;
+  const options = useMemo(() => missionTimeSourcesOf(esq, upstream).flatMap((source) => scMissionTimeOptions(source.workbookId, source.sc)), [esq, upstream]);
+  const tree = esq.model?.trees.find((candidate) => candidate.id === id);
+  if (tree === undefined) return null;
+  return (
+    <>
+      <ModalHead cap="Event tree · ES · ESQ-A2" title={tree.name.length > 0 ? `${tree.code} · ${tree.name}` : tree.code} onClose={onClose} />
+      <div className="modal__body esq-form">
+        <p className="esq-meta">The mission time of the tree is typed here or linked to an SC mission time. Step 02 compares it with the mission time of each running event the tree asks.</p>
+        <FormRow label="Mission time" top>
+          <MissionTimeEditor expression={tree.missionTime} options={options} disabled={!editable} onChange={(missionTime) => mutateEsq((draft) => withTreeMissionTime(draft, id, missionTime))} />
+        </FormRow>
+        {scWorkbookId === undefined && <p className="esq-meta">Link SC in Step 01 to take the mission time from it.</p>}
+      </div>
+      <FormFoot onClose={onClose} />
+    </>
+  );
+}
+
+function CcfWindow({ value, onClose }: { value: EsqValueView; onClose: () => void }): JSX.Element {
+  const { esq, upstream } = useEsqWorkbook();
+  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const label = useMemo(() => parameterLabelOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const entries = useMemo(() => valuePointEntries([value]), [value]);
+  const points = useExpressionPoints(entries, table);
+  const ccf = value.ccf;
+  return (
+    <>
+      <ModalHead cap="Common cause group · SY · ESQ-A8" title={value.name.length > 0 ? `${value.code} · ${value.name}` : value.code} onClose={onClose} />
+      <div className="modal__body esq-form">
+        <p className="esq-meta">ESQ takes the factors and the group total as SY gives them. Change them in SY or DA and import again.</p>
+        {ccf?.factors === undefined ? <FormRow label="Factors"><span className="esq-form__note">Not given</span></FormRow> : (
+          <CcfFactorEditor factors={ccf.factors} groupSize={ccf.memberIds.length} disabled onChange={() => undefined} />
+        )}
+        <FormRow label="Group total"><span className="esq-form__note">{value.expression === undefined ? "Not given" : `${expressionText(value.expression, label)} · ${pointText(points.get(`CCF:${value.id}`))}`}</span></FormRow>
+        <FormRow label="Members"><span className="esq-form__note">{listValue(ccf?.memberIds.map((member) => esq.model?.events.find((event) => event.id === member)?.code ?? member) ?? [])}</span></FormRow>
+      </div>
+      <FormFoot onClose={onClose} />
+    </>
+  );
+}
+
 function ValueWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
-  const { esq, editable, mutateEsq } = useEsqWorkbook();
+  const { esq, editable, mutateEsq, upstream } = useEsqWorkbook();
   const fieldId = useId();
-  const view = modelViewOf(esq);
-  const value = view?.values.find((candidate) => candidate.kind === "EVENT" && candidate.id === id);
+  const view = useMemo(() => modelViewOf(esq), [esq]);
+  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const label = useMemo(() => parameterLabelOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const value = view?.values.find((candidate) => candidate.id === id);
+  const entries = useMemo(() => (value === undefined ? [] : valuePointEntries([value])), [value]);
+  const points = useExpressionPoints(entries, table);
   const event = value?.event;
+  if (value?.kind === "CCF") return <CcfWindow value={value} onClose={onClose} />;
   if (view === undefined || value === undefined || event === undefined) return null;
   const binding = value.binding;
   const dis = !editable;
-  const parameters = view.model.parameters.filter((parameter) => parameter.parameterType !== "FREQUENCY" && parameter.parameterType !== "CCF_PARAMETER");
-  const imported = `${holderText(event.heldBy, event.holderId)}${event.heldBy === "TYPED" && event.value !== undefined ? ` · ${sciText(event.value)}` : ""}`;
+  const parameters = view.model.parameters.filter((parameter) => (value.component ? isComponentModel(parameter.quantificationModel) : !isComponentModel(parameter.quantificationModel) && parameter.parameterType !== "FREQUENCY" && parameter.parameterType !== "CCF_PARAMETER"));
+  const syValue = event.expression !== undefined ? ` · ${expressionText(event.expression, label)}` : event.heldBy === "TYPED" && event.value !== undefined ? ` · ${sciText(event.value)}` : "";
+  const imported = `${holderText(event.heldBy, event.holderId)}${syValue}`;
+  const parameterText = (parameter: EsqParameterRecord): string => {
+    if (!isComponentModel(parameter.quantificationModel)) return `DA · ${parameter.id} · ${statText(parameter.value)}`;
+    return parameter.estimate === undefined ? `DA · ${parameter.id} · no estimate` : `DA · ${parameter.id} · ${expressionText(parameter.estimate, label)}`;
+  };
+  const nowText = value.expression !== undefined ? `${expressionText(value.expression, label)} · ${pointText(points.get(`EVENT:${value.id}`))}` : value.value !== undefined ? sciText(value.value) : value.problem ?? "No value";
 
   function setFrom(next: string): void {
     if (!editable) return;
@@ -1125,10 +1296,12 @@ function ValueWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.
         <FormRow label="Value from" htmlFor={`${fieldId}-from`}>
           <select id={`${fieldId}-from`} className="posfield__select" value={current} disabled={dis} onChange={(changeEvent) => setFrom(changeEvent.target.value)}>
             <option value="sy">{`As SY gives it · ${imported}`}</option>
-            {parameters.map((parameter) => <option key={parameter.id} value={`da:${parameter.id}`}>{`DA · ${parameter.id} · ${statText(parameter.value)}`}</option>)}
+            {parameters.map((parameter) => <option key={parameter.id} value={`da:${parameter.id}`}>{parameterText(parameter)}</option>)}
+            {binding?.heldBy === "DA" && !parameters.some((parameter) => parameter.id === binding.holderId) && <option value={current}>{`DA · ${binding.holderId} · cannot set this event`}</option>}
             {view.model.humanEvents.map((human) => <option key={human.id} value={`hr:${human.id}`}>{`HR · ${human.id} · ${statText(human.value)}`}</option>)}
           </select>
         </FormRow>
+        <FormRow label="Value now"><span className="esq-form__note">{nowText}</span></FormRow>
         {binding !== undefined && (
           <ReasonRow value={binding.reason} disabled={dis} onChange={(reason) => mutateEsq((draft) => withValueBinding(draft, id, { ...binding, reason }))} />
         )}
@@ -1145,6 +1318,7 @@ function ValueWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.
 function ModelWindows({ context, onClose, onRetarget }: { context: EsqWindowContext; onClose: () => void; onRetarget: (ctx: EsqWindowContext) => void }): JSX.Element | null {
   switch (context.kind) {
     case "esqSequence": return <SequenceWindow id={context.id} onClose={onClose} />;
+    case "esqTree": return <TreeWindow id={context.id} onClose={onClose} />;
     case "esqFamily": return <FamilyWindow id={context.id} onClose={onClose} onRetarget={onRetarget} />;
     case "esqFunction": return <FunctionWindow id={context.id} onClose={onClose} />;
     case "esqInitiator": return <InitiatorWindow id={context.id} onClose={onClose} />;

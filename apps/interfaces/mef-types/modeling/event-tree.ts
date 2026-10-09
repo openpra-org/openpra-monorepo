@@ -5,7 +5,8 @@ import type {
   MethodModelReference,
   WorkbookEntityId,
 } from "./shared";
-import type { AnnualizationConvention, EventFrequencyUnit } from "./quantitative-semantics";
+import type { AnnualizationConvention } from "./quantitative-semantics";
+import type { UncertainExpression } from "../core/uncertainty";
 
 interface EventTreeEntityIdentity {
   id: WorkbookEntityId;
@@ -18,16 +19,9 @@ interface EventTreeInitiatingEventReference {
   target: MethodEntityReference;
 }
 
-interface EventTreeControlledDataSourceReference {
-  workbookId: string;
-  parameterId: WorkbookEntityId;
-}
-
 interface EventTreeInitiatingEventFrequency {
-  value: number;
-  unit?: EventFrequencyUnit;
+  expression: UncertainExpression;
   annualization?: AnnualizationConvention;
-  controlledDataSource?: EventTreeControlledDataSourceReference;
 }
 
 interface EventTreeFunctionalEvent extends EventTreeEntityIdentity {
@@ -94,7 +88,6 @@ interface EventTreeDefinition {
 export type {
   EventTreeEntityIdentity,
   EventTreeInitiatingEventReference,
-  EventTreeControlledDataSourceReference,
   EventTreeInitiatingEventFrequency,
   EventTreeFunctionalEvent,
   EventTreeFunctionalEventFaultTreeLink,

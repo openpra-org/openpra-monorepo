@@ -56,6 +56,7 @@ import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/cor
 
 const NOW = "2026-05-26T12:00:00.000Z";
 const CREATED = "2026-05-21T09:00:00.000Z";
+const DA_LINK = "example-da-sfr";
 
 function srs(...codes: string[]): SRReference[] {
   return codes.map((code) => ({ sr: code, hlr: code.charAt(4) as HlrId }));
@@ -836,9 +837,9 @@ const uncertaintyPropagation: UncertaintyPropagation = {
   ],
   characterizationLevel: "PROPAGATED_RISK_SIGNIFICANT_SOKC",
   parameterUncertainties: [
-    { parameterRef: "DRC-LP1-FR", distribution: { type: DistributionType.LOGNORMAL, median: 5.0e-3, errorFactor: 5 }, basis: "The risk-significant natural-circulation loop parameter from the data analysis (DA-BE-031)." },
-    { parameterRef: "DC-BAT-A-FR", distribution: { type: DistributionType.LOGNORMAL, median: 4.2e-3, errorFactor: 4 }, basis: "The battery-train run parameter from the data analysis (DA-BE-071)." },
-    { parameterRef: "RPS-DVA-FS", distribution: { type: DistributionType.LOGNORMAL, median: 1.1e-3, errorFactor: 4 }, basis: "The protection division parameter from the data analysis (DA-BE-007)." },
+    { parameterRef: "DA-BE-031", estimate: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: DA_LINK, entityId: "DA-BE-031" } }, basis: "The risk-significant natural-circulation loop parameter from the data analysis (DA-BE-031)." },
+    { parameterRef: "DA-BE-071", estimate: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: DA_LINK, entityId: "DA-BE-071" } }, basis: "The battery-train run parameter from the data analysis (DA-BE-071)." },
+    { parameterRef: "DA-BE-007", estimate: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: DA_LINK, entityId: "DA-BE-007" } }, basis: "The protection division parameter from the data analysis (DA-BE-007)." },
   ],
   stateOfKnowledgeCorrelation: {
     isConsidered: true,
@@ -1006,13 +1007,13 @@ const barrierWork: EsqBarrierWork = {
       unit: "min",
       basis: "REALISTIC",
       load: {
-        distribution: { type: DistributionType.POINT_ESTIMATE, value: 60 },
-        uncertain: [],
+        source: "TYPED",
+        variable: { law: { family: "POINT", value: 60 }, fields: [] },
         basis: "HR-POST-005: the low DRACS flow alarm comes 25 min after the loss and the start takes 35 min, so backup decay heat removal restarts 60 min after it is lost.",
       },
       capacity: {
-        distribution: { type: DistributionType.UNIFORM, lower: 180, upper: 210 },
-        uncertain: [],
+        source: "TYPED",
+        variable: { law: { family: "UNIFORM", lower: 180, upper: 210 }, fields: [] },
         basis: "SC probes at full power with two DRACS loops: a start at 180 min keeps the cladding below 650 C and a start at 210 min does not (TF-CALC-06, TF-CALC-09).",
       },
       aging: "The probes use the end-of-cycle decay heat, so the heat-up window already holds its largest in-service load.",
@@ -1121,8 +1122,6 @@ const decisions: EsqRegisterDecision[] = [
   { id: "HS:SOURCE:HS-UNC-005", familyIds: [], caseIds: [], reason: "Concerns the consequence surrogate HS used for screening, which ESQ does not use." },
   { id: "HS:SOURCE:HS-UNC-006", familyIds: [], caseIds: [], reason: "The fire and seismic trees are quantified here once and their initiators are not added to the internal-events frequencies, so no family counts them twice. RI checks the overlap with the other hazard PRAs." },
 ];
-
-const DA_LINK = "example-da-sfr";
 
 const sensitivityWork: EsqSensitivityWork = {
   decisions,

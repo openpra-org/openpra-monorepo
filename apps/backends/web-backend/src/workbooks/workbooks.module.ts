@@ -14,6 +14,21 @@ import { WorkbookWorkflowService } from "./workbook-workflow.service";
 import { WorkbookCommentsService } from "./workbook-comments.service";
 import { WorkbookElementRegistry } from "./workbook-element-registry";
 import { WorkbookModelAccessService } from "./workbook-model-access.service";
+import { UncertaintyMigrationService } from "./uncertainty-migration.service";
+import { SyWorkbook, SyWorkbookSchema } from "../sy-workbooks/sy-workbook.schema";
+import { DaWorkbook, DaWorkbookSchema } from "../da-workbooks/da-workbook.schema";
+import { EsqWorkbook, EsqWorkbookSchema } from "../esq-workbooks/esq-workbook.schema";
+import { IeWorkbook, IeWorkbookSchema } from "../ie-workbooks/ie-workbook.schema";
+import { EsWorkbook, EsWorkbookSchema } from "../es-workbooks/es-workbook.schema";
+import { SeismicPraWorkbook, SeismicPraWorkbookSchema } from "../seismic-pra-workbooks/seismic-pra-workbook.schema";
+import { InternalFirePraWorkbook, InternalFirePraWorkbookSchema } from "../internal-fire-pra-workbooks/internal-fire-pra-workbook.schema";
+import { InternalFloodPraWorkbook, InternalFloodPraWorkbookSchema } from "../internal-flood-pra-workbooks/internal-flood-pra-workbook.schema";
+import { HighWindsPraWorkbook, HighWindsPraWorkbookSchema } from "../high-winds-pra-workbooks/high-winds-pra-workbook.schema";
+import { ExternalFloodPraWorkbook, ExternalFloodPraWorkbookSchema } from "../external-flood-pra-workbooks/external-flood-pra-workbook.schema";
+import { OtherHazardsPraWorkbook, OtherHazardsPraWorkbookSchema } from "../other-hazards-pra-workbooks/other-hazards-pra-workbook.schema";
+import { AnalysisRunRecord, AnalysisRunRecordSchema } from "../newly-developed-methods/shared/analysis-run-record.schema";
+import { PraetorAnalysisClient } from "../newly-developed-methods/shared/praetor-analysis.client";
+import { UncertaintyService } from "../newly-developed-methods/shared/uncertainty.service";
 
 @Module({
   imports: [
@@ -23,6 +38,18 @@ import { WorkbookModelAccessService } from "./workbook-model-access.service";
       { name: WorkbookSignoff.name, schema: WorkbookSignoffSchema },
       { name: User.name, schema: UserSchema },
       { name: Team.name, schema: TeamSchema },
+      { name: SyWorkbook.name, schema: SyWorkbookSchema },
+      { name: DaWorkbook.name, schema: DaWorkbookSchema },
+      { name: EsqWorkbook.name, schema: EsqWorkbookSchema },
+      { name: IeWorkbook.name, schema: IeWorkbookSchema },
+      { name: EsWorkbook.name, schema: EsWorkbookSchema },
+      { name: SeismicPraWorkbook.name, schema: SeismicPraWorkbookSchema },
+      { name: InternalFirePraWorkbook.name, schema: InternalFirePraWorkbookSchema },
+      { name: InternalFloodPraWorkbook.name, schema: InternalFloodPraWorkbookSchema },
+      { name: HighWindsPraWorkbook.name, schema: HighWindsPraWorkbookSchema },
+      { name: ExternalFloodPraWorkbook.name, schema: ExternalFloodPraWorkbookSchema },
+      { name: OtherHazardsPraWorkbook.name, schema: OtherHazardsPraWorkbookSchema },
+      { name: AnalysisRunRecord.name, schema: AnalysisRunRecordSchema },
     ]),
     ProjectsModule,
   ],
@@ -34,6 +61,9 @@ import { WorkbookModelAccessService } from "./workbook-model-access.service";
     WorkbookCommentsService,
     WorkbookElementRegistry,
     WorkbookModelAccessService,
+    PraetorAnalysisClient,
+    UncertaintyService,
+    UncertaintyMigrationService,
   ],
   exports: [
     MongooseModule,

@@ -8,7 +8,7 @@ import type {
   WorkbookModelAddress,
 } from "./method-model";
 
-const WorkbookMethodHostTypeSchema = z.enum(["SY", "ES", "ESQ", "DA", "HRA"]);
+const WorkbookMethodHostTypeSchema = z.enum(["SY", "ES", "ESQ", "DA", "HRA", "SC"]);
 const WorkbookReferencePathSchema = z
   .string()
   .startsWith("/", "Reference path must be a JSON pointer");

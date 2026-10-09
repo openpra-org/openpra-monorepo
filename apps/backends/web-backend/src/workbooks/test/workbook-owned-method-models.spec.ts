@@ -152,7 +152,7 @@ function createEventTreeMef(): EventSequenceAnalysis {
       uuid: "ET-01",
       name: "Loss of flow",
       initiatingEventId: "IE-01",
-      initiatingEventFrequency: { value: 0.02 },
+      initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 0.02 } } } },
       functionalEvents: {},
       sequences: {},
       branches: {},
@@ -571,7 +571,7 @@ describe("workbook-owned method-model APIs", () => {
     expect(patched.body.mef.eventTrees[0]).toMatchObject({
       uuid: "ET-01",
       name: "Updated loss of flow",
-      initiatingEventFrequency: { value: 0.02 },
+      initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 0.02 } } } },
     });
     expect((esDocument.mef as EventSequenceAnalysis).eventTrees?.[0]?.name).toBe(
       "Updated loss of flow",

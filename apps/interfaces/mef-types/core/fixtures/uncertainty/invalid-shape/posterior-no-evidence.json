@@ -1,0 +1,24 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PER_HOUR",
+        "law": {
+          "family": "POSTERIOR",
+          "prior": {
+            "family": "GAMMA",
+            "shape": 1,
+            "rate": 100000
+          },
+          "evidence": []
+        }
+      }
+    }
+  }
+]

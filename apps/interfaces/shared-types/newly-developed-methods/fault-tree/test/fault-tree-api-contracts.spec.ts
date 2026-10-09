@@ -340,6 +340,43 @@ describe("fault-tree execution and analysis-result contracts", () => {
     }).success).toBe(false);
   });
 
+  it("defaults the sampling method to Monte Carlo and accepts Latin hypercube", () => {
+    expect(FaultTreeExecuteRequestSchema.parse(executeRequest).settings.samplingMethod).toBe("MONTE_CARLO");
+    const uncertaintyRequest = { ...executeRequest, calculationType: "UNCERTAINTY", settings: { samplingMethod: "LATIN_HYPERCUBE", numTrials: 2_000 } };
+    expect(FaultTreeExecuteRequestSchema.parse(uncertaintyRequest).settings).toMatchObject({ samplingMethod: "LATIN_HYPERCUBE", numTrials: 2_000, seed: 847 });
+    expect(FaultTreeExecuteRequestSchema.safeParse({ ...uncertaintyRequest, settings: { samplingMethod: "SOBOL" } }).success).toBe(false);
+  });
+
+  it("accepts an uncertainty result with its samples and the basic-event expressions", () => {
+    const uncertainty = {
+      mean: 0.021,
+      standardDeviation: 0.012,
+      standardError: 2.7e-4,
+      quantiles: [{ probability: 0.05, value: 0.006 }, { probability: 0.95, value: 0.044 }],
+      samples: [0.018, 0.024],
+      sampleCount: 2_000,
+      seed: 847,
+      samplingMethod: "LATIN_HYPERCUBE",
+    };
+    const trace = {
+      basicEventId: BASIC_EVENT_ID,
+      expression: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "pump-start" } },
+      pointProbability: 0.1,
+    };
+    const result = { ...analysisResult, calculationType: "UNCERTAINTY", uncertainty, basicEventQuantifications: [trace] };
+    expect(FaultTreeAnalysisResultSchema.safeParse(result).success).toBe(true);
+    expect(FaultTreeAnalysisResultSchema.safeParse({ ...result, uncertainty: { ...uncertainty, samplingMethod: undefined } }).success).toBe(false);
+    expect(FaultTreeAnalysisResultSchema.safeParse({ ...result, uncertainty: { ...uncertainty, samples: [1.2] } }).success).toBe(false);
+    expect(FaultTreeAnalysisResultSchema.safeParse({
+      ...result,
+      uncertainty: { mean: 0.021, standardDeviation: 0.012, errorFactor: 3.2, quantiles: [], sampleCount: 2_000, seed: 847 },
+    }).success).toBe(false);
+    expect(FaultTreeAnalysisResultSchema.safeParse({
+      ...result,
+      basicEventQuantifications: [{ basicEventId: BASIC_EVENT_ID, input: { value: 0.1 }, resolvedProbability: 0.1 }],
+    }).success).toBe(false);
+  });
+
   it.each([0, 1])("accepts boundary probability %s", (topEventProbability) => {
     expect(FaultTreeAnalysisResultSchema.safeParse({
       ...analysisResult, topEventProbability,

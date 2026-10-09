@@ -2,7 +2,6 @@ import { Fragment, JSX, useId, useState } from "react";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import type { PreOperationalAssumption } from "interfaces-mef-types/core/documentation";
 import type {
-  DataAnalysis,
   DataAnalysisParameter,
   DaPriorForm,
   DaSensitivityCase,
@@ -10,14 +9,17 @@ import type {
   DaUncertaintyAlternative,
   DaUncertaintySource,
 } from "interfaces-mef-types/da/data-analysis";
+import { useUncertaintyVersion } from "../newly-developed-methods/shared/useUncertainty";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { ClampCell, DaProvenanceChip, DaTabs, DetailRow, DetailToggle, FieldList, FormFoot, FormRow, ModalHead, PlotToggle } from "./daShared";
 import { DistributionChart, useElementWidth } from "./daDistributionChart";
-import { correlationGroups, distributionSummary, sensitivityResult, uncertaintyFindings } from "./daUncertainty";
+import { correlationGroups, distributionSummary, sensitivityResult, uncertaintyFindings, type DaDistributionSummary } from "./daUncertainty";
+import { hasSpread } from "./daFailures";
+import { lawParameter, lawSummary } from "./daLaws";
 import { nextCode } from "./daSourcing";
 import { useDaWorkbook } from "./daWorkbookContext";
 import { CCF_TESTING_LABELS, PRIOR_FORM_LABELS, SENSITIVITY_KIND_LABELS } from "./daViewData";
-import { AreaRow, LinesRow, NEED_PAGE, NeedChecksTable, NeedPager, statText, type DaDrawerContext } from "./daScreens";
+import { AreaRow, EstimateRows, LinesRow, NEED_PAGE, NeedChecksTable, NeedPager, PraxisValue, estimateText, statText, waitNote, type DaDrawerContext } from "./daScreens";
 import { NumberInput, TextRow } from "./daSourcesScreen";
 import { TypedValueRows, useText } from "./daUnavailabilityScreen";
 
@@ -66,14 +68,48 @@ function factorText(value: number | undefined): string {
   return value === undefined ? "—" : String(Number(value.toPrecision(3)));
 }
 
+function summaryText(summary: DaDistributionSummary, value: number | undefined): string {
+  if (summary.pending === true) return "…";
+  if (summary.problem !== undefined) return `PRAXIS failed: ${summary.problem}`;
+  return statText(value);
+}
+
+function ComponentDistributionDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.Element {
+  const { da } = useDaWorkbook();
+  useUncertaintyVersion();
+  const summary = distributionSummary(da, parameter);
+  const unit = unitOf(parameter);
+  const estimate = parameter.estimate;
+  const curve = estimate?.node === "VALUE" ? lawSummary(estimate.value.unit, estimate.value.law, true) : undefined;
+  const sampled = summary.sampled === true ? ", sampled" : "";
+  const note = summary.pending === true ? "Waiting for PRAXIS." : summary.problem !== undefined ? `PRAXIS failed: ${summary.problem}` : waitNote([curve]);
+  return (
+    <>
+      <FieldList items={[
+        { label: "Estimate", value: estimateText(estimate) },
+        { label: "Mean", value: `${summaryText(summary, summary.mean)} ${unit}${sampled}` },
+        { label: "Percentiles", value: summary.pending === true || summary.problem !== undefined || summary.mean === undefined ? summaryText(summary, undefined) : `5th ${statText(summary.p05)}, median ${statText(summary.median)}, 95th ${statText(summary.p95)}${sampled}` },
+        { label: "95th over median", value: factorText(summary.errorFactor) },
+        { label: "Coefficient of variation", value: factorText(summary.cv) },
+        { label: "Risk significant", value: parameter.isRiskSignificant === true ? "Yes" : "No" },
+        { label: "Characterization", value: parameter.uncertaintyNote ?? "—" },
+      ]} />
+      {note !== undefined && <p className="posmuted">{note}</p>}
+      {estimate !== undefined && estimate.node !== "VALUE" && note === undefined && <p className="da-needs__meta">The estimate is a model of other values, so its percentiles come from sampling and it has no single curve.</p>}
+      {curve?.status === "ready" && <DistributionChart series={[{ key: parameter.uuid, label: parameter.uuid, detail: unit, summary: curve.value }]} unit={unit} />}
+    </>
+  );
+}
+
 function DistributionDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.Element {
   const { da } = useDaWorkbook();
+  if (lawParameter(parameter)) return <ComponentDistributionDetail parameter={parameter} />;
   const summary = distributionSummary(da, parameter);
   const unit = unitOf(parameter);
   return (
     <>
       <FieldList items={[
-        { label: "Value", value: `${statText(parameter.value)} ${unit}, ${parameter.valueType === "MEAN" ? "a mean" : "a point value"}` },
+        { label: "Value", value: `${statText(parameter.value)} ${unit}, ${parameter.valueType === "POINT_ESTIMATE" ? "a point value" : "a mean"}` },
         { label: "Distribution", value: summary.distribution === undefined ? "None" : summary.family },
         { label: "Percentiles", value: summary.mean === undefined ? "—" : `5th ${statText(summary.p05)}, median ${statText(summary.median)}, 95th ${statText(summary.p95)}` },
         { label: "95th over median", value: factorText(summary.errorFactor) },
@@ -87,17 +123,28 @@ function DistributionDetail({ parameter }: { parameter: DataAnalysisParameter })
   );
 }
 
+function meanCell(summary: DaDistributionSummary, parameter: DataAnalysisParameter): JSX.Element {
+  if (summary.pending === true) return <PraxisValue state={{ status: "pending" }} />;
+  if (summary.problem !== undefined && lawParameter(parameter)) return <PraxisValue state={{ status: "failed", error: summary.problem }} />;
+  return <>{statText(summary.mean ?? parameter.value)}</>;
+}
+
+function withoutSpread(parameter: DataAnalysisParameter, summary: DaDistributionSummary): boolean {
+  if (lawParameter(parameter)) return parameter.estimate === undefined || !hasSpread(parameter.estimate);
+  return summary.distribution === undefined || summary.family === "Point";
+}
+
 function DistributionsTable({ selected, onSelect, openDrawer }: { selected: string; onSelect: (key: string) => void; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [page, setPage] = useState(0);
   const [show, setShow] = useState("all");
   const filterId = useId();
   const [wrapRef, wrapWidth] = useElementWidth(0);
-  const parameters = da.parameters.filter((parameter) => parameter.value !== undefined || parameter.uncertainty !== undefined);
+  const parameters = da.parameters.filter((parameter) => parameter.value !== undefined || parameter.uncertainty !== undefined || parameter.estimate !== undefined);
   const rows = parameters.filter((parameter) => {
     if (show === "all") return true;
-    const summary = distributionSummary(da, parameter);
-    if (show === "none") return summary.distribution === undefined || summary.family === "Point";
+    if (show === "none") return withoutSpread(parameter, distributionSummary(da, parameter));
     return parameter.isRiskSignificant === true;
   });
   const { current, shown } = pageOf(rows, page);
@@ -125,7 +172,7 @@ function DistributionsTable({ selected, onSelect, openDrawer }: { selected: stri
                     <td className="da-rowtable__pick"><PlotToggle open={open} label={parameter.uuid} onToggle={() => onSelect(open ? "" : parameter.uuid)} /></td>
                     <td><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daDistribution", id: parameter.uuid }); }}>{parameter.uuid}</button></td>
                     <td className="da-rowtable__text">{summary.family}</td>
-                    <td className="da-rowtable__num">{statText(summary.mean ?? parameter.value)}</td>
+                    <td className="da-rowtable__num">{meanCell(summary, parameter)}</td>
                     <td className="da-rowtable__num">{factorText(summary.errorFactor)}</td>
                   </tr>
                   {open && <DetailRow span={5} width={wrapWidth - 18}><DistributionDetail parameter={parameter} /></DetailRow>}
@@ -230,6 +277,7 @@ function RegisterTable({ selected, onSelect, openDrawer }: { selected: string; o
 
 function SensitivityTable({ selected, onSelect, openDrawer }: { selected: string; onSelect: (key: string) => void; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [wrapRef, wrapWidth] = useElementWidth(0);
   const cases = da.sensitivityCases ?? [];
   if (cases.length === 0) return <p className="posmuted">No sensitivity case yet. Each key register entry needs one.</p>;
@@ -247,8 +295,8 @@ function SensitivityTable({ selected, onSelect, openDrawer }: { selected: string
                   <td className="da-rowtable__pick"><DetailToggle open={open} label={item.id} onToggle={() => onSelect(open ? "" : item.id)} /></td>
                   <td><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daSensitivity", id: item.id }); }}>{item.id}</button></td>
                   <td className="da-rowtable__text">{item.parameterId ?? item.estimateId ?? "—"}</td>
-                  <td className="da-rowtable__num">{result.problem !== undefined ? <span className="da-severity da-severity--error">Cannot compute</span> : statText(result.low)}</td>
-                  <td className="da-rowtable__num">{result.problem !== undefined ? "—" : statText(result.high)}</td>
+                  <td className="da-rowtable__num">{result.pending === true ? <PraxisValue state={{ status: "pending" }} /> : result.problem !== undefined ? <span className="da-severity da-severity--error" title={result.problem}>Cannot compute</span> : statText(result.low)}</td>
+                  <td className="da-rowtable__num">{result.pending === true ? <PraxisValue state={{ status: "pending" }} /> : result.problem !== undefined ? "—" : statText(result.high)}</td>
                 </tr>
                 {open && (
                   <DetailRow span={5} width={wrapWidth - 18}>
@@ -257,7 +305,7 @@ function SensitivityTable({ selected, onSelect, openDrawer }: { selected: string
                       { label: "Kind", value: SENSITIVITY_KIND_LABELS[item.kind] },
                       { label: "Changes", value: result.label },
                       { label: "Base", value: `${statText(result.base)} ${result.unit}` },
-                      { label: "Range", value: result.problem ?? `${statText(result.low)} to ${statText(result.high)} ${result.unit}` },
+                      { label: "Range", value: result.pending === true ? "…" : result.problem ?? `${statText(result.low)} to ${statText(result.high)} ${result.unit}` },
                       { label: "Why", value: item.reason || "—" },
                       { label: "Results", value: item.results ?? "—" },
                     ]} />
@@ -315,6 +363,7 @@ function AssumptionsTable({ selected, onSelect, openDrawer }: { selected: string
 
 function UncertaintyScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da, editable, mutateDa } = useDaWorkbook();
+  useUncertaintyVersion();
   const [tab, setTab] = useState<UncertaintyTab>("distributions");
   const [keys, setKeys] = useState<Record<string, string>>({});
   const tabId = useId();
@@ -415,7 +464,9 @@ function DistributionWindow({ id, onClose, onRetarget }: { id: string; onClose: 
     <>
       <ModalHead cap="Distribution · DA-D3" title={`${parameter.uuid} · ${nameOf(parameter)}`} onClose={onClose} />
       <div className="modal__body da-form">
-        {typed ? <TypedValueRows parameter={parameter} disabled={dis} onPatch={patch} /> : <p className="da-needs__meta">{parameter.valueMode === "LINKED" ? "The value and its distribution follow the workbook it is imported from." : "The distribution comes from the estimate in its own step."}</p>}
+        {typed && lawParameter(parameter) && <EstimateRows parameter={parameter} disabled={dis} onPatch={patch} />}
+        {typed && !lawParameter(parameter) && <TypedValueRows parameter={parameter} disabled={dis} onPatch={patch} />}
+        {!typed && <p className="da-needs__meta">{parameter.valueMode === "LINKED" ? "The value and its distribution follow the workbook it is imported from." : "The distribution comes from the estimate in its own step."}</p>}
         <AreaRow label="Characterization" value={parameter.uncertaintyNote ?? ""} disabled={dis} onChange={(text) => patch({ uncertaintyNote: text.trim().length === 0 ? undefined : text })} />
         <FormRow label="Risk significant" htmlFor={`${fieldId}-risk`}>
           <select id={`${fieldId}-risk`} className="posfield__select" value={parameter.isRiskSignificant === true ? "yes" : "no"} disabled={dis} onChange={(event) => patch({ isRiskSignificant: event.target.value === "yes" })}>
@@ -499,6 +550,7 @@ function SourceWindow({ id, onClose }: { id: string; onClose: () => void }): JSX
 
 function SensitivityWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
   const { da, editable, mutateDa } = useDaWorkbook();
+  useUncertaintyVersion();
   const fieldId = useId();
   const item = (da.sensitivityCases ?? []).find((candidate) => candidate.id === id);
   if (item === undefined) return null;

@@ -1,0 +1,58 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PER_HOUR",
+        "law": {
+          "family": "POPULATION",
+          "mu": {
+            "family": "MIXTURE",
+            "components": [
+              {
+                "weight": 0.5,
+                "law": {
+                  "family": "UNIFORM",
+                  "lower": -14,
+                  "upper": -10
+                }
+              },
+              {
+                "weight": 0.5,
+                "law": {
+                  "family": "UNIFORM",
+                  "lower": -10,
+                  "upper": -5
+                }
+              }
+            ]
+          },
+          "sigma": {
+            "family": "UNIFORM",
+            "lower": 0.1,
+            "upper": 3
+          },
+          "upper": null,
+          "evidence": [
+            {
+              "likelihood": "POISSON",
+              "failures": 1,
+              "exposure": 100000
+            },
+            {
+              "likelihood": "POISSON",
+              "failures": 4,
+              "exposure": 200000
+            }
+          ],
+          "target": null
+        }
+      }
+    }
+  }
+]

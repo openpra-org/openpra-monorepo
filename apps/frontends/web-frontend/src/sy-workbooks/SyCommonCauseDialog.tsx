@@ -1,78 +1,79 @@
 import { JSX } from "react";
-import type { CommonCauseFailureGroup, SystemBasicEvent, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { carriesUncertainExpression, type CommonCauseFailureGroup, type SystemBasicEvent, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { CcfFactorEditor, ExpressionEditor } from "../newly-developed-methods/shared/uncertainEditor";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { DialogHead } from "./syShared";
+import { DialogHead, PointValue } from "./syShared";
 import { ListEditor } from "./SySystemDialogs";
-import { CCF_MODELS, SHARED_CAUSE_KEYS, SHARED_CAUSE_LABELS, toExp } from "./syViewData";
+import { SHARED_CAUSE_KEYS, SHARED_CAUSE_LABELS, toExp } from "./syViewData";
 import {
-  SUPPORTED_CCF_MODELS,
-  ccfFactors,
-  defaultCcfParameters,
-  estimateFactorText,
-  estimateParameters,
-  isSupportedCcfModel,
+  ccfFactorText,
+  ccfModelText,
+  fittedFactors,
   linkedEstimate,
-  memberProbability,
-  parametersFromValues,
-  totalFailureProbability,
+  sharedMemberExpression,
+  uniqueMemberIds,
   validateCcfGroup,
-  withTotalProbability,
-  type SupportedCcfModel,
+  withMemberTotal,
 } from "./syCcf";
 import { systemTree } from "./syFailureRecords";
+import { useEventPoints, useExpressionPoints } from "./syBasicEventValues";
+import { useSyValueSources } from "./syMissionTimes";
 import { useSyWorkbook, type SyControlledCcfEstimateOption } from "./syWorkbookContext";
 
 type SharedCauseKey = typeof SHARED_CAUSE_KEYS[number];
 
 const EXCLUDED_MEMBER_MODES = new Set(["COMMON_CAUSE_FAILURE", "HUMAN_ERROR", "TEST_MAINTENANCE"]);
 
-const MGL_INPUT_LABELS = ["Beta", "Gamma", "Delta"];
+const VALUE_MODELS = ["MISSION", "STANDBY"] as const;
 
 function estimateKey(workbookId: string, estimateId: string): string {
   return JSON.stringify([workbookId, estimateId]);
 }
 
-function estimateLabel(option: SyControlledCcfEstimateOption): string {
-  return `${option.workbookName} · ${option.estimateId} for ${option.groupReference} · ${CCF_MODELS[option.modelType]?.label ?? option.modelType} ${estimateFactorText(option)}`;
+function estimateLabel(option: SyControlledCcfEstimateOption, label: (key: string) => string): string {
+  return `${option.workbookName} · ${option.estimateId} for ${option.groupReference} · ${ccfModelText(option.factors)} ${ccfFactorText(option.factors, label)}`;
 }
 
 function listOrUndefined(items: string[]): string[] | undefined {
   return items.length === 0 ? undefined : items;
 }
 
-function factorCount(modelType: string, memberCount: number): number {
-  if (modelType === "BETA_FACTOR") return 1;
-  if (modelType === "MGL") return Math.max(1, memberCount - 1);
-  return Math.max(2, memberCount);
-}
-
-function factorLabel(modelType: string, index: number): string {
-  if (modelType === "BETA_FACTOR") return "Beta";
-  if (modelType === "MGL") return MGL_INPUT_LABELS[index] ?? `Factor ${index + 1}`;
-  return `${modelType === "ALPHA_FACTOR" ? "Alpha" : "Phi"} ${index + 1}`;
-}
-
 function componentsOf(events: readonly SystemBasicEvent[]): string[] {
   return [...new Set(events.map((event) => event.componentReference ?? event.code ?? event.uuid))];
 }
 
-function withMemberTotal(group: CommonCauseFailureGroup, analysis: SystemsAnalysis): CommonCauseFailureGroup {
-  const total = memberProbability(group, analysis);
-  const parameters = total === null ? null : withTotalProbability(group, total);
-  return parameters === null ? group : { ...group, modelSpecificParameters: parameters };
+function shownEvents(group: CommonCauseFailureGroup | undefined, analysis: SystemsAnalysis): SystemBasicEvent[] {
+  if (group === undefined) return [];
+  const systems = group.scope === "INTERSYSTEM" ? group.affectedSystems : group.affectedSystems.slice(0, 1);
+  const ids = new Set([...systems.flatMap((systemId) => systemTree(analysis, systemId).events.map((event) => event.uuid)), ...(group.members?.basicEvents.map((member) => member.id) ?? [])]);
+  return analysis.systemBasicEvents.filter((event) => ids.has(event.uuid));
+}
+
+function shownTotal(group: CommonCauseFailureGroup | undefined, analysis: SystemsAnalysis): UncertainExpression[] {
+  if (group === undefined) return [];
+  return [sharedMemberExpression(group, analysis) ?? group.total];
 }
 
 function CommonCauseDialog({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
   const { sy, editable, mutateSy, shortOf, controlledCcfEstimates } = useSyWorkbook();
+  const values = useSyValueSources();
   const found = sy.commonCauseFailureGroups.find((candidate) => candidate.uuid === id);
+  const points = useEventPoints(shownEvents(found, sy), values.table);
+  const [totalPoint] = useExpressionPoints(shownTotal(found, sy), values.table);
+
   if (found === undefined) return null;
   const group = found;
+  const label = values.label;
   const ownerId = group.affectedSystems[0] ?? "";
+  const ownerMissionTime = sy.systemDefinitions.find((system) => system.uuid === ownerId)?.missionTime;
   const coupled = group.affectedSystems.slice(1);
   const reference = group.dataAnalysisCCFParameterRef ?? "";
   const linked = reference.length > 0;
   const estimate = linkedEstimate(group, controlledCcfEstimates);
   const issues = validateCcfGroup(group, sy, controlledCcfEstimates);
+  const sharedValue = sharedMemberExpression(group, sy);
   const memberIds = group.members?.basicEvents.map((member) => member.id) ?? [];
   const scopeSystems = group.scope === "INTERSYSTEM" ? group.affectedSystems : [ownerId];
   const listed = new Set<string>();
@@ -84,8 +85,6 @@ function CommonCauseDialog({ id, onClose }: { id: string; onClose: () => void })
   const strays = memberIds.filter((memberId) => !listed.has(memberId));
   const eventById = new Map(sy.systemBasicEvents.map((event) => [event.uuid, event]));
   const shared = group.sharedCauseFactors ?? {};
-  const factorValues = ccfFactors(group).map((factor) => factor.value);
-  const typedCount = factorCount(group.modelType, memberIds.length);
   const sr = group.scope === "INTRASYSTEM" ? "SY-B1, B3, B4" : "SY-B2, B3, B4";
   const selectedKey = estimate === undefined ? "" : estimateKey(estimate.workbookId, estimate.estimateId);
 
@@ -97,18 +96,16 @@ function CommonCauseDialog({ id, onClose }: { id: string; onClose: () => void })
     }));
   }
 
-  function currentTotal(): number {
-    return memberProbability(group, sy) ?? totalFailureProbability(group) ?? 0;
-  }
-
   function setMembers(ids: string[]): void {
     const unique = [...new Set(ids)];
+    const next = { ...group, members: { basicEvents: unique.map((memberId) => ({ id: memberId })) } };
     commit({
-      members: { basicEvents: unique.map((memberId) => ({ id: memberId })) },
+      members: next.members,
       affectedComponents: componentsOf(unique.flatMap((memberId) => {
         const event = eventById.get(memberId);
         return event === undefined ? [] : [event];
       })),
+      ...(linked ? {} : { factors: fittedFactors(group.factors, uniqueMemberIds(next).length) }),
     });
   }
 
@@ -138,12 +135,7 @@ function CommonCauseDialog({ id, onClose }: { id: string; onClose: () => void })
   }
 
   function applyEstimate(option: SyControlledCcfEstimateOption): void {
-    commit({
-      dataAnalysisCCFParameterRef: option.estimateId,
-      modelType: option.modelType,
-      modelSpecificParameters: estimateParameters(option, currentTotal()),
-      dataSources: undefined,
-    });
+    commit({ dataAnalysisCCFParameterRef: option.estimateId, factors: option.factors, dataSources: undefined });
   }
 
   function pickSource(key: string): void {
@@ -153,20 +145,6 @@ function CommonCauseDialog({ id, onClose }: { id: string; onClose: () => void })
     }
     const option = controlledCcfEstimates.find((candidate) => estimateKey(candidate.workbookId, candidate.estimateId) === key);
     if (option !== undefined) applyEstimate(option);
-  }
-
-  function setModel(value: string): void {
-    const modelType: SupportedCcfModel = isSupportedCcfModel(value) ? value : "BETA_FACTOR";
-    if (modelType === group.modelType) return;
-    commit({ modelType, modelSpecificParameters: defaultCcfParameters(modelType, memberIds.length, currentTotal()) });
-  }
-
-  function setFactor(index: number, text: string): void {
-    const value = Number(text);
-    if (text.trim().length === 0 || !Number.isFinite(value)) return;
-    const modelType: SupportedCcfModel = isSupportedCcfModel(group.modelType) ? group.modelType : "BETA_FACTOR";
-    const values = Array.from({ length: typedCount }, (_, position) => (position === index ? value : (factorValues[position] ?? 0)));
-    commit({ modelType, modelSpecificParameters: parametersFromValues(modelType, values, currentTotal()) });
   }
 
   function setTypedSource(text: string): void {
@@ -183,12 +161,31 @@ function CommonCauseDialog({ id, onClose }: { id: string; onClose: () => void })
     }));
   }
 
+  function memberValue(event: SystemBasicEvent): JSX.Element {
+    if (!carriesUncertainExpression(event.failureMode)) return <span className="posmono">{event.probability === undefined ? "No probability" : toExp(event.probability)}</span>;
+    if (event.expression === undefined) return <span className="sy-review-none">No value</span>;
+    return <><PointValue state={points.get(event.uuid)} />{" "}<span className="sy-review-sub">{expressionText(event.expression, label)}</span></>;
+  }
+
   function memberCheck(event: SystemBasicEvent): JSX.Element {
     return (
       <label key={event.uuid} className="sy-dialog-check">
         <input type="checkbox" checked={memberIds.includes(event.uuid)} disabled={!editable} onChange={(change) => toggleMember(event.uuid, change.target.checked)} />
-        <span>{event.name}</span>{" "}<span className="posmono">{event.probability === undefined ? "No probability" : toExp(event.probability)}</span>
+        <span>{event.name}</span>{" "}{memberValue(event)}
       </label>
+    );
+  }
+
+  function totalField(): JSX.Element {
+    if (sharedValue !== null) {
+      return <div><PointValue state={totalPoint} />{" "}<span className="sy-review-sub">From the member value. {expressionText(sharedValue, label)}</span></div>;
+    }
+    if (!editable) return <div><PointValue state={totalPoint} />{" "}<span className="sy-review-sub">{expressionText(group.total, label)}</span></div>;
+    return (
+      <>
+        <ExpressionEditor expression={group.total} unit="PROBABILITY" options={values.options} models={VALUE_MODELS} defaultTime={ownerMissionTime} disabled={!editable} onChange={(total) => commit({ total })} />
+        <span className="sy-review-sub">Point value <PointValue state={totalPoint} /></span>
+      </>
     );
   }
 
@@ -268,36 +265,28 @@ function CommonCauseDialog({ id, onClose }: { id: string; onClose: () => void })
                 {linked && estimate === undefined && <option value={reference}>{reference} · linked estimate unavailable</option>}
                 {controlledCcfEstimates.map((option) => {
                   const key = estimateKey(option.workbookId, option.estimateId);
-                  return <option key={key} value={key}>{estimateLabel(option)}</option>;
+                  return <option key={key} value={key}>{estimateLabel(option, label)}</option>;
                 })}
               </select>
-            ) : <div>{estimate === undefined ? (linked ? reference : "Not linked") : estimateLabel(estimate)}</div>}
+            ) : <div>{estimate === undefined ? (linked ? reference : "Not linked") : estimateLabel(estimate, label)}</div>}
+          </div>
+          <div className="posfield posfield-grid--span2" role="group" aria-label="Factors">
+            <span className="posfield__label">Factors</span>
+            {linked || !editable ? (
+              <div><span>{ccfModelText(group.factors)}</span>{" "}<span className="sy-review-sub posmono">{ccfFactorText(group.factors, label)}</span></div>
+            ) : (
+              <CcfFactorEditor factors={group.factors} groupSize={uniqueMemberIds(group).length} disabled={!editable} onChange={(factors) => commit({ factors })} />
+            )}
           </div>
           {!linked && (
-            <>
-              <div className="posfield"><label className="posfield__label">Model</label>
-                {editable ? (
-                  <select className="posfield__select" aria-label="Model" value={group.modelType} onChange={(change) => setModel(change.target.value)}>
-                    {SUPPORTED_CCF_MODELS.map((modelType) => <option key={modelType} value={modelType}>{CCF_MODELS[modelType]?.label ?? modelType}</option>)}
-                  </select>
-                ) : <div>{CCF_MODELS[group.modelType]?.label ?? group.modelType}</div>}
-              </div>
-              {Array.from({ length: typedCount }, (_, index) => {
-                const label = factorLabel(group.modelType, index);
-                const value = factorValues[index];
-                return (
-                  <div key={label} className="posfield"><label className="posfield__label">{label}</label>
-                    {editable
-                      ? <WorkbookInput className="posfield__input posmono" type="number" min="0" max="1" step="any" aria-label={label} value={value ?? ""} onChange={(change) => setFactor(index, change.target.value)} />
-                      : <div className="posmono">{value ?? ""}</div>}
-                  </div>
-                );
-              })}
-              <div className="posfield posfield-grid--span2"><label className="posfield__label">Parameter source</label>
-                {editable ? <WorkbookInput className="posfield__input" aria-label="Parameter source" value={group.dataSources?.[0]?.reference ?? ""} onChange={(change) => setTypedSource(change.target.value)} /> : <div>{group.dataSources?.[0]?.reference ?? ""}</div>}
-              </div>
-            </>
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">Parameter source</label>
+              {editable ? <WorkbookInput className="posfield__input" aria-label="Parameter source" value={group.dataSources?.[0]?.reference ?? ""} onChange={(change) => setTypedSource(change.target.value)} /> : <div>{group.dataSources?.[0]?.reference ?? ""}</div>}
+            </div>
           )}
+          <div className="posfield posfield-grid--span2" role="group" aria-label="Total failure probability">
+            <span className="posfield__label">Qₜ</span>
+            {totalField()}
+          </div>
           <div className="posfield posfield-grid--span2"><label className="posfield__label">Risk significance</label>
             {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} aria-label="Risk significance" value={group.riskSignificanceJustification ?? ""} onChange={(change) => commit({ riskSignificanceJustification: change.target.value.trim().length > 0 ? change.target.value : undefined })} /> : <div>{group.riskSignificanceJustification ?? ""}</div>}
           </div>
@@ -306,7 +295,7 @@ function CommonCauseDialog({ id, onClose }: { id: string; onClose: () => void })
               {issues.map((issue) => (
                 <p key={`${issue.code}:${issue.message}`} className={issue.severity === "ERROR" ? "sy-error" : "sy-warn"}>{issue.message}</p>
               ))}
-              {editable && issues.some((issue) => issue.code === "CCF_TOTAL_MISMATCH") && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => commit({})}>Use the member probability</button>}
+              {editable && issues.some((issue) => issue.code === "CCF_TOTAL_MISMATCH") && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => commit({})}>Use the member value</button>}
               {editable && estimate !== undefined && issues.some((issue) => issue.code === "CCF_DA_STALE") && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => applyEstimate(estimate)}>Apply the DA values</button>}
             </div>
           )}

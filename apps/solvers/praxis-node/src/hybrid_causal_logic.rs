@@ -1,13 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
 use praxis::analysis::event_tree_quantification::EventTreeHclContext;
+use praxis::core::distribution::{
+    UncertainExpression, UncertainParameter, UncertainVector, UncertainVectorParameter,
+};
+use praxis::core::distribution_sampling::parameter_name;
 use praxis::hcl::{
     analyze_hcl, ensure_hazard_convolution_supported, quantify_hcl, quantify_hcl_batch,
     quantify_hcl_hazard_grid_batch, validate_hcl_uncertainty_settings, HclAnalysisResult,
-    HclAnalysisSettings, HclBasicEventUncertaintySpec, HclBindingSpec, HclCptGenerator,
-    HclCptGeneratorSpec, HclCptPrior, HclCptRowUncertaintySpec, HclEvidenceSpec,
-    HclHazardGridBatchResult, HclModel, HclProbabilityDistribution, HclSampler, HclSettings,
-    HclUncertaintySettings,
+    HclAnalysisSettings, HclBasicEventUncertainty, HclBindingSpec, HclCptGenerator,
+    HclCptGeneratorSpec, HclCptRowUncertainty, HclEvidenceSpec, HclFragilityDemand,
+    HclHazardGridBatchResult, HclModel, HclPgaBin, HclPgaFrequencyConversion, HclSampler,
+    HclSettings, HclUncertaintySettings,
 };
 use praxis::quantitative::{
     prepare_hazard_weights, AnnualizationConvention, FrequencyUnit, HazardWeightSummary,
@@ -150,23 +154,26 @@ struct HclSolverSettings {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct HclUncertaintySnapshot {
-    #[serde(default, alias = "basicEventSampler")]
-    sampler: HclSampler,
-    #[serde(default)]
-    cpt_probability_clip_epsilon: f64,
     sample_count: usize,
     seed: u64,
-    basic_event_distributions: Vec<HclBasicEventUncertaintySnapshot>,
-    cpt_row_distributions: Vec<HclCptRowUncertaintySnapshot>,
+    sampler: HclSampler,
+    #[serde(default)]
+    basic_events: Vec<HclBasicEventUncertaintySnapshot>,
+    #[serde(default)]
+    cpt_rows: Vec<HclCptRowUncertaintySnapshot>,
     #[serde(default)]
     cpt_generators: Vec<HclCptGeneratorSnapshot>,
+    #[serde(default)]
+    uncertainty_parameters: Vec<UncertainParameter>,
+    #[serde(default)]
+    uncertainty_vectors: Vec<UncertainVectorParameter>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct HclBasicEventUncertaintySnapshot {
     fault_tree_basic_event: BasicEventReference,
-    distribution: HclProbabilityDistribution,
+    expression: UncertainExpression,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -180,17 +187,58 @@ struct BasicEventReference {
 struct HclCptRowUncertaintySnapshot {
     bayesian_network_node: EntityReference,
     cpt_row_id: String,
-    prior: HclCptPrior,
+    row: UncertainVector,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct HclCptGeneratorSnapshot {
-    bayesian_network_node: EntityReference,
-    generator: HclCptGenerator,
+#[serde(
+    tag = "kind",
+    rename_all = "SCREAMING_SNAKE_CASE",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+enum HclCptGeneratorSnapshot {
+    SeismicFragility {
+        bayesian_network_node: EntityReference,
+        pga_parent_id: String,
+        true_state_id: String,
+        false_state_id: String,
+        median: UncertainExpression,
+        randomness: UncertainExpression,
+        demands: Vec<HclFragilityDemand>,
+    },
+    SeismicPgaBins {
+        bayesian_network_node: EntityReference,
+        none_state_id: String,
+        mission_time: UncertainExpression,
+        conversion: HclPgaFrequencyConversion,
+        bins: Vec<HclPgaBin>,
+    },
+}
+
+fn merged<T: Clone + PartialEq>(
+    own: Vec<T>,
+    shared: &[T],
+    name: impl Fn(&T) -> String,
+) -> Result<Vec<T>> {
+    let mut table = own;
+    for entry in shared {
+        match table.iter().find(|known| name(known) == name(entry)) {
+            Some(known) if known != entry => {
+                return Err(PraxisError::Hcl(format!(
+                    "uncertainty parameter '{}' has two different definitions",
+                    name(entry)
+                )))
+            }
+            Some(_) => {}
+            None => table.push(entry.clone()),
+        }
+    }
+    Ok(table)
 }
 
 fn resolve_uncertainty(
+    request: &SolverRequest,
     calculation_type: HclCalculationType,
     uncertainty: Option<Value>,
     bayesian_network_model_id: &str,
@@ -204,22 +252,26 @@ fn resolve_uncertainty(
     })?;
     let uncertainty: HclUncertaintySnapshot = serde_json::from_value(uncertainty)
         .map_err(|error| serialization_error("invalid uncertainty settings", error))?;
-    let basic_event_distributions = uncertainty
-        .basic_event_distributions
-        .into_iter()
-        .map(|definition| HclBasicEventUncertaintySpec {
-            event: definition.fault_tree_basic_event.entity_id,
-            distribution: definition.distribution,
-        })
-        .collect();
-    let mut cpt_row_distributions = Vec::with_capacity(uncertainty.cpt_row_distributions.len());
-    for definition in uncertainty.cpt_row_distributions {
-        if definition.bayesian_network_node.model_id != bayesian_network_model_id {
+    let same_network = |reference: &EntityReference, subject: &str| -> Result<()> {
+        if reference.model_id != bayesian_network_model_id {
             return Err(PraxisError::Hcl(format!(
-                "CPT uncertainty references Bayesian model '{}' instead of '{}'",
-                definition.bayesian_network_node.model_id, bayesian_network_model_id
+                "{subject} references Bayesian model '{}' instead of '{}'",
+                reference.model_id, bayesian_network_model_id
             )));
         }
+        Ok(())
+    };
+    let basic_events = uncertainty
+        .basic_events
+        .into_iter()
+        .map(|definition| HclBasicEventUncertainty {
+            event: definition.fault_tree_basic_event.entity_id,
+            expression: definition.expression,
+        })
+        .collect();
+    let mut cpt_rows = Vec::with_capacity(uncertainty.cpt_rows.len());
+    for definition in uncertainty.cpt_rows {
+        same_network(&definition.bayesian_network_node, "CPT uncertainty")?;
         let key = (
             definition.bayesian_network_node.entity_id.clone(),
             definition.cpt_row_id.clone(),
@@ -230,32 +282,74 @@ fn resolve_uncertainty(
                 definition.cpt_row_id, definition.bayesian_network_node.entity_id
             ))
         })?;
-        cpt_row_distributions.push(HclCptRowUncertaintySpec {
+        cpt_rows.push(HclCptRowUncertainty {
             node: definition.bayesian_network_node.entity_id,
             row_index,
-            prior: definition.prior,
+            row: definition.row,
         });
     }
-    let mut cpt_generators = Vec::new();
+    let mut cpt_generators = Vec::with_capacity(uncertainty.cpt_generators.len());
     for definition in uncertainty.cpt_generators {
-        if definition.bayesian_network_node.model_id != bayesian_network_model_id {
-            return Err(PraxisError::Hcl(
-                "CPT generator references a different Bayesian model".into(),
-            ));
-        }
+        let (node, generator) = match definition {
+            HclCptGeneratorSnapshot::SeismicFragility {
+                bayesian_network_node,
+                pga_parent_id,
+                true_state_id,
+                false_state_id,
+                median,
+                randomness,
+                demands,
+            } => (
+                bayesian_network_node,
+                HclCptGenerator::SeismicFragility {
+                    pga_parent_id,
+                    true_state_id,
+                    false_state_id,
+                    median,
+                    randomness,
+                    demands,
+                },
+            ),
+            HclCptGeneratorSnapshot::SeismicPgaBins {
+                bayesian_network_node,
+                none_state_id,
+                mission_time,
+                conversion,
+                bins,
+            } => (
+                bayesian_network_node,
+                HclCptGenerator::SeismicPgaBins {
+                    none_state_id,
+                    mission_time,
+                    conversion,
+                    bins,
+                },
+            ),
+        };
+        same_network(&node, "CPT generator")?;
         cpt_generators.push(HclCptGeneratorSpec {
-            node: definition.bayesian_network_node.entity_id,
-            generator: definition.generator,
+            node: node.entity_id,
+            generator,
         });
     }
+    let (catalogue_parameters, catalogue_vectors) = crate::fault_tree::catalogue_tables(request)?;
     Ok(Some(HclUncertaintySettings {
-        cpt_generators,
-        sampler: uncertainty.sampler,
-        cpt_probability_clip_epsilon: uncertainty.cpt_probability_clip_epsilon,
         sample_count: uncertainty.sample_count,
         seed: uncertainty.seed,
-        basic_event_distributions,
-        cpt_row_distributions,
+        sampler: uncertainty.sampler,
+        basic_events,
+        cpt_rows,
+        cpt_generators,
+        uncertainty_parameters: merged(
+            uncertainty.uncertainty_parameters,
+            &catalogue_parameters,
+            |entry: &UncertainParameter| parameter_name(&entry.reference),
+        )?,
+        uncertainty_vectors: merged(
+            uncertainty.uncertainty_vectors,
+            &catalogue_vectors,
+            |entry: &UncertainVectorParameter| parameter_name(&entry.reference),
+        )?,
     }))
 }
 
@@ -436,6 +530,7 @@ pub(crate) fn build_event_tree_context(
         })
         .collect();
     let uncertainty = resolve_uncertainty(
+        request,
         calculation_type,
         snapshot.solver_settings.uncertainty,
         &snapshot.bayesian_network.model_id,
@@ -469,7 +564,11 @@ fn build_adapter(request: &SolverRequest) -> Result<HclAdapter> {
         )));
     }
 
-    let fault_tree = build_fault_tree_for_model(request, &execute.fault_tree_top_gate.model_id)?;
+    let fault_tree = build_fault_tree_for_model(
+        request,
+        &execute.fault_tree_top_gate.model_id,
+        execute.calculation_type == HclCalculationType::Uncertainty,
+    )?;
     if fault_tree.top_gate_id != execute.fault_tree_top_gate.entity_id {
         return Err(PraxisError::Hcl(format!(
             "fault-tree top gate '{}' does not match requested gate '{}'",
@@ -505,6 +604,7 @@ fn build_adapter(request: &SolverRequest) -> Result<HclAdapter> {
         .with_bindings(bindings)
         .with_base_evidence(base_evidence);
     let uncertainty = resolve_uncertainty(
+        request,
         execute.calculation_type,
         snapshot.solver_settings.uncertainty,
         &snapshot.bayesian_network.model_id,
@@ -611,6 +711,7 @@ pub(crate) fn preflight_event_tree_network(
     let (network, _, rows) =
         build_network_for_model_with_cpt_rows(request, &snapshot.bayesian_network.model_id)?;
     let uncertainty = resolve_uncertainty(
+        request,
         calculation_type,
         snapshot.solver_settings.uncertainty,
         &snapshot.bayesian_network.model_id,
@@ -684,7 +785,7 @@ fn execute_batch(adapter: &HclAdapter, rows: &[HclEvidenceRow]) -> Result<Value>
         .iter()
         .enumerate()
         .map(|(index, row)| match evaluated.get(&index) {
-            Some(result) => hcl_result_json(&adapter, result, Some(&row.scenario_id)),
+            Some(result) => hcl_result_json(adapter, result, Some(&row.scenario_id)),
             None => json!({"scenarioId": row.scenario_id, "status": "skipped_zero_weight"}),
         })
         .collect();
@@ -1016,11 +1117,12 @@ mod tests {
                         "uncertainty": {
                             "sampleCount": 200,
                             "seed": 2026,
-                            "basicEventDistributions": [],
-                            "cptRowDistributions": [{
+                            "sampler": "MC",
+                            "basicEvents": [],
+                            "cptRows": [{
                                 "bayesianNetworkNode": { "modelId": bn_id, "entityId": node_b },
                                 "cptRowId": "row-b-true",
-                                "prior": { "family": "DIRICHLET", "alpha": [5.0, 20.0] }
+                                "row": { "node": "VALUE", "law": { "family": "DIRICHLET", "concentrations": [5.0, 20.0] } }
                             }]
                         }
                     }
@@ -1030,8 +1132,8 @@ mod tests {
                 "faultTreeBasicEventCatalogue": {
                     "projectId": "project-1",
                     "basicEvents": [
-                        { "id": "A", "probability": { "value": 0.2 } },
-                        { "id": "B", "probability": { "value": 0.24 } }
+                        crate::fault_tree::tests::point_event("A", 0.2),
+                        crate::fault_tree::tests::point_event("B", 0.24)
                     ]
                 }
             }

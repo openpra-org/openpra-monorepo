@@ -7,7 +7,6 @@ import {
 } from "../shared";
 import { HclEvidenceScenarioSchema } from "./hcl-schemas";
 
-// Typed application input for HCL_MH hazard_sweep.py. Generation runs in Rust.
 const HclHazardSweepSpecSchema = z
   .object({
     dimensions: z

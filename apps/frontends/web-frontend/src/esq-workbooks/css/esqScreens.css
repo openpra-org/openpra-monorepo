@@ -289,6 +289,7 @@
 .esq-form__number { flex: none; width: 120px; }
 .esq-form__value { display: inline-block; min-width: 120px; font-size: 12px; }
 .esq-form__unit { font-size: 12px; color: var(--color-text-muted); white-space: nowrap; }
+.esq-form__note { font-size: 12px; line-height: 1.4; color: var(--color-text-muted); overflow-wrap: anywhere; }
 .esq-form__error { flex-basis: 100%; font-size: 11px; color: var(--color-error); }
 .esq-form__warn { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 0 0 0 176px; font-size: 12px; color: var(--color-warning); }
 .esq-form--card input[type="number"] { appearance: textfield; -moz-appearance: textfield; }

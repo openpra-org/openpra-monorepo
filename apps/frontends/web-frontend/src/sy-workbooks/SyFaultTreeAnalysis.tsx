@@ -10,6 +10,7 @@ import type {
 import { FaultTreeResults } from "../newly-developed-methods/fault-tree";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
 import { useSyWorkbook } from "./syWorkbookContext";
+import { hoursPoint, hoursText, type HoursState } from "../sc-workbooks/scMissionTimePoints";
 import "./css/syFaultTreeAnalysis.css";
 
 type FaultTreeRunConfiguration = Pick<FaultTreeExecuteRequest, "calculationType" | "workflow" | "settings">;
@@ -27,7 +28,7 @@ interface Props {
   exactRunning: boolean;
   sourceWarning: string | null;
   currentModelId: string;
-  defaultMissionTimeHours?: number;
+  missionHours?: HoursState;
   models: FaultTreeRunModelOption[];
   basicEventCodes: Readonly<Record<string, string>>;
   onRun: (configuration: FaultTreeRunConfiguration, modelIds: string[]) => void;
@@ -41,6 +42,7 @@ const DEFAULT_SETTINGS: FaultTreeAnalysisSettings = {
   expandCcf: false,
   numTrials: 10_000,
   seed: 847,
+  samplingMethod: "MONTE_CARLO",
   missionTimeHours: 8_760,
   earlyStop: false,
   convergenceDelta: 0.1,
@@ -94,7 +96,7 @@ export function SyFaultTreeAnalysis({
   exactRunning,
   sourceWarning,
   currentModelId,
-  defaultMissionTimeHours,
+  missionHours,
   models,
   basicEventCodes,
   onRun,
@@ -103,10 +105,8 @@ export function SyFaultTreeAnalysis({
   const saveBlockedReason = analysisSaveBlock(runtime);
   const [calculationType, setCalculationType] = useState<FaultTreeCalculationType>("PROBABILITY");
   const [workflow, setWorkflow] = useState<FaultTreeWorkflow>("MANUAL");
-  const [settings, setSettings] = useState<FaultTreeAnalysisSettings>(() => ({
-    ...DEFAULT_SETTINGS,
-    missionTimeHours: defaultMissionTimeHours ?? DEFAULT_SETTINGS.missionTimeHours,
-  }));
+  const [settings, setSettings] = useState<FaultTreeAnalysisSettings>(DEFAULT_SETTINGS);
+  const missionPoint = hoursPoint(missionHours);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [batchModelIds, setBatchModelIds] = useState<string[]>([currentModelId]);
   const algorithms = algorithmsFor(calculationType);
@@ -121,7 +121,7 @@ export function SyFaultTreeAnalysis({
       || (Number.isFinite(settings.reorderBudgetSeconds) && settings.reorderBudgetSeconds > 0))
     && (!usesTrials || (Number.isInteger(settings.numTrials) && settings.numTrials > 0
       && Number.isInteger(settings.seed) && settings.seed >= 0))
-    && (calculationType !== "SIL" || (Number.isFinite(settings.missionTimeHours) && settings.missionTimeHours > 0))
+    && (calculationType !== "SIL" || (missionPoint !== undefined && Number.isFinite(missionPoint) && missionPoint > 0))
     && (!usesLimits || settings.limitOrder === undefined || (Number.isInteger(settings.limitOrder) && settings.limitOrder > 0))
     && (!usesLimits || settings.cutOff === undefined || (Number.isFinite(settings.cutOff) && settings.cutOff >= 0 && settings.cutOff <= 1))
     && (settings.algorithm !== "MONTE_CARLO" || !settings.earlyStop
@@ -225,7 +225,7 @@ export function SyFaultTreeAnalysis({
             type="button"
             className="posnav__btn posnav__btn--sm posnav__btn--primary"
             disabled={exactRunning || !editable || saveBlockedReason !== null || selectedModelIds.length === 0 || !settingsValid}
-            onClick={() => onRun({ calculationType, workflow, settings }, selectedModelIds)}
+            onClick={() => onRun({ calculationType, workflow, settings: calculationType === "SIL" && missionPoint !== undefined ? { ...settings, missionTimeHours: missionPoint } : settings }, selectedModelIds)}
           >
             {exactRunning ? "Running…" : `Run ${calculationLabel(calculationType)}${workflow === "BATCH" ? " batch" : ""}`}
           </button>
@@ -308,9 +308,6 @@ export function SyFaultTreeAnalysis({
                 )}
               </>
             )}
-            {calculationType === "SIL" && (
-              <label><span>Mission time (hours)</span><input aria-label="Mission time hours" type="number" min="0.01" step="any" value={settings.missionTimeHours} onChange={(event) => updateSettings({ missionTimeHours: Number(event.target.value) })} /></label>
-            )}
             <label className="syft-analysis__check"><input type="checkbox" checked={settings.expandCcf} onChange={(event) => updateSettings({ expandCcf: event.target.checked })} /><span>Expand common-cause groups</span></label>
             </div>
           </div>
@@ -319,6 +316,7 @@ export function SyFaultTreeAnalysis({
         </div>
       </div>
       {saveBlockedReason !== null && <p className="syft-analysis__notice" role="status">{saveBlockedReason}</p>}
+      {calculationType === "SIL" && <p className="syft-analysis__notice" role="status">{missionHours === undefined ? "SIL needs a system mission time. Set it in the system definition." : `SIL uses the system mission time of ${hoursText(missionHours)}.`}</p>}
       {(exactRunError ?? sourceWarning) !== null && <p className="syft-analysis__error" role="alert">{exactRunError ?? sourceWarning}</p>}
       {workflow === "MANUAL" ? (
         <FaultTreeResults analysisResult={exactResult} resultIsStale={exactResultIsStale} basicEventCodes={basicEventCodes} />

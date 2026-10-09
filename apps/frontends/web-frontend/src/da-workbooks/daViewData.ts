@@ -159,14 +159,6 @@ const GROUPING_BASIS: Record<string, { label: string; cc: string }> = {
   TYPE_AND_SERVICE_CONDITIONS: { label: "Type and service conditions", cc: "CC-II" },
 };
 
-const CCF_MODEL_LABELS: Record<string, string> = {
-  BETA_FACTOR: "Beta-factor",
-  ALPHA_FACTOR: "Alpha-factor",
-  MGL: "Multiple Greek Letter",
-  PHI_FACTOR: "Phi-factor",
-  OTHER_EQUIVALENT: "Equivalent model",
-};
-
 const CCF_TESTING_LABELS: Record<DaCcfTesting, string> = {
   STAGGERED: "Staggered",
   NON_STAGGERED: "Non-staggered",
@@ -387,18 +379,10 @@ const ESTIMATE_METHOD_LABELS: Record<"PRIOR" | "BAYES" | "POPULATION" | "TYPED",
   TYPED: "Typed",
 };
 
-const COMPUTATION_LABELS: Record<"PRIOR" | "CONJUGATE" | "NUMERICAL" | "HIERARCHICAL", string> = {
+const COMPUTATION_LABELS: Record<"PRIOR" | "POSTERIOR" | "POPULATION", string> = {
   PRIOR: "No update",
-  CONJUGATE: "Conjugate",
-  NUMERICAL: "Numerical integration",
-  HIERARCHICAL: "Hierarchical Bayes",
-};
-
-const OUTPUT_FIT_LABELS: Record<"EXACT" | "RARE_EVENT" | "LOGNORMAL" | "BETA", string> = {
-  EXACT: "Exact",
-  RARE_EVENT: "Rate times mission time",
-  LOGNORMAL: "Fitted lognormal",
-  BETA: "Fitted beta",
+  POSTERIOR: "Bayes posterior",
+  POPULATION: "Hierarchical Bayes",
 };
 
 const EVIDENCE_ORIGIN_LABELS: Record<DaEvidenceOrigin, string> = {
@@ -450,13 +434,6 @@ const RESTORATION_FROM_LABELS: Record<DaRestorationFrom | "TYPED", string> = {
   TYPED: "Typed",
 };
 
-const UNAVAILABILITY_FIT_LABELS: Record<"CONSTRAINED" | "MOMENTS" | "PUBLISHED" | "TYPED", string> = {
-  CONSTRAINED: "Constrained noninformative beta",
-  MOMENTS: "Beta matched to the mean and spread",
-  PUBLISHED: "Published distribution",
-  TYPED: "Typed",
-};
-
 const INITIATOR_CATEGORY_LABELS: Record<DaInitiatorCategory, string> = {
   I: "I · Any reactor",
   II: "II · Common plant system",
@@ -479,12 +456,6 @@ const FREQUENCY_MODE_LABELS: Record<"CALCULATED" | "TYPED" | "LINKED", string> =
   CALCULATED: "Estimated in DA",
   TYPED: "Typed in DA",
   LINKED: "Imported from IE",
-};
-
-const FREQUENCY_FIT_LABELS: Record<"EXACT" | "LOGNORMAL" | "GAMMA_MOMENTS", string> = {
-  EXACT: "Exact",
-  LOGNORMAL: "Lognormal fitted to the 5th and 95th",
-  GAMMA_MOMENTS: "Gamma matched to the summed mean and variance",
 };
 
 const SENSITIVITY_KIND_LABELS: Record<DaSensitivityKind, string> = {
@@ -546,7 +517,6 @@ export {
   CAPABILITY_CATEGORIES,
   CONFORMANCE_ITEMS,
   GROUPING_BASIS,
-  CCF_MODEL_LABELS,
   CCF_TESTING_LABELS,
   CCF_METHOD_LABELS,
   DA_LINK_TILES,
@@ -568,7 +538,6 @@ export {
   PRIOR_FORM_LABELS,
   ESTIMATE_METHOD_LABELS,
   COMPUTATION_LABELS,
-  OUTPUT_FIT_LABELS,
   EVIDENCE_ORIGIN_LABELS,
   EVIDENCE_UNIT_LABELS,
   JUDGMENT_LABELS,
@@ -578,7 +547,6 @@ export {
   MAINTENANCE_METHOD_LABELS,
   RESTORATION_KIND_LABELS,
   RESTORATION_FROM_LABELS,
-  UNAVAILABILITY_FIT_LABELS,
   DETECTABILITY_TEXT,
   OUTLIER_STATUS_TEXT,
   NEED_ELEMENT_LABELS,
@@ -594,6 +562,5 @@ export {
   FREQUENCY_PER_LABELS,
   FREQUENCY_METHOD_LABELS,
   FREQUENCY_MODE_LABELS,
-  FREQUENCY_FIT_LABELS,
   SENSITIVITY_KIND_LABELS,
 };

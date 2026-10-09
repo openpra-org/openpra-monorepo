@@ -1,0 +1,57 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "aging"
+    },
+    "expression": {
+      "node": "MODEL",
+      "model": {
+        "form": "WEIBULL",
+        "scale": {
+          "node": "VALUE",
+          "value": {
+            "unit": "HOURS",
+            "law": {
+              "family": "LOGNORMAL",
+              "mean": 100000,
+              "errorFactor": 3,
+              "level": 0.95
+            }
+          }
+        },
+        "shape": {
+          "node": "VALUE",
+          "value": {
+            "unit": "FACTOR",
+            "law": {
+              "family": "POINT",
+              "value": 2
+            }
+          }
+        },
+        "location": {
+          "node": "VALUE",
+          "value": {
+            "unit": "HOURS",
+            "law": {
+              "family": "POINT",
+              "value": 0
+            }
+          }
+        },
+        "time": {
+          "node": "VALUE",
+          "value": {
+            "unit": "HOURS",
+            "law": {
+              "family": "POINT",
+              "value": 8760
+            }
+          }
+        }
+      }
+    }
+  }
+]

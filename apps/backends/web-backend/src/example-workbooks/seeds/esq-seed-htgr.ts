@@ -55,6 +55,7 @@ import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/cor
 
 const NOW = "2026-06-09T12:00:00.000Z";
 const CREATED = "2026-06-04T09:00:00.000Z";
+const DA_LINK = "example-da-htgr";
 
 function srs(...codes: string[]): SRReference[] {
   return codes.map((code) => ({ sr: code, hlr: code.charAt(4) as HlrId }));
@@ -804,9 +805,9 @@ const uncertaintyPropagation: UncertaintyPropagation = {
   ],
   characterizationLevel: "PROPAGATED_RISK_SIGNIFICANT_SOKC",
   parameterUncertainties: [
-    { parameterRef: "SCS-TRA-FR", distribution: { type: DistributionType.LOGNORMAL, median: 5.0e-3, errorFactor: 5 }, basis: "The risk-significant shutdown-cooling circulator parameter from the data analysis (DA-BE-205)." },
-    { parameterRef: "DC-BAT-A-FR", distribution: { type: DistributionType.LOGNORMAL, median: 4.2e-3, errorFactor: 4 }, basis: "The battery-train run parameter from the data analysis (DA-BE-241)." },
-    { parameterRef: "RPS-DVA-FS", distribution: { type: DistributionType.LOGNORMAL, median: 1.1e-3, errorFactor: 4 }, basis: "The protection division parameter from the data analysis (DA-BE-201)." },
+    { parameterRef: "DA-BE-205", estimate: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: DA_LINK, entityId: "DA-BE-205" } }, basis: "The risk-significant shutdown-cooling circulator parameter from the data analysis (DA-BE-205)." },
+    { parameterRef: "DA-BE-241", estimate: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: DA_LINK, entityId: "DA-BE-241" } }, basis: "The battery-train run parameter from the data analysis (DA-BE-241)." },
+    { parameterRef: "DA-BE-201", estimate: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: DA_LINK, entityId: "DA-BE-201" } }, basis: "The protection division parameter from the data analysis (DA-BE-201)." },
   ],
   stateOfKnowledgeCorrelation: {
     isConsidered: true,
@@ -825,12 +826,12 @@ const sensitivityStudies: SensitivityStudy[] = [
   { uuid: "SS-1", name: "Truncation sensitivity", description: "Sweep of the truncation cutoff below the chosen value.", variedParameters: ["Truncation cutoff"], parameterRanges: { "Truncation cutoff": [1e-14, 1e-12] }, results: "The family frequencies hold within a few percent below the chosen cutoff." },
   { uuid: "SS-2", name: "State-of-knowledge correlation sweep", description: "Sweep of the correlation handling between shared estimates.", variedParameters: ["Correlation"], parameterRanges: { Correlation: [0, 1] }, results: "Ignoring the correlation would understate the loss-of-forced-cooling mean by about a third." },
   { uuid: "SS-3", name: "Barrier-capacity sweep", description: "Sweep of the functional-containment capacity range.", variedParameters: ["Capacity factor"], parameterRanges: { "Capacity factor": [0.5, 2] }, results: "The early-release family stays below the threshold across the capacity range." },
-  { uuid: "DA-SS-1", name: "Similar-equipment sweep", description: "The moisture monitors rest on nonnuclear moisture analyzers. Their sampling factor goes to its bounds of 0.5 and 3.", variedParameters: ["DA-BE-249"], parameterRanges: { "DA-BE-249": [0.0017999991380299935, 0.01079999482817996] }, results: "The monitor probability runs from 1.80E-3 to 1.08E-2 per demand, against 3.60E-3 for the nominal factor.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-1" }, implementsSrs: srs("ESQ-E2") },
-  { uuid: "DA-SS-2", name: "Prior-form comparison", description: "The circulator update repeated with the published compressor prior in place of the constrained noninformative one.", variedParameters: ["DA-BE-205"], parameterRanges: { "DA-BE-205": [0.00023231949896163585, 0.0021345981527612773] }, results: "With the published prior the 24 h circulator probability is 2.13E-3, 9.2 times the 2.32E-4 of the base case. The published prior conflicts with the Fort St. Vrain counts, so it stays a sensitivity case.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-2" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-1", name: "Similar-equipment sweep", description: "The moisture monitors rest on nonnuclear moisture analyzers. Their sampling factor goes to its bounds of 0.5 and 3.", variedParameters: ["DA-BE-249"], parameterRanges: { "DA-BE-249": [0.001799877471427639, 0.010739690083886403] }, results: "The monitor probability runs from 1.80E-3 to 1.07E-2 per demand, against 3.60E-3 for the nominal factor.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-1" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-2", name: "Prior-form comparison", description: "The circulator update repeated with the published compressor prior in place of the constrained noninformative one.", variedParameters: ["DA-BE-205"], parameterRanges: { "DA-BE-205": [0.00023233029579251133, 0.002134622783285125] }, results: "With the published prior the 24 h circulator probability is 2.13E-3, 9.2 times the 2.32E-4 of the base case. The published prior conflicts with the Fort St. Vrain counts, so it stays a sensitivity case.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-2" }, implementsSrs: srs("ESQ-E2") },
   { uuid: "DA-SS-3", name: "Train maintenance sweep", description: "Shutdown-cooling train maintenance between half and twice the planned 35 h a year.", variedParameters: ["DA-UA-11"], parameterRanges: { "DA-UA-11": [0.001997716894977169, 0.007990867579908675] }, results: "The train unavailability runs from 2.00E-3 to 7.99E-3, against 4.00E-3 for the plan.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-3" }, implementsSrs: srs("ESQ-E2") },
   { uuid: "DA-SS-4", name: "Coincident-maintenance sweep", description: "The joint battery equalization unavailability from none to 5.0E-3.", variedParameters: ["DA-UA-16"], parameterRanges: { "DA-UA-16": [0, 0.005] }, results: "The planned joint charge gives 2.51E-3, inside the swept range.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-4" }, implementsSrs: srs("ESQ-E2") },
   { uuid: "DA-SS-5", name: "Offsite power at the 2020 rates", description: "Loss of offsite power at the 2020 industry rates, power and shutdown, against the IE group that also holds loss of normal AC.", variedParameters: ["DA-IE-03"], parameterRanges: { "DA-IE-03": [0.034228276390151025, 0.0975] }, results: "The 2020 rates give 3.42E-2 per year over the group's states, 2.8 times below the IE group frequency of 9.75E-2.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-5" }, implementsSrs: srs("ESQ-E2") },
-  { uuid: "DA-SS-6", name: "Shutdown-cooling testing scheme", description: "The two shutdown-cooling trains tested on one day instead of staggered.", variedParameters: ["DA-CCF-08"], parameterRanges: { "DA-CCF-08": [1.688196518623768e-06, 3.3520347999712423e-06] }, results: "Both trains failing together rises from 1.69E-6 to 3.35E-6, 2.0 times the staggered value.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-6" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-6", name: "Shutdown-cooling testing scheme", description: "The two shutdown-cooling trains tested on one day instead of staggered.", variedParameters: ["DA-CCF-08"], parameterRanges: { "DA-CCF-08": [0.0000016882749759740017, 0.0000033521905826454723] }, results: "Both trains failing together rises from 1.69E-6 to 3.35E-6, 2.0 times the staggered value.", dataAnalysisCaseRef: { workbookId: "example-da-htgr", caseId: "SS-6" }, implementsSrs: srs("ESQ-E2") },
 ];
 
 const preOperationalAssumptions = [
@@ -983,14 +984,17 @@ const barrierWork: EsqBarrierWork = {
       unit: "h",
       basis: "REALISTIC",
       load: {
-        distribution: { type: DistributionType.POINT_ESTIMATE, value: 24 },
-        uncertain: [],
+        source: "TYPED",
+        variable: { law: { family: "POINT", value: 24 }, fields: [] },
         basis: "ES defines RC-2 as a release that starts more than 24 h after the initiator. A fuel limit reached sooner moves the release out of RC-2.",
       },
       capacity: {
-        distribution: { type: DistributionType.LOGNORMAL, median: 33.35, errorFactor: 1.287 },
-        uncertain: [{ parameter: "median", distribution: { type: DistributionType.LOGNORMAL, median: 33.35, errorFactor: 1.2 } }],
-        basis: "Heat-up window from the SC runs at full power: 5th 25.82 h, median 33.35 h, 95th 42.76 h, fitted as a lognormal. The median carries its own state-of-knowledge spread.",
+        source: "TYPED",
+        variable: {
+          law: { family: "LOGNORMAL", mean: 33.74468539677077, errorFactor: 1.287, level: 0.95 },
+          fields: [{ field: "mean", value: { node: "VALUE", value: { unit: "QUANTITY", law: { family: "LOGNORMAL", mean: 33.95262229796478, errorFactor: 1.2, level: 0.95 } } } }],
+        },
+        basis: "Heat-up window from the SC runs at full power: 5th 25.82 h, median 33.35 h, 95th 42.76 h, fitted as a lognormal with an error factor of 1.287. The window scale carries its own state-of-knowledge spread with an error factor of 1.2.",
       },
       aging: "The window runs use end-of-cycle burnup and fluence, so graphite conductivity loss with irradiation is inside the window.",
       use: "END_STATE_ATTRIBUTE",
@@ -1090,8 +1094,6 @@ const decisions: EsqRegisterDecision[] = [
   { id: "HS:SOURCE:HS-UNC-005", familyIds: [], caseIds: [], reason: HS_REASON },
   { id: "HS:SOURCE:HS-UNC-006", familyIds: [], caseIds: [], reason: "Hazard-induced initiators are quantified in the hazard PRAs and are not added to the internal-events initiator frequencies, so no family counts them twice. RI checks the overlap when it sums the hazard groups." },
 ];
-
-const DA_LINK = "example-da-htgr";
 
 const sensitivityWork: EsqSensitivityWork = {
   decisions,

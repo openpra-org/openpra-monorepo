@@ -1,5 +1,6 @@
 import { EventSequenceAnalysisSchema } from "interfaces-mef-types/zod/es/event-sequence-analysis";
 import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
+import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
 import { createBlankEs } from "../../es-workbooks/blank-es";
 import { createBlankSy } from "../../sy-workbooks/blank-sy";
 import { LEGACY_ES_EVENT_TREE, LEGACY_SY_FAULT_TREE_MODEL } from "./legacy-workbook-model-fixtures";
@@ -122,11 +123,10 @@ describe("workbook model migration fixtures", () => {
         eventType: "BASIC",
         componentReference: "PUMP-A",
         failureMode: "FAILURE_TO_START",
-        probability: 0.01,
+        expression: legacyExpression("PROBABILITY", 0.01),
         repairModeled: true,
         repairJustification: "Repair is credited after diagnosis",
         meanTimeToRepair: 4,
-        dataAnalysisBasicEventRef: "DA-PUMP-A",
         implementsSrs: [],
       },
       {
@@ -135,9 +135,8 @@ describe("workbook model migration fixtures", () => {
         name: "Pump B fails to run",
         eventType: "BASIC",
         failureMode: "FAILURE_TO_RUN",
-        probability: 0.02,
+        expression: legacyExpression("PROBABILITY", 0.02),
         repairModeled: false,
-        dataAnalysisBasicEventRef: "DA-PUMP-B",
         implementsSrs: [],
       },
     ]);

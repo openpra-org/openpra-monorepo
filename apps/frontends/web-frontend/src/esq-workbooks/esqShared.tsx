@@ -1,5 +1,8 @@
-import { JSX, ReactNode, useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react";
+import { JSX, ReactNode, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import type { EsqModel, EsqSolveRun } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type { UncertainExpression, UncertainParameter, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
+import type { UncertaintyExpressionSummary } from "interfaces-shared-types/newly-developed-methods/shared";
+import { parametersFor, useExpressionSummaries, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
 import { ESQIcon } from "./esqIcons";
 
 type BadgeKind = "ok" | "warn" | "block" | "progress" | "draft";
@@ -310,6 +313,26 @@ function sciText(v: number): string {
   return power === 0 ? digits : `${digits}E${power}`;
 }
 
+interface EsqPointEntry {
+  key: string;
+  expression: UncertainExpression;
+  unit: UncertainUnit;
+}
+
+function useExpressionPoints(entries: readonly EsqPointEntry[], table: ReadonlyMap<string, UncertainParameter>): Map<string, UncertaintyState<UncertaintyExpressionSummary>> {
+  const queries = useMemo(() => entries.map((entry) => ({ expression: entry.expression, unit: entry.unit, probabilities: [], parameters: parametersFor([entry.expression], table) })), [entries, table]);
+  const states = useExpressionSummaries(queries);
+  return new Map(entries.flatMap((entry, index) => {
+    const state = states[index];
+    return state === undefined ? [] : [[entry.key, state] as const];
+  }));
+}
+
+function pointText(state: UncertaintyState<UncertaintyExpressionSummary> | undefined): string {
+  if (state === undefined || state.status === "failed") return "—";
+  return state.status === "pending" ? "…" : sciText(state.value.point);
+}
+
 function valText(v: number | undefined | null): string {
   if (v === undefined || v === null) return "—";
   return v.toExponential(1).replace("e", "E");
@@ -350,9 +373,12 @@ export {
   ModalHead,
   rowClass,
   sciText,
+  pointText,
   useElementWidth,
+  useExpressionPoints,
   valText,
   freqText,
   pctText,
   type BadgeKind,
+  type EsqPointEntry,
 };

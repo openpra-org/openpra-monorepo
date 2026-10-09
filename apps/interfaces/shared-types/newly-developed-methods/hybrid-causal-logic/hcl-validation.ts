@@ -22,7 +22,9 @@ import {
   type FaultTreeModel,
 } from "../fault-tree";
 import type { HclConfigurationModel } from "./hcl-configuration";
-import { HclCptPriorSchema, HclCptGeneratorSchema } from "interfaces-mef-types/zod/modeling";
+import { HclCptGeneratorSchema } from "interfaces-mef-types/zod/modeling";
+import { UncertainVectorSchema } from "interfaces-mef-types/zod/core/uncertainty";
+import { vectorLength } from "interfaces-mef-types/core/uncertainty";
 
 interface HclValidationContext {
   bayesianNetworks?: Array<{ workbookId: WorkbookId; model: BayesianNetworkModel }>;
@@ -64,28 +66,22 @@ const validateHclConfigurationModel = (
       ),
     );
     const bn = matchingBayesianNetworks[0].model;
-    const betaStates = new Map<string, string>();
-    model.solverSettings.uncertainty?.cptRowDistributions.forEach((definition, index) => {
+    model.solverSettings.uncertainty?.cptRows.forEach((definition, index) => {
       const node = bn.nodes.find((candidate) => candidate.id === definition.bayesianNetworkNode.entityId);
       const table = bn.conditionalProbabilityTables.find((candidate) => candidate.nodeId === node?.id);
-      const parsed = HclCptPriorSchema.safeParse(definition.prior);
-      const prior = parsed.success ? parsed.data : undefined;
-      const consistentBetaState = prior?.family !== "BETA" || !betaStates.has(node?.id ?? "") || betaStates.get(node?.id ?? "") === prior.trueStateId;
-      if (node && prior?.family === "BETA") betaStates.set(node.id, prior.trueStateId);
-      const valid = consistentBetaState && node && table?.rows.some((row) => row.id === definition.cptRowId) && prior && (
-        prior.family === "BETA"
-          ? node.states.length === 2 && node.states.some((state) => state.id === prior.trueStateId)
-          : prior.alpha.length === node.states.length
-      );
+      const parsed = UncertainVectorSchema.safeParse(definition.row);
+      const row = parsed.success ? parsed.data : undefined;
+      const sized = row === undefined || row.node === "PARAMETER" || (node !== undefined && vectorLength(row.law) === node.states.length);
+      const valid = node !== undefined && table?.rows.some((entry) => entry.id === definition.cptRowId) === true && row !== undefined && sized;
       if (!valid) issues.push({
         code: "HCL_CPT_PRIOR_INVALID", severity: "ERROR",
-        message: "CPT uncertainty needs an existing row and an explicit prior matching its states. Beta needs two states and one consistent probability state per node; Dirichlet needs one alpha per state.",
+        message: "CPT uncertainty needs an existing row and a vector law with one component per state of the node.",
         entityId: definition.bayesianNetworkNode.entityId,
-        fieldPath: ["solverSettings", "uncertainty", "cptRowDistributions", index],
+        fieldPath: ["solverSettings", "uncertainty", "cptRows", index],
       });
     });
     const generatorNodes = new Set<string>();
-    model.solverSettings.uncertainty?.cptGenerators?.forEach((definition, index) => {
+    model.solverSettings.uncertainty?.cptGenerators.forEach((definition, index) => {
       const node = bn.nodes.find((n) => n.id === definition.bayesianNetworkNode.entityId);
       const table = bn.conditionalProbabilityTables.find((t) => t.nodeId === node?.id);
       const parsed = HclCptGeneratorSchema.safeParse(definition.generator);
@@ -93,15 +89,15 @@ const validateHclConfigurationModel = (
         && definition.bayesianNetworkNode.workbookId === model.bayesianNetwork.workbookId
         && definition.bayesianNetworkNode.modelId === model.bayesianNetwork.modelId
         && !generatorNodes.has(definition.bayesianNetworkNode.entityId)
-        && !model.solverSettings.uncertainty?.cptRowDistributions.some((r) => r.bayesianNetworkNode.entityId === definition.bayesianNetworkNode.entityId);
+        && !model.solverSettings.uncertainty?.cptRows.some((r) => r.bayesianNetworkNode.entityId === definition.bayesianNetworkNode.entityId);
       generatorNodes.add(definition.bayesianNetworkNode.entityId);
       if (parsed.success && node && table) {
         const g = parsed.data;
-        if (g.type === "seismic_fragility") {
+        if (g.kind === "SEISMIC_FRAGILITY") {
           const parent = bn.nodes.find((n) => n.id === g.pgaParentId);
           valid &&= node.states.length === 2 && node.states.some((s) => s.id === g.trueStateId) && node.states.some((s) => s.id === g.falseStateId)
             && table.parents.some((p) => p.nodeId === g.pgaParentId) && !!parent
-            && parent.states.length === g.pgaCenters.length && parent.states.every((s) => g.pgaCenters.some((c) => c.stateId === s.id));
+            && parent.states.length === g.demands.length && parent.states.every((s) => g.demands.some((c) => c.stateId === s.id));
         } else {
           valid &&= table.parents.length === 0 && node.states.some((s) => s.id === g.noneStateId)
             && g.bins.length + 1 === node.states.length && node.states.every((s) => s.id === g.noneStateId || g.bins.some((b) => b.stateId === s.id));

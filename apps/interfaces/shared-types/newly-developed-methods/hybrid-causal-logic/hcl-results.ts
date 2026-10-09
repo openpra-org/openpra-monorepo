@@ -63,7 +63,6 @@ interface HclUncertaintySummary {
   sampleCount: number;
   seed: number;
   mean: number;
-  /** HCL_MH quantifier population SD (variance denominator is sampleCount). */
   standardDeviation: number;
   minimum: number;
   percentile05: number;

@@ -1,7 +1,7 @@
 import { HclUncertaintySeedSchema, HclUncertaintySettingsSchema } from "interfaces-mef-types/zod/modeling";
 import { HclUncertaintySummarySchema } from "../hcl-results";
 
-const settings = { sampleCount: 31, sampler: "MC", basicEventDistributions: [], cptRowDistributions: [] };
+const settings = { sampleCount: 31, sampler: "MC", basicEvents: [], cptRows: [], cptGenerators: [] };
 const summary = { sampleCount: 31, mean: .2, standardDeviation: .1, minimum: 0, percentile05: .05, median: .2, percentile95: .4, maximum: .5 };
 
 it.each([0, 1, 42, 2 ** 32 - 1, 2 ** 32, 2 ** 32 + 1, 2 ** 48 + 123, Number.MAX_SAFE_INTEGER - 1, Number.MAX_SAFE_INTEGER])(

@@ -1,194 +1,128 @@
-import { DistributionType, type ParameterDistribution } from "../core/events";
+import {
+  canonicalJson,
+  expressionReferences,
+  parameterReferenceKey,
+  type AleatoryVariable,
+  type Law,
+  type UncertainExpression,
+  type UncertainParameter,
+  type UncertainUnit,
+} from "../core/uncertainty";
+import { holdsEstimate } from "../da/data-analysis";
 import type {
   EsqBarrierWork,
   EsqCell,
   EsqCellSide,
-  EsqLaw,
-  EsqLawParameter,
-  EsqModel,
-  EsqParameterRecord,
-  EsqUncertainParameter,
+  EsqFragility,
   EventSequenceQuantification,
 } from "./event-sequence-quantification";
 import { esqStableId } from "./esq-run-inputs";
 
-const Z95 = 1.6448536269514722;
+type EsqSideName = "load" | "capacity";
 
-const LAW_PARAMETERS: Record<EsqLaw["type"], EsqLawParameter[]> = {
-  [DistributionType.LOGNORMAL]: ["median", "errorFactor"],
-  [DistributionType.NORMAL]: ["mean", "stdDev"],
-  [DistributionType.UNIFORM]: ["lower", "upper"],
-  [DistributionType.EXPONENTIAL]: ["failureRate"],
-  [DistributionType.WEIBULL]: ["scale", "shape", "location"],
-  [DistributionType.GAMMA]: ["shape", "rate"],
-  [DistributionType.BETA]: ["alpha", "betaParam"],
-  [DistributionType.POINT_ESTIMATE]: ["value"],
-};
-
-interface EsqResolvedSide {
-  distribution: EsqLaw;
-  uncertainParameters: EsqUncertainParameter[];
-}
+type EsqResolvedSide =
+  | { kind: "VARIABLE"; variable: AleatoryVariable }
+  | { kind: "FRAGILITY"; fragility: EsqFragility };
 
 interface EsqResolvedCell {
   load: EsqResolvedSide;
   capacity: EsqResolvedSide;
+  parameters: UncertainParameter[];
 }
 
 type EsqSideResult = { side: EsqResolvedSide; problem?: undefined } | { side?: undefined; problem: string };
 
 type EsqCellResult = { cell: EsqResolvedCell; problem?: undefined } | { cell?: undefined; problem: string };
 
-function finiteNumber(value: number): boolean {
-  return typeof value === "number" && Number.isFinite(value);
+const FIELD_UNITS: ReadonlySet<UncertainUnit> = new Set<UncertainUnit>(["QUANTITY", "FACTOR", "FRACTION", "PROBABILITY"]);
+
+const SIDE_LABELS: Record<EsqSideName, string> = { load: "load", capacity: "capacity" };
+
+function numericNames(record: object, prefix: string): string[] {
+  return Object.entries(record).flatMap(([name, value]) => (typeof value === "number" ? [`${prefix}${name}`] : []));
 }
 
-function positiveNumber(value: number): boolean {
-  return finiteNumber(value) && value > 0;
+function lawFieldNames(law: Law): string[] {
+  if (law.family === "TRUNCATED") return [...numericNames(law, ""), ...numericNames(law.law, "law.")];
+  return numericNames(law, "");
 }
 
-function lawProblem(law: EsqLaw, label: string): string | undefined {
-  switch (law.type) {
-    case DistributionType.POINT_ESTIMATE:
-      return finiteNumber(law.value) ? undefined : `${label} needs a value.`;
-    case DistributionType.NORMAL:
-      if (!finiteNumber(law.mean)) return `${label} needs a mean.`;
-      return finiteNumber(law.stdDev) && law.stdDev >= 0 ? undefined : `${label} needs a standard deviation of zero or more.`;
-    case DistributionType.LOGNORMAL:
-      if (!positiveNumber(law.median)) return `${label} needs a median above zero.`;
-      return finiteNumber(law.errorFactor) && law.errorFactor >= 1 ? undefined : `${label} needs an error factor of at least 1.`;
-    case DistributionType.UNIFORM:
-      if (!finiteNumber(law.lower) || !finiteNumber(law.upper)) return `${label} needs a lower and an upper bound.`;
-      return law.upper >= law.lower ? undefined : `${label} has its upper bound below the lower bound.`;
-    case DistributionType.EXPONENTIAL:
-      return positiveNumber(law.failureRate) ? undefined : `${label} needs a rate above zero.`;
-    case DistributionType.WEIBULL:
-      if (!positiveNumber(law.scale) || !positiveNumber(law.shape)) return `${label} needs a scale and a shape above zero.`;
-      return finiteNumber(law.location) ? undefined : `${label} needs a location.`;
-    case DistributionType.GAMMA:
-      return positiveNumber(law.shape) && positiveNumber(law.rate) ? undefined : `${label} needs a shape and a rate above zero.`;
-    case DistributionType.BETA:
-      return positiveNumber(law.alpha) && positiveNumber(law.betaParam) ? undefined : `${label} needs alpha and beta above zero.`;
-  }
+function lawFieldValue(law: Law, field: string): number | undefined {
+  const [holder, name] = field.startsWith("law.") && law.family === "TRUNCATED" ? [law.law, field.slice("law.".length)] : [law, field];
+  const entry = Object.entries(holder).find(([key]) => key === name);
+  return entry !== undefined && typeof entry[1] === "number" ? entry[1] : undefined;
 }
 
-function asLaw(distribution: ParameterDistribution): EsqLaw | undefined {
-  switch (distribution.type) {
-    case DistributionType.LOGNORMAL:
-    case DistributionType.NORMAL:
-    case DistributionType.UNIFORM:
-    case DistributionType.EXPONENTIAL:
-    case DistributionType.WEIBULL:
-    case DistributionType.GAMMA:
-    case DistributionType.BETA:
-    case DistributionType.POINT_ESTIMATE:
-      return distribution;
-    default:
-      return undefined;
-  }
-}
-
-function lawParameters(law: EsqLaw): EsqLawParameter[] {
-  return LAW_PARAMETERS[law.type];
-}
-
-function uncertainProblems(law: EsqLaw, uncertain: readonly EsqUncertainParameter[], label: string): string | undefined {
-  const allowed = lawParameters(law);
-  const seen: EsqLawParameter[] = [];
-  for (const entry of uncertain) {
-    if (!allowed.includes(entry.parameter)) return `${label} has no parameter ${entry.parameter} to sample.`;
-    if (seen.includes(entry.parameter)) return `${label} samples ${entry.parameter} twice.`;
-    seen.push(entry.parameter);
-    const problem = lawProblem(entry.distribution, `The uncertainty on the ${label.toLowerCase()} ${entry.parameter}`);
-    if (problem !== undefined) return problem;
+function daReferenceProblem(esq: EventSequenceQuantification, expressions: readonly UncertainExpression[], label: string, table: Map<string, UncertainParameter>): string | undefined {
+  const workbookId = esq.linkedWorkbooks?.DA?.trim();
+  const pending = expressions.flatMap(expressionReferences);
+  while (pending.length > 0) {
+    const reference = pending.pop();
+    if (reference === undefined) break;
+    const key = parameterReferenceKey(reference);
+    if (table.has(key)) continue;
+    if (workbookId === undefined || reference.workbookId.trim() !== workbookId) return `The ${label} reads ${reference.entityId} from a workbook that Step 01 does not link as DA.`;
+    const parameter = esq.model?.parameters.find((entry) => entry.id === reference.entityId.trim());
+    if (parameter === undefined) return `The ${label} reads DA parameter ${reference.entityId}, which the Step 02 import does not hold.`;
+    if (!holdsEstimate(parameter.quantificationModel) || parameter.estimate === undefined) return `The ${label} reads ${parameter.name}, which has no estimate in DA.`;
+    table.set(key, { reference, expression: parameter.estimate });
+    pending.push(...expressionReferences(parameter.estimate));
   }
   return undefined;
 }
 
-function resolveSide(side: EsqCellSide, parameters: readonly EsqParameterRecord[], label: string): EsqSideResult {
-  const fragility = side.fragility;
-  if (fragility !== undefined) {
-    if (!positiveNumber(fragility.median)) return { problem: `The ${label.toLowerCase()} fragility needs a median above zero.` };
-    if (!finiteNumber(fragility.betaR) || fragility.betaR < 0 || !finiteNumber(fragility.betaU) || fragility.betaU < 0) {
-      return { problem: `The ${label.toLowerCase()} fragility needs randomness and uncertainty betas of zero or more.` };
-    }
-    const distribution: EsqLaw = { type: DistributionType.LOGNORMAL, median: fragility.median, errorFactor: Math.exp(Z95 * fragility.betaR) };
-    const uncertainParameters: EsqUncertainParameter[] = fragility.betaU > 0
-      ? [{ parameter: "median", distribution: { type: DistributionType.LOGNORMAL, median: fragility.median, errorFactor: Math.exp(Z95 * fragility.betaU) } }]
-      : [];
-    return { side: { distribution, uncertainParameters } };
-  }
-  let distribution: EsqLaw | undefined;
-  if (side.parameterId !== undefined) {
-    const parameter = parameters.find((entry) => entry.id === side.parameterId);
-    if (parameter === undefined) return { problem: `${label} takes ${side.parameterId}, which the imported DA workbook does not hold.` };
-    const law = parameter.distribution === undefined ? undefined : asLaw(parameter.distribution);
-    if (law === undefined) return { problem: `${label} takes ${parameter.id}, which has no distribution PRAXIS can integrate.` };
-    distribution = law;
-  } else {
-    distribution = side.distribution;
-  }
-  if (distribution === undefined) return { problem: `${label} has no distribution.` };
-  const problem = lawProblem(distribution, label);
-  if (problem !== undefined) return { problem };
-  const uncertain = side.uncertain ?? [];
-  const uncertainProblem = uncertainProblems(distribution, uncertain, label);
-  if (uncertainProblem !== undefined) return { problem: uncertainProblem };
-  return { side: { distribution, uncertainParameters: uncertain } };
-}
-
-function lawKey(law: EsqLaw): string {
-  return JSON.stringify({ type: law.type, values: lawParameters(law).map((parameter) => lawValue(law, parameter)) });
-}
-
-function lawValue(law: EsqLaw, parameter: EsqLawParameter): number | undefined {
-  switch (law.type) {
-    case DistributionType.POINT_ESTIMATE: return parameter === "value" ? law.value : undefined;
-    case DistributionType.NORMAL: return parameter === "mean" ? law.mean : parameter === "stdDev" ? law.stdDev : undefined;
-    case DistributionType.LOGNORMAL: return parameter === "median" ? law.median : parameter === "errorFactor" ? law.errorFactor : undefined;
-    case DistributionType.UNIFORM: return parameter === "lower" ? law.lower : parameter === "upper" ? law.upper : undefined;
-    case DistributionType.EXPONENTIAL: return parameter === "failureRate" ? law.failureRate : undefined;
-    case DistributionType.WEIBULL: return parameter === "scale" ? law.scale : parameter === "shape" ? law.shape : parameter === "location" ? law.location : undefined;
-    case DistributionType.GAMMA: return parameter === "shape" ? law.shape : parameter === "rate" ? law.rate : undefined;
-    case DistributionType.BETA: return parameter === "alpha" ? law.alpha : parameter === "betaParam" ? law.betaParam : undefined;
-  }
-}
-
-function correlationProblem(sides: readonly EsqResolvedSide[]): string | undefined {
-  const byKey = new Map<string, string>();
-  for (const side of sides) {
-    for (const entry of side.uncertainParameters) {
-      const key = entry.correlationKey;
-      if (key === undefined || key.length === 0) continue;
-      const law = lawKey(entry.distribution);
-      const seen = byKey.get(key);
-      if (seen !== undefined && seen !== law) return `Correlation key ${key} joins parameters with different distributions.`;
-      byKey.set(key, law);
+function variableProblem(variable: AleatoryVariable, label: string): string | undefined {
+  const names = lawFieldNames(variable.law);
+  const seen: string[] = [];
+  for (const entry of variable.fields) {
+    if (!names.includes(entry.field)) return `The ${label} law has no field ${entry.field} to make uncertain.`;
+    if (seen.includes(entry.field)) return `The ${label} makes ${entry.field} uncertain twice.`;
+    seen.push(entry.field);
+    if (entry.value.node === "VALUE" && !FIELD_UNITS.has(entry.value.value.unit)) {
+      return `The ${label} field ${entry.field} is typed per time or in time units. Type it as a quantity in the cell unit.`;
     }
   }
   return undefined;
 }
 
-function resolveCell(cell: EsqCell, model: EsqModel | undefined): EsqCellResult {
-  const parameters = model?.parameters ?? [];
-  const load = resolveSide(cell.load, parameters, "Load");
+function fragilityProblem(fragility: EsqFragility, label: string): string | undefined {
+  if (!(Number.isFinite(fragility.median) && fragility.median > 0)) return `The ${label} fragility needs a median above zero.`;
+  if (!(Number.isFinite(fragility.betaR) && fragility.betaR >= 0) || !(Number.isFinite(fragility.betaU) && fragility.betaU >= 0)) {
+    return `The ${label} fragility needs randomness and uncertainty betas of zero or more.`;
+  }
+  return undefined;
+}
+
+function resolveSide(esq: EventSequenceQuantification, side: EsqCellSide | undefined, name: EsqSideName, table: Map<string, UncertainParameter>): EsqSideResult {
+  const label = SIDE_LABELS[name];
+  if (side === undefined) return { problem: `The cell has no ${label}.` };
+  if (side.source === "FRAGILITY") {
+    const problem = fragilityProblem(side.fragility, label);
+    return problem === undefined ? { side: { kind: "FRAGILITY", fragility: side.fragility } } : { problem };
+  }
+  if (side.source === "DA") {
+    const parameter = esq.model?.parameters.find((entry) => entry.id === side.parameterId);
+    if (parameter === undefined) return { problem: `The ${label} takes ${side.parameterId}, which the Step 02 import does not hold.` };
+    if (!holdsEstimate(parameter.quantificationModel) || parameter.estimate === undefined) return { problem: `The ${label} takes ${parameter.name}, which has no estimate in DA.` };
+    if (parameter.estimate.node !== "VALUE") return { problem: `The ${label} takes ${parameter.name}, whose DA estimate is not one law.` };
+    return { side: { kind: "VARIABLE", variable: { law: parameter.estimate.value.law, fields: [] } } };
+  }
+  const problem = variableProblem(side.variable, label) ?? daReferenceProblem(esq, side.variable.fields.map((entry) => entry.value), label, table);
+  return problem === undefined ? { side: { kind: "VARIABLE", variable: side.variable } } : { problem };
+}
+
+function resolveCell(cell: EsqCell, esq: EventSequenceQuantification): EsqCellResult {
+  const table = new Map<string, UncertainParameter>();
+  const load = resolveSide(esq, cell.load, "load", table);
   if (load.problem !== undefined) return { problem: load.problem };
-  const capacity = resolveSide(cell.capacity, parameters, "Capacity");
+  const capacity = resolveSide(esq, cell.capacity, "capacity", table);
   if (capacity.problem !== undefined) return { problem: capacity.problem };
-  const problem = correlationProblem([load.side, capacity.side]);
-  if (problem !== undefined) return { problem };
-  return { cell: { load: load.side, capacity: capacity.side } };
-}
-
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value === null || typeof value !== "object") return value;
-  const entries = Object.entries(value as Record<string, unknown>).filter(([, child]) => child !== undefined).sort(([a], [b]) => a.localeCompare(b));
-  return Object.fromEntries(entries.map(([key, child]) => [key, canonical(child)]));
+  const parameters = [...table.values()].sort((left, right) => parameterReferenceKey(left.reference).localeCompare(parameterReferenceKey(right.reference)));
+  return { cell: { load: load.side, capacity: capacity.side, parameters } };
 }
 
 function cellInputsKey(cell: EsqCell): string {
-  return JSON.stringify(canonical({ load: cell.load, capacity: cell.capacity, unit: cell.unit }));
+  return canonicalJson({ load: cell.load, capacity: cell.capacity, unit: cell.unit });
 }
 
 function cellRunValue(cell: EsqCell): number | undefined {
@@ -197,9 +131,16 @@ function cellRunValue(cell: EsqCell): number | undefined {
   return run.mean ?? run.point;
 }
 
-function cellValueOfRecord(cell: EsqCell): number | undefined {
-  if (cell.ofRecord === "TYPED") return cell.typed?.value;
-  if (cell.ofRecord === "RUN") return cellRunValue(cell);
+function cellRunExpression(cell: EsqCell): UncertainExpression | undefined {
+  const run = cell.run;
+  if (run === undefined) return undefined;
+  const law: Law = run.law ?? { family: "POINT", value: run.point };
+  return { node: "VALUE", value: { unit: "PROBABILITY", law } };
+}
+
+function cellExpressionOfRecord(cell: EsqCell): UncertainExpression | undefined {
+  if (cell.ofRecord === "TYPED") return cell.typed?.expression;
+  if (cell.ofRecord === "RUN") return cellRunExpression(cell);
   return undefined;
 }
 
@@ -220,23 +161,21 @@ function cellOf(esq: EventSequenceQuantification, cellId: string): EsqCell | und
 }
 
 export {
-  LAW_PARAMETERS,
-  asLaw,
   barrierWorkOf,
-  canonical,
+  cellExpressionOfRecord,
   cellInputsKey,
   cellOf,
+  cellRunExpression,
   cellRunStale,
   cellRunValue,
-  cellValueOfRecord,
   esqCellRunId,
-  lawParameters,
-  lawProblem,
-  lawValue,
+  lawFieldNames,
+  lawFieldValue,
   resolveCell,
   resolveSide,
   type EsqCellResult,
   type EsqResolvedCell,
   type EsqResolvedSide,
+  type EsqSideName,
   type EsqSideResult,
 };

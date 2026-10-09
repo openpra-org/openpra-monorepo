@@ -9,6 +9,7 @@ import {
   WorkbookModelAddressSchema,
 } from "./shared";
 import { AnnualizedFrequencyInputSchema } from "./quantitative-semantics";
+import { UncertainExpressionSchema, UncertainVectorSchema } from "../core/uncertainty";
 import type {
   HclBaseEvidence,
   HclBayesianNetworkReference,
@@ -16,14 +17,11 @@ import type {
   HclEventBinding,
   HclEvidenceScenario,
   HclHazardGridDefinition,
-  HclBasicEventProbabilityDistribution,
   HclBasicEventUncertainty,
   HclCptRowUncertainty,
-  HclCptPrior,
   HclCptGenerator,
   HclCptGeneratorUncertainty,
   HclUncertaintySettings,
-  HclSampler,
   HclFaultTreeReference,
   HclSolverSettings,
   HclTrueStateIds,
@@ -81,112 +79,88 @@ const HclHazardGridDefinitionSchema = z
     }
   });
 
-const HclBasicEventProbabilityDistributionSchema: z.ZodType<HclBasicEventProbabilityDistribution> = z.discriminatedUnion("family", [
-  z.object({ family: z.literal("BETA"), alpha: z.number().finite().positive(), beta: z.number().finite().positive() }).strict(),
-  z.object({ family: z.literal("LOGNORMAL"), median: z.number().finite().positive(), errorFactor: z.number().finite().min(1) }).strict(),
-  z.object({ family: z.literal("UNIFORM"), lower: z.number().finite(), upper: z.number().finite() }).strict(),
-  z.object({ family: z.literal("NORMAL"), mean: z.number().finite(), standardDeviation: z.number().finite().nonnegative() }).strict(),
-  z.object({ family: z.literal("LOGITNORMAL"), mu: z.number().finite(), sigma: z.number().finite().nonnegative() }).strict(),
-  z.object({ family: z.literal("GAMMA"), shape: z.number().finite().positive(), scale: z.number().finite().positive() }).strict(),
-  z.object({ family: z.literal("EXPONENTIAL"), rate: z.number().finite().positive() }).strict(),
-  z.object({ family: z.literal("TRIANGULAR"), lower: z.number().finite(), mode: z.number().finite(), upper: z.number().finite() }).strict().refine((value) => value.lower < value.upper && value.lower <= value.mode && value.mode <= value.upper, { message: "Triangular bounds must satisfy lower <= mode <= upper and lower < upper", path: ["mode"] }),
-]);
-
-/** Match HCL_MH sample_dist: NumPy MC and SciPy LHS have different domains. */
-function hclProbabilityDistributionSchemaForSampler(sampler: HclSampler) {
-  return HclBasicEventProbabilityDistributionSchema.superRefine((distribution, context) => {
-    if (sampler === "MC") {
-      if (distribution.family === "UNIFORM" && (distribution.lower > distribution.upper || !Number.isFinite(distribution.upper - distribution.lower))) {
-        context.addIssue({ code: "custom", path: ["upper"], message: "MC uniform requires lower <= upper and a finite width" });
-      }
-      return;
-    }
-    const parameter = distribution.family === "NORMAL" && distribution.standardDeviation === 0 ? "standardDeviation"
-      : distribution.family === "LOGITNORMAL" && distribution.sigma === 0 ? "sigma"
-      : distribution.family === "LOGNORMAL" && distribution.errorFactor === 1 ? "errorFactor" : undefined;
-    if (parameter) context.addIssue({ code: "custom", path: [parameter], message: "HCL_MH LHS returns undefined samples for zero spread; use MC or a positive spread" });
-  });
-}
-
 const HclBasicEventUncertaintySchema: z.ZodType<HclBasicEventUncertainty> = z
   .object({
     faultTreeBasicEvent: FaultTreeBasicEventCatalogueReferenceSchema,
-    distribution: HclBasicEventProbabilityDistributionSchema,
+    expression: UncertainExpressionSchema,
   })
   .strict();
-
-const HclCptPriorSchema: z.ZodType<HclCptPrior> = z.discriminatedUnion("family", [
-  z.object({ family: z.literal("BETA"), alpha: z.number().finite().positive(), beta: z.number().finite().positive(), trueStateId: WorkbookEntityIdSchema }).strict(),
-  z.object({ family: z.literal("DIRICHLET"), alpha: z.array(z.number().finite().nonnegative()).min(1) }).strict()
-    .refine(({ alpha }) => alpha.some((a) => a > 0) && Number.isFinite(alpha.reduce((sum, a) => sum + a, 0)), { message: "Dirichlet alpha must have a positive finite total", path: ["alpha"] }),
-]);
 
 const HclCptRowUncertaintySchema: z.ZodType<HclCptRowUncertainty> = z
   .object({
     bayesianNetworkNode: BayesianNetworkNodeReferenceSchema,
     cptRowId: WorkbookEntityIdSchema,
-    prior: HclCptPriorSchema,
+    row: UncertainVectorSchema,
   })
   .strict();
 
-const HclCptGeneratorSchema: z.ZodType<HclCptGenerator> = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("seismic_fragility"), pgaParentId: WorkbookEntityIdSchema,
-    theta: z.number().finite().positive(), betaR: z.number().finite().positive(), betaU: z.number().finite().nonnegative(),
-    trueStateId: WorkbookEntityIdSchema, falseStateId: WorkbookEntityIdSchema,
-    pgaCenters: z.array(z.object({ stateId: WorkbookEntityIdSchema, value: z.number().finite().nonnegative() }).strict()).min(1),
-  }).strict().superRefine((g, ctx) => {
-    if (g.trueStateId === g.falseStateId) ctx.addIssue({ code: "custom", path: ["falseStateId"], message: "Failure and success states must differ" });
-    if (new Set(g.pgaCenters.map((c) => c.stateId)).size !== g.pgaCenters.length) ctx.addIssue({ code: "custom", path: ["pgaCenters"], message: "PGA center states must be unique" });
-  }),
-  z.object({
-    type: z.literal("seismic_pga_bins"), noneStateId: WorkbookEntityIdSchema,
-    missionTime: z.number().finite().positive(), frequencyToProbability: z.enum(["poisson", "linear"]),
-    bins: z.array(z.object({ stateId: WorkbookEntityIdSchema, medianFrequency: z.number().finite().nonnegative(), errorFactor95: z.number().finite().gt(1) }).strict()).min(1),
-  }).strict().superRefine((g, ctx) => {
-    if (new Set(g.bins.map((b) => b.stateId)).size !== g.bins.length || g.bins.some((b) => b.stateId === g.noneStateId)) ctx.addIssue({ code: "custom", path: ["bins"], message: "PGA bins must use unique states excluding the none state" });
-  }),
+const HclCptGeneratorSchema: z.ZodType<HclCptGenerator> = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("SEISMIC_FRAGILITY"),
+      pgaParentId: WorkbookEntityIdSchema,
+      trueStateId: WorkbookEntityIdSchema,
+      falseStateId: WorkbookEntityIdSchema,
+      median: UncertainExpressionSchema,
+      randomness: UncertainExpressionSchema,
+      demands: z.array(z.object({ stateId: WorkbookEntityIdSchema, demand: z.number().finite().nonnegative() }).strict()).min(1),
+    })
+    .strict()
+    .superRefine((generator, context) => {
+      if (generator.trueStateId === generator.falseStateId) context.addIssue({ code: "custom", path: ["falseStateId"], message: "Failure and success states must differ" });
+      if (new Set(generator.demands.map((entry) => entry.stateId)).size !== generator.demands.length) context.addIssue({ code: "custom", path: ["demands"], message: "Each PGA state has one demand" });
+    }),
+  z
+    .object({
+      kind: z.literal("SEISMIC_PGA_BINS"),
+      noneStateId: WorkbookEntityIdSchema,
+      missionTime: UncertainExpressionSchema,
+      conversion: z.enum(["POISSON", "LINEAR"]),
+      bins: z.array(z.object({ stateId: WorkbookEntityIdSchema, frequency: UncertainExpressionSchema }).strict()).min(1),
+    })
+    .strict()
+    .superRefine((generator, context) => {
+      const states = generator.bins.map((bin) => bin.stateId);
+      if (new Set(states).size !== states.length || states.includes(generator.noneStateId)) context.addIssue({ code: "custom", path: ["bins"], message: "PGA bins must use unique states other than the none state" });
+    }),
 ]);
-const HclCptGeneratorUncertaintySchema: z.ZodType<HclCptGeneratorUncertainty> = z.object({
-  bayesianNetworkNode: BayesianNetworkNodeReferenceSchema, generator: HclCptGeneratorSchema,
-}).strict();
 
-// The numeric web contract accepts every nonnegative JavaScript-safe integer.
-// Keep seeds exact in JSON; the solver's NumPy-compatible RNG is unchanged.
+const HclCptGeneratorUncertaintySchema: z.ZodType<HclCptGeneratorUncertainty> = z
+  .object({
+    bayesianNetworkNode: BayesianNetworkNodeReferenceSchema,
+    generator: HclCptGeneratorSchema,
+  })
+  .strict();
+
 const HclUncertaintySeedSchema = z.number().int().nonnegative();
+
+function nodeKey(reference: { workbookId: string; modelId: string; entityId: string }): string {
+  return `${reference.workbookId}:${reference.modelId}:${reference.entityId}`;
+}
 
 const HclUncertaintySettingsSchema: z.ZodType<HclUncertaintySettings> = z
   .object({
     sampleCount: z.number().int().min(10).max(10_000),
     seed: HclUncertaintySeedSchema,
-    sampler: z.enum(["MC", "LHS"]).optional(),
-    basicEventSampler: z.enum(["MC", "LHS"]).optional(),
-    cptProbabilityClipEpsilon: z.number().finite().min(0).lt(0.5).optional(),
-    basicEventDistributions: z.array(HclBasicEventUncertaintySchema),
-    cptRowDistributions: z.array(HclCptRowUncertaintySchema),
-    cptGenerators: z.array(HclCptGeneratorUncertaintySchema).optional(),
+    sampler: z.enum(["MC", "LHS"]),
+    basicEvents: z.array(HclBasicEventUncertaintySchema),
+    cptRows: z.array(HclCptRowUncertaintySchema),
+    cptGenerators: z.array(HclCptGeneratorUncertaintySchema),
   })
   .strict()
   .superRefine((settings, context) => {
-    if (settings.sampler && settings.basicEventSampler && settings.sampler !== settings.basicEventSampler) context.addIssue({ code: "custom", path: ["sampler"], message: "Conflicting sampler settings" });
-    const distributionSchema = hclProbabilityDistributionSchemaForSampler(settings.sampler ?? settings.basicEventSampler ?? "MC");
-    settings.basicEventDistributions.forEach(({ distribution }, index) => {
-      const parsed = distributionSchema.safeParse(distribution);
-      if (!parsed.success) parsed.error.issues.forEach((issue) => context.addIssue({ ...issue, path: ["basicEventDistributions", index, "distribution", ...issue.path] }));
-    });
-    const basicEvents = settings.basicEventDistributions.map(({ faultTreeBasicEvent }) => `${faultTreeBasicEvent.workbookId}:${faultTreeBasicEvent.entityId}`);
-    if (new Set(basicEvents).size !== basicEvents.length) context.addIssue({ code: "custom", path: ["basicEventDistributions"], message: "Basic-event uncertainty definitions must be unique" });
-    const rowNodes = new Set(settings.cptRowDistributions.map((r) => `${r.bayesianNetworkNode.workbookId}:${r.bayesianNetworkNode.modelId}:${r.bayesianNetworkNode.entityId}`));
+    const basicEvents = settings.basicEvents.map(({ faultTreeBasicEvent }) => `${faultTreeBasicEvent.workbookId}:${faultTreeBasicEvent.entityId}`);
+    if (new Set(basicEvents).size !== basicEvents.length) context.addIssue({ code: "custom", path: ["basicEvents"], message: "Each basic event has one uncertainty override" });
+    const rowNodes = new Set(settings.cptRows.map((row) => nodeKey(row.bayesianNetworkNode)));
     const generatorNodes = new Set<string>();
-    settings.cptGenerators?.forEach((g, index) => {
-      const key = `${g.bayesianNetworkNode.workbookId}:${g.bayesianNetworkNode.modelId}:${g.bayesianNetworkNode.entityId}`;
-      if (rowNodes.has(key) || generatorNodes.has(key)) context.addIssue({ code: "custom", path: ["cptGenerators", index], message: "A BN node must use row priors or one generator" });
+    settings.cptGenerators.forEach((generator, index) => {
+      const key = nodeKey(generator.bayesianNetworkNode);
+      if (rowNodes.has(key) || generatorNodes.has(key)) context.addIssue({ code: "custom", path: ["cptGenerators", index], message: "A BN node uses row laws or one generator" });
       generatorNodes.add(key);
     });
-    const cptRows = settings.cptRowDistributions.map(({ bayesianNetworkNode, cptRowId }) => `${bayesianNetworkNode.workbookId}:${bayesianNetworkNode.modelId}:${bayesianNetworkNode.entityId}:${cptRowId}`);
-    if (new Set(cptRows).size !== cptRows.length) context.addIssue({ code: "custom", path: ["cptRowDistributions"], message: "CPT-row uncertainty definitions must be unique" });
-  })
-  .transform(({ basicEventSampler, ...settings }) => basicEventSampler === undefined ? settings : { ...settings, sampler: settings.sampler ?? basicEventSampler });
+    const rows = settings.cptRows.map((row) => `${nodeKey(row.bayesianNetworkNode)}:${row.cptRowId}`);
+    if (new Set(rows).size !== rows.length) context.addIssue({ code: "custom", path: ["cptRows"], message: "Each CPT row has one uncertainty law" });
+  });
 
 const HclSolverSettingsSchema = z
   .object({
@@ -331,33 +305,33 @@ function refineHclConfigurationDefinition(
   });
 
   const uncertainty = configuration.solverSettings.uncertainty;
-  uncertainty?.basicEventDistributions.forEach((definition, index) => {
+  uncertainty?.basicEvents.forEach((definition, index) => {
     const reference = definition.faultTreeBasicEvent;
     if (!configuration.faultTrees.some((faultTree) => faultTree.workbookId === reference.workbookId)) {
       context.addIssue({
         code: "custom",
-        path: ["solverSettings", "uncertainty", "basicEventDistributions", index, "faultTreeBasicEvent"],
+        path: ["solverSettings", "uncertainty", "basicEvents", index, "faultTreeBasicEvent"],
         message: "Uncertain basic event must belong to an included fault tree",
       });
     }
     if (boundFaultTreeEvents.has(`${reference.workbookId}:${reference.entityId}`)) {
       context.addIssue({
         code: "custom",
-        path: ["solverSettings", "uncertainty", "basicEventDistributions", index, "faultTreeBasicEvent"],
-        message: "BN-bound basic-event uncertainty must be defined on the corresponding BN CPT row",
+        path: ["solverSettings", "uncertainty", "basicEvents", index, "faultTreeBasicEvent"],
+        message: "A BN-bound basic event takes its uncertainty from its CPT row",
       });
     }
   });
-  uncertainty?.cptGenerators?.forEach((definition, index) => {
+  uncertainty?.cptGenerators.forEach((definition, index) => {
     const reference = definition.bayesianNetworkNode;
     if (reference.workbookId !== configuration.bayesianNetwork.workbookId || reference.modelId !== configuration.bayesianNetwork.modelId) context.addIssue({ code: "custom", path: ["solverSettings", "uncertainty", "cptGenerators", index], message: "CPT generator must belong to the configured Bayesian network" });
   });
-  uncertainty?.cptRowDistributions.forEach((definition, index) => {
+  uncertainty?.cptRows.forEach((definition, index) => {
     const reference = definition.bayesianNetworkNode;
     if (reference.workbookId !== configuration.bayesianNetwork.workbookId || reference.modelId !== configuration.bayesianNetwork.modelId) {
       context.addIssue({
         code: "custom",
-        path: ["solverSettings", "uncertainty", "cptRowDistributions", index, "bayesianNetworkNode"],
+        path: ["solverSettings", "uncertainty", "cptRows", index, "bayesianNetworkNode"],
         message: "Uncertain CPT row must belong to the configured Bayesian network",
       });
     }
@@ -393,15 +367,12 @@ type _AssertHclConfigurationDefinition = Expect<
 export {
   HclCptGeneratorSchema,
   HclCptGeneratorUncertaintySchema,
-  HclCptPriorSchema,
   HclBayesianNetworkReferenceSchema,
   HclFaultTreeReferenceSchema,
   HclEventBindingSchema,
   HclBaseEvidenceSchema,
   HclEvidenceScenarioSchema,
   HclHazardGridDefinitionSchema,
-  HclBasicEventProbabilityDistributionSchema,
-  hclProbabilityDistributionSchemaForSampler,
   HclBasicEventUncertaintySchema,
   HclCptRowUncertaintySchema,
   HclUncertaintySeedSchema,

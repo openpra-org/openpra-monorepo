@@ -11,8 +11,12 @@ import {
   BorderStyle,
 } from "docx";
 import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
-import { type Frequency, type FrequencyWithDistribution } from "interfaces-mef-types/core/events";
 import { INITIATOR_CATEGORIES, categoryById } from "./ieViewData";
+import { evaluateUncertainty } from "../newly-developed-methods/shared/uncertaintyApi";
+import { parametersFor } from "../newly-developed-methods/shared/useUncertainty";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
+import { FREQUENCY_UNIT, basisText, frequencyText } from "../newly-developed-methods/ie-frequency-quantification/frequencySources";
+import { daParameterLabel, daParameterTable, type IeDaFrequencyOption } from "./ieDaLinks";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({
@@ -63,16 +67,24 @@ const BASIS_LABEL: Record<string, string> = {
   FAULT_TREE: "Fault tree",
 };
 
-function freqValue(f: Frequency | FrequencyWithDistribution): number {
-  return typeof f === "number" ? f : f.value;
-}
-
-function fmtFreq(v: number): string {
-  if (!isFinite(v) || v <= 0) return "—";
-  const exp = Math.floor(Math.log10(v));
-  const mantissa = v / Math.pow(10, exp);
-  const sign = exp < 0 ? "-" : "+";
-  return `${mantissa.toFixed(1)}E${sign}${String(Math.abs(exp)).padStart(2, "0")}`;
+async function frequencyMeans(a: InitiatingEventsAnalysis, options: readonly IeDaFrequencyOption[]): Promise<Map<string, string>> {
+  const valued = a.quantifications.flatMap((q) => (q.frequency === undefined ? [] : [{ id: q.initiatorOrGroupId, expression: q.frequency.expression, basis: q.frequency.basis }]));
+  if (valued.length === 0) return new Map();
+  try {
+    const response = await evaluateUncertainty({
+      parameters: parametersFor(valued.map(({ expression }) => expression), daParameterTable(options)),
+      laws: [],
+      expressions: valued.map(({ expression }, index) => ({ id: String(index), expression, unit: FREQUENCY_UNIT, probabilities: [] })),
+      operations: [],
+    });
+    return new Map(valued.map(({ id, basis }, index) => {
+      const answer = response.expressions.find((entry) => entry.id === String(index));
+      return [id, answer === undefined ? "Not available" : "error" in answer ? `Not available: ${answer.error}` : `${frequencyText(answer.point)} ${basisText(basis)}`];
+    }));
+  } catch (error) {
+    const reason = error instanceof Error ? `Not available: ${error.message}` : "Not available";
+    return new Map(valued.map(({ id }) => [id, reason]));
+  }
 }
 
 function targetName(a: InitiatingEventsAnalysis, id: string): string {
@@ -96,7 +108,7 @@ function references(a: InitiatingEventsAnalysis): string[] {
   return out;
 }
 
-function buildChildren(a: InitiatingEventsAnalysis, final: boolean): (Paragraph | Table)[] {
+function buildChildren(a: InitiatingEventsAnalysis, final: boolean, options: readonly IeDaFrequencyOption[], means: ReadonlyMap<string, string>): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
   const stageLabel = a.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational";
   const ccLabel = a.capabilityCategory ?? "N/A";
@@ -197,8 +209,13 @@ function buildChildren(a: InitiatingEventsAnalysis, final: boolean): (Paragraph 
   out.push(heading("Initiating-event group frequencies", HeadingLevel.HEADING_2));
   out.push(
     dataTable(
-      ["Target", "Mean frequency (per plant-yr)", "Basis"],
-      a.quantifications.map((q) => [targetName(a, q.initiatorOrGroupId), fmtFreq(freqValue(q.meanFrequency)), BASIS_LABEL[q.basis] ?? q.basis]),
+      ["Target", "Frequency", "Mean", "Basis"],
+      a.quantifications.map((q) => [
+        targetName(a, q.initiatorOrGroupId),
+        q.frequency === undefined ? "Not given" : expressionText(q.frequency.expression, daParameterLabel(options)),
+        means.get(q.initiatorOrGroupId) ?? "—",
+        BASIS_LABEL[q.basis] ?? q.basis,
+      ]),
     ),
   );
 
@@ -294,9 +311,10 @@ function computeIeReportToc(ie: InitiatingEventsAnalysis): TocEntry[] {
   return out;
 }
 
-async function generateIeReport(ie: InitiatingEventsAnalysis, final: boolean): Promise<void> {
+async function generateIeReport(ie: InitiatingEventsAnalysis, final: boolean, options: readonly IeDaFrequencyOption[]): Promise<void> {
+  const means = await frequencyMeans(ie, options);
   const doc = new Document({
-    sections: [{ children: buildChildren(ie, final) }],
+    sections: [{ children: buildChildren(ie, final, options, means) }],
   });
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);

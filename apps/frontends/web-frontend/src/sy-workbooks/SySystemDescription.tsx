@@ -3,10 +3,15 @@ import { NotRecorded, ReviewLines, ReviewTitle } from "./syShared";
 import { SySystemDiagrams } from "./SySystemDiagrams";
 import { useSyWorkbook } from "./syWorkbookContext";
 import type { SyDrawerContext } from "./syScreens";
+import { useSyValueSources, useSystemHours } from "./syMissionTimes";
+import { hoursText } from "../sc-workbooks/scMissionTimePoints";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 
 function SySystemDescription({ systemId, openDrawer }: { systemId: string; openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element | null {
   const { sy, links, editable, mutateSy } = useSyWorkbook();
   const def = sy.systemDefinitions.find((candidate) => candidate.uuid === systemId);
+  const values = useSyValueSources();
+  const missionHours = useSystemHours(def === undefined ? [] : [def]).get(systemId);
   if (def === undefined) return null;
   const system = def;
   const variants = (sy.variableSuccessCriteria ?? []).filter((criterion) => criterion.systemReference === system.uuid);
@@ -67,8 +72,12 @@ function SySystemDescription({ systemId, openDrawer }: { systemId: string; openD
             <tr>
               <th scope="row">Mission time</th>
               <td>
-                {system.missionTimeHours === undefined ? <NotRecorded /> : <span>{`${system.missionTimeHours} h`}</span>}
-                <span className="sy-review-sub">{system.missionTimeRef === undefined ? "Typed" : `SC ${system.missionTimeRef}`}</span>
+                {system.missionTime === undefined ? <NotRecorded /> : (
+                  <>
+                    <span className="posmono">{hoursText(missionHours)}</span>
+                    <span className="sy-review-sub">{system.missionTime.node === "PARAMETER" ? `SC ${expressionText(system.missionTime, values.label)}` : `Typed ${expressionText(system.missionTime, values.label)}`}</span>
+                  </>
+                )}
               </td>
             </tr>
           </tbody>

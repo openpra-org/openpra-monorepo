@@ -1,9 +1,11 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import type {
   SystemBasicEvent,
   SystemLogicModel,
   SystemsAnalysis,
 } from "interfaces-mef-types/sy/systems-analysis";
+import { systemBasicEventToFaultTreeBasicEvent } from "interfaces-mef-types/sy/system-models";
 import {
   FaultTreeEditor,
   applyFaultTreeOperation,
@@ -19,6 +21,7 @@ import {
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "../syWorkbookApi";
 import { createEmptyBayesianNetwork } from "../../newly-developed-methods/bayesian-network";
 import { ModelsScreen } from "../SySystemModels";
+import { settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
 
 jest.mock("../../newly-developed-methods/fault-tree", () => ({
   FaultTreeEditor: jest.fn(() => null),
@@ -29,6 +32,8 @@ jest.mock("../../newly-developed-methods/fault-tree", () => ({
 jest.mock("interfaces-shared-types/newly-developed-methods/fault-tree", () => ({
   validateFaultTreeModel: jest.fn(),
 }));
+
+jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => jest.requireActual("./syUncertaintyPraxis"));
 
 jest.mock("../syWorkbookApi", () => ({
   getSyFaultTreeResult: jest.fn(),
@@ -89,6 +94,14 @@ const LOGIC_MODEL: SystemLogicModel = {
   implementsSrs: [{ sr: "SY-A7", hlr: "A" }],
 };
 
+function point(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
+}
+
+function linked(entityId: string): UncertainExpression {
+  return { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId } };
+}
+
 const BASIC_EVENT: SystemBasicEvent = {
   uuid: BASIC_EVENT_ID,
   code: "BE-PUMP-FS",
@@ -96,9 +109,8 @@ const BASIC_EVENT: SystemBasicEvent = {
   description: "Demand failure of the cooling pump",
   eventType: "BASIC",
   failureMode: "FAILURE_TO_START",
-  probability: 0.02,
+  expression: point(0.02),
   repairModeled: true,
-  dataAnalysisBasicEventRef: "DA-PUMP-FS",
   implementsSrs: [{ sr: "SY-A14", hlr: "A" }],
 };
 
@@ -144,6 +156,14 @@ let mockWorkbookContext: {
     workbookName: string;
     parameterId: string;
     parameterName: string;
+    estimate: UncertainExpression;
+    unit: "PROBABILITY" | "PER_HOUR";
+  }>;
+  controlledLegacyParameters: Array<{
+    workbookId: string;
+    workbookName: string;
+    parameterId: string;
+    parameterName: string;
     parameterType: "PROBABILITY" | "FREQUENCY" | "FAILURE_RATE";
     value: number;
     rateUnit?: "HOUR" | "YEAR";
@@ -179,6 +199,7 @@ function setWorkbookContext({
   revision = 7,
   saveStatus = "saved",
   controlledParameters = [],
+  controlledLegacyParameters = [],
   controlledHumanFailures = [],
 }: {
   sy?: SystemsAnalysis;
@@ -187,6 +208,7 @@ function setWorkbookContext({
   revision?: number | null;
   saveStatus?: "saving" | "saved" | "failed";
   controlledParameters?: typeof mockWorkbookContext.controlledParameters;
+  controlledLegacyParameters?: typeof mockWorkbookContext.controlledLegacyParameters;
   controlledHumanFailures?: typeof mockWorkbookContext.controlledHumanFailures;
 } = {}): void {
   mockWorkbookContext = {
@@ -195,6 +217,7 @@ function setWorkbookContext({
     mutateSy: mockMutateSy,
     runtime: { workbookId, revision, saveStatus },
     controlledParameters,
+    controlledLegacyParameters,
     controlledHumanFailures,
     shortOf: (id: string) => (id === SYSTEM_ID ? "RCS" : id),
   };
@@ -225,7 +248,7 @@ function projectedModel(): FaultTreeEditorProps["model"] {
   };
 }
 
-const FAULT_TREE_HINT = "Right-click a gate to add gates, basic events, house events or transfers. Give each basic event a probability in the Basic events tab. Type it, or pick a DA estimate after linking a DA workbook in Step 01.";
+const FAULT_TREE_HINT = "Right-click a gate to add gates, basic events, house events or transfers. Give each basic event a value in the Basic events tab. Type it, or link a DA estimate after linking a DA workbook in Step 01.";
 
 describe("ModelsScreen canonical fault-tree host", () => {
   it("shows the PRAXIS fault-tree calculation, workflow, and algorithm controls below the editor", () => {
@@ -314,7 +337,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
     expect(mockedFaultTreeEditor).not.toHaveBeenCalled();
   });
 
-  it("projects the normalized system model and root catalogue into one canonical editor", () => {
+  it("projects the normalized system model and root catalogue into one canonical editor", async () => {
     const validationIssue = {
       code: "TEST_WARNING",
       severity: "WARNING" as const,
@@ -327,9 +350,11 @@ describe("ModelsScreen canonical fault-tree host", () => {
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
     openTab("Fault tree");
 
-    expect(mockedFaultTreeEditor).toHaveBeenCalledTimes(1);
+    expect(mockedFaultTreeEditor).toHaveBeenCalled();
+    await waitFor(() => expect(latestEditorProps().catalogue.basicEvents[0]?.probability).toEqual({ value: 0.02, expression: point(0.02) }));
     const props = latestEditorProps();
     expect(props.model).toEqual(projectedModel());
+    expect(props.readOnlyBasicEventValues).toEqual({ [BASIC_EVENT_ID]: "0.02" });
     expect(props.catalogue).toEqual({
       basicEvents: [
         {
@@ -337,7 +362,7 @@ describe("ModelsScreen canonical fault-tree host", () => {
           code: BASIC_EVENT.code,
           name: BASIC_EVENT.name,
           description: BASIC_EVENT.description,
-          probability: { value: BASIC_EVENT.probability },
+          probability: { value: 0.02, expression: point(0.02) },
         },
       ],
       presentations: [
@@ -361,62 +386,66 @@ describe("ModelsScreen canonical fault-tree host", () => {
     expect(props.validation).toEqual([validationIssue]);
   });
 
-  it("keeps a legacy controlled rate available for review without recalculating it", () => {
+  it("shows a legacy controlled rate on a common cause event read-only without recalculating it", () => {
     const basis = { kind: "FAILURE_RATE" as const, conversion: "LINEAR" as const,
       failureRate: { value: .001, unit: "HOUR" as const }, missionTime: { value: 100, unit: "HOUR" as const } };
+    const { expression: _expression, ...plain } = BASIC_EVENT;
     setWorkbookContext({
-      sy: makeAnalysis({ systemBasicEvents: [{ ...BASIC_EVENT, probability: .1, quantificationBasis: basis,
+      sy: makeAnalysis({ systemBasicEvents: [{ ...plain, failureMode: "COMMON_CAUSE_FAILURE", probability: .1, quantificationBasis: basis,
         controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "parameter-1" } }] }),
-      controlledParameters: [{ workbookId: "da-workbook", workbookName: "DA", parameterId: "parameter-1",
+      controlledLegacyParameters: [{ workbookId: "da-workbook", workbookName: "DA", parameterId: "parameter-1",
         parameterName: "Rate", parameterType: "FAILURE_RATE", rateUnit: "HOUR", value: .002 }],
     });
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
     openTab("Fault tree");
     expect(latestEditorProps().catalogue.basicEvents[0]?.probability).toMatchObject({ value: .1, quantificationBasis: basis });
+    expect(latestEditorProps().readOnlyBasicEventValues).toEqual({ [BASIC_EVENT_ID]: "Rate 1.0E-3 per hour over 100 hours" });
     expect(mockMutateSy).not.toHaveBeenCalled();
   });
 
-  it("renders a controlled basic event with the current DA value instead of its cached SY value", () => {
-    const controlledSy = makeAnalysis({
-      systemBasicEvents: [{
-        ...BASIC_EVENT,
-        probability: 0.9,
-        controlledDataSource: {
-          referenceType: "WORKBOOK_PARAMETER",
-          workbookId: "da-workbook",
-          entityId: "parameter-1",
-        },
-      }],
-    });
+  it("feeds the editor the point of a linked DA estimate and keeps the value read-only there", async () => {
     setWorkbookContext({
-      sy: controlledSy,
+      sy: makeAnalysis({ systemBasicEvents: [{ ...BASIC_EVENT, expression: linked("parameter-1") }] }),
       controlledParameters: [{
         workbookId: "da-workbook",
         workbookName: "Approved DA",
         parameterId: "parameter-1",
         parameterName: "Pump demand failure",
-        parameterType: "PROBABILITY",
-        value: 0.025,
+        estimate: point(0.025),
+        unit: "PROBABILITY",
       }],
     });
 
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
     openTab("Fault tree");
 
-    expect(latestEditorProps().catalogue.basicEvents[0]?.probability).toEqual({
-      value: 0.025,
-      controlledDataSource: {
-        referenceType: "WORKBOOK_PARAMETER",
-        workbookId: "da-workbook",
-        entityId: "parameter-1",
-      },
-    });
+    expect(latestEditorProps().readOnlyBasicEventValues).toEqual({ [BASIC_EVENT_ID]: "Pump demand failure" });
+    await waitFor(() => expect(latestEditorProps().catalogue.basicEvents[0]?.probability).toEqual({ value: 0.025, expression: linked("parameter-1") }));
+  });
+
+  it("explains a component value that cannot be evaluated in the editor validation", async () => {
+    mockedValidateFaultTreeModel.mockReturnValue([{
+      code: "FT_BASIC_EVENT_PROBABILITY_INVALID",
+      severity: "ERROR",
+      message: "Basic-event probability must be finite and between zero and one",
+      entityId: BASIC_EVENT_ID,
+      fieldPath: ["basicEvents", 0, "probability", "value"],
+    }]);
+    setWorkbookContext({ sy: makeAnalysis({ systemBasicEvents: [{ ...BASIC_EVENT, expression: linked("parameter-gone") }] }) });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    openTab("Fault tree");
+
+    expect(latestEditorProps().validation).toEqual([]);
+    await waitFor(() => expect(latestEditorProps().validation).toEqual([expect.objectContaining({
+      message: "BE-PUMP-FS: MEF Error: Undefined Element Error: parameter 'da-workbook:parameter-gone' not found",
+    })]));
   });
 
   it("renders a human-error event with the current selected HRA quantification", () => {
+    const { expression: _expression, ...plain } = BASIC_EVENT;
     const controlledSy = makeAnalysis({
       systemBasicEvents: [{
-        ...BASIC_EVENT,
+        ...plain,
         failureMode: "HUMAN_ERROR",
         probability: 0.9,
         controlledDataSource: {
@@ -516,7 +545,6 @@ describe("ModelsScreen canonical fault-tree host", () => {
         code: "BE-PUMP-UPDATED",
         name: "Updated pump event",
         description: "Updated event description",
-        probability: 0.04,
       },
       {
         uuid: "be-valve-fails",
@@ -524,12 +552,34 @@ describe("ModelsScreen canonical fault-tree host", () => {
         name: "Valve fails to open",
         description: "Demand failure of the isolation valve",
         eventType: "BASIC",
-        probability: 0.01,
+        expression: point(0.01),
         repairModeled: false,
         implementsSrs: [],
       },
     ]);
+    expect(updated.systemBasicEvents[0]).not.toHaveProperty("probability");
     expect(updated.systemLogicModels[0]).not.toHaveProperty("basicEvents");
+  });
+
+  it("keeps the law of a basic event created in the editor as its SY expression", () => {
+    const law: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "TRUNCATED", law: { family: "LOGNORMAL", mean: 1e-3, errorFactor: 3, level: 0.95 }, lower: null, upper: 1 } } };
+    const created = { id: "be-new", code: "BE-NEW", name: "New basic event", description: "", probability: { value: 1e-3, expression: law } };
+    const original = makeAnalysis();
+    mockedApplyFaultTreeOperation.mockReturnValue({
+      model: projectedModel(),
+      catalogue: { basicEvents: [...original.systemBasicEvents.map(systemBasicEventToFaultTreeBasicEvent), created], presentations: [] },
+    });
+    setWorkbookContext({ sy: original });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+    openTab("Fault tree");
+
+    act(() => latestEditorProps().onOperation({ type: "ADD_BASIC_EVENT", basicEvent: created, parentGateId: "gate-top" }));
+
+    const mutator = mockMutateSy.mock.calls[0]![0] as (draft: SystemsAnalysis) => SystemsAnalysis;
+    const added = mutator(original).systemBasicEvents.find((event) => event.uuid === "be-new");
+    expect(added).toMatchObject({ code: "BE-NEW", expression: law });
+    expect(added).not.toHaveProperty("probability");
+    expect(added).not.toHaveProperty("quantificationBasis");
   });
 
   it("keeps node selection in the canonical inspector until an explicit open request", () => {
@@ -815,7 +865,7 @@ describe("ModelsScreen system tabs", () => {
     const base = makeAnalysis();
     return makeAnalysis({
       systemDefinitions: [
-        { ...base.systemDefinitions[0]!, missionTimeHours: 72 },
+        { ...base.systemDefinitions[0]!, missionTime: { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: 72 } } } },
         { ...base.systemDefinitions[0]!, uuid: SUPPORT_ID, name: "Component cooling water", abbreviation: "CCW" },
       ],
       ...overrides,
@@ -834,14 +884,17 @@ describe("ModelsScreen system tabs", () => {
     mockedValidateFaultTreeModel.mockReturnValue([]);
   });
 
-  it("shows the system description and opens its editors", () => {
+  it("shows the system description and opens its editors", async () => {
     const openDrawer = jest.fn();
     setWorkbookContext({ sy: analysisWithMission() });
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={openDrawer} />);
 
     expect(screen.getByRole("tab", { name: "Description" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("Remove reactor heat")).toBeInTheDocument();
+    expect(screen.getByText("…")).toBeInTheDocument();
+    await act(async () => { await settledWithPraxis(() => undefined); });
     expect(screen.getByText("72 h")).toBeInTheDocument();
+    expect(screen.getByText("Typed 72 hours")).toBeInTheDocument();
     expect(screen.getByText("Reactor vessel")).toBeInTheDocument();
     expect(screen.queryByText("Support systems")).not.toBeInTheDocument();
 
@@ -893,8 +946,9 @@ describe("ModelsScreen system tabs", () => {
     expect(openDrawer).toHaveBeenCalledWith({ kind: "alignment", id: "align-b" });
   });
 
-  it("lists the tree's basic events in a read table and opens the editor from a row", () => {
+  it("lists the tree's basic events in a read table and opens the editor from a row", async () => {
     const openDrawer = jest.fn();
+    const { expression: _expression, ...plain } = BASIC_EVENT;
     setWorkbookContext({
       sy: analysisWithMission({
         systemBasicEvents: [
@@ -905,17 +959,24 @@ describe("ModelsScreen system tabs", () => {
             code: "BE-PUMP-FR",
             name: "Pump fails to run",
             failureMode: "FAILURE_TO_RUN",
-            quantificationBasis: { kind: "FAILURE_RATE", failureRate: { value: 0.00003, unit: "HOUR" }, missionTime: { value: 72, unit: "HOUR" }, conversion: "EXPONENTIAL" },
-            controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "parameter-rate" },
+            expression: { node: "MODEL", model: { form: "MISSION", rate: linked("parameter-rate"), missionTime: { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: 72 } } } } },
           },
           {
             ...BASIC_EVENT,
-            uuid: "be-loop",
-            code: "BE-LOOP",
-            name: "Offsite power lost in the mission",
-            failureMode: "OTHER",
-            quantificationBasis: { kind: "FAILURE_RATE", failureRate: { value: 0.03, unit: "YEAR" }, missionTime: { value: 72, unit: "HOUR" }, conversion: "EXPONENTIAL" },
-            controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "parameter-loop" },
+            uuid: "be-gone",
+            code: "BE-GONE",
+            name: "Valve fails to open",
+            failureMode: "FAILURE_TO_OPEN",
+            expression: linked("parameter-gone"),
+          },
+          {
+            ...plain,
+            uuid: "be-hfe",
+            code: "BE-HFE",
+            name: "Operator fails to start the pump",
+            failureMode: "HUMAN_ERROR",
+            probability: 0.002,
+            controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "parameter-hep" },
           },
         ],
         systemLogicModels: [{
@@ -923,13 +984,17 @@ describe("ModelsScreen system tabs", () => {
           leafNodes: [
             ...LOGIC_MODEL.leafNodes,
             { id: "leaf-pump-fr", kind: "BASIC_EVENT_REFERENCE", basicEventId: "be-pump-fr" },
-            { id: "leaf-loop", kind: "BASIC_EVENT_REFERENCE", basicEventId: "be-loop" },
+            { id: "leaf-gone", kind: "BASIC_EVENT_REFERENCE", basicEventId: "be-gone" },
+            { id: "leaf-hfe", kind: "BASIC_EVENT_REFERENCE", basicEventId: "be-hfe" },
           ],
         }],
       }),
       controlledParameters: [
-        { workbookId: "da-workbook", workbookName: "Approved DA", parameterId: "parameter-rate", parameterName: "Pump run failure rate", parameterType: "FAILURE_RATE", rateUnit: "HOUR", value: 0.00004 },
-        { workbookId: "da-workbook", workbookName: "Approved DA", parameterId: "parameter-loop", parameterName: "Loss of offsite power", parameterType: "FREQUENCY", rateUnit: "YEAR", value: 0.03 },
+        { workbookId: "da-workbook", workbookName: "Approved DA", parameterId: "parameter-rate", parameterName: "Pump run failure rate", unit: "PER_HOUR",
+          estimate: { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "POINT", value: 0.00004 } } } },
+      ],
+      controlledLegacyParameters: [
+        { workbookId: "da-workbook", workbookName: "Approved DA", parameterId: "parameter-hep", parameterName: "Operator start failure", parameterType: "PROBABILITY", value: 0.003 },
       ],
     });
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={openDrawer} />);
@@ -939,16 +1004,20 @@ describe("ModelsScreen system tabs", () => {
     expect(within(table).queryAllByRole("textbox")).toHaveLength(0);
     expect(within(table).queryAllByRole("combobox")).toHaveLength(0);
     const handEntered = within(table).getByText("Pump fails to start").closest("tr")!;
-    expect(within(handEntered).getByText("2.0E-2")).toBeInTheDocument();
+    expect(within(handEntered).getByText("0.02")).toBeInTheDocument();
+    await waitFor(() => expect(within(handEntered).getByText("2.0E-2")).toBeInTheDocument());
     expect(within(handEntered).getAllByText("Typed")).toHaveLength(2);
-    const linked = within(table).getByText("Pump fails to run").closest("tr")!;
-    expect(within(linked).getByText("4.0E-5 /h")).toBeInTheDocument();
-    expect(within(linked).getByText("72 h mission")).toBeInTheDocument();
-    expect(within(linked).getByText("DA · Pump run failure rate")).toBeInTheDocument();
-    expect(within(linked).getByText("Value changed in DA")).toBeInTheDocument();
-    const yearly = within(table).getByText("Offsite power lost in the mission").closest("tr")!;
-    expect(within(yearly).getByText("3.0E-2 /yr")).toBeInTheDocument();
-    expect(within(yearly).queryByText("Value changed in DA")).toBeNull();
+    const linkedRow = within(table).getByText("Pump fails to run").closest("tr")!;
+    expect(within(linkedRow).getByText("Mission: rate Pump run failure rate over 72 hours")).toBeInTheDocument();
+    await waitFor(() => expect(within(linkedRow).getByText("2.9E-3")).toBeInTheDocument());
+    expect(within(linkedRow).getByText("DA · Pump run failure rate")).toBeInTheDocument();
+    expect(within(linkedRow).queryByText("Value changed in DA")).toBeNull();
+    const gone = within(table).getByText("Valve fails to open").closest("tr")!;
+    expect(within(gone).getByText("Linked source unavailable")).toHaveClass("sy-error");
+    await waitFor(() => expect(within(gone).getByText("MEF Error: Undefined Element Error: parameter 'da-workbook:parameter-gone' not found")).toHaveClass("sy-error"));
+    const human = within(table).getByText("Operator fails to start the pump").closest("tr")!;
+    expect(within(human).getByText("3.0E-3")).toBeInTheDocument();
+    expect(within(human).getByText("Value changed in DA")).toBeInTheDocument();
 
     fireEvent.click(within(table).getByRole("button", { name: "Edit BE-PUMP-FS" }));
     expect(openDrawer).toHaveBeenCalledWith({ kind: "be", id: BASIC_EVENT_ID });
@@ -967,17 +1036,35 @@ describe("ModelsScreen system tabs", () => {
     expect(openDrawer).toHaveBeenCalledWith({ kind: "house", id: "leaf-house", modelId: MODEL_ID });
   });
 
-  it("passes the system mission time to the fault-tree editor and the SIL setting", () => {
-    setWorkbookContext({ sy: analysisWithMission() });
+  it("passes the system mission time expression to the fault-tree editor and its PRAXIS point to the SIL run", async () => {
+    const sy = analysisWithMission();
+    setWorkbookContext({ sy });
     render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
 
     openTab("Fault tree");
-    expect(latestEditorProps().defaultMissionTime).toEqual({ value: 72, unit: "HOUR" });
+    await act(async () => { await settledWithPraxis(() => undefined); });
+    expect(latestEditorProps().defaultMissionTime).toEqual(sy.systemDefinitions.find((system) => system.uuid === SYSTEM_ID)?.missionTime);
+    expect(latestEditorProps().parameterTable).toBeInstanceOf(Map);
 
     openTab("Quantification");
     fireEvent.click(screen.getByRole("radio", { name: "SIL" }));
     fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
-    expect(screen.getByRole("spinbutton", { name: "Mission time hours" })).toHaveValue(72);
+    expect(screen.queryByRole("spinbutton", { name: "Mission time hours" })).not.toBeInTheDocument();
+    expect(screen.getByText("SIL uses the system mission time of 72 h.")).toBeInTheDocument();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Run SIL" })); });
+    expect(mockedRunSyFaultTree).toHaveBeenCalledWith("sy-workbook", MODEL_ID, 7, expect.objectContaining({ calculationType: "SIL", settings: expect.objectContaining({ missionTimeHours: 72 }) }));
+  });
+
+  it("blocks a SIL run when the system has no mission time", () => {
+    setWorkbookContext({ sy: makeAnalysis() });
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+
+    openTab("Fault tree");
+    expect(latestEditorProps().defaultMissionTime).toBeUndefined();
+    openTab("Quantification");
+    fireEvent.click(screen.getByRole("radio", { name: "SIL" }));
+    expect(screen.getByText("SIL needs a system mission time. Set it in the system definition.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run SIL" })).toBeDisabled();
   });
 
   it("asks for a top gate before quantifying", () => {

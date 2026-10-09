@@ -18,7 +18,6 @@ type _AssertEventTreeModel = Expect<Equal<z.infer<typeof EventTreeModelSchema>, 
 export {
   EventTreeEntityIdentitySchema,
   EventTreeInitiatingEventReferenceSchema,
-  EventTreeControlledDataSourceReferenceSchema,
   EventTreeInitiatingEventFrequencySchema,
   EventTreeFunctionalEventSchema,
   EventTreeFunctionalEventFaultTreeLinkSchema,

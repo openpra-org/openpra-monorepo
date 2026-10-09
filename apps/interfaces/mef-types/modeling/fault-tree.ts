@@ -6,6 +6,7 @@ import type {
 } from "./shared";
 import type { FaultTreeBasicEventQuantificationBasis } from "./quantitative-semantics";
 import type { HumanFailureEventReference, WorkbookParameterReference } from "./references";
+import type { UncertainExpression } from "../core/uncertainty";
 
 interface FaultTreeEntityIdentity {
   id: WorkbookEntityId;
@@ -89,6 +90,7 @@ type FaultTreeControlledDataSourceReference =
 
 interface FaultTreeBasicEventProbability {
   value: number;
+  expression?: UncertainExpression;
   quantificationBasis?: FaultTreeBasicEventQuantificationBasis;
   controlledDataSource?: FaultTreeControlledDataSourceReference;
 }

@@ -18,13 +18,37 @@ import type {
   DaSourceEntry,
   FailureEventClassification,
 } from "interfaces-mef-types/da/data-analysis";
+import type { BaseLaw, EvidenceTerm, Law, TruncatedLaw } from "interfaces-mef-types/core/uncertainty";
+import type { UncertaintyLawSummary } from "interfaces-shared-types/newly-developed-methods/shared";
+import { LawEditor } from "../newly-developed-methods/shared/uncertainEditor";
+import { useUncertaintyVersion, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
+import { lawText } from "../newly-developed-methods/shared/uncertainText";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { ClampCell, DaProvenanceChip, DaTabs, DetailRow, FieldList, FormFoot, FormRow, ModalHead, PlotToggle, sciText } from "./daShared";
 import { DistributionChart, useElementWidth, type DistributionSeries } from "./daDistributionChart";
-import { shapeMean, shapeQuantile, type DaShape } from "./daDistributions";
-import { evidenceAlone, outputFor, priorWeight, type DaScale } from "./daEstimates";
-import { failureFindings, failureParameters, methodOf, parameterEstimate, recordUsers, withoutRecordSet, type DaFailureEstimate } from "./daFailures";
+import { expressionPoint, expressionSpread, lawSummary, parameterPoint, parameterSpread, pointState, quantileOf } from "./daLaws";
+import {
+  MU_REACH,
+  SIGMA_HIGH,
+  SIGMA_LOW,
+  estimateExpression,
+  estimateSummary,
+  estimateUnit,
+  evidenceAloneLaw,
+  failureFindings,
+  failureParameters,
+  hyperpriorOf,
+  methodOf,
+  parameterEstimate,
+  priorSummary,
+  priorWorth,
+  publishedSummary,
+  recordUsers,
+  withoutRecordSet,
+  type DaFailureEstimate,
+  type DaScale,
+} from "./daFailures";
 import { libraryEntries, nextCode, parseDelimited, withStoredEntry } from "./daSourcing";
 import { modelSpecOf } from "./daSelectors";
 import { useDaWorkbook } from "./daWorkbookContext";
@@ -39,25 +63,10 @@ import {
   EVIDENCE_UNIT_LABELS,
   EXPOSURE_LABELS,
   JUDGMENT_LABELS,
-  OUTPUT_FIT_LABELS,
   PRIOR_FORM_LABELS,
 } from "./daViewData";
-import { AreaRow, LinesRow, NEED_PAGE, NeedChecksTable, NeedPager, listCell, numberFrom, statText, type DaDrawerContext } from "./daScreens";
-import {
-  DISTRIBUTION_CHOICES,
-  DistributionFields,
-  EstimatePicker,
-  NumberInput,
-  TextRow,
-  YearsRow,
-  distributionDraft,
-  distributionText,
-  entrySearchText,
-  useBuiltInEntries,
-  waitingSources,
-  yearsText,
-  type EstimateChoice,
-} from "./daSourcesScreen";
+import { AreaRow, EstimateRows, LinesRow, NEED_PAGE, NeedChecksTable, NeedPager, PraxisValue, estimateText, listCell, numberFrom, praxisText, spreadFields, statText, waitNote, type DaDrawerContext } from "./daScreens";
+import { EstimatePicker, NumberInput, TextRow, YearsRow, entrySearchText, useBuiltInEntries, waitingSources, yearsText, type EstimateChoice } from "./daSourcesScreen";
 
 type FailuresTab = "priors" | "evidence" | "records" | "exposure" | "estimates" | "checks";
 
@@ -103,31 +112,33 @@ function plainCount(value: number | undefined): string {
   return Number.isInteger(value) && Math.abs(value) < 1e6 ? value.toLocaleString() : sciText(value);
 }
 
-function weightText(estimate: DaFailureEstimate): string {
-  if (estimate.prior === undefined || estimate.scale === undefined) return estimate.form === "JEFFREYS" ? "None" : "—";
-  const weight = priorWeight(estimate.prior, estimate.scale);
+function summaryValue(state: UncertaintyState<UncertaintyLawSummary> | undefined, read: (summary: UncertaintyLawSummary) => number | undefined): UncertaintyState<number> | undefined {
+  if (state === undefined || state.status !== "ready") return state;
+  const value = read(state.value);
+  return value === undefined ? undefined : { status: "ready", value };
+}
+
+function priorText(estimate: DaFailureEstimate): string {
+  if (estimate.prior !== undefined) return lawText(estimate.prior);
+  return estimate.form === "JEFFREYS" && estimate.scale === "RATE" ? "Gamma (shape 0.5, rate 0)" : "—";
+}
+
+function worthText(estimate: DaFailureEstimate): string {
+  const scale = estimate.scale;
+  if (estimate.prior === undefined || scale === undefined) return estimate.form === "JEFFREYS" ? "None" : "—";
+  const state = priorSummary(estimate);
+  if (state === undefined) return "—";
+  if (state.status !== "ready") return praxisText(state);
+  const weight = priorWorth(state.value, scale);
   if (weight === undefined) return "—";
-  return `${plainCount(Math.round(weight))} ${estimate.scale === "RATE" ? "h" : estimate.thetaUnit.includes("mission") ? "missions" : "demands"}`;
-}
-
-function shapeText(shape: DaShape | undefined): string {
-  if (shape === undefined) return "—";
-  return "us" in shape ? "Numerical" : distributionText(shape);
-}
-
-function quantileText(shape: DaShape | undefined, p: number): string {
-  return shape === undefined ? "—" : statText(shapeQuantile(shape, p));
-}
-
-function meanText(shape: DaShape | undefined): string {
-  return shape === undefined ? "—" : statText(shapeMean(shape));
+  return `${plainCount(Math.round(weight))} ${scale === "RATE" ? "h" : estimate.thetaUnit.includes("mission") ? "missions" : "demands"}`;
 }
 
 function exposureText(estimate: DaFailureEstimate): string {
   if (estimate.terms.length === 0) return "—";
   const total = estimate.terms.reduce((sum, term) => sum + term.exposure, 0);
   if (estimate.scale === "RATE") return `${plainCount(total)} h`;
-  return estimate.terms.every((term) => term.kind === "BINOMIAL") ? `${plainCount(total)} demands` : `${plainCount(total)} demand-equivalents`;
+  return estimate.terms.every((term) => term.likelihood === "BINOMIAL") ? `${plainCount(total)} demands` : `${plainCount(total)} demand-equivalents`;
 }
 
 function failuresText(estimate: DaFailureEstimate): string {
@@ -142,12 +153,25 @@ function rateText(estimate: DaFailureEstimate): string {
 }
 
 function ratioText(estimate: DaFailureEstimate): string {
-  const after = estimate.output?.summary.mean;
+  const unit = estimateUnit(estimate);
   const published = estimate.published;
-  if (after === undefined || published === undefined) return "—";
-  const before = outputFor(published.shape, estimate.missionHours)?.summary.mean;
-  if (before === undefined || !(before > 0)) return "—";
-  return `×${Number((after / before).toPrecision(2))}`;
+  if (estimate.estimate === undefined || published === undefined || unit === undefined || publishedSummary(estimate) === undefined) return "—";
+  const before = estimateExpression(estimate, published.law);
+  if (before === undefined) return "—";
+  const after = expressionPoint(estimate.estimate, unit);
+  const prior = expressionPoint(before, unit);
+  const note = waitNote([after, prior]);
+  if (note !== undefined) return note === "Waiting for PRAXIS." ? "…" : note;
+  if (after.status !== "ready" || prior.status !== "ready" || !(prior.value.point > 0)) return "—";
+  return `×${Number((after.value.point / prior.value.point).toPrecision(2))}`;
+}
+
+function estimateValue(parameter: DataAnalysisParameter, estimate: DaFailureEstimate): JSX.Element {
+  if (estimate.method === "TYPED") return <PraxisValue state={parameterPoint(parameter)} />;
+  if (estimate.problem !== undefined) return <span className="da-severity da-severity--error" title={estimate.problem}>Cannot compute</span>;
+  const unit = estimateUnit(estimate);
+  if (estimate.pending) return <PraxisValue state={{ status: "pending" }} />;
+  return <PraxisValue state={estimate.estimate === undefined || unit === undefined ? undefined : pointState(estimate.estimate, unit)} />;
 }
 
 function useFailureFilters(): { page: number; setPage: (page: number) => void; show: string; setShow: (value: string) => void } {
@@ -162,26 +186,30 @@ function pageOf<T>(rows: readonly T[], page: number): { current: number; shown: 
   return { current, shown: rows.slice(current * NEED_PAGE, (current + 1) * NEED_PAGE) };
 }
 
-
 function PriorDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [focus, setFocus] = useState("USED");
   const estimate = parameterEstimate(da, parameter);
+  const used = priorSummary(estimate);
+  const published = estimate.form === "AS_PUBLISHED" ? undefined : publishedSummary(estimate);
   const series: DistributionSeries[] = [];
-  if (estimate.prior !== undefined) series.push({ key: "USED", label: "Prior used", detail: PRIOR_FORM_LABELS[estimate.form], distribution: estimate.prior });
-  if (estimate.published !== undefined && estimate.form !== "AS_PUBLISHED") series.push({ key: "PUBLISHED", label: "Step 04 prior", detail: estimate.published.label, distribution: estimate.published.shape });
+  if (used?.status === "ready") series.push({ key: "USED", label: "Prior used", detail: PRIOR_FORM_LABELS[estimate.form], summary: used.value });
+  if (published?.status === "ready" && estimate.published !== undefined) series.push({ key: "PUBLISHED", label: "Step 04 prior", detail: estimate.published.label, summary: published.value });
+  const note = estimate.priorPending ? "Waiting for PRAXIS to form the prior." : estimate.priorProblem ?? waitNote([used, published]);
   return (
     <>
       <FieldList items={[
         { label: "Model", value: modelSpecOf(parameter.quantificationModel)?.label ?? "Not set" },
         { label: "Prior from", value: estimate.published?.label ?? "—" },
-        { label: "Distribution", value: estimate.form === "JEFFREYS" && estimate.prior === undefined ? "Gamma(0.5, 0)" : shapeText(estimate.prior) },
-        { label: "5th percentile", value: quantileText(estimate.prior, 0.05) },
-        { label: "95th percentile", value: quantileText(estimate.prior, 0.95) },
-        { label: "Worth", value: weightText(estimate) },
+        { label: "Distribution", value: priorText(estimate) },
+        { label: "5th percentile", value: praxisText(summaryValue(used, (summary) => quantileOf(summary, 0.05))) },
+        { label: "95th percentile", value: praxisText(summaryValue(used, (summary) => quantileOf(summary, 0.95))) },
+        { label: "Worth", value: worthText(estimate) },
       ]} />
       <p className="da-needs__meta">Worth is the evidence the prior is equal to. Plant or technology counts of that size move the estimate halfway to the data.</p>
-      {series.length === 0 ? <p className="posmuted">{estimate.form === "JEFFREYS" ? "The Jeffreys prior for a rate has no density to plot. It adds half a failure and nothing else." : "No prior to plot. Choose it in Step 04 Applicability."}</p> : (
+      {note !== undefined && <p className="posmuted">{note}</p>}
+      {series.length === 0 ? note === undefined && <p className="posmuted">{estimate.form === "JEFFREYS" ? "The Jeffreys prior for a rate has no density to plot. It adds half a failure and nothing else." : "No prior to plot. Choose it in Step 04 Applicability."}</p> : (
         <DistributionChart series={series} focusKey={series.some((item) => item.key === focus) ? focus : series[0]?.key} unit={estimate.thetaUnit} onFocus={setFocus} />
       )}
     </>
@@ -190,15 +218,19 @@ function PriorDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.E
 
 function EvidenceDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [focus, setFocus] = useState("DATA");
   const estimate = parameterEstimate(da, parameter);
   const scale = estimate.scale;
+  const law = scale === undefined ? undefined : evidenceAloneLaw(estimate.terms, scale);
+  const alone = law === undefined || estimate.lawUnit === undefined ? undefined : lawSummary(estimate.lawUnit, law, true);
+  const prior = priorSummary(estimate);
   const series: DistributionSeries[] = [];
-  const alone = scale === undefined ? undefined : evidenceAlone(estimate.terms, scale);
-  if (alone !== undefined) series.push({ key: "DATA", label: "Evidence alone", detail: `${failuresText(estimate)} in ${exposureText(estimate)}`, distribution: alone });
-  if (estimate.prior !== undefined) series.push({ key: "PRIOR", label: "Prior used", detail: PRIOR_FORM_LABELS[estimate.form], distribution: estimate.prior });
+  if (alone?.status === "ready") series.push({ key: "DATA", label: "Evidence alone", detail: `${failuresText(estimate)} in ${exposureText(estimate)}`, summary: alone.value });
+  if (prior?.status === "ready") series.push({ key: "PRIOR", label: "Prior used", detail: PRIOR_FORM_LABELS[estimate.form], summary: prior.value });
   const included = estimate.evidence.filter((item) => item.evidence.included);
   const rate = rateText(estimate);
+  const note = waitNote([alone, prior]);
   return (
     <>
       <FieldList items={[
@@ -207,89 +239,94 @@ function EvidenceDetail({ parameter }: { parameter: DataAnalysisParameter }): JS
         { label: "Data rate", value: rate === "—" ? "—" : `${rate} ${estimate.thetaUnit}` },
         { label: "Years", value: included.length === 1 ? yearsText(included[0]?.yearsFrom, included[0]?.yearsTo) : included.length > 1 ? `${included.length} periods` : "—" },
       ]} />
-      {alone === undefined ? <p className="posmuted">No evidence is in the update yet.</p> : (
+      {law === undefined ? <p className="posmuted">No evidence is in the update yet.</p> : (
         <>
           <p className="da-needs__meta da-needs__meta--lead">The evidence curve is the Jeffreys distribution of the counts in the update, so it shows what the data say on their own.</p>
-          <DistributionChart series={series} focusKey={series.some((item) => item.key === focus) ? focus : series[0]?.key} unit={estimate.thetaUnit} onFocus={setFocus} />
+          {note !== undefined && <p className="posmuted">{note}</p>}
+          {series.length > 0 && <DistributionChart series={series} focusKey={series.some((item) => item.key === focus) ? focus : series[0]?.key} unit={estimate.thetaUnit} onFocus={setFocus} />}
         </>
       )}
     </>
   );
 }
 
-function outputShape(shape: DaShape | undefined, missionHours: number | undefined): DaShape | undefined {
-  return shape === undefined ? undefined : outputFor(shape, missionHours)?.shape;
+function typedSeries(parameter: DataAnalysisParameter): { series: DistributionSeries[]; state?: UncertaintyState<UncertaintyLawSummary> } {
+  const typed = parameter.estimate;
+  if (typed?.node !== "VALUE") return { series: [] };
+  const state = lawSummary(typed.value.unit, typed.value.law, true);
+  return { series: state.status === "ready" ? [{ key: "ESTIMATE", label: "Typed estimate", detail: "", summary: state.value }] : [], state };
+}
+
+function calculatedSeries(estimate: DaFailureEstimate): { series: DistributionSeries[]; states: (UncertaintyState<UncertaintyLawSummary> | undefined)[] } {
+  const series: DistributionSeries[] = [];
+  const states: (UncertaintyState<UncertaintyLawSummary> | undefined)[] = [];
+  const add = (key: string, label: string, detail: string, state: UncertaintyState<UncertaintyLawSummary> | undefined): void => {
+    states.push(state);
+    if (state?.status === "ready") series.push({ key, label, detail, summary: state.value });
+  };
+  add("ESTIMATE", "Estimate", estimate.computation === undefined ? "" : COMPUTATION_LABELS[estimate.computation], estimateSummary(estimate));
+  const scale = estimate.scale;
+  const unit = estimate.lawUnit;
+  if (estimate.method !== "POPULATION" && estimate.terms.length > 0) add("PRIOR", "Prior used", PRIOR_FORM_LABELS[estimate.form], priorSummary(estimate));
+  if (scale === undefined || unit === undefined) return { series, states };
+  if (estimate.method === "POPULATION") {
+    for (const item of estimate.evidence.filter((entry) => entry.evidence.included)) {
+      const law = item.term === undefined ? undefined : evidenceAloneLaw([item.term], scale);
+      if (law !== undefined) add(item.evidence.id, item.label, "evidence alone", lawSummary(unit, law, true));
+    }
+  } else {
+    const law = evidenceAloneLaw(estimate.terms, scale);
+    if (law !== undefined) add("DATA", "Evidence alone", `${failuresText(estimate)} in ${exposureText(estimate)}`, lawSummary(unit, law, true));
+  }
+  return { series, states };
 }
 
 function EstimateDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [focus, setFocus] = useState("ESTIMATE");
   const estimate = parameterEstimate(da, parameter);
-  const series = useMemo<DistributionSeries[]>(() => {
-    const list: DistributionSeries[] = [];
-    if (estimate.method === "TYPED") {
-      const typed = parameter.uncertainty?.distribution;
-      if (typed !== undefined) list.push({ key: "ESTIMATE", label: "Typed estimate", detail: "", distribution: typed });
-      return list;
-    }
-    const posterior = estimate.output?.shape;
-    if (posterior !== undefined) list.push({ key: "ESTIMATE", label: "Estimate", detail: estimate.computation === undefined ? "" : COMPUTATION_LABELS[estimate.computation], distribution: posterior });
-    const scale = estimate.scale;
-    if (estimate.method !== "POPULATION" && estimate.prior !== undefined && estimate.terms.length > 0) {
-      const prior = outputShape(estimate.prior, estimate.missionHours);
-      if (prior !== undefined) list.push({ key: "PRIOR", label: "Prior used", detail: PRIOR_FORM_LABELS[estimate.form], distribution: prior });
-    }
-    if (scale !== undefined && estimate.method === "POPULATION") {
-      const included = estimate.evidence.filter((item) => item.evidence.included && item.term !== undefined);
-      for (const item of included) {
-        const alone = item.term === undefined ? undefined : outputShape(evidenceAlone([item.term], scale), estimate.missionHours);
-        if (alone !== undefined) list.push({ key: item.evidence.id, label: item.label, detail: "evidence alone", distribution: alone });
-      }
-    } else if (scale !== undefined && estimate.terms.length > 0) {
-      const alone = outputShape(evidenceAlone(estimate.terms, scale), estimate.missionHours);
-      if (alone !== undefined) list.push({ key: "DATA", label: "Evidence alone", detail: `${failuresText(estimate)} in ${exposureText(estimate)}`, distribution: alone });
-    }
-    return list;
-  }, [estimate, parameter.uncertainty]);
   const method = estimate.method;
-  const typed = method === "TYPED" ? parameter.uncertainty?.distribution : undefined;
-  const summary = estimate.output?.summary;
-  const fit = estimate.output?.fit;
+  const typed = method === "TYPED";
+  const unit = estimateUnit(estimate);
+  const typedPlot = typed ? typedSeries(parameter) : undefined;
+  const calculated = typed ? undefined : calculatedSeries(estimate);
+  const series = typedPlot?.series ?? calculated?.series ?? [];
+  const spread = typed ? parameterSpread(parameter) : estimate.estimate === undefined || unit === undefined ? undefined : expressionSpread(estimate.estimate, unit);
   const fields = (
     <FieldList items={[
-      { label: "Computation", value: method === "TYPED" ? "—" : estimate.problem !== undefined ? "Cannot compute" : estimate.computation === undefined ? "—" : `${COMPUTATION_LABELS[estimate.computation]}${fit !== undefined && fit !== "EXACT" ? `, ${OUTPUT_FIT_LABELS[fit].toLowerCase()}` : ""}` },
-      { label: "Distribution", value: method === "TYPED" ? (typed === undefined ? "—" : distributionText(typed)) : estimate.output === undefined ? "—" : distributionText(estimate.output.distribution) },
-      { label: "5th percentile", value: method === "TYPED" ? (typed === undefined ? "—" : quantileText(typed, 0.05)) : statText(summary?.p05) },
-      { label: "Median", value: method === "TYPED" ? (typed === undefined ? "—" : quantileText(typed, 0.5)) : statText(summary?.median) },
-      { label: "95th percentile", value: method === "TYPED" ? (typed === undefined ? "—" : quantileText(typed, 0.95)) : statText(summary?.p95) },
-      { label: "From prior", value: method === "TYPED" ? "—" : ratioText(estimate) },
+      { label: "Computation", value: typed ? "—" : estimate.problem !== undefined ? "Cannot compute" : estimate.computation === undefined ? "—" : COMPUTATION_LABELS[estimate.computation] },
+      { label: "Distribution", value: typed ? estimateText(parameter.estimate) : estimate.posterior === undefined ? "—" : lawText(estimate.posterior) },
+      ...spreadFields(spread),
+      { label: "From prior", value: typed ? "—" : ratioText(estimate) },
     ]} />
   );
+  const note = estimate.problem ?? (estimate.pending ? "Waiting for PRAXIS." : waitNote(typedPlot?.state === undefined ? calculated?.states ?? [] : [typedPlot.state]));
   if (series.length === 0) {
     return (
       <>
         {fields}
-        <p className="posmuted">{estimate.problem ?? "No estimate to plot yet."}</p>
+        <p className="posmuted">{note ?? (typed && parameter.estimate !== undefined ? "The typed estimate is a model of other values, so its percentiles come from sampling and it has no single curve." : "No estimate to plot yet.")}</p>
       </>
     );
   }
-  const note = estimate.method === "TYPED" ? "" : [
-    estimate.computation === "NUMERICAL" ? "The posterior is integrated numerically on a fine grid." : "",
-    estimate.computation === "HIERARCHICAL" ? "Each evidence set is one member of a population. Its log-mean is flat and its log-spread is uniform up to 3. The estimate is the predictive distribution." : "",
-    fit === "LOGNORMAL" || fit === "BETA" ? `The stored distribution is a ${fit === "BETA" ? "beta" : "lognormal"} that keeps the exact mean and the 5th to 95th spread.` : "",
-    fit === "RARE_EVENT" ? "The stored distribution is the rate distribution times the mission time, since the probability stays below 0.1." : "",
+  const lead = typed ? "" : [
+    estimate.missionTime !== undefined ? "The curves show the failure rate per hour. The estimate is the probability over the mission of the mapped basic events from that rate." : "",
+    estimate.computation === "POPULATION" ? "Each evidence set is one member of a lognormal population. Its log-mean and log-spread take the priors in the estimate window. The estimate is the predictive distribution for a new member, or the posterior of the chosen set." : "",
   ].filter((part) => part.length > 0).join(" ");
   return (
     <>
       {fields}
-      {note.length > 0 && <p className="da-needs__meta da-needs__meta--lead">{note}</p>}
-      <DistributionChart series={series} focusKey={series.some((item) => item.key === focus) ? focus : series[0]?.key} unit={estimate.unit} onFocus={setFocus} />
+      {lead.length > 0 && <p className="da-needs__meta da-needs__meta--lead">{lead}</p>}
+      {note !== undefined && <p className="posmuted">{note}</p>}
+      <DistributionChart series={series} focusKey={series.some((item) => item.key === focus) ? focus : series[0]?.key} unit={typed ? estimate.unit : estimate.thetaUnit} onFocus={setFocus} />
     </>
   );
 }
 
 function PriorsTable({ selected, onSelect, openDrawer }: { selected: string; onSelect: (key: string) => void; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const filters = useFailureFilters();
   const filterId = useId();
   const [wrapRef, wrapWidth] = useElementWidth(0);
@@ -322,7 +359,7 @@ function PriorsTable({ selected, onSelect, openDrawer }: { selected: string; onS
                     <td><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daPrior", id: parameter.uuid }); }}>{parameter.uuid}</button></td>
                     <td className="da-rowtable__text">{nameOf(parameter)}</td>
                     <td className="da-rowtable__text">{PRIOR_FORM_LABELS[estimate.form]}</td>
-                    <td className="da-rowtable__num">{meanText(estimate.prior)}</td>
+                    <td className="da-rowtable__num"><PraxisValue state={estimate.priorPending ? { status: "pending" } : summaryValue(priorSummary(estimate), (summary) => summary.mean)} /></td>
                     <td>{estimate.thetaUnit}</td>
                   </tr>
                   {open && <DetailRow span={6} width={wrapWidth - 18}><PriorDetail parameter={parameter} /></DetailRow>}
@@ -338,6 +375,7 @@ function PriorsTable({ selected, onSelect, openDrawer }: { selected: string; onS
 
 function EvidenceTable({ selected, onSelect, openDrawer }: { selected: string; onSelect: (key: string) => void; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const filters = useFailureFilters();
   const filterId = useId();
   const [wrapRef, wrapWidth] = useElementWidth(0);
@@ -386,6 +424,7 @@ function EvidenceTable({ selected, onSelect, openDrawer }: { selected: string; o
 
 function EstimatesTable({ selected, onSelect, openDrawer }: { selected: string; onSelect: (key: string) => void; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const filters = useFailureFilters();
   const filterId = useId();
   const [wrapRef, wrapWidth] = useElementWidth(0);
@@ -413,7 +452,7 @@ function EstimatesTable({ selected, onSelect, openDrawer }: { selected: string; 
       </div>
       <div className="da-table-wrap" ref={wrapRef}>
         <table className="postable da-rowtable" aria-label="Estimates">
-          <thead><tr><th className="da-rowtable__pick">Plot</th><th>Parameter</th><th>Name</th><th>Method</th><th>Mean</th><th>Unit</th></tr></thead>
+          <thead><tr><th className="da-rowtable__pick">Plot</th><th>Parameter</th><th>Name</th><th>Method</th><th>Value</th><th>Unit</th></tr></thead>
           <tbody>
             {shown.map((parameter) => {
               const estimate = parameterEstimate(da, parameter);
@@ -426,7 +465,7 @@ function EstimatesTable({ selected, onSelect, openDrawer }: { selected: string; 
                     <td><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daEstimate", id: parameter.uuid }); }}>{parameter.uuid}</button></td>
                     <td className="da-rowtable__text">{nameOf(parameter)}</td>
                     <td className="da-rowtable__text">{method === undefined ? "Not chosen" : ESTIMATE_METHOD_LABELS[method]}</td>
-                    <td className="da-rowtable__num">{method === "TYPED" ? statText(parameter.value) : estimate.problem !== undefined ? <span className="da-severity da-severity--error">Cannot compute</span> : statText(estimate.output?.summary.mean)}</td>
+                    <td className="da-rowtable__num">{estimateValue(parameter, estimate)}</td>
                     <td>{estimate.unit}</td>
                   </tr>
                   {open && <DetailRow span={6} width={wrapWidth - 18}><EstimateDetail parameter={parameter} /></DetailRow>}
@@ -712,6 +751,7 @@ function HoursCard({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void 
 
 function FailuresScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [tab, setTab] = useState<FailuresTab>("priors");
   const [priorKey, setPriorKey] = useState("");
   const [evidenceKey, setEvidenceKey] = useState("");
@@ -720,7 +760,7 @@ function FailuresScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => 
   const parameters = failureParameters(da);
   const findings = failureFindings(da);
   const withEvidence = parameters.filter((parameter) => (parameter.evidence ?? []).length > 0).length;
-  const estimated = parameters.filter((parameter) => parameter.value !== undefined && methodOf(parameter) !== undefined).length;
+  const estimated = parameters.filter((parameter) => parameter.estimate !== undefined && methodOf(parameter) !== undefined).length;
   const records = (da.recordSets ?? []).reduce((sum, set) => sum + set.records.length, 0);
   const counts = (da.demandCounts ?? []).length + (da.hourCounts ?? []).length;
   const tabs: { id: FailuresTab; label: string }[] = [
@@ -916,6 +956,7 @@ function EvidenceBlock({ parameter, evidence, scale, unit, disabled, choices, se
 
 function EvidenceWindow({ id, onClose, onRetarget }: { id: string; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void }): JSX.Element | null {
   const { da, editable, mutateDa } = useDaWorkbook();
+  useUncertaintyVersion();
   const sources = da.sources ?? [];
   const builtIn = useBuiltInEntries(sources);
   const choices = useMemo(() => countChoices(da, builtIn), [da, builtIn]);
@@ -974,6 +1015,30 @@ function EvidenceWindow({ id, onClose, onRetarget }: { id: string; onClose: () =
   );
 }
 
+function hyperLaw(law: Law): BaseLaw | TruncatedLaw | undefined {
+  return law.family === "MIXTURE" || law.family === "POSTERIOR" || law.family === "POPULATION" ? undefined : law;
+}
+
+function HyperpriorRows({ parameter, terms, disabled, onPatch }: { parameter: DataAnalysisParameter; terms: readonly EvidenceTerm[]; disabled: boolean; onPatch: (next: Partial<DataAnalysisParameter>) => void }): JSX.Element | null {
+  if (terms.length === 0) return null;
+  const hyper = hyperpriorOf(parameter, terms);
+  return (
+    <>
+      <FormRow label="Log-mean prior" top>
+        <LawEditor law={hyper.mu} unit="FACTOR" wrappers={["TRUNCATED"]} disabled={disabled} onChange={(law) => { const mu = hyperLaw(law); if (mu !== undefined) onPatch({ populationHyperprior: { ...hyper, mu } }); }} />
+      </FormRow>
+      <FormRow label="Log-spread prior" top>
+        <LawEditor law={hyper.sigma} unit="FACTOR" wrappers={["TRUNCATED"]} disabled={disabled} onChange={(law) => { const sigma = hyperLaw(law); if (sigma !== undefined) onPatch({ populationHyperprior: { ...hyper, sigma } }); }} />
+      </FormRow>
+      {parameter.populationHyperprior === undefined ? (
+        <p className="posmuted">These are the default flat priors. The log-mean is uniform from {MU_REACH} below the lowest set's log-rate to {MU_REACH} above the highest. The log-spread is uniform from {SIGMA_LOW} to {SIGMA_HIGH}.</p>
+      ) : !disabled && (
+        <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onPatch({ populationHyperprior: undefined })}>Use the default priors</button>
+      )}
+    </>
+  );
+}
+
 function EstimateWindow({ id, onClose, onRetarget }: { id: string; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void }): JSX.Element | null {
   const { da, editable, mutateDa } = useDaWorkbook();
   const fieldId = useId();
@@ -982,7 +1047,6 @@ function EstimateWindow({ id, onClose, onRetarget }: { id: string; onClose: () =
   const dis = !editable;
   const fid = (name: string): string => `${fieldId}-${name}`;
   const method = methodOf(parameter);
-  const distribution = parameter.uncertainty?.distribution;
   const included = (parameter.evidence ?? []).filter((item) => item.included);
   function patch(next: Partial<DataAnalysisParameter>): void {
     if (editable) patchParameter(mutateDa, id, next);
@@ -1012,23 +1076,8 @@ function EstimateWindow({ id, onClose, onRetarget }: { id: string; onClose: () =
             </select>
           </FormRow>
         )}
-        {method === "TYPED" && (
-          <>
-            <FormRow label="Value" htmlFor={fid("value")}>
-              <WorkbookInput id={fid("value")} className="posfield__input da-form__number" type="number" min="0" step="any" value={parameter.value ?? ""} disabled={dis} onChange={(event) => numberFrom(event.target.value, (value) => patch({ value }))} />
-              <select aria-label="Value type" className="posfield__select" value={parameter.valueType} disabled={dis} onChange={(event) => patch({ valueType: event.target.value === "POINT_ESTIMATE" ? "POINT_ESTIMATE" : "MEAN" })}>
-                <option value="MEAN">Mean</option>
-                <option value="POINT_ESTIMATE">Point estimate</option>
-              </select>
-            </FormRow>
-            <FormRow label="Distribution" htmlFor={fid("distribution")}>
-              <select id={fid("distribution")} className="posfield__select" value={distribution?.type ?? ""} disabled={dis} onChange={(event) => { const next = distributionDraft(event.target.value, distribution, parameter.value); patch({ uncertainty: next === undefined ? undefined : { ...(parameter.uncertainty ?? {}), distribution: next } }); }}>
-                {DISTRIBUTION_CHOICES.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
-              </select>
-              {distribution !== undefined && <DistributionFields value={distribution} disabled={dis} onChange={(next) => patch({ uncertainty: { ...(parameter.uncertainty ?? {}), distribution: next } })} />}
-            </FormRow>
-          </>
-        )}
+        {method === "POPULATION" && <HyperpriorRows parameter={parameter} terms={parameterEstimate(da, parameter).terms} disabled={dis} onPatch={patch} />}
+        {method === "TYPED" && <EstimateRows parameter={parameter} disabled={dis} onPatch={patch} />}
         <FormRow label="Risk significant" htmlFor={fid("risk")}>
           <select id={fid("risk")} className="posfield__select" value={parameter.isRiskSignificant === true ? "yes" : "no"} disabled={dis} onChange={(event) => patch({ isRiskSignificant: event.target.value === "yes" })}>
             <option value="no">No</option>

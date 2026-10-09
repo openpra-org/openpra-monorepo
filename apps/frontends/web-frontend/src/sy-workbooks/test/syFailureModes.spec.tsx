@@ -79,7 +79,7 @@ function makeAnalysis(): StepAnalysis {
         abbreviation: "CCW",
         boundaries: [],
         successCriteriaIds: [],
-        missionTimeHours: 24,
+        missionTime: { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: 24 } } },
         modeledComponentsAndFailures: {},
         informationBasis: "as-designed-as-intended",
         justificationForExclusionOfComponents: ["Overcooling, which helps the function."],

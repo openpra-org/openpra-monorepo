@@ -25,7 +25,7 @@ describe("quantitative semantics", () => {
     expect(requiresFailureRateConversionReview({ ...basis, conversion: "EXPONENTIAL" })).toBe(false);
   });
 
-  it("matches HCL_MH failure-rate source outputs, including tiny exposures", () => {
+  it("matches the source failure-rate outputs, including tiny exposures", () => {
     const reference = JSON.parse(readFileSync(resolve(__dirname,
       "../../../../../solvers/praxis/tests/fixtures/hcl_mh_failure_rate/reference.json",
     ), "utf8")) as { cases: Array<{ rate: number; time: number; probability: string }> };
@@ -66,23 +66,54 @@ describe("quantitative semantics", () => {
   });
 
   it("validates auditable basic-event and event-tree result semantics", () => {
-    expect(BasicEventQuantificationTraceSchema.safeParse({
+    const trace = {
       basicEventId: "123e4567-e89b-42d3-a456-426614174000",
-      input: {
-        value: 4.798848184297884e-4,
-        quantificationBasis: {
-          kind: "FAILURE_RATE",
-          failureRate: { value: 2e-5, unit: "HOUR" },
-          missionTime: { value: 24, unit: "HOUR" },
-          conversion: "EXPONENTIAL",
+      expression: {
+        node: "MODEL",
+        model: {
+          form: "MISSION",
+          rate: { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "GAMMA", shape: 0.5, rate: 25_000 } } },
+          missionTime: { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: 24 } } },
         },
       },
-      resolvedProbability: 4.798848184297884e-4,
+      pointProbability: 4.798848184297884e-4,
+    };
+    expect(BasicEventQuantificationTraceSchema.safeParse(trace).success).toBe(true);
+    expect(BasicEventQuantificationTraceSchema.safeParse({
+      ...trace,
+      expression: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "rate-a" } },
     }).success).toBe(true);
-    expect(EventTreeFrequencySemanticsSchema.safeParse({
-      initiatingEventFrequency: { value: 2e-5, unit: "PER_HOUR" },
+    expect(BasicEventQuantificationTraceSchema.safeParse({ ...trace, pointProbability: 1.5 }).success).toBe(false);
+    expect(BasicEventQuantificationTraceSchema.safeParse({
+      basicEventId: trace.basicEventId,
+      input: { value: trace.pointProbability },
+      resolvedProbability: trace.pointProbability,
+    }).success).toBe(false);
+    expect(BasicEventQuantificationTraceSchema.safeParse({
+      ...trace,
+      expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "LOGNORMAL", median: 1e-3, errorFactor: 3 } } },
+    }).success).toBe(false);
+    const semantics = {
+      initiatingEventFrequency: {
+        expression: { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "GAMMA", shape: 2, rate: 100_000 } } },
+        annualization: { basis: "CRITICAL_YEAR", hoursPerYear: 7_000 },
+      },
       annualization: { basis: "CRITICAL_YEAR", hoursPerYear: 7_000 },
       annualizedInitiatingEventFrequency: { value: 0.14, unit: "PER_YEAR" },
+    };
+    expect(EventTreeFrequencySemanticsSchema.safeParse(semantics).success).toBe(true);
+    expect(EventTreeFrequencySemanticsSchema.safeParse({
+      ...semantics,
+      initiatingEventFrequency: {
+        expression: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "loop-a" } },
+      },
     }).success).toBe(true);
+    for (const candidate of [
+      { ...semantics, initiatingEventFrequency: { value: 2e-5, unit: "PER_HOUR" } },
+      { ...semantics, annualizedInitiatingEventFrequency: { value: 0.14, unit: "PER_HOUR" } },
+      { ...semantics, annualizedInitiatingEventFrequency: { value: -0.14, unit: "PER_YEAR" } },
+    ]) {
+      expect(EventTreeFrequencySemanticsSchema.safeParse(candidate).success).toBe(false);
+    }
   });
 });

@@ -6,8 +6,11 @@ import { esqSensitivityRunId } from "interfaces-mef-types/esq/esq-sensitivity-in
 import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods/shared";
 import { EsqWorkbookProvider, type EsqWorkbookRuntime } from "../esqWorkbookContext";
 import { ResultsScreen } from "../esqResultsScreen";
-import { UncertScreen } from "../esqUncertaintyScreen";
-import { SensScreen } from "../esqSensitivityScreen";
+import { UncertScreen, UncertWindows } from "../esqUncertaintyScreen";
+import { SensScreen, SensWindows } from "../esqSensitivityScreen";
+import type { EsqWindowContext } from "../esqModelScreen";
+import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
+import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
 import { HandoffScreen } from "../esqHandoffScreen";
 import { importanceRecordOf, thresholdsOf, withImportance } from "../esqResults";
 import { withCase } from "../esqSensitivity";
@@ -23,6 +26,8 @@ import {
 import { NOW, modelSummary } from "./esqPostFixtures";
 import { RELEASE, caseSummary, importanceResult, measureEsq, measureUpstream, uncertaintyResult } from "./esqMeasureFixtures";
 
+jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
+
 jest.mock("../esqWorkbookApi", () => ({
   ...jest.requireActual<typeof import("../esqWorkbookApi")>("../esqWorkbookApi"),
   runEsqImportance: jest.fn(),
@@ -37,6 +42,17 @@ jest.mock("../esqWorkbookApi", () => ({
 const SAVED: EsqWorkbookRuntime = { workbookId: "esq-1", projectId: "p-1", revision: 5, saveStatus: "saved" };
 
 type Step = "results" | "uncert" | "sens" | "handoff";
+
+function WindowHarness({ initial, context }: { initial: EventSequenceQuantification; context: EsqWindowContext }): JSX.Element {
+  const [esq, setEsq] = useState(initial);
+  const [upstream] = useState(() => measureUpstream());
+  const mutateEsq = useCallback((mutator: (current: EventSequenceQuantification) => EventSequenceQuantification): void => setEsq((current) => mutator(current)), []);
+  return (
+    <EsqWorkbookProvider data={{ esq }} editable mutateEsq={mutateEsq} upstream={upstream} runtime={SAVED}>
+      {context.kind === "esqSensCase" ? <SensWindows context={context} onClose={jest.fn()} /> : <UncertWindows context={context} onClose={jest.fn()} />}
+    </EsqWorkbookProvider>
+  );
+}
 
 function runOf(id: string, modelId: string): { schemaVersion: "1.0.0"; run: AnalysisRunMetadata } {
   return {
@@ -87,6 +103,10 @@ async function settle(): Promise<void> {
   await act(async () => { await Promise.resolve(); });
 }
 
+async function praxis(): Promise<void> {
+  await act(async () => { await settledWithPraxis(() => undefined); });
+}
+
 describe("ESQ Steps 07 to 10 screens", () => {
   beforeEach(() => {
     jest.mocked(runEsqImportance).mockReset();
@@ -96,6 +116,8 @@ describe("ESQ Steps 07 to 10 screens", () => {
     jest.mocked(runEsqSensitivity).mockReset();
     jest.mocked(getEsqSensitivityResult).mockReset();
     jest.mocked(getEsqModelRunResult).mockReset();
+    jest.mocked(evaluateUncertainty).mockReset();
+    jest.mocked(evaluateUncertainty).mockImplementation(praxisUncertainty);
   });
 
   it("ranks importance with PRAXIS and lists the measures to four digits", async () => {
@@ -132,8 +154,54 @@ describe("ESQ Steps 07 to 10 screens", () => {
     await settle();
     expect(jest.mocked(runEsqUncertainty).mock.calls[0]?.[3]).toEqual({ trials: 10000, seed: 1, method: "LATIN_HYPERCUBE", correlation: "SHARED" });
     expect(lastOf(onChange).uncertaintyWork?.run).toMatchObject({ trials: 1000, families: [expect.objectContaining({ familyId: "F-REL", mean: 1.3e-5, p95: 4.5e-5 })] });
+    await settle();
+    const keys = screen.getByRole("table", { name: "Sampled keys" });
+    expect(keys).toHaveTextContent("Pump fails to start (P-1)");
+    expect(keys).toHaveTextContent("Lognormal (mean 2.00E-3, EF 5) cut to [−∞, 1] · probability");
+    expect(screen.getByText("1 input drew in this run. 1 input stayed at their point values.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Families/ }));
-    expect(within(screen.getByRole("table", { name: "Family distributions" })).getAllByText("1.3E-5").length).toBeGreaterThan(0);
+    const families = screen.getByRole("table", { name: "Family distributions" });
+    expect(within(families).getAllByText("1.3E-5").length).toBeGreaterThan(0);
+    fireEvent.click(within(families).getByRole("button", { name: "Show the details of F-REL" }));
+    expect(families).toHaveTextContent("Standard error of the mean");
+    expect(families).toHaveTextContent("6.32E-7");
+  });
+
+  it("lists the sampled inputs with their PRAXIS points and laws", async () => {
+    const esq = withImportance(measureEsq(), importanceRecordOf(importanceResult(measureEsq()), measureEsq(), thresholdsOf(measureEsq(), undefined)));
+    render(<Harness initial={esq} step="uncert" onChange={jest.fn()} />);
+    await praxis();
+    const table = screen.getByRole("table", { name: "Sampled inputs" });
+    const pump = within(table).getByRole("button", { name: "Pump fails to start (P-1)" }).closest("tr");
+    if (pump === null) throw new Error("no row");
+    expect(pump).toHaveTextContent("2E-3");
+    expect(pump).toHaveTextContent("Lognormal (mean 2.00E-3, EF 5)");
+    const fan = within(table).getByRole("button", { name: "SUP-FAN-FR · Fan fails to run" }).closest("tr");
+    if (fan === null) throw new Error("no row");
+    expect(fan).toHaveTextContent("None, fixed at the point");
+    fireEvent.click(within(pump).getByRole("button", { name: "Show the details of Pump fails to start (P-1)" }));
+    await praxis();
+    expect(table).toHaveTextContent("Two shared copies raise the mean");
+    expect(table).toHaveTextContent("2.6×");
+  });
+
+  it("asks for a DA law on a component input and offers a typed error factor on the others", async () => {
+    const esq = measureEsq();
+    const { unmount } = render(<WindowHarness initial={esq} context={{ kind: "esqUncertInput", id: "PARAMETER:P-1" }} />);
+    await praxis();
+    expect(screen.getByText("Give the estimate a law in DA and import again in Step 02.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Error factor")).not.toBeInTheDocument();
+    unmount();
+    render(<WindowHarness initial={esq} context={{ kind: "esqUncertInput", id: "HFE:HFE-1" }} />);
+    expect(screen.getByLabelText("Error factor")).toBeEnabled();
+  });
+
+  it("shows the expression a case changes instead of a point", () => {
+    const esq = withCase(measureEsq(), "SC-1", { id: "SC-1", name: "Pump at its upper bound", kind: "PARAMETER", target: "P-1", value: 1e-2, basis: "DA upper bound." });
+    render(<WindowHarness initial={esq} context={{ kind: "esqSensCase", id: "SC-1" }} />);
+    expect(screen.getByText("Lognormal (mean 2.00E-3, EF 5) cut to [−∞, 1]")).toBeInTheDocument();
+    expect(screen.getByText("probability")).toBeInTheDocument();
+    expect(screen.getByText("A new value replaces the distribution with a point. A factor scales the whole value and keeps its distribution.")).toBeInTheDocument();
   });
 
   it("runs a sensitivity case beside the run of record", async () => {

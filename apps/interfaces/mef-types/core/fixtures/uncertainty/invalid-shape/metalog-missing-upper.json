@@ -1,0 +1,29 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PER_HOUR",
+        "law": {
+          "family": "METALOG",
+          "points": [
+            {
+              "probability": 0.05,
+              "value": 0.000001
+            },
+            {
+              "probability": 0.95,
+              "value": 0.0001
+            }
+          ],
+          "lower": 0
+        }
+      }
+    }
+  }
+]

@@ -26,5 +26,12 @@
 .syunc-issues:empty { display: none; }
 .syunc-issues { margin: 0 0 8px; }
 .syunc-inputs th:nth-child(1) { width: 30%; }
-.syunc-inputs th:nth-child(3) { width: 30%; }
+.syunc-inputs th:nth-child(3) { width: 18%; }
 .syunc-range .posfield__input.syunc-range__bound { flex: 0 0 112px; }
+.syunc-analysis__samples { display: grid; gap: 10px; }
+.syunc-analysis__samples-head { display: flex; flex-wrap: wrap; gap: 8px; }
+.syunc-analysis__bins { max-width: 520px; }
+.syunc-analysis__bin { display: flex; align-items: center; gap: 10px; }
+.syunc-analysis__bin-count { flex: 0 0 56px; font-family: var(--font-data), ui-monospace, monospace; font-size: 12px; text-align: right; }
+.syunc-analysis__bin-track { flex: 1 1 auto; height: 4px; border-radius: 2px; background: var(--color-surface-low); }
+.syunc-analysis__bin-fill { display: block; height: 100%; border-radius: 2px; background: var(--color-primary); }

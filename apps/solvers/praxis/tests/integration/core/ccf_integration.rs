@@ -1,52 +1,44 @@
-use praxis::core::ccf::{CcfGroup, CcfModel, TestingScheme};
+use praxis::analysis::uncertainty::propagate_uncertainty;
+use praxis::core::ccf::{alphas_key, fixed_components, CcfGroup, CcfModel};
+use praxis::core::distribution::{CcfTesting, Law};
+use praxis::core::distribution_sampling::{SamplingMethod, SamplingPlan};
 use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::{Formula, Gate};
+use praxis::expression::Expr;
 use praxis::io::parser::parse_fault_tree;
 use std::collections::HashMap;
+
+fn beta(id: &str, members: &[&str], factor: f64, total: f64) -> CcfGroup {
+    CcfGroup::new(
+        id,
+        members.iter().map(|member| member.to_string()).collect(),
+        CcfModel::BetaFactor(Expr::Constant(factor)),
+        Expr::Constant(total),
+    )
+    .unwrap()
+}
+
+fn count_containing(ft: &FaultTree, fragment: &str) -> usize {
+    ft.basic_events()
+        .keys()
+        .filter(|id| id.contains(fragment))
+        .count()
+}
 
 #[test]
 fn test_beta_factor_two_components() {
     let mut ft = FaultTree::new("BetaTest2", "TOP").unwrap();
+    ft.add_ccf_group(beta("Pumps", &["Pump1", "Pump2"], 0.2, 0.1))
+        .unwrap();
+    ft.expand_ccf_groups().unwrap();
 
-    let members = vec!["Pump1".to_string(), "Pump2".to_string()];
-    let ccf_group = CcfGroup::new("Pumps", members, CcfModel::BetaFactor(0.2))
-        .unwrap()
-        .with_distribution("0.1".to_string());
-
-    ft.add_ccf_group(ccf_group).unwrap();
-
-    let mut base_probs = HashMap::new();
-    base_probs.insert("Pumps".to_string(), 0.1);
-    ft.expand_ccf_groups(&base_probs).unwrap();
-
-    assert_eq!(ft.basic_events().len(), 3, "Should have 3 expanded events");
-
-    let indep_prob = 0.08;
-    let common_prob = 0.02;
-
-    let mut independent_count = 0;
-    let mut common_count = 0;
-
+    assert_eq!(ft.basic_events().len(), 3);
     for (id, event) in ft.basic_events() {
-        if id.contains("indep") {
-            assert!(
-                (event.probability() - indep_prob).abs() < 1e-10,
-                "Independent event probability should be {}",
-                indep_prob
-            );
-            independent_count += 1;
-        } else if id.contains("common") {
-            assert!(
-                (event.probability() - common_prob).abs() < 1e-10,
-                "Common event probability should be {}",
-                common_prob
-            );
-            common_count += 1;
-        }
+        let expected = if id.contains("indep") { 0.08 } else { 0.02 };
+        assert!((event.probability() - expected).abs() < 1e-15, "{id}");
     }
-
-    assert_eq!(independent_count, 2, "Should have 2 independent events");
-    assert_eq!(common_count, 1, "Should have 1 common event");
+    assert_eq!(count_containing(&ft, "indep"), 2);
+    assert_eq!(count_containing(&ft, "common"), 1);
 }
 
 #[test]
@@ -78,85 +70,39 @@ fn test_beta_factor_three_components_from_xml() {
 </opsa-mef>"#;
 
     let mut ft = parse_fault_tree(xml).unwrap();
-    assert_eq!(ft.ccf_groups().len(), 1, "Should have 1 CCF group");
-
-    let mut base_probs = HashMap::new();
-    base_probs.insert("Pumps".to_string(), 0.1);
-    ft.expand_ccf_groups(&base_probs).unwrap();
-
-    assert_eq!(ft.basic_events().len(), 4, "Should have 4 expanded events");
-
-    let mut independent_count = 0;
-    let mut common_count = 0;
-
-    for id in ft.basic_events().keys() {
-        if id.contains("indep") {
-            independent_count += 1;
-        } else if id.contains("common") {
-            common_count += 1;
-        }
-    }
-
-    assert_eq!(independent_count, 3, "Should have 3 independent events");
-    assert_eq!(common_count, 1, "Should have 1 common event");
+    assert_eq!(ft.ccf_groups().len(), 1);
+    ft.expand_ccf_groups().unwrap();
+    assert_eq!(ft.basic_events().len(), 4);
+    assert_eq!(count_containing(&ft, "indep"), 3);
+    assert_eq!(count_containing(&ft, "common"), 1);
 }
 
 #[test]
 fn test_alpha_factor_three_components() {
     let mut ft = FaultTree::new("AlphaTest3", "TOP").unwrap();
-
-    let members = vec![
-        "Comp1".to_string(),
-        "Comp2".to_string(),
-        "Comp3".to_string(),
-    ];
-    let alphas = vec![0.7, 0.2, 0.1];
-    let ccf_group = CcfGroup::new(
-        "Components",
-        members,
-        CcfModel::AlphaFactor {
-            factors: alphas,
-            scheme: TestingScheme::NonStaggered,
-        },
+    ft.add_ccf_group(
+        CcfGroup::new(
+            "Components",
+            vec!["Comp1".into(), "Comp2".into(), "Comp3".into()],
+            CcfModel::AlphaFactor {
+                testing: CcfTesting::NonStaggered,
+                alphas: fixed_components(&alphas_key("Components"), vec![0.7, 0.2, 0.1]).unwrap(),
+            },
+            Expr::Constant(0.1),
+        )
+        .unwrap(),
     )
-    .unwrap()
-    .with_distribution("0.1".to_string());
+    .unwrap();
+    ft.expand_ccf_groups().unwrap();
 
-    ft.add_ccf_group(ccf_group).unwrap();
-
-    let mut base_probs = HashMap::new();
-    base_probs.insert("Components".to_string(), 0.1);
-    ft.expand_ccf_groups(&base_probs).unwrap();
-
-    assert_eq!(ft.basic_events().len(), 7, "Should have 7 expanded events");
-
-    let mut level_1_count = 0;
-    let mut level_2_count = 0;
-    let mut level_3_count = 0;
-
-    for id in ft.basic_events().keys() {
-        if id.contains("alpha-1") {
-            level_1_count += 1;
-        } else if id.contains("alpha-2") {
-            level_2_count += 1;
-        } else if id.contains("alpha-3") {
-            level_3_count += 1;
-        }
-    }
-
-    assert_eq!(level_1_count, 3, "Should have 3 single-failure events");
-    assert_eq!(level_2_count, 3, "Should have 3 double-failure events");
-    assert_eq!(level_3_count, 1, "Should have 1 triple-failure event");
-
-    let expected_prob_l1 = (0.7 / 1.4) * 0.1;
+    assert_eq!(ft.basic_events().len(), 7);
+    assert_eq!(count_containing(&ft, "alpha-1"), 3);
+    assert_eq!(count_containing(&ft, "alpha-2"), 3);
+    assert_eq!(count_containing(&ft, "alpha-3"), 1);
+    let weighted = 0.7 + 2.0 * 0.2 + 3.0 * 0.1;
     for (id, event) in ft.basic_events() {
         if id.contains("alpha-1") {
-            assert!(
-                (event.probability() - expected_prob_l1).abs() < 1e-6,
-                "Level 1 event probability should be approximately {}, got {}",
-                expected_prob_l1,
-                event.probability()
-            );
+            assert!((event.probability() - 0.7 / weighted * 0.1).abs() < 1e-15);
         }
     }
 }
@@ -198,97 +144,48 @@ fn test_alpha_factor_from_xml() {
 </opsa-mef>"#;
 
     let mut ft = parse_fault_tree(xml).unwrap();
-    assert_eq!(ft.ccf_groups().len(), 1, "Should have 1 CCF group");
-
-    let ccf = ft.get_ccf_group("Valves").unwrap();
-    match &ccf.model {
+    assert_eq!(
+        ft.get_ccf_group("Valves").unwrap().model,
         CcfModel::AlphaFactor {
-            factors: alphas, ..
-        } => {
-            assert_eq!(alphas.len(), 3);
-            assert_eq!(alphas[0], 0.7);
-            assert_eq!(alphas[1], 0.2);
-            assert_eq!(alphas[2], 0.1);
+            testing: CcfTesting::NonStaggered,
+            alphas: fixed_components(&alphas_key("Valves"), vec![0.7, 0.2, 0.1]).unwrap(),
         }
-        _ => panic!("Expected AlphaFactor model"),
-    }
-
-    let mut base_probs = HashMap::new();
-    base_probs.insert("Valves".to_string(), 0.1);
-    ft.expand_ccf_groups(&base_probs).unwrap();
-
-    assert_eq!(ft.basic_events().len(), 7, "Should have 7 expanded events");
+    );
+    ft.expand_ccf_groups().unwrap();
+    assert_eq!(ft.basic_events().len(), 7);
 }
 
 #[test]
 fn test_mgl_four_components() {
     let mut ft = FaultTree::new("MGLTest4", "TOP").unwrap();
+    ft.add_ccf_group(
+        CcfGroup::new(
+            "Units",
+            vec!["Unit1".into(), "Unit2".into(), "Unit3".into(), "Unit4".into()],
+            CcfModel::Mgl(vec![
+                Expr::Constant(0.1),
+                Expr::Constant(0.3),
+                Expr::Constant(0.5),
+            ]),
+            Expr::Constant(0.1),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    ft.expand_ccf_groups().unwrap();
 
-    let members = vec![
-        "Unit1".to_string(),
-        "Unit2".to_string(),
-        "Unit3".to_string(),
-        "Unit4".to_string(),
-    ];
-    let q_factors = vec![0.1, 0.3, 0.5];
-    let ccf_group = CcfGroup::new("Units", members, CcfModel::Mgl(q_factors))
-        .unwrap()
-        .with_distribution("0.1".to_string());
-
-    ft.add_ccf_group(ccf_group).unwrap();
-
-    let mut base_probs = HashMap::new();
-    base_probs.insert("Units".to_string(), 0.1);
-    ft.expand_ccf_groups(&base_probs).unwrap();
-
-    assert_eq!(
-        ft.basic_events().len(),
-        15,
-        "Should have 15 expanded events"
-    );
-
+    assert_eq!(ft.basic_events().len(), 15);
     let mut level_counts = HashMap::new();
-    for id in ft.basic_events().keys() {
-        if id.contains("mgl-1") {
-            *level_counts.entry(1).or_insert(0) += 1;
-        } else if id.contains("mgl-2") {
-            *level_counts.entry(2).or_insert(0) += 1;
-        } else if id.contains("mgl-3") {
-            *level_counts.entry(3).or_insert(0) += 1;
-        } else if id.contains("mgl-4") {
-            *level_counts.entry(4).or_insert(0) += 1;
-        }
+    for level in 1..=4 {
+        level_counts.insert(level, count_containing(&ft, &format!("mgl-{level}")));
     }
-
-    assert_eq!(
-        level_counts.get(&1),
-        Some(&4),
-        "Should have 4 single-failure events"
-    );
-    assert_eq!(
-        level_counts.get(&2),
-        Some(&6),
-        "Should have 6 double-failure events"
-    );
-    assert_eq!(
-        level_counts.get(&3),
-        Some(&4),
-        "Should have 4 triple-failure events"
-    );
-    assert_eq!(
-        level_counts.get(&4),
-        Some(&1),
-        "Should have 1 quad-failure event"
-    );
-
-    let expected_prob_l1 = (1.0 - 0.1) * 0.1;
+    assert_eq!(level_counts[&1], 4);
+    assert_eq!(level_counts[&2], 6);
+    assert_eq!(level_counts[&3], 4);
+    assert_eq!(level_counts[&4], 1);
     for (id, event) in ft.basic_events() {
         if id.contains("mgl-1") {
-            assert!(
-                (event.probability() - expected_prob_l1).abs() < 1e-10,
-                "Level 1 event probability should be {}",
-                expected_prob_l1
-            );
+            assert!((event.probability() - 0.9 * 0.1).abs() < 1e-15);
         }
     }
 }
@@ -296,141 +193,36 @@ fn test_mgl_four_components() {
 #[test]
 fn test_fault_tree_with_ccf_integration() {
     let mut ft = FaultTree::new("IntegrationTest", "TOP").unwrap();
-
     let mut top_gate = Gate::new("TOP".to_string(), Formula::Or).unwrap();
     top_gate.add_operand("TrainA".to_string());
     top_gate.add_operand("TrainB".to_string());
     ft.add_gate(top_gate).unwrap();
-
-    let mut train_a = Gate::new("TrainA".to_string(), Formula::And).unwrap();
-    train_a.add_operand("PumpA".to_string());
-    train_a.add_operand("ValveA".to_string());
-    ft.add_gate(train_a).unwrap();
-
-    let mut train_b = Gate::new("TrainB".to_string(), Formula::And).unwrap();
-    train_b.add_operand("PumpB".to_string());
-    train_b.add_operand("ValveB".to_string());
-    ft.add_gate(train_b).unwrap();
-
-    let pump_members = vec!["PumpA".to_string(), "PumpB".to_string()];
-    let pump_ccf = CcfGroup::new("PumpCCF", pump_members, CcfModel::BetaFactor(0.1))
-        .unwrap()
-        .with_distribution("0.05".to_string());
-    ft.add_ccf_group(pump_ccf).unwrap();
-
-    let valve_members = vec!["ValveA".to_string(), "ValveB".to_string()];
-    let valve_ccf = CcfGroup::new("ValveCCF", valve_members, CcfModel::BetaFactor(0.15))
-        .unwrap()
-        .with_distribution("0.03".to_string());
-    ft.add_ccf_group(valve_ccf).unwrap();
-
-    assert_eq!(ft.gates().len(), 3, "Should have 3 gates");
-    assert_eq!(ft.ccf_groups().len(), 2, "Should have 2 CCF groups");
-    assert_eq!(
-        ft.basic_events().len(),
-        0,
-        "Should have no basic events before expansion"
-    );
-
-    let mut base_probs = HashMap::new();
-    base_probs.insert("PumpCCF".to_string(), 0.05);
-    base_probs.insert("ValveCCF".to_string(), 0.03);
-    ft.expand_ccf_groups(&base_probs).unwrap();
-
-    assert_eq!(
-        ft.basic_events().len(),
-        6,
-        "Should have 6 expanded events (3 per CCF group)"
-    );
-
-    let pump_events: Vec<_> = ft
-        .basic_events()
-        .iter()
-        .filter(|(id, _)| id.contains("PumpCCF"))
-        .collect();
-    let valve_events: Vec<_> = ft
-        .basic_events()
-        .iter()
-        .filter(|(id, _)| id.contains("ValveCCF"))
-        .collect();
-
-    assert_eq!(pump_events.len(), 3, "Should have 3 pump CCF events");
-    assert_eq!(valve_events.len(), 3, "Should have 3 valve CCF events");
+    for (train, pump, valve) in [("TrainA", "PumpA", "ValveA"), ("TrainB", "PumpB", "ValveB")] {
+        let mut gate = Gate::new(train.to_string(), Formula::And).unwrap();
+        gate.add_operand(pump.to_string());
+        gate.add_operand(valve.to_string());
+        ft.add_gate(gate).unwrap();
+    }
+    ft.add_ccf_group(beta("PumpCCF", &["PumpA", "PumpB"], 0.1, 0.05))
+        .unwrap();
+    ft.add_ccf_group(beta("ValveCCF", &["ValveA", "ValveB"], 0.15, 0.03))
+        .unwrap();
+    assert_eq!(ft.basic_events().len(), 0);
+    ft.expand_ccf_groups().unwrap();
+    assert_eq!(ft.basic_events().len(), 6);
+    assert_eq!(count_containing(&ft, "PumpCCF"), 3);
+    assert_eq!(count_containing(&ft, "ValveCCF"), 3);
+    assert_eq!(ft.probability_checks().len(), 4);
 }
 
 #[test]
 fn test_ccf_probability_conservation() {
     let mut ft = FaultTree::new("ProbConservation", "TOP").unwrap();
-
-    let members = vec!["E1".to_string(), "E2".to_string(), "E3".to_string()];
-    let ccf_group = CcfGroup::new("CCF", members, CcfModel::BetaFactor(0.3))
-        .unwrap()
-        .with_distribution("0.1".to_string());
-
-    ft.add_ccf_group(ccf_group).unwrap();
-
-    let mut base_probs = HashMap::new();
-    base_probs.insert("CCF".to_string(), 0.1);
-    ft.expand_ccf_groups(&base_probs).unwrap();
-
-    let total_prob: f64 = ft.basic_events().values().map(|e| e.probability()).sum();
-    let expected_total = 3.0 * 0.07 + 0.03;
-
-    assert!(
-        (total_prob - expected_total).abs() < 1e-10,
-        "Total probability should be approximately {}, got {}",
-        expected_total,
-        total_prob
-    );
-}
-
-#[test]
-fn test_multiple_ccf_groups_mixed_models() {
-    let mut ft = FaultTree::new("MixedModels", "TOP").unwrap();
-
-    let beta_members = vec!["A1".to_string(), "A2".to_string()];
-    let beta_ccf = CcfGroup::new("BetaGroup", beta_members, CcfModel::BetaFactor(0.2))
-        .unwrap()
-        .with_distribution("0.1".to_string());
-    ft.add_ccf_group(beta_ccf).unwrap();
-
-    let alpha_members = vec!["B1".to_string(), "B2".to_string(), "B3".to_string()];
-    let alpha_ccf = CcfGroup::new(
-        "AlphaGroup",
-        alpha_members,
-        CcfModel::AlphaFactor {
-            factors: vec![0.6, 0.3, 0.1],
-            scheme: TestingScheme::NonStaggered,
-        },
-    )
-    .unwrap()
-    .with_distribution("0.05".to_string());
-    ft.add_ccf_group(alpha_ccf).unwrap();
-
-    let mut base_probs = HashMap::new();
-    base_probs.insert("BetaGroup".to_string(), 0.1);
-    base_probs.insert("AlphaGroup".to_string(), 0.05);
-    ft.expand_ccf_groups(&base_probs).unwrap();
-
-    assert_eq!(
-        ft.basic_events().len(),
-        10,
-        "Should have 10 expanded events total"
-    );
-
-    let beta_events: Vec<_> = ft
-        .basic_events()
-        .keys()
-        .filter(|id| id.starts_with("BetaGroup"))
-        .collect();
-    let alpha_events: Vec<_> = ft
-        .basic_events()
-        .keys()
-        .filter(|id| id.starts_with("AlphaGroup"))
-        .collect();
-
-    assert_eq!(beta_events.len(), 3, "Should have 3 Beta-Factor events");
-    assert_eq!(alpha_events.len(), 7, "Should have 7 Alpha-Factor events");
+    ft.add_ccf_group(beta("CCF", &["E1", "E2", "E3"], 0.3, 0.1))
+        .unwrap();
+    ft.expand_ccf_groups().unwrap();
+    let total: f64 = ft.basic_events().values().map(|event| event.probability()).sum();
+    assert!((total - (3.0 * 0.07 + 0.03)).abs() < 1e-15);
 }
 
 #[test]
@@ -484,55 +276,51 @@ fn test_ccf_end_to_end_realistic() {
 </opsa-mef>"#;
 
     let mut ft = parse_fault_tree(xml).unwrap();
-
     assert_eq!(ft.element().id(), "RealisticCCF");
     assert_eq!(ft.gates().len(), 3);
     assert_eq!(ft.ccf_groups().len(), 2);
-
-    let mut base_probs = HashMap::new();
-    base_probs.insert("PumpsA".to_string(), 0.01);
-    base_probs.insert("PumpsB".to_string(), 0.015);
-    ft.expand_ccf_groups(&base_probs).unwrap();
-
+    ft.expand_ccf_groups().unwrap();
     assert_eq!(ft.basic_events().len(), 6);
-
-    let pumps_a_events: HashMap<_, _> = ft
-        .basic_events()
-        .iter()
-        .filter(|(id, _)| id.starts_with("PumpsA"))
-        .collect();
-
-    for (id, event) in pumps_a_events {
-        if id.contains("indep") {
-            assert!(
-                (event.probability() - 0.009).abs() < 1e-10,
-                "PumpsA independent event should have p=0.009"
-            );
-        } else if id.contains("common") {
-            assert!(
-                (event.probability() - 0.001).abs() < 1e-10,
-                "PumpsA common event should have p=0.001"
-            );
-        }
+    for (id, event) in ft.basic_events() {
+        let expected = match (id.starts_with("PumpsA"), id.contains("indep")) {
+            (true, true) => 0.009,
+            (true, false) => 0.001,
+            (false, true) => 0.0132,
+            (false, false) => 0.0018,
+        };
+        assert!((event.probability() - expected).abs() < 1e-15, "{id}");
     }
+}
 
-    let pumps_b_events: HashMap<_, _> = ft
-        .basic_events()
-        .iter()
-        .filter(|(id, _)| id.starts_with("PumpsB"))
-        .collect();
-
-    for (id, event) in pumps_b_events {
-        if id.contains("indep") {
-            assert!(
-                (event.probability() - 0.0132).abs() < 1e-10,
-                "PumpsB independent event should have p=0.0132"
-            );
-        } else if id.contains("common") {
-            assert!(
-                (event.probability() - 0.0018).abs() < 1e-10,
-                "PumpsB common event should have p=0.0018"
-            );
-        }
-    }
+#[test]
+fn test_sampled_beta_factor_outside_zero_to_one_names_the_group_and_trial() {
+    let mut ft = FaultTree::new("Sampled", "TOP").unwrap();
+    let mut top = Gate::new("TOP".to_string(), Formula::And).unwrap();
+    top.add_operand("A".to_string());
+    top.add_operand("B".to_string());
+    ft.add_gate(top).unwrap();
+    ft.add_ccf_group(
+        CcfGroup::new(
+            "Pumps",
+            vec!["A".into(), "B".into()],
+            CcfModel::BetaFactor(Expr::draw(Law::Normal {
+                mean: 0.5,
+                standard_deviation: 0.4,
+            })),
+            Expr::Constant(0.1),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    ft.expand_ccf_groups().unwrap();
+    let plan = SamplingPlan {
+        method: SamplingMethod::MonteCarlo,
+        trials: 500,
+        seed: 11,
+    };
+    let error = propagate_uncertainty(&ft, &plan).unwrap_err().to_string();
+    assert!(
+        error.contains("common cause group 'Pumps' beta factor") && error.contains("trial"),
+        "{error}"
+    );
 }

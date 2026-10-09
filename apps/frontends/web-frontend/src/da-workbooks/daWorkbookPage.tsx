@@ -115,7 +115,7 @@ function DaWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
-  const upstream = useDaUpstream(data?.da, linkOptions);
+  const upstream = useDaUpstream(data?.da, linkOptions, id);
 
   const updateDa = useCallback((da: DataAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, da }));

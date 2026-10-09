@@ -17,21 +17,25 @@ import type {
   DaSourceEntry,
   DaSourceUse,
 } from "interfaces-mef-types/da/data-analysis";
+import { useUncertaintyVersion } from "../newly-developed-methods/shared/useUncertainty";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { ClampCell, DaProvenanceChip, DaTabs, DetailRow, FieldList, FormFoot, FormRow, ModalHead, PlotToggle, sciText } from "./daShared";
 import { DistributionChart, useElementWidth, type DistributionSeries } from "./daDistributionChart";
 import { SurvivalChart, survivalGrid } from "./daSurvivalChart";
+import { lawSummary, pointState } from "./daLaws";
 import {
   coincidentParameters,
   maintenanceEstimate,
   maintenanceMethodOf,
+  maintenanceSpread,
   restorationEstimate,
   restorationMethodOf,
   restorationParameters,
   survivalCurve,
   trainParameters,
   unavailabilityFindings,
+  type DaMaintenanceEstimate,
 } from "./daUnavailability";
 import { libraryEntries, nextCode, sourceUseBase, withStoredEntry } from "./daSourcing";
 import { nextParameterId } from "./daSelectors";
@@ -42,9 +46,8 @@ import {
   MAINTENANCE_METHOD_LABELS,
   RESTORATION_FROM_LABELS,
   RESTORATION_KIND_LABELS,
-  UNAVAILABILITY_FIT_LABELS,
 } from "./daViewData";
-import { AreaRow, LinesRow, NEED_PAGE, NeedChecksTable, NeedPager, numberFrom, statText, systemOptions, type DaDrawerContext } from "./daScreens";
+import { AreaRow, EstimateRows, LinesRow, NEED_PAGE, NeedChecksTable, NeedPager, PraxisValue, estimateText, numberFrom, spreadFields, statText, systemOptions, waitNote, type DaDrawerContext } from "./daScreens";
 import { DISTRIBUTION_CHOICES, DistributionFields, EstimatePicker, NumberInput, TextRow, distributionDraft, distributionText, entrySearchText, useBuiltInEntries, waitingSources, type EstimateChoice } from "./daSourcesScreen";
 
 type UnavailabilityTab = "maintenance" | "coincident" | "repair" | "recovery" | "outages" | "checks";
@@ -96,17 +99,17 @@ function pageOf<T>(rows: readonly T[], page: number): { current: number; shown: 
 
 function MaintenanceDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [focus, setFocus] = useState("ESTIMATE");
   const estimate = maintenanceEstimate(da, parameter);
   const method = estimate.method;
-  const output = estimate.output;
+  const expression = estimate.estimate;
   const span = method === "RECORDS" ? "in the data window" : "a year";
-  const series = useMemo<DistributionSeries[]>(() => {
-    const list: DistributionSeries[] = [];
-    if (output !== undefined) list.push({ key: "ESTIMATE", label: "Unavailability", detail: UNAVAILABILITY_FIT_LABELS[output.fit], distribution: output.distribution });
-    if (estimate.published !== undefined && estimate.trains !== 1) list.push({ key: "PUBLISHED", label: "Published, per train", detail: "", distribution: estimate.published });
-    return list;
-  }, [output, estimate.published, estimate.trains]);
+  const curve = expression?.node === "VALUE" ? lawSummary(expression.value.unit, expression.value.law, true) : undefined;
+  const published = estimate.published !== undefined && estimate.trains !== 1 ? lawSummary("FRACTION", estimate.published, true) : undefined;
+  const series: DistributionSeries[] = [];
+  if (curve?.status === "ready") series.push({ key: "ESTIMATE", label: "Unavailability", detail: "", summary: curve.value });
+  if (published?.status === "ready") series.push({ key: "PUBLISHED", label: "Published, per train", detail: "", summary: published.value });
   const items = [
     { label: "Kind", value: MAINTENANCE_KIND_LABELS[estimate.kind] },
     { label: "Method", value: method === undefined ? "Not chosen" : MAINTENANCE_METHOD_LABELS[method] },
@@ -121,16 +124,24 @@ function MaintenanceDetail({ parameter }: { parameter: DataAnalysisParameter }):
   if (method === "GENERIC") items.push({ label: "Published, per train", value: statText(estimate.perTrain) });
   if (estimate.kind === "TRAIN" && method !== "TYPED") items.push({ label: "Trains", value: String(estimate.trains) });
   if (method !== "TYPED" && method !== "GENERIC") items.push({ label: "Per train", value: statText(estimate.perTrain) });
-  items.push({ label: "Distribution", value: output === undefined ? "—" : distributionText(output.distribution) });
-  items.push({ label: "5th percentile", value: statText(output?.p05) });
-  items.push({ label: "95th percentile", value: statText(output?.p95) });
+  items.push({ label: "Distribution", value: estimateText(expression) });
+  items.push(...spreadFields(maintenanceSpread(estimate)));
+  const note = estimate.problem ?? (estimate.pending ? "Waiting for PRAXIS." : waitNote([curve, published]));
   return (
     <>
       <FieldList items={items} />
-      {estimate.problem !== undefined && <p className="posmuted">{estimate.problem}</p>}
+      {note !== undefined && <p className="posmuted">{note}</p>}
+      {expression !== undefined && expression.node !== "VALUE" && note === undefined && <p className="da-needs__meta">The unavailability combines several uncertain values, so its percentiles come from sampling and it has no single curve.</p>}
       {series.length > 0 && <DistributionChart series={series} focusKey={series.some((item) => item.key === focus) ? focus : series[0]?.key} unit="fraction of time" onFocus={setFocus} />}
     </>
   );
+}
+
+function maintenanceValue(estimate: DaMaintenanceEstimate): JSX.Element {
+  if (estimate.method === undefined) return <>—</>;
+  if (estimate.problem !== undefined) return <span className="da-severity da-severity--error" title={estimate.problem}>Cannot compute</span>;
+  if (estimate.pending) return <PraxisValue state={{ status: "pending" }} />;
+  return <PraxisValue state={estimate.estimate === undefined ? undefined : pointState(estimate.estimate, "FRACTION")} />;
 }
 
 function RestorationDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.Element {
@@ -179,12 +190,13 @@ function useTableFilter(): { page: number; setPage: (page: number) => void; show
 
 function MaintenanceTable({ kind, selected, onSelect, openDrawer }: { kind: DaMaintenanceKind; selected: string; onSelect: (key: string) => void; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const filters = useTableFilter();
   const filterId = useId();
   const [wrapRef, wrapWidth] = useElementWidth(0);
   const parameters = kind === "TRAIN" ? trainParameters(da) : coincidentParameters(da);
   if (parameters.length === 0) return <p className="posmuted">{kind === "TRAIN" ? "No test and maintenance parameter yet. Map the maintenance events in Step 03, or add one." : "No coincident maintenance yet. Add one for each planned activity that takes redundant equipment out together."}</p>;
-  const rows = parameters.filter((parameter) => filters.show === "all" || maintenanceEstimate(da, parameter).output === undefined);
+  const rows = parameters.filter((parameter) => filters.show === "all" || maintenanceEstimate(da, parameter).estimate === undefined);
   const { current, shown } = pageOf(rows, filters.page);
   return (
     <>
@@ -211,7 +223,7 @@ function MaintenanceTable({ kind, selected, onSelect, openDrawer }: { kind: DaMa
                     <td><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daMaintenance", id: parameter.uuid }); }}>{parameter.uuid}</button></td>
                     <td className="da-rowtable__text">{nameOf(parameter)}</td>
                     {kind === "TRAIN" ? <td className="da-rowtable__text">{method === undefined ? "Not chosen" : MAINTENANCE_METHOD_LABELS[method]}</td> : <ClampCell text={(parameter.maintenance?.equipment ?? []).join(", ")} />}
-                    <td className="da-rowtable__num">{estimate.output !== undefined ? statText(estimate.output.mean) : method === undefined ? "—" : <span className="da-severity da-severity--error">Cannot compute</span>}</td>
+                    <td className="da-rowtable__num">{maintenanceValue(estimate)}</td>
                   </tr>
                   {open && <DetailRow span={5} width={wrapWidth - 18}><MaintenanceDetail parameter={parameter} /></DetailRow>}
                 </Fragment>
@@ -299,7 +311,6 @@ function newMaintenance(da: DataAnalysis, id: string, kind: DaMaintenanceKind): 
     uuid: id,
     name: "",
     parameterType: "UNAVAILABILITY",
-    valueType: "MEAN",
     quantificationModel: "UNAVAILABILITY",
     valueMode: "CALCULATED",
     maintenance: { kind, method: da.plantStage === "OPERATIONAL" ? "RECORDS" : "PLANNED", requiredHoursPerYear: 8760 },
@@ -470,7 +481,7 @@ function TypedValueRows({ parameter, disabled, onPatch }: { parameter: DataAnaly
     <>
       <FormRow label="Value" htmlFor={`${fieldId}-value`}>
         <WorkbookInput id={`${fieldId}-value`} className="posfield__input da-form__number" type="number" min="0" step="any" value={parameter.value ?? ""} disabled={disabled} onChange={(event) => numberFrom(event.target.value, (value) => onPatch({ value }))} />
-        <select aria-label="Value type" className="posfield__select" value={parameter.valueType} disabled={disabled} onChange={(event) => onPatch({ valueType: event.target.value === "POINT_ESTIMATE" ? "POINT_ESTIMATE" : "MEAN" })}>
+        <select aria-label="Value type" className="posfield__select" value={parameter.valueType ?? "MEAN"} disabled={disabled} onChange={(event) => onPatch({ valueType: event.target.value === "POINT_ESTIMATE" ? "POINT_ESTIMATE" : "MEAN" })}>
           <option value="MEAN">Mean</option>
           <option value="POINT_ESTIMATE">Point estimate</option>
         </select>
@@ -487,6 +498,7 @@ function TypedValueRows({ parameter, disabled, onPatch }: { parameter: DataAnaly
 
 function MaintenanceWindow({ id, onClose, onRetarget }: { id: string; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void }): JSX.Element | null {
   const { da, editable, mutateDa } = useDaWorkbook();
+  useUncertaintyVersion();
   const fieldId = useId();
   const parameter = da.parameters.find((candidate) => candidate.uuid === id);
   if (parameter === undefined) return null;
@@ -546,7 +558,7 @@ function MaintenanceWindow({ id, onClose, onRetarget }: { id: string; onClose: (
             <option value="TYPED">{MAINTENANCE_METHOD_LABELS.TYPED}</option>
           </select>
         </FormRow>
-        {method === "TYPED" && <TypedValueRows parameter={parameter} disabled={dis} onPatch={patch} />}
+        {method === "TYPED" && <EstimateRows parameter={parameter} disabled={dis} onPatch={patch} />}
         {counted && (
           <>
             <FormRow label="Required hours" htmlFor={fid("required")}>

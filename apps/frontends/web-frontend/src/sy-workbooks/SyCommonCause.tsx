@@ -1,11 +1,13 @@
-import { Fragment, JSX } from "react";
+import { JSX } from "react";
 import type { CommonCauseFailureGroup } from "interfaces-mef-types/sy/systems-analysis";
+import { ccfFactorDraft } from "../newly-developed-methods/shared/uncertainEditor";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
-import { NoSystemsCard, NotRecorded, ReviewLines, ReviewTitle } from "./syShared";
-import { CCF_MODELS, toExp } from "./syViewData";
-import { ccfFactors, formatFactor, linkedEstimate, memberEvents, sharedCauseLines, totalFailureProbability, validateCcfGroup } from "./syCcf";
+import { NoSystemsCard, NotRecorded, PointValue, ReviewLines, ReviewTitle } from "./syShared";
+import { ccfFactorText, ccfModelText, linkedEstimate, memberEvents, sharedCauseLines, sharedMemberExpression, validateCcfGroup } from "./syCcf";
 import { systemTree } from "./syFailureRecords";
 import { SyCcfAnalysis } from "./SyCcfAnalysis";
+import { useExpressionPoints } from "./syBasicEventValues";
+import { useSyValueSources } from "./syMissionTimes";
 import { useSyWorkbook } from "./syWorkbookContext";
 import type { SyDrawerContext } from "./syScreens";
 import "./css/syModels.css";
@@ -19,8 +21,13 @@ function CommonCauseScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   onOpenSystems?: () => void;
 }): JSX.Element {
   const { sy, shortOf, editable, mutateSy, controlledCcfEstimates } = useSyWorkbook();
+  const values = useSyValueSources();
   const actionLabel = editable ? "Edit" : "View";
   const found = sy.systemDefinitions.find((candidate) => candidate.uuid === sysId) ?? sy.systemDefinitions[0];
+  const shownGroups = found === undefined ? [] : sy.commonCauseFailureGroups.filter((group) => group.affectedSystems.includes(found.uuid));
+  const totals = useExpressionPoints(shownGroups.map((group) => sharedMemberExpression(group, sy) ?? group.total), values.table);
+  const totalById = new Map(shownGroups.map((group, index) => [group.uuid, totals[index]]));
+  const label = values.label;
 
   if (found === undefined) {
     return <NoSystemsCard title="Common cause" purpose="group their common cause failures here." onOpenSystems={onOpenSystems} />;
@@ -47,7 +54,8 @@ function CommonCauseScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
         scope,
         affectedComponents: [],
         affectedSystems: [system.uuid],
-        modelType: "BETA_FACTOR",
+        factors: ccfFactorDraft("BETA_FACTOR", 2, "NON_STAGGERED"),
+        total: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0 } } },
         members: { basicEvents: [] },
         implementsSrs: [{ sr: scope === "INTRASYSTEM" ? "SY-B1" : "SY-B2", hlr: "B" as const }, { sr: "SY-B3", hlr: "B" as const }],
       }],
@@ -70,8 +78,6 @@ function CommonCauseScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
     const name = group.name.length > 0 ? group.name : "Unnamed group";
     const issues = validateCcfGroup(group, sy, controlledCcfEstimates);
     const members = memberEvents(group, sy);
-    const factors = ccfFactors(group);
-    const total = totalFailureProbability(group);
     return (
       <tr key={group.uuid}>
         <td>
@@ -84,19 +90,11 @@ function CommonCauseScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
         <td><ReviewLines items={members.map((event) => event.name)} /></td>
         <td><ReviewLines items={sharedCauseLines(group)} /></td>
         <td>
-          {factors.length === 0 ? <NotRecorded /> : (
-            <>
-              <span>{CCF_MODELS[group.modelType]?.label ?? group.modelType}</span>
-              <span className="sy-review-sub posmono sy-review-factors">
-                {factors.map((factor, index) => (
-                  <Fragment key={factor.key}>{index > 0 && " · "}<span>{factor.label} {formatFactor(factor.value)}</span></Fragment>
-                ))}
-              </span>
-            </>
-          )}
+          <span>{ccfModelText(group.factors)}</span>
+          <span className="sy-review-sub posmono sy-review-factors">{ccfFactorText(group.factors, label)}</span>
           <span className="sy-review-sub">{sourceLine(group)}</span>
         </td>
-        <td className="posmono sy-review-num">{total === null || members.length === 0 ? <NotRecorded /> : toExp(total)}</td>
+        <td className="posmono sy-review-num">{members.length === 0 ? <NotRecorded /> : <PointValue state={totalById.get(group.uuid)} />}</td>
         <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} ${name}`} onClick={() => openDrawer({ kind: "ccf", id: group.uuid })}>{actionLabel}</button></td>
       </tr>
     );

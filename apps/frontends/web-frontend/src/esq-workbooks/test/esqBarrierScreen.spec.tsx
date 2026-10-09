@@ -40,7 +40,8 @@ function result(): LoadCapacityAnalysisResult {
     completedAt: "2026-10-05T12:00:00.000Z",
     method: "POINT_LOAD",
     pointProbability: 0.9912,
-    quadratureError: null,
+    pointLoad: { family: "POINT", value: 48 },
+    pointCapacity: { family: "LOGNORMAL", mean: 33.74468539677077, errorFactor: 1.287, level: 0.95 },
     unit: "h",
     uncertainty: null,
     curve: [{ load: 20, probability: 0.0004 }, { load: 48, probability: 0.9912 }],
@@ -87,14 +88,42 @@ describe("ESQ Step 04 barriers screen", () => {
     expect(last.barrierWork?.barriers?.find((entry) => entry.barrierId === "Primary boundary")).toMatchObject({ impactRefs: ["RCB"], modes: [{ id: "FM-3", kind: "LOCALIZED" }] });
   });
 
-  it("edits the capacity law and samples one of its parameters in the cell window", () => {
-    render(<Harness initial={modeledEsq()} window={{ kind: "esqCell", id: "BC-1" }} openWindow={jest.fn()} />);
+  it("edits the capacity law and makes one of its fields uncertain in the cell window", () => {
+    const onChange = jest.fn();
+    render(<Harness initial={modeledEsq()} window={{ kind: "esqCell", id: "BC-1" }} openWindow={jest.fn()} onChange={onChange} />);
     const capacity = screen.getByRole("group", { name: "Capacity" });
-    expect(within(capacity).getByLabelText("Median")).toHaveValue(33.35);
-    fireEvent.change(within(capacity).getByLabelText("Distribution"), { target: { value: "normal" } });
-    expect(within(capacity).getByLabelText("Mean")).toHaveValue(33.35);
-    fireEvent.change(within(capacity).getByLabelText("Sample a parameter"), { target: { value: "mean" } });
-    expect(within(capacity).getByRole("group", { name: "Uncertainty on the mean" })).toBeInTheDocument();
+    expect(within(capacity).getByLabelText("From")).toHaveValue("typed");
+    expect(within(capacity).getAllByLabelText("Law")[0]).toHaveValue("LOGNORMAL");
+    expect(within(capacity).getByRole("textbox", { name: "Mean" })).toHaveValue("33.74468539677077");
+    fireEvent.change(within(capacity).getAllByLabelText("Law")[0] ?? capacity, { target: { value: "NORMAL" } });
+    expect(within(capacity).getByRole("textbox", { name: "Mean" })).toHaveValue("33.74468539677077");
+    fireEvent.click(within(capacity).getByRole("checkbox", { name: "Mean" }));
+    expect(within(capacity).getByRole("group", { name: "Mean" })).toBeInTheDocument();
+    const last = onChange.mock.calls[onChange.mock.calls.length - 1]?.[0] as EventSequenceQuantification;
+    expect(last.barrierWork?.cells?.[0]?.capacity).toMatchObject({
+      source: "TYPED",
+      variable: { law: { family: "NORMAL", mean: 33.74468539677077 }, fields: [{ field: "mean", value: { node: "VALUE", value: { unit: "QUANTITY", law: { family: "POINT", value: 33.74468539677077 } } } }] },
+    });
+  });
+
+  it("types the cell value as a law and takes the load from DA", () => {
+    const onChange = jest.fn();
+    render(<Harness initial={modeledEsq()} window={{ kind: "esqCell", id: "BC-1" }} openWindow={jest.fn()} onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "Type a value" }));
+    const typed = screen.getByRole("group", { name: "Typed value" });
+    fireEvent.change(within(typed).getByLabelText("Law"), { target: { value: "BETA" } });
+    fireEvent.change(screen.getByLabelText("Value of record"), { target: { value: "TYPED" } });
+    const last = onChange.mock.calls[onChange.mock.calls.length - 1]?.[0] as EventSequenceQuantification;
+    expect(last.barrierWork?.cells?.[0]).toMatchObject({ ofRecord: "TYPED", typed: { expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "BETA" } } }, basis: "" } });
+    fireEvent.change(within(screen.getByRole("group", { name: "Load · the challenge" })).getByLabelText("From"), { target: { value: "da:P-WIN" } });
+    expect(screen.getByRole("group", { name: "Load · the challenge" })).toHaveTextContent("Lognormal (mean 33.7, EF 1.29)");
+    const capacity = screen.getByRole("group", { name: "Capacity" });
+    fireEvent.change(within(capacity).getByLabelText("From"), { target: { value: "fragility" } });
+    expect(within(capacity).getByLabelText("Median capacity")).toHaveValue(1);
+    fireEvent.change(within(capacity).getByLabelText("Median capacity"), { target: { value: "2.08" } });
+    fireEvent.blur(within(capacity).getByLabelText("Median capacity"));
+    const fragile = onChange.mock.calls[onChange.mock.calls.length - 1]?.[0] as EventSequenceQuantification;
+    expect(fragile.barrierWork?.cells?.[0]?.capacity).toMatchObject({ source: "FRAGILITY", fragility: { betaR: 0.25, betaU: 0.3 } });
   });
 
   it("runs a cell and keeps the run as the value of record", async () => {

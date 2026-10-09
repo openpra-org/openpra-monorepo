@@ -9,6 +9,7 @@ import {
   WorkbookModelSnapshotIdentitySchema,
   WorkbookRevisionSchema,
   BasicEventQuantificationTraceSchema,
+  UncertaintySamplingMethodSchema,
 } from "../shared";
 import type {
   AnalysisRunId,
@@ -20,6 +21,7 @@ import type {
   WorkbookModelSnapshotIdentity,
   WorkbookRevision,
   BasicEventQuantificationTrace,
+  UncertaintySamplingMethod,
 } from "../shared";
 import type { FaultTreeModel } from "./fault-tree-model";
 import { FaultTreeModelSchema } from "./fault-tree-schemas";
@@ -69,10 +71,12 @@ interface FaultTreeImportanceResult {
 interface FaultTreeUncertaintyResult {
   mean: number;
   standardDeviation: number;
-  errorFactor: number;
+  standardError: number;
   quantiles: { probability: number; value: number }[];
+  samples: number[];
   sampleCount: number;
   seed: number;
+  samplingMethod: UncertaintySamplingMethod;
 }
 
 interface FaultTreeMonteCarloResult {
@@ -205,10 +209,12 @@ const FaultTreeImportanceResultSchema = z.object({
 const FaultTreeUncertaintyResultSchema = z.object({
   mean: ProbabilitySchema,
   standardDeviation: z.number().finite().nonnegative(),
-  errorFactor: z.number().finite().nonnegative(),
+  standardError: z.number().finite().nonnegative(),
   quantiles: z.array(z.object({ probability: ProbabilitySchema, value: ProbabilitySchema }).strict()),
+  samples: z.array(ProbabilitySchema),
   sampleCount: z.number().int().positive(),
   seed: z.number().int().nonnegative(),
+  samplingMethod: UncertaintySamplingMethodSchema,
 }).strict();
 const FaultTreeMonteCarloResultSchema = z.object({
   trials: z.number().int().positive(),

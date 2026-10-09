@@ -2,6 +2,7 @@ import type { RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { type EsqLinkCode, type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { type Workbook } from "interfaces-shared-types";
+import { exampleScIds, loadExampleScMissionTimes, type ScMissionTimeSource } from "../sy-workbooks/syLinks";
 import { type EsqDaLink } from "./esqDaLinks";
 import {
   EMPTY_UPSTREAM,
@@ -67,7 +68,17 @@ function useEsqUpstream(esq: EventSequenceQuantification | undefined, options: R
   const sc = useLinkedMef(links?.SC, loadLinkedSc);
   const ri = useLinkedMef(links?.RI, loadLinkedRi);
   const hs = useLinkedMef(links?.HS, loadLinkedHs);
-  return useMemo<EsqUpstream>(() => ({ options, es, sy, da, hr, ie, pos, sc, ri, hs }), [options, es, sy, da, hr, ie, pos, sc, ri, hs]);
+  const [scExamples, setScExamples] = useState<ScMissionTimeSource[]>([]);
+  const scExampleKey = sy === undefined ? "" : exampleScIds(sy).join(" ");
+  useEffect(() => {
+    const ids = scExampleKey.length === 0 ? [] : scExampleKey.split(" ");
+    let cancelled = false;
+    loadExampleScMissionTimes(ids)
+      .then((loaded) => { if (!cancelled) setScExamples(loaded); })
+      .catch(() => { if (!cancelled) setScExamples([]); });
+    return () => { cancelled = true; };
+  }, [scExampleKey]);
+  return useMemo<EsqUpstream>(() => ({ options, es, sy, da, hr, ie, pos, sc, ri, hs, scExamples }), [options, es, sy, da, hr, ie, pos, sc, ri, hs, scExamples]);
 }
 
 function EsqWorkbookProvider({ data, editable, runtime, mutateEsq, upstream = EMPTY_UPSTREAM, children }: {

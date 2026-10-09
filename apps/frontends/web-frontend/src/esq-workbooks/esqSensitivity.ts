@@ -13,13 +13,16 @@ import type {
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { BaseModelUncertaintyDocumentation, PreOperationalAssumption } from "interfaces-mef-types/core/documentation";
 import type { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
-import { importanceGroupsOf } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { importanceGroupsOf, parameterUnit } from "interfaces-mef-types/esq/esq-measure-inputs";
+import type { UncertainExpression, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
+import { isComponentModel } from "interfaces-mef-types/da/data-analysis";
+import { carriesUncertainExpression } from "interfaces-mef-types/sy/systems-analysis";
 import { applySensitivityCase, caseInputsKey, registerEntryId, sensitivityWorkOf } from "interfaces-mef-types/esq/esq-sensitivity-inputs";
 import { solveWorkOf } from "interfaces-mef-types/esq/esq-solve-inputs";
 import type { EsqEventTreeRunLogic, EsqModelCalculation, EsqModelRunResult, EventTreeCutSetSettings } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type { EsqUpstream } from "./esqLinks";
 import type { EsqDaCaseOption } from "./esqDaLinks";
-import { modelViewOf, type EsqFamilyView, type EsqFindingSeverity } from "./esqModel";
+import { modelViewOf, referenceProblems, type EsqFamilyView, type EsqFindingSeverity } from "./esqModel";
 import { runLogicOf } from "./esqResults";
 import type { EsqSolveWindowKind } from "./esqSolve";
 
@@ -68,6 +71,12 @@ interface EsqCaseView {
   stale: boolean;
 }
 
+interface EsqCaseCurrent {
+  unit: UncertainUnit;
+  expression?: UncertainExpression;
+  value?: number;
+}
+
 interface EsqCaseResultRow {
   caseId: string;
   name: string;
@@ -104,10 +113,10 @@ const ORIGINS: readonly EsqRegisterOrigin[] = ["POS", "IE", "ES", "SC", "SY", "H
 const REGISTER_KIND_LABELS: Record<EsqRegisterKind, string> = { SOURCE: "Uncertainty source", ASSUMPTION: "Assumption", ALTERNATIVE: "Alternative" };
 
 const CASE_KIND_LABELS: Record<EsqCaseKind, string> = {
-  PARAMETER: "DA parameter value",
+  PARAMETER: "DA parameter",
   CCF_TOTAL: "Common cause group total",
   HEP: "HEP value",
-  EVENT: "Basic event probability",
+  EVENT: "Basic event value",
   GROUP_FAILED: "Group failed (events set TRUE)",
   FLAG: "Flag state",
   LOGIC: "Logic alternative",
@@ -264,6 +273,34 @@ function caseTargetLabel(esq: EventSequenceQuantification, entry: EsqSensitivity
   }
 }
 
+function caseCurrentOf(esq: EventSequenceQuantification, entry: EsqSensitivityCase): EsqCaseCurrent | undefined {
+  const model = esq.model;
+  const target = entry.target;
+  if (model === undefined || target === undefined) return undefined;
+  if (entry.kind === "PARAMETER") {
+    const parameter = model.parameters.find((candidate) => candidate.id === target);
+    if (parameter === undefined) return undefined;
+    const unit = parameterUnit(parameter);
+    if (isComponentModel(parameter.quantificationModel)) return parameter.estimate === undefined ? { unit } : { unit, expression: parameter.estimate };
+    return parameter.value === undefined ? { unit } : { unit, value: parameter.value };
+  }
+  if (entry.kind === "EVENT") {
+    const event = model.events.find((candidate) => candidate.id === target);
+    if (event === undefined) return undefined;
+    if (carriesUncertainExpression(event.failureMode)) return event.expression === undefined ? { unit: "PROBABILITY" } : { unit: "PROBABILITY", expression: event.expression };
+    return event.value === undefined ? { unit: "PROBABILITY" } : { unit: "PROBABILITY", value: event.value };
+  }
+  return undefined;
+}
+
+function caseReferenceProblem(applied: EventSequenceQuantification, entry: EsqSensitivityCase, failedEvents: readonly string[]): string | undefined {
+  const model = applied.model;
+  if (entry.kind !== "EVENT" || model === undefined) return undefined;
+  const event = model.events.find((candidate) => candidate.id === entry.target);
+  if (event?.expression === undefined || failedEvents.includes(event.id) || !carriesUncertainExpression(event.failureMode)) return undefined;
+  return referenceProblems(applied, model, event.expression, event.code)[0]?.detail;
+}
+
 function caseViews(esq: EventSequenceQuantification): EsqCaseView[] {
   return (sensitivityWorkOf(esq).cases ?? []).map((entry) => {
     const applied = applySensitivityCase(esq, entry);
@@ -273,7 +310,8 @@ function caseViews(esq: EventSequenceQuantification): EsqCaseView[] {
       kept: applied.kept,
       stale: entry.run !== undefined && entry.run.inputs !== caseInputsKey(esq, entry.id),
     };
-    if (applied.problem !== undefined) view.problem = applied.problem;
+    const problem = applied.problem ?? caseReferenceProblem(applied.esq, entry, applied.failedEvents);
+    if (problem !== undefined) view.problem = problem;
     return view;
   });
 }
@@ -525,6 +563,7 @@ export {
   REGISTER_KIND_LABELS,
   STATUS_LABELS,
   caseRunProblem,
+  caseCurrentOf,
   caseRunRequest,
   caseTargetLabel,
   nextCaseId,
@@ -541,6 +580,7 @@ export {
   withManualEntry,
   withManualPreOperational,
   withPreOperational,
+  type EsqCaseCurrent,
   type EsqCaseResultRow,
   type EsqCaseRunRequest,
   type EsqCaseView,

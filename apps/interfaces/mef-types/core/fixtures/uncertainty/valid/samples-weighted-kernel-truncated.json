@@ -1,0 +1,37 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PROBABILITY",
+        "law": {
+          "family": "TRUNCATED",
+          "law": {
+            "family": "SAMPLES",
+            "values": [
+              0.001,
+              0.002,
+              0.004
+            ],
+            "weights": [
+              0.2,
+              0.5,
+              0.3
+            ],
+            "smoothing": {
+              "kind": "GAUSSIAN_KERNEL",
+              "bandwidth": 0.0005
+            }
+          },
+          "lower": 0,
+          "upper": 1
+        }
+      }
+    }
+  }
+]

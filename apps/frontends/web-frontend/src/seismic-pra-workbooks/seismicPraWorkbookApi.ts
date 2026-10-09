@@ -1,11 +1,15 @@
 import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { type SeismicPRA } from "interfaces-mef-types/seismic/seismic-pra";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import {
   normalizeSystemsAnalysisModels,
   systemLogicModelBasicEvents,
 } from "interfaces-mef-types/sy/system-models";
 import { deleteJson, fetchJson, patchJson, postJson, postMultipart } from "../api/client";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { estimateUnit, pointsOf, workbookParameterTable } from "../newly-developed-methods/shared/uncertaintyPoints";
+import { scMissionTimeTable } from "../sc-workbooks/scMissionTimeLinks";
 import { seismicPraVariant, type SeismicPraLinkedInputs, type SeismicPraVariant } from "./seismicPraWorkbookContext";
 
 type SeismicPraWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
@@ -38,7 +42,7 @@ interface LinkedIeMef {
   initiatingEventGroups?: {
     uuid: string;
     name: string;
-    meanFrequency?: number | { value?: number };
+    frequency?: { expression: UncertainExpression };
     applicableStates?: string[];
     riskImportance?: string;
   }[];
@@ -53,14 +57,7 @@ interface LinkedEsMef {
   }[];
 }
 
-interface LinkedScMef {
-  missionTimes?: {
-    uuid: string;
-    eventSequenceReference: string;
-    missionTimeHours: number;
-    isRiskSignificant?: boolean;
-  }[];
-}
+type LinkedScMef = Partial<Pick<SuccessCriteriaDevelopment, "missionTimes" | "componentMissionTimes">>;
 
 type LinkedSyMef = Partial<
   Pick<SystemsAnalysis, "systemDefinitions" | "systemLogicModels" | "systemBasicEvents">
@@ -85,15 +82,11 @@ interface LinkedDaMef {
     uuid: string;
     name: string;
     parameterType?: string;
-    value: number;
+    value?: number;
+    estimate?: UncertainExpression;
     basicEventRef?: string;
     systemReference?: string;
   }[];
-}
-
-function numericFrequency(value: number | { value?: number } | undefined): number | undefined {
-  if (typeof value === "number") return value;
-  return value?.value;
 }
 
 async function fetchSeismicPraLinkedInputs(variant: SeismicPraVariant): Promise<SeismicPraLinkedInputs> {
@@ -106,6 +99,31 @@ async function fetchSeismicPraLinkedInputs(variant: SeismicPraVariant): Promise<
     fetchJson<{ hr: { mef: LinkedHrMef } }>(`/api/example-workbooks/hr-bundle?example=${variant}`),
     fetchJson<{ da: { mef: LinkedDaMef } }>(`/api/example-workbooks/da-bundle?example=${variant}`),
   ]);
+
+  const daParameters = daBundle.da.mef.parameters ?? [];
+  const daTable = workbookParameterTable(`example-da-${variant}`, daParameters);
+  const frequencies = await pointsOf(
+    (ieBundle.ie.mef.initiatingEventGroups ?? []).flatMap((group) => (group.frequency === undefined ? [] : [{ key: group.uuid, expression: group.frequency.expression, unit: "PER_YEAR" as const }])),
+    daTable,
+  );
+  const estimates = await pointsOf(
+    daParameters.flatMap((parameter) => {
+      const unit = parameter.estimate === undefined ? undefined : estimateUnit(parameter.estimate);
+      return parameter.estimate === undefined || unit === undefined ? [] : [{ key: parameter.uuid, expression: parameter.estimate, unit }];
+    }),
+    daTable,
+  );
+
+  const scId = `example-sc-${variant}`;
+  const scMissionTimes = { missionTimes: scBundle.sc.mef.missionTimes ?? [], componentMissionTimes: scBundle.sc.mef.componentMissionTimes ?? [] };
+  const missionHours = await pointsOf(
+    scMissionTimes.missionTimes.map((mission) => ({ key: mission.uuid, expression: mission.missionTime, unit: "HOURS" as const })),
+    new Map(),
+  );
+  const systemHours = await pointsOf(
+    (syBundle.sy.mef.systemDefinitions ?? []).flatMap((system) => (system.missionTime === undefined ? [] : [{ key: system.uuid, expression: system.missionTime, unit: "HOURS" as const }])),
+    scMissionTimeTable(scId, scMissionTimes),
+  );
 
   const screenedOut = new Set(
     (posBundle.pos.mef.screeningRecords ?? []).filter((record) => !record.retained).map((record) => record.posId),
@@ -134,7 +152,7 @@ async function fetchSeismicPraLinkedInputs(variant: SeismicPraVariant): Promise<
     ieGroups: (ieBundle.ie.mef.initiatingEventGroups ?? []).map((group) => ({
       id: group.uuid,
       name: group.name,
-      meanFrequency: numericFrequency(group.meanFrequency),
+      meanFrequency: frequencies.get(group.uuid),
       applicableStates: group.applicableStates ?? [],
       riskImportance: group.riskImportance ?? "—",
     })),
@@ -144,10 +162,10 @@ async function fetchSeismicPraLinkedInputs(variant: SeismicPraVariant): Promise<
       endState: family.endState ?? "—",
       memberCount: family.memberSequenceIds?.length,
     })),
-    scMissionTimes: (scBundle.sc.mef.missionTimes ?? []).map((mission) => ({
+    scMissionTimes: scMissionTimes.missionTimes.map((mission) => ({
       id: mission.uuid,
       eventSequence: mission.eventSequenceReference,
-      hours: mission.missionTimeHours,
+      hours: missionHours.get(mission.uuid),
       riskSignificant: mission.isRiskSignificant,
     })),
     sySystems: (syMef.systemDefinitions ?? []).map((system) => {
@@ -155,7 +173,7 @@ async function fetchSeismicPraLinkedInputs(variant: SeismicPraVariant): Promise<
       return {
         id: system.uuid,
         name: system.name,
-        missionTimeHours: system.missionTimeHours,
+        missionHours: systemHours.get(system.uuid),
         applicableStates: system.applicablePlantOperatingStates ?? [],
         basicEventCount:
           logic === undefined
@@ -173,11 +191,11 @@ async function fetchSeismicPraLinkedInputs(variant: SeismicPraVariant): Promise<
       affectedSystems: action.affectedSystems ?? [],
       humanErrorProbability: hepByAction.get(action.uuid),
     })),
-    daParameters: (daBundle.da.mef.parameters ?? []).map((parameter) => ({
+    daParameters: daParameters.map((parameter) => ({
       id: parameter.uuid,
       name: parameter.name,
       parameterType: parameter.parameterType ?? "PARAMETER",
-      value: parameter.value,
+      value: parameter.value ?? estimates.get(parameter.uuid),
       basicEvent: parameter.basicEventRef ?? "—",
       system: parameter.systemReference ?? "—",
     })),

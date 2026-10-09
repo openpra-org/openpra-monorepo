@@ -1,6 +1,8 @@
 import { Fragment, JSX, useId, useMemo, useState } from "react";
 import type { EsqHandoffResponse, EsqResponseStatus } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { cellValueOfRecord } from "interfaces-mef-types/esq/esq-barrier-inputs";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
+import { cellRecordText } from "./esqBarriers";
+import { parameterLabelOf } from "./esqModel";
 import { resolvedCombinations } from "interfaces-mef-types/esq/esq-post-inputs";
 import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
@@ -252,7 +254,7 @@ function MsPanel({ view }: { view: EsqHandoffView }): JSX.Element {
                     <DetailRow span={4} width={wrapWidth - 18}>
                       <FieldList items={row.cells.length === 0 ? [{ label: "Barrier modes", value: "None quantified for this family" }] : row.cells.map((cell) => ({
                         label: `${cell.id} · ${barriers.get(`${cell.barrierId}|${cell.modeId}`) ?? `${cell.barrierId} · ${cell.modeId}`}`,
-                        value: `${valueText(cellValueOfRecord(cell))} · ${cell.variable}${blank(cell.unit) ? "" : ` (${cell.unit})`}`,
+                        value: `${cellRecordText(cell, parameterLabelOf(esq))} · ${cell.variable}${blank(cell.unit) ? "" : ` (${cell.unit})`}`,
                       }))} />
                     </DetailRow>
                   )}
@@ -302,7 +304,7 @@ function DaPanel({ view }: { view: EsqHandoffView }): JSX.Element {
               {view.created.map((entry) => (
                 <tr key={entry.key}>
                   <td className="esq-rowtable__wrap">{entry.item}</td>
-                  <td className="esq-rowtable__num">{sciText(entry.value)}</td>
+                  <td className="esq-rowtable__num">{entry.value !== undefined ? sciText(entry.value) : entry.expression !== undefined ? expressionText(entry.expression, parameterLabelOf(esq)) : "—"}</td>
                   <td className="esq-rowtable__text">{entry.where}</td>
                   <td className="esq-rowtable__wrap">{textValue(entry.source)}</td>
                 </tr>

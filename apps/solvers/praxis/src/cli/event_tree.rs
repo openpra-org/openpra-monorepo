@@ -55,24 +55,8 @@ fn parse_model_with_libs_from_parsed(
         if fault_tree.ccf_groups().is_empty() {
             continue;
         }
-        let mut base_probabilities = HashMap::new();
-        for (group_id, group) in fault_tree.ccf_groups() {
-            let distribution = group.distribution.as_ref().ok_or_else(|| {
-                format!(
-                    "CCF group '{}' in fault tree '{}' has no distribution",
-                    group_id, fault_tree_id
-                )
-            })?;
-            let probability = distribution.parse::<f64>().map_err(|_| {
-                format!(
-                    "CCF group '{}' in fault tree '{}' has invalid distribution '{}'",
-                    group_id, fault_tree_id, distribution
-                )
-            })?;
-            base_probabilities.insert(group_id.clone(), probability);
-        }
         fault_tree
-            .expand_ccf_groups(&base_probabilities)
+            .expand_ccf_groups()
             .map_err(|error| {
                 format!(
                     "Failed to expand CCF groups in fault tree '{}': {}",

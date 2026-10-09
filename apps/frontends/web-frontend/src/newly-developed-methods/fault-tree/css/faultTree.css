@@ -550,6 +550,13 @@
   border-top: 1px dashed var(--color-border);
 }
 
+.fteditor__value {
+  color: var(--color-text);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .fteditor__hint,
 .fteditor__run-detail {
   margin: 6px 0;

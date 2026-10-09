@@ -1,5 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 import { FaultTreeValidateResultSchema } from "interfaces-shared-types/newly-developed-methods/fault-tree";
+import { carriesUncertainExpression } from "interfaces-mef-types/sy/systems-analysis";
 import { SY_ANALYSIS } from "../../example-workbooks/seeds/sy-seed";
 import { SyWorkbooksService } from "../sy-workbooks.service";
 
@@ -41,35 +42,50 @@ function serviceFixture(): {
 describe("SY fault-tree validation", () => {
   const legacyBasis = { kind: "FAILURE_RATE" as const, conversion: "LINEAR" as const,
     failureRate: { value: .001, unit: "HOUR" as const }, missionTime: { value: 100, unit: "HOUR" as const } };
+  const humanIndex = SY_ANALYSIS.systemBasicEvents.findIndex((event) => event.failureMode === "HUMAN_ERROR");
+  const componentIndex = SY_ANALYSIS.systemBasicEvents.findIndex((event) => carriesUncertainExpression(event.failureMode));
 
-  it("keeps a saved legacy workbook readable and allows explicit review", async () => {
+  it("keeps a saved legacy rate on a human event readable and allows explicit review", async () => {
     const { service, document } = serviceFixture();
-    document.mef.systemBasicEvents[0]!.quantificationBasis = structuredClone(legacyBasis);
+    expect(humanIndex).toBeGreaterThanOrEqual(0);
+    document.mef.systemBasicEvents[humanIndex]!.quantificationBasis = structuredClone(legacyBasis);
     const read = await service.findOne("sy-workbook", { username: "reviewer" });
-    expect(read.mef.systemBasicEvents[0]?.quantificationBasis).toEqual(legacyBasis);
+    expect(read.mef.systemBasicEvents[humanIndex]?.quantificationBasis).toEqual(legacyBasis);
     expect(document.revision).toBe(7);
     await service.patchMef("sy-workbook", { expectedRevision: 7, operations: [
-      { op: "replace", path: ["systemBasicEvents", 0, "name"], value: "Review pending" },
+      { op: "replace", path: ["systemBasicEvents", humanIndex, "name"], value: "Review pending" },
     ] }, { username: "reviewer" });
-    expect(document.mef.systemBasicEvents[0]?.quantificationBasis).toEqual(legacyBasis);
+    expect(document.mef.systemBasicEvents[humanIndex]?.quantificationBasis).toEqual(legacyBasis);
     const reviewed = await service.patchMef("sy-workbook", { expectedRevision: 8, operations: [
-      { op: "replace", path: ["systemBasicEvents", 0, "quantificationBasis", "conversion"], value: "EXPONENTIAL" },
-      { op: "replace", path: ["systemBasicEvents", 0, "probability"], value: .09516258196404048 },
+      { op: "replace", path: ["systemBasicEvents", humanIndex, "quantificationBasis", "conversion"], value: "EXPONENTIAL" },
+      { op: "replace", path: ["systemBasicEvents", humanIndex, "probability"], value: .09516258196404048 },
     ] }, { username: "reviewer" });
-    expect(reviewed.mef.systemBasicEvents[0]?.quantificationBasis).toMatchObject({ conversion: "EXPONENTIAL" });
+    expect(reviewed.mef.systemBasicEvents[humanIndex]?.quantificationBasis).toMatchObject({ conversion: "EXPONENTIAL" });
     expect(reviewed.revision).toBe(9);
   });
 
   it("rejects new or edited linear settings without writing the workbook", async () => {
     const { service, document, update } = serviceFixture();
     await expect(service.patchMef("sy-workbook", { expectedRevision: 7, operations: [
-      { op: "add", path: ["systemBasicEvents", 0, "quantificationBasis"], value: legacyBasis },
+      { op: "add", path: ["systemBasicEvents", humanIndex, "quantificationBasis"], value: legacyBasis },
     ] }, { username: "reviewer" })).rejects.toThrow("Review the rate and mission time");
-    document.mef.systemBasicEvents[0]!.quantificationBasis = structuredClone(legacyBasis);
+    document.mef.systemBasicEvents[humanIndex]!.quantificationBasis = structuredClone(legacyBasis);
     await expect(service.patchMef("sy-workbook", { expectedRevision: 7, operations: [
-      { op: "replace", path: ["systemBasicEvents", 0, "quantificationBasis", "failureRate", "value"], value: .002 },
+      { op: "replace", path: ["systemBasicEvents", humanIndex, "quantificationBasis", "failureRate", "value"], value: .002 },
     ] }, { username: "reviewer" })).rejects.toThrow("Review the rate and mission time");
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it("refuses a rate basis on a component event on read and on write", async () => {
+    const { service, document, update } = serviceFixture();
+    expect(componentIndex).toBeGreaterThanOrEqual(0);
+    await expect(service.patchMef("sy-workbook", { expectedRevision: 7, operations: [
+      { op: "add", path: ["systemBasicEvents", componentIndex, "quantificationBasis"], value: legacyBasis },
+    ] }, { username: "reviewer" })).rejects.toThrow("A component basic event keeps its value in the expression field");
+    expect(update).not.toHaveBeenCalled();
+    document.mef.systemBasicEvents[componentIndex]!.quantificationBasis = structuredClone(legacyBasis);
+    await expect(service.findOne("sy-workbook", { username: "reviewer" })).rejects.toThrow("A component basic event keeps its value in the expression field");
+    expect(document.revision).toBe(7);
   });
 
   it("returns the versioned server-authoritative analysis-ready result", async () => {

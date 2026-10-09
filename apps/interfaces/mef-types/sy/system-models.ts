@@ -5,7 +5,8 @@ import type {
   FaultTreeGateInput,
   FaultTreeLeafNode,
 } from "../modeling/fault-tree";
-import type { SystemBasicEvent, SystemLogicModel, SystemsAnalysis } from "./systems-analysis";
+import { carriesUncertainExpression, type SystemBasicEvent, type SystemLogicModel, type SystemsAnalysis } from "./systems-analysis";
+import { legacyExpression } from "../core/legacy-uncertainty-adapter";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -74,14 +75,19 @@ function migrateBasicEventFromLeaf(node: UnknownRecord): SystemBasicEvent | unde
   const probability = finiteProbability(node.prob);
   const failureMode = nonEmptyString(node.mode);
   const dataAnalysisBasicEventRef = nonEmptyString(node.source);
+  const value = carriesUncertainExpression(failureMode)
+    ? (probability === undefined ? {} : { expression: legacyExpression("PROBABILITY", probability) })
+    : {
+        ...(probability === undefined ? {} : { probability }),
+        ...(dataAnalysisBasicEventRef === undefined ? {} : { dataAnalysisBasicEventRef }),
+      };
   return {
     uuid,
     code: uuid,
     name,
     eventType: "BASIC",
     ...(failureMode === undefined ? {} : { failureMode }),
-    ...(probability === undefined ? {} : { probability }),
-    ...(dataAnalysisBasicEventRef === undefined ? {} : { dataAnalysisBasicEventRef }),
+    ...value,
     repairModeled: false,
     implementsSrs: [],
   };
@@ -92,6 +98,13 @@ function migrateBasicEventCode(event: UnknownRecord): UnknownRecord {
   return event.code === undefined && uuid !== undefined ? { ...event, code: uuid } : event;
 }
 
+function migrateLocalComponentEvent(event: UnknownRecord): UnknownRecord {
+  if (!carriesUncertainExpression(nonEmptyString(event.failureMode)) || event.expression !== undefined) return event;
+  const probability = finiteProbability(event.probability);
+  const { probability: _probability, dataAnalysisBasicEventRef: _reference, controlledDataSource: _source, quantificationBasis: _basis, ...rest } = event;
+  return probability === undefined ? rest : { ...rest, expression: legacyExpression("PROBABILITY", probability) };
+}
+
 function mergeLegacyBasicEvents(rootEvents: unknown[], models: UnknownRecord[]): unknown[] {
   const localById = new Map<string, UnknownRecord>();
   models.forEach((model) => {
@@ -99,7 +112,7 @@ function mergeLegacyBasicEvents(rootEvents: unknown[], models: UnknownRecord[]):
     model.basicEvents.forEach((event) => {
       if (!isRecord(event)) return;
       const uuid = nonEmptyString(event.uuid);
-      if (uuid !== undefined) localById.set(uuid, migrateBasicEventCode(event));
+      if (uuid !== undefined) localById.set(uuid, migrateLocalComponentEvent(migrateBasicEventCode(event)));
     });
   });
 
@@ -143,6 +156,7 @@ function mergeLegacyBasicEvents(rootEvents: unknown[], models: UnknownRecord[]):
       const existing = merged[existingIndex];
       const source = nonEmptyString(leaf.source);
       if (!isRecord(existing) || source === undefined || existing.dataAnalysisBasicEventRef !== undefined) return;
+      if (carriesUncertainExpression(nonEmptyString(existing.failureMode))) return;
       merged[existingIndex] = { ...existing, dataAnalysisBasicEventRef: source };
     });
   });
@@ -561,6 +575,7 @@ function systemBasicEventToFaultTreeBasicEvent(event: SystemBasicEvent): FaultTr
     description: event.description ?? "",
     probability: {
       value: event.probability ?? Number.NaN,
+      ...(event.expression === undefined ? {} : { expression: structuredClone(event.expression) }),
       ...(event.quantificationBasis === undefined
         ? {}
         : { quantificationBasis: structuredClone(event.quantificationBasis) }),
@@ -578,6 +593,18 @@ function applyFaultTreeBasicEventToSystemBasicEvent(
 ): SystemBasicEvent {
   if (event.id !== current.uuid) {
     throw new Error("A fault-tree basic-event edit cannot change its SY catalogue id");
+  }
+  if (carriesUncertainExpression(current.failureMode)) {
+    const expression = event.probability.expression ?? current.expression;
+    return {
+      ...current,
+      code: event.code,
+      name: event.name,
+      ...(event.description.length === 0 && current.description === undefined
+        ? {}
+        : { description: event.description }),
+      ...(expression === undefined ? {} : { expression: structuredClone(expression) }),
+    };
   }
   const probability = Number.isFinite(event.probability.value) ? event.probability.value : undefined;
   return {

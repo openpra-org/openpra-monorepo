@@ -6,7 +6,6 @@ import {
   IE_STEPS,
   IE_PERSONA_STEPS,
   type ConformanceItem,
-  type ConformanceStatus,
   type IePersona,
   type IeStep,
   type Stage,
@@ -156,7 +155,7 @@ function stepsFromMef(ie: InitiatingEventsAnalysis, persona: IePersona): IeStep[
   const identifyComplete = ie.initiators.length > 0;
   const groupingComplete = ie.initiatingEventGroups.length > 0;
   const screeningComplete = ie.screeningRecords.length > 0;
-  const frequencyComplete = ie.quantifications.length > 0;
+  const frequencyComplete = ie.quantifications.length > 0 && ie.quantifications.every((quantification) => quantification.frequency !== undefined);
   const hazardsComplete = (ie.hazardAnalyses ?? []).length > 0;
   const completenessComplete = ie.completenessSearch.functionalCategoriesCovered.length > 0;
   const draftComplete = ie.workflowState !== "DRAFT" && ie.workflowState !== "REVISION_REQUIRED";

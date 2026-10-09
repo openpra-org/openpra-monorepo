@@ -1,5 +1,4 @@
 import { Fragment, JSX, useId, useMemo, useState } from "react";
-import { DistributionType } from "interfaces-mef-types/core/events";
 import type {
   CcfParameterEstimation,
   DataAnalysis,
@@ -10,15 +9,20 @@ import type {
   DaCcfTesting,
   DaEvidenceOrigin,
 } from "interfaces-mef-types/da/data-analysis";
+import type { CcfFactorModel } from "interfaces-mef-types/core/uncertainty";
+import type { UncertaintyLawSummary } from "interfaces-shared-types/newly-developed-methods/shared";
+import { useUncertaintyVersion, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
+import { CcfFactorEditor, ccfFactorDraft } from "../newly-developed-methods/shared/uncertainEditor";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { DaProvenanceChip, DaTabs, DetailRow, DetailToggle, FieldList, FormFoot, FormRow, ModalHead, PlotToggle } from "./daShared";
 import { DistributionChart, useElementWidth, type DistributionSeries } from "./daDistributionChart";
-import { ccfEventCount, ccfFindings, ccfResult, ccfTemplates, memberParameterIds, mglValues, orderedValues, shareFromNeeds, templateEntryIds, type DaCcfResult } from "./daCcf";
+import { MODEL_LABELS, ccfEventCount, ccfFindings, ccfResult, ccfTemplates, factorsText, memberParameterIds, shareFromNeeds, templateEntryIds, type DaCcfLevel, type DaCcfResult } from "./daCcf";
+import { lawSummary } from "./daLaws";
 import { libraryEntries, nextCode, withStoredEntry } from "./daSourcing";
 import { useDaWorkbook } from "./daWorkbookContext";
-import { BOUNDARY_MATCH_LABELS, CCF_METHOD_LABELS, CCF_MODEL_LABELS, CCF_TESTING_LABELS, EVIDENCE_ORIGIN_LABELS } from "./daViewData";
-import { AreaRow, NEED_PAGE, NeedChecksTable, NeedPager, numberFrom, statText, type DaDrawerContext } from "./daScreens";
+import { BOUNDARY_MATCH_LABELS, CCF_METHOD_LABELS, CCF_TESTING_LABELS, EVIDENCE_ORIGIN_LABELS } from "./daViewData";
+import { AreaRow, NEED_PAGE, NeedChecksTable, NeedPager, numberFrom, statText, waitNote, type DaDrawerContext } from "./daScreens";
 import { EstimatePicker, NumberInput, TextRow, useBuiltInEntries, waitingSources, type EstimateChoice } from "./daSourcesScreen";
 
 type CcfTab = "groups" | "events" | "factors" | "results" | "checks";
@@ -37,15 +41,9 @@ const TESTINGS: DaCcfTesting[] = ["STAGGERED", "NON_STAGGERED"];
 
 const METHODS: DaCcfMethod[] = ["PRIOR", "BAYES", "TYPED"];
 
-const STAGGERED_TOAST = "Staggered groups go to Systems Analysis as MGL values, which give the same combinations. Direct staggered alpha factors are coming soon.";
-
-const TYPED_ALPHA_TOAST = "Systems Analysis cannot expand alpha factors as staggered yet. Type MGL values instead. Support is coming soon.";
-
 const ORIGINS: DaEvidenceOrigin[] = ["TECHNOLOGY", "PLANT_RECORDS"];
 
 const BOUNDARIES: DaBoundaryMatch[] = ["SAME", "ADJUSTED", "DIFFERENT"];
-
-const TYPED_MODELS: CcfParameterEstimation["modelType"][] = ["ALPHA_FACTOR", "MGL", "BETA_FACTOR"];
 
 function nameOf(estimate: CcfParameterEstimation): string {
   return estimate.name !== undefined && estimate.name.trim().length > 0 ? estimate.name : estimate.ccfGroupReference;
@@ -56,22 +54,12 @@ function factorText(value: number | undefined): string {
   return value !== 0 && Math.abs(value) < 1e-3 ? statText(value) : String(Number(value.toPrecision(5)));
 }
 
-function modelText(model: CcfParameterEstimation["modelType"] | string | undefined): string {
-  if (model === undefined) return "—";
-  return CCF_MODEL_LABELS[model] ?? model;
+function modelOf(factors: CcfFactorModel | undefined): string {
+  return factors === undefined ? "—" : MODEL_LABELS[factors.model];
 }
 
-function factorsText(model: string, parameters: Record<string, number>): string {
-  const values = model === "MGL" ? mglValues(parameters) : orderedValues(parameters);
-  if (values.length === 0) return "—";
-  if (model === "BETA_FACTOR") return `β ${factorText(values[0])}`;
-  if (model === "MGL") return values.map((value, index) => `${["β", "γ", "δ"][index] ?? `ρ${index + 2}`} ${factorText(value)}`).join(", ");
-  return values.map((value, index) => `α${index + 1} ${factorText(value)}`).join(", ");
-}
-
-function staggeredToast(estimate: CcfParameterEstimation): string | undefined {
-  if (estimate.method !== "TYPED") return STAGGERED_TOAST;
-  return estimate.modelType === "ALPHA_FACTOR" ? TYPED_ALPHA_TOAST : undefined;
+function heldFactors(estimate: CcfParameterEstimation, result: DaCcfResult): CcfFactorModel | undefined {
+  return estimate.method === "TYPED" ? estimate.factors : result.factors ?? estimate.factors;
 }
 
 function patchEstimate(mutateDa: (mutator: (da: DataAnalysis) => DataAnalysis) => void, id: string, next: Partial<CcfParameterEstimation>): void {
@@ -84,23 +72,28 @@ function pageOf<T>(rows: readonly T[], page: number): { current: number; shown: 
   return { current, shown: rows.slice(current * NEED_PAGE, (current + 1) * NEED_PAGE) };
 }
 
+function levelText(level: DaCcfLevel): string {
+  const range = level.p05 === undefined || level.p95 === undefined ? "" : `, 5th ${factorText(level.p05)}, 95th ${factorText(level.p95)}`;
+  return `${factorText(level.mean)}${range}${level.prior === undefined ? "" : `, published ${factorText(level.prior)}`}`;
+}
+
 function GroupDetail({ estimate }: { estimate: CcfParameterEstimation }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const result = ccfResult(da, estimate);
   const share = shareFromNeeds(da, estimate);
-  const syGroup = da.dataNeeds?.ccfGroups.find((candidate) => candidate.id === estimate.ccfGroupReference);
   const memberId = estimate.memberParameterId ?? share?.parameterIds[0];
   const member = memberId === undefined ? undefined : da.parameters.find((candidate) => candidate.uuid === memberId);
   return (
     <FieldList items={[
       { label: "Name", value: nameOf(estimate) },
       { label: "Members' parameter", value: member === undefined ? memberId ?? "—" : `${member.uuid} · ${member.name}` },
-      { label: "Total probability", value: result.qt === undefined ? "—" : `${statText(result.qt)}${result.qtFrom === "SY" ? ", from Systems Analysis" : ""}` },
+      { label: "Total probability", value: result.qt === undefined ? (result.pending ? "…" : "—") : `${statText(result.qt)}${result.qtFrom === "SY" ? ", from Systems Analysis" : ""}` },
       { label: "Risk significant", value: estimate.isRiskSignificant === true ? "Yes" : "No" },
       { label: "Testing basis", value: estimate.testingReason ?? "—" },
       { label: "Boundary match", value: estimate.componentBoundaryConsistencyBasis.trim().length > 0 ? estimate.componentBoundaryConsistencyBasis : "—" },
       { label: "Members in SY", value: share === undefined ? "Not imported" : share.members.join(", ") },
-      { label: "SY holds", value: syGroup?.modelType === undefined || syGroup.factors === undefined ? "—" : `${modelText(syGroup.modelType)}, ${factorsText(syGroup.modelType, syGroup.factors)}` },
+      { label: "SY holds", value: share?.factors === undefined ? "—" : factorsText(share.factors) },
     ]} />
   );
 }
@@ -118,61 +111,68 @@ function EventsDetail({ estimate }: { estimate: CcfParameterEstimation }): JSX.E
   return items.length === 0 ? <p className="posmuted">No shared-cause event yet.</p> : <FieldList items={items} />;
 }
 
+function levelSeries(result: DaCcfResult): { series: DistributionSeries[]; states: UncertaintyState<UncertaintyLawSummary>[] } {
+  const series: DistributionSeries[] = [];
+  const states: UncertaintyState<UncertaintyLawSummary>[] = [];
+  const bayes = result.method === "BAYES";
+  for (const level of result.levels) {
+    if (level.law === undefined || level.law.family === "POINT") continue;
+    const state = lawSummary("FRACTION", level.law, true);
+    states.push(state);
+    if (state.status === "ready") series.push({ key: `L${level.k}`, label: level.label, detail: bayes ? "updated" : result.method === "TYPED" ? "typed" : "published", summary: state.value });
+    if (!bayes || level.priorLaw === undefined || level.priorLaw.family === "POINT") continue;
+    const prior = lawSummary("FRACTION", level.priorLaw, true);
+    states.push(prior);
+    if (prior.status === "ready") series.push({ key: `P${level.k}`, label: `${level.label} before the events`, detail: "published", summary: prior.value });
+  }
+  return { series, states };
+}
+
 function FactorsDetail({ estimate }: { estimate: CcfParameterEstimation }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [focus, setFocus] = useState("");
   const result = ccfResult(da, estimate);
-  const series = useMemo<DistributionSeries[]>(() => {
-    const list: DistributionSeries[] = [];
-    const posterior = result.posterior;
-    const prior = result.prior;
-    if (posterior === undefined) return list;
-    const total = posterior.reduce((sum, value) => sum + value, 0);
-    const priorTotal = prior === undefined ? 0 : prior.reduce((sum, value) => sum + value, 0);
-    posterior.forEach((value, index) => {
-      if (index === 0) return;
-      list.push({ key: `A${index + 1}`, label: `α${index + 1}`, detail: result.method === "BAYES" ? "updated" : "published", distribution: { type: DistributionType.BETA, alpha: value, betaParam: total - value } });
-      const before = prior?.[index];
-      if (result.method === "BAYES" && before !== undefined) list.push({ key: `P${index + 1}`, label: `α${index + 1} before the events`, detail: "published", distribution: { type: DistributionType.BETA, alpha: before, betaParam: priorTotal - before } });
-    });
-    return list;
-  }, [result]);
+  const { series, states } = levelSeries(result);
   const template = result.template;
   const items = [
     { label: "Method", value: result.method === undefined ? "Not chosen" : CCF_METHOD_LABELS[result.method] },
-    { label: "Template", value: template === undefined ? (estimate.priorTemplate ?? "—") : `${template.code} · ${template.component} · ${template.failureMode}` },
+    { label: "Template", value: template === undefined ? (estimate.method === "TYPED" ? "Typed" : estimate.priorTemplate ?? "—") : `${template.code} · ${template.component} · ${template.failureMode}` },
     { label: "Group size", value: estimate.groupSize === undefined ? "—" : String(estimate.groupSize) },
   ];
   if (result.prior !== undefined) items.push({ label: "Published Dirichlet", value: result.prior.map((value) => factorText(value)).join(", ") });
   if (result.method === "BAYES" && result.posterior !== undefined) items.push({ label: "Updated Dirichlet", value: result.posterior.map((value) => factorText(value)).join(", ") });
-  for (const alpha of result.alphas) items.push({ label: `α${alpha.k}`, value: `${factorText(alpha.mean)}${alpha.p05 === undefined || alpha.p95 === undefined ? "" : `, 5th ${factorText(alpha.p05)}, 95th ${factorText(alpha.p95)}`}${alpha.prior === undefined ? "" : `, published ${factorText(alpha.prior)}`}` });
+  for (const level of result.levels) items.push({ label: level.label, value: levelText(level) });
+  const note = result.problem ?? (result.pending ? "Waiting for PRAXIS." : waitNote(states));
+  const fallback = series.find((item) => item.key.startsWith("L") && item.key !== "L1") ?? series[0];
   return (
     <>
       <FieldList items={items} />
-      {result.problem !== undefined && <p className="posmuted">{result.problem}</p>}
-      {series.length > 0 && <DistributionChart series={series} focusKey={series.some((item) => item.key === focus) ? focus : series[series.length - (result.method === "BAYES" ? 2 : 1)]?.key} unit="fraction of failures" onFocus={setFocus} />}
+      {note !== undefined && <p className="posmuted">{note}</p>}
+      {series.length > 0 && <DistributionChart series={series} focusKey={series.some((item) => item.key === focus) ? focus : fallback?.key} unit="fraction of failures" onFocus={setFocus} />}
     </>
   );
 }
 
 function ResultsDetail({ estimate }: { estimate: CcfParameterEstimation }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const result = ccfResult(da, estimate);
   const size = estimate.groupSize ?? 0;
-  const syGroup = da.dataNeeds?.ccfGroups.find((candidate) => candidate.id === estimate.ccfGroupReference);
+  const share = shareFromNeeds(da, estimate);
+  const factors = heldFactors(estimate, result);
   const items = [
     { label: "Testing", value: estimate.testing === undefined ? "Not set, non-staggered used" : CCF_TESTING_LABELS[estimate.testing] },
     { label: "Total probability", value: statText(result.qt) },
   ];
   for (const combination of result.combinations) items.push({ label: combination.k === 1 ? "One alone" : `${combination.k} of ${size}`, value: `${statText(combination.each)} each, ${combination.count} ${combination.count === 1 ? "combination" : "combinations"}` });
-  const handoff = result.handoff;
-  items.push({ label: "To Systems Analysis", value: handoff === undefined ? "—" : `${modelText(handoff.modelType)}, ${factorsText(handoff.modelType, handoff.parameters)}` });
-  items.push({ label: "SY holds", value: syGroup?.modelType === undefined || syGroup.factors === undefined ? "—" : `${modelText(syGroup.modelType)}, ${factorsText(syGroup.modelType, syGroup.factors)}` });
+  items.push({ label: "To Systems Analysis", value: factors === undefined ? "—" : factorsText(factors) });
+  items.push({ label: "SY holds", value: share?.factors === undefined ? "—" : factorsText(share.factors) });
   return (
     <>
       <FieldList items={items} />
       {result.problem !== undefined && <p className="posmuted">{result.problem}</p>}
-      {handoff?.modelType === "MGL" && estimate.method !== "TYPED" && <p className="da-needs__meta da-needs__meta--lead">The testing is staggered, so Systems Analysis gets MGL values. They expand to exactly the staggered combinations.</p>}
+      {result.problem === undefined && result.pending && <p className="posmuted">Waiting for PRAXIS.</p>}
     </>
   );
 }
@@ -185,6 +185,7 @@ function useTableState(): { page: number; setPage: (page: number) => void; show:
 
 function CcfTable({ tab, selected, onSelect, openDrawer }: { tab: Exclude<CcfTab, "checks">; selected: string; onSelect: (key: string) => void; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const state = useTableState();
   const filterId = useId();
   const [wrapRef, wrapWidth] = useElementWidth(0);
@@ -199,13 +200,18 @@ function CcfTable({ tab, selected, onSelect, openDrawer }: { tab: Exclude<CcfTab
   const windowKind = tab === "groups" ? "daCcfGroup" : tab === "events" ? "daCcfEvents" : "daCcfFactors";
   const headers = tab === "groups" ? ["Group", "Size", "Testing", "Model"] : tab === "events" ? ["Group", "Events", "Independent"] : tab === "factors" ? ["Group", "Template", "Highest order"] : ["Group", "Total", "All fail"];
   const span = headers.length + 2;
+  function computed(result: DaCcfResult, value: number | undefined): JSX.Element {
+    if (result.problem !== undefined) return <span className="da-severity da-severity--error">Cannot compute</span>;
+    if (result.pending) return <span title="Waiting for PRAXIS">…</span>;
+    return <>{statText(value)}</>;
+  }
   function cells(estimate: CcfParameterEstimation, result: DaCcfResult): JSX.Element {
     if (tab === "groups") return (
       <>
         <td className="da-rowtable__text">{estimate.ccfGroupReference}</td>
         <td className="da-rowtable__num">{estimate.groupSize ?? "—"}</td>
         <td className="da-rowtable__text">{estimate.testing === undefined ? "Not set" : CCF_TESTING_LABELS[estimate.testing]}</td>
-        <td className="da-rowtable__text">{modelText(estimate.modelType)}</td>
+        <td className="da-rowtable__text">{modelOf(heldFactors(estimate, result))}</td>
       </>
     );
     if (tab === "events") return (
@@ -215,12 +221,12 @@ function CcfTable({ tab, selected, onSelect, openDrawer }: { tab: Exclude<CcfTab
         <td className="da-rowtable__num">{(estimate.evidence ?? []).filter((evidence) => evidence.included).reduce((total, evidence) => total + evidence.independentFailures, 0)}</td>
       </>
     );
-    const top = result.alphas[result.alphas.length - 1];
+    const top = result.levels[result.levels.length - 1];
     if (tab === "factors") return (
       <>
         <td className="da-rowtable__text">{estimate.ccfGroupReference}</td>
         <td className="da-rowtable__text">{estimate.method === "TYPED" ? "Typed" : estimate.priorTemplate ?? "—"}</td>
-        <td className="da-rowtable__num">{result.problem !== undefined ? <span className="da-severity da-severity--error">Cannot compute</span> : factorText(top?.mean)}</td>
+        <td className="da-rowtable__num">{computed(result, top?.mean)}</td>
       </>
     );
     const all = result.combinations[result.combinations.length - 1];
@@ -228,7 +234,7 @@ function CcfTable({ tab, selected, onSelect, openDrawer }: { tab: Exclude<CcfTab
       <>
         <td className="da-rowtable__text">{estimate.ccfGroupReference}</td>
         <td className="da-rowtable__num">{statText(result.qt)}</td>
-        <td className="da-rowtable__num">{result.problem !== undefined ? <span className="da-severity da-severity--error">Cannot compute</span> : statText(all?.each)}</td>
+        <td className="da-rowtable__num">{computed(result, all?.each)}</td>
       </>
     );
   }
@@ -276,8 +282,6 @@ function newEstimate(da: DataAnalysis, id: string, groupId: string, name: string
     uuid: id,
     ccfGroupReference: groupId,
     name,
-    modelType: "ALPHA_FACTOR",
-    parameters: {},
     parameterSource: da.plantStage === "OPERATIONAL" ? "PLANT_EXPERIENCE_CONSISTENT" : "GENERIC",
     componentBoundaryConsistencyBasis: "",
     implementsSrs: [{ sr: "DA-D7", hlr: "D" }, { sr: "DA-D8", hlr: "D" }],
@@ -301,13 +305,14 @@ function missingGroups(da: DataAnalysis): { id: string; name: string; size: numb
 
 function CcfScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da, editable, mutateDa } = useDaWorkbook();
+  useUncertaintyVersion();
   const [tab, setTab] = useState<CcfTab>("groups");
   const [keys, setKeys] = useState<Record<string, string>>({});
   const tabId = useId();
   const estimates = da.ccfParameterEstimations ?? [];
   const findings = ccfFindings(da);
   const missing = missingGroups(da);
-  const computed = estimates.filter((estimate) => ccfResult(da, estimate).problem === undefined).length;
+  const computed = estimates.filter((estimate) => { const result = ccfResult(da, estimate); return result.problem === undefined && !result.pending; }).length;
   const events = estimates.reduce((total, estimate) => total + ccfEventCount(estimate), 0);
   const tabs: { id: CcfTab; label: string }[] = [
     { id: "groups", label: `Groups (${estimates.length})` },
@@ -359,7 +364,13 @@ function CcfScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void 
   );
 }
 
-function CcfGroupWindow({ id, onClose, onRetarget, onToast }: { id: string; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void; onToast: (message: string) => void }): JSX.Element | null {
+function withTesting(estimate: CcfParameterEstimation, testing: DaCcfTesting | undefined): Partial<CcfParameterEstimation> {
+  const factors = estimate.factors;
+  if (estimate.method === "TYPED" && factors?.model === "ALPHA_FACTOR" && testing !== undefined) return { testing, factors: { ...factors, testing } };
+  return { testing };
+}
+
+function CcfGroupWindow({ id, onClose, onRetarget }: { id: string; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void }): JSX.Element | null {
   const { da, editable, mutateDa } = useDaWorkbook();
   const fieldId = useId();
   const estimate = (da.ccfParameterEstimations ?? []).find((candidate) => candidate.uuid === id);
@@ -375,11 +386,8 @@ function CcfGroupWindow({ id, onClose, onRetarget, onToast }: { id: string; onCl
     patch(group === undefined ? { ccfGroupReference: value } : { ccfGroupReference: value, groupSize: group.memberIds.length, name: estimate?.name !== undefined && estimate.name.trim().length > 0 ? estimate.name : group.name });
   }
   function chooseTesting(value: string): void {
-    if (!editable || estimate === undefined) return;
-    const testing = TESTINGS.find((candidate) => candidate === value);
-    patch({ testing });
-    const message = testing === "STAGGERED" ? staggeredToast(estimate) : undefined;
-    if (message !== undefined) onToast(message);
+    if (estimate === undefined) return;
+    patch(withTesting(estimate, TESTINGS.find((candidate) => candidate === value)));
   }
   function remove(): void {
     if (!editable) return;
@@ -582,34 +590,7 @@ function CcfEventsWindow({ id, onClose, onRetarget }: { id: string; onClose: () 
   );
 }
 
-function TypedFactorRows({ estimate, disabled, onPatch }: { estimate: CcfParameterEstimation; disabled: boolean; onPatch: (next: Partial<CcfParameterEstimation>) => void }): JSX.Element {
-  const fieldId = useId();
-  const size = estimate.groupSize ?? 2;
-  const model = estimate.modelType;
-  const keys = model === "BETA_FACTOR" ? ["beta"] : model === "MGL" ? Array.from({ length: Math.max(1, size - 1) }, (_, index) => ["beta", "gamma", "delta"][index] ?? `factor${index + 1}`) : Array.from({ length: size }, (_, index) => `alpha${index + 1}`);
-  const labels = model === "BETA_FACTOR" ? ["β"] : model === "MGL" ? keys.map((_, index) => ["β", "γ", "δ"][index] ?? `ρ${index + 2}`) : keys.map((_, index) => `α${index + 1}`);
-  return (
-    <>
-      <FormRow label="Model" htmlFor={`${fieldId}-model`}>
-        <select id={`${fieldId}-model`} className="posfield__select" value={model} disabled={disabled} onChange={(event) => { const next = TYPED_MODELS.find((candidate) => candidate === event.target.value); if (next !== undefined) onPatch({ modelType: next, parameters: {} }); }}>
-          {TYPED_MODELS.map((candidate) => <option key={candidate} value={candidate}>{modelText(candidate)}</option>)}
-        </select>
-      </FormRow>
-      <FormRow label="Factors" top>
-        <div className="da-form__checks">
-          {keys.map((key, index) => (
-            <label key={key} className="da-form__check">
-              <span className="da-form__unit">{labels[index]}</span>
-              <NumberInput label={labels[index] ?? key} value={estimate.parameters[key]} disabled={disabled} onChange={(value) => { const next = { ...estimate.parameters }; if (value === undefined) delete next[key]; else next[key] = value; onPatch({ parameters: next }); }} />
-            </label>
-          ))}
-        </div>
-      </FormRow>
-    </>
-  );
-}
-
-function CcfFactorsWindow({ id, onClose, onRetarget, onToast }: { id: string; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void; onToast: (message: string) => void }): JSX.Element | null {
+function CcfFactorsWindow({ id, onClose, onRetarget }: { id: string; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void }): JSX.Element | null {
   const { da, editable, mutateDa } = useDaWorkbook();
   const fieldId = useId();
   const sources = da.sources ?? [];
@@ -627,19 +608,18 @@ function CcfFactorsWindow({ id, onClose, onRetarget, onToast }: { id: string; on
   const fid = (name: string): string => `${fieldId}-${name}`;
   const method = estimate.method;
   const waiting = waitingSources(sources, builtIn);
+  const testing = estimate.testing ?? "NON_STAGGERED";
   function patch(next: Partial<CcfParameterEstimation>): void {
     if (editable) patchEstimate(mutateDa, id, next);
   }
   function chooseMethod(value: string): void {
-    if (!editable || estimate === undefined) return;
+    if (estimate === undefined) return;
     const next = METHODS.find((candidate) => candidate === value);
-    patch({ method: next });
-    if (next === "TYPED" && estimate.testing === "STAGGERED" && estimate.modelType === "ALPHA_FACTOR") onToast(TYPED_ALPHA_TOAST);
+    if (next === "TYPED" && estimate.factors === undefined) patch({ method: next, factors: ccfFactorDraft("ALPHA_FACTOR", size ?? 2, testing) });
+    else patch({ method: next });
   }
-  function patchTyped(next: Partial<CcfParameterEstimation>): void {
-    if (!editable || estimate === undefined) return;
-    patch(next);
-    if (next.modelType === "ALPHA_FACTOR" && estimate.testing === "STAGGERED") onToast(TYPED_ALPHA_TOAST);
+  function typeFactors(factors: CcfFactorModel): void {
+    patch(factors.model === "ALPHA_FACTOR" ? { factors, testing: factors.testing } : { factors });
   }
   function pickTemplate(value: string): void {
     const [sourceId, code] = value.split("|");
@@ -674,7 +654,11 @@ function CcfFactorsWindow({ id, onClose, onRetarget, onToast }: { id: string; on
             <AreaRow label="Why it fits" value={estimate.priorReason ?? ""} disabled={dis} onChange={(text) => patch({ priorReason: text.trim().length === 0 ? undefined : text })} />
           </>
         )}
-        {method === "TYPED" && <TypedFactorRows estimate={estimate} disabled={dis} onPatch={patchTyped} />}
+        {method === "TYPED" && estimate.factors !== undefined && (
+          <FormRow label="Factors" top>
+            <CcfFactorEditor factors={estimate.factors} groupSize={size ?? 2} disabled={dis} onChange={typeFactors} />
+          </FormRow>
+        )}
         {(method === "BAYES" || evidenceUsed) && (
           <>
             <FormRow label="Exclusions match" htmlFor={fid("exclusions")}>
@@ -697,13 +681,13 @@ function CcfFactorsWindow({ id, onClose, onRetarget, onToast }: { id: string; on
   );
 }
 
-function CcfWindows({ context, onClose, onRetarget, onToast }: { context: DaDrawerContext; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void; onToast: (message: string) => void }): JSX.Element | null {
+function CcfWindows({ context, onClose, onRetarget }: { context: DaDrawerContext; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void }): JSX.Element | null {
   switch (context.kind) {
-    case "daCcfGroup": return <CcfGroupWindow id={context.id} onClose={onClose} onRetarget={onRetarget} onToast={onToast} />;
+    case "daCcfGroup": return <CcfGroupWindow id={context.id} onClose={onClose} onRetarget={onRetarget} />;
     case "daCcfEvents": return <CcfEventsWindow id={context.id} onClose={onClose} onRetarget={onRetarget} />;
-    case "daCcfFactors": return <CcfFactorsWindow id={context.id} onClose={onClose} onRetarget={onRetarget} onToast={onToast} />;
+    case "daCcfFactors": return <CcfFactorsWindow id={context.id} onClose={onClose} onRetarget={onRetarget} />;
     default: return null;
   }
 }
 
-export { CCF_WINDOW_KINDS, CcfScreen, CcfWindows, STAGGERED_TOAST, TYPED_ALPHA_TOAST };
+export { CCF_WINDOW_KINDS, CcfScreen, CcfWindows };

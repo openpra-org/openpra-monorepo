@@ -1,8 +1,12 @@
 import { EndState } from "interfaces-mef-types/core/events";
 import type { EventTree } from "interfaces-mef-types/es/event-sequence-analysis";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import {
   applyEventTreeOperation,
+  createEmptyEventTree,
   createEventTreePresentation,
+  frequencyRateUnits,
+  initiatingFrequencyUnit,
   validateEventTree,
 } from "../eventTreeOperations";
 
@@ -18,7 +22,7 @@ function emptyTree(): EventTree {
     uuid: "ET-1",
     name: "Test event tree",
     initiatingEventId: "IE-1",
-    initiatingEventFrequency: { value: 0.01 },
+    initiatingEventFrequency: { expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 0.01 } } } },
     functionalEvents: {},
     sequences: {},
     branches: {},
@@ -223,5 +227,43 @@ describe("canonical event-tree operations", () => {
 
     expect(Object.values(reordered.functionalEvents).sort((left, right) => (left.order ?? 0) - (right.order ?? 0)).map((event) => event.uuid)).toEqual(["FE-2", "FE-1"]);
     expect(Object.keys(reordered.sequences).sort()).toEqual(beforeIds);
+  });
+});
+
+describe("initiating-event frequency", () => {
+  const frequencyFindings = (expression: UncertainExpression | undefined): string[] => validateEventTree(
+    { ...emptyTree(), initiatingEventFrequency: expression === undefined ? undefined : { expression } },
+    [],
+  ).map((finding) => finding.code).filter((code) => code.startsWith("ET_FREQUENCY"));
+
+  it("builds a per-year point expression when a tree is created from a number", () => {
+    expect(createEmptyEventTree("IE-1", undefined, 2e-3).initiatingEventFrequency).toEqual({
+      expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 2e-3 } } },
+      annualization: { basis: "PLANT_YEAR", hoursPerYear: 8_760 },
+    });
+    expect(createEmptyEventTree("IE-1").initiatingEventFrequency).toBeUndefined();
+  });
+
+  it("accepts typed, uncertain and linked frequencies and carries them to the presentation", () => {
+    const perHour: UncertainExpression = { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "LOGNORMAL", mean: 2e-5, errorFactor: 3, level: 0.95 } } };
+    const linked: UncertainExpression = { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "IE-FREQ-1" } };
+    expect(frequencyFindings(perHour)).toEqual([]);
+    expect(frequencyFindings(linked)).toEqual([]);
+    expect(initiatingFrequencyUnit(perHour)).toBe("PER_HOUR");
+    expect(initiatingFrequencyUnit(linked)).toBe("PER_YEAR");
+    const table = new Map([["da-workbook:IE-FREQ-1", { reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "IE-FREQ-1" }, expression: perHour }]] as const);
+    expect(initiatingFrequencyUnit(linked, table)).toBe("PER_HOUR");
+    expect(frequencyRateUnits({ node: "OPERATION", operation: "MULTIPLY", operands: [linked, { node: "VALUE", value: { unit: "FACTOR", law: { family: "POINT", value: 2 } } }] }, table)).toEqual(["PER_HOUR"]);
+    expect(frequencyRateUnits({ node: "OPERATION", operation: "ADD", operands: [linked, { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 1e-3 } } }] }, table)).toEqual(["PER_HOUR", "PER_YEAR"]);
+    const model: EventTree = { ...emptyTree(), initiatingEventFrequency: { expression: perHour, annualization: { basis: "CRITICAL_YEAR", hoursPerYear: 7_000 } } };
+    expect(createEventTreePresentation(model, []).initiatingEventFrequency).toEqual(model.initiatingEventFrequency);
+  });
+
+  it("names a missing, malformed, wrong-unit or negative frequency", () => {
+    expect(frequencyFindings(undefined)).toEqual(["ET_FREQUENCY_REQUIRED"]);
+    expect(frequencyFindings({ node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: Number.NaN } } })).toEqual(["ET_FREQUENCY_INVALID"]);
+    expect(frequencyFindings({ node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.01 } } })).toEqual(["ET_FREQUENCY_UNIT"]);
+    expect(frequencyFindings({ node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: -0.01 } } })).toEqual(["ET_FREQUENCY_NEGATIVE"]);
+    expect(frequencyFindings({ node: "VALUE", value: { unit: "PER_YEAR", law: { family: "NORMAL", mean: 0.01, standardDeviation: 0.01 } } })).toEqual(["ET_FREQUENCY_NEGATIVE"]);
   });
 });

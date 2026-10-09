@@ -1,0 +1,21 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "HOURS",
+        "law": {
+          "family": "WEIBULL",
+          "scale": 10,
+          "shape": 1.5,
+          "location": 0
+        }
+      }
+    }
+  }
+]

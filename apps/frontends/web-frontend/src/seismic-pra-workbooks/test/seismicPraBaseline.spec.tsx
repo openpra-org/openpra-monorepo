@@ -12,7 +12,7 @@ function linkedInputs(variant: SeismicPraVariant): SeismicPraLinkedInputs {
     ieGroups: [{ id: "IE-01", name: isSfr ? "Loss of forced circulation" : "Loss of forced cooling", meanFrequency: 0.02, applicableStates: ["POS-01"], riskImportance: "High" }],
     esFamilies: [{ id: "ESF-01", name: "Heat-removal sequence family", endState: "Successful mitigation", memberCount: 8 }],
     scMissionTimes: [{ id: "SC-01", eventSequence: "ES-01", hours: 72, riskSignificant: true }],
-    sySystems: [{ id: "SY-01", name: isSfr ? "Decay heat removal system" : "Reactor cavity cooling system", missionTimeHours: 72, applicableStates: ["POS-01"], basicEventCount: 12 }],
+    sySystems: [{ id: "SY-01", name: isSfr ? "Decay heat removal system" : "Reactor cavity cooling system", missionHours: 72, applicableStates: ["POS-01"], basicEventCount: 12 }],
     hrActions: [{ id: "HFE-01", name: "Establish alternate heat removal", timing: "30 minutes", affectedSystems: ["SY-01"], humanErrorProbability: 0.04 }],
     daParameters: [{ id: "DA-01", name: "Heat-removal train failure", parameterType: "PROBABILITY", value: 0.01, basicEvent: "BE-01", system: "SY-01" }],
   };

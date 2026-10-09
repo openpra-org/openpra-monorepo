@@ -1,22 +1,17 @@
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Unique, Named } from "../core/meta";
 import {
-  BetaDistribution,
-  ExponentialDistribution,
   Frequency,
   FrequencyWithDistribution,
-  GammaDistribution,
-  LognormalDistribution,
-  NormalDistribution,
   ParameterDistribution,
-  PointEstimateDistribution,
-  UniformDistribution,
-  WeibullDistribution,
+  type UncertainFrequency,
 } from "../core/events";
 import { ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis } from "../core/shared-patterns";
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption } from "../core/documentation";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
 import type { EsqBayesianNetwork, EsqHclConfiguration } from "./workbook-models";
+import type { AleatoryVariable, CcfFactorModel, Law, UncertainExpression } from "../core/uncertainty";
+import type { DaQuantificationModel } from "../da/data-analysis";
 import type { EventSequenceFamilyWorkbookReference } from "../modeling/references";
 
 export type EventSequenceReference = string;
@@ -220,7 +215,7 @@ export interface EsqTreeRecord {
   initiatorId: string;
   stateId?: string;
   functionIds: string[];
-  missionTimeHours?: number;
+  missionTime?: UncertainExpression;
   transferEntry: boolean;
 }
 
@@ -283,10 +278,7 @@ export interface EsqInitiatorRecord {
   id: string;
   name: string;
   stateIds: string[];
-  meanFrequency?: number;
-  medianFrequency?: number;
-  errorFactor?: number;
-  frequencyUnit?: string;
+  frequency?: UncertainFrequency;
   heldBy?: "DA" | "TYPED";
   holderId?: string;
 }
@@ -306,9 +298,10 @@ export interface EsqEventRecord {
   systemId?: string;
   systemName?: string;
   failureMode?: string;
+  expression?: UncertainExpression;
   value?: number;
   valueUnit?: "PROBABILITY" | "PER_HOUR";
-  missionTimeHours?: number;
+  missionTime?: UncertainExpression;
   heldBy: EsqValueHolder;
   holderId?: string;
 }
@@ -318,8 +311,8 @@ export interface EsqCcfRecord {
   name: string;
   systemIds: string[];
   memberIds: string[];
-  modelType?: string;
-  totalProbability?: number;
+  factors?: CcfFactorModel;
+  total?: UncertainExpression;
   estimateRef?: string;
 }
 
@@ -327,12 +320,14 @@ export interface EsqParameterRecord {
   id: string;
   name: string;
   parameterType: string;
+  quantificationModel?: DaQuantificationModel;
+  estimate?: UncertainExpression;
   value?: number;
-  valueType: "POINT_ESTIMATE" | "MEAN";
+  valueType?: "POINT_ESTIMATE" | "MEAN";
   distributionType?: string;
   p05?: number;
   p95?: number;
-  missionTimeHours?: number;
+  missionTime?: UncertainExpression;
   evidenceKind?: string;
   distribution?: ParameterDistribution;
 }
@@ -537,8 +532,7 @@ export interface EsqInitiatorChoice {
   groupId: string;
   source: EsqInitiatorSource;
   parameterId?: string;
-  mean?: number;
-  errorFactor?: number;
+  expression?: UncertainExpression;
   basis?: string;
   shares?: EsqStateShare[];
 }
@@ -660,51 +654,16 @@ export interface EsqPhenomenaLogic {
   beneficial?: EsqLogicCredit;
 }
 
-export type EsqLaw =
-  | LognormalDistribution
-  | NormalDistribution
-  | UniformDistribution
-  | ExponentialDistribution
-  | WeibullDistribution
-  | GammaDistribution
-  | BetaDistribution
-  | PointEstimateDistribution;
-
-export type EsqLawParameter =
-  | "value"
-  | "mean"
-  | "stdDev"
-  | "median"
-  | "errorFactor"
-  | "lower"
-  | "upper"
-  | "failureRate"
-  | "scale"
-  | "shape"
-  | "location"
-  | "rate"
-  | "alpha"
-  | "betaParam";
-
-export interface EsqUncertainParameter {
-  parameter: EsqLawParameter;
-  distribution: EsqLaw;
-  correlationKey?: string;
-}
-
 export interface EsqFragility {
   median: number;
   betaR: number;
   betaU: number;
 }
 
-export interface EsqCellSide {
-  distribution?: EsqLaw;
-  parameterId?: string;
-  fragility?: EsqFragility;
-  uncertain?: EsqUncertainParameter[];
-  basis: string;
-}
+export type EsqCellSide =
+  | { source: "TYPED"; variable: AleatoryVariable; basis: string }
+  | { source: "FRAGILITY"; fragility: EsqFragility; basis: string }
+  | { source: "DA"; parameterId: string; basis: string };
 
 export type EsqCellUse = "SPLIT_FRACTION" | "END_STATE_ATTRIBUTE";
 
@@ -723,11 +682,11 @@ export interface EsqCellRun {
   p95?: number;
   samples?: number;
   sampling?: EsqCellSampling;
+  law?: Law;
 }
 
 export interface EsqCellTyped {
-  value: number;
-  errorFactor?: number;
+  expression: UncertainExpression;
   basis: string;
 }
 
@@ -746,8 +705,8 @@ export interface EsqCell {
   variable: string;
   unit: string;
   basis: "CONSERVATIVE" | "REALISTIC";
-  load: EsqCellSide;
-  capacity: EsqCellSide;
+  load?: EsqCellSide;
+  capacity?: EsqCellSide;
   aging?: string;
   use: EsqCellUse;
   assumption?: EsqCellAssumption;
@@ -1040,6 +999,7 @@ export interface EsqUncertaintyStats {
   point: number;
   mean: number;
   standardDeviation: number;
+  standardError: number;
   p05: number;
   p50: number;
   p95: number;
@@ -1558,7 +1518,8 @@ export interface UncertaintyPropagation extends BaseUncertaintyAnalysis {
   characterizationLevel: "CHARACTERIZED" | "PROPAGATED_RISK_SIGNIFICANT_SOKC";
   parameterUncertainties: {
     parameterRef: DataAnalysisParameterReference;
-    distribution: ParameterDistribution;
+    estimate?: UncertainExpression;
+    distribution?: ParameterDistribution;
     basis: string;
   }[];
   stateOfKnowledgeCorrelation: {

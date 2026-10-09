@@ -23,13 +23,20 @@ import type {
   FailureModeType,
   OutlierComponent,
 } from "interfaces-mef-types/da/data-analysis";
-import { DAIcon } from "./daIcons";
+import { holdsEstimate } from "interfaces-mef-types/da/data-analysis";
+import { expressionReferences, lawWithinUnit, mapModelArguments, parameterReferenceKey, type UncertainExpression, type UncertainUnit } from "interfaces-mef-types/core/uncertainty";
+import { useUncertaintyVersion, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
+import { ExpressionEditor, MissionTimeEditor, draftFor, type ModelForm, type ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
+import { scMissionTimeEntries, scMissionTimeOptions } from "../sc-workbooks/scMissionTimeLinks";
+import { estimateMissionTime } from "./daFailures";
+import { componentUnit, expressionSpread, parameterPoint, parameterSpread, pointState, readyNumber, type DaSpread } from "./daLaws";
 import { Badge, DaProvenanceChip, DaTabs, DetailRow, DetailToggle, FieldList, FormFoot, FormRow, ModalHead, rowClass, sciText } from "./daShared";
 import { useElementWidth } from "./daDistributionChart";
-import { useDaWorkbook } from "./daWorkbookContext";
+import { MODEL_LABELS, factorsText } from "./daCcf";
+import { daMissionTimeSources, useDaWorkbook } from "./daWorkbookContext";
 import {
   CAPABILITY_CATEGORIES,
-  CCF_MODEL_LABELS,
   DA_LINK_TILES,
   DA_REQUIRED_SCOPE,
   DA_SCOPE_KINDS,
@@ -47,6 +54,7 @@ import {
   OUTLIER_STATUS_TEXT,
   QUANTIFICATION_MODELS,
   exampleLinkLabel,
+  type DaModelSpec,
   type Stage,
 } from "./daViewData";
 import {
@@ -58,7 +66,6 @@ import {
   daNeedsImportReady,
   daNeedsLinked,
   emptyNeeds,
-  initiatorBand,
   mappableNeeds,
   modelSpecOf,
   modelsForNeed,
@@ -79,7 +86,9 @@ import {
   withNeeds,
   withOutlierGroup,
   withNeedsMerged,
+  linkedEstimate,
   type DaFindingSeverity,
+  type DaMappableNeed,
   type DaNeedFinding,
 } from "./daSelectors";
 
@@ -489,6 +498,129 @@ function statText(value: number | undefined): string {
   return value === undefined ? "—" : sciText(value);
 }
 
+function praxisText(state: UncertaintyState<number> | undefined, suffix = ""): string {
+  if (state === undefined) return "—";
+  if (state.status === "pending") return "…";
+  if (state.status === "failed") return `PRAXIS failed: ${state.error}`;
+  return `${statText(state.value)}${suffix}`;
+}
+
+function PraxisValue({ state, suffix = "" }: { state: UncertaintyState<number> | undefined; suffix?: string }): JSX.Element {
+  if (state === undefined) return <>—</>;
+  if (state.status === "pending") return <span title="Waiting for PRAXIS">…</span>;
+  if (state.status === "failed") return <span className="da-severity da-severity--error" title={state.error}>Failed</span>;
+  return <>{statText(state.value)}{suffix}</>;
+}
+
+type DaWaitState = { status: "pending" } | { status: "failed"; error: string } | { status: "ready" };
+
+function waitNote(states: readonly (DaWaitState | undefined)[]): string | undefined {
+  for (const state of states) if (state?.status === "failed") return `PRAXIS failed: ${state.error}`;
+  return states.some((state) => state?.status === "pending") ? "Waiting for PRAXIS." : undefined;
+}
+
+function spreadFields(state: UncertaintyState<DaSpread> | undefined): { label: string; value: string }[] {
+  if (state === undefined) return [{ label: "Percentiles", value: "—" }];
+  if (state.status === "pending") return [{ label: "Percentiles", value: "…" }];
+  if (state.status === "failed") return [{ label: "Percentiles", value: `PRAXIS failed: ${state.error}` }];
+  const sampled = state.value.sampled ? ", sampled" : "";
+  return [
+    { label: "5th percentile", value: `${statText(state.value.p05)}${sampled}` },
+    { label: "Median", value: `${statText(state.value.median)}${sampled}` },
+    { label: "95th percentile", value: `${statText(state.value.p95)}${sampled}` },
+  ];
+}
+
+function estimateText(expression: UncertainExpression | undefined): string {
+  if (expression === undefined) return "—";
+  return expressionText(expression, (key) => key.slice(key.indexOf(":") + 1));
+}
+
+function expressionUnit(expression: UncertainExpression): UncertainUnit | undefined {
+  if (expression.node === "VALUE") return expression.value.unit;
+  return expression.node === "PARAMETER" ? undefined : "PROBABILITY";
+}
+
+function needPoint(da: DataAnalysis, value: number | undefined, expression: UncertainExpression | undefined, known?: UncertainUnit): UncertaintyState<number> | undefined {
+  if (expression === undefined) return value === undefined ? undefined : { status: "ready", value };
+  if (expression.node === "PARAMETER") {
+    const parameter = da.parameters.find((candidate) => candidate.uuid === expression.reference.entityId.trim());
+    return parameter === undefined ? undefined : parameterPoint(parameter);
+  }
+  const unit = known ?? expressionUnit(expression);
+  return unit === undefined || expressionReferences(expression).length > 0 ? undefined : pointState(expression, unit);
+}
+
+function needSpread(da: DataAnalysis, expression: UncertainExpression | undefined, known?: UncertainUnit): UncertaintyState<DaSpread> | undefined {
+  if (expression?.node === "PARAMETER") {
+    const parameter = da.parameters.find((candidate) => candidate.uuid === expression.reference.entityId.trim());
+    return parameter === undefined ? undefined : parameterSpread(parameter);
+  }
+  if (expression === undefined || expressionReferences(expression).length > 0) return undefined;
+  const unit = known ?? expressionUnit(expression);
+  return unit === undefined ? undefined : expressionSpread(expression, unit);
+}
+
+function needRateSuffix(da: DataAnalysis, valueUnit: "PROBABILITY" | "PER_HOUR" | undefined, expression: UncertainExpression | undefined): string {
+  if (expression === undefined) return valueUnit === "PER_HOUR" ? " /h" : "";
+  if (expression.node === "PARAMETER") {
+    const parameter = da.parameters.find((candidate) => candidate.uuid === expression.reference.entityId.trim());
+    return parameter !== undefined && componentUnit(parameter) === "PER_HOUR" ? " /h" : "";
+  }
+  return expressionUnit(expression) === "PER_HOUR" ? " /h" : "";
+}
+
+function withinUnits(expression: UncertainExpression): UncertainExpression {
+  switch (expression.node) {
+    case "VALUE": return { node: "VALUE", value: { unit: expression.value.unit, law: lawWithinUnit(expression.value.unit, expression.value.law) } };
+    case "PARAMETER": return expression;
+    case "OPERATION": return { node: "OPERATION", operation: expression.operation, operands: expression.operands.map(withinUnits) };
+    case "MODEL": return { node: "MODEL", model: mapModelArguments(expression.model, withinUnits) };
+  }
+}
+
+function estimateModels(parameter: DataAnalysisParameter): ModelForm[] {
+  if (parameter.quantificationModel === "MISSION_PROBABILITY") return ["MISSION"];
+  if (parameter.quantificationModel === "DEMAND_PROBABILITY") return ["STANDBY"];
+  if (parameter.quantificationModel === "OTHER_PROBABILITY") return ["MISSION", "STANDBY"];
+  return [];
+}
+
+function pointEstimate(unit: UncertainUnit, value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit, law: lawWithinUnit(unit, { family: "POINT", value }) } };
+}
+
+function useMissionTimeOptions(): ParameterOption[] {
+  const { da, upstream } = useDaWorkbook();
+  return daMissionTimeSources(da, upstream).flatMap((source) => scMissionTimeOptions(source.workbookId, source.sc));
+}
+
+function useMissionTimeLabel(): (key: string) => string {
+  const { da, upstream } = useDaWorkbook();
+  const labels = new Map(daMissionTimeSources(da, upstream).flatMap((source) => scMissionTimeEntries(source.workbookId, source.sc).map((entry) => [parameterReferenceKey(entry.reference), entry.label] as const)));
+  return (key) => labels.get(key) ?? key;
+}
+
+function EstimateRows({ parameter, disabled, onPatch }: { parameter: DataAnalysisParameter; disabled: boolean; onPatch: (next: Partial<DataAnalysisParameter>) => void }): JSX.Element | null {
+  const { da } = useDaWorkbook();
+  const options = useMissionTimeOptions();
+  const unit = componentUnit(parameter);
+  if (unit === undefined) return null;
+  const estimate = parameter.estimate;
+  function save(expression: UncertainExpression): void {
+    onPatch({ estimate: withinUnits(expression), value: undefined, valueType: undefined, uncertainty: undefined });
+  }
+  return (
+    <FormRow label="Estimate" top>
+      {estimate !== undefined ? (
+        <ExpressionEditor expression={estimate} unit={unit} options={options} models={estimateModels(parameter)} defaultTime={estimateMissionTime(da, parameter).missionTime} disabled={disabled} onChange={save} />
+      ) : disabled ? <span className="da-form__unit">No estimate yet.</span> : (
+        <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => save({ node: "VALUE", value: { unit, law: draftFor("POINT", { family: "POINT", value: Number.NaN }, unit) } })}>Add an estimate</button>
+      )}
+    </FormRow>
+  );
+}
+
 function plainNumber(value: number | undefined): string {
   return value === undefined ? "—" : String(Number(value.toPrecision(6)));
 }
@@ -614,6 +746,9 @@ function NeedPager({ total, page, onPage }: { total: number; page: number; onPag
 }
 
 function BasicEventNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
+  const { da } = useDaWorkbook();
+  const missionLabel = useMissionTimeLabel();
+  useUncertaintyVersion();
   const [system, setSystem] = useState("");
   const [kind, setKind] = useState("");
   const [page, setPage] = useState(0);
@@ -661,16 +796,17 @@ function BasicEventNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openD
                     </td>
                     <td className="da-rowtable__text">{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
                     <td className="da-rowtable__text">{need.kind === undefined ? "Not set" : NEED_KIND_LABELS[need.kind]}</td>
-                    <td className="da-rowtable__num">{need.value === undefined ? "—" : `${sciText(need.value)}${need.valueUnit === "PER_HOUR" ? " /h" : ""}`}</td>
+                    <td className="da-rowtable__num"><PraxisValue state={needPoint(da, need.value, need.expression)} suffix={needRateSuffix(da, need.valueUnit, need.expression)} /></td>
                   </tr>
                   {open && (
                     <DetailRow span={5} width={wrapWidth - 18}>
                       <FieldList items={[
                         { label: "System", value: need.systemName ?? "—" },
                         { label: "Failure mode", value: need.failureMode === undefined ? "—" : FAILURE_MODE_TEXT[need.failureMode] ?? need.failureMode },
-                        { label: "Mission (h)", value: need.kind === "RUNNING" ? plainNumber(need.missionTimeHours) : "—" },
+                        { label: "Mission time", value: need.kind === "RUNNING" && need.missionTime !== undefined ? expressionText(need.missionTime, missionLabel) : "—" },
                         { label: "Test interval (h)", value: need.kind === "STANDBY" ? plainNumber(need.testIntervalHours) : "—" },
                         { label: "Held by", value: heldByText(need) },
+                        ...(need.expression === undefined ? [] : [{ label: "Estimate", value: estimateText(need.expression) }, ...spreadFields(needSpread(da, need.expression))]),
                       ]} />
                     </DetailRow>
                   )}
@@ -685,6 +821,8 @@ function BasicEventNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openD
 }
 
 function InitiatorNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
+  const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [openId, setOpenId] = useState("");
   const [wrapRef, wrapWidth] = useElementWidth(0);
   if (needs.initiators.length === 0) return <p className="posmuted">No initiator group yet. Import them above or add them by hand.</p>;
@@ -692,11 +830,11 @@ function InitiatorNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openDr
     <div className="da-table-wrap" ref={wrapRef}>
       <table className="postable da-rowtable" aria-label="Initiator groups">
         <thead>
-          <tr><th className="da-rowtable__pick">Details</th><th>Group</th><th>Name</th><th>Mean (/plant-year)</th><th>IE basis</th></tr>
+          <tr><th className="da-rowtable__pick">Details</th><th>Group</th><th>Name</th><th>Mean (/year)</th><th>IE basis</th></tr>
         </thead>
         <tbody>
           {needs.initiators.map((need) => {
-            const band = initiatorBand(need);
+            const frequency = need.frequency;
             const open = need.id === openId;
             return (
               <Fragment key={need.id}>
@@ -707,7 +845,7 @@ function InitiatorNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openDr
                     <NeedTags change={needChangeOf(needs, "IE", need.id)} manual={need.manual} excluded={!need.included} />
                   </td>
                   <td className="da-rowtable__text">{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
-                  <td className="da-rowtable__num">{statText(need.meanFrequency)}</td>
+                  <td className="da-rowtable__num"><PraxisValue state={needPoint(da, undefined, frequency?.expression, "PER_YEAR")} /></td>
                   <td className="da-rowtable__text">{need.frequencyBasis === undefined ? "—" : FREQUENCY_BASIS_TEXT[need.frequencyBasis] ?? need.frequencyBasis}</td>
                 </tr>
                 {open && (
@@ -715,8 +853,9 @@ function InitiatorNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openDr
                     <FieldList items={[
                       { label: "Operating states", value: need.stateIds.length === 0 ? "—" : need.stateIds.join(", ") },
                       { label: "Members", value: need.memberIds.length === 0 ? "—" : need.memberIds.join(", ") },
-                      { label: "5th percentile", value: statText(band.p05) },
-                      { label: "95th percentile", value: statText(band.p95) },
+                      { label: "Basis", value: frequency === undefined ? "—" : frequency.basis.split("-").join(" ") },
+                      { label: "Estimate", value: estimateText(frequency?.expression) },
+                      ...spreadFields(needSpread(da, frequency?.expression, "PER_YEAR")),
                     ]} />
                   </DetailRow>
                 )}
@@ -774,6 +913,8 @@ function HumanErrorNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openD
 }
 
 function CcfGroupNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
+  const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [openId, setOpenId] = useState("");
   const [wrapRef, wrapWidth] = useElementWidth(0);
   if (needs.ccfGroups.length === 0) return <p className="posmuted">No common cause group yet. Import them above or add them by hand.</p>;
@@ -786,7 +927,6 @@ function CcfGroupNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openDra
         </thead>
         <tbody>
           {needs.ccfGroups.map((need) => {
-            const factors = Object.entries(need.factors ?? {}).map(([key, value]) => `${key} ${sciText(value)}`);
             const members = need.memberIds.map((member) => codeOf.get(member) ?? member);
             const open = need.id === openId;
             return (
@@ -798,15 +938,16 @@ function CcfGroupNeedsTable({ needs, openDrawer }: { needs: DaDataNeeds; openDra
                     <NeedTags change={needChangeOf(needs, "SY", need.id)} manual={need.manual} excluded={!need.included} />
                   </td>
                   <td className="da-rowtable__text">{need.name.trim().length > 0 ? need.name : "Unnamed"}</td>
-                  <td className="da-rowtable__text">{need.modelType === undefined ? "—" : CCF_MODEL_LABELS[need.modelType] ?? need.modelType}</td>
-                  <td className="da-rowtable__num">{statText(need.totalProbability)}</td>
+                  <td className="da-rowtable__text">{need.factors === undefined ? "—" : MODEL_LABELS[need.factors.model]}</td>
+                  <td className="da-rowtable__num"><PraxisValue state={needPoint(da, undefined, need.total, "PROBABILITY")} /></td>
                 </tr>
                 {open && (
                   <DetailRow span={5} width={wrapWidth - 18}>
                     <FieldList items={[
                       { label: "Systems", value: need.systemIds.length === 0 ? "—" : need.systemIds.join(", ") },
                       { label: "Members", value: members.length === 0 ? "—" : members.join(", ") },
-                      { label: "Factors", value: factors.length === 0 ? "—" : factors.join(" · ") },
+                      { label: "Factors", value: need.factors === undefined ? "—" : factorsText(need.factors) },
+                      { label: "Total", value: estimateText(need.total) },
                       { label: "Held by", value: need.manual !== undefined ? "—" : need.estimateRef === undefined ? "Typed in SY" : `DA · ${need.estimateRef}` },
                     ]} />
                   </DetailRow>
@@ -1023,6 +1164,7 @@ function listFromText(text: string): string[] {
 
 function NeedEventWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
   const { da, editable, mutateDa } = useDaWorkbook();
+  const missionOptions = useMissionTimeOptions();
   const fieldId = useId();
   const need = da.dataNeeds?.basicEvents.find((candidate) => candidate.id === id);
   if (need === undefined) return null;
@@ -1074,9 +1216,8 @@ function NeedEventWindow({ id, onClose }: { id: string; onClose: () => void }): 
           </select>
         </FormRow>
         {need.kind === "RUNNING" && (
-          <FormRow label="Mission time" htmlFor={fid("mission")}>
-            <WorkbookInput id={fid("mission")} className="posfield__input da-form__number" type="number" min="0" step="any" value={need.missionTimeHours ?? ""} disabled={dis} onChange={(event) => numberFrom(event.target.value, (value) => patch({ missionTimeHours: value }))} />
-            <span className="da-form__unit">hours</span>
+          <FormRow label="Mission time" top>
+            <MissionTimeEditor expression={need.missionTime} options={missionOptions} disabled={dis} onChange={(missionTime) => patch({ missionTime })} />
           </FormRow>
         )}
         {need.kind === "STANDBY" && (
@@ -1093,7 +1234,7 @@ function NeedEventWindow({ id, onClose }: { id: string; onClose: () => void }): 
       <FormFoot onClose={onClose}>
         {editable && manual && <button type="button" className="posnav__btn posnav__btn--sm" onClick={remove}>Remove basic event</button>}
         {editable && !manual && edited && (
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ kind: need.importedKind, missionTimeHours: need.importedMissionTimeHours, changeReason: undefined })}>Restore imported values</button>
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ kind: need.importedKind, missionTime: need.importedMissionTime, changeReason: undefined })}>Restore imported values</button>
         )}
       </FormFoot>
     </>
@@ -1432,6 +1573,7 @@ function SystemRow({ value, disabled, onChange }: { value: string; disabled: boo
 
 function ParametersTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const [model, setModel] = useState("");
   const [page, setPage] = useState(0);
   const [openId, setOpenId] = useState("");
@@ -1465,7 +1607,7 @@ function ParametersTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
           <tbody>
             {shown.map((parameter) => {
               const spec = modelSpecOf(parameter.quantificationModel);
-              const unit = parameter.quantificationModel === "MISSION_PROBABILITY" && parameter.missionTimeHours !== undefined ? `per ${plainNumber(parameter.missionTimeHours)} h` : spec?.unit ?? "—";
+              const unit = spec?.unit ?? "—";
               const open = parameter.uuid === openId;
               const mapped = events.get(parameter.uuid) ?? [];
               const states = parameterStates(parameter);
@@ -1476,13 +1618,15 @@ function ParametersTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
                     <td><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daParameter", id: parameter.uuid }); }}>{parameter.uuid}</button></td>
                     <td className="da-rowtable__text">{parameter.name.trim().length > 0 ? parameter.name : "Unnamed"}</td>
                     <td className="da-rowtable__text">{spec?.label ?? "Not set"}</td>
-                    <td className="da-rowtable__num">{statText(parameter.value)}</td>
+                    <td className="da-rowtable__num"><PraxisValue state={parameterPoint(parameter)} /></td>
                     <td>{unit}</td>
                   </tr>
                   {open && (
                     <DetailRow span={6} width={wrapWidth - 18}>
                       <FieldList items={[
-                        { label: "Value type", value: parameter.value === undefined ? "—" : VALUE_TYPE_TEXT[parameter.valueType] ?? parameter.valueType },
+                        ...(holdsEstimate(parameter.quantificationModel)
+                          ? [{ label: "Estimate", value: estimateText(parameter.estimate) }, ...spreadFields(parameterSpread(parameter))]
+                          : [{ label: "Value type", value: parameter.value === undefined || parameter.valueType === undefined ? "—" : VALUE_TYPE_TEXT[parameter.valueType] ?? parameter.valueType }]),
                         { label: "Value from", value: parameterValueText(da, parameter) },
                         { label: "Events", value: mapped.length === 0 ? "—" : mapped.join(", ") },
                         { label: "States", value: states.length === 0 ? "—" : states.join(", ") },
@@ -1501,6 +1645,7 @@ function ParametersTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
 
 function EventMapTable({ unmapped }: { unmapped: number }): JSX.Element {
   const { da, editable, mutateDa } = useDaWorkbook();
+  useUncertaintyVersion();
   const [source, setSource] = useState("");
   const [show, setShow] = useState("all");
   const [page, setPage] = useState(0);
@@ -1562,7 +1707,8 @@ function EventMapTable({ unmapped }: { unmapped: number }): JSX.Element {
                     <DetailRow span={5} width={wrapWidth - 18}>
                       <FieldList items={[
                         { label: "From", value: need.element === "SY" ? `SY${need.systemName === undefined ? "" : ` · ${need.systemName}`}` : NEED_ELEMENT_LABELS[need.element] },
-                        { label: "Value", value: statText(need.value) },
+                        { label: "Value", value: praxisText(needPoint(da, need.value, need.expression), needRateSuffix(da, need.valueUnit, need.expression)) },
+                        ...(need.expression === undefined ? [] : [{ label: "Estimate", value: estimateText(need.expression) }]),
                         { label: "Model", value: mapped === undefined ? "—" : modelSpecOf(mapped.quantificationModel)?.label ?? "Not set" },
                       ]} />
                     </DetailRow>
@@ -1753,8 +1899,30 @@ function ParametersScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =
   );
 }
 
+function linkText(da: DataAnalysis, parameter: DataAnalysisParameter, need: DaMappableNeed): string {
+  const unit = componentUnit(parameter);
+  if (!holdsEstimate(parameter.quantificationModel) || need.expression === undefined || unit === undefined) return praxisText(needPoint(da, need.value, need.expression), needRateSuffix(da, need.valueUnit, need.expression));
+  const linked = linkedEstimate(need.expression, unit);
+  return praxisText(needPoint(da, undefined, linked, unit), needRateSuffix(da, undefined, linked));
+}
+
+function modelChange(parameter: DataAnalysisParameter, model: DaModelSpec): Partial<DataAnalysisParameter> {
+  const base: Partial<DataAnalysisParameter> = { quantificationModel: model.model, parameterType: model.parameterType, missionTime: undefined };
+  const sameType = parameter.parameterType === model.parameterType;
+  if (holdsEstimate(model.model)) {
+    const unit = componentUnit({ ...parameter, quantificationModel: model.model });
+    if (unit === undefined) return base;
+    const kept = holdsEstimate(parameter.quantificationModel) ? (componentUnit(parameter) === unit ? parameter.estimate : undefined) : parameter.value !== undefined && sameType ? pointEstimate(unit, parameter.value) : undefined;
+    return { ...base, estimate: kept, value: undefined, valueType: undefined, uncertainty: undefined };
+  }
+  if (!holdsEstimate(parameter.quantificationModel)) return base;
+  const point = sameType ? readyNumber(parameterPoint(parameter)) : undefined;
+  return { ...base, estimate: undefined, populationHyperprior: undefined, value: point, valueType: "MEAN" };
+}
+
 function ParameterWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
   const { da, editable, mutateDa } = useDaWorkbook();
+  useUncertaintyVersion();
   const fieldId = useId();
   const parameter = da.parameters.find((candidate) => candidate.uuid === id);
   if (parameter === undefined) return null;
@@ -1778,8 +1946,8 @@ function ParameterWindow({ id, onClose }: { id: string; onClose: () => void }): 
   }
   function setModel(value: string): void {
     const next = QUANTIFICATION_MODELS.find((candidate) => candidate.model === value);
-    if (next === undefined) return;
-    patch({ quantificationModel: next.model, parameterType: next.parameterType, missionTimeHours: next.model === "MISSION_PROBABILITY" ? parameter?.missionTimeHours : undefined });
+    if (next === undefined || parameter === undefined) return;
+    patch(modelChange(parameter, next));
   }
   function setValueFrom(value: string): void {
     if (value === "TYPED") {
@@ -1789,7 +1957,9 @@ function ParameterWindow({ id, onClose }: { id: string; onClose: () => void }): 
     const need = linkOptions.find((candidate) => `${candidate.element}|${candidate.id}` === value);
     if (need === undefined) return;
     const owned = need.stateIds.length > 0 ? { stateIds: [...need.stateIds], plantOperatingStateRef: need.stateIds[0] } : {};
-    patch({ valueMode: "LINKED", valueLink: { element: need.element, needId: need.id }, value: need.value, valueType: need.valueType, ...owned });
+    const unit = parameter === undefined ? undefined : componentUnit(parameter);
+    const held = holdsEstimate(model) ? { estimate: need.expression === undefined ? undefined : linkedEstimate(need.expression, unit), value: undefined, valueType: undefined, uncertainty: undefined } : { value: need.value, valueType: need.valueType };
+    patch({ valueMode: "LINKED", valueLink: { element: need.element, needId: need.id }, ...held, ...owned });
   }
   function toggleState(stateId: string, checked: boolean): void {
     const next = checked ? [...states, stateId] : states.filter((state) => state !== stateId);
@@ -1819,14 +1989,8 @@ function ParameterWindow({ id, onClose }: { id: string; onClose: () => void }): 
             {model === undefined && <option value="">Not set</option>}
             {QUANTIFICATION_MODELS.map((candidate) => <option key={candidate.model} value={candidate.model}>{candidate.label}</option>)}
           </select>
-          {spec !== undefined && model !== "MISSION_PROBABILITY" && <span className="da-form__unit">{spec.unit}</span>}
+          {spec !== undefined && <span className="da-form__unit">{spec.unit}</span>}
         </FormRow>
-        {model === "MISSION_PROBABILITY" && (
-          <FormRow label="Mission time" htmlFor={fid("mission")}>
-            <WorkbookInput id={fid("mission")} className="posfield__input da-form__number" type="number" min="0" step="any" value={parameter.missionTimeHours ?? ""} disabled={dis} onChange={(event) => numberFrom(event.target.value, (value) => patch({ missionTimeHours: value }))} />
-            <span className="da-form__unit">hours</span>
-          </FormRow>
-        )}
         {componentModel && (
           <FormRow label="Boundary" htmlFor={fid("boundary")}>
             <select id={fid("boundary")} className="posfield__select" value={parameter.componentBoundaryRef ?? ""} disabled={dis} onChange={(event) => patch({ componentBoundaryRef: event.target.value.length === 0 ? undefined : event.target.value })}>
@@ -1872,13 +2036,14 @@ function ParameterWindow({ id, onClose }: { id: string; onClose: () => void }): 
           <select id={fid("from")} className="posfield__select" value={linkKey} disabled={dis} onChange={(event) => setValueFrom(event.target.value)}>
             <option value="TYPED">Typed in DA</option>
             {linked && !linkKnown && <option value={linkKey}>Linked · {link.needId} (no longer mapped)</option>}
-            {linkOptions.map((need) => <option key={`${need.element}|${need.id}`} value={`${need.element}|${need.id}`}>Linked · {NEED_ELEMENT_LABELS[need.element]} {need.code} ({statText(need.value)})</option>)}
+            {linkOptions.map((need) => <option key={`${need.element}|${need.id}`} value={`${need.element}|${need.id}`}>Linked · {NEED_ELEMENT_LABELS[need.element]} {need.code} ({linkText(da, parameter, need)})</option>)}
           </select>
         </FormRow>
-        {!linked && (
+        {!linked && holdsEstimate(model) && <EstimateRows parameter={parameter} disabled={dis} onPatch={(next) => patch({ ...next, valueMode: "TYPED" })} />}
+        {!linked && !holdsEstimate(model) && (
           <FormRow label="Value" htmlFor={fid("value")}>
             <WorkbookInput id={fid("value")} className="posfield__input da-form__number" type="number" min="0" step="any" value={parameter.value ?? ""} disabled={dis} onChange={(event) => numberFrom(event.target.value, (value) => patch({ value, valueMode: "TYPED" }))} />
-            <select className="posfield__select" aria-label="Value type" value={parameter.valueType} disabled={dis} onChange={(event) => patch({ valueType: event.target.value === "POINT_ESTIMATE" ? "POINT_ESTIMATE" : "MEAN" })}>
+            <select className="posfield__select" aria-label="Value type" value={parameter.valueType ?? "MEAN"} disabled={dis} onChange={(event) => patch({ valueType: event.target.value === "POINT_ESTIMATE" ? "POINT_ESTIMATE" : "MEAN" })}>
               <option value="MEAN">Mean</option>
               <option value="POINT_ESTIMATE">Point estimate</option>
             </select>
@@ -2071,16 +2236,19 @@ function OutlierWindow({ id, onClose }: { id: string; onClose: () => void }): JS
 
 export {
   AreaRow,
-  InclusionRows,
+  EstimateRows,
   LinesRow,
   NEED_PAGE,
   NeedChecksTable,
   NeedPager,
+  PraxisValue,
+  estimateText,
   listCell,
-  listFromText,
   numberFrom,
-  plainNumber,
+  praxisText,
+  spreadFields,
   statText,
+  waitNote,
   systemOptions,
   ScopeScreen,
   DataNeedsScreen,

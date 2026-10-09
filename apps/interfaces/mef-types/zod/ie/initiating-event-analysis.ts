@@ -8,11 +8,8 @@ import type { InitiatingEventsAnalysis } from "../../ie/initiating-event-analysi
 import { TechnicalElementTypes } from "../../technical-element";
 import { WorkbookParameterReferenceSchema } from "../modeling/references";
 import { technicalElementSchema } from "../technical-element";
-import {
-  FrequencySchema,
-  FrequencyWithDistributionSchema,
-  InitiatingEventSchema,
-} from "../core/events";
+import { InitiatingEventSchema, UncertainFrequencySchema } from "../core/events";
+import { UncertainExpressionSchema } from "../core/uncertainty";
 import {
   ImportanceLevelSchema,
   ScreeningStatusSchema,
@@ -48,8 +45,6 @@ export const QuantificationBasisSchema = z.enum([
   "FAULT_TREE",
 ]);
 export const HazardTypeSchema = z.enum(["INTERNAL", "EXTERNAL"]);
-
-const FrequencyValueSchema = z.union([FrequencySchema, FrequencyWithDistributionSchema]);
 
 export const TripParameterSchema = z.object({
   parameter: z.string(),
@@ -165,7 +160,7 @@ export const InitiatingEventGroupSchema = z.object({
   challengedSafetyFunctions: z.array(z.string()),
   applicableStates: z.array(z.string()),
   affectedReactorOrSourceCombinations: z.array(z.string()).optional(),
-  meanFrequency: FrequencyValueSchema.optional(),
+  frequency: UncertainFrequencySchema.optional(),
   controlledDataSource: WorkbookParameterReferenceSchema.optional(),
   riskImportance: ImportanceLevelSchema.optional(),
   implementsSrs: z.array(SRReferenceSchema),
@@ -197,6 +192,7 @@ export const FrequencyFaultTreeNodeSchema = z.object({
   basicEventCode: z.string().optional(),
   catalogueOnly: z.boolean().optional(),
   probability: z.number().min(0).max(1).optional(),
+  expression: UncertainExpressionSchema.optional(),
   houseState: z.boolean().optional(),
   transferTarget: FrequencyFaultTreeTransferTargetSchema.optional(),
 });
@@ -212,15 +208,14 @@ export const FrequencyDataSourceSchema = z.object({
   exposureModuleYears: z.number().optional(),
   priorMean: z.number().optional(),
   priorWeightPseudoEvents: z.number().optional(),
-  distributionFamily: z.enum(["POINT", "GAMMA", "LOGNORMAL", "BETA"]).optional(),
-  distributionParameters: z.array(z.number()).optional(),
-  faultTreeTopMean: z.number().optional(),
+  estimate: UncertainExpressionSchema.optional(),
+  faultTreeTop: UncertainExpressionSchema.optional(),
   faultTree: z.array(FrequencyFaultTreeNodeSchema).optional(),
 });
 
 export const InitiatingEventFrequencyQuantificationSchema = z.object({
   initiatorOrGroupId: z.string(),
-  meanFrequency: FrequencyValueSchema,
+  frequency: UncertainFrequencySchema.optional(),
   basis: QuantificationBasisSchema,
   plantCalendarYearBasis: z.boolean(),
   posTimeFractionApplied: z.boolean(),

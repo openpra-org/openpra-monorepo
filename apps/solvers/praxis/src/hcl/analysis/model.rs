@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use crate::core::distribution::{
+    UncertainExpression, UncertainParameter, UncertainVector, UncertainVectorParameter,
+};
+use crate::core::distribution_sampling::{SamplingMethod, SamplingPlan};
 use crate::hcl::{numpy_statistics, HclBridgeStats, HclJunctionTreeStats, HclSettings};
 use crate::Result;
 
@@ -14,128 +18,71 @@ pub struct HclAnalysisSettings {
     pub uncertainty: Option<HclUncertaintySettings>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(
-    tag = "family",
-    rename_all = "SCREAMING_SNAKE_CASE",
-    deny_unknown_fields
-)]
-pub enum HclProbabilityDistribution {
-    Beta {
-        alpha: f64,
-        beta: f64,
-    },
-    Lognormal {
-        median: f64,
-        #[serde(alias = "errorFactor")]
-        error_factor: f64,
-    },
-    Uniform {
-        lower: f64,
-        upper: f64,
-    },
-    Normal {
-        mean: f64,
-        #[serde(alias = "standardDeviation")]
-        standard_deviation: f64,
-    },
-    Logitnormal {
-        mu: f64,
-        sigma: f64,
-    },
-    Gamma {
-        shape: f64,
-        scale: f64,
-    },
-    Exponential {
-        rate: f64,
-    },
-    Triangular {
-        lower: f64,
-        mode: f64,
-        upper: f64,
-    },
-}
-
-/// Shared selection of HCL_MH's distinct FT and BN sampling routines.
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub enum HclSampler {
-    /// Preserve saved configurations that predate the sampler setting.
-    #[default]
     #[serde(rename = "MC")]
     MonteCarlo,
     #[serde(rename = "LHS")]
     LatinHypercube,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct HclBasicEventUncertaintySpec {
-    pub event: String,
-    pub distribution: HclProbabilityDistribution,
+impl HclSampler {
+    pub fn method(self) -> SamplingMethod {
+        match self {
+            HclSampler::MonteCarlo => SamplingMethod::MonteCarlo,
+            HclSampler::LatinHypercube => SamplingMethod::LatinHypercube,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct HclCptRowUncertaintySpec {
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HclBasicEventUncertainty {
+    pub event: String,
+    pub expression: UncertainExpression,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HclCptRowUncertainty {
     pub node: String,
     pub row_index: usize,
-    pub prior: HclCptPrior,
+    pub row: UncertainVector,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(
-    tag = "family",
-    rename_all = "SCREAMING_SNAKE_CASE",
-    deny_unknown_fields
-)]
-pub enum HclCptPrior {
-    /// `true_state` identifies the state corresponding to HCL_MH's `True` label.
-    Beta {
-        alpha: f64,
-        beta: f64,
-        #[serde(alias = "trueStateId")]
-        true_state: String,
-    },
-    /// Parameters in the BN node's state order.
-    Dirichlet { alpha: Vec<f64> },
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HclCptGeneratorSpec {
     pub node: String,
     pub generator: HclCptGenerator,
 }
 
-/// HCL_MH node generators. State/parent identifiers adapt source labels only.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(
-    tag = "type",
-    rename_all = "snake_case",
+    tag = "kind",
+    rename_all = "SCREAMING_SNAKE_CASE",
     rename_all_fields = "camelCase",
     deny_unknown_fields
 )]
 pub enum HclCptGenerator {
     SeismicFragility {
         pga_parent_id: String,
-        theta: f64,
-        beta_r: f64,
-        beta_u: f64,
         true_state_id: String,
         false_state_id: String,
-        pga_centers: Vec<HclPgaCenter>,
+        median: UncertainExpression,
+        randomness: UncertainExpression,
+        demands: Vec<HclFragilityDemand>,
     },
     SeismicPgaBins {
         none_state_id: String,
-        mission_time: f64,
-        frequency_to_probability: HclPgaFrequencyConversion,
+        mission_time: UncertainExpression,
+        conversion: HclPgaFrequencyConversion,
         bins: Vec<HclPgaBin>,
     },
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum HclPgaFrequencyConversion {
     Poisson,
     Linear,
@@ -143,33 +90,44 @@ pub enum HclPgaFrequencyConversion {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct HclPgaCenter {
+pub struct HclFragilityDemand {
     pub state_id: String,
-    pub value: f64,
+    pub demand: f64,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HclPgaBin {
     pub state_id: String,
-    pub median_frequency: f64,
-    pub error_factor95: f64,
+    pub frequency: UncertainExpression,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HclUncertaintySettings {
     pub sample_count: usize,
     pub seed: u64,
-    #[serde(default, alias = "basic_event_sampler")]
     pub sampler: HclSampler,
     #[serde(default)]
-    pub cpt_probability_clip_epsilon: f64,
-    pub basic_event_distributions: Vec<HclBasicEventUncertaintySpec>,
-    pub cpt_row_distributions: Vec<HclCptRowUncertaintySpec>,
-    /// Source node order: row-prior nodes (first occurrence), then this list.
+    pub basic_events: Vec<HclBasicEventUncertainty>,
+    #[serde(default)]
+    pub cpt_rows: Vec<HclCptRowUncertainty>,
     #[serde(default)]
     pub cpt_generators: Vec<HclCptGeneratorSpec>,
+    #[serde(default)]
+    pub uncertainty_parameters: Vec<UncertainParameter>,
+    #[serde(default)]
+    pub uncertainty_vectors: Vec<UncertainVectorParameter>,
+}
+
+impl HclUncertaintySettings {
+    pub fn plan(&self) -> SamplingPlan {
+        SamplingPlan {
+            method: self.sampler.method(),
+            trials: self.sample_count,
+            seed: self.seed,
+        }
+    }
 }
 
 /// Compact empirical distribution returned by PRAXIS after uncertainty

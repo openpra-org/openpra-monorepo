@@ -36,7 +36,8 @@ function group(uuid: string, affectedSystems: string[], members: string[]): Syst
     scope: affectedSystems.length > 1 ? "INTERSYSTEM" : "INTRASYSTEM",
     affectedComponents: [],
     affectedSystems,
-    modelType: "BETA_FACTOR",
+    factors: { model: "BETA_FACTOR", beta: { node: "VALUE", value: { unit: "FRACTION", law: { family: "POINT", value: 0.05 } } } },
+    total: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.01 } } },
     members: { basicEvents: members.map((id) => ({ id })) },
     implementsSrs: [],
   };
@@ -105,13 +106,12 @@ function makeAnalysis(): SystemsAnalysis {
       { uuid: "des-fr", designator: "FR", kind: "FAILURE_MODE", meaning: "Fails to run" },
     ],
     uncertaintyAnalyses: [
-      { uuid: "ua-a", system: "SYS-A", propagationMethod: "MONTE_CARLO", modelUncertainties: [{ uncertaintyId: "MU-A", description: "A", impact: "", isQuantified: false, treatmentApproach: "" }], parameterUncertainties: [], implementsSrs: [] },
+      { uuid: "ua-a", system: "SYS-A", propagationMethod: "MONTE_CARLO", modelUncertainties: [{ uncertaintyId: "MU-A", description: "A", impact: "", isQuantified: false, treatmentApproach: "" }], implementsSrs: [] },
       {
         uuid: "ua-b",
         system: "SYS-B",
         propagationMethod: "MONTE_CARLO",
         modelUncertainties: [],
-        parameterUncertainties: [],
         ccfUncertainties: [
           { uncertaintyId: "CU-A", ccfGroupId: "CCF-A", description: "", impact: "" },
           { uncertaintyId: "CU-B", ccfGroupId: "CCF-B", description: "", impact: "" },
@@ -173,6 +173,20 @@ describe("SY system removal", () => {
     expect(analysis.commonCauseFailureGroups.map(({ uuid }) => uuid)).toEqual(["CCF-B", "CCF-DRAFT"]);
     expect(analysis.commonCauseFailureGroups[0]).toMatchObject({ affectedSystems: ["SYS-B"], members: { basicEvents: [{ id: "BE-B1" }, { id: "BE-SHARED" }] } });
     expect(commonCauseGroups).toBe(2);
+  });
+
+  it("refits typed factors and the shared total of a trimmed group and keeps linked factors as DA gave them", () => {
+    const linked = { node: "PARAMETER" as const, reference: { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: "da-1", entityId: "DA-BE-1" } };
+    const trio = { ...group("CCF-TRIO", ["SYS-C"], ["BE-C1", "BE-SHARED", "BE-A1"]), factors: { model: "ALPHA_FACTOR" as const, testing: "STAGGERED" as const, alphas: { node: "VALUE" as const, law: { family: "FIXED" as const, values: [0.9, 0.06, 0.04] } } } };
+    const base = makeAnalysis();
+    const analysis: SystemsAnalysis = {
+      ...base,
+      systemBasicEvents: base.systemBasicEvents.map((item) => (item.uuid === "BE-C1" || item.uuid === "BE-SHARED" ? { uuid: item.uuid, code: item.code, name: item.name, eventType: "BASIC", failureMode: "FAILURE_TO_RUN", expression: linked, implementsSrs: [] } : item)),
+      commonCauseFailureGroups: [trio, { ...trio, uuid: "CCF-LINKED", dataAnalysisCCFParameterRef: "DA-CCF-1" }],
+    };
+    const [typed, fromDa] = withoutSystem(analysis, "SYS-A").analysis.commonCauseFailureGroups;
+    expect(typed).toMatchObject({ members: { basicEvents: [{ id: "BE-C1" }, { id: "BE-SHARED" }] }, total: linked, factors: { model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "VALUE", law: { family: "FIXED", values: [0.95, 0.05] } } } });
+    expect(fromDa).toMatchObject({ total: linked, factors: trio.factors });
   });
 
   it("removes the records that refer to the system and trims shared lists", () => {

@@ -10,12 +10,15 @@ import {
   WidthType,
   BorderStyle,
 } from "docx";
-import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
-import { CCF_METHOD_LABELS, CCF_MODEL_LABELS, CCF_TESTING_LABELS, EVIDENCE_KIND_LABELS, FREQUENCY_MODE_LABELS, INITIATOR_CATEGORY_LABELS, SENSITIVITY_KIND_LABELS, MAINTENANCE_KIND_LABELS, MAINTENANCE_METHOD_LABELS, RESTORATION_KIND_LABELS, RESTORATION_FROM_LABELS, SOURCE_ORIGIN_LABELS } from "./daViewData";
+import { holdsEstimate, type DataAnalysis, type DataAnalysisParameter } from "interfaces-mef-types/da/data-analysis";
+import { uncertaintyIdle } from "../newly-developed-methods/shared/useUncertainty";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
+import { parameterPoint, parameterSpread } from "./daLaws";
+import { CCF_METHOD_LABELS, CCF_TESTING_LABELS, EVIDENCE_KIND_LABELS, FREQUENCY_MODE_LABELS, INITIATOR_CATEGORY_LABELS, SENSITIVITY_KIND_LABELS, MAINTENANCE_KIND_LABELS, MAINTENANCE_METHOD_LABELS, RESTORATION_KIND_LABELS, RESTORATION_FROM_LABELS, SOURCE_ORIGIN_LABELS } from "./daViewData";
 import { libraryCount } from "./daSourcing";
 import { maintenanceEstimate, maintenanceParameters, restorationEstimate, restorationParameters } from "./daUnavailability";
-import { ccfResult } from "./daCcf";
-import { frequencyEstimate, frequencyParameters } from "./daFrequencies";
+import { ccfResult, factorsText } from "./daCcf";
+import { frequencyParameters } from "./daFrequencies";
 import { sensitivityResult } from "./daUncertainty";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
@@ -60,6 +63,38 @@ function val(v: number | undefined): string {
 
 function hours(v: number | undefined): string {
   return v === undefined ? "—" : String(Number(v.toPrecision(4)));
+}
+
+const SETTLE_ROUNDS = 40;
+
+function pointText(parameter: DataAnalysisParameter): string {
+  const state = parameterPoint(parameter);
+  if (state === undefined || state.status === "pending") return "—";
+  return state.status === "failed" ? "PRAXIS failed" : val(state.value);
+}
+
+function estimateCell(parameter: DataAnalysisParameter): string {
+  if (!holdsEstimate(parameter.quantificationModel) || parameter.estimate === undefined) return "—";
+  return expressionText(parameter.estimate, (key) => key.slice(key.indexOf(":") + 1));
+}
+
+function percentileText(parameter: DataAnalysisParameter, probability: 0.05 | 0.95): string {
+  const state = parameterSpread(parameter);
+  if (state === undefined || state.status === "pending") return "—";
+  if (state.status === "failed") return "PRAXIS failed";
+  return val(probability === 0.05 ? state.value.p05 : state.value.p95);
+}
+
+function nextTask(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 20));
+}
+
+async function settled(read: () => void): Promise<void> {
+  for (let round = 0; round < SETTLE_ROUNDS; round += 1) {
+    read();
+    if (uncertaintyIdle()) return;
+    while (!uncertaintyIdle()) await nextTask();
+  }
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -149,9 +184,9 @@ function buildChildren(a: DataAnalysis, final: boolean): (Paragraph | Table)[] {
   out.push(para(doc.repairAndRecoveryData));
   const maintenance = maintenanceParameters(a);
   out.push(heading("Test and maintenance unavailability", HeadingLevel.HEADING_2));
-  out.push(dataTable(["Parameter", "Kind", "Method", "Hours out", "Hours required", "Mean"], maintenance.length > 0 ? maintenance.map((p) => {
+  out.push(dataTable(["Parameter", "Kind", "Method", "Hours out", "Hours required", "Value"], maintenance.length > 0 ? maintenance.map((p) => {
     const estimate = maintenanceEstimate(a, p);
-    return [`${p.uuid} · ${p.name}`, MAINTENANCE_KIND_LABELS[estimate.kind], estimate.method === undefined ? "Not chosen" : MAINTENANCE_METHOD_LABELS[estimate.method], hours(estimate.countedHours), hours(estimate.requiredHours), val(p.value)];
+    return [`${p.uuid} · ${p.name}`, MAINTENANCE_KIND_LABELS[estimate.kind], estimate.method === undefined ? "Not chosen" : MAINTENANCE_METHOD_LABELS[estimate.method], hours(estimate.countedHours), hours(estimate.requiredHours), pointText(p)];
   }) : [["None", "—", "—", "—", "—", "—"]]));
   const restoration = restorationParameters(a);
   out.push(heading("Repair and recovery", HeadingLevel.HEADING_2));
@@ -164,22 +199,21 @@ function buildChildren(a: DataAnalysis, final: boolean): (Paragraph | Table)[] {
   out.push(dataTable(["Outage", "Evolution", "State", "Hours each", "Per year"], outages.length > 0 ? outages.map((o) => [o.id, o.evolution, o.stateId ?? "—", hours(o.hours), hours(o.perYear)]) : [["None", "—", "—", "—", "—"]]));
 
   out.push(heading("Component failure data", HeadingLevel.HEADING_1));
-  out.push(dataTable(["Parameter", "Type", "Value", "Risk-significant"], params.map((p) => [p.name, TYPE_LABELS[p.parameterType] ?? p.parameterType, val(p.value), p.isRiskSignificant === true ? "Yes" : "No"])));
+  out.push(dataTable(["Parameter", "Type", "Estimate", "Value", "Risk-significant"], params.map((p) => [p.name, TYPE_LABELS[p.parameterType] ?? p.parameterType, estimateCell(p), pointText(p), p.isRiskSignificant === true ? "Yes" : "No"])));
 
   out.push(heading("Common-cause failure data", HeadingLevel.HEADING_1));
   out.push(para(doc.ccfParameterBasis));
   out.push(dataTable(["Group", "Size", "Testing", "Method", "Template", "To Systems Analysis", "All fail, each"], ccfs.length > 0 ? ccfs.map((c) => {
     const result = ccfResult(a, c);
     const all = result.combinations[result.combinations.length - 1];
-    return [`${c.uuid} · ${c.name ?? c.ccfGroupReference}`, c.groupSize === undefined ? "—" : String(c.groupSize), c.testing === undefined ? "Not set" : CCF_TESTING_LABELS[c.testing], c.method === undefined ? "Not chosen" : CCF_METHOD_LABELS[c.method], c.priorTemplate ?? "—", `${CCF_MODEL_LABELS[c.modelType] ?? c.modelType}, ${Object.entries(c.parameters).map(([k, v]) => `${k} ${val(v)}`).join(", ")}`, val(all?.each)];
+    return [`${c.uuid} · ${c.name ?? c.ccfGroupReference}`, c.groupSize === undefined ? "—" : String(c.groupSize), c.testing === undefined ? "Not set" : CCF_TESTING_LABELS[c.testing], c.method === undefined ? "Not chosen" : CCF_METHOD_LABELS[c.method], c.priorTemplate ?? "—", c.factors === undefined ? "—" : factorsText(c.factors), val(all?.each)];
   }) : [["None", "—", "—", "—", "—", "—", "—"]]));
 
   const frequencies = frequencyParameters(a);
   out.push(heading("Initiating event frequency data", HeadingLevel.HEADING_1));
   out.push(dataTable(["Parameter", "Category", "Value from", "Mean", "5th", "95th"], frequencies.length > 0 ? frequencies.map((p) => {
-    const estimate = p.valueMode === "CALCULATED" ? frequencyEstimate(a, p) : undefined;
     const mode = p.valueMode === "CALCULATED" ? "CALCULATED" : p.valueMode === "LINKED" ? "LINKED" : "TYPED";
-    return [`${p.uuid} · ${p.name}`, p.frequency?.category === undefined ? "—" : INITIATOR_CATEGORY_LABELS[p.frequency.category], FREQUENCY_MODE_LABELS[mode], val(p.value), val(estimate?.p05), val(estimate?.p95)];
+    return [`${p.uuid} · ${p.name}`, p.frequency?.category === undefined ? "—" : INITIATOR_CATEGORY_LABELS[p.frequency.category], FREQUENCY_MODE_LABELS[mode], pointText(p), percentileText(p, 0.05), percentileText(p, 0.95)];
   }) : [["None", "—", "—", "—", "—", "—"]]));
 
   out.push(heading("Conformance summary", HeadingLevel.HEADING_1));
@@ -198,6 +232,9 @@ function buildChildren(a: DataAnalysis, final: boolean): (Paragraph | Table)[] {
 }
 
 async function generateDaReport(da: DataAnalysis, final: boolean): Promise<void> {
+  await settled(() => {
+    buildChildren(da, final);
+  });
   const doc = new Document({ sections: [{ children: buildChildren(da, final) }] });
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);

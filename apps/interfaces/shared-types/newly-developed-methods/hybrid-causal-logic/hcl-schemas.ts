@@ -29,7 +29,6 @@ export {
   HclBaseEvidenceSchema,
   HclEvidenceScenarioSchema,
   HclHazardGridDefinitionSchema,
-  HclBasicEventProbabilityDistributionSchema,
   HclBasicEventUncertaintySchema,
   HclCptRowUncertaintySchema,
   HclUncertaintySettingsSchema,

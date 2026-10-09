@@ -6,6 +6,7 @@ import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plan
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import { type Workbook } from "interfaces-shared-types";
 import { listWorkbooks } from "../workbooks/workbookApi";
 import { getIeWorkbook } from "../ie-workbooks/ieWorkbookApi";
@@ -13,6 +14,7 @@ import { getPosWorkbook } from "../pos-workbooks/posWorkbookApi";
 import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
 import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
 import { getEsqWorkbook } from "../esq-workbooks/esqWorkbookApi";
+import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
 import { exampleLinkVariant } from "./daViewData";
 
 async function listLinkOptions(projectId: string, code: DaLinkCode): Promise<Workbook[]> {
@@ -63,6 +65,12 @@ async function loadLinkedEsq(id: string): Promise<EventSequenceQuantification> {
   const variant = exampleLinkVariant(id);
   if (variant !== undefined) return (await fetchJson<{ esq: { mef: EventSequenceQuantification } }>(`/api/example-workbooks/esq-bundle?example=${variant}`)).esq.mef;
   return (await getEsqWorkbook(id)).mef;
+}
+
+async function loadLinkedSc(id: string): Promise<SuccessCriteriaDevelopment> {
+  const variant = exampleLinkVariant(id);
+  if (variant !== undefined) return (await fetchJson<{ sc: { mef: SuccessCriteriaDevelopment } }>(`/api/example-workbooks/sc-bundle?example=${variant}`)).sc.mef;
+  return (await getScWorkbook(id)).mef;
 }
 
 type DaWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
@@ -139,6 +147,7 @@ export {
   loadLinkedHr,
   loadLinkedIe,
   loadLinkedPos,
+  loadLinkedSc,
   loadLinkedSy,
   getDaExampleOptions,
   getDaWorkbook,

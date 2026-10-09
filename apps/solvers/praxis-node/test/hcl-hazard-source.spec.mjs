@@ -14,7 +14,7 @@ const close = (actual, expected) => assert.ok(
 
 function request(c, eventTree = false) {
   let r = requestFor({ variables: c.variables, settings: {
-    sampler: "MC", sample_count: 10, seed: 42, cpt_probability_clip_epsilon: 0,
+    sampler: "MC", sample_count: 10, seed: 42,
     basic_event_distributions: [], cpt_row_distributions: [],
   } });
   r.request.calculationType = "PROBABILITY";
@@ -112,8 +112,8 @@ for (const eventTree of [false, true]) for (const sampler of ["MC", "LHS"]) {
     r.request.calculationType = "UNCERTAINTY";
     r.modelSnapshots[0].solverSettings.uncertainty = {
       sampler, sampleCount: 10, seed: 42,
-      basicEventDistributions: [{faultTreeBasicEvent: {entityId: "E"}, distribution: {family: "UNIFORM", lower: .1, upper: .3}}],
-      cptRowDistributions: [],
+      basicEvents: [{faultTreeBasicEvent: {entityId: "E"}, expression: {node: "VALUE", value: {unit: "PROBABILITY", law: {family: "UNIFORM", lower: .1, upper: .3}}}}],
+      cptRows: [],
     };
     for (const operation of ["validate", "execute"]) {
       const output = JSON.parse(addon[operation](JSON.stringify(r)));

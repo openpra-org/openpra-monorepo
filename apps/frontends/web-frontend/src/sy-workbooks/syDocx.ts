@@ -10,11 +10,11 @@ import {
   WidthType,
   BorderStyle,
 } from "docx";
-import { type CommonCauseFailureGroup, type SystemDefinition, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { carriesUncertainExpression, type CommonCauseFailureGroup, type SystemBasicEvent, type SystemDefinition, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { analysisModelBasicEvents, ccfSources, dependencySources, modelSources, plantItems, systemStudies, type PlantList } from "./syUncertainty";
 import { isSystemLevelModel } from "./sySelectors";
-import { CCF_MODELS, CONFIRM_METHODS, RESOURCE_TYPE_LABELS, SCREENING_CRITERIA, toExp } from "./syViewData";
-import { ccfFactorText, memberEvents, sharedCauseLines, totalFailureProbability } from "./syCcf";
+import { CONFIRM_METHODS, RESOURCE_TYPE_LABELS, SCREENING_CRITERIA, toExp } from "./syViewData";
+import { ccfFactorText, ccfModelText, memberEvents, sharedCauseLines } from "./syCcf";
 import {
   DEPENDENCY_TREATMENT_LABELS,
   SUPPORT_KIND_LABELS,
@@ -26,15 +26,72 @@ import {
 } from "./syDependencyLinks";
 import { TREATMENT_LABELS, integrationFor, systemOutages, systemTree } from "./syFailureRecords";
 import { BOUNDARY_STATUS_LABELS, DESIGNATOR_KIND_LABELS, EVENT_TYPE_LABELS, boundaryRows, confirmationRecords, detailRecords } from "./syIntegrityChecks";
-import type { SyControlledComponentBoundaryOption, SyControlledParameterOption } from "./syWorkbookContext";
+import type { SyControlledComponentBoundaryOption, SyControlledParameterOption, SyLinkedInputs } from "./syWorkbookContext";
 import { AnalysisRunDetailsSchema, AnalysisRunProvenanceListSchema } from "interfaces-shared-types/newly-developed-methods/shared";
 import { FaultTreeAnalysisResultSchema } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { fetchJson } from "../api/client";
+import { evaluateUncertainty } from "../newly-developed-methods/shared/uncertaintyApi";
+import { parametersFor } from "../newly-developed-methods/shared/useUncertainty";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
+import { linkedOptions } from "./syBasicEventValues";
+import { syValueSources } from "./syMissionTimes";
+import { pointsOf } from "../newly-developed-methods/shared/uncertaintyPoints";
+import { numberText } from "../newly-developed-methods/shared/uncertainText";
 
 type ReportKind = "methodology" | "system";
-interface ReportLinks { parameters: readonly SyControlledParameterOption[]; boundaries: readonly SyControlledComponentBoundaryOption[] }
+interface ReportLinks {
+  parameters: readonly SyControlledParameterOption[];
+  boundaries: readonly SyControlledComponentBoundaryOption[];
+  missionTimes: Pick<SyLinkedInputs, "scMissionTimeOptions" | "scMissionTimeTable"> | null;
+}
 type Heading = (typeof HeadingLevel)[keyof typeof HeadingLevel];
 interface UncertaintySummary { modelId: string; mean: number; lower: number; upper: number; samples: number }
+
+async function eventPoints(events: readonly SystemBasicEvent[], links: ReportLinks): Promise<Map<string, string>> {
+  const valued = events.flatMap((event) => (carriesUncertainExpression(event.failureMode) && event.expression !== undefined ? [{ id: event.uuid, expression: event.expression }] : []));
+  if (valued.length === 0) return new Map();
+  try {
+    const response = await evaluateUncertainty({
+      parameters: parametersFor(valued.map(({ expression }) => expression), syValueSources(links.parameters, links.missionTimes).table),
+      laws: [],
+      expressions: valued.map(({ expression }, index) => ({ id: String(index), expression, unit: "PROBABILITY", probabilities: [] })),
+      operations: [],
+    });
+    return new Map(valued.map(({ id }, index) => {
+      const answer = response.expressions.find((entry) => entry.id === String(index));
+      return [id, answer === undefined ? "Not available" : "error" in answer ? `Not available: ${answer.error}` : toExp(answer.point)];
+    }));
+  } catch (error) {
+    const reason = error instanceof Error ? `Not available: ${error.message}` : "Not available";
+    return new Map(valued.map(({ id }) => [id, reason]));
+  }
+}
+
+function eventValueRow(event: SystemBasicEvent, links: ReportLinks, points: ReadonlyMap<string, string>): string[] {
+  const mode = String(event.failureMode ?? "—");
+  if (!carriesUncertainExpression(event.failureMode)) return [event.code, mode, event.controlledDataSource === undefined ? "Typed probability" : "Linked probability", event.probability === undefined ? "—" : toExp(event.probability)];
+  if (event.expression === undefined) return [event.code, mode, "No value", "—"];
+  return [event.code, mode, expressionText(event.expression, syValueSources(links.parameters, links.missionTimes).label), points.get(event.uuid) ?? "—"];
+}
+
+async function systemHours(systems: readonly SystemDefinition[], links: ReportLinks): Promise<Map<string, string>> {
+  const entries = systems.flatMap((system) => (system.missionTime === undefined ? [] : [{ key: system.uuid, expression: system.missionTime, unit: "HOURS" as const }]));
+  const text = new Map(systems.map((system) => [system.uuid, system.missionTime === undefined ? "Not set" : "Not available"]));
+  try {
+    const points = await pointsOf(entries, syValueSources(links.parameters, links.missionTimes).table);
+    points.forEach((point, key) => text.set(key, `${numberText(point)} h`));
+    return text;
+  } catch (error) {
+    const reason = error instanceof Error ? `Not available: ${error.message}` : "Not available";
+    entries.forEach((entry) => text.set(entry.key, reason));
+    return text;
+  }
+}
+
+function missionTimeText(system: SystemDefinition, hours: ReadonlyMap<string, string>, links: ReportLinks): string {
+  const point = hours.get(system.uuid) ?? "Not set";
+  return system.missionTime === undefined ? point : `${point} (${expressionText(system.missionTime, syValueSources(links.parameters, links.missionTimes).label)})`;
+}
 
 async function currentUncertaintySummaries(workbookId: string | null, revision: number | null): Promise<UncertaintySummary[]> {
   if (workbookId === null || revision === null) return [];
@@ -127,7 +184,8 @@ function modelLabel(a: SystemsAnalysis, systemId: string): string {
   return isSystemLevelModel(model) ? "System-level" : "Fault tree";
 }
 
-function commonCauseTable(a: SystemsAnalysis, groups: readonly CommonCauseFailureGroup[]): Table {
+function commonCauseTable(a: SystemsAnalysis, groups: readonly CommonCauseFailureGroup[], links: ReportLinks): Table {
+  const label = syValueSources(links.parameters, links.missionTimes).label;
   const systemName = (id: string): string => {
     const system = a.systemDefinitions.find((candidate) => candidate.uuid === id);
     return system?.abbreviation ?? system?.name ?? id;
@@ -135,14 +193,13 @@ function commonCauseTable(a: SystemsAnalysis, groups: readonly CommonCauseFailur
   return dataTable(
     ["Group", "Member events", "Shared causes", "Defenses", "Parameters", "Source"],
     groups.length === 0 ? [["None", "—", "—", "—", "—", "—"]] : groups.map((group) => {
-      const total = totalFailureProbability(group);
       const reference = group.dataAnalysisCCFParameterRef ?? "";
       return [
         group.scope === "INTERSYSTEM" ? `${group.name} (across ${group.affectedSystems.map(systemName).join(", ")})` : group.name,
         memberEvents(group, a).map((event) => event.name).join(", ") || "—",
         sharedCauseLines(group).join(", ") || "—",
         (group.defenseMechanisms ?? []).join(", ") || "—",
-        [CCF_MODELS[group.modelType]?.label ?? group.modelType, ccfFactorText(group), total === null ? "" : `Qₜ ${toExp(total)}`].filter((part) => part.length > 0).join(" · "),
+        [ccfModelText(group.factors), ccfFactorText(group.factors, label), `Qₜ ${expressionText(group.total, label)}`].join(" · "),
         reference.length > 0 ? `DA ${reference}` : (group.dataSources?.[0]?.reference ?? "Typed"),
       ];
     }),
@@ -407,7 +464,7 @@ function plantUncertaintyContent(a: SystemsAnalysis): (Paragraph | Table)[] {
   });
 }
 
-function systemDescriptions(a: SystemsAnalysis, links: ReportLinks): (Paragraph | Table)[] {
+function systemDescriptions(a: SystemsAnalysis, links: ReportLinks, hours: ReadonlyMap<string, string>): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [heading("System descriptions", HeadingLevel.HEADING_1)];
   for (const system of a.systemDefinitions) {
     const model = a.systemLogicModels.find((candidate) => candidate.systemReference === system.uuid);
@@ -418,7 +475,7 @@ function systemDescriptions(a: SystemsAnalysis, links: ReportLinks): (Paragraph 
     out.push(heading(system.abbreviation === undefined ? system.name : `${system.name} (${system.abbreviation})`, HeadingLevel.HEADING_2));
     out.push(para(`Top event: ${system.description ?? "Not set"}`));
     out.push(para(`Success criterion: ${system.successCriterion ?? "Not set"}`));
-    out.push(para(`Mission time: ${system.missionTimeHours === undefined ? "Not set" : `${system.missionTimeHours} h`}. Model: ${modelLabel(a, system.uuid)}${model !== undefined && isSystemLevelModel(model) ? `, because ${model.nonDetailedModelJustification ?? ""}` : ""}.`));
+    out.push(para(`Mission time: ${missionTimeText(system, hours, links)}. Model: ${modelLabel(a, system.uuid)}${model !== undefined && isSystemLevelModel(model) ? `, because ${model.nonDetailedModelJustification ?? ""}` : ""}.`));
     out.push(para(`Operating states: ${(system.applicablePlantOperatingStates ?? []).length === 0 ? "every operating state" : (system.applicablePlantOperatingStates ?? []).join(", ")}.`));
     if (variants.length > 0) {
       out.push(heading("Success criterion by operating state", HeadingLevel.HEADING_3));
@@ -461,7 +518,7 @@ function systemDescriptions(a: SystemsAnalysis, links: ReportLinks): (Paragraph 
   return out;
 }
 
-function buildMethodology(a: SystemsAnalysis, final: boolean, summaries: UncertaintySummary[], links: ReportLinks): (Paragraph | Table)[] {
+function buildMethodology(a: SystemsAnalysis, final: boolean, summaries: UncertaintySummary[], links: ReportLinks, hours: ReadonlyMap<string, string>): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
   const stageLabel = a.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational";
   const ccLabel = a.capabilityCategory ?? "N/A";
@@ -488,13 +545,13 @@ function buildMethodology(a: SystemsAnalysis, final: boolean, summaries: Uncerta
       s.name,
       (a.systemToSafetyFunctionMappings.find((mapping) => mapping.systemReference === s.uuid)?.safetyFunctions ?? []).join(", ") || "—",
       modelLabel(a, s.uuid),
-      s.missionTimeHours !== undefined ? `${s.missionTimeHours} h` : "—",
+      hours.get(s.uuid) ?? "Not set",
     ]),
   ));
   out.push(heading("Grouping retained systems", HeadingLevel.HEADING_2));
   out.push(para(doc.modeledComponentsAndFailureModes));
 
-  out.push(...systemDescriptions(a, links));
+  out.push(...systemDescriptions(a, links, hours));
 
   out.push(heading("Methodologies & guidelines", HeadingLevel.HEADING_1));
   out.push(heading("Constructing fault trees", HeadingLevel.HEADING_2));
@@ -509,7 +566,7 @@ function buildMethodology(a: SystemsAnalysis, final: boolean, summaries: Uncerta
   out.push(namingTable(a, links));
 
   out.push(heading("Common cause failure groups", HeadingLevel.HEADING_1));
-  out.push(commonCauseTable(a, a.commonCauseFailureGroups));
+  out.push(commonCauseTable(a, a.commonCauseFailureGroups, links));
 
   out.push(heading("Uncertainty analysis", HeadingLevel.HEADING_1));
   out.push(para("Data Analysis owns parameter estimates and distributions. Systems Analysis links those inputs to basic events and records uncertainty in model assumptions."));
@@ -533,7 +590,7 @@ function buildMethodology(a: SystemsAnalysis, final: boolean, summaries: Uncerta
   return out;
 }
 
-function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean, summaries: UncertaintySummary[], links: ReportLinks): (Paragraph | Table)[] {
+function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean, summaries: UncertaintySummary[], links: ReportLinks, points: ReadonlyMap<string, string>): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
   const stageLabel = a.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational";
   const sysDef = a.systemDefinitions.find((s) => s.uuid === systemId) ?? a.systemDefinitions[0];
@@ -569,21 +626,21 @@ function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean,
   out.push(...failureModeContent(a, sysDef, HeadingLevel.HEADING_2));
   out.push(...integrityContent(a, sysDef, HeadingLevel.HEADING_2, links));
   out.push(heading("Common cause failures", HeadingLevel.HEADING_2));
-  out.push(commonCauseTable(a, ccfGroups));
+  out.push(commonCauseTable(a, ccfGroups, links));
   out.push(heading("Basic event data", HeadingLevel.HEADING_2));
   out.push(dataTable(
-    ["Basic event", "Failure mode", "Probability"],
+    ["Basic event", "Failure mode", "Value", "Point value"],
     logicBasicEvents.length > 0
-      ? logicBasicEvents.map((e) => [e.uuid, String(e.failureMode ?? "—"), e.probability !== undefined ? e.probability.toExponential(1) : "—"])
-      : [["None", "—", "—"]],
+      ? logicBasicEvents.map((event) => eventValueRow(event, links, points))
+      : [["None", "—", "—", "—"]],
   ));
 
   out.push(heading("Uncertainty analysis", HeadingLevel.HEADING_1));
   out.push(para("Parameter uncertainty distributions are maintained in Data Analysis and sampled through the linked basic events. Run results and source revisions are recorded in the workbook analysis history."));
   out.push(dataTable(["Basic event", "DA parameter", "Source workbook"],
-    logicBasicEvents.flatMap((event) => event.controlledDataSource?.referenceType === "WORKBOOK_PARAMETER" ? [[
-      event.code ?? event.uuid, event.controlledDataSource.entityId, event.controlledDataSource.workbookId,
-    ]] : [])));
+    logicBasicEvents.flatMap((event) => (carriesUncertainExpression(event.failureMode) ? linkedOptions(event.expression, links.parameters) : []).map((option) => [
+      event.code, option.parameterName, option.workbookName,
+    ]))));
   out.push(...systemUncertaintyContent(a, sysDef.uuid, HeadingLevel.HEADING_2));
   if (a.plantStage === "PRE_OPERATIONAL") {
     out.push(heading("Pre-operational assumptions", HeadingLevel.HEADING_2));
@@ -604,9 +661,12 @@ function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean,
   return out;
 }
 
-async function generateSyReport(sy: SystemsAnalysis, report: ReportKind, systemId: string, final: boolean, workbookId: string | null = null, revision: number | null = null, links: ReportLinks = { parameters: [], boundaries: [] }): Promise<void> {
+async function generateSyReport(sy: SystemsAnalysis, report: ReportKind, systemId: string, final: boolean, workbookId: string | null = null, revision: number | null = null, links: ReportLinks = { parameters: [], boundaries: [], missionTimes: null }): Promise<void> {
   const summaries = await currentUncertaintySummaries(workbookId, revision);
-  const children = report === "methodology" ? buildMethodology(sy, final, summaries, links) : buildSystemReport(sy, systemId, final, summaries, links);
+  const reportedSystem = sy.systemDefinitions.find((system) => system.uuid === systemId) ?? sy.systemDefinitions[0];
+  const logic = sy.systemLogicModels.find((model) => model.systemReference === reportedSystem?.uuid);
+  const points = report === "methodology" || logic === undefined ? new Map<string, string>() : await eventPoints(analysisModelBasicEvents(sy, logic), links);
+  const children = report === "methodology" ? buildMethodology(sy, final, summaries, links, await systemHours(sy.systemDefinitions, links)) : buildSystemReport(sy, systemId, final, summaries, links, points);
   const doc = new Document({ sections: [{ children }] });
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);

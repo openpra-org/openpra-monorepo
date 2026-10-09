@@ -1,6 +1,8 @@
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { uncertaintyInputsKey } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { stepsFromMef } from "../esqSelectors";
+import { withModelImported } from "../esqModel";
 import {
   contributorRows,
   cutSetRows,
@@ -22,6 +24,10 @@ import { handoffViewOf, publishEsq } from "../esqHandoff";
 import { modelSummary } from "./esqPostFixtures";
 import { NOW } from "./esqPostFixtures";
 import { RELEASE, caseSummary, importanceResult, measureEsq, measureUpstream, uncertaintyResult } from "./esqMeasureFixtures";
+import { PUMP_ESTIMATE, daParameter, fanMission } from "./esqModelFixtures";
+import { applySensitivityCase } from "interfaces-mef-types/esq/esq-sensitivity-inputs";
+
+const FAN_LAW: UncertainExpression = { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "LOGNORMAL", mean: 2e-5, errorFactor: 3, level: 0.95 } } };
 
 function checks(findings: { severity: string; check: string; item: string }[]): string[] {
   return findings.map((finding) => `${finding.severity}:${finding.check}:${finding.item}`);
@@ -102,26 +108,36 @@ describe("ESQ Steps 07 to 10", () => {
     expect(byKey.get("SYSTEM:SYSTEM:SYS-COOL")?.annualFrequency).toBeCloseTo(6e-6, 18);
   });
 
-  it("samples DA laws, asks for spreads on significant inputs and keeps the record", () => {
+  it("samples DA estimates and SY expressions, takes typed spreads only on the other inputs and keeps the record", () => {
     const esq = ranked(measureEsq());
     const view = uncertaintyViewOf(esq);
     const inputs = new Map((view?.inputs ?? []).map((row) => [row.input.key, row]));
-    expect(inputs.get("PARAMETER:P-1")?.input).toMatchObject({ source: "DA", law: { type: "LOGNORMAL", median: 1.2e-3, errorFactor: 5 } });
-    expect(inputs.get("PARAMETER:P-1")?.significant).toBe(true);
-    expect(inputs.get("INITIATOR:IEG-01")?.input).toMatchObject({ source: "IE", law: { type: "LOGNORMAL", median: 2.5889, errorFactor: 2.3 } });
-    expect(inputs.get("EVENT:E-3")).toMatchObject({ significant: true, input: { missing: "SY types this value without a distribution. Type an error factor." } });
+    expect(inputs.get("PARAMETER:P-1")).toMatchObject({ significant: true, sampled: true, input: { contract: true, source: "DA", unit: "PROBABILITY", expression: PUMP_ESTIMATE } });
+    expect(inputs.get("INITIATOR:IEG-01")).toMatchObject({ sampled: true, input: { contract: true, source: "IE", unit: "PER_YEAR", expression: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "LOGNORMAL", mean: 2.943, errorFactor: 2.3, level: 0.95 } } } } });
+    expect(inputs.get("EVENT:E-3")).toMatchObject({ significant: true, sampled: false, input: { contract: true, source: "SY", missing: "SY types this value without uncertainty. Give it a law in SY." } });
+    expect(inputs.get("HFE:HFE-1")).toMatchObject({ sampled: false, input: { contract: false, legacy: { point: 1e-3 }, missing: "HR gives no distribution. Type an error factor." } });
     expect(checks(view?.findings ?? [])).toEqual(expect.arrayContaining([
       "error:No propagated mean:Uncertainty",
       "error:Risk-significant input without a distribution:SUP-FAN-FR · Fan fails to run",
     ]));
-    const spread = withSpread(esq, "EVENT:E-3", { key: "EVENT:E-3", errorFactor: 3, source: "Generic fan spread." });
-    const law = uncertaintyViewOf(spread)?.inputs.find((row) => row.input.key === "EVENT:E-3")?.input.law;
-    const sigma = Math.log(3) / 1.6448536269514722;
-    expect(law).toEqual({ type: "LOGNORMAL", median: expect.closeTo(5e-4 / Math.exp((sigma * sigma) / 2), 18), errorFactor: 3 });
-    expect(uncertaintyInputsKey(spread)).not.toBe(uncertaintyInputsKey(esq));
-    const sampled = withUncertaintyRun(spread, uncertaintyResult(spread));
+    const ignored = withSpread(esq, "EVENT:E-3", { key: "EVENT:E-3", errorFactor: 3, source: "Generic fan spread." });
+    const fan = uncertaintyViewOf(ignored)?.inputs.find((row) => row.input.key === "EVENT:E-3");
+    expect(fan).toMatchObject({ sampled: false, input: { source: "SY" } });
+    expect(fan?.spread).toBeUndefined();
+    const typed = withSpread(esq, "HFE:HFE-1", { key: "HFE:HFE-1", errorFactor: 3, source: "Generic HEP spread." });
+    const human = uncertaintyViewOf(typed)?.inputs.find((row) => row.input.key === "HFE:HFE-1");
+    expect(human).toMatchObject({ sampled: true, spread: { errorFactor: 3 }, input: { source: "TYPED", legacy: { point: 1e-3, errorFactor: 3 } } });
+    expect(human?.input.expression).toEqual({ node: "VALUE", value: { unit: "PROBABILITY", law: { family: "TRUNCATED", law: { family: "LOGNORMAL", mean: 1e-3, errorFactor: 3, level: 0.95 }, lower: null, upper: 1 } } });
+    expect(uncertaintyInputsKey(typed)).not.toBe(uncertaintyInputsKey(esq));
+    const upstream = measureUpstream();
+    const sy = upstream.sy;
+    if (sy === undefined) throw new Error("SY fixture missing");
+    sy.systemBasicEvents = sy.systemBasicEvents.map((event) => (event.uuid === "E-3" ? { ...event, expression: fanMission(FAN_LAW) } : event));
+    const lawful = withModelImported(typed, upstream, NOW);
+    expect(uncertaintyViewOf(lawful)?.inputs.find((row) => row.input.key === "EVENT:E-3")).toMatchObject({ sampled: true, input: { expression: fanMission(FAN_LAW) } });
+    const sampled = withUncertaintyRun(lawful, uncertaintyResult(lawful));
     const after = uncertaintyViewOf(sampled);
-    expect(after?.run).toMatchObject({ trials: 1000, method: "LATIN_HYPERCUBE", correlation: "SHARED", total: { mean: 1.3e-5 } });
+    expect(after?.run).toMatchObject({ trials: 1000, method: "LATIN_HYPERCUBE", correlation: "SHARED", total: { mean: 1.3e-5 }, families: [expect.objectContaining({ standardError: 2e-5 / Math.sqrt(1000) })] });
     expect(after?.runStale).toBe(false);
     expect(checks(after?.findings ?? [])).toContain("note:Mean away from the point value:F-REL");
     expect(checks(after?.findings ?? []).filter((text) => text.startsWith("error"))).toEqual([]);
@@ -157,6 +173,19 @@ describe("ESQ Steps 07 to 10", () => {
       { id: "SS-1-LOW", name: "Pump range · low", kind: "PARAMETER", target: "P-1", value: 1e-3, basis: "Generic spread.", daCaseRef: { workbookId: "da-1", caseId: "SS-1" } },
       { id: "SS-1-HIGH", name: "Pump range · high", kind: "PARAMETER", target: "P-1", value: 4e-3, basis: "Generic spread.", daCaseRef: { workbookId: "da-1", caseId: "SS-1" } },
     ]);
+  });
+
+  it("runs an event case that rewrites a DA-held expression and stops one that reads an unknown parameter", () => {
+    const esq = measureEsq();
+    const doubled = withCase(esq, "SC-E1", { id: "SC-E1", name: "Pump at twice its estimate", kind: "EVENT", target: "E-1", factor: 2, basis: "Doubled for the test." });
+    const applied = applySensitivityCase(doubled, { id: "SC-E1", name: "Pump at twice its estimate", kind: "EVENT", target: "E-1", factor: 2, basis: "Doubled for the test." });
+    expect(applied.esq.model?.events.find((event) => event.id === "E-1")).toMatchObject({ heldBy: "TYPED", expression: { node: "OPERATION", operation: "MULTIPLY", operands: [daParameter("P-1"), expect.objectContaining({ node: "VALUE" })] } });
+    expect(sensitivityViewOf(doubled, measureUpstream())?.cases[0]?.problem).toBeUndefined();
+    const model = esq.model;
+    if (model === undefined) throw new Error("no model");
+    const broken: EventSequenceQuantification = { ...esq, model: { ...model, events: model.events.map((event) => (event.id === "E-4" ? { ...event, expression: daParameter("P-9") } : event)) } };
+    const stopped = withCase(broken, "SC-E4", { id: "SC-E4", name: "Division doubled", kind: "EVENT", target: "E-4", factor: 2, basis: "Doubled for the test." });
+    expect(sensitivityViewOf(stopped, measureUpstream())?.cases[0]?.problem).toBe("RPS-DIV-FS reads DA parameter P-9, which the Step 02 import does not hold.");
   });
 
   it("publishes the family package that RI and DA read and flags a stale publication", () => {

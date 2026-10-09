@@ -5,9 +5,10 @@ import type {
   FunctionalEvent,
   SystemStatus,
 } from "interfaces-mef-types/es/event-sequence-analysis";
-import type { FaultTreeTopEventReference } from "interfaces-mef-types/modeling";
-import type { EventFrequencyUnit } from "interfaces-mef-types/modeling";
+import type { EventTreeInitiatingEventFrequency, FaultTreeTopEventReference } from "interfaces-mef-types/modeling";
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
+import type { UncertainParameter } from "interfaces-mef-types/core/uncertainty";
+import type { ParameterOption } from "../shared/uncertainEditor";
 
 type EventTreeRepresentation = "event-sequence-diagram" | "event-tree" | "table" | "dynamic";
 
@@ -21,7 +22,7 @@ interface EventTreeValidationFinding {
 interface EventTreeInitiatingEventOption {
   id: string;
   name: string;
-  frequency?: number;
+  frequency?: EventTreeInitiatingEventFrequency;
 }
 
 interface EventTreeTransferOption {
@@ -60,6 +61,8 @@ interface EventTreeEditorProps {
   eventSequences: EventSequence[];
   availableInitiatingEvents: EventTreeInitiatingEventOption[];
   availableTransfers: EventTreeTransferOption[];
+  frequencyOptions?: readonly ParameterOption[];
+  frequencyParameters?: ReadonlyMap<string, UncertainParameter>;
   sequenceFamilyOptions?: EventTreeClassificationOption[];
   releaseCategoryOptions?: EventTreeClassificationOption[];
   dynamicRun?: DynamicRun;
@@ -120,8 +123,7 @@ interface EventTreePresentationView {
   id: string;
   name: string;
   initiatingEventId: string;
-  initiatingEventFrequency?: number;
-  initiatingEventFrequencyUnit?: EventFrequencyUnit;
+  initiatingEventFrequency?: EventTreeInitiatingEventFrequency;
   functionalEvents: EventTreeFunctionalEventView[];
   node: EventTreeNodeView | EventTreeLeafReference;
   sequences: EventTreeSequenceView[];

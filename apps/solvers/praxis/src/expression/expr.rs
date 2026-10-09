@@ -1,12 +1,11 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use rand::Rng;
-use rand_distr::{Beta, Distribution as RandDistribution, Gamma, LogNormal, Normal, Uniform};
-
+use crate::core::distribution::{Law, VectorLaw};
+use crate::error::MefError;
+use crate::core::distribution_math::{exp_minus_one_over_x_squared, PreparedLaw};
+use crate::core::special_functions as kernels;
 use crate::{PraxisError, Result};
-
-pub const LOGNORMAL_EF_QUANTILE: f64 = 1.6448536269514722;
 
 const MAX_DEPTH: usize = 128;
 
@@ -14,7 +13,8 @@ pub struct EvalContext<'a> {
     parameters: &'a HashMap<String, Expr>,
     mission_time: f64,
     time: f64,
-    sample_cache: Option<RefCell<HashMap<String, f64>>>,
+    draws: Option<&'a HashMap<String, f64>>,
+    cache: Option<RefCell<HashMap<String, f64>>>,
 }
 
 impl<'a> EvalContext<'a> {
@@ -23,7 +23,8 @@ impl<'a> EvalContext<'a> {
             parameters,
             mission_time,
             time,
-            sample_cache: None,
+            draws: None,
+            cache: None,
         }
     }
 
@@ -31,12 +32,17 @@ impl<'a> EvalContext<'a> {
         EvalContext::new(parameters, mission_time, mission_time)
     }
 
-    pub fn correlated(parameters: &'a HashMap<String, Expr>, mission_time: f64) -> Self {
+    pub fn trial(
+        parameters: &'a HashMap<String, Expr>,
+        mission_time: f64,
+        draws: &'a HashMap<String, f64>,
+    ) -> Self {
         EvalContext {
             parameters,
             mission_time,
             time: mission_time,
-            sample_cache: Some(RefCell::new(HashMap::new())),
+            draws: Some(draws),
+            cache: Some(RefCell::new(HashMap::new())),
         }
     }
 }
@@ -104,45 +110,69 @@ pub enum Expr {
         t0: Box<Expr>,
         time: Box<Expr>,
     },
-    UniformDeviate {
-        lower: Box<Expr>,
-        upper: Box<Expr>,
+    StandbyAverage {
+        lambda: Box<Expr>,
+        interval: Box<Expr>,
     },
-    NormalDeviate {
-        mean: Box<Expr>,
-        sigma: Box<Expr>,
+    Draw {
+        key: String,
+        law: Box<Law>,
     },
-    LognormalDeviate {
-        mu: Box<Expr>,
-        sigma: Box<Expr>,
+    Fragility {
+        median: Box<Expr>,
+        randomness: Box<Expr>,
+        demand: Box<Expr>,
     },
-    GammaDeviate {
-        shape: Box<Expr>,
-        rate: Box<Expr>,
-    },
-    BetaDeviate {
-        alpha: Box<Expr>,
-        beta: Box<Expr>,
-    },
-    TriangularDeviate {
-        lower: Box<Expr>,
-        mode: Box<Expr>,
-        upper: Box<Expr>,
-    },
-    Histogram {
-        boundaries: Vec<Expr>,
-        weights: Vec<Expr>,
+    Component {
+        key: String,
+        index: usize,
+        law: Box<VectorLaw>,
     },
 }
 
-struct Walk<'a, 'b, R: Rng> {
+pub fn component_key(key: &str, index: usize) -> String {
+    format!("{}#{}", key, index)
+}
+
+fn domain_error(message: String, value: f64) -> PraxisError {
+    PraxisError::Mef(MefError::Domain {
+        message,
+        value: Some(value.to_string()),
+        attribute: None,
+    })
+}
+
+pub fn fragility_probability(median: f64, randomness: f64, demand: f64) -> Result<f64> {
+    if !(median > 0.0 && median.is_finite()) {
+        return Err(domain_error("A fragility median must be positive".to_string(), median));
+    }
+    if !(randomness >= 0.0 && randomness.is_finite()) {
+        return Err(domain_error("A fragility randomness must not be negative".to_string(), randomness));
+    }
+    if demand.is_nan() {
+        return Err(domain_error("A fragility demand must be a number".to_string(), demand));
+    }
+    if demand <= 0.0 {
+        return Ok(0.0);
+    }
+    if randomness == 0.0 {
+        return Ok(if demand > median { 1.0 } else { 0.0 });
+    }
+    kernels::normal_cdf((demand / median).ln() / randomness)
+}
+
+pub struct DrawSet<'a> {
+    pub scalars: Vec<(&'a str, &'a Law)>,
+    pub vectors: Vec<(&'a str, &'a VectorLaw)>,
+}
+
+struct Walk<'a, 'b> {
     ctx: &'a EvalContext<'b>,
-    rng: Option<&'a mut R>,
     resolving: Vec<String>,
     depth: usize,
 }
 
-impl<R: Rng> Walk<'_, '_, R> {
+impl Walk<'_, '_> {
     fn eval(&mut self, expr: &Expr) -> Result<f64> {
         self.depth += 1;
         if self.depth > MAX_DEPTH {
@@ -160,11 +190,9 @@ impl<R: Rng> Walk<'_, '_, R> {
         Ok(match expr {
             Expr::Constant(value) => *value,
             Expr::Parameter(name) => {
-                if self.rng.is_some() {
-                    if let Some(cache) = &self.ctx.sample_cache {
-                        if let Some(value) = cache.borrow().get(name) {
-                            return Ok(*value);
-                        }
+                if let Some(cache) = &self.ctx.cache {
+                    if let Some(value) = cache.borrow().get(name) {
+                        return Ok(*value);
                     }
                 }
                 if self.resolving.iter().any(|n| n == name) {
@@ -177,15 +205,12 @@ impl<R: Rng> Walk<'_, '_, R> {
                     self.ctx.parameters.get(name).ok_or_else(|| {
                         PraxisError::Logic(format!("Undefined parameter '{}'", name))
                     })?;
-                let definition = definition.clone();
                 self.resolving.push(name.clone());
-                let value = self.eval(&definition);
+                let value = self.eval(definition);
                 self.resolving.pop();
                 let value = value?;
-                if self.rng.is_some() {
-                    if let Some(cache) = &self.ctx.sample_cache {
-                        cache.borrow_mut().insert(name.clone(), value);
-                    }
+                if let Some(cache) = &self.ctx.cache {
+                    cache.borrow_mut().insert(name.clone(), value);
                 }
                 value
             }
@@ -278,9 +303,8 @@ impl<R: Rng> Walk<'_, '_, R> {
             }
 
             Expr::Exponential { lambda, time } => {
-                let l = self.eval(lambda)?;
-                let t = self.eval(time)?;
-                1.0 - (-l * t).exp()
+                let exposure = self.eval(lambda)? * self.eval(time)?;
+                -kernels::exp_minus_one(-exposure)?
             }
             Expr::Glm {
                 gamma,
@@ -292,11 +316,11 @@ impl<R: Rng> Walk<'_, '_, R> {
                 let l = self.eval(lambda)?;
                 let m = self.eval(mu)?;
                 let t = self.eval(time)?;
-                let denom = l + m;
-                if denom == 0.0 {
+                let total = l + m;
+                if total == 0.0 {
                     g
                 } else {
-                    l / denom - (l - g * denom) / denom * (-denom * t).exp()
+                    g * (-total * t).exp() + l / total * -kernels::exp_minus_one(-total * t)?
                 }
             }
             Expr::Weibull {
@@ -312,70 +336,47 @@ impl<R: Rng> Walk<'_, '_, R> {
                 if t <= shift || a <= 0.0 {
                     0.0
                 } else {
-                    1.0 - (-((t - shift) / a).powf(b)).exp()
+                    -kernels::exp_minus_one(-((t - shift) / a).powf(b))?
                 }
             }
-            Expr::UniformDeviate { lower, upper } => {
-                let lo = self.eval(lower)?;
-                let hi = self.eval(upper)?;
-                match self.rng.as_deref_mut() {
-                    Some(r) => Uniform::new(lo, hi).sample(r),
-                    None => (lo + hi) / 2.0,
+            Expr::StandbyAverage { lambda, interval } => {
+                let exposure = self.eval(lambda)? * self.eval(interval)?;
+                if exposure == 0.0 {
+                    0.0
+                } else {
+                    exposure * exp_minus_one_over_x_squared(-exposure)?
                 }
             }
-            Expr::NormalDeviate { mean, sigma } => {
-                let m = self.eval(mean)?;
-                let s = self.eval(sigma)?;
-                match self.rng.as_deref_mut() {
-                    Some(r) => Normal::new(m, s)
-                        .map_err(|e| PraxisError::Logic(format!("normal deviate: {}", e)))?
-                        .sample(r),
-                    None => m,
-                }
+            Expr::Draw { key, law } => match self.ctx.draws {
+                Some(draws) => *draws.get(key).ok_or_else(|| {
+                    PraxisError::Logic(format!("no sampled value for uncertain input '{}'", key))
+                })?,
+                None => PreparedLaw::new(law)?.mean(),
+            },
+            Expr::Fragility {
+                median,
+                randomness,
+                demand,
+            } => {
+                let m = self.eval(median)?;
+                let r = self.eval(randomness)?;
+                let d = self.eval(demand)?;
+                fragility_probability(m, r, d)?
             }
-            Expr::LognormalDeviate { mu, sigma } => {
-                let location = self.eval(mu)?;
-                let s = self.eval(sigma)?;
-                match self.rng.as_deref_mut() {
-                    Some(r) => LogNormal::new(location, s)
-                        .map_err(|e| PraxisError::Logic(format!("lognormal deviate: {}", e)))?
-                        .sample(r),
-                    None => (location + s * s / 2.0).exp(),
-                }
-            }
-            Expr::GammaDeviate { shape, rate } => {
-                let k = self.eval(shape)?;
-                let r = self.eval(rate)?;
-                match self.rng.as_deref_mut() {
-                    Some(rng_ref) => Gamma::new(k, 1.0 / r)
-                        .map_err(|e| PraxisError::Logic(format!("gamma deviate: {}", e)))?
-                        .sample(rng_ref),
-                    None => k / r,
-                }
-            }
-            Expr::BetaDeviate { alpha, beta } => {
-                let a = self.eval(alpha)?;
-                let b = self.eval(beta)?;
-                match self.rng.as_deref_mut() {
-                    Some(r) => Beta::new(a, b)
-                        .map_err(|e| PraxisError::Logic(format!("beta deviate: {}", e)))?
-                        .sample(r),
-                    None => a / (a + b),
-                }
-            }
-            Expr::TriangularDeviate { lower, mode, upper } => {
-                let lo = self.eval(lower)?;
-                let md = self.eval(mode)?;
-                let hi = self.eval(upper)?;
-                match self.rng.as_deref_mut() {
-                    Some(r) => sample_triangular(lo, md, hi, r),
-                    None => (lo + md + hi) / 3.0,
-                }
-            }
-            Expr::Histogram {
-                boundaries,
-                weights,
-            } => self.histogram(boundaries, weights)?,
+            Expr::Component { key, index, law } => match self.ctx.draws {
+                Some(draws) => *draws.get(&component_key(key, *index)).ok_or_else(|| {
+                    PraxisError::Logic(format!(
+                        "no sampled value for component {} of uncertain vector '{}'",
+                        index, key
+                    ))
+                })?,
+                None => law.mean().get(*index).copied().ok_or_else(|| {
+                    PraxisError::Logic(format!(
+                        "uncertain vector '{}' has no component {}",
+                        key, index
+                    ))
+                })?,
+            },
         })
     }
 
@@ -390,67 +391,12 @@ impl<R: Rng> Walk<'_, '_, R> {
         }
         Ok(acc)
     }
-
-    fn histogram(&mut self, boundaries: &[Expr], weights: &[Expr]) -> Result<f64> {
-        if boundaries.len() != weights.len() + 1 || weights.is_empty() {
-            return Err(PraxisError::Logic(
-                "histogram needs one more boundary than weights".to_string(),
-            ));
-        }
-        let mut bounds = Vec::with_capacity(boundaries.len());
-        for boundary in boundaries {
-            bounds.push(self.eval(boundary)?);
-        }
-        let mut masses = Vec::with_capacity(weights.len());
-        for weight in weights {
-            masses.push(self.eval(weight)?);
-        }
-        let total: f64 = masses.iter().sum();
-        if total <= 0.0 {
-            return Err(PraxisError::Logic(
-                "histogram weights must sum to a positive value".to_string(),
-            ));
-        }
-
-        match self.rng.as_deref_mut() {
-            Some(r) => {
-                let mut target = r.gen::<f64>() * total;
-                for (index, mass) in masses.iter().enumerate() {
-                    if target < *mass {
-                        let lo = bounds[index];
-                        let hi = bounds[index + 1];
-                        return Ok(lo + (hi - lo) * r.gen::<f64>());
-                    }
-                    target -= *mass;
-                }
-                Ok(bounds[bounds.len() - 1])
-            }
-            None => {
-                let mut mean = 0.0;
-                for (index, mass) in masses.iter().enumerate() {
-                    mean += (bounds[index] + bounds[index + 1]) / 2.0 * mass;
-                }
-                Ok(mean / total)
-            }
-        }
-    }
 }
 
 impl Expr {
     pub fn evaluate(&self, ctx: &EvalContext) -> Result<f64> {
-        let mut walk: Walk<rand::rngs::StdRng> = Walk {
-            ctx,
-            rng: None,
-            resolving: Vec::new(),
-            depth: 0,
-        };
-        walk.eval(self)
-    }
-
-    pub fn sample<R: Rng>(&self, ctx: &EvalContext, rng: &mut R) -> Result<f64> {
         let mut walk = Walk {
             ctx,
-            rng: Some(rng),
             resolving: Vec::new(),
             depth: 0,
         };
@@ -461,48 +407,356 @@ impl Expr {
         Expr::Constant(value)
     }
 
-    pub fn normal(mean: f64, sigma: f64) -> Expr {
-        Expr::NormalDeviate {
-            mean: Box::new(Expr::Constant(mean)),
-            sigma: Box::new(Expr::Constant(sigma)),
+    pub fn draw(law: Law) -> Expr {
+        Expr::Draw {
+            key: String::new(),
+            law: Box::new(law),
         }
     }
 
-    pub fn lognormal(mu: f64, sigma: f64) -> Expr {
-        Expr::LognormalDeviate {
-            mu: Box::new(Expr::Constant(mu)),
-            sigma: Box::new(Expr::Constant(sigma)),
-        }
+    pub fn normal(mean: f64, standard_deviation: f64) -> Expr {
+        Expr::draw(Law::Normal {
+            mean,
+            standard_deviation,
+        })
     }
 
     pub fn uniform(lower: f64, upper: f64) -> Expr {
-        Expr::UniformDeviate {
-            lower: Box::new(Expr::Constant(lower)),
-            upper: Box::new(Expr::Constant(upper)),
-        }
+        Expr::draw(Law::Uniform { lower, upper })
     }
 
     pub fn gamma(shape: f64, rate: f64) -> Expr {
-        Expr::GammaDeviate {
-            shape: Box::new(Expr::Constant(shape)),
-            rate: Box::new(Expr::Constant(rate)),
-        }
+        Expr::draw(Law::Gamma { shape, rate })
     }
 
     pub fn beta(alpha: f64, beta: f64) -> Expr {
-        Expr::BetaDeviate {
-            alpha: Box::new(Expr::Constant(alpha)),
-            beta: Box::new(Expr::Constant(beta)),
-        }
+        Expr::draw(Law::Beta {
+            alpha,
+            beta,
+            lower: 0.0,
+            upper: 1.0,
+        })
     }
 
     pub fn triangular(lower: f64, mode: f64, upper: f64) -> Expr {
-        Expr::TriangularDeviate {
-            lower: Box::new(Expr::Constant(lower)),
-            mode: Box::new(Expr::Constant(mode)),
-            upper: Box::new(Expr::Constant(upper)),
+        Expr::draw(Law::Triangular { lower, mode, upper })
+    }
+
+    fn children_mut(&mut self) -> Vec<(String, &mut Expr)> {
+        match self {
+            Expr::Add(items)
+            | Expr::Sub(items)
+            | Expr::Mul(items)
+            | Expr::Div(items)
+            | Expr::Min(items)
+            | Expr::Max(items)
+            | Expr::Mean(items)
+            | Expr::And(items)
+            | Expr::Or(items) => indexed(items),
+            Expr::Pow(a, b)
+            | Expr::Mod(a, b)
+            | Expr::Eq(a, b)
+            | Expr::Ne(a, b)
+            | Expr::Lt(a, b)
+            | Expr::Gt(a, b)
+            | Expr::Le(a, b)
+            | Expr::Ge(a, b) => vec![("0".to_string(), a.as_mut()), ("1".to_string(), b.as_mut())],
+            Expr::Neg(x)
+            | Expr::Abs(x)
+            | Expr::Sqrt(x)
+            | Expr::Exp(x)
+            | Expr::Ln(x)
+            | Expr::Log10(x)
+            | Expr::Sin(x)
+            | Expr::Cos(x)
+            | Expr::Tan(x)
+            | Expr::Asin(x)
+            | Expr::Acos(x)
+            | Expr::Atan(x)
+            | Expr::Sinh(x)
+            | Expr::Cosh(x)
+            | Expr::Tanh(x)
+            | Expr::Floor(x)
+            | Expr::Ceil(x)
+            | Expr::Not(x) => vec![("0".to_string(), x.as_mut())],
+            Expr::Ite(a, b, c) => vec![
+                ("0".to_string(), a.as_mut()),
+                ("1".to_string(), b.as_mut()),
+                ("2".to_string(), c.as_mut()),
+            ],
+            Expr::Exponential { lambda, time } => vec![
+                ("lambda".to_string(), lambda.as_mut()),
+                ("time".to_string(), time.as_mut()),
+            ],
+            Expr::Glm {
+                gamma,
+                lambda,
+                mu,
+                time,
+            } => vec![
+                ("gamma".to_string(), gamma.as_mut()),
+                ("lambda".to_string(), lambda.as_mut()),
+                ("mu".to_string(), mu.as_mut()),
+                ("time".to_string(), time.as_mut()),
+            ],
+            Expr::Weibull {
+                scale,
+                shape,
+                t0,
+                time,
+            } => vec![
+                ("scale".to_string(), scale.as_mut()),
+                ("shape".to_string(), shape.as_mut()),
+                ("t0".to_string(), t0.as_mut()),
+                ("time".to_string(), time.as_mut()),
+            ],
+            Expr::StandbyAverage { lambda, interval } => vec![
+                ("lambda".to_string(), lambda.as_mut()),
+                ("interval".to_string(), interval.as_mut()),
+            ],
+            Expr::Fragility {
+                median,
+                randomness,
+                demand,
+            } => vec![
+                ("median".to_string(), median.as_mut()),
+                ("randomness".to_string(), randomness.as_mut()),
+                ("demand".to_string(), demand.as_mut()),
+            ],
+            Expr::Constant(_)
+            | Expr::Parameter(_)
+            | Expr::MissionTime
+            | Expr::Time
+            | Expr::Pi
+            | Expr::Draw { .. }
+            | Expr::Component { .. } => Vec::new(),
         }
     }
+
+    pub fn assign_draw_keys(&mut self, prefix: &str) {
+        if let Expr::Draw { key, .. } | Expr::Component { key, .. } = self {
+            if key.is_empty() {
+                *key = prefix.to_string();
+            }
+            return;
+        }
+        for (segment, child) in self.children_mut() {
+            child.assign_draw_keys(&format!("{}/{}", prefix, segment));
+        }
+    }
+
+    pub fn draws(&self) -> Vec<(&str, &Law)> {
+        self.draw_set().scalars
+    }
+
+    pub fn vector_draws(&self) -> Vec<(&str, &VectorLaw)> {
+        self.draw_set().vectors
+    }
+
+    pub fn draw_set(&self) -> DrawSet<'_> {
+        let mut found = DrawSet {
+            scalars: Vec::new(),
+            vectors: Vec::new(),
+        };
+        self.collect_draws(&mut found);
+        found
+    }
+
+    fn collect_draws<'a>(&'a self, found: &mut DrawSet<'a>) {
+        match self {
+            Expr::Draw { key, law } => found.scalars.push((key.as_str(), law.as_ref())),
+            Expr::Component { key, law, .. } => found.vectors.push((key.as_str(), law.as_ref())),
+            Expr::Fragility {
+                median,
+                randomness,
+                demand,
+            } => {
+                median.collect_draws(found);
+                randomness.collect_draws(found);
+                demand.collect_draws(found);
+            }
+            Expr::Add(items)
+            | Expr::Sub(items)
+            | Expr::Mul(items)
+            | Expr::Div(items)
+            | Expr::Min(items)
+            | Expr::Max(items)
+            | Expr::Mean(items)
+            | Expr::And(items)
+            | Expr::Or(items) => items.iter().for_each(|item| item.collect_draws(found)),
+            Expr::Pow(a, b)
+            | Expr::Mod(a, b)
+            | Expr::Eq(a, b)
+            | Expr::Ne(a, b)
+            | Expr::Lt(a, b)
+            | Expr::Gt(a, b)
+            | Expr::Le(a, b)
+            | Expr::Ge(a, b)
+            | Expr::Exponential { lambda: a, time: b }
+            | Expr::StandbyAverage {
+                lambda: a,
+                interval: b,
+            } => {
+                a.collect_draws(found);
+                b.collect_draws(found);
+            }
+            Expr::Neg(x)
+            | Expr::Abs(x)
+            | Expr::Sqrt(x)
+            | Expr::Exp(x)
+            | Expr::Ln(x)
+            | Expr::Log10(x)
+            | Expr::Sin(x)
+            | Expr::Cos(x)
+            | Expr::Tan(x)
+            | Expr::Asin(x)
+            | Expr::Acos(x)
+            | Expr::Atan(x)
+            | Expr::Sinh(x)
+            | Expr::Cosh(x)
+            | Expr::Tanh(x)
+            | Expr::Floor(x)
+            | Expr::Ceil(x)
+            | Expr::Not(x) => x.collect_draws(found),
+            Expr::Ite(a, b, c) => {
+                a.collect_draws(found);
+                b.collect_draws(found);
+                c.collect_draws(found);
+            }
+            Expr::Glm {
+                gamma,
+                lambda,
+                mu,
+                time,
+            } => {
+                gamma.collect_draws(found);
+                lambda.collect_draws(found);
+                mu.collect_draws(found);
+                time.collect_draws(found);
+            }
+            Expr::Weibull {
+                scale,
+                shape,
+                t0,
+                time,
+            } => {
+                scale.collect_draws(found);
+                shape.collect_draws(found);
+                t0.collect_draws(found);
+                time.collect_draws(found);
+            }
+            Expr::Constant(_)
+            | Expr::Parameter(_)
+            | Expr::MissionTime
+            | Expr::Time
+            | Expr::Pi => {}
+        }
+    }
+
+    pub fn parameter_names(&self) -> Vec<&str> {
+        let mut found = Vec::new();
+        self.collect_parameters(&mut found);
+        found
+    }
+
+    fn collect_parameters<'a>(&'a self, found: &mut Vec<&'a str>) {
+        match self {
+            Expr::Parameter(name) => found.push(name.as_str()),
+            Expr::Add(items)
+            | Expr::Sub(items)
+            | Expr::Mul(items)
+            | Expr::Div(items)
+            | Expr::Min(items)
+            | Expr::Max(items)
+            | Expr::Mean(items)
+            | Expr::And(items)
+            | Expr::Or(items) => items.iter().for_each(|item| item.collect_parameters(found)),
+            Expr::Pow(a, b)
+            | Expr::Mod(a, b)
+            | Expr::Eq(a, b)
+            | Expr::Ne(a, b)
+            | Expr::Lt(a, b)
+            | Expr::Gt(a, b)
+            | Expr::Le(a, b)
+            | Expr::Ge(a, b)
+            | Expr::Exponential { lambda: a, time: b }
+            | Expr::StandbyAverage {
+                lambda: a,
+                interval: b,
+            } => {
+                a.collect_parameters(found);
+                b.collect_parameters(found);
+            }
+            Expr::Neg(x)
+            | Expr::Abs(x)
+            | Expr::Sqrt(x)
+            | Expr::Exp(x)
+            | Expr::Ln(x)
+            | Expr::Log10(x)
+            | Expr::Sin(x)
+            | Expr::Cos(x)
+            | Expr::Tan(x)
+            | Expr::Asin(x)
+            | Expr::Acos(x)
+            | Expr::Atan(x)
+            | Expr::Sinh(x)
+            | Expr::Cosh(x)
+            | Expr::Tanh(x)
+            | Expr::Floor(x)
+            | Expr::Ceil(x)
+            | Expr::Not(x) => x.collect_parameters(found),
+            Expr::Ite(a, b, c) => {
+                a.collect_parameters(found);
+                b.collect_parameters(found);
+                c.collect_parameters(found);
+            }
+            Expr::Glm {
+                gamma,
+                lambda,
+                mu,
+                time,
+            } => {
+                gamma.collect_parameters(found);
+                lambda.collect_parameters(found);
+                mu.collect_parameters(found);
+                time.collect_parameters(found);
+            }
+            Expr::Weibull {
+                scale,
+                shape,
+                t0,
+                time,
+            } => {
+                scale.collect_parameters(found);
+                shape.collect_parameters(found);
+                t0.collect_parameters(found);
+                time.collect_parameters(found);
+            }
+            Expr::Fragility {
+                median,
+                randomness,
+                demand,
+            } => {
+                median.collect_parameters(found);
+                randomness.collect_parameters(found);
+                demand.collect_parameters(found);
+            }
+            Expr::Constant(_)
+            | Expr::MissionTime
+            | Expr::Time
+            | Expr::Pi
+            | Expr::Draw { .. }
+            | Expr::Component { .. } => {}
+        }
+    }
+}
+
+fn indexed(items: &mut [Expr]) -> Vec<(String, &mut Expr)> {
+    items
+        .iter_mut()
+        .enumerate()
+        .map(|(index, item)| (index.to_string(), item))
+        .collect()
 }
 
 fn bool_value(condition: bool) -> f64 {
@@ -513,77 +767,9 @@ fn bool_value(condition: bool) -> f64 {
     }
 }
 
-pub(crate) fn inverse_normal_cdf(p: f64) -> f64 {
-    const A: [f64; 6] = [
-        -3.969683028665376e+01,
-        2.209460984245205e+02,
-        -2.759285104469687e+02,
-        1.38357751867269e+02,
-        -3.066479806614716e+01,
-        2.506628277459239e+00,
-    ];
-    const B: [f64; 5] = [
-        -5.447609879822406e+01,
-        1.615858368580409e+02,
-        -1.556989798598866e+02,
-        6.680131188771972e+01,
-        -1.328068155288572e+01,
-    ];
-    const C: [f64; 6] = [
-        -7.784894002430293e-03,
-        -3.223964580411365e-01,
-        -2.400758277161838e+00,
-        -2.549732539343734e+00,
-        4.374664141464968e+00,
-        2.938163982698783e+00,
-    ];
-    const D: [f64; 4] = [
-        7.784695709041462e-03,
-        3.224671290700398e-01,
-        2.445134137142996e+00,
-        3.754408661907416e+00,
-    ];
-    let plow = 0.02425;
-    let phigh = 1.0 - plow;
-    if p <= 0.0 {
-        f64::NEG_INFINITY
-    } else if p >= 1.0 {
-        f64::INFINITY
-    } else if p < plow {
-        let q = (-2.0 * p.ln()).sqrt();
-        (((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5])
-            / ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0)
-    } else if p <= phigh {
-        let q = p - 0.5;
-        let r = q * q;
-        (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r + A[5]) * q
-            / (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1.0)
-    } else {
-        let q = (-2.0 * (1.0 - p).ln()).sqrt();
-        -(((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5])
-            / ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0)
-    }
-}
-
-fn sample_triangular<R: Rng>(lower: f64, mode: f64, upper: f64, rng: &mut R) -> f64 {
-    let span = upper - lower;
-    if span <= 0.0 {
-        return lower;
-    }
-    let split = (mode - lower) / span;
-    let u: f64 = rng.gen();
-    if u < split {
-        lower + (u * span * (mode - lower)).sqrt()
-    } else {
-        upper - ((1.0 - u) * span * (upper - mode)).sqrt()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::SeedableRng;
-    use rand_chacha::ChaCha8Rng;
 
     fn empty() -> HashMap<String, Expr> {
         HashMap::new()
@@ -653,15 +839,14 @@ mod tests {
     }
 
     #[test]
-    fn exponential_uses_mission_time() {
+    fn exponential_keeps_digits_for_small_exposure() {
         let params = empty();
         let ctx = EvalContext::new(&params, 100.0, 100.0);
         let expr = Expr::Exponential {
-            lambda: b(Expr::Constant(0.001)),
+            lambda: b(Expr::Constant(1e-12)),
             time: b(Expr::MissionTime),
         };
-        let expected = 1.0 - (-0.001f64 * 100.0).exp();
-        assert!((expr.evaluate(&ctx).unwrap() - expected).abs() < 1e-12);
+        assert_eq!(expr.evaluate(&ctx).unwrap(), -(-1e-10f64).exp_m1());
     }
 
     #[test]
@@ -696,80 +881,52 @@ mod tests {
     }
 
     #[test]
-    fn deviate_evaluate_returns_mean() {
+    fn standby_average_matches_the_closed_form() {
         let params = empty();
         let ctx = EvalContext::new(&params, 1.0, 1.0);
-        let beta = Expr::BetaDeviate {
-            alpha: b(Expr::Constant(2.0)),
-            beta: b(Expr::Constant(8.0)),
-        };
-        assert!((beta.evaluate(&ctx).unwrap() - 0.2).abs() < 1e-12);
-        let gamma = Expr::GammaDeviate {
-            shape: b(Expr::Constant(4.0)),
-            rate: b(Expr::Constant(2.0)),
-        };
-        assert!((gamma.evaluate(&ctx).unwrap() - 2.0).abs() < 1e-12);
-        let lognormal = Expr::LognormalDeviate {
-            mu: b(Expr::Constant(0.0)),
-            sigma: b(Expr::Constant(0.5)),
-        };
-        assert!((lognormal.evaluate(&ctx).unwrap() - (0.5f64 * 0.5 / 2.0).exp()).abs() < 1e-12);
-    }
-
-    #[test]
-    fn deviate_sample_is_within_support() {
-        let params = empty();
-        let ctx = EvalContext::new(&params, 1.0, 1.0);
-        let mut rng = ChaCha8Rng::seed_from_u64(7);
-        let beta = Expr::BetaDeviate {
-            alpha: b(Expr::Constant(2.0)),
-            beta: b(Expr::Constant(8.0)),
-        };
-        for _ in 0..1000 {
-            let value = beta.sample(&ctx, &mut rng).unwrap();
-            assert!((0.0..=1.0).contains(&value));
+        for (lambda, interval) in [(1e-6, 720.0), (1e-3, 720.0), (1e-9, 1.0)] {
+            let expr = Expr::StandbyAverage {
+                lambda: b(Expr::Constant(lambda)),
+                interval: b(Expr::Constant(interval)),
+            };
+            let x: f64 = lambda * interval;
+            let series = x / 2.0 - x * x / 6.0 + x * x * x / 24.0 - x.powi(4) / 120.0;
+            let value = expr.evaluate(&ctx).unwrap();
+            assert!((value - series).abs() <= 4.0 * f64::EPSILON * series + x.powi(5) / 720.0);
         }
     }
 
     #[test]
-    fn histogram_mean_matches_weighted_midpoints() {
+    fn draws_evaluate_to_the_law_mean_without_sampled_values() {
         let params = empty();
         let ctx = EvalContext::new(&params, 1.0, 1.0);
-        let hist = Expr::Histogram {
-            boundaries: vec![
-                Expr::Constant(0.0),
-                Expr::Constant(0.2),
-                Expr::Constant(0.4),
-            ],
-            weights: vec![Expr::Constant(1.0), Expr::Constant(3.0)],
-        };
-        let expected = (0.1 * 1.0 + 0.3 * 3.0) / 4.0;
-        assert!((hist.evaluate(&ctx).unwrap() - expected).abs() < 1e-12);
+        assert!((Expr::beta(2.0, 8.0).evaluate(&ctx).unwrap() - 0.2).abs() < 1e-15);
+        assert!((Expr::gamma(4.0, 2.0).evaluate(&ctx).unwrap() - 2.0).abs() < 1e-15);
     }
 
     #[test]
-    fn correlated_context_shares_parameter_draws() {
+    fn draws_read_their_sampled_value_and_shared_parameters_reuse_it() {
         let mut params = empty();
-        params.insert("p".to_string(), Expr::uniform(0.0, 1.0));
+        let mut shared = Expr::uniform(0.0, 1.0);
+        shared.assign_draw_keys("p");
+        params.insert("p".to_string(), shared);
+        let mut draws = HashMap::new();
+        draws.insert("p".to_string(), 0.25);
+        let ctx = EvalContext::trial(&params, 1.0, &draws);
+        let twice = Expr::Add(vec![
+            Expr::Parameter("p".to_string()),
+            Expr::Parameter("p".to_string()),
+        ]);
+        assert_eq!(twice.evaluate(&ctx).unwrap(), 0.5);
+        let mut missing = Expr::uniform(0.0, 1.0);
+        missing.assign_draw_keys("other");
+        assert!(missing.evaluate(&ctx).is_err());
+    }
 
-        let correlated = EvalContext::correlated(&params, 1.0);
-        let mut rng = ChaCha8Rng::seed_from_u64(1);
-        let first = Expr::Parameter("p".to_string())
-            .sample(&correlated, &mut rng)
-            .unwrap();
-        let second = Expr::Parameter("p".to_string())
-            .sample(&correlated, &mut rng)
-            .unwrap();
-        assert_eq!(first, second);
-
-        let independent = EvalContext::new(&params, 1.0, 1.0);
-        let mut rng2 = ChaCha8Rng::seed_from_u64(1);
-        let a = Expr::Parameter("p".to_string())
-            .sample(&independent, &mut rng2)
-            .unwrap();
-        let bb = Expr::Parameter("p".to_string())
-            .sample(&independent, &mut rng2)
-            .unwrap();
-        assert_ne!(a, bb);
+    #[test]
+    fn draw_keys_follow_the_expression_path() {
+        let mut expr = Expr::Mul(vec![Expr::Constant(2.0), Expr::gamma(1.0, 2.0)]);
+        expr.assign_draw_keys("event:E1");
+        assert_eq!(expr.draws()[0].0, "event:E1/1");
     }
 }

@@ -1,5 +1,5 @@
-import { DistributionType } from "../core/events";
-import type { FrequencyDataSource, FrequencyQuantificationBasis, InitiatingEventsAnalysis } from "../ie/initiating-event-analysis";
+import type { Law, UncertainExpression } from "../core/uncertainty";
+import type { FrequencyDataSource, FrequencyQuantificationBasis, InitiatingEventFrequencyQuantification, InitiatingEventsAnalysis } from "../ie/initiating-event-analysis";
 import type { DaEvidenceKind, DaSource, DaSourceEntry, DaSourceOrigin } from "./data-analysis";
 
 export interface DaCatalogSource {
@@ -359,7 +359,27 @@ const IE_BASIS_LABELS: Record<FrequencyQuantificationBasis, string> = {
   FAULT_TREE: "Initiator fault tree",
 };
 
-const Z95 = 1.6448536269514722;
+function valueLaw(expression: UncertainExpression | undefined): Law | undefined {
+  return expression?.node === "VALUE" ? expression.value.law : undefined;
+}
+
+function countsLaw(source: FrequencyDataSource): Law | undefined {
+  const failures = source.eventCount;
+  const exposure = source.exposureModuleYears;
+  if (source.priorMean !== undefined || failures === undefined || exposure === undefined || !(failures >= 0 && exposure > 0)) return undefined;
+  return { family: "POSTERIOR", prior: null, evidence: [{ likelihood: "POISSON", failures, exposure }] };
+}
+
+function sourceLaw(source: FrequencyDataSource): Law | undefined {
+  return valueLaw(source.estimate) ?? valueLaw(source.faultTreeTop) ?? countsLaw(source);
+}
+
+function quantificationLaw(quantification: InitiatingEventFrequencyQuantification): Law | undefined {
+  const own = valueLaw(quantification.frequency?.expression);
+  if (own !== undefined) return own;
+  const primary = (quantification.dataSources ?? []).find((source) => source.uuid === quantification.primaryDataSourceId);
+  return primary === undefined ? undefined : sourceLaw(primary);
+}
 
 function ieMemberEntry(source: FrequencyDataSource): DaSourceEntry {
   const split = source.label.indexOf(" - ");
@@ -372,10 +392,8 @@ function ieMemberEntry(source: FrequencyDataSource): DaSourceEntry {
     entry.failures = source.eventCount;
     entry.exposure = source.exposureModuleYears;
   }
-  if (source.faultTreeTopMean !== undefined) entry.mean = source.faultTreeTopMean;
-  const median = source.distributionParameters?.[0];
-  const errorFactor = source.distributionParameters?.[1];
-  if (source.distributionFamily === "LOGNORMAL" && median !== undefined && errorFactor !== undefined) entry.distribution = { type: DistributionType.LOGNORMAL, median, errorFactor };
+  const law = sourceLaw(source);
+  if (law !== undefined) entry.law = law;
   return entry;
 }
 
@@ -385,23 +403,16 @@ export function daIeQuantificationEntries(analysis: InitiatingEventsAnalysis, ba
   const wanted = (basis: FrequencyQuantificationBasis): boolean => bases === undefined || bases.includes(basis);
   for (const quantification of analysis.quantifications) {
     const group = analysis.initiatingEventGroups.find((candidate) => candidate.uuid === quantification.initiatorOrGroupId);
-    const frequency = quantification.meanFrequency;
     const entry: DaSourceEntry = {
       id: quantification.initiatorOrGroupId,
       component: group?.name ?? quantification.initiatorOrGroupId,
       failureMode: group === undefined ? "Initiator frequency" : "Group frequency",
       quantity: "PER_YEAR",
       table: "Frequency quantification",
-      mean: typeof frequency === "number" ? frequency : frequency.value,
       method: `${IE_BASIS_LABELS[quantification.basis]}.`,
     };
-    if (typeof frequency !== "number") {
-      const errorFactor = frequency.distribution?.parameters[1];
-      if (frequency.distribution?.type === DistributionType.LOGNORMAL && errorFactor !== undefined && errorFactor > 1) {
-        const sigma = Math.log(errorFactor) / Z95;
-        entry.distribution = { type: DistributionType.LOGNORMAL, median: frequency.value / Math.exp((sigma * sigma) / 2), errorFactor };
-      }
-    }
+    const law = quantificationLaw(quantification);
+    if (law !== undefined) entry.law = law;
     if (wanted(quantification.basis) && !taken.has(entry.id)) {
       entries.push(entry);
       taken.add(entry.id);

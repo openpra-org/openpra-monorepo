@@ -1,11 +1,15 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { DependenciesScreen } from "../SyDependencies";
 import { DependencyMatrix } from "../SyDependencyMatrix";
 import { DrawerContent } from "../syScreens2";
 import { coverageIssue, dependencyLinks, inventoryHours, linkIssues, newDependency } from "../syDependencyLinks";
-import type { SyLinkedInputs } from "../syWorkbookContext";
+import type { SyControlledParameterOption, SyLinkedInputs } from "../syWorkbookContext";
+import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
+import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
+
+jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
 
 const CCW = "SYS-CCW";
 const EPS = "SYS-EPS";
@@ -33,6 +37,7 @@ interface MockContext {
   mutateSy: jest.Mock;
   shortOf: (id: string) => string;
   links: SyLinkedInputs;
+  controlledParameters: SyControlledParameterOption[];
   runtime: { workbookId: string; projectId: string; revision: number; saveStatus: "saved" };
 }
 
@@ -61,8 +66,8 @@ function tree(systemReference: string, events: readonly string[], transfers: rea
   };
 }
 
-function system(uuid: string, name: string, missionTimeHours: number) {
-  return { uuid, name, abbreviation: SHORT.get(uuid), boundaries: [], successCriteriaIds: [], missionTimeHours, modeledComponentsAndFailures: {}, informationBasis: "as-designed-as-intended" as const, implementsSrs: [] };
+function system(uuid: string, name: string, hours: number) {
+  return { uuid, name, abbreviation: SHORT.get(uuid), boundaries: [], successCriteriaIds: [], missionTime: { node: "VALUE" as const, value: { unit: "HOURS" as const, law: { family: "POINT" as const, value: hours } } }, modeledComponentsAndFailures: {}, informationBasis: "as-designed-as-intended" as const, implementsSrs: [] };
 }
 
 function makeAnalysis(): StepAnalysis {
@@ -136,7 +141,8 @@ const LINKS: SyLinkedInputs = {
     { id: "SC-CCW", systemId: CCW, name: "Cooling water", capacities: "", supports: [{ systemId: EPS, nature: "AC for the pumps." }] },
     { id: "SC-HVAC", systemId: HVAC, name: "Room cooling", capacities: "", supports: [{ systemId: CCW, nature: "Chilled water for the chiller condensers." }] },
   ],
-  scMissionTimes: [],
+  scMissionTimeOptions: [],
+  scMissionTimeTable: new Map(),
   posStates: [],
   esSafetyFunctions: [],
   esInitiatingEvents: [{ id: "IE-FLOOD", name: "Internal flood" }, { id: "IE-LOOP", name: "Loss of offsite power" }],
@@ -155,8 +161,16 @@ function setContext(editable = true, sy: StepAnalysis = makeAnalysis()): void {
     mutateSy: jest.fn(),
     shortOf: (id) => SHORT.get(id) ?? id,
     links: LINKS,
+    controlledParameters: [],
     runtime: { workbookId: "sy-1", projectId: "project-1", revision: 3, saveStatus: "saved" },
   };
+  jest.mocked(evaluateUncertainty).mockImplementation(praxisUncertainty);
+}
+
+async function settled(): Promise<void> {
+  await act(async () => {
+    await settledWithPraxis(() => undefined);
+  });
 }
 
 function lastMutation(): StepAnalysis {
@@ -373,15 +387,23 @@ describe("SY Step 05 dialogs", () => {
     expect(lastMutation().environmentalDesignBasisConsiderations?.[0]?.beyondQualification).toBe(true);
   });
 
-  it("edits how long an inventory lasts and why", () => {
-    render(<DrawerContent context={{ kind: "inv", id: "INV-1" }} onClose={jest.fn()} />);
+  it("edits how long an inventory lasts and why", async () => {
+    const { rerender } = render(<DrawerContent context={{ kind: "inv", id: "INV-1" }} onClose={jest.fn()} />);
+    await settled();
+    expect(screen.getByText("Carries the 24 h mission time")).toBeInTheDocument();
     const hours = screen.getByRole("spinbutton", { name: "Lasts (hours)" });
     fireEvent.change(hours, { target: { value: "8" } });
     fireEvent.blur(hours);
     expect(lastMutation().depletionModels?.[0]).toMatchObject({ initialQuantity: 8, consumptionRate: 1, units: "hours" });
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Does not deplete" }));
-    expect(lastMutation().depletionModels?.[0]?.initialQuantity).toBe(0);
+    const steady = lastMutation();
+    expect(steady.depletionModels?.[0]?.initialQuantity).toBe(0);
+
+    mockContext = { ...mockContext, sy: steady };
+    rerender(<DrawerContent context={{ kind: "inv", id: "INV-1" }} onClose={jest.fn()} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Does not deplete" }));
+    expect(lastMutation().depletionModels?.[0]).toMatchObject({ initialQuantity: 24, consumptionRate: 1, units: "hours" });
   });
 
   it("asks why actuation is modeled without detail", () => {

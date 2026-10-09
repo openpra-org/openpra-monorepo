@@ -25,12 +25,13 @@ import {
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
 import type { PreOperationalAssumption } from "interfaces-mef-types/core/documentation";
-import type { ParameterDistribution } from "interfaces-mef-types/core/events";
 import type { RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
+import { holdsEstimate } from "interfaces-mef-types/da/data-analysis";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { hash32 } from "interfaces-mef-types/esq/esq-run-inputs";
 import { resolvedCombinations, resolvedRecoveries } from "interfaces-mef-types/esq/esq-post-inputs";
 import { solveInputsKey, solveWorkOf } from "interfaces-mef-types/esq/esq-solve-inputs";
-import { uncertaintyInputsKey } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { hasUncertainty, sampledInputsOf, uncertaintyInputsKey } from "interfaces-mef-types/esq/esq-measure-inputs";
 import type { EsqImportanceRunResult, EsqImportanceTarget, EsqModelRunResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type { EsqUpstream } from "./esqLinks";
 import type { EsqDaCaseOption } from "./esqDaLinks";
@@ -90,7 +91,8 @@ interface EsqFeedbackItem {
 interface EsqCreatedValue {
   key: string;
   item: string;
-  value: number;
+  value?: number;
+  expression?: UncertainExpression;
   where: string;
   source: string;
 }
@@ -440,9 +442,14 @@ function propagationOf(esq: EventSequenceQuantification, independentMean: number
     const holder = binding?.holderId ?? event.holderId;
     if ((binding?.heldBy ?? event.heldBy) === "DA" && holder !== undefined) shared.set(holder, (shared.get(holder) ?? 0) + 1);
   }
-  const parameterUncertainties = (model?.parameters ?? []).flatMap((parameter) => {
-    const distribution: ParameterDistribution | undefined = parameter.distribution;
-    return distribution === undefined ? [] : [{ parameterRef: parameter.id, distribution, basis: `DA parameter ${parameter.name}, sampled once per trial for every event bound to it.` }];
+  const parameterUncertainties = (model?.parameters ?? []).flatMap((parameter): UncertaintyPropagation["parameterUncertainties"] => {
+    const basis = `DA parameter ${parameter.name}, sampled once per trial for every event bound to it.`;
+    if (holdsEstimate(parameter.quantificationModel)) {
+      const estimate = parameter.estimate;
+      return estimate === undefined || !hasUncertainty(estimate) ? [] : [{ parameterRef: parameter.id, estimate, basis }];
+    }
+    const distribution = parameter.distribution;
+    return distribution === undefined ? [] : [{ parameterRef: parameter.id, distribution, basis }];
   });
   const total = run?.total;
   const propagation: UncertaintyPropagation = {
@@ -673,16 +680,18 @@ function createdValues(esq: EventSequenceQuantification): EsqCreatedValue[] {
   const model = esq.model;
   if (model === undefined) return [];
   const out: EsqCreatedValue[] = [];
+  const legacyKeys = new Set(sampledInputsOf(esq).flatMap((input) => (input.contract ? [] : [input.key])));
   for (const spread of uncertaintyWorkOf(esq).spreads ?? []) {
+    if (!legacyKeys.has(spread.key)) continue;
     out.push({ key: `spread:${spread.key}`, item: spread.key, value: spread.errorFactor, where: "Step 08 error factor", source: spread.source });
   }
   for (const choice of esq.modelDecisions?.initiatorChoices ?? []) {
-    if (choice.source !== "TYPED" || choice.mean === undefined) continue;
-    out.push({ key: `initiator:${choice.groupId}`, item: choice.groupId, value: choice.mean, where: "Step 02 initiator frequency", source: choice.basis ?? "" });
+    if (choice.source !== "TYPED" || choice.expression === undefined) continue;
+    out.push({ key: `initiator:${choice.groupId}`, item: choice.groupId, expression: choice.expression, where: "Step 02 initiator frequency", source: choice.basis ?? "" });
   }
   for (const cell of esq.barrierWork?.cells ?? []) {
     if (cell.ofRecord !== "TYPED" || cell.typed === undefined) continue;
-    out.push({ key: `cell:${cell.id}`, item: `Cell ${cell.id}`, value: cell.typed.value, where: "Step 04 split fraction", source: cell.typed.basis });
+    out.push({ key: `cell:${cell.id}`, item: `Cell ${cell.id}`, expression: cell.typed.expression, where: "Step 04 split fraction", source: cell.typed.basis });
   }
   for (const combination of resolvedCombinations(esq)) {
     if (combination.source !== "TYPED" || combination.joint === undefined) continue;

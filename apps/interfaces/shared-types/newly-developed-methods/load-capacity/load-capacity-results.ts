@@ -13,6 +13,8 @@ import type {
   WorkbookMethodSchemaVersion,
   WorkbookModelSnapshotIdentity,
 } from "../shared";
+import type { Law, TabulatedLaw } from "interfaces-mef-types/core/uncertainty";
+import { LawSchema, TabulatedLawSchema } from "interfaces-mef-types/zod/core/uncertainty";
 import { LoadCapacitySamplingSchema } from "./load-capacity-requests";
 import type { LoadCapacitySampling } from "./load-capacity-requests";
 
@@ -35,7 +37,7 @@ interface LoadCapacityUncertainty {
   p95: number;
   minimum: number;
   maximum: number;
-  largestQuadratureError: number | null;
+  law: TabulatedLaw;
 }
 
 interface LoadCapacityCurvePoint {
@@ -54,7 +56,8 @@ interface LoadCapacityAnalysisResult {
   completedAt: string;
   method: LoadCapacityIntegrationMethod;
   pointProbability: number;
-  quadratureError: number | null;
+  pointLoad: Law;
+  pointCapacity: Law;
   unit: string | null;
   uncertainty: LoadCapacityUncertainty | null;
   curve: LoadCapacityCurvePoint[];
@@ -89,7 +92,7 @@ const LoadCapacityUncertaintySchema = z
     p95: ProbabilitySchema,
     minimum: ProbabilitySchema,
     maximum: ProbabilitySchema,
-    largestQuadratureError: z.number().min(0).nullable(),
+    law: TabulatedLawSchema,
   })
   .strict();
 
@@ -112,7 +115,8 @@ const LoadCapacityAnalysisResultSchema = z
     completedAt: z.string().datetime({ offset: true }),
     method: LoadCapacityIntegrationMethodSchema,
     pointProbability: ProbabilitySchema,
-    quadratureError: z.number().min(0).nullable(),
+    pointLoad: LawSchema,
+    pointCapacity: LawSchema,
     unit: z.string().nullable(),
     uncertainty: LoadCapacityUncertaintySchema.nullable(),
     curve: z.array(LoadCapacityCurvePointSchema).min(2),

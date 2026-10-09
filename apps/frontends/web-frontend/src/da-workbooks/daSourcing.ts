@@ -12,6 +12,11 @@ import type {
   DaSourceEntry,
   DaSourceUse,
 } from "interfaces-mef-types/da/data-analysis";
+import { entryHoldsLaw } from "interfaces-mef-types/da/data-analysis";
+import { lawWithinUnit, type Law, type QuantilePoint } from "interfaces-mef-types/core/uncertainty";
+import type { UncertaintyOperation } from "interfaces-shared-types/newly-developed-methods/shared";
+import { uncertaintyVersion } from "../newly-developed-methods/shared/useUncertainty";
+import { lawParameter, lawSummary, operationLaw, quantityUnit, sourceUseLaw } from "./daLaws";
 import { DaSourceEntrySchema } from "interfaces-mef-types/zod/da/data-analysis";
 import { DA_SOURCE_CATALOG } from "interfaces-mef-types/da/generic-sources";
 import { distributionMean, distributionQuantile, judgmentComponent, lognormalFromMean, poolJudgments, scaleDistribution, validDistribution, type LogComponent, type PooledJudgment } from "./daDistributions";
@@ -55,6 +60,7 @@ interface DaEntryFit {
 }
 
 function entryFit(entry: DaSourceEntry): DaEntryFit | undefined {
+  if (entryHoldsLaw(entry.quantity)) return undefined;
   if (entry.distribution !== undefined && validDistribution(entry.distribution)) return { distribution: entry.distribution, basis: "PRINTED" };
   if (entry.median !== undefined && entry.p95 !== undefined && entry.p95 > entry.median && entry.median > 0) return { distribution: { type: DistributionType.LOGNORMAL, median: entry.median, errorFactor: entry.p95 / entry.median }, basis: "MEDIAN_P95" };
   if (entry.mean !== undefined && entry.p05 !== undefined && entry.p95 !== undefined && entry.p05 > 0 && entry.p95 > entry.p05) return { distribution: lognormalFromMean(entry.mean, Math.sqrt(entry.p95 / entry.p05)), basis: "MEAN_P05_P95" };
@@ -89,25 +95,28 @@ function elicitationResult(elicitation: DaElicitation): PooledJudgment | undefin
 }
 
 interface DaUseBase {
-  distribution: ParameterDistribution;
   quantity: DaEstimateQuantity;
   sourceKind: DaEvidenceKind;
   label: string;
+  elicitation?: DaElicitation;
+  entry?: DaSourceEntry;
 }
 
 function sourceUseBase(da: DataAnalysis, use: DaSourceUse): DaUseBase | undefined {
   if (use.elicitationId !== undefined) {
     const elicitation = (da.elicitations ?? []).find((candidate) => candidate.id === use.elicitationId);
-    const result = elicitation === undefined ? undefined : elicitationResult(elicitation);
-    if (elicitation === undefined || result === undefined) return undefined;
-    return { distribution: result.distribution, quantity: elicitation.quantity, sourceKind: "EXPERT_JUDGMENT", label: elicitation.id };
+    if (elicitation === undefined) return undefined;
+    return { quantity: elicitation.quantity, sourceKind: "EXPERT_JUDGMENT", label: elicitation.id, elicitation };
   }
   const source = (da.sources ?? []).find((candidate) => candidate.id === use.sourceId);
   const entry = source?.entries.find((candidate) => candidate.id === use.entryId);
   if (source === undefined || entry === undefined) return undefined;
-  const distribution = entryDistribution(entry);
-  if (distribution === undefined) return undefined;
-  return { distribution, quantity: entry.quantity, sourceKind: source.kind, label: `${source.name} · ${entry.id}` };
+  return { quantity: entry.quantity, sourceKind: source.kind, label: `${source.name} · ${entry.id}`, entry };
+}
+
+function baseDistribution(base: DaUseBase): ParameterDistribution | undefined {
+  if (base.elicitation !== undefined) return elicitationResult(base.elicitation)?.distribution;
+  return base.entry === undefined ? undefined : entryDistribution(base.entry);
 }
 
 type DaFactorPick = "nominal" | "low" | "high";
@@ -122,7 +131,8 @@ interface DaUseResult {
 
 function sourceUseResult(da: DataAnalysis, use: DaSourceUse, pick: DaFactorPick = "nominal"): DaUseResult | undefined {
   const base = sourceUseBase(da, use);
-  if (base === undefined) return undefined;
+  const published = base === undefined ? undefined : baseDistribution(base);
+  if (base === undefined || published === undefined) return undefined;
   let quantity = base.quantity;
   let factor = 1;
   if (use.hoursPerYear !== undefined && use.hoursPerYear > 0 && quantity === "PER_YEAR") {
@@ -136,7 +146,7 @@ function sourceUseResult(da: DataAnalysis, use: DaSourceUse, pick: DaFactorPick 
   if (use.verdict === "SCALED") {
     for (const item of use.factors ?? []) factor *= pick === "low" ? item.low : pick === "high" ? item.high : item.nominal;
   }
-  const distribution = factor === 1 ? base.distribution : scaleDistribution(base.distribution, factor);
+  const distribution = factor === 1 ? published : scaleDistribution(published, factor);
   if (distribution === undefined) return undefined;
   const mean = distributionMean(distribution);
   const p05 = distributionQuantile(distribution, 0.05);
@@ -210,8 +220,40 @@ function needsPrior(parameter: DataAnalysisParameter): boolean {
   return needsSourcing(parameter) && parameter.quantificationModel !== "NON_RECOVERY" && parameter.quantificationModel !== "FREQUENCY";
 }
 
-function sourceFindings(da: DataAnalysis): DaNeedFinding[] {
-  const findings: DaNeedFinding[] = [];
+interface DaSourceCheck {
+  findings: DaNeedFinding[];
+  pending: boolean;
+}
+
+const sourceCheckCache = new WeakMap<DataAnalysis, { version: number; check: DaSourceCheck }>();
+
+function entryLawFindings(entry: DaSourceEntry, item: string, target: DaNeedFinding["target"], check: DaSourceCheck): void {
+  const law = entry.law;
+  if (law === undefined) {
+    check.findings.push({ severity: "error", check: "No estimate", item, detail: "Give the distribution of this estimate.", target });
+    return;
+  }
+  const summary = lawSummary(quantityUnit(entry.quantity), lawWithinUnit(quantityUnit(entry.quantity), law));
+  if (summary.status === "pending") {
+    check.pending = true;
+    return;
+  }
+  if (summary.status === "failed") {
+    check.findings.push({ severity: "error", check: "Bad distribution", item, detail: summary.error, target });
+    return;
+  }
+  const mean = summary.value.mean;
+  if (entry.mean !== undefined && Math.abs(mean - entry.mean) > 0.05 * Math.abs(entry.mean)) {
+    check.findings.push({ severity: "warning", check: "Mean differs", item, detail: `The recorded mean is ${Number(entry.mean.toPrecision(3))}, but the distribution gives ${Number(mean.toPrecision(3))}.`, target });
+  }
+}
+
+function sourceCheck(da: DataAnalysis): DaSourceCheck {
+  const version = uncertaintyVersion();
+  const cached = sourceCheckCache.get(da);
+  if (cached !== undefined && cached.version === version) return cached.check;
+  const check: DaSourceCheck = { findings: [], pending: false };
+  const findings = check.findings;
   const sources = da.sources ?? [];
   const preOperational = da.plantStage === "PRE_OPERATIONAL";
   for (const source of sources) {
@@ -231,6 +273,10 @@ function sourceFindings(da: DataAnalysis): DaNeedFinding[] {
       const entryTarget = { kind: "daEntry" as const, id: `${source.id}|${entry.id}` };
       if (seen.has(entry.id)) findings.push({ severity: "error", check: "Duplicate estimate", item, detail: "Two estimates in this source share an ID.", target: entryTarget });
       seen.add(entry.id);
+      if (entryHoldsLaw(entry.quantity)) {
+        entryLawFindings(entry, item, entryTarget, check);
+        continue;
+      }
       if (entry.distribution !== undefined && !validDistribution(entry.distribution)) findings.push({ severity: "error", check: "Bad distribution", item, detail: "The distribution parameters must be positive.", target: entryTarget });
       const distribution = entryDistribution(entry);
       if (distribution === undefined) {
@@ -282,7 +328,14 @@ function sourceFindings(da: DataAnalysis): DaNeedFinding[] {
           if (blankText(factor.name) || !(factor.low > 0) || !(factor.low <= factor.nominal && factor.nominal <= factor.high)) findings.push({ severity: "error", check: "Factor bounds", item, detail: `Factor ${factor.name.trim().length > 0 ? factor.name : factor.id} needs a name and positive values with low ≤ nominal ≤ high.`, target });
           else if (blankText(factor.basis)) findings.push({ severity: "warning", check: "Factor basis", item, detail: `Say what supports factor ${factor.name}.`, target });
         }
-        if (sourceUseResult(da, use) === undefined && factors.length > 0) findings.push({ severity: "error", check: "Scaling fails", item, detail: `${base.label} cannot be scaled this far. A probability would exceed one.`, target });
+        if (!lawParameter(parameter) && sourceUseResult(da, use) === undefined && factors.length > 0) findings.push({ severity: "error", check: "Scaling fails", item, detail: `${base.label} cannot be scaled this far. A probability would exceed one.`, target });
+      }
+      if (lawParameter(parameter)) {
+        const state = sourceUseLaw(da, use);
+        if (state.status === "pending") check.pending = true;
+        else if (state.status === "failed") findings.push({ severity: "error", check: "Cannot use", item, detail: `${base.label}: ${state.error}`, target });
+        else if (state.status === "missing") findings.push({ severity: "error", check: "Cannot use", item, detail: `${base.label}: ${state.problem}`, target });
+        else if (state.value.cut) findings.push({ severity: "warning", check: "Cut at one", item, detail: `Scaling ${base.label} by ${Number(state.value.factor.toPrecision(3))} pushes part of it past one, so it is cut at one. Its mean is then less than the scaled mean.`, target });
       }
     }
     const kind = parameter.evidenceKind;
@@ -312,16 +365,24 @@ function sourceFindings(da: DataAnalysis): DaNeedFinding[] {
     if (!outside && elicitation.importance === "HIGH" && blankText(elicitation.outsideReason)) findings.push({ severity: "warning", check: "Outside experts", item, detail: "The issue is of high importance. Use outside experts or say why the team's own judgment is enough (4.2.3).", target });
     if (elicitationUsers(da, elicitation.id).length === 0) findings.push({ severity: "note", check: "Not used", item, detail: "No parameter uses this elicitation yet.", target });
   }
-  return findings
+  const sorted = findings
     .map((finding, index) => ({ finding, index }))
     .sort((a, b) => RANK[a.finding.severity] - RANK[b.finding.severity] || a.index - b.index)
     .map(({ finding }) => finding);
+  const result = { findings: sorted, pending: check.pending };
+  sourceCheckCache.set(da, { version, check: result });
+  return result;
+}
+
+function sourceFindings(da: DataAnalysis): DaNeedFinding[] {
+  return sourceCheck(da).findings;
 }
 
 function sourcesComplete(da: DataAnalysis): boolean {
   if ((da.sources ?? []).length === 0) return false;
   if (da.parameters.some((parameter) => needsPrior(parameter) && priorUse(parameter) === undefined)) return false;
-  return !sourceFindings(da).some((finding) => finding.severity === "error");
+  const check = sourceCheck(da);
+  return !check.pending && !check.findings.some((finding) => finding.severity === "error");
 }
 
 function evidenceRank(kind: DaEvidenceKind): number {
@@ -440,10 +501,51 @@ function distributionFromCells(kind: string, alpha: number | undefined, beta: nu
   return undefined;
 }
 
-function entriesFromRows(rows: readonly string[][], mapping: Partial<Record<DaImportField, number>>, fixedQuantity: DaEstimateQuantity | undefined, taken: readonly string[]): { entries: DaSourceEntry[]; skipped: number } {
+interface DaLawCells {
+  kind: string;
+  alpha?: number;
+  beta?: number;
+  median?: number;
+  errorFactor?: number;
+  mean?: number;
+  p05?: number;
+  p95?: number;
+  failures?: number;
+  exposure?: number;
+}
+
+type DaCellLaw = { law: Law } | { operation: UncertaintyOperation } | undefined;
+
+function fitOperation(mean: number | undefined, median: number | undefined, quantiles: QuantilePoint[]): UncertaintyOperation {
+  return { kind: "LOGNORMAL_FIT", mean: mean ?? null, median: median ?? null, quantiles };
+}
+
+function lawFromCells(cells: DaLawCells, quantity: DaEstimateQuantity): DaCellLaw {
+  const key = headerKey(cells.kind);
+  const { alpha, beta, median, errorFactor, mean, p05, p95, failures, exposure } = cells;
+  if (key.startsWith("beta") && alpha !== undefined && beta !== undefined && alpha > 0 && beta > 0) return { law: { family: "BETA", alpha, beta, lower: 0, upper: 1 } };
+  if (key.startsWith("gamma") && alpha !== undefined && beta !== undefined && alpha > 0 && beta > 0) return { law: { family: "GAMMA", shape: alpha, rate: beta } };
+  if (key.startsWith("point") && mean !== undefined) return { law: { family: "POINT", value: mean } };
+  const lognormal = key.startsWith("lognormal") || key.length === 0;
+  if (lognormal && mean !== undefined && mean > 0 && errorFactor !== undefined && errorFactor > 1) return { law: { family: "LOGNORMAL", mean, errorFactor, level: 0.95 } };
+  if (lognormal && median !== undefined && median > 0 && errorFactor !== undefined && errorFactor > 1) return { operation: fitOperation(undefined, median, [{ probability: 0.95, value: median * errorFactor }]) };
+  if (!lognormal) return undefined;
+  if (median !== undefined && p95 !== undefined && median > 0 && p95 > median) return { operation: fitOperation(undefined, median, [{ probability: 0.95, value: p95 }]) };
+  if (mean !== undefined && p05 !== undefined && p95 !== undefined && mean > 0 && p05 > 0 && p95 > p05) return { operation: fitOperation(mean, undefined, [{ probability: 0.05, value: p05 }, { probability: 0.95, value: p95 }]) };
+  if (failures !== undefined && exposure !== undefined && failures >= 0 && exposure > 0 && quantity !== "FACTOR") {
+    const binomial = quantity === "PER_DEMAND" || quantity === "PROBABILITY" || quantity === "FRACTION";
+    if (!binomial || failures <= exposure) return { law: { family: "POSTERIOR", prior: null, evidence: [{ likelihood: binomial ? "BINOMIAL" : "POISSON", failures, exposure }] } };
+  }
+  if (mean !== undefined) return { law: { family: "POINT", value: mean } };
+  if (median !== undefined) return { law: { family: "POINT", value: median } };
+  return undefined;
+}
+
+function entriesFromRows(rows: readonly string[][], mapping: Partial<Record<DaImportField, number>>, fixedQuantity: DaEstimateQuantity | undefined, taken: readonly string[]): { entries: DaSourceEntry[]; skipped: number; pending: number } {
   const entries: DaSourceEntry[] = [];
   const ids = new Set(taken);
   let skipped = 0;
+  let pending = 0;
   const cell = (row: readonly string[], field: DaImportField): string | undefined => {
     const index = mapping[field];
     return index === undefined ? undefined : row[index];
@@ -457,21 +559,49 @@ function entriesFromRows(rows: readonly string[][], mapping: Partial<Record<DaIm
     const median = numberCell(cell(row, "median"));
     const errorFactor = numberCell(cell(row, "errorFactor"));
     const mean = numberCell(cell(row, "mean"));
-    const distribution = distributionFromCells(cell(row, "distribution") ?? (errorFactor !== undefined ? "lognormal" : ""), alpha, beta, median, errorFactor, mean);
     const failures = numberCell(cell(row, "failures"));
     const exposure = numberCell(cell(row, "exposure"));
-    if (quantity === undefined || (component.length === 0 && failureMode.length === 0) || (distribution === undefined && mean === undefined && (failures === undefined || exposure === undefined))) {
+    const p05 = numberCell(cell(row, "p05"));
+    const p95 = numberCell(cell(row, "p95"));
+    if (quantity === undefined || (component.length === 0 && failureMode.length === 0)) {
       skipped += 1;
       continue;
+    }
+    let law: Law | undefined;
+    let distribution: ParameterDistribution | undefined;
+    if (entryHoldsLaw(quantity)) {
+      const found = lawFromCells({ kind: cell(row, "distribution") ?? "", alpha, beta, median, errorFactor, mean, p05, p95, failures, exposure }, quantity);
+      if (found === undefined) {
+        skipped += 1;
+        continue;
+      }
+      if ("law" in found) law = found.law;
+      else {
+        const state = operationLaw(found.operation);
+        if (state.status === "pending") {
+          pending += 1;
+          continue;
+        }
+        if (state.status !== "ready") {
+          skipped += 1;
+          continue;
+        }
+        law = state.law;
+      }
+    } else {
+      distribution = distributionFromCells(cell(row, "distribution") ?? (errorFactor !== undefined ? "lognormal" : ""), alpha, beta, median, errorFactor, mean);
+      if (distribution === undefined && mean === undefined && (failures === undefined || exposure === undefined)) {
+        skipped += 1;
+        continue;
+      }
     }
     let id = cell(row, "id") ?? "";
     if (id.length === 0 || ids.has(id)) id = nextCode("E", [...ids], 3);
     ids.add(id);
     const entry: DaSourceEntry = { id, component, failureMode, quantity };
+    if (law !== undefined) entry.law = law;
     if (distribution !== undefined) entry.distribution = distribution;
     if (mean !== undefined) entry.mean = mean;
-    const p05 = numberCell(cell(row, "p05"));
-    const p95 = numberCell(cell(row, "p95"));
     if (p05 !== undefined) entry.p05 = p05;
     if (median !== undefined) entry.median = median;
     if (p95 !== undefined) entry.p95 = p95;
@@ -487,7 +617,7 @@ function entriesFromRows(rows: readonly string[][], mapping: Partial<Record<DaIm
     if (boundaryNote !== undefined && boundaryNote.length > 0) entry.boundaryNote = boundaryNote;
     entries.push(entry);
   }
-  return { entries, skipped };
+  return { entries, skipped, pending };
 }
 
 const DaSourceEntryListSchema = z.array(DaSourceEntrySchema);

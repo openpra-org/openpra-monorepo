@@ -8,7 +8,7 @@ import { DA_ANALYSIS_HTGR } from "../../../../../backends/web-backend/src/exampl
 import { DA_ANALYSIS } from "../../../../../backends/web-backend/src/example-workbooks/seeds/da-seed";
 import { DaWorkbookProvider } from "../daWorkbookContext";
 import type { DaDrawerContext } from "../daScreens";
-import { CcfWindows, STAGGERED_TOAST, TYPED_ALPHA_TOAST } from "../daCcfScreen";
+import { CcfWindows } from "../daCcfScreen";
 
 const NOW = "2026-10-04T12:00:00.000Z";
 
@@ -36,11 +36,11 @@ const CC: PRAConfigurationControl = {
   invokedPriorToFirstPeerReview: false,
 };
 
-function Harness({ start, context, toasts, onChange }: { start: DataAnalysis; context: DaDrawerContext; toasts: string[]; onChange: (da: DataAnalysis) => void }): JSX.Element {
+function Harness({ start, context, onChange }: { start: DataAnalysis; context: DaDrawerContext; onChange: (da: DataAnalysis) => void }): JSX.Element {
   const [da, setDa] = useState<DataAnalysis>(start);
   return (
     <DaWorkbookProvider data={{ da, cc: CC, nms: [] }} editable mutateDa={(mutator) => setDa((current) => { const next = mutator(current); onChange(next); return next; })}>
-      <CcfWindows context={context} onClose={() => undefined} onRetarget={() => undefined} onToast={(message) => { toasts.push(message); }} />
+      <CcfWindows context={context} onClose={() => undefined} onRetarget={() => undefined} />
     </DaWorkbookProvider>
   );
 }
@@ -50,31 +50,32 @@ function estimateOf(da: DataAnalysis, id: string): CcfParameterEstimation | unde
 }
 
 describe("common cause windows", () => {
-  it("says how a staggered group reaches Systems Analysis and switches its hand-off to MGL", async () => {
-    const toasts: string[] = [];
+  it("keeps the Dirichlet when the testing scheme changes and hands the scheme on with it", async () => {
     let latest: DataAnalysis = DA_ANALYSIS_HTGR;
-    render(<Harness start={DA_ANALYSIS_HTGR} context={{ kind: "daCcfGroup", id: "DA-CCF-05" }} toasts={toasts} onChange={(next) => { latest = next; }} />);
+    render(<Harness start={DA_ANALYSIS_HTGR} context={{ kind: "daCcfGroup", id: "DA-CCF-05" }} onChange={(next) => { latest = next; }} />);
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Testing" }), "STAGGERED");
-    expect(toasts).toEqual([STAGGERED_TOAST]);
     const rods = estimateOf(latest, "DA-CCF-05");
     expect(rods?.testing).toBe("STAGGERED");
-    expect(rods?.modelType).toBe("MGL");
-    expect(rods?.parameters["beta"]).toBeCloseTo(0.013462465391039222, 12);
+    expect(rods?.factors).toEqual({ model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "VALUE", law: { family: "DIRICHLET", concentrations: [880.1, 12.01] } } });
   });
 
-  it("warns that typed alpha factors cannot be staggered yet", async () => {
-    const toasts: string[] = [];
-    render(<Harness start={DA_ANALYSIS} context={{ kind: "daCcfGroup", id: "DA-CCF-21" }} toasts={toasts} onChange={() => undefined} />);
+  it("moves the testing scheme of typed alpha factors with the group", async () => {
+    let latest: DataAnalysis = DA_ANALYSIS;
+    render(<Harness start={DA_ANALYSIS} context={{ kind: "daCcfGroup", id: "DA-CCF-21" }} onChange={(next) => { latest = next; }} />);
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Testing" }), "STAGGERED");
-    expect(toasts).toEqual([TYPED_ALPHA_TOAST]);
+    const software = estimateOf(latest, "DA-CCF-21");
+    expect(software?.testing).toBe("STAGGERED");
+    expect(software?.factors).toEqual({ model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "VALUE", law: { family: "FIXED", values: [0, 0, 0, 1] } } });
   });
 
-  it("warns when a staggered group is typed with alpha factors, but not when it keeps its MGL values", async () => {
-    const toasts: string[] = [];
-    render(<Harness start={DA_ANALYSIS_HTGR} context={{ kind: "daCcfFactors", id: "DA-CCF-04" }} toasts={toasts} onChange={() => undefined} />);
+  it("types factors in the shared editor, starting from the derived Dirichlet", async () => {
+    let latest: DataAnalysis = DA_ANALYSIS_HTGR;
+    render(<Harness start={DA_ANALYSIS_HTGR} context={{ kind: "daCcfFactors", id: "DA-CCF-04" }} onChange={(next) => { latest = next; }} />);
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Method" }), "TYPED");
-    expect(toasts).toEqual([]);
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Model" }), "ALPHA_FACTOR");
-    expect(toasts).toEqual([TYPED_ALPHA_TOAST]);
+    expect(estimateOf(latest, "DA-CCF-04")?.factors).toEqual({ model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "VALUE", law: { family: "DIRICHLET", concentrations: [880.1, 12.01] } } });
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Model" }), "BETA_FACTOR");
+    const typed = estimateOf(latest, "DA-CCF-04");
+    expect(typed?.method).toBe("TYPED");
+    expect(typed?.factors?.model).toBe("BETA_FACTOR");
   });
 });

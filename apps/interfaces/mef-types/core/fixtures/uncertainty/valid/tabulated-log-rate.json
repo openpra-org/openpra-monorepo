@@ -1,0 +1,41 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PER_HOUR",
+        "law": {
+          "family": "TABULATED",
+          "points": [
+            {
+              "probability": 0,
+              "value": 1e-7
+            },
+            {
+              "probability": 0.05,
+              "value": 0.000001
+            },
+            {
+              "probability": 0.5,
+              "value": 0.00001
+            },
+            {
+              "probability": 0.95,
+              "value": 0.0001
+            },
+            {
+              "probability": 1,
+              "value": 0.001
+            }
+          ],
+          "scale": "LOG"
+        }
+      }
+    }
+  }
+]

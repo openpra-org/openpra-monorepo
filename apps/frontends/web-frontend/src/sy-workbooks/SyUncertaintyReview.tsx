@@ -2,7 +2,10 @@ import { JSX } from "react";
 import type { SystemsAnalysis, SystemUncertaintyAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
-import { IssueLines, NoSystemsCard, NotRecorded, ReviewLines, ReviewTitle } from "./syShared";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
+import { IssueLines, NoSystemsCard, NotRecorded, PointValue, ReviewLines, ReviewTitle } from "./syShared";
+import { useEventPoints } from "./syBasicEventValues";
+import { linkedMissionTimeTable, useSyValueSources } from "./syMissionTimes";
 import { isSystemLevelModel } from "./sySelectors";
 import { SyUncertaintyAnalysis } from "./SyUncertaintyAnalysis";
 import {
@@ -11,7 +14,6 @@ import {
   coverageIssues,
   dependencySourceIssues,
   dependencySources,
-  distributionLabel,
   inputRows,
   modelSourceIssues,
   modelSources,
@@ -39,9 +41,13 @@ function UncertaintyScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   openDrawer: (ctx: SyDrawerContext) => void;
   onOpenSystems?: () => void;
 }): JSX.Element {
-  const { sy, shortOf, editable, mutateSy, controlledParameters, runtime } = useSyWorkbook();
+  const { sy, shortOf, editable, mutateSy, controlledParameters, runtime, links } = useSyWorkbook();
+  const values = useSyValueSources();
   const actionLabel = editable ? "Edit" : "View";
   const found = sy.systemDefinitions.find((candidate) => candidate.uuid === sysId) ?? sy.systemDefinitions[0];
+  const rows = found === undefined ? [] : inputRows(sy, found.uuid, controlledParameters, linkedMissionTimeTable(links));
+  const points = useEventPoints(rows.map((row) => row.event), values.table);
+  const label = values.label;
 
   if (found === undefined) {
     return <NoSystemsCard title="Uncertainty analysis" purpose="record their uncertainty here." onOpenSystems={onOpenSystems} />;
@@ -51,7 +57,6 @@ function UncertaintyScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   const model = sy.systemLogicModels.find((candidate) => candidate.systemReference === system.uuid);
   const systemLevel = model !== undefined && isSystemLevelModel(model);
   const runModelId = model !== undefined && !systemLevel && model.topGate !== null ? model.uuid : undefined;
-  const rows = inputRows(sy, system.uuid, controlledParameters);
   const sources = modelSources(sy, system.uuid);
   const ccf = ccfSources(sy, system.uuid);
   const dependencies = dependencySources(sy, system.uuid);
@@ -112,7 +117,7 @@ function UncertaintyScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
 
   const inputsEmpty = model === undefined
     ? "This system has no model yet."
-    : systemLevel ? "A system-level model has no basic events to sample." : "This fault tree has no basic events that take a DA estimate.";
+    : systemLevel ? "A system-level model has no basic events to sample." : "This fault tree has no component basic events.";
 
   return (
     <>
@@ -129,12 +134,12 @@ function UncertaintyScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
           </label>
         </div>
         <div className="sy-review">
-          <section className="sy-review-section" aria-label="DA inputs">
-            <ReviewTitle title="DA inputs" sr="SY-A32 · DA" />
-            {rows.length > 0 && controlledParameters.length === 0 && <p className="sy-review-empty">Link the DA workbook in Step 01 Interfaces to see each input's distribution.</p>}
+          <section className="sy-review-section" aria-label="Input values">
+            <ReviewTitle title="Input values" sr="SY-A32 · DA" />
+            {rows.some((row) => row.issues.some((item) => item.code === "SOURCE_MISSING")) && controlledParameters.length === 0 && <p className="sy-review-empty">Link the DA workbook in Step 01 Interfaces to see the DA estimates.</p>}
             {rows.length === 0 ? <p className="sy-review-empty">{inputsEmpty}</p> : (
-              <table className="sy-review-table syunc-inputs" aria-label="DA inputs">
-                <thead><tr><th scope="col">Basic event</th><th scope="col">DA estimate</th><th scope="col">Distribution</th><th scope="col" className="sy-review-edit" aria-label="Actions" /></tr></thead>
+              <table className="sy-review-table syunc-inputs" aria-label="Input values">
+                <thead><tr><th scope="col">Basic event</th><th scope="col">Value</th><th scope="col">Point</th><th scope="col" className="sy-review-edit" aria-label="Actions" /></tr></thead>
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.event.uuid}>
@@ -144,10 +149,11 @@ function UncertaintyScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
                         <IssueLines issues={row.issues} />
                       </td>
                       <td>
-                        {row.source === undefined ? <NotRecorded /> : <span>{row.source.parameterName}</span>}
-                        {row.source !== undefined && <span className="sy-review-sub">{row.source.workbookName}</span>}
+                        {row.expression === undefined ? <NotRecorded /> : <span>{expressionText(row.expression, label)}</span>}
+                        {row.expression !== undefined && <span className="sy-review-sub">{row.uncertain ? "Sampled in runs" : "Fixed value"}</span>}
+                        {row.sources.map((source) => <span key={`${source.workbookId}:${source.parameterId}`} className="sy-review-sub">DA · {source.workbookName}</span>)}
                       </td>
-                      <td>{row.distribution === undefined ? <span className="sy-review-none">Point value</span> : distributionLabel(row.distribution)}</td>
+                      <td>{row.expression === undefined ? <NotRecorded /> : <PointValue state={points.get(row.event.uuid)} />}</td>
                       <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} ${row.event.code}`} onClick={() => openDrawer({ kind: "be", id: row.event.uuid })}>{actionLabel}</button></td>
                     </tr>
                   ))}

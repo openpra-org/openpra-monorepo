@@ -12,9 +12,13 @@ import type {
   DaScopeKind,
   DaSourceEntry,
 } from "interfaces-mef-types/da/data-analysis";
-import { distributionCdf, distributionMean, distributionQuantile, distributionVariance, gammaQ, normalCdf, scaleDistribution, validDistribution } from "./daDistributions";
+import { canonicalJson, lawWithinUnit, type Law, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { distributionCdf, distributionQuantile, gammaQ, normalCdf, validDistribution } from "./daDistributions";
 import { betaFromMoments, constrainedNoninformative } from "./daEstimates";
-import { entryDistribution, parameterPrior, sourceUseBase, sourceUseResult } from "./daSourcing";
+import { expressionSpread, lawSummary, operationLaw, parameterPriorLaw, quantityUnit, type DaSpread } from "./daLaws";
+import { hasSpread } from "./daFailures";
+import { sourceUseBase, sourceUseResult } from "./daSourcing";
+import { uncertaintyVersion, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
 import type { DaFindingSeverity, DaNeedFinding } from "./daSelectors";
 
 const RANK: Record<DaFindingSeverity, number> = { error: 0, warning: 1, note: 2 };
@@ -65,8 +69,10 @@ interface DaMaintenanceEstimate {
   requiredHours?: number;
   years?: number;
   perTrain?: number;
-  published?: ParameterDistribution;
-  output?: DaUnavailabilityOutput;
+  published?: Law;
+  estimate?: UncertainExpression;
+  cutShift?: number;
+  pending: boolean;
   problem?: string;
 }
 
@@ -79,6 +85,7 @@ interface DaPartResult {
   survival?: number;
   mean?: number;
   variance?: number;
+  pending?: boolean;
   problem?: string;
 }
 
@@ -97,14 +104,15 @@ interface DaRestorationEstimate {
   comparisonMean?: number;
   fit?: DaRecordFit;
   output?: DaUnavailabilityOutput;
+  pending: boolean;
   problem?: string;
 }
 
-const maintenanceCache = new WeakMap<DataAnalysis, Map<string, DaMaintenanceEstimate>>();
+const maintenanceCache = new WeakMap<DataAnalysis, { version: number; values: Map<string, DaMaintenanceEstimate> }>();
 
-const restorationCache = new WeakMap<DataAnalysis, Map<string, DaRestorationEstimate>>();
+const restorationCache = new WeakMap<DataAnalysis, { version: number; values: Map<string, DaRestorationEstimate> }>();
 
-const findingCache = new WeakMap<DataAnalysis, DaNeedFinding[]>();
+const findingCache = new WeakMap<DataAnalysis, { version: number; check: { findings: DaNeedFinding[]; pending: boolean } }>();
 
 function blank(text: string | undefined): boolean {
   return text === undefined || text.trim().length === 0;
@@ -147,7 +155,7 @@ function restorationParameters(da: DataAnalysis, kind?: DaRestorationKind): Data
 }
 
 function typedMode(parameter: DataAnalysisParameter): boolean {
-  return parameter.valueMode === "TYPED" || (parameter.valueMode === undefined && parameter.value !== undefined);
+  return parameter.valueMode === "TYPED" || (parameter.valueMode === undefined && (parameter.value !== undefined || parameter.estimate !== undefined));
 }
 
 function maintenanceMethodOf(parameter: DataAnalysisParameter): DaMaintenanceMethod | "TYPED" | undefined {
@@ -187,12 +195,39 @@ function typedOutput(parameter: DataAnalysisParameter): DaUnavailabilityOutput |
   return summarize(value, distribution, "TYPED");
 }
 
-function activityVariance(activity: DaMaintenanceActivity): number {
+function hoursLaw(activity: DaMaintenanceActivity): Law {
   const low = activity.hoursLow;
   const high = activity.hoursHigh;
-  if (low === undefined || high === undefined || !(low > 0) || !(high > low)) return 0;
-  const sigma = Math.log(high / low) / (2 * Z95);
-  return activity.hoursEach * activity.hoursEach * Math.expm1(sigma * sigma);
+  if (low === undefined || high === undefined || !(low > 0) || !(high > low) || !(activity.hoursEach > 0)) return { family: "POINT", value: activity.hoursEach };
+  return { family: "LOGNORMAL", mean: activity.hoursEach, errorFactor: Math.sqrt(high / low), level: 0.95 };
+}
+
+function factorValue(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "FACTOR", law: { family: "POINT", value } } };
+}
+
+function hoursValue(law: Law): UncertainExpression {
+  return { node: "VALUE", value: { unit: "HOURS", law } };
+}
+
+function fractionValue(law: Law): UncertainExpression {
+  return { node: "VALUE", value: { unit: "FRACTION", law } };
+}
+
+function timesTrains(expression: UncertainExpression, trains: number): UncertainExpression {
+  return trains === 1 ? expression : { node: "OPERATION", operation: "MULTIPLY", operands: [factorValue(trains), expression] };
+}
+
+function plannedExpression(activities: readonly DaMaintenanceActivity[], overlapHours: number, requiredHours: number, trains: number): UncertainExpression {
+  const terms = activities.map((activity) => (activity.perYear === 1 ? hoursValue(hoursLaw(activity)) : { node: "OPERATION" as const, operation: "MULTIPLY" as const, operands: [factorValue(activity.perYear), hoursValue(hoursLaw(activity))] }));
+  const first = terms[0];
+  const total: UncertainExpression = terms.length === 1 && first !== undefined ? first : { node: "OPERATION", operation: "ADD", operands: terms };
+  const net: UncertainExpression = overlapHours > 0 ? { node: "OPERATION", operation: "SUBTRACT", operands: [total, hoursValue({ family: "POINT", value: overlapHours })] } : total;
+  return timesTrains({ node: "OPERATION", operation: "DIVIDE", operands: [net, hoursValue({ family: "POINT", value: requiredHours })] }, trains);
+}
+
+function constrainedExpression(mean: number): UncertainExpression {
+  return fractionValue({ family: "CONSTRAINED_NONINFORMATIVE", mean });
 }
 
 function overlapHoursOf(da: DataAnalysis, parameter: DataAnalysisParameter, depth: number): number {
@@ -205,16 +240,21 @@ function overlapHoursOf(da: DataAnalysis, parameter: DataAnalysisParameter, dept
 }
 
 function maintenanceEstimate(da: DataAnalysis, parameter: DataAnalysisParameter): DaMaintenanceEstimate {
-  let byParameter = maintenanceCache.get(da);
-  if (byParameter === undefined) {
-    byParameter = new Map();
-    maintenanceCache.set(da, byParameter);
+  const version = uncertaintyVersion();
+  let cached = maintenanceCache.get(da);
+  if (cached === undefined || cached.version !== version) {
+    cached = { version, values: new Map() };
+    maintenanceCache.set(da, cached);
   }
-  const cached = byParameter.get(parameter.uuid);
-  if (cached !== undefined) return cached;
+  const known = cached.values.get(parameter.uuid);
+  if (known !== undefined) return known;
   const estimate = computeMaintenance(da, parameter, 0);
-  byParameter.set(parameter.uuid, estimate);
+  cached.values.set(parameter.uuid, estimate);
   return estimate;
+}
+
+function maintenanceSpread(estimate: DaMaintenanceEstimate): UncertaintyState<DaSpread> | undefined {
+  return estimate.estimate === undefined ? undefined : expressionSpread(estimate.estimate, "FRACTION");
 }
 
 function computeMaintenance(da: DataAnalysis, parameter: DataAnalysisParameter, depth: number): DaMaintenanceEstimate {
@@ -222,33 +262,43 @@ function computeMaintenance(da: DataAnalysis, parameter: DataAnalysisParameter, 
   const kind = basis?.kind ?? "TRAIN";
   const trains = kind === "COINCIDENT" ? 1 : basis?.trains ?? 1;
   const method = maintenanceMethodOf(parameter);
-  const base: DaMaintenanceEstimate = { kind, method, trains, counted: [], left: [] };
+  const base: DaMaintenanceEstimate = { kind, method, trains, counted: [], left: [], pending: false };
   if (method === undefined) return { ...base, problem: "Choose how the unavailability is found." };
-  if (method === "TYPED") {
-    const output = typedOutput(parameter);
-    return output === undefined ? { ...base, problem: "Type the unavailability." } : { ...base, output };
-  }
+  if (method === "TYPED") return parameter.estimate === undefined ? { ...base, problem: "Type the unavailability." } : { ...base, estimate: parameter.estimate };
   if (!(trains > 0)) return { ...base, problem: "The number of trains must be more than zero." };
   if (method === "GENERIC") {
-    const prior = parameterPrior(da, parameter);
-    if (prior === undefined) return { ...base, problem: "No published value. Choose it in Step 04 Applicability." };
-    if (prior.quantity !== "FRACTION") return { ...base, problem: "The published value is not a fraction of time out of service." };
-    const mean = prior.mean * trains;
-    const withPublished = { ...base, perTrain: prior.mean, published: prior.distribution };
-    if (!(mean > 0 && mean < 1)) return { ...withPublished, problem: "The trains times the published value must lie between 0 and 1." };
-    if (prior.distribution.type === DistributionType.BETA) {
-      const scaled = scaleDistribution(prior.distribution, trains);
-      if (scaled !== undefined) return { ...withPublished, output: summarize(distributionMean(scaled) ?? mean, scaled, "PUBLISHED") };
-    }
-    const variance = (distributionVariance(prior.distribution) ?? 0) * trains * trains;
-    const output = probabilityOutput(mean, variance);
-    return output === undefined ? { ...withPublished, problem: "The published value cannot be summarized." } : { ...withPublished, output };
+    const prior = parameterPriorLaw(da, parameter);
+    if (prior.status === "pending") return { ...base, pending: true };
+    if (prior.status === "failed") return { ...base, problem: `PRAXIS could not form the published value: ${prior.error}` };
+    if (prior.status === "missing") return { ...base, problem: prior.problem.startsWith("No prior") ? "No published value. Choose it in Step 04 Applicability." : prior.problem };
+    if (prior.value.quantity !== "FRACTION") return { ...base, problem: "The published value is not a fraction of time out of service." };
+    const published = prior.value.law;
+    const withPublished: DaMaintenanceEstimate = { ...base, published };
+    const spread = expressionSpread(fractionValue(published), "FRACTION");
+    if (spread.status === "pending") return { ...withPublished, pending: true };
+    if (spread.status === "failed") return { ...withPublished, problem: `PRAXIS could not summarize the published value: ${spread.error}` };
+    const perTrain = spread.value.mean;
+    const mean = perTrain * trains;
+    const withMean: DaMaintenanceEstimate = { ...withPublished, perTrain };
+    if (!(mean > 0 && mean < 1)) return { ...withMean, problem: "The trains times the published value must lie between 0 and 1." };
+    if (published.family === "POINT") return { ...withMean, estimate: constrainedExpression(mean) };
+    if (trains === 1) return { ...withMean, estimate: fractionValue(published) };
+    const scaled = operationLaw({ kind: "SCALE", law: published, factor: trains });
+    if (scaled.status === "pending") return { ...withMean, pending: true };
+    if (scaled.status === "failed") return { ...withMean, problem: `PRAXIS could not scale the published value: ${scaled.error}` };
+    if (scaled.status === "missing") return { ...withMean, problem: scaled.problem };
+    const kept = lawWithinUnit("FRACTION", scaled.law);
+    if (kept === scaled.law) return { ...withMean, estimate: fractionValue(kept) };
+    const cut = expressionSpread(fractionValue(kept), "FRACTION");
+    if (cut.status === "pending") return { ...withMean, pending: true };
+    if (cut.status === "failed") return { ...withMean, problem: `PRAXIS could not summarize the scaled value: ${cut.error}` };
+    return { ...withMean, estimate: fractionValue(kept), cutShift: 1 - cut.value.mean / mean };
   }
   const required = basis?.requiredHoursPerYear;
   if (required === undefined || !(required > 0)) return { ...base, problem: "Enter the hours a year the function is required." };
   const counted: DaCountedItem[] = [];
   const left: DaLeftItem[] = [];
-  let variance = 0;
+  const activities: DaMaintenanceActivity[] = [];
   if (method === "PLANNED") {
     for (const activity of basis?.activities ?? []) {
       const label = blank(activity.activity) ? activity.id : activity.activity;
@@ -256,7 +306,7 @@ function computeMaintenance(da: DataAnalysis, parameter: DataAnalysisParameter, 
       else if (!blank(activity.chargedTo)) left.push({ id: activity.id, label, why: "SUPPORT", chargedTo: activity.chargedTo });
       else if (activity.perYear >= 0 && activity.hoursEach >= 0) {
         counted.push({ id: activity.id, label, hours: activity.perYear * activity.hoursEach });
-        variance += activity.perYear * activity.perYear * activityVariance(activity);
+        if (activity.perYear > 0 && activity.hoursEach > 0) activities.push(activity);
       }
     }
   } else {
@@ -281,9 +331,9 @@ function computeMaintenance(da: DataAnalysis, parameter: DataAnalysisParameter, 
   const mean = perTrain * trains;
   if (!(mean > 0)) return { ...filled, problem: "The hours out of service add up to zero." };
   if (!(mean < 1)) return { ...filled, problem: "The function is out of service for more hours than it is required." };
-  const scale = trains / requiredHours;
-  const output = probabilityOutput(mean, variance * scale * scale);
-  return output === undefined ? { ...filled, problem: "The unavailability cannot be summarized." } : { ...filled, output };
+  const spread = activities.some((activity) => hoursLaw(activity).family !== "POINT");
+  if (method === "RECORDS" || !spread) return { ...filled, estimate: constrainedExpression(mean) };
+  return { ...filled, estimate: plannedExpression(activities, overlapHours, requiredHours, trains) };
 }
 
 function survivalAt(distribution: ParameterDistribution, hours: number): number | undefined {
@@ -327,14 +377,16 @@ function entryOf(da: DataAnalysis, sourceId: string | undefined, entryId: string
   return (da.sources ?? []).find((source) => source.id === sourceId)?.entries.find((entry) => entry.id === entryId);
 }
 
-function partWeight(da: DataAnalysis, part: DaRestorationPart): { weight?: number; problem?: string } {
+function partWeight(da: DataAnalysis, part: DaRestorationPart): { weight?: number; pending?: boolean; problem?: string } {
   if (part.weightSourceId !== undefined || part.weightEntryId !== undefined) {
     const entry = entryOf(da, part.weightSourceId, part.weightEntryId);
     if (entry === undefined) return { problem: "Pick the frequency that weights this part." };
     if (entry.quantity !== "PER_YEAR") return { problem: `${entry.id} is not a frequency per year.` };
-    const distribution = entryDistribution(entry);
-    const mean = distribution === undefined ? undefined : distributionMean(distribution);
-    return mean !== undefined && mean > 0 ? { weight: mean } : { problem: `${entry.id} has no positive mean frequency.` };
+    if (entry.law === undefined) return { problem: `${entry.id} has no law.` };
+    const summary = lawSummary(quantityUnit(entry.quantity), lawWithinUnit(quantityUnit(entry.quantity), entry.law));
+    if (summary.status === "pending") return { pending: true };
+    if (summary.status === "failed") return { problem: `PRAXIS could not read ${entry.id}: ${summary.error}` };
+    return summary.value.mean > 0 ? { weight: summary.value.mean } : { problem: `${entry.id} has no positive mean frequency.` };
   }
   if (part.weight !== undefined) return part.weight > 0 ? { weight: part.weight } : { problem: "A weight must be more than zero." };
   return {};
@@ -348,7 +400,7 @@ function partLabel(da: DataAnalysis, parameter: DataAnalysisParameter, part: DaR
   return entry === undefined ? `${use.sourceId ?? "?"} · ${use.entryId ?? "?"}` : `${entry.id} · ${entry.component}`;
 }
 
-function evaluateParts(da: DataAnalysis, parameter: DataAnalysisParameter, parts: readonly DaRestorationPart[], window: number | undefined): { results: DaPartResult[]; mean?: number; variance?: number; problem?: string } {
+function evaluateParts(da: DataAnalysis, parameter: DataAnalysisParameter, parts: readonly DaRestorationPart[], window: number | undefined): { results: DaPartResult[]; mean?: number; variance?: number; pending?: boolean; problem?: string } {
   const results: DaPartResult[] = parts.map((part) => {
     const label = partLabel(da, parameter, part);
     const use = (parameter.sourceUses ?? []).find((candidate) => candidate.id === part.useId);
@@ -359,6 +411,7 @@ function evaluateParts(da: DataAnalysis, parameter: DataAnalysisParameter, parts
     if (result.quantity !== "HOURS") return { part, label, problem: "This source is not a time in hours." };
     const weighted = partWeight(da, part);
     const withWeight: DaPartResult = { part, label, distribution: result.distribution, rawWeight: weighted.weight };
+    if (weighted.pending === true) return { ...withWeight, pending: true };
     if (weighted.problem !== undefined) return { ...withWeight, problem: weighted.problem };
     if (window === undefined) return withWeight;
     const moments = survivalMoments(result.distribution, window, part.sampleSize);
@@ -366,6 +419,7 @@ function evaluateParts(da: DataAnalysis, parameter: DataAnalysisParameter, parts
     return { ...withWeight, survival: moments.survival, mean: moments.mean, variance: moments.variance };
   });
   if (results.length === 0) return { results };
+  if (results.some((result) => result.pending === true)) return { results, pending: true };
   const weighted = results.filter((result) => result.part.weight !== undefined || result.part.weightEntryId !== undefined || result.part.weightSourceId !== undefined).length;
   if (weighted > 0 && weighted < results.length) return { results, problem: "Weight every part, or none for equal weights." };
   const failed = results.find((result) => result.problem !== undefined);
@@ -389,15 +443,16 @@ function recordFit(times: readonly number[]): DaRecordFit | undefined {
 }
 
 function restorationEstimate(da: DataAnalysis, parameter: DataAnalysisParameter): DaRestorationEstimate {
-  let byParameter = restorationCache.get(da);
-  if (byParameter === undefined) {
-    byParameter = new Map();
-    restorationCache.set(da, byParameter);
+  const version = uncertaintyVersion();
+  let cached = restorationCache.get(da);
+  if (cached === undefined || cached.version !== version) {
+    cached = { version, values: new Map() };
+    restorationCache.set(da, cached);
   }
-  const cached = byParameter.get(parameter.uuid);
-  if (cached !== undefined) return cached;
+  const known = cached.values.get(parameter.uuid);
+  if (known !== undefined) return known;
   const estimate = computeRestoration(da, parameter);
-  byParameter.set(parameter.uuid, estimate);
+  cached.values.set(parameter.uuid, estimate);
   return estimate;
 }
 
@@ -406,7 +461,7 @@ function computeRestoration(da: DataAnalysis, parameter: DataAnalysisParameter):
   const kind = basis?.kind ?? "RECOVERY";
   const method = restorationMethodOf(parameter);
   const window = basis?.windowHours !== undefined && basis.windowHours > 0 ? basis.windowHours : undefined;
-  const base: DaRestorationEstimate = { kind, method, window, parts: [], comparison: [] };
+  const base: DaRestorationEstimate = { kind, method, window, parts: [], comparison: [], pending: false };
   if (method === undefined) return { ...base, problem: "Choose how the chance of not restoring is found." };
   if (method === "TYPED") {
     const output = typedOutput(parameter);
@@ -426,8 +481,9 @@ function computeRestoration(da: DataAnalysis, parameter: DataAnalysisParameter):
   }
   const primary = evaluateParts(da, parameter, basis?.parts ?? [], window);
   const comparison = evaluateParts(da, parameter, basis?.comparison ?? [], window);
-  const withParts: DaRestorationEstimate = { ...base, parts: primary.results, comparison: comparison.results, comparisonMean: comparison.problem === undefined ? comparison.mean : undefined };
+  const withParts: DaRestorationEstimate = { ...base, parts: primary.results, comparison: comparison.results, comparisonMean: comparison.problem === undefined ? comparison.mean : undefined, pending: primary.pending === true || comparison.pending === true };
   if (primary.results.length === 0) return { ...withParts, problem: "Add the source parts the estimate is built from." };
+  if (primary.pending === true) return withParts;
   if (primary.problem !== undefined) return { ...withParts, problem: primary.problem };
   if (window === undefined || primary.mean === undefined) return { ...withParts, problem: NO_WINDOW };
   const output = probabilityOutput(primary.mean, primary.variance ?? 0);
@@ -497,12 +553,29 @@ function withOutagesFromPos(da: DataAnalysis): DataAnalysis {
   return changed ? { ...da, outages: next } : da;
 }
 
+function withMaintenanceEstimate(da: DataAnalysis, parameter: DataAnalysisParameter): DataAnalysisParameter {
+  const estimate = maintenanceEstimate(da, parameter);
+  const expression = estimate.estimate;
+  if (expression === undefined || estimate.pending || estimate.problem !== undefined) return parameter;
+  if (parameter.estimate !== undefined && canonicalJson(parameter.estimate) === canonicalJson(expression) && parameter.value === undefined && parameter.valueType === undefined && parameter.uncertainty === undefined) return parameter;
+  const next: DataAnalysisParameter = { ...parameter, estimate: expression };
+  delete next.value;
+  delete next.valueType;
+  delete next.uncertainty;
+  return next;
+}
+
 function withUnavailability(input: DataAnalysis): DataAnalysis {
   const da = withOutagesFromPos(input);
   let changed = false;
   const parameters = da.parameters.map((parameter) => {
     if (parameter.valueMode !== "CALCULATED") return parameter;
-    const output = isMaintenanceParameter(parameter) ? maintenanceEstimate(da, parameter).output : isRestorationParameter(parameter) ? restorationEstimate(da, parameter).output : undefined;
+    if (isMaintenanceParameter(parameter)) {
+      const next = withMaintenanceEstimate(da, parameter);
+      if (next !== parameter) changed = true;
+      return next;
+    }
+    const output = isRestorationParameter(parameter) ? restorationEstimate(da, parameter).output : undefined;
     if (output === undefined) return parameter;
     if (sameNumber(parameter.value, output.mean) && parameter.valueType === "MEAN" && sameDistribution(parameter.uncertainty?.distribution, output.distribution)) return parameter;
     changed = true;
@@ -515,7 +588,7 @@ function systemsWithMaintenance(da: DataAnalysis): Set<string> {
   return new Set(trainParameters(da).flatMap((parameter) => (parameter.systemReference === undefined ? [] : [parameter.systemReference])));
 }
 
-function maintenanceFindingsFor(da: DataAnalysis, parameter: DataAnalysisParameter, findings: DaNeedFinding[]): void {
+function maintenanceFindingsFor(da: DataAnalysis, parameter: DataAnalysisParameter, findings: DaNeedFinding[], pending: { value: boolean }): void {
   const item = parameter.uuid;
   const target = { kind: "daMaintenance" as const, id: parameter.uuid };
   const basis = parameter.maintenance;
@@ -528,13 +601,15 @@ function maintenanceFindingsFor(da: DataAnalysis, parameter: DataAnalysisParamet
     return;
   }
   if (method === "TYPED") {
-    if (parameter.value === undefined) findings.push({ severity: "error", check: "No value", item, detail: "Type the unavailability, or let DA calculate it.", target });
-    const distribution = parameter.uncertainty?.distribution;
-    if (distribution === undefined || distribution.type === DistributionType.POINT_ESTIMATE) findings.push({ severity: "warning", check: "No uncertainty", item, detail: "Give the typed unavailability a distribution (DA-D3).", target });
+    const typed = parameter.estimate;
+    if (typed === undefined) findings.push({ severity: "error", check: "No value", item, detail: "Type the unavailability, or let DA calculate it.", target });
+    else if (!hasSpread(typed)) findings.push({ severity: "warning", check: "No uncertainty", item, detail: "Give the typed unavailability a distribution (DA-D3).", target });
     if (blank(parameter.estimateReason) && blank(basis?.basis)) findings.push({ severity: "warning", check: "No basis", item, detail: "Say where the typed unavailability comes from.", target });
     return;
   }
+  if (estimate.pending) pending.value = true;
   if (estimate.problem !== undefined) findings.push({ severity: "error", check: "Cannot estimate", item, detail: estimate.problem, target: estimate.problem.startsWith("No published value") ? { kind: "daSourcing", id: parameter.uuid } : target });
+  if (estimate.cutShift !== undefined) findings.push({ severity: estimate.cutShift >= 0.05 ? "warning" : "note", check: "Cut at one", item, detail: `${estimate.trains} trains times the published value can pass one, so the law is cut at one. This lowers the mean by ${Number((estimate.cutShift * 100).toPrecision(2))}%.`, target });
   if (method === "GENERIC") {
     if (!operating && blank(basis?.basis)) findings.push({ severity: "warning", check: "Generic value not justified", item, detail: "Say why the published value fits this design and its maintenance program (DA-C14).", target });
     if (operating) findings.push({ severity: "warning", check: "Generic value", item, detail: "An operating plant counts its own time out of service (DA-C13, DA-C16).", target });
@@ -583,11 +658,12 @@ function maintenanceFindingsFor(da: DataAnalysis, parameter: DataAnalysisParamet
   }
 }
 
-function restorationFindingsFor(da: DataAnalysis, parameter: DataAnalysisParameter, findings: DaNeedFinding[]): void {
+function restorationFindingsFor(da: DataAnalysis, parameter: DataAnalysisParameter, findings: DaNeedFinding[], pending: { value: boolean }): void {
   const item = parameter.uuid;
   const target = { kind: "daRestoration" as const, id: parameter.uuid };
   const basis = parameter.restoration;
   const estimate = restorationEstimate(da, parameter);
+  if (estimate.pending) pending.value = true;
   const method = estimate.method;
   const operating = da.plantStage === "OPERATIONAL";
   const kind = estimate.kind;
@@ -669,19 +745,26 @@ function outageFindings(da: DataAnalysis, findings: DaNeedFinding[]): void {
   if (operating && outages.length > 0) for (const state of shutdown) findings.push({ severity: "note", check: "State without outage", item: state.id, detail: `No outage timeline covers ${state.id} ${state.name} (DA-C24).`, target: { kind: "needState", id: state.id } });
 }
 
-function unavailabilityFindings(da: DataAnalysis): DaNeedFinding[] {
+function unavailabilityCheck(da: DataAnalysis): { findings: DaNeedFinding[]; pending: boolean } {
+  const version = uncertaintyVersion();
   const cached = findingCache.get(da);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined && cached.version === version) return cached.check;
   const findings: DaNeedFinding[] = [];
-  for (const parameter of maintenanceParameters(da)) maintenanceFindingsFor(da, parameter, findings);
-  for (const parameter of restorationParameters(da)) restorationFindingsFor(da, parameter, findings);
+  const pending = { value: false };
+  for (const parameter of maintenanceParameters(da)) maintenanceFindingsFor(da, parameter, findings, pending);
+  for (const parameter of restorationParameters(da)) restorationFindingsFor(da, parameter, findings, pending);
   outageFindings(da, findings);
   const sorted = findings
     .map((finding, index) => ({ finding, index }))
     .sort((a, b) => RANK[a.finding.severity] - RANK[b.finding.severity] || a.index - b.index)
     .map(({ finding }) => finding);
-  findingCache.set(da, sorted);
-  return sorted;
+  const check = { findings: sorted, pending: pending.value };
+  findingCache.set(da, { version, check });
+  return check;
+}
+
+function unavailabilityFindings(da: DataAnalysis): DaNeedFinding[] {
+  return unavailabilityCheck(da).findings;
 }
 
 function scopeExcluded(da: DataAnalysis, kind: DaScopeKind): boolean {
@@ -692,8 +775,10 @@ function scopeExcluded(da: DataAnalysis, kind: DaScopeKind): boolean {
 function unavailabilityComplete(da: DataAnalysis): boolean {
   const parameters = [...maintenanceParameters(da), ...restorationParameters(da)];
   if (parameters.length === 0 && (da.outages ?? []).length === 0) return scopeExcluded(da, "TEST_MAINTENANCE") && scopeExcluded(da, "REPAIR_RECOVERY");
-  if (parameters.some((parameter) => parameter.value === undefined)) return false;
-  return !unavailabilityFindings(da).some((finding) => finding.severity === "error");
+  if (maintenanceParameters(da).some((parameter) => parameter.estimate === undefined)) return false;
+  if (restorationParameters(da).some((parameter) => parameter.value === undefined)) return false;
+  const check = unavailabilityCheck(da);
+  return !check.pending && !check.findings.some((finding) => finding.severity === "error");
 }
 
 function outageUsers(da: DataAnalysis, stateId: string): DaOutage[] {
@@ -707,6 +792,7 @@ export {
   maintenanceEstimate,
   maintenanceMethodOf,
   maintenanceParameters,
+  maintenanceSpread,
   outageUsers,
   restorationEstimate,
   restorationMethodOf,

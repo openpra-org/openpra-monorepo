@@ -1,5 +1,7 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
+import { parameterReferenceKey, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import type { FaultTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
 import {
@@ -13,8 +15,29 @@ import {
   type FaultTreeSelection,
 } from "../index";
 import { renderFaultTreePng, type FaultTreePng } from "../faultTreeImage";
+import { evaluateUncertainty } from "../../shared/uncertaintyApi";
+import { praxisUncertainty, settledWithPraxis } from "../../shared/test/praxisUncertainty";
 
 jest.mock("../faultTreeImage", () => ({ renderFaultTreePng: jest.fn() }));
+jest.mock("../../shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
+
+beforeEach(() => {
+  jest.mocked(evaluateUncertainty).mockImplementation(praxisUncertainty);
+});
+
+async function praxisSettled(): Promise<void> {
+  await act(async () => {
+    await settledWithPraxis(() => undefined);
+  });
+}
+
+function typedProbability(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
+}
+
+function hours(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value } } };
+}
 
 const mockedRenderPng = jest.mocked(renderFaultTreePng);
 
@@ -112,6 +135,11 @@ const catalogue: FaultTreeEditorCatalogue = {
   ],
 };
 
+const ownedCatalogue: FaultTreeEditorCatalogue = {
+  ...catalogue,
+  basicEvents: catalogue.basicEvents.map((event) => ({ ...event, probability: { value: 0.02, expression: typedProbability(0.02) } })),
+};
+
 const authorCapabilities: FaultTreeEditorCapabilities = {
   mode: "AUTHOR",
   canEditBasicEvents: true,
@@ -137,6 +165,26 @@ function editorProps(overrides: Partial<FaultTreeEditorProps> = {}): FaultTreeEd
     onRun: jest.fn(),
     ...overrides,
   };
+}
+
+function StatefulEditor({ onOperation, ...overrides }: Partial<FaultTreeEditorProps> & { onOperation: (operation: FaultTreeOperation) => void }): JSX.Element {
+  const [state, setState] = useState({ model: overrides.model ?? model, catalogue: overrides.catalogue ?? catalogue });
+  return (
+    <FaultTreeEditor
+      {...editorProps({
+        ...overrides,
+        model: state.model,
+        catalogue: state.catalogue,
+        onOperation: (operation) => {
+          onOperation(operation);
+          setState((current) => {
+            const next = applyFaultTreeOperation(current.model, current.catalogue, operation);
+            return { model: next.model, catalogue: next.catalogue };
+          });
+        },
+      })}
+    />
+  );
 }
 
 function stageBounds(stage: HTMLElement): { left: number; top: number; right: number; bottom: number } {
@@ -604,7 +652,7 @@ describe("FaultTreeEditor", () => {
     expect(onOperation).toHaveBeenCalledWith(expect.objectContaining({
       type: "ADD_BASIC_EVENT",
       parentGateId: ROOT_GATE_ID,
-      basicEvent: expect.objectContaining({ name: "New basic event", probability: { value: 0 } }),
+      basicEvent: expect.objectContaining({ name: "New basic event", probability: { value: 1e-3, expression: typedProbability(1e-3) } }),
     }));
   });
 
@@ -957,109 +1005,150 @@ describe("FaultTreeEditor", () => {
     expect(screen.getByRole("button", { name: "Export high-resolution PNG" })).toBeEnabled();
   });
 
-  it("emits a catalogue operation for a basic-event probability", async () => {
-    const user = userEvent.setup();
+  it("saves a typed value with its PRAXIS point once PRAXIS answers", async () => {
     const onOperation = jest.fn<void, [FaultTreeOperation]>();
-    render(
-      <FaultTreeEditor
-        {...editorProps({
-          selection: { kind: "LEAF", leafId: LEAF_ID },
-          onOperation,
-        })}
-      />,
-    );
+    render(<FaultTreeEditor {...editorProps({ catalogue: ownedCatalogue, selection: { kind: "LEAF", leafId: LEAF_ID }, onOperation })} />);
+    await praxisSettled();
 
-    const probability = screen.getByLabelText(/Probability \(0/);
-    await user.clear(probability);
-    await user.type(probability, "0.125");
-    await user.tab();
+    const value = within(screen.getByRole("group", { name: "Value" })).getByLabelText("Value");
+    fireEvent.focus(value);
+    fireEvent.change(value, { target: { value: "0.125" } });
+    fireEvent.blur(value);
+    expect(onOperation).not.toHaveBeenCalled();
+    await praxisSettled();
 
     expect(onOperation).toHaveBeenCalledTimes(1);
     expect(onOperation).toHaveBeenCalledWith({
       type: "UPDATE_BASIC_EVENT",
       basicEventId: BASIC_EVENT_ID,
-      basicEvent: {
-        ...catalogue.basicEvents[0],
-        probability: { value: 0.125 },
-      },
+      basicEvent: { ...ownedCatalogue.basicEvents[0], probability: { value: 0.125, expression: typedProbability(0.125) } },
     });
   });
 
-  it("uses exponential conversion for a new failure-rate input", () => {
-    const onOperation = jest.fn();
-    render(<FaultTreeEditor {...editorProps({ selection: { kind: "LEAF", leafId: LEAF_ID }, onOperation })} />);
-    fireEvent.change(screen.getByLabelText("Basic-event quantification input"), { target: { value: "FAILURE_RATE" } });
-    expect(onOperation).toHaveBeenCalledWith(expect.objectContaining({ basicEvent: expect.objectContaining({
-      probability: expect.objectContaining({ quantificationBasis: expect.objectContaining({ conversion: "EXPONENTIAL" }) }),
-    }) }));
+  it("models a failure rate over the host's mission time and stores the PRAXIS point", async () => {
+    const onOperation = jest.fn<void, [FaultTreeOperation]>();
+    render(<FaultTreeEditor {...editorProps({ catalogue: ownedCatalogue, selection: { kind: "LEAF", leafId: LEAF_ID }, defaultMissionTime: hours(72), onOperation })} />);
+
+    fireEvent.change(screen.getByLabelText("Form"), { target: { value: "MISSION" } });
+    await praxisSettled();
+
+    const operation = onOperation.mock.calls[0]?.[0];
+    expect(operation?.type).toBe("UPDATE_BASIC_EVENT");
+    if (operation?.type !== "UPDATE_BASIC_EVENT") throw new Error("Expected a basic-event update");
+    expect(operation.basicEvent.probability.expression).toEqual({ node: "MODEL", model: { form: "MISSION", rate: { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "POINT", value: 1e-5 } } }, missionTime: hours(72) } });
+    expect(operation.basicEvent.probability.value).toBeCloseTo(-Math.expm1(-1e-5 * 72), 15);
+    expect(operation.basicEvent.probability).not.toHaveProperty("quantificationBasis");
   });
 
-  it("requires an explicit review before replacing a saved linear conversion", () => {
+  it("keeps a value PRAXIS rejects out of the record and says why", async () => {
+    const onOperation = jest.fn<void, [FaultTreeOperation]>();
+    render(<FaultTreeEditor {...editorProps({ catalogue: ownedCatalogue, selection: { kind: "LEAF", leafId: LEAF_ID }, onOperation })} />);
+
+    fireEvent.change(screen.getByLabelText("Law"), { target: { value: "LOGNORMAL" } });
+    await praxisSettled();
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Not saved.");
+    expect(screen.getByRole("alert")).toHaveTextContent("outside [0, 1]");
+    expect(onOperation).not.toHaveBeenCalled();
+  });
+
+  it("shows the PRAXIS point of each expression on the canvas, not the stored number", async () => {
+    const mission: UncertainExpression = { node: "MODEL", model: { form: "MISSION", rate: { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "GAMMA", shape: 2, rate: 2e5 } } }, missionTime: hours(24) } };
+    const stale: FaultTreeEditorCatalogue = { ...ownedCatalogue, basicEvents: [{ ...ownedCatalogue.basicEvents[0], probability: { value: 0.5, expression: mission } }] };
+    render(<FaultTreeEditor {...editorProps({ catalogue: stale })} />);
+    const basicEvent = screen.getByRole("button", { name: /Shared pump failure/i });
+
+    expect(within(basicEvent).getByText("…")).toBeInTheDocument();
+    await praxisSettled();
+    expect(within(basicEvent).getByText("2.4e-4")).toBeInTheDocument();
+    expect(within(basicEvent).queryByText("5.0e-1")).not.toBeInTheDocument();
+  });
+
+  it("links DA and SC values through the host's options and parameter table", async () => {
+    const onOperation = jest.fn<void, [FaultTreeOperation]>();
+    const rate = { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: "da-1", entityId: "rate-1" };
+    const time = { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: "sc-1", entityId: "MT-1" };
+    const parameterTable = new Map([
+      [parameterReferenceKey(rate), { reference: rate, expression: { node: "VALUE" as const, value: { unit: "PER_HOUR" as const, law: { family: "POINT" as const, value: 2e-5 } } } }],
+      [parameterReferenceKey(time), { reference: time, expression: hours(48) }],
+    ]);
+    render(<StatefulEditor {...{
+      catalogue: ownedCatalogue,
+      selection: { kind: "LEAF", leafId: LEAF_ID },
+      daParameterOptions: [{ reference: rate, label: "DA · Pump fails to run", unit: "PER_HOUR" }],
+      missionTimeOptions: [{ reference: time, label: "MT-1 · sequence ES-1", unit: "HOURS" }],
+      parameterTable,
+      onOperation,
+    }} />);
+
+    fireEvent.change(screen.getByLabelText("Form"), { target: { value: "MISSION" } });
+    await praxisSettled();
+    const [rateSlot, timeSlot] = screen.getAllByLabelText("Source");
+    fireEvent.change(rateSlot!, { target: { value: parameterReferenceKey(rate) } });
+    await praxisSettled();
+    fireEvent.change(timeSlot!, { target: { value: parameterReferenceKey(time) } });
+    await praxisSettled();
+
+    const last = onOperation.mock.calls.at(-1)?.[0];
+    if (last?.type !== "UPDATE_BASIC_EVENT") throw new Error("Expected a basic-event update");
+    expect(last.basicEvent.probability.expression).toEqual({ node: "MODEL", model: { form: "MISSION", rate: { node: "PARAMETER", reference: rate }, missionTime: { node: "PARAMETER", reference: time } } });
+    expect(last.basicEvent.probability.value).toBeCloseTo(-Math.expm1(-2e-5 * 48), 15);
+  });
+
+  it("offers an older stored value as a typed value and saves it without the old fields", async () => {
+    const onOperation = jest.fn<void, [FaultTreeOperation]>();
+    const rateCatalogue: FaultTreeEditorCatalogue = { ...catalogue, basicEvents: [{ ...catalogue.basicEvents[0], probability: {
+      value: 0.0004798848184297544,
+      quantificationBasis: { kind: "FAILURE_RATE", failureRate: { value: 2e-5, unit: "HOUR" }, missionTime: { value: 1, unit: "DAY" }, conversion: "EXPONENTIAL" },
+    } }] };
+    render(<FaultTreeEditor {...editorProps({ catalogue: rateCatalogue, selection: { kind: "LEAF", leafId: LEAF_ID }, onOperation })} />);
+
+    expect(screen.getByLabelText("Form")).toHaveValue("MISSION");
+    fireEvent.click(screen.getByRole("button", { name: "Save this value" }));
+    await praxisSettled();
+
+    expect(onOperation).toHaveBeenCalledWith(expect.objectContaining({ basicEvent: expect.objectContaining({ probability: {
+      value: expect.closeTo(-Math.expm1(-2e-5 * 24), 15),
+      expression: { node: "MODEL", model: { form: "MISSION", rate: { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "POINT", value: 2e-5 } } }, missionTime: hours(24) } },
+    } }) }));
+  });
+
+  it("asks for a review of a saved linear conversion before it is used", () => {
     const onOperation = jest.fn();
     const legacyCatalogue: FaultTreeEditorCatalogue = { ...catalogue, basicEvents: [{ ...catalogue.basicEvents[0], probability: {
       value: .1, quantificationBasis: { kind: "FAILURE_RATE", conversion: "LINEAR",
         failureRate: { value: .001, unit: "HOUR" }, missionTime: { value: 100, unit: "HOUR" } },
     } }] };
     render(<FaultTreeEditor {...editorProps({ catalogue: legacyCatalogue, selection: { kind: "LEAF", leafId: LEAF_ID }, onOperation })} />);
+
     expect(screen.getByRole("alert")).toHaveTextContent("Review the rate and mission time");
-    expect(screen.getByLabelText("Failure rate")).toBeDisabled();
-    expect(screen.queryByRole("option", { name: "Linear approximation" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Form")).toHaveValue("MISSION");
+    expect(screen.queryByLabelText("Basic-event quantification input")).not.toBeInTheDocument();
     expect(onOperation).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Use exponential conversion" }));
-    expect(onOperation).toHaveBeenCalledWith(expect.objectContaining({ basicEvent: expect.objectContaining({
-      probability: { value: 0.09516258196404048, quantificationBasis: {
-        kind: "FAILURE_RATE", conversion: "EXPONENTIAL",
-        failureRate: { value: .001, unit: "HOUR" }, missionTime: { value: 100, unit: "HOUR" },
-      } },
-    }) }));
-    expect(legacyCatalogue.basicEvents[0].probability.quantificationBasis?.kind).toBe("FAILURE_RATE");
-    expect(legacyCatalogue.basicEvents[0].probability.value).toBe(.1);
   });
 
-  it("derives mission probability when a failure-rate input changes", async () => {
+  it("shows a host-owned basic-event value without letting it change in place", async () => {
     const user = userEvent.setup();
     const onOperation = jest.fn<void, [FaultTreeOperation]>();
-    const rateCatalogue = {
-      ...catalogue,
-      basicEvents: [{
-        ...catalogue.basicEvents[0],
-        probability: {
-          value: 0,
-          quantificationBasis: {
-            kind: "FAILURE_RATE" as const,
-            failureRate: { value: 0, unit: "HOUR" as const },
-            missionTime: { value: 24, unit: "HOUR" as const },
-            conversion: "EXPONENTIAL" as const,
-          },
-        },
-      }],
-    };
-    render(<FaultTreeEditor {...editorProps({
-      catalogue: rateCatalogue,
-      selection: { kind: "LEAF", leafId: LEAF_ID },
-      onOperation,
-    })} />);
+    const onOpenReference = jest.fn();
+    render(
+      <FaultTreeEditor
+        {...editorProps({
+          selection: { kind: "BASIC_EVENT", basicEventId: BASIC_EVENT_ID },
+          readOnlyBasicEventValues: { [BASIC_EVENT_ID]: "Mission: rate Pump fails to run over 24 hours" },
+          onOperation,
+          onOpenReference,
+        })}
+      />,
+    );
 
-    const rate = screen.getByLabelText("Failure rate");
-    await user.clear(rate);
-    await user.type(rate, "0.00002");
-    await user.tab();
-
-    const operation = onOperation.mock.calls[0]?.[0];
-    expect(operation).toMatchObject({
-      type: "UPDATE_BASIC_EVENT",
-      basicEvent: {
-        probability: {
-          value: 0.0004798848184297544, // HCL_MH calculation type 3.
-          quantificationBasis: {
-            kind: "FAILURE_RATE",
-            failureRate: { value: 2e-5, unit: "HOUR" },
-            missionTime: { value: 24, unit: "HOUR" },
-            conversion: "EXPONENTIAL",
-          },
-        },
-      },
-    });
+    expect(screen.getByText("Mission: rate Pump fails to run over 24 hours")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Probability (0–1)")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Basic-event quantification input")).not.toBeInTheDocument();
+    expect(screen.getByText("Point value 2.0e-2. Edit the value in the basic event window.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Open basic event" }));
+    expect(onOpenReference).toHaveBeenCalledWith({ kind: "BASIC_EVENT", basicEventId: BASIC_EVENT_ID });
+    expect(onOperation).not.toHaveBeenCalled();
   });
 
   it("emits an automatic layout operation", async () => {
@@ -1097,7 +1186,8 @@ describe("FaultTreeEditor", () => {
     expect(screen.getByLabelText("Tree code")).toBeDisabled();
     expect(screen.getByLabelText("Fault-tree name")).toBeDisabled();
     expect(screen.getByLabelText("Basic event")).toBeDisabled();
-    expect(screen.getByLabelText(/Probability \(0/)).toBeDisabled();
+    expect(within(screen.getByRole("group", { name: "Value" })).getByLabelText("Value")).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Save this value" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Auto layout" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Delete node/ })).not.toBeInTheDocument();
 
@@ -1229,10 +1319,12 @@ describe("FaultTreeEditor", () => {
       uncertainty: {
         mean: 0.02,
         standardDeviation: 0.001,
-        errorFactor: 1.2,
+        standardError: 0.00003,
         quantiles: [{ probability: 0.5, value: 0.02 }],
+        samples: [0.019, 0.021],
         sampleCount: 1_000,
         seed: 847,
+        samplingMethod: "LATIN_HYPERCUBE",
       },
       monteCarlo: {
         trials: 1_000,
@@ -1254,7 +1346,10 @@ describe("FaultTreeEditor", () => {
     expect(within(cutSets).getByText("BE-PUMP")).toBeInTheDocument();
     expect(within(cutSets).queryByText(BASIC_EVENT_ID)).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Importance measures" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Uncertainty results" })).toBeInTheDocument();
+    const uncertainty = screen.getByRole("region", { name: "Uncertainty results" });
+    expect(within(uncertainty).getByText("1,000 Latin hypercube samples · seed 847")).toBeInTheDocument();
+    expect(within(uncertainty).getByText("Standard error")).toBeInTheDocument();
+    expect(within(uncertainty).queryByText("Error factor")).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Monte Carlo diagnostics" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "SIL results" })).toBeInTheDocument();
   });

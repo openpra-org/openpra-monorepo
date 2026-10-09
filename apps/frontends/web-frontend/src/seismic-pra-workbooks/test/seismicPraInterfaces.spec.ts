@@ -41,7 +41,7 @@ function linkedInputs(variant: SeismicPraVariant): SeismicPraLinkedInputs {
     sySystems: [{
       id: isSfr ? "SYS-DRACS" : "SYS-RCCS",
       name: isSfr ? "Direct reactor auxiliary cooling system" : "Reactor cavity cooling system",
-      missionTimeHours: 24,
+      missionHours: 24,
       applicableStates: ["POS-01", "POS-02"],
       basicEventCount: isSfr ? 14 : 8,
     }],

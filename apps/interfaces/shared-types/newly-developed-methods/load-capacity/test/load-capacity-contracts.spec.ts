@@ -2,6 +2,7 @@ import {
   EsqBarrierCellRunRequestSchema,
   LoadCapacityAnalysisResultSchema,
   LoadCapacityExecuteResultSchema,
+  LoadCapacityModelSnapshotSchema,
   LoadCapacityRunSettingsSchema,
 } from "..";
 
@@ -42,8 +43,15 @@ const uncertainty = {
   p95: 0.0511,
   minimum: 0.0000021,
   maximum: 0.31,
-  largestQuadratureError: null,
+  law: {
+    family: "TABULATED",
+    scale: "LINEAR",
+    points: Array.from({ length: 101 }, (_, k) => ({ probability: k / 100, value: 0.0000021 + (0.31 - 0.0000021) * (k / 100) ** 3 })),
+  },
 } as const;
+
+const pointLoad = { family: "LOGNORMAL", mean: 1300, errorFactor: 1.2, level: 0.95 } as const;
+const pointCapacity = { family: "NORMAL", mean: 1600, standardDeviation: 60 } as const;
 
 const result = {
   schemaVersion: "1.0.0",
@@ -52,7 +60,8 @@ const result = {
   completedAt: "2026-10-05T14:00:02.000Z",
   method: "CLOSED_FORM_LOGNORMAL",
   pointProbability: 0.0062,
-  quadratureError: null,
+  pointLoad,
+  pointCapacity,
   unit: "degC",
   uncertainty,
   curve: [
@@ -105,7 +114,7 @@ describe("Load-capacity execution and result contracts", () => {
       LoadCapacityAnalysisResultSchema.safeParse({
         ...result,
         method: "QUADRATURE",
-        quadratureError: 1.2e-15,
+        pointLoad: { family: "POINT", value: 1300 },
         unit: null,
         uncertainty: null,
         curve: [
@@ -130,7 +139,11 @@ describe("Load-capacity execution and result contracts", () => {
     { ...result, method: "SIMPSON" },
     { ...result, pointProbability: 1.01 },
     { ...result, pointProbability: -0.01 },
-    { ...result, quadratureError: -1 },
+    { ...result, quadratureError: null },
+    { ...result, pointLoad: { family: "LOGNORMAL", median: 1300, errorFactor: 1.2 } },
+    { ...result, pointCapacity: undefined },
+    { ...result, uncertainty: { ...uncertainty, largestQuadratureError: null } },
+    { ...result, uncertainty: { ...uncertainty, law: { ...uncertainty.law, points: uncertainty.law.points.slice(1) } } },
     { ...result, uncertainty: { ...uncertainty, p95: 1.5 } },
     { ...result, uncertainty: { ...uncertainty, samples: 1 } },
     { ...result, curve: [result.curve[0]] },
@@ -139,5 +152,43 @@ describe("Load-capacity execution and result contracts", () => {
     { ...result, cutSets: [] },
   ])("rejects malformed result %#", (candidate) => {
     expect(LoadCapacityAnalysisResultSchema.safeParse(candidate).success).toBe(false);
+  });
+});
+
+describe("Load-capacity model snapshot contracts", () => {
+  const reference = { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "capacity-median" } as const;
+  const snapshot = {
+    id: MODEL_ID,
+    methodType: "LOAD_CAPACITY",
+    revision: 4,
+    load: { law: { family: "NORMAL", mean: 1500, standardDeviation: 50 }, fields: [] },
+    capacity: {
+      law: { family: "NORMAL", mean: 1800, standardDeviation: 60 },
+      fields: [{ field: "mean", value: { node: "PARAMETER", reference } }],
+    },
+    unit: "degC",
+    uncertaintyParameters: [{
+      reference,
+      expression: { node: "VALUE", value: { unit: "QUANTITY", law: { family: "NORMAL", mean: 1800, standardDeviation: 20 } } },
+    }],
+    uncertaintyVectors: [],
+  } as const;
+
+  it("accepts aleatory variables with their parameter tables", () => {
+    expect(LoadCapacityModelSnapshotSchema.safeParse(snapshot).success).toBe(true);
+    const { unit: _unit, ...withoutUnit } = snapshot;
+    expect(LoadCapacityModelSnapshotSchema.safeParse(withoutUnit).success).toBe(true);
+  });
+
+  it.each([
+    { ...snapshot, methodType: "FAULT_TREE" },
+    { ...snapshot, load: { distribution: { type: "NORMAL", mean: 1500, stdDev: 50 } } },
+    { ...snapshot, capacity: { ...snapshot.capacity, uncertainParameters: [] } },
+    { ...snapshot, capacity: { ...snapshot.capacity, fields: [snapshot.capacity.fields[0], snapshot.capacity.fields[0]] } },
+    { ...snapshot, uncertaintyVectors: undefined },
+    { ...snapshot, uncertaintyParameters: [{ reference, expression: { node: "VALUE", value: 1800 } }] },
+    { ...snapshot, correlationKey: "shared" },
+  ])("rejects malformed snapshot %#", (candidate) => {
+    expect(LoadCapacityModelSnapshotSchema.safeParse(candidate).success).toBe(false);
   });
 });

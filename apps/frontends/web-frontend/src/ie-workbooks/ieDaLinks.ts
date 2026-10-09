@@ -1,8 +1,17 @@
-import { DistributionType, FrequencyUnit, type Frequency, type FrequencyWithDistribution, type ParameterDistribution } from "interfaces-mef-types/core/events";
+import { type UncertainFrequency } from "interfaces-mef-types/core/events";
+import {
+  canonicalJson,
+  mapModelArguments,
+  parameterReferenceKey,
+  type UncertainExpression,
+  type UncertainParameter,
+} from "interfaces-mef-types/core/uncertainty";
 import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import type { InitiatingEventGroup, InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
+import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import { fetchJson } from "../api/client";
 import { listWorkbooks } from "../workbooks/workbookApi";
+import { DEFAULT_FREQUENCY_BASIS } from "../newly-developed-methods/ie-frequency-quantification/frequencySources";
 
 const EXAMPLE_PREFIX = "example-da-";
 
@@ -11,8 +20,7 @@ interface IeDaFrequencyOption {
   workbookName: string;
   parameterId: string;
   parameterName: string;
-  value: number;
-  distribution?: ParameterDistribution;
+  estimate: UncertainExpression;
 }
 
 interface IeDaSource {
@@ -21,23 +29,40 @@ interface IeDaSource {
   mef: Pick<DataAnalysis, "name" | "parameters">;
 }
 
+type DaParameterTable = ReadonlyMap<string, UncertainParameter>;
+
 function daOptionKey(workbookId: string, parameterId: string): string {
   return JSON.stringify([workbookId, parameterId]);
 }
 
+function daReference(option: Pick<IeDaFrequencyOption, "workbookId" | "parameterId">): WorkbookParameterReference {
+  return { referenceType: "WORKBOOK_PARAMETER", workbookId: option.workbookId, entityId: option.parameterId };
+}
+
+function daParameterKey(option: Pick<IeDaFrequencyOption, "workbookId" | "parameterId">): string {
+  return parameterReferenceKey(daReference(option));
+}
+
+function daParameterTable(options: readonly IeDaFrequencyOption[]): Map<string, UncertainParameter> {
+  return new Map(options.map((option) => [daParameterKey(option), { reference: daReference(option), expression: option.estimate }]));
+}
+
+function daParameterLabel(options: readonly IeDaFrequencyOption[]): (key: string) => string {
+  const names = new Map(options.map((option) => [daParameterKey(option), `${option.parameterId} in ${option.workbookName}`]));
+  return (key) => names.get(key) ?? "an unavailable DA estimate";
+}
+
 function daFrequencyOptions(sources: readonly IeDaSource[]): IeDaFrequencyOption[] {
   return sources.flatMap((source) => source.mef.parameters.flatMap((parameter): IeDaFrequencyOption[] => {
-    const value = parameter.value;
-    if (parameter.parameterType !== "FREQUENCY" || value === undefined || !Number.isFinite(value) || value < 0) return [];
+    const estimate = parameter.estimate;
+    if (parameter.parameterType !== "FREQUENCY" || estimate === undefined) return [];
     if (parameter.valueMode === "LINKED" && parameter.valueLink?.element === "IE") return [];
-    const distribution = parameter.uncertainty?.distribution;
     return [{
       workbookId: source.id,
       workbookName: source.name.length > 0 ? source.name : source.mef.name,
       parameterId: parameter.uuid,
       parameterName: parameter.name,
-      value,
-      ...(distribution === undefined ? {} : { distribution }),
+      estimate,
     }];
   })).sort((left, right) => [left.workbookName, left.parameterId].join(":").localeCompare([right.workbookName, right.parameterId].join(":"), undefined, { numeric: true }));
 }
@@ -48,62 +73,76 @@ function linkedDaOption(group: InitiatingEventGroup | undefined, options: readon
   return options.find((option) => option.workbookId === source.workbookId && option.parameterId === source.entityId);
 }
 
-function heldValue(frequency: Frequency | FrequencyWithDistribution | undefined): number | undefined {
-  if (frequency === undefined) return undefined;
-  return typeof frequency === "number" ? frequency : frequency.value;
+function linksTo(expression: UncertainExpression, option: IeDaFrequencyOption): boolean {
+  return expression.node === "PARAMETER" && parameterReferenceKey(expression.reference) === daParameterKey(option);
 }
 
-function heldDiffers(frequency: Frequency | FrequencyWithDistribution | undefined, value: number): boolean {
-  const held = heldValue(frequency);
-  return held === undefined || Math.abs(held - value) > 1e-9 * Math.max(Math.abs(held), Math.abs(value));
+function heldDiffers(group: InitiatingEventGroup | undefined, option: IeDaFrequencyOption): boolean {
+  const held = group?.frequency?.expression;
+  if (held === undefined) return true;
+  if (linksTo(held, option)) return false;
+  return canonicalJson(held) !== canonicalJson(option.estimate);
 }
 
-function frequencyFromDa(option: IeDaFrequencyOption, units: FrequencyUnit): FrequencyWithDistribution {
-  const distribution = option.distribution;
-  const shape = distribution?.type === DistributionType.LOGNORMAL
-    ? { type: DistributionType.LOGNORMAL, parameters: [distribution.median, distribution.errorFactor] }
-    : distribution?.type === DistributionType.GAMMA
-      ? { type: DistributionType.GAMMA, parameters: [distribution.shape, distribution.rate] }
-      : undefined;
-  return {
-    value: option.value,
-    units,
-    ...(shape === undefined ? {} : { distribution: shape }),
-    source: `Imported from DA parameter ${option.parameterId} in ${option.workbookName}.`,
-  };
-}
-
-function groupUnits(group: InitiatingEventGroup | undefined): FrequencyUnit {
-  const frequency = group?.meanFrequency;
-  return typeof frequency === "object" ? frequency.units : FrequencyUnit.PER_PLANT_YEAR;
-}
-
-function asGroupFrequency(frequency: Frequency | FrequencyWithDistribution, group: InitiatingEventGroup): FrequencyWithDistribution {
-  return typeof frequency === "object" ? frequency : { value: frequency, units: groupUnits(group) };
-}
-
-function withImportedFrequency(ie: InitiatingEventsAnalysis, groupId: string, option: IeDaFrequencyOption | undefined): InitiatingEventsAnalysis {
-  const group = ie.initiatingEventGroups.find((candidate) => candidate.uuid === groupId);
-  if (group === undefined) return ie;
-  if (option === undefined) {
-    return { ...ie, initiatingEventGroups: ie.initiatingEventGroups.map((candidate) => (candidate.uuid === groupId ? { ...candidate, controlledDataSource: undefined } : candidate)) };
+function inlined(expression: UncertainExpression, table: DaParameterTable, seen: ReadonlySet<string> = new Set()): UncertainExpression {
+  switch (expression.node) {
+    case "VALUE":
+      return expression;
+    case "PARAMETER": {
+      const key = parameterReferenceKey(expression.reference);
+      const parameter = table.get(key);
+      return parameter === undefined || seen.has(key) ? expression : inlined(parameter.expression, table, new Set([...seen, key]));
+    }
+    case "OPERATION":
+      return { node: "OPERATION", operation: expression.operation, operands: expression.operands.map((operand) => inlined(operand, table, seen)) };
+    case "MODEL":
+      return { node: "MODEL", model: mapModelArguments(expression.model, (argument) => inlined(argument, table, seen)) };
   }
-  const frequency = frequencyFromDa(option, groupUnits(group));
+}
+
+function groupBasis(group: InitiatingEventGroup): UncertainFrequency["basis"] {
+  return group.frequency?.basis ?? DEFAULT_FREQUENCY_BASIS;
+}
+
+function withGroupFrequency(ie: InitiatingEventsAnalysis, groupId: string, frequency: UncertainFrequency | undefined, link: WorkbookParameterReference | undefined): InitiatingEventsAnalysis {
   return {
     ...ie,
-    initiatingEventGroups: ie.initiatingEventGroups.map((candidate) => (candidate.uuid === groupId
-      ? { ...candidate, meanFrequency: frequency, controlledDataSource: { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: option.workbookId, entityId: option.parameterId } }
-      : candidate)),
-    quantifications: ie.quantifications.map((quantification) => (quantification.initiatorOrGroupId === groupId ? { ...quantification, meanFrequency: frequency } : quantification)),
+    initiatingEventGroups: ie.initiatingEventGroups.map((candidate) => {
+      if (candidate.uuid !== groupId) return candidate;
+      const { controlledDataSource: _link, frequency: _frequency, ...rest } = candidate;
+      return { ...rest, ...(frequency === undefined ? {} : { frequency }), ...(link === undefined ? {} : { controlledDataSource: link }) };
+    }),
+    quantifications: frequency === undefined
+      ? ie.quantifications
+      : ie.quantifications.map((quantification) => (quantification.initiatorOrGroupId === groupId ? { ...quantification, frequency } : quantification)),
   };
+}
+
+function withImportedFrequency(ie: InitiatingEventsAnalysis, groupId: string, option: IeDaFrequencyOption | undefined, options: readonly IeDaFrequencyOption[]): InitiatingEventsAnalysis {
+  const group = ie.initiatingEventGroups.find((candidate) => candidate.uuid === groupId);
+  if (group === undefined) return ie;
+  if (option !== undefined) {
+    const link = daReference(option);
+    return withGroupFrequency(ie, groupId, { expression: { node: "PARAMETER", reference: link }, basis: groupBasis(group) }, link);
+  }
+  const held = group.frequency;
+  const released = held === undefined ? undefined : { ...held, expression: inlined(held.expression, daParameterTable(options)) };
+  return withGroupFrequency(ie, groupId, released, undefined);
 }
 
 function withTypedGroupFrequency(ie: InitiatingEventsAnalysis, targetId: string): InitiatingEventsAnalysis {
   const quantification = ie.quantifications.find((candidate) => candidate.initiatorOrGroupId === targetId);
   const group = ie.initiatingEventGroups.find((candidate) => candidate.uuid === targetId);
   if (quantification === undefined || group === undefined || group.controlledDataSource !== undefined) return ie;
-  const frequency = asGroupFrequency(quantification.meanFrequency, group);
-  return { ...ie, initiatingEventGroups: ie.initiatingEventGroups.map((candidate) => (candidate.uuid === targetId ? { ...candidate, meanFrequency: frequency } : candidate)) };
+  const frequency = quantification.frequency;
+  return {
+    ...ie,
+    initiatingEventGroups: ie.initiatingEventGroups.map((candidate) => {
+      if (candidate.uuid !== targetId) return candidate;
+      const { frequency: _held, ...rest } = candidate;
+      return frequency === undefined ? rest : { ...rest, frequency };
+    }),
+  };
 }
 
 async function loadDaSource(id: string, name: string): Promise<IeDaSource[]> {
@@ -119,7 +158,7 @@ async function loadDaSource(id: string, name: string): Promise<IeDaSource[]> {
   }
 }
 
-async function loadIeDaFrequencies(projectId: string, ie: InitiatingEventsAnalysis): Promise<IeDaFrequencyOption[]> {
+async function loadDaFrequencies(projectId: string, linkedWorkbookIds: readonly string[]): Promise<IeDaFrequencyOption[]> {
   let listed: { id: string; name: string }[] = [];
   try {
     listed = (await listWorkbooks(projectId, "DA")).workbooks.map((workbook) => ({ id: workbook.id, name: workbook.name }));
@@ -127,21 +166,28 @@ async function loadIeDaFrequencies(projectId: string, ie: InitiatingEventsAnalys
     listed = [];
   }
   const known = new Set(listed.map((entry) => entry.id));
-  const examples = [...new Set(ie.initiatingEventGroups.flatMap((group) => group.controlledDataSource?.workbookId ?? []))]
+  const examples = [...new Set(linkedWorkbookIds)]
     .filter((id) => id.startsWith(EXAMPLE_PREFIX) && !known.has(id))
     .map((id) => ({ id, name: "" }));
   const sources = await Promise.all([...listed, ...examples].map((entry) => loadDaSource(entry.id, entry.name)));
   return daFrequencyOptions(sources.flat());
 }
 
+function loadIeDaFrequencies(projectId: string, ie: InitiatingEventsAnalysis): Promise<IeDaFrequencyOption[]> {
+  return loadDaFrequencies(projectId, ie.initiatingEventGroups.flatMap((group) => group.controlledDataSource?.workbookId ?? []));
+}
+
 export {
   EXAMPLE_PREFIX,
   daFrequencyOptions,
   daOptionKey,
-  frequencyFromDa,
+  daParameterKey,
+  daParameterLabel,
+  daParameterTable,
+  daReference,
   heldDiffers,
-  heldValue,
   linkedDaOption,
+  loadDaFrequencies,
   loadIeDaFrequencies,
   withImportedFrequency,
   withTypedGroupFrequency,

@@ -4,6 +4,8 @@ import type { EsqImportanceEventRole, EsqImportanceRunResult, EsqModelRunResult 
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
+import { parameterLabelOf } from "./esqModel";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import {
   CutOffField,
@@ -913,7 +915,7 @@ function ScreenedWindow({ id, onClose }: { id: string; onClose: () => void }): J
             if (value === null) return;
             save(value === undefined ? without("frequency") : { ...bound, frequency: value });
           }} />
-          <span className="esq-form__unit">{row.ieFrequency === undefined ? "IE gives none" : `IE gives ${sciText(row.ieFrequency)}`}</span>
+          <span className="esq-form__unit">{row.ieFrequency !== undefined ? `IE gives ${sciText(row.ieFrequency)}` : row.ieExpression !== undefined ? `IE gives ${expressionText(row.ieExpression, parameterLabelOf(esq))}` : "IE gives none"}</span>
         </FormRow>
         <FormRow label="Conditional bound" htmlFor={`${fieldId}-conditional`}>
           <WorkbookInput id={`${fieldId}-conditional`} type="number" className="posfield__input esq-form__number" value={bound.conditional ?? ""} disabled={dis} onChange={(event) => {

@@ -5,11 +5,9 @@ import { DEFAULT_ANNUALIZATION_CONVENTION } from "interfaces-mef-types/modeling"
 import { HclHazardSweepControls } from "./hclHazardSweepControls";
 import type { HclBatchInput } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import { HclSeismicGeneratorControls } from "./hclSeismicGeneratorControls";
-import { createCptPrior, HclCptPriorControls } from "./hclCptPriorControls";
-import { normalizeHclUncertaintySampler } from "interfaces-mef-types/modeling";
+import { HclCptRowControls } from "./hclCptPriorControls";
 import { type ChangeEvent, type JSX, useEffect, useMemo, useRef, useState } from "react";
 import type {
-  HclBasicEventProbabilityDistribution,
   HclEvidenceScenario,
   HclUncertaintySettings,
   WorkbookHclConfiguration,
@@ -29,7 +27,7 @@ import {
   importHclEvidenceScenariosJson,
 } from "./hclEvidenceScenarioInterchange";
 import "./css/hclBindingEditor.css";
-import { createBasicEventDistribution, probabilityDistributionLabel, HclDistributionOptions, HclDistributionParameters } from "./hclUncertaintyControls";
+import { HclBasicEventControls, basicEventKey, type HclBasicEventChoice } from "./hclUncertaintyControls";
 
 
 function uniqueCode(prefix: string, codes: readonly string[]): string {
@@ -190,9 +188,6 @@ function HclBindingEditor({
   const [error, setError] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [uncertainBasicEventKey, setUncertainBasicEventKey] = useState("");
-  const [uncertainBasicEventFamily, setUncertainBasicEventFamily] = useState<HclBasicEventProbabilityDistribution["family"]>("BETA");
-  const [uncertainCptRowKey, setUncertainCptRowKey] = useState("");
   const [batchInput, setBatchInput] = useState<HclBatchInput | null>(null);
   const batchImportEpoch = useRef(0);
   const batchConfiguration = useMemo(() => {
@@ -245,29 +240,13 @@ function HclBindingEditor({
     () => new Set((configuration?.bindings ?? []).map((binding) => `${binding.faultTreeBasicEvent.workbookId}:${binding.faultTreeBasicEvent.entityId}`)),
     [configuration?.bindings],
   );
-  const basicEventUncertaintyOptions = useMemo(() => {
+  const basicEventUncertaintyOptions = useMemo<HclBasicEventChoice[]>(() => {
     const options = declaredFaultTrees.flatMap((tree) => tree.basicEvents.flatMap((event) => {
-      const key = `${tree.workbookId}:${event.id}`;
+      const key = basicEventKey(tree.workbookId, event.id);
       return boundBasicEventKeys.has(key) ? [] : [{ key, tree, event }];
     }));
     return [...new Map(options.map((option) => [option.key, option])).values()];
   }, [boundBasicEventKeys, declaredFaultTrees]);
-  const cptRowUncertaintyOptions = useMemo(() => model.conditionalProbabilityTables.flatMap((table) => {
-    const node = model.nodes.find((candidate) => candidate.id === table.nodeId);
-    return table.rows.map((row) => {
-      const condition = row.parentStates.map((selection) => {
-        const parent = model.nodes.find((candidate) => candidate.id === selection.parentNodeId);
-        const state = parent?.states.find((candidate) => candidate.id === selection.stateId);
-        return `${parent?.code ?? selection.parentNodeId}=${state?.code ?? selection.stateId}`;
-      }).join(", ");
-      return {
-        key: `${table.nodeId}:${row.id}`,
-        nodeId: table.nodeId,
-        rowId: row.id,
-        label: `${node?.code ?? table.nodeId}${condition.length === 0 ? " · prior" : ` · ${condition}`}`,
-      };
-    });
-  }), [model.conditionalProbabilityTables, model.nodes]);
 
   useEffect(() => {
     if (scope === "EVENT_TREE") setTargetKind("EVENT_TREE");
@@ -347,7 +326,7 @@ function HclBindingEditor({
     if (configuration === undefined) return;
     const solverSettings = { ...configuration.solverSettings };
     if (uncertainty === undefined) delete solverSettings.uncertainty;
-    else solverSettings.uncertainty = normalizeHclUncertaintySampler(uncertainty);
+    else solverSettings.uncertainty = uncertainty;
     replaceConfiguration({ ...configuration, solverSettings });
   }
 
@@ -356,79 +335,9 @@ function HclBindingEditor({
       sampleCount: 1_000,
       seed: 42,
       sampler: "LHS",
-      basicEventDistributions: [],
-      cptRowDistributions: [],
-    });
-  }
-
-  function addBasicEventUncertainty(): void {
-    if (configuration === undefined || uncertainty === undefined) return;
-    const selected = basicEventUncertaintyOptions.find((option) => option.key === uncertainBasicEventKey)
-      ?? basicEventUncertaintyOptions[0];
-    if (selected === undefined) {
-      setError("No unbound basic event is available for uncertainty.");
-      return;
-    }
-    if (uncertainty.basicEventDistributions.some(({ faultTreeBasicEvent }) =>
-      `${faultTreeBasicEvent.workbookId}:${faultTreeBasicEvent.entityId}` === selected.key,
-    )) {
-      setError("That basic event already has an uncertainty distribution.");
-      return;
-    }
-    const distribution = createBasicEventDistribution(uncertainBasicEventFamily);
-    replaceUncertainty({
-      ...uncertainty,
-      basicEventDistributions: [...uncertainty.basicEventDistributions, {
-        faultTreeBasicEvent: {
-          referenceType: "FAULT_TREE_BASIC_EVENT",
-          workbookId: selected.tree.workbookId,
-          entityId: selected.event.id,
-        },
-        distribution,
-      }],
-    });
-    setError(null);
-  }
-
-  function addCptRowUncertainty(): void {
-    if (configuration === undefined || uncertainty === undefined) return;
-    const selected = cptRowUncertaintyOptions.find((option) => option.key === uncertainCptRowKey)
-      ?? cptRowUncertaintyOptions[0];
-    if (selected === undefined) {
-      setError("No CPT row is available for uncertainty.");
-      return;
-    }
-    if (uncertainty.cptGenerators?.some((g) => g.bayesianNetworkNode.entityId === selected.nodeId)) {
-      setError("That node already uses a seismic generator. Delete it before adding row priors.");
-      return;
-    }
-    if (uncertainty.cptRowDistributions.some((row) => row.bayesianNetworkNode.entityId === selected.nodeId && row.cptRowId === selected.rowId)) {
-      setError("That CPT row already has an uncertainty distribution.");
-      return;
-    }
-    replaceUncertainty({
-      ...uncertainty,
-      cptRowDistributions: [...uncertainty.cptRowDistributions, {
-        bayesianNetworkNode: {
-          referenceType: "BAYESIAN_NETWORK_NODE",
-          workbookId: configuration.bayesianNetwork.workbookId,
-          modelId: model.modelId,
-          entityId: selected.nodeId,
-        },
-        cptRowId: selected.rowId,
-        prior: createCptPrior(model.nodes.find((node) => node.id === selected.nodeId)?.states ?? []),
-      }],
-    });
-    setError(null);
-  }
-
-  function updateBasicEventDistribution(index: number, distribution: HclBasicEventProbabilityDistribution): void {
-    if (uncertainty === undefined) return;
-    replaceUncertainty({
-      ...uncertainty,
-      basicEventDistributions: uncertainty.basicEventDistributions.map((definition, definitionIndex) =>
-        definitionIndex === index ? { ...definition, distribution } : definition,
-      ),
+      basicEvents: [],
+      cptRows: [],
+      cptGenerators: [],
     });
   }
 
@@ -892,12 +801,12 @@ function HclBindingEditor({
                     <>
                       <section className="hcleditor__uncertainty-section hcleditor__uncertainty-section--sampling">
                         <div className="hcleditor__uncertainty-section-head">
-                          <div><strong>Sampling</strong><span>The selected method applies to both basic-event probabilities and BN CPT priors. Zero-spread normal, lognormal and logit-normal distributions require MC; constant uniform distributions support both methods.</span></div>
+                          <div><strong>Sampling</strong><span>PRAXIS draws every uncertain input with the selected method.</span></div>
                         </div>
                         <div className="hcleditor__uncertainty-controls">
                           <label>
                             <span>Sampling method</span>
-                            <select aria-label="Sampling method" value={normalizeHclUncertaintySampler(uncertainty).sampler} disabled={!editable} onChange={(event) => replaceUncertainty({ ...uncertainty, sampler: event.target.value as "MC" | "LHS" })}>
+                            <select aria-label="Sampling method" value={uncertainty.sampler} disabled={!editable} onChange={(event) => replaceUncertainty({ ...uncertainty, sampler: event.target.value === "MC" ? "MC" : "LHS" })}>
                               <option value="MC">Monte Carlo (MC)</option>
                               <option value="LHS">Latin hypercube (LHS)</option>
                             </select>
@@ -941,116 +850,8 @@ function HclBindingEditor({
                         </div>
                       </section>
 
-                      <section className="hcleditor__uncertainty-section">
-                        <div className="hcleditor__uncertainty-section-head">
-                          <div><strong>Basic events</strong><span>Samples outside 0–1 are clipped to that range.</span></div>
-                        </div>
-                        {editable && (
-                          <div className="hcleditor__uncertainty-add hcleditor__uncertainty-add--event">
-                            <label><span>Basic event</span><select aria-label="Uncertain basic event" value={uncertainBasicEventKey || basicEventUncertaintyOptions[0]?.key || ""} onChange={(event) => setUncertainBasicEventKey(event.target.value)}>{basicEventUncertaintyOptions.map(({ key, tree, event }) => <option key={key} value={key}>{tree.modelCode} / {event.code}</option>)}</select></label>
-                            <label><span>Distribution</span><select aria-label="Basic-event uncertainty distribution" value={uncertainBasicEventFamily} onChange={(event) => setUncertainBasicEventFamily(event.target.value as HclBasicEventProbabilityDistribution["family"])}><HclDistributionOptions /></select></label>
-                            <button type="button" className="posnav__btn posnav__btn--sm" onClick={addBasicEventUncertainty}>Add</button>
-                          </div>
-                        )}
-                        {uncertainty.basicEventDistributions.length > 0 && (
-                          <details className="hcleditor__uncertainty-collection">
-                            <summary>Configured basic events <span>{String(uncertainty.basicEventDistributions.length)}</span></summary>
-                            <div className="hcleditor__uncertainty-list">
-                            {uncertainty.basicEventDistributions.map((definition, index) => {
-                            const tree = faultTreeOptions.find((candidate) => candidate.workbookId === definition.faultTreeBasicEvent.workbookId && candidate.basicEvents.some((event) => event.id === definition.faultTreeBasicEvent.entityId));
-                            const basicEvent = tree?.basicEvents.find((candidate) => candidate.id === definition.faultTreeBasicEvent.entityId);
-                            const distribution = definition.distribution;
-                            return (
-                              <details key={`${definition.faultTreeBasicEvent.workbookId}:${definition.faultTreeBasicEvent.entityId}`} className="hcleditor__uncertainty-item">
-                                <summary>
-                                  <span className="hcleditor__uncertainty-item-name">
-                                    <small>FT / basic event</small>
-                                    <strong>{tree?.modelCode ?? "Fault tree"} / {basicEvent?.code ?? definition.faultTreeBasicEvent.entityId}</strong>
-                                  </span>
-                                  <span className="hcleditor__uncertainty-family">{probabilityDistributionLabel(distribution)}</span>
-                                  <span className="hcleditor__uncertainty-expand">Settings</span>
-                                </summary>
-                                <div className="hcleditor__uncertainty-item-settings">
-                                  <div className="hcleditor__uncertainty-parameters">
-                                    <label>
-                                      <span>Distribution</span>
-                                      <select aria-label={`Distribution for ${basicEvent?.code ?? definition.faultTreeBasicEvent.entityId}`} value={distribution.family} disabled={!editable} onChange={(event) => updateBasicEventDistribution(index, createBasicEventDistribution(event.target.value as HclBasicEventProbabilityDistribution["family"]))}>
-                                        <HclDistributionOptions />
-                                      </select>
-                                    </label>
-                                    <HclDistributionParameters distribution={distribution} sampler={normalizeHclUncertaintySampler(uncertainty).sampler ?? "MC"} disabled={!editable} onChange={(value) => updateBasicEventDistribution(index, value)} onError={setError} />
-                                  </div>
-                                  {editable && <button type="button" className="hcleditor__uncertainty-delete" onClick={() => replaceUncertainty({ ...uncertainty, basicEventDistributions: uncertainty.basicEventDistributions.filter((_, candidateIndex) => candidateIndex !== index) })}>Delete</button>}
-                                </div>
-                              </details>
-                            );
-                          })}
-                            </div>
-                          </details>
-                        )}
-                      </section>
-
-                      <section className="hcleditor__uncertainty-section">
-                        <div className="hcleditor__uncertainty-section-head">
-                          <strong>BN parameters</strong>
-                        </div>
-                        <label><span>BN probability clipping epsilon</span><input
-                          key={`cpt-clip:${uncertainty.cptProbabilityClipEpsilon ?? 0}`}
-                          type="number" min="0" max="0.499999" step="any"
-                          defaultValue={uncertainty.cptProbabilityClipEpsilon ?? 0}
-                          disabled={!editable}
-                          onBlur={(event) => {
-                            const value = event.target.value.trim() === "" ? Number.NaN : Number(event.target.value);
-                            if (Number.isFinite(value) && value >= 0 && value < 0.5) replaceUncertainty({ ...uncertainty, cptProbabilityClipEpsilon: value });
-                            else { event.target.value = String(uncertainty.cptProbabilityClipEpsilon ?? 0); setError("BN probability clipping epsilon must be from 0 to less than 0.5."); }
-                          }}
-                        /></label>
-                        <span>Zero disables clipping. A positive epsilon limits Beta probabilities to [epsilon, 1 - epsilon].</span>
-                        {editable && (
-                          <div className="hcleditor__uncertainty-add">
-                            <label><span>CPT row</span><select aria-label="Uncertain CPT row" value={uncertainCptRowKey || cptRowUncertaintyOptions[0]?.key || ""} onChange={(event) => setUncertainCptRowKey(event.target.value)}>{cptRowUncertaintyOptions.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select></label>
-                            <button type="button" className="posnav__btn posnav__btn--sm" onClick={addCptRowUncertainty}>Add</button>
-                          </div>
-                        )}
-                        {uncertainty.cptRowDistributions.length > 0 && (
-                          <details className="hcleditor__uncertainty-collection">
-                            <summary>Configured CPT rows <span>{String(uncertainty.cptRowDistributions.length)}</span></summary>
-                            <div className="hcleditor__uncertainty-list">
-                            {uncertainty.cptRowDistributions.map((definition, index) => {
-                            const option = cptRowUncertaintyOptions.find((candidate) => candidate.nodeId === definition.bayesianNetworkNode.entityId && candidate.rowId === definition.cptRowId);
-                            return (
-                              <details key={`${definition.bayesianNetworkNode.entityId}:${definition.cptRowId}`} className="hcleditor__uncertainty-item">
-                                <summary>
-                                  <span className="hcleditor__uncertainty-item-name">
-                                    <small>BN / CPT row</small>
-                                    <strong>{option?.label ?? definition.cptRowId}</strong>
-                                  </span>
-                                  <span className="hcleditor__uncertainty-family">{definition.prior?.family === "BETA" ? "Beta" : definition.prior ? "Dirichlet" : "Prior required"}</span>
-                                  <span className="hcleditor__uncertainty-expand">Settings</span>
-                                </summary>
-                                <div className="hcleditor__uncertainty-item-settings">
-                                  <div className="hcleditor__uncertainty-parameters"><HclCptPriorControls
-                                    prior={definition.prior}
-                                    states={model.nodes.find((node) => node.id === definition.bayesianNetworkNode.entityId)?.states ?? []}
-                                    disabled={!editable}
-                                    onError={setError}
-                                    onChange={(prior) => replaceUncertainty({ ...uncertainty, cptRowDistributions: uncertainty.cptRowDistributions.map((row, rowIndex) => {
-                                      if (rowIndex !== index) {
-                                        if (prior.family === "BETA" && row.prior?.family === "BETA" && row.bayesianNetworkNode.entityId === definition.bayesianNetworkNode.entityId) return { ...row, prior: { ...row.prior, trueStateId: prior.trueStateId } };
-                                        return row;
-                                      }
-                                      return { bayesianNetworkNode: row.bayesianNetworkNode, cptRowId: row.cptRowId, prior };
-                                    }) })}
-                                  /></div>
-                                  {editable && <button type="button" className="hcleditor__uncertainty-delete" onClick={() => replaceUncertainty({ ...uncertainty, cptRowDistributions: uncertainty.cptRowDistributions.filter((_, candidateIndex) => candidateIndex !== index) })}>Delete</button>}
-                                </div>
-                              </details>
-                            );
-                          })}
-                            </div>
-                          </details>
-                        )}
-                      </section>
+                      <HclBasicEventControls choices={basicEventUncertaintyOptions} settings={uncertainty} editable={editable} onChange={replaceUncertainty} onError={setError} />
+                      <HclCptRowControls model={model} reference={configuration.bayesianNetwork} settings={uncertainty} editable={editable} onChange={replaceUncertainty} onError={setError} />
                       <HclSeismicGeneratorControls model={model} reference={configuration.bayesianNetwork} settings={uncertainty} disabled={!editable} onChange={replaceUncertainty} onError={setError} />
                     </>
                   )}

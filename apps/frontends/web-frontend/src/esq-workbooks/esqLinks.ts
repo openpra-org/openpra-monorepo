@@ -20,6 +20,7 @@ import { getPosWorkbook } from "../pos-workbooks/posWorkbookApi";
 import { getRiWorkbook } from "../ri-workbooks/riWorkbookApi";
 import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
 import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
+import { type ScMissionTimeSource } from "../sy-workbooks/syLinks";
 import { exampleLinkVariant } from "./esqViewData";
 
 interface EsqUpstream {
@@ -33,11 +34,12 @@ interface EsqUpstream {
   sc?: SuccessCriteriaDevelopment;
   ri?: RiskIntegration;
   hs?: HazardsScreeningAnalysis;
+  scExamples: ScMissionTimeSource[];
 }
 
 const NO_LINK_OPTIONS: Record<EsqLinkCode, Workbook[]> = { ES: [], SY: [], DA: [], HRA: [], IE: [], POS: [], SC: [], RI: [], HS: [] };
 
-const EMPTY_UPSTREAM: EsqUpstream = { options: NO_LINK_OPTIONS };
+const EMPTY_UPSTREAM: EsqUpstream = { options: NO_LINK_OPTIONS, scExamples: [] };
 
 async function listLinkOptions(projectId: string, code: EsqLinkCode): Promise<Workbook[]> {
   try {

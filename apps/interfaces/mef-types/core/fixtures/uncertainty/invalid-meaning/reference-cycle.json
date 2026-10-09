@@ -1,0 +1,64 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "a"
+    },
+    "expression": {
+      "node": "OPERATION",
+      "operation": "MULTIPLY",
+      "operands": [
+        {
+          "node": "VALUE",
+          "value": {
+            "unit": "FACTOR",
+            "law": {
+              "family": "POINT",
+              "value": 2
+            }
+          }
+        },
+        {
+          "node": "PARAMETER",
+          "reference": {
+            "referenceType": "WORKBOOK_PARAMETER",
+            "workbookId": "da-example",
+            "entityId": "b"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "b"
+    },
+    "expression": {
+      "node": "OPERATION",
+      "operation": "MULTIPLY",
+      "operands": [
+        {
+          "node": "VALUE",
+          "value": {
+            "unit": "FACTOR",
+            "law": {
+              "family": "POINT",
+              "value": 2
+            }
+          }
+        },
+        {
+          "node": "PARAMETER",
+          "reference": {
+            "referenceType": "WORKBOOK_PARAMETER",
+            "workbookId": "da-example",
+            "entityId": "a"
+          }
+        }
+      ]
+    }
+  }
+]

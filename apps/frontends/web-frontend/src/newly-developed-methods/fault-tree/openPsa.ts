@@ -1,4 +1,5 @@
 import { stringifyJson, numberText } from "interfaces-shared-types/json";
+import type { BaseLaw, Law, UncertainExpression, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
 import type {
   FaultTreeBasicEvent,
   FaultTreeControlledDataSourceReference,
@@ -18,6 +19,15 @@ import type {
 } from "./faultTreeTypes";
 
 const EDITOR_SNAPSHOT_ATTRIBUTE = "openpra.editor-snapshot";
+const TRUNCATED_LOWER_ATTRIBUTE = "openpra.truncated-lower";
+const TRUNCATED_UPPER_ATTRIBUTE = "openpra.truncated-upper";
+const DEVIATE_ARGUMENTS: Readonly<Record<string, number>> = {
+  "lognormal-deviate": 3,
+  "gamma-deviate": 2,
+  "beta-deviate": 2,
+  "uniform-deviate": 2,
+  "normal-deviate": 2,
+};
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type OpenPsaImportErrorCode =
@@ -154,6 +164,9 @@ function editorCatalogueSnapshot(catalogue: FaultTreeEditorCatalogue): FaultTree
       ...basicEvent,
       probability: {
         ...basicEvent.probability,
+        ...(basicEvent.probability.expression === undefined
+          ? {}
+          : { expression: structuredClone(basicEvent.probability.expression) }),
         ...(basicEvent.probability.quantificationBasis === undefined
           ? {}
           : { quantificationBasis: structuredClone(basicEvent.probability.quantificationBasis) }),
@@ -233,6 +246,78 @@ function entityMetadata(
     "openpra.position-x": position?.x,
     "openpra.position-y": position?.y,
   };
+}
+
+function floatXml(value: number): string {
+  return `<float value="${numberText(value)}"/>`;
+}
+
+function deviateXml(tag: string, values: readonly number[]): string {
+  return [`<${tag}>`, ...values.map((value) => `  ${floatXml(value)}`), `</${tag}>`].join("\n");
+}
+
+function unsupportedValue(code: string, what: string): OpenPsaExportError {
+  return new OpenPsaExportError("UNSUPPORTED_MODEL", `Basic event ${code} uses ${what}, which OpenPSA MEF cannot hold`);
+}
+
+function baseLawXml(law: BaseLaw, code: string): string {
+  switch (law.family) {
+    case "POINT":
+      return floatXml(law.value);
+    case "LOGNORMAL":
+      return deviateXml("lognormal-deviate", [law.mean, law.errorFactor, law.level]);
+    case "GAMMA":
+      return deviateXml("gamma-deviate", [law.shape, 1 / law.rate]);
+    case "BETA":
+      if (law.lower !== 0 || law.upper !== 1) throw unsupportedValue(code, "a beta law with bounds other than 0 and 1");
+      return deviateXml("beta-deviate", [law.alpha, law.beta]);
+    case "UNIFORM":
+      return deviateXml("uniform-deviate", [law.lower, law.upper]);
+    case "NORMAL":
+      return deviateXml("normal-deviate", [law.mean, law.standardDeviation]);
+    default:
+      throw unsupportedValue(code, `a ${law.family.toLocaleLowerCase("en-US")} law`);
+  }
+}
+
+function lawXml(law: Law, code: string): string {
+  if (law.family === "TRUNCATED" || law.family === "MIXTURE" || law.family === "POSTERIOR" || law.family === "POPULATION") {
+    throw unsupportedValue(code, `a ${law.family.toLocaleLowerCase("en-US")} law inside a model`);
+  }
+  return baseLawXml(law, code);
+}
+
+function valueXml(expression: UncertainExpression, unit: UncertainUnit, code: string): string {
+  if (expression.node === "PARAMETER") throw unsupportedValue(code, "a linked value");
+  if (expression.node === "OPERATION") throw unsupportedValue(code, "a composed value");
+  if (expression.node === "MODEL") {
+    if (unit !== "PROBABILITY" || expression.model.form !== "MISSION") throw unsupportedValue(code, `a ${expression.model.form.toLocaleLowerCase("en-US")} model`);
+    return [
+      "<exponential>",
+      indentBlock(valueXml(expression.model.rate, "PER_HOUR", code), "  "),
+      indentBlock(valueXml(expression.model.missionTime, "HOURS", code), "  "),
+      "</exponential>",
+    ].join("\n");
+  }
+  if (expression.value.unit !== unit) throw unsupportedValue(code, `a value in ${expression.value.unit.toLocaleLowerCase("en-US")} where ${unit.toLocaleLowerCase("en-US")} is needed`);
+  return lawXml(expression.value.law, code);
+}
+
+function basicEventValueXml(basicEvent: FaultTreeBasicEvent): { xml: string; metadata: Record<string, number | undefined> } {
+  const expression = basicEvent.probability.expression;
+  if (expression === undefined) return { xml: floatXml(basicEvent.probability.value), metadata: {} };
+  if (expression.node === "VALUE" && expression.value.law.family === "TRUNCATED") {
+    const truncated = expression.value.law;
+    if (expression.value.unit !== "PROBABILITY" || truncated.law.family === "MIXTURE") throw unsupportedValue(basicEvent.code, "a truncated mixture");
+    return {
+      xml: baseLawXml(truncated.law, basicEvent.code),
+      metadata: {
+        [TRUNCATED_LOWER_ATTRIBUTE]: truncated.lower ?? undefined,
+        [TRUNCATED_UPPER_ATTRIBUTE]: truncated.upper ?? undefined,
+      },
+    };
+  }
+  return { xml: valueXml(expression, "PROBABILITY", basicEvent.code), metadata: {} };
 }
 
 function exportOpenPsaFaultTree(
@@ -361,6 +446,7 @@ function exportOpenPsaFaultTree(
 
   const basicEventDefinitions = catalogue.basicEvents.map((basicEvent) => {
     const controlled = basicEvent.probability.controlledDataSource;
+    const value = basicEventValueXml(basicEvent);
     return [
       `<define-basic-event name="${escapeXmlAttribute(names.get(basicEvent.id) as string)}">`,
       `  <label>${escapeXmlText(basicEvent.name)}</label>`,
@@ -375,10 +461,11 @@ function exportOpenPsaFaultTree(
             controlled?.referenceType === "HUMAN_FAILURE_EVENT"
               ? controlled.quantificationId
               : undefined,
+          ...value.metadata,
         }),
         "  ",
       ),
-      `  <float value="${numberText(basicEvent.probability.value)}"/>`,
+      indentBlock(value.xml, "  "),
       "</define-basic-event>",
     ].join("\n");
   });
@@ -588,6 +675,89 @@ function controlledDataSourceFromMetadata(
   return undefined;
 }
 
+function floatArgument(element: Element, name: string): number {
+  if (elementName(element) !== "float") {
+    throw new OpenPsaImportError("UNSUPPORTED_FORMULA", `Basic event ${name} uses <${elementName(element)}> where a number is needed`);
+  }
+  const value = Number(element.getAttribute("value") ?? undefined);
+  if (!Number.isFinite(value)) throw new OpenPsaImportError("INVALID_MODEL", `Basic event ${name} holds a value that is not a number`);
+  return value;
+}
+
+function deviateLaw(tag: string, values: readonly number[]): BaseLaw | undefined {
+  const [first = Number.NaN, second = Number.NaN, third = Number.NaN] = values;
+  switch (tag) {
+    case "lognormal-deviate":
+      return { family: "LOGNORMAL", mean: first, errorFactor: second, level: third };
+    case "gamma-deviate":
+      return { family: "GAMMA", shape: first, rate: 1 / second };
+    case "beta-deviate":
+      return { family: "BETA", alpha: first, beta: second, lower: 0, upper: 1 };
+    case "uniform-deviate":
+      return { family: "UNIFORM", lower: first, upper: second };
+    case "normal-deviate":
+      return { family: "NORMAL", mean: first, standardDeviation: second };
+    default:
+      return undefined;
+  }
+}
+
+function lawFromXml(element: Element, name: string): BaseLaw {
+  const tag = elementName(element);
+  if (tag === "float") return { family: "POINT", value: floatArgument(element, name) };
+  const count = DEVIATE_ARGUMENTS[tag];
+  if (count === undefined) throw new OpenPsaImportError("UNSUPPORTED_FORMULA", `Basic event ${name} uses <${tag}>, which the fault-tree editor cannot hold`);
+  const children = directChildren(element);
+  if (children.length !== count) throw new OpenPsaImportError("UNSUPPORTED_FORMULA", `Basic event ${name} gives <${tag}> ${children.length} arguments instead of ${count}`);
+  const law = deviateLaw(tag, children.map((child) => floatArgument(child, name)));
+  if (law === undefined) throw new OpenPsaImportError("UNSUPPORTED_FORMULA", `Basic event ${name} uses <${tag}>, which the fault-tree editor cannot hold`);
+  return law;
+}
+
+function expressionFromXml(element: Element, unit: UncertainUnit, name: string): UncertainExpression {
+  if (elementName(element) === "exponential" && unit === "PROBABILITY") {
+    const [rate, time, ...rest] = directChildren(element);
+    if (rate === undefined || time === undefined || rest.length > 0) {
+      throw new OpenPsaImportError("UNSUPPORTED_FORMULA", `Basic event ${name} needs a rate and a time inside <exponential>`);
+    }
+    return { node: "MODEL", model: { form: "MISSION", rate: expressionFromXml(rate, "PER_HOUR", name), missionTime: expressionFromXml(time, "HOURS", name) } };
+  }
+  return { node: "VALUE", value: { unit, law: lawFromXml(element, name) } };
+}
+
+function truncationBound(metadata: ReadonlyMap<string, string>, key: string, name: string): number | null {
+  const text = metadata.get(key);
+  if (text === undefined) return null;
+  const value = Number(text);
+  if (!Number.isFinite(value)) throw new OpenPsaImportError("INVALID_MODEL", `Basic event ${name} holds a truncation bound that is not a number`);
+  return value;
+}
+
+function basicEventExpression(element: Element, metadata: ReadonlyMap<string, string>, name: string, warnings: string[]): UncertainExpression {
+  const valueElement = directChildren(element).find((child) => !["label", "attributes"].includes(elementName(child)));
+  if (valueElement === undefined) {
+    warnings.push(`Basic event ${name} has no value. It was imported as 0.`);
+    return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0 } } };
+  }
+  const expression = expressionFromXml(valueElement, "PROBABILITY", name);
+  const lower = truncationBound(metadata, TRUNCATED_LOWER_ATTRIBUTE, name);
+  const upper = truncationBound(metadata, TRUNCATED_UPPER_ATTRIBUTE, name);
+  if (lower === null && upper === null) return expression;
+  if (expression.node !== "VALUE") throw new OpenPsaImportError("INVALID_MODEL", `Basic event ${name} truncates a model, which the fault-tree editor cannot hold`);
+  const law = expression.value.law;
+  if (law.family === "TRUNCATED" || law.family === "MIXTURE" || law.family === "POSTERIOR" || law.family === "POPULATION") {
+    throw new OpenPsaImportError("INVALID_MODEL", `Basic event ${name} truncates a law that cannot be truncated here`);
+  }
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "TRUNCATED", law, lower, upper } } };
+}
+
+function importedPoint(expression: UncertainExpression, name: string): number {
+  if (expression.node !== "VALUE" || expression.value.law.family !== "POINT") return Number.NaN;
+  const value = expression.value.law.value;
+  if (value < 0 || value > 1) throw new OpenPsaImportError("INVALID_MODEL", `Basic event ${name} probability must be between 0 and 1`);
+  return value;
+}
+
 interface StandardImportState {
   usedIds: Set<string>;
   gates: FaultTreeGate[];
@@ -678,7 +848,7 @@ function referenceNode(
       code: bounded(name, "BASIC", 64),
       name: bounded(name, "Basic event", 200),
       description: "Imported undeclared OpenPSA basic event",
-      probability: { value: 0 },
+      probability: { value: 0, expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0 } } } },
     });
     state.warnings.push(`Undeclared basic event ${name} was added to the catalogue with probability 0`);
   }
@@ -876,24 +1046,18 @@ function importStandardFaultTree(tree: Element): OpenPsaFaultTreeImport {
     }
 
     const id = importedId(metadata.get("openpra.id"), usedIds);
-    const float = firstDirectChild(element, "float")?.getAttribute("value");
-    const probability = finiteNumber(float ?? undefined, 0);
-    if (probability < 0 || probability > 1) {
-      throw new OpenPsaImportError(
-        "INVALID_MODEL",
-        `Basic event ${name} probability must be between 0 and 1`,
-      );
-    }
     const controlledDataSource = controlledDataSourceFromMetadata(metadata, state.warnings);
+    const expression = basicEventExpression(element, metadata, name, state.warnings);
+    const point = importedPoint(expression, name);
+    if (controlledDataSource !== undefined && Number.isNaN(point)) {
+      throw new OpenPsaImportError("INVALID_MODEL", `Basic event ${name} links a record and also holds a law`);
+    }
     state.basicEvents.push({
       id,
       code: bounded(metadata.get("openpra.code"), name, 64),
       name: bounded(metadata.get("openpra.name"), definitionLabel(element) ?? name, 200),
       description: (metadata.get("openpra.description") ?? "").slice(0, 10_000),
-      probability: {
-        value: probability,
-        ...(controlledDataSource === undefined ? {} : { controlledDataSource }),
-      },
+      probability: controlledDataSource === undefined ? { value: point, expression } : { value: point, controlledDataSource },
     });
     addDefinitionName(state.basicEventIdsByName, name, id);
   }

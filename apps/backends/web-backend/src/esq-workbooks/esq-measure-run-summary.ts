@@ -1,5 +1,6 @@
 import type { EsqSequenceRecord, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
-import type { EsqImportanceGroup, EsqSamplingLaw } from "interfaces-mef-types/esq/esq-measure-inputs";
+import type { EsqImportanceGroup } from "interfaces-mef-types/esq/esq-measure-inputs";
+import type { UncertainExpression, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
 import { sequenceFamilyOf } from "interfaces-mef-types/esq/esq-solve-inputs";
 import { resolvedRecoveries } from "interfaces-mef-types/esq/esq-post-inputs";
 import type {
@@ -20,6 +21,7 @@ import type {
 } from "interfaces-shared-types/newly-developed-methods";
 import type { EsqTreeRunOutcome } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
 import type { EsqRunBuild } from "./esq-model-run-builder";
+import { initiatorFrequencyOf } from "./esq-model-run-summary";
 
 interface EsqMeasureSummaryBase {
   esq: EventSequenceQuantification;
@@ -43,7 +45,7 @@ interface EsqUncertaintySummaryInput extends EsqMeasureSummaryBase {
   seed: number;
   method: EventTreeSamplingMethod;
   correlation: EsqUncertaintyCorrelation;
-  keys: { key: string; label: string; source: string; law: EsqSamplingLaw; events: number }[];
+  keys: { key: string; label: string; source: string; expression: UncertainExpression; unit: UncertainUnit; events: number }[];
   unsampled: EsqUncertaintyUnsampled[];
 }
 
@@ -87,7 +89,7 @@ function trees(outcomes: readonly EsqTreeRunOutcome[]): EsqImportanceRunResult["
     treeId: outcome.treeId,
     runId: outcome.runId,
     status: outcome.status,
-    initiatorFrequency: outcome.initiatorFrequency,
+    initiatorFrequency: initiatorFrequencyOf(outcome),
     failure: outcome.failure,
   }));
 }
@@ -220,7 +222,8 @@ function statistics(values: readonly number[], point: number): EsqUncertaintySta
   const mean = count === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / count;
   const variance = count < 2 ? 0 : values.reduce((sum, value) => sum + (value - mean) * (value - mean), 0) / (count - 1);
   const sorted = [...values].sort((a, b) => a - b);
-  return { point, mean, standardDeviation: Math.sqrt(variance), p05: quantile(sorted, 0.05), p50: quantile(sorted, 0.5), p95: quantile(sorted, 0.95) };
+  const standardDeviation = Math.sqrt(variance);
+  return { point, mean, standardDeviation, standardError: count === 0 ? 0 : standardDeviation / Math.sqrt(count), p05: quantile(sorted, 0.05), p50: quantile(sorted, 0.5), p95: quantile(sorted, 0.95) };
 }
 
 function summarizeEsqUncertaintyRun(input: EsqUncertaintySummaryInput): EsqUncertaintyRunResult {
@@ -253,7 +256,7 @@ function summarizeEsqUncertaintyRun(input: EsqUncertaintySummaryInput): EsqUncer
     ...statistics(values, points.get(familyId) ?? 0),
     values: values.map((value) => Number(value.toPrecision(6))),
   }));
-  const keys: EsqUncertaintyKey[] = input.keys.map((key) => ({ key: key.key, label: key.label, source: key.source, distribution: key.law, events: key.events }));
+  const keys: EsqUncertaintyKey[] = input.keys.map((key) => ({ key: key.key, label: key.label, source: key.source, expression: key.expression, unit: key.unit, events: key.events }));
   return {
     schemaVersion: "1.0.0",
     kind: "ESQ_UNCERTAINTY_RUN",

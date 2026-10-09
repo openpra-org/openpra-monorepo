@@ -3,6 +3,7 @@ export {
   applyEventTreeOperation,
   createEmptyEventTree,
   createEventTreePresentation,
+  initiatingFrequencyUnit,
   orderedFunctionalEvents,
   sequencePathsFromTopology,
   uniqueFunctionalEventCode,

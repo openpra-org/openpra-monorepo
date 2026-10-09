@@ -1,0 +1,35 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "squared"
+    },
+    "expression": {
+      "node": "OPERATION",
+      "operation": "POWER",
+      "operands": [
+        {
+          "node": "VALUE",
+          "value": {
+            "unit": "PROBABILITY",
+            "law": {
+              "family": "POINT",
+              "value": 0.5
+            }
+          }
+        },
+        {
+          "node": "VALUE",
+          "value": {
+            "unit": "FACTOR",
+            "law": {
+              "family": "POINT",
+              "value": 2
+            }
+          }
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,29 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PROBABILITY",
+        "law": {
+          "family": "TABULATED",
+          "points": [
+            {
+              "probability": 0,
+              "value": 0.01
+            },
+            {
+              "probability": 1,
+              "value": 0.001
+            }
+          ],
+          "scale": "LINEAR"
+        }
+      }
+    }
+  }
+]

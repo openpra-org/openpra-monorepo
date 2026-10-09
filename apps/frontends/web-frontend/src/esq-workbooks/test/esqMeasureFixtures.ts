@@ -8,7 +8,7 @@ import type { EsqUpstream } from "../esqLinks";
 import { withModelImported } from "../esqModel";
 import { MODEL_AS_SET } from "../esqLogic";
 import { withRunOfRecord } from "../esqSolve";
-import { linkedEsq, modelUpstream } from "./esqModelFixtures";
+import { PUMP_ESTIMATE, linkedEsq, modelUpstream } from "./esqModelFixtures";
 import { NOW, modelSummary } from "./esqPostFixtures";
 
 const IMPORTANCE_RUN = "1c6c1a2e-8b3d-4c5e-9f70-1a2b3c4d5e6f";
@@ -74,7 +74,7 @@ function importanceResult(esq: EventSequenceQuantification): EsqImportanceRunRes
 }
 
 function uncertaintyResult(esq: EventSequenceQuantification): EsqUncertaintyRunResult {
-  const stats = { point: RELEASE, mean: 1.3e-5, standardDeviation: 2e-5, p05: 2e-6, p50: 7e-6, p95: 4.5e-5 };
+  const stats = { point: RELEASE, mean: 1.3e-5, standardDeviation: 2e-5, standardError: 2e-5 / Math.sqrt(1000), p05: 2e-6, p50: 7e-6, p95: 4.5e-5 };
   return {
     schemaVersion: "1.0.0",
     kind: "ESQ_UNCERTAINTY_RUN",
@@ -90,8 +90,8 @@ function uncertaintyResult(esq: EventSequenceQuantification): EsqUncertaintyRunR
     trees: [{ treeId: "ET-A", runId: UNCERTAINTY_RUN, status: "SUCCEEDED", initiatorFrequency: 2.5, failure: null }],
     families: [{ familyId: "F-REL", endState: "RADIONUCLIDE_RELEASE", ...stats, values: [1e-5, 1.6e-5] }],
     total: stats,
-    keys: [],
-    unsampled: [],
+    keys: [{ key: "PARAMETER:P-1", label: "Pump fails to start (P-1)", source: "DA", expression: PUMP_ESTIMATE, unit: "PROBABILITY", events: 1 }],
+    unsampled: [{ id: "EVENT:E-4", label: "RPS-DIV-FS · Division fails to trip", reason: "SY types this value without uncertainty. Give it a law in SY." }],
   };
 }
 

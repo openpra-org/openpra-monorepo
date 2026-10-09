@@ -1,9 +1,13 @@
-import { Fragment, JSX, useId, useMemo, useState } from "react";
+import { Fragment, JSX, useEffect, useId, useMemo, useState } from "react";
 import type { EsqSampledInput } from "interfaces-mef-types/esq/esq-measure-inputs";
-import type { EsqUncertaintyCorrelation, EventTreeSamplingMethod } from "interfaces-shared-types/newly-developed-methods/event-tree";
+import type { UncertainParameter } from "interfaces-mef-types/core/uncertainty";
+import type { EsqUncertaintyCorrelation, EsqUncertaintyRunResult, EventTreeSamplingMethod } from "interfaces-shared-types/newly-developed-methods/event-tree";
+import type { UncertaintySampling } from "interfaces-shared-types/newly-developed-methods/shared";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
+import { parametersFor, useExpressionSummaries, useLawSummaries } from "../newly-developed-methods/shared/useUncertainty";
+import { expressionText, unitText } from "../newly-developed-methods/shared/uncertainText";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import {
   DetailRow,
@@ -18,12 +22,16 @@ import {
   RunState,
   dateText,
   failedTrees,
+  pointText,
   rowClass,
   sciText,
   useElementWidth,
+  useExpressionPoints,
   useRunner,
+  type EsqPointEntry,
 } from "./esqShared";
 import { Pager, pageOf, type EsqWindowContext } from "./esqModelScreen";
+import { missionTimeSourcesOf, parameterLabelOf, parameterTableOf } from "./esqModel";
 import { runLogicOf } from "./esqResults";
 import {
   DEFAULT_METHOD,
@@ -32,13 +40,13 @@ import {
   INPUT_KIND_LABELS,
   METHOD_LABELS,
   SOURCE_LABELS,
-  lawText,
   standardErrors,
   uncertaintyRunProblem,
   uncertaintyViewOf,
   uncertaintyWorkOf,
   withSpread,
   withUncertaintyRun,
+  type EsqInputRow,
   type EsqUncertaintyView,
   type EsqUncertaintyWindowKind,
 } from "./esqUncertainty";
@@ -73,6 +81,68 @@ function valueText(value: number | undefined): string {
 function ratioText(value: number | undefined): string {
   if (value === undefined || !Number.isFinite(value)) return "—";
   return `${String(Number(value.toPrecision(3)))}×`;
+}
+
+interface EsqMoments {
+  mean: number;
+  standardDeviation: number | null;
+}
+
+function samplingOf(view: EsqUncertaintyView): UncertaintySampling {
+  const run = view.run;
+  return { method: run?.method ?? DEFAULT_METHOD, trials: run?.trials ?? DEFAULT_TRIALS, seed: run?.seed ?? DEFAULT_SEED };
+}
+
+function useMoments(rows: readonly EsqInputRow[], table: ReadonlyMap<string, UncertainParameter>, sampling: UncertaintySampling): Map<string, EsqMoments> {
+  const lawRows = useMemo(() => rows.flatMap((row) => {
+    const expression = row.input.expression;
+    return row.sampled && expression?.node === "VALUE" ? [{ key: row.input.key, query: { value: expression.value, probabilities: [], curveProbabilities: [] } }] : [];
+  }), [rows]);
+  const sampledRows = useMemo(() => rows.flatMap((row) => {
+    const expression = row.input.expression;
+    return row.sampled && expression !== undefined && expression.node !== "VALUE"
+      ? [{ key: row.input.key, query: { expression, unit: row.input.unit, probabilities: [], sampling, parameters: parametersFor([expression], table) } }]
+      : [];
+  }), [rows, table, sampling]);
+  const lawQueries = useMemo(() => lawRows.map((entry) => entry.query), [lawRows]);
+  const sampledQueries = useMemo(() => sampledRows.map((entry) => entry.query), [sampledRows]);
+  const laws = useLawSummaries(lawQueries);
+  const sampled = useExpressionSummaries(sampledQueries);
+  const moments = new Map<string, EsqMoments>();
+  lawRows.forEach((entry, index) => {
+    const state = laws[index];
+    if (state?.status === "ready") moments.set(entry.key, { mean: state.value.mean, standardDeviation: state.value.standardDeviation });
+  });
+  sampledRows.forEach((entry, index) => {
+    const state = sampled[index];
+    const summary = state?.status === "ready" ? state.value.sampled : null;
+    if (summary !== null && summary !== undefined) moments.set(entry.key, { mean: summary.mean, standardDeviation: summary.standardDeviation });
+  });
+  return moments;
+}
+
+function raiseOf(moments: EsqMoments | undefined): number | undefined {
+  if (moments === undefined || moments.standardDeviation === null || moments.mean === 0) return undefined;
+  const variation = moments.standardDeviation / moments.mean;
+  return 1 + variation * variation;
+}
+
+function inputPointEntries(rows: readonly EsqInputRow[]): EsqPointEntry[] {
+  return rows.flatMap((row) => (row.input.contract && row.input.expression !== undefined ? [{ key: row.input.key, expression: row.input.expression, unit: row.input.unit }] : []));
+}
+
+function inputPoint(row: EsqInputRow, points: ReturnType<typeof useExpressionPoints>): string {
+  return row.input.contract ? pointText(points.get(row.input.key)) : valueText(row.input.legacy?.point);
+}
+
+function lawCell(row: EsqInputRow, label: (key: string) => string): string {
+  const expression = row.input.expression;
+  if (expression === undefined) return row.input.missing ?? "None";
+  return row.sampled ? expressionText(expression, label) : "None, fixed at the point";
+}
+
+function countText(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 function familyName(view: EsqUncertaintyView, familyId: string): string {
@@ -119,13 +189,21 @@ function useSampling(view: EsqUncertaintyView) {
 }
 
 function InputsPanel({ view, openWindow }: { view: EsqUncertaintyView; openWindow: (ctx: EsqWindowContext) => void }): JSX.Element {
+  const { esq, upstream } = useEsqWorkbook();
   const fieldId = useId();
   const [kind, setKind] = useState<"ALL" | EsqSampledInput["kind"]>("ALL");
   const [page, setPage] = useState(0);
   const [openKey, setOpenKey] = useState("");
   const [wrapRef, wrapWidth] = useElementWidth(0);
-  const rows = kind === "ALL" ? view.inputs : view.inputs.filter((row) => row.input.kind === kind);
-  const { current, shown } = pageOf(rows, page);
+  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const label = useMemo(() => parameterLabelOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const sampling = useMemo(() => samplingOf(view), [view]);
+  const rows = useMemo(() => (kind === "ALL" ? view.inputs : view.inputs.filter((row) => row.input.kind === kind)), [view.inputs, kind]);
+  const { current, shown } = useMemo(() => pageOf(rows, page), [rows, page]);
+  const entries = useMemo(() => inputPointEntries(shown), [shown]);
+  const points = useExpressionPoints(entries, table);
+  const opened = useMemo(() => view.inputs.filter((row) => row.input.key === openKey), [view.inputs, openKey]);
+  const moments = useMoments(opened, table, sampling);
   if (view.inputs.length === 0) return <p className="posmuted">The imported model holds no value to sample.</p>;
   return (
     <div className="esq-run">
@@ -141,7 +219,7 @@ function InputsPanel({ view, openWindow }: { view: EsqUncertaintyView; openWindo
           </div>
           <Pager total={rows.length} page={current} onPage={setPage} />
         </div>
-        <p className="esq-meta">Each input draws once per trial. Every event bound to the same DA parameter takes that one draw. A typed error factor gives a lognormal whose mean is the point value.</p>
+        <p className="esq-meta">Each input draws once per trial. Every event bound to the same DA parameter takes that one draw. DA and SY give the laws of component values. A typed error factor applies only to the other values. It gives a lognormal whose mean is the point value.</p>
       </div>
       <div className="esq-table-wrap" ref={wrapRef}>
         <table className="postable esq-rowtable" aria-label="Sampled inputs">
@@ -150,26 +228,28 @@ function InputsPanel({ view, openWindow }: { view: EsqUncertaintyView; openWindo
             {shown.map((row) => {
               const input = row.input;
               const open = input.key === openKey;
+              const moment = moments.get(input.key);
               return (
                 <Fragment key={input.key}>
-                  <tr className={rowClass(input.law === undefined, open)} onClick={() => { if (!open) setOpenKey(input.key); }}>
+                  <tr className={rowClass(!row.sampled, open)} onClick={() => { if (!open) setOpenKey(input.key); }}>
                     <td className="esq-rowtable__pick"><DetailToggle open={open} label={input.label} onToggle={() => setOpenKey(open ? "" : input.key)} /></td>
                     <td className="esq-rowtable__wrap">
                       <button type="button" className="esq-rowtable__name" onClick={(event) => { event.stopPropagation(); openWindow({ kind: "esqUncertInput", id: input.key }); }}>{input.label}</button>
                       {row.significant && <span className="esq-rowtable__tag">Significant</span>}
                     </td>
-                    <td className="esq-rowtable__num">{valueText(input.point)}</td>
-                    <td className="esq-rowtable__wrap">{input.law === undefined ? "None, fixed at the point" : lawText(input.law)}</td>
+                    <td className="esq-rowtable__num">{inputPoint(row, points)}</td>
+                    <td className="esq-rowtable__wrap">{lawCell(row, label)}</td>
                   </tr>
                   {open && (
                     <DetailRow span={4} width={wrapWidth - 18}>
                       <FieldList items={[
                         { label: "Kind", value: INPUT_KIND_LABELS[input.kind] },
+                        { label: "Value", value: input.expression === undefined ? "—" : expressionText(input.expression, label) },
                         { label: "Distribution from", value: input.source === undefined ? "—" : SOURCE_LABELS[input.source] ?? input.source },
-                        { label: "Mean of the distribution", value: valueText(row.mean) },
+                        { label: "Mean of the distribution", value: row.sampled ? valueText(moment?.mean) : "—" },
                         { label: "Used by", value: `${input.users.length} model items` },
-                        { label: "Two shared copies raise the mean", value: ratioText(row.raise) },
-                        { label: "Unit", value: input.rate ? "Rate or frequency" : "Probability" },
+                        { label: "Two shared copies raise the mean", value: ratioText(raiseOf(moment)) },
+                        { label: "Unit", value: unitText(input.unit) },
                         { label: "Missing", value: input.missing ?? "—" },
                       ]} />
                     </DetailRow>
@@ -185,11 +265,15 @@ function InputsPanel({ view, openWindow }: { view: EsqUncertaintyView; openWindo
 }
 
 function CorrelationPanel({ view }: { view: EsqUncertaintyView }): JSX.Element {
+  const { esq, upstream } = useEsqWorkbook();
   const sampling = useSampling(view);
   const [page, setPage] = useState(0);
   const run = view.run;
   const independent = view.independent;
-  const { current, shown } = pageOf(view.shared, page);
+  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const settings = useMemo(() => samplingOf(view), [view]);
+  const { current, shown } = useMemo(() => pageOf(view.shared, page), [view.shared, page]);
+  const moments = useMoments(shown, table, settings);
   const compared = view.families.filter((family) => family.stats !== undefined && family.independent !== undefined);
   return (
     <div className="esq-run">
@@ -210,7 +294,7 @@ function CorrelationPanel({ view }: { view: EsqUncertaintyView }): JSX.Element {
                   <tr key={row.input.key}>
                     <td className="esq-rowtable__wrap">{row.input.label}</td>
                     <td className="esq-rowtable__num">{String(row.input.users.length)}</td>
-                    <td className="esq-rowtable__num">{ratioText(row.raise)}</td>
+                    <td className="esq-rowtable__num">{ratioText(raiseOf(moments.get(row.input.key)))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -249,9 +333,59 @@ function CorrelationPanel({ view }: { view: EsqUncertaintyView }): JSX.Element {
   );
 }
 
+function useUncertaintyResult(workbookId: string | null, runId: string | undefined): { result?: EsqUncertaintyRunResult; error?: string } {
+  const [state, setState] = useState<{ runId: string; result?: EsqUncertaintyRunResult; error?: string } | null>(null);
+  useEffect(() => {
+    if (workbookId === null || runId === undefined) {
+      setState(null);
+      return;
+    }
+    let cancelled = false;
+    getEsqUncertaintyResult(workbookId, runId)
+      .then((result) => { if (!cancelled) setState({ runId, result }); })
+      .catch((caught: Error) => { if (!cancelled) setState({ runId, error: caught.message }); });
+    return () => { cancelled = true; };
+  }, [workbookId, runId]);
+  if (state === null || state.runId !== runId) return {};
+  return state;
+}
+
+function KeysTable({ result }: { result: EsqUncertaintyRunResult }): JSX.Element {
+  const { esq } = useEsqWorkbook();
+  const [page, setPage] = useState(0);
+  const label = useMemo(() => parameterLabelOf(esq), [esq]);
+  const { current, shown } = pageOf(result.keys, page);
+  return (
+    <>
+      <div className="esq-bar">
+        <p className="esq-meta">{`${countText(result.keys.length, "input")} drew in this run.${result.unsampled.length === 0 ? "" : ` ${countText(result.unsampled.length, "input")} stayed at their point values.`}`}</p>
+        <Pager total={result.keys.length} page={current} onPage={setPage} />
+      </div>
+      {result.keys.length > 0 && (
+        <div className="esq-table-wrap">
+          <table className="postable esq-rowtable" aria-label="Sampled keys">
+            <thead><tr><th>Input</th><th>Draws from</th><th>Items</th></tr></thead>
+            <tbody>
+              {shown.map((key) => (
+                <tr key={key.key}>
+                  <td className="esq-rowtable__text">{key.label}</td>
+                  <td className="esq-rowtable__wrap">{`${expressionText(key.expression, label)} · ${unitText(key.unit)}`}</td>
+                  <td className="esq-rowtable__num">{String(key.events)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}
+
 function RunsPanel({ view }: { view: EsqUncertaintyView }): JSX.Element {
+  const { runtime } = useEsqWorkbook();
   const fieldId = useId();
   const run = view.run;
+  const loaded = useUncertaintyResult(runtime.workbookId, run?.runId);
   const [trials, setTrials] = useState(run?.trials ?? DEFAULT_TRIALS);
   const [seed, setSeed] = useState(run?.seed ?? DEFAULT_SEED);
   const [method, setMethod] = useState<EventTreeSamplingMethod>(run?.method ?? DEFAULT_METHOD);
@@ -298,6 +432,8 @@ function RunsPanel({ view }: { view: EsqUncertaintyView }): JSX.Element {
           { label: "Up to date", value: view.runStale ? "No, the inputs changed" : "Yes" },
         ]} />
       )}
+      {loaded.error !== undefined && <p className="esq-run__error" role="alert">{`The sampled inputs did not load. ${loaded.error}`}</p>}
+      {loaded.result !== undefined && <KeysTable result={loaded.result} />}
     </div>
   );
 }
@@ -320,7 +456,7 @@ function FamiliesPanel({ view }: { view: EsqUncertaintyView }): JSX.Element {
               const stats = family.stats;
               if (stats === undefined) return null;
               const open = family.familyId === openId;
-              const errors = standardErrors(stats, run.trials);
+              const errors = standardErrors(stats);
               return (
                 <Fragment key={family.familyId}>
                   <tr className={rowClass(false, open)} onClick={() => { if (!open) setOpenId(family.familyId); }}>
@@ -340,7 +476,7 @@ function FamiliesPanel({ view }: { view: EsqUncertaintyView }): JSX.Element {
                         { label: "Point value", value: sciText(stats.point) },
                         { label: "Mean over the point", value: ratioText(stats.point > 0 ? stats.mean / stats.point : undefined) },
                         { label: "Standard deviation", value: sciText(stats.standardDeviation) },
-                        { label: "Standard error of the mean", value: sciText(stats.standardDeviation / Math.sqrt(run.trials)) },
+                        { label: "Standard error of the mean", value: sciText(stats.standardError) },
                         { label: "Mean minus point, in standard errors", value: errors === undefined ? "—" : String(Number(errors.toPrecision(3))) },
                         { label: "95th over 5th", value: ratioText(stats.p05 > 0 ? stats.p95 / stats.p05 : undefined) },
                         { label: "Independent draws mean", value: valueText(family.independent?.mean) },
@@ -417,28 +553,37 @@ function UncertScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => v
 }
 
 function InputWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
-  const { esq, editable, mutateEsq } = useEsqWorkbook();
+  const { esq, editable, mutateEsq, upstream } = useEsqWorkbook();
   const fieldId = useId();
-  const view = uncertaintyViewOf(esq);
+  const view = useMemo(() => uncertaintyViewOf(esq), [esq]);
+  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const label = useMemo(() => parameterLabelOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
   const row = view?.inputs.find((candidate) => candidate.input.key === id);
+  const entries = useMemo(() => (row === undefined ? [] : inputPointEntries([row])), [row]);
+  const points = useExpressionPoints(entries, table);
   if (row === undefined) return null;
   const input = row.input;
   const spread = uncertaintyWorkOf(esq).spreads?.find((entry) => entry.key === id);
-  const typedLaw = input.law === undefined || input.source === "TYPED";
+  const typedLaw = !input.contract && (!row.sampled || input.source === "TYPED");
   const dis = !editable;
   const sourceId = `${fieldId}-source`;
+  const from = input.source === undefined ? "" : ` · ${SOURCE_LABELS[input.source] ?? input.source}`;
+  const lawLine = input.expression === undefined ? input.missing ?? "None" : `${expressionText(input.expression, label)}${from}`;
+  const legacyPoint = input.legacy?.point;
   return (
     <>
       <ModalHead cap={`Sampled input · ${INPUT_KIND_LABELS[input.kind]} · ESQ-E2`} title={input.label} onClose={onClose} />
       <div className="modal__body esq-form">
-        <FormRow label="Point value"><span className="esq-form__unit">{valueText(input.point)}</span></FormRow>
-        <FormRow label="Distribution"><span className="esq-form__unit">{input.law === undefined ? input.missing ?? "None" : `${lawText(input.law)} · ${input.source === undefined ? "" : SOURCE_LABELS[input.source] ?? input.source}`}</span></FormRow>
-        {!typedLaw && <FormRow label="Change it"><span className="esq-form__unit">{input.source === "DA" ? "Change the distribution in DA and import again in Step 02." : input.source === "IE" ? "Change the frequency distribution in IE and import again." : "Change it in the step that holds it."}</span></FormRow>}
+        <FormRow label="Point value"><span className="esq-form__unit">{`${inputPoint(row, points)} · ${unitText(input.unit)}`}</span></FormRow>
+        <FormRow label="Distribution"><span className="esq-form__note">{lawLine}</span></FormRow>
+        {input.contract && <FormRow label="Change it"><span className="esq-form__note">{input.kind === "PARAMETER" ? "Give the estimate a law in DA and import again in Step 02." : "Give the value a law in SY and import again in Step 02."}</span></FormRow>}
+        {input.contract && spread !== undefined && <FormRow label="Old error factor"><span className="esq-form__note">{`The typed error factor ${String(spread.errorFactor)} is no longer used. The law in DA or SY replaces it.`}</span></FormRow>}
+        {!input.contract && !typedLaw && <FormRow label="Change it"><span className="esq-form__note">{input.source === "DA" ? "Change the distribution in DA and import again in Step 02." : input.source === "IE" ? "Change the frequency distribution in IE and import again." : "Change it in the step that holds it."}</span></FormRow>}
         {typedLaw && (
           <fieldset className="esq-use">
             <legend className="esq-use__legend">Typed spread</legend>
             <FormRow label="Error factor" htmlFor={`${fieldId}-ef`}>
-              <WorkbookInput id={`${fieldId}-ef`} type="number" className="posfield__input esq-form__number" value={spread?.errorFactor ?? ""} disabled={dis || input.point === undefined || !(input.point > 0)} onChange={(event) => {
+              <WorkbookInput id={`${fieldId}-ef`} type="number" className="posfield__input esq-form__number" value={spread?.errorFactor ?? ""} disabled={dis || legacyPoint === undefined || !(legacyPoint > 0)} onChange={(event) => {
                 if (!editable) return;
                 const text = event.target.value.trim();
                 const value = Number(text);
@@ -458,7 +603,11 @@ function InputWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.
           </fieldset>
         )}
       </div>
-      <FormFoot onClose={onClose} />
+      <FormFoot onClose={onClose}>
+        {editable && input.contract && spread !== undefined && (
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateEsq((draft) => withSpread(draft, id, undefined))}>Remove the old error factor</button>
+        )}
+      </FormFoot>
     </>
   );
 }

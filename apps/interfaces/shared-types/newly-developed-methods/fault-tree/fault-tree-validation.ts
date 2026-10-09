@@ -354,6 +354,7 @@ const validateFaultTreeProbabilitiesAndTransfers = (
       }
       if (
         basicEvent !== undefined &&
+        basicEvent.probability.expression === undefined &&
         (!Number.isFinite(basicEvent.probability.value) ||
           basicEvent.probability.value < 0 ||
           basicEvent.probability.value > 1)

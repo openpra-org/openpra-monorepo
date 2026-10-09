@@ -27,8 +27,9 @@ function daHepKey(workbookId: string, parameterId: string): string {
 function daHepOptions(sources: readonly HrDaSource[]): HrDaHepOption[] {
   return sources.flatMap((source) => source.mef.parameters.flatMap((parameter): HrDaHepOption[] => {
     const value = parameter.value;
+    const valueType = parameter.valueType;
     if (parameter.parameterType !== "HUMAN_ERROR_PROBABILITY" && parameter.quantificationModel !== "NON_RECOVERY") return [];
-    if (value === undefined || !Number.isFinite(value) || value < 0 || value > 1) return [];
+    if (value === undefined || valueType === undefined || !Number.isFinite(value) || value < 0 || value > 1) return [];
     if (parameter.valueMode === "LINKED" && parameter.valueLink?.element === "HRA") return [];
     return [{
       workbookId: source.id,
@@ -36,7 +37,7 @@ function daHepOptions(sources: readonly HrDaSource[]): HrDaHepOption[] {
       parameterId: parameter.uuid,
       parameterName: parameter.name,
       value,
-      valueType: parameter.valueType,
+      valueType,
     }];
   })).sort((left, right) => [left.workbookName, left.parameterId].join(":").localeCompare([right.workbookName, right.parameterId].join(":"), undefined, { numeric: true }));
 }

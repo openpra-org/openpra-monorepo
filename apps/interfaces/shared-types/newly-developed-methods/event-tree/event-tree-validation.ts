@@ -7,6 +7,10 @@ import type {
   WorkbookModelSnapshotIdentity,
 } from "../shared";
 import type { EventTreeModel } from "./event-tree-model";
+import { lawBounds, type UncertainUnit } from "interfaces-mef-types/core/uncertainty";
+import { UncertainExpressionSchema } from "interfaces-mef-types/zod/core/uncertainty";
+
+const INITIATING_EVENT_FREQUENCY_UNITS: ReadonlySet<UncertainUnit> = new Set(["PER_YEAR", "PER_HOUR"]);
 
 interface EventTreeValidationContext {
   availableInitiatingEvents?: MethodEntityReference[];
@@ -101,7 +105,6 @@ const validateEventTreeStartingNodeAndPaths = (
   });
 
   const completePaths = model.sequences.filter((sequence) => sequence.path.length === orderedFunctionalEvents.length);
-  // HCL_MH enumerates the supplied edges, including a sole success/failure edge.
   const hasValidBranches = (depth: number, candidates: typeof completePaths): boolean => {
     if (depth === orderedFunctionalEvents.length) return candidates.length === 1;
     const states = new Set(candidates.map((sequence) => sequence.path[depth]?.outcome));
@@ -181,13 +184,35 @@ const validateEventTreeFaultTreeLinksAndFrequency = (
       entityId: model.modelId,
       fieldPath: ["initiatingEventFrequency"],
     });
-  } else if (!Number.isFinite(model.initiatingEventFrequency.value) || model.initiatingEventFrequency.value < 0) {
+  } else if (!UncertainExpressionSchema.safeParse(model.initiatingEventFrequency.expression).success) {
     issues.push({
       code: "ET_INITIATING_EVENT_FREQUENCY_INVALID",
       severity: "ERROR",
-      message: "The initiating-event frequency must be a finite, non-negative value",
+      message: "The initiating-event frequency must be a valid uncertain expression",
       entityId: model.modelId,
-      fieldPath: ["initiatingEventFrequency", "value"],
+      fieldPath: ["initiatingEventFrequency", "expression"],
+    });
+  } else if (
+    model.initiatingEventFrequency.expression.node === "VALUE" &&
+    !INITIATING_EVENT_FREQUENCY_UNITS.has(model.initiatingEventFrequency.expression.value.unit)
+  ) {
+    issues.push({
+      code: "ET_INITIATING_EVENT_FREQUENCY_UNIT",
+      severity: "ERROR",
+      message: "The initiating-event frequency must be per year or per hour",
+      entityId: model.modelId,
+      fieldPath: ["initiatingEventFrequency", "expression", "value", "unit"],
+    });
+  } else if (
+    model.initiatingEventFrequency.expression.node === "VALUE" &&
+    lawBounds(model.initiatingEventFrequency.expression.value.law).lower < 0
+  ) {
+    issues.push({
+      code: "ET_INITIATING_EVENT_FREQUENCY_INVALID",
+      severity: "ERROR",
+      message: "The initiating-event frequency cannot go below zero",
+      entityId: model.modelId,
+      fieldPath: ["initiatingEventFrequency", "expression", "value", "law"],
     });
   }
 

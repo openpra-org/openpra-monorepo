@@ -20,10 +20,14 @@ import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequen
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
+import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import {
   reconcileExampleEsqDependencyReferences,
   reconcileExampleEventTreeDependencyReferences,
   reconcileExampleSyDataAnalysisReferences,
+  reconcileExampleDaMissionTimeReferences,
+  reconcileExampleEsqMissionTimeReferences,
+  reconcileExampleSyMissionTimeReferences,
   reconcileExampleSyHumanReliabilityReferences,
   reconcileExampleRiskResultReferences,
   reconcileExampleSyDependencyOwnership,
@@ -249,6 +253,7 @@ export class WorkbooksService {
     const esqAdapter = this.elementRegistry.tryGet("ESQ");
     const rcAdapter = this.elementRegistry.tryGet("RC");
     const riAdapter = this.elementRegistry.tryGet("RI");
+    const scAdapter = this.elementRegistry.tryGet("SC");
     if (syAdapter === undefined) return;
 
     for (const variant of variants) {
@@ -259,13 +264,16 @@ export class WorkbooksService {
       const esqEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "ESQ");
       const rcEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "RC");
       const riEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "RI");
+      const scEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "SC");
+      const scLoaded = scAdapter === undefined || scEntry?.workbookId === null || scEntry?.workbookId === undefined ? null : await scAdapter.load(scEntry.workbookId);
+      const missionTimes = scLoaded === null || scEntry?.workbookId === null || scEntry?.workbookId === undefined ? undefined : { sc: scLoaded.mef as SuccessCriteriaDevelopment, workbookId: scEntry.workbookId };
       if (syEntry?.workbookId === null || syEntry?.workbookId === undefined) continue;
 
       let systems = await syAdapter.load(syEntry.workbookId);
       if (systems === null || systems.revision === undefined) continue;
 
       const ownedSystems = reconcileExampleSyDependencyOwnership(
-        systems.mef as SystemsAnalysis,
+        missionTimes === undefined ? systems.mef as SystemsAnalysis : reconcileExampleSyMissionTimeReferences(systems.mef as SystemsAnalysis, missionTimes.sc, missionTimes.workbookId),
         syEntry.workbookId,
       );
       await syAdapter.save(syEntry.workbookId, ownedSystems, systems.revision);
@@ -273,7 +281,11 @@ export class WorkbooksService {
       if (systems === null || systems.revision === undefined) continue;
 
       if (daAdapter !== undefined && daEntry?.workbookId !== null && daEntry?.workbookId !== undefined) {
-        const dataAnalysis = await daAdapter.load(daEntry.workbookId);
+        let dataAnalysis = await daAdapter.load(daEntry.workbookId);
+        if (dataAnalysis !== null && missionTimes !== undefined) {
+          await daAdapter.save(daEntry.workbookId, reconcileExampleDaMissionTimeReferences(dataAnalysis.mef as DataAnalysis, missionTimes.sc, missionTimes.workbookId), dataAnalysis.revision);
+          dataAnalysis = await daAdapter.load(daEntry.workbookId);
+        }
         if (dataAnalysis !== null) {
           const reconciledSystems = reconcileExampleSyDataAnalysisReferences(
             systems.mef as SystemsAnalysis,
@@ -308,7 +320,7 @@ export class WorkbooksService {
         const esq = await esqAdapter.load(esqEntry.workbookId);
         if (esq !== null && esq.revision !== undefined) {
           const reconciledEsq = reconcileExampleEsqDependencyReferences(
-            esq.mef as EventSequenceQuantification,
+            missionTimes === undefined ? esq.mef as EventSequenceQuantification : reconcileExampleEsqMissionTimeReferences(esq.mef as EventSequenceQuantification, missionTimes.sc, missionTimes.workbookId),
             esqEntry.workbookId,
             systems.mef as SystemsAnalysis,
             syEntry.workbookId,

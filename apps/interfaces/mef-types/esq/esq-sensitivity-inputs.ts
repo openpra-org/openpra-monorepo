@@ -5,7 +5,11 @@ import type {
   EsqSolveLogic,
   EventSequenceQuantification,
 } from "./event-sequence-quantification";
-import { importanceGroupsOf, lawPercentile, sampledInputsOf } from "./esq-measure-inputs";
+import { importanceGroupsOf, parameterUnit, sampledInputsOf } from "./esq-measure-inputs";
+import type { UncertainExpression, UncertainUnit } from "../core/uncertainty";
+import { legacyUpperPercentile } from "../core/legacy-uncertainty-adapter";
+import { holdsEstimate } from "../da/data-analysis";
+import { carriesUncertainExpression } from "../sy/systems-analysis";
 import { resolvedCombinations } from "./esq-post-inputs";
 import { esqStableId, hash32 } from "./esq-run-inputs";
 import { solveInputsKey } from "./esq-solve-inputs";
@@ -23,8 +27,6 @@ interface EsqAppliedCase {
   problem?: string;
   kept: string[];
 }
-
-const Z95 = 1.6448536269514722;
 
 function sensitivityWorkOf(esq: EventSequenceQuantification): EsqSensitivityWork {
   return esq.sensitivityWork ?? {};
@@ -55,6 +57,14 @@ function changed(current: number | undefined, entry: EsqSensitivityCase): number
   return undefined;
 }
 
+function changedExpression(current: UncertainExpression, unit: UncertainUnit, entry: EsqSensitivityCase): UncertainExpression | undefined {
+  if (entry.value !== undefined) return entry.value >= 0 ? { node: "VALUE", value: { unit, law: { family: "POINT", value: entry.value } } } : undefined;
+  if (entry.factor !== undefined && entry.factor >= 0) {
+    return { node: "OPERATION", operation: "MULTIPLY", operands: [current, { node: "VALUE", value: { unit: "FACTOR", law: { family: "POINT", value: entry.factor } } }] };
+  }
+  return undefined;
+}
+
 function applySensitivityCase(source: EventSequenceQuantification, entry: EsqSensitivityCase): EsqAppliedCase {
   const esq: EventSequenceQuantification = structuredClone(source);
   const applied: EsqAppliedCase = { esq, logic: { ...(entry.logic ?? {}) }, overrides: { events: [], ccfGroups: [] }, failedEvents: [], kept: [] };
@@ -65,6 +75,13 @@ function applySensitivityCase(source: EventSequenceQuantification, entry: EsqSen
     case "PARAMETER": {
       const parameter = model.parameters.find((candidate) => candidate.id === entry.target);
       if (parameter === undefined) return fail(`The model holds no DA parameter ${entry.target ?? ""}.`);
+      if (holdsEstimate(parameter.quantificationModel)) {
+        if (parameter.estimate === undefined) return fail(`DA gives ${parameter.name} no estimate.`);
+        const estimate = changedExpression(parameter.estimate, parameterUnit(parameter), entry);
+        if (estimate === undefined) return fail("Give the new value or a factor.");
+        parameter.estimate = estimate;
+        return applied;
+      }
       const next = changed(parameter.value, entry);
       if (next === undefined || !(next >= 0)) return fail("Give the new value or a factor.");
       const ratio = parameter.value !== undefined && parameter.value > 0 ? next / parameter.value : undefined;
@@ -75,16 +92,20 @@ function applySensitivityCase(source: EventSequenceQuantification, entry: EsqSen
           const record = model.events.find((event) => event.id === memberId);
           return (binding?.holderId ?? record?.holderId) === parameter.id && (binding?.heldBy ?? record?.heldBy) === "DA";
         });
-        if (shares && ratio !== undefined && group.totalProbability !== undefined) group.totalProbability = Math.min(1, group.totalProbability * ratio);
+        if (shares && ratio !== undefined && group.total !== undefined) {
+          group.total = { node: "OPERATION", operation: "MULTIPLY", operands: [group.total, { node: "VALUE", value: { unit: "FACTOR", law: { family: "POINT", value: ratio } } }] };
+        }
       }
       return applied;
     }
     case "CCF_TOTAL": {
       const group = model.ccfGroups.find((candidate) => candidate.id === entry.target);
       if (group === undefined) return fail(`The model holds no common cause group ${entry.target ?? ""}.`);
-      const next = changed(group.totalProbability, entry);
-      if (next === undefined || !(next >= 0 && next <= 1)) return fail("Give a group total between 0 and 1, or a factor.");
-      group.totalProbability = next;
+      if (group.total === undefined) return fail(`SY gives ${group.name} no group total.`);
+      if (entry.value !== undefined && !(entry.value >= 0 && entry.value <= 1)) return fail("Give a group total between 0 and 1, or a factor.");
+      const total = changedExpression(group.total, "PROBABILITY", entry);
+      if (total === undefined) return fail("Give a group total between 0 and 1, or a factor.");
+      group.total = total;
       return applied;
     }
     case "HEP": {
@@ -98,6 +119,23 @@ function applySensitivityCase(source: EventSequenceQuantification, entry: EsqSen
     case "EVENT": {
       const event = model.events.find((candidate) => candidate.id === entry.target);
       if (event === undefined) return fail(`The model holds no basic event ${entry.target ?? ""}.`);
+      if (carriesUncertainExpression(event.failureMode)) {
+        if (entry.value === 1) {
+          applied.failedEvents.push(event.id);
+          return applied;
+        }
+        if (event.expression === undefined) return fail(`SY gives ${event.code} no value.`);
+        if (entry.value !== undefined && !(entry.value >= 0 && entry.value <= 1)) return fail("Give a probability between 0 and 1.");
+        const expression = changedExpression(event.expression, "PROBABILITY", entry);
+        if (expression === undefined) return fail("Give a probability between 0 and 1, or a factor.");
+        event.expression = expression;
+        event.heldBy = "TYPED";
+        delete event.holderId;
+        if (esq.modelDecisions?.valueBindings !== undefined) {
+          esq.modelDecisions.valueBindings = esq.modelDecisions.valueBindings.filter((binding) => binding.eventId !== event.id);
+        }
+        return applied;
+      }
       const next = changed(event.valueUnit === "PER_HOUR" ? undefined : event.value, entry);
       if (next === undefined || !(next >= 0 && next <= 1)) return fail("Give a probability between 0 and 1.");
       if (next === 1) applied.failedEvents.push(event.id);
@@ -123,25 +161,29 @@ function applySensitivityCase(source: EventSequenceQuantification, entry: EsqSen
     case "HEP_95TH": {
       const fixedJoints = new Map(resolvedCombinations(esq).flatMap((view) => (view.level !== undefined && (view.source === "HRA" || view.source === "TYPED") ? [[view.combination.id, view.level] as const] : [])));
       const inputs = new Map(sampledInputsOf(esq).map((input) => [input.key, input]));
+      const upper = (key: string): number | undefined => {
+        const legacy = inputs.get(key)?.legacy;
+        return legacy?.errorFactor !== undefined && legacy.errorFactor > 1 ? legacyUpperPercentile(legacy.point, legacy.errorFactor) : undefined;
+      };
       for (const human of model.humanEvents) {
-        const law = inputs.get(`HFE:${human.id}`)?.law;
-        const value = law === undefined ? undefined : lawPercentile(law, Z95);
+        const value = upper(`HFE:${human.id}`);
         if (value === undefined) {
           applied.kept.push(human.id);
           continue;
         }
-        human.value = Math.min(1, value);
+        if (value > 1) return fail(`The 95th percentile of ${human.name} is ${value}, above 1. Lower its error factor in Step 08.`);
+        human.value = value;
       }
       for (const recovery of model.recoveries ?? []) {
-        const law = inputs.get(`RECOVERY:${recovery.id}`)?.law;
-        const value = law === undefined ? undefined : lawPercentile(law, Z95);
+        const value = upper(`RECOVERY:${recovery.id}`);
         if (value === undefined) {
           applied.kept.push(recovery.id);
           continue;
         }
-        recovery.hep = Math.min(1, value);
+        if (value > 1) return fail(`The 95th percentile of the non-recovery ${recovery.name} is ${value}, above 1. Lower its error factor.`);
+        recovery.hep = value;
         const rule = esq.postWork?.recoveries?.find((candidate) => candidate.id === recovery.id);
-        if (rule?.typed !== undefined) rule.typed = { ...rule.typed, value: Math.min(1, value) };
+        if (rule?.typed !== undefined) rule.typed = { ...rule.typed, value };
       }
       for (const combination of esq.postWork?.combinations ?? []) {
         const level = fixedJoints.get(combination.id);

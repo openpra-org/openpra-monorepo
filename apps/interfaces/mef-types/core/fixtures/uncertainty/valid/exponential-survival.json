@@ -1,0 +1,58 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "survives"
+    },
+    "expression": {
+      "node": "OPERATION",
+      "operation": "EXP",
+      "operands": [
+        {
+          "node": "OPERATION",
+          "operation": "SUBTRACT",
+          "operands": [
+            {
+              "node": "VALUE",
+              "value": {
+                "unit": "FACTOR",
+                "law": {
+                  "family": "POINT",
+                  "value": 0
+                }
+              }
+            },
+            {
+              "node": "OPERATION",
+              "operation": "MULTIPLY",
+              "operands": [
+                {
+                  "node": "VALUE",
+                  "value": {
+                    "unit": "PER_HOUR",
+                    "law": {
+                      "family": "GAMMA",
+                      "shape": 2,
+                      "rate": 100000
+                    }
+                  }
+                },
+                {
+                  "node": "VALUE",
+                  "value": {
+                    "unit": "HOURS",
+                    "law": {
+                      "family": "POINT",
+                      "value": 24
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

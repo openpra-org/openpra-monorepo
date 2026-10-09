@@ -1,10 +1,12 @@
 import { z } from "zod";
 import {
+  UncertaintySamplingMethodSchema,
   WorkbookMethodSchemaVersionSchema,
   ValidationModeSchema,
   WorkbookModelIdSchema,
   WorkbookRevisionSchema,
 } from "../shared";
+import type { UncertaintySamplingMethod } from "../shared";
 import type {
   CanvasLayoutMetadata,
   WorkbookMethodSchemaVersion,
@@ -117,6 +119,7 @@ interface FaultTreeAnalysisSettings {
   expandCcf: boolean;
   numTrials: number;
   seed: number;
+  samplingMethod: UncertaintySamplingMethod;
   missionTimeHours: number;
   earlyStop: boolean;
   convergenceDelta: number;
@@ -231,6 +234,7 @@ const FaultTreeAnalysisSettingsSchema = z
     expandCcf: z.boolean().default(false),
     numTrials: z.number().int().positive().max(1_000_000_000).default(10_000),
     seed: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).default(847),
+    samplingMethod: UncertaintySamplingMethodSchema.default("MONTE_CARLO"),
     missionTimeHours: z.number().positive().max(1_000_000_000).default(8_760),
     earlyStop: z.boolean().default(false),
     convergenceDelta: z.number().positive().default(0.1),
@@ -259,6 +263,7 @@ const FaultTreeExecuteRequestSchema = z
       expandCcf: false,
       numTrials: 10_000,
       seed: 847,
+      samplingMethod: "MONTE_CARLO",
       missionTimeHours: 8_760,
       earlyStop: false,
       convergenceDelta: 0.1,

@@ -7,6 +7,7 @@ import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "../sy
 jest.mock("../../newly-developed-methods/shared/useAnalysisSourceGuard", () => ({
   useAnalysisSourceGuard: () => ({ sourceWarning: null }),
 }));
+jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => jest.requireActual("./syUncertaintyPraxis"));
 jest.mock("../syWorkbookApi", () => ({
   getSyFaultTreeResult: jest.fn(),
   runSyFaultTree: jest.fn(),
@@ -23,12 +24,13 @@ const sy = {
     nodePositions: [], layout: { viewport: { x: 0, y: 0, zoom: 1 }, mode: "AUTOMATIC", direction: "TOP_TO_BOTTOM" }, implementsSrs: [],
   }],
   systemBasicEvents: [
-    { uuid: "event-a", code: "A", name: "A fails", eventType: "BASIC", failureMode: "FAILURE_TO_START", probability: 0.01, implementsSrs: [] },
-    { uuid: "event-b", code: "B", name: "B fails", eventType: "BASIC", failureMode: "FAILURE_TO_START", probability: 0.01, implementsSrs: [] },
+    { uuid: "event-a", code: "A", name: "A fails", eventType: "BASIC", failureMode: "FAILURE_TO_START", expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.01 } } }, implementsSrs: [] },
+    { uuid: "event-b", code: "B", name: "B fails", eventType: "BASIC", failureMode: "FAILURE_TO_START", expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.01 } } }, implementsSrs: [] },
   ],
   commonCauseFailureGroups: [{
-    uuid: "ccf-1", name: "Cooling pumps", description: "Same design", scope: "INTRASYSTEM", affectedComponents: ["A", "B"], affectedSystems: ["system-1"], modelType: "BETA_FACTOR",
-    modelSpecificParameters: { betaFactorParameters: { beta: 0.1, totalFailureProbability: 0.01 } }, members: { basicEvents: [{ id: "event-a" }, { id: "event-b" }] },
+    uuid: "ccf-1", name: "Cooling pumps", description: "Same design", scope: "INTRASYSTEM", affectedComponents: ["A", "B"], affectedSystems: ["system-1"],
+    factors: { model: "BETA_FACTOR", beta: { node: "VALUE", value: { unit: "FRACTION", law: { family: "POINT", value: 0.1 } } } },
+    total: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.01 } } }, members: { basicEvents: [{ id: "event-a" }, { id: "event-b" }] },
     groupSelectionBasis: "Same design", dataAnalysisCCFParameterRef: "DA-1", dataSources: [{ reference: "source", description: "basis", dataType: "generic" }], implementsSrs: [],
   }],
 } as unknown as SystemsAnalysis;

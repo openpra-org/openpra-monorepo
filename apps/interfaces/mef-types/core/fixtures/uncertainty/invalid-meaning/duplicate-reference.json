@@ -1,0 +1,36 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "x"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "FACTOR",
+        "law": {
+          "family": "POINT",
+          "value": 1
+        }
+      }
+    }
+  },
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "x"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "FACTOR",
+        "law": {
+          "family": "POINT",
+          "value": 2
+        }
+      }
+    }
+  }
+]

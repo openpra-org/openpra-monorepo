@@ -7,6 +7,8 @@ use praxis::analysis::width::compute_dfs_metadata_pdag;
 use praxis::core::event::BasicEvent;
 use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::{Formula, Gate};
+use praxis::core::distribution::Law;
+use praxis::core::distribution_sampling::{SamplingMethod, SamplingPlan};
 use praxis::expression::Expr;
 use praxis::mc::DpMonteCarloAnalysis;
 
@@ -43,7 +45,11 @@ fn test_full_pra_workflow_comprehensive() {
         BasicEvent::with_value(
             "PUMP_A_MOTOR".to_string(),
             0.01,
-            Expr::lognormal(0.01, 0.003),
+            truncated(Law::Lognormal {
+                mean: 0.01,
+                error_factor: 3.0,
+                level: 0.95,
+            }),
         )
         .unwrap(),
     )
@@ -54,7 +60,11 @@ fn test_full_pra_workflow_comprehensive() {
         BasicEvent::with_value(
             "PUMP_B_MOTOR".to_string(),
             0.01,
-            Expr::lognormal(0.01, 0.003),
+            truncated(Law::Lognormal {
+                mean: 0.01,
+                error_factor: 3.0,
+                level: 0.95,
+            }),
         )
         .unwrap(),
     )
@@ -65,7 +75,10 @@ fn test_full_pra_workflow_comprehensive() {
         BasicEvent::with_value(
             "PUMP_C_TURBINE".to_string(),
             0.02,
-            Expr::normal(0.02, 0.005),
+            truncated(Law::Normal {
+                mean: 0.02,
+                standard_deviation: 0.005,
+            }),
         )
         .unwrap(),
     )
@@ -152,19 +165,31 @@ fn test_full_pra_workflow_comprehensive() {
 
     println!("\nSTEP 5: Performing uncertainty quantification...");
 
+    let sampling = SamplingPlan {
+        method: SamplingMethod::MonteCarlo,
+        trials: num_trials,
+        seed,
+    };
     let uncertainty =
-        praxis::analysis::uncertainty::propagate_uncertainty(&ft, num_trials, Some(seed)).unwrap();
+        praxis::analysis::uncertainty::propagate_uncertainty(&ft, &sampling).unwrap();
 
     let unc_mean = uncertainty.mean();
-    let unc_std_dev = uncertainty.sigma();
-    let unc_ef = uncertainty.error_factor();
+    let unc_std_dev = uncertainty.standard_deviation();
 
     println!("  Mean: {:.6e}, Std Dev: {:.6e}", unc_mean, unc_std_dev);
-    println!("  Error Factor: {:.2}", unc_ef);
+    println!("  Standard error: {:.2e}", uncertainty.standard_error());
 
     assert!(unc_mean > 0.0 && unc_mean < 1.0);
     assert!(unc_std_dev >= 0.0);
 
     println!("\n=== Workflow Summary ===");
     println!("BDD + MOCUS + Importance + MC + Uncertainty all passed");
+}
+
+fn truncated(law: Law) -> Expr {
+    Expr::draw(Law::Truncated {
+        law: Box::new(law),
+        lower: Some(0.0),
+        upper: Some(1.0),
+    })
 }

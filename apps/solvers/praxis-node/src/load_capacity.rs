@@ -1,7 +1,8 @@
 use praxis::analysis::load_capacity::{
-    analyze, LawParameter, LoadCapacityLaw, LoadCapacityModel, LoadCapacityResult,
-    LoadCapacitySettings, LoadCapacitySide, SampleSummary, Sampling, UncertainParameter,
+    analyze, LoadCapacityModel, LoadCapacityResult, LoadCapacitySettings, SampleSummary,
 };
+use praxis::core::distribution::{AleatoryVariable, UncertainParameter, UncertainVectorParameter};
+use praxis::core::distribution_sampling::{SamplingMethod, SamplingPlan};
 use praxis::{PraxisError, Result};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -28,18 +29,11 @@ struct LoadCapacityExecuteRequest {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct SettingsInput {
-    sampling: SamplingInput,
+    sampling: SamplingMethod,
     samples: usize,
     seed: u64,
     #[serde(default = "default_curve_points")]
     curve_points: usize,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum SamplingInput {
-    MonteCarlo,
-    LatinHypercube,
 }
 
 #[derive(Debug, Deserialize)]
@@ -48,116 +42,12 @@ struct LoadCapacitySnapshot {
     id: String,
     method_type: String,
     revision: u64,
-    load: SideInput,
-    capacity: SideInput,
+    load: AleatoryVariable,
+    capacity: AleatoryVariable,
     #[serde(default)]
     unit: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct SideInput {
-    distribution: DistributionInput,
-    #[serde(default)]
-    uncertain_parameters: Vec<UncertainInput>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct UncertainInput {
-    parameter: String,
-    distribution: DistributionInput,
-    #[serde(default)]
-    correlation_key: Option<String>,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(tag = "type")]
-enum DistributionInput {
-    #[serde(rename = "point_estimate")]
-    PointEstimate { value: f64 },
-    #[serde(rename = "normal", rename_all = "camelCase")]
-    Normal { mean: f64, std_dev: f64 },
-    #[serde(rename = "lognormal", rename_all = "camelCase")]
-    Lognormal { median: f64, error_factor: f64 },
-    #[serde(rename = "uniform")]
-    Uniform { lower: f64, upper: f64 },
-    #[serde(rename = "exponential", rename_all = "camelCase")]
-    Exponential { failure_rate: f64 },
-    #[serde(rename = "weibull")]
-    Weibull {
-        scale: f64,
-        shape: f64,
-        location: f64,
-    },
-    #[serde(rename = "gamma")]
-    Gamma { shape: f64, rate: f64 },
-    #[serde(rename = "beta", rename_all = "camelCase")]
-    Beta { alpha: f64, beta_param: f64 },
-}
-
-impl DistributionInput {
-    fn law(self) -> LoadCapacityLaw {
-        match self {
-            DistributionInput::PointEstimate { value } => LoadCapacityLaw::Point { value },
-            DistributionInput::Normal { mean, std_dev } => {
-                LoadCapacityLaw::Normal { mean, std_dev }
-            }
-            DistributionInput::Lognormal {
-                median,
-                error_factor,
-            } => LoadCapacityLaw::Lognormal {
-                median,
-                error_factor,
-            },
-            DistributionInput::Uniform { lower, upper } => {
-                LoadCapacityLaw::Uniform { lower, upper }
-            }
-            DistributionInput::Exponential { failure_rate } => {
-                LoadCapacityLaw::Exponential { rate: failure_rate }
-            }
-            DistributionInput::Weibull {
-                scale,
-                shape,
-                location,
-            } => LoadCapacityLaw::Weibull {
-                scale,
-                shape,
-                location,
-            },
-            DistributionInput::Gamma { shape, rate } => LoadCapacityLaw::Gamma { shape, rate },
-            DistributionInput::Beta { alpha, beta_param } => LoadCapacityLaw::Beta {
-                alpha,
-                beta: beta_param,
-            },
-        }
-    }
-
-    fn parameter(self, name: &str, side: &str) -> Result<LawParameter> {
-        let parameter = match (self, name) {
-            (DistributionInput::PointEstimate { .. }, "value") => LawParameter::Value,
-            (DistributionInput::Normal { .. }, "mean") => LawParameter::Mean,
-            (DistributionInput::Normal { .. }, "stdDev") => LawParameter::StdDev,
-            (DistributionInput::Lognormal { .. }, "median") => LawParameter::Median,
-            (DistributionInput::Lognormal { .. }, "errorFactor") => LawParameter::ErrorFactor,
-            (DistributionInput::Uniform { .. }, "lower") => LawParameter::Lower,
-            (DistributionInput::Uniform { .. }, "upper") => LawParameter::Upper,
-            (DistributionInput::Exponential { .. }, "failureRate") => LawParameter::Rate,
-            (DistributionInput::Weibull { .. }, "scale") => LawParameter::Scale,
-            (DistributionInput::Weibull { .. }, "shape") => LawParameter::Shape,
-            (DistributionInput::Weibull { .. }, "location") => LawParameter::Location,
-            (DistributionInput::Gamma { .. }, "shape") => LawParameter::Shape,
-            (DistributionInput::Gamma { .. }, "rate") => LawParameter::Rate,
-            (DistributionInput::Beta { .. }, "alpha") => LawParameter::Alpha,
-            (DistributionInput::Beta { .. }, "betaParam") => LawParameter::Beta,
-            _ => {
-                return Err(PraxisError::Settings(format!(
-                    "the {side} distribution has no parameter '{name}'"
-                )))
-            }
-        };
-        Ok(parameter)
-    }
+    uncertainty_parameters: Vec<UncertainParameter>,
+    uncertainty_vectors: Vec<UncertainVectorParameter>,
 }
 
 fn serialization_error(context: &str, error: impl std::fmt::Display) -> PraxisError {
@@ -213,46 +103,22 @@ fn parse(request: &SolverRequest) -> Result<(LoadCapacityExecuteRequest, LoadCap
     Ok((execute, snapshot))
 }
 
-fn uncertain(
-    side: &SideInput,
-    which: LoadCapacitySide,
-    label: &str,
-) -> Result<Vec<UncertainParameter>> {
-    side.uncertain_parameters
-        .iter()
-        .map(|input| {
-            Ok(UncertainParameter {
-                side: which,
-                parameter: side.distribution.parameter(&input.parameter, label)?,
-                law: input.distribution.law(),
-                correlation_key: input.correlation_key.clone(),
-            })
-        })
-        .collect()
-}
-
-fn model_of(snapshot: &LoadCapacitySnapshot) -> Result<LoadCapacityModel> {
-    let mut parameters = uncertain(&snapshot.load, LoadCapacitySide::Load, "load")?;
-    parameters.extend(uncertain(
-        &snapshot.capacity,
-        LoadCapacitySide::Capacity,
-        "capacity",
-    )?);
-    Ok(LoadCapacityModel {
-        load: snapshot.load.distribution.law(),
-        capacity: snapshot.capacity.distribution.law(),
-        uncertain: parameters,
-    })
+fn model_of(snapshot: &LoadCapacitySnapshot) -> LoadCapacityModel {
+    LoadCapacityModel {
+        load: snapshot.load.clone(),
+        capacity: snapshot.capacity.clone(),
+        uncertainty_parameters: snapshot.uncertainty_parameters.clone(),
+        uncertainty_vectors: snapshot.uncertainty_vectors.clone(),
+    }
 }
 
 fn settings_of(settings: &SettingsInput) -> LoadCapacitySettings {
     LoadCapacitySettings {
-        sampling: match settings.sampling {
-            SamplingInput::MonteCarlo => Sampling::MonteCarlo,
-            SamplingInput::LatinHypercube => Sampling::LatinHypercube,
+        plan: SamplingPlan {
+            method: settings.sampling,
+            trials: settings.samples,
+            seed: settings.seed,
         },
-        samples: settings.samples,
-        seed: settings.seed,
         curve_points: settings.curve_points,
     }
 }
@@ -272,13 +138,10 @@ fn summary_json(summary: &SampleSummary) -> Value {
 fn result_json(snapshot: &LoadCapacitySnapshot, result: &LoadCapacityResult) -> Value {
     let uncertainty = result.uncertainty.as_ref().map(|uncertainty| {
         let mut value = summary_json(&uncertainty.summary);
-        value["sampling"] = json!(match uncertainty.sampling {
-            Sampling::MonteCarlo => "MONTE_CARLO",
-            Sampling::LatinHypercube => "LATIN_HYPERCUBE",
-        });
-        value["samples"] = json!(uncertainty.samples);
-        value["seed"] = json!(uncertainty.seed);
-        value["largestQuadratureError"] = json!(uncertainty.largest_quadrature_error);
+        value["sampling"] = json!(uncertainty.plan.method);
+        value["samples"] = json!(uncertainty.plan.trials);
+        value["seed"] = json!(uncertainty.plan.seed);
+        value["law"] = json!(uncertainty.law);
         value
     });
     let curve: Vec<Value> = result
@@ -300,7 +163,8 @@ fn result_json(snapshot: &LoadCapacitySnapshot, result: &LoadCapacityResult) -> 
         "modelRevision": snapshot.revision,
         "method": result.point.method.as_str(),
         "pointProbability": result.point.probability,
-        "quadratureError": result.point.error,
+        "pointLoad": result.load,
+        "pointCapacity": result.capacity,
         "unit": snapshot.unit,
         "uncertainty": uncertainty,
         "curve": curve,
@@ -309,9 +173,10 @@ fn result_json(snapshot: &LoadCapacitySnapshot, result: &LoadCapacityResult) -> 
 }
 
 pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
-    let (_, snapshot) = parse(request)?;
-    let model = model_of(&snapshot)?;
-    praxis::analysis::load_capacity::failure_probability(&model.load, &model.capacity)?;
+    let (execute, snapshot) = parse(request)?;
+    let mut settings = settings_of(&execute.settings);
+    settings.plan.trials = 2;
+    analyze(&model_of(&snapshot), &settings)?;
     Ok(json!({
         "scope": LOAD_CAPACITY_METHOD,
         "valid": true,
@@ -322,19 +187,22 @@ pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
 
 pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
     let (execute, snapshot) = parse(request)?;
-    let model = model_of(&snapshot)?;
-    let result = analyze(&model, &settings_of(&execute.settings))?;
+    let result = analyze(&model_of(&snapshot), &settings_of(&execute.settings))?;
     Ok(result_json(&snapshot, &result))
 }
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use serde_json::{json, Value};
 
     use super::execute;
     use crate::transport::SolverRequest;
 
-    fn request(capacity: serde_json::Value) -> SolverRequest {
+    fn quantity(law: Value) -> Value {
+        json!({ "node": "VALUE", "value": { "unit": "QUANTITY", "law": law } })
+    }
+
+    fn request(capacity: Value, parameters: Value) -> SolverRequest {
         SolverRequest::from_json(
             &json!({
                 "schemaVersion": "1.0.0",
@@ -351,8 +219,10 @@ mod tests {
                     "methodType": "LOAD_CAPACITY",
                     "revision": 3,
                     "unit": "h",
-                    "load": { "distribution": { "type": "lognormal", "median": 30.0, "errorFactor": 1.5 } },
-                    "capacity": capacity
+                    "load": { "law": { "family": "LOGNORMAL", "mean": 31.0, "errorFactor": 1.5, "level": 0.95 }, "fields": [] },
+                    "capacity": capacity,
+                    "uncertaintyParameters": parameters,
+                    "uncertaintyVectors": []
                 }],
                 "resources": {}
             })
@@ -362,41 +232,51 @@ mod tests {
     }
 
     #[test]
-    fn returns_the_exact_point_and_the_sampled_split_fraction() {
-        let result = execute(&request(json!({
-            "distribution": { "type": "lognormal", "median": 48.0, "errorFactor": 1.2 },
-            "uncertainParameters": [{ "parameter": "median", "distribution": { "type": "lognormal", "median": 48.0, "errorFactor": 1.6 } }]
-        })))
+    fn returns_the_exact_point_the_sampled_split_fraction_and_its_law() {
+        let result = execute(&request(
+            json!({
+                "law": { "family": "LOGNORMAL", "mean": 48.4, "errorFactor": 1.2, "level": 0.95 },
+                "fields": [{ "field": "mean", "value": quantity(json!({ "family": "LOGNORMAL", "mean": 50.0, "errorFactor": 1.6, "level": 0.95 })) }]
+            }),
+            json!([]),
+        ))
         .unwrap();
         assert_eq!(result["method"], "CLOSED_FORM_LOGNORMAL");
         assert_eq!(result["unit"], "h");
-        assert!(result["quadratureError"].is_null());
+        assert_eq!(result["pointCapacity"]["mean"], 50.0);
         let point = result["pointProbability"].as_f64().unwrap();
         assert!(point > 0.0 && point < 0.1);
         let uncertainty = &result["uncertainty"];
         assert_eq!(uncertainty["sampling"], "LATIN_HYPERCUBE");
         assert_eq!(uncertainty["samples"], 2000);
         assert!(uncertainty["p05"].as_f64().unwrap() < uncertainty["p95"].as_f64().unwrap());
+        assert_eq!(uncertainty["law"]["family"], "TABULATED");
+        assert_eq!(uncertainty["law"]["scale"], "LINEAR");
+        assert_eq!(uncertainty["law"]["points"].as_array().unwrap().len(), 101);
         assert_eq!(result["curve"].as_array().unwrap().len(), 11);
         assert!(result["curve"][0]["p50"].is_number());
     }
 
     #[test]
-    fn integrates_mixed_distributions_and_names_bad_parameters() {
-        let result = execute(&request(json!({
-            "distribution": { "type": "weibull", "scale": 50.0, "shape": 6.0, "location": 0.0 }
-        })))
-        .unwrap();
+    fn integrates_mixed_laws_shares_parameters_and_names_bad_fields() {
+        let weibull = json!({ "family": "WEIBULL", "scale": 50.0, "shape": 6.0, "location": 0.0 });
+        let result = execute(&request(json!({ "law": weibull, "fields": [] }), json!([]))).unwrap();
         assert_eq!(result["method"], "QUADRATURE");
         assert!(result["uncertainty"].is_null());
-        assert!(result["quadratureError"].as_f64().unwrap() >= 0.0);
-        let error = execute(&request(json!({
-            "distribution": { "type": "weibull", "scale": 50.0, "shape": 6.0, "location": 0.0 },
-            "uncertainParameters": [{ "parameter": "median", "distribution": { "type": "lognormal", "median": 48.0, "errorFactor": 1.6 } }]
-        })))
+        let reference = json!({ "referenceType": "WORKBOOK_PARAMETER", "workbookId": "esq", "entityId": "scale" });
+        let shared = execute(&request(
+            json!({ "law": weibull, "fields": [{ "field": "scale", "value": { "node": "PARAMETER", "reference": reference } }] }),
+            json!([{ "reference": reference, "expression": quantity(json!({ "family": "UNIFORM", "lower": 45.0, "upper": 55.0 })) }]),
+        ))
+        .unwrap();
+        assert_eq!(shared["pointCapacity"]["scale"], 50.0);
+        assert!(shared["uncertainty"]["minimum"].as_f64().unwrap() < shared["uncertainty"]["maximum"].as_f64().unwrap());
+        let error = execute(&request(
+            json!({ "law": weibull, "fields": [{ "field": "median", "value": quantity(json!({ "family": "POINT", "value": 48.0 })) }] }),
+            json!([]),
+        ))
         .unwrap_err();
-        assert!(error
-            .to_string()
-            .contains("the capacity distribution has no parameter 'median'"));
+        assert!(error.to_string().contains("no numeric field 'median'"), "{error}");
+        assert!(execute(&request(json!({ "law": weibull, "fields": [], "distribution": {} }), json!([]))).is_err());
     }
 }

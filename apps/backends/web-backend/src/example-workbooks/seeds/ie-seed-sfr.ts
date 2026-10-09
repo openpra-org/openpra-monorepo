@@ -23,10 +23,30 @@ import { type GenericInitiatorCatalogue } from "interfaces-mef-types/cross-cutti
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type SRConformance, type SRReference } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel, ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
-import { FrequencyUnit, DistributionType } from "interfaces-mef-types/core/events";
+import { FrequencyUnit, type UncertainFrequency } from "interfaces-mef-types/core/events";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 
 function sr(code: string, hlr: SRReference["hlr"]): SRReference {
   return { sr: code, hlr };
+}
+
+const DA_LINK_ID = "example-da-sfr";
+
+function daLink(entityId: string): WorkbookParameterReference {
+  return { referenceType: "WORKBOOK_PARAMETER", workbookId: DA_LINK_ID, entityId };
+}
+
+function daFrequency(entityId: string): UncertainFrequency {
+  return { expression: { node: "PARAMETER", reference: daLink(entityId) }, basis: FrequencyUnit.PER_PLANT_YEAR };
+}
+
+function lognormalFrequency(mean: number, errorFactor: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "LOGNORMAL", mean, errorFactor, level: 0.95 } } };
+}
+
+function typedFrequency(mean: number, errorFactor: number): UncertainFrequency {
+  return { expression: lognormalFrequency(mean, errorFactor), basis: FrequencyUnit.PER_PLANT_YEAR };
 }
 
 const BOTH: SRConformance["applicableToStage"] = ["OPERATIONAL", "PRE_OPERATIONAL"];
@@ -887,8 +907,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat", "Control reactivity"],
     applicableStates: ["POS-01", "POS-02"],
-    meanFrequency: { value: 0.79, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.55383733143118, 4] }, source: "Imported from DA parameter DA-IE-01 in DA Workbook 2." },
-    controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da-sfr", entityId: "DA-IE-01" },
+    frequency: daFrequency("DA-IE-01"),
+    controlledDataSource: daLink("DA-IE-01"),
     riskImportance: ImportanceLevel.HIGH,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -904,8 +924,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat", "Control reactivity"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04"],
-    meanFrequency: { value: 0.2, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.16001479071331207, 3] }, source: "Imported from DA parameter DA-IE-02 in DA Workbook 2." },
-    controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da-sfr", entityId: "DA-IE-02" },
+    frequency: daFrequency("DA-IE-02"),
+    controlledDataSource: daLink("DA-IE-02"),
     riskImportance: ImportanceLevel.HIGH,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -921,8 +941,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat"],
     applicableStates: ["POS-01", "POS-02", "POS-03"],
-    meanFrequency: { value: 1, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.8000739535665603, 3] }, source: "Imported from DA parameter DA-IE-03 in DA Workbook 2." },
-    controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da-sfr", entityId: "DA-IE-03" },
+    frequency: daFrequency("DA-IE-03"),
+    controlledDataSource: daLink("DA-IE-03"),
     riskImportance: ImportanceLevel.HIGH,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -938,8 +958,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Control reactivity"],
     applicableStates: ["POS-01", "POS-02", "POS-03"],
-    meanFrequency: { value: 0.31, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.19207227360797605, 5] }, source: "Imported from DA parameter DA-IE-04 in DA Workbook 2." },
-    controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da-sfr", entityId: "DA-IE-04" },
+    frequency: daFrequency("DA-IE-04"),
+    controlledDataSource: daLink("DA-IE-04"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -955,8 +975,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Control reactivity", "Remove core heat"],
     applicableStates: ["POS-01", "POS-02", "POS-03"],
-    meanFrequency: { value: 0.4, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.2804239652816101, 4] }, source: "Imported from DA parameter DA-IE-05 in DA Workbook 2." },
-    controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da-sfr", entityId: "DA-IE-05" },
+    frequency: daFrequency("DA-IE-05"),
+    controlledDataSource: daLink("DA-IE-05"),
     riskImportance: ImportanceLevel.LOW,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -972,8 +992,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat", "Control reactivity"],
     applicableStates: ["POS-01", "POS-02", "POS-03"],
-    meanFrequency: { value: 0.7, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.5600517674965921, 3] }, source: "Imported from DA parameter DA-IE-06 in DA Workbook 2." },
-    controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da-sfr", entityId: "DA-IE-06" },
+    frequency: daFrequency("DA-IE-06"),
+    controlledDataSource: daLink("DA-IE-06"),
     riskImportance: ImportanceLevel.LOW,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -989,8 +1009,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Maintain coolant inventory and the sodium boundary", "Remove core heat"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-06", "POS-07", "POS-08"],
-    meanFrequency: { value: 1.1e-08, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [4.129159977340029e-09, 10] }, source: "Imported from DA parameter DA-IE-07 in DA Workbook 2." },
-    controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da-sfr", entityId: "DA-IE-07" },
+    frequency: daFrequency("DA-IE-07"),
+    controlledDataSource: daLink("DA-IE-07"),
     riskImportance: ImportanceLevel.HIGH,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -1006,8 +1026,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Maintain radionuclide barriers", "Maintain coolant inventory and the sodium boundary"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-06", "POS-07", "POS-08", "POS-09"],
-    meanFrequency: { value: 0.001, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.00037537817975818446, 10] }, source: "Imported from DA parameter DA-IE-08 in DA Workbook 2." },
-    controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da-sfr", entityId: "DA-IE-08" },
+    frequency: daFrequency("DA-IE-08"),
+    controlledDataSource: daLink("DA-IE-08"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -1023,8 +1043,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Maintain coolant inventory and the sodium boundary", "Maintain radionuclide barriers"],
     applicableStates: ["POS-01", "POS-02", "POS-03", "POS-04"],
-    meanFrequency: { value: 0.0002, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [7.507563595163689e-05, 10] }, source: "Imported from DA parameter DA-IE-09 in DA Workbook 2." },
-    controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da-sfr", entityId: "DA-IE-09" },
+    frequency: daFrequency("DA-IE-09"),
+    controlledDataSource: daLink("DA-IE-09"),
     riskImportance: ImportanceLevel.HIGH,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -1040,8 +1060,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat"],
     applicableStates: ["POS-04", "POS-05", "POS-06", "POS-07", "POS-08"],
-    meanFrequency: { value: 0.0058, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.0021771934425974695, 10] }, source: "Imported from DA parameter DA-IE-10 in DA Workbook 2." },
-    controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da-sfr", entityId: "DA-IE-10" },
+    frequency: daFrequency("DA-IE-10"),
+    controlledDataSource: daLink("DA-IE-10"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -1057,8 +1077,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat", "Maintain radionuclide barriers"],
     applicableStates: ["POS-01", "POS-02"],
-    meanFrequency: { value: 4.8, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [3.8403549771194894, 3] }, source: "Imported from DA parameter DA-IE-11 in DA Workbook 2." },
-    controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da-sfr", entityId: "DA-IE-11" },
+    frequency: daFrequency("DA-IE-11"),
+    controlledDataSource: daLink("DA-IE-11"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -1074,8 +1094,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat", "Control reactivity"],
     applicableStates: ["POS-05", "POS-06"],
-    meanFrequency: { value: 1.06, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.8480783907805539, 3] }, source: "Imported from DA parameter DA-IE-12 in DA Workbook 2." },
-    controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da-sfr", entityId: "DA-IE-12" },
+    frequency: daFrequency("DA-IE-12"),
+    controlledDataSource: daLink("DA-IE-12"),
     riskImportance: ImportanceLevel.LOW,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -1091,8 +1111,8 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat"],
     applicableStates: ["POS-01", "POS-02", "POS-03"],
-    meanFrequency: { value: 0.06, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.022522690785491066, 10] }, source: "Imported from DA parameter DA-IE-13 in DA Workbook 2." },
-    controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da-sfr", entityId: "DA-IE-13" },
+    frequency: daFrequency("DA-IE-13"),
+    controlledDataSource: daLink("DA-IE-13"),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -1108,7 +1128,7 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Remove core heat", "Control reactivity"],
     applicableStates: ["POS-01", "POS-08"],
-    meanFrequency: { value: 5.0e-3, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [3e-3, 10] }, source: "Step-09 quantification, DESIGN_BASED basis; HAZ-1 fire hazard analysis of the under-deck liquid-metal fire sequences with the EBR-II fire-protection survey." },
+    frequency: typedFrequency(5.0e-3, 10),
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -1124,7 +1144,7 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     comparableImpactAcrossMembers: true,
     challengedSafetyFunctions: ["Control reactivity", "Remove core heat", "Maintain coolant inventory and the sodium boundary"],
     applicableStates: ["POS-01"],
-    meanFrequency: { value: 1.0e-4, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [5e-5, 10] }, source: "Step-09 quantification, DESIGN_BASED basis; HAZ-8 site PSHA with the primary-tank fragility (Roglans and Hill 1994)." },
+    frequency: typedFrequency(1.0e-4, 10),
     riskImportance: ImportanceLevel.HIGH,
     implementsSrs: [sr("IE-B4", "B")],
   },
@@ -1231,20 +1251,17 @@ function buildMemberFaultTree(id: string, m: MemberQuant): FrequencyFaultTreeNod
 
 function buildMemberSource(id: string, idx: number, boundingId: string): FrequencyDataSource {
   const m = MEMBER_QUANT[id];
-  if (m === undefined) {
-    return { uuid: `DS-${String(idx)}`, label: id, basis: "OPERATING_DATA", perModule: false, sourceReference: "Member initiator data source." };
-  }
+  if (m === undefined) throw new Error(`The SFR IE example has no member data for ${id}.`);
   const bounding = id === boundingId ? " (bounding member)" : "";
   const base: FrequencyDataSource = { uuid: `DS-${String(idx)}`, label: `${id} - ${m.label}${bounding}`, basis: m.basis, perModule: false, sourceReference: m.ref };
   if (m.basis === "OPERATING_DATA") {
+    if (m.eventCount === undefined || m.exposure === undefined) throw new Error(`The SFR IE example has no event counts for ${id}.`);
     return { ...base, eventCount: m.eventCount, exposureModuleYears: m.exposure };
   }
   if (m.basis === "FAULT_TREE") {
-    return { ...base, faultTreeTopMean: m.value, faultTree: buildMemberFaultTree(id, m) };
+    return { ...base, faultTreeTop: lognormalFrequency(m.value, m.ef), faultTree: buildMemberFaultTree(id, m) };
   }
-  const sigma = Math.log(m.ef) / 1.645;
-  const median = m.value / Math.exp((sigma * sigma) / 2);
-  return { ...base, pedigree: TECH_SPECIFIC, distributionFamily: "LOGNORMAL", distributionParameters: [median, m.ef] };
+  return { ...base, pedigree: TECH_SPECIFIC, estimate: lognormalFrequency(m.value, m.ef) };
 }
 
 function buildGroupFaultTree(q: InitiatingEventFrequencyQuantification): FrequencyFaultTreeNode[] {
@@ -1271,29 +1288,45 @@ function buildGroupFaultTree(q: InitiatingEventFrequencyQuantification): Frequen
   return [top, ...children];
 }
 
+const GROUP_LOGNORMALS: Record<string, { mean: number; errorFactor: number }> = {
+  "IEG-01": { mean: 0.79, errorFactor: 4 },
+  "IEG-02": { mean: 0.2, errorFactor: 3 },
+  "IEG-03": { mean: 1, errorFactor: 3 },
+  "IEG-04": { mean: 0.31, errorFactor: 5 },
+  "IEG-05": { mean: 0.4, errorFactor: 4 },
+  "IEG-06": { mean: 0.7, errorFactor: 3 },
+  "IEG-07": { mean: 1.1e-8, errorFactor: 10 },
+  "IEG-08": { mean: 0.001, errorFactor: 10 },
+  "IEG-09": { mean: 0.0002, errorFactor: 10 },
+  "IEG-10": { mean: 0.0058, errorFactor: 10 },
+  "IEG-11": { mean: 4.8, errorFactor: 3 },
+  "IEG-12": { mean: 1.06, errorFactor: 3 },
+  "IEG-13": { mean: 0.06, errorFactor: 10 },
+  "HZ-FIRE": { mean: 5.0e-3, errorFactor: 10 },
+  "HZ-SEIS": { mean: 1.0e-4, errorFactor: 10 },
+};
+
 function withDataSources(q: InitiatingEventFrequencyQuantification): InitiatingEventFrequencyQuantification {
   const group = INITIATING_EVENT_GROUPS.find((g) => g.uuid === q.initiatorOrGroupId);
-  const mf = q.meanFrequency;
-  const value = typeof mf === "number" ? mf : mf.value;
+  const published = GROUP_LOGNORMALS[q.initiatorOrGroupId];
+  if (group === undefined || published === undefined) throw new Error(`The SFR IE example has no published frequency for ${q.initiatorOrGroupId}.`);
   const rollup: FrequencyDataSource = {
     uuid: "DS-1",
     label: `Group frequency, ${QUANT_SOURCE_LABEL[q.basis] ?? q.basis} (sum of member initiators)`,
     basis: "FAULT_TREE",
     perModule: false,
     sourceReference: QUANT_SOURCE_REFERENCE[q.basis] ?? "",
-    faultTreeTopMean: value,
+    faultTreeTop: lognormalFrequency(published.mean, published.errorFactor),
     faultTree: buildGroupFaultTree(q),
   };
-  const memberIds = group?.memberInitiatorIds ?? [];
-  const boundingId = group?.boundingInitiatorId ?? "";
-  const memberSources = memberIds.map((mid, i) => buildMemberSource(mid, i + 2, boundingId));
+  const memberSources = group.memberInitiatorIds.map((mid, i) => buildMemberSource(mid, i + 2, group.boundingInitiatorId));
   return { ...q, dataSources: [rollup, ...memberSources], primaryDataSourceId: "DS-1" };
 }
 
 const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   {
     initiatorOrGroupId: "IEG-01",
-    meanFrequency: { value: 0.79, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.55383733143118, 4] }, source: "Imported from DA parameter DA-IE-01 in DA Workbook 2." },
+    frequency: daFrequency("DA-IE-01"),
     basis: "OPERATING_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -1305,7 +1338,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-02",
-    meanFrequency: { value: 0.2, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.16001479071331207, 3] }, source: "Imported from DA parameter DA-IE-02 in DA Workbook 2." },
+    frequency: daFrequency("DA-IE-02"),
     basis: "OPERATING_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -1317,7 +1350,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-03",
-    meanFrequency: { value: 1, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.8000739535665603, 3] }, source: "Imported from DA parameter DA-IE-03 in DA Workbook 2." },
+    frequency: daFrequency("DA-IE-03"),
     basis: "OPERATING_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -1329,7 +1362,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-04",
-    meanFrequency: { value: 0.31, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.19207227360797605, 5] }, source: "Imported from DA parameter DA-IE-04 in DA Workbook 2." },
+    frequency: daFrequency("DA-IE-04"),
     basis: "OPERATING_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -1342,7 +1375,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-05",
-    meanFrequency: { value: 0.4, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.2804239652816101, 4] }, source: "Imported from DA parameter DA-IE-05 in DA Workbook 2." },
+    frequency: daFrequency("DA-IE-05"),
     basis: "OPERATING_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -1355,7 +1388,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-06",
-    meanFrequency: { value: 0.7, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.5600517674965921, 3] }, source: "Imported from DA parameter DA-IE-06 in DA Workbook 2." },
+    frequency: daFrequency("DA-IE-06"),
     basis: "OPERATING_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -1367,7 +1400,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-07",
-    meanFrequency: { value: 1.1e-08, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [4.129159977340029e-09, 10] }, source: "Imported from DA parameter DA-IE-07 in DA Workbook 2." },
+    frequency: daFrequency("DA-IE-07"),
     basis: "DESIGN_BASED",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -1379,7 +1412,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-08",
-    meanFrequency: { value: 0.001, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.00037537817975818446, 10] }, source: "Imported from DA parameter DA-IE-08 in DA Workbook 2." },
+    frequency: daFrequency("DA-IE-08"),
     basis: "DESIGN_BASED",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -1391,7 +1424,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-09",
-    meanFrequency: { value: 0.0002, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [7.507563595163689e-05, 10] }, source: "Imported from DA parameter DA-IE-09 in DA Workbook 2." },
+    frequency: daFrequency("DA-IE-09"),
     basis: "DESIGN_BASED",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -1403,7 +1436,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-10",
-    meanFrequency: { value: 0.0058, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.0021771934425974695, 10] }, source: "Imported from DA parameter DA-IE-10 in DA Workbook 2." },
+    frequency: daFrequency("DA-IE-10"),
     basis: "FAULT_TREE",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -1416,7 +1449,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-11",
-    meanFrequency: { value: 4.8, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [3.8403549771194894, 3] }, source: "Imported from DA parameter DA-IE-11 in DA Workbook 2." },
+    frequency: daFrequency("DA-IE-11"),
     basis: "OPERATING_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -1428,7 +1461,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-12",
-    meanFrequency: { value: 1.06, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.8480783907805539, 3] }, source: "Imported from DA parameter DA-IE-12 in DA Workbook 2." },
+    frequency: daFrequency("DA-IE-12"),
     basis: "OPERATING_DATA",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -1440,7 +1473,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "IEG-13",
-    meanFrequency: { value: 0.06, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [0.022522690785491066, 10] }, source: "Imported from DA parameter DA-IE-13 in DA Workbook 2." },
+    frequency: daFrequency("DA-IE-13"),
     basis: "FAULT_TREE",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -1454,7 +1487,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "HZ-FIRE",
-    meanFrequency: { value: 5.0e-3, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [3e-3, 10] }, source: "Step-09 quantification, DESIGN_BASED basis; HAZ-1 fire hazard analysis." },
+    frequency: typedFrequency(5.0e-3, 10),
     basis: "DESIGN_BASED",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,
@@ -1466,7 +1499,7 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   },
   {
     initiatorOrGroupId: "HZ-SEIS",
-    meanFrequency: { value: 1.0e-4, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [5e-5, 10] }, source: "Step-09 quantification, DESIGN_BASED basis; HAZ-8 site PSHA." },
+    frequency: typedFrequency(1.0e-4, 10),
     basis: "DESIGN_BASED",
     plantCalendarYearBasis: true,
     posTimeFractionApplied: true,

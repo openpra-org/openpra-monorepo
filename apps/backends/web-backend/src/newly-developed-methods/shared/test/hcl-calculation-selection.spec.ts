@@ -9,7 +9,7 @@ import { model } from "mongoose";
 import { AnalysisRunRecordSchema } from "../analysis-run-record.schema";
 
 const id = (n: number) => `10000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
-const valid = { sampleCount: 10, seed: 42, sampler: "MC", basicEventDistributions: [], cptRowDistributions: [] };
+const valid = { sampleCount: 10, seed: 42, sampler: "MC", basicEvents: [], cptRows: [], cptGenerators: [] };
 const configuration = {
   modelId: id(1), code: "HCL", name: "HCL", description: "",
   bayesianNetwork: { workbookId: "bn", modelId: id(2) },
@@ -20,9 +20,11 @@ const configuration = {
 const invalidDrafts: unknown[] = [
   null, false, 7, "old settings", [], {},
   { ...valid, sampler: "INVALID" }, { ...valid, sampleCount: 0 },
-  { ...valid, seed: -1 }, { ...valid, basicEventDistributions: null },
-  { ...valid, cptRowDistributions: [{ equivalentSampleSize: 100 }] },
-  { ...valid, cptGenerators: [{ generator: { type: "UNKNOWN", extra: null, negativeZero: -0 } }] },
+  { ...valid, seed: -1 }, { ...valid, basicEvents: null },
+  { ...valid, cptRows: [{ equivalentSampleSize: 100 }] },
+  { ...valid, cptGenerators: [{ generator: { kind: "UNKNOWN", extra: null, negativeZero: -0 } }] },
+  { ...valid, cptProbabilityClipEpsilon: 0 },
+  { sampleCount: 10, seed: 42, basicEventDistributions: [], cptRowDistributions: [] },
 ];
 
 it.each(invalidDrafts)("preserves an invalid draft and validates it only for uncertainty: %j", (uncertainty) => {
@@ -39,7 +41,6 @@ it.each(invalidDrafts)("preserves an invalid draft and validates it only for unc
     const adapter = host === "sy" ? adaptSyHclSnapshot : adaptEsqHclSnapshot;
     const source = { workbookId: host, workbookRevision: 1, mef: parsed };
     expect((parsed as unknown as Record<string, typeof raw[]>)[collection]![0]!.solverSettings.uncertainty).toEqual(uncertainty);
-    // The branch-specific parsed type is already checked above.
     const adapt = adapter as (snapshot: typeof source, modelId: string, type?: "PROBABILITY" | "UNCERTAINTY") => Record<string, unknown>;
     expect(adapt(source, id(1)).solverSettings).not.toHaveProperty("uncertainty");
     expect(adapt(source, id(1), "PROBABILITY").solverSettings).not.toHaveProperty("uncertainty");

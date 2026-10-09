@@ -1,0 +1,36 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "x"
+    },
+    "expression": {
+      "node": "OPERATION",
+      "operation": "ADD",
+      "operands": [
+        {
+          "node": "VALUE",
+          "value": {
+            "unit": "PER_HOUR",
+            "law": {
+              "family": "GAMMA",
+              "shape": 1,
+              "rate": 100000
+            }
+          }
+        },
+        {
+          "node": "VALUE",
+          "value": {
+            "unit": "HOURS",
+            "law": {
+              "family": "POINT",
+              "value": 24
+            }
+          }
+        }
+      ]
+    }
+  }
+]

@@ -29,6 +29,7 @@ import type {
   EventTreeCutSetSettings,
 } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import { importanceGroupsOf } from "interfaces-mef-types/esq/esq-measure-inputs";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { meanFrequencyValue } from "../workbooks/riskWorkbookConnections";
 import { modelViewOf, type EsqFamilyView, type EsqFindingSeverity } from "./esqModel";
 import { familyValueOf, type EsqSolveWindowKind } from "./esqSolve";
@@ -101,6 +102,7 @@ interface EsqScreenedRow {
   criterion?: string;
   ieBasis?: string;
   ieFrequency?: number;
+  ieExpression?: UncertainExpression;
   bound?: EsqScreenedBound;
   frequency?: number;
   bounding?: number;
@@ -450,8 +452,8 @@ function screenedRows(esq: EventSequenceQuantification, ie: InitiatingEventsAnal
     const record = esq.model?.initiators.find((initiator) => initiator.id === exclusion.item);
     const group = ie?.initiatingEventGroups.find((candidate) => candidate.uuid === exclusion.item);
     const row: EsqScreenedRow = { groupId: exclusion.item, name: record?.name ?? group?.name ?? exclusion.item, origin: "SCOPE" };
-    const frequency = record?.meanFrequency ?? (group?.meanFrequency === undefined ? undefined : meanFrequencyValue(group.meanFrequency));
-    if (frequency !== undefined) row.ieFrequency = frequency;
+    const expression = record?.frequency?.expression ?? group?.frequency?.expression;
+    if (expression !== undefined) row.ieExpression = expression;
     if (!blank(exclusion.reason)) row.ieBasis = exclusion.reason;
     rows.set(exclusion.item, row);
   }
@@ -635,7 +637,7 @@ function screenedFindings(view: Omit<EsqResultsView, "findings">): EsqResultsFin
       findings.push({ severity: "error", check: "Screened initiator without a bound", item, detail: "Give a bounding conditional probability so its family frequency can be bounded (ESQ-D8).", target });
       continue;
     }
-    if (row.frequency === undefined) findings.push({ severity: "error", check: "No initiator frequency", item, detail: "IE gives no frequency. Type one with its source.", target });
+    if (row.frequency === undefined) findings.push({ severity: "error", check: "No initiator frequency", item, detail: row.ieExpression === undefined ? "IE gives no frequency. Type one with its source." : "IE gives the group frequency as an estimate. Type the value the bound uses, with its source.", target });
     if (blank(row.bound.basis)) findings.push({ severity: "warning", check: "Bound without a basis", item, detail: "Record where the bounding conditional probability comes from.", target });
     if (row.scr1 === false && row.scr2 === false) findings.push({ severity: "error", check: "Screening not supported", item, detail: "The bound is above the reporting floor and above 1% of the family it would join. Bring it back into the model or refine the bound.", target });
   }

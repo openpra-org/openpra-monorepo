@@ -1,6 +1,7 @@
 import type { SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-models";
 import { applyFaultTreeOperation, type FaultTreeEditorModel } from "../newly-developed-methods/fault-tree";
+import { fittedFactors, uniqueMemberIds, withMemberTotal } from "./syCcf";
 
 interface SystemRemoval {
   analysis: SystemsAnalysis;
@@ -74,7 +75,10 @@ function withoutSystem(sy: SystemsAnalysis, systemId: string): SystemRemoval {
     const affectedSystems = group.affectedSystems.filter((id) => id !== systemId);
     const members = group.members === undefined ? undefined : { ...group.members, basicEvents: group.members.basicEvents.filter((member) => !removedEventIds.has(member.id)) };
     const unchanged = affectedSystems.length === group.affectedSystems.length && members?.basicEvents.length === group.members?.basicEvents.length;
-    return unchanged ? group : { ...group, affectedSystems, members };
+    if (unchanged) return group;
+    const next = { ...group, affectedSystems, members };
+    const typed = (group.dataAnalysisCCFParameterRef ?? "").trim().length === 0;
+    return withMemberTotal(typed ? { ...next, factors: fittedFactors(group.factors, uniqueMemberIds(next).length) } : next, sy);
   });
 
   const analyses = sy.uncertaintyAnalyses;

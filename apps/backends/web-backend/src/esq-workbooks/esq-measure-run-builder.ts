@@ -6,7 +6,6 @@ import {
   initiatorInputKey,
   type EsqImportanceGroup,
   type EsqSampledInput,
-  type EsqSamplingLaw,
 } from "interfaces-mef-types/esq/esq-measure-inputs";
 import type {
   EsqEventTreeRunLogic,
@@ -15,6 +14,15 @@ import type {
   EventTreeSamplingMethod,
 } from "interfaces-shared-types/newly-developed-methods";
 import type { EsqCaseOverrides } from "interfaces-mef-types/esq/esq-sensitivity-inputs";
+import {
+  ccfFactorExpressions,
+  expressionReferences,
+  mapModelArguments,
+  parameterReferenceKey,
+  type UncertainExpression,
+  type UncertainParameter,
+} from "interfaces-mef-types/core/uncertainty";
+import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import type { EsqRunBuild, EsqRunEventValue } from "./esq-model-run-builder";
 
 interface EsqImportanceSpecGroup {
@@ -23,14 +31,10 @@ interface EsqImportanceSpecGroup {
   ccfGroups: string[];
 }
 
-interface EsqSamplingSpec {
+interface EsqSampling {
   trials: number;
   seed: number;
   method: EventTreeSamplingMethod;
-  keys: { key: string; distribution: EsqSamplingLaw }[];
-  events: { id: string; key: string; form: "PROBABILITY" | "RATE"; scale: number }[];
-  ccfGroups: { id: string; key: string; scale: number }[];
-  initiator?: { key: string; scale: number };
 }
 
 interface EsqSamplingSettings {
@@ -42,7 +46,6 @@ interface EsqSamplingSettings {
 
 interface EsqSamplingUse {
   input: EsqSampledInput;
-  law: EsqSamplingLaw;
   events: Set<string>;
 }
 
@@ -92,7 +95,29 @@ function baseKeyOf(esq: EventSequenceQuantification, value: EsqRunEventValue): s
   return eventInputKey(esq, model, value.id);
 }
 
-function samplingSpecFor(input: {
+function factor(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "FACTOR", law: { family: "POINT", value } } };
+}
+
+function renamed(expression: UncertainExpression, suffix: string, entries: ReadonlyMap<string, UncertainParameter>, added: Map<string, UncertainParameter>): UncertainExpression {
+  switch (expression.node) {
+    case "VALUE":
+      return expression;
+    case "PARAMETER": {
+      const source = entries.get(parameterReferenceKey(expression.reference));
+      if (source === undefined) return expression;
+      const reference: WorkbookParameterReference = { ...expression.reference, entityId: `${expression.reference.entityId}@${suffix}` };
+      added.set(parameterReferenceKey(reference), { reference, expression: source.expression });
+      return { node: "PARAMETER", reference };
+    }
+    case "OPERATION":
+      return { ...expression, operands: expression.operands.map((operand) => renamed(operand, suffix, entries, added)) };
+    case "MODEL":
+      return { node: "MODEL", model: mapModelArguments(expression.model, (argument) => renamed(argument, suffix, entries, added)) };
+  }
+}
+
+function sampledBuild(input: {
   esq: EventSequenceQuantification;
   build: EsqRunBuild;
   root: EsqTreeRecord;
@@ -100,80 +125,136 @@ function samplingSpecFor(input: {
   settings: EsqSamplingSettings;
   inputs: ReadonlyMap<string, EsqSampledInput>;
   tally: EsqSamplingTally;
-}): EsqSamplingSpec {
+  esqWorkbookId: string;
+}): { build: EsqRunBuild; sampling: EsqSampling } {
   const { esq, build, settings, inputs, tally } = input;
   const model = esq.model;
-  const keys = new Map<string, EsqSamplingLaw>();
-  const spec: EsqSamplingSpec = { trials: settings.trials, seed: settings.seed, method: settings.method, keys: [], events: [], ccfGroups: [] };
-  const lawFor = (baseKey: string, user: string): { input: EsqSampledInput; law: EsqSamplingLaw; point: number } | undefined => {
+  const independent = settings.correlation === "INDEPENDENT";
+  const entries = new Map([...build.faultTrees.flatMap((tree) => tree.basicEventCatalogue.uncertaintyParameters), ...build.initiatorTables.uncertaintyParameters].map((parameter) => [parameterReferenceKey(parameter.reference), parameter] as const));
+  const added = new Map<string, UncertainParameter>();
+  const note = (baseKey: string, user: string): EsqSampledInput | undefined => {
     const known = inputs.get(baseKey);
     if (known === undefined) {
       tally.unsampled.set(baseKey, { id: baseKey, label: baseKey, reason: "The value has no input record. It stays at its point value." });
       return undefined;
     }
-    if (known.law === undefined) {
+    if (known.expression === undefined || !known.uncertain) {
       tally.unsampled.set(baseKey, { id: baseKey, label: known.label, reason: known.missing ?? "No distribution." });
       return undefined;
     }
-    if (known.point === undefined || !(known.point > 0)) {
-      tally.unsampled.set(baseKey, { id: baseKey, label: known.label, reason: "The point value is zero, so the draws cannot be scaled to it." });
-      return undefined;
-    }
-    const use = tally.used.get(baseKey) ?? { input: known, law: known.law, events: new Set<string>() };
+    const use = tally.used.get(baseKey) ?? { input: known, events: new Set<string>() };
     use.events.add(user);
     tally.used.set(baseKey, use);
-    return { input: known, law: known.law, point: known.point };
+    return known;
   };
-  const keyFor = (baseKey: string, own: string, law: EsqSamplingLaw): string => {
-    const key = settings.correlation === "SHARED" ? baseKey : `${baseKey}@${own}`;
-    keys.set(key, law);
-    return key;
+  const edge = (baseKey: string, own: string, expression: UncertainExpression): UncertainExpression => {
+    const reference: WorkbookParameterReference = {
+      referenceType: "WORKBOOK_PARAMETER",
+      workbookId: input.esqWorkbookId,
+      entityId: independent ? `${baseKey}@${own}` : baseKey,
+    };
+    added.set(parameterReferenceKey(reference), { reference, expression });
+    return { node: "PARAMETER", reference };
   };
   const expanded = new Set(input.logic.expandCcf
     ? build.ccfGroups.flatMap((group) => model?.ccfGroups.find((record) => record.id === group.id)?.memberIds ?? [])
     : []);
-  for (const value of build.values) {
-    if (value.role === "BASIC" && expanded.has(value.id)) continue;
-    const baseKey = baseKeyOf(esq, value);
-    if (baseKey === undefined) continue;
-    const found = lawFor(baseKey, value.id);
-    if (found === undefined) continue;
-    const rate = value.rate !== undefined && value.exposure !== undefined && value.rate > 0;
-    const scale = rate ? ((value.exposure ?? 0) * (value.rate ?? 0)) / found.point : value.probability / found.point;
-    if (!(Number.isFinite(scale) && scale > 0)) continue;
-    spec.events.push({ id: value.id, key: keyFor(baseKey, value.id, found.law), form: rate ? "RATE" : "PROBABILITY", scale });
+  const replaced = new Map<string, UncertainExpression>();
+  const valueOf = new Map(build.values.map((value) => [value.id, value]));
+  for (const tree of build.faultTrees) {
+    for (const event of tree.basicEventCatalogue.basicEvents) {
+      const value = valueOf.get(event.id);
+      if (value === undefined || replaced.has(event.id)) continue;
+      if (value.role === "BASIC" && expanded.has(value.id)) continue;
+      const baseKey = baseKeyOf(esq, value);
+      if (baseKey === undefined) continue;
+      const known = note(baseKey, value.id);
+      if (known === undefined) continue;
+      if (known.contract) {
+        if (independent) replaced.set(event.id, renamed(event.expression, event.id, entries, added));
+        continue;
+      }
+      const shared = edge(baseKey, value.id, known.expression ?? event.expression);
+      const scaled = (value.role === "JOINT" || value.role === "INDEPENDENT_PART") && value.ratio !== undefined
+        ? { node: "OPERATION" as const, operation: "MULTIPLY" as const, operands: [shared, factor(value.ratio)] }
+        : shared;
+      replaced.set(event.id, scaled);
+    }
   }
+  const totals = new Map<string, UncertainExpression>();
   if (input.logic.expandCcf && model !== undefined) {
     for (const group of build.ccfGroups) {
       const baseKey = ccfInputKey(esq, model, group.id);
-      const found = lawFor(baseKey, `ccf:${group.id}`);
-      if (found === undefined) continue;
-      const scale = group.total / found.point;
-      if (!(Number.isFinite(scale) && scale > 0)) continue;
-      spec.ccfGroups.push({ id: group.id, key: keyFor(baseKey, `ccf:${group.id}`, found.law), scale });
+      const known = note(baseKey, `ccf:${group.id}`);
+      if (known === undefined) continue;
+      if (known.contract) {
+        if (independent) totals.set(group.id, renamed(group.total, `ccf:${group.id}`, entries, added));
+        continue;
+      }
+      totals.set(group.id, edge(baseKey, `ccf:${group.id}`, known.expression ?? group.total));
     }
   }
-  const initiatorKey = initiatorInputKey(esq, input.root.initiatorId);
-  const initiator = lawFor(initiatorKey, `initiator:${input.root.initiatorId}`);
-  if (initiator !== undefined) {
-    const scale = build.frequency / initiator.point;
-    if (Number.isFinite(scale) && scale > 0) {
-      keys.set(initiatorKey, initiator.law);
-      spec.initiator = { key: initiatorKey, scale };
+  const sampling: EsqSampling = { trials: settings.trials, seed: settings.seed, method: settings.method };
+  const initiator = note(initiatorInputKey(esq, input.root.initiatorId), `initiator:${input.root.initiatorId}`);
+  const frequency = initiator !== undefined && independent ? renamed(build.frequency, `initiator:${input.root.initiatorId}`, entries, added) : build.frequency;
+  const eventTreeSnapshots = build.eventTreeSnapshots.map((snapshot) => ({ ...snapshot, initiatingEventFrequency: { expression: frequency } }));
+  const ccfGroups = build.ccfGroups.map((group) => ({ ...group, total: totals.get(group.id) ?? group.total }));
+  const faultTrees = build.faultTrees.map((tree) => ({
+    ...tree,
+    basicEventCatalogue: {
+      ...tree.basicEventCatalogue,
+      basicEvents: tree.basicEventCatalogue.basicEvents.map((event) => ({ ...event, expression: replaced.get(event.id) ?? event.expression })),
+      commonCauseFailureGroups: tree.basicEventCatalogue.commonCauseFailureGroups.map((group) => ({ ...group, total: totals.get(group.id) ?? group.total })),
+      uncertaintyParameters: [...tree.basicEventCatalogue.uncertaintyParameters, ...added.values()].filter((parameter, index, all) => all.findIndex((other) => parameterReferenceKey(other.reference) === parameterReferenceKey(parameter.reference)) === index),
+    },
+  }));
+  const known = new Map([...faultTrees.flatMap((tree) => tree.basicEventCatalogue.uncertaintyParameters), ...build.initiatorTables.uncertaintyParameters, ...added.values()].map((parameter) => [parameterReferenceKey(parameter.reference), parameter] as const));
+  const reachable = (expressions: readonly UncertainExpression[]): Set<string> => {
+    const found = new Set<string>();
+    const pending = expressions.flatMap(expressionReferences).map(parameterReferenceKey);
+    for (let key = pending.pop(); key !== undefined; key = pending.pop()) {
+      if (found.has(key)) continue;
+      found.add(key);
+      const parameter = known.get(key);
+      if (parameter !== undefined) pending.push(...expressionReferences(parameter.expression).map(parameterReferenceKey));
     }
-  }
-  spec.keys = [...keys.entries()].map(([key, distribution]) => ({ key, distribution }));
-  return spec;
+    return found;
+  };
+  const kept = reachable([
+    ...faultTrees.flatMap((tree) => [
+      ...tree.basicEventCatalogue.basicEvents.map((event) => event.expression),
+      ...tree.basicEventCatalogue.commonCauseFailureGroups.flatMap((group) => [group.total, ...ccfFactorExpressions(group.factors)]),
+    ]),
+    frequency,
+  ]);
+  const initiatorKeys = reachable([frequency]);
+  return {
+    build: {
+      ...build,
+      frequency,
+      eventTreeSnapshots,
+      initiatorTables: { ...build.initiatorTables, uncertaintyParameters: [...known.values()].filter((parameter) => initiatorKeys.has(parameterReferenceKey(parameter.reference))) },
+      ccfGroups,
+      faultTrees: faultTrees.map((tree) => ({
+        ...tree,
+        basicEventCatalogue: {
+          ...tree.basicEventCatalogue,
+          uncertaintyParameters: tree.basicEventCatalogue.uncertaintyParameters.filter((parameter) => kept.has(parameterReferenceKey(parameter.reference))),
+        },
+      })),
+    },
+    sampling,
+  };
 }
 
 export {
   caseOverridesFor,
   importanceGroupsFor,
   importanceSpecFor,
-  samplingSpecFor,
+  sampledBuild,
   type EsqImportanceSpecGroup,
+  type EsqSampling,
   type EsqSamplingSettings,
-  type EsqSamplingSpec,
   type EsqSamplingTally,
   type EsqSamplingUse,
 };

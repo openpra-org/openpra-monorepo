@@ -313,7 +313,7 @@ mod tests {
         snapshots.push(json!({
             "id": "ET", "methodType": "EVENT_TREE", "revision": 1,
             "initiatingEvent": { "target": { "modelId": "IE", "entityId": "IE-1" } },
-            "initiatingEventFrequency": { "value": 2.0 },
+            "initiatingEventFrequency": { "expression": crate::fault_tree::tests::per_year(2.0) },
             "functionalEvents": events
                 .iter()
                 .enumerate()
@@ -343,7 +343,7 @@ mod tests {
                     "projectId": "P",
                     "basicEvents": probabilities
                         .iter()
-                        .map(|(id, value)| json!({ "id": id, "probability": { "value": value } }))
+                        .map(|(id, value)| crate::fault_tree::tests::point_event(id, *value))
                         .collect::<Vec<_>>()
                 } }
             })

@@ -4,6 +4,7 @@ import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { type EsPosLinkStatus, type EsIeLinkStatus } from "./esWorkbookApi";
+import { type IeDaFrequencyOption } from "../ie-workbooks/ieDaLinks";
 
 interface EsFaultTreeSource {
   workbookId: string;
@@ -19,6 +20,7 @@ interface EsWorkbookData {
   nms: NewlyDevelopedMethod[];
   posLink: EsPosLinkStatus;
   ieLink: EsIeLinkStatus;
+  daFrequencies?: IeDaFrequencyOption[];
 }
 
 interface EsWorkbookRuntime {

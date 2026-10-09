@@ -1,0 +1,82 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "pump-rate"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "PER_HOUR",
+        "law": {
+          "family": "GAMMA",
+          "shape": 3.5,
+          "rate": 120000
+        }
+      }
+    }
+  },
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "pump-a"
+    },
+    "expression": {
+      "node": "MODEL",
+      "model": {
+        "form": "MISSION",
+        "rate": {
+          "node": "PARAMETER",
+          "reference": {
+            "referenceType": "WORKBOOK_PARAMETER",
+            "workbookId": "da-example",
+            "entityId": "pump-rate"
+          }
+        },
+        "missionTime": {
+          "node": "VALUE",
+          "value": {
+            "unit": "HOURS",
+            "law": {
+              "family": "POINT",
+              "value": 24
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "pump-b"
+    },
+    "expression": {
+      "node": "MODEL",
+      "model": {
+        "form": "MISSION",
+        "rate": {
+          "node": "PARAMETER",
+          "reference": {
+            "referenceType": "WORKBOOK_PARAMETER",
+            "workbookId": "da-example",
+            "entityId": "pump-rate"
+          }
+        },
+        "missionTime": {
+          "node": "VALUE",
+          "value": {
+            "unit": "HOURS",
+            "law": {
+              "family": "POINT",
+              "value": 24
+            }
+          }
+        }
+      }
+    }
+  }
+]

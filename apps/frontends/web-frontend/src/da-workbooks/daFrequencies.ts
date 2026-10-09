@@ -1,20 +1,20 @@
-import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
 import type {
   DataAnalysis,
   DataAnalysisParameter,
-  DaEstimateQuantity,
   DaEvidence,
   DaFrequencyComparison,
   DaFrequencyMethod,
   DaFrequencyPart,
   DaFrequencyPer,
+  DaInitiatorNeed,
   DaPriorForm,
   DaSourceUse,
   DaStateNeed,
 } from "interfaces-mef-types/da/data-analysis";
-import { distributionQuantile, shapeMean, shapePoint, shapeVariance, scaleDistribution, type DaShape } from "./daDistributions";
-import { bayesUpdate, constrainedNoninformative, outputFor, type DaOutput, type DaTerm, type DaUpdatePrior } from "./daEstimates";
-import { sourceUseResult } from "./daSourcing";
+import { canonicalJson, expressionReferences, type EvidenceTerm, type Law, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { uncertaintyVersion, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
+import { constrainedLaw, lawSummary, operationLaw, pointState, sourceUseLaw } from "./daLaws";
+import { hasSpread } from "./daFailures";
 import type { DaFindingSeverity, DaNeedFinding } from "./daSelectors";
 
 const RANK: Record<DaFindingSeverity, number> = { error: 0, warning: 1, note: 2 };
@@ -25,16 +25,14 @@ const SHUTDOWN_MODES: ReadonlySet<string> = new Set(["SHUTDOWN", "REFUELING", "M
 
 const GAP = 5;
 
-type DaFrequencyComputation = "PRIOR" | "CONJUGATE" | "NUMERICAL";
-
-type DaFrequencyFit = "EXACT" | "LOGNORMAL" | "GAMMA_MOMENTS";
+type DaFrequencyComputation = "PRIOR" | "POSTERIOR";
 
 interface DaFrequencyEvidence {
   evidence: DaEvidence;
   label: string;
   failures?: number;
   exposure?: number;
-  term?: DaTerm;
+  term?: EvidenceTerm;
   problem?: string;
 }
 
@@ -48,20 +46,18 @@ interface DaPartShare {
 interface DaFrequencyPartEstimate {
   part: DaFrequencyPart;
   use?: DaSourceUse;
-  published?: { distribution: ParameterDistribution; quantity: DaEstimateQuantity };
+  published?: Law;
   form: DaPriorForm;
-  prior?: DaShape;
+  prior?: Law;
   evidence: DaFrequencyEvidence[];
-  terms: DaTerm[];
+  terms: EvidenceTerm[];
   method?: DaFrequencyMethod;
   computation?: DaFrequencyComputation;
-  posterior?: DaShape;
-  output?: DaOutput;
+  posterior?: Law;
   share: DaPartShare;
   factor?: number;
-  mean?: number;
-  variance?: number;
-  distribution?: ParameterDistribution;
+  law?: Law;
+  pending: boolean;
   problem?: string;
 }
 
@@ -70,6 +66,7 @@ interface DaFrequencyComparisonResult {
   label: string;
   value?: number;
   ratio?: number;
+  pending: boolean;
   problem?: string;
 }
 
@@ -77,26 +74,27 @@ interface DaFrequencyEstimate {
   modules: number;
   siteWide: boolean;
   parts: DaFrequencyPartEstimate[];
-  mean?: number;
-  p05?: number;
-  median?: number;
-  p95?: number;
-  distribution?: ParameterDistribution;
-  fit?: DaFrequencyFit;
+  estimate?: UncertainExpression;
   comparisons: DaFrequencyComparisonResult[];
+  pending: boolean;
   problem?: string;
 }
 
-const estimateCache = new WeakMap<DataAnalysis, Map<string, DaFrequencyEstimate>>();
+interface DaFrequencyCheck {
+  findings: DaNeedFinding[];
+  pending: boolean;
+}
 
-const findingCache = new WeakMap<DataAnalysis, DaNeedFinding[]>();
+const estimateCache = new WeakMap<DataAnalysis, { version: number; values: Map<string, DaFrequencyEstimate> }>();
+
+const checkCache = new WeakMap<DataAnalysis, { version: number; check: DaFrequencyCheck }>();
 
 function blank(text: string | undefined): boolean {
   return text === undefined || text.trim().length === 0;
 }
 
 function isFrequencyParameter(parameter: DataAnalysisParameter): boolean {
-  return parameter.quantificationModel === "FREQUENCY" || (parameter.quantificationModel === undefined && parameter.parameterType === "FREQUENCY");
+  return parameter.quantificationModel === "FREQUENCY";
 }
 
 function frequencyParameters(da: DataAnalysis): DataAnalysisParameter[] {
@@ -157,7 +155,7 @@ function perLabel(per: DaFrequencyPer): string {
   return "per calendar year";
 }
 
-function entryOf(da: DataAnalysis, sourceId: string | undefined, entryId: string | undefined): { failures?: number; exposure?: number; quantity: DaEstimateQuantity } | undefined {
+function entryOf(da: DataAnalysis, sourceId: string | undefined, entryId: string | undefined): { failures?: number; exposure?: number; quantity: string } | undefined {
   if (sourceId === undefined || entryId === undefined) return undefined;
   return (da.sources ?? []).find((source) => source.id === sourceId)?.entries.find((entry) => entry.id === entryId);
 }
@@ -197,88 +195,107 @@ function resolveEvidence(da: DataAnalysis, parameter: DataAnalysisParameter, par
     if (resolved.exposure === undefined) return { ...resolved, problem: "Enter the years the events happened in." };
     if (!(resolved.exposure > 0)) return { ...resolved, problem: "The exposure must be more than zero." };
     if (resolved.failures < 0) return { ...resolved, problem: "The event count cannot be negative." };
-    return { ...resolved, term: { kind: "POISSON", failures: resolved.failures, exposure: resolved.exposure } };
+    return { ...resolved, term: { likelihood: "POISSON", failures: resolved.failures, exposure: resolved.exposure } };
   });
 }
 
-function partPrior(form: DaPriorForm, published: { distribution: ParameterDistribution } | undefined): { prior?: DaUpdatePrior; shape?: DaShape; problem?: string } {
-  if (form === "JEFFREYS") return { prior: { kind: "JEFFREYS_RATE" } };
-  if (published === undefined) return { problem: "Choose the source this part starts from." };
-  if (form === "AS_PUBLISHED") return { prior: { kind: "PROPER", shape: published.distribution }, shape: published.distribution };
-  const mean = shapeMean(published.distribution);
-  const widened = mean === undefined ? undefined : constrainedNoninformative(mean, "RATE");
-  if (widened === undefined) return { problem: "The source's mean cannot carry a constrained noninformative prior." };
-  return { prior: { kind: "PROPER", shape: widened }, shape: widened };
+function posteriorOf(prior: Law | null, terms: readonly EvidenceTerm[]): Law | string {
+  if (prior === null) return { family: "POSTERIOR", prior: null, evidence: [...terms] };
+  if (prior.family === "POSTERIOR") return { family: "POSTERIOR", prior: prior.prior, evidence: [...prior.evidence, ...terms] };
+  if (prior.family === "POPULATION") return "A population law cannot be updated again. Use it as published or pick a source with its own law.";
+  return { family: "POSTERIOR", prior, evidence: [...terms] };
+}
+
+function frequencyValue(law: Law): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PER_YEAR", law } };
+}
+
+function priorOf(form: DaPriorForm, published: Law | undefined): { prior?: Law | null; pending: boolean; problem?: string } {
+  if (form === "JEFFREYS") return { prior: null, pending: false };
+  if (published === undefined) return { pending: false, problem: "Choose the source this part starts from." };
+  if (form === "AS_PUBLISHED") return { prior: published, pending: false };
+  const widened = constrainedLaw(published, "POISSON");
+  if (widened.status === "pending") return { pending: true };
+  if (widened.status === "failed") return { pending: false, problem: `PRAXIS could not form the constrained noninformative prior: ${widened.error}` };
+  if (widened.status === "missing") return { pending: false, problem: widened.problem };
+  return { prior: widened.law, pending: false };
 }
 
 function estimatePart(da: DataAnalysis, parameter: DataAnalysisParameter, part: DaFrequencyPart, modules: number, siteWide: boolean): DaFrequencyPartEstimate {
   const use = part.useId === undefined ? undefined : (parameter.sourceUses ?? []).find((candidate) => candidate.id === part.useId);
-  const result = use === undefined ? undefined : sourceUseResult(da, use);
-  const published = result === undefined ? undefined : { distribution: result.distribution, quantity: result.quantity };
   const form = part.priorForm ?? "AS_PUBLISHED";
   const evidence = resolveEvidence(da, parameter, part);
   const terms = evidence.flatMap((item) => (item.evidence.included && item.term !== undefined ? [item.term] : []));
   const share = shareOf(da, part.per, part.stateIds ?? []);
-  const base: DaFrequencyPartEstimate = { part, use, published, form, evidence, terms, method: part.method, share };
-  if (use !== undefined && result === undefined) return { ...base, problem: "The chosen source cannot be read. Check it in Step 04 Applicability." };
-  if (published !== undefined && published.quantity !== "PER_YEAR") return { ...base, problem: "The source is not a frequency per year." };
-  const chosen = partPrior(form, published);
-  const withPrior: DaFrequencyPartEstimate = { ...base, prior: chosen.shape };
-  if (part.method === undefined) return { ...withPrior, problem: "Choose how this part is estimated." };
+  const base: DaFrequencyPartEstimate = { part, use, form, evidence, terms, method: part.method, share, pending: false };
+  if (part.useId !== undefined && use === undefined) return { ...base, problem: "The chosen source is no longer considered. Check it in Step 04 Applicability." };
+  let published: Law | undefined;
+  if (use !== undefined) {
+    const state = sourceUseLaw(da, use);
+    if (state.status === "pending") return { ...base, pending: true };
+    if (state.status === "failed") return { ...base, problem: `PRAXIS could not read the source: ${state.error}` };
+    if (state.status === "missing") return { ...base, problem: `${state.problem} Check it in Step 04 Applicability.` };
+    if (state.value.quantity !== "PER_YEAR") return { ...base, problem: "The source is not a frequency per year." };
+    published = state.value.law;
+  }
+  const withPublished: DaFrequencyPartEstimate = { ...base, published };
+  if (part.method === undefined) return { ...withPublished, problem: "Choose how this part is estimated." };
+  const chosen = priorOf(form, published);
+  const withPrior: DaFrequencyPartEstimate = { ...withPublished, prior: chosen.prior ?? undefined };
+  if (chosen.pending) return { ...withPrior, pending: true };
   if (chosen.prior === undefined) return { ...withPrior, problem: chosen.problem ?? "No prior." };
   const prior = chosen.prior;
-  let posterior: DaShape | undefined;
-  let computation: DaFrequencyComputation | undefined;
+  let posterior: Law;
+  let computation: DaFrequencyComputation;
   if (part.method === "PRIOR" || terms.length === 0) {
-    if (prior.kind !== "PROPER") return { ...withPrior, problem: "A Jeffreys prior needs events to update." };
-    posterior = prior.shape;
+    if (prior === null) return { ...withPrior, problem: "A Jeffreys prior needs events to update." };
+    posterior = prior;
     computation = "PRIOR";
   } else {
-    if (prior.kind === "PROPER" && shapePoint(prior.shape) !== undefined) return { ...withPrior, problem: "A point value cannot be updated. Use the constrained noninformative form." };
-    const update = bayesUpdate(prior, terms, "RATE");
-    if (update === undefined) return { ...withPrior, problem: "The update cannot be computed with this prior and these events." };
-    posterior = update.shape;
-    computation = update.computation;
+    if (prior !== null && prior.family === "POINT") return { ...withPrior, problem: "A point value cannot be updated. Use the constrained noninformative form." };
+    const updated = posteriorOf(prior, terms);
+    if (typeof updated === "string") return { ...withPrior, problem: updated };
+    posterior = updated;
+    computation = "POSTERIOR";
   }
-  const output = outputFor(posterior, undefined);
-  if (output === undefined) return { ...withPrior, posterior, computation, problem: "The estimate cannot be summarized." };
-  if (share.share === undefined) return { ...withPrior, posterior, computation, output, problem: part.per === "CALENDAR_YEAR" ? "No share of the year." : `No ${part.per === "CRITICAL_YEAR" ? "power" : "shutdown"} state with a duration covers this part. Check its states and the POS import in Step 02.` };
+  const withPosterior: DaFrequencyPartEstimate = { ...withPrior, posterior, computation };
+  if (share.share === undefined) return { ...withPosterior, problem: part.per === "CALENDAR_YEAR" ? "No share of the year." : `No ${part.per === "CRITICAL_YEAR" ? "power" : "shutdown"} state with a duration covers this part. Check its states and the POS import in Step 02.` };
   const factor = share.share * (siteWide ? 1 : modules);
-  const variance = shapeVariance(posterior);
-  const distribution = scaleDistribution(output.distribution, factor);
-  if (distribution === undefined) return { ...withPrior, posterior, computation, output, problem: "The estimate cannot be scaled to the plant." };
-  return { ...withPrior, posterior, computation, output, factor, mean: output.summary.mean * factor, variance: variance === undefined ? undefined : variance * factor * factor, distribution };
-}
-
-function gammaFromMoments(mean: number, variance: number): ParameterDistribution | undefined {
-  if (!(mean > 0)) return undefined;
-  if (!(variance > 0)) return { type: DistributionType.POINT_ESTIMATE, value: mean };
-  return { type: DistributionType.GAMMA, shape: (mean * mean) / variance, rate: mean / variance };
-}
-
-function comparisonResult(da: DataAnalysis, parameter: DataAnalysisParameter, comparison: DaFrequencyComparison, mean: number | undefined, modules: number, siteWide: boolean): DaFrequencyComparisonResult {
-  const use = (parameter.sourceUses ?? []).find((candidate) => candidate.id === comparison.useId);
-  const label = use === undefined ? comparison.useId : use.elicitationId ?? `${use.sourceId ?? "?"} · ${use.entryId ?? "?"}`;
-  const result = use === undefined ? undefined : sourceUseResult(da, use);
-  if (result === undefined) return { comparison, label, problem: "The comparison source cannot be read." };
-  if (result.quantity !== "PER_YEAR") return { comparison, label, problem: "The comparison is not a frequency per year." };
-  const share = shareOf(da, comparison.per, parameter.stateIds ?? []);
-  if (share.share === undefined) return { comparison, label, problem: "None of the group's states fits this comparison's basis." };
-  const value = result.mean * share.share * (siteWide ? 1 : modules);
-  return { comparison, label, value, ratio: mean !== undefined && value > 0 ? mean / value : undefined };
-}
-
-function frequencyEstimate(da: DataAnalysis, parameter: DataAnalysisParameter): DaFrequencyEstimate {
-  let byParameter = estimateCache.get(da);
-  if (byParameter === undefined) {
-    byParameter = new Map();
-    estimateCache.set(da, byParameter);
+  let law = posterior;
+  if (factor !== 1) {
+    const scaled = operationLaw({ kind: "SCALE", law: posterior, factor });
+    if (scaled.status === "pending") return { ...withPosterior, factor, pending: true };
+    if (scaled.status === "failed") return { ...withPosterior, factor, problem: `PRAXIS could not scale the part to the plant: ${scaled.error}` };
+    if (scaled.status === "missing") return { ...withPosterior, factor, problem: scaled.problem };
+    law = scaled.law;
   }
-  const cached = byParameter.get(parameter.uuid);
-  if (cached !== undefined) return cached;
-  const estimate = computeEstimate(da, parameter);
-  byParameter.set(parameter.uuid, estimate);
-  return estimate;
+  const summary = lawSummary("PER_YEAR", law, true);
+  if (summary.status === "pending") return { ...withPosterior, factor, law, pending: true };
+  if (summary.status === "failed") return { ...withPosterior, factor, problem: `PRAXIS could not compute the part: ${summary.error}` };
+  return { ...withPosterior, factor, law };
+}
+
+function useLabel(use: DaSourceUse): string {
+  return use.elicitationId ?? `${use.sourceId ?? "?"} · ${use.entryId ?? "?"}`;
+}
+
+function comparisonResult(da: DataAnalysis, parameter: DataAnalysisParameter, comparison: DaFrequencyComparison, mean: UncertaintyState<number> | undefined, modules: number, siteWide: boolean): DaFrequencyComparisonResult {
+  const use = (parameter.sourceUses ?? []).find((candidate) => candidate.id === comparison.useId);
+  const label = use === undefined ? comparison.useId : useLabel(use);
+  const base: DaFrequencyComparisonResult = { comparison, label, pending: false };
+  if (use === undefined) return { ...base, problem: "The comparison source cannot be read." };
+  const state = sourceUseLaw(da, use);
+  if (state.status === "pending") return { ...base, pending: true };
+  if (state.status !== "ready") return { ...base, problem: "The comparison source cannot be read." };
+  if (state.value.quantity !== "PER_YEAR") return { ...base, problem: "The comparison is not a frequency per year." };
+  const share = shareOf(da, comparison.per, parameter.stateIds ?? []);
+  if (share.share === undefined) return { ...base, problem: "None of the group's states fits this comparison's basis." };
+  const summary = lawSummary("PER_YEAR", state.value.law);
+  if (summary.status === "pending") return { ...base, pending: true };
+  if (summary.status === "failed") return { ...base, problem: `PRAXIS could not read the comparison: ${summary.error}` };
+  const value = summary.value.mean * share.share * (siteWide ? 1 : modules);
+  if (mean?.status === "pending") return { ...base, value, pending: true };
+  return { ...base, value, ratio: mean?.status === "ready" && value > 0 ? mean.value / value : undefined };
 }
 
 function computeEstimate(da: DataAnalysis, parameter: DataAnalysisParameter): DaFrequencyEstimate {
@@ -286,46 +303,37 @@ function computeEstimate(da: DataAnalysis, parameter: DataAnalysisParameter): Da
   const modules = modulesOf(da);
   const siteWide = basis?.siteWide === true;
   const parts = (basis?.parts ?? []).map((part) => estimatePart(da, parameter, part, modules, siteWide));
-  const base: DaFrequencyEstimate = { modules, siteWide, parts, comparisons: [] };
-  const withComparisons = (mean: number | undefined): DaFrequencyComparisonResult[] => (basis?.comparisons ?? []).map((comparison) => comparisonResult(da, parameter, comparison, mean, modules, siteWide));
+  const base: DaFrequencyEstimate = { modules, siteWide, parts, comparisons: [], pending: false };
+  const withComparisons = (mean: UncertaintyState<number> | undefined): DaFrequencyComparisonResult[] => (basis?.comparisons ?? []).map((comparison) => comparisonResult(da, parameter, comparison, mean, modules, siteWide));
   if (basis === undefined || parts.length === 0) return { ...base, comparisons: withComparisons(undefined), problem: "Add the part or parts the frequency is built from." };
-  const broken = parts.find((part) => part.problem !== undefined || part.mean === undefined || part.distribution === undefined);
+  const broken = parts.find((part) => part.problem !== undefined);
   if (broken !== undefined) return { ...base, comparisons: withComparisons(undefined), problem: `${broken.part.label}: ${broken.problem ?? "cannot be estimated."}` };
-  let distribution: ParameterDistribution | undefined;
-  let fit: DaFrequencyFit | undefined;
-  const only = parts.length === 1 ? parts[0] : undefined;
-  if (only !== undefined) {
-    distribution = only.distribution;
-    fit = only.output?.fit === "LOGNORMAL" ? "LOGNORMAL" : "EXACT";
-  } else {
-    const mean = parts.reduce((total, part) => total + (part.mean ?? 0), 0);
-    const variance = parts.reduce((total, part) => total + (part.variance ?? 0), 0);
-    distribution = gammaFromMoments(mean, variance);
-    fit = "GAMMA_MOMENTS";
+  const laws = parts.flatMap((part) => (part.pending || part.law === undefined ? [] : [part.law]));
+  if (laws.length < parts.length) return { ...base, comparisons: withComparisons(undefined), pending: true };
+  const values = laws.map(frequencyValue);
+  const first = values[0];
+  const estimate: UncertainExpression | undefined = values.length === 1 ? first : { node: "OPERATION", operation: "ADD", operands: values };
+  if (estimate === undefined) return { ...base, comparisons: withComparisons(undefined), problem: "Add the part or parts the frequency is built from." };
+  return { ...base, estimate, comparisons: withComparisons(pointState(estimate, "PER_YEAR")) };
+}
+
+function frequencyEstimate(da: DataAnalysis, parameter: DataAnalysisParameter): DaFrequencyEstimate {
+  const version = uncertaintyVersion();
+  let cached = estimateCache.get(da);
+  if (cached === undefined || cached.version !== version) {
+    cached = { version, values: new Map() };
+    estimateCache.set(da, cached);
   }
-  if (distribution === undefined) return { ...base, comparisons: withComparisons(undefined), problem: "The parts cannot be combined." };
-  const mean = only?.mean ?? parts.reduce((total, part) => total + (part.mean ?? 0), 0);
-  const p05 = distributionQuantile(distribution, 0.05);
-  const median = distributionQuantile(distribution, 0.5);
-  const p95 = distributionQuantile(distribution, 0.95);
-  return { ...base, mean, p05, median, p95, distribution, fit, comparisons: withComparisons(mean) };
+  const known = cached.values.get(parameter.uuid);
+  if (known !== undefined) return known;
+  const estimate = computeEstimate(da, parameter);
+  cached.values.set(parameter.uuid, estimate);
+  return estimate;
 }
 
-function sameNumber(a: number | undefined, b: number | undefined): boolean {
-  if (a === undefined || b === undefined) return a === b;
-  return a === b || Math.abs(a - b) <= 1e-9 * Math.max(Math.abs(a), Math.abs(b));
-}
-
-function sameDistribution(a: ParameterDistribution | undefined, b: ParameterDistribution | undefined): boolean {
-  if (a === undefined || b === undefined) return a === b;
-  if (a.type !== b.type) return false;
-  const left = Object.entries(a);
-  const right = new Map(Object.entries(b));
-  if (left.length !== right.size) return false;
-  return left.every(([key, value]) => {
-    const other = right.get(key);
-    return typeof value === "number" && typeof other === "number" ? sameNumber(value, other) : value === other;
-  });
+function sameExpression(left: UncertainExpression | undefined, right: UncertainExpression | undefined): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return canonicalJson(left) === canonicalJson(right);
 }
 
 function withFrequencies(da: DataAnalysis): DataAnalysis {
@@ -333,10 +341,14 @@ function withFrequencies(da: DataAnalysis): DataAnalysis {
   const parameters = da.parameters.map((parameter) => {
     if (!isFrequencyParameter(parameter) || parameter.valueMode !== "CALCULATED") return parameter;
     const estimate = frequencyEstimate(da, parameter);
-    if (estimate.mean === undefined || estimate.distribution === undefined) return parameter;
-    if (sameNumber(parameter.value, estimate.mean) && parameter.valueType === "MEAN" && sameDistribution(parameter.uncertainty?.distribution, estimate.distribution)) return parameter;
+    if (estimate.estimate === undefined || estimate.pending || estimate.problem !== undefined) return parameter;
+    if (sameExpression(parameter.estimate, estimate.estimate) && parameter.value === undefined && parameter.valueType === undefined && parameter.uncertainty === undefined) return parameter;
     changed = true;
-    return { ...parameter, value: estimate.mean, valueType: "MEAN" as const, uncertainty: { ...(parameter.uncertainty ?? {}), distribution: estimate.distribution } };
+    const next: DataAnalysisParameter = { ...parameter, estimate: estimate.estimate };
+    delete next.value;
+    delete next.valueType;
+    delete next.uncertainty;
+    return next;
   });
   return changed ? { ...da, parameters } : da;
 }
@@ -345,13 +357,20 @@ function sci(value: number): string {
   return Number(value.toPrecision(3)).toExponential().replace("e+", "E").replace("e", "E");
 }
 
-function initiatorFor(da: DataAnalysis, parameter: DataAnalysisParameter): { id: string; valueHeldBy?: string; meanFrequency?: number } | undefined {
+function initiatorFor(da: DataAnalysis, parameter: DataAnalysisParameter): DaInitiatorNeed | undefined {
   const needs = da.dataNeeds?.initiators ?? [];
   if (parameter.valueLink?.element === "IE") return needs.find((need) => need.id === parameter.valueLink?.needId);
   return needs.find((need) => need.parameterId === parameter.uuid);
 }
 
-function parameterFindings(da: DataAnalysis, parameter: DataAnalysisParameter, findings: DaNeedFinding[]): void {
+function needPoint(need: DaInitiatorNeed): UncertaintyState<number> | undefined {
+  const expression = need.frequency?.expression;
+  if (expression === undefined || expressionReferences(expression).length > 0) return undefined;
+  return pointState(expression, "PER_YEAR");
+}
+
+function parameterFindings(da: DataAnalysis, parameter: DataAnalysisParameter, check: DaFrequencyCheck): void {
+  const findings = check.findings;
   const item = parameter.uuid;
   const target = { kind: "daFrequency" as const, id: parameter.uuid };
   const ccTwo = da.capabilityCategory !== "CC-I";
@@ -363,8 +382,8 @@ function parameterFindings(da: DataAnalysis, parameter: DataAnalysisParameter, f
     return;
   }
   if (parameter.valueMode !== "CALCULATED") {
-    if (parameter.value === undefined) findings.push({ severity: "error", check: "No value", item, detail: "Type the frequency, estimate it here, or import IE's value.", target });
-    else if (ccTwo && parameter.isRiskSignificant === true && parameter.uncertainty?.distribution === undefined) findings.push({ severity: "error", check: "No distribution", item, detail: "A risk-significant initiator needs a mean and an uncertainty distribution at CC-II (IE-C19).", target });
+    if (parameter.estimate === undefined) findings.push({ severity: "error", check: "No value", item, detail: "Type the frequency, estimate it here, or import IE's value.", target });
+    else if (ccTwo && parameter.isRiskSignificant === true && !hasSpread(parameter.estimate)) findings.push({ severity: "error", check: "No distribution", item, detail: "A risk-significant initiator needs a mean and an uncertainty distribution at CC-II (IE-C19).", target });
     return;
   }
   const basis = parameter.frequency;
@@ -373,6 +392,7 @@ function parameterFindings(da: DataAnalysis, parameter: DataAnalysisParameter, f
   if (modules > 1 && basis?.siteWide === undefined) findings.push({ severity: "warning", check: "Site-wide not stated", item, detail: `The plant has ${modules} modules. Say whether one event strikes them all, so it is not multiplied by the module count (IE-C8).`, target });
   if (basis?.siteWide === true && blank(basis.siteWideReason)) findings.push({ severity: "warning", check: "No site-wide reason", item, detail: "Say why one event strikes every module.", target });
   const estimate = frequencyEstimate(da, parameter);
+  if (estimate.pending) check.pending = true;
   if (estimate.problem !== undefined) findings.push({ severity: "error", check: "Cannot estimate", item, detail: estimate.problem, target });
   for (const part of estimate.parts) {
     const what = part.part.label;
@@ -388,8 +408,9 @@ function parameterFindings(da: DataAnalysis, parameter: DataAnalysisParameter, f
       if (blank(evidence.evidence.reason)) findings.push({ severity: "warning", check: "No evidence reason", item, detail: `${what} · ${evidence.label}: say why these counts apply.`, target });
     }
   }
-  if (ccTwo && parameter.isRiskSignificant === true && estimate.distribution?.type === DistributionType.POINT_ESTIMATE) findings.push({ severity: "error", check: "No distribution", item, detail: "A risk-significant initiator needs an uncertainty distribution at CC-II (IE-C19).", target });
+  if (ccTwo && parameter.isRiskSignificant === true && estimate.estimate !== undefined && !hasSpread(estimate.estimate)) findings.push({ severity: "error", check: "No distribution", item, detail: "A risk-significant initiator needs an uncertainty distribution at CC-II (IE-C19).", target });
   for (const comparison of estimate.comparisons) {
+    if (comparison.pending) check.pending = true;
     if (comparison.problem !== undefined) {
       findings.push({ severity: "warning", check: "Comparison problem", item, detail: `${comparison.label}: ${comparison.problem}`, target });
       continue;
@@ -398,42 +419,57 @@ function parameterFindings(da: DataAnalysis, parameter: DataAnalysisParameter, f
     if (ratio !== undefined && (ratio >= GAP || ratio <= 1 / GAP) && blank(comparison.comparison.reason)) findings.push({ severity: "warning", check: "Comparison gap", item, detail: `The estimate is ${ratio >= 1 ? `${Number(ratio.toPrecision(2))} times` : `1/${Number((1 / ratio).toPrecision(2))} of`} ${comparison.label} (${sci(comparison.value ?? 0)}). Explain a gap of a factor of ${GAP} or more (IE-C16).`, target });
   }
   const need = initiatorFor(da, parameter);
-  if (need?.valueHeldBy === "TYPED" && need.meanFrequency !== undefined && estimate.mean !== undefined && need.meanFrequency > 0) {
-    const ratio = estimate.mean / need.meanFrequency;
-    if (ratio >= GAP || ratio <= 1 / GAP) findings.push({ severity: "note", check: "IE value differs", item, detail: `IE types ${sci(need.meanFrequency)} for ${need.id}, a factor of ${Number(Math.max(ratio, 1 / ratio).toPrecision(2))} from this estimate. IE can import the estimate in its frequency step.`, target });
+  if (need?.valueHeldBy !== "TYPED" || estimate.estimate === undefined) return;
+  const theirs = needPoint(need);
+  const ours = pointState(estimate.estimate, "PER_YEAR");
+  if (theirs?.status === "pending" || ours.status === "pending") {
+    check.pending = true;
+    return;
   }
+  if (theirs?.status !== "ready" || ours.status !== "ready" || !(theirs.value > 0)) return;
+  const ratio = ours.value / theirs.value;
+  if (ratio >= GAP || ratio <= 1 / GAP) findings.push({ severity: "note", check: "IE value differs", item, detail: `IE types ${sci(theirs.value)} for ${need.id}, a factor of ${Number(Math.max(ratio, 1 / ratio).toPrecision(2))} from this estimate. IE can import the estimate in its frequency step.`, target });
 }
 
-function frequencyFindings(da: DataAnalysis): DaNeedFinding[] {
-  const cached = findingCache.get(da);
-  if (cached !== undefined) return cached;
-  const findings: DaNeedFinding[] = [];
+function frequencyCheck(da: DataAnalysis): DaFrequencyCheck {
+  const version = uncertaintyVersion();
+  const cached = checkCache.get(da);
+  if (cached !== undefined && cached.version === version) return cached.check;
+  const check: DaFrequencyCheck = { findings: [], pending: false };
   const parameters = frequencyParameters(da);
-  for (const parameter of parameters) parameterFindings(da, parameter, findings);
+  for (const parameter of parameters) parameterFindings(da, parameter, check);
   const needs = da.dataNeeds?.initiators ?? [];
   const ids = new Set(parameters.map((parameter) => parameter.uuid));
   for (const need of needs) {
     if (!need.included) continue;
-    if (need.parameterId === undefined || !ids.has(need.parameterId)) findings.push({ severity: "error", check: "No parameter", item: need.id, detail: "This IE group has no frequency parameter. Add one, then estimate it, type it or import IE's value.", target: { kind: "needInitiator", id: need.id } });
+    if (need.parameterId === undefined || !ids.has(need.parameterId)) check.findings.push({ severity: "error", check: "No parameter", item: need.id, detail: "This IE group has no frequency parameter. Add one, then estimate it, type it or import IE's value.", target: { kind: "needInitiator", id: need.id } });
   }
   const mapped = needs.filter((need) => need.included && need.parameterId !== undefined);
   for (const need of mapped) {
     const shared = mapped.filter((other) => other.parameterId === need.parameterId);
-    if (shared.length > 1 && shared[0] === need) findings.push({ severity: "warning", check: "Parameter shared", item: need.parameterId ?? need.id, detail: `${shared.map((other) => other.id).join(", ")} use one frequency parameter. Each group needs its own.`, target: { kind: "needInitiator", id: need.id } });
+    if (shared.length > 1 && shared[0] === need) check.findings.push({ severity: "warning", check: "Parameter shared", item: need.parameterId ?? need.id, detail: `${shared.map((other) => other.id).join(", ")} use one frequency parameter. Each group needs its own.`, target: { kind: "needInitiator", id: need.id } });
   }
-  const sorted = findings
+  const sorted = check.findings
     .map((finding, index) => ({ finding, index }))
     .sort((a, b) => RANK[a.finding.severity] - RANK[b.finding.severity] || a.index - b.index)
     .map(({ finding }) => finding);
-  findingCache.set(da, sorted);
-  return sorted;
+  const result = { findings: sorted, pending: check.pending };
+  checkCache.set(da, { version, check: result });
+  return result;
+}
+
+function frequencyFindings(da: DataAnalysis): DaNeedFinding[] {
+  return frequencyCheck(da).findings;
 }
 
 function frequenciesComplete(da: DataAnalysis): boolean {
   const decision = (da.scopeDecisions ?? []).find((candidate) => candidate.kind === "INITIATING_EVENT");
   if (decision !== undefined && !decision.included) return true;
-  if (frequencyParameters(da).length === 0) return false;
-  return !frequencyFindings(da).some((finding) => finding.severity === "error");
+  const parameters = frequencyParameters(da);
+  if (parameters.length === 0) return false;
+  if (parameters.some((parameter) => parameter.valueMode !== "LINKED" && parameter.estimate === undefined)) return false;
+  const check = frequencyCheck(da);
+  return !check.pending && !check.findings.some((finding) => finding.severity === "error");
 }
 
 export {
@@ -441,6 +477,7 @@ export {
   frequencyEstimate,
   frequencyFindings,
   frequencyParameters,
+  frequencyValue,
   isFrequencyParameter,
   modulesOf,
   perLabel,
@@ -448,6 +485,7 @@ export {
   stateShares,
   withFrequencies,
   type DaFrequencyComparisonResult,
+  type DaFrequencyComputation,
   type DaFrequencyEstimate,
   type DaFrequencyEvidence,
   type DaFrequencyPartEstimate,

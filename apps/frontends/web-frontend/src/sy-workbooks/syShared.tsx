@@ -1,6 +1,8 @@
 import { JSX, ReactNode } from "react";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { SYIcon } from "./syIcons";
+import { toExp } from "./syViewData";
+import type { PointState } from "./syBasicEventValues";
 
 type BadgeKind = "ok" | "warn" | "block" | "progress" | "draft";
 
@@ -39,6 +41,12 @@ function IssueLines({ issues }: { issues: readonly ReviewIssue[] }): JSX.Element
       ))}
     </>
   );
+}
+
+function PointValue({ state }: { state: PointState | undefined }): JSX.Element {
+  if (state?.status === "failed") return <span className="sy-error">{state.error}</span>;
+  if (state?.status === "ready") return <span className="posmono">{toExp(state.value.point)}</span>;
+  return <span className="sy-review-none">Calculating</span>;
 }
 
 function ReviewLines({ items }: { items: readonly string[] }): JSX.Element {
@@ -95,4 +103,4 @@ function DialogHead({ cap, title, onClose }: { cap: string; title: string; onClo
   );
 }
 
-export { Badge, DialogHead, IssueLines, NoSystemsCard, NotRecorded, ReviewLines, ReviewTitle, SYProvenanceChip, SYSTEMS_IN_SCOPE_ID, SystemsInScopeLink, type BadgeKind, type ReviewIssue };
+export { Badge, DialogHead, IssueLines, NoSystemsCard, NotRecorded, PointValue, ReviewLines, ReviewTitle, SYProvenanceChip, SYSTEMS_IN_SCOPE_ID, SystemsInScopeLink, type BadgeKind, type ReviewIssue };

@@ -7,6 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { useState, type JSX } from "react";
 import type { EsqHclConfiguration } from "interfaces-mef-types/esq/workbook-models";
 import type { BayesianNetworkEvidenceConfiguration, WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
+import { WorkbookHclUncertaintyConfigurationSchema } from "interfaces-mef-types/zod/modeling";
 import {
   validateBayesianNetworkModel,
   type BayesianNetworkAnalysisResult,
@@ -51,7 +52,12 @@ const faultTreeOptions: BayesianNetworkFaultTreeOption[] = [{
   modelCode: "FT-A",
   modelName: "Fault tree A",
   topGateId: TOP_GATE_ID,
-  basicEvents: [{ id: BASIC_EVENT_ID, code: "BE-PUMP", name: "Pump failure" }],
+  basicEvents: [{
+    id: BASIC_EVENT_ID,
+    code: "BE-PUMP",
+    name: "Pump failure",
+    syValue: { expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.003 } } }, text: "3.00E-3", daLinks: [] },
+  }],
 }];
 
 const syOwnedConfiguration: WorkbookHclConfiguration = {
@@ -1222,10 +1228,11 @@ describe("BayesianNetworkEditor", () => {
     expect(within(composer).getByRole("button", { name: "Configuration" })).toBeInTheDocument();
   });
 
-  it("configures PRAXIS uncertainty sampling and BN CPT-row distributions", async () => {
+  it("configures PRAXIS sampling, basic-event overrides and CPT row laws on the one contract", async () => {
     const user = userEvent.setup();
     const onConfigurationsChange = jest.fn();
     render(<Harness onConfigurationsChange={onConfigurationsChange} />);
+    const savedConfiguration = (): WorkbookHclConfiguration => onConfigurationsChange.mock.calls.at(-1)?.[0]?.[0];
 
     await user.click(screen.getByRole("radio", { name: "Probability" }));
     await user.click(screen.getByRole("radio", { name: "Manual" }));
@@ -1240,63 +1247,51 @@ describe("BayesianNetworkEditor", () => {
     expect(screen.getByRole("spinbutton", { name: "Samples" })).toHaveValue(1000);
     expect(screen.getByRole("spinbutton", { name: "Seed" })).toHaveValue(42);
     expect(screen.getByRole("combobox", { name: "Sampling method" })).toHaveValue("LHS");
+    expect(savedConfiguration().solverSettings.uncertainty).toEqual({ sampleCount: 1000, seed: 42, sampler: "LHS", basicEvents: [], cptRows: [], cptGenerators: [] });
     await user.selectOptions(screen.getByRole("combobox", { name: "Sampling method" }), "MC");
-    expect(onConfigurationsChange.mock.calls.at(-1)?.[0]?.[0]?.solverSettings.uncertainty.sampler).toBe("MC");
+    expect(savedConfiguration().solverSettings.uncertainty).toMatchObject({ sampler: "MC" });
     await user.selectOptions(screen.getByRole("combobox", { name: "Sampling method" }), "LHS");
+    expect(screen.getByLabelText("HCL uncertainty settings")).not.toHaveTextContent("clipped");
+    expect(screen.queryByLabelText("BN probability clipping epsilon")).not.toBeInTheDocument();
 
-    const basicEvents = screen.getByText("Basic events").closest("section");
-    expect(basicEvents).not.toBeNull();
-    await user.click(within(basicEvents!).getByRole("button", { name: "Add" }));
-    const basicEventCollection = within(basicEvents!).getByText("Configured basic events").closest("details");
-    expect(basicEventCollection).not.toHaveAttribute("open");
-    await user.click(within(basicEvents!).getByText("Configured basic events"));
-    await user.click(within(basicEvents!).getByText("Settings"));
-    await user.selectOptions(
-      within(basicEvents!).getByRole("combobox", { name: /Distribution for/ }),
-      "LOGNORMAL",
-    );
-    expect(within(basicEvents!).getByRole("spinbutton", { name: "Median" })).toBeInTheDocument();
-    expect(within(basicEvents!).getByRole("spinbutton", { name: "Error factor" })).toBeInTheDocument();
-    expect(within(within(basicEvents!).getByRole("combobox", { name: /Distribution for/ })).getAllByRole("option")).toHaveLength(8);
-    for (const [family, label, property, value] of [
-      ["NORMAL", "Standard deviation", "standardDeviation", "0.3"],
-      ["LOGITNORMAL", "Logit mean", "mu", "-1"],
-      ["GAMMA", "Shape", "shape", "3"],
-      ["EXPONENTIAL", "Rate", "rate", "4"],
-      ["TRIANGULAR", "Mode", "mode", "0.15"],
-    ]) {
-      await user.selectOptions(within(basicEvents!).getByRole("combobox", { name: /Distribution for/ }), family!);
-      const input = within(basicEvents!).getByRole("spinbutton", { name: label! });
-      await user.clear(input);
-      await user.type(input, value!);
-      await user.tab();
-      const saved = onConfigurationsChange.mock.calls.at(-1)?.[0]?.[0]?.solverSettings.uncertainty;
-      expect(saved.sampler).toBe("LHS");
-      expect(saved.basicEventDistributions[0].distribution).toMatchObject({ family, [property!]: Number(value) });
-    }
-    const mode = within(basicEvents!).getByRole("spinbutton", { name: "Mode" });
-    await user.clear(mode);
-    await user.type(mode, "2");
+    const basicEvents = screen.getByRole("region", { name: "Basic event uncertainty" });
+    await user.click(within(basicEvents).getByText("Events that take their SY value"));
+    expect(within(basicEvents).getByText("FT-A / BE-PUMP", { selector: "strong" }).closest("li")).toHaveTextContent("Takes its Systems Analysis value, 3.00E-3.");
+    await user.click(within(basicEvents).getByRole("button", { name: "Add override" }));
+    expect(savedConfiguration().solverSettings.uncertainty).toMatchObject({
+      basicEvents: [{ faultTreeBasicEvent: { referenceType: "FAULT_TREE_BASIC_EVENT", workbookId: FT_WORKBOOK_ID, entityId: BASIC_EVENT_ID }, expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.003 } } } }],
+    });
+    expect(within(basicEvents).queryByText("Events that take their SY value")).not.toBeInTheDocument();
+    await user.click(within(basicEvents).getByText("Overrides"));
+    await user.click(within(basicEvents).getByText("Settings"));
+    await user.selectOptions(within(basicEvents).getByRole("combobox", { name: "Law" }), "LOGNORMAL");
+    const errorFactor = within(basicEvents).getByRole("textbox", { name: "Error factor" });
+    await user.clear(errorFactor);
+    await user.type(errorFactor, "5");
     await user.tab();
-    expect(mode).toHaveValue(0.15);
-    expect(onConfigurationsChange.mock.calls.at(-1)?.[0]?.[0]?.solverSettings.uncertainty.basicEventDistributions[0].distribution.mode).toBe(0.15);
+    expect(savedConfiguration().solverSettings.uncertainty).toMatchObject({
+      sampler: "LHS",
+      basicEvents: [{ expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "LOGNORMAL", mean: 0.003, errorFactor: 5, level: 0.95 } } } }],
+    });
 
-    const bnParameters = screen.getByText("BN parameters").closest("section");
-    expect(bnParameters).not.toBeNull();
-    await user.click(within(bnParameters!).getByRole("button", { name: "Add" }));
-    expect(within(bnParameters!).getByText("Configured CPT rows").closest("details")).not.toHaveAttribute("open");
-    expect(screen.getByLabelText("HCL uncertainty settings")).toHaveTextContent("Dirichlet");
-    expect(onConfigurationsChange.mock.calls.at(-1)?.[0]?.[0]?.solverSettings.uncertainty.cptRowDistributions).toHaveLength(1);
-    await user.click(within(bnParameters!).getByText("Configured CPT rows"));
-    await user.click(within(bnParameters!).getByText("Settings"));
-    await user.selectOptions(within(bnParameters!).getByLabelText("CPT prior"), "BETA");
-    const cptAlpha = within(bnParameters!).getByLabelText("Alpha");
-    await user.clear(cptAlpha); await user.type(cptAlpha, "2"); await user.tab();
-    const clipping = within(bnParameters!).getByLabelText("BN probability clipping epsilon");
-    await user.clear(clipping); await user.type(clipping, "0.01"); await user.tab();
-    const savedUncertainty = onConfigurationsChange.mock.calls.at(-1)?.[0]?.[0]?.solverSettings.uncertainty;
-    expect(savedUncertainty).toMatchObject({ sampler: "LHS", cptProbabilityClipEpsilon: 0.01, cptRowDistributions: [{ prior: { family: "BETA", alpha: 2, beta: 1 } }] });
-    expect(savedUncertainty.cptRowDistributions[0]).not.toHaveProperty("equivalentSampleSize");
+    const rows = screen.getByRole("region", { name: "CPT row uncertainty" });
+    await user.click(within(rows).getByRole("button", { name: "Add row law" }));
+    expect(within(rows).getByText("Configured CPT rows").closest("details")).not.toHaveAttribute("open");
+    expect(savedConfiguration().solverSettings.uncertainty).toMatchObject({
+      cptRows: [{ cptRowId: TEST_ID.aRow, row: { node: "VALUE", law: { family: "FIXED", values: [0.8, 0.2] } } }],
+    });
+    await user.click(within(rows).getByText("Configured CPT rows"));
+    await user.click(within(rows).getByText("Settings"));
+    await user.selectOptions(within(rows).getByRole("combobox", { name: "Law" }), "DIRICHLET");
+    const concentration = within(rows).getByRole("textbox", { name: "True concentration" });
+    await user.clear(concentration);
+    await user.type(concentration, "3");
+    await user.tab();
+    const saved = savedConfiguration();
+    expect(saved.solverSettings.uncertainty).toMatchObject({ cptRows: [{ row: { node: "VALUE", law: { family: "DIRICHLET", concentrations: [8, 3] } } }] });
+    expect(saved.solverSettings.uncertainty).not.toHaveProperty("cptProbabilityClipEpsilon");
+    expect(WorkbookHclUncertaintyConfigurationSchema.safeParse(saved).success).toBe(true);
+    expect(screen.queryByText(/Uncertainty settings need review/)).not.toBeInTheDocument();
   });
 
   it("keeps the BN canvas visible when ESQ exposes only event-tree HCL analysis", () => {

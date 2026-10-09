@@ -1,3 +1,4 @@
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import type { FaultTreeEditorCatalogue, FaultTreeEditorModel } from "../faultTreeTypes";
 import {
   OpenPsaExportError,
@@ -137,7 +138,7 @@ describe("OpenPSA fault-tree interchange", () => {
         <define-house-event name="Enabled"><constant value="true"/></define-house-event>
       </model-data>
     </opsa-mef>`);
-    expect(imported.catalogue.basicEvents).toEqual([expect.objectContaining({ code: "X", probability: { value: 0.0002 } })]);
+    expect(imported.catalogue.basicEvents).toEqual([expect.objectContaining({ code: "X", probability: { value: 0.0002, expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.0002 } } } } })]);
     expect(imported.model.leafNodes).toEqual(expect.arrayContaining([expect.objectContaining({ code: "Enabled", kind: "HOUSE_EVENT", state: true })]));
     expect(imported.warnings).toEqual([]);
   });
@@ -283,6 +284,35 @@ describe("OpenPSA fault-tree interchange", () => {
       expect.objectContaining({ id: uuid(41), code: "BE_IMPORTED" }),
     ]);
     expect(merged.presentations).toEqual(fixture.catalogue.presentations);
+  });
+
+  it("exports laws and mission models in the standard subset and reads them back", () => {
+    const fixture = roundTripFixture();
+    const truncated: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "TRUNCATED", law: { family: "LOGNORMAL", mean: 1e-3, errorFactor: 3, level: 0.95 }, lower: null, upper: 1 } } };
+    const mission: UncertainExpression = { node: "MODEL", model: {
+      form: "MISSION",
+      rate: { node: "VALUE", value: { unit: "PER_HOUR", law: { family: "GAMMA", shape: 2, rate: 0.5 } } },
+      missionTime: { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: 24 } } },
+    } };
+    const catalogue: FaultTreeEditorCatalogue = { basicEvents: [{ ...fixture.catalogue.basicEvents[0]!, probability: { value: 1e-3, expression: truncated } }] };
+    const xml = exportOpenPsaFaultTree(fixture.model, catalogue, { includeEditorSnapshot: false });
+
+    expect(xml).toContain("<lognormal-deviate>");
+    expect(xml).toContain('name="openpra.truncated-upper" value="1"');
+    expect(importOpenPsaFaultTree(xml).catalogue.basicEvents[0]?.probability).toEqual({ value: Number.NaN, expression: truncated });
+
+    const modelled = exportOpenPsaFaultTree(fixture.model, { basicEvents: [{ ...catalogue.basicEvents[0]!, probability: { value: 0.5, expression: mission } }] }, { includeEditorSnapshot: false });
+    expect(modelled).toContain("<exponential>");
+    expect(modelled).toContain("<gamma-deviate>");
+    expect(modelled).not.toContain('<float value="0.5"/>');
+    expect(importOpenPsaFaultTree(modelled).catalogue.basicEvents[0]?.probability).toEqual({ value: Number.NaN, expression: mission });
+  });
+
+  it("refuses to export a value the standard subset cannot hold", () => {
+    const fixture = roundTripFixture();
+    const linked: UncertainExpression = { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "rate-1" } };
+    const catalogue: FaultTreeEditorCatalogue = { basicEvents: [{ ...fixture.catalogue.basicEvents[0]!, probability: { value: 0.01, expression: linked } }] };
+    expect(() => exportOpenPsaFaultTree(fixture.model, catalogue)).toThrow("Basic event BE_PUMP uses a linked value, which OpenPSA MEF cannot hold");
   });
 
   it("reports malformed XML and models OpenPSA cannot represent", () => {

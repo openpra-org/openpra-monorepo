@@ -1,6 +1,8 @@
 import { JSX, useEffect, useId, useRef, useState } from "react";
-import type { SystemBasicEvent, SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import { failureRateToProbability, requiresFailureRateConversionReview } from "interfaces-mef-types/modeling";
+import { carriesUncertainExpression, type SystemBasicEvent, type SystemLogicModel, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { failureRateToProbability, requiresFailureRateConversionReview, type QuantificationTimeUnit } from "interfaces-mef-types/modeling";
+import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
 import {
   applyFaultTreeBasicEventToSystemBasicEvent,
   systemBasicEventToFaultTreeBasicEvent,
@@ -19,6 +21,7 @@ import {
   type FaultTreeAnalysisResult,
 } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { NoSystemsCard } from "./syShared";
@@ -31,8 +34,11 @@ import { FAILURE_MODE_TYPES } from "./syViewData";
 import {
   useSyWorkbook,
   type SyControlledHumanFailureOption,
-  type SyControlledParameterOption,
+  type SyControlledLegacyParameterOption,
 } from "./syWorkbookContext";
+import { asComponentEvent, editorOptions, useEventPoints, withoutStoredValue, type PointState } from "./syBasicEventValues";
+import { useSyValueSources, useSystemHours } from "./syMissionTimes";
+import { toExp } from "./syViewData";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "./syWorkbookApi";
 import { isSystemLevelModel } from "./sySelectors";
 import type { SyDrawerContext } from "./syScreens";
@@ -49,7 +55,11 @@ const MODEL_TABS: { id: ModelTab; label: string }[] = [
   { id: "assumptions", label: "Assumptions" },
 ];
 
-const DEFAULT_MISSION_TIME_HOURS = 24;
+interface CatalogueSources {
+  legacyParameters?: readonly SyControlledLegacyParameterOption[];
+  humanFailures?: readonly SyControlledHumanFailureOption[];
+  points?: ReadonlyMap<string, PointState>;
+}
 
 function toFaultTreeEditorModel(model: SystemLogicModel): FaultTreeEditorModel {
   return {
@@ -66,19 +76,25 @@ function toFaultTreeEditorModel(model: SystemLogicModel): FaultTreeEditorModel {
   };
 }
 
+function componentProjection(event: SystemBasicEvent, points: ReadonlyMap<string, PointState> | undefined): FaultTreeEditorCatalogue["basicEvents"][number] {
+  const projected = systemBasicEventToFaultTreeBasicEvent(withoutStoredValue(event));
+  const state = points?.get(event.uuid);
+  const expression = projected.probability.expression;
+  return { ...projected, probability: { value: state?.status === "ready" ? state.value.point : Number.NaN, ...(expression === undefined ? {} : { expression }) } };
+}
+
 function toFaultTreeEditorCatalogue(
   events: readonly SystemBasicEvent[],
-  controlledParameters: readonly SyControlledParameterOption[] = [],
-  controlledHumanFailures: readonly SyControlledHumanFailureOption[] = [],
+  { legacyParameters = [], humanFailures = [], points }: CatalogueSources = {},
 ): FaultTreeEditorCatalogue {
   const controlledParameterValues = new Map(
-    controlledParameters.map((parameter) => [
+    legacyParameters.map((parameter) => [
       JSON.stringify([parameter.workbookId, parameter.parameterId]),
       parameter,
     ]),
   );
   const controlledHumanFailureValues = new Map(
-    controlledHumanFailures.map((humanFailure) => [
+    humanFailures.map((humanFailure) => [
       JSON.stringify([
         humanFailure.workbookId,
         humanFailure.humanFailureEventId,
@@ -89,6 +105,7 @@ function toFaultTreeEditorCatalogue(
   );
   return {
     basicEvents: events.map((event) => {
+      if (carriesUncertainExpression(event.failureMode)) return componentProjection(event, points);
       const projected = systemBasicEventToFaultTreeBasicEvent(event);
       if (event.controlledDataSource === undefined || requiresFailureRateConversionReview(event.quantificationBasis)) return projected;
       const controlledParameter = event.controlledDataSource.referenceType === "WORKBOOK_PARAMETER"
@@ -129,8 +146,8 @@ function toFaultTreeEditorCatalogue(
   };
 }
 
-function newSystemBasicEvent(event: FaultTreeEditorCatalogue["basicEvents"][number]): SystemBasicEvent {
-  return {
+function newSystemBasicEvent(event: FaultTreeEditorCatalogue["basicEvents"][number], missionTime: UncertainExpression | undefined): SystemBasicEvent {
+  const created: SystemBasicEvent = {
     uuid: event.id,
     code: event.code,
     name: event.name,
@@ -140,6 +157,7 @@ function newSystemBasicEvent(event: FaultTreeEditorCatalogue["basicEvents"][numb
       ? { failureMode: "HUMAN_ERROR" }
       : {}),
     ...(Number.isFinite(event.probability.value) ? { probability: event.probability.value } : {}),
+    ...(event.probability.expression === undefined ? {} : { expression: structuredClone(event.probability.expression) }),
     ...(event.probability.quantificationBasis === undefined
       ? {}
       : { quantificationBasis: structuredClone(event.probability.quantificationBasis) }),
@@ -149,6 +167,44 @@ function newSystemBasicEvent(event: FaultTreeEditorCatalogue["basicEvents"][numb
     repairModeled: false,
     implementsSrs: [],
   };
+  return carriesUncertainExpression(created.failureMode) ? asComponentEvent(created, missionTime) : created;
+}
+
+const TIME_UNIT_WORDS: Record<QuantificationTimeUnit, { one: string; many: string }> = {
+  SECOND: { one: "second", many: "seconds" },
+  MINUTE: { one: "minute", many: "minutes" },
+  HOUR: { one: "hour", many: "hours" },
+  DAY: { one: "day", many: "days" },
+  YEAR: { one: "year", many: "years" },
+};
+
+function legacyValueText(event: FaultTreeEditorCatalogue["basicEvents"][number]): string {
+  const basis = event.probability.quantificationBasis;
+  if (basis?.kind === "FAILURE_RATE") {
+    return `Rate ${toExp(basis.failureRate.value)} per ${TIME_UNIT_WORDS[basis.failureRate.unit].one} over ${basis.missionTime.value} ${TIME_UNIT_WORDS[basis.missionTime.unit].many}`;
+  }
+  return Number.isFinite(event.probability.value) ? `Probability ${toExp(event.probability.value)}` : "No value yet";
+}
+
+function readOnlyValues(events: readonly SystemBasicEvent[], catalogue: FaultTreeEditorCatalogue, label: (key: string) => string): Record<string, string> {
+  const projected = new Map(catalogue.basicEvents.map((event) => [event.id, event]));
+  return Object.fromEntries(events.map((event) => {
+    if (carriesUncertainExpression(event.failureMode)) return [event.uuid, event.expression === undefined ? "No value yet" : expressionText(event.expression, label)];
+    const shown = projected.get(event.uuid);
+    return [event.uuid, shown === undefined ? "No value yet" : legacyValueText(shown)];
+  }));
+}
+
+function componentValueIssues(issues: readonly ValidationIssue[], events: readonly SystemBasicEvent[], points: ReadonlyMap<string, PointState>): ValidationIssue[] {
+  const byId = new Map(events.map((event) => [event.uuid, event]));
+  return issues.flatMap((issue): ValidationIssue[] => {
+    const event = issue.entityId === undefined ? undefined : byId.get(issue.entityId);
+    if (issue.code !== "FT_BASIC_EVENT_PROBABILITY_INVALID" || event === undefined || !carriesUncertainExpression(event.failureMode)) return [issue];
+    if (event.expression === undefined) return [{ ...issue, message: `${event.code} has no value yet. Set it in the Basic events tab.` }];
+    const state = points.get(event.uuid);
+    if (state?.status === "failed") return [{ ...issue, message: `${event.code}: ${state.error}` }];
+    return state?.status === "ready" ? [issue] : [];
+  });
 }
 
 function syFaultTreeOperation(
@@ -159,11 +215,12 @@ function syFaultTreeOperation(
   const next = applyFaultTreeOperation(toFaultTreeEditorModel(logic), catalogue, operation);
   return (draft) => {
     const existingEvents = new Map(draft.systemBasicEvents.map((event) => [event.uuid, event]));
+    const missionTime = draft.systemDefinitions.find((system) => system.uuid === logic.systemReference)?.missionTime;
     const systemBasicEvents = next.catalogue.basicEvents.map((event) => {
       const current = existingEvents.get(event.id);
-      return current === undefined
-        ? newSystemBasicEvent(event)
-        : applyFaultTreeBasicEventToSystemBasicEvent(current, event);
+      if (current === undefined) return newSystemBasicEvent(event, missionTime);
+      const applied = applyFaultTreeBasicEventToSystemBasicEvent(current, event);
+      return carriesUncertainExpression(current.failureMode) ? withoutStoredValue(applied) : applied;
     });
     const { modelId: _modelId, ...normalizedModel } = next.model;
     return {
@@ -189,6 +246,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
     mutateSy,
     runtime,
     controlledParameters,
+    controlledLegacyParameters,
     controlledHumanFailures,
   } = useSyWorkbook();
   const { sourceWarning } = useAnalysisSourceGuard("sy", runtime.workbookId);
@@ -201,6 +259,10 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   const tablist = useRef<HTMLDivElement>(null);
   const id = useId();
   const sysDef = sy.systemDefinitions.find((s) => s.uuid === sysId) ?? sy.systemDefinitions[0];
+  const shownLogic = sysDef === undefined ? undefined : sy.systemLogicModels.find((m) => m.systemReference === sysDef.uuid);
+  const values = useSyValueSources();
+  const points = useEventPoints(shownLogic === undefined || isSystemLevelModel(shownLogic) ? [] : systemLogicModelBasicEvents(sy, shownLogic), values.table);
+  const missionHours = useSystemHours(sysDef === undefined ? [] : [sysDef]).get(sysDef?.uuid ?? "");
 
   useEffect(() => setSelection(null), [sysId]);
 
@@ -209,14 +271,13 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   }
 
   const system = sysDef;
-  const missionTimeHours = system.missionTimeHours ?? DEFAULT_MISSION_TIME_HOURS;
   const logic = sy.systemLogicModels.find((m) => m.systemReference === system.uuid);
   const systemLevel = logic !== undefined && isSystemLevelModel(logic);
-  const catalogue = toFaultTreeEditorCatalogue(
-    sy.systemBasicEvents,
-    controlledParameters,
-    controlledHumanFailures,
-  );
+  const catalogue = toFaultTreeEditorCatalogue(sy.systemBasicEvents, {
+    legacyParameters: controlledLegacyParameters,
+    humanFailures: controlledHumanFailures,
+    points,
+  });
   const editorModel = logic === undefined ? null : toFaultTreeEditorModel(logic);
   const editorModels = sy.systemLogicModels.map(toFaultTreeEditorModel);
   const transferTargets = sy.systemLogicModels.flatMap((candidate) =>
@@ -231,14 +292,14 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   );
   const validation = editorModel === null || systemLevel
     ? []
-    : validateFaultTreeModel(editorModel, {
+    : componentValueIssues(validateFaultTreeModel(editorModel, {
         basicEventCatalogue: {
           workbookId: runtime.workbookId ?? "local-sy-workbook",
           basicEvents: catalogue.basicEvents,
         },
         availableTransferTargets: transferTargets.map(({ target }) => target),
         faultTreeModels: editorModels,
-      });
+      }), sy.systemBasicEvents, points);
   const analysisResult = logic === undefined ? null : (analysisResults[logic.uuid] ?? null);
   const resultIsStale = analysisResult !== null && (sourceWarning !== null || runtime.saveStatus !== "saved" || analysisResult.owner.workbookRevision !== runtime.revision);
   const eventCount = logic === undefined || systemLevel ? 0 : systemLogicModelBasicEvents(sy, logic).length;
@@ -345,7 +406,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
         if (logic === undefined || editorModel === null || systemLevel) return renderNoFaultTree();
         return (
           <>
-          {editable && <p className="poscard__sub">Right-click a gate to add gates, basic events, house events or transfers. Give each basic event a probability in the Basic events tab. Type it, or pick a DA estimate after linking a DA workbook in Step 01.</p>}
+          {editable && <p className="poscard__sub">Right-click a gate to add gates, basic events, house events or transfers. Give each basic event a value in the Basic events tab. Type it, or link a DA estimate after linking a DA workbook in Step 01.</p>}
           <SyFaultTreeDiagrams
             systemId={system.uuid}
             onAddDiagram={editable ? () => openDrawer({ kind: "diagram", id: system.uuid }) : undefined}
@@ -354,6 +415,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
             <FaultTreeEditor
               model={editorModel}
               catalogue={catalogue}
+              readOnlyBasicEventValues={readOnlyValues(sy.systemBasicEvents, catalogue, values.label)}
               capabilities={{
                 mode: editable ? "AUTHOR" : "READ_ONLY",
                 canEditBasicEvents: editable,
@@ -370,7 +432,10 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
               showHeaderStatus={false}
               resultIsStale={resultIsStale}
               transferTargets={transferTargets}
-              defaultMissionTime={{ value: missionTimeHours, unit: "HOUR" }}
+              defaultMissionTime={system.missionTime}
+              daParameterOptions={editorOptions(controlledParameters)}
+              missionTimeOptions={values.missionTimeOptions}
+              parameterTable={values.table}
               onOperation={applyOperation}
               onSelectionChange={setSelection}
               onOpenReference={(request) => {
@@ -405,7 +470,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
               exactRunning={runningModelId === logic.uuid}
               sourceWarning={sourceWarning}
               currentModelId={logic.uuid}
-              defaultMissionTimeHours={missionTimeHours}
+              missionHours={missionHours}
               basicEventCodes={Object.fromEntries(catalogue.basicEvents.map((event) => [event.id, event.code]))}
               models={sy.systemLogicModels.flatMap((candidate) =>
                 candidate.topGate === null || isSystemLevelModel(candidate)

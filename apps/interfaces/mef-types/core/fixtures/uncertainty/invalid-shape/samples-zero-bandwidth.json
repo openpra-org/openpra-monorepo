@@ -1,0 +1,27 @@
+[
+  {
+    "reference": {
+      "referenceType": "WORKBOOK_PARAMETER",
+      "workbookId": "da-example",
+      "entityId": "p"
+    },
+    "expression": {
+      "node": "VALUE",
+      "value": {
+        "unit": "FACTOR",
+        "law": {
+          "family": "SAMPLES",
+          "values": [
+            1,
+            2
+          ],
+          "weights": [],
+          "smoothing": {
+            "kind": "GAUSSIAN_KERNEL",
+            "bandwidth": 0
+          }
+        }
+      }
+    }
+  }
+]

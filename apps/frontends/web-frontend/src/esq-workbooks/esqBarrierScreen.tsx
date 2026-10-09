@@ -6,15 +6,16 @@ import {
   type EsqCell,
   type EsqCellSide,
   type EsqCredit,
-  type EsqLaw,
-  type EsqLawParameter,
   type EsqMechanism,
   type EsqPhenomenaLogic,
-  type EsqUncertainParameter,
   type EventSequenceQuantification,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { DistributionType } from "interfaces-mef-types/core/events";
-import { cellInputsKey, lawParameters, lawValue } from "interfaces-mef-types/esq/esq-barrier-inputs";
+import { holdsEstimate } from "interfaces-mef-types/da/data-analysis";
+import type { AleatoryVariable, UncertainExpression, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
+import { cellInputsKey, lawFieldNames, lawFieldValue } from "interfaces-mef-types/esq/esq-barrier-inputs";
+import { parameterUnit } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { ExpressionEditor, LawEditor, type ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
+import { expressionText, lawText } from "../newly-developed-methods/shared/uncertainText";
 import type { LoadCapacityAnalysisResult, LoadCapacityRunSettings, LoadCapacitySampling } from "interfaces-shared-types/newly-developed-methods/load-capacity";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
@@ -30,22 +31,21 @@ import {
   FormFoot,
   FormRow,
   ModalHead,
+  pointText,
   rowClass,
   sciText,
   useElementWidth,
+  useExpressionPoints,
 } from "./esqShared";
+import { missionTimeSourcesOf, parameterLabelOf, parameterTableOf } from "./esqModel";
 import {
   CELL_USE_LABELS,
   FEASIBILITY_KEYS,
   FEASIBILITY_LABELS,
-  LAW_LABELS,
-  LAW_PARAMETER_LABELS,
-  LAW_TYPES,
   MECHANISM_KIND_LABELS,
   MODE_KIND_LABELS,
   barriersViewOf,
-  convertLaw,
-  lawText,
+  cellSamples,
   modeLabel,
   nextBarrierId,
   nextCellId,
@@ -53,11 +53,11 @@ import {
   nextMechanismId,
   nextModeId,
   numberText,
+  sideSourceText,
   withBarrierEntry,
   withCell,
   withCellRun,
   withCredit,
-  withLawValue,
   withMechanism,
   withPhenomenaLogic,
   type EsqBarrierFinding,
@@ -142,11 +142,46 @@ function statusText(status: string): string {
   return STATUS_TEXT[status] ?? status;
 }
 
-function sideSourceText(side: EsqCellSide, unit: string): string {
-  if (side.fragility !== undefined) return `Fragility, median ${numberText(side.fragility.median)}${unit.trim().length > 0 ? ` ${unit.trim()}` : ""}, randomness ${numberText(side.fragility.betaR)}, uncertainty ${numberText(side.fragility.betaU)}`;
-  if (side.parameterId !== undefined) return `DA · ${side.parameterId}`;
-  const sampled = (side.uncertain ?? []).length;
-  return `${lawText(side.distribution, unit)}${sampled > 0 ? ` · ${sampled} uncertain` : ""}`;
+const DEFAULT_PROBABILITY = 1e-3;
+
+function quantity(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "QUANTITY", law: { family: "POINT", value } } };
+}
+
+function probability(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
+}
+
+function fieldLabel(field: string): string {
+  const inner = field.startsWith("law.");
+  const name = inner ? field.slice("law.".length) : field;
+  let words = "";
+  for (const character of name) words += character >= "A" && character <= "Z" ? ` ${character.toLowerCase()}` : character;
+  const text = inner ? `inner ${words}` : words;
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+}
+
+function daOptions(esq: EventSequenceQuantification, units: readonly UncertainUnit[], as: UncertainUnit): ParameterOption[] {
+  const workbookId = esq.linkedWorkbooks?.DA;
+  if (workbookId === undefined || workbookId.length === 0) return [];
+  return (esq.model?.parameters ?? []).flatMap((parameter) => {
+    const estimate = parameter.estimate;
+    if (!holdsEstimate(parameter.quantificationModel) || estimate === undefined) return [];
+    const unit = estimate.node === "VALUE" ? estimate.value.unit : parameterUnit(parameter);
+    return units.includes(unit) ? [{ reference: { referenceType: "WORKBOOK_PARAMETER" as const, workbookId, entityId: parameter.id }, label: `DA · ${parameter.id} · ${parameter.name}`, unit: as }] : [];
+  });
+}
+
+function CellValue({ entry }: { entry: EsqCellView }): JSX.Element {
+  const { esq, upstream } = useEsqWorkbook();
+  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const typed = entry.cell.ofRecord === "TYPED" ? entry.expression : undefined;
+  const id = entry.cell.id;
+  const entries = useMemo(() => (typed === undefined ? [] : [{ key: id, expression: typed, unit: "PROBABILITY" as const }]), [typed, id]);
+  const points = useExpressionPoints(entries, table);
+  if (entry.runValue !== undefined) return <>{sciText(entry.runValue)}</>;
+  if (typed !== undefined) return <>{pointText(points.get(id))}</>;
+  return <>—</>;
 }
 
 function cellTitle(entry: EsqCellView): string {
@@ -155,7 +190,7 @@ function cellTitle(entry: EsqCellView): string {
 
 function valueSource(cell: EsqCell): string {
   if (cell.ofRecord === "TYPED") return "Typed";
-  if (cell.ofRecord === "RUN") return cell.run?.mean !== undefined ? "Run mean" : "Run";
+  if (cell.ofRecord === "RUN") return cell.run?.law !== undefined ? "Run, sampled law" : "Run";
   return "—";
 }
 
@@ -343,7 +378,7 @@ function CellsTable({ entries, hazard, openWindow }: { entries: EsqCellView[]; h
                   </td>
                   <td className="esq-rowtable__text">{cellTitle(entry)}</td>
                   <td className="esq-rowtable__text">{hazard ? textValue(cell.hazardGroup) : textValue(cell.familyId)}</td>
-                  <td className="esq-rowtable__num">{valueText(entry.value)}{entry.stale && cell.ofRecord === "RUN" && <span className="esq-rowtable__tag">Out of date</span>}</td>
+                  <td className="esq-rowtable__num"><CellValue entry={entry} />{entry.stale && cell.ofRecord === "RUN" && <span className="esq-rowtable__tag">Out of date</span>}</td>
                 </tr>
                 {open && (
                   <DetailRow span={5} width={wrapWidth - 18}>
@@ -492,7 +527,8 @@ function RunResult({ run, cell }: { run: EsqCellRunEntry; cell: EsqCell }): JSX.
       <FieldList items={[
         { label: "Method", value: METHOD_TEXT[result.method] ?? result.method },
         { label: "P(fail) at the central values", value: sciText(result.pointProbability) },
-        ...(result.quadratureError === null ? [] : [{ label: "Quadrature error", value: sciText(result.quadratureError) }]),
+        { label: "Central load", value: lawText(result.pointLoad) },
+        { label: "Central capacity", value: lawText(result.pointCapacity) },
         ...(sampled === null ? [] : [
           { label: "Mean over the samples", value: sciText(sampled.mean) },
           { label: "5th, median, 95th", value: `${sciText(sampled.p05)}, ${sciText(sampled.p50)}, ${sciText(sampled.p95)}` },
@@ -529,7 +565,7 @@ function ValuesTable({ view }: { view: EsqBarriersView }): JSX.Element | null {
           <tr key={entry.cell.id}>
             <td className="esq-rowtable__text">{entry.cell.id}</td>
             <td className="esq-rowtable__text">{`${cellTitle(entry)} · ${entry.cell.hazardGroup ?? entry.cell.familyId ?? "—"}`}</td>
-            <td className="esq-rowtable__num">{valueText(entry.value)}</td>
+            <td className="esq-rowtable__num"><CellValue entry={entry} /></td>
             <td>{valueSource(entry.cell)}</td>
           </tr>
         ))}
@@ -552,7 +588,7 @@ function ResultsPanel({ view }: { view: EsqBarriersView }): JSX.Element {
   const saveBlockedReason = analysisSaveBlock(runtime);
   const workbookId = runtime.workbookId;
   const entry = all.find((candidate) => candidate.cell.id === cellId);
-  const sampledInputs = entry !== undefined && ((entry.cell.load.uncertain ?? []).length > 0 || (entry.cell.capacity.uncertain ?? []).length > 0 || (entry.cell.capacity.fragility?.betaU ?? 0) > 0);
+  const sampledInputs = entry !== undefined && cellSamples(entry.cell);
 
   useEffect(() => {
     if (workbookId === null || cellId.length === 0) {
@@ -601,7 +637,7 @@ function ResultsPanel({ view }: { view: EsqBarriersView }): JSX.Element {
         method: result.method,
         inputs: cellInputsKey(cell),
         point: result.pointProbability,
-        ...(sampled === null ? {} : { mean: sampled.mean, p05: sampled.p05, p50: sampled.p50, p95: sampled.p95, samples: sampled.samples, sampling: sampled.sampling }),
+        ...(sampled === null ? {} : { mean: sampled.mean, p05: sampled.p05, p50: sampled.p50, p95: sampled.p95, samples: sampled.samples, sampling: sampled.sampling, law: sampled.law }),
       });
     });
   }
@@ -636,7 +672,7 @@ function ResultsPanel({ view }: { view: EsqBarriersView }): JSX.Element {
             <input id={`${fieldId}-points`} type="number" min={2} max={1001} step={1} value={settings.curvePoints} onChange={(event) => { const value = Math.round(Number(event.target.value)); if (Number.isFinite(value) && value >= 2 && value <= 1001) setSettings({ ...settings, curvePoints: value }); }} />
           </label>
         </div>
-        {entry !== undefined && !sampledInputs && <p className="esq-meta">This cell has no uncertain parameter, so the run gives the point probability without sampling.</p>}
+        {entry !== undefined && !sampledInputs && <p className="esq-meta">This cell has no uncertain field, so the run gives the point probability without sampling.</p>}
       </div>
       {entry?.problem !== undefined && <p className="esq-run__notice" role="status">{entry.problem}</p>}
       {saveBlockedReason !== null && <p className="esq-run__notice" role="status">{saveBlockedReason}</p>}
@@ -710,8 +746,6 @@ function BarrierScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => 
       variable: "",
       unit: "",
       basis: esq.capabilityCategory === "CC-I" ? "CONSERVATIVE" : "REALISTIC",
-      load: { basis: "" },
-      capacity: { basis: "" },
       use: "SPLIT_FRACTION",
     };
     const hazardGroup = view?.hazards[0];
@@ -967,122 +1001,86 @@ function MechanismWindow({ id, onClose }: { id: string; onClose: () => void }): 
   );
 }
 
-function LawFields({ law, unit, disabled, onChange }: { law: EsqLaw | undefined; unit: string; disabled: boolean; onChange: (next: EsqLaw) => void }): JSX.Element {
-  const id = useId();
-  const unitless = new Set<EsqLawParameter>(["errorFactor", "shape", "alpha", "betaParam", "rate", "failureRate"]);
+function VariableRows({ variable, options, disabled, onChange }: { variable: AleatoryVariable; options: readonly ParameterOption[]; disabled: boolean; onChange: (next: AleatoryVariable) => void }): JSX.Element {
+  const names = lawFieldNames(variable.law);
   return (
     <>
-      <FormRow label="Distribution" htmlFor={`${id}-type`}>
-        <select id={`${id}-type`} className="posfield__select" value={law?.type ?? ""} disabled={disabled} onChange={(event) => {
-          const type = LAW_TYPES.find((candidate) => candidate === event.target.value);
-          if (type !== undefined) onChange(convertLaw(law, type));
-        }}>
-          {law === undefined && <option value="">Not set</option>}
-          {LAW_TYPES.map((type) => <option key={type} value={type}>{LAW_LABELS[type]}</option>)}
-        </select>
-      </FormRow>
-      {law !== undefined && lawParameters(law).map((parameter) => (
-        <NumberRow key={parameter} label={LAW_PARAMETER_LABELS[parameter]} value={lawValue(law, parameter)} unit={unitless.has(parameter) ? undefined : unit} disabled={disabled} onChange={(value) => { if (value !== undefined) onChange(withLawValue(law, parameter, value)); }} />
-      ))}
-    </>
-  );
-}
-
-function UncertainRows({ side, law, disabled, onChange }: { side: EsqCellSide; law: EsqLaw; disabled: boolean; onChange: (next: EsqUncertainParameter[]) => void }): JSX.Element {
-  const id = useId();
-  const uncertain = side.uncertain ?? [];
-  const free = lawParameters(law).filter((parameter) => !uncertain.some((entry) => entry.parameter === parameter));
-  return (
-    <>
-      {uncertain.map((entry, index) => (
-        <fieldset key={`${entry.parameter}:${index}`} className="esq-use">
-          <legend className="esq-use__legend">{`Uncertainty on the ${LAW_PARAMETER_LABELS[entry.parameter].toLowerCase()}`}</legend>
-          <LawFields law={entry.distribution} unit="" disabled={disabled} onChange={(distribution) => onChange(uncertain.map((current, position) => (position === index ? { ...current, distribution } : current)))} />
-          <FormRow label="Correlation key" htmlFor={`${id}-key-${index}`}>
-            <WorkbookInput id={`${id}-key-${index}`} className="posfield__input" value={entry.correlationKey ?? ""} disabled={disabled} onChange={(event) => {
-              const key = event.target.value.trim();
-              onChange(uncertain.map((current, position) => {
-                if (position !== index) return current;
-                const { correlationKey: _old, ...rest } = current;
-                return key.length === 0 ? rest : { ...rest, correlationKey: key };
-              }));
-            }} />
-          </FormRow>
-          {!disabled && <button type="button" className="posnav__btn posnav__btn--sm esq-use__remove" onClick={() => onChange(uncertain.filter((_, position) => position !== index))}>Remove this uncertainty</button>}
+      <LawEditor law={variable.law} unit="QUANTITY" disabled={disabled} onChange={(law) => {
+        const allowed = lawFieldNames(law);
+        onChange({ law, fields: variable.fields.filter((entry) => allowed.includes(entry.field)) });
+      }} />
+      {names.length > 0 && (
+        <ChecksRow label="Uncertain fields" options={names.map((name) => ({ value: name, label: fieldLabel(name) }))} selected={variable.fields.map((entry) => entry.field)} disabled={disabled} onChange={(selected) => onChange({
+          law: variable.law,
+          fields: names.flatMap((name) => {
+            if (!selected.includes(name)) return [];
+            const kept = variable.fields.find((entry) => entry.field === name);
+            if (kept !== undefined) return [kept];
+            const value = lawFieldValue(variable.law, name);
+            return value === undefined ? [] : [{ field: name, value: quantity(value) }];
+          }),
+        })} />
+      )}
+      {variable.fields.length > 0 && <p className="esq-meta">PRAXIS sets each uncertain field from its own law in every trial.</p>}
+      {variable.fields.map((entry) => (
+        <fieldset key={entry.field} className="esq-use">
+          <legend className="esq-use__legend">{fieldLabel(entry.field)}</legend>
+          <ExpressionEditor expression={entry.value} unit="QUANTITY" options={options} disabled={disabled} onChange={(value) => onChange({ law: variable.law, fields: variable.fields.map((current) => (current.field === entry.field ? { field: entry.field, value } : current)) })} />
         </fieldset>
       ))}
-      {!disabled && free.length > 0 && (
-        <FormRow label="Sample a parameter" htmlFor={`${id}-add`}>
-          <select id={`${id}-add`} className="posfield__select" value="" onChange={(event) => {
-            const parameter = free.find((candidate) => candidate === event.target.value);
-            if (parameter === undefined) return;
-            onChange([...uncertain, { parameter, distribution: uncertaintyFor(lawValue(law, parameter) ?? 1, parameter) }]);
-          }}>
-            <option value="">Choose</option>
-            {free.map((parameter) => <option key={parameter} value={parameter}>{LAW_PARAMETER_LABELS[parameter]}</option>)}
-          </select>
-        </FormRow>
-      )}
     </>
   );
 }
 
-function uncertaintyFor(center: number, parameter: EsqLawParameter): EsqLaw {
-  if (parameter === "errorFactor") return { type: DistributionType.UNIFORM, lower: Math.max(1, center * 0.9), upper: Math.max(1, center * 1.1) };
-  if (center > 0) return { type: DistributionType.LOGNORMAL, median: center, errorFactor: 1.2 };
-  return { type: DistributionType.NORMAL, mean: center, stdDev: Math.max(Math.abs(center) / 10, 1) };
-}
-
-function SideRows({ label, side, unit, hazard, disabled, onChange }: { label: string; side: EsqCellSide; unit: string; hazard: boolean; disabled: boolean; onChange: (next: EsqCellSide) => void }): JSX.Element {
+function SideRows({ label, side, unit, capacity, disabled, onChange }: { label: string; side: EsqCellSide | undefined; unit: string; capacity: boolean; disabled: boolean; onChange: (next: EsqCellSide) => void }): JSX.Element {
   const { esq } = useEsqWorkbook();
   const id = useId();
-  const parameters = (esq.model?.parameters ?? []).filter((parameter) => parameter.distribution !== undefined);
-  const from = side.fragility !== undefined ? "fragility" : side.parameterId !== undefined ? `da:${side.parameterId}` : "typed";
-  const law = side.distribution;
+  const parameters = (esq.model?.parameters ?? []).filter((parameter) => holdsEstimate(parameter.quantificationModel) && parameter.estimate?.node === "VALUE");
+  const fieldOptions = useMemo(() => daOptions(esq, ["QUANTITY", "FACTOR"], "QUANTITY"), [esq]);
+  const from = side === undefined ? "" : side.source === "FRAGILITY" ? "fragility" : side.source === "DA" ? `da:${side.parameterId}` : "typed";
+  const basis = side?.basis ?? "";
+  const center = side?.source === "FRAGILITY" ? side.fragility.median : side?.source === "TYPED" && side.variable.law.family === "POINT" ? side.variable.law.value : 1;
   return (
     <fieldset className="esq-use">
       <legend className="esq-use__legend">{label}</legend>
       <FormRow label="From" htmlFor={`${id}-from`}>
         <select id={`${id}-from`} className="posfield__select" value={from} disabled={disabled} onChange={(event) => {
           const value = event.target.value;
-          const base: EsqCellSide = { basis: side.basis };
-          if (value === "fragility") onChange({ ...base, fragility: side.fragility ?? { median: lawCenterOf(law), betaR: 0.25, betaU: 0.3 } });
-          else if (value.startsWith("da:")) onChange({ ...base, parameterId: value.slice(3) });
-          else onChange(law === undefined ? base : { ...base, distribution: law });
+          if (value === "fragility") onChange({ source: "FRAGILITY", fragility: { median: center > 0 ? center : 1, betaR: 0.25, betaU: 0.3 }, basis });
+          else if (value.startsWith("da:")) onChange({ source: "DA", parameterId: value.slice(3), basis });
+          else if (value === "typed") onChange({ source: "TYPED", variable: { law: { family: "POINT", value: center }, fields: [] }, basis });
         }}>
+          {side === undefined && <option value="">Not set</option>}
           <option value="typed">Typed in ESQ</option>
-          {hazard && <option value="fragility">Fragility (median and betas)</option>}
-          {parameters.map((parameter) => <option key={parameter.id} value={`da:${parameter.id}`}>{`DA · ${parameter.id}`}</option>)}
-          {side.parameterId !== undefined && !parameters.some((parameter) => parameter.id === side.parameterId) && <option value={`da:${side.parameterId}`}>{`DA · ${side.parameterId} · not imported`}</option>}
+          {(capacity || side?.source === "FRAGILITY") && <option value="fragility">Fragility (median and betas)</option>}
+          {parameters.map((parameter) => <option key={parameter.id} value={`da:${parameter.id}`}>{`DA · ${parameter.id} · ${parameter.name}`}</option>)}
+          {side?.source === "DA" && !parameters.some((parameter) => parameter.id === side.parameterId) && <option value={`da:${side.parameterId}`}>{`DA · ${side.parameterId} · not imported`}</option>}
         </select>
       </FormRow>
-      {side.fragility !== undefined && (
+      {side?.source === "FRAGILITY" && (
         <>
-          <NumberRow label="Median capacity" value={side.fragility.median} unit={unit} disabled={disabled} onChange={(median) => { if (median !== undefined && side.fragility !== undefined) onChange({ ...side, fragility: { ...side.fragility, median } }); }} />
-          <NumberRow label="Randomness beta" value={side.fragility.betaR} disabled={disabled} onChange={(betaR) => { if (betaR !== undefined && side.fragility !== undefined) onChange({ ...side, fragility: { ...side.fragility, betaR } }); }} />
-          <NumberRow label="Uncertainty beta" value={side.fragility.betaU} disabled={disabled} onChange={(betaU) => { if (betaU !== undefined && side.fragility !== undefined) onChange({ ...side, fragility: { ...side.fragility, betaU } }); }} />
+          <NumberRow label="Median capacity" value={side.fragility.median} unit={unit} disabled={disabled} onChange={(median) => { if (median !== undefined) onChange({ ...side, fragility: { ...side.fragility, median } }); }} />
+          <NumberRow label="Randomness beta" value={side.fragility.betaR} disabled={disabled} onChange={(betaR) => { if (betaR !== undefined) onChange({ ...side, fragility: { ...side.fragility, betaR } }); }} />
+          <NumberRow label="Uncertainty beta" value={side.fragility.betaU} disabled={disabled} onChange={(betaU) => { if (betaU !== undefined) onChange({ ...side, fragility: { ...side.fragility, betaU } }); }} />
+          <p className="esq-meta">PRAXIS fits the lognormal capacity and the law of its median from the betas.</p>
         </>
       )}
-      {side.fragility === undefined && side.parameterId === undefined && (
-        <>
-          <LawFields law={law} unit={unit} disabled={disabled} onChange={(distribution) => onChange({ ...side, distribution, uncertain: (side.uncertain ?? []).filter((entry) => lawParameters(distribution).includes(entry.parameter)) })} />
-          {law !== undefined && <UncertainRows side={side} law={law} disabled={disabled} onChange={(uncertain) => {
-            const { uncertain: _old, ...rest } = side;
-            onChange(uncertain.length === 0 ? rest : { ...rest, uncertain });
-          }} />}
-        </>
+      {side?.source === "DA" && (
+        <FormRow label="DA law">
+          <span className="esq-form__note">{(() => {
+            const estimate = parameters.find((parameter) => parameter.id === side.parameterId)?.estimate;
+            return estimate?.node === "VALUE" ? lawText(estimate.value.law) : "Not imported";
+          })()}</span>
+        </FormRow>
       )}
-      <FormRow label="Basis" htmlFor={`${id}-basis`} top>
-        <WorkbookTextarea id={`${id}-basis`} className="posfield__textarea" rows={2} fitContent value={side.basis} disabled={disabled} onChange={(event) => onChange({ ...side, basis: event.target.value })} />
-      </FormRow>
+      {side?.source === "TYPED" && <VariableRows variable={side.variable} options={fieldOptions} disabled={disabled} onChange={(variable) => onChange({ ...side, variable })} />}
+      {side !== undefined && (
+        <FormRow label="Basis" htmlFor={`${id}-basis`} top>
+          <WorkbookTextarea id={`${id}-basis`} className="posfield__textarea" rows={2} fitContent value={side.basis} disabled={disabled} onChange={(event) => onChange({ ...side, basis: event.target.value })} />
+        </FormRow>
+      )}
     </fieldset>
   );
-}
-
-function lawCenterOf(law: EsqLaw | undefined): number {
-  if (law === undefined) return 1;
-  const value = lawValue(convertLaw(law, DistributionType.POINT_ESTIMATE), "value");
-  return value !== undefined && value > 0 ? value : 1;
 }
 
 function CellWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
@@ -1096,6 +1094,8 @@ function CellWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.E
   const barrier = entry.barrier;
   const dis = !editable;
   const mechanisms = view.mechanisms.filter((candidate) => candidate.mechanism.barrierId === cell.barrierId && (hazard ? candidate.mechanism.kind === "HAZARD" : candidate.mechanism.kind !== "HAZARD"));
+  const label = parameterLabelOf(esq);
+  const probabilityOptions = daOptions(esq, ["PROBABILITY"], "PROBABILITY");
 
   function save(next: EsqCell): void {
     if (!editable) return;
@@ -1150,8 +1150,8 @@ function CellWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.E
             <option value="REALISTIC">Realistic (CC-II)</option>
           </select>
         </FormRow>
-        <SideRows label={hazard ? "Load · hazard demand" : "Load · the challenge"} side={cell.load} unit={cell.unit} hazard={false} disabled={dis} onChange={(load) => save({ ...cell, load })} />
-        <SideRows label={hazard ? "Capacity · fragility" : "Capacity"} side={cell.capacity} unit={cell.unit} hazard={hazard} disabled={dis} onChange={(capacity) => save({ ...cell, capacity })} />
+        <SideRows label={hazard ? "Load · hazard demand" : "Load · the challenge"} side={cell.load} unit={cell.unit} capacity={false} disabled={dis} onChange={(load) => save({ ...cell, load })} />
+        <SideRows label={hazard ? "Capacity · fragility" : "Capacity"} side={cell.capacity} unit={cell.unit} capacity disabled={dis} onChange={(capacity) => save({ ...cell, capacity })} />
         <AreaRow label="In-service aging" value={cell.aging ?? ""} disabled={dis} onChange={(aging) => {
           const { aging: _old, ...rest } = cell;
           save(aging.trim().length === 0 ? rest : { ...rest, aging });
@@ -1165,24 +1165,17 @@ function CellWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.E
         {cell.use === "SPLIT_FRACTION" && <p className="esq-meta">{entry.usedBy.length === 0 ? "No Step 02 function takes this cell yet." : `Step 02 takes this cell for ${listValue(entry.usedBy)}.`}</p>}
         <fieldset className="esq-use">
           <legend className="esq-use__legend">Typed value</legend>
-          <NumberRow label="P(fail)" value={cell.typed?.value} disabled={dis} onChange={(value) => {
-            const { typed: _old, ...rest } = cell;
-            if (value === undefined) {
-              const { ofRecord: _record, ...without } = rest;
-              save(cell.ofRecord === "TYPED" ? without : rest);
-              return;
-            }
-            save({ ...rest, typed: { ...(cell.typed ?? { basis: "" }), value } });
-          }} />
-          {cell.typed !== undefined && (
+          {cell.typed === undefined ? (
+            !dis && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => save({ ...cell, typed: { expression: probability(cell.run?.point ?? DEFAULT_PROBABILITY), basis: "" } })}>Type a value</button>
+          ) : (
             <>
-              <NumberRow label="Error factor" value={cell.typed.errorFactor} disabled={dis} onChange={(errorFactor) => {
-                const typed = cell.typed;
-                if (typed === undefined) return;
-                const { errorFactor: _old, ...rest } = typed;
-                save({ ...cell, typed: errorFactor === undefined ? rest : { ...rest, errorFactor } });
-              }} />
+              <ExpressionEditor expression={cell.typed.expression} unit="PROBABILITY" options={probabilityOptions} disabled={dis} onChange={(expression) => { if (cell.typed !== undefined) save({ ...cell, typed: { ...cell.typed, expression } }); }} />
               <AreaRow label="Source" value={cell.typed.basis} disabled={dis} onChange={(basis) => { if (cell.typed !== undefined) save({ ...cell, typed: { ...cell.typed, basis } }); }} />
+              {!dis && <button type="button" className="posnav__btn posnav__btn--sm esq-use__remove" onClick={() => {
+                const { typed: _typed, ...rest } = cell;
+                const { ofRecord: _record, ...without } = rest;
+                save(cell.ofRecord === "TYPED" ? without : rest);
+              }}>Remove the typed value</button>}
             </>
           )}
         </fieldset>
@@ -1194,7 +1187,7 @@ function CellWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.E
           }}>
             <option value="">Not chosen</option>
             <option value="RUN" disabled={cell.run === undefined}>{cell.run === undefined ? "PRAXIS run, none kept yet" : `PRAXIS run · ${sciText(cell.run.mean ?? cell.run.point)}`}</option>
-            <option value="TYPED" disabled={cell.typed === undefined}>{cell.typed === undefined ? "Typed, none entered" : `Typed · ${sciText(cell.typed.value)}`}</option>
+            <option value="TYPED" disabled={cell.typed === undefined}>{cell.typed === undefined ? "Typed, none entered" : `Typed · ${expressionText(cell.typed.expression, label)}`}</option>
           </select>
         </FormRow>
         <fieldset className="esq-use">

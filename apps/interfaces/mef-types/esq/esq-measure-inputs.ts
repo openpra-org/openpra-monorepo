@@ -1,24 +1,19 @@
-import { DistributionType, type ParameterDistribution } from "../core/events";
+import { ccfFactorExpressions, ccfFactorVector, type CcfFactorModel, type UncertainExpression, type UncertainUnit } from "../core/uncertainty";
+import { legacyDistributionExpression, legacyExpression } from "../core/legacy-uncertainty-adapter";
+import { holdsEstimate } from "../da/data-analysis";
+import { carriesUncertainExpression } from "../sy/systems-analysis";
 import type {
   EsqCcfRecord,
   EsqModel,
+  EsqParameterRecord,
   EsqSpread,
   EsqSplitFractionTarget,
   EventSequenceQuantification,
 } from "./event-sequence-quantification";
-import { cellOf } from "./esq-barrier-inputs";
+import { cellExpressionOfRecord, cellOf } from "./esq-barrier-inputs";
 import { esqIndependentEventId, resolvedRecoveries } from "./esq-post-inputs";
 import { esqStableId, functionLinkOf, groupFrequency, hash32, resolveLink, sameItem, treesInScope } from "./esq-run-inputs";
 import { solveInputsKey } from "./esq-solve-inputs";
-
-type EsqSamplingLaw =
-  | { type: "POINT"; value: number }
-  | { type: "LOGNORMAL"; median: number; errorFactor: number }
-  | { type: "NORMAL"; mean: number; standardDeviation: number }
-  | { type: "GAMMA"; shape: number; rate: number }
-  | { type: "BETA"; alpha: number; beta: number }
-  | { type: "UNIFORM"; lower: number; upper: number }
-  | { type: "EXPONENTIAL"; rate: number };
 
 type EsqImportanceGroupKind = "PARAMETER" | "HFE" | "CCF_GROUP" | "SYSTEM";
 
@@ -33,16 +28,23 @@ interface EsqImportanceGroup {
 
 type EsqSampledInputKind = "PARAMETER" | "HFE" | "EVENT" | "RECOVERY" | "CCF_GROUP" | "INITIATOR" | "SPLIT" | "CELL";
 
-type EsqLawSource = "DA" | "IE" | "STEP_02" | "STEP_04" | "STEP_06" | "TYPED";
+type EsqLawSource = "DA" | "SY" | "IE" | "STEP_02" | "STEP_04" | "STEP_06" | "TYPED";
+
+interface EsqLegacyValue {
+  point: number;
+  errorFactor?: number;
+}
 
 interface EsqSampledInput {
   key: string;
   kind: EsqSampledInputKind;
   ref: string;
   label: string;
-  point?: number;
-  rate: boolean;
-  law?: EsqSamplingLaw;
+  unit: UncertainUnit;
+  expression?: UncertainExpression;
+  contract: boolean;
+  uncertain: boolean;
+  legacy?: EsqLegacyValue;
   source?: EsqLawSource;
   missing?: string;
   users: string[];
@@ -53,61 +55,52 @@ interface EsqHolder {
   holderId?: string;
 }
 
-const Z95 = 1.6448536269514722;
-
 const PROBABILITY_TYPES = new Set(["PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
 
 const RATE_TYPES = new Set(["FAILURE_RATE", "FREQUENCY"]);
+
+const RATE_MODELS = new Set(["RUNNING_RATE", "STANDBY_RATE"]);
 
 function finitePositive(value: number | undefined): value is number {
   return value !== undefined && Number.isFinite(value) && value > 0;
 }
 
-function lognormalAroundMean(mean: number, errorFactor: number): EsqSamplingLaw {
-  const sigma = Math.log(errorFactor) / Z95;
-  return { type: "LOGNORMAL", median: mean / Math.exp((sigma * sigma) / 2), errorFactor };
+function parameterUnit(parameter: EsqParameterRecord | undefined): UncertainUnit {
+  if (parameter === undefined) return "PROBABILITY";
+  if (parameter.quantificationModel !== undefined && RATE_MODELS.has(parameter.quantificationModel)) return "PER_HOUR";
+  if (parameter.parameterType === "FREQUENCY") return "PER_YEAR";
+  if (parameter.parameterType === "FAILURE_RATE") return "PER_HOUR";
+  return "PROBABILITY";
 }
 
-function lawMean(law: EsqSamplingLaw): number {
-  switch (law.type) {
-    case "POINT": return law.value;
-    case "LOGNORMAL": {
-      const sigma = Math.log(law.errorFactor) / Z95;
-      return law.median * Math.exp((sigma * sigma) / 2);
-    }
-    case "NORMAL": return law.mean;
-    case "GAMMA": return law.shape / law.rate;
-    case "BETA": return law.alpha / (law.alpha + law.beta);
-    case "UNIFORM": return (law.lower + law.upper) / 2;
-    case "EXPONENTIAL": return 1 / law.rate;
+function hasUncertainty(expression: UncertainExpression): boolean {
+  switch (expression.node) {
+    case "VALUE":
+      return expression.value.law.family !== "POINT";
+    case "PARAMETER":
+      return true;
+    case "OPERATION":
+      return expression.operands.some(hasUncertainty);
+    case "MODEL":
+      return Object.values(expression.model).some((argument) => typeof argument === "object" && hasUncertainty(argument));
   }
 }
 
-function lawFromDistribution(distribution: ParameterDistribution | undefined): EsqSamplingLaw | undefined {
-  if (distribution === undefined) return undefined;
-  switch (distribution.type) {
-    case DistributionType.LOGNORMAL:
-      return finitePositive(distribution.median) && Number.isFinite(distribution.errorFactor) && distribution.errorFactor >= 1 ? { type: "LOGNORMAL", median: distribution.median, errorFactor: distribution.errorFactor } : undefined;
-    case DistributionType.BETA:
-      return finitePositive(distribution.alpha) && finitePositive(distribution.betaParam) ? { type: "BETA", alpha: distribution.alpha, beta: distribution.betaParam } : undefined;
-    case DistributionType.GAMMA:
-      return finitePositive(distribution.shape) && finitePositive(distribution.rate) ? { type: "GAMMA", shape: distribution.shape, rate: distribution.rate } : undefined;
-    case DistributionType.NORMAL:
-      return Number.isFinite(distribution.mean) && Number.isFinite(distribution.stdDev) && distribution.stdDev >= 0 ? { type: "NORMAL", mean: distribution.mean, standardDeviation: distribution.stdDev } : undefined;
-    case DistributionType.UNIFORM:
-      return Number.isFinite(distribution.lower) && Number.isFinite(distribution.upper) && distribution.lower < distribution.upper ? { type: "UNIFORM", lower: distribution.lower, upper: distribution.upper } : undefined;
-    case DistributionType.EXPONENTIAL:
-      return finitePositive(distribution.failureRate) ? { type: "EXPONENTIAL", rate: distribution.failureRate } : undefined;
-    default:
-      return undefined;
-  }
+function factorsUncertain(factors: CcfFactorModel): boolean {
+  const vector = ccfFactorVector(factors);
+  if (vector !== undefined && (vector.node === "PARAMETER" || vector.law.family === "DIRICHLET")) return true;
+  return ccfFactorExpressions(factors).some(hasUncertainty);
 }
 
-function lawPercentile(law: EsqSamplingLaw, z: number): number | undefined {
-  if (law.type === "POINT") return law.value;
-  if (law.type === "LOGNORMAL") return law.median * Math.exp((z * Math.log(law.errorFactor)) / Z95);
-  if (law.type === "NORMAL") return law.mean + z * law.standardDeviation;
-  return undefined;
+function legacyInput(esq: EventSequenceQuantification, input: EsqSampledInput, legacy: EsqLegacyValue | undefined, missing: string): EsqSampledInput {
+  if (legacy === undefined) return { ...input, missing };
+  const spread = spreadOf(esq, input.key);
+  const errorFactor = legacy.errorFactor ?? (spread !== undefined && Number.isFinite(spread.errorFactor) && spread.errorFactor >= 1 ? spread.errorFactor : undefined);
+  const expression = legacyExpression(input.unit, legacy.point, errorFactor);
+  const next: EsqSampledInput = { ...input, legacy: { ...legacy, ...(errorFactor === undefined ? {} : { errorFactor }) }, expression, uncertain: hasUncertainty(expression) };
+  if (legacy.errorFactor === undefined && errorFactor !== undefined) next.source = "TYPED";
+  if (errorFactor === undefined || !(errorFactor > 1)) next.missing = missing;
+  return next;
 }
 
 function holderOf(esq: EventSequenceQuantification, model: EsqModel, eventId: string): EsqHolder {
@@ -158,15 +151,6 @@ function splitInputKey(functionId: string, target: EsqSplitFractionTarget): stri
   return `SPLIT:${functionId}:${String(target.value ?? "")}`;
 }
 
-function withSpread(esq: EventSequenceQuantification, input: EsqSampledInput, missing: string): EsqSampledInput {
-  if (input.law !== undefined) return input;
-  const spread = spreadOf(esq, input.key);
-  if (spread !== undefined && finitePositive(input.point) && Number.isFinite(spread.errorFactor) && spread.errorFactor >= 1) {
-    return { ...input, law: lognormalAroundMean(input.point, spread.errorFactor), source: "TYPED" };
-  }
-  return { ...input, missing };
-}
-
 function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
   const model = esq.model;
   if (model === undefined) return [];
@@ -186,16 +170,20 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
       kind: "PARAMETER",
       ref: parameterId,
       label: parameter === undefined ? parameterId : `${parameter.name} (${parameterId})`,
-      rate: parameter !== undefined && RATE_TYPES.has(parameter.parameterType),
+      unit: parameterUnit(parameter),
+      contract: parameter !== undefined && holdsEstimate(parameter.quantificationModel),
+      uncertain: false,
       users: [],
     };
-    if (parameter?.value !== undefined) input.point = parameter.value;
-    const law = lawFromDistribution(parameter?.distribution);
-    if (law !== undefined) {
-      input.law = law;
-      input.source = "DA";
+    if (input.contract) {
+      if (parameter?.estimate === undefined) return { ...input, missing: "DA gives this parameter no estimate." };
+      const next: EsqSampledInput = { ...input, expression: parameter.estimate, uncertain: hasUncertainty(parameter.estimate), source: "DA" };
+      if (!next.uncertain) next.missing = "DA gives this estimate no uncertainty. Give it a law in DA.";
+      return next;
     }
-    return withSpread(esq, input, "DA gives no distribution. Type an error factor or add one in DA.");
+    const legacy = parameter?.distribution === undefined ? undefined : legacyDistributionExpression(input.unit, parameter.distribution);
+    if (legacy !== undefined && parameter?.value !== undefined) return { ...input, expression: legacy, uncertain: hasUncertainty(legacy), legacy: { point: parameter.value }, source: "DA" };
+    return legacyInput(esq, input, parameter?.value === undefined ? undefined : { point: parameter.value }, "DA gives no distribution. Type an error factor or add one in DA.");
   };
   for (const event of model.events) {
     const holder = holderOf(esq, model, event.id);
@@ -206,14 +194,22 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
     }
     if (holder.heldBy === "HRA" && holder.holderId !== undefined) {
       const human = model.humanEvents.find((entry) => entry.id === holder.holderId);
-      const input: EsqSampledInput = { key: `HFE:${holder.holderId}`, kind: "HFE", ref: holder.holderId, label: human === undefined ? holder.holderId : `${human.name} (${holder.holderId})`, rate: false, users: [] };
-      if (human?.value !== undefined) input.point = human.value;
-      use(withSpread(esq, input, "HR gives no distribution. Type an error factor."), user);
+      const input: EsqSampledInput = { key: `HFE:${holder.holderId}`, kind: "HFE", ref: holder.holderId, label: human === undefined ? holder.holderId : `${human.name} (${holder.holderId})`, unit: "PROBABILITY", contract: false, uncertain: false, users: [] };
+      use(legacyInput(esq, input, human?.value === undefined ? undefined : { point: human.value }, "HR gives no distribution. Type an error factor."), user);
       continue;
     }
-    const input: EsqSampledInput = { key: `EVENT:${event.id}`, kind: "EVENT", ref: event.id, label: event.name.length > 0 ? `${event.code} · ${event.name}` : event.code, rate: event.valueUnit === "PER_HOUR", users: [] };
-    if (event.value !== undefined) input.point = event.value;
-    use(withSpread(esq, input, "SY types this value without a distribution. Type an error factor."), user);
+    const input: EsqSampledInput = { key: `EVENT:${event.id}`, kind: "EVENT", ref: event.id, label: event.name.length > 0 ? `${event.code} · ${event.name}` : event.code, unit: "PROBABILITY", contract: carriesUncertainExpression(event.failureMode), uncertain: false, users: [] };
+    if (input.contract) {
+      if (event.expression === undefined) {
+        use({ ...input, missing: "SY gives this event no value." }, user);
+        continue;
+      }
+      const next: EsqSampledInput = { ...input, expression: event.expression, uncertain: hasUncertainty(event.expression), source: "SY" };
+      if (!next.uncertain) next.missing = "SY types this value without uncertainty. Give it a law in SY.";
+      use(next, user);
+      continue;
+    }
+    use(legacyInput(esq, input, event.value === undefined || event.valueUnit === "PER_HOUR" ? undefined : { point: event.value }, "SY types this value without a distribution. Type an error factor."), user);
   }
   for (const group of model.ccfGroups) {
     const parameter = ccfParameterOf(esq, model, group);
@@ -221,20 +217,23 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
       use(parameterInput(parameter), `ccf:${group.id}`);
       continue;
     }
-    const input: EsqSampledInput = { key: `CCF_GROUP:${group.id}`, kind: "CCF_GROUP", ref: group.id, label: `${group.name} (${group.id})`, rate: false, users: [] };
-    if (group.totalProbability !== undefined) input.point = group.totalProbability;
-    use(withSpread(esq, input, "The members take their values from different sources. Type an error factor for the group total."), `ccf:${group.id}`);
+    const input: EsqSampledInput = { key: `CCF_GROUP:${group.id}`, kind: "CCF_GROUP", ref: group.id, label: `${group.name} (${group.id})`, unit: "PROBABILITY", contract: true, uncertain: false, users: [] };
+    if (group.total === undefined || group.factors === undefined) {
+      use({ ...input, missing: "SY gives this group no total or no factors. Complete the group in SY and import again." }, `ccf:${group.id}`);
+      continue;
+    }
+    const next: EsqSampledInput = { ...input, expression: group.total, uncertain: hasUncertainty(group.total) || factorsUncertain(group.factors), source: "SY" };
+    if (!next.uncertain) next.missing = "SY gives this group total and its factors no uncertainty. Give them a law in SY or DA.";
+    use(next, `ccf:${group.id}`);
   }
   for (const recovery of resolvedRecoveries(esq)) {
     if (!recovery.credited) continue;
-    const input: EsqSampledInput = { key: `RECOVERY:${recovery.id}`, kind: "RECOVERY", ref: recovery.id, label: `NR-${recovery.id}${recovery.name.length > 0 ? ` · ${recovery.name}` : ""}`, rate: false, users: [] };
-    if (recovery.value !== undefined) input.point = recovery.value;
+    const input: EsqSampledInput = { key: `RECOVERY:${recovery.id}`, kind: "RECOVERY", ref: recovery.id, label: `NR-${recovery.id}${recovery.name.length > 0 ? ` · ${recovery.name}` : ""}`, unit: "PROBABILITY", contract: false, uncertain: false, users: [] };
     const typed = recovery.rule?.typed;
-    if (recovery.source === "TYPED" && typed?.errorFactor !== undefined && typed.errorFactor >= 1 && finitePositive(typed.value)) {
-      input.law = lognormalAroundMean(typed.value, typed.errorFactor);
-      input.source = "STEP_06";
-    }
-    use(withSpread(esq, input, "HR gives no distribution for this recovery. Type an error factor."), `recovery:${recovery.id}`);
+    const stated = recovery.source === "TYPED" && typed?.errorFactor !== undefined && typed.errorFactor >= 1 && finitePositive(typed.value);
+    const legacy = stated && typed !== undefined && typed.value !== undefined ? { point: typed.value, errorFactor: typed.errorFactor } : recovery.value === undefined ? undefined : { point: recovery.value };
+    const built = legacyInput(esq, input, legacy, "HR gives no distribution for this recovery. Type an error factor.");
+    use(stated ? { ...built, source: "STEP_06" } : built, `recovery:${recovery.id}`);
   }
   const roots = treesInScope(esq, model).filter((tree) => !tree.transferEntry);
   for (const groupId of [...new Set(roots.map((tree) => tree.initiatorId))]) {
@@ -245,16 +244,15 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
     }
     const view = groupFrequency(esq, model, groupId, roots);
     const record = model.initiators.find((entry) => sameItem(entry.id, groupId));
-    const input: EsqSampledInput = { key, kind: "INITIATOR", ref: groupId, label: `${record?.name ?? groupId} (${groupId})`, rate: true, users: [] };
-    if (view.rawMean !== undefined) input.point = view.rawMean;
-    if (view.source === "IE" && finitePositive(record?.medianFrequency) && record?.errorFactor !== undefined && record.errorFactor >= 1) {
-      input.law = { type: "LOGNORMAL", median: record.medianFrequency, errorFactor: record.errorFactor };
-      input.source = "IE";
-    } else if (view.source === "TYPED" && finitePositive(view.rawMean) && view.errorFactor !== undefined && view.errorFactor >= 1) {
-      input.law = lognormalAroundMean(view.rawMean, view.errorFactor);
-      input.source = "STEP_02";
+    const input: EsqSampledInput = { key, kind: "INITIATOR", ref: groupId, label: `${record?.name ?? groupId} (${groupId})`, unit: "PER_YEAR", contract: true, uncertain: false, users: [] };
+    if (view.given === undefined) {
+      use({ ...input, missing: "The initiator group has no frequency. Take it from IE or DA, or type it in Step 02." }, `initiator:${groupId}`);
+      continue;
     }
-    use(withSpread(esq, input, "The initiator frequency has no distribution. Type an error factor."), `initiator:${groupId}`);
+    const fromIe = view.source === "IE";
+    const next: EsqSampledInput = { ...input, expression: view.given, uncertain: hasUncertainty(view.given), source: fromIe ? "IE" : "STEP_02" };
+    if (!next.uncertain) next.missing = fromIe ? "IE gives this frequency no uncertainty. Give it a law in IE." : "The typed frequency has no uncertainty. Give it a law in Step 02.";
+    use(next, `initiator:${groupId}`);
   }
   for (const record of model.functions) {
     for (const tree of roots) {
@@ -268,28 +266,22 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
       }
       if (target.cellId !== undefined) {
         const cell = cellOf(esq, target.cellId);
-        const input: EsqSampledInput = { key, kind: "CELL", ref: target.cellId, label: `Cell ${target.cellId}`, rate: false, users: [] };
-        const run = cell?.ofRecord === "RUN" ? cell.run : undefined;
-        const typed = cell?.ofRecord === "TYPED" ? cell.typed : undefined;
-        const value = typed?.value ?? run?.mean ?? run?.point;
-        if (value !== undefined) input.point = value;
-        if (run !== undefined && finitePositive(run.p05) && finitePositive(run.p95) && finitePositive(run.p50) && run.p95 > run.p05) {
-          input.law = { type: "LOGNORMAL", median: run.p50, errorFactor: Math.sqrt(run.p95 / run.p05) };
-          input.source = "STEP_04";
-        } else if (typed?.errorFactor !== undefined && typed.errorFactor >= 1 && finitePositive(typed.value)) {
-          input.law = lognormalAroundMean(typed.value, typed.errorFactor);
-          input.source = "STEP_04";
+        const input: EsqSampledInput = { key, kind: "CELL", ref: target.cellId, label: `Cell ${target.cellId}`, unit: "PROBABILITY", contract: true, uncertain: false, users: [] };
+        const expression = cell === undefined ? undefined : cellExpressionOfRecord(cell);
+        if (cell === undefined || expression === undefined) {
+          use({ ...input, missing: "The cell has no value of record. Run it or type its value in Step 04." }, user);
+          continue;
         }
-        use(withSpread(esq, input, "The cell has no sampled run or typed error factor."), user);
+        const next: EsqSampledInput = { ...input, expression, uncertain: hasUncertainty(expression), source: "STEP_04" };
+        if (!next.uncertain) next.missing = cell.ofRecord === "RUN" ? "The cell run of record has no sampled law. Make a load or capacity field uncertain and run it again in Step 04." : "The typed cell value has no uncertainty. Give it a law in Step 04.";
+        use(next, user);
         continue;
       }
-      const input: EsqSampledInput = { key, kind: "SPLIT", ref: record.id, label: `${record.name} split fraction`, rate: false, users: [] };
-      if (target.value !== undefined) input.point = target.value;
-      if (finitePositive(target.value) && target.errorFactor !== undefined && target.errorFactor >= 1) {
-        input.law = lognormalAroundMean(target.value, target.errorFactor);
-        input.source = "STEP_02";
-      }
-      use(withSpread(esq, input, "The typed split fraction has no error factor."), user);
+      const input: EsqSampledInput = { key, kind: "SPLIT", ref: record.id, label: `${record.name} split fraction`, unit: "PROBABILITY", contract: false, uncertain: false, users: [] };
+      const stated = finitePositive(target.value) && target.errorFactor !== undefined && target.errorFactor >= 1;
+      const legacy = target.value === undefined ? undefined : { point: target.value, ...(stated ? { errorFactor: target.errorFactor } : {}) };
+      const built = legacyInput(esq, input, legacy, "The typed split fraction has no error factor.");
+      use(stated ? { ...built, source: "STEP_02" } : built, user);
     }
   }
   return [...inputs.values()];
@@ -351,18 +343,19 @@ function uncertaintyInputsKey(esq: EventSequenceQuantification): string {
 
 export {
   PROBABILITY_TYPES,
+  RATE_TYPES,
   esqImportanceRunId,
   esqUncertaintyRunId,
+  factorsUncertain,
+  hasUncertainty,
+  holderOf,
   uncertaintyInputsKey,
   ccfInputKey,
   eventInputKey,
   importanceGroupsOf,
   initiatorInputKey,
-  lawFromDistribution,
-  lawMean,
-  lawPercentile,
-  lognormalAroundMean,
+  parameterUnit,
   sampledInputsOf,
   splitInputKey,
 };
-export type { EsqImportanceGroup, EsqImportanceGroupKind, EsqLawSource, EsqSampledInput, EsqSampledInputKind, EsqSamplingLaw };
+export type { EsqImportanceGroup, EsqImportanceGroupKind, EsqLawSource, EsqLegacyValue, EsqSampledInput, EsqSampledInputKind };

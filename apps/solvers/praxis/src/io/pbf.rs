@@ -16,16 +16,20 @@ use crate::analysis::quantify::{
     Approximation, CutSetOut, CutSetsOut, ImportanceOut, ProbabilityOut, QuantResult,
     UncertaintyOut,
 };
-use crate::core::ccf::{CcfGroup, CcfModel, RaspCcfEvent, TestingScheme};
+use crate::analysis::uncertainty::QuantileValue;
+use crate::core::ccf::{alphas_key, fixed_components, phis_key, CcfGroup, CcfModel, RaspCcfEvent};
 use crate::core::event::{BasicEvent, HouseEvent};
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::{Formula, Gate};
 use crate::error::PraxisError;
+use crate::core::distribution::{CcfTesting, Law, VectorLaw};
 use crate::expression::Expr;
 use crate::Result;
 
 pub const MAGIC: [u8; 4] = *b"PBF1";
 pub const VERSION: u8 = 1;
+pub const MODEL_VERSION: u8 = 2;
+pub const RESULT_VERSION: u8 = 2;
 
 // ----------------------------------------------------------------- primitives
 
@@ -617,44 +621,37 @@ fn encode_expr(out: &mut Vec<u8>, e: &Expr) {
             encode_expr(out, t0);
             encode_expr(out, time);
         }
-        UniformDeviate { lower, upper } => {
-            out.push(44);
-            encode_expr(out, lower);
-            encode_expr(out, upper);
-        }
-        NormalDeviate { mean, sigma } => {
+        StandbyAverage { lambda, interval } => {
             out.push(45);
-            encode_expr(out, mean);
-            encode_expr(out, sigma);
+            encode_expr(out, lambda);
+            encode_expr(out, interval);
         }
-        LognormalDeviate { mu, sigma } => {
-            out.push(46);
-            encode_expr(out, mu);
-            encode_expr(out, sigma);
+        Draw { key, law } => {
+            out.push(44);
+            put_string(out, key);
+            put_string(
+                out,
+                &serde_json::to_string(law.as_ref()).unwrap_or_default(),
+            );
         }
-        GammaDeviate { shape, rate } => {
-            out.push(47);
-            encode_expr(out, shape);
-            encode_expr(out, rate);
-        }
-        BetaDeviate { alpha, beta } => {
-            out.push(48);
-            encode_expr(out, alpha);
-            encode_expr(out, beta);
-        }
-        TriangularDeviate { lower, mode, upper } => {
-            out.push(49);
-            encode_expr(out, lower);
-            encode_expr(out, mode);
-            encode_expr(out, upper);
-        }
-        Histogram {
-            boundaries,
-            weights,
+        Fragility {
+            median,
+            randomness,
+            demand,
         } => {
-            out.push(50);
-            encode_expr_vec(out, boundaries);
-            encode_expr_vec(out, weights);
+            out.push(46);
+            encode_expr(out, median);
+            encode_expr(out, randomness);
+            encode_expr(out, demand);
+        }
+        Component { key, index, law } => {
+            out.push(47);
+            put_string(out, key);
+            put_uvarint(out, *index as u64);
+            put_string(
+                out,
+                &serde_json::to_string(law.as_ref()).unwrap_or_default(),
+            );
         }
     }
 }
@@ -732,35 +729,43 @@ fn decode_expr(r: &mut Reader) -> Result<Expr> {
             t0: Box::new(decode_expr(r)?),
             time: Box::new(decode_expr(r)?),
         },
-        44 => Expr::UniformDeviate {
-            lower: Box::new(decode_expr(r)?),
-            upper: Box::new(decode_expr(r)?),
+        44 => {
+            let key = r.string()?;
+            let law: Law = serde_json::from_str(&r.string()?)
+                .map_err(|error| PraxisError::Logic(format!("PBF: invalid law: {error}")))?;
+            law.check_shape()?;
+            Expr::Draw {
+                key,
+                law: Box::new(law),
+            }
+        }
+        45 => Expr::StandbyAverage {
+            lambda: Box::new(decode_expr(r)?),
+            interval: Box::new(decode_expr(r)?),
         },
-        45 => Expr::NormalDeviate {
-            mean: Box::new(decode_expr(r)?),
-            sigma: Box::new(decode_expr(r)?),
+        46 => Expr::Fragility {
+            median: Box::new(decode_expr(r)?),
+            randomness: Box::new(decode_expr(r)?),
+            demand: Box::new(decode_expr(r)?),
         },
-        46 => Expr::LognormalDeviate {
-            mu: Box::new(decode_expr(r)?),
-            sigma: Box::new(decode_expr(r)?),
-        },
-        47 => Expr::GammaDeviate {
-            shape: Box::new(decode_expr(r)?),
-            rate: Box::new(decode_expr(r)?),
-        },
-        48 => Expr::BetaDeviate {
-            alpha: Box::new(decode_expr(r)?),
-            beta: Box::new(decode_expr(r)?),
-        },
-        49 => Expr::TriangularDeviate {
-            lower: Box::new(decode_expr(r)?),
-            mode: Box::new(decode_expr(r)?),
-            upper: Box::new(decode_expr(r)?),
-        },
-        50 => Expr::Histogram {
-            boundaries: decode_expr_vec(r)?,
-            weights: decode_expr_vec(r)?,
-        },
+        47 => {
+            let key = r.string()?;
+            let index = r.uvarint()? as usize;
+            let law: VectorLaw = serde_json::from_str(&r.string()?)
+                .map_err(|error| PraxisError::Logic(format!("PBF: invalid vector law: {error}")))?;
+            law.check_shape()?;
+            if index >= law.len() {
+                return Err(PraxisError::Logic(format!(
+                    "PBF: component {index} is outside a vector of {}",
+                    law.len()
+                )));
+            }
+            Expr::Component {
+                key,
+                index,
+                law: Box::new(law),
+            }
+        }
         other => {
             return Err(PraxisError::Logic(format!(
                 "PBF: unknown expression tag {other}"
@@ -825,77 +830,171 @@ fn read_f64_vec(r: &mut Reader) -> Result<Vec<f64>> {
     Ok(v)
 }
 
-fn encode_ccf_model(out: &mut Vec<u8>, m: &CcfModel) {
-    match m {
-        CcfModel::BetaFactor(b) => {
-            out.push(0);
-            out.extend_from_slice(&b.to_bits().to_le_bytes());
-        }
-        CcfModel::AlphaFactor { factors, scheme } => {
-            out.push(1);
-            out.push(match scheme {
-                TestingScheme::NonStaggered => 0,
-                TestingScheme::Staggered => 1,
-            });
-            put_f64_vec(out, factors);
-        }
-        CcfModel::Mgl(v) => {
-            out.push(2);
-            put_f64_vec(out, v);
-        }
-        CcfModel::RaspMgl {
-            factors,
-            virtual_events,
-        } => {
-            out.push(4);
-            put_f64_vec(out, factors);
-            put_uvarint(out, virtual_events.len() as u64);
-            for event in virtual_events {
-                put_string(out, &event.id);
-                put_uvarint(out, event.member_indices.len() as u64);
-                for index in &event.member_indices {
-                    put_uvarint(out, *index as u64);
-                }
-            }
-        }
-        CcfModel::PhiFactor(v) => {
-            out.push(3);
-            put_f64_vec(out, v);
+fn numeric_factor(expr: &Expr, key: &str) -> Option<f64> {
+    match expr {
+        Expr::Constant(value) => Some(*value),
+        Expr::Component {
+            key: component_key,
+            index,
+            law,
+        } if component_key == key => match law.as_ref() {
+            VectorLaw::Fixed { values } => values.get(*index).copied(),
+            VectorLaw::Dirichlet { .. } => None,
+        },
+        _ => None,
+    }
+}
+
+fn numeric_factors(exprs: &[Expr], key: &str) -> Option<Vec<f64>> {
+    exprs.iter().map(|expr| numeric_factor(expr, key)).collect()
+}
+
+fn testing_byte(testing: CcfTesting) -> u8 {
+    match testing {
+        CcfTesting::NonStaggered => 0,
+        CcfTesting::Staggered => 1,
+    }
+}
+
+fn read_testing(r: &mut Reader) -> Result<CcfTesting> {
+    match r.u8()? {
+        0 => Ok(CcfTesting::NonStaggered),
+        1 => Ok(CcfTesting::Staggered),
+        other => Err(PraxisError::Logic(format!(
+            "PBF: unknown CCF testing scheme {other}"
+        ))),
+    }
+}
+
+fn encode_virtual_events(out: &mut Vec<u8>, virtual_events: &[RaspCcfEvent]) {
+    put_uvarint(out, virtual_events.len() as u64);
+    for event in virtual_events {
+        put_string(out, &event.id);
+        put_uvarint(out, event.member_indices.len() as u64);
+        for index in &event.member_indices {
+            put_uvarint(out, *index as u64);
         }
     }
 }
 
-fn decode_ccf_model(r: &mut Reader) -> Result<CcfModel> {
-    Ok(match r.u8()? {
-        0 => CcfModel::BetaFactor(r.f64()?),
-        1 => {
-            let scheme = match r.u8()? {
-                0 => TestingScheme::NonStaggered,
-                _ => TestingScheme::Staggered,
-            };
-            CcfModel::AlphaFactor {
-                factors: read_f64_vec(r)?,
-                scheme,
+fn decode_virtual_events(r: &mut Reader) -> Result<Vec<RaspCcfEvent>> {
+    let count = r.uvarint()? as usize;
+    let mut virtual_events = Vec::with_capacity(count);
+    for _ in 0..count {
+        let id = r.string()?;
+        let member_count = r.uvarint()? as usize;
+        let mut member_indices = Vec::with_capacity(member_count);
+        for _ in 0..member_count {
+            member_indices.push(r.uvarint()? as usize);
+        }
+        virtual_events.push(RaspCcfEvent { id, member_indices });
+    }
+    Ok(virtual_events)
+}
+
+fn encode_ccf_model(out: &mut Vec<u8>, group_id: &str, m: &CcfModel) {
+    match m {
+        CcfModel::BetaFactor(b) => match numeric_factor(b, "") {
+            Some(value) => {
+                out.push(0);
+                out.extend_from_slice(&value.to_bits().to_le_bytes());
+            }
+            None => {
+                out.push(5);
+                encode_expr(out, b);
+            }
+        },
+        CcfModel::AlphaFactor { testing, alphas } => {
+            match numeric_factors(alphas, &alphas_key(group_id)) {
+                Some(values) => {
+                    out.push(1);
+                    out.push(testing_byte(*testing));
+                    put_f64_vec(out, &values);
+                }
+                None => {
+                    out.push(6);
+                    out.push(testing_byte(*testing));
+                    encode_expr_vec(out, alphas);
+                }
             }
         }
-        2 => CcfModel::Mgl(read_f64_vec(r)?),
-        3 => CcfModel::PhiFactor(read_f64_vec(r)?),
-        4 => {
-            let factors = read_f64_vec(r)?;
-            let count = r.uvarint()? as usize;
-            let mut virtual_events = Vec::with_capacity(count);
-            for _ in 0..count {
-                let id = r.string()?;
-                let member_count = r.uvarint()? as usize;
-                let mut member_indices = Vec::with_capacity(member_count);
-                for _ in 0..member_count {
-                    member_indices.push(r.uvarint()? as usize);
-                }
-                virtual_events.push(RaspCcfEvent { id, member_indices });
+        CcfModel::Mgl(factors) => match numeric_factors(factors, "") {
+            Some(values) => {
+                out.push(2);
+                put_f64_vec(out, &values);
             }
+            None => {
+                out.push(7);
+                encode_expr_vec(out, factors);
+            }
+        },
+        CcfModel::PhiFactor(phis) => match numeric_factors(phis, &phis_key(group_id)) {
+            Some(values) => {
+                out.push(3);
+                put_f64_vec(out, &values);
+            }
+            None => {
+                out.push(8);
+                encode_expr_vec(out, phis);
+            }
+        },
+        CcfModel::RaspMgl {
+            factors,
+            virtual_events,
+        } => {
+            match numeric_factors(factors, "") {
+                Some(values) => {
+                    out.push(4);
+                    put_f64_vec(out, &values);
+                }
+                None => {
+                    out.push(9);
+                    encode_expr_vec(out, factors);
+                }
+            }
+            encode_virtual_events(out, virtual_events);
+        }
+    }
+}
+
+fn constants(values: Vec<f64>) -> Vec<Expr> {
+    values.into_iter().map(Expr::Constant).collect()
+}
+
+fn decode_ccf_model(r: &mut Reader, group_id: &str) -> Result<CcfModel> {
+    Ok(match r.u8()? {
+        0 => CcfModel::BetaFactor(Expr::Constant(r.f64()?)),
+        1 => {
+            let testing = read_testing(r)?;
+            CcfModel::AlphaFactor {
+                testing,
+                alphas: fixed_components(&alphas_key(group_id), read_f64_vec(r)?)?,
+            }
+        }
+        2 => CcfModel::Mgl(constants(read_f64_vec(r)?)),
+        3 => CcfModel::PhiFactor(fixed_components(&phis_key(group_id), read_f64_vec(r)?)?),
+        4 => {
+            let factors = constants(read_f64_vec(r)?);
             CcfModel::RaspMgl {
                 factors,
-                virtual_events,
+                virtual_events: decode_virtual_events(r)?,
+            }
+        }
+        5 => CcfModel::BetaFactor(decode_expr(r)?),
+        6 => {
+            let testing = read_testing(r)?;
+            CcfModel::AlphaFactor {
+                testing,
+                alphas: decode_expr_vec(r)?,
+            }
+        }
+        7 => CcfModel::Mgl(decode_expr_vec(r)?),
+        8 => CcfModel::PhiFactor(decode_expr_vec(r)?),
+        9 => {
+            let factors = decode_expr_vec(r)?;
+            CcfModel::RaspMgl {
+                factors,
+                virtual_events: decode_virtual_events(r)?,
             }
         }
         other => {
@@ -942,7 +1041,7 @@ pub fn encode_fault_tree(ft: &FaultTree) -> Result<Vec<u8>> {
 
     let mut out = Vec::new();
     out.extend_from_slice(&MODEL_MAGIC);
-    out.push(VERSION);
+    out.push(MODEL_VERSION);
     put_string(&mut out, ft.element().id());
     out.extend_from_slice(&ft.mission_time().to_bits().to_le_bytes());
 
@@ -995,14 +1094,17 @@ pub fn encode_fault_tree(ft: &FaultTree) -> Result<Vec<u8>> {
         for m in &g.members {
             put_string(&mut out, m);
         }
-        match &g.distribution {
-            Some(d) => {
+        match &g.total {
+            Expr::Constant(value) => {
                 out.push(1);
-                put_string(&mut out, d);
+                put_string(&mut out, &value.to_string());
             }
-            None => out.push(0),
+            total => {
+                out.push(2);
+                encode_expr(&mut out, total);
+            }
         }
-        encode_ccf_model(&mut out, &g.model);
+        encode_ccf_model(&mut out, g.element().id(), &g.model);
     }
 
     Ok(out)
@@ -1030,7 +1132,7 @@ pub fn decode_fault_tree(bytes: &[u8]) -> Result<FaultTree> {
         return Err(PraxisError::Logic("PBF: bad model magic".to_string()));
     }
     let version = r.u8()?;
-    if version != VERSION {
+    if version != MODEL_VERSION {
         return Err(PraxisError::Logic(format!(
             "PBF: unsupported model version {version}"
         )));
@@ -1112,12 +1214,24 @@ pub fn decode_fault_tree(bytes: &[u8]) -> Result<FaultTree> {
         for _ in 0..mc {
             members.push(r.string()?);
         }
-        let dist = if r.u8()? == 1 {
-            Some(r.string()?)
-        } else {
-            None
+        let total = match r.u8()? {
+            1 => {
+                let text = r.string()?;
+                Expr::Constant(text.parse::<f64>().map_err(|_| {
+                    PraxisError::Logic(format!(
+                        "PBF: CCF group '{id}' total '{text}' is not a number"
+                    ))
+                })?)
+            }
+            2 => decode_expr(&mut r)?,
+            _ => {
+                return Err(PraxisError::Logic(format!(
+                    "PBF: CCF group '{id}' has no total"
+                )))
+            }
         };
-        ccf.push((id, members, dist, decode_ccf_model(&mut r)?));
+        let model = decode_ccf_model(&mut r, &id)?;
+        ccf.push((id, members, total, model));
     }
 
     let mut ft = FaultTree::new(ft_id, names[top_pos].clone())?;
@@ -1152,12 +1266,8 @@ pub fn decode_fault_tree(bytes: &[u8]) -> Result<FaultTree> {
             }
         }
     }
-    for (id, members, dist, model) in ccf {
-        let mut group = CcfGroup::new(id, members, model)?;
-        if let Some(d) = dist {
-            group = group.with_distribution(d);
-        }
-        ft.add_ccf_group(group)?;
+    for (id, members, total, model) in ccf {
+        ft.add_ccf_group(CcfGroup::new(id, members, model, total)?)?;
     }
 
     Ok(ft)
@@ -1198,7 +1308,7 @@ fn put_f64(out: &mut Vec<u8>, x: f64) {
 pub fn encode_result(r: &QuantResult) -> Vec<u8> {
     let mut out = Vec::new();
     out.extend_from_slice(&RESULT_MAGIC);
-    out.push(VERSION);
+    out.push(RESULT_VERSION);
 
     match &r.probability {
         Some(p) => {
@@ -1252,10 +1362,15 @@ pub fn encode_result(r: &QuantResult) -> Vec<u8> {
             out.push(1);
             put_f64(&mut out, u.mean);
             put_f64(&mut out, u.standard_deviation);
-            put_f64(&mut out, u.error_factor);
+            put_f64(&mut out, u.standard_error);
             put_uvarint(&mut out, u.quantiles.len() as u64);
-            for &q in &u.quantiles {
-                put_f64(&mut out, q);
+            for q in &u.quantiles {
+                put_f64(&mut out, q.probability);
+                put_f64(&mut out, q.value);
+            }
+            put_uvarint(&mut out, u.samples.len() as u64);
+            for sample in &u.samples {
+                put_f64(&mut out, *sample);
             }
         }
         None => out.push(0),
@@ -1271,7 +1386,7 @@ pub fn decode_result(bytes: &[u8]) -> Result<QuantResult> {
         return Err(PraxisError::Logic("PBF: bad result magic".to_string()));
     }
     let version = r.u8()?;
-    if version != VERSION {
+    if version != RESULT_VERSION {
         return Err(PraxisError::Logic(format!(
             "PBF: unsupported result version {version}"
         )));
@@ -1339,17 +1454,25 @@ pub fn decode_result(bytes: &[u8]) -> Result<QuantResult> {
     if r.u8()? == 1 {
         let mean = r.f64()?;
         let standard_deviation = r.f64()?;
-        let error_factor = r.f64()?;
+        let standard_error = r.f64()?;
         let n = r.uvarint()? as usize;
         let mut quantiles = Vec::with_capacity(n);
         for _ in 0..n {
-            quantiles.push(r.f64()?);
+            let probability = r.f64()?;
+            let value = r.f64()?;
+            quantiles.push(QuantileValue { probability, value });
+        }
+        let count = r.uvarint()? as usize;
+        let mut samples = Vec::with_capacity(count);
+        for _ in 0..count {
+            samples.push(r.f64()?);
         }
         out.uncertainty = Some(UncertaintyOut {
             mean,
             standard_deviation,
-            error_factor,
+            standard_error,
             quantiles,
+            samples,
         });
     }
 
@@ -1544,9 +1667,29 @@ mod tests {
                 lambda: Box::new(Expr::Parameter("lambda".to_string())),
                 time: Box::new(Expr::MissionTime),
             },
-            Expr::LognormalDeviate {
-                mu: Box::new(Expr::Constant(-4.0)),
-                sigma: Box::new(Expr::Constant(0.5)),
+            Expr::Draw {
+                key: "parameter:lambda".to_string(),
+                law: Box::new(Law::Lognormal {
+                    mean: 1e-3,
+                    error_factor: 3.0,
+                    level: 0.95,
+                }),
+            },
+            Expr::StandbyAverage {
+                lambda: Box::new(Expr::Parameter("lambda".to_string())),
+                interval: Box::new(Expr::Constant(720.0)),
+            },
+            Expr::Fragility {
+                median: Box::new(Expr::Parameter("capacity".to_string())),
+                randomness: Box::new(Expr::Constant(0.3)),
+                demand: Box::new(Expr::Constant(0.5)),
+            },
+            Expr::Component {
+                key: "ccf:alphas".to_string(),
+                index: 2,
+                law: Box::new(crate::core::distribution::VectorLaw::Dirichlet {
+                    concentrations: vec![167.3, 1.82, 0.4],
+                }),
             },
             Expr::Add(vec![
                 Expr::Constant(1.0),
@@ -1566,9 +1709,21 @@ mod tests {
                 mu: Box::new(Expr::Constant(0.1)),
                 time: Box::new(Expr::MissionTime),
             },
-            Expr::Histogram {
-                boundaries: vec![Expr::Constant(0.0), Expr::Constant(1.0)],
-                weights: vec![Expr::Constant(0.5)],
+            Expr::Draw {
+                key: "event:E1".to_string(),
+                law: Box::new(Law::Tabulated {
+                    points: vec![
+                        crate::core::distribution::QuantilePoint {
+                            probability: 0.0,
+                            value: 0.0,
+                        },
+                        crate::core::distribution::QuantilePoint {
+                            probability: 1.0,
+                            value: 1.0,
+                        },
+                    ],
+                    scale: crate::core::distribution::TabulatedScale::Linear,
+                }),
             },
         ];
         for e in &exprs {
@@ -1620,10 +1775,10 @@ mod tests {
             CcfGroup::new(
                 "c1",
                 vec!["e1".into(), "e2".into()],
-                CcfModel::BetaFactor(0.1),
+                CcfModel::BetaFactor(Expr::Constant(0.1)),
+                Expr::Constant(0.01),
             )
-            .unwrap()
-            .with_distribution("0.01".into()),
+            .unwrap(),
         )
         .unwrap();
         ft.add_ccf_group(
@@ -1631,15 +1786,79 @@ mod tests {
                 "rasp-parent",
                 vec!["e1".into(), "e2".into(), "e3".into()],
                 CcfModel::RaspMgl {
-                    factors: vec![0.02, 0.0],
+                    factors: vec![Expr::Constant(0.02), Expr::Constant(0.0)],
                     virtual_events: vec![RaspCcfEvent {
                         id: "rasp-parent-AB".into(),
                         member_indices: vec![0, 1],
                     }],
                 },
+                Expr::Constant(0.001),
             )
-            .unwrap()
-            .with_distribution("0.001".into()),
+            .unwrap(),
+        )
+        .unwrap();
+        ft.add_ccf_group(
+            CcfGroup::new(
+                "fixed-alphas",
+                vec!["e1".into(), "e2".into()],
+                CcfModel::AlphaFactor {
+                    testing: CcfTesting::Staggered,
+                    alphas: fixed_components(&alphas_key("fixed-alphas"), vec![0.9, 0.1])
+                        .unwrap(),
+                },
+                Expr::Constant(0.02),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let shared = VectorLaw::Dirichlet {
+            concentrations: vec![20.0, 2.0],
+        };
+        ft.add_ccf_group(
+            CcfGroup::new(
+                "sampled",
+                vec!["e2".into(), "e3".into()],
+                CcfModel::AlphaFactor {
+                    testing: CcfTesting::NonStaggered,
+                    alphas: (0..2)
+                        .map(|index| Expr::Component {
+                            key: "da:alphas".into(),
+                            index,
+                            law: Box::new(shared.clone()),
+                        })
+                        .collect(),
+                },
+                Expr::Draw {
+                    key: "ccf:sampled/total".into(),
+                    law: Box::new(Law::Beta {
+                        alpha: 2.0,
+                        beta: 98.0,
+                        lower: 0.0,
+                        upper: 1.0,
+                    }),
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        ft.add_ccf_group(
+            CcfGroup::new(
+                "sampled-beta",
+                vec!["e1".into(), "e3".into()],
+                CcfModel::BetaFactor(Expr::Parameter("lambda".into())),
+                Expr::Constant(0.03),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        ft.add_ccf_group(
+            CcfGroup::new(
+                "fixed-phis",
+                vec!["e1".into(), "e3".into()],
+                CcfModel::PhiFactor(fixed_components(&phis_key("fixed-phis"), vec![0.7, 0.3]).unwrap()),
+                Expr::Constant(0.04),
+            )
+            .unwrap(),
         )
         .unwrap();
 

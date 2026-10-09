@@ -7,6 +7,7 @@ import type {
   WorkbookModelSnapshotIdentity,
 } from "interfaces-shared-types/newly-developed-methods";
 import type { EsqTreeRunOutcome } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
+import { initiatorFrequencyOf } from "./esq-model-run-summary";
 
 interface EsqPostTreeInfo {
   humanEventIds: readonly string[];
@@ -86,7 +87,7 @@ function summarizeEsqPostRun(input: EsqPostRunSummaryInput): EsqPostRunResult {
       treeId: outcome.treeId,
       runId: outcome.runId,
       status: outcome.status,
-      initiatorFrequency: outcome.initiatorFrequency,
+      initiatorFrequency: initiatorFrequencyOf(outcome),
       failure: outcome.failure,
     })),
     combinations: combinationRows,

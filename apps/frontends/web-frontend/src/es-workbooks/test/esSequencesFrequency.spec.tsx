@@ -1,6 +1,4 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
-import type { PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { createBlankEs } from "../../../../../backends/web-backend/src/es-workbooks/blank-es";
@@ -17,31 +15,6 @@ beforeEach(() => {
   jest.mocked(evaluateUncertainty).mockImplementation(praxisUncertainty);
 });
 
-const NOW = "2026-10-08T00:00:00.000Z";
-
-const CC: PRAConfigurationControl = {
-  uuid: "cc-test",
-  name: "CC test",
-  type: TechnicalElementTypes.PRA_CONFIGURATION_CONTROL,
-  version: "1",
-  created: NOW,
-  modified: NOW,
-  workflowState: "DRAFT",
-  workflowHistory: [],
-  plantStage: "PRE_OPERATIONAL",
-  metadata: { versionInfo: { version: "1", lastUpdated: NOW, schemaVersion: "0.0.1" }, analysisDate: NOW, analysts: [], reviewers: [], scope: "", limitations: [], lastModifiedDate: NOW, lastModifiedBy: "tester" },
-  conformanceMatrix: [],
-  internalReviewComments: { comments: [], openCount: 0, resolvedCount: 0 },
-  activePeerReviewIds: [],
-  activeAuditIds: [],
-  freezeDate: "2026-05-01",
-  monitoredChanges: [],
-  praUpdateRecords: [],
-  pendingChangeAssessments: [],
-  computerCodeControls: [],
-  documentation: { programDescription: "", changeMonitoringProcess: "", praMaintenanceProcess: "", cumulativeImpactProcess: "", codeControlProcess: "", implementsSrs: [] },
-  invokedPriorToFirstPeerReview: false,
-};
 
 const perYear = (value: number): UncertainExpression => ({ node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value } } });
 
@@ -58,7 +31,7 @@ function esWith(expression: UncertainExpression): EventSequenceAnalysis {
 function renderSequences(es: EventSequenceAnalysis) {
   const mutateEs = jest.fn<void, [EsMutator]>();
   render(
-    <EsWorkbookProvider data={{ es, cc: CC, nms: [], posLink: { linkedPosWorkbookId: null, linkedName: null, states: [], sources: [] }, ieLink: { linkedIeWorkbookId: null, linkedName: null, initiators: [] }, daFrequencies: OPTIONS }} editable mutateEs={mutateEs}>
+    <EsWorkbookProvider data={{ es, posLink: { linkedPosWorkbookId: null, linkedName: null, states: [], sources: [] }, ieLink: { linkedIeWorkbookId: null, linkedName: null, groups: [] }, daFrequencies: OPTIONS }} editable mutateEs={mutateEs}>
       <SequencesScreen />
     </EsWorkbookProvider>,
   );

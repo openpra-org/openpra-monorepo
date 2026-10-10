@@ -1,0 +1,55 @@
+.es-scope-tiles { margin-top: 4px; }
+.es-scope-lane { display: flex; width: 100%; flex-direction: column; gap: 12px; margin-top: 16px; overflow-x: auto; }
+.es-scope-link { display: flex; max-width: 420px; flex-direction: column; gap: 5px; }
+.es-scope-link .posfield__select { width: 100%; min-width: 0; }
+.es-scope-error { margin: 0; font-size: 12.5px; color: var(--color-error); }
+.es-scope-text { box-sizing: border-box; width: 100%; min-height: 76px; }
+.es-scope-empty { margin: 0; }
+.es-scope-edit { width: 1%; text-align: right; white-space: nowrap; }
+.es-scope-table th:nth-child(1) { width: 26%; }
+.es-scope-functions th:nth-child(1) { width: 30%; }
+.es-scope-functions th:nth-child(3) { width: 16%; }
+.es-pager { display: inline-flex; flex: none; align-items: center; gap: 10px; white-space: nowrap; }
+
+.es-scope-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 720px) { .es-scope-choices { grid-template-columns: minmax(0, 1fr); } }
+.es-scope-choice { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); font: inherit; text-align: left; color: inherit; cursor: pointer; transition: border-color .12s, box-shadow .12s; }
+.es-scope-choice:disabled { cursor: default; }
+.es-scope-choice--active { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-focus); }
+.es-scope-choice__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+label.es-scope-choice .es-scope-choice__head { justify-content: flex-start; }
+.es-scope-choice__name { font-size: 14px; font-weight: 700; color: var(--color-text); }
+.es-scope-choice__desc { font-size: 12.5px; line-height: 1.5; color: var(--color-text-muted); }
+
+.es-details-modal { max-width: 680px; font: 13px/1.45 var(--font-ui), sans-serif; overflow-wrap: anywhere; }
+.es-details-modal .modal__head .posdrawer__cap { font-family: var(--font-ui), sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--color-primary); }
+.es-details-modal .modal__title { font-size: 20px; }
+.es-details-modal .modal__head { align-items: center; padding-bottom: 0; }
+.es-details-modal .modal__body { padding-top: 8px; gap: 16px; }
+.es-details-modal .modal__body .posfield-grid { align-items: start; }
+.es-details-modal .posnav__btn { align-self: flex-start; white-space: nowrap; }
+.es-details-modal .posnav__btn:disabled { cursor: default; opacity: .5; }
+.es-dialog-list { gap: 8px; }
+.es-dialog-list__row { display: flex; align-items: center; gap: 8px; }
+.es-dialog-list__row .posfield__input { box-sizing: border-box; min-width: 0; flex: 1; }
+.es-details-modal .es-dialog-list__row .posnav__btn { align-self: stretch; justify-content: center; }
+.es-dialog-checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.es-dialog-check { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); font-size: 13px; color: var(--color-text); cursor: pointer; }
+.es-dialog-check input { margin: 0; accent-color: var(--color-primary); }
+.es-dialog-check__id { font-family: var(--font-data), ui-monospace, monospace; font-size: 11.5px; font-weight: 700; }
+.es-dialog-check__name { color: var(--color-text-muted); }
+.es-dialog-actions { justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+
+.es-workspace .posw__rail { grid-column: 1; min-width: 0; }
+.es-workspace .posmain { grid-column: 2; min-width: 0; box-sizing: border-box; }
+.es-workspace .posw__dock { grid-column: 3; min-width: 0; }
+.es-workspace .posrail__head-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.es-workspace .posrail__head-top .posdock__close { flex: none; line-height: 0; }
+@media (max-width: 1100px) and (min-width: 769px) {
+  .es-workspace .posw__shell--rail-closed,
+  .es-workspace .posw__shell--rail-closed.posw__shell--dock-closed { grid-template-columns: 0 minmax(0, 1fr); }
+}
+@media (max-width: 768px) {
+  .es-workspace .posmain { grid-column: 1; }
+  .es-workspace .es-show-steps { display: none; }
+}

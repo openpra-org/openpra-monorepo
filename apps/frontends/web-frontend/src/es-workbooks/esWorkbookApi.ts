@@ -122,16 +122,15 @@ async function unlinkPosWorkbook(workbookId: string): Promise<EsPosLinkStatus> {
   return postJson<EsPosLinkStatus>(`/api/es-workbooks/${workbookId}/pos-link/unlink`, {});
 }
 
-interface ImportedIeInitiator {
+interface ImportedIeGroup {
   id: string;
   name: string;
-  category: string;
 }
 
 interface EsIeLinkStatus {
   linkedIeWorkbookId: string | null;
   linkedName: string | null;
-  initiators: ImportedIeInitiator[];
+  groups: ImportedIeGroup[];
 }
 
 interface AvailableIeWorkbook {
@@ -184,7 +183,7 @@ export {
   type ImportedPosSource,
   type EsIeLinkStatus,
   type AvailableIeWorkbook,
-  type ImportedIeInitiator,
+  type ImportedIeGroup,
 };
 
 interface EsDocumentEntry {

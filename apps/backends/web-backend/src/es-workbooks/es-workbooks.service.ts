@@ -28,6 +28,7 @@ import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook
 import { reconcileExampleEventTreeDependencyReferences } from "../example-workbooks/seeds/dependency-model-seed";
 import { SY_EXAMPLES } from "../example-workbooks/seeds";
 import { storedPriorRejection, storedWorkbookRejection } from "../workbooks/stored-workbook-format";
+import { esDocumentLink } from "./es-links";
 
 export interface EsWorkbookResponse {
   workbookId: string;
@@ -57,8 +58,8 @@ function toResponse(doc: EsWorkbookDocument, myRoles: WorkbookRoleName[]): EsWor
     mef: parsed.data,
     myRoles,
     hasPreviousMef: typeof doc.previousMefJson === "string" && doc.previousMefJson.length > 0,
-    linkedPosWorkbookId: typeof doc.linkedPosWorkbookId === "string" ? doc.linkedPosWorkbookId : null,
-    linkedIeWorkbookId: typeof doc.linkedIeWorkbookId === "string" ? doc.linkedIeWorkbookId : null,
+    linkedPosWorkbookId: esDocumentLink(doc, "POS"),
+    linkedIeWorkbookId: esDocumentLink(doc, "IE"),
     updatedAt: doc.updatedAt.toISOString(),
   };
 }
@@ -182,6 +183,11 @@ export class EsWorkbooksService {
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const cleaned = {
       ...parsed.data,
+      linkedWorkbooks: {
+        ...(exampleId === "hcl" ? {} : { POS: "example" }),
+        IE: "example",
+        ...(syDocument === null ? {} : { SY: syDocument.workbookId }),
+      },
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };
@@ -190,10 +196,10 @@ export class EsWorkbooksService {
         createWorkbookRevisionFilter(workbookId, expectedRevision),
         {
           $set: {
-            previousMefJson: stringifyJson(doc.mef),
+            previousMefJson: stringifyJson(stripNulls(doc.mef)),
             mef: cleaned,
-            linkedPosWorkbookId: exampleId === "hcl" ? null : "example",
-            linkedIeWorkbookId: "example",
+            linkedPosWorkbookId: null,
+            linkedIeWorkbookId: null,
             exampleVariant: exampleId === "sfr" || exampleId === "htgr" || exampleId === "hcl" ? exampleId : "htgr",
             revision: expectedRevision + 1,
           },

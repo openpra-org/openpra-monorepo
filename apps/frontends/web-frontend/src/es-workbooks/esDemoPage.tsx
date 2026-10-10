@@ -2,8 +2,6 @@ import { JSX, useCallback, useEffect, useState } from "react";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
-import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
-import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import { fetchJson } from "../api/client";
@@ -69,12 +67,12 @@ function buildDemoIeLink(ie: InitiatingEventsAnalysis): EsIeLinkStatus {
   return {
     linkedIeWorkbookId: "example",
     linkedName: ie.name,
-    initiators: ie.initiators.map((i) => ({ id: i.uuid, name: i.name, category: i.category })),
+    groups: ie.initiatingEventGroups.map((group) => ({ id: group.uuid, name: group.name })),
   };
 }
 
 const EMPTY_POS_LINK: EsPosLinkStatus = { linkedPosWorkbookId: null, linkedName: null, states: [], sources: [] };
-const EMPTY_IE_LINK: EsIeLinkStatus = { linkedIeWorkbookId: null, linkedName: null, initiators: [] };
+const EMPTY_IE_LINK: EsIeLinkStatus = { linkedIeWorkbookId: null, linkedName: null, groups: [] };
 
 function EsDemoPage(): JSX.Element {
   const [data, setData] = useState<EsWorkbookData | null>(null);
@@ -96,12 +94,11 @@ function EsDemoPage(): JSX.Element {
         if (cancelled) return;
         setData({
           es,
-          cc: res.configurationControl.mef as PRAConfigurationControl,
-          nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
           posLink: posRes !== null ? buildDemoPosLink(posRes.pos.mef as PlantOperatingStatesAnalysis) : EMPTY_POS_LINK,
           ieLink: ieRes !== null ? buildDemoIeLink(ieRes.ie.mef as InitiatingEventsAnalysis) : EMPTY_IE_LINK,
           daFrequencies: daRes === null ? [] : daFrequencyOptions([{ id: `${EXAMPLE_PREFIX}${variant}`, name: daRes.da.mef.name, mef: daRes.da.mef }]),
           ...(syRes === null ? {} : {
+            upstream: { sy: syRes.sy.mef as SystemsAnalysis },
             faultTreeSource: {
               workbookId: `example-sy-${variant}`,
               workbookName: `${variant.toUpperCase()} Systems Analysis example`,

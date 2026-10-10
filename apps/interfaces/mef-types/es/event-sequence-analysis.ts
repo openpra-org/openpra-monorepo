@@ -406,9 +406,18 @@ export interface ExampleDocumentRef {
   url?: string;
 }
 
+export interface EsLinkedWorkbooks {
+  POS?: string;
+  IE?: string;
+  SC?: string;
+  SY?: string;
+  HRA?: string;
+}
+
 export interface EventSequenceAnalysis
   extends TechnicalElement<TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS> {
   praScope: string;
+  linkedWorkbooks?: EsLinkedWorkbooks;
 
   scopeDefinition: {
     plantOperatingStateIds: PlantOperatingStateReference[];

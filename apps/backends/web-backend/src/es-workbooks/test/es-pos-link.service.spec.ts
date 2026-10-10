@@ -68,7 +68,8 @@ describe("EsPosLinkService", () => {
     workbookModel.findById.mockReturnValue(query({ id: "pos-1", name: "POS Workbook Example" }));
 
     const status = await service.link("es-1", "pos-1", { username: "alice" });
-    expect(esDoc.linkedPosWorkbookId).toBe("pos-1");
+    expect(esDoc.linkedPosWorkbookId).toBeNull();
+    expect((esDoc.mef as { linkedWorkbooks: { POS?: string } }).linkedWorkbooks.POS).toBe("pos-1");
     const scope = (esDoc.mef as { scopeDefinition: { plantOperatingStateIds: string[]; initiatingEventIds: string[]; radionuclideBarriers: string[] } }).scopeDefinition;
     expect(scope.plantOperatingStateIds).toEqual(["POS-01", "POS-02"]);
     expect(scope.initiatingEventIds).toEqual(["IE-01"]);

@@ -355,11 +355,20 @@ export class WorkbooksService {
       if (esAdapter === undefined || esEntry?.workbookId === null || esEntry?.workbookId === undefined) continue;
       const eventSequences = await esAdapter.load(esEntry.workbookId);
       if (eventSequences === null || eventSequences.revision === undefined) continue;
-      const reconciledEventSequences = reconcileExampleEventTreeDependencyReferences(
+      const dependentEventSequences = reconcileExampleEventTreeDependencyReferences(
         eventSequences.mef as EventSequenceAnalysis,
         systems.mef as SystemsAnalysis,
         syEntry.workbookId,
       );
+      const reconciledEventSequences: EventSequenceAnalysis = {
+        ...dependentEventSequences,
+        linkedWorkbooks: {
+          ...dependentEventSequences.linkedWorkbooks,
+          SY: syEntry.workbookId,
+          ...(scEntry?.workbookId === null || scEntry?.workbookId === undefined ? {} : { SC: scEntry.workbookId }),
+          ...(hrEntry?.workbookId === null || hrEntry?.workbookId === undefined ? {} : { HRA: hrEntry.workbookId }),
+        },
+      };
       await esAdapter.save(esEntry.workbookId, reconciledEventSequences, eventSequences.revision);
 
       if (

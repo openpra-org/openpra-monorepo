@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useMemo } from "react";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
-import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
-import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
+import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { type EsPosLinkStatus, type EsIeLinkStatus } from "./esWorkbookApi";
 import { type IeDaFrequencyOption } from "../ie-workbooks/ieDaLinks";
@@ -12,12 +11,16 @@ interface EsFaultTreeSource {
   mef: SystemsAnalysis;
 }
 
+interface EsUpstream {
+  sc?: SuccessCriteriaDevelopment;
+  sy?: SystemsAnalysis;
+}
+
 interface EsWorkbookData {
   projectId?: string;
   faultTreeSource?: EsFaultTreeSource;
   es: EventSequenceAnalysis;
-  cc: PRAConfigurationControl;
-  nms: NewlyDevelopedMethod[];
+  upstream?: EsUpstream;
   posLink: EsPosLinkStatus;
   ieLink: EsIeLinkStatus;
   daFrequencies?: IeDaFrequencyOption[];
@@ -59,4 +62,4 @@ function useEsWorkbook(): EsWorkbookContextValue {
   return ctx;
 }
 
-export { EsWorkbookProvider, useEsWorkbook, type EsFaultTreeSource, type EsWorkbookData, type EsMutator, type EsWorkbookRuntime };
+export { EsWorkbookProvider, useEsWorkbook, type EsFaultTreeSource, type EsUpstream, type EsWorkbookData, type EsMutator, type EsWorkbookRuntime };

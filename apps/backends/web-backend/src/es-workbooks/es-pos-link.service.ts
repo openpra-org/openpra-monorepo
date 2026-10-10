@@ -12,6 +12,7 @@ import {
   readWorkbookRevision,
   workbookRevisionConflict,
 } from "../workbooks/workbook-revision";
+import { esDocumentLink, withEsLink, type EsLinkedMef } from "./es-links";
 
 const EXAMPLE_SENTINEL = "example";
 
@@ -62,7 +63,7 @@ interface PosMefShape {
   }[];
 }
 
-interface EsScopeShape {
+interface EsScopeShape extends EsLinkedMef {
   scopeDefinition?: {
     plantOperatingStateIds?: string[];
     initiatingEventIds?: string[];
@@ -136,20 +137,21 @@ export class EsPosLinkService {
 
   async status(workbookId: string, acting: ActingUser): Promise<EsPosLinkStatus> {
     const es = await this.requireEs(workbookId, acting);
-    if (typeof es.linkedPosWorkbookId !== "string" || es.linkedPosWorkbookId.length === 0) {
+    const linkedId = esDocumentLink(es, "POS");
+    if (linkedId === null) {
       return { linkedPosWorkbookId: null, linkedName: null, states: [], sources: [] };
     }
-    if (es.linkedPosWorkbookId === EXAMPLE_SENTINEL) {
+    if (linkedId === EXAMPLE_SENTINEL) {
       const variant = es.exampleVariant === "htgr" ? "htgr" : "sfr";
       const bundle = await this.exampleWorkbooksService.getPosBundle(variant);
       const { states, sources } = this.collectImported(bundle.pos.mef as PosMefShape);
       return { linkedPosWorkbookId: EXAMPLE_SENTINEL, linkedName: variant === "htgr" ? "Generic HTGR POS Workbook" : "Generic SFR POS Workbook", states, sources };
     }
-    const pos = await this.posWorkbookModel.findOne({ workbookId: es.linkedPosWorkbookId }).exec();
-    if (!pos) return { linkedPosWorkbookId: es.linkedPosWorkbookId, linkedName: null, states: [], sources: [] };
-    const reg = isValidObjectId(es.linkedPosWorkbookId) ? await this.workbookModel.findById(es.linkedPosWorkbookId).exec() : null;
+    const pos = await this.posWorkbookModel.findOne({ workbookId: linkedId }).exec();
+    if (!pos) return { linkedPosWorkbookId: linkedId, linkedName: null, states: [], sources: [] };
+    const reg = isValidObjectId(linkedId) ? await this.workbookModel.findById(linkedId).exec() : null;
     const { states, sources } = this.collectImported(pos.mef as PosMefShape);
-    return { linkedPosWorkbookId: es.linkedPosWorkbookId, linkedName: reg?.name ?? null, states, sources };
+    return { linkedPosWorkbookId: linkedId, linkedName: reg?.name ?? null, states, sources };
   }
 
   async link(workbookId: string, posWorkbookId: string, acting: ActingUser): Promise<EsPosLinkStatus> {
@@ -166,6 +168,7 @@ export class EsPosLinkService {
     const currentMef = es.mef as EsScopeShape;
     const nextMef = {
       ...currentMef,
+      linkedWorkbooks: withEsLink(currentMef.linkedWorkbooks, "POS", posWorkbookId),
       scopeDefinition: {
         ...currentMef.scopeDefinition,
         plantOperatingStateIds: states.map((s) => s.id),
@@ -179,7 +182,7 @@ export class EsPosLinkService {
         {
           $set: {
             mef: nextMef,
-            linkedPosWorkbookId: posWorkbookId,
+            linkedPosWorkbookId: null,
             revision: expectedRevision + 1,
           },
         },
@@ -198,6 +201,7 @@ export class EsPosLinkService {
     const currentMef = es.mef as EsScopeShape;
     const nextMef = {
       ...currentMef,
+      linkedWorkbooks: withEsLink(currentMef.linkedWorkbooks, "POS", null),
       scopeDefinition: {
         ...currentMef.scopeDefinition,
         plantOperatingStateIds: [],

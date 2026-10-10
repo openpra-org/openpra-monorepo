@@ -403,9 +403,18 @@ export const EventSequenceDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const EsLinkedWorkbooksSchema = z.object({
+  POS: z.string().optional(),
+  IE: z.string().optional(),
+  SC: z.string().optional(),
+  SY: z.string().optional(),
+  HRA: z.string().optional(),
+});
+
 export const EventSequenceAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS).shape,
   praScope: z.string(),
+  linkedWorkbooks: EsLinkedWorkbooksSchema.optional(),
   scopeDefinition: z.object({
     plantOperatingStateIds: z.array(z.string()),
     initiatingEventIds: z.array(z.string()),

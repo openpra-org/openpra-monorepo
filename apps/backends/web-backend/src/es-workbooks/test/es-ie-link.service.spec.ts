@@ -16,7 +16,10 @@ const IE_MEF = {
     { uuid: "IEG-LOHS", name: "Loss of heat sink", category: "TRANSIENT" },
     { uuid: "IEG-RCB", name: "RCB breach", category: "RCB_BREACH" },
   ],
-  initiatingEventGroups: [{ uuid: "G-1" }],
+  initiatingEventGroups: [
+    { uuid: "IEG-01", name: "Loss of heat sink" },
+    { uuid: "IEG-02", name: "RCB breach" },
+  ],
 };
 
 describe("EsIeLinkService", () => {
@@ -54,7 +57,7 @@ describe("EsIeLinkService", () => {
     await expect(service.status("missing", { username: "alice" })).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it("links an IE workbook and imports initiator ids into the ES scopeDefinition", async () => {
+  it("links an IE workbook in the ES data and imports its group ids into the scopeDefinition", async () => {
     const esDoc = { workbookId: "es-1", projectId: "p-1", revision: 1, mef: { scopeDefinition: { plantOperatingStateIds: ["POS-01"], initiatingEventIds: [], radioactiveMaterialSources: [], radionuclideBarriers: [] } }, linkedIeWorkbookId: null };
     esModel.findOne.mockReturnValue(query(esDoc));
     esModel.findOneAndUpdate.mockImplementation((_filter, update) => {
@@ -65,11 +68,12 @@ describe("EsIeLinkService", () => {
     workbookModel.findById.mockReturnValue(query({ id: "ie-1", name: "IE Workbook Example" }));
 
     const status = await service.link("es-1", "ie-1", { username: "alice" });
-    expect(esDoc.linkedIeWorkbookId).toBe("ie-1");
-    const scope = (esDoc.mef as { scopeDefinition: { plantOperatingStateIds: string[]; initiatingEventIds: string[] } }).scopeDefinition;
-    expect(scope.initiatingEventIds).toEqual(["IEG-LOHS", "IEG-RCB"]);
-    expect(scope.plantOperatingStateIds).toEqual(["POS-01"]);
-    expect(status.initiators).toHaveLength(2);
+    expect(esDoc.linkedIeWorkbookId).toBeNull();
+    const mef = esDoc.mef as { linkedWorkbooks: { IE?: string }; scopeDefinition: { plantOperatingStateIds: string[]; initiatingEventIds: string[] } };
+    expect(mef.linkedWorkbooks.IE).toBe("ie-1");
+    expect(mef.scopeDefinition.initiatingEventIds).toEqual(["IEG-01", "IEG-02"]);
+    expect(mef.scopeDefinition.plantOperatingStateIds).toEqual(["POS-01"]);
+    expect(status.groups).toHaveLength(2);
     expect(esDoc.revision).toBe(2);
     expect(esModel.findOneAndUpdate).toHaveBeenCalledWith(
       { workbookId: "es-1", $or: [{ revision: 1 }, { revision: { $exists: false } }] },

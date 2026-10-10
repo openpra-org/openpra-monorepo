@@ -1,6 +1,4 @@
 import { type EventSequenceAnalysis, type KeySafetyFunction, type EventTreeBranch, type SystemStatus } from "interfaces-mef-types/es/event-sequence-analysis";
-import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
-import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import {
   CONFORMANCE_ITEMS,
   ES_STEPS,
@@ -38,16 +36,6 @@ interface CcScore {
   blocked: number;
   na: number;
   percent: number;
-}
-
-interface CcSnapshotView {
-  id: string;
-  label: string;
-}
-
-interface NmView {
-  id: string;
-  name: string;
 }
 
 interface ScopeView {
@@ -145,14 +133,6 @@ function commentsView(es: EventSequenceAnalysis, now: Date = new Date()): Commen
       resolution: c.resolution,
     };
   });
-}
-
-function ccSnapshotView(cc: PRAConfigurationControl): CcSnapshotView {
-  return { id: cc.uuid, label: cc.name };
-}
-
-function nmViews(nms: NewlyDevelopedMethod[]): NmView[] {
-  return nms.map((nm) => ({ id: nm.uuid, name: nm.name }));
 }
 
 function scopeView(es: EventSequenceAnalysis): ScopeView {
@@ -381,8 +361,6 @@ export {
   groupBySection,
   ccScore,
   commentsView,
-  ccSnapshotView,
-  nmViews,
   scopeView,
   sequencesView,
   familiesView,
@@ -396,8 +374,6 @@ export {
   initialsOf,
   type CommentView,
   type CcScore,
-  type CcSnapshotView,
-  type NmView,
   type ScopeView,
   type SequenceView,
   type FamilyView,

@@ -20,7 +20,7 @@ import { BaseModelUncertaintyDocumentationSchema, PreOperationalAssumptionSchema
 import { SRReferenceSchema } from "../core/pra-common";
 import { EsqBayesianNetworkSchema, EsqHclConfigurationSchema } from "./workbook-models";
 import { EventSequenceFamilyWorkbookReferenceSchema } from "../modeling/references";
-import { AleatoryVariableSchema, CcfFactorModelSchema, LawSchema, UncertainExpressionSchema } from "../core/uncertainty";
+import { AleatoryVariableSchema, CCF_BFR_TOTAL_MESSAGE, CcfFactorModelSchema, LawSchema, UncertainExpressionSchema, UncertainParameterSchema, UncertainVectorParameterSchema, ccfTotalAllowedByModel } from "../core/uncertainty";
 import { holdsEstimate } from "../../da/data-analysis";
 import { carriesUncertainExpression } from "../../sy/systems-analysis";
 
@@ -265,7 +265,7 @@ export const EsqCcfRecordSchema = z.object({
   factors: CcfFactorModelSchema.optional(),
   total: UncertainExpressionSchema.optional(),
   estimateRef: z.string().optional(),
-});
+}).refine(ccfTotalAllowedByModel, { message: CCF_BFR_TOTAL_MESSAGE, path: ["total"] });
 
 export const EsqParameterRecordSchema = z.object({
   id: z.string(),
@@ -287,24 +287,21 @@ export const EsqParameterRecordSchema = z.object({
   estimate: UncertainExpressionSchema.optional(),
   value: z.number().optional(),
   valueType: z.enum(["POINT_ESTIMATE", "MEAN"]).optional(),
-  distributionType: z.string().optional(),
-  p05: z.number().optional(),
-  p95: z.number().optional(),
   missionTime: UncertainExpressionSchema.optional(),
   evidenceKind: z.string().optional(),
   distribution: ParameterDistributionSchema.optional(),
 }).superRefine((record, context) => {
   if (holdsEstimate(record.quantificationModel)) {
     const fields = record.quantificationModel === "FREQUENCY"
-      ? (["value", "valueType", "distributionType", "p05", "p95", "distribution"] as const)
-      : (["value", "valueType", "distributionType", "p05", "p95", "missionTime", "distribution"] as const);
+      ? (["value", "valueType", "distribution"] as const)
+      : (["value", "valueType", "missionTime", "distribution"] as const);
     for (const field of fields) {
       if (record[field] !== undefined) {
         context.addIssue({ code: "custom", path: [field], message: "This parameter keeps its estimate in the estimate field" });
       }
     }
   } else {
-    if (record.valueType === undefined) {
+    if (record.value !== undefined && record.valueType === undefined) {
       context.addIssue({ code: "custom", path: ["valueType"], message: "This parameter needs its value type" });
     }
     if (record.estimate !== undefined) {
@@ -317,8 +314,7 @@ export const EsqHumanRecordSchema = z.object({
   id: z.string(),
   name: z.string(),
   timing: z.enum(["PRE_INITIATOR", "AT_INITIATOR", "POST_INITIATOR"]).optional(),
-  value: z.number().optional(),
-  valueType: z.enum(["MEAN", "POINT_ESTIMATE"]).optional(),
+  hep: UncertainExpressionSchema.optional(),
   assessmentType: z.enum(["CONSERVATIVE_ESTIMATE", "DETAILED_ASSESSMENT"]).optional(),
   riskSignificant: z.boolean(),
   distributionGiven: z.boolean(),
@@ -381,7 +377,7 @@ export const EsqActionRecordSchema = z.object({
   id: z.string(),
   name: z.string(),
   timing: z.enum(["AT_INITIATOR", "POST_INITIATOR"]),
-  hep: z.number().optional(),
+  hep: UncertainExpressionSchema.optional(),
   assessmentType: z.enum(["CONSERVATIVE_ESTIMATE", "DETAILED_ASSESSMENT"]).optional(),
   riskSignificant: z.boolean(),
   cue: z.string().optional(),
@@ -403,7 +399,7 @@ export const EsqRecoveryRecordSchema = z.object({
   restoredFunction: z.string().optional(),
   level: z.enum(["CUTSET", "SCENARIO", "SEQUENCE"]),
   sequenceIds: z.array(z.string()),
-  hep: z.number().optional(),
+  hep: UncertainExpressionSchema.optional(),
   dependencyId: z.string().optional(),
   feasibility: EsqActionFeasibilitySchema,
   feasibilityNote: z.string().optional(),
@@ -435,6 +431,8 @@ export const EsqModelSchema = z.object({
   events: z.array(EsqEventRecordSchema),
   ccfGroups: z.array(EsqCcfRecordSchema),
   parameters: z.array(EsqParameterRecordSchema),
+  vectors: z.array(UncertainVectorParameterSchema).optional(),
+  ccfFactors: z.array(UncertainParameterSchema).optional(),
   humanEvents: z.array(EsqHumanRecordSchema),
   barriers: z.array(EsqBarrierRecordSchema).optional(),
   criteria: z.array(EsqCriterionRecordSchema).optional(),
@@ -450,8 +448,7 @@ export const EsqFunctionTargetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("FAULT_TREE"), top: EsqTopReferenceSchema }),
   z.object({
     kind: z.literal("SPLIT_FRACTION"),
-    value: z.number().optional(),
-    errorFactor: z.number().optional(),
+    expression: UncertainExpressionSchema.optional(),
     parameterId: z.string().optional(),
     cellId: z.string().optional(),
     basis: z.string().optional(),
@@ -696,7 +693,7 @@ export const EsqPostWorkSchema = z.object({
         stateIds: z.array(z.string()),
         credited: z.boolean(),
         feasibility: EsqActionFeasibilitySchema.optional(),
-        typed: z.object({ value: z.number(), errorFactor: z.number().optional(), source: z.string() }).optional(),
+        typed: z.object({ expression: UncertainExpressionSchema, source: z.string() }).optional(),
         ofRecord: z.enum(["HRA", "TYPED"]).optional(),
         basis: z.string(),
       }),
@@ -865,7 +862,6 @@ const EsqUncertaintyRecordSchema = z.object({
 });
 
 export const EsqUncertaintyWorkSchema = z.object({
-  spreads: z.array(z.object({ key: z.string(), errorFactor: z.number(), source: z.string() })).optional(),
   run: EsqUncertaintyRecordSchema.optional(),
   independent: EsqUncertaintyRecordSchema.optional(),
 });

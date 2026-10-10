@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
-import { ExpressionEditor, type ParameterOption } from "../uncertainEditor";
+import { ExpressionEditor, LawEditor, type ParameterOption } from "../uncertainEditor";
+import { lawText } from "../uncertainText";
 
 const reference = { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "DA-IE-01" } as const;
 const OPTION: ParameterOption = { reference, label: "DA-IE-01 in Plant DA", unit: "PER_YEAR" };
@@ -43,5 +44,16 @@ describe("ExpressionEditor slots", () => {
     expect(screen.queryByLabelText("Value")).not.toBeInTheDocument();
     fireEvent.change(source, { target: { value: "da-1:DA-IE-01" } });
     expect(onChange).toHaveBeenCalledWith(LINKED);
+  });
+});
+
+describe("updated laws", () => {
+  it("names the new evidence and families and keeps them out of hand edits", () => {
+    expect(lawText({ family: "POSTERIOR", prior: null, evidence: [{ likelihood: "STANDBY_DEMAND", demand: "TEST", failures: 1, exposure: 10, testInterval: 720 }] }))
+      .toBe("Jeffreys posterior with 1 failure in 10 tests every 720 h");
+    expect(lawText({ family: "DURATION", model: "LOGNORMAL", times: [2, 5], censored: [9], priors: [], output: { kind: "EXCEEDANCE", time: 8 } }))
+      .toBe("Lognormal durations (2 completed, 1 still open): chance of lasting past 8 h");
+    render(<LawEditor law={{ family: "TREND", bins: [{ time: 1, failures: 2, exposure: 1 }, { time: 2, failures: 3, exposure: 1 }], at: 3 }} unit="PER_YEAR" disabled={false} onChange={jest.fn()} />);
+    expect(screen.getByLabelText<HTMLSelectElement>("Law")).toBeDisabled();
   });
 });

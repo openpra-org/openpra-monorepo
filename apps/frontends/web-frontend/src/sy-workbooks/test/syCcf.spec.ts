@@ -1,4 +1,4 @@
-import type { CcfFactorModel, UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import type { CcfFactorModel, UncertainExpression, UncertainVector } from "interfaces-mef-types/core/uncertainty";
 import type { CommonCauseFailureGroup, SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { CommonCauseFailureGroupSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 import {
@@ -14,6 +14,12 @@ import {
   type CcfAnalysis,
 } from "../syCcf";
 import type { SyControlledCcfEstimateOption } from "../syWorkbookContext";
+import { ccfFactorExpressions, ccfFactorVector, expressionReferences } from "interfaces-mef-types/core/uncertainty";
+import { DA_ANALYSIS_HTGR } from "../../../../../backends/web-backend/src/example-workbooks/seeds/da-seed-htgr";
+import { DA_ANALYSIS } from "../../../../../backends/web-backend/src/example-workbooks/seeds/da-seed";
+import { SY_ANALYSIS_HTGR } from "../../../../../backends/web-backend/src/example-workbooks/seeds/sy-seed-htgr";
+import { SY_ANALYSIS } from "../../../../../backends/web-backend/src/example-workbooks/seeds/sy-seed";
+import { controlledCcfEstimateOptions, controlledCcfFactorOptions, controlledCcfVectorOptions, linkExampleGroups } from "../syLinks";
 
 function point(value: number): UncertainExpression {
   return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
@@ -127,11 +133,54 @@ describe("SY common cause validation", () => {
     ]);
     const tooMany: CommonCauseFailureGroup = { ...GROUP, factors: { model: "MGL", factors: [fraction(0.1), fraction(1.2)] } };
     expect(validateCcfGroup(tooMany, analysis(tooMany))).toEqual([
-      expect.objectContaining({ code: "CCF_MGL_COUNT", message: "MGL requires 1 to 1 factors for this group." }),
+      expect.objectContaining({ code: "CCF_MGL_COUNT", message: "MGL needs 1 to 1 factors for 2 members, not 2." }),
       expect.objectContaining({ code: "CCF_FACTOR_RANGE", message: "MGL factor γ must be between 0 and 1." }),
     ]);
     const outside: CommonCauseFailureGroup = { ...GROUP, factors: { model: "BETA_FACTOR", beta: fraction(-0.1) } };
     expect(validateCcfGroup(outside, analysis(outside))).toEqual([expect.objectContaining({ code: "CCF_FACTOR_RANGE", message: "Beta factor must be between 0 and 1." })]);
+  });
+
+  it("matches the PRAXIS group size rules for every model", () => {
+    const four: CommonCauseFailureGroup["members"] = { basicEvents: [{ id: "event-a" }, { id: "event-b" }, { id: "event-c" }, { id: "event-d" }] };
+    const base = withThird(analysis());
+    const sy: TestAnalysis = { ...base, systemBasicEvents: [...base.systemBasicEvents, { uuid: "event-d", code: "PMP-D-FS", name: "Pump D fails", eventType: "BASIC", failureMode: "FAILURE_TO_START", expression: LINKED, implementsSrs: [] }] };
+    const issues = (factors: CcfFactorModel): { code: string; severity: string; message: string }[] => validateCcfGroup({ ...GROUP, members: four, factors }, sy).map(({ code, severity, message }) => ({ code, severity, message }));
+    const fixed = (values: number[]): UncertainVector => ({ node: "VALUE", law: { family: "FIXED", values } });
+    expect(issues({ model: "PHI_FACTOR", phis: fixed([0.9, 0.1]) })).toEqual([{ code: "CCF_PHI_COUNT", severity: "ERROR", message: "Phi factor needs exactly 4 factors for 4 members, not 2." }]);
+    expect(issues({ model: "PHI_FACTOR", phis: fixed([0.9, 0.05, 0.03, 0.02]) })).toEqual([]);
+    expect(issues({ model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: fixed([0.9, 0.06, 0.04]) })).toEqual([{ code: "CCF_ALPHA_COUNT", severity: "ERROR", message: "Alpha factor needs exactly 4 factors for 4 members, not 3." }]);
+    expect(issues({ model: "MGL", factors: [fraction(0.05), fraction(0.4)] })).toEqual([{ code: "CCF_ORDERS_ZERO", severity: "WARNING", message: "MGL with 2 factors for 4 members sets order 4 to zero." }]);
+    expect(issues({ model: "MGL", factors: [fraction(0.05)] })).toEqual([{ code: "CCF_ORDERS_ZERO", severity: "WARNING", message: "MGL with 1 factor for 4 members sets orders 3 to 4 to zero." }]);
+    expect(issues({ model: "MGL", factors: [fraction(0.05), fraction(0.4), fraction(0.3)] })).toEqual([]);
+    expect(issues({ model: "MGL", factors: [fraction(0.05), fraction(0.4), fraction(0.3), fraction(0.2)] })).toEqual([{ code: "CCF_MGL_COUNT", severity: "ERROR", message: "MGL needs 1 to 3 factors for 4 members, not 4." }]);
+    expect(issues(BETA)).toEqual([{ code: "CCF_ORDERS_ZERO", severity: "WARNING", message: "The beta factor for 4 members sets orders 2 to 3 to zero." }]);
+    expect(validateCcfGroup({ ...GROUP, factors: BETA }, analysis())).toEqual([]);
+  });
+
+  it("checks a linked vector against the length DA publishes", () => {
+    const reference = { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: "da-1", entityId: "VEC-CCF-DEM-3" };
+    const linked: CommonCauseFailureGroup = { ...GROUP, members: THREE, factors: { model: "ALPHA_FACTOR", testing: "NON_STAGGERED", alphas: { node: "PARAMETER", reference } } };
+    const sy = withThird(analysis(linked));
+    expect(validateCcfGroup(linked, sy)).toEqual([]);
+    expect(validateCcfGroup(linked, sy, undefined, new Map([["da-1:VEC-CCF-DEM-3", 3]]))).toEqual([]);
+    expect(validateCcfGroup(linked, sy, undefined, new Map([["da-1:VEC-CCF-DEM-3", 2]])).map(({ code }) => code)).toEqual(["CCF_ALPHA_COUNT"]);
+    expect(validateCcfGroup(linked, sy, undefined, new Map([["da-1:OTHER", 3]]))).toEqual([
+      expect.objectContaining({ code: "CCF_VECTOR_MISSING", severity: "ERROR", message: "The linked vector VEC-CCF-DEM-3 is not in the linked DA workbook." }),
+    ]);
+  });
+
+  it("takes no Qₜ for a binomial failure rate group and names a stray one", () => {
+    const bfr: CcfFactorModel = { model: "BINOMIAL_FAILURE_RATE", independent: point(0.004), nonLethalShock: point(0.001), componentFailure: fraction(0.4), lethalShock: point(0.0001) };
+    const group: CommonCauseFailureGroup = { ...GROUP, factors: bfr, total: undefined };
+    const sy = analysis(group);
+    const mixed = { ...sy, systemBasicEvents: sy.systemBasicEvents.map((event) => (event.uuid === "event-b" ? { ...event, expression: point(0.03) } : event)) };
+    expect(validateCcfGroup(group, mixed)).toEqual([]);
+    expect(CommonCauseFailureGroupSchema.safeParse(group).success).toBe(true);
+    expect(validateCcfGroup({ ...group, total: LINKED }, sy)).toEqual([expect.objectContaining({ code: "CCF_TOTAL_UNUSED", severity: "ERROR" })]);
+    expect(validateCcfGroup({ ...group, factors: { ...bfr, componentFailure: fraction(1.4) } }, sy).map(({ code }) => code)).toEqual(["CCF_FACTOR_RANGE"]);
+    expect(ccfFactorText(bfr)).toBe("Qᵢ 0.004 · μ 0.001 · p 0.4 · ω 0.0001");
+    expect(ccfModelText(bfr)).toBe("Binomial failure rate");
+    expect(withMemberTotals(analysis({ ...group, total: LINKED }), new Set(["event-a"])).commonCauseFailureGroups[0]?.total).toBeUndefined();
   });
 
   it("leaves a law-valued factor to the PRAXIS meaning checks", () => {
@@ -215,6 +264,11 @@ describe("SY common cause validation", () => {
     expect(validateCcfGroup(threeMembers, sy, [{ ...estimate, estimateId: "DA-CCF-9" }])).toEqual([
       expect.objectContaining({ code: "CCF_DA_MISSING", severity: "WARNING" }),
     ]);
+    const live: CcfFactorModel = { model: "ALPHA_FACTOR", testing: "NON_STAGGERED", alphas: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "ccfv/DA-CCF-1/updated/C3" } } };
+    expect(validateCcfGroup(threeMembers, sy, [{ ...estimate, factors: live }])).toEqual([
+      expect.objectContaining({ code: "CCF_DA_STALE", message: "The factors are a typed copy of DA estimate DA-CCF-1. Apply it again to link them, so they follow DA." }),
+    ]);
+    expect(validateCcfGroup({ ...threeMembers, factors: live }, sy, [{ ...estimate, factors: live }])).toEqual([]);
   });
 
   it("asks for a typed source only when no DA estimate is linked", () => {
@@ -227,5 +281,42 @@ describe("SY common cause validation", () => {
   it("lists the shared causes in plain words", () => {
     expect(sharedCauseLines({ ...GROUP, sharedCauseFactors: { hardwareDesign: true, environment: true, otherFactors: ["Common software image"] } }))
       .toEqual(["Same design", "Same environment", "Common software image"]);
+  });
+});
+
+describe("DA common cause options", () => {
+  function factorWorkbooks(factors: CcfFactorModel): string[] {
+    const vector = ccfFactorVector(factors);
+    return [...(vector?.node === "PARAMETER" ? [vector.reference.workbookId] : []), ...ccfFactorExpressions(factors).flatMap(expressionReferences).map((reference) => reference.workbookId)];
+  }
+
+  it.each([
+    ["HTGR", SY_ANALYSIS_HTGR, DA_ANALYSIS_HTGR],
+    ["SFR", SY_ANALYSIS, DA_ANALYSIS],
+  ] as const)("points the %s estimates' own vector and factor links at the loaded DA workbook", (_name, sy, da) => {
+    const sources = [{ entry: { id: "da-loaded", name: "DA Workbook 1" }, workbook: { mef: da } }];
+    const estimates = controlledCcfEstimateOptions(sources);
+    const vectors = controlledCcfVectorOptions(sources);
+    const factors = controlledCcfFactorOptions(sources);
+    const groups = linkExampleGroups(sy, "da-loaded", da);
+    const analysis: CcfAnalysis = { ...sy, commonCauseFailureGroups: groups };
+    const shared = estimates.filter((estimate) => factorWorkbooks(estimate.factors).length > 0);
+    const linked = groups.filter((group) => group.dataAnalysisCCFParameterRef !== undefined);
+
+    expect(shared.length).toBeGreaterThan(0);
+    expect(shared.flatMap((estimate) => factorWorkbooks(estimate.factors)).filter((id) => id !== "da-loaded")).toEqual([]);
+    expect(vectors.every((option) => option.reference.workbookId === "da-loaded" && option.label.startsWith("DA Workbook 1 · "))).toBe(true);
+    expect(factors.every((option) => option.reference.workbookId === "da-loaded")).toBe(true);
+    expect(linked.length).toBeGreaterThan(0);
+    expect(linked.flatMap((group) => validateCcfGroup(group, analysis, estimates, new Map(vectors.map((option) => [`${option.reference.workbookId}:${option.reference.entityId}`, option.length])))).filter((issue) => issue.code === "CCF_DA_STALE" || issue.code === "CCF_VECTOR_MISSING")).toEqual([]);
+  });
+
+  it("keeps a link to another workbook's entity as it is", () => {
+    const foreign: CcfFactorModel = { model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-other", entityId: "ccfv/SRC-06/OTHER/ALPHA_DIRICHLET/C2" } } };
+    const [first] = DA_ANALYSIS_HTGR.ccfParameterEstimations ?? [];
+    if (first === undefined) throw new Error("The HTGR example has no common cause estimate.");
+    const da = { ...DA_ANALYSIS_HTGR, ccfParameterEstimations: [{ ...first, factors: foreign }] };
+    const [option] = controlledCcfEstimateOptions([{ entry: { id: "da-loaded", name: "DA Workbook 1" }, workbook: { mef: da } }]);
+    expect(option?.factors).toEqual(foreign);
   });
 });

@@ -89,6 +89,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
     onSelectFaultTreeLink,
     onUpdateEventSequence,
     onOpenReference,
+    breadcrumb,
     onRun,
   } = props;
   const annualizationHelpId = useId();
@@ -412,6 +413,19 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
                     <button type="button" className="et-editor__icon-btn" disabled={past.length === 0} onClick={undo} aria-label="Undo event-tree edit" title="Undo">↶</button>
                     <button type="button" className="et-editor__icon-btn" disabled={future.length === 0} onClick={redo} aria-label="Redo event-tree edit" title="Redo">↷</button>
                   </div>
+                )}
+                {breadcrumb !== undefined && (
+                  <nav className="et-editor__breadcrumb" aria-label="Transfer path">
+                    <ol className="et-editor__crumbs">
+                      {breadcrumb.steps.map((label, at) => (
+                        <li key={at} className="et-editor__crumb-item">
+                          {at === breadcrumb.current
+                            ? <span className="et-editor__crumb et-editor__crumb--current" aria-current="page" title={label}>{label}</span>
+                            : <button type="button" className="et-editor__crumb" title={label} onClick={() => breadcrumb.onSelect(at)}>{label}</button>}
+                        </li>
+                      ))}
+                    </ol>
+                  </nav>
                 )}
               </div>
               {representation === "event-tree" && <ClassicEventTreeDiagram view={presentation} activeSequenceId={activeSequenceId} selectedEntityId={selection} showFrequency={showFrequency} frequencyParameters={frequencyParameters} canEdit={capabilities.author} onHover={setHoveredSequenceId} onSelect={selectSequence} onSelectFunctionalEvent={selectFunctionalEvent} onFunctionalEventContext={openFunctionalEventContext} onSequenceContext={openSequenceContext} onReorderFunctionalEvent={(functionalEventId, targetIndex) => commit({ kind: "REORDER_FUNCTIONAL_EVENT", functionalEventId, targetIndex })} />}

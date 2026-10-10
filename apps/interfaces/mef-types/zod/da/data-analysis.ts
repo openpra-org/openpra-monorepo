@@ -3,8 +3,10 @@ import type { DataAnalysis } from "../../da/data-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
 import { BasicEventSchema, ParameterDistributionSchema, UncertainFrequencySchema } from "../core/events";
-import { BaseLawSchema, CcfFactorModelSchema, LawSchema, TruncatedLawSchema, UncertainExpressionSchema } from "../core/uncertainty";
+import { BaseLawSchema, CcfFactorModelSchema, DiscreteOutcomeSchema, LawSchema, TruncatedLawSchema, UncertainExpressionSchema, VectorLawSchema } from "../core/uncertainty";
 import { entryHoldsLaw, holdsEstimate } from "../../da/data-analysis";
+import { sourceEntryEstimate } from "../../da/generic-sources";
+import type { CanonicalValue } from "../../core/uncertainty";
 import { carriesUncertainExpression } from "../../sy/systems-analysis";
 import { SensitivityStudySchema, SuccessCriteriaIdSchema } from "../core/shared-patterns";
 import {
@@ -169,11 +171,24 @@ export const DaSourceUseSchema = z.object({
   factors: z.array(DaTransferFactorSchema).optional(),
 });
 
-export const DaSourceEntrySchema = z.object({
+export const DaSourceEstimateTypeSchema = z.enum(["PRIOR", "POSTERIOR", "EMPIRICAL_BAYES", "PLANT_SPECIFIC", "MLE", "POINT_ESTIMATE", "DATA"]);
+
+export const DaSourceSpreadSchema = z.enum(["POPULATION", "MEAN", "NONE"]);
+
+function storedSourceEntry(value: CanonicalValue): CanonicalValue {
+  if (value === null || typeof value !== "object" || Array.isArray(value) || ("estimateType" in value && "spread" in value)) return value;
+  const law = LawSchema.safeParse("law" in value ? value.law : undefined);
+  const distribution = ParameterDistributionSchema.safeParse("distribution" in value ? value.distribution : undefined);
+  return { ...sourceEntryEstimate(law.success ? law.data : undefined, distribution.success ? distribution.data : undefined), ...value };
+}
+
+export const DaSourceEntrySchema = z.preprocess(storedSourceEntry, z.object({
   id: z.string(),
   component: z.string(),
   failureMode: z.string(),
   quantity: DaEstimateQuantitySchema,
+  estimateType: DaSourceEstimateTypeSchema,
+  spread: DaSourceSpreadSchema,
   table: z.string().optional(),
   law: LawSchema.optional(),
   distribution: ParameterDistributionSchema.optional(),
@@ -198,7 +213,7 @@ export const DaSourceEntrySchema = z.object({
   if (!entryHoldsLaw(entry.quantity) && entry.law !== undefined) {
     context.addIssue({ code: "custom", path: ["law"], message: "This estimate keeps its distribution in the distribution field" });
   }
-});
+}));
 
 export const DaSourceSchema = z.object({
   id: z.string(),
@@ -218,7 +233,30 @@ export const DaSourceSchema = z.object({
 
 export const DaPriorFormSchema = z.enum(["AS_PUBLISHED", "CONSTRAINED_NONINFORMATIVE", "JEFFREYS"]);
 
-export const DaEstimateMethodSchema = z.enum(["PRIOR", "BAYES", "POPULATION"]);
+export const DaEstimateMethodSchema = z.enum(["PRIOR", "BAYES", "POPULATION", "EMPIRICAL_BAYES", "TREND"]);
+
+export const DaPriorPartSchema = z.object({
+  useId: z.string(),
+  weight: z.number().positive(),
+});
+
+export const DaTrendBinSchema = z.object({
+  year: z.number(),
+  failures: z.number().optional(),
+  exposure: z.number(),
+});
+
+export const DaTrendBasisSchema = z.object({
+  failuresFrom: z.enum(["TYPED", "RECORDS"]),
+  recordSetId: z.string().optional(),
+  bins: z.array(DaTrendBinSchema),
+  at: z.number().optional(),
+});
+
+export const DaPopulationHyperpriorSchema = z.object({
+  mu: z.union([BaseLawSchema, TruncatedLawSchema]),
+  sigma: z.union([BaseLawSchema, TruncatedLawSchema]),
+});
 
 export const DaEvidenceOriginSchema = z.enum(["PLANT_RECORDS", "TECHNOLOGY"]);
 
@@ -226,14 +264,17 @@ export const DaEvidenceSchema = z.object({
   id: z.string(),
   origin: DaEvidenceOriginSchema,
   label: z.string().optional(),
-  failuresFrom: z.enum(["TYPED", "ENTRY", "RECORDS"]),
+  failuresFrom: z.enum(["TYPED", "UNCERTAIN", "ENTRY", "RECORDS"]),
   exposureFrom: z.enum(["TYPED", "ENTRY", "DEMANDS_AND_HOURS"]),
   sourceId: z.string().optional(),
   entryId: z.string().optional(),
   recordSetId: z.string().optional(),
   failures: z.number().optional(),
+  failureOutcomes: z.array(DiscreteOutcomeSchema).optional(),
   exposure: z.number().optional(),
   unit: z.enum(["DEMANDS", "HOURS", "YEARS"]).optional(),
+  standbyDemand: z.enum(["TEST", "RANDOM"]).optional(),
+  testIntervalHours: z.number().optional(),
   hoursPerDemand: z.number().optional(),
   hoursPerYear: z.number().optional(),
   yearsFrom: z.string().optional(),
@@ -251,6 +292,7 @@ export const DaFailureRecordSchema = z.object({
   description: z.string(),
   reference: z.string().optional(),
   judgment: z.enum(["OPEN", "FAILURE", "NOT_FAILURE", "REPEAT", "EXCLUDED"]),
+  countOutcomes: z.array(DiscreteOutcomeSchema).optional(),
   parameterId: z.string().optional(),
   repeatOf: z.string().optional(),
   reason: z.string().optional(),
@@ -312,15 +354,18 @@ export const DaOutOfServiceRecordSchema = z.object({
   reference: z.string().optional(),
 });
 
+export const DaDurationModelSchema = z.enum(["EXPONENTIAL", "LOGNORMAL", "WEIBULL", "GAMMA"]);
+
 export const DaMaintenanceBasisSchema = z.object({
   kind: z.enum(["TRAIN", "COINCIDENT"]),
-  method: z.enum(["PLANNED", "RECORDS", "GENERIC"]),
+  method: z.enum(["PLANNED", "RECORDS", "GENERIC", "BAYES"]),
   requiredHoursPerYear: z.number().optional(),
   requiredReason: z.string().optional(),
   trains: z.number().optional(),
   trainsReason: z.string().optional(),
   activities: z.array(DaMaintenanceActivitySchema).optional(),
   records: z.array(DaOutOfServiceRecordSchema).optional(),
+  durationModel: DaDurationModelSchema.optional(),
   overlapIds: z.array(z.string()).optional(),
   equipment: z.array(z.string()).optional(),
   scope: z.enum(["INTRASYSTEM", "INTERSYSTEM"]).optional(),
@@ -330,6 +375,7 @@ export const DaMaintenanceBasisSchema = z.object({
 export const DaRestorationTimeSchema = z.object({
   id: z.string(),
   hours: z.number(),
+  censored: z.boolean().optional(),
   date: z.string().optional(),
   reference: z.string().optional(),
 });
@@ -349,6 +395,7 @@ export const DaRestorationBasisSchema = z.object({
   parts: z.array(DaRestorationPartSchema).optional(),
   comparison: z.array(DaRestorationPartSchema).optional(),
   times: z.array(DaRestorationTimeSchema).optional(),
+  model: DaDurationModelSchema.optional(),
   windowHours: z.number().optional(),
   windowReason: z.string().optional(),
   sequence: z.string().optional(),
@@ -412,8 +459,11 @@ export const DaFrequencyPartSchema = z.object({
   per: DaFrequencyPerSchema,
   stateIds: z.array(z.string()).optional(),
   useId: z.string().optional(),
+  priorParts: z.array(DaPriorPartSchema).optional(),
   priorForm: DaPriorFormSchema.optional(),
-  method: z.enum(["PRIOR", "BAYES"]).optional(),
+  method: z.enum(["PRIOR", "BAYES", "POPULATION", "EMPIRICAL_BAYES"]).optional(),
+  populationTargetId: z.string().optional(),
+  populationHyperprior: DaPopulationHyperpriorSchema.optional(),
   evidence: z.array(DaEvidenceSchema).optional(),
   reason: z.string().optional(),
 });
@@ -441,11 +491,6 @@ export const DaImportanceSchema = z.object({
   riskAchievementWorth: z.number().optional(),
   entryIds: z.array(z.string()).optional(),
   importedAt: z.string().optional(),
-});
-
-export const DaPopulationHyperpriorSchema = z.object({
-  mu: z.union([BaseLawSchema, TruncatedLawSchema]),
-  sigma: z.union([BaseLawSchema, TruncatedLawSchema]),
 });
 
 export const DataAnalysisParameterSchema = z.object({
@@ -480,6 +525,7 @@ export const DataAnalysisParameterSchema = z.object({
   stateIds: z.array(z.string()).optional(),
   sourceUses: z.array(DaSourceUseSchema).optional(),
   priorUseId: z.string().optional(),
+  priorParts: z.array(DaPriorPartSchema).optional(),
   evidenceKind: DaEvidenceKindSchema.optional(),
   evidenceReason: z.string().optional(),
   priorForm: DaPriorFormSchema.optional(),
@@ -489,6 +535,7 @@ export const DataAnalysisParameterSchema = z.object({
   populationTargetId: z.string().optional(),
   populationHyperprior: DaPopulationHyperpriorSchema.optional(),
   evidence: z.array(DaEvidenceSchema).optional(),
+  trend: DaTrendBasisSchema.optional(),
   maintenance: DaMaintenanceBasisSchema.optional(),
   restoration: DaRestorationBasisSchema.optional(),
   frequency: DaFrequencyBasisSchema.optional(),
@@ -643,8 +690,16 @@ export const DaCcfEventSchema = z.object({
   description: z.string().optional(),
   date: z.string().optional(),
   impact: z.array(z.number()),
+  lethal: z.boolean().optional(),
   included: z.boolean(),
   reason: z.string(),
+});
+
+export const DaCcfEvidenceImportSchema = z.object({
+  sourceId: z.string(),
+  kind: z.enum(["IMPACT_VECTOR", "MULTIPLICITY"]),
+  set: z.string(),
+  rowIds: z.array(z.string()),
 });
 
 export const DaCcfEvidenceSchema = z.object({
@@ -654,11 +709,50 @@ export const DaCcfEvidenceSchema = z.object({
   recordSetId: z.string().optional(),
   population: z.number(),
   independentFailures: z.number(),
+  impactSize: z.number().int().min(2).optional(),
+  counts: z.array(z.number().nonnegative()).optional(),
+  multiplicities: z.array(z.object({ failed: z.number().int().min(1), events: z.number().nonnegative() })).optional(),
+  imported: DaCcfEvidenceImportSchema.optional(),
+  mappingRho: z.number().min(0).max(1).optional(),
+  lethalShocks: z.number().nonnegative().optional(),
   events: z.array(DaCcfEventSchema),
   boundary: z.enum(["SAME", "ADJUSTED", "DIFFERENT"]),
   reason: z.string(),
   included: z.boolean(),
   exclusionReason: z.string().optional(),
+});
+
+export const DaCcfImportKindSchema = z.enum(["ALPHA_DIRICHLET", "ALPHA_MLE", "ALPHA_SUMMARY", "ALPHA_POINTS", "MGL", "BETA"]);
+
+export const DaCcfImportRecordSchema = z.object({
+  kind: DaCcfImportKindSchema,
+  rowIds: z.array(z.string()),
+  groupSize: z.number().int().min(2),
+  testing: z.enum(["STAGGERED", "NON_STAGGERED"]).optional(),
+  originalSum: z.number().optional(),
+  scale: z.number().positive().optional(),
+  conversion: z.enum(["ONE_PLUS_BETA"]).optional(),
+  vectorId: z.string().optional(),
+  factorId: z.string().optional(),
+});
+
+export const DaCcfFactorSchema = z.object({
+  id: z.string().trim().min(1),
+  sourceId: z.string(),
+  rowId: z.string(),
+  expression: UncertainExpressionSchema,
+  estimateId: z.string().optional(),
+});
+
+export const DaCcfVectorSchema = z.object({
+  id: z.string().trim().min(1),
+  sourceId: z.string(),
+  kind: DaCcfImportKindSchema,
+  template: z.string(),
+  groupSize: z.number().int().min(2),
+  rowIds: z.array(z.string()),
+  vector: VectorLawSchema,
+  estimateId: z.string().optional(),
 });
 
 export const CcfParameterEstimationSchema = z.object({
@@ -670,8 +764,13 @@ export const CcfParameterEstimationSchema = z.object({
   testing: z.enum(["STAGGERED", "NON_STAGGERED"]).optional(),
   testingReason: z.string().optional(),
   method: z.enum(["PRIOR", "BAYES", "TYPED"]).optional(),
+  model: z.enum(["BETA_FACTOR", "MGL", "ALPHA_FACTOR", "PHI_FACTOR", "BINOMIAL_FAILURE_RATE"]).optional(),
+  priorWeight: z.number().positive().optional(),
+  groupDemands: z.number().positive().optional(),
   priorSourceId: z.string().optional(),
+  priorKind: DaCcfImportKindSchema.optional(),
   priorTemplate: z.string().optional(),
+  imported: DaCcfImportRecordSchema.optional(),
   priorReason: z.string().optional(),
   evidence: z.array(DaCcfEvidenceSchema).optional(),
   estimateReason: z.string().optional(),
@@ -962,6 +1061,8 @@ export const DataAnalysisSchema = z.object({
   hourCounts: z.array(DaHourCountSchema).optional(),
   outages: z.array(DaOutageSchema).optional(),
   ccfParameterEstimations: z.array(CcfParameterEstimationSchema).optional(),
+  ccfVectors: z.array(DaCcfVectorSchema).optional(),
+  ccfFactors: z.array(DaCcfFactorSchema).optional(),
   dataModificationAdjustments: z.array(DataModificationAdjustmentSchema).optional(),
   uncertaintyRegister: z.array(DaUncertaintySourceSchema).optional(),
   preOperationalAssumptions: z.array(PreOperationalAssumptionSchema).optional(),

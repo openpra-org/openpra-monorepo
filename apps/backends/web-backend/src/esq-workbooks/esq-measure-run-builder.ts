@@ -24,6 +24,7 @@ import {
 } from "interfaces-mef-types/core/uncertainty";
 import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import type { EsqRunBuild, EsqRunEventValue } from "./esq-model-run-builder";
+import type { CatalogueCcfGroup } from "../newly-developed-methods/shared/praxis-snapshot-adapters";
 
 interface EsqImportanceSpecGroup {
   key: string;
@@ -125,12 +126,11 @@ function sampledBuild(input: {
   settings: EsqSamplingSettings;
   inputs: ReadonlyMap<string, EsqSampledInput>;
   tally: EsqSamplingTally;
-  esqWorkbookId: string;
 }): { build: EsqRunBuild; sampling: EsqSampling } {
   const { esq, build, settings, inputs, tally } = input;
   const model = esq.model;
   const independent = settings.correlation === "INDEPENDENT";
-  const entries = new Map([...build.faultTrees.flatMap((tree) => tree.basicEventCatalogue.uncertaintyParameters), ...build.initiatorTables.uncertaintyParameters].map((parameter) => [parameterReferenceKey(parameter.reference), parameter] as const));
+  const entries = new Map([...build.faultTrees.flatMap((tree) => tree.basicEventCatalogue.uncertaintyParameters), ...build.initiatorTables.uncertaintyParameters, ...build.sharedParameters].map((parameter) => [parameterReferenceKey(parameter.reference), parameter] as const));
   const added = new Map<string, UncertainParameter>();
   const note = (baseKey: string, user: string): EsqSampledInput | undefined => {
     const known = inputs.get(baseKey);
@@ -138,7 +138,7 @@ function sampledBuild(input: {
       tally.unsampled.set(baseKey, { id: baseKey, label: baseKey, reason: "The value has no input record. It stays at its point value." });
       return undefined;
     }
-    if (known.expression === undefined || !known.uncertain) {
+    if (!known.uncertain) {
       tally.unsampled.set(baseKey, { id: baseKey, label: known.label, reason: known.missing ?? "No distribution." });
       return undefined;
     }
@@ -146,15 +146,6 @@ function sampledBuild(input: {
     use.events.add(user);
     tally.used.set(baseKey, use);
     return known;
-  };
-  const edge = (baseKey: string, own: string, expression: UncertainExpression): UncertainExpression => {
-    const reference: WorkbookParameterReference = {
-      referenceType: "WORKBOOK_PARAMETER",
-      workbookId: input.esqWorkbookId,
-      entityId: independent ? `${baseKey}@${own}` : baseKey,
-    };
-    added.set(parameterReferenceKey(reference), { reference, expression });
-    return { node: "PARAMETER", reference };
   };
   const expanded = new Set(input.logic.expandCcf
     ? build.ccfGroups.flatMap((group) => model?.ccfGroups.find((record) => record.id === group.id)?.memberIds ?? [])
@@ -167,45 +158,40 @@ function sampledBuild(input: {
       if (value === undefined || replaced.has(event.id)) continue;
       if (value.role === "BASIC" && expanded.has(value.id)) continue;
       const baseKey = baseKeyOf(esq, value);
-      if (baseKey === undefined) continue;
-      const known = note(baseKey, value.id);
-      if (known === undefined) continue;
-      if (known.contract) {
-        if (independent) replaced.set(event.id, renamed(event.expression, event.id, entries, added));
+      if (baseKey === undefined || note(baseKey, value.id) === undefined) continue;
+      if ((value.role === "JOINT" || value.role === "INDEPENDENT_PART") && value.ratio !== undefined && value.baseExpression !== undefined) {
+        const base = independent ? renamed(value.baseExpression, event.id, entries, added) : value.baseExpression;
+        replaced.set(event.id, { node: "OPERATION", operation: "MULTIPLY", operands: [base, factor(value.ratio)] });
         continue;
       }
-      const shared = edge(baseKey, value.id, known.expression ?? event.expression);
-      const scaled = (value.role === "JOINT" || value.role === "INDEPENDENT_PART") && value.ratio !== undefined
-        ? { node: "OPERATION" as const, operation: "MULTIPLY" as const, operands: [shared, factor(value.ratio)] }
-        : shared;
-      replaced.set(event.id, scaled);
+      if (independent) replaced.set(event.id, renamed(event.expression, event.id, entries, added));
     }
   }
   const totals = new Map<string, UncertainExpression>();
   if (input.logic.expandCcf && model !== undefined) {
     for (const group of build.ccfGroups) {
       const baseKey = ccfInputKey(esq, model, group.id);
-      const known = note(baseKey, `ccf:${group.id}`);
-      if (known === undefined) continue;
-      if (known.contract) {
-        if (independent) totals.set(group.id, renamed(group.total, `ccf:${group.id}`, entries, added));
-        continue;
-      }
-      totals.set(group.id, edge(baseKey, `ccf:${group.id}`, known.expression ?? group.total));
+      if (note(baseKey, `ccf:${group.id}`) === undefined) continue;
+      const total = group.total;
+      if (independent && total !== undefined) totals.set(group.id, renamed(total, `ccf:${group.id}`, entries, added));
     }
   }
   const sampling: EsqSampling = { trials: settings.trials, seed: settings.seed, method: settings.method };
   const initiator = note(initiatorInputKey(esq, input.root.initiatorId), `initiator:${input.root.initiatorId}`);
   const frequency = initiator !== undefined && independent ? renamed(build.frequency, `initiator:${input.root.initiatorId}`, entries, added) : build.frequency;
   const eventTreeSnapshots = build.eventTreeSnapshots.map((snapshot) => ({ ...snapshot, initiatingEventFrequency: { expression: frequency } }));
-  const ccfGroups = build.ccfGroups.map((group) => ({ ...group, total: totals.get(group.id) ?? group.total }));
+  const withTotal = (group: CatalogueCcfGroup): CatalogueCcfGroup => {
+    const total = totals.get(group.id);
+    return total === undefined ? group : { ...group, total };
+  };
+  const ccfGroups = build.ccfGroups.map(withTotal);
   const faultTrees = build.faultTrees.map((tree) => ({
     ...tree,
     basicEventCatalogue: {
       ...tree.basicEventCatalogue,
       basicEvents: tree.basicEventCatalogue.basicEvents.map((event) => ({ ...event, expression: replaced.get(event.id) ?? event.expression })),
-      commonCauseFailureGroups: tree.basicEventCatalogue.commonCauseFailureGroups.map((group) => ({ ...group, total: totals.get(group.id) ?? group.total })),
-      uncertaintyParameters: [...tree.basicEventCatalogue.uncertaintyParameters, ...added.values()].filter((parameter, index, all) => all.findIndex((other) => parameterReferenceKey(other.reference) === parameterReferenceKey(parameter.reference)) === index),
+      commonCauseFailureGroups: tree.basicEventCatalogue.commonCauseFailureGroups.map(withTotal),
+      uncertaintyParameters: [...tree.basicEventCatalogue.uncertaintyParameters, ...build.sharedParameters, ...added.values()].filter((parameter, index, all) => all.findIndex((other) => parameterReferenceKey(other.reference) === parameterReferenceKey(parameter.reference)) === index),
     },
   }));
   const known = new Map([...faultTrees.flatMap((tree) => tree.basicEventCatalogue.uncertaintyParameters), ...build.initiatorTables.uncertaintyParameters, ...added.values()].map((parameter) => [parameterReferenceKey(parameter.reference), parameter] as const));
@@ -223,7 +209,7 @@ function sampledBuild(input: {
   const kept = reachable([
     ...faultTrees.flatMap((tree) => [
       ...tree.basicEventCatalogue.basicEvents.map((event) => event.expression),
-      ...tree.basicEventCatalogue.commonCauseFailureGroups.flatMap((group) => [group.total, ...ccfFactorExpressions(group.factors)]),
+      ...tree.basicEventCatalogue.commonCauseFailureGroups.flatMap((group) => [...(group.total === undefined ? [] : [group.total]), ...ccfFactorExpressions(group.factors)]),
     ]),
     frequency,
   ]);

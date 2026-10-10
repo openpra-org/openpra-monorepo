@@ -17,7 +17,9 @@ use crate::analysis::quantify::{
     UncertaintyOut,
 };
 use crate::analysis::uncertainty::QuantileValue;
-use crate::core::ccf::{alphas_key, fixed_components, phis_key, CcfGroup, CcfModel, RaspCcfEvent};
+use crate::core::ccf::{
+    alphas_key, fixed_components, phis_key, BinomialFailureRate, CcfGroup, CcfModel, RaspCcfEvent,
+};
 use crate::core::event::{BasicEvent, HouseEvent};
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::{Formula, Gate};
@@ -839,7 +841,7 @@ fn numeric_factor(expr: &Expr, key: &str) -> Option<f64> {
             law,
         } if component_key == key => match law.as_ref() {
             VectorLaw::Fixed { values } => values.get(*index).copied(),
-            VectorLaw::Dirichlet { .. } => None,
+            VectorLaw::Dirichlet { .. } | VectorLaw::WeightedDirichlet { .. } => None,
         },
         _ => None,
     }
@@ -954,6 +956,18 @@ fn encode_ccf_model(out: &mut Vec<u8>, group_id: &str, m: &CcfModel) {
             }
             encode_virtual_events(out, virtual_events);
         }
+        CcfModel::BinomialFailureRate(model) => {
+            out.push(10);
+            encode_expr_vec(
+                out,
+                &[
+                    model.independent.clone(),
+                    model.non_lethal_shock.clone(),
+                    model.component_failure.clone(),
+                    model.lethal_shock.clone(),
+                ],
+            );
+        }
     }
 }
 
@@ -996,6 +1010,22 @@ fn decode_ccf_model(r: &mut Reader, group_id: &str) -> Result<CcfModel> {
                 factors,
                 virtual_events: decode_virtual_events(r)?,
             }
+        }
+        10 => {
+            let parts = decode_expr_vec(r)?;
+            let [independent, non_lethal_shock, component_failure, lethal_shock] =
+                <[Expr; 4]>::try_from(parts).map_err(|parts| {
+                    PraxisError::Logic(format!(
+                        "PBF: CCF group '{group_id}' binomial failure rate model has {} parts, not 4",
+                        parts.len()
+                    ))
+                })?;
+            CcfModel::BinomialFailureRate(BinomialFailureRate {
+                independent,
+                non_lethal_shock,
+                component_failure,
+                lethal_shock,
+            })
         }
         other => {
             return Err(PraxisError::Logic(format!(
@@ -1095,11 +1125,12 @@ pub fn encode_fault_tree(ft: &FaultTree) -> Result<Vec<u8>> {
             put_string(&mut out, m);
         }
         match &g.total {
-            Expr::Constant(value) => {
+            None => out.push(0),
+            Some(Expr::Constant(value)) => {
                 out.push(1);
                 put_string(&mut out, &value.to_string());
             }
-            total => {
+            Some(total) => {
                 out.push(2);
                 encode_expr(&mut out, total);
             }
@@ -1215,18 +1246,19 @@ pub fn decode_fault_tree(bytes: &[u8]) -> Result<FaultTree> {
             members.push(r.string()?);
         }
         let total = match r.u8()? {
+            0 => None,
             1 => {
                 let text = r.string()?;
-                Expr::Constant(text.parse::<f64>().map_err(|_| {
+                Some(Expr::Constant(text.parse::<f64>().map_err(|_| {
                     PraxisError::Logic(format!(
                         "PBF: CCF group '{id}' total '{text}' is not a number"
                     ))
-                })?)
+                })?))
             }
-            2 => decode_expr(&mut r)?,
-            _ => {
+            2 => Some(decode_expr(&mut r)?),
+            other => {
                 return Err(PraxisError::Logic(format!(
-                    "PBF: CCF group '{id}' has no total"
+                    "PBF: CCF group '{id}' has unknown total tag {other}"
                 )))
             }
         };
@@ -1776,7 +1808,7 @@ mod tests {
                 "c1",
                 vec!["e1".into(), "e2".into()],
                 CcfModel::BetaFactor(Expr::Constant(0.1)),
-                Expr::Constant(0.01),
+                Some(Expr::Constant(0.01)),
             )
             .unwrap(),
         )
@@ -1792,7 +1824,7 @@ mod tests {
                         member_indices: vec![0, 1],
                     }],
                 },
-                Expr::Constant(0.001),
+                Some(Expr::Constant(0.001)),
             )
             .unwrap(),
         )
@@ -1806,7 +1838,7 @@ mod tests {
                     alphas: fixed_components(&alphas_key("fixed-alphas"), vec![0.9, 0.1])
                         .unwrap(),
                 },
-                Expr::Constant(0.02),
+                Some(Expr::Constant(0.02)),
             )
             .unwrap(),
         )
@@ -1828,7 +1860,7 @@ mod tests {
                         })
                         .collect(),
                 },
-                Expr::Draw {
+                Some(Expr::Draw {
                     key: "ccf:sampled/total".into(),
                     law: Box::new(Law::Beta {
                         alpha: 2.0,
@@ -1836,7 +1868,7 @@ mod tests {
                         lower: 0.0,
                         upper: 1.0,
                     }),
-                },
+                }),
             )
             .unwrap(),
         )
@@ -1846,7 +1878,7 @@ mod tests {
                 "sampled-beta",
                 vec!["e1".into(), "e3".into()],
                 CcfModel::BetaFactor(Expr::Parameter("lambda".into())),
-                Expr::Constant(0.03),
+                Some(Expr::Constant(0.03)),
             )
             .unwrap(),
         )
@@ -1856,7 +1888,7 @@ mod tests {
                 "fixed-phis",
                 vec!["e1".into(), "e3".into()],
                 CcfModel::PhiFactor(fixed_components(&phis_key("fixed-phis"), vec![0.7, 0.3]).unwrap()),
-                Expr::Constant(0.04),
+                Some(Expr::Constant(0.04)),
             )
             .unwrap(),
         )

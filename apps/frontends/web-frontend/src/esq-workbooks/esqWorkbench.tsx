@@ -351,8 +351,8 @@ function EsqWorkbench({
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
 
-  const { upstream } = useEsqWorkbook();
-  const visibleSteps = useMemo(() => stepsFromMef(data.esq, persona, upstream), [data.esq, persona, upstream]);
+  const { upstream, esq: liveEsq } = useEsqWorkbook();
+  const visibleSteps = useMemo(() => stepsFromMef(liveEsq, persona, upstream), [liveEsq, persona, upstream]);
   const [searchParams] = useSearchParams();
   const requestedStepId = searchParams.get("step");
   const requestedNetworkId = searchParams.get("network");
@@ -412,7 +412,7 @@ function EsqWorkbench({
   const submitted = actions === undefined ? demoSubmittedLocal : (workflowState === "INTERNAL_APPROVAL" || workflowState === "FINAL");
   const approved = actions === undefined ? demoApprovedLocal : workflowState === "FINAL";
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
-  const scores = ccScore(data.esq, ccId, stage);
+  const scores = ccScore(liveEsq, ccId, stage);
   const openCount = comments.filter((c) => !c.resolved).length;
   const resolvedCount = comments.filter((c) => c.resolved).length;
 

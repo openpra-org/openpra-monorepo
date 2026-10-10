@@ -139,7 +139,8 @@ const HUMAN_FAILURES: SyControlledHumanFailureOption[] = [{
   quantificationId: "HEPQ-HR-POST-9",
   methodology: "Detailed",
   value: 0.003,
-  valueKind: "MEAN",
+  hep: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.003 } } },
+  valueText: "3.0E-3",
 }];
 
 const COINCIDENT: SyControlledCoincidentMaintenanceOption[] = [{

@@ -5,8 +5,10 @@ use rand::{Rng, RngCore};
 use rand_distr::{Beta as BetaDraw, Distribution, Gamma as GammaDraw, StandardNormal, StudentT as StudentDraw};
 
 use crate::core::distribution::{
-    EvidenceTerm, Law, Likelihood, QuantilePoint, SampleSmoothing, TabulatedScale,
+    CountLikelihood, DiscreteOutcome, DurationModel, DurationOutput, DurationParameter, EvidenceTerm, Law,
+    QuantilePoint, SampleSmoothing, StandbyDemandKind, TabulatedScale,
 };
+use crate::core::distribution_inference as inference;
 use crate::core::special_functions as kernels;
 use crate::error::MefError;
 use crate::{PraxisError, Result};
@@ -1075,36 +1077,245 @@ impl Cells {
 
 const LIKELIHOOD_LEVELS: [f64; 7] = [0.125, 0.5, 2.0, 8.0, 32.0, 128.0, 512.0];
 
+const MODE_SCAN_POINTS: usize = 241;
+
+const MODE_SCAN_REACH: f64 = 60.0;
+
+const COMBINATION_LIMIT: usize = 4096;
+
+const SLOPE_STEP: f64 = 1e-4;
+
+fn power_log(power: f64, log_base: f64) -> f64 {
+    if power == 0.0 {
+        0.0
+    } else {
+        power * log_base
+    }
+}
+
+fn log_sum(logs: impl Iterator<Item = f64>) -> f64 {
+    let values: Vec<f64> = logs.collect();
+    let top = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    if !top.is_finite() {
+        return top;
+    }
+    top + values.iter().map(|value| (value - top).exp()).sum::<f64>().ln()
+}
+
 #[derive(Debug, Clone, Copy)]
+struct Standby {
+    random: bool,
+    failures: f64,
+    survivals: f64,
+    interval: f64,
+}
+
+impl Standby {
+    fn log_likelihood(&self, theta: f64) -> Result<f64> {
+        if theta <= 0.0 {
+            return Ok(if self.failures > 0.0 { f64::NEG_INFINITY } else { 0.0 });
+        }
+        let x = self.interval * theta;
+        let log_failed_mass = (-(-x).exp_m1()).ln();
+        if self.random {
+            let log_fail = (x * exp_minus_one_over_x_squared(-x)?).ln();
+            let log_survive = log_failed_mass - x.ln();
+            Ok(power_log(self.failures, log_fail) + power_log(self.survivals, log_survive))
+        } else {
+            Ok(power_log(self.failures, log_failed_mass) - self.survivals * x)
+        }
+    }
+
+    fn log_slope(&self, theta: f64) -> Result<f64> {
+        if theta <= 0.0 {
+            return Ok(self.failures);
+        }
+        let x = self.interval * theta;
+        let ratio = if x > UNDERFLOW_DROP { 0.0 } else { x / x.exp_m1() };
+        if self.random {
+            let survive_slope = ratio - 1.0;
+            let survive = -(-x).exp_m1() / x;
+            let fail = x * exp_minus_one_over_x_squared(-x)?;
+            Ok(self.failures * (-survive_slope * survive / fail) + self.survivals * survive_slope)
+        } else {
+            Ok(self.failures * ratio - self.survivals * x)
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Uncertain {
+    binomial: bool,
+    exposure: f64,
+    outcomes: Vec<(f64, f64)>,
+}
+
+impl Uncertain {
+    fn from_term(count: CountLikelihood, outcomes: &[DiscreteOutcome], exposure: f64) -> Result<Uncertain> {
+        let total: f64 = outcomes.iter().map(|outcome| outcome.weight).sum();
+        let binomial = count == CountLikelihood::Binomial;
+        let constant_of = |failures: f64| -> Result<f64> {
+            Ok(if binomial {
+                kernels::log_gamma(exposure + 1.0)? - kernels::log_gamma(failures + 1.0)?
+                    - kernels::log_gamma(exposure - failures + 1.0)?
+            } else {
+                power_log(failures, exposure.ln()) - kernels::log_gamma(failures + 1.0)?
+            })
+        };
+        let outcomes = outcomes
+            .iter()
+            .map(|outcome| Ok((outcome.value, (outcome.weight / total).ln() + constant_of(outcome.value)?)))
+            .collect::<Result<Vec<(f64, f64)>>>()?;
+        Ok(Uncertain {
+            binomial,
+            exposure,
+            outcomes,
+        })
+    }
+
+    fn parts(&self, theta: f64) -> Result<Vec<f64>> {
+        let log_theta = if theta > 0.0 { theta.ln() } else { f64::NEG_INFINITY };
+        let log_rest = if self.binomial {
+            if theta < 1.0 {
+                (-theta).ln_1p()
+            } else {
+                f64::NEG_INFINITY
+            }
+        } else {
+            0.0
+        };
+        Ok(self
+            .outcomes
+            .iter()
+            .map(|(failures, log_weight)| {
+                let rest = if self.binomial {
+                    power_log(self.exposure - failures, log_rest)
+                } else {
+                    0.0
+                };
+                log_weight + power_log(*failures, log_theta) + rest
+            })
+            .collect())
+    }
+
+    fn log_likelihood(&self, theta: f64) -> Result<f64> {
+        if theta < 0.0 || (self.binomial && theta > 1.0) {
+            return Ok(f64::NEG_INFINITY);
+        }
+        let shared = if self.binomial { 0.0 } else { -self.exposure * theta };
+        Ok(log_sum(self.parts(theta)?.into_iter()) + shared)
+    }
+
+    fn log_slope(&self, theta: f64) -> Result<f64> {
+        let parts = self.parts(theta)?;
+        let total = log_sum(parts.iter().copied());
+        let mut slope = 0.0;
+        for ((failures, _), part) in self.outcomes.iter().zip(parts) {
+            let share = (part - total).exp();
+            let own = if self.binomial {
+                failures - (self.exposure - failures) * theta / (1.0 - theta)
+            } else {
+                failures - self.exposure * theta
+            };
+            if share > 0.0 {
+                slope += share * own;
+            }
+        }
+        Ok(slope)
+    }
+}
+
+#[derive(Debug, Clone)]
 struct Evidence {
     failures: f64,
     survivals: f64,
     exposure: f64,
     binomial: bool,
+    standby: Vec<Standby>,
+    uncertain: Vec<Uncertain>,
 }
 
 impl Evidence {
-    fn from_terms(terms: &[EvidenceTerm]) -> Evidence {
-        let mut evidence = Evidence {
-            failures: 0.0,
-            survivals: 0.0,
-            exposure: 0.0,
-            binomial: false,
-        };
-        for term in terms {
-            evidence.failures += term.failures;
-            match term.likelihood {
-                Likelihood::Binomial => {
-                    evidence.survivals += term.exposure - term.failures;
-                    evidence.binomial = true;
-                }
-                Likelihood::Poisson => evidence.exposure += term.exposure,
-            }
+    fn counts(failures: f64, survivals: f64, exposure: f64, binomial: bool) -> Evidence {
+        Evidence {
+            failures,
+            survivals,
+            exposure,
+            binomial,
+            standby: Vec::new(),
+            uncertain: Vec::new(),
         }
-        evidence
     }
 
-    fn mode(&self) -> f64 {
+    fn from_terms(terms: &[EvidenceTerm]) -> Result<Evidence> {
+        let mut evidence = Evidence::counts(0.0, 0.0, 0.0, false);
+        for term in terms {
+            match term {
+                EvidenceTerm::Binomial { failures, exposure } => {
+                    evidence.failures += failures;
+                    evidence.survivals += exposure - failures;
+                    evidence.binomial = true;
+                }
+                EvidenceTerm::Poisson { failures, exposure } => {
+                    evidence.failures += failures;
+                    evidence.exposure += exposure;
+                }
+                EvidenceTerm::StandbyDemand {
+                    demand,
+                    failures,
+                    exposure,
+                    test_interval,
+                } => evidence.standby.push(Standby {
+                    random: *demand == StandbyDemandKind::Random,
+                    failures: *failures,
+                    survivals: exposure - failures,
+                    interval: *test_interval,
+                }),
+                EvidenceTerm::UncertainCount {
+                    count,
+                    outcomes,
+                    exposure,
+                } => evidence.uncertain.push(Uncertain::from_term(*count, outcomes, *exposure)?),
+            }
+        }
+        Ok(evidence)
+    }
+
+    fn is_plain(&self) -> bool {
+        self.standby.is_empty() && self.uncertain.is_empty()
+    }
+
+    fn bounded(&self) -> bool {
+        self.binomial || self.uncertain.iter().any(|term| term.binomial)
+    }
+
+    fn rate_bounded(&self) -> bool {
+        self.exposure > 0.0
+            || self.survivals > 0.0
+            || !self.uncertain.is_empty()
+            || self.standby.iter().any(|term| term.survivals > 0.0)
+    }
+
+    fn gamma_conjugate(&self) -> bool {
+        !self.binomial && self.standby.is_empty() && self.uncertain.iter().all(|term| !term.binomial)
+    }
+
+    fn beta_conjugate(&self) -> bool {
+        self.exposure == 0.0 && self.standby.is_empty() && self.uncertain.iter().all(|term| term.binomial)
+    }
+
+    fn reach(&self) -> f64 {
+        self.exposure
+            + self.survivals
+            + self
+                .standby
+                .iter()
+                .map(|term| (term.failures + term.survivals) * term.interval)
+                .sum::<f64>()
+            + self.uncertain.iter().map(|term| term.exposure).sum::<f64>()
+    }
+
+    fn plain_mode(&self) -> f64 {
         let (failures, survivals, exposure) = (self.failures, self.survivals, self.exposure);
         if failures == 0.0 {
             0.0
@@ -1120,8 +1331,47 @@ impl Evidence {
         }
     }
 
+    fn mode_within(&self, low: f64, high: f64) -> Result<f64> {
+        if self.is_plain() {
+            return Ok(self.plain_mode().clamp(low, high));
+        }
+        let reach = self.reach();
+        let guess = if reach > 0.0 && reach.is_finite() {
+            1.0 / reach
+        } else {
+            1.0
+        };
+        let start = if low > 0.0 { low.ln() } else { guess.ln() - MODE_SCAN_REACH };
+        let end = if high.is_finite() { high.ln() } else { guess.ln() + MODE_SCAN_REACH };
+        let step = (end - start) / (MODE_SCAN_POINTS - 1) as f64;
+        let at = |index: usize| if index + 1 == MODE_SCAN_POINTS { end } else { start + step * index as f64 };
+        let mut best = (0, f64::NEG_INFINITY);
+        for index in 0..MODE_SCAN_POINTS {
+            let value = self.log_likelihood(at(index).exp())?;
+            if value > best.1 {
+                best = (index, value);
+            }
+        }
+        if !best.1.is_finite() {
+            return Ok(low.max(guess).min(high));
+        }
+        if best.0 == 0 && low <= 0.0 && self.log_likelihood(0.0)? >= best.1 {
+            return Ok(low);
+        }
+        let left = at(best.0.saturating_sub(1));
+        let right = at((best.0 + 1).min(MODE_SCAN_POINTS - 1));
+        let position = golden_maximum(|w| self.log_likelihood((left + w * (right - left)).exp()))?;
+        let theta = (left + position * (right - left)).exp();
+        Ok(if self.log_likelihood(theta)? >= best.1 {
+            theta
+        } else {
+            at(best.0).exp()
+        }
+        .clamp(low, high))
+    }
+
     fn log_likelihood(&self, theta: f64) -> Result<f64> {
-        if theta.is_infinite() {
+        if theta.is_infinite() || theta.is_nan() {
             return Ok(f64::NEG_INFINITY);
         }
         let mut total = -self.exposure * theta;
@@ -1137,13 +1387,33 @@ impl Evidence {
             }
             total += self.survivals * kernels::log_one_plus(-theta)?;
         }
+        for term in &self.standby {
+            total += term.log_likelihood(theta)?;
+        }
+        for term in &self.uncertain {
+            total += term.log_likelihood(theta)?;
+        }
         Ok(total)
+    }
+
+    fn extra_slope(&self, theta: f64) -> Result<f64> {
+        let mut slope = 0.0;
+        for term in &self.standby {
+            slope += term.log_slope(theta)?;
+        }
+        for term in &self.uncertain {
+            slope += term.log_slope(theta)?;
+        }
+        Ok(slope)
     }
 
     fn log_slope(&self, theta: f64) -> f64 {
         let mut slope = self.failures - self.exposure * theta;
         if self.survivals > 0.0 {
             slope -= self.survivals * theta / (1.0 - theta);
+        }
+        if !self.is_plain() {
+            slope += self.extra_slope(theta).unwrap_or(f64::NAN);
         }
         slope
     }
@@ -1153,23 +1423,37 @@ impl Evidence {
         if self.survivals > 0.0 {
             curvature -= self.survivals * theta / ((1.0 - theta) * (1.0 - theta));
         }
+        if !self.is_plain() {
+            let up = self.extra_slope(theta * SLOPE_STEP.exp()).unwrap_or(f64::NAN);
+            let down = self.extra_slope(theta * (-SLOPE_STEP).exp()).unwrap_or(f64::NAN);
+            curvature += (up - down) / (2.0 * SLOPE_STEP);
+        }
         curvature
     }
 
-    fn jeffreys(&self) -> Prepared {
-        if self.binomial {
-            Prepared::Beta {
-                alpha: 0.5 + self.failures,
-                beta: 0.5 + self.survivals,
-                lower: 0.0,
-                width: 1.0,
+    fn combinations(&self) -> Option<Vec<(f64, f64)>> {
+        let mut combined: Vec<(f64, f64)> = vec![(0.0, 0.0)];
+        for term in &self.uncertain {
+            let mut next: Vec<(f64, f64)> = Vec::with_capacity(combined.len() * term.outcomes.len());
+            for (log_weight, failures) in &combined {
+                for (extra, own) in &term.outcomes {
+                    next.push((log_weight + own, failures + extra));
+                }
             }
-        } else {
-            Prepared::Gamma {
-                shape: 0.5 + self.failures,
-                scale: 1.0 / self.exposure,
+            next.sort_by(|left, right| left.1.total_cmp(&right.1));
+            let mut merged: Vec<(f64, f64)> = Vec::with_capacity(next.len());
+            for (log_weight, failures) in next {
+                match merged.last_mut() {
+                    Some(last) if last.1 == failures => last.0 = log_sum([last.0, log_weight].into_iter()),
+                    _ => merged.push((log_weight, failures)),
+                }
             }
+            if merged.len() > COMBINATION_LIMIT {
+                return None;
+            }
+            combined = merged;
         }
+        Some(combined)
     }
 
     fn level_points(&self, low: f64, high: f64, center: f64, peak: f64) -> Result<Vec<f64>> {
@@ -1187,10 +1471,12 @@ impl Evidence {
                     let residual = |v: f64| Ok(finite(self.log_likelihood(v.exp())?) - target);
                     let anchor = center.ln();
                     let start = match edge {
-                        Some(_) => low.ln(),
-                        None => expand_bracket(residual, anchor, anchor - 1.0)?,
+                        Some(_) => Some(low.ln()),
+                        None => expand_bracket(residual, anchor, anchor - 1.0).ok(),
                     };
-                    points.push(brent(residual, start, anchor)?.exp());
+                    if let Some(start) = start {
+                        points.push(brent(residual, start, anchor)?.exp());
+                    }
                 }
             }
             if center < high {
@@ -1207,7 +1493,7 @@ impl Evidence {
                             let step = if center > 0.0 {
                                 center
                             } else {
-                                1.0 / (self.exposure + self.survivals)
+                                1.0 / self.reach()
                             };
                             expand_bracket(residual, center, center + step)?
                         }
@@ -1217,6 +1503,124 @@ impl Evidence {
             }
         }
         Ok(points)
+    }
+}
+
+fn conjugate_parts(parts: Vec<(f64, Prepared)>) -> Result<(Prepared, f64)> {
+    let top = parts.iter().map(|(log, _)| *log).fold(f64::NEG_INFINITY, f64::max);
+    if !top.is_finite() {
+        return Err(math_error(
+            "the evidence leaves the law no probability".to_string(),
+        ));
+    }
+    let kept: Vec<(f64, Prepared)> = parts
+        .into_iter()
+        .map(|(log, posterior)| ((log - top).exp(), posterior))
+        .filter(|(weight, _)| *weight > 0.0)
+        .collect();
+    let sum: f64 = kept.iter().map(|(weight, _)| weight).sum();
+    if kept.len() == 1 {
+        let (_, only) = kept.into_iter().next().ok_or_else(|| math_error("no posterior part".to_string()))?;
+        return Ok((only, top + sum.ln()));
+    }
+    Ok((
+        mixture(
+            kept.into_iter()
+                .map(|(weight, posterior)| (weight / sum, posterior))
+                .collect(),
+        ),
+        top + sum.ln(),
+    ))
+}
+
+fn conjugate_gamma(shape: f64, rate: f64, evidence: &Evidence, combinations: Vec<(f64, f64)>) -> Result<(Prepared, f64)> {
+    let exposure = evidence.exposure + evidence.uncertain.iter().map(|term| term.exposure).sum::<f64>();
+    let posterior_rate = rate + exposure;
+    let prior_part = if rate > 0.0 { shape * rate.ln() } else { 0.0 };
+    let parts = combinations
+        .into_iter()
+        .map(|(log_weight, extra)| {
+            let posterior_shape = shape + evidence.failures + extra;
+            Ok((
+                log_weight + kernels::log_gamma(posterior_shape)? - kernels::log_gamma(shape)? + prior_part
+                    - posterior_shape * posterior_rate.ln(),
+                Prepared::Gamma {
+                    shape: posterior_shape,
+                    scale: 1.0 / posterior_rate,
+                },
+            ))
+        })
+        .collect::<Result<Vec<(f64, Prepared)>>>()?;
+    conjugate_parts(parts)
+}
+
+fn conjugate_beta(alpha: f64, beta: f64, evidence: &Evidence, combinations: Vec<(f64, f64)>) -> Result<(Prepared, f64)> {
+    let demands: f64 = evidence.uncertain.iter().map(|term| term.exposure).sum();
+    let prior_part = log_beta(alpha, beta)?;
+    let parts = combinations
+        .into_iter()
+        .map(|(log_weight, extra)| {
+            let posterior_alpha = alpha + evidence.failures + extra;
+            let posterior_beta = beta + evidence.survivals + demands - extra;
+            Ok((
+                log_weight + log_beta(posterior_alpha, posterior_beta)? - prior_part,
+                Prepared::Beta {
+                    alpha: posterior_alpha,
+                    beta: posterior_beta,
+                    lower: 0.0,
+                    width: 1.0,
+                },
+            ))
+        })
+        .collect::<Result<Vec<(f64, Prepared)>>>()?;
+    conjugate_parts(parts)
+}
+
+fn noninformative(evidence: &Evidence) -> Result<Prepared> {
+    if !evidence.standby.is_empty() {
+        if !evidence.bounded() && !evidence.rate_bounded() {
+            return Err(math_error(
+                "a posterior with no prior needs a standby demand without a failure or some exposure time"
+                    .to_string(),
+            ));
+        }
+        let prior = PriorShape::Power {
+            exponent: -0.5,
+            upper_log: evidence.bounded().then_some(0.0),
+        };
+        return Ok(Prepared::Density(Box::new(DensityPosterior::new(prior, evidence.clone())?)));
+    }
+    if evidence.bounded() {
+        if evidence.is_plain() {
+            let beta = Prepared::Beta {
+                alpha: 0.5 + evidence.failures,
+                beta: 0.5 + evidence.survivals,
+                lower: 0.0,
+                width: 1.0,
+            };
+            if evidence.exposure == 0.0 {
+                return Ok(beta);
+            }
+            let tilt = Evidence::counts(0.0, 0.0, evidence.exposure, true);
+            return Ok(Prepared::Posterior(Box::new(BayesPosterior::new(beta, tilt)?)));
+        }
+        let jeffreys = Prepared::Beta {
+            alpha: 0.5,
+            beta: 0.5,
+            lower: 0.0,
+            width: 1.0,
+        };
+        return Ok(updated(jeffreys, evidence)?.0);
+    }
+    match evidence.combinations() {
+        Some(combinations) => Ok(conjugate_gamma(0.5, 0.0, evidence, combinations)?.0),
+        None => {
+            let prior = PriorShape::Power {
+                exponent: -0.5,
+                upper_log: None,
+            };
+            Ok(Prepared::Density(Box::new(DensityPosterior::new(prior, evidence.clone())?)))
+        }
     }
 }
 
@@ -1232,12 +1636,12 @@ struct BayesPosterior {
 impl BayesPosterior {
     fn new(prior: Prepared, evidence: Evidence) -> Result<BayesPosterior> {
         let (low, high) = prior.support();
-        if low < 0.0 || (evidence.binomial && high > 1.0) {
+        if low < 0.0 || (evidence.bounded() && high > 1.0) {
             return Err(math_error(
                 "a posterior prior must stay inside the range its evidence allows".to_string(),
             ));
         }
-        let center = evidence.mode().clamp(low, high);
+        let center = evidence.mode_within(low, high)?;
         let peak = evidence.log_likelihood(center)?;
         if !peak.is_finite() {
             return Err(math_error(
@@ -1366,38 +1770,18 @@ fn log_beta(alpha: f64, beta: f64) -> Result<f64> {
 
 fn updated(prior: Prepared, evidence: &Evidence) -> Result<(Prepared, f64)> {
     Ok(match prior {
-        Prepared::Gamma { shape, scale } if !evidence.binomial => {
-            let rate = 1.0 / scale;
-            let posterior_rate = rate + evidence.exposure;
-            let posterior_shape = shape + evidence.failures;
-            let log_marginal = kernels::log_gamma(posterior_shape)? - kernels::log_gamma(shape)?
-                + shape * rate.ln()
-                - posterior_shape * posterior_rate.ln();
-            (
-                Prepared::Gamma {
-                    shape: posterior_shape,
-                    scale: 1.0 / posterior_rate,
-                },
-                log_marginal,
-            )
+        Prepared::Gamma { shape, scale } if evidence.gamma_conjugate() && evidence.combinations().is_some() => {
+            let combinations = evidence.combinations().unwrap_or_default();
+            conjugate_gamma(shape, 1.0 / scale, evidence, combinations)?
         }
         Prepared::Beta {
             alpha,
             beta,
             lower,
             width,
-        } if lower == 0.0 && width == 1.0 && evidence.exposure == 0.0 => {
-            let posterior_alpha = alpha + evidence.failures;
-            let posterior_beta = beta + evidence.survivals;
-            (
-                Prepared::Beta {
-                    alpha: posterior_alpha,
-                    beta: posterior_beta,
-                    lower: 0.0,
-                    width: 1.0,
-                },
-                log_beta(posterior_alpha, posterior_beta)? - log_beta(alpha, beta)?,
-            )
+        } if lower == 0.0 && width == 1.0 && evidence.beta_conjugate() && evidence.combinations().is_some() => {
+            let combinations = evidence.combinations().unwrap_or_default();
+            conjugate_beta(alpha, beta, evidence, combinations)?
         }
         Prepared::Point { value } => {
             let log_marginal = evidence.log_likelihood(value)?;
@@ -1457,7 +1841,7 @@ fn updated(prior: Prepared, evidence: &Evidence) -> Result<(Prepared, f64)> {
             ))
         }
         other if other.quantile_is_closed() => {
-            let posterior = BayesPosterior::new(other, *evidence)?;
+            let posterior = BayesPosterior::new(other, evidence.clone())?;
             let log_marginal = posterior.log_marginal();
             (Prepared::Posterior(Box::new(posterior)), log_marginal)
         }
@@ -1468,7 +1852,7 @@ fn updated(prior: Prepared, evidence: &Evidence) -> Result<(Prepared, f64)> {
                     "a posterior prior must stay inside the range its evidence allows".to_string(),
                 ));
             }
-            let posterior = DensityPosterior::new(PriorShape::Law(Box::new(other)), *evidence)?;
+            let posterior = DensityPosterior::new(PriorShape::Law(Box::new(other)), evidence.clone())?;
             let log_marginal = posterior.log_marginal();
             (Prepared::Density(Box::new(posterior)), log_marginal)
         }
@@ -2017,6 +2401,7 @@ fn hyperposterior(
 enum PriorShape {
     Kernels { kernels: Vec<Kernel>, upper_log: Option<f64> },
     Law(Box<Prepared>),
+    Power { exponent: f64, upper_log: Option<f64> },
 }
 
 fn kernel_density(kernels: &[Kernel], upper_log: Option<f64>, v: f64) -> f64 {
@@ -2042,6 +2427,12 @@ impl PriorShape {
                 }
                 Ok(prior.density(theta)? * theta)
             }
+            PriorShape::Power { exponent, upper_log } => {
+                if upper_log.is_some_and(|bound| v > bound) {
+                    return Ok(0.0);
+                }
+                Ok(((exponent + 1.0) * v).exp())
+            }
         }
     }
 
@@ -2063,6 +2454,7 @@ impl PriorShape {
                 let (low, high) = prior.support();
                 (if low > 0.0 { low.ln() } else { f64::NEG_INFINITY }, if high.is_finite() { high.ln() } else { f64::INFINITY })
             }
+            PriorShape::Power { upper_log, .. } => (f64::NEG_INFINITY, upper_log.unwrap_or(f64::INFINITY)),
         }
     }
 }
@@ -2082,7 +2474,7 @@ impl DensityPosterior {
         let (bound_start, bound_end) = prior.bounds();
         let low = if bound_start.is_finite() { bound_start.exp() } else { 0.0 };
         let high = if bound_end.is_finite() { bound_end.exp() } else { f64::INFINITY };
-        let center = evidence.mode().clamp(low, high);
+        let center = evidence.mode_within(low, high)?;
         let peak = evidence.log_likelihood(center)?;
         if !peak.is_finite() {
             return Err(math_error(
@@ -2140,7 +2532,7 @@ impl DensityPosterior {
         knots.extend(inner.into_iter().filter(|v| *v > start && *v < end).map(Spot::line));
         let rule = match prior {
             PriorShape::Kernels { .. } => Rule::Kronrod,
-            PriorShape::Law(_) => Rule::TanhSinh,
+            PriorShape::Law(_) | PriorShape::Power { .. } => Rule::TanhSinh,
         };
         let cells = Cells::build(Axis::Line, rule, knots, |spot| integrand(spot.value))?;
         let kernel_cumulative = match &prior {
@@ -2151,7 +2543,7 @@ impl DensityPosterior {
                     Some(*running)
                 })
                 .collect(),
-            PriorShape::Law(_) => Vec::new(),
+            PriorShape::Law(_) | PriorShape::Power { .. } => Vec::new(),
         };
         let mut posterior = DensityPosterior {
             prior,
@@ -2173,6 +2565,9 @@ impl DensityPosterior {
     fn prior_draw<R: Rng + ?Sized>(&self, rng: &mut R) -> Result<f64> {
         match &self.prior {
             PriorShape::Law(prior) => prior.draw(rng),
+            PriorShape::Power { .. } => Err(math_error(
+                "an improper prior cannot be drawn from".to_string(),
+            )),
             PriorShape::Kernels { kernels, upper_log } => {
                 let total = self.kernel_cumulative.last().copied().unwrap_or(1.0);
                 loop {
@@ -2189,7 +2584,7 @@ impl DensityPosterior {
     }
 
     fn draw<R: Rng + ?Sized>(&self, rng: &mut R) -> Result<f64> {
-        if 1.0 / self.cells.total() > self.inverse_cost as f64 {
+        if matches!(self.prior, PriorShape::Power { .. }) || 1.0 / self.cells.total() > self.inverse_cost as f64 {
             let (u, v) = open_unit_pair(rng);
             return self.quantile(u, v);
         }
@@ -2317,7 +2712,7 @@ fn population(
     let members: Vec<Evidence> = terms
         .iter()
         .map(|term| Evidence::from_terms(std::slice::from_ref(term)))
-        .collect();
+        .collect::<Result<Vec<Evidence>>>()?;
     let upper_log = upper.map(f64::ln);
     let kernels = hyperposterior(&mu_law, &sigma_law, upper_log, &members, target)?;
     match target {
@@ -2329,9 +2724,753 @@ fn population(
         )),
         Some(index) => Ok(Prepared::Density(Box::new(DensityPosterior::new(
             PriorShape::Kernels { kernels, upper_log },
-            members[index],
+            members[index].clone(),
         )?))),
     }
+}
+
+const OUTPUT_KNOTS: usize = 400;
+
+const OUTPUT_SCORE_REACH: f64 = 8.3;
+
+const OUTPUT_TAIL: f64 = 1e-9;
+
+const OUTPUT_DIVERGENCE: f64 = 1e-3;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Mapping {
+    Survival { time: f64 },
+    Reciprocal,
+}
+
+impl Mapping {
+    fn apply(self, x: f64) -> f64 {
+        match self {
+            Mapping::Survival { time } => (-x * time).exp(),
+            Mapping::Reciprocal => 1.0 / x,
+        }
+    }
+
+    fn invert(self, y: f64) -> f64 {
+        match self {
+            Mapping::Survival { time } => -y.ln() / time,
+            Mapping::Reciprocal => 1.0 / y,
+        }
+    }
+
+    fn inverse_slope(self, y: f64) -> f64 {
+        match self {
+            Mapping::Survival { time } => 1.0 / (time * y),
+            Mapping::Reciprocal => 1.0 / (y * y),
+        }
+    }
+}
+
+fn mapped(inner: Prepared, mapping: Mapping) -> Result<Prepared> {
+    Ok(match inner {
+        Prepared::Point { value } => Prepared::Point {
+            value: mapping.apply(value),
+        },
+        Prepared::Atoms { atoms } => Prepared::Atoms {
+            atoms: atoms_from(
+                atom_probabilities(&atoms)
+                    .map(|(value, probability)| (mapping.apply(value), probability))
+                    .collect(),
+            )?,
+        },
+        other => Prepared::Mapped {
+            inner: Box::new(other),
+            mapping,
+        },
+    })
+}
+
+fn duration(
+    model: DurationModel,
+    times: &[f64],
+    censored: &[f64],
+    priors: &[crate::core::distribution::DurationPrior],
+    output: &DurationOutput,
+) -> Result<Prepared> {
+    if model != DurationModel::Exponential {
+        return tabulated_output(inference::duration_atoms(model, times, censored, priors, output)?);
+    }
+    let failures = times.len() as f64;
+    let exposure: f64 = times.iter().chain(censored.iter()).sum();
+    let evidence = Evidence::counts(failures, 0.0, exposure, false);
+    let posterior = match priors.iter().find(|prior| prior.parameter == DurationParameter::Rate) {
+        Some(prior) => updated(Prepared::from_law(&prior.law)?, &evidence)?.0,
+        None => Prepared::Gamma {
+            shape: failures,
+            scale: 1.0 / exposure,
+        },
+    };
+    let mapping = match output {
+        DurationOutput::Exceedance { time } => Mapping::Survival { time: *time },
+        DurationOutput::Mean => Mapping::Reciprocal,
+    };
+    mapped(posterior, mapping)
+}
+
+fn empirical_bayes(evidence: &[crate::core::distribution::CountEvidence], target: Option<usize>) -> Result<Prepared> {
+    let fitted = inference::fit_population(evidence)?;
+    let member = match target {
+        Some(index) => Some(evidence.get(index).ok_or_else(|| {
+            math_error("an empirical Bayes target names one of its members".to_string())
+        })?),
+        None => None,
+    };
+    let failures = member.map_or(0.0, |term| term.failures);
+    let exposure = member.map_or(0.0, |term| term.exposure);
+    Ok(match fitted {
+        inference::FittedPopulation::Gamma { shape, rate } => Prepared::Gamma {
+            shape: shape + failures,
+            scale: 1.0 / (rate + exposure),
+        },
+        inference::FittedPopulation::Beta { alpha, beta } => Prepared::Beta {
+            alpha: alpha + failures,
+            beta: beta + exposure - failures,
+            lower: 0.0,
+            width: 1.0,
+        },
+    })
+}
+
+fn segment_below(position: f64, start: (f64, f64), end: (f64, f64)) -> f64 {
+    let ((low_value, low_weight), (high_value, high_weight)) = (start, end);
+    let whole = 0.5 * (low_weight + high_weight);
+    if low_value == high_value {
+        return if position >= low_value { whole } else { 0.0 };
+    }
+    let cut = ((position - low_value) / (high_value - low_value)).clamp(0.0, 1.0);
+    let before = low_weight * cut + 0.5 * (high_weight - low_weight) * cut * cut;
+    if high_value > low_value {
+        before
+    } else {
+        whole - before
+    }
+}
+
+fn tabulated_output(rows: Vec<inference::OutputRow>) -> Result<Prepared> {
+    let floor = f64::MIN_POSITIVE.ln();
+    let mut segments: Vec<((f64, f64), (f64, f64))> = Vec::new();
+    let mut nodes: Vec<(f64, f64)> = Vec::new();
+    let mut lost = 0.0;
+    for row in &rows {
+        let cleaned: Vec<(f64, f64)> = row
+            .iter()
+            .map(|(value, weight)| {
+                if value.is_nan() || *value == f64::INFINITY {
+                    lost += weight;
+                    (f64::NAN, 0.0)
+                } else {
+                    (value.max(floor), *weight)
+                }
+            })
+            .collect();
+        if cleaned.len() == 1 {
+            if !cleaned[0].0.is_nan() && cleaned[0].1 > 0.0 {
+                nodes.push(cleaned[0]);
+                segments.push((cleaned[0], cleaned[0]));
+            }
+            continue;
+        }
+        for (index, node) in cleaned.iter().enumerate() {
+            if !node.0.is_nan() && node.1 > 0.0 {
+                let share = if index == 0 || index + 1 == cleaned.len() { 0.5 } else { 1.0 };
+                nodes.push((node.0, node.1 * share));
+            }
+        }
+        for pair in cleaned.windows(2) {
+            if pair[0].1 + pair[1].1 <= 0.0 {
+                continue;
+            }
+            match (pair[0].0.is_nan(), pair[1].0.is_nan()) {
+                (false, false) => segments.push((pair[0], pair[1])),
+                (false, true) => segments.push(((pair[0].0, pair[0].1), (pair[0].0, pair[0].1))),
+                (true, false) => segments.push(((pair[1].0, pair[1].1), (pair[1].0, pair[1].1))),
+                (true, true) => {}
+            }
+        }
+    }
+    let total: f64 = nodes.iter().map(|(_, weight)| weight).sum();
+    if !(total > 0.0 && total.is_finite()) || lost > OUTPUT_TAIL * total {
+        return Err(math_error(
+            "the output has no finite posterior with these data. Add data or a prior".to_string(),
+        ));
+    }
+    nodes.sort_by(|left, right| left.0.total_cmp(&right.0));
+    let mean: f64 = nodes.iter().map(|(value, weight)| value.exp() * weight).sum::<f64>() / total;
+    let variance: f64 = nodes
+        .iter()
+        .map(|(value, weight)| (value.exp() - mean).powi(2) * weight)
+        .sum::<f64>()
+        / total;
+    let mut trimmed_mass = 0.0;
+    let mut trimmed_sum = 0.0;
+    for (value, weight) in &nodes {
+        if trimmed_mass + weight > (1.0 - OUTPUT_TAIL) * total {
+            break;
+        }
+        trimmed_mass += weight;
+        trimmed_sum += value.exp() * weight;
+    }
+    if !mean.is_finite()
+        || (trimmed_mass > 0.0 && (trimmed_sum / trimmed_mass - mean).abs() > OUTPUT_DIVERGENCE * mean.abs().max(f64::MIN_POSITIVE))
+    {
+        return Err(math_error(
+            "the output has no finite posterior mean with these data. Add data or a prior".to_string(),
+        ));
+    }
+    let segment_total: f64 = segments
+        .iter()
+        .map(|(start, end)| 0.5 * (start.1 + end.1))
+        .sum();
+    let low = segments
+        .iter()
+        .map(|(start, end)| start.0.min(end.0))
+        .fold(f64::INFINITY, f64::min);
+    let high = segments
+        .iter()
+        .map(|(start, end)| start.0.max(end.0))
+        .fold(f64::NEG_INFINITY, f64::max);
+    if high.partial_cmp(&low) != Some(Ordering::Greater) || segment_total.partial_cmp(&0.0) != Some(Ordering::Greater) {
+        return Ok(Prepared::Point { value: mean });
+    }
+    let mut middles = Vec::with_capacity(nodes.len());
+    let mut running = 0.0;
+    for (value, weight) in &nodes {
+        middles.push(((running + 0.5 * weight) / total, *value));
+        running += weight;
+    }
+    let first = middles[0].0;
+    let last = middles[middles.len() - 1].0;
+    let mut ordinates = Vec::with_capacity(OUTPUT_KNOTS);
+    if middles.len() > 1 && last > first {
+        let last_complement = 0.5 * nodes[nodes.len() - 1].1 / total;
+        let score_low = kernels::normal_quantile(first)?.max(-OUTPUT_SCORE_REACH);
+        let score_high = (-kernels::normal_quantile(last_complement)?).min(OUTPUT_SCORE_REACH);
+        let mut targets: Vec<f64> = Vec::with_capacity(OUTPUT_KNOTS);
+        for index in 1..OUTPUT_KNOTS {
+            let fraction = index as f64 / OUTPUT_KNOTS as f64;
+            targets.push(kernels::normal_cdf(score_low + (score_high - score_low) * fraction)?);
+        }
+        targets.retain(|probability| *probability > first && *probability < last);
+        targets.sort_by(f64::total_cmp);
+        targets.dedup();
+        let mut cursor = 0;
+        for probability in targets {
+            while cursor + 2 < middles.len() && middles[cursor + 1].0 < probability {
+                cursor += 1;
+            }
+            let (left, right) = (middles[cursor], middles[cursor + 1]);
+            let fraction = if right.0 > left.0 {
+                ((probability - left.0) / (right.0 - left.0)).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            ordinates.push(left.1 + fraction * (right.1 - left.1));
+        }
+    }
+    let mut points = vec![QuantilePoint {
+        probability: 0.0,
+        value: low.exp(),
+    }];
+    for ordinate in ordinates {
+        if !(ordinate > low && ordinate < high) {
+            continue;
+        }
+        let below: f64 = segments
+            .iter()
+            .map(|(start, end)| segment_below(ordinate, *start, *end))
+            .sum::<f64>()
+            / segment_total;
+        let value = ordinate.exp();
+        if below > 0.0
+            && below < 1.0
+            && points
+                .last()
+                .is_some_and(|point| below > point.probability && value > point.value)
+        {
+            points.push(QuantilePoint {
+                probability: below,
+                value,
+            });
+        }
+    }
+    let top = high.exp();
+    if points.last().is_some_and(|point| point.value >= top) {
+        points.pop();
+    }
+    points.push(QuantilePoint {
+        probability: 1.0,
+        value: top,
+    });
+    if points.len() < 2 || points[0].value >= top {
+        return Ok(Prepared::Point { value: mean });
+    }
+    Ok(Prepared::Gridded {
+        table: Box::new(Prepared::Tabulated {
+            points,
+            logarithmic: false,
+        }),
+        moments: (mean, variance),
+    })
+}
+
+fn closed_parts(prepared: &Prepared, weight: f64, parts: &mut Vec<crate::core::distribution::MixtureComponent>) -> bool {
+    let law = match prepared {
+        Prepared::Point { value } => Law::Point { value: *value },
+        Prepared::Gamma { shape, scale } => Law::Gamma {
+            shape: *shape,
+            rate: 1.0 / scale,
+        },
+        Prepared::Beta {
+            alpha,
+            beta,
+            lower,
+            width,
+        } => Law::Beta {
+            alpha: *alpha,
+            beta: *beta,
+            lower: *lower,
+            upper: lower + width,
+        },
+        Prepared::Mixture { components, .. } => {
+            return components
+                .iter()
+                .all(|(share, component)| closed_parts(component, weight * share, parts));
+        }
+        _ => return false,
+    };
+    parts.push(crate::core::distribution::MixtureComponent { weight, law });
+    true
+}
+
+pub fn closed_form(law: &Law) -> Result<Option<Law>> {
+    let prepared = Prepared::from_law(law)?;
+    let mut parts = Vec::new();
+    if !closed_parts(&prepared, 1.0, &mut parts) {
+        return Ok(None);
+    }
+    Ok(match parts.len() {
+        0 => None,
+        1 => parts.pop().map(|part| part.law),
+        _ => Some(Law::Mixture { components: parts }),
+    })
+}
+
+const PRODUCT_TAIL: f64 = 1e-13;
+
+const PRODUCT_STEP: f64 = 0.004;
+
+const PRODUCT_CELLS_PER_SPREAD: f64 = 200.0;
+
+const PRODUCT_NODE_LIMIT: f64 = 131_072.0;
+
+const GAUSS_THREE: [(f64, f64); 3] = [
+    (-0.774_596_669_241_483_4, 5.0 / 9.0),
+    (0.0, 8.0 / 9.0),
+    (0.774_596_669_241_483_4, 5.0 / 9.0),
+];
+
+fn product_log_range(factor: &Prepared) -> Result<(f64, f64)> {
+    if factor.support().0 < 0.0 {
+        return Err(math_error(
+            "a product law needs factors that stay at or above zero".to_string(),
+        ));
+    }
+    let high = factor.quantile_pair(1.0 - PRODUCT_TAIL, PRODUCT_TAIL)?;
+    let mut tail = PRODUCT_TAIL;
+    let low = loop {
+        let value = factor.quantile_pair(tail, 1.0 - tail)?;
+        if value > 0.0 {
+            break value;
+        }
+        tail *= 1e3;
+        if tail >= 1e-3 {
+            return Err(math_error(
+                "a product law needs factors with no probability at zero".to_string(),
+            ));
+        }
+    };
+    if !(high.is_finite() && high >= low) {
+        return Err(math_error(
+            "a product factor has no finite upper quantile".to_string(),
+        ));
+    }
+    Ok((low.ln(), high.ln()))
+}
+
+fn product_log_spread(factor: &Prepared) -> Result<f64> {
+    let low = factor.quantile_pair(0.05, 0.95)?;
+    let high = factor.quantile_pair(0.95, 0.05)?;
+    Ok(if low > 0.0 && high > low {
+        (high / low).ln() / (2.0 * NORMAL_QUANTILE_95)
+    } else {
+        0.0
+    })
+}
+
+fn cell_share(factor: &Prepared, left: f64, step: f64) -> f64 {
+    let mut weight = 0.0;
+    let mut moment = 0.0;
+    for (node, share) in GAUSS_THREE {
+        let offset = 0.5 * step * (1.0 + node);
+        let x = (left + offset).exp();
+        let density = match factor.density(x) {
+            Ok(value) => value,
+            Err(_) => {
+                weight = 0.0;
+                break;
+            }
+        };
+        let part = density * x * share;
+        weight += part;
+        moment += part * offset.exp_m1();
+    }
+    let ratio = if weight > 0.0 && weight.is_finite() && moment.is_finite() {
+        moment / weight
+    } else {
+        (0.5 * step).exp_m1()
+    };
+    (ratio / step.exp_m1()).clamp(0.0, 1.0)
+}
+
+fn binned_factor(factor: &Prepared, origin: f64, step: f64, cells: usize) -> Result<Vec<f64>> {
+    let mut masses = vec![0.0; cells + 1];
+    if let Prepared::Atoms { atoms } = factor {
+        for (value, probability) in atom_probabilities(atoms) {
+            if value <= 0.0 {
+                continue;
+            }
+            let position = ((value.ln() - origin) / step).clamp(0.0, cells as f64);
+            let index = (position.floor() as usize).min(cells - 1);
+            let left = (origin + index as f64 * step).exp();
+            let share = ((value / left - 1.0) / step.exp_m1()).clamp(0.0, 1.0);
+            masses[index] += probability * (1.0 - share);
+            masses[index + 1] += probability * share;
+        }
+        return Ok(masses);
+    }
+    let mut below = Vec::with_capacity(cells + 1);
+    let mut above = Vec::with_capacity(cells + 1);
+    for index in 0..=cells {
+        let x = (origin + index as f64 * step).exp();
+        let mass = factor.cdf(x)?;
+        below.push(mass);
+        above.push(if mass > 0.5 { factor.survival(x)? } else { 1.0 - mass });
+    }
+    for index in 0..cells {
+        let mass = if below[index] > 0.5 {
+            above[index] - above[index + 1]
+        } else {
+            below[index + 1] - below[index]
+        };
+        if !(mass > 0.0) {
+            continue;
+        }
+        let share = cell_share(factor, origin + index as f64 * step, step);
+        masses[index] += mass * (1.0 - share);
+        masses[index + 1] += mass * share;
+    }
+    Ok(masses)
+}
+
+fn trimmed(masses: Vec<f64>) -> (usize, Vec<f64>) {
+    let first = masses.iter().position(|mass| *mass > 0.0).unwrap_or(0);
+    let last = masses.iter().rposition(|mass| *mass > 0.0).unwrap_or(first);
+    (first, masses[first..=last].to_vec())
+}
+
+fn convolved(left: &[f64], right: &[f64]) -> Vec<f64> {
+    let mut out = vec![0.0; left.len() + right.len() - 1];
+    for (index, mass) in left.iter().enumerate() {
+        if *mass == 0.0 {
+            continue;
+        }
+        for (offset, other) in right.iter().enumerate() {
+            out[index + offset] += mass * other;
+        }
+    }
+    out
+}
+
+fn ramp(left: f64, right: f64, depth: f64) -> f64 {
+    let curve = right - left;
+    let reach = left * left + 2.0 * curve * depth;
+    let denominator = left + reach.max(0.0).sqrt();
+    if denominator > 0.0 {
+        (2.0 * depth / denominator).clamp(0.0, 1.0)
+    } else {
+        0.0
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ProductGrid {
+    factors: Vec<Prepared>,
+    constant: f64,
+    start: f64,
+    step: f64,
+    masses: Vec<f64>,
+    lower_edges: Vec<f64>,
+    upper_edges: Vec<f64>,
+    moments: (f64, f64),
+}
+
+impl ProductGrid {
+    fn new(factors: Vec<Prepared>, constant: f64) -> Result<ProductGrid> {
+        let ranges = factors
+            .iter()
+            .map(product_log_range)
+            .collect::<Result<Vec<(f64, f64)>>>()?;
+        let mut step = PRODUCT_STEP;
+        for factor in &factors {
+            let spread = product_log_spread(factor)?;
+            if spread > 0.0 {
+                step = step.min(spread / PRODUCT_CELLS_PER_SPREAD);
+            }
+        }
+        let width: f64 = ranges.iter().map(|(low, high)| high - low).sum();
+        step = step.max(width / PRODUCT_NODE_LIMIT);
+        let mut origin = constant.ln();
+        let mut masses = vec![1.0];
+        for (factor, (low, high)) in factors.iter().zip(&ranges) {
+            let cells = ((high - low) / step).ceil().max(1.0) as usize;
+            let (offset, binned) = trimmed(binned_factor(factor, *low, step, cells)?);
+            origin += low + offset as f64 * step;
+            masses = convolved(&masses, &binned);
+        }
+        let total: f64 = masses.iter().sum();
+        if !(total > 0.0 && total.is_finite()) {
+            return Err(math_error("a product law keeps no probability".to_string()));
+        }
+        let kernel = (exp_minus_one_over_x_squared(step)? + exp_minus_one_over_x_squared(-step)?).ln();
+        let mut padded = Vec::with_capacity(masses.len() + 2);
+        padded.push(0.0);
+        padded.extend(masses.into_iter().map(|mass| mass / total));
+        padded.push(0.0);
+        let count = padded.len();
+        let mut below = vec![0.0; count];
+        for index in 1..count {
+            below[index] = below[index - 1] + padded[index - 1];
+        }
+        let mut above = vec![0.0; count + 1];
+        for index in (0..count).rev() {
+            above[index] = above[index + 1] + padded[index];
+        }
+        let lower_edges = (0..count).map(|index| below[index] + 0.5 * padded[index]).collect();
+        let upper_edges = (0..count).map(|index| above[index + 1] + 0.5 * padded[index]).collect();
+        let parts = factors
+            .iter()
+            .map(Prepared::moments)
+            .collect::<Result<Vec<(f64, f64)>>>()?;
+        let mean = constant * parts.iter().map(|(mean, _)| mean).product::<f64>();
+        let relative: f64 = parts
+            .iter()
+            .map(|(part_mean, part_variance)| (part_variance / (part_mean * part_mean)).ln_1p())
+            .sum();
+        Ok(ProductGrid {
+            factors,
+            constant,
+            start: origin - step - kernel,
+            step,
+            masses: padded,
+            lower_edges,
+            upper_edges,
+            moments: (mean, mean * mean * relative.exp_m1()),
+        })
+    }
+
+    fn draw<R: Rng + ?Sized>(&self, rng: &mut R) -> Result<f64> {
+        let mut value = self.constant;
+        for factor in &self.factors {
+            value *= factor.draw(rng)?;
+        }
+        Ok(value)
+    }
+
+    fn support(&self) -> (f64, f64) {
+        (
+            self.start.exp(),
+            (self.start + (self.masses.len() - 1) as f64 * self.step).exp(),
+        )
+    }
+
+    fn locate(&self, x: f64) -> Option<(usize, f64)> {
+        let position = (x.ln() - self.start) / self.step;
+        if !(position > 0.0 && position < (self.masses.len() - 1) as f64) {
+            return None;
+        }
+        let index = (position.floor() as usize).min(self.masses.len() - 2);
+        Some((index, position - index as f64))
+    }
+
+    fn cdf(&self, x: f64) -> f64 {
+        if x <= 0.0 {
+            return 0.0;
+        }
+        match self.locate(x) {
+            Some((index, t)) => {
+                let (left, right) = (self.masses[index], self.masses[index + 1]);
+                (self.lower_edges[index] + left * t + 0.5 * (right - left) * t * t).clamp(0.0, 1.0)
+            }
+            None => {
+                if x <= self.support().0 {
+                    0.0
+                } else {
+                    1.0
+                }
+            }
+        }
+    }
+
+    fn survival(&self, x: f64) -> f64 {
+        if x <= 0.0 {
+            return 1.0;
+        }
+        match self.locate(x) {
+            Some((index, t)) => {
+                let (left, right) = (self.masses[index], self.masses[index + 1]);
+                (self.upper_edges[index] - left * t - 0.5 * (right - left) * t * t).clamp(0.0, 1.0)
+            }
+            None => {
+                if x <= self.support().0 {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+        }
+    }
+
+    fn density(&self, x: f64) -> f64 {
+        if x <= 0.0 {
+            return 0.0;
+        }
+        match self.locate(x) {
+            Some((index, t)) => {
+                (self.masses[index] * (1.0 - t) + self.masses[index + 1] * t) / (self.step * x)
+            }
+            None => 0.0,
+        }
+    }
+
+    fn quantile(&self, u: f64, one_minus_u: f64) -> f64 {
+        let last = self.masses.len() - 2;
+        let (index, t) = if u <= 0.5 {
+            let index = self
+                .lower_edges
+                .partition_point(|edge| *edge <= u)
+                .saturating_sub(1)
+                .min(last);
+            let (left, right) = (self.masses[index], self.masses[index + 1]);
+            (index, ramp(left, right, u - self.lower_edges[index]))
+        } else {
+            let index = self
+                .upper_edges
+                .partition_point(|edge| *edge >= one_minus_u)
+                .saturating_sub(1)
+                .min(last);
+            let (left, right) = (self.masses[index], self.masses[index + 1]);
+            (index, ramp(left, right, self.upper_edges[index] - one_minus_u))
+        };
+        (self.start + (index as f64 + t) * self.step).exp()
+    }
+}
+
+fn scaled_prepared(inner: Prepared, factor: f64) -> Prepared {
+    if factor == 1.0 {
+        return inner;
+    }
+    let positive = factor > 0.0;
+    match inner {
+        Prepared::Point { value } => Prepared::Point {
+            value: value * factor,
+        },
+        Prepared::Gamma { shape, scale } if positive => Prepared::Gamma {
+            shape,
+            scale: scale * factor,
+        },
+        Prepared::Lognormal { mean, sigma, median } if positive => Prepared::Lognormal {
+            mean: mean * factor,
+            sigma,
+            median: median * factor,
+        },
+        Prepared::Beta {
+            alpha,
+            beta,
+            lower,
+            width,
+        } if positive => Prepared::Beta {
+            alpha,
+            beta,
+            lower: lower * factor,
+            width: width * factor,
+        },
+        Prepared::Uniform { lower, upper } if positive => Prepared::Uniform {
+            lower: lower * factor,
+            upper: upper * factor,
+        },
+        Prepared::LogUniform { lower, upper } if positive => Prepared::LogUniform {
+            lower: lower * factor,
+            upper: upper * factor,
+        },
+        Prepared::Normal { mean, deviation } if positive => Prepared::Normal {
+            mean: mean * factor,
+            deviation: deviation * factor,
+        },
+        Prepared::Weibull {
+            scale,
+            shape,
+            location,
+        } if positive => Prepared::Weibull {
+            scale: scale * factor,
+            shape,
+            location: location * factor,
+        },
+        other => Prepared::Scaled {
+            inner: Box::new(other),
+            factor,
+        },
+    }
+}
+
+fn product(factors: &[Law]) -> Result<Prepared> {
+    let mut constant = 1.0;
+    let mut spread = 0.0;
+    let mut log_median = 0.0;
+    let mut lognormals = 0;
+    let mut others = Vec::new();
+    for factor in factors {
+        match Prepared::from_law(factor)? {
+            Prepared::Point { value } => constant *= value,
+            Prepared::Lognormal { sigma, median, .. } => {
+                lognormals += 1;
+                spread += sigma * sigma;
+                log_median += median.ln();
+            }
+            other => others.push(other),
+        }
+    }
+    if lognormals > 0 {
+        let sigma = spread.sqrt();
+        let median = log_median.exp();
+        others.push(Prepared::Lognormal {
+            mean: median * (0.5 * spread).exp(),
+            sigma,
+            median,
+        });
+    }
+    if constant == 0.0 || others.is_empty() {
+        return Ok(Prepared::Point { value: constant });
+    }
+    if others.len() == 1 {
+        return Ok(scaled_prepared(others.remove(0), constant));
+    }
+    let grid = Prepared::Product(Box::new(ProductGrid::new(others, constant.abs())?));
+    Ok(if constant < 0.0 { scaled_prepared(grid, -1.0) } else { grid })
 }
 
 #[derive(Debug, Clone)]
@@ -2427,6 +3566,19 @@ enum Prepared {
     },
     Posterior(Box<BayesPosterior>),
     Density(Box<DensityPosterior>),
+    Mapped {
+        inner: Box<Prepared>,
+        mapping: Mapping,
+    },
+    Gridded {
+        table: Box<Prepared>,
+        moments: (f64, f64),
+    },
+    Scaled {
+        inner: Box<Prepared>,
+        factor: f64,
+    },
+    Product(Box<ProductGrid>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -2615,7 +3767,7 @@ impl PreparedLaw {
     }
 
     pub fn quantile_pairs(&self, pairs: &[(f64, f64)]) -> Result<Vec<f64>> {
-        let numeric = !self.prepared.quantile_is_closed() || matches!(self.prepared, Prepared::Posterior(_));
+        let numeric = self.prepared.numeric_inverse();
         if !numeric || self.prepared.is_atomic() || pairs.is_empty() {
             return pairs.iter().map(|(u, v)| self.prepared.quantile_pair(*u, *v)).collect();
         }
@@ -2977,12 +4129,22 @@ impl Prepared {
                 }
             }
             Law::Posterior { prior, evidence } => {
-                let evidence = Evidence::from_terms(evidence);
+                let evidence = Evidence::from_terms(evidence)?;
                 match prior {
                     Some(law) => updated(Prepared::from_law(law)?, &evidence)?.0,
-                    None => evidence.jeffreys(),
+                    None => noninformative(&evidence)?,
                 }
             }
+            Law::EmpiricalBayes { evidence, target } => empirical_bayes(evidence, *target)?,
+            Law::Duration {
+                model,
+                times,
+                censored,
+                priors,
+                output,
+            } => duration(*model, times, censored, priors, output)?,
+            Law::Trend { bins, at } => tabulated_output(inference::trend_atoms(bins, *at)?)?,
+            Law::Product { factors } => product(factors)?,
             Law::Population {
                 mu,
                 sigma,
@@ -3054,14 +4216,27 @@ impl Prepared {
             }
             Prepared::Posterior(posterior) => posterior.draw(rng)?,
             Prepared::Density(posterior) => posterior.draw(rng)?,
+            Prepared::Mapped { inner, mapping } => mapping.apply(inner.draw(rng)?),
+            Prepared::Gridded { table, .. } => table.draw(rng)?,
+            Prepared::Scaled { inner, factor } => factor * inner.draw(rng)?,
+            Prepared::Product(grid) => grid.draw(rng)?,
         })
     }
 
     fn quantile_is_closed(&self) -> bool {
         match self {
             Prepared::Constrained { .. } | Prepared::Mixture { .. } | Prepared::Kernel { .. } | Prepared::Density(_) => false,
-            Prepared::Truncated { inner, .. } => inner.quantile_is_closed(),
+            Prepared::Truncated { inner, .. } | Prepared::Mapped { inner, .. } | Prepared::Scaled { inner, .. } => inner.quantile_is_closed(),
+            Prepared::Gridded { table, .. } => table.quantile_is_closed(),
             _ => true,
+        }
+    }
+
+    fn numeric_inverse(&self) -> bool {
+        match self {
+            Prepared::Posterior(_) => true,
+            Prepared::Mapped { inner, .. } | Prepared::Scaled { inner, .. } => inner.numeric_inverse(),
+            other => !other.quantile_is_closed(),
         }
     }
 
@@ -3071,7 +4246,8 @@ impl Prepared {
             Prepared::Tabulated { points, .. } => {
                 points.windows(2).any(|pair| pair[0].value == pair[1].value)
             }
-            Prepared::Truncated { inner, .. } => inner.is_atomic(),
+            Prepared::Truncated { inner, .. } | Prepared::Mapped { inner, .. } | Prepared::Scaled { inner, .. } => inner.is_atomic(),
+            Prepared::Gridded { table, .. } => table.is_atomic(),
             Prepared::Mixture { components, .. } => {
                 components.iter().any(|(_, component)| component.is_atomic())
             }
@@ -3235,6 +4411,25 @@ impl Prepared {
             }
             Prepared::Posterior(law) => law.cdf(x)?,
             Prepared::Density(law) => law.cdf(x)?,
+            Prepared::Mapped { inner, mapping } => {
+                let (low, high) = self.support();
+                if x < low {
+                    0.0
+                } else if x >= high {
+                    1.0
+                } else {
+                    inner.survival(mapping.invert(x))?
+                }
+            }
+            Prepared::Gridded { table, .. } => table.cdf(x)?,
+            Prepared::Scaled { inner, factor } => {
+                if *factor > 0.0 {
+                    inner.cdf(x / factor)?
+                } else {
+                    inner.survival_left(x / factor)?
+                }
+            }
+            Prepared::Product(grid) => grid.cdf(x),
         })
     }
 
@@ -3375,6 +4570,25 @@ impl Prepared {
             }
             Prepared::Posterior(law) => law.survival(x)?,
             Prepared::Density(law) => law.survival(x)?,
+            Prepared::Mapped { inner, mapping } => {
+                let (low, high) = self.support();
+                if x < low {
+                    1.0
+                } else if x >= high {
+                    0.0
+                } else {
+                    inner.cdf(mapping.invert(x))?
+                }
+            }
+            Prepared::Gridded { table, .. } => table.survival(x)?,
+            Prepared::Scaled { inner, factor } => {
+                if *factor > 0.0 {
+                    inner.survival(x / factor)?
+                } else {
+                    inner.cdf_left(x / factor)?
+                }
+            }
+            Prepared::Product(grid) => grid.survival(x),
             _ => 1.0 - self.cdf(x)?,
         })
     }
@@ -3458,6 +4672,20 @@ impl Prepared {
             ),
             Prepared::Posterior(law) => law.prior.support(),
             Prepared::Density(law) => law.support(),
+            Prepared::Mapped { inner, mapping } => {
+                let (low, high) = inner.support();
+                (mapping.apply(high), mapping.apply(low))
+            }
+            Prepared::Gridded { table, .. } => table.support(),
+            Prepared::Scaled { inner, factor } => {
+                let (low, high) = inner.support();
+                if *factor > 0.0 {
+                    (low * factor, high * factor)
+                } else {
+                    (high * factor, low * factor)
+                }
+            }
+            Prepared::Product(grid) => grid.support(),
         }
     }
 
@@ -3649,8 +4877,8 @@ impl Prepared {
                     cdf_upper - cdf_lower
                 };
                 let value = inner.quantile_pair(
-                    cdf_lower + u * mass,
-                    survival_upper + one_minus_u * mass,
+                    (cdf_lower + u * mass).min(1.0),
+                    (survival_upper + one_minus_u * mass).min(1.0),
                 )?;
                 value.clamp(*lower, *upper)
             }
@@ -3670,6 +4898,16 @@ impl Prepared {
             }
             Prepared::Posterior(law) => law.quantile(u, one_minus_u)?,
             Prepared::Density(law) => law.quantile(u, one_minus_u)?,
+            Prepared::Mapped { inner, mapping } => mapping.apply(inner.quantile_pair(one_minus_u, u)?),
+            Prepared::Gridded { table, .. } => table.quantile_pair(u, one_minus_u)?,
+            Prepared::Scaled { inner, factor } => {
+                if *factor > 0.0 {
+                    factor * inner.quantile_pair(u, one_minus_u)?
+                } else {
+                    factor * inner.quantile_pair(one_minus_u, u)?
+                }
+            }
+            Prepared::Product(grid) => grid.quantile(u, one_minus_u),
         })
     }
 
@@ -3831,6 +5069,16 @@ impl Prepared {
             }
             Prepared::Posterior(law) => law.density(x)?,
             Prepared::Density(law) => law.density(x)?,
+            Prepared::Mapped { inner, mapping } => {
+                if x <= 0.0 {
+                    0.0
+                } else {
+                    inner.density(mapping.invert(x))? * mapping.inverse_slope(x)
+                }
+            }
+            Prepared::Gridded { table, .. } => table.density(x)?,
+            Prepared::Scaled { inner, factor } => inner.density(x / factor)? / factor.abs(),
+            Prepared::Product(grid) => grid.density(x),
             Prepared::Point { .. } | Prepared::Atoms { .. } => 0.0,
         })
     }
@@ -3862,6 +5110,19 @@ impl Prepared {
                 })
                 .filter(|point| *point > 0.0 && *point < 1.0)
                 .collect(),
+            Prepared::Mapped { inner, .. } => inner
+                .quantile_breakpoints()?
+                .into_iter()
+                .map(|point| 1.0 - point)
+                .rev()
+                .collect(),
+            Prepared::Scaled { inner, factor } if *factor < 0.0 => inner
+                .quantile_breakpoints()?
+                .into_iter()
+                .map(|point| 1.0 - point)
+                .rev()
+                .collect(),
+            Prepared::Scaled { inner, .. } => inner.quantile_breakpoints()?,
             _ => Vec::new(),
         })
     }
@@ -3925,7 +5186,14 @@ impl Prepared {
                 };
                 (exponent < 1.0, exponent < 0.5)
             }
-            Prepared::Truncated { inner, .. } => inner.moment_existence(),
+            Prepared::Truncated { inner, .. } | Prepared::Scaled { inner, .. } => inner.moment_existence(),
+            Prepared::Mapped {
+                inner,
+                mapping: Mapping::Reciprocal,
+            } => match inner.as_ref() {
+                Prepared::Gamma { shape, .. } => (*shape > 1.0, *shape > 2.0),
+                _ => (true, true),
+            },
             Prepared::Mixture { components, .. } => components.iter().fold(
                 (true, true),
                 |(mean, variance), (_, component)| {
@@ -4050,6 +5318,28 @@ impl Prepared {
             }
             Prepared::Posterior(law) => law.moments()?,
             Prepared::Density(law) => law.moments()?,
+            Prepared::Gridded { moments, .. } => *moments,
+            Prepared::Product(grid) => grid.moments,
+            Prepared::Scaled { inner, factor } => {
+                let (mean, variance) = inner.moments()?;
+                (factor * mean, factor * factor * variance)
+            }
+            Prepared::Mapped { inner, mapping } if matches!(inner.as_ref(), Prepared::Gamma { .. }) => {
+                let Prepared::Gamma { shape, scale } = inner.as_ref() else {
+                    return Err(math_error("not a gamma law".to_string()));
+                };
+                match mapping {
+                    Mapping::Survival { time } => {
+                        let first = (-shape * (time * scale).ln_1p()).exp();
+                        let second = (-shape * (2.0 * time * scale).ln_1p()).exp();
+                        (first, (second - first * first).max(0.0))
+                    }
+                    Mapping::Reciprocal => {
+                        let mean = 1.0 / (scale * (shape - 1.0));
+                        (mean, mean * mean / (shape - 2.0))
+                    }
+                }
+            }
             Prepared::Truncated {
                 inner,
                 lower,

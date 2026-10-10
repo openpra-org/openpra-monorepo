@@ -151,6 +151,8 @@ let mockWorkbookContext: {
     revision: number | null;
     saveStatus: "saving" | "saved" | "failed";
   };
+  controlledCcfVectors: [];
+  controlledCcfFactors: [];
   controlledParameters: Array<{
     workbookId: string;
     workbookName: string;
@@ -176,8 +178,9 @@ let mockWorkbookContext: {
     hfeTiming: "POST_INITIATOR";
     quantificationId: string;
     methodology: string;
+    hep: UncertainExpression;
     value: number;
-    valueKind: "MEAN";
+    valueText: string;
   }>;
 };
 
@@ -217,6 +220,8 @@ function setWorkbookContext({
     mutateSy: mockMutateSy,
     runtime: { workbookId, revision, saveStatus },
     controlledParameters,
+    controlledCcfVectors: [],
+    controlledCcfFactors: [],
     controlledLegacyParameters,
     controlledHumanFailures,
     shortOf: (id: string) => (id === SYSTEM_ID ? "RCS" : id),
@@ -474,8 +479,9 @@ describe("ModelsScreen canonical fault-tree host", () => {
         hfeTiming: "POST_INITIATOR",
         quantificationId: "hep-1",
         methodology: "THERP",
+        hep: { node: "VALUE" as const, value: { unit: "PROBABILITY" as const, law: { family: "POINT" as const, value: 0.037 } } },
         value: 0.037,
-        valueKind: "MEAN",
+        valueText: "3.7E-2",
       }],
     });
 
@@ -943,7 +949,7 @@ describe("ModelsScreen system tabs", () => {
     expect(screen.getByText("…")).toBeInTheDocument();
     await act(async () => { await settledWithPraxis(() => undefined); });
     expect(screen.getByText("72 h")).toBeInTheDocument();
-    expect(screen.getByText("Typed 72 hours")).toBeInTheDocument();
+    expect(screen.queryByText("Typed 72 hours")).not.toBeInTheDocument();
     expect(screen.getByText("Reactor vessel")).toBeInTheDocument();
     expect(screen.queryByText("Support systems")).not.toBeInTheDocument();
 

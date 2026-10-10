@@ -9,6 +9,7 @@ import { ResultsScreen } from "../esqResultsScreen";
 import { UncertScreen, UncertWindows } from "../esqUncertaintyScreen";
 import { SensScreen, SensWindows } from "../esqSensitivityScreen";
 import type { EsqWindowContext } from "../esqModelScreen";
+import type { EsqUpstream } from "../esqLinks";
 import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
 import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
 import { HandoffScreen } from "../esqHandoffScreen";
@@ -76,9 +77,9 @@ function runOf(id: string, modelId: string): { schemaVersion: "1.0.0"; run: Anal
   };
 }
 
-function Harness({ initial, step, onChange }: { initial: EventSequenceQuantification; step: Step; onChange: (esq: EventSequenceQuantification) => void }): JSX.Element {
+function Harness({ initial, step, onChange, linked }: { initial: EventSequenceQuantification; step: Step; onChange: (esq: EventSequenceQuantification) => void; linked?: EsqUpstream }): JSX.Element {
   const [esq, setEsq] = useState(initial);
-  const [upstream] = useState(() => measureUpstream());
+  const [upstream] = useState(() => linked ?? measureUpstream());
   const mutateEsq = useCallback((mutator: (current: EventSequenceQuantification) => EventSequenceQuantification): void => setEsq((current) => {
     const next = mutator(current);
     onChange(next);
@@ -157,7 +158,7 @@ describe("ESQ Steps 07 to 10 screens", () => {
     await settle();
     const keys = screen.getByRole("table", { name: "Sampled keys" });
     expect(keys).toHaveTextContent("Pump fails to start (P-1)");
-    expect(keys).toHaveTextContent("Lognormal (mean 2.00E-3, EF 5) cut to [−∞, 1] · probability");
+    expect(keys).toHaveTextContent("Lognormal (mean 2.00E-3, EF 5) at most 1 · probability");
     expect(screen.getByText("1 input drew in this run. 1 input stayed at their point values.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Families/ }));
     const families = screen.getByRole("table", { name: "Family distributions" });
@@ -185,21 +186,34 @@ describe("ESQ Steps 07 to 10 screens", () => {
     expect(table).toHaveTextContent("2.6×");
   });
 
-  it("asks for a DA law on a component input and offers a typed error factor on the others", async () => {
+  it("shows a value changed in DA without importing again", async () => {
+    const linked = measureUpstream();
+    const pump = linked.da?.parameters.find((parameter) => parameter.uuid === "P-1");
+    if (pump === undefined) throw new Error("no pump parameter");
+    pump.estimate = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "TRUNCATED", law: { family: "LOGNORMAL", mean: 4e-3, errorFactor: 5, level: 0.95 }, lower: null, upper: 1 } } };
+    render(<Harness initial={measureEsq()} step="uncert" onChange={jest.fn()} linked={linked} />);
+    await praxis();
+    const row = within(screen.getByRole("table", { name: "Sampled inputs" })).getByRole("button", { name: "Pump fails to start (P-1)" }).closest("tr");
+    expect(row).toHaveTextContent("Lognormal (mean 4.00E-3, EF 5)");
+    expect(row).toHaveTextContent("4E-3");
+  });
+
+  it("sends each input to the place that holds its law and asks for no error factor", async () => {
     const esq = measureEsq();
     const { unmount } = render(<WindowHarness initial={esq} context={{ kind: "esqUncertInput", id: "PARAMETER:P-1" }} />);
     await praxis();
-    expect(screen.getByText("Give the estimate a law in DA and import again in Step 02.")).toBeInTheDocument();
+    expect(screen.getByText("Give the estimate a law in DA. Each run reads it from DA.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Error factor")).not.toBeInTheDocument();
     unmount();
     render(<WindowHarness initial={esq} context={{ kind: "esqUncertInput", id: "HFE:HFE-1" }} />);
-    expect(screen.getByLabelText("Error factor")).toBeEnabled();
+    expect(screen.getByText("Give the HEP a law in HR and import again in Step 02.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Error factor")).not.toBeInTheDocument();
   });
 
   it("shows the expression a case changes instead of a point", () => {
     const esq = withCase(measureEsq(), "SC-1", { id: "SC-1", name: "Pump at its upper bound", kind: "PARAMETER", target: "P-1", value: 1e-2, basis: "DA upper bound." });
     render(<WindowHarness initial={esq} context={{ kind: "esqSensCase", id: "SC-1" }} />);
-    expect(screen.getByText("Lognormal (mean 2.00E-3, EF 5) cut to [−∞, 1]")).toBeInTheDocument();
+    expect(screen.getByText("Lognormal (mean 2.00E-3, EF 5) at most 1")).toBeInTheDocument();
     expect(screen.getByText("probability")).toBeInTheDocument();
     expect(screen.getByText("A new value replaces the distribution with a point. A factor scales the whole value and keeps its distribution.")).toBeInTheDocument();
   });

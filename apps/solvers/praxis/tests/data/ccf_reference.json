@@ -1,0 +1,8370 @@
+{
+ "points": [
+  {
+   "name": "alpha staggered 2",
+   "size": 2,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8333333333333334,
+       0.16666666666666666
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 2,
+     "value": 0.0016666666666666668
+    },
+    {
+     "order": 2,
+     "count": 1,
+     "value": 0.0003333333333333333
+    }
+   ],
+   "andTop": 0.0003361101851851852,
+   "orTop": 0.003662778703703704
+  },
+  {
+   "name": "alpha non_staggered 2",
+   "size": 2,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "NON_STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8333333333333334,
+       0.16666666666666666
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 2,
+     "value": 0.0014285714285714286
+    },
+    {
+     "order": 2,
+     "count": 1,
+     "value": 0.0005714285714285714
+    }
+   ],
+   "andTop": 0.000573468221574344,
+   "orTop": 0.0034248991253644314
+  },
+  {
+   "name": "mgl 2 with 1",
+   "size": 2,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 2,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 1,
+     "value": 0.0001
+    }
+   ],
+   "andTop": 0.00010360963900000001,
+   "orTop": 0.003896010361
+  },
+  {
+   "name": "beta 2",
+   "size": 2,
+   "factors": {
+    "model": "BETA_FACTOR",
+    "beta": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "POINT",
+       "value": 0.07
+      }
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 2,
+     "value": 0.00186
+    },
+    {
+     "order": 2,
+     "count": 1,
+     "value": 0.00014000000000000001
+    }
+   ],
+   "andTop": 0.00014345911565600002,
+   "orTop": 0.003856020084344
+  },
+  {
+   "name": "phi 2",
+   "size": 2,
+   "factors": {
+    "model": "PHI_FACTOR",
+    "phis": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8333333333333334,
+       0.16666666666666666
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 2,
+     "value": 0.0016666666666666668
+    },
+    {
+     "order": 2,
+     "count": 1,
+     "value": 0.0003333333333333333
+    }
+   ],
+   "andTop": 0.0003361101851851852,
+   "orTop": 0.003662778703703704
+  },
+  {
+   "name": "bfr 2",
+   "size": 2,
+   "factors": {
+    "model": "BINOMIAL_FAILURE_RATE",
+    "independent": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 0.001
+      }
+     }
+    },
+    "nonLethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 0.0002
+      }
+     }
+    },
+    "componentFailure": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "POINT",
+       "value": 0.15
+      }
+     }
+    },
+    "lethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 3e-06
+      }
+     }
+    }
+   },
+   "total": null,
+   "orders": [
+    {
+     "order": 1,
+     "count": 2,
+     "value": 0.0010255
+    },
+    {
+     "order": 2,
+     "count": 1,
+     "value": 7.5e-06
+    }
+   ],
+   "andTop": 8.551642362623125e-06,
+   "orTop": 0.0020574329751373768
+  },
+  {
+   "name": "alpha staggered 3",
+   "size": 3,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8130081300813008,
+       0.16260162601626016,
+       0.024390243902439025
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 3,
+     "value": 0.0016260162601626016
+    },
+    {
+     "order": 2,
+     "count": 3,
+     "value": 0.00016260162601626016
+    },
+    {
+     "order": 3,
+     "count": 1,
+     "value": 4.878048780487805e-05
+    }
+   ],
+   "andTop": 4.9656972030435025e-05,
+   "orTop": 0.005403990820038066
+  },
+  {
+   "name": "alpha non_staggered 3",
+   "size": 3,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "NON_STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8130081300813008,
+       0.16260162601626016,
+       0.024390243902439025
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 3,
+     "value": 0.0013422818791946308
+    },
+    {
+     "order": 2,
+     "count": 3,
+     "value": 0.0002684563758389262
+    },
+    {
+     "order": 3,
+     "count": 1,
+     "value": 0.0001208053691275168
+    }
+   ],
+   "andTop": 0.00012210424849301124,
+   "orTop": 0.00494358063947637
+  },
+  {
+   "name": "mgl 3 with 1",
+   "size": 3,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 3,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 3,
+     "value": 5e-05
+    }
+   ],
+   "andTop": 2.9932922191394167e-07,
+   "orTop": 0.005838316025264265
+  },
+  {
+   "name": "mgl 3 with 2",
+   "size": 3,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 3,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 3,
+     "value": 3.5000000000000004e-05
+    },
+    {
+     "order": 3,
+     "count": 1,
+     "value": 3e-05
+    }
+   ],
+   "andTop": 3.0210012928747717e-05,
+   "orTop": 0.0058234020341049195
+  },
+  {
+   "name": "beta 3",
+   "size": 3,
+   "factors": {
+    "model": "BETA_FACTOR",
+    "beta": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "POINT",
+       "value": 0.07
+      }
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 3,
+     "value": 0.00186
+    },
+    {
+     "order": 3,
+     "count": 1,
+     "value": 0.00014000000000000001
+    }
+   ],
+   "andTop": 0.00014000643395512018,
+   "orTop": 0.0057088478869871204
+  },
+  {
+   "name": "phi 3",
+   "size": 3,
+   "factors": {
+    "model": "PHI_FACTOR",
+    "phis": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8130081300813008,
+       0.16260162601626016,
+       0.024390243902439025
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 3,
+     "value": 0.0016260162601626016
+    },
+    {
+     "order": 2,
+     "count": 3,
+     "value": 0.0003252032520325203
+    },
+    {
+     "order": 3,
+     "count": 1,
+     "value": 4.878048780487805e-05
+    }
+   ],
+   "andTop": 5.068721806549253e-05,
+   "orTop": 0.005889159596450137
+  },
+  {
+   "name": "bfr 3",
+   "size": 3,
+   "factors": {
+    "model": "BINOMIAL_FAILURE_RATE",
+    "independent": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 0.001
+      }
+     }
+    },
+    "nonLethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 0.0002
+      }
+     }
+    },
+    "componentFailure": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "POINT",
+       "value": 0.15
+      }
+     }
+    },
+    "lethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 3e-06
+      }
+     }
+    }
+   },
+   "total": null,
+   "orders": [
+    {
+     "order": 1,
+     "count": 3,
+     "value": 0.001021675
+    },
+    {
+     "order": 2,
+     "count": 3,
+     "value": 3.825e-06
+    },
+    {
+     "order": 3,
+     "count": 1,
+     "value": 3.675e-06
+    }
+   ],
+   "andTop": 3.6878339078995066e-06,
+   "orTop": 0.0030769981335256593
+  },
+  {
+   "name": "alpha staggered 4",
+   "size": 4,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8103727714748784,
+       0.1620745542949757,
+       0.024311183144246355,
+       0.0032414910858995136
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 4,
+     "value": 0.0016207455429497568
+    },
+    {
+     "order": 2,
+     "count": 6,
+     "value": 0.00010804970286331713
+    },
+    {
+     "order": 3,
+     "count": 4,
+     "value": 1.620745542949757e-05
+    },
+    {
+     "order": 4,
+     "count": 1,
+     "value": 6.482982171799028e-06
+    }
+   ],
+   "andTop": 6.647564648820882e-06,
+   "orTop": 0.007181973556743623
+  },
+  {
+   "name": "alpha non_staggered 4",
+   "size": 4,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "NON_STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8103727714748784,
+       0.1620745542949757,
+       0.024311183144246355,
+       0.0032414910858995136
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 4,
+     "value": 0.0013280212483399733
+    },
+    {
+     "order": 2,
+     "count": 6,
+     "value": 0.00017706949977866314
+    },
+    {
+     "order": 3,
+     "count": 4,
+     "value": 3.9840637450199205e-05
+    },
+    {
+     "order": 4,
+     "count": 1,
+     "value": 2.1248339973439575e-05
+    }
+   ],
+   "andTop": 2.1650425536281865e-05,
+   "orTop": 0.006537279166768815
+  },
+  {
+   "name": "mgl 4 with 1",
+   "size": 4,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 4,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 6,
+     "value": 3.3333333333333335e-05
+    }
+   ],
+   "andTop": 4.093720868627046e-09,
+   "orTop": 0.007776835209857873
+  },
+  {
+   "name": "mgl 4 with 2",
+   "size": 4,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 4,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 6,
+     "value": 2.3333333333333336e-05
+    },
+    {
+     "order": 3,
+     "count": 4,
+     "value": 1e-05
+    }
+   ],
+   "andTop": 8.155632414119112e-08,
+   "orTop": 0.007756989059704631
+  },
+  {
+   "name": "mgl 4 with 3",
+   "size": 4,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 4,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 6,
+     "value": 2.3333333333333336e-05
+    },
+    {
+     "order": 3,
+     "count": 4,
+     "value": 6e-06
+    },
+    {
+     "order": 4,
+     "count": 1,
+     "value": 1.2e-05
+    }
+   ],
+   "andTop": 1.2049655436088183e-05,
+   "orTop": 0.007753020024156618
+  },
+  {
+   "name": "beta 4",
+   "size": 4,
+   "factors": {
+    "model": "BETA_FACTOR",
+    "beta": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "POINT",
+       "value": 0.07
+      }
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 4,
+     "value": 0.00186
+    },
+    {
+     "order": 4,
+     "count": 1,
+     "value": 0.00014000000000000001
+    }
+   ],
+   "andTop": 0.00014000001196715653,
+   "orTop": 0.0075582294299173245
+  },
+  {
+   "name": "phi 4",
+   "size": 4,
+   "factors": {
+    "model": "PHI_FACTOR",
+    "phis": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8103727714748784,
+       0.1620745542949757,
+       0.024311183144246355,
+       0.0032414910858995136
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 4,
+     "value": 0.0016207455429497568
+    },
+    {
+     "order": 2,
+     "count": 6,
+     "value": 0.0003241491085899514
+    },
+    {
+     "order": 3,
+     "count": 4,
+     "value": 4.862236628849271e-05
+    },
+    {
+     "order": 4,
+     "count": 1,
+     "value": 6.482982171799028e-06
+    }
+   ],
+   "andTop": 7.323507963337574e-06,
+   "orTop": 0.008597258999445492
+  },
+  {
+   "name": "bfr 4",
+   "size": 4,
+   "factors": {
+    "model": "BINOMIAL_FAILURE_RATE",
+    "independent": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 0.001
+      }
+     }
+    },
+    "nonLethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 0.0002
+      }
+     }
+    },
+    "componentFailure": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "POINT",
+       "value": 0.15
+      }
+     }
+    },
+    "lethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 3e-06
+      }
+     }
+    }
+   },
+   "total": null,
+   "orders": [
+    {
+     "order": 1,
+     "count": 4,
+     "value": 0.0010184237500000001
+    },
+    {
+     "order": 2,
+     "count": 6,
+     "value": 3.25125e-06
+    },
+    {
+     "order": 3,
+     "count": 4,
+     "value": 5.7375e-07
+    },
+    {
+     "order": 4,
+     "count": 1,
+     "value": 3.10125e-06
+    }
+   ],
+   "andTop": 3.103664757484198e-06,
+   "orTop": 0.004092278285284665
+  },
+  {
+   "name": "alpha staggered 5",
+   "size": 5,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8100445524503848,
+       0.16200891049007696,
+       0.024301336573511544,
+       0.0032401782098015392,
+       0.0004050222762251924
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "value": 0.0016200891049007696
+    },
+    {
+     "order": 2,
+     "count": 10,
+     "value": 8.100445524503848e-05
+    },
+    {
+     "order": 3,
+     "count": 10,
+     "value": 8.100445524503847e-06
+    },
+    {
+     "order": 4,
+     "count": 5,
+     "value": 1.6200891049007696e-06
+    },
+    {
+     "order": 5,
+     "count": 1,
+     "value": 8.100445524503848e-07
+    }
+   ],
+   "andTop": 8.342167511652293e-07,
+   "orTop": 0.008966565407931077
+  },
+  {
+   "name": "alpha non_staggered 5",
+   "size": 5,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "NON_STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8100445524503848,
+       0.16200891049007696,
+       0.024301336573511544,
+       0.0032401782098015392,
+       0.0004050222762251924
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "value": 0.001325820351342393
+    },
+    {
+     "order": 2,
+     "count": 10,
+     "value": 0.0001325820351342393
+    },
+    {
+     "order": 3,
+     "count": 10,
+     "value": 1.98873052701359e-05
+    },
+    {
+     "order": 4,
+     "count": 5,
+     "value": 5.303281405369573e-06
+    },
+    {
+     "order": 5,
+     "count": 1,
+     "value": 3.314550878355983e-06
+    }
+   ],
+   "andTop": 3.4005149971070455e-06,
+   "orTop": 0.00815468315634021
+  },
+  {
+   "name": "mgl 5 with 1",
+   "size": 5,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 10,
+     "value": 2.5e-05
+    }
+   ],
+   "andTop": 2.008682670322753e-11,
+   "orTop": 0.009711574675764334
+  },
+  {
+   "name": "mgl 5 with 2",
+   "size": 5,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 10,
+     "value": 1.7500000000000002e-05
+    },
+    {
+     "order": 3,
+     "count": 10,
+     "value": 5e-06
+    }
+   ],
+   "andTop": 1.4521627560895553e-09,
+   "orTop": 0.009686815701107552
+  },
+  {
+   "name": "mgl 5 with 3",
+   "size": 5,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 10,
+     "value": 1.7500000000000002e-05
+    },
+    {
+     "order": 3,
+     "count": 10,
+     "value": 3e-06
+    },
+    {
+     "order": 4,
+     "count": 5,
+     "value": 3e-06
+    }
+   ],
+   "andTop": 3.06920876682588e-08,
+   "orTop": 0.00968186406586355
+  },
+  {
+   "name": "mgl 5 with 4",
+   "size": 5,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.5
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 10,
+     "value": 1.7500000000000002e-05
+    },
+    {
+     "order": 3,
+     "count": 10,
+     "value": 3e-06
+    },
+    {
+     "order": 4,
+     "count": 5,
+     "value": 1.5e-06
+    },
+    {
+     "order": 5,
+     "count": 1,
+     "value": 6e-06
+    }
+   ],
+   "andTop": 6.015716046284256e-06,
+   "orTop": 0.009680378588659683
+  },
+  {
+   "name": "beta 5",
+   "size": 5,
+   "factors": {
+    "model": "BETA_FACTOR",
+    "beta": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "POINT",
+       "value": 0.07
+      }
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "value": 0.00186
+    },
+    {
+     "order": 5,
+     "count": 1,
+     "value": 0.00014000000000000001
+    }
+   ],
+   "andTop": 0.00014000000002225893,
+   "orTop": 0.009404171123177677
+  },
+  {
+   "name": "phi 5",
+   "size": 5,
+   "factors": {
+    "model": "PHI_FACTOR",
+    "phis": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8100445524503848,
+       0.16200891049007696,
+       0.024301336573511544,
+       0.0032401782098015392,
+       0.0004050222762251924
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "value": 0.0016200891049007696
+    },
+    {
+     "order": 2,
+     "count": 10,
+     "value": 0.00032401782098015393
+    },
+    {
+     "order": 3,
+     "count": 10,
+     "value": 4.860267314702309e-05
+    },
+    {
+     "order": 4,
+     "count": 5,
+     "value": 6.480356419603078e-06
+    },
+    {
+     "order": 5,
+     "count": 1,
+     "value": 8.100445524503848e-07
+    }
+   ],
+   "andTop": 1.1141730779525617e-06,
+   "orTop": 0.011796833315279417
+  },
+  {
+   "name": "bfr 5",
+   "size": 5,
+   "factors": {
+    "model": "BINOMIAL_FAILURE_RATE",
+    "independent": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 0.001
+      }
+     }
+    },
+    "nonLethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 0.0002
+      }
+     }
+    },
+    "componentFailure": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "POINT",
+       "value": 0.15
+      }
+     }
+    },
+    "lethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 3e-06
+      }
+     }
+    }
+   },
+   "total": null,
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "value": 0.0010156601875
+    },
+    {
+     "order": 2,
+     "count": 10,
+     "value": 2.7635625e-06
+    },
+    {
+     "order": 3,
+     "count": 10,
+     "value": 4.876875e-07
+    },
+    {
+     "order": 4,
+     "count": 5,
+     "value": 8.60625e-08
+    },
+    {
+     "order": 5,
+     "count": 1,
+     "value": 3.0151875e-06
+    }
+   ],
+   "andTop": 3.0156529463789104e-06,
+   "orTop": 0.0051037709187365275
+  },
+  {
+   "name": "alpha staggered 6",
+   "size": 6,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8100051840331778,
+       0.16200103680663555,
+       0.024300155520995334,
+       0.0032400207361327114,
+       0.0004050025920165889,
+       4.860031104199067e-05
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "value": 0.0016200103680663557
+    },
+    {
+     "order": 2,
+     "count": 15,
+     "value": 6.480041472265422e-05
+    },
+    {
+     "order": 3,
+     "count": 20,
+     "value": 4.8600311041990665e-06
+    },
+    {
+     "order": 4,
+     "count": 15,
+     "value": 6.480041472265422e-07
+    },
+    {
+     "order": 5,
+     "count": 6,
+     "value": 1.6200103680663556e-07
+    },
+    {
+     "order": 6,
+     "count": 1,
+     "value": 9.720062208398133e-08
+    }
+   ],
+   "andTop": 1.0029786200081486e-07,
+   "orTop": 0.010749775590697586
+  },
+  {
+   "name": "alpha non_staggered 6",
+   "size": 6,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "NON_STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8100051840331778,
+       0.16200103680663555,
+       0.024300155520995334,
+       0.0032400207361327114,
+       0.0004050025920165889,
+       4.860031104199067e-05
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "value": 0.0013255040229047095
+    },
+    {
+     "order": 2,
+     "count": 15,
+     "value": 0.00010604032183237676
+    },
+    {
+     "order": 3,
+     "count": 20,
+     "value": 1.1929536206142386e-05
+    },
+    {
+     "order": 4,
+     "count": 15,
+     "value": 2.1208064366475352e-06
+    },
+    {
+     "order": 5,
+     "count": 6,
+     "value": 6.627520114523548e-07
+    },
+    {
+     "order": 6,
+     "count": 1,
+     "value": 4.771814482456955e-07
+    }
+   ],
+   "andTop": 4.919225966554653e-07,
+   "orTop": 0.009775750465337912
+  },
+  {
+   "name": "mgl 6 with 1",
+   "size": 6,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 15,
+     "value": 2e-05
+    }
+   ],
+   "andTop": 1.9184976464865218e-13,
+   "orTop": 0.011642541668701557
+  },
+  {
+   "name": "mgl 6 with 2",
+   "size": 6,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 15,
+     "value": 1.4000000000000001e-05
+    },
+    {
+     "order": 3,
+     "count": 20,
+     "value": 3e-06
+    }
+   ],
+   "andTop": 9.706271464792902e-11,
+   "orTop": 0.011612889076883078
+  },
+  {
+   "name": "mgl 6 with 3",
+   "size": 6,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 15,
+     "value": 1.4000000000000001e-05
+    },
+    {
+     "order": 3,
+     "count": 20,
+     "value": 1.8e-06
+    },
+    {
+     "order": 4,
+     "count": 15,
+     "value": 1.2000000000000002e-06
+    }
+   ],
+   "andTop": 5.524587967437756e-10,
+   "orTop": 0.011606958690169611
+  },
+  {
+   "name": "mgl 6 with 4",
+   "size": 6,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.5
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 15,
+     "value": 1.4000000000000001e-05
+    },
+    {
+     "order": 3,
+     "count": 20,
+     "value": 1.8e-06
+    },
+    {
+     "order": 4,
+     "count": 15,
+     "value": 6.000000000000001e-07
+    },
+    {
+     "order": 5,
+     "count": 6,
+     "value": 1.2000000000000002e-06
+    }
+   ],
+   "andTop": 1.4655125722186918e-08,
+   "orTop": 0.011605179577357919
+  },
+  {
+   "name": "mgl 6 with 5",
+   "size": 6,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.5
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.55
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 15,
+     "value": 1.4000000000000001e-05
+    },
+    {
+     "order": 3,
+     "count": 20,
+     "value": 1.8e-06
+    },
+    {
+     "order": 4,
+     "count": 15,
+     "value": 6.000000000000001e-07
+    },
+    {
+     "order": 5,
+     "count": 6,
+     "value": 5.4e-07
+    },
+    {
+     "order": 6,
+     "count": 1,
+     "value": 3.3000000000000006e-06
+    }
+   ],
+   "andTop": 3.3067424300369154e-06,
+   "orTop": 0.01160452723853777
+  },
+  {
+   "name": "beta 6",
+   "size": 6,
+   "factors": {
+    "model": "BETA_FACTOR",
+    "beta": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "POINT",
+       "value": 0.07
+      }
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "value": 0.00186
+    },
+    {
+     "order": 6,
+     "count": 1,
+     "value": 0.00014000000000000001
+    }
+   ],
+   "andTop": 0.00014000000000004143,
+   "orTop": 0.011246679364888568
+  },
+  {
+   "name": "phi 6",
+   "size": 6,
+   "factors": {
+    "model": "PHI_FACTOR",
+    "phis": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8100051840331778,
+       0.16200103680663555,
+       0.024300155520995334,
+       0.0032400207361327114,
+       0.0004050025920165889,
+       4.860031104199067e-05
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "value": 0.0016200103680663557
+    },
+    {
+     "order": 2,
+     "count": 15,
+     "value": 0.0003240020736132711
+    },
+    {
+     "order": 3,
+     "count": 20,
+     "value": 4.860031104199067e-05
+    },
+    {
+     "order": 4,
+     "count": 15,
+     "value": 6.480041472265423e-06
+    },
+    {
+     "order": 5,
+     "count": 6,
+     "value": 8.100051840331779e-07
+    },
+    {
+     "order": 6,
+     "count": 1,
+     "value": 9.720062208398133e-08
+    }
+   ],
+   "andTop": 1.9658893423544272e-07,
+   "orTop": 0.015540924554858719
+  },
+  {
+   "name": "bfr 6",
+   "size": 6,
+   "factors": {
+    "model": "BINOMIAL_FAILURE_RATE",
+    "independent": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 0.001
+      }
+     }
+    },
+    "nonLethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 0.0002
+      }
+     }
+    },
+    "componentFailure": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "POINT",
+       "value": 0.15
+      }
+     }
+    },
+    "lethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 3e-06
+      }
+     }
+    }
+   },
+   "total": null,
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "value": 0.001013311159375
+    },
+    {
+     "order": 2,
+     "count": 15,
+     "value": 2.349028125e-06
+    },
+    {
+     "order": 3,
+     "count": 20,
+     "value": 4.14534375e-07
+    },
+    {
+     "order": 4,
+     "count": 15,
+     "value": 7.3153125e-08
+    },
+    {
+     "order": 5,
+     "count": 6,
+     "value": 1.2909374999999999e-08
+    },
+    {
+     "order": 6,
+     "count": 1,
+     "value": 3.002278125e-06
+    }
+   ],
+   "andTop": 3.0023654954741527e-06,
+   "orTop": 0.006111898519294508
+  },
+  {
+   "name": "alpha staggered 7",
+   "size": 7,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8100005913004317,
+       0.16200011826008634,
+       0.024300017739012948,
+       0.0032400023652017266,
+       0.0004050002956502158,
+       4.86000354780259e-05,
+       5.670004139103022e-06
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "value": 0.0016200011826008633
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "value": 5.400003942002878e-05
+    },
+    {
+     "order": 3,
+     "count": 35,
+     "value": 3.2400023652017263e-06
+    },
+    {
+     "order": 4,
+     "count": 35,
+     "value": 3.2400023652017267e-07
+    },
+    {
+     "order": 5,
+     "count": 21,
+     "value": 5.400003942002878e-08
+    },
+    {
+     "order": 6,
+     "count": 7,
+     "value": 1.6200011826008633e-08
+    },
+    {
+     "order": 7,
+     "count": 1,
+     "value": 1.1340008278206044e-08
+    }
+   ],
+   "andTop": 1.1705919569488017e-08,
+   "orTop": 0.012530070775225
+  },
+  {
+   "name": "alpha non_staggered 7",
+   "size": 7,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "NON_STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8100005913004317,
+       0.16200011826008634,
+       0.024300017739012948,
+       0.0032400023652017266,
+       0.0004050002956502158,
+       4.86000354780259e-05,
+       5.670004139103022e-06
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "value": 0.0013254609787601505
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "value": 8.836406525067671e-05
+    },
+    {
+     "order": 3,
+     "count": 35,
+     "value": 7.952765872560903e-06
+    },
+    {
+     "order": 4,
+     "count": 35,
+     "value": 1.0603687830081205e-06
+    },
+    {
+     "order": 5,
+     "count": 21,
+     "value": 2.2091016312669174e-07
+    },
+    {
+     "order": 6,
+     "count": 7,
+     "value": 7.952765872560904e-08
+    },
+    {
+     "order": 7,
+     "count": 1,
+     "value": 6.494758795924737e-08
+    }
+   ],
+   "andTop": 6.714191135199157e-08,
+   "orTop": 0.0113954050760016
+  },
+  {
+   "name": "mgl 7 with 1",
+   "size": 7,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "value": 1.6666666666666667e-05
+    }
+   ],
+   "andTop": 1.1676451955364854e-15,
+   "orTop": 0.013569743503200114
+  },
+  {
+   "name": "mgl 7 with 2",
+   "size": 7,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "value": 1.1666666666666668e-05
+    },
+    {
+     "order": 3,
+     "count": 35,
+     "value": 2e-06
+    }
+   ],
+   "andTop": 6.272907364368545e-13,
+   "orTop": 0.013535216441692404
+  },
+  {
+   "name": "mgl 7 with 3",
+   "size": 7,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "value": 1.1666666666666668e-05
+    },
+    {
+     "order": 3,
+     "count": 35,
+     "value": 1.2e-06
+    },
+    {
+     "order": 4,
+     "count": 35,
+     "value": 6.000000000000001e-07
+    }
+   ],
+   "andTop": 5.3063761143246436e-11,
+   "orTop": 0.013528311126059822
+  },
+  {
+   "name": "mgl 7 with 4",
+   "size": 7,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.5
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "value": 1.1666666666666668e-05
+    },
+    {
+     "order": 3,
+     "count": 35,
+     "value": 1.2e-06
+    },
+    {
+     "order": 4,
+     "count": 35,
+     "value": 3.0000000000000004e-07
+    },
+    {
+     "order": 5,
+     "count": 21,
+     "value": 4.0000000000000003e-07
+    }
+   ],
+   "andTop": 2.4342847390756044e-10,
+   "orTop": 0.0135262395303342
+  },
+  {
+   "name": "mgl 7 with 5",
+   "size": 7,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.5
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.55
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "value": 1.1666666666666668e-05
+    },
+    {
+     "order": 3,
+     "count": 35,
+     "value": 1.2e-06
+    },
+    {
+     "order": 4,
+     "count": 35,
+     "value": 3.0000000000000004e-07
+    },
+    {
+     "order": 5,
+     "count": 21,
+     "value": 1.8e-07
+    },
+    {
+     "order": 6,
+     "count": 7,
+     "value": 5.500000000000001e-07
+    }
+   ],
+   "andTop": 7.809436303409854e-09,
+   "orTop": 0.01352547994496895
+  },
+  {
+   "name": "mgl 7 with 6",
+   "size": 7,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.5
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.55
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.6
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "value": 1.1666666666666668e-05
+    },
+    {
+     "order": 3,
+     "count": 35,
+     "value": 1.2e-06
+    },
+    {
+     "order": 4,
+     "count": 35,
+     "value": 3.0000000000000004e-07
+    },
+    {
+     "order": 5,
+     "count": 21,
+     "value": 1.8e-07
+    },
+    {
+     "order": 6,
+     "count": 7,
+     "value": 2.2000000000000004e-07
+    },
+    {
+     "order": 7,
+     "count": 1,
+     "value": 1.98e-06
+    }
+   ],
+   "andTop": 1.983192172696945e-06,
+   "orTop": 0.013525154409379988
+  },
+  {
+   "name": "beta 7",
+   "size": 7,
+   "factors": {
+    "model": "BETA_FACTOR",
+    "beta": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "POINT",
+       "value": 0.07
+      }
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "value": 0.00186
+    },
+    {
+     "order": 7,
+     "count": 1,
+     "value": 0.00014000000000000001
+    }
+   ],
+   "andTop": 0.0001400000000000001,
+   "orTop": 0.013085760541269875
+  },
+  {
+   "name": "phi 7",
+   "size": 7,
+   "factors": {
+    "model": "PHI_FACTOR",
+    "phis": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8100005913004317,
+       0.16200011826008634,
+       0.024300017739012948,
+       0.0032400023652017266,
+       0.0004050002956502158,
+       4.86000354780259e-05,
+       5.670004139103022e-06
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "value": 0.0016200011826008633
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "value": 0.0003240002365201727
+    },
+    {
+     "order": 3,
+     "count": 35,
+     "value": 4.8600035478025895e-05
+    },
+    {
+     "order": 4,
+     "count": 35,
+     "value": 6.4800047304034534e-06
+    },
+    {
+     "order": 5,
+     "count": 21,
+     "value": 8.100005913004317e-07
+    },
+    {
+     "order": 6,
+     "count": 7,
+     "value": 9.72000709560518e-08
+    },
+    {
+     "order": 7,
+     "count": 1,
+     "value": 1.1340008278206044e-08
+    }
+   ],
+   "andTop": 4.226820692587786e-08,
+   "orTop": 0.019899200835237937
+  },
+  {
+   "name": "bfr 7",
+   "size": 7,
+   "factors": {
+    "model": "BINOMIAL_FAILURE_RATE",
+    "independent": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 0.001
+      }
+     }
+    },
+    "nonLethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 0.0002
+      }
+     }
+    },
+    "componentFailure": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "POINT",
+       "value": 0.15
+      }
+     }
+    },
+    "lethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 3e-06
+      }
+     }
+    }
+   },
+   "total": null,
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "value": 0.00101131448546875
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "value": 1.99667390625e-06
+    },
+    {
+     "order": 3,
+     "count": 35,
+     "value": 3.5235421875e-07
+    },
+    {
+     "order": 4,
+     "count": 35,
+     "value": 6.218015624999999e-08
+    },
+    {
+     "order": 5,
+     "count": 21,
+     "value": 1.097296875e-08
+    },
+    {
+     "order": 6,
+     "count": 7,
+     "value": 1.9364062499999996e-09
+    },
+    {
+     "order": 7,
+     "count": 1,
+     "value": 3.00034171875e-06
+    }
+   ],
+   "andTop": 3.0003580173613012e-06,
+   "orTop": 0.0071170199007615596
+  },
+  {
+   "name": "alpha staggered 8",
+   "size": 8,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8100000664200054,
+       0.1620000132840011,
+       0.024300001992600163,
+       0.0032400002656800216,
+       0.0004050000332100027,
+       4.860000398520033e-05,
+       5.670000464940038e-06,
+       6.480000531360043e-07
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "value": 0.0016200001328400108
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "value": 4.6285718081143174e-05
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "value": 2.3142859040571583e-06
+    },
+    {
+     "order": 4,
+     "count": 70,
+     "value": 1.8514287232457267e-07
+    },
+    {
+     "order": 5,
+     "count": 56,
+     "value": 2.3142859040571583e-08
+    },
+    {
+     "order": 6,
+     "count": 28,
+     "value": 4.628571808114317e-09
+    },
+    {
+     "order": 7,
+     "count": 8,
+     "value": 1.6200001328400108e-09
+    },
+    {
+     "order": 8,
+     "count": 1,
+     "value": 1.2960001062720086e-09
+    }
+   ],
+   "andTop": 1.3371371257021143e-09,
+   "orTop": 0.01430720526741464
+  },
+  {
+   "name": "alpha non_staggered 8",
+   "size": 8,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "NON_STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8100000664200054,
+       0.1620000132840011,
+       0.024300001992600163,
+       0.0032400002656800216,
+       0.0004050000332100027,
+       4.860000398520033e-05,
+       5.670000464940038e-06,
+       6.480000531360043e-07
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "value": 0.0013254553568742158
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "value": 7.574030610709805e-05
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "value": 5.680522958032353e-06
+    },
+    {
+     "order": 4,
+     "count": 70,
+     "value": 6.059224488567843e-07
+    },
+    {
+     "order": 5,
+     "count": 56,
+     "value": 9.467538263387256e-08
+    },
+    {
+     "order": 6,
+     "count": 28,
+     "value": 2.2722091832129415e-08
+    },
+    {
+     "order": 7,
+     "count": 8,
+     "value": 9.27818749811951e-09
+    },
+    {
+     "order": 8,
+     "count": 1,
+     "value": 8.482914283994981e-09
+    }
+   ],
+   "andTop": 8.779960109099922e-09,
+   "orTop": 0.013012624892100103
+  },
+  {
+   "name": "mgl 8 with 1",
+   "size": 8,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "value": 1.4285714285714287e-05
+    }
+   ],
+   "andTop": 9.606552202522756e-18,
+   "orTop": 0.015493187503213258
+  },
+  {
+   "name": "mgl 8 with 2",
+   "size": 8,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "value": 1e-05
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "value": 1.4285714285714286e-06
+    }
+   ],
+   "andTop": 1.0813022162703173e-14,
+   "orTop": 0.015453805064715213
+  },
+  {
+   "name": "mgl 8 with 3",
+   "size": 8,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "value": 1e-05
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "value": 8.571428571428571e-07
+    },
+    {
+     "order": 4,
+     "count": 70,
+     "value": 3.4285714285714286e-07
+    }
+   ],
+   "andTop": 4.436322806173004e-12,
+   "orTop": 0.015445928631694316
+  },
+  {
+   "name": "mgl 8 with 4",
+   "size": 8,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.5
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "value": 1e-05
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "value": 8.571428571428571e-07
+    },
+    {
+     "order": 4,
+     "count": 70,
+     "value": 1.7142857142857143e-07
+    },
+    {
+     "order": 5,
+     "count": 56,
+     "value": 1.7142857142857143e-07
+    }
+   ],
+   "andTop": 2.687568563699958e-11,
+   "orTop": 0.015443565696859602
+  },
+  {
+   "name": "mgl 8 with 5",
+   "size": 8,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.5
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.55
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "value": 1e-05
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "value": 8.571428571428571e-07
+    },
+    {
+     "order": 4,
+     "count": 70,
+     "value": 1.7142857142857143e-07
+    },
+    {
+     "order": 5,
+     "count": 56,
+     "value": 7.714285714285714e-08
+    },
+    {
+     "order": 6,
+     "count": 28,
+     "value": 1.5714285714285717e-07
+    }
+   ],
+   "andTop": 1.1780869872249883e-10,
+   "orTop": 0.015442699286510478
+  },
+  {
+   "name": "mgl 8 with 6",
+   "size": 8,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.5
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.55
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.6
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "value": 1e-05
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "value": 8.571428571428571e-07
+    },
+    {
+     "order": 4,
+     "count": 70,
+     "value": 1.7142857142857143e-07
+    },
+    {
+     "order": 5,
+     "count": 56,
+     "value": 7.714285714285714e-08
+    },
+    {
+     "order": 6,
+     "count": 28,
+     "value": 6.285714285714287e-08
+    },
+    {
+     "order": 7,
+     "count": 8,
+     "value": 2.828571428571429e-07
+    }
+   ],
+   "andTop": 4.575319773525274e-09,
+   "orTop": 0.01544232796771622
+  },
+  {
+   "name": "mgl 8 with 7",
+   "size": 8,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.05
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.3
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.4
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.5
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.55
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.6
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "POINT",
+        "value": 0.65
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "value": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "value": 1e-05
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "value": 8.571428571428571e-07
+    },
+    {
+     "order": 4,
+     "count": 70,
+     "value": 1.7142857142857143e-07
+    },
+    {
+     "order": 5,
+     "count": 56,
+     "value": 7.714285714285714e-08
+    },
+    {
+     "order": 6,
+     "count": 28,
+     "value": 6.285714285714287e-08
+    },
+    {
+     "order": 7,
+     "count": 8,
+     "value": 9.900000000000001e-08
+    },
+    {
+     "order": 8,
+     "count": 1,
+     "value": 1.2870000000000001e-06
+    }
+   ],
+   "andTop": 1.2886348382700438e-06,
+   "orTop": 0.015442146950277926
+  },
+  {
+   "name": "beta 8",
+   "size": 8,
+   "factors": {
+    "model": "BETA_FACTOR",
+    "beta": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "POINT",
+       "value": 0.07
+      }
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "value": 0.00186
+    },
+    {
+     "order": 8,
+     "count": 1,
+     "value": 0.00014000000000000001
+    }
+   ],
+   "andTop": 0.00014000000000000001,
+   "orTop": 0.014921421026663113
+  },
+  {
+   "name": "phi 8",
+   "size": 8,
+   "factors": {
+    "model": "PHI_FACTOR",
+    "phis": {
+     "node": "VALUE",
+     "law": {
+      "family": "FIXED",
+      "values": [
+       0.8100000664200054,
+       0.1620000132840011,
+       0.024300001992600163,
+       0.0032400002656800216,
+       0.0004050000332100027,
+       4.860000398520033e-05,
+       5.670000464940038e-06,
+       6.480000531360043e-07
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "POINT",
+      "value": 0.002
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "value": 0.0016200001328400108
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "value": 0.0003240000265680022
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "value": 4.860000398520033e-05
+    },
+    {
+     "order": 4,
+     "count": 70,
+     "value": 6.480000531360043e-06
+    },
+    {
+     "order": 5,
+     "count": 56,
+     "value": 8.100000664200054e-07
+    },
+    {
+     "order": 6,
+     "count": 28,
+     "value": 9.720000797040066e-08
+    },
+    {
+     "order": 7,
+     "count": 8,
+     "value": 1.1340000929880076e-08
+    },
+    {
+     "order": 8,
+     "count": 1,
+     "value": 1.2960001062720086e-09
+    }
+   ],
+   "andTop": 1.0822441906934398e-08,
+   "orTop": 0.02495087266833796
+  },
+  {
+   "name": "bfr 8",
+   "size": 8,
+   "factors": {
+    "model": "BINOMIAL_FAILURE_RATE",
+    "independent": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 0.001
+      }
+     }
+    },
+    "nonLethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 0.0002
+      }
+     }
+    },
+    "componentFailure": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "POINT",
+       "value": 0.15
+      }
+     }
+    },
+    "lethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "POINT",
+       "value": 3e-06
+      }
+     }
+    }
+   },
+   "total": null,
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "value": 0.0010096173126484375
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "value": 1.6971728203125e-06
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "value": 2.995010859375e-07
+    },
+    {
+     "order": 4,
+     "count": 70,
+     "value": 5.2853132812499996e-08
+    },
+    {
+     "order": 5,
+     "count": 56,
+     "value": 9.327023437499999e-09
+    },
+    {
+     "order": 6,
+     "count": 28,
+     "value": 1.6459453124999998e-09
+    },
+    {
+     "order": 7,
+     "count": 8,
+     "value": 2.9046093749999993e-10
+    },
+    {
+     "order": 8,
+     "count": 1,
+     "value": 3.0000512578125002e-06
+    }
+   ],
+   "andTop": 3.000054335994599e-06,
+   "orTop": 0.00811943982662725
+  }
+ ],
+ "sampled": [
+  {
+   "orTopMean": 0.0038546984298025305,
+   "orTopError": 1.359689525116619e-06,
+   "name": "alpha staggered 2",
+   "size": 2,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 2,
+     "mean": 0.0018604651162790699,
+     "plugin": 0.0018604651162790699
+    },
+    {
+     "order": 2,
+     "count": 1,
+     "mean": 0.00013953488372093022,
+     "plugin": 0.00013953488372093022
+    }
+   ],
+   "rareOrMean": 0.00386046511627907
+  },
+  {
+   "orTopMean": 0.003738358921568214,
+   "orTopError": 1.3204954931354155e-06,
+   "name": "alpha non-staggered 2",
+   "size": 2,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "NON_STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 2,
+     "mean": 0.0017438019716127903,
+     "plugin": 0.001739130434782609
+    },
+    {
+     "order": 2,
+     "count": 1,
+     "mean": 0.0002561980283872125,
+     "plugin": 0.0002608695652173913
+    }
+   ],
+   "rareOrMean": 0.0037438019716127934
+  },
+  {
+   "orTopMean": 0.0038920595776446216,
+   "orTopError": 1.3721421907206225e-06,
+   "name": "mgl 2",
+   "size": 2,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 2.0,
+        "beta": 38.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 2,
+     "mean": 0.0019,
+     "plugin": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 1,
+     "mean": 0.0001,
+     "plugin": 0.0001
+    }
+   ],
+   "rareOrMean": 0.0039
+  },
+  {
+   "orTopMean": 0.003853611327979359,
+   "orTopError": 1.358358904806895e-06,
+   "name": "beta 2",
+   "size": 2,
+   "factors": {
+    "model": "BETA_FACTOR",
+    "beta": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "BETA",
+       "alpha": 3.0,
+       "beta": 40.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 2,
+     "mean": 0.0018604651162790699,
+     "plugin": 0.0018604651162790699
+    },
+    {
+     "order": 2,
+     "count": 1,
+     "mean": 0.00013953488372093022,
+     "plugin": 0.00013953488372093022
+    }
+   ],
+   "rareOrMean": 0.00386046511627907
+  },
+  {
+   "orTopMean": 0.003854174148837488,
+   "orTopError": 1.3597224771404757e-06,
+   "name": "phi 2",
+   "size": 2,
+   "factors": {
+    "model": "PHI_FACTOR",
+    "phis": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 2,
+     "mean": 0.0018604651162790699,
+     "plugin": 0.0018604651162790699
+    },
+    {
+     "order": 2,
+     "count": 1,
+     "mean": 0.00013953488372093022,
+     "plugin": 0.00013953488372093022
+    }
+   ],
+   "rareOrMean": 0.00386046511627907
+  },
+  {
+   "orTopMean": 0.002055671120637405,
+   "orTopError": 7.0537294403978e-07,
+   "name": "bfr 2",
+   "size": 2,
+   "factors": {
+    "model": "BINOMIAL_FAILURE_RATE",
+    "independent": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 2.0,
+       "beta": 1998.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "nonLethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 2.0,
+       "beta": 9998.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "componentFailure": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "BETA",
+       "alpha": 3.0,
+       "beta": 17.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "lethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 1.5,
+       "beta": 499998.5,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    }
+   },
+   "total": null,
+   "orders": [
+    {
+     "order": 1,
+     "count": 2,
+     "mean": 0.0010242857142857143,
+     "plugin": 0.0010255
+    },
+    {
+     "order": 2,
+     "count": 1,
+     "mean": 8.714285714285708e-06,
+     "plugin": 7.5e-06
+    }
+   ],
+   "rareOrMean": 0.002057285714285714
+  },
+  {
+   "orTopMean": 0.005647215334294589,
+   "orTopError": 1.9887359193942448e-06,
+   "name": "alpha staggered 3",
+   "size": 3,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 3,
+     "mean": 0.0017977528089887641,
+     "plugin": 0.0017977528089887641
+    },
+    {
+     "order": 2,
+     "count": 3,
+     "mean": 6.741573033707865e-05,
+     "plugin": 6.741573033707865e-05
+    },
+    {
+     "order": 3,
+     "count": 1,
+     "mean": 6.741573033707865e-05,
+     "plugin": 6.741573033707865e-05
+    }
+   ],
+   "rareOrMean": 0.005662921348314607
+  },
+  {
+   "orTopMean": 0.005287322896122137,
+   "orTopError": 1.8706739209387185e-06,
+   "name": "alpha non-staggered 3",
+   "size": 3,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "NON_STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 3,
+     "mean": 0.001592918077647517,
+     "plugin": 0.0015841584158415843
+    },
+    {
+     "order": 2,
+     "count": 3,
+     "mean": 0.00011721061962385002,
+     "plugin": 0.00011881188118811882
+    },
+    {
+     "order": 3,
+     "count": 1,
+     "mean": 0.00017266068310478592,
+     "plugin": 0.00017821782178217824
+    }
+   ],
+   "rareOrMean": 0.0053030467749188865
+  },
+  {
+   "orTopMean": 0.005818295688805299,
+   "orTopError": 2.0493322074625516e-06,
+   "name": "mgl 3",
+   "size": 3,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 2.0,
+        "beta": 38.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 3.0,
+        "beta": 7.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 3,
+     "mean": 0.0019,
+     "plugin": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 3,
+     "mean": 3.5e-05,
+     "plugin": 3.5e-05
+    },
+    {
+     "order": 3,
+     "count": 1,
+     "mean": 3e-05,
+     "plugin": 3e-05
+    }
+   ],
+   "rareOrMean": 0.005835
+  },
+  {
+   "orTopMean": 0.005702605139795383,
+   "orTopError": 2.008299202650449e-06,
+   "name": "beta 3",
+   "size": 3,
+   "factors": {
+    "model": "BETA_FACTOR",
+    "beta": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "BETA",
+       "alpha": 3.0,
+       "beta": 40.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 3,
+     "mean": 0.0018604651162790699,
+     "plugin": 0.0018604651162790699
+    },
+    {
+     "order": 3,
+     "count": 1,
+     "mean": 0.00013953488372093022,
+     "plugin": 0.00013953488372093022
+    }
+   ],
+   "rareOrMean": 0.005720930232558139
+  },
+  {
+   "orTopMean": 0.005849277783293344,
+   "orTopError": 2.0596465400496048e-06,
+   "name": "phi 3",
+   "size": 3,
+   "factors": {
+    "model": "PHI_FACTOR",
+    "phis": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 3,
+     "mean": 0.0017977528089887641,
+     "plugin": 0.0017977528089887641
+    },
+    {
+     "order": 2,
+     "count": 3,
+     "mean": 0.0001348314606741573,
+     "plugin": 0.0001348314606741573
+    },
+    {
+     "order": 3,
+     "count": 1,
+     "mean": 6.741573033707865e-05,
+     "plugin": 6.741573033707865e-05
+    }
+   ],
+   "rareOrMean": 0.005865168539325842
+  },
+  {
+   "orTopMean": 0.0030711854623586498,
+   "orTopError": 1.057060490961008e-06,
+   "name": "bfr 3",
+   "size": 3,
+   "factors": {
+    "model": "BINOMIAL_FAILURE_RATE",
+    "independent": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 2.0,
+       "beta": 1998.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "nonLethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 2.0,
+       "beta": 9998.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "componentFailure": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "BETA",
+       "alpha": 3.0,
+       "beta": 17.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "lethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 1.5,
+       "beta": 499998.5,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    }
+   },
+   "total": null,
+   "orders": [
+    {
+     "order": 1,
+     "count": 3,
+     "mean": 0.0010198701298701298,
+     "plugin": 0.001021675
+    },
+    {
+     "order": 2,
+     "count": 3,
+     "mean": 4.415584415584414e-06,
+     "plugin": 3.825e-06
+    },
+    {
+     "order": 3,
+     "count": 1,
+     "mean": 4.298701298701299e-06,
+     "plugin": 3.675e-06
+    }
+   ],
+   "rareOrMean": 0.003077155844155844
+  },
+  {
+   "orTopMean": 0.007392652491221912,
+   "orTopError": 2.6037403472099554e-06,
+   "name": "alpha staggered 4",
+   "size": 4,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 4,
+     "mean": 0.0017582417582417582,
+     "plugin": 0.0017582417582417582
+    },
+    {
+     "order": 2,
+     "count": 6,
+     "mean": 4.395604395604396e-05,
+     "plugin": 4.395604395604396e-05
+    },
+    {
+     "order": 3,
+     "count": 4,
+     "mean": 2.197802197802198e-05,
+     "plugin": 2.197802197802198e-05
+    },
+    {
+     "order": 4,
+     "count": 1,
+     "mean": 4.395604395604396e-05,
+     "plugin": 4.395604395604396e-05
+    }
+   ],
+   "rareOrMean": 0.0074285714285714285
+  },
+  {
+   "orTopMean": 0.0066850985535734505,
+   "orTopError": 2.3674967680575588e-06,
+   "name": "alpha non-staggered 4",
+   "size": 4,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "NON_STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 4,
+     "mean": 0.0014803589059901958,
+     "plugin": 0.001467889908256881
+    },
+    {
+     "order": 2,
+     "count": 6,
+     "mean": 7.270945680788594e-05,
+     "plugin": 7.339449541284403e-05
+    },
+    {
+     "order": 3,
+     "count": 4,
+     "mean": 5.3614121730893024e-05,
+     "plugin": 5.504587155963303e-05
+    },
+    {
+     "order": 4,
+     "count": 1,
+     "mean": 0.00014067035839347074,
+     "plugin": 0.0001467889908256881
+    }
+   ],
+   "rareOrMean": 0.006712819210125141
+  },
+  {
+   "orTopMean": 0.007741663236773706,
+   "orTopError": 2.720927400927607e-06,
+   "name": "mgl 4",
+   "size": 4,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 2.0,
+        "beta": 38.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 3.0,
+        "beta": 7.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 4.0,
+        "beta": 6.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 4,
+     "mean": 0.0019,
+     "plugin": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 6,
+     "mean": 2.3333333333333332e-05,
+     "plugin": 2.3333333333333332e-05
+    },
+    {
+     "order": 3,
+     "count": 4,
+     "mean": 5.999999999999999e-06,
+     "plugin": 5.999999999999999e-06
+    },
+    {
+     "order": 4,
+     "count": 1,
+     "mean": 1.2e-05,
+     "plugin": 1.2e-05
+    }
+   ],
+   "rareOrMean": 0.007776
+  },
+  {
+   "orTopMean": 0.0075499626231006894,
+   "orTopError": 2.658195682286384e-06,
+   "name": "beta 4",
+   "size": 4,
+   "factors": {
+    "model": "BETA_FACTOR",
+    "beta": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "BETA",
+       "alpha": 3.0,
+       "beta": 40.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 4,
+     "mean": 0.0018604651162790699,
+     "plugin": 0.0018604651162790699
+    },
+    {
+     "order": 4,
+     "count": 1,
+     "mean": 0.00013953488372093022,
+     "plugin": 0.00013953488372093022
+    }
+   ],
+   "rareOrMean": 0.0075813953488372094
+  },
+  {
+   "orTopMean": 0.008095451676833846,
+   "orTopError": 2.846785616730736e-06,
+   "name": "phi 4",
+   "size": 4,
+   "factors": {
+    "model": "PHI_FACTOR",
+    "phis": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 4,
+     "mean": 0.0017582417582417582,
+     "plugin": 0.0017582417582417582
+    },
+    {
+     "order": 2,
+     "count": 6,
+     "mean": 0.00013186813186813188,
+     "plugin": 0.00013186813186813188
+    },
+    {
+     "order": 3,
+     "count": 4,
+     "mean": 6.593406593406594e-05,
+     "plugin": 6.593406593406594e-05
+    },
+    {
+     "order": 4,
+     "count": 1,
+     "mean": 4.395604395604396e-05,
+     "plugin": 4.395604395604396e-05
+    }
+   ],
+   "rareOrMean": 0.008131868131868131
+  },
+  {
+   "orTopMean": 0.004082611738768933,
+   "orTopError": 1.4078345202648002e-06,
+   "name": "bfr 4",
+   "size": 4,
+   "factors": {
+    "model": "BINOMIAL_FAILURE_RATE",
+    "independent": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 2.0,
+       "beta": 1998.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "nonLethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 2.0,
+       "beta": 9998.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "componentFailure": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "BETA",
+       "alpha": 3.0,
+       "beta": 17.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "lethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 1.5,
+       "beta": 499998.5,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    }
+   },
+   "total": null,
+   "orders": [
+    {
+     "order": 1,
+     "count": 4,
+     "mean": 0.0010164144551101074,
+     "plugin": 0.0010184237500000001
+    },
+    {
+     "order": 2,
+     "count": 6,
+     "mean": 3.4556747600225875e-06,
+     "plugin": 3.2512499999999996e-06
+    },
+    {
+     "order": 3,
+     "count": 4,
+     "mean": 9.599096555618284e-07,
+     "plugin": 5.737499999999999e-07
+    },
+    {
+     "order": 4,
+     "count": 1,
+     "mean": 3.338791643139469e-06,
+     "plugin": 3.10125e-06
+    }
+   ],
+   "rareOrMean": 0.004093570299265952
+  },
+  {
+   "orTopMean": 0.009105239268948328,
+   "orTopError": 3.2001253619319747e-06,
+   "name": "alpha staggered 5",
+   "size": 5,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0,
+       0.8
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "mean": 0.0017278617710583155,
+     "plugin": 0.0017278617710583155
+    },
+    {
+     "order": 2,
+     "count": 10,
+     "mean": 3.239740820734342e-05,
+     "plugin": 3.239740820734342e-05
+    },
+    {
+     "order": 3,
+     "count": 10,
+     "mean": 1.0799136069114471e-05,
+     "plugin": 1.0799136069114471e-05
+    },
+    {
+     "order": 4,
+     "count": 5,
+     "mean": 1.0799136069114471e-05,
+     "plugin": 1.0799136069114471e-05
+    },
+    {
+     "order": 5,
+     "count": 1,
+     "mean": 3.455723542116631e-05,
+     "plugin": 3.455723542116631e-05
+    }
+   ],
+   "rareOrMean": 0.009159827213822894
+  },
+  {
+   "orTopMean": 0.007928904982889578,
+   "orTopError": 2.8132272254892814e-06,
+   "name": "alpha non-staggered 5",
+   "size": 5,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "NON_STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0,
+       0.8
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "mean": 0.001383506483319261,
+     "plugin": 0.0013675213675213673
+    },
+    {
+     "order": 2,
+     "count": 10,
+     "mean": 5.1019177195864393e-05,
+     "plugin": 5.128205128205128e-05
+    },
+    {
+     "order": 3,
+     "count": 10,
+     "mean": 2.510481251110098e-05,
+     "plugin": 2.564102564102564e-05
+    },
+    {
+     "order": 4,
+     "count": 5,
+     "mean": 3.296423585475867e-05,
+     "plugin": 3.4188034188034184e-05
+    },
+    {
+     "order": 5,
+     "count": 1,
+     "mean": 0.0001299309894116445,
+     "plugin": 0.00013675213675213674
+    }
+   ],
+   "rareOrMean": 0.007973524482351396
+  },
+  {
+   "orTopMean": 0.009657741046715134,
+   "orTopError": 3.392832004295055e-06,
+   "name": "mgl 5",
+   "size": 5,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 2.0,
+        "beta": 38.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 3.0,
+        "beta": 7.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 4.0,
+        "beta": 6.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 5.0,
+        "beta": 5.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "mean": 0.0019,
+     "plugin": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 10,
+     "mean": 1.75e-05,
+     "plugin": 1.75e-05
+    },
+    {
+     "order": 3,
+     "count": 10,
+     "mean": 2.9999999999999997e-06,
+     "plugin": 2.9999999999999997e-06
+    },
+    {
+     "order": 4,
+     "count": 5,
+     "mean": 1.5e-06,
+     "plugin": 1.5e-06
+    },
+    {
+     "order": 5,
+     "count": 1,
+     "mean": 6e-06,
+     "plugin": 6e-06
+    }
+   ],
+   "rareOrMean": 0.0097185
+  },
+  {
+   "orTopMean": 0.009384104386225707,
+   "orTopError": 3.29984617430669e-06,
+   "name": "beta 5",
+   "size": 5,
+   "factors": {
+    "model": "BETA_FACTOR",
+    "beta": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "BETA",
+       "alpha": 3.0,
+       "beta": 40.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "mean": 0.0018604651162790699,
+     "plugin": 0.0018604651162790699
+    },
+    {
+     "order": 5,
+     "count": 1,
+     "mean": 0.00013953488372093022,
+     "plugin": 0.00013953488372093022
+    }
+   ],
+   "rareOrMean": 0.009441860465116279
+  },
+  {
+   "orTopMean": 0.010765374774132724,
+   "orTopError": 3.782295255549835e-06,
+   "name": "phi 5",
+   "size": 5,
+   "factors": {
+    "model": "PHI_FACTOR",
+    "phis": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0,
+       0.8
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "mean": 0.0017278617710583155,
+     "plugin": 0.0017278617710583155
+    },
+    {
+     "order": 2,
+     "count": 10,
+     "mean": 0.00012958963282937367,
+     "plugin": 0.00012958963282937367
+    },
+    {
+     "order": 3,
+     "count": 10,
+     "mean": 6.479481641468683e-05,
+     "plugin": 6.479481641468683e-05
+    },
+    {
+     "order": 4,
+     "count": 5,
+     "mean": 4.3196544276457885e-05,
+     "plugin": 4.3196544276457885e-05
+    },
+    {
+     "order": 5,
+     "count": 1,
+     "mean": 3.455723542116631e-05,
+     "plugin": 3.455723542116631e-05
+    }
+   ],
+   "rareOrMean": 0.010833693304535638
+  },
+  {
+   "orTopMean": 0.005091466147797999,
+   "orTopError": 1.7569109291805796e-06,
+   "name": "bfr 5",
+   "size": 5,
+   "factors": {
+    "model": "BINOMIAL_FAILURE_RATE",
+    "independent": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 2.0,
+       "beta": 1998.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "nonLethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 2.0,
+       "beta": 9998.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "componentFailure": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "BETA",
+       "alpha": 3.0,
+       "beta": 17.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "lethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 1.5,
+       "beta": 499998.5,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    }
+   },
+   "total": null,
+   "orders": [
+    {
+     "order": 1,
+     "count": 5,
+     "mean": 0.001013678712591756,
+     "plugin": 0.0010156601875
+    },
+    {
+     "order": 2,
+     "count": 10,
+     "mean": 2.735742518351215e-06,
+     "plugin": 2.7635624999999996e-06
+    },
+    {
+     "order": 3,
+     "count": 10,
+     "mean": 7.19932241671372e-07,
+     "plugin": 4.876874999999999e-07
+    },
+    {
+     "order": 4,
+     "count": 5,
+     "mean": 2.399774138904575e-07,
+     "plugin": 8.60625e-08
+    },
+    {
+     "order": 5,
+     "count": 1,
+     "mean": 3.0988142292490117e-06,
+     "plugin": 3.0151875e-06
+    }
+   ],
+   "rareOrMean": 0.005107249011857708
+  },
+  {
+   "orTopMean": 0.010802321465700234,
+   "orTopError": 3.7930643289575415e-06,
+   "name": "alpha staggered 6",
+   "size": 6,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0,
+       0.8,
+       0.6
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "mean": 0.0017057569296375268,
+     "plugin": 0.0017057569296375268
+    },
+    {
+     "order": 2,
+     "count": 15,
+     "mean": 2.55863539445629e-05,
+     "plugin": 2.55863539445629e-05
+    },
+    {
+     "order": 3,
+     "count": 20,
+     "mean": 6.396588486140725e-06,
+     "plugin": 6.396588486140725e-06
+    },
+    {
+     "order": 4,
+     "count": 15,
+     "mean": 4.264392324093816e-06,
+     "plugin": 4.264392324093816e-06
+    },
+    {
+     "order": 5,
+     "count": 6,
+     "mean": 6.823027718550108e-06,
+     "plugin": 6.823027718550108e-06
+    },
+    {
+     "order": 6,
+     "count": 1,
+     "mean": 2.55863539445629e-05,
+     "plugin": 2.55863539445629e-05
+    }
+   ],
+   "rareOrMean": 0.010876759061833689
+  },
+  {
+   "orTopMean": 0.009092872792058199,
+   "orTopError": 3.2333631521599838e-06,
+   "name": "alpha non-staggered 6",
+   "size": 6,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "NON_STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0,
+       0.8,
+       0.6
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "mean": 0.0013071452343108151,
+     "plugin": 0.0012882447665056361
+    },
+    {
+     "order": 2,
+     "count": 15,
+     "mean": 3.859538069067436e-05,
+     "plugin": 3.864734299516908e-05
+    },
+    {
+     "order": 3,
+     "count": 20,
+     "mean": 1.425472399019275e-05,
+     "plugin": 1.4492753623188405e-05
+    },
+    {
+     "order": 4,
+     "count": 15,
+     "mean": 1.2487243573553575e-05,
+     "plugin": 1.2882447665056359e-05
+    },
+    {
+     "order": 5,
+     "count": 6,
+     "mean": 2.4626197338570456e-05,
+     "plugin": 2.576489533011272e-05
+    },
+    {
+     "order": 6,
+     "count": 1,
+     "mean": 0.00010932719990550077,
+     "plugin": 0.00011594202898550723
+    }
+   ],
+   "rareOrMean": 0.00915128963356909
+  },
+  {
+   "orTopMean": 0.01157888587552105,
+   "orTopError": 4.058459590068805e-06,
+   "name": "mgl 6",
+   "size": 6,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 2.0,
+        "beta": 38.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 3.0,
+        "beta": 7.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 4.0,
+        "beta": 6.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 5.0,
+        "beta": 5.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 5.5,
+        "beta": 4.5,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "mean": 0.0019,
+     "plugin": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 15,
+     "mean": 1.3999999999999998e-05,
+     "plugin": 1.3999999999999998e-05
+    },
+    {
+     "order": 3,
+     "count": 20,
+     "mean": 1.8e-06,
+     "plugin": 1.8e-06
+    },
+    {
+     "order": 4,
+     "count": 15,
+     "mean": 6.000000000000001e-07,
+     "plugin": 6.000000000000001e-07
+    },
+    {
+     "order": 5,
+     "count": 6,
+     "mean": 5.399999999999999e-07,
+     "plugin": 5.399999999999999e-07
+    },
+    {
+     "order": 6,
+     "count": 1,
+     "mean": 3.3000000000000006e-06,
+     "plugin": 3.3000000000000006e-06
+    }
+   ],
+   "rareOrMean": 0.01166154
+  },
+  {
+   "orTopMean": 0.011221522754075732,
+   "orTopError": 3.940740779886184e-06,
+   "name": "beta 6",
+   "size": 6,
+   "factors": {
+    "model": "BETA_FACTOR",
+    "beta": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "BETA",
+       "alpha": 3.0,
+       "beta": 40.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "mean": 0.0018604651162790699,
+     "plugin": 0.0018604651162790699
+    },
+    {
+     "order": 6,
+     "count": 1,
+     "mean": 0.00013953488372093022,
+     "plugin": 0.00013953488372093022
+    }
+   ],
+   "rareOrMean": 0.011302325581395349
+  },
+  {
+   "orTopMean": 0.014162163479559804,
+   "orTopError": 4.990152755705496e-06,
+   "name": "phi 6",
+   "size": 6,
+   "factors": {
+    "model": "PHI_FACTOR",
+    "phis": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0,
+       0.8,
+       0.6
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "mean": 0.0017057569296375268,
+     "plugin": 0.0017057569296375268
+    },
+    {
+     "order": 2,
+     "count": 15,
+     "mean": 0.0001279317697228145,
+     "plugin": 0.0001279317697228145
+    },
+    {
+     "order": 3,
+     "count": 20,
+     "mean": 6.396588486140725e-05,
+     "plugin": 6.396588486140725e-05
+    },
+    {
+     "order": 4,
+     "count": 15,
+     "mean": 4.2643923240938166e-05,
+     "plugin": 4.2643923240938166e-05
+    },
+    {
+     "order": 5,
+     "count": 6,
+     "mean": 3.411513859275054e-05,
+     "plugin": 3.411513859275054e-05
+    },
+    {
+     "order": 6,
+     "count": 1,
+     "mean": 2.55863539445629e-05,
+     "plugin": 2.55863539445629e-05
+    }
+   ],
+   "rareOrMean": 0.014302771855010662
+  },
+  {
+   "orTopMean": 0.006092191266681659,
+   "orTopError": 2.1030026778970565e-06,
+   "name": "bfr 6",
+   "size": 6,
+   "factors": {
+    "model": "BINOMIAL_FAILURE_RATE",
+    "independent": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 2.0,
+       "beta": 1998.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "nonLethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 2.0,
+       "beta": 9998.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "componentFailure": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "BETA",
+       "alpha": 3.0,
+       "beta": 17.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "lethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 1.5,
+       "beta": 499998.5,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    }
+   },
+   "total": null,
+   "orders": [
+    {
+     "order": 1,
+     "count": 6,
+     "mean": 0.0010114901185770751,
+     "plugin": 0.001013311159375
+    },
+    {
+     "order": 2,
+     "count": 15,
+     "mean": 2.1885940146809702e-06,
+     "plugin": 2.3490281249999997e-06
+    },
+    {
+     "order": 3,
+     "count": 20,
+     "mean": 5.471485036702426e-07,
+     "plugin": 4.145343749999999e-07
+    },
+    {
+     "order": 4,
+     "count": 15,
+     "mean": 1.7278373800112917e-07,
+     "plugin": 7.315312499999998e-08
+    },
+    {
+     "order": 5,
+     "count": 6,
+     "mean": 6.719367588932808e-08,
+     "plugin": 1.2909374999999997e-08
+    },
+    {
+     "order": 6,
+     "count": 1,
+     "mean": 3.031620553359684e-06,
+     "plugin": 3.002278125e-06
+    }
+   ],
+   "rareOrMean": 0.0061187391304347825
+  },
+  {
+   "orTopMean": 0.01247991747758018,
+   "orTopError": 4.378820559877656e-06,
+   "name": "alpha staggered 7",
+   "size": 7,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0,
+       0.8,
+       0.6,
+       0.5
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "mean": 0.0016877637130801688,
+     "plugin": 0.0016877637130801688
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "mean": 2.1097046413502112e-05,
+     "plugin": 2.1097046413502112e-05
+    },
+    {
+     "order": 3,
+     "count": 35,
+     "mean": 4.219409282700423e-06,
+     "plugin": 4.219409282700423e-06
+    },
+    {
+     "order": 4,
+     "count": 35,
+     "mean": 2.109704641350211e-06,
+     "plugin": 2.109704641350211e-06
+    },
+    {
+     "order": 5,
+     "count": 21,
+     "mean": 2.2503516174402257e-06,
+     "plugin": 2.2503516174402257e-06
+    },
+    {
+     "order": 6,
+     "count": 7,
+     "mean": 4.219409282700422e-06,
+     "plugin": 4.219409282700422e-06
+    },
+    {
+     "order": 7,
+     "count": 1,
+     "mean": 2.109704641350211e-05,
+     "plugin": 2.109704641350211e-05
+    }
+   ],
+   "rareOrMean": 0.012576793248945147
+  },
+  {
+   "orTopMean": 0.010171405572617169,
+   "orTopError": 3.6285231502903574e-06,
+   "name": "alpha non-staggered 7",
+   "size": 7,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "NON_STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0,
+       0.8,
+       0.6,
+       0.5
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "mean": 0.0012410164179981575,
+     "plugin": 0.0012195121951219512
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "mean": 3.055823776993201e-05,
+     "plugin": 3.048780487804878e-05
+    },
+    {
+     "order": 3,
+     "count": 35,
+     "mean": 9.035181974946133e-06,
+     "plugin": 9.146341463414635e-06
+    },
+    {
+     "order": 4,
+     "count": 35,
+     "mean": 5.93990580755865e-06,
+     "plugin": 6.097560975609756e-06
+    },
+    {
+     "order": 5,
+     "count": 21,
+     "mean": 7.814014270142083e-06,
+     "plugin": 8.130081300813009e-06
+    },
+    {
+     "order": 6,
+     "count": 7,
+     "mean": 1.7354579734460196e-05,
+     "plugin": 1.8292682926829268e-05
+    },
+    {
+     "order": 7,
+     "count": 1,
+     "mean": 9.997061714799579e-05,
+     "plugin": 0.00010670731707317073
+    }
+   ],
+   "rareOrMean": 0.010238512966505542
+  },
+  {
+   "orTopMean": 0.013488627134937526,
+   "orTopError": 4.7259104824885504e-06,
+   "name": "mgl 7",
+   "size": 7,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 2.0,
+        "beta": 38.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 3.0,
+        "beta": 7.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 4.0,
+        "beta": 6.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 5.0,
+        "beta": 5.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 5.5,
+        "beta": 4.5,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 6.0,
+        "beta": 4.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "mean": 0.0019,
+     "plugin": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "mean": 1.1666666666666666e-05,
+     "plugin": 1.1666666666666666e-05
+    },
+    {
+     "order": 3,
+     "count": 35,
+     "mean": 1.2e-06,
+     "plugin": 1.2e-06
+    },
+    {
+     "order": 4,
+     "count": 35,
+     "mean": 3.0000000000000004e-07,
+     "plugin": 3.0000000000000004e-07
+    },
+    {
+     "order": 5,
+     "count": 21,
+     "mean": 1.8e-07,
+     "plugin": 1.8e-07
+    },
+    {
+     "order": 6,
+     "count": 7,
+     "mean": 2.2000000000000004e-07,
+     "plugin": 2.2000000000000004e-07
+    },
+    {
+     "order": 7,
+     "count": 1,
+     "mean": 1.98e-06,
+     "plugin": 1.98e-06
+    }
+   ],
+   "rareOrMean": 0.013604799999999998
+  },
+  {
+   "orTopMean": 0.013057677807946358,
+   "orTopError": 4.580338003807675e-06,
+   "name": "beta 7",
+   "size": 7,
+   "factors": {
+    "model": "BETA_FACTOR",
+    "beta": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "BETA",
+       "alpha": 3.0,
+       "beta": 40.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "mean": 0.0018604651162790699,
+     "plugin": 0.0018604651162790699
+    },
+    {
+     "order": 7,
+     "count": 1,
+     "mean": 0.00013953488372093022,
+     "plugin": 0.00013953488372093022
+    }
+   ],
+   "rareOrMean": 0.013162790697674419
+  },
+  {
+   "orTopMean": 0.018805467969519762,
+   "orTopError": 6.65894449303006e-06,
+   "name": "phi 7",
+   "size": 7,
+   "factors": {
+    "model": "PHI_FACTOR",
+    "phis": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0,
+       0.8,
+       0.6,
+       0.5
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "mean": 0.0016877637130801688,
+     "plugin": 0.0016877637130801688
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "mean": 0.00012658227848101267,
+     "plugin": 0.00012658227848101267
+    },
+    {
+     "order": 3,
+     "count": 35,
+     "mean": 6.329113924050633e-05,
+     "plugin": 6.329113924050633e-05
+    },
+    {
+     "order": 4,
+     "count": 35,
+     "mean": 4.219409282700422e-05,
+     "plugin": 4.219409282700422e-05
+    },
+    {
+     "order": 5,
+     "count": 21,
+     "mean": 3.375527426160338e-05,
+     "plugin": 3.375527426160338e-05
+    },
+    {
+     "order": 6,
+     "count": 7,
+     "mean": 2.5316455696202533e-05,
+     "plugin": 2.5316455696202533e-05
+    },
+    {
+     "order": 7,
+     "count": 1,
+     "mean": 2.109704641350211e-05,
+     "plugin": 2.109704641350211e-05
+    }
+   ],
+   "rareOrMean": 0.019071729957805907
+  },
+  {
+   "orTopMean": 0.00709426045023751,
+   "orTopError": 2.450309299668767e-06,
+   "name": "bfr 7",
+   "size": 7,
+   "factors": {
+    "model": "BINOMIAL_FAILURE_RATE",
+    "independent": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 2.0,
+       "beta": 1998.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "nonLethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 2.0,
+       "beta": 9998.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "componentFailure": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "BETA",
+       "alpha": 3.0,
+       "beta": 17.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "lethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 1.5,
+       "beta": 499998.5,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    }
+   },
+   "total": null,
+   "orders": [
+    {
+     "order": 1,
+     "count": 7,
+     "mean": 0.0010097224080267558,
+     "plugin": 0.00101131448546875
+    },
+    {
+     "order": 2,
+     "count": 21,
+     "mean": 1.7677105503192452e-06,
+     "plugin": 1.99667390625e-06
+    },
+    {
+     "order": 3,
+     "count": 35,
+     "mean": 4.208834643617249e-07,
+     "plugin": 3.5235421874999987e-07
+    },
+    {
+     "order": 4,
+     "count": 35,
+     "mean": 1.262650393085175e-07,
+     "plugin": 6.218015624999999e-08
+    },
+    {
+     "order": 5,
+     "count": 21,
+     "mean": 4.6518698692611725e-08,
+     "plugin": 1.0972968749999996e-08
+    },
+    {
+     "order": 6,
+     "count": 7,
+     "mean": 2.067497719671635e-08,
+     "plugin": 1.9364062499999996e-09
+    },
+    {
+     "order": 7,
+     "count": 1,
+     "mean": 3.0109455761629674e-06,
+     "plugin": 3.00034171875e-06
+    }
+   ],
+   "rareOrMean": 0.007128461538461538
+  },
+  {
+   "orTopMean": 0.01414475927040435,
+   "orTopError": 4.956257955843387e-06,
+   "name": "alpha staggered 8",
+   "size": 8,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0,
+       0.8,
+       0.6,
+       0.5,
+       0.4
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "mean": 0.0016736401673640169,
+     "plugin": 0.0016736401673640169
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "mean": 1.7931858936043037e-05,
+     "plugin": 1.7931858936043037e-05
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "mean": 2.9886431560071726e-06,
+     "plugin": 2.9886431560071726e-06
+    },
+    {
+     "order": 4,
+     "count": 70,
+     "mean": 1.1954572624028692e-06,
+     "plugin": 1.1954572624028692e-06
+    },
+    {
+     "order": 5,
+     "count": 56,
+     "mean": 9.563658099222954e-07,
+     "plugin": 9.563658099222954e-07
+    },
+    {
+     "order": 6,
+     "count": 28,
+     "mean": 1.195457262402869e-06,
+     "plugin": 1.195457262402869e-06
+    },
+    {
+     "order": 7,
+     "count": 8,
+     "mean": 2.988643156007173e-06,
+     "plugin": 2.988643156007173e-06
+    },
+    {
+     "order": 8,
+     "count": 1,
+     "mean": 1.673640167364017e-05,
+     "plugin": 1.673640167364017e-05
+    }
+   ],
+   "rareOrMean": 0.014269934249850569
+  },
+  {
+   "orTopMean": 0.011192908528226502,
+   "orTopError": 4.001730536000778e-06,
+   "name": "alpha non-staggered 8",
+   "size": 8,
+   "factors": {
+    "model": "ALPHA_FACTOR",
+    "testing": "NON_STAGGERED",
+    "alphas": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0,
+       0.8,
+       0.6,
+       0.5,
+       0.4
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "mean": 0.001186482888977351,
+     "plugin": 0.0011627906976744184
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "mean": 2.5057076417050138e-05,
+     "plugin": 2.491694352159468e-05
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "mean": 6.1773536141519365e-06,
+     "plugin": 6.22923588039867e-06
+    },
+    {
+     "order": 4,
+     "count": 70,
+     "mean": 3.250593095178886e-06,
+     "plugin": 3.3222591362126243e-06
+    },
+    {
+     "order": 5,
+     "count": 56,
+     "mean": 3.2087150505288654e-06,
+     "plugin": 3.3222591362126243e-06
+    },
+    {
+     "order": 6,
+     "count": 28,
+     "mean": 4.753127147689719e-06,
+     "plugin": 4.983388704318936e-06
+    },
+    {
+     "order": 7,
+     "count": 8,
+     "mean": 1.3696066874086915e-05,
+     "plugin": 1.4534883720930233e-05
+    },
+    {
+     "order": 8,
+     "count": 1,
+     "mean": 8.662922688624681e-05,
+     "plugin": 9.302325581395348e-05
+    }
+   ],
+   "rareOrMean": 0.011275907935395112
+  },
+  {
+   "orTopMean": 0.015397980763244267,
+   "orTopError": 5.382017422618025e-06,
+   "name": "mgl 8",
+   "size": 8,
+   "factors": {
+    "model": "MGL",
+    "factors": [
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 2.0,
+        "beta": 38.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 3.0,
+        "beta": 7.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 4.0,
+        "beta": 6.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 5.0,
+        "beta": 5.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 5.5,
+        "beta": 4.5,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 6.0,
+        "beta": 4.0,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     },
+     {
+      "node": "VALUE",
+      "value": {
+       "unit": "FRACTION",
+       "law": {
+        "family": "BETA",
+        "alpha": 6.5,
+        "beta": 3.5,
+        "lower": 0.0,
+        "upper": 1.0
+       }
+      }
+     }
+    ]
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "mean": 0.0019,
+     "plugin": 0.0019
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "mean": 9.999999999999999e-06,
+     "plugin": 9.999999999999999e-06
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "mean": 8.571428571428571e-07,
+     "plugin": 8.571428571428571e-07
+    },
+    {
+     "order": 4,
+     "count": 70,
+     "mean": 1.7142857142857143e-07,
+     "plugin": 1.7142857142857143e-07
+    },
+    {
+     "order": 5,
+     "count": 56,
+     "mean": 7.714285714285714e-08,
+     "plugin": 7.714285714285714e-08
+    },
+    {
+     "order": 6,
+     "count": 28,
+     "mean": 6.285714285714286e-08,
+     "plugin": 6.285714285714286e-08
+    },
+    {
+     "order": 7,
+     "count": 8,
+     "mean": 9.9e-08,
+     "plugin": 9.9e-08
+    },
+    {
+     "order": 8,
+     "count": 1,
+     "mean": 1.287e-06,
+     "plugin": 1.287e-06
+    }
+   ],
+   "rareOrMean": 0.015548159
+  },
+  {
+   "orTopMean": 0.01487688296478787,
+   "orTopError": 5.209374695520981e-06,
+   "name": "beta 8",
+   "size": 8,
+   "factors": {
+    "model": "BETA_FACTOR",
+    "beta": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "BETA",
+       "alpha": 3.0,
+       "beta": 40.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "mean": 0.0018604651162790699,
+     "plugin": 0.0018604651162790699
+    },
+    {
+     "order": 8,
+     "count": 1,
+     "mean": 0.00013953488372093022,
+     "plugin": 0.00013953488372093022
+    }
+   ],
+   "rareOrMean": 0.015023255813953489
+  },
+  {
+   "orTopMean": 0.025622931307233587,
+   "orTopError": 9.169286511822229e-06,
+   "name": "phi 8",
+   "size": 8,
+   "factors": {
+    "model": "PHI_FACTOR",
+    "phis": {
+     "node": "VALUE",
+     "law": {
+      "family": "DIRICHLET",
+      "concentrations": [
+       40.0,
+       3.0,
+       1.5,
+       1.0,
+       0.8,
+       0.6,
+       0.5,
+       0.4
+      ]
+     }
+    }
+   },
+   "total": {
+    "node": "VALUE",
+    "value": {
+     "unit": "PROBABILITY",
+     "law": {
+      "family": "BETA",
+      "alpha": 2.0,
+      "beta": 998.0,
+      "lower": 0.0,
+      "upper": 1.0
+     }
+    }
+   },
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "mean": 0.0016736401673640169,
+     "plugin": 0.0016736401673640169
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "mean": 0.00012552301255230126,
+     "plugin": 0.00012552301255230126
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "mean": 6.276150627615063e-05,
+     "plugin": 6.276150627615063e-05
+    },
+    {
+     "order": 4,
+     "count": 70,
+     "mean": 4.184100418410042e-05,
+     "plugin": 4.184100418410042e-05
+    },
+    {
+     "order": 5,
+     "count": 56,
+     "mean": 3.347280334728034e-05,
+     "plugin": 3.347280334728034e-05
+    },
+    {
+     "order": 6,
+     "count": 28,
+     "mean": 2.510460251046025e-05,
+     "plugin": 2.510460251046025e-05
+    },
+    {
+     "order": 7,
+     "count": 8,
+     "mean": 2.092050209205021e-05,
+     "plugin": 2.092050209205021e-05
+    },
+    {
+     "order": 8,
+     "count": 1,
+     "mean": 1.673640167364017e-05,
+     "plugin": 1.673640167364017e-05
+    }
+   ],
+   "rareOrMean": 0.026108786610878662
+  },
+  {
+   "orTopMean": 0.008089952707115551,
+   "orTopError": 2.798088910917017e-06,
+   "name": "bfr 8",
+   "size": 8,
+   "factors": {
+    "model": "BINOMIAL_FAILURE_RATE",
+    "independent": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 2.0,
+       "beta": 1998.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "nonLethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 2.0,
+       "beta": 9998.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "componentFailure": {
+     "node": "VALUE",
+     "value": {
+      "unit": "FRACTION",
+      "law": {
+       "family": "BETA",
+       "alpha": 3.0,
+       "beta": 17.0,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    },
+    "lethalShock": {
+     "node": "VALUE",
+     "value": {
+      "unit": "PROBABILITY",
+      "law": {
+       "family": "BETA",
+       "alpha": 1.5,
+       "beta": 499998.5,
+       "lower": 0.0,
+       "upper": 1.0
+      }
+     }
+    }
+   },
+   "total": null,
+   "orders": [
+    {
+     "order": 1,
+     "count": 8,
+     "mean": 0.0010082820512820514,
+     "plugin": 0.0010096173126484375
+    },
+    {
+     "order": 2,
+     "count": 28,
+     "mean": 1.4403567447045705e-06,
+     "plugin": 1.6971728203124998e-06
+    },
+    {
+     "order": 3,
+     "count": 56,
+     "mean": 3.273538056146748e-07,
+     "plugin": 2.995010859374999e-07
+    },
+    {
+     "order": 4,
+     "count": 70,
+     "mean": 9.35296587470501e-08,
+     "plugin": 5.285313281249999e-08
+    },
+    {
+     "order": 5,
+     "count": 56,
+     "mean": 3.273538056146756e-08,
+     "plugin": 9.327023437499997e-09
+    },
+    {
+     "order": 6,
+     "count": 28,
+     "mean": 1.3783318131144193e-08,
+     "plugin": 1.6459453124999994e-09
+    },
+    {
+     "order": 7,
+     "count": 8,
+     "mean": 6.891659065572108e-09,
+     "plugin": 2.9046093749999993e-10
+    },
+    {
+     "order": 8,
+     "count": 1,
+     "mean": 3.0040539170973954e-06,
+     "plugin": 3.0000512578125002e-06
+    }
+   ],
+   "rareOrMean": 0.008136743589743591
+  }
+ ],
+ "mapping": {
+  "down": [
+   {
+    "counts": [
+     5.039999999999999,
+     1.08
+    ],
+    "targetSize": 1,
+    "expected": [
+     3.5999999999999996
+    ],
+    "noImpact": 2.5200000000000005
+   },
+   {
+    "counts": [
+     5.291999999999999,
+     2.268,
+     0.32399999999999995
+    ],
+    "targetSize": 1,
+    "expected": [
+     3.5999999999999996
+    ],
+    "noImpact": 4.284000000000001
+   },
+   {
+    "counts": [
+     5.291999999999999,
+     2.268,
+     0.32399999999999995
+    ],
+    "targetSize": 2,
+    "expected": [
+     5.039999999999999,
+     1.08
+    ],
+    "noImpact": 1.7640000000000002
+   },
+   {
+    "counts": [
+     4.939199999999999,
+     3.1751999999999994,
+     0.9071999999999998,
+     0.0972
+    ],
+    "targetSize": 1,
+    "expected": [
+     3.5999999999999996
+    ],
+    "noImpact": 5.5188
+   },
+   {
+    "counts": [
+     4.939199999999999,
+     3.1751999999999994,
+     0.9071999999999998,
+     0.0972
+    ],
+    "targetSize": 2,
+    "expected": [
+     5.039999999999999,
+     1.08
+    ],
+    "noImpact": 2.9987999999999997
+   },
+   {
+    "counts": [
+     4.939199999999999,
+     3.1751999999999994,
+     0.9071999999999998,
+     0.0972
+    ],
+    "targetSize": 3,
+    "expected": [
+     5.291999999999999,
+     2.268,
+     0.32399999999999995
+    ],
+    "noImpact": 1.2347999999999995
+   },
+   {
+    "counts": [
+     4.321799999999999,
+     3.704399999999999,
+     1.5875999999999995,
+     0.34019999999999995,
+     0.02915999999999999
+    ],
+    "targetSize": 1,
+    "expected": [
+     3.5999999999999996
+    ],
+    "noImpact": 6.38316
+   },
+   {
+    "counts": [
+     4.321799999999999,
+     3.704399999999999,
+     1.5875999999999995,
+     0.34019999999999995,
+     0.02915999999999999
+    ],
+    "targetSize": 2,
+    "expected": [
+     5.039999999999999,
+     1.08
+    ],
+    "noImpact": 3.8631599999999997
+   },
+   {
+    "counts": [
+     4.321799999999999,
+     3.704399999999999,
+     1.5875999999999995,
+     0.34019999999999995,
+     0.02915999999999999
+    ],
+    "targetSize": 3,
+    "expected": [
+     5.291999999999999,
+     2.268,
+     0.32399999999999995
+    ],
+    "noImpact": 2.0991599999999995
+   },
+   {
+    "counts": [
+     4.321799999999999,
+     3.704399999999999,
+     1.5875999999999995,
+     0.34019999999999995,
+     0.02915999999999999
+    ],
+    "targetSize": 4,
+    "expected": [
+     4.939199999999999,
+     3.1751999999999994,
+     0.9071999999999998,
+     0.0972
+    ],
+    "noImpact": 0.8643600000000001
+   },
+   {
+    "counts": [
+     3.630311999999998,
+     3.889619999999999,
+     2.222639999999999,
+     0.7144199999999998,
+     0.12247199999999996,
+     0.008747999999999999
+    ],
+    "targetSize": 1,
+    "expected": [
+     3.5999999999999996
+    ],
+    "noImpact": 6.988211999999999
+   },
+   {
+    "counts": [
+     3.630311999999998,
+     3.889619999999999,
+     2.222639999999999,
+     0.7144199999999998,
+     0.12247199999999996,
+     0.008747999999999999
+    ],
+    "targetSize": 2,
+    "expected": [
+     5.039999999999999,
+     1.08
+    ],
+    "noImpact": 4.468211999999999
+   },
+   {
+    "counts": [
+     3.630311999999998,
+     3.889619999999999,
+     2.222639999999999,
+     0.7144199999999998,
+     0.12247199999999996,
+     0.008747999999999999
+    ],
+    "targetSize": 3,
+    "expected": [
+     5.291999999999999,
+     2.268,
+     0.32399999999999995
+    ],
+    "noImpact": 2.7042119999999996
+   },
+   {
+    "counts": [
+     3.630311999999998,
+     3.889619999999999,
+     2.222639999999999,
+     0.7144199999999998,
+     0.12247199999999996,
+     0.008747999999999999
+    ],
+    "targetSize": 4,
+    "expected": [
+     4.939199999999999,
+     3.1751999999999994,
+     0.9071999999999998,
+     0.0972
+    ],
+    "noImpact": 1.469412
+   },
+   {
+    "counts": [
+     3.630311999999998,
+     3.889619999999999,
+     2.222639999999999,
+     0.7144199999999998,
+     0.12247199999999996,
+     0.008747999999999999
+    ],
+    "targetSize": 5,
+    "expected": [
+     4.321799999999999,
+     3.704399999999999,
+     1.5875999999999995,
+     0.34019999999999995,
+     0.02915999999999999
+    ],
+    "noImpact": 0.6050519999999997
+   },
+   {
+    "counts": [
+     2.964754799999999,
+     3.8118275999999987,
+     2.722733999999999,
+     1.1668859999999996,
+     0.3000563999999999,
+     0.042865199999999985,
+     0.0026243999999999994
+    ],
+    "targetSize": 1,
+    "expected": [
+     3.5999999999999996
+    ],
+    "noImpact": 7.4117484
+   },
+   {
+    "counts": [
+     2.964754799999999,
+     3.8118275999999987,
+     2.722733999999999,
+     1.1668859999999996,
+     0.3000563999999999,
+     0.042865199999999985,
+     0.0026243999999999994
+    ],
+    "targetSize": 2,
+    "expected": [
+     5.039999999999999,
+     1.08
+    ],
+    "noImpact": 4.8917484
+   },
+   {
+    "counts": [
+     2.964754799999999,
+     3.8118275999999987,
+     2.722733999999999,
+     1.1668859999999996,
+     0.3000563999999999,
+     0.042865199999999985,
+     0.0026243999999999994
+    ],
+    "targetSize": 3,
+    "expected": [
+     5.291999999999999,
+     2.268,
+     0.32399999999999995
+    ],
+    "noImpact": 3.1277483999999998
+   },
+   {
+    "counts": [
+     2.964754799999999,
+     3.8118275999999987,
+     2.722733999999999,
+     1.1668859999999996,
+     0.3000563999999999,
+     0.042865199999999985,
+     0.0026243999999999994
+    ],
+    "targetSize": 4,
+    "expected": [
+     4.939199999999999,
+     3.1751999999999994,
+     0.9071999999999998,
+     0.0972
+    ],
+    "noImpact": 1.8929483999999999
+   },
+   {
+    "counts": [
+     2.964754799999999,
+     3.8118275999999987,
+     2.722733999999999,
+     1.1668859999999996,
+     0.3000563999999999,
+     0.042865199999999985,
+     0.0026243999999999994
+    ],
+    "targetSize": 5,
+    "expected": [
+     4.321799999999999,
+     3.704399999999999,
+     1.5875999999999995,
+     0.34019999999999995,
+     0.02915999999999999
+    ],
+    "noImpact": 1.0285883999999998
+   },
+   {
+    "counts": [
+     2.964754799999999,
+     3.8118275999999987,
+     2.722733999999999,
+     1.1668859999999996,
+     0.3000563999999999,
+     0.042865199999999985,
+     0.0026243999999999994
+    ],
+    "targetSize": 6,
+    "expected": [
+     3.630311999999998,
+     3.889619999999999,
+     2.222639999999999,
+     0.7144199999999998,
+     0.12247199999999996,
+     0.008747999999999999
+    ],
+    "noImpact": 0.4235364
+   },
+   {
+    "counts": [
+     2.3718038399999988,
+     3.557705759999999,
+     3.0494620799999987,
+     1.6336403999999995,
+     0.5601052799999997,
+     0.12002255999999996,
+     0.014696639999999995,
+     0.0007873199999999998
+    ],
+    "targetSize": 1,
+    "expected": [
+     3.5999999999999996
+    ],
+    "noImpact": 7.70822388
+   },
+   {
+    "counts": [
+     2.3718038399999988,
+     3.557705759999999,
+     3.0494620799999987,
+     1.6336403999999995,
+     0.5601052799999997,
+     0.12002255999999996,
+     0.014696639999999995,
+     0.0007873199999999998
+    ],
+    "targetSize": 2,
+    "expected": [
+     5.039999999999999,
+     1.08
+    ],
+    "noImpact": 5.18822388
+   },
+   {
+    "counts": [
+     2.3718038399999988,
+     3.557705759999999,
+     3.0494620799999987,
+     1.6336403999999995,
+     0.5601052799999997,
+     0.12002255999999996,
+     0.014696639999999995,
+     0.0007873199999999998
+    ],
+    "targetSize": 3,
+    "expected": [
+     5.291999999999999,
+     2.268,
+     0.32399999999999995
+    ],
+    "noImpact": 3.4242238799999996
+   },
+   {
+    "counts": [
+     2.3718038399999988,
+     3.557705759999999,
+     3.0494620799999987,
+     1.6336403999999995,
+     0.5601052799999997,
+     0.12002255999999996,
+     0.014696639999999995,
+     0.0007873199999999998
+    ],
+    "targetSize": 4,
+    "expected": [
+     4.939199999999999,
+     3.1751999999999994,
+     0.9071999999999998,
+     0.0972
+    ],
+    "noImpact": 2.1894238799999997
+   },
+   {
+    "counts": [
+     2.3718038399999988,
+     3.557705759999999,
+     3.0494620799999987,
+     1.6336403999999995,
+     0.5601052799999997,
+     0.12002255999999996,
+     0.014696639999999995,
+     0.0007873199999999998
+    ],
+    "targetSize": 5,
+    "expected": [
+     4.321799999999999,
+     3.704399999999999,
+     1.5875999999999995,
+     0.34019999999999995,
+     0.02915999999999999
+    ],
+    "noImpact": 1.3250638799999996
+   },
+   {
+    "counts": [
+     2.3718038399999988,
+     3.557705759999999,
+     3.0494620799999987,
+     1.6336403999999995,
+     0.5601052799999997,
+     0.12002255999999996,
+     0.014696639999999995,
+     0.0007873199999999998
+    ],
+    "targetSize": 6,
+    "expected": [
+     3.630311999999998,
+     3.889619999999999,
+     2.222639999999999,
+     0.7144199999999998,
+     0.12247199999999996,
+     0.008747999999999999
+    ],
+    "noImpact": 0.7200118799999999
+   },
+   {
+    "counts": [
+     2.3718038399999988,
+     3.557705759999999,
+     3.0494620799999987,
+     1.6336403999999995,
+     0.5601052799999997,
+     0.12002255999999996,
+     0.014696639999999995,
+     0.0007873199999999998
+    ],
+    "targetSize": 7,
+    "expected": [
+     2.964754799999999,
+     3.8118275999999987,
+     2.722733999999999,
+     1.1668859999999996,
+     0.3000563999999999,
+     0.042865199999999985,
+     0.0026243999999999994
+    ],
+    "noImpact": 0.2964754799999999
+   }
+  ],
+  "up": [
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     3.5999999999999996
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 2,
+    "expected": [
+     15.04,
+     1.48
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     3.5999999999999996
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 3,
+    "expected": [
+     20.291999999999998,
+     2.268,
+     0.724
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     3.5999999999999996
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 4,
+    "expected": [
+     24.9392,
+     3.1751999999999994,
+     0.9071999999999998,
+     0.49720000000000003
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     3.5999999999999996
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 5,
+    "expected": [
+     29.3218,
+     3.704399999999999,
+     1.5875999999999995,
+     0.34019999999999995,
+     0.42916
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     3.5999999999999996
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 6,
+    "expected": [
+     33.630311999999996,
+     3.889619999999999,
+     2.222639999999999,
+     0.7144199999999998,
+     0.12247199999999996,
+     0.408748
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     3.5999999999999996
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 7,
+    "expected": [
+     37.9647548,
+     3.8118275999999987,
+     2.722733999999999,
+     1.1668859999999996,
+     0.3000563999999999,
+     0.042865199999999985,
+     0.40262440000000005
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     3.5999999999999996
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 8,
+    "expected": [
+     42.37180384,
+     3.557705759999999,
+     3.0494620799999987,
+     1.6336403999999995,
+     0.5601052799999997,
+     0.12002255999999996,
+     0.014696639999999995,
+     0.40078732
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     5.039999999999999,
+     1.08
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 3,
+    "expected": [
+     12.791999999999998,
+     2.268,
+     0.724
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     5.039999999999999,
+     1.08
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 4,
+    "expected": [
+     14.9392,
+     3.1751999999999994,
+     0.9071999999999998,
+     0.49720000000000003
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     5.039999999999999,
+     1.08
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 5,
+    "expected": [
+     16.8218,
+     3.704399999999999,
+     1.5875999999999995,
+     0.34019999999999995,
+     0.42916
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     5.039999999999999,
+     1.08
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 6,
+    "expected": [
+     18.630311999999996,
+     3.889619999999999,
+     2.222639999999999,
+     0.7144199999999998,
+     0.12247199999999996,
+     0.408748
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     5.039999999999999,
+     1.08
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 7,
+    "expected": [
+     20.464754799999998,
+     3.8118275999999987,
+     2.722733999999999,
+     1.1668859999999996,
+     0.3000563999999999,
+     0.042865199999999985,
+     0.40262440000000005
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     5.039999999999999,
+     1.08
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 8,
+    "expected": [
+     22.37180384,
+     3.557705759999999,
+     3.0494620799999987,
+     1.6336403999999995,
+     0.5601052799999997,
+     0.12002255999999996,
+     0.014696639999999995,
+     0.40078732
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     5.291999999999999,
+     2.268,
+     0.32399999999999995
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 4,
+    "expected": [
+     11.605866666666666,
+     3.1751999999999994,
+     0.9071999999999998,
+     0.49720000000000003
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     5.291999999999999,
+     2.268,
+     0.32399999999999995
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 5,
+    "expected": [
+     12.655133333333332,
+     3.704399999999999,
+     1.5875999999999995,
+     0.34019999999999995,
+     0.42916
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     5.291999999999999,
+     2.268,
+     0.32399999999999995
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 6,
+    "expected": [
+     13.630311999999998,
+     3.889619999999999,
+     2.222639999999999,
+     0.7144199999999998,
+     0.12247199999999996,
+     0.408748
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     5.291999999999999,
+     2.268,
+     0.32399999999999995
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 7,
+    "expected": [
+     14.631421466666666,
+     3.8118275999999987,
+     2.722733999999999,
+     1.1668859999999996,
+     0.3000563999999999,
+     0.042865199999999985,
+     0.40262440000000005
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     5.291999999999999,
+     2.268,
+     0.32399999999999995
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 8,
+    "expected": [
+     15.705137173333332,
+     3.557705759999999,
+     3.0494620799999987,
+     1.6336403999999995,
+     0.5601052799999997,
+     0.12002255999999996,
+     0.014696639999999995,
+     0.40078732
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     4.939199999999999,
+     3.1751999999999994,
+     0.9071999999999998,
+     0.0972
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 5,
+    "expected": [
+     10.5718,
+     3.704399999999999,
+     1.5875999999999995,
+     0.34019999999999995,
+     0.42916
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     4.939199999999999,
+     3.1751999999999994,
+     0.9071999999999998,
+     0.0972
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 6,
+    "expected": [
+     11.130311999999998,
+     3.889619999999999,
+     2.222639999999999,
+     0.7144199999999998,
+     0.12247199999999996,
+     0.408748
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     4.939199999999999,
+     3.1751999999999994,
+     0.9071999999999998,
+     0.0972
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 7,
+    "expected": [
+     11.714754799999998,
+     3.8118275999999987,
+     2.722733999999999,
+     1.1668859999999996,
+     0.3000563999999999,
+     0.042865199999999985,
+     0.40262440000000005
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     4.939199999999999,
+     3.1751999999999994,
+     0.9071999999999998,
+     0.0972
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 8,
+    "expected": [
+     12.371803839999998,
+     3.557705759999999,
+     3.0494620799999987,
+     1.6336403999999995,
+     0.5601052799999997,
+     0.12002255999999996,
+     0.014696639999999995,
+     0.40078732
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     4.321799999999999,
+     3.704399999999999,
+     1.5875999999999995,
+     0.34019999999999995,
+     0.02915999999999999
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 6,
+    "expected": [
+     9.630311999999998,
+     3.889619999999999,
+     2.222639999999999,
+     0.7144199999999998,
+     0.12247199999999996,
+     0.408748
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     4.321799999999999,
+     3.704399999999999,
+     1.5875999999999995,
+     0.34019999999999995,
+     0.02915999999999999
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 7,
+    "expected": [
+     9.964754799999998,
+     3.8118275999999987,
+     2.722733999999999,
+     1.1668859999999996,
+     0.3000563999999999,
+     0.042865199999999985,
+     0.40262440000000005
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     4.321799999999999,
+     3.704399999999999,
+     1.5875999999999995,
+     0.34019999999999995,
+     0.02915999999999999
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 8,
+    "expected": [
+     10.371803839999998,
+     3.557705759999999,
+     3.0494620799999987,
+     1.6336403999999995,
+     0.5601052799999997,
+     0.12002255999999996,
+     0.014696639999999995,
+     0.40078732
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     3.630311999999998,
+     3.889619999999999,
+     2.222639999999999,
+     0.7144199999999998,
+     0.12247199999999996,
+     0.008747999999999999
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 7,
+    "expected": [
+     8.798088133333332,
+     3.8118275999999987,
+     2.722733999999999,
+     1.1668859999999996,
+     0.3000563999999999,
+     0.042865199999999985,
+     0.40262440000000005
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     3.630311999999998,
+     3.889619999999999,
+     2.222639999999999,
+     0.7144199999999998,
+     0.12247199999999996,
+     0.008747999999999999
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 8,
+    "expected": [
+     9.038470506666666,
+     3.557705759999999,
+     3.0494620799999987,
+     1.6336403999999995,
+     0.5601052799999997,
+     0.12002255999999996,
+     0.014696639999999995,
+     0.40078732
+    ]
+   },
+   {
+    "independent": 5.0,
+    "nonLethal": [
+     2.964754799999999,
+     3.8118275999999987,
+     2.722733999999999,
+     1.1668859999999996,
+     0.3000563999999999,
+     0.042865199999999985,
+     0.0026243999999999994
+    ],
+    "lethal": 0.4,
+    "rho": 0.3,
+    "targetSize": 8,
+    "expected": [
+     8.086089554285714,
+     3.557705759999999,
+     3.0494620799999987,
+     1.6336403999999995,
+     0.5601052799999997,
+     0.12002255999999996,
+     0.014696639999999995,
+     0.40078732
+    ]
+   }
+  ]
+ },
+ "betaConversion": {
+  "mean": 0.05,
+  "errorFactor": 3.0,
+  "level": 0.95,
+  "plugin": 0.047619047619047616,
+  "expected": 0.04649943768158654
+ }
+}

@@ -12,6 +12,8 @@ import { SyWorkbench } from "./syWorkbench";
 import {
   SyWorkbookProvider,
   type SyControlledCcfEstimateOption,
+  type SyControlledCcfVectorOption,
+  type SyControlledCcfFactorOption,
   type SyControlledCoincidentMaintenanceOption,
   type SyControlledComponentBoundaryOption,
   type SyControlledFailureModeOption,
@@ -23,6 +25,8 @@ import {
 import {
   buildLinkedInputs,
   controlledCcfEstimateOptions,
+  controlledCcfFactorOptions,
+  controlledCcfVectorOptions,
   controlledCoincidentMaintenanceOptions,
   controlledComponentBoundaryOptions,
   controlledFailureModeOptions,
@@ -75,10 +79,12 @@ interface ExampleLinkedData {
   humanFailures: SyControlledHumanFailureOption[];
   coincidentMaintenance: SyControlledCoincidentMaintenanceOption[];
   ccfEstimates: SyControlledCcfEstimateOption[];
+  ccfVectors: SyControlledCcfVectorOption[];
+  ccfFactors: SyControlledCcfFactorOption[];
   componentBoundaries: SyControlledComponentBoundaryOption[];
 }
 
-const NO_LINKED_DATA: ExampleLinkedData = { parameters: [], legacyParameters: [], failureModes: [], humanFailures: [], coincidentMaintenance: [], ccfEstimates: [], componentBoundaries: [] };
+const NO_LINKED_DATA: ExampleLinkedData = { parameters: [], legacyParameters: [], failureModes: [], humanFailures: [], coincidentMaintenance: [], ccfEstimates: [], ccfVectors: [], ccfFactors: [], componentBoundaries: [] };
 
 const EXAMPLE_VARIANT = "htgr";
 
@@ -110,6 +116,8 @@ function SyDemoPage(): JSX.Element {
           humanFailures: controlledHumanFailureOptions(hrSources),
           coincidentMaintenance: controlledCoincidentMaintenanceOptions(daSources),
           ccfEstimates: controlledCcfEstimateOptions(daSources),
+          ccfVectors: controlledCcfVectorOptions(daSources),
+          ccfFactors: controlledCcfFactorOptions(daSources),
           componentBoundaries: controlledComponentBoundaryOptions(daSources),
         });
         setData({
@@ -148,6 +156,8 @@ function SyDemoPage(): JSX.Element {
       controlledHumanFailures={linked.humanFailures}
       controlledCoincidentMaintenance={linked.coincidentMaintenance}
       controlledCcfEstimates={linked.ccfEstimates}
+      controlledCcfVectors={linked.ccfVectors}
+      controlledCcfFactors={linked.ccfFactors}
       controlledComponentBoundaries={linked.componentBoundaries}
     >
       <SyWorkbench

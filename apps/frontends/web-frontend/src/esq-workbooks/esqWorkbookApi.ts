@@ -296,6 +296,12 @@ async function listEsqRunsOf(workbookId: string, modelId: string): Promise<Analy
   return AnalysisRunProvenanceListSchema.parse(await fetchJson<AnalysisRunProvenanceList>(`/api/esq-workbooks/${workbookId}/analysis-runs?modelId=${encodeURIComponent(modelId)}`));
 }
 
+async function getEsqRunSourceRevision(workbookId: string, modelId: string, runId: string, sourceId: string): Promise<number | null> {
+  const list = await listEsqRunsOf(workbookId, modelId);
+  const run = list.runs.find((row) => row.run.id === runId)?.run;
+  return run?.sourceWorkbooks.find((source) => source.workbookId === sourceId)?.workbookRevision ?? null;
+}
+
 async function listEsqTreeRuns(workbookId: string, treeId: string, limit = 12): Promise<EsqTreeRun[]> {
   const modelId = esqTreeRunId(treeId);
   const list = await listEsqRunsOf(workbookId, modelId);
@@ -476,6 +482,7 @@ export {
   type EsqModelRunEntry,
   runEsqEventTree,
   getEsqRunDetails,
+  getEsqRunSourceRevision,
   listEsqTreeRuns,
   runEsqBarrierCell,
   listEsqCellRuns,

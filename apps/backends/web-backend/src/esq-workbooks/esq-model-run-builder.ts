@@ -37,18 +37,19 @@ import {
 } from "interfaces-mef-types/esq/esq-run-inputs";
 import { carriesUncertainExpression, type SystemBasicEvent, type SystemLogicModel, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-models";
-import { parameterUnit, splitInputKey } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { parameterLaw, parameterUnit, splitInputKey } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { holdsEstimate, isComponentModel } from "interfaces-mef-types/da/data-analysis";
-import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
 import {
   canonicalJson,
   ccfFactorExpressions,
   ccfFactorVector,
+  ccfModelTakesTotal,
   expressionReferences,
   mapModelArguments,
   parameterReferenceKey,
   type UncertainExpression,
   type UncertainParameter,
+  type UncertainVectorParameter,
 } from "interfaces-mef-types/core/uncertainty";
 import type { FaultTreeGate, FaultTreeGateInput, FaultTreeHouseEvent, FaultTreeLeafNode } from "interfaces-mef-types/modeling/fault-tree";
 import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
@@ -58,6 +59,7 @@ import {
   adaptSyFaultTreeSnapshot,
   WorkbookPraxisAdapterError,
   type AdaptedFaultTreeSnapshot,
+  resolveUncertaintyTables,
   type CatalogueCcfGroup,
   type PraxisModelSnapshot,
   type UncertaintyTables,
@@ -80,6 +82,7 @@ interface EsqRunBuildInput {
   esqWorkbookId: string;
   esqRevision: number;
   logic: EsqEventTreeRunLogic;
+  points: ReadonlyMap<string, number>;
   raisedHep?: number;
   failedEventIds?: readonly string[];
 }
@@ -94,6 +97,7 @@ interface EsqRunEventValue {
   recoveryId?: string;
   combinationId?: string;
   splitKey?: string;
+  baseExpression?: UncertainExpression;
 }
 
 interface EsqRunBuild {
@@ -109,6 +113,7 @@ interface EsqRunBuild {
   nominal: Record<string, number>;
   values: EsqRunEventValue[];
   ccfGroups: CatalogueCcfGroup[];
+  sharedParameters: UncertainParameter[];
   eventCodes: Record<string, string>;
 }
 
@@ -261,8 +266,12 @@ function applyExclusion(sy: SystemsAnalysis, exclusion: EsqExclusion, codeOf: (e
   return next;
 }
 
-function syntheticEvent(id: string, code: string, name: string, probability: number): SystemBasicEvent {
-  return { uuid: id, code, name, eventType: "BASIC", expression: legacyExpression("PROBABILITY", probability), implementsSrs: [] };
+function pointExpression(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
+}
+
+function syntheticEvent(id: string, code: string, name: string, expression: UncertainExpression): SystemBasicEvent {
+  return { uuid: id, code, name, eventType: "BASIC", expression, implementsSrs: [] };
 }
 
 function withEvents(sy: SystemsAnalysis, events: readonly SystemBasicEvent[]): SystemsAnalysis {
@@ -283,8 +292,8 @@ function replaceLeaves(sy: SystemsAnalysis, eventIds: ReadonlySet<string>, build
   });
 }
 
-function applyRecovery(sy: SystemsAnalysis, recovery: EsqResolvedRecovery, probability: number, codeOf: (eventId: string) => string): SystemsAnalysis {
-  const nonRecovery = syntheticEvent(recovery.eventId, `NR-${recovery.id}`, `${recovery.name} fails`, probability);
+function applyRecovery(sy: SystemsAnalysis, recovery: EsqResolvedRecovery, expression: UncertainExpression, codeOf: (eventId: string) => string): SystemsAnalysis {
+  const nonRecovery = syntheticEvent(recovery.eventId, `NR-${recovery.id}`, `${recovery.name} fails`, expression);
   const replaced = replaceLeaves(sy, new Set(recovery.eventIds), (model, hit, gates, leafNodes, gateInputs) => {
     const seed = `recovery:${recovery.id}:${model.uuid}:${hit.id}`;
     const ownId = esqStableId(`${seed}:own`);
@@ -304,8 +313,9 @@ function applyDependencies(
   tree: EsqTreeRecord,
   reached: ReadonlySet<string>,
   codeOf: (eventId: string) => string,
+  points: ReadonlyMap<string, number>,
 ): EsqDependencyEncoding {
-  const active = resolvedCombinations(esq).filter((view) => view.joint !== undefined && scopeApplies(view.combination.groupIds, view.combination.stateIds, tree) && view.combination.eventIds.every((id) => reached.has(id)));
+  const active = resolvedCombinations(esq, points).filter((view) => view.joint !== undefined && scopeApplies(view.combination.groupIds, view.combination.stateIds, tree) && view.combination.eventIds.every((id) => reached.has(id)));
   const broken = active.find((view) => view.problem !== undefined);
   if (broken !== undefined) throw new EsqRunBuildError(`${broken.combination.id}: ${broken.problem ?? ""} Fix it in Step 06.`);
   const encoded = active.filter((view) => view.joint !== undefined && (view.independent === undefined || view.joint > view.independent * (1 + 1e-12)));
@@ -321,8 +331,8 @@ function applyDependencies(
   const solution = solveJointEvents(probabilities, encoded.map((view) => ({ id: view.combination.id, eventIds: view.combination.eventIds, joint: view.joint ?? 0 })));
   if (solution.problem !== undefined) throw new EsqRunBuildError(`${solution.problem} Fix it in Step 06.`);
   const events: SystemBasicEvent[] = [];
-  for (const view of encoded) events.push(syntheticEvent(esqJointEventId(view.combination.id), `JHEP-${view.combination.id}`, `${view.combination.id} joint failure`, solution.joints.get(view.combination.id) ?? 0));
-  for (const [eventId, independent] of solution.independents) events.push(syntheticEvent(esqIndependentEventId(eventId), `${codeOf(eventId)}-IND`, `${codeOf(eventId)} alone`, independent));
+  for (const view of encoded) events.push(syntheticEvent(esqJointEventId(view.combination.id), `JHEP-${view.combination.id}`, `${view.combination.id} joint failure`, pointExpression(solution.joints.get(view.combination.id) ?? 0)));
+  for (const [eventId, independent] of solution.independents) events.push(syntheticEvent(esqIndependentEventId(eventId), `${codeOf(eventId)}-IND`, `${codeOf(eventId)} alone`, pointExpression(independent)));
   const replaced = replaceLeaves(sy, new Set(probabilities.keys()), (model, hit, gates, leafNodes, gateInputs) => {
     const seed = `dependency:${model.uuid}:${hit.id}`;
     const sharing = encoded.filter((view) => view.combination.eventIds.includes(hit.basicEventId));
@@ -394,6 +404,20 @@ interface EsqRunTables {
   esq: EventSequenceQuantification;
   model: EsqModel;
   missionTimes: ReadonlyMap<string, UncertainParameter>;
+  esqWorkbookId: string;
+  own: Map<string, UncertainParameter>;
+}
+
+function ownReference(tables: EsqRunTables, key: string, expression: UncertainExpression): UncertainExpression {
+  const reference: WorkbookParameterReference = { referenceType: "WORKBOOK_PARAMETER", workbookId: tables.esqWorkbookId, entityId: key };
+  tables.own.set(parameterReferenceKey(reference), { reference, expression });
+  return { node: "PARAMETER", reference };
+}
+
+function daReference(tables: EsqRunTables, parameterId: string, code: string): UncertainExpression {
+  const workbookId = tables.esq.linkedWorkbooks?.DA;
+  if (workbookId === undefined) throw new EsqRunBuildError(`${code} takes its value from DA, but Step 01 links no DA workbook.`);
+  return { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: parameterId } };
 }
 
 function readsMissionTime(tables: EsqRunTables, reference: WorkbookParameterReference): boolean {
@@ -410,7 +434,7 @@ function referencedParameters(tables: EsqRunTables, expression: UncertainExpress
     if (reference === undefined) break;
     const key = parameterReferenceKey(reference);
     if (found.has(key)) continue;
-    const missionTime = missionTimes.get(key);
+    const missionTime = missionTimes.get(key) ?? tables.own.get(key);
     if (missionTime !== undefined) {
       found.set(key, missionTime);
       pending.push(...expressionReferences(missionTime.expression));
@@ -418,11 +442,18 @@ function referencedParameters(tables: EsqRunTables, expression: UncertainExpress
     }
     if (reference.workbookId.trim() === esq.linkedWorkbooks?.SC?.trim()) throw new EsqRunBuildError(`${code} reads mission time ${reference.entityId}, which the linked SC workbook does not hold.`);
     if (workbookId === undefined || reference.workbookId.trim() !== workbookId.trim()) throw new EsqRunBuildError(`${code} reads ${reference.entityId} from a workbook that Step 01 does not link as DA or SC.`);
+    const factor = (model.ccfFactors ?? []).find((entry) => parameterReferenceKey(entry.reference) === key);
+    if (factor !== undefined) {
+      found.set(key, factor);
+      pending.push(...expressionReferences(factor.expression));
+      continue;
+    }
     const parameter = model.parameters.find((entry) => entry.id === reference.entityId.trim());
-    if (parameter === undefined) throw new EsqRunBuildError(`${code} reads DA parameter ${reference.entityId}, which the Step 02 import does not hold.`);
-    if (!holdsEstimate(parameter.quantificationModel) || parameter.estimate === undefined) throw new EsqRunBuildError(`${code} reads ${parameter.name}, which has no estimate in DA.`);
-    found.set(key, { reference, expression: parameter.estimate });
-    pending.push(...expressionReferences(parameter.estimate));
+    if (parameter === undefined) throw new EsqRunBuildError(`${code} reads DA parameter ${reference.entityId}, which the linked DA workbook does not hold. Import the model again in Step 02.`);
+    const law = parameterLaw(parameter);
+    if (law === undefined) throw new EsqRunBuildError(`${code} reads ${parameter.name}, which has no value in DA.`);
+    found.set(key, { reference, expression: law });
+    pending.push(...expressionReferences(law));
   }
   return [...found.values()];
 }
@@ -434,20 +465,18 @@ function eventValue(tables: EsqRunTables, eventId: string, code: string): EventV
   const heldBy = binding?.heldBy ?? record?.heldBy;
   const holderId = binding?.holderId ?? record?.holderId;
   const component = carriesUncertainExpression(record?.failureMode);
+  const resolved = (expression: UncertainExpression): EventValue => ({ expression, parameters: referencedParameters(tables, expression, code) });
   if (heldBy === "DA") {
     const parameter = model.parameters.find((entry) => entry.id === holderId);
-    if (parameter === undefined) throw new EsqRunBuildError(`${code} takes its value from DA parameter ${holderId ?? ""}, which the Step 02 import does not hold.`);
+    if (parameter === undefined) throw new EsqRunBuildError(`${code} takes its value from DA parameter ${holderId ?? ""}, which the linked DA workbook does not hold. Import the model again in Step 02.`);
+    const own = daReference(tables, parameter.id, code);
     if (isComponentModel(parameter.quantificationModel)) {
       if (!component) throw new EsqRunBuildError(`${parameter.name} is a component estimate. It cannot set ${code}.`);
       if (parameter.estimate === undefined) throw new EsqRunBuildError(`${code} takes its value from ${parameter.name}, which has no estimate in DA.`);
-      const workbookId = esq.linkedWorkbooks?.DA;
-      if (workbookId === undefined) throw new EsqRunBuildError(`${code} takes its value from DA, but Step 01 links no DA workbook.`);
-      const reference = { referenceType: "WORKBOOK_PARAMETER" as const, workbookId, entityId: parameter.id };
-      const own: UncertainExpression = { node: "PARAMETER", reference };
+      const reference = own.node === "PARAMETER" ? own.reference : undefined;
       const imported = record?.expression;
       const references = imported === undefined ? [] : expressionReferences(imported).filter((entry) => !readsMissionTime(tables, entry));
-      const resolved = (expression: UncertainExpression): EventValue => ({ expression, parameters: referencedParameters(tables, expression, code) });
-      if (imported !== undefined && references.some((entry) => parameterReferenceKey(entry) === parameterReferenceKey(reference))) return resolved(imported);
+      if (imported !== undefined && reference !== undefined && references.some((entry) => parameterReferenceKey(entry) === parameterReferenceKey(reference))) return resolved(imported);
       if (parameterUnit(parameter) === "PROBABILITY") return resolved(own);
       const [only, ...others] = references;
       if (imported === undefined || only === undefined || others.length > 0) {
@@ -455,18 +484,18 @@ function eventValue(tables: EsqRunTables, eventId: string, code: string): EventV
       }
       return resolved(substituted(imported, parameterReferenceKey(only), own));
     }
-    if (holdsEstimate(parameter.quantificationModel)) throw new EsqRunBuildError(`${parameter.name} is a frequency. It cannot set ${code}.`);
-    if (parameter.value === undefined) throw new EsqRunBuildError(`${code} takes its value from ${parameter.name}, which has no value.`);
-    if (!PROBABILITY_TYPES.has(parameter.parameterType)) throw new EsqRunBuildError(`${parameter.name} is a ${parameter.parameterType.toLowerCase()} parameter. It cannot set ${code}.`);
-    return component ? { expression: legacyExpression("PROBABILITY", parameter.value), parameters: [] } : { probability: parameter.value, parameters: [] };
+    if (parameterUnit(parameter) !== "PROBABILITY") throw new EsqRunBuildError(`${parameter.name} is a ${parameter.parameterType.toLowerCase()} parameter. It cannot set ${code}.`);
+    if (!holdsEstimate(parameter.quantificationModel) && !PROBABILITY_TYPES.has(parameter.parameterType)) throw new EsqRunBuildError(`${parameter.name} is a ${parameter.parameterType.toLowerCase()} parameter. It cannot set ${code}.`);
+    if (parameterLaw(parameter) === undefined) throw new EsqRunBuildError(`${code} takes its value from ${parameter.name}, which has no value in DA.`);
+    return resolved(own);
   }
   if (heldBy === "HRA") {
     const human = model.humanEvents.find((entry) => entry.id === holderId);
     if (human === undefined) throw new EsqRunBuildError(`${code} takes its value from HR event ${holderId ?? ""}, which the Step 02 import does not hold.`);
-    if (human.value === undefined) throw new EsqRunBuildError(`${code} takes its value from ${human.name}, which has no value.`);
-    return component ? { expression: legacyExpression("PROBABILITY", human.value), parameters: [] } : { probability: human.value, parameters: [] };
+    if (human.hep === undefined) throw new EsqRunBuildError(`${code} takes its value from ${human.name}, which has no HEP in HR.`);
+    return resolved(ownReference(tables, `HFE:${human.id}`, human.hep));
   }
-  if (component) return record?.expression === undefined ? undefined : { expression: record.expression, parameters: referencedParameters(tables, record.expression, code) };
+  if (component) return record?.expression === undefined ? undefined : resolved(record.expression);
   if (record?.value === undefined) return undefined;
   if (record.valueUnit === "PER_HOUR") throw new EsqRunBuildError(`${code} holds a rate, but only a component event can hold a rate model. Give it a probability.`);
   return { probability: record.value, parameters: [] };
@@ -501,15 +530,14 @@ function splitValue(tables: EsqRunTables, target: EsqSplitFractionTarget, label:
   }
   if (target.parameterId !== undefined) {
     const parameter = model.parameters.find((entry) => entry.id === target.parameterId);
-    if (parameter?.value === undefined || !PROBABILITY_TYPES.has(parameter.parameterType)) {
+    if (parameter === undefined || parameterUnit(parameter) !== "PROBABILITY" || parameterLaw(parameter) === undefined) {
       throw new EsqRunBuildError(`The split fraction of ${label} takes ${parameter?.name ?? target.parameterId}, which holds no probability.`);
     }
-    return { expression: legacyExpression("PROBABILITY", parameter.value), parameters: [] };
+    const expression = daReference(tables, parameter.id, `The split fraction of ${label}`);
+    return { expression, parameters: referencedParameters(tables, expression, `The split fraction of ${label}`) };
   }
-  if (target.value === undefined || !(target.value > 0 && target.value <= 1)) {
-    throw new EsqRunBuildError(`The split fraction of ${label} needs a probability above 0 and at most 1.`);
-  }
-  return { expression: legacyExpression("PROBABILITY", target.value), parameters: [] };
+  if (target.expression === undefined) throw new EsqRunBuildError(`The split fraction of ${label} needs a value. Type it or link it in Step 02.`);
+  return { expression: target.expression, parameters: referencedParameters(tables, target.expression, `The split fraction of ${label}`) };
 }
 
 function adaptFaultTree(sy: SystemsAnalysis, syWorkbookId: string, syRevision: number, modelId: string, parameters: ReadonlyMap<string, UncertainParameter>): AdaptedFaultTreeSnapshot {
@@ -525,36 +553,53 @@ function adaptFaultTree(sy: SystemsAnalysis, syWorkbookId: string, syRevision: n
   }
 }
 
-function runCcfGroups(tables: EsqRunTables, sy: SystemsAnalysis, reached: ReadonlySet<string>): { groups: CatalogueCcfGroup[]; parameters: UncertainParameter[] } {
+function runCcfVectors(model: EsqModel, groups: readonly CatalogueCcfGroup[], labels: ReadonlyMap<string, string>): UncertainVectorParameter[] {
+  const vectors = new Map((model.vectors ?? []).map((vector) => [parameterReferenceKey(vector.reference), vector]));
+  const references = groups.flatMap((group) => {
+    const vector = ccfFactorVector(group.factors);
+    if (vector?.node !== "PARAMETER") return [];
+    if (!vectors.has(parameterReferenceKey(vector.reference))) {
+      throw new EsqRunBuildError(`The common cause group ${labels.get(group.id) ?? group.id} takes its factors from ${vector.reference.entityId}, which the Step 02 import does not hold. Import the model again.`);
+    }
+    return [vector.reference];
+  });
+  return resolveUncertaintyTables({ parameterReferences: [], vectorReferences: references }, { vectors }).uncertaintyVectors;
+}
+
+function runCcfGroups(tables: EsqRunTables, sy: SystemsAnalysis, reached: ReadonlySet<string>): { groups: CatalogueCcfGroup[]; parameters: UncertainParameter[]; vectors: UncertainVectorParameter[] } {
   const { model } = tables;
   const expressions = new Map(sy.systemBasicEvents.flatMap((event) => (event.expression === undefined ? [] : [[event.uuid, event.expression] as const])));
   const parameters: UncertainParameter[] = [];
+  const labels = new Map<string, string>();
   const groups = (sy.commonCauseFailureGroups ?? [])
     .filter((group) => (group.members?.basicEvents ?? []).some((member) => reached.has(member.id)))
     .flatMap((group) => adaptSyCcfGroup(group))
     .map((group): CatalogueCcfGroup => {
       const record = model.ccfGroups.find((entry) => entry.id === group.id);
       const label = record?.name ?? group.id;
+      labels.set(group.id, label);
       const factors = record === undefined ? group.factors : record.factors;
       if (factors === undefined) throw new EsqRunBuildError(`The common cause group ${label} has no factors in the Step 02 import. Complete it in SY and import again.`);
+      if (!ccfModelTakesTotal(factors)) {
+        for (const expression of ccfFactorExpressions(factors)) parameters.push(...referencedParameters(tables, expression, `The common cause group ${label}`));
+        return { id: group.id, members: group.members, factors };
+      }
       const members = group.members.map((id) => expressions.get(id));
       const [first] = members;
       const shared = first !== undefined && members.every((expression) => expression !== undefined && canonicalJson(expression) === canonicalJson(first));
       const total = shared ? first : record === undefined ? group.total : record.total;
       if (total === undefined) throw new EsqRunBuildError(`The common cause group ${label} has no total in the Step 02 import. Complete it in SY and import again.`);
-      const vector = ccfFactorVector(factors);
-      if (vector?.node === "PARAMETER") throw new EsqRunBuildError(`The common cause group ${label} takes its factors from ${vector.reference.entityId}, which the Step 02 import does not hold.`);
       for (const expression of [total, ...ccfFactorExpressions(factors)]) parameters.push(...referencedParameters(tables, expression, `The common cause group ${label}`));
       return { id: group.id, members: group.members, factors, total };
     });
-  return { groups, parameters };
+  return { groups, parameters, vectors: runCcfVectors(model, groups, labels) };
 }
 
 function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
   const { esq } = input;
   const model = esq.model;
   if (model?.importedAt === undefined) throw new EsqRunBuildError("Import the model in Step 02 before running.");
-  const tables: EsqRunTables = { esq, model, missionTimes: input.missionTimes };
+  const tables: EsqRunTables = { esq, model, missionTimes: input.missionTimes, esqWorkbookId: input.esqWorkbookId, own: new Map() };
   const root = model.trees.find((tree) => tree.id === input.treeId);
   if (root === undefined) throw new EsqRunBuildError(`Event tree ${input.treeId} is not in the imported model.`);
   if (root.transferEntry) throw new EsqRunBuildError(`${root.code} is entered by transfer. Run the tree that transfers into it.`);
@@ -615,7 +660,7 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
         },
         parameterReferences: value.parameters.map((parameter) => parameter.reference),
         vectorReferences: [],
-        legacyReferences: [],
+        humanFailureReferences: [],
       });
     }
     return { functionalEventId: esqFunctionRunId(functionId), faultTreeTopGate: { modelId, entityId: gateId } };
@@ -689,34 +734,54 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
     for (const exclusion of esq.logic?.exclusions ?? []) sy = applyExclusion(sy, exclusion, codeOf);
   }
   const raised = input.raisedHep;
+  const parameters = new Map<string, UncertainParameter>();
+  const collected = (value: EventValue | undefined): EventValue | undefined => {
+    for (const parameter of value?.parameters ?? []) parameters.set(parameterReferenceKey(parameter.reference), parameter);
+    return value;
+  };
   const recoveries = input.logic.recovery ?? true ? activeRecoveries(esq, root) : [];
-  for (const recovery of recoveries) sy = applyRecovery(sy, recovery, raised ?? recovery.value ?? 0, codeOf);
+  const recoveryExpressions = new Map<string, UncertainExpression>();
+  for (const recovery of recoveries) {
+    const law = recovery.expression;
+    if (law === undefined) continue;
+    const expression = raised === undefined ? ownReference(tables, `RECOVERY:${recovery.id}`, law) : pointExpression(raised);
+    collected({ expression, parameters: referencedParameters(tables, expression, `The non-recovery NR-${recovery.id}`) });
+    recoveryExpressions.set(recovery.eventId, expression);
+    sy = applyRecovery(sy, recovery, expression, codeOf);
+  }
   const humans = new Set([...hfeEventIds(esq, model), ...recoveries.map((recovery) => recovery.eventId)]);
   const beforeDependencies = reachedEventIds(sy, syModelIds);
   const humanEventIds = [...beforeDependencies].filter((id) => humans.has(id)).sort();
+  const recoveryIdOf = new Map(recoveries.map((recovery) => [recovery.eventId, recovery.id]));
   const nominal: Record<string, number> = {};
   for (const id of humanEventIds) {
-    const value = recoveries.find((recovery) => recovery.eventId === id)?.value ?? eventProbabilityOf(esq, model, id);
+    const recoveryId = recoveryIdOf.get(id);
+    const value = recoveryId === undefined ? eventProbabilityOf(esq, model, id, input.points) : input.points.get(`RECOVERY:${recoveryId}`);
     if (value !== undefined) nominal[id] = value;
   }
   let encoding: EsqDependencyEncoding = { sy, joints: [], independents: [] };
   if (raised === undefined && (input.logic.dependency ?? true)) {
-    encoding = applyDependencies(sy, esq, root, beforeDependencies, codeOf);
+    encoding = applyDependencies(sy, esq, root, beforeDependencies, codeOf, input.points);
     sy = encoding.sy;
   }
+  const baseExpressionOf = (eventId: string): UncertainExpression | undefined => {
+    const recovery = recoveryExpressions.get(eventId);
+    if (recovery !== undefined) return recovery;
+    const base = collected(eventValue(tables, eventId, codeOf(eventId)));
+    if (base?.expression !== undefined) return base.expression;
+    return base?.probability === undefined ? undefined : pointExpression(base.probability);
+  };
 
   const reached = reachedEventIds(sy, syModelIds);
-  const parameters = new Map<string, UncertainParameter>();
   const valued: SystemsAnalysis = {
     ...sy,
     systemBasicEvents: sy.systemBasicEvents.map((event) => {
       if (!reached.has(event.uuid)) return event;
       if (event.expression !== undefined && event.failureMode === undefined && !model.events.some((record) => record.id === event.uuid)) return event;
-      const resolved = eventValue(tables, event.uuid, codeOf(event.uuid));
-      for (const parameter of resolved?.parameters ?? []) parameters.set(parameterReferenceKey(parameter.reference), parameter);
+      const resolved = collected(eventValue(tables, event.uuid, codeOf(event.uuid)));
       const next = withValue(event, resolved, codeOf(event.uuid));
       if (raised === undefined || !humans.has(event.uuid)) return next;
-      return next.expression === undefined ? { ...next, probability: raised } : { ...next, expression: legacyExpression("PROBABILITY", raised) };
+      return next.expression === undefined ? { ...next, probability: raised } : { ...next, expression: pointExpression(raised) };
     }),
   };
 
@@ -740,18 +805,32 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
       entry.combinationId = joint.combinationId;
       entry.baseEventId = joint.firstEventId;
       entry.ratio = joint.firstProbability > 0 ? joint.value / joint.firstProbability : 0;
+      const base = baseExpressionOf(joint.firstEventId);
+      if (base !== undefined) entry.baseExpression = base;
     } else if (independent !== undefined) {
       entry.role = "INDEPENDENT_PART";
       entry.baseEventId = independent.eventId;
       entry.ratio = independent.probability > 0 ? independent.value / independent.probability : 0;
+      const base = baseExpressionOf(independent.eventId);
+      if (base !== undefined) entry.baseExpression = base;
     }
     return [entry];
   });
+  const adaptable: SystemsAnalysis = { ...valued, commonCauseFailureGroups: [] };
   const syFaultTrees = syModelIds.map((modelId) => {
-    const adapted = adaptFaultTree(valued, input.syWorkbookId, input.syRevision, modelId, parameters);
+    const adapted = adaptFaultTree(adaptable, input.syWorkbookId, input.syRevision, modelId, parameters);
     const known = new Set(adapted.basicEventCatalogue.uncertaintyParameters.map((parameter) => parameterReferenceKey(parameter.reference)));
     const groupParameters = ccf.parameters.filter((parameter) => !known.has(parameterReferenceKey(parameter.reference)));
-    return { ...adapted, basicEventCatalogue: { ...adapted.basicEventCatalogue, commonCauseFailureGroups: ccfGroups, uncertaintyParameters: [...adapted.basicEventCatalogue.uncertaintyParameters, ...groupParameters] } };
+    return {
+      ...adapted,
+      vectorReferences: ccf.vectors.map((vector) => vector.reference),
+      basicEventCatalogue: {
+        ...adapted.basicEventCatalogue,
+        commonCauseFailureGroups: ccfGroups,
+        uncertaintyParameters: [...adapted.basicEventCatalogue.uncertaintyParameters, ...groupParameters],
+        uncertaintyVectors: ccf.vectors,
+      },
+    };
   });
 
   return {
@@ -767,6 +846,7 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
     nominal,
     values: [...values, ...splitValues.values()],
     ccfGroups,
+    sharedParameters: [...parameters.values(), ...ccf.parameters],
     eventCodes: Object.fromEntries([
       ...valued.systemBasicEvents.filter((event) => reached.has(event.uuid)).map((event) => [event.uuid, event.code] as const),
       ...splitCodes,

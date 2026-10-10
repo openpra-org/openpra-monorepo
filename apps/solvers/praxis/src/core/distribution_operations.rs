@@ -3,10 +3,10 @@ use std::cmp::Ordering;
 use serde::{Deserialize, Serialize};
 
 use crate::core::distribution::{
-    DiscreteOutcome, EvidenceTerm, Law, Likelihood, MixtureComponent, QuantilePoint,
-    SampleSmoothing,
+    CountEvidence, CountLikelihood, DiscreteOutcome, DurationOutput, DurationParameter, DurationPrior, EvidenceTerm,
+    Law, Likelihood, MixtureComponent, QuantilePoint, SampleSmoothing, TabulatedScale, TrendBin,
 };
-use crate::core::distribution_math::{PreparedLaw, NORMAL_QUANTILE_95};
+use crate::core::distribution_math::{closed_form, PreparedLaw, NORMAL_QUANTILE_95};
 use crate::core::special_functions as kernels;
 use crate::error::MefError;
 use crate::{PraxisError, Result};
@@ -60,19 +60,150 @@ fn scaled_points(points: &[QuantilePoint], factor: f64) -> Vec<QuantilePoint> {
         .collect()
 }
 
-pub fn scale_law(law: &Law, factor: f64) -> Result<Law> {
-    if !(factor > 0.0 && factor.is_finite()) {
-        return Err(operation_error(format!(
-            "a law can only be scaled by a positive factor, not {factor}"
-        )));
+fn shifted_points(points: &[QuantilePoint], delta: f64) -> Vec<QuantilePoint> {
+    points
+        .iter()
+        .map(|point| QuantilePoint {
+            probability: point.probability,
+            value: point.value + delta,
+        })
+        .collect()
+}
+
+fn shift_law(law: &Law, delta: f64) -> Option<Law> {
+    Some(match law {
+        Law::Point { value } => Law::Point { value: value + delta },
+        Law::Normal {
+            mean,
+            standard_deviation,
+        } => Law::Normal {
+            mean: mean + delta,
+            standard_deviation: *standard_deviation,
+        },
+        Law::StudentT {
+            location,
+            scale,
+            degrees_of_freedom,
+        } => Law::StudentT {
+            location: location + delta,
+            scale: *scale,
+            degrees_of_freedom: *degrees_of_freedom,
+        },
+        Law::Uniform { lower, upper } => Law::Uniform {
+            lower: lower + delta,
+            upper: upper + delta,
+        },
+        Law::Triangular { lower, mode, upper } => Law::Triangular {
+            lower: lower + delta,
+            mode: mode + delta,
+            upper: upper + delta,
+        },
+        Law::Discrete { outcomes } => Law::Discrete {
+            outcomes: outcomes
+                .iter()
+                .map(|outcome| DiscreteOutcome {
+                    value: outcome.value + delta,
+                    weight: outcome.weight,
+                })
+                .collect(),
+        },
+        Law::Tabulated {
+            points,
+            scale: TabulatedScale::Linear,
+        } => Law::Tabulated {
+            points: shifted_points(points, delta),
+            scale: TabulatedScale::Linear,
+        },
+        Law::Metalog { points, lower, upper } => Law::Metalog {
+            points: shifted_points(points, delta),
+            lower: lower.map(|bound| bound + delta),
+            upper: upper.map(|bound| bound + delta),
+        },
+        Law::Samples {
+            values,
+            weights,
+            smoothing,
+        } => Law::Samples {
+            values: values.iter().map(|value| value + delta).collect(),
+            weights: weights.clone(),
+            smoothing: smoothing.clone(),
+        },
+        Law::Truncated { law, lower, upper } => Law::Truncated {
+            law: Box::new(shift_law(law, delta)?),
+            lower: lower.map(|bound| bound + delta),
+            upper: upper.map(|bound| bound + delta),
+        },
+        Law::Mixture { components } => Law::Mixture {
+            components: components
+                .iter()
+                .map(|component| {
+                    Some(MixtureComponent {
+                        weight: component.weight,
+                        law: shift_law(&component.law, delta)?,
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?,
+        },
+        _ => return None,
+    })
+}
+
+fn scaled_evidence(term: &EvidenceTerm, factor: f64) -> Option<EvidenceTerm> {
+    Some(match term {
+        EvidenceTerm::Poisson { failures, exposure } => EvidenceTerm::Poisson {
+            failures: *failures,
+            exposure: exposure / factor,
+        },
+        EvidenceTerm::StandbyDemand {
+            demand,
+            failures,
+            exposure,
+            test_interval,
+        } => EvidenceTerm::StandbyDemand {
+            demand: *demand,
+            failures: *failures,
+            exposure: *exposure,
+            test_interval: test_interval / factor,
+        },
+        EvidenceTerm::UncertainCount {
+            count: CountLikelihood::Poisson,
+            outcomes,
+            exposure,
+        } => EvidenceTerm::UncertainCount {
+            count: CountLikelihood::Poisson,
+            outcomes: outcomes.clone(),
+            exposure: exposure / factor,
+        },
+        EvidenceTerm::Binomial { .. } | EvidenceTerm::UncertainCount { .. } => return None,
+    })
+}
+
+fn scaled_terms(evidence: &[EvidenceTerm], factor: f64) -> Option<Vec<EvidenceTerm>> {
+    evidence.iter().map(|term| scaled_evidence(term, factor)).collect()
+}
+
+fn updated_scale(law: &Law, factor: f64) -> Result<Option<Law>> {
+    match closed_form(law)? {
+        Some(closed) => closed_scale(&closed, factor),
+        None => Ok(None),
     }
-    let no_closed_form = || {
-        operation_error(format!(
-            "the {} law has no closed form when it is scaled",
-            law.family()
-        ))
+}
+
+fn duration_prior(prior: &DurationPrior, factor: f64) -> Result<Option<DurationPrior>> {
+    let law = match prior.parameter {
+        DurationParameter::Rate => closed_scale(&prior.law, 1.0 / factor)?,
+        DurationParameter::Scale => closed_scale(&prior.law, factor)?,
+        DurationParameter::Mu => shift_law(&prior.law, factor.ln()),
+        DurationParameter::Sigma | DurationParameter::Shape => Some(prior.law.clone()),
     };
-    Ok(match law {
+    Ok(law.map(|law| DurationPrior {
+        parameter: prior.parameter,
+        law,
+    }))
+}
+
+fn closed_scale(law: &Law, factor: f64) -> Result<Option<Law>> {
+    Ok(Some(match law {
         Law::Point { value } => Law::Point {
             value: value * factor,
         },
@@ -184,48 +315,118 @@ pub fn scale_law(law: &Law, factor: f64) -> Result<Law> {
                 },
             },
         },
-        Law::Truncated { law, lower, upper } => Law::Truncated {
-            law: Box::new(scale_law(law, factor)?),
-            lower: lower.map(|bound| bound * factor),
-            upper: upper.map(|bound| bound * factor),
+        Law::Truncated { law, lower, upper } => match closed_scale(law, factor)? {
+            Some(inner) => Law::Truncated {
+                law: Box::new(inner),
+                lower: lower.map(|bound| bound * factor),
+                upper: upper.map(|bound| bound * factor),
+            },
+            None => return Ok(None),
         },
-        Law::Mixture { components } => Law::Mixture {
-            components: components
-                .iter()
-                .map(|component| {
-                    Ok(MixtureComponent {
+        Law::Mixture { components } => {
+            let mut scaled = Vec::with_capacity(components.len());
+            for component in components {
+                match closed_scale(&component.law, factor)? {
+                    Some(law) => scaled.push(MixtureComponent {
                         weight: component.weight,
-                        law: scale_law(&component.law, factor)?,
-                    })
-                })
-                .collect::<Result<Vec<_>>>()?,
-        },
+                        law,
+                    }),
+                    None => return Ok(None),
+                }
+            }
+            Law::Mixture { components: scaled }
+        }
         Law::Posterior { prior, evidence } => {
-            if evidence
-                .iter()
-                .any(|term| term.likelihood == Likelihood::Binomial)
-            {
-                return Err(no_closed_form());
-            }
-            Law::Posterior {
-                prior: match prior {
-                    Some(inner) => Some(Box::new(scale_law(inner, factor)?)),
-                    None => None,
+            let prior = match prior {
+                Some(inner) => match closed_scale(inner, factor)? {
+                    Some(scaled) => Some(Box::new(scaled)),
+                    None => return updated_scale(law, factor),
                 },
-                evidence: evidence
-                    .iter()
-                    .map(|term| EvidenceTerm {
-                        likelihood: term.likelihood,
-                        failures: term.failures,
-                        exposure: term.exposure / factor,
-                    })
-                    .collect(),
+                None => None,
+            };
+            match scaled_terms(evidence, factor) {
+                Some(evidence) => Law::Posterior { prior, evidence },
+                None => return updated_scale(law, factor),
             }
         }
-        Law::LogitNormal { .. } | Law::ConstrainedNoninformative { .. } | Law::Population { .. } => {
-            return Err(no_closed_form())
+        Law::Population {
+            mu,
+            sigma,
+            upper,
+            evidence,
+            target,
+        } => match (shift_law(mu, factor.ln()), scaled_terms(evidence, factor)) {
+            (Some(mu), Some(evidence)) => Law::Population {
+                mu: Box::new(mu),
+                sigma: sigma.clone(),
+                upper: upper.map(|bound| bound * factor),
+                evidence,
+                target: *target,
+            },
+            _ => return Ok(None),
+        },
+        Law::EmpiricalBayes { .. } => return updated_scale(law, factor),
+        Law::Trend { bins, at } => Law::Trend {
+            bins: bins
+                .iter()
+                .map(|bin| TrendBin {
+                    time: bin.time,
+                    failures: bin.failures,
+                    exposure: bin.exposure / factor,
+                })
+                .collect(),
+            at: *at,
+        },
+        Law::Duration {
+            model,
+            times,
+            censored,
+            priors,
+            output: DurationOutput::Mean,
+        } => {
+            let mut scaled = Vec::with_capacity(priors.len());
+            for prior in priors {
+                match duration_prior(prior, factor)? {
+                    Some(prior) => scaled.push(prior),
+                    None => return Ok(None),
+                }
+            }
+            Law::Duration {
+                model: *model,
+                times: times.iter().map(|time| time * factor).collect(),
+                censored: censored.iter().map(|time| time * factor).collect(),
+                priors: scaled,
+                output: DurationOutput::Mean,
+            }
         }
-    })
+        Law::Product { factors } => {
+            let mut scaled = factors.clone();
+            match scaled.iter_mut().find(|factor| matches!(factor, Law::Point { .. })) {
+                Some(Law::Point { value }) => *value *= factor,
+                _ => scaled.push(Law::Point { value: factor }),
+            }
+            Law::Product { factors: scaled }
+        }
+        Law::Duration { .. } | Law::LogitNormal { .. } | Law::ConstrainedNoninformative { .. } => return Ok(None),
+    }))
+}
+
+fn scaled_product(law: &Law, factor: f64) -> Law {
+    Law::Product {
+        factors: vec![law.clone(), Law::Point { value: factor }],
+    }
+}
+
+pub fn scale_law(law: &Law, factor: f64) -> Result<Law> {
+    if !(factor > 0.0 && factor.is_finite()) {
+        return Err(operation_error(format!(
+            "a law can only be scaled by a positive factor, not {factor}"
+        )));
+    }
+    match closed_scale(law, factor)? {
+        Some(scaled) => Ok(scaled),
+        None => Ok(scaled_product(law, factor)),
+    }
 }
 
 pub fn constrained_noninformative(law: &Law, likelihood: Likelihood) -> Result<Law> {
@@ -234,7 +435,10 @@ pub fn constrained_noninformative(law: &Law, likelihood: Likelihood) -> Result<L
         Likelihood::Binomial if mean > 0.0 && mean < 1.0 => {
             Ok(Law::ConstrainedNoninformative { mean })
         }
-        Likelihood::Poisson if mean > 0.0 && mean.is_finite() => Ok(Law::Gamma {
+        Likelihood::UncertainCount => Err(operation_error(
+            "a constrained noninformative prior needs a binomial, Poisson or standby likelihood".to_string(),
+        )),
+        Likelihood::Poisson | Likelihood::StandbyDemand if mean > 0.0 && mean.is_finite() => Ok(Law::Gamma {
             shape: 0.5,
             rate: 0.5 / mean,
         }),
@@ -351,10 +555,17 @@ pub fn pool(pooling: Pooling, components: &[MixtureComponent]) -> Result<Law> {
     }
 }
 
-fn conditional_tails(term: &EvidenceTerm, theta: f64) -> Result<(f64, f64)> {
+fn count_term(term: &EvidenceTerm, purpose: &str) -> Result<CountEvidence> {
+    term.check_shape()?;
+    term.as_count().ok_or_else(|| {
+        operation_error(format!("{purpose} needs binomial or Poisson evidence"))
+    })
+}
+
+fn conditional_tails(term: &CountEvidence, theta: f64) -> Result<(f64, f64)> {
     let count = term.failures;
     match term.likelihood {
-        Likelihood::Poisson => {
+        CountLikelihood::Poisson => {
             let expected = theta * term.exposure;
             let at_most = kernels::gamma_survival(expected, count + 1.0)?;
             let at_least = if count == 0.0 {
@@ -364,7 +575,7 @@ fn conditional_tails(term: &EvidenceTerm, theta: f64) -> Result<(f64, f64)> {
             };
             Ok((at_most, at_least))
         }
-        Likelihood::Binomial => {
+        CountLikelihood::Binomial => {
             let demands = term.exposure;
             let at_most = if count >= demands {
                 1.0
@@ -384,10 +595,10 @@ fn conditional_tails(term: &EvidenceTerm, theta: f64) -> Result<(f64, f64)> {
 }
 
 pub fn prior_predictive(law: &Law, term: &EvidenceTerm) -> Result<PriorPredictive> {
-    term.check_shape()?;
+    let term = &count_term(term, "a prior predictive check")?;
     let prepared = PreparedLaw::new(law)?;
     let expected = prepared.mean() * term.exposure;
-    if let (Law::Gamma { shape, rate }, Likelihood::Poisson) = (law, term.likelihood) {
+    if let (Law::Gamma { shape, rate }, CountLikelihood::Poisson) = (law, term.likelihood) {
         let share = rate / (rate + term.exposure);
         let rest = term.exposure / (rate + term.exposure);
         let at_most = kernels::beta_cdf(share, *shape, term.failures + 1.0)?;
@@ -476,7 +687,10 @@ fn tanh_sinh_pairs<F: FnMut(f64, f64) -> Result<f64>>(
 }
 
 pub fn homogeneity(terms: &[EvidenceTerm]) -> Result<Homogeneity> {
-    terms.iter().try_for_each(EvidenceTerm::check_shape)?;
+    let terms = terms
+        .iter()
+        .map(|term| count_term(term, "a pooling test"))
+        .collect::<Result<Vec<CountEvidence>>>()?;
     if terms.len() < 2 {
         return Err(operation_error("a pooling test needs two evidence sets".to_string()));
     }
@@ -494,20 +708,20 @@ pub fn homogeneity(terms: &[EvidenceTerm]) -> Result<Homogeneity> {
         ));
     }
     let rate = failures / exposure;
-    if likelihood == Likelihood::Binomial && rate >= 1.0 {
+    if likelihood == CountLikelihood::Binomial && rate >= 1.0 {
         return Err(operation_error(
             "a pooling test needs at least one success".to_string(),
         ));
     }
     let mut statistic = 0.0;
     let mut small_expected = false;
-    for term in terms {
+    for term in &terms {
         let expected = rate * term.exposure;
         if expected < 5.0 {
             small_expected = true;
         }
         statistic += (term.failures - expected).powi(2) / expected;
-        if likelihood == Likelihood::Binomial {
+        if likelihood == CountLikelihood::Binomial {
             let survivals = (1.0 - rate) * term.exposure;
             statistic += (term.exposure - term.failures - survivals).powi(2) / survivals;
         }

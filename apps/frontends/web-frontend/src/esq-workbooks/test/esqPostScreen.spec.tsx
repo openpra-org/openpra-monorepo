@@ -12,6 +12,10 @@ import { withRunOfRecord } from "../esqSolve";
 import { postViewOf, withCombinationsFor, withRecoveryRule, withSearch } from "../esqPost";
 import { getEsqModelRunResult, getEsqPostResult, runEsqModel, runEsqPost } from "../esqWorkbookApi";
 import { MODEL_RUN, NOW, POST_RUN, modelSummary, postEsq, postSummary, postUpstream } from "./esqPostFixtures";
+import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
+import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
+
+jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
 
 jest.mock("../esqWorkbookApi", () => ({
   ...jest.requireActual<typeof import("../esqWorkbookApi")>("../esqWorkbookApi"),
@@ -85,6 +89,7 @@ function typeInto(field: HTMLElement, value: string): void {
 }
 
 describe("ESQ Step 06 post-processing screen", () => {
+  beforeEach(() => jest.mocked(evaluateUncertainty).mockImplementation(praxisUncertainty));
   afterEach(() => jest.resetAllMocks());
 
   it("counts the sections and lists the checks", () => {
@@ -95,7 +100,7 @@ describe("ESQ Step 06 post-processing screen", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Recovery (2)" }));
     const recoveries = screen.getByRole("table", { name: "Recoveries" });
     expect(recoveries).toHaveTextContent("SUP-FAN-HFE");
-    expect(recoveries).toHaveTextContent("1E-1");
+    expect(recoveries).toHaveTextContent("0.1");
     fireEvent.click(screen.getByRole("tab", { name: "Checks (1)" }));
     expect(screen.getByRole("table", { name: "Post-processing checks" })).toHaveTextContent("HFE combinations not searched");
   });
@@ -145,20 +150,21 @@ describe("ESQ Step 06 post-processing screen", () => {
     render(<Harness initial={postEsq()} window={{ kind: "esqPostRecovery", id: "REC-2" }} onChange={onChange} />);
     fireEvent.change(screen.getByLabelText("Credit"), { target: { value: "yes" } });
     fireEvent.click(screen.getByRole("checkbox", { name: "Crew" }));
-    typeInto(screen.getByLabelText("Non-recovery HEP"), "0.3");
+    fireEvent.click(screen.getByRole("button", { name: "Type a non-recovery HEP" }));
+    typeInto(within(screen.getByRole("group", { name: "Typed value" })).getByRole("textbox", { name: "Value" }), "0.3");
     typeInto(within(screen.getByRole("group", { name: "Typed value" })).getByLabelText("Source"), "Remote panel timing study");
     fireEvent.change(screen.getByLabelText("Value of record"), { target: { value: "TYPED" } });
     expect(lastOf(onChange).postWork?.recoveries?.find((rule) => rule.id === "REC-2")).toMatchObject({
       credited: true,
       ofRecord: "TYPED",
-      typed: { value: 0.3, source: "Remote panel timing study" },
+      typed: { expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.3 } } }, source: "Remote panel timing study" },
       feasibility: { procedure: true, training: true, cues: true, crew: true, time: true, access: true, equipment: true },
     });
     fireEvent.click(screen.getByRole("button", { name: "Use HR feasibility" }));
     expect(lastOf(onChange).postWork?.recoveries?.find((rule) => rule.id === "REC-2")?.feasibility).toBeUndefined();
   });
 
-  it("sets a dependence level and takes the THERP joint as the value of record", () => {
+  it("sets a dependence level and takes the THERP joint from the PRAXIS points of the HR laws", async () => {
     const onChange = jest.fn();
     render(<Harness initial={assessed()} window={{ kind: "esqPostCombination", id: "HC-2" }} onChange={onChange} />);
     expect(screen.getByLabelText("HR assessment")).toHaveValue("");
@@ -167,6 +173,7 @@ describe("ESQ Step 06 post-processing screen", () => {
     fireEvent.change(screen.getByLabelText("Value of record"), { target: { value: "THERP" } });
     typeInto(screen.getByLabelText("Basis"), "Same crew, different cues.");
     expect(lastOf(onChange).postWork?.combinations?.find((entry) => entry.id === "HC-2")).toMatchObject({ level: "LOW", ofRecord: "THERP", basis: "Same crew, different cues." });
+    await act(async () => { await settledWithPraxis(() => undefined); });
     expect(screen.getByRole("option", { name: "THERP at low · 6.9E-5" })).toBeInTheDocument();
   });
 

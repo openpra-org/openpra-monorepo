@@ -175,7 +175,7 @@ function withParameter(da: DataAnalysis, id: string, change: (parameter: DataAna
 }
 
 function factorsAt(parameter: DataAnalysisParameter, useId: string, pick: "low" | "high"): DataAnalysisParameter {
-  return { ...parameter, sourceUses: (parameter.sourceUses ?? []).map((use) => (use.id === useId ? { ...use, factors: (use.factors ?? []).map((factor) => ({ ...factor, nominal: factor[pick] })) } : use)) };
+  return { ...parameter, sourceUses: (parameter.sourceUses ?? []).map((use) => (use.id === useId ? { ...use, factors: (use.factors ?? []).map((factor) => ({ ...factor, nominal: factor[pick], low: factor[pick], high: factor[pick] })) } : use)) };
 }
 
 function componentAfter(da: DataAnalysis, parameter: DataAnalysisParameter): UncertaintyState<number> | undefined {

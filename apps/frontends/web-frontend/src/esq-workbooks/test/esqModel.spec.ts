@@ -1,6 +1,6 @@
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { EsqEventRecordSchema, EsqParameterRecordSchema } from "interfaces-mef-types/zod/esq/event-sequence-quantification";
-import type { UncertainExpression, UncertainParameter, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
+import type { CcfFactorModel, UncertainExpression, UncertainParameter, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
 import {
   modelComplete,
   modelViewOf,
@@ -18,7 +18,7 @@ import { parametersFor } from "../../newly-developed-methods/shared/useUncertain
 import { pointsOf } from "../../newly-developed-methods/shared/uncertaintyPoints";
 import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
 import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
-import { PUMP_ESTIMATE, daParameter, fanMission, linkedEsq, modelUpstream } from "./esqModelFixtures";
+import { PUMP_ESTIMATE, daParameter, fanMission, linkedEsq, liveImport, modelUpstream } from "./esqModelFixtures";
 
 jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
 
@@ -37,8 +37,12 @@ function hours(value: number): UncertainExpression {
   return { node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value } } };
 }
 
-function imported(esq: EventSequenceQuantification = linkedEsq()): EventSequenceQuantification {
+function storedImport(esq: EventSequenceQuantification = linkedEsq()): EventSequenceQuantification {
   return withModelImported(esq, modelUpstream(), NOW);
+}
+
+function imported(esq: EventSequenceQuantification = linkedEsq()): EventSequenceQuantification {
+  return liveImport(esq, modelUpstream(), NOW);
 }
 
 function checks(esq: EventSequenceQuantification): string[] {
@@ -54,7 +58,7 @@ function withDivision(expression: UncertainExpression): EventSequenceQuantificat
   const sy = upstream.sy;
   if (sy === undefined) throw new Error("SY fixture missing");
   sy.systemBasicEvents = sy.systemBasicEvents.map((event) => (event.uuid === "E-4" ? { ...event, expression } : event));
-  return linkCooling(withModelImported(linkedEsq(), upstream, NOW));
+  return linkCooling(liveImport(linkedEsq(), upstream, NOW));
 }
 
 function resolvedEsq(): EventSequenceQuantification {
@@ -64,6 +68,39 @@ function resolvedEsq(): EventSequenceQuantification {
   esq = withFamilyChoice(esq, "F-OK", { familyId: "F-OK", groupingReason: "No release in either state." });
   return esq;
 }
+
+describe("ESQ Step 02 common cause checks", () => {
+  const vectorReference = { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: "da-1", entityId: "ccfv/SRC-06/CCF-DEM/ALPHA_DIRICHLET/C3" };
+
+  function withGroup(factors: CcfFactorModel): EventSequenceQuantification {
+    const upstream = modelUpstream();
+    const sy = upstream.sy;
+    const da = upstream.da;
+    if (sy === undefined || da === undefined) throw new Error("fixtures missing");
+    da.ccfVectors = [{ id: vectorReference.entityId, sourceId: "SRC-06", kind: "ALPHA_DIRICHLET", template: "CCF-DEM", groupSize: 3, rowIds: [], vector: { family: "DIRICHLET", concentrations: [3, 2, 1] } }];
+    da.ccfFactors = [{ id: "ccff/SRC-21/EB-T7-36-BETAN-N2", sourceId: "SRC-21", rowId: "EB-T7-36-BETAN-N2", expression: { node: "VALUE", value: { unit: "FACTOR", law: { family: "POINT", value: 0.1 } } } }];
+    sy.commonCauseFailureGroups = [{ uuid: "CCF-1", name: "Pump and division", description: "", scope: "INTERSYSTEM", affectedComponents: [], affectedSystems: ["SYS-COOL", "SYS-RPS"], factors, members: { basicEvents: [{ id: "E-1" }, { id: "E-4" }] }, implementsSrs: [] }];
+    let esq = linkCooling(liveImport(linkedEsq(), upstream, NOW));
+    esq = withFunctionLink(esq, "COOL", { functionId: "COOL", rules: [{ id: "R-1", groupIds: ["IEG-01"], stateIds: ["POS-02"], target: { kind: "FAULT_TREE", top: { workbookId: "sy-1", modelId: "M-COOL", gateId: "G-COOL" } }, reason: "Shutdown uses the same cooling train." }] });
+    return esq;
+  }
+
+  it("reads the DA vectors and factors the common cause groups link from the live DA workbook", () => {
+    const esq = withGroup({ model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "PARAMETER", reference: vectorReference } });
+    expect(esq.model?.vectors).toEqual([{ reference: vectorReference, vector: { family: "DIRICHLET", concentrations: [3, 2, 1] } }]);
+    expect(esq.model?.ccfFactors?.map((factor) => factor.reference.entityId)).toEqual(["ccff/SRC-21/EB-T7-36-BETAN-N2"]);
+    expect(checks(esq)).toContain("error:Common cause factors:CCF-1");
+    expect(modelViewOf(esq)?.findings.find((finding) => finding.check === "Common cause factors")?.detail).toBe("Alpha factor needs exactly 2 factors for 2 members, not 3.");
+  });
+
+  it("matches the PRAXIS size rules for phi and the binomial failure rate", () => {
+    const phi = withGroup({ model: "PHI_FACTOR", phis: { node: "VALUE", law: { family: "FIXED", values: [1] } } });
+    expect(modelViewOf(phi)?.findings.find((finding) => finding.check === "Common cause factors")?.detail).toBe("Phi factor needs exactly 2 factors for 2 members, not 1.");
+    const bfr = withGroup({ model: "BINOMIAL_FAILURE_RATE", independent: daParameter("P-1"), nonLethalShock: daParameter("P-PT"), componentFailure: { node: "VALUE", value: { unit: "FRACTION", law: { family: "POINT", value: 0.4 } } }, lethalShock: daParameter("P-PT") });
+    expect(checks(bfr).filter((line) => line.includes("Common cause"))).toEqual([]);
+    expect(bfr.model?.ccfGroups[0]?.total).toBeUndefined();
+  });
+});
 
 describe("ESQ Step 02 model import", () => {
   it("imports trees, sequences, families, functions, tops and values from the linked workbooks", () => {
@@ -78,7 +115,7 @@ describe("ESQ Step 02 model import", () => {
     expect(model?.changes).toBeUndefined();
   });
 
-  it("copies the SY expression of component events and the DA estimate of component parameters", () => {
+  it("copies the SY expression of component events and links the DA parameters", () => {
     const model = imported().model;
     const pump = model?.events.find((event) => event.id === "E-1");
     expect(pump).toMatchObject({ failureMode: "FAILURE_TO_START", expression: daParameter("P-1"), heldBy: "DA", holderId: "P-1" });
@@ -88,6 +125,7 @@ describe("ESQ Step 02 model import", () => {
     expect(model?.events.find((event) => event.id === "E-2")).toMatchObject({ failureMode: "HUMAN_ERROR", value: 1e-3, valueUnit: "PROBABILITY", missionTime: hours(24) });
     expect(model?.trees.every((tree) => tree.missionTime === undefined)).toBe(true);
     expect(model?.events.find((event) => event.id === "E-2")).not.toHaveProperty("expression");
+    expect(storedImport().model?.parameters.find((parameter) => parameter.id === "P-1")).toEqual({ id: "P-1", name: "Pump fails to start", parameterType: "PROBABILITY" });
     const estimate = model?.parameters.find((parameter) => parameter.id === "P-1");
     expect(estimate).toEqual({ id: "P-1", name: "Pump fails to start", parameterType: "PROBABILITY", quantificationModel: "DEMAND_PROBABILITY", estimate: PUMP_ESTIMATE, evidenceKind: "GENERIC_NUCLEAR" });
     expect(model?.parameters.find((parameter) => parameter.id === "P-IE")).toEqual({ id: "P-IE", name: "Loss of cooling", parameterType: "FREQUENCY", quantificationModel: "FREQUENCY", estimate: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "POINT", value: 3 } } } });
@@ -136,7 +174,7 @@ describe("ESQ Step 02 model import", () => {
     let esq = imported();
     const cool = (): { tree: string; origin: string }[] => (modelViewOf(esq)?.functions.find((view) => view.record.id === "COOL")?.resolved ?? []).map((entry) => ({ tree: entry.tree.id, origin: entry.link.origin }));
     expect(cool()).toEqual([{ tree: "ET-A", origin: "ES" }, { tree: "ET-B", origin: "NONE" }, { tree: "ET-T", origin: "ES" }]);
-    esq = withFunctionLink(esq, "COOL", { functionId: "COOL", target: { kind: "FAULT_TREE", top: { workbookId: "sy-1", modelId: "M-RPS", gateId: "G-RPS" } }, rules: [{ id: "R-1", groupIds: [], stateIds: ["POS-02"], target: { kind: "SPLIT_FRACTION", value: 0.01, errorFactor: 3, basis: "Shutdown cooling demand." }, reason: "No shutdown model in SY." }] });
+    esq = withFunctionLink(esq, "COOL", { functionId: "COOL", target: { kind: "FAULT_TREE", top: { workbookId: "sy-1", modelId: "M-RPS", gateId: "G-RPS" } }, rules: [{ id: "R-1", groupIds: [], stateIds: ["POS-02"], target: { kind: "SPLIT_FRACTION", expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "LOGNORMAL", mean: 0.01, errorFactor: 3, level: 0.95 } } }, basis: "Shutdown cooling demand." }, reason: "No shutdown model in SY." }] });
     expect(cool()).toEqual([{ tree: "ET-A", origin: "ESQ" }, { tree: "ET-B", origin: "RULE" }, { tree: "ET-T", origin: "ESQ" }]);
     expect(checks(esq)).toContain("error:Changed without a reason:COOL");
   });
@@ -173,7 +211,7 @@ describe("ESQ Step 02 model import", () => {
     expect(values.map((value) => `${value.code}:${value.functionIds.join(",")}`)).toEqual(["COOL-PMP-FS:COOL", "SUP-HFE:COOL", "SUP-FAN-FR:COOL", "RPS-DIV-FS:RT"]);
     expect(values.find((value) => value.code === "COOL-PMP-FS")).toMatchObject({ component: true, expression: daParameter("P-1") });
     expect(values.find((value) => value.code === "COOL-PMP-FS")).not.toHaveProperty("value");
-    expect(values.find((value) => value.code === "SUP-HFE")).toMatchObject({ component: false, value: 1e-3, valueType: "MEAN" });
+    expect(values.find((value) => value.code === "SUP-HFE")).toMatchObject({ component: false, expression: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 1e-3 } } } });
     expect(checks(esq)).toEqual(expect.arrayContaining(["warning:Not bound:SUP-FAN-FR", "warning:Not bound:RPS-DIV-FS", "warning:No distribution:SUP-FAN-FR", "warning:No distribution:RPS-DIV-FS"]));
     expect(checks(esq)).not.toContain("warning:No distribution:COOL-PMP-FS");
     esq = withValueBinding(esq, "E-4", { eventId: "E-4", heldBy: "DA", holderId: "P-PT", reason: "" });
@@ -192,7 +230,7 @@ describe("ESQ Step 02 model import", () => {
     const sy = upstream.sy;
     if (sy === undefined) throw new Error("SY fixture missing");
     sy.systemBasicEvents = sy.systemBasicEvents.map((event) => (event.uuid === "E-3" ? { ...event, expression: fanMission(daParameter("P-OLD")) } : event));
-    let esq = withValueBinding(linkCooling(withModelImported(linkedEsq(), upstream, NOW)), "E-3", { eventId: "E-3", heldBy: "DA", holderId: "P-FR", reason: "Fleet data for the fan." });
+    let esq = withValueBinding(linkCooling(liveImport(linkedEsq(), upstream, NOW)), "E-3", { eventId: "E-3", heldBy: "DA", holderId: "P-FR", reason: "Fleet data for the fan." });
     const fan = modelViewOf(esq)?.values.find((value) => value.code === "SUP-FAN-FR");
     expect(fan?.expression).toEqual(fanMission(daParameter("P-FR")));
     expect(fan?.missionTime).toEqual(hours(24));
@@ -215,17 +253,16 @@ describe("ESQ Step 02 model import", () => {
     expect(parametersFor([division], parameterTableOf(esq)).map((parameter) => parameter.reference.entityId)).toEqual(["P-1", "P-PT"]);
   });
 
-  it("shows each DA reference a run would refuse", () => {
+  it("shows each DA reference a run would refuse and reads a DA value through its link", () => {
     const foreign: UncertainExpression = { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-9", entityId: "P-1" } };
     const product: UncertainExpression = { node: "OPERATION", operation: "MULTIPLY", operands: [daParameter("P-9"), daParameter("P-SF"), foreign] };
     const esq = withDivision(product);
     const findings = (modelViewOf(esq)?.findings ?? []).filter((finding) => finding.item === "RPS-DIV-FS" && finding.severity === "error").map((finding) => `${finding.check}:${finding.detail}`);
     expect(findings).toEqual(expect.arrayContaining([
       "DA parameter missing:RPS-DIV-FS reads DA parameter P-9, which the Step 02 import does not hold.",
-      "No DA estimate:RPS-DIV-FS reads Shutdown cooling demand, which has no estimate in DA.",
       "Workbook not linked:RPS-DIV-FS reads P-1 from a workbook that Step 01 does not link as DA or SC.",
     ]));
-    expect(findings).toHaveLength(3);
+    expect(findings).toHaveLength(2);
   });
 
   it("warns through PRAXIS points when a tree lasts longer than the running events under its functions", async () => {
@@ -247,14 +284,14 @@ describe("ESQ Step 02 model import", () => {
   });
 
   it("keeps a tree mission time across a new import", () => {
-    const first = withTreeMissionTime(imported(), "ET-A", hours(72));
+    const first = withTreeMissionTime(storedImport(), "ET-A", hours(72));
     const again = withModelImported(first, modelUpstream(), NOW);
     expect(again.model?.trees.find((tree) => tree.id === "ET-A")?.missionTime).toEqual(hours(72));
     expect(again.model?.changes).toEqual([]);
   });
 
   it("records what changed on a new import and keeps the ESQ choices", () => {
-    const first = withFamilyChoice(imported(), "F-REL", { familyId: "F-REL", groupingReason: "Kept." });
+    const first = withFamilyChoice(storedImport(), "F-REL", { familyId: "F-REL", groupingReason: "Kept." });
     const upstream = modelUpstream();
     const es = upstream.es;
     if (es === undefined) throw new Error("ES fixture missing");
@@ -272,7 +309,7 @@ describe("ESQ Step 02 model import", () => {
   });
 
   it("reports no change when the stored rows differ from a new import only in key order", () => {
-    const first = imported();
+    const first = storedImport();
     const model = first.model;
     if (model === undefined) throw new Error("Model missing");
     const reordered = <T extends object>(row: T): T => Object.fromEntries(Object.entries(row).reverse()) as T;
@@ -288,7 +325,7 @@ describe("ESQ Step 02 model import", () => {
     upstream.es = nulled({ ...es, eventSequences: es.eventSequences.map((sequence) => ({ ...sequence, releaseCategoryId: undefined, eventTreeId: sequence.eventTreeId })) });
     const esq = withModelImported(linkedEsq(), upstream, NOW);
     expect(JSON.stringify({ ...esq.model, parameters: [] })).not.toContain("null");
-    expect(esq.model?.parameters.find((parameter) => parameter.id === "P-1")?.estimate).toEqual(PUMP_ESTIMATE);
+    expect(esq.model?.parameters.find((parameter) => parameter.id === "P-1")).toEqual({ id: "P-1", name: "Pump fails to start", parameterType: "PROBABILITY" });
     expect(esq.model?.sequences.find((sequence) => sequence.id === "A-2")?.releaseCategoryId).toBeUndefined();
   });
 

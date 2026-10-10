@@ -156,6 +156,11 @@ function SyBayesianNetworkWorkspace({
             const syValue = syValueOf(event, controlledParameters);
             return { id: event.uuid, code: event.code, name: event.name, ...(syValue === undefined ? {} : { syValue }) };
           }),
+        parameterOptions: controlledParameters.map((option) => ({
+          reference: { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: option.workbookId, entityId: option.parameterId },
+          label: `${option.workbookName} · ${option.parameterName}`,
+          unit: option.unit,
+        })),
       };
     }), [controlledParameters, runtime.workbookId, sy.systemBasicEvents, sy.systemLogicModels]);
 

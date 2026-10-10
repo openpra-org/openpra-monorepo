@@ -1,5 +1,7 @@
 #[path = "unit/error_tests.rs"]
 mod error_tests;
+#[path = "unit/core/test_ccf.rs"]
+mod test_ccf;
 #[path = "unit/core/test_distribution.rs"]
 mod test_distribution;
 #[path = "unit/core/test_distribution_math.rs"]

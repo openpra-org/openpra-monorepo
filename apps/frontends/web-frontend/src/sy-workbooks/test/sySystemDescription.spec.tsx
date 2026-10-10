@@ -9,6 +9,8 @@ interface MockContext {
   sy: DescriptionAnalysis;
   links: SyLinkedInputs | null;
   controlledParameters: [];
+  controlledCcfVectors: [];
+  controlledCcfFactors: [];
   editable: boolean;
   mutateSy: jest.Mock;
   runtime: { workbookId: string | null; projectId: string | null; revision: number | null; saveStatus: "saved" };
@@ -66,7 +68,7 @@ jest.mock("../syWorkbookContext", () => ({
 }));
 
 function renderDescription(): void {
-  mockContext = { sy: makeAnalysis(), links: LINKS, controlledParameters: [], editable: true, mutateSy: jest.fn(), runtime: { workbookId: "sy-1", projectId: "project-1", revision: 2, saveStatus: "saved" } };
+  mockContext = { sy: makeAnalysis(), links: LINKS, controlledParameters: [], controlledCcfVectors: [], controlledCcfFactors: [], editable: true, mutateSy: jest.fn(), runtime: { workbookId: "sy-1", projectId: "project-1", revision: 2, saveStatus: "saved" } };
   render(<SySystemDescription systemId={SYSTEM_ID} openDrawer={jest.fn()} />);
 }
 

@@ -194,7 +194,7 @@ describe("WorkbooksService", () => {
       };
       const hrMef = {
         humanFailureEvents: [{ uuid: "hfe-1" }],
-        hepQuantifications: [{ uuid: "hep-1", hfeId: "hfe-1", methodology: "THERP", meanHep: 0.037 }],
+        hepQuantifications: [{ uuid: "hep-1", hfeId: "hfe-1", methodology: "THERP", hep: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.037 } } } }],
         recoveryActions: [],
       };
       const hrAdapter = {

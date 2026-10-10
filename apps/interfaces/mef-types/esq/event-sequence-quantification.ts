@@ -10,7 +10,7 @@ import { ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis } from "../c
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption } from "../core/documentation";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
 import type { EsqBayesianNetwork, EsqHclConfiguration } from "./workbook-models";
-import type { AleatoryVariable, CcfFactorModel, Law, UncertainExpression } from "../core/uncertainty";
+import type { AleatoryVariable, CcfFactorModel, Law, UncertainExpression, UncertainParameter, UncertainVectorParameter } from "../core/uncertainty";
 import type { DaQuantificationModel } from "../da/data-analysis";
 import type { EventSequenceFamilyWorkbookReference } from "../modeling/references";
 
@@ -324,9 +324,6 @@ export interface EsqParameterRecord {
   estimate?: UncertainExpression;
   value?: number;
   valueType?: "POINT_ESTIMATE" | "MEAN";
-  distributionType?: string;
-  p05?: number;
-  p95?: number;
   missionTime?: UncertainExpression;
   evidenceKind?: string;
   distribution?: ParameterDistribution;
@@ -338,8 +335,7 @@ export interface EsqHumanRecord {
   id: string;
   name: string;
   timing?: EsqHfeTiming;
-  value?: number;
-  valueType?: "MEAN" | "POINT_ESTIMATE";
+  hep?: UncertainExpression;
   assessmentType?: "CONSERVATIVE_ESTIMATE" | "DETAILED_ASSESSMENT";
   riskSignificant: boolean;
   distributionGiven: boolean;
@@ -419,7 +415,7 @@ export interface EsqActionRecord {
   id: string;
   name: string;
   timing: "AT_INITIATOR" | "POST_INITIATOR";
-  hep?: number;
+  hep?: UncertainExpression;
   assessmentType?: "CONSERVATIVE_ESTIMATE" | "DETAILED_ASSESSMENT";
   riskSignificant: boolean;
   cue?: string;
@@ -441,7 +437,7 @@ export interface EsqRecoveryRecord {
   restoredFunction?: string;
   level: "CUTSET" | "SCENARIO" | "SEQUENCE";
   sequenceIds: string[];
-  hep?: number;
+  hep?: UncertainExpression;
   dependencyId?: string;
   feasibility: EsqActionFeasibility;
   feasibilityNote?: string;
@@ -479,6 +475,8 @@ export interface EsqModel {
   events: EsqEventRecord[];
   ccfGroups: EsqCcfRecord[];
   parameters: EsqParameterRecord[];
+  vectors?: UncertainVectorParameter[];
+  ccfFactors?: UncertainParameter[];
   humanEvents: EsqHumanRecord[];
   barriers?: EsqBarrierRecord[];
   criteria?: EsqCriterionRecord[];
@@ -497,8 +495,7 @@ export interface EsqFaultTreeTarget {
 
 export interface EsqSplitFractionTarget {
   kind: "SPLIT_FRACTION";
-  value?: number;
-  errorFactor?: number;
+  expression?: UncertainExpression;
   parameterId?: string;
   cellId?: string;
   basis?: string;
@@ -830,7 +827,7 @@ export interface EsqRecoveryRule {
   stateIds: string[];
   credited: boolean;
   feasibility?: EsqActionFeasibility;
-  typed?: { value: number; errorFactor?: number; source: string };
+  typed?: { expression: UncertainExpression; source: string };
   ofRecord?: "HRA" | "TYPED";
   basis: string;
 }
@@ -989,12 +986,6 @@ export interface EsqReviewWork {
   reconciliations?: { targetId: string; note: string }[];
 }
 
-export interface EsqSpread {
-  key: string;
-  errorFactor: number;
-  source: string;
-}
-
 export interface EsqUncertaintyStats {
   point: number;
   mean: number;
@@ -1020,7 +1011,6 @@ export interface EsqUncertaintyRecord {
 }
 
 export interface EsqUncertaintyWork {
-  spreads?: EsqSpread[];
   run?: EsqUncertaintyRecord;
   independent?: EsqUncertaintyRecord;
 }

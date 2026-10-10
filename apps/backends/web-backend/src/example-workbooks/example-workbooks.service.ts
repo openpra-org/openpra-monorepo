@@ -10,7 +10,7 @@ import { DaWorkbook, type DaWorkbookDocument } from "../da-workbooks/da-workbook
 import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook.schema";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import type { ProjectDataAnalysisSource, ProjectMissionTimeSource, ProjectSystemsSource } from "./seeds/dependency-model-seed";
-import { SEEDS, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, MS_EXAMPLES, RC_EXAMPLES, RI_EXAMPLES, SEISMIC_PRA_EXAMPLES, INTERNAL_FLOOD_PRA_EXAMPLES, INTERNAL_FIRE_PRA_EXAMPLES, HSA_EXAMPLES, HIGH_WINDS_PRA_EXAMPLES, EXTERNAL_FLOOD_PRA_EXAMPLES, OTHER_HAZARDS_PRA_EXAMPLES, CC_GENERIC_1_SLUG } from "./seeds";
+import { SEEDS, exampleVariantOf, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, MS_EXAMPLES, RC_EXAMPLES, RI_EXAMPLES, SEISMIC_PRA_EXAMPLES, INTERNAL_FLOOD_PRA_EXAMPLES, INTERNAL_FIRE_PRA_EXAMPLES, HSA_EXAMPLES, HIGH_WINDS_PRA_EXAMPLES, EXTERNAL_FLOOD_PRA_EXAMPLES, OTHER_HAZARDS_PRA_EXAMPLES, CC_GENERIC_1_SLUG } from "./seeds";
 
 export interface ExampleWorkbookResponse {
   slug: string;
@@ -171,9 +171,12 @@ export class ExampleWorkbooksService implements OnModuleInit {
     const docs = await this.daWorkbookModel.find({ projectId }).sort({ updatedAt: -1 }).exec();
     return docs.flatMap((doc) => {
       const parsed = DataAnalysisSchema.safeParse(stripNulls(doc.mef));
-      if (parsed.success) return [{ da: parsed.data, workbookId: doc.workbookId }];
-      this.logger.warn(`DA workbook ${doc.workbookId} failed validation, so example DA links stay on the example.`);
-      return [];
+      if (!parsed.success) {
+        this.logger.warn(`DA workbook ${doc.workbookId} failed validation, so example DA links stay on the example.`);
+        return [];
+      }
+      const exampleVariant = exampleVariantOf(DA_EXAMPLES, parsed.data.uuid);
+      return [{ da: parsed.data, workbookId: doc.workbookId, ...(exampleVariant === undefined ? {} : { exampleVariant }) }];
     });
   }
 
@@ -181,9 +184,12 @@ export class ExampleWorkbooksService implements OnModuleInit {
     const docs = await this.syWorkbookModel.find({ projectId }).sort({ updatedAt: -1 }).exec();
     return docs.flatMap((doc) => {
       const parsed = SystemsAnalysisSchema.safeParse(stripNulls(doc.mef));
-      if (parsed.success) return [{ sy: parsed.data, workbookId: doc.workbookId }];
-      this.logger.warn(`SY workbook ${doc.workbookId} failed validation, so example SY links stay on the example.`);
-      return [];
+      if (!parsed.success) {
+        this.logger.warn(`SY workbook ${doc.workbookId} failed validation, so example SY links stay on the example.`);
+        return [];
+      }
+      const exampleVariant = exampleVariantOf(SY_EXAMPLES, parsed.data.uuid);
+      return [{ sy: parsed.data, workbookId: doc.workbookId, ...(exampleVariant === undefined ? {} : { exampleVariant }) }];
     });
   }
 

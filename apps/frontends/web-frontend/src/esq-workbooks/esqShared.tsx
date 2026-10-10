@@ -1,5 +1,6 @@
 import { JSX, ReactNode, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react";
-import type { EsqModel, EsqSolveRun } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type { EsqModel, EsqSolveRun, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import { sampledInputsOf } from "interfaces-mef-types/esq/esq-measure-inputs";
 import type { UncertainExpression, UncertainParameter, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
 import type { UncertaintyExpressionSummary } from "interfaces-shared-types/newly-developed-methods/shared";
 import { parametersFor, useExpressionSummaries, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
@@ -328,6 +329,12 @@ function useExpressionPoints(entries: readonly EsqPointEntry[], table: ReadonlyM
   }));
 }
 
+function useInputPoints(esq: EventSequenceQuantification, table: ReadonlyMap<string, UncertainParameter>): Map<string, number> {
+  const entries = useMemo(() => sampledInputsOf(esq).flatMap((input) => (input.expression === undefined || input.unit !== "PROBABILITY" ? [] : [{ key: input.key, expression: input.expression, unit: input.unit }])), [esq]);
+  const states = useExpressionPoints(entries, table);
+  return new Map([...states].flatMap(([key, state]) => (state.status === "ready" ? [[key, state.value.point] as const] : [])));
+}
+
 function pointText(state: UncertaintyState<UncertaintyExpressionSummary> | undefined): string {
   if (state === undefined || state.status === "failed") return "—";
   return state.status === "pending" ? "…" : sciText(state.value.point);
@@ -376,6 +383,7 @@ export {
   pointText,
   useElementWidth,
   useExpressionPoints,
+  useInputPoints,
   valText,
   freqText,
   pctText,

@@ -129,7 +129,6 @@ function IntegrityScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   return (
     <div className="poscard sy-model-card">
       <div className="poscard__head sy-model-card__head">
-        <WorkbookSectionHeading workbook="SY" title={system.name} cueKey="Model Integrity" level={3} />
         <label className="sy-model-card__picker">
           <span className="posfield__label">System</span>
           <select className="posfield__select" aria-label="System" value={system.uuid} onChange={(event) => setSysId(event.target.value)}>

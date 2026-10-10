@@ -4,12 +4,19 @@ import type {
   BaseLaw,
   CcfFactorModel,
   ComponentModel,
+  CountEvidence,
+  DurationLaw,
+  DurationModel,
+  DurationParameter,
+  EmpiricalBayesLaw,
   EvidenceTerm,
   Law,
   MixtureLaw,
   PopulationLaw,
   PosteriorLaw,
+  ProductLaw,
   QuantilePoint,
+  TrendLaw,
   TruncatedLaw,
   UncertainExpression,
   UncertainParameter,
@@ -18,7 +25,9 @@ import type {
   UncertainVector,
   UncertainVectorParameter,
   VectorLaw,
+  WeightedDirichletLaw,
 } from "../../core/uncertainty";
+import { ccfModelTakesTotal } from "../../core/uncertainty";
 import { WorkbookParameterReferenceSchema } from "../modeling/references";
 
 export const UncertainUnitSchema = z.enum([
@@ -259,8 +268,8 @@ export const BaseLawSchema = z.discriminatedUnion("family", [
 export const TruncatedLawSchema = z
   .strictObject({
     family: z.literal("TRUNCATED"),
-    get law(): z.ZodType<BaseLaw | MixtureLaw> {
-      return z.union([BaseLawSchema, MixtureLawSchema]);
+    get law(): z.ZodType<BaseLaw | MixtureLaw | ProductLaw> {
+      return z.union([BaseLawSchema, MixtureLawSchema, ProductLawSchema]);
     },
     lower: z.number().nullable(),
     upper: z.number().nullable(),
@@ -272,8 +281,8 @@ export const TruncatedLawSchema = z
 
 export const MixtureComponentSchema = z.strictObject({
   weight: z.number().positive(),
-  get law(): z.ZodType<BaseLaw | TruncatedLaw> {
-    return z.union([BaseLawSchema, TruncatedLawSchema]);
+  get law(): z.ZodType<BaseLaw | TruncatedLaw | ProductLaw> {
+    return z.union([BaseLawSchema, TruncatedLawSchema, ProductLawSchema]);
   },
 });
 
@@ -282,11 +291,13 @@ export const MixtureLawSchema = z.strictObject({
   components: z.array(MixtureComponentSchema).min(2),
 });
 
-export const LikelihoodSchema = z.enum(["BINOMIAL", "POISSON"]);
+export const CountLikelihoodSchema = z.enum(["BINOMIAL", "POISSON"]);
 
-export const EvidenceTermSchema = z
+export const LikelihoodSchema = z.enum(["BINOMIAL", "POISSON", "STANDBY_DEMAND", "UNCERTAIN_COUNT"]);
+
+export const CountEvidenceSchema = z
   .strictObject({
-    likelihood: LikelihoodSchema,
+    likelihood: CountLikelihoodSchema,
     failures: z.number().nonnegative(),
     exposure: z.number().positive(),
   })
@@ -294,17 +305,44 @@ export const EvidenceTermSchema = z
     message: "Binomial evidence cannot have more failures than demands",
   });
 
-export const PosteriorLawSchema = z
+export const StandbyDemandKindSchema = z.enum(["TEST", "RANDOM"]);
+
+export const StandbyDemandEvidenceSchema = z
   .strictObject({
-    family: z.literal("POSTERIOR"),
-    get prior(): z.ZodType<BaseLaw | TruncatedLaw | MixtureLaw | null> {
-      return z.union([BaseLawSchema, TruncatedLawSchema, MixtureLawSchema]).nullable();
-    },
-    evidence: z.array(EvidenceTermSchema).min(1),
+    likelihood: z.literal("STANDBY_DEMAND"),
+    demand: StandbyDemandKindSchema,
+    failures: z.number().nonnegative(),
+    exposure: z.number().positive(),
+    testInterval: z.number().positive(),
   })
-  .refine((law) => law.prior !== null || law.evidence.every((term) => term.likelihood === law.evidence[0]!.likelihood), {
-    message: "A Jeffreys posterior needs evidence of one likelihood",
+  .refine((term) => term.failures <= term.exposure, {
+    message: "Standby evidence cannot have more failures than demands",
   });
+
+export const UncertainCountEvidenceSchema = z
+  .strictObject({
+    likelihood: z.literal("UNCERTAIN_COUNT"),
+    count: CountLikelihoodSchema,
+    outcomes: z.array(z.strictObject({ value: z.number().nonnegative(), weight: z.number().positive() })).min(1),
+    exposure: z.number().positive(),
+  })
+  .refine((term) => term.count === "POISSON" || term.outcomes.every((outcome) => outcome.value <= term.exposure), {
+    message: "An uncertain binomial count cannot have more failures than demands",
+  });
+
+export const EvidenceTermSchema = z.discriminatedUnion("likelihood", [
+  CountEvidenceSchema,
+  StandbyDemandEvidenceSchema,
+  UncertainCountEvidenceSchema,
+]);
+
+export const PosteriorLawSchema = z.strictObject({
+  family: z.literal("POSTERIOR"),
+  get prior(): z.ZodType<BaseLaw | TruncatedLaw | MixtureLaw | ProductLaw | null> {
+    return z.union([BaseLawSchema, TruncatedLawSchema, MixtureLawSchema, ProductLawSchema]).nullable();
+  },
+  evidence: z.array(EvidenceTermSchema).min(1),
+});
 
 export const PopulationLawSchema = z
   .strictObject({
@@ -323,12 +361,103 @@ export const PopulationLawSchema = z
     message: "A population target names one of its evidence sets",
   });
 
+export const EmpiricalBayesLawSchema = z
+  .strictObject({
+    family: z.literal("EMPIRICAL_BAYES"),
+    evidence: z.array(CountEvidenceSchema).min(2),
+    target: z.number().int().nonnegative().nullable(),
+  })
+  .refine((law) => law.evidence.every((term) => term.likelihood === law.evidence[0]!.likelihood), {
+    message: "Empirical Bayes members share one likelihood",
+  })
+  .refine((law) => law.target === null || law.target < law.evidence.length, {
+    message: "An empirical Bayes target names one of its members",
+  });
+
+export const DurationModelSchema = z.enum(["EXPONENTIAL", "LOGNORMAL", "WEIBULL", "GAMMA"]);
+
+export const DurationParameterSchema = z.enum(["RATE", "MU", "SIGMA", "SHAPE", "SCALE"]);
+
+export const DURATION_PARAMETERS: Record<DurationModel, readonly DurationParameter[]> = {
+  EXPONENTIAL: ["RATE"],
+  LOGNORMAL: ["MU", "SIGMA"],
+  WEIBULL: ["SHAPE", "SCALE"],
+  GAMMA: ["SHAPE", "RATE"],
+};
+
+export const DurationPriorSchema = z.strictObject({
+  parameter: DurationParameterSchema,
+  get law(): z.ZodType<BaseLaw | TruncatedLaw> {
+    return z.union([BaseLawSchema, TruncatedLawSchema]);
+  },
+});
+
+export const DurationExceedanceSchema = z.strictObject({
+  kind: z.literal("EXCEEDANCE"),
+  time: z.number().positive(),
+});
+
+export const DurationMeanSchema = z.strictObject({
+  kind: z.literal("MEAN"),
+});
+
+export const DurationOutputSchema = z.discriminatedUnion("kind", [DurationExceedanceSchema, DurationMeanSchema]);
+
+export const DurationLawSchema = z
+  .strictObject({
+    family: z.literal("DURATION"),
+    model: DurationModelSchema,
+    times: z.array(z.number().positive()),
+    censored: z.array(z.number().positive()),
+    priors: z.array(DurationPriorSchema),
+    output: DurationOutputSchema,
+  })
+  .refine((law) => law.times.length > 0 || DURATION_PARAMETERS[law.model].every((parameter) => law.priors.some((prior) => prior.parameter === parameter)), {
+    message: "A duration law needs a completed time or a prior on each parameter",
+  })
+  .refine((law) => law.priors.every((prior) => DURATION_PARAMETERS[law.model].includes(prior.parameter)), {
+    message: "A duration prior names a parameter of its model",
+  })
+  .refine((law) => new Set(law.priors.map((prior) => prior.parameter)).size === law.priors.length, {
+    message: "Each duration parameter has at most one prior",
+  });
+
+export const TrendBinSchema = z.strictObject({
+  time: z.number(),
+  failures: z.number().nonnegative(),
+  exposure: z.number().positive(),
+});
+
+export const TrendLawSchema = z
+  .strictObject({
+    family: z.literal("TREND"),
+    bins: z.array(TrendBinSchema).min(2),
+    at: z.number(),
+  })
+  .refine((law) => new Set(law.bins.map((bin) => bin.time)).size >= 2, {
+    message: "A trend needs bins at two or more times",
+  })
+  .refine((law) => law.bins.some((bin) => bin.failures > 0), {
+    message: "A trend needs at least one failure",
+  });
+
+export const ProductLawSchema = z.strictObject({
+  family: z.literal("PRODUCT"),
+  get factors(): z.ZodArray<z.ZodType<Law>> {
+    return z.array(LawSchema).min(2);
+  },
+});
+
 export const LawSchema: z.ZodType<Law> = z.union([
   BaseLawSchema,
   TruncatedLawSchema,
   MixtureLawSchema,
   PosteriorLawSchema,
   PopulationLawSchema,
+  EmpiricalBayesLawSchema,
+  DurationLawSchema,
+  TrendLawSchema,
+  ProductLawSchema,
 ]);
 
 export const UncertainValueSchema = z.strictObject({
@@ -487,7 +616,15 @@ export const FixedVectorLawSchema = z
   })
   .refine((law) => Math.abs(law.values.reduce((sum, value) => sum + value, 0) - 1) <= SIMPLEX_TOLERANCE, { message: "A fixed vector of fractions sums to 1" });
 
-export const VectorLawSchema = z.discriminatedUnion("family", [DirichletLawSchema, FixedVectorLawSchema]);
+export const WeightedDirichletLawSchema = z
+  .strictObject({
+    family: z.literal("WEIGHTED_DIRICHLET"),
+    concentrations: z.array(z.number().positive()).min(2),
+    weights: z.array(z.number().positive()).min(2),
+  })
+  .refine((law) => law.weights.length === law.concentrations.length, { message: "A weighted Dirichlet law needs one weight per concentration" });
+
+export const VectorLawSchema = z.discriminatedUnion("family", [DirichletLawSchema, FixedVectorLawSchema, WeightedDirichletLawSchema]);
 
 export const VectorValueExpressionSchema = z.strictObject({
   node: z.literal("VALUE"),
@@ -524,12 +661,35 @@ export const PhiFactorModelSchema = z.strictObject({
   phis: UncertainVectorSchema,
 });
 
+export const BinomialFailureRateModelSchema = z.strictObject({
+  model: z.literal("BINOMIAL_FAILURE_RATE"),
+  independent: UncertainExpressionSchema,
+  nonLethalShock: UncertainExpressionSchema,
+  componentFailure: UncertainExpressionSchema,
+  lethalShock: UncertainExpressionSchema,
+});
+
 export const CcfFactorModelSchema = z.discriminatedUnion("model", [
   BetaFactorModelSchema,
   MultipleGreekLetterModelSchema,
   AlphaFactorModelSchema,
   PhiFactorModelSchema,
+  BinomialFailureRateModelSchema,
 ]);
+
+export const CCF_TOTAL_MESSAGE = "A binomial failure rate group takes no total. Every other common cause model needs one";
+
+export const CCF_BFR_TOTAL_MESSAGE = "A binomial failure rate group takes no total";
+
+export function ccfTotalMatchesModel(group: { factors?: CcfFactorModel; total?: UncertainExpression }): boolean {
+  if (group.factors === undefined) return true;
+  return ccfModelTakesTotal(group.factors) === (group.total !== undefined);
+}
+
+export function ccfTotalAllowedByModel(group: { factors?: CcfFactorModel; total?: UncertainExpression }): boolean {
+  if (group.factors === undefined || group.total === undefined) return true;
+  return ccfModelTakesTotal(group.factors);
+}
 
 export const UncertainLawFieldSchema = z.strictObject({
   field: z.string().min(1),
@@ -550,9 +710,15 @@ type _AssertUncertainUnit = Expect<Equal<z.infer<typeof UncertainUnitSchema>, Un
 type _AssertBaseLaw = Expect<Equal<z.infer<typeof BaseLawSchema>, BaseLaw>>;
 type _AssertTruncatedLaw = Expect<Equal<z.infer<typeof TruncatedLawSchema>, TruncatedLaw>>;
 type _AssertMixtureLaw = Expect<Equal<z.infer<typeof MixtureLawSchema>, MixtureLaw>>;
+type _AssertCountEvidence = Expect<Equal<z.infer<typeof CountEvidenceSchema>, CountEvidence>>;
 type _AssertEvidenceTerm = Expect<Equal<z.infer<typeof EvidenceTermSchema>, EvidenceTerm>>;
 type _AssertPosteriorLaw = Expect<Equal<z.infer<typeof PosteriorLawSchema>, PosteriorLaw>>;
 type _AssertPopulationLaw = Expect<Equal<z.infer<typeof PopulationLawSchema>, PopulationLaw>>;
+type _AssertEmpiricalBayesLaw = Expect<Equal<z.infer<typeof EmpiricalBayesLawSchema>, EmpiricalBayesLaw>>;
+type _AssertDurationLaw = Expect<Equal<z.infer<typeof DurationLawSchema>, DurationLaw>>;
+type _AssertTrendLaw = Expect<Equal<z.infer<typeof TrendLawSchema>, TrendLaw>>;
+type _AssertProductLaw = Expect<Equal<z.infer<typeof ProductLawSchema>, ProductLaw>>;
+type _AssertWeightedDirichletLaw = Expect<Equal<z.infer<typeof WeightedDirichletLawSchema>, WeightedDirichletLaw>>;
 type _AssertUncertainValue = Expect<Equal<z.infer<typeof UncertainValueSchema>, UncertainValue>>;
 type _AssertComponentModel = Expect<Equal<z.infer<typeof ComponentModelSchema>, ComponentModel>>;
 type _AssertUncertainParameter = Expect<Equal<z.infer<typeof UncertainParameterSchema>, UncertainParameter>>;

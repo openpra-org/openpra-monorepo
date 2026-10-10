@@ -22,6 +22,7 @@ import {
   resolvedRecoveries,
   therpJoint,
   type EsqCombinationMember,
+  type EsqPoints,
   type EsqResolvedCombination,
   type EsqResolvedRecovery,
 } from "interfaces-mef-types/esq/esq-post-inputs";
@@ -164,9 +165,9 @@ function byNominal(left: EsqPostCombinationView, right: EsqPostCombinationView):
   return b - a;
 }
 
-function combinationViews(esq: EventSequenceQuantification, work: EsqPostWork, codes: ReadonlyMap<string, string>): EsqPostCombinationView[] {
+function combinationViews(esq: EventSequenceQuantification, work: EsqPostWork, codes: ReadonlyMap<string, string>, points: EsqPoints | undefined): EsqPostCombinationView[] {
   const findings = work.search?.findings ?? [];
-  const entries = resolvedCombinations(esq).map((entry): EsqPostCombinationView => {
+  const entries = resolvedCombinations(esq, points).map((entry): EsqPostCombinationView => {
     const key = combinationKey(entry.combination.eventIds);
     const view: EsqPostCombinationView = { key: entry.combination.id, eventIds: [...entry.combination.eventIds], codes: entry.members.map((member) => member.code), entry };
     const finding = findings.find((candidate) => combinationKey(candidate.eventIds) === key);
@@ -225,7 +226,7 @@ function recoveryFindings(view: Omit<EsqPostView, "findings">): EsqPostFinding[]
     if (recovery.source === "TYPED" && rule?.typed !== undefined && blank(rule.typed.source)) findings.push({ severity: "error", check: "Typed HEP without a source", item, detail: "Name the document or analysis the non-recovery HEP comes from.", target });
     if (!recovery.credited) continue;
     if (recovery.missing.length > 0) findings.push({ severity: "error", check: "Recovery not feasible", item, detail: `A recovery fires only with cues, time, crew, procedure and access. Not shown: ${listText(recovery.missing.map((key) => FEASIBILITY_LABELS[key].toLowerCase()), 5)} (ESQ-A7).`, target });
-    if (recovery.value === undefined) findings.push({ severity: "error", check: "No non-recovery HEP", item, detail: "Use the HR value or type one with its source.", target });
+    if (recovery.expression === undefined) findings.push({ severity: "error", check: "No non-recovery HEP", item, detail: "Use the HR value or type one with its source.", target });
     if (recovery.eventIds.length === 0) findings.push({ severity: "error", check: "Recovers no event", item, detail: "Choose the basic events this action recovers.", target });
     if (entry.active && !entry.assessed) {
       const hrId = recovery.record?.dependencyId;
@@ -270,7 +271,7 @@ function combinationFindings(view: Omit<EsqPostView, "findings">): EsqPostFindin
       continue;
     }
     if (entry.problem !== undefined) findings.push({ severity: "error", check: "Joint HEP not usable", item: id, detail: entry.problem, target });
-    else if (entry.joint === undefined) findings.push({ severity: "error", check: "No joint HEP of record", item: id, detail: "Link HR's assessment, set a dependence level, or type the joint HEP.", target });
+    else if (entry.joint === undefined && !(entry.source === "THERP" && entry.members.some((member) => member.probability === undefined))) findings.push({ severity: "error", check: "No joint HEP of record", item: id, detail: "Link HR's assessment, set a dependence level, or type the joint HEP.", target });
     if (entry.source === "TYPED" && blank(entry.combination.typed?.source)) findings.push({ severity: "error", check: "Typed joint HEP without a source", item: id, detail: "Name the analysis the joint HEP comes from.", target });
     const contradiction = hrLevelFinding(entry, id);
     if (contradiction !== undefined) findings.push(contradiction);
@@ -308,7 +309,7 @@ function resultFindings(view: Omit<EsqPostView, "findings">): EsqPostFinding[] {
   return findings;
 }
 
-function postViewOf(esq: EventSequenceQuantification): EsqPostView | undefined {
+function postViewOf(esq: EventSequenceQuantification, points?: EsqPoints): EsqPostView | undefined {
   const model = esq.model;
   if (model?.importedAt === undefined) return undefined;
   const work = postWorkOf(esq);
@@ -316,7 +317,7 @@ function postViewOf(esq: EventSequenceQuantification): EsqPostView | undefined {
   const recoveries = resolvedRecoveries(esq);
   const codes = eventCodes(model, recoveries);
   const codesOf = (ids: readonly string[]): string[] => ids.map((id) => codes.get(id) ?? id);
-  const combinations = combinationViews(esq, work, codes);
+  const combinations = combinationViews(esq, work, codes, points);
   const assessed = combinations.flatMap((row) => (row.entry?.joint === undefined ? [] : [row.entry.combination.eventIds]));
   const hfeIds = hfeEventIds(esq, model);
   const names = new Map(model.events.map((event) => [event.id, event.name]));
@@ -324,7 +325,7 @@ function postViewOf(esq: EventSequenceQuantification): EsqPostView | undefined {
     const view: EsqPostRecoveryView = {
       recovery,
       codes: codesOf(recovery.eventIds),
-      active: recovery.credited && recovery.missing.length === 0 && recovery.value !== undefined && recovery.eventIds.length > 0,
+      active: recovery.credited && recovery.missing.length === 0 && recovery.expression !== undefined && recovery.eventIds.length > 0,
       assessed: assessed.some((eventIds) => eventIds.includes(recovery.eventId)),
     };
     const hfeId = recovery.record?.hfeId;

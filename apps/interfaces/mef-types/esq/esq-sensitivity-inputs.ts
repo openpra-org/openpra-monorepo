@@ -5,9 +5,8 @@ import type {
   EsqSolveLogic,
   EventSequenceQuantification,
 } from "./event-sequence-quantification";
-import { importanceGroupsOf, parameterUnit, sampledInputsOf } from "./esq-measure-inputs";
+import { hasUncertainty, importanceGroupsOf, parameterUnit } from "./esq-measure-inputs";
 import type { UncertainExpression, UncertainUnit } from "../core/uncertainty";
-import { legacyUpperPercentile } from "../core/legacy-uncertainty-adapter";
 import { holdsEstimate } from "../da/data-analysis";
 import { carriesUncertainExpression } from "../sy/systems-analysis";
 import { resolvedCombinations } from "./esq-post-inputs";
@@ -65,7 +64,11 @@ function changedExpression(current: UncertainExpression, unit: UncertainUnit, en
   return undefined;
 }
 
-function applySensitivityCase(source: EventSequenceQuantification, entry: EsqSensitivityCase): EsqAppliedCase {
+function pointOf(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
+}
+
+function applySensitivityCase(source: EventSequenceQuantification, entry: EsqSensitivityCase, upper?: ReadonlyMap<string, number>): EsqAppliedCase {
   const esq: EventSequenceQuantification = structuredClone(source);
   const applied: EsqAppliedCase = { esq, logic: { ...(entry.logic ?? {}) }, overrides: { events: [], ccfGroups: [] }, failedEvents: [], kept: [] };
   const model = esq.model;
@@ -111,9 +114,11 @@ function applySensitivityCase(source: EventSequenceQuantification, entry: EsqSen
     case "HEP": {
       const human = model.humanEvents.find((candidate) => candidate.id === entry.target);
       if (human === undefined) return fail(`The model holds no human failure event ${entry.target ?? ""}.`);
-      const next = changed(human.value, entry);
-      if (next === undefined || !(next >= 0 && next <= 1)) return fail("Give a HEP between 0 and 1, or a factor.");
-      human.value = next;
+      if (human.hep === undefined) return fail(`HR gives ${human.name} no HEP.`);
+      if (entry.value !== undefined && !(entry.value >= 0 && entry.value <= 1)) return fail("Give a HEP between 0 and 1, or a factor.");
+      const hep = changedExpression(human.hep, "PROBABILITY", entry);
+      if (hep === undefined) return fail("Give a HEP between 0 and 1, or a factor.");
+      human.hep = hep;
       return applied;
     }
     case "EVENT": {
@@ -160,30 +165,28 @@ function applySensitivityCase(source: EventSequenceQuantification, entry: EsqSen
       return Object.keys(applied.logic).length === 0 ? fail("Change at least one logic setting.") : applied;
     case "HEP_95TH": {
       const fixedJoints = new Map(resolvedCombinations(esq).flatMap((view) => (view.level !== undefined && (view.source === "HRA" || view.source === "TYPED") ? [[view.combination.id, view.level] as const] : [])));
-      const inputs = new Map(sampledInputsOf(esq).map((input) => [input.key, input]));
-      const upper = (key: string): number | undefined => {
-        const legacy = inputs.get(key)?.legacy;
-        return legacy?.errorFactor !== undefined && legacy.errorFactor > 1 ? legacyUpperPercentile(legacy.point, legacy.errorFactor) : undefined;
-      };
+      const raised = (key: string, law: UncertainExpression | undefined): number | undefined => (law === undefined || !hasUncertainty(law) ? undefined : upper?.get(key));
       for (const human of model.humanEvents) {
-        const value = upper(`HFE:${human.id}`);
+        const value = raised(`HFE:${human.id}`, human.hep);
         if (value === undefined) {
           applied.kept.push(human.id);
           continue;
         }
-        if (value > 1) return fail(`The 95th percentile of ${human.name} is ${value}, above 1. Lower its error factor in Step 08.`);
-        human.value = value;
+        if (value > 1) return fail(`The 95th percentile of ${human.name} is ${value}, above 1. Narrow its law in HR.`);
+        human.hep = pointOf(value);
       }
-      for (const recovery of model.recoveries ?? []) {
-        const value = upper(`RECOVERY:${recovery.id}`);
+      for (const rule of esq.postWork?.recoveries ?? []) {
+        if (!rule.credited) continue;
+        const record = model.recoveries?.find((candidate) => candidate.id === rule.id);
+        const law = rule.ofRecord === "TYPED" || record?.hep === undefined ? rule.typed?.expression : record.hep;
+        const value = raised(`RECOVERY:${rule.id}`, law);
         if (value === undefined) {
-          applied.kept.push(recovery.id);
+          applied.kept.push(rule.id);
           continue;
         }
-        if (value > 1) return fail(`The 95th percentile of the non-recovery ${recovery.name} is ${value}, above 1. Lower its error factor.`);
-        recovery.hep = value;
-        const rule = esq.postWork?.recoveries?.find((candidate) => candidate.id === recovery.id);
-        if (rule?.typed !== undefined) rule.typed = { ...rule.typed, value };
+        if (value > 1) return fail(`The 95th percentile of the non-recovery ${record?.name ?? rule.manual?.name ?? rule.id} is ${value}, above 1. Narrow its law.`);
+        if (record !== undefined) record.hep = pointOf(value);
+        if (rule.typed !== undefined) rule.typed = { ...rule.typed, expression: pointOf(value) };
       }
       for (const combination of esq.postWork?.combinations ?? []) {
         const level = fixedJoints.get(combination.id);

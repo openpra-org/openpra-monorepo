@@ -9,6 +9,7 @@ import type { EventTreeInitiatingEventFrequency, FaultTreeTopEventReference } fr
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type { UncertainParameter } from "interfaces-mef-types/core/uncertainty";
 import type { ParameterOption } from "../shared/uncertainEditor";
+import type { TransferBreadcrumb } from "../shared/transferTrail";
 
 type EventTreeRepresentation = "event-sequence-diagram" | "event-tree" | "table" | "dynamic";
 
@@ -84,6 +85,7 @@ interface EventTreeEditorProps {
     changes: Partial<Pick<EventSequence, "sequenceFamilyId" | "releaseCategoryId">>,
   ) => void;
   onOpenReference?: (reference: FaultTreeTopEventReference | { targetEventTreeId: string }) => void;
+  breadcrumb?: TransferBreadcrumb;
   onRun?: () => void;
 }
 

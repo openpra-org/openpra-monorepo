@@ -7,6 +7,10 @@ import {
 } from "interfaces-mef-types/sy/systems-analysis";
 import {
   canonicalJson,
+  ccfFactorExpressions,
+  ccfFactorVector,
+  ccfModelTakesTotal,
+  expressionReferences,
   parameterReferenceKey,
   type CcfFactorModel,
   type UncertainExpression,
@@ -16,7 +20,7 @@ import { systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-mode
 import { ccfFactorDraft } from "../newly-developed-methods/shared/uncertainEditor";
 import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { CCF_MODELS, SHARED_CAUSE_KEYS, SHARED_CAUSE_LABELS } from "./syViewData";
-import type { SyControlledCcfEstimateOption } from "./syWorkbookContext";
+import type { SyControlledCcfEstimateOption, SyControlledCcfVectorOption } from "./syWorkbookContext";
 
 interface CcfGroupIssue {
   code: string;
@@ -57,6 +61,7 @@ function vectorText(symbol: string, vector: UncertainVector, label: ParameterLab
   if (vector.node === "PARAMETER") return `${symbol} ${label(parameterReferenceKey(vector.reference))}`;
   const law = vector.law;
   if (law.family === "DIRICHLET") return `${symbol} Dirichlet (${law.concentrations.map(formatFactor).join(", ")})`;
+  if (law.family === "WEIGHTED_DIRICHLET") return `${symbol} weighted Dirichlet (${law.concentrations.map(formatFactor).join(", ")}; weights ${law.weights.map(formatFactor).join(", ")})`;
   return law.values.map((value, index) => `${symbol}${index + 1} ${formatFactor(value)}`).join(" · ");
 }
 
@@ -70,6 +75,13 @@ function ccfFactorText(factors: CcfFactorModel, label: ParameterLabel = ownKey):
       return vectorText("α", factors.alphas, label);
     case "PHI_FACTOR":
       return vectorText("φ", factors.phis, label);
+    case "BINOMIAL_FAILURE_RATE":
+      return [
+        `Qᵢ ${factorExpressionText(factors.independent, label)}`,
+        `μ ${factorExpressionText(factors.nonLethalShock, label)}`,
+        `p ${factorExpressionText(factors.componentFailure, label)}`,
+        `ω ${factorExpressionText(factors.lethalShock, label)}`,
+      ].join(" · ");
   }
 }
 
@@ -91,6 +103,11 @@ function linkedEstimate(group: CommonCauseFailureGroup, estimates: readonly SyCo
 
 function matchesEstimate(group: CommonCauseFailureGroup, estimate: SyControlledCcfEstimateOption): boolean {
   return canonicalJson(group.factors) === canonicalJson(estimate.factors);
+}
+
+function factorLinks(factors: CcfFactorModel): string[] {
+  const vector = ccfFactorVector(factors);
+  return [...(vector?.node === "PARAMETER" ? [vector.reference] : []), ...ccfFactorExpressions(factors).flatMap(expressionReferences)].map(parameterReferenceKey);
 }
 
 function uniqueMemberIds(group: CommonCauseFailureGroup): string[] {
@@ -122,9 +139,24 @@ function sharedMemberExpression(group: CommonCauseFailureGroup, analysis: Pick<S
   return shared ? first : null;
 }
 
+const NO_TOTAL: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0 } } };
+
+function groupTotal(group: CommonCauseFailureGroup, analysis: Pick<SystemsAnalysis, "systemBasicEvents">): UncertainExpression | undefined {
+  if (!ccfModelTakesTotal(group.factors)) return undefined;
+  return sharedMemberExpression(group, analysis) ?? group.total;
+}
+
+function withoutTotal(group: CommonCauseFailureGroup): CommonCauseFailureGroup {
+  if (group.total === undefined) return group;
+  const next = { ...group };
+  delete next.total;
+  return next;
+}
+
 function withMemberTotal(group: CommonCauseFailureGroup, analysis: Pick<SystemsAnalysis, "systemBasicEvents">): CommonCauseFailureGroup {
-  const shared = sharedMemberExpression(group, analysis);
-  return shared === null || canonicalJson(shared) === canonicalJson(group.total) ? group : { ...group, total: shared };
+  if (!ccfModelTakesTotal(group.factors)) return withoutTotal(group);
+  const total = sharedMemberExpression(group, analysis) ?? group.total ?? NO_TOTAL;
+  return group.total !== undefined && canonicalJson(total) === canonicalJson(group.total) ? group : { ...group, total };
 }
 
 function withMemberTotals<T extends Pick<SystemsAnalysis, "systemBasicEvents" | "commonCauseFailureGroups">>(analysis: T, eventIds: ReadonlySet<string>): T {
@@ -136,9 +168,17 @@ function withMemberTotals<T extends Pick<SystemsAnalysis, "systemBasicEvents" | 
     : analysis;
 }
 
-function vectorLength(vector: UncertainVector): number | null {
-  if (vector.node === "PARAMETER") return null;
-  return vector.law.family === "DIRICHLET" ? vector.law.concentrations.length : vector.law.values.length;
+type VectorLengths = ReadonlyMap<string, number>;
+
+function vectorLength(vector: UncertainVector, lengths: VectorLengths): number | null {
+  if (vector.node === "PARAMETER") return lengths.get(parameterReferenceKey(vector.reference)) ?? null;
+  return vector.law.family === "FIXED" ? vector.law.values.length : vector.law.concentrations.length;
+}
+
+const NO_LENGTHS: VectorLengths = new Map();
+
+function vectorLengths(options: readonly SyControlledCcfVectorOption[]): VectorLengths {
+  return new Map(options.map((option) => [parameterReferenceKey(option.reference), option.length]));
 }
 
 function factorsFit(factors: CcfFactorModel, size: number): boolean {
@@ -148,13 +188,15 @@ function factorsFit(factors: CcfFactorModel, size: number): boolean {
     case "MGL":
       return factors.factors.length >= 1 && factors.factors.length <= Math.max(1, size - 1);
     case "ALPHA_FACTOR": {
-      const length = vectorLength(factors.alphas);
+      const length = vectorLength(factors.alphas, NO_LENGTHS);
       return length === null || length === size;
     }
     case "PHI_FACTOR": {
-      const length = vectorLength(factors.phis);
-      return length === null || (length >= 1 && length <= size);
+      const length = vectorLength(factors.phis, NO_LENGTHS);
+      return length === null || length === size;
     }
+    case "BINOMIAL_FAILURE_RATE":
+      return true;
   }
 }
 
@@ -171,7 +213,7 @@ function rangeIssue(expression: UncertainExpression, label: string): CcfGroupIss
 }
 
 function vectorIssues(vector: UncertainVector, symbol: string, prefix: "ALPHA" | "PHI"): CcfGroupIssue[] {
-  if (vector.node === "PARAMETER" || vector.law.family === "DIRICHLET") return [];
+  if (vector.node === "PARAMETER" || vector.law.family !== "FIXED") return [];
   const values = vector.law.values;
   const issues: CcfGroupIssue[] = values.flatMap((value, index) => (
     Number.isFinite(value) && value >= 0 && value <= 1 ? [] : [{ code: "CCF_FACTOR_RANGE", severity: "ERROR" as const, message: `${symbol}${index + 1} must be between 0 and 1.` }]
@@ -183,35 +225,53 @@ function vectorIssues(vector: UncertainVector, symbol: string, prefix: "ALPHA" |
   return issues;
 }
 
-function factorIssues(factors: CcfFactorModel, size: number): CcfGroupIssue[] {
+function orderText(from: number, to: number): string {
+  return from === to ? `order ${from}` : `orders ${from} to ${to}`;
+}
+
+function zeroOrders(model: string, from: number, to: number): CcfGroupIssue[] {
+  if (from > to) return [];
+  return [{ code: "CCF_ORDERS_ZERO", severity: "WARNING", message: `${model} sets ${orderText(from, to)} to zero.` }];
+}
+
+function vectorCountIssues(vector: UncertainVector, size: number, lengths: VectorLengths, code: "CCF_ALPHA_COUNT" | "CCF_PHI_COUNT", model: string): CcfGroupIssue[] {
+  if (vector.node === "PARAMETER" && !lengths.has(parameterReferenceKey(vector.reference))) {
+    return lengths.size === 0 ? [] : [{ code: "CCF_VECTOR_MISSING", severity: "ERROR", message: `The linked vector ${vector.reference.entityId} is not in the linked DA workbook.` }];
+  }
+  const length = vectorLength(vector, lengths);
+  return length !== null && length !== size
+    ? [{ code, severity: "ERROR", message: `${model} needs exactly ${size} factors for ${size} members, not ${length}.` }]
+    : [];
+}
+
+function factorIssues(factors: CcfFactorModel, size: number, lengths: VectorLengths = NO_LENGTHS): CcfGroupIssue[] {
   switch (factors.model) {
     case "BETA_FACTOR": {
       const issue = rangeIssue(factors.beta, "Beta factor");
-      return issue === null ? [] : [issue];
+      return [...(issue === null ? [] : [issue]), ...(size > 2 ? zeroOrders(`The beta factor for ${size} members`, 2, size - 1) : [])];
     }
     case "MGL": {
-      const count = factors.factors.length === 0 || factors.factors.length > Math.max(1, size - 1)
-        ? [{ code: "CCF_MGL_COUNT", severity: "ERROR" as const, message: `MGL requires 1 to ${Math.max(1, size - 1)} factors for this group.` }]
-        : [];
-      return [...count, ...factors.factors.flatMap((factor, index) => {
+      const count = factors.factors.length;
+      const limit = Math.max(1, size - 1);
+      const countIssues = count === 0 || count > limit
+        ? [{ code: "CCF_MGL_COUNT", severity: "ERROR" as const, message: `MGL needs 1 to ${limit} factors for ${size} members, not ${count}.` }]
+        : zeroOrders(`MGL with ${count} ${count === 1 ? "factor" : "factors"} for ${size} members`, count + 2, size);
+      return [...countIssues, ...factors.factors.flatMap((factor, index) => {
         const issue = rangeIssue(factor, `MGL factor ${mglLetter(index)}`);
         return issue === null ? [] : [issue];
       })];
     }
-    case "ALPHA_FACTOR": {
-      const length = vectorLength(factors.alphas);
-      const count = length !== null && length !== size
-        ? [{ code: "CCF_ALPHA_COUNT", severity: "ERROR" as const, message: `Alpha factor requires ${size} factors for ${size} members.` }]
-        : [];
-      return [...count, ...vectorIssues(factors.alphas, "α", "ALPHA")];
-    }
-    case "PHI_FACTOR": {
-      const length = vectorLength(factors.phis);
-      const count = length !== null && (length < 1 || length > size)
-        ? [{ code: "CCF_PHI_COUNT", severity: "ERROR" as const, message: `Phi factor requires 1 to ${Math.max(1, size)} factors for this group.` }]
-        : [];
-      return [...count, ...vectorIssues(factors.phis, "φ", "PHI")];
-    }
+    case "ALPHA_FACTOR":
+      return [...vectorCountIssues(factors.alphas, size, lengths, "CCF_ALPHA_COUNT", "Alpha factor"), ...vectorIssues(factors.alphas, "α", "ALPHA")];
+    case "PHI_FACTOR":
+      return [...vectorCountIssues(factors.phis, size, lengths, "CCF_PHI_COUNT", "Phi factor"), ...vectorIssues(factors.phis, "φ", "PHI")];
+    case "BINOMIAL_FAILURE_RATE":
+      return [
+        rangeIssue(factors.independent, "The independent failure probability"),
+        rangeIssue(factors.nonLethalShock, "The non-lethal shock probability"),
+        rangeIssue(factors.componentFailure, "The component failure fraction"),
+        rangeIssue(factors.lethalShock, "The lethal shock probability"),
+      ].flatMap((issue) => (issue === null ? [] : [issue]));
   }
 }
 
@@ -238,21 +298,28 @@ function memberIssues(group: CommonCauseFailureGroup, analysis: CcfAnalysis): Cc
       issues.push({ code: "CCF_MEMBER_PROBABILITY", severity: "ERROR", message: `${event.name} needs a probability between 0 and 1.` });
     }
   }
-  if (memberValueKeys(group, analysis).length > 1) {
+  if (ccfModelTakesTotal(group.factors) && memberValueKeys(group, analysis).length > 1) {
     issues.push({ code: "CCF_MEMBER_MISMATCH", severity: "WARNING", message: "The member events hold different values, so Qₜ stays as typed. Give every member the same value in Step 02 to take Qₜ from them." });
   }
   return issues;
 }
 
 function totalIssues(group: CommonCauseFailureGroup, analysis: CcfAnalysis): CcfGroupIssue[] {
-  const issues: CcfGroupIssue[] = [];
-  const range = rangeIssue(group.total, "Qₜ");
-  if (range !== null) issues.push(range);
+  if (!ccfModelTakesTotal(group.factors)) {
+    return group.total === undefined ? [] : [{ code: "CCF_TOTAL_UNUSED", severity: "ERROR", message: "A binomial failure rate group takes no Qₜ. The model gives every order." }];
+  }
+  const total = group.total;
   const shared = sharedMemberExpression(group, analysis);
-  if (shared === null && pointOf(group.total) === 0) {
+  if (total === undefined) {
+    return [{ code: "CCF_TOTAL", severity: "ERROR", message: "Set Qₜ. Give the members one shared value, or type Qₜ." }];
+  }
+  const issues: CcfGroupIssue[] = [];
+  const range = rangeIssue(total, "Qₜ");
+  if (range !== null) issues.push(range);
+  if (shared === null && pointOf(total) === 0) {
     issues.push({ code: "CCF_TOTAL", severity: "ERROR", message: "Set Qₜ. Give the members one shared value, or type Qₜ." });
   }
-  if (shared !== null && canonicalJson(shared) !== canonicalJson(group.total)) {
+  if (shared !== null && canonicalJson(shared) !== canonicalJson(total)) {
     issues.push({ code: "CCF_TOTAL_MISMATCH", severity: "ERROR", message: "Qₜ differs from the value the member events share." });
   }
   return issues;
@@ -269,10 +336,12 @@ function sourceIssues(group: CommonCauseFailureGroup, estimates: readonly SyCont
   if (estimates === undefined || estimates.length === 0) return [];
   const estimate = linkedEstimate(group, estimates);
   if (estimate === undefined) return [{ code: "CCF_DA_MISSING", severity: "WARNING", message: `The linked DA estimate ${reference} is not in the linked DA workbook.` }];
-  return matchesEstimate(group, estimate) ? [] : [{ code: "CCF_DA_STALE", severity: "WARNING", message: `The factors differ from DA estimate ${reference}.` }];
+  if (matchesEstimate(group, estimate)) return [];
+  const copied = factorLinks(estimate.factors).length > 0 && factorLinks(group.factors).length === 0;
+  return [{ code: "CCF_DA_STALE", severity: "WARNING", message: copied ? `The factors are a typed copy of DA estimate ${reference}. Apply it again to link them, so they follow DA.` : `The factors differ from DA estimate ${reference}.` }];
 }
 
-function validateCcfGroup(group: CommonCauseFailureGroup, analysis: CcfAnalysis, estimates?: readonly SyControlledCcfEstimateOption[]): CcfGroupIssue[] {
+function validateCcfGroup(group: CommonCauseFailureGroup, analysis: CcfAnalysis, estimates?: readonly SyControlledCcfEstimateOption[], lengths: VectorLengths = NO_LENGTHS): CcfGroupIssue[] {
   const issues: CcfGroupIssue[] = [];
   if (group.name.trim().length === 0) issues.push({ code: "CCF_NAME", severity: "ERROR", message: "Enter a group name." });
   if (group.affectedSystems.length === 0 || !analysis.systemDefinitions.some(({ uuid }) => uuid === group.affectedSystems[0])) {
@@ -281,7 +350,7 @@ function validateCcfGroup(group: CommonCauseFailureGroup, analysis: CcfAnalysis,
   if (group.scope === "INTERSYSTEM" && new Set(group.affectedSystems).size < 2) {
     issues.push({ code: "CCF_INTERSYSTEM_SCOPE", severity: "ERROR", message: "An across systems group must include at least two systems." });
   }
-  issues.push(...memberIssues(group, analysis), ...totalIssues(group, analysis), ...factorIssues(group.factors, uniqueMemberIds(group).length));
+  issues.push(...memberIssues(group, analysis), ...totalIssues(group, analysis), ...factorIssues(group.factors, uniqueMemberIds(group).length, lengths));
   if ((group.groupSelectionBasis ?? group.description).trim().length === 0) {
     issues.push({ code: "CCF_BASIS", severity: "WARNING", message: "Document the grouping basis." });
   }
@@ -302,11 +371,13 @@ function ccfGroupsForModel(analysis: CcfAnalysis, model: Pick<SystemLogicModel, 
 }
 
 export {
+  factorIssues as ccfFactorIssues,
   ccfFactorText,
   ccfGroupIsReady,
   ccfGroupsForModel,
   ccfModelText,
   fittedFactors,
+  groupTotal,
   linkedEstimate,
   matchesEstimate,
   memberEvents,
@@ -314,8 +385,10 @@ export {
   sharedMemberExpression,
   uniqueMemberIds,
   validateCcfGroup,
+  vectorLengths,
   withMemberTotal,
   withMemberTotals,
   type CcfAnalysis,
   type CcfGroupIssue,
+  type VectorLengths,
 };

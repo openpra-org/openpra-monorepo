@@ -31,10 +31,14 @@ import {
   convertSyGroups,
   daCcfFacts,
   daCcfFactsWithOriginal,
+  daHeldIds,
+  relinkExampleDaReferences,
   syCcfFacts,
   syCcfFactsWithOriginal,
   type DaCcfFacts,
   type DaCcfLookup,
+  type DaHeldLookup,
+  type DaProjectLookup,
   type SyCcfFacts,
   type SyCcfLookup,
 } from "./uncertainty-migration-ccf";
@@ -48,6 +52,7 @@ import {
   hazardEventTrees,
 } from "./uncertainty-migration-frequency";
 import { hazardCatalogueIssue } from "./uncertainty-migration-fault-trees";
+import { convertEsqHeps, convertHrMef, esqHrErrorFactors, type HrErrorFactorLookup } from "./uncertainty-migration-hr";
 import { convertConfigurations, hclSettingsIssue } from "./uncertainty-migration-hcl";
 import {
   arrayField,
@@ -117,6 +122,9 @@ interface MigrationLookups {
   syCcf: SyCcfLookup;
   scMissionTimes: ScMissionTimeLookup;
   scProjects: ScProjectLookup;
+  daHeld: DaHeldLookup;
+  daProjects: DaProjectLookup;
+  hrErrorFactors: HrErrorFactorLookup;
 }
 
 interface DaDatasetRow {
@@ -182,8 +190,12 @@ const ESTIMATE_UNITS: Partial<Record<DaQuantificationModel, UncertainUnit>> = {
   RUNNING_RATE: "PER_HOUR",
   STANDBY_RATE: "PER_HOUR",
   UNAVAILABILITY: "FRACTION",
+  HUMAN_ERROR: "PROBABILITY",
+  NON_RECOVERY: "PROBABILITY",
   FREQUENCY: "PER_YEAR",
 };
+
+const NEWLY_ESTIMATED_MODELS: readonly DaQuantificationModel[] = ["HUMAN_ERROR", "NON_RECOVERY"];
 
 const HOURS_PER_TIME_UNIT: ReadonlyMap<Json, number> = new Map<Json, number>([
   ["SECOND", 1 / 3_600],
@@ -201,9 +213,9 @@ const DA_NEED_VALUE_FIELDS: readonly string[] = ["value", "valueUnit"];
 
 const ESQ_EVENT_VALUE_FIELDS: readonly string[] = ["value", "valueUnit", "missionTimeHours"];
 
-const ESQ_PARAMETER_VALUE_FIELDS: readonly string[] = ["value", "valueType", "distributionType", "p05", "p95", "missionTimeHours", "distribution"];
+const ESQ_PARAMETER_LINK_FIELDS: readonly string[] = ["id", "name", "parameterType"];
 
-const ESQ_FREQUENCY_VALUE_FIELDS: readonly string[] = ["value", "valueType", "distributionType", "p05", "p95", "distribution"];
+const ESQ_MODEL_DA_COPIES: readonly string[] = ["vectors", "ccfFactors"];
 
 function modelOf(value: Json | undefined): DaQuantificationModel | undefined {
   return DA_QUANTIFICATION_MODELS.find((model) => model === value);
@@ -282,7 +294,7 @@ function figureOutcome(entry: JsonRecord, quantity: DaEstimateQuantity, scope: C
   if (mean !== undefined && p05 !== undefined && p95 !== undefined && mean > 0 && p05 > 0 && p95 > p05) {
     return fitted(lognormalFit(mean, null, [{ probability: 0.05, value: p05 }, { probability: 0.95, value: p95 }]));
   }
-  if (failures !== undefined && exposure !== undefined && failures >= 0 && exposure > 0) {
+  if (failures !== undefined && exposure !== undefined && failures >= 0 && exposure > 0 && quantity !== "HOURS") {
     const likelihood: Likelihood = BINOMIAL_QUANTITIES.includes(quantity) ? "BINOMIAL" : "POISSON";
     if (likelihood === "POISSON" || failures <= exposure) {
       return { kind: "LAW", law: { family: "POSTERIOR", prior: null, evidence: [{ likelihood, failures, exposure }] } };
@@ -382,7 +394,7 @@ function convertDaParameterValue(parameter: JsonRecord, scope: ConversionScope):
   const stored = storedExpression(parameter, "estimate");
   if (stored !== undefined) return { ...kept, estimate: jsonOf(stored) };
   const unit = model === undefined ? undefined : ESTIMATE_UNITS[model];
-  if (unit === undefined || textField(parameter, "valueMode") === "CALCULATED") return kept;
+  if (unit === undefined || (textField(parameter, "valueMode") === "CALCULATED" && (model === undefined || !NEWLY_ESTIMATED_MODELS.includes(model)))) return kept;
   const outcome = typedEstimate(parameter, unit, scope);
   if (outcome.kind === "WAIT") return parameter;
   return outcome.kind === "NONE" ? kept : { ...kept, estimate: jsonOf(outcome.expression) };
@@ -446,9 +458,10 @@ function convertDaNeeds(needs: JsonRecord, own: ReadonlyMap<string, DaParameterF
 function convertDaMef(mef: JsonRecord, context: DaConversionContext, scope: ConversionScope): JsonRecord {
   const sourced = withArray(mef, "sources", (source) => convertDaSource(source, context.datasets, scope));
   const estimated = withArray(sourced, "parameters", (parameter) => convertDaParameter(parameter, scope));
-  const common = convertCcfEstimations(estimated, scope);
+  const common = convertCcfEstimations(estimated, context.workbookId, scope);
   const own = rawParameterFacts(common);
-  return withRecord(common, "dataNeeds", (needs) => convertDaNeeds(needs, own, context.workbookId, scope));
+  const converted = withRecord(common, "dataNeeds", (needs) => convertDaNeeds(needs, own, context.workbookId, scope));
+  return relinkExampleDaReferences(converted, { ownId: context.workbookId, projectId: "", held: new Map([[context.workbookId, daHeldIds(converted)]]), projects: new Map() });
 }
 
 function daDatasetIndex(datasets: readonly { dataset: string; rows: Json }[]): Map<string, DaDatasetRow> {
@@ -682,11 +695,17 @@ function scLinkContext(mef: JsonRecord, lookups: MigrationLookups, projectId: st
   return { ...(linkedScId === undefined ? {} : { linkedScId }), projectId, missionTimes: lookups.scMissionTimes, projects: lookups.scProjects };
 }
 
+function relinkProjectDa(mef: JsonRecord, lookups: MigrationLookups, projectId: string): JsonRecord {
+  const links = recordField(mef, "linkedWorkbooks");
+  const linkedDaId = links === undefined ? undefined : textField(links, "DA");
+  return relinkExampleDaReferences(mef, { ...(linkedDaId === undefined ? {} : { linkedDaId }), projectId, held: lookups.daHeld, projects: lookups.daProjects });
+}
+
 function convertSyMef(mef: JsonRecord, lookups: MigrationLookups, scope: ConversionScope, projectId: string): JsonRecord {
   const defined = convertSyDefinitions(mef, scLinkContext(mef, lookups, projectId), scope);
   const events = convertSyEvents(defined, lookups.daParameters, scope);
   const groups = convertSyGroups(events, lookups.daCcf, scope);
-  return convertConfigurations(groups, "dependencyHclConfigurations", "dependencyBayesianNetworks", scope, "SY");
+  return relinkProjectDa(convertConfigurations(groups, "dependencyHclConfigurations", "dependencyBayesianNetworks", scope, "SY"), lookups, projectId);
 }
 
 function componentHolder(expression: UncertainExpression | undefined, parameterIds: ReadonlySet<string>): JsonRecord {
@@ -731,44 +750,13 @@ function convertEsqEvent(record: JsonRecord, daWorkbookId: string | undefined, d
     : withHours(record, "missionTimeHours", "missionTime", esqWhat("event", record), scope);
 }
 
-function esqParameterMission(record: JsonRecord, scope: ConversionScope): JsonRecord {
-  const model = modelOf(field(record, "quantificationModel"));
-  return holdsEstimate(model) && model !== "FREQUENCY"
-    ? withoutHours(record, "missionTimeHours")
-    : withHours(record, "missionTimeHours", "missionTime", esqWhat("parameter", record), scope);
+function withOnly(record: JsonRecord, keys: readonly string[]): JsonRecord {
+  return Object.keys(record).every((key) => keys.includes(key)) ? record : Object.fromEntries(Object.entries(record).filter(([key]) => keys.includes(key)));
 }
 
-function convertEsqParameter(record: JsonRecord, daParameters: ReadonlyMap<string, DaParameterFacts> | undefined, scope: ConversionScope): JsonRecord {
-  return esqParameterMission(convertEsqParameterValue(record, daParameters, scope), scope);
-}
-
-function esqOwnEstimate(record: JsonRecord, kept: JsonRecord, model: DaQuantificationModel, scope: ConversionScope): JsonRecord {
-  const stored = storedExpression(record, "estimate");
-  if (stored !== undefined) return { ...kept, quantificationModel: model, estimate: jsonOf(stored) };
-  const unit = ESTIMATE_UNITS[model];
-  if (unit === undefined) {
-    scope.report(`${esqWhat("parameter", record)} holds old ${model} values that have no estimate unit.`);
-    return record;
-  }
-  const outcome = figureEstimate(record, recordField(record, "distribution"), unit, scope, esqWhat("parameter", record));
-  if (outcome.kind === "WAIT") return record;
-  return outcome.kind === "NONE" ? { ...kept, quantificationModel: model } : { ...kept, quantificationModel: model, estimate: jsonOf(outcome.expression) };
-}
-
-function convertEsqParameterValue(record: JsonRecord, daParameters: ReadonlyMap<string, DaParameterFacts> | undefined, scope: ConversionScope): JsonRecord {
-  const stored = modelOf(field(record, "quantificationModel"));
-  if (present(record, "quantificationModel") && stored === undefined) return record;
-  const id = textField(record, "id");
-  const facts = id === undefined ? undefined : daParameters?.get(id);
-  const model = stored ?? facts?.quantificationModel;
-  if (model === undefined || !holdsEstimate(model)) return record;
-  const oldFields = model === "FREQUENCY" ? ESQ_FREQUENCY_VALUE_FIELDS : ESQ_PARAMETER_VALUE_FIELDS;
-  if (stored !== undefined && !oldFields.some((key) => present(record, key))) return record;
-  const kept = without(record, [...oldFields, "estimate"]);
-  if (facts !== undefined && facts.quantificationModel === model) {
-    return { ...kept, quantificationModel: model, ...(facts.estimate === undefined ? {} : { estimate: jsonOf(facts.estimate) }) };
-  }
-  return esqOwnEstimate(record, kept, model, scope);
+function withoutDaCopies(model: JsonRecord): JsonRecord {
+  const copied = ESQ_MODEL_DA_COPIES.filter((key) => field(model, key) !== undefined);
+  return copied.length === 0 ? model : without(model, copied);
 }
 
 function withStandardErrors(record: JsonRecord): JsonRecord {
@@ -784,7 +772,7 @@ function withStandardErrors(record: JsonRecord): JsonRecord {
 
 function convertEsqModel(model: JsonRecord, daWorkbookId: string | undefined, syGroups: ReadonlyMap<string, SyCcfFacts> | undefined, facts: ReadonlyMap<string, DaParameterFacts> | undefined, scope: ConversionScope): JsonRecord {
   const trees = withArray(model, "trees", (record) => withHours(record, "missionTimeHours", "missionTime", esqWhat("tree", record), scope));
-  const parameters = withArray(trees, "parameters", (record) => convertEsqParameter(record, facts, scope));
+  const parameters = withoutDaCopies(withArray(trees, "parameters", (record) => withOnly(record, ESQ_PARAMETER_LINK_FIELDS)));
   const parameterIds = new Set((arrayField(parameters, "parameters") ?? []).flatMap((record) => {
     const id = isRecord(record) ? textField(record, "id") : undefined;
     return id === undefined ? [] : [id];
@@ -794,17 +782,17 @@ function convertEsqModel(model: JsonRecord, daWorkbookId: string | undefined, sy
   return withArray(initiators, "ccfGroups", (record) => convertEsqCcfRecord(record, syGroups));
 }
 
-function convertEsqMef(mef: JsonRecord, lookups: MigrationLookups, scope: ConversionScope): JsonRecord {
+function convertEsqMef(mef: JsonRecord, lookups: MigrationLookups, scope: ConversionScope, projectId: string): JsonRecord {
   const links = recordField(mef, "linkedWorkbooks");
   const daWorkbookId = links === undefined ? undefined : textField(links, "DA");
   const syWorkbookId = links === undefined ? undefined : textField(links, "SY");
   const facts = daWorkbookId === undefined ? undefined : lookups.daParameters.get(daWorkbookId);
   const syGroups = syWorkbookId === undefined ? undefined : lookups.syCcf.get(syWorkbookId);
-  const modelled = withRecord(mef, "model", (model) => convertEsqModel(model, daWorkbookId, syGroups, facts, scope));
+  const modelled = withRecord(convertEsqHeps(mef), "model", (model) => convertEsqModel(model, daWorkbookId, syGroups, facts, scope));
   const decided = withRecord(modelled, "modelDecisions", (decisions) => withArray(decisions, "initiatorChoices", (choice) => convertEsqInitiatorChoice(choice, scope)));
   const barriers = convertBarrierWork(decided, scope);
   const configured = convertConfigurations(barriers, "hclConfigurations", "bayesianNetworks", scope, "ESQ");
-  return withRecord(configured, "uncertaintyWork", (work) => withRecord(withRecord(work, "run", withStandardErrors), "independent", withStandardErrors));
+  return relinkProjectDa(withRecord(configured, "uncertaintyWork", (work) => withRecord(withRecord(work, "run", withStandardErrors), "independent", withStandardErrors)), lookups, projectId);
 }
 
 interface SchemaIssues {
@@ -895,17 +883,20 @@ export {
   convertEsMef,
   convertEsqMef,
   convertHazardMef,
+  convertHrMef,
   convertIeMef,
   convertScMef,
   convertSyMef,
   daCcfFacts,
   daCcfFactsWithOriginal,
   daDatasetIndex,
+  daHeldIds,
   daIssue,
   daIssueAndFacts,
   daNeedsDatasets,
   daParameterFacts,
   esIssue,
+  esqHrErrorFactors,
   esqIssue,
   field,
   hazardIssue,

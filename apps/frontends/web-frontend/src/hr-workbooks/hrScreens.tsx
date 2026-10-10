@@ -3,6 +3,7 @@ import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
 import { HRIcon } from "./hrIcons";
 import { Badge, HRProvenanceChip, hepText } from "./hrShared";
+import { quantificationHepText } from "./hrDaLinks";
 import {
   CAPABILITY_CATEGORIES,
   ACTIVITY_TYPES,
@@ -41,12 +42,11 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: {
   setStage: (s: Stage) => void;
   onAction: (msg: string) => void;
 }): JSX.Element {
-  const { hr, links, editable, mutateHr } = useHrWorkbook();
+  const { hr, links, editable, mutateHr, daHeps } = useHrWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
   const [selectedTe, setSelectedTe] = useState<string | null>(null);
   const nameOf = (hfeId: string): string => hr.humanFailureEvents.find((h) => h.uuid === hfeId)?.name ?? hfeId;
   const ieName = (id: string | undefined): string => (id === undefined ? "—" : (links?.ieInitiators.find((i) => i.id === id)?.name ?? id));
-  const fmtHep = (v: number | undefined): string => (v !== undefined ? v.toExponential(1).toUpperCase() : "—");
   const ifaceLanes: { key: string; code: string; element: string; role: string; direction: "in" | "out"; columns: string[]; rows: { id: string; name: string; values: string[] }[]; empty: string }[] = [
     { key: "in-POS", code: "POS", element: "Plant Operating States", role: "Operating states", direction: "in", columns: ["Operating state", "Mode", "Duration (h)"], rows: (links?.posStates ?? []).map((x) => ({ id: x.id, name: `${x.id} · ${x.name}`, values: [x.mode, String(x.durationHours)] })), empty: "Load the example to pull the operating states a human failure event is defined per." },
     { key: "in-IE", code: "IE", element: "Initiating Events", role: "Operator contributions", direction: "in", columns: ["System", "Initiating event it contributes to"], rows: (hr.supportSystemInitiatorOperatorContributions ?? []).map((x) => ({ id: x.uuid, name: x.systemReference, values: [ieName(x.faultTreeReference)] })), empty: "No operator contributions to support-system initiators." },
@@ -54,7 +54,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: {
     { key: "in-SC", code: "SC", element: "Success Criteria", role: "Time windows", direction: "in", columns: ["Human action", "Time available", "Success criterion"], rows: (links?.scWindows ?? []).map((x) => ({ id: x.id, name: `${x.id} · ${x.description}`, values: [x.timeAvailable, x.criteria] })), empty: "Load the example to pull the time available for each human action." },
     { key: "in-SY", code: "SY", element: "Systems Analysis", role: "Placed events", direction: "in", columns: ["Human failure event", "System"], rows: (links?.syPlaced ?? []).map((x) => ({ id: x.id, name: `${x.id} · ${x.task}`, values: [x.system] })), empty: "Load the example to pull the human failure events Systems Analysis placed in its models." },
     { key: "in-DA", code: "DA", element: "Data Analysis", role: "Parameters", direction: "in", columns: ["Parameter", "Basic event"], rows: (links?.daParams ?? []).map((x) => ({ id: x.id, name: x.id, values: [x.name] })), empty: "Load the example to pull the plant and generic parameters Data Analysis maintains." },
-    { key: "out-ESQ", code: "ESQ", element: "Event Sequence Quantification", role: "Human error probabilities", direction: "out", columns: ["Human action", "HEP"], rows: hr.hepQuantifications.map((q) => ({ id: q.uuid, name: nameOf(q.hfeId), values: [fmtHep(q.meanHep ?? q.pointEstimateHep)] })), empty: "No quantified events yet." },
+    { key: "out-ESQ", code: "ESQ", element: "Event Sequence Quantification", role: "Human error probabilities", direction: "out", columns: ["Human action", "HEP"], rows: hr.hepQuantifications.map((q) => ({ id: q.uuid, name: nameOf(q.hfeId), values: [quantificationHepText(q, daHeps)] })), empty: "No quantified events yet." },
   ];
   const selectedLane = ifaceLanes.find((l) => l.key === selectedTe);
   function onCcChange(newCcId: string): void {
@@ -364,7 +364,7 @@ function PreDefineScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
 }
 
 function PreQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => void }): JSX.Element {
-  const { hr, editable, mutateHr } = useHrWorkbook();
+  const { hr, editable, mutateHr, daHeps } = useHrWorkbook();
   const preHfes = hr.humanFailureEvents.filter((h) => h.hfeTiming === "PRE_INITIATOR");
   const preDeps = hr.dependencyAssessments.filter((d) => d.scope === "PRE_INITIATOR_SET");
   function quantOf(id: string) {
@@ -378,7 +378,7 @@ function PreQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => 
     const target = preHfes.find((h) => quantOf(h.uuid) === undefined);
     if (target === undefined) { if (preHfes[0] !== undefined) openDrawer({ kind: "prequant", id: preHfes[0].uuid }); return; }
     mutateHr((draft) => ({ ...draft, hepQuantifications: [...draft.hepQuantifications, {
-      uuid: crypto.randomUUID(), hfeId: target.uuid, methodology: "", assessmentType: "CONSERVATIVE_ESTIMATE" as const, isRiskSignificant: false, pointEstimateHep: 1.0e-2, plantSpecificInformationUsed: [], uncertaintyCharacterization: { riskSignificant: false, method: "", probabilisticRepresentationProvided: false }, implementsSrs: [{ sr: "HR-D1", hlr: "D" as const }],
+      uuid: crypto.randomUUID(), hfeId: target.uuid, methodology: "", assessmentType: "CONSERVATIVE_ESTIMATE" as const, isRiskSignificant: false, hep: { node: "VALUE" as const, value: { unit: "PROBABILITY" as const, law: { family: "POINT" as const, value: 1.0e-2 } } }, plantSpecificInformationUsed: [], uncertaintyCharacterization: { riskSignificant: false, method: "", probabilisticRepresentationProvided: false }, implementsSrs: [{ sr: "HR-D1", hlr: "D" as const }],
     }] }));
     openDrawer({ kind: "prequant", id: target.uuid });
   }
@@ -415,14 +415,13 @@ function PreQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => 
             {preHfes.map((h) => {
               const q = quantOf(h.uuid);
               if (q === undefined) return null;
-              const value = q.meanHep ?? q.pointEstimateHep;
               return (
                 <tr key={h.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "prequant", id: h.uuid })} style={{ cursor: "pointer" }}>
                   <td style={{ fontWeight: 600 }}>{h.name}
                     <div className="possubtle" style={{ fontSize: 11.5, marginTop: 2, fontWeight: 400 }}>{q.methodology}</div>
                   </td>
                   <td>{q.assessmentType === "DETAILED_ASSESSMENT" ? <span className="hrmethod hrmethod--detailed">Detailed</span> : <span className="hrmethod hrmethod--conservative">Conservative</span>}</td>
-                  <td className="posmono hrhep">{hepText(value)}<span className="hrhep__kind">{q.meanHep !== undefined ? "mean" : "point"}</span></td>
+                  <td className="posmono hrhep">{quantificationHepText(q, daHeps)}</td>
                   <td>{q.isRiskSignificant ? <Badge kind="progress">Risk-significant</Badge> : <Badge>Screened value</Badge>}</td>
                 </tr>
               );

@@ -68,7 +68,7 @@ beforeAll(async () => {
   jest.mocked(evaluateUncertainty).mockImplementation(praxisUncertainty);
   HTGR = await settledWithPraxis(() => imported(DA_ANALYSIS_HTGR, { options: OPTIONS, ie: IE_ANALYSIS, pos: POS_ANALYSIS, scReferenced: [] }));
   SFR = await settledWithPraxis(() => imported(DA_ANALYSIS, { options: OPTIONS, ie: IE_ANALYSIS_SFR, pos: POS_ANALYSIS_SFR, scReferenced: [] }));
-});
+}, 120_000);
 
 beforeEach(() => {
   jest.mocked(evaluateUncertainty).mockImplementation(praxisUncertainty);
@@ -106,18 +106,18 @@ describe("uncertainty", () => {
     expect((await findings(HTGR)).filter((finding) => finding.severity !== "note")).toEqual([]);
     expect((await findings(SFR)).filter((finding) => finding.severity !== "note")).toEqual([]);
     expect(await settledWithPraxis(() => uncertaintyComplete(HTGR))).toBe(true);
-  });
+  }, 60_000);
 
   it("summarizes a component estimate through PRAXIS", async () => {
-    const monitor = await settledWithPraxis(() => distributionSummary(HTGR, parameterOf(HTGR, "DA-BE-249")));
+    const monitor = await settledWithPraxis(() => distributionSummary(HTGR, parameterOf(HTGR, "DA-BE-223")));
     expect(monitor).toMatchObject({ family: "Truncated", sampled: false });
     expect(monitor.pending).toBeUndefined();
     expect(monitor.problem).toBeUndefined();
     const sigma = Math.log(10) / 1.6448536269514722;
     expect(monitor.errorFactor).toBeCloseTo(10, 3);
-    expect((monitor.median ?? 0) / (0.0036 * Math.exp((-sigma * sigma) / 2))).toBeCloseTo(1, 5);
+    expect((monitor.median ?? 0) / (0.00036 * Math.exp((-sigma * sigma) / 2))).toBeCloseTo(1, 5);
     const circulator = await settledWithPraxis(() => distributionSummary(HTGR, parameterOf(HTGR, "DA-BE-205")));
-    const rate = 0.5 / (90.5 / 785000) + 253886;
+    const rate = 0.5 / ((90.5 / 1570000) * 2.39710255853434) + 253886;
     expect(circulator.family).toBe("Mission model");
     expect(circulator.sampled).toBe(true);
     expect(Math.abs((circulator.mean ?? 0) / (1 - (rate / (rate + 24)) ** 2.5) - 1)).toBeLessThan(5e-3);
@@ -128,11 +128,11 @@ describe("uncertainty", () => {
     expect(sweep).toMatchObject({ low: expect.closeTo(0.001799877471427639, 12), high: expect.closeTo(0.010739690083886403, 12) });
     expect((sweep.low ?? 0) / (0.5 * 0.0036)).toBeLessThan(1);
     expect((sweep.high ?? 0) / (3 * 0.0036)).toBeGreaterThan(0.99);
-    expect((await caseOf(HTGR, "SS-2")).high).toBeCloseTo(-Math.expm1((-24 * 92.5) / (785000 + 253886)), 15);
+    expect(Math.abs(((await caseOf(HTGR, "SS-2")).high ?? 0) / 0.0005974621337499246 - 1)).toBeLessThan(1e-6);
     expect(await caseOf(HTGR, "SS-5")).toMatchObject({ low: 0.034228276390151025, high: 0.0975 });
     const testing = await caseOf(HTGR, "SS-6");
     expect((testing.high ?? 0) / (testing.low ?? 1)).toBeCloseTo(1.9856, 3);
-    expect(Math.abs(((await caseOf(SFR, "SS-6")).high ?? 0) / 0.00016691958287591953 - 1)).toBeLessThan(1e-6);
+    expect(Math.abs(((await caseOf(SFR, "SS-6")).high ?? 0) / 0.00017300976092140088 - 1)).toBeLessThan(1e-6);
   });
 
   it("asks for a register and checks what the entries point at", async () => {

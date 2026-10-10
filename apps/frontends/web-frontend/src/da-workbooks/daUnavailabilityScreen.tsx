@@ -17,6 +17,7 @@ import type {
   DaSourceEntry,
   DaSourceUse,
 } from "interfaces-mef-types/da/data-analysis";
+import type { DurationModel } from "interfaces-mef-types/core/uncertainty";
 import { useUncertaintyVersion } from "../newly-developed-methods/shared/useUncertainty";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
@@ -36,6 +37,7 @@ import {
   trainParameters,
   unavailabilityFindings,
   type DaMaintenanceEstimate,
+  type DaRestorationEstimate,
 } from "./daUnavailability";
 import { libraryEntries, nextCode, sourceUseBase, withStoredEntry } from "./daSourcing";
 import { nextParameterId } from "./daSelectors";
@@ -67,7 +69,16 @@ const UNAVAILABILITY_WINDOW_KINDS: ReadonlySet<string> = new Set(["daMaintenance
 
 const MAINTENANCE_KINDS: DaMaintenanceKind[] = ["TRAIN", "COINCIDENT"];
 
-const MAINTENANCE_METHODS: DaMaintenanceMethod[] = ["PLANNED", "RECORDS", "GENERIC"];
+const MAINTENANCE_METHODS: DaMaintenanceMethod[] = ["PLANNED", "RECORDS", "GENERIC", "BAYES"];
+
+const DURATION_MODELS: DurationModel[] = ["EXPONENTIAL", "LOGNORMAL", "WEIBULL", "GAMMA"];
+
+const DURATION_MODEL_LABELS: Record<DurationModel, string> = {
+  EXPONENTIAL: "Exponential",
+  LOGNORMAL: "Lognormal",
+  WEIBULL: "Weibull",
+  GAMMA: "Gamma",
+};
 
 const RESTORATION_KINDS: DaRestorationKind[] = ["REPAIR", "RECOVERY"];
 
@@ -104,26 +115,31 @@ function MaintenanceDetail({ parameter }: { parameter: DataAnalysisParameter }):
   const estimate = maintenanceEstimate(da, parameter);
   const method = estimate.method;
   const expression = estimate.estimate;
-  const span = method === "RECORDS" ? "in the data window" : "a year";
+  const recorded = method === "RECORDS" || method === "BAYES";
+  const span = recorded ? "in the data window" : "a year";
   const curve = expression?.node === "VALUE" ? lawSummary(expression.value.unit, expression.value.law, true) : undefined;
-  const published = estimate.published !== undefined && estimate.trains !== 1 ? lawSummary("FRACTION", estimate.published, true) : undefined;
+  const published = estimate.published !== undefined && (estimate.trains !== 1 || method === "BAYES") ? lawSummary("FRACTION", estimate.published, true) : undefined;
   const series: DistributionSeries[] = [];
   if (curve?.status === "ready") series.push({ key: "ESTIMATE", label: "Unavailability", detail: "", summary: curve.value });
-  if (published?.status === "ready") series.push({ key: "PUBLISHED", label: "Published, per train", detail: "", summary: published.value });
+  if (published?.status === "ready") series.push({ key: "PUBLISHED", label: method === "BAYES" ? "Published prior, per train" : "Published, per train", detail: "", summary: published.value });
   const items = [
     { label: "Kind", value: MAINTENANCE_KIND_LABELS[estimate.kind] },
     { label: "Method", value: method === undefined ? "Not chosen" : MAINTENANCE_METHOD_LABELS[method] },
   ];
-  if (method === "PLANNED" || method === "RECORDS") {
+  if (method === "PLANNED" || recorded) {
     items.push({ label: "Counted", value: estimate.counted.length === 0 ? "—" : estimate.counted.map((item) => `${item.label} ${hoursText(item.hours)}`).join(", ") });
     items.push({ label: "Not counted", value: estimate.left.length === 0 ? "—" : estimate.left.map((item) => `${item.label} (${item.why === "SUPPORT" ? `charged to ${item.chargedTo ?? "?"}` : "function stays available"})`).join(", ") });
     items.push({ label: `Hours out ${span}`, value: hoursText(estimate.countedHours) });
     if (estimate.kind === "TRAIN") items.push({ label: "Joint hours taken out", value: hoursText(estimate.overlapHours) });
     items.push({ label: `Hours required ${span}`, value: hoursText(estimate.requiredHours) });
   }
+  if (recorded) items.push({ label: "Outages with hours", value: estimate.outages === undefined ? "—" : String(estimate.outages) }, { label: "Mean outage", value: hoursText(estimate.meanHours) });
+  if (method === "RECORDS") items.push({ label: "Duration model", value: estimate.durationModel === undefined ? "—" : DURATION_MODEL_LABELS[estimate.durationModel] });
   if (method === "GENERIC") items.push({ label: "Published, per train", value: statText(estimate.perTrain) });
+  if (method === "BAYES") items.push({ label: "Updated, per train", value: statText(estimate.perTrain) });
   if (estimate.kind === "TRAIN" && method !== "TYPED") items.push({ label: "Trains", value: String(estimate.trains) });
-  if (method !== "TYPED" && method !== "GENERIC") items.push({ label: "Per train", value: statText(estimate.perTrain) });
+  if (method === "PLANNED") items.push({ label: "Per train", value: statText(estimate.perTrain) });
+  if (method === "RECORDS") items.push({ label: "Hours out per hour required", value: statText(estimate.perTrain) });
   items.push({ label: "Distribution", value: estimateText(expression) });
   items.push(...spreadFields(maintenanceSpread(estimate)));
   const note = estimate.problem ?? (estimate.pending ? "Waiting for PRAXIS." : waitNote([curve, published]));
@@ -146,13 +162,14 @@ function maintenanceValue(estimate: DaMaintenanceEstimate): JSX.Element {
 
 function RestorationDetail({ parameter }: { parameter: DataAnalysisParameter }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const estimate = restorationEstimate(da, parameter);
   const method = estimate.method;
-  const output = estimate.output;
+  const spread = estimate.spread;
   const window = estimate.window;
   const hours = useMemo(() => (window === undefined ? [] : survivalGrid(window)), [window]);
-  const curves = useMemo(() => (window === undefined ? [] : survivalCurve(da, parameter, hours)), [da, parameter, hours, window]);
-  const typed = method === "TYPED" ? parameter.uncertainty?.distribution : undefined;
+  const curves = window === undefined || method === "TYPED" ? { series: [], pending: false } : survivalCurve(da, parameter, hours);
+  const typed = method === "TYPED" && parameter.estimate?.node === "VALUE" ? lawSummary(parameter.estimate.value.unit, parameter.estimate.value.law, true) : undefined;
   const subjectText = (parameter.restoration?.subject ?? "").trim();
   const items = [
     { label: "Subject", value: subjectText.length > 0 ? subjectText : "—" },
@@ -160,24 +177,22 @@ function RestorationDetail({ parameter }: { parameter: DataAnalysisParameter }):
     { label: "Time available", value: hoursText(window) },
     { label: "State and sequence", value: parameter.restoration?.sequence ?? "—" },
   ];
-  if (method === "SOURCES") {
-    items.push({ label: "Parts", value: estimate.parts.length === 0 ? "—" : estimate.parts.map((part) => `${part.label}${part.weight === undefined ? "" : ` ${Math.round(part.weight * 1000) / 10}%`}`).join(", ") });
-    const atMedians = estimate.parts.every((part) => part.survival !== undefined && part.weight !== undefined) && estimate.parts.length > 0 ? estimate.parts.reduce((total, part) => total + (part.weight ?? 0) * (part.survival ?? 0), 0) : undefined;
-    items.push({ label: "Mean", value: statText(output?.mean) });
-    items.push({ label: "At the fitted medians", value: statText(atMedians) });
-    items.push({ label: "Comparison mean", value: statText(estimate.comparisonMean) });
-  }
-  if (method === "RECORDS") items.push({ label: "Fit to the times", value: estimate.fit === undefined ? "—" : `median ${hoursText(estimate.fit.median)}, log spread ${plainText(estimate.fit.sigma)}, ${estimate.fit.count} times` });
-  items.push({ label: "Distribution", value: output === undefined ? "—" : distributionText(output.distribution) });
-  items.push({ label: "5th percentile", value: statText(output?.p05) });
-  items.push({ label: "95th percentile", value: statText(output?.p95) });
+  if (method === "SOURCES") items.push({ label: "Parts", value: estimate.parts.length === 0 ? "—" : estimate.parts.map((part) => `${part.label}${part.weight === undefined ? "" : ` ${Math.round(part.weight * 1000) / 10}%`}`).join(", ") });
+  if (method === "RECORDS") items.push({ label: "Model", value: estimate.model === undefined ? "—" : DURATION_MODEL_LABELS[estimate.model] });
+  if (method === "RECORDS" || (method === "SOURCES" && estimate.times.length + estimate.censored.length > 0)) items.push({ label: "Plant times", value: `${estimate.times.length} completed, ${estimate.censored.length} still open` });
+  items.push({ label: "Estimate", value: estimateText(estimate.estimate) });
+  items.push({ label: "Mean", value: statText(spread?.mean) });
+  items.push({ label: "5th percentile", value: statText(spread?.p05) });
+  items.push({ label: "95th percentile", value: statText(spread?.p95) });
+  if (method === "SOURCES") items.push({ label: "Comparison mean", value: statText(estimate.comparisonMean) });
   const subject = subjectText.length > 0 ? subjectText.toLowerCase() : "the function";
+  const note = estimate.problem ?? (estimate.pending || curves.pending ? "Waiting for PRAXIS." : waitNote([typed]));
   return (
     <>
       <FieldList items={items} />
-      {estimate.problem !== undefined && <p className="posmuted">{estimate.problem}</p>}
-      {method !== "TYPED" && window !== undefined && curves.length > 0 && <SurvivalChart hours={hours} series={curves} window={window} subject={subject} />}
-      {typed !== undefined && <DistributionChart series={[{ key: "TYPED", label: "Typed probability", detail: "", distribution: typed }]} unit="probability" />}
+      {note !== undefined && <p className="posmuted">{note}</p>}
+      {method !== "TYPED" && window !== undefined && curves.series.length > 0 && <SurvivalChart hours={hours} series={curves.series} window={window} subject={subject} />}
+      {typed?.status === "ready" && <DistributionChart series={[{ key: "TYPED", label: "Typed probability", detail: "", summary: typed.value }]} unit="probability" />}
     </>
   );
 }
@@ -236,14 +251,22 @@ function MaintenanceTable({ kind, selected, onSelect, openDrawer }: { kind: DaMa
   );
 }
 
+function restorationValue(estimate: DaRestorationEstimate): JSX.Element {
+  if (estimate.method === undefined) return <>—</>;
+  if (estimate.problem !== undefined) return <span className="da-severity da-severity--error" title={estimate.problem}>Cannot compute</span>;
+  if (estimate.pending || estimate.spread === undefined) return <PraxisValue state={{ status: "pending" }} />;
+  return <>{statText(estimate.spread.mean)}</>;
+}
+
 function RestorationTable({ kind, selected, onSelect, openDrawer }: { kind: DaRestorationKind; selected: string; onSelect: (key: string) => void; openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
   const { da } = useDaWorkbook();
+  useUncertaintyVersion();
   const filters = useTableFilter();
   const filterId = useId();
   const [wrapRef, wrapWidth] = useElementWidth(0);
   const parameters = restorationParameters(da, kind);
   if (parameters.length === 0) return <p className="posmuted">{kind === "REPAIR" ? "No repair is credited. Add one for each component whose repair Systems Analysis models (SY-A31)." : "No recovery is credited. Add one for offsite power and each other function the sequences recover."}</p>;
-  const rows = parameters.filter((parameter) => filters.show === "all" || restorationEstimate(da, parameter).output === undefined);
+  const rows = parameters.filter((parameter) => filters.show === "all" || restorationEstimate(da, parameter).estimate === undefined);
   const { current, shown } = pageOf(rows, filters.page);
   return (
     <>
@@ -269,7 +292,7 @@ function RestorationTable({ kind, selected, onSelect, openDrawer }: { kind: DaRe
                     <td><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daRestoration", id: parameter.uuid }); }}>{parameter.uuid}</button></td>
                     <td className="da-rowtable__text">{nameOf(parameter)}</td>
                     <td className="da-rowtable__num">{hoursText(estimate.window)}</td>
-                    <td className="da-rowtable__num">{estimate.output !== undefined ? statText(estimate.output.mean) : estimate.method === undefined ? "—" : <span className="da-severity da-severity--error">Cannot compute</span>}</td>
+                    <td className="da-rowtable__num">{restorationValue(estimate)}</td>
                   </tr>
                   {open && <DetailRow span={5} width={wrapWidth - 18}><RestorationDetail parameter={parameter} /></DetailRow>}
                 </Fragment>
@@ -323,7 +346,6 @@ function newRestoration(id: string, kind: DaRestorationKind): DataAnalysisParame
     uuid: id,
     name: "",
     parameterType: "PROBABILITY",
-    valueType: "MEAN",
     quantificationModel: "NON_RECOVERY",
     valueMode: "CALCULATED",
     restoration: { kind, subject: "", from: "SOURCES" },
@@ -540,7 +562,8 @@ function MaintenanceWindow({ id, onClose, onRetarget }: { id: string; onClose: (
   function addRecord(): void {
     setRecords([...records, { id: nextCode("R", records.map((item) => item.id), 1), activity: "", hours: 0, disablesFunction: true }]);
   }
-  const counted = method === "PLANNED" || method === "RECORDS";
+  const recorded = method === "RECORDS" || method === "BAYES";
+  const counted = method === "PLANNED" || recorded;
   return (
     <>
       <ModalHead cap={`Unavailability · ${MAINTENANCE_KIND_LABELS[basis.kind]} · ${basis.kind === "COINCIDENT" ? "DA-C18 · DA-C19" : "DA-C13 to C17"}`} title={`${parameter.uuid} · ${nameOf(parameter)}`} onClose={onClose} />
@@ -611,7 +634,17 @@ function MaintenanceWindow({ id, onClose, onRetarget }: { id: string; onClose: (
           />
         ))}
         {method === "PLANNED" && activities.length === 0 && <p className="posmuted">No activity yet. Add each test and maintenance activity of the planned program.</p>}
-        {method === "RECORDS" && records.map((record) => (
+        {method === "RECORDS" && (
+          <FormRow label="Duration model" htmlFor={fid("model")}>
+            <select id={fid("model")} className="posfield__select" value={basis.durationModel ?? "EXPONENTIAL"} disabled={dis} onChange={(event) => { const next = DURATION_MODELS.find((candidate) => candidate === event.target.value); if (next !== undefined) patchBasis({ durationModel: next === "EXPONENTIAL" ? undefined : next }); }}>
+              {DURATION_MODELS.map((candidate) => <option key={candidate} value={candidate}>{DURATION_MODEL_LABELS[candidate]}</option>)}
+            </select>
+            <span className="da-form__unit">for the hours of each outage</span>
+          </FormRow>
+        )}
+        {method === "RECORDS" && <p className="da-needs__meta">PRAXIS updates the outage frequency over the required hours and the mean outage duration from the records. The value is f d / (1 + f d).</p>}
+        {method === "BAYES" && <p className="da-needs__meta">The Step 04 prior, a fraction of time out of service, is updated with the records. Each mean outage counts as one trial.</p>}
+        {recorded && records.map((record) => (
           <OutOfServiceBlock
             key={record.id}
             record={record}
@@ -620,9 +653,9 @@ function MaintenanceWindow({ id, onClose, onRetarget }: { id: string; onClose: (
             onRemove={() => setRecords(records.filter((candidate) => candidate.id !== record.id))}
           />
         ))}
-        {method === "RECORDS" && records.length === 0 && <p className="posmuted">No record yet. Add each time the equipment was out of service in the data window.</p>}
+        {recorded && records.length === 0 && <p className="posmuted">No record yet. Add each time the equipment was out of service in the data window.</p>}
         {method === "GENERIC" && <p className="posmuted">The value is the Step 04 prior, a fraction of time out of service, times the trains.</p>}
-        <AreaRow label={method === "GENERIC" ? "Why the published value fits" : "Basis"} value={basis.basis ?? ""} disabled={dis} onChange={(text) => patchBasis({ basis: text.trim().length === 0 ? undefined : text })} />
+        <AreaRow label={method === "GENERIC" || method === "BAYES" ? "Why the published value fits" : "Basis"} value={basis.basis ?? ""} disabled={dis} onChange={(text) => patchBasis({ basis: text.trim().length === 0 ? undefined : text })} />
         <FormRow label="Risk significant" htmlFor={fid("risk")}>
           <select id={fid("risk")} className="posfield__select" value={parameter.isRiskSignificant === true ? "yes" : "no"} disabled={dis} onChange={(event) => patch({ isRiskSignificant: event.target.value === "yes" })}>
             <option value="no">No</option>
@@ -631,9 +664,9 @@ function MaintenanceWindow({ id, onClose, onRetarget }: { id: string; onClose: (
         </FormRow>
       </div>
       <FormFoot onClose={onClose}>
-        {method === "GENERIC" && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onRetarget({ kind: "daSourcing", id })}>Open applicability</button>}
+        {(method === "GENERIC" || method === "BAYES") && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onRetarget({ kind: "daSourcing", id })}>Open applicability</button>}
         {editable && method === "PLANNED" && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addActivity}>Add activity</button>}
-        {editable && method === "RECORDS" && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addRecord}>Add record</button>}
+        {editable && recorded && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addRecord}>Add record</button>}
       </FormFoot>
     </>
   );
@@ -720,6 +753,12 @@ function TimeBlock({ time, disabled, onPatch, onRemove }: { time: DaRestorationT
       <FormRow label="Hours" htmlFor={`${fieldId}-hours`}>
         <WorkbookInput id={`${fieldId}-hours`} className="posfield__input da-form__number" type="number" min="0" step="any" value={time.hours} disabled={disabled} onChange={(event) => numberFrom(event.target.value, (hours) => onPatch({ hours: hours ?? 0 }))} />
         <span className="da-form__unit">from finding the loss to return to service</span>
+      </FormRow>
+      <FormRow label="Restored" htmlFor={`${fieldId}-censored`}>
+        <select id={`${fieldId}-censored`} className="posfield__select" value={time.censored === true ? "no" : "yes"} disabled={disabled} onChange={(event) => onPatch({ censored: event.target.value === "no" ? true : undefined })}>
+          <option value="yes">Yes, at these hours</option>
+          <option value="no">No, still out at these hours</option>
+        </select>
       </FormRow>
       <TextRow label="Date" value={time.date ?? ""} disabled={disabled} onChange={(date) => onPatch({ date: date.trim().length === 0 ? undefined : date })} />
       <TextRow label="Reference" value={time.reference ?? ""} disabled={disabled} onChange={(reference) => onPatch({ reference: reference.trim().length === 0 ? undefined : reference })} />
@@ -816,7 +855,7 @@ function RestorationWindow({ id, onClose, onRetarget }: { id: string; onClose: (
             <option value="TYPED">{RESTORATION_FROM_LABELS.TYPED}</option>
           </select>
         </FormRow>
-        {method === "TYPED" && <TypedValueRows parameter={parameter} disabled={dis} onPatch={patch} />}
+        {method === "TYPED" && <EstimateRows parameter={parameter} disabled={dis} onPatch={patch} />}
         <FormRow label="Time available" htmlFor={fid("window")}>
           <WorkbookInput id={fid("window")} className="posfield__input da-form__number" type="number" min="0" step="any" value={basis.windowHours ?? ""} disabled={dis} onChange={(event) => numberFrom(event.target.value, (windowHours) => patchBasis({ windowHours }))} />
           <span className="da-form__unit">hours before the {basis.kind === "REPAIR" ? "repair" : "recovery"} no longer helps</span>
@@ -827,7 +866,16 @@ function RestorationWindow({ id, onClose, onRetarget }: { id: string; onClose: (
         {method === "SOURCES" && parts.length === 0 && <p className="posmuted">No part yet. Consider the time sources in Step 04 Applicability, then add each one as a part.</p>}
         {method === "SOURCES" && partBlocks(parameter, "comparison", comparison)}
         {method === "SOURCES" && waiting > 0 && parts.some((part) => weightModeOf(part) === "FREQUENCY") && <p className="da-needs__meta">Loading the built-in estimates of {waiting} {waiting === 1 ? "source" : "sources"}.</p>}
-        {method === "RECORDS" && times.map((time, index) => (
+        {method === "RECORDS" && (
+          <FormRow label="Model" htmlFor={fid("model")}>
+            <select id={fid("model")} className="posfield__select" value={basis.model ?? "LOGNORMAL"} disabled={dis} onChange={(event) => { const next = DURATION_MODELS.find((candidate) => candidate === event.target.value); if (next !== undefined) patchBasis({ model: next === "LOGNORMAL" ? undefined : next }); }}>
+              {DURATION_MODELS.map((candidate) => <option key={candidate} value={candidate}>{DURATION_MODEL_LABELS[candidate]}</option>)}
+            </select>
+            <span className="da-form__unit">for the restoration time</span>
+          </FormRow>
+        )}
+        {method === "SOURCES" && <p className="da-needs__meta">Each part is a prior on the restoration time. A lognormal part with its event count is uncertain in its median. Plant times below update every part.</p>}
+        {(method === "RECORDS" || method === "SOURCES") && times.map((time, index) => (
           <TimeBlock
             key={time.id}
             time={time}
@@ -837,13 +885,14 @@ function RestorationWindow({ id, onClose, onRetarget }: { id: string; onClose: (
           />
         ))}
         {method === "RECORDS" && times.length === 0 && <p className="posmuted">No time yet. Add each restoration time, from finding the loss to return to service.</p>}
+        {method === "SOURCES" && times.length === 0 && <p className="posmuted">No plant time yet. Add plant times to update the sources.</p>}
         <AreaRow label="Basis" value={basis.basis ?? ""} disabled={dis} onChange={(text) => patchBasis({ basis: text.trim().length === 0 ? undefined : text })} />
       </div>
       <FormFoot onClose={onClose}>
         {method === "SOURCES" && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onRetarget({ kind: "daSourcing", id })}>Open applicability</button>}
         {editable && method === "SOURCES" && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchBasis({ parts: [...parts, { useId: firstUse }] })}>Add part</button>}
         {editable && method === "SOURCES" && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchBasis({ comparison: [...comparison, { useId: firstUse }] })}>Add comparison part</button>}
-        {editable && method === "RECORDS" && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchBasis({ times: [...times, { id: nextCode("T", times.map((item) => item.id), 1), hours: 0 }] })}>Add time</button>}
+        {editable && (method === "RECORDS" || method === "SOURCES") && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchBasis({ times: [...times, { id: nextCode("T", times.map((item) => item.id), 1), hours: 0 }] })}>Add time</button>}
       </FormFoot>
     </>
   );

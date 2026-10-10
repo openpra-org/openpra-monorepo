@@ -49,6 +49,7 @@ import {
   type EventTreeRepresentation,
 } from "../newly-developed-methods/event-tree";
 import type { ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
+import { transferBreadcrumb, useTransferTrail } from "../newly-developed-methods/shared/transferTrail";
 import { daParameterKey, daParameterLabel, daReference, useDaFrequencyTable, type IeDaFrequencyOption } from "../ie-workbooks/ieDaLinks";
 import "./css/esScreens.css";
 
@@ -1061,6 +1062,11 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
 
 const NO_DA_FREQUENCIES: IeDaFrequencyOption[] = [];
 
+interface EsTrailPlace {
+  treeId: string;
+  selection: string | null;
+}
+
 function SequencesScreen(): JSX.Element {
   const { es, posLink, ieLink, projectId, faultTreeSource, editable, mutateEs, runtime, daFrequencies } = useEsWorkbook();
   const daOptions = daFrequencies ?? NO_DA_FREQUENCIES;
@@ -1084,9 +1090,33 @@ function SequencesScreen(): JSX.Element {
   const dynamicRun = (es.dynamicRuns ?? []).find((run) => run.eventTreeId === activeTreeId);
   const result = model === undefined ? undefined : results[model.uuid];
 
+  const pendingSelection = useRef<EsTrailPlace | null>(null);
+  const trail = useTransferTrail<EsTrailPlace>((place) => place.treeId === activeTreeId);
+  const currentPlace = (): EsTrailPlace => ({ treeId: activeTreeId, selection });
+  const goTo = (place: EsTrailPlace): void => {
+    if (place.treeId === activeTreeId) {
+      setSelection(place.selection);
+      return;
+    }
+    pendingSelection.current = place;
+    setTreeId(place.treeId);
+  };
+  const pickTree = (id: string): void => {
+    trail.reset();
+    setTreeId(id);
+    setSelection(null);
+  };
+
   useEffect(() => {
     if (model !== undefined && treeId !== model.uuid) setTreeId(model.uuid);
   }, [model, treeId]);
+
+  useEffect(() => {
+    const pending = pendingSelection.current;
+    if (pending === null || pending.treeId !== activeTreeId) return;
+    pendingSelection.current = null;
+    setSelection(pending.selection);
+  }, [activeTreeId]);
 
   const createTree = (initiatingEventId?: string, plantOperatingStateId?: string): void => {
     if (!editable) return;
@@ -1145,7 +1175,7 @@ function SequencesScreen(): JSX.Element {
           </div>
           <div className="posrow" style={{ gap: 8 }}>
             {model !== undefined && (
-              <select aria-label="Event tree" className="posfield__select" value={model.uuid} onChange={(event) => { setTreeId(event.target.value); setSelection(null); }}>
+              <select aria-label="Event tree" className="posfield__select" value={model.uuid} onChange={(event) => pickTree(event.target.value)}>
                 {trees.map((tree) => <option key={tree.uuid} value={tree.uuid}>{tree.name} · {tree.initiatingEventId}{tree.plantOperatingStateId === undefined ? "" : ` · ${tree.plantOperatingStateId}`}</option>)}
               </select>
             )}
@@ -1159,7 +1189,7 @@ function SequencesScreen(): JSX.Element {
               <tbody>{coverage.states.map((state) => <tr key={state.id}><th className="esmatrix__rowh"><span className="esmatrix__rowh-id">{state.id}</span>{state.name.length > 0 && <span className="esmatrix__rowh-name">{state.name}</span>}</th>{coverage.ies.map((initiator) => {
                 const cellTreeId = coverage.cellTree[`${initiator.id}|${state.id}`];
                 const selected = cellTreeId === model?.uuid;
-                return <td key={initiator.id} className={`esmatrix__cell${cellTreeId === undefined ? "" : " esmatrix__cell--on"}${selected ? " esmatrix__cell--sel" : ""}`} title={cellTreeId === undefined ? `Create ${initiator.id} in ${state.id}` : `Open ${initiator.id} in ${state.id}`} onClick={() => { if (cellTreeId === undefined) createTree(initiator.id, state.id); else { setTreeId(cellTreeId); setSelection(null); } }}>{cellTreeId === undefined ? (editable ? <span className="esmatrix__add">+</span> : <span className="esmatrix__na">·</span>) : <span className="esmatrix__dot" />}</td>;
+                return <td key={initiator.id} className={`esmatrix__cell${cellTreeId === undefined ? "" : " esmatrix__cell--on"}${selected ? " esmatrix__cell--sel" : ""}`} title={cellTreeId === undefined ? `Create ${initiator.id} in ${state.id}` : `Open ${initiator.id} in ${state.id}`} onClick={() => { if (cellTreeId === undefined) createTree(initiator.id, state.id); else pickTree(cellTreeId); }}>{cellTreeId === undefined ? (editable ? <span className="esmatrix__add">+</span> : <span className="esmatrix__na">·</span>) : <span className="esmatrix__dot" />}</td>;
               })}</tr>)}</tbody>
             </table>
           </div>
@@ -1171,6 +1201,7 @@ function SequencesScreen(): JSX.Element {
       ) : (
         <EventTreeEditor
           model={model}
+          breadcrumb={transferBreadcrumb(trail, currentPlace, goTo)}
           eventSequences={es.eventSequences}
           availableInitiatingEvents={ieLink.initiators.map((initiator) => ({ id: initiator.id, name: initiator.name }))}
           frequencyOptions={frequencyOptions}
@@ -1198,6 +1229,11 @@ function SequencesScreen(): JSX.Element {
           }))}
           onOpenReference={(reference) => {
             if ("targetEventTreeId" in reference) {
+              const target = trees.find((tree) => tree.uuid === reference.targetEventTreeId);
+              trail.follow(
+                { place: currentPlace(), label: model.name },
+                { place: { treeId: reference.targetEventTreeId, selection: null }, label: target?.name ?? reference.targetEventTreeId },
+              );
               setTreeId(reference.targetEventTreeId);
               setSelection(null);
             } else {

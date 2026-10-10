@@ -107,8 +107,9 @@ pub fn draw_vector(key: &str, law: &VectorLaw, plan: &SamplingPlan) -> Result<Ve
         VectorLaw::Fixed { values } => {
             return Ok(values.iter().map(|value| vec![*value; plan.trials]).collect());
         }
-        VectorLaw::Dirichlet { concentrations } => concentrations,
+        VectorLaw::Dirichlet { concentrations } | VectorLaw::WeightedDirichlet { concentrations, .. } => concentrations,
     };
+    let shifts = law.log_weights();
     let mut logs = vec![vec![f64::NEG_INFINITY; concentrations.len()]; plan.trials];
     match plan.method {
         SamplingMethod::MonteCarlo => {
@@ -141,7 +142,10 @@ pub fn draw_vector(key: &str, law: &VectorLaw, plan: &SamplingPlan) -> Result<Ve
     }
     let rows = logs
         .iter()
-        .map(|row| normalized_logs(row))
+        .map(|row| {
+            let shifted: Vec<f64> = row.iter().zip(&shifts).map(|(log, shift)| log + shift).collect();
+            normalized_logs(&shifted)
+        })
         .collect::<Result<Vec<Vec<f64>>>>()?;
     Ok((0..concentrations.len())
         .map(|component| rows.iter().map(|row| row[component]).collect())
@@ -570,5 +574,35 @@ impl UncertaintyProgram {
             }
         }
         Ok(results)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{draw_vector, SamplingMethod, SamplingPlan};
+    use crate::core::distribution::VectorLaw;
+
+    #[test]
+    fn a_weighted_dirichlet_reweights_its_gamma_draws() {
+        let concentrations = vec![4.0, 2.0, 1.0];
+        let weights = vec![1.0, 0.5, 1.0 / 3.0];
+        let weighted = VectorLaw::WeightedDirichlet {
+            concentrations: concentrations.clone(),
+            weights: weights.clone(),
+        };
+        for (actual, expected) in weighted.mean().iter().zip([0.75, 0.1875, 0.0625]) {
+            assert!((actual - expected).abs() <= 1e-12, "{actual} against {expected}");
+        }
+        let plan = SamplingPlan {
+            method: SamplingMethod::MonteCarlo,
+            trials: 1,
+            seed: 7,
+        };
+        let plain = draw_vector("v", &VectorLaw::Dirichlet { concentrations }, &plan).unwrap();
+        let drawn = draw_vector("v", &weighted, &plan).unwrap();
+        let total: f64 = plain.iter().zip(&weights).map(|(column, weight)| column[0] * weight).sum();
+        for ((column, weight), draw) in plain.iter().zip(&weights).zip(&drawn) {
+            assert!((draw[0] - column[0] * weight / total).abs() <= 1e-12);
+        }
     }
 }

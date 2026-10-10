@@ -24,6 +24,8 @@ import { SyWorkbench, type SyWorkbenchActions } from "./syWorkbench";
 import {
   SyWorkbookProvider,
   type SyControlledCcfEstimateOption,
+  type SyControlledCcfVectorOption,
+  type SyControlledCcfFactorOption,
   type SyControlledCoincidentMaintenanceOption,
   type SyControlledComponentBoundaryOption,
   type SyControlledFailureModeOption,
@@ -48,7 +50,7 @@ import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
 import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
 import { useReferencedScSources } from "./syMissionTimes";
 import { getPosWorkbook } from "../pos-workbooks/posWorkbookApi";
-import { buildLinkedInputs, controlledCcfEstimateOptions, controlledCoincidentMaintenanceOptions, controlledComponentBoundaryOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledLegacyParameterOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
+import { buildLinkedInputs, controlledCcfEstimateOptions, controlledCcfFactorOptions, controlledCcfVectorOptions, controlledCoincidentMaintenanceOptions, controlledComponentBoundaryOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledLegacyParameterOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "SY-A1",
@@ -98,6 +100,8 @@ function SyWorkbookPage(): JSX.Element {
   const [controlledFailureModes, setControlledFailureModes] = useState<SyControlledFailureModeOption[]>([]);
   const [controlledCoincidentMaintenance, setControlledCoincidentMaintenance] = useState<SyControlledCoincidentMaintenanceOption[]>([]);
   const [controlledCcfEstimates, setControlledCcfEstimates] = useState<SyControlledCcfEstimateOption[]>([]);
+  const [controlledCcfVectors, setControlledCcfVectors] = useState<SyControlledCcfVectorOption[]>([]);
+  const [controlledCcfFactors, setControlledCcfFactors] = useState<SyControlledCcfFactorOption[]>([]);
   const [controlledComponentBoundaries, setControlledComponentBoundaries] = useState<SyControlledComponentBoundaryOption[]>([]);
   const [linkOptions, setLinkOptions] = useState<Record<SyLinkCode, Workbook[]>>(NO_LINK_OPTIONS);
   const [linkedEs, setLinkedEs] = useState<EventSequenceAnalysis | undefined>(undefined);
@@ -199,6 +203,8 @@ function SyWorkbookPage(): JSX.Element {
         setControlledFailureModes(controlledFailureModeOptions(sources));
         setControlledCoincidentMaintenance(controlledCoincidentMaintenanceOptions(sources));
         setControlledCcfEstimates(controlledCcfEstimateOptions(sources));
+        setControlledCcfVectors(controlledCcfVectorOptions(sources));
+        setControlledCcfFactors(controlledCcfFactorOptions(sources));
         setControlledComponentBoundaries(controlledComponentBoundaryOptions(sources));
       })
       .catch(() => {
@@ -208,6 +214,8 @@ function SyWorkbookPage(): JSX.Element {
         setControlledFailureModes([]);
         setControlledCoincidentMaintenance([]);
         setControlledCcfEstimates([]);
+        setControlledCcfVectors([]);
+        setControlledCcfFactors([]);
         setControlledComponentBoundaries([]);
       });
     return () => { cancelled = true; };
@@ -339,6 +347,8 @@ function SyWorkbookPage(): JSX.Element {
       controlledFailureModes={controlledFailureModes}
       controlledCoincidentMaintenance={controlledCoincidentMaintenance}
       controlledCcfEstimates={controlledCcfEstimates}
+      controlledCcfVectors={controlledCcfVectors}
+      controlledCcfFactors={controlledCcfFactors}
       controlledComponentBoundaries={controlledComponentBoundaries}
       upstream={upstream}
     >

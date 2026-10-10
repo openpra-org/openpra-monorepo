@@ -4,7 +4,7 @@ import { Model } from "mongoose";
 import { DataAnalysisSchema } from "interfaces-mef-types/zod/da/data-analysis";
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
-import { daMissionTimeExpressions, reconcileExampleDaMissionTimeReferences, relinkExampleMissionTimes } from "../example-workbooks/seeds/dependency-model-seed";
+import { daMissionTimeExpressions, reconcileExampleDaMissionTimeReferences, reconcileExampleDaOwnReferences, relinkExampleMissionTimes } from "../example-workbooks/seeds/dependency-model-seed";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { DaWorkbook, type DaWorkbookDocument } from "./da-workbook.schema";
@@ -115,14 +115,14 @@ export class DaWorkbooksService {
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const missionTimes = await this.exampleWorkbooksService.projectMissionTimeSources(doc.projectId);
     const cleaned = {
-      ...relinkExampleMissionTimes(parsed.data, daMissionTimeExpressions(parsed.data), missionTimes, reconcileExampleDaMissionTimeReferences),
+      ...reconcileExampleDaOwnReferences(relinkExampleMissionTimes(parsed.data, daMissionTimeExpressions(parsed.data), missionTimes, reconcileExampleDaMissionTimeReferences), workbookId),
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };
     const updatedDoc = await this.daWorkbookModel
       .findOneAndUpdate(
         createWorkbookRevisionFilter(workbookId, expectedRevision),
-        { $set: { previousMefJson: JSON.stringify(doc.mef), mef: cleaned, revision: expectedRevision + 1 } },
+        { $set: { previousMefJson: JSON.stringify(stripNulls(doc.mef)), mef: cleaned, revision: expectedRevision + 1 } },
         { new: true, runValidators: true },
       )
       .exec();

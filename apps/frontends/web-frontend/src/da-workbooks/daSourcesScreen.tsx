@@ -12,7 +12,9 @@ import type {
   DaJudgmentLevel,
   DaSource,
   DaSourceEntry,
+  DaSourceEstimateType,
   DaSourceOrigin,
+  DaSourceSpread,
   DaSourceUse,
   DaSourceVerdict,
   DaTransferFactor,
@@ -106,6 +108,26 @@ const QUANTITY_ORDER: DaEstimateQuantity[] = ["PER_DEMAND", "PER_HOUR", "PER_YEA
 
 const PICK_LIMIT = 60;
 
+const ESTIMATE_TYPE_ORDER: DaSourceEstimateType[] = ["PRIOR", "POSTERIOR", "EMPIRICAL_BAYES", "PLANT_SPECIFIC", "MLE", "POINT_ESTIMATE", "DATA"];
+
+const ESTIMATE_TYPE_LABELS: Record<DaSourceEstimateType, string> = {
+  PRIOR: "Prior or generic distribution",
+  POSTERIOR: "Bayesian posterior",
+  EMPIRICAL_BAYES: "Empirical Bayes population",
+  PLANT_SPECIFIC: "Plant-specific posterior",
+  MLE: "Maximum likelihood estimate",
+  POINT_ESTIMATE: "Point estimate",
+  DATA: "Counts only, DA made the distribution",
+};
+
+const SPREAD_ORDER: DaSourceSpread[] = ["POPULATION", "MEAN", "NONE"];
+
+const SPREAD_LABELS: Record<DaSourceSpread, string> = {
+  POPULATION: "Variation between plants",
+  MEAN: "Uncertainty in the mean",
+  NONE: "No spread",
+};
+
 const Z95 = 1.6448536269514722;
 
 const FIT_NOTES: Record<DaFitBasis, string> = {
@@ -165,6 +187,14 @@ function isQuantity(value: string): value is DaEstimateQuantity {
   return QUANTITY_ORDER.some((quantity) => quantity === value);
 }
 
+function isEstimateType(value: string): value is DaSourceEstimateType {
+  return ESTIMATE_TYPE_ORDER.some((type) => type === value);
+}
+
+function isSpread(value: string): value is DaSourceSpread {
+  return SPREAD_ORDER.some((spread) => spread === value);
+}
+
 function evidenceKindOf(value: string): DaEvidenceKind | undefined {
   return EVIDENCE_ORDER.find((kind) => kind === value);
 }
@@ -220,10 +250,13 @@ function LawEstimateDetail({ source, entry }: { source: DaSource; entry: DaSourc
     <>
       <FieldList items={[
         { label: "Source", value: `${source.id} · ${source.name}` },
+        { label: "Estimate type", value: ESTIMATE_TYPE_LABELS[entry.estimateType] },
+        { label: "Spread", value: SPREAD_LABELS[entry.spread] },
         { label: "Distribution", value: entry.law === undefined ? "—" : lawText(entry.law) },
         { label: "5th percentile", value: praxisText(summaryValue(state, (summary) => quantileOf(summary, 0.05))) },
         { label: "95th percentile", value: praxisText(summaryValue(state, (summary) => quantileOf(summary, 0.95))) },
         { label: "Data", value: dataText(entry) },
+        { label: "Method", value: entry.method ?? "—" },
       ]} />
       {entry.law === undefined && <p className="posmuted">This estimate has no distribution yet. Give it one in its edit window.</p>}
       {note !== undefined && <p className="posmuted">{note}</p>}
@@ -239,10 +272,13 @@ function EstimateDetail({ source, entry }: { source: DaSource; entry: DaSourceEn
     <>
       <FieldList items={[
         { label: "Source", value: `${source.id} · ${source.name}` },
+        { label: "Estimate type", value: ESTIMATE_TYPE_LABELS[entry.estimateType] },
+        { label: "Spread", value: SPREAD_LABELS[entry.spread] },
         { label: "Distribution", value: distributionText(entry.distribution ?? entryDistribution(entry)) },
         { label: "5th percentile", value: statText(entry.p05) },
         { label: "95th percentile", value: statText(entry.p95) },
         { label: "Data", value: dataText(entry) },
+        { label: "Method", value: entry.method ?? "—" },
       ]} />
       {fit === undefined ? <p className="posmuted">This estimate has no value to plot.</p> : (
         <>
@@ -671,7 +707,7 @@ function SourcesScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => v
   function addEntry(): void {
     if (!editable || selected === undefined) return;
     const id = nextCode("E", selected.entries.map((entry) => entry.id), 3);
-    mutateDa((draft) => ({ ...draft, sources: (draft.sources ?? []).map((source) => (source.id === selected.id ? { ...source, entries: [...source.entries, { id, component: "", failureMode: "", quantity: "PER_DEMAND" }] } : source)) }));
+    mutateDa((draft) => ({ ...draft, sources: (draft.sources ?? []).map((source) => (source.id === selected.id ? { ...source, entries: [...source.entries, { id, component: "", failureMode: "", quantity: "PER_DEMAND", estimateType: "POINT_ESTIMATE", spread: "NONE" }] } : source)) }));
     openDrawer({ kind: "daEntry", id: `${selected.id}|${id}` });
   }
   function addElicitation(): void {
@@ -909,6 +945,16 @@ function EntryWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.
             {distribution !== undefined && <DistributionFields value={distribution} disabled={dis} onChange={(next) => patch({ distribution: next })} />}
           </FormRow>
         )}
+        <FormRow label="Estimate type" htmlFor={`${fieldId}-type`}>
+          <select id={`${fieldId}-type`} className="posfield__select" value={entry.estimateType} disabled={dis} onChange={(event) => { if (isEstimateType(event.target.value)) patch({ estimateType: event.target.value }); }}>
+            {ESTIMATE_TYPE_ORDER.map((type) => <option key={type} value={type}>{ESTIMATE_TYPE_LABELS[type]}</option>)}
+          </select>
+        </FormRow>
+        <FormRow label="Spread" htmlFor={`${fieldId}-spread`}>
+          <select id={`${fieldId}-spread`} className="posfield__select" value={entry.spread} disabled={dis} onChange={(event) => { if (isSpread(event.target.value)) patch({ spread: event.target.value }); }}>
+            {SPREAD_ORDER.map((spread) => <option key={spread} value={spread}>{SPREAD_LABELS[spread]}</option>)}
+          </select>
+        </FormRow>
         <FormRow label="Mean" htmlFor={`${fieldId}-mean`}>
           <WorkbookInput id={`${fieldId}-mean`} className="posfield__input da-form__number" type="number" min="0" step="any" value={entry.mean ?? ""} disabled={dis} onChange={(event) => numberFrom(event.target.value, (mean) => patch({ mean }))} />
           <span className="da-form__unit">{QUANTITY_LABELS[entry.quantity]}</span>

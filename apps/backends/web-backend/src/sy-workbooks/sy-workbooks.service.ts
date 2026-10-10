@@ -284,7 +284,7 @@ export class SyWorkbooksService {
         createWorkbookRevisionFilter(workbookId, expectedRevision),
         {
           $set: {
-            previousMefJson: stringifyJson(doc.mef),
+            previousMefJson: stringifyJson(stripNulls(doc.mef)),
             mef: cleaned,
             revision: expectedRevision + 1,
           },

@@ -4,12 +4,14 @@ import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success
 import type { PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { isComponentModel, type DataAnalysis, type ParameterType } from "interfaces-mef-types/da/data-analysis";
 import { carriesUncertainExpression, type CommonCauseFailureGroup, type SystemBasicEvent, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import { mapModelArguments, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { ccfFactorExpressions, mapCcfFactorExpressions, mapModelArguments, vectorLength, type CcfFactorModel, type UncertainExpression, type UncertainVector } from "interfaces-mef-types/core/uncertainty";
 import { listWorkbooks } from "../workbooks/workbookApi";
 import { type DaWorkbookResponse } from "../da-workbooks/daWorkbookApi";
 import { type HrWorkbookResponse } from "../hr-workbooks/hrWorkbookApi";
 import type {
   SyControlledCcfEstimateOption,
+  SyControlledCcfFactorOption,
+  SyControlledCcfVectorOption,
   SyControlledCoincidentMaintenanceOption,
   SyControlledComponentBoundaryOption,
   SyControlledFailureModeOption,
@@ -23,6 +25,7 @@ import { componentUnit } from "./syBasicEventValues";
 import { scMissionTimeOptions, scMissionTimeTable } from "../sc-workbooks/scMissionTimeLinks";
 import { type ScMissionTimeSource } from "../sc-workbooks/scMissionTimeSources";
 import { type LinkRoot } from "../newly-developed-methods/shared/uncertaintyLinks";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 
 const SY_LINK_CODES: SyLinkCode[] = ["ES", "SC", "POS", "DA", "HRA"];
 
@@ -72,6 +75,18 @@ function esInitiatingEvents(es: EventSequenceAnalysis | undefined): { id: string
   return [...new Set(ordered)].map((id) => ({ id, name: names.get(id) ?? id }));
 }
 
+function presentMissionTime(missionTime: UncertainExpression | undefined): { missionTime?: UncertainExpression } {
+  return missionTime === undefined ? {} : { missionTime };
+}
+
+function systemMissionTime(sc: SuccessCriteriaDevelopment, workbookId: string | undefined, overallId: string): UncertainExpression | undefined {
+  if (workbookId === undefined) return undefined;
+  const overall = sc.overallSuccessCriteria.find((entry) => entry.uuid === overallId || entry.successCriteriaId === overallId);
+  const sequence = overall?.eventSequenceReference;
+  const missionTime = sequence === undefined ? undefined : sc.missionTimes.find((entry) => entry.eventSequenceReference === sequence);
+  return missionTime === undefined ? undefined : { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: missionTime.uuid } };
+}
+
 function buildLinkedInputs(
   options: Record<SyLinkCode, Workbook[]>,
   ids: Partial<Record<SyLinkCode, string>>,
@@ -98,6 +113,7 @@ function buildLinkedInputs(
       name: criterion.description,
       capacities: criterion.requiredCapacities.map((capacity) => `${capacity.parameter}: ${capacity.value}`).join(" · "),
       supports: (criterion.systemDependencies ?? []).map((dependency) => ({ systemId: dependency.dependentSystemId, nature: dependency.dependencyNature })),
+      ...(sc === undefined ? {} : presentMissionTime(systemMissionTime(sc, ids.SC, criterion.overallSuccessCriteriaId))),
     })),
     scMissionTimeOptions: scSources.flatMap((source) => scMissionTimeOptions(source.workbookId, source.sc)),
     scMissionTimeTable: new Map(scSources.flatMap((source) => [...scMissionTimeTable(source.workbookId, source.sc)])),
@@ -189,8 +205,10 @@ function controlledHumanFailureOptions(sources: readonly HrSource[]): SyControll
     const events = new Map(workbook.mef.humanFailureEvents.map((event) => [event.uuid, event]));
     return workbook.mef.hepQuantifications.flatMap((quantification): SyControlledHumanFailureOption[] => {
       const event = events.get(quantification.hfeId);
-      const value = quantification.meanHep ?? quantification.pointEstimateHep;
-      if (event === undefined || value === undefined || !Number.isFinite(value) || value < 0 || value > 1) return [];
+      const hep = quantification.hep;
+      if (event === undefined || hep === undefined) return [];
+      const law = hep.node === "VALUE" ? hep.value.law : undefined;
+      const value = law?.family === "POINT" ? law.value : law !== undefined && "mean" in law ? law.mean : undefined;
       return [{
         workbookId: entry.id,
         workbookName: entry.name,
@@ -199,8 +217,9 @@ function controlledHumanFailureOptions(sources: readonly HrSource[]): SyControll
         hfeTiming: event.hfeTiming,
         quantificationId: quantification.uuid,
         methodology: quantification.methodology,
-        value,
-        valueKind: quantification.meanHep === undefined ? "POINT_ESTIMATE" : "MEAN",
+        hep,
+        ...(value === undefined ? {} : { value }),
+        valueText: value === undefined ? expressionText(hep) : value.toExponential(1).toUpperCase(),
       }];
     });
   }).sort((left, right) => [left.workbookName, left.humanFailureEventName, left.methodology].join(":").localeCompare([right.workbookName, right.humanFailureEventName, right.methodology].join(":")));
@@ -237,7 +256,7 @@ type ExampleAnalysis = Pick<SystemsAnalysis, "systemBasicEvents">;
 
 type DaParameter = DataAnalysis["parameters"][number];
 
-function relinkedExpression(expression: UncertainExpression, parameters: ReadonlyMap<string, DaParameter>, workbookId: string): UncertainExpression {
+function relinkedExpression(expression: UncertainExpression, parameters: Pick<ReadonlySet<string>, "has">, workbookId: string): UncertainExpression {
   switch (expression.node) {
     case "VALUE":
       return expression;
@@ -284,9 +303,34 @@ function linkExampleEvents(sy: ExampleAnalysis, workbookId: string, dataAnalysis
   });
 }
 
-function linkExampleGroups(sy: Pick<SystemsAnalysis, "commonCauseFailureGroups">, workbookId: string, dataAnalysis: Pick<DataAnalysis, "parameters">): CommonCauseFailureGroup[] {
-  const parameters = new Map(dataAnalysis.parameters.map((parameter) => [parameter.uuid, parameter]));
-  return sy.commonCauseFailureGroups.map((group) => ({ ...group, total: relinkedExpression(group.total, parameters, workbookId) }));
+function relinkedVector(vector: UncertainVector, vectorIds: ReadonlySet<string>, workbookId: string): UncertainVector {
+  return vector.node === "PARAMETER" && vectorIds.has(vector.reference.entityId) ? { node: "PARAMETER", reference: { ...vector.reference, workbookId } } : vector;
+}
+
+function relinkedFactors(factors: CcfFactorModel, parameters: Pick<ReadonlySet<string>, "has">, vectorIds: ReadonlySet<string>, workbookId: string): CcfFactorModel {
+  switch (factors.model) {
+    case "ALPHA_FACTOR":
+      return { ...factors, alphas: relinkedVector(factors.alphas, vectorIds, workbookId) };
+    case "PHI_FACTOR":
+      return { ...factors, phis: relinkedVector(factors.phis, vectorIds, workbookId) };
+    case "BETA_FACTOR":
+    case "MGL":
+    case "BINOMIAL_FAILURE_RATE":
+      return mapCcfFactorExpressions(factors, (expression) => relinkedExpression(expression, parameters, workbookId));
+  }
+}
+
+function linkExampleGroups(sy: Pick<SystemsAnalysis, "commonCauseFailureGroups">, workbookId: string, dataAnalysis: Pick<DataAnalysis, "parameters" | "ccfVectors" | "ccfFactors">): CommonCauseFailureGroup[] {
+  const parameters = new Set([...dataAnalysis.parameters.map((parameter) => parameter.uuid), ...(dataAnalysis.ccfFactors ?? []).map((factor) => factor.id)]);
+  const vectorIds = new Set((dataAnalysis.ccfVectors ?? []).map((vector) => vector.id));
+  return sy.commonCauseFailureGroups.map((group) => {
+    const total = group.total;
+    return {
+      ...group,
+      factors: relinkedFactors(group.factors, parameters, vectorIds, workbookId),
+      ...(total === undefined ? {} : { total: relinkedExpression(total, parameters, workbookId) }),
+    };
+  });
 }
 
 type MissionTimeHolders = Pick<SystemsAnalysis, "systemDefinitions" | "systemBasicEvents" | "commonCauseFailureGroups">;
@@ -295,8 +339,37 @@ function syLinkRoots(sy: MissionTimeHolders): LinkRoot[] {
   return [
     ...sy.systemDefinitions.flatMap((system) => (system.missionTime === undefined ? [] : [{ expression: system.missionTime, missionTime: true }])),
     ...sy.systemBasicEvents.flatMap((event) => (event.expression === undefined ? [] : [{ expression: event.expression, missionTime: false }])),
-    ...sy.commonCauseFailureGroups.map((group) => ({ expression: group.total, missionTime: false })),
+    ...sy.commonCauseFailureGroups.flatMap((group) => [
+      ...(group.total === undefined ? [] : [{ expression: group.total, missionTime: false }]),
+      ...ccfFactorExpressions(group.factors).map((expression) => ({ expression, missionTime: false })),
+    ]),
   ];
+}
+
+function controlledCcfVectorOptions(sources: readonly DaSource[]): SyControlledCcfVectorOption[] {
+  return sources.flatMap(({ entry, workbook }) => (workbook.mef.ccfVectors ?? []).map((vector): SyControlledCcfVectorOption => ({
+    reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: entry.id, entityId: vector.id },
+    label: `${entry.name} · ${vector.template}${vector.estimateId === undefined ? "" : ` updated for ${vector.estimateId}`}, ${vector.groupSize} members`,
+    length: vectorLength(vector.vector),
+  }))).sort((left, right) => left.label.localeCompare(right.label));
+}
+
+function controlledCcfFactorOptions(sources: readonly DaSource[]): SyControlledCcfFactorOption[] {
+  return sources.flatMap(({ entry, workbook }) => {
+    const names = new Map((workbook.mef.sources ?? []).map((source) => [source.id, source.name]));
+    return (workbook.mef.ccfFactors ?? []).map((factor): SyControlledCcfFactorOption => ({
+      reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: entry.id, entityId: factor.id },
+      label: `${entry.name} · ${names.get(factor.sourceId) ?? factor.sourceId} ${factor.rowId}`,
+      unit: factor.expression.node === "VALUE" ? factor.expression.value.unit : "FACTOR",
+      expression: factor.expression,
+    }));
+  }).sort((left, right) => left.label.localeCompare(right.label));
+}
+
+function ownCcfFactors(factors: CcfFactorModel, workbookId: string, dataAnalysis: Pick<DataAnalysis, "parameters" | "ccfVectors" | "ccfFactors">): CcfFactorModel {
+  const factorIds = new Set([...dataAnalysis.parameters.map((parameter) => parameter.uuid), ...(dataAnalysis.ccfFactors ?? []).map((factor) => factor.id)]);
+  const vectorIds = new Set((dataAnalysis.ccfVectors ?? []).map((vector) => vector.id));
+  return relinkedFactors(factors, factorIds, vectorIds, workbookId);
 }
 
 function controlledCcfEstimateOptions(sources: readonly DaSource[]): SyControlledCcfEstimateOption[] {
@@ -309,7 +382,7 @@ function controlledCcfEstimateOptions(sources: readonly DaSource[]): SyControlle
       workbookName: entry.name,
       estimateId: estimate.uuid,
       groupReference: estimate.ccfGroupReference,
-      factors,
+      factors: ownCcfFactors(factors, entry.id, workbook.mef),
       ...(source === undefined || source.trim().length === 0 ? {} : { source }),
       riskSignificant: estimate.isRiskSignificant === true,
     }];
@@ -320,6 +393,8 @@ export {
   SY_LINK_CODES,
   buildLinkedInputs,
   controlledCcfEstimateOptions,
+  controlledCcfFactorOptions,
+  controlledCcfVectorOptions,
   controlledCoincidentMaintenanceOptions,
   controlledComponentBoundaryOptions,
   controlledFailureModeOptions,
@@ -330,5 +405,6 @@ export {
   linkExampleEvents,
   linkExampleGroups,
   listSyLinkOptions,
+  ownCcfFactors,
   syLinkRoots,
 };

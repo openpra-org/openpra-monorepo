@@ -112,7 +112,7 @@ function SyBasicEvents({ logic, openDrawer }: {
         <>
           <div>HR · {humanFailure.humanFailureEventName}</div>
           <span className="sy-review-sub">{humanFailure.workbookName} · {humanFailure.methodology}</span>
-          {heldValueDiffers(event, humanFailure.value) && <span className="sy-review-sub sy-warn">Value changed in HR</span>}
+          {humanFailure.value !== undefined && heldValueDiffers(event, humanFailure.value) && <span className="sy-review-sub sy-warn">Value changed in HR</span>}
         </>
       );
     }

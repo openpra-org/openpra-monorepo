@@ -17,6 +17,7 @@ import {
   type EventSequenceQuantification,
 } from "./event-sequence-quantification";
 import type { UncertainExpression } from "../core/uncertainty";
+import { daCcfFactorParameters, daCcfVectorParameters, holdsEstimate, type DataAnalysis, type DataAnalysisParameter } from "../da/data-analysis";
 
 type EsqLinkOrigin = "RULE" | "ESQ" | "ES" | "NONE";
 
@@ -104,6 +105,39 @@ function daParameterExpression(esq: EventSequenceQuantification, parameterId: st
   const workbookId = esq.linkedWorkbooks?.DA;
   if (workbookId === undefined || workbookId.trim().length === 0) return undefined;
   return { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: parameterId } };
+}
+
+function esqParameterRecord(parameter: DataAnalysisParameter): EsqParameterRecord {
+  const record: EsqParameterRecord = { id: parameter.uuid, name: parameter.name.trim().length > 0 ? parameter.name : parameter.uuid, parameterType: parameter.parameterType };
+  if (parameter.quantificationModel !== undefined) record.quantificationModel = parameter.quantificationModel;
+  if (parameter.evidenceKind !== undefined) record.evidenceKind = parameter.evidenceKind;
+  if (holdsEstimate(parameter.quantificationModel)) {
+    if (parameter.estimate !== undefined) record.estimate = structuredClone(parameter.estimate);
+    return record;
+  }
+  record.valueType = parameter.valueType === "MEAN" ? "MEAN" : "POINT_ESTIMATE";
+  if (parameter.value !== undefined && Number.isFinite(parameter.value)) record.value = parameter.value;
+  if (parameter.missionTime !== undefined) record.missionTime = structuredClone(parameter.missionTime);
+  const distribution = parameter.uncertainty?.distribution;
+  if (distribution !== undefined) record.distribution = structuredClone(distribution);
+  return record;
+}
+
+function esqParameterLinks(da: Pick<DataAnalysis, "parameters">): EsqParameterRecord[] {
+  return da.parameters.map((parameter) => ({ id: parameter.uuid, name: parameter.name.trim().length > 0 ? parameter.name : parameter.uuid, parameterType: parameter.parameterType }));
+}
+
+function withLiveDa(model: EsqModel, da: DataAnalysis, workbookId: string): EsqModel {
+  const live = new Map(da.parameters.map((parameter) => [parameter.uuid, parameter]));
+  return {
+    ...model,
+    parameters: model.parameters.flatMap((record) => {
+      const parameter = live.get(record.id);
+      return parameter === undefined ? [] : [esqParameterRecord(parameter)];
+    }),
+    vectors: daCcfVectorParameters(da, workbookId),
+    ccfFactors: daCcfFactorParameters(da, workbookId),
+  };
 }
 
 function esqTreeRunId(treeId: string): string {
@@ -396,6 +430,8 @@ export {
   sameItem,
   hash32,
   daParameterExpression,
+  esqParameterRecord,
+  esqParameterLinks,
   esqStableId,
   esqTreeRunId,
   esqFunctionRunId,
@@ -419,5 +455,6 @@ export {
   flagTargetKey,
   transferEdges,
   transferLoops,
+  withLiveDa,
 };
 export type { EsqLinkOrigin, EsqResolvedLink, EsqGroupState, EsqGroupFrequency, EsqTransferLoop };

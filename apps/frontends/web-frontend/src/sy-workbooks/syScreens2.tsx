@@ -29,7 +29,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
   onSubmitDraft: (ready: boolean) => void;
   canSubmit: boolean;
 }): JSX.Element {
-  const { sy, runtime, links, controlledParameters, controlledComponentBoundaries } = useSyWorkbook();
+  const { sy, runtime, links, controlledParameters, controlledComponentBoundaries, controlledCcfVectors, controlledCcfFactors } = useSyWorkbook();
   const ready = scores.blocked === 0 && scores.warn === 0;
   function downloadJson(): void {
     const blob = new Blob([stringifyJson(sy, 2)!], { type: "application/json" });
@@ -75,7 +75,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
                 <SYIcon.Send /> Submit draft to internal review
               </button>
             )}
-            <button type="button" className="posnav__btn" onClick={() => { void generateSyReport(sy, "methodology", "", ready, runtime.workbookId, runtime.revision, { parameters: controlledParameters, boundaries: controlledComponentBoundaries, missionTimes: links }); }}><SYIcon.Download /> Download draft (.docx)</button>
+            <button type="button" className="posnav__btn" onClick={() => { void generateSyReport(sy, "methodology", "", ready, runtime.workbookId, runtime.revision, { parameters: controlledParameters, boundaries: controlledComponentBoundaries, missionTimes: links, ccf: { vectors: controlledCcfVectors, factors: controlledCcfFactors } }); }}><SYIcon.Download /> Download draft (.docx)</button>
             <button type="button" className="posnav__btn" onClick={downloadJson}><SYIcon.Download /> Download JSON</button>
           </div>
         </div>

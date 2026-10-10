@@ -1,7 +1,6 @@
 import { JSX } from "react";
 import type { DepletionModel, SystemDependency } from "interfaces-mef-types/sy/systems-analysis";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
-import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { IssueLines, NoSystemsCard, NotRecorded, ReviewLines, ReviewTitle } from "./syShared";
 import { RESOURCE_TYPE_LABELS } from "./syViewData";
 import { systemTree } from "./syFailureRecords";
@@ -252,7 +251,6 @@ function DependenciesScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   return (
     <div className="poscard sy-model-card">
       <div className="poscard__head sy-model-card__head">
-        <WorkbookSectionHeading workbook="SY" title={system.name} cueKey="Dependencies" level={3} />
         <label className="sy-model-card__picker">
           <span className="posfield__label">System</span>
           <select className="posfield__select" aria-label="System" value={system.uuid} onChange={(event) => setSysId(event.target.value)}>

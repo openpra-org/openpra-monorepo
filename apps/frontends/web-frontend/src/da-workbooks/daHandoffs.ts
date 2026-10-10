@@ -176,9 +176,9 @@ function buildRows(da: DataAnalysis, upstream: DaUpstream): DaHandoffRow[] {
   const hr = upstream.hr;
   if (hr !== undefined) {
     for (const quantification of hr.hepQuantifications) {
-      const cached = quantification.meanHep ?? quantification.pointEstimateHep;
-      const base = { element: "HRA" as const, id: quantification.uuid, code: quantification.uuid, name: quantification.hfeId, consumerValue: cached, unit: "probability" };
-      const link = quantification.controlledDataSource;
+      const hep = quantification.hep;
+      const base = { element: "HRA" as const, id: quantification.uuid, code: quantification.uuid, name: quantification.hfeId, ...(hep === undefined ? {} : { consumerExpression: hep }), unit: "probability" };
+      const link = hep?.node === "PARAMETER" ? hep.reference : undefined;
       if (link === undefined) {
         rows.push({ ...base, holder: "TYPED", status: "TYPED" });
         continue;
@@ -186,7 +186,7 @@ function buildRows(da: DataAnalysis, upstream: DaUpstream): DaHandoffRow[] {
       const parameter = da.parameters.find((candidate) => candidate.uuid === link.entityId);
       if (parameter === undefined) rows.push({ ...base, holder: "DA", target: link.entityId, status: "MISSING", detail: `${link.entityId} is not in this workbook.` });
       else if (!PROBABILITY_TYPES.has(parameter.parameterType)) rows.push({ ...base, holder: "DA", target: parameter.uuid, daValue: parameter.value, status: "UNITS", detail: "HR imports a parameter that is not a probability." });
-      else rows.push({ ...base, holder: "DA", target: parameter.uuid, daValue: parameter.value, status: same(parameter.value, cached) ? "IN_STEP" : "CHANGED" });
+      else rows.push({ ...base, holder: "DA", target: parameter.uuid, daValue: parameter.value, ...(parameter.estimate === undefined ? {} : { daExpression: parameter.estimate }), status: "IN_STEP" });
     }
   }
   const pos = upstream.pos;

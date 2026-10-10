@@ -110,6 +110,8 @@ jest.mock("../syWorkbookContext", () => ({
     mutateSy: mockMutateSy,
     shortOf: (id: string) => id,
     controlledParameters: [],
+    controlledCcfVectors: [],
+    controlledCcfFactors: [],
     controlledHumanFailures: [],
     controlledFailureModes: [],
     runtime: { workbookId: "sy-1", projectId: "project-1", revision: 3, saveStatus: "saved" },
@@ -204,17 +206,17 @@ describe("SY system dialogs", () => {
   it("takes the success criterion from the linked SC workbook", () => {
     render(<DrawerContent context={{ kind: "sysdef", id: SYSTEM_ID }} onClose={jest.fn()} />);
 
-    fireEvent.change(screen.getByRole("combobox", { name: "SC criterion" }), { target: { value: "SSC-CCW" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "SC record" }), { target: { value: "SSC-CCW" } });
     expect(applyLastMutation().systemDefinitions[0]).toMatchObject({ successCriteriaIds: ["SSC-CCW"], successCriterion: "Pumps: 1 of 2 · Heat removed: 4 MW" });
 
-    fireEvent.change(screen.getByRole("combobox", { name: "SC criterion" }), { target: { value: "" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "SC record" }), { target: { value: "" } });
     expect(applyLastMutation().systemDefinitions[0]!.successCriteriaIds).toEqual([]);
   });
 
-  it("fills the top event and its fault tree description from the SC criterion", () => {
+  it("fills the top event and its fault tree description from the SC record", () => {
     render(<DrawerContent context={{ kind: "sysdef", id: SYSTEM_ID }} onClose={jest.fn()} />);
 
-    fireEvent.change(screen.getByRole("combobox", { name: "SC criterion" }), { target: { value: "SSC-CCW" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "SC record" }), { target: { value: "SSC-CCW" } });
     const next = applyLastMutation();
     expect(next.systemDefinitions[0]!.description).toBe("Component cooling water fails to meet its success criterion");
     expect(next.systemLogicModels[0]!.description).toBe("Component cooling water fails to meet its success criterion");
@@ -252,7 +254,7 @@ describe("SY system dialogs", () => {
   it("takes a variant success criterion from SC", () => {
     render(<DrawerContent context={{ kind: "variant", id: "var-1" }} onClose={jest.fn()} />);
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Variant SC criterion" }), { target: { value: "SSC-CCW" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Variant SC record" }), { target: { value: "SSC-CCW" } });
     expect(applyLastMutation().variableSuccessCriteria![0]).toMatchObject({ successCriteriaIds: ["SSC-CCW"], basis: "Pumps: 1 of 2 · Heat removed: 4 MW" });
   });
 

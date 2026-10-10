@@ -12,7 +12,8 @@ import {
   type EventSequenceQuantification,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { holdsEstimate, isComponentModel } from "interfaces-mef-types/da/data-analysis";
-import type { CcfFactorModel, UncertainExpression, UncertainVector } from "interfaces-mef-types/core/uncertainty";
+import { ccfModelTakesTotal, type CcfFactorModel, type UncertainExpression, type UncertainVector, type VectorLaw } from "interfaces-mef-types/core/uncertainty";
+import { parameterLaw, parameterUnit } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { CcfFactorEditor, ExpressionEditor, MissionTimeEditor, type ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
 import { useUncertaintyVersion } from "../newly-developed-methods/shared/useUncertainty";
 import { scMissionTimeOptions } from "../sc-workbooks/scMissionTimeLinks";
@@ -45,6 +46,8 @@ import {
   modelLinked,
   modelViewOf,
   nextFamilyId,
+  ccfFactorOptionsOf,
+  ccfVectorOptionsOf,
   parameterLabelOf,
   parameterTableOf,
   sequenceChoiceOf,
@@ -130,10 +133,10 @@ const MODEL_WINDOW_LABELS: Record<EsqModelWindowKind, string> = {
   esqValue: "Basic event",
 };
 
-const SPLIT_PARAMETER_TYPES = new Set(["PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY", "OTHER"]);
+const START_SPLIT: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.5 } } };
 
-function statText(value: number | undefined): string {
-  return value === undefined ? "—" : sciText(value);
+function lawOfText(expression: UncertainExpression | undefined, label: (key: string) => string): string {
+  return expression === undefined ? "no value" : expressionText(expression, label);
 }
 
 function percentText(share: number | undefined): string {
@@ -163,12 +166,16 @@ function numberFrom(text: string, apply: (value: number | undefined) => void): v
 
 const DEFAULT_FREQUENCY = 1e-2;
 
-const CCF_MODEL_TEXT: Record<CcfFactorModel["model"], string> = { BETA_FACTOR: "Beta factor", MGL: "Multiple Greek letter", ALPHA_FACTOR: "Alpha factor", PHI_FACTOR: "Phi factor" };
+const CCF_MODEL_TEXT: Record<CcfFactorModel["model"], string> = { BETA_FACTOR: "Beta factor", MGL: "Multiple Greek letter", ALPHA_FACTOR: "Alpha factor", PHI_FACTOR: "Phi factor", BINOMIAL_FAILURE_RATE: "Binomial failure rate" };
+
+const VECTOR_FAMILY_TEXT: Record<VectorLaw["family"], string> = { DIRICHLET: "Dirichlet", FIXED: "Fixed", WEIGHTED_DIRICHLET: "Weighted Dirichlet" };
 
 function vectorText(vector: UncertainVector, label: (key: string) => string): string {
   if (vector.node === "PARAMETER") return label(`${vector.reference.workbookId}:${vector.reference.entityId}`);
-  const values = vector.law.family === "DIRICHLET" ? vector.law.concentrations : vector.law.values;
-  return `${vector.law.family === "DIRICHLET" ? "Dirichlet" : "Fixed"} (${values.map((value) => String(Number(value.toPrecision(4)))).join(", ")})`;
+  const law = vector.law;
+  const shown = (values: readonly number[]): string => values.map((value) => String(Number(value.toPrecision(4)))).join(", ");
+  const values = law.family === "FIXED" ? law.values : law.concentrations;
+  return `${VECTOR_FAMILY_TEXT[law.family]} (${shown(values)})${law.family === "WEIGHTED_DIRICHLET" ? `, weights (${shown(law.weights)})` : ""}`;
 }
 
 function ccfFactorsText(factors: CcfFactorModel | undefined, label: (key: string) => string): string {
@@ -178,6 +185,7 @@ function ccfFactorsText(factors: CcfFactorModel | undefined, label: (key: string
     case "MGL": return `${CCF_MODEL_TEXT.MGL} ${factors.factors.map((factor) => expressionText(factor, label)).join(", ")}`;
     case "ALPHA_FACTOR": return `${CCF_MODEL_TEXT.ALPHA_FACTOR}, ${factors.testing === "STAGGERED" ? "staggered" : "non-staggered"}, ${vectorText(factors.alphas, label)}`;
     case "PHI_FACTOR": return `${CCF_MODEL_TEXT.PHI_FACTOR} ${vectorText(factors.phis, label)}`;
+    case "BINOMIAL_FAILURE_RATE": return `${CCF_MODEL_TEXT.BINOMIAL_FAILURE_RATE} Qᵢ ${expressionText(factors.independent, label)}, μ ${expressionText(factors.nonLethalShock, label)}, p ${expressionText(factors.componentFailure, label)}, ω ${expressionText(factors.lethalShock, label)}`;
   }
 }
 
@@ -217,7 +225,7 @@ function targetText(model: EsqModel, target: EsqFunctionTarget | undefined): str
   if (target.kind === "SPLIT_FRACTION") {
     if (target.cellId !== undefined) return `Split fraction · Step 04 ${target.cellId}`;
     if (target.parameterId !== undefined) return `Split fraction · ${target.parameterId}`;
-    return target.value === undefined ? "Split fraction" : `Split fraction ${sciText(target.value)}`;
+    return target.expression === undefined ? "Split fraction" : `Split fraction ${expressionText(target.expression)}`;
   }
   return topOf(model, target.top)?.code ?? "Missing top";
 }
@@ -629,7 +637,13 @@ function valuePointEntries(values: readonly EsqValueView[]): EsqPointEntry[] {
   return values.flatMap((value) => (value.expression === undefined ? [] : [{ key: `${value.kind}:${value.id}`, expression: value.expression, unit: "PROBABILITY" as const }]));
 }
 
+function takesTotal(value: EsqValueView): boolean {
+  const factors = value.ccf?.factors;
+  return factors === undefined || ccfModelTakesTotal(factors);
+}
+
 function valueCellText(value: EsqValueView, point: string): string {
+  if (value.kind === "CCF" && !takesTotal(value)) return "From the model";
   if (value.expression !== undefined) return point;
   if (value.value === undefined) return "—";
   return `${sciText(value.value)}${value.event?.valueUnit === "PER_HOUR" && value.parameter === undefined && value.human === undefined ? " /h" : ""}`;
@@ -641,7 +655,7 @@ function valueDetailItems(view: EsqModelView, value: EsqValueView, label: (key: 
     return [
       { label: "System", value: value.systemName ?? "—" },
       { label: "Factors", value: ccfFactorsText(value.ccf?.factors, label) },
-      { label: "Group total", value: value.expression === undefined ? "Not given" : expressionText(value.expression, label) },
+      ...(takesTotal(value) ? [{ label: "Group total", value: value.expression === undefined ? "Not given" : expressionText(value.expression, label) }] : []),
       { label: "Members", value: listValue(value.ccf?.memberIds.map((member) => view.model.events.find((event) => event.id === member)?.code ?? member) ?? []) },
       { label: "Functions", value: listValue(value.functionIds) },
     ];
@@ -656,7 +670,6 @@ function valueDetailItems(view: EsqModelView, value: EsqValueView, label: (key: 
   }
   return [
     { label: "System", value: value.systemName ?? "—" },
-    { label: "Value type", value: value.valueType === undefined ? "—" : value.valueType === "MEAN" ? "Mean" : "Point estimate" },
     { label: "Distribution", value: value.parameter?.distribution !== undefined ? "Given in DA" : value.human?.distributionGiven === true ? "Given in HR" : "—" },
     { label: "Mission time", value: value.missionTime === undefined ? "—" : expressionText(value.missionTime, label) },
     { label: "Evidence", value: evidence },
@@ -976,7 +989,7 @@ function targetFrom(value: string, model: EsqModel, syWorkbookId: string): EsqFu
 function SplitRows({ target, model, disabled, onChange }: { target: EsqSplitFractionTarget; model: EsqModel; disabled: boolean; onChange: (next: EsqSplitFractionTarget) => void }): JSX.Element {
   const { esq } = useEsqWorkbook();
   const id = useId();
-  const parameters = model.parameters.filter((parameter) => SPLIT_PARAMETER_TYPES.has(parameter.parameterType) && !isComponentModel(parameter.quantificationModel));
+  const parameters = model.parameters.filter((parameter) => parameterUnit(parameter) === "PROBABILITY" && parameterLaw(parameter) !== undefined);
   const cells = (barrierWorkOf(esq).cells ?? []).filter((cell) => cell.use === "SPLIT_FRACTION" || cell.id === target.cellId);
   const label = parameterLabelOf(esq);
   const from = target.cellId !== undefined ? `cell:${target.cellId}` : target.parameterId === undefined ? "typed" : `da:${target.parameterId}`;
@@ -991,18 +1004,13 @@ function SplitRows({ target, model, disabled, onChange }: { target: EsqSplitFrac
           <option value="typed">Typed in ESQ</option>
           {cells.map((cell) => <option key={cell.id} value={`cell:${cell.id}`}>{`Step 04 · ${cell.id}${cell.familyId === undefined ? "" : ` · ${cell.familyId}`} · ${cellRecordText(cell, label)}`}</option>)}
           {target.cellId !== undefined && !cells.some((cell) => cell.id === target.cellId) && <option value={`cell:${target.cellId}`}>{`Step 04 · ${target.cellId} · removed`}</option>}
-          {parameters.map((parameter) => <option key={parameter.id} value={`da:${parameter.id}`}>{`DA · ${parameter.id} · ${statText(parameter.value)}`}</option>)}
+          {parameters.map((parameter) => <option key={parameter.id} value={`da:${parameter.id}`}>{`DA · ${parameter.id} · ${lawOfText(parameterLaw(parameter), label)}`}</option>)}
         </select>
       </FormRow>
       {target.parameterId === undefined && target.cellId === undefined && (
         <>
-          <FormRow label="Mean" htmlFor={`${id}-mean`}>
-            <WorkbookInput id={`${id}-mean`} type="number" className="posfield__input esq-form__number" value={target.value ?? ""} disabled={disabled} onChange={(event) => numberFrom(event.target.value, (value) => onChange({ ...target, value }))} />
-            <span className="esq-form__unit">per demand</span>
-          </FormRow>
-          <FormRow label="Error factor" htmlFor={`${id}-ef`}>
-            <WorkbookInput id={`${id}-ef`} type="number" className="posfield__input esq-form__number" value={target.errorFactor ?? ""} disabled={disabled} onChange={(event) => numberFrom(event.target.value, (errorFactor) => onChange({ ...target, errorFactor }))} />
-            <span className="esq-form__unit">lognormal</span>
+          <FormRow label="Split fraction" top>
+            <ExpressionEditor expression={target.expression ?? START_SPLIT} unit="PROBABILITY" disabled={disabled} onChange={(expression) => onChange({ ...target, expression })} />
           </FormRow>
           <FormRow label="Basis" htmlFor={`${id}-basis`} top>
             <WorkbookTextarea id={`${id}-basis`} className="posfield__textarea" rows={2} fitContent value={target.basis ?? ""} disabled={disabled} onChange={(event) => onChange({ ...target, basis: event.target.value })} />
@@ -1239,9 +1247,9 @@ function CcfWindow({ value, onClose }: { value: EsqValueView; onClose: () => voi
       <div className="modal__body esq-form">
         <p className="esq-meta">ESQ takes the factors and the group total as SY gives them. Change them in SY or DA and import again.</p>
         {ccf?.factors === undefined ? <FormRow label="Factors"><span className="esq-form__note">Not given</span></FormRow> : (
-          <CcfFactorEditor factors={ccf.factors} groupSize={ccf.memberIds.length} disabled onChange={() => undefined} />
+          <CcfFactorEditor factors={ccf.factors} groupSize={ccf.memberIds.length} options={ccfFactorOptionsOf(esq)} vectorOptions={ccfVectorOptionsOf(esq)} disabled onChange={() => undefined} />
         )}
-        <FormRow label="Group total"><span className="esq-form__note">{value.expression === undefined ? "Not given" : `${expressionText(value.expression, label)} · ${pointText(points.get(`CCF:${value.id}`))}`}</span></FormRow>
+        {takesTotal(value) && <FormRow label="Group total"><span className="esq-form__note">{value.expression === undefined ? "Not given" : `${expressionText(value.expression, label)} · ${pointText(points.get(`CCF:${value.id}`))}`}</span></FormRow>}
         <FormRow label="Members"><span className="esq-form__note">{listValue(ccf?.memberIds.map((member) => esq.model?.events.find((event) => event.id === member)?.code ?? member) ?? [])}</span></FormRow>
       </div>
       <FormFoot onClose={onClose} />
@@ -1267,7 +1275,7 @@ function ValueWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.
   const syValue = event.expression !== undefined ? ` · ${expressionText(event.expression, label)}` : event.heldBy === "TYPED" && event.value !== undefined ? ` · ${sciText(event.value)}` : "";
   const imported = `${holderText(event.heldBy, event.holderId)}${syValue}`;
   const parameterText = (parameter: EsqParameterRecord): string => {
-    if (!isComponentModel(parameter.quantificationModel)) return `DA · ${parameter.id} · ${statText(parameter.value)}`;
+    if (!isComponentModel(parameter.quantificationModel)) return `DA · ${parameter.id} · ${lawOfText(parameterLaw(parameter), label)}`;
     return parameter.estimate === undefined ? `DA · ${parameter.id} · no estimate` : `DA · ${parameter.id} · ${expressionText(parameter.estimate, label)}`;
   };
   const nowText = value.expression !== undefined ? `${expressionText(value.expression, label)} · ${pointText(points.get(`EVENT:${value.id}`))}` : value.value !== undefined ? sciText(value.value) : value.problem ?? "No value";
@@ -1298,7 +1306,7 @@ function ValueWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.
             <option value="sy">{`As SY gives it · ${imported}`}</option>
             {parameters.map((parameter) => <option key={parameter.id} value={`da:${parameter.id}`}>{parameterText(parameter)}</option>)}
             {binding?.heldBy === "DA" && !parameters.some((parameter) => parameter.id === binding.holderId) && <option value={current}>{`DA · ${binding.holderId} · cannot set this event`}</option>}
-            {view.model.humanEvents.map((human) => <option key={human.id} value={`hr:${human.id}`}>{`HR · ${human.id} · ${statText(human.value)}`}</option>)}
+            {view.model.humanEvents.map((human) => <option key={human.id} value={`hr:${human.id}`}>{`HR · ${human.id} · ${lawOfText(human.hep, label)}`}</option>)}
           </select>
         </FormRow>
         <FormRow label="Value now"><span className="esq-form__note">{nowText}</span></FormRow>

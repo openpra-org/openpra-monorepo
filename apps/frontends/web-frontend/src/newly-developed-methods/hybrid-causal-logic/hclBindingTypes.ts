@@ -1,6 +1,7 @@
 import type { BayesianNetworkEvidenceConfiguration, WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
 import type { ReactNode } from "react";
 import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import type { ParameterOption } from "../shared/uncertainEditor";
 import type { BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type {
@@ -32,6 +33,7 @@ interface HclFaultTreeOption {
     name: string;
     syValue?: HclSyValue;
   }>;
+  parameterOptions?: ParameterOption[];
 }
 
 interface HclEventTreeOption {

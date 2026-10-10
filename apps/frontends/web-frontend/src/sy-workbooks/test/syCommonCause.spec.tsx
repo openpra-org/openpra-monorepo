@@ -3,7 +3,7 @@ import type { CcfFactorModel, UncertainExpression } from "interfaces-mef-types/c
 import type { CommonCauseFailureGroup, SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { CommonCauseScreen } from "../SyCommonCause";
 import { DrawerContent } from "../syScreens2";
-import type { SyControlledCcfEstimateOption, SyControlledParameterOption } from "../syWorkbookContext";
+import type { SyControlledCcfEstimateOption, SyControlledCcfFactorOption, SyControlledCcfVectorOption, SyControlledParameterOption } from "../syWorkbookContext";
 
 jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => jest.requireActual("./syUncertaintyPraxis"));
 
@@ -33,6 +33,8 @@ interface MockContext {
   mutateSy: jest.Mock;
   shortOf: (id: string) => string;
   controlledCcfEstimates: SyControlledCcfEstimateOption[];
+  controlledCcfVectors: SyControlledCcfVectorOption[];
+  controlledCcfFactors: SyControlledCcfFactorOption[];
   controlledParameters: SyControlledParameterOption[];
   runtime: { workbookId: string; projectId: string; revision: number; saveStatus: "saved" };
 }
@@ -165,6 +167,32 @@ const ESTIMATES: SyControlledCcfEstimateOption[] = [
     factors: { model: "BETA_FACTOR", beta: fraction(0.0079) },
     riskSignificant: false,
   },
+  {
+    workbookId: "da-1",
+    workbookName: "DA Workbook 1",
+    estimateId: "DA-CCF-4",
+    groupReference: "ccf-batt",
+    factors: { model: "ALPHA_FACTOR", testing: "NON_STAGGERED", alphas: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "ccfv/SRC-06/CCF-DEM/ALPHA_DIRICHLET/C2" } } },
+    riskSignificant: false,
+  },
+  {
+    workbookId: "da-1",
+    workbookName: "DA Workbook 1",
+    estimateId: "DA-CCF-5",
+    groupReference: "ccf-batt",
+    factors: { model: "BINOMIAL_FAILURE_RATE", independent: point(0.004), nonLethalShock: point(0.001), componentFailure: fraction(0.4), lethalShock: point(0.0001) },
+    riskSignificant: false,
+  },
+];
+
+const VECTORS: SyControlledCcfVectorOption[] = [
+  { reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-1", entityId: "ccfv/SRC-06/CCF-DEM/ALPHA_DIRICHLET/C2" }, label: "DA Workbook 1 · CCF-DEM, 2 members", length: 2 },
+];
+
+const EBR_BETA = { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: "da-1", entityId: "ccff/SRC-21/EB-T7-36-BETAN-N2" };
+
+const FACTORS: SyControlledCcfFactorOption[] = [
+  { reference: EBR_BETA, label: "DA Workbook 1 · EBR-II EB-T7-36-BETAN-N2", unit: "FACTOR", expression: { node: "VALUE", value: { unit: "FACTOR", law: { family: "POINT", value: 0.1 } } } },
 ];
 
 let mockContext: MockContext;
@@ -180,6 +208,8 @@ function setContext(editable = true, groups?: CommonCauseFailureGroup[]): void {
     mutateSy: jest.fn(),
     shortOf: (id) => (id === CCW ? "CCW" : id === EPS ? "EPS" : id === GV ? "GV" : id),
     controlledCcfEstimates: ESTIMATES,
+    controlledCcfVectors: VECTORS,
+    controlledCcfFactors: FACTORS,
     controlledParameters: [],
     runtime: { workbookId: "sy-1", projectId: "project-1", revision: 3, saveStatus: "saved" },
   };
@@ -223,6 +253,28 @@ describe("SY Step 04 common cause", () => {
     expect(within(across).getByText("Typed · NUREG/CR-5497")).toBeInTheDocument();
     expect(within(across).getByText("Link the parameter estimate from Data Analysis.")).toHaveClass("sy-warn");
     expect(mockCcfAnalysis).toHaveBeenCalledWith({ currentModelId: "model-ccw" });
+  });
+
+  it("labels a linked alpha vector and an EBR-II beta from DA and finds the vector group equal to its estimate", () => {
+    const linkedBeta: UncertainExpression = { node: "PARAMETER", reference: EBR_BETA };
+    const one: UncertainExpression = { node: "VALUE", value: { unit: "FACTOR", law: { family: "POINT", value: 1 } } };
+    const demand: CommonCauseFailureGroup = { ...BATTERIES, uuid: "ccf-demand", name: "Battery demand", scope: "INTRASYSTEM", affectedSystems: [EPS], factors: ESTIMATES[2]!.factors, dataAnalysisCCFParameterRef: "DA-CCF-4" };
+    const ebr: CommonCauseFailureGroup = { ...demand, uuid: "ccf-ebr", name: "Battery beta", factors: { model: "BETA_FACTOR", beta: { node: "OPERATION", operation: "DIVIDE", operands: [linkedBeta, { node: "OPERATION", operation: "ADD", operands: [one, linkedBeta] }] } }, dataAnalysisCCFParameterRef: undefined };
+    const shock: CommonCauseFailureGroup = { ...demand, uuid: "ccf-shock", name: "Battery shocks", factors: ESTIMATES[3]!.factors, dataAnalysisCCFParameterRef: "DA-CCF-5" };
+    delete shock.total;
+    setContext(true, [demand, ebr, shock]);
+    render(<CommonCauseScreen sysId={EPS} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+
+    const rows = within(screen.getByRole("table", { name: "Within this system" })).getAllByRole("row");
+    expect(within(rows[1]!).getByText("α DA Workbook 1 · CCF-DEM, 2 members")).toHaveClass("sy-review-factors");
+    expect(within(rows[1]!).getByText("DA DA-CCF-4 · DA Workbook 1")).toBeInTheDocument();
+    expect(within(rows[2]!).getByText("β (DA Workbook 1 · EBR-II EB-T7-36-BETAN-N2 ÷ (1 + DA Workbook 1 · EBR-II EB-T7-36-BETAN-N2))")).toHaveClass("sy-review-factors");
+    expect(within(rows[3]!).getByText("Qᵢ 0.004 · μ 0.001 · p 0.4 · ω 0.0001")).toBeInTheDocument();
+    expect(within(rows[3]!).getByText("From the model")).toBeInTheDocument();
+    expect(screen.queryByText("unavailable DA estimate", { exact: false })).not.toBeInTheDocument();
+    expect(screen.queryByText("The factors differ", { exact: false })).not.toBeInTheDocument();
+    expect(screen.queryByText("undefined", { exact: false })).not.toBeInTheDocument();
+    expect(screen.queryByText("NaN", { exact: false })).not.toBeInTheDocument();
   });
 
   it("shows setup problems on the row", () => {
@@ -277,6 +329,28 @@ describe("SY Step 04 common cause", () => {
       total: point(0.004),
       dataSources: undefined,
     });
+  });
+
+  it("keeps a DA vector link when it applies the estimate", () => {
+    render(<DrawerContent context={{ kind: "ccf", id: "ccf-batt" }} onClose={jest.fn()} />);
+    const source = screen.getByRole("combobox", { name: "DA common cause estimate" });
+    const option = within(source).getAllByRole("option").find((candidate) => candidate.textContent?.includes("DA-CCF-4"));
+    fireEvent.change(source, { target: { value: option?.getAttribute("value") } });
+    expect(groupAfterMutation("ccf-batt")).toMatchObject({
+      dataAnalysisCCFParameterRef: "DA-CCF-4",
+      factors: ESTIMATES[2]?.factors,
+      total: point(0.004),
+    });
+  });
+
+  it("drops Qₜ when the linked estimate is a binomial failure rate", () => {
+    render(<DrawerContent context={{ kind: "ccf", id: "ccf-batt" }} onClose={jest.fn()} />);
+    const source = screen.getByRole("combobox", { name: "DA common cause estimate" });
+    const option = within(source).getAllByRole("option").find((candidate) => candidate.textContent?.includes("DA-CCF-5"));
+    fireEvent.change(source, { target: { value: option?.getAttribute("value") } });
+    const group = groupAfterMutation("ccf-batt");
+    expect(group?.factors).toEqual(ESTIMATES[3]?.factors);
+    expect(group && "total" in group).toBe(false);
   });
 
   it("shows linked factors read-only", () => {

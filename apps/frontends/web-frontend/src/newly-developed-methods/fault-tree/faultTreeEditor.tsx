@@ -1077,6 +1077,9 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     onOperation,
     onSelectionChange,
     onOpenReference,
+    initialViewport,
+    onViewportChange,
+    breadcrumb,
     onRun,
   } = props;
   const editable = capabilities.mode === "AUTHOR";
@@ -1105,10 +1108,24 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   ], [catalogue.basicEvents, draftVersion]);
   const points = useBasicEventPoints(pointEntries, parameterTable);
 
+  const initialViewportRef = useRef(initialViewport);
+  initialViewportRef.current = initialViewport;
+  const viewportChangeRef = useRef(onViewportChange);
+  viewportChangeRef.current = onViewportChange;
+  const heldViewport = useRef<ViewportState | null>(null);
+  const heldStructure = useRef<{ modelId: string; key: string } | null>(null);
+  useEffect(() => { viewportChangeRef.current?.(viewport); }, [viewport]);
+
   useLayoutEffect(
     () => setViewport(model.layout.viewport),
     [model.layout.viewport.x, model.layout.viewport.y, model.layout.viewport.zoom],
   );
+  useLayoutEffect(() => {
+    const held = initialViewportRef.current ?? null;
+    heldViewport.current = held;
+    heldStructure.current = null;
+    if (held !== null) setViewport(held);
+  }, [model.modelId]);
   useEffect(() => {
     if (modelIdRef.current === model.modelId) return;
     modelIdRef.current = model.modelId;
@@ -1173,7 +1190,8 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     if (element === null) return undefined;
     const refit = (): void => {
       if (element.clientWidth === 0 || element.clientHeight === 0) return;
-      setViewport(fittedViewport(element, geometryRef.current, inspectorOpenRef.current));
+      const held = heldViewport.current;
+      setViewport(held ?? fittedViewport(element, geometryRef.current, inspectorOpenRef.current));
     };
     refit();
     if (typeof ResizeObserver === "undefined") return undefined;
@@ -1182,10 +1200,20 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     return () => observer.disconnect();
   }, [model.modelId]);
   useLayoutEffect(() => {
+    const held = heldViewport.current;
+    if (held !== null) {
+      const marked = heldStructure.current;
+      if (marked === null || marked.modelId !== model.modelId) heldStructure.current = { modelId: model.modelId, key: structureKey };
+      if (marked === null || marked.modelId !== model.modelId || marked.key === structureKey) {
+        setViewport(held);
+        return;
+      }
+      heldViewport.current = null;
+    }
     const element = viewportRef.current;
     if (element === null || element.clientWidth === 0 || element.clientHeight === 0) return;
     setViewport(fittedViewport(element, geometryRef.current, inspectedSelectionExists));
-  }, [inspectedSelectionExists, structureKey]);
+  }, [inspectedSelectionExists, structureKey, model.modelId]);
 
   const emit = (operation: FaultTreeOperation, recordHistory = true): void => {
     try {
@@ -1238,6 +1266,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   };
 
   const commitViewport = (next: ViewportState): void => {
+    heldViewport.current = null;
     if (editable && capabilities.canEditLayout) {
       emit({ type: "SET_LAYOUT", layout: { ...model.layout, viewport: next } });
     }
@@ -1269,6 +1298,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     const px = event.clientX - bounds.left;
     const py = event.clientY - bounds.top;
     const fittedZoom = fittedViewport(event.currentTarget, geometry, inspectedSelectionExists).zoom;
+    heldViewport.current = null;
     setViewport((current) => {
       const zoom = clampZoom(current.zoom * Math.exp(-event.deltaY * multiplier * 0.002), fittedZoom);
       return {
@@ -1757,6 +1787,19 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
           </details>
         )}
         <input ref={importRef} className="fteditor__file" type="file" accept=".xml,application/xml,text/xml" onChange={(event) => { void importXml(event); }} />
+        {breadcrumb !== undefined && (
+          <nav className="fteditor__breadcrumb" aria-label="Transfer path">
+            <ol className="fteditor__crumbs">
+              {breadcrumb.steps.map((label, at) => (
+                <li key={at} className="fteditor__crumb-item">
+                  {at === breadcrumb.current
+                    ? <span className="fteditor__crumb fteditor__crumb--current" aria-current="page" title={label}>{label}</span>
+                    : <button type="button" className="fteditor__crumb" title={label} onClick={() => breadcrumb.onSelect(at)}>{label}</button>}
+                </li>
+              ))}
+            </ol>
+          </nav>
+        )}
         <span className="fteditor__command-status" role="status">{exportingImage ? "Preparing the PNG…" : savedImage}</span>
       </div>
 

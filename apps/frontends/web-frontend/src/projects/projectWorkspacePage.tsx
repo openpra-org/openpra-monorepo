@@ -33,6 +33,7 @@ function ProjectWorkspacePage(): JSX.Element {
   const [mutating, setMutating] = useState(false);
   const [exampleInfo, setExampleInfo] = useState<ProjectExampleInfo | null>(null);
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [generation, setGeneration] = useState(0);
 
   useEffect(() => {
     if (id === undefined) return;
@@ -210,6 +211,8 @@ function ProjectWorkspacePage(): JSX.Element {
             onShare={() => { setShareOpen(true); }}
             onToggleArchive={toggleArchive}
             onDelete={() => { setDeleteOpen(true); }}
+            onGenerateExamples={project.myRole !== "viewer" && exampleInfo !== null && exampleInfo.elements.length > 0 ? () => { setGenerateOpen(true); } : undefined}
+            generation={generation}
           />
         ) : (
           <main className="wp__main pp__main">
@@ -255,6 +258,7 @@ function ProjectWorkspacePage(): JSX.Element {
             }
             const refreshed = await getProject(project.id);
             setProject(refreshed);
+            setGeneration((count) => count + 1);
             setGenerateOpen(false);
           }}
         />

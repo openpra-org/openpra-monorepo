@@ -58,7 +58,7 @@ function mockLinkedBundles(variant: "htgr" | "sfr"): void {
     } } });
     if (path.includes("/hr-bundle")) return Promise.resolve({ hr: { mef: {
       humanFailureEvents: [{ uuid: "HFE-01", name: "Local action", hfeTiming: "POST_INITIATOR", affectedSystems: ["SYS-01"] }],
-      hepQuantifications: [{ hfeId: "HFE-01", meanHep: isSfr ? 0.08 : 0.045 }],
+      hepQuantifications: [{ hfeId: "HFE-01", hep: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: isSfr ? 0.08 : 0.045 } } } }],
     } } });
     if (path.includes("/da-bundle")) return Promise.resolve({ da: { mef: {
       parameters: [{ uuid: "DA-01", name: "Component failure", parameterType: "PROBABILITY", value: isSfr ? 0.008 : 0.002, basicEventRef: "BE-01", systemReference: "SYS-01" }],

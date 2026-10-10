@@ -20,7 +20,7 @@ import { SuccessCriteriaDevelopmentSchema } from "interfaces-mef-types/zod/sc/su
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
+import { daCcfVectorParameter, type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import type { WorkbookBayesianNetwork, WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
@@ -123,7 +123,7 @@ import {
   collectEsEventTreeReferences,
   collectHclUncertaintyReferences,
   collectSyFaultTreeReferences,
-  faultTreeControlledDataSourceKey,
+  humanFailureEventKey,
   resolveUncertaintyTables,
   WorkbookPraxisAdapterError,
 } from "./praxis-snapshot-adapters";
@@ -139,15 +139,15 @@ import type {
   WorkbookMefSnapshot,
 } from "./praxis-snapshot-adapters";
 import {
-  ccfFactorVector,
   expressionReferences,
   parameterReferenceKey,
   type UncertainExpression,
   type UncertainParameter,
   type UncertainVectorParameter,
 } from "interfaces-mef-types/core/uncertainty";
-import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
-import type { FaultTreeControlledDataSourceReference } from "interfaces-mef-types/modeling/fault-tree";
+import type { HumanFailureEventReference, WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
+import { parameterLaw } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { esqParameterRecord } from "interfaces-mef-types/esq/esq-run-inputs";
 import { PraetorAnalysisClient } from "./praetor-analysis.client";
 import { storedWorkbookRejection } from "../../workbooks/stored-workbook-format";
 
@@ -179,7 +179,7 @@ interface FaultTreeBundle {
 interface FaultTreeInputs {
   parameters: ReadonlyMap<string, UncertainParameter>;
   vectors: ReadonlyMap<string, UncertainVectorParameter>;
-  legacyValues: ReadonlyMap<string, number>;
+  humanFailureEvents: ReadonlyMap<string, UncertainExpression>;
   sources: LoadedWorkbook<unknown>[];
   references: WorkbookCrossReference[];
 }
@@ -250,6 +250,33 @@ const parseRequest = <T>(schema: z.ZodType<T>, value: unknown): T => {
   const parsed = schema.safeParse(value);
   if (!parsed.success) throw new BadRequestException(parsed.error.message);
   return parsed.data;
+};
+
+const humanFailureExpression = (hr: HumanReliabilityAnalysis, reference: HumanFailureEventReference): UncertainExpression => {
+  const events = hr.humanFailureEvents.filter((event) => event.uuid === reference.entityId);
+  if (events.length !== 1) {
+    throw new BadRequestException(
+      `HRA human-failure event '${reference.workbookId}:${reference.entityId}' resolved ${events.length} times; expected exactly once`,
+    );
+  }
+  const quantifications = hr.hepQuantifications.filter((quantification) => quantification.uuid === reference.quantificationId);
+  const [quantification] = quantifications;
+  if (quantifications.length !== 1 || quantification === undefined) {
+    throw new BadRequestException(
+      `HRA HEP quantification '${reference.workbookId}:${reference.quantificationId}' resolved ${quantifications.length} times; expected exactly once`,
+    );
+  }
+  if (quantification.hfeId !== reference.entityId) {
+    throw new BadRequestException(
+      `HRA HEP quantification '${reference.workbookId}:${reference.quantificationId}' does not quantify human-failure event '${reference.entityId}'`,
+    );
+  }
+  if (quantification.hep === undefined) {
+    throw new BadRequestException(
+      `HRA HEP quantification '${reference.workbookId}:${reference.quantificationId}' has no HEP. Give it a law or a DA link in HR.`,
+    );
+  }
+  return quantification.hep;
 };
 
 const expectPathModel = (pathModelId: string, bodyModelId: string): void => {
@@ -564,7 +591,7 @@ export class WorkbookAnalysisRunsService {
     };
     const pending: WorkbookParameterReference[] = [];
     const vectorReferences = new Map<string, WorkbookParameterReference>();
-    const legacy = new Map<string, FaultTreeControlledDataSourceReference>();
+    const humanReferences = new Map<string, HumanFailureEventReference>();
     const collect = (projectId: string, references: UncertaintyReferences): void => {
       for (const reference of references.parameterReferences) {
         claim(parameterReferenceKey(reference), projectId, `${reference.workbookId}:${reference.entityId}`);
@@ -583,10 +610,10 @@ export class WorkbookAnalysisRunsService {
     for (const { source, modelId } of faultTrees) {
       const collected = adaptOrThrow(() => collectSyFaultTreeReferences(source, modelId));
       collect(source.projectId, collected);
-      for (const reference of collected.legacyReferences) {
-        const key = faultTreeControlledDataSourceKey(reference);
+      for (const reference of collected.humanFailureReferences) {
+        const key = humanFailureEventKey(reference);
         claim(key, source.projectId, `${reference.workbookId}:${reference.entityId}`);
-        legacy.set(key, reference);
+        humanReferences.set(key, reference);
       }
     }
     extra.forEach(({ projectId, references }) => collect(projectId, references));
@@ -600,6 +627,18 @@ export class WorkbookAnalysisRunsService {
       daWorkbooks.set(reference.workbookId, loaded);
       return loaded;
     };
+    const humanFailureEvents = new Map<string, UncertainExpression>();
+    for (const [key, reference] of humanReferences) {
+      const cached = hrWorkbooks.get(reference.workbookId);
+      const workbook = cached ?? await this.resolveHrControlledDataSource(reference);
+      hrWorkbooks.set(reference.workbookId, workbook);
+      const expression = humanFailureExpression(workbook.mef, reference);
+      humanFailureEvents.set(key, expression);
+      for (const nested of expressionReferences(expression)) {
+        claim(parameterReferenceKey(nested), workbook.projectId, `${nested.workbookId}:${nested.entityId}`);
+        pending.push(nested);
+      }
+    }
     const sourceKinds = new Map<string, "DA" | "SC">();
     const parameterExpression = async (reference: WorkbookParameterReference): Promise<UncertainExpression> => {
       let kind = sourceKinds.get(reference.workbookId);
@@ -621,13 +660,16 @@ export class WorkbookAnalysisRunsService {
         }
         return match.missionTime;
       }
+      const factor = (await daFor(reference)).mef.ccfFactors?.find((entry) => entry.id === reference.entityId);
+      if (factor !== undefined) return factor.expression;
       const parameter = await daParameter(reference);
-      if (parameter.estimate === undefined) {
+      const law = parameterLaw(esqParameterRecord(parameter));
+      if (law === undefined) {
         throw new BadRequestException(
           `DA parameter '${reference.workbookId}:${reference.entityId}' has no estimate. Give it a value in DA.`,
         );
       }
-      return parameter.estimate;
+      return law;
     };
     const daParameter = async (reference: WorkbookParameterReference): Promise<DataAnalysis["parameters"][number]> => {
       const workbook = await daFor(reference);
@@ -640,15 +682,13 @@ export class WorkbookAnalysisRunsService {
       }
       return match;
     };
-    const daCcfEstimate = async (
-      reference: WorkbookParameterReference,
-    ): Promise<NonNullable<DataAnalysis["ccfParameterEstimations"]>[number]> => {
+    const daCcfVector = async (reference: WorkbookParameterReference): Promise<NonNullable<DataAnalysis["ccfVectors"]>[number]> => {
       const workbook = await daFor(reference);
-      const matches = (workbook.mef.ccfParameterEstimations ?? []).filter((estimate) => estimate.uuid === reference.entityId);
+      const matches = (workbook.mef.ccfVectors ?? []).filter((vector) => vector.id === reference.entityId);
       const [match] = matches;
       if (matches.length !== 1 || match === undefined) {
         throw new BadRequestException(
-          `DA common cause estimate '${reference.workbookId}:${reference.entityId}' resolved ${matches.length} times; expected exactly once`,
+          `DA common cause vector '${reference.workbookId}:${reference.entityId}' resolved ${matches.length} times; expected exactly once`,
         );
       }
       return match;
@@ -670,65 +710,14 @@ export class WorkbookAnalysisRunsService {
     }
     const vectors = new Map<string, UncertainVectorParameter>();
     for (const [key, reference] of vectorReferences) {
-      const estimate = await daCcfEstimate(reference);
-      const vector = estimate.factors === undefined ? undefined : ccfFactorVector(estimate.factors);
-      if (vector === undefined || vector.node !== "VALUE") {
-        throw new BadRequestException(
-          `DA common cause estimate '${reference.workbookId}:${reference.entityId}' holds no alpha or phi vector law`,
-        );
-      }
-      vectors.set(key, { reference, vector: vector.law });
-    }
-    const legacyValues = new Map<string, number>();
-    for (const [key, reference] of legacy) {
-      if (reference.referenceType === "WORKBOOK_PARAMETER") {
-        const parameter = await daParameter(reference);
-        const value = parameter.value;
-        if (parameter.estimate !== undefined || value === undefined || !Number.isFinite(value) || value < 0 || value > 1) {
-          throw new BadRequestException(
-            `DA parameter '${reference.workbookId}:${reference.entityId}' must hold a probability between zero and one for a human or common cause event`,
-          );
-        }
-        legacyValues.set(key, value);
-        continue;
-      }
-      const cached = hrWorkbooks.get(reference.workbookId);
-      const workbook = cached ?? await this.resolveHrControlledDataSource(reference);
-      hrWorkbooks.set(reference.workbookId, workbook);
-      const humanFailureEvents = workbook.mef.humanFailureEvents.filter((event) => event.uuid === reference.entityId);
-      if (humanFailureEvents.length !== 1) {
-        throw new BadRequestException(
-          `HRA human-failure event '${reference.workbookId}:${reference.entityId}' resolved ${humanFailureEvents.length} times; expected exactly once`,
-        );
-      }
-      const quantifications = workbook.mef.hepQuantifications.filter(
-        (quantification) => quantification.uuid === reference.quantificationId,
-      );
-      if (quantifications.length !== 1) {
-        throw new BadRequestException(
-          `HRA HEP quantification '${reference.workbookId}:${reference.quantificationId}' resolved ${quantifications.length} times; expected exactly once`,
-        );
-      }
-      const quantification = quantifications[0]!;
-      if (quantification.hfeId !== reference.entityId) {
-        throw new BadRequestException(
-          `HRA HEP quantification '${reference.workbookId}:${reference.quantificationId}' does not quantify human-failure event '${reference.entityId}'`,
-        );
-      }
-      const hep = quantification.meanHep ?? quantification.pointEstimateHep;
-      if (hep === undefined || !Number.isFinite(hep) || hep < 0 || hep > 1) {
-        throw new BadRequestException(
-          `HRA HEP quantification '${reference.workbookId}:${reference.quantificationId}' must provide a finite mean or point estimate between zero and one`,
-        );
-      }
-      legacyValues.set(key, hep);
+      vectors.set(key, daCcfVectorParameter(reference.workbookId, await daCcfVector(reference)));
     }
     return {
       parameters,
       vectors,
-      legacyValues,
+      humanFailureEvents,
       sources: uniqueWorkbooks([...daWorkbooks.values(), ...scWorkbooks.values(), ...hrWorkbooks.values()]),
-      references: [...parameterReferences.values(), ...vectorReferences.values(), ...legacy.values()],
+      references: [...parameterReferences.values(), ...vectorReferences.values(), ...humanReferences.values()],
     };
   }
 
@@ -1500,7 +1489,7 @@ export class WorkbookAnalysisRunsService {
     runId: string;
     owner: WorkbookModelSnapshotIdentity;
     request: EsqEventTreeRunRequest;
-    sources: Array<LoadedWorkbook<EventSequenceQuantification> | LoadedWorkbook<SystemsAnalysis> | LoadedWorkbook<SuccessCriteriaDevelopment>>;
+    sources: Array<LoadedWorkbook<EventSequenceQuantification> | LoadedWorkbook<SystemsAnalysis> | LoadedWorkbook<SuccessCriteriaDevelopment> | LoadedWorkbook<DataAnalysis>>;
     envelope: SolverEnvelope;
     models: WorkbookModelAddress[];
     acting: ActingUser;
@@ -1522,7 +1511,7 @@ export class WorkbookAnalysisRunsService {
     runId: string;
     owner: WorkbookModelSnapshotIdentity;
     request: EsqBarrierCellRunRequest;
-    sources: Array<LoadedWorkbook<EventSequenceQuantification>>;
+    sources: Array<LoadedWorkbook<EventSequenceQuantification> | LoadedWorkbook<DataAnalysis>>;
     envelope: SolverEnvelope;
     acting: ActingUser;
   }): Promise<AnalysisRunMetadata> {
@@ -1547,7 +1536,7 @@ export class WorkbookAnalysisRunsService {
   async executeEsqModelRun(input: {
     owner: WorkbookModelSnapshotIdentity;
     request: EsqModelRunRequest | EsqPostRunRequest | EsqImportanceRunRequest | EsqUncertaintyRunRequest | EsqSensitivityRunRequest;
-    sources: Array<LoadedWorkbook<EventSequenceQuantification> | LoadedWorkbook<SystemsAnalysis> | LoadedWorkbook<SuccessCriteriaDevelopment>>;
+    sources: Array<LoadedWorkbook<EventSequenceQuantification> | LoadedWorkbook<SystemsAnalysis> | LoadedWorkbook<SuccessCriteriaDevelopment> | LoadedWorkbook<DataAnalysis>>;
     trees: EsqPreparedTreeRun[];
     summarize: (batchId: string, completedAt: string, outcomes: EsqTreeRunOutcome[]) => EsqModelRunResult | EsqPostRunResult | EsqImportanceRunResult | EsqUncertaintyRunResult;
     stored?: (result: EventTreeAnalysisResult) => EventTreeAnalysisResult;

@@ -34,7 +34,6 @@ import {
   type EsqRegisterDecision,
   type EsqReviewWork,
   type EsqSensitivityWork,
-  type EsqUncertaintyWork,
   DependencyType,
   TruncationMethod,
   QuantificationApproach,
@@ -823,7 +822,7 @@ const modelUncertaintySourceAssessments: ModelUncertaintySourceAssessment[] = [
   { uuid: "UF-11", sourceElementCode: "DA", uncertaintySource: "Planned demand, exposure and maintenance counts", relatedAssumptions: ["The planned surveillance and maintenance schedule stands in for operating records."], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Demands, run hours and maintenance hours come from the planned schedule until operating records exist. Each train unavailability moves in proportion to its maintenance hours.", dataAnalysisSourceRef: { workbookId: "example-da-sfr", sourceId: "MU-3" }, implementsSrs: srs("ESQ-E1") },
   { uuid: "UF-12", sourceElementCode: "DA", uncertaintySource: "Coincident-maintenance assumption", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "The joint equalizing charge takes both battery banks out together for 22 h a year. The value is assumed until plant experience confirms it.", dataAnalysisSourceRef: { workbookId: "example-da-sfr", sourceId: "MU-4" }, implementsSrs: srs("ESQ-E1") },
   { uuid: "UF-13", sourceElementCode: "DA", uncertaintySource: "Initiating-event frequencies from EBR-II experience and design estimates", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Thirteen group frequencies rest on EBR-II counts, EBR-II fault trees and design-based estimates. At the LWR offsite power rate, loss of electric power would drop 9.9 times.", dataAnalysisSourceRef: { workbookId: "example-da-sfr", sourceId: "MU-5" }, implementsSrs: srs("ESQ-E1") },
-  { uuid: "UF-14", sourceElementCode: "DA", uncertaintySource: "Common cause factors from the CCF 2020 data", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Each group takes generic factors for its size, and its testing scheme decides what Systems Analysis receives. Testing the DRACS loops on one day would make all three failing together 2.9 times more likely.", dataAnalysisSourceRef: { workbookId: "example-da-sfr", sourceId: "MU-6" }, implementsSrs: srs("ESQ-E1") },
+  { uuid: "UF-14", sourceElementCode: "DA", uncertaintySource: "Common cause factors from the CCF 2020, NUREG/CR-4550 and EBR-II data", relatedAssumptions: [], evaluationType: "QUANTITATIVE", evaluationScope: "INDIVIDUAL", effectOnFamilyFrequencies: "Each group takes generic factors for its size, and its testing scheme decides what Systems Analysis receives. Testing the DRACS loops on one day would make all three failing together 2.9 times more likely.", dataAnalysisSourceRef: { workbookId: "example-da-sfr", sourceId: "MU-6" }, implementsSrs: srs("ESQ-E1") },
 ];
 
 const uncertaintyPropagation: UncertaintyPropagation = {
@@ -858,12 +857,12 @@ const sensitivityStudies: SensitivityStudy[] = [
   { uuid: "SS-1", name: "Truncation sensitivity", description: "Sweep of the truncation cutoff below the chosen value.", variedParameters: ["Truncation cutoff"], parameterRanges: { "Truncation cutoff": [1e-14, 1e-12] }, results: "The family frequencies hold within a few percent below the chosen cutoff." },
   { uuid: "SS-2", name: "State-of-knowledge correlation sweep", description: "Sweep of the correlation handling between shared estimates.", variedParameters: ["Correlation"], parameterRanges: { Correlation: [0, 1] }, results: "Ignoring the correlation would understate the loss-of-cooling mean by about a third." },
   { uuid: "SS-3", name: "Barrier-capacity sweep", description: "Sweep of the guard-vessel capacity range.", variedParameters: ["Capacity factor"], parameterRanges: { "Capacity factor": [0.5, 2] }, results: "The leak family stays below the threshold across the capacity range." },
-  { uuid: "DA-SS-1", name: "Similar-equipment sweep", description: "The sodium make-up pump rests on LWR pump data adjusted for sodium service. The factor goes to its bounds of 1 and 5.", variedParameters: ["DA-BE-111"], parameterRanges: { "DA-BE-111": [0.0005877225608803913, 0.0029386128044019567] }, results: "The pump probability runs from 5.88E-4 to 2.94E-3 per demand, against 1.18E-3 for the nominal factor.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-1" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-1", name: "Similar-equipment sweep", description: "The sodium make-up pump rests on LWR pump data adjusted for sodium service. The factor goes to its bounds of 1 and 5.", variedParameters: ["DA-BE-111"], parameterRanges: { "DA-BE-111": [0.0005877225608803913, 0.0029386128044019567] }, results: "The pump probability runs from 5.88E-4 to 2.94E-3 per demand, against 1.41E-3 for the factor law.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-1" }, implementsSrs: srs("ESQ-E2") },
   { uuid: "DA-SS-2", name: "Test-interval sweep", description: "The sensor input module estimate with monthly and semiannual channel tests in place of quarterly ones.", variedParameters: ["DA-BE-082"], parameterRanges: { "DA-BE-082": [0.00023558505611735828, 0.00030480034508374184] }, results: "The module probability is 2.36E-4 per demand with monthly tests and 3.05E-4 with semiannual tests, against 2.86E-4 for the planned quarterly tests.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-2" }, implementsSrs: srs("ESQ-E2") },
-  { uuid: "DA-SS-3", name: "Pump maintenance sweep", description: "Intermediate pump maintenance between half and twice the planned 26 h a year.", variedParameters: ["DA-UA-03"], parameterRanges: { "DA-UA-03": [0.0014840182648401827, 0.005936073059360731] }, results: "The pump unavailability runs from 1.48E-3 to 5.94E-3, against 2.97E-3 for the plan.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-3" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-3", name: "Pump maintenance sweep", description: "Intermediate pump maintenance between half and twice the planned 26 h a year.", variedParameters: ["DA-UA-03"], parameterRanges: { "DA-UA-03": [0.0014840182648401827, 0.005936073059360731] }, results: "The pump unavailability runs from 1.48E-3 to 5.94E-3, against 2.92E-3 for the Bayes estimate.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-3" }, implementsSrs: srs("ESQ-E2") },
   { uuid: "DA-SS-4", name: "Coincident-maintenance sweep", description: "The joint battery equalization unavailability from none to 5.0E-3.", variedParameters: ["DA-UA-05"], parameterRanges: { "DA-UA-05": [0, 0.005] }, results: "The planned joint charge gives 2.51E-3, inside the swept range.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-4" }, implementsSrs: srs("ESQ-E2") },
   { uuid: "DA-SS-5", name: "Electric power at the LWR rate", description: "Loss of electric power at the 2020 LWR offsite power rate, against the EBR-II record of no losses in five years.", variedParameters: ["DA-IE-02"], parameterRanges: { "DA-IE-02": [0.020220548035077744, 0.2] }, results: "The LWR rate gives 2.02E-2 per year over the group's power states, 9.9 times below the EBR-II based value of 0.2.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-5" }, implementsSrs: srs("ESQ-E2") },
-  { uuid: "DA-SS-6", name: "DRACS loop testing scheme", description: "The three DRACS loops tested on one day instead of staggered.", variedParameters: ["DA-CCF-12"], parameterRanges: { "DA-CCF-12": [5.7262743742437295e-05, 0.000166919703950549] }, results: "All three loops failing together rises from 5.73E-5 to 1.67E-4, 2.9 times the staggered value.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-6" }, implementsSrs: srs("ESQ-E2") },
+  { uuid: "DA-SS-6", name: "DRACS loop testing scheme", description: "The three DRACS loops tested on one day instead of staggered.", variedParameters: ["DA-CCF-12"], parameterRanges: { "DA-CCF-12": [5.935197205668143e-05, 0.00017300976092140088] }, results: "All three loops failing together rises from 5.94E-5 to 1.73E-4, 2.9 times the staggered value.", dataAnalysisCaseRef: { workbookId: "example-da-sfr", caseId: "SS-6" }, implementsSrs: srs("ESQ-E2") },
 ];
 
 const preOperationalAssumptions = [
@@ -1081,25 +1080,6 @@ const review: EsqReviewWork = {
   ],
 };
 
-const HR_ERROR_FACTORS: [string, number][] = [
-  ["HFE:HR-PRE-014", 5],
-  ["HFE:HR-PRE-018", 6],
-  ["HFE:HR-PRE-031", 6],
-  ["HFE:HR-PRE-041", 5],
-  ["HFE:HR-POST-005", 4],
-  ["HFE:HR-POST-025", 5],
-  ["HFE:HR-POST-026", 5],
-  ["RECOVERY:REC-1", 4],
-];
-
-const uncertaintyWork: EsqUncertaintyWork = {
-  spreads: HR_ERROR_FACTORS.map(([key, errorFactor]) => ({
-    key,
-    errorFactor,
-    source: `HR quantification of ${key.split(":")[1] ?? key}: lognormal with an error factor of ${errorFactor}, given in its uncertainty note.`,
-  })),
-};
-
 const HS_REASON = "Concerns hazards that Step 01 leaves to their own PRA workbooks, so it moves no family quantified here.";
 
 const decisions: EsqRegisterDecision[] = [
@@ -1132,7 +1112,7 @@ const sensitivityWork: EsqSensitivityWork = {
     { id: "SS-3-HIGH", name: "Pump maintenance sweep · high", kind: "PARAMETER", target: "DA-UA-03", value: 0.005936073059360731, basis: "Intermediate pump maintenance between half and twice the planned 26 h a year.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-3" } },
     { id: "SS-4-LOW", name: "Coincident-maintenance sweep · low", kind: "PARAMETER", target: "DA-UA-05", value: 0, basis: "The joint battery equalization unavailability from none to 5.0E-3.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-4" } },
     { id: "SS-4-HIGH", name: "Coincident-maintenance sweep · high", kind: "PARAMETER", target: "DA-UA-05", value: 5.0e-3, basis: "The joint battery equalization unavailability from none to 5.0E-3.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-4" } },
-    { id: "SS-6-HIGH", name: "DRACS loop testing scheme · high", kind: "CCF_TOTAL", target: "CCF-DRACS-LOOP", factor: 1.67e-4 / 5.73e-5, basis: "The three DRACS loops tested on one day instead of staggered. The group total scales by DA's all-members ratio.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-6" } },
+    { id: "SS-6-HIGH", name: "DRACS loop testing scheme · high", kind: "CCF_TOTAL", target: "CCF-DRACS-LOOP", factor: 1.73e-4 / 5.94e-5, basis: "The three DRACS loops tested on one day instead of staggered. The group total scales by DA's all-members ratio.", daCaseRef: { workbookId: DA_LINK, caseId: "SS-6" } },
     { id: "SC-4", name: "Every HEP at its 95th percentile", kind: "HEP_95TH", basis: "HR borrows nonnuclear performance data for a crew that does not yet exist. The 95th percentile of each HEP bounds that applicability gap." },
     { id: "SC-5", name: "DRACS loops failed together", kind: "GROUP_FAILED", target: "CCF_GROUP:CCF-DRACS-LOOP", basis: "Bounds the shared north penetration room failure that SY has not yet modeled (SY-B8) by failing the three loops together." },
     { id: "SC-6", name: "No recovery and no HFE dependency", kind: "LOGIC", logic: { recovery: false, dependency: false }, basis: "Shows what the remote-panel restoration credit and the joint HEPs change, the dependency treatment that ESQ-C16 asks to be tested." },
@@ -1205,7 +1185,6 @@ export const ESQ_ANALYSIS: EventSequenceQuantification = {
   barrierWork,
   postWork,
   review,
-  uncertaintyWork,
   sensitivityWork,
   handoffWork,
   quantificationPlan: { modulesPerPlant: { value: 1, link: { element: "IE", workbookId: "example-ie-sfr", field: "numberOfModules" } } },

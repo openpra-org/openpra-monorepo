@@ -1,4 +1,5 @@
 import type { EsqCombination, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { esqRecoveryEventId, resolvedCombinations, therpJoint, type EsqResolvedCombination } from "interfaces-mef-types/esq/esq-post-inputs";
 import { applySensitivityCase } from "interfaces-mef-types/esq/esq-sensitivity-inputs";
 import { MODEL_AS_SET } from "../esqLogic";
@@ -24,8 +25,22 @@ const NR_PAIR = [NR, "E-3"].sort();
 const NR_CODES = NR_PAIR.map((id) => (id === NR ? "NR-REC-1" : "SUP-FAN-HFE"));
 const NOT_RUN = "error:Not quantified with the rules:Run of record";
 
+const POINTS = new Map([["HFE:HFE-1", 1e-3], ["HFE:HFE-2", 0.02], ["RECOVERY:REC-1", 0.1]]);
+
+function point(value: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
+}
+
+function lognormal(mean: number): UncertainExpression {
+  return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "LOGNORMAL", mean, errorFactor: 3, level: 0.95 } } };
+}
+
+function pointOf(expression: UncertainExpression | undefined): number | undefined {
+  return expression?.node === "VALUE" && expression.value.law.family === "POINT" ? expression.value.law.value : undefined;
+}
+
 function checks(esq: EventSequenceQuantification): string[] {
-  return (postViewOf(esq)?.findings ?? []).map((finding) => `${finding.severity}:${finding.check}:${finding.item}`);
+  return (postViewOf(esq, POINTS)?.findings ?? []).map((finding) => `${finding.severity}:${finding.check}:${finding.item}`);
 }
 
 function ruleChecks(esq: EventSequenceQuantification): string[] {
@@ -52,14 +67,14 @@ function pairOf(esq: EventSequenceQuantification): EsqCombination {
 }
 
 function entryOf(esq: EventSequenceQuantification, id: string): EsqResolvedCombination | undefined {
-  return postViewOf(esq)?.combinations.find((row) => row.entry?.combination.id === id)?.entry;
+  return postViewOf(esq, POINTS)?.combinations.find((row) => row.entry?.combination.id === id)?.entry;
 }
 
 describe("ESQ Step 06 post-processing", () => {
   it("lists the HR recoveries and asks for the HFE search before the step completes", () => {
     const esq = postEsq();
-    const view = postViewOf(esq);
-    expect(view?.recoveries.map((entry) => `${entry.recovery.id}:${entry.codes.join("+")}:${String(entry.recovery.value)}:${String(entry.recovery.credited)}`)).toEqual([
+    const view = postViewOf(esq, POINTS);
+    expect(view?.recoveries.map((entry) => `${entry.recovery.id}:${entry.codes.join("+")}:${String(pointOf(entry.recovery.expression))}:${String(entry.recovery.credited)}`)).toEqual([
       "REC-1:SUP-FAN-HFE:0.1:false",
       "REC-2:SUP-HFE:undefined:false",
     ]);
@@ -93,11 +108,11 @@ describe("ESQ Step 06 post-processing", () => {
       stateIds: ["POS-01"],
       credited: true,
       basis: "The remote panel is staffed.",
-      typed: { value: 0.3, source: "" },
+      typed: { expression: point(0.3), source: "" },
       ofRecord: "TYPED",
       feasibility: { procedure: true, training: true, cues: true, crew: true, time: true, access: true, equipment: true },
     });
-    expect(postViewOf(typed)?.recoveries.find((entry) => entry.recovery.id === "REC-2")).toMatchObject({ active: true, assessed: false, recovery: { value: 0.3, source: "TYPED", missing: [] } });
+    expect(postViewOf(typed, POINTS)?.recoveries.find((entry) => entry.recovery.id === "REC-2")).toMatchObject({ active: true, assessed: false, recovery: { expression: point(0.3), source: "TYPED", missing: [] } });
     expect(checks(typed)).toEqual([
       "error:Typed HEP without a source:REC-2",
       "error:Recovery outside the dependency assessment:REC-2",
@@ -121,7 +136,7 @@ describe("ESQ Step 06 post-processing", () => {
     ]);
     const done = assessed();
     expect(done.postWork?.combinations?.map((entry) => `${entry.id}:${entry.eventIds.join("+")}`)).toEqual([`HC-1:${NR}+E-3`, "HC-2:E-2+E-3"]);
-    const rows = postViewOf(done)?.combinations ?? [];
+    const rows = postViewOf(done, POINTS)?.combinations ?? [];
     expect(rows.map((row) => `${row.entry?.combination.id ?? ""}:${row.entry?.hr?.id ?? ""}:${row.entry?.source ?? ""}`)).toEqual(["HC-1:DEP-2:HRA", "HC-2:DEP-1:HRA"]);
     expect(rows[0]?.entry?.joint).toBeCloseTo(0.011, 15);
     expect(rows[0]?.entry?.therp).toBeCloseTo((0.02 * 1.1) / 2, 15);
@@ -137,7 +152,7 @@ describe("ESQ Step 06 post-processing", () => {
     const searched = withSearch(esq, postSummary(esq, [{ eventIds: ["E-2", "E-3"], treeIds: ["ET-A"], cutSetCount: 2, nominalFrequency: 1.2e-7 }]));
     const done = withCombinationsFor(searched, [["E-2", "E-3"]]);
     expect(checks(done)).toContain("warning:HR joint HEP disagrees with its level:HC-1");
-    expect(postViewOf(done)?.findings.find((finding) => finding.check === "HR joint HEP disagrees with its level")?.detail).toBe("HR gives 5E-4 at moderate dependence. THERP at that level gives 1.6E-4.");
+    expect(postViewOf(done, POINTS)?.findings.find((finding) => finding.check === "HR joint HEP disagrees with its level")?.detail).toBe("HR gives 5E-4 at moderate dependence. THERP at that level gives 1.6E-4.");
   });
 
   it("falls back to THERP, types a joint and applies the floor", () => {
@@ -167,11 +182,22 @@ describe("ESQ Step 06 post-processing", () => {
 
   it("moves an HR joint with its members in the 95th percentile case", () => {
     const done = assessed();
-    const esq: EventSequenceQuantification = { ...done, uncertaintyWork: { spreads: ["HFE:HFE-1", "HFE:HFE-2", "RECOVERY:REC-1"].map((key) => ({ key, errorFactor: 3, source: "HR uncertainty note." })) } };
-    const applied = applySensitivityCase(esq, { id: "SC-9", name: "Every HEP at its 95th percentile", kind: "HEP_95TH", basis: "Applicability gap." });
+    const model = done.model;
+    if (model === undefined) throw new Error("no model");
+    const esq: EventSequenceQuantification = {
+      ...done,
+      model: {
+        ...model,
+        humanEvents: model.humanEvents.map((human) => ({ ...human, hep: lognormal(human.id === "HFE-1" ? 1e-3 : 0.02) })),
+        recoveries: (model.recoveries ?? []).map((recovery) => ({ ...recovery, hep: lognormal(0.1) })),
+      },
+    };
+    const upper = new Map([["HFE:HFE-1", 2.40014e-3], ["HFE:HFE-2", 0.0480028], ["RECOVERY:REC-1", 0.240028]]);
+    const applied = applySensitivityCase(esq, { id: "SC-9", name: "Every HEP at its 95th percentile", kind: "HEP_95TH", basis: "Applicability gap." }, upper);
     expect(applied.problem).toBeUndefined();
+    expect(applied.esq.model?.humanEvents.find((human) => human.id === "HFE-2")?.hep).toEqual(point(0.0480028));
     expect(applied.esq.postWork?.combinations?.find((entry) => entry.id === "HC-2")).toMatchObject({ ofRecord: "THERP", level: "MODERATE" });
-    const view = resolvedCombinations(applied.esq).find((entry) => entry.combination.id === "HC-2");
+    const view = resolvedCombinations(applied.esq, upper).find((entry) => entry.combination.id === "HC-2");
     expect(view?.problem).toBeUndefined();
     expect(view?.joint).toBeCloseTo(therpJoint(view?.members ?? [], "MODERATE") ?? 0, 15);
     expect(view?.joint).toBeGreaterThan(entryOf(esq, "HC-2")?.joint ?? 1);

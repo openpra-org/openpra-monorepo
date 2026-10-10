@@ -37,7 +37,7 @@ export class DaMefAdapter implements WorkbookElementAdapter, OnModuleInit {
   async load(workbookId: string): Promise<{ projectId: string; ownerUsername: string; mef: unknown; revision: number } | null> {
     const doc = await this.daWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) return null;
-    return { projectId: doc.projectId, ownerUsername: doc.ownerUsername, mef: doc.mef, revision: readWorkbookRevision(doc) };
+    return { projectId: doc.projectId, ownerUsername: doc.ownerUsername, mef: stripNulls(doc.mef), revision: readWorkbookRevision(doc) };
   }
 
   async save(workbookId: string, mef: unknown, expectedRevision?: number): Promise<unknown> {

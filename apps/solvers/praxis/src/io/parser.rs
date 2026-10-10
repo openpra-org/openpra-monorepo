@@ -1076,7 +1076,7 @@ pub fn parse_ccf_group<R: BufRead>(
         }
     };
 
-    CcfGroup::new(name, members, model, Expr::Constant(total))
+    CcfGroup::new(name, members, model, Some(Expr::Constant(total)))
 }
 
 pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
@@ -1730,7 +1730,7 @@ mod tests {
         assert_eq!(ccf.members[1], "Pump2");
 
         assert_eq!(ccf.model, CcfModel::BetaFactor(Expr::Constant(0.2)));
-        assert_eq!(ccf.total, Expr::Constant(0.1));
+        assert_eq!(ccf.total, Some(Expr::Constant(0.1)));
     }
 
     #[test]
@@ -1950,7 +1950,7 @@ mod tests {
         let ccf = ft.get_ccf_group("Pumps").unwrap();
         assert_eq!(ccf.element().id(), "Pumps");
         assert_eq!(ccf.members.len(), 3);
-        assert_eq!(ccf.total, Expr::Constant(0.1));
+        assert_eq!(ccf.total, Some(Expr::Constant(0.1)));
     }
 
     #[test]

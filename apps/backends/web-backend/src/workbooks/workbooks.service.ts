@@ -26,11 +26,15 @@ import {
   reconcileExampleEventTreeDependencyReferences,
   reconcileExampleSyDataAnalysisReferences,
   reconcileExampleDaMissionTimeReferences,
+  reconcileExampleDaOwnReferences,
+  reconcileExampleEsqDataAnalysisLinks,
   reconcileExampleEsqMissionTimeReferences,
   reconcileExampleSyMissionTimeReferences,
   reconcileExampleSyHumanReliabilityReferences,
   reconcileExampleRiskResultReferences,
   reconcileExampleSyDependencyOwnership,
+  esqDataAnalysisLinks,
+  relinkExampleDataAnalysis,
 } from "../example-workbooks/seeds/dependency-model-seed";
 
 function computeInitials(fullName: string): string {
@@ -87,6 +91,17 @@ interface ExampleCapableElement {
   elementCode: string;
   variants: WorkbookExampleVariant[];
   loadExample: (workbookId: string, acting: ActingUser, exampleId: string) => Promise<void>;
+}
+
+const EXAMPLE_LOAD_ORDER: readonly string[] = ["POS", "IE", "ES", "SC", "HRA", "DA", "SY", "ESQ"];
+
+function loadRank(elementCode: string): number {
+  const rank = EXAMPLE_LOAD_ORDER.indexOf(elementCode);
+  return rank === -1 ? EXAMPLE_LOAD_ORDER.length : rank;
+}
+
+function upstreamFirst(elements: readonly ExampleCapableElement[]): ExampleCapableElement[] {
+  return [...elements].sort((left, right) => loadRank(left.elementCode) - loadRank(right.elementCode));
 }
 
 @Injectable()
@@ -190,7 +205,7 @@ export class WorkbooksService {
     if (chosen !== "both" && !available.includes(chosen)) throw new BadRequestException(`Unknown example "${chosen}"`);
     const requested = chosen === "both" ? available : [chosen];
     const generated: GeneratedExampleWorkbook[] = [];
-    for (const entry of capable) {
+    for (const entry of upstreamFirst(capable)) {
       for (const variant of entry.variants) {
         if (!requested.includes(variant.exampleId)) continue;
         try {
@@ -267,9 +282,14 @@ export class WorkbooksService {
       const scEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "SC");
       const scLoaded = scAdapter === undefined || scEntry?.workbookId === null || scEntry?.workbookId === undefined ? null : await scAdapter.load(scEntry.workbookId);
       const missionTimes = scLoaded === null || scEntry?.workbookId === null || scEntry?.workbookId === undefined ? undefined : { sc: scLoaded.mef as SuccessCriteriaDevelopment, workbookId: scEntry.workbookId };
-      if (daAdapter !== undefined && missionTimes !== undefined && daEntry?.workbookId !== null && daEntry?.workbookId !== undefined) {
+      if (daAdapter !== undefined && daEntry?.workbookId !== null && daEntry?.workbookId !== undefined) {
         const dataAnalysis = await daAdapter.load(daEntry.workbookId);
-        if (dataAnalysis !== null) await daAdapter.save(daEntry.workbookId, reconcileExampleDaMissionTimeReferences(dataAnalysis.mef as DataAnalysis, missionTimes.sc, missionTimes.workbookId), dataAnalysis.revision);
+        if (dataAnalysis !== null) {
+          const stored = dataAnalysis.mef as DataAnalysis;
+          const timed = missionTimes === undefined ? stored : reconcileExampleDaMissionTimeReferences(stored, missionTimes.sc, missionTimes.workbookId);
+          const owned = reconcileExampleDaOwnReferences(timed, daEntry.workbookId);
+          if (owned !== stored) await daAdapter.save(daEntry.workbookId, owned, dataAnalysis.revision);
+        }
       }
       if (syEntry?.workbookId === null || syEntry?.workbookId === undefined) continue;
 
@@ -318,9 +338,12 @@ export class WorkbooksService {
 
       if (esqAdapter !== undefined && esqEntry?.workbookId !== null && esqEntry?.workbookId !== undefined) {
         const esq = await esqAdapter.load(esqEntry.workbookId);
+        const dataAnalysis = daAdapter === undefined || daEntry?.workbookId === null || daEntry?.workbookId === undefined ? null : await daAdapter.load(daEntry.workbookId);
         if (esq !== null && esq.revision !== undefined) {
+          const timedEsq = missionTimes === undefined ? esq.mef as EventSequenceQuantification : reconcileExampleEsqMissionTimeReferences(esq.mef as EventSequenceQuantification, missionTimes.sc, missionTimes.workbookId);
+          const daSources = dataAnalysis === null || daEntry?.workbookId === null || daEntry?.workbookId === undefined ? [] : [{ da: dataAnalysis.mef as DataAnalysis, workbookId: daEntry.workbookId, exampleVariant: variant }];
           const reconciledEsq = reconcileExampleEsqDependencyReferences(
-            missionTimes === undefined ? esq.mef as EventSequenceQuantification : reconcileExampleEsqMissionTimeReferences(esq.mef as EventSequenceQuantification, missionTimes.sc, missionTimes.workbookId),
+            relinkExampleDataAnalysis(timedEsq, esqDataAnalysisLinks(timedEsq), daSources, reconcileExampleEsqDataAnalysisLinks).mef,
             esqEntry.workbookId,
             systems.mef as SystemsAnalysis,
             syEntry.workbookId,

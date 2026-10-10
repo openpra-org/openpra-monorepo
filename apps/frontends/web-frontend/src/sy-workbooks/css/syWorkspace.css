@@ -55,6 +55,8 @@
 .sy-dialog-list{gap:8px}
 .sy-dialog-list__row{display:flex;align-items:center;gap:8px}
 .sy-dialog-list__row .posfield__input{box-sizing:border-box;min-width:0;flex:1}
+.sy-details-modal .sy-dialog-list__row .posnav__btn{align-self:stretch;justify-content:center}
+.sy-details-modal .sy-dialog-list__row .sy-icon-btn{align-self:center}
 .sy-dialog-checks{display:flex;flex-wrap:wrap;gap:8px}
 .sy-dialog-check{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);font-size:13px;color:var(--color-text);cursor:pointer}
 .sy-dialog-check input{margin:0;accent-color:var(--color-primary)}

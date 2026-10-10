@@ -1,5 +1,5 @@
 import { JSX } from "react";
-import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { ccfModelTakesTotal, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { carriesUncertainExpression, type CommonCauseFailureGroup, type SystemBasicEvent, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { CcfFactorEditor, ExpressionEditor } from "../newly-developed-methods/shared/uncertainEditor";
 import { expressionText } from "../newly-developed-methods/shared/uncertainText";
@@ -11,10 +11,12 @@ import {
   ccfFactorText,
   ccfModelText,
   fittedFactors,
+  groupTotal,
   linkedEstimate,
   sharedMemberExpression,
   uniqueMemberIds,
   validateCcfGroup,
+  vectorLengths,
   withMemberTotal,
 } from "./syCcf";
 import { systemTree } from "./syFailureRecords";
@@ -52,12 +54,12 @@ function shownEvents(group: CommonCauseFailureGroup | undefined, analysis: Syste
 }
 
 function shownTotal(group: CommonCauseFailureGroup | undefined, analysis: SystemsAnalysis): UncertainExpression[] {
-  if (group === undefined) return [];
-  return [sharedMemberExpression(group, analysis) ?? group.total];
+  const total = group === undefined ? undefined : groupTotal(group, analysis);
+  return total === undefined ? [] : [total];
 }
 
 function CommonCauseDialog({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
-  const { sy, editable, mutateSy, shortOf, controlledCcfEstimates } = useSyWorkbook();
+  const { sy, editable, mutateSy, shortOf, controlledCcfEstimates, controlledCcfVectors } = useSyWorkbook();
   const values = useSyValueSources();
   const found = sy.commonCauseFailureGroups.find((candidate) => candidate.uuid === id);
   const points = useEventPoints(shownEvents(found, sy), values.table);
@@ -72,7 +74,7 @@ function CommonCauseDialog({ id, onClose }: { id: string; onClose: () => void })
   const reference = group.dataAnalysisCCFParameterRef ?? "";
   const linked = reference.length > 0;
   const estimate = linkedEstimate(group, controlledCcfEstimates);
-  const issues = validateCcfGroup(group, sy, controlledCcfEstimates);
+  const issues = validateCcfGroup(group, sy, controlledCcfEstimates, vectorLengths(controlledCcfVectors));
   const sharedValue = sharedMemberExpression(group, sy);
   const memberIds = group.members?.basicEvents.map((member) => member.id) ?? [];
   const scopeSystems = group.scope === "INTERSYSTEM" ? group.affectedSystems : [ownerId];
@@ -177,13 +179,16 @@ function CommonCauseDialog({ id, onClose }: { id: string; onClose: () => void })
   }
 
   function totalField(): JSX.Element {
+    const total = group.total;
+    if (!ccfModelTakesTotal(group.factors)) return <span className="sy-review-sub">The binomial failure rate model gives every order, so the group takes no Qₜ.</span>;
     if (sharedValue !== null) {
       return <div><PointValue state={totalPoint} />{" "}<span className="sy-review-sub">From the member value. {expressionText(sharedValue, label)}</span></div>;
     }
-    if (!editable) return <div><PointValue state={totalPoint} />{" "}<span className="sy-review-sub">{expressionText(group.total, label)}</span></div>;
+    if (total === undefined) return <span className="sy-review-none">No Qₜ</span>;
+    if (!editable) return <div><PointValue state={totalPoint} />{" "}<span className="sy-review-sub">{expressionText(total, label)}</span></div>;
     return (
       <>
-        <ExpressionEditor expression={group.total} unit="PROBABILITY" options={values.options} models={VALUE_MODELS} defaultTime={ownerMissionTime} disabled={!editable} onChange={(total) => commit({ total })} />
+        <ExpressionEditor expression={total} unit="PROBABILITY" options={values.options} models={VALUE_MODELS} defaultTime={ownerMissionTime} disabled={!editable} onChange={(total) => commit({ total })} />
         <span className="sy-review-sub">Point value <PointValue state={totalPoint} /></span>
       </>
     );
@@ -275,7 +280,7 @@ function CommonCauseDialog({ id, onClose }: { id: string; onClose: () => void })
             {linked || !editable ? (
               <div><span>{ccfModelText(group.factors)}</span>{" "}<span className="sy-review-sub posmono">{ccfFactorText(group.factors, label)}</span></div>
             ) : (
-              <CcfFactorEditor factors={group.factors} groupSize={uniqueMemberIds(group).length} disabled={!editable} onChange={(factors) => commit({ factors })} />
+              <CcfFactorEditor factors={group.factors} groupSize={uniqueMemberIds(group).length} options={values.ccfOptions} vectorOptions={controlledCcfVectors} disabled={!editable} onChange={(factors) => commit({ factors })} />
             )}
           </div>
           {!linked && (

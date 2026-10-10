@@ -95,9 +95,6 @@ struct Plain {
 }
 
 impl Plain {
-    fn new() -> Self {
-        Self::with_limit(0)
-    }
     fn with_limit(limit: usize) -> Self {
         Self {
             nodes: vec![(u32::MAX, 0, 0), (u32::MAX, 0, 0)],
@@ -1076,14 +1073,6 @@ fn complement_diagram(in_path: &str, out_path: &str) {
     w.flush().unwrap();
 }
 
-fn basic_event_diagram(var: u64, out_path: &str) -> u64 {
-    let id = (var << 40) | 2;
-    let mut w = BufWriter::new(File::create(out_path).unwrap());
-    write_rec(&mut w, &[var, id, 0, 1]);
-    w.flush().unwrap();
-    id
-}
-
 fn sort_diagram_asc(in_path: &str, out_path: &str, budget: usize, tmp: &str) {
     external_sort(in_path, out_path, 4, budget, |r| r[1] as u128, tmp);
 }
@@ -1118,17 +1107,6 @@ fn newpath(ctx: &Bctx, fid: &mut u64, tag: &str) -> String {
 fn empty_diag(ctx: &Bctx, fid: &mut u64) -> String {
     let p = newpath(ctx, fid, "e");
     File::create(&p).unwrap();
-    p
-}
-
-fn copy_diag(ctx: &Bctx, fid: &mut u64, src: &str) -> String {
-    let p = newpath(ctx, fid, "cp");
-    let mut rr = RecReader::open(src, 4);
-    let mut w = BufWriter::new(File::create(&p).unwrap());
-    while let Some(r) = rr.next() {
-        write_rec(&mut w, &r);
-    }
-    w.flush().unwrap();
     p
 }
 
@@ -1205,80 +1183,6 @@ fn combine(
     result
 }
 
-#[allow(clippy::too_many_arguments)]
-fn ite_ooc(
-    ctx: &Bctx,
-    fid: &mut u64,
-    f_path: &str,
-    f_root: u64,
-    g_path: &str,
-    g_root: u64,
-    h_path: &str,
-    h_root: u64,
-) -> (String, u64) {
-    if f_root == 1 {
-        return (copy_diag(ctx, fid, g_path), g_root);
-    }
-    if f_root == 0 {
-        return (copy_diag(ctx, fid, h_path), h_root);
-    }
-    let (a_path, a_root) = combine(ctx, fid, f_path, f_root, g_path, g_root, 0);
-    let nf = newpath(ctx, fid, "nf");
-    complement_diagram(f_path, &nf);
-    let (b_path, b_root) = combine(ctx, fid, &nf, f_root, h_path, h_root, 0);
-    let _ = fs::remove_file(&nf);
-    let (r_path, r_root) = combine(ctx, fid, &a_path, a_root, &b_path, b_root, 1);
-    let _ = fs::remove_file(&a_path);
-    let _ = fs::remove_file(&b_path);
-    (r_path, r_root)
-}
-
-fn atleast_ooc(
-    ctx: &Bctx,
-    fid: &mut u64,
-    children: &[(String, u64)],
-    start: usize,
-    k: usize,
-    memo: &mut HashMap<(usize, usize), (String, u64)>,
-) -> (String, u64) {
-    let n = children.len();
-    if k == 0 {
-        return (empty_diag(ctx, fid), 1);
-    }
-    if k > n - start {
-        return (empty_diag(ctx, fid), 0);
-    }
-    if let Some((p, r)) = memo.get(&(start, k)) {
-        return (copy_diag(ctx, fid, p), *r);
-    }
-    let (cp, cr) = children[start].clone();
-    let (tp, tr) = atleast_ooc(ctx, fid, children, start + 1, k - 1, memo);
-    let (ep, er) = atleast_ooc(ctx, fid, children, start + 1, k, memo);
-    let (rp, rr) = ite_ooc(ctx, fid, &cp, cr, &tp, tr, &ep, er);
-    let _ = fs::remove_file(&tp);
-    let _ = fs::remove_file(&ep);
-    memo.insert((start, k), (rp.clone(), rr));
-    (copy_diag(ctx, fid, &rp), rr)
-}
-
-fn materialize(
-    ctx: &Bctx,
-    fid: &mut u64,
-    memo: &HashMap<NodeIndex, (String, u64)>,
-    op: NodeIndex,
-    owned: &mut Vec<String>,
-) -> (String, u64) {
-    let (opath, oroot) = memo[&op.abs()].clone();
-    if op < 0 {
-        let cp = newpath(ctx, fid, "mc");
-        complement_diagram(&opath, &cp);
-        owned.push(cp.clone());
-        (cp, oroot)
-    } else {
-        (opath, oroot)
-    }
-}
-
 fn write_mem(ctx: &Bctx, fid: &mut u64, nodes: &[[u64; 4]]) -> String {
     let p = newpath(ctx, fid, "m");
     let mut w = BufWriter::new(File::create(&p).unwrap());
@@ -1287,15 +1191,6 @@ fn write_mem(ctx: &Bctx, fid: &mut u64, nodes: &[[u64; 4]]) -> String {
     }
     w.flush().unwrap();
     p
-}
-
-fn load_mem(path: &str) -> Vec<[u64; 4]> {
-    let mut out = Vec::new();
-    let mut rr = RecReader::open(path, 4);
-    while let Some(r) = rr.next() {
-        out.push([r[0], r[1], r[2], r[3]]);
-    }
-    out
 }
 
 fn diag_to_disk(ctx: &Bctx, fid: &mut u64, d: &Diag) -> (String, u64, bool) {

@@ -278,7 +278,7 @@ mod tests {
             "Pumps",
             vec!["P1".to_string(), "P2".to_string()],
             CcfModel::BetaFactor(Expr::Constant(beta)),
-            total,
+            Some(total),
         )
         .unwrap()
     }
@@ -332,7 +332,7 @@ mod tests {
                     testing: CcfTesting::NonStaggered,
                     alphas: fixed_components(&alphas_key("Valves"), vec![0.6, 0.4]).unwrap(),
                 },
-                Expr::Constant(0.05),
+                Some(Expr::Constant(0.05)),
             )
             .unwrap(),
         )
@@ -342,7 +342,7 @@ mod tests {
                 "Motors",
                 vec!["M1".to_string(), "M2".to_string()],
                 CcfModel::Mgl(vec![Expr::Constant(0.2)]),
-                Expr::Constant(0.1),
+                Some(Expr::Constant(0.1)),
             )
             .unwrap(),
         )
@@ -378,7 +378,7 @@ mod tests {
                         member_indices: vec![0, 1],
                     }],
                 },
-                Expr::Constant(7.2e-7),
+                Some(Expr::Constant(7.2e-7)),
             )
             .unwrap(),
         )
@@ -441,10 +441,10 @@ mod tests {
                 "Pumps",
                 vec!["P1".to_string(), "P2".to_string()],
                 CcfModel::BetaFactor(Expr::Parameter("beta".to_string())),
-                Expr::draw(Law::Uniform {
+                Some(Expr::draw(Law::Uniform {
                     lower: 0.01,
                     upper: 0.2,
-                }),
+                })),
             )
             .unwrap(),
         )

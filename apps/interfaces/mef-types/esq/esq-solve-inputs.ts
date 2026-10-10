@@ -33,7 +33,7 @@ function solveInputsKey(esq: EventSequenceQuantification, options: { combination
       states: model.states,
       events: model.events,
       ccfGroups: model.ccfGroups,
-      parameters: model.parameters,
+      parameters: model.parameters.map((parameter) => parameter.id),
       humanEvents: model.humanEvents,
       recoveries: model.recoveries,
       dependencies: model.dependencies,
@@ -66,7 +66,7 @@ function solveInputsKey(esq: EventSequenceQuantification, options: { combination
       stateIds: rule.stateIds,
       credited: rule.credited,
       feasibility: rule.feasibility,
-      typed: rule.typed?.value,
+      typed: rule.typed?.expression,
       ofRecord: rule.ofRecord,
     })),
     combinations: options.combinations ? post.combinations?.map((combination) => ({

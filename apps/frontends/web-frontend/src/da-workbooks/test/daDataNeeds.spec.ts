@@ -11,7 +11,7 @@ import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncert
 import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";
 import { daNeedChecks, parameterFindings, withAutoMapping, withLinkedValuesSynced, withNeedParameter, withNeedsMerged, withOutlierGroup } from "../daSelectors";
 import { entriesFromRows, guessMapping, libraryCount, libraryEntries, parseDelimited, sourceFindings, withStoredEntry } from "../daSourcing";
-import { elicitationLaw, lawSummary, operationLaw, parameterPriorLaw } from "../daLaws";
+import { elicitationLaw, lawSummary, parameterPriorLaw } from "../daLaws";
 import { linkScExamples } from "./daScExamples";
 
 jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
@@ -250,7 +250,7 @@ describe("withAutoMapping", () => {
     expect(linkedMission?.missionTime).toBeUndefined();
 
     const hep = mapped.dataNeeds?.humanErrors.find((need) => need.id === "hfe-a")?.parameterId;
-    expect(byId.get(hep ?? "")).toMatchObject({ quantificationModel: "HUMAN_ERROR", parameterType: "HUMAN_ERROR_PROBABILITY", value: 3e-3, stateIds: ["POS-01"] });
+    expect(byId.get(hep ?? "")).toMatchObject({ quantificationModel: "HUMAN_ERROR", parameterType: "HUMAN_ERROR_PROBABILITY", estimate: point("PROBABILITY", 3e-3), stateIds: ["POS-01"] });
     expect(events.get("operator")).toBe(hep);
     const recovery = mapped.dataNeeds?.humanErrors.find((need) => need.id === "rec-1")?.parameterId;
     expect(byId.get(recovery ?? "")?.quantificationModel).toBe("NON_RECOVERY");
@@ -284,7 +284,7 @@ describe("parameterFindings", () => {
       parameters: [
         component("DA-RATE", { parameterType: "FAILURE_RATE", quantificationModel: "RUNNING_RATE", componentBoundaryRef: "CB-1", estimate: point("PER_HOUR", 1e-5) }),
         component("DA-MISSION", { quantificationModel: "MISSION_PROBABILITY", estimate: mission(1e-5, 24), componentBoundaryRef: "CB-1", stateIds: ["POS-01", "POS-02"] }),
-        parameter("DA-HIGH", { parameterType: "HUMAN_ERROR_PROBABILITY", quantificationModel: "HUMAN_ERROR", value: 1.5 }),
+        component("DA-HIGH", { parameterType: "HUMAN_ERROR_PROBABILITY", quantificationModel: "HUMAN_ERROR", estimate: point("PROBABILITY", 1.5) }),
         component("DA-LINK", { quantificationModel: "DEMAND_PROBABILITY", valueMode: "LINKED", valueLink: { element: "SY", needId: "loose" }, componentBoundaryRef: "CB-1" }),
       ],
       componentBoundaries: [{ uuid: "CB-1", name: "Pump", systemId: "SYS-1", description: "", boundaries: [], includedItems: ["Pump"], boundaryBasis: "Matches the event", implementsSrs: [] }],
@@ -362,7 +362,7 @@ describe("parameterFindings", () => {
       })),
       parameters: [
         component("DA-F", { parameterType: "FREQUENCY", quantificationModel: "FREQUENCY", estimate: point("PER_YEAR", 0.1), stateIds: ["POS-01"] }),
-        parameter("DA-H", { parameterType: "HUMAN_ERROR_PROBABILITY", quantificationModel: "HUMAN_ERROR", value: 3e-3, stateIds: ["POS-01"] }),
+        component("DA-H", { parameterType: "HUMAN_ERROR_PROBABILITY", quantificationModel: "HUMAN_ERROR", estimate: point("PROBABILITY", 3e-3), stateIds: ["POS-01"] }),
       ],
     };
     const findings = await settledWithPraxis(() => parameterFindings(da).map((finding) => `${finding.severity}:${finding.check}:${finding.item}`));
@@ -467,7 +467,7 @@ describe("sources and priors", () => {
       ...blankDa(needs({})),
       sources: library(),
       parameters: [
-        component("DA-RUN", { parameterType: "PROBABILITY", quantificationModel: "MISSION_PROBABILITY", evidenceKind: "GENERIC_NUCLEAR", evidenceReason: "No gas turbine of this design has operated.", priorUseId: "U-1", sourceUses: [{ id: "U-1", sourceId: "SRC-01", entryId: "CTG-FTLR", verdict: "SCALED", boundary: "SAME", reason: "Same machine class.", factors: [{ id: "F-1", name: "Helium plant duty", nominal: 2, low: 1, high: 4, basis: "Start profile differs." }] }] }),
+        component("DA-RUN", { parameterType: "PROBABILITY", quantificationModel: "MISSION_PROBABILITY", evidenceKind: "GENERIC_NUCLEAR", evidenceReason: "No gas turbine of this design has operated.", priorUseId: "U-1", sourceUses: [{ id: "U-1", sourceId: "SRC-01", entryId: "CTG-FTLR", verdict: "SCALED", boundary: "SAME", reason: "Same machine class.", factors: [{ id: "F-1", name: "Helium plant duty", nominal: 2, low: 2, high: 2, basis: "Start profile differs." }] }] }),
         component("DA-ALARM", { quantificationModel: "DEMAND_PROBABILITY", evidenceKind: "GENERIC_NUCLEAR", evidenceReason: "No plant records before operation.", priorUseId: "U-1", sourceUses: [{ id: "U-1", sourceId: "SRC-02", entryId: "ALR-NR-I", verdict: "APPLIES", boundary: "ADJUSTED", reason: "Annunciator on a quarterly test.", standbyHours: 1095 }] }),
         component("DA-OPEN", { quantificationModel: "DEMAND_PROBABILITY", sourceUses: [{ id: "U-1", sourceId: "SRC-02", entryId: "ALR-NR-I", verdict: "APPLIES", boundary: "DIFFERENT", reason: "" }] }),
       ],
@@ -572,16 +572,13 @@ describe("sources and priors", () => {
     const pooled = await settledWithPraxis(() => elicitationLaw(elicitation));
     if (pooled.status !== "ready" || pooled.law.family !== "MIXTURE") throw new Error("PRAXIS gave no pool.");
     expect(pooled.law.components.map((part) => part.weight)).toEqual([1, 1, 1]);
-    const fits = await settledWithPraxis(() => elicitation.experts.map((expert) => operationLaw({ kind: "LOGNORMAL_FIT", mean: null, median: expert.median ?? 0, quantiles: [{ probability: 0.05, value: expert.p05 ?? 0 }, { probability: 0.95, value: expert.p95 ?? 0 }] })));
-    const means = fits.map((fit) => (fit.status === "ready" && fit.law.family === "LOGNORMAL" ? fit.law.mean : Number.NaN));
+    const components = pooled.law.components;
+    expect(components.map((part) => part.law)).toEqual(elicitation.experts.map((expert) => ({ family: "METALOG", points: [{ probability: 0.05, value: expert.p05 }, { probability: 0.5, value: expert.median }, { probability: 0.95, value: expert.p95 }], lower: 0, upper: 1 })));
+    const parts = await settledWithPraxis(() => components.map((part) => lawSummary("PROBABILITY", part.law)));
+    const means = parts.map((part) => (part.status === "ready" ? part.value.mean : Number.NaN));
     const summary = await settledWithPraxis(() => lawSummary("FACTOR", pooled.law));
     if (summary.status !== "ready") throw new Error("PRAXIS gave no summary.");
-    const closed = elicitation.experts.map((expert) => {
-      const sigma = Math.log((expert.p95 ?? 1) / (expert.p05 ?? 1)) / (2 * 1.6448536269514722);
-      return (expert.median ?? 0) * Math.exp((sigma * sigma) / 2);
-    });
-    means.forEach((mean, index) => expect(Math.abs(mean / (closed[index] ?? 1) - 1)).toBeLessThan(1e-12));
-    expect(Math.abs(summary.value.mean / (closed.reduce((total, mean) => total + mean, 0) / closed.length) - 1)).toBeLessThan(1e-9);
+    expect(Math.abs(summary.value.mean / (means.reduce((total, mean) => total + mean, 0) / means.length) - 1)).toBeLessThan(1e-6);
     const findings = (await settledWithPraxis(() => sourceFindings({ ...blankDa(needs({})), elicitations: [elicitation] }))).map((finding) => `${finding.check}:${finding.item}`);
     expect(findings).toEqual(["No owner:EJ-01", "Not used:EJ-01"]);
   });

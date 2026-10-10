@@ -30,6 +30,7 @@ import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
 import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
 import { analysisSaveBlock, useAnalysisScope } from "../newly-developed-methods/shared/useAnalysisScope";
 import { useEsqWorkbook } from "./esqWorkbookContext";
+import { daParameterOptionsOf } from "./esqModel";
 import {
   getEsqHclEventTreeResult,
   runEsqHclEventTree,
@@ -111,7 +112,9 @@ function EsqEventTreeHclWorkspace({
   const {sourceEpoch, sourceWarning} = useAnalysisSourceGuard("esq", runtime.workbookId);
   const [syNetworks, setSyNetworks] = useState<OwnedNetwork[]>([]);
   const [syConfigurations, setSyConfigurations] = useState<OwnedConfiguration[]>([]);
-  const [faultTrees, setFaultTrees] = useState<HclFaultTreeOption[]>([]);
+  const [sourceFaultTrees, setFaultTrees] = useState<HclFaultTreeOption[]>([]);
+  const daOptions = useMemo(() => daParameterOptionsOf(esq), [esq]);
+  const faultTrees = useMemo(() => sourceFaultTrees.map((tree) => ({ ...tree, parameterOptions: daOptions })), [sourceFaultTrees, daOptions]);
   const [eventTrees, setEventTrees] = useState<HclEventTreeOption[]>([]);
   const [configurationSelection, setConfigurationSelection] = useState<{
     workbookId: string | null;

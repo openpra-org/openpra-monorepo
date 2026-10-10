@@ -138,7 +138,11 @@
       "body-parser": "1.20.3",
       "cookie": "0.7.0",
       "inquirer": "8.2.7",
-      "typedoc": "0.28.19"
+      "typedoc": "0.28.19",
+      "baseline-browser-mapping": "2.11.28"
+    },
+    "patchedDependencies": {
+      "http-proxy@1.18.1": "patches/http-proxy@1.18.1.patch"
     },
     "packageExtensions": {
       "typedoc@*": {

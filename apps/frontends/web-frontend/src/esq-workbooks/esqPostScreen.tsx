@@ -29,8 +29,15 @@ import {
   sciText,
   treeLabel,
   useElementWidth,
+  useInputPoints,
   useRunner,
 } from "./esqShared";
+import { missionTimeSourcesOf, parameterTableOf } from "./esqModel";
+import { ExpressionEditor } from "../newly-developed-methods/shared/uncertainEditor";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
+import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+
+const START_NON_RECOVERY: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.1 } } };
 import { MODEL_AS_SET } from "./esqLogic";
 import { FEASIBILITY_KEYS, FEASIBILITY_LABELS } from "./esqBarriers";
 import {
@@ -198,7 +205,7 @@ function creditText(entry: EsqPostRecoveryView): string {
   const recovery = entry.recovery;
   if (!recovery.credited) return "No";
   if (recovery.missing.length > 0) return "Not feasible";
-  if (recovery.value === undefined) return "No HEP";
+  if (recovery.expression === undefined) return "No HEP";
   if (recovery.eventIds.length === 0) return "No event";
   return "Yes";
 }
@@ -227,7 +234,7 @@ function RecoveryTable({ view, openWindow }: { view: EsqPostView; openWindow: (c
                     {recovery.manual && <span className="esq-rowtable__tag">By hand</span>}
                   </td>
                   <td className="esq-rowtable__wrap">{listValue(entry.codes)}</td>
-                  <td className="esq-rowtable__num">{valueText(recovery.value)}</td>
+                  <td className="esq-rowtable__num">{recovery.expression === undefined ? "—" : expressionText(recovery.expression)}</td>
                   <td className="esq-rowtable__text">{creditText(entry)}</td>
                 </tr>
                 {open && (
@@ -469,8 +476,10 @@ function ChecksTable({ findings, openWindow }: { findings: EsqPostFinding[]; ope
 }
 
 function PostScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => void }): JSX.Element {
-  const { esq, editable, mutateEsq } = useEsqWorkbook();
-  const view = useMemo(() => postViewOf(esq), [esq]);
+  const { esq, editable, mutateEsq, upstream } = useEsqWorkbook();
+  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const points = useInputPoints(esq, table);
+  const view = postViewOf(esq, points);
   const [tab, setTab] = useState<PostTab>("exclusions");
   const tabId = useId();
   const count = (n: number): string => (view === undefined ? "" : ` (${n})`);
@@ -607,31 +616,22 @@ function RecoveryWindow({ id, onClose }: { id: string; onClose: () => void }): J
         )}
         <fieldset className="esq-use">
           <legend className="esq-use__legend">Typed value</legend>
-          <FormRow label="Non-recovery HEP" htmlFor={`${fieldId}-typed`}>
-            <WorkbookInput id={`${fieldId}-typed`} type="number" className="posfield__input esq-form__number" value={rule.typed?.value ?? ""} disabled={dis} onChange={(event) => {
-              const value = probabilityFrom(event.target.value);
-              if (value === null) return;
-              if (value === undefined) {
-                const { typed: _typed, ofRecord, ...rest } = rule;
-                save(ofRecord === "TYPED" ? rest : { ...rest, ...(ofRecord === undefined ? {} : { ofRecord }) });
-                return;
-              }
-              save({ ...rule, typed: { ...(rule.typed ?? { source: "" }), value } });
-            }} />
-          </FormRow>
-          {rule.typed !== undefined && (
+          {rule.typed === undefined ? (
+            editable && <div className="esq-form__actions"><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => save({ ...rule, typed: { expression: START_NON_RECOVERY, source: "" } })}>Type a non-recovery HEP</button></div>
+          ) : (
             <>
-              <FormRow label="Error factor" htmlFor={`${fieldId}-ef`}>
-                <WorkbookInput id={`${fieldId}-ef`} type="number" className="posfield__input esq-form__number" value={rule.typed.errorFactor ?? ""} disabled={dis} onChange={(event) => {
-                  if (rule.typed === undefined) return;
-                  const text = event.target.value.trim();
-                  const value = Number(text);
-                  const { errorFactor: _old, ...typed } = rule.typed;
-                  if (text.length === 0) save({ ...rule, typed });
-                  else if (Number.isFinite(value) && value >= 1) save({ ...rule, typed: { ...typed, errorFactor: value } });
-                }} />
+              <FormRow label="Non-recovery HEP" top>
+                <ExpressionEditor expression={rule.typed.expression} unit="PROBABILITY" disabled={dis} onChange={(expression) => { if (rule.typed !== undefined) save({ ...rule, typed: { ...rule.typed, expression } }); }} />
               </FormRow>
               <AreaRow label="Source" value={rule.typed.source} disabled={dis} onChange={(source) => { if (rule.typed !== undefined) save({ ...rule, typed: { ...rule.typed, source } }); }} />
+              {editable && (
+                <div className="esq-form__actions">
+                  <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => {
+                    const { typed: _typed, ofRecord, ...rest } = rule;
+                    save(ofRecord === "TYPED" ? rest : { ...rest, ...(ofRecord === undefined ? {} : { ofRecord }) });
+                  }}>Remove the typed value</button>
+                </div>
+              )}
             </>
           )}
         </fieldset>
@@ -641,8 +641,8 @@ function RecoveryWindow({ id, onClose }: { id: string; onClose: () => void }): J
             save(value === "HRA" || value === "TYPED" ? { ...rule, ofRecord: value } : withoutKey("ofRecord"));
           }}>
             <option value="">Not chosen</option>
-            <option value="HRA" disabled={record?.hep === undefined}>{record?.hep === undefined ? "From HR, none given" : `From HR · ${numberText(record.hep)}`}</option>
-            <option value="TYPED" disabled={rule.typed === undefined}>{rule.typed === undefined ? "Typed, none entered" : `Typed · ${numberText(rule.typed.value)}`}</option>
+            <option value="HRA" disabled={record?.hep === undefined}>{record?.hep === undefined ? "From HR, none given" : `From HR · ${expressionText(record.hep)}`}</option>
+            <option value="TYPED" disabled={rule.typed === undefined}>{rule.typed === undefined ? "Typed, none entered" : `Typed · ${expressionText(rule.typed.expression)}`}</option>
           </select>
         </FormRow>
         <ChecksRow label="Feasibility shown" options={FEASIBILITY_KEYS.map((key) => ({ value: key, label: FEASIBILITY_LABELS[key] }))} selected={FEASIBILITY_KEYS.filter((key) => feasibility[key])} disabled={dis} onChange={(keys) => save({ ...rule, feasibility: feasibilityOf(keys) })} />
@@ -665,9 +665,11 @@ function RecoveryWindow({ id, onClose }: { id: string; onClose: () => void }): J
 }
 
 function CombinationWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
-  const { esq, editable, mutateEsq } = useEsqWorkbook();
+  const { esq, editable, mutateEsq, upstream } = useEsqWorkbook();
   const fieldId = useId();
-  const view = postViewOf(esq);
+  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const points = useInputPoints(esq, table);
+  const view = postViewOf(esq, points);
   const entry = view?.combinations.find((candidate) => candidate.entry?.combination.id === id)?.entry;
   if (view === undefined || entry === undefined) return null;
   const combination = entry.combination;

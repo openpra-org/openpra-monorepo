@@ -12,22 +12,27 @@ import type {
 } from "interfaces-mef-types/da/data-analysis";
 import {
   canonicalJson,
+  evidenceFailures,
   modelArguments,
   type BaseLaw,
+  type DiscreteOutcome,
+  type EmpiricalBayesLaw,
   type EvidenceTerm,
   type Law,
   type PopulationLaw,
+  type TrendBin,
   type TruncatedLaw,
   type UncertainExpression,
   type UncertainUnit,
 } from "interfaces-mef-types/core/uncertainty";
 import type { UncertaintyLawSummary } from "interfaces-shared-types/newly-developed-methods/shared";
 import { uncertaintyVersion, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
-import { constrainedLaw, daParameterTableVersion, expressionPoint, lawSummary, operationAnswer, parameterPriorLaw, quantileOf } from "./daLaws";
-import { priorUse } from "./daSourcing";
+import { constrainedLaw, daParameterTableVersion, expressionPoint, lawSummary, parameterPriorLaw, quantileOf, useLabel } from "./daLaws";
+import { priorParts } from "./daSourcing";
+import { conflictCheck, countEvidence, countTerm, countedRecords, decimalYear, highestCount, homogeneityCheck, recordCount, recordTrendCheck, termsFailures, typedCount, type DaCounted } from "./daEvidenceChecks";
 import type { DaFindingSeverity, DaNeedFinding } from "./daSelectors";
 
-const FAILURE_MODELS: ReadonlySet<DaQuantificationModel> = new Set(["DEMAND_PROBABILITY", "RUNNING_RATE", "MISSION_PROBABILITY", "STANDBY_RATE", "OTHER_PROBABILITY"]);
+const FAILURE_MODELS: ReadonlySet<DaQuantificationModel> = new Set(["DEMAND_PROBABILITY", "RUNNING_RATE", "MISSION_PROBABILITY", "STANDBY_RATE", "OTHER_PROBABILITY", "HUMAN_ERROR"]);
 
 const RANK: Record<DaFindingSeverity, number> = { error: 0, warning: 1, note: 2 };
 
@@ -55,14 +60,15 @@ const QUANTITY_TEXT: Record<DaEstimateQuantity, string> = {
 
 type DaScale = "PROBABILITY" | "RATE";
 
-type DaFailureMethod = "PRIOR" | "BAYES" | "POPULATION" | "TYPED";
+type DaFailureMethod = "PRIOR" | "BAYES" | "POPULATION" | "EMPIRICAL_BAYES" | "TREND" | "TYPED";
 
-type DaFailureComputation = "PRIOR" | "POSTERIOR" | "POPULATION";
+type DaFailureComputation = "PRIOR" | "POSTERIOR" | "POPULATION" | "EMPIRICAL_BAYES" | "TREND";
 
 interface DaResolvedEvidence {
   evidence: DaEvidence;
   label: string;
   failures?: number;
+  outcomes?: DiscreteOutcome[];
   exposure?: number;
   unit?: DaEvidenceUnit;
   yearsFrom?: string;
@@ -93,6 +99,7 @@ interface DaFailureEstimate {
   priorProblem?: string;
   evidence: DaResolvedEvidence[];
   terms: EvidenceTerm[];
+  trendBins?: TrendBin[];
   method?: DaFailureMethod;
   computation?: DaFailureComputation;
   posterior?: Law;
@@ -153,8 +160,7 @@ function publishedState(da: DataAnalysis, parameter: DataAnalysisParameter): DaP
   if (state.status === "pending") return { pending: true };
   if (state.status === "failed") return { pending: false, problem: `PRAXIS could not form the prior: ${state.error}` };
   if (state.status === "missing") return { pending: false, problem: state.problem };
-  const use = priorUse(parameter);
-  return { pending: false, published: { law: state.value.law, quantity: state.value.quantity, label: use?.elicitationId ?? `${use?.sourceId ?? "?"} · ${use?.entryId ?? "?"}` } };
+  return { pending: false, published: { law: state.value.law, quantity: state.value.quantity, label: priorParts(parameter).map((part) => useLabel(part.use)).join(" + ") } };
 }
 
 function entryOf(da: DataAnalysis, sourceId: string | undefined, entryId: string | undefined): DaSourceEntry | undefined {
@@ -174,7 +180,7 @@ function unitOfQuantity(quantity: DaEstimateQuantity): DaEvidenceUnit | undefine
 }
 
 function demandModel(parameter: DataAnalysisParameter): boolean {
-  return parameter.quantificationModel === "DEMAND_PROBABILITY" || parameter.quantificationModel === "OTHER_PROBABILITY";
+  return parameter.quantificationModel === "DEMAND_PROBABILITY" || parameter.quantificationModel === "OTHER_PROBABILITY" || parameter.quantificationModel === "HUMAN_ERROR";
 }
 
 function yearsBetween(start: string | undefined, end: string | undefined): number | undefined {
@@ -183,22 +189,6 @@ function yearsBetween(start: string | undefined, end: string | undefined): numbe
   const to = Date.parse(end);
   if (!Number.isFinite(from) || !Number.isFinite(to) || !(to > from)) return undefined;
   return (to - from) / (365.25 * 24 * 3600 * 1000);
-}
-
-function decimalYear(text: string | undefined): number | undefined {
-  if (text === undefined || text.trim().length === 0) return undefined;
-  const parts = text.trim().split("-").map((part) => Number(part));
-  const year = parts[0];
-  if (year === undefined || !Number.isFinite(year)) return undefined;
-  const month = parts[1];
-  const day = parts[2];
-  if (month === undefined || !Number.isFinite(month)) return year + 0.5;
-  if (day === undefined || !Number.isFinite(day)) return year + (month - 0.5) / 12;
-  return year + (month - 1) / 12 + (day - 0.5) / 365.25;
-}
-
-function countedRecords(set: DaRecordSet | undefined, parameterId: string): DaFailureRecord[] {
-  return (set?.records ?? []).filter((record) => record.judgment === "FAILURE" && record.parameterId === parameterId);
 }
 
 function populationExposure(da: DataAnalysis, parameter: DataAnalysisParameter): { exposure?: number; unit?: DaEvidenceUnit; problem?: string } {
@@ -234,7 +224,7 @@ function evidenceLabel(da: DataAnalysis, evidence: DaEvidence): string {
 function scaleOf(da: DataAnalysis, parameter: DataAnalysisParameter, published: DaPublishedPrior | undefined): DaScale | undefined {
   const model = parameter.quantificationModel;
   if (model === "RUNNING_RATE" || model === "STANDBY_RATE") return "RATE";
-  if (model === "DEMAND_PROBABILITY" || model === "OTHER_PROBABILITY") return "PROBABILITY";
+  if (model === "DEMAND_PROBABILITY" || model === "OTHER_PROBABILITY" || model === "HUMAN_ERROR") return "PROBABILITY";
   if (model !== "MISSION_PROBABILITY") return undefined;
   if (published !== undefined && formOf(parameter) !== "JEFFREYS") return RATE_QUANTITIES.has(published.quantity) ? "RATE" : "PROBABILITY";
   const units = (parameter.evidence ?? []).map((evidence) => evidence.exposureFrom === "ENTRY" ? unitOfQuantity(entryOf(da, evidence.sourceId, evidence.entryId)?.quantity ?? "FACTOR") : evidence.exposureFrom === "DEMANDS_AND_HOURS" ? "HOURS" : evidence.unit);
@@ -257,6 +247,13 @@ function estimateMissionTime(da: DataAnalysis, parameter: DataAnalysisParameter)
   return { missionTime: first };
 }
 
+function linkedTestInterval(da: DataAnalysis, parameter: DataAnalysisParameter): number | undefined {
+  const needs = (da.dataNeeds?.basicEvents ?? []).filter((need) => need.included && need.parameterId === parameter.uuid);
+  const intervals = needs.flatMap((need) => (need.testIntervalHours === undefined ? [] : [need.testIntervalHours]));
+  const [first] = intervals;
+  return first !== undefined && intervals.length === needs.length && intervals.every((interval) => interval === first) ? first : undefined;
+}
+
 function missionHoursOf(missionTime: UncertainExpression | undefined, problem: string | undefined): DaMissionHours {
   if (missionTime === undefined) return { status: "missing", problem: problem ?? "No mission time." };
   const state = expressionPoint(missionTime, "HOURS");
@@ -271,13 +268,21 @@ function resolveEvidence(da: DataAnalysis, parameter: DataAnalysisParameter, sca
     const entry = entryOf(da, evidence.sourceId, evidence.entryId);
     const set = recordSetOf(da, evidence.recordSetId);
     const resolved: DaResolvedEvidence = { evidence, label, yearsFrom: evidence.yearsFrom ?? (evidence.failuresFrom === "RECORDS" ? set?.yearsFrom : entry?.yearsFrom), yearsTo: evidence.yearsTo ?? (evidence.failuresFrom === "RECORDS" ? set?.yearsTo : entry?.yearsTo) };
-    if (evidence.failuresFrom === "TYPED") resolved.failures = evidence.failures;
-    else if (evidence.failuresFrom === "ENTRY") {
+    let counted: DaCounted | undefined;
+    if (evidence.failuresFrom === "TYPED") counted = evidence.failures === undefined ? undefined : { failures: evidence.failures };
+    else if (evidence.failuresFrom === "UNCERTAIN") {
+      counted = typedCount(evidence.failureOutcomes);
+      if (counted === undefined) return { ...resolved, problem: "Give each possible count with a weight above zero." };
+    } else if (evidence.failuresFrom === "ENTRY") {
       if (entry === undefined) return { ...resolved, problem: "Pick the library estimate the counts come from." };
-      resolved.failures = entry.failures;
+      counted = entry.failures === undefined ? undefined : { failures: entry.failures };
     } else {
       if (set === undefined) return { ...resolved, problem: "Pick the record set the failures are counted from." };
-      resolved.failures = countedRecords(set, parameter.uuid).length;
+      counted = recordCount(countedRecords(set, parameter.uuid));
+    }
+    if (counted !== undefined) {
+      resolved.failures = counted.failures;
+      resolved.outcomes = counted.outcomes;
     }
     if (evidence.exposureFrom === "TYPED") {
       resolved.exposure = evidence.exposure;
@@ -293,24 +298,30 @@ function resolveEvidence(da: DataAnalysis, parameter: DataAnalysisParameter, sca
       resolved.exposure = counted.exposure;
       resolved.unit = counted.unit;
     }
-    if (resolved.failures === undefined) return { ...resolved, problem: "Enter the number of failures." };
+    if (counted === undefined) return { ...resolved, problem: "Enter the number of failures." };
     if (resolved.exposure === undefined || resolved.unit === undefined) return { ...resolved, problem: "Enter the demands or hours the failures happened in." };
     if (!(resolved.exposure > 0)) return { ...resolved, problem: "The exposure must be more than zero." };
-    if (resolved.failures < 0) return { ...resolved, problem: "The failure count cannot be negative." };
+    if (counted.failures < 0) return { ...resolved, problem: "The failure count cannot be negative." };
     if (scale === undefined) return resolved;
-    const failures = resolved.failures;
     const exposure = resolved.exposure;
     if (scale === "RATE") {
-      if (resolved.unit === "DEMANDS") return { ...resolved, problem: "Failures in demands cannot update a rate per hour." };
+      if (resolved.unit === "DEMANDS") {
+        if (parameter.quantificationModel !== "STANDBY_RATE") return { ...resolved, problem: "Failures in demands cannot update a rate per hour." };
+        if (counted.outcomes !== undefined) return { ...resolved, problem: "Test demands take one failure count. Give a single count." };
+        const interval = evidence.testIntervalHours ?? linkedTestInterval(da, parameter);
+        if (interval === undefined || !(interval > 0)) return { ...resolved, problem: "Enter the test interval in hours. It turns the demands into standby time." };
+        if (counted.failures > exposure) return { ...resolved, problem: "There are more failures than demands." };
+        return { ...resolved, term: { likelihood: "STANDBY_DEMAND", demand: evidence.standbyDemand ?? "TEST", failures: counted.failures, exposure, testInterval: interval } };
+      }
       if (resolved.unit === "YEARS") {
         if (evidence.hoursPerYear === undefined || !(evidence.hoursPerYear > 0)) return { ...resolved, problem: "Enter the hours of exposure in a year, 8760 for a calendar year." };
-        return { ...resolved, term: { likelihood: "POISSON", failures, exposure: exposure * evidence.hoursPerYear } };
+        return { ...resolved, term: countTerm("POISSON", counted, exposure * evidence.hoursPerYear) };
       }
-      return { ...resolved, term: { likelihood: "POISSON", failures, exposure } };
+      return { ...resolved, term: countTerm("POISSON", counted, exposure) };
     }
     if (resolved.unit === "DEMANDS") {
-      if (failures > exposure) return { ...resolved, problem: "There are more failures than demands." };
-      return { ...resolved, term: { likelihood: "BINOMIAL", failures, exposure } };
+      if (highestCount(counted) > exposure) return { ...resolved, problem: "There are more failures than demands." };
+      return { ...resolved, term: countTerm("BINOMIAL", counted, exposure) };
     }
     const missionHours = evidence.hoursPerDemand === undefined && parameter.quantificationModel === "MISSION_PROBABILITY" ? mission() : undefined;
     if (missionHours?.status === "pending") return { ...resolved, waiting: true };
@@ -319,9 +330,9 @@ function resolveEvidence(da: DataAnalysis, parameter: DataAnalysisParameter, sca
     if (perDemand === undefined || !(perDemand > 0)) return { ...resolved, problem: "Enter the hours each demand covers, half the test interval for a standby failure." };
     if (resolved.unit === "YEARS") {
       if (evidence.hoursPerYear === undefined || !(evidence.hoursPerYear > 0)) return { ...resolved, problem: "Enter the hours of exposure in a year, 8760 for a calendar year." };
-      return { ...resolved, term: { likelihood: "POISSON", failures, exposure: (exposure * evidence.hoursPerYear) / perDemand } };
+      return { ...resolved, term: countTerm("POISSON", counted, (exposure * evidence.hoursPerYear) / perDemand) };
     }
-    return { ...resolved, term: { likelihood: "POISSON", failures, exposure: exposure / perDemand } };
+    return { ...resolved, term: countTerm("POISSON", counted, exposure / perDemand) };
   });
 }
 
@@ -357,20 +368,91 @@ function priorChoice(form: DaPriorForm, state: DaPublishedState, scale: DaScale)
   return { prior: constrained.law, pending: false };
 }
 
-function posteriorOf(prior: Law | null, terms: EvidenceTerm[]): Law | string {
-  if (prior === null) return { family: "POSTERIOR", prior: null, evidence: terms };
-  if (prior.family === "POSTERIOR") return { family: "POSTERIOR", prior: prior.prior, evidence: [...prior.evidence, ...terms] };
-  if (prior.family === "POPULATION") return "A population law cannot be updated again. Use it as published or pick a source with its own law.";
-  return { family: "POSTERIOR", prior, evidence: terms };
+function posteriorOf(prior: Law | null, terms: readonly EvidenceTerm[]): Law | string {
+  if (prior === null) return { family: "POSTERIOR", prior: null, evidence: [...terms] };
+  switch (prior.family) {
+    case "POSTERIOR":
+      return { family: "POSTERIOR", prior: prior.prior, evidence: [...prior.evidence, ...terms] };
+    case "POPULATION":
+      return "A population law cannot be updated again. Use it as published or pick a source with its own law.";
+    case "EMPIRICAL_BAYES":
+    case "DURATION":
+    case "TREND":
+      return "This law is already fitted to data. It cannot be updated again. Use it as published or pick a source with its own law.";
+    default:
+      return { family: "POSTERIOR", prior, evidence: [...terms] };
+  }
 }
 
-function hyperpriorOf(parameter: DataAnalysisParameter, terms: readonly EvidenceTerm[]): { mu: BaseLaw | TruncatedLaw; sigma: BaseLaw | TruncatedLaw } {
-  if (parameter.populationHyperprior !== undefined) return parameter.populationHyperprior;
-  const centers = terms.map((term) => Math.log((term.failures + 0.5) / term.exposure));
+function termCenter(term: EvidenceTerm): number {
+  const failures = evidenceFailures(term) + 0.5;
+  if (term.likelihood === "STANDBY_DEMAND") return Math.log(failures / (term.exposure * (term.demand === "TEST" ? term.testInterval : term.testInterval / 2)));
+  return Math.log(failures / term.exposure);
+}
+
+function defaultHyperprior(terms: readonly EvidenceTerm[]): { mu: BaseLaw | TruncatedLaw; sigma: BaseLaw | TruncatedLaw } {
+  const centers = terms.map(termCenter);
   return {
     mu: { family: "UNIFORM", lower: Math.min(...centers) - MU_REACH, upper: Math.max(...centers) + MU_REACH },
     sigma: { family: "UNIFORM", lower: SIGMA_LOW, upper: SIGMA_HIGH },
   };
+}
+
+function hyperpriorOf(parameter: Pick<DataAnalysisParameter, "populationHyperprior">, terms: readonly EvidenceTerm[]): { mu: BaseLaw | TruncatedLaw; sigma: BaseLaw | TruncatedLaw } {
+  return parameter.populationHyperprior ?? defaultHyperprior(terms);
+}
+
+function targetIndex(items: readonly { evidence: DaEvidence; term?: EvidenceTerm }[], targetId: string | undefined): number | null {
+  if (targetId === undefined) return null;
+  return items.filter((item) => item.evidence.included && item.term !== undefined).findIndex((item) => item.evidence.id === targetId);
+}
+
+type DaPooledLaw = { law: PopulationLaw | EmpiricalBayesLaw } | { problem: string };
+
+function pooledLaw(method: "POPULATION" | "EMPIRICAL_BAYES", holder: Pick<DataAnalysisParameter, "populationHyperprior" | "populationTargetId">, items: readonly { evidence: DaEvidence; term?: EvidenceTerm }[], terms: readonly EvidenceTerm[], probability: boolean): DaPooledLaw {
+  const name = method === "POPULATION" ? "Population variability" : "Empirical Bayes";
+  if (terms.length < 2) return { problem: `${name} needs at least two evidence sets in the update.` };
+  if (!(termsFailures(terms) > 0)) return { problem: `${name} needs at least one failure across the sets.` };
+  const target = targetIndex(items, holder.populationTargetId);
+  if (target === -1) return { problem: `The ${method === "POPULATION" ? "population" : "empirical Bayes"} target is not among the evidence sets in the update.` };
+  if (method === "POPULATION") {
+    const hyper = hyperpriorOf(holder, terms);
+    return { law: { family: "POPULATION", mu: hyper.mu, sigma: hyper.sigma, upper: probability ? 1 : null, evidence: [...terms], target } };
+  }
+  const counts = countEvidence(terms);
+  if (counts === undefined) return { problem: "Empirical Bayes needs plain counts of one kind in every set, all in demands or all in hours. Give single counts, not test demands or several possible counts." };
+  return { law: { family: "EMPIRICAL_BAYES", evidence: counts, target } };
+}
+
+function trendBinsOf(da: DataAnalysis, parameter: DataAnalysisParameter): { bins: TrendBin[]; at: number } | { problem: string } {
+  const basis = parameter.trend;
+  if (basis === undefined || basis.bins.length === 0) return { problem: "Add the failures and hours of each year for the trend." };
+  let counted: Map<number, number> | undefined;
+  if (basis.failuresFrom === "RECORDS") {
+    const set = recordSetOf(da, basis.recordSetId);
+    if (set === undefined) return { problem: "Pick the record set the yearly failures are counted from." };
+    counted = new Map();
+    for (const record of countedRecords(set, parameter.uuid)) {
+      const at = decimalYear(record.date);
+      if (at === undefined) return { problem: `Record ${record.id} has no date, so it falls in no year.` };
+      const year = Math.floor(at);
+      counted.set(year, (counted.get(year) ?? 0) + recordCount([record]).failures);
+    }
+    const years = new Set(basis.bins.map((bin) => bin.year));
+    const outside = [...counted.keys()].filter((year) => !years.has(year));
+    if (outside.length > 0) return { problem: `Counted failures fall in ${outside.join(", ")}, which has no row. Add the year and its hours.` };
+  }
+  const bins: TrendBin[] = [];
+  for (const bin of basis.bins) {
+    const failures = counted === undefined ? bin.failures : counted.get(bin.year) ?? 0;
+    if (failures === undefined || failures < 0) return { problem: `Enter the failures of ${bin.year}.` };
+    if (!(bin.exposure > 0)) return { problem: `The hours of ${bin.year} must be more than zero.` };
+    bins.push({ time: bin.year, failures, exposure: bin.exposure });
+  }
+  if (new Set(bins.map((bin) => bin.time)).size < 2) return { problem: "A trend needs at least two different years." };
+  if (!bins.some((bin) => bin.failures > 0)) return { problem: "A trend needs at least one failure." };
+  if (basis.at === undefined) return { problem: "Choose the year the estimate is for." };
+  return { bins, at: basis.at };
 }
 
 function lawExpression(unit: UncertainUnit, law: Law, missionTime: UncertainExpression | undefined): UncertainExpression {
@@ -423,15 +505,16 @@ function computeEstimate(da: DataAnalysis, parameter: DataAnalysisParameter): Da
   const withPrior: DaFailureEstimate = { ...base, prior: chosen.prior ?? undefined, priorPending: chosen.pending, priorProblem: chosen.problem };
   if (method === undefined) return { ...withPrior, problem: "Choose how the estimate is made." };
   if (method === "TYPED") return { ...withPrior, estimate: parameter.estimate };
-  if (method === "POPULATION") {
-    if (terms.length < 2) return { ...withPrior, problem: "Population variability needs at least two evidence sets in the update." };
-    if (!terms.some((term) => term.failures > 0)) return { ...withPrior, problem: "Population variability needs at least one failure across the sets." };
-    const included = evidence.filter((item) => item.evidence.included && item.term !== undefined);
-    const targetIndex = parameter.populationTargetId === undefined ? null : included.findIndex((item) => item.evidence.id === parameter.populationTargetId);
-    if (targetIndex === -1) return { ...withPrior, problem: "The population target is not among the evidence sets in the update." };
-    const hyper = hyperpriorOf(parameter, terms);
-    const population: PopulationLaw = { family: "POPULATION", mu: hyper.mu, sigma: hyper.sigma, upper: scale === "PROBABILITY" ? 1 : null, evidence: terms, target: targetIndex };
-    return finish(withPrior, "POPULATION", population);
+  if (method === "POPULATION" || method === "EMPIRICAL_BAYES") {
+    const pooled = pooledLaw(method, parameter, evidence, terms, scale === "PROBABILITY");
+    if ("problem" in pooled) return { ...withPrior, problem: pooled.problem };
+    return finish(withPrior, method, pooled.law);
+  }
+  if (method === "TREND") {
+    if (scale !== "RATE") return { ...withPrior, problem: "A trend estimate needs a rate per hour. Use it for running, standby and mission rates." };
+    const trend = trendBinsOf(da, parameter);
+    if ("problem" in trend) return { ...withPrior, problem: trend.problem };
+    return finish({ ...withPrior, trendBins: trend.bins }, "TREND", { family: "TREND", bins: trend.bins, at: trend.at });
   }
   if (chosen.pending) return { ...withPrior, pending: true };
   if (chosen.problem !== undefined || chosen.prior === undefined) return { ...withPrior, problem: chosen.problem ?? "No prior." };
@@ -533,16 +616,6 @@ function withEstimates(da: DataAnalysis): DataAnalysis {
   return changed ? { ...da, parameters } : da;
 }
 
-function sciShort(value: number): string {
-  return Number(value.toPrecision(2)).toExponential().replace("e+", "E").replace("e", "E");
-}
-
-function pooledTerm(terms: readonly EvidenceTerm[]): EvidenceTerm | undefined {
-  const first = terms[0];
-  if (first === undefined || terms.some((term) => term.likelihood !== first.likelihood)) return undefined;
-  return { likelihood: first.likelihood, failures: terms.reduce((total, term) => total + term.failures, 0), exposure: terms.reduce((total, term) => total + term.exposure, 0) };
-}
-
 function readyLaw(state: UncertaintyState<UncertaintyLawSummary> | undefined, check: DaFailureCheck): UncertaintyLawSummary | undefined {
   if (state === undefined) return undefined;
   if (state.status === "pending") {
@@ -578,9 +651,10 @@ function parameterFindingsFor(da: DataAnalysis, parameter: DataAnalysisParameter
   const ccTwo = da.capabilityCategory !== "CC-I";
   const operating = da.plantStage === "OPERATIONAL";
   if (method === undefined) {
-    findings.push({ severity: "error", check: "No estimate", item, detail: "Choose how the estimate is made: the prior as is, a Bayes update, population variability, or a typed value.", target: estimateTarget });
+    findings.push({ severity: "error", check: "No estimate", item, detail: "Choose how the estimate is made: the prior as is, a Bayes update, population variability, empirical Bayes, a trend, or a typed value.", target: estimateTarget });
     return;
   }
+  const priorUses = priorParts(parameter).map((part) => part.use);
   for (const resolved of estimate.evidence) {
     const evidence = resolved.evidence;
     const what = resolved.label;
@@ -590,11 +664,10 @@ function parameterFindingsFor(da: DataAnalysis, parameter: DataAnalysisParameter
     if (evidence.included && evidence.boundary === "DIFFERENT") findings.push({ severity: "error", check: "Boundary differs", item, detail: `${what} covers a different boundary. Leave it out or adjust it (DA-A2).`, target: evidenceTarget });
     if (evidence.included && !operating && evidence.origin === "PLANT_RECORDS") findings.push({ severity: "warning", check: "Plant records before operation", item, detail: `${what} is marked as plant records, but the plant does not operate yet.`, target: evidenceTarget });
     if (evidence.included && !operating && evidence.exposureFrom === "DEMANDS_AND_HOURS") findings.push({ severity: "warning", check: "Planned exposure", item, detail: `Before operation, the demands and hours are planned values, not experience. Type the exposure ${what} was observed over.`, target: evidenceTarget });
-    const use = priorUse(parameter);
-    if (evidence.included && use !== undefined && evidence.sourceId !== undefined && evidence.sourceId === use.sourceId) {
-      if (evidence.entryId === use.entryId) findings.push({ severity: "error", check: "Counted twice", item, detail: `${what} is also the prior. Its failures are already inside it.`, target: evidenceTarget });
-      else findings.push({ severity: "warning", check: "Same source as the prior", item, detail: `${what} comes from the same source as the prior. Make sure they share no failures.`, target: evidenceTarget });
-    }
+    if (!evidence.included || evidence.sourceId === undefined) continue;
+    const same = priorUses.filter((use) => use.sourceId === evidence.sourceId);
+    if (same.some((use) => use.entryId === evidence.entryId)) findings.push({ severity: "error", check: "Counted twice", item, detail: `${what} is also the prior. Its failures are already inside it.`, target: evidenceTarget });
+    else if (same.length > 0) findings.push({ severity: "warning", check: "Same source as the prior", item, detail: `${what} comes from the same source as the prior. Make sure they share no failures.`, target: evidenceTarget });
   }
   if (method === "TYPED") {
     const typed = parameter.estimate;
@@ -615,48 +688,25 @@ function parameterFindingsFor(da: DataAnalysis, parameter: DataAnalysisParameter
   const includedEvidence = estimate.evidence.filter((resolved) => resolved.evidence.included);
   const scale = estimate.scale;
   const posterior = readyLaw(estimateSummary(estimate), check);
-  const prior = estimate.method === "POPULATION" ? undefined : readyLaw(priorSummary(estimate), check);
+  const priorFree = method === "POPULATION" || method === "EMPIRICAL_BAYES" || method === "TREND";
+  const prior = priorFree ? undefined : readyLaw(priorSummary(estimate), check);
   if (method === "PRIOR") {
     if (includedEvidence.length > 0) findings.push({ severity: ccTwo ? "error" : "warning", check: "Evidence not used", item, detail: "Evidence is in the update but the prior is used as is. Update it, even with zero failures (DA-D1).", target: estimateTarget });
     if (estimate.prior !== undefined && estimate.prior.family === "POINT") findings.push({ severity: "warning", check: "No uncertainty", item, detail: "A point value carries no uncertainty (DA-D3). Use the constrained noninformative form or another source.", target: priorTarget });
     if (parameter.isRiskSignificant === true && ccTwo && includedEvidence.length === 0) findings.push({ severity: "note", check: "Generic estimate", item, detail: "This risk-significant parameter has no plant or technology evidence yet, so the generic estimate stands (DA-D1).", target: evidenceTarget });
   }
+  if (method === "TREND" && includedEvidence.length > 0) findings.push({ severity: "note", check: "Evidence not in the trend", item, detail: "The trend uses its own yearly rows. The evidence sets do not enter it.", target: estimateTarget });
   if (method === "BAYES" && estimate.terms.length === 0) findings.push({ severity: "note", check: "Nothing to update", item, detail: "No evidence is in the update, so the estimate equals the prior.", target: evidenceTarget });
-  if (method === "BAYES" && estimate.terms.length > 0 && estimate.prior !== undefined && estimate.form !== "JEFFREYS") {
-    const pooled = pooledTerm(estimate.terms);
-    if (pooled !== undefined) {
-      const answer = operationAnswer({ kind: "PRIOR_PREDICTIVE", law: estimate.prior, term: pooled });
-      if (answer.status === "pending") check.pending = true;
-      else if (answer.status === "ready" && "expected" in answer.value) {
-        const predictive = answer.value;
-        const p = pooled.failures >= predictive.expected ? predictive.atLeast : predictive.atMost;
-        if (p < 0.05) findings.push({ severity: blank(parameter.estimateReason) ? "warning" : "note", check: "Prior and evidence conflict", item, detail: `${pooled.failures} ${pooled.failures === 1 ? "failure" : "failures"} against ${Number(predictive.expected.toPrecision(3))} expected under the prior, P = ${sciShort(p)}. Investigate before updating (${operating ? "DA-D4" : "DA-D5"}).`, target: priorTarget });
-      }
-    }
-  }
+  if (method === "BAYES" && estimate.terms.length > 0 && estimate.prior !== undefined && estimate.form !== "JEFFREYS") conflictCheck(check, estimate.prior, estimate.terms, item, priorTarget, !blank(parameter.estimateReason), operating);
   if (method === "BAYES" && estimate.form === "JEFFREYS" && estimate.published !== undefined && posterior !== undefined) {
-    const failures = estimate.terms.reduce((total, term) => total + term.failures, 0);
     const published = readyLaw(publishedSummary(estimate), check);
-    if (failures === 0 && published !== undefined && posterior.mean > 3 * published.mean) findings.push({ severity: "warning", check: "Too little exposure", item, detail: "With zero failures and little exposure, the Jeffreys estimate overstates a reliable component's failure probability.", target: priorTarget });
+    if (termsFailures(estimate.terms) === 0 && published !== undefined && posterior.mean > 3 * published.mean) findings.push({ severity: "warning", check: "Too little exposure", item, detail: "With zero failures and little exposure, the Jeffreys estimate overstates a reliable component's failure probability.", target: priorTarget });
   }
-  if (method === "BAYES" && estimate.terms.length >= 2 && estimate.terms.some((term) => term.failures > 0) && pooledTerm(estimate.terms) !== undefined) {
-    const answer = operationAnswer({ kind: "HOMOGENEITY", terms: estimate.terms });
-    if (answer.status === "pending") check.pending = true;
-    else if (answer.status === "ready" && "smallExpected" in answer.value && answer.value.probability < 0.05) findings.push({ severity: "warning", check: "Sets differ", item, detail: `The evidence sets do not pool (chi-square P = ${sciShort(answer.value.probability)}${answer.value.smallExpected ? ", small counts" : ""}). Use population variability or split the parameter (DA-B2).`, target: evidenceTarget });
-  }
-  for (const resolved of includedEvidence) {
-    if (resolved.evidence.failuresFrom !== "RECORDS") continue;
-    const set = recordSetOf(da, resolved.evidence.recordSetId);
-    const times = countedRecords(set, parameter.uuid).flatMap((record) => {
-      const at = decimalYear(record.date);
-      return at === undefined ? [] : [at];
-    });
-    const start = decimalYear(resolved.yearsFrom);
-    const endYear = decimalYear(resolved.yearsTo);
-    if (start === undefined || endYear === undefined || times.length < 3) continue;
-    const answer = operationAnswer({ kind: "LAPLACE_TREND", times, start: Math.floor(start), end: Math.floor(endYear) + 1 });
-    if (answer.status === "pending") check.pending = true;
-    else if (answer.status === "ready" && "statistic" in answer.value && !("degreesOfFreedom" in answer.value) && answer.value.probability < 0.05) findings.push({ severity: "warning", check: "Trend", item, detail: `The counted failures in ${resolved.label} ${answer.value.statistic > 0 ? "rise" : "fall"} over time (Laplace test P = ${sciShort(answer.value.probability)}). A constant rate may not hold (DA-B2).`, target: evidenceTarget });
+  if (method === "BAYES") homogeneityCheck(check, estimate.terms, item, evidenceTarget);
+  if (method !== "TREND") {
+    for (const resolved of includedEvidence) {
+      if (resolved.evidence.failuresFrom === "RECORDS") recordTrendCheck(check, recordSetOf(da, resolved.evidence.recordSetId), parameter.uuid, resolved.label, resolved.yearsFrom, resolved.yearsTo, item, evidenceTarget);
+    }
   }
   if (posterior !== undefined && peakCount(posterior) > 1) findings.push({ severity: "warning", check: "Two peaks", item, detail: "The estimate has more than one peak. The prior and the evidence may describe different equipment.", target: estimateTarget });
   if (method === "BAYES" && posterior !== undefined && prior !== undefined && estimate.terms.length > 0) {
@@ -772,7 +822,7 @@ function failuresComplete(da: DataAnalysis): boolean {
 }
 
 function recordUsers(da: DataAnalysis, setId: string): string[] {
-  return da.parameters.filter((parameter) => (parameter.evidence ?? []).some((evidence) => evidence.recordSetId === setId)).map((parameter) => parameter.uuid);
+  return da.parameters.filter((parameter) => parameter.trend?.recordSetId === setId || (parameter.evidence ?? []).some((evidence) => evidence.recordSetId === setId)).map((parameter) => parameter.uuid);
 }
 
 function withoutRecordSet(da: DataAnalysis, setId: string): DataAnalysis {
@@ -781,8 +831,13 @@ function withoutRecordSet(da: DataAnalysis, setId: string): DataAnalysis {
     recordSets: (da.recordSets ?? []).filter((set) => set.id !== setId),
     parameters: da.parameters.map((parameter) => {
       const evidence = parameter.evidence ?? [];
-      if (!evidence.some((item) => item.recordSetId === setId)) return parameter;
-      return { ...parameter, evidence: evidence.map((item) => (item.recordSetId === setId ? { ...item, recordSetId: undefined } : item)) };
+      const trend = parameter.trend;
+      if (!evidence.some((item) => item.recordSetId === setId) && trend?.recordSetId !== setId) return parameter;
+      return {
+        ...parameter,
+        evidence: evidence.map((item) => (item.recordSetId === setId ? { ...item, recordSetId: undefined } : item)),
+        trend: trend?.recordSetId === setId ? { ...trend, recordSetId: undefined } : trend,
+      };
     }),
   };
 }
@@ -805,11 +860,14 @@ export {
   hyperpriorOf,
   isFailureParameter,
   lawExpression,
+  linkedTestInterval,
   methodOf,
   estimateMissionTime,
   parameterEstimate,
   parameterScale,
   peakCount,
+  pooledLaw,
+  posteriorOf,
   priorSummary,
   priorWorth,
   publishedSummary,

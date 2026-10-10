@@ -1,11 +1,14 @@
-import type {
-  BaseLaw,
-  ComponentModel,
-  EvidenceTerm,
-  Law,
-  UncertainExpression,
-  UncertainUnit,
-  WeibullModel,
+import {
+  evidenceFailures,
+  type BaseLaw,
+  type ComponentModel,
+  type DurationLaw,
+  type DurationModel,
+  type EvidenceTerm,
+  type Law,
+  type UncertainExpression,
+  type UncertainUnit,
+  type WeibullModel,
 } from "interfaces-mef-types/core/uncertainty";
 
 const UNIT_TEXT: Record<UncertainUnit, string> = {
@@ -43,6 +46,17 @@ const FAMILY_TEXT: Record<Law["family"], string> = {
   MIXTURE: "Mixture",
   POSTERIOR: "Bayes posterior",
   POPULATION: "Population",
+  EMPIRICAL_BAYES: "Empirical Bayes",
+  DURATION: "Duration posterior",
+  TREND: "Loglinear trend",
+  PRODUCT: "Product",
+};
+
+const DURATION_MODEL_TEXT: Record<DurationModel, string> = {
+  EXPONENTIAL: "Exponential",
+  LOGNORMAL: "Lognormal",
+  WEIBULL: "Weibull",
+  GAMMA: "Gamma",
 };
 
 function numberText(value: number): string {
@@ -57,9 +71,30 @@ function boundText(lower: number | null, upper: number | null): string {
   return `[${lower === null ? "−∞" : numberText(lower)}, ${upper === null ? "∞" : numberText(upper)}]`;
 }
 
+function cutText(law: Law, lower: number | null, upper: number | null): string {
+  if (lower === null && upper === null) return lawText(law);
+  if (lower === null && upper !== null) return `${lawText(law)} at most ${numberText(upper)}`;
+  if (lower !== null && upper === null) return `${lawText(law)} at least ${numberText(lower)}`;
+  return `${lawText(law)} cut to ${boundText(lower, upper)}`;
+}
+
+function countText(failures: number): string {
+  return `${numberText(failures)} ${failures === 1 ? "failure" : "failures"}`;
+}
+
 function termText(term: EvidenceTerm): string {
-  const count = `${numberText(term.failures)} ${term.failures === 1 ? "failure" : "failures"}`;
-  return term.likelihood === "BINOMIAL" ? `${count} in ${numberText(term.exposure)} demands` : `${count} in ${numberText(term.exposure)}`;
+  switch (term.likelihood) {
+    case "BINOMIAL": return `${countText(term.failures)} in ${numberText(term.exposure)} demands`;
+    case "POISSON": return `${countText(term.failures)} in ${numberText(term.exposure)}`;
+    case "STANDBY_DEMAND": return `${countText(term.failures)} in ${numberText(term.exposure)} ${term.demand === "TEST" ? "tests" : "random demands"} every ${numberText(term.testInterval)} h`;
+    case "UNCERTAIN_COUNT": return `about ${countText(evidenceFailures(term))} in ${numberText(term.exposure)}${term.count === "BINOMIAL" ? " demands" : ""} (${term.outcomes.length} possible counts)`;
+  }
+}
+
+function durationText(law: DurationLaw): string {
+  const records = `${law.times.length} completed${law.censored.length > 0 ? `, ${law.censored.length} still open` : ""}`;
+  const output = law.output.kind === "EXCEEDANCE" ? `chance of lasting past ${numberText(law.output.time)} h` : "mean duration";
+  return `${DURATION_MODEL_TEXT[law.model]} durations (${records}): ${output}`;
 }
 
 function baseLawText(law: BaseLaw): string {
@@ -95,7 +130,7 @@ function baseLawText(law: BaseLaw): string {
 
 function lawText(law: Law): string {
   switch (law.family) {
-    case "TRUNCATED": return `${lawText(law.law)} cut to ${boundText(law.lower, law.upper)}`;
+    case "TRUNCATED": return cutText(law.law, law.lower, law.upper);
     case "MIXTURE": return `Mixture of ${law.components.length}`;
     case "POSTERIOR": {
       const evidence = law.evidence.map(termText).join("; ");
@@ -104,6 +139,12 @@ function lawText(law: Law): string {
     case "POPULATION": return law.target === null
       ? `Population variability of ${law.evidence.length} sets`
       : `Set ${law.target + 1} of a population of ${law.evidence.length}`;
+    case "EMPIRICAL_BAYES": return law.target === null
+      ? `Empirical Bayes fit to ${law.evidence.length} members`
+      : `Member ${law.target + 1} of an empirical Bayes fit to ${law.evidence.length}`;
+    case "DURATION": return durationText(law);
+    case "TREND": return `Loglinear trend over ${law.bins.length} bins at ${numberText(law.at)}`;
+    case "PRODUCT": return law.factors.map((factor) => (factor.family === "PRODUCT" ? `(${lawText(factor)})` : lawText(factor))).join(" × ");
     default: return baseLawText(law);
   }
 }
@@ -164,4 +205,4 @@ function expressionText(expression: UncertainExpression, parameterLabel: (key: s
   }
 }
 
-export { expressionText, familyText, lawText, numberText, unitText };
+export { expressionText, familyText, lawText, numberText, termText, unitText };

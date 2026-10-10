@@ -94,7 +94,7 @@ function findings(da: DataAnalysis, upstream: DaUpstream): Promise<string[][]> {
 
 describe("hand-offs", () => {
   it("finds every consumer in step with the example values", async () => {
-    expect(await counts(DA, UPSTREAM)).toEqual({ "SY IN_STEP": 72, "IE IN_STEP": 21, "HRA TYPED": 25, "POS TYPED": 7, "POS IN_STEP": 2, "ESQ IN_STEP": 12 });
+    expect(await counts(DA, UPSTREAM)).toEqual({ "SY IN_STEP": 72, "IE IN_STEP": 21, "HRA IN_STEP": 1, "HRA TYPED": 24, "POS TYPED": 7, "POS IN_STEP": 2, "ESQ IN_STEP": 12 });
     expect((await findings(DA, UPSTREAM)).filter(([severity]) => severity !== "note")).toEqual([]);
     expect(await settledWithPraxis(() => handoffsComplete(DA, UPSTREAM))).toBe(true);
   });

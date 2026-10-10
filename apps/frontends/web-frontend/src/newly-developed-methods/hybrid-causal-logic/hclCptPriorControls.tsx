@@ -43,12 +43,16 @@ function cptRowVector(model: BayesianNetworkModel, choice: CptRowChoice): Uncert
 
 function rowFamily(row: UncertainVector): string {
   if (row.node === "PARAMETER") return "Linked";
-  return row.law.family === "DIRICHLET" ? "Dirichlet" : "Fixed fractions";
+  switch (row.law.family) {
+    case "DIRICHLET": return "Dirichlet";
+    case "WEIGHTED_DIRICHLET": return "Weighted Dirichlet";
+    case "FIXED": return "Fixed fractions";
+  }
 }
 
 function rowLength(row: UncertainVector): number | null {
   if (row.node === "PARAMETER") return null;
-  return row.law.family === "DIRICHLET" ? row.law.concentrations.length : row.law.values.length;
+  return row.law.family === "FIXED" ? row.law.values.length : row.law.concentrations.length;
 }
 
 function HclCptRowControls({ model, reference, settings, editable, onChange, onError }: {

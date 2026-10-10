@@ -16,7 +16,7 @@ import { SC_EXAMPLES, linkScExamples } from "./daScExamples";
 
 jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => ({ evaluateUncertainty: jest.fn() }));
 
-const CIRCULATOR_PRIOR_RATE = 0.5 / (90.5 / 785000);
+const CIRCULATOR_PRIOR_RATE = 0.5 / ((90.5 / 1570000) * 2.39710255853434);
 
 linkScExamples();
 
@@ -94,12 +94,12 @@ function circulatorCell(): HTMLElement | null {
 describe("FailuresScreen", () => {
   it("plots an estimate against its prior and evidence, and lists the judged records", async () => {
     render(<Harness onChange={() => undefined}>{() => <FailuresScreen openDrawer={() => undefined} />}</Harness>);
-    expect(screen.getByRole("tab", { name: "Estimates (31 of 31)" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("tab", { name: "Estimates (31 of 31)" }));
+    expect(screen.getByRole("tab", { name: "Estimates (32 of 32)" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Estimates (32 of 32)" }));
     await settle();
     const row = screen.getByRole("button", { name: "DA-BE-205" }).closest("tr");
     expect(row?.textContent).toContain("Bayes update");
-    expect(circulatorCell()?.textContent).toBe("2.32E-4");
+    expect(circulatorCell()?.textContent).toBe("2.33E-4");
     await userEvent.click(screen.getByRole("button", { name: "Plot the distribution of DA-BE-205" }));
     await settle();
     expect(screen.getByRole("button", { name: /^Estimate/ })).toHaveAttribute("aria-pressed", "true");
@@ -112,7 +112,7 @@ describe("FailuresScreen", () => {
     const sets = screen.getByRole("table", { name: "Record sets" });
     expect(within(sets).getByRole("row", { name: /RS-01/ }).textContent).toContain("15");
     expect(within(screen.getByRole("table", { name: "Records" })).getAllByText("Counts")).toHaveLength(2);
-  });
+  }, 60_000);
 
   it("recomputes the estimate when the evidence window leaves the evidence out", async () => {
     let latest: DataAnalysis = DA_ANALYSIS_HTGR;

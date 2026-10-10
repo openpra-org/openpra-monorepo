@@ -368,15 +368,18 @@ function humanErrorNeeds(hr: HumanReliabilityAnalysis): DaHumanErrorNeed[] {
       included: true,
     };
     if (event !== undefined) need.timing = event.hfeTiming;
-    const source = quantification.controlledDataSource;
+    const hep = quantification.hep;
+    const source = hep?.node === "PARAMETER" ? hep.reference : undefined;
     need.valueHeldBy = source === undefined ? "TYPED" : "DA";
     if (source !== undefined) need.valueHolderId = source.entityId;
-    if (typeof quantification.meanHep === "number") {
-      need.value = quantification.meanHep;
-      need.valueKind = "MEAN";
-    } else if (typeof quantification.pointEstimateHep === "number") {
-      need.value = quantification.pointEstimateHep;
+    const held = hep?.node === "VALUE" ? hep.value.law : undefined;
+    const law = held?.family === "TRUNCATED" && held.lower === null && held.upper === 1 ? held.law : held;
+    if (law?.family === "POINT") {
+      need.value = law.value;
       need.valueKind = "POINT_ESTIMATE";
+    } else if (law !== undefined && "mean" in law) {
+      need.value = law.mean;
+      need.valueKind = "MEAN";
     }
     return need;
   });
@@ -860,6 +863,7 @@ function mappableNeeds(needs: DaDataNeeds | undefined): DaMappableNeed[] {
     kind: need.kind,
     included: need.included,
     value: need.value,
+    expression: need.value === undefined ? undefined : { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: need.value } } },
     valueType: need.valueKind === "MEAN" ? "MEAN" : "POINT_ESTIMATE",
     ownerTyped: need.manual === undefined && need.valueHeldBy !== "DA" && need.value !== undefined,
     heldBy: need.valueHeldBy,

@@ -12,7 +12,7 @@ import {
   withMechanism,
 } from "../esqBarriers";
 import { stepsFromMef } from "../esqSelectors";
-import { NOW, barrierEsq, barrierUpstream, modeledEsq, windowCell } from "./esqBarrierFixtures";
+import { NOW, barrierEsq, barrierStored, barrierUpstream, modeledEsq, windowCell } from "./esqBarrierFixtures";
 
 function probability(value: number): UncertainExpression {
   return { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value } } };
@@ -63,7 +63,7 @@ describe("ESQ Step 04 barriers and phenomena", () => {
     expect(model?.actions).toEqual([expect.objectContaining({
       id: "HR-POST-1",
       timing: "POST_INITIATOR",
-      hep: 1.5e-2,
+      hep: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 1.5e-2 } } },
       cue: "High building activity",
       cueMinutes: 15,
       availableMinutes: 120,
@@ -73,7 +73,7 @@ describe("ESQ Step 04 barriers and phenomena", () => {
     })]);
     expect(model?.actions?.[0]?.feasibility?.access).toBe(false);
     expect(model?.parameters.find((parameter) => parameter.id === "P-WIN")?.estimate).toEqual(quantity({ family: "LOGNORMAL", mean: 33.74468539677077, errorFactor: 1.287, level: 0.95 }));
-    const again = withModelImported(esq, barrierUpstream(), NOW);
+    const again = withModelImported(barrierStored(), barrierUpstream(), NOW);
     expect(again.model?.changes).toEqual([]);
   });
 

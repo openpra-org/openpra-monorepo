@@ -2,7 +2,7 @@ import { Fragment, JSX, useId, useMemo, useState } from "react";
 import type { EsqHandoffResponse, EsqResponseStatus } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { cellRecordText } from "./esqBarriers";
-import { parameterLabelOf } from "./esqModel";
+import { missionTimeSourcesOf, parameterLabelOf, parameterTableOf } from "./esqModel";
 import { resolvedCombinations } from "interfaces-mef-types/esq/esq-post-inputs";
 import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
@@ -22,6 +22,7 @@ import {
   rowClass,
   sciText,
   useElementWidth,
+  useInputPoints,
   useRunner,
 } from "./esqShared";
 import type { EsqWindowContext } from "./esqModelScreen";
@@ -318,10 +319,12 @@ function DaPanel({ view }: { view: EsqHandoffView }): JSX.Element {
 }
 
 function HrIePanel({ view }: { view: EsqHandoffView }): JSX.Element {
-  const { esq } = useEsqWorkbook();
+  const { esq, upstream } = useEsqWorkbook();
+  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const points = useInputPoints(esq, table);
   const overall = (esq.importanceAnalyses ?? []).find((record) => record.scope === "OVERALL");
   const humans = (overall?.measures ?? []).filter((measure) => measure.entityType === "HUMAN_FAILURE_EVENT");
-  const joints = resolvedCombinations(esq).filter((entry) => entry.joint !== undefined);
+  const joints = resolvedCombinations(esq, points).filter((entry) => entry.joint !== undefined);
   const release = new Set(view.families.filter((row) => row.family.release).map((row) => row.family.id));
   const initiators = new Map<string, number>();
   for (const record of esq.familyQuantifications) {

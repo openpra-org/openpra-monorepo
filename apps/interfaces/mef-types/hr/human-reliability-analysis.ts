@@ -3,7 +3,7 @@ import { Unique, Named } from "../core/meta";
 import { SensitivityStudy, SuccessCriteriaId } from "../core/shared-patterns";
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption, PlantRepresentationAccuracy } from "../core/documentation";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
-import type { WorkbookParameterReference } from "../modeling/references";
+import type { UncertainExpression } from "../core/uncertainty";
 
 export type PlantOperatingStateReference = string;
 export type InitiatingEventReference = string;
@@ -124,9 +124,7 @@ export interface HepQuantification extends Unique {
   methodology: string;
   assessmentType: "CONSERVATIVE_ESTIMATE" | "DETAILED_ASSESSMENT";
   isRiskSignificant: boolean;
-  pointEstimateHep?: number;
-  meanHep?: number;
-  controlledDataSource?: WorkbookParameterReference;
+  hep?: UncertainExpression;
   cognitionContribution?: number;
   executionContribution?: number;
   performanceShapingFactors?: PerformanceShapingFactorAssessment[];

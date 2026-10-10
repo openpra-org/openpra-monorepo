@@ -72,8 +72,7 @@ interface LinkedHrMef {
   }[];
   hepQuantifications?: {
     hfeId?: string;
-    meanHep?: number;
-    pointEstimateHep?: number;
+    hep?: UncertainExpression;
   }[];
 }
 
@@ -132,10 +131,9 @@ async function fetchSeismicPraLinkedInputs(variant: SeismicPraVariant): Promise<
   const logicBySystem = new Map(
     (syMef.systemLogicModels ?? []).map((logic) => [logic.systemReference, logic]),
   );
-  const hepByAction = new Map(
-    (hrBundle.hr.mef.hepQuantifications ?? [])
-      .filter((quantification): quantification is typeof quantification & { hfeId: string } => quantification.hfeId !== undefined)
-      .map((quantification) => [quantification.hfeId, quantification.meanHep ?? quantification.pointEstimateHep]),
+  const hepByAction = await pointsOf(
+    (hrBundle.hr.mef.hepQuantifications ?? []).flatMap((quantification) => (quantification.hfeId === undefined || quantification.hep === undefined ? [] : [{ key: quantification.hfeId, expression: quantification.hep, unit: "PROBABILITY" as const }])),
+    daTable,
   );
 
   return {

@@ -4,9 +4,14 @@ import {
   type BaseLaw,
   type CcfFactorModel,
   type CcfTesting,
+  type DurationLaw,
+  type EmpiricalBayesLaw,
   type Law,
   type MixtureComponent,
+  type PopulationLaw,
+  type PosteriorLaw,
   type QuantilePoint,
+  type TrendLaw,
   type UncertainExpression,
   type UncertainUnit,
   type UncertainVector,
@@ -18,11 +23,13 @@ import { WorkbookInput, WorkbookTextarea } from "../../workbooks/commitOnDeactiv
 import { expressionText, familyText } from "./uncertainText";
 import "./css/uncertainEditor.css";
 
-type LawWrapper = "TRUNCATED" | "MIXTURE";
+type LawWrapper = "TRUNCATED" | "MIXTURE" | "PRODUCT";
 
 type EditableFamily = BaseLaw["family"] | LawWrapper;
 
-const ALL_WRAPPERS: readonly LawWrapper[] = ["TRUNCATED", "MIXTURE"];
+const ALL_WRAPPERS: readonly LawWrapper[] = ["TRUNCATED", "MIXTURE", "PRODUCT"];
+
+const FACTOR_DRAFT: Law = { family: "LOGNORMAL", mean: 1, errorFactor: 3, level: 0.95 };
 
 interface ParameterOption {
   reference: WorkbookParameterReference;
@@ -67,6 +74,12 @@ const DEFAULT_CENTER: Record<UncertainUnit, number> = {
   QUANTITY: 1,
 };
 
+const UPDATED_FAMILIES: ReadonlySet<Law["family"]> = new Set(["POSTERIOR", "POPULATION", "EMPIRICAL_BAYES", "DURATION", "TREND"]);
+
+function updatedFamily(law: Law): law is PosteriorLaw | PopulationLaw | EmpiricalBayesLaw | DurationLaw | TrendLaw {
+  return UPDATED_FAMILIES.has(law.family);
+}
+
 function bounded(unit: UncertainUnit): boolean {
   return unit === "PROBABILITY" || unit === "FRACTION";
 }
@@ -90,6 +103,7 @@ function centerOf(law: Law, unit: UncertainUnit): number {
       return law.mode;
     case "WEIBULL": return law.scale;
     case "TRUNCATED": return centerOf(law.law, unit);
+    case "PRODUCT": return law.factors[0] === undefined ? DEFAULT_CENTER[unit] : centerOf(law.factors[0], unit);
     default: return DEFAULT_CENTER[unit];
   }
 }
@@ -121,10 +135,11 @@ function draftFor(family: EditableFamily, previous: Law, unit: UncertainUnit): L
     case "MIXTURE": return {
       family,
       components: [
-        { weight: 1, law: previous.family === "MIXTURE" || previous.family === "POSTERIOR" || previous.family === "POPULATION" ? { family: "LOGNORMAL", mean: center, errorFactor: 3, level: 0.95 } : previous },
+        { weight: 1, law: previous.family === "MIXTURE" || updatedFamily(previous) ? { family: "LOGNORMAL", mean: center, errorFactor: 3, level: 0.95 } : previous },
         { weight: 1, law: { family: "LOGNORMAL", mean: center, errorFactor: 10, level: 0.95 } },
       ],
     };
+    case "PRODUCT": return previous.family === "PRODUCT" ? previous : { family, factors: [previous, FACTOR_DRAFT] };
   }
 }
 
@@ -204,7 +219,7 @@ function PointRows({ points, disabled, onChange }: { points: QuantilePoint[]; di
 function LawEditor({ law, unit, disabled, onChange, wrappers = ALL_WRAPPERS }: { law: Law; unit: UncertainUnit; disabled: boolean; onChange: (law: Law) => void; wrappers?: readonly LawWrapper[] }): JSX.Element {
   const id = useId();
   const families = familiesFor(unit, wrappers);
-  const editable = law.family !== "POSTERIOR" && law.family !== "POPULATION";
+  const editable = !updatedFamily(law);
   const commit = (candidate: object): void => {
     const next = checked(candidate);
     if (next !== undefined) onChange(next);
@@ -281,7 +296,7 @@ function LawEditor({ law, unit, disabled, onChange, wrappers = ALL_WRAPPERS }: {
           <NumberField label="Cut above" value={law.upper} disabled={disabled} onCommit={(upper) => commit({ ...law, upper: upper ?? null })} />
           <div className="uncertain-editor__nested">
             <LawEditor law={law.law} unit={unit} disabled={disabled} wrappers={[]} onChange={(inner) => {
-              if (inner.family === "TRUNCATED" || inner.family === "POSTERIOR" || inner.family === "POPULATION") return;
+              if (inner.family === "TRUNCATED" || updatedFamily(inner)) return;
               commit({ ...law, law: inner });
             }} />
           </div>
@@ -293,7 +308,7 @@ function LawEditor({ law, unit, disabled, onChange, wrappers = ALL_WRAPPERS }: {
             <div key={index} className="uncertain-editor__nested">
               <NumberField label="Weight" value={component.weight} disabled={disabled} onCommit={(weight) => { if (weight !== undefined) commit({ ...law, components: law.components.map((entry, at) => (at === index ? { ...entry, weight } : entry)) }); }} />
               <LawEditor law={component.law} unit={unit} disabled={disabled} wrappers={[]} onChange={(inner) => {
-                if (inner.family === "MIXTURE" || inner.family === "POSTERIOR" || inner.family === "POPULATION") return;
+                if (inner.family === "MIXTURE" || updatedFamily(inner)) return;
                 const next: MixtureComponent = { ...component, law: inner };
                 commit({ ...law, components: law.components.map((entry, at) => (at === index ? next : entry)) });
               }} />
@@ -301,6 +316,17 @@ function LawEditor({ law, unit, disabled, onChange, wrappers = ALL_WRAPPERS }: {
             </div>
           ))}
           {!disabled && <button type="button" className="uncertain-editor__link" onClick={() => commit({ ...law, components: [...law.components, { weight: 1, law: law.components[law.components.length - 1]?.law ?? draftFor("LOGNORMAL", law, unit) }] })}>Add component</button>}
+        </div>
+      )}
+      {law.family === "PRODUCT" && (
+        <div className="uncertain-editor__rows">
+          {law.factors.map((factor, index) => (
+            <div key={index} className="uncertain-editor__nested">
+              <LawEditor law={factor} unit={index === 0 ? unit : "FACTOR"} disabled={disabled} wrappers={[]} onChange={(inner) => commit({ ...law, factors: law.factors.map((entry, at) => (at === index ? inner : entry)) })} />
+              {!disabled && law.factors.length > 2 && <button type="button" className="uncertain-editor__link" onClick={() => commit({ ...law, factors: law.factors.filter((_, at) => at !== index) })}>Remove factor</button>}
+            </div>
+          ))}
+          {!disabled && <button type="button" className="uncertain-editor__link" onClick={() => commit({ ...law, factors: [...law.factors, FACTOR_DRAFT] })}>Add factor</button>}
         </div>
       )}
     </div>
@@ -456,48 +482,86 @@ const DIRICHLET_STRENGTH = 10;
 
 const MGL_LETTERS: readonly string[] = ["β", "γ", "δ"];
 
-const CCF_MODELS: readonly CcfFactorModel["model"][] = ["BETA_FACTOR", "MGL", "ALPHA_FACTOR", "PHI_FACTOR"];
+const CCF_MODELS: readonly CcfFactorModel["model"][] = ["BETA_FACTOR", "MGL", "ALPHA_FACTOR", "PHI_FACTOR", "BINOMIAL_FAILURE_RATE"];
 
 const CCF_MODEL_LABELS: Record<CcfFactorModel["model"], string> = {
   BETA_FACTOR: "Beta factor",
   MGL: "Multiple Greek letter",
   ALPHA_FACTOR: "Alpha factor",
   PHI_FACTOR: "Phi factor",
+  BINOMIAL_FAILURE_RATE: "Binomial failure rate",
 };
+
+type BinomialFailureRatePart = "independent" | "nonLethalShock" | "componentFailure" | "lethalShock";
+
+const BFR_PARTS: readonly { part: BinomialFailureRatePart; label: string; unit: UncertainUnit }[] = [
+  { part: "independent", label: "Independent failure", unit: "PROBABILITY" },
+  { part: "nonLethalShock", label: "Non-lethal shock", unit: "PROBABILITY" },
+  { part: "componentFailure", label: "Component failure given a shock", unit: "FRACTION" },
+  { part: "lethalShock", label: "Lethal shock", unit: "PROBABILITY" },
+];
 
 function checkedVector(candidate: object): VectorLaw | undefined {
   const parsed = VectorLawSchema.safeParse(candidate);
   return parsed.success ? parsed.data : undefined;
 }
 
+const VECTOR_FAMILIES: readonly { family: VectorLaw["family"]; label: string }[] = [
+  { family: "DIRICHLET", label: "Dirichlet" },
+  { family: "WEIGHTED_DIRICHLET", label: "Weighted Dirichlet" },
+  { family: "FIXED", label: "Fixed fractions" },
+];
+
 function vectorDraft(family: VectorLaw["family"], previous: VectorLaw): VectorLaw {
   const mean = vectorMean(previous);
-  if (family === "FIXED") return { family, values: mean };
-  return { family, concentrations: mean.map((value) => value * DIRICHLET_STRENGTH) };
+  const concentrations = mean.map((value) => value * DIRICHLET_STRENGTH);
+  switch (family) {
+    case "FIXED": return { family, values: mean };
+    case "DIRICHLET": return { family, concentrations };
+    case "WEIGHTED_DIRICHLET": return previous.family === "WEIGHTED_DIRICHLET" ? previous : { family, concentrations, weights: mean.map(() => 1) };
+  }
 }
 
 function vectorValues(law: VectorLaw): number[] {
-  return law.family === "DIRICHLET" ? law.concentrations : law.values;
+  return law.family === "FIXED" ? law.values : law.concentrations;
+}
+
+function vectorWithValues(law: VectorLaw, values: number[]): VectorLaw | undefined {
+  switch (law.family) {
+    case "FIXED": return checkedVector({ family: "FIXED", values });
+    case "DIRICHLET": return checkedVector({ family: "DIRICHLET", concentrations: values });
+    case "WEIGHTED_DIRICHLET": return checkedVector({ family: "WEIGHTED_DIRICHLET", concentrations: values, weights: law.weights });
+  }
 }
 
 function VectorLawEditor({ law, labels, disabled, onChange }: { law: VectorLaw; labels: readonly string[]; disabled: boolean; onChange: (law: VectorLaw) => void }): JSX.Element {
   const id = useId();
   const values = vectorValues(law);
   const commit = (next: number[]): void => {
-    const candidate = law.family === "DIRICHLET" ? checkedVector({ family: "DIRICHLET", concentrations: next }) : checkedVector({ family: "FIXED", values: next });
+    const candidate = vectorWithValues(law, next);
+    if (candidate !== undefined) onChange(candidate);
+  };
+  const commitWeights = (weights: number[]): void => {
+    if (law.family !== "WEIGHTED_DIRICHLET") return;
+    const candidate = checkedVector({ ...law, weights });
     if (candidate !== undefined) onChange(candidate);
   };
   return (
     <div className="uncertain-editor">
       <label className="uncertain-editor__field" htmlFor={id}>
         <span>Law</span>
-        <select id={id} value={law.family} disabled={disabled} onChange={(event) => onChange(vectorDraft(event.target.value === "DIRICHLET" ? "DIRICHLET" : "FIXED", law))}>
-          <option value="DIRICHLET">Dirichlet</option>
-          <option value="FIXED">Fixed fractions</option>
+        <select id={id} value={law.family} disabled={disabled} onChange={(event) => {
+          const family = VECTOR_FAMILIES.find((option) => option.family === event.target.value)?.family;
+          if (family !== undefined) onChange(vectorDraft(family, law));
+        }}>
+          {VECTOR_FAMILIES.map((option) => <option key={option.family} value={option.family}>{option.label}</option>)}
         </select>
       </label>
       {values.map((value, index) => (
-        <NumberField key={index} label={`${labels[index] ?? `Component ${index + 1}`}${law.family === "DIRICHLET" ? " concentration" : ""}`} value={value} disabled={disabled} onCommit={(next) => { if (next !== undefined) commit(values.map((entry, at) => (at === index ? next : entry))); }} />
+        <NumberField key={index} label={`${labels[index] ?? `Component ${index + 1}`}${law.family === "FIXED" ? "" : " concentration"}`} value={value} disabled={disabled} onCommit={(next) => { if (next !== undefined) commit(values.map((entry, at) => (at === index ? next : entry))); }} />
+      ))}
+      {law.family === "WEIGHTED_DIRICHLET" && law.weights.map((weight, index) => (
+        <NumberField key={`weight-${index}`} label={`${labels[index] ?? `Component ${index + 1}`} weight`} value={weight} disabled={disabled} onCommit={(next) => { if (next !== undefined) commitWeights(law.weights.map((entry, at) => (at === index ? next : entry))); }} />
       ))}
     </div>
   );
@@ -508,16 +572,19 @@ function VectorEditor({ vector, labels, options = [], disabled, onChange }: { ve
   const matching = options.filter((option) => option.length === labels.length);
   const linked = vector.node === "PARAMETER" ? `${vector.reference.workbookId}:${vector.reference.entityId}` : "";
   const typed: VectorLaw = vector.node === "VALUE" ? vector.law : { family: "FIXED", values: labels.map(() => 1 / labels.length) };
+  const unlisted = vector.node === "PARAMETER" && !matching.some((option) => `${option.reference.workbookId}:${option.reference.entityId}` === linked) ? vector.reference : undefined;
   return (
     <div className="uncertain-editor">
-      {matching.length > 0 && (
+      {(matching.length > 0 || vector.node === "PARAMETER") && (
         <label className="uncertain-editor__field" htmlFor={id}>
           <span>Source</span>
           <select id={id} value={linked} disabled={disabled} onChange={(event) => {
+            if (event.target.value === linked && unlisted !== undefined) return;
             const option = matching.find((candidate) => `${candidate.reference.workbookId}:${candidate.reference.entityId}` === event.target.value);
             onChange(option === undefined ? { node: "VALUE", law: typed } : { node: "PARAMETER", reference: option.reference });
           }}>
             <option value="">Typed here</option>
+            {unlisted !== undefined && <option value={linked}>{options.find((option) => `${option.reference.workbookId}:${option.reference.entityId}` === linked)?.label ?? `${unlisted.entityId} in ${unlisted.workbookId}`}</option>}
             {matching.map((option) => <option key={`${option.reference.workbookId}:${option.reference.entityId}`} value={`${option.reference.workbookId}:${option.reference.entityId}`}>{option.label}</option>)}
           </select>
         </label>
@@ -548,6 +615,13 @@ function ccfFactorDraft(model: CcfFactorModel["model"], size: number, testing: C
     case "MGL": return { model, factors: mglFromAlphas(alphas).map(fraction) };
     case "ALPHA_FACTOR": return { model, testing, alphas: { node: "VALUE", law: { family: "FIXED", values: alphas } } };
     case "PHI_FACTOR": return { model, phis: { node: "VALUE", law: { family: "FIXED", values: alphas } } };
+    case "BINOMIAL_FAILURE_RATE": return {
+      model,
+      independent: pointValue("PROBABILITY", 1e-3),
+      nonLethalShock: pointValue("PROBABILITY", 1e-4),
+      componentFailure: fraction(0.1),
+      lethalShock: pointValue("PROBABILITY", 1e-6),
+    };
   }
 }
 
@@ -592,6 +666,9 @@ function CcfFactorEditor({ factors, groupSize, options = [], vectorOptions = [],
       ))}
       {factors.model === "ALPHA_FACTOR" && <VectorEditor vector={factors.alphas} labels={ccfLabels("α", groupSize)} options={vectorOptions} disabled={disabled} onChange={(alphas) => onChange({ ...factors, alphas })} />}
       {factors.model === "PHI_FACTOR" && <VectorEditor vector={factors.phis} labels={ccfLabels("φ", groupSize)} options={vectorOptions} disabled={disabled} onChange={(phis) => onChange({ model: "PHI_FACTOR", phis })} />}
+      {factors.model === "BINOMIAL_FAILURE_RATE" && BFR_PARTS.map(({ part, label, unit }) => (
+        <SlotEditor key={part} label={label} expression={factors[part]} unit={unit} options={options} disabled={disabled} onChange={(next) => onChange({ ...factors, [part]: next })} />
+      ))}
     </div>
   );
 }
@@ -607,6 +684,7 @@ export {
   defaultExpression,
   defaultPoint,
   draftFor,
+  updatedFamily,
   type ModelForm,
   type ParameterOption,
   type VectorOption,

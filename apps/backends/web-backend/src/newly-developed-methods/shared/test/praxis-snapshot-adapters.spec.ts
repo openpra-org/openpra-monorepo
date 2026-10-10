@@ -25,7 +25,7 @@ import {
   collectHclUncertaintyReferences,
   collectLoadCapacityReferences,
   collectSyFaultTreeReferences,
-  faultTreeControlledDataSourceKey,
+  humanFailureEventKey,
   type PraxisModelSnapshot,
 } from "../praxis-snapshot-adapters";
 
@@ -334,7 +334,7 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     });
     expect(adapted.parameterReferences).toEqual([]);
     expect(adapted.vectorReferences).toEqual([]);
-    expect(adapted.legacyReferences).toEqual([]);
+    expect(adapted.humanFailureReferences).toEqual([]);
     expect(syMef).toEqual(before);
   });
 
@@ -446,7 +446,7 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     expect(collectSyFaultTreeReferences(source, "ft-1")).toEqual({
       parameterReferences: [daReference("beta-a")],
       vectorReferences: [daReference("alphas-a")],
-      legacyReferences: [],
+      humanFailureReferences: [],
     });
     expect(() => adaptSyFaultTreeSnapshot(source, "ft-1", { parameters: parameterTable([beta]) }))
       .toThrow(expect.objectContaining({ code: "UNCERTAINTY_PARAMETER_UNRESOLVED", details: { reference: daReference("alphas-a") } }));
@@ -463,7 +463,7 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     expect(adapted.vectorReferences).toEqual([daReference("alphas-a")]);
   });
 
-  it("collects component and legacy references and resolves legacy values without the cached SY value", () => {
+  it("sends the linked law of a DA or HR probability link and never the cached SY point", () => {
     const mef = structuredClone(syMef);
     const daLegacy: WorkbookParameterReference = daReference("parameter-hep");
     const hraLegacy: HumanFailureEventReference = {
@@ -497,31 +497,24 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     const source = { workbookId: "sy-1", workbookRevision: 7, mef };
 
     expect(collectSyFaultTreeReferences(source, "ft-1")).toEqual({
-      parameterReferences: [daReference("parameter-c")],
+      parameterReferences: [daLegacy, daReference("parameter-c")],
       vectorReferences: [],
-      legacyReferences: [daLegacy, hraLegacy],
+      humanFailureReferences: [hraLegacy],
     });
-    const parameters = parameterTable([estimate("parameter-c", { unit: "PROBABILITY", law: { family: "POINT", value: 0.01 } })]);
+    const hep = estimate("parameter-hep", { unit: "PROBABILITY", law: { family: "BETA", alpha: 0.5, beta: 99.5, lower: 0, upper: 1 } });
+    const parameters = parameterTable([estimate("parameter-c", { unit: "PROBABILITY", law: { family: "POINT", value: 0.01 } }), hep]);
     expect(() => adaptSyFaultTreeSnapshot(source, "ft-1", { parameters })).toThrow(
-      "SY basic event 'BE-A' could not resolve controlled DA parameter 'da-1:parameter-hep'",
+      "SY basic event 'BE-B' could not resolve HRA quantification 'hr-1:hep-b'",
     );
-    expect(() => adaptSyFaultTreeSnapshot(source, "ft-1", {
-      parameters,
-      legacyValues: new Map([[faultTreeControlledDataSourceKey(daLegacy), 0.35]]),
-    })).toThrow("SY basic event 'BE-B' could not resolve controlled HRA quantification 'hr-1:hfe-b'");
-    const adapted = adaptSyFaultTreeSnapshot(source, "ft-1", {
-      parameters,
-      legacyValues: new Map([
-        [faultTreeControlledDataSourceKey(daLegacy), 0.35],
-        [faultTreeControlledDataSourceKey(hraLegacy), 0.004],
-      ]),
-    });
+    const hraLaw: UncertainExpression = { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "LOGNORMAL", mean: 0.004, errorFactor: 5, level: 0.95 } } };
+    const adapted = adaptSyFaultTreeSnapshot(source, "ft-1", { parameters, humanFailureEvents: new Map([[humanFailureEventKey(hraLegacy), hraLaw]]) });
     expect(adapted.basicEventCatalogue.basicEvents).toEqual([
-      { id: "be-a", expression: legacyExpression("PROBABILITY", 0.35) },
-      { id: "be-b", expression: legacyExpression("PROBABILITY", 0.004) },
+      { id: "be-a", expression: reading("parameter-hep") },
+      { id: "be-b", expression: hraLaw },
       { id: "be-c", expression: reading("parameter-c") },
     ]);
-    expect(adapted.legacyReferences).toEqual([daLegacy, hraLegacy]);
+    expect(adapted.basicEventCatalogue.uncertaintyParameters).toEqual(expect.arrayContaining([hep]));
+    expect(adapted.humanFailureReferences).toEqual([hraLegacy]);
   });
 
   it("refuses a component event with no expression with an addressable error", () => {
@@ -542,7 +535,7 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     const source = { workbookId: "sy-1", workbookRevision: 7, mef };
     expect(() => adaptSyFaultTreeSnapshot(source, "ft-1"))
       .toThrow(expect.objectContaining({ code: "SY_BASIC_EVENT_VALUE_MISSING", details: { basicEventId: "be-a" } }));
-    expect(collectSyFaultTreeReferences(source, "ft-1")).toEqual({ parameterReferences: [], vectorReferences: [], legacyReferences: [] });
+    expect(collectSyFaultTreeReferences(source, "ft-1")).toEqual({ parameterReferences: [], vectorReferences: [], humanFailureReferences: [] });
     expect(mef).toEqual(original);
   });
 

@@ -1,7 +1,7 @@
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Unique, Named } from "../core/meta";
 import { BasicEvent, ParameterDistribution, type UncertainFrequency } from "../core/events";
-import type { BaseLaw, CcfFactorModel, Law, TruncatedLaw, UncertainExpression } from "../core/uncertainty";
+import type { BaseLaw, CcfFactorModel, DiscreteOutcome, DurationModel, Law, StandbyDemandKind, TruncatedLaw, UncertainExpression, UncertainParameter, UncertainVectorParameter, VectorLaw } from "../core/uncertainty";
 import { SuccessCriteriaId, SensitivityStudy } from "../core/shared-patterns";
 import { BaseAssumption, PreOperationalAssumption } from "../core/documentation";
 import { ComponentReference, ComponentTypeReference } from "../core/component";
@@ -135,7 +135,7 @@ export function isComponentModel(model: DaQuantificationModel | undefined): bool
   return model !== undefined && DA_COMPONENT_MODELS.includes(model);
 }
 
-export const DA_ESTIMATE_MODELS: readonly DaQuantificationModel[] = [...DA_COMPONENT_MODELS, "FREQUENCY"];
+export const DA_ESTIMATE_MODELS: readonly DaQuantificationModel[] = [...DA_COMPONENT_MODELS, "HUMAN_ERROR", "NON_RECOVERY", "FREQUENCY"];
 
 export function holdsEstimate(model: DaQuantificationModel | undefined): boolean {
   return model !== undefined && DA_ESTIMATE_MODELS.includes(model);
@@ -158,17 +158,23 @@ export type DaSourceOrigin = "SAME_TECHNOLOGY" | "OTHER_NUCLEAR" | "NONNUCLEAR";
 
 export type DaEstimateQuantity = "PER_DEMAND" | "PER_HOUR" | "PER_YEAR" | "FRACTION" | "PROBABILITY" | "HOURS" | "FACTOR";
 
-export const DA_LAW_QUANTITIES: readonly DaEstimateQuantity[] = ["PER_DEMAND", "PER_HOUR", "PER_YEAR", "PROBABILITY", "FRACTION", "FACTOR"];
+export const DA_LAW_QUANTITIES: readonly DaEstimateQuantity[] = ["PER_DEMAND", "PER_HOUR", "PER_YEAR", "PROBABILITY", "FRACTION", "HOURS", "FACTOR"];
 
 export function entryHoldsLaw(quantity: DaEstimateQuantity): boolean {
   return DA_LAW_QUANTITIES.includes(quantity);
 }
+
+export type DaSourceEstimateType = "PRIOR" | "POSTERIOR" | "EMPIRICAL_BAYES" | "PLANT_SPECIFIC" | "MLE" | "POINT_ESTIMATE" | "DATA";
+
+export type DaSourceSpread = "POPULATION" | "MEAN" | "NONE";
 
 export interface DaSourceEntry {
   id: string;
   component: string;
   failureMode: string;
   quantity: DaEstimateQuantity;
+  estimateType: DaSourceEstimateType;
+  spread: DaSourceSpread;
   table?: string;
   law?: Law;
   distribution?: ParameterDistribution;
@@ -232,7 +238,25 @@ export interface DaSourceUse {
 
 export type DaPriorForm = "AS_PUBLISHED" | "CONSTRAINED_NONINFORMATIVE" | "JEFFREYS";
 
-export type DaEstimateMethod = "PRIOR" | "BAYES" | "POPULATION";
+export type DaEstimateMethod = "PRIOR" | "BAYES" | "POPULATION" | "EMPIRICAL_BAYES" | "TREND";
+
+export interface DaPriorPart {
+  useId: string;
+  weight: number;
+}
+
+export interface DaTrendBin {
+  year: number;
+  failures?: number;
+  exposure: number;
+}
+
+export interface DaTrendBasis {
+  failuresFrom: "TYPED" | "RECORDS";
+  recordSetId?: string;
+  bins: DaTrendBin[];
+  at?: number;
+}
 
 export type DaEvidenceOrigin = "PLANT_RECORDS" | "TECHNOLOGY";
 
@@ -242,14 +266,17 @@ export interface DaEvidence {
   id: string;
   origin: DaEvidenceOrigin;
   label?: string;
-  failuresFrom: "TYPED" | "ENTRY" | "RECORDS";
+  failuresFrom: "TYPED" | "UNCERTAIN" | "ENTRY" | "RECORDS";
   exposureFrom: "TYPED" | "ENTRY" | "DEMANDS_AND_HOURS";
   sourceId?: string;
   entryId?: string;
   recordSetId?: string;
   failures?: number;
+  failureOutcomes?: DiscreteOutcome[];
   exposure?: number;
   unit?: DaEvidenceUnit;
+  standbyDemand?: StandbyDemandKind;
+  testIntervalHours?: number;
   hoursPerDemand?: number;
   hoursPerYear?: number;
   yearsFrom?: string;
@@ -269,6 +296,7 @@ export interface DaFailureRecord {
   description: string;
   reference?: string;
   judgment: DaRecordJudgment;
+  countOutcomes?: DiscreteOutcome[];
   parameterId?: string;
   repeatOf?: string;
   reason?: string;
@@ -311,7 +339,7 @@ export interface DaHourCount {
 
 export type DaMaintenanceKind = "TRAIN" | "COINCIDENT";
 
-export type DaMaintenanceMethod = "PLANNED" | "RECORDS" | "GENERIC";
+export type DaMaintenanceMethod = "PLANNED" | "RECORDS" | "GENERIC" | "BAYES";
 
 export interface DaMaintenanceActivity {
   id: string;
@@ -345,6 +373,7 @@ export interface DaMaintenanceBasis {
   trainsReason?: string;
   activities?: DaMaintenanceActivity[];
   records?: DaOutOfServiceRecord[];
+  durationModel?: DurationModel;
   overlapIds?: string[];
   equipment?: string[];
   scope?: "INTRASYSTEM" | "INTERSYSTEM";
@@ -358,6 +387,7 @@ export type DaRestorationFrom = "SOURCES" | "RECORDS";
 export interface DaRestorationTime {
   id: string;
   hours: number;
+  censored?: boolean;
   date?: string;
   reference?: string;
 }
@@ -377,6 +407,7 @@ export interface DaRestorationBasis {
   parts?: DaRestorationPart[];
   comparison?: DaRestorationPart[];
   times?: DaRestorationTime[];
+  model?: DurationModel;
   windowHours?: number;
   windowReason?: string;
   sequence?: string;
@@ -435,7 +466,7 @@ export type DaInitiatorCategory = "I" | "II" | "III" | "IV";
 
 export type DaFrequencyPer = "CRITICAL_YEAR" | "CALENDAR_YEAR" | "SHUTDOWN_YEAR";
 
-export type DaFrequencyMethod = "PRIOR" | "BAYES";
+export type DaFrequencyMethod = "PRIOR" | "BAYES" | "POPULATION" | "EMPIRICAL_BAYES";
 
 export interface DaFrequencyPart {
   id: string;
@@ -444,8 +475,11 @@ export interface DaFrequencyPart {
   per: DaFrequencyPer;
   stateIds?: string[];
   useId?: string;
+  priorParts?: DaPriorPart[];
   priorForm?: DaPriorForm;
   method?: DaFrequencyMethod;
+  populationTargetId?: string;
+  populationHyperprior?: DaPopulationHyperprior;
   evidence?: DaEvidence[];
   reason?: string;
 }
@@ -493,6 +527,7 @@ export interface DataAnalysisParameter extends Unique, Named {
   stateIds?: string[];
   sourceUses?: DaSourceUse[];
   priorUseId?: string;
+  priorParts?: DaPriorPart[];
   evidenceKind?: DaEvidenceKind;
   evidenceReason?: string;
   priorForm?: DaPriorForm;
@@ -502,6 +537,7 @@ export interface DataAnalysisParameter extends Unique, Named {
   populationTargetId?: string;
   populationHyperprior?: DaPopulationHyperprior;
   evidence?: DaEvidence[];
+  trend?: DaTrendBasis;
   maintenance?: DaMaintenanceBasis;
   restoration?: DaRestorationBasis;
   frequency?: DaFrequencyBasis;
@@ -629,8 +665,23 @@ export interface DaCcfEvent {
   description?: string;
   date?: string;
   impact: number[];
+  lethal?: boolean;
   included: boolean;
   reason: string;
+}
+
+export type DaCcfEvidenceImportKind = "IMPACT_VECTOR" | "MULTIPLICITY";
+
+export interface DaCcfEvidenceImport {
+  sourceId: string;
+  kind: DaCcfEvidenceImportKind;
+  set: string;
+  rowIds: string[];
+}
+
+export interface DaCcfMultiplicity {
+  failed: number;
+  events: number;
 }
 
 export interface DaCcfEvidence {
@@ -640,11 +691,58 @@ export interface DaCcfEvidence {
   recordSetId?: string;
   population: number;
   independentFailures: number;
+  impactSize?: number;
+  counts?: number[];
+  multiplicities?: DaCcfMultiplicity[];
+  imported?: DaCcfEvidenceImport;
+  mappingRho?: number;
+  lethalShocks?: number;
   events: DaCcfEvent[];
   boundary: DaBoundaryMatch;
   reason: string;
   included: boolean;
   exclusionReason?: string;
+}
+
+export type DaCcfImportKind =
+  | "ALPHA_DIRICHLET"
+  | "ALPHA_MLE"
+  | "ALPHA_SUMMARY"
+  | "ALPHA_POINTS"
+  | "MGL"
+  | "BETA";
+
+export type DaCcfConversion = "ONE_PLUS_BETA";
+
+export interface DaCcfImportRecord {
+  kind: DaCcfImportKind;
+  rowIds: string[];
+  groupSize: number;
+  testing?: DaCcfTesting;
+  originalSum?: number;
+  scale?: number;
+  conversion?: DaCcfConversion;
+  vectorId?: string;
+  factorId?: string;
+}
+
+export interface DaCcfVector {
+  id: string;
+  sourceId: string;
+  kind: DaCcfImportKind;
+  template: string;
+  groupSize: number;
+  rowIds: string[];
+  vector: VectorLaw;
+  estimateId?: string;
+}
+
+export interface DaCcfFactor {
+  id: string;
+  sourceId: string;
+  rowId: string;
+  expression: UncertainExpression;
+  estimateId?: string;
 }
 
 export interface CcfParameterEstimation extends Unique {
@@ -655,8 +753,13 @@ export interface CcfParameterEstimation extends Unique {
   testing?: DaCcfTesting;
   testingReason?: string;
   method?: DaCcfMethod;
+  model?: CcfFactorModel["model"];
+  priorWeight?: number;
+  groupDemands?: number;
   priorSourceId?: string;
+  priorKind?: DaCcfImportKind;
   priorTemplate?: string;
+  imported?: DaCcfImportRecord;
   priorReason?: string;
   evidence?: DaCcfEvidence[];
   estimateReason?: string;
@@ -940,6 +1043,8 @@ export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DAT
   outages?: DaOutage[];
 
   ccfParameterEstimations?: CcfParameterEstimation[];
+  ccfVectors?: DaCcfVector[];
+  ccfFactors?: DaCcfFactor[];
   dataModificationAdjustments?: DataModificationAdjustment[];
 
   uncertaintyRegister?: DaUncertaintySource[];
@@ -951,6 +1056,22 @@ export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DAT
   configurationControlRecordId?: string;
   exampleDocuments?: ExampleDocumentRef[];
   newlyDevelopedMethodIds?: string[];
+}
+
+export function daCcfVectorParameter(workbookId: string, vector: DaCcfVector): UncertainVectorParameter {
+  return { reference: { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: vector.id }, vector: vector.vector };
+}
+
+export function daCcfVectorParameters(da: Pick<DataAnalysis, "ccfVectors">, workbookId: string): UncertainVectorParameter[] {
+  return (da.ccfVectors ?? []).map((vector) => daCcfVectorParameter(workbookId, vector));
+}
+
+export function daCcfFactorParameter(workbookId: string, factor: DaCcfFactor): UncertainParameter {
+  return { reference: { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: factor.id }, expression: factor.expression };
+}
+
+export function daCcfFactorParameters(da: Pick<DataAnalysis, "ccfFactors">, workbookId: string): UncertainParameter[] {
+  return (da.ccfFactors ?? []).map((factor) => daCcfFactorParameter(workbookId, factor));
 }
 
 export interface ExampleDocumentRef {

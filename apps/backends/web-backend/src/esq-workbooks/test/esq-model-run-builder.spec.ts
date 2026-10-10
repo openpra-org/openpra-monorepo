@@ -1,9 +1,9 @@
 import type { EsqCell, EsqLogic, EsqModel, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { SystemBasicEvent, SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { FaultTreeGate, FaultTreeGateInput, FaultTreeLeafNode } from "interfaces-mef-types/modeling/fault-tree";
-import type { Law, UncertainExpression, UncertainParameter, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
-import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
-import { esqEndStateRunId, esqFunctionRunId, esqSequenceRunId, esqTreeRunId } from "interfaces-mef-types/esq/esq-run-inputs";
+import { canonicalJson, type Law, type UncertainExpression, type UncertainParameter, type UncertainUnit } from "interfaces-mef-types/core/uncertainty";
+import { esqEndStateRunId, esqFunctionRunId, esqSequenceRunId, esqTreeRunId, withLiveDa } from "interfaces-mef-types/esq/esq-run-inputs";
+import { createBlankDa } from "../../da-workbooks/blank-da";
 import { esqIndependentEventId, esqJointEventId, esqRecoveryEventId } from "interfaces-mef-types/esq/esq-post-inputs";
 import type { EsqEventTreeRunLogic } from "interfaces-shared-types/newly-developed-methods";
 import { FrequencyUnit } from "interfaces-mef-types/core/events";
@@ -159,13 +159,17 @@ function workbook(logic: EsqLogic = { loopBreaks: [{ fromModelId: FT_C, toModelI
   const esq = createBlankEsq("ESQ", "analyst");
   esq.linkedWorkbooks = { ...esq.linkedWorkbooks, DA };
   esq.model = snapshot();
-  esq.modelDecisions = { functionLinks: [{ functionId: "F3", target: { kind: "SPLIT_FRACTION", value: 0.3 } }] };
+  esq.modelDecisions = { functionLinks: [{ functionId: "F3", target: { kind: "SPLIT_FRACTION", expression: point("PROBABILITY", 0.3) } }] };
   esq.logic = logic;
   return esq;
 }
 
-function build(esq: EventSequenceQuantification, logic: EsqEventTreeRunLogic = AS_SET, sy: SystemsAnalysis = systems(), missionTimes: ReadonlyMap<string, UncertainParameter> = new Map()): EsqRunBuild {
-  return buildEsqEventTreeRun({ esq, treeId: "T1", sy, syWorkbookId: "sy-1", syRevision: 4, missionTimes, esqWorkbookId: "esq-1", esqRevision: 7, logic });
+function build(esq: EventSequenceQuantification, logic: EsqEventTreeRunLogic = AS_SET, sy: SystemsAnalysis = systems(), missionTimes: ReadonlyMap<string, UncertainParameter> = new Map(), points: ReadonlyMap<string, number> = new Map()): EsqRunBuild {
+  return buildEsqEventTreeRun({ esq, treeId: "T1", sy, syWorkbookId: "sy-1", syRevision: 4, missionTimes, esqWorkbookId: "esq-1", esqRevision: 7, logic, points });
+}
+
+function own(key: string): UncertainExpression {
+  return parameter(key, "esq-1");
 }
 
 function faultTree(run: EsqRunBuild, modelId: string): { gates: FaultTreeGate[]; leafNodes: FaultTreeLeafNode[]; gateInputs: FaultTreeGateInput[] } {
@@ -257,10 +261,33 @@ describe("ESQ event tree run builder", () => {
     const split = run.faultTrees.find((entry) => entry.modelSnapshot.id === run.splitFractionModelIds[0]);
     const events = split?.basicEventCatalogue.basicEvents ?? [];
     expect(events).toHaveLength(1);
-    expect(events[0]?.expression).toEqual(legacyExpression("PROBABILITY", 0.3));
+    expect(events[0]?.expression).toEqual(point("PROBABILITY", 0.3));
     expect(split?.basicEventCatalogue.uncertaintyParameters).toEqual([]);
     expect(run.eventCodes[events[0]?.id ?? ""]).toBe("SF-F3");
-    expect(run.values).toContainEqual({ id: events[0]?.id, role: "SPLIT", splitKey: "SPLIT:F3:0.3" });
+    expect(run.values).toContainEqual({ id: events[0]?.id, role: "SPLIT", splitKey: `SPLIT:F3:${canonicalJson(point("PROBABILITY", 0.3))}` });
+  });
+
+  it("links a split fraction to a DA estimate through the parameter", () => {
+    const esq = workbook();
+    esq.modelDecisions = { functionLinks: [{ functionId: "F3", target: { kind: "SPLIT_FRACTION", parameterId: P2 } }] };
+    const run = build(esq);
+    const split = run.faultTrees.find((entry) => entry.modelSnapshot.id === run.splitFractionModelIds[0])?.basicEventCatalogue;
+    expect(split?.basicEvents.map((event) => event.expression)).toEqual([parameter(P2)]);
+    expect(split?.uncertaintyParameters).toEqual([estimateOf(P2, START_ESTIMATE)]);
+  });
+
+  it("reads each DA estimate from the live DA workbook, not from the Step 02 copy", () => {
+    const esq = workbook();
+    const live = lawValue("PROBABILITY", { family: "BETA", alpha: 1.5, beta: 48.5, lower: 0, upper: 1 });
+    const da = createBlankDa("DA", "analyst");
+    da.parameters = [{ uuid: P2, name: "Pump fails to start", parameterType: "PROBABILITY", quantificationModel: "DEMAND_PROBABILITY", estimate: live, implementsSrs: [] }];
+    if (esq.model !== undefined) esq.model = withLiveDa(esq.model, da, DA);
+    expect(buildError(() => build(esq))).toBe(`E3 takes its value from DA parameter ${P3}, which the linked DA workbook does not hold. Import the model again in Step 02.`);
+    if (esq.model !== undefined) esq.model.events = esq.model.events.filter((event) => event.id !== E3);
+    const sy = systems();
+    sy.systemLogicModels = sy.systemLogicModels.map((model) => (model.uuid === FT_A ? { ...model, leafNodes: model.leafNodes.filter((leaf) => leaf.id !== "a-e3"), gateInputs: model.gateInputs.filter((input) => input.childId !== "a-e3") } : model));
+    if (esq.model !== undefined) esq.model.tops = esq.model.tops.map((top) => (top.modelId === FT_A ? { ...top, eventIds: [E1, E2] } : top));
+    expect(parametersOf(build(esq, AS_SET, sy), FT_A)).toEqual([estimateOf(P2, live)]);
   });
 
   it("takes a split fraction from the Step 04 value of record", () => {
@@ -348,7 +375,7 @@ describe("ESQ event tree run builder", () => {
     expect(buildError(() => build(foreign))).toBe(`E1 reads ${P2} from a workbook that Step 01 does not link as DA or SC.`);
     const missing = workbook();
     missing.model?.events.splice(0, 1, { id: E1, code: "E1", name: "E1", heldBy: "TYPED", expression: parameter(P6) });
-    expect(buildError(() => build(missing))).toBe(`E1 reads DA parameter ${P6}, which the Step 02 import does not hold.`);
+    expect(buildError(() => build(missing))).toBe(`E1 reads DA parameter ${P6}, which the linked DA workbook does not hold. Import the model again in Step 02.`);
     const unlinked = workbook();
     unlinked.linkedWorkbooks = {};
     expect(buildError(() => build(unlinked))).toBe("E2 takes its value from DA, but Step 01 links no DA workbook.");
@@ -400,7 +427,7 @@ describe("ESQ event tree run builder", () => {
   });
 
   it("sets the failed events of a sensitivity case TRUE even with flags off", () => {
-    const run = buildEsqEventTreeRun({ esq: workbook(), treeId: "T1", sy: systems(), syWorkbookId: "sy-1", syRevision: 4, missionTimes: new Map(), esqWorkbookId: "esq-1", esqRevision: 7, logic: { ...AS_SET, flags: false }, failedEventIds: [E1] });
+    const run = buildEsqEventTreeRun({ esq: workbook(), treeId: "T1", sy: systems(), syWorkbookId: "sy-1", syRevision: 4, missionTimes: new Map(), esqWorkbookId: "esq-1", esqRevision: 7, logic: { ...AS_SET, flags: false }, points: new Map(), failedEventIds: [E1] });
     expect(faultTree(run, FT_A).leafNodes).toContainEqual(expect.objectContaining({ id: "a-e1", kind: "HOUSE_EVENT", state: true }));
     expect(catalogueExpression(run, E1)).toBeUndefined();
     expect(run.values.some((value) => value.id === E1)).toBe(false);
@@ -477,10 +504,50 @@ describe("ESQ event tree run builder", () => {
     expect(table).toContainEqual(estimateOf(P3, RUN_ESTIMATE));
     const vector = pumpGroupWorkbook();
     if (vector.model !== undefined) vector.model.ccfGroups = [{ id: "ccf-pumps", name: "Pumps", systemIds: [], memberIds: [E1, E2], factors: { model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: DA, entityId: "CCF-1" } } }, total: point("PROBABILITY", 0.03) }];
-    expect(buildError(() => build(vector, AS_SET, withPumpGroup(systems())))).toBe("The common cause group Pumps takes its factors from CCF-1, which the Step 02 import does not hold.");
+    expect(buildError(() => build(vector, AS_SET, withPumpGroup(systems())))).toBe("The common cause group Pumps takes its factors from CCF-1, which the Step 02 import does not hold. Import the model again.");
     const bare = pumpGroupWorkbook();
     if (bare.model !== undefined) bare.model.ccfGroups = [{ id: "ccf-pumps", name: "Pumps", systemIds: [], memberIds: [E1, E2] }];
     expect(buildError(() => build(bare, AS_SET, withPumpGroup(systems())))).toBe("The common cause group Pumps has no factors in the Step 02 import. Complete it in SY and import again.");
+  });
+
+  it("sends a linked alpha vector once in the vector table of every fault tree", () => {
+    const esq = pumpGroupWorkbook();
+    const reference = { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: DA, entityId: "CCF-VEC-1" };
+    const vector = { reference, vector: { family: "DIRICHLET" as const, concentrations: [30, 6] } };
+    const unused = { reference: { ...reference, entityId: "CCF-VEC-2" }, vector: { family: "DIRICHLET" as const, concentrations: [9, 1] } };
+    if (esq.model !== undefined) {
+      esq.model.vectors = [vector, unused];
+      esq.model.ccfGroups = [{ id: "ccf-pumps", name: "Pumps", systemIds: [], memberIds: [E1, E2], factors: { model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "PARAMETER", reference } }, total: point("PROBABILITY", 0.03) }];
+    }
+    const run = build(esq, AS_SET, withPumpGroup(systems()));
+    for (const modelId of [FT_A, FT_B]) {
+      const tree = run.faultTrees.find((entry) => entry.modelSnapshot.id === modelId);
+      expect(tree?.basicEventCatalogue.uncertaintyVectors).toEqual([vector]);
+      expect(tree?.vectorReferences).toEqual([reference]);
+    }
+  });
+
+  it("reads a DA common cause factor scalar from the Step 02 import", () => {
+    const esq = pumpGroupWorkbook();
+    const reference = { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: DA, entityId: "ccff/SRC-21/EB-T7-36-BETAN-N2" };
+    const factor = { reference, expression: point("FACTOR", 0.1) };
+    const link: UncertainExpression = { node: "PARAMETER", reference };
+    const beta: UncertainExpression = { node: "OPERATION", operation: "DIVIDE", operands: [link, { node: "OPERATION", operation: "ADD", operands: [point("FACTOR", 1), link] }] };
+    if (esq.model !== undefined) {
+      esq.model.ccfGroups = [{ id: "ccf-pumps", name: "Pumps", systemIds: [], memberIds: [E1, E2], factors: { model: "BETA_FACTOR", beta }, total: point("PROBABILITY", 0.03) }];
+      esq.model.ccfFactors = [factor];
+    }
+    const run = build(esq, AS_SET, withPumpGroup(systems()));
+    expect(parametersOf(run, FT_A)).toContainEqual(factor);
+    if (esq.model !== undefined) esq.model.ccfFactors = [];
+    expect(buildError(() => build(esq, AS_SET, withPumpGroup(systems())))).toBe("The common cause group Pumps reads DA parameter ccff/SRC-21/EB-T7-36-BETAN-N2, which the linked DA workbook does not hold. Import the model again in Step 02.");
+  });
+
+  it("sends a binomial failure rate group without a total", () => {
+    const esq = pumpGroupWorkbook();
+    const factors = { model: "BINOMIAL_FAILURE_RATE" as const, independent: point("PROBABILITY", 0.004), nonLethalShock: point("PROBABILITY", 0.001), componentFailure: point("FRACTION", 0.4), lethalShock: point("PROBABILITY", 0.0001) };
+    if (esq.model !== undefined) esq.model.ccfGroups = [{ id: "ccf-pumps", name: "Pumps", systemIds: [], memberIds: [E1, E2], factors }];
+    expect(build(esq, AS_SET, withPumpGroup(systems())).ccfGroups).toEqual([{ id: "ccf-pumps", members: [E1, E2], factors }]);
   });
 
   it("scales a DA initiator frequency by the module factor and the state share and carries its estimate", () => {
@@ -514,7 +581,7 @@ describe("ESQ event tree run builder", () => {
     const root = esq.model?.trees.find((tree) => tree.id === "T1");
     if (root === undefined) throw new Error("no root tree");
     const inputs = new Map(sampledInputsOf(esq).map((input) => [input.key, input]));
-    const sample = (correlation: "SHARED" | "INDEPENDENT", tally: EsqSamplingTally) => sampledBuild({ esq, build: run, root, logic: AS_SET, settings: { trials: 10, seed: 1, method: "MONTE_CARLO", correlation }, inputs, tally, esqWorkbookId: "esq-1" });
+    const sample = (correlation: "SHARED" | "INDEPENDENT", tally: EsqSamplingTally) => sampledBuild({ esq, build: run, root, logic: AS_SET, settings: { trials: 10, seed: 1, method: "MONTE_CARLO", correlation }, inputs, tally });
     const sharedTally: EsqSamplingTally = { used: new Map(), unsampled: new Map() };
     const shared = sample("SHARED", sharedTally);
     expect(shared.sampling).toEqual({ trials: 10, seed: 1, method: "MONTE_CARLO" });
@@ -543,7 +610,7 @@ describe("ESQ event tree run builder", () => {
   it("names what is missing before a run", () => {
     const blank = createBlankEsq("ESQ", "analyst");
     expect(buildError(() => build(blank))).toBe("Import the model in Step 02 before running.");
-    expect(buildError(() => buildEsqEventTreeRun({ esq: workbook(), treeId: "T2", sy: systems(), syWorkbookId: "sy-1", syRevision: 4, missionTimes: new Map(), esqWorkbookId: "esq-1", esqRevision: 7, logic: AS_SET })))
+    expect(buildError(() => buildEsqEventTreeRun({ esq: workbook(), treeId: "T2", sy: systems(), syWorkbookId: "sy-1", syRevision: 4, missionTimes: new Map(), esqWorkbookId: "esq-1", esqRevision: 7, logic: AS_SET, points: new Map() })))
       .toBe("ET-T2 is entered by transfer. Run the tree that transfers into it.");
     const unlinked = workbook();
     unlinked.modelDecisions = {};
@@ -567,8 +634,8 @@ describe("ESQ event tree run builder", () => {
       const model = esq.model;
       if (model === undefined) throw new Error("fixture has no model");
       model.humanEvents = [
-        { id: "H1", name: "Operator fails to restart", timing: "POST_INITIATOR", value: 0.12, riskSignificant: true, distributionGiven: false },
-        { id: "H2", name: "Operator fails to align", timing: "PRE_INITIATOR", value: 0.05, riskSignificant: false, distributionGiven: false },
+        { id: "H1", name: "Operator fails to restart", timing: "POST_INITIATOR", hep: H1_LAW, riskSignificant: true, distributionGiven: true },
+        { id: "H2", name: "Operator fails to align", timing: "PRE_INITIATOR", hep: point("PROBABILITY", 0.05), riskSignificant: false, distributionGiven: false },
       ];
       model.events = model.events.map((event) => (event.id === E1
         ? { id: E1, code: "E1", name: "E1", failureMode: "HUMAN_ERROR", heldBy: "HRA" as const, holderId: "H1" }
@@ -579,15 +646,19 @@ describe("ESQ event tree run builder", () => {
         hfeId: "H1",
         level: "SEQUENCE",
         sequenceIds: [],
-        hep: 0.2,
+        hep: point("PROBABILITY", 0.2),
         feasibility: { procedure: true, training: true, cues: true, crew: true, time: true, access: true, equipment: true },
       }];
       model.jointFloor = { id: "JHF-1", value: 1e-5, justification: "Floor." };
       return esq;
     }
 
+    const H1_LAW = lawValue("PROBABILITY", { family: "LOGNORMAL", mean: 0.12, errorFactor: 3, level: 0.95 });
+
+    const POINTS = new Map([["HFE:H1", 0.12], ["HFE:H2", 0.05], ["RECOVERY:REC-1", 0.2]]);
+
     function humanBuild(esq: EventSequenceQuantification, logic: EsqEventTreeRunLogic = AS_SET): EsqRunBuild {
-      return build(esq, logic, humanSystems());
+      return build(esq, logic, humanSystems(), new Map(), POINTS);
     }
 
     function gateOf(run: EsqRunBuild, modelId: string, id: string): FaultTreeGate | undefined {
@@ -602,10 +673,11 @@ describe("ESQ event tree run builder", () => {
       }).sort();
     }
 
-    it("sends a human event its HEP as a legacy point", () => {
+    it("sends a human event its HR law through one shared parameter", () => {
       const run = humanBuild(humanWorkbook());
-      expect(catalogueExpression(run, E1)).toEqual(legacyExpression("PROBABILITY", 0.12));
-      expect(catalogueExpression(run, E2)).toEqual(legacyExpression("PROBABILITY", 0.05));
+      expect(catalogueExpression(run, E1)).toEqual(own("HFE:H1"));
+      expect(catalogueExpression(run, E2)).toEqual(own("HFE:H2"));
+      expect(parametersOf(run, FT_A)).toContainEqual({ reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "esq-1", entityId: "HFE:H1" }, expression: H1_LAW });
       const component = humanWorkbook();
       component.modelDecisions = { ...component.modelDecisions, valueBindings: [{ eventId: E1, heldBy: "DA", holderId: P2, reason: "Test." }] };
       expect(buildError(() => humanBuild(component))).toBe("Pump fails to start is a component estimate. It cannot set E1.");
@@ -617,7 +689,7 @@ describe("ESQ event tree run builder", () => {
       const run = humanBuild(esq);
       expect(gateOf(run, FT_A, "a-e1")?.gateType).toBe("AND");
       expect(childEvents(run, FT_A, "a-e1")).toEqual([E1, esqRecoveryEventId("REC-1")].sort());
-      expect(catalogueExpression(run, esqRecoveryEventId("REC-1"))).toEqual(legacyExpression("PROBABILITY", 0.2));
+      expect(catalogueExpression(run, esqRecoveryEventId("REC-1"))).toEqual(own("RECOVERY:REC-1"));
       expect(run.humanEventIds).toEqual([E1, E2, esqRecoveryEventId("REC-1")].sort());
       expect(run.nominal[esqRecoveryEventId("REC-1")]).toBe(0.2);
       expect(run.nominal[E1]).toBe(0.12);
@@ -648,6 +720,7 @@ describe("ESQ event tree run builder", () => {
       expect(catalogueProbability(run, joint)).toBeCloseTo(g, 14);
       expect(catalogueProbability(run, esqIndependentEventId(E1))).toBeCloseTo((0.12 - g) / (1 - g), 14);
       expect(catalogueProbability(run, esqIndependentEventId(E2))).toBeCloseTo((0.05 - g) / (1 - g), 14);
+      expect(run.values).toContainEqual(expect.objectContaining({ id: joint, role: "JOINT", baseEventId: E1, baseExpression: own("HFE:H1") }));
       expect(gateOf(humanBuild(esq, { ...AS_SET, dependency: false }), FT_A, "a-e1")).toBeUndefined();
       const above = humanWorkbook();
       above.postWork = { combinations: [{ id: "HC-1", eventIds: [E1, E2], ofRecord: "TYPED", typed: { joint: 0.2, source: "" }, groupIds: [], stateIds: [], basis: "" }] };
@@ -660,10 +733,10 @@ describe("ESQ event tree run builder", () => {
         recoveries: [{ id: "REC-1", groupIds: [], stateIds: [], credited: true, basis: "" }],
         combinations: [{ id: "HC-1", eventIds: [E1, E2], ofRecord: "TYPED", typed: { joint: 0.03, source: "" }, groupIds: [], stateIds: [], basis: "" }],
       };
-      const run = buildEsqEventTreeRun({ esq, treeId: "T1", sy: humanSystems(), syWorkbookId: "sy-1", syRevision: 4, missionTimes: new Map(), esqWorkbookId: "esq-1", esqRevision: 7, logic: AS_SET, raisedHep: 0.8 });
-      expect(catalogueExpression(run, E1)).toEqual(legacyExpression("PROBABILITY", 0.8));
-      expect(catalogueExpression(run, E2)).toEqual(legacyExpression("PROBABILITY", 0.8));
-      expect(catalogueExpression(run, esqRecoveryEventId("REC-1"))).toEqual(legacyExpression("PROBABILITY", 0.8));
+      const run = buildEsqEventTreeRun({ esq, treeId: "T1", sy: humanSystems(), syWorkbookId: "sy-1", syRevision: 4, missionTimes: new Map(), esqWorkbookId: "esq-1", esqRevision: 7, logic: AS_SET, points: POINTS, raisedHep: 0.8 });
+      expect(catalogueExpression(run, E1)).toEqual(point("PROBABILITY", 0.8));
+      expect(catalogueExpression(run, E2)).toEqual(point("PROBABILITY", 0.8));
+      expect(catalogueExpression(run, esqRecoveryEventId("REC-1"))).toEqual(point("PROBABILITY", 0.8));
       expect(catalogueExpression(run, esqJointEventId("HC-1"))).toBeUndefined();
       expect(run.nominal[E2]).toBe(0.05);
     });

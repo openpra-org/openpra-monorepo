@@ -4,7 +4,7 @@ import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
 import type { CcfFactorModel, UncertainExpression, UncertainParameter, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
-import type { ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
+import type { ParameterOption, VectorOption } from "../newly-developed-methods/shared/uncertainEditor";
 import { type Workbook } from "interfaces-shared-types";
 
 interface SyLinkedSupport {
@@ -18,6 +18,7 @@ interface SyLinkedSystem {
   name: string;
   capacities: string;
   supports: SyLinkedSupport[];
+  missionTime?: UncertainExpression;
 }
 
 interface SyLinkedInitiatingEvent {
@@ -123,8 +124,9 @@ interface SyControlledHumanFailureOption {
   hfeTiming: "PRE_INITIATOR" | "AT_INITIATOR" | "POST_INITIATOR";
   quantificationId: string;
   methodology: string;
-  value: number;
-  valueKind: "MEAN" | "POINT_ESTIMATE";
+  hep: UncertainExpression;
+  value?: number;
+  valueText: string;
 }
 
 interface SyControlledCoincidentMaintenanceOption {
@@ -136,6 +138,12 @@ interface SyControlledCoincidentMaintenanceOption {
   scope: "INTRASYSTEM" | "INTERSYSTEM";
   basis: "ACTUAL_PLANT_EXPERIENCE" | "PREOP_ASSUMPTION";
   value?: number;
+}
+
+type SyControlledCcfVectorOption = VectorOption;
+
+interface SyControlledCcfFactorOption extends ParameterOption {
+  expression: UncertainExpression;
 }
 
 interface SyControlledCcfEstimateOption {
@@ -160,6 +168,8 @@ interface SyWorkbookContextValue extends SyWorkbookData {
   controlledFailureModes: SyControlledFailureModeOption[];
   controlledCoincidentMaintenance: SyControlledCoincidentMaintenanceOption[];
   controlledCcfEstimates: SyControlledCcfEstimateOption[];
+  controlledCcfVectors: SyControlledCcfVectorOption[];
+  controlledCcfFactors: SyControlledCcfFactorOption[];
   controlledComponentBoundaries: SyControlledComponentBoundaryOption[];
   mutateSy: (mutator: SyMutator) => void;
   shortOf: (id: string) => string;
@@ -178,6 +188,8 @@ function SyWorkbookProvider({
   controlledFailureModes,
   controlledCoincidentMaintenance,
   controlledCcfEstimates,
+  controlledCcfVectors,
+  controlledCcfFactors,
   controlledComponentBoundaries,
   upstream,
   children,
@@ -193,6 +205,8 @@ function SyWorkbookProvider({
   controlledFailureModes?: SyControlledFailureModeOption[];
   controlledCoincidentMaintenance?: SyControlledCoincidentMaintenanceOption[];
   controlledCcfEstimates?: SyControlledCcfEstimateOption[];
+  controlledCcfVectors?: SyControlledCcfVectorOption[];
+  controlledCcfFactors?: SyControlledCcfFactorOption[];
   controlledComponentBoundaries?: SyControlledComponentBoundaryOption[];
   children: React.ReactNode;
 }): JSX.Element {
@@ -208,6 +222,8 @@ function SyWorkbookProvider({
       controlledFailureModes: controlledFailureModes ?? [],
       controlledCoincidentMaintenance: controlledCoincidentMaintenance ?? [],
       controlledCcfEstimates: controlledCcfEstimates ?? [],
+      controlledCcfVectors: controlledCcfVectors ?? [],
+      controlledCcfFactors: controlledCcfFactors ?? [],
       controlledComponentBoundaries: controlledComponentBoundaries ?? [],
       mutateSy,
       shortOf: (id: string): string => {
@@ -215,7 +231,7 @@ function SyWorkbookProvider({
         return def?.abbreviation ?? def?.name ?? id;
       },
     }),
-    [controlledCcfEstimates, controlledComponentBoundaries, controlledCoincidentMaintenance, controlledFailureModes, controlledHumanFailures, controlledLegacyParameters, controlledParameters, data, editable, mutateSy, runtime, upstream],
+    [controlledCcfEstimates, controlledCcfFactors, controlledCcfVectors, controlledComponentBoundaries, controlledCoincidentMaintenance, controlledFailureModes, controlledHumanFailures, controlledLegacyParameters, controlledParameters, data, editable, mutateSy, runtime, upstream],
   );
   return <SyWorkbookContext.Provider value={value}>{children}</SyWorkbookContext.Provider>;
 }
@@ -242,6 +258,8 @@ export {
   type SyControlledFailureModeOption,
   type SyControlledCoincidentMaintenanceOption,
   type SyControlledCcfEstimateOption,
+  type SyControlledCcfVectorOption,
+  type SyControlledCcfFactorOption,
   type SyControlledComponentBoundaryOption,
   type SyLinkedInitiatingEvent,
   type SyLinkedSupport,

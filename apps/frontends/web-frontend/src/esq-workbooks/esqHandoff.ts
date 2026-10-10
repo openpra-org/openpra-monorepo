@@ -31,7 +31,7 @@ import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty"
 import { hash32 } from "interfaces-mef-types/esq/esq-run-inputs";
 import { resolvedCombinations, resolvedRecoveries } from "interfaces-mef-types/esq/esq-post-inputs";
 import { solveInputsKey, solveWorkOf } from "interfaces-mef-types/esq/esq-solve-inputs";
-import { hasUncertainty, sampledInputsOf, uncertaintyInputsKey } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { hasUncertainty, uncertaintyInputsKey } from "interfaces-mef-types/esq/esq-measure-inputs";
 import type { EsqImportanceRunResult, EsqImportanceTarget, EsqModelRunResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type { EsqUpstream } from "./esqLinks";
 import type { EsqDaCaseOption } from "./esqDaLinks";
@@ -680,11 +680,6 @@ function createdValues(esq: EventSequenceQuantification): EsqCreatedValue[] {
   const model = esq.model;
   if (model === undefined) return [];
   const out: EsqCreatedValue[] = [];
-  const legacyKeys = new Set(sampledInputsOf(esq).flatMap((input) => (input.contract ? [] : [input.key])));
-  for (const spread of uncertaintyWorkOf(esq).spreads ?? []) {
-    if (!legacyKeys.has(spread.key)) continue;
-    out.push({ key: `spread:${spread.key}`, item: spread.key, value: spread.errorFactor, where: "Step 08 error factor", source: spread.source });
-  }
   for (const choice of esq.modelDecisions?.initiatorChoices ?? []) {
     if (choice.source !== "TYPED" || choice.expression === undefined) continue;
     out.push({ key: `initiator:${choice.groupId}`, item: choice.groupId, expression: choice.expression, where: "Step 02 initiator frequency", source: choice.basis ?? "" });
@@ -698,8 +693,8 @@ function createdValues(esq: EventSequenceQuantification): EsqCreatedValue[] {
     out.push({ key: `joint:${combination.combination.id}`, item: combination.combination.id, value: combination.joint, where: "Step 06 joint HEP", source: combination.combination.typed?.source ?? "" });
   }
   for (const recovery of resolvedRecoveries(esq)) {
-    if (recovery.source !== "TYPED" || recovery.value === undefined) continue;
-    out.push({ key: `recovery:${recovery.id}`, item: `NR-${recovery.id}`, value: recovery.value, where: "Step 06 non-recovery HEP", source: recovery.rule?.typed?.source ?? "" });
+    if (recovery.source !== "TYPED" || recovery.expression === undefined) continue;
+    out.push({ key: `recovery:${recovery.id}`, item: `NR-${recovery.id}`, expression: recovery.expression, where: "Step 06 non-recovery HEP", source: recovery.rule?.typed?.source ?? "" });
   }
   return out;
 }

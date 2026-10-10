@@ -2,38 +2,49 @@ import { useMemo } from "react";
 import { expressionReferences, parameterReferenceKey, type UncertainExpression, type UncertainParameter } from "interfaces-mef-types/core/uncertainty";
 import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-models";
 import type { SystemBasicEvent, SystemDefinition, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import type { ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
+import type { ParameterOption, VectorOption } from "../newly-developed-methods/shared/uncertainEditor";
 import { useHoursPoints, type HoursState } from "../sc-workbooks/scMissionTimePoints";
 import { scMissionTimeTable, type ScMissionTimes } from "../sc-workbooks/scMissionTimeLinks";
 import { useLinkedScSources, type ScMissionTimeSource } from "../sc-workbooks/scMissionTimeSources";
 import { syLinkRoots } from "./syLinks";
 import { editorOptions, parameterLabel, valueTable, type ParameterTable } from "./syBasicEventValues";
-import { useSyWorkbook, type SyControlledParameterOption, type SyLinkedInputs } from "./syWorkbookContext";
+import { useSyWorkbook, type SyControlledCcfFactorOption, type SyControlledParameterOption, type SyLinkedInputs } from "./syWorkbookContext";
 
 type MissionTimeLinks = Pick<SyLinkedInputs, "scMissionTimeOptions" | "scMissionTimeTable">;
 
 interface SyValueSources {
   table: ParameterTable;
   options: ParameterOption[];
+  ccfOptions: ParameterOption[];
   missionTimeOptions: ParameterOption[];
   label: (key: string) => string;
 }
 
+interface SyCcfSources {
+  vectors: readonly VectorOption[];
+  factors: readonly SyControlledCcfFactorOption[];
+}
+
 const NO_MISSION_TIMES: ReadonlyMap<string, UncertainParameter> = new Map();
+
+const NO_CCF_SOURCES: SyCcfSources = { vectors: [], factors: [] };
 
 function linkedMissionTimeTable(links: MissionTimeLinks | null): ParameterTable {
   return links?.scMissionTimeTable ?? NO_MISSION_TIMES;
 }
 
-function syValueSources(parameters: readonly SyControlledParameterOption[], links: MissionTimeLinks | null): SyValueSources {
+function syValueSources(parameters: readonly SyControlledParameterOption[], links: MissionTimeLinks | null, ccf: SyCcfSources = NO_CCF_SOURCES): SyValueSources {
   const missionTimeOptions = links?.scMissionTimeOptions ?? [];
   const daLabel = parameterLabel(parameters);
-  const scLabels = new Map(missionTimeOptions.map((option) => [parameterReferenceKey(option.reference), option.label]));
+  const labels = new Map([...missionTimeOptions, ...ccf.vectors, ...ccf.factors].map((option) => [parameterReferenceKey(option.reference), option.label]));
+  const factorTable = new Map(ccf.factors.map((factor) => [parameterReferenceKey(factor.reference), { reference: factor.reference, expression: factor.expression }]));
+  const options = [...editorOptions(parameters), ...missionTimeOptions];
   return {
-    table: valueTable(parameters, linkedMissionTimeTable(links)),
-    options: [...editorOptions(parameters), ...missionTimeOptions],
+    table: new Map([...valueTable(parameters, linkedMissionTimeTable(links)), ...factorTable]),
+    options,
+    ccfOptions: [...options, ...ccf.factors.map(({ reference, label, unit }) => ({ reference, label, unit }))],
     missionTimeOptions,
-    label: (key) => scLabels.get(key) ?? daLabel(key),
+    label: (key) => labels.get(key) ?? daLabel(key),
   };
 }
 
@@ -43,8 +54,8 @@ function linkedMissionTimes(expression: UncertainExpression | undefined, options
 }
 
 function useSyValueSources(): SyValueSources {
-  const { controlledParameters, links } = useSyWorkbook();
-  return useMemo(() => syValueSources(controlledParameters, links), [controlledParameters, links]);
+  const { controlledParameters, links, controlledCcfVectors, controlledCcfFactors } = useSyWorkbook();
+  return useMemo(() => syValueSources(controlledParameters, links, { vectors: controlledCcfVectors, factors: controlledCcfFactors }), [controlledParameters, links, controlledCcfVectors, controlledCcfFactors]);
 }
 
 function ownerSystem(sy: Pick<SystemsAnalysis, "systemDefinitions" | "systemLogicModels">, eventId: string): SystemDefinition | undefined {
@@ -75,4 +86,4 @@ function useSystemHours(systems: readonly SystemDefinition[]): Map<string, Hours
   return useHoursPoints(entries, table);
 }
 
-export { basicEventMissionTime, linkedMissionTimeTable, linkedMissionTimes, ownerSystem, syValueSources, useReferencedScSources, useSyValueSources, useSystemHours, type SyValueSources };
+export { basicEventMissionTime, linkedMissionTimeTable, linkedMissionTimes, ownerSystem, syValueSources, useReferencedScSources, useSyValueSources, useSystemHours, type SyCcfSources, type SyValueSources };

@@ -9,7 +9,7 @@ import {
   PreOperationalAssumptionSchema,
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
-import { WorkbookParameterReferenceSchema } from "../modeling/references";
+import { UncertainExpressionSchema } from "../core/uncertainty";
 
 export const HfeTimingSchema = z.enum(["PRE_INITIATOR", "AT_INITIATOR", "POST_INITIATOR"]);
 export const HfeImpactLevelSchema = z.enum(["FUNCTION", "SYSTEM", "TRAIN", "COMPONENT"]);
@@ -135,9 +135,7 @@ export const HepQuantificationSchema = z.object({
   methodology: z.string(),
   assessmentType: z.enum(["CONSERVATIVE_ESTIMATE", "DETAILED_ASSESSMENT"]),
   isRiskSignificant: z.boolean(),
-  pointEstimateHep: z.number().optional(),
-  meanHep: z.number().optional(),
-  controlledDataSource: WorkbookParameterReferenceSchema.optional(),
+  hep: UncertainExpressionSchema.optional(),
   cognitionContribution: z.number().optional(),
   executionContribution: z.number().optional(),
   performanceShapingFactors: z.array(PerformanceShapingFactorAssessmentSchema).optional(),

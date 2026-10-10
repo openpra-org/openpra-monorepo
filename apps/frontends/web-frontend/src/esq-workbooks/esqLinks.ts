@@ -23,11 +23,17 @@ import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
 import { type ScMissionTimeSource } from "../sc-workbooks/scMissionTimeSources";
 import { exampleLinkVariant } from "./esqViewData";
 
+interface EsqLinkedDa {
+  mef: DataAnalysis;
+  revision: number;
+}
+
 interface EsqUpstream {
   options: Record<EsqLinkCode, Workbook[]>;
   es?: EventSequenceAnalysis;
   sy?: SystemsAnalysis;
   da?: DataAnalysis;
+  daRevision?: number;
   hr?: HumanReliabilityAnalysis;
   ie?: InitiatingEventsAnalysis;
   pos?: PlantOperatingStatesAnalysis;
@@ -76,10 +82,11 @@ async function loadLinkedSy(id: string): Promise<SystemsAnalysis> {
   return (await getSyWorkbook(id)).mef;
 }
 
-async function loadLinkedDa(id: string): Promise<DataAnalysis> {
+async function loadLinkedDa(id: string): Promise<EsqLinkedDa> {
   const variant = exampleLinkVariant(id);
-  if (variant !== undefined) return (await fetchJson<{ da: { mef: DataAnalysis } }>(`/api/example-workbooks/da-bundle?example=${variant}`)).da.mef;
-  return (await getDaWorkbook(id)).mef;
+  if (variant !== undefined) return { mef: (await fetchJson<{ da: { mef: DataAnalysis } }>(`/api/example-workbooks/da-bundle?example=${variant}`)).da.mef, revision: 1 };
+  const workbook = await getDaWorkbook(id);
+  return { mef: workbook.mef, revision: workbook.revision };
 }
 
 async function loadLinkedHr(id: string): Promise<HumanReliabilityAnalysis> {
@@ -131,5 +138,6 @@ export {
   loadLinkedRi,
   loadLinkedSc,
   loadLinkedSy,
+  type EsqLinkedDa,
   type EsqUpstream,
 };

@@ -1,10 +1,9 @@
 import { Fragment, JSX, useEffect, useId, useMemo, useState } from "react";
-import type { EsqSampledInput } from "interfaces-mef-types/esq/esq-measure-inputs";
+import type { EsqLawSource, EsqSampledInput } from "interfaces-mef-types/esq/esq-measure-inputs";
 import type { UncertainParameter } from "interfaces-mef-types/core/uncertainty";
 import type { EsqUncertaintyCorrelation, EsqUncertaintyRunResult, EventTreeSamplingMethod } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import type { UncertaintySampling } from "interfaces-shared-types/newly-developed-methods/shared";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
-import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
 import { parametersFor, useExpressionSummaries, useLawSummaries } from "../newly-developed-methods/shared/useUncertainty";
 import { expressionText, unitText } from "../newly-developed-methods/shared/uncertainText";
@@ -44,7 +43,6 @@ import {
   uncertaintyRunProblem,
   uncertaintyViewOf,
   uncertaintyWorkOf,
-  withSpread,
   withUncertaintyRun,
   type EsqInputRow,
   type EsqUncertaintyView,
@@ -128,12 +126,22 @@ function raiseOf(moments: EsqMoments | undefined): number | undefined {
 }
 
 function inputPointEntries(rows: readonly EsqInputRow[]): EsqPointEntry[] {
-  return rows.flatMap((row) => (row.input.contract && row.input.expression !== undefined ? [{ key: row.input.key, expression: row.input.expression, unit: row.input.unit }] : []));
+  return rows.flatMap((row) => (row.input.expression !== undefined ? [{ key: row.input.key, expression: row.input.expression, unit: row.input.unit }] : []));
 }
 
 function inputPoint(row: EsqInputRow, points: ReturnType<typeof useExpressionPoints>): string {
-  return row.input.contract ? pointText(points.get(row.input.key)) : valueText(row.input.legacy?.point);
+  return pointText(points.get(row.input.key));
 }
+
+const CHANGE_TEXT: Record<EsqLawSource, string> = {
+  DA: "Give the estimate a law in DA. Each run reads it from DA.",
+  SY: "Give the value a law in SY and import again in Step 02.",
+  HR: "Give the HEP a law in HR and import again in Step 02.",
+  IE: "Change the frequency distribution in IE and import again.",
+  STEP_02: "Change it in Step 02.",
+  STEP_04: "Change it in Step 04.",
+  STEP_06: "Change it in Step 06.",
+};
 
 function lawCell(row: EsqInputRow, label: (key: string) => string): string {
   const expression = row.input.expression;
@@ -219,7 +227,7 @@ function InputsPanel({ view, openWindow }: { view: EsqUncertaintyView; openWindo
           </div>
           <Pager total={rows.length} page={current} onPage={setPage} />
         </div>
-        <p className="esq-meta">Each input draws once per trial. Every event bound to the same DA parameter takes that one draw. DA and SY give the laws of component values. A typed error factor applies only to the other values. It gives a lognormal whose mean is the point value.</p>
+        <p className="esq-meta">Each input draws once per trial. Every event bound to the same DA parameter or HR event takes that one draw. Each law comes from where the value is held.</p>
       </div>
       <div className="esq-table-wrap" ref={wrapRef}>
         <table className="postable esq-rowtable" aria-label="Sampled inputs">
@@ -553,8 +561,7 @@ function UncertScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => v
 }
 
 function InputWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
-  const { esq, editable, mutateEsq, upstream } = useEsqWorkbook();
-  const fieldId = useId();
+  const { esq, upstream } = useEsqWorkbook();
   const view = useMemo(() => uncertaintyViewOf(esq), [esq]);
   const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
   const label = useMemo(() => parameterLabelOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
@@ -563,51 +570,17 @@ function InputWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.
   const points = useExpressionPoints(entries, table);
   if (row === undefined) return null;
   const input = row.input;
-  const spread = uncertaintyWorkOf(esq).spreads?.find((entry) => entry.key === id);
-  const typedLaw = !input.contract && (!row.sampled || input.source === "TYPED");
-  const dis = !editable;
-  const sourceId = `${fieldId}-source`;
   const from = input.source === undefined ? "" : ` · ${SOURCE_LABELS[input.source] ?? input.source}`;
   const lawLine = input.expression === undefined ? input.missing ?? "None" : `${expressionText(input.expression, label)}${from}`;
-  const legacyPoint = input.legacy?.point;
   return (
     <>
       <ModalHead cap={`Sampled input · ${INPUT_KIND_LABELS[input.kind]} · ESQ-E2`} title={input.label} onClose={onClose} />
       <div className="modal__body esq-form">
         <FormRow label="Point value"><span className="esq-form__unit">{`${inputPoint(row, points)} · ${unitText(input.unit)}`}</span></FormRow>
         <FormRow label="Distribution"><span className="esq-form__note">{lawLine}</span></FormRow>
-        {input.contract && <FormRow label="Change it"><span className="esq-form__note">{input.kind === "PARAMETER" ? "Give the estimate a law in DA and import again in Step 02." : "Give the value a law in SY and import again in Step 02."}</span></FormRow>}
-        {input.contract && spread !== undefined && <FormRow label="Old error factor"><span className="esq-form__note">{`The typed error factor ${String(spread.errorFactor)} is no longer used. The law in DA or SY replaces it.`}</span></FormRow>}
-        {!input.contract && !typedLaw && <FormRow label="Change it"><span className="esq-form__note">{input.source === "DA" ? "Change the distribution in DA and import again in Step 02." : input.source === "IE" ? "Change the frequency distribution in IE and import again." : "Change it in the step that holds it."}</span></FormRow>}
-        {typedLaw && (
-          <fieldset className="esq-use">
-            <legend className="esq-use__legend">Typed spread</legend>
-            <FormRow label="Error factor" htmlFor={`${fieldId}-ef`}>
-              <WorkbookInput id={`${fieldId}-ef`} type="number" className="posfield__input esq-form__number" value={spread?.errorFactor ?? ""} disabled={dis || legacyPoint === undefined || !(legacyPoint > 0)} onChange={(event) => {
-                if (!editable) return;
-                const text = event.target.value.trim();
-                const value = Number(text);
-                if (text.length === 0) {
-                  mutateEsq((draft) => withSpread(draft, id, undefined));
-                  return;
-                }
-                if (Number.isFinite(value) && value >= 1) mutateEsq((draft) => withSpread(draft, id, { key: id, errorFactor: value, source: spread?.source ?? "" }));
-              }} />
-              <span className="esq-form__unit">95th over median, lognormal with the point value as its mean</span>
-            </FormRow>
-            {spread !== undefined && (
-              <FormRow label="Source" htmlFor={sourceId} top>
-                <WorkbookTextarea id={sourceId} className="posfield__textarea" rows={2} fitContent value={spread.source} disabled={dis} onChange={(event) => { if (editable) mutateEsq((draft) => withSpread(draft, id, { ...spread, source: event.target.value })); }} />
-              </FormRow>
-            )}
-          </fieldset>
-        )}
+        <FormRow label="Change it"><span className="esq-form__note">{input.source === undefined ? "Change it in the step that holds it." : CHANGE_TEXT[input.source]}</span></FormRow>
       </div>
-      <FormFoot onClose={onClose}>
-        {editable && input.contract && spread !== undefined && (
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateEsq((draft) => withSpread(draft, id, undefined))}>Remove the old error factor</button>
-        )}
-      </FormFoot>
+      <FormFoot onClose={onClose} />
     </>
   );
 }

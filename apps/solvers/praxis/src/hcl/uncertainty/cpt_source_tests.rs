@@ -47,6 +47,7 @@ fn exact_moments(row: &UncertainVector) -> Vec<(f64, f64)> {
                 .collect()
         }
         VectorLaw::Fixed { .. } => means.iter().map(|mean| (*mean, 0.0)).collect(),
+        VectorLaw::WeightedDirichlet { .. } => panic!("fixture rows hold no weighted law"),
     }
 }
 

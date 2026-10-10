@@ -1,4 +1,4 @@
-use praxis::core::distribution::{EvidenceTerm, Law, Likelihood, MixtureComponent, QuantilePoint};
+use praxis::core::distribution::{CountLikelihood, EvidenceTerm, Law, Likelihood, MixtureComponent, QuantilePoint};
 use praxis::core::distribution_math::PreparedLaw;
 use praxis::core::distribution_operations::{
     constrained_noninformative, homogeneity, laplace_trend, lognormal_fit, pool, prior_predictive, scale_law,
@@ -23,11 +23,12 @@ fn close(got: f64, expected: f64) {
 }
 
 fn term(likelihood: Likelihood, failures: f64, exposure: f64) -> EvidenceTerm {
-    EvidenceTerm {
-        likelihood,
-        failures,
-        exposure,
-    }
+    let count = if likelihood == Likelihood::Binomial {
+        CountLikelihood::Binomial
+    } else {
+        CountLikelihood::Poisson
+    };
+    EvidenceTerm::count(count, failures, exposure)
 }
 
 #[test]
@@ -171,8 +172,8 @@ fn scaling_moves_every_quantile_by_the_factor() {
         }
     }
     let binomial = law(json!({ "family": "POSTERIOR", "prior": null, "evidence": [{ "likelihood": "BINOMIAL", "failures": 1.0, "exposure": 10.0 }] }));
-    assert!(scale_law(&binomial, 0.5).is_err());
-    assert!(scale_law(&law(json!({ "family": "CONSTRAINED_NONINFORMATIVE", "mean": 0.01 })), 0.5).is_err());
+    assert_eq!(scale_law(&binomial, 0.5).unwrap(), law(json!({ "family": "BETA", "alpha": 1.5, "beta": 9.5, "lower": 0.0, "upper": 0.5 })));
+    assert_eq!(scale_law(&law(json!({ "family": "CONSTRAINED_NONINFORMATIVE", "mean": 0.01 })), 0.5).unwrap().family(), "SAMPLES");
     assert!(scale_law(&law(json!({ "family": "GAMMA", "shape": 1.0, "rate": 1.0 })), 0.0).is_err());
 }
 

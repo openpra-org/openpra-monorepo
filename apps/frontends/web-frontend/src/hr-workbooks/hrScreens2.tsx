@@ -22,7 +22,7 @@ import { type CcScore } from "./hrSelectors";
 import { useHrWorkbook } from "./hrWorkbookContext";
 import { generateHrReport } from "./hrDocx";
 import { HrHepValueFields } from "./hrHepValueFields";
-import { withRecoveryHep } from "./hrDaLinks";
+import { quantificationHepText, withRecoveryHep } from "./hrDaLinks";
 import { NamedIcon, type HrDrawerContext } from "./hrScreens";
 import { type HumanReliabilityAnalysis, type HepQuantification, type DependenceLevel } from "interfaces-mef-types/hr/human-reliability-analysis";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
@@ -212,7 +212,7 @@ function TimeTriplet({ q }: { q: HepQuantification }): JSX.Element {
 }
 
 function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => void }): JSX.Element {
-  const { hr, editable, mutateHr } = useHrWorkbook();
+  const { hr, editable, mutateHr, daHeps } = useHrWorkbook();
   const postHfeIds = new Set(hr.humanFailureEvents.filter((h) => h.hfeTiming === "POST_INITIATOR").map((h) => h.uuid));
   const atHfes = hr.humanFailureEvents.filter((h) => h.hfeTiming === "AT_INITIATOR");
   const aggrIds = new Set(hr.humanFailureEvents.filter((h) => h.responseDetail?.responseType === "AGGRAVATING_ACTION").map((h) => h.uuid));
@@ -229,7 +229,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
     if (target === undefined) return;
     const uuid = crypto.randomUUID();
     mutateHr((draft) => ({ ...draft, hepQuantifications: [...draft.hepQuantifications, {
-      uuid, hfeId: target.uuid, methodology: "", assessmentType: "DETAILED_ASSESSMENT" as const, isRiskSignificant: false, meanHep: 1.0e-3, cognitionContribution: 5.0e-4, executionContribution: 5.0e-4, performanceShapingFactors: [], indicationsTreatment: "EVALUATED_PER_SEQUENCE" as const, uncertaintyCharacterization: { riskSignificant: false, method: "", probabilisticRepresentationProvided: false }, implementsSrs: [{ sr: "HR-G1", hlr: "G" as const }],
+      uuid, hfeId: target.uuid, methodology: "", assessmentType: "DETAILED_ASSESSMENT" as const, isRiskSignificant: false, hep: { node: "VALUE" as const, value: { unit: "PROBABILITY" as const, law: { family: "POINT" as const, value: 1.0e-3 } } }, cognitionContribution: 5.0e-4, executionContribution: 5.0e-4, performanceShapingFactors: [], indicationsTreatment: "EVALUATED_PER_SEQUENCE" as const, uncertaintyCharacterization: { riskSignificant: false, method: "", probabilisticRepresentationProvided: false }, implementsSrs: [{ sr: "HR-G1", hlr: "G" as const }],
     }] }));
     openDrawer({ kind: "respquant", id: uuid });
   }
@@ -296,7 +296,6 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
         <p className="poscard__sub">Each estimate addresses the failure in cognition and the failure to execute, with the timing and performance factors. Click a card to edit it.</p>
         <div className="hrgq">
           {postQuants.map((q) => {
-            const value = q.meanHep ?? q.pointEstimateHep;
             const cog = q.cognitionContribution ?? 0;
             const exe = q.executionContribution ?? 0;
             const sum = cog + exe > 0 ? cog + exe : 1;
@@ -308,8 +307,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
                     <div className="hrgq__method">{q.methodology}</div>
                   </div>
                   <div className="hrgq__hep">
-                    <span className="hrgq__hep-v posmono">{hepText(value)}</span>
-                    <span className="hrgq__hep-kind">{q.meanHep !== undefined ? "mean HEP" : "point HEP"}</span>
+                    <span className="hrgq__hep-v posmono">{quantificationHepText(q, daHeps)}</span>
                   </div>
                 </div>
                 <div className="hrgq__split">

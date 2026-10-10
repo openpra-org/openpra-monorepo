@@ -15,7 +15,7 @@ import type {
   DaPriorForm,
   DaSourceEntry,
 } from "interfaces-mef-types/da/data-analysis";
-import { expressionReferences } from "interfaces-mef-types/core/uncertainty";
+import { evidenceFailures, expressionReferences } from "interfaces-mef-types/core/uncertainty";
 import type { UncertaintyLawSummary } from "interfaces-shared-types/newly-developed-methods/shared";
 import { useUncertaintyVersion, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
@@ -38,6 +38,7 @@ import {
 import { AreaRow, EstimateRows, NEED_PAGE, NeedChecksTable, NeedPager, PraxisValue, estimateText, praxisText, spreadFields, statText, waitNote, type DaDrawerContext } from "./daScreens";
 import { EstimatePicker, NumberInput, TextRow, entrySearchText, useBuiltInEntries, waitingSources, type EstimateChoice } from "./daSourcesScreen";
 import { useText } from "./daUnavailabilityScreen";
+import { FailuresFromSelect, HyperpriorRows, OutcomesRows, PriorSourcesRow, TargetRow } from "./daFailuresScreen";
 
 type FrequencyTab = "groups" | "evidence" | "estimates" | "comparison" | "checks";
 
@@ -54,6 +55,8 @@ const TAB_HEADS: Record<FrequencyTab, { title: string; sr: string }> = {
 const COMPUTATION_LABELS: Record<DaFrequencyComputation, string> = {
   PRIOR: "Source as it is",
   POSTERIOR: "Bayes update with Poisson events",
+  POPULATION: "Hierarchical Bayes over the event sets",
+  EMPIRICAL_BAYES: "Empirical Bayes over the event sets",
 };
 
 const FREQUENCY_WINDOW_KINDS: ReadonlySet<string> = new Set(["daFrequency"]);
@@ -62,7 +65,7 @@ const CATEGORIES: DaInitiatorCategory[] = ["I", "II", "III", "IV"];
 
 const PERS: DaFrequencyPer[] = ["CRITICAL_YEAR", "CALENDAR_YEAR", "SHUTDOWN_YEAR"];
 
-const METHODS: DaFrequencyMethod[] = ["PRIOR", "BAYES"];
+const METHODS: DaFrequencyMethod[] = ["PRIOR", "BAYES", "POPULATION", "EMPIRICAL_BAYES"];
 
 const FORMS: DaPriorForm[] = ["AS_PUBLISHED", "CONSTRAINED_NONINFORMATIVE", "JEFFREYS"];
 
@@ -117,7 +120,7 @@ function evidenceTotals(estimate: DaFrequencyEstimate): { events: number; years:
   for (const part of estimate.parts) {
     for (const item of part.evidence) {
       if (!item.evidence.included || item.term === undefined) continue;
-      events += item.term.failures;
+      events += evidenceFailures(item.term);
       years += item.term.exposure;
     }
   }
@@ -174,7 +177,7 @@ function partItems(da: DataAnalysis, estimate: DaFrequencyEstimate, part: DaFreq
   const plant = part.law === undefined ? undefined : lawSummary("PER_YEAR", part.law, true);
   const share = part.part.per === "CALENDAR_YEAR" ? "no state share" : `share ${Number(((part.share.share ?? 0) * 100).toPrecision(3))}% (${part.share.counted.join(", ")})`;
   return [
-    { label: part.part.label, value: part.problem ?? `${part.use === undefined ? "No source" : useText(da, part.use)}, ${PRIOR_FORM_LABELS[part.form].toLowerCase()}, ${part.method === undefined ? "no method" : FREQUENCY_METHOD_LABELS[part.method].toLowerCase()}${part.computation === undefined ? "" : `, ${COMPUTATION_LABELS[part.computation].toLowerCase()}`}` },
+    { label: part.part.label, value: part.problem ?? `${part.uses.length === 0 ? "No source" : part.uses.map((use) => useText(da, use)).join(" + ")}, ${PRIOR_FORM_LABELS[part.form].toLowerCase()}, ${part.method === undefined ? "no method" : FREQUENCY_METHOD_LABELS[part.method].toLowerCase()}${part.computation === undefined ? "" : `, ${COMPUTATION_LABELS[part.computation].toLowerCase()}`}` },
     { label: `${part.part.label}, ${perLabel(part.part.per)}`, value: summaryText(basis) },
     { label: `${part.part.label}, to the plant`, value: part.factor === undefined ? "—" : `${share}${estimate.siteWide ? ", site-wide" : `, × ${estimate.modules} modules`}, ${summaryText(plant)}` },
   ];
@@ -424,13 +427,10 @@ function FrequencyEvidenceBlock({ evidence, disabled, choices, onPatch, onPick, 
         </select>
       </FormRow>
       <FormRow label="Events from" htmlFor={fid("events-from")}>
-        <select id={fid("events-from")} className="posfield__select" value={evidence.failuresFrom} disabled={disabled} onChange={(event) => onPatch({ failuresFrom: event.target.value === "ENTRY" ? "ENTRY" : event.target.value === "RECORDS" ? "RECORDS" : "TYPED" })}>
-          <option value="TYPED">Typed</option>
-          <option value="ENTRY">A library estimate</option>
-          <option value="RECORDS">Judged records</option>
-        </select>
+        <FailuresFromSelect id={fid("events-from")} evidence={evidence} disabled={disabled} onPatch={onPatch} />
         {evidence.failuresFrom === "TYPED" && <><NumberInput label="Events" value={evidence.failures} disabled={disabled} onChange={(failures) => onPatch({ failures })} /><span className="da-form__unit">events</span></>}
       </FormRow>
+      {evidence.failuresFrom === "UNCERTAIN" && <OutcomesRows outcomes={evidence.failureOutcomes ?? []} noun="events" disabled={disabled} onChange={(failureOutcomes) => onPatch({ failureOutcomes })} />}
       {evidence.failuresFrom === "RECORDS" && (
         <FormRow label="Record set" htmlFor={fid("set")}>
           <select id={fid("set")} className="posfield__select" value={evidence.recordSetId ?? ""} disabled={disabled} onChange={(event) => onPatch({ recordSetId: event.target.value.length === 0 ? undefined : event.target.value })}>
@@ -475,8 +475,9 @@ function FrequencyPartBlock({ parameter, part, members, disabled, choices, onPat
   const { da } = useDaWorkbook();
   const fieldId = useId();
   const fid = (name: string): string => `${fieldId}-${name}`;
-  const uses = (parameter.sourceUses ?? []).filter((use) => use.verdict !== "REJECTED");
   const evidence = part.evidence ?? [];
+  const pooled = part.method === "POPULATION" || part.method === "EMPIRICAL_BAYES";
+  const terms = frequencyEstimate(da, parameter).parts.find((candidate) => candidate.part.id === part.id)?.terms ?? [];
   function setEvidence(next: DaEvidence[]): void {
     onPatch({ evidence: next });
   }
@@ -505,23 +506,22 @@ function FrequencyPartBlock({ parameter, part, members, disabled, choices, onPat
         </select>
       </FormRow>
       {part.per !== "CALENDAR_YEAR" && <StatesRow per={part.per} value={part.stateIds ?? []} disabled={disabled} onChange={(stateIds) => onPatch({ stateIds })} />}
-      <FormRow label="Source" htmlFor={fid("use")}>
-        <select id={fid("use")} className="posfield__select" value={part.useId ?? ""} disabled={disabled} onChange={(event) => onPatch({ useId: event.target.value.length === 0 ? undefined : event.target.value })}>
-          <option value="">{uses.length === 0 ? "Consider sources in Step 04 first" : "No source"}</option>
-          {uses.map((use) => <option key={use.id} value={use.id}>{useText(da, use)}</option>)}
-        </select>
-      </FormRow>
-      <FormRow label="Prior form" htmlFor={fid("form")}>
-        <select id={fid("form")} className="posfield__select" value={part.priorForm ?? "AS_PUBLISHED"} disabled={disabled} onChange={(event) => { const next = FORMS.find((candidate) => candidate === event.target.value); if (next !== undefined) onPatch({ priorForm: next }); }}>
-          {FORMS.map((candidate) => <option key={candidate} value={candidate}>{PRIOR_FORM_LABELS[candidate]}</option>)}
-        </select>
-      </FormRow>
       <FormRow label="Method" htmlFor={fid("method")}>
         <select id={fid("method")} className="posfield__select" value={part.method ?? ""} disabled={disabled} onChange={(event) => onPatch({ method: METHODS.find((candidate) => candidate === event.target.value) })}>
           {part.method === undefined && <option value="">Not chosen</option>}
           {METHODS.map((candidate) => <option key={candidate} value={candidate}>{FREQUENCY_METHOD_LABELS[candidate]}</option>)}
         </select>
       </FormRow>
+      {!pooled && <PriorSourcesRow uses={parameter.sourceUses ?? []} primaryId={part.useId} parts={part.priorParts} disabled={disabled} onChange={(useId, priorParts) => onPatch({ useId, priorParts })} />}
+      {!pooled && (
+        <FormRow label="Prior form" htmlFor={fid("form")}>
+          <select id={fid("form")} className="posfield__select" value={part.priorForm ?? "AS_PUBLISHED"} disabled={disabled} onChange={(event) => { const next = FORMS.find((candidate) => candidate === event.target.value); if (next !== undefined) onPatch({ priorForm: next }); }}>
+            {FORMS.map((candidate) => <option key={candidate} value={candidate}>{PRIOR_FORM_LABELS[candidate]}</option>)}
+          </select>
+        </FormRow>
+      )}
+      {(part.method === "POPULATION" || part.method === "EMPIRICAL_BAYES") && <TargetRow method={part.method} evidence={evidence.filter((item) => item.included)} value={part.populationTargetId} disabled={disabled} onChange={(populationTargetId) => onPatch({ populationTargetId })} />}
+      {part.method === "POPULATION" && <HyperpriorRows value={part.populationHyperprior} terms={terms} disabled={disabled} onChange={(populationHyperprior) => onPatch({ populationHyperprior })} />}
       {evidence.map((item) => (
         <FrequencyEvidenceBlock
           key={item.id}

@@ -1,7 +1,7 @@
 import { useState, type JSX } from "react";
-import { expressionReferences, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
+import { parameterReferenceKey, type UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import type { HclBasicEventUncertainty, HclUncertaintySettings } from "interfaces-mef-types/modeling";
-import { ExpressionEditor, draftFor } from "../shared/uncertainEditor";
+import { ExpressionEditor, draftFor, type ParameterOption } from "../shared/uncertainEditor";
 import { expressionText } from "../shared/uncertainText";
 import type { HclFaultTreeOption } from "./hclBindingTypes";
 
@@ -21,15 +21,24 @@ function definitionKey(definition: HclBasicEventUncertainty): string {
   return basicEventKey(definition.faultTreeBasicEvent.workbookId, definition.faultTreeBasicEvent.entityId);
 }
 
-function typedCopy(expression: UncertainExpression | undefined): UncertainExpression | undefined {
-  if (expression === undefined || expressionReferences(expression).length > 0) return undefined;
+function startCopy(expression: UncertainExpression | undefined): UncertainExpression | undefined {
+  if (expression === undefined) return undefined;
+  if (expression.node === "PARAMETER") return expression;
   if (expression.node === "VALUE" && expression.value.unit === "PROBABILITY") return expression;
   if (expression.node === "MODEL" && (expression.model.form === "MISSION" || expression.model.form === "STANDBY")) return expression;
   return undefined;
 }
 
+function parameterOptionsOf(choices: readonly HclBasicEventChoice[]): ParameterOption[] {
+  const options = new Map<string, ParameterOption>();
+  for (const choice of choices) {
+    for (const option of choice.tree.parameterOptions ?? []) options.set(parameterReferenceKey(option.reference), option);
+  }
+  return [...options.values()];
+}
+
 function overrideStart(choice: HclBasicEventChoice): UncertainExpression {
-  return typedCopy(choice.event.syValue?.expression)
+  return startCopy(choice.event.syValue?.expression)
     ?? { node: "VALUE", value: { unit: "PROBABILITY", law: draftFor("POINT", { family: "UNIFORM", lower: 0, upper: 1 }, "PROBABILITY") } };
 }
 
@@ -55,6 +64,7 @@ function HclBasicEventControls({ choices, settings, editable, onChange, onError 
   const overridden = new Set(settings.basicEvents.map(definitionKey));
   const available = choices.filter((choice) => !overridden.has(choice.key));
   const selected = available.find((choice) => choice.key === selectedKey) ?? available[0];
+  const parameterOptions = parameterOptionsOf(choices);
 
   function add(): void {
     if (selected === undefined) {
@@ -109,7 +119,7 @@ function HclBasicEventControls({ choices, settings, editable, onChange, onError 
                   <span className="hcleditor__uncertainty-expand">Settings</span>
                 </summary>
                 <div className="hcleditor__uncertainty-item-settings hcleditor__uncertainty-item-settings--editor">
-                  <ExpressionEditor expression={definition.expression} unit="PROBABILITY" models={OVERRIDE_MODELS} disabled={!editable} onChange={(expression) => update(index, expression)} />
+                  <ExpressionEditor expression={definition.expression} unit="PROBABILITY" options={parameterOptions} models={OVERRIDE_MODELS} disabled={!editable} onChange={(expression) => update(index, expression)} />
                   {editable && <button type="button" className="hcleditor__uncertainty-delete" onClick={() => remove(index)}>Delete</button>}
                 </div>
               </details>

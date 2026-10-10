@@ -342,7 +342,7 @@ export interface CommonCauseFailureGroup extends Unique, Named {
   affectedComponents: string[];
   affectedSystems: SystemReference[];
   factors: CcfFactorModel;
-  total: UncertainExpression;
+  total?: UncertainExpression;
   dataAnalysisCCFParameterRef?: string;
   members?: {
     basicEvents: {

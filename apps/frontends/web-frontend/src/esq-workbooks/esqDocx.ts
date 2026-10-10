@@ -20,6 +20,7 @@ import { JOINT_SOURCE_LABELS, LEVEL_LABELS, postViewOf } from "./esqPost";
 import { FEASIBILITY_LABELS } from "./esqBarriers";
 import { CONSISTENCY_LABELS, CONSISTENCY_TOPICS, IMPORTANCE_KIND_LABELS, fourDigits } from "./esqResults";
 import { METHOD_LABELS } from "./esqUncertainty";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({ text, heading: level, spacing: { before: 240, after: 120 }, pageBreakBefore: level === HeadingLevel.HEADING_1 });
@@ -197,7 +198,7 @@ function buildChildren(a: EventSequenceQuantification, final: boolean): (Paragra
   if (deletions !== undefined) out.push(para(`Deleted combinations listed by PRAXIS run ${deletions.runId} of ${deletions.at} at a cutoff of ${val(deletions.cutOff)} per year${post?.deletionsStale === true ? ", older than its inputs" : ""}.`));
   out.push(dataTable(
     ["Recovery", "Recovers", "Non-recovery HEP", "From", "Credited", "Feasibility not shown", "Basis"],
-    (post?.recoveries ?? []).map((r) => [r.recovery.id, r.codes.join(", "), val(r.recovery.value), r.recovery.source === undefined ? "Not chosen" : r.recovery.source === "HRA" ? "HR" : r.recovery.rule?.typed?.source ?? "Typed", r.recovery.credited ? "Yes" : "No", r.recovery.missing.length === 0 ? "None" : r.recovery.missing.map((key) => FEASIBILITY_LABELS[key]).join(", "), r.recovery.rule?.basis ?? ""]),
+    (post?.recoveries ?? []).map((r) => [r.recovery.id, r.codes.join(", "), r.recovery.expression === undefined ? "—" : expressionText(r.recovery.expression), r.recovery.source === undefined ? "Not chosen" : r.recovery.source === "HRA" ? "HR" : r.recovery.rule?.typed?.source ?? "Typed", r.recovery.credited ? "Yes" : "No", r.recovery.missing.length === 0 ? "None" : r.recovery.missing.map((key) => FEASIBILITY_LABELS[key]).join(", "), r.recovery.rule?.basis ?? ""]),
   ));
 
   out.push(heading("Dependency treatment", HeadingLevel.HEADING_1));

@@ -5,6 +5,9 @@ import { InjectConnection, InjectModel } from "@nestjs/mongoose";
 import type { Connection, Model, Types } from "mongoose";
 import { DA_SOURCE_CATALOG } from "interfaces-mef-types/da/generic-sources";
 import { HumanReliabilityAnalysisSchema } from "interfaces-mef-types/zod/hr/human-reliability-analysis";
+import { createBlankHr } from "../hr-workbooks/blank-hr";
+import { HrWorkbook, type HrWorkbookDocument } from "../hr-workbooks/hr-workbook.schema";
+import { healMef } from "../pos-workbooks/mef-heal";
 import { stringifyJson } from "interfaces-shared-types/json";
 import {
   AnalysisRunDetailsSchema,
@@ -35,6 +38,7 @@ import { AnalysisRunRecord, type AnalysisRunRecordDocument } from "../newly-deve
 import { UncertaintyService } from "../newly-developed-methods/shared/uncertainty.service";
 import { OtherHazardsPraWorkbook, type OtherHazardsPraWorkbookDocument } from "../other-hazards-pra-workbooks/other-hazards-pra-workbook.schema";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
+import { normalizeEsqMef } from "../esq-workbooks/esq-mef-normalize";
 import { SeismicPraWorkbook, type SeismicPraWorkbookDocument } from "../seismic-pra-workbooks/seismic-pra-workbook.schema";
 import { modelPayloadStore, type ModelPayloadReference } from "../storage/model-payload-store";
 import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook.schema";
@@ -46,16 +50,19 @@ import {
   convertEsMef,
   convertEsqMef,
   convertHazardMef,
+  convertHrMef,
   convertIeMef,
   convertScMef,
   convertSyMef,
   daCcfFacts,
   daCcfFactsWithOriginal,
+  daHeldIds,
   daDatasetIndex,
   daIssue,
   daIssueAndFacts,
   daNeedsDatasets,
   esIssue,
+  esqHrErrorFactors,
   esqIssue,
   field,
   hazardIssue,
@@ -116,7 +123,7 @@ const DATASET_DIRECTORIES: readonly string[] = [
   join(__dirname, "..", "..", "..", "..", "apps", "interfaces", "mef-types", "da"),
 ];
 
-type WorkbookElement = "SC" | "DA" | "SY" | "ESQ" | "IE" | "ES" | "HAZARD";
+type WorkbookElement = "SC" | "DA" | "SY" | "ESQ" | "HRA" | "IE" | "ES" | "HAZARD";
 
 interface StoredWorkbook {
   _id: Types.ObjectId;
@@ -145,6 +152,7 @@ interface WorkbookAccess {
 
 interface StoredSnapshot {
   hostType?: string;
+  identity?: { workbookId?: string } | null;
   mef?: object | null;
 }
 
@@ -229,6 +237,7 @@ interface WorkbookTally {
 interface RunTally {
   read: number;
   kept: number;
+  converted: number;
   moved: number;
   checkedThrough: Types.ObjectId | null;
 }
@@ -256,6 +265,9 @@ interface MutableLookups {
   syCcf: Map<string, ReadonlyMap<string, SyCcfFacts>>;
   scMissionTimes: Map<string, ReadonlySet<string>>;
   scProjects: Map<string, string[]>;
+  daHeld: Map<string, ReadonlySet<string>>;
+  daProjects: Map<string, string[]>;
+  hrErrorFactors: Map<string, ReadonlyMap<string, number>>;
 }
 
 interface UnresolvedOriginal {
@@ -283,11 +295,27 @@ function groupOf(row: RunRow): string {
 }
 
 function emptyLookups(): MutableLookups {
-  return { daParameters: new Map(), daCcf: new Map(), syCcf: new Map(), scMissionTimes: new Map(), scProjects: new Map() };
+  return { daParameters: new Map(), daCcf: new Map(), syCcf: new Map(), scMissionTimes: new Map(), scProjects: new Map(), daHeld: new Map(), daProjects: new Map(), hrErrorFactors: new Map() };
+}
+
+function withoutNulls(mef: JsonRecord): JsonRecord {
+  return jsonRecordOf(stringifyJson(stripNulls(mef))) ?? mef;
+}
+
+function esqWithoutNulls(mef: JsonRecord): JsonRecord {
+  return jsonRecordOf(stringifyJson(normalizeEsqMef(mef))) ?? mef;
 }
 
 function asJson(value: object | null | undefined): JsonRecord | undefined {
   return jsonRecordOf(stringifyJson(value ?? null));
+}
+
+function hrIssue(mef: JsonRecord): string | undefined {
+  return outcomeIssue(HumanReliabilityAnalysisSchema.safeParse(stripNulls(mef)));
+}
+
+function previousHrIssue(mef: JsonRecord, owner: string): string | undefined {
+  return outcomeIssue(HumanReliabilityAnalysisSchema.safeParse(healMef(mef, createBlankHr(textField(mef, "name") ?? "HR Workbook", textField(mef, "owner") ?? owner))));
 }
 
 function sentence(text: string): string {
@@ -392,7 +420,7 @@ function snapshotIssue(snapshot: StoredSnapshot): string | undefined {
     case "ES":
       return esIssue(mef);
     case "HRA":
-      return outcomeIssue(HumanReliabilityAnalysisSchema.safeParse(stripNulls(mef)));
+      return hrIssue(mef);
     default:
       return undefined;
   }
@@ -509,6 +537,8 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
     daWorkbookModel: Model<DaWorkbookDocument>,
     @InjectModel(EsqWorkbook.name)
     esqWorkbookModel: Model<EsqWorkbookDocument>,
+    @InjectModel(HrWorkbook.name)
+    hrWorkbookModel: Model<HrWorkbookDocument>,
     @InjectModel(IeWorkbook.name)
     ieWorkbookModel: Model<IeWorkbookDocument>,
     @InjectModel(EsWorkbook.name)
@@ -536,6 +566,7 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
       workbookAccess<DaWorkbookDocument>("DA", daWorkbookModel, true),
       workbookAccess<SyWorkbookDocument>("SY", syWorkbookModel, true),
       workbookAccess<EsqWorkbookDocument>("ESQ", esqWorkbookModel, true),
+      workbookAccess<HrWorkbookDocument>("HRA", hrWorkbookModel, true),
       workbookAccess<IeWorkbookDocument>("IE", ieWorkbookModel, false),
       workbookAccess<EsWorkbookDocument>("ES", esWorkbookModel, true),
       workbookAccess<SeismicPraWorkbookDocument>("HAZARD", seismicWorkbookModel, false),
@@ -569,7 +600,7 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
     try {
       const workbooks: WorkbookTally[] = [];
       for (const access of this.accesses) workbooks.push(await this.convertCollection(access, state));
-      const runs = await this.checkRuns();
+      const runs = await this.checkRuns(state);
       const summary: UncertaintyConversionSummary = { praxisAnswers: state.answers.answered(), workbooks, runs };
       await this.connection.collection<AuditRecord>(MIGRATIONS_COLLECTION).insertOne({ migration: UNCERTAINTY_MIGRATION_ID, startedAt, completedAt: new Date(), summary });
       this.report(summary);
@@ -585,7 +616,7 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
       if (tally.converted === 0 && tally.left === 0) continue;
       this.logger.log(`${tally.collection}: ${tally.converted} converted and backed up, ${tally.left} left as stored, ${tally.current} already current.`);
     }
-    this.logger.log(`Stored workbook check finished. ${total((tally) => tally.converted)} converted, ${total((tally) => tally.left)} left as stored, ${total((tally) => tally.current)} already current. ${summary.runs.moved} analysis runs moved to ${BACKUP_COLLECTION}.`);
+    this.logger.log(`Stored workbook check finished. ${total((tally) => tally.converted)} converted, ${total((tally) => tally.left)} left as stored, ${total((tally) => tally.current)} already current. ${summary.runs.converted} analysis runs converted. ${summary.runs.moved} analysis runs moved to ${BACKUP_COLLECTION}.`);
   }
 
   private async convertCollection(access: WorkbookAccess, state: ConversionState): Promise<WorkbookTally> {
@@ -603,6 +634,7 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
       workbookId = record.workbookId;
       const parts = this.partsOf(access.element, record);
       if (access.element === "SC") this.rememberScTimes(record, parts.mef, state.lookups);
+      if (access.element === "ESQ") this.rememberHrErrorFactors(parts.mef, state.lookups);
       const first = this.convertParts(access, record, parts, state);
       if (first.issues.length === 0 && first.pending === 0 && !first.mefChanged && !first.previousChanged) {
         tally.current += 1;
@@ -774,11 +806,13 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
       case "SC":
         return convertScMef(mef, scope);
       case "DA":
-        return convertDaMef(mef, { workbookId: record.workbookId, datasets: this.datasetsFor(mef) }, scope);
+        return withoutNulls(convertDaMef(mef, { workbookId: record.workbookId, datasets: this.datasetsFor(mef) }, scope));
       case "SY":
-        return convertSyMef(mef, lookups, scope, record.projectId);
+        return withoutNulls(convertSyMef(mef, lookups, scope, record.projectId));
       case "ESQ":
-        return convertEsqMef(mef, lookups, scope);
+        return esqWithoutNulls(convertEsqMef(mef, lookups, scope, record.projectId));
+      case "HRA":
+        return convertHrMef(mef, record.workbookId, lookups.hrErrorFactors);
       case "IE":
         return convertIeMef(mef, scope);
       case "ES":
@@ -798,6 +832,8 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
         return syIssue(mef);
       case "ESQ":
         return esqIssue(mef);
+      case "HRA":
+        return hrIssue(mef);
       case "IE":
         return ieIssue(mef);
       case "ES":
@@ -817,6 +853,8 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
         return previousSyIssue(mef, owner);
       case "ESQ":
         return previousEsqIssue(mef, owner);
+      case "HRA":
+        return previousHrIssue(mef, owner);
       case "IE":
         return previousIeIssue(mef, owner);
       case "ES":
@@ -832,12 +870,25 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
     lookups.scProjects.set(record.projectId, [...(lookups.scProjects.get(record.projectId) ?? []), record.workbookId]);
   }
 
+  private rememberHrErrorFactors(mef: JsonRecord | undefined, lookups: MutableLookups): void {
+    if (mef === undefined) return;
+    const found = esqHrErrorFactors(mef);
+    if (found.hrWorkbookId === undefined || found.factors.size === 0) return;
+    lookups.hrErrorFactors.set(found.hrWorkbookId, new Map([...(lookups.hrErrorFactors.get(found.hrWorkbookId) ?? new Map<string, number>()), ...found.factors]));
+  }
+
+  private rememberDaHeld(record: StoredWorkbook, mef: JsonRecord, lookups: MutableLookups): void {
+    if (!lookups.daHeld.has(record.workbookId)) lookups.daProjects.set(record.projectId, [...(lookups.daProjects.get(record.projectId) ?? []), record.workbookId]);
+    lookups.daHeld.set(record.workbookId, daHeldIds(mef));
+  }
+
   private rememberCurrent(access: WorkbookAccess, record: StoredWorkbook, parts: StoredParts, state: ConversionState): void {
     const mef = parts.mef;
     if (mef === undefined) return;
     if (access.element === "DA") {
+      this.rememberDaHeld(record, mef, state.lookups);
       if (parts.daFacts !== undefined) state.lookups.daParameters.set(record.workbookId, parts.daFacts);
-      state.lookups.daCcf.set(record.workbookId, daCcfFacts(mef, mef));
+      state.lookups.daCcf.set(record.workbookId, daCcfFacts(mef, mef, record.workbookId));
       state.unresolved.set(record.workbookId, { element: "DA", collection: access.collection });
     } else if (access.element === "SY") {
       state.lookups.syCcf.set(record.workbookId, syCcfFacts(mef, mef));
@@ -868,9 +919,10 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
   private remember(access: WorkbookAccess, record: StoredWorkbook, original: JsonRecord | undefined, current: JsonRecord | undefined, lookups: MutableLookups): void {
     if (original === undefined || current === undefined) return;
     if (access.element === "DA") {
+      this.rememberDaHeld(record, current, lookups);
       const facts = parsedDaFacts(current);
       if (facts !== undefined) lookups.daParameters.set(record.workbookId, facts);
-      lookups.daCcf.set(record.workbookId, daCcfFacts(original, current));
+      lookups.daCcf.set(record.workbookId, daCcfFacts(original, current, record.workbookId));
     } else if (access.element === "SY") {
       lookups.syCcf.set(record.workbookId, syCcfFacts(original, current));
     }
@@ -899,16 +951,21 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
     return latest?.summary.runs.checkedThrough ?? null;
   }
 
-  private async checkRuns(): Promise<RunTally> {
+  private async checkRuns(state: ConversionState): Promise<RunTally> {
     const since = await this.runsCheckedThrough();
     const rows = await this.runModel.find(since === null ? {} : { _id: { $gt: since } }, { _id: 1, id: 1, batchId: 1 }).sort({ _id: 1 }).lean<RunRow[]>().exec();
     const failing = new Map<string, string>();
     let checkedThrough = since;
     let contiguous = true;
+    let converted = 0;
     for (const row of rows) {
       try {
         const run = await this.runModel.findOne({ _id: row._id }).lean<StoredRun>().exec();
-        const issue = run === null ? undefined : runIssue(run);
+        let issue = run === null ? undefined : runIssue(run);
+        if (run !== null && issue !== undefined && (await this.convertRun(run, state))) {
+          issue = undefined;
+          converted += 1;
+        }
         if (issue !== undefined && !failing.has(groupOf(row))) failing.set(groupOf(row), issue);
         if (contiguous) checkedThrough = row._id;
       } catch (error) {
@@ -922,7 +979,48 @@ export class UncertaintyMigrationService implements OnApplicationBootstrap {
     }
     if (moved.size > 0) this.logger.warn(`${moved.size} stored analysis runs fail the current schemas. They moved to ${BACKUP_COLLECTION}.`);
     const kept = rows.filter((row) => !moved.has(row._id.toHexString())).length;
-    return { read: rows.length, kept, moved: moved.size, checkedThrough };
+    return { read: rows.length, kept, converted, moved: moved.size, checkedThrough };
+  }
+
+  private async convertRun(run: StoredRun, state: ConversionState): Promise<boolean> {
+    const snapshots: StoredSnapshot[] = [];
+    let changed = false;
+    for (const snapshot of run.workbookSnapshots ?? []) {
+      const mef = asJson(snapshot.mef);
+      if (snapshot.hostType !== "DA" || mef === undefined || daIssue(mef) === undefined) {
+        snapshots.push(snapshot);
+        continue;
+      }
+      const next = await this.convertedDaSnapshot(mef, snapshot.identity?.workbookId ?? run.owner?.workbookId ?? run.id, state);
+      if (next === undefined) return false;
+      snapshots.push({ ...snapshot, mef: next });
+      changed = true;
+    }
+    if (!changed || runIssue({ ...run, workbookSnapshots: snapshots }) !== undefined) return false;
+    const runs = this.connection.collection(RUNS_COLLECTION);
+    const original = await runs.findOne({ _id: run._id });
+    if (original === null) return false;
+    await this.connection.collection(BACKUP_COLLECTION).insertOne({
+      migration: UNCERTAINTY_MIGRATION_ID,
+      collection: RUNS_COLLECTION,
+      runId: run.id,
+      workbookId: run.owner?.workbookId ?? null,
+      reason: "Its DA snapshot was converted.",
+      backedUpAt: new Date(),
+      document: original,
+    });
+    return (await runs.updateOne({ _id: run._id }, { $set: { workbookSnapshots: snapshots } })).matchedCount === 1;
+  }
+
+  private async convertedDaSnapshot(mef: JsonRecord, workbookId: string, state: ConversionState): Promise<JsonRecord | undefined> {
+    for (let round = 0; round <= MAX_PRAXIS_ROUNDS; round += 1) {
+      const scope = new ConversionScope(state.answers, "mef");
+      const value = convertDaMef(mef, { workbookId, datasets: this.datasetsFor(mef) }, scope);
+      if (scope.issues.length > 0) return undefined;
+      if (scope.pending === 0) return daIssue(value) === undefined ? value : undefined;
+      if (round < MAX_PRAXIS_ROUNDS) await this.ask(state);
+    }
+    return undefined;
   }
 
   private async moveRuns(group: string, reason: string): Promise<string[]> {

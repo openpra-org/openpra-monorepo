@@ -1,5 +1,6 @@
 pub mod ccf;
 pub mod distribution;
+pub mod distribution_inference;
 pub mod distribution_math;
 pub mod distribution_operations;
 pub mod distribution_sampling;

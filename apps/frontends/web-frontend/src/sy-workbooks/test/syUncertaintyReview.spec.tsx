@@ -34,6 +34,8 @@ interface MockContext {
   mutateSy: jest.Mock;
   shortOf: (id: string) => string;
   controlledParameters: SyControlledParameterOption[];
+  controlledCcfVectors: [];
+  controlledCcfFactors: [];
   runtime: { workbookId: string; projectId: string; revision: number; saveStatus: "saved" };
 }
 
@@ -157,6 +159,8 @@ function setContext(editable = true, sy: Fixture = makeAnalysis()): void {
     mutateSy: jest.fn(),
     shortOf: (id) => SHORT.get(id) ?? id,
     controlledParameters: PARAMETERS,
+    controlledCcfVectors: [],
+    controlledCcfFactors: [],
     runtime: { workbookId: "sy-1", projectId: "project-1", revision: 3, saveStatus: "saved" },
   };
 }

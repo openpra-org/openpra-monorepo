@@ -11,6 +11,7 @@ import {
   BorderStyle,
 } from "docx";
 import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
+import { quantificationHepText } from "./hrDaLinks";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({ text, heading: level, spacing: { before: 240, after: 120 }, pageBreakBefore: level === HeadingLevel.HEADING_1 });
@@ -56,8 +57,7 @@ function quantRows(a: HumanReliabilityAnalysis, ids: string[]): string[][] {
   return ids.map((id) => {
     const q = a.hepQuantifications.find((x) => x.hfeId === id);
     const h = a.humanFailureEvents.find((x) => x.uuid === id);
-    const value = q?.meanHep ?? q?.pointEstimateHep;
-    return [h?.name ?? id, q?.assessmentType === "DETAILED_ASSESSMENT" ? "Detailed" : "Conservative", hep(value), q?.isRiskSignificant ? "Yes" : "No"];
+    return [h?.name ?? id, q?.assessmentType === "DETAILED_ASSESSMENT" ? "Detailed" : "Conservative", quantificationHepText(q), q?.isRiskSignificant ? "Yes" : "No"];
   });
 }
 

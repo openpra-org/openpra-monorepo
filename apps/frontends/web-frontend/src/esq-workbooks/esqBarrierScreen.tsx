@@ -436,7 +436,7 @@ function CreditsTable({ view, openWindow }: { view: EsqBarriersView; openWindow:
                       ...(credit.kind === "ACTION" ? [
                         { label: "Treatment", value: credit.treatment === "DETAILED" ? "Detailed" : credit.treatment === "CONSERVATIVE" ? "Conservative" : "—" },
                         { label: "Feasibility", value: missing.length === 0 ? "Shown for every condition" : `Not shown: ${missing.join(", ")}` },
-                        { label: "HEP", value: valueText(entry.action?.hep) },
+                        { label: "HEP", value: entry.action?.hep === undefined ? "—" : expressionText(entry.action.hep) },
                       ] : []),
                       { label: credit.kind === "EQUIPMENT" ? "Survivability analysis" : "Feasibility record", value: textValue(credit.analysis) },
                       { label: "Basis", value: textValue(credit.basis) },
@@ -1269,7 +1269,7 @@ function CreditWindow({ id, onClose }: { id: string; onClose: () => void }): JSX
             </select>
           </FormRow>
         )}
-        {action !== undefined && <p className="esq-meta">{[`HEP ${valueText(action.hep)}`, ...timing, action.recoveryName === undefined ? "" : `HR recovery ${action.recoveryId ?? ""} ${action.recoveryName}`, action.feasibilityNote ?? ""].filter((part) => part.trim().length > 0).join(". ")}.</p>}
+        {action !== undefined && <p className="esq-meta">{[`HEP ${action.hep === undefined ? "—" : expressionText(action.hep)}`, ...timing, action.recoveryName === undefined ? "" : `HR recovery ${action.recoveryId ?? ""} ${action.recoveryName}`, action.feasibilityNote ?? ""].filter((part) => part.trim().length > 0).join(". ")}.</p>}
         {entry.qualification !== undefined && <p className="esq-meta">{entry.qualification.condition}</p>}
         <TextRow label="Name" value={credit.name} disabled={dis} onChange={(name) => save({ ...credit, name })} />
         <ChecksRow label="Families" options={view.families.map((family) => ({ value: family.id, label: family.id }))} selected={credit.familyIds} disabled={dis} onChange={(familyIds) => save({ ...credit, familyIds })} />

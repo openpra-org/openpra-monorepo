@@ -8,6 +8,7 @@ import type { PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plan
 import { DistributionType, EndState, FrequencyUnit } from "interfaces-mef-types/core/events";
 import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { EMPTY_UPSTREAM, type EsqUpstream } from "../esqLinks";
+import { liveEsqOf, withModelImported } from "../esqModel";
 import { blankEsq } from "./esqFixtures";
 
 function tree(id: string, initiator: string, state: string, events: { id: string; label: string; name: string; top?: string }[], sequences: { id: string; states: Record<string, "SUCCESS" | "FAILURE">; end?: EndState }[], transfers: Record<string, { targetEventTreeId: string; preservedDependencies?: string[] }> = {}): EventTree {
@@ -138,7 +139,7 @@ const DA = {
 
 const HR = {
   humanFailureEvents: [{ uuid: "HFE-1", name: "Operator fails to align", applicablePlantOperatingStates: ["POS-01"] }],
-  hepQuantifications: [{ uuid: "Q-1", hfeId: "HFE-1", methodology: "THERP", assessmentType: "DETAILED_ASSESSMENT", isRiskSignificant: false, meanHep: 1e-3 }],
+  hepQuantifications: [{ uuid: "Q-1", hfeId: "HFE-1", methodology: "THERP", assessmentType: "DETAILED_ASSESSMENT", isRiskSignificant: false, hep: { node: "VALUE" as const, value: { unit: "PROBABILITY" as const, law: { family: "POINT" as const, value: 1e-3 } } } }],
 } as HumanReliabilityAnalysis;
 
 const IE = {
@@ -165,4 +166,8 @@ function linkedEsq(): EventSequenceQuantification {
   return { ...blankEsq(), linkedWorkbooks: { ES: "es-1", SY: "sy-1", DA: "da-1", HRA: "hr-1", IE: "ie-1", POS: "pos-1" } };
 }
 
-export { PUMP_ESTIMATE, daParameter, fanMission, linkedEsq, modelUpstream };
+function liveImport(esq: EventSequenceQuantification, upstream: EsqUpstream, now: string): EventSequenceQuantification {
+  return liveEsqOf(withModelImported(esq, upstream, now), upstream.da);
+}
+
+export { PUMP_ESTIMATE, daParameter, fanMission, linkedEsq, liveImport, modelUpstream };

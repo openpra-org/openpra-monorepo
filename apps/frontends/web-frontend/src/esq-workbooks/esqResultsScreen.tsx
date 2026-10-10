@@ -41,6 +41,7 @@ import {
   contributorRows,
   cutSetListRequest,
   cutSetRows,
+  daChangedNote,
   fourDigits,
   importanceProblem,
   importanceRecordOf,
@@ -65,7 +66,8 @@ import {
   type EsqResultsView,
   type EsqResultsWindowKind,
 } from "./esqResults";
-import { getEsqImportanceResult, getEsqModelRunResult, runEsqImportance, runEsqModel } from "./esqWorkbookApi";
+import { getEsqImportanceResult, getEsqModelRunResult, getEsqRunSourceRevision, runEsqImportance, runEsqModel } from "./esqWorkbookApi";
+import { esqModelRunId } from "interfaces-mef-types/esq/esq-solve-inputs";
 
 type ResultsTab = "cutsets" | "consistency" | "contributors" | "importance" | "screened" | "checks";
 
@@ -173,6 +175,14 @@ function useImportanceRun(workbookId: string | null, runId: string | undefined):
     return getEsqImportanceResult(id, run);
   }, []);
   return useLoaded(workbookId === null || runId === undefined ? undefined : `${workbookId}|${runId}`, load);
+}
+
+function useDaRunRevision(workbookId: string | null, runId: string | undefined, daId: string | undefined): Loaded<number | null> {
+  const load = useCallback((key: string) => {
+    const [id = "", run = "", da = ""] = key.split("|");
+    return getEsqRunSourceRevision(id, esqModelRunId(), run, da);
+  }, []);
+  return useLoaded(workbookId === null || runId === undefined || daId === undefined ? undefined : `${workbookId}|${runId}|${daId}`, load);
 }
 
 function FamilyPicker({ id, view, value, onChange, withTotal }: { id: string; view: EsqResultsView; value: string; onChange: (value: string) => void; withTotal: boolean }): JSX.Element {
@@ -611,8 +621,10 @@ function ScreenedPanel({ view, openWindow }: { view: EsqResultsView; openWindow:
 }
 
 function ResultsScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => void }): JSX.Element {
-  const { esq, upstream } = useEsqWorkbook();
+  const { esq, upstream, runtime } = useEsqWorkbook();
   const view = useMemo(() => resultsViewOf(esq, upstream.ri, upstream.ie), [esq, upstream.ri, upstream.ie]);
+  const daUsed = useDaRunRevision(runtime.workbookId, view?.run?.runId, esq.linkedWorkbooks?.DA);
+  const daNote = daChangedNote(daUsed.value, upstream.daRevision);
   const [tab, setTab] = useState<ResultsTab>("cutsets");
   const tabId = useId();
   const count = (n: number): string => (view === undefined ? "" : ` (${n})`);
@@ -642,6 +654,7 @@ function ResultsScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => 
               )}
             </div>
           </div>
+          {daNote !== undefined && <p className="esq-meta" role="status">{daNote}</p>}
           {view === undefined ? (
             <p className="posmuted">Nothing is imported yet. Import the model in Step 02.</p>
           ) : tab === "cutsets" ? (

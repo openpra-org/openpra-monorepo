@@ -176,6 +176,7 @@ const CCF_MODELS: Record<CcfFactorModel["model"], { label: string }> = {
   ALPHA_FACTOR: { label: "Alpha factor" },
   MGL: { label: "Multiple Greek letter" },
   PHI_FACTOR: { label: "Phi factor" },
+  BINOMIAL_FAILURE_RATE: { label: "Binomial failure rate" },
 };
 
 function toExp(n: number): string {

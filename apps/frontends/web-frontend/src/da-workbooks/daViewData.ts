@@ -165,9 +165,9 @@ const CCF_TESTING_LABELS: Record<DaCcfTesting, string> = {
 };
 
 const CCF_METHOD_LABELS: Record<DaCcfMethod, string> = {
-  PRIOR: "Published factors as they are",
-  BAYES: "Updated with events",
-  TYPED: "Typed",
+  PRIOR: "From a dataset",
+  BAYES: "From a dataset, updated with events",
+  TYPED: "Typed by hand",
 };
 
 interface DaLinkTile {
@@ -372,17 +372,21 @@ const PRIOR_FORM_LABELS: Record<DaPriorForm, string> = {
   JEFFREYS: "Jeffreys",
 };
 
-const ESTIMATE_METHOD_LABELS: Record<"PRIOR" | "BAYES" | "POPULATION" | "TYPED", string> = {
+const ESTIMATE_METHOD_LABELS: Record<"PRIOR" | "BAYES" | "POPULATION" | "EMPIRICAL_BAYES" | "TREND" | "TYPED", string> = {
   PRIOR: "Prior as is",
   BAYES: "Bayes update",
   POPULATION: "Population variability",
+  EMPIRICAL_BAYES: "Empirical Bayes",
+  TREND: "Trend over time",
   TYPED: "Typed",
 };
 
-const COMPUTATION_LABELS: Record<"PRIOR" | "POSTERIOR" | "POPULATION", string> = {
+const COMPUTATION_LABELS: Record<"PRIOR" | "POSTERIOR" | "POPULATION" | "EMPIRICAL_BAYES" | "TREND", string> = {
   PRIOR: "No update",
   POSTERIOR: "Bayes posterior",
   POPULATION: "Hierarchical Bayes",
+  EMPIRICAL_BAYES: "Empirical Bayes",
+  TREND: "Loglinear trend",
 };
 
 const EVIDENCE_ORIGIN_LABELS: Record<DaEvidenceOrigin, string> = {
@@ -420,6 +424,7 @@ const MAINTENANCE_METHOD_LABELS: Record<DaMaintenanceMethod | "TYPED", string> =
   PLANNED: "Planned program",
   RECORDS: "Plant records",
   GENERIC: "Published value",
+  BAYES: "Published value updated with records",
   TYPED: "Typed",
 };
 
@@ -450,6 +455,8 @@ const FREQUENCY_PER_LABELS: Record<DaFrequencyPer, string> = {
 const FREQUENCY_METHOD_LABELS: Record<DaFrequencyMethod, string> = {
   PRIOR: "Source as it is",
   BAYES: "Updated with events",
+  POPULATION: "Population variability",
+  EMPIRICAL_BAYES: "Empirical Bayes",
 };
 
 const FREQUENCY_MODE_LABELS: Record<"CALCULATED" | "TYPED" | "LINKED", string> = {

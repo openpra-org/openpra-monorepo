@@ -5,7 +5,7 @@ use praxis::algorithms::build::VariableOrder;
 use praxis::analysis::fault_tree::FaultTreeAnalysis;
 use praxis::analysis::quantify::{quantify, Approximation, Engine, Settings};
 use praxis::analysis::sil::{Sil, SilLevel};
-use praxis::core::ccf::{CcfGroup, CcfModel};
+use praxis::core::ccf::{require_total, CcfGroup, CcfModel};
 use praxis::core::event::{BasicEvent, HouseEvent};
 use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::{Formula, Gate};
@@ -322,7 +322,8 @@ struct CatalogueCcfGroup {
     id: String,
     members: Vec<String>,
     factors: CcfFactorModel,
-    total: UncertainExpression,
+    #[serde(default)]
+    total: Option<UncertainExpression>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -586,7 +587,7 @@ struct ResolvedCcfGroup {
     id: String,
     members: Vec<String>,
     model: CcfModel,
-    total: Expr,
+    total: Option<Expr>,
 }
 
 struct ResolvedCatalogue {
@@ -625,18 +626,25 @@ fn resolve_catalogue(catalogue: BasicEventCatalogue) -> Result<ResolvedCatalogue
     }
     let mut groups = Vec::with_capacity(catalogue.common_cause_failure_groups.len());
     for group in catalogue.common_cause_failure_groups {
-        let total = UncertaintyProgram::target(
-            &parameters,
-            &group.total,
-            &format!("ccf:{}/total", group.id),
-            UncertainUnit::Probability,
-        )?;
-        require_probability(
-            &format!("common cause group '{}' total", group.id),
-            None,
-            program.point(&total)?,
-        )?;
         let model = CcfModel::from_factors(&group.id, &group.factors, &parameters, &program)?;
+        require_total(&group.id, &model, group.total.is_some())?;
+        let total = match &group.total {
+            Some(expression) => {
+                let total = UncertaintyProgram::target(
+                    &parameters,
+                    expression,
+                    &format!("ccf:{}/total", group.id),
+                    UncertainUnit::Probability,
+                )?;
+                require_probability(
+                    &format!("common cause group '{}' total", group.id),
+                    None,
+                    program.point(&total)?,
+                )?;
+                Some(total)
+            }
+            None => None,
+        };
         groups.push(ResolvedCcfGroup {
             id: group.id,
             members: group.members,
@@ -1557,6 +1565,53 @@ pub(crate) mod tests {
             (mean / (0.007999 / 0.57) - 1.0).abs() < 0.01,
             "sampled mean {mean}"
         );
+    }
+
+    fn binomial_failure_rate() -> Value {
+        json!({
+            "model": "BINOMIAL_FAILURE_RATE",
+            "independent": point(1e-3),
+            "nonLethalShock": point(2e-4),
+            "componentFailure": fraction(0.15),
+            "lethalShock": point(3e-6)
+        })
+    }
+
+    fn triple(groups: Value) -> SolverRequest {
+        let mut request = request(
+            "AND",
+            None,
+            &[("A", 0.01), ("B", 0.01), ("C", 0.01)],
+            &[("ref-a", "A"), ("ref-b", "B"), ("ref-c", "C")],
+        );
+        configure(&mut request, "PROBABILITY", "BDD", "EXACT");
+        request.request["settings"]["expandCcf"] = json!(true);
+        let mut catalogue = request.resources.fault_tree_basic_event_catalogue.clone().unwrap();
+        catalogue["commonCauseFailureGroups"] = groups;
+        request.resources.fault_tree_basic_event_catalogue = Some(catalogue);
+        request
+    }
+
+    #[test]
+    fn quantifies_a_binomial_failure_rate_group_without_a_total() {
+        let result = execute(&triple(json!([{
+            "id": "G", "members": ["A", "B", "C"], "factors": binomial_failure_rate()
+        }])))
+        .unwrap();
+        let top = result["topEventProbability"].as_f64().unwrap();
+        assert!((top / 3.6878339078995066e-06 - 1.0).abs() < 1e-12, "{top}");
+        let with_total = execute(&triple(json!([{
+            "id": "G", "members": ["A", "B", "C"], "factors": binomial_failure_rate(), "total": point(0.01)
+        }])))
+        .unwrap_err()
+        .to_string();
+        assert!(with_total.contains("takes no total"), "{with_total}");
+        let without_total = execute(&triple(json!([{
+            "id": "G", "members": ["A", "B", "C"], "factors": beta_factor(0.1)
+        }])))
+        .unwrap_err()
+        .to_string();
+        assert!(without_total.contains("needs a total"), "{without_total}");
     }
 
     #[test]

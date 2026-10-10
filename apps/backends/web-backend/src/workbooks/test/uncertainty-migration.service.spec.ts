@@ -20,6 +20,9 @@ import { DaWorkbook, DaWorkbookSchema, type DaWorkbookDocument } from "../../da-
 import { createBlankEs } from "../../es-workbooks/blank-es";
 import { EsWorkbook, EsWorkbookSchema, type EsWorkbookDocument } from "../../es-workbooks/es-workbook.schema";
 import { EsqWorkbook, EsqWorkbookSchema, type EsqWorkbookDocument } from "../../esq-workbooks/esq-workbook.schema";
+import { createBlankEsq } from "../../esq-workbooks/blank-esq";
+import { createBlankHr } from "../../hr-workbooks/blank-hr";
+import { HrWorkbook, HrWorkbookSchema } from "../../hr-workbooks/hr-workbook.schema";
 import { ExternalFloodPraWorkbook, ExternalFloodPraWorkbookSchema } from "../../external-flood-pra-workbooks/external-flood-pra-workbook.schema";
 import { HighWindsPraWorkbook, HighWindsPraWorkbookSchema } from "../../high-winds-pra-workbooks/high-winds-pra-workbook.schema";
 import { createBlankIe } from "../../ie-workbooks/blank-ie";
@@ -38,6 +41,9 @@ import { createBlankSc } from "../../sc-workbooks/blank-sc";
 import { SeismicPraWorkbook, SeismicPraWorkbookSchema, type SeismicPraWorkbookDocument } from "../../seismic-pra-workbooks/seismic-pra-workbook.schema";
 import { INLINE_PAYLOAD_BYTES, modelPayloadStore } from "../../storage/model-payload-store";
 import { SyWorkbook, SyWorkbookSchema, type SyWorkbookDocument } from "../../sy-workbooks/sy-workbook.schema";
+import { DA_ANALYSIS_HTGR } from "../../example-workbooks/seeds/da-seed-htgr";
+import { ESQ_ANALYSIS_HTGR } from "../../example-workbooks/seeds/esq-seed-htgr";
+import { SY_ANALYSIS_HTGR } from "../../example-workbooks/seeds/sy-seed-htgr";
 import {
   ConversionScope,
   PraxisAnswers,
@@ -79,6 +85,7 @@ const WORKBOOK_COLLECTIONS: readonly string[] = [
   "da_workbooks",
   "sy_workbooks",
   "esq_workbooks",
+  "hr_workbooks",
   "ie_workbooks",
   "es_workbooks",
   "seismic_pra_workbooks",
@@ -243,6 +250,7 @@ describe("UncertaintyMigrationService", () => {
           { name: SyWorkbook.name, schema: SyWorkbookSchema },
           { name: DaWorkbook.name, schema: DaWorkbookSchema },
           { name: EsqWorkbook.name, schema: EsqWorkbookSchema },
+          { name: HrWorkbook.name, schema: HrWorkbookSchema },
           { name: IeWorkbook.name, schema: IeWorkbookSchema },
           { name: EsWorkbook.name, schema: EsWorkbookSchema },
           { name: SeismicPraWorkbook.name, schema: SeismicPraWorkbookSchema },
@@ -376,7 +384,7 @@ describe("UncertaintyMigrationService", () => {
     const systemTime = (mef: JsonRecord, id: string): Json | undefined => field(byId(field(mef, "systemDefinitions"), "uuid", id), "missionTime");
     expect(systemTime(linked, "SYS-SCS")).toEqual({ node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "sc-wb", entityId: "MT-PLOFC" } });
     expect(systemTime(linked, "SYS-RPS")).toEqual({ node: "VALUE", value: { unit: "HOURS", law: { family: "POINT", value: 24 } } });
-    expect(field(byId(field(linked, "commonCauseFailureGroups"), "uuid", "CCF-RPS-DIV"), "factors")).toEqual({ model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "VALUE", law: { family: "DIRICHLET", concentrations: [880.1, 12.01] } } });
+    expect(field(byId(field(linked, "commonCauseFailureGroups"), "uuid", "CCF-RPS-DIV"), "factors")).toEqual({ model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-wb", entityId: "ccfv/SRC-06/CCF-DEM/ALPHA_DIRICHLET/C2" } } });
     const legacy = await storedMef<SyWorkbookDocument>(syModel, "sy-sfr-wb");
     expect(systemTime(legacy, "SYS-GUARD")).toEqual({ node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "sc-sfr-wb", entityId: "MT-RCB" } });
     for (const event of records(field(fixture("sy-sfr"), "systemBasicEvents")).filter(component)) {
@@ -406,7 +414,7 @@ describe("UncertaintyMigrationService", () => {
     expect(audits).toHaveLength(1);
     const summary = record(field(asJson(audits[0]), "summary"));
     expect(records(field(summary, "workbooks")).map((tally) => [field(tally, "collection"), field(tally, "converted"), field(tally, "left")])).toEqual(
-      WORKBOOK_COLLECTIONS.map((collection) => [collection, [2, 3, 3, 3, 1, 1, 1][WORKBOOK_COLLECTIONS.indexOf(collection)] ?? 0, 0]),
+      WORKBOOK_COLLECTIONS.map((collection) => [collection, [2, 3, 3, 3, 0, 1, 1, 1][WORKBOOK_COLLECTIONS.indexOf(collection)] ?? 0, 0]),
     );
   }, 120_000);
 
@@ -451,7 +459,7 @@ describe("UncertaintyMigrationService", () => {
       `systemBasicEvents.${controlled}.controlledDataSource: ${COMPONENT_VALUE_MESSAGE}`,
       `systemBasicEvents.${controlled}.probability: ${COMPONENT_VALUE_MESSAGE}`,
     ]));
-    expect(syBefore.filter((issue) => issue.startsWith("commonCauseFailureGroups.0.factors") || issue.startsWith("commonCauseFailureGroups.0.total"))).toHaveLength(2);
+    expect(syBefore.filter((issue) => issue.startsWith("commonCauseFailureGroups.0.factors") || issue.startsWith("commonCauseFailureGroups.0.total"))).toEqual(["commonCauseFailureGroups.0.factors: Invalid input: expected object, received undefined"]);
     const esBefore = issuesOf(EventSequenceAnalysisSchema.safeParse(stripNulls({ ...esMef(), eventTrees: [valueTree] })));
     expect(esBefore.some((issue) => issue.startsWith("eventTrees.0.initiatingEventFrequency.expression: "))).toBe(true);
     expect(esBefore.some((issue) => issue.startsWith("eventTrees.0.initiatingEventFrequency: ") && issue.includes("value"))).toBe(true);
@@ -504,8 +512,6 @@ describe("UncertaintyMigrationService", () => {
     expect(syIssue(syBetween)).toBeDefined();
     const esqOldModel = record(field(esqOld, "model"));
     const esqModelFull = record(field(esqFull, "model"));
-    const frequencyIds = new Set(records(field(esqModelFull, "parameters")).filter((parameter) => field(parameter, "quantificationModel") === "FREQUENCY").map((parameter) => String(field(parameter, "id"))));
-    expect(frequencyIds.size).toBeGreaterThan(0);
     const oldParts = Object.fromEntries(["modelDecisions", "barrierWork"].flatMap((key) => (field(esqOld, key) === undefined ? [] : [[key, field(esqOld, key) ?? null]])));
     const esqBetween = {
       ...esqFull,
@@ -518,7 +524,7 @@ describe("UncertaintyMigrationService", () => {
           const hours = field(byId(field(esqOldModel, "events"), "id", String(field(event, "id"))), "missionTimeHours");
           return hours === undefined || field(event, "expression") === undefined ? event : { ...event, missionTimeHours: hours };
         }),
-        parameters: records(field(esqModelFull, "parameters")).map((parameter) => (frequencyIds.has(String(field(parameter, "id"))) ? { ...byId(field(esqOldModel, "parameters"), "id", String(field(parameter, "id"))), quantificationModel: "FREQUENCY" } : parameter)),
+        parameters: field(esqOldModel, "parameters") ?? [],
       },
       ...oldParts,
     };
@@ -614,7 +620,7 @@ describe("UncertaintyMigrationService", () => {
     expect(tallyOf(second, "ie_workbooks")).toMatchObject({ converted: 1, left: 0 });
     const sy = await storedMef<SyWorkbookDocument>(syModel, "sy-wb");
     expect(syIssue(sy)).toBeUndefined();
-    expect(field(byId(field(sy, "commonCauseFailureGroups"), "uuid", "CCF-RPS-DIV"), "factors")).toEqual({ model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "VALUE", law: { family: "DIRICHLET", concentrations: [880.1, 12.01] } } });
+    expect(field(byId(field(sy, "commonCauseFailureGroups"), "uuid", "CCF-RPS-DIV"), "factors")).toEqual({ model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-wb", entityId: "ccfv/SRC-06/CCF-DEM/ALPHA_DIRICHLET/C2" } } });
 
     praxis.mode = "DOWN";
     await daModel.create({ workbookId: "da-down", projectId: PROJECT_ID, ownerUsername: OWNER, mef: { ...fixture("da-hcl"), sources: [...records(field(fixture("da-hcl"), "sources")), CUSTOM_SOURCE] } });
@@ -625,7 +631,7 @@ describe("UncertaintyMigrationService", () => {
   }, 120_000);
 
   it("moves stored runs that fail the current schemas, keeps the rest, and checks each run once", async () => {
-    const current = convertSyMef(fixture("sy-hcl"), { daParameters: new Map(), daCcf: new Map(), syCcf: new Map(), scMissionTimes: new Map(), scProjects: new Map() }, new ConversionScope(new PraxisAnswers(), "test"), PROJECT_ID);
+    const current = convertSyMef(fixture("sy-hcl"), { daParameters: new Map(), daCcf: new Map(), syCcf: new Map(), scMissionTimes: new Map(), scProjects: new Map(), daHeld: new Map(), daProjects: new Map(), hrErrorFactors: new Map() }, new ConversionScope(new PraxisAnswers(), "test"), PROJECT_ID);
     const old = fixture("sy-htgr");
     const kept = randomUUID();
     const stale = randomUUID();
@@ -658,6 +664,19 @@ describe("UncertaintyMigrationService", () => {
     await runModel.create(storedRun("sy-wb", old, "SINGLE", later, null));
     const third = await service.run();
     expect(third.runs).toMatchObject({ read: 1, kept: 0, moved: 1 });
+  }, 120_000);
+
+  it("converts a stored run whose DA snapshot holds hour distributions instead of moving it", async () => {
+    const id = randomUUID();
+    await runModel.create(storedRun("da-wb", fixture("da-htgr"), "SINGLE", id, null, "DA"));
+
+    const summary = await service.run();
+
+    expect(summary.runs).toMatchObject({ read: 1, kept: 1, converted: 1, moved: 0 });
+    const live = await connection.collection("method_analysis_runs").findOne({ id });
+    const snapshot = records(field(asJson(live), "workbookSnapshots"))[0] ?? {};
+    expect(daIssue(record(field(snapshot, "mef")))).toBeUndefined();
+    expect(await connection.collection(BACKUP_COLLECTION).countDocuments({ collection: "method_analysis_runs", runId: id })).toBe(1);
   }, 120_000);
 
   it("converts workbook payloads held in MinIO and keeps the old object for the backup", async () => {
@@ -749,5 +768,79 @@ describe("UncertaintyMigrationService", () => {
     } finally {
       spy.mockRestore();
     }
+  }, 120_000);
+
+  it("turns stored HR values and the ESQ error factors into HR laws", async () => {
+    const quantification = (uuid: string, hfeId: string, fields: JsonRecord): JsonRecord => ({ uuid, hfeId, methodology: "", assessmentType: "DETAILED_ASSESSMENT", isRiskSignificant: true, implementsSrs: [], ...fields });
+    const hr = {
+      ...createBlankHr("HR", OWNER),
+      hepQuantifications: [
+        quantification("Q-1", "H-1", { meanHep: 2e-3 }),
+        quantification("Q-2", "H-2", { pointEstimateHep: 1e-2 }),
+        quantification("Q-3", "H-3", { meanHep: 5e-3, controlledDataSource: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-hr", entityId: "DA-HEP" } }),
+      ],
+    };
+    await connection.collection("hr_workbooks").insertOne({ workbookId: "hr-wb", projectId: PROJECT_ID, ownerUsername: OWNER, revision: 3, mef: hr });
+    const esq = { ...createBlankEsq("ESQ", OWNER), linkedWorkbooks: { HRA: "hr-wb" }, uncertaintyWork: { spreads: [{ key: "HFE:H-1", errorFactor: 5, source: "HR note." }] } };
+    await esqModel.create({ workbookId: "esq-hr", projectId: PROJECT_ID, ownerUsername: OWNER, revision: 2, mef: esq });
+
+    const summary = await service.run();
+
+    expect(leftLines()).toEqual([]);
+    expect(tallyOf(summary, "hr_workbooks")).toMatchObject({ converted: 1, left: 0 });
+    const stored = asJson((await connection.collection("hr_workbooks").findOne({ workbookId: "hr-wb" }))?.["mef"]);
+    expect(records(field(stored, "hepQuantifications")).map((entry) => field(entry, "hep"))).toEqual([
+      { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "TRUNCATED", law: { family: "LOGNORMAL", mean: 2e-3, errorFactor: 5, level: 0.95 }, lower: null, upper: 1 } } },
+      { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 1e-2 } } },
+      { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-hr", entityId: "DA-HEP" } },
+    ]);
+    expect(field(record(field(await storedMef<EsqWorkbookDocument>(esqModel, "esq-hr"), "uncertaintyWork")), "spreads")).toBeUndefined();
+  });
+
+  it("points stored DA, SY and ESQ common cause links from the example DA to the project DA and backs them up", async () => {
+    const vector = "ccfv/SRC-06/CCF-DEM/ALPHA_DIRICHLET/C2";
+    const exampleVector = { referenceType: "WORKBOOK_PARAMETER", workbookId: "example-da-htgr", entityId: vector };
+    const [rpsGroup] = SY_ANALYSIS_HTGR.commonCauseFailureGroups;
+    if (rpsGroup === undefined) throw new Error("The HTGR SY example has no common cause group.");
+    const model = {
+      importedAt: "2026-10-09T00:00:00.000Z",
+      sources: [{ element: "DA", workbookId: "da-proj", workbookName: "Project DA" }],
+      trees: [], sequences: [], families: [], functions: [], tops: [], initiators: [], states: [], events: [], parameters: [], humanEvents: [],
+      ccfGroups: [{ id: rpsGroup.uuid, name: rpsGroup.name, systemIds: rpsGroup.affectedSystems, memberIds: (rpsGroup.members?.basicEvents ?? []).map((member) => member.id), factors: { model: "ALPHA_FACTOR", testing: "STAGGERED", alphas: { node: "PARAMETER", reference: exampleVector } } }],
+      vectors: [{ reference: exampleVector, vector: { family: "DIRICHLET", concentrations: [880.1, 12.01] } }],
+    };
+    await daModel.create({ workbookId: "da-proj", projectId: PROJECT_ID, ownerUsername: OWNER, revision: 2, mef: DA_ANALYSIS_HTGR });
+    await syModel.create({ workbookId: "sy-proj", projectId: PROJECT_ID, ownerUsername: OWNER, revision: 2, mef: { ...SY_ANALYSIS_HTGR, linkedWorkbooks: { DA: "da-proj" } } });
+    await esqModel.create({ workbookId: "esq-proj", projectId: PROJECT_ID, ownerUsername: OWNER, revision: 2, mef: { ...ESQ_ANALYSIS_HTGR, linkedWorkbooks: { ...ESQ_ANALYSIS_HTGR.linkedWorkbooks, DA: "da-proj", SY: "sy-proj" }, model } });
+    await syModel.create({ workbookId: "sy-elsewhere", projectId: "another-project", ownerUsername: OWNER, revision: 1, mef: SY_ANALYSIS_HTGR });
+
+    const summary = await service.run();
+
+    expect(leftLines()).toEqual([]);
+    expect(tallyOf(summary, "da_workbooks")).toMatchObject({ converted: 1, left: 0 });
+    expect(tallyOf(summary, "sy_workbooks")).toMatchObject({ converted: 1, current: 1, left: 0 });
+    expect(tallyOf(summary, "esq_workbooks")).toMatchObject({ converted: 1, left: 0 });
+    const da = await storedMef<DaWorkbookDocument>(daModel, "da-proj");
+    const sy = await storedMef<SyWorkbookDocument>(syModel, "sy-proj");
+    const esq = await storedMef<EsqWorkbookDocument>(esqModel, "esq-proj");
+    expect(daIssue(da)).toBeUndefined();
+    expect(syIssue(sy)).toBeUndefined();
+    expect(esqIssue(esq)).toBeUndefined();
+    const projectVector = { node: "PARAMETER", reference: { ...exampleVector, workbookId: "da-proj" } };
+    expect(field(record(field(byId(field(da, "ccfParameterEstimations"), "uuid", "DA-CCF-04"), "factors")), "alphas")).toEqual(projectVector);
+    expect(field(record(field(byId(field(sy, "commonCauseFailureGroups"), "uuid", rpsGroup.uuid), "factors")), "alphas")).toEqual(projectVector);
+    expect(field(record(field(records(field(record(field(esq, "model")), "ccfGroups"))[0] ?? {}, "factors")), "alphas")).toEqual(projectVector);
+    expect(field(record(field(esq, "model")), "vectors")).toBeUndefined();
+    for (const text of [stringifyJson(field(da, "ccfParameterEstimations")), stringifyJson(field(sy, "commonCauseFailureGroups")), stringifyJson(field(esq, "model"))]) {
+      expect(text?.includes("example-da-")).toBe(false);
+    }
+    expect(stringifyJson(await storedMef<SyWorkbookDocument>(syModel, "sy-elsewhere"))).toBe(stringifyJson(SY_ANALYSIS_HTGR));
+    const backups = await connection.collection(BACKUP_COLLECTION).find({ workbookId: { $in: ["da-proj", "sy-proj", "esq-proj"] } }).toArray();
+    expect(backups.map((backup) => backup["workbookId"]).sort()).toEqual(["da-proj", "esq-proj", "sy-proj"]);
+    const original = asJson(backups.find((backup) => backup["workbookId"] === "sy-proj")?.["document"]);
+    expect(field(record(field(byId(field(record(field(original, "mef")), "commonCauseFailureGroups"), "uuid", rpsGroup.uuid), "factors")), "alphas")).toEqual({ node: "PARAMETER", reference: exampleVector });
+
+    const again = await service.run();
+    expect(totals(again)).toEqual({ current: 4, converted: 0, left: 0 });
   }, 120_000);
 });

@@ -92,8 +92,8 @@ interface DaWorkbookContextValue extends DaWorkbookData {
 
 const DaWorkbookContext = createContext<DaWorkbookContextValue | null>(null);
 
-function derived(da: DataAnalysis): DataAnalysis {
-  return withCcf(withFrequencies(withUnavailability(withEstimates(da))));
+function derived(da: DataAnalysis, self: string | undefined): DataAnalysis {
+  return withCcf(withFrequencies(withUnavailability(withEstimates(da))), self);
 }
 
 function useLinkedMef<T>(id: string | undefined, load: (id: string) => Promise<T>): T | undefined {
@@ -138,12 +138,13 @@ function DaWorkbookProvider({ data, editable, mutateDa, upstream = EMPTY_UPSTREA
 }): JSX.Element {
   const missionTimes = useMemo(() => ({ sources: daMissionTimeSources(data.da, upstream), families: scSequenceFamilies(upstream.sc) }), [data.da, upstream]);
   setDaMissionTimes(missionTimes);
-  const mutateWithEstimates = useCallback((mutator: DaMutator): void => mutateDa((da) => derived(mutator(da))), [mutateDa]);
+  const self = upstream.workbookId;
+  const mutateWithEstimates = useCallback((mutator: DaMutator): void => mutateDa((da) => derived(mutator(da), self)), [mutateDa, self]);
   const version = useUncertaintyVersion();
   useEffect(() => {
     if (!editable) return;
-    if (derived(data.da) !== data.da) mutateDa(derived);
-  }, [version, missionTimes, data.da, editable, mutateDa]);
+    if (derived(data.da, self) !== data.da) mutateDa((da) => derived(da, self));
+  }, [version, missionTimes, data.da, editable, mutateDa, self]);
   const value = useMemo<DaWorkbookContextValue>(
     () => ({ ...data, editable, mutateDa: mutateWithEstimates, upstream }),
     [data, editable, mutateWithEstimates, upstream],

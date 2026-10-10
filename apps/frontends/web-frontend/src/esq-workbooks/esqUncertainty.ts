@@ -1,6 +1,5 @@
 import type {
   EsqModel,
-  EsqSpread,
   EsqSolveRun,
   EsqUncertaintyRecord,
   EsqUncertaintyWork,
@@ -32,7 +31,6 @@ interface EsqUncertaintyFinding {
 
 interface EsqInputRow {
   input: EsqSampledInput;
-  spread?: EsqSpread;
   significant: boolean;
   sampled: boolean;
 }
@@ -79,7 +77,7 @@ const SOURCE_LABELS: Record<string, string> = {
   STEP_02: "Typed in Step 02",
   STEP_04: "Step 04 cell",
   STEP_06: "Typed in Step 06",
-  TYPED: "Typed spread",
+  HR: "HR HEP",
 };
 
 const INPUT_KIND_LABELS: Record<EsqSampledInput["kind"], string> = {
@@ -131,13 +129,7 @@ function significantInputKeys(esq: EventSequenceQuantification): Set<string> {
 
 function inputRows(esq: EventSequenceQuantification): EsqInputRow[] {
   const significant = significantInputKeys(esq);
-  const spreads = new Map((uncertaintyWorkOf(esq).spreads ?? []).map((spread) => [spread.key, spread]));
-  return sampledInputsOf(esq).map((input) => {
-    const row: EsqInputRow = { input, significant: significant.has(input.key), sampled: input.uncertain };
-    const spread = input.contract ? undefined : spreads.get(input.key);
-    if (spread !== undefined) row.spread = spread;
-    return row;
-  }).sort((a, b) => Number(b.significant) - Number(a.significant) || a.input.label.localeCompare(b.input.label));
+  return sampledInputsOf(esq).map((input): EsqInputRow => ({ input, significant: significant.has(input.key), sampled: input.uncertain })).sort((a, b) => Number(b.significant) - Number(a.significant) || a.input.label.localeCompare(b.input.label));
 }
 
 function uncertaintyRecordOf(result: EsqUncertaintyRunResult): EsqUncertaintyRecord {
@@ -171,17 +163,10 @@ function withUncertaintyRun(esq: EventSequenceQuantification, result: EsqUncerta
   return withUncertaintyWork(esq, (work) => (result.correlation === "SHARED" ? { ...work, run: record } : { ...work, independent: record }));
 }
 
-function withSpread(esq: EventSequenceQuantification, key: string, spread: EsqSpread | undefined): EventSequenceQuantification {
-  return withUncertaintyWork(esq, (work) => {
-    const others = (work.spreads ?? []).filter((entry) => entry.key !== key);
-    return { ...work, spreads: spread === undefined ? others : [...others, spread] };
-  });
-}
-
 function uncertaintyRunProblem(result: EsqUncertaintyRunResult, esq: EventSequenceQuantification): string | undefined {
   const failed = result.trees.filter((tree) => tree.status === "FAILED").length;
   if (failed > 0) return `${failed} of ${result.trees.length} event trees failed. Fix them and run again.`;
-  if (result.inputs !== uncertaintyInputsKey(esq)) return "The model, values or spreads changed during the run. Run again.";
+  if (result.inputs !== uncertaintyInputsKey(esq)) return "The model or its values changed during the run. Run again.";
   return undefined;
 }
 
@@ -198,7 +183,7 @@ function uncertaintyFindings(view: Omit<EsqUncertaintyView, "findings">): EsqUnc
       ? { severity: "error", check: "No propagated mean", item: "Uncertainty", detail: "CC-II needs each family's mean with the state-of-knowledge correlation. Run the sampling with shared draws (ESQ-A5, ESQ-E2)." }
       : { severity: "warning", check: "Uncertainty not characterized", item: "Uncertainty", detail: "Run the sampling to give each family its mean and percentiles (ESQ-E2)." });
   } else {
-    if (view.runStale) findings.push({ severity: "error", check: "Sampling older than its inputs", item: "Uncertainty", detail: "The model, values or spreads changed after the run. Run the sampling again." });
+    if (view.runStale) findings.push({ severity: "error", check: "Sampling older than its inputs", item: "Uncertainty", detail: "The model or its values changed after the run. Run the sampling again." });
     if (view.solveRun !== undefined && !sameLogic(run.logic, view.solveRun.logic)) findings.push({ severity: "warning", check: "Sampled with other logic", item: "Uncertainty", detail: "The sampling used logic settings that differ from the run of record. Run it again." });
     for (const family of run.families) {
       const errors = standardErrors(family);
@@ -221,10 +206,7 @@ function uncertaintyFindings(view: Omit<EsqUncertaintyView, "findings">): EsqUnc
   }
   if (fixed.length > 0) {
     const shown = fixed.slice(0, 3).join(", ");
-    findings.push({ severity: "warning", check: "Inputs at their point values", item: `${fixed.length} inputs`, detail: `${shown}${fixed.length > 3 ? ` and ${fixed.length - 3} more` : ""} have no distribution and stay fixed in every trial. Give component values a law in DA or SY. Type an error factor in the Inputs tab for the others.` });
-  }
-  for (const row of view.inputs) {
-    if (row.spread !== undefined && row.spread.source.trim().length === 0) findings.push({ severity: "error", check: "Typed spread without a source", item: row.input.label, detail: "Name the document or judgment the error factor comes from.", target: { kind: "esqUncertInput", id: row.input.key } });
+    findings.push({ severity: "warning", check: "Inputs at their point values", item: `${fixed.length} inputs`, detail: `${shown}${fixed.length > 3 ? ` and ${fixed.length - 3} more` : ""} have no distribution and stay fixed in every trial. Give each a law where it is held, in DA, SY, HR or the ESQ step that types it.` });
   }
   return findings.sort((a, b) => FINDING_RANK[a.severity] - FINDING_RANK[b.severity]);
 }
@@ -282,7 +264,6 @@ export {
   uncertaintyRunProblem,
   uncertaintyViewOf,
   uncertaintyWorkOf,
-  withSpread,
   withUncertaintyRun,
   type EsqInputRow,
   type EsqUncertaintyFamilyRow,

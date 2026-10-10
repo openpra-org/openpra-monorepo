@@ -51,6 +51,7 @@ import { esqPostRunId } from "interfaces-mef-types/esq/esq-post-inputs";
 import { esqImportanceRunId, esqUncertaintyRunId, uncertaintyInputsKey } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { caseInputsKey, esqSensitivityRunId } from "interfaces-mef-types/esq/esq-sensitivity-inputs";
 import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-models";
+import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { EsqEventTreeRunLogic } from "interfaces-shared-types/newly-developed-methods";
 import { ProjectsService } from "../../../projects/projects.service";
 import {
@@ -67,6 +68,7 @@ import {
 import {
   EXAMPLE_DEPENDENCY_IDS,
   reconcileExampleDaMissionTimeReferences,
+  reconcileExampleDaOwnReferences,
   reconcileExampleEsqDependencyReferences,
   reconcileExampleEsqMissionTimeReferences,
   reconcileExampleEventTreeDependencyReferences,
@@ -810,6 +812,22 @@ describe("workbook-owned analysis-run APIs", () => {
         estimate: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "BETA", alpha: 3, beta: 7, lower: 0, upper: 1 } } },
         implementsSrs: [],
       },
+      {
+        uuid: "P-1",
+        name: "Pump fails",
+        parameterType: "PROBABILITY",
+        quantificationModel: "DEMAND_PROBABILITY",
+        estimate: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "BETA", alpha: 1, beta: 9, lower: 0, upper: 1 } } },
+        implementsSrs: [],
+      },
+      {
+        uuid: "P-IE",
+        name: "Initiator frequency",
+        parameterType: "FREQUENCY",
+        quantificationModel: "FREQUENCY",
+        estimate: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "GAMMA", shape: 4, rate: 2 } } },
+        implementsSrs: [],
+      },
     ];
     await daWorkbooks.create({
       workbookId: DA_WORKBOOK_ID,
@@ -925,7 +943,7 @@ describe("workbook-owned analysis-run APIs", () => {
         projectId: PROJECT_ID,
         ownerUsername: USERNAME,
         revision: 1,
-        mef: reconcileExampleDaMissionTimeReferences(structuredClone(variant.da), variant.sc, ids.sc),
+        mef: reconcileExampleDaOwnReferences(reconcileExampleDaMissionTimeReferences(structuredClone(variant.da), variant.sc, ids.sc), ids.da),
       });
       await moduleRef.get<Model<unknown>>(getModelToken(HrWorkbook.name)).create({
         workbookId: ids.hr,
@@ -1162,7 +1180,7 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(result.body.topEventProbability).toBeLessThanOrEqual(1);
   }, 120_000);
 
-  it("matches an exact enumeration of the HTGR cavity-cooling model with its published alpha factors", async () => {
+  it("matches an exact enumeration of the HTGR cavity-cooling model with its binomial failure rate group", async () => {
     const workbookId = connectedExampleIds("htgr").sy;
     const model = SY_ANALYSIS_HTGR.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-RCCS");
     if (model === undefined) throw new Error("Expected the HTGR cavity-cooling model");
@@ -1192,10 +1210,41 @@ describe("workbook-owned analysis-run APIs", () => {
       `/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`,
     );
     expect(result.status).toBe(200);
-    expect(result.body.topEventProbability).toBeCloseTo(4.675820418998278e-3, 14);
+    expect(result.body.topEventProbability).toBeCloseTo(4.9298434173506295e-3, 13);
   }, 120_000);
 
-  it("samples common cause groups from their members' DA estimate and matches the exact DRACS mean", async () => {
+  it("samples the HTGR trip divisions from the DA alpha vector bound to the project DA workbook", async () => {
+    const ids = connectedExampleIds("htgr");
+    const model = SY_ANALYSIS_HTGR.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-RPS");
+    const vector = (DA_ANALYSIS_HTGR.ccfVectors ?? []).find((entry) => entry.id === "ccfv/SRC-06/CCF-DEM/ALPHA_DIRICHLET/C2");
+    if (model === undefined || vector === undefined) throw new Error("Expected the HTGR protection model and its shared alpha vector");
+    const stored = await syWorkbooks.findOne({ workbookId: ids.sy }).lean<{ mef: SystemsAnalysis }>().exec();
+    const group = stored?.mef.commonCauseFailureGroups.find((candidate) => candidate.uuid === "CCF-RPS-DIV");
+    expect(group?.factors).toMatchObject({ model: "ALPHA_FACTOR", alphas: { node: "PARAMETER", reference: { workbookId: ids.da, entityId: vector.id } } });
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${ids.sy}/fault-trees/${model.uuid}/runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: model.uuid,
+        workbookRevision: 1,
+        calculationType: "UNCERTAINTY",
+        workflow: "MANUAL",
+        settings: { algorithm: "BDD", approximation: "EXACT", variableOrder: "DFS", reorderBudgetSeconds: 60, expandCcf: true, numTrials: 1_000, seed: 847, missionTimeHours: 8_760 },
+      });
+    expect(response.status).toBe(200);
+    expect(response.body.run.status).toBe("SUCCEEDED");
+    const run = await runs.findOne({ id: response.body.run.id }).lean().exec();
+    const native = JSON.stringify(run?.nativeRequest);
+    expect(native.includes(JSON.stringify({ reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: ids.da, entityId: vector.id }, vector: vector.vector }))).toBe(true);
+    expect(native.includes("example-da-")).toBe(false);
+    expect(run?.workbookSnapshots).toEqual(expect.arrayContaining([expect.objectContaining({ hostType: "DA", identity: { workbookId: ids.da, workbookRevision: 1 } })]));
+    const result = await request(api.getHttpServer()).get(`/api/sy-workbooks/${ids.sy}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`);
+    expect(result.status).toBe(200);
+    expect(result.body.uncertainty.samples).toHaveLength(1_000);
+    expect(result.body.uncertainty.mean).toBeGreaterThan(0);
+  }, 120_000);
+
+  it("samples common cause groups from their members' DA estimate and matches a two million trial DRACS mean", async () => {
     const workbookId = connectedExampleIds("sfr").sy;
     const model = SY_ANALYSIS.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-DRACS");
     if (model === undefined) throw new Error("Expected the DRACS fault-tree model");
@@ -1218,9 +1267,9 @@ describe("workbook-owned analysis-run APIs", () => {
       `/api/sy-workbooks/${workbookId}/fault-trees/${model.uuid}/runs/${response.body.run.id}/result`,
     );
     expect(result.status).toBe(200);
-    const exactPoint = 1.752396853770799e-2;
-    const exactMean = 1.783986035727747e-2;
-    const relativeStandardError = 7.479422598285858e-4;
+    const exactPoint = 1.76142030312373e-2;
+    const exactMean = 1.8196839149576014e-2;
+    const relativeStandardError = 1.585312611660166e-3;
     expect(Math.abs(result.body.topEventProbability / exactPoint - 1)).toBeLessThan(1e-6);
     expect(Math.abs(result.body.uncertainty.mean / exactMean - 1)).toBeLessThan(6 * relativeStandardError);
   }, 120_000);
@@ -1453,7 +1502,8 @@ describe("workbook-owned analysis-run APIs", () => {
     const controlledHepQuantification = HR_ANALYSIS_HCL.hepQuantifications.find(
       (quantification) => quantification.hfeId === controlledHfe.uuid,
     )!;
-    const controlledHep = controlledHepQuantification.meanHep ?? controlledHepQuantification.pointEstimateHep!;
+    const controlledLaw = controlledHepQuantification.hep?.node === "VALUE" ? controlledHepQuantification.hep.value.law : undefined;
+    const controlledHep = controlledLaw?.family === "POINT" ? controlledLaw.value : Number.NaN;
     expect(result.body.topEventProbability).toBeCloseTo(1 - (1 - 0.3) * (1 - controlledHep), 12);
     expect(result.body.basicEventQuantifications).toEqual(expect.arrayContaining([
       { basicEventId: EVENT_A, expression: daParameter(DA_WORKBOOK_ID, DA_PARAMETER_ID), pointProbability: expect.closeTo(0.3, 12) },
@@ -2362,8 +2412,8 @@ describe("workbook-owned analysis-run APIs", () => {
       ccfGroups: [],
       parameters: [],
       humanEvents: [
-        { id: "H-A", name: "Operator fails to start A", timing: "POST_INITIATOR", value: 0.1, riskSignificant: false, distributionGiven: false },
-        { id: "H-B", name: "Operator fails to start B", timing: "POST_INITIATOR", value: 0.2, riskSignificant: false, distributionGiven: false },
+        { id: "H-A", name: "Operator fails to start A", timing: "POST_INITIATOR", hep: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.1 } } }, riskSignificant: false, distributionGiven: false },
+        { id: "H-B", name: "Operator fails to start B", timing: "POST_INITIATOR", hep: { node: "VALUE", value: { unit: "PROBABILITY", law: { family: "POINT", value: 0.2 } } }, riskSignificant: false, distributionGiven: false },
       ],
       jointFloor: { id: "JHF-1", value: 1e-5, justification: "Floor." },
     };
@@ -2402,7 +2452,7 @@ describe("workbook-owned analysis-run APIs", () => {
 
     const recovered = {
       ...esq,
-      model: { ...esq.model, recoveries: [{ id: "REC-A", name: "Restart A", hfeId: "H-A", level: "SEQUENCE" as const, sequenceIds: [], hep: 0.5, feasibility: { procedure: true, training: true, cues: true, crew: true, time: true, access: true, equipment: true } }] },
+      model: { ...esq.model, recoveries: [{ id: "REC-A", name: "Restart A", hfeId: "H-A", level: "SEQUENCE" as const, sequenceIds: [], hep: { node: "VALUE" as const, value: { unit: "PROBABILITY" as const, law: { family: "POINT" as const, value: 0.5 } } }, feasibility: { procedure: true, training: true, cues: true, crew: true, time: true, access: true, equipment: true } }] },
       postWork: { recoveries: [{ id: "REC-A", groupIds: [], stateIds: [], credited: true, basis: "Remote start." }] },
     };
     await esqWorkbooks.updateOne({ workbookId }, { $set: { revision: 5, mef: recovered } }).exec();
@@ -2452,7 +2502,6 @@ describe("workbook-owned analysis-run APIs", () => {
       parameters: [{ id: "P-1", name: "Pump fails", parameterType: "PROBABILITY", quantificationModel: "DEMAND_PROBABILITY", estimate: pumpALaw }],
       humanEvents: [],
     };
-    esq.uncertaintyWork = { spreads: [{ key: `EVENT:${EVENT_B}`, errorFactor: 3, source: "Generic spread for typed pump values." }] };
     esq.sensitivityWork = {
       cases: [
         { id: "SC-1", name: "Pump at 0.2", kind: "PARAMETER", target: "P-1", value: 0.2, basis: "Upper data bound." },

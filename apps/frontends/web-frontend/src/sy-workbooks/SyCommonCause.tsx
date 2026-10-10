@@ -1,9 +1,8 @@
 import { JSX } from "react";
 import type { CommonCauseFailureGroup } from "interfaces-mef-types/sy/systems-analysis";
 import { ccfFactorDraft } from "../newly-developed-methods/shared/uncertainEditor";
-import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { NoSystemsCard, NotRecorded, PointValue, ReviewLines, ReviewTitle } from "./syShared";
-import { ccfFactorText, ccfModelText, linkedEstimate, memberEvents, sharedCauseLines, sharedMemberExpression, validateCcfGroup } from "./syCcf";
+import { ccfFactorText, ccfModelText, groupTotal, linkedEstimate, memberEvents, sharedCauseLines, validateCcfGroup, vectorLengths } from "./syCcf";
 import { systemTree } from "./syFailureRecords";
 import { SyCcfAnalysis } from "./SyCcfAnalysis";
 import { useExpressionPoints } from "./syBasicEventValues";
@@ -20,13 +19,18 @@ function CommonCauseScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   openDrawer: (ctx: SyDrawerContext) => void;
   onOpenSystems?: () => void;
 }): JSX.Element {
-  const { sy, shortOf, editable, mutateSy, controlledCcfEstimates } = useSyWorkbook();
+  const { sy, shortOf, editable, mutateSy, controlledCcfEstimates, controlledCcfVectors } = useSyWorkbook();
+  const lengths = vectorLengths(controlledCcfVectors);
   const values = useSyValueSources();
   const actionLabel = editable ? "Edit" : "View";
   const found = sy.systemDefinitions.find((candidate) => candidate.uuid === sysId) ?? sy.systemDefinitions[0];
   const shownGroups = found === undefined ? [] : sy.commonCauseFailureGroups.filter((group) => group.affectedSystems.includes(found.uuid));
-  const totals = useExpressionPoints(shownGroups.map((group) => sharedMemberExpression(group, sy) ?? group.total), values.table);
-  const totalById = new Map(shownGroups.map((group, index) => [group.uuid, totals[index]]));
+  const totaled = shownGroups.flatMap((group) => {
+    const total = groupTotal(group, sy);
+    return total === undefined ? [] : [{ id: group.uuid, total }];
+  });
+  const totals = useExpressionPoints(totaled.map(({ total }) => total), values.table);
+  const totalById = new Map(totaled.map(({ id }, index) => [id, totals[index]]));
   const label = values.label;
 
   if (found === undefined) {
@@ -76,7 +80,7 @@ function CommonCauseScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
 
   function groupRow(group: CommonCauseFailureGroup): JSX.Element {
     const name = group.name.length > 0 ? group.name : "Unnamed group";
-    const issues = validateCcfGroup(group, sy, controlledCcfEstimates);
+    const issues = validateCcfGroup(group, sy, controlledCcfEstimates, lengths);
     const members = memberEvents(group, sy);
     return (
       <tr key={group.uuid}>
@@ -94,7 +98,7 @@ function CommonCauseScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
           <span className="sy-review-sub posmono sy-review-factors">{ccfFactorText(group.factors, label)}</span>
           <span className="sy-review-sub">{sourceLine(group)}</span>
         </td>
-        <td className="posmono sy-review-num">{members.length === 0 ? <NotRecorded /> : <PointValue state={totalById.get(group.uuid)} />}</td>
+        <td className="posmono sy-review-num">{members.length === 0 ? <NotRecorded /> : totalById.has(group.uuid) ? <PointValue state={totalById.get(group.uuid)} /> : <span className="sy-review-sub">From the model</span>}</td>
         <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} ${name}`} onClick={() => openDrawer({ kind: "ccf", id: group.uuid })}>{actionLabel}</button></td>
       </tr>
     );
@@ -121,7 +125,6 @@ function CommonCauseScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
     <>
       <div className="poscard sy-model-card">
         <div className="poscard__head sy-model-card__head">
-          <WorkbookSectionHeading workbook="SY" title={system.name} cueKey="Common cause" level={3} />
           <label className="sy-model-card__picker">
             <span className="posfield__label">System</span>
             <select className="posfield__select" aria-label="System" value={system.uuid} onChange={(event) => setSysId(event.target.value)}>

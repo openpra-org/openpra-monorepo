@@ -108,7 +108,12 @@ beforeEach(() => {
 describe("initiating event frequencies", () => {
   it("takes every IE group result as its law and maps each imported group to its parameter", async () => {
     expect((DA.dataNeeds?.initiators ?? []).every((need) => need.parameterId === `DA-IE-${need.id.split("-")[1]}`)).toBe(true);
-    for (const group of IE_ANALYSIS.initiatingEventGroups) {
+    const updated = new Map([["IEG-09", "POPULATION"], ["IEG-11", "POSTERIOR"]]);
+    for (const [groupId, family] of updated) {
+      const estimate = parameterOf(DA, `DA-IE-${groupId.split("-")[1]}`).estimate;
+      expect(estimate?.node === "VALUE" ? estimate.value.law.family : undefined).toBe(family);
+    }
+    for (const group of IE_ANALYSIS.initiatingEventGroups.filter((candidate) => !updated.has(candidate.uuid))) {
       const parameter = parameterOf(DA, `DA-IE-${group.uuid.split("-")[1]}`);
       const estimate = await settledWithPraxis(() => frequencyEstimate(DA, parameter));
       expect(estimate.problem).toBeUndefined();

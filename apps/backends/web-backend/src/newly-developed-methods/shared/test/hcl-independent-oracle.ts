@@ -279,7 +279,7 @@ export class WorkbookOracle {
       const quantification = (this.mef(ref.workbookId) as unknown as HumanReliabilityAnalysis).hepQuantifications.find(
         (row) => row.uuid === ref.quantificationId && row.hfeId === ref.entityId,
       )!;
-      value = quantification.meanHep ?? quantification.pointEstimateHep;
+      value = quantification.hep === undefined ? undefined : this.pointOf(quantification.hep);
     }
     assert.ok(typeof value === "number" && value >= 0 && value <= 1, "Invalid oracle event probability");
     return value;

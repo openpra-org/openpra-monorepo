@@ -12,13 +12,18 @@ import type {
   DaEvidenceUnit,
   DaFailureRecord,
   DaHourCount,
+  DaPopulationHyperprior,
   DaPriorForm,
+  DaPriorPart,
   DaRecordJudgment,
   DaRecordSet,
   DaSourceEntry,
+  DaSourceUse,
+  DaTrendBasis,
+  DaTrendBin,
   FailureEventClassification,
 } from "interfaces-mef-types/da/data-analysis";
-import type { BaseLaw, EvidenceTerm, Law, TruncatedLaw } from "interfaces-mef-types/core/uncertainty";
+import { probabilityEvidence, type BaseLaw, type DiscreteOutcome, type EvidenceTerm, type Law, type TruncatedLaw } from "interfaces-mef-types/core/uncertainty";
 import type { UncertaintyLawSummary } from "interfaces-shared-types/newly-developed-methods/shared";
 import { LawEditor } from "../newly-developed-methods/shared/uncertainEditor";
 import { useUncertaintyVersion, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
@@ -39,6 +44,7 @@ import {
   failureFindings,
   failureParameters,
   hyperpriorOf,
+  linkedTestInterval,
   methodOf,
   parameterEstimate,
   priorSummary,
@@ -49,7 +55,8 @@ import {
   type DaFailureEstimate,
   type DaScale,
 } from "./daFailures";
-import { libraryEntries, nextCode, parseDelimited, withStoredEntry } from "./daSourcing";
+import { libraryEntries, nextCode, parseDelimited, weightedUses, withStoredEntry } from "./daSourcing";
+import { countedRecords, decimalYear, recordCount, termsFailures } from "./daEvidenceChecks";
 import { modelSpecOf } from "./daSelectors";
 import { useDaWorkbook } from "./daWorkbookContext";
 import {
@@ -67,6 +74,7 @@ import {
 } from "./daViewData";
 import { AreaRow, EstimateRows, LinesRow, NEED_PAGE, NeedChecksTable, NeedPager, PraxisValue, estimateText, listCell, numberFrom, praxisText, spreadFields, statText, waitNote, type DaDrawerContext } from "./daScreens";
 import { EstimatePicker, NumberInput, TextRow, YearsRow, entrySearchText, useBuiltInEntries, waitingSources, yearsText, type EstimateChoice } from "./daSourcesScreen";
+import { useText } from "./daUnavailabilityScreen";
 
 type FailuresTab = "priors" | "evidence" | "records" | "exposure" | "estimates" | "checks";
 
@@ -136,20 +144,26 @@ function worthText(estimate: DaFailureEstimate): string {
 
 function exposureText(estimate: DaFailureEstimate): string {
   if (estimate.terms.length === 0) return "—";
-  const total = estimate.terms.reduce((sum, term) => sum + term.exposure, 0);
-  if (estimate.scale === "RATE") return `${plainCount(total)} h`;
-  return estimate.terms.every((term) => term.likelihood === "BINOMIAL") ? `${plainCount(total)} demands` : `${plainCount(total)} demand-equivalents`;
+  const tests = estimate.terms.filter((term) => term.likelihood === "STANDBY_DEMAND");
+  const counts = estimate.terms.filter((term) => term.likelihood !== "STANDBY_DEMAND");
+  const parts: string[] = [];
+  if (counts.length > 0) {
+    const total = counts.reduce((sum, term) => sum + term.exposure, 0);
+    if (estimate.scale === "RATE") parts.push(`${plainCount(total)} h`);
+    else parts.push(counts.every(probabilityEvidence) ? `${plainCount(total)} demands` : `${plainCount(total)} demand-equivalents`);
+  }
+  if (tests.length > 0) parts.push(`${plainCount(tests.reduce((sum, term) => sum + term.exposure, 0))} test demands`);
+  return parts.join(" and ");
 }
 
 function failuresText(estimate: DaFailureEstimate): string {
-  return estimate.terms.length === 0 ? "—" : String(estimate.terms.reduce((sum, term) => sum + term.failures, 0));
+  return estimate.terms.length === 0 ? "—" : String(Number(termsFailures(estimate.terms).toPrecision(3)));
 }
 
 function rateText(estimate: DaFailureEstimate): string {
-  if (estimate.terms.length === 0) return "—";
-  const failures = estimate.terms.reduce((sum, term) => sum + term.failures, 0);
+  if (estimate.terms.length === 0 || estimate.terms.some((term) => term.likelihood === "STANDBY_DEMAND")) return "—";
   const exposure = estimate.terms.reduce((sum, term) => sum + term.exposure, 0);
-  return exposure > 0 ? statText(failures / exposure) : "—";
+  return exposure > 0 ? statText(termsFailures(estimate.terms) / exposure) : "—";
 }
 
 function ratioText(estimate: DaFailureEstimate): string {
@@ -267,9 +281,11 @@ function calculatedSeries(estimate: DaFailureEstimate): { series: DistributionSe
   add("ESTIMATE", "Estimate", estimate.computation === undefined ? "" : COMPUTATION_LABELS[estimate.computation], estimateSummary(estimate));
   const scale = estimate.scale;
   const unit = estimate.lawUnit;
-  if (estimate.method !== "POPULATION" && estimate.terms.length > 0) add("PRIOR", "Prior used", PRIOR_FORM_LABELS[estimate.form], priorSummary(estimate));
+  const pooled = estimate.method === "POPULATION" || estimate.method === "EMPIRICAL_BAYES";
+  if (estimate.method === "TREND") return { series, states };
+  if (!pooled && estimate.terms.length > 0) add("PRIOR", "Prior used", PRIOR_FORM_LABELS[estimate.form], priorSummary(estimate));
   if (scale === undefined || unit === undefined) return { series, states };
-  if (estimate.method === "POPULATION") {
+  if (pooled) {
     for (const item of estimate.evidence.filter((entry) => entry.evidence.included)) {
       const law = item.term === undefined ? undefined : evidenceAloneLaw([item.term], scale);
       if (law !== undefined) add(item.evidence.id, item.label, "evidence alone", lawSummary(unit, law, true));
@@ -313,6 +329,8 @@ function EstimateDetail({ parameter }: { parameter: DataAnalysisParameter }): JS
   const lead = typed ? "" : [
     estimate.missionTime !== undefined ? "The curves show the failure rate per hour. The estimate is the probability over the mission of the mapped basic events from that rate." : "",
     estimate.computation === "POPULATION" ? "Each evidence set is one member of a lognormal population. Its log-mean and log-spread take the priors in the estimate window. The estimate is the predictive distribution for a new member, or the posterior of the chosen set." : "",
+    estimate.computation === "EMPIRICAL_BAYES" ? "Each evidence set is one member. PRAXIS fits a gamma or beta population to all members by maximum marginal likelihood. The estimate is that population, or the posterior of the chosen set under it." : "",
+    estimate.computation === "TREND" ? `The rate follows a loglinear trend over ${estimate.trendBins?.length ?? 0} yearly rows with flat priors. The estimate is the rate in the chosen year.` : "",
   ].filter((part) => part.length > 0).join(" ");
   return (
     <>
@@ -434,7 +452,7 @@ function EstimatesTable({ selected, onSelect, openDrawer }: { selected: string; 
     const method = methodOf(parameter);
     if (filters.show === "open") return method === undefined || parameterEstimate(da, parameter).problem !== undefined;
     if (filters.show === "typed") return method === "TYPED";
-    if (filters.show === "updated") return method === "BAYES" || method === "POPULATION";
+    if (filters.show === "updated") return method === "BAYES" || method === "POPULATION" || method === "EMPIRICAL_BAYES" || method === "TREND";
     return true;
   });
   const { current, shown } = pageOf(rows, filters.page);
@@ -841,6 +859,7 @@ function PriorWindow({ id, onClose, onRetarget }: { id: string; onClose: () => v
         {(form !== "AS_PUBLISHED" || (parameter.priorFormReason ?? "").length > 0) && (
           <AreaRow label="Why this form" value={parameter.priorFormReason ?? ""} disabled={dis} onChange={(text) => patch({ priorFormReason: text.trim().length === 0 ? undefined : text })} />
         )}
+        <PriorSourcesRow uses={parameter.sourceUses ?? []} primaryId={parameter.priorUseId} parts={parameter.priorParts} disabled={dis} onChange={(priorUseId, priorParts) => patch({ priorUseId, priorParts })} />
       </div>
       <FormFoot onClose={onClose}>
         <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onRetarget({ kind: "daSourcing", id })}>Open applicability</button>
@@ -856,6 +875,87 @@ function countChoices(da: DataAnalysis, builtIn: ReadonlyMap<string, DaSourceEnt
     detail: `${entry.failures ?? 0} in ${sciText(entry.exposure ?? 0)} ${EXPOSURE_LABELS[entry.quantity]}`,
     search: `${source.id} ${source.name} ${entrySearchText(entry)}`.toLowerCase(),
   })));
+}
+
+function OutcomesRows({ outcomes, noun, disabled, onChange }: { outcomes: DiscreteOutcome[]; noun: string; disabled: boolean; onChange: (next: DiscreteOutcome[]) => void }): JSX.Element {
+  function patchAt(index: number, next: Partial<DiscreteOutcome>): void {
+    onChange(outcomes.map((outcome, at) => (at === index ? { ...outcome, ...next } : outcome)));
+  }
+  return (
+    <>
+      {outcomes.map((outcome, index) => (
+        <FormRow key={index} label={`Possible count ${index + 1}`}>
+          <NumberInput label={`Possible count ${index + 1}`} value={outcome.value} disabled={disabled} onChange={(value) => patchAt(index, { value: value ?? 0 })} />
+          <span className="da-form__unit">{noun} with weight</span>
+          <NumberInput label={`Weight of count ${index + 1}`} value={outcome.weight} disabled={disabled} onChange={(weight) => patchAt(index, { weight: weight ?? 0 })} />
+          {!disabled && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onChange(outcomes.filter((_, at) => at !== index))}>Remove</button>}
+        </FormRow>
+      ))}
+      {outcomes.length === 0 && <p className="posmuted">No possible count yet. Add each count the evidence could hold, with its weight.</p>}
+      {!disabled && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onChange([...outcomes, { value: outcomes.length, weight: 1 }])}>Add a possible count</button>}
+    </>
+  );
+}
+
+function FailuresFromSelect({ id, evidence, disabled, onPatch }: { id: string; evidence: DaEvidence; disabled: boolean; onPatch: (next: Partial<DaEvidence>) => void }): JSX.Element {
+  function choose(value: string): void {
+    const next: DaEvidence["failuresFrom"] = value === "ENTRY" ? "ENTRY" : value === "RECORDS" ? "RECORDS" : value === "UNCERTAIN" ? "UNCERTAIN" : "TYPED";
+    onPatch({ failuresFrom: next, failureOutcomes: next === "UNCERTAIN" ? evidence.failureOutcomes ?? [{ value: evidence.failures ?? 0, weight: 1 }] : evidence.failureOutcomes });
+  }
+  return (
+    <select id={id} className="posfield__select" value={evidence.failuresFrom} disabled={disabled} onChange={(event) => choose(event.target.value)}>
+      <option value="TYPED">Typed</option>
+      <option value="UNCERTAIN">Several possible counts</option>
+      <option value="ENTRY">A library estimate</option>
+      <option value="RECORDS">Judged records</option>
+    </select>
+  );
+}
+
+function PriorSourcesRow({ uses, primaryId, parts, disabled, onChange }: { uses: DaSourceUse[]; primaryId: string | undefined; parts: DaPriorPart[] | undefined; disabled: boolean; onChange: (primaryId: string | undefined, parts: DaPriorPart[] | undefined) => void }): JSX.Element {
+  const { da } = useDaWorkbook();
+  const open = uses.filter((use) => use.verdict !== "REJECTED");
+  const current = weightedUses(uses, primaryId, parts).map((part) => ({ useId: part.use.id, weight: part.weight }));
+  function emit(next: DaPriorPart[]): void {
+    onChange(next[0]?.useId, next.length >= 2 ? next : undefined);
+  }
+  function toggle(useId: string, on: boolean): void {
+    emit(on ? [...current, { useId, weight: 1 }] : current.filter((part) => part.useId !== useId));
+  }
+  function weigh(useId: string, weight: number | undefined): void {
+    if (weight === undefined || !(weight > 0)) return;
+    emit(current.map((part) => (part.useId === useId ? { ...part, weight } : part)));
+  }
+  return (
+    <FormRow label="Prior sources" top>
+      <div className="da-form__checks">
+        {open.length === 0 && <span className="posmuted">Consider sources in Step 04 Applicability first.</span>}
+        {open.map((use) => {
+          const part = current.find((candidate) => candidate.useId === use.id);
+          return (
+            <label key={use.id} className="da-form__check">
+              <input type="checkbox" checked={part !== undefined} disabled={disabled} onChange={(event) => toggle(use.id, event.target.checked)} />
+              <span>{useText(da, use)}</span>
+              {part !== undefined && current.length >= 2 && <NumberInput label={`Weight of ${use.id}`} value={part.weight} disabled={disabled} onChange={(weight) => weigh(use.id, weight)} />}
+            </label>
+          );
+        })}
+        {current.length >= 2 && <span className="da-form__unit">The prior is a mixture of these sources by weight.</span>}
+      </div>
+    </FormRow>
+  );
+}
+
+function TargetRow({ method, evidence, value, disabled, onChange }: { method: "POPULATION" | "EMPIRICAL_BAYES"; evidence: DaEvidence[]; value: string | undefined; disabled: boolean; onChange: (value: string | undefined) => void }): JSX.Element {
+  const id = useId();
+  return (
+    <FormRow label="Estimate for" htmlFor={id}>
+      <select id={id} className="posfield__select" value={value ?? ""} disabled={disabled} onChange={(event) => onChange(event.target.value.length === 0 ? undefined : event.target.value)}>
+        <option value="">{method === "POPULATION" ? "A new member of the population" : "The fitted population"}</option>
+        {evidence.map((item) => <option key={item.id} value={item.id}>{item.id}{item.label !== undefined ? ` · ${item.label}` : ""}</option>)}
+      </select>
+    </FormRow>
+  );
 }
 
 function EvidenceBlock({ parameter, evidence, scale, unit, disabled, choices, sets, onPatch, onPick, onRemove }: {
@@ -876,6 +976,9 @@ function EvidenceBlock({ parameter, evidence, scale, unit, disabled, choices, se
   const needsEntry = evidence.failuresFrom === "ENTRY" || evidence.exposureFrom === "ENTRY";
   const needsPerDemand = (scale === "PROBABILITY" && (unit === "HOURS" || unit === "YEARS")) || evidence.hoursPerDemand !== undefined;
   const needsPerYear = unit === "YEARS" || evidence.hoursPerYear !== undefined;
+  const testDemands = parameter.quantificationModel === "STANDBY_RATE" && unit === "DEMANDS";
+  const { da } = useDaWorkbook();
+  const linkedInterval = testDemands ? linkedTestInterval(da, parameter) : undefined;
   const key = evidence.sourceId !== undefined && evidence.entryId !== undefined ? `${evidence.sourceId}|${evidence.entryId}` : "";
   return (
     <fieldset className="da-use">
@@ -887,13 +990,10 @@ function EvidenceBlock({ parameter, evidence, scale, unit, disabled, choices, se
         </select>
       </FormRow>
       <FormRow label="Failures from" htmlFor={fid("failures-from")}>
-        <select id={fid("failures-from")} className="posfield__select" value={evidence.failuresFrom} disabled={disabled} onChange={(event) => onPatch({ failuresFrom: event.target.value === "ENTRY" ? "ENTRY" : event.target.value === "RECORDS" ? "RECORDS" : "TYPED" })}>
-          <option value="TYPED">Typed</option>
-          <option value="ENTRY">A library estimate</option>
-          <option value="RECORDS">Judged records</option>
-        </select>
+        <FailuresFromSelect id={fid("failures-from")} evidence={evidence} disabled={disabled} onPatch={onPatch} />
         {evidence.failuresFrom === "TYPED" && <><NumberInput label="Failures" value={evidence.failures} disabled={disabled} onChange={(failures) => onPatch({ failures })} /><span className="da-form__unit">failures</span></>}
       </FormRow>
+      {evidence.failuresFrom === "UNCERTAIN" && <OutcomesRows outcomes={evidence.failureOutcomes ?? []} noun="failures" disabled={disabled} onChange={(failureOutcomes) => onPatch({ failureOutcomes })} />}
       {evidence.failuresFrom === "RECORDS" && (
         <FormRow label="Record set" htmlFor={fid("set")}>
           <select id={fid("set")} className="posfield__select" value={evidence.recordSetId ?? ""} disabled={disabled} onChange={(event) => onPatch({ recordSetId: event.target.value.length === 0 ? undefined : event.target.value })}>
@@ -922,6 +1022,20 @@ function EvidenceBlock({ parameter, evidence, scale, unit, disabled, choices, se
         <FormRow label="Library estimate" htmlFor={fid("entry")}>
           <EstimatePicker id={fid("entry")} value={key} choices={choices} disabled={disabled} onChoose={(value) => { const [sourceId, entryId] = value.split("|"); if (sourceId !== undefined && entryId !== undefined) onPick(sourceId, entryId); }} />
         </FormRow>
+      )}
+      {testDemands && (
+        <>
+          <FormRow label="Test interval" htmlFor={fid("interval")}>
+            <WorkbookInput id={fid("interval")} className="posfield__input da-form__number" type="number" min="0" step="any" value={evidence.testIntervalHours ?? ""} placeholder={linkedInterval === undefined ? undefined : String(linkedInterval)} disabled={disabled} onChange={(event) => numberFrom(event.target.value, (testIntervalHours) => onPatch({ testIntervalHours }))} />
+            <span className="da-form__unit">{linkedInterval === undefined ? "hours between tests" : `hours, ${linkedInterval} from the basic events unless typed`}</span>
+          </FormRow>
+          <FormRow label="Demands are" htmlFor={fid("demand-kind")}>
+            <select id={fid("demand-kind")} className="posfield__select" value={evidence.standbyDemand ?? "TEST"} disabled={disabled} onChange={(event) => onPatch({ standbyDemand: event.target.value === "RANDOM" ? "RANDOM" : "TEST" })}>
+              <option value="TEST">Tests at the end of each interval</option>
+              <option value="RANDOM">Real demands at random times</option>
+            </select>
+          </FormRow>
+        </>
       )}
       {needsPerDemand && (
         <FormRow label="Hours per demand" htmlFor={fid("per-demand")}>
@@ -973,7 +1087,8 @@ function EvidenceWindow({ id, onClose, onRetarget }: { id: string; onClose: () =
   function add(): void {
     const evidenceId = nextCode("EV", evidence.map((item) => item.id), 1);
     const operating = da.plantStage === "OPERATIONAL";
-    setEvidence([...evidence, { id: evidenceId, origin: operating ? "PLANT_RECORDS" : "TECHNOLOGY", failuresFrom: "TYPED", exposureFrom: "TYPED", unit: parameter?.quantificationModel === "DEMAND_PROBABILITY" || parameter?.quantificationModel === "OTHER_PROBABILITY" ? "DEMANDS" : "HOURS", boundary: "SAME", reason: "", included: true }]);
+    const model = parameter?.quantificationModel;
+    setEvidence([...evidence, { id: evidenceId, origin: operating ? "PLANT_RECORDS" : "TECHNOLOGY", failuresFrom: "TYPED", exposureFrom: "TYPED", unit: model === "DEMAND_PROBABILITY" || model === "OTHER_PROBABILITY" || model === "HUMAN_ERROR" ? "DEMANDS" : "HOURS", boundary: "SAME", reason: "", included: true }]);
   }
   function pick(evidenceId: string, sourceId: string, entryId: string): void {
     if (!editable) return;
@@ -1016,25 +1131,109 @@ function EvidenceWindow({ id, onClose, onRetarget }: { id: string; onClose: () =
 }
 
 function hyperLaw(law: Law): BaseLaw | TruncatedLaw | undefined {
-  return law.family === "MIXTURE" || law.family === "POSTERIOR" || law.family === "POPULATION" ? undefined : law;
+  switch (law.family) {
+    case "MIXTURE":
+    case "PRODUCT":
+    case "POSTERIOR":
+    case "POPULATION":
+    case "EMPIRICAL_BAYES":
+    case "DURATION":
+    case "TREND":
+      return undefined;
+    default:
+      return law;
+  }
 }
 
-function HyperpriorRows({ parameter, terms, disabled, onPatch }: { parameter: DataAnalysisParameter; terms: readonly EvidenceTerm[]; disabled: boolean; onPatch: (next: Partial<DataAnalysisParameter>) => void }): JSX.Element | null {
+function HyperpriorRows({ value, terms, disabled, onChange }: { value: DaPopulationHyperprior | undefined; terms: readonly EvidenceTerm[]; disabled: boolean; onChange: (next: DaPopulationHyperprior | undefined) => void }): JSX.Element | null {
   if (terms.length === 0) return null;
-  const hyper = hyperpriorOf(parameter, terms);
+  const hyper = hyperpriorOf({ populationHyperprior: value }, terms);
   return (
     <>
       <FormRow label="Log-mean prior" top>
-        <LawEditor law={hyper.mu} unit="FACTOR" wrappers={["TRUNCATED"]} disabled={disabled} onChange={(law) => { const mu = hyperLaw(law); if (mu !== undefined) onPatch({ populationHyperprior: { ...hyper, mu } }); }} />
+        <LawEditor law={hyper.mu} unit="FACTOR" wrappers={["TRUNCATED"]} disabled={disabled} onChange={(law) => { const mu = hyperLaw(law); if (mu !== undefined) onChange({ ...hyper, mu }); }} />
       </FormRow>
       <FormRow label="Log-spread prior" top>
-        <LawEditor law={hyper.sigma} unit="FACTOR" wrappers={["TRUNCATED"]} disabled={disabled} onChange={(law) => { const sigma = hyperLaw(law); if (sigma !== undefined) onPatch({ populationHyperprior: { ...hyper, sigma } }); }} />
+        <LawEditor law={hyper.sigma} unit="FACTOR" wrappers={["TRUNCATED"]} disabled={disabled} onChange={(law) => { const sigma = hyperLaw(law); if (sigma !== undefined) onChange({ ...hyper, sigma }); }} />
       </FormRow>
-      {parameter.populationHyperprior === undefined ? (
+      {value === undefined ? (
         <p className="posmuted">These are the default flat priors. The log-mean is uniform from {MU_REACH} below the lowest set's log-rate to {MU_REACH} above the highest. The log-spread is uniform from {SIGMA_LOW} to {SIGMA_HIGH}.</p>
       ) : !disabled && (
-        <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onPatch({ populationHyperprior: undefined })}>Use the default priors</button>
+        <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onChange(undefined)}>Use the default priors</button>
       )}
+    </>
+  );
+}
+
+function recordYears(da: DataAnalysis, parameter: DataAnalysisParameter, setId: string | undefined): Map<number, number> {
+  const counted = new Map<number, number>();
+  const set = (da.recordSets ?? []).find((candidate) => candidate.id === setId);
+  for (const record of countedRecords(set, parameter.uuid)) {
+    const at = decimalYear(record.date);
+    if (at !== undefined) counted.set(Math.floor(at), (counted.get(Math.floor(at)) ?? 0) + recordCount([record]).failures);
+  }
+  return counted;
+}
+
+function TrendRows({ parameter, disabled, onPatch }: { parameter: DataAnalysisParameter; disabled: boolean; onPatch: (next: Partial<DataAnalysisParameter>) => void }): JSX.Element {
+  const { da } = useDaWorkbook();
+  const fieldId = useId();
+  const basis: DaTrendBasis = parameter.trend ?? { failuresFrom: "TYPED", bins: [] };
+  const records = basis.failuresFrom === "RECORDS";
+  const counted = records ? recordYears(da, parameter, basis.recordSetId) : new Map<number, number>();
+  function set(next: Partial<DaTrendBasis>): void {
+    onPatch({ trend: { ...basis, ...next } });
+  }
+  function patchBin(index: number, next: Partial<DaTrendBin>): void {
+    set({ bins: basis.bins.map((bin, at) => (at === index ? { ...bin, ...next } : bin)) });
+  }
+  function addYear(): void {
+    const last = basis.bins[basis.bins.length - 1];
+    const start = decimalYear(da.dataPlan?.dataWindowStart);
+    const year = last === undefined ? (start === undefined ? new Date().getFullYear() : Math.floor(start)) : last.year + 1;
+    set({ bins: [...basis.bins, { year, exposure: last?.exposure ?? 0 }] });
+  }
+  function addRecordYears(): void {
+    const have = new Set(basis.bins.map((bin) => bin.year));
+    const missing = [...counted.keys()].filter((year) => !have.has(year));
+    set({ bins: [...basis.bins, ...missing.map((year) => ({ year, exposure: 0 }))].sort((a, b) => a.year - b.year) });
+  }
+  return (
+    <>
+      <FormRow label="Failures from" htmlFor={`${fieldId}-from`}>
+        <select id={`${fieldId}-from`} className="posfield__select" value={basis.failuresFrom} disabled={disabled} onChange={(event) => set({ failuresFrom: event.target.value === "RECORDS" ? "RECORDS" : "TYPED" })}>
+          <option value="TYPED">Typed for each year</option>
+          <option value="RECORDS">Judged records by year</option>
+        </select>
+      </FormRow>
+      {records && (
+        <FormRow label="Record set" htmlFor={`${fieldId}-set`}>
+          <select id={`${fieldId}-set`} className="posfield__select" value={basis.recordSetId ?? ""} disabled={disabled} onChange={(event) => set({ recordSetId: event.target.value.length === 0 ? undefined : event.target.value })}>
+            <option value="">Not chosen</option>
+            {(da.recordSets ?? []).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.id} · {candidate.name}</option>)}
+          </select>
+        </FormRow>
+      )}
+      {basis.bins.map((bin, index) => (
+        <FormRow key={index} label={`Year ${index + 1}`}>
+          <NumberInput label={`Year ${index + 1}`} value={bin.year} disabled={disabled} onChange={(year) => { if (year !== undefined) patchBin(index, { year }); }} />
+          {records ? <span className="da-form__unit">{counted.get(bin.year) ?? 0} counted failures in</span> : (
+            <>
+              <NumberInput label={`Failures in year ${index + 1}`} value={bin.failures} disabled={disabled} onChange={(failures) => patchBin(index, { failures })} />
+              <span className="da-form__unit">failures in</span>
+            </>
+          )}
+          <NumberInput label={`Hours in year ${index + 1}`} value={bin.exposure} disabled={disabled} onChange={(exposure) => patchBin(index, { exposure: exposure ?? 0 })} />
+          <span className="da-form__unit">h</span>
+          {!disabled && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => set({ bins: basis.bins.filter((_, at) => at !== index) })}>Remove</button>}
+        </FormRow>
+      ))}
+      {basis.bins.length === 0 && <p className="posmuted">No year yet. Add each year with its failures and hours of exposure.</p>}
+      {!disabled && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addYear}>Add a year</button>}
+      {!disabled && records && counted.size > 0 && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addRecordYears}>Add the years of the counted records</button>}
+      <FormRow label="Estimate for year" htmlFor={`${fieldId}-at`}>
+        <WorkbookInput id={`${fieldId}-at`} className="posfield__input da-form__number" type="number" step="any" value={basis.at ?? ""} disabled={disabled} onChange={(event) => numberFrom(event.target.value, (at) => set({ at }))} />
+      </FormRow>
     </>
   );
 }
@@ -1053,7 +1252,7 @@ function EstimateWindow({ id, onClose, onRetarget }: { id: string; onClose: () =
   }
   function setMethod(value: string): void {
     if (value === "TYPED") patch({ valueMode: "TYPED", estimateMethod: undefined });
-    else if (value === "PRIOR" || value === "BAYES" || value === "POPULATION") patch({ valueMode: "CALCULATED", estimateMethod: value });
+    else if (value === "PRIOR" || value === "BAYES" || value === "POPULATION" || value === "EMPIRICAL_BAYES" || value === "TREND") patch({ valueMode: "CALCULATED", estimateMethod: value });
   }
   return (
     <>
@@ -1065,18 +1264,14 @@ function EstimateWindow({ id, onClose, onRetarget }: { id: string; onClose: () =
             <option value="PRIOR">{ESTIMATE_METHOD_LABELS.PRIOR}</option>
             <option value="BAYES">{ESTIMATE_METHOD_LABELS.BAYES}</option>
             <option value="POPULATION">{ESTIMATE_METHOD_LABELS.POPULATION}</option>
+            <option value="EMPIRICAL_BAYES">{ESTIMATE_METHOD_LABELS.EMPIRICAL_BAYES}</option>
+            <option value="TREND">{ESTIMATE_METHOD_LABELS.TREND}</option>
             <option value="TYPED">{ESTIMATE_METHOD_LABELS.TYPED}</option>
           </select>
         </FormRow>
-        {method === "POPULATION" && (
-          <FormRow label="Estimate for" htmlFor={fid("target")}>
-            <select id={fid("target")} className="posfield__select" value={parameter.populationTargetId ?? ""} disabled={dis} onChange={(event) => patch({ populationTargetId: event.target.value.length === 0 ? undefined : event.target.value })}>
-              <option value="">A new member of the population</option>
-              {included.map((item) => <option key={item.id} value={item.id}>{item.id}{item.label !== undefined ? ` · ${item.label}` : ""}</option>)}
-            </select>
-          </FormRow>
-        )}
-        {method === "POPULATION" && <HyperpriorRows parameter={parameter} terms={parameterEstimate(da, parameter).terms} disabled={dis} onPatch={patch} />}
+        {(method === "POPULATION" || method === "EMPIRICAL_BAYES") && <TargetRow method={method} evidence={included} value={parameter.populationTargetId} disabled={dis} onChange={(populationTargetId) => patch({ populationTargetId })} />}
+        {method === "POPULATION" && <HyperpriorRows value={parameter.populationHyperprior} terms={parameterEstimate(da, parameter).terms} disabled={dis} onChange={(populationHyperprior) => patch({ populationHyperprior })} />}
+        {method === "TREND" && <TrendRows parameter={parameter} disabled={dis} onPatch={patch} />}
         {method === "TYPED" && <EstimateRows parameter={parameter} disabled={dis} onPatch={patch} />}
         <FormRow label="Risk significant" htmlFor={fid("risk")}>
           <select id={fid("risk")} className="posfield__select" value={parameter.isRiskSignificant === true ? "yes" : "no"} disabled={dis} onChange={(event) => patch({ isRiskSignificant: event.target.value === "yes" })}>
@@ -1178,6 +1373,15 @@ function RecordWindow({ id, onClose }: { id: string; onClose: () => void }): JSX
             </select>
           </FormRow>
         )}
+        {record.judgment === "FAILURE" && (
+          <FormRow label="Count" htmlFor={fid("count")}>
+            <select id={fid("count")} className="posfield__select" value={record.countOutcomes === undefined ? "ONE" : "SEVERAL"} disabled={dis} onChange={(event) => patch({ countOutcomes: event.target.value === "SEVERAL" ? [{ value: 0, weight: 1 }, { value: 1, weight: 1 }] : undefined })}>
+              <option value="ONE">One failure</option>
+              <option value="SEVERAL">Several possible counts</option>
+            </select>
+          </FormRow>
+        )}
+        {record.judgment === "FAILURE" && record.countOutcomes !== undefined && <OutcomesRows outcomes={record.countOutcomes} noun="failures" disabled={dis} onChange={(countOutcomes) => patch({ countOutcomes })} />}
         {record.judgment === "REPEAT" && (
           <FormRow label="Repeat of" htmlFor={fid("repeat")}>
             <select id={fid("repeat")} className="posfield__select" value={record.repeatOf ?? ""} disabled={dis} onChange={(event) => patch({ repeatOf: event.target.value.length === 0 ? undefined : event.target.value })}>
@@ -1524,4 +1728,4 @@ function FailureWindows({ context, onClose, onRetarget }: { context: DaDrawerCon
   }
 }
 
-export { FAILURE_WIDE_KINDS, FAILURE_WINDOW_KINDS, FailureWindows, FailuresScreen };
+export { FAILURE_WIDE_KINDS, FAILURE_WINDOW_KINDS, FailureWindows, FailuresFromSelect, FailuresScreen, HyperpriorRows, OutcomesRows, PriorSourcesRow, TargetRow };

@@ -231,7 +231,7 @@ export class EsqWorkbooksService {
         createWorkbookRevisionFilter(workbookId, expectedRevision),
         {
           $set: {
-            previousMefJson: stringifyJson(doc.mef),
+            previousMefJson: stringifyJson(normalizeEsqMef(doc.mef)),
             mef: cleaned,
             revision: expectedRevision + 1,
           },

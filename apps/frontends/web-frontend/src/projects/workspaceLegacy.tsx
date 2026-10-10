@@ -24,6 +24,8 @@ function WorkspaceLegacy({
   onShare,
   onToggleArchive,
   onDelete,
+  onGenerateExamples,
+  generation,
 }: {
   project: Project;
   onBack: () => void;
@@ -37,6 +39,8 @@ function WorkspaceLegacy({
   onShare: () => void;
   onToggleArchive: () => void;
   onDelete: () => void;
+  onGenerateExamples?: () => void;
+  generation: number;
 }): JSX.Element {
   const elements = useMemo(() => elementsForMode(project.mode), [project.mode]);
   const readOnly = project.myRole === "viewer";
@@ -90,6 +94,9 @@ function WorkspaceLegacy({
               </div>
             </div>
             <div className="phead__actions">
+              {onGenerateExamples !== undefined && (
+                <button type="button" className="wfilters__gen" onClick={onGenerateExamples}>Generate example</button>
+              )}
               <button type="button" className="btn btn--ghost btn--sm phead__history-btn" onClick={onOpenHistory}>
                 <ClockIcon /> History
               </button>
@@ -112,6 +119,7 @@ function WorkspaceLegacy({
 
         {active !== null ? (
           <LegacyElementPane
+            key={`${active.code}:${String(generation)}`}
             projectId={project.id}
             element={active}
             readOnly={readOnly}

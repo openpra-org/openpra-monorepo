@@ -618,17 +618,20 @@
 .lgl__nav {
   flex: 1;
   overflow-y: auto;
-  padding: 6px 8px 24px;
+  padding: 10px 8px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 .lgl__elhead {
   display: grid;
-  grid-template-columns: 28px 1fr;
-  align-items: start;
-  gap: 8px;
+  grid-template-columns: 44px 1fr;
+  align-items: center;
+  gap: 12px;
   width: 100%;
   background: none;
   border: none;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: 8px;
   font-family: inherit;
   font-size: 13px;
@@ -637,7 +640,6 @@
   cursor: pointer;
   text-align: left;
   position: relative;
-  margin: 1px 0;
 }
 .lgl__elhead:hover {
   background: var(--color-surface-low);
@@ -656,7 +658,6 @@
   background: var(--color-primary);
 }
 .lgl__elhead-code {
-  margin-top: 1px;
   font-family: var(--font-data), monospace;
   font-size: 10.5px;
   font-weight: 700;

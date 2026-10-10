@@ -697,6 +697,11 @@ function resultsComplete(esq: EventSequenceQuantification, ri?: RiskIntegration,
   return view !== undefined && view.run !== undefined && !view.findings.some((finding) => finding.severity === "error");
 }
 
+function daChangedNote(used: number | null | undefined, current: number | undefined): string | undefined {
+  if (used === null || used === undefined || current === undefined || used === current) return undefined;
+  return `The DA inputs changed since this run. It used DA revision ${String(used)}. Run the model again in Step 05.`;
+}
+
 export {
   CONSISTENCY_LABELS,
   CONSISTENCY_SRS,
@@ -710,6 +715,7 @@ export {
   cutSetListRequest,
   cutSetRows,
   cutSetRunIdOf,
+  daChangedNote,
   familyValues,
   fourDigits,
   importanceProblem,

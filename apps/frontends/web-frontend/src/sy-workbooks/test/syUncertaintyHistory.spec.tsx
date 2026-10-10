@@ -41,6 +41,8 @@ jest.mock("../syWorkbookContext", () => ({
     mutateSy: jest.fn(),
     shortOf: () => "CLG",
     controlledParameters: [],
+    controlledCcfVectors: [],
+    controlledCcfFactors: [],
     links: null,
     runtime: { workbookId: "sy-1", projectId: "project-1", revision: 4, saveStatus: "saved" },
   }),

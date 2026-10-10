@@ -635,7 +635,7 @@ mod tests {
             "Pumps",
             vec!["A".into(), "B".into()],
             CcfModel::BetaFactor(Expr::Constant(0.1)),
-            Expr::uniform(0.01, 0.2),
+            Some(Expr::uniform(0.01, 0.2)),
         )
         .unwrap();
         ft.add_ccf_group(group).unwrap();

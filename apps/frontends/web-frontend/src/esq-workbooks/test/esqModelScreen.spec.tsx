@@ -71,7 +71,13 @@ describe("ESQ Step 02 model screen", () => {
     render(<Harness initial={esq} window={{ kind: "esqFunction", id: "RT" }} openWindow={jest.fn()} />);
     fireEvent.change(screen.getByLabelText("Linked to"), { target: { value: "split" } });
     const from = screen.getByLabelText("Value from");
-    expect([...from.querySelectorAll("option")].map((option) => option.textContent)).toEqual(["Typed in ESQ", "Step 04 · BC-1 · F-REL · 0.99", "DA · P-SF · 1E-2"]);
+    expect([...from.querySelectorAll("option")].map((option) => option.textContent)).toEqual([
+      "Typed in ESQ",
+      "Step 04 · BC-1 · F-REL · 0.99",
+      "DA · P-1 · Lognormal (mean 2.00E-3, EF 5) at most 1",
+      "DA · P-PT · 1.00E-4",
+      "DA · P-SF · Lognormal (mean 1.00E-2, EF 3) at most 1",
+    ]);
     fireEvent.change(from, { target: { value: "cell:BC-1" } });
     expect(screen.getByLabelText("Value from")).toHaveValue("cell:BC-1");
     expect(screen.queryByLabelText("Mean")).not.toBeInTheDocument();
@@ -109,10 +115,10 @@ describe("ESQ Step 02 model screen", () => {
     const options = [...screen.getByLabelText("Value from").querySelectorAll("option")].map((option) => option.textContent);
     expect(options).toEqual([
       "As SY gives it · DA · P-1 · P-1",
-      "DA · P-1 · Lognormal (mean 2.00E-3, EF 5) cut to [−∞, 1]",
+      "DA · P-1 · Lognormal (mean 2.00E-3, EF 5) at most 1",
       "DA · P-PT · 1.00E-4",
       "DA · P-FR · Lognormal (mean 2.00E-5, EF 3)",
-      "HR · HFE-1 · 1E-3",
+      "HR · HFE-1 · 1.00E-3",
     ]);
     expect(screen.getByText("P-1 · 2E-3")).toBeInTheDocument();
   });

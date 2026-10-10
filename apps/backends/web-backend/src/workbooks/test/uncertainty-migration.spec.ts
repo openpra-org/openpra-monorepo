@@ -2,7 +2,6 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { execute } from "praxis-node";
 import type { Law, UncertainExpression } from "interfaces-mef-types/core/uncertainty";
-import { DA_ESTIMATE_MODELS, holdsEstimate } from "interfaces-mef-types/da/data-analysis";
 import { DA_SOURCE_CATALOG } from "interfaces-mef-types/da/generic-sources";
 import { CcfFactorModelSchema, LawSchema, UncertainExpressionSchema } from "interfaces-mef-types/zod/core/uncertainty";
 import { DaBasicEventNeedSchema, DataAnalysisParameterSchema } from "interfaces-mef-types/zod/da/data-analysis";
@@ -184,6 +183,10 @@ function frequencyOf(value: JsonRecord): JsonRecord {
   return record(field(value, "frequency"));
 }
 
+function onWorkbook(value: object, workbookId: string): JsonRecord {
+  return record(jsonRecordOf(JSON.stringify(value).split("\"example-da-htgr\"").join(JSON.stringify(workbookId))) ?? null);
+}
+
 function point(unit: string, value: number): JsonRecord {
   return { node: "VALUE", value: { unit, law: { family: "POINT", value } } };
 }
@@ -235,9 +238,12 @@ describe("uncertainty contract conversions", () => {
     syCcf,
     scMissionTimes: new Map([["sc-wb", scMissionTimeIds(scHtgr)], ["sc-sfr-wb", scMissionTimeIds(scSfr)]]),
     scProjects: new Map([[PROJECT_ID, ["sc-wb", "sc-sfr-wb"]]]),
+    daHeld: new Map(),
+    daProjects: new Map(),
+    hrErrorFactors: new Map(),
   };
   const convertSy = (mef: JsonRecord): JsonRecord => converted((scope) => convertSyMef(mef, lookups, scope, PROJECT_ID));
-  const convertEsq = (mef: JsonRecord): JsonRecord => converted((scope) => convertEsqMef(mef, lookups, scope));
+  const convertEsq = (mef: JsonRecord): JsonRecord => converted((scope) => convertEsqMef(mef, lookups, scope, PROJECT_ID));
   const syHtgr = convertSy(fixture("sy-htgr"));
   syCcf.set("sy-wb", syCcfFacts(fixture("sy-htgr"), syHtgr));
   const esqHtgrOld = { ...fixture("esq-htgr"), linkedWorkbooks: { ...record(field(fixture("esq-htgr"), "linkedWorkbooks")), DA: "da-wb", SY: "sy-wb" } };
@@ -410,7 +416,7 @@ describe("uncertainty contract conversions", () => {
     expect(field(entryOf("C-GAMMA"), "law")).toEqual({ family: "GAMMA", shape: 2, rate: 1000 });
     expect(field(entryOf("C-YEAR"), "law")).toEqual({ family: "GAMMA", shape: 2, rate: 10 });
     expect(field(entryOf("C-LOGNORMAL"), "law")).toEqual(asRecord(lognormalOf(0.0004, 5)));
-    expect([field(entryOf("C-RESTORE"), "law"), field(entryOf("C-RESTORE"), "distribution")]).toEqual([undefined, { type: "lognormal", median: 8, errorFactor: 3 }]);
+    expect([field(entryOf("C-RESTORE"), "law"), field(entryOf("C-RESTORE"), "distribution")]).toEqual([asRecord(lognormalOf(8, 3)), undefined]);
     expect(daIssue(next)).toBeUndefined();
   });
 
@@ -440,6 +446,18 @@ describe("uncertainty contract conversions", () => {
     expect(expressionOf(parameterOf("TYPED-MEAN"), "estimate")).toEqual({ node: "VALUE", value: { unit: "PER_YEAR", law: { family: "LOGNORMAL", mean: field(frequency, "value"), errorFactor: field(lognormal, "errorFactor"), level: 0.95 } } });
     expect(expressionOf(parameterOf("TYPED-MEDIAN"), "estimate")).toEqual(valued("PER_YEAR", lognormalOf(Number(field(lognormal, "median")), Number(field(lognormal, "errorFactor")))));
     expect(daIssue(next)).toBeUndefined();
+  });
+
+  it("gives human error and non-recovery parameters an estimate, even when calculated", () => {
+    const old = fixture("da-htgr");
+    const base = { name: "Test", parameterType: "PROBABILITY", valueType: "MEAN", implementsSrs: [] };
+    const recovery = { ...base, uuid: "NR-1", quantificationModel: "NON_RECOVERY", valueMode: "CALCULATED", value: 0.1, uncertainty: { distribution: { type: "beta", alpha: 1, betaParam: 9 } } };
+    const human = { ...base, uuid: "HE-1", parameterType: "HUMAN_ERROR_PROBABILITY", quantificationModel: "HUMAN_ERROR", valueMode: "TYPED", value: 0.003 };
+    const next = convertDa({ ...old, parameters: [...records(field(old, "parameters")), recovery, human] }, "da-wb");
+    const parameterOf = (id: string): JsonRecord => byId(field(next, "parameters"), "uuid", id);
+    expect(expressionOf(parameterOf("NR-1"), "estimate")).toEqual({ node: "VALUE", value: { unit: "PROBABILITY", law: { family: "BETA", alpha: 1, beta: 9, lower: 0, upper: 1 } } });
+    expect(expressionOf(parameterOf("HE-1"), "estimate")).toEqual(point("PROBABILITY", 0.003));
+    expect(["value", "valueType", "uncertainty"].map((key) => field(parameterOf("NR-1"), key))).toEqual([undefined, undefined, undefined]);
   });
 
   it("copies the estimate of a DA frequency linked from IE from its stored value", () => {
@@ -510,9 +528,13 @@ describe("uncertainty contract conversions", () => {
   });
 
   it("rebuilds DA common cause estimates as the app does and converts typed factors", () => {
-    for (const estimate of DA_ANALYSIS_HTGR.ccfParameterEstimations ?? []) {
-      expect(field(byId(field(daHtgr, "ccfParameterEstimations"), "uuid", estimate.uuid), "factors")).toEqual(asRecord(estimate.factors ?? {}));
+    for (const estimate of (DA_ANALYSIS_HTGR.ccfParameterEstimations ?? []).filter((entry) => entry.imported?.kind === "ALPHA_DIRICHLET")) {
+      const converted = byId(field(daHtgr, "ccfParameterEstimations"), "uuid", estimate.uuid);
+      expect(field(converted, "factors")).toEqual(onWorkbook(estimate.factors ?? {}, "da-wb"));
+      expect(field(converted, "imported")).toEqual(asRecord(estimate.imported ?? {}));
     }
+    const converted = new Map(records(field(daHtgr, "ccfVectors")).map((vector) => [String(field(vector, "id")), vector]));
+    for (const vector of DA_ANALYSIS_HTGR.ccfVectors ?? []) expect(converted.get(vector.id)).toEqual(asRecord(vector));
     for (const estimate of records(field(daHtgr, "ccfParameterEstimations"))) {
       expect(["modelType", "parameters", "uncertainty"].map((key) => field(estimate, key))).toEqual([undefined, undefined, undefined]);
     }
@@ -539,7 +561,9 @@ describe("uncertainty contract conversions", () => {
     for (const group of groups) {
       const id = String(field(group, "uuid"));
       expect(["modelType", "modelSpecificParameters"].map((key) => field(group, key))).toEqual([undefined, undefined]);
-      expect(field(group, "factors")).toEqual(asRecord(seeded.get(id)?.factors ?? {}));
+      const estimate = byId(field(daHtgr, "ccfParameterEstimations"), "uuid", String(field(group, "dataAnalysisCCFParameterRef")));
+      expect(field(group, "factors")).toEqual(field(estimate, "factors"));
+      if (seeded.get(id)?.factors.model === "ALPHA_FACTOR") expect(field(group, "factors")).toEqual(onWorkbook(seeded.get(id)?.factors ?? {}, "da-wb"));
       const total = expressionOf(group, "total");
       const members = records(field(record(field(group, "members")), "basicEvents")).map((member) => eventById(syHtgr, String(field(member, "id"))));
       expect(total).toEqual(expressionOf(members[0] ?? {}));
@@ -563,6 +587,24 @@ describe("uncertainty contract conversions", () => {
     ]);
   });
 
+  it("links an SY group that copied the vector its DA estimate now links", () => {
+    const group = records(field(syHtgr, "commonCauseFailureGroups"))[0] ?? {};
+    const groupId = String(field(group, "uuid"));
+    const estimateId = String(field(group, "dataAnalysisCCFParameterRef"));
+    const law = { family: "DIRICHLET" as const, concentrations: [880.1, 12.01] };
+    const copied = { model: "ALPHA_FACTOR" as const, testing: "STAGGERED" as const, alphas: { node: "VALUE" as const, law } };
+    const linked = { ...copied, alphas: { node: "PARAMETER" as const, reference: { referenceType: "WORKBOOK_PARAMETER" as const, workbookId: "da-wb", entityId: "VEC-CCF-DEM-2" } } };
+    const da = { ...daHtgr, ccfVectors: [{ id: "VEC-CCF-DEM-2", sourceId: "SRC-06", kind: "ALPHA_DIRICHLET", template: "CCF-DEM", groupSize: 2, rowIds: [], vector: law }], ccfParameterEstimations: records(field(daHtgr, "ccfParameterEstimations")).map((estimate) => (field(estimate, "uuid") === estimateId ? { ...estimate, factors: asRecord(linked) } : estimate)) };
+    const relinked: MigrationLookups = { ...lookups, daCcf: new Map([...daCcf, ["da-wb", daCcfFacts(da, da, "da-wb")]]) };
+    const current = { ...syHtgr, commonCauseFailureGroups: records(field(syHtgr, "commonCauseFailureGroups")).map((entry) => (field(entry, "uuid") === groupId ? { ...entry, factors: asRecord(copied) } : entry)) };
+    const next = converted((scope) => convertSyMef(current, relinked, scope, PROJECT_ID));
+    expect(field(byId(field(next, "commonCauseFailureGroups"), "uuid", groupId), "factors")).toEqual(asRecord(linked));
+    expect(converted((scope) => convertSyMef(next, relinked, scope, PROJECT_ID))).toEqual(next);
+    const edited = { ...current, commonCauseFailureGroups: records(field(current, "commonCauseFailureGroups")).map((entry) => (field(entry, "uuid") === groupId ? { ...entry, factors: asRecord({ ...copied, testing: "NON_STAGGERED" }) } : entry)) };
+    expect(converted((scope) => convertSyMef(edited, relinked, scope, PROJECT_ID))).toEqual(edited);
+    expect(syIssue(next)).toBeUndefined();
+  });
+
   it("brings ESQ records onto the contract and fills old standard errors", () => {
     const work = { run: { runId: "R-1", revision: 1, at: "2026-09-01T00:00:00.000Z", inputs: "x", logic: { flags: true, loopBreaks: "AS_SET", exclusions: true, expandCcf: false }, trials: 400, seed: 1, method: "MONTE_CARLO", correlation: "SHARED", families: [{ familyId: "F-1", point: 1e-6, mean: 2e-6, standardDeviation: 4e-6, p05: 1e-7, p50: 1e-6, p95: 6e-6 }], total: { point: 1e-6, mean: 2e-6, standardDeviation: 2e-6, p05: 1e-7, p50: 1e-6, p95: 6e-6 } } };
     const old = { ...esqHtgrOld, uncertaintyWork: { ...record(field(esqHtgrOld, "uncertaintyWork")), ...work } };
@@ -579,14 +621,7 @@ describe("uncertainty contract conversions", () => {
       expect(expressionOf(event)).toEqual(parameter("da-wb", String(field(before, "holderId"))));
       expect([field(event, "heldBy"), field(event, "holderId"), field(event, "value")]).toEqual(["DA", field(before, "holderId"), undefined]);
     }
-    const daParameters = lookups.daParameters.get("da-wb") ?? new Map<string, DaParameterFacts>();
-    for (const entry of records(field(model, "parameters"))) {
-      const known = daParameters.get(String(field(entry, "id")));
-      if (known?.quantificationModel === "DEMAND_PROBABILITY" || known?.quantificationModel === "FREQUENCY") {
-        expect(field(entry, "quantificationModel")).toBe(known.quantificationModel);
-        expect(["value", "valueType", "distribution", "p05", "p95"].map((key) => field(entry, key))).toEqual([undefined, undefined, undefined, undefined, undefined]);
-      }
-    }
+    for (const entry of records(field(model, "parameters"))) expect(Object.keys(entry).sort()).toEqual(["id", "name", "parameterType"]);
     for (const initiator of records(field(model, "initiators"))) {
       expect(field(initiator, "frequency")).toEqual({ expression: parameter("da-wb", String(field(initiator, "holderId"))), basis: "per-plant-year" });
       expect(["meanFrequency", "medianFrequency", "errorFactor", "frequencyUnit"].map((key) => field(initiator, key))).toEqual([undefined, undefined, undefined, undefined]);
@@ -607,38 +642,14 @@ describe("uncertainty contract conversions", () => {
     expect([field(record0, "factors"), field(record0, "total")]).toEqual([undefined, point("PROBABILITY", 0.006915089995696231)]);
   });
 
-  it("converts ESQ parameter records saved between the contract passes", () => {
-    const oldModel = record(field(esqHtgrOld, "model"));
-    const daParameters = lookups.daParameters.get("da-wb") ?? new Map<string, DaParameterFacts>();
-    const frequencyIds = records(field(oldModel, "parameters")).flatMap((entry) => (daParameters.get(String(field(entry, "id")))?.quantificationModel === "FREQUENCY" ? [String(field(entry, "id"))] : []));
-    expect(frequencyIds.length).toBeGreaterThan(0);
-    const full = convertEsq(esqHtgrOld);
-    const fullParameters = records(field(record(field(full, "model")), "parameters"));
-    const passOne = fullParameters.map((entry) => {
-      const id = String(field(entry, "id"));
-      if (frequencyIds.includes(id)) return { ...byId(field(oldModel, "parameters"), "id", id), quantificationModel: "FREQUENCY" };
-      return field(entry, "estimate") === undefined ? entry : { ...entry, missionTimeHours: 24 };
-    });
-    expect(esqIssue({ ...full, model: { ...record(field(full, "model")), parameters: passOne } })).toBeDefined();
-    const between = convertEsq({ ...esqHtgrOld, model: { ...oldModel, parameters: passOne } });
-    expect(records(field(record(field(between, "model")), "parameters"))).toEqual(fullParameters);
-    expect(esqIssue(between)).toBeUndefined();
-    expect(convertEsq(between)).toBe(between);
-
-    const frequency = records(field(fixture("da-htgr"), "parameters")).find((candidate) => field(candidate, "quantificationModel") === "FREQUENCY" && field(candidate, "valueType") === "MEAN");
-    if (frequency === undefined) throw new Error("The fixture lacks a mean frequency.");
-    const distribution = record(field(record(field(frequency, "uncertainty")), "distribution"));
-    const typed = { id: "ESQ-FREQ-1", name: "Typed frequency", parameterType: "FREQUENCY", quantificationModel: "FREQUENCY", value: field(frequency, "value") ?? null, valueType: "MEAN", distribution, missionTimeHours: 8 };
-    const unlinked = convertEsq({ ...fixture("esq-sfr"), linkedWorkbooks: without(record(field(fixture("esq-sfr"), "linkedWorkbooks")), ["DA", "SY"]), model: { ...record(field(fixture("esq-sfr"), "model")), parameters: [typed] } });
-    expect(records(field(record(field(unlinked, "model")), "parameters"))).toEqual([{
-      id: "ESQ-FREQ-1",
-      name: "Typed frequency",
-      parameterType: "FREQUENCY",
-      quantificationModel: "FREQUENCY",
-      estimate: { node: "VALUE", value: { unit: "PER_YEAR", law: { family: "LOGNORMAL", mean: field(frequency, "value"), errorFactor: field(distribution, "errorFactor"), level: 0.95 } } },
-      missionTime: point("HOURS", 8),
-    }]);
-    for (const entry of records(field(record(field(unlinked, "model")), "parameters"))) expect(EsqParameterRecordSchema.safeParse(entry).success).toBe(true);
+  it("keeps only the DA links of ESQ parameter records", () => {
+    const typed = { id: "ESQ-FREQ-1", name: "Typed frequency", parameterType: "FREQUENCY", quantificationModel: "FREQUENCY", value: 2.9, valueType: "MEAN", missionTimeHours: 8 };
+    const model = { ...record(field(esqHtgrOld, "model")), parameters: [typed], vectors: [], ccfFactors: [] };
+    const next = convertEsq({ ...esqHtgrOld, model });
+    expect(field(record(field(next, "model")), "parameters")).toEqual([{ id: "ESQ-FREQ-1", name: "Typed frequency", parameterType: "FREQUENCY" }]);
+    expect([field(record(field(next, "model")), "vectors"), field(record(field(next, "model")), "ccfFactors")]).toEqual([undefined, undefined]);
+    expect(esqIssue(next)).toBeUndefined();
+    expect(convertEsq(next)).toBe(next);
   });
 
   it("keeps pass-one DA estimates and needs and converts their old mission hours", () => {
@@ -697,7 +708,7 @@ describe("uncertainty contract conversions", () => {
     const sharedKey = { parameter: "median", distribution: { type: "lognormal", median: 33.35, errorFactor: 1.2 }, correlationKey: "CORE-HEATUP" };
     const correlated = { ...first, capacity: { ...record(field(first, "capacity")), uncertain: [sharedKey] } };
     const twin = { ...correlated, id: "BC-3" };
-    const { issues } = settle((scope) => convertEsqMef({ ...old, barrierWork: { ...record(field(old, "barrierWork")), cells: [correlated, twin] } }, lookups, scope));
+    const { issues } = settle((scope) => convertEsqMef({ ...old, barrierWork: { ...record(field(old, "barrierWork")), cells: [correlated, twin] } }, lookups, scope, PROJECT_ID));
     expect(issues).toEqual([
       "test: the median uncertainty of the capacity of ESQ barrier cell BC-1 shares the correlation key CORE-HEATUP. A shared draw needs a parameter, so it cannot be converted.",
       "test: the median uncertainty of the capacity of ESQ barrier cell BC-3 shares the correlation key CORE-HEATUP. A shared draw needs a parameter, so it cannot be converted.",
@@ -922,7 +933,7 @@ describe("uncertainty contract conversions", () => {
     expect(definitionOf(value, "SYS-SCS")).toEqual(orphan);
   });
 
-  it("drops DA mission hours that an estimate holds and types the rest", () => {
+  it("drops DA mission hours from every parameter that holds an estimate", () => {
     const old = fixture("da-htgr");
     const parameters = records(field(old, "parameters"));
     const timed = parameters.filter((candidate) => field(candidate, "missionTimeHours") !== undefined);
@@ -940,7 +951,7 @@ describe("uncertainty contract conversions", () => {
     const estimated = { ...without(mission, ["value", "valueType", "uncertainty"]), uuid: "MISSION-TYPED", valueMode: "TYPED", estimate };
     const next = convertDa({ ...old, parameters: [...parameters, typedRecovery, estimated] }, "da-wb");
     const recoveryAfter = byId(field(next, "parameters"), "uuid", "NR-MISSION");
-    expect([field(recoveryAfter, "missionTime"), field(recoveryAfter, "missionTimeHours")]).toEqual([point("HOURS", 8), undefined]);
+    expect([field(recoveryAfter, "missionTime"), field(recoveryAfter, "missionTimeHours")]).toEqual([undefined, undefined]);
     expect(DataAnalysisParameterSchema.safeParse(recoveryAfter).success).toBe(true);
     const estimatedAfter = byId(field(next, "parameters"), "uuid", "MISSION-TYPED");
     expect([field(estimatedAfter, "estimate"), field(estimatedAfter, "missionTime"), field(estimatedAfter, "missionTimeHours")]).toEqual([estimate, undefined, undefined]);
@@ -969,9 +980,7 @@ describe("uncertainty contract conversions", () => {
       expect(records(field(model, "events")).filter((event) => !component(event)).every((event) => field(event, "missionTime") !== undefined)).toBe(true);
       for (const entry of records(field(model, "parameters"))) {
         expect(EsqParameterRecordSchema.safeParse(entry).success).toBe(true);
-        const quantificationModel = field(entry, "quantificationModel");
-        const estimated = quantificationModel !== "FREQUENCY" && holdsEstimate(DA_ESTIMATE_MODELS.find((candidate) => candidate === quantificationModel));
-        expect([field(entry, "missionTime"), field(entry, "missionTimeHours")]).toEqual([estimated ? undefined : hoursOf(byId(field(before, "parameters"), "id", String(field(entry, "id")))), undefined]);
+        expect([field(entry, "missionTime"), field(entry, "missionTimeHours")]).toEqual([undefined, undefined]);
       }
     }
     const old = fixture("esq-htgr");
@@ -981,7 +990,7 @@ describe("uncertainty contract conversions", () => {
     if (running === undefined || tree === undefined) throw new Error("The fixture lacks the needed records.");
     const untimed = { ...without(running, ["holderId", "missionTimeHours"]), heldBy: "TYPED", value: 0.00001, valueUnit: "PER_HOUR" };
     const zero = { ...tree, missionTimeHours: 0 };
-    const { value, issues } = settle((scope) => convertEsqMef({ ...old, model: { ...model, trees: [zero], events: [untimed] } }, lookups, scope));
+    const { value, issues } = settle((scope) => convertEsqMef({ ...old, model: { ...model, trees: [zero], events: [untimed] } }, lookups, scope, PROJECT_ID));
     expect(issues).toEqual([
       `test: ESQ tree ${String(field(tree, "id"))} holds 0 mission time hours, which is not a positive number, so it cannot be converted.`,
       `test: ESQ event ${String(field(running, "id"))} needs a mission time for its rate model and none is stored, so it cannot be converted.`,

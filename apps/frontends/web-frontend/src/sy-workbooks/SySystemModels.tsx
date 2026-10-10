@@ -1,7 +1,7 @@
 import { JSX, useEffect, useId, useRef, useState } from "react";
 import { carriesUncertainExpression, type SystemBasicEvent, type SystemLogicModel, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
-import { failureRateToProbability, requiresFailureRateConversionReview, type QuantificationTimeUnit } from "interfaces-mef-types/modeling";
+import { failureRateToProbability, requiresFailureRateConversionReview, type CanvasViewport, type QuantificationTimeUnit } from "interfaces-mef-types/modeling";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
 import {
   applyFaultTreeBasicEventToSystemBasicEvent,
@@ -23,7 +23,7 @@ import {
 import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
 import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
-import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { transferBreadcrumb, useTransferTrail } from "../newly-developed-methods/shared/transferTrail";
 import { NoSystemsCard } from "./syShared";
 import { SyFaultTreeAnalysis, type FaultTreeRunConfiguration } from "./SyFaultTreeAnalysis";
 import { SyCapabilityRepresentation } from "./SyCapabilityRepresentation";
@@ -95,14 +95,14 @@ function toFaultTreeEditorCatalogue(
     ]),
   );
   const controlledHumanFailureValues = new Map(
-    humanFailures.map((humanFailure) => [
+    humanFailures.flatMap((humanFailure) => (humanFailure.value === undefined ? [] : [[
       JSON.stringify([
         humanFailure.workbookId,
         humanFailure.humanFailureEventId,
         humanFailure.quantificationId,
       ]),
       humanFailure.value,
-    ]),
+    ] as const])),
   );
   return {
     basicEvents: events.map((event) => {
@@ -234,6 +234,17 @@ function syFaultTreeOperation(
   };
 }
 
+interface TreeView {
+  modelId: string;
+  viewport: CanvasViewport;
+}
+
+interface SyTrailPlace {
+  systemId: string;
+  selection: FaultTreeSelection;
+  view?: TreeView;
+}
+
 function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   sysId: string;
   setSysId: (id: string) => void;
@@ -265,7 +276,15 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   const points = useEventPoints(shownLogic === undefined || isSystemLevelModel(shownLogic) ? [] : systemLogicModelBasicEvents(sy, shownLogic), values.table);
   const missionHours = useSystemHours(sysDef === undefined ? [] : [sysDef]).get(sysDef?.uuid ?? "");
 
-  useEffect(() => setSelection(null), [sysId]);
+  const lastView = useRef<TreeView | null>(null);
+  const [restoreView, setRestoreView] = useState<TreeView | null>(null);
+  const pendingSelection = useRef<FaultTreeSelection>(null);
+  const trail = useTransferTrail<SyTrailPlace>((place) => place.systemId === sysDef?.uuid);
+
+  useEffect(() => {
+    setSelection(pendingSelection.current);
+    pendingSelection.current = null;
+  }, [sysId]);
 
   if (sysDef === undefined) {
     return <NoSystemsCard title="System models" purpose="describe and build each one here." onOpenSystems={onOpenSystems} />;
@@ -273,6 +292,25 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
 
   const system = sysDef;
   const logic = sy.systemLogicModels.find((m) => m.systemReference === system.uuid);
+  const currentPlace = (): SyTrailPlace => {
+    const view = lastView.current;
+    return { systemId: system.uuid, selection, ...(view !== null && view.modelId === logic?.uuid ? { view } : {}) };
+  };
+  const goTo = (place: SyTrailPlace): void => {
+    setTab("fault-tree");
+    setRestoreView(place.view ?? null);
+    if (place.systemId === system.uuid) {
+      setSelection(place.selection);
+      return;
+    }
+    pendingSelection.current = place.selection;
+    setSysId(place.systemId);
+  };
+  const pickSystem = (systemId: string): void => {
+    trail.reset();
+    setRestoreView(null);
+    setSysId(systemId);
+  };
   const systemLevel = logic !== undefined && isSystemLevelModel(logic);
   const catalogue = toFaultTreeEditorCatalogue(sy.systemBasicEvents, {
     legacyParameters: controlledLegacyParameters,
@@ -416,6 +454,9 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
         return (
           <FaultTreeEditor
             model={editorModel}
+            breadcrumb={transferBreadcrumb(trail, currentPlace, goTo)}
+            initialViewport={restoreView !== null && restoreView.modelId === editorModel.modelId ? restoreView.viewport : undefined}
+            onViewportChange={(viewport) => { lastView.current = { modelId: editorModel.modelId, viewport }; }}
             catalogue={catalogue}
             readOnlyBasicEventValues={readOnlyValues(sy.systemBasicEvents, catalogue, values.label)}
             capabilities={{
@@ -446,7 +487,14 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
                 return;
               }
               const target = sy.systemLogicModels.find((candidate) => candidate.uuid === request.target.modelId);
-              if (target !== undefined) setSysId(target.systemReference);
+              if (target === undefined) return;
+              const targetSystem = sy.systemDefinitions.find((candidate) => candidate.uuid === target.systemReference);
+              trail.follow(
+                { place: currentPlace(), label: logic.code.length > 0 ? logic.code : system.name },
+                { place: { systemId: target.systemReference, selection: null }, label: target.code.length > 0 ? target.code : targetSystem?.name ?? target.name },
+              );
+              setRestoreView(null);
+              setSysId(target.systemReference);
             }}
             onRun={() => undefined}
           />
@@ -495,10 +543,9 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   return (
     <div className="poscard sy-model-card">
       <div className="poscard__head sy-model-card__head">
-        <WorkbookSectionHeading workbook="SY" title={system.name} cueKey="System definition" level={3} />
         <label className="sy-model-card__picker">
           <span className="posfield__label">System</span>
-          <select className="posfield__select" aria-label="System" value={system.uuid} onChange={(event) => setSysId(event.target.value)}>
+          <select className="posfield__select" aria-label="System" value={system.uuid} onChange={(event) => pickSystem(event.target.value)}>
             {sy.systemDefinitions.map((s) => (
               <option key={s.uuid} value={s.uuid}>{shortOf(s.uuid)} · {s.name}</option>
             ))}

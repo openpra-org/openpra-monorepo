@@ -44,8 +44,6 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   sequences: "ES-A1",
   deps: "ES-B1",
   timing: "ES-A6",
-  endstates: "ES-C1",
-  families: "ES-C8",
   quant: "ES-C8",
 };
 

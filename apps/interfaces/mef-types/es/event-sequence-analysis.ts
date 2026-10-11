@@ -223,6 +223,7 @@ export interface EventSequenceFamily extends Unique, Named {
   memberSequenceIds: EventSequenceReference[];
   similarityBasis?: string;
   endState: EndState;
+  endStateId?: string;
   meanFrequency?: Frequency | FrequencyWithDistribution;
   familySpecificAssumptions?: PreOperationalAssumption[];
   implementsSrs: SRReference[];
@@ -320,10 +321,16 @@ export interface DependencyModels {
   systemInterfaces?: SystemInterfaceDependency[];
 }
 
+export interface FunctionalEventFailureEffect {
+  barriers?: EsEndStateBarrier[];
+  sources?: string[];
+}
+
 export interface FunctionalEvent extends Unique, Named {
   label?: string;
   order?: number;
   description?: string;
+  failureEffect?: FunctionalEventFailureEffect;
   systemReference?: SystemReference;
   humanActionReference?: HumanActionReference;
   faultTreeTopEvent?: FaultTreeTopEventReference;

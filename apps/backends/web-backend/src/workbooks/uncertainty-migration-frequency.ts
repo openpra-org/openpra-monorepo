@@ -35,6 +35,7 @@ import {
 } from "./uncertainty-migration-laws";
 import { convertFrequencyFaultTree, convertHazardFaultTrees } from "./uncertainty-migration-fault-trees";
 import { withEsEndStateCatalog } from "./uncertainty-migration-end-states";
+import { withDistinctEsSequences } from "./uncertainty-migration-sequences";
 
 type TypedFrequency = { kind: "NONE" } | { kind: "FREQUENCY"; frequency: UncertainFrequency } | { kind: "INVALID" };
 
@@ -284,7 +285,7 @@ function convertEventTree(stored: JsonRecord, scope: ConversionScope, host: stri
 }
 
 function convertEsMef(mef: JsonRecord, scope: ConversionScope): JsonRecord {
-  return withEsEndStateCatalog(withArray(mef, "eventTrees", (tree) => convertEventTree(tree, scope, "ES")));
+  return withDistinctEsSequences(withEsEndStateCatalog(withArray(mef, "eventTrees", (tree) => convertEventTree(tree, scope, "ES"))));
 }
 
 function convertHazardMef(mef: JsonRecord, scope: ConversionScope): JsonRecord {

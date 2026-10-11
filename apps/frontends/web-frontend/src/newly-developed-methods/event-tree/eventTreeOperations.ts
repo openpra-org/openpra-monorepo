@@ -182,7 +182,7 @@ function buildCompleteTopology(
       : topologyEntityId(`${model.uuid}:sequence:${key}`);
     sequences[id] = {
       uuid: id,
-      name: previous?.name ?? `Sequence ${String(index + 1)}`,
+      name: previous?.name ?? "",
       endState: previous?.endState ?? EndState.SUCCESSFUL_MITIGATION,
       eventSequenceId: previous?.eventSequenceId,
       ...(previous?.endStateId === undefined ? {} : { endStateId: previous.endStateId }),
@@ -325,7 +325,7 @@ function withBranchChange(model: EventTree, operation: Extract<EventTreeOperatio
     const id = topologyEntityId(`${model.uuid}:sequence:added:${sequencePathKey(path, eventIds)}`);
     sequences[id] = {
       uuid: id,
-      name: `Sequence ${String(Object.keys(sequences).length + 1)}`,
+      name: "",
       endState: EndState.SUCCESSFUL_MITIGATION,
       functionalEventStates: path,
     };
@@ -353,7 +353,47 @@ function withBranchChange(model: EventTree, operation: Extract<EventTreeOperatio
   return { ...model, ...buildCompleteTopology(intermediate, events) };
 }
 
-function applyEventTreeOperation(model: EventTree, operation: EventTreeOperation): EventTree {
+function distinctSequenceName(base: string, taken: ReadonlySet<string>): string {
+  if (base.length === 0) {
+    let index = 1;
+    while (taken.has(`Sequence ${String(index)}`)) index += 1;
+    return `Sequence ${String(index)}`;
+  }
+  if (!taken.has(base)) return base;
+  let index = 2;
+  while (taken.has(`${base}-${String(index)}`)) index += 1;
+  return `${base}-${String(index)}`;
+}
+
+function withDistinctSequenceNames(before: EventTree["sequences"], sequences: EventTree["sequences"], reserved: ReadonlySet<string>): EventTree["sequences"] {
+  const owners = new Map<string, string>();
+  for (const [id, sequence] of Object.entries(sequences)) {
+    if (sequence.name.length > 0 && before[id]?.name === sequence.name && !owners.has(sequence.name)) owners.set(sequence.name, id);
+  }
+  const taken = new Set([...reserved, ...owners.keys()]);
+  let changed = false;
+  const named: EventTree["sequences"] = {};
+  for (const [id, sequence] of Object.entries(sequences)) {
+    if (owners.get(sequence.name) === id) {
+      named[id] = sequence;
+      continue;
+    }
+    const name = distinctSequenceName(sequence.name, taken);
+    taken.add(name);
+    if (name !== sequence.name) changed = true;
+    named[id] = name === sequence.name ? sequence : { ...sequence, name };
+  }
+  return changed ? named : sequences;
+}
+
+function applyEventTreeOperation(model: EventTree, operation: EventTreeOperation, reservedNames: ReadonlySet<string> = new Set()): EventTree {
+  const next = operationResult(model, operation);
+  if (next === model) return model;
+  const sequences = withDistinctSequenceNames(model.sequences, next.sequences, reservedNames);
+  return sequences === next.sequences ? next : { ...next, sequences };
+}
+
+function operationResult(model: EventTree, operation: EventTreeOperation): EventTree {
   if (operation.kind === "REPLACE") return operation.model;
   if (operation.kind === "UPDATE_TREE") return { ...model, ...operation.changes };
   if (operation.kind === "SET_FAULT_TREE_REFERENCE") {
@@ -666,6 +706,7 @@ function createEventTreePresentation(
 export {
   MAX_FUNCTIONAL_EVENTS,
   applyEventTreeOperation,
+  distinctSequenceName,
   createEmptyEventTree,
   createEventTreePresentation,
   eventTreeMoveProblem,

@@ -17,12 +17,10 @@ const ES_STEPS: EsStep[] = [
   { id: "sequences", num: "02", label: "Event Sequences", sub: "Lay out sequences per IE", status: "idle" },
   { id: "deps", num: "03", label: "Dependencies", sub: "Functional · human · phenomena", status: "idle" },
   { id: "timing", num: "04", label: "Timing & Phenomena", sub: "Mission times · time windows", status: "idle" },
-  { id: "endstates", num: "05", label: "End States & Releases", sub: "Safe state · release categories", status: "idle" },
-  { id: "families", num: "06", label: "Families & Screening", sub: "Group for ESQ · retain by default", status: "idle" },
-  { id: "quant", num: "07", label: "ESQ", sub: "Package for ESQ", status: "idle" },
-  { id: "draft", num: "08", label: "Draft", sub: "Produce ES report", status: "idle", terminal: true },
-  { id: "review", num: "09", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
-  { id: "approval", num: "10", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
+  { id: "quant", num: "05", label: "ESQ", sub: "Package for ESQ · screening", status: "idle" },
+  { id: "draft", num: "06", label: "Draft", sub: "Produce ES report", status: "idle", terminal: true },
+  { id: "review", num: "07", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
+  { id: "approval", num: "08", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
 ];
 
 type EsPersona = "preparer" | "reviewer" | "approver";

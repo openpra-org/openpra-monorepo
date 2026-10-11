@@ -196,6 +196,7 @@ export const EventSequenceFamilySchema = z.object({
   memberSequenceIds: z.array(z.string()),
   similarityBasis: z.string().optional(),
   endState: EndStateSchema,
+  endStateId: z.string().optional(),
   meanFrequency: FrequencyValueSchema.optional(),
   familySpecificAssumptions: z.array(PreOperationalAssumptionSchema).optional(),
   implementsSrs: z.array(SRReferenceSchema),
@@ -302,6 +303,10 @@ export const FunctionalEventSchema = z
     label: z.string().optional(),
     order: z.number().optional(),
     description: z.string().optional(),
+    failureEffect: z.object({
+      barriers: z.array(z.object({ barrier: z.string(), condition: z.enum(["INTACT", "DEGRADED", "FAILED", "BYPASSED"]) })).optional(),
+      sources: z.array(z.string()).optional(),
+    }).optional(),
     systemReference: z.string().optional(),
     humanActionReference: z.string().optional(),
     faultTreeTopEvent: FaultTreeTopEventReferenceSchema.optional(),

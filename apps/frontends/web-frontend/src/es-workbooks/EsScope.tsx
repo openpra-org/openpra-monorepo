@@ -459,4 +459,4 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, links }: {
   );
 }
 
-export { EsScopeScreen, type EsLinkActions, type EsLinkCode, type EsLinkOption };
+export { ChoiceEditor, DialogHead, DialogShell, EsScopeScreen, type EsLinkActions, type EsLinkCode, type EsLinkOption };

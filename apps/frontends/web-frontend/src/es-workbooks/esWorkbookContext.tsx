@@ -3,7 +3,6 @@ import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequen
 import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { type EsPosLinkStatus, type EsIeLinkStatus } from "./esWorkbookApi";
-import { type IeDaFrequencyOption } from "../ie-workbooks/ieDaLinks";
 
 interface EsFaultTreeSource {
   workbookId: string;
@@ -23,7 +22,6 @@ interface EsWorkbookData {
   upstream?: EsUpstream;
   posLink: EsPosLinkStatus;
   ieLink: EsIeLinkStatus;
-  daFrequencies?: IeDaFrequencyOption[];
 }
 
 interface EsWorkbookRuntime {

@@ -11,7 +11,9 @@ import {
   GEN_RC_MEMBERS,
   GEN_RC_FREQUENCY,
 } from "./es-seed-dynamic.generated";
+import { withEndStateCatalog } from "interfaces-mef-types/es/es-end-states";
 import { createExampleDependencyEventTree } from "./dependency-model-seed";
+import { SC_ANALYSIS } from "./sc-seed";
 import { withSystemTops } from "./es-seed-system-tops";
 import { SY_ANALYSIS } from "./sy-seed";
 
@@ -29,9 +31,9 @@ const FUNCTION_SYSTEMS: Record<string, string> = {
   CONF: "SYS-CONF",
 };
 
-const LINKED_EVENT_TREES = withSystemTops(GEN_EVENT_TREES, SY_ANALYSIS, "example-sy-sfr", (_tree, functionId) => FUNCTION_SYSTEMS[functionId]);
+const LINKED_EVENT_TREES = withSystemTops(GEN_EVENT_TREES.map((tree) => ({ ...tree, label: tree.uuid })), SY_ANALYSIS, "example-sy-sfr", (_tree, functionId) => FUNCTION_SYSTEMS[functionId]);
 
-export const ES_ANALYSIS: EventSequenceAnalysis = {
+export const ES_ANALYSIS: EventSequenceAnalysis = withEndStateCatalog({
   uuid: "es-generic-1",
   name: "ES Workbook 2",
   type: TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS,
@@ -205,9 +207,9 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
     ],
   },
   releaseCategoryMappings: [
-    { uuid: "RCM-1", eventSequenceIds: GEN_RC_MEMBERS["RC-1"], releaseCategoryId: "RC-1", mappingBasis: "Early confinement bypass or failure: largest, earliest release driven by sodium-fire or ATWS energy.", commonCharacteristics: ["Confinement open or bypassed at release", "No filtration credit", "Driven by sodium fire or ATWS energy"], physicalReleaseCharacteristics: ["Early (< 8 h)", "Large magnitude", "Unscrubbed"], meanFrequency: GEN_RC_FREQUENCY["RC-1"], processedByRiskIntegration: true, implementsSrs: [] },
-    { uuid: "RCM-2", eventSequenceIds: GEN_RC_MEMBERS["RC-2"], releaseCategoryId: "RC-2", mappingBasis: "Late filtered release: confinement holds, delaying and filtering the release into a smaller source term.", commonCharacteristics: ["Confinement intact, leakage at design rate", "Cover-gas clean-up + filtration credited", "Aerosol settling over delay period"], physicalReleaseCharacteristics: ["Late (> 24 h)", "Moderate magnitude", "Scrubbed"], meanFrequency: GEN_RC_FREQUENCY["RC-2"], processedByRiskIntegration: true, implementsSrs: [] },
-    { uuid: "RCM-3", eventSequenceIds: GEN_RC_MEMBERS["RC-3"], releaseCategoryId: "RC-3", mappingBasis: "Intact-confinement leakage: design-basis leakage only, the worst-case small release with all outer barriers held.", commonCharacteristics: ["Design-leakage only", "Full filtration + plate-out", "No barrier breach beyond cladding"], physicalReleaseCharacteristics: ["Very late (> 72 h)", "Small magnitude", "Scrubbed"], meanFrequency: GEN_RC_FREQUENCY["RC-3"], implementsSrs: [] },
+    { uuid: "RCM-1", name: "Early confinement bypass or failure", eventSequenceIds: GEN_RC_MEMBERS["RC-1"], releaseCategoryId: "RC-1", mappingBasis: "Early confinement bypass or failure: largest, earliest release driven by sodium-fire or ATWS energy.", commonCharacteristics: ["Confinement open or bypassed at release", "No filtration credit", "Driven by sodium fire or ATWS energy"], physicalReleaseCharacteristics: ["Early (< 8 h)", "Large magnitude", "Unscrubbed"], meanFrequency: GEN_RC_FREQUENCY["RC-1"], processedByRiskIntegration: true, implementsSrs: [] },
+    { uuid: "RCM-2", name: "Late filtered release", eventSequenceIds: GEN_RC_MEMBERS["RC-2"], releaseCategoryId: "RC-2", mappingBasis: "Late filtered release: confinement holds, delaying and filtering the release into a smaller source term.", commonCharacteristics: ["Confinement intact, leakage at design rate", "Cover-gas clean-up + filtration credited", "Aerosol settling over delay period"], physicalReleaseCharacteristics: ["Late (> 24 h)", "Moderate magnitude", "Scrubbed"], meanFrequency: GEN_RC_FREQUENCY["RC-2"], processedByRiskIntegration: true, implementsSrs: [] },
+    { uuid: "RCM-3", name: "Intact-confinement leakage", eventSequenceIds: GEN_RC_MEMBERS["RC-3"], releaseCategoryId: "RC-3", mappingBasis: "Intact-confinement leakage: design-basis leakage only, the worst-case small release with all outer barriers held.", commonCharacteristics: ["Design-leakage only", "Full filtration + plate-out", "No barrier breach beyond cladding"], physicalReleaseCharacteristics: ["Very late (> 72 h)", "Small magnitude", "Scrubbed"], meanFrequency: GEN_RC_FREQUENCY["RC-3"], implementsSrs: [] },
   ],
   screeningRecords: [
     { sequenceId: "ESD-P05-14", retained: true, justification: "Kept: though its frequency is very low (4.9E-8/yr), it reaches release category RC-3 during the head-off state; ES-A7 keeps any sequence not meeting SCR-3.", implementsSrs: [] },
@@ -254,4 +256,4 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
     praTaskInterfaces: "Interfaces with POS, IE, Success Criteria, ESQ, and Mechanistic Source Term tasks documented.",
     implementsSrs: [],
   },
-};
+}, SC_ANALYSIS);

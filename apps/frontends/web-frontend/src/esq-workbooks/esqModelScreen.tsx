@@ -12,6 +12,7 @@ import {
   type EventSequenceQuantification,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { holdsEstimate, isComponentModel } from "interfaces-mef-types/da/data-analysis";
+import { FrequencyUnit } from "interfaces-mef-types/core/events";
 import { ccfModelTakesTotal, type CcfFactorModel, type UncertainExpression, type UncertainVector, type VectorLaw } from "interfaces-mef-types/core/uncertainty";
 import { parameterLaw, parameterUnit } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { CcfFactorEditor, ExpressionEditor, MissionTimeEditor, type ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
@@ -87,6 +88,7 @@ import {
   END_STATE_LABELS,
   ESQ_MODEL_ELEMENTS,
   EVIDENCE_KIND_LABELS,
+  FREQUENCY_UNIT_OPTIONS,
   MODEL_ELEMENT_LABELS,
   MODEL_ELEMENT_PROVIDES,
   exampleLinkLabel,
@@ -202,10 +204,6 @@ function initiatorPointEntries(initiators: readonly EsqInitiatorView[]): EsqPoin
     ...(entry.expression === undefined ? [] : [{ key: entry.id, expression: entry.expression, unit: "PER_YEAR" as const }]),
     ...entry.states.flatMap((state) => (state.expression === undefined || !state.applicable ? [] : [{ key: `${entry.id}:${state.stateId}`, expression: state.expression, unit: "PER_YEAR" as const }])),
   ]);
-}
-
-function frequencyUnitLabel(esq: EventSequenceQuantification): string {
-  return esq.quantificationPlan?.frequencyBasis?.value === "PER_REACTOR_YEAR" ? "/reactor-year" : "/plant-year";
 }
 
 function pathText(view: EsqSequenceView): string {
@@ -588,13 +586,12 @@ function InitiatorsTable({ view, openWindow }: { view: EsqModelView; openWindow:
   const entries = useMemo(() => initiatorPointEntries(view.initiators), [view.initiators]);
   const points = useExpressionPoints(entries, table);
   if (view.initiators.length === 0) return <p className="posmuted">No initiator group in scope. Import the event trees above.</p>;
-  const unit = frequencyUnitLabel(esq);
   const weighting = stateWeightingOf(esq);
   return (
     <div className="esq-table-wrap" ref={wrapRef}>
       <table className="postable esq-rowtable" aria-label="Initiator frequencies">
         <thead>
-          <tr><th className="esq-rowtable__pick">Details</th><th>Group</th><th>Name</th><th>Mean ({unit})</th><th>From</th></tr>
+          <tr><th className="esq-rowtable__pick">Details</th><th>Group</th><th>Name</th><th>Mean (/reactor-year)</th><th>From</th></tr>
         </thead>
         <tbody>
           {view.initiators.map((entry) => {
@@ -620,7 +617,7 @@ function InitiatorsTable({ view, openWindow }: { view: EsqModelView; openWindow:
                       })),
                       { label: weighting === "POS_HOURS" ? "Hours in its states" : "State weighting", value: weighting === "POS_HOURS" ? plainNumber(entry.hours) : "Typed shares" },
                       { label: "Frequency as given", value: entry.given === undefined ? "—" : expressionText(entry.given, label) },
-                      { label: "Module factor", value: entry.factor === 1 ? "1" : plainNumber(entry.factor) },
+                      { label: "Unit factor", value: entry.factor === 1 ? "1" : plainNumber(entry.factor) },
                     ]} />
                   </DetailRow>
                 )}
@@ -1160,7 +1157,7 @@ function InitiatorWindow({ id, onClose }: { id: string; onClose: () => void }): 
   function setSource(value: string): void {
     const shares = base.shares === undefined ? {} : { shares: base.shares };
     if (value === "ie") save({ groupId: id, source: "IE", ...shares });
-    else if (value === "typed") save({ groupId: id, source: "TYPED", ...shares, expression: typedStart, ...(base.basis === undefined ? {} : { basis: base.basis }) });
+    else if (value === "typed") save({ groupId: id, source: "TYPED", ...shares, expression: typedStart, unit: base.unit ?? FREQUENCY_UNIT_OPTIONS.find((option) => option.id === entry.record?.frequency?.basis)?.id ?? FrequencyUnit.PER_REACTOR_YEAR, ...(base.basis === undefined ? {} : { basis: base.basis }) });
     else save({ groupId: id, source: "DA", parameterId: value.slice(3), ...shares });
   }
 
@@ -1177,7 +1174,7 @@ function InitiatorWindow({ id, onClose }: { id: string; onClose: () => void }): 
       <div className="modal__body esq-form">
         <FormRow label="Frequency from" htmlFor={`${fieldId}-from`}>
           <select id={`${fieldId}-from`} className="posfield__select" value={sourceValue} disabled={dis} onChange={(event) => setSource(event.target.value)}>
-            <option value="ie">{entry.record?.frequency === undefined ? "IE" : `IE · ${expressionText(entry.record.frequency.expression, label)}`}</option>
+            <option value="ie">{entry.record?.frequency === undefined ? "IE" : `IE · ${expressionText(entry.record.frequency.expression, label)} ${FREQUENCY_UNIT_OPTIONS.find((option) => option.id === entry.record?.frequency?.basis)?.label.toLowerCase() ?? ""}`.trim()}</option>
             {parameters.map((parameter) => <option key={parameter.id} value={`da:${parameter.id}`}>{`DA · ${parameter.id} · ${parameter.estimate === undefined ? "no estimate" : expressionText(parameter.estimate, label)}`}</option>)}
             {base.source === "DA" && base.parameterId !== undefined && !parameters.some((parameter) => parameter.id === base.parameterId) && <option value={`da:${base.parameterId}`}>{`DA · ${base.parameterId} · not imported`}</option>}
             <option value="typed">Typed in ESQ</option>
@@ -1188,7 +1185,14 @@ function InitiatorWindow({ id, onClose }: { id: string; onClose: () => void }): 
             <FormRow label="Frequency" top>
               <ExpressionEditor expression={typedStart} unit="PER_YEAR" options={options} disabled={dis} onChange={(expression) => save({ ...base, expression })} />
             </FormRow>
-            <p className="esq-meta">{esq.quantificationPlan?.frequencyBasis?.value === "PER_REACTOR_YEAR" ? "Type the frequency per reactor-year." : "Type the frequency per plant-year."}</p>
+            <FormRow label="Unit" htmlFor={`${fieldId}-unit`}>
+              <select id={`${fieldId}-unit`} className="posfield__select" value={base.unit ?? FrequencyUnit.PER_REACTOR_YEAR} disabled={dis} onChange={(event) => {
+                const unit = FREQUENCY_UNIT_OPTIONS.find((option) => option.id === event.target.value)?.id;
+                if (unit !== undefined) save({ ...base, unit });
+              }}>
+                {FREQUENCY_UNIT_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+              </select>
+            </FormRow>
             <ReasonRow label="Basis" value={base.basis ?? ""} disabled={dis} onChange={(basis) => save({ ...base, basis })} />
           </>
         )}

@@ -32,7 +32,7 @@ interface StepHeader {
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
     case "scope": return { eyebrow: "Step 01 · ES-A", title: "Scope" };
-    case "sequences": return { eyebrow: "Step 02", title: "Event sequences", sub: "Lay out each scenario from its initiating event to one end state, a safe stable state or a release (ES-A5, A7)." };
+    case "sequences": return { eyebrow: "Step 02 · ES-A", title: "Event Sequences" };
     case "deps": return { eyebrow: "Step 03", title: "Dependencies", sub: "A dependency links the success or failure of one function, system or operator action to another (ES-B1, ES-B2, ES-B3)." };
     case "timing": return { eyebrow: "Step 04", title: "Timing & phenomena", sub: "Order functional events, assign operator-action windows, and identify sequence-induced phenomenological conditions (ES-A6, B3)." };
     case "endstates": return { eyebrow: "Step 05", title: "End states & release categories", sub: "Assign each sequence a safe stable state or a release category; release categories are handed to Mechanistic Source Term (HLR-ES-C)." };
@@ -455,7 +455,7 @@ function EsWorkbench({
           </div>
 
           {renderScreen()}
-          {["sequences", "quant"].includes(stepId) && <EsAnalysisHistory />}
+          {stepId === "quant" && <EsAnalysisHistory />}
 
           <div className="posnav">
             {prev ? (

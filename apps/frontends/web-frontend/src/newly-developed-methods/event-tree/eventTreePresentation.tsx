@@ -1,9 +1,10 @@
 import { type JSX, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { DynamicRun } from "interfaces-mef-types/es/event-sequence-analysis";
+import { eventTreeOutcomeRank, type DynamicRun, type EventTreeOutcome } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { EventTreeInitiatingEventFrequency } from "interfaces-mef-types/modeling";
 import { parametersFor, useExpressionSummaries, type ExpressionQuery } from "../shared/useUncertainty";
 import { frequencyRateUnits, type FrequencyParameterTable, type InitiatingFrequencyUnit } from "./eventTreeOperations";
 import type {
+  EventTreeBranchPoint,
   EventTreeLeafReference,
   EventTreeNodeView,
   EventTreePresentationView,
@@ -33,21 +34,40 @@ function InitiatingFrequency({ frequency, parameters }: { frequency: EventTreeIn
   return <div className="estree__ie-freq">{formatExponential(state.value.point)} {FREQUENCY_SUFFIX[unit]}</div>;
 }
 
+function EventTreeIcon({ name }: { name: "undo" | "redo" | "file" | "zoom-out" | "zoom-in" | "fit" }): JSX.Element {
+  const common = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    strokeWidth: 1.8,
+  };
+  return (
+    <svg className="et-editor__button-icon" viewBox="0 0 24 24" aria-hidden="true">
+      {name === "undo" && <><path {...common} d="M9 7H4V2" /><path {...common} d="M4.5 7A9 9 0 1 1 7 19.5" /></>}
+      {name === "redo" && <><path {...common} d="M15 7h5V2" /><path {...common} d="M19.5 7A9 9 0 1 0 17 19.5" /></>}
+      {name === "file" && <><path {...common} d="M6 3h8l4 4v14H6z" /><path {...common} d="M14 3v5h4" /><path {...common} d="M9 13h6M9 17h6" /></>}
+      {(name === "zoom-out" || name === "zoom-in") && <><circle {...common} cx="10.5" cy="10.5" r="6.5" /><path {...common} d="m15.5 15.5 5 5M7.5 10.5h6" />{name === "zoom-in" && <path {...common} d="M10.5 7.5v6" />}</>}
+      {name === "fit" && <><path {...common} d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" /><rect {...common} x="8" y="8" width="8" height="8" rx="1" /></>}
+    </svg>
+  );
+}
+
 function DiagramViewport({ width, height, children }: { width: number; height: number; children: JSX.Element }): JSX.Element {
   const host = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const [availableWidth, setAvailableWidth] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const viewportHeight = 520;
+  const [viewportHeight, setViewportHeight] = useState(0);
 
-  const fit = (hostWidth = availableWidth): void => {
-    if (hostWidth <= 0) return;
-    const nextZoom = Math.min(1, (hostWidth - 24) / width, (viewportHeight - 24) / height);
+  const fit = (hostWidth = availableWidth, hostHeight = viewportHeight): void => {
+    if (hostWidth <= 0 || hostHeight <= 0) return;
+    const nextZoom = Math.min(1, (hostWidth - 24) / width, (hostHeight - 24) / height);
     setZoom(nextZoom);
     setPan({
       x: Math.max(12, (hostWidth - width * nextZoom) / 2),
-      y: Math.max(12, (viewportHeight - height * nextZoom) / 2),
+      y: Math.max(12, (hostHeight - height * nextZoom) / 2),
     });
   };
 
@@ -56,8 +76,10 @@ function DiagramViewport({ width, height, children }: { width: number; height: n
     if (element === null) return;
     const measure = (): void => {
       const nextWidth = element.clientWidth;
+      const nextHeight = element.clientHeight;
       setAvailableWidth(nextWidth);
-      fit(nextWidth);
+      setViewportHeight(nextHeight);
+      fit(nextWidth, nextHeight);
     };
     measure();
     if (typeof ResizeObserver === "undefined") {
@@ -73,7 +95,6 @@ function DiagramViewport({ width, height, children }: { width: number; height: n
     <div
       ref={host}
       className="et-editor__diagram-viewport"
-      style={{ height: viewportHeight }}
       onPointerDown={(event) => {
         const target = event.target;
         if (event.button !== 0 || (target instanceof Element && target.closest("button") !== null)) return;
@@ -97,10 +118,11 @@ function DiagramViewport({ width, height, children }: { width: number; height: n
       <div className="et-editor__diagram-content" style={{ width, height, transform: `translate(${String(pan.x)}px, ${String(pan.y)}px) scale(${String(zoom)})` }}>
         {children}
       </div>
-      <div className="et-editor__viewport-controls" aria-label="Diagram viewport controls">
-        <button type="button" onClick={() => setZoom((current) => Math.max(.2, current - .1))} aria-label="Zoom out" title="Zoom out">−</button>
-        <button type="button" onClick={() => setZoom((current) => Math.min(2, current + .1))} aria-label="Zoom in" title="Zoom in">+</button>
-        <button type="button" onClick={() => fit()} aria-label="Fit diagram" title="Fit diagram">⤢</button>
+      <div className="et-editor__canvas-controls" aria-label="Diagram viewport controls">
+        <button type="button" className="et-editor__icon-btn" onClick={() => setZoom((current) => Math.max(.2, current / 1.15))} aria-label="Zoom out" title="Zoom out"><EventTreeIcon name="zoom-out" /></button>
+        <output className="et-editor__zoom" aria-label="Zoom level">{Math.round(zoom * 100)}%</output>
+        <button type="button" className="et-editor__icon-btn" onClick={() => setZoom((current) => Math.min(2, current * 1.15))} aria-label="Zoom in" title="Zoom in"><EventTreeIcon name="zoom-in" /></button>
+        <button type="button" className="et-editor__icon-btn" onClick={() => fit()} aria-label="Fit" title="Fit to screen"><EventTreeIcon name="fit" /></button>
       </div>
     </div>
   );
@@ -111,21 +133,29 @@ function collectSequences(node: EventTreeNodeView | EventTreeLeafReference): str
   return outcomeChildren(node).flatMap(([, child]) => collectSequences(child));
 }
 
-type OutcomeKind = "S" | "F" | "B";
+type OutcomeKind = "S" | "F" | "B" | "N";
 
-function outcomeChildren(node: EventTreeNodeView): Array<[OutcomeKind, EventTreeNodeView | EventTreeLeafReference]> {
-  return ([
-    ["S", node.S],
-    ["F", node.F],
-    ["B", node.B],
-  ] as const).filter((entry): entry is [OutcomeKind, EventTreeNodeView | EventTreeLeafReference] => entry[1] !== undefined);
+function outcomeKind(state: EventTreeOutcome): OutcomeKind {
+  if (state === "SUCCESS") return "S";
+  if (state === "FAILURE") return "F";
+  if (state === "BYPASSED") return "B";
+  return "N";
+}
+
+function outcomeText(state: EventTreeOutcome): string {
+  const kind = outcomeKind(state);
+  return kind === "N" ? String(eventTreeOutcomeRank(state) + 1) : kind;
+}
+
+function outcomeChildren(node: EventTreeNodeView): Array<[EventTreeOutcome, EventTreeNodeView | EventTreeLeafReference]> {
+  return node.outcomes.map((outcome) => [outcome.state, outcome.child]);
 }
 
 interface ClassicSegment { x1: number; y1: number; x2: number; y2: number; sequences: string[] }
 interface ClassicLayout {
   segments: ClassicSegment[];
-  dots: Array<{ x: number; y: number }>;
-  labels: Array<{ x: number; y: number; kind: OutcomeKind }>;
+  dots: Array<{ x: number; y: number; branch: EventTreeBranchPoint }>;
+  labels: Array<{ x: number; y: number; kind: OutcomeKind; text: string }>;
   leaves: Array<{ sequenceId: string; y: number }>;
   columnX: (column: number) => number;
   endX: number;
@@ -142,8 +172,8 @@ function layoutClassic(view: EventTreePresentationView): ClassicLayout {
   const endX = left + view.functionalEvents.length * columnWidth;
   const columnX = (column: number): number => left + column * columnWidth;
   const segments: ClassicSegment[] = [];
-  const dots: Array<{ x: number; y: number }> = [];
-  const labels: Array<{ x: number; y: number; kind: OutcomeKind }> = [];
+  const dots: Array<{ x: number; y: number; branch: EventTreeBranchPoint }> = [];
+  const labels: Array<{ x: number; y: number; kind: OutcomeKind; text: string }> = [];
   const leaves: Array<{ sequenceId: string; y: number }> = [];
   const nodeY = new Map<EventTreeNodeView, number>();
   const leafY = new Map<string, number>();
@@ -168,11 +198,17 @@ function layoutClassic(view: EventTreePresentationView): ClassicLayout {
     const x = columnX(node.fe);
     const sequences = collectSequences(node);
     segments.push({ x1: enterX, y1: y, x2: x, y2: y, sequences });
-    dots.push({ x, y });
-    for (const [kind, child] of outcomeChildren(node)) {
+    const outcomes = node.outcomes.map((outcome) => {
+      const sequence = collectSequences(outcome.child)[0];
+      return sequence === undefined ? { state: outcome.state } : { state: outcome.state, sequence };
+    });
+    dots.push({ x, y, branch: { key: `${String(node.fe)}:${sequences[0] ?? String(y)}`, fe: node.fe, outcomes } });
+    const lowest = node.outcomes.length - 1;
+    for (const [index, [state, child]] of outcomeChildren(node).entries()) {
       const outcomeY = childY(child);
+      const kind = outcomeKind(state);
       segments.push({ x1: x, y1: y, x2: x, y2: outcomeY, sequences: collectSequences(child) });
-      labels.push({ x: x + 6, y: outcomeY + (kind === "S" ? -6 : kind === "F" ? 14 : -6), kind });
+      labels.push({ x: x + 6, y: outcomeY + (index === lowest && lowest > 0 ? 14 : -6), kind, text: outcomeText(state) });
       if ("seq" in child) segments.push({ x1: x, y1: outcomeY, x2: endX, y2: outcomeY, sequences: child.seq.length === 0 ? [] : [child.seq] });
       else draw(child, x, outcomeY);
     }
@@ -185,7 +221,9 @@ function SequenceOutcome({ sequence }: { sequence: EventTreeSequenceView }): JSX
   const safe = sequence.endState === "SUCCESSFUL_MITIGATION";
   const label = sequence.transferTargetId !== undefined
     ? `Transfer · ${sequence.transferTargetId}`
-    : safe
+    : sequence.endStateLabel !== undefined
+      ? sequence.endStateLabel
+      : safe
       ? sequence.sequenceFamilyId ?? "Safe state"
       : sequence.releaseCategoryId ?? sequence.sequenceFamilyId ?? "Release";
   return (
@@ -193,7 +231,7 @@ function SequenceOutcome({ sequence }: { sequence: EventTreeSequenceView }): JSX
   );
 }
 
-function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, showFrequency, frequencyParameters = NO_PARAMETERS, canEdit, onHover, onSelect, onSelectFunctionalEvent, onFunctionalEventContext, onSequenceContext, onReorderFunctionalEvent }: {
+function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, selectedBranchKey = null, showFrequency, frequencyParameters = NO_PARAMETERS, canEdit, onHover, onSelect, onSelectFunctionalEvent, onFunctionalEventContext, onSequenceContext, onReorderFunctionalEvent, onSelectBranch, onBranchContext }: {
   view: EventTreePresentationView;
   activeSequenceId: string | null;
   selectedEntityId: string | null;
@@ -206,6 +244,9 @@ function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, sho
   onFunctionalEventContext: (functionalEventId: string, x: number, y: number) => void;
   onSequenceContext: (sequenceId: string, x: number, y: number) => void;
   onReorderFunctionalEvent: (functionalEventId: string, targetIndex: number) => void;
+  selectedBranchKey?: string | null;
+  onSelectBranch?: (branch: EventTreeBranchPoint) => void;
+  onBranchContext?: (branch: EventTreeBranchPoint, x: number, y: number) => void;
 }): JSX.Element {
   const layout = useMemo(() => layoutClassic(view), [view]);
   const sequences = new Map(view.sequences.map((sequence) => [sequence.id, sequence]));
@@ -235,10 +276,8 @@ function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, sho
             }}
           >
             <div className="estree__head-bar" />
-            <div className="estree__head-fe">FE{String(index + 1)}</div>
+            <div className="estree__head-fe">{event.code}</div>
             <div className="estree__head-label">{event.label}</div>
-            <div className="estree__head-sub">{event.sub}</div>
-            <span className={`estree__link-state${event.linked ? " estree__link-state--linked" : ""}`}>{event.linked ? "Linked" : "Unlinked"}</span>
           </button>
         ))}
         <div className="estree__ie" style={{ top: layout.rootY }}>
@@ -249,8 +288,27 @@ function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, sho
         <svg className="estree__svg" width={layout.width} height={layout.height} aria-hidden="true">
           {layout.segments.map((segment, index) => <line key={index} className={`estree__seg${highlighted(segment.sequences) ? " estree__seg--hot" : ""}`} x1={segment.x1} y1={segment.y1} x2={segment.x2} y2={segment.y2} />)}
           {layout.dots.map((dot, index) => <circle key={index} className="estree__node-dot" cx={dot.x} cy={dot.y} r="3.4" />)}
-          {layout.labels.map((label, index) => <text key={index} className={`estree__branch-lab estree__branch-lab--${label.kind.toLowerCase()}`} x={label.x} y={label.y}>{label.kind}</text>)}
+          {layout.labels.map((label, index) => <text key={index} className={`estree__branch-lab estree__branch-lab--${label.kind.toLowerCase()}`} x={label.x} y={label.y}>{label.text}</text>)}
         </svg>
+        {canEdit && onSelectBranch !== undefined && layout.dots.map((dot) => {
+          const name = view.functionalEvents[dot.branch.fe]?.code ?? "";
+          return (
+            <button
+              key={dot.branch.key}
+              type="button"
+              className={`estree__branch${selectedBranchKey === dot.branch.key ? " estree__branch--selected" : ""}`}
+              style={{ left: dot.x, top: dot.y }}
+              aria-label={`${dot.branch.outcomes.length === 1 ? "Bypassed branch" : "Branch point"} ${name}`}
+              title={name}
+              onClick={() => onSelectBranch(dot.branch)}
+              onContextMenu={(contextEvent) => {
+                contextEvent.preventDefault();
+                contextEvent.stopPropagation();
+                onBranchContext?.(dot.branch, contextEvent.clientX, contextEvent.clientY);
+              }}
+            />
+          );
+        })}
         {layout.leaves.map((leaf) => {
           const sequence = sequences.get(leaf.sequenceId);
           return sequence === undefined ? null : (
@@ -267,7 +325,7 @@ function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, sho
 interface EsdLayout {
   boxes: Array<{ x: number; y: number; eventIndex: number; sequences: string[] }>;
   links: Array<{ startX: number; startY: number; middleX: number; endX: number; endY: number; kind: OutcomeKind; sequences: string[] }>;
-  labels: Array<{ x: number; y: number; kind: OutcomeKind }>;
+  labels: Array<{ x: number; y: number; kind: OutcomeKind; text: string }>;
   leaves: Array<{ sequenceId: string; y: number }>;
   rootY: number;
   endX: number;
@@ -309,12 +367,13 @@ function layoutEventSequenceDiagram(view: EventTreePresentationView): EsdLayout 
   const walk = (node: EventTreeNodeView, y: number): void => {
     const x = centerX(node.fe);
     boxes.push({ x, y, eventIndex: node.fe, sequences: collectSequences(node) });
-    for (const [kind, child] of outcomeChildren(node)) {
+    for (const [state, child] of outcomeChildren(node)) {
+      const kind = outcomeKind(state);
       const endY = childY(child);
       const nextX = "seq" in child ? endX : centerX(child.fe) - boxWidth / 2;
       const startX = x + boxWidth / 2;
       links.push({ startX, startY: y, middleX: startX + (nextX - startX) / 2, endX: nextX, endY, kind, sequences: collectSequences(child) });
-      labels.push({ x: startX + 9, y: y + (endY < y ? -7 : 15), kind });
+      labels.push({ x: startX + 9, y: y + (endY < y ? -7 : 15), kind, text: outcomeText(state) });
       if (!("seq" in child)) walk(child, endY);
     }
   };
@@ -350,9 +409,10 @@ function EventSequenceDiagram({ view, activeSequenceId, selectedEntityId, onHove
             <marker id={`esdg-s-${markerSuffix}`} markerWidth="8" markerHeight="8" refX="6.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="var(--c-complete)" /></marker>
             <marker id={`esdg-f-${markerSuffix}`} markerWidth="8" markerHeight="8" refX="6.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#c44d4d" /></marker>
             <marker id={`esdg-b-${markerSuffix}`} markerWidth="8" markerHeight="8" refX="6.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="var(--color-text-subtle)" /></marker>
+            <marker id={`esdg-n-${markerSuffix}`} markerWidth="8" markerHeight="8" refX="6.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="var(--color-text-muted)" /></marker>
           </defs>
           {layout.links.map((link, index) => <path key={index} className={`esdg__link esdg__link--${link.kind.toLowerCase()}${highlighted(link.sequences) ? " esdg__link--hot" : ""}`} d={`M ${link.startX} ${link.startY} H ${link.middleX} V ${link.endY} H ${link.endX}`} markerEnd={`url(#esdg-${link.kind.toLowerCase()}-${markerSuffix})`} />)}
-          {layout.labels.map((label, index) => <text key={index} className={`estree__branch-lab estree__branch-lab--${label.kind.toLowerCase()}`} x={label.x} y={label.y}>{label.kind}</text>)}
+          {layout.labels.map((label, index) => <text key={index} className={`estree__branch-lab estree__branch-lab--${label.kind.toLowerCase()}`} x={label.x} y={label.y}>{label.text}</text>)}
         </svg>
         <div className="esdg__ie" style={{ left: 6, top: layout.rootY }}><div className="esdg__ie-cap">Initiator</div><div className="esdg__ie-id">{view.initiatingEventId}</div></div>
         {layout.boxes.map((box, index) => {
@@ -492,4 +552,4 @@ function DynamicEventSequenceDiagram({ run, sequences, activeSequenceId, onHover
   );
 }
 
-export { ClassicEventTreeDiagram, DynamicEventSequenceDiagram, EventSequenceDiagram, formatExponential };
+export { ClassicEventTreeDiagram, DynamicEventSequenceDiagram, EventSequenceDiagram, EventTreeIcon, formatExponential };

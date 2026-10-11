@@ -1,26 +1,33 @@
 import { stringifyJson } from "interfaces-shared-types/json";
-import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { Fragment, JSX, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, JSX, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ESIcon } from "./esIcons";
 import { Badge, ESProvenanceChip, fmtImportance } from "./esShared";
 import {
   ES_END_STATES,
+  ES_STEPS,
   ES_RELEASE_CATEGORIES,
   FEASIBILITY_CRITERIA,
   ES_DEPENDENCY_TYPES,
   ES_LBE_CLASSES,
   type CapabilityCategory,
 } from "./esViewData";
-import { type Dependency, DependencyType, type OperatorActionWindow, type FeasibilityState, type PhenomenologicalDependencyModel, type ReleaseCategoryMapping, type EventSequenceFamily, type EventSequenceScreeningRecord, type SystemStatus } from "interfaces-mef-types/es/event-sequence-analysis";
-import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
+import { type Dependency, DependencyType, type OperatorActionWindow, type FeasibilityState, type PhenomenologicalDependencyModel, type ReleaseCategoryMapping, type EventSequenceFamily, type EventSequenceScreeningRecord, type EventSequenceAnalysis, type EsBarrierCondition, type EsEndStateDefinition, type EsEndStateKind, type EventTree, type EventTreeOutcome, eventTreeOutcomeRank } from "interfaces-mef-types/es/event-sequence-analysis";
+import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
 import { EndState } from "interfaces-mef-types/core/events";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
-import { useEsWorkbook } from "./esWorkbookContext";
+import { useEsWorkbook, type EsFaultTreeSource } from "./esWorkbookContext";
 import {
   eventTreesView,
   coverageView,
+  nextReleaseCategoryId,
+  releaseCategoryOptions,
+  endStateUseCount,
+  withEndStateDefinitionApplied,
+  withSyncedSequenceEndState,
+  withTreeSequenceClassification,
   familiesView,
   releaseMappingsView,
   screeningView,
@@ -36,29 +43,28 @@ import {
 import { generateEsReport } from "./esDocx";
 import { EsFaultTreeReferencePicker } from "./esFaultTreeReferencePicker";
 import { setFunctionalEventFaultTreeReference } from "./esFaultTreeReferences";
-import { getEsEventTreeResult, runEsEventTree } from "./esWorkbookApi";
+import { ChoiceEditor, DialogHead, DialogShell } from "./EsScope";
 import {
   EventTreeEditor,
   applyEventTreeOperation,
   createEmptyEventTree,
-  initiatingFrequencyUnit,
   validateEventTree,
   type EventTreeOperation,
   type EventTreeRepresentation,
 } from "../newly-developed-methods/event-tree";
-import type { ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
 import { transferBreadcrumb, useTransferTrail } from "../newly-developed-methods/shared/transferTrail";
-import { daParameterKey, daParameterLabel, daReference, useDaFrequencyTable, type IeDaFrequencyOption } from "../ie-workbooks/ieDaLinks";
 import "./css/esScreens.css";
+import "./css/esSequences.css";
 
 function fmtExp(n: number | undefined): string {
   return n === undefined ? "—" : n.toExponential(1);
 }
 
-function eventPathState(state: SystemStatus): { label: string; tone: "s" | "f" | "b" } {
+function eventPathState(state: EventTreeOutcome): { label: string; tone: "s" | "f" | "b" | "n" } {
   if (state === "SUCCESS") return { label: "Success", tone: "s" };
   if (state === "FAILURE") return { label: "Failure", tone: "f" };
-  return { label: "Bypassed", tone: "b" };
+  if (state === "BYPASSED") return { label: "Bypassed", tone: "b" };
+  return { label: `Branch ${String(eventTreeOutcomeRank(state) + 1)}`, tone: "n" };
 }
 
 function rcTone(rc: string | undefined): "block" | "warn" | "ok" {
@@ -777,38 +783,256 @@ function DrawerHost({ ctx, onClose }: { ctx: DrawerCtx; onClose: () => void }): 
   );
 }
 
-const NO_DA_FREQUENCIES: IeDaFrequencyOption[] = [];
 
 interface EsTrailPlace {
   treeId: string;
   selection: string | null;
 }
 
+function useFaultTreeNames(trees: readonly EventTree[], linkedSyId: string | undefined, linkedSy: SystemsAnalysis | undefined, source: EsFaultTreeSource | undefined): Map<string, string> {
+  const [fetched, setFetched] = useState<ReadonlyMap<string, SystemsAnalysis>>(new Map());
+  const requested = useRef(new Set<string>());
+  const referenced = useMemo(() => [...new Set(trees.flatMap((tree) => Object.values(tree.functionalEvents).flatMap((event) => (event.faultTreeTopEvent === undefined ? [] : [event.faultTreeTopEvent.workbookId]))))], [trees]);
+  useEffect(() => {
+    for (const workbookId of referenced) {
+      if (workbookId.length === 0 || workbookId === source?.workbookId || (workbookId === linkedSyId && linkedSy !== undefined) || requested.current.has(workbookId)) continue;
+      requested.current.add(workbookId);
+      getSyWorkbook(workbookId)
+        .then((workbook) => setFetched((current) => new Map(current).set(workbookId, workbook.mef)))
+        .catch(() => undefined);
+    }
+  }, [referenced, source?.workbookId, linkedSyId, linkedSy]);
+  return useMemo(() => {
+    const names = new Map<string, string>();
+    const add = (workbookId: string, mef: SystemsAnalysis): void => {
+      for (const model of mef.systemLogicModels) {
+        names.set(`${workbookId}|${model.uuid}`, model.name);
+        if (!names.has(`|${model.uuid}`)) names.set(`|${model.uuid}`, model.name);
+      }
+    };
+    if (source !== undefined) add(source.workbookId, source.mef);
+    if (linkedSy !== undefined) add(linkedSyId ?? "", linkedSy);
+    for (const [workbookId, mef] of fetched) add(workbookId, mef);
+    return names;
+  }, [fetched, linkedSy, linkedSyId, source]);
+}
+
+function treeCode(tree: EventTree): string {
+  return tree.label !== undefined && tree.label.length > 0 ? tree.label : tree.name;
+}
+
+function stepSource(stepId: string): string | undefined {
+  const step = ES_STEPS.find((candidate) => candidate.id === stepId);
+  return step === undefined ? undefined : `From Step ${step.num} · ${step.label}`;
+}
+
+type SequenceTab = "coverage" | "tree";
+
+const SEQUENCE_TABS: { id: SequenceTab; label: string }[] = [
+  { id: "coverage", label: "Coverage" },
+  { id: "tree", label: "Event tree" },
+];
+
+const END_STATE_KINDS: { id: EsEndStateKind; label: string }[] = [
+  { id: "SAFE_STABLE", label: "Safe stable state" },
+  { id: "RELEASE", label: "Release" },
+  { id: "INTERMEDIATE", label: "Intermediate state" },
+];
+
+const BARRIER_CONDITIONS: { id: EsBarrierCondition; label: string }[] = [
+  { id: "INTACT", label: "Intact" },
+  { id: "DEGRADED", label: "Degraded" },
+  { id: "FAILED", label: "Failed" },
+  { id: "BYPASSED", label: "Bypassed" },
+];
+
+function kindOfScEndState(endState: EndState): EsEndStateKind {
+  return endState === EndState.RADIONUCLIDE_RELEASE ? "RELEASE" : "SAFE_STABLE";
+}
+
+function EndStateDialog({ treeId, endStateId, sequenceId, onClose }: { treeId: string; endStateId?: string; sequenceId?: string; onClose: () => void }): JSX.Element {
+  const { es, upstream, editable, mutateEs } = useEsWorkbook();
+  const existing = es.endStateDefinitions?.find((candidate) => candidate.id === endStateId);
+  const [draft, setDraft] = useState<EsEndStateDefinition>(() => existing ?? { id: crypto.randomUUID(), code: "", name: "", kind: "SAFE_STABLE" });
+  const [newCategory, setNewCategory] = useState("");
+  const fieldId = useId();
+  const categories = releaseCategoryOptions(es);
+  const scEndStates = upstream?.sc?.endStateDefinitions ?? [];
+  const sources = es.scopeDefinition.radioactiveMaterialSources;
+  const barriers = es.scopeDefinition.radionuclideBarriers;
+  const uses = existing === undefined ? 0 : endStateUseCount(es, existing.id);
+  const code = draft.code.trim();
+  const taken = (es.endStateDefinitions ?? []).some((candidate) => candidate.id !== draft.id && candidate.code === code);
+  const categoryCode = newCategory.trim();
+  const ready = code.length > 0 && draft.name.trim().length > 0 && !taken;
+
+  function patch(fields: Partial<EsEndStateDefinition>): void {
+    setDraft((current) => ({ ...current, ...fields }));
+  }
+
+  function linkSc(scId: string): void {
+    const linked = scEndStates.find((candidate) => candidate.uuid === scId);
+    if (linked === undefined) {
+      setDraft(({ scEndStateId: _old, ...rest }) => rest);
+      return;
+    }
+    const kind = kindOfScEndState(linked.endState);
+    setDraft((current) => {
+      const { releaseCategoryId: _previous, ...rest } = current;
+      const category = linked.resultingReleaseCategoryId ?? linked.releaseCategoryReferences[0];
+      return { ...rest, scEndStateId: linked.uuid, kind, definition: linked.definition, ...(kind === "RELEASE" && category !== undefined ? { releaseCategoryId: category } : {}) };
+    });
+  }
+
+  function setBarrier(barrier: string, condition: string): void {
+    const kept = (draft.barriers ?? []).filter((entry) => entry.barrier !== barrier);
+    const chosen = BARRIER_CONDITIONS.find((option) => option.id === condition)?.id;
+    patch({ barriers: chosen === undefined ? kept : [...kept, { barrier, condition: chosen }] });
+  }
+
+  function save(): void {
+    if (!editable || !ready) return;
+    const releaseCategoryId = draft.kind === "RELEASE" ? (categoryCode.length > 0 ? categoryCode : draft.releaseCategoryId) : undefined;
+    const { releaseCategoryId: _previous, ...rest } = draft;
+    const definition: EsEndStateDefinition = { ...rest, code, name: draft.name.trim(), ...(releaseCategoryId === undefined ? {} : { releaseCategoryId }) };
+    mutateEs((current) => {
+      const definitions = current.endStateDefinitions ?? [];
+      let next: EventSequenceAnalysis = {
+        ...current,
+        endStateDefinitions: definitions.some((candidate) => candidate.id === definition.id) ? definitions.map((candidate) => (candidate.id === definition.id ? definition : candidate)) : [...definitions, definition],
+      };
+      if (releaseCategoryId !== undefined && !releaseCategoryOptions(next).some((option) => option.id === releaseCategoryId)) {
+        next = { ...next, releaseCategoryMappings: [...(next.releaseCategoryMappings ?? []), { uuid: crypto.randomUUID(), name: definition.name, releaseCategoryId, eventSequenceIds: [], mappingBasis: "", commonCharacteristics: [], physicalReleaseCharacteristics: [], implementsSrs: [] }] };
+      }
+      next = withEndStateDefinitionApplied(next, definition.id);
+      if (sequenceId !== undefined) {
+        next = {
+          ...next,
+          eventTrees: (next.eventTrees ?? []).map((tree) => (tree.uuid === treeId ? applyEventTreeOperation(tree, { kind: "SET_SEQUENCE_END_STATE", sequenceId, endState: definition.kind === "RELEASE" ? "RADIONUCLIDE_RELEASE" : "SUCCESSFUL_MITIGATION", endStateId: definition.id }) : tree)),
+        };
+        next = withSyncedSequenceEndState(next, treeId, sequenceId);
+      }
+      return next;
+    });
+    onClose();
+  }
+
+  function remove(): void {
+    if (!editable || existing === undefined || uses > 0) return;
+    mutateEs((current) => ({ ...current, endStateDefinitions: (current.endStateDefinitions ?? []).filter((candidate) => candidate.id !== existing.id) }));
+    onClose();
+  }
+
+  return (
+    <DialogShell label="End state" onClose={onClose}>
+      <DialogHead cap={existing === undefined ? "New end state · ES-A8 · ES-C1" : "End state · ES-A8 · ES-C1"} onClose={onClose} />
+      <div className="modal__body">
+        <div className="posfield-grid">
+          {scEndStates.length > 0 && (
+            <div className="posfield posfield-grid--span2"><label className="posfield__label" htmlFor={`${fieldId}-sc`}>SC end state</label>
+              <select id={`${fieldId}-sc`} className="posfield__select" value={draft.scEndStateId ?? ""} disabled={!editable} onChange={(event) => linkSc(event.target.value)}>
+                <option value="">Typed in ES</option>
+                {scEndStates.map((candidate) => <option key={candidate.uuid} value={candidate.uuid}>{candidate.uuid}</option>)}
+              </select>
+            </div>
+          )}
+          <div className="posfield"><label className="posfield__label" htmlFor={`${fieldId}-code`}>Code</label>
+            <input id={`${fieldId}-code`} className="posfield__input posmono" value={draft.code} disabled={!editable} onChange={(event) => patch({ code: event.target.value })} />
+          </div>
+          <div className="posfield"><label className="posfield__label" htmlFor={`${fieldId}-kind`}>Kind</label>
+            <select id={`${fieldId}-kind`} className="posfield__select" value={draft.kind} disabled={!editable} onChange={(event) => { const kind = END_STATE_KINDS.find((option) => option.id === event.target.value)?.id; if (kind !== undefined) patch({ kind }); }}>
+              {END_STATE_KINDS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+            </select>
+          </div>
+          <div className="posfield posfield-grid--span2"><label className="posfield__label" htmlFor={`${fieldId}-name`}>Name</label>
+            <input id={`${fieldId}-name`} className="posfield__input" value={draft.name} disabled={!editable} onChange={(event) => patch({ name: event.target.value })} />
+          </div>
+          <div className="posfield posfield-grid--span2"><label className="posfield__label" htmlFor={`${fieldId}-definition`}>Definition</label>
+            <textarea id={`${fieldId}-definition`} className="posfield__textarea" rows={3} value={draft.definition ?? ""} disabled={!editable} onChange={(event) => patch({ definition: event.target.value })} />
+          </div>
+          {draft.kind === "RELEASE" && (
+            <>
+              <div className="posfield"><label className="posfield__label" htmlFor={`${fieldId}-category`}>Release category</label>
+                <select id={`${fieldId}-category`} className="posfield__select" value={draft.releaseCategoryId ?? ""} disabled={!editable || categoryCode.length > 0} onChange={(event) => { const { releaseCategoryId: _old, ...rest } = draft; setDraft(event.target.value.length === 0 ? rest : { ...rest, releaseCategoryId: event.target.value }); }}>
+                  <option value="">None</option>
+                  {categories.map((option) => <option key={option.id} value={option.id}>{option.name.length > 0 && option.name !== option.id ? `${option.id} · ${option.name}` : option.id}</option>)}
+                </select>
+              </div>
+              <div className="posfield"><label className="posfield__label" htmlFor={`${fieldId}-new-category`}>New release category</label>
+                <input id={`${fieldId}-new-category`} className="posfield__input posmono" placeholder={nextReleaseCategoryId(categories.map((option) => option.id))} value={newCategory} disabled={!editable} onChange={(event) => setNewCategory(event.target.value)} />
+              </div>
+              <div className="posfield"><label className="posfield__label" htmlFor={`${fieldId}-path`}>Release path</label>
+                <input id={`${fieldId}-path`} className="posfield__input" value={draft.releasePath ?? ""} disabled={!editable} onChange={(event) => patch({ releasePath: event.target.value })} />
+              </div>
+              <div className="posfield"><label className="posfield__label" htmlFor={`${fieldId}-timing`}>Timing</label>
+                <input id={`${fieldId}-timing`} className="posfield__input" value={draft.timing ?? ""} disabled={!editable} onChange={(event) => patch({ timing: event.target.value })} />
+              </div>
+            </>
+          )}
+        </div>
+        <ChoiceEditor label="Reactors and sources" choices={sources.map((source) => ({ id: source, label: "" }))} values={draft.reactorsAndSources ?? []} editable={editable} addLabel="Add a reactor or source" mono={false} onChange={(reactorsAndSources) => patch({ reactorsAndSources })} />
+        {barriers.length > 0 && (
+          <div className="posfield-grid">
+            {barriers.map((barrier) => (
+              <div key={barrier} className="posfield"><label className="posfield__label" htmlFor={`${fieldId}-barrier-${barrier}`}>{barrier}</label>
+                <select id={`${fieldId}-barrier-${barrier}`} className="posfield__select" value={draft.barriers?.find((entry) => entry.barrier === barrier)?.condition ?? ""} disabled={!editable} onChange={(event) => setBarrier(barrier, event.target.value)}>
+                  <option value="">Not recorded</option>
+                  {BARRIER_CONDITIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+        )}
+        {taken && <p className="es-scope-error" role="alert">{code} is already used by another end state.</p>}
+        {editable && (
+          <div className="posrow es-dialog-actions">
+            {existing !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" disabled={uses > 0} title={uses > 0 ? `${String(uses)} path${uses === 1 ? "" : "s"} use this end state` : undefined} onClick={remove}>Delete end state</button>}
+            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={!ready} onClick={save}>{existing === undefined ? "Add end state" : "Save"}</button>
+          </div>
+        )}
+      </div>
+    </DialogShell>
+  );
+}
+
 function SequencesScreen(): JSX.Element {
-  const { es, posLink, ieLink, projectId, faultTreeSource, editable, mutateEs, runtime, daFrequencies } = useEsWorkbook();
-  const daOptions = daFrequencies ?? NO_DA_FREQUENCIES;
-  const frequencyParameters = useDaFrequencyTable(daOptions);
-  const frequencyOptions = useMemo<ParameterOption[]>(() => {
-    const label = daParameterLabel(daOptions);
-    return daOptions.map((option) => ({ reference: daReference(option), label: label(daParameterKey(option)), unit: initiatingFrequencyUnit(option.estimate, frequencyParameters) }));
-  }, [daOptions, frequencyParameters]);
-  const coverage = useMemo(() => coverageView(es, posLink), [es, posLink]);
+  const { es, posLink, ieLink, projectId, faultTreeSource, upstream, editable, mutateEs, runtime } = useEsWorkbook();
+  const faultTreeNames = useFaultTreeNames(es.eventTrees ?? [], es.linkedWorkbooks?.SY, upstream?.sy, faultTreeSource);
+  const coverage = useMemo(() => coverageView(es, posLink, ieLink), [es, posLink, ieLink]);
+  const releaseCategories = useMemo(() => releaseCategoryOptions(es), [es]);
+  const initiatorOptions = useMemo(() => {
+    const known = new Set(coverage.groups.map((group) => group.id));
+    return [...coverage.groups, ...ieLink.groups.filter((group) => !known.has(group.id))].map((group) => ({ id: group.id, name: group.name }));
+  }, [coverage.groups, ieLink.groups]);
+  const [tab, setTab] = useState<SequenceTab>("coverage");
   const [treeId, setTreeId] = useState<string>(es.eventTrees?.[0]?.uuid ?? "");
-  const [representation, setRepresentation] = useState<EventTreeRepresentation>("event-sequence-diagram");
+  const [representation, setRepresentation] = useState<EventTreeRepresentation>("event-tree");
   const [selection, setSelection] = useState<string | null>(null);
   const [faultTreeLink, setFaultTreeLink] = useState<{ eventTreeId: string; functionalEventId: string; functionalEventName: string } | null>(null);
-  const [results, setResults] = useState<Record<string, EventTreeAnalysisResult>>({});
-  const {sourceWarning} = useAnalysisSourceGuard("es", runtime.workbookId);
-  const [runningTreeId, setRunningTreeId] = useState<string | null>(null);
-  const [runError, setRunError] = useState<string | null>(null);
+  const [endStateDialog, setEndStateDialog] = useState<{ endStateId?: string; sequenceId?: string } | null>(null);
+  const endStateOptions = useMemo(() => (es.endStateDefinitions ?? []).map((definition) => ({
+    id: definition.id,
+    code: definition.code,
+    name: definition.name,
+    release: definition.kind === "RELEASE",
+    source: definition.scEndStateId === undefined ? "Typed in ES" : `Linked from SC · ${definition.scEndStateId}`,
+  })), [es.endStateDefinitions]);
+  const endStateIds = useMemo(() => new Set(endStateOptions.map((option) => option.id)), [endStateOptions]);
+  const tablist = useRef<HTMLDivElement>(null);
+  const tabsId = useId();
   const trees = es.eventTrees ?? [];
   const model = trees.find((tree) => tree.uuid === treeId) ?? trees[0];
   const activeTreeId = model?.uuid ?? "";
   const dynamicRun = (es.dynamicRuns ?? []).find((run) => run.eventTreeId === activeTreeId);
-  const result = model === undefined ? undefined : results[model.uuid];
 
   const pendingSelection = useRef<EsTrailPlace | null>(null);
-  const trail = useTransferTrail<EsTrailPlace>((place) => place.treeId === activeTreeId);
+  const trail = useTransferTrail<EsTrailPlace>(
+    (place) => place.treeId === activeTreeId,
+    (from, to, live) => {
+      const sequenceId = live ? selection : from.selection;
+      return sequenceId !== null && trees.find((tree) => tree.uuid === from.treeId)?.transfers?.[sequenceId]?.targetEventTreeId === to.treeId;
+    },
+  );
   const currentPlace = (): EsTrailPlace => ({ treeId: activeTreeId, selection });
   const goTo = (place: EsTrailPlace): void => {
     if (place.treeId === activeTreeId) {
@@ -818,10 +1042,11 @@ function SequencesScreen(): JSX.Element {
     pendingSelection.current = place;
     setTreeId(place.treeId);
   };
-  const pickTree = (id: string): void => {
+  const openTree = (id: string): void => {
     trail.reset();
     setTreeId(id);
     setSelection(null);
+    setTab("tree");
   };
 
   useEffect(() => {
@@ -841,125 +1066,146 @@ function SequencesScreen(): JSX.Element {
     const operatingState = plantOperatingStateId ?? posLink.states[0]?.id ?? es.scopeDefinition.plantOperatingStateIds[0];
     const created = createEmptyEventTree(initiator, operatingState);
     mutateEs((draft) => ({ ...draft, eventTrees: [...(draft.eventTrees ?? []), created] }));
-    setTreeId(created.uuid);
-    setSelection(null);
+    openTree(created.uuid);
   };
 
   const applyOperation = (operation: EventTreeOperation): void => {
     if (model === undefined) return;
-    mutateEs((draft) => ({
-      ...draft,
-      eventTrees: (draft.eventTrees ?? []).map((candidate) => candidate.uuid === model.uuid ? applyEventTreeOperation(candidate, operation) : candidate),
-    }));
-  };
-
-  const run = async (): Promise<void> => {
-    if (model === undefined || runtime.workbookId === null || runtime.revision === null) {
-      setRunError("Save this ES workbook before running the event tree.");
-      return;
-    }
-    const validation = validateEventTree(model, trees);
-    const blocking = validation.find((finding) => finding.severity === "ERROR");
-    if (blocking !== undefined) {
-      setRunError(blocking.message);
-      return;
-    }
-    setRunningTreeId(model.uuid);
-    setRunError(null);
-    try {
-      const execution = await runEsEventTree(runtime.workbookId, model.uuid, runtime.revision);
-      if (execution.run.status === "FAILED") throw new Error(execution.run.failure?.message ?? "Event-tree quantification failed.");
-      if (execution.run.status !== "SUCCEEDED") throw new Error(`Event-tree run did not complete (status: ${execution.run.status}).`);
-      const analysis = await getEsEventTreeResult(runtime.workbookId, model.uuid, execution.run.id);
-      setResults((current) => ({ ...current, [model.uuid]: analysis }));
-    } catch (error) {
-      setRunError(error instanceof Error ? error.message : "Event-tree quantification failed.");
-    } finally {
-      setRunningTreeId(null);
-    }
+    mutateEs((draft) => {
+      const applied = {
+        ...draft,
+        eventTrees: (draft.eventTrees ?? []).map((candidate) => candidate.uuid === model.uuid ? applyEventTreeOperation(candidate, operation) : candidate),
+      };
+      return operation.kind === "SET_SEQUENCE_END_STATE" ? withSyncedSequenceEndState(applied, model.uuid, operation.sequenceId) : applied;
+    });
   };
 
   const linkingTree = trees.find((tree) => tree.uuid === faultTreeLink?.eventTreeId);
   const linkingFunctionalEvent = Object.values(linkingTree?.functionalEvents ?? {}).find((event) => event.uuid === faultTreeLink?.functionalEventId);
 
+  function renderCoverage(): JSX.Element {
+    if (coverage.groups.length === 0 || coverage.states.length === 0) {
+      return <div className="es-seq-note"><p>Add operating states and initiating event groups to the analysis scope in Step 01.</p></div>;
+    }
+    return (
+      <div className="esmatrix-wrap">
+        <table className="esmatrix">
+          <thead><tr><th className="esmatrix__corner">Operating state</th>{coverage.groups.map((group) => <th key={group.id} className={`esmatrix__col${model?.initiatingEventId === group.id ? " esmatrix__col--active" : ""}`}>{group.id}</th>)}</tr></thead>
+          <tbody>{coverage.states.map((state) => <tr key={state.id}><th className="esmatrix__rowh"><span className="esmatrix__rowh-id">{state.id}</span>{state.name.length > 0 && <span className="esmatrix__rowh-name">{state.name}</span>}</th>{coverage.groups.map((group) => {
+            const cellTreeId = coverage.cellTree[`${group.id}|${state.id}`];
+            const selected = cellTreeId === model?.uuid;
+            return <td key={group.id} className={`esmatrix__cell${cellTreeId === undefined ? "" : " esmatrix__cell--on"}${selected ? " esmatrix__cell--sel" : ""}`} title={cellTreeId === undefined ? `Create ${group.id} in ${state.id}` : `Open ${group.id} in ${state.id}`} onClick={() => { if (cellTreeId === undefined) createTree(group.id, state.id); else openTree(cellTreeId); }}>{cellTreeId === undefined ? (editable ? <span className="esmatrix__add">+</span> : <span className="esmatrix__na">·</span>) : <span className="esmatrix__dot" />}</td>;
+          })}</tr>)}</tbody>
+        </table>
+      </div>
+    );
+  }
+
+  function renderTree(): JSX.Element {
+    if (model === undefined) {
+      return (
+        <div className="es-seq-note">
+          <p>This workbook has no event tree yet.</p>
+          {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => createTree()}>Create event tree</button>}
+        </div>
+      );
+    }
+    return (
+      <EventTreeEditor
+        model={model}
+        breadcrumb={transferBreadcrumb(trail, currentPlace, goTo)}
+        eventSequences={es.eventSequences}
+        availableInitiatingEvents={initiatorOptions}
+        availableOperatingStates={coverage.states}
+        editFrequency={false}
+        availableTransfers={trees.filter((tree) => tree.uuid !== model.uuid).map((tree) => ({ id: tree.uuid, name: tree.name, sequenceIds: Object.keys(tree.sequences) }))}
+        sequenceFamilyOptions={es.eventSequenceFamilies.map((family) => ({ id: family.uuid, name: family.name }))}
+        releaseCategoryOptions={releaseCategories}
+        dynamicRun={dynamicRun}
+        representation={dynamicRun === undefined && representation === "dynamic" ? "event-tree" : representation}
+        capabilities={{ author: editable, quantification: false, linkSelection: true }}
+        selection={selection}
+        validation={validateEventTree(model, trees, endStateIds).filter((finding) => !finding.code.startsWith("ET_FREQUENCY"))}
+        saveState={runtime.saveState}
+        onOperation={applyOperation}
+        onRepresentationChange={setRepresentation}
+        onSelectionChange={setSelection}
+        faultTreeName={(reference) => faultTreeNames.get(`${reference.workbookId}|${reference.modelId}`) ?? faultTreeNames.get(`|${reference.modelId}`)}
+        onSelectFaultTreeLink={(functionalEvent) => setFaultTreeLink({ eventTreeId: model.uuid, functionalEventId: functionalEvent.uuid, functionalEventName: functionalEvent.label ?? functionalEvent.name })}
+        onClassifySequence={(sequenceId, changes) => mutateEs((draft) => withTreeSequenceClassification(draft, model.uuid, sequenceId, changes))}
+        sequenceFamilySource={stepSource("families")}
+        releaseCategorySource={stepSource("endstates")}
+        endStateOptions={endStateOptions}
+        onAddEndState={editable ? (sequenceId) => setEndStateDialog({ sequenceId }) : undefined}
+        onEditEndState={(endStateId) => setEndStateDialog({ endStateId })}
+        onOpenReference={(reference) => {
+          if ("targetEventTreeId" in reference) {
+            const target = trees.find((tree) => tree.uuid === reference.targetEventTreeId);
+            trail.follow(
+              { place: currentPlace(), label: treeCode(model) },
+              { place: { treeId: reference.targetEventTreeId, selection: null }, label: target === undefined ? reference.targetEventTreeId : treeCode(target) },
+            );
+            setTreeId(reference.targetEventTreeId);
+            setSelection(null);
+          } else {
+            window.open(`/sy-workbooks/${reference.workbookId}`, "_blank", "noopener,noreferrer");
+          }
+        }}
+      />
+    );
+  }
+
   return (
     <>
-      <div className="poscard">
-        <div className="poscard__head">
-          <div>
-            <WorkbookSectionHeading workbook="ES" title="Event-tree coverage" level={3} />
-            <p className="poscard__sub">Open an existing operating-state and initiating-event pair, or create the missing tree directly from the matrix.</p>
-          </div>
-          <div className="posrow" style={{ gap: 8 }}>
-            {model !== undefined && (
-              <select aria-label="Event tree" className="posfield__select" value={model.uuid} onChange={(event) => pickTree(event.target.value)}>
-                {trees.map((tree) => <option key={tree.uuid} value={tree.uuid}>{tree.name} · {tree.initiatingEventId}{tree.plantOperatingStateId === undefined ? "" : ` · ${tree.plantOperatingStateId}`}</option>)}
+      <div className="poscard es-seq-card">
+        <div className="poscard__head es-seq-card__head">
+          {model !== undefined && (
+            <label className="es-seq-card__picker">
+              <span className="posfield__label">Event tree</span>
+              <select className="posfield__select" aria-label="Event tree" value={model.uuid} onChange={(event) => openTree(event.target.value)}>
+                {trees.map((tree) => <option key={tree.uuid} value={tree.uuid}>{tree.name}</option>)}
               </select>
-            )}
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => createTree()}>Add event tree</button>}
-          </div>
+            </label>
+          )}
+          {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => createTree()}>Add event tree</button>}
         </div>
-        {coverage.ies.length > 0 && coverage.states.length > 0 && (
-          <div className="esmatrix-wrap">
-            <table className="esmatrix">
-              <thead><tr><th className="esmatrix__corner">Operating state</th>{coverage.ies.map((initiator) => <th key={initiator.id} className={`esmatrix__col${model?.initiatingEventId === initiator.id ? " esmatrix__col--active" : ""}`}>{initiator.id}</th>)}</tr></thead>
-              <tbody>{coverage.states.map((state) => <tr key={state.id}><th className="esmatrix__rowh"><span className="esmatrix__rowh-id">{state.id}</span>{state.name.length > 0 && <span className="esmatrix__rowh-name">{state.name}</span>}</th>{coverage.ies.map((initiator) => {
-                const cellTreeId = coverage.cellTree[`${initiator.id}|${state.id}`];
-                const selected = cellTreeId === model?.uuid;
-                return <td key={initiator.id} className={`esmatrix__cell${cellTreeId === undefined ? "" : " esmatrix__cell--on"}${selected ? " esmatrix__cell--sel" : ""}`} title={cellTreeId === undefined ? `Create ${initiator.id} in ${state.id}` : `Open ${initiator.id} in ${state.id}`} onClick={() => { if (cellTreeId === undefined) createTree(initiator.id, state.id); else pickTree(cellTreeId); }}>{cellTreeId === undefined ? (editable ? <span className="esmatrix__add">+</span> : <span className="esmatrix__na">·</span>) : <span className="esmatrix__dot" />}</td>;
-              })}</tr>)}</tbody>
-            </table>
-          </div>
-        )}
+        <div
+          className="es-tabs"
+          role="tablist"
+          aria-label="Event sequence sections"
+          ref={tablist}
+          onKeyDown={(event) => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+            event.preventDefault();
+            const current = SEQUENCE_TABS.findIndex((item) => item.id === tab);
+            const next = event.key === "Home" ? 0 : event.key === "End" ? SEQUENCE_TABS.length - 1 : (current + (event.key === "ArrowRight" ? 1 : -1) + SEQUENCE_TABS.length) % SEQUENCE_TABS.length;
+            const target = SEQUENCE_TABS[next];
+            if (target === undefined) return;
+            setTab(target.id);
+            tablist.current?.querySelectorAll<HTMLButtonElement>("button")[next]?.focus();
+          }}
+        >
+          {SEQUENCE_TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              id={`${tabsId}-${item.id}`}
+              aria-selected={tab === item.id}
+              aria-controls={`${tabsId}-panel`}
+              tabIndex={tab === item.id ? 0 : -1}
+              onClick={() => setTab(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <div role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-${tab}`} className="es-seq-card__panel">
+          {tab === "coverage" ? renderCoverage() : renderTree()}
+        </div>
       </div>
 
-      {model === undefined ? (
-        <div className="poscard"><EsEmpty title="No event trees yet" hint="Create the first event tree to define initiating frequency, functional events, complete paths, end states, and transfers." />{editable && <div className="posrow" style={{ justifyContent: "center" }}><button type="button" className="posnav__btn posnav__btn--primary" onClick={() => createTree()}>Create event tree</button></div>}</div>
-      ) : (
-        <EventTreeEditor
-          model={model}
-          breadcrumb={transferBreadcrumb(trail, currentPlace, goTo)}
-          eventSequences={es.eventSequences}
-          availableInitiatingEvents={ieLink.groups.map((group) => ({ id: group.id, name: group.name }))}
-          frequencyOptions={frequencyOptions}
-          frequencyParameters={frequencyParameters}
-          availableTransfers={trees.filter((tree) => tree.uuid !== model.uuid).map((tree) => ({ id: tree.uuid, name: tree.name, sequenceIds: Object.keys(tree.sequences) }))}
-          sequenceFamilyOptions={es.eventSequenceFamilies.map((family) => ({ id: family.uuid, name: family.name }))}
-          releaseCategoryOptions={ES_RELEASE_CATEGORIES.map((category) => ({ id: category.id, name: category.name }))}
-          dynamicRun={dynamicRun}
-          representation={dynamicRun === undefined && representation === "dynamic" ? "event-sequence-diagram" : representation}
-          capabilities={{ author: editable, quantification: runtime.workbookId !== null, linkSelection: true, resultOverlay: true }}
-          selection={selection}
-          validation={validateEventTree(model, trees)}
-          saveState={runtime.saveState}
-          analysisResult={result ?? null}
-          resultIsStale={result !== undefined && (sourceWarning !== null || result.owner.workbookRevision !== runtime.revision || runtime.saveState === "saving")}
-          running={runningTreeId === model.uuid}
-          runError={runError ?? sourceWarning}
-          onOperation={applyOperation}
-          onRepresentationChange={setRepresentation}
-          onSelectionChange={setSelection}
-          onSelectFaultTreeLink={(functionalEvent) => setFaultTreeLink({ eventTreeId: model.uuid, functionalEventId: functionalEvent.uuid, functionalEventName: functionalEvent.label ?? functionalEvent.name })}
-          onUpdateEventSequence={(eventSequenceId, changes) => mutateEs((draft) => ({
-            ...draft,
-            eventSequences: draft.eventSequences.map((sequence) => sequence.uuid === eventSequenceId ? { ...sequence, ...changes } : sequence),
-          }))}
-          onOpenReference={(reference) => {
-            if ("targetEventTreeId" in reference) {
-              const target = trees.find((tree) => tree.uuid === reference.targetEventTreeId);
-              trail.follow(
-                { place: currentPlace(), label: model.name },
-                { place: { treeId: reference.targetEventTreeId, selection: null }, label: target?.name ?? reference.targetEventTreeId },
-              );
-              setTreeId(reference.targetEventTreeId);
-              setSelection(null);
-            } else {
-              window.open(`/sy-workbooks/${reference.workbookId}`, "_blank", "noopener,noreferrer");
-            }
-          }}
-          onRun={() => { void run(); }}
-        />
-      )}
+      {endStateDialog !== null && model !== undefined && <EndStateDialog treeId={model.uuid} {...(endStateDialog.endStateId === undefined ? {} : { endStateId: endStateDialog.endStateId })} {...(endStateDialog.sequenceId === undefined ? {} : { sequenceId: endStateDialog.sequenceId })} onClose={() => setEndStateDialog(null)} />}
 
       {faultTreeLink !== null && (projectId !== undefined || faultTreeSource !== undefined) && (
         <EsFaultTreeReferencePicker

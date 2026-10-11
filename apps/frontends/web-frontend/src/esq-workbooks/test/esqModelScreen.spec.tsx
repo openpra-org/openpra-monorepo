@@ -141,7 +141,7 @@ describe("ESQ Step 02 model screen", () => {
     expect(screen.getByLabelText("Law")).toHaveValue("LOGNORMAL");
     fireEvent.change(screen.getByLabelText("Law"), { target: { value: "GAMMA" } });
     expect(screen.getByLabelText("Law")).toHaveValue("GAMMA");
-    expect(screen.getByText("Type the frequency per plant-year.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Unit")).toHaveValue("per-plant-year");
   });
 
   it("shows a common cause group with the shared factor editor", async () => {

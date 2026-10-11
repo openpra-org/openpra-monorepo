@@ -279,7 +279,16 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   const lastView = useRef<TreeView | null>(null);
   const [restoreView, setRestoreView] = useState<TreeView | null>(null);
   const pendingSelection = useRef<FaultTreeSelection>(null);
-  const trail = useTransferTrail<SyTrailPlace>((place) => place.systemId === sysDef?.uuid);
+  const trail = useTransferTrail<SyTrailPlace>(
+    (place) => place.systemId === sysDef?.uuid,
+    (from, to, live) => {
+      const chosen = live ? selection : from.selection;
+      if (chosen === null || chosen.kind !== "LEAF") return false;
+      const leafId = chosen.leafId;
+      const leaf = sy.systemLogicModels.find((candidate) => candidate.systemReference === from.systemId)?.leafNodes.find((node) => node.id === leafId);
+      return leaf !== undefined && leaf.kind === "TRANSFER_REFERENCE" && sy.systemLogicModels.find((candidate) => candidate.uuid === leaf.target.modelId)?.systemReference === to.systemId;
+    },
+  );
 
   useEffect(() => {
     setSelection(pendingSelection.current);

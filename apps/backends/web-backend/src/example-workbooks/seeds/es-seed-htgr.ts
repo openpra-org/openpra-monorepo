@@ -11,7 +11,9 @@ import {
   GEN_RC_MEMBERS,
   GEN_RC_FREQUENCY,
 } from "./es-seed-dynamic-htgr.generated";
+import { withEndStateCatalog } from "interfaces-mef-types/es/es-end-states";
 import { createExampleDependencyEventTree } from "./dependency-model-seed";
+import { SC_ANALYSIS_HTGR } from "./sc-seed-htgr";
 import { withSystemTops } from "./es-seed-system-tops";
 import { SY_ANALYSIS_HTGR } from "./sy-seed-htgr";
 
@@ -41,9 +43,9 @@ function systemOf(tree: EventTree, functionId: string): string | undefined {
   return functionId === "ISOL" ? ISOLATION_SYSTEMS[tree.initiatingEventId] : FUNCTION_SYSTEMS[functionId];
 }
 
-const LINKED_EVENT_TREES = withSystemTops(GEN_EVENT_TREES, SY_ANALYSIS_HTGR, "example-sy-htgr", systemOf);
+const LINKED_EVENT_TREES = withSystemTops(GEN_EVENT_TREES.map((tree) => ({ ...tree, label: tree.uuid })), SY_ANALYSIS_HTGR, "example-sy-htgr", systemOf);
 
-export const ES_ANALYSIS_HTGR: EventSequenceAnalysis = {
+export const ES_ANALYSIS_HTGR: EventSequenceAnalysis = withEndStateCatalog({
   uuid: "es-generic-2",
   name: "ES Workbook 1",
   type: TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS,
@@ -217,9 +219,9 @@ export const ES_ANALYSIS_HTGR: EventSequenceAnalysis = {
     ],
   },
   releaseCategoryMappings: [
-    { uuid: "RCM-1", eventSequenceIds: GEN_RC_MEMBERS["RC-1"], releaseCategoryId: "RC-1", mappingBasis: "Unfiltered release: the reactor building's isolation or filtration fails while a boundary or heat-up challenge is in progress, so the release bypasses the last barrier.", commonCharacteristics: ["Building isolation or filtration failed", "No filtration credit", "TRISO retention still limits the magnitude"], physicalReleaseCharacteristics: ["Timing set by the driving sequence", "Small-to-moderate magnitude", "Unscrubbed"], meanFrequency: GEN_RC_FREQUENCY["RC-1"], processedByRiskIntegration: true, implementsSrs: [] },
-    { uuid: "RCM-2", eventSequenceIds: GEN_RC_MEMBERS["RC-2"], releaseCategoryId: "RC-2", mappingBasis: "Delayed filtered release: heat removal is lost and fuel heat-up develops within about two days, with the building holding and filtering the release.", commonCharacteristics: ["Building intact and filtered", "Source term from slow fuel heat-up", "Graphite thermal inertia delays the release"], physicalReleaseCharacteristics: ["Delayed (> 24 h)", "Small magnitude", "Scrubbed"], meanFrequency: GEN_RC_FREQUENCY["RC-2"], processedByRiskIntegration: true, implementsSrs: [] },
-    { uuid: "RCM-3", eventSequenceIds: GEN_RC_MEMBERS["RC-3"], releaseCategoryId: "RC-3", mappingBasis: "Filtered building leakage: circulating activity, plateout, and dust reach the intact building and leave only at the design leak rate through the filters.", commonCharacteristics: ["Design-leakage only", "Filtration and plate-out credited", "Circulating activity dominates, fuel intact"], physicalReleaseCharacteristics: ["Slow", "Very small magnitude", "Scrubbed"], meanFrequency: GEN_RC_FREQUENCY["RC-3"], processedByRiskIntegration: true, implementsSrs: [] },
+    { uuid: "RCM-1", name: "Unfiltered release", eventSequenceIds: GEN_RC_MEMBERS["RC-1"], releaseCategoryId: "RC-1", mappingBasis: "Unfiltered release: the reactor building's isolation or filtration fails while a boundary or heat-up challenge is in progress, so the release bypasses the last barrier.", commonCharacteristics: ["Building isolation or filtration failed", "No filtration credit", "TRISO retention still limits the magnitude"], physicalReleaseCharacteristics: ["Timing set by the driving sequence", "Small-to-moderate magnitude", "Unscrubbed"], meanFrequency: GEN_RC_FREQUENCY["RC-1"], processedByRiskIntegration: true, implementsSrs: [] },
+    { uuid: "RCM-2", name: "Delayed filtered release", eventSequenceIds: GEN_RC_MEMBERS["RC-2"], releaseCategoryId: "RC-2", mappingBasis: "Delayed filtered release: heat removal is lost and fuel heat-up develops within about two days, with the building holding and filtering the release.", commonCharacteristics: ["Building intact and filtered", "Source term from slow fuel heat-up", "Graphite thermal inertia delays the release"], physicalReleaseCharacteristics: ["Delayed (> 24 h)", "Small magnitude", "Scrubbed"], meanFrequency: GEN_RC_FREQUENCY["RC-2"], processedByRiskIntegration: true, implementsSrs: [] },
+    { uuid: "RCM-3", name: "Filtered building leakage", eventSequenceIds: GEN_RC_MEMBERS["RC-3"], releaseCategoryId: "RC-3", mappingBasis: "Filtered building leakage: circulating activity, plateout, and dust reach the intact building and leave only at the design leak rate through the filters.", commonCharacteristics: ["Design-leakage only", "Filtration and plate-out credited", "Circulating activity dominates, fuel intact"], physicalReleaseCharacteristics: ["Slow", "Very small magnitude", "Scrubbed"], meanFrequency: GEN_RC_FREQUENCY["RC-3"], processedByRiskIntegration: true, implementsSrs: [] },
   ],
   screeningRecords: [
     { sequenceId: "EHU-P02-6", retained: true, justification: "Kept: though its frequency is very low (2.7E-12/yr), it reaches release category RC-3 through the relief-lift path during load follow; ES-A7 keeps any sequence not meeting SCR-3.", implementsSrs: [] },
@@ -266,4 +268,4 @@ export const ES_ANALYSIS_HTGR: EventSequenceAnalysis = {
     praTaskInterfaces: "Interfaces with POS, IE, Success Criteria, ESQ, and Mechanistic Source Term tasks documented.",
     implementsSrs: [],
   },
-};
+}, SC_ANALYSIS_HTGR);

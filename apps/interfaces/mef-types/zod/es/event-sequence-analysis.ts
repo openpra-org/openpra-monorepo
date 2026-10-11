@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BarrierImpactState, DependencyType } from "../../es/event-sequence-analysis";
+import { BarrierImpactState, DependencyType, isEventTreeBranchState, type EventTreeBranchState } from "../../es/event-sequence-analysis";
 import { EndState } from "../../core/events";
 import type { EventSequenceAnalysis } from "../../es/event-sequence-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
@@ -28,6 +28,7 @@ export const EndStateSchema = z.enum(EndState);
 export const DependencyTypeSchema = z.enum(DependencyType);
 export const EsBarrierImpactStateSchema = z.enum(BarrierImpactState);
 export const EsSystemStatusSchema = z.enum(["SUCCESS", "FAILURE", "BYPASSED"]);
+export const EsEventTreeOutcomeSchema = z.union([EsSystemStatusSchema, z.custom<EventTreeBranchState>((value) => typeof value === "string" && isEventTreeBranchState(value))]);
 
 const FrequencyValueSchema = z.union([FrequencySchema, FrequencyWithDistributionSchema]);
 
@@ -143,7 +144,7 @@ export const EventSequenceSchema = z.object({
   plantOperatingStateId: z.string(),
   eventTreeId: z.string().optional(),
   eventTreeSequenceId: z.string().optional(),
-  functionalEventStates: z.record(z.string(), EsSystemStatusSchema).optional(),
+  functionalEventStates: z.record(z.string(), EsEventTreeOutcomeSchema).optional(),
   progression: z.string().optional(),
   systemResponses: z.record(z.string(), EsSystemStatusSchema).optional(),
   operatorActions: z.array(z.string()).optional(),
@@ -155,6 +156,7 @@ export const EventSequenceSchema = z.object({
   endState: EndStateSchema,
   affectedReactorSourceCombinations: z.array(z.string()).optional(),
   sequenceFamilyId: z.string().optional(),
+  endStateId: z.string().optional(),
   releaseCategoryId: z.string().optional(),
   successCriteriaIds: z.array(SuccessCriteriaIdSchema).optional(),
   meanFrequency: FrequencyValueSchema.optional(),
@@ -199,8 +201,23 @@ export const EventSequenceFamilySchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const EsEndStateDefinitionSchema = z.object({
+  id: z.string(),
+  code: z.string(),
+  name: z.string(),
+  kind: z.enum(["SAFE_STABLE", "RELEASE", "INTERMEDIATE"]),
+  definition: z.string().optional(),
+  releaseCategoryId: z.string().optional(),
+  scEndStateId: z.string().optional(),
+  reactorsAndSources: z.array(z.string()).optional(),
+  barriers: z.array(z.object({ barrier: z.string(), condition: z.enum(["INTACT", "DEGRADED", "FAILED", "BYPASSED"]) })).optional(),
+  releasePath: z.string().optional(),
+  timing: z.string().optional(),
+});
+
 export const ReleaseCategoryMappingSchema = z.object({
   uuid: z.string(),
+  name: z.string().optional(),
   eventSequenceIds: z.array(z.string()),
   releaseCategoryId: z.string(),
   sourceTermId: z.string().optional(),
@@ -302,7 +319,7 @@ export const FunctionalEventSchema = z
   });
 
 export const EventTreePathSchema = z.object({
-  state: EsSystemStatusSchema,
+  state: EsEventTreeOutcomeSchema,
   target: z.string(),
   targetType: z.enum(["BRANCH", "SEQUENCE", "END_STATE"]),
   description: z.string().optional(),
@@ -326,7 +343,8 @@ export const EventTreeSequenceSchema = z.object({
   endState: EndStateSchema.optional(),
   instructions: z.array(z.string()).optional(),
   eventSequenceId: z.string().optional(),
-  functionalEventStates: z.record(z.string(), EsSystemStatusSchema).optional(),
+  endStateId: z.string().optional(),
+  functionalEventStates: z.record(z.string(), EsEventTreeOutcomeSchema).optional(),
 });
 
 export const EventTreeTransferSchema = z.object({
@@ -472,6 +490,7 @@ export const EventSequenceAnalysisSchema = z.object({
   operatorActionWindows: z.array(OperatorActionWindowSchema).optional(),
   dependencyModels: DependencyModelsSchema.optional(),
   releaseCategoryMappings: z.array(ReleaseCategoryMappingSchema).optional(),
+  endStateDefinitions: z.array(EsEndStateDefinitionSchema).optional(),
   screeningRecords: z.array(EventSequenceScreeningRecordSchema),
   repairCreditRecords: z.array(RepairCreditRecordSchema).optional(),
   plantResponseAnalysisApproach: z

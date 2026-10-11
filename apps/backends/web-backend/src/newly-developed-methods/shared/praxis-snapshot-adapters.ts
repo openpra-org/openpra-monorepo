@@ -775,7 +775,9 @@ const adaptEsEventTreeSnapshot = (
         const outcome = states[event.id];
         if (outcome !== "SUCCESS" && outcome !== "FAILURE" && outcome !== "BYPASSED") {
           throw new WorkbookPraxisAdapterError(
-            `ES sequence '${sequence.uuid}' is missing a success, failure, or bypassed outcome for '${event.id}'`,
+            outcome === undefined
+              ? `ES sequence '${sequence.uuid}' is missing a success, failure, or bypassed outcome for '${event.id}'`
+              : `ES functional event '${event.id}' has more than two branches, which a Boolean run cannot quantify yet`,
           );
         }
         return { functionalEventId: event.id, outcome };

@@ -37,7 +37,7 @@ import {
   type EsqValueHolder,
   type EventSequenceQuantification,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { type EventSequenceAnalysis, type EventTree, type FunctionalEvent } from "interfaces-mef-types/es/event-sequence-analysis";
+import { isEventTreeBranchState, type EventSequenceAnalysis, type EventTree, type FunctionalEvent } from "interfaces-mef-types/es/event-sequence-analysis";
 import { carriesUncertainExpression, type CommonCauseFailureGroup, type SystemBasicEvent, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-models";
 import { isComponentModel, type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
@@ -280,6 +280,10 @@ function treeRecords(es: EventSequenceAnalysis): EsqTreeRecord[] {
   });
 }
 
+function multiBranchKeys(states: Record<string, string | null> | null | undefined, keyOf: ReadonlyMap<string, string>): string[] {
+  return Object.entries(states ?? {}).flatMap(([id, state]) => (state !== null && isEventTreeBranchState(state) ? [keyOf.get(id) ?? id] : []));
+}
+
 function translatedPath(states: Record<string, string | null> | null | undefined, keyOf: ReadonlyMap<string, string>): Record<string, EsqBranchState> {
   const path: Record<string, EsqBranchState> = {};
   for (const [id, state] of Object.entries(states ?? {})) {
@@ -302,8 +306,9 @@ function sequenceRecords(es: EventSequenceAnalysis): EsqSequenceRecord[] {
   for (const tree of es.eventTrees ?? []) {
     const keyOf = new Map(Object.entries(tree.functionalEvents).map(([id, event]) => [id, functionKeyOf(event, id)]));
     for (const [treeSequenceId, sequence] of Object.entries(tree.sequences)) {
-      const id = textOf(sequence.eventSequenceId) ?? treeSequenceId;
-      const source = byId.get(id) ?? byId.get(sequence.uuid);
+      const linkedId = textOf(sequence.eventSequenceId);
+      const id = linkedId !== undefined && !used.has(linkedId) ? linkedId : treeSequenceId;
+      const source = byId.get(linkedId ?? id) ?? byId.get(sequence.uuid);
       if (source !== undefined) used.add(source.uuid);
       used.add(id);
       const transfer = tree.transfers?.[treeSequenceId] ?? tree.transfers?.[sequence.uuid] ?? undefined;
@@ -313,6 +318,8 @@ function sequenceRecords(es: EventSequenceAnalysis): EsqSequenceRecord[] {
         treeId: tree.uuid,
         path: { ...translatedPath(source?.functionalEventStates, keyOf), ...translatedPath(sequence.functionalEventStates, keyOf) },
       };
+      const multiBranch = [...new Set([...multiBranchKeys(source?.functionalEventStates, keyOf), ...multiBranchKeys(sequence.functionalEventStates, keyOf)])];
+      if (multiBranch.length > 0) record.multiBranchFunctions = multiBranch;
       const endState = textOf(sequence.endState) ?? (transfer === undefined ? textOf(source?.endState) : undefined);
       if (endState !== undefined) record.endState = endState;
       const familyId = textOf(source?.sequenceFamilyId) ?? memberFamily.get(id);
@@ -1242,6 +1249,8 @@ function sequenceFindings(model: EsqModel, sequences: readonly EsqSequenceView[]
   for (const view of sequences) {
     const record = view.record;
     const target = { kind: "esqSequence" as const, id: record.id };
+    const multiBranch = record.multiBranchFunctions ?? [];
+    if (multiBranch.length > 0) findings.push({ severity: "error", check: "More than two branches", item: record.code, detail: `${record.code} passes ${listText(multiBranch)} with more than two branches. ESQ cannot quantify numbered branches yet.`, target });
     if (record.transferTreeId !== undefined) {
       const treeCode = model.trees.find((tree) => tree.id === record.transferTreeId)?.code;
       if (treeCode === undefined) findings.push({ severity: "error", check: "Transfer target missing", item: record.code, detail: `${record.code} transfers to a tree that ES does not have.` });
@@ -1418,7 +1427,7 @@ function initiatorFindings(esq: EventSequenceQuantification, model: EsqModel, in
       if (blank(view.choice?.basis)) findings.push({ severity: "warning", check: "No basis", item: view.id, detail: "Give the basis of the typed frequency.", target });
       if (cc === "CC-II" && view.given !== undefined && !hasUncertainty(inlinedExpression(view.given, table))) findings.push({ severity: "warning", check: "No distribution", item: view.id, detail: "CC-II propagates a distribution. Give the typed frequency a law (ESQ-A8).", target });
     }
-    if (view.unit === "per-critical-year") findings.push({ severity: "warning", check: "Frequency unit", item: view.id, detail: "IE gives this frequency per critical year. ESQ works per plant-year.", target });
+    if (view.unit === "per-critical-year" && view.given !== undefined && view.expression === undefined) findings.push({ severity: "error", check: "Frequency unit", item: view.id, detail: `${view.source === "IE" ? "IE gives this frequency" : "This frequency is"} per critical year. POS gives no hours for its operating states, so ESQ cannot turn it into per reactor-year.`, target });
     if (view.unit === "per-demand") findings.push({ severity: "error", check: "Frequency unit", item: view.id, detail: "IE gives this value per demand. An initiator needs a frequency.", target });
     const applicable = view.states.filter((state) => state.applicable);
     if (applicable.length < 2) {

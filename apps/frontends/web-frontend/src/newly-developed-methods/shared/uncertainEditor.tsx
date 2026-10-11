@@ -196,7 +196,7 @@ function NumberField({ label, value, disabled, onCommit }: { label: string; valu
   return (
     <label className="uncertain-editor__field" htmlFor={id}>
       <span>{label}</span>
-      <WorkbookInput id={id} type="text" inputMode="decimal" value={value === null ? "" : String(value)} disabled={disabled} onChange={(event) => onCommit(parsedNumber(event.target.value))} />
+      <WorkbookInput id={id} type="text" inputMode="decimal" value={value === null || !Number.isFinite(value) ? "" : String(value)} disabled={disabled} onChange={(event) => onCommit(parsedNumber(event.target.value))} />
     </label>
   );
 }

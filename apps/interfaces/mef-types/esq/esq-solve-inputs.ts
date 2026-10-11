@@ -82,10 +82,8 @@ function solveInputsKey(esq: EventSequenceQuantification, options: { combination
     })) : undefined,
     floor: options.combinations ? post.floor?.value : undefined,
     plan: {
-      frequencyBasis: plan.frequencyBasis?.value,
       stateWeighting: plan.stateWeighting?.value,
       modulesPerPlant: plan.modulesPerPlant?.value,
-      moduleCounting: plan.moduleCounting?.value,
     },
   };
   const text = canonicalJson(payload);

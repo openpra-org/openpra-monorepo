@@ -149,9 +149,7 @@ describe("ESQ scope coverage", () => {
 describe("ESQ quantification plan", () => {
   it("falls back to the published defaults", () => {
     expect(planValues(blankEsq())).toEqual({
-      frequencyBasis: ESQ_PLAN_DEFAULTS.frequencyBasis,
       stateWeighting: ESQ_PLAN_DEFAULTS.stateWeighting,
-      moduleCounting: ESQ_PLAN_DEFAULTS.moduleCounting,
       reportingFloorPerYear: 1e-7,
       convergenceStepPercent: 5,
     });

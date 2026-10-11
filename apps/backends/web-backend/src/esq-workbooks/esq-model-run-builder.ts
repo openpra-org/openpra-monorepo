@@ -669,6 +669,7 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
   const eventTreeSnapshots = trees.map((tree): PraxisModelSnapshot => {
     const endStates = new Set<string>();
     const sequences = model.sequences.filter((sequence) => sequence.treeId === tree.id).map((sequence) => {
+      if ((sequence.multiBranchFunctions ?? []).length > 0) throw new EsqRunBuildError(`${sequence.code} in ${tree.code} passes a functional event with more than two branches. ESQ cannot quantify numbered branches yet.`);
       const path = tree.functionIds.map((functionId) => ({ functionalEventId: esqFunctionRunId(functionId), outcome: sequence.path[functionId] ?? "BYPASSED" }));
       if (sequence.transferTreeId !== undefined) {
         return { id: esqSequenceRunId(tree.id, sequence.id), path, result: { kind: "TRANSFER", target: { modelId: esqTreeRunId(sequence.transferTreeId) } } };

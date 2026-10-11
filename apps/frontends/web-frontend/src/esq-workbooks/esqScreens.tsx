@@ -3,10 +3,8 @@ import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivate
 import { JSX, useId, useState } from "react";
 import {
   ESQ_PLAN_DEFAULTS,
-  type EsqFrequencyBasis,
   type EsqLinkCode,
   type EsqLinkedWorkbooks,
-  type EsqModuleCounting,
   type EsqQuantificationPlan,
   type EsqScopeAspect,
   type EsqStateWeighting,
@@ -18,8 +16,6 @@ import {
   ESQ_LINK_TILES,
   ESQ_PLAN_SOURCES,
   ESQ_SCOPE_ASPECTS,
-  FREQUENCY_BASIS_OPTIONS,
-  MODULE_COUNTING_OPTIONS,
   PLANT_STAGES,
   STATE_WEIGHTING_OPTIONS,
   exampleLinkLabel,
@@ -326,14 +322,8 @@ function EsqPlanCard(): JSX.Element {
     if (!editable) return;
     mutateEsq((draft) => withPlanDefault(draft, key));
   }
-  function onFrequencyBasis(value: EsqFrequencyBasis): void {
-    patchPlan((current) => ({ ...current, frequencyBasis: value === ESQ_PLAN_DEFAULTS.frequencyBasis ? undefined : { value, reason: current.frequencyBasis?.reason } }));
-  }
   function onStateWeighting(value: EsqStateWeighting): void {
     patchPlan((current) => ({ ...current, stateWeighting: value === ESQ_PLAN_DEFAULTS.stateWeighting ? undefined : { value, reason: current.stateWeighting?.reason } }));
-  }
-  function onModuleCounting(value: EsqModuleCounting): void {
-    patchPlan((current) => ({ ...current, moduleCounting: value === ESQ_PLAN_DEFAULTS.moduleCounting ? undefined : { value, reason: current.moduleCounting?.reason } }));
   }
   function onReportingFloor(text: string): void {
     const value = Number(text);
@@ -376,13 +366,6 @@ function EsqPlanCard(): JSX.Element {
         <EsqProvenanceChip>ESQ-A2 · A4 · B3</EsqProvenanceChip>
       </div>
       <div className="esq-form esq-form--card">
-        <FormRow label="Frequency basis" htmlFor={`${fieldId}-basis`}>
-          <select id={`${fieldId}-basis`} className="posfield__select" value={values.frequencyBasis} disabled={!editable} onChange={(event) => onFrequencyBasis(event.target.value === "PER_REACTOR_YEAR" ? "PER_REACTOR_YEAR" : "PER_PLANT_YEAR")}>
-            {FREQUENCY_BASIS_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-          <PlanDefault planKey="frequencyBasis" changed={planChanged(esq, "frequencyBasis")} editable={editable} onRestore={() => restore("frequencyBasis")} />
-        </FormRow>
-        <PlanReasonRow planKey="frequencyBasis" id={`${fieldId}-basis-reason`} />
         <FormRow label="State weighting" htmlFor={`${fieldId}-weighting`}>
           <select id={`${fieldId}-weighting`} className="posfield__select" value={values.stateWeighting} disabled={!editable} onChange={(event) => onStateWeighting(event.target.value === "TYPED_SHARES" ? "TYPED_SHARES" : "POS_HOURS")}>
             {STATE_WEIGHTING_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
@@ -418,17 +401,6 @@ function EsqPlanCard(): JSX.Element {
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onModulesSource("linked")}>Use {ieModules}</button>}
           </p>
         )}
-        {(modules?.value ?? 1) > 1 && (
-          <>
-            <FormRow label="Single-module sequences" htmlFor={`${fieldId}-counting`}>
-              <select id={`${fieldId}-counting`} className="posfield__select" value={values.moduleCounting} disabled={!editable} onChange={(event) => onModuleCounting(event.target.value === "ONCE_PER_PLANT" ? "ONCE_PER_PLANT" : "EACH_MODULE")}>
-                {MODULE_COUNTING_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-              </select>
-              <PlanDefault planKey="moduleCounting" changed={planChanged(esq, "moduleCounting")} editable={editable} onRestore={() => restore("moduleCounting")} />
-            </FormRow>
-            <PlanReasonRow planKey="moduleCounting" id={`${fieldId}-counting-reason`} />
-          </>
-        )}
         <FormRow label="Sequences with several reactors" htmlFor={`${fieldId}-multi`}>
           <select id={`${fieldId}-multi`} className="posfield__select" value={multiIncluded ? "included" : "excluded"} disabled={!editable} onChange={(event) => onMultiReactor(event.target.value)}>
             <option value="included">Included</option>
@@ -442,7 +414,7 @@ function EsqPlanCard(): JSX.Element {
         <FormRow label="Reporting floor" htmlFor={`${fieldId}-floor`}>
           <WorkbookInput id={`${fieldId}-floor`} className="posfield__input posmono esq-form__number" type="number" step="any" min="0" value={values.reportingFloorPerYear} disabled={!editable}
             onChange={(event) => onReportingFloor(event.target.value)} />
-          <span className="esq-form__unit">per plant-year</span>
+          <span className="esq-form__unit">per reactor-year</span>
           <PlanDefault planKey="reportingFloorPerYear" changed={planChanged(esq, "reportingFloorPerYear")} editable={editable} onRestore={() => restore("reportingFloorPerYear")} />
         </FormRow>
         <PlanReasonRow planKey="reportingFloorPerYear" id={`${fieldId}-floor-reason`} />

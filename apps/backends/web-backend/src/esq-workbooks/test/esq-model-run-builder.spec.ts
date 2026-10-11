@@ -559,7 +559,7 @@ describe("ESQ event tree run builder", () => {
       esq.model.initiators = [{ id: "IE1", name: "Loss of flow", stateIds: ["S1", "S2"] }];
     }
     esq.modelDecisions = { ...esq.modelDecisions, initiatorChoices: [{ groupId: "IE1", source: "DA", parameterId: P5 }] };
-    esq.quantificationPlan = { modulesPerPlant: { value: 4 }, frequencyBasis: { value: "PER_REACTOR_YEAR" } };
+    esq.quantificationPlan = { modulesPerPlant: { value: 4 } };
     const run = build(esq);
     expect(run.frequency).toEqual({
       node: "OPERATION",

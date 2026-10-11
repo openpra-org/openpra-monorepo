@@ -1,0 +1,12 @@
+.es-seq-card__head { align-items: flex-end; flex-wrap: wrap; }
+.es-seq-card__picker { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; max-width: 100%; }
+.es-seq-card__picker .posfield__select { width: auto; max-width: 100%; }
+.es-seq-card__panel { min-width: 0; }
+
+.es-tabs { display: flex; gap: 2px; margin: 4px 0 18px; overflow-x: auto; border-bottom: 1px solid var(--color-border); }
+.es-tabs button { padding: 10px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; font: inherit; font-size: 13px; color: var(--color-text); white-space: nowrap; cursor: pointer; }
+.es-tabs button[aria-selected="true"] { border-bottom-color: var(--color-primary); font-weight: 600; color: var(--color-primary); }
+.es-tabs button:focus-visible { outline: 2px solid var(--color-primary-focus); outline-offset: -2px; }
+
+.es-seq-note { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 16px; border: 1px dashed var(--color-border-strong); border-radius: 10px; background: var(--color-surface-low); }
+.es-seq-note p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--color-text-muted); }

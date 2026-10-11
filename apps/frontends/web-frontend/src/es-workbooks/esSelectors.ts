@@ -1,16 +1,17 @@
-import { type EventSequenceAnalysis, type KeySafetyFunction, type EventTreeBranch, type SystemStatus } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type EventSequence, type EventSequenceAnalysis, type KeySafetyFunction, type EventTreeBranch, type EventTreeOutcome } from "interfaces-mef-types/es/event-sequence-analysis";
+import { EndState } from "interfaces-mef-types/core/events";
+import { endStateOfKind } from "interfaces-mef-types/es/es-end-states";
 import {
   CONFORMANCE_ITEMS,
   ES_STEPS,
   ES_PERSONA_STEPS,
   ES_FE_SC_MAP,
-  ES_POS_NAMES,
   type ConformanceItem,
   type EsPersona,
   type EsStep,
   type Stage,
 } from "./esViewData";
-import { type EsPosLinkStatus } from "./esWorkbookApi";
+import { type EsIeLinkStatus, type EsPosLinkStatus } from "./esWorkbookApi";
 
 interface CommentView {
   id: string;
@@ -398,7 +399,7 @@ interface SeqLeafView {
   familyId?: string;
   meanFrequency?: number;
   importance?: string;
-  path: Record<string, SystemStatus>;
+  path: Record<string, EventTreeOutcome>;
 }
 
 interface SeqLeafRef {
@@ -454,8 +455,8 @@ function eventTreesView(es: EventSequenceAnalysis): EventTreeView[] {
         ...(bypassed === undefined ? {} : { B: childOf(bypassed.target, bypassed.targetType) }),
       };
     }
-    const paths = new Map<string, Record<string, SystemStatus>>();
-    function walkPaths(branchId: string, acc: Record<string, SystemStatus>): void {
+    const paths = new Map<string, Record<string, EventTreeOutcome>>();
+    function walkPaths(branchId: string, acc: Record<string, EventTreeOutcome>): void {
       const b = tree.branches[branchId];
       if (b === undefined) return;
       const feId = b.functionalEventId;
@@ -535,45 +536,166 @@ function buildBranchesFromPaths(
   return { branches, initialBranchId: root.targetType === "BRANCH" ? root.target : "" };
 }
 
-interface CoverageStateView {
+interface CoverageAxis {
   id: string;
   name: string;
 }
 
-interface CoverageIeView {
-  id: string;
-  treeCount: number;
-}
-
 interface CoverageView {
-  ies: CoverageIeView[];
-  states: CoverageStateView[];
+  groups: CoverageAxis[];
+  states: CoverageAxis[];
   cellTree: Record<string, string>;
 }
 
-function coverageView(es: EventSequenceAnalysis, posLink?: EsPosLinkStatus): CoverageView {
-  const nameById = new Map<string, string>();
-  for (const st of posLink?.states ?? []) nameById.set(st.id, st.name);
-  const states: CoverageStateView[] = es.scopeDefinition.plantOperatingStateIds.map((id) => ({ id, name: nameById.get(id) ?? ES_POS_NAMES[id] ?? "" }));
+function coverageView(es: EventSequenceAnalysis, posLink: EsPosLinkStatus, ieLink: EsIeLinkStatus): CoverageView {
+  const stateNames = new Map(posLink.states.map((state) => [state.id, state.name]));
+  const groupNames = new Map(ieLink.groups.map((group) => [group.id, group.name]));
+  const stateIds = es.scopeDefinition.plantOperatingStateIds.slice();
+  const groupIds = es.scopeDefinition.initiatingEventIds.slice();
   const cellTree: Record<string, string> = {};
-  const ieCount = new Map<string, number>();
   for (const tree of es.eventTrees ?? []) {
-    const pos = tree.plantOperatingStateId;
-    if (pos === undefined || pos.length === 0) continue;
-    cellTree[`${tree.initiatingEventId}|${pos}`] = tree.uuid;
-    ieCount.set(tree.initiatingEventId, (ieCount.get(tree.initiatingEventId) ?? 0) + 1);
+    const state = tree.plantOperatingStateId;
+    if (state === undefined || state.length === 0) continue;
+    if (!stateIds.includes(state)) stateIds.push(state);
+    if (!groupIds.includes(tree.initiatingEventId)) groupIds.push(tree.initiatingEventId);
+    cellTree[`${tree.initiatingEventId}|${state}`] ??= tree.uuid;
   }
-  const ieIds = es.scopeDefinition.initiatingEventIds.slice();
+  return {
+    groups: groupIds.map((id) => ({ id, name: groupNames.get(id) ?? "" })),
+    states: stateIds.map((id) => ({ id, name: stateNames.get(id) ?? "" })),
+    cellTree,
+  };
+}
+
+function releaseCategoryOptions(es: EventSequenceAnalysis): CoverageAxis[] {
+  const names = new Map<string, string>();
+  for (const mapping of es.releaseCategoryMappings ?? []) {
+    if ((names.get(mapping.releaseCategoryId) ?? "").length === 0) names.set(mapping.releaseCategoryId, mapping.name ?? "");
+  }
+  for (const sequence of es.eventSequences) {
+    if (sequence.releaseCategoryId !== undefined && !names.has(sequence.releaseCategoryId)) names.set(sequence.releaseCategoryId, "");
+  }
+  return [...names].map(([id, name]) => ({ id, name }));
+}
+
+function nextReleaseCategoryId(used: readonly string[]): string {
+  let index = used.length + 1;
+  while (used.includes(`RC-${String(index)}`)) index += 1;
+  return `RC-${String(index)}`;
+}
+
+function withSequenceReleaseCategory(es: EventSequenceAnalysis, sequenceId: string, releaseCategoryId: string | undefined): EventSequenceAnalysis {
+  return {
+    ...es,
+    eventSequences: es.eventSequences.map((sequence) => {
+      if (sequence.uuid !== sequenceId) return sequence;
+      const { releaseCategoryId: _previous, ...rest } = sequence;
+      return releaseCategoryId === undefined ? rest : { ...rest, releaseCategoryId };
+    }),
+    ...(es.releaseCategoryMappings === undefined ? {} : {
+      releaseCategoryMappings: es.releaseCategoryMappings.map((mapping) => {
+        const others = mapping.eventSequenceIds.filter((id) => id !== sequenceId);
+        return { ...mapping, eventSequenceIds: mapping.releaseCategoryId === releaseCategoryId ? [...others, sequenceId] : others };
+      }),
+    }),
+  };
+}
+
+function withLinkedSequence(es: EventSequenceAnalysis, treeId: string, treeSequenceId: string): { es: EventSequenceAnalysis; id: string } | undefined {
+  const tree = es.eventTrees?.find((candidate) => candidate.uuid === treeId);
+  const treeSequence = tree?.sequences[treeSequenceId];
+  if (tree === undefined || treeSequence === undefined) return undefined;
+  const existing = treeSequence.eventSequenceId;
+  if (existing !== undefined && es.eventSequences.some((sequence) => sequence.uuid === existing)) return { es, id: existing };
+  const id = crypto.randomUUID();
+  const record: EventSequence = {
+    uuid: id,
+    name: treeSequence.name,
+    initiatingEventId: tree.initiatingEventId,
+    plantOperatingStateId: tree.plantOperatingStateId ?? "",
+    eventTreeId: tree.uuid,
+    eventTreeSequenceId: treeSequenceId,
+    ...(treeSequence.functionalEventStates === undefined ? {} : { functionalEventStates: treeSequence.functionalEventStates }),
+    endState: treeSequence.endState ?? EndState.SUCCESSFUL_MITIGATION,
+    implementsSrs: [],
+  };
+  return {
+    id,
+    es: {
+      ...es,
+      eventSequences: [...es.eventSequences, record],
+      eventTrees: (es.eventTrees ?? []).map((candidate) => (candidate.uuid === treeId ? { ...candidate, sequences: { ...candidate.sequences, [treeSequenceId]: { ...treeSequence, eventSequenceId: id } } } : candidate)),
+    },
+  };
+}
+
+function withSequenceFamily(es: EventSequenceAnalysis, sequenceId: string, familyId: string | undefined): EventSequenceAnalysis {
+  return {
+    ...es,
+    eventSequences: es.eventSequences.map((sequence) => {
+      if (sequence.uuid !== sequenceId) return sequence;
+      const { sequenceFamilyId: _previous, ...rest } = sequence;
+      return familyId === undefined ? rest : { ...rest, sequenceFamilyId: familyId };
+    }),
+    eventSequenceFamilies: es.eventSequenceFamilies.map((family) => {
+      const others = family.memberSequenceIds.filter((id) => id !== sequenceId);
+      return { ...family, memberSequenceIds: family.uuid === familyId ? [...others, sequenceId] : others };
+    }),
+  };
+}
+
+function withTreeSequenceClassification(es: EventSequenceAnalysis, treeId: string, treeSequenceId: string, changes: Partial<Pick<EventSequence, "sequenceFamilyId" | "releaseCategoryId">>): EventSequenceAnalysis {
+  const linked = withLinkedSequence(es, treeId, treeSequenceId);
+  if (linked === undefined) return es;
+  let next = linked.es;
+  if ("sequenceFamilyId" in changes) next = withSequenceFamily(next, linked.id, changes.sequenceFamilyId);
+  if ("releaseCategoryId" in changes) next = withSequenceReleaseCategory(next, linked.id, changes.releaseCategoryId);
+  return next;
+}
+
+function withSyncedSequenceEndState(es: EventSequenceAnalysis, treeId: string, treeSequenceId: string): EventSequenceAnalysis {
+  const sequence = es.eventTrees?.find((tree) => tree.uuid === treeId)?.sequences[treeSequenceId];
+  const definition = sequence?.endStateId === undefined ? undefined : es.endStateDefinitions?.find((candidate) => candidate.id === sequence.endStateId);
+  if (definition === undefined) return es;
+  const classified = withTreeSequenceClassification(es, treeId, treeSequenceId, { releaseCategoryId: definition.kind === "RELEASE" ? definition.releaseCategoryId : undefined });
+  const recordId = classified.eventTrees?.find((tree) => tree.uuid === treeId)?.sequences[treeSequenceId]?.eventSequenceId;
+  return {
+    ...classified,
+    eventSequences: classified.eventSequences.map((record) => (record.uuid === recordId ? { ...record, endState: endStateOfKind(definition.kind), endStateId: definition.id } : record)),
+  };
+}
+
+function withEndStateDefinitionApplied(es: EventSequenceAnalysis, endStateId: string): EventSequenceAnalysis {
+  const definition = es.endStateDefinitions?.find((candidate) => candidate.id === endStateId);
+  if (definition === undefined) return es;
+  let next = es;
   for (const tree of es.eventTrees ?? []) {
-    if (!ieIds.includes(tree.initiatingEventId)) ieIds.push(tree.initiatingEventId);
+    for (const [sequenceId, sequence] of Object.entries(tree.sequences)) {
+      if (sequence.endStateId !== endStateId) continue;
+      next = {
+        ...next,
+        eventTrees: (next.eventTrees ?? []).map((candidate) => (candidate.uuid === tree.uuid ? { ...candidate, sequences: { ...candidate.sequences, [sequenceId]: { ...(candidate.sequences[sequenceId] ?? sequence), endState: endStateOfKind(definition.kind) } } } : candidate)),
+      };
+      next = withSyncedSequenceEndState(next, tree.uuid, sequenceId);
+    }
   }
-  const ies: CoverageIeView[] = ieIds.map((id) => ({ id, treeCount: ieCount.get(id) ?? 0 }));
-  return { ies, states, cellTree };
+  return next;
+}
+
+function endStateUseCount(es: EventSequenceAnalysis, endStateId: string): number {
+  return (es.eventTrees ?? []).reduce((count, tree) => count + Object.values(tree.sequences).filter((sequence) => sequence.endStateId === endStateId).length, 0);
 }
 
 export {
   eventTreesView,
   coverageView,
+  endStateUseCount,
+  withEndStateDefinitionApplied,
+  withSyncedSequenceEndState,
+  withTreeSequenceClassification,
+  nextReleaseCategoryId,
+  releaseCategoryOptions,
+  withSequenceReleaseCategory,
   buildBranchesFromPaths,
   type EventTreeView,
   type TreeNodeView,
@@ -581,8 +703,7 @@ export {
   type SeqLeafView,
   type FeView,
   type CoverageView,
-  type CoverageStateView,
-  type CoverageIeView,
+  type CoverageAxis,
 };
 
 interface DependencyView {

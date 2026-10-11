@@ -318,8 +318,8 @@ describe("EventTreeEditor", () => {
     const { container } = renderEditor();
     const diagramToolbar = container.querySelector(".estree__bar");
     const documentHeader = container.querySelector(".et-editor__header");
-    const undo = screen.getByRole("button", { name: "Undo event-tree edit" });
-    const redo = screen.getByRole("button", { name: "Redo event-tree edit" });
+    const undo = screen.getByRole("button", { name: "Undo" });
+    const redo = screen.getByRole("button", { name: "Redo" });
 
     expect(diagramToolbar).toContainElement(undo);
     expect(diagramToolbar).toContainElement(redo);

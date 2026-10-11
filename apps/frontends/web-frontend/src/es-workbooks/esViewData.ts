@@ -71,18 +71,6 @@ const ES_UPSTREAM_META: Record<"ie" | "pos", UpstreamMeta> = {
   pos: { element: "Plant Operating States", short: "POS", icon: "Layers", delivers: "Operating states with time fractions" },
 };
 
-const ES_POS_NAMES: Record<string, string> = {
-  "POS-01": "Full power, normal alignment",
-  "POS-02": "Load-follow (reduced power)",
-  "POS-03": "Hot standby",
-  "POS-04": "Cooled, head intact",
-  "POS-05": "Head off, cavity dry",
-  "POS-06": "Fuel-handling mode",
-  "POS-07": "Post-trip cooldown (DRACS)",
-  "POS-08": "IHX loop drained, primary hot",
-  "POS-09": "Cover-gas adjustment",
-};
-
 interface SourceSpec {
   id: string;
   name: string;
@@ -347,7 +335,6 @@ export {
   ES_RELEASE_CATEGORIES,
   FEASIBILITY_CRITERIA,
   ES_UPSTREAM_META,
-  ES_POS_NAMES,
   ES_SOURCE_CATALOG,
   ES_SAFETY_FUNCTION_CATALOG,
   ES_FE_SC_MAP,

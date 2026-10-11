@@ -11,6 +11,7 @@ import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
 import {
   FrequencySchema,
+  FrequencyUnitSchema,
   FrequencyWithDistributionSchema,
   ParameterDistributionSchema,
   UncertainFrequencySchema,
@@ -91,11 +92,7 @@ export const EsqScopeExclusionSchema = z.object({
   reason: z.string(),
 });
 
-export const EsqFrequencyBasisSchema = z.enum(["PER_PLANT_YEAR", "PER_REACTOR_YEAR"]);
-
 export const EsqStateWeightingSchema = z.enum(["POS_HOURS", "TYPED_SHARES"]);
-
-export const EsqModuleCountingSchema = z.enum(["EACH_MODULE", "ONCE_PER_PLANT"]);
 
 export const EsqModuleCountSchema = z.object({
   value: z.number(),
@@ -109,10 +106,8 @@ export const EsqModuleCountSchema = z.object({
 });
 
 export const EsqQuantificationPlanSchema = z.object({
-  frequencyBasis: z.object({ value: EsqFrequencyBasisSchema, reason: z.string().optional() }).optional(),
   stateWeighting: z.object({ value: EsqStateWeightingSchema, reason: z.string().optional() }).optional(),
   modulesPerPlant: EsqModuleCountSchema.optional(),
-  moduleCounting: z.object({ value: EsqModuleCountingSchema, reason: z.string().optional() }).optional(),
   reportingFloorPerYear: z.object({ value: z.number(), reason: z.string().optional() }).optional(),
   convergenceStepPercent: z.object({ value: z.number(), reason: z.string().optional() }).optional(),
 });
@@ -176,6 +171,7 @@ export const EsqSequenceRecordSchema = z.object({
   code: z.string(),
   treeId: z.string(),
   path: z.record(z.string(), EsqBranchStateSchema),
+  multiBranchFunctions: z.array(z.string()).optional(),
   endState: z.string().optional(),
   familyId: z.string().optional(),
   releaseCategoryId: z.string().optional(),
@@ -477,6 +473,7 @@ export const EsqInitiatorChoiceSchema = z.object({
   source: z.enum(["IE", "DA", "TYPED"]),
   parameterId: z.string().optional(),
   expression: UncertainExpressionSchema.optional(),
+  unit: FrequencyUnitSchema.optional(),
   basis: z.string().optional(),
   shares: z.array(z.object({ stateId: z.string(), percent: z.number() })).optional(),
 });

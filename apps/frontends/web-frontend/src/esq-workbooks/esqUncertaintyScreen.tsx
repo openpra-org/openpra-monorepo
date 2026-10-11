@@ -455,7 +455,7 @@ function FamiliesPanel({ view }: { view: EsqUncertaintyView }): JSX.Element {
   const total = run.total;
   return (
     <div className="esq-run">
-      <p className="esq-meta">{`Per plant-year, from ${run.trials} trials. The release total sums the release families trial by trial. Percentiles are never added across families.`}</p>
+      <p className="esq-meta">{`Per reactor-year, from ${run.trials} trials. The release total sums the release families trial by trial. Percentiles are never added across families.`}</p>
       <div className="esq-table-wrap" ref={wrapRef}>
         <table className="postable esq-rowtable" aria-label="Family distributions">
           <thead><tr><th className="esq-rowtable__pick">Details</th><th>Family</th><th>Mean</th><th>5th</th><th>Median</th><th>95th</th></tr></thead>

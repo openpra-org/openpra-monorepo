@@ -1,7 +1,5 @@
 import {
   ESQ_PLAN_DEFAULTS,
-  type EsqFrequencyBasis,
-  type EsqModuleCounting,
   type EsqQuantificationPlan,
   type EsqScopeAspect,
   type EsqScopeExclusion,
@@ -272,21 +270,17 @@ function withRestIncluded(esq: EventSequenceQuantification, aspect: EsqScopeAspe
 }
 
 interface EsqPlanValues {
-  frequencyBasis: EsqFrequencyBasis;
   stateWeighting: EsqStateWeighting;
-  moduleCounting: EsqModuleCounting;
   reportingFloorPerYear: number;
   convergenceStepPercent: number;
 }
 
-const ESQ_PLAN_KEYS: EsqPlanKey[] = ["frequencyBasis", "stateWeighting", "moduleCounting", "reportingFloorPerYear", "convergenceStepPercent"];
+const ESQ_PLAN_KEYS: EsqPlanKey[] = ["stateWeighting", "reportingFloorPerYear", "convergenceStepPercent"];
 
 function planValues(esq: EventSequenceQuantification): EsqPlanValues {
   const plan = esq.quantificationPlan ?? {};
   return {
-    frequencyBasis: plan.frequencyBasis?.value ?? ESQ_PLAN_DEFAULTS.frequencyBasis,
     stateWeighting: plan.stateWeighting?.value ?? ESQ_PLAN_DEFAULTS.stateWeighting,
-    moduleCounting: plan.moduleCounting?.value ?? ESQ_PLAN_DEFAULTS.moduleCounting,
     reportingFloorPerYear: plan.reportingFloorPerYear?.value ?? ESQ_PLAN_DEFAULTS.reportingFloorPerYear,
     convergenceStepPercent: plan.convergenceStepPercent?.value ?? ESQ_PLAN_DEFAULTS.convergenceStepPercent,
   };
@@ -306,18 +300,14 @@ function withPlan(esq: EventSequenceQuantification, plan: EsqQuantificationPlan)
 
 function withPlanReason(esq: EventSequenceQuantification, key: EsqPlanKey, reason: string): EventSequenceQuantification {
   const plan = esq.quantificationPlan ?? {};
-  if (key === "frequencyBasis") return plan.frequencyBasis === undefined ? esq : withPlan(esq, { ...plan, frequencyBasis: { ...plan.frequencyBasis, reason } });
   if (key === "stateWeighting") return plan.stateWeighting === undefined ? esq : withPlan(esq, { ...plan, stateWeighting: { ...plan.stateWeighting, reason } });
-  if (key === "moduleCounting") return plan.moduleCounting === undefined ? esq : withPlan(esq, { ...plan, moduleCounting: { ...plan.moduleCounting, reason } });
   if (key === "reportingFloorPerYear") return plan.reportingFloorPerYear === undefined ? esq : withPlan(esq, { ...plan, reportingFloorPerYear: { ...plan.reportingFloorPerYear, reason } });
   return plan.convergenceStepPercent === undefined ? esq : withPlan(esq, { ...plan, convergenceStepPercent: { ...plan.convergenceStepPercent, reason } });
 }
 
 function withPlanDefault(esq: EventSequenceQuantification, key: EsqPlanKey): EventSequenceQuantification {
   const plan = esq.quantificationPlan ?? {};
-  if (key === "frequencyBasis") return withPlan(esq, { ...plan, frequencyBasis: undefined });
   if (key === "stateWeighting") return withPlan(esq, { ...plan, stateWeighting: undefined });
-  if (key === "moduleCounting") return withPlan(esq, { ...plan, moduleCounting: undefined });
   if (key === "reportingFloorPerYear") return withPlan(esq, { ...plan, reportingFloorPerYear: undefined });
   return withPlan(esq, { ...plan, convergenceStepPercent: undefined });
 }

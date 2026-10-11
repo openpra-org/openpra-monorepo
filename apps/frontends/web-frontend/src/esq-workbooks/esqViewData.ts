@@ -1,12 +1,11 @@
 import {
   ESQ_SR_CATALOG,
-  type EsqFrequencyBasis,
   type EsqLinkCode,
   type EsqModelElement,
-  type EsqModuleCounting,
   type EsqScopeAspect,
   type EsqStateWeighting,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
+import { FrequencyUnit } from "interfaces-mef-types/core/events";
 
 type StepStatus = "complete" | "in-progress" | "idle";
 
@@ -253,9 +252,11 @@ const ESQ_SCOPE_ASPECTS: EsqScopeAspectSpec[] = [
   { aspect: "INITIATOR_GROUP", label: "Initiator groups", item: "initiator group", fromEs: true },
 ];
 
-const FREQUENCY_BASIS_OPTIONS: { id: EsqFrequencyBasis; label: string }[] = [
-  { id: "PER_PLANT_YEAR", label: "Per plant-year" },
-  { id: "PER_REACTOR_YEAR", label: "Per reactor-year" },
+const FREQUENCY_UNIT_OPTIONS: { id: FrequencyUnit; label: string }[] = [
+  { id: FrequencyUnit.PER_REACTOR_YEAR, label: "Per reactor-year" },
+  { id: FrequencyUnit.PER_PLANT_YEAR, label: "Per plant-year" },
+  { id: FrequencyUnit.PER_CALENDAR_YEAR, label: "Per calendar year" },
+  { id: FrequencyUnit.PER_CRITICAL_YEAR, label: "Per critical year" },
 ];
 
 const STATE_WEIGHTING_OPTIONS: { id: EsqStateWeighting; label: string }[] = [
@@ -263,25 +264,16 @@ const STATE_WEIGHTING_OPTIONS: { id: EsqStateWeighting; label: string }[] = [
   { id: "TYPED_SHARES", label: "Share typed for each state" },
 ];
 
-const MODULE_COUNTING_OPTIONS: { id: EsqModuleCounting; label: string }[] = [
-  { id: "EACH_MODULE", label: "Counted for each module" },
-  { id: "ONCE_PER_PLANT", label: "Counted once per plant" },
-];
-
-type EsqPlanKey = "frequencyBasis" | "stateWeighting" | "moduleCounting" | "reportingFloorPerYear" | "convergenceStepPercent";
+type EsqPlanKey = "stateWeighting" | "reportingFloorPerYear" | "convergenceStepPercent";
 
 const ESQ_PLAN_LABELS: Record<EsqPlanKey, string> = {
-  frequencyBasis: "Frequency basis",
   stateWeighting: "State weighting",
-  moduleCounting: "Single-module sequences",
   reportingFloorPerYear: "Reporting floor",
   convergenceStepPercent: "Convergence step",
 };
 
 const ESQ_PLAN_SOURCES: Record<EsqPlanKey, string> = {
-  frequencyBasis: "NEI 18-04",
   stateWeighting: "RA-S-1.4 definitions",
-  moduleCounting: "Analyst choice",
   reportingFloorPerYear: "RI-A4 · RG 1.247",
   convergenceStepPercent: "ESQ-N-4 example",
 };
@@ -420,9 +412,8 @@ export {
   ESQ_HAZARD_GROUPS,
   ESQ_EXTERNAL_HAZARD_GROUPS,
   ESQ_SCOPE_ASPECTS,
-  FREQUENCY_BASIS_OPTIONS,
+  FREQUENCY_UNIT_OPTIONS,
   STATE_WEIGHTING_OPTIONS,
-  MODULE_COUNTING_OPTIONS,
   ESQ_PLAN_LABELS,
   ESQ_PLAN_SOURCES,
   ESQ_MODEL_ELEMENTS,

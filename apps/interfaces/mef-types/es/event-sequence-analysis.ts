@@ -25,6 +25,39 @@ export type SequenceDesignatorId = string;
 
 export type SystemStatus = "SUCCESS" | "FAILURE" | "BYPASSED";
 
+export type EventTreeBranchState = `BRANCH_${number}`;
+
+export type EventTreeOutcome = SystemStatus | EventTreeBranchState;
+
+const EVENT_TREE_BRANCH_PREFIX = "BRANCH_";
+
+export function isEventTreeBranchState(value: string): value is EventTreeBranchState {
+  if (!value.startsWith(EVENT_TREE_BRANCH_PREFIX)) return false;
+  const position = Number(value.slice(EVENT_TREE_BRANCH_PREFIX.length));
+  return Number.isInteger(position) && position >= 1;
+}
+
+export function isEventTreeOutcome(value: string): value is EventTreeOutcome {
+  return value === "SUCCESS" || value === "FAILURE" || value === "BYPASSED" || isEventTreeBranchState(value);
+}
+
+export function eventTreeBranchState(position: number): EventTreeBranchState {
+  const state = `${EVENT_TREE_BRANCH_PREFIX}${String(position)}`;
+  return isEventTreeBranchState(state) ? state : "BRANCH_1";
+}
+
+export function eventTreeOutcomeRank(outcome: EventTreeOutcome): number {
+  if (outcome === "SUCCESS" || outcome === "BYPASSED") return 0;
+  if (outcome === "FAILURE") return 1;
+  return Number(outcome.slice(EVENT_TREE_BRANCH_PREFIX.length)) - 1;
+}
+
+export function eventTreeOutcomes(count: number): EventTreeOutcome[] {
+  if (count <= 1) return ["BYPASSED"];
+  if (count === 2) return ["SUCCESS", "FAILURE"];
+  return Array.from({ length: count }, (_, index) => eventTreeBranchState(index + 1));
+}
+
 export enum DependencyType {
   FUNCTIONAL = "FUNCTIONAL",
   PHYSICAL = "PHYSICAL",
@@ -143,7 +176,7 @@ export interface EventSequence extends Unique, Named {
   plantOperatingStateId: PlantOperatingStateReference;
   eventTreeId?: string;
   eventTreeSequenceId?: string;
-  functionalEventStates?: Record<string, SystemStatus>;
+  functionalEventStates?: Record<string, EventTreeOutcome>;
   progression?: string;
   systemResponses?: Record<SystemReference, SystemStatus>;
   operatorActions?: HumanActionReference[];
@@ -155,6 +188,7 @@ export interface EventSequence extends Unique, Named {
   endState: EndState;
   affectedReactorSourceCombinations?: string[];
   sequenceFamilyId?: EventSequenceFamilyReference;
+  endStateId?: string;
   releaseCategoryId?: ReleaseCategoryReference;
   successCriteriaIds?: SuccessCriteriaId[];
   meanFrequency?: Frequency | FrequencyWithDistribution;
@@ -194,7 +228,31 @@ export interface EventSequenceFamily extends Unique, Named {
   implementsSrs: SRReference[];
 }
 
+export type EsEndStateKind = "SAFE_STABLE" | "RELEASE" | "INTERMEDIATE";
+
+export type EsBarrierCondition = "INTACT" | "DEGRADED" | "FAILED" | "BYPASSED";
+
+export interface EsEndStateBarrier {
+  barrier: string;
+  condition: EsBarrierCondition;
+}
+
+export interface EsEndStateDefinition {
+  id: string;
+  code: string;
+  name: string;
+  kind: EsEndStateKind;
+  definition?: string;
+  releaseCategoryId?: ReleaseCategoryReference;
+  scEndStateId?: string;
+  reactorsAndSources?: string[];
+  barriers?: EsEndStateBarrier[];
+  releasePath?: string;
+  timing?: string;
+}
+
 export interface ReleaseCategoryMapping extends Unique {
+  name?: string;
   eventSequenceIds: EventSequenceReference[];
   releaseCategoryId: ReleaseCategoryReference;
   sourceTermId?: SourceTermReference;
@@ -274,7 +332,7 @@ export interface FunctionalEvent extends Unique, Named {
 }
 
 export interface EventTreePath {
-  state: SystemStatus;
+  state: EventTreeOutcome;
   target: string;
   targetType: "BRANCH" | "SEQUENCE" | "END_STATE";
   description?: string;
@@ -292,7 +350,8 @@ export interface EventTreeSequence extends Unique, Named {
   endState?: EndState;
   instructions?: string[];
   eventSequenceId?: EventSequenceReference;
-  functionalEventStates?: Record<string, SystemStatus>;
+  endStateId?: string;
+  functionalEventStates?: Record<string, EventTreeOutcome>;
 }
 
 export interface EventTreeTransfer {
@@ -441,6 +500,7 @@ export interface EventSequenceAnalysis
 
   dependencyModels?: DependencyModels;
   releaseCategoryMappings?: ReleaseCategoryMapping[];
+  endStateDefinitions?: EsEndStateDefinition[];
 
   screeningRecords: EventSequenceScreeningRecord[];
   repairCreditRecords?: RepairCreditRecord[];

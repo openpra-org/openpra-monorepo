@@ -231,17 +231,17 @@ function stateWeightingOf(esq: EventSequenceQuantification): EsqStateWeighting {
   return esq.quantificationPlan?.stateWeighting?.value ?? ESQ_PLAN_DEFAULTS.stateWeighting;
 }
 
-function moduleFactorFor(esq: EventSequenceQuantification, unit: string | undefined): number {
-  const plan = esq.quantificationPlan;
-  const modules = plan?.modulesPerPlant?.value ?? 1;
+function criticalFraction(model: EsqModel, stateIds: readonly string[]): number | undefined {
+  const year = model.states.reduce((sum, state) => sum + (state.hours ?? 0), 0);
+  const critical = model.states.filter((state) => stateIds.some((stateId) => sameItem(stateId, state.id))).reduce((sum, state) => sum + (state.hours ?? 0), 0);
+  return year > 0 && critical > 0 ? Math.min(1, critical / year) : undefined;
+}
+
+function unitFactorFor(esq: EventSequenceQuantification, model: EsqModel, unit: string | undefined, stateIds: readonly string[]): number | undefined {
+  if (unit === "per-critical-year") return criticalFraction(model, stateIds);
+  const modules = esq.quantificationPlan?.modulesPerPlant?.value ?? 1;
   if (!(modules > 1)) return 1;
-  const basis = plan?.frequencyBasis?.value ?? ESQ_PLAN_DEFAULTS.frequencyBasis;
-  const counting = plan?.moduleCounting?.value ?? ESQ_PLAN_DEFAULTS.moduleCounting;
-  const perReactor = unit === "per-reactor-year";
-  const perPlant = unit === undefined || unit === "per-plant-year" || unit === "per-calendar-year";
-  if (basis === "PER_PLANT_YEAR" && perReactor) return counting === "EACH_MODULE" ? modules : 1;
-  if (basis === "PER_REACTOR_YEAR" && perPlant) return 1 / modules;
-  return 1;
+  return unit === undefined || unit === "per-plant-year" || unit === "per-calendar-year" ? 1 / modules : 1;
 }
 
 function groupIdsOf(trees: readonly EsqTreeRecord[]): string[] {
@@ -274,13 +274,17 @@ function groupFrequency(esq: EventSequenceQuantification, model: EsqModel, group
     const given = parameter?.estimate === undefined ? undefined : daParameterExpression(esq, parameter.id);
     if (given !== undefined) view.given = given;
     view.unit = "per-plant-year";
-  } else if (choice?.expression !== undefined) {
-    view.given = choice.expression;
+  } else {
+    if (choice?.expression !== undefined) view.given = choice.expression;
+    view.unit = choice?.unit ?? "per-reactor-year";
   }
-  view.factor = source === "TYPED" ? 1 : moduleFactorFor(esq, view.unit);
-  if (view.given !== undefined) view.expression = scaledBy(view.given, view.factor, "FACTOR");
   const treeStates = allTrees.flatMap((tree) => (tree.stateId === undefined ? [] : [tree.stateId]));
   const applicable = record !== undefined && record.stateIds.length > 0 ? record.stateIds : uniqueTexts(treeStates);
+  const factor = unitFactorFor(esq, model, view.unit, applicable);
+  if (factor !== undefined) {
+    view.factor = factor;
+    if (view.given !== undefined) view.expression = scaledBy(view.given, factor, "FACTOR");
+  }
   const stateIds = uniqueTexts([...applicable, ...treeStates]);
   const hoursTotal = applicable.reduce((sum, stateId) => sum + (stateById.get(stateId)?.hours ?? 0), 0);
   if (weighting === "POS_HOURS" && hoursTotal > 0) view.hours = hoursTotal;
@@ -445,7 +449,7 @@ export {
   ruleMatches,
   resolveLink,
   stateWeightingOf,
-  moduleFactorFor,
+  unitFactorFor,
   groupIdsOf,
   groupFrequency,
   treeFrequency,

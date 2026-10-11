@@ -391,6 +391,7 @@ button.esact__check { cursor: pointer; }
 .esqlight__dot--s { background: var(--c-complete); }
 .esqlight__dot--f { background: var(--color-error); }
 .esqlight__dot--b { background: var(--color-text-subtle); }
+.esqlight__dot--n { background: var(--color-text-muted); }
 .esqdom__bar { flex: 0 0 110px; height: 5px; border-radius: 3px; background: var(--color-surface-low); overflow: hidden; }
 .esqdom__fill { display: block; height: 100%; border-radius: 3px; }
 .esqdom__fill--block { background: var(--color-error); }

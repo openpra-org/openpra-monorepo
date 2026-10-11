@@ -4,6 +4,7 @@ import {
   Frequency,
   FrequencyWithDistribution,
   ParameterDistribution,
+  type FrequencyUnit,
   type UncertainFrequency,
 } from "../core/events";
 import { ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis } from "../core/shared-patterns";
@@ -119,11 +120,7 @@ export interface EsqScopeExclusion {
   reason: string;
 }
 
-export type EsqFrequencyBasis = "PER_PLANT_YEAR" | "PER_REACTOR_YEAR";
-
 export type EsqStateWeighting = "POS_HOURS" | "TYPED_SHARES";
-
-export type EsqModuleCounting = "EACH_MODULE" | "ONCE_PER_PLANT";
 
 export interface EsqPlanChoice<T> {
   value: T;
@@ -142,24 +139,18 @@ export interface EsqModuleCount {
 }
 
 export interface EsqQuantificationPlan {
-  frequencyBasis?: EsqPlanChoice<EsqFrequencyBasis>;
   stateWeighting?: EsqPlanChoice<EsqStateWeighting>;
   modulesPerPlant?: EsqModuleCount;
-  moduleCounting?: EsqPlanChoice<EsqModuleCounting>;
   reportingFloorPerYear?: EsqPlanChoice<number>;
   convergenceStepPercent?: EsqPlanChoice<number>;
 }
 
 export const ESQ_PLAN_DEFAULTS: {
-  frequencyBasis: EsqFrequencyBasis;
   stateWeighting: EsqStateWeighting;
-  moduleCounting: EsqModuleCounting;
   reportingFloorPerYear: number;
   convergenceStepPercent: number;
 } = {
-  frequencyBasis: "PER_PLANT_YEAR",
   stateWeighting: "POS_HOURS",
-  moduleCounting: "EACH_MODULE",
   reportingFloorPerYear: 1e-7,
   convergenceStepPercent: 5,
 };
@@ -224,6 +215,7 @@ export interface EsqSequenceRecord {
   code: string;
   treeId: string;
   path: Record<string, EsqBranchState>;
+  multiBranchFunctions?: string[];
   endState?: string;
   familyId?: string;
   releaseCategoryId?: string;
@@ -530,6 +522,7 @@ export interface EsqInitiatorChoice {
   source: EsqInitiatorSource;
   parameterId?: string;
   expression?: UncertainExpression;
+  unit?: FrequencyUnit;
   basis?: string;
   shares?: EsqStateShare[];
 }

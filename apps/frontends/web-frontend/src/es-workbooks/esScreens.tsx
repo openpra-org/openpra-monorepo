@@ -1159,15 +1159,17 @@ function SequencesScreen(): JSX.Element {
     <>
       <div className="poscard es-seq-card">
         <div className="poscard__head es-seq-card__head">
-          {model !== undefined && (
-            <label className="es-seq-card__picker">
-              <span className="posfield__label">Event tree</span>
-              <select className="posfield__select" aria-label="Event tree" value={model.uuid} onChange={(event) => openTree(event.target.value)}>
-                {trees.map((tree) => <option key={tree.uuid} value={tree.uuid}>{tree.name}</option>)}
-              </select>
-            </label>
-          )}
-          {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => createTree()}>Add event tree</button>}
+          {model !== undefined ? (
+            <div className="es-seq-card__picker">
+              <label className="posfield__label" htmlFor={`${tabsId}-tree`}>Event tree</label>
+              <div className="es-seq-card__pick-row">
+                <select id={`${tabsId}-tree`} className="posfield__select" value={model.uuid} onChange={(event) => openTree(event.target.value)}>
+                  {trees.map((tree) => <option key={tree.uuid} value={tree.uuid}>{tree.name}</option>)}
+                </select>
+                {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => createTree()}>Add event tree</button>}
+              </div>
+            </div>
+          ) : editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => createTree()}>Add event tree</button>}
         </div>
         <div
           className="es-tabs"

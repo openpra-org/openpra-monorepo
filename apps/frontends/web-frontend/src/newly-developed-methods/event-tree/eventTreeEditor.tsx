@@ -307,6 +307,22 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
     }, () => commit(operation));
   };
 
+  const endStateBranch = (path: Readonly<Record<string, EventTreeOutcome>>): FunctionalEvent | undefined =>
+    [...events].reverse().find((event) => (path[event.uuid] ?? "BYPASSED") !== "BYPASSED");
+
+  const deleteEndState = (sequenceId: string, path: Readonly<Record<string, EventTreeOutcome>>): void => {
+    const functionalEvent = endStateBranch(path);
+    if (functionalEvent === undefined) return;
+    const operation: EventTreeOperation = { kind: "REMOVE_BRANCH", sequenceId, functionalEventId: functionalEvent.uuid };
+    if (applyEventTreeOperation(model, operation) === model) return;
+    requestConfirmation({
+      title: "Delete this end state?",
+      message: `This removes the ${branchName(path[functionalEvent.uuid] ?? "BYPASSED")} of ${functionalEvent.label ?? functionalEvent.name} that leads to it.`,
+      confirmLabel: "Delete end state",
+      tone: "danger",
+    }, () => commit(operation));
+  };
+
   const branchActions = (branch: EventTreeBranchPoint, done: () => void, className: string): JSX.Element | null => {
     const functionalEvent = events[branch.fe];
     const anchor = branch.outcomes.find((outcome) => outcome.sequence !== undefined)?.sequence;
@@ -370,6 +386,8 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
                 </>
               );
             })()}
+            <div className="et-editor__rail-separator" />
+            <button type="button" className="et-editor__rail-item et-editor__rail-item--danger" disabled={endStateBranch(selectedSequence.path) === undefined} onClick={() => deleteEndState(selectedSequence.id, selectedSequence.path)}>Delete end state</button>
           </>
         ) : (
           <>
@@ -708,6 +726,8 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
                 const bypassed = (sequence.path[functionalEvent.uuid] ?? "BYPASSED") === "BYPASSED";
                 return <button key={functionalEvent.uuid} type="button" role="menuitem" onClick={() => { setContextMenu(null); changeBypass(sequence.id, functionalEvent, !bypassed); }}>{bypassed ? "Restore S/F" : "Bypass"} · {functionalEvent.label ?? functionalEvent.name}</button>;
               })}
+              {capabilities.author && <div className="et-editor__context-separator" />}
+              {capabilities.author && <button type="button" role="menuitem" className="et-editor__context-danger" disabled={endStateBranch(sequence.path) === undefined} onClick={() => { setContextMenu(null); deleteEndState(sequence.id, sequence.path); }}>Delete end state…</button>}
             </>;
           })()}
         </div>

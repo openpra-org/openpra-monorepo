@@ -1,5 +1,6 @@
 .es-seq-card__head { align-items: flex-end; flex-wrap: wrap; }
 .es-seq-card__picker { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; max-width: 100%; }
+.es-seq-card__pick-row { display: flex; align-items: stretch; flex-wrap: wrap; gap: 8px; min-width: 0; max-width: 100%; }
 .es-seq-card__picker .posfield__select { width: auto; max-width: 100%; }
 .es-seq-card__panel { min-width: 0; }
 

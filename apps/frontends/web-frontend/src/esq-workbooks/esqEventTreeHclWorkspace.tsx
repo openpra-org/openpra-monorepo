@@ -13,9 +13,13 @@ import {
   type BayesianNetworkModel,
 } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import {
-  BayesianNetworkEditor,
-  createEmptyBayesianNetwork,
-} from "../newly-developed-methods/bayesian-network";
+  esConfigurationApplies,
+  overriddenBindings,
+  overridingConfiguration,
+  unlinkedFunctionalEvents,
+  type HclEventTreeFacts,
+} from "interfaces-mef-types/es/es-dependency-bindings";
+import { BayesianNetworkEditor } from "../newly-developed-methods/bayesian-network";
 import type {
   HclEditorBatchRunResult,
   HclEditorRunResult,
@@ -38,7 +42,7 @@ import {
   generateEsqHclScenarios,
 } from "./esqWorkbookApi";
 
-type DependencyOwner = "SY" | "ESQ";
+type DependencyOwner = "SY" | "ES" | "ESQ";
 
 interface OwnedNetwork {
   owner: DependencyOwner;
@@ -85,12 +89,28 @@ function configurationFaultTreeKeys(configuration: WorkbookHclConfiguration): Se
   );
 }
 
+function eventTreeFacts(eventTree: HclEventTreeOption): HclEventTreeFacts {
+  return {
+    workbookId: eventTree.workbookId,
+    ...(eventTree.initiatingEventId === undefined ? {} : { initiatingEventId: eventTree.initiatingEventId }),
+    ...(eventTree.plantOperatingStateId === undefined ? {} : { plantOperatingStateId: eventTree.plantOperatingStateId }),
+    faultTrees: eventTree.faultTrees,
+    unlinkedFunctionalEventIds: eventTree.unlinkedFunctionalEventIds ?? [],
+  };
+}
+
 function configurationMatchesEventTree(
-  configuration: WorkbookHclConfiguration,
+  candidate: OwnedConfiguration,
   eventTree: HclEventTreeOption,
+  esConfigurations: readonly OwnedConfiguration[],
 ): boolean {
-  const configured = configurationFaultTreeKeys(configuration);
-  return eventTree.faultTrees.some((reference) => configured.has(`${reference.workbookId}:${reference.modelId}`));
+  const facts = eventTreeFacts(eventTree);
+  if (candidate.owner === "ES") return esConfigurationApplies(candidate.workbookId, candidate.configuration, facts);
+  const configured = configurationFaultTreeKeys(candidate.configuration);
+  if (!eventTree.faultTrees.some((reference) => configured.has(`${reference.workbookId}:${reference.modelId}`))) return false;
+  if (candidate.owner !== "SY") return true;
+  const competing = esConfigurations.filter((other) => other.workbookId === eventTree.workbookId).map((other) => other.configuration);
+  return overridingConfiguration(candidate.configuration, competing, facts) === undefined;
 }
 
 function plainWorkbookName(name: string): string {
@@ -107,8 +127,7 @@ function EsqEventTreeHclWorkspace({
   initialNetworkId = null,
   initialSourceWorkbookId = null,
 }: EsqEventTreeHclWorkspaceProps): JSX.Element {
-  const { esq, editable: workbookEditable, mutateEsq, runtime } = useEsqWorkbook();
-  const editable = workbookEditable && mode === "NETWORK";
+  const { esq, mutateEsq, runtime } = useEsqWorkbook();
   const {sourceEpoch, sourceWarning} = useAnalysisSourceGuard("esq", runtime.workbookId);
   const [syNetworks, setSyNetworks] = useState<OwnedNetwork[]>([]);
   const [syConfigurations, setSyConfigurations] = useState<OwnedConfiguration[]>([]);
@@ -171,22 +190,34 @@ function EsqEventTreeHclWorkspace({
       );
       const optionByKey = new Map(options.map((option) => [`${option.workbookId}:${option.modelId}`, option]));
       setFaultTrees(options);
-      setSyNetworks(systemSources.flatMap(({ workbook, source }) =>
-        (source.mef.dependencyBayesianNetworks ?? []).map((network) => ({
+      const owned = [
+        ...systemSources.map(({ workbook, source }) => ({
           owner: "SY" as const,
-          workbookId: workbook.id,
-          workbookName: workbook.name,
-          network,
+          workbook,
+          networks: source.mef.dependencyBayesianNetworks ?? [],
+          configurations: source.mef.dependencyHclConfigurations ?? [],
         })),
-      ));
-      setSyConfigurations(systemSources.flatMap(({ workbook, source }) => {
-        const networks = new Map((source.mef.dependencyBayesianNetworks ?? []).map((network) => [network.modelId, network]));
-        return (source.mef.dependencyHclConfigurations ?? []).flatMap((configuration) => {
+        ...eventSources.map(({ workbook, source }) => ({
+          owner: "ES" as const,
+          workbook,
+          networks: source.mef.dependencyBayesianNetworks ?? [],
+          configurations: source.mef.dependencyHclConfigurations ?? [],
+        })),
+      ];
+      setSyNetworks(owned.flatMap(({ owner, workbook, networks }) => networks.map((network) => ({
+        owner,
+        workbookId: workbook.id,
+        workbookName: workbook.name,
+        network,
+      }))));
+      setSyConfigurations(owned.flatMap(({ owner, workbook, networks, configurations }) => {
+        const byId = new Map(networks.map((network) => [network.modelId, network]));
+        return configurations.flatMap((configuration) => {
           const network = configuration.bayesianNetwork.workbookId === workbook.id
-            ? networks.get(configuration.bayesianNetwork.modelId)
+            ? byId.get(configuration.bayesianNetwork.modelId)
             : undefined;
           return network === undefined ? [] : [{
-            owner: "SY" as const,
+            owner,
             workbookId: workbook.id,
             workbookName: workbook.name,
             configuration,
@@ -231,6 +262,9 @@ function EsqEventTreeHclWorkspace({
             modelId: tree.uuid,
             modelCode: tree.label?.trim() || tree.name,
             modelName: tree.name,
+            initiatingEventId: tree.initiatingEventId,
+            ...(tree.plantOperatingStateId === undefined ? {} : { plantOperatingStateId: tree.plantOperatingStateId }),
+            unlinkedFunctionalEventIds: unlinkedFunctionalEvents(connectedTrees).map((event) => event.uuid),
             ...hclEventTreeResultMetadata(connectedTrees),
             faultTrees: linkedFaultTrees.map(({ workbookId, modelId }) => ({ workbookId, modelId })),
             linkedFaultTrees,
@@ -268,12 +302,13 @@ function EsqEventTreeHclWorkspace({
     }];
   }), [esq.bayesianNetworks, esq.hclConfigurations, runtime.workbookId]);
 
+  const esConfigurations = useMemo(() => syConfigurations.filter((candidate) => candidate.owner === "ES"), [syConfigurations]);
   const matchingSyConfigurations = useMemo(() => syConfigurations.filter((candidate) =>
-    eventTrees.some((eventTree) => configurationMatchesEventTree(candidate.configuration, eventTree)),
-  ), [eventTrees, syConfigurations]);
+    eventTrees.some((eventTree) => configurationMatchesEventTree(candidate, eventTree, esConfigurations)),
+  ), [esConfigurations, eventTrees, syConfigurations]);
   const matchingLocalConfigurations = useMemo(() => localConfigurations.filter((candidate) =>
-    eventTrees.some((eventTree) => configurationMatchesEventTree(candidate.configuration, eventTree)),
-  ), [eventTrees, localConfigurations]);
+    eventTrees.some((eventTree) => configurationMatchesEventTree(candidate, eventTree, esConfigurations)),
+  ), [esConfigurations, eventTrees, localConfigurations]);
   const relevantConfigurations = [...matchingLocalConfigurations, ...matchingSyConfigurations];
   const configuredNetworkKeys = new Set(relevantConfigurations.map((candidate) =>
     `${candidate.owner}:${candidate.workbookId}:${candidate.network.modelId}`,
@@ -317,8 +352,22 @@ function EsqEventTreeHclWorkspace({
 
   const eligibleEventTrees = useMemo(() => selected === undefined
     ? []
-    : eventTrees.filter((eventTree) => configurationMatchesEventTree(selected.configuration, eventTree)),
-  [eventTrees, selected]);
+    : eventTrees.filter((eventTree) => configurationMatchesEventTree(selected, eventTree, esConfigurations)),
+  [esConfigurations, eventTrees, selected]);
+  const overrideNote = useMemo(() => {
+    if (selected?.owner !== "ES") return null;
+    const codes = new Map(faultTrees.flatMap((tree) => tree.basicEvents.map((event) => [`${tree.workbookId}:${event.id}`, event.code] as const)));
+    const notes = syConfigurations.filter((candidate) => candidate.owner === "SY").flatMap((candidate) => {
+      const overridden = overriddenBindings(candidate.configuration, selected.configuration);
+      if (overridden.length === 0) return [];
+      const events = overridden.map((binding) => {
+        const key = `${binding.faultTreeBasicEvent.workbookId}:${binding.faultTreeBasicEvent.entityId}`;
+        return codes.get(key) ?? binding.faultTreeBasicEvent.entityId;
+      });
+      return [`Overrides SY ${candidate.configuration.code} for ${events.join(", ")}.`];
+    });
+    return notes.length === 0 ? null : notes.join(" ");
+  }, [faultTrees, selected, syConfigurations]);
   const evidence: BayesianNetworkEvidenceConfiguration = selected?.configuration.baseEvidence ?? { observations: [] };
   const validation = displayedNetwork === undefined ? [] : validateBayesianNetworkModel(displayedNetwork.network, {
     evidence,
@@ -345,14 +394,6 @@ function EsqEventTreeHclWorkspace({
       bayesianNetworks: current.bayesianNetworks.map((candidate) =>
         candidate.modelId === next.modelId ? next as EsqBayesianNetwork : candidate,
       ),
-    }));
-  }
-
-  function createLegacyNetwork(): void {
-    const created = createEmptyBayesianNetwork("Dependency network") as EsqBayesianNetwork;
-    mutateEsq((current) => ({
-      ...current,
-      bayesianNetworks: [...current.bayesianNetworks, created],
     }));
   }
 
@@ -383,7 +424,7 @@ function EsqEventTreeHclWorkspace({
         runtime.revision,
         { workbookId: eventTree.workbookId, modelId: eventTree.modelId },
         calculationType,
-        selected.owner === "SY"
+        selected.owner !== "ESQ"
           ? { workbookId: selected.workbookId, modelId: configuration.modelId }
           : undefined,
       );
@@ -425,7 +466,7 @@ function EsqEventTreeHclWorkspace({
         calculationType,
         scenarioIds,
         integrateHazardGrid,
-        selected.owner === "SY"
+        selected.owner !== "ESQ"
           ? { workbookId: selected.workbookId, modelId: configuration.modelId }
           : undefined,
         { evidenceScenarios: configuration.evidenceScenarios ?? [], hazardGrid: configuration.hazardGrid },
@@ -459,12 +500,6 @@ function EsqEventTreeHclWorkspace({
   }
 
   const dependencyOptionsAvailable = relevantConfigurations.length > 0 || standaloneSyNetworks.length > 0;
-  const addNetworkAction = !sourceLoading && displayedNetwork === undefined && editable ? (
-    <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={createLegacyNetwork}>
-      <span aria-hidden="true">+</span>
-      Add network
-    </button>
-  ) : null;
 
   return (
     <section className="poscard esq-hcl-et" aria-label="Event tree Bayesian dependency quantification">
@@ -495,22 +530,26 @@ function EsqEventTreeHclWorkspace({
                 </option>
               ))}
             </select>
-            {addNetworkAction}
           </div>
-        ) : addNetworkAction}
+        ) : null}
       </div>
       {sourceLoading && <p className="pws-status">Loading dependency networks and linked event trees…</p>}
       {sourceError !== null && <p className="pws-status pws-status--error">{sourceError}</p>}
+      {overrideNote !== null && <p className="pws-status">{overrideNote}</p>}
       {displayedNetwork !== undefined && (
         <BayesianNetworkEditor
           model={displayedNetwork.network}
           saveBlockedReason={saveBlockedReason}
           onAnalysisInputChange={analysis.invalidate}
-          editable={displayedNetwork.owner === "ESQ" && editable}
+          editable={false}
           readOnlyNotice={displayedNetwork.owner === "SY" ? {
             message: `This network is linked from ${plainWorkbookName(displayedNetwork.workbookName)} and is read-only here. Open that workbook's Dependencies step to import XDSL or manage groups.`,
             sourceHref: `/sy-workbooks/${encodeURIComponent(displayedNetwork.workbookId)}?step=deps&network=${encodeURIComponent(displayedNetwork.network.modelId)}&esqWorkbook=${encodeURIComponent(runtime.workbookId ?? "")}`,
             sourceLabel: "Open Systems workbook",
+          } : displayedNetwork.owner === "ES" ? {
+            message: `This network is built in ${plainWorkbookName(displayedNetwork.workbookName)} and is read-only here. Open that workbook's Dependencies step to edit it.`,
+            sourceHref: `/es-workbooks/${encodeURIComponent(displayedNetwork.workbookId)}`,
+            sourceLabel: "Open Event Sequence workbook",
           } : undefined}
           showAnalysis={mode === "RUNS"}
           showQueryAnalysis={false}
@@ -537,7 +576,7 @@ function EsqEventTreeHclWorkspace({
             if (saveBlockedReason !== null) throw new Error(saveBlockedReason);
             if (runtime.workbookId === null || runtime.revision === null || selected === undefined) throw new Error("Save the workbook first.");
             return (await generateEsqHclScenarios(runtime.workbookId, configuration.modelId, runtime.revision, spec,
-              selected.owner === "SY" ? { workbookId: selected.workbookId, modelId: configuration.modelId } : undefined)).scenarios;
+              selected.owner !== "ESQ" ? { workbookId: selected.workbookId, modelId: configuration.modelId } : undefined)).scenarios;
           }}
           onRunHclFaultTree={() => undefined}
           onRunHclEventTree={(configuration, eventTree, calculationType) => { void runEventTree(configuration, eventTree, calculationType); }}

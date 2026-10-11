@@ -1,6 +1,7 @@
-import { type EventSequence, type EventSequenceAnalysis, type EventSequenceFamily, type KeySafetyFunction, type EventTreeBranch, type EventTreeOutcome, type EventTreeSequence, type EventTreeTransfer } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type EventSequence, type EventSequenceAnalysis, type EventSequenceFamily, type KeySafetyFunction, type EventTree, type EventTreeBranch, type EventTreeOutcome, type EventTreeSequence, type EventTreeTransfer } from "interfaces-mef-types/es/event-sequence-analysis";
 import { EndState } from "interfaces-mef-types/core/events";
 import { endStateOfKind } from "interfaces-mef-types/es/es-end-states";
+import { functionalEventBindingId, inEventTreeScope } from "interfaces-mef-types/es/es-dependency-bindings";
 import {
   CONFORMANCE_ITEMS,
   ES_STEPS,
@@ -683,9 +684,18 @@ function endStateUseCount(es: EventSequenceAnalysis, endStateId: string): number
   return (es.eventTrees ?? []).reduce((count, tree) => count + Object.values(tree.sequences).filter((sequence) => sequence.endStateId === endStateId).length, 0);
 }
 
+function dependencyBoundFunctionalEvents(es: EventSequenceAnalysis, tree: EventTree): Set<string> {
+  const bound = new Set((es.dependencyHclConfigurations ?? [])
+    .filter((configuration) => inEventTreeScope(configuration, tree))
+    .flatMap((configuration) => configuration.bindings.map((binding) => binding.faultTreeBasicEvent.entityId)));
+  return new Set(Object.values(tree.functionalEvents).flatMap((event) =>
+    event.faultTreeTopEvent === undefined && bound.has(functionalEventBindingId(event.uuid)) ? [event.uuid] : []));
+}
+
 export {
   eventTreesView,
   coverageView,
+  dependencyBoundFunctionalEvents,
   endStateUseCount,
   withEndStateDefinitionApplied,
   withSyncedSequenceEndState,

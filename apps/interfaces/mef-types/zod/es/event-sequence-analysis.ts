@@ -17,6 +17,7 @@ import {
   PreOperationalAssumptionSchema,
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
+import { WorkbookBayesianNetworkSchema, WorkbookHclConfigurationSchema } from "../modeling/workbook-models";
 import {
   EventTreeCanvasLayoutSchema,
   EventTreeInitiatingEventFrequencySchema,
@@ -80,6 +81,10 @@ export const DependencySchema = z.object({
   dependencyType: DependencyTypeSchema,
   description: z.string(),
   basis: z.string().optional(),
+  assumption: z.string().optional(),
+  modeling: z.enum(["SPLIT", "BRANCH_REMOVED", "SHARED_EVENT", "JOINT_PROBABILITY", "NOT_MODELED"]).optional(),
+  modelingDetail: z.string().optional(),
+  source: z.object({ element: z.enum(["SY", "HRA"]), workbookId: z.string(), recordId: z.string() }).optional(),
   applicablePlantOperatingStates: z.array(z.string()).optional(),
   applicableInitiatingEvents: z.array(z.string()).optional(),
   timePhased: z.boolean().optional(),
@@ -511,6 +516,8 @@ export const EventSequenceAnalysisSchema = z.object({
   documentation: EventSequenceDocumentationSchema,
   configurationControlRecordId: z.string().optional(),
   newlyDevelopedMethodIds: z.array(z.string()).optional(),
+  dependencyBayesianNetworks: z.array(WorkbookBayesianNetworkSchema).optional(),
+  dependencyHclConfigurations: z.array(WorkbookHclConfigurationSchema).optional(),
 });
 
 type Expect<T extends true> = T;

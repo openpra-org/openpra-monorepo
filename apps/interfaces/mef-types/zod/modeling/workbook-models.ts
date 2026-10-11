@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   WorkbookBayesianNetwork,
   WorkbookHclConfiguration,
+  WorkbookHclEventTreeScope,
   WorkbookFaultTree,
   WorkbookFaultTreeCatalogue,
   WorkbookMethodModelIdentity,
@@ -41,10 +42,18 @@ const WorkbookBayesianNetworkSchema = z
   })
   .strict();
 
+const WorkbookHclEventTreeScopeSchema = z
+  .object({
+    initiatingEventIds: z.array(z.string().trim().min(1)),
+    plantOperatingStateIds: z.array(z.string().trim().min(1)),
+  })
+  .strict();
+
 const WorkbookHclConfigurationBaseSchema = z
   .object({
     ...WorkbookMethodModelIdentitySchema.shape,
     ...HclConfigurationDefinitionBaseSchema.shape,
+    eventTreeScope: WorkbookHclEventTreeScopeSchema.optional(),
   })
   .strict();
 
@@ -76,6 +85,9 @@ type _AssertBayesianNetwork = Expect<
 type _AssertHclConfiguration = Expect<
   Equal<z.infer<typeof WorkbookHclConfigurationSchema>, WorkbookHclConfiguration>
 >;
+type _AssertHclEventTreeScope = Expect<
+  Equal<z.infer<typeof WorkbookHclEventTreeScopeSchema>, WorkbookHclEventTreeScope>
+>;
 type _AssertCatalogue = Expect<
   Equal<z.infer<typeof WorkbookFaultTreeCatalogueSchema>, WorkbookFaultTreeCatalogue>
 >;
@@ -83,6 +95,7 @@ type _AssertCatalogue = Expect<
 export {
   WorkbookBayesianNetworkSchema,
   WorkbookHclConfigurationSchema,
+  WorkbookHclEventTreeScopeSchema,
   WorkbookHclUncertaintyConfigurationSchema,
   WorkbookFaultTreeCatalogueSchema,
   WorkbookFaultTreeSchema,

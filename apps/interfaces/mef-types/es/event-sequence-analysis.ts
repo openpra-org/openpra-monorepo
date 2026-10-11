@@ -8,7 +8,9 @@ import type {
   EventTreeCanvasLayout,
   EventTreeInitiatingEventFrequency,
   FaultTreeTopEventReference,
+  WorkbookBayesianNetwork,
   WorkbookEntityId,
+  WorkbookHclConfiguration,
 } from "../modeling";
 
 export type PlantOperatingStateReference = string;
@@ -114,12 +116,24 @@ export interface OperatorActionWindow extends Unique {
   implementsSrs: SRReference[];
 }
 
+export type DependencyModeling = "SPLIT" | "BRANCH_REMOVED" | "SHARED_EVENT" | "JOINT_PROBABILITY" | "NOT_MODELED";
+
+export interface DependencySource {
+  element: "SY" | "HRA";
+  workbookId: string;
+  recordId: string;
+}
+
 export interface Dependency extends Unique {
   dependentElement: SystemReference | HumanActionReference;
   dependedUponElement: SystemReference | HumanActionReference;
   dependencyType: DependencyType;
   description: string;
   basis?: string;
+  assumption?: string;
+  modeling?: DependencyModeling;
+  modelingDetail?: string;
+  source?: DependencySource;
   applicablePlantOperatingStates?: PlantOperatingStateReference[];
   applicableInitiatingEvents?: InitiatingEventReference[];
   timePhased?: boolean;
@@ -526,6 +540,8 @@ export interface EventSequenceAnalysis
 
   configurationControlRecordId?: string;
   newlyDevelopedMethodIds?: string[];
+  dependencyBayesianNetworks?: WorkbookBayesianNetwork[];
+  dependencyHclConfigurations?: WorkbookHclConfiguration[];
 }
 
 export const ES_SR_CATALOG: Record<string, { hlr: HlrId; stages: PlantStage[] }> = {

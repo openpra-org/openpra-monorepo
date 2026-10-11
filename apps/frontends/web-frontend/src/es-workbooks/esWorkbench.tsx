@@ -11,7 +11,8 @@ import {
   type Stage,
 } from "./esViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, stepsFromMef, type CommentView } from "./esSelectors";
-import { SequencesScreen, DependenciesScreen, TimingScreen, ScreeningScreen, QuantScreen, DraftScreen, PlaceholderScreen, type SequenceTab } from "./esScreens";
+import { SequencesScreen, TimingScreen, ScreeningScreen, QuantScreen, DraftScreen, PlaceholderScreen, type SequenceTab } from "./esScreens";
+import { DependenciesScreen } from "./EsDependencies";
 import { InternalReviewScreen, ReviewerCommentDock } from "./esReview";
 import { EsScopeScreen, type EsLinkActions } from "./EsScope";
 import { useEsWorkbook, type EsWorkbookData } from "./esWorkbookContext";
@@ -33,7 +34,7 @@ function headersFor(stepId: string): StepHeader {
   switch (stepId) {
     case "scope": return { eyebrow: "Step 01 · ES-A", title: "Scope" };
     case "sequences": return { eyebrow: "Step 02 · ES-A", title: "Event Sequences" };
-    case "deps": return { eyebrow: "Step 03", title: "Dependencies", sub: "A dependency links the success or failure of one function, system or operator action to another (ES-B1, ES-B2, ES-B3)." };
+    case "deps": return { eyebrow: "Step 03 · ES-B", title: "Dependencies" };
     case "timing": return { eyebrow: "Step 04", title: "Timing & phenomena", sub: "Order functional events, assign operator-action windows, and identify sequence-induced phenomenological conditions (ES-A6, B3)." };
     case "quant": return { eyebrow: "Step 05", title: "ESQ Interface", sub: "ES transmits the structured scenario model to ESQ and receives sequence frequencies, uncertainty bounds, and dominant cut sets in return (ES-A1c)." };
     case "draft": return { eyebrow: "Step 06 · Draft", title: "Produce the draft", sub: "Build the ES report from everything you entered; sending it moves the workbook to internal technical review." };

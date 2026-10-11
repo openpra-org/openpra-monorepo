@@ -17,7 +17,14 @@ import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analy
 import { DataAnalysisSchema } from "interfaces-mef-types/zod/da/data-analysis";
 import { HumanReliabilityAnalysisSchema } from "interfaces-mef-types/zod/hr/human-reliability-analysis";
 import { SuccessCriteriaDevelopmentSchema } from "interfaces-mef-types/zod/sc/success-criteria-development";
-import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import type { EventSequenceAnalysis, FunctionalEvent } from "interfaces-mef-types/es/event-sequence-analysis";
+import {
+  boundFunctionalEventIds,
+  eventTreeHclFacts,
+  inEventTreeScope,
+  overridingConfiguration,
+  unlinkedFunctionalEvents,
+} from "interfaces-mef-types/es/es-dependency-bindings";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { daCcfVectorParameter, type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
@@ -115,8 +122,12 @@ import {
 import { AnalysisRunRecord, type AnalysisRunRecordDocument } from "./analysis-run-record.schema";
 import {
   adaptEsEventTreeSnapshot,
+  adaptEsFunctionalEventStandIn,
   adaptEsqBayesianNetworkSnapshot,
   adaptEsqHclSnapshot,
+  adaptEsBayesianNetworkSnapshot,
+  adaptEsHclSnapshot,
+  functionalEventStandInTop,
   adaptSyBayesianNetworkSnapshot,
   adaptSyHclSnapshot,
   adaptSyFaultTreeSnapshot,
@@ -200,6 +211,7 @@ interface HclBatchRunContext {
 
 type HclConfigurationOwner =
   | LoadedWorkbook<EventSequenceQuantification>
+  | LoadedWorkbook<EventSequenceAnalysis>
   | LoadedWorkbook<SystemsAnalysis>;
 
 interface LoadedHclSources {
@@ -1448,17 +1460,19 @@ export class WorkbookAnalysisRunsService {
   private eventTreeFaultTreeReferences(
     source: LoadedWorkbook<EventSequenceAnalysis>,
     modelId: string,
+    functionalEventStandIns: ReadonlySet<string> = new Set(),
   ): WorkbookModelAddress[] {
     const tree = source.mef.eventTrees?.find((candidate) => candidate.uuid === modelId);
     if (!tree) throw new NotFoundException("ES event tree not found");
-    const refs = Object.values(tree.functionalEvents).map((event) => {
+    const refs = Object.values(tree.functionalEvents).flatMap((event) => {
       if (!event.faultTreeTopEvent) {
+        if (functionalEventStandIns.has(event.uuid)) return [];
         throw new BadRequestException(`Functional event '${event.uuid}' has no typed fault-tree top-event reference`);
       }
-      return {
+      return [{
         workbookId: event.faultTreeTopEvent.workbookId,
         modelId: event.faultTreeTopEvent.modelId,
-      };
+      }];
     });
     return [...new Map(refs.map((reference) => [`${reference.workbookId}:${reference.modelId}`, reference])).values()];
   }
@@ -1466,9 +1480,10 @@ export class WorkbookAnalysisRunsService {
   private async loadEventTreeFaultTrees(
     eventTree: LoadedWorkbook<EventSequenceAnalysis>,
     modelId: string,
+    functionalEventStandIns: ReadonlySet<string> = new Set(),
   ): Promise<Array<{ source: LoadedWorkbook<SystemsAnalysis>; modelId: string }>> {
     const references = this.eventTreeModelIds(eventTree, modelId).flatMap((eventTreeModelId) =>
-      this.eventTreeFaultTreeReferences(eventTree, eventTreeModelId),
+      this.eventTreeFaultTreeReferences(eventTree, eventTreeModelId, functionalEventStandIns),
     );
     const uniqueReferences = [
       ...new Map(references.map((reference) => [`${reference.workbookId}:${reference.modelId}`, reference])).values(),
@@ -1782,28 +1797,29 @@ export class WorkbookAnalysisRunsService {
     dependencyConfiguration?: WorkbookModelAddress,
   ): Promise<LoadedHclSources> {
     const configurationOwner =
-      dependencyConfiguration === undefined ? owner : await this.loadSy(dependencyConfiguration.workbookId);
+      dependencyConfiguration === undefined ? owner : await this.loadDependencyOwner(dependencyConfiguration.workbookId);
     if (dependencyConfiguration !== undefined && dependencyConfiguration.modelId !== modelId) {
-      throw new BadRequestException("The HCL model id must match the referenced SY dependency configuration");
+      throw new BadRequestException("The HCL model id must match the referenced dependency configuration");
     }
     const configurations =
       configurationOwner.hostType === "SY" ?
         ((configurationOwner.mef as SystemsAnalysis).dependencyHclConfigurations ?? [])
+      : configurationOwner.hostType === "ES" ?
+        ((configurationOwner.mef as EventSequenceAnalysis).dependencyHclConfigurations ?? [])
       : (configurationOwner.mef as EventSequenceQuantification).hclConfigurations;
     const configuration = configurations.find((candidate) => candidate.modelId === modelId);
     if (!configuration) {
-      throw new NotFoundException(
-        configurationOwner.hostType === "SY" ?
-          "SY HCL dependency configuration not found"
-        : "ESQ HCL configuration not found",
-      );
+      throw new NotFoundException(`${configurationOwner.hostType} HCL configuration not found`);
     }
     const bayesian =
       configuration.bayesianNetwork.workbookId === configurationOwner.workbookId ? configurationOwner
       : configurationOwner.hostType === "SY" ? await this.loadSy(configuration.bayesianNetwork.workbookId)
+      : configurationOwner.hostType === "ES" ? await this.loadEs(configuration.bayesianNetwork.workbookId)
       : await this.loadEsq(configuration.bayesianNetwork.workbookId);
+    const systemReferences = configuration.faultTrees.filter((reference) =>
+      configurationOwner.hostType !== "ES" || reference.workbookId !== configurationOwner.workbookId);
     const byWorkbook = new Map<string, LoadedWorkbook<SystemsAnalysis>>();
-    for (const reference of configuration.faultTrees) {
+    for (const reference of systemReferences) {
       if (!byWorkbook.has(reference.workbookId)) {
         byWorkbook.set(reference.workbookId, await this.loadSy(reference.workbookId));
       }
@@ -1812,17 +1828,67 @@ export class WorkbookAnalysisRunsService {
       configuration,
       configurationOwner,
       bayesian,
-      faultTrees: configuration.faultTrees.map((reference) => ({
+      faultTrees: systemReferences.map((reference) => ({
         source: byWorkbook.get(reference.workbookId)!,
         modelId: reference.modelId,
       })),
     };
   }
 
+  private assertHclEventTreeApplies(
+    hcl: LoadedHclSources,
+    eventTree: LoadedWorkbook<EventSequenceAnalysis>,
+    rootModelId: string,
+    eventTreeModelIds: string[],
+  ): void {
+    const trees = eventTree.mef.eventTrees ?? [];
+    const root = trees.find((tree) => tree.uuid === rootModelId);
+    if (root === undefined) throw new NotFoundException(`ES event tree '${rootModelId}' was not found`);
+    const facts = eventTreeHclFacts(eventTree.workbookId, root, trees.filter((tree) => eventTreeModelIds.includes(tree.uuid)));
+    const treeName = root.label ?? root.name;
+    if (hcl.configurationOwner.hostType === "ES") {
+      if (hcl.configurationOwner.workbookId !== eventTree.workbookId) {
+        throw new BadRequestException(`HCL configuration '${hcl.configuration.code}' belongs to another Event Sequence workbook`);
+      }
+      if (!inEventTreeScope(hcl.configuration, facts)) {
+        throw new BadRequestException(`HCL configuration '${hcl.configuration.code}' does not apply to event tree '${treeName}'`);
+      }
+      return;
+    }
+    if (hcl.configurationOwner.hostType !== "SY") return;
+    const overriding = overridingConfiguration(hcl.configuration, eventTree.mef.dependencyHclConfigurations ?? [], facts);
+    if (overriding !== undefined) {
+      throw new BadRequestException(
+        `Event Sequence configuration '${overriding.code}' binds the same basic events and takes precedence for event tree '${treeName}'`,
+      );
+    }
+  }
+
+  private hclFunctionalEventStandIns(
+    hcl: LoadedHclSources,
+    eventTree: LoadedWorkbook<EventSequenceAnalysis>,
+    eventTreeModelIds: string[],
+  ): FunctionalEvent[] {
+    if (hcl.configurationOwner.hostType !== "ES" || hcl.configurationOwner.workbookId !== eventTree.workbookId) return [];
+    const unlinked = unlinkedFunctionalEvents((eventTree.mef.eventTrees ?? []).filter((tree) => eventTreeModelIds.includes(tree.uuid)));
+    const bound = new Set(boundFunctionalEventIds(hcl.configuration, eventTree.workbookId, unlinked.map((event) => event.uuid)));
+    return unlinked.filter((event) => bound.has(event.uuid));
+  }
+
+  private async loadDependencyOwner(workbookId: string): Promise<HclConfigurationOwner> {
+    const fromSy = await this.syWorkbookModel.exists({ workbookId }).exec();
+    return fromSy === null ? this.loadEs(workbookId) : this.loadSy(workbookId);
+  }
+
   private adaptHclBayesianNetwork(hcl: LoadedHclSources): PraxisModelSnapshot {
     return hcl.bayesian.hostType === "SY" ?
         adaptSyBayesianNetworkSnapshot(
           hcl.bayesian as LoadedWorkbook<SystemsAnalysis>,
+          hcl.configuration.bayesianNetwork.modelId,
+        )
+      : hcl.bayesian.hostType === "ES" ?
+        adaptEsBayesianNetworkSnapshot(
+          hcl.bayesian as LoadedWorkbook<EventSequenceAnalysis>,
           hcl.configuration.bayesianNetwork.modelId,
         )
       : adaptEsqBayesianNetworkSnapshot(
@@ -1843,6 +1909,16 @@ export class WorkbookAnalysisRunsService {
     return hcl.configurationOwner.hostType === "SY" ?
         adaptSyHclSnapshot(
           hcl.configurationOwner as LoadedWorkbook<SystemsAnalysis>,
+          hcl.configuration.modelId,
+          calculationType,
+          faultTreeBasicEventMembership,
+          evidence,
+          effectiveFaultTrees,
+          sources,
+        )
+      : hcl.configurationOwner.hostType === "ES" ?
+        adaptEsHclSnapshot(
+          hcl.configurationOwner as LoadedWorkbook<EventSequenceAnalysis>,
           hcl.configuration.modelId,
           calculationType,
           faultTreeBasicEventMembership,
@@ -1880,6 +1956,7 @@ export class WorkbookAnalysisRunsService {
       const target = binding.faultTreeBasicEvent;
       if (effectiveFaultTrees.some((tree) => tree.workbookId === target.workbookId &&
         selectedMemberships.get(tree.modelId)?.has(target.entityId))) continue;
+      if (hcl.configurationOwner.hostType === "ES" && target.workbookId === hcl.configurationOwner.workbookId) continue;
 
       const candidates = hcl.faultTrees.filter(({ source }) => source.workbookId === target.workbookId);
       if (candidates.length === 0) {
@@ -1919,6 +1996,8 @@ export class WorkbookAnalysisRunsService {
     const models =
       source.hostType === "SY" ?
         ((source.mef as SystemsAnalysis).dependencyBayesianNetworks ?? [])
+      : source.hostType === "ES" ?
+        ((source.mef as EventSequenceAnalysis).dependencyBayesianNetworks ?? [])
       : (source.mef as EventSequenceQuantification).bayesianNetworks;
     const model = models.find((candidate) => candidate.modelId === modelId);
     if (model === undefined)
@@ -1929,13 +2008,13 @@ export class WorkbookAnalysisRunsService {
   private hclBindingContributionEntities(
     owner: HclConfigurationOwner,
     configuration: WorkbookHclConfiguration,
-    faultTrees: Array<{ source: LoadedWorkbook<SystemsAnalysis>; modelId: string }>,
+    faultTrees: WorkbookModelAddress[],
     memberships: ReadonlyMap<string, ReadonlySet<string>>,
   ): WorkbookCrossReference[] {
     return configuration.bindings.flatMap((binding) => {
       const belongsToIncludedTree = faultTrees.some(
-        ({ source, modelId }) =>
-          source.workbookId === binding.faultTreeBasicEvent.workbookId &&
+        ({ workbookId, modelId }) =>
+          workbookId === binding.faultTreeBasicEvent.workbookId &&
           memberships.get(modelId)?.has(binding.faultTreeBasicEvent.entityId) === true,
       );
       if (!belongsToIncludedTree) return [];
@@ -2110,7 +2189,7 @@ export class WorkbookAnalysisRunsService {
         ...this.hclBindingContributionEntities(
           hcl.configurationOwner,
           hcl.configuration,
-          hcl.faultTrees,
+          hcl.faultTrees.map(({ source, modelId }) => ({ workbookId: source.workbookId, modelId })),
           faultTreeBasicEventMembership,
         ),
         ...this.hclEvidenceContributionEntities(
@@ -2176,7 +2255,13 @@ export class WorkbookAnalysisRunsService {
     const evidenceScenario = this.resolveHclEvidenceScenario(hcl.configuration, request.evidenceScenarioId);
     const eventTree = await this.loadEs(request.eventTree.workbookId);
     const eventTreeModelIds = this.eventTreeModelIds(eventTree, request.eventTree.modelId);
-    const linked = await this.loadEventTreeFaultTrees(eventTree, request.eventTree.modelId);
+    this.assertHclEventTreeApplies(hcl, eventTree, request.eventTree.modelId, eventTreeModelIds);
+    const standIns = this.hclFunctionalEventStandIns(hcl, eventTree, eventTreeModelIds);
+    const linked = await this.loadEventTreeFaultTrees(
+      eventTree,
+      request.eventTree.modelId,
+      new Set(standIns.map((event) => event.uuid)),
+    );
     const declared = new Set(
       hcl.configuration.faultTrees.map((reference) => `${reference.workbookId}:${reference.modelId}`),
     );
@@ -2204,20 +2289,28 @@ export class WorkbookAnalysisRunsService {
     ];
     await this.authorizeSources(sources, owner.workbookId, acting);
     const runId = randomUUID();
+    const standInTrees = standIns.map((event) => adaptOrThrow(() => adaptEsFunctionalEventStandIn(eventTree, event)));
     const faultTrees = combineFaultTrees(
       runId,
-      linked.map(({ source, modelId }) =>
-        adaptOrThrow(() =>
-          adaptSyFaultTreeSnapshot(source, modelId, controlled),
+      [
+        ...linked.map(({ source, modelId }) =>
+          adaptOrThrow(() =>
+            adaptSyFaultTreeSnapshot(source, modelId, controlled),
+          ),
         ),
-      ),
+        ...standInTrees,
+      ],
       adaptOrThrow(() => resolveUncertaintyTables(initiators, controlled)),
     );
     const faultTreeBasicEventMembership = this.hclFaultTreeBasicEventMembership(faultTrees.modelSnapshots);
-    const effectiveFaultTrees = linked.map(({ source, modelId }) => ({
-      workbookId: source.workbookId,
-      modelId,
-    }));
+    const effectiveFaultTrees = [
+      ...linked.map(({ source, modelId }) => ({
+        workbookId: source.workbookId,
+        modelId,
+      })),
+      ...standInTrees.map(({ modelSnapshot }) => ({ workbookId: eventTree.workbookId, modelId: modelSnapshot.id })),
+    ];
+    const standInTops = new Map(standIns.map((event) => [event.uuid, functionalEventStandInTop(eventTree.workbookId, event.uuid)]));
     const identity = { workbookId, modelId: request.modelId, workbookRevision: owner.workbookRevision };
     const persistedRequest = {
       ...request,
@@ -2252,7 +2345,7 @@ export class WorkbookAnalysisRunsService {
         ...this.hclBindingContributionEntities(
           hcl.configurationOwner,
           hcl.configuration,
-          linked,
+          effectiveFaultTrees,
           faultTreeBasicEventMembership,
         ),
         ...this.hclEvidenceContributionEntities(
@@ -2285,7 +2378,7 @@ export class WorkbookAnalysisRunsService {
               adaptEsEventTreeSnapshot(eventTree, eventTreeModelId, {
                 workbookId: hcl.configurationOwner.workbookId,
                 modelId: hcl.configuration.modelId,
-              }),
+              }, standInTops),
             ),
           ),
           ...faultTrees.modelSnapshots,
@@ -2443,7 +2536,7 @@ export class WorkbookAnalysisRunsService {
           ...this.hclBindingContributionEntities(
             hcl.configurationOwner,
             hcl.configuration,
-            hcl.faultTrees,
+            hcl.faultTrees.map(({ source, modelId }) => ({ workbookId: source.workbookId, modelId })),
             faultTreeBasicEventMembership,
           ),
           ...this.hclEvidenceContributionEntities(hcl.configuration, evidence),
@@ -2538,7 +2631,13 @@ export class WorkbookAnalysisRunsService {
     );
     const eventTree = await this.loadEs(request.eventTree.workbookId);
     const eventTreeModelIds = this.eventTreeModelIds(eventTree, request.eventTree.modelId);
-    const linked = await this.loadEventTreeFaultTrees(eventTree, request.eventTree.modelId);
+    this.assertHclEventTreeApplies(hcl, eventTree, request.eventTree.modelId, eventTreeModelIds);
+    const standIns = this.hclFunctionalEventStandIns(hcl, eventTree, eventTreeModelIds);
+    const linked = await this.loadEventTreeFaultTrees(
+      eventTree,
+      request.eventTree.modelId,
+      new Set(standIns.map((event) => event.uuid)),
+    );
     const batchContext: HclBatchRunContext = {
       evidenceScenarioIds: [...request.evidenceScenarioIds],
       ...(hazardGrid === null ? {} : { hazardGrid: structuredClone(hazardGrid) }),
@@ -2570,20 +2669,28 @@ export class WorkbookAnalysisRunsService {
     ];
     await this.authorizeSources(sources, owner.workbookId, acting);
     const envelopeId = randomUUID();
+    const standInTrees = standIns.map((event) => adaptOrThrow(() => adaptEsFunctionalEventStandIn(eventTree, event)));
     const faultTrees = combineFaultTrees(
       envelopeId,
-      linked.map(({ source, modelId }) =>
-        adaptOrThrow(() =>
-          adaptSyFaultTreeSnapshot(source, modelId, controlled),
+      [
+        ...linked.map(({ source, modelId }) =>
+          adaptOrThrow(() =>
+            adaptSyFaultTreeSnapshot(source, modelId, controlled),
+          ),
         ),
-      ),
+        ...standInTrees,
+      ],
       adaptOrThrow(() => resolveUncertaintyTables(initiators, controlled)),
     );
     const faultTreeBasicEventMembership = this.hclFaultTreeBasicEventMembership(faultTrees.modelSnapshots);
-    const effectiveFaultTrees = linked.map(({ source, modelId }) => ({
-      workbookId: source.workbookId,
-      modelId,
-    }));
+    const effectiveFaultTrees = [
+      ...linked.map(({ source, modelId }) => ({
+        workbookId: source.workbookId,
+        modelId,
+      })),
+      ...standInTrees.map(({ modelSnapshot }) => ({ workbookId: eventTree.workbookId, modelId: modelSnapshot.id })),
+    ];
+    const standInTops = new Map(standIns.map((event) => [event.uuid, functionalEventStandInTop(eventTree.workbookId, event.uuid)]));
     const identity = { workbookId, modelId: request.modelId, workbookRevision: owner.workbookRevision };
     const prepared = resolvedScenarios.map(({ scenario, evidence }) => {
       const singleRequest: HclEventTreeExecuteRequest = {
@@ -2634,7 +2741,7 @@ export class WorkbookAnalysisRunsService {
           ...this.hclBindingContributionEntities(
             hcl.configurationOwner,
             hcl.configuration,
-            linked,
+            effectiveFaultTrees,
             faultTreeBasicEventMembership,
           ),
           ...this.hclEvidenceContributionEntities(hcl.configuration, evidence),
@@ -2693,7 +2800,7 @@ export class WorkbookAnalysisRunsService {
               adaptEsEventTreeSnapshot(eventTree, eventTreeModelId, {
                 workbookId: hcl.configurationOwner.workbookId,
                 modelId: hcl.configuration.modelId,
-              }),
+              }, standInTops),
             ),
           ),
           ...faultTrees.modelSnapshots,

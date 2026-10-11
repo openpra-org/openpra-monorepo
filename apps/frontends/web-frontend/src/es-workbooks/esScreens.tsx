@@ -20,6 +20,7 @@ import { useEsWorkbook, type EsFaultTreeSource } from "./esWorkbookContext";
 import {
   eventTreesView,
   coverageView,
+  dependencyBoundFunctionalEvents,
   nextReleaseCategoryId,
   releaseCategoryOptions,
   endStateUseCount,
@@ -1124,7 +1125,8 @@ function SequencesScreen({ treeId, setTreeId, tab, setTab }: { treeId: string; s
         representation={dynamicRun === undefined && representation === "dynamic" ? "event-tree" : representation}
         capabilities={{ author: editable, quantification: false, linkSelection: true }}
         selection={selection}
-        validation={validateEventTree(model, trees, endStateIds).filter((finding) => !finding.code.startsWith("ET_FREQUENCY"))}
+        validation={validateEventTree(model, trees, endStateIds).filter((finding) => !finding.code.startsWith("ET_FREQUENCY")
+          && !(finding.code === "ET_FT_LINK_REQUIRED" && finding.entityId !== undefined && dependencyBoundFunctionalEvents(es, model).has(finding.entityId)))}
         saveState={runtime.saveState}
         onOperation={applyOperation}
         onRepresentationChange={setRepresentation}
@@ -1239,90 +1241,6 @@ function SequencesScreen({ treeId, setTreeId, tab, setTab }: { treeId: string; s
           }}
         />
       )}
-    </>
-  );
-}
-
-function DependenciesScreen(): JSX.Element {
-  const { es, editable, mutateEs } = useEsWorkbook();
-  const deps = useMemo(() => dependenciesView(es), [es]);
-  const [filter, setFilter] = useState<string>("all");
-  const [drawer, setDrawer] = useState<DrawerCtx | null>(null);
-  const types = Array.from(new Set(deps.map((d) => d.type)));
-  const shown = filter === "all" || !types.includes(filter) ? deps : deps.filter((d) => d.type === filter);
-
-  function addDependency(): void {
-    if (!editable) return;
-    const id = crypto.randomUUID();
-    const dep: Dependency = {
-      uuid: id,
-      dependentElement: "New dependent element",
-      dependedUponElement: "Depended-upon element",
-      dependencyType: DependencyType.FUNCTIONAL,
-      description: "",
-      timePhased: false,
-      applicableInitiatingEvents: [],
-      implementsSrs: [],
-    };
-    mutateEs((draft) => {
-      const models = draft.dependencyModels?.functionalDependencies ?? [];
-      const next = models.length > 0
-        ? models.map((m, i) => (i === 0 ? { ...m, dependencies: [...m.dependencies, dep] } : m))
-        : [{ uuid: crypto.randomUUID(), name: "Event-sequence dependency catalogue", description: "Dependencies linking successes and failures across the event sequences (HLR-ES-B).", involvedSystems: [], dependencies: [dep], implementsSrs: [] }];
-      return { ...draft, dependencyModels: { ...draft.dependencyModels, functionalDependencies: next } };
-    });
-    setFilter("all");
-    setDrawer({ kind: "dependency", id });
-  }
-
-  return (
-    <>
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ES" title="Dependencies across the event sequences" level={3} />
-          {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addDependency}><ESIcon.Plus /> Add dependency</button>}
-        </div>
-        {deps.length === 0 ? (
-          <EsEmpty title="No dependencies modelled yet" hint="Catalogue the functional, common-cause, human, operational, physical and phenomenological links across the event sequences (HLR-ES-B)." />
-        ) : (
-          <>
-            <div className="posrow posrow--wrap" style={{ gap: 6, marginBottom: 4 }}>
-              <button type="button" className={`poschip${filter === "all" ? " poschip--primary" : ""}`} onClick={() => setFilter("all")}>All ({deps.length})</button>
-              {types.map((t) => (
-                <button key={t} type="button" className={`poschip${filter === t ? " poschip--primary" : ""}`} onClick={() => setFilter(t)}>{ES_DEPENDENCY_TYPES[t]?.label ?? t} ({deps.filter((d) => d.type === t).length})</button>
-              ))}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {shown.map((d) => {
-                const meta = ES_DEPENDENCY_TYPES[d.type];
-                const imp = fmtImportance(d.importance);
-                return (
-                  <button key={d.id} type="button" className="esdep" onClick={() => setDrawer({ kind: "dependency", id: d.id })}>
-                    <div style={{ minWidth: 0 }}>
-                      <div className="esdep__flow">
-                        <span className="esdep__from">{d.from}</span>
-                        <span className="esdep__flow-arrow"><ESIcon.ArrowL /></span>
-                        <span className="esdep__to">{d.to}</span>
-                      </div>
-                      <div className="esdep__desc">{d.desc}</div>
-                      <div className="esdep__tags">
-                        <Badge kind={meta?.tone === "warn" ? "warn" : "progress"}>{meta?.label ?? d.type}</Badge>
-                        {d.timePhased && <span className="poschip">Time-phased</span>}
-                        {d.initiatingEvents.map((ie) => <span key={ie} className="poschip">{ie}</span>)}
-                      </div>
-                    </div>
-                    <div className="esdep__right">
-                      <span className="posmono possubtle">{d.id}</span>
-                      {imp.label !== "—" && <Badge kind={imp.kind}>{imp.label}</Badge>}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
-      {drawer !== null && <DrawerHost ctx={drawer} onClose={() => setDrawer(null)} />}
     </>
   );
 }
@@ -1887,7 +1805,6 @@ function PlaceholderScreen({ label }: { label: string }): JSX.Element {
 
 export {
   SequencesScreen,
-  DependenciesScreen,
   TimingScreen,
   ScreeningScreen,
   QuantScreen,

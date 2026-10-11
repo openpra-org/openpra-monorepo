@@ -23,7 +23,9 @@ import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-a
 import type {
   EventSequenceAnalysis,
   EventTree,
+  FunctionalEvent,
 } from "interfaces-mef-types/es/event-sequence-analysis";
+import { functionalEventBindingId } from "interfaces-mef-types/es/es-dependency-bindings";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { WorkbookModelAddress } from "interfaces-shared-types/newly-developed-methods";
 import type { HumanFailureEventReference, WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
@@ -687,6 +689,19 @@ const adaptEsqBayesianNetworkSnapshot = (
   return adaptBayesianNetworkModelSnapshot(source, model);
 };
 
+const adaptEsBayesianNetworkSnapshot = (
+  source: WorkbookMefSnapshot<EventSequenceAnalysis>,
+  modelId: string,
+): PraxisModelSnapshot => {
+  const model = (source.mef.dependencyBayesianNetworks ?? []).find(
+    (candidate) => candidate.modelId === modelId,
+  );
+  if (model === undefined) {
+    throw new WorkbookPraxisAdapterError(`ES Bayesian network '${modelId}' was not found`);
+  }
+  return adaptBayesianNetworkModelSnapshot(source, model);
+};
+
 const adaptSyBayesianNetworkSnapshot = (
   source: WorkbookMefSnapshot<SystemsAnalysis>,
   modelId: string,
@@ -727,6 +742,7 @@ const adaptEsEventTreeSnapshot = (
   source: WorkbookMefSnapshot<EventSequenceAnalysis>,
   modelId: string,
   hclConfiguration?: WorkbookModelAddress,
+  functionalEventStandIns: ReadonlyMap<string, NativeEntityReference> = new Map(),
 ): PraxisModelSnapshot => {
   const tree = findByUuid(source.mef.eventTrees ?? [], modelId, "ES event tree");
   const frequency = tree.initiatingEventFrequency;
@@ -741,6 +757,13 @@ const adaptEsEventTreeSnapshot = (
   const treeSequences = Object.values(tree.sequences);
   const links = orderedFunctionalEvents(tree).flatMap((event) => {
     if (event.faultTreeTopEvent === undefined) {
+      const standIn = functionalEventStandIns.get(event.uuid);
+      if (standIn !== undefined) {
+        return [{
+          functionalEventId: event.uuid,
+          faultTreeTopGate: { modelId: standIn.modelId, entityId: standIn.entityId },
+        }];
+      }
       const bypassedEverywhere =
         treeSequences.length > 0 &&
         treeSequences.every((sequence) => sequence.functionalEventStates?.[event.uuid] === "BYPASSED");
@@ -820,6 +843,58 @@ const adaptEsEventTreeSnapshot = (
       hclConfiguration === undefined
         ? null
         : { configuration: { modelId: hclConfiguration.modelId } },
+  };
+};
+
+const functionalEventStandInId = (workbookId: string, functionalEventId: string, part: string): string =>
+  stableUuid(JSON.stringify(["ES_FUNCTIONAL_EVENT_STAND_IN", workbookId, functionalEventId, part]));
+
+const functionalEventStandInTop = (workbookId: string, functionalEventId: string): NativeEntityReference => ({
+  modelId: functionalEventStandInId(workbookId, functionalEventId, "MODEL"),
+  entityId: functionalEventStandInId(workbookId, functionalEventId, "GATE"),
+});
+
+const adaptEsFunctionalEventStandIn = (
+  source: WorkbookMefSnapshot<EventSequenceAnalysis>,
+  functionalEvent: FunctionalEvent,
+): AdaptedFaultTreeSnapshot => {
+  const top = functionalEventStandInTop(source.workbookId, functionalEvent.uuid);
+  const leafId = functionalEventStandInId(source.workbookId, functionalEvent.uuid, "LEAF");
+  const basicEventId = functionalEventBindingId(functionalEvent.uuid);
+  return {
+    modelSnapshot: {
+      id: top.modelId,
+      projectId: source.workbookId,
+      methodType: "FAULT_TREE",
+      revision: source.workbookRevision,
+      topGate: { gateId: top.entityId },
+      gates: [{
+        id: top.entityId,
+        kind: "GATE",
+        gateType: "OR",
+        code: functionalEvent.label ?? functionalEvent.name,
+        name: functionalEvent.name,
+        description: functionalEvent.description ?? "",
+      }],
+      leafNodes: [{ id: leafId, kind: "BASIC_EVENT_REFERENCE", basicEventId }],
+      gateInputs: [{
+        id: functionalEventStandInId(source.workbookId, functionalEvent.uuid, "INPUT"),
+        gateId: top.entityId,
+        childId: leafId,
+        order: 0,
+      }],
+      nodePositions: [],
+    },
+    basicEventCatalogue: {
+      projectId: source.workbookId,
+      basicEvents: [{ id: basicEventId, expression: typedProbability(0) }],
+      commonCauseFailureGroups: [],
+      uncertaintyParameters: [],
+      uncertaintyVectors: [],
+    },
+    parameterReferences: [],
+    vectorReferences: [],
+    humanFailureReferences: [],
   };
 };
 
@@ -1007,6 +1082,32 @@ const adaptSyHclSnapshot = (
   );
 };
 
+const adaptEsHclSnapshot = (
+  source: WorkbookMefSnapshot<EventSequenceAnalysis>,
+  modelId: string,
+  calculationType: HclCalculationType = "PROBABILITY",
+  faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
+  baseEvidenceOverride?: BayesianNetworkEvidenceConfiguration,
+  effectiveFaultTrees?: WorkbookModelAddress[],
+  sources: UncertaintySources = {},
+): PraxisModelSnapshot => {
+  const configuration = (source.mef.dependencyHclConfigurations ?? []).find(
+    (candidate) => candidate.modelId === modelId,
+  );
+  if (configuration === undefined) {
+    throw new WorkbookPraxisAdapterError(`ES HCL configuration '${modelId}' was not found`);
+  }
+  return adaptHclConfigurationSnapshot(
+    source,
+    configuration,
+    calculationType,
+    faultTreeBasicEventIdsByModel,
+    baseEvidenceOverride,
+    effectiveFaultTrees,
+    sources,
+  );
+};
+
 const collectLoadCapacityReferences = (
   input: Pick<LoadCapacitySnapshotInput, "load" | "capacity">,
 ): UncertaintyReferences =>
@@ -1041,9 +1142,13 @@ export {
   adaptSyCcfGroup,
   adaptLoadCapacitySnapshot,
   adaptEsqBayesianNetworkSnapshot,
+  adaptEsBayesianNetworkSnapshot,
   adaptSyBayesianNetworkSnapshot,
   adaptEsEventTreeSnapshot,
+  adaptEsFunctionalEventStandIn,
+  functionalEventStandInTop,
   adaptEsqHclSnapshot,
+  adaptEsHclSnapshot,
   adaptSyHclSnapshot,
   adaptBayesianNetworkModelSnapshot,
   adaptHclConfigurationSnapshot,

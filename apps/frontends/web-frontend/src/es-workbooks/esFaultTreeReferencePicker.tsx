@@ -18,6 +18,7 @@ import "./css/esLinkModal.css";
 interface EsFaultTreeReferencePickerProps {
   projectId?: string;
   embeddedSource?: EsFaultTreeSource;
+  linkedWorkbookId?: string;
   functionalEventName: string;
   currentReference?: FaultTreeTopEventReference;
   onClose: () => void;
@@ -56,6 +57,7 @@ function toEditorModel(model: SystemLogicModel): FaultTreeEditorModel {
 function EsFaultTreeReferencePicker({
   projectId,
   embeddedSource,
+  linkedWorkbookId,
   functionalEventName,
   currentReference,
   onClose,
@@ -80,17 +82,18 @@ function EsFaultTreeReferencePicker({
       setSelectedWorkbookId(embeddedSource.workbookId);
       return () => { cancelled = true; };
     }
-    if (projectId === undefined) {
+    if (projectId === undefined || linkedWorkbookId === undefined) {
       setWorkbooks([]);
-      setError("No Systems Analysis source is available for fault-tree linking.");
+      setError("Link the Systems Analysis workbook in Step 01 first.");
       return () => { cancelled = true; };
     }
     listWorkbooks(projectId, "SY")
       .then(({ workbooks: available }) => {
         if (cancelled) return;
-        setWorkbooks(available);
-        const preferred = available.find(({ id }) => id === currentReference?.workbookId) ?? available[0];
-        setSelectedWorkbookId(preferred?.id ?? "");
+        const linked = available.filter(({ id }) => id === linkedWorkbookId);
+        setWorkbooks(linked);
+        setSelectedWorkbookId(linked[0]?.id ?? "");
+        if (linked.length === 0) setError("The linked Systems Analysis workbook is not in this project.");
       })
       .catch((loadError: unknown) => {
         if (!cancelled) {
@@ -99,7 +102,7 @@ function EsFaultTreeReferencePicker({
         }
       });
     return () => { cancelled = true; };
-  }, [currentReference?.workbookId, embeddedSource, projectId]);
+  }, [embeddedSource, linkedWorkbookId, projectId]);
 
   useEffect(() => {
     let cancelled = false;

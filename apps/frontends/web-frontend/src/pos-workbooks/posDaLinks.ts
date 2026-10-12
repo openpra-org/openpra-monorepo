@@ -1,7 +1,7 @@
 import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import type { PlantOperatingState, PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { fetchJson } from "../api/client";
-import { listWorkbooks } from "../workbooks/workbookApi";
+import { getDaWorkbook } from "../da-workbooks/daWorkbookApi";
 
 const EXAMPLE_PREFIX = "example-da-";
 
@@ -70,39 +70,33 @@ function withOutageSource(pos: PlantOperatingStatesAnalysis, stateId: string, wo
   };
 }
 
-async function loadDaSource(id: string, name: string): Promise<PosDaSource[]> {
+async function loadDaSource(id: string): Promise<PosDaSource[]> {
   try {
     if (id.startsWith(EXAMPLE_PREFIX)) {
       const bundle = await fetchJson<{ da: { mef: DataAnalysis } }>(`/api/example-workbooks/da-bundle?example=${encodeURIComponent(id.slice(EXAMPLE_PREFIX.length))}`);
-      return [{ id, name, mef: bundle.da.mef }];
+      return [{ id, name: "", mef: bundle.da.mef }];
     }
-    const workbook = await fetchJson<{ mef: DataAnalysis }>(`/api/da-workbooks/${encodeURIComponent(id)}`);
-    return [{ id, name, mef: workbook.mef }];
+    const workbook = await getDaWorkbook(id);
+    return [{ id, name: "", mef: workbook.mef }];
   } catch {
     return [];
   }
 }
 
-async function loadPosDaOutages(projectId: string | null, pos: PlantOperatingStatesAnalysis, exampleVariant?: string): Promise<PosDaOutageOption[]> {
-  let listed: { id: string; name: string }[] = [];
-  if (projectId !== null) {
-    try {
-      listed = (await listWorkbooks(projectId, "DA")).workbooks.map((workbook) => ({ id: workbook.id, name: workbook.name }));
-    } catch {
-      listed = [];
-    }
-  }
-  const known = new Set(listed.map((entry) => entry.id));
-  const referenced = pos.plantOperatingStates.flatMap((state) => state.outageSource?.workbookId ?? []);
-  const wanted = exampleVariant === undefined ? referenced : [...referenced, `${EXAMPLE_PREFIX}${exampleVariant}`];
-  const examples = [...new Set(wanted)]
-    .filter((id) => id.startsWith(EXAMPLE_PREFIX) && !known.has(id))
-    .map((id) => ({ id, name: "" }));
-  const sources = await Promise.all([...listed, ...examples].map((entry) => loadDaSource(entry.id, entry.name)));
-  return daOutageOptions(sources.flat());
+async function loadPosDaOutages(daWorkbookId: string | undefined): Promise<PosDaOutageOption[]> {
+  if (daWorkbookId === undefined || daWorkbookId.length === 0) return [];
+  return daOutageOptions(await loadDaSource(daWorkbookId));
+}
+
+function withDaLink(pos: PlantOperatingStatesAnalysis, workbookId: string): PlantOperatingStatesAnalysis {
+  const links = { ...pos.linkedWorkbooks };
+  delete links.DA;
+  return { ...pos, linkedWorkbooks: workbookId.length === 0 ? links : { ...links, DA: workbookId } };
 }
 
 export {
+  EXAMPLE_PREFIX,
+  withDaLink,
   daOutageOptions,
   entriesOf,
   linkedDaOutage,

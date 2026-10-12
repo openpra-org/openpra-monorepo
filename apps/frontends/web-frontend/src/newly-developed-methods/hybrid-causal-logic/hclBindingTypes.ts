@@ -100,6 +100,7 @@ interface HclBindingEditorProps {
   scopeChoices?: HclScopeChoices;
   externalBindingLabels?: ReadonlyMap<string, string>;
   faultTreeOptions: HclFaultTreeOption[];
+  referencedFaultTrees?: HclFaultTreeOption[];
   eventTreeOptions: HclEventTreeOption[];
   baseEvidence: BayesianNetworkEvidenceConfiguration;
   validation: ValidationIssue[];

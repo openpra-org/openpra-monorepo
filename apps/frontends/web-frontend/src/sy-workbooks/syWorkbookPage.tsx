@@ -50,7 +50,7 @@ import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
 import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
 import { useReferencedScSources } from "./syMissionTimes";
 import { getPosWorkbook } from "../pos-workbooks/posWorkbookApi";
-import { buildLinkedInputs, controlledCcfEstimateOptions, controlledCcfFactorOptions, controlledCcfVectorOptions, controlledCoincidentMaintenanceOptions, controlledComponentBoundaryOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledLegacyParameterOptions, controlledParameterOptions, listSyLinkOptions } from "./syLinks";
+import { buildLinkedInputs, controlledCcfEstimateOptions, controlledCcfFactorOptions, controlledCcfVectorOptions, controlledCoincidentMaintenanceOptions, controlledComponentBoundaryOptions, controlledFailureModeOptions, controlledHumanFailureOptions, controlledLegacyParameterOptions, controlledParameterOptions, listSyLinkOptions, type SyDaSource } from "./syLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "SY-A1",
@@ -60,6 +60,7 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   deps: "SY-B5",
   integrity: "SY-A30",
   uncert: "SY-A32",
+  handoff: "SY-C1",
 };
 
 interface SyExampleResponse {
@@ -191,47 +192,36 @@ function SyWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, [linkedPosId]);
 
-  useEffect(() => {
-    const entries = linkedDaId === undefined ? linkOptions.DA : linkOptions.DA.filter((entry) => entry.id === linkedDaId);
-    let cancelled = false;
-    Promise.allSettled(entries.map(async (entry) => ({ entry, workbook: await getDaWorkbook(entry.id) })))
-      .then((loaded) => {
-        if (cancelled) return;
-        const sources = loaded.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
-        setControlledParameters(controlledParameterOptions(sources));
-        setControlledLegacyParameters(controlledLegacyParameterOptions(sources));
-        setControlledFailureModes(controlledFailureModeOptions(sources));
-        setControlledCoincidentMaintenance(controlledCoincidentMaintenanceOptions(sources));
-        setControlledCcfEstimates(controlledCcfEstimateOptions(sources));
-        setControlledCcfVectors(controlledCcfVectorOptions(sources));
-        setControlledCcfFactors(controlledCcfFactorOptions(sources));
-        setControlledComponentBoundaries(controlledComponentBoundaryOptions(sources));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setControlledParameters([]);
-        setControlledLegacyParameters([]);
-        setControlledFailureModes([]);
-        setControlledCoincidentMaintenance([]);
-        setControlledCcfEstimates([]);
-        setControlledCcfVectors([]);
-        setControlledCcfFactors([]);
-        setControlledComponentBoundaries([]);
-      });
-    return () => { cancelled = true; };
-  }, [linkOptions.DA, linkedDaId]);
+  const linkedDaName = linkOptions.DA.find((entry) => entry.id === linkedDaId)?.name;
+  const linkedHrName = linkOptions.HRA.find((entry) => entry.id === linkedHrId)?.name;
 
   useEffect(() => {
-    const entries = linkedHrId === undefined ? linkOptions.HRA : linkOptions.HRA.filter((entry) => entry.id === linkedHrId);
+    function setDaSources(sources: readonly SyDaSource[]): void {
+      setControlledParameters(controlledParameterOptions(sources));
+      setControlledLegacyParameters(controlledLegacyParameterOptions(sources));
+      setControlledFailureModes(controlledFailureModeOptions(sources));
+      setControlledCoincidentMaintenance(controlledCoincidentMaintenanceOptions(sources));
+      setControlledCcfEstimates(controlledCcfEstimateOptions(sources));
+      setControlledCcfVectors(controlledCcfVectorOptions(sources));
+      setControlledCcfFactors(controlledCcfFactorOptions(sources));
+      setControlledComponentBoundaries(controlledComponentBoundaryOptions(sources));
+    }
+    if (linkedDaId === undefined) { setDaSources([]); return; }
     let cancelled = false;
-    Promise.allSettled(entries.map(async (entry) => ({ entry, workbook: await getHrWorkbook(entry.id) })))
-      .then((loaded) => {
-        if (cancelled) return;
-        setControlledHumanFailures(controlledHumanFailureOptions(loaded.flatMap((result) => result.status === "fulfilled" ? [result.value] : [])));
-      })
+    getDaWorkbook(linkedDaId)
+      .then((workbook) => { if (!cancelled) setDaSources([{ entry: { id: linkedDaId, name: linkedDaName ?? workbook.mef.name }, workbook }]); })
+      .catch(() => { if (!cancelled) setDaSources([]); });
+    return () => { cancelled = true; };
+  }, [linkedDaId, linkedDaName]);
+
+  useEffect(() => {
+    if (linkedHrId === undefined) { setControlledHumanFailures([]); return; }
+    let cancelled = false;
+    getHrWorkbook(linkedHrId)
+      .then((workbook) => { if (!cancelled) setControlledHumanFailures(controlledHumanFailureOptions([{ entry: { id: linkedHrId, name: linkedHrName ?? workbook.mef.name }, workbook }])); })
       .catch(() => { if (!cancelled) setControlledHumanFailures([]); });
     return () => { cancelled = true; };
-  }, [linkOptions.HRA, linkedHrId]);
+  }, [linkedHrId, linkedHrName]);
 
   const scReferenced = useReferencedScSources(data?.sy ?? null, controlledParameters, linkedScId, linkedSc);
 

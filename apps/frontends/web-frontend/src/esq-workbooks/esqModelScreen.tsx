@@ -90,9 +90,9 @@ import {
   EVIDENCE_KIND_LABELS,
   FREQUENCY_UNIT_OPTIONS,
   MODEL_ELEMENT_LABELS,
-  MODEL_ELEMENT_PROVIDES,
   exampleLinkLabel,
 } from "./esqViewData";
+import { importedAddresses } from "interfaces-mef-types/technical-element-handoff";
 
 type ModelTab = "sequences" | "trees" | "families" | "functions" | "initiators" | "values" | "checks";
 
@@ -352,7 +352,7 @@ function ModelSourcesCard({ view }: { view: EsqModelView | undefined }): JSX.Ele
                 <tr key={element}>
                   <td>{MODEL_ELEMENT_LABELS[element]}</td>
                   <td className="esq-rowtable__text">{name}{id !== undefined && id.length > 0 && !loaded[element] && <span className="esq-rowtable__tag">Not loaded</span>}</td>
-                  <td className="esq-rowtable__text">{MODEL_ELEMENT_PROVIDES[element]}</td>
+                  <td className="esq-rowtable__text">{importedAddresses("ESQ", element)}</td>
                   <td className="esq-rowtable__text">{source === undefined ? "—" : source.workbookName}</td>
                   <td className="esq-rowtable__num">{source === undefined ? "—" : counts[element]}</td>
                 </tr>

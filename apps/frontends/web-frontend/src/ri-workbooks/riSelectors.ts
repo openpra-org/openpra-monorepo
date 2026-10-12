@@ -6,8 +6,6 @@ import {
   type RiConsequenceFloor,
   type RiskIntegration,
   type CompiledRiskInput,
-  type RiskContributor,
-  type RiskMetric,
   type RiApplicationContext,
   type RiCliffEdgeCheck,
   type RiCliffEdgeStatus,
@@ -59,7 +57,6 @@ import {
   CONFORMANCE_ITEMS,
   CUMULATIVE_TARGET_SPECS,
   ELEMENT_CODE_BY_TYPE,
-  ELEMENT_NAME_BY_CODE,
   MEASURE_ROLE_SPECS,
   exampleLinkLabel,
   RELATIVE_CRITERIA_SPECS,
@@ -2391,14 +2388,12 @@ function countedList(items: string[], shown: number): string {
   return items.length > shown ? `${items.slice(0, shown).join(", ")} and ${items.length - shown} more` : listText(items);
 }
 
-const HANDOFF_ELEMENTS = ["POS", "IE", "ES", "SC", "SY", "HR", "DA"] as const;
 const HANDOFF_RECEIVERS = ["ESQ", "MS", "RC"] as const;
 
-type RiHandoffElementCode = (typeof HANDOFF_ELEMENTS)[number];
 type RiHandoffReceiver = (typeof HANDOFF_RECEIVERS)[number];
-type RiHandoffGroup = "family" | "contributor" | "category" | "sourceTerm" | "measure" | "element";
+type RiHandoffGroup = "family" | "contributor" | "category" | "sourceTerm" | "measure";
 
-const HANDOFF_GROUPS: RiHandoffGroup[] = ["family", "contributor", "category", "sourceTerm", "measure", "element"];
+const HANDOFF_GROUPS: RiHandoffGroup[] = ["family", "contributor", "category", "sourceTerm", "measure"];
 
 interface RiHandoffTarget {
   group: RiHandoffGroup;
@@ -2417,7 +2412,6 @@ interface RiHandoffEntry {
   insights?: string[];
   recommendations?: string[];
   keyUncertainties?: string[];
-  generalFeedback?: string;
 }
 
 interface RiHandoffContributor {
@@ -2490,16 +2484,6 @@ function itemValue(ctx: RiHandoffContext, metricKey: string, itemId: RiBreakdown
 
 function flaggedIn(ctx: RiHandoffContext, itemId: RiBreakdownId, key: string): RiIntegratedMetric[] {
   return ctx.metrics.filter((m) => ctx.flags.get(m.key)?.get(itemId)?.get(key) === true);
-}
-
-function flaggedKeys(ctx: RiHandoffContext, itemId: RiBreakdownId): string[] {
-  const keys: string[] = [];
-  for (const metric of ctx.metrics) {
-    for (const [key, flag] of ctx.flags.get(metric.key)?.get(itemId) ?? new Map<string, boolean>()) {
-      if (flag && !keys.includes(key)) keys.push(key);
-    }
-  }
-  return keys;
 }
 
 interface RiShareEntry {
@@ -2586,14 +2570,12 @@ function buildHandoffTargets(ri: RiskIntegration): RiHandoffTarget[] {
   }
   targets.push(...familyTargets.sort((a, b) => b.weight - a.weight));
 
-  const significantContributors: { name: string; type: string }[] = [];
   const contributorTargets: RiHandoffTarget[] = [];
   for (const [name, record] of ctx.contributors) {
     const entries = shareEntries(ctx, (m) => record.values.get(m.key) ?? 0);
     const flagged = ctx.metrics.filter((m) => record.significantIn.includes(m.key));
     const significant = flagged.length > 0 || record.importance;
     if (entries.length === 0 && !significant) continue;
-    if (significant) significantContributors.push({ name, type: record.type });
     const basis = ctx.fixed
       ? flagged.length > 0 ? `Above ${pct}% of ${targetsText(flagged)}` : `Below ${pct}% of every target`
       : flagged.length > 0
@@ -2680,46 +2662,6 @@ function buildHandoffTargets(ri: RiskIntegration): RiHandoffTarget[] {
       weight: 0,
     });
   }
-
-  const lead = ctx.metrics.find((m) => m.total > 0);
-  const pending = lead === undefined && ctx.metrics.some((m) => m.missing.length > 0);
-  const ownerItems: Record<RiHandoffElementCode, RiBreakdownId> = { POS: "state", IE: "initiating", ES: "sequence", SC: "function", SY: "equipment", HR: "human", DA: "basicEvent" };
-  const contributorTypes: Partial<Record<RiHandoffElementCode, string[]>> = { SY: SSC_TYPES, HR: ["HUMAN_FAILURE_EVENT"], DA: BASIC_EVENT_TYPES };
-  for (const code of HANDOFF_ELEMENTS) {
-    const types = contributorTypes[code];
-    let found: string[];
-    if (types !== undefined) {
-      found = significantContributors.filter((c) => types.includes(c.type)).map((c) => c.name);
-    } else {
-      const own = flaggedKeys(ctx, ownerItems[code]);
-      const linked = code === "SC" ? [] : significantFamilies;
-      found = [...new Set([...own, ...(code === "ES" ? flaggedKeys(ctx, "family") : []), ...linked])];
-    }
-    let top: { key: string; share: number } | undefined;
-    if (lead !== undefined) {
-      if (types !== undefined) {
-        const best = [...ctx.contributors.entries()]
-          .filter(([, record]) => types.includes(record.type))
-          .map(([name, record]) => ({ key: name, share: (record.values.get(lead.key) ?? 0) / lead.total }))
-          .filter((e) => e.share > 0)
-          .sort((a, b) => b.share - a.share)[0];
-        top = best;
-      } else {
-        const ranked = ctx.items.get(lead.key)?.find((i) => i.id === ownerItems[code])?.ranked[0];
-        if (ranked !== undefined) top = { key: ranked.key, share: ranked.value / lead.total };
-      }
-    }
-    targets.push({
-      group: "element",
-      key: code,
-      label: ELEMENT_NAME_BY_CODE[code] ?? code,
-      derived: levelFor(found.length > 0),
-      basis: found.length > 0 ? `${countedList(found, 3)} risk-significant` : "No risk-significant item",
-      shares: pending ? "Not computed" : top === undefined || lead === undefined ? "None" : `${top.key}, ${shortMetricLabel(lead)} ${shareText(top.share)}`,
-      insight: pending ? "No total is computed yet." : top === undefined || lead === undefined ? "Adds nothing to the totals." : `${top.key} carries ${shareText(top.share)} of ${metricPhrase(lead)}.`,
-      weight: 0,
-    });
-  }
   return targets;
 }
 
@@ -2731,7 +2673,6 @@ interface RiHandoffFields {
   insights?: string[];
   recommendations?: string[];
   keyUncertainties?: string[];
-  generalFeedback?: string;
 }
 
 function pickEntry(row: RiHandoffFields): RiHandoffEntry {
@@ -2741,7 +2682,6 @@ function pickEntry(row: RiHandoffFields): RiHandoffEntry {
   if (row.insights !== undefined) entry.insights = row.insights;
   if (row.recommendations !== undefined) entry.recommendations = row.recommendations;
   if (row.keyUncertainties !== undefined) entry.keyUncertainties = row.keyUncertainties;
-  if (row.generalFeedback !== undefined) entry.generalFeedback = row.generalFeedback;
   return entry;
 }
 
@@ -2753,7 +2693,6 @@ function handoffEntryList(ri: RiskIntegration, group: RiHandoffGroup): { key: st
     case "category": return (d?.mechanisticSourceTermFeedback?.releaseCategoryFeedback ?? []).map((r) => ({ key: r.releaseCategoryRef, entry: pickEntry(r) }));
     case "sourceTerm": return (d?.mechanisticSourceTermFeedback?.sourceTermFeedback ?? []).map((r) => ({ key: r.sourceTermDefinitionRef, entry: pickEntry(r) }));
     case "measure": return (d?.radiologicalConsequenceFeedback?.metricFeedback ?? []).map((r) => ({ key: r.metric, entry: pickEntry(r) }));
-    case "element": return (d?.additionalElementFeedback ?? []).map((r) => ({ key: r.elementCode, entry: pickEntry(r) }));
     default: return [];
   }
 }
@@ -2766,7 +2705,7 @@ function handoffLevelOf(ri: RiskIntegration, target: RiHandoffTarget): Importanc
   return handoffEntryOf(ri, target.group, target.key)?.riskSignificance ?? target.derived;
 }
 
-function withText<T extends object>(row: T, name: "significanceReason" | "generalFeedback", value: string | undefined): T {
+function withText<T extends object>(row: T, name: "significanceReason", value: string | undefined): T {
   return value === undefined || value.trim().length === 0 ? row : { ...row, [name]: value };
 }
 
@@ -2779,10 +2718,6 @@ function upsertByKey<T>(rows: T[], keyOf: (row: T) => string, key: string, next:
   if (next === undefined) return index < 0 ? rows : rows.filter((_, i) => i !== index);
   if (index < 0) return [...rows, next];
   return rows.map((row, i) => (i === index ? next : row));
-}
-
-function elementCodeOf(key: string): RiHandoffElementCode | undefined {
-  return HANDOFF_ELEMENTS.find((code) => code === key);
 }
 
 function withHandoffEntry(ri: RiskIntegration, group: RiHandoffGroup, key: string, entry: RiHandoffEntry | undefined): RiskIntegration {
@@ -2813,12 +2748,6 @@ function withHandoffEntry(ri: RiskIntegration, group: RiHandoffGroup, key: strin
       const next = entry === undefined ? undefined : withLines(common({ metric: key, ...base() }), "recommendations", entry.recommendations);
       return { ...ri, riskIntegrationFeedbackDispatch: { ...d, radiologicalConsequenceFeedback: { ...rc, metricFeedback: upsertByKey(rc.metricFeedback ?? [], (r) => r.metric, key, next) } } };
     }
-    case "element": {
-      const code = elementCodeOf(key);
-      if (code === undefined) return ri;
-      const next = entry === undefined ? undefined : withText(withLines(common({ elementCode: code, ...base() }), "recommendations", entry.recommendations), "generalFeedback", entry.generalFeedback);
-      return { ...ri, riskIntegrationFeedbackDispatch: { ...d, additionalElementFeedback: upsertByKey(d.additionalElementFeedback ?? [], (r) => r.elementCode, key, next) } };
-    }
     default: return ri;
   }
 }
@@ -2841,11 +2770,10 @@ function withHandoffSent(ri: RiskIntegration, date: string): RiskIntegration {
   return { ...ri, riskIntegrationFeedbackDispatch: { ...(ri.riskIntegrationFeedbackDispatch ?? {}), dispatchDate: date } };
 }
 
-function handoffReceiverOf(group: RiHandoffGroup): RiHandoffReceiver | undefined {
+function handoffReceiverOf(group: RiHandoffGroup): RiHandoffReceiver {
   if (group === "family" || group === "contributor") return "ESQ";
   if (group === "category" || group === "sourceTerm") return "MS";
-  if (group === "measure") return "RC";
-  return undefined;
+  return "RC";
 }
 
 interface RiHandoffPlan {
@@ -2909,7 +2837,6 @@ function handoffIssues(ri: RiskIntegration): string[] {
     } else if ((entry.recommendations ?? []).length === 0) {
       issues.push(`Add a recommendation for ${target.key}.`);
     }
-    if (target.group === "element" && missing(entry.generalFeedback)) issues.push(`Write the message to ${target.key}.`);
   }
   const links = applicationContextOf(ri).linkedWorkbooks;
   for (const receiver of HANDOFF_RECEIVERS) {
@@ -3149,7 +3076,7 @@ function stepsFromMef(ri: RiskIntegration, persona: RiPersona): RiStep[] {
     && registerIssues(ri).length === 0
     && groupingIssues(ri).length === 0
     && ri.uncertaintyAnalyses.some((u) => !missing(u.uncertaintyRangeDiscussion));
-  const feedbackComplete = inputsComplete && handoffIssues(ri).length === 0;
+  const handoffComplete = inputsComplete && handoffIssues(ri).length === 0;
   const draftComplete = ri.workflowState !== "DRAFT" && ri.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = ri.workflowState === "FINAL";
 
@@ -3169,7 +3096,7 @@ function stepsFromMef(ri: RiskIntegration, persona: RiPersona): RiStep[] {
       case "integrate": return { ...s, status: status(integrateComplete) };
       case "aggregate": return { ...s, status: status(aggregateComplete) };
       case "uncertainty": return { ...s, status: status(uncertaintyComplete) };
-      case "feedback": return { ...s, status: status(feedbackComplete) };
+      case "handoff": return { ...s, status: status(handoffComplete) };
       case "draft": return { ...s, status: status(draftComplete) };
       case "review": return { ...s, status: status(reviewComplete) };
       default: return { ...s, status: "idle" as const };
@@ -3177,73 +3104,8 @@ function stepsFromMef(ri: RiskIntegration, persona: RiPersona): RiStep[] {
   });
 }
 
-function familySignificance(ri: RiskIntegration, familyRef: string): "HIGH" | "MEDIUM" | "LOW" {
-  const entry = ri.significantContributors.significantEventSequenceFamilies?.find((f) => f.sourceId === familyRef);
-  if (entry?.importanceLevel === "HIGH") return "HIGH";
-  if (entry?.importanceLevel === "MEDIUM") return "MEDIUM";
-  return "LOW";
-}
-
 function compiledById(ri: RiskIntegration, familyRef: string): CompiledRiskInput | undefined {
   return ri.compiledRiskInputs.find((c) => c.eventSequenceFamilyRef === familyRef);
-}
-
-function consequenceOf(input: CompiledRiskInput, metric: string): number | undefined {
-  return input.consequences.find((c) => c.metric === metric)?.meanValue;
-}
-
-type ContributorBucketKey =
-  | "significantEventSequenceFamilies"
-  | "significantEventSequences"
-  | "significantInitiatingEvents"
-  | "significantReleaseCategories"
-  | "significantSystems"
-  | "significantComponents"
-  | "significantBasicEvents"
-  | "significantHumanFailureEvents"
-  | "significantPlantOperatingStates"
-  | "significantHazardGroups"
-  | "significantRadioactiveSources";
-
-const CONTRIBUTOR_BUCKETS: { key: ContributorBucketKey; kind: string }[] = [
-  { key: "significantEventSequenceFamilies", kind: "Event sequence family" },
-  { key: "significantEventSequences", kind: "Event sequence" },
-  { key: "significantInitiatingEvents", kind: "Initiating event" },
-  { key: "significantReleaseCategories", kind: "Release category" },
-  { key: "significantSystems", kind: "System" },
-  { key: "significantComponents", kind: "Component" },
-  { key: "significantBasicEvents", kind: "Basic event" },
-  { key: "significantHumanFailureEvents", kind: "Human failure event" },
-  { key: "significantPlantOperatingStates", kind: "Plant operating state" },
-  { key: "significantHazardGroups", kind: "Hazard group" },
-  { key: "significantRadioactiveSources", kind: "Radioactive source" },
-];
-
-interface ContributorRow {
-  contributor: RiskContributor;
-  bucket: ContributorBucketKey;
-  kind: string;
-}
-
-const IMPORTANCE_RANK: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
-
-function contributorRollup(ri: RiskIntegration): ContributorRow[] {
-  const sc = ri.significantContributors;
-  const out: ContributorRow[] = [];
-  for (const spec of CONTRIBUTOR_BUCKETS) {
-    for (const c of sc[spec.key] ?? []) {
-      out.push({ contributor: c, bucket: spec.key, kind: c.contributorType.length > 0 ? c.contributorType : spec.kind });
-    }
-  }
-  return out.sort((a, b) => {
-    const ra = IMPORTANCE_RANK[a.contributor.importanceLevel ?? "LOW"] ?? 2;
-    const rb = IMPORTANCE_RANK[b.contributor.importanceLevel ?? "LOW"] ?? 2;
-    return ra - rb;
-  });
-}
-
-function findContributor(ri: RiskIntegration, uuid: string): ContributorRow | undefined {
-  return contributorRollup(ri).find((r) => r.contributor.uuid === uuid);
 }
 
 function lognormalBounds(distribution: ParameterDistribution | undefined): { mean: number; p05: number; p95: number } | undefined {
@@ -3253,65 +3115,6 @@ function lognormalBounds(distribution: ParameterDistribution | undefined): { mea
     p05: distribution.median / distribution.errorFactor,
     p95: distribution.median * distribution.errorFactor,
   };
-}
-
-interface FcPointView {
-  id: string;
-  name: string;
-  freq: number;
-  consequence: number;
-  sig: "HIGH" | "MEDIUM" | "LOW";
-}
-
-function fcPointsView(ri: RiskIntegration, measure: string): FcPointView[] {
-  const out: FcPointView[] = [];
-  for (const c of ri.compiledRiskInputs) {
-    const v = consequenceOf(c, measure);
-    if (v === undefined || v <= 0) continue;
-    out.push({
-      id: c.uuid,
-      name: c.eventSequenceFamilyRef,
-      freq: c.frequency,
-      consequence: v,
-      sig: familySignificance(ri, c.eventSequenceFamilyRef),
-    });
-  }
-  return out;
-}
-
-function ccdfPointsView(ri: RiskIntegration, measure: string): { dose: number; exceed: number }[] {
-  const pts = fcPointsView(ri, measure);
-  const levels = Array.from(new Set(pts.map((p) => p.consequence))).sort((a, b) => a - b);
-  return levels.map((d) => ({
-    dose: d,
-    exceed: pts.reduce((sum, p) => (p.consequence >= d ? sum + p.freq : sum), 0),
-  }));
-}
-
-interface MetricRollup {
-  computed?: number;
-  matches: boolean;
-  limit?: number;
-  compliant: boolean;
-  fraction: number;
-}
-
-function metricRollup(ri: RiskIntegration, metric: RiskMetric): MetricRollup {
-  const ref = metric.consequenceMeasureRef;
-  let computed: number | undefined;
-  if (ref !== undefined && ref.length > 0) {
-    computed = ri.compiledRiskInputs.reduce((sum, c) => {
-      const v = consequenceOf(c, ref);
-      return v === undefined ? sum : sum + c.frequency * v;
-    }, 0);
-  }
-  const limit = metric.acceptanceCriteria?.limit;
-  const matches = computed === undefined || metric.value === 0
-    ? true
-    : Math.abs(computed - metric.value) <= Math.abs(metric.value) * 0.05;
-  const compliant = limit === undefined ? true : metric.value <= limit;
-  const fraction = limit !== undefined && limit > 0 ? Math.min(1, metric.value / limit) : 0;
-  return { computed, matches, limit, compliant, fraction };
 }
 
 export {
@@ -3419,7 +3222,6 @@ export {
   withHandoffsUpdated,
   handoffIssues,
   handoffReceipts,
-  HANDOFF_ELEMENTS,
   HANDOFF_RECEIVERS,
   contributorValues,
   contributorTypeLabel,
@@ -3439,16 +3241,8 @@ export {
   analysisTotalOf,
   propagateTotals,
   PROPAGATION_SAMPLES,
-  familySignificance,
   compiledById,
-  consequenceOf,
-  contributorRollup,
-  findContributor,
   lognormalBounds,
-  fcPointsView,
-  ccdfPointsView,
-  metricRollup,
-  type FcPointView,
   type ScopeRowView,
   type ScopeState,
   type CriteriaIssues,
@@ -3475,15 +3269,11 @@ export {
   type RiHandoffEntry,
   type RiHandoffGroup,
   type RiHandoffReceiver,
-  type RiHandoffElementCode,
   type RiReceipt,
   type RiReceiptRow,
   type MeasureNeeds,
   type MeasureRcCheck,
   type RiFloorKey,
-  type MetricRollup,
-  type ContributorRow,
-  type ContributorBucketKey,
   type CommentView,
   type CcScore,
 };

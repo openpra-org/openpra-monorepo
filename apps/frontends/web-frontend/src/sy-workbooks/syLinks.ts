@@ -407,4 +407,5 @@ export {
   listSyLinkOptions,
   ownCcfFactors,
   syLinkRoots,
+  type DaSource as SyDaSource,
 };

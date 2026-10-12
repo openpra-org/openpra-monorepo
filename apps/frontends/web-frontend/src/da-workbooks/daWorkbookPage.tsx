@@ -39,6 +39,7 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   unavail: "DA-C13",
   ccf: "DA-D7",
   uncert: "DA-A5",
+  handoff: "DA-D1",
 };
 
 interface DaExampleResponse {

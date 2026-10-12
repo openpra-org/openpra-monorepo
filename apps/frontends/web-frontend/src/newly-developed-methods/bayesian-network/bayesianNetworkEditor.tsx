@@ -15,7 +15,6 @@ import {
 } from "react";
 import type {
   BayesianNetworkCptRow,
-  BayesianNetworkEvidenceConfiguration,
   HclEvidenceScenario,
   BayesianNetworkModuleTemplate,
   BayesianNetworkNode,
@@ -269,6 +268,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     hclSetupOnly = false,
     hclScopeChoices,
     hclExternalBindingLabels,
+    hclReferencedFaultTrees,
     hclScope = "BOTH",
     evidence,
     queryNodeId,
@@ -1741,6 +1741,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
             setupOnly
             scopeChoices={hclScopeChoices}
             externalBindingLabels={hclExternalBindingLabels}
+            referencedFaultTrees={hclReferencedFaultTrees}
             faultTreeOptions={faultTreeOptions}
             eventTreeOptions={eventTreeOptions}
             baseEvidence={evidence}

@@ -12,6 +12,8 @@ import {
 import { ccScore, commentsView, filterConformance, groupBySection, stepsFromMef, type CommentView } from "./scSelectors";
 import { ScScopeScreen, EndStatesScreen, CriteriaScreen, MissionScreen, BasesScreen, PassiveScreen, ConsistencyScreen, DraftScreen, PlaceholderScreen } from "./scScreens";
 import { InternalReviewScreen, ReviewerCommentDock } from "./scReview";
+import { ScHandoffScreen } from "./ScHandoff";
+import { type ScLinkActions } from "./scLinks";
 import { useScWorkbook, type ScWorkbookData } from "./scWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
@@ -34,9 +36,10 @@ function headersFor(stepId: string): StepHeader {
     case "bases": return { eyebrow: "Step 05", title: "Engineering bases", sub: "Ground each criterion in a validated, applicable analysis, with barrier loads against capacity and expert judgment where needed (SC-B1, B4, B6)." };
     case "passive": return { eyebrow: "Step 06", title: "Passive reliability", sub: "Treat passive safety functions with mechanistic models and characterized model and input uncertainty for functional reliability (SC-B5)." };
     case "consistency": return { eyebrow: "Step 07", title: "Consistency", sub: "Confirm the criteria fit the plant design, procedures and operating philosophy, and capture the model-uncertainty sources (SC-A9, A10)." };
-    case "draft": return { eyebrow: "Step 08 · Draft", title: "Produce the draft", sub: "Build the SC report from everything you entered; sending it moves the workbook to internal technical review." };
-    case "review": return { eyebrow: "Step 09 · Review", title: "Internal technical review", sub: "Reviewers and the approver leave comments and the preparer replies, with the workbook moving to Approval once every comment is resolved." };
-    case "approval": return { eyebrow: "Step 10 · Approval", title: "Approval & sign-off", sub: "Everyone on the workbook signs, with the approver signing last and only after all comments are resolved." };
+    case "handoff": return { eyebrow: "Step 08", title: "Technical Element Handoff" };
+    case "draft": return { eyebrow: "Step 09 · Draft", title: "Produce the draft", sub: "Build the SC report from everything you entered; sending it moves the workbook to internal technical review." };
+    case "review": return { eyebrow: "Step 10 · Review", title: "Internal technical review", sub: "Reviewers and the approver leave comments and the preparer replies, with the workbook moving to Approval once every comment is resolved." };
+    case "approval": return { eyebrow: "Step 11 · Approval", title: "Approval & sign-off", sub: "Everyone on the workbook signs, with the approver signing last and only after all comments are resolved." };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -257,7 +260,7 @@ interface ScWorkbenchActions {
 const DEFAULT_PERSONAS: ScPersona[] = ["preparer", "reviewer", "approver"];
 
 function ScWorkbench({
-  data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, onStageChange, actions, headerMeta, renderApprovalTable, renderSignCard, renderRoster, renderDocuments,
+  data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, linkActions, onLoadExample, onUnloadExample, onStageChange, actions, headerMeta, renderApprovalTable, renderSignCard, renderRoster, renderDocuments,
 }: {
   data: ScWorkbookData;
   persona: ScPersona;
@@ -265,6 +268,7 @@ function ScWorkbench({
   showPersonaPicker: boolean;
   availablePersonas?: ScPersona[];
   onOpenRoles?: () => void;
+  linkActions?: ScLinkActions;
   onLoadExample?: () => void;
   onUnloadExample?: () => void;
   onStageChange?: (s: Stage) => void;
@@ -364,7 +368,7 @@ function ScWorkbench({
       case "scope":
         return (
           <>
-            <ScScopeScreen ccId={ccId} setCcId={setCcId} onAction={flash} stage={stage} setStage={setStage} />
+            <ScScopeScreen ccId={ccId} setCcId={setCcId} onAction={flash} stage={stage} setStage={setStage} linkActions={linkActions} />
             {renderDocuments?.()}
           </>
         );
@@ -374,6 +378,7 @@ function ScWorkbench({
       case "bases": return <BasesScreen />;
       case "passive": return <PassiveScreen />;
       case "consistency": return <ConsistencyScreen />;
+      case "handoff": return <ScHandoffScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (

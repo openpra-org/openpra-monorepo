@@ -363,9 +363,16 @@ export const ScDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const ScLinkedWorkbooksSchema = z.object({
+  POS: z.string().optional(),
+  IE: z.string().optional(),
+  ES: z.string().optional(),
+});
+
 export const SuccessCriteriaDevelopmentSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.SUCCESS_CRITERIA_DEVELOPMENT).shape,
   praScope: z.string(),
+  linkedWorkbooks: ScLinkedWorkbooksSchema.optional(),
   safeStableStateDefinition: SafeStableStateDefinitionSchema,
   endStateDefinitions: z.array(EndStateDefinitionSchema),
   safetyFunctionSuccessCriteria: z.array(SafetyFunctionSuccessCriterionSchema),

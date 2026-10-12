@@ -24,6 +24,7 @@ import { lognormalBounds, type CcScore } from "./rcSelectors";
 import { type RcDrawerContext } from "./rcScreens";
 import { RcSourceTermEditor } from "./rcSourceTerm";
 import { RcMetricDrawer } from "./rcMetrics";
+import { RcRiFeedbackCard } from "./rcRiFeedback";
 import { rcFamilyReferenceMatches } from "interfaces-shared-types/rc-workbooks/step-checks";
 import { rcConsequenceMatchesFamily, rcLatestCategoryResult } from "interfaces-shared-types/rc-workbooks/family-consequences";
 import {
@@ -77,9 +78,9 @@ import type { RcEconomicCostCode } from "interfaces-mef-types/rc/economic-inputs
 // ─── 08 — Quantification (RCQ) ─────────────────────────────────────────────
 function QuantifyScreen({ openDrawer, onOpenStep, initialCaseTab }: { openDrawer: (ctx: RcDrawerContext) => void; onOpenStep?: (id: string) => void; initialCaseTab?: "checks" | "prepared" | "results" }): JSX.Element {
   const { rc, editable, mutateRc, links } = useRcWorkbook();
-  const [tab, setTab] = useState<"case" | "consequences" | "review" | "basis" | "handoff">("case");
+  const [tab, setTab] = useState<"case" | "consequences" | "review" | "basis" | "feedback">("case");
   const tabId = useId(), tabsRef = useRef<HTMLDivElement>(null);
-  const tabLabels = { case: "Case inputs and outputs", consequences: "Consequences", review: "Output review", basis: "Basis and uncertainty", handoff: "RI feedback" } as const;
+  const tabLabels = { case: "Case inputs and outputs", consequences: "Consequences", review: "Output review", basis: "Basis and uncertainty", feedback: "RI feedback" } as const;
   const tabOrder = Object.keys(tabLabels) as (keyof typeof tabLabels)[];
   const q = rc.consequenceQuantification;
   const familyName = (entityId: string) => links.es?.eventSequenceFamilies.find((family) => family.uuid === entityId)?.name ?? "";
@@ -135,11 +136,6 @@ function QuantifyScreen({ openDrawer, onOpenStep, initialCaseTab }: { openDrawer
     const uuid = `SS-${String((rc.sensitivityStudies ?? []).length + 1)}`;
     mutateRc((d) => ({ ...d, sensitivityStudies: [...(d.sensitivityStudies ?? []), { uuid, name: "", description: "", variedParameters: [], parameterRanges: {}, results: "" }] }));
     openDrawer({ kind: "sensitivity", id: uuid });
-  }
-  const rif = rc.riskIntegrationFeedback;
-  function addRif(): void {
-    mutateRc((d) => ({ ...d, riskIntegrationFeedback: { analysisRef: "", feedbackDate: "", metricFeedback: [], releaseCategoryFeedback: [], generalFeedback: "", response: { description: "", changes: [], status: "IN_PROGRESS" } } }));
-    openDrawer({ kind: "rifeedback", id: "rif" });
   }
 
   return (
@@ -378,30 +374,8 @@ function QuantifyScreen({ openDrawer, onOpenStep, initialCaseTab }: { openDrawer
       </div>
 
       </>}
-      {tab === "handoff" && <>
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RC" title="Risk-integration feedback" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RcProvenanceChip>RCQ-B3 · RI-C1</RcProvenanceChip>
-            {editable && rif !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "rifeedback", id: "rif" })}><RCIcon.Settings /> Edit</button>}
-            {editable && rif === undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRif}><RCIcon.Plus /> Add feedback</button>}
-          </div>
-        </div>
-        {rif === undefined ? (
-          <p className="rc-step08-empty">Awaiting feedback from Risk Integration.</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div><span className="possubtle" style={{ fontWeight: 700 }}>Analysis: </span><span className="posmono">{rif.analysisRef}</span></div>
-            {(rif.generalFeedback ?? "").length > 0 && <p className="possubtle" style={{ margin: 0, lineHeight: 1.5 }}>{rif.generalFeedback}</p>}
-            {rif.response !== undefined && <p className="possubtle" style={{ margin: 0, lineHeight: 1.5 }}><strong>Response:</strong> {rif.response.description}</p>}
-            <div className="posrow posrow--wrap" style={{ gap: 6 }}>
-              <span className="poschip">{(rif.releaseCategoryFeedback ?? []).length} category items</span>
-              <span className="poschip">{(rif.metricFeedback ?? []).length} metric items</span>
-            </div>
-          </div>
-        )}
-      </div>
+      {tab === "feedback" && <>
+      <RcRiFeedbackCard openDrawer={openDrawer} />
       <div className="poscard">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="RC" title="Risk-significant contributors" level={3} />
@@ -514,7 +488,7 @@ function DraftScreen({ cc, scores, site, conformance, onSubmitDraft, canSubmit }
         </div>
 
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="RC" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading workbook="RC" title="Draft submission" level={3} className="posgen__readout-h" />
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {canSubmit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onSubmitDraft}><RCIcon.Send /> Submit draft to internal review</button>}
             <button type="button" className="posnav__btn" onClick={() => { void generateRcReport(rc, false, conformance); }}><RCIcon.Download /> Download draft (.docx)</button>

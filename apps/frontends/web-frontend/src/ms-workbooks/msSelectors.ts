@@ -188,6 +188,7 @@ function stepsFromMef(ms: MechanisticSourceTermAnalysis, persona: MsPersona): Ms
   const transportComplete = ms.transportPhenomenaAssessments.length > 0;
   const sourcetermComplete = ms.sourceTermDefinitions.length > 0;
   const uncertComplete = ms.uncertaintyAnalyses.length > 0 || (ms.preOperationalAssumptions?.length ?? 0) > 0;
+  const handoffComplete = ms.sourceTermDefinitions.length > 0 && (ms.modelUncertaintyAssessments ?? []).length > 0;
   const draftComplete = ms.workflowState !== "DRAFT" && ms.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = ms.workflowState === "FINAL";
 
@@ -203,6 +204,7 @@ function stepsFromMef(ms: MechanisticSourceTermAnalysis, persona: MsPersona): Ms
       case "transport": return { ...s, status: status(transportComplete) };
       case "sourceterm": return { ...s, status: status(sourcetermComplete) };
       case "uncert": return { ...s, status: status(uncertComplete) };
+      case "handoff": return { ...s, status: status(handoffComplete) };
       case "draft": return { ...s, status: status(draftComplete) };
       case "review": return { ...s, status: status(reviewComplete) };
       default: return { ...s, status: "idle" as const };

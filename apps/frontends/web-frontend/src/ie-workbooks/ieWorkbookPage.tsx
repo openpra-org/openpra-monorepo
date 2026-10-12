@@ -19,7 +19,9 @@ import { useAuth } from "../auth/AuthContext";
 import {
   getIeWorkbook,
   getIePosLink,
+  getAvailablePosWorkbooks,
   linkPosWorkbook,
+  unlinkPosWorkbook,
   getIeExampleOptions,
   loadIeExample,
   unloadIeExample,
@@ -30,7 +32,7 @@ import {
 import { IeWorkbench, type IeWorkbenchActions } from "./ieWorkbench";
 import { IeWorkbookProvider, type IeWorkbookData } from "./ieWorkbookContext";
 import { useIeMefPatch } from "./useIeMefPatch";
-import { IePosLinkModal } from "./iePosLinkModal";
+import type { IePosLinkActions } from "./ieInterfaces";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { type IePersona } from "./ieViewData";
 import { loadIeDaFrequencies } from "./ieDaLinks";
@@ -57,6 +59,7 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   grouping: "IE-B4",
   screening: "IE-C9",
   frequency: "IE-C8",
+  handoff: "IE-D1",
 };
 
 function IeWorkbookPage(): JSX.Element {
@@ -69,7 +72,6 @@ function IeWorkbookPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
-  const [posLinkOpen, setPosLinkOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
   const [exampleOptions, setExampleOptions] = useState<IeExampleOption[]>([]);
@@ -101,12 +103,10 @@ function IeWorkbookPage(): JSX.Element {
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
           nms: bundle.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
           posLink,
+          projectId: workbook.projectId,
         });
         setMyRoles(workbook.myRoles);
         setHasPreviousMef(workbook.hasPreviousMef);
-        void loadIeDaFrequencies(workbook.projectId, workbook.mef).then((daFrequencies) => {
-          if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daFrequencies }));
-        });
         try {
           const project = await getProject(workbook.projectId);
           if (!cancelled) setProjectName(project.name);
@@ -120,6 +120,17 @@ function IeWorkbookPage(): JSX.Element {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  const loaded = data !== null;
+  const linkedDa = data?.ie.linkedWorkbooks?.DA;
+  useEffect(() => {
+    if (!loaded) return;
+    let cancelled = false;
+    void loadIeDaFrequencies(linkedDa).then((daFrequencies) => {
+      if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daFrequencies }));
+    });
+    return () => { cancelled = true; };
+  }, [loaded, linkedDa]);
 
   const updateIe = useCallback((ie: InitiatingEventsAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, ie }));
@@ -152,6 +163,21 @@ function IeWorkbookPage(): JSX.Element {
     if (availablePersonas.length === 0) return;
     if (!availablePersonas.includes(persona)) setPersona(availablePersonas[0]);
   }, [availablePersonas, persona]);
+
+  const canLink = myRoles.includes("preparer") || myRoles.includes("co_preparer");
+  const posLinks = useMemo<IePosLinkActions | undefined>(() => {
+    if (id === undefined || !canLink) return undefined;
+    const synced = async (posLink: IePosLinkStatus): Promise<void> => {
+      setData((prev) => (prev === null ? prev : { ...prev, posLink }));
+      const wb = await getIeWorkbook(id);
+      updateIe(wb.mef);
+    };
+    return {
+      available: async () => (await getAvailablePosWorkbooks(id)).map((workbook) => ({ workbookId: workbook.workbookId, name: workbook.name })),
+      link: async (workbookId) => { await synced(await linkPosWorkbook(id, workbookId)); },
+      unlink: async () => { await synced(await unlinkPosWorkbook(id)); },
+    };
+  }, [id, canLink, updateIe]);
 
   const actions = useMemo<IeWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;
@@ -198,7 +224,6 @@ function IeWorkbookPage(): JSX.Element {
   const editable = persona === "preparer" && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canLoadExample = (myRoles.includes("preparer") || myRoles.includes("co_preparer")) && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
-  const canLink = myRoles.includes("preparer") || myRoles.includes("co_preparer");
 
   return (
     <IeWorkbookProvider data={data} editable={editable} mutateIe={mutateIe}>
@@ -211,7 +236,7 @@ function IeWorkbookPage(): JSX.Element {
         onOpenRoles={() => setRolesOpen(true)}
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
-        onOpenPosLink={canLink ? () => setPosLinkOpen(true) : undefined}
+        posLinks={posLinks}
         onStageChange={(s) => {
           const newMef = { ...data.ie, plantStage: s === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" } as InitiatingEventsAnalysis;
           updateIe(newMef);
@@ -245,20 +270,6 @@ function IeWorkbookPage(): JSX.Element {
         </div>
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as IeWorkbookRoleName[])} />}
-      {posLinkOpen && (
-        <IePosLinkModal
-          workbookId={id}
-          currentLinkedId={data.posLink.linkedPosWorkbookId}
-          onClose={() => setPosLinkOpen(false)}
-          onConfirm={async (posWorkbookId) => {
-            const posLink = await linkPosWorkbook(id, posWorkbookId);
-            setData((prev) => (prev === null ? prev : { ...prev, posLink }));
-            const wb = await getIeWorkbook(id);
-            updateIe(wb.mef);
-            setPosLinkOpen(false);
-          }}
-        />
-      )}
       {loadExOpen && (
         <LoadExampleModal
           exampleName="IE"

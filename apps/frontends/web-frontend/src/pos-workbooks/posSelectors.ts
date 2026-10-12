@@ -480,6 +480,7 @@ function stepsFromMef(pos: PlantOperatingStatesAnalysis, persona: PosPersona): P
       case "grouping": return { ...s, status: status(groupingComplete, false) };
       case "frequency": return { ...s, status: status(frequencyComplete, allStatesWithDuration || allStatesWithFreq) };
       case "decayheat": return { ...s, status: status(decayheatComplete, characterizedSet.size > 0) };
+      case "handoff": return { ...s, status: status(statesComplete && frequencyComplete, statesComplete) };
       case "draft": return { ...s, status: status(draftComplete, false) };
       case "review": return { ...s, status: status(reviewComplete, pos.workflowState === "INTERNAL_TECHNICAL_REVIEW" || pos.workflowState === "INTERNAL_APPROVAL") };
       default: return { ...s, status: "idle" as const };
@@ -837,117 +838,6 @@ function transitionValidationView(pos: PlantOperatingStatesAnalysis): Transition
   };
 }
 
-function dhrStatuses(s: PlantOperatingState): string[] {
-  const dhr = s.decayHeatRemoval;
-  return [
-    ...Object.values(dhr.primaryCoolingSystems),
-    ...Object.values(dhr.secondaryCoolingSystems),
-    ...Object.values(dhr.passiveMechanisms),
-  ];
-}
-
-function trainsInService(s: PlantOperatingState): number {
-  return dhrStatuses(s).filter((status) => status === "YES").length;
-}
-
-function trainsAvailable(s: PlantOperatingState): number {
-  return dhrStatuses(s).filter((status) => status === "YES" || status === "STANDBY").length;
-}
-
-function barrierSummary(s: PlantOperatingState): string {
-  if (s.radionuclideTransportBarriers.length === 0) return "—";
-  const counts = new Map<string, number>();
-  for (const bar of s.radionuclideTransportBarriers) {
-    const status = (bar.status ?? "unknown").toLowerCase();
-    counts.set(status, (counts.get(status) ?? 0) + 1);
-  }
-  return Array.from(counts.entries()).map(([status, n]) => `${n} ${status}`).join(" · ");
-}
-
-interface HandoffLane {
-  code: string;
-  element: string;
-  role: string;
-  columns: string[];
-  rows: { posId: string; name: string; values: string[] }[];
-}
-
-interface HandoffBundleView {
-  retainedCount: number;
-  lanes: HandoffLane[];
-}
-
-function handoffBundleView(pos: PlantOperatingStatesAnalysis): HandoffBundleView {
-  const screenedOut = new Set(pos.screeningRecords.filter((r) => !r.retained).map((r) => r.posId));
-  const states = pos.plantOperatingStates.filter((s) => !screenedOut.has(s.uuid));
-  const dhByPos = new Map(pos.decayHeatCharacterizations.map((d) => [d.posId, d]));
-  const matrix = pos.validationRules.transitions.transitionMatrix;
-  const outgoing = (uuid: string): number => (matrix[uuid] ?? []).length;
-  const row = (s: PlantOperatingState, values: string[]): { posId: string; name: string; values: string[] } => ({ posId: s.uuid, name: stateLabel(s.name), values });
-  const timeFraction = (s: PlantOperatingState): string => `${((s.meanDurationHours / cycleHours(pos)) * 100).toFixed(1)} %`;
-  const lanes: HandoffLane[] = [
-    {
-      code: "IE",
-      element: "Initiating Events",
-      role: "States & frequencies",
-      columns: ["State", "Entry frequency", "Time fraction", "Initiators", "Transitions out"],
-      rows: states.map((s) => {
-        const freq = frequencyValue(s.meanEntryFrequency);
-        const freqLabel = freq === 0 && s.operatingMode === "POWER" ? "Base state" : formatFrequency(freq);
-        return row(s, [freqLabel, timeFraction(s), String(s.applicableInitiatingEvents.length), String(outgoing(s.uuid))]);
-      }),
-    },
-    {
-      code: "ES",
-      element: "Event Sequence",
-      role: "Sequences & barriers",
-      columns: ["State", "Safety functions", "Success criteria", "Barriers"],
-      rows: states.map((s) => row(s, [String(s.safetyFunctions.length), String(s.successCriteriaIds.length), barrierSummary(s)])),
-    },
-    {
-      code: "SC",
-      element: "Success Criteria",
-      role: "Decay heat & conditions",
-      columns: ["State", "Success criteria", "Decay heat", "Coolant temp", "Pressure"],
-      rows: states.map((s) => {
-        const dh = dhByPos.get(s.uuid);
-        return row(s, [
-          String(s.successCriteriaIds.length),
-          dh !== undefined ? formatRange(dh.decayHeatLevel) : "—",
-          formatRange(s.rcsParameters.reactorCoolantTemperature),
-          formatRange(s.rcsParameters.coolantPressure),
-        ]);
-      }),
-    },
-    {
-      code: "SY",
-      element: "Systems Analysis",
-      role: "Alignments & SSCs",
-      columns: ["State", "Trains in service", "Trains available", "SSCs characterised"],
-      rows: states.map((s) => row(s, [String(trainsInService(s)), String(trainsAvailable(s)), String(s.sscOperationalCharacteristics.length)])),
-    },
-    {
-      code: "HR",
-      element: "Human Reliability",
-      role: "Timing & cues",
-      columns: ["State", "Time after shutdown", "Decay heat", "Instruments"],
-      rows: states.map((s) => {
-        const dh = dhByPos.get(s.uuid);
-        const time = dh !== undefined ? `${dh.timeAfterShutdownHours} h` : s.operatingMode === "POWER" ? "At power" : "—";
-        return row(s, [time, dh !== undefined ? formatRange(dh.decayHeatLevel) : "—", String(s.availableInstrumentation.length)]);
-      }),
-    },
-    {
-      code: "DA",
-      element: "Data Analysis",
-      role: "Durations & timelines",
-      columns: ["State", "Duration", "Time fraction"],
-      rows: states.map((s) => row(s, [formatDuration(s.meanDurationHours), timeFraction(s)])),
-    },
-  ];
-  return { retainedCount: states.length, lanes };
-}
-
 function frequencyValue(freq: Frequency | FrequencyWithDistribution): number {
   return typeof freq === "number" ? freq : freq.value;
 }
@@ -1079,12 +969,10 @@ export {
   type GroupRollupView,
   type MutualExclusivityView,
   type TransitionValidationView,
-  type HandoffBundleView,
   coverageView,
   mutualExclusivityView,
   transitionValidationView,
   DELINEATION_PARAMETER_OPTIONS,
-  handoffBundleView,
   cycleReconciliation,
   quantStatesView,
   groupRollupView,

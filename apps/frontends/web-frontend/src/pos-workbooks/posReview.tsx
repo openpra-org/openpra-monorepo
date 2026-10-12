@@ -368,6 +368,7 @@ const STEP_SECTION: Record<string, string[]> = {
   grouping: ["Screening & grouping"],
   frequency: ["Frequencies & duration"],
   decayheat: ["Frequencies & duration"],
+  handoff: ["Documentation (HLR-POS-D)"],
 };
 
 interface ReviewerDockProps {

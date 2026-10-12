@@ -253,9 +253,18 @@ export const HrDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const HrLinkedWorkbooksSchema = z.object({
+  POS: z.string().optional(),
+  IE: z.string().optional(),
+  SC: z.string().optional(),
+  SY: z.string().optional(),
+  DA: z.string().optional(),
+});
+
 export const HumanReliabilityAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.HUMAN_RELIABILITY_ANALYSIS).shape,
   praScope: z.string(),
+  linkedWorkbooks: HrLinkedWorkbooksSchema.optional(),
   routineActivities: z.array(RoutineActivityIdentificationSchema),
   preInitiatorScreeningRecords: z.array(PreInitiatorScreeningRecordSchema),
   supportSystemInitiatorOperatorContributions: z.array(SupportSystemInitiatorOperatorContributionSchema).optional(),

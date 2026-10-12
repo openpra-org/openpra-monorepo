@@ -90,8 +90,10 @@ export class PosWorkbooksService {
     const example = await this.exampleWorkbooksService.getPosBundle(exampleId);
     const parsed = PlantOperatingStatesAnalysisSchema.safeParse(stripNulls(example.pos.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
+    const exampleDa = parsed.data.plantOperatingStates.find((state) => state.outageSource?.workbookId.startsWith("example-da-") === true)?.outageSource?.workbookId;
     const cleaned = {
       ...parsed.data,
+      ...(exampleDa === undefined || parsed.data.linkedWorkbooks?.DA !== undefined ? {} : { linkedWorkbooks: { ...parsed.data.linkedWorkbooks, DA: exampleDa } }),
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };

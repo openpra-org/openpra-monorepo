@@ -52,7 +52,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
         </div>
 
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="DA" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading workbook="DA" title="Draft submission" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All applicable items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 10 and moves to <strong>Internal Technical Review</strong>.</>

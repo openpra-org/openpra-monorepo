@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { MechanisticSourceTermAnalysis } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
@@ -50,9 +50,7 @@ describe("Step 01 interfaces", () => {
     expect(screen.getByRole("button", { name: /ES Event Sequence Analysis/ })).toHaveAttribute("aria-pressed", "true");
     fireEvent.change(screen.getByLabelText("Source workbook"), { target: { value: "es-1" } });
     expect(current().linkedWorkbooks).toEqual({ ES: "es-1" });
-    const table = screen.getByRole("table", { name: "Linked ES workbook" });
-    expect(within(table).getByText("ES analysis")).toBeInTheDocument();
-    expect(within(table).getByText("In progress")).toBeInTheDocument();
+    expect(screen.getByLabelText("Source workbook")).toHaveValue("es-1");
     fireEvent.click(screen.getByRole("button", { name: /RI Risk Integration/ }));
     expect(screen.getByLabelText("Source workbook")).toHaveValue("");
     fireEvent.change(screen.getByLabelText("Source workbook"), { target: { value: "ri-1" } });

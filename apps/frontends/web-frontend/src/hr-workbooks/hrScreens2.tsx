@@ -1,11 +1,11 @@
 import { stringifyJson } from "interfaces-shared-types/json";
 import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { idAndName, readableId, recordLabel } from "../workbooks/workbookHandoff";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { JSX, useState } from "react";
+import { JSX } from "react";
 import { HRIcon } from "./hrIcons";
-import { Badge, HRProvenanceChip, hepText, type BadgeKind } from "./hrShared";
+import { Badge, HRProvenanceChip, hepText } from "./hrShared";
 import {
-  CAPABILITY_CATEGORIES,
   ACTIVITY_SOURCES,
   HFE_TIMING,
   IMPACT_LEVELS,
@@ -13,7 +13,6 @@ import {
   REVIEW_SCOPES,
   CONFIRM_METHODS,
   DEPENDENCE_LEVELS,
-  PSF_IMPACT,
   FEASIBILITY_KEYS,
   HR_TOC,
   type CapabilityCategory,
@@ -23,8 +22,8 @@ import { useHrWorkbook } from "./hrWorkbookContext";
 import { generateHrReport } from "./hrDocx";
 import { HrHepValueFields } from "./hrHepValueFields";
 import { quantificationHepText, withRecoveryHep } from "./hrDaLinks";
-import { NamedIcon, type HrDrawerContext } from "./hrScreens";
-import { type HumanReliabilityAnalysis, type HepQuantification, type DependenceLevel } from "interfaces-mef-types/hr/human-reliability-analysis";
+import { type HrDrawerContext } from "./hrScreens";
+import { type HepQuantification, type DependenceLevel } from "interfaces-mef-types/hr/human-reliability-analysis";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 
 
@@ -145,7 +144,7 @@ function RespDefineScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =
               <div key={h.uuid} className={`hrhfe__card${aggr ? " hrhfe__card--aggr" : ""}`} onClick={() => openDrawer({ kind: "posthfe", id: h.uuid })}>
                 <div className="hrhfe__head">
                   <span className={`hrhfe__timing hrhfe__timing--${t?.tone ?? "teal"}`}>{t?.label ?? h.hfeTiming}</span>
-                  <span className="hrhfe__id posmono">{h.uuid}</span>
+                  {readableId(h.uuid) !== undefined && <span className="hrhfe__id posmono">{h.uuid}</span>}
                   <span className={`hrhfe__resp hrhfe__resp--${aggr ? "aggr" : "do"}`}>{rd !== undefined ? RESPONSE_TYPES[rd.responseType] : "—"}</span>
                 </div>
                 <div className="hrhfe__name">{h.name}</div>
@@ -263,9 +262,9 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
         <div className="poscard">
           <div className="poscard__head">
             <WorkbookSectionHeading workbook="HR" title="At-initiator analysis" level={3} />
-            <HRProvenanceChip>HR-F1 · supplied to IE</HRProvenanceChip>
+            <HRProvenanceChip>HR-F1</HRProvenanceChip>
           </div>
-          <p className="poscard__sub">An operator error that itself causes the initiator is analyzed and quantified here, then supplied to the Initiating Events fault trees. Click a card to edit its quantification.</p>
+          <p className="poscard__sub">An operator error that itself causes the initiator is analyzed and quantified here. Click a card to edit its quantification.</p>
           <div className="hrhfe">
             {atHfes.map((h) => {
               const qid = quantIdFor(h.uuid);
@@ -273,11 +272,10 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
                 <div key={h.uuid} className="hrhfe__card hrhfe__card--aggr" onClick={() => { if (qid !== undefined) openDrawer({ kind: "respquant", id: qid }); }} style={{ cursor: "pointer" }}>
                   <div className="hrhfe__head">
                     <span className="hrhfe__timing hrhfe__timing--primary">At-initiator</span>
-                    <span className="hrhfe__id posmono">{h.uuid}</span>
+                    {readableId(h.uuid) !== undefined && <span className="hrhfe__id posmono">{h.uuid}</span>}
                   </div>
                   <div className="hrhfe__name">{h.name}</div>
                   <div className="hrhfe__modes"><span className="hrhfe__mode">Approach. {h.description}</span></div>
-                  <span className="poschip poschip--method">Supplied to IE</span>
                 </div>
               );
             })}
@@ -342,7 +340,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
               <div className="hrdep__head">
                 <div>
                   <div className="hrdep__title">{hfeName(e.hfeId)}</div>
-                  <div className="hrdep__level">{e.uuid} · unsafe action</div>
+                  <div className="hrdep__level">{readableId(e.uuid) === undefined ? "Unsafe action" : `${e.uuid} · unsafe action`}</div>
                 </div>
               </div>
               <div className="hrdep__note">{e.unsafeAction}</div>
@@ -676,10 +674,10 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           {scores.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label" style={{ color: "#b73b3b" }}>Blocked</span><span className="posmono">{scores.blocked}</span></div>}
         </div>
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="HR" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading workbook="HR" title="Draft submission" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
-              ? <>All items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 9 and moves to <strong>Internal Technical Review</strong>.</>
+              ? <>All items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 10 and moves to <strong>Internal Technical Review</strong>.</>
               : <>{scores.warn} item{scores.warn === 1 ? "" : "s"} need attention. A working draft is fine, but approval waits.</>}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -693,16 +691,6 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function fieldGrid(rows: [string, string][]): JSX.Element {
-  return (
-    <div className="posfield-grid">
-      {rows.map(([k, v], i) => (
-        <div key={i} className="posfield"><label className="posfield__label">{k}</label><div className="posmono">{v}</div></div>
-      ))}
     </div>
   );
 }
@@ -875,7 +863,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Activity</label>
               {editable
                 ? <select className="posfield__select" value={s.activityId} onChange={(e) => patch({ activityId: e.target.value })}>
-                    {hr.routineActivities.map((a) => <option key={a.uuid} value={a.uuid}>{`${a.uuid} · ${a.name}`}</option>)}
+                    {hr.routineActivities.map((a) => <option key={a.uuid} value={a.uuid}>{idAndName(a.uuid, a.name)}</option>)}
                   </select>
                 : <div>{hr.routineActivities.find((a) => a.uuid === s.activityId)?.name ?? s.activityId}</div>}
             </div>
@@ -931,12 +919,12 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     const parseCsv = (v: string): string[] => v.split(",").map((x) => x.trim()).filter((x) => x.length > 0);
     const num = (v: string): number | undefined => { const n = Number(v); return v.length === 0 || Number.isNaN(n) ? undefined : n; };
     const posName = (id: string): string => { const p = links?.posStates.find((x) => x.id === id); return p !== undefined ? `${id} · ${p.name}` : id; };
-    const sysLabel = (id: string): string => { const d = links?.syDefs.find((x) => x.id === id); return d !== undefined ? `${id} · ${d.name}` : id; };
+    const sysLabel = (id: string): string => { const d = links?.sySystems.find((x) => x.id === id); return d !== undefined ? `${id} · ${d.name}` : id; };
     const srcName = detail?.sourceActivityId !== undefined ? hr.routineActivities.find((a) => a.uuid === detail.sourceActivityId)?.name ?? "" : "";
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><WorkbookCueLabel workbook="HR" title={<>Pre-initiator event · {h.uuid}</>} cueKey="Pre-initiator event" className="posdrawer__cap" /></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Pre-initiator event · {recordLabel(h.uuid, h.name)}</>} cueKey="Pre-initiator event" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -958,7 +946,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
               {editable
                 ? <select className="posfield__select" value={detail?.sourceActivityId ?? ""} onChange={(e) => patchDetail({ sourceActivityId: e.target.value })}>
                     <option value="">Not linked</option>
-                    {hr.routineActivities.map((a) => <option key={a.uuid} value={a.uuid}>{`${a.uuid} · ${a.name}`}</option>)}
+                    {hr.routineActivities.map((a) => <option key={a.uuid} value={a.uuid}>{idAndName(a.uuid, a.name)}</option>)}
                   </select>
                 : <div>{detail?.sourceActivityId !== undefined && detail.sourceActivityId.length > 0 ? `${detail.sourceActivityId} · ${srcName}` : "—"}</div>}
             </div>
@@ -1146,6 +1134,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     const csv = (xs: string[]): string => xs.join(", ");
     const parseCsv = (v: string): string[] => v.split(",").map((x) => x.trim()).filter((x) => x.length > 0);
     const num = (v: string): number | undefined => { const n = Number(v); return v.length === 0 || Number.isNaN(n) ? undefined : n; };
+    const criterionLabel = (id: string): string => { const c = links?.scOperatorCriteria.find((x) => x.id === id); return c !== undefined ? `${id} · ${c.description} · ${c.timeAvailable}` : id; };
     const cts = rd?.cueTimingBySequence ?? [];
     const setCt = (i: number, fields: Partial<(typeof cts)[number]>): void => patchDetail({ cueTimingBySequence: cts.map((x, j) => (j === i ? { ...x, ...fields } : x)) });
     const addCt = (): void => patchDetail({ cueTimingBySequence: [...cts, { eventSequenceId: "", plantOperatingStateId: "", cueTimeMinutes: undefined, timeWindowMinutes: undefined, basis: "" }] });
@@ -1202,7 +1191,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
               {editable ? <WorkbookInput className="posfield__input posmono" value={csv(h.applicableEventSequences ?? [])} onChange={(e) => patch({ applicableEventSequences: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(h.applicableEventSequences ?? []) || "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Success criteria (comma separated ids)</label>
-              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(rd?.successCriteriaIds ?? [])} onChange={(e) => patchDetail({ successCriteriaIds: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(rd?.successCriteriaIds ?? []) || "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(rd?.successCriteriaIds ?? [])} onChange={(e) => patchDetail({ successCriteriaIds: parseCsv(e.target.value) })} /> : <div className="posmono">{(rd?.successCriteriaIds ?? []).map(criterionLabel).join(", ") || "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Procedure references (comma separated)</label>
               {editable ? <WorkbookInput className="posfield__input" value={csv(rd?.procedureReferences ?? [])} onChange={(e) => patchDetail({ procedureReferences: parseCsv(e.target.value) })} /> : <div>{csv(rd?.procedureReferences ?? []) || "—"}</div>}
@@ -1359,7 +1348,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Pre-initiator event</label>
               {editable
                 ? <select className="posfield__select" value={r.hfeId} onChange={(e) => patch({ hfeId: e.target.value })}>
-                    {preHfes.map((h) => <option key={h.uuid} value={h.uuid}>{`${h.uuid} · ${h.name}`}</option>)}
+                    {preHfes.map((h) => <option key={h.uuid} value={h.uuid}>{idAndName(h.uuid, h.name)}</option>)}
                   </select>
                 : <div>{hr.humanFailureEvents.find((h) => h.uuid === r.hfeId)?.name ?? r.hfeId}</div>}
             </div>
@@ -1722,7 +1711,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Human failure event</label>
               {editable
                 ? <select className="posfield__select" value={e.hfeId} onChange={(ev) => patch({ hfeId: ev.target.value })}>
-                    {hr.humanFailureEvents.map((h) => <option key={h.uuid} value={h.uuid}>{`${h.uuid} · ${h.name}`}</option>)}
+                    {hr.humanFailureEvents.map((h) => <option key={h.uuid} value={h.uuid}>{idAndName(h.uuid, h.name)}</option>)}
                   </select>
                 : <div>{hr.humanFailureEvents.find((h) => h.uuid === e.hfeId)?.name ?? e.hfeId}</div>}
             </div>
@@ -1805,7 +1794,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             <div className="posfield"><label className="posfield__label">Recovered event</label>
               {editable
                 ? <select className="posfield__select" value={r.hfeId} onChange={(e) => patch({ hfeId: e.target.value })}>
-                    {postHfes.map((h) => <option key={h.uuid} value={h.uuid}>{`${h.uuid} · ${h.name}`}</option>)}
+                    {postHfes.map((h) => <option key={h.uuid} value={h.uuid}>{idAndName(h.uuid, h.name)}</option>)}
                   </select>
                 : <div>{hr.humanFailureEvents.find((h) => h.uuid === r.hfeId)?.name ?? r.hfeId}</div>}
             </div>

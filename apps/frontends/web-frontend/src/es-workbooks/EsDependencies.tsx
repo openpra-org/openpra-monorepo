@@ -1,12 +1,29 @@
-import { type JSX, useEffect, useMemo, useState } from "react";
+import { type JSX, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkbookBayesianNetwork, WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
+import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { FUNCTIONAL_EVENT_MODEL_ID, functionalEventBindingId, unlinkedFunctionalEvents } from "interfaces-mef-types/es/es-dependency-bindings";
 import { validateBayesianNetworkModel, type BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import { BayesianNetworkEditor, createEmptyBayesianNetwork, type BayesianNetworkFaultTreeOption } from "../newly-developed-methods/bayesian-network";
 import { useEditorConfirmation } from "../newly-developed-methods/shared";
+import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { coverageView } from "./esSelectors";
 import { useEsWorkbook } from "./esWorkbookContext";
+
+function systemFaultTreeOptions(workbookId: string, sy: SystemsAnalysis): BayesianNetworkFaultTreeOption[] {
+  return sy.systemLogicModels.map((logic) => {
+    const used = new Set(logic.leafNodes.flatMap((leaf) => (leaf.kind === "BASIC_EVENT_REFERENCE" ? [leaf.basicEventId] : [])));
+    return {
+      workbookId,
+      workbookName: sy.name,
+      modelId: logic.uuid,
+      modelCode: logic.code,
+      modelName: logic.name,
+      topGateId: logic.topGate?.gateId ?? null,
+      basicEvents: sy.systemBasicEvents.filter((event) => used.has(event.uuid)).map((event) => ({ id: event.uuid, code: event.code, name: event.name })),
+    };
+  });
+}
 
 function DependenciesScreen(): JSX.Element {
   const { es, upstream, posLink, ieLink, editable, mutateEs, runtime } = useEsWorkbook();
@@ -24,19 +41,25 @@ function DependenciesScreen(): JSX.Element {
   const coverage = useMemo(() => coverageView(es, posLink, ieLink), [es, posLink, ieLink]);
   const scopeChoices = useMemo(() => ({ initiatingEvents: coverage.groups, plantOperatingStates: coverage.states }), [coverage]);
 
+  const [fetchedSy, setFetchedSy] = useState<ReadonlyMap<string, SystemsAnalysis>>(new Map());
+  const requestedSy = useRef(new Set<string>());
+  const referencedSyIds = useMemo(() => [...new Set((es.dependencyHclConfigurations ?? []).flatMap((configuration) => [
+    ...configuration.faultTrees.map((reference) => reference.workbookId),
+    ...configuration.bindings.map((binding) => binding.faultTreeBasicEvent.workbookId),
+  ]))].filter((workbookId) => workbookId.length > 0 && workbookId !== runtime.workbookId), [es.dependencyHclConfigurations, runtime.workbookId]);
+
+  useEffect(() => {
+    for (const workbookId of referencedSyIds) {
+      if ((workbookId === syWorkbookId && sy !== undefined) || requestedSy.current.has(workbookId)) continue;
+      requestedSy.current.add(workbookId);
+      getSyWorkbook(workbookId)
+        .then((workbook) => setFetchedSy((current) => new Map(current).set(workbookId, workbook.mef)))
+        .catch(() => undefined);
+    }
+  }, [referencedSyIds, sy, syWorkbookId]);
+
   const faultTreeOptions = useMemo<BayesianNetworkFaultTreeOption[]>(() => {
-    const systemOptions = sy === undefined || syWorkbookId === undefined ? [] : sy.systemLogicModels.map((logic) => {
-      const used = new Set(logic.leafNodes.flatMap((leaf) => (leaf.kind === "BASIC_EVENT_REFERENCE" ? [leaf.basicEventId] : [])));
-      return {
-        workbookId: syWorkbookId,
-        workbookName: sy.name,
-        modelId: logic.uuid,
-        modelCode: logic.code,
-        modelName: logic.name,
-        topGateId: logic.topGate?.gateId ?? null,
-        basicEvents: sy.systemBasicEvents.filter((event) => used.has(event.uuid)).map((event) => ({ id: event.uuid, code: event.code, name: event.name })),
-      };
-    });
+    const systemOptions = sy === undefined || syWorkbookId === undefined ? [] : systemFaultTreeOptions(syWorkbookId, sy);
     const functionalEvents = unlinkedFunctionalEvents(es.eventTrees ?? []);
     if (runtime.workbookId === null || functionalEvents.length === 0) return systemOptions;
     return [...systemOptions, {
@@ -49,6 +72,21 @@ function DependenciesScreen(): JSX.Element {
       basicEvents: functionalEvents.map((event) => ({ id: functionalEventBindingId(event.uuid), code: event.label ?? event.name, name: event.name })),
     }];
   }, [es.eventTrees, es.name, runtime.workbookId, sy, syWorkbookId]);
+
+  const referencedFaultTrees = useMemo<BayesianNetworkFaultTreeOption[]>(() => {
+    const fetched = [...fetchedSy].flatMap(([workbookId, mef]) => systemFaultTreeOptions(workbookId, mef));
+    if (runtime.workbookId === null) return fetched;
+    const functionalEvents = [...new Map((es.eventTrees ?? []).flatMap((tree) => Object.values(tree.functionalEvents)).map((event) => [event.uuid, event])).values()];
+    return [...fetched, {
+      workbookId: runtime.workbookId,
+      workbookName: es.name,
+      modelId: FUNCTIONAL_EVENT_MODEL_ID,
+      modelCode: "Functional events",
+      modelName: "Functional events",
+      topGateId: null,
+      basicEvents: functionalEvents.map((event) => ({ id: functionalEventBindingId(event.uuid), code: event.label ?? event.name, name: event.name })),
+    }];
+  }, [es.eventTrees, es.name, fetchedSy, runtime.workbookId]);
 
   const syBindingLabels = useMemo(() => new Map((sy?.dependencyHclConfigurations ?? []).flatMap((configuration) =>
     configuration.bindings.map((binding) => [
@@ -122,6 +160,7 @@ function DependenciesScreen(): JSX.Element {
           hclSetupOnly
           hclScopeChoices={scopeChoices}
           hclExternalBindingLabels={syBindingLabels}
+          hclReferencedFaultTrees={referencedFaultTrees}
           showQueryAnalysis={false}
           hclScope="BOTH"
           evidence={evidence}

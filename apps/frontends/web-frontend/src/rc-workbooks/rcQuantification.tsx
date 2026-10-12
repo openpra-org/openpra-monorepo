@@ -10,7 +10,7 @@ import { useRcWorkbook, type RcResultDraft } from "./rcWorkbookContext";
 import { RCIcon } from "./rcIcons";
 import "./css/rcQuantification.css";
 
-const steps = { source: "handoff", site: "protective", weather: "weather", transport: "dispersion", dose: "dose", health: "health", economy: "economics" };
+const steps = { source: "scope", site: "protective", weather: "weather", transport: "dispersion", dose: "dose", health: "health", economy: "economics" };
 const tabs = ["checks", "prepared", "results"] as const;
 type CaseTab = typeof tabs[number];
 const tabNames = { checks: "Case & checks", prepared: "Prepared inputs", results: "Results" };

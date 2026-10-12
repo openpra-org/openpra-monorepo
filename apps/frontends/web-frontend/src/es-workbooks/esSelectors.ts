@@ -170,7 +170,7 @@ function stepsFromMef(es: EventSequenceAnalysis, persona: EsPersona): EsStep[] {
   const sequencesComplete = es.eventSequences.length > 0;
   const depsComplete = hasDependencyModels(es);
   const timingComplete = es.eventSequences.some((s) => (s.timing?.length ?? 0) > 0);
-  const quantComplete = es.eventSequenceFamilies.some((f) => f.meanFrequency !== undefined);
+  const handoffComplete = (es.eventTrees ?? []).length > 0 && es.eventSequenceFamilies.length > 0;
   const draftComplete = es.workflowState !== "DRAFT" && es.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = es.workflowState === "FINAL";
 
@@ -184,7 +184,7 @@ function stepsFromMef(es: EventSequenceAnalysis, persona: EsPersona): EsStep[] {
       case "sequences": return { ...s, status: status(sequencesComplete) };
       case "deps": return { ...s, status: status(depsComplete) };
       case "timing": return { ...s, status: status(timingComplete) };
-      case "quant": return { ...s, status: status(quantComplete) };
+      case "handoff": return { ...s, status: status(handoffComplete) };
       case "draft": return { ...s, status: status(draftComplete) };
       case "review": return { ...s, status: status(reviewComplete) };
       default: return { ...s, status: "idle" as const };

@@ -20,7 +20,7 @@ import { withEstimates } from "../daFailures";
 import { withUnavailability } from "../daUnavailability";
 import { withCcf } from "../daCcf";
 import { withFrequencies } from "../daFrequencies";
-import { handoffFindings, handoffView, handoffsComplete, significant, withImportanceFromEsq } from "../daHandoffs";
+import { handoffFindings, handoffView, handoffsComplete, importanceFindings, significant, withImportanceFromEsq } from "../daHandoffs";
 import { DaWorkbookProvider, type DaUpstream } from "../daWorkbookContext";
 import { HandoffScreen } from "../daHandoffScreen";
 import { linkScExamples } from "./daScExamples";
@@ -92,6 +92,10 @@ function findings(da: DataAnalysis, upstream: DaUpstream): Promise<string[][]> {
   return settledWithPraxis(() => handoffFindings(da, upstream).map((finding) => [finding.severity, finding.check, finding.item]));
 }
 
+function importance(da: DataAnalysis, upstream: DaUpstream): Promise<string[][]> {
+  return settledWithPraxis(() => importanceFindings(da, upstream).map((finding) => [finding.severity, finding.check, finding.item]));
+}
+
 describe("hand-offs", () => {
   it("finds every consumer in step with the example values", async () => {
     expect(await counts(DA, UPSTREAM)).toEqual({ "SY IN_STEP": 72, "IE IN_STEP": 21, "HRA IN_STEP": 1, "HRA TYPED": 24, "POS TYPED": 7, "POS IN_STEP": 2, "ESQ IN_STEP": 12 });
@@ -127,19 +131,20 @@ describe("hand-offs", () => {
     expect(significant(0.006, undefined)).toBe(true);
     expect(significant(0.004, 1.9)).toBe(false);
     const bare: DataAnalysis = { ...DA, parameters: DA.parameters.map((parameter) => (parameter.uuid === "DA-BE-201" ? { ...parameter, isRiskSignificant: undefined, importance: undefined } : parameter)) };
-    expect((await findings(bare, UPSTREAM)).map(([, check, item]) => [check, item])).toContainEqual(["Significant in ESQ", "DA-BE-201"]);
+    expect((await importance(bare, UPSTREAM)).map(([, check, item]) => [check, item])).toContainEqual(["Significant in ESQ", "DA-BE-201"]);
     const read = withImportanceFromEsq(bare, UPSTREAM, NOW).parameters.find((parameter) => parameter.uuid === "DA-BE-201");
     expect(read).toMatchObject({ isRiskSignificant: true, importance: { from: "ESQ", fussellVesely: 0.04, riskAchievementWorth: 1.9, entryIds: ["IMP-1 · 5"], importedAt: NOW } });
   });
 
-  it("summarizes each consumer and lists its rows", async () => {
+  it("lists each exported section and the status of each item that reads DA", async () => {
     render(<DaWorkbookProvider data={{ da: DA, cc: CC, nms: [] }} editable={false} mutateDa={() => undefined} upstream={UPSTREAM}><HandoffScreen openDrawer={() => undefined} /></DaWorkbookProvider>);
     await settle();
-    expect(screen.getByRole("table", { name: "Hand-off summary" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("tab", { name: /^IE/ }));
+    expect(screen.getByRole("tab", { name: "Parameters" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Outages" })).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Workbook" }), "IE");
     const table = screen.getAllByRole("table").find((candidate) => within(candidate).queryByText("IEG-03") !== null);
     expect(table).toBeDefined();
-    await userEvent.click(screen.getByRole("tab", { name: /^SY/ }));
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Workbook" }), "SY");
     await userEvent.click(screen.getAllByRole("button", { name: /^Show the details of/ })[0]!);
     await settle();
     const detail = document.querySelector("tr.da-rowtable__detail-row")?.textContent ?? "";

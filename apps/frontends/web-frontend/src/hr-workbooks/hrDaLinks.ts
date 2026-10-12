@@ -7,7 +7,6 @@ import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/r
 import { fetchJson } from "../api/client";
 import type { ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
 import { expressionText } from "../newly-developed-methods/shared/uncertainText";
-import { listWorkbooks } from "../workbooks/workbookApi";
 
 const EXAMPLE_PREFIX = "example-da-";
 
@@ -97,36 +96,22 @@ function withRecoveryHep(hr: HumanReliabilityAnalysis, recoveryId: string): Huma
   };
 }
 
-async function loadDaSource(id: string, name: string): Promise<HrDaSource[]> {
+async function loadDaSource(id: string): Promise<HrDaSource[]> {
   try {
     if (id.startsWith(EXAMPLE_PREFIX)) {
       const bundle = await fetchJson<{ da: { mef: DataAnalysis } }>(`/api/example-workbooks/da-bundle?example=${encodeURIComponent(id.slice(EXAMPLE_PREFIX.length))}`);
-      return [{ id, name, mef: bundle.da.mef }];
+      return [{ id, name: "", mef: bundle.da.mef }];
     }
     const workbook = await fetchJson<{ mef: DataAnalysis }>(`/api/da-workbooks/${encodeURIComponent(id)}`);
-    return [{ id, name, mef: workbook.mef }];
+    return [{ id, name: "", mef: workbook.mef }];
   } catch {
     return [];
   }
 }
 
-async function loadHrDaHeps(projectId: string | null, hr: HumanReliabilityAnalysis, exampleVariant?: string): Promise<HrDaHepOption[]> {
-  let listed: { id: string; name: string }[] = [];
-  if (projectId !== null) {
-    try {
-      listed = (await listWorkbooks(projectId, "DA")).workbooks.map((workbook) => ({ id: workbook.id, name: workbook.name }));
-    } catch {
-      listed = [];
-    }
-  }
-  const known = new Set(listed.map((entry) => entry.id));
-  const referenced = hr.hepQuantifications.flatMap((quantification) => hepReference(quantification)?.workbookId ?? []);
-  const wanted = exampleVariant === undefined ? referenced : [...referenced, `${EXAMPLE_PREFIX}${exampleVariant}`];
-  const examples = [...new Set(wanted)]
-    .filter((id) => id.startsWith(EXAMPLE_PREFIX) && !known.has(id))
-    .map((id) => ({ id, name: "" }));
-  const sources = await Promise.all([...listed, ...examples].map((entry) => loadDaSource(entry.id, entry.name)));
-  return daHepOptions(sources.flat());
+async function loadHrDaHeps(daWorkbookId: string | undefined): Promise<HrDaHepOption[]> {
+  if (daWorkbookId === undefined) return [];
+  return daHepOptions(await loadDaSource(daWorkbookId));
 }
 
 export {

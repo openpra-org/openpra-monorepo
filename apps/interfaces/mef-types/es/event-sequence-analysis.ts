@@ -335,16 +335,10 @@ export interface DependencyModels {
   systemInterfaces?: SystemInterfaceDependency[];
 }
 
-export interface FunctionalEventFailureEffect {
-  barriers?: EsEndStateBarrier[];
-  sources?: string[];
-}
-
 export interface FunctionalEvent extends Unique, Named {
   label?: string;
   order?: number;
   description?: string;
-  failureEffect?: FunctionalEventFailureEffect;
   systemReference?: SystemReference;
   humanActionReference?: HumanActionReference;
   faultTreeTopEvent?: FaultTreeTopEventReference;

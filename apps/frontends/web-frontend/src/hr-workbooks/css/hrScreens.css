@@ -291,3 +291,9 @@
 .hrlink__close:hover { background: var(--color-surface-low); }
 .hrlink__body { padding: 18px 20px; overflow-y: auto; }
 .hrlink__foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--color-border); }
+
+.hr-scope-tiles { margin-top: 4px; }
+.hr-scope-lane { display: flex; width: 100%; flex-direction: column; gap: 12px; margin-top: 16px; }
+.hr-scope-link { display: flex; max-width: 420px; flex-direction: column; gap: 5px; }
+.hr-scope-link .posfield__select { width: 100%; min-width: 0; }
+.hr-scope-error { margin: 0; font-size: 12.5px; color: var(--color-error); }

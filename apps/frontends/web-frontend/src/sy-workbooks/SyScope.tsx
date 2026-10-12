@@ -2,6 +2,7 @@ import { JSX, useEffect, useId, useRef, useState } from "react";
 import type { SyLinkedWorkbooks, SystemDefinition } from "interfaces-mef-types/sy/systems-analysis";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
+import { HandoffImports } from "../workbooks/workbookHandoff";
 import { Badge, ReviewLines, SYSTEMS_IN_SCOPE_ID, SystemsInScopeLink } from "./syShared";
 import { CAPABILITY_CATEGORIES, type Stage } from "./syViewData";
 import { useSyWorkbook, type SyLinkCode } from "./syWorkbookContext";
@@ -9,12 +10,12 @@ import { isSystemLevelModel } from "./sySelectors";
 import type { SyDrawerContext } from "./syScreens";
 import "./css/syScope.css";
 
-const SY_LINK_TILES: { code: SyLinkCode; label: string; name: string; handoff: string }[] = [
-  { code: "ES", label: "ES", name: "Event Sequence Analysis", handoff: "Provides · Safety functions" },
-  { code: "SC", label: "SC", name: "Success Criteria", handoff: "Provides · System success criteria" },
-  { code: "POS", label: "POS", name: "Plant Operating States", handoff: "Provides · Operating states" },
-  { code: "DA", label: "DA", name: "Data Analysis", handoff: "Provides · Parameters and distributions" },
-  { code: "HRA", label: "HR", name: "Human Reliability", handoff: "Provides · Human error probabilities" },
+const SY_LINK_TILES: { code: SyLinkCode; label: string; name: string }[] = [
+  { code: "ES", label: "ES", name: "Event Sequence Analysis" },
+  { code: "SC", label: "SC", name: "Success Criteria" },
+  { code: "POS", label: "POS", name: "Plant Operating States" },
+  { code: "DA", label: "DA", name: "Data Analysis" },
+  { code: "HRA", label: "HR", name: "Human Reliability" },
 ];
 
 const SYSTEM_PAGE = 10;
@@ -40,12 +41,6 @@ function orderedSystems(systems: readonly SystemDefinition[], order: SystemOrder
     case "NAME_DESC": return [...systems].sort((left, right) => byName(right, left));
   }
 }
-
-const WORKBOOK_STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  "in-progress": "In progress",
-  complete: "Complete",
-};
 
 function SyInterfaces(): JSX.Element {
   const { sy, editable, mutateSy, upstream } = useSyWorkbook();
@@ -83,7 +78,6 @@ function SyInterfaces(): JSX.Element {
           >
             <span className="poshandoff__tile-code">{candidate.label}</span>
             <span className="poshandoff__tile-name">{candidate.name}</span>
-            <span className="poshandoff__tile-role">{candidate.handoff}</span>
           </button>
         ))}
       </div>
@@ -95,29 +89,15 @@ function SyInterfaces(): JSX.Element {
               id={selectId}
               className="posfield__select"
               value={linkedId ?? ""}
-              disabled={!editable || options.length === 0}
+              disabled={!editable || (options.length === 0 && linkedId === undefined)}
               onChange={(event) => onLink(tile.code, event.target.value)}
             >
-              <option value="">{options.length === 0 ? `No ${tile.label} workbooks in this project` : "Not linked"}</option>
+              <option value="">{options.length === 0 && linkedId === undefined ? `No ${tile.label} workbooks in this project` : "Not linked"}</option>
               {options.map((workbook) => <option key={workbook.id} value={workbook.id}>{workbook.name}</option>)}
+              {linkedId !== undefined && linked === undefined && <option value={linkedId}>{linkedId.startsWith("example") ? `Example ${tile.label} workbook` : `${tile.label} workbook not in this project`}</option>}
             </select>
           </div>
-          {options.length === 0 && <p className="posmuted sy-scope-note">Create one on the project page to link it here.</p>}
-          {linkedId !== undefined && linked === undefined && <p className="posmuted sy-scope-note">The linked workbook is not in this project.</p>}
-          {linked !== undefined && (
-            <table className="postable postable--mid" aria-label={`Linked ${tile.label} workbook`}>
-              <thead><tr><th>Workbook</th><th>Status</th><th>Version</th><th>Owner</th><th>Updated</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td><div className="postable__name">{linked.name}</div></td>
-                  <td>{WORKBOOK_STATUS_LABEL[linked.status] ?? linked.status}</td>
-                  <td className="posmono">v{linked.version}</td>
-                  <td>{linked.ownerFullName}</td>
-                  <td className="posmono">{linked.updatedAt.slice(0, 10)}</td>
-                </tr>
-              </tbody>
-            </table>
-          )}
+          <HandoffImports consumer="SY" producer={tile.code} />
         </div>
       )}
     </>

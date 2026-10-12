@@ -275,8 +275,15 @@ function treeMissionHours(tree: JsonRecord, scope: ConversionScope, host: string
   return tree;
 }
 
+function withoutFailureEffects(tree: JsonRecord): JsonRecord {
+  return withRecord(tree, "functionalEvents", (events) => {
+    if (!Object.values(events).some((event) => isRecord(event) && present(event, "failureEffect"))) return events;
+    return Object.fromEntries(Object.entries(events).map(([key, event]): [string, Json] => [key, isRecord(event) ? without(event, ["failureEffect"]) : event]));
+  });
+}
+
 function convertEventTree(stored: JsonRecord, scope: ConversionScope, host: string): JsonRecord {
-  const tree = treeMissionHours(stored, scope, host);
+  const tree = withoutFailureEffects(treeMissionHours(stored, scope, host));
   return withRecord(tree, "initiatingEventFrequency", (frequency) => {
     if (storedExpression(frequency, "expression") !== undefined || !TREE_OLD_FIELDS.some((key) => present(frequency, key))) return frequency;
     const expression = treeExpression(frequency, scope, `The initiating event frequency of ${host} event tree ${textField(tree, "uuid") ?? "?"}`);

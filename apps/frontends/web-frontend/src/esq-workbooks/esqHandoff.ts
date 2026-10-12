@@ -2,7 +2,6 @@ import {
   RiskSignificantContributorType,
   type ConsistencyReviewRecord,
   type CutsetLogicReviewRecord,
-  type EsqCell,
   type EsqFamilyValueSource,
   type EsqHandoffResponse,
   type EsqHandoffWork,
@@ -27,9 +26,7 @@ import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/cor
 import type { PreOperationalAssumption } from "interfaces-mef-types/core/documentation";
 import type { RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { holdsEstimate } from "interfaces-mef-types/da/data-analysis";
-import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
 import { hash32 } from "interfaces-mef-types/esq/esq-run-inputs";
-import { resolvedCombinations, resolvedRecoveries } from "interfaces-mef-types/esq/esq-post-inputs";
 import { solveInputsKey, solveWorkOf } from "interfaces-mef-types/esq/esq-solve-inputs";
 import { hasUncertainty, uncertaintyInputsKey } from "interfaces-mef-types/esq/esq-measure-inputs";
 import type { EsqImportanceRunResult, EsqImportanceTarget, EsqModelRunResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
@@ -72,7 +69,6 @@ interface EsqHandoffFamilyRow {
   sokc: boolean;
   convergedAt?: number;
   register: number;
-  cells: EsqCell[];
 }
 
 interface EsqFeedbackItem {
@@ -88,15 +84,6 @@ interface EsqFeedbackItem {
   response?: EsqHandoffResponse;
 }
 
-interface EsqCreatedValue {
-  key: string;
-  item: string;
-  value?: number;
-  expression?: UncertainExpression;
-  where: string;
-  source: string;
-}
-
 interface EsqHandoffView {
   model: EsqModel;
   work: EsqHandoffWork;
@@ -109,7 +96,6 @@ interface EsqHandoffView {
   publishedStale: boolean;
   inputs: string;
   feedback: EsqFeedbackItem[];
-  created: EsqCreatedValue[];
   findings: EsqHandoffFinding[];
 }
 
@@ -676,29 +662,6 @@ function withResponse(esq: EventSequenceQuantification, response: EsqHandoffResp
   });
 }
 
-function createdValues(esq: EventSequenceQuantification): EsqCreatedValue[] {
-  const model = esq.model;
-  if (model === undefined) return [];
-  const out: EsqCreatedValue[] = [];
-  for (const choice of esq.modelDecisions?.initiatorChoices ?? []) {
-    if (choice.source !== "TYPED" || choice.expression === undefined) continue;
-    out.push({ key: `initiator:${choice.groupId}`, item: choice.groupId, expression: choice.expression, where: "Step 02 initiator frequency", source: choice.basis ?? "" });
-  }
-  for (const cell of esq.barrierWork?.cells ?? []) {
-    if (cell.ofRecord !== "TYPED" || cell.typed === undefined) continue;
-    out.push({ key: `cell:${cell.id}`, item: `Cell ${cell.id}`, expression: cell.typed.expression, where: "Step 04 split fraction", source: cell.typed.basis });
-  }
-  for (const combination of resolvedCombinations(esq)) {
-    if (combination.source !== "TYPED" || combination.joint === undefined) continue;
-    out.push({ key: `joint:${combination.combination.id}`, item: combination.combination.id, value: combination.joint, where: "Step 06 joint HEP", source: combination.combination.typed?.source ?? "" });
-  }
-  for (const recovery of resolvedRecoveries(esq)) {
-    if (recovery.source !== "TYPED" || recovery.expression === undefined) continue;
-    out.push({ key: `recovery:${recovery.id}`, item: `NR-${recovery.id}`, expression: recovery.expression, where: "Step 06 non-recovery HEP", source: recovery.rule?.typed?.source ?? "" });
-  }
-  return out;
-}
-
 function handoffViewOf(esq: EventSequenceQuantification, upstream: EsqUpstream): EsqHandoffView | undefined {
   const modelView = modelViewOf(esq);
   if (modelView === undefined) return undefined;
@@ -708,7 +671,6 @@ function handoffViewOf(esq: EventSequenceQuantification, upstream: EsqUpstream):
   const uncertainty = currentUncertainty(esq);
   const stepPercent = esq.quantificationPlan?.convergenceStepPercent?.value ?? 5;
   const sensitivity = sensitivityViewOf(esq, upstream);
-  const cells = esq.barrierWork?.cells ?? [];
   const families = modelView.families.map((family): EsqHandoffFamilyRow => {
     const solve = solveWorkOf(esq).families.find((entry) => entry.familyId === family.id);
     const value = familyValueOf(solve);
@@ -717,7 +679,6 @@ function handoffViewOf(esq: EventSequenceQuantification, upstream: EsqUpstream):
       family,
       sokc: stats !== undefined,
       register: (sensitivity?.register ?? []).filter((entry) => (entry.decision?.familyIds ?? []).includes(family.id)).length,
-      cells: cells.filter((cell) => cell.familyId === family.id),
     };
     if (value !== undefined) row.value = value;
     if (solve?.ofRecord !== undefined) row.source = solve.ofRecord;
@@ -746,7 +707,6 @@ function handoffViewOf(esq: EventSequenceQuantification, upstream: EsqUpstream):
     publishedStale: work.published !== undefined && work.published.inputs !== inputs,
     inputs,
     feedback: feedbackItems(esq, upstream.ri),
-    created: createdValues(esq),
   };
   const full = run === undefined ? partial : { ...partial, run };
   const findings: EsqHandoffFinding[] = [];
@@ -759,7 +719,7 @@ function handoffViewOf(esq: EventSequenceQuantification, upstream: EsqUpstream):
   else if (full.runStale) findings.push({ severity: "error", check: "Value of record older than its inputs", item: "Run of record", detail: "The model, logic or values changed after the run of record. Run the model again in Step 05.", target: { kind: "esqSolveRun", id: "run" } });
   if (!full.importanceCurrent) findings.push({ severity: "warning", check: "Importance not current", item: "Importance", detail: "RI and DA receive no current importance. Rank again in Step 07." });
   if (!full.uncertaintyCurrent) findings.push({ severity: esq.capabilityCategory === "CC-I" ? "warning" : "error", check: "No current propagated mean", item: "Uncertainty", detail: "The families go out without a current sampled mean and percentiles. Sample again in Step 08." });
-  if (!full.published) findings.push({ severity: "error", check: "Not published", item: "Hand-off", detail: "Publish the family package so RI, MS, DA, HR and IE read it." });
+  if (!full.published) findings.push({ severity: "error", check: "Not published", item: "Hand-off", detail: "Publish the family package so RI and DA read it." });
   else if (full.publishedStale) findings.push({ severity: "error", check: "Published package older than the workbook", item: "Hand-off", detail: "Results, reviews or cases changed after the last publication. Publish again." });
   for (const item of full.feedback) {
     const response = item.response;
@@ -778,7 +738,6 @@ function handoffComplete(esq: EventSequenceQuantification, upstream: EsqUpstream
 export {
   OWNER_ELEMENTS,
   RESPONSE_LABELS,
-  createdValues,
   feedbackItems,
   figures,
   handoffComplete,
@@ -787,7 +746,6 @@ export {
   handoffWorkOf,
   publishEsq,
   withResponse,
-  type EsqCreatedValue,
   type EsqFeedbackItem,
   type EsqHandoffFamilyRow,
   type EsqHandoffFinding,

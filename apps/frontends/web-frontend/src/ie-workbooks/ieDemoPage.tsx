@@ -99,14 +99,16 @@ function IeDemoPage(): JSX.Element {
     ])
       .then(([res, posRes, daRes]) => {
         if (cancelled) return;
-        const ie = res.ie.mef as InitiatingEventsAnalysis;
+        const example = res.ie.mef as InitiatingEventsAnalysis;
+        const daId = `${EXAMPLE_PREFIX}${selected}`;
+        const ie = daRes === null || example.linkedWorkbooks?.DA !== undefined ? example : { ...example, linkedWorkbooks: { ...example.linkedWorkbooks, DA: daId } };
         const pos = posRes.pos.mef as PlantOperatingStatesAnalysis;
         setData({
           ie,
           cc: res.configurationControl.mef as PRAConfigurationControl,
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
           posLink: buildPosLink(ie, pos),
-          daFrequencies: daRes === null ? [] : daFrequencyOptions([{ id: `${EXAMPLE_PREFIX}${selected}`, name: daRes.da.mef.name, mef: daRes.da.mef }]),
+          daFrequencies: daRes === null ? [] : daFrequencyOptions([{ id: daId, name: daRes.da.mef.name, mef: daRes.da.mef }]),
         });
       })
       .catch((err: unknown) => {

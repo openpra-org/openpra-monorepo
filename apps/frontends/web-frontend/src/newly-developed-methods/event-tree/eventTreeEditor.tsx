@@ -103,10 +103,6 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
     endStateOptions,
     onAddEndState,
     onEditEndState,
-    failureEffectLabel,
-    onEditFailureEffect,
-    endStateMatches,
-    onAddDerivedEndState,
     onOpenReference,
     breadcrumb,
     onRun,
@@ -611,16 +607,6 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
                     </div>
                   )}
                 </div>
-                {onEditFailureEffect !== undefined && (() => {
-                  const effect = failureEffectLabel?.(selectedEvent);
-                  if (effect === undefined && !capabilities.author) return null;
-                  return (
-                    <div className="et-editor__reference">
-                      <span>Failure effect</span>
-                      <button type="button" onClick={() => onEditFailureEffect(selectedEvent)}>{effect ?? "Record failure effect"}</button>
-                    </div>
-                  );
-                })()}
               </>
             )}
             {selectedSequence !== undefined && (
@@ -644,21 +630,6 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
                         {endStateOptions.map((option) => <option key={option.id} value={option.id}>{option.code} · {option.name}</option>)}
                         {availableTransfers.length > 0 && <option value="TRANSFER">Transfer to another event tree</option>}
                       </select></label>
-                      {(() => {
-                        const matches = capabilities.author && selectedSequence.transferTargetId === undefined ? endStateMatches?.(selectedSequence.id) : undefined;
-                        if (matches === undefined || (assigned !== undefined && matches.includes(assigned.id))) return null;
-                        const suggested = endStateOptions.filter((option) => matches.includes(option.id));
-                        if (suggested.length === 0 && onAddDerivedEndState === undefined) return null;
-                        return (
-                          <div className="et-editor__reference">
-                            <span>From failure effects</span>
-                            <div className="et-editor__reference-actions">
-                              {suggested.map((option) => <button key={option.id} type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => commit({ kind: "SET_SEQUENCE_END_STATE", sequenceId: selectedSequence.id, endState: option.release ? "RADIONUCLIDE_RELEASE" : "SUCCESSFUL_MITIGATION", endStateId: option.id })}>Use {option.code} · {option.name}</button>)}
-                              {suggested.length === 0 && onAddDerivedEndState !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => onAddDerivedEndState(selectedSequence.id)}>New end state from failure effects</button>}
-                            </div>
-                          </div>
-                        );
-                      })()}
                       {capabilities.author && (onAddEndState !== undefined || (onEditEndState !== undefined && assigned !== undefined)) && (
                         <div className="et-editor__reference-actions">
                           {onAddEndState !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onAddEndState(selectedSequence.id)}>New end state</button>}

@@ -28,10 +28,9 @@ import type {
   HclCalculationType,
   HclFaultTreeOption,
 } from "../newly-developed-methods/hybrid-causal-logic";
-import { listWorkbooks } from "../workbooks/workbookApi";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
-import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
-import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
+import { getSyWorkbook, type SyWorkbookResponse } from "../sy-workbooks/syWorkbookApi";
+import { getEsWorkbook, type EsWorkbookResponse } from "../es-workbooks/esWorkbookApi";
 import { analysisSaveBlock, useAnalysisScope } from "../newly-developed-methods/shared/useAnalysisScope";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import { daParameterOptionsOf } from "./esqModel";
@@ -53,6 +52,11 @@ interface OwnedNetwork {
 
 interface OwnedConfiguration extends OwnedNetwork {
   configuration: WorkbookHclConfiguration;
+}
+
+interface LinkedSource<T> {
+  workbook: { id: string; name: string };
+  source: T;
 }
 
 interface EsqEventTreeHclWorkspaceProps {
@@ -113,6 +117,22 @@ function configurationMatchesEventTree(
   return overridingConfiguration(candidate.configuration, competing, facts) === undefined;
 }
 
+function storedLink(id: string | undefined): string | undefined {
+  return id === undefined || id.length === 0 || id.startsWith("example") ? undefined : id;
+}
+
+async function linkedSystems(id: string | undefined, name: string | undefined): Promise<LinkedSource<SyWorkbookResponse>[]> {
+  if (id === undefined) return [];
+  const source = await getSyWorkbook(id);
+  return [{ workbook: { id, name: name ?? source.mef.name }, source }];
+}
+
+async function linkedEventSequences(id: string | undefined, name: string | undefined): Promise<LinkedSource<EsWorkbookResponse>[]> {
+  if (id === undefined) return [];
+  const source = await getEsWorkbook(id);
+  return [{ workbook: { id, name: name ?? source.mef.name }, source }];
+}
+
 function plainWorkbookName(name: string): string {
   const cut = name.indexOf("—");
   if (cut <= 0) return name;
@@ -127,8 +147,12 @@ function EsqEventTreeHclWorkspace({
   initialNetworkId = null,
   initialSourceWorkbookId = null,
 }: EsqEventTreeHclWorkspaceProps): JSX.Element {
-  const { esq, mutateEsq, runtime } = useEsqWorkbook();
+  const { esq, mutateEsq, runtime, upstream } = useEsqWorkbook();
   const {sourceEpoch, sourceWarning} = useAnalysisSourceGuard("esq", runtime.workbookId);
+  const linkedSyId = storedLink(esq.linkedWorkbooks?.SY);
+  const linkedEsId = storedLink(esq.linkedWorkbooks?.ES);
+  const linkedSyName = upstream.options.SY.find((workbook) => workbook.id === linkedSyId)?.name;
+  const linkedEsName = upstream.options.ES.find((workbook) => workbook.id === linkedEsId)?.name;
   const [syNetworks, setSyNetworks] = useState<OwnedNetwork[]>([]);
   const [syConfigurations, setSyConfigurations] = useState<OwnedConfiguration[]>([]);
   const [sourceFaultTrees, setFaultTrees] = useState<HclFaultTreeOption[]>([]);
@@ -160,14 +184,8 @@ function EsqEventTreeHclWorkspace({
     setSourceLoading(true);
     setSourceError(null);
     Promise.all([
-      listWorkbooks(runtime.projectId, "SY").then(async ({ workbooks }) => Promise.all(workbooks.map(async (workbook) => ({
-        workbook,
-        source: await getSyWorkbook(workbook.id),
-      })))),
-      listWorkbooks(runtime.projectId, "ES").then(async ({ workbooks }) => Promise.all(workbooks.map(async (workbook) => ({
-        workbook,
-        source: await getEsWorkbook(workbook.id),
-      })))),
+      linkedSystems(linkedSyId, linkedSyName),
+      linkedEventSequences(linkedEsId, linkedEsName),
     ]).then(([systemSources, eventSources]) => {
       if (cancelled) return;
       const options: HclFaultTreeOption[] = systemSources.flatMap(({ workbook, source }) =>
@@ -241,7 +259,7 @@ function EsqEventTreeHclWorkspace({
                 workbookId: reference.workbookId,
                 workbookName: option?.workbookName ?? "Missing Systems Analysis workbook",
                 modelId: reference.modelId,
-                modelCode: option?.modelCode ?? reference.modelId,
+                modelCode: option?.modelCode ?? "Unresolved fault tree",
                 modelName: option?.modelName ?? "Unresolved fault tree",
                 functionalEvents: [
                   ...(current?.functionalEvents ?? []),
@@ -283,7 +301,7 @@ function EsqEventTreeHclWorkspace({
       if (!cancelled) setSourceLoading(false);
     });
     return () => { cancelled = true; };
-  }, [runtime.projectId, sourceEpoch]);
+  }, [runtime.projectId, sourceEpoch, linkedSyId, linkedEsId, linkedSyName, linkedEsName]);
 
   const localNetworks = useMemo<OwnedNetwork[]>(() => runtime.workbookId === null ? [] : esq.bayesianNetworks.map((network) => ({
     owner: "ESQ",

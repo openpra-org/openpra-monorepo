@@ -44,7 +44,7 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   sequences: "ES-A1",
   deps: "ES-B1",
   timing: "ES-A6",
-  quant: "ES-C8",
+  handoff: "ES-C8",
 };
 
 function withLink(links: EsLinkedWorkbooks | undefined, code: keyof EsLinkedWorkbooks, workbookId: string | null): EsLinkedWorkbooks {

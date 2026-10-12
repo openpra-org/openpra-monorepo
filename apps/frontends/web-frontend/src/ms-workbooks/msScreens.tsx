@@ -1,9 +1,12 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { JSX, useState } from "react";
+import { JSX, useId, useState } from "react";
+import { HANDOFF_ELEMENT_NAMES } from "interfaces-mef-types/technical-element-handoff";
+import { HandoffImports } from "../workbooks/workbookHandoff";
 import { MSIcon } from "./msIcons";
 import { Badge, MsProvenanceChip, valText, fracText, pctText } from "./msShared";
 import { useMsWorkbook } from "./msWorkbookContext";
+import { MS_LINK_CODES, withMsLink, type MsLinkCode } from "./msLinks";
 import {
   CAPABILITY_CATEGORIES,
   MS_METHODS,
@@ -35,53 +38,42 @@ function MethodChips({ ids, label }: { ids: string[]; label?: string }): JSX.Ele
   );
 }
 
-// ─── 01 — Scope & Inputs ───────────────────────────────────────────────────
 function MsInterfaces(): JSX.Element {
-  const { ms } = useMsWorkbook();
-  const [selected, setSelected] = useState<string | null>(null);
-  const lanes: { key: string; code: string; element: string; role: string; direction: "in" | "out"; columns: string[]; rows: { id: string; name: string; values: string[] }[]; empty: string }[] = [
-    { key: "in-POS", code: "POS", element: "Plant Operating States", role: "Sources and barriers", direction: "in", columns: ["Source", "Basis", "Species"], rows: ms.sourceInventories.map((s) => ({ id: s.uuid, name: `${s.uuid} · ${s.name}`, values: [CALC_BASIS_LABELS[s.calculationBasis] ?? s.calculationBasis, String(s.inventory.length)] })), empty: "No source inventories yet. Add them in Sources and barriers." },
-    { key: "in-ES", code: "ES", element: "Event Sequence Analysis", role: "Release categories", direction: "in", columns: ["Category", "Timing", "Magnitude"], rows: ms.releaseCategories.map((r) => ({ id: r.uuid, name: `${r.uuid} · ${r.name}`, values: [r.timingClassification ?? "—", r.magnitudeClassification ?? "—"] })), empty: "No release categories yet. Add them in Release Categories." },
-    { key: "in-ESQ", code: "ESQ", element: "Event Sequence Quantification", role: "Risk significance", direction: "in", columns: ["Category", "Risk-significant"], rows: ms.releaseCategories.map((r) => ({ id: r.uuid, name: `${r.uuid} · ${r.name}`, values: [categoryIsRiskSignificant(r) ? "Yes" : "—"] })), empty: "No release categories yet." },
-    { key: "out-RC", code: "RC", element: "Radiological Consequence", role: "Source terms", direction: "out", columns: ["Source term", "Category", "Cs-137"], rows: ms.sourceTermDefinitions.map((s) => ({ id: s.uuid, name: s.uuid, values: [s.releaseCategoryReference, fracText(headlineReleaseDetail(ms, s.releaseCategoryReference)?.value)] })), empty: "No source terms yet. Add them in Source Terms." },
-    { key: "out-RI", code: "RI", element: "Risk Integration", role: "Source-term uncertainty", direction: "out", columns: ["Analysis", "Category", "Level"], rows: ms.uncertaintyAnalyses.map((u) => ({ id: u.uuid, name: u.uuid, values: [u.releaseCategoryReference, u.characterizationLevel === "PROPAGATED_WITH_PHENOMENA_DEPENDENCIES" ? "Propagated" : "Characterized"] })), empty: "No uncertainty analyses yet. Add them in Uncertainty." },
-  ];
-  const active = lanes.find((l) => l.key === selected);
+  const { ms, editable, mutateMs, upstream } = useMsWorkbook();
+  const [selected, setSelected] = useState<MsLinkCode | null>("POS");
+  const selectId = useId();
+  const options = selected === null ? [] : upstream.options[selected];
+  const linkedId = selected === null ? undefined : ms.linkedWorkbooks?.[selected];
+  const listed = options.some((workbook) => workbook.id === linkedId);
+
+  function onLink(code: MsLinkCode, workbookId: string): void {
+    if (!editable) return;
+    mutateMs((draft) => ({ ...draft, linkedWorkbooks: withMsLink(draft.linkedWorkbooks, code, workbookId) }));
+  }
+
   return (
     <>
       <div className="poshandoff__grid">
-        {lanes.map((lane) => (
-          <button key={lane.key} type="button"
-            className={`poshandoff__tile${selected === lane.key ? " poshandoff__tile--active" : ""}`}
-            onClick={() => setSelected(selected === lane.key ? null : lane.key)}>
-            <span className="poshandoff__tile-code">{lane.code}</span>
-            <span className="poshandoff__tile-name">{lane.element}</span>
-            <span className="poshandoff__tile-role">{lane.direction === "out" ? "Consumes · " : "Provides · "}{lane.role}</span>
+        {MS_LINK_CODES.map((code) => (
+          <button key={code} type="button" aria-pressed={selected === code}
+            className={`poshandoff__tile${selected === code ? " poshandoff__tile--active" : ""}`}
+            onClick={() => setSelected(selected === code ? null : code)}>
+            <span className="poshandoff__tile-code">{code}</span>
+            <span className="poshandoff__tile-name">{HANDOFF_ELEMENT_NAMES[code]}</span>
           </button>
         ))}
       </div>
-      {active !== undefined && (
-        <div style={{ marginTop: 16 }}>
-          <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
-            {active.direction === "out"
-              ? `${active.element} receives ${active.role.toLowerCase()} from Mechanistic Source Term`
-              : `Mechanistic Source Term receives ${active.role.toLowerCase()} from ${active.element}`}
+      {selected !== null && (
+        <div className="ms-link-lane">
+          <div className="ms-link-select">
+            <label className="posfield__label" htmlFor={selectId}>Source workbook</label>
+            <select id={selectId} className="posfield__select" value={linkedId ?? ""} disabled={!editable || (options.length === 0 && linkedId === undefined)} onChange={(event) => onLink(selected, event.target.value)}>
+              <option value="">{options.length === 0 && linkedId === undefined ? `No ${selected} workbooks in this project` : "Not linked"}</option>
+              {options.map((workbook) => <option key={workbook.id} value={workbook.id}>{workbook.name}</option>)}
+              {linkedId !== undefined && !listed && <option value={linkedId}>{`${selected} workbook not in this project`}</option>}
+            </select>
           </div>
-          {active.rows.length > 0 ? (
-            <table className="postable postable--mid">
-              <thead><tr>{active.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
-              <tbody>
-                {active.rows.map((r) => (
-                  <tr key={r.id}>
-                    <td><div className="postable__name">{r.name}</div></td>
-                    {r.values.map((v, idx) => <td key={active.columns[idx + 1] ?? `c${String(idx)}`} className="posmono">{v}</td>)}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="posmuted" style={{ margin: 0 }}>{active.empty}</p>
-          )}
+          <HandoffImports consumer="MS" producer={selected} />
         </div>
       )}
     </>
@@ -111,7 +103,6 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
     <>
       <div className="poscard">
         <div className="poscard__head"><WorkbookSectionHeading workbook="MS" title="Interfaces" level={3} /></div>
-        <p className="poscard__sub">Select an element to see the data exchanged.</p>
         <MsInterfaces />
       </div>
 

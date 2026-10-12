@@ -139,6 +139,7 @@ function HclBindingEditor({
   scopeChoices,
   externalBindingLabels,
   faultTreeOptions,
+  referencedFaultTrees,
   eventTreeOptions,
   baseEvidence,
   validation,
@@ -206,6 +207,7 @@ function HclBindingEditor({
     (option) => `${option.workbookId}:${option.modelId}` === faultTreeKey,
   );
   const selectedNode = model.nodes.find((node) => node.id === nodeId);
+  const knownFaultTrees = useMemo(() => [...faultTreeOptions, ...(referencedFaultTrees ?? [])], [faultTreeOptions, referencedFaultTrees]);
   const declaredFaultTrees = useMemo(() => {
     if (configuration === undefined) return [];
     const declared = new Set(configuration.faultTrees.map((reference) => `${reference.workbookId}:${reference.modelId}`));
@@ -587,10 +589,10 @@ function HclBindingEditor({
                     ariaLabel="Included HCL fault trees"
                     heading="Included"
                     items={configuration.faultTrees.map((reference) => {
-                      const tree = faultTreeOptions.find((option) =>
+                      const tree = knownFaultTrees.find((option) =>
                         option.workbookId === reference.workbookId && option.modelId === reference.modelId,
                       );
-                      const code = tree?.modelCode ?? reference.modelId;
+                      const code = tree?.modelCode ?? "Unresolved fault tree";
                       return {
                         id: `${reference.workbookId}:${reference.modelId}`,
                         code,
@@ -648,7 +650,7 @@ function HclBindingEditor({
                     </div>
                     <div className="bneditor__binding-list hcleditor__binding-list">
                       {configuration.bindings.map((binding) => {
-                        const tree = faultTreeOptions.find((option) => option.workbookId === binding.faultTreeBasicEvent.workbookId && option.basicEvents.some((event) => event.id === binding.faultTreeBasicEvent.entityId));
+                        const tree = knownFaultTrees.find((option) => option.workbookId === binding.faultTreeBasicEvent.workbookId && option.basicEvents.some((event) => event.id === binding.faultTreeBasicEvent.entityId));
                         const basicEvent = tree?.basicEvents.find((event) => event.id === binding.faultTreeBasicEvent.entityId);
                         const node = model.nodes.find((candidate) => candidate.id === binding.bayesianNetworkNode.entityId);
                         const states = node?.states.filter((state) => binding.trueStateIds.includes(state.id)) ?? [];

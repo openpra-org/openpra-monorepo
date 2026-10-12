@@ -92,7 +92,7 @@ describe("esSelectors", () => {
     });
     const steps = stepsFromMef(es, "preparer");
     expect(steps.find((s) => s.id === "sequences")?.status).toBe("complete");
-    expect(steps.find((s) => s.id === "quant")?.status).toBe("idle");
+    expect(steps.find((s) => s.id === "handoff")?.status).toBe("idle");
   });
 
   it("builds a renderable event tree from the MEF branch graph", () => {

@@ -114,8 +114,13 @@ export class HrWorkbooksService {
     const example = await this.exampleWorkbooksService.getHrBundle(exampleId);
     const parsed = HumanReliabilityAnalysisSchema.safeParse(stripNulls(example.hr.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
+    const variant = exampleId ?? "htgr";
+    const exampleLinks = variant === "htgr" || variant === "sfr"
+      ? { POS: `example-pos-${variant}`, IE: `example-ie-${variant}`, SC: `example-sc-${variant}`, SY: `example-sy-${variant}`, DA: `example-da-${variant}` }
+      : undefined;
     const cleaned = {
       ...parsed.data,
+      ...(exampleLinks === undefined || parsed.data.linkedWorkbooks !== undefined ? {} : { linkedWorkbooks: exampleLinks }),
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };

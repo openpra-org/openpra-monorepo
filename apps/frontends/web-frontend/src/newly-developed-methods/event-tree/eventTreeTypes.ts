@@ -106,10 +106,6 @@ interface EventTreeEditorProps {
   endStateOptions?: EventTreeEndStateOption[];
   onAddEndState?: (sequenceId: string) => void;
   onEditEndState?: (endStateId: string) => void;
-  failureEffectLabel?: (functionalEvent: FunctionalEvent) => string | undefined;
-  onEditFailureEffect?: (functionalEvent: FunctionalEvent) => void;
-  endStateMatches?: (sequenceId: string) => readonly string[] | undefined;
-  onAddDerivedEndState?: (sequenceId: string) => void;
   onOpenReference?: (reference: FaultTreeTopEventReference | { targetEventTreeId: string }) => void;
   breadcrumb?: TransferBreadcrumb;
   onRun?: () => void;

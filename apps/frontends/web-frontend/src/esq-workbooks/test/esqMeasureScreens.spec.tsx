@@ -90,7 +90,7 @@ function Harness({ initial, step, onChange, linked }: { initial: EventSequenceQu
       {step === "results" ? <ResultsScreen openWindow={jest.fn()} />
         : step === "uncert" ? <UncertScreen openWindow={jest.fn()} />
         : step === "sens" ? <SensScreen openWindow={jest.fn()} />
-        : <HandoffScreen openWindow={jest.fn()} />}
+        : <HandoffScreen />}
     </EsqWorkbookProvider>
   );
 }
@@ -249,14 +249,13 @@ describe("ESQ Steps 07 to 10 screens", () => {
     expect(runs).toEqual([5e-5, 3e-5]);
   });
 
-  it("publishes the package from the ranking and the run of record", async () => {
+  it("publishes the package by itself from the ranking and the run of record", async () => {
     const base = measureEsq();
     const esq = withImportance(base, importanceRecordOf(importanceResult(base), base, thresholdsOf(base, undefined)));
     jest.mocked(getEsqImportanceResult).mockResolvedValue(importanceResult(esq));
     jest.mocked(getEsqModelRunResult).mockResolvedValue(modelSummary(esq, RELEASE));
     const onChange = jest.fn();
     render(<Harness initial={esq} step="handoff" onChange={onChange} />);
-    fireEvent.click(screen.getByRole("button", { name: "Publish" }));
     await settle();
     const published = lastOf(onChange);
     expect(published.handoffWork?.published).toMatchObject({ revision: 5, families: 2 });

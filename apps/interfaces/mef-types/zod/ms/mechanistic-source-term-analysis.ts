@@ -356,9 +356,16 @@ export const MsDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const MsLinkedWorkbooksSchema = z.object({
+  POS: z.string().optional(),
+  ES: z.string().optional(),
+  RI: z.string().optional(),
+});
+
 export const MechanisticSourceTermAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.MECHANISTIC_SOURCE_TERM_ANALYSIS).shape,
   praScope: z.string(),
+  linkedWorkbooks: MsLinkedWorkbooksSchema.optional(),
   releaseCategories: z.array(ReleaseCategorySchema),
   releaseCategoryCompletenessAssessment: ReleaseCategoryCompletenessAssessmentSchema,
   sourceInventories: z.array(SourceInventorySchema),

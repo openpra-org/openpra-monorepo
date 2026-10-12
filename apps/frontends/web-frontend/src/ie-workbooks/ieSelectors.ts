@@ -175,6 +175,7 @@ function stepsFromMef(ie: InitiatingEventsAnalysis, persona: IePersona): IeStep[
       case "grouping": return { ...s, status: status(groupingComplete) };
       case "screening": return { ...s, status: status(screeningComplete) };
       case "frequency": return { ...s, status: status(frequencyComplete) };
+      case "handoff": return { ...s, status: status(groupingComplete && frequencyComplete) };
       case "draft": return { ...s, status: status(draftComplete) };
       case "review": return { ...s, status: status(reviewComplete) };
       default: return { ...s, status: "idle" as const };

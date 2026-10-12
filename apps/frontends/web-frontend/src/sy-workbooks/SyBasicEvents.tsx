@@ -6,12 +6,20 @@ import { expressionText } from "../newly-developed-methods/shared/uncertainText"
 import { PointValue, SYProvenanceChip } from "./syShared";
 import { heldValueDiffers } from "./syLinks";
 import { FAILURE_MODE_LABELS, toExp } from "./syViewData";
-import { linkedOptions, missingReferences, useEventPoints } from "./syBasicEventValues";
-import { linkedMissionTimes, useSyValueSources } from "./syMissionTimes";
-import { useSyWorkbook, type SyControlledHumanFailureOption, type SyControlledLegacyParameterOption } from "./syWorkbookContext";
+import { linkedOptions, missingReferences, useEventPoints, type PointState } from "./syBasicEventValues";
+import { linkedMissionTimes, useSyValueSources, type SyValueSources } from "./syMissionTimes";
+import { useSyWorkbook, type SyControlledHumanFailureOption, type SyControlledLegacyParameterOption, type SyControlledParameterOption } from "./syWorkbookContext";
 import type { SyDrawerContext } from "./syScreens";
 
 type RateBasis = Extract<NonNullable<SystemBasicEvent["quantificationBasis"]>, { kind: "FAILURE_RATE" }>;
+
+interface SyEventCells {
+  points: ReadonlyMap<string, PointState>;
+  values: SyValueSources;
+  parameters: readonly SyControlledParameterOption[];
+  legacyParameters: readonly SyControlledLegacyParameterOption[];
+  humanFailures: readonly SyControlledHumanFailureOption[];
+}
 
 const TIME_UNIT_LABELS: Record<RateBasis["missionTime"]["unit"], string> = {
   SECOND: "s",
@@ -33,91 +41,96 @@ function linkedHumanFailure(event: SystemBasicEvent, options: readonly SyControl
   return options.find((option) => option.workbookId === source.workbookId && option.humanFailureEventId === source.entityId && option.quantificationId === source.quantificationId);
 }
 
+function useEventCells(events: readonly SystemBasicEvent[]): SyEventCells {
+  const { controlledParameters, controlledLegacyParameters, controlledHumanFailures } = useSyWorkbook();
+  const values = useSyValueSources();
+  const points = useEventPoints(events, values.table);
+  return { points, values, parameters: controlledParameters, legacyParameters: controlledLegacyParameters, humanFailures: controlledHumanFailures };
+}
+
+function componentValueCell(event: SystemBasicEvent, cells: SyEventCells): JSX.Element {
+  if (event.expression === undefined) return <span className="sy-error">Not set</span>;
+  return (
+    <>
+      <div><PointValue state={cells.points.get(event.uuid)} /></div>
+      <span className="sy-review-sub">{expressionText(event.expression, cells.values.label)}</span>
+    </>
+  );
+}
+
+function componentSourceCell(event: SystemBasicEvent, cells: SyEventCells): JSX.Element {
+  const sources = linkedOptions(event.expression, cells.parameters);
+  const missionTimes = linkedMissionTimes(event.expression, cells.values.missionTimeOptions);
+  const missing = missingReferences(event.expression, cells.values.table);
+  if (sources.length === 0 && missionTimes.length === 0 && missing.length === 0) return <span>Typed</span>;
+  return (
+    <>
+      {sources.map((source) => (
+        <div key={`${source.workbookId}:${source.parameterId}`}>
+          <div>DA · {source.parameterName}</div>
+          <span className="sy-review-sub">{source.workbookName}</span>
+        </div>
+      ))}
+      {missionTimes.map((option) => <div key={option.label}>SC · {option.label}</div>)}
+      {missing.length > 0 && <span className="sy-error">Linked source unavailable</span>}
+    </>
+  );
+}
+
+function eventValueCell(event: SystemBasicEvent, cells: SyEventCells): JSX.Element {
+  if (carriesUncertainExpression(event.failureMode)) return componentValueCell(event, cells);
+  const rateBasis = event.quantificationBasis?.kind === "FAILURE_RATE" ? event.quantificationBasis : undefined;
+  if (requiresFailureRateConversionReview(rateBasis)) return <span className="sy-error">Review the conversion</span>;
+  const parameter = linkedParameter(event, cells.legacyParameters);
+  if (rateBasis !== undefined) {
+    const rate = parameter?.rateUnit === undefined ? rateBasis.failureRate : { value: parameter.value, unit: parameter.rateUnit };
+    return (
+      <>
+        <div className="posmono">{toExp(rate.value)} /{TIME_UNIT_LABELS[rate.unit]}</div>
+        <span className="sy-review-sub">{rateBasis.missionTime.value} {TIME_UNIT_LABELS[rateBasis.missionTime.unit]} mission</span>
+      </>
+    );
+  }
+  const humanFailure = linkedHumanFailure(event, cells.humanFailures);
+  const value = parameter !== undefined && parameter.rateUnit === undefined ? parameter.value : humanFailure?.value ?? event.probability;
+  return value === undefined ? <span className="sy-error">Not set</span> : <span className="posmono">{toExp(value)}</span>;
+}
+
+function eventSourceCell(event: SystemBasicEvent, cells: SyEventCells): JSX.Element {
+  if (carriesUncertainExpression(event.failureMode)) return componentSourceCell(event, cells);
+  if (event.controlledDataSource === undefined) return <span>Typed</span>;
+  const parameter = linkedParameter(event, cells.legacyParameters);
+  if (parameter !== undefined) {
+    return (
+      <>
+        <div>DA · {parameter.parameterName}</div>
+        <span className="sy-review-sub">{parameter.workbookName}</span>
+        {heldValueDiffers(event, parameter.value, parameter.rateUnit) && <span className="sy-review-sub sy-warn">Value changed in DA</span>}
+      </>
+    );
+  }
+  const humanFailure = linkedHumanFailure(event, cells.humanFailures);
+  if (humanFailure !== undefined) {
+    return (
+      <>
+        <div>HR · {humanFailure.humanFailureEventName}</div>
+        <span className="sy-review-sub">{humanFailure.workbookName} · {humanFailure.methodology}</span>
+        {humanFailure.value !== undefined && heldValueDiffers(event, humanFailure.value) && <span className="sy-review-sub sy-warn">Value changed in HR</span>}
+      </>
+    );
+  }
+  return <span className="sy-error">Linked source unavailable</span>;
+}
+
 function SyBasicEvents({ logic, openDrawer }: {
   logic: SystemLogicModel;
   openDrawer: (context: SyDrawerContext) => void;
 }): JSX.Element {
-  const { sy, editable, controlledParameters, controlledLegacyParameters, controlledHumanFailures } = useSyWorkbook();
+  const { sy, editable } = useSyWorkbook();
   const actionLabel = editable ? "Edit" : "View";
   const events = systemLogicModelBasicEvents(sy, logic);
   const houseEvents = logic.leafNodes.flatMap((leaf) => (leaf.kind === "HOUSE_EVENT" ? [leaf] : []));
-  const values = useSyValueSources();
-  const points = useEventPoints(events, values.table);
-  const label = values.label;
-
-  function componentValueCell(event: SystemBasicEvent): JSX.Element {
-    if (event.expression === undefined) return <span className="sy-error">Not set</span>;
-    return (
-      <>
-        <div><PointValue state={points.get(event.uuid)} /></div>
-        <span className="sy-review-sub">{expressionText(event.expression, label)}</span>
-      </>
-    );
-  }
-
-  function componentSourceCell(event: SystemBasicEvent): JSX.Element {
-    const sources = linkedOptions(event.expression, controlledParameters);
-    const missionTimes = linkedMissionTimes(event.expression, values.missionTimeOptions);
-    const missing = missingReferences(event.expression, values.table);
-    if (sources.length === 0 && missionTimes.length === 0 && missing.length === 0) return <span>Typed</span>;
-    return (
-      <>
-        {sources.map((source) => (
-          <div key={`${source.workbookId}:${source.parameterId}`}>
-            <div>DA · {source.parameterName}</div>
-            <span className="sy-review-sub">{source.workbookName}</span>
-          </div>
-        ))}
-        {missionTimes.map((option) => <div key={option.label}>SC · {option.label}</div>)}
-        {missing.length > 0 && <span className="sy-error">Linked source unavailable</span>}
-      </>
-    );
-  }
-
-  function valueCell(event: SystemBasicEvent): JSX.Element {
-    if (carriesUncertainExpression(event.failureMode)) return componentValueCell(event);
-    const rateBasis = event.quantificationBasis?.kind === "FAILURE_RATE" ? event.quantificationBasis : undefined;
-    if (requiresFailureRateConversionReview(rateBasis)) return <span className="sy-error">Review the conversion</span>;
-    const parameter = linkedParameter(event, controlledLegacyParameters);
-    if (rateBasis !== undefined) {
-      const rate = parameter?.rateUnit === undefined ? rateBasis.failureRate : { value: parameter.value, unit: parameter.rateUnit };
-      return (
-        <>
-          <div className="posmono">{toExp(rate.value)} /{TIME_UNIT_LABELS[rate.unit]}</div>
-          <span className="sy-review-sub">{rateBasis.missionTime.value} {TIME_UNIT_LABELS[rateBasis.missionTime.unit]} mission</span>
-        </>
-      );
-    }
-    const humanFailure = linkedHumanFailure(event, controlledHumanFailures);
-    const value = parameter !== undefined && parameter.rateUnit === undefined ? parameter.value : humanFailure?.value ?? event.probability;
-    return value === undefined ? <span className="sy-error">Not set</span> : <span className="posmono">{toExp(value)}</span>;
-  }
-
-  function sourceCell(event: SystemBasicEvent): JSX.Element {
-    if (carriesUncertainExpression(event.failureMode)) return componentSourceCell(event);
-    if (event.controlledDataSource === undefined) return <span>Typed</span>;
-    const parameter = linkedParameter(event, controlledLegacyParameters);
-    if (parameter !== undefined) {
-      return (
-        <>
-          <div>DA · {parameter.parameterName}</div>
-          <span className="sy-review-sub">{parameter.workbookName}</span>
-          {heldValueDiffers(event, parameter.value, parameter.rateUnit) && <span className="sy-review-sub sy-warn">Value changed in DA</span>}
-        </>
-      );
-    }
-    const humanFailure = linkedHumanFailure(event, controlledHumanFailures);
-    if (humanFailure !== undefined) {
-      return (
-        <>
-          <div>HR · {humanFailure.humanFailureEventName}</div>
-          <span className="sy-review-sub">{humanFailure.workbookName} · {humanFailure.methodology}</span>
-          {humanFailure.value !== undefined && heldValueDiffers(event, humanFailure.value) && <span className="sy-review-sub sy-warn">Value changed in HR</span>}
-        </>
-      );
-    }
-    return <span className="sy-error">Linked source unavailable</span>;
-  }
+  const cells = useEventCells(events);
 
   return (
     <div className="sy-review">
@@ -142,8 +155,8 @@ function SyBasicEvents({ logic, openDrawer }: {
                       {failureMode.length === 0 ? <span className="sy-review-none">Not recorded</span> : <span>{FAILURE_MODE_LABELS[failureMode] ?? failureMode}</span>}
                       {failureMode.length > 0 && <span className="sy-review-sub">{event.failureModeSource === undefined ? "Typed" : "DA"}</span>}
                     </td>
-                    <td>{valueCell(event)}</td>
-                    <td>{sourceCell(event)}</td>
+                    <td>{eventValueCell(event, cells)}</td>
+                    <td>{eventSourceCell(event, cells)}</td>
                     <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} ${event.code}`} onClick={() => openDrawer({ kind: "be", id: event.uuid })}>{actionLabel}</button></td>
                   </tr>
                 );
@@ -179,4 +192,4 @@ function SyBasicEvents({ logic, openDrawer }: {
   );
 }
 
-export { SyBasicEvents };
+export { SyBasicEvents, eventSourceCell, eventValueCell, useEventCells };

@@ -17,6 +17,7 @@ import { CommonCauseScreen } from "./SyCommonCause";
 import { DependenciesScreen } from "./SyDependencies";
 import { DependencyMatrix } from "./SyDependencyMatrix";
 import { ScopeScreen } from "./SyScope";
+import { SyHandoffScreen } from "./SyHandoff";
 import { ModelsScreen } from "./SySystemModels";
 import { DraftScreen, DrawerContent, PlaceholderScreen } from "./syScreens2";
 import { PlantUncertainty, UncertaintyScreen } from "./SyUncertaintyReview";
@@ -52,9 +53,10 @@ function headersFor(stepId: string): StepHeader {
     case "deps": return { eyebrow: "Step 05 · SY-B", title: "Dependencies" };
     case "integrity": return { eyebrow: "Step 06 · SY-A", title: "Model Integrity" };
     case "uncert": return { eyebrow: "Step 07 · SY-A · SY-B", title: "Uncertainty analysis" };
-    case "draft": return { eyebrow: "Step 08 · Draft", title: "Produce the draft" };
-    case "review": return { eyebrow: "Step 09 · Review", title: "Internal technical review" };
-    case "approval": return { eyebrow: "Step 10 · Approval", title: "Approval & sign-off" };
+    case "handoff": return { eyebrow: "Step 08", title: "Technical Element Handoff" };
+    case "draft": return { eyebrow: "Step 09 · Draft", title: "Produce the draft" };
+    case "review": return { eyebrow: "Step 10 · Review", title: "Internal technical review" };
+    case "approval": return { eyebrow: "Step 11 · Approval", title: "Approval & sign-off" };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -507,6 +509,7 @@ function SyWorkbench({
           <PlantUncertainty openDrawer={setDrawer} />
         </>
       );
+      case "handoff": return <SyHandoffScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (

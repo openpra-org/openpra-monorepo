@@ -135,6 +135,7 @@ import {
   collectHclUncertaintyReferences,
   collectSyFaultTreeReferences,
   humanFailureEventKey,
+  referencesOf,
   resolveUncertaintyTables,
   WorkbookPraxisAdapterError,
 } from "./praxis-snapshot-adapters";
@@ -158,7 +159,7 @@ import {
 } from "interfaces-mef-types/core/uncertainty";
 import type { HumanFailureEventReference, WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import { parameterLaw } from "interfaces-mef-types/esq/esq-measure-inputs";
-import { esqParameterRecord } from "interfaces-mef-types/esq/esq-run-inputs";
+import { esqParameterRecord, treeFrequency } from "interfaces-mef-types/esq/esq-run-inputs";
 import { PraetorAnalysisClient } from "./praetor-analysis.client";
 import { storedWorkbookRejection } from "../../workbooks/stored-workbook-format";
 
@@ -1864,6 +1865,17 @@ export class WorkbookAnalysisRunsService {
     }
   }
 
+  private hclInitiatorFrequency(owner: LoadedWorkbook<EventSequenceQuantification>, treeId: string): UncertainExpression {
+    const model = owner.mef.model;
+    if (model?.importedAt === undefined) throw new BadRequestException("Import the model in Step 02 before running.");
+    const tree = model.trees.find((candidate) => candidate.id === treeId);
+    if (tree === undefined) throw new BadRequestException(`Event tree ${treeId} is not in the imported model. Import the model again in Step 02.`);
+    if (tree.transferEntry) throw new BadRequestException(`${tree.code} is entered by transfer. Run the tree that transfers into it.`);
+    const frequency = treeFrequency(owner.mef, model, tree);
+    if (frequency === undefined) throw new BadRequestException(`${tree.code} has no initiator frequency. Complete the Initiators tab of Step 02.`);
+    return frequency;
+  }
+
   private hclFunctionalEventStandIns(
     hcl: LoadedHclSources,
     eventTree: LoadedWorkbook<EventSequenceAnalysis>,
@@ -2274,9 +2286,10 @@ export class WorkbookAnalysisRunsService {
         `Event tree links fault tree '${undeclared.modelId}' that is not declared by the HCL configuration`,
       );
     }
-    const initiators = adaptOrThrow(() => collectEsEventTreeReferences(eventTree, eventTreeModelIds));
+    const frequency = this.hclInitiatorFrequency(owner, request.eventTree.modelId);
+    const initiators = referencesOf([frequency]);
     const controlled = await this.resolveFaultTreeInputs(linked, [
-      { projectId: eventTree.projectId, references: initiators },
+      { projectId: owner.projectId, references: initiators },
       ...this.hclReferences(hcl, request.calculationType),
     ]);
     const sources = [
@@ -2378,7 +2391,7 @@ export class WorkbookAnalysisRunsService {
               adaptEsEventTreeSnapshot(eventTree, eventTreeModelId, {
                 workbookId: hcl.configurationOwner.workbookId,
                 modelId: hcl.configuration.modelId,
-              }, standInTops),
+              }, standInTops, frequency),
             ),
           ),
           ...faultTrees.modelSnapshots,
@@ -2654,9 +2667,10 @@ export class WorkbookAnalysisRunsService {
         `Event tree links fault tree '${undeclared.modelId}' that is not declared by the HCL configuration`,
       );
     }
-    const initiators = adaptOrThrow(() => collectEsEventTreeReferences(eventTree, eventTreeModelIds));
+    const frequency = this.hclInitiatorFrequency(owner, request.eventTree.modelId);
+    const initiators = referencesOf([frequency]);
     const controlled = await this.resolveFaultTreeInputs(linked, [
-      { projectId: eventTree.projectId, references: initiators },
+      { projectId: owner.projectId, references: initiators },
       ...this.hclReferences(hcl, request.calculationType),
     ]);
     const sources = [
@@ -2800,7 +2814,7 @@ export class WorkbookAnalysisRunsService {
               adaptEsEventTreeSnapshot(eventTree, eventTreeModelId, {
                 workbookId: hcl.configurationOwner.workbookId,
                 modelId: hcl.configuration.modelId,
-              }, standInTops),
+              }, standInTops, frequency),
             ),
           ),
           ...faultTrees.modelSnapshots,

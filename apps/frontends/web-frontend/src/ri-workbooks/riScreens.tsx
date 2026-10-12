@@ -1,10 +1,11 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
+import { HandoffImports } from "../workbooks/workbookHandoff";
+import { HANDOFF_ELEMENT_NAMES } from "interfaces-mef-types/technical-element-handoff";
 import { Fragment, JSX, type ReactNode, useId, useMemo, useState } from "react";
 import {
   PUBLISHED_REPORTING_FLOORS,
   PUBLISHED_RI_CRITERIA,
-  type CompiledRiskInput,
   type ConsequenceMeasure,
   type ModelUncertaintySource,
   type RiskUncertaintyAnalysis,
@@ -32,7 +33,7 @@ import {
 } from "interfaces-mef-types/ri/risk-integration";
 import { type RcMetricQuantity, type RcMetricReceptor, type RcMetricWindow, type RcMetricWindowStart } from "interfaces-mef-types/rc/metrics";
 import { EndState } from "interfaces-mef-types/core/events";
-import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
+import { type SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
 import {
   rcMetricDurationText,
   rcMetricQuantityLabels,
@@ -59,7 +60,7 @@ import {
   labelOf,
 } from "./riFields";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
-import { Badge, RiProvenanceChip, RiTabs, sciText, shareText, valText } from "./riShared";
+import { Badge, RiProvenanceChip, RiTabs, sciText, shareText } from "./riShared";
 import { useRiWorkbook } from "./riWorkbookContext";
 import {
   APPLICATION_TYPES,
@@ -71,9 +72,7 @@ import {
   LICENSING_ACTIONS,
   MEASURE_QUANTITY_LABELS,
   ELEMENT_CODE_BY_TYPE,
-  ELEMENT_NAME_BY_CODE,
   REGISTER_SIDE,
-  MEASURE_RECEPTOR_LABELS,
   MEASURE_ROLE_SPECS,
   MEASURE_WINDOW_START_LABELS,
   NEI_SET_LABEL,
@@ -82,14 +81,13 @@ import {
   RELATIVE_SET_LABEL,
   RI_CRITERIA_SPECS,
   RI_CRITERIA_SUBTABS,
-  RI_LINK_TILES,
+  RI_LINK_CODES,
   RI_SCOPE_ASPECTS,
   RI_STATISTICS,
   RI_STATISTIC_SHORT,
   SITE_BASES,
   exampleLinkLabel,
   type PlantStageId,
-  FC_META,
   type AppTypeId,
   type RiCriteriaSubTab,
   type RiCriterionSpec,
@@ -147,26 +145,6 @@ import {
   unavailableReasonOf,
   remPerUnit,
   countedItems,
-  handoffTargets,
-  handoffEntryOf,
-  handoffLevelOf,
-  withHandoffEntry,
-  handoffMessageOf,
-  withHandoffMessage,
-  withHandoffSent,
-  handoffReceiverOf,
-  handoffChangeCount,
-  withHandoffsUpdated,
-  handoffIssues,
-  handoffReceipts,
-  HANDOFF_ELEMENTS,
-  HANDOFF_RECEIVERS,
-  type RiHandoffTarget,
-  type RiHandoffEntry,
-  type RiHandoffGroup,
-  type RiHandoffReceiver,
-  type RiReceipt,
-  type RiReceiptRow,
   contributorValues,
   contributorTypeLabel,
   sscContributors,
@@ -227,21 +205,12 @@ import {
   withModuleAdded,
   withScopeReason,
   withScopeState,
-  fcPointsView,
-  ccdfPointsView,
-  metricRollup,
-  type FcPointView,
   type ScopeRowView,
   type ScopeState,
 } from "./riSelectors";
-import {
-  consequenceMetricMatches,
-  meanFrequencyValue,
-  sourcesForEventSequenceFamily,
-} from "../workbooks/riskWorkbookConnections";
 
 interface RiDrawerContext {
-  kind: "family" | "measure" | "inputFamily" | "inputSequence" | "inputConsequence" | "inputContributor" | "inputImportance" | "inputGap" | "cliffEdge" | "aggregationNote" | "sscAssignment" | "uncertaintySource" | "screenedItem" | "uncertaintyAnalysis" | "sensitivityStudy" | "handoff" | "calc" | "metric" | "aggregation" | "hazardgroup" | "grouping" | "contributor" | "contribbasis" | "musource" | "screened" | "propagation" | "sensitivity" | "dispatch" | "method";
+  kind: "measure" | "inputFamily" | "inputSequence" | "inputConsequence" | "inputContributor" | "inputImportance" | "inputGap" | "cliffEdge" | "aggregationNote" | "sscAssignment" | "uncertaintySource" | "screenedItem" | "uncertaintyAnalysis" | "sensitivityStudy";
   id: string;
 }
 
@@ -266,32 +235,26 @@ const APPLICATION_TABS: { id: ApplicationTab; label: string }[] = [
   { id: "measures", label: "Measures and floors" },
 ];
 
-const WORKBOOK_STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  "in-progress": "In progress",
-  complete: "Complete",
-};
-
 function RiInterfaces(): JSX.Element {
   const { ri, editable, mutateRi, upstream } = useRiWorkbook();
   const [selected, setSelected] = useState<RiLinkCode | null>("POS");
   const selectId = useId();
   const links = applicationContextOf(ri).linkedWorkbooks;
-  const tile = RI_LINK_TILES.find((t) => t.code === selected);
-  const options = tile === undefined ? [] : upstream.options[tile.code];
-  const linkedId = tile === undefined ? undefined : links[tile.code];
+  const tile = RI_LINK_CODES.find((code) => code === selected);
+  const options = tile === undefined ? [] : upstream.options[tile];
+  const linkedId = tile === undefined ? undefined : links[tile];
   const linked = options.find((w) => w.id === linkedId);
   const exampleLabel = linkedId === undefined ? undefined : exampleLinkLabel(linkedId);
-  const nothingToLink = options.length === 0 && exampleLabel === undefined;
+  const nothingToLink = options.length === 0 && linkedId === undefined;
 
   function onLink(code: RiLinkCode, id: string): void {
     if (!editable) return;
     mutateRi((draft) => {
       const context = applicationContextOf(draft);
       const next: RiLinkedWorkbooks = {};
-      for (const t of RI_LINK_TILES) {
-        const value = t.code === code ? id : context.linkedWorkbooks[t.code];
-        if (value !== undefined && value.length > 0) next[t.code] = value;
+      for (const candidate of RI_LINK_CODES) {
+        const value = candidate === code ? id : context.linkedWorkbooks[candidate];
+        if (value !== undefined && value.length > 0) next[candidate] = value;
       }
       return { ...draft, applicationContext: { ...context, linkedWorkbooks: next } };
     });
@@ -300,16 +263,16 @@ function RiInterfaces(): JSX.Element {
   return (
     <>
       <div className="poshandoff__grid ri-handoff__interface-tiles">
-        {RI_LINK_TILES.map((t) => (
+        {RI_LINK_CODES.map((code) => (
           <button
-            key={t.code}
+            key={code}
             type="button"
-            className={`poshandoff__tile${selected === t.code ? " poshandoff__tile--active" : ""}`}
-            onClick={() => setSelected(selected === t.code ? null : t.code)}
+            aria-pressed={selected === code}
+            className={`poshandoff__tile${selected === code ? " poshandoff__tile--active" : ""}`}
+            onClick={() => setSelected(selected === code ? null : code)}
           >
-            <span className="poshandoff__tile-code">{t.code}</span>
-            <span className="poshandoff__tile-name">{t.name}</span>
-            <span className="poshandoff__tile-role">{t.handoff}</span>
+            <span className="poshandoff__tile-code">{code}</span>
+            <span className="poshandoff__tile-name">{HANDOFF_ELEMENT_NAMES[code]}</span>
           </button>
         ))}
       </div>
@@ -322,44 +285,15 @@ function RiInterfaces(): JSX.Element {
               className="posfield__select"
               value={linkedId ?? ""}
               disabled={!editable || nothingToLink}
-              onChange={(e) => onLink(tile.code, e.target.value)}
+              onChange={(e) => onLink(tile, e.target.value)}
             >
-              <option value="">{nothingToLink ? `No ${tile.code} workbooks in this project` : "Not linked"}</option>
+              <option value="">{nothingToLink ? `No ${tile} workbooks in this project` : "Not linked"}</option>
               {exampleLabel !== undefined && linkedId !== undefined && <option value={linkedId}>{exampleLabel}</option>}
               {options.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              {linkedId !== undefined && linked === undefined && exampleLabel === undefined && <option value={linkedId}>{`${tile} workbook not in this project`}</option>}
             </select>
           </div>
-          {linkedId !== undefined && linked === undefined && exampleLabel === undefined && (
-            <p className="posmuted ri-link__note">The linked workbook is not in this project.</p>
-          )}
-          {exampleLabel !== undefined && (
-            <table className="postable postable--mid ri-link__table">
-              <thead><tr><th>Workbook</th><th>Status</th><th>Version</th><th>Owner</th><th>Updated</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td><div className="postable__name">{exampleLabel}</div></td>
-                  <td>Example</td>
-                  <td className="posmono">—</td>
-                  <td>OpenPRA</td>
-                  <td className="posmono">—</td>
-                </tr>
-              </tbody>
-            </table>
-          )}
-          {linked !== undefined && (
-            <table className="postable postable--mid ri-link__table">
-              <thead><tr><th>Workbook</th><th>Status</th><th>Version</th><th>Owner</th><th>Updated</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td><div className="postable__name">{linked.name}</div></td>
-                  <td>{WORKBOOK_STATUS_LABEL[linked.status] ?? linked.status}</td>
-                  <td className="posmono">v{linked.version}</td>
-                  <td>{linked.ownerFullName}</td>
-                  <td className="posmono">{linked.updatedAt.slice(0, 10)}</td>
-                </tr>
-              </tbody>
-            </table>
-          )}
+          <HandoffImports consumer="RI" producer={tile} />
         </div>
       )}
     </>
@@ -4631,1042 +4565,8 @@ function UncertaintyStepScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerConte
   );
 }
 
-type HandoffTab = "summary" | "esq" | "ms" | "rc" | "elements" | "responses";
-
-const LEVEL_TEXT: Record<ImportanceLevel, string> = {
-  [ImportanceLevel.HIGH]: "High",
-  [ImportanceLevel.MEDIUM]: "Medium",
-  [ImportanceLevel.LOW]: "Low",
-};
-
-const LEVEL_OPTIONS: ImportanceLevel[] = [ImportanceLevel.HIGH, ImportanceLevel.MEDIUM, ImportanceLevel.LOW];
-
-const HANDOFF_GROUP_LIST: RiHandoffGroup[] = ["family", "contributor", "category", "sourceTerm", "measure", "element"];
-
-const HANDOFF_GROUP_CAPS: Record<RiHandoffGroup, string> = {
-  family: "Family hand-off to ESQ",
-  contributor: "Contributor hand-off to ESQ",
-  category: "Release category hand-off to MS",
-  sourceTerm: "Source term hand-off to MS",
-  measure: "Measure hand-off to RC",
-  element: "Hand-off",
-};
-
-const HANDOFF_GROUP_KINDS: Record<RiHandoffGroup, string> = {
-  family: "Family",
-  contributor: "Contributor",
-  category: "Release category",
-  sourceTerm: "Source term",
-  measure: "Measure",
-  element: "Element",
-};
-
-const RESPONSE_STATUS_TEXT: Record<string, string> = {
-  PENDING: "Pending",
-  IN_PROGRESS: "In progress",
-  COMPLETED: "Completed",
-  ADDRESSED: "Addressed",
-  DEFERRED: "Deferred",
-};
-
-function handoffDrawerId(group: RiHandoffGroup, key: string): string {
-  return `${group}::${key}`;
-}
-
-function parseHandoffId(id: string): { group: RiHandoffGroup; key: string } | undefined {
-  const at = id.indexOf("::");
-  if (at < 0) return undefined;
-  const group = HANDOFF_GROUP_LIST.find((g) => g === id.slice(0, at));
-  return group === undefined ? undefined : { group, key: id.slice(at + 2) };
-}
-
 function contributorKindText(type: string): string {
   return CONTRIBUTOR_TYPE_SINGULAR[type] ?? IMPORTANCE_TYPE_LABELS[type] ?? type;
-}
-
-function handoffRuleText(ri: RiskIntegration): string {
-  const set = criteriaSetOf(ri);
-  return appTypeFromMef(ri) === "fixed_risk_target"
-    ? `High means risk-significant under NEI 18-04: a risk-significant LBE, or above ${set.absolute.sscCumulativePercent.value}% of a cumulative target. Medium is the analyst's call and needs a reason. Everything else goes as Low.`
-    : `High means risk-significant under RA-S-1.4 Table 1.9-1: in the top ${set.relative.aggregatePercent.value}% or above ${set.relative.individualPercent.value}% of a total, or a basic event above the Fussell-Vesely or RAW bar. Medium is the analyst's call and needs a reason. Everything else goes as Low.`;
-}
-
-function handoffDetail(target: RiHandoffTarget, entry: RiHandoffEntry | undefined): string {
-  if (target.group === "sourceTerm") {
-    const list = entry?.keyUncertainties ?? [];
-    return list.length === 0 ? "None yet" : list.join(", ");
-  }
-  if (target.group === "element") {
-    const message = entry?.generalFeedback ?? "";
-    return message.trim().length === 0 ? "No message" : message;
-  }
-  const list = entry?.recommendations ?? [];
-  const first = list[0];
-  if (first === undefined) return "None";
-  return list.length > 1 ? `${first} And ${list.length - 1} more.` : first;
-}
-
-function HandoffTable({ group, caption, keyHead, labelHead, sharesHead, detailHead, labelOf, openDrawer }: {
-  group: RiHandoffGroup;
-  caption: string;
-  keyHead: string;
-  labelHead: string;
-  sharesHead?: string;
-  detailHead: string;
-  labelOf: (target: RiHandoffTarget) => string;
-  openDrawer: (ctx: RiDrawerContext) => void;
-}): JSX.Element {
-  const { ri } = useRiWorkbook();
-  const targets = handoffTargets(ri).filter((t) => t.group === group);
-  if (targets.length === 0) return <p className="posmuted">Nothing to hand off yet.</p>;
-  return (
-    <div className="ricriteria__table-wrap">
-      <table className="postable ri-rowtable" aria-label={caption}>
-        <thead>
-          <tr>
-            <th>{keyHead}</th><th>{labelHead}</th>{sharesHead !== undefined && <th>{sharesHead}</th>}<th>Test</th><th>Result</th><th>Sent as</th><th>{detailHead}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {targets.map((t) => {
-            const entry = handoffEntryOf(ri, t.group, t.key);
-            return (
-              <tr key={t.key}>
-                <td className="ri-rowtable__wrap">
-                  <button type="button" className="ri-rowtable__name" onClick={() => openDrawer({ kind: "handoff", id: handoffDrawerId(t.group, t.key) })}>{t.key}</button>
-                </td>
-                <td className="ri-rowtable__wrap">{labelOf(t)}</td>
-                {sharesHead !== undefined && <td className="ri-rowtable__wrap">{t.shares}</td>}
-                <td className="ri-rowtable__wrap">{t.basis}</td>
-                <td>{LEVEL_TEXT[t.derived]}</td>
-                <td>{LEVEL_TEXT[entry?.riskSignificance ?? t.derived]}</td>
-                <td className="ri-rowtable__wrap">{handoffDetail(t, entry)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function HandoffMessageCard({ receiver }: { receiver: RiHandoffReceiver }): JSX.Element {
-  const { ri, editable, mutateRi } = useRiWorkbook();
-  const fieldId = useId();
-  return (
-    <div className="poscard">
-      <div className="poscard__head">
-        <WorkbookSectionHeading workbook="RI" title={`Message to ${receiver}`} level={3} />
-        <RiProvenanceChip>RI-D1</RiProvenanceChip>
-      </div>
-      <div className="ri-form ri-form--card">
-        <FormRow label="Message" htmlFor={fieldId} top>
-          <WorkbookTextarea
-            id={fieldId}
-            className="posfield__textarea"
-            rows={2}
-            fitContent
-            value={handoffMessageOf(ri, receiver)}
-            disabled={!editable}
-            onChange={(e) => {
-              if (!editable) return;
-              const text = e.target.value;
-              mutateRi((d) => withHandoffMessage(d, receiver, text));
-            }}
-          />
-        </FormRow>
-      </div>
-    </div>
-  );
-}
-
-function HandoffGroupCard({ title, sr, note, children }: { title: string; sr: string; note: string; children: ReactNode }): JSX.Element {
-  return (
-    <div className="poscard">
-      <div className="poscard__head">
-        <WorkbookSectionHeading workbook="RI" title={title} level={3} />
-        <RiProvenanceChip>{sr}</RiProvenanceChip>
-      </div>
-      <p className="ri-step__note">{note}</p>
-      {children}
-    </div>
-  );
-}
-
-function HandoffSummary({ onOpenTab, openDrawer }: { onOpenTab: (tab: HandoffTab) => void; openDrawer: (ctx: RiDrawerContext) => void }): JSX.Element {
-  const { ri, editable, mutateRi } = useRiWorkbook();
-  const targets = handoffTargets(ri);
-  const changes = handoffChangeCount(ri);
-  const issues = handoffIssues(ri);
-  const sentOn = ri.riskIntegrationFeedbackDispatch?.dispatchDate;
-  const counts = (list: RiHandoffTarget[]): Record<ImportanceLevel, number> => {
-    const out: Record<ImportanceLevel, number> = { [ImportanceLevel.HIGH]: 0, [ImportanceLevel.MEDIUM]: 0, [ImportanceLevel.LOW]: 0 };
-    for (const t of list) out[handoffLevelOf(ri, t)] += 1;
-    return out;
-  };
-  const receiverTabs: Record<RiHandoffReceiver, HandoffTab> = { ESQ: "esq", MS: "ms", RC: "rc" };
-  const rows: { code: string; list: RiHandoffTarget[]; message: string; open: () => void }[] = [
-    ...HANDOFF_RECEIVERS.map((receiver) => ({
-      code: receiver,
-      list: targets.filter((t) => handoffReceiverOf(t.group) === receiver),
-      message: handoffMessageOf(ri, receiver),
-      open: () => onOpenTab(receiverTabs[receiver]),
-    })),
-    ...HANDOFF_ELEMENTS.map((code) => ({
-      code,
-      list: targets.filter((t) => t.group === "element" && t.key === code),
-      message: handoffEntryOf(ri, "element", code)?.generalFeedback ?? "",
-      open: () => openDrawer({ kind: "handoff", id: handoffDrawerId("element", code) }),
-    })),
-  ];
-  return (
-    <div className="poscard">
-      <div className="poscard__head">
-        <WorkbookSectionHeading workbook="RI" title="Hand-off record" level={3} />
-        <div className="posrow" style={{ gap: 10 }}>
-          <RiProvenanceChip>RI-B6 · D1</RiProvenanceChip>
-          {editable && changes > 0 && (
-            <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateRi((d) => withHandoffsUpdated(d))}>Update {changes} from Steps 04 to 06</button>
-          )}
-          {editable && ri.inputs !== undefined && (
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => mutateRi((d) => withHandoffSent(d, new Date().toISOString()))}>Record as sent</button>
-          )}
-        </div>
-      </div>
-      <p className="ri-step__note">{handoffRuleText(ri)} {sentOn === undefined || sentOn.trim().length === 0 ? "Not sent yet." : `Sent ${new Date(sentOn).toLocaleDateString()}.`}</p>
-      {ri.inputs === undefined ? (
-        <p className="posmuted">Nothing is imported yet. Import the families in Step 02 first.</p>
-      ) : (
-        <div className="ricriteria__table-wrap">
-          <table className="postable ri-rowtable" aria-label="Hand-offs by receiving element">
-            <thead><tr><th>Element</th><th>Name</th><th>Items</th><th>High</th><th>Medium</th><th>Low</th><th>Message</th></tr></thead>
-            <tbody>
-              {rows.map((row) => {
-                const level = counts(row.list);
-                return (
-                  <tr key={row.code}>
-                    <td><button type="button" className="ri-rowtable__name" onClick={row.open}>{row.code}</button></td>
-                    <td className="ri-rowtable__wrap">{ELEMENT_NAME_BY_CODE[row.code] ?? row.code}</td>
-                    <td>{row.list.length}</td>
-                    <td>{level[ImportanceLevel.HIGH]}</td>
-                    <td>{level[ImportanceLevel.MEDIUM]}</td>
-                    <td>{level[ImportanceLevel.LOW]}</td>
-                    <td className="ri-rowtable__wrap">{row.message.trim().length === 0 ? "No message" : row.message}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {issues.length > 0 && <p className="ri-inputs__meta">To complete the hand-off: {issues.slice(0, 6).join(" ")}{issues.length > 6 ? ` And ${issues.length - 6} more.` : ""}</p>}
-    </div>
-  );
-}
-
-function ReceiptCard({ receipt }: { receipt: RiReceipt }): JSX.Element {
-  const { ri } = useRiWorkbook();
-  const name = ELEMENT_NAME_BY_CODE[receipt.receiver] ?? receipt.receiver;
-  const match = (row: RiReceiptRow): string => {
-    if (row.sent === undefined) return "Not sent";
-    if (row.recorded === undefined) return "Not recorded";
-    return row.sent === row.recorded ? "Same" : "Differs";
-  };
-  const differs = receipt.rows.filter((row) => match(row) === "Differs");
-  return (
-    <div className="poscard">
-      <div className="poscard__head">
-        <WorkbookSectionHeading workbook="RI" title={name} level={3} />
-        <RiProvenanceChip>{receipt.receiver}</RiProvenanceChip>
-      </div>
-      {!receipt.linked ? (
-        <p className="posmuted">Not linked in Step 01.</p>
-      ) : !receipt.loaded ? (
-        <p className="posmuted">The linked workbook is not read yet.</p>
-      ) : !receipt.recorded ? (
-        <p className="posmuted">{receipt.receiver} has recorded no feedback from RI yet.</p>
-      ) : (
-        <>
-          <p className="ri-step__note">
-            {receipt.recordedOn === undefined ? "Recorded" : `Recorded ${new Date(receipt.recordedOn).toLocaleDateString()}`} for {receipt.analysisRef}
-            {receipt.analysisRef !== undefined && receipt.analysisRef !== ri.uuid ? `, which is not this workbook (${ri.uuid}).` : "."}
-            {differs.length > 0 ? ` ${differs.length} of its levels differ from what RI sends now.` : " Every recorded level matches what RI sends."}
-          </p>
-          {receipt.rows.length > 0 && (
-            <div className="ricriteria__table-wrap">
-              <table className="postable ri-rowtable" aria-label={`What ${receipt.receiver} recorded`}>
-                <thead><tr><th>Item</th><th>Kind</th><th>RI sends</th><th>{receipt.receiver} records</th><th>Match</th><th>Status</th></tr></thead>
-                <tbody>
-                  {receipt.rows.map((row) => (
-                    <tr key={`${row.group}:${row.key}`}>
-                      <td className="ri-rowtable__wrap">{row.key}</td>
-                      <td>{HANDOFF_GROUP_KINDS[row.group]}</td>
-                      <td>{row.sent === undefined ? "—" : LEVEL_TEXT[row.sent]}</td>
-                      <td>{row.recorded === undefined ? "—" : LEVEL_TEXT[row.recorded]}</td>
-                      <td>{match(row)}</td>
-                      <td>{row.status === undefined ? "—" : RESPONSE_STATUS_TEXT[row.status] ?? row.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {receipt.response === undefined ? (
-            <p className="ri-inputs__meta">{receipt.receiver} has not responded yet.</p>
-          ) : (
-            <>
-              <h4 className="ri-step__subhead">Response, {(RESPONSE_STATUS_TEXT[receipt.response.status] ?? receipt.response.status).toLowerCase()}</h4>
-              <p className="ri-step__note">{receipt.response.description}</p>
-              {receipt.response.changes.length > 0 && (
-                <div className="ricriteria__table-wrap">
-                  <table className="postable ri-rowtable" aria-label={`Changes ${receipt.receiver} reports`}>
-                    <thead><tr><th>Changes {receipt.receiver} reports</th></tr></thead>
-                    <tbody>
-                      {receipt.response.changes.map((change) => <tr key={change}><td className="ri-rowtable__wrap">{change}</td></tr>)}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-function HandoffDrawer({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
-  const { ri, editable, mutateRi } = useRiWorkbook();
-  const fieldId = useId();
-  const parsed = parseHandoffId(id);
-  const target = parsed === undefined ? undefined : handoffTargets(ri).find((t) => t.group === parsed.group && t.key === parsed.key);
-  if (target === undefined) return null;
-  const entry = handoffEntryOf(ri, target.group, target.key);
-  const level = entry?.riskSignificance ?? target.derived;
-  const dis = !editable;
-  const fid = (name: string): string => `${fieldId}-${name}`;
-  const lines = (text: string): string[] => text.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
-  function write(next: RiHandoffEntry): void {
-    if (!editable || target === undefined) return;
-    const group = target.group;
-    const key = target.key;
-    const derived = target.derived;
-    const insight = target.insight;
-    mutateRi((d) => {
-      const current = handoffEntryOf(d, group, key) ?? { riskSignificance: derived, insights: [insight] };
-      return withHandoffEntry(d, group, key, { ...current, riskSignificance: current.riskSignificance ?? derived, ...next });
-    });
-  }
-  const cap = target.group === "element" ? `Hand-off to ${target.key} · RI-B6 · D1` : `${HANDOFF_GROUP_CAPS[target.group]} · RI-B6 · D1`;
-  const title = target.group === "element" ? target.label : target.key;
-  return (
-    <>
-      <DrawerHead cap={cap} title={title} onClose={onClose} />
-      <div className="modal__body ri-form">
-        <FormRow label="Sent as" htmlFor={fid("level")}>
-          <select
-            id={fid("level")}
-            className="posfield__select"
-            value={level}
-            disabled={dis}
-            onChange={(e) => {
-              const next = LEVEL_OPTIONS.find((l) => l === e.target.value);
-              if (next !== undefined) write({ riskSignificance: next });
-            }}
-          >
-            {LEVEL_OPTIONS.map((l) => <option key={l} value={l}>{LEVEL_TEXT[l]}</option>)}
-          </select>
-        </FormRow>
-        {level !== target.derived && (
-          <FormRow label="Reason for the level" htmlFor={fid("reason")} top>
-            <WorkbookTextarea id={fid("reason")} className="posfield__textarea" rows={2} fitContent value={entry?.significanceReason ?? ""} disabled={dis} onChange={(e) => write({ significanceReason: e.target.value })} />
-          </FormRow>
-        )}
-        {target.group === "element" && (
-          <FormRow label="Message" htmlFor={fid("message")} top>
-            <WorkbookTextarea id={fid("message")} className="posfield__textarea" rows={2} fitContent value={entry?.generalFeedback ?? ""} disabled={dis} onChange={(e) => write({ generalFeedback: e.target.value })} />
-          </FormRow>
-        )}
-        <FormRow label="Insights" htmlFor={fid("insights")} top>
-          <WorkbookTextarea id={fid("insights")} className="posfield__textarea" rows={2} fitContent value={(entry?.insights ?? [target.insight]).join("\n")} disabled={dis} onChange={(e) => write({ insights: lines(e.target.value) })} />
-        </FormRow>
-        {target.group === "sourceTerm" ? (
-          <FormRow label="Key uncertainties" htmlFor={fid("uncertainties")} top>
-            <WorkbookTextarea id={fid("uncertainties")} className="posfield__textarea" rows={2} fitContent value={(entry?.keyUncertainties ?? []).join("\n")} disabled={dis} onChange={(e) => write({ keyUncertainties: lines(e.target.value) })} />
-          </FormRow>
-        ) : (
-          <FormRow label="Recommendations" htmlFor={fid("recommendations")} top>
-            <WorkbookTextarea id={fid("recommendations")} className="posfield__textarea" rows={2} fitContent value={(entry?.recommendations ?? []).join("\n")} disabled={dis} onChange={(e) => write({ recommendations: lines(e.target.value) })} />
-          </FormRow>
-        )}
-      </div>
-      <FormFoot onClose={onClose}>
-        {editable && level !== target.derived && (
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => write({ riskSignificance: target.derived })}>Use the test result</button>
-        )}
-      </FormFoot>
-    </>
-  );
-}
-
-function HandoffsScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => void }): JSX.Element {
-  const { ri, upstream } = useRiWorkbook();
-  const [tab, setTab] = useState<HandoffTab>("summary");
-  const tabId = useId();
-  const imported = ri.inputs !== undefined;
-  const rule = handoffRuleText(ri);
-  const tabs: { id: HandoffTab; label: string }[] = [
-    { id: "summary", label: "Summary" },
-    { id: "esq", label: "ESQ" },
-    { id: "ms", label: "MS" },
-    { id: "rc", label: "RC" },
-    { id: "elements", label: "Other elements" },
-    { id: "responses", label: "Responses" },
-  ];
-  const notImported = <div className="poscard"><p className="posmuted">Nothing is imported yet. Import the families in Step 02 first.</p></div>;
-  return (
-    <div className="ri-step">
-      <RiTabs label="Hand-off sections" tabs={tabs} active={tab} onChange={setTab} idBase={tabId} className="ri-step__tabs" />
-      <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0}>
-        {tab === "summary" ? (
-          <HandoffSummary onOpenTab={setTab} openDrawer={openDrawer} />
-        ) : tab === "responses" ? (
-          handoffReceipts(ri, upstream).map((receipt) => <ReceiptCard key={receipt.receiver} receipt={receipt} />)
-        ) : !imported ? (
-          notImported
-        ) : tab === "esq" ? (
-          <>
-            <HandoffGroupCard title="Families" sr="RI-B6" note={`${rule} Each family's test uses Steps 04 and 05.`}>
-              <HandoffTable group="family" caption="Family hand-offs" keyHead="Family" labelHead="Name" sharesHead="Share" detailHead="Recommendation" labelOf={(t) => t.label} openDrawer={openDrawer} />
-            </HandoffGroupCard>
-            <HandoffGroupCard title="Contributors" sr="RI-B6" note="The contributors, valued on each total as in Step 06.">
-              <HandoffTable group="contributor" caption="Contributor hand-offs" keyHead="Contributor" labelHead="Type" sharesHead="Share" detailHead="Recommendation" labelOf={(t) => contributorKindText(t.label)} openDrawer={openDrawer} />
-            </HandoffGroupCard>
-            <HandoffMessageCard receiver="ESQ" />
-          </>
-        ) : tab === "ms" ? (
-          <>
-            <HandoffGroupCard title="Release categories" sr="RI-B6" note={`${rule} A release category follows the families it holds.`}>
-              <HandoffTable group="category" caption="Release category hand-offs" keyHead="Release category" labelHead="Families" sharesHead="Share" detailHead="Recommendation" labelOf={(t) => t.label} openDrawer={openDrawer} />
-            </HandoffGroupCard>
-            <HandoffGroupCard title="Source terms" sr="RI-B6" note="Each source term follows the release category it feeds.">
-              <HandoffTable group="sourceTerm" caption="Source term hand-offs" keyHead="Source term" labelHead="Release category" detailHead="Key uncertainties" labelOf={(t) => t.label} openDrawer={openDrawer} />
-            </HandoffGroupCard>
-            <HandoffMessageCard receiver="MS" />
-          </>
-        ) : tab === "rc" ? (
-          <>
-            <HandoffGroupCard title="Measures" sr="RI-B6" note={`${rule} A measure is High when a risk-significant item is found through it.`}>
-              <HandoffTable group="measure" caption="Measure hand-offs" keyHead="Measure" labelHead="Total" sharesHead="Largest category" detailHead="Recommendation" labelOf={(t) => t.label} openDrawer={openDrawer} />
-            </HandoffGroupCard>
-            <HandoffMessageCard receiver="RC" />
-          </>
-        ) : (
-          <HandoffGroupCard title="Other elements" sr="RI-B6 · D1" note={`${rule} POS, IE and ES are High when a family they feed is risk-significant. SC follows the failed functions, and SY, HR and DA follow their contributors.`}>
-            <HandoffTable group="element" caption="Element hand-offs" keyHead="Element" labelHead="Name" sharesHead="Largest item" detailHead="Message" labelOf={(t) => t.label} openDrawer={openDrawer} />
-          </HandoffGroupCard>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Plot axes, derived from the data so nothing can fall outside the box ───
-interface Bounds {
-  min: number;
-  max: number;
-  ticks: number[];
-}
-
-function decadeBounds(values: number[], extra: number[]): Bounds {
-  const all = [...values, ...extra].filter((v) => v > 0 && Number.isFinite(v));
-  if (all.length === 0) return { min: 1e-9, max: 1e0, ticks: [-9, -6, -3, 0] };
-  const lo = Math.floor(log10(Math.min(...all)));
-  const hi = Math.max(lo + 1, Math.ceil(log10(Math.max(...all))));
-  const step = hi - lo > 6 ? 2 : 1;
-  const ticks: number[] = [];
-  for (let e = lo; e <= hi; e += step) ticks.push(e);
-  return { min: Math.pow(10, lo), max: Math.pow(10, hi), ticks };
-}
-
-// ─── Label placement, so point names never sit on the line or on each other ──
-interface LabelBox {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}
-
-type Anchor = "middle" | "start" | "end";
-
-const LABEL_CANDIDATES: { dx: number; dy: number; anchor: Anchor }[] = [
-  { dx: 0, dy: -13, anchor: "middle" },
-  { dx: 0, dy: 18, anchor: "middle" },
-  { dx: 12, dy: 4, anchor: "start" },
-  { dx: -12, dy: 4, anchor: "end" },
-  { dx: 12, dy: -9, anchor: "start" },
-  { dx: -12, dy: -9, anchor: "end" },
-  { dx: 12, dy: 16, anchor: "start" },
-  { dx: -12, dy: 16, anchor: "end" },
-  { dx: 0, dy: -25, anchor: "middle" },
-  { dx: 0, dy: 30, anchor: "middle" },
-];
-
-const FAR_LABEL_CANDIDATES: { dx: number; dy: number; anchor: Anchor }[] = [1, 2, 3, 4, 5].flatMap((step) => {
-  const d = 22 + step * 12;
-  const k = Math.round(d * 0.7);
-  return [
-    { dx: 0, dy: -d, anchor: "middle" as const },
-    { dx: 0, dy: d + 5, anchor: "middle" as const },
-    { dx: d, dy: 4, anchor: "start" as const },
-    { dx: -d, dy: 4, anchor: "end" as const },
-    { dx: k, dy: -k, anchor: "start" as const },
-    { dx: -k, dy: -k, anchor: "end" as const },
-    { dx: k, dy: k + 4, anchor: "start" as const },
-    { dx: -k, dy: k + 4, anchor: "end" as const },
-  ];
-});
-
-function labelBox(x: number, y: number, text: string, anchor: Anchor): LabelBox {
-  const w = text.length * 5.4 + 4;
-  const h = 11;
-  const x1 = anchor === "middle" ? x - w / 2 : anchor === "start" ? x : x - w;
-  return { x1, y1: y - h + 2, x2: x1 + w, y2: y + 2 };
-}
-
-function boxesHit(a: LabelBox, b: LabelBox): boolean {
-  return a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
-}
-
-interface Frame {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-}
-
-function insidePlot(b: LabelBox, f: Frame): boolean {
-  return b.x1 >= f.left && b.x2 <= f.right && b.y1 >= f.top && b.y2 <= f.bottom;
-}
-
-function clampInto(x: number, y: number, text: string, anchor: Anchor, f: Frame): { x: number; y: number } {
-  const b = labelBox(x, y, text, anchor);
-  let dx = 0;
-  let dy = 0;
-  if (b.x1 < f.left) dx = f.left - b.x1;
-  else if (b.x2 > f.right) dx = f.right - b.x2;
-  if (b.y1 < f.top) dy = f.top - b.y1;
-  else if (b.y2 > f.bottom) dy = f.bottom - b.y2;
-  return { x: x + dx, y: y + dy };
-}
-
-interface PlacedLabel {
-  id: string;
-  text: string;
-  x: number;
-  y: number;
-  anchor: Anchor;
-  leader?: { x: number; y: number };
-}
-
-function freeSpot(it: { id: string; text: string; cx: number; cy: number }, candidates: { dx: number; dy: number; anchor: Anchor }[], taken: LabelBox[], frame: Frame): PlacedLabel | undefined {
-  for (const cand of candidates) {
-    const x = it.cx + cand.dx;
-    const y = it.cy + cand.dy;
-    const box = labelBox(x, y, it.text, cand.anchor);
-    if (!insidePlot(box, frame)) continue;
-    if (taken.some((t) => boxesHit(box, t))) continue;
-    return { id: it.id, text: it.text, x, y, anchor: cand.anchor };
-  }
-  return undefined;
-}
-
-function placeLabels(
-  items: { id: string; text: string; cx: number; cy: number; optional?: boolean }[],
-  obstacles: LabelBox[],
-  frame: Frame,
-): PlacedLabel[] {
-  const taken: LabelBox[] = [...obstacles];
-  const placed: PlacedLabel[] = [];
-  for (const it of items) {
-    let best = freeSpot(it, LABEL_CANDIDATES, taken, frame);
-    if (best === undefined && it.optional === true) continue;
-    if (best === undefined && it.optional === false) {
-      const far = freeSpot(it, FAR_LABEL_CANDIDATES, taken, frame);
-      if (far !== undefined) best = { ...far, leader: { x: it.cx, y: it.cy } };
-    }
-    if (best === undefined) {
-      const cand = LABEL_CANDIDATES[0];
-      const c = clampInto(it.cx + cand.dx, it.cy + cand.dy, it.text, cand.anchor, frame);
-      best = { id: it.id, text: it.text, x: c.x, y: c.y, anchor: cand.anchor };
-    }
-    taken.push(labelBox(best.x, best.y, best.text, best.anchor));
-    placed.push(best);
-  }
-  return placed;
-}
-
-// ─── The frequency-consequence plot (RI-B2 b) ──────────────────────────────
-function FCPlot({ points, axisLabel }: { points: FcPointView[]; axisLabel: string }): JSX.Element {
-  const W = 480;
-  const H = 360;
-  const x0 = 46;
-  const x1 = 466;
-  const yTop = 16;
-  const yBot = 320;
-  const { targetFrom, targetTo } = FC_META;
-  const xb = decadeBounds(points.map((p) => p.consequence), [targetFrom.dose, targetTo.dose]);
-  const yb = decadeBounds(points.map((p) => p.freq), [targetFrom.freq, targetTo.freq]);
-  const mx = (d: number): number => scaleLog(d, xb.min, xb.max, x0, x1);
-  const my = (f: number): number => scaleLog(f, yb.min, yb.max, yBot, yTop);
-
-  const tx1 = mx(targetFrom.dose);
-  const ty1 = my(targetFrom.freq);
-  const tx2 = mx(targetTo.dose);
-  const ty2 = my(targetTo.freq);
-
-  const obstacles: LabelBox[] = [];
-  for (let i = 0; i <= 60; i += 1) {
-    const t = i / 60;
-    const px = tx1 + (tx2 - tx1) * t;
-    const py = ty1 + (ty2 - ty1) * t;
-    obstacles.push({ x1: px - 4, y1: py - 4, x2: px + 4, y2: py + 4 });
-  }
-  for (const p of points) {
-    const r = p.sig === "HIGH" ? 10 : 8.5;
-    obstacles.push({ x1: mx(p.consequence) - r, y1: my(p.freq) - r, x2: mx(p.consequence) + r, y2: my(p.freq) + r });
-  }
-
-  const ordered = [...points].sort((a, b) => b.freq - a.freq);
-  const labels = placeLabels(
-    ordered.map((p) => ({ id: p.id, text: p.name, cx: mx(p.consequence), cy: my(p.freq) })),
-    obstacles,
-    { left: x0 + 3, right: x1 - 3, top: yTop + 2, bottom: yBot - 3 },
-  );
-
-  return (
-    <svg className="rifc__svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Frequency-consequence plot">
-      {xb.ticks.map((p) => (<line key={`gx${p}`} className="rifc__grid" x1={mx(Math.pow(10, p))} y1={yTop} x2={mx(Math.pow(10, p))} y2={yBot} />))}
-      {yb.ticks.map((p) => (<line key={`gy${p}`} className="rifc__grid" x1={x0} y1={my(Math.pow(10, p))} x2={x1} y2={my(Math.pow(10, p))} />))}
-      <line className="rifc__target" x1={tx1} y1={ty1} x2={tx2} y2={ty2} />
-      <line className="rifc__axis" x1={x0} y1={yTop} x2={x0} y2={yBot} />
-      <line className="rifc__axis" x1={x0} y1={yBot} x2={x1} y2={yBot} />
-      {xb.ticks.map((p) => (<text key={`tx${p}`} className="rifc__lab" x={mx(Math.pow(10, p))} y={yBot + 14} textAnchor="middle">{expTick(p)}</text>))}
-      {yb.ticks.map((p) => (<text key={`ty${p}`} className="rifc__lab" x={x0 - 6} y={my(Math.pow(10, p)) + 3} textAnchor="end">{expTick(p)}</text>))}
-      <text className="rifc__axlab" x={(x0 + x1) / 2} y={H - 2} textAnchor="middle">{axisLabel}</text>
-      <text className="rifc__axlab" x={-((yTop + yBot) / 2)} y={12} textAnchor="middle" transform="rotate(-90 0 0)">Frequency (per yr)</text>
-      {points.map((pt) => {
-        const cls = pt.sig === "HIGH" ? "high" : pt.sig === "MEDIUM" ? "medium" : "low";
-        return <circle key={pt.id} className={`rifc__pt rifc__pt--${cls}`} cx={mx(pt.consequence)} cy={my(pt.freq)} r={pt.sig === "HIGH" ? 8 : 6.5} />;
-      })}
-      {labels.map((l) => (
-        <text key={l.id} className="rifc__lab" x={l.x} y={l.y} textAnchor={l.anchor}>{l.text}</text>
-      ))}
-    </svg>
-  );
-}
-
-// ─── The exceedance-frequency curve (RI-B2 c, CCDF) ────────────────────────
-function CCDFCurve({ points, axisLabel }: { points: { dose: number; exceed: number }[]; axisLabel: string }): JSX.Element {
-  const W = 430;
-  const H = 250;
-  const x0 = 52;
-  const x1 = 416;
-  const yTop = 16;
-  const yBot = 212;
-  const xb = decadeBounds(points.map((p) => p.dose), []);
-  const yb = decadeBounds(points.map((p) => p.exceed), []);
-  const mx = (d: number): number => scaleLog(d, xb.min, xb.max, x0, x1);
-  const my = (f: number): number => scaleLog(f, yb.min, yb.max, yBot, yTop);
-  const pts = points.map((p) => `${mx(p.dose)},${my(p.exceed)}`).join(" ");
-  return (
-    <svg className="riccdf__svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Exceedance-frequency curve">
-      {xb.ticks.map((p) => (<line key={`gx${p}`} className="riccdf__grid" x1={mx(Math.pow(10, p))} y1={yTop} x2={mx(Math.pow(10, p))} y2={yBot} />))}
-      {yb.ticks.map((p) => (<line key={`gy${p}`} className="riccdf__grid" x1={x0} y1={my(Math.pow(10, p))} x2={x1} y2={my(Math.pow(10, p))} />))}
-      <polyline className="riccdf__curve" points={pts} />
-      <line className="riccdf__axis" x1={x0} y1={yTop} x2={x0} y2={yBot} />
-      <line className="riccdf__axis" x1={x0} y1={yBot} x2={x1} y2={yBot} />
-      {xb.ticks.map((p) => (<text key={`tx${p}`} className="rifc__lab" x={mx(Math.pow(10, p))} y={yBot + 14} textAnchor="middle">{expTick(p)}</text>))}
-      {yb.ticks.map((p) => (<text key={`ty${p}`} className="rifc__lab" x={x0 - 6} y={my(Math.pow(10, p)) + 3} textAnchor="end">{expTick(p)}</text>))}
-      <text className="riccdf__lab" x={(x0 + x1) / 2} y={H - 2} textAnchor="middle">{axisLabel}</text>
-      <text className="riccdf__lab" x={-((yTop + yBot) / 2)} y={12} textAnchor="middle" transform="rotate(-90 0 0)">Exceedance frequency (per yr)</text>
-      {points.map((p, i) => (<circle key={i} className="riccdf__pt" cx={mx(p.dose)} cy={my(p.exceed)} r="3.5" />))}
-    </svg>
-  );
-}
-
-// ─── 03 — Integrate & Compute (HLR-RI-B) ───────────────────────────────────
-function nextRimId(list: { uuid: string }[]): string {
-  const n = list.reduce((m, x) => {
-    const v = Number(x.uuid.split("-").pop());
-    return Number.isNaN(v) ? m : Math.max(m, v);
-  }, 0) + 1;
-  return `RIM-${String(n)}`;
-}
-
-function nextMetricId(list: { uuid: string }[]): string {
-  const n = list.reduce((m, x) => {
-    const v = Number(x.uuid.split("-").pop());
-    return Number.isNaN(v) ? m : Math.max(m, v);
-  }, 0) + 1;
-  return `METRIC-${String(n)}`;
-}
-
-function IntegrateScreen({ ccId, openDrawer }: { ccId: string; openDrawer: (ctx: RiDrawerContext) => void }): JSX.Element {
-  const { ri, editable, mutateRi, riskSources } = useRiWorkbook();
-  const isCcOne = ccId === "cc-i";
-  const results = ri.integratedRiskResults;
-  const approach = results.calculationApproach;
-  const measures = ri.scopeDefinition.consequenceMeasures;
-  const plotMeasure = measures[0]?.name ?? "";
-  const fcPoints = fcPointsView(ri, plotMeasure);
-  const ccdfPoints = ccdfPointsView(ri, plotMeasure);
-  const availableFamilySources = riskSources.eventSequenceFamilies.filter((source) => {
-    const linked = sourcesForEventSequenceFamily(riskSources, source);
-    return linked.quantifications.length > 0 && linked.consequence !== undefined;
-  });
-  const [selectedFamilySource, setSelectedFamilySource] = useState("");
-
-  const families = ri.compiledRiskInputs.length;
-  const approachBlocks: { label: string; detail: string }[] = [];
-  if (approach.sumOfProducts === true) {
-    approachBlocks.push({
-      label: "Sum of products",
-      detail: `${results.metrics.length} risk metric${results.metrics.length === 1 ? "" : "s"} totaled across ${families} compiled famil${families === 1 ? "y" : "ies"}.`,
-    });
-  }
-  if (approach.frequencyConsequencePlots === true) {
-    approachBlocks.push({
-      label: "Frequency-consequence plot",
-      detail: `${fcPoints.length} famil${fcPoints.length === 1 ? "y" : "ies"} plotted against the frequency-consequence target.`,
-    });
-  }
-  if (approach.exceedanceFrequencyCurves === true) {
-    approachBlocks.push({
-      label: "Exceedance-frequency curve",
-      detail: isCcOne
-        ? "Not required while the workbook targets CC-I."
-        : `${ccdfPoints.length} exceedance level${ccdfPoints.length === 1 ? "" : "s"} drawn from the compiled families.`,
-    });
-  }
-  if (approach.alternativeApproach !== undefined && approach.alternativeApproach.length > 0) {
-    approachBlocks.push({ label: "Alternative approach", detail: approach.alternativeApproach });
-  }
-
-  function addMethod(): void {
-    if (!editable) return;
-    const uuid = nextRimId(ri.integrationMethods);
-    mutateRi((draft) => ({
-      ...draft,
-      integrationMethods: [...draft.integrationMethods, {
-        uuid,
-        name: "New integration method",
-        description: "",
-        scopeJustification: "",
-        verificationStatus: { verified: false },
-        implementsSrs: [{ sr: "RI-B2", hlr: "B" as const }, { sr: "RI-B7", hlr: "B" as const }],
-      }],
-    }));
-    openDrawer({ kind: "method", id: uuid });
-  }
-
-  function addMetric(): void {
-    if (!editable) return;
-    const uuid = nextMetricId(results.metrics);
-    mutateRi((draft) => ({
-      ...draft,
-      integratedRiskResults: {
-        ...draft.integratedRiskResults,
-        metrics: [...draft.integratedRiskResults.metrics, {
-          uuid,
-          name: "New risk metric",
-          metricType: "CUSTOM",
-          consequenceMeasureRef: measures[0]?.name ?? "",
-          value: 0,
-          units: "per plant-year",
-          implementsSrs: [{ sr: "RI-B2", hlr: "B" as const }],
-        }],
-      },
-    }));
-    openDrawer({ kind: "metric", id: uuid });
-  }
-
-  function addLinkedInput(): void {
-    if (!editable) return;
-    const sourceKey = selectedFamilySource.length > 0
-      ? selectedFamilySource
-      : availableFamilySources[0] === undefined
-        ? ""
-        : `${availableFamilySources[0].workbookId}|${availableFamilySources[0].family.uuid}`;
-    const familySource = availableFamilySources.find((source) =>
-      `${source.workbookId}|${source.family.uuid}` === sourceKey);
-    if (familySource === undefined) return;
-    const existing = ri.compiledRiskInputs.find((input) =>
-      input.eventSequenceFamilyReference?.workbookId === familySource.workbookId &&
-      input.eventSequenceFamilyReference.entityId === familySource.family.uuid);
-    if (existing !== undefined) {
-      openDrawer({ kind: "family", id: existing.uuid });
-      return;
-    }
-    const linked = sourcesForEventSequenceFamily(riskSources, familySource);
-    if (linked.quantifications.length === 0 || linked.consequence === undefined) return;
-    const baseId = `RII-${familySource.family.uuid}`;
-    const uuid = ri.compiledRiskInputs.some((input) => input.uuid === baseId)
-      ? `${baseId}-${String(ri.compiledRiskInputs.length + 1)}`
-      : baseId;
-    const consequences = measures.flatMap((measure) => {
-      const result = linked.consequence!.result.consequenceResults.find((entry) =>
-        consequenceMetricMatches(entry.metric, measure.name));
-      return result === undefined ? [] : [{
-        metric: measure.name,
-        meanValue: result.meanValue,
-        unit: result.unit,
-        distribution: result.uncertaintyDistribution,
-      }];
-    });
-    const input: CompiledRiskInput = {
-      uuid,
-      eventSequenceFamilyRef: familySource.family.uuid,
-      eventSequenceFamilyReference: familySource.reference,
-      releaseCategoryRef: familySource.family.releaseCategoryIds?.[0],
-      sourceTermDefinitionRef: familySource.family.representativeSourceTermId,
-      frequency: linked.quantifications.reduce(
-        (sum, source) => sum + meanFrequencyValue(source.quantification.meanFrequency),
-        0,
-      ),
-      frequencyUnit: "per plant-year",
-      esqFamilyQuantificationRef: linked.quantifications.map((source) => source.quantification.uuid).join(" + "),
-      familyQuantificationReferences: linked.quantifications.map((source) => source.reference),
-      consequences: consequences.length > 0
-        ? consequences
-        : linked.consequence.result.consequenceResults.map((result) => ({
-          metric: result.metric,
-          meanValue: result.meanValue,
-          unit: result.unit,
-          distribution: result.uncertaintyDistribution,
-        })),
-      rcqRecordRef: linked.consequence.result.uuid,
-      consequenceResultReference: linked.consequence.reference,
-      consistentWithEventSequenceAnalysis: true,
-      implementsSrs: [{ sr: "RI-B1", hlr: "B" }],
-    };
-    mutateRi((draft) => {
-      const compiledRiskInputs = [...draft.compiledRiskInputs, input];
-      return {
-        ...draft,
-        scopeDefinition: {
-          ...draft.scopeDefinition,
-          eventSequenceFamilyRefs: [...new Set([
-            ...(draft.scopeDefinition.eventSequenceFamilyRefs ?? []),
-            input.eventSequenceFamilyRef,
-          ])],
-        },
-        compiledRiskInputs,
-        integratedRiskResults: {
-          ...draft.integratedRiskResults,
-          metrics: draft.integratedRiskResults.metrics.map((metric) => ({
-            ...metric,
-            value: metric.consequenceMeasureRef === undefined
-              ? metric.value
-              : compiledRiskInputs.reduce((sum, compiled) => {
-                const result = compiled.consequences.find((entry) =>
-                  consequenceMetricMatches(entry.metric, metric.consequenceMeasureRef!));
-                return sum + compiled.frequency * (result?.meanValue ?? 0);
-              }, 0),
-          })),
-        },
-      };
-    });
-    openDrawer({ kind: "family", id: uuid });
-  }
-
-  return (
-    <>
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Calculation approach" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <Badge kind="progress">{results.calculationLevel === "MEAN" ? "Mean" : "Point estimate"}</Badge>
-            <RiProvenanceChip>RI-B2</RiProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "calc", id: "calc" })}><RIIcon.Settings /> Edit</button>}
-          </div>
-        </div>
-        <p className="poscard__sub">The integrated risk is totaled, plotted and, at CC-II, drawn as an exceedance curve. These are the routes this integration takes.</p>
-        {approachBlocks.length === 0 ? (
-          <p className="posmuted" style={{ margin: 0 }}>No calculation approach recorded yet.</p>
-        ) : (
-          <div className="rimeasure">
-            {approachBlocks.map((a, i) => (
-              <div key={a.label} className="rimeasure__cell">
-                <span className="rinum">{i + 1}</span>
-                <div className="rimeasure__main">
-                  <div className="rimeasure__name">{a.label}</div>
-                  <div className="rimeasure__note">{a.detail}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {approach.justification.length > 0 && (
-          <p className="possubtle" style={{ fontSize: 12.5, lineHeight: 1.5, margin: "12px 0 0" }}>{approach.justification}</p>
-        )}
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Methods and codes" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RiProvenanceChip>RI-B7</RiProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addMethod}><RIIcon.Plus /> Add method</button>}
-          </div>
-        </div>
-        <p className="poscard__sub">The integration methods and codes are identified with their scope of applicability and their verification. Select a row to edit it.</p>
-        {ri.integrationMethods.length === 0 ? (
-          <p className="posmuted" style={{ margin: 0 }}>No integration methods recorded yet.</p>
-        ) : (
-          <table className="postable postable--mid">
-            <thead><tr><th>Method</th><th>Scope of applicability</th><th>Verification</th></tr></thead>
-            <tbody>
-              {ri.integrationMethods.map((m) => (
-                <tr key={m.uuid} className="postable__row--clickable" style={{ cursor: "pointer" }} onClick={() => openDrawer({ kind: "method", id: m.uuid })}>
-                  <td>
-                    <div className="postable__name">{m.name}</div>
-                    <span className="possubtle" style={{ fontSize: 12 }}>{m.description ?? ""}</span>
-                  </td>
-                  <td className="possubtle" style={{ fontSize: 12.5 }}>{m.scopeJustification}</td>
-                  <td>{m.verificationStatus?.verified === true ? <Badge kind="ok">Verified</Badge> : <Badge kind="warn">Not verified</Badge>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Frequency-consequence plot" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RiProvenanceChip>RI-B2</RiProvenanceChip>
-          </div>
-        </div>
-        {editable && availableFamilySources.length > 0 && (
-          <div className="posrow" style={{ gap: 8, alignItems: "center", marginBottom: 14 }}>
-            <select
-              className="posfield__select"
-              aria-label="Linked risk input family"
-              value={selectedFamilySource}
-              onChange={(event) => setSelectedFamilySource(event.target.value)}
-              style={{ flex: 1 }}
-            >
-              {availableFamilySources.map((source) => (
-                <option key={`${source.workbookId}|${source.family.uuid}`} value={`${source.workbookId}|${source.family.uuid}`}>
-                  {source.family.uuid} · {source.family.name} · {source.family.endState} — {source.workbookName}
-                </option>
-              ))}
-            </select>
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addLinkedInput}><RIIcon.Plus /> Add linked input</button>
-          </div>
-        )}
-        <p className="poscard__sub">Every family plots its consequence against its frequency, and the target is the diagonal the families are judged against. Select a family to edit it.</p>
-        {fcPoints.length === 0 ? (
-          <p className="posmuted" style={{ margin: 0 }}>No families compiled yet.</p>
-        ) : (
-          <>
-            <div className="rifc__legend rifc__legend--top">
-              <div className="rifc__legend-item"><span className="rifc__legend-dot rifc__legend-dot--high" /> High significance</div>
-              <div className="rifc__legend-item"><span className="rifc__legend-dot rifc__legend-dot--medium" /> Medium significance</div>
-              <div className="rifc__legend-item"><span className="rifc__legend-dot rifc__legend-dot--low" /> Low significance</div>
-              <div className="rifc__legend-item"><span className="rifc__legend-dot rifc__legend-dot--target" /> Frequency-consequence target</div>
-            </div>
-            <div className="rifc__center">
-              <div className="rifc__plot"><FCPlot points={fcPoints} axisLabel={plotMeasure} /></div>
-            </div>
-            <table className="postable postable--mid" style={{ marginTop: 14 }}>
-              <thead><tr><th>Family</th><th>Frequency</th><th>{plotMeasure}</th><th>Significance</th></tr></thead>
-              <tbody>
-                {fcPoints.map((p) => (
-                  <tr key={p.id} className="postable__row--clickable" style={{ cursor: "pointer" }} onClick={() => openDrawer({ kind: "family", id: p.id })}>
-                    <td><div className="postable__name">{p.name}</div></td>
-                    <td className="posmono">{valText(p.freq)} <span className="possubtle">per plant-year</span></td>
-                    <td className="posmono">{valText(p.consequence)}</td>
-                    <td>
-                      {p.sig === "HIGH" && <Badge kind="block">High</Badge>}
-                      {p.sig === "MEDIUM" && <Badge kind="warn">Medium</Badge>}
-                      {p.sig === "LOW" && <Badge kind="draft">Low</Badge>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Exceedance-frequency curve" level={3} />
-          <RiProvenanceChip>RI-B2</RiProvenanceChip>
-        </div>
-        <p className="poscard__sub">The curve is built from the compiled families, giving the frequency of exceeding each level of {plotMeasure.length > 0 ? plotMeasure.toLowerCase() : "the consequence measure"}.</p>
-        {isCcOne ? (
-          <p className="posmuted" style={{ margin: 0 }}>The exceedance-frequency curve is a CC-II approach, so it is not required while the workbook targets CC-I.</p>
-        ) : ccdfPoints.length === 0 ? (
-          <p className="posmuted" style={{ margin: 0 }}>No families compiled yet.</p>
-        ) : (
-          <>
-            <div className="rifc__center"><div className="rifc__plot"><CCDFCurve points={ccdfPoints} axisLabel={plotMeasure} /></div></div>
-            <table className="postable postable--mid" style={{ marginTop: 14 }}>
-              <thead><tr><th>{plotMeasure} at or above</th><th>Exceedance frequency</th></tr></thead>
-              <tbody>
-                {[...ccdfPoints].reverse().map((p) => (
-                  <tr key={p.dose}>
-                    <td className="posmono">{valText(p.dose)}</td>
-                    <td className="posmono">{valText(p.exceed)} <span className="possubtle">per plant-year</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Integrated risk" level={3} />
-          <div className="posrow" style={{ gap: 10 }}>
-            <RiProvenanceChip>RI-B2</RiProvenanceChip>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addMetric}><RIIcon.Plus /> Add metric</button>}
-          </div>
-        </div>
-        <p className="poscard__sub">The integrated risk is the single number the whole standard has been assembling, judged against the target for the application. Select a row to edit it.</p>
-        {results.metrics.length === 0 ? (
-          <p className="posmuted" style={{ margin: 0 }}>No risk metrics yet.</p>
-        ) : (
-          <>
-            <table className="postable postable--mid">
-              <thead><tr><th>Metric</th><th>Value</th><th>Target</th><th>Status</th></tr></thead>
-              <tbody>
-                {results.metrics.map((m) => {
-                  const roll = metricRollup(ri, m);
-                  return (
-                    <tr key={m.uuid} className="postable__row--clickable" style={{ cursor: "pointer" }} onClick={() => openDrawer({ kind: "metric", id: m.uuid })}>
-                      <td>
-                        <div className="postable__name">{m.name}</div>
-                        <span className="possubtle" style={{ fontSize: 12 }}>{m.consequenceMeasureRef !== undefined && m.consequenceMeasureRef.length > 0 ? `Sums ${m.consequenceMeasureRef.toLowerCase()}` : "No consequence measure linked"}</span>
-                      </td>
-                      <td className="posmono">{valText(m.value)} <span className="possubtle">{m.units}</span></td>
-                      <td className="posmono">{roll.limit !== undefined ? valText(roll.limit) : "—"}</td>
-                      <td>{roll.limit === undefined ? <Badge kind="draft">Reported</Badge> : roll.compliant ? <Badge kind="ok">Below target</Badge> : <Badge kind="warn">Check margin</Badge>}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </>
-        )}
-      </div>
-    </>
-  );
 }
 
 export {
@@ -5675,11 +4575,11 @@ export {
   CategoriesScreen,
   CliffEdgeDrawer,
   ContributorsScreen,
+  FormFoot,
+  FormRow,
   SscAssignmentDrawer,
   UncertaintyStepScreen,
   UncertaintySourceDrawer,
-  HandoffsScreen,
-  HandoffDrawer,
   ScreenedItemDrawer,
   UncertaintyAnalysisDrawer,
   SensitivityStudyDrawer,
@@ -5692,7 +4592,9 @@ export {
   InputContributorDrawer,
   InputImportanceDrawer,
   InputGapDrawer,
-  IntegrateScreen,
   MeasureDrawer,
+  contributorKindText,
+  measureReceptorText,
+  measureWindowText,
   type RiDrawerContext,
 };

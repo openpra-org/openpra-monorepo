@@ -65,11 +65,6 @@ function RiTabs<T extends string>({ label, tabs, active, onChange, idBase, class
   );
 }
 
-function valText(v: number | undefined | null): string {
-  if (v === undefined || v === null) return "n/a";
-  return v.toExponential(1).replace("e", "E");
-}
-
 function sciText(v: number): string {
   if (!Number.isFinite(v) || v === 0) return String(v);
   const [mantissa, exponent] = v.toExponential(2).split("e");
@@ -84,4 +79,4 @@ function shareText(value: number | undefined): string {
   return percent >= 0.1 ? `${Number(percent.toPrecision(3))}%` : `${sciText(percent)}%`;
 }
 
-export { Badge, RiProvenanceChip, RiTabs, sciText, shareText, valText, type BadgeKind };
+export { Badge, RiProvenanceChip, RiTabs, sciText, shareText, type BadgeKind };

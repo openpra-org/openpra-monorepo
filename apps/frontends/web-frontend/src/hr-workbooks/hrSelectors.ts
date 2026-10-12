@@ -144,6 +144,7 @@ function stepsFromMef(hr: HumanReliabilityAnalysis, persona: HrPersona): HrStep[
   const respquantComplete = hr.dependencyAssessments.length > 0;
   const recoveryComplete = (hr.recoveryActions?.length ?? 0) > 0;
   const uncertComplete = (hr.preOperationalAssumptions?.length ?? 0) > 0 || hr.modelUncertainty.uncertaintySources.length > 0;
+  const handoffComplete = hr.humanFailureEvents.length > 0 && hr.hepQuantifications.length > 0;
   const draftComplete = hr.workflowState !== "DRAFT" && hr.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = hr.workflowState === "FINAL";
 
@@ -162,6 +163,7 @@ function stepsFromMef(hr: HumanReliabilityAnalysis, persona: HrPersona): HrStep[
       case "respquant": return { ...s, status: status(respquantComplete) };
       case "recovery": return { ...s, status: status(recoveryComplete) };
       case "uncert": return { ...s, status: status(uncertComplete) };
+      case "handoff": return { ...s, status: status(handoffComplete) };
       case "draft": return { ...s, status: status(draftComplete) };
       case "review": return { ...s, status: status(reviewComplete) };
       default: return { ...s, status: "idle" as const };

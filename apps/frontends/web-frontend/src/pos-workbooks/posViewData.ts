@@ -35,9 +35,10 @@ const POS_STEPS: PosStep[] = [
   { id: "grouping", num: "06", label: "Grouping", sub: "3 groups", status: "in-progress" },
   { id: "frequency", num: "07", label: "Frequencies & Duration", sub: "8 of 9 complete", status: "in-progress" },
   { id: "decayheat", num: "08", label: "Decay Heat", sub: "6 LPSD states", status: "idle" },
-  { id: "draft", num: "09", label: "Draft", sub: "Produce report", status: "idle", terminal: true },
-  { id: "review", num: "10", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
-  { id: "approval", num: "11", label: "Approval", sub: "Sign-off", status: "idle", terminal: true },
+  { id: "handoff", num: "09", label: "Technical Element Handoff", sub: "Exported sections", status: "idle" },
+  { id: "draft", num: "10", label: "Draft", sub: "Produce report", status: "idle", terminal: true },
+  { id: "review", num: "11", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
+  { id: "approval", num: "12", label: "Approval", sub: "Sign-off", status: "idle", terminal: true },
 ];
 
 type PosPersona = "preparer" | "reviewer" | "approver";
@@ -56,9 +57,9 @@ const PERSONAS: Record<PosPersona, PersonaSpec> = {
 };
 
 const PERSONA_STEPS: Record<PosPersona, string[]> = {
-  preparer: ["setup", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "draft", "review", "approval"],
-  reviewer: ["setup", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "draft", "review", "approval"],
-  approver: ["setup", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "draft", "review", "approval"],
+  preparer: ["setup", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "handoff", "draft", "review", "approval"],
+  reviewer: ["setup", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "handoff", "draft", "review", "approval"],
+  approver: ["setup", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "handoff", "draft", "review", "approval"],
 };
 
 interface CapabilityCategory {

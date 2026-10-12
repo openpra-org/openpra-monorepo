@@ -49,7 +49,7 @@ function headersFor(stepId: string): StepHeader {
     case "results": return { area: "HLR-ESQ-D · F", title: "Results review" };
     case "uncert": return { area: "HLR-ESQ-A · E", title: "Uncertainty" };
     case "sens": return { area: "HLR-ESQ-C · E · F", title: "Sensitivity" };
-    case "handoff": return { area: "HLR-ESQ-F", title: "Hand-offs" };
+    case "handoff": return { area: "HLR-ESQ-F", title: "Technical Element Handoff" };
     case "draft": return { area: "Draft", title: "Produce the draft" };
     case "review": return { area: "Review", title: "Internal technical review" };
     case "approval": return { area: "Approval", title: "Approval & sign-off" };
@@ -453,7 +453,7 @@ function EsqWorkbench({
       case "results": return <ResultsScreen openWindow={setWindowCtx} />;
       case "uncert": return <UncertScreen openWindow={setWindowCtx} />;
       case "sens": return <SensScreen openWindow={setWindowCtx} />;
-      case "handoff": return <HandoffScreen openWindow={setWindowCtx} />;
+      case "handoff": return <HandoffScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (

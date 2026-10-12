@@ -8,8 +8,8 @@ import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { type Mutator } from "./useMefPatch";
 import { POSIcon } from "./posIcons";
 import { Badge } from "./posShared";
-import { PosHelpButton, PosSectionHeading } from "./posHelp";
-import { composeWorkbookCue } from "../workbooks/workbookCueContent";
+import { PosSectionHeading } from "./posHelp";
+import { PosInterfaces } from "./posInterfaces";
 import { PreopAssumptionCard } from "./posPreopCard";
 import {
   CAPABILITY_CATEGORIES,
@@ -28,7 +28,6 @@ import {
   mutualExclusivityView,
   transitionValidationView,
   DELINEATION_PARAMETER_OPTIONS,
-  handoffBundleView,
   cycleReconciliation,
   quantStatesView,
   groupRollupView,
@@ -182,9 +181,6 @@ function stageToMef(stage: Stage): MefPlantStage {
 
 function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPatchDebounced, canEdit }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
-  const handoff = handoffBundleView(pos);
-  const [selectedTe, setSelectedTe] = useState<string | null>(null);
-  const selectedLane = handoff.lanes.find((l) => l.code === selectedTe);
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
   const pi = pos.metadata.plantIdentity ?? blankPlantIdentity();
   const isReal = mefPatch !== undefined;
@@ -239,50 +235,10 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
         <div className="poscard__head">
           <PosSectionHeading
             title="Interfaces"
-            description={<>POS has no upstream PRA technical input. It sends the {handoff.retainedCount} retained operating states, their timing, and radioactive-material-source information to the downstream technical elements shown here.</>}
+            description="Link the DA workbook whose outages give each operating state its hours and entries."
           />
         </div>
-        <div className="poshandoff__grid">
-          {handoff.lanes.map((lane) => (
-            <button
-              key={lane.code}
-              type="button"
-              className={`poshandoff__tile${selectedTe === lane.code ? " poshandoff__tile--active" : ""}`}
-              onClick={() => setSelectedTe(selectedTe === lane.code ? null : lane.code)}
-            >
-              <span className="poshandoff__tile-code">{lane.code}</span>
-              <span className="poshandoff__tile-name">{lane.element}</span>
-              <span className="poshandoff__tile-role">{lane.role}</span>
-            </button>
-          ))}
-        </div>
-        {selectedLane !== undefined && (
-          <div style={{ marginTop: 16 }}>
-            <div className="poshandoff__selection-head">
-              <span>{selectedLane.element} receives</span>
-              <PosHelpButton label={`About ${selectedLane.element} interface`}>
-                {composeWorkbookCue("POS", "Interfaces", `Shows the retained POS technical records supplied to ${selectedLane.element} for its analysis.`)}
-              </PosHelpButton>
-            </div>
-            {selectedLane.rows.length === 0 ? (
-              <p className="posmuted" style={{ margin: 0 }}>No retained states to hand off yet.</p>
-            ) : (
-            <table className="postable postable--mid">
-              <thead>
-                <tr>{selectedLane.columns.map((c) => <th key={c}>{c}</th>)}</tr>
-              </thead>
-              <tbody>
-                {selectedLane.rows.map((r) => (
-                  <tr key={r.posId}>
-                    <td><div className="postable__name">{r.name}</div></td>
-                    {r.values.map((v, idx) => <td key={selectedLane.columns[idx + 1] ?? `c${idx}`} className="mono">{v}</td>)}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            )}
-          </div>
-        )}
+        <PosInterfaces canEdit={canEdit} mefPatch={mefPatch} />
       </div>
       <div className="poscard">
         <div className="poscard__head">
@@ -2480,7 +2436,7 @@ function DraftScreen({
 
         <div className="posgen__readout">
           <PosSectionHeading
-            title={canSubmit ? "Hand-off to internal review" : "Read-only draft preview"}
+            title={canSubmit ? "Draft submission" : "Read-only draft preview"}
             description={canSubmit
               ? "Generate the report and submit a controlled workbook snapshot for internal technical review. The analysis steps become read only while the review is active."
               : "Inspect the report-ready workbook contents without changing or submitting the controlled analysis."}

@@ -1,4 +1,3 @@
-import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -11,8 +10,9 @@ import {
   type Stage,
 } from "./esViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, stepsFromMef, type CommentView } from "./esSelectors";
-import { SequencesScreen, TimingScreen, ScreeningScreen, QuantScreen, DraftScreen, PlaceholderScreen, type SequenceTab } from "./esScreens";
+import { SequencesScreen, TimingScreen, DraftScreen, PlaceholderScreen, type SequenceTab } from "./esScreens";
 import { DependenciesScreen } from "./EsDependencies";
+import { EsHandoffScreen } from "./EsHandoff";
 import { InternalReviewScreen, ReviewerCommentDock } from "./esReview";
 import { EsScopeScreen, type EsLinkActions } from "./EsScope";
 import { useEsWorkbook, type EsWorkbookData } from "./esWorkbookContext";
@@ -36,7 +36,7 @@ function headersFor(stepId: string): StepHeader {
     case "sequences": return { eyebrow: "Step 02 · ES-A", title: "Event Sequences" };
     case "deps": return { eyebrow: "Step 03 · ES-B", title: "Dependencies" };
     case "timing": return { eyebrow: "Step 04", title: "Timing & phenomena", sub: "Order functional events, assign operator-action windows, and identify sequence-induced phenomenological conditions (ES-A6, B3)." };
-    case "quant": return { eyebrow: "Step 05", title: "ESQ Interface", sub: "ES transmits the structured scenario model to ESQ and receives sequence frequencies, uncertainty bounds, and dominant cut sets in return (ES-A1c)." };
+    case "handoff": return { eyebrow: "Step 05", title: "Technical Element Handoff" };
     case "draft": return { eyebrow: "Step 06 · Draft", title: "Produce the draft", sub: "Build the ES report from everything you entered; sending it moves the workbook to internal technical review." };
     case "review": return { eyebrow: "Step 07 · Review", title: "Internal technical review", sub: "Reviewers and the approver leave comments and the preparer replies, with the workbook moving to Approval once every comment is resolved." };
     case "approval": return { eyebrow: "Step 08 · Approval", title: "Approval & sign-off", sub: "Everyone on the workbook signs, with the approver signing last and only after all comments are resolved." };
@@ -386,7 +386,7 @@ function EsWorkbench({
       case "sequences": return <SequencesScreen treeId={treeId} setTreeId={setTreeId} tab={sequenceTab} setTab={setSequenceTab} />;
       case "deps": return <DependenciesScreen />;
       case "timing": return <TimingScreen treeId={treeId} setTreeId={setTreeId} />;
-      case "quant": return <><QuantScreen /><ScreeningScreen /></>;
+      case "handoff": return <EsHandoffScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
@@ -454,7 +454,6 @@ function EsWorkbench({
           </div>
 
           {renderScreen()}
-          {stepId === "quant" && <EsAnalysisHistory />}
 
           <div className="posnav">
             {prev ? (
@@ -498,8 +497,3 @@ function EsWorkbench({
 }
 
 export { EsWorkbench, type HeaderMeta, type EsWorkbenchActions };
-
-function EsAnalysisHistory() {
-  const {runtime} = useEsWorkbook();
-  return <AnalysisRunHistory host="es" workbookId={runtime.workbookId}/>;
-}

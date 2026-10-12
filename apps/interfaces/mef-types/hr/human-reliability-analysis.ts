@@ -231,9 +231,18 @@ export interface HrDocumentation {
   implementsSrs: SRReference[];
 }
 
+export interface HrLinkedWorkbooks {
+  POS?: string;
+  IE?: string;
+  SC?: string;
+  SY?: string;
+  DA?: string;
+}
+
 export interface HumanReliabilityAnalysis
   extends TechnicalElement<TechnicalElementTypes.HUMAN_RELIABILITY_ANALYSIS> {
   praScope: string;
+  linkedWorkbooks?: HrLinkedWorkbooks;
 
   routineActivities: RoutineActivityIdentification[];
   preInitiatorScreeningRecords: PreInitiatorScreeningRecord[];

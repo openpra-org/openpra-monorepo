@@ -743,12 +743,15 @@ const adaptEsEventTreeSnapshot = (
   modelId: string,
   hclConfiguration?: WorkbookModelAddress,
   functionalEventStandIns: ReadonlyMap<string, NativeEntityReference> = new Map(),
+  initiatingEventFrequency?: UncertainExpression,
 ): PraxisModelSnapshot => {
   const tree = findByUuid(source.mef.eventTrees ?? [], modelId, "ES event tree");
-  const frequency = tree.initiatingEventFrequency;
-  if (frequency === undefined) {
+  const stored = tree.initiatingEventFrequency;
+  const expression = initiatingEventFrequency ?? stored?.expression;
+  if (expression === undefined) {
     throw new WorkbookPraxisAdapterError(`ES event tree '${modelId}' has no initiating-event frequency`);
   }
+  const annualization = initiatingEventFrequency === undefined ? stored?.annualization : undefined;
   const functionalEvents = orderedFunctionalEvents(tree).map((event, order) => ({
     id: event.uuid,
     name: event.name,
@@ -832,8 +835,8 @@ const adaptEsEventTreeSnapshot = (
       target: { modelId: source.workbookId, entityId: tree.initiatingEventId },
     },
     initiatingEventFrequency: {
-      expression: frequency.expression,
-      ...(frequency.annualization === undefined ? {} : { annualization: { ...frequency.annualization } }),
+      expression,
+      ...(annualization === undefined ? {} : { annualization: { ...annualization } }),
     },
     functionalEvents,
     functionalEventFaultTreeLinks: links,
@@ -1132,6 +1135,7 @@ const adaptLoadCapacitySnapshot = (
 
 export {
   WorkbookPraxisAdapterError,
+  referencesOf,
   collectSyFaultTreeReferences,
   collectEsEventTreeReferences,
   collectHclUncertaintyReferences,

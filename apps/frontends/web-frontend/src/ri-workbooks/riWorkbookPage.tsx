@@ -28,15 +28,13 @@ import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbo
 import { RiDocumentsCard } from "./riDocumentsCard";
 import { type RiLinkCode, type RiPersona } from "./riViewData";
 
-import { loadRiRiskSources, type RiRiskSources } from "../workbooks/riskWorkbookConnections";
-
 const STEP_SR_HINT: Record<string, string | undefined> = {
   application: "RI-A1",
   inputs: "RI-B1",
   integrate: "RI-B2",
   aggregate: "RI-B3",
   uncertainty: "RI-C1",
-  feedback: "RI-D1",
+  handoff: "RI-D1",
 };
 
 interface RiExampleResponse {
@@ -67,11 +65,6 @@ function RiWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
-  const [riskSources, setRiskSources] = useState<RiRiskSources>({
-    eventSequenceFamilies: [],
-    familyQuantifications: [],
-    consequenceResults: [],
-  });
   const [linkOptions, setLinkOptions] = useState<Record<RiLinkCode, Workbook[]>>(EMPTY_UPSTREAM.options);
   const workbookName = data?.ri.name ?? "";
   const workbookVersion = data?.ri.version ?? "1";
@@ -106,12 +99,6 @@ function RiWorkbookPage(): JSX.Element {
         }
         const options = await listRiLinkOptions(workbook.projectId);
         if (!cancelled) setLinkOptions(options);
-        try {
-          const sources = await loadRiRiskSources(workbook.projectId);
-          if (!cancelled) setRiskSources(sources);
-        } catch {
-          if (!cancelled) setRiskSources({ eventSequenceFamilies: [], familyQuantifications: [], consequenceResults: [] });
-        }
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -196,7 +183,7 @@ function RiWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <RiWorkbookProvider data={data} editable={editable} mutateRi={mutateRi} riskSources={riskSources} upstream={upstream}>
+    <RiWorkbookProvider data={data} editable={editable} mutateRi={mutateRi} upstream={upstream}>
       <RiWorkbench
         data={data}
         persona={persona}

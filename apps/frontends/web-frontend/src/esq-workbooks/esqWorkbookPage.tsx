@@ -79,10 +79,6 @@ function EsqWorkbookPage(): JSX.Element {
         setData({ esq: workbook.mef });
         setMyRoles(workbook.myRoles);
         setProjectId(workbook.projectId);
-        const variant = workbook.mef.uuid === "esq-generic-1" ? "sfr" : workbook.mef.uuid === "esq-generic-2" ? "htgr" : workbook.mef.uuid === "esq-hcl-case-study" ? "hcl" : undefined;
-        void loadEsqDaLinks(workbook.projectId, workbook.mef, variant).then((daLinks) => {
-          if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daLinks }));
-        });
         setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
         try {
@@ -100,6 +96,15 @@ function EsqWorkbookPage(): JSX.Element {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  const linkedDaId = data?.esq.linkedWorkbooks?.DA;
+  useEffect(() => {
+    let cancelled = false;
+    void loadEsqDaLinks(linkedDaId).then((daLinks) => {
+      if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daLinks }));
+    });
+    return () => { cancelled = true; };
+  }, [linkedDaId]);
 
   useEffect(() => {
     let cancelled = false;

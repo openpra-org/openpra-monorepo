@@ -18,9 +18,10 @@ const MS_STEPS: MsStep[] = [
   { id: "transport", num: "04", label: "Transport Phenomena", sub: "The physics checklist (B)", status: "idle" },
   { id: "sourceterm", num: "05", label: "Source Terms", sub: "Calculate the release (C)", status: "idle" },
   { id: "uncert", num: "06", label: "Uncertainty & Pre-op", sub: "Propagate phenomena (D)", status: "idle" },
-  { id: "draft", num: "07", label: "Draft", sub: "Produce MS report (E)", status: "idle", terminal: true },
-  { id: "review", num: "08", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
-  { id: "approval", num: "09", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
+  { id: "handoff", num: "07", label: "Technical Element Handoff", sub: "Exported sections", status: "idle" },
+  { id: "draft", num: "08", label: "Draft", sub: "Produce MS report (E)", status: "idle", terminal: true },
+  { id: "review", num: "09", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
+  { id: "approval", num: "10", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
 ];
 
 type MsPersona = "preparer" | "reviewer" | "approver";

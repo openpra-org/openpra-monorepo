@@ -59,6 +59,7 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   grouping: "POS-A5",
   frequency: "POS-A8",
   decayheat: "POS-A9",
+  handoff: "POS-D1",
 };
 
 function PosWorkbookPage(): JSX.Element {
@@ -77,7 +78,6 @@ function PosWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [documents, setDocuments] = useState<PosDocumentEntry[]>([]);
   const [projectName, setProjectName] = useState<string>("");
-  const [projectId, setProjectId] = useState<string>("");
   const workbookName = data?.pos.name ?? "";
   const workbookVersion = data?.pos.version ?? "1";
 
@@ -95,14 +95,11 @@ function PosWorkbookPage(): JSX.Element {
           pos: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
           nms: bundle.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
+          projectId: workbook.projectId,
         });
         setMyRoles(workbook.myRoles);
         setHasPreviousMef(workbook.hasPreviousMef);
         setDocuments(docs);
-        setProjectId(workbook.projectId);
-        void loadPosDaOutages(workbook.projectId, workbook.mef).then((daOutages) => {
-          if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daOutages }));
-        });
         try {
           const project = await getProject(workbook.projectId);
           if (!cancelled) setProjectName(project.name);
@@ -116,6 +113,17 @@ function PosWorkbookPage(): JSX.Element {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  const loaded = data !== null;
+  const linkedDa = data?.pos.linkedWorkbooks?.DA;
+  useEffect(() => {
+    if (!loaded) return;
+    let cancelled = false;
+    void loadPosDaOutages(linkedDa).then((daOutages) => {
+      if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daOutages }));
+    });
+    return () => { cancelled = true; };
+  }, [loaded, linkedDa]);
 
   useEffect(() => {
     let cancelled = false;

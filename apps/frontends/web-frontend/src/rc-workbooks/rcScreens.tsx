@@ -40,7 +40,7 @@ function MethodChips({ ids, label }: { ids: string[]; label?: string }): JSX.Ele
 }
 
 // ─── 01 — Scope (RCRE) ─────────────────────────────────────────────────────
-function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
+function ScopeScreen({ ccId, setCcId, site, setSite, openDrawer }: {
   ccId: string;
   setCcId: (id: string) => void;
   site: SiteBasis;
@@ -261,4 +261,4 @@ function WeatherScreen({ openDrawer, onReviewSite }: { openDrawer: (ctx: RcDrawe
   return <RcMeteorologyPanel onReviewSite={onReviewSite} onEditBasis={() => openDrawer({ kind: "metbasis", id: "meteorology" })} onEditQuality={() => openDrawer({ kind: "metquality", id: "meteorology" })} />;
 }
 
-export { RcInterfaces, HandoffScreen, ProtectiveScreen, WeatherScreen, MethodChips, type RcDrawerContext };
+export { RcInterfaces, ScopeScreen, ProtectiveScreen, WeatherScreen, MethodChips, type RcDrawerContext };

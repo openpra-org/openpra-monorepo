@@ -1,7 +1,9 @@
 import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { JSX } from "react";
+import { JSX, useId } from "react";
 import { type ReleasePhase, type SourceTermDefinition, TransportPhenomenonType } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
+import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { DistributionType } from "interfaces-mef-types/core/events";
 import { MSIcon } from "./msIcons";
@@ -425,10 +427,10 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
         </div>
 
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="MS" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading workbook="MS" title="Draft submission" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
-              ? <>All applicable items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 6 and moves to <strong>Internal Technical Review</strong>.</>
+              ? <>All applicable items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 7 and moves to <strong>Internal Technical Review</strong>.</>
               : <>{scores.warn} item{scores.warn === 1 ? "" : "s"} need attention. A working draft is fine, but approval waits.</>}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -455,11 +457,14 @@ function DrawerHead({ cap, title, sub, onClose }: { cap: string; title: string; 
   );
 }
 
-function MsTextField({ label, value, onChange, disabled }: { label: string; value: string; onChange: (v: string) => void; disabled: boolean }): JSX.Element {
+function MsTextField({ label, value, onChange, disabled, options }: { label: string; value: string; onChange: (v: string) => void; disabled: boolean; options?: [string, string][] }): JSX.Element {
+  const listId = useId();
+  const choices = options ?? [];
   return (
     <div className="posfield">
       <label className="posfield__label">{label}</label>
-      <WorkbookInput className="posfield__input" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+      <WorkbookInput className="posfield__input" value={value} disabled={disabled} list={choices.length > 0 ? listId : undefined} onChange={(e) => onChange(e.target.value)} />
+      {choices.length > 0 && <datalist id={listId}>{choices.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</datalist>}
     </div>
   );
 }
@@ -493,14 +498,17 @@ function MsSelectField({ label, value, options, onChange, disabled }: { label: s
   );
 }
 
-function MsStringList({ label, values, onChange, disabled }: { label: string; values: string[]; onChange: (v: string[]) => void; disabled: boolean }): JSX.Element {
+function MsStringList({ label, values, onChange, disabled, options }: { label: string; values: string[]; onChange: (v: string[]) => void; disabled: boolean; options?: [string, string][] }): JSX.Element {
+  const listId = useId();
+  const choices = options ?? [];
   return (
     <div className="posfield">
       <label className="posfield__label">{label}</label>
+      {choices.length > 0 && <datalist id={listId}>{choices.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</datalist>}
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {values.map((v, i) => (
           <div key={i} className="posrow" style={{ gap: 6 }}>
-            <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={v} disabled={disabled} onChange={(e) => onChange(values.map((y, j) => (j === i ? e.target.value : y)))} />
+            <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={v} disabled={disabled} list={choices.length > 0 ? listId : undefined} onChange={(e) => onChange(values.map((y, j) => (j === i ? e.target.value : y)))} />
             {!disabled && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onChange([...values.slice(0, i), ...values.slice(i + 1)])}>Remove</button>}
           </div>
         ))}
@@ -538,8 +546,27 @@ const STATUS_OPTIONS: [string, string][] = [["OPEN", "Open"], ["CLOSED", "Closed
 const YESNO_OPTIONS: [string, string][] = [["yes", "Yes"], ["no", "No"]];
 const PHENOM_OPTIONS: [string, string][] = Object.entries(TRANSPORT_PHENOMENON_LABELS);
 
+function linkedSequenceOptions(es: EventSequenceAnalysis | undefined, categoryId: string): [string, string][] {
+  const sequences = es?.eventSequences ?? [];
+  return [...sequences.filter((s) => s.releaseCategoryId === categoryId), ...sequences.filter((s) => s.releaseCategoryId !== categoryId)].map((s) => [s.uuid, s.name]);
+}
+
+function linkedFamilyOptions(es: EventSequenceAnalysis | undefined, categoryId: string): [string, string][] {
+  const families = es?.eventSequenceFamilies ?? [];
+  const holds = (f: (typeof families)[number]): boolean => (f.releaseCategoryIds ?? []).includes(categoryId);
+  return [...families.filter(holds), ...families.filter((f) => !holds(f))].map((f) => [f.uuid, f.name]);
+}
+
+function linkedSourceOptions(pos: PlantOperatingStatesAnalysis | undefined): [string, string][] {
+  const seen = new Map<string, string>();
+  for (const state of pos?.plantOperatingStates ?? []) {
+    for (const source of state.radioactiveMaterialSources) if (!seen.has(source.uuid)) seen.set(source.uuid, source.name);
+  }
+  return [...seen.entries()];
+}
+
 function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose: () => void }): JSX.Element | null {
-  const { ms, editable, mutateMs } = useMsWorkbook();
+  const { ms, editable, mutateMs, upstream } = useMsWorkbook();
   const dis = !editable;
   const categoryOptions: [string, string][] = ms.releaseCategories.map((c) => [c.uuid, `${c.uuid} · ${c.name}`]);
 
@@ -560,7 +587,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
             <MsTextField label="Magnitude" value={r.magnitudeClassification ?? ""} onChange={(v) => patch({ magnitudeClassification: v })} disabled={dis} />
           </div>
           <MsSelectField label="Differentiation basis" value={r.differentiationBasis} options={DIFF_OPTIONS} onChange={(v) => patch({ differentiationBasis: v as typeof r.differentiationBasis })} disabled={dis} />
-          <MsTextField label="Bounding sequence" value={r.boundingSequenceReference} onChange={(v) => patch({ boundingSequenceReference: v })} disabled={dis} />
+          <MsTextField label="Bounding sequence" value={r.boundingSequenceReference} onChange={(v) => patch({ boundingSequenceReference: v })} disabled={dis} options={linkedSequenceOptions(upstream.es, r.uuid)} />
           <MsAreaField label="Bounding sequence justification" value={r.boundingSequenceJustification ?? ""} onChange={(v) => patch({ boundingSequenceJustification: v })} disabled={dis} rows={2} />
           <div className="posfield-grid">
             <MsNumberField label="Termination time value" value={r.releaseTerminationTime.value} onChange={(v) => patchTerm({ value: v })} disabled={dis} />
@@ -569,7 +596,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
           <MsAreaField label="Termination time justification" value={r.releaseTerminationTime.justification} onChange={(v) => patchTerm({ justification: v })} disabled={dis} rows={2} />
           <MsAreaField label="Grouping justification" value={r.groupingJustification ?? ""} onChange={(v) => patch({ groupingJustification: v })} disabled={dis} rows={2} />
           <MsAreaField label="Technical basis" value={r.technicalBasis} onChange={(v) => patch({ technicalBasis: v })} disabled={dis} rows={2} />
-          <MsStringList label="Families assigned" values={r.supportingReferences ?? []} onChange={(v) => patch({ supportingReferences: v })} disabled={dis} />
+          <MsStringList label="Families assigned" values={r.supportingReferences ?? []} onChange={(v) => patch({ supportingReferences: v })} disabled={dis} options={linkedFamilyOptions(upstream.es, r.uuid)} />
           <SrChips srs={r.implementsSrs} />
           {editable && <RemoveBtn label="Remove category" onClick={remove} />}
         </div>
@@ -589,7 +616,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
         <div className="posdrawer__body">
           <MsTextField label="Name" value={s.name} onChange={(v) => patch({ name: v })} disabled={dis} />
           <div className="posfield-grid">
-            <MsTextField label="Source reference" value={s.radioactiveSourceRef ?? ""} onChange={(v) => patch({ radioactiveSourceRef: v })} disabled={dis} />
+            <MsTextField label="Source reference" value={s.radioactiveSourceRef ?? ""} onChange={(v) => patch({ radioactiveSourceRef: v })} disabled={dis} options={linkedSourceOptions(upstream.pos)} />
             <MsSelectField label="Calculation basis" value={s.calculationBasis} options={CALC_OPTIONS} onChange={(v) => patch({ calculationBasis: v as typeof s.calculationBasis })} disabled={dis} />
           </div>
           <MsAreaField label="Description" value={s.description} onChange={(v) => patch({ description: v })} disabled={dis} />
@@ -1064,4 +1091,4 @@ function PlaceholderScreen({ label }: { label: string }): JSX.Element {
   );
 }
 
-export { SourceTermScreen, UncertScreen, DraftScreen, DrawerContent, PlaceholderScreen };
+export { SourceTermScreen, UncertScreen, DraftScreen, DrawerContent, PlaceholderScreen, MsAreaField, MsSelectField, MsStringList };

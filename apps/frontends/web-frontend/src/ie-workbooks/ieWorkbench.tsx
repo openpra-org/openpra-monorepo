@@ -29,7 +29,9 @@ import {
   FrequencyScreen,
   DraftScreen,
 } from "./ieScreens";
+import type { IePosLinkActions } from "./ieInterfaces";
 import { InternalReviewScreen, ReviewerCommentDock } from "./ieReview";
+import { IeHandoffScreen } from "./ieHandoff";
 import { useIeWorkbook, type IeWorkbookData } from "./ieWorkbookContext";
 import { IeDrawer } from "./ieDrawer";
 import { useAuth } from "../auth/AuthContext";
@@ -53,9 +55,10 @@ function headersFor(stepId: string): StepHeader {
     case "grouping": return { eyebrow: "Step 06", title: "Grouping", sub: "Bundle events that share mitigation requirements under a bounding case, without masking any risk-significant sequence (IE-B4)." };
     case "screening": return { eyebrow: "Step 07", title: "Screening", sub: "Eliminate an event only if it does not breach a barrier AND meets an SCR test. The barrier-integrity gate is enforced first (IE-C9)." };
     case "frequency": return { eyebrow: "Step 08", title: "Frequency & quantification", sub: "Annual frequency per event or group, on a plant-calendar-year basis, weighted by the POS time fraction (IE-C8)." };
-    case "draft": return { eyebrow: "Step 09 · Draft", title: "Produce the draft", sub: "Generate the IE report from everything entered. Submitting advances the workbook to internal technical review." };
-    case "review": return { eyebrow: "Step 10 · Review", title: "Internal technical review", sub: "Reviewers and the approver leave comments and the preparer responds. The workbook advances to Approval once every comment is resolved." };
-    case "approval": return { eyebrow: "Step 11 · Approval", title: "Approval & sign-off", sub: "Everyone on the workbook signs. The approver signs last, gated on all comments being resolved." };
+    case "handoff": return { eyebrow: "Step 09", title: "Technical Element Handoff" };
+    case "draft": return { eyebrow: "Step 10 · Draft", title: "Produce the draft", sub: "Generate the IE report from everything entered. Submitting advances the workbook to internal technical review." };
+    case "review": return { eyebrow: "Step 11 · Review", title: "Internal technical review", sub: "Reviewers and the approver leave comments and the preparer responds. The workbook advances to Approval once every comment is resolved." };
+    case "approval": return { eyebrow: "Step 12 · Approval", title: "Approval & sign-off", sub: "Everyone on the workbook signs. The approver signs last, gated on all comments being resolved." };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -289,7 +292,7 @@ interface IeWorkbenchActions {
 const DEFAULT_PERSONAS: IePersona[] = ["preparer", "reviewer", "approver"];
 
 function IeWorkbench({
-  data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, onOpenPosLink, onStageChange, actions, headerMeta, renderApprovalTable, renderSignCard, renderRoster, exampleOptions, selectedExample, onSelectExample,
+  data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, posLinks, onStageChange, actions, headerMeta, renderApprovalTable, renderSignCard, renderRoster, exampleOptions, selectedExample, onSelectExample,
 }: {
   data: IeWorkbookData;
   persona: IePersona;
@@ -299,7 +302,7 @@ function IeWorkbench({
   onOpenRoles?: () => void;
   onLoadExample?: () => void;
   onUnloadExample?: () => void;
-  onOpenPosLink?: () => void;
+  posLinks?: IePosLinkActions;
   onStageChange?: (s: Stage) => void;
   actions?: IeWorkbenchActions;
   headerMeta: HeaderMeta;
@@ -404,7 +407,7 @@ function IeWorkbench({
 
   function renderScreen(): JSX.Element | null {
     switch (stepId) {
-      case "scope": return <ScopeScreen {...screenProps} stage={stage} setStage={setStage} onOpenLink={() => onOpenPosLink?.()} />;
+      case "scope": return <ScopeScreen {...screenProps} stage={stage} setStage={setStage} posLinks={posLinks} />;
       case "methods": return <MethodsScreen />;
       case "identify": return <IdentifyScreen />;
       case "completeness": return <CompletenessScreen />;
@@ -412,6 +415,7 @@ function IeWorkbench({
       case "grouping": return <GroupingScreen />;
       case "screening": return <ScreeningScreen />;
       case "frequency": return <FrequencyScreen />;
+      case "handoff": return <IeHandoffScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (

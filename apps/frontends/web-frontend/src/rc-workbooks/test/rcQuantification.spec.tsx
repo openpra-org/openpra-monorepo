@@ -39,7 +39,7 @@ describe("Step 08 local input handling", () => {
     expect(screen.getByLabelText("Retained reference")).toHaveTextContent("retained draft");
   });
   it("keeps review links and keyboard tabs connected to their existing sections", () => {
-    const { open } = setup(); fireEvent.click(screen.getByRole("button", { name: "01. Source term" })); expect(open).toHaveBeenCalledWith("handoff");
+    const { open } = setup(); fireEvent.click(screen.getByRole("button", { name: "01. Source term" })); expect(open).toHaveBeenCalledWith("scope");
     const checks = screen.getByRole("tab", { name: "Case & checks" }); checks.focus(); fireEvent.keyDown(checks, { key: "End" });
     expect(screen.getByRole("tab", { name: "Results" })).toHaveFocus(); expect(screen.getByRole("tab", { name: "Results" })).toHaveAttribute("aria-selected", "true");
   });

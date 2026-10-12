@@ -11,7 +11,7 @@ import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import type { InitiatingEventGroup, InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import { fetchJson } from "../api/client";
-import { listWorkbooks } from "../workbooks/workbookApi";
+import { getDaWorkbook } from "../da-workbooks/daWorkbookApi";
 import { DEFAULT_FREQUENCY_BASIS } from "../newly-developed-methods/ie-frequency-quantification/frequencySources";
 import { type LinkRoot } from "../newly-developed-methods/shared/uncertaintyLinks";
 import { useLinkedScSources, withScSources } from "../sc-workbooks/scMissionTimeSources";
@@ -156,40 +156,33 @@ function withTypedGroupFrequency(ie: InitiatingEventsAnalysis, targetId: string)
   };
 }
 
-async function loadDaSource(id: string, name: string): Promise<IeDaSource[]> {
+async function loadDaSource(id: string): Promise<IeDaSource[]> {
   try {
     if (id.startsWith(EXAMPLE_PREFIX)) {
       const bundle = await fetchJson<{ da: { mef: DataAnalysis } }>(`/api/example-workbooks/da-bundle?example=${encodeURIComponent(id.slice(EXAMPLE_PREFIX.length))}`);
-      return [{ id, name, mef: bundle.da.mef }];
+      return [{ id, name: "", mef: bundle.da.mef }];
     }
-    const workbook = await fetchJson<{ mef: DataAnalysis }>(`/api/da-workbooks/${encodeURIComponent(id)}`);
-    return [{ id, name, mef: workbook.mef }];
+    const workbook = await getDaWorkbook(id);
+    return [{ id, name: "", mef: workbook.mef }];
   } catch {
     return [];
   }
 }
 
-async function loadDaFrequencies(projectId: string, linkedWorkbookIds: readonly string[]): Promise<IeDaFrequencyOption[]> {
-  let listed: { id: string; name: string }[] = [];
-  try {
-    listed = (await listWorkbooks(projectId, "DA")).workbooks.map((workbook) => ({ id: workbook.id, name: workbook.name }));
-  } catch {
-    listed = [];
-  }
-  const known = new Set(listed.map((entry) => entry.id));
-  const examples = [...new Set(linkedWorkbookIds)]
-    .filter((id) => id.startsWith(EXAMPLE_PREFIX) && !known.has(id))
-    .map((id) => ({ id, name: "" }));
-  const sources = await Promise.all([...listed, ...examples].map((entry) => loadDaSource(entry.id, entry.name)));
-  return daFrequencyOptions(sources.flat());
+async function loadIeDaFrequencies(daWorkbookId: string | undefined): Promise<IeDaFrequencyOption[]> {
+  if (daWorkbookId === undefined || daWorkbookId.length === 0) return [];
+  return daFrequencyOptions(await loadDaSource(daWorkbookId));
 }
 
-function loadIeDaFrequencies(projectId: string, ie: InitiatingEventsAnalysis): Promise<IeDaFrequencyOption[]> {
-  return loadDaFrequencies(projectId, ie.initiatingEventGroups.flatMap((group) => group.controlledDataSource?.workbookId ?? []));
+function withDaLink(ie: InitiatingEventsAnalysis, workbookId: string): InitiatingEventsAnalysis {
+  const links = { ...ie.linkedWorkbooks };
+  delete links.DA;
+  return { ...ie, linkedWorkbooks: workbookId.length === 0 ? links : { ...links, DA: workbookId } };
 }
 
 export {
   EXAMPLE_PREFIX,
+  withDaLink,
   daFrequencyOptions,
   daOptionKey,
   daParameterKey,
@@ -199,7 +192,6 @@ export {
   useDaFrequencyTable,
   heldDiffers,
   linkedDaOption,
-  loadDaFrequencies,
   loadIeDaFrequencies,
   withImportedFrequency,
   withTypedGroupFrequency,

@@ -1,5 +1,6 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
+import { HandoffImports } from "../workbooks/workbookHandoff";
 import { Fragment, JSX, useId, useState } from "react";
 import type {
   ComponentBoundary,
@@ -97,12 +98,6 @@ interface DaDrawerContext {
   id: string;
 }
 
-const WORKBOOK_STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  "in-progress": "In progress",
-  complete: "Complete",
-};
-
 const PLANT_STAGES: { id: Stage; title: string; body: string }[] = [
   { id: "pre_operational", title: "Pre-operational", body: "Generic sources, technology experience and planned schedules stand in for plant records. Every borrowing needs a reason." },
   { id: "operational", title: "Operational", body: "The plant's own failures, demands, hours and outages inside the data window update the generic estimates." },
@@ -118,7 +113,7 @@ function DaInterfaces(): JSX.Element {
   const linkedId = tile === undefined ? undefined : links[tile.code];
   const linked = options.find((workbook) => workbook.id === linkedId);
   const exampleLabel = linkedId === undefined ? undefined : exampleLinkLabel(linkedId);
-  const nothingToLink = options.length === 0 && exampleLabel === undefined;
+  const nothingToLink = options.length === 0 && linkedId === undefined;
 
   function onLink(code: DaLinkCode, id: string): void {
     if (!editable) return;
@@ -146,7 +141,6 @@ function DaInterfaces(): JSX.Element {
           >
             <span className="poshandoff__tile-code">{candidate.label}</span>
             <span className="poshandoff__tile-name">{candidate.name}</span>
-            <span className="poshandoff__tile-role">{candidate.handoff}</span>
           </button>
         ))}
       </div>
@@ -164,39 +158,10 @@ function DaInterfaces(): JSX.Element {
               <option value="">{nothingToLink ? `No ${tile.label} workbooks in this project` : "Not linked"}</option>
               {exampleLabel !== undefined && linkedId !== undefined && <option value={linkedId}>{exampleLabel}</option>}
               {options.map((workbook) => <option key={workbook.id} value={workbook.id}>{workbook.name}</option>)}
+              {linkedId !== undefined && linked === undefined && exampleLabel === undefined && <option value={linkedId}>{`${tile.label} workbook not in this project`}</option>}
             </select>
           </div>
-          {linkedId !== undefined && linked === undefined && exampleLabel === undefined && (
-            <p className="posmuted da-scope-note">The linked workbook is not in this project.</p>
-          )}
-          {exampleLabel !== undefined && (
-            <table className="postable postable--mid" aria-label={`Linked ${tile.label} workbook`}>
-              <thead><tr><th>Workbook</th><th>Status</th><th>Version</th><th>Owner</th><th>Updated</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td><div className="postable__name">{exampleLabel}</div></td>
-                  <td>Example</td>
-                  <td className="posmono">—</td>
-                  <td>OpenPRA</td>
-                  <td className="posmono">—</td>
-                </tr>
-              </tbody>
-            </table>
-          )}
-          {linked !== undefined && (
-            <table className="postable postable--mid" aria-label={`Linked ${tile.label} workbook`}>
-              <thead><tr><th>Workbook</th><th>Status</th><th>Version</th><th>Owner</th><th>Updated</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td><div className="postable__name">{linked.name}</div></td>
-                  <td>{WORKBOOK_STATUS_LABEL[linked.status] ?? linked.status}</td>
-                  <td className="posmono">v{linked.version}</td>
-                  <td>{linked.ownerFullName}</td>
-                  <td className="posmono">{linked.updatedAt.slice(0, 10)}</td>
-                </tr>
-              </tbody>
-            </table>
-          )}
+          <HandoffImports consumer="DA" producer={tile.code} />
         </div>
       )}
     </>

@@ -2,6 +2,7 @@ import { JSX, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { KeySafetyFunction } from "interfaces-mef-types/es/event-sequence-analysis";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
+import { HandoffImports } from "../workbooks/workbookHandoff";
 import { Badge } from "./esShared";
 import { ESIcon } from "./esIcons";
 import { CAPABILITY_CATEGORIES, type Stage } from "./esViewData";
@@ -30,12 +31,11 @@ interface ScopeChoice {
   label: string;
 }
 
-const LINK_TILES: { code: EsLinkCode; label: string; name: string; handoff: string }[] = [
-  { code: "POS", label: "POS", name: "Plant Operating States", handoff: "Provides · Operating states, sources and barriers" },
-  { code: "IE", label: "IE", name: "Initiating Event Analysis", handoff: "Provides · Initiating event groups" },
-  { code: "SC", label: "SC", name: "Success Criteria", handoff: "Provides · Success criteria, mission times and timing" },
-  { code: "SY", label: "SY", name: "Systems Analysis", handoff: "Provides · Supporting systems and fault tree tops" },
-  { code: "HRA", label: "HR", name: "Human Reliability", handoff: "Provides · Human failure events" },
+const LINK_TILES: { code: EsLinkCode; label: string; name: string }[] = [
+  { code: "POS", label: "POS", name: "Plant Operating States" },
+  { code: "IE", label: "IE", name: "Initiating Event Analysis" },
+  { code: "SC", label: "SC", name: "Success Criteria" },
+  { code: "SY", label: "SY", name: "Systems Analysis" },
 ];
 
 const SCOPE_LABEL: Record<ScopeKey, string> = {
@@ -93,7 +93,6 @@ function EsInterfaces({ links }: { links?: EsLinkActions }): JSX.Element {
           >
             <span className="poshandoff__tile-code">{candidate.label}</span>
             <span className="poshandoff__tile-name">{candidate.name}</span>
-            <span className="poshandoff__tile-role">{candidate.handoff}</span>
           </button>
         ))}
       </div>
@@ -113,6 +112,7 @@ function EsInterfaces({ links }: { links?: EsLinkActions }): JSX.Element {
               {linkedId !== null && linked === undefined && <option value={linkedId}>{linkedName ?? (linkedId.startsWith("example") ? `Example ${tile.label} workbook` : `${tile.label} workbook not in this project`)}</option>}
             </select>
           </div>
+          <HandoffImports consumer="ES" producer={tile.code} />
           {error !== null && <p className="es-scope-error" role="alert">{error}</p>}
         </div>
       )}

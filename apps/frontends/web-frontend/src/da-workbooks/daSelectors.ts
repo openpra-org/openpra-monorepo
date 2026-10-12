@@ -1278,7 +1278,7 @@ function stepsForPersona(persona: DaPersona): DaStep[] {
   return DA_STEPS.filter((s) => ids.includes(s.id));
 }
 
-function stepsFromMef(da: DataAnalysis, persona: DaPersona, handoffsDone = false): DaStep[] {
+function stepsFromMef(da: DataAnalysis, persona: DaPersona, handoffDone = false): DaStep[] {
   const base = stepsForPersona(persona);
   const scopeComplete = scopeItemsToComplete(da).length === 0;
   const needsDone = needsComplete(da);
@@ -1307,7 +1307,7 @@ function stepsFromMef(da: DataAnalysis, persona: DaPersona, handoffsDone = false
       case "ccf": return { ...s, status: status(commonCauseComplete) };
       case "ie": return { ...s, status: status(initiatorsComplete) };
       case "uncert": return { ...s, status: status(uncertComplete) };
-      case "handoffs": return { ...s, status: status(handoffsDone) };
+      case "handoff": return { ...s, status: status(handoffDone) };
       case "draft": return { ...s, status: status(draftComplete) };
       case "review": return { ...s, status: status(reviewComplete) };
       default: return { ...s, status: "idle" as const };

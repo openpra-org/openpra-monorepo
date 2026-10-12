@@ -4,8 +4,6 @@ import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
-import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
-import { pointsOf, workbookParameterTable, type EstimateRecord } from "../newly-developed-methods/shared/uncertaintyPoints";
 import { getProject } from "../projects/projectApi";
 import { WorkbookRolesModal } from "../workbooks/workbookRolesModal";
 import { WorkbookApprovalTable } from "../workbooks/workbookApprovalTable";
@@ -22,7 +20,8 @@ import {
   type ScWorkbookRoleName,
 } from "./scWorkbookApi";
 import { ScWorkbench, type ScWorkbenchActions } from "./scWorkbench";
-import { ScWorkbookProvider, type ScWorkbookData, type ScLinkedInputs } from "./scWorkbookContext";
+import { ScWorkbookProvider, type ScWorkbookData } from "./scWorkbookContext";
+import { listScLinkOptions, loadScLinkedInputs, withLink, type ScLinkActions } from "./scLinks";
 import { useScMefPatch } from "./useScMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { ScDocumentsCard } from "./scDocumentsCard";
@@ -36,6 +35,7 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   bases: "SC-B1",
   passive: "SC-B5",
   consistency: "SC-A9",
+  handoff: "SC-C1",
 };
 
 interface ScExampleResponse {
@@ -51,67 +51,6 @@ interface ScBundleResponse {
   newlyDevelopedMethods: ScExampleResponse[];
 }
 
-interface LinkedPosMef {
-  plantOperatingStates?: { uuid: string; name: string; meanDurationHours: number; decayHeat?: { representative?: number; max?: number; units?: string } }[];
-}
-
-interface LinkedIeMef {
-  initiatingEventGroups?: { uuid: string; name: string; frequency?: { expression: UncertainExpression }; applicableStates?: string[] }[];
-}
-
-interface LinkedDaMef {
-  parameters?: EstimateRecord[];
-}
-
-interface LinkedEsMef {
-  keySafetyFunctions?: { id: string; name: string }[];
-  eventSequences?: { uuid: string; name?: string; initiatingEventId?: string; functionalEventStates?: Record<string, string>; endState?: string; releaseCategoryId?: string }[];
-  operatorActionWindows?: unknown[];
-}
-
-async function fetchLinkedInputs(variant: string): Promise<ScLinkedInputs> {
-  const [posBundle, ieBundle, esBundle, daBundle] = await Promise.all([
-    fetchJson<{ pos: { mef: LinkedPosMef } }>(`/api/example-workbooks/pos-bundle?example=${variant}`),
-    fetchJson<{ ie: { mef: LinkedIeMef } }>(`/api/example-workbooks/ie-bundle?example=${variant}`),
-    fetchJson<{ es: { mef: LinkedEsMef } }>(`/api/example-workbooks/es-bundle?example=${variant}`),
-    fetchJson<{ da: { mef: LinkedDaMef } }>(`/api/example-workbooks/da-bundle?example=${variant}`),
-  ]);
-  const posMef = posBundle.pos.mef;
-  const ieMef = ieBundle.ie.mef;
-  const esMef = esBundle.es.mef;
-  const daTable = workbookParameterTable(`example-da-${variant}`, daBundle.da.mef.parameters ?? []);
-  const frequencies = await pointsOf(
-    (ieMef.initiatingEventGroups ?? []).flatMap((g) => (g.frequency === undefined ? [] : [{ key: g.uuid, expression: g.frequency.expression, unit: "PER_YEAR" as const }])),
-    daTable,
-  );
-  const label = variant === "htgr" ? "Generic HTGR" : "Generic SFR";
-  return {
-    posName: `${label} POS Workbook`,
-    ieName: `${label} IE Workbook`,
-    esName: `${label} ES Workbook`,
-    posStates: (posMef.plantOperatingStates ?? []).map((st) => {
-      const rep = st.decayHeat?.representative ?? st.decayHeat?.max ?? 0;
-      const units = st.decayHeat?.units ?? "MW";
-      return { id: st.uuid, name: st.name, decayLabel: rep > 0 ? `${rep} ${units}` : "At power", durationHours: st.meanDurationHours };
-    }),
-    ieGroups: (ieMef.initiatingEventGroups ?? []).map((g) => ({
-      id: g.uuid,
-      name: g.name,
-      frequency: frequencies.get(g.uuid),
-      stateCount: (g.applicableStates ?? []).length,
-    })),
-    esFunctions: (esMef.keySafetyFunctions ?? []).map((f) => ({ id: f.id, name: f.name })),
-    esSequenceInfo: Object.fromEntries((esMef.eventSequences ?? []).map((q) => [q.uuid, {
-      scenario: (q.name ?? "").split(" · ")[0],
-      ieId: q.initiatingEventId ?? "",
-      states: Object.entries(q.functionalEventStates ?? {}).map(([fn, st]) => ({ fn, ok: st === "SUCCESS" })),
-      outcome: String(q.endState ?? "") === "SUCCESSFUL_MITIGATION" ? "safe stable state" : q.releaseCategoryId !== undefined ? `release (${q.releaseCategoryId})` : "release",
-    }])),
-    esSequenceCount: (esMef.eventSequences ?? []).length,
-    esWindowCount: (esMef.operatorActionWindows ?? []).length,
-  };
-}
-
 function ScWorkbookPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -120,6 +59,8 @@ function ScWorkbookPage(): JSX.Element {
   const [myRoles, setMyRoles] = useState<ScWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
@@ -147,6 +88,7 @@ function ScWorkbookPage(): JSX.Element {
         });
         setMyRoles(workbook.myRoles);
         setHasPreviousMef(workbook.hasPreviousMef);
+        setProjectId(workbook.projectId);
         try {
           const project = await getProject(workbook.projectId);
           if (!cancelled) setProjectName(project.name);
@@ -161,16 +103,20 @@ function ScWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, [id]);
 
-  const scUuid = data?.sc.uuid ?? "";
+  const linkedPos = data?.sc.linkedWorkbooks?.POS;
+  const linkedIe = data?.sc.linkedWorkbooks?.IE;
+  const linkedEs = data?.sc.linkedWorkbooks?.ES;
   useEffect(() => {
-    const variant = scUuid === "sc-generic-2" ? "htgr" : scUuid === "sc-generic-1" ? "sfr" : null;
-    if (variant === null) return;
     let cancelled = false;
-    fetchLinkedInputs(variant)
-      .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
-      .catch(() => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links: null })); });
+    loadScLinkedInputs({ POS: linkedPos, IE: linkedIe, ES: linkedEs })
+      .then((links) => {
+        if (cancelled) return;
+        setData((prev) => (prev === null ? prev : { ...prev, links }));
+        setLinkError(null);
+      })
+      .catch((failure: Error) => { if (!cancelled) setLinkError(`Could not load a linked workbook: ${failure.message}`); });
     return () => { cancelled = true; };
-  }, [scUuid]);
+  }, [linkedPos, linkedIe, linkedEs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -213,6 +159,14 @@ function ScWorkbookPage(): JSX.Element {
       },
     };
   }, [id, updateSc]);
+
+  const linkActions = useMemo<ScLinkActions | undefined>(() => {
+    if (projectId === null) return undefined;
+    return {
+      available: (code) => listScLinkOptions(projectId, code),
+      setLink: (code, workbookId) => { mutateSc((draft) => ({ ...draft, linkedWorkbooks: withLink(draft.linkedWorkbooks, code, workbookId) })); },
+    };
+  }, [projectId, mutateSc]);
 
   const availablePersonas = useMemo<ScPersona[]>(() => {
     const out: ScPersona[] = [];
@@ -262,6 +216,7 @@ function ScWorkbookPage(): JSX.Element {
         showPersonaPicker={availablePersonas.length > 1}
         availablePersonas={availablePersonas}
         onOpenRoles={() => setRolesOpen(true)}
+        linkActions={linkActions}
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
@@ -280,6 +235,12 @@ function ScWorkbookPage(): JSX.Element {
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
         renderDocuments={() => <ScDocumentsCard workbookId={id} canEdit={canEdit} />}
       />
+      {linkError !== null && (
+        <div className="ie-savebar" role="alert">
+          <span>{linkError}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setLinkError(null)}>Dismiss</button>
+        </div>
+      )}
       {saveError !== null && (
         <div className="ie-savebar" role="alert">
           <span>Could not save changes: {saveError}</span>

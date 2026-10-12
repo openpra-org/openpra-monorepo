@@ -7,19 +7,17 @@ interface ScLinkedPosState {
   id: string;
   name: string;
   decayLabel: string;
-  durationHours: number;
 }
 
 interface ScLinkedIeGroup {
   id: string;
   name: string;
-  frequency?: number;
-  stateCount: number;
 }
 
 interface ScLinkedFunction {
   id: string;
   name: string;
+  supportingSystems: string[];
 }
 
 interface ScLinkedSequence {
@@ -30,15 +28,11 @@ interface ScLinkedSequence {
 }
 
 interface ScLinkedInputs {
-  posName: string;
-  ieName: string;
-  esName: string;
   posStates: ScLinkedPosState[];
+  posBarriers: string[];
   ieGroups: ScLinkedIeGroup[];
   esFunctions: ScLinkedFunction[];
   esSequenceInfo: Record<string, ScLinkedSequence>;
-  esSequenceCount: number;
-  esWindowCount: number;
 }
 
 interface ScWorkbookData {
@@ -76,4 +70,4 @@ function useScWorkbook(): ScWorkbookContextValue {
   return ctx;
 }
 
-export { ScWorkbookProvider, useScWorkbook, type ScWorkbookData, type ScMutator, type ScLinkedInputs };
+export { ScWorkbookProvider, useScWorkbook, type ScWorkbookData, type ScMutator, type ScLinkedInputs, type ScLinkedSequence };

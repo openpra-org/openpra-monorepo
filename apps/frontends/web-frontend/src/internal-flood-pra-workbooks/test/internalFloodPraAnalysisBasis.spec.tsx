@@ -116,7 +116,7 @@ describe("Internal Flood PRA presentation", () => {
     const { container } = render(<InternalFloodPraWorkbookProvider mef={createInternalFloodPraExample("htgr")} editable mutate={jest.fn()}><DraftScreen /></InternalFloodPraWorkbookProvider>);
     expect(screen.getByText("Generated preview · Word output")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Conformance check" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Hand-off to internal review" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Draft submission" })).toBeInTheDocument();
     expect(screen.getByText("Flood scenarios, consequences, and screening")).toBeInTheDocument();
     expect(container.querySelector(".flworkflow-card")).toBeNull();
     expect(screen.queryByRole("heading", { name: "Report sections" })).not.toBeInTheDocument();

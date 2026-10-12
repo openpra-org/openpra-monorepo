@@ -158,6 +158,7 @@ function stepsFromMef(
   const detailedModels = sy.systemLogicModels.filter((model) => model.topGate !== null && !isSystemLevelModel(model));
   const uncertComplete = sy.systemDefinitions.length > 0 && uncertaintyErrors(sy).length === 0
     && detailedModels.every((model) => uncertaintyReadiness.get(model.uuid) === "READY");
+  const handoffComplete = sy.systemDefinitions.length > 0 && sy.systemLogicModels.length > 0;
   const draftComplete = sy.workflowState !== "DRAFT" && sy.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = sy.workflowState === "FINAL";
 
@@ -174,6 +175,7 @@ function stepsFromMef(
       case "deps": return { ...s, status: status(depsComplete) };
       case "integrity": return { ...s, status: status(integrityComplete) };
       case "uncert": return { ...s, status: status(uncertComplete) };
+      case "handoff": return { ...s, status: status(handoffComplete) };
       case "draft": return { ...s, status: status(draftComplete) };
       case "review": return { ...s, status: status(reviewComplete) };
       default: return { ...s, status: "idle" as const };

@@ -229,7 +229,56 @@ export class WorkbooksService {
     }
     await this.reconcileGeneratedDependencyExamples(generated);
     await this.linkGeneratedConsequenceExamples(generated);
+    await this.linkGeneratedHandoffSources(generated);
     return { generated };
+  }
+
+  private async linkGeneratedHandoffSources(generated: GeneratedExampleWorkbook[]): Promise<void> {
+    const consumers: Array<{ element: string; sources: string[] }> = [
+      { element: "POS", sources: ["DA"] },
+      { element: "IE", sources: ["DA"] },
+      { element: "SC", sources: ["POS", "IE", "ES"] },
+      { element: "SY", sources: ["POS", "SC", "ES", "DA", "HRA"] },
+      { element: "HRA", sources: ["POS", "IE", "SC", "SY", "DA"] },
+      { element: "DA", sources: ["POS", "IE", "SC", "SY", "HRA", "ESQ"] },
+      { element: "ESQ", sources: ["ES", "SY", "DA", "HRA", "IE", "POS", "SC", "RI"] },
+      { element: "MS", sources: ["POS", "ES", "RI"] },
+    ];
+    const exampleDaRelinked = (mef: { linkedWorkbooks?: Record<string, string> }, daId: string | undefined): { linkedWorkbooks?: Record<string, string> } => (daId === undefined
+      ? mef
+      : JSON.parse(JSON.stringify(mef, (key: string, value: string) => (key === "workbookId" && typeof value === "string" && value.startsWith("example-da-") ? daId : value))));
+    for (const variant of [...new Set(generated.map(({ exampleId }) => exampleId))]) {
+      const idFor = (elementCode: string): string | undefined => generated.find((entry) => entry.exampleId === variant && entry.elementCode === elementCode)?.workbookId ?? undefined;
+      const linksFor = (sources: readonly string[]): Record<string, string> => Object.fromEntries(sources.flatMap((code): [string, string][] => {
+        const id = idFor(code);
+        return id === undefined ? [] : [[code, id]];
+      }));
+      for (const { element, sources } of consumers) {
+        const adapter = this.elementRegistry.tryGet(element);
+        const workbookId = idFor(element);
+        const links = linksFor(sources);
+        if (adapter === undefined || workbookId === undefined || Object.keys(links).length === 0) continue;
+        const loaded = await adapter.load(workbookId);
+        if (loaded === null) continue;
+        const stored = loaded.mef as { linkedWorkbooks?: Record<string, string> };
+        const mef = element === "POS" || element === "IE" ? exampleDaRelinked(stored, links.DA) : stored;
+        await adapter.save(workbookId, { ...mef, linkedWorkbooks: { ...mef.linkedWorkbooks, ...links } }, loaded.revision);
+      }
+      const riAdapter = this.elementRegistry.tryGet("RI");
+      const riId = idFor("RI");
+      if (riAdapter === undefined || riId === undefined) continue;
+      const loaded = await riAdapter.load(riId);
+      if (loaded === null) continue;
+      const integration = loaded.mef as RiskIntegration;
+      if (integration.applicationContext === undefined) continue;
+      await riAdapter.save(riId, {
+        ...integration,
+        applicationContext: {
+          ...integration.applicationContext,
+          linkedWorkbooks: { ...integration.applicationContext.linkedWorkbooks, ...linksFor(["POS", "ES", "ESQ", "MS", "RC"]) },
+        },
+      }, loaded.revision);
+    }
   }
 
   private async linkGeneratedConsequenceExamples(generated: GeneratedExampleWorkbook[]): Promise<void> {

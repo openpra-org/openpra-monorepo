@@ -21,6 +21,7 @@ import { useDaWorkbook } from "./daWorkbookContext";
 import { CCF_TESTING_LABELS, PRIOR_FORM_LABELS, SENSITIVITY_KIND_LABELS } from "./daViewData";
 import { AreaRow, EstimateRows, LinesRow, NEED_PAGE, NeedChecksTable, NeedPager, PraxisValue, estimateText, statText, waitNote, type DaDrawerContext } from "./daScreens";
 import { NumberInput, TextRow } from "./daSourcesScreen";
+import { FV_SIGNIFICANT, RAW_SIGNIFICANT, handoffView, importanceFindings, withImportanceFromEsq } from "./daHandoffs";
 import { TypedValueRows, useText } from "./daUnavailabilityScreen";
 
 type UncertaintyTab = "distributions" | "correlation" | "register" | "sensitivity" | "assumptions" | "checks";
@@ -31,10 +32,10 @@ const TAB_HEADS: Record<UncertaintyTab, { title: string; sr: string }> = {
   register: { title: "Register", sr: "DA-A5 · DA-E2" },
   sensitivity: { title: "Sensitivity cases", sr: "DA-A5 · DA-E2" },
   assumptions: { title: "Pre-operational assumptions", sr: "DA-A6 · DA-E3" },
-  checks: { title: "Uncertainty checks", sr: "DA-A5 · DA-A6 · DA-D3 · DA-E2 · DA-E3" },
+  checks: { title: "Uncertainty checks", sr: "DA-A5 · DA-A6 · DA-D1 · DA-D3 · DA-E2 · DA-E3" },
 };
 
-const UNCERTAINTY_WINDOW_KINDS: ReadonlySet<string> = new Set(["daDistribution", "daUncertaintySource", "daSensitivity", "daAssumption"]);
+const UNCERTAINTY_WINDOW_KINDS: ReadonlySet<string> = new Set(["daDistribution", "daUncertaintySource", "daSensitivity", "daAssumption", "daImportance"]);
 
 const KINDS: DaSensitivityKind[] = ["FACTOR", "PRIOR_FORM", "SOURCE", "TESTING", "RANGE"];
 
@@ -361,13 +362,75 @@ function AssumptionsTable({ selected, onSelect, openDrawer }: { selected: string
   );
 }
 
+function ImportanceTable({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
+  const { da, upstream } = useDaWorkbook();
+  const [selected, setSelected] = useState("");
+  const [wrapRef, wrapWidth] = useElementWidth(0);
+  const rows = handoffView(da, upstream).importance;
+  if (rows.length === 0) return <p className="posmuted">{upstream.esq === undefined ? "Link the ESQ workbook in Step 01 to read back importance." : "ESQ names no DA parameter in its importance results yet."}</p>;
+  return (
+    <div className="da-table-wrap" ref={wrapRef}>
+      <table className="postable da-rowtable" aria-label="Importance">
+        <thead><tr><th className="da-rowtable__pick">Details</th><th>Parameter</th><th>FV</th><th>RAW</th><th>Risk significant</th></tr></thead>
+        <tbody>
+          {rows.map((row) => {
+            const open = row.id === selected;
+            return (
+              <Fragment key={row.id}>
+                <tr className={open ? "da-rowtable__row--on" : undefined} onClick={() => { if (!open) setSelected(row.id); }}>
+                  <td className="da-rowtable__pick"><DetailToggle open={open} label={row.id} onToggle={() => setSelected(open ? "" : row.id)} /></td>
+                  <td><button type="button" className="da-rowtable__name" onClick={(event) => { event.stopPropagation(); openDrawer({ kind: "daImportance", id: row.id }); }}>{row.id}</button></td>
+                  <td className="da-rowtable__num">{statText(row.fussellVesely)}</td>
+                  <td className="da-rowtable__num">{row.riskAchievementWorth === undefined ? "—" : Number(row.riskAchievementWorth.toPrecision(3))}</td>
+                  <td className="da-rowtable__text">{row.esqSignificant === row.daSignificant ? (row.daSignificant ? "Yes" : "No") : <span className="da-severity da-severity--warning">{row.esqSignificant ? "ESQ yes, DA no" : "DA yes, ESQ no"}</span>}</td>
+                </tr>
+                {open && (
+                  <DetailRow span={5} width={wrapWidth - 18}>
+                    <FieldList items={[
+                      { label: "Name", value: row.name },
+                      { label: "ESQ results read", value: row.entries.length === 0 ? "Typed in DA" : row.entries.join(", ") },
+                      { label: "Rule", value: `Risk significant when FV is above ${FV_SIGNIFICANT} or RAW above ${RAW_SIGNIFICANT}` },
+                      { label: "Data", value: row.generic ? "Generic data only" : "Plant or technology evidence" },
+                    ]} />
+                  </DetailRow>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ImportanceCard({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
+  const { upstream, editable, mutateDa } = useDaWorkbook();
+  function importSignificance(): void {
+    if (!editable) return;
+    const now = new Date().toISOString();
+    mutateDa((draft) => withImportanceFromEsq(draft, upstream, now));
+  }
+  return (
+    <div className="poscard">
+      <div className="poscard__head">
+        <WorkbookSectionHeading workbook="DA" title="Importance" level={3} />
+        <div className="da-card-actions">
+          <DaProvenanceChip>DA-D1 · DA-D3</DaProvenanceChip>
+          {editable && upstream.esq !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={importSignificance}>Import risk significance from ESQ</button>}
+        </div>
+      </div>
+      <ImportanceTable openDrawer={openDrawer} />
+    </div>
+  );
+}
+
 function UncertaintyScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
-  const { da, editable, mutateDa } = useDaWorkbook();
+  const { da, editable, mutateDa, upstream } = useDaWorkbook();
   useUncertaintyVersion();
   const [tab, setTab] = useState<UncertaintyTab>("distributions");
   const [keys, setKeys] = useState<Record<string, string>>({});
   const tabId = useId();
-  const findings = uncertaintyFindings(da);
+  const findings = [...uncertaintyFindings(da), ...importanceFindings(da, upstream)];
   const register = da.uncertaintyRegister ?? [];
   const cases = da.sensitivityCases ?? [];
   const assumptions = da.preOperationalAssumptions ?? [];
@@ -423,6 +486,7 @@ function UncertaintyScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) 
           {tab === "checks" && <NeedChecksTable findings={findings} openDrawer={openDrawer} />}
         </div>
       </div>
+      <ImportanceCard openDrawer={openDrawer} />
     </div>
   );
 }
@@ -677,12 +741,60 @@ function AssumptionWindow({ id, onClose }: { id: string; onClose: () => void }):
   );
 }
 
+function ImportanceWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.Element | null {
+  const { da, editable, mutateDa } = useDaWorkbook();
+  const fieldId = useId();
+  const parameter = da.parameters.find((candidate) => candidate.uuid === id);
+  const estimate = (da.ccfParameterEstimations ?? []).find((candidate) => candidate.uuid === id);
+  if (parameter === undefined && estimate === undefined) return null;
+  const dis = !editable;
+  const importance = parameter?.importance ?? estimate?.importance;
+  const significant = (parameter?.isRiskSignificant ?? estimate?.isRiskSignificant) === true;
+  function apply(next: { importance?: DataAnalysisParameter["importance"]; isRiskSignificant?: boolean }): void {
+    if (!editable) return;
+    mutateDa((draft) => ({
+      ...draft,
+      parameters: draft.parameters.map((candidate) => (candidate.uuid === id ? { ...candidate, ...next } : candidate)),
+      ccfParameterEstimations: draft.ccfParameterEstimations?.map((candidate) => (candidate.uuid === id ? { ...candidate, ...next } : candidate)),
+    }));
+  }
+  const typed = importance?.from !== "ESQ";
+  return (
+    <>
+      <ModalHead cap="Importance · DA-D1" title={`${id} · ${parameter?.name ?? estimate?.name ?? ""}`} onClose={onClose} />
+      <div className="modal__body da-form">
+        <FormRow label="Importance from" htmlFor={`${fieldId}-from`}>
+          <select id={`${fieldId}-from`} className="posfield__select" value={typed ? "TYPED" : "ESQ"} disabled={dis} onChange={(event) => apply({ importance: event.target.value === "ESQ" ? { from: "ESQ" } : { from: "TYPED", fussellVesely: importance?.fussellVesely, riskAchievementWorth: importance?.riskAchievementWorth } })}>
+            <option value="TYPED">Typed in DA</option>
+            <option value="ESQ">Imported from ESQ</option>
+          </select>
+        </FormRow>
+        {typed ? (
+          <FormRow label="Measures" htmlFor={`${fieldId}-fv`}>
+            <NumberInput label="FV" value={importance?.fussellVesely} disabled={dis} onChange={(fussellVesely) => apply({ importance: { from: "TYPED", fussellVesely, riskAchievementWorth: importance?.riskAchievementWorth } })} />
+            <NumberInput label="RAW" value={importance?.riskAchievementWorth} disabled={dis} onChange={(riskAchievementWorth) => apply({ importance: { from: "TYPED", fussellVesely: importance?.fussellVesely, riskAchievementWorth } })} />
+            <span className="da-form__unit">Fussell-Vesely and risk achievement worth</span>
+          </FormRow>
+        ) : <p className="da-needs__meta">The measures follow ESQ's importance results. Import them again after ESQ changes.</p>}
+        <FormRow label="Risk significant" htmlFor={`${fieldId}-risk`}>
+          <select id={`${fieldId}-risk`} className="posfield__select" value={significant ? "yes" : "no"} disabled={dis} onChange={(event) => apply({ isRiskSignificant: event.target.value === "yes" })}>
+            <option value="no">No</option>
+            <option value="yes">Yes</option>
+          </select>
+        </FormRow>
+      </div>
+      <FormFoot onClose={onClose} />
+    </>
+  );
+}
+
 function UncertaintyWindows({ context, onClose, onRetarget }: { context: DaDrawerContext; onClose: () => void; onRetarget: (ctx: DaDrawerContext) => void }): JSX.Element | null {
   switch (context.kind) {
     case "daDistribution": return <DistributionWindow id={context.id} onClose={onClose} onRetarget={onRetarget} />;
     case "daUncertaintySource": return <SourceWindow id={context.id} onClose={onClose} />;
     case "daSensitivity": return <SensitivityWindow id={context.id} onClose={onClose} />;
     case "daAssumption": return <AssumptionWindow id={context.id} onClose={onClose} />;
+    case "daImportance": return <ImportanceWindow id={context.id} onClose={onClose} />;
     default: return null;
   }
 }

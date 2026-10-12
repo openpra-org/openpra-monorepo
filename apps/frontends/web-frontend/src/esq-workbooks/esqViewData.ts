@@ -29,7 +29,7 @@ const ESQ_STEPS: EsqStep[] = [
   { id: "results", num: "07", label: "Results review", sub: "Cut sets · contributors · importance", hlr: "ESQ-D", status: "idle" },
   { id: "uncert", num: "08", label: "Uncertainty", sub: "Inputs · shared draws · families", hlr: "ESQ-E", status: "idle" },
   { id: "sens", num: "09", label: "Sensitivity", sub: "Register · cases · pre-operational", hlr: "ESQ-E", status: "idle" },
-  { id: "handoff", num: "10", label: "Hand-offs", sub: "RI · MS · DA · HR and IE", hlr: "ESQ-F", status: "idle" },
+  { id: "handoff", num: "10", label: "Technical Element Handoff", sub: "Exported sections", hlr: "ESQ-F", status: "idle" },
   { id: "draft", num: "11", label: "Draft", sub: "Produce ESQ report (F)", status: "idle", terminal: true },
   { id: "review", num: "12", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
   { id: "approval", num: "13", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
@@ -190,19 +190,18 @@ interface EsqLinkTile {
   code: EsqLinkCode;
   label: string;
   name: string;
-  handoff: string;
 }
 
 const ESQ_LINK_TILES: EsqLinkTile[] = [
-  { code: "ES", label: "ES", name: "Event Sequence Analysis", handoff: "Provides · Event trees, sequences, families and release categories" },
-  { code: "SY", label: "SY", name: "Systems Analysis", handoff: "Provides · Fault tree tops, basic events and common cause groups" },
-  { code: "DA", label: "DA", name: "Data Analysis", handoff: "Provides · Values, distributions and the uncertainty register" },
-  { code: "HRA", label: "HR", name: "Human Reliability", handoff: "Provides · HEPs, recoveries and dependence levels" },
-  { code: "IE", label: "IE", name: "Initiating Events", handoff: "Provides · Initiator groups, frequencies and the module count" },
-  { code: "POS", label: "POS", name: "Plant Operating States", handoff: "Provides · Operating states, their hours and the sources" },
-  { code: "SC", label: "SC", name: "Success Criteria", handoff: "Provides · Success criteria and mission times" },
-  { code: "HS", label: "HS", name: "Hazards Screening", handoff: "Provides · Hazard uncertainties and pre-operational assumptions" },
-  { code: "RI", label: "RI", name: "Risk Integration", handoff: "Provides · Significance of families and contributors" },
+  { code: "ES", label: "ES", name: "Event Sequence Analysis" },
+  { code: "SY", label: "SY", name: "Systems Analysis" },
+  { code: "DA", label: "DA", name: "Data Analysis" },
+  { code: "HRA", label: "HR", name: "Human Reliability" },
+  { code: "IE", label: "IE", name: "Initiating Events" },
+  { code: "POS", label: "POS", name: "Plant Operating States" },
+  { code: "SC", label: "SC", name: "Success Criteria" },
+  { code: "HS", label: "HS", name: "Hazards Screening" },
+  { code: "RI", label: "RI", name: "Risk Integration" },
 ];
 
 const EXAMPLE_VARIANT_LABELS: Record<string, string> = {
@@ -288,16 +287,6 @@ const MODEL_ELEMENT_LABELS: Record<EsqModelElement, string> = {
   IE: "IE",
   POS: "POS",
   SC: "SC",
-};
-
-const MODEL_ELEMENT_PROVIDES: Record<EsqModelElement, string> = {
-  ES: "Event trees, sequences and families",
-  SY: "Fault tree tops, basic events, common cause groups and equipment qualification",
-  DA: "Parameter values and distributions",
-  HRA: "Human error probabilities and post-initiator actions",
-  IE: "Initiator group frequencies and barrier impacts",
-  POS: "Hours in each operating state, sources and barriers",
-  SC: "Barrier criteria and challenge loads",
 };
 
 const END_STATE_LABELS: Record<string, string> = {
@@ -418,7 +407,6 @@ export {
   ESQ_PLAN_SOURCES,
   ESQ_MODEL_ELEMENTS,
   MODEL_ELEMENT_LABELS,
-  MODEL_ELEMENT_PROVIDES,
   END_STATE_LABELS,
   EVIDENCE_KIND_LABELS,
   PLANT_STAGES,

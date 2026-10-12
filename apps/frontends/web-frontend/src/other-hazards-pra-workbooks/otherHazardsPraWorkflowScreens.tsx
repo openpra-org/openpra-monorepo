@@ -146,7 +146,7 @@ export function OtherHazardsDraftScreen({
         <div className="posgen__readout">
           <WorkbookSectionHeading
             workbook="O"
-            title={canSubmit ? "Hand-off to internal review" : "Read-only draft preview"}
+            title={canSubmit ? "Draft submission" : "Read-only draft preview"}
             description="Generates the controlled analysis package and advances it to technical review after every blocking validation issue is resolved."
             className="posgen__readout-h"
           />

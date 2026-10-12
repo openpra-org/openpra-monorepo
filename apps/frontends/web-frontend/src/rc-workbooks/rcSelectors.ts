@@ -142,7 +142,7 @@ function stepsForPersona(persona: RcPersona): RcStep[] {
 
 function stepsFromMef(rc: RadiologicalConsequenceAnalysis, persona: RcPersona, checks: RcStepChecks): RcStep[] {
   const base = stepsForPersona(persona);
-  const handoffComplete = rc.praScope.length > 0 && rc.releaseCategoryToConsequence.releaseCategoryInputs.length > 0 && checks.RCRE.length === 0;
+  const scopeComplete = rc.praScope.length > 0 && rc.releaseCategoryToConsequence.releaseCategoryInputs.length > 0 && checks.RCRE.length === 0;
   const protectiveComplete = protectiveStepComplete(rc.protectiveActionParameters, rcProtectiveActionsNeeded(rc.scope.metrics));
   const weatherComplete = weatherQualityIssues(rc.meteorologicalData).length === 0
     && weatherIsReviewed(rc.meteorologicalData.weatherInputs, rc.protectiveActionParameters.siteAndReceptors?.settings ?? {}, rc.protectiveActionParameters.siteAndReceptors?.geometry);
@@ -156,6 +156,7 @@ function stepsFromMef(rc: RadiologicalConsequenceAnalysis, persona: RcPersona, c
     && (siteEconomy.sourceSiteRevision === undefined || siteEconomy.sourceSiteRevision === rc.protectiveActionParameters.siteAndReceptors?.revision)
     && rcEconomicCostCoverage(economy).complete && economy.parameterConsistencyConfirmed;
   const quantifyComplete = rc.releaseCategoryToConsequence.releaseCategoryInputs.length > 0 && (rc.scope.metrics ?? []).length > 0 && checks.RCQ.length === 0;
+  const handoffComplete = rc.consequenceQuantification.eventSequenceConsequences.length > 0;
   const draftComplete = rc.workflowState !== "DRAFT" && rc.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = rc.workflowState === "FINAL";
 
@@ -166,7 +167,7 @@ function stepsFromMef(rc: RadiologicalConsequenceAnalysis, persona: RcPersona, c
   return base.map((s) => {
     if (s.se !== undefined && isRcAspectExcluded(rc, s.se)) return { ...s, status: "idle" as const, excluded: true };
     switch (s.id) {
-      case "handoff": return { ...s, status: status(handoffComplete) };
+      case "scope": return { ...s, status: status(scopeComplete) };
       case "protective": return { ...s, status: status(protectiveComplete) };
       case "weather": return { ...s, status: status(weatherComplete) };
       case "dispersion": return { ...s, status: status(dispersionComplete) };
@@ -174,6 +175,7 @@ function stepsFromMef(rc: RadiologicalConsequenceAnalysis, persona: RcPersona, c
       case "health": return { ...s, status: status(healthComplete) };
       case "economics": return { ...s, status: status(economicsComplete) };
       case "quantify": return { ...s, status: status(quantifyComplete) };
+      case "handoff": return { ...s, status: status(handoffComplete) };
       case "draft": return { ...s, status: status(draftComplete) };
       case "review": return { ...s, status: status(reviewComplete) };
       default: return { ...s, status: "idle" as const };

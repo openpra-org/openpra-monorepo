@@ -18,7 +18,7 @@ interface WorkbookCueProfile {
 
 const COMMON_RULES: CueRule[] = [
   {
-    match: /interfaces?|technical-element handoff|transferred record|transferred values/i,
+    match: /interfaces?|technical-element handoff|technical element handoff|transferred record|transferred values/i,
     lead: "Shows the controlled information this analysis receives or supplies and lets the analyst verify the transferred records.",
     example: "a linked POS-03 record carrying its operating mode, 168-hour duration, and entry frequency",
   },
@@ -43,7 +43,7 @@ const COMMON_RULES: CueRule[] = [
     example: "42 of 45 applicable requirements met with three evidence gaps still open",
   },
   {
-    match: /hand-off to internal review/i,
+    match: /draft submission/i,
     lead: "Packages the current analysis baseline for technical review after validation blockers and unresolved preparation items are addressed.",
     example: "Revision 0 submitted with the model snapshot, report, evidence index, and open-item register",
   },

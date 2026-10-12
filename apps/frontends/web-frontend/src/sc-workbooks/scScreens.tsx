@@ -1,17 +1,14 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { Fragment, JSX, ReactNode, useMemo, useState } from "react";
+import { Fragment, JSX, ReactNode, useEffect, useId, useMemo, useState } from "react";
+import { HANDOFF_ELEMENT_NAMES } from "interfaces-mef-types/technical-element-handoff";
+import { HandoffImports, idAndName } from "../workbooks/workbookHandoff";
 import { SCIcon } from "./scIcons";
 import { Badge, SCProvenanceChip, type BadgeKind } from "./scShared";
 import {
   CAPABILITY_CATEGORIES,
   SC_ANALYSIS_TYPES,
   SC_RC_TONES,
-  scSafetyFunctionsFor,
-  scBarriersFor,
-  scInitiatorsFor,
-  scCriterionSystemsFor,
-  scPosNamesFor,
   SC_END_STATE_NAMES,
   type CapabilityCategory,
   type Stage,
@@ -25,17 +22,7 @@ import { useScWorkbook } from "./scWorkbookContext";
 import { generateScReport } from "./scDocx";
 import { ExpressionEditor, defaultExpression } from "../newly-developed-methods/shared/uncertainEditor";
 import { hoursPoint, hoursText, useHoursPoints } from "./scMissionTimePoints";
-
-interface ScIfaceLane {
-  key: string;
-  code: string;
-  element: string;
-  role: string;
-  direction: "in" | "out";
-  columns: string[];
-  rows: { id: string; name: string; values: string[] }[];
-  empty: string;
-}
+import { SC_LINK_CODES, choiceLabel, scChoices, supportingSystems, type ScChoice, type ScLinkActions, type ScLinkCode, type ScLinkOption } from "./scLinks";
 
 function csvList(value: string): string[] {
   return value.split(",").map((x) => x.trim()).filter((x) => x.length > 0);
@@ -50,6 +37,81 @@ function ScEmpty({ title, hint }: { title: string; hint: string }): JSX.Element 
   );
 }
 
+function ChoiceInput({ label, value, choices, onCommit, mono = false }: {
+  label: string;
+  value: string;
+  choices: readonly ScChoice[];
+  onCommit: (value: string) => void;
+  mono?: boolean;
+}): JSX.Element {
+  const listId = useId();
+  return (
+    <>
+      <WorkbookInput className={`posfield__input${mono ? " posmono" : ""}`} aria-label={label} list={listId} value={value} onChange={(event) => onCommit(event.target.value.trim())} />
+      <datalist id={listId}>{choices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}</datalist>
+    </>
+  );
+}
+
+function ScInterfaces({ linkActions }: { linkActions?: ScLinkActions }): JSX.Element {
+  const { sc, editable } = useScWorkbook();
+  const [selected, setSelected] = useState<ScLinkCode | null>("POS");
+  const [options, setOptions] = useState<Partial<Record<ScLinkCode, ScLinkOption[]>>>({});
+  const [error, setError] = useState<string | null>(null);
+  const selectId = useId();
+  const linkedId = selected === null ? null : sc.linkedWorkbooks?.[selected] ?? null;
+  const choices = selected === null ? undefined : options[selected];
+  const linked = choices?.find((option) => option.workbookId === linkedId);
+
+  useEffect(() => {
+    if (selected === null || linkActions === undefined || options[selected] !== undefined) return;
+    let cancelled = false;
+    linkActions.available(selected)
+      .then((found) => { if (!cancelled) setOptions((current) => ({ ...current, [selected]: found })); })
+      .catch((failure: Error) => { if (!cancelled) setError(failure.message); });
+    return () => { cancelled = true; };
+  }, [selected, linkActions, options]);
+
+  return (
+    <>
+      <div className="poshandoff__grid sc-scope-tiles">
+        {SC_LINK_CODES.map((code) => (
+          <button
+            key={code}
+            type="button"
+            className={`poshandoff__tile${selected === code ? " poshandoff__tile--active" : ""}`}
+            aria-pressed={selected === code}
+            onClick={() => { setSelected(selected === code ? null : code); setError(null); }}
+          >
+            <span className="poshandoff__tile-code">{code}</span>
+            <span className="poshandoff__tile-name">{HANDOFF_ELEMENT_NAMES[code]}</span>
+          </button>
+        ))}
+      </div>
+      {selected !== null && (
+        <div className="sc-scope-lane">
+          <div className="sc-scope-link">
+            <label className="posfield__label" htmlFor={selectId}>Source workbook</label>
+            <select
+              id={selectId}
+              className="posfield__select"
+              value={linkedId ?? ""}
+              disabled={!editable || linkActions === undefined || choices === undefined}
+              onChange={(event) => linkActions?.setLink(selected, event.target.value.length === 0 ? null : event.target.value)}
+            >
+              <option value="">{choices !== undefined && choices.length === 0 && linkedId === null ? `No ${selected} workbooks in this project` : "Not linked"}</option>
+              {(choices ?? []).map((option) => <option key={option.workbookId} value={option.workbookId}>{option.name}</option>)}
+              {linkedId !== null && linked === undefined && <option value={linkedId}>{linkedId.startsWith("example") ? `Example ${selected} workbook` : `${selected} workbook not in this project`}</option>}
+            </select>
+          </div>
+          <HandoffImports consumer="SC" producer={selected} />
+          {error !== null && <p className="sc-scope-error" role="alert">{error}</p>}
+        </div>
+      )}
+    </>
+  );
+}
+
 function Drawer({ onClose, children }: { onClose: () => void; children: ReactNode }): JSX.Element {
   return (
     <>
@@ -59,29 +121,30 @@ function Drawer({ onClose, children }: { onClose: () => void; children: ReactNod
   );
 }
 
-function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
+function ScScopeScreen({ ccId, setCcId, stage, setStage, linkActions }: {
   ccId: string;
   setCcId: (id: string) => void;
   stage: Stage;
   setStage: (s: Stage) => void;
   onAction: (msg: string) => void;
+  linkActions?: ScLinkActions;
 }): JSX.Element {
   const { sc, links, editable, mutateSc } = useScWorkbook();
   const barriers = sc.radionuclideBarrierCriteria;
-  const barrierSpecs = scBarriersFor(sc.uuid);
+  const choices = useMemo(() => scChoices(sc, links), [sc, links]);
   const [openBarrierId, setOpenBarrierId] = useState<string | null>(null);
-  const unusedBarrierIds = Object.keys(barrierSpecs).filter((id) => !barriers.some((b) => b.barrierId === id));
+  const unusedBarrierIds = choices.barriers.map((choice) => choice.id).filter((id) => !barriers.some((b) => b.barrierId === id));
 
   function patchBarrier(uuid: string, patch: Partial<RadionuclideBarrierCriterion>): void {
     if (!editable) return;
     mutateSc((draft) => ({ ...draft, radionuclideBarrierCriteria: draft.radionuclideBarrierCriteria.map((b) => (b.uuid === uuid ? { ...b, ...patch } : b)) }));
   }
   function addBarrier(): void {
-    if (!editable || unusedBarrierIds.length === 0) return;
-    const id = unusedBarrierIds[0];
+    if (!editable) return;
+    const id = crypto.randomUUID();
     const record: RadionuclideBarrierCriterion = {
       uuid: id,
-      barrierId: id,
+      barrierId: unusedBarrierIds[0] ?? "",
       protectionParameters: [{ parameter: "", criterion: "", basis: "" }],
       challengeLoads: [],
       capacityParameters: [],
@@ -99,48 +162,6 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
   }
   const openBarrier = barriers.find((b) => b.uuid === openBarrierId) ?? null;
 
-  const [selectedTe, setSelectedTe] = useState<string | null>(null);
-  const sfSpecs = scSafetyFunctionsFor(sc.uuid);
-  const ifaceLanes: ScIfaceLane[] = [
-    {
-      key: "in-POS", code: "POS", element: "Plant Operating States", role: "Operating states", direction: "in",
-      columns: ["Operating state", "Decay heat", "Duration (h)"],
-      rows: (links?.posStates ?? []).map((st) => ({ id: st.id, name: `${st.id} · ${st.name}`, values: [st.decayLabel, String(st.durationHours)] })),
-      empty: "Load an example to pull the operating states and their decay levels.",
-    },
-    {
-      key: "in-IE", code: "IE", element: "Initiating Events", role: "Initiating-event groups", direction: "in",
-      columns: ["Initiating-event group", "Frequency (/yr)", "States"],
-      rows: (links?.ieGroups ?? []).map((g) => ({ id: g.id, name: `${g.id} · ${g.name}`, values: [g.frequency === undefined ? "—" : g.frequency.toExponential(1), String(g.stateCount)] })),
-      empty: "Load an example to pull the initiating-event groups and frequencies.",
-    },
-    {
-      key: "in-ES", code: "ES", element: "Event Sequence Analysis", role: "Key safety functions", direction: "in",
-      columns: ["Safety function", "What success means"],
-      rows: (links?.esFunctions ?? []).map((f) => ({ id: f.id, name: f.name, values: [sfSpecs[f.id]?.desc ?? ""] })),
-      empty: "Load an example to pull the key safety functions the criteria answer.",
-    },
-    {
-      key: "out-ES", code: "ES", element: "Event Sequence Analysis", role: "Branch success criteria", direction: "out",
-      columns: ["Safety function", "Event", "State", "Criterion"],
-      rows: sc.safetyFunctionSuccessCriteria.map((c) => ({ id: c.uuid, name: sfSpecs[c.safetyFunctionId]?.name ?? c.safetyFunctionId, values: [c.initiatingEventId, c.plantOperatingStateId, c.criteria[0] ?? ""] })),
-      empty: "No criteria stated yet.",
-    },
-    {
-      key: "out-SY", code: "SY", element: "Systems Analysis", role: "System demands", direction: "out",
-      columns: ["System", "Required capacities"],
-      rows: (sc.systemSuccessCriteria ?? []).map((y) => ({ id: y.uuid, name: y.description, values: [y.requiredCapacities.map((c) => `${c.parameter}: ${c.value}`).join(" · ")] })),
-      empty: "No system criteria stated yet.",
-    },
-    {
-      key: "out-HR", code: "HR", element: "Human Reliability", role: "Operator criteria", direction: "out",
-      columns: ["Operator action", "Time available", "Criterion"],
-      rows: (sc.humanActionSuccessCriteria ?? []).map((h) => ({ id: h.uuid, name: h.description, values: [h.timeAvailable, h.successCriteria] })),
-      empty: "No operator criteria stated yet.",
-    },
-  ];
-  const selectedLane = ifaceLanes.find((l) => l.key === selectedTe);
-
   function onCcChange(newCcId: string): void {
     if (!editable) return;
     setCcId(newCcId);
@@ -155,46 +176,9 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SC" title="Interfaces" level={3} />
-          {links !== null ? <Badge kind="ok">Linked</Badge> : <Badge kind="warn">Not linked</Badge>}
-        </div>
-        <p className="poscard__sub">Success Criteria reads the operating states from POS, the initiating events from IE, and the key safety functions from ES, then hands its criteria to ES, SY and HR. Select an element to see the data exchanged.</p>
-        <div className="poshandoff__grid">
-          {ifaceLanes.map((lane) => (
-            <button key={lane.key} type="button"
-              className={`poshandoff__tile${selectedTe === lane.key ? " poshandoff__tile--active" : ""}`}
-              onClick={() => setSelectedTe(selectedTe === lane.key ? null : lane.key)}>
-              <span className="poshandoff__tile-code">{lane.code}</span>
-              <span className="poshandoff__tile-name">{lane.element}</span>
-              <span className="poshandoff__tile-role">{lane.direction === "in" ? "Provides · " : "Consumes · "}{lane.role}</span>
-            </button>
-          ))}
-        </div>
-        {selectedLane !== undefined && (
-          <div style={{ marginTop: 16 }}>
-            <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
-              {selectedLane.direction === "in"
-                ? `Success Criteria receives ${selectedLane.role.toLowerCase()} from ${selectedLane.element}`
-                : `${selectedLane.element} receives ${selectedLane.role.toLowerCase()} from Success Criteria`}
-            </div>
-            {selectedLane.rows.length > 0 ? (
-              <table className="postable postable--mid">
-                <thead><tr>{selectedLane.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
-                <tbody>
-                  {selectedLane.rows.map((r) => (
-                    <tr key={r.id}>
-                      <td><div className="postable__name">{r.name}</div></td>
-                      {r.values.map((v, idx) => <td key={selectedLane.columns[idx + 1] ?? `c${idx}`} className="mono">{v}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p className="posmuted" style={{ margin: 0 }}>{selectedLane.empty}</p>
-            )}
-          </div>
-        )}
+        <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Interfaces" level={3} /></div>
+        <p className="poscard__sub">Links are optional. Linked workbooks fill the state, barrier, initiator and safety function choices, which you can also type by hand.</p>
+        <ScInterfaces linkActions={linkActions} />
       </div>
 
       <div className="poscard">
@@ -202,7 +186,7 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
           <WorkbookSectionHeading workbook="SC" title="Radionuclide transport barriers" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SCProvenanceChip kind="sc">SC-A4</SCProvenanceChip>
-            {editable && unusedBarrierIds.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addBarrier}><SCIcon.Plus /> Add barrier</button>}
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addBarrier}><SCIcon.Plus /> Add barrier</button>}
           </div>
         </div>
         <p className="poscard__sub">A parameter and a protecting criterion per barrier. Click a barrier to edit it.</p>
@@ -210,12 +194,11 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
           <thead><tr><th>Barrier</th><th>Parameter</th><th>Criterion</th><th>Method</th></tr></thead>
           <tbody>
             {barriers.map((b) => {
-              const spec = barrierSpecs[b.barrierId];
               const pp = b.protectionParameters[0];
               return (
                 <tr key={b.uuid} className="postable__row--clickable" onClick={() => setOpenBarrierId(b.uuid)}>
                   <td>
-                    <span style={{ fontWeight: 700 }}>{spec?.name ?? b.barrierId}</span>
+                    <span style={{ fontWeight: 700 }}>{choiceLabel(choices.barriers, b.barrierId)}</span>
                   </td>
                   <td>{pp !== undefined && pp.parameter.length > 0 ? pp.parameter : "—"}</td>
                   <td>{pp !== undefined && pp.criterion.length > 0 ? pp.criterion : "—"}</td>
@@ -229,7 +212,6 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
 
       {openBarrier !== null && (() => {
         const b = openBarrier;
-        const spec = barrierSpecs[b.barrierId];
         function patchParam(index: number, patch: Partial<{ parameter: string; criterion: string; basis: string }>): void {
           patchBarrier(b.uuid, { protectionParameters: b.protectionParameters.map((row, i) => (i === index ? { ...row, ...patch } : row)) });
         }
@@ -238,7 +220,7 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
             <div className="scdrawer__head" style={{ borderBottom: "none" }}>
               <div>
                 <div className="scdrawer__cap">Radionuclide barrier · SC-A4</div>
-                <h2 className="scdrawer__title">{spec?.name ?? b.barrierId}</h2>
+                <h2 className="scdrawer__title">{choiceLabel(choices.barriers, b.barrierId)}</h2>
               </div>
               <button type="button" className="scdrawer__close" onClick={() => setOpenBarrierId(null)}><SCIcon.Close /></button>
             </div>
@@ -246,6 +228,9 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
               <div>
                 <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Protection" level={3} /></div>
                 <div className="posfield-grid">
+                  <div className="posfield posfield-grid--span2"><label className="posfield__label">Barrier</label>
+                    {editable ? <ChoiceInput label="Barrier" value={b.barrierId} choices={choices.barriers} onCommit={(barrierId) => patchBarrier(b.uuid, { barrierId })} /> : <div>{choiceLabel(choices.barriers, b.barrierId)}</div>}
+                  </div>
                   <div className="posfield"><label className="posfield__label">Parameter</label>
                     {editable ? <WorkbookInput className="posfield__input" value={b.protectionParameters[0]?.parameter ?? ""} onChange={(e) => patchParam(0, { parameter: e.target.value })} /> : <div>{b.protectionParameters[0]?.parameter ?? "—"}</div>}
                   </div>
@@ -488,11 +473,10 @@ interface CriteriaGroup {
 }
 
 function CriteriaScreen(): JSX.Element {
-  const { sc, editable, mutateSc } = useScWorkbook();
-  const safetyFunctions = scSafetyFunctionsFor(sc.uuid);
-  const initiators = scInitiatorsFor(sc.uuid);
-  const criterionSystems = scCriterionSystemsFor(sc.uuid);
-  const posNames = scPosNamesFor(sc.uuid);
+  const { sc, links, editable, mutateSc } = useScWorkbook();
+  const choices = useMemo(() => scChoices(sc, links), [sc, links]);
+  const [stateDraft, setStateDraft] = useState("");
+  const stateListId = useId();
   const [sfId, setSfId] = useState("all");
   const [ieId, setIeId] = useState("all");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -557,12 +541,22 @@ function CriteriaScreen(): JSX.Element {
   function addPos(key: string, pos: string): void {
     if (!editable || pos.length === 0) return;
     const { sf, ie } = rowsOf(key);
-    const sample = sc.safetyFunctionSuccessCriteria.find((c) => c.safetyFunctionId === sf && c.initiatingEventId === ie);
+    const members = sc.safetyFunctionSuccessCriteria.filter((c) => c.safetyFunctionId === sf && c.initiatingEventId === ie);
+    if (members.some((c) => c.plantOperatingStateId === pos)) return;
+    const blank = members.find((c) => c.plantOperatingStateId.length === 0);
+    const sample = blank ?? members[0];
     if (sample === undefined) return;
+    const record = { ...sample, uuid: `SFC-${sf}-${ie}-${pos}`, plantOperatingStateId: pos };
     mutateSc((draft) => ({
       ...draft,
-      safetyFunctionSuccessCriteria: [...draft.safetyFunctionSuccessCriteria, { ...sample, uuid: `SFC-${sf}-${ie}-${pos}`, plantOperatingStateId: pos }],
+      safetyFunctionSuccessCriteria: blank === undefined
+        ? [...draft.safetyFunctionSuccessCriteria, record]
+        : draft.safetyFunctionSuccessCriteria.map((c) => (c.uuid === blank.uuid ? record : c)),
     }));
+  }
+  function commitState(key: string): void {
+    addPos(key, stateDraft.trim());
+    setStateDraft("");
   }
   function removePos(key: string, pos: string): void {
     if (!editable) return;
@@ -584,22 +578,19 @@ function CriteriaScreen(): JSX.Element {
   function addGroup(): void {
     if (!editable) return;
     const used = new Set(groups.map((g) => g.key));
-    let pick: { sf: string; ie: string } | null = null;
-    for (const sf of Object.keys(safetyFunctions)) {
-      for (const ie of Object.keys(initiators)) {
-        if (!used.has(`${sf}|${ie}`)) { pick = { sf, ie }; break; }
-      }
-      if (pick !== null) break;
-    }
-    if (pick === null) return;
-    const chosen = pick;
+    const pairs = [
+      ...choices.functions.flatMap((sf) => choices.initiators.map((ie) => ({ sf: sf.id, ie: ie.id }))),
+      { sf: "", ie: "" },
+    ];
+    const chosen = pairs.find((pair) => !used.has(`${pair.sf}|${pair.ie}`));
+    if (chosen === undefined) return;
     mutateSc((draft) => ({
       ...draft,
       safetyFunctionSuccessCriteria: [...draft.safetyFunctionSuccessCriteria, {
-        uuid: `SFC-${chosen.sf}-${chosen.ie}-POS-01`,
+        uuid: `SFC-${chosen.sf}-${chosen.ie}-`,
         safetyFunctionId: chosen.sf,
         initiatingEventId: chosen.ie,
-        plantOperatingStateId: "POS-01",
+        plantOperatingStateId: "",
         criteria: ["", ""],
         engineeringAnalysisReferences: [],
         implementsSrs: [{ sr: "SC-A5", hlr: "A" }],
@@ -666,8 +657,8 @@ function CriteriaScreen(): JSX.Element {
               <span className="sccrit-filter__label">Function</span>
               <div className="posrow posrow--wrap" style={{ gap: 6 }}>
                 <button type="button" className={`poschip${sfId === "all" ? " poschip--primary" : ""}`} onClick={() => setSfId("all")}>All</button>
-                {Object.values(safetyFunctions).map((s) => (
-                  <button key={s.id} type="button" className={`poschip${sfId === s.id ? " poschip--primary" : ""}`} onClick={() => setSfId(s.id)}>{s.id}</button>
+                {choices.functions.map((s) => (
+                  <button key={s.id} type="button" className={`poschip${sfId === s.id ? " poschip--primary" : ""}`} title={s.label} onClick={() => setSfId(s.id)}>{s.id}</button>
                 ))}
               </div>
             </div>
@@ -675,8 +666,8 @@ function CriteriaScreen(): JSX.Element {
               <span className="sccrit-filter__label">Event</span>
               <div className="posrow posrow--wrap" style={{ gap: 6 }}>
                 <button type="button" className={`poschip${ieId === "all" ? " poschip--primary" : ""}`} onClick={() => setIeId("all")}>All</button>
-                {Object.values(initiators).map((i) => (
-                  <button key={i.id} type="button" className={`poschip${ieId === i.id ? " poschip--primary" : ""}`} onClick={() => setIeId(i.id)}>{i.short}</button>
+                {choices.initiators.map((i) => (
+                  <button key={i.id} type="button" className={`poschip${ieId === i.id ? " poschip--primary" : ""}`} title={i.label} onClick={() => setIeId(i.id)}>{i.id}</button>
                 ))}
               </div>
             </div>
@@ -688,15 +679,13 @@ function CriteriaScreen(): JSX.Element {
         <div className="sccrit">
           {filtered.length === 0 && <p className="possubtle" style={{ fontSize: 12.5, padding: "8px 2px" }}>No criterion recorded for this combination yet.</p>}
           {filtered.map((g) => {
-            const sf = safetyFunctions[g.sf];
-            const ie = initiators[g.ie];
             const rs = rsIes.has(g.ie);
             const real = realIes.has(g.ie);
             return (
               <button key={g.key} type="button" className="sccrit__card" onClick={() => setOpenKey(g.key)}>
                 <div className="sccrit__bar">
-                  <span className="sccrit__sf">{sf?.name ?? g.sf}</span>
-                  <span className="sccrit__dim sccrit__dim--ie">{ie?.short ?? g.ie}</span>
+                  <span className="sccrit__sf">{choiceLabel(choices.functions, g.sf)}</span>
+                  <span className="sccrit__dim sccrit__dim--ie">{g.ie.length > 0 ? g.ie : "Not set"}</span>
                   <span className="sccrit__bar-spacer" />
                   <span className={`sccrit__rs sccrit__rs--${rs ? "yes" : "no"}`}>{rs ? "Risk significant" : "Not risk significant"}</span>
                 </div>
@@ -704,7 +693,7 @@ function CriteriaScreen(): JSX.Element {
                   <div className="sccrit__statement">{g.criterion}</div>
                   {g.detail.length > 0 && <div className="sccrit__detail">{g.detail}</div>}
                   <div className="sccrit__foot">
-                    {g.pos.map((p) => <span key={p} className="sccrit__pos">{p}</span>)}
+                    {g.pos.filter((p) => p.length > 0).map((p) => <span key={p} className="sccrit__pos">{p}</span>)}
                     <span className={`sccrit__cc sccrit__cc--${real ? "real" : "generic"}`}>{real ? "Realistic (CC-II)" : "Generic (CC-I)"}</span>
                   </div>
                 </div>
@@ -774,18 +763,17 @@ function CriteriaScreen(): JSX.Element {
 
       {openGroup !== null && (() => {
         const g = openGroup;
-        const sf = safetyFunctions[g.sf];
-        const ie = initiators[g.ie];
+        const states = g.pos.filter((p) => p.length > 0);
         const real = realIes.has(g.ie);
         const rs = rsIes.has(g.ie);
-        const systems = criterionSystems[g.key] ?? [];
+        const systems = supportingSystems(links, g.sf);
         return (
           <Drawer onClose={() => setOpenKey(null)}>
             <div className="scdrawer__head">
               <div>
                 <div className="scdrawer__cap">Success criterion · SC-A5</div>
-                <h2 className="scdrawer__title">{sf?.name ?? g.sf}</h2>
-                <p className="scdrawer__sub">{ie?.name ?? g.ie} · {g.pos.join(", ")}</p>
+                <h2 className="scdrawer__title">{choiceLabel(choices.functions, g.sf)}</h2>
+                <p className="scdrawer__sub">{choiceLabel(choices.initiators, g.ie)} · {states.length > 0 ? states.join(", ") : "No states"}</p>
               </div>
               <button type="button" className="scdrawer__close" onClick={() => setOpenKey(null)}><SCIcon.Close /></button>
             </div>
@@ -799,31 +787,36 @@ function CriteriaScreen(): JSX.Element {
               <div className="posfield-grid">
                 <div className="posfield"><label className="posfield__label">Safety function</label>
                   {editable
-                    ? <select className="posfield__select" value={g.sf} onChange={(e) => setGroupIdentity(g.key, { sf: e.target.value })}>
-                        {Object.values(safetyFunctions).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-                      </select>
-                    : <div style={{ fontWeight: 700 }}>{sf?.name ?? g.sf}</div>}
+                    ? <ChoiceInput label="Safety function" value={g.sf} choices={choices.functions} onCommit={(sf) => setGroupIdentity(g.key, { sf })} mono />
+                    : <div style={{ fontWeight: 700 }}>{choiceLabel(choices.functions, g.sf)}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">Initiating event</label>
                   {editable
-                    ? <select className="posfield__select" value={g.ie} onChange={(e) => setGroupIdentity(g.key, { ie: e.target.value })}>
-                        {Object.values(initiators).map((x) => <option key={x.id} value={x.id}>{x.id} · {x.short}</option>)}
-                      </select>
+                    ? <ChoiceInput label="Initiating event" value={g.ie} choices={choices.initiators} onCommit={(ie) => setGroupIdentity(g.key, { ie })} mono />
                     : <div className="posmono">{g.ie}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Operating states</label>
                   <div className="posrow posrow--wrap" style={{ gap: 6 }}>
-                    {g.pos.map((pos) => (
-                      <span key={pos} className="poschip poschip--primary" style={{ display: "inline-flex", alignItems: "center", gap: 6 }} title={posNames[pos] ?? pos}>
+                    {states.map((pos) => (
+                      <span key={pos} className="poschip poschip--primary" style={{ display: "inline-flex", alignItems: "center", gap: 6 }} title={choiceLabel(choices.states, pos)}>
                         {pos}
-                        {editable && g.pos.length > 1 && <button type="button" title="Remove" onClick={() => removePos(g.key, pos)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "inherit", font: "inherit", lineHeight: 1 }}>×</button>}
+                        {editable && states.length > 1 && <button type="button" title="Remove" onClick={() => removePos(g.key, pos)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "inherit", font: "inherit", lineHeight: 1 }}>×</button>}
                       </span>
                     ))}
-                    {editable && Object.keys(posNames).filter((posId) => !g.pos.includes(posId)).length > 0 && (
-                      <select className="posfield__select" style={{ maxWidth: 200 }} value="" onChange={(e) => addPos(g.key, e.target.value)}>
-                        <option value="">Add a state…</option>
-                        {Object.keys(posNames).filter((posId) => !g.pos.includes(posId)).map((posId) => <option key={posId} value={posId}>{posId} · {posNames[posId]}</option>)}
-                      </select>
+                    {editable && (
+                      <span className="sccrit__state-add">
+                        <input
+                          className="posfield__input posmono"
+                          list={stateListId}
+                          aria-label="Add a state"
+                          placeholder="Add a state"
+                          value={stateDraft}
+                          onChange={(e) => setStateDraft(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commitState(g.key); } }}
+                        />
+                        <datalist id={stateListId}>{choices.states.filter((c) => !g.pos.includes(c.id)).map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</datalist>
+                        <button type="button" className="posnav__btn posnav__btn--sm" disabled={stateDraft.trim().length === 0} onClick={() => commitState(g.key)}>Add</button>
+                      </span>
                     )}
                   </div>
                 </div>
@@ -879,7 +872,7 @@ function CriteriaScreen(): JSX.Element {
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Serves overall criterion</label>
                     {editable ? (
                       <select className="posfield__select" value={s.overallSuccessCriteriaId} onChange={(e) => patchSys(s.uuid, { overallSuccessCriteriaId: e.target.value })}>
-                        {sc.overallSuccessCriteria.map((o) => <option key={o.uuid} value={o.uuid}>{o.uuid} · {o.description}</option>)}
+                        {sc.overallSuccessCriteria.map((o) => <option key={o.uuid} value={o.uuid}>{idAndName(o.successCriteriaId.length > 0 ? o.successCriteriaId : o.uuid, o.description)}</option>)}
                       </select>
                     ) : <div className="posmono">{s.overallSuccessCriteriaId}</div>}
                   </div>
@@ -1000,6 +993,7 @@ function CriteriaScreen(): JSX.Element {
 function MissionScreen(): JSX.Element {
   const { sc, links, editable, mutateSc } = useScWorkbook();
   const seqInfo = links?.esSequenceInfo ?? {};
+  const sequenceChoices = Object.entries(seqInfo).map(([id, info]) => ({ id, label: info.scenario }));
   const MAX_H = 96;
   const pct = (h: number | undefined): number => (h === undefined ? 0 : Math.max(4, Math.min(100, (h / MAX_H) * 100)));
   const minPct = (24 / MAX_H) * 100;
@@ -1106,7 +1100,7 @@ function MissionScreen(): JSX.Element {
                 <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Sequence and time" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield"><label className="posfield__label">Sequence</label>
-                    {editable ? <WorkbookInput className="posfield__input posmono" value={m.eventSequenceReference} onChange={(e) => patchMt(m.uuid, { eventSequenceReference: e.target.value })} /> : <div className="posmono">{m.eventSequenceReference}</div>}
+                    {editable ? <ChoiceInput label="Sequence" value={m.eventSequenceReference} choices={sequenceChoices} onCommit={(eventSequenceReference) => patchMt(m.uuid, { eventSequenceReference })} mono /> : <div className="posmono">{m.eventSequenceReference}</div>}
                     {seqInfo[m.eventSequenceReference] !== undefined && <div className="possubtle" style={{ fontSize: 11.5, marginTop: 4 }}>{`${seqInfo[m.eventSequenceReference].scenario} → ${seqInfo[m.eventSequenceReference].outcome}`}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><span className="posfield__label">Mission time (hours)</span>
@@ -1193,7 +1187,7 @@ function MissionScreen(): JSX.Element {
                     <div className="possubtle" style={{ fontSize: 11.5, marginTop: 4 }}>Point value {hoursText(points.get(c.uuid))}</div>
                   </div>
                   <div className="posfield"><label className="posfield__label">Sequence</label>
-                    {editable ? <WorkbookInput className="posfield__input posmono" value={c.eventSequenceReference} onChange={(e) => patchCmt(c.uuid, { eventSequenceReference: e.target.value })} /> : <div className="posmono">{c.eventSequenceReference}</div>}
+                    {editable ? <ChoiceInput label="Sequence" value={c.eventSequenceReference} choices={sequenceChoices} onCommit={(eventSequenceReference) => patchCmt(c.uuid, { eventSequenceReference })} mono /> : <div className="posmono">{c.eventSequenceReference}</div>}
                     {seqInfo[c.eventSequenceReference] !== undefined && <div className="possubtle" style={{ fontSize: 11.5, marginTop: 4 }}>{`${seqInfo[c.eventSequenceReference].scenario} → ${seqInfo[c.eventSequenceReference].outcome}`}</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">Analyses (comma separated)</label>
@@ -1375,11 +1369,10 @@ function BasesScreen(): JSX.Element {
         <p className="poscard__sub">Load on each barrier against the parameters defining its capacity. Click a barrier to edit it.</p>
         <div className="scbar">
           {sc.radionuclideBarrierCriteria.map((b) => {
-            const spec = scBarriersFor(sc.uuid)[b.barrierId];
             return (
               <button type="button" key={b.uuid} className="scbar__card scbar__card--clickable" onClick={() => setOpenBarId(b.uuid)}>
                 <div className="scbar__head">
-                  <span className="scbar__name">{spec?.short ?? b.barrierId}</span>
+                  <span className="scbar__name">{b.barrierId.length > 0 ? b.barrierId : "Not set"}</span>
                   <span className={`scbar__method scbar__method--${b.effectivenessEvaluationMethod.toLowerCase()}`} style={{ marginLeft: "auto" }}>{b.effectivenessEvaluationMethod === "REALISTIC" ? "Realistic (CC-II)" : "Conservative (CC-I)"}</span>
                 </div>
                 <div className="scbar__lines">
@@ -1633,7 +1626,6 @@ function BasesScreen(): JSX.Element {
 
       {openBar !== null && (() => {
         const b = openBar;
-        const spec = scBarriersFor(sc.uuid)[b.barrierId];
         function patchLoad(i: number, patch: Partial<{ eventSequenceReference: string | undefined; loadDescription: string; physicalAttributes: string[] }>): void {
           patchBar(b.uuid, { challengeLoads: b.challengeLoads.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
         }
@@ -1642,7 +1634,7 @@ function BasesScreen(): JSX.Element {
             <div className="scdrawer__head" style={{ borderBottom: "none" }}>
               <div>
                 <div className="scdrawer__cap">Barrier loads · SC-B6, B7</div>
-                <h2 className="scdrawer__title">{spec?.short ?? b.barrierId}</h2>
+                <h2 className="scdrawer__title">{b.barrierId.length > 0 ? b.barrierId : "Not set"}</h2>
               </div>
               <button type="button" className="scdrawer__close" onClick={() => setOpenBarId(null)}><SCIcon.Close /></button>
             </div>
@@ -1758,11 +1750,11 @@ function BasesScreen(): JSX.Element {
 }
 
 function PassiveScreen(): JSX.Element {
-  const { sc, editable, mutateSc } = useScWorkbook();
+  const { sc, links, editable, mutateSc } = useScWorkbook();
   const passive = sc.passiveSafetyFunctionCriteria ?? [];
   const [openPsvId, setOpenPsvId] = useState<string | null>(null);
   const openPsv = passive.find((x) => x.uuid === openPsvId) ?? null;
-  const safetyFunctions = scSafetyFunctionsFor(sc.uuid);
+  const functions = useMemo(() => scChoices(sc, links).functions, [sc, links]);
 
   function patchPsv(uuid: string, patch: Partial<(typeof passive)[number]>): void {
     if (!editable) return;
@@ -1771,7 +1763,7 @@ function PassiveScreen(): JSX.Element {
   function addPsv(): void {
     if (!editable) return;
     const id = crypto.randomUUID();
-    mutateSc((draft) => ({ ...draft, passiveSafetyFunctionCriteria: [...(draft.passiveSafetyFunctionCriteria ?? []), { uuid: id, name: "New passive function", safetyFunctionId: Object.keys(safetyFunctions)[0] ?? "SF-DHR", passivePhenomena: [], mechanisticModelDescription: "", empiricalDataReferences: [], modelUncertaintyCharacterization: "", inputDataUncertaintyCharacterization: "", passiveFunctionalReliabilityBasis: "", engineeringAnalysisReferences: [], implementsSrs: [{ sr: "SC-B5", hlr: "B" }] }] }));
+    mutateSc((draft) => ({ ...draft, passiveSafetyFunctionCriteria: [...(draft.passiveSafetyFunctionCriteria ?? []), { uuid: id, name: "New passive function", safetyFunctionId: "", passivePhenomena: [], mechanisticModelDescription: "", empiricalDataReferences: [], modelUncertaintyCharacterization: "", inputDataUncertaintyCharacterization: "", passiveFunctionalReliabilityBasis: "", engineeringAnalysisReferences: [], implementsSrs: [{ sr: "SC-B5", hlr: "B" }] }] }));
     setOpenPsvId(id);
   }
   function removePsv(uuid: string): void {
@@ -1856,10 +1848,8 @@ function PassiveScreen(): JSX.Element {
               <div className="posfield-grid">
                 <div className="posfield"><label className="posfield__label">Safety function</label>
                   {editable
-                    ? <select className="posfield__select" value={p.safetyFunctionId} onChange={(e) => patchPsv(p.uuid, { safetyFunctionId: e.target.value })}>
-                        {Object.values(safetyFunctions).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-                      </select>
-                    : <div>{safetyFunctions[p.safetyFunctionId]?.name ?? p.safetyFunctionId}</div>}
+                    ? <ChoiceInput label="Safety function" value={p.safetyFunctionId} choices={functions} onCommit={(safetyFunctionId) => patchPsv(p.uuid, { safetyFunctionId })} mono />
+                    : <div>{choiceLabel(functions, p.safetyFunctionId)}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">Phenomena (comma separated)</label>
                   {editable ? <WorkbookInput className="posfield__input" value={p.passivePhenomena.join(", ")} onChange={(e) => patchPsv(p.uuid, { passivePhenomena: csvList(e.target.value) })} /> : <div>{p.passivePhenomena.join(", ")}</div>}
@@ -2309,10 +2299,10 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           {scores.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label" style={{ color: "#b73b3b" }}>Blocked</span><span className="posmono">{scores.blocked}</span></div>}
         </div>
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="SC" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading workbook="SC" title="Draft submission" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
-              ? <>All items pass at <strong>{cc.name}</strong>. Producing the draft locks Steps 1–7 and advances the workbook to <strong>Internal Technical Review</strong>.</>
+              ? <>All items pass at <strong>{cc.name}</strong>. Producing the draft locks Steps 1–8 and advances the workbook to <strong>Internal Technical Review</strong>.</>
               : <>{scores.warn} item{scores.warn === 1 ? "" : "s"} need{scores.warn === 1 ? "s" : ""} attention. You may produce a working draft, but approval is gated until they are resolved.</>}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

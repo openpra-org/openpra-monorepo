@@ -4,22 +4,12 @@ import { rcFamilyReferenceMatches } from "interfaces-shared-types/rc-workbooks/s
 import { rcMsBoundingMember } from "interfaces-shared-types/rc-workbooks/ms-source-term";
 import { blankRcMetric, nextRcMetricId, rcMetricMatchesMeasure } from "interfaces-shared-types/rc-workbooks/metrics";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
+import { HandoffImports } from "../workbooks/workbookHandoff";
+import { HANDOFF_ELEMENT_NAMES } from "interfaces-mef-types/technical-element-handoff";
 import { useRcWorkbook } from "./rcWorkbookContext";
 import { RcMsSourceTerm } from "./rcMsSourceTerm";
 import { RC_LINK_CODES, type RcLinkCode } from "./rcLinks";
 import type { RcDrawerContext } from "./rcScreens";
-
-const RC_LINK_TILES: Record<RcLinkCode, { name: string; handoff: string }> = {
-  ES: { name: "Event Sequence Analysis", handoff: "Provides · Release categories and families" },
-  MS: { name: "Mechanistic Source Term", handoff: "Provides · Source terms" },
-  RI: { name: "Risk Integration", handoff: "Provides measures · Receives results" },
-};
-
-const WORKBOOK_STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  "in-progress": "In progress",
-  complete: "Complete",
-};
 
 const emptyCharacteristics: ReleaseCategoryInputs["releaseCharacteristics"] = { importantRadionuclides: [], radionuclideGroupFractions: [], releasePhaseTimings: [] };
 
@@ -189,8 +179,7 @@ function RcInterfaces({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => vo
             className={`poshandoff__tile${selected === code ? " poshandoff__tile--active" : ""}`}
             onClick={() => setSelected(selected === code ? null : code)}>
             <span className="poshandoff__tile-code">{code}</span>
-            <span className="poshandoff__tile-name">{RC_LINK_TILES[code].name}</span>
-            <span className="poshandoff__tile-role">{RC_LINK_TILES[code].handoff}</span>
+            <span className="poshandoff__tile-name">{HANDOFF_ELEMENT_NAMES[code]}</span>
           </button>
         ))}
       </div>
@@ -198,28 +187,13 @@ function RcInterfaces({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => vo
         <div className="rc-link-lane">
           <div className="rc-link-select">
             <label className="posfield__label" htmlFor={selectId}>Source workbook</label>
-            <select id={selectId} className="posfield__select" value={linkedId ?? ""} disabled={!editable || options.length === 0} onChange={(event) => onLink(selected, event.target.value)}>
-              <option value="">{options.length === 0 ? `No ${selected} workbooks in this project` : "Not linked"}</option>
+            <select id={selectId} className="posfield__select" value={linkedId ?? ""} disabled={!editable || (options.length === 0 && linkedId === undefined)} onChange={(event) => onLink(selected, event.target.value)}>
+              <option value="">{options.length === 0 && linkedId === undefined ? `No ${selected} workbooks in this project` : "Not linked"}</option>
               {options.map((workbook) => <option key={workbook.id} value={workbook.id}>{workbook.name}</option>)}
+              {linkedId !== undefined && linked === undefined && <option value={linkedId}>{linkedId.startsWith("example") ? `Example ${selected} workbook` : `${selected} workbook not in this project`}</option>}
             </select>
           </div>
-          {linkedId !== undefined && linked === undefined && <p className="posmuted rc-link-note">The linked workbook is not in this project.</p>}
-          {linked !== undefined && (
-            <div className="rc-link-table">
-              <table className="postable postable--mid" aria-label={`Linked ${selected} workbook`}>
-                <thead><tr><th>Workbook</th><th>Status</th><th>Version</th><th>Owner</th><th>Updated</th></tr></thead>
-                <tbody>
-                  <tr>
-                    <td><div className="postable__name">{linked.name}</div></td>
-                    <td>{WORKBOOK_STATUS_LABEL[linked.status] ?? linked.status}</td>
-                    <td className="posmono">v{linked.version}</td>
-                    <td>{linked.ownerFullName}</td>
-                    <td className="posmono">{linked.updatedAt.slice(0, 10)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
+          <HandoffImports consumer="RC" producer={selected} />
           {selected === "ES" && <RcEsLane />}
           {selected === "MS" && <RcMsSourceTerm openDrawer={openDrawer} />}
           {selected === "RI" && <RcRiLane openDrawer={openDrawer} />}

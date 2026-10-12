@@ -307,3 +307,9 @@
 
 /* â”€â”€â”€ Drawer SR chip row (shared by the drawer panels) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posdrawer__srs { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; }
+
+.ms-link-lane { display: flex; width: 100%; min-width: 0; flex-direction: column; gap: 12px; margin-top: 16px; }
+.ms-link-select { display: flex; max-width: 420px; flex-direction: column; gap: 5px; }
+.ms-link-select .posfield__select { width: 100%; min-width: 0; }
+.ms-handoff-response { display: flex; max-width: 760px; flex-direction: column; gap: 12px; }
+.ms-handoff-note { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--color-text-muted); }

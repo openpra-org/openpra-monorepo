@@ -54,7 +54,7 @@ import { type RcPersona } from "./rcViewData";
 import { NO_RC_LINKS, listRcLinkOptions, loadRcLinkedWorkbooks, type RcLinkedWorkbookData, type RcLinks } from "./rcLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
-  handoff: "RCRE-A1",
+  scope: "RCRE-A1",
   protective: "RCPA-A1",
   weather: "RCME-A1",
   dispersion: "RCAD-A1",
@@ -62,6 +62,7 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   health: "RCHE-A1",
   economics: "RCEC-A1",
   quantify: "RCQ-A3",
+  handoff: "RCQ-D3",
 };
 
 interface RcExampleResponse {

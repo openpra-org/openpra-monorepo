@@ -1,0 +1,4 @@
+.ieiface__lane { display: flex; width: 100%; flex-direction: column; gap: 12px; margin-top: 16px; }
+.ieiface__link { display: flex; max-width: 420px; flex-direction: column; gap: 5px; }
+.ieiface__link .posfield__select { width: 100%; min-width: 0; }
+.ieiface__error { margin: 0; font-size: 12.5px; color: var(--color-error); }

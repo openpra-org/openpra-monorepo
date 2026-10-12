@@ -91,8 +91,13 @@ export class ScWorkbooksService {
     const example = await this.exampleWorkbooksService.getScBundle(exampleId);
     const parsed = SuccessCriteriaDevelopmentSchema.safeParse(stripNulls(example.sc.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
+    const variant = exampleId ?? "htgr";
+    const exampleLinks = variant === "htgr" || variant === "sfr"
+      ? { POS: `example-pos-${variant}`, IE: `example-ie-${variant}`, ES: `example-es-${variant}` }
+      : undefined;
     const cleaned = {
       ...parsed.data,
+      ...(exampleLinks === undefined || parsed.data.linkedWorkbooks !== undefined ? {} : { linkedWorkbooks: exampleLinks }),
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };

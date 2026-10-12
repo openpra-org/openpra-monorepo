@@ -93,8 +93,10 @@ export class IeWorkbooksService {
     const example = await this.exampleWorkbooksService.getIeBundle(exampleId);
     const parsed = InitiatingEventsAnalysisSchema.safeParse(stripNulls(example.ie.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
+    const exampleDa = parsed.data.initiatingEventGroups.find((group) => group.controlledDataSource?.workbookId.startsWith("example-da-") === true)?.controlledDataSource?.workbookId;
     const cleaned = {
       ...parsed.data,
+      ...(exampleDa === undefined || parsed.data.linkedWorkbooks?.DA !== undefined ? {} : { linkedWorkbooks: { ...parsed.data.linkedWorkbooks, DA: exampleDa } }),
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };

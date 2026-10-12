@@ -25,6 +25,7 @@ import { useMsMefPatch } from "./useMsMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { MsDocumentsCard } from "./msDocumentsCard";
 import { type MsPersona } from "./msViewData";
+import { NO_MS_UPSTREAM, listMsLinkOptions, loadMsLinkedWorkbooks, type MsLinkedWorkbookData, type MsUpstream } from "./msLinks";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "MS-A1",
@@ -33,6 +34,7 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   transport: "MS-B5",
   sourceterm: "MS-C1",
   uncert: "MS-D2",
+  handoff: "MS-E2",
 };
 
 interface MsExampleResponse {
@@ -63,6 +65,8 @@ function MsWorkbookPage(): JSX.Element {
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
   const [exampleOptions, setExampleOptions] = useState<MsExampleOption[]>([]);
+  const [linkOptions, setLinkOptions] = useState<MsUpstream["options"]>(NO_MS_UPSTREAM.options);
+  const [linked, setLinked] = useState<MsLinkedWorkbookData>({});
   const workbookName = data?.ms.name ?? "";
   const workbookVersion = data?.ms.version ?? "1";
 
@@ -94,6 +98,8 @@ function MsWorkbookPage(): JSX.Element {
         } catch {
           if (!cancelled) setProjectName("");
         }
+        const options = await listMsLinkOptions(workbook.projectId);
+        if (!cancelled) setLinkOptions(options);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -101,6 +107,14 @@ function MsWorkbookPage(): JSX.Element {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  const linkedPos = data?.ms.linkedWorkbooks?.POS, linkedEs = data?.ms.linkedWorkbooks?.ES, linkedRi = data?.ms.linkedWorkbooks?.RI;
+  useEffect(() => {
+    let cancelled = false;
+    void loadMsLinkedWorkbooks({ POS: linkedPos, ES: linkedEs, RI: linkedRi }).then((next) => { if (!cancelled) setLinked(next); });
+    return () => { cancelled = true; };
+  }, [linkedPos, linkedEs, linkedRi]);
+  const upstream = useMemo<MsUpstream>(() => ({ options: linkOptions, ...linked }), [linkOptions, linked]);
 
   const updateMs = useCallback((ms: MechanisticSourceTermAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, ms }));
@@ -176,7 +190,7 @@ function MsWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <MsWorkbookProvider data={data} editable={editable} mutateMs={mutateMs}>
+    <MsWorkbookProvider data={data} editable={editable} mutateMs={mutateMs} upstream={upstream}>
       <MsWorkbench
         data={data}
         persona={persona}

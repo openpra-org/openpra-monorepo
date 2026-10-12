@@ -21,9 +21,10 @@ const IE_STEPS: IeStep[] = [
   { id: "grouping", num: "06", label: "Grouping", sub: "Bounding cases", status: "idle" },
   { id: "screening", num: "07", label: "Screening", sub: "Barrier gate + SCR", status: "idle" },
   { id: "frequency", num: "08", label: "Frequency", sub: "Annual · POS-weighted", status: "idle" },
-  { id: "draft", num: "09", label: "Draft", sub: "Produce IE report", status: "idle", terminal: true },
-  { id: "review", num: "10", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
-  { id: "approval", num: "11", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
+  { id: "handoff", num: "09", label: "Technical Element Handoff", sub: "Exported sections", status: "idle" },
+  { id: "draft", num: "10", label: "Draft", sub: "Produce IE report", status: "idle", terminal: true },
+  { id: "review", num: "11", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
+  { id: "approval", num: "12", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
 ];
 
 type IePersona = "preparer" | "reviewer" | "approver";

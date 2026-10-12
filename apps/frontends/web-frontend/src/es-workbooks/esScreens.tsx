@@ -1,14 +1,14 @@
 import { stringifyJson } from "interfaces-shared-types/json";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { recordLabel } from "../workbooks/workbookHandoff";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { Fragment, JSX, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ESIcon } from "./esIcons";
-import { Badge, ESProvenanceChip, fmtImportance } from "./esShared";
+import { Badge, fmtImportance } from "./esShared";
 import {
   ES_RELEASE_CATEGORIES,
   FEASIBILITY_CRITERIA,
   ES_DEPENDENCY_TYPES,
-  ES_LBE_CLASSES,
   type CapabilityCategory,
 } from "./esViewData";
 import { type Dependency, DependencyType, type OperatorActionWindow, type FeasibilityState, type PhenomenologicalDependencyModel, type ReleaseCategoryMapping, type EventSequenceFamily, type EventSequenceScreeningRecord, type EventSequenceAnalysis, type EsEndStateDefinition, type EsEndStateKind, type EventTree, type EventTreeOutcome, eventTreeOutcomeRank } from "interfaces-mef-types/es/event-sequence-analysis";
@@ -29,13 +29,11 @@ import {
   withTreeSequenceClassification,
   reservedSequenceNames,
   withDistinctSequences,
-  familiesView,
   screeningView,
   dependenciesView,
   sequencesView,
   timelineView,
   freqValue,
-  lbeView,
   type EventTreeView,
   type DependencyView,
   type CcScore,
@@ -44,12 +42,11 @@ import { generateEsReport } from "./esDocx";
 import { EsFaultTreeReferencePicker } from "./esFaultTreeReferencePicker";
 import { setFunctionalEventFaultTreeReference } from "./esFaultTreeReferences";
 import { ChoiceEditor, DialogHead, DialogShell } from "./EsScope";
-import { BARRIER_CONDITIONS, END_STATE_KINDS, FailureEffectDialog, SequenceRecordTabs, derivedEndStateDraft, endStateMatches, failureEffectText, functionCode, sequenceFindings, type RecordTab } from "./EsSequenceTabs";
+import { BARRIER_CONDITIONS, END_STATE_KINDS, SequenceRecordTabs, sequenceFindings, type RecordTab } from "./EsSequenceTabs";
 import {
   EventTreeEditor,
   applyEventTreeOperation,
   createEmptyEventTree,
-  sequencePathsFromTopology,
   validateEventTree,
   type EventTreeOperation,
   type EventTreeRepresentation,
@@ -67,12 +64,6 @@ function eventPathState(state: EventTreeOutcome): { label: string; tone: "s" | "
   if (state === "FAILURE") return { label: "Failure", tone: "f" };
   if (state === "BYPASSED") return { label: "Bypassed", tone: "b" };
   return { label: `Branch ${String(eventTreeOutcomeRank(state) + 1)}`, tone: "n" };
-}
-
-function rcTone(rc: string | undefined): "block" | "warn" | "ok" {
-  const found = ES_RELEASE_CATEGORIES.find((r) => r.id === rc);
-  if (found === undefined) return "ok";
-  return found.tone === "block" ? "block" : found.tone === "ok" ? "ok" : "warn";
 }
 
 function EsEmpty({ title, hint }: { title: string; hint: string }): JSX.Element {
@@ -432,7 +423,7 @@ function PhenomenonDrawerBody({ phenId, onClose }: { phenId: string; onClose: ()
     <>
       <div className="posdrawer__head">
         <div>
-          <div className="posdrawer__cap">Phenomenological condition · {p.uuid}</div>
+          <div className="posdrawer__cap">Phenomenological condition · {recordLabel(p.uuid, p.name)}</div>
           <h2 className="posdrawer__title">{p.name}</h2>
           <div className="posdrawer__sub">{p.phenomenon.length > 0 ? p.phenomenon : "sequence-induced condition"}{p.onsetTiming !== undefined && p.onsetTiming.length > 0 ? ` · ${p.onsetTiming}` : ""}</div>
         </div>
@@ -510,7 +501,7 @@ function ReleaseCategoryDrawerBody({ mappingId, onClose }: { mappingId: string; 
     <>
       <div className="posdrawer__head">
         <div>
-          <div className="posdrawer__cap">Release category · {m.uuid}</div>
+          <div className="posdrawer__cap">Release category · {recordLabel(m.uuid, m.name)}</div>
           <h2 className="posdrawer__title">{m.releaseCategoryId}{rcMeta !== undefined ? ` · ${rcMeta.name}` : ""}</h2>
           <div className="posdrawer__sub">{m.eventSequenceIds.length} sequences mapped · handed to Mechanistic Source Term (ES-C8)</div>
         </div>
@@ -608,7 +599,7 @@ function FamilyDrawerBody({ familyId, onClose }: { familyId: string; onClose: ()
     <>
       <div className="posdrawer__head">
         <div>
-          <div className="posdrawer__cap">Sequence family · {f.uuid}</div>
+          <div className="posdrawer__cap">Sequence family · {recordLabel(f.uuid, f.name)}</div>
           {editable
             ? <WorkbookInput className="posfield__input" style={{ fontSize: 16, fontWeight: 700 }} value={f.name} onChange={(e) => patch({ name: e.target.value })} />
             : <h2 className="posdrawer__title">{f.name}</h2>}
@@ -823,17 +814,17 @@ function treeCode(tree: EventTree): string {
   return tree.label !== undefined && tree.label.length > 0 ? tree.label : tree.name;
 }
 
-type SequenceTab = "coverage" | "tree" | RecordTab;
+type SequenceTab = "coverage" | "tree" | "screening" | RecordTab;
 
 const SEQUENCE_TABS: { id: SequenceTab; label: string }[] = [
   { id: "coverage", label: "Coverage" },
   { id: "tree", label: "Event tree" },
-  { id: "functions", label: "Functional events" },
   { id: "sequences", label: "Sequences" },
   { id: "endstates", label: "End states" },
-  { id: "categories", label: "Release categories" },
   { id: "families", label: "Families" },
+  { id: "categories", label: "Release categories" },
   { id: "transfers", label: "Transfers" },
+  { id: "screening", label: "Screening" },
   { id: "checks", label: "Checks" },
 ];
 
@@ -841,10 +832,10 @@ function kindOfScEndState(endState: EndState): EsEndStateKind {
   return endState === EndState.RADIONUCLIDE_RELEASE ? "RELEASE" : "SAFE_STABLE";
 }
 
-function EndStateDialog({ treeId, endStateId, sequenceId, initial, onClose }: { treeId: string; endStateId?: string; sequenceId?: string; initial?: Partial<EsEndStateDefinition>; onClose: () => void }): JSX.Element {
+function EndStateDialog({ treeId, endStateId, sequenceId, onClose }: { treeId: string; endStateId?: string; sequenceId?: string; onClose: () => void }): JSX.Element {
   const { es, upstream, editable, mutateEs } = useEsWorkbook();
   const existing = es.endStateDefinitions?.find((candidate) => candidate.id === endStateId);
-  const [draft, setDraft] = useState<EsEndStateDefinition>(() => existing ?? { code: "", name: "", kind: "SAFE_STABLE", ...initial, id: crypto.randomUUID() });
+  const [draft, setDraft] = useState<EsEndStateDefinition>(() => existing ?? { code: "", name: "", kind: "SAFE_STABLE", id: crypto.randomUUID() });
   const [newCategory, setNewCategory] = useState("");
   const fieldId = useId();
   const categories = releaseCategoryOptions(es);
@@ -923,7 +914,7 @@ function EndStateDialog({ treeId, endStateId, sequenceId, initial, onClose }: { 
             <div className="posfield posfield-grid--span2"><label className="posfield__label" htmlFor={`${fieldId}-sc`}>SC end state</label>
               <select id={`${fieldId}-sc`} className="posfield__select" value={draft.scEndStateId ?? ""} disabled={!editable} onChange={(event) => linkSc(event.target.value)}>
                 <option value="">Typed in ES</option>
-                {scEndStates.map((candidate) => <option key={candidate.uuid} value={candidate.uuid}>{candidate.uuid}</option>)}
+                {scEndStates.map((candidate) => <option key={candidate.uuid} value={candidate.uuid}>{recordLabel(candidate.uuid, candidate.definition)}</option>)}
               </select>
             </div>
           )}
@@ -998,8 +989,7 @@ function SequencesScreen({ treeId, setTreeId, tab, setTab }: { treeId: string; s
   const [representation, setRepresentation] = useState<EventTreeRepresentation>("event-tree");
   const [selection, setSelection] = useState<string | null>(null);
   const [faultTreeLink, setFaultTreeLink] = useState<{ eventTreeId: string; functionalEventId: string; functionalEventName: string } | null>(null);
-  const [endStateDialog, setEndStateDialog] = useState<{ endStateId?: string; sequenceId?: string; initial?: Partial<EsEndStateDefinition> } | null>(null);
-  const [effectDialog, setEffectDialog] = useState<{ code: string; name: string } | null>(null);
+  const [endStateDialog, setEndStateDialog] = useState<{ endStateId?: string; sequenceId?: string } | null>(null);
   const endStateOptions = useMemo(() => (es.endStateDefinitions ?? []).map((definition) => ({
     id: definition.id,
     code: definition.code,
@@ -1014,7 +1004,6 @@ function SequencesScreen({ treeId, setTreeId, tab, setTab }: { treeId: string; s
   const trees = es.eventTrees ?? [];
   const model = trees.find((tree) => tree.uuid === treeId) ?? trees[0];
   const activeTreeId = model?.uuid ?? "";
-  const treePaths = useMemo(() => (model === undefined ? new Map<string, Record<string, EventTreeOutcome>>() : sequencePathsFromTopology(model)), [model]);
   const dynamicRun = (es.dynamicRuns ?? []).find((run) => run.eventTreeId === activeTreeId);
 
   const pendingSelection = useRef<EsTrailPlace | null>(null);
@@ -1139,13 +1128,6 @@ function SequencesScreen({ treeId, setTreeId, tab, setTab }: { treeId: string; s
         endStateOptions={endStateOptions}
         onAddEndState={editable ? (sequenceId) => setEndStateDialog({ sequenceId }) : undefined}
         onEditEndState={(endStateId) => setEndStateDialog({ endStateId })}
-        failureEffectLabel={(functionalEvent) => failureEffectText(functionalEvent.failureEffect)}
-        onEditFailureEffect={(functionalEvent) => setEffectDialog({ code: functionCode(functionalEvent), name: functionalEvent.name })}
-        endStateMatches={(sequenceId) => endStateMatches(es, model, treePaths.get(sequenceId))}
-        onAddDerivedEndState={editable ? (sequenceId) => {
-          const initial = derivedEndStateDraft(model, treePaths.get(sequenceId));
-          setEndStateDialog({ sequenceId, ...(initial === undefined ? {} : { initial }) });
-        } : undefined}
         onOpenReference={(reference) => {
           if ("targetEventTreeId" in reference) {
             const target = trees.find((tree) => tree.uuid === reference.targetEventTreeId);
@@ -1211,7 +1193,7 @@ function SequencesScreen({ treeId, setTreeId, tab, setTab }: { treeId: string; s
           ))}
         </div>
         <div role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-${tab}`} className="es-seq-card__panel">
-          {tab === "coverage" ? renderCoverage() : tab === "tree" ? renderTree() : (
+          {tab === "coverage" ? renderCoverage() : tab === "tree" ? renderTree() : tab === "screening" ? <ScreeningScreen /> : (
             <SequenceRecordTabs
               tab={tab}
               findings={findings}
@@ -1225,13 +1207,13 @@ function SequencesScreen({ treeId, setTreeId, tab, setTab }: { treeId: string; s
         </div>
       </div>
 
-      {endStateDialog !== null && <EndStateDialog treeId={model?.uuid ?? ""} {...(endStateDialog.endStateId === undefined ? {} : { endStateId: endStateDialog.endStateId })} {...(endStateDialog.sequenceId === undefined ? {} : { sequenceId: endStateDialog.sequenceId })} {...(endStateDialog.initial === undefined ? {} : { initial: endStateDialog.initial })} onClose={() => setEndStateDialog(null)} />}
-      {effectDialog !== null && <FailureEffectDialog code={effectDialog.code} name={effectDialog.name} onClose={() => setEffectDialog(null)} />}
+      {endStateDialog !== null && <EndStateDialog treeId={model?.uuid ?? ""} {...(endStateDialog.endStateId === undefined ? {} : { endStateId: endStateDialog.endStateId })} {...(endStateDialog.sequenceId === undefined ? {} : { sequenceId: endStateDialog.sequenceId })} onClose={() => setEndStateDialog(null)} />}
 
       {faultTreeLink !== null && (projectId !== undefined || faultTreeSource !== undefined) && (
         <EsFaultTreeReferencePicker
           {...(projectId === undefined ? {} : { projectId })}
           {...(faultTreeSource === undefined ? {} : { embeddedSource: faultTreeSource })}
+          {...(es.linkedWorkbooks?.SY === undefined ? {} : { linkedWorkbookId: es.linkedWorkbooks.SY })}
           functionalEventName={faultTreeLink.functionalEventName}
           currentReference={linkingFunctionalEvent?.faultTreeTopEvent}
           onClose={() => setFaultTreeLink(null)}
@@ -1555,20 +1537,14 @@ function ScreeningScreen(): JSX.Element {
 
   return (
     <>
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ES" title="Screening decisions" level={3} />
-          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
-            <ESProvenanceChip kind="es">ES-A7 · SCR-3</ESProvenanceChip>
-            {editable && eligible.length > 0 && (
-              <select className="posfield__select" style={{ maxWidth: 200 }} value="" onChange={(e) => addRecord(e.target.value)}>
-                <option value="">Add a record for…</option>
-                {eligible.map((id) => <option key={id} value={id}>{id}</option>)}
-              </select>
-            )}
+        {editable && eligible.length > 0 && (
+          <div className="es-records__bar">
+            <select className="posfield__select" style={{ maxWidth: 220 }} value="" aria-label="Add a screening record" onChange={(e) => addRecord(e.target.value)}>
+              <option value="">Add a record for…</option>
+              {eligible.map((id) => <option key={id} value={id}>{id}</option>)}
+            </select>
           </div>
-        </div>
-        <p className="poscard__sub">Every sequence is kept by default. A sequence may only be dropped when it is not risk-significant and meets a screening criterion (SCR-3, Table 1.10-1); the basis for each decision is recorded here (ES-A7). Click a record to edit it.</p>
+        )}
         {records.length > 0 ? (
           <table className="postable">
             <thead><tr><th>Sequence</th><th>Basis</th><th>Status</th></tr></thead>
@@ -1589,116 +1565,6 @@ function ScreeningScreen(): JSX.Element {
             </tbody>
           </table>
         ) : <EsEmpty title="No screening records yet" hint="Every sequence is kept by default; record the basis for any sequence screened out under SCR-3 (ES-A7)." />}
-      </div>
-      {drawer !== null && <DrawerHost ctx={drawer} onClose={() => setDrawer(null)} />}
-    </>
-  );
-}
-
-function QuantScreen(): JSX.Element {
-  const { es } = useEsWorkbook();
-  const families = useMemo(() => familiesView(es), [es]);
-  const lbes = useMemo(() => lbeView(es), [es]);
-  const trees = useMemo(() => eventTreesView(es), [es]);
-  const leafById = useMemo(() => new Map(trees.flatMap((t) => t.sequences.map((leaf) => [leaf.id, { leaf, tree: t }] as const))), [trees]);
-  const [drawer, setDrawer] = useState<DrawerCtx | null>(null);
-  const relFams = families.filter((f) => f.endState === "RADIONUCLIDE_RELEASE").sort((a, b) => (b.meanFrequency ?? 0) - (a.meanFrequency ?? 0));
-
-  if (families.length === 0) {
-    return (
-      <div className="poscard">
-        <EsEmpty title="Nothing to hand off to ESQ yet" hint="Once the sequences and families are built, this step packages them for Event Sequence Quantification and shows the frequencies it returns (ES-A1c)." />
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ES" title="Preliminary point-estimate licensing basis events" level={3} />
-          <ESProvenanceChip kind="es">ES → LBE · point estimate</ESProvenanceChip>
-        </div>
-        <p className="poscard__sub">Each sequence family is placed into a preliminary licensing-basis-event class by its point-estimate frequency, pending the full ESQ uncertainty quantification.</p>
-        <table className="postable">
-          <thead>
-            <tr>
-              <th>Family</th>
-              <th>RC</th>
-              <th style={{ textAlign: "right" }}>Point est. (/yr)</th>
-              <th>Class</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lbes.map((lbe) => {
-              const cls = lbe.lbeClass !== undefined ? ES_LBE_CLASSES[lbe.lbeClass] : undefined;
-              return (
-                <tr key={lbe.familyId}>
-                  <td><div className="postable__name">{lbe.familyId}</div><span className="postable__name-sub">{lbe.name}</span></td>
-                  <td>{lbe.releaseCategoryId !== undefined
-                    ? <span className={`estree__seq-rcpill estree__seq-rcpill--${rcTone(lbe.releaseCategoryId)}`}>{lbe.releaseCategoryId}</span>
-                    : <span className="poschip">Safe state</span>}</td>
-                  <td style={{ textAlign: "right" }}><span className="posmono" style={{ fontWeight: 700 }}>{fmtExp(lbe.meanFrequency)}</span></td>
-                  <td>{cls !== undefined ? <Badge kind={cls.tone}>{cls.label}</Badge> : <Badge kind="draft">Below 5E-7 /yr</Badge>}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        <p className="possubtle" style={{ fontSize: 11.5, marginTop: 10, marginBottom: 0 }}>Classes follow the LMP frequency bands: AOO at or above 1E-2/yr, DBE from 1E-4 to 1E-2/yr, and BDBE from 5E-7 to 1E-4/yr. Families below 5E-7/yr fall outside the LBE range.</p>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ES" title="Returned quantification" level={3} />
-          <ESProvenanceChip kind="es">ESQ → ES · HLR-ESQ-B</ESProvenanceChip>
-        </div>
-        <div className="esqdom-list">
-          {relFams.map((f) => {
-            const top = f.members
-              .flatMap((id) => { const found = leafById.get(id); return found === undefined ? [] : [found]; })
-              .sort((a, b) => (b.leaf.meanFrequency ?? 0) - (a.leaf.meanFrequency ?? 0))
-              .slice(0, 3);
-            const topFreq = top[0]?.leaf.meanFrequency ?? 0;
-            const tone = rcTone(f.releaseCategoryIds[0]);
-            const rcMeta = ES_RELEASE_CATEGORIES.find((r) => r.id === f.releaseCategoryIds[0]);
-            return (
-              <div key={f.id} className={`esqdom esqdom--${tone}`}>
-                <div className="esqdom__head">
-                  <span className="posmono possubtle" style={{ fontSize: 11.5 }}>{f.id}</span>
-                  <span className="esqdom__name">{f.name}</span>
-                  <span className="poscomment__foot-spacer" />
-                  <span className="posmono possubtle" style={{ fontSize: 11 }}>{fmtExp(f.meanFrequency)}/yr</span>
-                  <span className={`estree__seq-rcpill estree__seq-rcpill--${tone}`}>{f.releaseCategoryIds[0]}</span>
-                </div>
-                {top.map(({ leaf, tree }, i) => (
-                  <button key={leaf.id} type="button" className="esqdom__row" onClick={() => setDrawer({ kind: "sequence", id: leaf.id })}>
-                    <span className="esqdom__rank posmono">{i + 1}</span>
-                    <span className="posmono" style={{ fontSize: 11.5, fontWeight: 700, color: "var(--color-text)" }}>{leaf.id}</span>
-                    <span className="esqdom__path">
-                      <span className="esqdom__ietxt possubtle">{tree.name}</span>
-                      <span className="esqdom__arrow">→</span>
-                      {tree.functionalEvents.map((fe) => {
-                        const st = leaf.path[fe.id];
-                        if (st === undefined) return null;
-                        return (
-                          <span key={fe.id} className="esqlight posmono" title={`${fe.label}: ${eventPathState(st).label.toLowerCase()}`}>
-                            <span className={`esqlight__dot esqlight__dot--${eventPathState(st).tone}`} />{fe.id}
-                          </span>
-                        );
-                      })}
-                      <span className="esqdom__arrow">→</span>
-                      <span className="esqdom__endtxt possubtle">{rcMeta?.name ?? "Safe stable state"}</span>
-                    </span>
-                    <span className="esqdom__bar"><span className={`esqdom__fill esqdom__fill--${tone}`} style={{ width: `${topFreq > 0 ? Math.max(4, Math.round(((leaf.meanFrequency ?? 0) / topFreq) * 100)) : 4}%` }} /></span>
-                    <span className="esqdom__freq posmono possubtle">{fmtExp(leaf.meanFrequency)} /yr</span>
-                  </button>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      </div>
       {drawer !== null && <DrawerHost ctx={drawer} onClose={() => setDrawer(null)} />}
     </>
   );
@@ -1773,7 +1639,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
         </div>
 
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="ES" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading workbook="ES" title="Draft submission" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All items pass at <strong>{cc.name}</strong>, so making the draft locks Steps 1-8 and moves the workbook to <strong>Internal Technical Review</strong>.</>
@@ -1807,7 +1673,6 @@ export {
   SequencesScreen,
   TimingScreen,
   ScreeningScreen,
-  QuantScreen,
   DraftScreen,
   PlaceholderScreen,
   type SequenceTab,

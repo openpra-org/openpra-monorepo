@@ -14,7 +14,6 @@ import {
   type PosStep,
 } from "./posViewData";
 import {
-  stepIndexById,
   filterConformance,
   groupBySection,
   ccScore,
@@ -44,7 +43,8 @@ import { InternalReviewScreen, ReviewerCommentDock } from "./posReview";
 import { Drawer } from "./posDrawer";
 import { generatePosReport } from "./posDocx";
 import { PosWorkbookProvider, type PosWorkbookData } from "./posWorkbookContext";
-import { loadPosDaOutages } from "./posDaLinks";
+import { EXAMPLE_PREFIX, loadPosDaOutages } from "./posDaLinks";
+import { PosHandoffScreen } from "./posHandoff";
 import { PosHelpButton, PosSectionHeading } from "./posHelp";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
@@ -73,14 +73,15 @@ function headersFor(stepId: string, isApprover: boolean): StepHeader {
     case "grouping": return { eyebrow: "Step 06", title: "Grouping", sub: "Combine similar states only when one member's response bounds the rest, without masking any risk-significant contributor." };
     case "frequency": return { eyebrow: "Step 07", title: "Frequencies & duration", sub: "Mean time spent in each state, mean entry frequency, and basis. Pre-operational durations come from the assumed cycle plan." };
     case "decayheat": return { eyebrow: "Step 08", title: "Decay heat", sub: "For every low-power and shutdown state, characterise the decay heat." };
-    case "draft": return { eyebrow: "Step 09 · Draft", title: "Produce the draft", sub: "Generate the Word report from everything entered so far. Submitting the draft advances the workbook to internal technical review." };
+    case "handoff": return { eyebrow: "Step 09", title: "Technical Element Handoff" };
+    case "draft": return { eyebrow: "Step 10 · Draft", title: "Produce the draft", sub: "Generate the Word report from everything entered so far. Submitting the draft advances the workbook to internal technical review." };
     case "review": return {
-      eyebrow: "Step 10 · Review",
+      eyebrow: "Step 11 · Review",
       title: "Internal technical review",
       sub: "Reviewers and the approver post comments. The workbook advances to internal approval once every assigned reviewer has signed.",
     };
     case "approval": return {
-      eyebrow: "Step 11 · Approval",
+      eyebrow: "Step 12 · Approval",
       title: "Internal approval",
       sub: isApprover
         ? "All earlier steps are locked. Review the comment record, leave any closing remarks, then sign and approve."
@@ -640,6 +641,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
       case "grouping": return <GroupingScreen {...screenProps} />;
       case "frequency": return <FrequencyScreen {...screenProps} />;
       case "decayheat": return <DecayHeatScreen {...screenProps} />;
+      case "handoff": return <PosHandoffScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onGenerate={handleGenerate} onSubmitDraft={(ready) => {
         if (actions !== undefined) {
           actions.submitForReview()
@@ -811,13 +813,14 @@ function PosDemoPage(): JSX.Element {
       fetchJson<PosBundleResponse>(`/api/example-workbooks/pos-bundle?example=${encodeURIComponent(selected)}`)
         .then((res) => {
           if (cancelled) return;
-          const pos = res.pos.mef as PlantOperatingStatesAnalysis;
+          const example = res.pos.mef as PlantOperatingStatesAnalysis;
+          const pos = example.linkedWorkbooks?.DA === undefined ? { ...example, linkedWorkbooks: { ...example.linkedWorkbooks, DA: `${EXAMPLE_PREFIX}${selected}` } } : example;
           setData({
             pos,
             cc: res.configurationControl.mef as PRAConfigurationControl,
             nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
           });
-          void loadPosDaOutages(null, pos, selected).then((daOutages) => {
+          void loadPosDaOutages(pos.linkedWorkbooks?.DA).then((daOutages) => {
             if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, daOutages }));
           });
         })

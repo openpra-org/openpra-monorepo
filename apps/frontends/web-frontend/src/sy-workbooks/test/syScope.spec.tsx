@@ -127,13 +127,11 @@ describe("SY Scope step", () => {
     expect(applyLastMutation(sy).linkedWorkbooks).toEqual({ ES: "es-1" });
   });
 
-  it("shows the linked workbook", () => {
+  it("shows the linked workbook in the source workbook select", () => {
     renderScope({ sy: makeAnalysis({ linkedWorkbooks: { ES: "es-1" } }), links: LINKS });
 
-    const linked = screen.getByRole("table", { name: "Linked ES workbook" });
-    expect(within(linked).getByText("ES workbook")).toBeInTheDocument();
-    expect(within(linked).getByText("Ada Analyst")).toBeInTheDocument();
-    expect(screen.getAllByRole("table").map((table) => table.getAttribute("aria-label"))).toEqual(["Linked ES workbook", "Systems in scope"]);
+    expect(screen.getByRole("combobox", { name: "Source workbook" })).toHaveValue("es-1");
+    expect(screen.getAllByRole("table").map((table) => table.getAttribute("aria-label"))).toEqual(["Systems in scope"]);
   });
 
   it("clears a link when Not linked is chosen", () => {

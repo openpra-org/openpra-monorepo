@@ -342,10 +342,15 @@ export const IeSearchMethodSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const IeLinkedWorkbooksSchema = z.object({
+  DA: z.string().optional(),
+});
+
 export const InitiatingEventsAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.INITIATING_EVENT_ANALYSIS).shape,
   praScope: z.string(),
   includesNonInternalHazardGroups: z.boolean(),
+  linkedWorkbooks: IeLinkedWorkbooksSchema.optional(),
   applicablePlantOperatingStates: z.array(z.string()),
   searchMethods: z.array(IeSearchMethodSchema).optional(),
   masterLogicDiagrams: z.array(MasterLogicDiagramSchema).optional(),

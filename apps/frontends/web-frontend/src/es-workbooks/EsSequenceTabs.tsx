@@ -1,9 +1,9 @@
 import { type JSX, useId, useMemo, useState } from "react";
-import type { EsBarrierCondition, EsEndStateBarrier, EsEndStateDefinition, EsEndStateKind, EventSequenceAnalysis, EventSequenceFamily, EventTree, EventTreeOutcome, EventTreeTransfer, FunctionalEvent, FunctionalEventFailureEffect } from "interfaces-mef-types/es/event-sequence-analysis";
+import type { EsBarrierCondition, EsEndStateKind, EventSequenceAnalysis, EventSequenceFamily, EventTreeTransfer } from "interfaces-mef-types/es/event-sequence-analysis";
 import { EndState } from "interfaces-mef-types/core/events";
 import { endStateOfKind } from "interfaces-mef-types/es/es-end-states";
-import { applyEventTreeOperation, sequencePathsFromTopology, validateEventTree } from "../newly-developed-methods/event-tree";
-import { ChoiceEditor, DialogHead, DialogShell } from "./EsScope";
+import { applyEventTreeOperation, validateEventTree } from "../newly-developed-methods/event-tree";
+import { DialogHead, DialogShell } from "./EsScope";
 import { useEsWorkbook } from "./esWorkbookContext";
 import {
   dependencyBoundFunctionalEvents,
@@ -29,7 +29,7 @@ import {
   type TreeSequenceRow,
 } from "./esSelectors";
 
-type RecordTab = "functions" | "sequences" | "endstates" | "categories" | "families" | "transfers" | "checks";
+type RecordTab = "sequences" | "endstates" | "categories" | "families" | "transfers" | "checks";
 
 type EsCheckTarget =
   | { kind: "tree"; treeId: string; entityId?: string }
@@ -62,109 +62,6 @@ const BARRIER_CONDITIONS: { id: EsBarrierCondition; label: string }[] = [
   { id: "FAILED", label: "Failed" },
   { id: "BYPASSED", label: "Bypassed" },
 ];
-
-type OutcomePath = Readonly<Record<string, EventTreeOutcome>>;
-
-interface EndCharacteristics {
-  barriers: ReadonlyMap<string, EsBarrierCondition>;
-  sources: ReadonlySet<string>;
-}
-
-interface FunctionGroupRow {
-  key: string;
-  code: string;
-  name: string;
-  treeCount: number;
-  effect?: FunctionalEventFailureEffect;
-}
-
-function conditionRank(condition: EsBarrierCondition): number {
-  return BARRIER_CONDITIONS.findIndex((entry) => entry.id === condition);
-}
-
-function functionCode(event: FunctionalEvent): string {
-  return event.label ?? event.uuid;
-}
-
-function hasFailureEffect(event: FunctionalEvent): boolean {
-  return (event.failureEffect?.barriers?.length ?? 0) > 0 || (event.failureEffect?.sources?.length ?? 0) > 0;
-}
-
-function failureEffectText(effect: FunctionalEventFailureEffect | undefined): string | undefined {
-  const barriers = (effect?.barriers ?? []).map((entry) => `${entry.barrier} ${(BARRIER_CONDITIONS.find((option) => option.id === entry.condition)?.label ?? entry.condition).toLowerCase()}`);
-  const parts = [barriers.join(", "), (effect?.sources ?? []).join(", ")].filter((part) => part.length > 0);
-  return parts.length === 0 ? undefined : parts.join(" · ");
-}
-
-function pathCharacteristics(tree: EventTree, path: OutcomePath): EndCharacteristics | undefined {
-  const events = Object.values(tree.functionalEvents);
-  if (!events.some(hasFailureEffect)) return undefined;
-  const barriers = new Map<string, EsBarrierCondition>();
-  const sources = new Set<string>();
-  for (const event of events) {
-    if (path[event.uuid] !== "FAILURE") continue;
-    for (const entry of event.failureEffect?.barriers ?? []) {
-      const before = barriers.get(entry.barrier);
-      if (before === undefined || conditionRank(entry.condition) > conditionRank(before)) barriers.set(entry.barrier, entry.condition);
-    }
-    for (const source of event.failureEffect?.sources ?? []) sources.add(source);
-  }
-  return { barriers, sources };
-}
-
-function characteristicsMatch(definition: EsEndStateDefinition, derived: EndCharacteristics): boolean {
-  const names = new Set([...derived.barriers.keys(), ...(definition.barriers ?? []).map((entry) => entry.barrier)]);
-  for (const name of names) {
-    const expected = definition.barriers?.find((entry) => entry.barrier === name)?.condition ?? "INTACT";
-    if (expected !== (derived.barriers.get(name) ?? "INTACT")) return false;
-  }
-  const listed = new Set(definition.reactorsAndSources ?? []);
-  return listed.size === derived.sources.size && [...derived.sources].every((source) => listed.has(source));
-}
-
-function endStateMatches(es: EventSequenceAnalysis, tree: EventTree, path: OutcomePath | undefined): string[] | undefined {
-  if (path === undefined) return undefined;
-  const derived = pathCharacteristics(tree, path);
-  if (derived === undefined) return undefined;
-  return (es.endStateDefinitions ?? []).filter((definition) => definition.kind !== "INTERMEDIATE" && characteristicsMatch(definition, derived)).map((definition) => definition.id);
-}
-
-function derivedEndStateDraft(tree: EventTree, path: OutcomePath | undefined): Partial<EsEndStateDefinition> | undefined {
-  if (path === undefined) return undefined;
-  const derived = pathCharacteristics(tree, path);
-  if (derived === undefined) return undefined;
-  const barriers = [...derived.barriers].map(([barrier, condition]) => ({ barrier, condition }));
-  const lost = barriers.some((entry) => entry.condition === "FAILED" || entry.condition === "BYPASSED");
-  return { kind: lost ? "RELEASE" : "SAFE_STABLE", barriers, reactorsAndSources: [...derived.sources] };
-}
-
-function functionGroupRows(es: EventSequenceAnalysis): FunctionGroupRow[] {
-  const groups = new Map<string, FunctionGroupRow>();
-  for (const tree of es.eventTrees ?? []) {
-    for (const event of Object.values(tree.functionalEvents)) {
-      const code = functionCode(event);
-      const key = `${code}|${event.name}`;
-      const row = groups.get(key);
-      if (row === undefined) groups.set(key, { key, code, name: event.name, treeCount: 1, ...(event.failureEffect === undefined ? {} : { effect: event.failureEffect }) });
-      else groups.set(key, { ...row, treeCount: row.treeCount + 1, ...(row.effect === undefined && event.failureEffect !== undefined ? { effect: event.failureEffect } : {}) });
-    }
-  }
-  return [...groups.values()].sort((a, b) => a.code.localeCompare(b.code));
-}
-
-function withFailureEffect(es: EventSequenceAnalysis, code: string, name: string, effect: FunctionalEventFailureEffect | undefined): EventSequenceAnalysis {
-  return {
-    ...es,
-    eventTrees: (es.eventTrees ?? []).map((tree) => ({
-      ...tree,
-      functionalEvents: Object.fromEntries(Object.entries(tree.functionalEvents).map(([key, event]): [string, FunctionalEvent] => {
-        if (functionCode(event) !== code || event.name !== name) return [key, event];
-        const { failureEffect: _previous, ...rest } = event;
-        return [key, effect === undefined ? rest : { ...rest, failureEffect: effect }];
-      })),
-    })),
-  };
-}
 
 function lines(text: string): string[] {
   return text.split("\n").map((line) => line.trim()).filter((line) => line.length > 0);
@@ -245,25 +142,6 @@ function sequenceFindings(es: EventSequenceAnalysis): EsSequenceFinding[] {
     if (first === undefined) firstWith.set(key, category.id);
     else findings.push({ severity: "warning", check: "Release categories", item: category.id, detail: `Same physical characteristics as ${first}.`, target: { kind: "category", id: category.id } });
   }
-  for (const tree of trees) {
-    if (!Object.values(tree.functionalEvents).some(hasFailureEffect)) continue;
-    const paths = sequencePathsFromTopology(tree);
-    let differing = 0;
-    for (const [sequenceId, sequence] of Object.entries(tree.sequences)) {
-      if (sequence.endStateId === undefined || tree.transfers?.[sequenceId] !== undefined) continue;
-      const matches = endStateMatches(es, tree, paths.get(sequenceId));
-      if (matches !== undefined && !matches.includes(sequence.endStateId)) differing += 1;
-    }
-    if (differing > 0) {
-      findings.push({
-        severity: "warning",
-        check: "End states",
-        item: tree.name,
-        detail: differing === 1 ? "1 path has an end state that differs from its failure effects." : `${String(differing)} paths have end states that differ from their failure effects.`,
-        target: { kind: "tree", treeId: tree.uuid },
-      });
-    }
-  }
   const missing = new Map<string, number>();
   for (const row of unfamiliedSequences(es)) missing.set(row.treeId, (missing.get(row.treeId) ?? 0) + 1);
   for (const [treeId, count] of missing) {
@@ -275,36 +153,6 @@ function sequenceFindings(es: EventSequenceAnalysis): EsSequenceFinding[] {
     }
   }
   return [...findings.filter((finding) => finding.severity === "error"), ...findings.filter((finding) => finding.severity === "warning")];
-}
-
-function FunctionsTable({ onEdit }: { onEdit: (code: string, name: string) => void }): JSX.Element {
-  const { es, editable } = useEsWorkbook();
-  const [page, setPage] = useState(0);
-  const rows = useMemo(() => functionGroupRows(es), [es]);
-  const { current, shown } = pageOf(rows, page, TABLE_PAGE);
-  const actionLabel = editable ? "Edit" : "View";
-  return (
-    <>
-      <div className="es-records__bar">
-        <Pager current={current} size={TABLE_PAGE} total={rows.length} one="functional event" many="functional events" onPage={setPage} />
-      </div>
-      {rows.length === 0 ? <p className="posmuted es-records__empty">No functional events yet.</p> : (
-        <table className="postable postable--mid es-records" aria-label="Functional events">
-          <thead><tr><th scope="col">Functional event</th><th scope="col">Trees</th><th scope="col">Failure effect</th><th scope="col" className="es-records__act" aria-label="Actions" /></tr></thead>
-          <tbody>
-            {shown.map((row) => (
-              <tr key={row.key}>
-                <td><span className="postable__name posmono">{row.code}</span><span className="postable__name-sub">{row.name}</span></td>
-                <td className="posmono">{row.treeCount}</td>
-                <td>{failureEffectText(row.effect) ?? <span className="posmuted">Not recorded</span>}</td>
-                <td className="es-records__act"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} the failure effect of ${row.code}`} onClick={() => onEdit(row.code, row.name)}>{actionLabel}</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </>
-  );
 }
 
 function SequencesTable(): JSX.Element {
@@ -568,7 +416,7 @@ function TransfersTable({ onEdit }: { onEdit: (treeId: string, sequenceId: strin
       <div className="es-records__bar">
         <Pager current={current} size={TABLE_PAGE} total={rows.length} one="transfer" many="transfers" onPage={setPage} />
       </div>
-      {rows.length === 0 ? <p className="posmuted es-records__empty">No transfers yet.</p> : (
+      {rows.length > 0 && (
         <table className="postable postable--mid es-records" aria-label="Transfers">
           <thead><tr><th scope="col">From</th><th scope="col">To</th><th scope="col" className="es-records__act" aria-label="Actions" /></tr></thead>
           <tbody>
@@ -795,59 +643,6 @@ function FamilyDialog({ familyId, groups, states, onClose }: { familyId: string 
   );
 }
 
-function FailureEffectDialog({ code, name, onClose }: { code: string; name: string; onClose: () => void }): JSX.Element {
-  const { es, editable, mutateEs } = useEsWorkbook();
-  const fieldId = useId();
-  const group = functionGroupRows(es).find((row) => row.code === code && row.name === name);
-  const [barriers, setBarriers] = useState<EsEndStateBarrier[]>(group?.effect?.barriers ?? []);
-  const [sources, setSources] = useState<string[]>(group?.effect?.sources ?? []);
-  const scopeBarriers = es.scopeDefinition.radionuclideBarriers;
-  const barrierNames = [...scopeBarriers, ...barriers.map((entry) => entry.barrier).filter((barrier) => !scopeBarriers.includes(barrier))];
-  const trees = group?.treeCount ?? 0;
-
-  function setBarrier(barrier: string, condition: string): void {
-    const kept = barriers.filter((entry) => entry.barrier !== barrier);
-    const chosen = BARRIER_CONDITIONS.find((option) => option.id === condition)?.id;
-    setBarriers(chosen === undefined ? kept : [...kept, { barrier, condition: chosen }]);
-  }
-
-  function save(): void {
-    if (!editable) return;
-    const effect: FunctionalEventFailureEffect = {
-      ...(barriers.length === 0 ? {} : { barriers }),
-      ...(sources.length === 0 ? {} : { sources }),
-    };
-    mutateEs((current) => withFailureEffect(current, code, name, barriers.length === 0 && sources.length === 0 ? undefined : effect));
-    onClose();
-  }
-
-  return (
-    <DialogShell label="Failure effect" onClose={onClose}>
-      <DialogHead cap={`Failure effect · ${code}${trees > 1 ? ` · ${String(trees)} trees` : ""} · ES-C2`} title={name} onClose={onClose} />
-      <div className="modal__body">
-        {barrierNames.length > 0 && (
-          <div className="posfield-grid">
-            {barrierNames.map((barrier, index) => (
-              <div key={barrier} className="posfield"><label className="posfield__label" htmlFor={`${fieldId}-barrier-${String(index)}`}>{barrier}</label>
-                <select id={`${fieldId}-barrier-${String(index)}`} className="posfield__select" value={barriers.find((entry) => entry.barrier === barrier)?.condition ?? ""} disabled={!editable} onChange={(event) => setBarrier(barrier, event.target.value)}>
-                  <option value="">Not affected</option>
-                  {BARRIER_CONDITIONS.filter((option) => option.id !== "INTACT").map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                </select>
-              </div>
-            ))}
-          </div>
-        )}
-        <ChoiceEditor label="Sources involved" choices={es.scopeDefinition.radioactiveMaterialSources.map((source) => ({ id: source, label: "" }))} values={sources} editable={editable} addLabel="Add a source" mono={false} onChange={setSources} />
-        {editable && (
-          <div className="posrow es-dialog-actions">
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={save}>Save</button>
-          </div>
-        )}
-      </div>
-    </DialogShell>
-  );
-}
-
 function TransferDialog({ treeId, sequenceId, onClose }: { treeId: string; sequenceId: string; onClose: () => void }): JSX.Element {
   const { es, editable, mutateEs } = useEsWorkbook();
   const fieldId = useId();
@@ -921,7 +716,6 @@ function SequenceRecordTabs({ tab, findings, groups, states, onOpenPath, onAddEn
   const [categoryDialog, setCategoryDialog] = useState<{ id: string | undefined } | null>(null);
   const [familyDialog, setFamilyDialog] = useState<{ id: string | undefined } | null>(null);
   const [transferDialog, setTransferDialog] = useState<{ treeId: string; sequenceId: string } | null>(null);
-  const [effectDialog, setEffectDialog] = useState<{ code: string; name: string } | null>(null);
 
   function openTarget(target: EsCheckTarget): void {
     if (target.kind === "tree") onOpenPath(target.treeId, target.entityId ?? null);
@@ -932,7 +726,6 @@ function SequenceRecordTabs({ tab, findings, groups, states, onOpenPath, onAddEn
 
   return (
     <>
-      {tab === "functions" && <FunctionsTable onEdit={(code, name) => setEffectDialog({ code, name })} />}
       {tab === "sequences" && <SequencesTable />}
       {tab === "endstates" && <EndStatesTable onAdd={onAddEndState} onEdit={onEditEndState} />}
       {tab === "categories" && <CategoriesTable onOpen={(id) => setCategoryDialog({ id })} />}
@@ -942,19 +735,13 @@ function SequenceRecordTabs({ tab, findings, groups, states, onOpenPath, onAddEn
       {categoryDialog !== null && <ReleaseCategoryDialog categoryId={categoryDialog.id} onClose={() => setCategoryDialog(null)} />}
       {familyDialog !== null && <FamilyDialog familyId={familyDialog.id} groups={groups} states={states} onClose={() => setFamilyDialog(null)} />}
       {transferDialog !== null && <TransferDialog treeId={transferDialog.treeId} sequenceId={transferDialog.sequenceId} onClose={() => setTransferDialog(null)} />}
-      {effectDialog !== null && <FailureEffectDialog code={effectDialog.code} name={effectDialog.name} onClose={() => setEffectDialog(null)} />}
     </>
   );
 }
 
 export {
   SequenceRecordTabs,
-  FailureEffectDialog,
   sequenceFindings,
-  endStateMatches,
-  derivedEndStateDraft,
-  failureEffectText,
-  functionCode,
   BARRIER_CONDITIONS,
   END_STATE_KINDS,
   type RecordTab,

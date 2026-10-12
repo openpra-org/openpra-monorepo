@@ -11,19 +11,23 @@ import type { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns"
 import { WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { TechnicalElementHandoff, handoffName, joinedOrNone, recordLabel, type HandoffSectionView } from "../workbooks/workbookHandoff";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import { FormFoot, FormRow, ModalHead, sciText, useRunner } from "./esqShared";
 import type { EsqWindowContext } from "./esqModelScreen";
 import { caseOptions } from "./esqDaLinks";
+import { parameterLabelOf } from "./esqModel";
 import { fourDigits } from "./esqResults";
 import { CONTRIBUTOR_TYPE_LABELS } from "./esqViewData";
 import {
   OWNER_ELEMENTS,
   RESPONSE_LABELS,
+  createdValues,
   handoffViewOf,
   handoffWorkOf,
   publishEsq,
   withResponse,
+  type EsqFeedbackItem,
   type EsqHandoffView,
   type EsqHandoffWindowKind,
 } from "./esqHandoff";
@@ -90,6 +94,78 @@ function scopeText(record: ImportanceAnalysisRecord, family: (id: string) => str
 
 function feedbackText(level: ImportanceLevel | undefined, insights: readonly string[] | undefined, recommendations: readonly string[] | undefined): string {
   const parts = [level === undefined ? "" : `${levelText(level)} significance.`, ...(insights ?? []), ...(recommendations ?? [])].filter((part) => part.trim().length > 0);
+  return parts.length === 0 ? "None" : parts.join(" ");
+}
+
+function responseOf(esq: EventSequenceQuantification, item: EsqFeedbackItem): EsqHandoffResponse {
+  return handoffWorkOf(esq).responses?.find((entry) => entry.id === item.id) ?? { id: item.id, kind: item.kind, ref: item.ref, response: "", status: "PENDING", ...(item.owner === undefined ? {} : { sentTo: item.owner }) };
+}
+
+function useResponseSave(item: EsqFeedbackItem): { response: EsqHandoffResponse; editable: boolean; save: (next: EsqHandoffResponse) => void } {
+  const { esq, editable, mutateEsq } = useEsqWorkbook();
+  return {
+    response: responseOf(esq, item),
+    editable,
+    save: (next) => {
+      if (editable) mutateEsq((draft) => withResponse(draft, next, item.id));
+    },
+  };
+}
+
+function ResponseTextCell({ item }: { item: EsqFeedbackItem }): JSX.Element {
+  const { response, editable, save } = useResponseSave(item);
+  return (
+    <WorkbookTextarea
+      className="posfield__textarea"
+      aria-label={`Response to ${item.label}`}
+      rows={1}
+      fitContent
+      value={response.response}
+      disabled={!editable}
+      onChange={(event) => save({ ...response, response: event.target.value })}
+    />
+  );
+}
+
+function ResponseStatusCell({ item }: { item: EsqFeedbackItem }): JSX.Element {
+  const { response, editable, save } = useResponseSave(item);
+  return (
+    <select
+      className="posfield__select"
+      aria-label={`Response status for ${item.label}`}
+      value={response.status}
+      disabled={!editable}
+      onChange={(event) => {
+        const status = STATUSES.find((candidate) => candidate === event.target.value);
+        if (status !== undefined) save({ ...response, status });
+      }}
+    >
+      {STATUSES.map((status) => <option key={status} value={status}>{RESPONSE_LABELS[status]}</option>)}
+    </select>
+  );
+}
+
+function ResponseOwnerCell({ item }: { item: EsqFeedbackItem }): JSX.Element {
+  const { response, editable, save } = useResponseSave(item);
+  return (
+    <select
+      className="posfield__select"
+      aria-label={`Sent to for ${item.label}`}
+      value={response.sentTo ?? ""}
+      disabled={!editable}
+      onChange={(event) => {
+        const { sentTo: _old, ...rest } = response;
+        save(event.target.value.length === 0 ? rest : { ...rest, sentTo: event.target.value });
+      }}
+    >
+      <option value="">Kept in ESQ</option>
+      {OWNER_ELEMENTS.map((element) => <option key={element} value={element}>{element}</option>)}
+    </select>
+  );
+}
+
+function feedbackDetail(item: EsqFeedbackItem): string {
+  const parts = [item.reason ?? "", ...item.insights, ...item.recommendations].filter((part) => part.trim().length > 0);
   return parts.length === 0 ? "None" : parts.join(" ");
 }
 
@@ -244,16 +320,51 @@ function esqHandoffSections(esq: EventSequenceQuantification, view: EsqHandoffVi
       ],
     },
     {
+      key: "created-values",
+      columns: [{ label: "Item" }, { label: "Value" }, { label: "Where" }, { label: "Source" }],
+      rows: createdValues(esq).map((entry) => ({
+        id: entry.key,
+        cells: [
+          recordLabel(entry.item),
+          entry.value !== undefined ? sciText(entry.value) : entry.expression !== undefined ? expressionText(entry.expression, parameterLabelOf(esq)) : "None",
+          entry.where,
+          entry.source.trim().length > 0 ? entry.source : "None",
+        ],
+      })),
+    },
+    {
       key: "responses",
-      columns: [{ label: "Kind" }, { label: "Item" }, { label: "Detail" }],
-      rows: feedback === undefined ? [] : [
-        ...(feedback.sequenceFeedback ?? []).map((entry, index) => ({
-          id: `feedback-${entry.sequenceRef}-${String(index)}`,
-          cells: ["RI feedback", handoffName(entry.sequenceRef, familyName.get(entry.sequenceRef)), feedbackText(entry.riskSignificance, entry.insights, entry.recommendations)],
-        })),
-        ...(blank(feedback.generalFeedback) ? [] : [{ id: "general", cells: ["RI feedback", "General", noneText(feedback.generalFeedback)] }]),
-        ...(response === undefined ? [] : [{ id: "response", cells: ["Response", RESPONSE_LABELS[response.status], noneText(response.description)] }]),
-        ...(response?.changes ?? []).map((change, index) => ({ id: `change-${String(index)}`, cells: ["Routed", change, "None"] })),
+      subsections: [
+        {
+          key: "ri-feedback",
+          name: "RI feedback",
+          columns: [{ label: "Item" }, { label: "RI level" }, { label: "RI detail" }, { label: "Response" }, { label: "Status" }, { label: "Sent to" }],
+          rows: (view?.feedback ?? []).map((item) => ({
+            id: item.id,
+            cells: [
+              item.label,
+              levelText(item.significance),
+              feedbackDetail(item),
+              <ResponseTextCell key="response" item={item} />,
+              <ResponseStatusCell key="status" item={item} />,
+              <ResponseOwnerCell key="owner" item={item} />,
+            ],
+          })),
+        },
+        {
+          key: "published",
+          name: "Published response",
+          columns: [{ label: "Kind" }, { label: "Item" }, { label: "Detail" }],
+          rows: feedback === undefined ? [] : [
+            ...(feedback.sequenceFeedback ?? []).map((entry, index) => ({
+              id: `feedback-${entry.sequenceRef}-${String(index)}`,
+              cells: ["RI feedback", handoffName(entry.sequenceRef, familyName.get(entry.sequenceRef)), feedbackText(entry.riskSignificance, entry.insights, entry.recommendations)],
+            })),
+            ...(blank(feedback.generalFeedback) ? [] : [{ id: "general", cells: ["RI feedback", "General", noneText(feedback.generalFeedback)] }]),
+            ...(response === undefined ? [] : [{ id: "response", cells: ["Response", RESPONSE_LABELS[response.status], noneText(response.description)] }]),
+            ...(response?.changes ?? []).map((change, index) => ({ id: `change-${String(index)}`, cells: ["Routed", change, "None"] })),
+          ],
+        },
       ],
     },
   ];

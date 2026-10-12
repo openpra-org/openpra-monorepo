@@ -22,4 +22,5 @@
 .wbhandoff__table .postable__name-sub { display: block; }
 .wbhandoff__panel th, .wbhandoff__panel td { text-align: left; vertical-align: top; }
 .wbhandoff__panel td > select, .wbhandoff__panel td > textarea { display: block; margin: 0; }
+.wbhandoff__panel td > select { width: auto; min-width: max-content; }
 .wbhandoff__num { white-space: nowrap; font-variant-numeric: tabular-nums; }

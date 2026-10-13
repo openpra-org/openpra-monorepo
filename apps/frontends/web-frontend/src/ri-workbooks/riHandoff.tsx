@@ -6,6 +6,7 @@ import { WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { HANDOFF_ELEMENT_NAMES } from "interfaces-mef-types/technical-element-handoff";
 import { TechnicalElementHandoff, handoffName, recordLabel, type HandoffColumn, type HandoffSectionView, type HandoffSubsectionView } from "../workbooks/workbookHandoff";
 import { useRiWorkbook } from "./riWorkbookContext";
+import { sciText } from "./riShared";
 import { MEASURE_QUANTITY_LABELS, MEASURE_ROLE_SPECS, RELATIVE_CRITERIA_SPECS } from "./riViewData";
 import {
   criteriaSetOf,
@@ -261,14 +262,22 @@ function feedbackSubsections(ri: RiskIntegration, receiver: RiHandoffReceiver): 
 
 function riHandoffSections(ri: RiskIntegration): HandoffSectionView[] {
   const relative = criteriaSetOf(ri).relative;
+  const thresholds = ri.reportingThresholds;
+  const frequencyJustification = thresholds.frequencyJustification ?? "";
   return [
     {
       key: "criteria",
       columns: [{ label: "Criterion" }, { label: "Value", numeric: true }, { label: "Justification" }],
-      rows: RELATIVE_CRITERIA_SPECS.map((spec) => ({
-        id: spec.key,
-        cells: [spec.label, criterionValueText(relative[spec.key].value, spec.unit), relative[spec.key].justification ?? "None"],
-      })),
+      rows: [
+        ...RELATIVE_CRITERIA_SPECS.map((spec) => ({
+          id: spec.key,
+          cells: [spec.label, criterionValueText(relative[spec.key].value, spec.unit), relative[spec.key].justification ?? "None"],
+        })),
+        {
+          id: "minimum-reporting-frequency",
+          cells: ["Minimum reporting frequency", `${sciText(thresholds.minimumReportingFrequencyPerPlantYear)} per plant-year`, frequencyJustification.trim().length > 0 ? frequencyJustification : "None"],
+        },
+      ],
     },
     {
       key: "consequence-measures",

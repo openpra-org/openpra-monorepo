@@ -111,7 +111,8 @@ function variableOf(name: EsqSideName, side: EsqResolvedSide, laws: ReadonlyMap<
 
 async function buildEsqCellRun(input: EsqCellRunBuildInput, evaluate: EsqUncertaintyEvaluator): Promise<EsqCellRunBuild> {
   const cell = cellOf(input.esq, input.cellId);
-  if (cell === undefined) throw new EsqRunBuildError(`Cell ${input.cellId} is not in Step 04.`);
+  if (cell === undefined) throw new EsqRunBuildError(`Cell ${input.cellId} is not in Step 03.`);
+  if (cell.screening !== undefined) throw new EsqRunBuildError(`${cell.id} is screened by ${cell.screening.criterion}, so it takes no run.`);
   const resolved = resolveCell(cell, input.esq);
   if (resolved.problem !== undefined) throw new EsqRunBuildError(`${cell.id}: ${resolved.problem}`);
   const sides: [EsqSideName, EsqResolvedSide][] = [["load", resolved.cell.load], ["capacity", resolved.cell.capacity]];

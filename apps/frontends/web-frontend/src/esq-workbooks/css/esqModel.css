@@ -1,0 +1,20 @@
+.esq-model-head { align-items: flex-end; flex-wrap: wrap; gap: 10px 16px; }
+.esq-model-head__import { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+.esq-model-flag { font-weight: 600; color: var(--color-error); }
+.es-severity--note { color: var(--color-text-muted); }
+
+.esq-model-dialog { min-width: min(560px, calc(100vw - 104px)); }
+.esq-model-fields .posfield__select { width: auto; max-width: 100%; }
+.esq-model-fields .posfield__textarea { box-sizing: border-box; width: 100%; }
+.esq-model-section { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.esq-model-items td { overflow-wrap: anywhere; }
+.esq-model-items .postable__name-sub { display: block; }
+.esq-model-items .posfield__select { width: auto; max-width: none; }
+.esq-model-items .esq-model-reason-col { width: 280px; }
+.esq-model-items .posfield__textarea.esq-model-reason { display: block; box-sizing: border-box; width: 280px; min-height: 0; resize: none; }
+.esq-model-items .posfield__input.esq-model-share { box-sizing: border-box; width: 96px; }
+.esq-model-reason-error { display: block; margin-top: 4px; font-size: 11px; color: var(--color-error); }
+.esq-model-mission { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.esq-model-items input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+.esq-model-items input[type="number"]::-webkit-inner-spin-button,
+.esq-model-items input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

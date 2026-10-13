@@ -4,7 +4,48 @@ import { sampledInputsOf } from "interfaces-mef-types/esq/esq-measure-inputs";
 import type { UncertainExpression, UncertainParameter, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
 import type { UncertaintyExpressionSummary } from "interfaces-shared-types/newly-developed-methods/shared";
 import { parametersFor, useExpressionSummaries, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
+import type { EsqLogicWindowKind } from "./esqLogic";
+import type { EsqSolveWindowKind } from "./esqSolve";
+import type { EsqPostWindowKind } from "./esqPost";
+import type { EsqResultsWindowKind } from "./esqResults";
+import type { EsqUncertaintyWindowKind } from "./esqUncertainty";
+import type { EsqSensitivityWindowKind } from "./esqSensitivity";
+import type { EsqHandoffWindowKind } from "./esqHandoff";
 import { ESQIcon } from "./esqIcons";
+
+interface EsqWindowContext {
+  kind:
+    | EsqLogicWindowKind
+    | EsqSolveWindowKind
+    | EsqPostWindowKind
+    | EsqResultsWindowKind
+    | EsqUncertaintyWindowKind
+    | EsqSensitivityWindowKind
+    | EsqHandoffWindowKind;
+  id: string;
+}
+
+const LIST_PAGE = 50;
+
+function Pager({ total, page, onPage }: { total: number; page: number; onPage: (page: number) => void }): JSX.Element {
+  const pages = Math.max(1, Math.ceil(total / LIST_PAGE));
+  const current = Math.min(page, pages - 1);
+  const first = current * LIST_PAGE + 1;
+  const last = Math.min(total, (current + 1) * LIST_PAGE);
+  return (
+    <span className="esq-pager">
+      <span className="esq-count">{total === 0 ? "None" : `${first} to ${last} of ${total}`}</span>
+      {pages > 1 && <button type="button" className="posnav__btn posnav__btn--sm" disabled={current === 0} onClick={() => onPage(current - 1)}>Previous</button>}
+      {pages > 1 && <button type="button" className="posnav__btn posnav__btn--sm" disabled={current >= pages - 1} onClick={() => onPage(current + 1)}>Next</button>}
+    </span>
+  );
+}
+
+function pageOf<T>(rows: readonly T[], page: number): { current: number; shown: T[] } {
+  const pages = Math.max(1, Math.ceil(rows.length / LIST_PAGE));
+  const current = Math.min(page, pages - 1);
+  return { current, shown: rows.slice(current * LIST_PAGE, (current + 1) * LIST_PAGE) };
+}
 
 type BadgeKind = "ok" | "warn" | "block" | "progress" | "draft";
 
@@ -356,6 +397,9 @@ function pctText(frac: number): string {
 
 export {
   Badge,
+  Pager,
+  pageOf,
+  type EsqWindowContext,
   ChecksRow,
   CutOffField,
   FindingsTable,

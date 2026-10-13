@@ -531,7 +531,7 @@ export class EsqModelRunsService {
       const events = [...new Set(exclusion.eventIds)];
       return events.length < 2 ? [] : [{ key: exclusion.id, events, minimum: events.length }];
     });
-    if (!combinations && exclusions.length === 0) throw new BadRequestException("Step 03 holds no exclusion with two or more events to check.");
+    if (!combinations && exclusions.length === 0) throw new BadRequestException("Step 04 holds no exclusion with two or more events to check.");
     const eventCodes: Record<string, string> = {};
     const builds = new Map<string, EsqRunBuild>();
     const trees = this.prepareTrees({

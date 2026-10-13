@@ -27,7 +27,7 @@ interface EsqImportanceGroup {
 
 type EsqSampledInputKind = "PARAMETER" | "HFE" | "EVENT" | "RECOVERY" | "CCF_GROUP" | "INITIATOR" | "SPLIT" | "CELL";
 
-type EsqLawSource = "DA" | "SY" | "IE" | "HR" | "STEP_02" | "STEP_04" | "STEP_06";
+type EsqLawSource = "DA" | "SY" | "IE" | "HR" | "STEP_02" | "STEP_03" | "STEP_06";
 
 interface EsqSampledInput {
   key: string;
@@ -178,6 +178,11 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
       continue;
     }
     const input: EsqSampledInput = { key: `EVENT:${event.id}`, kind: "EVENT", ref: event.id, label: event.name.length > 0 ? `${event.code} · ${event.name}` : event.code, unit: "PROBABILITY", uncertain: false, users: [] };
+    const typed = esq.modelDecisions?.valueBindings?.find((entry) => entry.eventId === event.id && entry.heldBy === "TYPED");
+    if (typed !== undefined) {
+      use(lawInput(input, typed.expression, "STEP_02", "Type the value of this event in Step 02.", "The typed value has no uncertainty. Give it a law in Step 02."), user);
+      continue;
+    }
     if (carriesUncertainExpression(event.failureMode)) {
       use(lawInput(input, event.expression, "SY", "SY gives this event no value.", "SY types this value without uncertainty. Give it a law in SY."), user);
       continue;
@@ -246,11 +251,11 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
         const input: EsqSampledInput = { key, kind: "CELL", ref: target.cellId, label: `Cell ${target.cellId}`, unit: "PROBABILITY", uncertain: false, users: [] };
         const expression = cell === undefined ? undefined : cellExpressionOfRecord(cell);
         if (cell === undefined || expression === undefined) {
-          use({ ...input, missing: "The cell has no value of record. Run it or type its value in Step 04." }, user);
+          use({ ...input, missing: "The cell has no value of record. Run it or type its value in Step 03." }, user);
           continue;
         }
-        const next: EsqSampledInput = { ...input, expression, uncertain: hasUncertainty(expression), source: "STEP_04" };
-        if (!next.uncertain) next.missing = cell.ofRecord === "RUN" ? "The cell run of record has no sampled law. Make a load or capacity field uncertain and run it again in Step 04." : "The typed cell value has no uncertainty. Give it a law in Step 04.";
+        const next: EsqSampledInput = { ...input, expression, uncertain: hasUncertainty(expression), source: "STEP_03" };
+        if (!next.uncertain) next.missing = cell.ofRecord === "RUN" ? "The cell run of record has no sampled law. Make a load or capacity field uncertain and run it again in Step 03." : "The typed cell value has no uncertainty. Give it a law in Step 03.";
         use(next, user);
         continue;
       }

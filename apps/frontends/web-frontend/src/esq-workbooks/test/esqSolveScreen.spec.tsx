@@ -6,7 +6,7 @@ import type { EsqModelRunResult } from "interfaces-shared-types/newly-developed-
 import { EsqWorkbookProvider, type EsqWorkbookRuntime } from "../esqWorkbookContext";
 import type { EsqUpstream } from "../esqLinks";
 import { SolveScreen, SolveWindows } from "../esqSolveScreen";
-import { type EsqWindowContext } from "../esqModelScreen";
+import { type EsqWindowContext } from "../esqShared";
 import { withModelImported } from "../esqModel";
 import { AS_SET, MODEL_AS_SET } from "../esqLogic";
 import { withRunOfRecord } from "../esqSolve";

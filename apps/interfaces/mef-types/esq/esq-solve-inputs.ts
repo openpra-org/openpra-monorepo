@@ -42,7 +42,7 @@ function solveInputsKey(esq: EventSequenceQuantification, options: { combination
     links: (decisions.functionLinks ?? []).map((link) => ({
       functionId: link.functionId,
       target: link.target,
-      rules: (link.rules ?? []).map((rule) => ({ id: rule.id, groupIds: rule.groupIds, stateIds: rule.stateIds, target: rule.target })),
+      rules: (link.rules ?? []).map((rule) => ({ id: rule.id, treeIds: rule.treeIds, groupIds: rule.groupIds, stateIds: rule.stateIds, target: rule.target })),
     })),
     initiators: (decisions.initiatorChoices ?? []).map((choice) => ({
       groupId: choice.groupId,
@@ -52,7 +52,7 @@ function solveInputsKey(esq: EventSequenceQuantification, options: { combination
       shares: choice.shares,
     })),
     sequences: (decisions.sequenceChoices ?? []).map((choice) => ({ sequenceId: choice.sequenceId, familyId: choice.familyId })),
-    values: (decisions.valueBindings ?? []).map((binding) => ({ eventId: binding.eventId, heldBy: binding.heldBy, holderId: binding.holderId })),
+    values: (decisions.valueBindings ?? []).map((binding) => ({ eventId: binding.eventId, heldBy: binding.heldBy, holderId: binding.holderId, expression: binding.expression })),
     flags: (logic.flags ?? []).map((flag) => ({ id: flag.id, target: flag.target, state: flag.state, groupIds: flag.groupIds, stateIds: flag.stateIds })),
     loopBreaks: (logic.loopBreaks ?? []).map((entry) => ({ fromModelId: entry.fromModelId, toModelId: entry.toModelId, state: entry.state })),
     exclusions: (logic.exclusions ?? []).map((exclusion) => ({ id: exclusion.id, eventIds: exclusion.eventIds })),

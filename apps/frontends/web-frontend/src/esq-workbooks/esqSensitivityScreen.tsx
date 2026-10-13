@@ -35,8 +35,10 @@ import {
   sciText,
   useElementWidth,
   useRunner,
+  Pager,
+  pageOf,
+  type EsqWindowContext,
 } from "./esqShared";
-import { Pager, pageOf, type EsqWindowContext } from "./esqModelScreen";
 import { caseOptions } from "./esqDaLinks";
 import {
   CASE_KINDS,
@@ -682,7 +684,7 @@ function CaseWindow({ id, onClose }: { id: string; onClose: () => void }): JSX.E
                 save({ ...entry, logic });
               }}>
                 <option value="">As in the run of record</option>
-                <option value="AS_SET">As set in Step 03</option>
+                <option value="AS_SET">As set in Step 04</option>
                 <option value="TRUE">All TRUE</option>
                 <option value="FALSE">All FALSE</option>
               </select>

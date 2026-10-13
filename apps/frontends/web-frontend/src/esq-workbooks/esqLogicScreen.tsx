@@ -24,6 +24,7 @@ import {
   rowClass,
   sciText,
   useElementWidth,
+  type EsqWindowContext,
 } from "./esqShared";
 import {
   AS_SET,
@@ -45,7 +46,6 @@ import {
 import { listEsqTreeRuns, runEsqEventTree, type EsqTreeRun } from "./esqWorkbookApi";
 import { EsqBayesianNetworkWorkspace } from "./esqBayesianNetworkWorkspace";
 import { END_STATE_LABELS } from "./esqViewData";
-import type { EsqWindowContext } from "./esqModelScreen";
 
 type LogicTab = "flags" | "loops" | "exclusions" | "networks" | "runs" | "checks";
 

@@ -73,6 +73,7 @@ function esqLinkRoots(esq: EventSequenceQuantification): LinkRoot[] {
     ...model.events.flatMap((event) => [...root(event.expression, false), ...root(event.missionTime, true)]),
     ...model.parameters.flatMap((parameter) => [...root(parameter.estimate, false), ...root(parameter.missionTime, true)]),
     ...model.ccfGroups.flatMap((group) => root(group.total, false)),
+    ...(esq.modelDecisions?.valueBindings ?? []).flatMap((binding) => root(binding.expression, false)),
   ];
 }
 

@@ -75,7 +75,7 @@ const SOURCE_LABELS: Record<string, string> = {
   SY: "SY value",
   IE: "IE estimate",
   STEP_02: "Typed in Step 02",
-  STEP_04: "Step 04 cell",
+  STEP_03: "Step 03 cell",
   STEP_06: "Typed in Step 06",
   HR: "HR HEP",
 };

@@ -97,7 +97,7 @@ const HANDOFF_SECTIONS = [
   { element: "ESQ", key: "importance", name: "Importance", contents: "Importance analyses.", readers: ["DA", "RI"] },
   { element: "ESQ", key: "coverage", name: "Coverage", contents: "Scope coverage and multi-reactor sequences.", readers: ["RI"] },
   { element: "ESQ", key: "uncertainty", name: "Uncertainty", contents: "Uncertainty assessments, sensitivity studies and the screened-event assessment.", readers: ["DA", "RI"] },
-  { element: "ESQ", key: "created-values", name: "Values ESQ created", contents: "Values typed in ESQ: initiator frequencies, split fractions, joint HEPs and non-recovery HEPs.", readers: ["DA"] },
+  { element: "ESQ", key: "created-values", name: "Values ESQ created", contents: "Values typed in ESQ: initiator frequencies, split fractions, basic event values, joint HEPs and non-recovery HEPs.", readers: ["DA"] },
   { element: "ESQ", key: "responses", name: "Responses", contents: "Responses to RI feedback.", readers: ["RI"] },
 
   { element: "MS", key: "source-terms", name: "Source terms", contents: "Source term definitions with release phases, nuclide releases and elevation, plus source inventories, transport assessments and bounding sequences.", readers: ["RC"] },
@@ -108,7 +108,7 @@ const HANDOFF_SECTIONS = [
   { element: "RC", key: "uncertainty", name: "Uncertainty", contents: "Model uncertainty assessments.", readers: ["RI"] },
   { element: "RC", key: "responses", name: "Responses", contents: "Responses to RI feedback.", readers: ["RI"] },
 
-  { element: "RI", key: "criteria", name: "Criteria", contents: "Relative importance criteria for Fussell-Vesely, risk achievement worth and the aggregate and individual limits.", readers: ["ESQ"] },
+  { element: "RI", key: "criteria", name: "Criteria", contents: "Relative importance criteria for Fussell-Vesely, risk achievement worth, the aggregate and individual limits, and the minimum reporting frequency.", readers: ["ESQ"] },
   { element: "RI", key: "consequence-measures", name: "Consequence measures", contents: "The consequence measures in scope.", readers: ["RC"] },
   { element: "RI", key: "feedback-to-esq", name: "Feedback to ESQ", contents: "Family and contributor feedback.", readers: ["ESQ"] },
   { element: "RI", key: "feedback-to-ms", name: "Feedback to MS", contents: "Release category and source term feedback.", readers: ["MS"] },

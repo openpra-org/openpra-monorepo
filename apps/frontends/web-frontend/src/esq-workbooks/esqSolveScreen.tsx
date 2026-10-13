@@ -24,6 +24,9 @@ import {
   rowClass,
   sciText,
   useElementWidth,
+  Pager,
+  pageOf,
+  type EsqWindowContext,
 } from "./esqShared";
 import { MODEL_AS_SET, runLogicText } from "./esqLogic";
 import { END_STATE_LABELS } from "./esqViewData";
@@ -50,7 +53,6 @@ import {
 } from "./esqSolve";
 import { getEsqModelRunResult, listEsqModelRuns, runEsqModel, type EsqModelRunEntry } from "./esqWorkbookApi";
 import { EsqEventTreeHclWorkspace } from "./esqEventTreeHclWorkspace";
-import { Pager, pageOf, type EsqWindowContext } from "./esqModelScreen";
 
 type SolveTab = "runs" | "families" | "sequences" | "cutsets" | "convergence" | "verification" | "checks";
 

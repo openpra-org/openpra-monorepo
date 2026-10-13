@@ -156,7 +156,7 @@ function applySensitivityCase(source: EventSequenceQuantification, entry: EsqSen
     }
     case "FLAG": {
       const flag = esq.logic?.flags?.find((candidate) => candidate.id === entry.target);
-      if (flag === undefined) return fail(`Step 03 holds no flag ${entry.target ?? ""}.`);
+      if (flag === undefined) return fail(`Step 04 holds no flag ${entry.target ?? ""}.`);
       if (entry.state === undefined) return fail("Choose the flag state for the case.");
       flag.state = entry.state;
       return applied;

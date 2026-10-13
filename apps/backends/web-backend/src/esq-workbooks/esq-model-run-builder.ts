@@ -466,6 +466,10 @@ function eventValue(tables: EsqRunTables, eventId: string, code: string): EventV
   const holderId = binding?.holderId ?? record?.holderId;
   const component = carriesUncertainExpression(record?.failureMode);
   const resolved = (expression: UncertainExpression): EventValue => ({ expression, parameters: referencedParameters(tables, expression, code) });
+  if (binding?.heldBy === "TYPED") {
+    if (binding.expression === undefined) throw new EsqRunBuildError(`${code} has no typed value. Type it in Step 02.`);
+    return resolved(binding.expression);
+  }
   if (heldBy === "DA") {
     const parameter = model.parameters.find((entry) => entry.id === holderId);
     if (parameter === undefined) throw new EsqRunBuildError(`${code} takes its value from DA parameter ${holderId ?? ""}, which the linked DA workbook does not hold. Import the model again in Step 02.`);
@@ -521,10 +525,10 @@ function splitValue(tables: EsqRunTables, target: EsqSplitFractionTarget, label:
   const { esq, model } = tables;
   if (target.cellId !== undefined) {
     const cell = cellOf(esq, target.cellId);
-    if (cell === undefined) throw new EsqRunBuildError(`The split fraction of ${label} takes cell ${target.cellId}, which Step 04 no longer has.`);
+    if (cell === undefined) throw new EsqRunBuildError(`The split fraction of ${label} takes cell ${target.cellId}, which Step 03 no longer has.`);
     const expression = cellExpressionOfRecord(cell);
     if (expression === undefined) {
-      throw new EsqRunBuildError(`The split fraction of ${label} takes cell ${cell.id}, which has no value of record. Run it or type a value in Step 04.`);
+      throw new EsqRunBuildError(`The split fraction of ${label} takes cell ${cell.id}, which has no value of record. Run it or type a value in Step 03.`);
     }
     return { expression, parameters: referencedParameters(tables, expression, `Cell ${cell.id}`) };
   }
@@ -547,7 +551,7 @@ function adaptFaultTree(sy: SystemsAnalysis, syWorkbookId: string, syRevision: n
     if (!(error instanceof WorkbookPraxisAdapterError)) throw error;
     if (error.code === "SY_FAULT_TREE_TRANSFER_CYCLE" || error.code === "SY_FAULT_TREE_GRAPH_CYCLE") {
       const code = sy.systemLogicModels.find((model) => model.uuid === modelId)?.code ?? modelId;
-      throw new EsqRunBuildError(`${code} reaches itself through its logic. Break the loop in the Loops tab of Step 03.`);
+      throw new EsqRunBuildError(`${code} reaches itself through its logic. Break the loop in the Loops tab of Step 04.`);
     }
     throw new EsqRunBuildError(error.message);
   }
@@ -707,7 +711,7 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
   const open = transferLoops(model, loopBreaks).find((loop) => loop.modelIds.some((modelId) => reachedModels.has(modelId)));
   if (open !== undefined) {
     const codes = open.modelIds.map((modelId) => model.tops.find((top) => top.modelId === modelId)?.code ?? modelId);
-    throw new EsqRunBuildError(`The fault trees ${codes.join(", ")} form a loop. Break it in the Loops tab of Step 03.`);
+    throw new EsqRunBuildError(`The fault trees ${codes.join(", ")} form a loop. Break it in the Loops tab of Step 04.`);
   }
 
   const eventCode = new Map(input.sy.systemBasicEvents.map((event) => [event.uuid, event.code]));

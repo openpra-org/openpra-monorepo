@@ -6,7 +6,7 @@ import { esqModelRunId } from "interfaces-mef-types/esq/esq-solve-inputs";
 import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods/shared";
 import { EsqWorkbookProvider, type EsqWorkbookRuntime } from "../esqWorkbookContext";
 import { PostScreen, PostWindows } from "../esqPostScreen";
-import { type EsqWindowContext } from "../esqModelScreen";
+import { type EsqWindowContext } from "../esqShared";
 import { MODEL_AS_SET } from "../esqLogic";
 import { withRunOfRecord } from "../esqSolve";
 import { postViewOf, withCombinationsFor, withRecoveryRule, withSearch } from "../esqPost";

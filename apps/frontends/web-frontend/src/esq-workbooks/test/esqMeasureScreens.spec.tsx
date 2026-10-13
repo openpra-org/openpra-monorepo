@@ -8,7 +8,7 @@ import { EsqWorkbookProvider, type EsqWorkbookRuntime } from "../esqWorkbookCont
 import { ResultsScreen } from "../esqResultsScreen";
 import { UncertScreen, UncertWindows } from "../esqUncertaintyScreen";
 import { SensScreen, SensWindows } from "../esqSensitivityScreen";
-import type { EsqWindowContext } from "../esqModelScreen";
+import type { EsqWindowContext } from "../esqShared";
 import type { EsqUpstream } from "../esqLinks";
 import { evaluateUncertainty } from "../../newly-developed-methods/shared/uncertaintyApi";
 import { praxisUncertainty, settledWithPraxis } from "../../newly-developed-methods/shared/test/praxisUncertainty";

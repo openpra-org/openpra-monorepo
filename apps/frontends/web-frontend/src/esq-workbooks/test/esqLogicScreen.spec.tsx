@@ -5,7 +5,7 @@ import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-deve
 import { esqEndStateRunId, esqSequenceRunId, esqTreeRunId } from "interfaces-mef-types/esq/esq-run-inputs";
 import { EsqWorkbookProvider, type EsqWorkbookRuntime } from "../esqWorkbookContext";
 import { LogicScreen, LogicWindows } from "../esqLogicScreen";
-import { type EsqWindowContext } from "../esqModelScreen";
+import { type EsqWindowContext } from "../esqShared";
 import { withFunctionLink, withModelImported } from "../esqModel";
 import { listEsqTreeRuns, runEsqEventTree, type EsqTreeRun } from "../esqWorkbookApi";
 import { linkedEsq, modelUpstream } from "./esqModelFixtures";

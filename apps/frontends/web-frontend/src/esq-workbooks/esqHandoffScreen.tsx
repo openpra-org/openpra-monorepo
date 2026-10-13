@@ -13,8 +13,7 @@ import { TechnicalElementHandoff, handoffName, joinedOrNone, recordLabel, type H
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
 import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { useEsqWorkbook } from "./esqWorkbookContext";
-import { FormFoot, FormRow, ModalHead, sciText, useRunner } from "./esqShared";
-import type { EsqWindowContext } from "./esqModelScreen";
+import { FormFoot, FormRow, ModalHead, sciText, useRunner, type EsqWindowContext } from "./esqShared";
 import { caseOptions } from "./esqDaLinks";
 import { parameterLabelOf } from "./esqModel";
 import { fourDigits } from "./esqResults";

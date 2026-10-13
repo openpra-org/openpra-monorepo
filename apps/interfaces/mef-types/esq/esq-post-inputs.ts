@@ -126,6 +126,7 @@ function holderOf(esq: EventSequenceQuantification, model: EsqModel, eventId: st
 function eventProbabilityOf(esq: EventSequenceQuantification, model: EsqModel, eventId: string, points?: EsqPoints): number | undefined {
   const record = model.events.find((event) => event.id === eventId);
   const { heldBy, holderId } = holderOf(esq, model, eventId);
+  if (esq.modelDecisions?.valueBindings?.some((entry) => entry.eventId === eventId && entry.heldBy === "TYPED") === true) return points?.get(`EVENT:${eventId}`);
   if (heldBy === "DA" && holderId !== undefined) return points?.get(`PARAMETER:${holderId}`);
   if (heldBy === "HRA" && holderId !== undefined) return points?.get(`HFE:${holderId}`);
   if (record?.value === undefined || record.valueUnit === "PER_HOUR") return undefined;

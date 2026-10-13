@@ -231,16 +231,17 @@ function buildChildren(a: EventSequenceQuantification, final: boolean): (Paragra
     (barriers?.barriers ?? []).flatMap((b) => (b.modes.length === 0 ? [[b.name, "—", "—", "—"]] : b.modes.map((m) => [b.name, modeLabel(m), MODE_KIND_LABELS[m.kind], m.location]))),
   ));
   out.push(dataTable(
-    ["Mechanism", "Kind", "Barrier", "Status", "Basis"],
-    (barriers?.mechanisms ?? []).map((m) => [m.mechanism.name, MECHANISM_KIND_LABELS[m.mechanism.kind], m.barrier?.name ?? m.mechanism.barrierId, m.mechanism.screening === undefined ? "Retained" : `Screened ${m.mechanism.screening.criterion}`, m.mechanism.screening?.basis ?? m.mechanism.basis]),
-  ));
-  out.push(dataTable(
-    ["Cell", "Barrier mode", "Family or hazard", "Load", "Capacity", "P(fail)"],
-    [...(barriers?.cells ?? []), ...(barriers?.hazardCells ?? [])].map((c) => [c.cell.id, `${c.barrier?.name ?? c.cell.barrierId} · ${modeLabel(c.mode)}`, c.cell.hazardGroup ?? c.cell.familyId ?? "—", sideSourceText(c.cell.load, c.cell.unit), sideSourceText(c.cell.capacity, c.cell.unit), cellRecordText(c.cell, parameterLabelOf(a))]),
+    ["Cell", "Barrier mode", "Phenomenon", "Family or hazard", "Load", "Capacity", "P(fail)"],
+    (barriers?.cells ?? []).map((c) => {
+      const phenomenon = c.phenomena[0];
+      const phenomenonText = phenomenon === undefined ? "—" : `${phenomenon.name} (${phenomenon.fromEs ? "ES" : MECHANISM_KIND_LABELS[phenomenon.mechanism.kind].toLowerCase()})`;
+      if (c.cell.screening !== undefined) return [c.cell.id, `${c.barrier?.name ?? c.cell.barrierId} · ${modeLabel(c.mode)}`, phenomenonText, "—", "—", "—", `Screened ${c.cell.screening.criterion}: ${c.cell.screening.basis}`];
+      return [c.cell.id, `${c.barrier?.name ?? c.cell.barrierId} · ${modeLabel(c.mode)}`, phenomenonText, c.cell.hazardGroup ?? c.cell.familyId ?? "—", sideSourceText(c.cell.load, c.cell.unit), sideSourceText(c.cell.capacity, c.cell.unit), cellRecordText(c.cell, parameterLabelOf(a))];
+    }),
   ));
   out.push(dataTable(
     ["Credit", "Kind", "Families", "Decision", "Basis"],
-    (barriers?.credits ?? []).map((c) => [c.credit.name, c.credit.kind === "EQUIPMENT" ? "Equipment" : "Action", c.credit.familyIds.join(", "), c.credit.credited ? "Credited" : "Not credited", c.credit.basis]),
+    (barriers?.credits ?? []).map((c) => [c.name, c.kind === "EQUIPMENT" ? "Equipment" : "Action", c.credit?.familyIds.join(", ") ?? "—", c.credit === undefined ? "Not decided" : c.credit.credited ? "Credited" : "Not credited", c.credit?.basis ?? "—"]),
   ));
 
   out.push(heading("Risk-significant contributors & importance", HeadingLevel.HEADING_1));

@@ -212,6 +212,8 @@ function initiatorChoiceOf(esq: EventSequenceQuantification, groupId: string): E
 }
 
 function ruleMatches(rule: EsqFunctionRule, tree: EsqTreeRecord): boolean {
+  const treeIds = rule.treeIds ?? [];
+  if (treeIds.length > 0) return treeIds.includes(tree.id);
   const stateId = tree.stateId;
   const groupMatch = rule.groupIds.length === 0 || rule.groupIds.some((id) => sameItem(id, tree.initiatorId));
   const stateMatch = rule.stateIds.length === 0 || (stateId !== undefined && rule.stateIds.some((id) => sameItem(id, stateId)));

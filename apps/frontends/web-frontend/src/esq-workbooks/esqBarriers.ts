@@ -5,7 +5,6 @@ import {
   type EsqBarrierMode,
   type EsqBarrierModeKind,
   type EsqBarrierRecord,
-  type EsqBarrierStateRecord,
   type EsqBarrierWork,
   type EsqCell,
   type EsqCellRun,
@@ -13,11 +12,11 @@ import {
   type EsqCellUse,
   type EsqCredit,
   type EsqCriterionRecord,
-  type EsqImpactRecord,
   type EsqMechanism,
   type EsqMechanismKind,
   type EsqModel,
   type EsqPhenomenaLogic,
+  type EsqPhenomenonRecord,
   type EsqQualificationRecord,
   type EventSequenceQuantification,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
@@ -25,6 +24,7 @@ import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty"
 import {
   barrierWorkOf,
   cellExpressionOfRecord,
+  cellOf,
   cellRunStale,
   cellRunValue,
   resolveCell,
@@ -33,14 +33,18 @@ import { expressionText, lawText } from "../newly-developed-methods/shared/uncer
 import { modelViewOf, sameItem, type EsqFindingSeverity } from "./esqModel";
 import { ESQ_EXTERNAL_HAZARD_GROUPS } from "./esqViewData";
 
-type EsqBarrierWindowKind = "esqBarrier" | "esqMechanism" | "esqCell" | "esqCredit";
+type EsqBarrierTarget =
+  | { kind: "cell"; id: string }
+  | { kind: "credit"; id: string }
+  | { kind: "qualification"; id: string }
+  | { kind: "logic" };
 
 interface EsqBarrierFinding {
   severity: EsqFindingSeverity;
   check: string;
   item: string;
   detail: string;
-  target?: { kind: EsqBarrierWindowKind; id: string };
+  target?: EsqBarrierTarget;
 }
 
 interface EsqBarrierView {
@@ -50,24 +54,24 @@ interface EsqBarrierView {
   entry?: EsqBarrierEntry;
   manual: boolean;
   sourceNames: string[];
-  openStates: EsqBarrierStateRecord[];
   criterion?: EsqCriterionRecord;
-  impacts: EsqImpactRecord[];
   modes: EsqBarrierMode[];
-  mechanisms: EsqMechanism[];
   cells: EsqCell[];
 }
 
-interface EsqMechanismView {
+interface EsqPhenomenonView {
   mechanism: EsqMechanism;
-  barrier?: EsqBarrierView;
-  modes: EsqBarrierMode[];
+  record?: EsqPhenomenonRecord;
+  name: string;
+  fromEs: boolean;
+  affected: string[];
 }
 
 interface EsqCellView {
   cell: EsqCell;
   barrier?: EsqBarrierView;
   mode?: EsqBarrierMode;
+  phenomena: EsqPhenomenonView[];
   familyName?: string;
   runValue?: number;
   expression?: UncertainExpression;
@@ -76,8 +80,11 @@ interface EsqCellView {
   usedBy: string[];
 }
 
-interface EsqCreditView {
-  credit: EsqCredit;
+interface EsqCreditRow {
+  key: string;
+  kind: "EQUIPMENT" | "ACTION";
+  name: string;
+  credit?: EsqCredit;
   qualification?: EsqQualificationRecord;
   action?: EsqActionRecord;
 }
@@ -89,12 +96,11 @@ interface EsqFamilyOption {
 
 interface EsqBarriersView {
   model: EsqModel;
-  imported: boolean;
   barriers: EsqBarrierView[];
-  mechanisms: EsqMechanismView[];
+  phenomena: EsqPhenomenonView[];
+  esPhenomena: EsqPhenomenonRecord[];
   cells: EsqCellView[];
-  hazardCells: EsqCellView[];
-  credits: EsqCreditView[];
+  credits: EsqCreditRow[];
   criteria: EsqCriterionRecord[];
   impactRefs: string[];
   qualifications: EsqQualificationRecord[];
@@ -180,16 +186,14 @@ function modeLabel(mode: EsqBarrierMode | undefined): string {
   return blank(mode.name) ? `${MODE_KIND_LABELS[mode.kind]} mode` : mode.name;
 }
 
-function barrierEntries(work: EsqBarrierWork): EsqBarrierEntry[] {
-  return work.barriers ?? [];
+function qualificationName(record: EsqQualificationRecord): string {
+  return listText(record.components.length > 0 ? record.components : [record.systemId]);
 }
 
 function barrierViews(model: EsqModel, work: EsqBarrierWork): EsqBarrierView[] {
-  const entries = barrierEntries(work);
+  const entries = work.barriers ?? [];
   const records = model.barriers ?? [];
   const criteria = model.criteria ?? [];
-  const impacts = model.impacts ?? [];
-  const mechanisms = work.mechanisms ?? [];
   const cells = work.cells ?? [];
   const build = (id: string, record: EsqBarrierRecord | undefined, entry: EsqBarrierEntry | undefined): EsqBarrierView => {
     const manual = entry?.manual;
@@ -198,10 +202,7 @@ function barrierViews(model: EsqModel, work: EsqBarrierWork): EsqBarrierView[] {
       name: (manual !== undefined && !blank(manual.name) ? manual.name : record?.name) ?? id,
       manual: manual !== undefined,
       sourceNames: manual !== undefined ? manual.sourceNames : record?.sourceNames ?? [],
-      openStates: (record?.states ?? []).filter((state) => state.status !== "INTACT"),
-      impacts: (entry?.impactRefs ?? []).length === 0 ? [] : impacts.filter((impact) => (entry?.impactRefs ?? []).some((ref) => sameItem(ref, impact.barrierRef))),
       modes: entry?.modes ?? [],
-      mechanisms: mechanisms.filter((mechanism) => mechanism.barrierId === id),
       cells: cells.filter((cell) => cell.barrierId === id),
     };
     if (record !== undefined) view.record = record;
@@ -213,6 +214,22 @@ function barrierViews(model: EsqModel, work: EsqBarrierWork): EsqBarrierView[] {
   const imported = records.map((record) => build(record.id, record, entries.find((entry) => entry.barrierId === record.id)));
   const rest = entries.filter((entry) => !records.some((record) => record.id === entry.barrierId)).map((entry) => build(entry.barrierId, undefined, entry));
   return [...imported, ...rest];
+}
+
+function phenomenonViews(model: EsqModel, work: EsqBarrierWork): EsqPhenomenonView[] {
+  const records = model.phenomena ?? [];
+  return (work.mechanisms ?? []).map((mechanism) => {
+    const record = mechanism.phenomenonId === undefined ? undefined : records.find((candidate) => candidate.id === mechanism.phenomenonId);
+    const fromEs = mechanism.phenomenonId !== undefined;
+    const view: EsqPhenomenonView = {
+      mechanism,
+      name: record?.name ?? (blank(mechanism.name) ? mechanism.phenomenonId ?? mechanism.id : mechanism.name),
+      fromEs,
+      affected: fromEs ? record?.affectedSystems ?? [] : mechanism.equipment ?? [],
+    };
+    if (record !== undefined) view.record = record;
+    return view;
+  });
 }
 
 function cellUses(esq: EventSequenceQuantification): Map<string, string[]> {
@@ -229,13 +246,17 @@ function cellUses(esq: EventSequenceQuantification): Map<string, string[]> {
   return uses;
 }
 
-function cellViews(esq: EventSequenceQuantification, model: EsqModel, cells: readonly EsqCell[], barriers: readonly EsqBarrierView[], families: readonly EsqFamilyOption[]): EsqCellView[] {
+function cellViews(esq: EventSequenceQuantification, cells: readonly EsqCell[], barriers: readonly EsqBarrierView[], phenomena: readonly EsqPhenomenonView[], families: readonly EsqFamilyOption[]): EsqCellView[] {
   const uses = cellUses(esq);
   return cells.map((cell) => {
     const barrier = barriers.find((candidate) => candidate.id === cell.barrierId);
     const mode = barrier?.modes.find((candidate) => candidate.id === cell.modeId);
-    const resolved = resolveCell(cell, esq);
-    const view: EsqCellView = { cell, stale: cellRunStale(cell), usedBy: uses.get(cell.id) ?? [] };
+    const view: EsqCellView = {
+      cell,
+      phenomena: cell.mechanismIds.flatMap((id) => phenomena.filter((candidate) => candidate.mechanism.id === id)),
+      stale: cellRunStale(cell),
+      usedBy: uses.get(cell.id) ?? [],
+    };
     if (barrier !== undefined) view.barrier = barrier;
     if (mode !== undefined) view.mode = mode;
     const family = cell.familyId === undefined ? undefined : families.find((candidate) => candidate.id === cell.familyId);
@@ -244,82 +265,111 @@ function cellViews(esq: EventSequenceQuantification, model: EsqModel, cells: rea
     if (runValue !== undefined) view.runValue = runValue;
     const expression = cellExpressionOfRecord(cell);
     if (expression !== undefined) view.expression = expression;
-    if (resolved.problem !== undefined) view.problem = resolved.problem;
+    if (cell.screening === undefined) {
+      const resolved = resolveCell(cell, esq);
+      if (resolved.problem !== undefined) view.problem = resolved.problem;
+    }
     return view;
   });
+}
+
+function creditRows(model: EsqModel, credits: readonly EsqCredit[]): EsqCreditRow[] {
+  const qualifications = model.qualifications ?? [];
+  const actions = model.actions ?? [];
+  const listed = qualifications.filter((record) => record.beyondQualification || credits.some((credit) => credit.qualificationId === record.id));
+  const imported = listed.map((record): EsqCreditRow => {
+    const credit = credits.find((candidate) => candidate.kind === "EQUIPMENT" && candidate.qualificationId === record.id);
+    const row: EsqCreditRow = { key: `sy:${record.id}`, kind: "EQUIPMENT", name: credit === undefined || blank(credit.name) ? qualificationName(record) : credit.name, qualification: record };
+    if (credit !== undefined) row.credit = credit;
+    return row;
+  });
+  const rest = credits
+    .filter((credit) => !(credit.kind === "EQUIPMENT" && credit.qualificationId !== undefined && listed.some((record) => record.id === credit.qualificationId)))
+    .map((credit): EsqCreditRow => {
+      const row: EsqCreditRow = { key: credit.id, kind: credit.kind, name: blank(credit.name) ? credit.id : credit.name, credit };
+      const action = credit.actionId === undefined ? undefined : actions.find((record) => record.id === credit.actionId);
+      if (action !== undefined) row.action = action;
+      return row;
+    });
+  return [...imported, ...rest];
 }
 
 function hazardsInScope(esq: EventSequenceQuantification): string[] {
   return esq.modelIntegration.scopeCoverage.hazardGroups.filter((group) => ESQ_EXTERNAL_HAZARD_GROUPS.some((external) => sameItem(external, group)));
 }
 
+function cellTarget(cell: EsqCell | undefined): EsqBarrierTarget | undefined {
+  return cell === undefined ? undefined : { kind: "cell", id: cell.id };
+}
+
+function withTarget(finding: Omit<EsqBarrierFinding, "target">, target: EsqBarrierTarget | undefined): EsqBarrierFinding {
+  return target === undefined ? finding : { ...finding, target };
+}
+
 function barrierFindings(view: EsqBarriersView): EsqBarrierFinding[] {
   const findings: EsqBarrierFinding[] = [];
   for (const barrier of view.barriers) {
-    const target = { kind: "esqBarrier" as const, id: barrier.id };
     const item = barrier.name;
-    if (!barrier.manual && barrier.record === undefined) findings.push({ severity: "warning", check: "Barrier not in POS", item, detail: `${item} is no longer in the imported POS workbook. Its modes, mechanisms and cells are kept.`, target });
-    if (barrier.manual && blank(barrier.entry?.manual?.source)) findings.push({ severity: "warning", check: "Source not given", item, detail: "Say where this barrier comes from.", target });
-    if (barrier.sourceNames.length === 0) findings.push({ severity: barrier.manual ? "warning" : "note", check: "No source", item, detail: barrier.manual ? "Name the radioactive sources this barrier holds." : `POS lists no source behind ${item}.`, target });
-    if (barrier.modes.length === 0) {
-      findings.push({ severity: "error", check: "No failure mode", item, detail: `List the gross and localized failure modes of ${item} (ESQ-C10, C12).`, target });
-    } else {
-      if (!barrier.modes.some((mode) => mode.kind === "GROSS")) findings.push({ severity: "error", check: "No gross mode", item, detail: `Add the gross failure mode of ${item} (ESQ-C10).`, target });
-      if (!barrier.modes.some((mode) => mode.kind === "LOCALIZED")) findings.push({ severity: "error", check: "No localized mode", item, detail: `Add the localized failure mode of ${item} (ESQ-C10).`, target });
-      for (const mode of barrier.modes) {
-        if (blank(mode.name)) findings.push({ severity: "error", check: "Mode not named", item, detail: `Name the ${MODE_KIND_LABELS[mode.kind].toLowerCase()} mode ${mode.id}.`, target });
-        if (blank(mode.location)) findings.push({ severity: "warning", check: "No location", item, detail: `Give the location of ${modeLabel(mode)} (ESQ-F1).`, target });
-      }
+    const target = cellTarget(barrier.cells[0]);
+    if (!barrier.manual && barrier.record === undefined && barrier.entry !== undefined) findings.push(withTarget({ severity: "warning", check: "Barrier not in POS", item, detail: `${item} is no longer in the imported POS workbook. Its cells are kept.` }, target));
+    if (barrier.manual && blank(barrier.entry?.manual?.source)) findings.push(withTarget({ severity: "warning", check: "Source not given", item, detail: "Say where this barrier comes from." }, target));
+    if (barrier.manual && barrier.sourceNames.length === 0) findings.push(withTarget({ severity: "warning", check: "No source", item, detail: "Name the radioactive sources this barrier holds." }, target));
+    if (barrier.cells.length === 0) {
+      findings.push({ severity: "error", check: "No cell", item, detail: `Add the failure modes of ${item} and the phenomena that challenge them (ESQ-C10, C12).` });
+      continue;
     }
-    const challenges = barrier.mechanisms.filter((mechanism) => mechanism.kind !== "DEGRADATION" && mechanism.screening === undefined);
-    if (challenges.length === 0) findings.push({ severity: "error", check: "No challenge", item, detail: `Name the phenomena that challenge ${item} (ESQ-C12).`, target });
+    if (!barrier.modes.some((mode) => mode.kind === "GROSS")) findings.push(withTarget({ severity: "error", check: "No gross mode", item, detail: `Add the gross failure mode of ${item} (ESQ-C10).` }, target));
+    if (!barrier.modes.some((mode) => mode.kind === "LOCALIZED")) findings.push(withTarget({ severity: "error", check: "No localized mode", item, detail: `Add the localized failure mode of ${item} (ESQ-C10).` }, target));
+    for (const mode of barrier.modes) {
+      const user = barrier.cells.find((cell) => cell.modeId === mode.id);
+      const modeTarget = cellTarget(user) ?? target;
+      if (blank(mode.name)) findings.push(withTarget({ severity: "error", check: "Mode not named", item, detail: `Name the ${MODE_KIND_LABELS[mode.kind].toLowerCase()} mode ${mode.id}.` }, modeTarget));
+      if (blank(mode.location)) findings.push(withTarget({ severity: "warning", check: "No location", item, detail: `Give the location of ${modeLabel(mode)} (ESQ-F1).` }, modeTarget));
+      if (user === undefined) findings.push(withTarget({ severity: "warning", check: "Mode not assessed", item, detail: `No cell covers ${modeLabel(mode)}. Add the phenomenon that challenges it, or screen it (ESQ-C12, C13).` }, target));
+    }
   }
   const entries = view.barriers.flatMap((barrier) => (barrier.entry === undefined ? [] : [barrier.entry]));
   for (const criterion of view.criteria) {
     if (entries.some((entry) => entry.criterionId === criterion.id)) continue;
     const parameter = criterion.parameters[0];
-    findings.push({ severity: "note", check: "SC criterion not used", item: criterion.id, detail: `SC sets ${parameter === undefined ? "a criterion" : `${parameter.parameter.toLowerCase()} ${parameter.criterion.toLowerCase()}`} for ${criterion.barrierRef}. Map it to a barrier.` });
+    findings.push({ severity: "note", check: "SC criterion not used", item: criterion.id, detail: `SC sets ${parameter === undefined ? "a criterion" : `${parameter.parameter.toLowerCase()} ${parameter.criterion.toLowerCase()}`} for ${criterion.barrierRef}. Map it to a barrier in a cell.` });
   }
   for (const ref of view.impactRefs) {
     if (entries.some((entry) => (entry.impactRefs ?? []).some((candidate) => sameItem(candidate, ref)))) continue;
     const count = (view.model.impacts ?? []).filter((impact) => sameItem(impact.barrierRef, ref)).length;
-    findings.push({ severity: "note", check: "IE barrier not mapped", item: ref, detail: `IE names ${ref} in ${count} barrier ${count === 1 ? "impact" : "impacts"}. Map it to a barrier.` });
+    findings.push({ severity: "note", check: "IE barrier not mapped", item: ref, detail: `IE names ${ref} in ${count} barrier ${count === 1 ? "impact" : "impacts"}. Map it to a barrier in a cell.` });
+  }
+  for (const record of view.esPhenomena) {
+    const used = view.cells.some((entry) => entry.phenomena.some((phenomenon) => phenomenon.mechanism.phenomenonId === record.id));
+    if (!used) findings.push({ severity: "note", check: "ES phenomenon not used", item: record.name, detail: `ES names ${record.name}. Use it in a cell, or screen it there (ESQ-C12).` });
   }
   return findings;
 }
 
-function mechanismFindings(view: EsqBarriersView, cc: string | undefined): EsqBarrierFinding[] {
+function phenomenonFindings(view: EsqBarriersView): EsqBarrierFinding[] {
   const findings: EsqBarrierFinding[] = [];
-  for (const entry of view.mechanisms) {
-    const mechanism = entry.mechanism;
-    const target = { kind: "esqMechanism" as const, id: mechanism.id };
-    const item = blank(mechanism.name) ? mechanism.id : mechanism.name;
-    if (blank(mechanism.name)) findings.push({ severity: "error", check: "Not named", item, detail: "Name the phenomenon or mechanism.", target });
-    if (entry.barrier === undefined) {
-      findings.push({ severity: "error", check: "Barrier missing", item, detail: `${item} points at a barrier that Step 04 no longer has.`, target });
-      continue;
-    }
-    if (mechanism.modeIds.length === 0) findings.push({ severity: "error", check: "No failure mode", item, detail: `Choose the failure modes of ${entry.barrier.name} that ${item} can cause.`, target });
-    else if (entry.modes.length < mechanism.modeIds.length) findings.push({ severity: "error", check: "Mode missing", item, detail: `${item} points at a failure mode that ${entry.barrier.name} no longer has.`, target });
-    if (mechanism.screening !== undefined && blank(mechanism.screening.basis)) findings.push({ severity: "error", check: "Screening basis missing", item, detail: `Give the ${mechanism.screening.criterion} basis for screening ${item} (ESQ-C13).`, target });
-    if (mechanism.kind === "HAZARD") {
-      if (blank(mechanism.hazardGroup)) findings.push({ severity: "error", check: "No hazard group", item, detail: "Choose the external hazard group that causes this mechanism (ESQ-C11).", target });
-      else if (!view.hazards.some((hazard) => sameItem(hazard, mechanism.hazardGroup ?? ""))) findings.push({ severity: "note", check: "Hazard out of scope", item, detail: `${mechanism.hazardGroup ?? ""} is not in the Step 01 scope.`, target });
-    }
-    if ((mechanism.equipment ?? []).length > 0 && blank(mechanism.dependency)) findings.push({ severity: "error", check: "No dependency assessment", item, detail: `Assess how ${item} affects ${listText(mechanism.equipment ?? [])} (ESQ-C4).`, target });
-    if (mechanism.screening === undefined && blank(mechanism.basis)) findings.push({ severity: "warning", check: "Basis missing", item, detail: "Record the analysis behind this mechanism.", target });
-    if (mechanism.screening === undefined && mechanism.kind !== "HAZARD" && mechanism.familyIds.length === 0) findings.push({ severity: "warning", check: "No family", item, detail: `Name the families where ${item} challenges ${entry.barrier.name} (ESQ-A3).`, target });
-    const unknown = mechanism.familyIds.filter((id) => !view.families.some((family) => family.id === id));
-    if (unknown.length > 0) findings.push({ severity: "error", check: "Family missing", item, detail: `${listText(unknown)} ${unknown.length === 1 ? "is" : "are"} not among the Step 02 families.`, target });
+  for (const phenomenon of view.phenomena) {
+    const users = view.cells.filter((entry) => entry.phenomena.some((candidate) => candidate.mechanism.id === phenomenon.mechanism.id));
+    const first = users[0];
+    if (first === undefined) continue;
+    const target = cellTarget(first.cell);
+    const mechanism = phenomenon.mechanism;
+    const item = phenomenon.name;
+    const quantified = users.some((entry) => entry.cell.screening === undefined);
+    if (!phenomenon.fromEs && blank(mechanism.name)) findings.push(withTarget({ severity: "error", check: "Phenomenon not named", item, detail: "Name the phenomenon or mechanism." }, target));
+    if (phenomenon.fromEs && phenomenon.record === undefined) findings.push(withTarget({ severity: "warning", check: "ES phenomenon missing", item, detail: `ES no longer lists ${mechanism.phenomenonId ?? item}. Import again in Step 02 or choose another phenomenon.` }, target));
+    if (mechanism.kind === "HAZARD" && blank(mechanism.hazardGroup) && users.every((entry) => entry.cell.hazardGroup === undefined)) findings.push(withTarget({ severity: "error", check: "No hazard group", item, detail: "Choose the external hazard group that causes this mechanism (ESQ-C11)." }, target));
+    if (quantified && phenomenon.affected.length > 0 && blank(mechanism.dependency)) findings.push(withTarget({ severity: "error", check: "No dependency assessment", item, detail: `Assess how ${item} affects ${listText(phenomenon.affected)} (ESQ-C4).` }, target));
+    if (quantified && !phenomenon.fromEs && blank(mechanism.basis)) findings.push(withTarget({ severity: "warning", check: "Basis missing", item, detail: "Record the analysis behind this phenomenon." }, target));
   }
   const logic = view.logic;
+  const logicTarget: EsqBarrierTarget = { kind: "logic" };
   if (logic === undefined) {
-    findings.push({ severity: "warning", check: "Model logic not recorded", item: "Phenomena logic", detail: "Record whether the phenomena logic is in the model, with scrubbing and beneficial failures (ESQ-C6)." });
+    findings.push({ severity: "warning", check: "Model logic not recorded", item: "Phenomena logic", detail: "Record whether the phenomena logic is in the model, with scrubbing and beneficial failures (ESQ-C6).", target: logicTarget });
   } else {
-    if (blank(logic.basis)) findings.push({ severity: "warning", check: "Basis missing", item: "Phenomena logic", detail: "Say where the phenomena logic sits in the model (ESQ-C6)." });
-    if (logic.scrubbing?.credited === true && blank(logic.scrubbing.basis)) findings.push({ severity: "error", check: "Scrubbing without a basis", item: "Phenomena logic", detail: "Scrubbing credit needs a technical justification (ESQ-C6)." });
-    if (logic.beneficial?.credited === true && blank(logic.beneficial.basis)) findings.push({ severity: "error", check: "Beneficial failure without a basis", item: "Phenomena logic", detail: "A beneficial failure needs a technical justification (ESQ-C6)." });
-    if (cc === "CC-II" && (logic.scrubbing === undefined || logic.beneficial === undefined)) findings.push({ severity: "warning", check: "Scrubbing and beneficial failures", item: "Phenomena logic", detail: "CC-II considers scrubbing and beneficial failures. Record both decisions (ESQ-C6)." });
+    if (blank(logic.basis)) findings.push({ severity: "warning", check: "Basis missing", item: "Phenomena logic", detail: "Say where the phenomena logic sits in the model (ESQ-C6).", target: logicTarget });
+    if (logic.scrubbing?.credited === true && blank(logic.scrubbing.basis)) findings.push({ severity: "error", check: "Scrubbing without a basis", item: "Phenomena logic", detail: "Scrubbing credit needs a technical justification (ESQ-C6).", target: logicTarget });
+    if (logic.beneficial?.credited === true && blank(logic.beneficial.basis)) findings.push({ severity: "error", check: "Beneficial failure without a basis", item: "Phenomena logic", detail: "A beneficial failure needs a technical justification (ESQ-C6).", target: logicTarget });
   }
   return findings;
 }
@@ -328,12 +378,17 @@ function cellFindings(view: EsqBarriersView, esq: EventSequenceQuantification): 
   const findings: EsqBarrierFinding[] = [];
   const cc = esq.capabilityCategory;
   const preOperational = esq.plantStage !== "OPERATIONAL";
-  for (const entry of [...view.cells, ...view.hazardCells]) {
+  for (const entry of view.cells) {
     const cell = entry.cell;
-    const target = { kind: "esqCell" as const, id: cell.id };
+    const target: EsqBarrierTarget = { kind: "cell", id: cell.id };
     const item = cell.id;
-    if (entry.barrier === undefined) findings.push({ severity: "error", check: "Barrier missing", item, detail: `${item} points at a barrier that Step 04 no longer has.`, target });
-    else if (entry.mode === undefined) findings.push({ severity: "error", check: "Mode missing", item, detail: `${item} points at a failure mode that ${entry.barrier.name} no longer has.`, target });
+    if (entry.barrier === undefined) findings.push({ severity: "error", check: "Barrier missing", item, detail: blank(cell.barrierId) ? "Choose the barrier this cell fails." : `${item} points at a barrier that Step 03 no longer has.`, target });
+    else if (entry.mode === undefined) findings.push({ severity: "error", check: "Mode missing", item, detail: blank(cell.modeId) ? "Choose or add the failure mode." : `${item} points at a failure mode that ${entry.barrier.name} no longer has.`, target });
+    if (entry.phenomena.length === 0) findings.push({ severity: "warning", check: "No phenomenon", item, detail: "Choose the phenomenon behind the load (ESQ-C12).", target });
+    if (cell.screening !== undefined) {
+      if (blank(cell.screening.basis)) findings.push({ severity: "error", check: "Screening basis missing", item, detail: `Give the ${cell.screening.criterion} basis for screening ${item} (ESQ-C13).`, target });
+      continue;
+    }
     if (cell.hazardGroup === undefined) {
       if (cell.familyId === undefined) findings.push({ severity: "error", check: "No family", item, detail: "Choose the family this probability belongs to (ESQ-A3).", target });
       else if (!view.families.some((family) => family.id === cell.familyId)) findings.push({ severity: "error", check: "Family missing", item, detail: `${cell.familyId} is not among the Step 02 families.`, target });
@@ -341,66 +396,51 @@ function cellFindings(view: EsqBarriersView, esq: EventSequenceQuantification): 
       findings.push({ severity: "note", check: "Hazard out of scope", item, detail: `${cell.hazardGroup} is not in the Step 01 scope.`, target });
     }
     if (blank(cell.variable)) findings.push({ severity: "warning", check: "Variable not named", item, detail: "Name the variable the load and capacity compare, such as peak fuel temperature.", target });
-    if (cell.mechanismIds.length === 0) findings.push({ severity: "warning", check: "No mechanism", item, detail: "Name the phenomena behind the load.", target });
-    if (entry.problem !== undefined) findings.push({ severity: cell.ofRecord === "TYPED" ? "note" : "error", check: "Cannot run", item, detail: entry.problem, target });
+    if (entry.problem !== undefined && (cell.load !== undefined || cell.capacity !== undefined)) findings.push({ severity: cell.ofRecord === "TYPED" ? "note" : "error", check: "Cannot run", item, detail: entry.problem, target });
     if ((cell.load !== undefined && blank(cell.load.basis)) || (cell.capacity !== undefined && blank(cell.capacity.basis))) findings.push({ severity: "warning", check: "Basis missing", item, detail: "Give the analysis behind the load and the capacity (ESQ-C5, C14).", target });
-    if (entry.expression === undefined) findings.push({ severity: "error", check: "No value of record", item, detail: "Run the cell in the Results tab or type its probability (ESQ-A3).", target });
+    if (entry.expression === undefined) findings.push({ severity: entry.usedBy.length > 0 ? "error" : "warning", check: "No value of record", item, detail: "Run the cell or type its probability (ESQ-A3).", target });
     if (cell.ofRecord === "RUN" && entry.stale) findings.push({ severity: "warning", check: "Run out of date", item, detail: "The load or capacity changed after the run of record. Run it again.", target });
     if (cell.ofRecord === "TYPED" && blank(cell.typed?.basis)) findings.push({ severity: "error", check: "Typed without a basis", item, detail: "Give the source of the typed probability.", target });
     if (cc === "CC-II" && cell.basis === "CONSERVATIVE") findings.push({ severity: "note", check: "Conservative at CC-II", item, detail: "CC-II needs realistic loads and capacities for risk-significant families (ESQ-A9, C5, C14).", target });
     if (cc === "CC-II" && cell.basis === "REALISTIC" && blank(cell.aging)) findings.push({ severity: "warning", check: "Aging not stated", item, detail: "State how in-service aging enters the capacity (ESQ-C14).", target });
-    if (cell.use === "SPLIT_FRACTION" && entry.usedBy.length === 0) findings.push({ severity: "warning", check: "Not used", item, detail: "No Step 02 function takes this cell as its split fraction. Link it in Step 02 or make it an end-state attribute.", target });
+    if (cell.use === "SPLIT_FRACTION" && entry.usedBy.length === 0) findings.push({ severity: "warning", check: "Not used", item, detail: "No Step 02 function takes this cell as its split fraction. Pick it in Step 02 or make it an end-state attribute.", target });
     if (preOperational && blank(cell.assumption?.calculation)) findings.push({ severity: "warning", check: "Assumption not recorded", item, detail: "Record the design calculation behind this cell as a pre-operational assumption (ESQ-C17).", target });
     if (cell.hazardGroup !== undefined && cc === "CC-II" && cell.capacity?.source !== "FRAGILITY") findings.push({ severity: "warning", check: "No fragility", item, detail: "CC-II calculates fragility curves for hazard capacity (ESQ-C15).", target });
   }
-  for (const barrier of view.barriers) {
-    for (const mechanism of barrier.mechanisms) {
-      if (mechanism.screening !== undefined || mechanism.kind === "HAZARD") continue;
-      for (const modeId of mechanism.modeIds) {
-        const mode = barrier.modes.find((candidate) => candidate.id === modeId);
-        if (mode === undefined) continue;
-        for (const familyId of mechanism.familyIds) {
-          if (barrier.cells.some((cell) => cell.modeId === modeId && cell.familyId === familyId)) continue;
-          findings.push({ severity: "warning", check: "No probability", item: `${barrier.name} · ${familyId}`, detail: `${blank(mechanism.name) ? mechanism.id : mechanism.name} challenges ${modeLabel(mode)} in ${familyId}, but no cell gives its probability (ESQ-A3).`, target: { kind: "esqMechanism", id: mechanism.id } });
-        }
-      }
-    }
-  }
-  const mechanisms = view.mechanisms.map((entry) => entry.mechanism);
   for (const hazard of view.hazards) {
-    if (mechanisms.some((mechanism) => mechanism.kind === "HAZARD" && sameItem(mechanism.hazardGroup ?? "", hazard))) continue;
-    findings.push({ severity: "warning", check: "No hazard mechanism", item: hazard, detail: `${hazard} is in scope. Name the barrier failure mechanisms it causes (ESQ-C11).` });
+    if (view.cells.some((entry) => sameItem(entry.cell.hazardGroup ?? "", hazard))) continue;
+    findings.push({ severity: "warning", check: "No hazard cell", item: hazard, detail: `${hazard} is in scope. Add a cell for each barrier failure it causes (ESQ-C11).` });
   }
   return findings;
 }
 
 function creditFindings(view: EsqBarriersView, cc: string | undefined): EsqBarrierFinding[] {
   const findings: EsqBarrierFinding[] = [];
-  for (const entry of view.credits) {
-    const credit = entry.credit;
-    const target = { kind: "esqCredit" as const, id: credit.id };
-    const item = blank(credit.name) ? credit.id : credit.name;
+  for (const row of view.credits) {
+    const credit = row.credit;
+    if (credit === undefined) {
+      const record = row.qualification;
+      if (record !== undefined) findings.push({ severity: "warning", check: "No credit decision", item: record.id, detail: `SY marks ${qualificationName(record)} beyond qualification${record.groupIds.length > 0 ? ` for ${listText(record.groupIds)}` : ""}. Record whether ESQ credits it (ESQ-C8, C9).`, target: { kind: "qualification", id: record.id } });
+      continue;
+    }
+    const target: EsqBarrierTarget = { kind: "credit", id: credit.id };
+    const item = row.name;
     if (blank(credit.name)) findings.push({ severity: "warning", check: "Not named", item, detail: "Name the equipment or action credited.", target });
     if (credit.kind === "EQUIPMENT") {
-      if (credit.qualificationId !== undefined && entry.qualification === undefined) findings.push({ severity: "error", check: "Not in SY", item, detail: `${credit.qualificationId} is not in the imported SY workbook.`, target });
+      if (credit.qualificationId !== undefined && row.qualification === undefined && !view.qualifications.some((record) => record.id === credit.qualificationId)) findings.push({ severity: "error", check: "Not in SY", item, detail: `${credit.qualificationId} is not in the imported SY workbook.`, target });
       if (credit.credited && credit.beyondQualification && cc === "CC-I") findings.push({ severity: "error", check: "Credit beyond qualification", item, detail: "CC-I takes no credit for equipment beyond its qualification limits (ESQ-C8).", target });
       if (credit.credited && credit.beyondQualification && cc !== "CC-I" && blank(credit.analysis)) findings.push({ severity: "error", check: "No survivability analysis", item, detail: "Credit beyond qualification needs an engineering analysis that shows the equipment survives (ESQ-C9).", target });
     } else {
-      if (credit.actionId !== undefined && entry.action === undefined) findings.push({ severity: "error", check: "Not in HR", item, detail: `${credit.actionId} is not in the imported HR workbook.`, target });
+      if (credit.actionId !== undefined && row.action === undefined) findings.push({ severity: "error", check: "Not in HR", item, detail: `${credit.actionId} is not in the imported HR workbook.`, target });
       if (credit.credited) {
         const missing = FEASIBILITY_KEYS.filter((key) => credit.feasibility?.[key] !== true).map((key) => FEASIBILITY_LABELS[key].toLowerCase());
         if (missing.length > 0) findings.push({ severity: "error", check: "Feasibility not shown", item, detail: `A credited action needs its feasibility shown before its HEP is used. Missing: ${listText(missing, 7)} (ESQ-C7, RG 1.247).`, target });
         if (blank(credit.analysis)) findings.push({ severity: "warning", check: "No feasibility record", item, detail: "Record the timing and conditions that make the action feasible (ESQ-C7).", target });
-        if (cc !== "CC-I" && credit.treatment === "CONSERVATIVE" && entry.action?.riskSignificant === true) findings.push({ severity: "warning", check: "Conservative at CC-II", item, detail: "A risk-significant post-release action needs a detailed treatment at CC-II (ESQ-C7).", target });
+        if (cc !== "CC-I" && credit.treatment === "CONSERVATIVE" && row.action?.riskSignificant === true) findings.push({ severity: "warning", check: "Conservative at CC-II", item, detail: "A risk-significant post-release action needs a detailed treatment at CC-II (ESQ-C7).", target });
       }
       if (credit.beyondQualification && credit.credited && cc === "CC-I") findings.push({ severity: "error", check: "Credit beyond qualification", item, detail: "CC-I takes no credit for an action beyond its qualification limits (ESQ-C8).", target });
     }
     if (blank(credit.basis)) findings.push({ severity: "warning", check: "Basis missing", item, detail: "Record the basis of the credit decision.", target });
-  }
-  for (const record of view.qualifications) {
-    if (!record.beyondQualification) continue;
-    if (view.credits.some((entry) => entry.credit.qualificationId === record.id)) continue;
-    findings.push({ severity: "warning", check: "No credit decision", item: record.id, detail: `SY marks ${listText(record.components.length > 0 ? record.components : [record.systemId])} beyond qualification${record.groupIds.length > 0 ? ` for ${listText(record.groupIds)}` : ""}. Record whether ESQ credits them (ESQ-C8, C9).` });
   }
   return findings;
 }
@@ -418,33 +458,18 @@ function barriersViewOf(esq: EventSequenceQuantification): EsqBarriersView | und
   const work = barrierWorkOf(esq);
   const families = (modelViewOf(esq)?.families ?? []).map((family) => ({ id: family.id, name: family.name }));
   const barriers = barrierViews(model, work);
-  const cells = cellViews(esq, model, work.cells ?? [], barriers, families);
-  const qualifications = model.qualifications ?? [];
-  const actions = model.actions ?? [];
+  const phenomena = phenomenonViews(model, work);
   const view: EsqBarriersView = {
     model,
-    imported: model.barriers !== undefined,
     barriers,
-    mechanisms: (work.mechanisms ?? []).map((mechanism) => {
-      const barrier = barriers.find((candidate) => candidate.id === mechanism.barrierId);
-      const entry: EsqMechanismView = { mechanism, modes: (barrier?.modes ?? []).filter((mode) => mechanism.modeIds.includes(mode.id)) };
-      if (barrier !== undefined) entry.barrier = barrier;
-      return entry;
-    }),
-    cells: cells.filter((entry) => entry.cell.hazardGroup === undefined),
-    hazardCells: cells.filter((entry) => entry.cell.hazardGroup !== undefined),
-    credits: (work.credits ?? []).map((credit) => {
-      const entry: EsqCreditView = { credit };
-      const qualification = credit.qualificationId === undefined ? undefined : qualifications.find((record) => record.id === credit.qualificationId);
-      if (qualification !== undefined) entry.qualification = qualification;
-      const action = credit.actionId === undefined ? undefined : actions.find((record) => record.id === credit.actionId);
-      if (action !== undefined) entry.action = action;
-      return entry;
-    }),
+    phenomena,
+    esPhenomena: model.phenomena ?? [],
+    cells: cellViews(esq, work.cells ?? [], barriers, phenomena, families),
+    credits: creditRows(model, work.credits ?? []),
     criteria: model.criteria ?? [],
     impactRefs: uniqueTexts((model.impacts ?? []).map((impact) => impact.barrierRef)),
-    qualifications,
-    actions,
+    qualifications: model.qualifications ?? [],
+    actions: model.actions ?? [],
     families,
     sources: uniqueTexts([...esq.modelIntegration.scopeCoverage.radionuclideSources, ...(model.barriers ?? []).flatMap((barrier) => barrier.sourceNames)]),
     systems: uniqueTexts(model.tops.flatMap((top) => (top.systemName === undefined ? [] : [top.systemName]))),
@@ -454,7 +479,7 @@ function barriersViewOf(esq: EventSequenceQuantification): EsqBarriersView | und
   if (work.phenomenaLogic !== undefined) view.logic = work.phenomenaLogic;
   view.findings = sortFindings([
     ...barrierFindings(view),
-    ...mechanismFindings(view, esq.capabilityCategory),
+    ...phenomenonFindings(view),
     ...cellFindings(view, esq),
     ...creditFindings(view, esq.capabilityCategory),
   ]);
@@ -507,11 +532,11 @@ function nextId(prefix: string, taken: readonly string[]): string {
 }
 
 function nextBarrierId(esq: EventSequenceQuantification): string {
-  return nextId("BR", [...(esq.model?.barriers ?? []).map((record) => record.id), ...barrierEntries(barrierWorkOf(esq)).map((entry) => entry.barrierId)]);
+  return nextId("BR", [...(esq.model?.barriers ?? []).map((record) => record.id), ...(barrierWorkOf(esq).barriers ?? []).map((entry) => entry.barrierId)]);
 }
 
 function nextModeId(esq: EventSequenceQuantification): string {
-  return nextId("FM", barrierEntries(barrierWorkOf(esq)).flatMap((entry) => entry.modes.map((mode) => mode.id)));
+  return nextId("FM", (barrierWorkOf(esq).barriers ?? []).flatMap((entry) => entry.modes.map((mode) => mode.id)));
 }
 
 function nextMechanismId(esq: EventSequenceQuantification): string {
@@ -526,6 +551,112 @@ function nextCreditId(esq: EventSequenceQuantification): string {
   return nextId("CR", (barrierWorkOf(esq).credits ?? []).map((credit) => credit.id));
 }
 
+function entryOf(esq: EventSequenceQuantification, barrierId: string): EsqBarrierEntry {
+  return (barrierWorkOf(esq).barriers ?? []).find((entry) => entry.barrierId === barrierId) ?? { barrierId, modes: [] };
+}
+
+function criterionVariable(esq: EventSequenceQuantification, barrierId: string): string {
+  const criterionId = (barrierWorkOf(esq).barriers ?? []).find((entry) => entry.barrierId === barrierId)?.criterionId;
+  const criterion = criterionId === undefined ? undefined : (esq.model?.criteria ?? []).find((candidate) => candidate.id === criterionId);
+  return criterion?.parameters[0]?.parameter ?? "";
+}
+
+function newCell(esq: EventSequenceQuantification, barrierId?: string): EsqCell {
+  const view = barriersViewOf(esq);
+  const barrier = (barrierId === undefined ? undefined : view?.barriers.find((candidate) => candidate.id === barrierId))
+    ?? view?.barriers.find((candidate) => candidate.cells.length === 0)
+    ?? view?.barriers[0];
+  const mode = barrier === undefined ? undefined : barrier.modes.find((candidate) => !barrier.cells.some((cell) => cell.modeId === candidate.id)) ?? barrier.modes[0];
+  const criterion = barrier?.criterion;
+  return {
+    id: nextCellId(esq),
+    barrierId: barrier?.id ?? "",
+    modeId: mode?.id ?? "",
+    mechanismIds: [],
+    variable: criterion?.parameters[0]?.parameter ?? "",
+    unit: "",
+    basis: criterion?.method ?? (esq.capabilityCategory === "CC-I" ? "CONSERVATIVE" : "REALISTIC"),
+    use: "SPLIT_FRACTION",
+  };
+}
+
+function withCellBarrier(esq: EventSequenceQuantification, cellId: string, barrierId: string): EventSequenceQuantification {
+  const cell = cellOf(esq, cellId);
+  if (cell === undefined || cell.barrierId === barrierId) return esq;
+  const modes = entryOf(esq, barrierId).modes;
+  const variable = blank(cell.variable) ? criterionVariable(esq, barrierId) : cell.variable;
+  return withCell(esq, cellId, { ...cell, barrierId, modeId: modes[0]?.id ?? "", mechanismIds: [], variable });
+}
+
+function withCellNewBarrier(esq: EventSequenceQuantification, cellId: string): EventSequenceQuantification {
+  const cell = cellOf(esq, cellId);
+  if (cell === undefined) return esq;
+  const barrierId = nextBarrierId(esq);
+  const added = withBarrierEntry(esq, barrierId, { barrierId, manual: { name: "", source: "", sourceNames: [] }, modes: [] });
+  return withCell(added, cellId, { ...cell, barrierId, modeId: "", mechanismIds: [] });
+}
+
+function withCellNewMode(esq: EventSequenceQuantification, cellId: string): EventSequenceQuantification {
+  const cell = cellOf(esq, cellId);
+  if (cell === undefined || blank(cell.barrierId)) return esq;
+  const entry = entryOf(esq, cell.barrierId);
+  const kind: EsqBarrierModeKind = entry.modes.some((mode) => mode.kind === "GROSS") && !entry.modes.some((mode) => mode.kind === "LOCALIZED") ? "LOCALIZED" : "GROSS";
+  const mode: EsqBarrierMode = { id: nextModeId(esq), name: "", kind, location: "" };
+  const added = withBarrierEntry(esq, cell.barrierId, { ...entry, modes: [...entry.modes, mode] });
+  return withCell(added, cellId, { ...cell, modeId: mode.id });
+}
+
+function withMode(esq: EventSequenceQuantification, barrierId: string, next: EsqBarrierMode): EventSequenceQuantification {
+  const entry = entryOf(esq, barrierId);
+  return withBarrierEntry(esq, barrierId, { ...entry, modes: entry.modes.map((mode) => (mode.id === next.id ? next : mode)) });
+}
+
+function withBarrierPatch(esq: EventSequenceQuantification, barrierId: string, patch: (entry: EsqBarrierEntry) => EsqBarrierEntry): EventSequenceQuantification {
+  return withBarrierEntry(esq, barrierId, patch(entryOf(esq, barrierId)));
+}
+
+function withCellEsPhenomenon(esq: EventSequenceQuantification, cellId: string, phenomenonId: string): EventSequenceQuantification {
+  const cell = cellOf(esq, cellId);
+  if (cell === undefined) return esq;
+  const known = (barrierWorkOf(esq).mechanisms ?? []).find((mechanism) => mechanism.barrierId === cell.barrierId && mechanism.phenomenonId === phenomenonId);
+  if (known !== undefined) return withCell(esq, cellId, { ...cell, mechanismIds: [known.id] });
+  const id = nextMechanismId(esq);
+  const added = withMechanism(esq, id, { id, barrierId: cell.barrierId, phenomenonId, modeIds: [], kind: "PHENOMENON", name: "", familyIds: [], basis: "" });
+  return withCell(added, cellId, { ...cell, mechanismIds: [id] });
+}
+
+function withCellNewPhenomenon(esq: EventSequenceQuantification, cellId: string): EventSequenceQuantification {
+  const cell = cellOf(esq, cellId);
+  if (cell === undefined) return esq;
+  const id = nextMechanismId(esq);
+  const kind: EsqMechanismKind = cell.hazardGroup === undefined ? "PHENOMENON" : "HAZARD";
+  const mechanism: EsqMechanism = cell.hazardGroup === undefined
+    ? { id, barrierId: cell.barrierId, modeIds: [], kind, name: "", familyIds: [], basis: "" }
+    : { id, barrierId: cell.barrierId, modeIds: [], kind, name: "", hazardGroup: cell.hazardGroup, familyIds: [], basis: "" };
+  return withCell(withMechanism(esq, id, mechanism), cellId, { ...cell, mechanismIds: [id] });
+}
+
+function withCellMechanism(esq: EventSequenceQuantification, cellId: string, mechanismId: string | undefined): EventSequenceQuantification {
+  const cell = cellOf(esq, cellId);
+  if (cell === undefined) return esq;
+  return withCell(esq, cellId, { ...cell, mechanismIds: mechanismId === undefined ? [] : [mechanismId] });
+}
+
+function creditDraft(esq: EventSequenceQuantification, record: EsqQualificationRecord): EsqCredit {
+  return {
+    id: nextCreditId(esq),
+    kind: "EQUIPMENT",
+    qualificationId: record.id,
+    name: qualificationName(record),
+    familyIds: [],
+    environment: record.condition,
+    beyondQualification: record.beyondQualification,
+    credited: false,
+    analysis: "",
+    basis: "",
+  };
+}
+
 export {
   CELL_USE_LABELS,
   FEASIBILITY_KEYS,
@@ -536,26 +667,32 @@ export {
   barriersViewOf,
   cellRecordText,
   cellSamples,
+  creditDraft,
   modeLabel,
-  nextBarrierId,
-  nextCellId,
+  newCell,
   nextCreditId,
-  nextMechanismId,
-  nextModeId,
   numberText,
+  qualificationName,
   sideSourceText,
-  withBarrierEntry,
+  withBarrierPatch,
   withCell,
+  withCellBarrier,
+  withCellEsPhenomenon,
+  withCellMechanism,
+  withCellNewBarrier,
+  withCellNewMode,
+  withCellNewPhenomenon,
   withCellRun,
   withCredit,
   withMechanism,
+  withMode,
   withPhenomenaLogic,
   type EsqBarrierFinding,
+  type EsqBarrierTarget,
   type EsqBarrierView,
-  type EsqBarrierWindowKind,
   type EsqBarriersView,
   type EsqCellView,
-  type EsqCreditView,
+  type EsqCreditRow,
   type EsqFamilyOption,
-  type EsqMechanismView,
+  type EsqPhenomenonView,
 };

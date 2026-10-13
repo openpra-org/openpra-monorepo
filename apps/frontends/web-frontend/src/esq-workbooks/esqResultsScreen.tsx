@@ -28,8 +28,10 @@ import {
   treeLabel,
   useElementWidth,
   useRunner,
+  Pager,
+  pageOf,
+  type EsqWindowContext,
 } from "./esqShared";
-import { Pager, pageOf, type EsqWindowContext } from "./esqModelScreen";
 import { comparisonProblem } from "./esqPost";
 import {
   CONSISTENCY_LABELS,

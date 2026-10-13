@@ -22,8 +22,8 @@ interface EsqStep {
 const ESQ_STEPS: EsqStep[] = [
   { id: "scope", num: "01", label: "Scope", sub: "Links · coverage · plan", hlr: "ESQ-A", status: "idle" },
   { id: "model", num: "02", label: "Model", sub: "Sequences · links · values", hlr: "ESQ-A", status: "idle" },
-  { id: "logic", num: "03", label: "Logic", sub: "Flags · loops · exclusions · runs", hlr: "ESQ-B", status: "idle" },
-  { id: "barriers", num: "04", label: "Barriers and phenomena", sub: "Modes · load and capacity · credits", hlr: "ESQ-C", status: "idle" },
+  { id: "barriers", num: "03", label: "Barriers and phenomena", sub: "Cells · credits", hlr: "ESQ-C", status: "idle" },
+  { id: "logic", num: "04", label: "Logic", sub: "Flags · loops · exclusions · runs", hlr: "ESQ-B", status: "idle" },
   { id: "solve", num: "05", label: "Solve and converge", sub: "Runs · families · convergence", hlr: "ESQ-B", status: "idle" },
   { id: "post", num: "06", label: "Post-processing", sub: "Exclusions · recovery · HFE combinations", hlr: "ESQ-C", status: "idle" },
   { id: "results", num: "07", label: "Results review", sub: "Cut sets · contributors · importance", hlr: "ESQ-D", status: "idle" },
@@ -241,14 +241,13 @@ interface EsqScopeAspectSpec {
   aspect: EsqScopeAspect;
   label: string;
   item: string;
-  fromEs: boolean;
 }
 
 const ESQ_SCOPE_ASPECTS: EsqScopeAspectSpec[] = [
-  { aspect: "HAZARD_GROUP", label: "Hazard groups", item: "hazard group", fromEs: false },
-  { aspect: "OPERATING_STATE", label: "Operating states", item: "operating state", fromEs: true },
-  { aspect: "SOURCE", label: "Sources", item: "source", fromEs: false },
-  { aspect: "INITIATOR_GROUP", label: "Initiator groups", item: "initiator group", fromEs: true },
+  { aspect: "HAZARD_GROUP", label: "Hazard groups", item: "hazard group" },
+  { aspect: "OPERATING_STATE", label: "Operating states", item: "operating state" },
+  { aspect: "INITIATOR_GROUP", label: "Initiating event groups", item: "initiator group" },
+  { aspect: "SOURCE", label: "Radioactive material sources", item: "source" },
 ];
 
 const FREQUENCY_UNIT_OPTIONS: { id: FrequencyUnit; label: string }[] = [

@@ -8,6 +8,7 @@ import {
   type ModelIntegration,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { EMPTY_UPSTREAM, type EsqUpstream } from "./esqLinks";
 import { modelComplete, sameItem, transferEntryInitiators } from "./esqModel";
 import { logicComplete } from "./esqLogic";
@@ -186,6 +187,7 @@ function inEsFor(upstream: EsqUpstream, aspect: EsqScopeAspect, row: ScopeCandid
   if (es === undefined) return undefined;
   if (aspect === "INITIATOR_GROUP") return esInitiatorIds(es).some((id) => rowMatches(row, id));
   if (aspect === "OPERATING_STATE") return esStateIds(es).some((id) => rowMatches(row, id));
+  if (aspect === "SOURCE") return es.scopeDefinition.radioactiveMaterialSources.some((id) => rowMatches(row, id));
   return undefined;
 }
 
@@ -287,7 +289,15 @@ function planValues(esq: EventSequenceQuantification): EsqPlanValues {
 }
 
 function planChanged(esq: EventSequenceQuantification, key: EsqPlanKey): boolean {
+  if (key === "reportingFloorPerYear" && esq.quantificationPlan?.reportingFloorPerYear?.link !== undefined) return false;
   return planValues(esq)[key] !== ESQ_PLAN_DEFAULTS[key];
+}
+
+function riReportingFloor(esq: EventSequenceQuantification, ri: RiskIntegration | undefined): number | undefined {
+  if (ri === undefined) return undefined;
+  const perPlantYear = ri.reportingThresholds.minimumReportingFrequencyPerPlantYear;
+  if (!(perPlantYear > 0)) return undefined;
+  return perPlantYear / Math.max(1, esq.quantificationPlan?.modulesPerPlant?.value ?? 1);
 }
 
 function planReason(esq: EventSequenceQuantification, key: EsqPlanKey): string {
@@ -319,7 +329,6 @@ function plural(count: number, noun: string): string {
 function scopeItemsToComplete(esq: EventSequenceQuantification, upstream: EsqUpstream): string[] {
   const items: string[] = [];
   if (esq.praScope.trim().length === 0) items.push("Write the PRA scope.");
-  if ((esq.linkedWorkbooks?.ES ?? "").length === 0) items.push("Link the ES workbook.");
   for (const spec of ESQ_SCOPE_ASPECTS) {
     const rows = scopeRowsView(esq, upstream, spec.aspect);
     const unset = rows.filter((row) => row.state === "unset").length;
@@ -489,6 +498,7 @@ export {
   planValues,
   planChanged,
   planReason,
+  riReportingFloor,
   withPlan,
   withPlanReason,
   withPlanDefault,

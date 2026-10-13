@@ -31,6 +31,7 @@ import {
   useElementWidth,
   useInputPoints,
   useRunner,
+  type EsqWindowContext,
 } from "./esqShared";
 import { missionTimeSourcesOf, parameterTableOf } from "./esqModel";
 import { ExpressionEditor } from "../newly-developed-methods/shared/uncertainEditor";
@@ -67,7 +68,6 @@ import {
   type EsqPostWindowKind,
 } from "./esqPost";
 import { getEsqModelRunResult, getEsqPostResult, runEsqModel, runEsqPost } from "./esqWorkbookApi";
-import type { EsqWindowContext } from "./esqModelScreen";
 
 type PostTab = "exclusions" | "recovery" | "combinations" | "results" | "checks";
 
@@ -147,7 +147,7 @@ function ExclusionsPanel({ view, openWindow }: { view: EsqPostView; openWindow: 
     });
   }
 
-  if (view.exclusions.length === 0) return <p className="posmuted">Step 03 holds no exclusion. Add one there for basic events that cannot occur together.</p>;
+  if (view.exclusions.length === 0) return <p className="posmuted">Step 04 holds no exclusion. Add one there for basic events that cannot occur together.</p>;
   return (
     <div className="esq-run">
       <div className="esq-run__composer" aria-label="Deletion check controls">

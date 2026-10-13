@@ -5,7 +5,7 @@ import type { LoadCapacityAnalysisResult } from "interfaces-shared-types/newly-d
 import { esqCellRunId } from "interfaces-mef-types/esq/esq-barrier-inputs";
 import { EsqWorkbookProvider, type EsqWorkbookRuntime } from "../esqWorkbookContext";
 import { BarrierScreen, BarrierWindows } from "../esqBarrierScreen";
-import { type EsqWindowContext } from "../esqModelScreen";
+import { type EsqWindowContext } from "../esqShared";
 import { listEsqCellRuns, runEsqBarrierCell, type EsqCellRunEntry } from "../esqWorkbookApi";
 import { barrierUpstream, modeledEsq } from "./esqBarrierFixtures";
 

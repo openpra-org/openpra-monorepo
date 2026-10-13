@@ -682,9 +682,25 @@ function createdValues(esq: EventSequenceQuantification): EsqCreatedValue[] {
     if (choice.source !== "TYPED" || choice.expression === undefined) continue;
     out.push({ key: `initiator:${choice.groupId}`, item: choice.groupId, expression: choice.expression, where: "Step 02 initiator frequency", source: choice.basis ?? "" });
   }
+  for (const link of esq.modelDecisions?.functionLinks ?? []) {
+    const targets = [
+      { key: `split:${link.functionId}`, target: link.target },
+      ...(link.rules ?? []).map((rule) => ({ key: `split:${link.functionId}:${rule.id}`, target: rule.target })),
+    ];
+    for (const entry of targets) {
+      const target = entry.target;
+      if (target?.kind !== "SPLIT_FRACTION" || target.cellId !== undefined || target.parameterId !== undefined || target.expression === undefined) continue;
+      out.push({ key: entry.key, item: link.functionId, expression: target.expression, where: "Step 02 split fraction", source: target.basis ?? "" });
+    }
+  }
+  for (const binding of esq.modelDecisions?.valueBindings ?? []) {
+    if (binding.heldBy !== "TYPED" || binding.expression === undefined) continue;
+    const event = model.events.find((candidate) => candidate.id === binding.eventId);
+    out.push({ key: `event:${binding.eventId}`, item: event?.code ?? binding.eventId, expression: binding.expression, where: "Step 02 basic event value", source: binding.reason });
+  }
   for (const cell of esq.barrierWork?.cells ?? []) {
     if (cell.ofRecord !== "TYPED" || cell.typed === undefined) continue;
-    out.push({ key: `cell:${cell.id}`, item: `Cell ${cell.id}`, expression: cell.typed.expression, where: "Step 04 split fraction", source: cell.typed.basis });
+    out.push({ key: `cell:${cell.id}`, item: `Cell ${cell.id}`, expression: cell.typed.expression, where: "Step 03 split fraction", source: cell.typed.basis });
   }
   for (const combination of resolvedCombinations(esq)) {
     if (combination.source !== "TYPED" || combination.joint === undefined) continue;

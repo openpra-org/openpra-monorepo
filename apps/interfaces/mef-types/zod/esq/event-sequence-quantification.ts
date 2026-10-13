@@ -20,6 +20,7 @@ import { ImportanceLevelSchema, SensitivityStudySchema, BaseUncertaintyAnalysisS
 import { BaseModelUncertaintyDocumentationSchema, PreOperationalAssumptionSchema } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
 import { EsqBayesianNetworkSchema, EsqHclConfigurationSchema } from "./workbook-models";
+import { EventTreeSchema } from "../es/event-sequence-analysis";
 import { EventSequenceFamilyWorkbookReferenceSchema } from "../modeling/references";
 import { AleatoryVariableSchema, CCF_BFR_TOTAL_MESSAGE, CcfFactorModelSchema, LawSchema, UncertainExpressionSchema, UncertainParameterSchema, UncertainVectorParameterSchema, ccfTotalAllowedByModel } from "../core/uncertainty";
 import { holdsEstimate } from "../../da/data-analysis";
@@ -105,10 +106,22 @@ export const EsqModuleCountSchema = z.object({
     .optional(),
 });
 
+export const EsqReportingFloorSchema = z.object({
+  value: z.number(),
+  reason: z.string().optional(),
+  link: z
+    .object({
+      element: z.literal("RI"),
+      workbookId: z.string(),
+      field: z.literal("minimumReportingFrequencyPerPlantYear"),
+    })
+    .optional(),
+});
+
 export const EsqQuantificationPlanSchema = z.object({
   stateWeighting: z.object({ value: EsqStateWeightingSchema, reason: z.string().optional() }).optional(),
   modulesPerPlant: EsqModuleCountSchema.optional(),
-  reportingFloorPerYear: z.object({ value: z.number(), reason: z.string().optional() }).optional(),
+  reportingFloorPerYear: EsqReportingFloorSchema.optional(),
   convergenceStepPercent: z.object({ value: z.number(), reason: z.string().optional() }).optional(),
 });
 
@@ -137,6 +150,7 @@ export const EsqModelChangeSchema = z.object({
     "BARRIER",
     "CRITERION",
     "IMPACT",
+    "PHENOMENON",
     "QUALIFICATION",
     "ACTION",
     "RECOVERY",
@@ -163,7 +177,9 @@ export const EsqTreeRecordSchema = z.object({
   stateId: z.string().optional(),
   functionIds: z.array(z.string()),
   missionTime: UncertainExpressionSchema.optional(),
+  esMissionTime: UncertainExpressionSchema.optional(),
   transferEntry: z.boolean(),
+  typed: z.boolean().optional(),
 });
 
 export const EsqSequenceRecordSchema = z.object({
@@ -346,6 +362,17 @@ export const EsqImpactRecordSchema = z.object({
   mechanism: z.string().optional(),
 });
 
+export const EsqPhenomenonRecordSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  phenomenon: z.string(),
+  description: z.string(),
+  onset: z.string().optional(),
+  affectedSystems: z.array(z.string()),
+  conditions: z.array(z.string()),
+  references: z.array(z.string()),
+});
+
 export const EsqQualificationRecordSchema = z.object({
   id: z.string(),
   kind: z.enum(["ENVIRONMENT", "CAPACITY"]),
@@ -433,6 +460,7 @@ export const EsqModelSchema = z.object({
   barriers: z.array(EsqBarrierRecordSchema).optional(),
   criteria: z.array(EsqCriterionRecordSchema).optional(),
   impacts: z.array(EsqImpactRecordSchema).optional(),
+  phenomena: z.array(EsqPhenomenonRecordSchema).optional(),
   qualifications: z.array(EsqQualificationRecordSchema).optional(),
   actions: z.array(EsqActionRecordSchema).optional(),
   recoveries: z.array(EsqRecoveryRecordSchema).optional(),
@@ -458,6 +486,7 @@ export const EsqFunctionLinkSchema = z.object({
     .array(
       z.object({
         id: z.string(),
+        treeIds: z.array(z.string()).optional(),
         groupIds: z.array(z.string()),
         stateIds: z.array(z.string()),
         target: EsqFunctionTargetSchema,
@@ -493,8 +522,17 @@ export const EsqModelDecisionsSchema = z.object({
   familyChoices: z.array(EsqFamilyChoiceSchema).optional(),
   sequenceChoices: z.array(z.object({ sequenceId: z.string(), familyId: z.string(), reason: z.string() })).optional(),
   valueBindings: z
-    .array(z.object({ eventId: z.string(), heldBy: z.enum(["DA", "HRA"]), holderId: z.string(), reason: z.string() }))
+    .array(
+      z.object({
+        eventId: z.string(),
+        heldBy: z.enum(["DA", "HRA", "TYPED"]),
+        holderId: z.string().optional(),
+        expression: UncertainExpressionSchema.optional(),
+        reason: z.string(),
+      }),
+    )
     .optional(),
+  typedTrees: z.array(EventTreeSchema).optional(),
 });
 
 export const EsqLogicSchema = z.object({
@@ -543,6 +581,7 @@ export const EsqCellSchema = z.object({
   capacity: EsqCellSideSchema.optional(),
   aging: z.string().optional(),
   use: z.enum(["SPLIT_FRACTION", "END_STATE_ATTRIBUTE"]),
+  screening: z.object({ criterion: z.enum(["SCR-2", "SCR-3"]), basis: z.string() }).optional(),
   assumption: z.object({ calculation: z.string(), closure: z.string() }).optional(),
   run: z
     .object({
@@ -582,6 +621,7 @@ export const EsqBarrierWorkSchema = z.object({
       z.object({
         id: z.string(),
         barrierId: z.string(),
+        phenomenonId: z.string().optional(),
         modeIds: z.array(z.string()),
         kind: z.enum(["PHENOMENON", "DEGRADATION", "HAZARD"]),
         name: z.string(),

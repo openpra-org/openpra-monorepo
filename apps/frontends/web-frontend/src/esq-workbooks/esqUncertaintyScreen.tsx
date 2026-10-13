@@ -28,8 +28,10 @@ import {
   useExpressionPoints,
   useRunner,
   type EsqPointEntry,
+  Pager,
+  pageOf,
+  type EsqWindowContext,
 } from "./esqShared";
-import { Pager, pageOf, type EsqWindowContext } from "./esqModelScreen";
 import { missionTimeSourcesOf, parameterLabelOf, parameterTableOf } from "./esqModel";
 import { runLogicOf } from "./esqResults";
 import {
@@ -139,7 +141,7 @@ const CHANGE_TEXT: Record<EsqLawSource, string> = {
   HR: "Give the HEP a law in HR and import again in Step 02.",
   IE: "Change the frequency distribution in IE and import again.",
   STEP_02: "Change it in Step 02.",
-  STEP_04: "Change it in Step 04.",
+  STEP_03: "Change it in Step 03.",
   STEP_06: "Change it in Step 06.",
 };
 

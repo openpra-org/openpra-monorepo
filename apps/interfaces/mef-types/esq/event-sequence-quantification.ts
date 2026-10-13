@@ -13,6 +13,7 @@ import { HlrId, PlantStage, SRReference } from "../core/pra-common";
 import type { EsqBayesianNetwork, EsqHclConfiguration } from "./workbook-models";
 import type { AleatoryVariable, CcfFactorModel, Law, UncertainExpression, UncertainParameter, UncertainVectorParameter } from "../core/uncertainty";
 import type { DaQuantificationModel } from "../da/data-analysis";
+import type { EventTree } from "../es/event-sequence-analysis";
 import type { EventSequenceFamilyWorkbookReference } from "../modeling/references";
 
 export type EventSequenceReference = string;
@@ -138,10 +139,20 @@ export interface EsqModuleCount {
   link?: EsqModuleCountLink;
 }
 
+export interface EsqReportingFloorLink {
+  element: "RI";
+  workbookId: string;
+  field: "minimumReportingFrequencyPerPlantYear";
+}
+
+export interface EsqReportingFloor extends EsqPlanChoice<number> {
+  link?: EsqReportingFloorLink;
+}
+
 export interface EsqQuantificationPlan {
   stateWeighting?: EsqPlanChoice<EsqStateWeighting>;
   modulesPerPlant?: EsqModuleCount;
-  reportingFloorPerYear?: EsqPlanChoice<number>;
+  reportingFloorPerYear?: EsqReportingFloor;
   convergenceStepPercent?: EsqPlanChoice<number>;
 }
 
@@ -179,6 +190,7 @@ export type EsqModelTable =
   | "BARRIER"
   | "CRITERION"
   | "IMPACT"
+  | "PHENOMENON"
   | "QUALIFICATION"
   | "ACTION"
   | "RECOVERY"
@@ -207,7 +219,9 @@ export interface EsqTreeRecord {
   stateId?: string;
   functionIds: string[];
   missionTime?: UncertainExpression;
+  esMissionTime?: UncertainExpression;
   transferEntry: boolean;
+  typed?: boolean;
 }
 
 export interface EsqSequenceRecord {
@@ -380,6 +394,17 @@ export interface EsqImpactRecord {
   mechanism?: string;
 }
 
+export interface EsqPhenomenonRecord {
+  id: string;
+  name: string;
+  phenomenon: string;
+  description: string;
+  onset?: string;
+  affectedSystems: string[];
+  conditions: string[];
+  references: string[];
+}
+
 export interface EsqQualificationRecord {
   id: string;
   kind: "ENVIRONMENT" | "CAPACITY";
@@ -473,6 +498,7 @@ export interface EsqModel {
   barriers?: EsqBarrierRecord[];
   criteria?: EsqCriterionRecord[];
   impacts?: EsqImpactRecord[];
+  phenomena?: EsqPhenomenonRecord[];
   qualifications?: EsqQualificationRecord[];
   actions?: EsqActionRecord[];
   recoveries?: EsqRecoveryRecord[];
@@ -497,6 +523,7 @@ export type EsqFunctionTarget = EsqFaultTreeTarget | EsqSplitFractionTarget;
 
 export interface EsqFunctionRule {
   id: string;
+  treeIds?: string[];
   groupIds: string[];
   stateIds: string[];
   target: EsqFunctionTarget;
@@ -544,8 +571,9 @@ export interface EsqSequenceChoice {
 
 export interface EsqValueBinding {
   eventId: string;
-  heldBy: "DA" | "HRA";
-  holderId: string;
+  heldBy: "DA" | "HRA" | "TYPED";
+  holderId?: string;
+  expression?: UncertainExpression;
   reason: string;
 }
 
@@ -555,6 +583,7 @@ export interface EsqModelDecisions {
   familyChoices?: EsqFamilyChoice[];
   sequenceChoices?: EsqSequenceChoice[];
   valueBindings?: EsqValueBinding[];
+  typedTrees?: EventTree[];
 }
 
 export type EsqFlagTargetKind = "HOUSE" | "EVENT" | "GATE";
@@ -621,6 +650,7 @@ export interface EsqMechanismScreening {
 export interface EsqMechanism {
   id: string;
   barrierId: string;
+  phenomenonId?: string;
   modeIds: string[];
   kind: EsqMechanismKind;
   name: string;
@@ -699,6 +729,7 @@ export interface EsqCell {
   capacity?: EsqCellSide;
   aging?: string;
   use: EsqCellUse;
+  screening?: EsqMechanismScreening;
   assumption?: EsqCellAssumption;
   run?: EsqCellRun;
   typed?: EsqCellTyped;

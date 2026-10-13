@@ -15,6 +15,7 @@ import {
   type EsqFamilyRecord,
   type EsqFunctionLink,
   type EsqFunctionRecord,
+  type EsqFunctionRule,
   type EsqFunctionTarget,
   type EsqHumanRecord,
   type EsqInitiatorChoice,
@@ -27,8 +28,10 @@ import {
   type EsqModelSource,
   type EsqModelTable,
   type EsqParameterRecord,
+  type EsqPhenomenonRecord,
   type EsqSequenceChoice,
   type EsqSequenceRecord,
+  type EsqSplitFractionTarget,
   type EsqStateRecord,
   type EsqTopRecord,
   type EsqTopReference,
@@ -37,7 +40,14 @@ import {
   type EsqValueHolder,
   type EventSequenceQuantification,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { isEventTreeBranchState, type EventSequenceAnalysis, type EventTree, type FunctionalEvent } from "interfaces-mef-types/es/event-sequence-analysis";
+import {
+  isEventTreeBranchState,
+  type EventSequence,
+  type EventSequenceAnalysis,
+  type EventSequenceFamily,
+  type EventTree,
+  type FunctionalEvent,
+} from "interfaces-mef-types/es/event-sequence-analysis";
 import { carriesUncertainExpression, type CommonCauseFailureGroup, type SystemBasicEvent, type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { systemFaultTreeBasicEventIds } from "interfaces-mef-types/sy/system-models";
 import { isComponentModel, type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
@@ -74,6 +84,7 @@ import {
   ruleMatches,
   sameItem,
   stateWeightingOf,
+  transferTreeIds,
   treesInScope,
   withLiveDa,
   type EsqGroupFrequency,
@@ -85,6 +96,7 @@ import { type ScMissionTimeSource } from "../sc-workbooks/scMissionTimeSources";
 import { parametersFor, peekExpression, requestExpression } from "../newly-developed-methods/shared/useUncertainty";
 import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
 import { ccfFactorIssues } from "../sy-workbooks/syCcf";
+import { validateEventTree } from "../newly-developed-methods/event-tree/eventTreeOperations";
 import { type EsqUpstream } from "./esqLinks";
 import { ESQ_MODEL_ELEMENTS, MODEL_ELEMENT_LABELS, exampleLinkLabel } from "./esqViewData";
 
@@ -172,6 +184,7 @@ interface EsqValueView {
   binding?: EsqValueBinding;
   heldBy: EsqValueHolder;
   holderId?: string;
+  typedHere: boolean;
   component: boolean;
   expression?: UncertainExpression;
   problem?: string;
@@ -180,6 +193,17 @@ interface EsqValueView {
   human?: EsqHumanRecord;
   missionTime?: UncertainExpression;
   functionIds: string[];
+}
+
+interface EsqSplitView {
+  key: string;
+  functionId: string;
+  functionName: string;
+  ruleId?: string;
+  scope: string;
+  target: EsqSplitFractionTarget;
+  expression?: UncertainExpression;
+  trees: EsqTreeRecord[];
 }
 
 type EsqMissionPoint = { status: "pending" } | { status: "ready"; hours: number } | { status: "failed"; error: string };
@@ -237,13 +261,35 @@ function listText(items: readonly string[], shown = 3): string {
   return `${items.slice(0, shown).join(", ")} and ${items.length - shown} more`;
 }
 
-function transferEntryInitiators(es: EventSequenceAnalysis): string[] {
-  const trees = es.eventTrees ?? [];
+interface EsqTreeSource {
+  trees: readonly EventTree[];
+  sequences: readonly EventSequence[];
+  families: readonly EventSequenceFamily[];
+  scopeInitiators: readonly string[];
+}
+
+function esTreeSource(es: EventSequenceAnalysis): EsqTreeSource {
+  return { trees: es.eventTrees ?? [], sequences: es.eventSequences, families: es.eventSequenceFamilies, scopeInitiators: texts(es.scopeDefinition?.initiatingEventIds) };
+}
+
+function typedTreesOf(esq: EventSequenceQuantification): EventTree[] {
+  return esq.modelDecisions?.typedTrees ?? [];
+}
+
+function typedTreeSource(esq: EventSequenceQuantification): EsqTreeSource {
+  return { trees: typedTreesOf(esq), sequences: [], families: [], scopeInitiators: texts(esq.modelIntegration.scopeCoverage.initiatingEventGroups) };
+}
+
+function entryInitiators(source: EsqTreeSource): string[] {
+  const trees = source.trees;
   const targets = new Set(trees.flatMap((tree) => texts(Object.values(tree.transfers ?? {}).map((transfer) => transfer?.targetEventTreeId))));
   const started = texts(trees.filter((tree) => !targets.has(tree.uuid)).map((tree) => tree.initiatingEventId));
-  const scope = texts(es.scopeDefinition?.initiatingEventIds);
   return texts(trees.filter((tree) => targets.has(tree.uuid)).map((tree) => tree.initiatingEventId))
-    .filter((id) => !started.some((other) => sameItem(other, id)) && !scope.some((other) => sameItem(other, id)));
+    .filter((id) => !started.some((other) => sameItem(other, id)) && !source.scopeInitiators.some((other) => sameItem(other, id)));
+}
+
+function transferEntryInitiators(es: EventSequenceAnalysis): string[] {
+  return entryInitiators(esTreeSource(es));
 }
 
 function functionKeyOf(event: FunctionalEvent, fallback: string): string {
@@ -260,10 +306,10 @@ function orderedFunctions(tree: EventTree): { key: string; id: string; event: Fu
   return out;
 }
 
-function treeRecords(es: EventSequenceAnalysis): EsqTreeRecord[] {
-  const trees = es.eventTrees ?? [];
+function treeRecords(source: EsqTreeSource): EsqTreeRecord[] {
+  const trees = source.trees;
   const targets = new Set(trees.flatMap((tree) => texts(Object.values(tree.transfers ?? {}).map((transfer) => transfer?.targetEventTreeId))));
-  const entries = transferEntryInitiators(es);
+  const entries = entryInitiators(source);
   return trees.map((tree) => {
     const initiatorId = textOf(tree.initiatingEventId) ?? "";
     const record: EsqTreeRecord = {
@@ -293,40 +339,40 @@ function translatedPath(states: Record<string, string | null> | null | undefined
   return path;
 }
 
-function sequenceRecords(es: EventSequenceAnalysis): EsqSequenceRecord[] {
-  const byId = new Map(es.eventSequences.map((sequence) => [sequence.uuid, sequence]));
+function sequenceRecords(source: EsqTreeSource): EsqSequenceRecord[] {
+  const byId = new Map(source.sequences.map((sequence) => [sequence.uuid, sequence]));
   const memberFamily = new Map<string, string>();
-  for (const family of es.eventSequenceFamilies) {
+  for (const family of source.families) {
     for (const id of texts(family.memberSequenceIds)) {
       if (!memberFamily.has(id)) memberFamily.set(id, family.uuid);
     }
   }
   const out: EsqSequenceRecord[] = [];
   const used = new Set<string>();
-  for (const tree of es.eventTrees ?? []) {
+  for (const tree of source.trees) {
     const keyOf = new Map(Object.entries(tree.functionalEvents).map(([id, event]) => [id, functionKeyOf(event, id)]));
     for (const [treeSequenceId, sequence] of Object.entries(tree.sequences)) {
       const linkedId = textOf(sequence.eventSequenceId);
       const id = linkedId !== undefined && !used.has(linkedId) ? linkedId : treeSequenceId;
-      const source = byId.get(linkedId ?? id) ?? byId.get(sequence.uuid);
-      if (source !== undefined) used.add(source.uuid);
+      const known = byId.get(linkedId ?? id) ?? byId.get(sequence.uuid);
+      if (known !== undefined) used.add(known.uuid);
       used.add(id);
       const transfer = tree.transfers?.[treeSequenceId] ?? tree.transfers?.[sequence.uuid] ?? undefined;
       const record: EsqSequenceRecord = {
         id,
         code: textOf(sequence.label) ?? textOf(sequence.name) ?? treeSequenceId,
         treeId: tree.uuid,
-        path: { ...translatedPath(source?.functionalEventStates, keyOf), ...translatedPath(sequence.functionalEventStates, keyOf) },
+        path: { ...translatedPath(known?.functionalEventStates, keyOf), ...translatedPath(sequence.functionalEventStates, keyOf) },
       };
-      const multiBranch = [...new Set([...multiBranchKeys(source?.functionalEventStates, keyOf), ...multiBranchKeys(sequence.functionalEventStates, keyOf)])];
+      const multiBranch = [...new Set([...multiBranchKeys(known?.functionalEventStates, keyOf), ...multiBranchKeys(sequence.functionalEventStates, keyOf)])];
       if (multiBranch.length > 0) record.multiBranchFunctions = multiBranch;
-      const endState = textOf(sequence.endState) ?? (transfer === undefined ? textOf(source?.endState) : undefined);
+      const endState = textOf(sequence.endState) ?? (transfer === undefined ? textOf(known?.endState) : undefined);
       if (endState !== undefined) record.endState = endState;
-      const familyId = textOf(source?.sequenceFamilyId) ?? memberFamily.get(id);
+      const familyId = textOf(known?.sequenceFamilyId) ?? memberFamily.get(id);
       if (familyId !== undefined) record.familyId = familyId;
-      const releaseCategoryId = textOf(source?.releaseCategoryId);
+      const releaseCategoryId = textOf(known?.releaseCategoryId);
       if (releaseCategoryId !== undefined) record.releaseCategoryId = releaseCategoryId;
-      const sources = texts(source?.affectedReactorSourceCombinations);
+      const sources = texts(known?.affectedReactorSourceCombinations);
       if (sources.length > 0) record.sourceIds = sources;
       const target = textOf(transfer?.targetEventTreeId);
       if (target !== undefined) {
@@ -336,7 +382,7 @@ function sequenceRecords(es: EventSequenceAnalysis): EsqSequenceRecord[] {
       out.push(record);
     }
   }
-  for (const sequence of es.eventSequences) {
+  for (const sequence of source.sequences) {
     if (used.has(sequence.uuid)) continue;
     const record: EsqSequenceRecord = {
       id: sequence.uuid,
@@ -355,8 +401,8 @@ function sequenceRecords(es: EventSequenceAnalysis): EsqSequenceRecord[] {
   return out;
 }
 
-function familyRecords(es: EventSequenceAnalysis, sequences: readonly EsqSequenceRecord[]): EsqFamilyRecord[] {
-  const records: EsqFamilyRecord[] = es.eventSequenceFamilies.map((family) => {
+function familyRecords(source: EsqTreeSource, sequences: readonly EsqSequenceRecord[]): EsqFamilyRecord[] {
+  const records: EsqFamilyRecord[] = source.families.map((family) => {
     const record: EsqFamilyRecord = { id: family.uuid, name: textOf(family.name) ?? "", releaseCategoryIds: texts(family.releaseCategoryIds) };
     const endState = textOf(family.endState);
     if (endState !== undefined) record.endState = endState;
@@ -369,9 +415,9 @@ function familyRecords(es: EventSequenceAnalysis, sequences: readonly EsqSequenc
   return records;
 }
 
-function functionRecords(es: EventSequenceAnalysis): EsqFunctionRecord[] {
+function functionRecords(source: EsqTreeSource): EsqFunctionRecord[] {
   const out = new Map<string, EsqFunctionRecord>();
-  for (const tree of es.eventTrees ?? []) {
+  for (const tree of source.trees) {
     for (const { key, event } of orderedFunctions(tree)) {
       const record = out.get(key) ?? { id: key, name: textOf(event.name) ?? key, treeIds: [], esLinks: [] };
       if (!record.treeIds.includes(tree.uuid)) record.treeIds.push(tree.uuid);
@@ -604,6 +650,23 @@ function impactRecords(ie: InitiatingEventsAnalysis): EsqImpactRecord[] {
   }));
 }
 
+function phenomenonRecords(es: EventSequenceAnalysis): EsqPhenomenonRecord[] {
+  return (es.dependencyModels?.phenomenologicalDependencies ?? []).map((condition) => {
+    const record: EsqPhenomenonRecord = {
+      id: condition.uuid,
+      name: textOf(condition.name) ?? condition.uuid,
+      phenomenon: textOf(condition.phenomenon) ?? "",
+      description: textOf(condition.description) ?? "",
+      affectedSystems: texts(condition.affectedSystems),
+      conditions: texts(condition.environmentalConditions),
+      references: texts(condition.deterministicAnalysisReferences),
+    };
+    const onset = textOf(condition.onsetTiming);
+    if (onset !== undefined) record.onset = onset;
+    return record;
+  });
+}
+
 function qualificationRecords(sy: SystemsAnalysis): EsqQualificationRecord[] {
   const environment = (sy.environmentalDesignBasisConsiderations ?? []).map((entry): EsqQualificationRecord => ({
     id: entry.uuid,
@@ -766,8 +829,40 @@ function modelLinked(esq: EventSequenceQuantification): EsqModelElement[] {
 }
 
 function modelImportReady(esq: EventSequenceQuantification, upstream: EsqUpstream): boolean {
-  const linked = modelLinked(esq);
-  return linked.includes("ES") && linked.every((element) => upstreamLoaded(upstream, element));
+  return modelLinked(esq).every((element) => upstreamLoaded(upstream, element));
+}
+
+function unitHours(unit: string | undefined): number {
+  const text = (unit ?? "").trim().toLowerCase();
+  if (text.startsWith("min")) return 1 / 60;
+  if (text === "s" || text.startsWith("sec")) return 1 / 3600;
+  if (text.startsWith("d")) return 24;
+  if (text.startsWith("w")) return 168;
+  if (text.startsWith("y")) return 8760;
+  return 1;
+}
+
+function esMissionHours(es: EventSequenceAnalysis, tree: EventTree): number | undefined {
+  const linked = new Set(texts(Object.values(tree.sequences).map((sequence) => sequence.eventSequenceId)));
+  const minutes = es.eventSequences
+    .filter((sequence) => textOf(sequence.eventTreeId) === tree.uuid || linked.has(sequence.uuid))
+    .flatMap((sequence) => (sequence.timing ?? []).flatMap((entry) => (entry.category === "MISSION_TIME" && Number.isFinite(entry.timeAfterInitiator) && entry.timeAfterInitiator > 0 ? [entry.timeAfterInitiator] : [])));
+  if (minutes.length > 0) return Math.max(...minutes) / 60;
+  const value = finite(tree.missionTime);
+  return value === undefined || !(value > 0) ? undefined : value * unitHours(tree.missionTimeUnits);
+}
+
+function esTreeRecords(es: EventSequenceAnalysis): EsqTreeRecord[] {
+  const byId = new Map((es.eventTrees ?? []).map((tree) => [tree.uuid, tree]));
+  return treeRecords(esTreeSource(es)).map((record) => {
+    const tree = byId.get(record.id);
+    const hours = tree === undefined ? undefined : esMissionHours(es, tree);
+    return hours === undefined ? record : { ...record, esMissionTime: legacyExpression("HOURS", hours) };
+  });
+}
+
+function effectiveMissionTime(tree: EsqTreeRecord): UncertainExpression | undefined {
+  return tree.missionTime ?? tree.esMissionTime;
 }
 
 function workbookNameOf(id: string, options: readonly Workbook[]): string {
@@ -798,14 +893,15 @@ function importModel(esq: EventSequenceQuantification, upstream: EsqUpstream, no
   const sc = linkOf(esq, "SC") === undefined ? undefined : upstream.sc;
   const parameterIds = new Set((da?.parameters ?? []).map((parameter) => parameter.uuid));
   const hfeIds = new Set((hr?.humanFailureEvents ?? []).map((event) => event.uuid));
-  const sequences = es === undefined ? [] : sequenceRecords(es);
+  const source = es === undefined ? undefined : esTreeSource(es);
+  const sequences = source === undefined ? [] : sequenceRecords(source);
   return {
     importedAt: now,
     sources: modelSources(esq, upstream),
-    trees: es === undefined ? [] : treeRecords(es),
+    trees: es === undefined ? [] : esTreeRecords(es),
     sequences,
-    families: es === undefined ? [] : familyRecords(es, sequences),
-    functions: es === undefined ? [] : functionRecords(es),
+    families: source === undefined ? [] : familyRecords(source, sequences),
+    functions: source === undefined ? [] : functionRecords(source),
     tops: sy === undefined ? [] : topRecords(sy),
     initiators: ie === undefined ? [] : initiatorRecords(ie),
     states: pos === undefined ? [] : stateRecords(pos),
@@ -816,6 +912,7 @@ function importModel(esq: EventSequenceQuantification, upstream: EsqUpstream, no
     barriers: pos === undefined ? [] : barrierRecords(pos),
     criteria: sc === undefined ? [] : criterionRecords(sc),
     impacts: ie === undefined ? [] : impactRecords(ie),
+    phenomena: es === undefined ? [] : phenomenonRecords(es),
     qualifications: sy === undefined ? [] : qualificationRecords(sy),
     actions: hr === undefined ? [] : actionRecords(hr),
     recoveries: hr === undefined ? [] : recoveryRecords(hr),
@@ -867,9 +964,56 @@ function withTreeMissionTime(esq: EventSequenceQuantification, treeId: string, m
   return { ...esq, model: { ...model, trees } };
 }
 
+function withTypedRecords(model: EsqModel, esq: EventSequenceQuantification, previous?: EsqModel): EsqModel {
+  const typedTrees = typedTreesOf(esq);
+  const stale = new Set([...model.trees, ...(previous?.trees ?? [])].filter((tree) => tree.typed === true).map((tree) => tree.id));
+  for (const tree of typedTrees) stale.add(tree.uuid);
+  const keptTrees = model.trees.filter((tree) => !stale.has(tree.id));
+  const keptSequences = model.sequences.filter((sequence) => !stale.has(sequence.treeId));
+  const functions = model.functions.flatMap((record): EsqFunctionRecord[] => {
+    const treeIds = record.treeIds.filter((id) => !stale.has(id));
+    return treeIds.length === 0 ? [] : [{ ...record, treeIds, esLinks: record.esLinks.filter((link) => !stale.has(link.treeId)) }];
+  });
+  const missionTimes = new Map([...(previous?.trees ?? []), ...model.trees].flatMap((tree) => (tree.typed === true && tree.missionTime !== undefined ? [[tree.id, tree.missionTime] as const] : [])));
+  const source = typedTreeSource(esq);
+  const trees = treeRecords(source).map((tree): EsqTreeRecord => {
+    const missionTime = missionTimes.get(tree.id);
+    return missionTime === undefined ? { ...tree, typed: true } : { ...tree, typed: true, missionTime };
+  });
+  for (const record of functionRecords(source)) {
+    const index = functions.findIndex((entry) => entry.id === record.id);
+    const known = functions[index];
+    if (known === undefined) functions.push(record);
+    else functions[index] = { ...known, treeIds: [...known.treeIds, ...record.treeIds], esLinks: [...known.esLinks, ...record.esLinks] };
+  }
+  return { ...model, trees: [...keptTrees, ...trees], sequences: [...keptSequences, ...sequenceRecords(source)], functions };
+}
+
+function withTypedTrees(esq: EventSequenceQuantification, trees: EventTree[], upstream: EsqUpstream, now: string): EventSequenceQuantification {
+  const next: EventSequenceQuantification = { ...esq, modelDecisions: { ...(esq.modelDecisions ?? {}), typedTrees: trees } };
+  const model = next.model;
+  if (model?.importedAt === undefined) return withModelImported(next, upstream, now);
+  return { ...next, model: withTypedRecords(model, next) };
+}
+
+function withTypedTreeRemoved(esq: EventSequenceQuantification, treeId: string, upstream: EsqUpstream, now: string): EventSequenceQuantification {
+  const sequenceIds = new Set((esq.model?.sequences ?? []).filter((sequence) => sequence.treeId === treeId).map((sequence) => sequence.id));
+  const decisions = esq.modelDecisions ?? {};
+  const functionLinks = (decisions.functionLinks ?? []).flatMap((link): EsqFunctionLink[] => {
+    const rules = (link.rules ?? []).filter((rule) => !(rule.treeIds ?? []).includes(treeId));
+    const next: EsqFunctionLink = { ...link, rules };
+    return next.target !== undefined || rules.length > 0 || !blank(next.reason) ? [next] : [];
+  });
+  const cleaned: EventSequenceQuantification = {
+    ...esq,
+    modelDecisions: { ...decisions, functionLinks, sequenceChoices: (decisions.sequenceChoices ?? []).filter((choice) => !sequenceIds.has(choice.sequenceId)) },
+  };
+  return withTypedTrees(cleaned, typedTreesOf(esq).filter((tree) => tree.uuid !== treeId), upstream, now);
+}
+
 function withModelImported(esq: EventSequenceQuantification, upstream: EsqUpstream, now: string): EventSequenceQuantification {
   const previous = esq.model;
-  const next = withTreeMissionTimes(previous, importModel(esq, upstream, now));
+  const next = withTypedRecords(withTreeMissionTimes(previous, importModel(esq, upstream, now)), esq, previous);
   if (previous?.importedAt === undefined) return { ...esq, model: next };
   const changes: EsqModelChange[] = [];
   tableChanges("TREE", previous.trees, next.trees, (row) => row.id, (row) => row.code, changes);
@@ -886,6 +1030,7 @@ function withModelImported(esq: EventSequenceQuantification, upstream: EsqUpstre
   tableChanges("BARRIER", previous.barriers ?? [], next.barriers ?? [], (row) => row.id, (row) => row.name, changes);
   tableChanges("CRITERION", previous.criteria ?? [], next.criteria ?? [], (row) => row.id, (row) => row.id, changes);
   tableChanges("IMPACT", previous.impacts ?? [], next.impacts ?? [], (row) => `${row.initiatorId}:${row.barrierRef}`, (row) => `${row.initiatorName} ${row.barrierRef}`, changes);
+  tableChanges("PHENOMENON", previous.phenomena ?? [], next.phenomena ?? [], (row) => row.id, (row) => row.name, changes);
   tableChanges("QUALIFICATION", previous.qualifications ?? [], next.qualifications ?? [], (row) => row.id, (row) => row.id, changes);
   tableChanges("ACTION", previous.actions ?? [], next.actions ?? [], (row) => row.id, (row) => row.name, changes);
   tableChanges("RECOVERY", previous.recoveries ?? [], next.recoveries ?? [], (row) => row.id, (row) => row.name, changes);
@@ -995,7 +1140,7 @@ function functionViews(esq: EventSequenceQuantification, model: EsqModel, trees:
       const target = entry.link.target;
       if (target !== undefined && !targets.some((seen) => targetKey(seen) === targetKey(target))) targets.push(target);
     }
-    const fromEs = record.esLinks.some((entry) => using.some((tree) => tree.id === entry.treeId));
+    const fromEs = record.esLinks.some((entry) => using.some((tree) => tree.id === entry.treeId && tree.typed !== true));
     const view: EsqFunctionView = {
       record,
       trees: using,
@@ -1159,13 +1304,15 @@ function valueViews(esq: EventSequenceQuantification, model: EsqModel, functions
     const functionIds = reached.get(event.id);
     if (functionIds === undefined) return [];
     const binding = valueBindingOf(esq, event.id);
+    const typedHere = binding?.heldBy === "TYPED";
     const heldBy = binding?.heldBy ?? event.heldBy;
-    const holderId = binding?.holderId ?? event.holderId;
+    const holderId = typedHere ? undefined : binding?.holderId ?? event.holderId;
     const component = carriesUncertainExpression(event.failureMode);
-    const view: EsqValueView = { kind: "EVENT", id: event.id, code: event.code, name: event.name, event, heldBy, component, functionIds };
+    const view: EsqValueView = { kind: "EVENT", id: event.id, code: event.code, name: event.name, event, heldBy, typedHere, component, functionIds };
     if (event.systemName !== undefined) view.systemName = event.systemName;
     if (binding !== undefined) view.binding = binding;
     if (holderId !== undefined) view.holderId = holderId;
+    if (typedHere && binding?.expression !== undefined) view.expression = binding.expression;
     const parameter = heldBy === "DA" ? model.parameters.find((candidate) => candidate.id === holderId) : undefined;
     const human = heldBy === "HRA" ? model.humanEvents.find((candidate) => candidate.id === holderId) : undefined;
     if (parameter !== undefined) {
@@ -1199,7 +1346,7 @@ function valueViews(esq: EventSequenceQuantification, model: EsqModel, functions
   const groups = model.ccfGroups.flatMap((group): EsqValueView[] => {
     const functionIds = unique(group.memberIds.flatMap((member) => reached.get(member) ?? []));
     if (functionIds.length === 0) return [];
-    const view: EsqValueView = { kind: "CCF", id: group.id, code: group.id, name: group.name, ccf: group, heldBy: group.estimateRef === undefined ? "TYPED" : "DA", component: false, functionIds };
+    const view: EsqValueView = { kind: "CCF", id: group.id, code: group.id, name: group.name, ccf: group, heldBy: group.estimateRef === undefined ? "TYPED" : "DA", typedHere: false, component: false, functionIds };
     if (group.estimateRef !== undefined) view.holderId = group.estimateRef;
     if (group.total !== undefined && (group.factors === undefined || ccfModelTakesTotal(group.factors))) view.expression = group.total;
     const systems = unique(group.systemIds);
@@ -1236,7 +1383,14 @@ function sourceFindings(esq: EventSequenceQuantification, model: EsqModel, optio
       findings.push({ severity: "warning", check: "Not imported", item: label, detail: `${label} is linked, but nothing was imported from it. Import again.` });
     }
   }
-  if (!model.sources.some((source) => source.element === "ES")) findings.push({ severity: "error", check: "No event trees", item: "ES", detail: "Link the ES workbook in Step 01 and import." });
+  if (model.trees.length === 0) findings.push({ severity: "error", check: "No event tree", item: "Trees", detail: "Link ES in Step 01 and import its event trees, or draw an event tree in the Trees tab." });
+  const changes = model.changes ?? [];
+  if (changes.length > 0) {
+    const added = changes.filter((change) => change.change === "ADDED").length;
+    const changed = changes.filter((change) => change.change === "CHANGED").length;
+    const removed = changes.filter((change) => change.change === "REMOVED").map((change) => change.label ?? change.id);
+    findings.push({ severity: "note", check: "Import changes", item: "Import", detail: `Since the previous import, ${added} added, ${changed} changed and ${removed.length} removed${removed.length === 0 ? "" : ` (${listText(removed, 5)})`}.` });
+  }
   return findings;
 }
 
@@ -1258,7 +1412,7 @@ function sequenceFindings(model: EsqModel, sequences: readonly EsqSequenceView[]
       if (record.familyId !== undefined && treeCode !== undefined) findings.push({ severity: "note", check: "Transfer in a family", item: record.code, detail: `ES puts ${record.code} in ${record.familyId}. ESQ counts it through the ${treeCode} sequences instead.` });
       continue;
     }
-    if (view.choice !== undefined && blank(view.choice.reason)) findings.push({ severity: "error", check: "Changed without a reason", item: record.code, detail: "The family differs from ES. Give the reason.", target });
+    if (view.choice !== undefined && view.tree?.typed !== true && blank(view.choice.reason)) findings.push({ severity: "error", check: "Changed without a reason", item: record.code, detail: "The family differs from ES. Give the reason.", target });
     if (view.familyId === undefined) findings.push({ severity: "error", check: "No family", item: record.code, detail: `${record.code} is in no family. Assign one.`, target });
     else if (!familyIds.has(view.familyId)) findings.push({ severity: "error", check: "Unknown family", item: record.code, detail: `${view.familyId} is not among the families.`, target });
   }
@@ -1301,8 +1455,8 @@ function splitFindings(esq: EventSequenceQuantification, model: EsqModel, target
   const findings: EsqModelFinding[] = [];
   if (target.cellId !== undefined) {
     const cell = cellOf(esq, target.cellId);
-    if (cell === undefined) findings.push({ severity: "error", check: "Step 04 cell missing", item, detail: `${where} takes cell ${target.cellId}, which Step 04 no longer has.`, target: findingTarget });
-    else if (cellExpressionOfRecord(cell) === undefined) findings.push({ severity: "error", check: "No Step 04 value", item, detail: `${where} takes cell ${cell.id}, which has no value of record yet. Run it or type a value in Step 04.`, target: findingTarget });
+    if (cell === undefined) findings.push({ severity: "error", check: "Step 03 cell missing", item, detail: `${where} takes cell ${target.cellId}, which Step 03 no longer has.`, target: findingTarget });
+    else if (cellExpressionOfRecord(cell) === undefined) findings.push({ severity: "error", check: "No Step 03 value", item, detail: `${where} takes cell ${cell.id}, which has no value of record yet. Run it or type a value in Step 03.`, target: findingTarget });
     return findings;
   }
   if (target.parameterId !== undefined) {
@@ -1340,16 +1494,17 @@ function missionFindings(model: EsqModel, functions: readonly EsqFunctionView[],
     }
   }
   const asked = new Set(functions.flatMap((view) => view.resolved.map(({ tree }) => tree.id)));
-  const untimed = model.trees.filter((tree) => asked.has(tree.id) && tree.missionTime === undefined).map((tree) => tree.code);
-  if (untimed.length > 0) findings.push({ severity: "note", check: "No tree mission time", item: listText(untimed), detail: `Give ${untimed.length === 1 ? "this tree" : "these trees"} a mission time in the Trees tab, typed or linked to SC. The mission time check skips ${untimed.length === 1 ? "it" : "them"}.` });
+  const untimed = model.trees.filter((tree) => asked.has(tree.id) && effectiveMissionTime(tree) === undefined).map((tree) => tree.code);
+  if (untimed.length > 0) findings.push({ severity: "note", check: "No tree mission time", item: listText(untimed), detail: `Import ${untimed.length === 1 ? "its" : "their"} mission time from ES or type it in the Initiators tab. The mission time check skips ${untimed.length === 1 ? "this tree" : "these trees"}.` });
   const unchecked = new Map<string, string>();
   for (const view of functions) {
     const id = view.record.id;
     const target = { kind: "esqFunction" as const, id };
     const shortTrees: { tree: string; events: string[]; hours: number; mission: number }[] = [];
     for (const { tree, link } of view.resolved) {
-      if (tree.missionTime === undefined || link.target?.kind !== "FAULT_TREE") continue;
-      const treePoint = missionPoint(tree.missionTime, table);
+      const treeMission = effectiveMissionTime(tree);
+      if (treeMission === undefined || link.target?.kind !== "FAULT_TREE") continue;
+      const treePoint = missionPoint(treeMission, table);
       if (treePoint.status === "failed") unchecked.set(tree.code, treePoint.error);
       if (treePoint.status !== "ready") continue;
       const running = reachedModels(model, link.target.top.modelId).flatMap((modelId) => runningByModel.get(modelId) ?? []);
@@ -1391,6 +1546,14 @@ function functionFindings(esq: EventSequenceQuantification, model: EsqModel, fun
     }
     if (view.edited && view.link?.target !== undefined && blank(view.link.reason)) findings.push({ severity: "error", check: "Changed without a reason", item: id, detail: "The link differs from ES. Give the reason.", target });
     (view.link?.rules ?? []).forEach((rule, index) => {
+      const ruleTrees = rule.treeIds ?? [];
+      if (ruleTrees.length > 0) {
+        const label = `${id} in ${listText(ruleTrees.map((treeId) => model.trees.find((tree) => tree.id === treeId)?.code ?? treeId))}`;
+        const overridesEs = view.trees.some((tree) => tree.typed !== true && ruleMatches(rule, tree) && view.record.esLinks.some((link) => link.treeId === tree.id));
+        if (overridesEs && blank(rule.reason)) findings.push({ severity: "error", check: "Changed without a reason", item: label, detail: "The link differs from ES. Give the reason.", target });
+        if (!view.trees.some((tree) => ruleMatches(rule, tree))) findings.push({ severity: "note", check: "Link not used", item: label, detail: "The tree of this link is out of scope or gone. The link is kept but not used.", target });
+        return;
+      }
       const label = `${id} rule ${index + 1}`;
       if (blank(rule.reason)) findings.push({ severity: "error", check: "Rule without a reason", item: label, detail: "Give the reason this rule applies.", target });
       if (rule.groupIds.length === 0 && rule.stateIds.length === 0) findings.push({ severity: "warning", check: "Rule matches every tree", item: label, detail: "Pick initiator groups or operating states, or set the default link instead.", target });
@@ -1508,7 +1671,8 @@ function valueFindings(esq: EventSequenceQuantification, model: EsqModel, values
   for (const value of values) {
     if (value.kind !== "EVENT") continue;
     const target = { kind: "esqValue" as const, id: value.id };
-    if (value.binding !== undefined && blank(value.binding.reason)) findings.push({ severity: "error", check: "Changed without a reason", item: value.code, detail: "The value source differs from SY. Give the reason.", target });
+    if (value.typedHere && blank(value.binding?.reason)) findings.push({ severity: "warning", check: "No basis", item: value.code, detail: "Give the basis of the typed value.", target });
+    else if (value.binding !== undefined && !value.typedHere && blank(value.binding.reason)) findings.push({ severity: "error", check: "Changed without a reason", item: value.code, detail: "The value source differs from SY. Give the reason.", target });
     if (value.heldBy === "DA" && daImported && value.parameter === undefined) findings.push({ severity: "error", check: "DA parameter missing", item: value.code, detail: `${value.code} takes its value from ${value.holderId ?? "DA"}, which the imported DA workbook does not hold.`, target });
     if (value.heldBy === "HRA" && hrImported && value.human === undefined) findings.push({ severity: "error", check: "HR event missing", item: value.code, detail: `${value.code} takes its value from ${value.holderId ?? "HR"}, which the imported HR workbook does not hold.`, target });
     if (value.problem !== undefined) {
@@ -1523,10 +1687,10 @@ function valueFindings(esq: EventSequenceQuantification, model: EsqModel, values
     if (value.expression !== undefined && !holderMissing) {
       for (const problem of referenceProblems(esq, model, value.expression, value.code, missionTimes)) findings.push({ severity: "error", check: problem.check, item: value.code, detail: problem.detail, target });
     }
-    if (value.heldBy === "TYPED") findings.push({ severity: "warning", check: "Not bound", item: value.code, detail: "SY types this value. Bind it to a DA parameter or an HR event.", target });
+    if (value.heldBy === "TYPED" && !value.typedHere) findings.push({ severity: "warning", check: "Not bound", item: value.code, detail: "SY types this value. Take it from DA or HR, or type it here so DA stores it.", target });
     if (cc !== "CC-II") continue;
     if (value.human?.assessmentType === "CONSERVATIVE_ESTIMATE" && value.human.riskSignificant) findings.push({ severity: "warning", check: "Screening value", item: value.code, detail: `${value.human.id} is risk-significant but keeps a conservative estimate. CC-II needs a detailed assessment (ESQ-A8).`, target });
-    if (value.expression !== undefined && !hasUncertainty(inlinedExpression(value.expression, table))) findings.push({ severity: "warning", check: "No distribution", item: value.code, detail: `${value.code} has no uncertainty to propagate at CC-II. Give it a law in ${value.heldBy === "DA" ? "DA" : value.heldBy === "HRA" ? "HR" : "SY"} (ESQ-A8).`, target });
+    if (value.expression !== undefined && !hasUncertainty(inlinedExpression(value.expression, table))) findings.push({ severity: "warning", check: "No distribution", item: value.code, detail: `${value.code} has no uncertainty to propagate at CC-II. ${value.typedHere ? "Give the typed value a law" : `Give it a law in ${value.heldBy === "DA" ? "DA" : value.heldBy === "HRA" ? "HR" : "SY"}`} (ESQ-A8).`, target });
   }
   return findings;
 }
@@ -1548,6 +1712,14 @@ function ccfFindings(model: EsqModel, values: readonly EsqValueView[]): EsqModel
   });
 }
 
+function typedTreeFindings(esq: EventSequenceQuantification, model: EsqModel): EsqModelFinding[] {
+  const typed = typedTreesOf(esq);
+  const all: (EventTree | string)[] = [...typed, ...model.trees.filter((tree) => tree.typed !== true).map((tree) => tree.id)];
+  return typed.flatMap((tree) => validateEventTree(tree, all)
+    .filter((finding) => !finding.code.startsWith("ET_FREQUENCY") && finding.code !== "ET_FT_LINK_REQUIRED")
+    .map((finding): EsqModelFinding => ({ severity: finding.severity === "ERROR" ? "error" : "warning", check: "Event tree", item: textOf(tree.label) ?? tree.name, detail: finding.message, target: { kind: "esqTree", id: tree.uuid } })));
+}
+
 function missionTimeTableOf(esq: EventSequenceQuantification, upstream: Pick<EsqUpstream, "sc" | "scReferenced">): Map<string, UncertainParameter> | undefined {
   return linkOf(esq, "SC") !== undefined && upstream.sc === undefined ? undefined : scTableOf(missionTimeSourcesOf(esq, upstream));
 }
@@ -1566,7 +1738,9 @@ function modelViewOf(esq: EventSequenceQuantification, options?: Record<EsqLinkC
   const outOfScope = model.sequences.filter((sequence) => treeIds.has(sequence.treeId)).length - sequences.length;
   const findings = [
     ...sourceFindings(esq, model, options),
-    ...(model.sources.some((source) => source.element === "ES") && sequences.length === 0 ? [{ severity: "error" as const, check: "No sequence in scope", item: "Sequences", detail: "Step 01 leaves every event tree out of scope." }] : []),
+    ...(model.trees.length > 0 && sequences.length === 0 ? [{ severity: "error" as const, check: "No sequence in scope", item: "Sequences", detail: "Step 01 leaves every event tree out of scope." }] : []),
+    ...(outOfScope > 0 ? [{ severity: "note" as const, check: "Out of scope", item: "Sequences", detail: `Step 01 leaves ${plural(outOfScope, "sequence")} out of scope.` }] : []),
+    ...typedTreeFindings(esq, model),
     ...sequenceFindings(model, sequences, families),
     ...familyFindings(families),
     ...functionFindings(esq, model, functions),
@@ -1593,6 +1767,107 @@ function withFunctionLink(esq: EventSequenceQuantification, functionId: string, 
     ...decisions,
     functionLinks: [...(decisions.functionLinks ?? []).filter((link) => link.functionId !== functionId), ...kept],
   }));
+}
+
+function treeRuleOf(link: EsqFunctionLink | undefined, treeId: string): EsqFunctionRule | undefined {
+  return (link?.rules ?? []).find((rule) => (rule.treeIds ?? []).length === 1 && rule.treeIds?.[0] === treeId);
+}
+
+function linkWith(link: EsqFunctionLink, target: EsqFunctionTarget | undefined, rules: EsqFunctionRule[]): EsqFunctionLink {
+  const next: EsqFunctionLink = { functionId: link.functionId, rules };
+  if (target !== undefined) next.target = target;
+  if (link.reason !== undefined) next.reason = link.reason;
+  return next;
+}
+
+function withDefaultLink(esq: EventSequenceQuantification, functionId: string, target: EsqFunctionTarget | undefined): EventSequenceQuantification {
+  const link = functionLinkOf(esq, functionId) ?? { functionId };
+  return withFunctionLink(esq, functionId, linkWith(link, target, link.rules ?? []));
+}
+
+function withDefaultLinkReason(esq: EventSequenceQuantification, functionId: string, reason: string): EventSequenceQuantification {
+  const link = functionLinkOf(esq, functionId) ?? { functionId };
+  return withFunctionLink(esq, functionId, { ...link, reason });
+}
+
+function withTreeLink(esq: EventSequenceQuantification, functionId: string, treeId: string, target: EsqFunctionTarget | undefined): EventSequenceQuantification {
+  const link = functionLinkOf(esq, functionId) ?? { functionId };
+  const known = treeRuleOf(link, treeId);
+  const others = (link.rules ?? []).filter((rule) => rule !== known);
+  const rules = target === undefined ? others : [{ id: known?.id ?? `tree:${treeId}`, treeIds: [treeId], groupIds: [], stateIds: [], target, reason: known?.reason ?? "" }, ...others];
+  return withFunctionLink(esq, functionId, linkWith(link, link.target, rules));
+}
+
+function withRuleChanged(esq: EventSequenceQuantification, functionId: string, ruleId: string, next: EsqFunctionRule | undefined): EventSequenceQuantification {
+  const link = functionLinkOf(esq, functionId);
+  if (link === undefined) return esq;
+  const rules = (link.rules ?? []).flatMap((rule) => (rule.id !== ruleId ? [rule] : next === undefined ? [] : [next]));
+  return withFunctionLink(esq, functionId, linkWith(link, link.target, rules));
+}
+
+function withSplitTarget(esq: EventSequenceQuantification, functionId: string, ruleId: string | undefined, target: EsqSplitFractionTarget): EventSequenceQuantification {
+  const link = functionLinkOf(esq, functionId);
+  if (link === undefined) return esq;
+  if (ruleId === undefined) return withFunctionLink(esq, functionId, linkWith(link, target, link.rules ?? []));
+  const rule = (link.rules ?? []).find((candidate) => candidate.id === ruleId);
+  return rule === undefined ? esq : withRuleChanged(esq, functionId, ruleId, { ...rule, target });
+}
+
+function ruleScopeText(model: EsqModel, rule: EsqFunctionRule): string {
+  const treeIds = rule.treeIds ?? [];
+  if (treeIds.length > 0) return listText(treeIds.map((treeId) => model.trees.find((tree) => tree.id === treeId)?.code ?? treeId));
+  const scope = [rule.groupIds.join(", "), rule.stateIds.join(", ")].filter((part) => part.length > 0).join(" in ");
+  return scope.length === 0 ? "Every tree" : scope;
+}
+
+function splitExpressionOf(esq: EventSequenceQuantification, target: EsqSplitFractionTarget): UncertainExpression | undefined {
+  if (target.cellId !== undefined) {
+    const cell = cellOf(esq, target.cellId);
+    return cell === undefined ? undefined : cellExpressionOfRecord(cell);
+  }
+  if (target.parameterId !== undefined) {
+    const reference = daReferenceOf(esq, target.parameterId);
+    return reference === undefined ? undefined : { node: "PARAMETER", reference };
+  }
+  return target.expression;
+}
+
+function splitViewsOf(esq: EventSequenceQuantification, view: EsqModelView): EsqSplitView[] {
+  return view.functions.flatMap((entry) => {
+    const id = entry.record.id;
+    const out: EsqSplitView[] = [];
+    const add = (key: string, scope: string, target: EsqSplitFractionTarget, trees: EsqTreeRecord[], ruleId?: string): void => {
+      const split: EsqSplitView = { key, functionId: id, functionName: entry.record.name, scope, target, trees };
+      const expression = splitExpressionOf(esq, target);
+      if (expression !== undefined) split.expression = expression;
+      if (ruleId !== undefined) split.ruleId = ruleId;
+      out.push(split);
+    };
+    const target = entry.link?.target;
+    if (target?.kind === "SPLIT_FRACTION") add(`${id}|`, "Every tree", target, entry.resolved.filter((resolved) => resolved.link.origin === "ESQ").map((resolved) => resolved.tree));
+    for (const rule of entry.link?.rules ?? []) {
+      if (rule.target.kind !== "SPLIT_FRACTION") continue;
+      add(`${id}|${rule.id}`, ruleScopeText(view.model, rule), rule.target, entry.resolved.filter((resolved) => resolved.link.ruleId === rule.id).map((resolved) => resolved.tree), rule.id);
+    }
+    return out;
+  });
+}
+
+function reachedTreesOf(model: EsqModel, trees: readonly EsqTreeRecord[]): EsqTreeRecord[] {
+  const ids: string[] = [];
+  for (const tree of trees) {
+    for (const id of transferTreeIds(model, tree.id)) {
+      if (!ids.includes(id)) ids.push(id);
+    }
+  }
+  return ids.flatMap((id) => model.trees.filter((tree) => tree.id === id));
+}
+
+function nextTypedTreeCode(esq: EventSequenceQuantification): string {
+  const taken = new Set([...(esq.model?.trees ?? []).map((tree) => tree.code.toLowerCase()), ...typedTreesOf(esq).map((tree) => (tree.label ?? "").toLowerCase())]);
+  let n = 1;
+  while (taken.has(`et-esq-${String(n).padStart(2, "0")}`)) n += 1;
+  return `ET-ESQ-${String(n).padStart(2, "0")}`;
 }
 
 function withInitiatorChoice(esq: EventSequenceQuantification, groupId: string, next: EsqInitiatorChoice | undefined): EventSequenceQuantification {
@@ -1699,6 +1974,21 @@ export {
   parameterTableOf,
   referenceProblems,
   withTreeMissionTime,
+  typedTreesOf,
+  withTypedTrees,
+  withTypedTreeRemoved,
+  effectiveMissionTime,
+  treeRuleOf,
+  withDefaultLink,
+  withDefaultLinkReason,
+  withTreeLink,
+  withRuleChanged,
+  withSplitTarget,
+  ruleScopeText,
+  splitViewsOf,
+  reachedTreesOf,
+  nextTypedTreeCode,
+  type EsqSplitView,
   type EsqModelWindowKind,
   type EsqReferenceProblem,
   type EsqFindingSeverity,

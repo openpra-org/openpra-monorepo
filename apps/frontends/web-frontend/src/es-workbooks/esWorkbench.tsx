@@ -10,7 +10,10 @@ import {
   type Stage,
 } from "./esViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, stepsFromMef, type CommentView } from "./esSelectors";
-import { SequencesScreen, TimingScreen, DraftScreen, PlaceholderScreen, type SequenceTab } from "./esScreens";
+import { SequencesScreen, DraftScreen, PlaceholderScreen, type SequenceTab } from "./esScreens";
+import { EsTimingScreen } from "./EsTiming";
+import { EsDynamicPraScreen } from "./EsDynamicPra";
+import { EsUncertaintyScreen } from "./EsUncertainty";
 import { DependenciesScreen } from "./EsDependencies";
 import { EsHandoffScreen } from "./EsHandoff";
 import { InternalReviewScreen, ReviewerCommentDock } from "./esReview";
@@ -35,11 +38,13 @@ function headersFor(stepId: string): StepHeader {
     case "scope": return { eyebrow: "Step 01 · ES-A", title: "Scope" };
     case "sequences": return { eyebrow: "Step 02 · ES-A", title: "Event Sequences" };
     case "deps": return { eyebrow: "Step 03 · ES-B", title: "Dependencies" };
-    case "timing": return { eyebrow: "Step 04", title: "Timing & phenomena", sub: "Order functional events, assign operator-action windows, and identify sequence-induced phenomenological conditions (ES-A6, B3)." };
-    case "handoff": return { eyebrow: "Step 05", title: "Technical Element Handoff" };
-    case "draft": return { eyebrow: "Step 06 · Draft", title: "Produce the draft", sub: "Build the ES report from everything you entered; sending it moves the workbook to internal technical review." };
-    case "review": return { eyebrow: "Step 07 · Review", title: "Internal technical review", sub: "Reviewers and the approver leave comments and the preparer replies, with the workbook moving to Approval once every comment is resolved." };
-    case "approval": return { eyebrow: "Step 08 · Approval", title: "Approval & sign-off", sub: "Everyone on the workbook signs, with the approver signing last and only after all comments are resolved." };
+    case "timing": return { eyebrow: "Step 04", title: "Timing, phenomena & repair", sub: "Sequence timelines, operator windows, phenomena and repair credit (ES-A6, A10, A11, B3, C9)." };
+    case "dynamic": return { eyebrow: "Step 05", title: "Dynamic PRA", sub: "Dynamic event trees and the timing they give each sequence (ES-A5, A6, A10, B8)." };
+    case "uncertainty": return { eyebrow: "Step 06", title: "Uncertainty", sub: "Model uncertainties, the sensitivity cases they call for, and pre-operational assumptions (ES-A14, A15, B9, B10, C10, C11)." };
+    case "handoff": return { eyebrow: "Step 07", title: "Technical Element Handoff" };
+    case "draft": return { eyebrow: "Step 08 · Draft", title: "Produce the draft", sub: "Build the ES report from everything you entered; sending it moves the workbook to internal technical review." };
+    case "review": return { eyebrow: "Step 09 · Review", title: "Internal technical review", sub: "Reviewers and the approver leave comments and the preparer replies, with the workbook moving to Approval once every comment is resolved." };
+    case "approval": return { eyebrow: "Step 10 · Approval", title: "Approval & sign-off", sub: "Everyone on the workbook signs, with the approver signing last and only after all comments are resolved." };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -385,7 +390,9 @@ function EsWorkbench({
         );
       case "sequences": return <SequencesScreen treeId={treeId} setTreeId={setTreeId} tab={sequenceTab} setTab={setSequenceTab} />;
       case "deps": return <DependenciesScreen />;
-      case "timing": return <TimingScreen treeId={treeId} setTreeId={setTreeId} />;
+      case "timing": return <EsTimingScreen treeId={treeId} setTreeId={setTreeId} />;
+      case "dynamic": return <EsDynamicPraScreen treeId={treeId} />;
+      case "uncertainty": return <EsUncertaintyScreen />;
       case "handoff": return <EsHandoffScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":

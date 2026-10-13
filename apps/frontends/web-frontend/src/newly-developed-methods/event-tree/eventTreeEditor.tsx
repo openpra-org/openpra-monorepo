@@ -18,7 +18,6 @@ import {
 import { ExpressionEditor, type ParameterOption } from "../shared/uncertainEditor";
 import {
   ClassicEventTreeDiagram,
-  DynamicEventSequenceDiagram,
   EventSequenceDiagram,
   EventTreeIcon,
   formatExponential,
@@ -32,7 +31,6 @@ import "./css/eventTree.css";
 const REPRESENTATIONS: Array<{ id: EventTreeRepresentation; label: string }> = [
   { id: "event-tree", label: "Event tree" },
   { id: "event-sequence-diagram", label: "ESD" },
-  { id: "dynamic", label: "Dynamic" },
   { id: "table", label: "Sequence table" },
 ];
 
@@ -81,7 +79,6 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
     frequencyParameters = NO_FREQUENCY_PARAMETERS,
     sequenceFamilyOptions = [],
     releaseCategoryOptions = [],
-    dynamicRun,
     representation,
     capabilities,
     selection,
@@ -551,7 +548,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
                   </details>
                 </div>
                 <div className="estree__selector">
-                  {REPRESENTATIONS.map((item) => <button key={item.id} type="button" className={`estree__selector-opt${item.id === representation ? " estree__selector-opt--active" : ""}`} disabled={item.id === "dynamic" && dynamicRun === undefined} onClick={() => onRepresentationChange(item.id)}>{item.label}</button>)}
+                  {REPRESENTATIONS.map((item) => <button key={item.id} type="button" className={`estree__selector-opt${item.id === representation ? " estree__selector-opt--active" : ""}`} onClick={() => onRepresentationChange(item.id)}>{item.label}</button>)}
                 </div>
                 {breadcrumb !== undefined && (
                   <nav className="et-editor__breadcrumb" aria-label="Transfer path">
@@ -574,7 +571,6 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
                 <div className="estree__view">
                   {representation === "event-tree" && <ClassicEventTreeDiagram view={presentation} activeSequenceId={activeSequenceId} selectedEntityId={selection} showFrequency={showFrequency} frequencyParameters={frequencyParameters} canEdit={capabilities.author} onHover={setHoveredSequenceId} onSelect={selectSequence} onSelectFunctionalEvent={selectFunctionalEvent} onFunctionalEventContext={openFunctionalEventContext} onSequenceContext={openSequenceContext} onReorderFunctionalEvent={(functionalEventId, targetIndex) => commit({ kind: "REORDER_FUNCTIONAL_EVENT", functionalEventId, targetIndex })} selectedBranchKey={selectedBranch?.key ?? null} onSelectBranch={(branch) => { setContextMenu(null); onSelectionChange(null); setSelectedBranch(branch); }} onBranchContext={(branch, x, y) => { onSelectionChange(null); setSelectedBranch(branch); setContextMenu({ kind: "branch", branch, x: Math.max(8, Math.min(x, window.innerWidth - 250)), y: Math.max(8, Math.min(y, window.innerHeight - 200)) }); }} />}
                   {representation === "event-sequence-diagram" && <EventSequenceDiagram view={presentation} activeSequenceId={activeSequenceId} selectedEntityId={selection} onHover={setHoveredSequenceId} onSelectSequence={selectSequence} onSelectFunctionalEvent={selectFunctionalEvent} onFunctionalEventContext={openFunctionalEventContext} onSequenceContext={openSequenceContext} />}
-                  {representation === "dynamic" && dynamicRun !== undefined && <DynamicEventSequenceDiagram run={dynamicRun} sequences={new Map(presentation.sequences.map((sequence) => [sequence.id, sequence]))} activeSequenceId={activeSequenceId} onHover={setHoveredSequenceId} onSelect={selectSequence} />}
                   {representation === "table" && (
                     <PagedResults items={presentation.sequences} label="Event-tree sequences" resetKey={`${model.uuid}:${analysisResult?.runId ?? "unquantified"}`} >{(page) => <div className="et-editor__table-wrap"><table className="postable et-editor__table"><thead><tr><th>Sequence</th><th>Path</th><th>Result</th><th>Probability</th><th>Frequency</th></tr></thead><tbody>{page.map((sequence) => <tr key={sequence.id} className={selection === sequence.id ? "et-editor__table-row--selected" : ""} onMouseEnter={() => setHoveredSequenceId(sequence.id)} onMouseLeave={() => setHoveredSequenceId(null)} onClick={() => selectSequence(sequence.id)} onContextMenu={(contextEvent) => { contextEvent.preventDefault(); contextEvent.stopPropagation(); openSequenceContext(sequence.id, contextEvent.clientX, contextEvent.clientY); }}><td className="posmono">{sequence.name}</td><td><div className="et-editor__path">{events.map((event) => { const state = pathState(sequence.path[event.uuid]); return <span key={event.uuid} className={`et-editor__path-step et-editor__path-step--${state.className}`}>{event.label ?? event.name} {state.short}</span>; })}</div></td><td>{sequence.transferTargetId === undefined ? (sequence.endState === "SUCCESSFUL_MITIGATION" ? "Safe state" : "Release") : `Transfer to ${sequence.transferTargetId}`}</td><td className="posmono">{formatExponential(sequence.conditionalProbability)}</td><td className="posmono">{formatExponential(sequence.annualFrequency)}</td></tr>)}</tbody></table></div>}</PagedResults>
                   )}

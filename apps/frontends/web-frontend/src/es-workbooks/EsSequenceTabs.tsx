@@ -439,12 +439,12 @@ function TransfersTable({ onEdit }: { onEdit: (treeId: string, sequenceId: strin
 function ChecksTable({ findings, onOpen }: { findings: readonly EsSequenceFinding[]; onOpen: (target: EsCheckTarget) => void }): JSX.Element {
   const [page, setPage] = useState(0);
   const { current, shown } = pageOf(findings, page, SEQUENCE_PAGE);
-  if (findings.length === 0) return <p className="posmuted es-records__empty">Every check passes.</p>;
   return (
     <>
       <div className="es-records__bar">
         <Pager current={current} size={SEQUENCE_PAGE} total={findings.length} one="finding" many="findings" onPage={setPage} />
       </div>
+      {findings.length > 0 && (
       <table className="postable postable--mid es-records" aria-label="Checks">
         <thead><tr><th scope="col">Severity</th><th scope="col">Check</th><th scope="col">Item</th><th scope="col">Detail</th></tr></thead>
         <tbody>
@@ -461,6 +461,7 @@ function ChecksTable({ findings, onOpen }: { findings: readonly EsSequenceFindin
           })}
         </tbody>
       </table>
+      )}
     </>
   );
 }

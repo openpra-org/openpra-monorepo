@@ -169,7 +169,9 @@ function stepsFromMef(es: EventSequenceAnalysis, persona: EsPersona): EsStep[] {
   const scopeComplete = es.scopeDefinition.initiatingEventIds.length > 0 || es.scopeDefinition.plantOperatingStateIds.length > 0 || es.keySafetyFunctions.length > 0;
   const sequencesComplete = es.eventSequences.length > 0;
   const depsComplete = hasDependencyModels(es);
-  const timingComplete = es.eventSequences.some((s) => (s.timing?.length ?? 0) > 0);
+  const timingComplete = es.eventSequences.some((sequence) => (sequence.timing ?? []).length > 0) || (es.operatorActionWindows ?? []).length > 0 || (es.dependencyModels?.phenomenologicalDependencies ?? []).length > 0 || (es.repairCreditRecords ?? []).length > 0;
+  const dynamicComplete = (es.dynamicRuns ?? []).length > 0;
+  const uncertaintyComplete = es.modelUncertainty.uncertaintySources.length > 0 || (es.preOperationalAssumptions ?? []).length > 0 || (es.sensitivityStudies ?? []).length > 0;
   const handoffComplete = (es.eventTrees ?? []).length > 0 && es.eventSequenceFamilies.length > 0;
   const draftComplete = es.workflowState !== "DRAFT" && es.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = es.workflowState === "FINAL";
@@ -184,6 +186,8 @@ function stepsFromMef(es: EventSequenceAnalysis, persona: EsPersona): EsStep[] {
       case "sequences": return { ...s, status: status(sequencesComplete) };
       case "deps": return { ...s, status: status(depsComplete) };
       case "timing": return { ...s, status: status(timingComplete) };
+      case "dynamic": return { ...s, status: status(dynamicComplete) };
+      case "uncertainty": return { ...s, status: status(uncertaintyComplete) };
       case "handoff": return { ...s, status: status(handoffComplete) };
       case "draft": return { ...s, status: status(draftComplete) };
       case "review": return { ...s, status: status(reviewComplete) };
@@ -739,56 +743,6 @@ function dependenciesView(es: EventSequenceAnalysis): DependencyView[] {
 }
 
 export { dependenciesView, type DependencyView };
-
-type TimelineKind = "init" | "auto" | "cue" | "op" | "limit";
-
-interface TimelineMilestoneView {
-  t: number;
-  label: string;
-  kind: TimelineKind;
-  basis?: string;
-}
-
-interface TimelineView {
-  milestones: TimelineMilestoneView[];
-  damageFrom: number | null;
-  tMax: number;
-}
-
-const TIMING_KIND: Record<string, TimelineKind> = {
-  INITIATOR: "init",
-  AUTOMATIC: "auto",
-  OPERATOR_CUE: "cue",
-  OPERATOR_ACTION: "op",
-  DAMAGE_LIMIT: "limit",
-};
-
-function timelineView(es: EventSequenceAnalysis, treeId: string): TimelineView {
-  const seqs = es.eventSequences.filter((s) => s.eventTreeId === treeId);
-  const byKey = new Map<string, TimelineMilestoneView>();
-  for (const s of seqs) {
-    for (const entry of s.timing ?? []) {
-      const kind = TIMING_KIND[String(entry.category ?? "AUTOMATIC")] ?? "auto";
-      const key = `${entry.event}|${entry.timeAfterInitiator}`;
-      if (!byKey.has(key)) byKey.set(key, { t: entry.timeAfterInitiator, label: entry.event, kind, basis: entry.basis });
-    }
-  }
-  const ie = seqs[0]?.initiatingEventId;
-  for (const w of es.operatorActionWindows ?? []) {
-    if (ie === undefined || !(w.applicableInitiatingEvents ?? []).includes(ie)) continue;
-    if (w.cueMinutes !== undefined && w.cue !== undefined && w.cue.length > 0) {
-      byKey.set(`cue|${w.uuid}`, { t: w.cueMinutes, label: w.cue, kind: "cue", basis: w.humanActionId });
-    }
-    byKey.set(`op|${w.uuid}`, { t: w.windowStartMinutes, label: `${w.action} window opens`, kind: "op", basis: w.humanActionId });
-  }
-  const milestones = Array.from(byKey.values()).sort((a, b) => a.t - b.t);
-  const limits = milestones.filter((m) => m.kind === "limit").map((m) => m.t);
-  const damageFrom = limits.length > 0 ? Math.min(...limits) : null;
-  const tMax = milestones.reduce((mx, m) => Math.max(mx, m.t), 60) * 1.25;
-  return { milestones, damageFrom, tMax };
-}
-
-export { timelineView, type TimelineView, type TimelineMilestoneView };
 
 interface TreeSequenceRow {
   treeId: string;

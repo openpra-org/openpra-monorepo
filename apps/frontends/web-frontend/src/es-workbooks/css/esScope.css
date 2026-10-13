@@ -22,6 +22,7 @@ label.es-scope-choice .es-scope-choice__head { justify-content: flex-start; }
 .es-scope-choice__desc { font-size: 12.5px; line-height: 1.5; color: var(--color-text-muted); }
 
 .es-details-modal { max-width: 680px; font: 13px/1.45 var(--font-ui), sans-serif; overflow-wrap: anywhere; }
+.es-details-modal.es-details-modal--fit { width: max-content; max-width: calc(100vw - 48px); }
 .es-details-modal .modal__head .posdrawer__cap { font-family: var(--font-ui), sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--color-primary); }
 .es-details-modal .modal__title { font-size: 20px; }
 .es-details-modal .modal__head { align-items: center; padding-bottom: 0; }

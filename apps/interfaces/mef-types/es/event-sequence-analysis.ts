@@ -85,7 +85,7 @@ export interface TimeWindow {
   deterministicAnalysisReferences?: string[];
 }
 
-export type SequenceTimingCategory = "INITIATOR" | "AUTOMATIC" | "OPERATOR_CUE" | "OPERATOR_ACTION" | "DAMAGE_LIMIT";
+export type SequenceTimingCategory = "INITIATOR" | "AUTOMATIC" | "OPERATOR_CUE" | "OPERATOR_ACTION" | "DAMAGE_LIMIT" | "MISSION_TIME";
 
 export interface SequenceTiming extends Unique {
   event: string;
@@ -96,9 +96,30 @@ export interface SequenceTiming extends Unique {
   basis?: string;
   deterministicAnalysisReferences?: string[];
   uncertaintyRange?: [number, number];
+  importedFrom?: EsTimingSource[];
 }
 
 export type FeasibilityState = "OK" | "MARGINAL" | "NOT_MET";
+
+export type EsTimingSource = "HRA" | "SC";
+
+export type EsUncertaintyArea = "PLANT_RESPONSE" | "DEPENDENCIES" | "END_STATES";
+
+export interface EsUncertaintySource {
+  source: string;
+  impact: string;
+  applicableElements?: string[];
+  id?: string;
+  area?: EsUncertaintyArea;
+  sequenceIds?: EventSequenceReference[];
+  familyIds?: string[];
+  key?: boolean;
+  noCaseReason?: string;
+}
+
+export interface EsModelUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
+  uncertaintySources: EsUncertaintySource[];
+}
 
 export interface OperatorActionWindow extends Unique {
   humanActionId: HumanActionReference;
@@ -113,6 +134,7 @@ export interface OperatorActionWindow extends Unique {
   applicableInitiatingEvents?: InitiatingEventReference[];
   applicablePlantOperatingStates?: PlantOperatingStateReference[];
   note?: string;
+  importedFrom?: EsTimingSource[];
   implementsSrs: SRReference[];
 }
 
@@ -297,6 +319,7 @@ export interface PhenomenologicalDependencyModel extends Unique, Named {
   environmentalConditions?: string[];
   systemSpecificImpacts?: Record<SystemReference, string>;
   deterministicAnalysisReferences?: string[];
+  importedFrom?: EsTimingSource[];
   implementsSrs: SRReference[];
 }
 
@@ -428,6 +451,9 @@ export interface DynamicRun extends Unique {
 export interface RepairCreditRecord extends Unique {
   eventSequenceId: EventSequenceReference;
   repairCredited: boolean;
+  equipment?: string;
+  timeMinutes?: number;
+  access?: string;
   conservativeRepairBasis?: string;
   riskSignificantReviewPerformed?: boolean;
   justification: string;
@@ -525,7 +551,7 @@ export interface EventSequenceAnalysis
   plantDamageStatesUsed?: boolean;
   plantDamageStateDefinitions?: string[];
 
-  modelUncertainty: BaseModelUncertaintyDocumentation;
+  modelUncertainty: EsModelUncertaintyDocumentation;
   preOperationalAssumptions?: PreOperationalAssumption[];
   sensitivityStudies?: SensitivityStudy[];
   plantResponseAnalysisReferences?: string[];

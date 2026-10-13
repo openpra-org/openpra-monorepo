@@ -16,11 +16,13 @@ const ES_STEPS: EsStep[] = [
   { id: "scope", num: "01", label: "Scope", sub: "IEs · POS · barriers · key safety functions", status: "idle" },
   { id: "sequences", num: "02", label: "Event Sequences", sub: "Lay out sequences per IE", status: "idle" },
   { id: "deps", num: "03", label: "Dependencies", sub: "Functional · human · phenomena", status: "idle" },
-  { id: "timing", num: "04", label: "Timing & Phenomena", sub: "Mission times · time windows", status: "idle" },
-  { id: "handoff", num: "05", label: "Technical Element Handoff", sub: "Exported sections", status: "idle" },
-  { id: "draft", num: "06", label: "Draft", sub: "Produce ES report", status: "idle", terminal: true },
-  { id: "review", num: "07", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
-  { id: "approval", num: "08", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
+  { id: "timing", num: "04", label: "Timing, Phenomena & Repair", sub: "Timelines · windows · phenomena · repair", status: "idle" },
+  { id: "dynamic", num: "05", label: "Dynamic PRA", sub: "Dynamic event trees · milestones", status: "idle" },
+  { id: "uncertainty", num: "06", label: "Uncertainty", sub: "Register · cases · pre-operational", status: "idle" },
+  { id: "handoff", num: "07", label: "Technical Element Handoff", sub: "Exported sections", status: "idle" },
+  { id: "draft", num: "08", label: "Draft", sub: "Produce ES report", status: "idle", terminal: true },
+  { id: "review", num: "09", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
+  { id: "approval", num: "10", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
 ];
 
 type EsPersona = "preparer" | "reviewer" | "approver";

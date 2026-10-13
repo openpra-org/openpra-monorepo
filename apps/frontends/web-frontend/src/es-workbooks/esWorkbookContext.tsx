@@ -2,6 +2,7 @@ import React, { createContext, useContext, useMemo } from "react";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import { type EsPosLinkStatus, type EsIeLinkStatus } from "./esWorkbookApi";
 
 interface EsFaultTreeSource {
@@ -13,6 +14,7 @@ interface EsFaultTreeSource {
 interface EsUpstream {
   sc?: SuccessCriteriaDevelopment;
   sy?: SystemsAnalysis;
+  hr?: HumanReliabilityAnalysis;
 }
 
 interface EsWorkbookData {

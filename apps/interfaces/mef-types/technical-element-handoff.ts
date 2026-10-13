@@ -56,8 +56,8 @@ const HANDOFF_SECTIONS = [
   { element: "SC", key: "system-criteria", name: "System criteria", contents: "System success criteria with required capacities and system dependencies.", readers: ["SY"] },
   { element: "SC", key: "end-states", name: "End states", contents: "End state definitions with their release category references.", readers: ["ES"] },
   { element: "SC", key: "mission-times", name: "Mission times", contents: "Mission times and component mission times.", readers: ["SY", "DA", "ESQ"] },
-  { element: "SC", key: "barrier-criteria", name: "Barrier criteria", contents: "Radionuclide barrier criteria.", readers: ["ESQ"] },
-  { element: "SC", key: "operator-criteria", name: "Operator criteria", contents: "Human action success criteria with time available.", readers: ["HRA"] },
+  { element: "SC", key: "barrier-criteria", name: "Barrier criteria", contents: "Radionuclide barrier criteria.", readers: ["ESQ", "ES"] },
+  { element: "SC", key: "operator-criteria", name: "Operator criteria", contents: "Human action success criteria with time available.", readers: ["HRA", "ES"] },
   { element: "SC", key: "assumptions", name: "Assumptions", contents: "Model uncertainty and pre-operational assumptions.", readers: ["ESQ"] },
 
   { element: "SY", key: "systems", name: "Systems", contents: "System definitions with name, abbreviation and mission time.", readers: ["HRA", "ES", "ESQ"] },
@@ -69,7 +69,7 @@ const HANDOFF_SECTIONS = [
   { element: "SY", key: "assumptions", name: "Assumptions", contents: "Model uncertainty, uncertainty analyses and pre-operational assumptions.", readers: ["ESQ"] },
 
   { element: "HRA", key: "human-failure-events", name: "Human failure events", contents: "Human failure events with their HEP quantifications.", readers: ["SY", "DA", "ESQ"] },
-  { element: "HRA", key: "operator-actions", name: "Operator actions", contents: "Post-initiator actions with cue, time available and time required.", readers: ["ESQ"] },
+  { element: "HRA", key: "operator-actions", name: "Operator actions", contents: "Post-initiator actions with cue, time available and time required.", readers: ["ESQ", "ES"] },
   { element: "HRA", key: "recovery-actions", name: "Recovery actions", contents: "Recovery actions and their HEPs.", readers: ["DA", "ESQ"] },
   { element: "HRA", key: "dependence", name: "Dependence", contents: "Dependence assessments and the joint HEP floor.", readers: ["ESQ"] },
   { element: "HRA", key: "assumptions", name: "Assumptions", contents: "Model uncertainty and pre-operational assumptions.", readers: ["ESQ"] },
@@ -87,9 +87,11 @@ const HANDOFF_SECTIONS = [
   { element: "ES", key: "sequences", name: "Sequences", contents: "Sequence records with path, end state, family and release category.", readers: ["SC", "ESQ", "RI"] },
   { element: "ES", key: "families", name: "Families", contents: "Families with members, release categories and representative initiator and state.", readers: ["ESQ", "MS", "RC", "RI"] },
   { element: "ES", key: "release-categories", name: "Release categories", contents: "Release categories with their sequences.", readers: ["MS", "RC"] },
-  { element: "ES", key: "dependency-networks", name: "Dependency networks", contents: "Bayesian networks and their HCL configurations.", readers: ["ESQ"] },
   { element: "ES", key: "screening", name: "Screening", contents: "Screening records.", readers: ["RI"] },
-  { element: "ES", key: "assumptions", name: "Assumptions", contents: "Model uncertainty, pre-operational assumptions, sequence and family assumptions and sensitivity studies.", readers: ["ESQ", "RI"] },
+  { element: "ES", key: "dependency-networks", name: "Dependency networks", contents: "Bayesian networks and their HCL configurations.", readers: ["ESQ"] },
+  { element: "ES", key: "timing", name: "Timing and phenomena", contents: "Sequence timelines, operator-action windows, phenomenological conditions and repair credit.", readers: ["HRA", "ESQ"] },
+  { element: "ES", key: "dynamic-runs", name: "Dynamic runs", contents: "Dynamic PRA runs and their branches.", readers: ["ESQ"] },
+  { element: "ES", key: "uncertainty", name: "Uncertainty", contents: "Model uncertainty register, sensitivity proposals, pre-operational assumptions and sequence and family assumptions.", readers: ["ESQ", "RI"] },
 
   { element: "ESQ", key: "frequencies", name: "Frequencies", contents: "Family and sequence frequencies with uncertainty and contributors.", readers: ["RI"] },
   { element: "ESQ", key: "importance", name: "Importance", contents: "Importance analyses.", readers: ["DA", "RI"] },

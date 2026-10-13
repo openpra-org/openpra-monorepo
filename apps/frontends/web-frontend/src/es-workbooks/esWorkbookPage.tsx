@@ -5,6 +5,7 @@ import { type EsLinkedWorkbooks } from "interfaces-mef-types/es/event-sequence-a
 import { listWorkbooks } from "../workbooks/workbookApi";
 import { getScWorkbook } from "../sc-workbooks/scWorkbookApi";
 import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
+import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
 import { getProject } from "../projects/projectApi";
 import { WorkbookRolesModal } from "../workbooks/workbookRolesModal";
 import { WorkbookApprovalTable } from "../workbooks/workbookApprovalTable";
@@ -44,6 +45,8 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   sequences: "ES-A1",
   deps: "ES-B1",
   timing: "ES-A6",
+  dynamic: "ES-A5",
+  uncertainty: "ES-A14",
   handoff: "ES-C8",
 };
 
@@ -233,18 +236,20 @@ function EsWorkbookPage(): JSX.Element {
 
   const linkedSc = data?.es.linkedWorkbooks?.SC;
   const linkedSy = data?.es.linkedWorkbooks?.SY;
+  const linkedHr = data?.es.linkedWorkbooks?.HRA;
   useEffect(() => {
     let cancelled = false;
     Promise.all([
       linkedSc === undefined ? Promise.resolve(undefined) : getScWorkbook(linkedSc).then((workbook) => workbook.mef),
       linkedSy === undefined ? Promise.resolve(undefined) : getSyWorkbook(linkedSy).then((workbook) => workbook.mef),
+      linkedHr === undefined ? Promise.resolve(undefined) : getHrWorkbook(linkedHr).then((workbook) => workbook.mef),
     ])
-      .then(([sc, sy]) => {
-        if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, upstream: { ...(sc === undefined ? {} : { sc }), ...(sy === undefined ? {} : { sy }) } }));
+      .then(([sc, sy, hr]) => {
+        if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, upstream: { ...(sc === undefined ? {} : { sc }), ...(sy === undefined ? {} : { sy }), ...(hr === undefined ? {} : { hr }) } }));
       })
       .catch((failure: Error) => { if (!cancelled) setUpstreamError(`Could not load a linked workbook: ${failure.message}`); });
     return () => { cancelled = true; };
-  }, [linkedSc, linkedSy]);
+  }, [linkedSc, linkedSy, linkedHr]);
 
   const [persona, setPersona] = useState<EsPersona>("preparer");
   useEffect(() => {

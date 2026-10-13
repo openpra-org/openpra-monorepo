@@ -1,5 +1,4 @@
 import type {
-  DynamicRun,
   EventSequence,
   EventTree,
   EventTreeOutcome,
@@ -11,7 +10,7 @@ import type { UncertainParameter } from "interfaces-mef-types/core/uncertainty";
 import type { ParameterOption } from "../shared/uncertainEditor";
 import type { TransferBreadcrumb } from "../shared/transferTrail";
 
-type EventTreeRepresentation = "event-sequence-diagram" | "event-tree" | "table" | "dynamic";
+type EventTreeRepresentation = "event-sequence-diagram" | "event-tree" | "table";
 
 interface EventTreeValidationFinding {
   code: string;
@@ -78,7 +77,6 @@ interface EventTreeEditorProps {
   frequencyParameters?: ReadonlyMap<string, UncertainParameter>;
   sequenceFamilyOptions?: EventTreeClassificationOption[];
   releaseCategoryOptions?: EventTreeClassificationOption[];
-  dynamicRun?: DynamicRun;
   representation: EventTreeRepresentation;
   capabilities: EventTreeCapabilities;
   selection: string | null;

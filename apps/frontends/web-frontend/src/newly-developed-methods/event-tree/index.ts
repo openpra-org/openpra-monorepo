@@ -1,4 +1,5 @@
 export { EventTreeEditor } from "./eventTreeEditor";
+export { DynamicEventSequenceDiagram } from "./eventTreePresentation";
 export {
   applyEventTreeOperation,
   createEmptyEventTree,

@@ -41,7 +41,23 @@ export const TimeWindowSchema = z.object({
   deterministicAnalysisReferences: z.array(z.string()).optional(),
 });
 
-export const SequenceTimingCategorySchema = z.enum(["INITIATOR", "AUTOMATIC", "OPERATOR_CUE", "OPERATOR_ACTION", "DAMAGE_LIMIT"]);
+export const SequenceTimingCategorySchema = z.enum(["INITIATOR", "AUTOMATIC", "OPERATOR_CUE", "OPERATOR_ACTION", "DAMAGE_LIMIT", "MISSION_TIME"]);
+
+export const EsTimingSourceSchema = z.enum(["HRA", "SC"]);
+
+export const EsUncertaintyAreaSchema = z.enum(["PLANT_RESPONSE", "DEPENDENCIES", "END_STATES"]);
+
+export const EsUncertaintySourceSchema = z.object({
+  source: z.string(),
+  impact: z.string(),
+  applicableElements: z.array(z.string()).optional(),
+  id: z.string().optional(),
+  area: EsUncertaintyAreaSchema.optional(),
+  sequenceIds: z.array(z.string()).optional(),
+  familyIds: z.array(z.string()).optional(),
+  key: z.boolean().optional(),
+  noCaseReason: z.string().optional(),
+});
 
 export const SequenceTimingSchema = z.object({
   uuid: z.string(),
@@ -53,6 +69,7 @@ export const SequenceTimingSchema = z.object({
   basis: z.string().optional(),
   deterministicAnalysisReferences: z.array(z.string()).optional(),
   uncertaintyRange: z.tuple([z.number(), z.number()]).optional(),
+  importedFrom: z.array(EsTimingSourceSchema).optional(),
 });
 
 export const FeasibilityStateSchema = z.enum(["OK", "MARGINAL", "NOT_MET"]);
@@ -71,6 +88,7 @@ export const OperatorActionWindowSchema = z.object({
   applicableInitiatingEvents: z.array(z.string()).optional(),
   applicablePlantOperatingStates: z.array(z.string()).optional(),
   note: z.string().optional(),
+  importedFrom: z.array(EsTimingSourceSchema).optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -257,6 +275,7 @@ export const PhenomenologicalDependencyModelSchema = z.object({
   environmentalConditions: z.array(z.string()).optional(),
   systemSpecificImpacts: z.record(z.string(), z.string()).optional(),
   deterministicAnalysisReferences: z.array(z.string()).optional(),
+  importedFrom: z.array(EsTimingSourceSchema).optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -394,6 +413,9 @@ export const RepairCreditRecordSchema = z.object({
   uuid: z.string(),
   eventSequenceId: z.string(),
   repairCredited: z.boolean(),
+  equipment: z.string().optional(),
+  timeMinutes: z.number().optional(),
+  access: z.string().optional(),
   conservativeRepairBasis: z.string().optional(),
   riskSignificantReviewPerformed: z.boolean().optional(),
   justification: z.string(),
@@ -505,7 +527,7 @@ export const EventSequenceAnalysisSchema = z.object({
   plantResponseAnalysisAccuracy: PlantRepresentationAccuracySchema,
   plantDamageStatesUsed: z.boolean().optional(),
   plantDamageStateDefinitions: z.array(z.string()).optional(),
-  modelUncertainty: BaseModelUncertaintyDocumentationSchema,
+  modelUncertainty: BaseModelUncertaintyDocumentationSchema.extend({ uncertaintySources: z.array(EsUncertaintySourceSchema) }),
   preOperationalAssumptions: z.array(PreOperationalAssumptionSchema).optional(),
   sensitivityStudies: z.array(SensitivityStudySchema).optional(),
   plantResponseAnalysisReferences: z.array(z.string()).optional(),

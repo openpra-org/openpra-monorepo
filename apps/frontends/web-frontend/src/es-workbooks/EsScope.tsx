@@ -36,6 +36,7 @@ const LINK_TILES: { code: EsLinkCode; label: string; name: string }[] = [
   { code: "IE", label: "IE", name: "Initiating Event Analysis" },
   { code: "SC", label: "SC", name: "Success Criteria" },
   { code: "SY", label: "SY", name: "Systems Analysis" },
+  { code: "HRA", label: "HR", name: "Human Reliability" },
 ];
 
 const SCOPE_LABEL: Record<ScopeKey, string> = {
@@ -207,7 +208,7 @@ function SafetyFunctions({ onOpen }: { onOpen: (id: string) => void }): JSX.Elem
   );
 }
 
-function DialogShell({ label, onClose, children }: { label: string; onClose: () => void; children: ReactNode }): JSX.Element {
+function DialogShell({ label, onClose, children, fit = false }: { label: string; onClose: () => void; children: ReactNode; fit?: boolean }): JSX.Element {
   const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const trigger = document.activeElement;
@@ -223,7 +224,7 @@ function DialogShell({ label, onClose, children }: { label: string; onClose: () 
   }, [onClose]);
   return (
     <div className="modal__backdrop" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div ref={dialog} className="modal es-details-modal" role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}>
+      <div ref={dialog} className={fit ? "modal es-details-modal es-details-modal--fit" : "modal es-details-modal"} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}>
         {children}
       </div>
     </div>

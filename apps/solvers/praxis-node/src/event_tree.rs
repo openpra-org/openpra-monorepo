@@ -1,19 +1,22 @@
 use crate::hybrid_causal_logic::HclCalculationType;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use praxis::analysis::event_tree_quantification::{
-    quantify_event_tree_hazard_grid_batch, quantify_event_tree_sequences,
-    quantify_event_tree_sequences_batch, EventTreeHazardGridQuantification, EventTreeHclContext,
-    EventTreeSequenceProbability,
+    quantify_event_tree_hazard_grid_batch, quantify_event_tree_hazard_grid_batch_with_unions,
+    quantify_event_tree_sequences, quantify_event_tree_sequences_and_unions,
+    quantify_event_tree_sequences_batch, quantify_event_tree_sequences_batch_with_unions,
+    EventTreeHazardGridQuantification, EventTreeHclContext, EventTreeSequenceProbability,
+    EventTreeUnion,
 };
 use praxis::core::event_tree::{
     Branch, BranchTarget, EventTree, Fork, FunctionalEvent, Path, Sequence,
 };
 use praxis::core::distribution::{UncertainExpression, UncertainUnit};
+use praxis::core::distribution_math::NUMERIC_TOLERANCE;
 use praxis::core::distribution_sampling::{SamplingPlan, TimeBase, UncertaintyProgram};
 use praxis::core::model::Model;
 use praxis::expression::Expr;
-use praxis::hcl::{HclEvidenceSpec, HclUncertaintySummary};
+use praxis::hcl::{hazard_exceedance, HclEvidenceSpec, HclUncertaintySettings, HclUncertaintySummary};
 use praxis::quantitative::{
     prepare_hazard_weights, AnnualizationConvention, FrequencyUnit, HazardWeightSummary,
 };
@@ -56,6 +59,8 @@ struct EventTreeExecuteRequest {
     sampling: Option<measures::SamplingInput>,
     #[serde(default)]
     overrides: Option<measures::OverridesInput>,
+    #[serde(default)]
+    keep_samples: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -173,6 +178,18 @@ impl Initiator {
             .sample(&[&self.target], plan)?
             .pop()
             .ok_or_else(|| PraxisError::Logic("the initiating event frequency was not sampled".to_string()))?;
+        Initiator::checked(column)
+    }
+
+    fn sample_hcl(&self, settings: &HclUncertaintySettings) -> Result<Vec<f64>> {
+        let column = settings
+            .draw(&self.program, "initiator", &[&self.target])?
+            .pop()
+            .ok_or_else(|| PraxisError::Logic("the initiating event frequency was not sampled".to_string()))?;
+        Initiator::checked(column)
+    }
+
+    fn checked(column: Vec<f64>) -> Result<Vec<f64>> {
         if let Some((trial, value)) = column.iter().enumerate().find(|(_, value)| **value < 0.0) {
             return Err(frequency_error(*value, format!("trial {}", trial + 1)));
         }
@@ -296,6 +313,7 @@ struct EventTreeAdapter {
     importance: Option<measures::ImportanceInput>,
     sampling: Option<measures::SamplingInput>,
     initiator: Initiator,
+    keep_samples: bool,
 }
 
 fn serialization_error(context: &str, error: impl std::fmt::Display) -> PraxisError {
@@ -510,6 +528,7 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
         importance: execute.importance,
         sampling: execute.sampling,
         initiator,
+        keep_samples: execute.keep_samples,
     })
 }
 
@@ -616,17 +635,72 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
             |rows| execute_batch(&adapter, rows),
         );
     }
-    let probabilities = quantify_event_tree_sequences(
+    let unions = end_state_unions(&adapter)?;
+    let (probabilities, end_states) = quantify_event_tree_sequences_and_unions(
         &adapter.model,
         &adapter.event_tree,
         adapter.hcl_context.as_ref(),
+        &unions,
     )?;
-    event_tree_result_json(&adapter, &probabilities, None)
+    event_tree_result_json(&adapter, &probabilities, &end_states, None)
+}
+
+fn end_state_unions(adapter: &EventTreeAdapter) -> Result<Vec<EventTreeUnion>> {
+    if adapter.hcl_context.is_none() {
+        return Ok(Vec::new());
+    }
+    let mut groups: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for sequence in &adapter.snapshot.sequences {
+        groups
+            .entry(terminal_end_state(sequence)?.to_string())
+            .or_default()
+            .push(sequence.id.clone());
+    }
+    Ok(groups
+        .into_iter()
+        .map(|(id, sequence_ids)| EventTreeUnion { id, sequence_ids })
+        .collect())
+}
+
+fn annual_samples(samples: &[f64], initiator: Option<&Vec<f64>>, point_frequency: f64) -> Result<Vec<f64>> {
+    match initiator {
+        Some(frequencies) => {
+            if frequencies.len() != samples.len() {
+                return Err(PraxisError::Hcl(
+                    "event-tree uncertainty pairs a different number of frequency samples".to_string(),
+                ));
+            }
+            Ok(samples
+                .iter()
+                .zip(frequencies)
+                .map(|(sample, frequency)| sample * frequency)
+                .collect())
+        }
+        None => Ok(samples.iter().map(|sample| sample * point_frequency).collect()),
+    }
+}
+
+fn annual_uncertainty(
+    quantified: &EventTreeSequenceProbability,
+    initiator: Option<&Vec<f64>>,
+    point_frequency: f64,
+) -> Result<Option<(HclUncertaintySummary, Vec<f64>)>> {
+    let Some(summary) = &quantified.uncertainty else {
+        return Ok(None);
+    };
+    let samples = quantified.uncertainty_samples.as_ref().ok_or_else(|| {
+        PraxisError::Hcl("event-tree uncertainty is missing its samples".to_string())
+    })?;
+    let annual = annual_samples(samples, initiator, point_frequency)?;
+    let annual_summary = HclUncertaintySummary::from_frequency_samples(&annual, summary.seed)?
+        .with_adjustments(summary.adjustments);
+    Ok(Some((annual_summary, annual)))
 }
 
 fn event_tree_result_json(
     adapter: &EventTreeAdapter,
     probabilities: &[EventTreeSequenceProbability],
+    end_states: &[EventTreeSequenceProbability],
     scenario_id: Option<&str>,
 ) -> Result<Value> {
     let probability_by_sequence: HashMap<&str, &EventTreeSequenceProbability> = probabilities
@@ -636,13 +710,18 @@ fn event_tree_result_json(
     let mut aggregate_by_end_state: HashMap<String, f64> = HashMap::new();
     let mut aggregate_samples_by_end_state: HashMap<String, Vec<f64>> = HashMap::new();
     let mut sequences = Vec::with_capacity(adapter.snapshot.sequences.len());
-    let sampled_plan = adapter
+    let sampled = adapter
         .hcl_context
         .as_ref()
-        .and_then(|context| context.sampling_plan())
-        .filter(|_| probabilities.iter().any(|result| result.uncertainty_samples.is_some()));
-    let initiator_samples = match sampled_plan {
-        Some(plan) => Some(adapter.initiator.sample(&plan)?),
+        .and_then(|context| context.uncertainty())
+        .filter(|_| {
+            probabilities
+                .iter()
+                .chain(end_states)
+                .any(|result| result.uncertainty_samples.is_some())
+        });
+    let initiator_samples = match sampled {
+        Some(settings) => Some(adapter.initiator.sample_hcl(settings)?),
         None => None,
     };
     for sequence in &adapter.snapshot.sequences {
@@ -661,49 +740,30 @@ fn event_tree_result_json(
         *aggregate_by_end_state
             .entry(end_state_id.clone())
             .or_default() += annual_frequency;
-        let uncertainty = if let Some(summary) = &quantified.uncertainty {
-            let samples = quantified.uncertainty_samples.as_ref().ok_or_else(|| {
-                PraxisError::Hcl("event-tree uncertainty is missing its samples".to_string())
-            })?;
-            let annual_samples: Vec<f64> = match &initiator_samples {
-                Some(frequencies) => {
-                    if frequencies.len() != samples.len() {
-                        return Err(PraxisError::Hcl(
-                            "event-tree uncertainty pairs a different number of frequency samples"
-                                .to_string(),
-                        ));
-                    }
-                    samples
-                        .iter()
-                        .zip(frequencies)
-                        .map(|(sample, frequency)| sample * frequency)
-                        .collect()
+        let uncertainty = match annual_uncertainty(
+            quantified,
+            initiator_samples.as_ref(),
+            adapter.initiating_event_frequency,
+        )? {
+            Some((annual_summary, annual)) => {
+                let aggregate = aggregate_samples_by_end_state
+                    .entry(end_state_id.clone())
+                    .or_insert_with(|| vec![0.0; annual.len()]);
+                if aggregate.len() != annual.len() {
+                    return Err(PraxisError::Hcl(
+                        "event-tree uncertainty sequences use inconsistent sample populations"
+                            .to_string(),
+                    ));
                 }
-                None => samples
-                    .iter()
-                    .map(|sample| sample * adapter.initiating_event_frequency)
-                    .collect(),
-            };
-            let annual_summary =
-                HclUncertaintySummary::from_samples(&annual_samples, summary.seed)?;
-            let aggregate = aggregate_samples_by_end_state
-                .entry(end_state_id.clone())
-                .or_insert_with(|| vec![0.0; samples.len()]);
-            if aggregate.len() != samples.len() {
-                return Err(PraxisError::Hcl(
-                    "event-tree uncertainty sequences use inconsistent sample populations"
-                        .to_string(),
-                ));
+                for (total, sample) in aggregate.iter_mut().zip(&annual) {
+                    *total += sample;
+                }
+                quantified.uncertainty.clone().map(|conditional_probability| EventTreeSequenceUncertainty {
+                    conditional_probability,
+                    annual_frequency: annual_summary,
+                })
             }
-            for (total, sample) in aggregate.iter_mut().zip(&annual_samples) {
-                *total += sample;
-            }
-            Some(EventTreeSequenceUncertainty {
-                conditional_probability: summary.clone(),
-                annual_frequency: annual_summary,
-            })
-        } else {
-            None
+            None => None,
         };
         sequences.push(SequenceResult {
             sequence_id: &sequence.id,
@@ -717,9 +777,31 @@ fn event_tree_result_json(
         });
     }
 
+    let union_by_end_state: HashMap<&str, &EventTreeSequenceProbability> = end_states
+        .iter()
+        .map(|result| (result.sequence_id.as_str(), result))
+        .collect();
     let mut end_state_aggregates: Vec<Value> = aggregate_by_end_state
         .into_iter()
-        .map(|(end_state_id, annual_frequency)| {
+        .map(|(end_state_id, sequence_sum)| {
+            if let Some(union) = union_by_end_state.get(end_state_id.as_str()) {
+                let annual_frequency = union.conditional_probability * adapter.initiating_event_frequency;
+                let scale = sequence_sum.abs().max(annual_frequency.abs());
+                let mut value = json!({
+                    "endStateId": end_state_id,
+                    "annualFrequency": annual_frequency,
+                    "sequenceSum": sequence_sum,
+                    "sequencesOverlap": (sequence_sum - annual_frequency).abs() > NUMERIC_TOLERANCE * scale,
+                });
+                if let Some((uncertainty, _)) = annual_uncertainty(
+                    union,
+                    initiator_samples.as_ref(),
+                    adapter.initiating_event_frequency,
+                )? {
+                    value["uncertainty"] = json!(uncertainty);
+                }
+                return Ok(value);
+            }
             let uncertainty = aggregate_samples_by_end_state
                 .get(&end_state_id)
                 .map(|samples| {
@@ -733,11 +815,11 @@ fn event_tree_result_json(
                                 "event-tree uncertainty is missing its seed".to_string(),
                             )
                         })?;
-                    HclUncertaintySummary::from_samples(samples, seed)
+                    HclUncertaintySummary::from_frequency_samples(samples, seed)
                 })
                 .transpose()?;
             let mut value =
-                json!({ "endStateId": end_state_id, "annualFrequency": annual_frequency });
+                json!({ "endStateId": end_state_id, "annualFrequency": sequence_sum });
             if let Some(uncertainty) = uncertainty {
                 value["uncertainty"] = json!(uncertainty);
             }
@@ -770,6 +852,26 @@ fn event_tree_result_json(
     if let Some(scenario_id) = scenario_id {
         value["scenarioId"] = json!(scenario_id);
     }
+    if adapter.keep_samples {
+        let mut vectors = Vec::new();
+        if let Some(initiator) = &initiator_samples {
+            vectors.push(json!({ "id": "initiator", "quantity": "FREQUENCY", "values": initiator }));
+        }
+        for (prefix, results) in [("sequence", probabilities), ("endState", end_states)] {
+            for result in results {
+                if let Some(samples) = &result.uncertainty_samples {
+                    vectors.push(json!({
+                        "id": format!("{prefix}:{}", result.sequence_id),
+                        "quantity": "PROBABILITY",
+                        "values": samples
+                    }));
+                }
+            }
+        }
+        if !vectors.is_empty() {
+            value["sampleVectors"] = json!(vectors);
+        }
+    }
     Ok(value)
 }
 
@@ -784,28 +886,31 @@ fn batch_response(adapter: &EventTreeAdapter) -> Value {
 
 fn execute_batch(adapter: &EventTreeAdapter, rows: &[EventTreeEvidenceRow]) -> Result<Value> {
     let evidence = batch_evidence_specs(rows);
+    let unions = end_state_unions(adapter)?;
     let (batch, hazard_convolution) = if let Some(hazard) = &adapter.hazard_convolution {
         validate_hazard_grid(rows, hazard)?;
         let assignments = hazard_evidence_specs(rows);
         let context = adapter.hcl_context.as_ref().ok_or_else(|| {
             PraxisError::Hcl("event-tree hazard convolution requires HCL mode".to_string())
         })?;
-        let weighted = quantify_event_tree_hazard_grid_batch(
+        let weighted = quantify_event_tree_hazard_grid_batch_with_unions(
             &adapter.model,
             &adapter.event_tree,
             context,
             &evidence,
             &assignments,
+            &unions,
         )?;
         let integration = event_tree_hazard_convolution_json(rows, hazard, &weighted, adapter)?;
         (weighted.quantification, Some(integration))
     } else {
         (
-            quantify_event_tree_sequences_batch(
+            quantify_event_tree_sequences_batch_with_unions(
                 &adapter.model,
                 &adapter.event_tree,
                 adapter.hcl_context.as_ref(),
                 &evidence,
+                &unions,
             )?,
             None,
         )
@@ -814,14 +919,14 @@ fn execute_batch(adapter: &EventTreeAdapter, rows: &[EventTreeEvidenceRow]) -> R
         .scenario_indices
         .iter()
         .copied()
-        .zip(batch.scenarios.iter())
+        .zip(batch.scenarios.iter().zip(batch.unions.iter()))
         .collect();
     let batch_results = rows
         .iter()
         .enumerate()
         .map(|(index, row)| match evaluated.get(&index) {
-            Some(probabilities) => {
-                event_tree_result_json(adapter, probabilities, Some(&row.scenario_id))
+            Some((probabilities, end_states)) => {
+                event_tree_result_json(adapter, probabilities, end_states, Some(&row.scenario_id))
             }
             None => Ok(json!({"scenarioId": row.scenario_id, "status": "skipped_zero_weight"})),
         })
@@ -947,6 +1052,7 @@ fn event_tree_hazard_convolution_json(
     let mut end_state_probabilities: HashMap<String, f64> = HashMap::new();
     let mut sequence_totals: HashMap<String, f64> = HashMap::new();
     let mut end_state_totals: HashMap<String, f64> = HashMap::new();
+    let mut end_state_cells: HashMap<String, Vec<(f64, f64, f64)>> = HashMap::new();
     let evaluated: HashMap<_, _> = batch
         .quantification
         .scenario_indices
@@ -954,12 +1060,29 @@ fn event_tree_hazard_convolution_json(
         .copied()
         .zip(batch.quantification.scenarios.iter())
         .collect();
+    let evaluated_unions: HashMap<_, _> = batch
+        .quantification
+        .scenario_indices
+        .iter()
+        .copied()
+        .zip(batch.quantification.unions.iter())
+        .collect();
     let result_rows = rows
         .iter()
         .zip(&weights.weights)
         .enumerate()
         .map(|(index, (row, weight))| {
             let probabilities = evaluated.get(&index);
+            let unions = evaluated_unions.get(&index).filter(|unions| !unions.is_empty());
+            let mut row_end_states: BTreeMap<String, f64> = BTreeMap::new();
+            for union in unions.into_iter().flat_map(|unions| unions.iter()) {
+                *end_state_probabilities
+                    .entry(union.sequence_id.clone())
+                    .or_default() += weight.convolution_weight * union.conditional_probability;
+                *end_state_totals.entry(union.sequence_id.clone()).or_default() +=
+                    weight.annual_frequency * union.conditional_probability;
+                row_end_states.insert(union.sequence_id.clone(), union.conditional_probability);
+            }
             let sequences = probabilities
                 .into_iter()
                 .flat_map(|p| p.iter())
@@ -983,10 +1106,14 @@ fn event_tree_hazard_convolution_json(
                             PraxisError::Logic("missing expanded event-tree sequence".into())
                         })?;
                     let end_state_id = terminal_end_state(sequence)?.to_string();
-                    *end_state_probabilities
-                        .entry(end_state_id.clone())
-                        .or_default() += probability_contribution;
-                    *end_state_totals.entry(end_state_id).or_default() += contribution;
+                    if unions.is_none() {
+                        *end_state_probabilities
+                            .entry(end_state_id.clone())
+                            .or_default() += probability_contribution;
+                        *row_end_states.entry(end_state_id.clone()).or_default() +=
+                            probability.conditional_probability;
+                        *end_state_totals.entry(end_state_id).or_default() += contribution;
+                    }
                     Ok(json!({
                         "sequenceId": probability.sequence_id,
                         "conditionalProbability": probability.conditional_probability,
@@ -995,6 +1122,13 @@ fn event_tree_hazard_convolution_json(
                     }))
                 })
                 .collect::<Result<Vec<_>>>()?;
+            for (end_state_id, conditional_probability) in row_end_states {
+                end_state_cells.entry(end_state_id).or_default().push((
+                    conditional_probability,
+                    weight.convolution_weight,
+                    weight.annual_frequency,
+                ));
+            }
             Ok(json!({
                 "scenarioId": row.scenario_id,
                 "status": if probabilities.is_some() { "ok" } else { "skipped_zero_weight" },
@@ -1027,7 +1161,8 @@ fn event_tree_hazard_convolution_json(
             json!({
                 "endStateId": end_state_id,
                 "convolvedProbability": end_state_probabilities[&end_state_id],
-                "integratedAnnualFrequency": integrated_annual_frequency
+                "integratedAnnualFrequency": integrated_annual_frequency,
+                "exceedance": hazard_exceedance(end_state_cells.get(&end_state_id).map_or(&[][..], |cells| cells.as_slice()))
             })
         })
         .collect();
@@ -1141,7 +1276,7 @@ mod tests {
                     }
                 })
                 .collect();
-            let result = super::event_tree_result_json(&adapter, &probabilities, None).unwrap();
+            let result = super::event_tree_result_json(&adapter, &probabilities, &[], None).unwrap();
             for sequence in result["sequences"].as_array().unwrap() {
                 let i: usize = sequence["sequenceId"].as_str().unwrap()[1..]
                     .parse()

@@ -1485,7 +1485,6 @@
   padding: 12px 2px;
 }
 
-.hcleditor__uncertainty-controls,
 .hcleditor__uncertainty-add {
   display: grid;
   grid-template-columns: repeat(2, minmax(130px, 180px)) max-content;
@@ -1502,7 +1501,6 @@
   grid-template-columns: minmax(220px, 360px) minmax(130px, 180px) max-content;
 }
 
-.hcleditor__uncertainty-controls > label,
 .hcleditor__uncertainty-add > label,
 .hcleditor__uncertainty-parameters label {
   display: grid;
@@ -1965,7 +1963,6 @@
     flex-wrap: wrap;
   }
 
-  .hcleditor__uncertainty-controls,
   .hcleditor__uncertainty-add,
   .hcleditor__uncertainty-add--event,
   .hcleditor__uncertainty-metrics {

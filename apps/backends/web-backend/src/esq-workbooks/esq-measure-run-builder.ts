@@ -7,6 +7,7 @@ import {
   type EsqImportanceGroup,
   type EsqSampledInput,
 } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { recoveryInputKey, resolvedRecoveries } from "interfaces-mef-types/esq/esq-post-inputs";
 import type {
   EsqEventTreeRunLogic,
   EsqUncertaintyCorrelation,
@@ -90,7 +91,10 @@ function caseOverridesFor(overrides: EsqCaseOverrides | undefined, build: EsqRun
 function baseKeyOf(esq: EventSequenceQuantification, value: EsqRunEventValue): string | undefined {
   const model = esq.model;
   if (model === undefined) return undefined;
-  if (value.role === "RECOVERY") return value.recoveryId === undefined ? undefined : `RECOVERY:${value.recoveryId}`;
+  if (value.role === "RECOVERY") {
+    const recovery = resolvedRecoveries(esq).find((entry) => entry.id === value.recoveryId);
+    return recovery === undefined ? undefined : recoveryInputKey(recovery);
+  }
   if (value.role === "SPLIT") return value.splitKey;
   if (value.role === "JOINT" || value.role === "INDEPENDENT_PART") return value.baseEventId === undefined ? undefined : eventInputKey(esq, model, value.baseEventId);
   return eventInputKey(esq, model, value.id);

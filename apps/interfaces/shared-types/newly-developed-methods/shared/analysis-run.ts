@@ -112,6 +112,18 @@ const AnalysisRunFreshnessSchema = z
         })
         .strict(),
     ),
+    change: z.string().trim().min(1).optional(),
+  })
+  .strict();
+
+const AnalysisRunProgressSchema = z
+  .object({
+    stage: z.enum(["QUEUED", "RUNNING"]),
+    unit: z.enum(["EVENT_TREE", "JOB"]),
+    completed: z.number().int().nonnegative(),
+    total: z.number().int().nonnegative(),
+    queuedJobs: z.number().int().nonnegative().nullable(),
+    workers: z.number().int().nonnegative().nullable(),
   })
   .strict();
 
@@ -132,6 +144,7 @@ const AnalysisRunMetadataSchema = z
     completedAt: OptionalRunTimestampSchema,
     engine: AnalysisEngineMetadataSchema.nullable(),
     failure: AnalysisRunFailureSchema.nullable().optional(),
+    progress: AnalysisRunProgressSchema.optional(),
   })
   .superRefine((run, context) => {
     const sourceRevisions = new Map<string, number>();
@@ -375,6 +388,20 @@ const AnalysisRunProvenanceListSchema = z
   })
   .strict();
 
+const AnalysisRunJobSchema = z
+  .object({
+    run: AnalysisRunMetadataSchema,
+    calculationType: z.string().trim().min(1).nullable(),
+  })
+  .strict();
+
+const AnalysisRunJobListSchema = z
+  .object({
+    schemaVersion: AnalysisRunSchemaVersionSchema,
+    jobs: z.array(AnalysisRunJobSchema),
+  })
+  .strict();
+
 const AnalysisRunDetailsSchema = z
   .object({
     run: AnalysisRunMetadataSchema,
@@ -397,6 +424,7 @@ type AnalysisRunWorkbookSnapshot = z.infer<typeof AnalysisRunWorkbookSnapshotSch
 type AnalysisRunWorkbookSnapshots = z.infer<typeof AnalysisRunWorkbookSnapshotsSchema>;
 type ImmutableAnalysisRunContext = z.infer<typeof ImmutableAnalysisRunContextSchema>;
 type AnalysisRunMetadata = z.infer<typeof AnalysisRunMetadataSchema>;
+type AnalysisRunProgress = z.infer<typeof AnalysisRunProgressSchema>;
 type BayesianNetworkQueryRunTarget = z.infer<typeof BayesianNetworkQueryRunTargetSchema>;
 type HclFaultTreeRunTarget = z.infer<typeof HclFaultTreeRunTargetSchema>;
 type HclEventTreeRunTarget = z.infer<typeof HclEventTreeRunTargetSchema>;
@@ -405,6 +433,8 @@ type AnalysisRunContribution = z.infer<typeof AnalysisRunContributionSchema>;
 type AnalysisRunTrace = z.infer<typeof AnalysisRunTraceSchema>;
 type AnalysisRunProvenance = z.infer<typeof AnalysisRunProvenanceSchema>;
 type AnalysisRunProvenanceList = z.infer<typeof AnalysisRunProvenanceListSchema>;
+type AnalysisRunJob = z.infer<typeof AnalysisRunJobSchema>;
+type AnalysisRunJobList = z.infer<typeof AnalysisRunJobListSchema>;
 
 const freezeRecursively = <T>(value: T): T => {
   if (typeof value !== "object" || value === null || Object.isFrozen(value)) return value;
@@ -428,6 +458,7 @@ export {
   AnalysisRunWorkbookSnapshotsSchema,
   ImmutableAnalysisRunContextSchema,
   AnalysisRunMetadataSchema,
+  AnalysisRunProgressSchema,
   BayesianNetworkQueryRunTargetSchema,
   HclFaultTreeRunTargetSchema,
   HclEventTreeRunTargetSchema,
@@ -436,6 +467,8 @@ export {
   AnalysisRunTraceSchema,
   AnalysisRunProvenanceSchema,
   AnalysisRunProvenanceListSchema,
+  AnalysisRunJobSchema,
+  AnalysisRunJobListSchema,
   createImmutableAnalysisRunContext,
 };
 export type {
@@ -450,6 +483,7 @@ export type {
   AnalysisRunWorkbookSnapshots,
   ImmutableAnalysisRunContext,
   AnalysisRunMetadata,
+  AnalysisRunProgress,
   BayesianNetworkQueryRunTarget,
   HclFaultTreeRunTarget,
   HclEventTreeRunTarget,
@@ -458,6 +492,8 @@ export type {
   AnalysisRunTrace,
   AnalysisRunProvenance,
   AnalysisRunProvenanceList,
+  AnalysisRunJob,
+  AnalysisRunJobList,
 };
 
 type AnalysisRunFreshness = z.infer<typeof AnalysisRunFreshnessSchema>;

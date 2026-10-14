@@ -1271,7 +1271,7 @@ describe("FaultTreeEditor", () => {
     render(<FaultTreeEditor {...editorProps({ analysisResult })} />);
 
     const results = screen.getByLabelText("Fault-tree analysis results");
-    const probabilityMetric = within(results).getByText("Exact top-event probability").parentElement!;
+    const probabilityMetric = within(results).getByText("Exact top event probability").parentElement!;
     expect(within(probabilityMetric).getByLabelText("2.00 times 10 to the power of −2")).toBeInTheDocument();
     expect(within(results).queryByText(/workbook revision/)).not.toBeInTheDocument();
     expect(within(results).queryByText(/cut sets/i)).not.toBeInTheDocument();
@@ -1279,11 +1279,11 @@ describe("FaultTreeEditor", () => {
     expect(within(results).queryByText(/stale/i)).not.toBeInTheDocument();
   });
 
-  it("names the Direct Monte Carlo top-event probability", () => {
+  it("names the Direct Monte Carlo top event probability", () => {
     render(<FaultTreeEditor {...editorProps({ analysisResult: { ...analysisResult, calculationType: "PROBABILITY", algorithm: "MONTE_CARLO", probabilityMethod: "MONTE_CARLO" } })} />);
 
     const results = screen.getByLabelText("Fault-tree analysis results");
-    expect(within(results).getByText("Direct Monte Carlo top-event probability")).toBeInTheDocument();
+    expect(within(results).getByText("Direct Monte Carlo top event probability")).toBeInTheDocument();
   });
 
   it("renders the warning details captured with a completed run", () => {
@@ -1403,11 +1403,11 @@ describe("FaultTreeEditor", () => {
     } })} />);
 
     const pagination = screen.getByRole("navigation", { name: "Fault-tree cut sets pagination" });
-    expect(within(pagination).getByText("Page 1 of 2")).toBeInTheDocument();
-    expect(within(screen.getByRole("region", { name: "Cut sets" })).getAllByText("BE-PUMP")).toHaveLength(25);
-    await user.click(within(pagination).getByRole("button", { name: "Next" }));
-    expect(within(pagination).getByText("Page 2 of 2")).toBeInTheDocument();
-    expect(within(screen.getByRole("region", { name: "Cut sets" })).getAllByText("BE-PUMP")).toHaveLength(1);
+    expect(within(pagination).getByText("Page 1 of 3")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Cut sets" })).getAllByText("BE-PUMP")).toHaveLength(10);
+    await user.click(within(pagination).getByRole("button", { name: "Last" }));
+    expect(within(pagination).getByText("Page 3 of 3")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Cut sets" })).getAllByText("BE-PUMP")).toHaveLength(6);
   });
 
   it("hides header status when the host shows save state elsewhere", () => {

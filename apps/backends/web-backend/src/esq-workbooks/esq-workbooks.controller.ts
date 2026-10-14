@@ -8,6 +8,7 @@ import { parseExpectedWorkbookRevision } from "../workbooks/workbook-revision";
 import { WorkbookAnalysisRunsService } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
 import { EsqModelRunsService } from "./esq-model-runs.service";
 import type {
+  AnalysisRunJobList,
   AnalysisRunMetadata,
   EsqImportanceRunResult,
   EsqModelRunResult,
@@ -15,6 +16,7 @@ import type {
   EsqUncertaintyRunResult,
   EventTreeAnalysisResult,
   HclBatchExecuteResult,
+  HclSampleVector,
   LoadCapacityAnalysisResult,
 } from "interfaces-shared-types/newly-developed-methods";
 
@@ -39,6 +41,11 @@ export class EsqWorkbooksController {
     return this.analysisRunsService.listRunProvenance("ESQ", id, { username: req.user!.username }, cursor, modelId);
   }
 
+  @Get(":id/analysis-jobs")
+  analysisJobs(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<AnalysisRunJobList> {
+    return this.analysisRunsService.listAnalysisJobs("ESQ", id, { username: req.user!.username });
+  }
+
   @Get(":id/analysis-runs/:runId")
   analysisRun(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
     return this.analysisRunsService.getRun("ESQ", id, undefined, runId, { username: req.user!.username });
@@ -47,6 +54,17 @@ export class EsqWorkbooksController {
   @Get(":id/analysis-runs/:runId/details")
   analysisRunDetails(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
     return this.analysisRunsService.getRunDetails("ESQ", id, runId, { username: req.user!.username });
+  }
+
+  @Get(":id/analysis-runs/:runId/samples")
+  analysisRunSamples(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest): Promise<HclSampleVector[]> {
+    return this.analysisRunsService.getSampleVectors("ESQ", id, runId, { username: req.user!.username });
+  }
+
+  @Post(":id/analysis-runs/:runId/cancel")
+  @HttpCode(HttpStatus.OK)
+  cancelAnalysisRun(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest): Promise<AnalysisRunMetadata> {
+    return this.analysisRunsService.cancelRun("ESQ", id, runId, { username: req.user!.username });
   }
 
   @Post(":id/event-trees/:treeId/runs")

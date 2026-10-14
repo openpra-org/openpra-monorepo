@@ -5,7 +5,8 @@ import type { HclBindingEditorProps, HclEditorBatchRunResult } from "./hclBindin
 import { PagedResults, ResultCsvButton, ResultWarnings } from "../shared/resultPresentation";
 import { hclResultRecords, hclBatchResultRecords } from "../shared/probabilityResultExport";
 import { HclResultMetric, HclUncertaintyResults, formatScientific, formatPercentage } from "./hclResultMetrics";
-import { HclEventTreeResults, endStateFrequency } from "./hclEventTreeResults";
+import { HclEventTreeResults, endStateFrequency, eventTreeSampleColumn } from "./hclEventTreeResults";
+import { HclSampleCsvButton } from "./hclSampleOutputs";
 import {
   HclHazardSummary,
   HclEventTreeHazardResults,
@@ -69,9 +70,10 @@ export function HclResults({
   calculationType = "PROBABILITY",
   eventTreeOptions,
   faultTreeOptions,
+  analysisHost,
 }: Pick<
   HclBindingEditorProps,
-  "runResult" | "batchRunResult" | "workflow" | "calculationType" | "eventTreeOptions" | "faultTreeOptions"
+  "runResult" | "batchRunResult" | "workflow" | "calculationType" | "eventTreeOptions" | "faultTreeOptions" | "analysisHost"
 >) {
   const [selectedEndState, setSelectedEndState] = useState("");
   const selectionId = useId();
@@ -158,6 +160,15 @@ export function HclResults({
               filename={`hcl-${runResult.result.runId}.csv`}
               records={() => hclResultRecords(runResult, labels.sequenceName)}
             />
+            {calculationType === "UNCERTAINTY" && analysisHost !== undefined && (
+              <HclSampleCsvButton
+                host={analysisHost}
+                workbookId={runResult.result.owner.workbookId}
+                runId={runResult.result.runId}
+                filename={`hcl-${runResult.result.runId}-samples.csv`}
+                columnName={() => "Top event probability"}
+              />
+            )}
           </div>
           <ResultWarnings issues={runResult.result.validationIssues} />
           {calculationType === "PROBABILITY" ?
@@ -185,6 +196,15 @@ export function HclResults({
               filename={`hcl-${runResult.result.runId}.csv`}
               records={() => hclResultRecords(runResult, labels.sequenceName)}
             />
+            {calculationType === "UNCERTAINTY" && analysisHost !== undefined && (
+              <HclSampleCsvButton
+                host={analysisHost}
+                workbookId={runResult.result.owner.workbookId}
+                runId={runResult.result.runId}
+                filename={`hcl-${runResult.result.runId}-samples.csv`}
+                columnName={eventTreeSampleColumn(runResult.result, labels)}
+              />
+            )}
             <span>{runResult.result.sequences.length} sequences calculated</span>
           </div>
           <ResultWarnings issues={runResult.result.validationIssues} />
@@ -313,6 +333,15 @@ export function HclResults({
                       <div className="hcleditor__scenario-result-body">
                         {scenario.failure !== null && <p className="bneditor__error">{scenario.failure}</p>}
                         {result !== null && <ResultWarnings issues={result.result.validationIssues} />}
+                        {result !== null && calculationType === "UNCERTAINTY" && analysisHost !== undefined && (
+                          <HclSampleCsvButton
+                            host={analysisHost}
+                            workbookId={result.result.owner.workbookId}
+                            runId={result.result.runId}
+                            filename={`hcl-${scenario.scenarioCode}-${result.result.runId}-samples.csv`}
+                            columnName={result.kind === "EVENT_TREE" ? eventTreeSampleColumn(result.result, labels) : () => "Top event probability"}
+                          />
+                        )}
                         {result?.kind === "FAULT_TREE" && calculationType === "UNCERTAINTY" && (
                           <HclUncertaintyResults
                             summary={result.result.uncertainty}

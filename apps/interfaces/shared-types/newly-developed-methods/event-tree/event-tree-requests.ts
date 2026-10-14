@@ -116,12 +116,18 @@ interface EventTreeCutSetSettings {
 
 type EsqModelCalculation = "EXACT" | "CUT_SETS";
 
+interface EsqModelRunHcl {
+  workbookId: string;
+  modelId: string;
+}
+
 interface EsqModelRunRequest {
   schemaVersion: WorkbookMethodSchemaVersion;
   workbookRevision: WorkbookRevision;
   logic: EsqEventTreeRunLogic;
   calculation: EsqModelCalculation;
   cutSets?: EventTreeCutSetSettings;
+  hcl?: EsqModelRunHcl;
 }
 
 type EsqPostRunPurpose = "COMBINATIONS" | "DELETIONS";
@@ -303,6 +309,17 @@ const EsqPostRunRequestSchema = z
     }
   });
 
+const EsqModelRunHclSchema = z
+  .object({
+    workbookId: z.string().min(1),
+    modelId: z.string().min(1),
+  })
+  .strict();
+
+const HCL_RUN_IS_EXACT = "An HCL run is exact";
+
+const HCL_RUN_KEEPS_CCF_OFF = "An HCL run does not expand common cause. Set common cause to off";
+
 const EsqModelRunRequestSchema = z
   .object({
     schemaVersion: WorkbookMethodSchemaVersionSchema,
@@ -310,6 +327,7 @@ const EsqModelRunRequestSchema = z
     logic: EsqEventTreeRunLogicSchema,
     calculation: EsqModelCalculationSchema,
     cutSets: EventTreeCutSetSettingsSchema.optional(),
+    hcl: EsqModelRunHclSchema.optional(),
   })
   .strict()
   .superRefine((request, context) => {
@@ -318,6 +336,12 @@ const EsqModelRunRequestSchema = z
     }
     if (request.calculation === "EXACT" && request.cutSets !== undefined) {
       context.addIssue({ code: "custom", path: ["cutSets"], message: "An exact run takes no cut set settings" });
+    }
+    if (request.hcl !== undefined && request.calculation !== "EXACT") {
+      context.addIssue({ code: "custom", path: ["hcl"], message: HCL_RUN_IS_EXACT });
+    }
+    if (request.hcl !== undefined && request.logic.expandCcf) {
+      context.addIssue({ code: "custom", path: ["logic", "expandCcf"], message: HCL_RUN_KEEPS_CCF_OFF });
     }
   });
 
@@ -419,6 +443,7 @@ export {
   EventTreeCutSetQuantifierSchema,
   EventTreeCutSetSettingsSchema,
   EsqModelCalculationSchema,
+  EsqModelRunHclSchema,
   EsqModelRunRequestSchema,
   EventTreeCutSetFocusSchema,
   EsqPostRunPurposeSchema,
@@ -443,6 +468,7 @@ export type {
   EventTreeCutSetQuantifier,
   EventTreeCutSetSettings,
   EsqModelCalculation,
+  EsqModelRunHcl,
   EsqModelRunRequest,
   EventTreeCutSetFocus,
   EsqPostRunPurpose,

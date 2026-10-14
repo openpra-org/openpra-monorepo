@@ -1,3 +1,5 @@
+import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
+import { runProgressText } from "../newly-developed-methods/shared/analysisRunWait";
 import { useEffect, useMemo, useState, type JSX } from "react";
 import type {
   FaultTreeAlgorithm,
@@ -88,6 +90,7 @@ export function SyCcfAnalysis({ currentModelId }: { currentModelId: string }): J
   const [settings, setSettings] = useState<FaultTreeAnalysisSettings>(DEFAULT_SETTINGS);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [running, setRunning] = useState(false);
+  const [live, setLive] = useState<AnalysisRunMetadata | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<CcfComparisonResult[]>([]);
 
@@ -150,7 +153,7 @@ export function SyCcfAnalysis({ currentModelId }: { currentModelId: string }): J
       calculationType,
       workflow,
       settings: { ...settings, expandCcf },
-    });
+    }, setLive);
     if (execution.run.status !== "SUCCEEDED") throw resultError(execution.run.status, execution.run.failure?.message);
     return getSyFaultTreeResult(runtime.workbookId, model.id, execution.run.id);
   }
@@ -298,6 +301,7 @@ export function SyCcfAnalysis({ currentModelId }: { currentModelId: string }): J
       {workflow === "MANUAL" && !currentReady && <p className="syft-analysis__notice" role="status">No ready group has all its member events in this fault tree. Complete a group above before running PRAXIS.</p>}
       {workflow === "BATCH" && modelOptions.length === 0 && <p className="syft-analysis__notice" role="status">Complete a group with two component basic events before running PRAXIS.</p>}
       {saveBlockedReason !== null && <p className="syft-analysis__notice" role="status">{saveBlockedReason}</p>}
+      {running && live !== null && <p className="possubtle" role="status">{runProgressText(live)}</p>}
       {(error ?? sourceWarning) !== null && <p className="syft-analysis__error" role="alert">{error ?? sourceWarning}</p>}
       {stale && <p className="syft-analysis__notice" role="status">These results use an earlier workbook revision.</p>}
 

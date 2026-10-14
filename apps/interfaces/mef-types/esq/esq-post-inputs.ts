@@ -8,11 +8,13 @@ import type {
   EsqPostWork,
   EsqRecoveryRecord,
   EsqRecoveryRule,
+  EsqRecoverySource,
+  EsqRepairRecord,
   EsqTreeRecord,
   EventSequenceQuantification,
 } from "./event-sequence-quantification";
 import type { UncertainExpression } from "../core/uncertainty";
-import { esqStableId, sameItem } from "./esq-run-inputs";
+import { daParameterExpression, esqStableId, sameItem } from "./esq-run-inputs";
 
 type EsqFeasibilityKey = keyof EsqActionFeasibility;
 
@@ -20,13 +22,16 @@ interface EsqResolvedRecovery {
   id: string;
   name: string;
   record?: EsqRecoveryRecord;
+  repairRecord?: EsqRepairRecord;
   rule?: EsqRecoveryRule;
   manual: boolean;
+  repair: boolean;
   eventIds: string[];
   groupIds: string[];
   stateIds: string[];
   credited: boolean;
-  source?: "HRA" | "TYPED";
+  source?: EsqRecoverySource;
+  parameterId?: string;
   expression?: UncertainExpression;
   feasibility?: EsqActionFeasibility;
   missing: EsqFeasibilityKey[];
@@ -68,6 +73,8 @@ interface EsqJointSolution {
 type EsqPoints = ReadonlyMap<string, number>;
 
 const FEASIBILITY_REQUIRED: readonly EsqFeasibilityKey[] = ["cues", "time", "crew", "procedure", "access"];
+
+const REPAIR_REQUIRED: readonly EsqFeasibilityKey[] = ["time", "access"];
 
 const TIMING_RANK: Record<string, number> = { PRE_INITIATOR: 0, AT_INITIATOR: 1, POST_INITIATOR: 2 };
 
@@ -137,8 +144,50 @@ function hfeEventIds(esq: EventSequenceQuantification, model: EsqModel): string[
   return model.events.flatMap((event) => (holderOf(esq, model, event.id).heldBy === "HRA" ? [event.id] : []));
 }
 
-function feasibilityMissing(feasibility: EsqActionFeasibility | undefined): EsqFeasibilityKey[] {
-  return FEASIBILITY_REQUIRED.filter((key) => feasibility?.[key] !== true);
+function feasibilityMissing(feasibility: EsqActionFeasibility | undefined, repair = false): EsqFeasibilityKey[] {
+  return (repair ? REPAIR_REQUIRED : FEASIBILITY_REQUIRED).filter((key) => feasibility?.[key] !== true);
+}
+
+function recoverySourceOf(rule: EsqRecoveryRule | undefined, record: EsqRecoveryRecord | undefined): EsqRecoverySource | undefined {
+  if (rule?.ofRecord !== undefined) return rule.ofRecord;
+  if (record?.hep !== undefined) return "HRA";
+  if (rule?.parameterId !== undefined) return "DA";
+  return rule?.typed === undefined ? undefined : "TYPED";
+}
+
+function recoveryExpressionOf(esq: EventSequenceQuantification, source: EsqRecoverySource | undefined, rule: EsqRecoveryRule | undefined, record: EsqRecoveryRecord | undefined): UncertainExpression | undefined {
+  if (source === "HRA") return record?.hep;
+  if (source === "DA") return rule?.parameterId === undefined ? undefined : daParameterExpression(esq, rule.parameterId);
+  return source === "TYPED" ? rule?.typed?.expression : undefined;
+}
+
+function withValueOf(esq: EventSequenceQuantification, view: EsqResolvedRecovery, rule: EsqRecoveryRule | undefined, record: EsqRecoveryRecord | undefined): EsqResolvedRecovery {
+  const source = recoverySourceOf(rule, record);
+  const expression = recoveryExpressionOf(esq, source, rule, record);
+  if (rule !== undefined) view.rule = rule;
+  if (source !== undefined) view.source = source;
+  if (source === "DA" && rule?.parameterId !== undefined) view.parameterId = rule.parameterId;
+  if (expression !== undefined) view.expression = expression;
+  return view;
+}
+
+function repairFeasibility(record: EsqRepairRecord): EsqActionFeasibility {
+  const access = record.access !== undefined && record.access.trim().length > 0;
+  return { procedure: false, training: false, cues: false, crew: false, time: record.timeMinutes !== undefined, access, equipment: false };
+}
+
+function repairScope(model: EsqModel, record: EsqRepairRecord): { groupIds: string[]; stateIds: string[] } {
+  const sequence = model.sequences.find((entry) => entry.id === record.sequenceId);
+  const tree = sequence === undefined ? undefined : model.trees.find((entry) => entry.id === sequence.treeId);
+  if (tree === undefined) return { groupIds: [], stateIds: [] };
+  return { groupIds: [tree.initiatorId], stateIds: tree.stateId === undefined ? [] : [tree.stateId] };
+}
+
+function repairName(model: EsqModel, record: EsqRepairRecord): string {
+  const equipment = record.equipment?.trim() ?? "";
+  if (equipment.length > 0) return `Repair of ${equipment}`;
+  const sequence = model.sequences.find((entry) => entry.id === record.sequenceId);
+  return `Repair in ${sequence?.code ?? record.sequenceId}`;
 }
 
 function resolvedRecoveries(esq: EventSequenceQuantification): EsqResolvedRecovery[] {
@@ -146,20 +195,20 @@ function resolvedRecoveries(esq: EventSequenceQuantification): EsqResolvedRecove
   if (model === undefined) return [];
   const rules = postWorkOf(esq).recoveries ?? [];
   const records = model.recoveries ?? [];
+  const repairs = (model.repairs ?? []).filter((repair) => !records.some((record) => record.id === repair.id));
   const fromHr = records.map((record): EsqResolvedRecovery => {
     const rule = rules.find((entry) => entry.id === record.id);
     const eventIds = rule?.eventIds ?? model.events.flatMap((event) => {
       const holder = holderOf(esq, model, event.id);
       return holder.heldBy === "HRA" && holder.holderId === record.hfeId ? [event.id] : [];
     });
-    const source = rule?.ofRecord ?? (record.hep !== undefined ? "HRA" : rule?.typed !== undefined ? "TYPED" : undefined);
-    const expression = source === "HRA" ? record.hep : source === "TYPED" ? rule?.typed?.expression : undefined;
     const feasibility = rule?.feasibility ?? record.feasibility;
-    const view: EsqResolvedRecovery = {
+    return withValueOf(esq, {
       id: record.id,
       name: record.name,
       record,
       manual: false,
+      repair: false,
       eventIds,
       groupIds: rule?.groupIds ?? [],
       stateIds: rule?.stateIds ?? [],
@@ -167,33 +216,50 @@ function resolvedRecoveries(esq: EventSequenceQuantification): EsqResolvedRecove
       feasibility,
       missing: feasibilityMissing(feasibility),
       eventId: esqRecoveryEventId(record.id),
-    };
-    if (rule !== undefined) view.rule = rule;
-    if (source !== undefined) view.source = source;
-    if (expression !== undefined) view.expression = expression;
-    return view;
+    }, rule, record);
   });
-  const manual = rules.filter((rule) => rule.manual !== undefined && !records.some((record) => record.id === rule.id)).map((rule): EsqResolvedRecovery => {
+  const fromEs = repairs.map((repair): EsqResolvedRecovery => {
+    const rule = rules.find((entry) => entry.id === repair.id);
+    const feasibility = rule?.feasibility ?? repairFeasibility(repair);
+    const scope = rule ?? repairScope(model, repair);
+    return withValueOf(esq, {
+      id: repair.id,
+      name: repairName(model, repair),
+      repairRecord: repair,
+      manual: false,
+      repair: true,
+      eventIds: rule?.eventIds ?? [],
+      groupIds: scope.groupIds,
+      stateIds: scope.stateIds,
+      credited: rule?.credited ?? repair.credited,
+      feasibility,
+      missing: feasibilityMissing(feasibility, true),
+      eventId: esqRecoveryEventId(repair.id),
+    }, rule, undefined);
+  });
+  const known = new Set([...records.map((record) => record.id), ...repairs.map((repair) => repair.id)]);
+  const manual = rules.filter((rule) => rule.manual !== undefined && !known.has(rule.id)).map((rule): EsqResolvedRecovery => {
+    const repair = rule.manual?.repair === true;
     const view: EsqResolvedRecovery = {
       id: rule.id,
       name: rule.manual?.name ?? "",
-      rule,
       manual: true,
+      repair,
       eventIds: rule.eventIds ?? [],
       groupIds: rule.groupIds,
       stateIds: rule.stateIds,
       credited: rule.credited,
-      missing: feasibilityMissing(rule.feasibility),
+      missing: feasibilityMissing(rule.feasibility, repair),
       eventId: esqRecoveryEventId(rule.id),
     };
     if (rule.feasibility !== undefined) view.feasibility = rule.feasibility;
-    if (rule.typed !== undefined) {
-      view.source = "TYPED";
-      view.expression = rule.typed.expression;
-    }
-    return view;
+    return withValueOf(esq, view, rule, undefined);
   });
-  return [...fromHr, ...manual];
+  return [...fromHr, ...fromEs, ...manual];
+}
+
+function recoveryInputKey(recovery: Pick<EsqResolvedRecovery, "id" | "source" | "parameterId">): string {
+  return recovery.source === "DA" && recovery.parameterId !== undefined ? `PARAMETER:${recovery.parameterId}` : `RECOVERY:${recovery.id}`;
 }
 
 function activeRecoveries(esq: EventSequenceQuantification, tree: EsqTreeRecord): EsqResolvedRecovery[] {
@@ -205,7 +271,7 @@ function memberOf(esq: EventSequenceQuantification, model: EsqModel, recoveries:
   if (recovery !== undefined) {
     const recovered = recovery.eventIds.map((id) => timingRankOf(esq, model, id));
     const member: EsqCombinationMember = { eventId, code: `NR-${recovery.id}`, recoveryId: recovery.id, rank: Math.max(2, ...recovered) + 0.5 };
-    const probability = points?.get(`RECOVERY:${recovery.id}`);
+    const probability = points?.get(recoveryInputKey(recovery));
     if (probability !== undefined) member.probability = probability;
     return member;
   }
@@ -282,7 +348,7 @@ function resolvedCombinations(esq: EventSequenceQuantification, points?: EsqPoin
       if (therp !== undefined) view.therp = therp;
     }
     if (combination.typed !== undefined) view.typed = combination.typed.joint;
-    const source = combination.ofRecord ?? (linked !== undefined ? "HRA" : undefined);
+    const source = combination.ofRecord ?? (linked !== undefined ? "HRA" : level !== undefined ? "THERP" : undefined);
     if (source !== undefined) view.source = source;
     const raw = source === "HRA" ? linked?.jointHep : source === "THERP" ? view.therp : source === "TYPED" ? view.typed : undefined;
     const judgedIndependent = source === "HRA" ? linked?.level === "ZERO" : source === "THERP" ? level === "ZERO" : false;
@@ -369,6 +435,7 @@ function solveJointEvents(probabilities: ReadonlyMap<string, number>, combinatio
 
 export {
   FEASIBILITY_REQUIRED,
+  REPAIR_REQUIRED,
   THERP_CONDITIONAL,
   activeRecoveries,
   combinationKey,
@@ -381,6 +448,8 @@ export {
   floorValueOf,
   hfeEventIds,
   postWorkOf,
+  recoveryInputKey,
+  repairFeasibility,
   resolvedCombinations,
   resolvedRecoveries,
   scopeApplies,

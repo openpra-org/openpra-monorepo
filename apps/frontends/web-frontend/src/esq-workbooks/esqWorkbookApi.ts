@@ -1,4 +1,5 @@
 import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
+import { finishedRun, getAnalysisRun, awaitAnalysisRun, type RunProgressListener } from "../newly-developed-methods/shared/analysisRunWait";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type {
@@ -20,15 +21,14 @@ import type {
   HclQuantificationResult,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import {
-  EsqEventTreeRunRequestSchema,
   EsqImportanceRunResultSchema,
   EsqModelRunResultSchema,
   EsqPostRunResultSchema,
   EsqUncertaintyRunResultSchema,
-  EventTreeAnalysisResultSchema,
   type EsqEventTreeRunLogic,
   type EsqImportanceRunResult,
   type EsqModelCalculation,
+  type EsqModelRunHcl,
   type EsqModelRunResult,
   type EsqPostRunPurpose,
   type EsqPostRunResult,
@@ -43,9 +43,9 @@ import {
   AnalysisRunDetailsSchema,
   AnalysisRunProvenanceListSchema,
   type AnalysisRunDetails,
+  type AnalysisRunProgress,
   type AnalysisRunProvenanceList,
 } from "interfaces-shared-types/newly-developed-methods/shared";
-import { esqTreeRunId } from "interfaces-mef-types/esq/esq-run-inputs";
 import { esqCellRunId } from "interfaces-mef-types/esq/esq-barrier-inputs";
 import { esqModelRunId } from "interfaces-mef-types/esq/esq-solve-inputs";
 import {
@@ -136,7 +136,7 @@ async function runEsqBayesianNetwork(
   evidence: BayesianNetworkEvidenceConfiguration,
   queryNodeId: string,
 ): Promise<BayesianNetworkExecuteResult> {
-  return postJson<BayesianNetworkExecuteResult>(
+  return finishedRun("esq", workbookId, postJson<BayesianNetworkExecuteResult>(
     `/api/esq-workbooks/${workbookId}/bayesian-networks/${modelId}/runs`,
     {
       schemaVersion: "1.0.0",
@@ -144,7 +144,7 @@ async function runEsqBayesianNetwork(
       workbookRevision,
       query: { evidence, queryNodeIds: [queryNodeId] },
     },
-  );
+  ));
 }
 
 async function getEsqBayesianNetworkResult(
@@ -164,7 +164,7 @@ async function runEsqHclFaultTree(
   faultTreeTopGate: FaultTreeTopEventReference,
   calculationType: HclCalculationType,
 ): Promise<HclExecuteResult> {
-  return postJson<HclExecuteResult>(
+  return finishedRun("esq", workbookId, postJson<HclExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-runs`,
     {
       schemaVersion: "1.0.0",
@@ -173,7 +173,7 @@ async function runEsqHclFaultTree(
       calculationType,
       faultTreeTopGate,
     },
-  );
+  ));
 }
 
 async function runEsqHclEventTree(
@@ -184,7 +184,7 @@ async function runEsqHclEventTree(
   calculationType: HclCalculationType,
   dependencyConfiguration?: WorkbookModelAddress,
 ): Promise<HclExecuteResult> {
-  return postJson<HclExecuteResult>(
+  return finishedRun("esq", workbookId, postJson<HclExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-runs`,
     {
       schemaVersion: "1.0.0",
@@ -194,7 +194,17 @@ async function runEsqHclEventTree(
       eventTree,
       ...(dependencyConfiguration === undefined ? {} : { dependencyConfiguration }),
     },
-  );
+  ));
+}
+
+async function finishedHclBatch(workbookId: string, configurationId: string, started: Promise<HclBatchExecuteResult>): Promise<HclBatchExecuteResult> {
+  const response = await started;
+  if (response.batchId === undefined) return response;
+  const batch = await awaitAnalysisRun("esq", workbookId, await getAnalysisRun("esq", workbookId, response.batchId));
+  if (batch.status === "SUCCEEDED") {
+    return fetchJson<HclBatchExecuteResult>(`/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/runs/${batch.id}/result`);
+  }
+  return { ...response, runs: await Promise.all(response.runs.map(async (row) => ({ ...row, run: await getAnalysisRun("esq", workbookId, row.run.id) }))) };
 }
 
 async function runEsqHclFaultTreeBatch(
@@ -207,7 +217,7 @@ async function runEsqHclFaultTreeBatch(
   integrateHazardGrid = false,
   batchInput?: HclBatchInput,
 ): Promise<HclBatchExecuteResult> {
-  return postJson<HclBatchExecuteResult>(
+  return finishedHclBatch(workbookId, configurationId, postJson<HclBatchExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-batch-runs`,
     {
       schemaVersion: "1.0.0",
@@ -219,7 +229,7 @@ async function runEsqHclFaultTreeBatch(
       ...(batchInput === undefined ? {} : { batchInput }),
       ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
     },
-  );
+  ));
 }
 
 async function runEsqHclEventTreeBatch(
@@ -233,7 +243,7 @@ async function runEsqHclEventTreeBatch(
   dependencyConfiguration?: WorkbookModelAddress,
   batchInput?: HclBatchInput,
 ): Promise<HclBatchExecuteResult> {
-  return postJson<HclBatchExecuteResult>(
+  return finishedHclBatch(workbookId, configurationId, postJson<HclBatchExecuteResult>(
     `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-batch-runs`,
     {
       schemaVersion: "1.0.0",
@@ -246,7 +256,7 @@ async function runEsqHclEventTreeBatch(
       ...(batchInput === undefined ? {} : { batchInput }),
       ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
     },
-  );
+  ));
 }
 
 async function getEsqHclFaultTreeResult(
@@ -269,25 +279,6 @@ async function getEsqHclEventTreeResult(
   );
 }
 
-interface EsqTreeRun {
-  id: string;
-  requestedAt: string;
-  revision: number;
-  status: string;
-  logic?: EsqEventTreeRunLogic;
-  result?: EventTreeAnalysisResult;
-  failure?: string;
-}
-
-async function runEsqEventTree(workbookId: string, treeId: string, workbookRevision: number, logic: EsqEventTreeRunLogic): Promise<EventTreeExecuteResult> {
-  return postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/event-trees/${encodeURIComponent(treeId)}/runs`, {
-    schemaVersion: "1.0.0",
-    treeId,
-    workbookRevision,
-    logic,
-  });
-}
-
 async function getEsqRunDetails(workbookId: string, runId: string): Promise<AnalysisRunDetails> {
   return AnalysisRunDetailsSchema.parse(await fetchJson<AnalysisRunDetails>(`/api/esq-workbooks/${workbookId}/analysis-runs/${runId}/details`));
 }
@@ -302,24 +293,6 @@ async function getEsqRunSourceRevision(workbookId: string, modelId: string, runI
   return run?.sourceWorkbooks.find((source) => source.workbookId === sourceId)?.workbookRevision ?? null;
 }
 
-async function listEsqTreeRuns(workbookId: string, treeId: string, limit = 12): Promise<EsqTreeRun[]> {
-  const modelId = esqTreeRunId(treeId);
-  const list = await listEsqRunsOf(workbookId, modelId);
-  const rows = list.runs.filter((row) => row.run.owner.modelId === modelId && row.run.methodType === "EVENT_TREE").slice(0, limit);
-  return Promise.all(rows.map(async (row): Promise<EsqTreeRun> => {
-    const run: EsqTreeRun = { id: row.run.id, requestedAt: row.run.requestedAt, revision: row.run.owner.workbookRevision, status: row.run.status };
-    const failure = row.run.failure?.message;
-    if (failure !== undefined) run.failure = failure;
-    if (row.run.status !== "SUCCEEDED") return run;
-    const details = await getEsqRunDetails(workbookId, row.run.id);
-    const request = EsqEventTreeRunRequestSchema.safeParse(details.request);
-    if (request.success) run.logic = request.data.logic;
-    const result = EventTreeAnalysisResultSchema.safeParse(details.result);
-    if (result.success) run.result = result.data;
-    return run;
-  }));
-}
-
 interface EsqCellRunEntry {
   id: string;
   requestedAt: string;
@@ -330,13 +303,13 @@ interface EsqCellRunEntry {
   failure?: string;
 }
 
-async function runEsqBarrierCell(workbookId: string, cellId: string, workbookRevision: number, settings: LoadCapacityRunSettings): Promise<LoadCapacityExecuteResult> {
-  return postJson<LoadCapacityExecuteResult>(`/api/esq-workbooks/${workbookId}/barrier-cells/${encodeURIComponent(cellId)}/runs`, {
+async function runEsqBarrierCell(workbookId: string, cellId: string, workbookRevision: number, settings: LoadCapacityRunSettings, onProgress?: RunProgressListener): Promise<LoadCapacityExecuteResult> {
+  return finishedRun("esq", workbookId, postJson<LoadCapacityExecuteResult>(`/api/esq-workbooks/${workbookId}/barrier-cells/${encodeURIComponent(cellId)}/runs`, {
     schemaVersion: "1.0.0",
     cellId,
     workbookRevision,
     settings,
-  });
+  }), onProgress);
 }
 
 async function listEsqCellRuns(workbookId: string, cellId: string, limit = 12): Promise<EsqCellRunEntry[]> {
@@ -363,6 +336,7 @@ interface EsqModelRunEntry {
   revision: number;
   status: string;
   failure?: string;
+  progress?: AnalysisRunProgress;
 }
 
 async function runEsqModel(
@@ -371,14 +345,17 @@ async function runEsqModel(
   logic: EsqEventTreeRunLogic,
   calculation: EsqModelCalculation,
   cutSets: EventTreeCutSetSettings | undefined,
+  hcl?: EsqModelRunHcl,
+  onProgress?: RunProgressListener,
 ): Promise<EventTreeExecuteResult> {
-  return postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/model-runs`, {
+  return finishedRun("esq", workbookId, postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/model-runs`, {
     schemaVersion: "1.0.0",
     workbookRevision,
     logic,
     calculation,
     ...(cutSets === undefined ? {} : { cutSets }),
-  });
+    ...(hcl === undefined ? {} : { hcl }),
+  }), onProgress);
 }
 
 async function getEsqModelRunResult(workbookId: string, runId: string): Promise<EsqModelRunResult> {
@@ -395,6 +372,7 @@ async function listEsqModelRuns(workbookId: string, limit = 12): Promise<EsqMode
       const run: EsqModelRunEntry = { id: row.run.id, requestedAt: row.run.requestedAt, revision: row.run.owner.workbookRevision, status: row.run.status };
       const failure = row.run.failure?.message;
       if (failure !== undefined) run.failure = failure;
+      if (row.run.progress !== undefined) run.progress = row.run.progress;
       return run;
     });
 }
@@ -406,23 +384,24 @@ async function runEsqPost(
   purpose: EsqPostRunPurpose,
   cutOff: number,
   raisedHep?: number,
+  onProgress?: RunProgressListener,
 ): Promise<EventTreeExecuteResult> {
-  return postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/post-runs`, {
+  return finishedRun("esq", workbookId, postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/post-runs`, {
     schemaVersion: "1.0.0",
     workbookRevision,
     logic,
     purpose,
     cutOff,
     ...(raisedHep === undefined ? {} : { raisedHep }),
-  });
+  }), onProgress);
 }
 
 async function getEsqPostResult(workbookId: string, runId: string): Promise<EsqPostRunResult> {
   return EsqPostRunResultSchema.parse(await fetchJson<EsqPostRunResult>(`/api/esq-workbooks/${workbookId}/post-runs/${runId}/result`));
 }
 
-async function runEsqImportance(workbookId: string, workbookRevision: number, logic: EsqEventTreeRunLogic): Promise<EventTreeExecuteResult> {
-  return postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/importance-runs`, { schemaVersion: "1.0.0", workbookRevision, logic });
+async function runEsqImportance(workbookId: string, workbookRevision: number, logic: EsqEventTreeRunLogic, onProgress?: RunProgressListener): Promise<EventTreeExecuteResult> {
+  return finishedRun("esq", workbookId, postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/importance-runs`, { schemaVersion: "1.0.0", workbookRevision, logic }), onProgress);
 }
 
 async function getEsqImportanceResult(workbookId: string, runId: string): Promise<EsqImportanceRunResult> {
@@ -436,8 +415,8 @@ interface EsqUncertaintySettings {
   correlation: EsqUncertaintyCorrelation;
 }
 
-async function runEsqUncertainty(workbookId: string, workbookRevision: number, logic: EsqEventTreeRunLogic, settings: EsqUncertaintySettings): Promise<EventTreeExecuteResult> {
-  return postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/uncertainty-runs`, { schemaVersion: "1.0.0", workbookRevision, logic, ...settings });
+async function runEsqUncertainty(workbookId: string, workbookRevision: number, logic: EsqEventTreeRunLogic, settings: EsqUncertaintySettings, onProgress?: RunProgressListener): Promise<EventTreeExecuteResult> {
+  return finishedRun("esq", workbookId, postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/uncertainty-runs`, { schemaVersion: "1.0.0", workbookRevision, logic, ...settings }), onProgress);
 }
 
 async function getEsqUncertaintyResult(workbookId: string, runId: string): Promise<EsqUncertaintyRunResult> {
@@ -451,15 +430,16 @@ async function runEsqSensitivity(
   logic: EsqEventTreeRunLogic,
   calculation: EsqModelCalculation,
   cutSets: EventTreeCutSetSettings | undefined,
+  onProgress?: RunProgressListener,
 ): Promise<EventTreeExecuteResult> {
-  return postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/sensitivity-cases/${encodeURIComponent(caseId)}/runs`, {
+  return finishedRun("esq", workbookId, postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/sensitivity-cases/${encodeURIComponent(caseId)}/runs`, {
     schemaVersion: "1.0.0",
     workbookRevision,
     caseId,
     logic,
     calculation,
     ...(cutSets === undefined ? {} : { cutSets }),
-  });
+  }), onProgress);
 }
 
 async function getEsqSensitivityResult(workbookId: string, caseId: string, runId: string): Promise<EsqModelRunResult> {
@@ -480,14 +460,11 @@ export {
   getEsqModelRunResult,
   listEsqModelRuns,
   type EsqModelRunEntry,
-  runEsqEventTree,
   getEsqRunDetails,
   getEsqRunSourceRevision,
-  listEsqTreeRuns,
   runEsqBarrierCell,
   listEsqCellRuns,
   type EsqCellRunEntry,
-  type EsqTreeRun,
   getEsqExampleOptions,
   getEsqWorkbook,
   patchEsqWorkbook,

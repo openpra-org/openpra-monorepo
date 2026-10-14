@@ -9,7 +9,10 @@ use tensorbayes::{
 
 use crate::algorithms::bdd_engine::{Bdd, BddRef, BDD_FALSE, BDD_NULL, BDD_TRUE};
 use crate::core::fault_tree::FaultTree;
-use crate::hcl::{HclBaseEvidence, HclEventBinding, HclEventBindings, HclUncertaintySettings};
+use crate::hcl::{
+    HclBaseEvidence, HclEventBinding, HclEventBindings, HclUncertaintyAdjustments,
+    HclUncertaintySettings, HclUncertaintySummary, HclZeroContexts,
+};
 use crate::{PraxisError, Result};
 
 mod population;
@@ -38,6 +41,13 @@ pub(crate) struct PreparedHclUncertainty {
     seed: u64,
     event_samples: HashMap<String, Vec<f64>>,
     overrides: HashSet<String>,
+    zero_contexts: HclZeroContexts,
+    adjustments: HclUncertaintyAdjustments,
+}
+
+pub(crate) struct UncertainSamples {
+    pub(crate) values: Vec<f64>,
+    pub(crate) adjustments: HclUncertaintyAdjustments,
 }
 
 impl PreparedHclUncertainty {
@@ -89,7 +99,21 @@ impl PreparedHclUncertainty {
             seed: settings.seed,
             event_samples: population.event_samples,
             overrides: population.overrides,
+            zero_contexts: settings.zero_probability_contexts,
+            adjustments: HclUncertaintyAdjustments {
+                clipped_probabilities: population.clipped_probabilities,
+                epsilon_adjusted_cpt_values: population.epsilon_adjusted_cpt_values,
+                zero_probability_contexts: 0,
+            },
         })
+    }
+
+    pub(crate) fn adjustments(&self) -> HclUncertaintyAdjustments {
+        self.adjustments
+    }
+
+    pub(crate) fn summarize(&self, samples: &UncertainSamples) -> Result<HclUncertaintySummary> {
+        Ok(HclUncertaintySummary::from_samples(&samples.values, self.seed)?.with_adjustments(samples.adjustments))
     }
 
     pub(crate) fn sample_count(&self) -> usize {
@@ -107,7 +131,7 @@ impl PreparedHclUncertainty {
         bindings: HclEventBindings,
         base_evidence: HclBaseEvidence,
         event_by_variable: &[Option<String>],
-    ) -> Result<Vec<f64>> {
+    ) -> Result<UncertainSamples> {
         let mut probabilities = Vec::with_capacity(bdd.variable_count());
         for variable in 0..bdd.variable_count() {
             let nominal = bdd.var_probs().get(variable).copied().ok_or_else(|| {
@@ -132,32 +156,41 @@ impl PreparedHclUncertainty {
             );
         }
         let mut samples = Vec::with_capacity(self.sample_count);
+        let mut zeroed = 0;
         for chunk in &self.chunks {
             let slice = probabilities
                 .iter()
                 .map(|values| values[chunk.start..chunk.end].to_vec())
                 .collect();
-            samples.extend(
-                BatchedHclQuantifier::new(
-                    bdd,
-                    chunk.tree.clone(),
-                    bindings.clone(),
-                    base_evidence.clone(),
-                    slice,
-                    chunk.end - chunk.start,
-                )?
-                .quantify(root)?,
-            );
+            let mut quantifier = BatchedHclQuantifier::new(
+                bdd,
+                chunk,
+                bindings.clone(),
+                base_evidence.clone(),
+                slice,
+                self.zero_contexts,
+            )?;
+            samples.extend(quantifier.quantify(root)?);
+            zeroed += quantifier.zeroed;
         }
-        Ok(samples)
+        Ok(UncertainSamples {
+            values: samples,
+            adjustments: self.adjustments.with_zero_contexts(zeroed),
+        })
     }
 }
 
 fn validate_network(network: &BayesianGraph, settings: &HclUncertaintySettings) -> Result<()> {
-    if !(10..=10_000).contains(&settings.sample_count) {
+    if settings.sample_count < 2 {
         return Err(PraxisError::Hcl(
-            "HCL uncertainty sample count must be between 10 and 10000".to_string(),
+            "HCL uncertainty needs at least 2 samples".to_string(),
         ));
+    }
+    if !(settings.cpt_clip_epsilon.is_finite() && (0.0..0.5).contains(&settings.cpt_clip_epsilon)) {
+        return Err(PraxisError::Hcl(format!(
+            "the CPT epsilon must be at least 0 and below 0.5, not {}",
+            settings.cpt_clip_epsilon
+        )));
     }
     network.validate()?;
     for variable in network.variables() {
@@ -259,20 +292,25 @@ struct BatchedHclQuantifier<'a> {
     evidence: EvidenceBatch,
     initial_context: EvidenceContext,
     event_probabilities: Vec<Vec<f64>>,
+    first_sample: usize,
     sample_count: usize,
     bdd_cache: HashMap<BddContextKey, Vec<f64>>,
     bn_cache: HashMap<BnQueryKey, Vec<f64>>,
+    zeroed: usize,
 }
 
 impl<'a> BatchedHclQuantifier<'a> {
     fn new(
         bdd: &'a Bdd,
-        tree: CompiledJunctionTree,
+        chunk: &SampleChunk,
         bindings: HclEventBindings,
         base: HclBaseEvidence,
         event_probabilities: Vec<Vec<f64>>,
-        sample_count: usize,
+        zero_contexts: HclZeroContexts,
     ) -> Result<Self> {
+        let tree = chunk.tree.clone();
+        let first_sample = chunk.start;
+        let sample_count = chunk.end - chunk.start;
         for binding in bindings.iter() {
             if binding.bdd_variable() >= bdd.variable_count() {
                 return Err(PraxisError::Hcl(
@@ -292,16 +330,30 @@ impl<'a> BatchedHclQuantifier<'a> {
         let initial_context = EvidenceContext::from_base(&tree, &base)?;
         let rows = vec![base.states().to_vec(); sample_count];
         let evidence = EvidenceBatch::from_rows(&rows)?;
+        let mut engine = ExecutionEngine::new(tree);
+        let zero_allowed = zero_contexts == HclZeroContexts::Zero;
+        engine.allow_zero_mass(zero_allowed);
+        if zero_allowed && base.states().iter().any(|state| *state >= 0) {
+            engine.evaluate(&evidence, NodeId::new(0))?;
+            if let Some(sample) = engine.zero_mass_rows().first() {
+                return Err(PraxisError::Hcl(format!(
+                    "the base evidence has zero probability in uncertainty sample {}",
+                    first_sample + sample + 1
+                )));
+            }
+        }
         Ok(Self {
             bdd,
-            engine: ExecutionEngine::new(tree),
+            engine,
             bindings,
             evidence,
             initial_context,
             event_probabilities,
+            first_sample,
             sample_count,
             bdd_cache: HashMap::new(),
             bn_cache: HashMap::new(),
+            zeroed: 0,
         })
     }
 
@@ -396,8 +448,22 @@ impl<'a> BatchedHclQuantifier<'a> {
             self.engine.set_soft_evidence(node, &likelihoods)?;
         }
         let marginal = self.engine.evaluate(&self.evidence, binding.bn_node())?;
+        let zero_rows: HashSet<usize> = self.engine.zero_mass_rows().iter().copied().collect();
+        if let Some(sample) = zero_rows.iter().min() {
+            if *context == self.initial_context {
+                return Err(PraxisError::Hcl(format!(
+                    "the base evidence has zero probability in uncertainty sample {}",
+                    self.first_sample + sample + 1
+                )));
+            }
+        }
         let mut values = Vec::with_capacity(self.sample_count);
         for sample in 0..self.sample_count {
+            if zero_rows.contains(&sample) {
+                values.push(0.0);
+                self.zeroed += 1;
+                continue;
+            }
             let row = marginal.row(sample).ok_or_else(|| {
                 PraxisError::Hcl("TensorBayes omitted an uncertainty sample".to_string())
             })?;
@@ -410,7 +476,7 @@ impl<'a> BatchedHclQuantifier<'a> {
             if !(total > 0.0 && total.is_finite()) {
                 return Err(PraxisError::Hcl(format!(
                     "BN node marginal has no finite mass in uncertainty sample {}",
-                    sample + 1
+                    self.first_sample + sample + 1
                 )));
             }
             values.push(true_mass / total);

@@ -1,43 +1,52 @@
-import { useEffect, useState } from "react";
-import { AnalysisRunMetadataSchema } from "interfaces-shared-types/newly-developed-methods/shared";
+import { useEffect, useRef, useState } from "react";
+import { AnalysisRunMetadataSchema, type AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods/shared";
 import { fetchJson } from "../../api/client";
 import { ANALYSIS_RUN_CHANGED, type AnalysisRunChanged } from "./analysisRunEvents";
 
+const CHECK_FAILED = "The sources of these results could not be checked.";
+const STALE_FALLBACK = "A source of these results changed.";
+
 /** Verify all sources of displayed runs after execution, on focus and while visible. */
-export function useAnalysisSourceGuard(host: AnalysisRunChanged["host"], workbookId: string | null) {
+export function useAnalysisSourceGuard(host: AnalysisRunChanged["host"], workbookId: string | null, revision: number | null = null) {
   const [sourceEpoch, setEpoch] = useState(0);
   const [sourceWarning, setWarning] = useState<string | null>(null);
+  const [sourceChanges, setChanges] = useState<ReadonlyMap<string, string>>(() => new Map());
+  const recheck = useRef<() => void>(() => undefined);
   useEffect(() => {
     setWarning(null);
+    setChanges(new Map());
     if (workbookId === null) return;
     const ids = new Set<string>();
     let disposed = false;
     let generation = 0;
-    const invalidate = (message: string, current: number) => {
-      if (disposed || generation !== current) return;
-      ids.clear();
-      generation++;
-      setWarning(message);
-      setEpoch((value) => value + 1);
-    };
     const check = async () => {
       if (ids.size === 0 || document.visibilityState === "hidden") return;
       const current = ++generation;
       try {
         const rows = await Promise.all(
           [...ids].map((id) =>
-            fetchJson<unknown>(`/api/${host}-workbooks/${encodeURIComponent(workbookId)}/analysis-runs/${id}`).then(
+            fetchJson<AnalysisRunMetadata>(`/api/${host}-workbooks/${encodeURIComponent(workbookId)}/analysis-runs/${id}`).then(
               (value) => AnalysisRunMetadataSchema.parse(value),
             ),
           ),
         );
-        if (rows.some((row) => row.freshness?.status !== "CURRENT"))
-          invalidate("A source workbook changed or is missing. Run again after reviewing the sources.", current);
-      } catch {
-        invalidate(
-          "Source access or revisions could not be verified. Previous results are no longer current.",
-          current,
+        if (disposed || generation !== current) return;
+        const stale = rows.flatMap((row) =>
+          row.freshness?.status === "STALE" ? [[row.id, row.freshness.change ?? STALE_FALLBACK] as const] : [],
         );
+        const [first] = stale;
+        if (first === undefined) return;
+        stale.forEach(([id]) => ids.delete(id));
+        generation++;
+        setChanges((previous) => new Map([...previous, ...stale]));
+        setWarning(first[1]);
+        setEpoch((value) => value + 1);
+      } catch {
+        if (disposed || generation !== current) return;
+        ids.clear();
+        generation++;
+        setWarning(CHECK_FAILED);
+        setEpoch((value) => value + 1);
       }
     };
     const changed = (event: Event) => {
@@ -50,6 +59,7 @@ export function useAnalysisSourceGuard(host: AnalysisRunChanged["host"], workboo
     const focus = () => {
       void check();
     };
+    recheck.current = focus;
     window.addEventListener(ANALYSIS_RUN_CHANGED, changed);
     window.addEventListener("focus", focus);
     document.addEventListener("visibilitychange", focus);
@@ -57,11 +67,15 @@ export function useAnalysisSourceGuard(host: AnalysisRunChanged["host"], workboo
     return () => {
       disposed = true;
       generation++;
+      recheck.current = () => undefined;
       window.clearInterval(timer);
       window.removeEventListener(ANALYSIS_RUN_CHANGED, changed);
       window.removeEventListener("focus", focus);
       document.removeEventListener("visibilitychange", focus);
     };
   }, [host, workbookId]);
-  return { sourceEpoch, sourceWarning };
+  useEffect(() => {
+    recheck.current();
+  }, [revision]);
+  return { sourceEpoch, sourceWarning, sourceChanges };
 }

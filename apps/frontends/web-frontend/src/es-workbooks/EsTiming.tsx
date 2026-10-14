@@ -288,7 +288,7 @@ function ActionName({ item }: { item: OperatorActionWindow }): JSX.Element {
   );
 }
 
-function TabBar<T extends string>({ tabs, tab, label, findings, onTab }: { tabs: readonly { id: T; label: string }[]; tab: T; label: string; findings: number; onTab: (tab: T) => void }): JSX.Element {
+function TabBar<T extends string>({ tabs, tab, label, findings, onTab }: { tabs: readonly { id: T; label: string; disabled?: boolean }[]; tab: T; label: string; findings: number; onTab: (tab: T) => void }): JSX.Element {
   const tablist = useRef<HTMLDivElement>(null);
   return (
     <div
@@ -299,16 +299,17 @@ function TabBar<T extends string>({ tabs, tab, label, findings, onTab }: { tabs:
       onKeyDown={(event) => {
         if (event.key !== "ArrowLeft" && event.key !== "ArrowRight" && event.key !== "Home" && event.key !== "End") return;
         event.preventDefault();
-        const current = tabs.findIndex((item) => item.id === tab);
-        const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (current + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
-        const target = tabs[next];
+        const enabled = tabs.filter((item) => item.disabled !== true);
+        const current = enabled.findIndex((item) => item.id === tab);
+        const next = event.key === "Home" ? 0 : event.key === "End" ? enabled.length - 1 : (current + (event.key === "ArrowRight" ? 1 : -1) + enabled.length) % enabled.length;
+        const target = enabled[next];
         if (target === undefined) return;
         onTab(target.id);
-        tablist.current?.querySelectorAll<HTMLButtonElement>("button")[next]?.focus();
+        tablist.current?.querySelectorAll<HTMLButtonElement>("button")[tabs.indexOf(target)]?.focus();
       }}
     >
       {tabs.map((item) => (
-        <button key={item.id} type="button" role="tab" aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1} onClick={() => onTab(item.id)}>
+        <button key={item.id} type="button" role="tab" aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1} disabled={item.disabled === true} onClick={() => onTab(item.id)}>
           {item.id === "checks" ? `Checks (${String(findings)})` : item.label}
         </button>
       ))}

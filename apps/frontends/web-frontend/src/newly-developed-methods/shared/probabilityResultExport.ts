@@ -26,6 +26,7 @@ export function runCsvContext(result: RunContext): ResultCsvRecord {
 
 function uncertaintyColumns(summary?: HclUncertaintySummary): ResultCsvRecord {
   if (summary === undefined) return {};
+  const best = summary.fit?.candidates[0];
   return {
     sample_count: summary.sampleCount,
     seed: summary.seed,
@@ -36,6 +37,18 @@ function uncertaintyColumns(summary?: HclUncertaintySummary): ResultCsvRecord {
     median: summary.median,
     percentile_95: summary.percentile95,
     maximum: summary.maximum,
+    ...(summary.adjustments === undefined ? {} : {
+      clipped_probabilities: summary.adjustments.clippedProbabilities,
+      cpt_values_raised_to_floor: summary.adjustments.epsilonAdjustedCptValues,
+      zero_probability_contexts: summary.adjustments.zeroProbabilityContexts,
+    }),
+    ...(best === undefined ? {} : {
+      best_fit_family: best.family,
+      best_fit_law: JSON.stringify(best.law),
+      best_fit_aic: best.aic,
+      best_fit_bic: best.bic,
+      best_fit_ks: best.ksStatistic,
+    }),
   };
 }
 
@@ -159,6 +172,7 @@ export function eventTreeResultRecords(result: EventTreeAnalysisResult, name: Se
       quantity: "annual_frequency",
       unit: "/yr",
       value: endState.annualFrequency,
+      ...(endState.sequenceSum === undefined ? {} : { sequence_sum: endState.sequenceSum, sequences_overlap: endState.sequencesOverlap ?? false }),
       ...uncertaintyColumns(endState.uncertainty),
     })),
   ];

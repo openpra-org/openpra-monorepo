@@ -227,7 +227,10 @@ function SequenceOutcome({ sequence }: { sequence: EventTreeSequenceView }): JSX
       ? sequence.sequenceFamilyId ?? "Safe state"
       : sequence.releaseCategoryId ?? sequence.sequenceFamilyId ?? "Release";
   return (
-    <span className="estree__seq-classification">{label}</span>
+    <>
+      <span className="estree__seq-classification">{label}</span>
+      {sequence.annualFrequency !== undefined && <span className="estree__seq-frequency">{`${formatExponential(sequence.annualFrequency)} /yr`}</span>}
+    </>
   );
 }
 
@@ -312,7 +315,7 @@ function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, sel
         {layout.leaves.map((leaf) => {
           const sequence = sequences.get(leaf.sequenceId);
           return sequence === undefined ? null : (
-            <button key={sequence.id} type="button" aria-label={`${sequence.name} ${sequence.id}`} className={`estree__seq${activeSequenceId === sequence.id ? " estree__seq--active" : ""}`} style={{ left: layout.endX + 6, top: leaf.y }} onMouseEnter={() => onHover(sequence.id)} onMouseLeave={() => onHover(null)} onClick={() => onSelect(sequence.id)} onContextMenu={(contextEvent) => { contextEvent.preventDefault(); contextEvent.stopPropagation(); onSequenceContext(sequence.id, contextEvent.clientX, contextEvent.clientY); }}>
+            <button key={sequence.id} type="button" aria-label={`${sequence.name} ${sequence.id}`} className={`estree__seq${sequence.annualFrequency === undefined ? "" : " estree__seq--valued"}${activeSequenceId === sequence.id ? " estree__seq--active" : ""}`} style={{ left: layout.endX + 6, top: leaf.y }} onMouseEnter={() => onHover(sequence.id)} onMouseLeave={() => onHover(null)} onClick={() => onSelect(sequence.id)} onContextMenu={(contextEvent) => { contextEvent.preventDefault(); contextEvent.stopPropagation(); onSequenceContext(sequence.id, contextEvent.clientX, contextEvent.clientY); }}>
               <SequenceOutcome sequence={sequence} />
             </button>
           );

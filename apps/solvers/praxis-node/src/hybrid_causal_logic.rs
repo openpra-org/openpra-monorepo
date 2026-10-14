@@ -4,14 +4,14 @@ use praxis::analysis::event_tree_quantification::EventTreeHclContext;
 use praxis::core::distribution::{
     UncertainExpression, UncertainParameter, UncertainVector, UncertainVectorParameter,
 };
-use praxis::core::distribution_sampling::parameter_name;
+use praxis::core::distribution_sampling::{fresh_seed, parameter_name};
 use praxis::hcl::{
-    analyze_hcl, ensure_hazard_convolution_supported, quantify_hcl, quantify_hcl_batch,
+    analyze_hcl, ensure_hazard_convolution_supported, hazard_exceedance, quantify_hcl, quantify_hcl_batch,
     quantify_hcl_hazard_grid_batch, validate_hcl_uncertainty_settings, HclAnalysisResult,
     HclAnalysisSettings, HclBasicEventUncertainty, HclBindingSpec, HclCptGenerator,
     HclCptGeneratorSpec, HclCptRowUncertainty, HclEvidenceSpec, HclFragilityDemand,
-    HclHazardGridBatchResult, HclModel, HclPgaBin, HclPgaFrequencyConversion, HclSampler,
-    HclSettings, HclUncertaintySettings,
+    HclCorrelation, HclHazardGridBatchResult, HclModel, HclPgaBin, HclPgaFrequencyConversion,
+    HclSampler, HclSettings, HclUncertaintySettings, HclZeroContexts,
 };
 use praxis::quantitative::{
     prepare_hazard_weights, AnnualizationConvention, FrequencyUnit, HazardWeightSummary,
@@ -60,6 +60,8 @@ struct HclExecuteRequest {
     fault_tree_top_gate: EntityReference,
     evidence_batch: Option<Vec<HclEvidenceRow>>,
     hazard_convolution: Option<HazardConvolutionRequest>,
+    #[serde(default)]
+    keep_samples: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -155,8 +157,19 @@ struct HclSolverSettings {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct HclUncertaintySnapshot {
     sample_count: usize,
-    seed: u64,
+    #[serde(default)]
+    seed: Option<u64>,
     sampler: HclSampler,
+    #[serde(default)]
+    cpt_sampler: Option<HclSampler>,
+    #[serde(default)]
+    correlation: HclCorrelation,
+    #[serde(default)]
+    clip_probabilities: bool,
+    #[serde(default)]
+    cpt_clip_epsilon: f64,
+    #[serde(default)]
+    zero_probability_contexts: HclZeroContexts,
     #[serde(default)]
     basic_events: Vec<HclBasicEventUncertaintySnapshot>,
     #[serde(default)]
@@ -335,8 +348,13 @@ fn resolve_uncertainty(
     let (catalogue_parameters, catalogue_vectors) = crate::fault_tree::catalogue_tables(request)?;
     Ok(Some(HclUncertaintySettings {
         sample_count: uncertainty.sample_count,
-        seed: uncertainty.seed,
+        seed: uncertainty.seed.unwrap_or_else(fresh_seed),
         sampler: uncertainty.sampler,
+        cpt_sampler: uncertainty.cpt_sampler,
+        correlation: uncertainty.correlation,
+        clip_probabilities: uncertainty.clip_probabilities,
+        cpt_clip_epsilon: uncertainty.cpt_clip_epsilon,
+        zero_probability_contexts: uncertainty.zero_probability_contexts,
         basic_events,
         cpt_rows,
         cpt_generators,
@@ -362,6 +380,7 @@ struct HclAdapter {
     evidence_batch: Option<Vec<HclEvidenceRow>>,
     hazard_convolution: Option<HazardConvolutionRequest>,
     basic_event_quantifications: Vec<BasicEventQuantificationRecord>,
+    keep_samples: bool,
 }
 
 fn serialization_error(context: &str, error: impl std::fmt::Display) -> PraxisError {
@@ -632,6 +651,7 @@ fn build_adapter(request: &SolverRequest) -> Result<HclAdapter> {
         evidence_batch: execute.evidence_batch,
         hazard_convolution: execute.hazard_convolution,
         basic_event_quantifications,
+        keep_samples: execute.keep_samples,
     })
 }
 
@@ -911,6 +931,7 @@ fn hcl_hazard_convolution_json(
         .collect();
     let mut convolved_probability = 0.0;
     let mut integrated_annual_frequency = 0.0;
+    let mut cells = Vec::with_capacity(rows.len());
     let result_rows: Vec<Value> = rows
         .iter()
         .zip(&weights.weights)
@@ -922,6 +943,9 @@ fn hcl_hazard_convolution_json(
             let annual_contribution = probability.map_or(0.0, |p| weight.annual_frequency * p);
             convolved_probability += contribution;
             integrated_annual_frequency += annual_contribution;
+            if let Some(probability) = probability {
+                cells.push((probability, weight.convolution_weight, weight.annual_frequency));
+            }
             json!({
                 "scenarioId": row.scenario_id,
                 "status": if result.is_some() { "ok" } else { "skipped_zero_weight" },
@@ -942,7 +966,8 @@ fn hcl_hazard_convolution_json(
             "targetKind": "FAULT_TREE",
             "rows": result_rows,
             "convolvedProbability": convolved_probability,
-            "integratedAnnualFrequency": integrated_annual_frequency
+            "integratedAnnualFrequency": integrated_annual_frequency,
+            "exceedance": hazard_exceedance(&cells)
         }),
     );
     Ok(result)
@@ -993,6 +1018,9 @@ fn hcl_result_json(
     }
     if let Some(uncertainty) = &result.uncertainty {
         value["uncertainty"] = json!(uncertainty);
+    }
+    if let Some(samples) = result.uncertainty_samples.as_ref().filter(|_| adapter.keep_samples) {
+        value["sampleVectors"] = json!([{ "id": "top", "quantity": "PROBABILITY", "values": samples }]);
     }
     value
 }

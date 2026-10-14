@@ -65,6 +65,7 @@ import {
   type EsqSensitivityWindowKind,
 } from "./esqSensitivity";
 import { getEsqSensitivityResult, runEsqSensitivity } from "./esqWorkbookApi";
+import { runQuantityText } from "./esqSolve";
 
 type SensTab = "register" | "cases" | "results" | "preop" | "checks";
 
@@ -138,8 +139,11 @@ function useCaseRunner(view: EsqSensitivityView) {
     const workbookId = runtime.workbookId;
     const revision = runtime.revision;
     if (workbookId === null || revision === null || request === undefined) return undefined;
-    const response = await runEsqSensitivity(workbookId, caseId, revision, request.logic, request.calculation, request.cutSets);
-    if (response.run.status !== "SUCCEEDED") throw new Error(response.run.failure?.message ?? "The run did not finish.");
+    const response = await runEsqSensitivity(workbookId, caseId, revision, request.logic, request.calculation, request.cutSets, runner.progress);
+    if (response.run.status !== "SUCCEEDED") {
+      await runner.failRun(workbookId, response.run, view.model, caseId);
+      return undefined;
+    }
     const summary = await getEsqSensitivityResult(workbookId, caseId, response.run.id);
     const problem = caseRunProblem(summary, esq, caseId);
     if (problem !== undefined) {
@@ -247,7 +251,7 @@ function CasesPanel({ view, openWindow }: { view: EsqSensitivityView; openWindow
     <div className="esq-run">
       <div className="esq-run__composer" aria-label="Case run controls">
         <div className="esq-run__row">
-          <p className="esq-meta">{view.run === undefined ? "Run the model in Step 05 first. Each case runs with its settings." : `Each case is a PRAXIS run with the settings of the run of record (${view.run.calculation === "EXACT" ? "exact" : "cut sets"}), compared with that run.`}</p>
+          <p className="esq-meta">{view.run === undefined ? "Run the model in Step 05 first. Each case runs with its settings." : `Each case is a PRAXIS run on ${runQuantityText(view.run)}, with the other settings of the run of record, and is compared with that run.${view.run.hcl === undefined ? "" : " The run of record uses HCL, and HCL sensitivity is not available, so the cases leave the network out."}`}</p>
           <div className="esq-card-actions">
             <button type="button" className="posnav__btn posnav__btn--sm" disabled={runs.disabled || pending.length === 0} onClick={() => runs.run(pending)}>{`Run ${pending.length} pending`}</button>
             <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={runs.disabled || runnable.length === 0} onClick={() => runs.run(runnable)}>

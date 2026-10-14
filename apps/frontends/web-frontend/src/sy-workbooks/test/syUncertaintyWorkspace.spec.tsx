@@ -6,7 +6,7 @@ import { SyUncertaintyAnalysis } from "../SyUncertaintyAnalysis";
 import { FaultTreeUncertaintyResults } from "../../newly-developed-methods/fault-tree";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "../syWorkbookApi";
 
-jest.mock("../../newly-developed-methods/shared/useAnalysisSourceGuard", () => ({ useAnalysisSourceGuard: () => ({ sourceWarning: null }) }));
+jest.mock("../../newly-developed-methods/shared/useAnalysisSourceGuard", () => ({ useAnalysisSourceGuard: () => ({ sourceEpoch: 0, sourceWarning: null, sourceChanges: new Map() }) }));
 jest.mock("../syWorkbookApi", () => ({ getSyFaultTreeResult: jest.fn(), runSyFaultTree: jest.fn(), validateSyFaultTree: jest.fn() }));
 
 const linked: UncertainExpression = { node: "PARAMETER", reference: { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook", entityId: "da-param" } };

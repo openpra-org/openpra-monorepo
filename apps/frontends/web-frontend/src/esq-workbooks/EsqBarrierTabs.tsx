@@ -15,13 +15,14 @@ import { holdsEstimate } from "interfaces-mef-types/da/data-analysis";
 import { cellInputsKey, lawFieldNames, lawFieldValue } from "interfaces-mef-types/esq/esq-barrier-inputs";
 import { parameterUnit } from "interfaces-mef-types/esq/esq-measure-inputs";
 import type { LoadCapacityAnalysisResult, LoadCapacityRunSettings, LoadCapacitySampling } from "interfaces-shared-types/newly-developed-methods/load-capacity";
+import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
+import { cancelAnalysisRun, runProgressText } from "../newly-developed-methods/shared/analysisRunWait";
 import { ExpressionEditor, LawEditor, type ParameterOption } from "../newly-developed-methods/shared/uncertainEditor";
 import { lawText } from "../newly-developed-methods/shared/uncertainText";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
-import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { DialogHead, DialogShell } from "../es-workbooks/EsScope";
 import { PAGE, Pager, TabBar, paged } from "../es-workbooks/EsTiming";
-import { pointText, sciText, useExpressionPoints, type EsqPointEntry } from "./esqShared";
+import { AreaField, CheckGroup, ChecksPanel, NumberField, TextField, pointText, sciText, useExpressionPoints, type EsqPointEntry } from "./esqShared";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import { missionTimeSourcesOf, parameterTableOf } from "./esqModel";
 import {
@@ -55,24 +56,16 @@ import {
 } from "./esqBarriers";
 import { listEsqCellRuns, runEsqBarrierCell, type EsqCellRunEntry } from "./esqWorkbookApi";
 import "../es-workbooks/css/esSequences.css";
-import "./css/esqBarrier.css";
 
 type BarrierTab = "cells" | "credits" | "checks";
 
 type BarrierDialog = { kind: "cell"; id: string } | { kind: "credit"; key: string } | { kind: "logic" };
-
-interface CheckOption {
-  id: string;
-  label: string;
-}
 
 const BARRIER_TABS: { id: BarrierTab; label: string }[] = [
   { id: "cells", label: "Cells" },
   { id: "credits", label: "Credits" },
   { id: "checks", label: "Checks" },
 ];
-
-const SEVERITY_TEXT: Record<EsqBarrierFinding["severity"], string> = { error: "Error", warning: "Warning", note: "Note" };
 
 const SAMPLING_OPTIONS: readonly (readonly [LoadCapacitySampling, string])[] = [["LATIN_HYPERCUBE", "Latin hypercube"], ["MONTE_CARLO", "Monte Carlo"]];
 
@@ -114,15 +107,6 @@ function fieldLabel(field: string): string {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
-function numberFrom(text: string, apply: (value: number | undefined) => void): void {
-  if (text.trim().length === 0) {
-    apply(undefined);
-    return;
-  }
-  const value = Number(text);
-  if (Number.isFinite(value)) apply(value);
-}
-
 function daOptions(esq: EventSequenceQuantification, units: readonly UncertainUnit[], as: UncertainUnit): ParameterOption[] {
   const workbookId = esq.linkedWorkbooks?.DA;
   if (workbookId === undefined || workbookId.length === 0) return [];
@@ -143,55 +127,6 @@ function phenomenonValue(entry: EsqCellView): string {
   const first = entry.phenomena[0];
   if (first === undefined) return "";
   return first.fromEs ? `es:${first.mechanism.phenomenonId ?? ""}` : `typed:${first.mechanism.id}`;
-}
-
-function CheckGroup({ label, options, values, editable, onChange }: { label: string; options: readonly CheckOption[]; values: readonly string[]; editable: boolean; onChange: (values: string[]) => void }): JSX.Element {
-  const all = [...options, ...values.filter((value) => !options.some((option) => option.id === value)).map((value) => ({ id: value, label: value }))];
-  return (
-    <div className="posfield posfield-grid--span2 es-dialog-list" role="group" aria-label={label}>
-      <span className="posfield__label">{label}</span>
-      <div className="es-dialog-checks">
-        {all.map((option) => (
-          <label key={option.id} className="es-dialog-check">
-            <input type="checkbox" checked={values.includes(option.id)} disabled={!editable} onChange={(event) => onChange(event.target.checked ? [...values, option.id] : values.filter((value) => value !== option.id))} />
-            <span>{option.label}</span>
-          </label>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TextField({ label, value, editable, wide = false, onChange }: { label: string; value: string; editable: boolean; wide?: boolean; onChange: (value: string) => void }): JSX.Element {
-  const id = useId();
-  return (
-    <div className={wide ? "posfield posfield-grid--span2" : "posfield"}>
-      <label className="posfield__label" htmlFor={id}>{label}</label>
-      <WorkbookInput id={id} className="posfield__input" value={value} disabled={!editable} onChange={(event) => onChange(event.target.value)} />
-    </div>
-  );
-}
-
-function AreaField({ label, value, editable, required = false, onChange }: { label: string; value: string; editable: boolean; required?: boolean; onChange: (value: string) => void }): JSX.Element {
-  const id = useId();
-  const missing = required && blank(value);
-  return (
-    <div className="posfield posfield-grid--span2">
-      <label className="posfield__label" htmlFor={id}>{label}</label>
-      <WorkbookTextarea id={id} className="posfield__textarea" rows={2} fitContent aria-invalid={missing} value={value} disabled={!editable} onChange={(event) => onChange(event.target.value)} />
-      {missing && <span className="esq-barrier-error" role="alert">Required</span>}
-    </div>
-  );
-}
-
-function NumberField({ label, value, editable, onChange }: { label: string; value: number | undefined; editable: boolean; onChange: (value: number | undefined) => void }): JSX.Element {
-  const id = useId();
-  return (
-    <div className="posfield">
-      <label className="posfield__label" htmlFor={id}>{label}</label>
-      <WorkbookInput id={id} type="number" step="any" className="posfield__input posmono esq-barrier-number" value={value ?? ""} disabled={!editable} onChange={(event) => numberFrom(event.target.value, onChange)} />
-    </div>
-  );
 }
 
 function CellsPanel({ view, onOpen, onLogic }: { view: EsqBarriersView; onOpen: (id: string) => void; onLogic: () => void }): JSX.Element {
@@ -219,13 +154,13 @@ function CellsPanel({ view, onOpen, onLogic }: { view: EsqBarriersView; onOpen: 
     if (cell.screening !== undefined) return <>{`Screened ${cell.screening.criterion}`}</>;
     if (entry.runValue !== undefined) return <>{sciText(entry.runValue)}</>;
     if (cell.ofRecord === "TYPED" && entry.expression !== undefined) return <>{pointText(points.get(cell.id))}</>;
-    return <span className="esq-barrier-flag">Not set</span>;
+    return <span className="esq-dialog-flag">Not set</span>;
   }
 
   function scopeOf(cell: EsqCell): JSX.Element {
     if (cell.hazardGroup !== undefined) return <>{cell.hazardGroup}</>;
     if (cell.familyId !== undefined) return <>{cell.familyId}</>;
-    return cell.screening === undefined ? <span className="esq-barrier-flag">Not set</span> : <span className="posmuted">None</span>;
+    return cell.screening === undefined ? <span className="esq-dialog-flag">Not set</span> : <span className="posmuted">None</span>;
   }
 
   return (
@@ -256,11 +191,11 @@ function CellsPanel({ view, onOpen, onLogic }: { view: EsqBarriersView; onOpen: 
               return (
                 <tr key={cell.id}>
                   <td>
-                    {entry.mode === undefined ? <span className="esq-barrier-flag">Not set</span> : <span className="postable__name">{modeLabel(entry.mode)}</span>}
+                    {entry.mode === undefined ? <span className="esq-dialog-flag">Not set</span> : <span className="postable__name">{modeLabel(entry.mode)}</span>}
                     <span className="postable__name-sub">{entry.barrier?.name ?? cell.id}</span>
                   </td>
                   <td>
-                    {phenomenon === undefined ? <span className="esq-barrier-flag">Not set</span> : <span className="postable__name">{phenomenon.name}</span>}
+                    {phenomenon === undefined ? <span className="esq-dialog-flag">Not set</span> : <span className="postable__name">{phenomenon.name}</span>}
                     {phenomenon !== undefined && <span className="postable__name-sub">{phenomenon.fromEs ? "ES" : MECHANISM_KIND_LABELS[phenomenon.mechanism.kind]}</span>}
                   </td>
                   <td>{scopeOf(cell)}</td>
@@ -320,7 +255,7 @@ function BarrierFields({ entry, view }: { entry: EsqCellView; view: EsqBarriersV
   }
 
   return (
-    <div className="posfield-grid esq-barrier-fields">
+    <div className="posfield-grid esq-dialog-fields">
       <div className="posfield">
         <label className="posfield__label" htmlFor={`${fieldId}-barrier`}>Barrier</label>
         <select id={`${fieldId}-barrier`} className="posfield__select" value={barrier?.id ?? ""} disabled={!editable} onChange={(event) => setBarrier(event.target.value)}>
@@ -370,7 +305,7 @@ function ModeFields({ entry }: { entry: EsqCellView }): JSX.Element | null {
   }
 
   return (
-    <div className="posfield-grid esq-barrier-fields">
+    <div className="posfield-grid esq-dialog-fields">
       <div className="posfield">
         <label className="posfield__label" htmlFor={`${fieldId}-mode`}>Failure mode</label>
         <select id={`${fieldId}-mode`} className="posfield__select" value={mode?.id ?? ""} disabled={!editable} onChange={(event) => setMode(event.target.value)}>
@@ -433,7 +368,7 @@ function PhenomenonFields({ entry, view }: { entry: EsqCellView; view: EsqBarrie
   }
 
   return (
-    <div className="posfield-grid esq-barrier-fields">
+    <div className="posfield-grid esq-dialog-fields">
       <div className="posfield posfield-grid--span2">
         <label className="posfield__label" htmlFor={`${fieldId}-phenomenon`}>Phenomenon</label>
         <select id={`${fieldId}-phenomenon`} className="posfield__select" value={value} disabled={!editable} onChange={(event) => setPhenomenon(event.target.value)}>
@@ -512,7 +447,7 @@ function ScopeFields({ entry, view }: { entry: EsqCellView; view: EsqBarriersVie
   }
 
   return (
-    <div className="posfield-grid esq-barrier-fields">
+    <div className="posfield-grid esq-dialog-fields">
       <div className="posfield">
         <label className="posfield__label" htmlFor={`${fieldId}-status`}>Status</label>
         <select id={`${fieldId}-status`} className="posfield__select" value={status} disabled={!editable} onChange={(event) => setStatus(event.target.value)}>
@@ -624,7 +559,7 @@ function LoadFields({ entry }: { entry: EsqCellView }): JSX.Element {
   }
 
   return (
-    <div className="posfield-grid esq-barrier-fields">
+    <div className="posfield-grid esq-dialog-fields">
       <TextField label="Variable" value={cell.variable} editable={editable} onChange={(variable) => save({ ...cell, variable })} />
       <TextField label="Unit" value={cell.unit} editable={editable} onChange={(unit) => save({ ...cell, unit })} />
       <div className="posfield">
@@ -686,11 +621,11 @@ function RunResult({ run, cell }: { run: EsqCellRunEntry; cell: EsqCell }): JSX.
   ];
   return (
     <>
-      <table className="postable postable--mid esq-barrier-table" aria-label="Run result">
+      <table className="postable postable--mid esq-dialog-table" aria-label="Run result">
         <thead><tr><th scope="col">Result</th><th scope="col">Value</th></tr></thead>
         <tbody>{values.map(([name, value]) => <tr key={name}><td>{name}</td><td className="posmono">{value}</td></tr>)}</tbody>
       </table>
-      <table className="postable postable--mid esq-barrier-table" aria-label="Conditional failure curve">
+      <table className="postable postable--mid esq-dialog-table" aria-label="Conditional failure curve">
         <thead><tr><th scope="col">{`Load${unit}`}</th><th scope="col">P(fail | load)</th>{band && <><th scope="col">5th</th><th scope="col">95th</th></>}</tr></thead>
         <tbody>
           {rows.map((row, index) => (
@@ -713,6 +648,7 @@ function RunFields({ entry }: { entry: EsqCellView }): JSX.Element {
   const [runs, setRuns] = useState<EsqCellRunEntry[]>([]);
   const [shownId, setShownId] = useState("");
   const [running, setRunning] = useState(false);
+  const [live, setLive] = useState<AnalysisRunMetadata | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const blocked = analysisSaveBlock(runtime);
@@ -739,15 +675,25 @@ function RunFields({ entry }: { entry: EsqCellView }): JSX.Element {
   function run(): void {
     if (workbookId === null || runtime.revision === null) return;
     setRunning(true);
+    setLive(null);
     setError(null);
-    runEsqBarrierCell(workbookId, cellId, runtime.revision, settings)
+    runEsqBarrierCell(workbookId, cellId, runtime.revision, settings, setLive)
       .then((response) => {
-        if (response.run.status !== "SUCCEEDED") setError(response.run.failure?.message ?? "The run failed.");
+        if (response.run.status === "CANCELLED") setError("The run was stopped before it finished.");
+        else if (response.run.status !== "SUCCEEDED") setError(response.run.failure?.message ?? "The run did not finish and gave no reason.");
         setShownId(response.run.id);
         setReload((n) => n + 1);
       })
       .catch((caught: Error) => setError(caught.message))
-      .finally(() => setRunning(false));
+      .finally(() => {
+        setRunning(false);
+        setLive(null);
+      });
+  }
+
+  function stop(runId: string): void {
+    if (workbookId === null) return;
+    cancelAnalysisRun("esq", workbookId, runId).catch((caught: Error) => setError(caught.message));
   }
 
   const shown = runs.find((candidate) => candidate.id === shownId);
@@ -778,8 +724,8 @@ function RunFields({ entry }: { entry: EsqCellView }): JSX.Element {
   const disabled = running || !editable || blocked !== null || entry.problem !== undefined;
 
   return (
-    <div className="esq-barrier-section">
-      <div className="posfield-grid esq-barrier-fields">
+    <div className="esq-dialog-section">
+      <div className="posfield-grid esq-dialog-fields">
         <div className="posfield">
           <label className="posfield__label" htmlFor={`${fieldId}-sampling`}>Sampling</label>
           <select id={`${fieldId}-sampling`} className="posfield__select" value={settings.sampling} onChange={(event) => setSettings({ ...settings, sampling: event.target.value === "MONTE_CARLO" ? "MONTE_CARLO" : "LATIN_HYPERCUBE" })}>
@@ -788,24 +734,26 @@ function RunFields({ entry }: { entry: EsqCellView }): JSX.Element {
         </div>
         <div className="posfield">
           <label className="posfield__label" htmlFor={`${fieldId}-samples`}>Samples</label>
-          <input id={`${fieldId}-samples`} type="number" min={2} max={1000000} step={1} className="posfield__input posmono esq-barrier-number" value={settings.samples} onChange={(event) => { const value = Math.round(Number(event.target.value)); if (Number.isFinite(value) && value >= 2 && value <= 1000000) setSettings({ ...settings, samples: value }); }} />
+          <input id={`${fieldId}-samples`} type="number" min={2} max={1000000} step={1} className="posfield__input posmono esq-dialog-number" value={settings.samples} onChange={(event) => { const value = Math.round(Number(event.target.value)); if (Number.isFinite(value) && value >= 2 && value <= 1000000) setSettings({ ...settings, samples: value }); }} />
         </div>
         <div className="posfield">
           <label className="posfield__label" htmlFor={`${fieldId}-seed`}>Seed</label>
-          <input id={`${fieldId}-seed`} type="number" min={0} step={1} className="posfield__input posmono esq-barrier-number" value={settings.seed} onChange={(event) => { const value = Math.round(Number(event.target.value)); if (Number.isSafeInteger(value) && value >= 0) setSettings({ ...settings, seed: value }); }} />
+          <input id={`${fieldId}-seed`} type="number" min={0} step={1} className="posfield__input posmono esq-dialog-number" value={settings.seed} onChange={(event) => { const value = Math.round(Number(event.target.value)); if (Number.isSafeInteger(value) && value >= 0) setSettings({ ...settings, seed: value }); }} />
         </div>
         <div className="posfield">
           <label className="posfield__label" htmlFor={`${fieldId}-points`}>Curve points</label>
-          <input id={`${fieldId}-points`} type="number" min={2} max={1001} step={1} className="posfield__input posmono esq-barrier-number" value={settings.curvePoints} onChange={(event) => { const value = Math.round(Number(event.target.value)); if (Number.isFinite(value) && value >= 2 && value <= 1001) setSettings({ ...settings, curvePoints: value }); }} />
+          <input id={`${fieldId}-points`} type="number" min={2} max={1001} step={1} className="posfield__input posmono esq-dialog-number" value={settings.curvePoints} onChange={(event) => { const value = Math.round(Number(event.target.value)); if (Number.isFinite(value) && value >= 2 && value <= 1001) setSettings({ ...settings, curvePoints: value }); }} />
         </div>
       </div>
       <div className="posrow es-dialog-actions">
-        {entry.problem !== undefined && <span className="esq-barrier-flag" title={entry.problem}>Cannot run</span>}
+        {entry.problem !== undefined && <span className="esq-dialog-flag" title={entry.problem}>Cannot run</span>}
+        {editable && live !== null && (live.status === "QUEUED" || live.status === "RUNNING") && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => stop(live.id)}>Stop</button>}
         <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={disabled} title={blocked ?? entry.problem} onClick={run}>{running ? "Running" : "Run the cell"}</button>
       </div>
+      {running && live !== null && <p className="possubtle" role="status">{runProgressText(live)}</p>}
       {error !== null && <p className="es-scope-error" role="alert">{error}</p>}
       {runs.length > 0 && (
-        <div className="posfield-grid esq-barrier-fields">
+        <div className="posfield-grid esq-dialog-fields">
           <div className="posfield posfield-grid--span2">
             <label className="posfield__label" htmlFor={`${fieldId}-shown`}>Run</label>
             <select id={`${fieldId}-shown`} className="posfield__select" value={shownId} onChange={(event) => setShownId(event.target.value)}>
@@ -854,7 +802,7 @@ function ValueFields({ entry }: { entry: EsqCellView }): JSX.Element {
   }
 
   return (
-    <div className="posfield-grid esq-barrier-fields">
+    <div className="posfield-grid esq-dialog-fields">
       <div className="posfield">
         <label className="posfield__label" htmlFor={`${fieldId}-use`}>Goes to</label>
         <select id={`${fieldId}-use`} className="posfield__select" value={cell.use} disabled={!editable} onChange={(event) => save({ ...cell, use: event.target.value === "END_STATE_ATTRIBUTE" ? "END_STATE_ATTRIBUTE" : "SPLIT_FRACTION" })}>
@@ -900,29 +848,29 @@ function CellDialog({ id, view, onClose }: { id: string; view: EsqBarriersView; 
   return (
     <DialogShell label="Cell" onClose={onClose} fit>
       <DialogHead cap={`Cell · ${cell.hazardGroup === undefined ? "ESQ-A3 · C5 · C10 · C12 to C14" : "ESQ-C11 · C15"}`} title={title} onClose={onClose} />
-      <div className="modal__body esq-barrier-dialog">
-        <div className="esq-barrier-section">
-          <span className="esq-barrier-head">Barrier</span>
+      <div className="modal__body esq-dialog-body">
+        <div className="esq-dialog-section">
+          <span className="esq-dialog-head">Barrier</span>
           <BarrierFields entry={entry} view={view} />
           <ModeFields entry={entry} />
         </div>
-        <div className="esq-barrier-section">
-          <span className="esq-barrier-head">Phenomenon</span>
+        <div className="esq-dialog-section">
+          <span className="esq-dialog-head">Phenomenon</span>
           <PhenomenonFields entry={entry} view={view} />
           <ScopeFields entry={entry} view={view} />
         </div>
         {quantified && (
           <>
-            <div className="esq-barrier-section">
-              <span className="esq-barrier-head">Load and capacity</span>
+            <div className="esq-dialog-section">
+              <span className="esq-dialog-head">Load and capacity</span>
               <LoadFields entry={entry} />
             </div>
-            <div className="esq-barrier-section">
-              <span className="esq-barrier-head">Run</span>
+            <div className="esq-dialog-section">
+              <span className="esq-dialog-head">Run</span>
               <RunFields entry={entry} />
             </div>
-            <div className="esq-barrier-section">
-              <span className="esq-barrier-head">Value</span>
+            <div className="esq-dialog-section">
+              <span className="esq-dialog-head">Value</span>
               <ValueFields entry={entry} />
             </div>
           </>
@@ -961,7 +909,7 @@ function LogicDialog({ view, onClose }: { view: EsqBarriersView; onClose: () => 
     <DialogShell label="Phenomena logic" onClose={onClose}>
       <DialogHead cap="Phenomena logic · ESQ-C6" title="Phenomena in the model logic" onClose={onClose} />
       <div className="modal__body">
-        <div className="posfield-grid esq-barrier-fields">
+        <div className="posfield-grid esq-dialog-fields">
           <div className="posfield posfield-grid--span2">
             <label className="posfield__label" htmlFor={`${id}-included`}>Phenomena logic</label>
             <select id={`${id}-included`} className="posfield__select" value={current.included ? "yes" : "no"} disabled={!editable} onChange={(event) => save({ ...current, included: event.target.value === "yes" })}>
@@ -1037,7 +985,7 @@ function CreditsPanel({ view, onOpen }: { view: EsqBarriersView; onOpen: (key: s
                 </td>
                 <td>{row.kind === "EQUIPMENT" ? "Equipment" : "Action"}</td>
                 <td>{(row.credit?.familyIds ?? []).length === 0 ? <span className="posmuted">None</span> : (row.credit?.familyIds ?? []).join(", ")}</td>
-                <td>{row.credit === undefined ? <span className="esq-barrier-flag">Not decided</span> : row.credit.credited ? "Credited" : "Not credited"}</td>
+                <td>{row.credit === undefined ? <span className="esq-dialog-flag">Not decided</span> : row.credit.credited ? "Credited" : "Not credited"}</td>
                 <td className="es-records__act">
                   <button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} ${row.name}`} onClick={() => onOpen(row.key)}>{actionLabel}</button>
                 </td>
@@ -1103,7 +1051,7 @@ function CreditDialog({ rowKey, view, onClose }: { rowKey: string; view: EsqBarr
     <DialogShell label="Credit" onClose={onClose}>
       <DialogHead cap={equipment ? "Equipment credit · ESQ-C8 · C9" : "Action credit · ESQ-C7 · C8"} title={blank(credit.name) ? credit.id : credit.name} onClose={onClose} />
       <div className="modal__body">
-        <div className="posfield-grid esq-barrier-fields">
+        <div className="posfield-grid esq-dialog-fields">
           {equipment ? (
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label" htmlFor={`${fieldId}-record`}>SY record</label>
@@ -1162,34 +1110,6 @@ function CreditDialog({ rowKey, view, onClose }: { rowKey: string; view: EsqBarr
         )}
       </div>
     </DialogShell>
-  );
-}
-
-function ChecksPanel({ findings, opens, onOpen }: { findings: readonly EsqBarrierFinding[]; opens: (finding: EsqBarrierFinding) => boolean; onOpen: (finding: EsqBarrierFinding) => void }): JSX.Element {
-  const [page, setPage] = useState(0);
-  const rows = paged(findings.length, page);
-  const shown = findings.slice(rows.start, rows.start + PAGE);
-  return (
-    <>
-      <div className="es-records__bar">
-        <Pager rows={rows} noun="finding" onPage={setPage} />
-      </div>
-      {findings.length > 0 && (
-        <table className="postable postable--mid es-records" aria-label="Checks">
-          <thead><tr><th scope="col">Severity</th><th scope="col">Check</th><th scope="col">Item</th><th scope="col">Detail</th></tr></thead>
-          <tbody>
-            {shown.map((finding, index) => (
-              <tr key={`${finding.check}:${finding.item}:${String(rows.start + index)}`}>
-                <td className={`es-severity es-severity--${finding.severity}`}>{SEVERITY_TEXT[finding.severity]}</td>
-                <td>{finding.check}</td>
-                <td>{opens(finding) ? <button type="button" className="es-records__link" onClick={() => onOpen(finding)}>{finding.item}</button> : finding.item}</td>
-                <td>{finding.detail}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </>
   );
 }
 

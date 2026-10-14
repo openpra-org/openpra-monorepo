@@ -410,9 +410,10 @@ function SyBayesianNetworkWorkspace({
           saveBlockedReason={saveBlockedReason}
           onAnalysisInputChange={analysis.invalidate}
           editable={editable}
+          analysisHost="sy"
           workbookNotice={targetEsqWorkbook === undefined || runtime.workbookId === null ? undefined : {
             message: `This network is available in ${workbookBaseName(targetEsqWorkbook.name)}.`,
-            sourceHref: `/esq-workbooks/${encodeURIComponent(targetEsqWorkbook.id)}?step=logic&sourceWorkbook=${encodeURIComponent(runtime.workbookId)}&network=${encodeURIComponent(model.modelId)}`,
+            sourceHref: `/esq-workbooks/${encodeURIComponent(targetEsqWorkbook.id)}?step=solve&sourceWorkbook=${encodeURIComponent(runtime.workbookId)}&network=${encodeURIComponent(model.modelId)}`,
             sourceLabel: "Open Event Sequence Quantification workbook",
           }}
           hclScope="FAULT_TREE"

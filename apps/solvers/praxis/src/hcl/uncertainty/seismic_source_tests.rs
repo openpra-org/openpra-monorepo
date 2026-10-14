@@ -215,14 +215,14 @@ fn seismic_bdd_matches_the_source_across_chunks_and_evidence() {
             }
             let expected = whole
                 .quantify(&bdd, root, bindings.clone(), evidence.clone(), &names)
-                .unwrap();
+                .unwrap().values;
             assert_same_population(&expected, &floats(&scenario["samples"]), &scenario["evidence"].to_string());
             for chunk_size in [1, 31, 256, 512] {
                 let prepared =
                     PreparedHclUncertainty::with_chunk_size(&network, &settings, &[], chunk_size).unwrap();
                 let values = prepared
                     .quantify(&bdd, root, bindings.clone(), evidence.clone(), &names)
-                    .unwrap();
+                    .unwrap().values;
                 for (left, right) in values.iter().zip(&expected) {
                     assert!((left - right).abs() <= 4.0 * f64::EPSILON, "{left} against {right}");
                 }

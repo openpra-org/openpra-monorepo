@@ -4,6 +4,7 @@ import { sequenceFamilyOf } from "interfaces-mef-types/esq/esq-solve-inputs";
 import type {
   EsqModelRunCutSet,
   EsqModelRunFamily,
+  EsqModelRunHclResult,
   EsqModelRunRequest,
   EsqModelRunResult,
   EsqModelRunSequence,
@@ -25,6 +26,7 @@ interface EsqModelRunSummaryInput {
   inputs: string;
   outcomes: EsqTreeRunOutcome[];
   eventCodes: Record<string, string>;
+  hcl?: EsqModelRunHclResult;
 }
 
 interface FamilyTotals {
@@ -161,6 +163,7 @@ function summarizeEsqModelRun(input: EsqModelRunSummaryInput): EsqModelRunResult
     endStates: [...endStates.entries()].map(([endState, annualFrequency]) => ({ endState, annualFrequency })),
     eventCodes: input.eventCodes,
     peakProbability: cutSetRun ? peak : null,
+    ...(input.hcl === undefined ? {} : { hcl: { ...input.hcl, treeIds: [...input.hcl.treeIds] } }),
   };
 }
 

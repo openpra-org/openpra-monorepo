@@ -85,6 +85,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
     validation,
     saveState = "saved",
     analysisResult = null,
+    sequenceValues,
     resultIsStale = false,
     running = false,
     runError = null,
@@ -117,11 +118,18 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
   const { requestConfirmation, confirmationDialog } = useEditorConfirmation();
   const events = useMemo(() => orderedFunctionalEvents(model), [model]);
   const presentation = useMemo(() => {
-    const view = createEventTreePresentation(model, eventSequences, analysisResult);
-    if (endStateOptions === undefined) return view;
+    const created = createEventTreePresentation(model, eventSequences, analysisResult);
+    const valued = sequenceValues === undefined ? created : {
+      ...created,
+      sequences: created.sequences.map((sequence) => {
+        const value = sequenceValues.get(sequence.id);
+        return value === undefined ? sequence : { ...sequence, conditionalProbability: value.conditionalProbability, annualFrequency: value.annualFrequency };
+      }),
+    };
+    if (endStateOptions === undefined) return valued;
     const codes = new Map(endStateOptions.map((option) => [option.id, option.code]));
-    return { ...view, sequences: view.sequences.map((sequence) => ({ ...sequence, endStateLabel: (sequence.endStateId === undefined ? undefined : codes.get(sequence.endStateId)) ?? "Not assigned" })) };
-  }, [analysisResult, endStateOptions, eventSequences, model]);
+    return { ...valued, sequences: valued.sequences.map((sequence) => ({ ...sequence, endStateLabel: (sequence.endStateId === undefined ? undefined : codes.get(sequence.endStateId)) ?? "Not assigned" })) };
+  }, [analysisResult, endStateOptions, eventSequences, model, sequenceValues]);
   const selectedEvent = events.find((event) => event.uuid === selection);
   const selectedSequence = presentation.sequences.find((sequence) => sequence.id === selection);
   const errors = validation.filter((finding) => finding.severity === "ERROR");
@@ -405,7 +413,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
     commit({ kind: "UPDATE_TREE", changes: { initiatingEventFrequency: { expression, annualization: changes.annualization ?? annualization } } });
   };
 
-  const showFrequency = analysisResult !== null;
+  const showFrequency = analysisResult !== null || sequenceValues !== undefined;
   const resultByEndState = new Map((analysisResult?.endStateAggregates ?? []).map((aggregate) => [aggregate.endStateId, aggregate.annualFrequency]));
   const endStateLabel = (endStateId: string): string => {
     if (endStateId === model.endStateIds?.SUCCESSFUL_MITIGATION) return "Safe state";

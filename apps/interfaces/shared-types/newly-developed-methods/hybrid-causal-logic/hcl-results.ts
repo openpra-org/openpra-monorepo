@@ -26,6 +26,8 @@ import {
   HclUncertaintySeedSchema,
 } from "interfaces-mef-types/zod/modeling";
 import type { AnnualizedFrequencyInput } from "interfaces-mef-types/modeling";
+import { BaseLawSchema, MixtureLawSchema } from "interfaces-mef-types/zod/core/uncertainty";
+import type { BaseLaw, MixtureLaw } from "interfaces-mef-types/core/uncertainty";
 
 interface HclValidationResult {
   schemaVersion: WorkbookMethodSchemaVersion;
@@ -59,6 +61,71 @@ type HclBatchCompilationStats = {
   scenarioEvaluations: number;
 } & ({ bddCompilations: number } | { sequenceBddCompilations: number });
 
+interface HclUncertaintyAdjustments {
+  clippedProbabilities: number;
+  epsilonAdjustedCptValues: number;
+  zeroProbabilityContexts: number;
+}
+
+interface HclHistogram {
+  edges: number[];
+  counts: number[];
+  densities: number[];
+}
+
+interface HclExceedancePoint {
+  value: number;
+  probability: number;
+}
+
+type HclFitFamily =
+  | "BETA"
+  | "LOGIT_NORMAL"
+  | "ZERO_ONE_INFLATED_BETA"
+  | "ZERO_ONE_INFLATED_LOGIT_NORMAL"
+  | "LOGNORMAL"
+  | "GAMMA"
+  | "ZERO_INFLATED_LOGNORMAL"
+  | "ZERO_INFLATED_GAMMA";
+
+interface HclFitCandidate {
+  family: HclFitFamily;
+  law: BaseLaw | MixtureLaw;
+  parameterCount: number;
+  logLikelihood: number;
+  aic: number;
+  bic: number;
+  ksStatistic: number;
+  cdfRmse: number;
+  pdfRmse: number;
+}
+
+interface HclRejectedFit {
+  family: HclFitFamily;
+  reason: string;
+}
+
+interface HclDistributionFit {
+  samples: number;
+  zeroSamples: number;
+  oneSamples: number;
+  candidates: HclFitCandidate[];
+  rejected?: HclRejectedFit[];
+}
+
+interface HclSampleVector {
+  id: string;
+  quantity: "PROBABILITY" | "FREQUENCY";
+  values: number[];
+}
+
+interface HclHazardExceedancePoint {
+  threshold: number;
+  weight: number;
+  exceedanceWeight: number;
+  exceedanceFrequency: number;
+}
+
 interface HclUncertaintySummary {
   sampleCount: number;
   seed: number;
@@ -69,6 +136,10 @@ interface HclUncertaintySummary {
   median: number;
   percentile95: number;
   maximum: number;
+  adjustments?: HclUncertaintyAdjustments;
+  histogram?: HclHistogram;
+  exceedance?: HclExceedancePoint[];
+  fit?: HclDistributionFit;
 }
 
 interface HclQuantificationResult {
@@ -133,6 +204,7 @@ interface HclFaultTreeHazardConvolutionResult extends HclHazardConvolutionCommon
   rows: HclFaultTreeHazardConvolutionRow[];
   convolvedProbability: number;
   integratedAnnualFrequency: number;
+  exceedance?: HclHazardExceedancePoint[];
 }
 
 interface HclEventTreeHazardSequenceContribution {
@@ -156,6 +228,7 @@ interface HclEventTreeHazardEndStateResult {
   endStateId: WorkbookEntityId;
   convolvedProbability: number;
   integratedAnnualFrequency: number;
+  exceedance?: HclHazardExceedancePoint[];
 }
 
 interface HclEventTreeHazardConvolutionResult extends HclHazardConvolutionCommon {
@@ -257,6 +330,25 @@ const HclJunctionTreeStatsSchema = z
 const ProbabilitySchema = z.number().min(0).max(1);
 const NonnegativeFiniteSchema = z.number().nonnegative().finite();
 
+const HclHazardExceedancePointSchema = z
+  .object({
+    threshold: NonnegativeFiniteSchema,
+    weight: NonnegativeFiniteSchema,
+    exceedanceWeight: NonnegativeFiniteSchema,
+    exceedanceFrequency: NonnegativeFiniteSchema,
+  })
+  .strict();
+
+const HclSampleVectorSchema = z
+  .object({
+    id: z.string().min(1),
+    quantity: z.enum(["PROBABILITY", "FREQUENCY"]),
+    values: z.array(NonnegativeFiniteSchema),
+  })
+  .strict();
+
+const HclSampleVectorsSchema = z.array(HclSampleVectorSchema).min(1);
+
 const HclHazardConvolutionWeightSchema = z.object({
   scenarioId: WorkbookEntityIdSchema,
   status: z.enum(["ok", "skipped_zero_weight"]),
@@ -285,6 +377,7 @@ const HclFaultTreeHazardConvolutionResultSchema = z.object({
   }).strict()).min(1),
   convolvedProbability: NonnegativeFiniteSchema,
   integratedAnnualFrequency: NonnegativeFiniteSchema,
+  exceedance: z.array(HclHazardExceedancePointSchema).optional(),
 }).strict();
 
 const HclEventTreeHazardSequenceContributionSchema = z.object({
@@ -309,6 +402,7 @@ const HclEventTreeHazardConvolutionResultSchema = z.object({
     endStateId: WorkbookEntityIdSchema,
     convolvedProbability: NonnegativeFiniteSchema,
     integratedAnnualFrequency: NonnegativeFiniteSchema,
+    exceedance: z.array(HclHazardExceedancePointSchema).optional(),
   }).strict()),
 }).strict();
 
@@ -369,6 +463,81 @@ const HclQuantificationResultSchema = z
     }
   });
 
+const HclUncertaintyAdjustmentsSchema = z
+  .object({
+    clippedProbabilities: z.number().int().nonnegative(),
+    epsilonAdjustedCptValues: z.number().int().nonnegative(),
+    zeroProbabilityContexts: z.number().int().nonnegative(),
+  })
+  .strict();
+
+const HclHistogramSchema = z
+  .object({
+    edges: z.array(z.number().finite()).min(2),
+    counts: z.array(z.number().int().nonnegative()).min(1),
+    densities: z.array(z.number().finite().nonnegative()).min(1),
+  })
+  .strict()
+  .superRefine((histogram, context) => {
+    if (histogram.edges.length !== histogram.counts.length + 1 || histogram.densities.length !== histogram.counts.length) {
+      context.addIssue({ code: "custom", path: ["edges"], message: "A histogram has one more edge than bins and one density per bin" });
+    }
+  });
+
+const HclExceedancePointSchema = z
+  .object({
+    value: z.number().finite(),
+    probability: z.number().min(0).max(1),
+  })
+  .strict();
+
+const HclFitFamilySchema = z.enum([
+  "BETA",
+  "LOGIT_NORMAL",
+  "ZERO_ONE_INFLATED_BETA",
+  "ZERO_ONE_INFLATED_LOGIT_NORMAL",
+  "LOGNORMAL",
+  "GAMMA",
+  "ZERO_INFLATED_LOGNORMAL",
+  "ZERO_INFLATED_GAMMA",
+]);
+
+const HclFitCandidateSchema = z
+  .object({
+    family: HclFitFamilySchema,
+    law: z.union([BaseLawSchema, MixtureLawSchema]),
+    parameterCount: z.number().int().positive(),
+    logLikelihood: z.number().finite(),
+    aic: z.number().finite(),
+    bic: z.number().finite(),
+    ksStatistic: z.number().finite().nonnegative(),
+    cdfRmse: z.number().finite().nonnegative(),
+    pdfRmse: z.number().finite().nonnegative(),
+  })
+  .strict();
+
+const HclRejectedFitSchema = z
+  .object({
+    family: HclFitFamilySchema,
+    reason: z.string().min(1),
+  })
+  .strict();
+
+const HclDistributionFitSchema = z
+  .object({
+    samples: z.number().int().positive(),
+    zeroSamples: z.number().int().nonnegative(),
+    oneSamples: z.number().int().nonnegative(),
+    candidates: z.array(HclFitCandidateSchema),
+    rejected: z.array(HclRejectedFitSchema).optional(),
+  })
+  .strict()
+  .superRefine((fit, context) => {
+    if (fit.candidates.length === 0 && (fit.rejected ?? []).length === 0) {
+      context.addIssue({ code: "custom", path: ["candidates"], message: "A fit lists at least one candidate or one rejected family" });
+    }
+  });
+
 const HclUncertaintySummarySchema = z
   .object({
     sampleCount: z.number().int().positive(),
@@ -380,6 +549,10 @@ const HclUncertaintySummarySchema = z
     median: z.number().finite().nonnegative(),
     percentile95: z.number().finite().nonnegative(),
     maximum: z.number().finite().nonnegative(),
+    adjustments: HclUncertaintyAdjustmentsSchema.optional(),
+    histogram: HclHistogramSchema.optional(),
+    exceedance: z.array(HclExceedancePointSchema).optional(),
+    fit: HclDistributionFitSchema.optional(),
   })
   .strict()
   .superRefine((summary, context) => {
@@ -428,6 +601,16 @@ export {
   HclEventTreeHazardConvolutionResultSchema,
   HclBridgeStatsSchema,
   HclJunctionTreeStatsSchema,
+  HclUncertaintyAdjustmentsSchema,
+  HclHistogramSchema,
+  HclExceedancePointSchema,
+  HclFitFamilySchema,
+  HclFitCandidateSchema,
+  HclRejectedFitSchema,
+  HclDistributionFitSchema,
+  HclSampleVectorSchema,
+  HclSampleVectorsSchema,
+  HclHazardExceedancePointSchema,
   HclUncertaintySummarySchema,
   HclQuantificationResultSchema,
 };
@@ -442,6 +625,15 @@ export type {
   HclEventTreeHazardConvolutionResult,
   HclBridgeStats,
   HclJunctionTreeStats,
+  HclUncertaintyAdjustments,
+  HclHistogram,
+  HclExceedancePoint,
+  HclFitFamily,
+  HclFitCandidate,
+  HclRejectedFit,
+  HclDistributionFit,
+  HclSampleVector,
+  HclHazardExceedancePoint,
   HclUncertaintySummary,
   HclQuantificationResult,
 };

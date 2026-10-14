@@ -12,7 +12,7 @@ import {
   uncertaintyInputsKey,
   type EsqSampledInput,
 } from "interfaces-mef-types/esq/esq-measure-inputs";
-import { resolvedRecoveries } from "interfaces-mef-types/esq/esq-post-inputs";
+import { recoveryInputKey, resolvedRecoveries } from "interfaces-mef-types/esq/esq-post-inputs";
 import { solveWorkOf } from "interfaces-mef-types/esq/esq-solve-inputs";
 import type { EsqUncertaintyRunResult, EventTreeSamplingMethod } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import { modelViewOf, type EsqFindingSeverity } from "./esqModel";
@@ -76,7 +76,7 @@ const SOURCE_LABELS: Record<string, string> = {
   IE: "IE estimate",
   STEP_02: "Typed in Step 02",
   STEP_03: "Step 03 cell",
-  STEP_06: "Typed in Step 06",
+  STEP_04: "Typed in Step 04",
   HR: "HR HEP",
 };
 
@@ -104,7 +104,7 @@ function significantInputKeys(esq: EventSequenceQuantification): Set<string> {
   const model = esq.model;
   const record = esq.review?.importance;
   if (model === undefined || record === undefined) return keys;
-  const recoveries = new Map(resolvedRecoveries(esq).map((recovery) => [recovery.eventId, recovery.id]));
+  const recoveries = new Map(resolvedRecoveries(esq).map((recovery) => [recovery.eventId, recovery]));
   const events = new Set(model.events.map((event) => event.id));
   for (const entry of record.significant) {
     const ref = entry.ref;
@@ -118,8 +118,8 @@ function significantInputKeys(esq: EventSequenceQuantification): Set<string> {
     }
     if (entry.kind !== "EVENT") continue;
     const eventId = entry.id.slice("EVENT:".length);
-    const recoveryId = recoveries.get(eventId);
-    if (recoveryId !== undefined) keys.add(`RECOVERY:${recoveryId}`);
+    const recovery = recoveries.get(eventId);
+    if (recovery !== undefined) keys.add(recoveryInputKey(recovery));
     else if (events.has(eventId)) keys.add(eventInputKey(esq, model, eventId));
     else if (ref !== undefined && (ref.startsWith("CELL:") || ref.startsWith("PARAMETER:") || ref.startsWith("SPLIT:"))) keys.add(ref);
     else if (ref !== undefined && events.has(ref)) keys.add(eventInputKey(esq, model, ref));

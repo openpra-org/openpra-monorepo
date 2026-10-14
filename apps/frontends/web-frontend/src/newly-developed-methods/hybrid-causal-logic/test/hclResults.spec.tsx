@@ -136,9 +136,9 @@ describe("HCL end-state presentation", () => {
     render(manual(result));
     const nav = () => within(screen.getByRole("navigation", { name: "HCL sequences pagination" }));
     fireEvent.click(nav().getByRole("button", { name: "Next" }));
-    expect(nav().getByText("Page 2 of 3")).toBeInTheDocument();
+    expect(nav().getByText("Page 2 of 6")).toBeInTheDocument();
     choose("release");
-    expect(nav().getByText("Page 1 of 2")).toBeInTheDocument();
+    expect(nav().getByText("Page 1 of 4")).toBeInTheDocument();
     expect(screen.getByText("s-1")).toBeInTheDocument();
   });
 
@@ -339,9 +339,9 @@ describe("HCL hazard presentation", () => {
     const view = render(batchView(batch));
     const nav = () => within(screen.getByRole("navigation", { name: "HCL scenarios pagination" }));
     fireEvent.click(nav().getByRole("button", { name: "Next" }));
-    expect(nav().getByText("Page 2 of 2")).toBeInTheDocument();
+    expect(nav().getByText("Page 2 of 3")).toBeInTheDocument();
     choose("release");
-    expect(nav().getByText("Page 1 of 2")).toBeInTheDocument();
+    expect(nav().getByText("Page 1 of 3")).toBeInTheDocument();
     view.rerender(batchView(eventBatch()));
     expect(screen.getByRole("combobox", { name: "End state" })).toHaveValue("");
   });

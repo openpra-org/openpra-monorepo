@@ -32,6 +32,50 @@ export class QueueConfigFactory {
             },
         };
     }
+    private text(key: string, fallback: string): string {
+        const value = this.configSvc.get<string>(key);
+        return value === undefined || String(value).trim().length === 0 ? fallback : String(value);
+    }
+
+    private count(key: string, fallback: number): number {
+        const value = Number(this.configSvc.get<string>(key));
+        return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+    }
+
+    public createPraxisJobQueueConfig(): QueueConfig {
+        const routingKey = this.text(EnvVarKeys.PRAXIS_JOB_ROUTING_KEY, 'praxis_jobs_key');
+        const deadRoutingKey = this.text(EnvVarKeys.PRAXIS_JOB_DEAD_LETTER_ROUTING_KEY, 'praxis_jobs_dead_queue_key');
+        return {
+            name: this.text(EnvVarKeys.PRAXIS_JOB_QUEUE, 'praxis_jobs'),
+            exchange: {
+                name: this.text(EnvVarKeys.PRAXIS_JOB_EXCHANGE_ID, 'praxis_jobs_exchange'),
+                type: 'direct',
+                durable: true,
+                bindingKey: routingKey,
+                routingKey,
+            },
+            durable: true,
+            messageTtl: this.count(EnvVarKeys.PRAXIS_JOB_MSG_TTL, 172800000),
+            maxLength: this.count(EnvVarKeys.PRAXIS_JOB_QUEUE_MAXLENGTH, 100000),
+            prefetch: 1,
+            deadLetter: {
+                name: this.text(EnvVarKeys.PRAXIS_JOB_DEAD_LETTER_QUEUE, 'praxis_jobs_dead_queue'),
+                exchange: {
+                    name: this.text(EnvVarKeys.PRAXIS_JOB_DEAD_LETTER_EXCHANGE_ID, 'global_exchange'),
+                    type: 'direct',
+                    durable: true,
+                    bindingKey: deadRoutingKey,
+                    routingKey: deadRoutingKey,
+                },
+                durable: true,
+            },
+        };
+    }
+
+    public praxisCancelExchange(): string {
+        return this.text(EnvVarKeys.PRAXIS_CANCEL_EXCHANGE_ID, 'praxis_job_cancel');
+    }
+
     public createExecuteTaskQueueConfig(): QueueConfig {
         return {
             name: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_QUEUE),

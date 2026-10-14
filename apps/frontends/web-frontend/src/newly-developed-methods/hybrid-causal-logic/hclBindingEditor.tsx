@@ -1,5 +1,6 @@
 import { HclUncertaintyReview } from "./hclUncertaintyReview";
-import { HclUncertaintySeedSchema, HclUncertaintySettingsSchema, WorkbookHclUncertaintyConfigurationSchema } from "interfaces-mef-types/zod/modeling";
+import { HclUncertaintySettingsSchema, WorkbookHclUncertaintyConfigurationSchema } from "interfaces-mef-types/zod/modeling";
+import { HclSamplingControls } from "./hclSamplingControls";
 import { HclResults } from "./hclResults";
 import { DEFAULT_ANNUALIZATION_CONVENTION } from "interfaces-mef-types/modeling";
 import { HclHazardSweepControls } from "./hclHazardSweepControls";
@@ -154,6 +155,7 @@ function HclBindingEditor({
   evidenceEditor = null,
   calculationType = "PROBABILITY",
   workflow = "MANUAL",
+  analysisHost,
   onEditEvidence,
   onChange,
   onRunFaultTree,
@@ -169,9 +171,9 @@ function HclBindingEditor({
   );
   const savedUncertainty = configuration?.solverSettings.uncertainty;
   const parsedUncertainty = useMemo(
-    () => calculationType !== "UNCERTAINTY" || savedUncertainty === undefined
+    () => (calculationType !== "UNCERTAINTY" && !setupOnly) || savedUncertainty === undefined
       ? undefined : HclUncertaintySettingsSchema.safeParse(savedUncertainty),
-    [calculationType, savedUncertainty],
+    [calculationType, savedUncertainty, setupOnly],
   );
   const uncertainty = parsedUncertainty?.success ? parsedUncertainty.data : undefined;
   const uncertaintyError = useMemo(() => {
@@ -678,6 +680,33 @@ function HclBindingEditor({
     </>
   );
 
+  const uncertaintyGroup = configuration === undefined ? null : (
+    <details
+      key={`uncertainty:${calculationType}:${workflow}`}
+      className="hcleditor__configuration-group"
+      open
+    >
+      <summary>Uncertainty <span>{savedUncertainty === undefined ? "Off" : uncertainty === undefined ? "Needs review" : "On"}</span></summary>
+      <div className="hcleditor__uncertainty" role="tabpanel" aria-label="HCL uncertainty settings">
+        {savedUncertainty === undefined ? (
+          <div className="hcleditor__uncertainty-empty">
+            <span>Propagate uncertain basic-event probabilities and BN parameters through PRAXIS.</span>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={enableUncertainty}>Enable uncertainty</button>}
+          </div>
+        ) : uncertainty === undefined ? (
+          <HclUncertaintyReview key={configuration.modelId} value={savedUncertainty} disabled={!editable || running} onChange={replaceUncertainty} />
+        ) : (
+          <>
+            <HclSamplingControls settings={uncertainty} editable={editable} onChange={replaceUncertainty} onError={setError} onDisable={() => replaceUncertainty(undefined)} />
+            <HclBasicEventControls choices={basicEventUncertaintyOptions} settings={uncertainty} editable={editable} onChange={replaceUncertainty} onError={setError} />
+            <HclCptRowControls model={model} reference={configuration.bayesianNetwork} settings={uncertainty} editable={editable} onChange={replaceUncertainty} onError={setError} />
+            <HclSeismicGeneratorControls model={model} reference={configuration.bayesianNetwork} settings={uncertainty} disabled={!editable} onChange={replaceUncertainty} onError={setError} />
+          </>
+        )}
+      </div>
+    </details>
+  );
+
   if (setupOnly) {
     return (
       <section className="hcleditor hcleditor--setup" aria-label="HCL bindings">
@@ -700,6 +729,7 @@ function HclBindingEditor({
             </div>
             <div className="hcleditor__configuration-stack">
               {configurationGroups}
+              {uncertaintyGroup}
             </div>
           </div>
         )}
@@ -864,82 +894,7 @@ function HclBindingEditor({
               </details>
               )}
 
-              {calculationType === "UNCERTAINTY" && (
-              <details
-                key={`uncertainty:${calculationType}:${workflow}`}
-                className="hcleditor__configuration-group"
-                open
-              >
-                <summary>Uncertainty <span>{savedUncertainty === undefined ? "Off" : uncertainty === undefined ? "Needs review" : "On"}</span></summary>
-                <div className="hcleditor__uncertainty" role="tabpanel" aria-label="HCL uncertainty settings">
-                  {savedUncertainty === undefined ? (
-                    <div className="hcleditor__uncertainty-empty">
-                      <span>Propagate uncertain basic-event probabilities and BN parameters through PRAXIS.</span>
-                      {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={enableUncertainty}>Enable uncertainty</button>}
-                    </div>
-                  ) : uncertainty === undefined ? (
-                    <HclUncertaintyReview key={configuration.modelId} value={savedUncertainty} disabled={!editable || running} onChange={replaceUncertainty} />
-                  ) : (
-                    <>
-                      <section className="hcleditor__uncertainty-section hcleditor__uncertainty-section--sampling">
-                        <div className="hcleditor__uncertainty-section-head">
-                          <div><strong>Sampling</strong><span>PRAXIS draws every uncertain input with the selected method.</span></div>
-                        </div>
-                        <div className="hcleditor__uncertainty-controls">
-                          <label>
-                            <span>Sampling method</span>
-                            <select aria-label="Sampling method" value={uncertainty.sampler} disabled={!editable} onChange={(event) => replaceUncertainty({ ...uncertainty, sampler: event.target.value === "MC" ? "MC" : "LHS" })}>
-                              <option value="MC">Monte Carlo (MC)</option>
-                              <option value="LHS">Latin hypercube (LHS)</option>
-                            </select>
-                          </label>
-                          <label>
-                            <span>Samples</span>
-                            <input
-                              key={`samples:${String(uncertainty.sampleCount)}`}
-                              type="number"
-                              min="10"
-                              max="10000"
-                              step="10"
-                              defaultValue={uncertainty.sampleCount}
-                              disabled={!editable}
-                              onBlur={(event) => {
-                                const value = Number(event.target.value);
-                                if (Number.isInteger(value) && value >= 10 && value <= 10_000) replaceUncertainty({ ...uncertainty, sampleCount: value });
-                                else setError("Uncertainty samples must be a whole number from 10 to 10,000.");
-                              }}
-                            />
-                          </label>
-                          <label>
-                            <span>Seed</span>
-                            <input
-                              key={`seed:${String(uncertainty.seed)}`}
-                              type="number"
-                              min="0"
-                              max={Number.MAX_SAFE_INTEGER}
-                              step="1"
-                              defaultValue={uncertainty.seed}
-                              disabled={!editable}
-                              onBlur={(event) => {
-                                const value = event.target.valueAsNumber;
-                                const parsed = HclUncertaintySeedSchema.safeParse(value);
-                                if (parsed.success) replaceUncertainty({ ...uncertainty, seed: parsed.data });
-                                else setError(`Uncertainty seed must be a whole number from 0 to ${String(Number.MAX_SAFE_INTEGER)}.`);
-                              }}
-                            />
-                          </label>
-                          {editable && <button type="button" className="posnav__btn posnav__btn--sm hcleditor__uncertainty-disable" onClick={() => replaceUncertainty(undefined)}>Disable</button>}
-                        </div>
-                      </section>
-
-                      <HclBasicEventControls choices={basicEventUncertaintyOptions} settings={uncertainty} editable={editable} onChange={replaceUncertainty} onError={setError} />
-                      <HclCptRowControls model={model} reference={configuration.bayesianNetwork} settings={uncertainty} editable={editable} onChange={replaceUncertainty} onError={setError} />
-                      <HclSeismicGeneratorControls model={model} reference={configuration.bayesianNetwork} settings={uncertainty} disabled={!editable} onChange={replaceUncertainty} onError={setError} />
-                    </>
-                  )}
-                </div>
-              </details>
-              )}
+              {calculationType === "UNCERTAINTY" && uncertaintyGroup}
               </div>
             </div>
           )}
@@ -965,7 +920,7 @@ function HclBindingEditor({
           )}
 
           {runError !== null && <p className="bneditor__error" role="alert">{runError}</p>}
-          <HclResults runResult={runResult} batchRunResult={batchRunResult} workflow={workflow} calculationType={calculationType} eventTreeOptions={eventTreeOptions} faultTreeOptions={faultTreeOptions} />
+          <HclResults runResult={runResult} batchRunResult={batchRunResult} workflow={workflow} calculationType={calculationType} eventTreeOptions={eventTreeOptions} faultTreeOptions={faultTreeOptions} analysisHost={analysisHost} />
         </>
       )}
       {error !== null && <p className="bneditor__error" role="alert">{error}</p>}

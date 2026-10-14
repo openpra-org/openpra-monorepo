@@ -1,23 +1,30 @@
-import { JSX, ReactNode, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react";
+import { JSX, ReactNode, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import type { EsqModel, EsqSolveRun, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { sampledInputsOf } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { esqTreeRunId } from "interfaces-mef-types/esq/esq-run-inputs";
+import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import type { WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
+import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
+import { cancelAnalysisRun, runProgressText, type RunProgressListener } from "../newly-developed-methods/shared/analysisRunWait";
+import { getEsqRunDetails } from "./esqWorkbookApi";
+import { useEsqWorkbook } from "./esqWorkbookContext";
 import type { UncertainExpression, UncertainParameter, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
 import type { UncertaintyExpressionSummary } from "interfaces-shared-types/newly-developed-methods/shared";
 import { parametersFor, useExpressionSummaries, type UncertaintyState } from "../newly-developed-methods/shared/useUncertainty";
-import type { EsqLogicWindowKind } from "./esqLogic";
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
+import { PAGE, Pager as EsPager, paged } from "../es-workbooks/EsTiming";
 import type { EsqSolveWindowKind } from "./esqSolve";
-import type { EsqPostWindowKind } from "./esqPost";
 import type { EsqResultsWindowKind } from "./esqResults";
 import type { EsqUncertaintyWindowKind } from "./esqUncertainty";
 import type { EsqSensitivityWindowKind } from "./esqSensitivity";
 import type { EsqHandoffWindowKind } from "./esqHandoff";
 import { ESQIcon } from "./esqIcons";
+import "./css/esqDialog.css";
 
 interface EsqWindowContext {
   kind:
-    | EsqLogicWindowKind
     | EsqSolveWindowKind
-    | EsqPostWindowKind
     | EsqResultsWindowKind
     | EsqUncertaintyWindowKind
     | EsqSensitivityWindowKind
@@ -213,12 +220,45 @@ interface FailedTree {
   failure: string | null;
 }
 
+interface NetworkOption {
+  key: string;
+  owner: "ES" | "SY";
+  workbookId: string;
+  configuration: WorkbookHclConfiguration;
+}
+
+function linkedWorkbookId(id: string | undefined): string | undefined {
+  return id === undefined || id.length === 0 || id.startsWith("example") ? undefined : id;
+}
+
+function trimmedText(text: string | null | undefined): string | undefined {
+  return typeof text === "string" && text.trim().length > 0 ? text.trim() : undefined;
+}
+
+function networkLabel(option: NetworkOption): string {
+  const code = trimmedText(option.configuration.code);
+  const name = trimmedText(option.configuration.name);
+  return `${option.owner} · ${code !== undefined && name !== undefined && code !== name ? `${code} · ${name}` : code ?? name ?? option.configuration.modelId}`;
+}
+
+function networkOptionsOf(esq: EventSequenceQuantification, es: EventSequenceAnalysis | undefined, sy: SystemsAnalysis | undefined): NetworkOption[] {
+  const esId = linkedWorkbookId(esq.linkedWorkbooks?.ES);
+  const syId = linkedWorkbookId(esq.linkedWorkbooks?.SY);
+  const own = (owner: "ES" | "SY", workbookId: string | undefined, configurations: readonly WorkbookHclConfiguration[] | undefined): NetworkOption[] => (workbookId === undefined
+    ? []
+    : (configurations ?? []).map((configuration) => ({ key: `${workbookId}:${configuration.modelId}`, owner, workbookId, configuration })));
+  return [...own("ES", esId, es?.dependencyHclConfigurations), ...own("SY", syId, sy?.dependencyHclConfigurations)];
+}
+
 interface Runner {
   running: boolean;
+  live: AnalysisRunMetadata | null;
   error: string | null;
   failed: FailedTree[];
+  progress: RunProgressListener;
   start: (task: () => Promise<void>) => void;
   fail: (message: string, trees: FailedTree[]) => void;
+  failRun: (workbookId: string, run: AnalysisRunMetadata, model: EsqModel | undefined, label?: string) => Promise<void>;
 }
 
 type FindingSeverity = "error" | "warning" | "note";
@@ -261,32 +301,76 @@ function failedTrees(summary: { trees: { treeId: string; status: string; failure
   return summary.trees.filter((tree) => tree.status === "FAILED").map((tree) => ({ treeId: tree.treeId, failure: tree.failure }));
 }
 
+function runFailure(workbookId: string, run: AnalysisRunMetadata, model: EsqModel | undefined): Promise<{ message: string; trees: FailedTree[] }> {
+  const message = run.status === "CANCELLED" ? "The run was stopped before it finished." : run.failure?.message ?? "The run did not finish and gave no reason.";
+  const treeOf = new Map((model?.trees ?? []).map((tree) => [esqTreeRunId(tree.id), tree.id]));
+  return getEsqRunDetails(workbookId, run.id)
+    .then((details) => ({
+      message,
+      trees: (details.members ?? []).flatMap((member) => (member.run.status === "FAILED"
+        ? [{ treeId: treeOf.get(member.run.owner.modelId) ?? member.run.owner.modelId, failure: member.run.failure?.message ?? null }]
+        : [])),
+    }))
+    .catch((caught: Error) => ({ message: `${message} The failed event trees could not be listed. ${caught.message}`, trees: [] }));
+}
+
 function useRunner(): Runner {
   const [running, setRunning] = useState(false);
+  const [live, setLive] = useState<AnalysisRunMetadata | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [failed, setFailed] = useState<FailedTree[]>([]);
   return {
     running,
+    live,
     error,
     failed,
+    progress: setLive,
     start: (task) => {
       setRunning(true);
+      setLive(null);
       setError(null);
       setFailed([]);
       task()
         .catch((caught: Error) => setError(caught.message))
-        .finally(() => setRunning(false));
+        .finally(() => {
+          setRunning(false);
+          setLive(null);
+        });
     },
     fail: (message, trees) => {
       setError(message);
       setFailed(trees);
     },
+    failRun: (workbookId, run, model, label) => runFailure(workbookId, run, model).then((outcome) => {
+      setError(label === undefined ? outcome.message : `${label}: ${outcome.message}`);
+      setFailed(outcome.trees);
+    }),
   };
+}
+
+function RunProgress({ runner }: { runner: Runner }): JSX.Element | null {
+  const { runtime, editable } = useEsqWorkbook();
+  const live = runner.live;
+  if (!runner.running || live === null) return null;
+  const text = runProgressText(live);
+  const workbookId = runtime.workbookId;
+  const active = live.status === "QUEUED" || live.status === "RUNNING";
+  return (
+    <div className="esq-bar">
+      <p className="esq-meta" role="status">{text}</p>
+      {editable && active && workbookId !== null && (
+        <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => {
+          cancelAnalysisRun("esq", workbookId, live.id).catch((caught: Error) => runner.fail(caught.message, []));
+        }}>Stop</button>
+      )}
+    </div>
+  );
 }
 
 function RunState({ runner, model, blocked }: { runner: Runner; model: EsqModel; blocked: string | null }): JSX.Element {
   return (
     <>
+      <RunProgress runner={runner} />
       {blocked !== null && <p className="esq-run__notice" role="status">{blocked}</p>}
       {runner.error !== null && <p className="esq-run__error" role="alert">{runner.error}</p>}
       {runner.failed.length > 0 && (
@@ -347,6 +431,104 @@ function FindingsTable<K extends string>({ label, findings, openWindow }: { labe
   );
 }
 
+interface CheckOption {
+  id: string;
+  label: string;
+}
+
+interface CheckRow {
+  severity: FindingSeverity;
+  check: string;
+  item: string;
+  detail: string;
+}
+
+function numberFrom(text: string, apply: (value: number | undefined) => void): void {
+  if (text.trim().length === 0) {
+    apply(undefined);
+    return;
+  }
+  const value = Number(text);
+  if (Number.isFinite(value)) apply(value);
+}
+
+function CheckGroup({ label, options, values, editable, onChange }: { label: string; options: readonly CheckOption[]; values: readonly string[]; editable: boolean; onChange: (values: string[]) => void }): JSX.Element {
+  const all = [...options, ...values.filter((value) => !options.some((option) => option.id === value)).map((value) => ({ id: value, label: value }))];
+  return (
+    <div className="posfield posfield-grid--span2 es-dialog-list" role="group" aria-label={label}>
+      <span className="posfield__label">{label}</span>
+      <div className="es-dialog-checks">
+        {all.map((option) => (
+          <label key={option.id} className="es-dialog-check">
+            <input type="checkbox" checked={values.includes(option.id)} disabled={!editable} onChange={(event) => onChange(event.target.checked ? [...values, option.id] : values.filter((value) => value !== option.id))} />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TextField({ label, value, editable, wide = false, onChange }: { label: string; value: string; editable: boolean; wide?: boolean; onChange: (value: string) => void }): JSX.Element {
+  const id = useId();
+  return (
+    <div className={wide ? "posfield posfield-grid--span2" : "posfield"}>
+      <label className="posfield__label" htmlFor={id}>{label}</label>
+      <WorkbookInput id={id} className="posfield__input" value={value} disabled={!editable} onChange={(event) => onChange(event.target.value)} />
+    </div>
+  );
+}
+
+function AreaField({ label, value, editable, required = false, onChange }: { label: string; value: string; editable: boolean; required?: boolean; onChange: (value: string) => void }): JSX.Element {
+  const id = useId();
+  const missing = required && value.trim().length === 0;
+  return (
+    <div className="posfield posfield-grid--span2">
+      <label className="posfield__label" htmlFor={id}>{label}</label>
+      <WorkbookTextarea id={id} className="posfield__textarea" rows={2} fitContent aria-invalid={missing} value={value} disabled={!editable} onChange={(event) => onChange(event.target.value)} />
+      {missing && <span className="esq-dialog-error" role="alert">Required</span>}
+    </div>
+  );
+}
+
+function NumberField({ label, value, editable, onChange }: { label: string; value: number | undefined; editable: boolean; onChange: (value: number | undefined) => void }): JSX.Element {
+  const id = useId();
+  return (
+    <div className="posfield">
+      <label className="posfield__label" htmlFor={id}>{label}</label>
+      <WorkbookInput id={id} type="number" step="any" className="posfield__input posmono esq-dialog-number" value={value ?? ""} disabled={!editable} onChange={(event) => numberFrom(event.target.value, onChange)} />
+    </div>
+  );
+}
+
+function ChecksPanel<F extends CheckRow>({ findings, opens, onOpen }: { findings: readonly F[]; opens: (finding: F) => boolean; onOpen: (finding: F) => void }): JSX.Element {
+  const [page, setPage] = useState(0);
+  const rows = paged(findings.length, page);
+  const shown = findings.slice(rows.start, rows.start + PAGE);
+  return (
+    <>
+      <div className="es-records__bar">
+        <EsPager rows={rows} noun="finding" onPage={setPage} />
+      </div>
+      {findings.length > 0 && (
+        <table className="postable postable--mid es-records" aria-label="Checks">
+          <thead><tr><th scope="col">Severity</th><th scope="col">Check</th><th scope="col">Item</th><th scope="col">Detail</th></tr></thead>
+          <tbody>
+            {shown.map((finding, index) => (
+              <tr key={`${finding.check}:${finding.item}:${String(rows.start + index)}`}>
+                <td className={`es-severity es-severity--${finding.severity}`}>{SEVERITY_TEXT[finding.severity]}</td>
+                <td>{finding.check}</td>
+                <td>{opens(finding) ? <button type="button" className="es-records__link" onClick={() => onOpen(finding)}>{finding.item}</button> : finding.item}</td>
+                <td>{finding.detail}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
+  );
+}
+
 function sciText(v: number): string {
   if (!Number.isFinite(v) || v === 0) return String(v);
   const [mantissa, exponent] = v.toExponential(2).split("e");
@@ -396,21 +578,31 @@ function pctText(frac: number): string {
 }
 
 export {
+  AreaField,
   Badge,
+  CheckGroup,
+  ChecksPanel,
+  CUT_OFF_EXPONENTS,
+  NumberField,
   Pager,
+  TextField,
   pageOf,
   type EsqWindowContext,
   ChecksRow,
   CutOffField,
   FindingsTable,
+  RunProgress,
   RunState,
   dateText,
   decade,
   exponentOf,
   failedTrees,
+  networkLabel,
+  networkOptionsOf,
   treeLabel,
   useRunner,
   type FailedTree,
+  type NetworkOption,
   type FindingRow,
   type FindingSeverity,
   type Runner,

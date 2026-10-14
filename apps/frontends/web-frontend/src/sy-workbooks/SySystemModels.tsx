@@ -21,7 +21,8 @@ import {
   type FaultTreeAnalysisResult,
 } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { useAnalysisSourceGuard } from "../newly-developed-methods/shared/useAnalysisSourceGuard";
-import { expressionText } from "../newly-developed-methods/shared/uncertainText";
+import { expressionText, numberText } from "../newly-developed-methods/shared/uncertainText";
+import { hoursPoint, type HoursState } from "../sc-workbooks/scMissionTimePoints";
 import { AnalysisRunHistory } from "../newly-developed-methods/shared/analysisRunHistory";
 import { transferBreadcrumb, useTransferTrail } from "../newly-developed-methods/shared/transferTrail";
 import { NoSystemsCard } from "./syShared";
@@ -60,6 +61,18 @@ interface CatalogueSources {
   legacyParameters?: readonly SyControlledLegacyParameterOption[];
   humanFailures?: readonly SyControlledHumanFailureOption[];
   points?: ReadonlyMap<string, PointState>;
+}
+
+function silMissionChange(
+  result: FaultTreeAnalysisResult | null,
+  missionTime: UncertainExpression | undefined,
+  hours: HoursState | undefined,
+): string | null {
+  const used = result?.calculationType === "SIL" ? result.settings?.missionTimeHours : undefined;
+  if (used === undefined) return null;
+  if (missionTime === undefined) return "The system mission time was removed.";
+  const point = hoursPoint(hours);
+  return point === undefined || point === used ? null : `The system mission time changed from ${numberText(used)} h to ${numberText(point)} h.`;
 }
 
 function toFaultTreeEditorModel(model: SystemLogicModel): FaultTreeEditorModel {
@@ -261,7 +274,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
     controlledLegacyParameters,
     controlledHumanFailures,
   } = useSyWorkbook();
-  const { sourceWarning } = useAnalysisSourceGuard("sy", runtime.workbookId);
+  const { sourceChanges } = useAnalysisSourceGuard("sy", runtime.workbookId, runtime.revision);
   const [tab, setTab] = useState<ModelTab>("description");
   const [selection, setSelection] = useState<FaultTreeSelection>(null);
   const [analysisResults, setAnalysisResults] = useState<Record<string, FaultTreeAnalysisResult>>({});
@@ -349,7 +362,10 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
         faultTreeModels: editorModels,
       }), sy.systemBasicEvents, points);
   const analysisResult = logic === undefined ? null : (analysisResults[logic.uuid] ?? null);
-  const resultIsStale = analysisResult !== null && (sourceWarning !== null || runtime.saveStatus !== "saved" || analysisResult.owner.workbookRevision !== runtime.revision);
+  const staleReason = analysisResult === null
+    ? null
+    : silMissionChange(analysisResult, system.missionTime, missionHours) ?? sourceChanges.get(analysisResult.runId) ?? null;
+  const resultIsStale = staleReason !== null;
   const eventCount = logic === undefined || systemLevel ? 0 : systemLogicModelBasicEvents(sy, logic).length;
 
   function createFaultTree(): void {
@@ -407,6 +423,9 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
           const execution = await runSyFaultTree(runtime.workbookId, modelId, runtime.revision, configuration);
           if (execution.run.status === "FAILED") {
             throw new Error(execution.run.failure?.message ?? "Fault-tree analysis failed.");
+          }
+          if (execution.run.status === "CANCELLED") {
+            throw new Error("The run was cancelled.");
           }
           if (execution.run.status !== "SUCCEEDED") {
             throw new Error(`Fault-tree analysis did not complete (status: ${execution.run.status}).`);
@@ -525,7 +544,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
               exactResultIsStale={resultIsStale}
               exactRunError={runError}
               exactRunning={runningModelId === logic.uuid}
-              sourceWarning={sourceWarning}
+              staleReason={staleReason}
               currentModelId={logic.uuid}
               missionHours={missionHours}
               basicEventCodes={Object.fromEntries(catalogue.basicEvents.map((event) => [event.id, event.code]))}
@@ -600,4 +619,4 @@ function ModelsScreen({ sysId, setSysId, openDrawer, onOpenSystems }: {
   );
 }
 
-export { ModelsScreen, syFaultTreeOperation, toFaultTreeEditorCatalogue };
+export { ModelsScreen, syFaultTreeOperation, toFaultTreeEditorCatalogue, toFaultTreeEditorModel };

@@ -4534,7 +4534,7 @@ describe("workbook-owned analysis-run APIs", () => {
     expect(replay.result!["probability"]).toBe((saved!.result as { probability: number }).probability);
   });
 
-  it("preserves old inputs and detects changes in DA and HRA sources", async () => {
+  it("preserves old inputs and keeps a run current when only DA and HRA revisions move", async () => {
     const response = await request(api.getHttpServer())
       .post(`/api/sy-workbooks/${CONTROLLED_SY_WORKBOOK_ID}/fault-trees/${FT_OR}/runs`)
       .send({ schemaVersion: "1.0.0", modelId: FT_OR, workbookRevision: 4 });
@@ -4548,7 +4548,8 @@ describe("workbook-owned analysis-run APIs", () => {
         `/api/sy-workbooks/${CONTROLLED_SY_WORKBOOK_ID}/analysis-runs/${saved!.id}/details`,
       );
       expect(details.status).toBe(200);
-      expect(details.body.run.freshness.status).toBe("STALE");
+      expect(details.body.run.freshness.status).toBe("CURRENT");
+      expect(details.body.run.freshness.change).toBeUndefined();
       expect(
         details.body.run.freshness.sources.filter((row: { status: string }) => row.status === "CHANGED"),
       ).toHaveLength(2);

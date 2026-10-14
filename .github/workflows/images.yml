@@ -289,7 +289,15 @@ jobs:
             --env-file deploy/microservices/praetor/configs/cd.stack.env \
             -e MINIO_ACCESS_KEY=minioadmin \
             -e MINIO_SECRET_KEY=minioadmin \
-            "$PRAETOR_IMAGE"
+            "$PRAETOR_IMAGE" node dist/src/main.js
+          for worker in 1 2; do
+            docker run -d --name "praetor-engine-$worker" --network praetor-smoke \
+              --env-file deploy/microservices/praetor/configs/cd.stack.env \
+              -e MINIO_ACCESS_KEY=minioadmin \
+              -e MINIO_SECRET_KEY=minioadmin \
+              -e PRAETOR_WORKER_SLOTS=1 \
+              "$PRAETOR_IMAGE" node dist/src/main-engine.js
+          done
           for attempt in $(seq 1 90); do
             if curl -s -o /dev/null http://localhost:3000/q; then
               break
@@ -304,12 +312,21 @@ jobs:
             echo "::error::The PRAETOR image did not start"
             exit 1
           fi
+          for worker in 1 2; do
+            if [ "$(docker inspect -f '{{.State.Running}}' "praetor-engine-$worker")" != "true" ]; then
+              docker logs "praetor-engine-$worker"
+              echo "::error::PRAETOR engine worker $worker did not start"
+              exit 1
+            fi
+          done
           if ! node apps/solvers/praxis-node/test/http-quantification-smoke.mjs http://localhost:3000/q; then
             docker logs praetor-manager
-            echo "::error::PRAETOR did not quantify the smoke fault trees"
+            docker logs praetor-engine-1
+            docker logs praetor-engine-2
+            echo "::error::PRAETOR did not quantify the smoke fault trees through its workers"
             exit 1
           fi
-          echo "PRAETOR starts and quantifies fault trees."
+          echo "PRAETOR starts, queues jobs and quantifies fault trees on its workers."
 
       - name: Save PRAETOR and RabbitMQ images for offline load
         if: inputs.deploy

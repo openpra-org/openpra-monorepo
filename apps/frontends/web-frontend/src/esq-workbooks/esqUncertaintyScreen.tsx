@@ -142,7 +142,7 @@ const CHANGE_TEXT: Record<EsqLawSource, string> = {
   IE: "Change the frequency distribution in IE and import again.",
   STEP_02: "Change it in Step 02.",
   STEP_03: "Change it in Step 03.",
-  STEP_06: "Change it in Step 06.",
+  STEP_04: "Change it in Step 04.",
 };
 
 function lawCell(row: EsqInputRow, label: (key: string) => string): string {
@@ -183,8 +183,11 @@ function useSampling(view: EsqUncertaintyView) {
     const revision = runtime.revision;
     if (workbookId === null || revision === null || solveRun === undefined || settingsProblem(settings) !== undefined) return;
     runner.start(async () => {
-      const response = await runEsqUncertainty(workbookId, revision, runLogicOf(solveRun), { ...settings, correlation });
-      if (response.run.status !== "SUCCEEDED") throw new Error(response.run.failure?.message ?? "The run did not finish.");
+      const response = await runEsqUncertainty(workbookId, revision, runLogicOf(solveRun), { ...settings, correlation }, runner.progress);
+      if (response.run.status !== "SUCCEEDED") {
+        await runner.failRun(workbookId, response.run, view.model);
+        return;
+      }
       const result = await getEsqUncertaintyResult(workbookId, response.run.id);
       const problem = uncertaintyRunProblem(result, esq);
       if (problem !== undefined) {
@@ -426,7 +429,7 @@ function RunsPanel({ view }: { view: EsqUncertaintyView }): JSX.Element {
             {sampling.runner.running ? "Sampling…" : "Sample"}
           </button>
         </div>
-        <p className="esq-meta">PRAXIS draws every input once per trial, quantifies each sequence diagram of the run of record with the drawn values and sums each family trial by trial. The same seed gives the same trials.</p>
+        <p className="esq-meta">{`PRAXIS draws every input once per trial, quantifies each sequence diagram of the run of record with the drawn values and sums each family trial by trial. The same seed gives the same trials.${view.solveRun?.hcl === undefined ? "" : " The run of record uses HCL, and the sampling does not use the network, so it leaves the network out."}`}</p>
       </div>
       {problem !== undefined && <p className="esq-run__notice" role="status">{problem}</p>}
       <RunState runner={sampling.runner} model={view.model} blocked={sampling.blocked} />

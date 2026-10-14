@@ -10,7 +10,7 @@ import type {
   EventSequenceQuantification,
 } from "./event-sequence-quantification";
 import { cellExpressionOfRecord, cellOf } from "./esq-barrier-inputs";
-import { esqIndependentEventId, resolvedRecoveries } from "./esq-post-inputs";
+import { esqIndependentEventId, recoveryInputKey, resolvedRecoveries } from "./esq-post-inputs";
 import { esqStableId, functionLinkOf, groupFrequency, hash32, resolveLink, sameItem, treesInScope } from "./esq-run-inputs";
 import { solveInputsKey } from "./esq-solve-inputs";
 
@@ -27,7 +27,7 @@ interface EsqImportanceGroup {
 
 type EsqSampledInputKind = "PARAMETER" | "HFE" | "EVENT" | "RECOVERY" | "CCF_GROUP" | "INITIATOR" | "SPLIT" | "CELL";
 
-type EsqLawSource = "DA" | "SY" | "IE" | "HR" | "STEP_02" | "STEP_03" | "STEP_06";
+type EsqLawSource = "DA" | "SY" | "IE" | "HR" | "STEP_02" | "STEP_03" | "STEP_04";
 
 interface EsqSampledInput {
   key: string;
@@ -213,9 +213,14 @@ function sampledInputsOf(esq: EventSequenceQuantification): EsqSampledInput[] {
   }
   for (const recovery of resolvedRecoveries(esq)) {
     if (!recovery.credited) continue;
-    const input: EsqSampledInput = { key: `RECOVERY:${recovery.id}`, kind: "RECOVERY", ref: recovery.id, label: `NR-${recovery.id}${recovery.name.length > 0 ? ` · ${recovery.name}` : ""}`, unit: "PROBABILITY", uncertain: false, users: [] };
+    const user = `recovery:${recovery.id}`;
+    if (recovery.source === "DA" && recovery.parameterId !== undefined) {
+      use(parameterInput(recovery.parameterId), user);
+      continue;
+    }
+    const input: EsqSampledInput = { key: recoveryInputKey(recovery), kind: "RECOVERY", ref: recovery.id, label: `NR-${recovery.id}${recovery.name.length > 0 ? ` · ${recovery.name}` : ""}`, unit: "PROBABILITY", uncertain: false, users: [] };
     const typed = recovery.source === "TYPED";
-    use(lawInput(input, recovery.expression, typed ? "STEP_06" : "HR", "The recovery has no non-recovery HEP.", typed ? "The typed non-recovery HEP has no uncertainty. Give it a law in Step 06." : "HR gives this non-recovery HEP no uncertainty. Give it a law in HR."), `recovery:${recovery.id}`);
+    use(lawInput(input, recovery.expression, typed ? "STEP_04" : "HR", "The recovery has no non-recovery probability.", typed ? "The typed non-recovery probability has no uncertainty. Give it a law in Step 04." : "HR gives this non-recovery HEP no uncertainty. Give it a law in HR."), user);
   }
   const roots = treesInScope(esq, model).filter((tree) => !tree.transferEntry);
   for (const groupId of [...new Set(roots.map((tree) => tree.initiatorId))]) {

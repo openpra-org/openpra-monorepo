@@ -1,3 +1,4 @@
+import { awaitAnalysisRun, finishedRun, getAnalysisRun, type RunProgressListener } from "../newly-developed-methods/shared/analysisRunWait";
 import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
@@ -110,11 +111,12 @@ async function runSyFaultTree(
   modelId: string,
   workbookRevision: number,
   analysis: Pick<FaultTreeExecuteRequest, "calculationType" | "workflow" | "settings">,
+  onProgress?: RunProgressListener,
 ): Promise<FaultTreeExecuteResult> {
-  return postJson<FaultTreeExecuteResult>(
+  return finishedRun("sy", workbookId, postJson<FaultTreeExecuteResult>(
     `/api/sy-workbooks/${workbookId}/fault-trees/${modelId}/runs`,
     { schemaVersion: "1.0.0", modelId, workbookRevision, ...analysis },
-  );
+  ), onProgress);
 }
 
 async function validateSyFaultTree(
@@ -145,7 +147,7 @@ async function runSyBayesianNetwork(
   evidence: BayesianNetworkEvidenceConfiguration,
   queryNodeId: string,
 ): Promise<BayesianNetworkExecuteResult> {
-  return postJson<BayesianNetworkExecuteResult>(
+  return finishedRun("sy", workbookId, postJson<BayesianNetworkExecuteResult>(
     `/api/sy-workbooks/${workbookId}/bayesian-networks/${modelId}/runs`,
     {
       schemaVersion: "1.0.0",
@@ -153,7 +155,7 @@ async function runSyBayesianNetwork(
       workbookRevision,
       query: { evidence, queryNodeIds: [queryNodeId] },
     },
-  );
+  ));
 }
 
 async function runSyBayesianNetworkBatch(
@@ -163,7 +165,7 @@ async function runSyBayesianNetworkBatch(
   scenarios: BayesianNetworkQueryScenario[],
   queryNodeId: string,
 ): Promise<BayesianNetworkExecuteResult> {
-  return postJson<BayesianNetworkExecuteResult>(
+  return finishedRun("sy", workbookId, postJson<BayesianNetworkExecuteResult>(
     `/api/sy-workbooks/${workbookId}/bayesian-networks/${modelId}/runs`,
     {
       schemaVersion: "1.0.0",
@@ -174,7 +176,7 @@ async function runSyBayesianNetworkBatch(
         queryNodeIds: [queryNodeId],
       },
     },
-  );
+  ));
 }
 
 async function getSyBayesianNetworkBatchResult(
@@ -205,7 +207,7 @@ async function runSyHclFaultTree(
   calculationType: HclCalculationType,
   evidenceScenarioId?: string,
 ): Promise<HclExecuteResult> {
-  return postJson<HclExecuteResult>(
+  return finishedRun("sy", workbookId, postJson<HclExecuteResult>(
     `/api/sy-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-runs`,
     {
       schemaVersion: "1.0.0",
@@ -215,7 +217,7 @@ async function runSyHclFaultTree(
       faultTreeTopGate,
       ...(evidenceScenarioId === undefined ? {} : { evidenceScenarioId }),
     },
-  );
+  ));
 }
 
 async function runSyHclFaultTreeBatch(
@@ -228,7 +230,7 @@ async function runSyHclFaultTreeBatch(
   integrateHazardGrid = false,
   batchInput?: HclBatchInput,
 ): Promise<HclBatchExecuteResult> {
-  return postJson<HclBatchExecuteResult>(
+  const response = await postJson<HclBatchExecuteResult>(
     `/api/sy-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-batch-runs`,
     {
       schemaVersion: "1.0.0",
@@ -241,6 +243,12 @@ async function runSyHclFaultTreeBatch(
       ...(integrateHazardGrid ? { integrateHazardGrid: true } : {}),
     },
   );
+  if (response.batchId === undefined) return response;
+  const batch = await awaitAnalysisRun("sy", workbookId, await getAnalysisRun("sy", workbookId, response.batchId));
+  if (batch.status === "SUCCEEDED") {
+    return fetchJson<HclBatchExecuteResult>(`/api/sy-workbooks/${workbookId}/hcl-configurations/${configurationId}/runs/${batch.id}/result`);
+  }
+  return { ...response, runs: await Promise.all(response.runs.map(async (row) => ({ ...row, run: await getAnalysisRun("sy", workbookId, row.run.id) }))) };
 }
 
 async function getSyHclFaultTreeResult(

@@ -3,12 +3,7 @@ import {
   type EventSequenceFamilyQuantification,
   type ModelIntegration,
   type QuantificationMethods,
-  type CircularLogicResolution,
-  type MutuallyExclusiveEventRule,
-  type FlagEventSetting,
   type ModuleUsageRecord,
-  type MultiHfeCutsetIdentification,
-  type HfeDependencyApplication,
   type LinkingTransferRecord,
   type PhenomenaDependencyAssessment,
   type RadionuclideBarrierQuantification,
@@ -37,7 +32,6 @@ import {
   DependencyType,
   TruncationMethod,
   QuantificationApproach,
-  CircularLogicResolutionMethod,
   RiskSignificantContributorType,
   ESQ_SR_CATALOG,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
@@ -335,79 +329,6 @@ const dependencyTreatment: DependencyTreatment = {
   implementsSrs: srs("ESQ-C1", "ESQ-C2"),
 };
 
-const circularLogicResolutions: CircularLogicResolution[] = [
-  {
-    uuid: "CL-1",
-    description: "Cooling support and electrical support each need the other",
-    involvedElementIds: ["SYS-HVAC", "SYS-1E-DC"],
-    detectionMethod: "Detected during fault-tree linking as a logic loop.",
-    resolutionMethod: CircularLogicResolutionMethod.LOGIC_TRANSFORMATION,
-    resolutionDescription: "The loop is broken by a logic transformation that preserves both support paths.",
-    neutralityJustification: "The break adds neither conservatism nor non-conservatism, since both directions are retained.",
-    implementsSrs: srs("ESQ-B5"),
-  },
-];
-
-const mutuallyExclusiveEventRules: MutuallyExclusiveEventRule[] = [
-  {
-    uuid: "MX-1",
-    description: "Two DRACS loops in staggered surveillance at once",
-    eventIds: ["HE-DRC-LP1-MAINT", "HE-DRC-LP2-MAINT"],
-    basis: "The surveillance plan staggers the loops so two are never out together.",
-    identifiedInResults: true,
-    treatment: "LOGIC_ELIMINATION",
-    implementsSrs: srs("ESQ-B7", "ESQ-B8"),
-  },
-  {
-    uuid: "MX-2",
-    description: "Refueling alignment with at-power initiator",
-    eventIds: ["HE-REFUEL", "IE-01"],
-    basis: "The refueling alignment cannot coexist with the at-power initiator.",
-    identifiedInResults: true,
-    treatment: "CUTSET_DELETION",
-    implementsSrs: srs("ESQ-B7", "ESQ-B8"),
-  },
-];
-
-const flagEventSettings: FlagEventSetting[] = [
-  {
-    uuid: "FL-1",
-    name: "Train A maintenance alignment",
-    purpose: "Selects the train-A-out configuration for the family",
-    state: false,
-    effect: "Removes the train-A failure logic from this family's model.",
-    basis: "The maintenance alignment is a configuration choice, so the flag restructures the logic rather than carrying a probability.",
-    isTemporary: false,
-    applicableFamilyRefs: ["EFQ-1"],
-    setPriorToCutsetGeneration: true,
-    implementsSrs: srs("ESQ-B9"),
-  },
-  {
-    uuid: "FL-2",
-    name: "Shutdown-state SDHR path",
-    purpose: "Enables the intermediate-loop shutdown cooling path credited only in the shutdown states",
-    state: true,
-    effect: "Includes the intermediate-loop shutdown heat-removal path in the shutdown-state model.",
-    basis: "The intermediate-loop shutdown cooling is aligned only in the shutdown states, so the flag selects it per state.",
-    isTemporary: false,
-    applicableFamilyRefs: ["EFQ-1"],
-    setPriorToCutsetGeneration: true,
-    implementsSrs: srs("ESQ-B9"),
-  },
-  {
-    uuid: "FL-3",
-    name: "At-power flow-coastdown logic",
-    purpose: "Selects the at-power flow-coastdown logic",
-    state: true,
-    effect: "Includes the primary flow-coastdown logic in the at-power model.",
-    basis: "The primary flow coastdown applies only at power, so the flag selects the at-power logic.",
-    isTemporary: false,
-    applicableFamilyRefs: ["EFQ-2"],
-    setPriorToCutsetGeneration: true,
-    implementsSrs: srs("ESQ-B9"),
-  },
-];
-
 const moduleUsageRecords: ModuleUsageRecord[] = [
   {
     uuid: "MOD-1",
@@ -417,40 +338,6 @@ const moduleUsageRecords: ModuleUsageRecord[] = [
     trueIndependenceVerified: true,
     perEventInterpretabilityMaintained: true,
     implementsSrs: srs("ESQ-B10"),
-  },
-];
-
-const multiHfeCutsetIdentifications: MultiHfeCutsetIdentification[] = [
-  {
-    uuid: "MH-1",
-    cutsetDescription: "CS-DHR-0142, three human failure events appear together in a loss-of-decay-heat cutset.",
-    hfeRefs: ["HR-POST-004", "HR-POST-005", "REC-1"],
-    potentialRiskImpact: "The cutset is risk-significant, so the joint dependency is assessed per HR and the joint floor binds the product.",
-    implementsSrs: srs("ESQ-C1", "ESQ-C2"),
-  },
-  {
-    uuid: "MH-2",
-    cutsetDescription: "CS-DRAIN-0033, two human failure events appear together in a refuelling drain-down cutset.",
-    hfeRefs: ["HR-POST-028", "HR-POST-026"],
-    potentialRiskImpact: "The cutset is risk-significant, and the two actions share the same crew and timeline, so the dependence is not negligible.",
-    implementsSrs: srs("ESQ-C1", "ESQ-C2"),
-  },
-];
-
-const hfeDependencyApplications: HfeDependencyApplication[] = [
-  {
-    uuid: "HD-1",
-    hrDependencyAssessmentRef: "DEP-3",
-    cutsetContext: "CS-DHR-0142",
-    appliedJointHep: 3.5e-4,
-    implementsSrs: srs("ESQ-C2"),
-  },
-  {
-    uuid: "HD-2",
-    hrDependencyAssessmentRef: "DEP-5",
-    cutsetContext: "CS-DRAIN-0033",
-    appliedJointHep: 4.5e-4,
-    implementsSrs: srs("ESQ-C2"),
   },
 ];
 
@@ -1099,21 +986,21 @@ const review: EsqReviewWork = {
 const HS_REASON = "Concerns hazards that Step 01 leaves to their own PRA workbooks, so it moves no family quantified here.";
 
 const decisions: EsqRegisterDecision[] = [
-  { id: "DA:SOURCE:MU-1", familyIds: ["ESF-LEAK", "ESF-EARLY"], caseIds: [], reason: "The adjustment moves the make-up pump, which only the drain-down trees ask. Step 07 shows its importance, and DA's sweep (SS-1) bounds it at five times the estimate." },
+  { id: "DA:SOURCE:MU-1", familyIds: ["ESF-LEAK", "ESF-EARLY"], caseIds: [], reason: "The adjustment moves the make-up pump, which only the drain-down trees ask. Step 06 shows its importance, and DA's sweep (SS-1) bounds it at five times the estimate." },
   { id: "DA:SOURCE:MU-2", familyIds: ["ESF-ATWS"], caseIds: ["SS-2-HIGH"], reason: "" },
   { id: "DA:SOURCE:MU-3", familyIds: ["ESF-LATE"], caseIds: ["SS-3-LOW", "SS-3-HIGH"], reason: "" },
   { id: "DA:SOURCE:MU-4", familyIds: RELEASE_FAMILIES, key: true, caseIds: ["SS-4-LOW", "SS-4-HIGH"], reason: "" },
-  { id: "DA:SOURCE:MU-5", familyIds: RELEASE_FAMILIES, key: true, caseIds: [], reason: "The group frequencies enter from IE, and each scales its own sequences in proportion, so Step 07 reads the effect from the initiator shares. A case on one DA frequency parameter would leave the run unchanged." },
+  { id: "DA:SOURCE:MU-5", familyIds: RELEASE_FAMILIES, key: true, caseIds: [], reason: "The group frequencies enter from IE, and each scales its own sequences in proportion, so Step 06 reads the effect from the initiator shares. A case on one DA frequency parameter would leave the run unchanged." },
   { id: "DA:SOURCE:MU-6", familyIds: ["ESF-LATE", "ESF-EARLY"], key: true, caseIds: ["SS-6-HIGH"], reason: "" },
   { id: "SY:SOURCE:MU-DRC-2", familyIds: ["ESF-LATE", "ESF-EARLY"], key: true, caseIds: ["SC-1"], reason: "" },
   { id: "SY:SOURCE:DU-DRC-1", familyIds: ["ESF-LATE", "ESF-EARLY"], key: true, caseIds: ["SC-5"], reason: "" },
   { id: registerEntryId("HR", "SOURCE", "Borrowed nonnuclear human-performance data"), familyIds: RELEASE_FAMILIES, key: true, caseIds: ["SC-4"], reason: "" },
   { id: registerEntryId("ESQ", "SOURCE", "Sodium-air reaction phenomena model"), familyIds: ["ESF-EARLY"], key: true, caseIds: [], reason: "Step 03 holds the sodium fire load on the confinement as cell BC-4, which has no load or capacity yet, so there is no parameter to vary. The case follows once the cell has its numbers." },
   { id: registerEntryId("ESQ", "SOURCE", "Guard-vessel localized failure mode"), familyIds: [], key: false, caseIds: [], reason: "SY models the guard vessel only at the system level, with no fault tree in the linked model, so no family takes its failure. MS carries the localized leak in the source term." },
-  { id: registerEntryId("ESQ", "SOURCE", "State-of-knowledge correlation handling"), familyIds: RELEASE_FAMILIES, key: false, caseIds: [], reason: "Step 08 samples with shared draws and repeats the sampling with independent draws to show the effect." },
+  { id: registerEntryId("ESQ", "SOURCE", "State-of-knowledge correlation handling"), familyIds: RELEASE_FAMILIES, key: false, caseIds: [], reason: "Step 07 samples with shared draws and repeats the sampling with independent draws to show the effect." },
   { id: "HS:SOURCE:HS-UNC-001", familyIds: [], caseIds: [], reason: HS_REASON },
   { id: "HS:SOURCE:HS-UNC-002", familyIds: [], caseIds: [], reason: HS_REASON },
-  { id: "HS:SOURCE:HS-UNC-003", familyIds: RELEASE_FAMILIES, key: false, caseIds: [], reason: "The sodium fire and seismic trees take their frequencies from IE, so a change scales their sequences in proportion. Step 07 reads the effect from the initiator shares." },
+  { id: "HS:SOURCE:HS-UNC-003", familyIds: RELEASE_FAMILIES, key: false, caseIds: [], reason: "The sodium fire and seismic trees take their frequencies from IE, so a change scales their sequences in proportion. Step 06 reads the effect from the initiator shares." },
   { id: "HS:SOURCE:HS-UNC-004", familyIds: [], caseIds: [], reason: "The fire and seismic trees ask the plant functions directly, and the hazard-induced failures of the other groups sit in their own hazard PRAs, so no internal-events family moves." },
   { id: "HS:SOURCE:HS-UNC-005", familyIds: [], caseIds: [], reason: "Concerns the consequence surrogate HS used for screening, which ESQ does not use." },
   { id: "HS:SOURCE:HS-UNC-006", familyIds: [], caseIds: [], reason: "The fire and seismic trees are quantified here once and their initiators are not added to the internal-events frequencies, so no family counts them twice. RI checks the overlap with the other hazard PRAs." },
@@ -1137,17 +1024,17 @@ const sensitivityWork: EsqSensitivityWork = {
 
 const handoffWork: EsqHandoffWork = {
   responses: [
-    { id: "FAMILY:ESF-LATE", kind: "FAMILY", ref: "ESF-LATE", response: "One linked run now gives the family, 2.66E-4 per year over the 54 trees, with its sequences and cut sets in Step 05. The DRACS damper misalignment (HR-PRE-022, FV 0.77) leads it. The restoration credit (REC-1) and its joint HEP with the backup start (HC-1 at HR's DEP-7) lower it by 7.06% in Step 06.", status: "COMPLETED" },
+    { id: "FAMILY:ESF-LATE", kind: "FAMILY", ref: "ESF-LATE", response: "One linked run now gives the family, 2.66E-4 per year over the 54 trees, with its sequences and cut sets in Step 05. The DRACS damper misalignment (HR-PRE-022, FV 0.77) leads it. The restoration credit (REC-1) and its joint HEP with the backup start (HC-1 at HR's DEP-7) lower it by 7.06% in Step 04.", status: "COMPLETED" },
     { id: "FAMILY:ESF-EARLY", kind: "FAMILY", ref: "ESF-EARLY", response: "The linked run puts ESF-EARLY at 5.07E-3 per year. The joint battery equalization (DA-UA-05, FV 0.55) and the equalization error (HR-PRE-041, FV 0.44) set almost all of it through the drained-state trees, while the confinement damper group has an FV of 9.2E-6. SY decides how confinement isolation responds to a loss of DC.", status: "IN_PROGRESS", sentTo: "SY" },
-    { id: "FAMILY:ESF-ATWS", kind: "FAMILY", ref: "ESF-ATWS", response: "The family now comes from the linked trees at 1.55E-2 per year, and Step 08 samples it (mean 1.55E-2, 95th 4.74E-2). SY's bound that a loss of DC fails the trip (MU-RPS-2) sets 99% of it. The failure-to-trip tree goes to SY with that bound.", status: "IN_PROGRESS", sentTo: "SY" },
+    { id: "FAMILY:ESF-ATWS", kind: "FAMILY", ref: "ESF-ATWS", response: "The family now comes from the linked trees at 1.55E-2 per year, and Step 07 samples it (mean 1.55E-2, 95th 4.74E-2). SY's bound that a loss of DC fails the trip (MU-RPS-2) sets 99% of it. The failure-to-trip tree goes to SY with that bound.", status: "IN_PROGRESS", sentTo: "SY" },
     { id: "FAMILY:ESF-LEAK", kind: "FAMILY", ref: "ESF-LEAK", response: "Kept under review. The linked run makes ESF-LEAK the largest release family at 3.56E-2 per year, led by the loss of DC (61%) and the DRACS damper misalignment (HR-PRE-022, 30%). Its grouping reason stays in Step 02, and the cover-gas leak-rate data goes to MS.", status: "IN_PROGRESS", sentTo: "MS" },
     { id: "CONTRIBUTOR:Erroneous control-rod withdrawal (IE-07)", kind: "CONTRIBUTOR", ref: "Erroneous control-rod withdrawal (IE-07)", response: "IE-07 sits in IEG-04, which ESQ takes at 0.31 per year from DA (DA-IE-04). Its trees put 1.38E-3 per year into ESF-ATWS, 8.9% of the family, at a conditional of 4.5E-3 that the DC bound sets. The frequency and the binning go to IE.", status: "IN_PROGRESS", sentTo: "IE" },
-    { id: "CONTRIBUTOR:DRACS loop common-cause failure (CCF-DRACS-LOOP)", kind: "CONTRIBUTOR", ref: "DRACS loop common-cause failure (CCF-DRACS-LOOP)", response: "Held against DA. The group has an FV of 0.039 and a RAW of 77 on ESF-LATE. Step 09 case SS-6-HIGH (loops tested on one day) raises the release total from 5.65E-2 to 5.83E-2 per year, and SC-5 (all loops failed) to 1.13 per year, since the drained states then lose all heat removal.", status: "IN_PROGRESS", sentTo: "DA" },
+    { id: "CONTRIBUTOR:DRACS loop common-cause failure (CCF-DRACS-LOOP)", kind: "CONTRIBUTOR", ref: "DRACS loop common-cause failure (CCF-DRACS-LOOP)", response: "Held against DA. The group has an FV of 0.039 and a RAW of 77 on ESF-LATE. Step 08 case SS-6-HIGH (loops tested on one day) raises the release total from 5.65E-2 to 5.83E-2 per year, and SC-5 (all loops failed) to 1.13 per year, since the drained states then lose all heat removal.", status: "IN_PROGRESS", sentTo: "DA" },
     { id: "CONTRIBUTOR:Confinement isolation damper common-cause failure (CCF-CIS-DMP)", kind: "CONTRIBUTOR", ref: "Confinement isolation damper common-cause failure (CCF-CIS-DMP)", response: "The linked run gives the damper group an FV of 9.2E-6 and a RAW of 3.8 on ESF-EARLY, since a loss of DC fails confinement isolation first. The group stays as it is until SY settles that response.", status: "IN_PROGRESS", sentTo: "SY" },
     { id: "CONTRIBUTOR:Shutdown system fails to trip (CCF-RPS-DIV)", kind: "CONTRIBUTOR", ref: "Shutdown system fails to trip (CCF-RPS-DIV)", response: "The linked run gives the division group an FV of 3.7E-5 and a RAW of 3.9 on ESF-ATWS. The loss of DC sets 99% of that family, so the group goes to SY with the failure-to-trip tree.", status: "IN_PROGRESS", sentTo: "SY" },
     { id: "CONTRIBUTOR:Operator fails to start standby clean-up train (HR-POST-022)", kind: "CONTRIBUTOR", ref: "Operator fails to start standby clean-up train (HR-POST-022)", response: "The linked run gives it an FV of 5.3E-5 and a RAW of 1.01 on ESF-EARLY, below both significance thresholds. HR keeps the screening value.", status: "COMPLETED", sentTo: "HR" },
-    { id: "CONTRIBUTOR:Loss of room cooling support (SYS-HVAC)", kind: "CONTRIBUTOR", ref: "Loss of room cooling support (SYS-HVAC)", response: "Kept visible. Step 07 marks the HVAC system significant on its RAW of 3.9 on ESF-ATWS and 3.7 on ESF-EARLY, though its FV is only 1.4E-3.", status: "COMPLETED" },
-    { id: "CONTRIBUTOR:Station battery common-cause failure (CCF-DC-BATT)", kind: "CONTRIBUTOR", ref: "Station battery common-cause failure (CCF-DC-BATT)", response: "Held against DA. The battery group has an FV of 8.1E-5 and a RAW of 221. The joint equalizing charge (DA-UA-05, FV 0.55) and the equalization error (HR-PRE-041, FV 0.44) dominate class 1E DC instead, and Step 09's DA-UA-05 sweep moves the release total from 3.30E-2 to 7.96E-2 per year. SY decides whether the joint equalization stays one event.", status: "IN_PROGRESS", sentTo: "SY" },
+    { id: "CONTRIBUTOR:Loss of room cooling support (SYS-HVAC)", kind: "CONTRIBUTOR", ref: "Loss of room cooling support (SYS-HVAC)", response: "Kept visible. Step 06 marks the HVAC system significant on its RAW of 3.9 on ESF-ATWS and 3.7 on ESF-EARLY, though its FV is only 1.4E-3.", status: "COMPLETED" },
+    { id: "CONTRIBUTOR:Station battery common-cause failure (CCF-DC-BATT)", kind: "CONTRIBUTOR", ref: "Station battery common-cause failure (CCF-DC-BATT)", response: "Held against DA. The battery group has an FV of 8.1E-5 and a RAW of 221. The joint equalizing charge (DA-UA-05, FV 0.55) and the equalization error (HR-PRE-041, FV 0.44) dominate class 1E DC instead, and Step 08's DA-UA-05 sweep moves the release total from 3.30E-2 to 7.96E-2 per year. SY decides whether the joint equalization stays one event.", status: "IN_PROGRESS", sentTo: "SY" },
     { id: "CONTRIBUTOR:Operator fails to start backup decay heat removal (HR-POST-005)", kind: "CONTRIBUTOR", ref: "Operator fails to start backup decay heat removal (HR-POST-005)", response: "Kept at detailed treatment. The linked run gives it an FV of 6.6E-3 and a RAW of 10.6 on ESF-LATE, with its joint HEP with the restoration credit (HC-1) taken from HR's DEP-7.", status: "COMPLETED", sentTo: "HR" },
     { id: "GENERAL", kind: "GENERAL", ref: "GENERAL", response: "The linked quantification changes what RI used. The release total is 5.65E-2 per year (95th 1.46E-1), and the loss of class 1E DC sets 75% of it through the trip, the DRACS dampers and confinement isolation. ES records that the DRACS dampers fail open on a loss of DC (DEP-1), so SY decides the fail-safe response before RI recomputes from this package.", status: "IN_PROGRESS", sentTo: "SY" },
   ],
@@ -1239,18 +1126,6 @@ export const ESQ_ANALYSIS: EventSequenceQuantification = {
       implementsSrs: srs("ESQ-A9"),
     },
   ],
-  recoveryActionApplications: [
-    {
-      uuid: "RA-1",
-      recoveryActionRef: "REC-1",
-      appliedAtLevel: "SEQUENCE",
-      applicableFamilyRefs: ["EFQ-1"],
-      hrFeasibilityRequirementsSatisfied: true,
-      hrDependencyRequirementsSatisfied: true,
-      implementsSrs: srs("ESQ-A7"),
-    },
-  ],
-  circularLogicResolutions,
   systemSuccessTreatment: {
     treatmentMethod: "The success branches of modeled events are kept, not only the failure branches.",
     systemsWithSuccessModeled: ["SYS-DRACS", "SYS-RPS"],
@@ -1258,12 +1133,8 @@ export const ESQ_ANALYSIS: EventSequenceQuantification = {
     modelingExamples: ["The decay-heat removal success path is retained in the loss-of-flow sequences, consistent with the demonstrated natural-circulation transients (ESQ-DOC-02)."],
     implementsSrs: srs("ESQ-B6"),
   },
-  mutuallyExclusiveEventRules,
-  flagEventSettings,
   moduleUsageRecords,
   dependencyTreatment,
-  multiHfeCutsetIdentifications,
-  hfeDependencyApplications,
   linkingTransferRecords,
   phenomenaDependencyAssessments,
   barrierQuantifications,

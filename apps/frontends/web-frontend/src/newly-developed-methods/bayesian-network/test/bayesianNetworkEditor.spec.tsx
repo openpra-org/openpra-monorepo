@@ -1245,7 +1245,8 @@ describe("BayesianNetworkEditor", () => {
     await user.click(screen.getByRole("button", { name: "Enable uncertainty" }));
 
     expect(screen.getByRole("spinbutton", { name: "Samples" })).toHaveValue(1000);
-    expect(screen.getByRole("spinbutton", { name: "Seed" })).toHaveValue(42);
+    expect(screen.getByRole("spinbutton", { name: "Seed value" })).toHaveValue(42);
+    expect(screen.getByRole("combobox", { name: "Seed source" })).toHaveValue("FIXED");
     expect(screen.getByRole("combobox", { name: "Sampling method" })).toHaveValue("LHS");
     expect(savedConfiguration().solverSettings.uncertainty).toEqual({ sampleCount: 1000, seed: 42, sampler: "LHS", basicEvents: [], cptRows: [], cptGenerators: [] });
     await user.selectOptions(screen.getByRole("combobox", { name: "Sampling method" }), "MC");

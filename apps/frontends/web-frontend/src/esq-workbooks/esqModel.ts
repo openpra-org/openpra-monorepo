@@ -9,6 +9,7 @@ import {
   type EsqImpactRecord,
   type EsqJointFloorRecord,
   type EsqRecoveryRecord,
+  type EsqRepairRecord,
   type EsqQualificationRecord,
   type EsqEventRecord,
   type EsqFamilyChoice,
@@ -667,6 +668,24 @@ function phenomenonRecords(es: EventSequenceAnalysis): EsqPhenomenonRecord[] {
   });
 }
 
+function repairRecords(es: EventSequenceAnalysis): EsqRepairRecord[] {
+  return (es.repairCreditRecords ?? []).flatMap((entry): EsqRepairRecord[] => {
+    const id = textOf(entry?.uuid);
+    const sequenceId = textOf(entry?.eventSequenceId);
+    if (id === undefined || sequenceId === undefined) return [];
+    const record: EsqRepairRecord = { id, sequenceId, credited: entry.repairCredited === true, justification: textOf(entry.justification) ?? "" };
+    const equipment = textOf(entry.equipment);
+    if (equipment !== undefined) record.equipment = equipment;
+    const minutes = finite(entry.timeMinutes);
+    if (minutes !== undefined) record.timeMinutes = minutes;
+    const access = textOf(entry.access);
+    if (access !== undefined) record.access = access;
+    const conservative = textOf(entry.conservativeRepairBasis);
+    if (conservative !== undefined) record.conservativeBasis = conservative;
+    return [record];
+  });
+}
+
 function qualificationRecords(sy: SystemsAnalysis): EsqQualificationRecord[] {
   const environment = (sy.environmentalDesignBasisConsiderations ?? []).map((entry): EsqQualificationRecord => ({
     id: entry.uuid,
@@ -916,6 +935,7 @@ function importModel(esq: EventSequenceQuantification, upstream: EsqUpstream, no
     qualifications: sy === undefined ? [] : qualificationRecords(sy),
     actions: hr === undefined ? [] : actionRecords(hr),
     recoveries: hr === undefined ? [] : recoveryRecords(hr),
+    repairs: es === undefined ? [] : repairRecords(es),
     dependencies: hr === undefined ? [] : dependencyRecords(hr),
     ...(hr === undefined ? {} : floorField(hr)),
   };
@@ -1034,6 +1054,7 @@ function withModelImported(esq: EventSequenceQuantification, upstream: EsqUpstre
   tableChanges("QUALIFICATION", previous.qualifications ?? [], next.qualifications ?? [], (row) => row.id, (row) => row.id, changes);
   tableChanges("ACTION", previous.actions ?? [], next.actions ?? [], (row) => row.id, (row) => row.name, changes);
   tableChanges("RECOVERY", previous.recoveries ?? [], next.recoveries ?? [], (row) => row.id, (row) => row.name, changes);
+  tableChanges("REPAIR", previous.repairs ?? [], next.repairs ?? [], (row) => row.id, (row) => row.equipment ?? row.sequenceId, changes);
   tableChanges("DEPENDENCY", previous.dependencies ?? [], next.dependencies ?? [], (row) => row.id, (row) => row.id, changes);
   return { ...esq, model: { ...next, changes } };
 }

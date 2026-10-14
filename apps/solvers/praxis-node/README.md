@@ -139,8 +139,24 @@ algorithms are unchanged. Older addon callers that relied on saved settings to
 trigger sampling must now send `calculationType: "UNCERTAINTY"`.
 
 Uncertainty settings are `{ sampleCount, seed, sampler, basicEvents, cptRows,
-cptGenerators, uncertaintyParameters, uncertaintyVectors }`. `sampler` is `MC` or
-`LHS`. Every draw comes from the PRAXIS uncertainty contract and its one sampler.
+cptGenerators, uncertaintyParameters, uncertaintyVectors }`. `sampleCount` is 2 or
+more, with no upper limit. `seed` is optional. Without it the addon draws a seed from
+the operating system, below 2^53 so JavaScript keeps it exact, and every summary
+reports the seed it used. `sampler` is `MC` or `LHS`. `cptSampler` (optional, `MC`
+or `LHS`) samples the BN rows, seismic generators and vector parameters on its own;
+scalar parameters and basic events always use `sampler`. `correlation` is `SHARED`
+(the default, one draw per parameter per trial for every user) or `INDEPENDENT`
+(each basic event, CPT row, generator and the initiating event draws its own copy).
+`clipProbabilities` (default false) clips a sampled basic-event or PGA-bin
+probability outside 0 to 1 to the nearest bound instead of failing.
+`cptClipEpsilon` (default 0, below 0.5) keeps every sampled CPT row and fragility
+row value within epsilon of 0 and 1: values below epsilon are raised to it and the
+rest of the row is rescaled. `zeroProbabilityContexts` is `ZERO` (the default) or
+`FAIL`. With `ZERO`, a BN context that has zero probability in a sample counts as
+0, which is exact because the branch that reaches it has weight 0. Base evidence
+with zero probability always fails. Every summary reports what these switches
+changed in `adjustments`: `clippedProbabilities`, `epsilonAdjustedCptValues` and
+`zeroProbabilityContexts`. Every draw comes from the PRAXIS uncertainty contract and its one sampler.
 `basicEvents` entries `{ faultTreeBasicEvent: { entityId }, expression }` override
 the catalogue expression of an event. Events without an override sample their
 catalogue expression. Events with neither stay points. `cptRows` entries
@@ -154,7 +170,24 @@ settings tables. A parameter defined twice with different expressions is an erro
 every row of the node. `SEISMIC_PGA_BINS` takes `noneStateId`, `missionTime`,
 `conversion` (`POISSON` or `LINEAR`) and `bins: [{ stateId, frequency }]`. A node
 uses row uncertainty or one generator. A bin total above 1 is an error.
-Nothing is clipped. See [the uncertainty map](../praxis/src/hcl/uncertainty/SOURCE.md).
+Nothing is clipped unless `clipProbabilities` or `cptClipEpsilon` asks for it, and
+each change is counted. See [the uncertainty map](../praxis/src/hcl/uncertainty/SOURCE.md).
+
+Every uncertainty summary also returns `histogram` (`edges`, `counts`,
+`densities`), `exceedance` (`value`, `probability` at each edge) and `fit`
+(`samples`, `zeroSamples`, `oneSamples` and `candidates` sorted by AIC, each with
+`family`, `law`, `parameterCount`, `logLikelihood`, `aic`, `bic`, `ksStatistic`,
+`cdfRmse` and `pdfRmse`). Conditional probabilities are fitted with beta,
+logit-normal and their zero/one-inflated forms. Annual frequencies are fitted with
+lognormal, gamma and their zero-inflated forms. A request with `keepSamples: true`
+also returns `sampleVectors`: `top` for a fault tree, and for an event tree
+`initiator` (frequency samples), `sequence:<id>` and `endState:<id>` (conditional
+probabilities). Annual vectors are the conditional vectors times the initiator
+vector, trial by trial. HCL event-tree end states are the exact union of their
+sequences, with `sequenceSum` and `sequencesOverlap` beside the union.
+Hazard convolution results return `exceedance` (`threshold`, `weight`,
+`exceedanceWeight`, `exceedanceFrequency`) for a fault tree and for each end
+state.
 
 The addon builds the vendored special-function kernels used by the PRAXIS law math. A C++17
 compiler is required at build time. Python is not required at runtime. The Praetor

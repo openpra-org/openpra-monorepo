@@ -135,6 +135,8 @@ button.et-editor__crumb:hover { background: var(--color-primary-soft); }
 .estree__seq:hover, .esdg__end:hover { border-color: var(--color-primary); box-shadow: 0 4px 14px rgb(143 78 199 / .12); }
 .estree__seq--active, .esdg__end--active { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-focus); }
 .estree__seq-classification { overflow: hidden; color: var(--color-text); font: 700 11.5px var(--font-data), ui-monospace, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.estree__seq--valued, .esdg__end:has(> .estree__seq-frequency), .esdt__leaf:has(> .estree__seq-frequency) { flex-direction: column; gap: 1px; }
+.estree__seq-frequency { color: var(--color-text-muted); font: 10.5px var(--font-data), ui-monospace, monospace; white-space: nowrap; }
 .esdg { padding: 4px 0; }
 .esdg__ie { position: absolute; width: 76px; transform: translateY(-50%); }
 .esdg__box { position: absolute; display: flex; flex-direction: column; transform: translate(-50%, -50%); padding: 7px 9px; border: 1.5px solid var(--color-border-strong); border-radius: 9px; background: var(--color-surface); box-shadow: 0 1px 2px rgba(29,25,43,.06); color: inherit; font: inherit; text-align: center; cursor: pointer; }

@@ -25,7 +25,6 @@ export type SystemReference = string;
 export type ComponentReference = string;
 export type HumanActionReference = string;
 export type HrDependencyAssessmentReference = string;
-export type RecoveryActionReference = string;
 export type ReleaseCategoryReference = string;
 export type SourceReference = string;
 export type PlantDamageStateReference = string;
@@ -56,13 +55,6 @@ export enum QuantificationApproach {
   MARKOV_MODEL = "MARKOV_MODEL",
   DISCRETE_EVENT_SIMULATION = "DISCRETE_EVENT_SIMULATION",
   MONTE_CARLO_SIMULATION = "MONTE_CARLO_SIMULATION",
-}
-
-export enum CircularLogicResolutionMethod {
-  CONDITIONAL_SPLIT_FRACTIONS = "CONDITIONAL_SPLIT_FRACTIONS",
-  TRANSFER_GATES = "TRANSFER_GATES",
-  ITERATIVE_CONVERGENCE = "ITERATIVE_CONVERGENCE",
-  LOGIC_TRANSFORMATION = "LOGIC_TRANSFORMATION",
 }
 
 export interface EventSequenceFamilyQuantification extends Unique, Named {
@@ -194,6 +186,7 @@ export type EsqModelTable =
   | "QUALIFICATION"
   | "ACTION"
   | "RECOVERY"
+  | "REPAIR"
   | "DEPENDENCY";
 
 export interface EsqModelChange {
@@ -460,6 +453,17 @@ export interface EsqRecoveryRecord {
   feasibilityNote?: string;
 }
 
+export interface EsqRepairRecord {
+  id: string;
+  sequenceId: string;
+  credited: boolean;
+  equipment?: string;
+  timeMinutes?: number;
+  access?: string;
+  conservativeBasis?: string;
+  justification: string;
+}
+
 export interface EsqDependencyRecord {
   id: string;
   scope: "PRE_INITIATOR_SET" | "WITHIN_SEQUENCE";
@@ -502,6 +506,7 @@ export interface EsqModel {
   qualifications?: EsqQualificationRecord[];
   actions?: EsqActionRecord[];
   recoveries?: EsqRecoveryRecord[];
+  repairs?: EsqRepairRecord[];
   dependencies?: EsqDependencyRecord[];
   jointFloor?: EsqJointFloorRecord;
 }
@@ -785,6 +790,12 @@ export interface EsqSolveSweepPoint {
   annualFrequency: number;
 }
 
+export interface EsqSolveHcl {
+  workbookId: string;
+  modelId: string;
+  treeIds: string[];
+}
+
 export interface EsqSolveRun {
   runId: string;
   revision: number;
@@ -798,6 +809,7 @@ export interface EsqSolveRun {
   limitOrder?: number;
   peakProbability?: number;
   peakInitiatorFrequency?: number;
+  hcl?: EsqSolveHcl;
 }
 
 export interface EsqFamilyStateValue {
@@ -843,16 +855,19 @@ export interface EsqSolveWork {
   rareEventReason?: string;
 }
 
+export type EsqRecoverySource = "HRA" | "DA" | "TYPED";
+
 export interface EsqRecoveryRule {
   id: string;
-  manual?: { name: string };
+  manual?: { name: string; repair?: boolean };
   eventIds?: string[];
   groupIds: string[];
   stateIds: string[];
   credited: boolean;
   feasibility?: EsqActionFeasibility;
+  parameterId?: string;
   typed?: { expression: UncertainExpression; source: string };
-  ofRecord?: "HRA" | "TYPED";
+  ofRecord?: EsqRecoverySource;
   basis: string;
 }
 
@@ -904,20 +919,12 @@ export interface EsqPostDeletions {
   findings: EsqDeletionFinding[];
 }
 
-export interface EsqPostComparison {
-  runId: string;
-  at: string;
-  inputs: string;
-  families: { familyId: string; annualFrequency: number }[];
-}
-
 export interface EsqPostWork {
   recoveries?: EsqRecoveryRule[];
   combinations?: EsqCombination[];
   floor?: { value: number; source: string };
   search?: EsqPostSearch;
   deletions?: EsqPostDeletions;
-  comparison?: EsqPostComparison;
 }
 
 export type EsqImportanceKind = "EVENT" | "PARAMETER" | "HFE" | "CCF_GROUP" | "SYSTEM";
@@ -1194,15 +1201,6 @@ export interface QuantificationMethods {
   implementsSrs: SRReference[];
 }
 
-export interface RecoveryActionApplication extends Unique {
-  recoveryActionRef: RecoveryActionReference;
-  appliedAtLevel: "FAMILY" | "SEQUENCE" | "CUTSET";
-  applicableFamilyRefs?: EventSequenceFamilyReference[];
-  hrFeasibilityRequirementsSatisfied: boolean;
-  hrDependencyRequirementsSatisfied: boolean;
-  implementsSrs: SRReference[];
-}
-
 export interface ParameterConsistencyAttestation {
   capabilityCategory: "CC_I" | "CC_II";
   hrParameterConsistency: boolean;
@@ -1221,44 +1219,11 @@ export interface PhenomenaParameterBasis extends Unique {
   implementsSrs: SRReference[];
 }
 
-export interface CircularLogicResolution extends Unique {
-  description: string;
-  involvedElementIds: string[];
-  detectionMethod: string;
-  resolutionMethod: CircularLogicResolutionMethod;
-  resolutionDescription: string;
-  neutralityJustification: string;
-  resolutionImpact?: string;
-  implementsSrs: SRReference[];
-}
-
 export interface SystemSuccessTreatment {
   treatmentMethod: string;
   systemsWithSuccessModeled: SystemReference[];
   impactOnResults: string;
   modelingExamples?: string[];
-  implementsSrs: SRReference[];
-}
-
-export interface MutuallyExclusiveEventRule extends Unique {
-  description: string;
-  eventIds: string[];
-  basis: string;
-  identifiedInResults: boolean;
-  treatment: "LOGIC_ELIMINATION" | "CUTSET_DELETION";
-  retentionJustification?: string;
-  implementsSrs: SRReference[];
-}
-
-export interface FlagEventSetting extends Unique, Named {
-  purpose: string;
-  state: boolean;
-  effect: string;
-  basis: string;
-  isTemporary: boolean;
-  applicableFamilyRefs?: EventSequenceFamilyReference[];
-  setPriorToCutsetGeneration: boolean;
-  houseEventNodeRef?: number;
   implementsSrs: SRReference[];
 }
 
@@ -1268,21 +1233,6 @@ export interface ModuleUsageRecord extends Unique {
   sharedEventsIdentified: boolean;
   trueIndependenceVerified: boolean;
   perEventInterpretabilityMaintained: boolean;
-  implementsSrs: SRReference[];
-}
-
-export interface MultiHfeCutsetIdentification extends Unique {
-  quantificationResultRef?: number;
-  cutsetDescription: string;
-  hfeRefs: HumanActionReference[];
-  potentialRiskImpact: string;
-  implementsSrs: SRReference[];
-}
-
-export interface HfeDependencyApplication extends Unique {
-  hrDependencyAssessmentRef: HrDependencyAssessmentReference;
-  cutsetContext: string;
-  appliedJointHep?: number;
   implementsSrs: SRReference[];
 }
 
@@ -1624,17 +1574,11 @@ export interface EventSequenceQuantification
   quantificationMethods: QuantificationMethods;
   parameterConsistency: ParameterConsistencyAttestation;
   phenomenaParameterBases?: PhenomenaParameterBasis[];
-  recoveryActionApplications?: RecoveryActionApplication[];
 
-  circularLogicResolutions?: CircularLogicResolution[];
   systemSuccessTreatment: SystemSuccessTreatment;
-  mutuallyExclusiveEventRules?: MutuallyExclusiveEventRule[];
-  flagEventSettings?: FlagEventSetting[];
   moduleUsageRecords?: ModuleUsageRecord[];
 
   dependencyTreatment: DependencyTreatment;
-  multiHfeCutsetIdentifications?: MultiHfeCutsetIdentification[];
-  hfeDependencyApplications?: HfeDependencyApplication[];
   linkingTransferRecords?: LinkingTransferRecord[];
   phenomenaDependencyAssessments?: PhenomenaDependencyAssessment[];
   barrierQuantifications: RadionuclideBarrierQuantification[];

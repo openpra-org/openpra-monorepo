@@ -106,7 +106,7 @@ async function openSavedRun(): Promise<HTMLElement> {
   await act(async () => { await settledWithPraxis(() => undefined); });
   const history = screen.getByRole("region", { name: "Uncertainty history" });
   fireEvent.click(within(history).getByRole("button", { name: "Review saved runs" }));
-  fireEvent.click(await within(history).findByRole("button", { name: (name) => name.startsWith("FAULT TREE") }));
+  fireEvent.click(await within(history).findByRole("button", { name: (name) => name.startsWith("Fault tree") }));
   return within(history).findByRole("region", { name: "Saved run details" });
 }
 

@@ -26,7 +26,7 @@ it.each([
     batchRunResult={null} calculationType="UNCERTAINTY" onChange={onChange}
     onRunFaultTree={jest.fn()} onRunEventTree={jest.fn()} /></ToastProvider>);
   fireEvent.click(screen.getByRole("button", { name: "Configuration", exact: true }));
-  const input = screen.getByRole("spinbutton", { name: "Seed" });
+  const input = screen.getByRole("spinbutton", { name: "Seed value" });
   expect(input).toHaveAttribute("max", String(Number.MAX_SAFE_INTEGER));
   fireEvent.change(input, { target: { value } });fireEvent.blur(input);
   expect(onChange).toHaveBeenCalledTimes(accepted ? 1 : 0);

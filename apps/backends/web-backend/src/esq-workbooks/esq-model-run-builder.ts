@@ -14,6 +14,7 @@ import {
   esqJointEventId,
   eventProbabilityOf,
   hfeEventIds,
+  recoveryInputKey,
   resolvedCombinations,
   scopeApplies,
   solveJointEvents,
@@ -85,6 +86,13 @@ interface EsqRunBuildInput {
   points: ReadonlyMap<string, number>;
   raisedHep?: number;
   failedEventIds?: readonly string[];
+  standIn?: (treeId: string, functionId: string) => EsqRunStandIn | undefined;
+}
+
+interface EsqRunStandIn {
+  top: { modelId: string; entityId: string };
+  eventId: string;
+  snapshot: AdaptedFaultTreeSnapshot;
 }
 
 type EsqRunEventRole = "BASIC" | "RECOVERY" | "JOINT" | "INDEPENDENT_PART" | "SPLIT";
@@ -108,6 +116,7 @@ interface EsqRunBuild {
   faultTrees: AdaptedFaultTreeSnapshot[];
   eventTreeModelIds: string[];
   splitFractionModelIds: string[];
+  standInModelIds: string[];
   syModelIds: string[];
   humanEventIds: string[];
   nominal: Record<string, number>;
@@ -317,7 +326,7 @@ function applyDependencies(
 ): EsqDependencyEncoding {
   const active = resolvedCombinations(esq, points).filter((view) => view.joint !== undefined && scopeApplies(view.combination.groupIds, view.combination.stateIds, tree) && view.combination.eventIds.every((id) => reached.has(id)));
   const broken = active.find((view) => view.problem !== undefined);
-  if (broken !== undefined) throw new EsqRunBuildError(`${broken.combination.id}: ${broken.problem ?? ""} Fix it in Step 06.`);
+  if (broken !== undefined) throw new EsqRunBuildError(`${broken.combination.id}: ${broken.problem ?? ""} Fix it in Step 04.`);
   const encoded = active.filter((view) => view.joint !== undefined && (view.independent === undefined || view.joint > view.independent * (1 + 1e-12)));
   if (encoded.length === 0) return { sy, joints: [], independents: [] };
   const ccfMembers = new Set((sy.commonCauseFailureGroups ?? []).flatMap((group) => (group.members?.basicEvents ?? []).map((member) => member.id)));
@@ -329,7 +338,7 @@ function applyDependencies(
     }
   }
   const solution = solveJointEvents(probabilities, encoded.map((view) => ({ id: view.combination.id, eventIds: view.combination.eventIds, joint: view.joint ?? 0 })));
-  if (solution.problem !== undefined) throw new EsqRunBuildError(`${solution.problem} Fix it in Step 06.`);
+  if (solution.problem !== undefined) throw new EsqRunBuildError(`${solution.problem} Fix it in Step 04.`);
   const events: SystemBasicEvent[] = [];
   for (const view of encoded) events.push(syntheticEvent(esqJointEventId(view.combination.id), `JHEP-${view.combination.id}`, `${view.combination.id} joint failure`, pointExpression(solution.joints.get(view.combination.id) ?? 0)));
   for (const [eventId, independent] of solution.independents) events.push(syntheticEvent(esqIndependentEventId(eventId), `${codeOf(eventId)}-IND`, `${codeOf(eventId)} alone`, pointExpression(independent)));
@@ -617,12 +626,20 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
   const splitModels = new Map<string, AdaptedFaultTreeSnapshot>();
   const splitValues = new Map<string, EsqRunEventValue>();
   const splitCodes = new Map<string, string>();
+  const standInModelIds = new Set<string>();
 
   const linkFor = (tree: EsqTreeRecord, functionId: string): FunctionTopLink | undefined => {
     const asked = model.sequences.some((sequence) => sequence.treeId === tree.id && (sequence.path[functionId] === "SUCCESS" || sequence.path[functionId] === "FAILURE"));
     if (!asked) return undefined;
     const record = model.functions.find((entry) => entry.id === functionId);
     const label = `${record?.name ?? functionId} in ${tree.code}`;
+    const standIn = input.standIn?.(tree.id, functionId);
+    if (standIn !== undefined) {
+      splitModels.set(standIn.top.modelId, standIn.snapshot);
+      splitCodes.set(standIn.eventId, `BN-${functionId}`);
+      standInModelIds.add(standIn.top.modelId);
+      return { functionalEventId: esqFunctionRunId(functionId), faultTreeTopGate: { modelId: standIn.top.modelId, entityId: standIn.top.entityId } };
+    }
     const target = record === undefined ? undefined : resolveLink(record, functionLinkOf(esq, functionId), tree).target;
     if (target === undefined) throw new EsqRunBuildError(`${label} is not linked. Link it in Step 02.`);
     if (target.kind === "FAULT_TREE") {
@@ -749,19 +766,20 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
   for (const recovery of recoveries) {
     const law = recovery.expression;
     if (law === undefined) continue;
-    const expression = raised === undefined ? ownReference(tables, `RECOVERY:${recovery.id}`, law) : pointExpression(raised);
+    const own = recovery.source === "DA" ? law : ownReference(tables, `RECOVERY:${recovery.id}`, law);
+    const expression = raised === undefined || recovery.repair ? own : pointExpression(raised);
     collected({ expression, parameters: referencedParameters(tables, expression, `The non-recovery NR-${recovery.id}`) });
     recoveryExpressions.set(recovery.eventId, expression);
     sy = applyRecovery(sy, recovery, expression, codeOf);
   }
-  const humans = new Set([...hfeEventIds(esq, model), ...recoveries.map((recovery) => recovery.eventId)]);
+  const humans = new Set([...hfeEventIds(esq, model), ...recoveries.flatMap((recovery) => (recovery.repair ? [] : [recovery.eventId]))]);
   const beforeDependencies = reachedEventIds(sy, syModelIds);
   const humanEventIds = [...beforeDependencies].filter((id) => humans.has(id)).sort();
-  const recoveryIdOf = new Map(recoveries.map((recovery) => [recovery.eventId, recovery.id]));
+  const recoveryOfEvent = new Map(recoveries.map((recovery) => [recovery.eventId, recovery]));
   const nominal: Record<string, number> = {};
   for (const id of humanEventIds) {
-    const recoveryId = recoveryIdOf.get(id);
-    const value = recoveryId === undefined ? eventProbabilityOf(esq, model, id, input.points) : input.points.get(`RECOVERY:${recoveryId}`);
+    const recovery = recoveryOfEvent.get(id);
+    const value = recovery === undefined ? eventProbabilityOf(esq, model, id, input.points) : input.points.get(recoveryInputKey(recovery));
     if (value !== undefined) nominal[id] = value;
   }
   let encoding: EsqDependencyEncoding = { sy, joints: [], independents: [] };
@@ -845,7 +863,8 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
     eventTreeSnapshots,
     faultTrees: [...syFaultTrees, ...splitModels.values()],
     eventTreeModelIds: trees.map((tree) => esqTreeRunId(tree.id)),
-    splitFractionModelIds: [...splitModels.keys()],
+    splitFractionModelIds: [...splitModels.keys()].filter((modelId) => !standInModelIds.has(modelId)),
+    standInModelIds: [...standInModelIds],
     syModelIds,
     humanEventIds,
     nominal,
@@ -859,4 +878,4 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
   };
 }
 
-export { buildEsqEventTreeRun, EsqRunBuildError, type EsqRunBuild, type EsqRunBuildInput, type EsqRunEventRole, type EsqRunEventValue };
+export { buildEsqEventTreeRun, EsqRunBuildError, type EsqRunBuild, type EsqRunBuildInput, type EsqRunEventRole, type EsqRunEventValue, type EsqRunStandIn };

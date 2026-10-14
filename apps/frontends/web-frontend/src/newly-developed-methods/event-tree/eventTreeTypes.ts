@@ -66,6 +66,11 @@ interface EventTreeEndStateOption {
   source?: string;
 }
 
+interface EventTreeSequenceValue {
+  conditionalProbability: number;
+  annualFrequency: number;
+}
+
 interface EventTreeEditorProps {
   model: EventTree;
   eventSequences: EventSequence[];
@@ -83,6 +88,7 @@ interface EventTreeEditorProps {
   validation: EventTreeValidationFinding[];
   saveState?: "saving" | "saved" | "failed";
   analysisResult?: EventTreeAnalysisResult | null;
+  sequenceValues?: ReadonlyMap<string, EventTreeSequenceValue>;
   resultIsStale?: boolean;
   running?: boolean;
   runError?: string | null;
@@ -174,6 +180,7 @@ export type {
   EventTreeOperation,
   EventTreePresentationView,
   EventTreeRepresentation,
+  EventTreeSequenceValue,
   EventTreeSequenceView,
   EventTreeTransferOption,
   EventTreeValidationFinding,

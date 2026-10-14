@@ -5,7 +5,7 @@ import { SyCcfAnalysis } from "../SyCcfAnalysis";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "../syWorkbookApi";
 
 jest.mock("../../newly-developed-methods/shared/useAnalysisSourceGuard", () => ({
-  useAnalysisSourceGuard: () => ({ sourceWarning: null }),
+  useAnalysisSourceGuard: () => ({ sourceEpoch: 0, sourceWarning: null, sourceChanges: new Map() }),
 }));
 jest.mock("../../newly-developed-methods/shared/uncertaintyApi", () => jest.requireActual("./syUncertaintyPraxis"));
 jest.mock("../syWorkbookApi", () => ({

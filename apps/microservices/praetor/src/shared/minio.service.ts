@@ -5,6 +5,8 @@ import { Readable } from 'stream';
 import { EnvVarKeys } from '../../config/env_vars.config';
 import type { NodeQuantRequest } from '../common/types/quantify-request';
 
+export type StoreBucket = 'input' | 'output' | 'jobs';
+
 export interface JobMetadata {
     jobId?: string;
     status?: 'pending' | 'running' | 'completed' | 'failed';
@@ -69,12 +71,14 @@ export class MinioService implements OnModuleInit {
                         const alreadyExists = await this.minioClient
                             .bucketExists(bucket)
                             .catch(() => false);
+                        const lowered = message.toLowerCase();
                         if (
                             alreadyExists ||
                             code === 'BucketAlreadyOwnedByYou' ||
                             code === 'BucketAlreadyExists' ||
                             statusCode === 409 ||
-                            /already (own|exist)s?/i.test(message)
+                            lowered.includes('already own') ||
+                            lowered.includes('already exist')
                         ) {
                             this.logger.debug(`Bucket ${bucket} already present (race handled).`);
                         } else {
@@ -272,6 +276,32 @@ export class MinioService implements OnModuleInit {
             await this.minioClient.removeObject(bucket, objectName);
         }
         this.logger.log(`Cleaned up ${objectsToDelete.length} objects from bucket: ${bucket}`);
+    }
+
+    private bucketOf(kind: StoreBucket): string {
+        return kind === 'input' ? this.inputBucket : kind === 'output' ? this.outputBucket : this.jobsBucket;
+    }
+
+    async putText(kind: StoreBucket, objectName: string, text: string): Promise<void> {
+        const buffer = Buffer.from(text, 'utf8');
+        await this.minioClient.putObject(this.bucketOf(kind), objectName, buffer, buffer.length, {
+            'Content-Type': 'application/json',
+        });
+    }
+
+    async getText(kind: StoreBucket, objectName: string): Promise<string | undefined> {
+        try {
+            const dataStream = await this.minioClient.getObject(this.bucketOf(kind), objectName);
+            const chunks: Uint8Array[] = [];
+            for await (const chunk of dataStream) {
+                chunks.push(chunk);
+            }
+            return Buffer.concat(chunks).toString('utf8');
+        } catch (error) {
+            const code = (error as { code?: string }).code;
+            if (code === 'NoSuchKey' || code === 'NotFound' || code === 'NoSuchObject') return undefined;
+            throw error;
+        }
     }
 
     async isHealthy(): Promise<boolean> {

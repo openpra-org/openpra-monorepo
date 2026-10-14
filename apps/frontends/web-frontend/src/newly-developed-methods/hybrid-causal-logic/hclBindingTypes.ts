@@ -13,6 +13,7 @@ import type {
   HclQuantificationResult,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
+import type { AnalysisHost } from "../shared/analysisRunWait";
 
 interface HclSyValue {
   expression?: UncertainExpression;
@@ -115,6 +116,7 @@ interface HclBindingEditorProps {
   evidenceEditor?: ReactNode;
   calculationType?: HclCalculationType;
   workflow?: QuantificationWorkflow;
+  analysisHost?: AnalysisHost;
   onGenerateScenarios?: (configuration: WorkbookHclConfiguration, spec: HclHazardSweepSpec) => Promise<HclEvidenceScenario[]>;
   onEditEvidence?: () => void;
   onChange: (configurations: WorkbookHclConfiguration[]) => void;

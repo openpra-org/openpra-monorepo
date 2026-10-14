@@ -3,7 +3,6 @@ import {
   type EsqComparedPlant,
   type EsqConsistencyEntry,
   type EsqConsistencyTopic,
-  type EsqCutSetList,
   type EsqCutSetReview,
   type EsqImportanceKind,
   type EsqImportanceRecord,
@@ -26,7 +25,6 @@ import type {
   EsqImportanceRunResult,
   EsqImportanceTarget,
   EsqModelRunResult,
-  EventTreeCutSetSettings,
 } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import { importanceGroupsOf } from "interfaces-mef-types/esq/esq-measure-inputs";
 import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty";
@@ -35,7 +33,6 @@ import { modelViewOf, type EsqFamilyView, type EsqFindingSeverity } from "./esqM
 import { familyValueOf, type EsqSolveWindowKind } from "./esqSolve";
 
 type EsqResultsWindowKind =
-  | "esqResultsCutSet"
   | "esqResultsConsistency"
   | "esqResultsComparison"
   | "esqResultsTarget"
@@ -129,8 +126,6 @@ interface EsqResultsView {
   importance?: EsqImportanceRecord;
   importanceStale: boolean;
   thresholdsChanged: boolean;
-  cutSetRunId?: string;
-  cutSetListStale: boolean;
   consistency: EsqConsistencyRow[];
   screened: EsqScreenedRow[];
   screenedTotal: number;
@@ -176,8 +171,6 @@ const IMPORTANCE_KIND_LABELS: Record<EsqImportanceKind, string> = {
   CCF_GROUP: "CCF group",
   SYSTEM: "System",
 };
-
-const CUT_SET_KEEP = 100;
 
 const SCREENED_TOTAL_PERCENT = 5;
 
@@ -346,23 +339,6 @@ function cutSetRows(summary: EsqModelRunResult, familyId: string, familyValue: n
     if (review !== undefined) row.review = review;
     return row;
   });
-}
-
-function cutSetRunIdOf(esq: EventSequenceQuantification): string | undefined {
-  const run = solveWorkOf(esq).run;
-  if (run?.calculation === "CUT_SETS") return run.runId;
-  return reviewOf(esq).cutSetList?.runId;
-}
-
-function cutSetListRequest(run: EsqSolveRun, cutOff: number): EventTreeCutSetSettings {
-  const settings: EventTreeCutSetSettings = { basis: "FREQUENCY", cutOffs: [cutOff], quantifier: run.quantifier ?? "MCUB", keep: CUT_SET_KEEP };
-  if (run.limitOrder !== undefined) settings.limitOrder = run.limitOrder;
-  return settings;
-}
-
-function withCutSetList(esq: EventSequenceQuantification, summary: EsqModelRunResult, cutOff: number): EventSequenceQuantification {
-  const list: EsqCutSetList = { runId: summary.runId, at: summary.completedAt, inputs: summary.inputs, cutOff };
-  return withReview(esq, (work) => ({ ...work, cutSetList: list }));
 }
 
 function withCutSetReview(esq: EventSequenceQuantification, row: EsqCutSetRow, change: { verdict?: "CORRECT" | "ISSUE"; note?: string }): EventSequenceQuantification {
@@ -542,7 +518,7 @@ function withConfirmation(esq: EventSequenceQuantification, eventId: string, rea
   });
 }
 
-function importanceProblem(result: EsqImportanceRunResult, esq: EventSequenceQuantification): string | undefined {
+function importanceProblem(result: Pick<EsqImportanceRunResult, "trees" | "inputs">, esq: EventSequenceQuantification): string | undefined {
   const failed = result.trees.filter((tree) => tree.status === "FAILED").length;
   if (failed > 0) return `${failed} of ${result.trees.length} event trees failed. Fix them and run again.`;
   if (result.inputs !== solveInputsKey(esq)) return "The model, logic or values changed during the run. Run again.";
@@ -556,31 +532,6 @@ function sameLogic(left: EsqSolveRun["logic"], right: EsqSolveRun["logic"]): boo
     && left.expandCcf === right.expandCcf
     && (left.recovery ?? true) === (right.recovery ?? true)
     && (left.dependency ?? true) === (right.dependency ?? true);
-}
-
-function cutSetFindings(view: Omit<EsqResultsView, "findings">): EsqResultsFinding[] {
-  const findings: EsqResultsFinding[] = [];
-  if (view.run === undefined) return findings;
-  if (view.cutSetRunId === undefined) {
-    findings.push({ severity: "error", check: "No cut sets to review", item: "Cut sets", detail: "The run of record is exact. List the cut sets of each family in the Cut sets tab to sample them (ESQ-D1)." });
-    return findings;
-  }
-  if (view.cutSetListStale) findings.push({ severity: "error", check: "Cut set list older than its inputs", item: "Cut sets", detail: "The model, logic or values changed after the list. List the cut sets again." });
-  const reviews = view.work.cutSetReviews ?? [];
-  for (const familyId of view.releaseIds) {
-    if (!((view.values.get(familyId) ?? 0) > 0)) continue;
-    if (!reviews.some((review) => review.familyId === familyId && review.significant && review.verdict !== undefined)) {
-      findings.push({ severity: "error", check: "No significant cut set reviewed", item: familyId, detail: "Review at least one significant cut set of this family and record whether its logic is correct (ESQ-D1)." });
-    }
-  }
-  if (!reviews.some((review) => !review.significant && review.verdict !== undefined)) {
-    findings.push({ severity: "warning", check: "No non-significant cut set sampled", item: "Cut sets", detail: "Review a few non-significant cut sets and confirm they are physically meaningful (ESQ-D5)." });
-  }
-  for (const review of reviews) {
-    if (review.verdict === "ISSUE" && blank(review.note)) findings.push({ severity: "error", check: "Issue without a note", item: review.key.split("|")[2] ?? review.key, detail: "Describe what is wrong with the cut set and how it is corrected.", target: { kind: "esqResultsCutSet", id: review.key } });
-    if (review.verdict === "ISSUE" && !blank(review.note)) findings.push({ severity: "warning", check: "Cut set marked wrong", item: review.key.split("|")[2] ?? review.key, detail: review.note.trim(), target: { kind: "esqResultsCutSet", id: review.key } });
-  }
-  return findings;
 }
 
 function consistencyFindings(view: Omit<EsqResultsView, "findings">, capabilityCategory: string | undefined): EsqResultsFinding[] {
@@ -660,7 +611,6 @@ function resultsViewOf(esq: EventSequenceQuantification, ri?: RiskIntegration, i
   const floor = esq.quantificationPlan?.reportingFloorPerYear?.value ?? ESQ_PLAN_DEFAULTS.reportingFloorPerYear;
   const screened = screenedRows(esq, ie, values, floor, total, thresholds.individualPercent);
   const record = work.importance;
-  const listed = run?.calculation === "CUT_SETS" ? undefined : work.cutSetList;
   const base: Omit<EsqResultsView, "findings"> = {
     model: modelView.model,
     work,
@@ -672,7 +622,6 @@ function resultsViewOf(esq: EventSequenceQuantification, ri?: RiskIntegration, i
     thresholds,
     importanceStale: record !== undefined && record.inputs !== inputs,
     thresholdsChanged: record?.thresholds !== undefined && (record.thresholds.fussellVesely !== thresholds.fussellVesely || record.thresholds.riskAchievementWorth !== thresholds.riskAchievementWorth),
-    cutSetListStale: listed !== undefined && listed.inputs !== inputs,
     consistency: CONSISTENCY_TOPICS.map((topic) => {
       const entry = work.consistency?.find((item) => item.topic === topic);
       return entry === undefined ? { topic } : { topic, entry };
@@ -682,13 +631,11 @@ function resultsViewOf(esq: EventSequenceQuantification, ri?: RiskIntegration, i
     floor,
   };
   const withRun = run === undefined ? base : { ...base, run };
-  const withRecord = record === undefined ? withRun : { ...withRun, importance: record };
-  const cutSetRunId = cutSetRunIdOf(esq);
-  const full = cutSetRunId === undefined ? withRecord : { ...withRecord, cutSetRunId };
+  const full = record === undefined ? withRun : { ...withRun, importance: record };
   const findings: EsqResultsFinding[] = [];
   if (run === undefined) findings.push({ severity: "error", check: "No run of record", item: "Run of record", detail: "Run the model in Step 05 and use the run. Every review in this step reads it." });
   else if (full.runStale) findings.push({ severity: "error", check: "Run of record older than its inputs", item: "Run of record", detail: "The model, logic or values changed after the run of record. Run the model again in Step 05.", target: { kind: "esqSolveRun", id: "run" } });
-  findings.push(...cutSetFindings(full), ...consistencyFindings(full, esq.capabilityCategory), ...importanceFindings(full), ...screenedFindings(full));
+  findings.push(...consistencyFindings(full, esq.capabilityCategory), ...importanceFindings(full), ...screenedFindings(full));
   return { ...full, findings: findings.sort((a, b) => FINDING_RANK[a.severity] - FINDING_RANK[b.severity]) };
 }
 
@@ -707,14 +654,11 @@ export {
   CONSISTENCY_SRS,
   CONSISTENCY_TOPICS,
   CONTRIBUTOR_LABELS,
-  CUT_SET_KEEP,
   IMPORTANCE_KIND_LABELS,
   SCREENED_TOTAL_PERCENT,
   contributorRows,
   cutSetKey,
-  cutSetListRequest,
   cutSetRows,
-  cutSetRunIdOf,
   daChangedNote,
   familyValues,
   fourDigits,
@@ -735,7 +679,6 @@ export {
   withComparison,
   withConfirmation,
   withConsistency,
-  withCutSetList,
   withCutSetReview,
   withImportance,
   withReconciliation,

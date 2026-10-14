@@ -30,7 +30,13 @@ import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event
 import type { WorkbookModelAddress } from "interfaces-shared-types/newly-developed-methods";
 import type { HumanFailureEventReference, WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import type { BayesianNetworkEvidenceConfiguration } from "interfaces-mef-types/modeling/bayesian-network";
-import type { HclCptGenerator, HclSampler, HclUncertaintySettings } from "interfaces-mef-types/modeling/hybrid-causal-logic";
+import type {
+  HclCptGenerator,
+  HclParameterDraws,
+  HclSampler,
+  HclUncertaintySettings,
+  HclZeroProbabilityContexts,
+} from "interfaces-mef-types/modeling/hybrid-causal-logic";
 import type { WorkbookBayesianNetwork, WorkbookHclConfiguration } from "interfaces-mef-types/modeling/workbook-models";
 import { createHash } from "crypto";
 
@@ -97,8 +103,13 @@ interface NativeEntityReference {
 
 interface HclNativeUncertainty extends UncertaintyTables {
   sampleCount: number;
-  seed: number;
+  seed?: number;
   sampler: HclSampler;
+  cptSampler?: HclSampler;
+  correlation?: HclParameterDraws;
+  clipProbabilities?: boolean;
+  cptClipEpsilon?: number;
+  zeroProbabilityContexts?: HclZeroProbabilityContexts;
   basicEvents: { faultTreeBasicEvent: { entityId: string }; expression: UncertainExpression }[];
   cptRows: { bayesianNetworkNode: NativeEntityReference; cptRowId: string; row: UncertainVector }[];
   cptGenerators: Array<HclCptGenerator & { bayesianNetworkNode: NativeEntityReference }>;
@@ -967,8 +978,13 @@ const adaptHclSolverSettings = (
     ...point,
     uncertainty: {
       sampleCount: settings.sampleCount,
-      seed: settings.seed,
+      ...(settings.seed === undefined ? {} : { seed: settings.seed }),
       sampler: settings.sampler,
+      ...(settings.cptSampler === undefined ? {} : { cptSampler: settings.cptSampler }),
+      ...(settings.correlation === undefined ? {} : { correlation: settings.correlation }),
+      ...(settings.clipProbabilities === undefined ? {} : { clipProbabilities: settings.clipProbabilities }),
+      ...(settings.cptClipEpsilon === undefined ? {} : { cptClipEpsilon: settings.cptClipEpsilon }),
+      ...(settings.zeroProbabilityContexts === undefined ? {} : { zeroProbabilityContexts: settings.zeroProbabilityContexts }),
       basicEvents: settings.basicEvents.map((entry) => ({
         faultTreeBasicEvent: { entityId: entry.faultTreeBasicEvent.entityId },
         expression: entry.expression,

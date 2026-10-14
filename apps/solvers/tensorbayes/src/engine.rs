@@ -229,6 +229,14 @@ impl ExecutionEngine {
         self.workspace.clear_soft_evidence();
     }
 
+    pub fn allow_zero_mass(&mut self, allowed: bool) {
+        self.workspace.allow_zero_mass(allowed);
+    }
+
+    pub fn zero_mass_rows(&self) -> &[usize] {
+        self.workspace.zero_mass_rows()
+    }
+
     pub fn invalidate_workspace_cache(&mut self) {
         self.workspace.invalidate();
     }

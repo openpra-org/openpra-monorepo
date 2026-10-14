@@ -5,8 +5,12 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  type OnModuleDestroy,
+  type OnModuleInit,
 } from "@nestjs/common";
+import { praetorJobFinished, type PraetorJobState } from "interfaces-shared-types/execution/praetor-job";
 import { InjectModel } from "@nestjs/mongoose";
 import { randomUUID } from "crypto";
 import type { Model } from "mongoose";
@@ -20,7 +24,9 @@ import { SuccessCriteriaDevelopmentSchema } from "interfaces-mef-types/zod/sc/su
 import type { EventSequenceAnalysis, FunctionalEvent } from "interfaces-mef-types/es/event-sequence-analysis";
 import {
   boundFunctionalEventIds,
+  esConfigurationApplies,
   eventTreeHclFacts,
+  functionalEventBindingId,
   inEventTreeScope,
   overridingConfiguration,
   unlinkedFunctionalEvents,
@@ -37,6 +43,7 @@ import {
   AnalysisRunDetailsSchema,
   AnalysisRunProvenanceListSchema,
   AnalysisRunProvenanceSchema,
+  AnalysisRunJobListSchema,
   AnalysisRunTraceSchema,
   BayesianNetworkAnalysisResultSchema,
   BayesianNetworkBatchAnalysisResultSchema,
@@ -62,16 +69,20 @@ import {
   HclHazardConvolutionResultSchema,
   HCL_HAZARD_CONVOLUTION_POINT_ONLY,
   HclQuantificationResultSchema,
+  HclSampleVectorsSchema,
   LoadCapacityAnalysisResultSchema,
   WorkbookModelIdSchema,
   createImmutableAnalysisRunContext,
 } from "interfaces-shared-types/newly-developed-methods";
 import type {
+  AnalysisRunFailure,
   AnalysisRunMetadata,
+  AnalysisRunProgress,
   AnalysisRunDetails,
   AnalysisRunFreshness,
   AnalysisRunContribution,
   AnalysisRunProvenanceList,
+  AnalysisRunJobList,
   AnalysisRunTarget,
   AnalysisRunTrace,
   AnalysisRunWorkbookSnapshot,
@@ -99,6 +110,7 @@ import type {
   HclBatchExecuteResult,
   HclGenerateScenariosResult,
   HclHazardConvolutionResult,
+  HclSampleVector,
   MethodType,
   WorkbookMethodHostType,
   WorkbookCrossReference,
@@ -159,9 +171,21 @@ import {
 } from "interfaces-mef-types/core/uncertainty";
 import type { HumanFailureEventReference, WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
 import { parameterLaw } from "interfaces-mef-types/esq/esq-measure-inputs";
-import { esqParameterRecord, treeFrequency } from "interfaces-mef-types/esq/esq-run-inputs";
-import { PraetorAnalysisClient } from "./praetor-analysis.client";
+import { esqParameterRecord, transferTreeIds, treeFrequency } from "interfaces-mef-types/esq/esq-run-inputs";
+import { PraetorAnalysisClient, type PraetorNativeResponse } from "./praetor-analysis.client";
+import { describeRunChange, jsonOf, type ChangedSource } from "./analysis-run-changes";
 import { storedWorkbookRejection } from "../../workbooks/stored-workbook-format";
+
+const TRACK_POLL_MS = 1_500;
+const TRACK_HEARTBEAT_MS = 10_000;
+const ORPHAN_SWEEP_MS = 30_000;
+const ORPHAN_AFTER_MS = 120_000;
+const LEGACY_ORPHAN_AFTER_MS = 30 * 60_000;
+const RUN_CHANGE_CACHE = 500;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export interface ActingUser {
   username: string;
@@ -210,7 +234,7 @@ interface HclBatchRunContext {
   };
 }
 
-type HclConfigurationOwner =
+export type HclConfigurationOwner =
   | LoadedWorkbook<EventSequenceQuantification>
   | LoadedWorkbook<EventSequenceAnalysis>
   | LoadedWorkbook<SystemsAnalysis>;
@@ -238,14 +262,33 @@ interface ExecutedHclBatch {
   hazardConvolution?: HclHazardConvolutionResult;
 }
 
+export type EsqBatchSummary = EsqModelRunResult | EsqPostRunResult | EsqImportanceRunResult | EsqUncertaintyRunResult;
+
 export interface EsqPreparedTreeRun {
   treeId: string;
+  label: string;
   runId: string;
   owner: WorkbookModelSnapshotIdentity;
   request: Record<string, unknown>;
   envelope: SolverEnvelope | null;
   failure: string | null;
   models: WorkbookModelAddress[];
+}
+
+export interface EsqHclStandIn {
+  top: { modelId: string; entityId: string };
+  eventId: string;
+  snapshot: AdaptedFaultTreeSnapshot;
+}
+
+export interface EsqModelHcl {
+  sources: HclConfigurationOwner[];
+  configurationId: string;
+  configurationWorkbookId: string;
+  covers: (treeId: string, syWorkbookId: string, syModelIds: readonly string[]) => boolean;
+  refusal: (treeId: string) => string | undefined;
+  standInFor: (rootId: string) => (treeId: string, functionId: string) => EsqHclStandIn | undefined;
+  augment: (envelope: SolverEnvelope, syWorkbookId: string, syModelIds: readonly string[], standInModelIds: readonly string[]) => SolverEnvelope;
 }
 
 export interface EsqTreeRunOutcome {
@@ -322,6 +365,8 @@ const adaptOrThrow = <T>(adapter: () => T): T => {
 const iso = (value: Date | string): string =>
   value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 
+const finishedStatuses: ReadonlySet<string> = new Set(["SUCCEEDED", "FAILED"]);
+
 const toRunMetadata = (run: AnalysisRunRecord | AnalysisRunRecordDocument): AnalysisRunMetadata =>
   AnalysisRunMetadataSchema.parse({
     schemaVersion: run.schemaVersion,
@@ -334,10 +379,11 @@ const toRunMetadata = (run: AnalysisRunRecord | AnalysisRunRecordDocument): Anal
     status: run.status,
     requestedBy: run.requestedBy,
     requestedAt: iso(run.requestedAt),
-    startedAt: run.startedAt === null ? null : iso(run.startedAt),
+    startedAt: run.startedAt === null ? (finishedStatuses.has(run.status) ? iso(run.requestedAt) : null) : iso(run.startedAt),
     completedAt: run.completedAt === null ? null : iso(run.completedAt),
-    engine: run.engine,
+    engine: run.status === "QUEUED" ? null : run.engine,
     failure: run.failure,
+    ...(run.progress === undefined || run.progress === null ? {} : { progress: run.progress }),
   });
 
 const uniqueWorkbooks = <T extends LoadedWorkbook<unknown>>(values: T[]): T[] => {
@@ -410,7 +456,11 @@ export const combineFaultTrees = (
 };
 
 @Injectable()
-export class WorkbookAnalysisRunsService {
+export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(WorkbookAnalysisRunsService.name);
+  private readonly runChanges = new Map<string, string | null>();
+  private sweeper: NodeJS.Timeout | null = null;
+
   constructor(
     @InjectModel(AnalysisRunRecord.name)
     private readonly runModel: Model<AnalysisRunRecordDocument>,
@@ -828,7 +878,7 @@ export class WorkbookAnalysisRunsService {
     owner: WorkbookModelSnapshotIdentity,
     completedAt: string,
     request: Record<string, unknown>,
-  ): unknown {
+  ): object {
     const raw = asRecord(rawValue, kind.toLowerCase());
     const common = { schemaVersion: "1.0.0", runId, owner, completedAt };
     if (kind === "FAULT_TREE") {
@@ -945,6 +995,184 @@ export class WorkbookAnalysisRunsService {
     return result;
   }
 
+  onModuleInit(): void {
+    this.sweeper = setInterval(() => {
+      void this.sweepOrphans().catch((error: Error) => this.logger.error(`Run sweep failed: ${error.message}`));
+    }, ORPHAN_SWEEP_MS);
+    this.sweeper.unref();
+  }
+
+  onModuleDestroy(): void {
+    if (this.sweeper !== null) clearInterval(this.sweeper);
+  }
+
+  private async sweepOrphans(): Promise<void> {
+    const now = Date.now();
+    const stale = await this.runModel
+      .find({
+        status: { $in: ["QUEUED", "RUNNING"] },
+        $or: [
+          { trackedAt: { $lt: new Date(now - ORPHAN_AFTER_MS) } },
+          { trackedAt: null, requestedAt: { $lt: new Date(now - LEGACY_ORPHAN_AFTER_MS) } },
+        ],
+      })
+      .select({ id: 1, praetorJobs: 1 })
+      .lean()
+      .exec();
+    for (const run of stale) {
+      await Promise.all((run.praetorJobs ?? []).map((jobId) => this.praetor.cancel(jobId).catch(() => undefined)));
+      await this.failRuns([run.id], {
+        kind: "BACKEND",
+        code: "RUN_INTERRUPTED",
+        message: "The server stopped following this run before it finished, for example after a restart. Run it again.",
+        details: {},
+      });
+    }
+  }
+
+  private queuedProgress(unit: AnalysisRunProgress["unit"], total: number): AnalysisRunProgress {
+    return { stage: "QUEUED", unit, completed: 0, total, queuedJobs: null, workers: null };
+  }
+
+  private transportFailure(error: Error | string): AnalysisRunFailure {
+    const message = error instanceof Error ? error.message : error;
+    return { kind: "TRANSPORT", code: "PRAETOR_UNAVAILABLE", message, details: {} };
+  }
+
+  private async metadataOf(id: string): Promise<AnalysisRunMetadata> {
+    const record = await this.runModel.findOne({ id }).exec();
+    if (record === null) throw new NotFoundException(`Analysis run ${id} was not found`);
+    return toRunMetadata(record);
+  }
+
+  private async markStarted(ids: readonly string[]): Promise<void> {
+    await this.runModel
+      .updateMany({ id: { $in: [...ids] }, status: "QUEUED" }, { $set: { status: "RUNNING", startedAt: new Date() } })
+      .exec();
+  }
+
+  private async finishRuns(
+    ids: readonly string[],
+    outcome: {
+      status: "SUCCEEDED" | "FAILED" | "CANCELLED" | "SKIPPED";
+      completedAt: Date;
+      engine: AnalysisRunMetadata["engine"];
+      failure: AnalysisRunFailure | null;
+      result: object | null;
+      sampleVectors?: HclSampleVector[];
+    },
+  ): Promise<void> {
+    const active = { id: { $in: [...ids] }, status: { $in: ["QUEUED", "RUNNING"] } };
+    if (outcome.status === "SUCCEEDED" || outcome.status === "FAILED") {
+      await this.runModel.updateMany({ ...active, startedAt: null }, { $set: { startedAt: outcome.completedAt } }).exec();
+    }
+    await this.runModel
+      .updateMany(active, {
+        $set: {
+          status: outcome.status,
+          completedAt: outcome.completedAt,
+          engine: outcome.status === "CANCELLED" || outcome.status === "SKIPPED" ? null : outcome.engine,
+          failure: outcome.status === "FAILED" ? outcome.failure : null,
+          result: outcome.status === "SUCCEEDED" || outcome.status === "SKIPPED" ? outcome.result : null,
+          ...(outcome.status === "SUCCEEDED" && outcome.sampleVectors !== undefined ? { sampleVectors: outcome.sampleVectors } : {}),
+          progress: null,
+        },
+      })
+      .exec();
+  }
+
+  private keptSamples(result: PraetorNativeResponse["result"]): { sampleVectors?: HclSampleVector[] } {
+    const vectors = result?.["sampleVectors"];
+    if (vectors === undefined) return {};
+    const parsed = HclSampleVectorsSchema.safeParse(vectors);
+    if (!parsed.success) throw new BadGatewayException("PRAXIS returned invalid sample vectors");
+    return { sampleVectors: parsed.data };
+  }
+
+  private async failRuns(ids: readonly string[], failure: AnalysisRunFailure): Promise<void> {
+    await this.finishRuns(ids, { status: "FAILED", completedAt: new Date(), engine: null, failure, result: null });
+  }
+
+  private async jobResponse(jobId: string, state: PraetorJobState): Promise<PraetorNativeResponse> {
+    if (state.status === "CANCELLED") {
+      return {
+        schemaVersion: "1.0.0",
+        error: { kind: "EXECUTION_ERROR", code: "RUN_CANCELLED", message: "The run was cancelled before PRAXIS finished it.", details: { jobId } },
+      };
+    }
+    return this.praetor.result(jobId);
+  }
+
+  private track(ids: readonly string[], jobs: () => readonly string[], work: () => Promise<void>): void {
+    void work().catch(async (error: Error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Run ${ids[0] ?? ""} failed while it was followed: ${message}`);
+      await Promise.all(jobs().map((jobId) => this.praetor.cancel(jobId).catch(() => undefined)));
+      await this.failRuns(ids, { kind: "BACKEND", code: "RUN_FOLLOW_FAILED", message: `The server could not finish this run: ${message}`, details: {} }).catch(
+        (stored: Error) => this.logger.error(`Run ${ids[0] ?? ""} failure could not be stored: ${stored.message}`),
+      );
+    });
+  }
+
+  private async followJobs(input: {
+    progressId: string;
+    ids: () => readonly string[];
+    jobs: readonly string[];
+    unit: AnalysisRunProgress["unit"];
+    total: number;
+    completed: () => number;
+    onFinished: (jobId: string, state: PraetorJobState) => Promise<void>;
+  }): Promise<void> {
+    const pending = new Set(input.jobs);
+    let started = false;
+    let beat = 0;
+    while (pending.size > 0) {
+      const states = await Promise.all([...pending].map((jobId) => this.praetor.state(jobId)));
+      let queuedJobs: number | null = null;
+      let workers: number | null = null;
+      for (const state of states) {
+        queuedJobs = state.queuedJobs ?? queuedJobs;
+        workers = state.workers ?? workers;
+        if (!started && state.status !== "QUEUED") {
+          started = true;
+          await this.markStarted(input.ids());
+        }
+        if (praetorJobFinished(state.status)) {
+          pending.delete(state.jobId);
+          await input.onFinished(state.jobId, state);
+        }
+      }
+      const now = Date.now();
+      if (now - beat >= TRACK_HEARTBEAT_MS) {
+        beat = now;
+        await this.runModel
+          .updateMany({ id: { $in: [...input.ids()] }, status: { $in: ["QUEUED", "RUNNING"] } }, { $set: { trackedAt: new Date(now) } })
+          .exec();
+      }
+      const progress: AnalysisRunProgress = {
+        stage: started ? "RUNNING" : "QUEUED",
+        unit: input.unit,
+        completed: input.completed(),
+        total: input.total,
+        queuedJobs,
+        workers,
+      };
+      await this.runModel
+        .updateOne({ id: input.progressId, status: { $in: ["QUEUED", "RUNNING"] } }, { $set: { progress } })
+        .exec();
+      if (pending.size > 0) await delay(TRACK_POLL_MS);
+    }
+  }
+
+  async cancelRun(hostType: WorkbookMethodHostType, workbookId: string, runId: string, acting: ActingUser): Promise<AnalysisRunMetadata> {
+    const { run } = await this.readAuthorizedRun(hostType, workbookId, runId, acting);
+    if (run.status !== "QUEUED" && run.status !== "RUNNING") return this.metadataOf(runId);
+    const children = await this.runModel.find({ batchId: run.id, status: { $in: ["QUEUED", "RUNNING"] } }).select({ id: 1 }).lean().exec();
+    await Promise.all((run.praetorJobs ?? []).map((jobId) => this.praetor.cancel(jobId).catch(() => undefined)));
+    await this.finishRuns([run.id, ...children.map((child) => child.id)], { status: "CANCELLED", completedAt: new Date(), engine: null, failure: null, result: null });
+    return this.metadataOf(runId);
+  }
+
   private async executeRun(
     runId: string,
     owner: WorkbookModelSnapshotIdentity,
@@ -985,96 +1213,40 @@ export class WorkbookAnalysisRunsService {
       target: trace?.target ?? null,
       contributions: trace?.contributions ?? null,
       result: null,
+      praetorJobs: [runId],
+      trackedAt: requestedAt,
+      progress: this.queuedProgress("JOB", 1),
     });
-
-    let engine: AnalysisRunMetadata["engine"] = null;
-    const startedAt = new Date();
-    await this.runModel
-      .updateOne({ id: runId, status: "QUEUED" }, { $set: { status: "RUNNING", startedAt, engine } })
-      .exec();
     try {
-      const response = await this.praetor.execute(envelope);
-      engine = response.engine ?? null;
-      const completedAt = new Date();
-      if (response.error !== undefined) {
-        await this.runModel
-          .updateOne(
-            { id: runId, status: "RUNNING" },
-            {
-              $set: {
-                engine,
-                status: "FAILED",
-                completedAt,
-                failure: response.error,
-              },
-            },
-          )
-          .exec();
-        return AnalysisRunMetadataSchema.parse({
-          schemaVersion: "1.0.0",
-          id: runId,
-          owner,
-          sourceWorkbooks: context.sourceWorkbooks,
-          methodType,
-          status: "FAILED",
-          requestedBy: acting.username,
-          requestedAt: requestedAt.toISOString(),
-          startedAt: startedAt.toISOString(),
-          completedAt: completedAt.toISOString(),
-          engine,
-          failure: response.error,
-        });
-      }
-      let result: unknown;
-      try {
-        result = this.publicResult(resultKind, response.result, runId, owner, completedAt.toISOString(), request);
-      } catch (error) {
-        if (error instanceof BadGatewayException) throw error;
-        throw new BadGatewayException("Praetor returned an invalid native solver result");
-      }
-      await this.runModel
-        .updateOne(
-          { id: runId, status: "RUNNING" },
-          { $set: { status: "SUCCEEDED", completedAt, result, failure: null, engine } },
-        )
-        .exec();
-      return AnalysisRunMetadataSchema.parse({
-        schemaVersion: "1.0.0",
-        id: runId,
-        owner,
-        sourceWorkbooks: context.sourceWorkbooks,
-        methodType,
-        status: "SUCCEEDED",
-        requestedBy: acting.username,
-        requestedAt: requestedAt.toISOString(),
-        startedAt: startedAt.toISOString(),
-        completedAt: completedAt.toISOString(),
-        engine,
-        failure: null,
-      });
+      await this.praetor.submit(envelope, { jobId: runId });
     } catch (error) {
-      const completedAt = new Date();
-      const message = error instanceof Error ? error.message : String(error);
-      await this.runModel
-        .updateOne(
-          { id: runId, status: "RUNNING" },
-          {
-            $set: {
-              status: "FAILED",
-              engine,
-              completedAt,
-              failure: {
-                kind: "TRANSPORT",
-                code: "PRAETOR_FAILURE",
-                message,
-                details: {},
-              },
-            },
-          },
-        )
-        .exec();
-      throw error;
+      await this.failRuns([runId], this.transportFailure(error instanceof Error ? error : String(error)));
+      return this.metadataOf(runId);
     }
+    let finished = 0;
+    this.track([runId], () => [runId], async () => {
+      await this.followJobs({
+        progressId: runId,
+        ids: () => [runId],
+        jobs: [runId],
+        unit: "JOB",
+        total: 1,
+        completed: () => finished,
+        onFinished: async (jobId, state) => {
+          finished = 1;
+          const response = await this.jobResponse(jobId, state);
+          const completedAt = new Date();
+          const engine = response.engine ?? null;
+          if (response.error !== undefined) {
+            await this.finishRuns([runId], { status: "FAILED", completedAt, engine, failure: response.error, result: null });
+            return;
+          }
+          const result = this.publicResult(resultKind, response.result, runId, owner, completedAt.toISOString(), request);
+          await this.finishRuns([runId], { status: "SUCCEEDED", completedAt, engine, failure: null, result, ...this.keptSamples(response.result) });
+        },
+      });
+    });
+    return this.metadataOf(runId);
   }
 
   private async executeHclBatchRuns(
@@ -1085,6 +1257,7 @@ export class WorkbookAnalysisRunsService {
     envelope: SolverEnvelope,
     resultKind: "HYBRID_CAUSAL_LOGIC" | "EVENT_TREE",
     acting: ActingUser,
+    hazardRequested: boolean,
   ): Promise<ExecutedHclBatch> {
     const context = createImmutableAnalysisRunContext({
       owner,
@@ -1108,6 +1281,7 @@ export class WorkbookAnalysisRunsService {
       engine: null,
       failure: null,
       result: null,
+      trackedAt: requestedAt,
     };
     const batchTrace = this.createAnalysisRunTrace(
       sources,
@@ -1116,198 +1290,149 @@ export class WorkbookAnalysisRunsService {
       scenarios.flatMap((row) => row.trace.contributions.flatMap((source) => source.entities)),
     );
     const ids = [batchId, ...scenarios.map((row) => row.runId)];
-    const startedAt = new Date();
-    let engine: AnalysisRunMetadata["engine"] = null;
-    const metadata = (
-      id: string,
-      status: AnalysisRunMetadata["status"],
-      completedAt: Date,
-      failure: AnalysisRunMetadata["failure"] = null,
-    ) =>
-      AnalysisRunMetadataSchema.parse({
-        schemaVersion: "1.0.0",
-        id,
-        owner,
-        sourceWorkbooks: context.sourceWorkbooks,
-        methodType,
-        scope: id === batchId ? "BATCH" : "SCENARIO",
-        batchId: id === batchId ? null : batchId,
-        status,
-        requestedBy: acting.username,
-        requestedAt: requestedAt.toISOString(),
-        startedAt: startedAt.toISOString(),
-        completedAt: completedAt.toISOString(),
-        engine,
-        failure,
-      });
-    try {
-      await this.runModel.insertMany([
-        {
-          ...shared,
-          id: batchId,
-          scope: "BATCH",
-          batchId: null,
-          request: structuredClone(envelope.request),
-          nativeRequest: structuredClone(envelope),
-          ...batchTrace,
-        },
-        ...scenarios.map((row) => ({
-          ...shared,
-          id: row.runId,
-          scope: "SCENARIO",
-          batchId,
-          request: structuredClone(row.request),
-          nativeRequest: null,
-          ...row.trace,
-        })),
-      ]);
-      await this.runModel
-        .updateMany({ id: { $in: ids }, status: "QUEUED" }, { $set: { status: "RUNNING", startedAt } })
-        .exec();
-      const response = await this.praetor.execute(envelope);
-      engine = response.engine ?? null;
-      const completedAt = new Date();
-      if (response.error !== undefined) {
-        await this.runModel
-          .updateMany(
-            { id: { $in: ids }, status: "RUNNING" },
-            { $set: { status: "FAILED", completedAt, engine, failure: response.error } },
-          )
-          .exec();
-        return {
-          batchId,
-          runs: scenarios.map((row) => ({
-            scenarioId: row.scenarioId,
-            scenarioCode: row.scenarioCode,
-            scenarioName: row.scenarioName,
-            run: metadata(row.runId, "FAILED", completedAt, response.error),
-          })),
-        };
-      }
-      const native = asRecord(response.result, "HCL batch");
-      const compilationReuse =
-        native["compilationReuse"] === undefined ?
-          undefined
-        : HclBatchCompilationStatsSchema.parse(native["compilationReuse"]);
-      if (
-        compilationReuse !== undefined &&
-        (resultKind === "EVENT_TREE") !== "sequenceBddCompilations" in compilationReuse
-      ) {
-        throw new BadGatewayException("PRAXIS returned compilation counts for the wrong target kind");
-      }
-      const hazardConvolution =
-        native["hazardConvolution"] === undefined ?
-          undefined
-        : HclHazardConvolutionResultSchema.parse(native["hazardConvolution"]);
-      if (envelope.request["hazardConvolution"] !== undefined && hazardConvolution === undefined) {
-        throw new BadGatewayException("PRAXIS omitted the requested hazard convolution");
-      }
-      const rawRows = native["batchResults"];
-      if (!Array.isArray(rawRows) || rawRows.length !== scenarios.length)
-        throw new BadGatewayException("PRAXIS returned an invalid HCL batch result count");
-      const byId = new Map<string, Record<string, unknown>>();
-      for (const rawRow of rawRows) {
-        const row = asRecord(rawRow, "HCL batch scenario");
-        if (typeof row["scenarioId"] !== "string" || byId.has(row["scenarioId"]))
-          throw new BadGatewayException("PRAXIS returned an invalid HCL batch scenario id");
-        byId.set(row["scenarioId"], row);
-      }
-      const prepared = scenarios.map((row) => {
-        const raw = byId.get(row.scenarioId);
-        if (raw === undefined) throw new BadGatewayException(`PRAXIS omitted HCL scenario '${row.scenarioId}'`);
-        if (raw["status"] === "FAILED") {
-          if (hazardConvolution !== undefined) {
-            throw new BadGatewayException("PRAXIS returned an incomplete hazard convolution");
-          }
-          const failure = AnalysisRunFailureSchema.parse(raw["failure"]);
-          if (Object.keys(raw).some((key) => !["scenarioId", "status", "failure"].includes(key))) {
-            throw new BadGatewayException("PRAXIS returned result fields for a failed HCL scenario");
-          }
-          return {
-            row, status: "FAILED" as const, result: null, failure,
-            metadata: metadata(row.runId, "FAILED", completedAt, failure),
-          };
-        }
-        const skipped = raw["status"] === "skipped_zero_weight";
-        if (
-          skipped &&
-          !hazardConvolution?.rows.some(
-            (bin) => bin.scenarioId === row.scenarioId && bin.status === "skipped_zero_weight" && bin.rawWeight === 0,
-          )
-        ) {
-          throw new BadGatewayException("PRAXIS skipped a scenario without a zero hazard weight");
-        }
-        if (raw["status"] !== undefined && !skipped)
-          throw new BadGatewayException("PRAXIS returned an unknown HCL scenario status");
-        const status = skipped ? "SKIPPED" : "SUCCEEDED";
-        const result =
-          skipped ? null : (
-            this.publicResult(
-              resultKind,
-              { ...raw, ...(compilationReuse === undefined ? {} : { compilationReuse }) },
-              row.runId,
-              owner,
-              completedAt.toISOString(),
-              row.request,
-            )
-          );
-        return { row, status, result, failure: null, metadata: metadata(row.runId, status, completedAt) };
-      });
-      const complete = HclBatchExecuteResultSchema.parse({
-        schemaVersion: "1.0.0",
+    await this.runModel.insertMany([
+      {
+        ...shared,
+        id: batchId,
+        scope: "BATCH",
+        batchId: null,
+        request: structuredClone(envelope.request),
+        nativeRequest: structuredClone(envelope),
+        praetorJobs: [batchId],
+        progress: this.queuedProgress("JOB", 1),
+        ...batchTrace,
+      },
+      ...scenarios.map((row) => ({
+        ...shared,
+        id: row.runId,
+        scope: "SCENARIO",
         batchId,
-        runs: prepared.map(({ row, metadata: run }) => ({
+        request: structuredClone(row.request),
+        nativeRequest: null,
+        ...row.trace,
+      })),
+    ]);
+    const current = async (): Promise<ExecutedHclBatch> => ({
+      batchId,
+      runs: await Promise.all(
+        scenarios.map(async (row) => ({
           scenarioId: row.scenarioId,
           scenarioCode: row.scenarioCode,
           scenarioName: row.scenarioName,
-          run,
+          run: await this.metadataOf(row.runId),
         })),
-        ...(compilationReuse === undefined ? {} : { compilationReuse }),
-        ...(hazardConvolution === undefined ? {} : { hazardConvolution }),
-      });
-      const writes = await Promise.allSettled(
-        prepared.map((row) =>
-          this.runModel
-            .updateOne(
-              { id: row.row.runId, status: "RUNNING" },
-              { $set: { status: row.status, completedAt, result: row.result, failure: row.failure, engine } },
-            )
-            .exec(),
-        ),
-      );
-      const failed = writes.find((write): write is PromiseRejectedResult => write.status === "rejected");
-      if (failed !== undefined) throw failed.reason;
-      await this.runModel
-        .updateOne(
-          { id: batchId, status: "RUNNING" },
-          { $set: { status: "SUCCEEDED", completedAt, result: complete, failure: null, engine } },
-        )
-        .exec();
-      return { ...complete, batchId };
+      ),
+    });
+    try {
+      await this.praetor.submit(envelope, { jobId: batchId });
     } catch (error) {
-      const completedAt = new Date();
-      await this.runModel
-        .updateMany(
-          { id: { $in: ids } },
-          {
-            $set: {
-              status: "FAILED",
-              startedAt,
+      await this.failRuns(ids, this.transportFailure(error instanceof Error ? error : String(error)));
+      return current();
+    }
+    let finished = 0;
+    this.track(ids, () => [batchId], async () => {
+      await this.followJobs({
+        progressId: batchId,
+        ids: () => ids,
+        jobs: [batchId],
+        unit: "JOB",
+        total: 1,
+        completed: () => finished,
+        onFinished: async (jobId, state) => {
+          finished = 1;
+          const response = await this.jobResponse(jobId, state);
+          const engine = response.engine ?? null;
+          const completedAt = new Date();
+          if (response.error !== undefined) {
+            await this.finishRuns(ids, { status: "FAILED", completedAt, engine, failure: response.error, result: null });
+            return;
+          }
+          const native = asRecord(response.result, "HCL batch");
+          const compilationReuse =
+            native["compilationReuse"] === undefined ?
+              undefined
+            : HclBatchCompilationStatsSchema.parse(native["compilationReuse"]);
+          if (
+            compilationReuse !== undefined &&
+            (resultKind === "EVENT_TREE") !== "sequenceBddCompilations" in compilationReuse
+          ) {
+            throw new BadGatewayException("PRAXIS returned compilation counts for the wrong target kind");
+          }
+          const hazardConvolution =
+            native["hazardConvolution"] === undefined ?
+              undefined
+            : HclHazardConvolutionResultSchema.parse(native["hazardConvolution"]);
+          if (hazardRequested && hazardConvolution === undefined) {
+            throw new BadGatewayException("PRAXIS omitted the requested hazard convolution");
+          }
+          const rawRows = native["batchResults"];
+          if (!Array.isArray(rawRows) || rawRows.length !== scenarios.length)
+            throw new BadGatewayException("PRAXIS returned an invalid HCL batch result count");
+          const byId = new Map<string, Record<string, unknown>>();
+          for (const rawRow of rawRows) {
+            const row = asRecord(rawRow, "HCL batch scenario");
+            if (typeof row["scenarioId"] !== "string" || byId.has(row["scenarioId"]))
+              throw new BadGatewayException("PRAXIS returned an invalid HCL batch scenario id");
+            byId.set(row["scenarioId"], row);
+          }
+          for (const row of scenarios) {
+            const raw = byId.get(row.scenarioId);
+            if (raw === undefined) throw new BadGatewayException(`PRAXIS omitted HCL scenario '${row.scenarioId}'`);
+            if (raw["status"] === "FAILED") {
+              if (hazardConvolution !== undefined) {
+                throw new BadGatewayException("PRAXIS returned an incomplete hazard convolution");
+              }
+              const failure = AnalysisRunFailureSchema.parse(raw["failure"]);
+              if (Object.keys(raw).some((key) => !["scenarioId", "status", "failure"].includes(key))) {
+                throw new BadGatewayException("PRAXIS returned result fields for a failed HCL scenario");
+              }
+              await this.finishRuns([row.runId], { status: "FAILED", completedAt, engine, failure, result: null });
+              continue;
+            }
+            const skipped = raw["status"] === "skipped_zero_weight";
+            if (
+              skipped &&
+              !hazardConvolution?.rows.some(
+                (bin) => bin.scenarioId === row.scenarioId && bin.status === "skipped_zero_weight" && bin.rawWeight === 0,
+              )
+            ) {
+              throw new BadGatewayException("PRAXIS skipped a scenario without a zero hazard weight");
+            }
+            if (raw["status"] !== undefined && !skipped)
+              throw new BadGatewayException("PRAXIS returned an unknown HCL scenario status");
+            const result =
+              skipped ? null : (
+                this.publicResult(
+                  resultKind,
+                  { ...raw, ...(compilationReuse === undefined ? {} : { compilationReuse }) },
+                  row.runId,
+                  owner,
+                  completedAt.toISOString(),
+                  row.request,
+                )
+              );
+            await this.finishRuns([row.runId], {
+              status: skipped ? "SKIPPED" : "SUCCEEDED",
               completedAt,
               engine,
-              result: null,
-              failure: {
-                kind: "TRANSPORT",
-                code: "PRAETOR_FAILURE",
-                message: error instanceof Error ? error.message : String(error),
-                details: {},
-              },
-            },
-          },
-        )
-        .exec();
-      throw error;
-    }
+              failure: null,
+              result,
+              ...(skipped ? {} : this.keptSamples(raw)),
+            });
+          }
+          const runs = (await current()).runs;
+          const complete = HclBatchExecuteResultSchema.parse({
+            schemaVersion: "1.0.0",
+            batchId,
+            runs,
+            ...(compilationReuse === undefined ? {} : { compilationReuse }),
+            ...(hazardConvolution === undefined ? {} : { hazardConvolution }),
+          });
+          await this.finishRuns([batchId], { status: "SUCCEEDED", completedAt, engine, failure: null, result: complete });
+        },
+      });
+    });
+    return current();
   }
 
   @WithWorkbookSnapshots()
@@ -1549,12 +1674,105 @@ export class WorkbookAnalysisRunsService {
     );
   }
 
-  async executeEsqModelRun(input: {
+  async loadEsqModelHcl(
+    owner: LoadedWorkbook<EventSequenceQuantification>,
+    address: WorkbookModelAddress,
+    acting: ActingUser,
+  ): Promise<EsqModelHcl> {
+    const hcl = await this.loadHclSources(owner, address.modelId, address.workbookId === owner.workbookId ? undefined : address);
+    if (hcl.configurationOwner.hostType === "ESQ") throw new BadRequestException("Pick a network configuration from the linked ES or SY workbook.");
+    const sources: HclConfigurationOwner[] = [hcl.configurationOwner, hcl.bayesian, ...hcl.faultTrees.map(({ source }) => source)];
+    await this.authorizeSources(sources, owner.workbookId, acting);
+    const controlled = await this.resolveFaultTreeInputs([], this.hclReferences(hcl, "PROBABILITY"));
+    const network = adaptOrThrow(() => this.adaptHclBayesianNetwork(hcl));
+    const esOwner = hcl.configurationOwner.hostType === "ES" ? (hcl.configurationOwner as LoadedWorkbook<EventSequenceAnalysis>) : undefined;
+    const esTrees = esOwner?.mef.eventTrees ?? [];
+    const model = owner.mef.model;
+    const declared = new Set(hcl.configuration.faultTrees.map((reference) => `${reference.workbookId}:${reference.modelId}`));
+    const linkedEs = owner.mef.linkedWorkbooks?.ES;
+    const precedenceEs = esOwner !== undefined || linkedEs === undefined || linkedEs.length === 0 || linkedEs.startsWith("example") ? undefined : await this.loadEs(linkedEs);
+    const precedenceTrees = precedenceEs?.mef.eventTrees ?? [];
+    const esCovers = (rootId: string): boolean => {
+      const root = esTrees.find((tree) => tree.uuid === rootId);
+      if (esOwner === undefined || root === undefined || model === undefined) return false;
+      const connected = transferTreeIds(model, rootId).flatMap((id) => esTrees.filter((tree) => tree.uuid === id));
+      return esConfigurationApplies(esOwner.workbookId, hcl.configuration, eventTreeHclFacts(esOwner.workbookId, root, connected));
+    };
+    const functionKey = (event: FunctionalEvent, key: string): string => {
+      const label = event.label?.trim() ?? "";
+      if (label.length > 0) return label;
+      const name = event.name.trim();
+      return name.length > 0 ? name : key;
+    };
+    return {
+      sources,
+      configurationId: hcl.configuration.modelId,
+      configurationWorkbookId: hcl.configurationOwner.workbookId,
+      covers: (treeId, syWorkbookId, syModelIds) => (esOwner === undefined
+        ? syModelIds.some((modelId) => declared.has(`${syWorkbookId}:${modelId}`))
+        : esCovers(treeId)),
+      refusal: (treeId) => {
+        const root = precedenceTrees.find((tree) => tree.uuid === treeId);
+        if (precedenceEs === undefined || root === undefined || model === undefined) return undefined;
+        const connected = transferTreeIds(model, treeId).flatMap((id) => precedenceTrees.filter((tree) => tree.uuid === id));
+        const overriding = overridingConfiguration(hcl.configuration, precedenceEs.mef.dependencyHclConfigurations ?? [], eventTreeHclFacts(precedenceEs.workbookId, root, connected));
+        return overriding === undefined ? undefined : `Event Sequence configuration '${overriding.code}' binds the same basic events and takes precedence for event tree '${root.label ?? root.name}'. Run the model with that configuration.`;
+      },
+      standInFor: (rootId) => (treeId, functionId) => {
+        if (esOwner === undefined || !esCovers(rootId)) return undefined;
+        const tree = esTrees.find((candidate) => candidate.uuid === treeId);
+        if (tree === undefined) return undefined;
+        const event = Object.entries(tree.functionalEvents)
+          .find(([key, candidate]) => candidate.faultTreeTopEvent === undefined && functionKey(candidate, key) === functionId)?.[1];
+        if (event === undefined || boundFunctionalEventIds(hcl.configuration, esOwner.workbookId, [event.uuid]).length === 0) return undefined;
+        return {
+          top: functionalEventStandInTop(esOwner.workbookId, event.uuid),
+          eventId: functionalEventBindingId(event.uuid),
+          snapshot: adaptOrThrow(() => adaptEsFunctionalEventStandIn(esOwner, event)),
+        };
+      },
+      augment: (envelope, syWorkbookId, syModelIds, standInModelIds) => {
+        const faultTreeSnapshots = envelope.modelSnapshots.filter((snapshot) => snapshot["methodType"] === "FAULT_TREE");
+        const membership = this.hclFaultTreeBasicEventMembership(faultTreeSnapshots);
+        const effective = [
+          ...syModelIds.map((modelId) => ({ workbookId: syWorkbookId, modelId })),
+          ...(esOwner === undefined ? [] : standInModelIds.map((modelId) => ({ workbookId: esOwner.workbookId, modelId }))),
+        ];
+        const configuration = adaptOrThrow(() => this.adaptHclConfiguration(hcl, "PROBABILITY", membership, controlled, undefined, effective));
+        return {
+          ...envelope,
+          request: { ...envelope.request, mode: "HYBRID_CAUSAL_LOGIC", calculationType: "PROBABILITY" },
+          modelSnapshots: [
+            ...envelope.modelSnapshots.map((snapshot) => (snapshot["methodType"] === "EVENT_TREE"
+              ? { ...snapshot, hclConfiguration: { configuration: { modelId: hcl.configuration.modelId } } }
+              : snapshot)),
+            network,
+            configuration,
+          ],
+        };
+      },
+    };
+  }
+
+  private treeFailureMessage(failures: readonly { label: string; failure: string | null }[], total: number, verb: string): string {
+    const shown = failures.slice(0, 3).map((entry) => `${entry.label}: ${entry.failure ?? "no reason given"}`).join(" · ");
+    const more = failures.length > 3 ? ` · and ${failures.length - 3} more (see each event tree in the run details)` : "";
+    return `${failures.length} of ${total} event trees ${verb}. ${shown}${more}`;
+  }
+
+  private batchSummary(made: EsqBatchSummary): EsqBatchSummary {
+    if (made.kind === "ESQ_MODEL_RUN") return EsqModelRunResultSchema.parse(made);
+    if (made.kind === "ESQ_POST_RUN") return EsqPostRunResultSchema.parse(made);
+    if (made.kind === "ESQ_IMPORTANCE_RUN") return EsqImportanceRunResultSchema.parse(made);
+    return EsqUncertaintyRunResultSchema.parse(made);
+  }
+
+  async executeEsqBatch(input: {
     owner: WorkbookModelSnapshotIdentity;
     request: EsqModelRunRequest | EsqPostRunRequest | EsqImportanceRunRequest | EsqUncertaintyRunRequest | EsqSensitivityRunRequest;
-    sources: Array<LoadedWorkbook<EventSequenceQuantification> | LoadedWorkbook<SystemsAnalysis> | LoadedWorkbook<SuccessCriteriaDevelopment> | LoadedWorkbook<DataAnalysis>>;
+    sources: Array<LoadedWorkbook<EventSequenceQuantification> | LoadedWorkbook<SystemsAnalysis> | LoadedWorkbook<SuccessCriteriaDevelopment> | LoadedWorkbook<DataAnalysis> | HclConfigurationOwner>;
     trees: EsqPreparedTreeRun[];
-    summarize: (batchId: string, completedAt: string, outcomes: EsqTreeRunOutcome[]) => EsqModelRunResult | EsqPostRunResult | EsqImportanceRunResult | EsqUncertaintyRunResult;
+    summarize: (batchId: string, completedAt: string, outcomes: EsqTreeRunOutcome[]) => EsqBatchSummary;
     stored?: (result: EventTreeAnalysisResult) => EventTreeAnalysisResult;
     acting: ActingUser;
   }): Promise<AnalysisRunMetadata> {
@@ -1568,6 +1786,8 @@ export class WorkbookAnalysisRunsService {
     });
     const batchId = randomUUID();
     const requestedAt = new Date();
+    const unbuilt = input.trees.filter((tree) => tree.envelope === null);
+    const jobs = unbuilt.length > 0 ? [] : input.trees.map((tree) => tree.runId);
     const shared = {
       schemaVersion: "1.0.0",
       sourceWorkbooks: context.sourceWorkbooks,
@@ -1581,6 +1801,7 @@ export class WorkbookAnalysisRunsService {
       engine: null,
       failure: null,
       result: null,
+      trackedAt: requestedAt,
     };
     const ids = [batchId, ...input.trees.map((tree) => tree.runId)];
     await this.runModel.insertMany([
@@ -1592,6 +1813,8 @@ export class WorkbookAnalysisRunsService {
         batchId: null,
         request: structuredClone({ ...input.request }),
         nativeRequest: null,
+        praetorJobs: jobs,
+        progress: this.queuedProgress("EVENT_TREE", input.trees.length),
         ...this.createAnalysisRunTrace(
           input.sources,
           { targetType: "EVENT_TREE", model: input.owner },
@@ -1610,113 +1833,109 @@ export class WorkbookAnalysisRunsService {
         ...this.createAnalysisRunTrace(input.sources, { targetType: "EVENT_TREE", model: tree.owner }, tree.models, []),
       })),
     ]);
-    const startedAt = new Date();
-    await this.runModel
-      .updateMany({ id: { $in: ids }, status: "QUEUED" }, { $set: { status: "RUNNING", startedAt } })
-      .exec();
-    let engine: AnalysisRunMetadata["engine"] = null;
+    if (unbuilt.length > 0) {
+      const completedAt = new Date();
+      for (const tree of unbuilt) {
+        await this.finishRuns([tree.runId], {
+          status: "FAILED",
+          completedAt,
+          engine: null,
+          failure: { kind: "VALIDATION", code: "ESQ_RUN_BUILD", message: tree.failure ?? "This event tree could not be built.", details: {} },
+          result: null,
+        });
+      }
+      await this.finishRuns(
+        input.trees.filter((tree) => tree.envelope !== null).map((tree) => tree.runId),
+        { status: "CANCELLED", completedAt, engine: null, failure: null, result: null },
+      );
+      await this.finishRuns([batchId], {
+        status: "FAILED",
+        completedAt,
+        engine: null,
+        failure: {
+          kind: "VALIDATION",
+          code: "ESQ_MODEL_RUN_FAILED",
+          message: this.treeFailureMessage(unbuilt.map((tree) => ({ label: tree.label, failure: tree.failure })), input.trees.length, "could not be built"),
+          details: {},
+        },
+        result: null,
+      });
+      return this.metadataOf(batchId);
+    }
     try {
-      const outcomes: EsqTreeRunOutcome[] = [];
       for (const tree of input.trees) {
-        const base = { treeId: tree.treeId, runId: tree.runId };
-        if (tree.envelope === null) {
-          const failure = { kind: "VALIDATION", code: "ESQ_RUN_BUILD", message: tree.failure ?? "This event tree could not be built.", details: {} };
-          await this.runModel
-            .updateOne({ id: tree.runId, status: "RUNNING" }, { $set: { status: "FAILED", completedAt: new Date(), failure } })
-            .exec();
-          outcomes.push({ ...base, status: "FAILED", result: null, failure: failure.message });
-          continue;
-        }
-        const response = await this.praetor.execute(tree.envelope);
-        const treeEngine = response.engine ?? null;
-        engine = treeEngine ?? engine;
-        const finished = new Date();
-        if (response.error !== undefined) {
-          await this.runModel
-            .updateOne(
-              { id: tree.runId, status: "RUNNING" },
-              { $set: { status: "FAILED", completedAt: finished, engine: treeEngine, failure: response.error } },
-            )
-            .exec();
-          outcomes.push({ ...base, status: "FAILED", result: null, failure: response.error.message });
-          continue;
-        }
-        let result: EventTreeAnalysisResult;
-        try {
-          result = EventTreeAnalysisResultSchema.parse(
-            this.publicResult("EVENT_TREE", response.result, tree.runId, tree.owner, finished.toISOString(), tree.request),
+        if (tree.envelope !== null) await this.praetor.submit(tree.envelope, { jobId: tree.runId });
+      }
+    } catch (error) {
+      await Promise.all(jobs.map((jobId) => this.praetor.cancel(jobId).catch(() => undefined)));
+      await this.failRuns(ids, this.transportFailure(error instanceof Error ? error : String(error)));
+      return this.metadataOf(batchId);
+    }
+    const byRun = new Map(input.trees.map((tree) => [tree.runId, tree]));
+    const outcomes = new Map<string, EsqTreeRunOutcome>();
+    const status: { engine: AnalysisRunMetadata["engine"] } = { engine: null };
+    this.track(ids, () => jobs, async () => {
+      await this.followJobs({
+        progressId: batchId,
+        ids: () => ids,
+        jobs,
+        unit: "EVENT_TREE",
+        total: input.trees.length,
+        completed: () => outcomes.size,
+        onFinished: async (jobId, state) => {
+          const tree = byRun.get(jobId);
+          if (tree === undefined) throw new Error(`PRAETOR reported job ${jobId}, which belongs to no event tree of this run.`);
+          const response = await this.jobResponse(jobId, state);
+          const engine = response.engine ?? null;
+          status.engine = engine ?? status.engine;
+          const completedAt = new Date();
+          if (response.error !== undefined) {
+            outcomes.set(tree.treeId, { treeId: tree.treeId, runId: tree.runId, status: "FAILED", result: null, failure: response.error.message });
+            await this.finishRuns([tree.runId], { status: "FAILED", completedAt, engine, failure: response.error, result: null });
+            return;
+          }
+          const result = EventTreeAnalysisResultSchema.parse(
+            this.publicResult("EVENT_TREE", response.result, tree.runId, tree.owner, completedAt.toISOString(), tree.request),
           );
-        } catch (error) {
-          if (error instanceof BadGatewayException) throw error;
-          throw new BadGatewayException("Praetor returned an invalid native solver result");
-        }
-        await this.runModel
-          .updateOne(
-            { id: tree.runId, status: "RUNNING" },
-            { $set: { status: "SUCCEEDED", completedAt: finished, result: input.stored === undefined ? result : input.stored(result), failure: null, engine: treeEngine } },
-          )
-          .exec();
-        outcomes.push({ ...base, status: "SUCCEEDED", result, failure: null });
+          outcomes.set(tree.treeId, { treeId: tree.treeId, runId: tree.runId, status: "SUCCEEDED", result, failure: null });
+          await this.finishRuns([tree.runId], {
+            status: "SUCCEEDED",
+            completedAt,
+            engine,
+            failure: null,
+            result: input.stored === undefined ? result : input.stored(result),
+          });
+        },
+      });
+      const ordered = input.trees.map((tree): EsqTreeRunOutcome => outcomes.get(tree.treeId) ?? {
+        treeId: tree.treeId,
+        runId: tree.runId,
+        status: "FAILED",
+        result: null,
+        failure: "PRAXIS did not report this event tree.",
+      });
+      const labels = new Map(input.trees.map((tree) => [tree.treeId, tree.label]));
+      const failed = ordered.filter((outcome) => outcome.status === "FAILED");
+      if (failed.length > 0) {
+        await this.finishRuns([batchId], {
+          status: "FAILED",
+          completedAt: new Date(),
+          engine: status.engine,
+          failure: {
+            kind: "EXECUTION_ERROR",
+            code: "ESQ_MODEL_RUN_FAILED",
+            message: this.treeFailureMessage(failed.map((outcome) => ({ label: labels.get(outcome.treeId) ?? outcome.treeId, failure: outcome.failure })), ordered.length, "failed"),
+            details: {},
+          },
+          result: null,
+        });
+        return;
       }
       const completedAt = new Date();
-      const made = input.summarize(batchId, completedAt.toISOString(), outcomes);
-      const summary = made.kind === "ESQ_MODEL_RUN" ? EsqModelRunResultSchema.parse(made)
-        : made.kind === "ESQ_POST_RUN" ? EsqPostRunResultSchema.parse(made)
-        : made.kind === "ESQ_IMPORTANCE_RUN" ? EsqImportanceRunResultSchema.parse(made)
-        : EsqUncertaintyRunResultSchema.parse(made);
-      const failedCount = outcomes.filter((outcome) => outcome.status === "FAILED").length;
-      const firstFailure = outcomes.find((outcome) => outcome.failure !== null)?.failure;
-      const solved = failedCount < outcomes.length;
-      const failure = solved ? null : {
-        kind: "VALIDATION",
-        code: "ESQ_MODEL_RUN_FAILED",
-        message: `${String(failedCount)} of ${String(outcomes.length)} event trees failed.${firstFailure === undefined ? "" : ` First: ${firstFailure}`}`,
-        details: {},
-      };
-      await this.runModel
-        .updateOne(
-          { id: batchId, status: "RUNNING" },
-          { $set: { status: solved ? "SUCCEEDED" : "FAILED", completedAt, result: solved ? summary : null, failure, engine } },
-        )
-        .exec();
-      return AnalysisRunMetadataSchema.parse({
-        schemaVersion: "1.0.0",
-        id: batchId,
-        owner: input.owner,
-        sourceWorkbooks: context.sourceWorkbooks,
-        methodType: "EVENT_TREE",
-        scope: "BATCH",
-        batchId: null,
-        status: solved ? "SUCCEEDED" : "FAILED",
-        requestedBy: input.acting.username,
-        requestedAt: requestedAt.toISOString(),
-        startedAt: startedAt.toISOString(),
-        completedAt: completedAt.toISOString(),
-        engine,
-        failure,
-      });
-    } catch (error) {
-      const completedAt = new Date();
-      await this.runModel
-        .updateMany(
-          { id: { $in: ids }, status: "RUNNING" },
-          {
-            $set: {
-              status: "FAILED",
-              completedAt,
-              engine,
-              failure: {
-                kind: "TRANSPORT",
-                code: "PRAETOR_FAILURE",
-                message: error instanceof Error ? error.message : String(error),
-                details: {},
-              },
-            },
-          },
-        )
-        .exec();
-      throw error;
-    }
+      const summary = this.batchSummary(input.summarize(batchId, completedAt.toISOString(), ordered));
+      await this.finishRuns([batchId], { status: "SUCCEEDED", completedAt, engine: status.engine, failure: null, result: summary });
+    });
+    return this.metadataOf(batchId);
   }
 
   @WithWorkbookSnapshots()
@@ -2230,6 +2449,7 @@ export class WorkbookAnalysisRunsService {
             modelId: request.faultTreeTopGate.modelId,
             entityId: request.faultTreeTopGate.entityId,
           },
+          ...(request.calculationType === "UNCERTAINTY" ? { keepSamples: true } : {}),
         },
         modelSnapshots: [
           ...faultTrees.modelSnapshots,
@@ -2384,6 +2604,7 @@ export class WorkbookAnalysisRunsService {
           revision: eventTree.workbookRevision,
           mode: "HYBRID_CAUSAL_LOGIC",
           requestedBy: acting.username,
+          ...(request.calculationType === "UNCERTAINTY" ? { keepSamples: true } : {}),
         },
         modelSnapshots: [
           ...eventTreeModelIds.map((eventTreeModelId) =>
@@ -2587,6 +2808,7 @@ export class WorkbookAnalysisRunsService {
             modelId: request.faultTreeTopGate.modelId,
             entityId: request.faultTreeTopGate.entityId,
           },
+          ...(request.calculationType === "UNCERTAINTY" ? { keepSamples: true } : {}),
           evidenceBatch: resolvedScenarios.map(({ scenario, evidence }) => ({
             scenarioId: scenario.id,
             observations: evidence.observations,
@@ -2618,10 +2840,8 @@ export class WorkbookAnalysisRunsService {
       },
       "HYBRID_CAUSAL_LOGIC",
       acting,
+      hazardGrid !== null,
     );
-    if (hazardGrid !== null && executed.hazardConvolution === undefined) {
-      throw new BadGatewayException("PRAXIS omitted the requested fault-tree hazard convolution");
-    }
     return HclBatchExecuteResultSchema.parse({ schemaVersion: "1.0.0", ...executed });
   }
 
@@ -2786,6 +3006,7 @@ export class WorkbookAnalysisRunsService {
           revision: eventTree.workbookRevision,
           mode: "HYBRID_CAUSAL_LOGIC",
           requestedBy: acting.username,
+          ...(request.calculationType === "UNCERTAINTY" ? { keepSamples: true } : {}),
           evidenceBatch: resolvedScenarios.map(({ scenario, evidence }) => ({
             scenarioId: scenario.id,
             observations: evidence.observations,
@@ -2834,10 +3055,8 @@ export class WorkbookAnalysisRunsService {
       },
       "EVENT_TREE",
       acting,
+      hazardGrid !== null,
     );
-    if (hazardGrid !== null && executed.hazardConvolution === undefined) {
-      throw new BadGatewayException("PRAXIS omitted the requested event-tree hazard convolution");
-    }
     return HclBatchExecuteResultSchema.parse({ schemaVersion: "1.0.0", ...executed });
   }
 
@@ -2906,13 +3125,88 @@ export class WorkbookAnalysisRunsService {
         };
       }),
     );
-    return {
-      status:
-        sources.length === 0 ? "UNKNOWN"
-        : sources.every((source) => source.status === "CURRENT") ? "CURRENT"
-        : "STALE",
-      sources,
-    };
+    if (sources.length === 0) return { status: "UNKNOWN", sources };
+    const moved = sources.filter((source) => source.status !== "CURRENT");
+    if (moved.length === 0) return { status: "CURRENT", sources };
+    const change = await this.inputChange(run, moved);
+    return change === null ? { status: "CURRENT", sources } : { status: "STALE", sources, change };
+  }
+
+  private async inputChange(run: AnalysisRunRecord, moved: AnalysisRunFreshness["sources"]): Promise<string | null> {
+    const key = `${run.id}|${moved.map((source) => `${source.workbookId}@${String(source.currentRevision)}`).join(",")}`;
+    const known = this.runChanges.get(key);
+    if (known !== undefined) return known;
+    let change: string | null;
+    try {
+      change = describeRunChange(run.contributions ?? null, await this.changedSources(run, moved));
+    } catch (error) {
+      this.logger.warn(`Run ${run.id} inputs could not be compared: ${error instanceof Error ? error.message : String(error)}`);
+      const first = run.workbookSnapshots?.find((snapshot) => snapshot.identity.workbookId === moved[0]?.workbookId);
+      change = `The ${first?.hostType ?? "source"} workbook changed after this run.`;
+    }
+    this.runChanges.set(key, change);
+    if (this.runChanges.size > RUN_CHANGE_CACHE) {
+      const oldest = this.runChanges.keys().next().value;
+      if (oldest !== undefined) this.runChanges.delete(oldest);
+    }
+    return change;
+  }
+
+  private hasMef(snapshot: AnalysisRunWorkbookSnapshot): boolean {
+    return typeof snapshot.mef === "object" && snapshot.mef !== null;
+  }
+
+  private async savedSnapshots(run: AnalysisRunRecord): Promise<AnalysisRunWorkbookSnapshot[]> {
+    const snapshots = run.workbookSnapshots ?? [];
+    if (snapshots.every((snapshot) => this.hasMef(snapshot))) return snapshots;
+    const stored = await this.runModel.findOne({ id: run.id }).select({ id: 1, workbookSnapshots: 1 }).lean().exec();
+    return stored?.workbookSnapshots ?? snapshots;
+  }
+
+  private parsedSy(mef: AnalysisRunWorkbookSnapshot["mef"]): SystemsAnalysis | null {
+    const parsed = SystemsAnalysisSchema.safeParse(stripNulls(mef));
+    return parsed.success ? parsed.data : null;
+  }
+
+  private async currentSource(
+    hostType: WorkbookMethodHostType,
+    workbookId: string,
+  ): Promise<{ mef: object; sy: SystemsAnalysis | null } | null> {
+    try {
+      if (hostType === "SY") {
+        const loaded = await this.loadSy(workbookId);
+        return { mef: loaded.mef, sy: loaded.mef };
+      }
+      const loaded =
+        hostType === "ES" ? await this.loadEs(workbookId)
+        : hostType === "ESQ" ? await this.loadEsq(workbookId)
+        : hostType === "DA" ? await this.loadDa(workbookId)
+        : hostType === "SC" ? await this.loadSc(workbookId)
+        : await this.loadHr(workbookId);
+      return { mef: loaded.mef, sy: null };
+    } catch (error) {
+      if (error instanceof NotFoundException) return null;
+      throw error;
+    }
+  }
+
+  private async changedSources(run: AnalysisRunRecord, moved: AnalysisRunFreshness["sources"]): Promise<ChangedSource[]> {
+    const snapshots = await this.savedSnapshots(run);
+    const sources: ChangedSource[] = [];
+    for (const entry of moved) {
+      const snapshot = snapshots.find((item) => item.identity.workbookId === entry.workbookId);
+      if (snapshot === undefined || !this.hasMef(snapshot)) continue;
+      const loaded = entry.status === "MISSING" ? null : await this.currentSource(snapshot.hostType, entry.workbookId);
+      sources.push({
+        hostType: snapshot.hostType,
+        workbookId: entry.workbookId,
+        saved: jsonOf(snapshot.mef),
+        current: loaded === null ? null : jsonOf(loaded.mef),
+        savedSy: snapshot.hostType === "SY" ? this.parsedSy(snapshot.mef) : null,
+        currentSy: loaded?.sy ?? null,
+      });
+    }
+    return sources;
   }
 
   private async readAuthorizedRun(
@@ -3017,6 +3311,36 @@ export class WorkbookAnalysisRunsService {
     });
   }
 
+  async listAnalysisJobs(
+    hostType: WorkbookMethodHostType,
+    workbookId: string,
+    acting: ActingUser,
+  ): Promise<AnalysisRunJobList> {
+    await this.authorizeRunOwner(hostType, workbookId, acting);
+    const records = await this.runModel
+      .find({
+        "owner.workbookId": workbookId,
+        scope: { $ne: "SCENARIO" },
+        status: { $in: ["QUEUED", "RUNNING"] },
+      })
+      .sort({ requestedAt: 1, id: 1 })
+      .limit(50)
+      .setOptions({ modelPayloadMetadataOnly: true })
+      .exec();
+    return AnalysisRunJobListSchema.parse({
+      schemaVersion: "1.0.0",
+      jobs: records
+        .filter((record) => record.workbookSnapshots?.find((source) => source.identity.workbookId === workbookId)?.hostType === hostType)
+        .map((record) => {
+          const calculationType = record.request?.["calculationType"];
+          return {
+            run: toRunMetadata(record),
+            calculationType: typeof calculationType === "string" && calculationType.trim().length > 0 ? calculationType : null,
+          };
+        }),
+    });
+  }
+
   async getRun(
     hostType: WorkbookMethodHostType,
     workbookId: string,
@@ -3063,6 +3387,20 @@ export class WorkbookAnalysisRunsService {
     if (result === null)
       throw new ConflictException(`Analysis result is unavailable while run status is ${run.status}`);
     return result;
+  }
+
+  async getSampleVectors(
+    hostType: WorkbookMethodHostType,
+    workbookId: string,
+    runId: string,
+    acting: ActingUser,
+  ): Promise<HclSampleVector[]> {
+    const { run } = await this.readAuthorizedRun(hostType, workbookId, runId, acting);
+    if (run.status !== "SUCCEEDED") throw new ConflictException(`Samples are unavailable while run status is ${run.status}`);
+    const stored = await this.runModel.findOne({ id: run.id }).select({ id: 1, sampleVectors: 1 }).lean().exec();
+    const parsed = HclSampleVectorsSchema.safeParse(stored?.sampleVectors);
+    if (!parsed.success) throw new NotFoundException("This run kept no samples");
+    return parsed.data;
   }
 
   async getRunDetails(

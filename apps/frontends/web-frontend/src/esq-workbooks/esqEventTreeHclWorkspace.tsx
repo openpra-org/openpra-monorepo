@@ -560,6 +560,7 @@ function EsqEventTreeHclWorkspace({
           saveBlockedReason={saveBlockedReason}
           onAnalysisInputChange={analysis.invalidate}
           editable={false}
+          analysisHost="esq"
           readOnlyNotice={displayedNetwork.owner === "SY" ? {
             message: `This network is linked from ${plainWorkbookName(displayedNetwork.workbookName)} and is read-only here. Open that workbook's Dependencies step to import XDSL or manage groups.`,
             sourceHref: `/sy-workbooks/${encodeURIComponent(displayedNetwork.workbookId)}?step=deps&network=${encodeURIComponent(displayedNetwork.network.modelId)}&esqWorkbook=${encodeURIComponent(runtime.workbookId ?? "")}`,

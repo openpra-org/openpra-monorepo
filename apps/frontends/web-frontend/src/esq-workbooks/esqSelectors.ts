@@ -14,7 +14,6 @@ import { modelComplete, sameItem, transferEntryInitiators } from "./esqModel";
 import { logicComplete } from "./esqLogic";
 import { barriersComplete } from "./esqBarriers";
 import { solveComplete } from "./esqSolve";
-import { postComplete } from "./esqPost";
 import { resultsComplete } from "./esqResults";
 import { uncertaintyComplete } from "./esqUncertainty";
 import { sensitivityComplete } from "./esqSensitivity";
@@ -442,7 +441,6 @@ function stepsFromMef(esq: EventSequenceQuantification, persona: EsqPersona, ups
   const modelDone = modelComplete(esq);
   const solveDone = solveComplete(esq);
   const logicDone = logicComplete(esq);
-  const postDone = postComplete(esq);
   const barriersDone = barriersComplete(esq);
   const resultsDone = resultsComplete(esq, upstream.ri, upstream.ie);
   const uncertDone = uncertaintyComplete(esq);
@@ -461,7 +459,6 @@ function stepsFromMef(esq: EventSequenceQuantification, persona: EsqPersona, ups
       case "model": return { ...s, status: status(modelDone) };
       case "solve": return { ...s, status: status(solveDone) };
       case "logic": return { ...s, status: status(logicDone) };
-      case "post": return { ...s, status: status(postDone) };
       case "barriers": return { ...s, status: status(barriersDone) };
       case "results": return { ...s, status: status(resultsDone) };
       case "uncert": return { ...s, status: status(uncertDone) };

@@ -6,7 +6,7 @@ import { SyWorkbooksService, type SyWorkbookResponse } from "./sy-workbooks.serv
 import { parseRevisionedWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
 import { parseExpectedWorkbookRevision } from "../workbooks/workbook-revision";
 import { WorkbookAnalysisRunsService } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
-import type { AnalysisRunMetadata, HclBatchExecuteResult } from "interfaces-shared-types/newly-developed-methods";
+import type { AnalysisRunJobList, AnalysisRunMetadata, HclBatchExecuteResult, HclSampleVector } from "interfaces-shared-types/newly-developed-methods";
 import type { FaultTreeValidateResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 
 @UseInterceptors(AnalysisCancellationInterceptor)
@@ -29,6 +29,11 @@ export class SyWorkbooksController {
     return this.analysisRunsService.listRunProvenance("SY", id, { username: req.user!.username }, cursor);
   }
 
+  @Get(":id/analysis-jobs")
+  analysisJobs(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<AnalysisRunJobList> {
+    return this.analysisRunsService.listAnalysisJobs("SY", id, { username: req.user!.username });
+  }
+
   @Get(":id/analysis-runs/:runId")
   analysisRun(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
     return this.analysisRunsService.getRun("SY", id, undefined, runId, { username: req.user!.username });
@@ -37,6 +42,17 @@ export class SyWorkbooksController {
   @Get(":id/analysis-runs/:runId/details")
   analysisRunDetails(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
     return this.analysisRunsService.getRunDetails("SY", id, runId, { username: req.user!.username });
+  }
+
+  @Get(":id/analysis-runs/:runId/samples")
+  analysisRunSamples(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest): Promise<HclSampleVector[]> {
+    return this.analysisRunsService.getSampleVectors("SY", id, runId, { username: req.user!.username });
+  }
+
+  @Post(":id/analysis-runs/:runId/cancel")
+  @HttpCode(HttpStatus.OK)
+  cancelAnalysisRun(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest): Promise<AnalysisRunMetadata> {
+    return this.analysisRunsService.cancelRun("SY", id, runId, { username: req.user!.username });
   }
 
   @Patch(":id")

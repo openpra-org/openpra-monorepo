@@ -4,7 +4,6 @@ import {
   DependencyType,
   TruncationMethod,
   QuantificationApproach,
-  CircularLogicResolutionMethod,
   RiskSignificantContributorType,
 } from "../../esq/event-sequence-quantification";
 import { TechnicalElementTypes } from "../../technical-element";
@@ -29,7 +28,6 @@ import { carriesUncertainExpression } from "../../sy/systems-analysis";
 export const DependencyTypeSchema = z.enum(DependencyType);
 export const TruncationMethodSchema = z.enum(TruncationMethod);
 export const QuantificationApproachSchema = z.enum(QuantificationApproach);
-export const CircularLogicResolutionMethodSchema = z.enum(CircularLogicResolutionMethod);
 export const RiskSignificantContributorTypeSchema = z.enum(RiskSignificantContributorType);
 
 export const EventSequenceFamilyQuantificationSchema = z.object({
@@ -154,6 +152,7 @@ export const EsqModelChangeSchema = z.object({
     "QUALIFICATION",
     "ACTION",
     "RECOVERY",
+    "REPAIR",
     "DEPENDENCY",
   ]),
   id: z.string(),
@@ -428,6 +427,17 @@ export const EsqRecoveryRecordSchema = z.object({
   feasibilityNote: z.string().optional(),
 });
 
+export const EsqRepairRecordSchema = z.object({
+  id: z.string(),
+  sequenceId: z.string(),
+  credited: z.boolean(),
+  equipment: z.string().optional(),
+  timeMinutes: z.number().optional(),
+  access: z.string().optional(),
+  conservativeBasis: z.string().optional(),
+  justification: z.string(),
+});
+
 export const EsqDependencyRecordSchema = z.object({
   id: z.string(),
   scope: z.enum(["PRE_INITIATOR_SET", "WITHIN_SEQUENCE"]),
@@ -464,6 +474,7 @@ export const EsqModelSchema = z.object({
   qualifications: z.array(EsqQualificationRecordSchema).optional(),
   actions: z.array(EsqActionRecordSchema).optional(),
   recoveries: z.array(EsqRecoveryRecordSchema).optional(),
+  repairs: z.array(EsqRepairRecordSchema).optional(),
   dependencies: z.array(EsqDependencyRecordSchema).optional(),
   jointFloor: z.object({ id: z.string(), value: z.number(), justification: z.string() }).optional(),
 });
@@ -692,6 +703,7 @@ export const EsqSolveWorkSchema = z.object({
       limitOrder: z.number().optional(),
       peakProbability: z.number().optional(),
       peakInitiatorFrequency: z.number().optional(),
+      hcl: z.object({ workbookId: z.string(), modelId: z.string(), treeIds: z.array(z.string()) }).optional(),
     })
     .optional(),
   families: z.array(
@@ -724,14 +736,15 @@ export const EsqPostWorkSchema = z.object({
     .array(
       z.object({
         id: z.string(),
-        manual: z.object({ name: z.string() }).optional(),
+        manual: z.object({ name: z.string(), repair: z.boolean().optional() }).optional(),
         eventIds: z.array(z.string()).optional(),
         groupIds: z.array(z.string()),
         stateIds: z.array(z.string()),
         credited: z.boolean(),
         feasibility: EsqActionFeasibilitySchema.optional(),
+        parameterId: z.string().optional(),
         typed: z.object({ expression: UncertainExpressionSchema, source: z.string() }).optional(),
-        ofRecord: z.enum(["HRA", "TYPED"]).optional(),
+        ofRecord: z.enum(["HRA", "DA", "TYPED"]).optional(),
         basis: z.string(),
       }),
     )
@@ -786,14 +799,6 @@ export const EsqPostWorkSchema = z.object({
           nominalFrequency: z.number(),
         }),
       ),
-    })
-    .optional(),
-  comparison: z
-    .object({
-      runId: z.string(),
-      at: z.string(),
-      inputs: z.string(),
-      families: z.array(z.object({ familyId: z.string(), annualFrequency: z.number() })),
     })
     .optional(),
 });
@@ -1032,16 +1037,6 @@ export const QuantificationMethodsSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
-export const RecoveryActionApplicationSchema = z.object({
-  uuid: z.string(),
-  recoveryActionRef: z.string(),
-  appliedAtLevel: z.enum(["FAMILY", "SEQUENCE", "CUTSET"]),
-  applicableFamilyRefs: z.array(z.string()).optional(),
-  hrFeasibilityRequirementsSatisfied: z.boolean(),
-  hrDependencyRequirementsSatisfied: z.boolean(),
-  implementsSrs: z.array(SRReferenceSchema),
-});
-
 export const ParameterConsistencyAttestationSchema = z.object({
   capabilityCategory: z.enum(["CC_I", "CC_II"]),
   hrParameterConsistency: z.boolean(),
@@ -1061,48 +1056,11 @@ export const PhenomenaParameterBasisSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
-export const CircularLogicResolutionSchema = z.object({
-  uuid: z.string(),
-  description: z.string(),
-  involvedElementIds: z.array(z.string()),
-  detectionMethod: z.string(),
-  resolutionMethod: CircularLogicResolutionMethodSchema,
-  resolutionDescription: z.string(),
-  neutralityJustification: z.string(),
-  resolutionImpact: z.string().optional(),
-  implementsSrs: z.array(SRReferenceSchema),
-});
-
 export const SystemSuccessTreatmentSchema = z.object({
   treatmentMethod: z.string(),
   systemsWithSuccessModeled: z.array(z.string()),
   impactOnResults: z.string(),
   modelingExamples: z.array(z.string()).optional(),
-  implementsSrs: z.array(SRReferenceSchema),
-});
-
-export const MutuallyExclusiveEventRuleSchema = z.object({
-  uuid: z.string(),
-  description: z.string(),
-  eventIds: z.array(z.string()),
-  basis: z.string(),
-  identifiedInResults: z.boolean(),
-  treatment: z.enum(["LOGIC_ELIMINATION", "CUTSET_DELETION"]),
-  retentionJustification: z.string().optional(),
-  implementsSrs: z.array(SRReferenceSchema),
-});
-
-export const FlagEventSettingSchema = z.object({
-  uuid: z.string(),
-  name: z.string(),
-  purpose: z.string(),
-  state: z.boolean(),
-  effect: z.string(),
-  basis: z.string(),
-  isTemporary: z.boolean(),
-  applicableFamilyRefs: z.array(z.string()).optional(),
-  setPriorToCutsetGeneration: z.boolean(),
-  houseEventNodeRef: z.number().optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -1113,23 +1071,6 @@ export const ModuleUsageRecordSchema = z.object({
   sharedEventsIdentified: z.boolean(),
   trueIndependenceVerified: z.boolean(),
   perEventInterpretabilityMaintained: z.boolean(),
-  implementsSrs: z.array(SRReferenceSchema),
-});
-
-export const MultiHfeCutsetIdentificationSchema = z.object({
-  uuid: z.string(),
-  quantificationResultRef: z.number().optional(),
-  cutsetDescription: z.string(),
-  hfeRefs: z.array(z.string()),
-  potentialRiskImpact: z.string(),
-  implementsSrs: z.array(SRReferenceSchema),
-});
-
-export const HfeDependencyApplicationSchema = z.object({
-  uuid: z.string(),
-  hrDependencyAssessmentRef: z.string(),
-  cutsetContext: z.string(),
-  appliedJointHep: z.number().optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -1505,15 +1446,9 @@ export const EventSequenceQuantificationSchema = z
     quantificationMethods: QuantificationMethodsSchema,
     parameterConsistency: ParameterConsistencyAttestationSchema,
     phenomenaParameterBases: z.array(PhenomenaParameterBasisSchema).optional(),
-    recoveryActionApplications: z.array(RecoveryActionApplicationSchema).optional(),
-    circularLogicResolutions: z.array(CircularLogicResolutionSchema).optional(),
     systemSuccessTreatment: SystemSuccessTreatmentSchema,
-    mutuallyExclusiveEventRules: z.array(MutuallyExclusiveEventRuleSchema).optional(),
-    flagEventSettings: z.array(FlagEventSettingSchema).optional(),
     moduleUsageRecords: z.array(ModuleUsageRecordSchema).optional(),
     dependencyTreatment: DependencyTreatmentSchema,
-    multiHfeCutsetIdentifications: z.array(MultiHfeCutsetIdentificationSchema).optional(),
-    hfeDependencyApplications: z.array(HfeDependencyApplicationSchema).optional(),
     linkingTransferRecords: z.array(LinkingTransferRecordSchema).optional(),
     phenomenaDependencyAssessments: z.array(PhenomenaDependencyAssessmentSchema).optional(),
     barrierQuantifications: z.array(RadionuclideBarrierQuantificationSchema),

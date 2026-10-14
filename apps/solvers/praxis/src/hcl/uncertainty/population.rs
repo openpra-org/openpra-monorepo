@@ -8,7 +8,7 @@ use crate::core::distribution_sampling::{require_probability, UncertaintyProgram
 use crate::core::fault_tree::FaultTree;
 use crate::core::special_functions as kernels;
 use crate::expression::{fragility_probability, Expr};
-use crate::hcl::{HclCptGenerator, HclPgaFrequencyConversion, HclUncertaintySettings};
+use crate::hcl::{HclCorrelation, HclCptGenerator, HclPgaFrequencyConversion, HclUncertaintySettings};
 use crate::{PraxisError, Result};
 
 fn invalid(message: String) -> PraxisError {
@@ -17,6 +17,7 @@ fn invalid(message: String) -> PraxisError {
 
 struct RowTarget {
     node: NodeId,
+    name: String,
     row: usize,
     components: Vec<Expr>,
 }
@@ -59,6 +60,49 @@ pub(super) struct Population {
     pub(super) network: BayesianGraph,
     pub(super) event_samples: HashMap<String, Vec<f64>>,
     pub(super) overrides: HashSet<String>,
+    pub(super) clipped_probabilities: usize,
+    pub(super) epsilon_adjusted_cpt_values: usize,
+}
+
+fn floor_row(values: &mut [f64], epsilon: f64) -> usize {
+    let original = values.to_vec();
+    let mut floored = vec![false; values.len()];
+    loop {
+        let fixed = floored.iter().filter(|held| **held).count();
+        let free_total: f64 = original
+            .iter()
+            .zip(&floored)
+            .filter(|(_, held)| !**held)
+            .map(|(value, _)| *value)
+            .sum();
+        let free_count = floored.len() - fixed;
+        let available = 1.0 - fixed as f64 * epsilon;
+        let scaled = |value: f64| {
+            if free_total > 0.0 {
+                value * available / free_total
+            } else {
+                available / free_count as f64
+            }
+        };
+        let mut grew = false;
+        for (index, value) in original.iter().enumerate() {
+            if !floored[index] && scaled(*value) < epsilon {
+                floored[index] = true;
+                grew = true;
+            }
+        }
+        if !grew {
+            let mut changed = 0;
+            for (index, value) in original.iter().enumerate() {
+                let adjusted = if floored[index] { epsilon } else { scaled(*value) };
+                if adjusted != *value {
+                    changed += 1;
+                }
+                values[index] = adjusted;
+            }
+            return changed;
+        }
+    }
 }
 
 fn row_count(network: &BayesianGraph, node: NodeId) -> Result<usize> {
@@ -151,8 +195,15 @@ impl Plan {
                     width
                 )));
             }
+            if settings.cpt_clip_epsilon * width as f64 > 1.0 {
+                return Err(invalid(format!(
+                    "the CPT epsilon {} is too large for CPT row {} of BN node '{}', which has {} states",
+                    settings.cpt_clip_epsilon, entry.row_index, entry.node, width
+                )));
+            }
             rows.push(RowTarget {
                 node,
+                name: entry.node.clone(),
                 row: entry.row_index,
                 components,
             });
@@ -311,26 +362,49 @@ impl Plan {
     }
 
     pub(super) fn draw(self, network: &BayesianGraph, settings: &HclUncertaintySettings) -> Result<Population> {
-        let mut targets: Vec<&Expr> = self.events.values().collect();
+        let mut groups: Vec<(String, Vec<&Expr>)> = Vec::new();
+        for (id, expression) in &self.events {
+            groups.push((format!("event:{id}"), vec![expression]));
+        }
         for row in &self.rows {
-            targets.extend(row.components.iter());
+            groups.push((format!("cpt:{}/{}", row.name, row.row), row.components.iter().collect()));
         }
         for fragility in &self.fragilities {
-            targets.push(&fragility.median);
-            targets.push(&fragility.randomness);
+            groups.push((format!("fragility:{}", fragility.name), vec![&fragility.median, &fragility.randomness]));
         }
         for bins in &self.pga_bins {
-            targets.push(&bins.mission_time);
+            let mut targets = vec![&bins.mission_time];
             targets.extend(bins.bins.iter().map(|bin| &bin.frequency));
+            groups.push((format!("pga:{}", bins.name), targets));
         }
-        let mut columns = self.program.sample(&targets, &settings.plan())?.into_iter();
+        let drawn = match settings.correlation {
+            HclCorrelation::Shared => {
+                let targets: Vec<&Expr> = groups.iter().flat_map(|(_, targets)| targets.iter().copied()).collect();
+                settings.draw(&self.program, "", &targets)?
+            }
+            HclCorrelation::Independent => {
+                let mut drawn = Vec::new();
+                for (user, targets) in &groups {
+                    drawn.extend(settings.draw(&self.program, user, targets)?);
+                }
+                drawn
+            }
+        };
+        let mut columns = drawn.into_iter();
         let count = settings.sample_count;
+        let mut clipped_probabilities = 0;
+        let mut epsilon_adjusted_cpt_values = 0;
 
         let mut event_samples = HashMap::with_capacity(self.events.len());
         for id in self.events.keys() {
-            let column = columns.next().ok_or_else(missing)?;
-            for (trial, value) in column.iter().enumerate() {
-                require_probability(&format!("basic event '{}'", id), Some(trial), *value)?;
+            let mut column = columns.next().ok_or_else(missing)?;
+            for (trial, value) in column.iter_mut().enumerate() {
+                if settings.clip_probabilities && value.is_finite() && !(0.0..=1.0).contains(value) {
+                    *value = value.clamp(0.0, 1.0);
+                    clipped_probabilities += 1;
+                } else {
+                    require_probability(&format!("basic event '{}'", id), Some(trial), *value)?;
+                }
             }
             event_samples.insert(id.clone(), column);
         }
@@ -353,6 +427,18 @@ impl Plan {
                 let column = columns.next().ok_or_else(missing)?;
                 for (trial, value) in column.iter().enumerate() {
                     target[(row.row * width + state) * count + trial] = *value;
+                }
+            }
+            if settings.cpt_clip_epsilon > 0.0 {
+                let mut values = vec![0.0; width];
+                for trial in 0..count {
+                    for (state, value) in values.iter_mut().enumerate() {
+                        *value = target[(row.row * width + state) * count + trial];
+                    }
+                    epsilon_adjusted_cpt_values += floor_row(&mut values, settings.cpt_clip_epsilon);
+                    for (state, value) in values.iter().enumerate() {
+                        target[(row.row * width + state) * count + trial] = *value;
+                    }
                 }
             }
         }
@@ -382,8 +468,12 @@ impl Plan {
                 }
                 for (row, demand) in fragility.row_demands.iter().enumerate() {
                     let probability = fragility_probability(median, spread, *demand)?;
-                    values[(row * 2 + fragility.true_index) * count + trial] = probability;
-                    values[(row * 2 + fragility.false_index) * count + trial] = 1.0 - probability;
+                    let mut pair = [probability, 1.0 - probability];
+                    if settings.cpt_clip_epsilon > 0.0 {
+                        epsilon_adjusted_cpt_values += floor_row(&mut pair, settings.cpt_clip_epsilon);
+                    }
+                    values[(row * 2 + fragility.true_index) * count + trial] = pair[0];
+                    values[(row * 2 + fragility.false_index) * count + trial] = pair[1];
                 }
             }
             generated.push((fragility.node, values));
@@ -401,10 +491,14 @@ impl Plan {
                 let mut total = 0.0;
                 for (bin, column) in bins.bins.iter().zip(&frequencies) {
                     let exposure = column[trial] * times[trial];
-                    let probability = match bins.conversion {
+                    let mut probability = match bins.conversion {
                         HclPgaFrequencyConversion::Poisson => -kernels::exp_minus_one(-exposure)?,
                         HclPgaFrequencyConversion::Linear => exposure,
                     };
+                    if settings.clip_probabilities && probability.is_finite() && !(0.0..=1.0).contains(&probability) {
+                        probability = probability.clamp(0.0, 1.0);
+                        clipped_probabilities += 1;
+                    }
                     require_probability(
                         &format!("PGA bin '{}' of BN node '{}'", bin.state_id, bins.name),
                         Some(trial),
@@ -434,6 +528,8 @@ impl Plan {
             network: result,
             event_samples,
             overrides: self.overrides,
+            clipped_probabilities,
+            epsilon_adjusted_cpt_values,
         })
     }
 }

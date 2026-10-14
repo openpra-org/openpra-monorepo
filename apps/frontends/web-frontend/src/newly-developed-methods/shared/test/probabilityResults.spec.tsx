@@ -184,7 +184,7 @@ describe("BN results", () => {
     );
     expect(screen.queryByText("Named scenario 26")).not.toBeInTheDocument();
     fireEvent.click(
-      within(screen.getByRole("navigation", { name: "BN scenarios pagination" })).getByRole("button", { name: "Next" }),
+      within(screen.getByRole("navigation", { name: "BN scenarios pagination" })).getByRole("button", { name: "Last" }),
     );
     expect(screen.getByText("Named scenario 26")).toBeInTheDocument();
     expect(screen.getByText("Impossible evidence")).toBeInTheDocument();
@@ -212,7 +212,7 @@ describe("BN results", () => {
         model={model}
       />,
     );
-    expect(screen.getAllByRole("status")).toHaveLength(25);
+    expect(screen.getAllByRole("status")).toHaveLength(10);
     fireEvent.click(screen.getByRole("button", { name: "Last" }));
     expect(screen.getByText(`unknown-29 / ${TEST_ID.aTrue}`)).toBeInTheDocument();
   });

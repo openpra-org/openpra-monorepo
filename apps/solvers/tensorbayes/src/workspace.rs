@@ -20,6 +20,8 @@ pub struct InferenceWorkspace {
     node_to_clique: Vec<usize>,
     soft_evidence: HashMap<NodeId, SoftEvidence>,
     calibrated: bool,
+    allow_zero_mass: bool,
+    zero_mass_rows: Vec<usize>,
 }
 
 impl InferenceWorkspace {
@@ -34,7 +36,18 @@ impl InferenceWorkspace {
             node_to_clique,
             soft_evidence: HashMap::new(),
             calibrated: false,
+            allow_zero_mass: false,
+            zero_mass_rows: Vec::new(),
         }
+    }
+
+    pub fn allow_zero_mass(&mut self, allowed: bool) {
+        self.allow_zero_mass = allowed;
+        self.calibrated = false;
+    }
+
+    pub fn zero_mass_rows(&self) -> &[usize] {
+        &self.zero_mass_rows
     }
 
     pub fn tree(&self) -> &CompiledJunctionTree {
@@ -112,6 +125,7 @@ impl InferenceWorkspace {
         self.validate_batch_geometry(evidence.batch_size())?;
         self.batch_size = evidence.batch_size();
         self.calibrated = false;
+        self.zero_mass_rows.clear();
         self.rebuild_clique_potentials()?;
         self.apply_evidence(evidence)?;
 
@@ -152,6 +166,10 @@ impl InferenceWorkspace {
         let partition = self.calibrated_potentials[0].project_to(&[])?;
         for batch in 0..self.batch_size {
             let mass = partition.tensor().values()[batch];
+            if mass == 0.0 && self.allow_zero_mass {
+                self.zero_mass_rows.push(batch);
+                continue;
+            }
             if !mass.is_finite() || mass <= 0.0 {
                 return Err(Error::ZeroMassEvidence { batch });
             }
@@ -171,7 +189,7 @@ impl InferenceWorkspace {
             .get(node.index())
             .ok_or(Error::UnknownNode(node))?;
         let marginal = self.calibrated_potentials[clique_id].project_to(&[node])?;
-        let values = normalized_row_major(&marginal, cardinality)?;
+        let values = normalized_row_major(&marginal, cardinality, &self.zero_mass_rows)?;
         Ok(MarginalBatch::new(self.batch_size, cardinality, values))
     }
 
@@ -394,10 +412,13 @@ fn validate_likelihood_values(node: NodeId, values: &[f64]) -> Result<()> {
     Ok(())
 }
 
-fn normalized_row_major(factor: &Factor, cardinality: usize) -> Result<Vec<f64>> {
+fn normalized_row_major(factor: &Factor, cardinality: usize, zero_rows: &[usize]) -> Result<Vec<f64>> {
     let batch_size = factor.batch_size();
     let mut values = vec![0.0; batch_size * cardinality];
     for batch in 0..batch_size {
+        if zero_rows.contains(&batch) {
+            continue;
+        }
         let mut sum = 0.0;
         for state in 0..cardinality {
             sum += factor.tensor().values()[state * batch_size + batch];

@@ -40,6 +40,7 @@ interface BayesianNetworkEditorProps {
   hclExternalBindingLabels?: HclBindingEditorProps["externalBindingLabels"];
   hclReferencedFaultTrees?: HclBindingEditorProps["referencedFaultTrees"];
   hclScope?: "BOTH" | "FAULT_TREE" | "EVENT_TREE";
+  analysisHost?: HclBindingEditorProps["analysisHost"];
   evidence: BayesianNetworkEvidenceConfiguration;
   queryNodeId: string | null;
   validation: ValidationIssue[];

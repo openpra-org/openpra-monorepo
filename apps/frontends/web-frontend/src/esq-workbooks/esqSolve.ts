@@ -2,6 +2,7 @@ import {
   ESQ_PLAN_DEFAULTS,
   type EsqCutOffBasis,
   type EsqCutSetQuantifier,
+  type EsqCutSetReview,
   type EsqFamilyRunValue,
   type EsqFamilySolve,
   type EsqFamilyValueSource,
@@ -18,8 +19,9 @@ import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequen
 import { solveInputsKey, solveWorkOf } from "interfaces-mef-types/esq/esq-solve-inputs";
 import type { EsqModelRunResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import { modelViewOf, type EsqFamilyView, type EsqFindingSeverity } from "./esqModel";
+import { rulesLeftOut } from "./esqLogic";
 
-type EsqSolveWindowKind = "esqSolveFamily" | "esqSolveRun";
+type EsqSolveWindowKind = "esqSolveFamily" | "esqSolveRun" | "esqSolveCutSet";
 
 interface EsqSolveFinding {
   severity: EsqFindingSeverity;
@@ -62,6 +64,7 @@ interface EsqSolveView {
   stale: boolean;
   stepPercent: number;
   families: EsqSolveFamilyView[];
+  reviews: EsqCutSetReview[];
   findings: EsqSolveFinding[];
 }
 
@@ -85,6 +88,22 @@ const QUANTIFIER_LABELS: Record<EsqCutSetQuantifier, string> = { MCUB: "Upper bo
 const BASIS_LABELS: Record<EsqCutOffBasis, string> = { FREQUENCY: "Frequency per year", PROBABILITY: "Probability" };
 
 const SOURCE_LABELS: Record<EsqFamilyValueSource, string> = { RUN: "PRAXIS run", TYPED: "Typed", IMPORTED: "Imported from ES" };
+
+const QUANTIFIER_CUES: Record<EsqCutSetQuantifier, string> = { MCUB: "the min cut upper bound", EXACT: "the exact union", RARE_EVENT: "the rare event sum" };
+
+function cutOffText(cutOff: number): string {
+  const exponent = Math.round(Math.log10(cutOff));
+  return Math.abs(cutOff - 10 ** exponent) <= 1e-9 * cutOff ? `1E${String(exponent)}` : cutOff.toExponential(1).toUpperCase();
+}
+
+function runQuantityText(run: EsqSolveRun): string {
+  const cutOffs = run.cutOffs ?? [];
+  const cutOff = cutOffs[cutOffs.length - 1];
+  if (run.calculation !== "CUT_SETS" || cutOff === undefined) return "the exact sequence diagrams";
+  const unit = run.basis === "PROBABILITY" ? "" : " per year";
+  const order = run.limitOrder === undefined ? "" : ` up to order ${String(run.limitOrder)}`;
+  return `the minimal cut sets above ${cutOffText(cutOff)}${unit}${order}, summed with ${QUANTIFIER_CUES[run.quantifier ?? "MCUB"]}`;
+}
 
 function blank(text: string | undefined): boolean {
   return text === undefined || text.trim().length === 0;
@@ -161,11 +180,38 @@ function pctText(value: number | undefined): string {
   return `${size < 0.01 ? value.toExponential(1).replace("e", "E") : value.toFixed(2)}%`;
 }
 
+function reviewFindings(view: Omit<EsqSolveView, "findings">): EsqSolveFinding[] {
+  const findings: EsqSolveFinding[] = [];
+  const codes = new Map(view.model.events.map((event) => [event.id, event.code]));
+  const label = (review: EsqCutSetReview): string => review.eventIds.map((id) => codes.get(id) ?? id).join(" · ");
+  if (view.run !== undefined) {
+    for (const family of view.families) {
+      if (!family.family.release || !((family.value ?? 0) > 0)) continue;
+      if (!view.reviews.some((review) => review.familyId === family.id && review.significant && review.verdict !== undefined)) {
+        findings.push({ severity: "error", check: "No significant cut set reviewed", item: family.id, detail: "Review at least one significant cut set of this family and record whether its logic is correct (ESQ-D1)." });
+      }
+    }
+    if (!view.reviews.some((review) => !review.significant && review.verdict !== undefined)) {
+      findings.push({ severity: "warning", check: "No non-significant cut set sampled", item: "Cut sets", detail: "Review a few non-significant cut sets and confirm they are physically meaningful (ESQ-D5)." });
+    }
+  }
+  for (const review of view.reviews) {
+    const target = { kind: "esqSolveCutSet" as const, id: review.key };
+    if (review.verdict === "ISSUE" && blank(review.note)) findings.push({ severity: "error", check: "Issue without a note", item: label(review), detail: "Describe what is wrong with the cut set and how it is corrected.", target });
+    if (review.verdict === "ISSUE" && !blank(review.note)) findings.push({ severity: "warning", check: "Cut set marked wrong", item: label(review), detail: review.note.trim(), target });
+  }
+  return findings;
+}
+
 function solveFindings(view: Omit<EsqSolveView, "findings">): EsqSolveFinding[] {
   const findings: EsqSolveFinding[] = [];
   const run = view.run;
   if (run !== undefined && view.stale) {
     findings.push({ severity: "error", check: "Result older than its inputs", item: "Run of record", detail: "The model, logic or values changed after the run of record. Run the model again and use the new run.", target: { kind: "esqSolveRun", id: "run" } });
+  }
+  const leftOut = run === undefined ? [] : rulesLeftOut(run.logic);
+  if (leftOut.length > 0) {
+    findings.push({ severity: "error", check: "Run of record leaves rules out", item: "Run of record", detail: `The run of record runs without ${leftOut.join(" and ")}. Run the model again and use the new run.`, target: { kind: "esqSolveRun", id: "run" } });
   }
   if (run?.quantifier === "RARE_EVENT" && (run.peakProbability ?? 0) > RARE_EVENT_LIMIT && blank(view.work.rareEventReason)) {
     findings.push({ severity: "error", check: "Rare event above 0.1 without a reason", item: "Run of record", detail: `A sequence reaches ${(run.peakProbability ?? 0).toPrecision(3)} given its initiator. Record why the rare event sum is acceptable (ESQ-N-5), or use the upper bound or exact.`, target: { kind: "esqSolveRun", id: "run" } });
@@ -204,8 +250,9 @@ function solveFindings(view: Omit<EsqSolveView, "findings">): EsqSolveFinding[] 
     }
   }
   if (run !== undefined && !view.families.some((family) => family.solve?.typed !== undefined || family.solve?.imported !== undefined)) {
-    findings.push({ severity: "note", check: "No independent comparison", item: "Verification", detail: "No family has a typed or imported value beside its PRAXIS value (ESQ-B1)." });
+    findings.push({ severity: "note", check: "No independent comparison", item: "Families", detail: "No family has a typed or imported value beside its PRAXIS value (ESQ-B1)." });
   }
+  findings.push(...reviewFindings(view));
   return [...findings].sort((a, b) => FINDING_RANK[a.severity] - FINDING_RANK[b.severity]);
 }
 
@@ -243,6 +290,7 @@ function solveViewOf(esq: EventSequenceQuantification, es?: EventSequenceAnalysi
     stale: work.run !== undefined && work.run.inputs !== solveInputsKey(esq),
     stepPercent,
     families,
+    reviews: esq.review?.cutSetReviews ?? [],
   };
   const withRun = work.run === undefined ? base : { ...base, run: work.run };
   return { ...withRun, findings: solveFindings(withRun) };
@@ -334,6 +382,7 @@ function runOfRecord(summary: EsqModelRunResult): EsqSolveRun {
   }
   if (summary.peakProbability !== null) run.peakProbability = summary.peakProbability;
   if (peakInitiator > 0) run.peakInitiatorFrequency = peakInitiator;
+  if (summary.hcl !== undefined) run.hcl = { workbookId: summary.hcl.workbookId, modelId: summary.hcl.modelId, treeIds: [...summary.hcl.treeIds] };
   return run;
 }
 
@@ -400,6 +449,7 @@ export {
   lastChange,
   pctText,
   runConvergenceOf,
+  runQuantityText,
   solveComplete,
   solveViewOf,
   summaryProblem,

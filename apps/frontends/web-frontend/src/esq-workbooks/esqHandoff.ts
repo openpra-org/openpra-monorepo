@@ -39,7 +39,6 @@ import { convergenceOf, familyValueOf, type EsqSolveWindowKind } from "./esqSolv
 import {
   CONSISTENCY_LABELS,
   contributorRows,
-  cutSetRunIdOf,
   measureRows,
   releaseFamilyIds,
   resultsViewOf,
@@ -704,11 +703,11 @@ function createdValues(esq: EventSequenceQuantification): EsqCreatedValue[] {
   }
   for (const combination of resolvedCombinations(esq)) {
     if (combination.source !== "TYPED" || combination.joint === undefined) continue;
-    out.push({ key: `joint:${combination.combination.id}`, item: combination.combination.id, value: combination.joint, where: "Step 06 joint HEP", source: combination.combination.typed?.source ?? "" });
+    out.push({ key: `joint:${combination.combination.id}`, item: combination.combination.id, value: combination.joint, where: "Step 04 joint HEP", source: combination.combination.typed?.source ?? "" });
   }
   for (const recovery of resolvedRecoveries(esq)) {
     if (recovery.source !== "TYPED" || recovery.expression === undefined) continue;
-    out.push({ key: `recovery:${recovery.id}`, item: `NR-${recovery.id}`, expression: recovery.expression, where: "Step 06 non-recovery HEP", source: recovery.rule?.typed?.source ?? "" });
+    out.push({ key: `recovery:${recovery.id}`, item: `NR-${recovery.id}`, expression: recovery.expression, where: recovery.repair ? "Step 04 non-repair probability" : "Step 04 non-recovery HEP", source: recovery.rule?.typed?.source ?? "" });
   }
   return out;
 }
@@ -768,8 +767,8 @@ function handoffViewOf(esq: EventSequenceQuantification, upstream: EsqUpstream):
   }
   if (run === undefined) findings.push({ severity: "error", check: "No run of record", item: "Run of record", detail: "Run the model in Step 05 and use the run." });
   else if (full.runStale) findings.push({ severity: "error", check: "Value of record older than its inputs", item: "Run of record", detail: "The model, logic or values changed after the run of record. Run the model again in Step 05.", target: { kind: "esqSolveRun", id: "run" } });
-  if (!full.importanceCurrent) findings.push({ severity: "warning", check: "Importance not current", item: "Importance", detail: "RI and DA receive no current importance. Rank again in Step 07." });
-  if (!full.uncertaintyCurrent) findings.push({ severity: esq.capabilityCategory === "CC-I" ? "warning" : "error", check: "No current propagated mean", item: "Uncertainty", detail: "The families go out without a current sampled mean and percentiles. Sample again in Step 08." });
+  if (!full.importanceCurrent) findings.push({ severity: "warning", check: "Importance not current", item: "Importance", detail: "RI and DA receive no current importance. Rank again in Step 06." });
+  if (!full.uncertaintyCurrent) findings.push({ severity: esq.capabilityCategory === "CC-I" ? "warning" : "error", check: "No current propagated mean", item: "Uncertainty", detail: "The families go out without a current sampled mean and percentiles. Sample again in Step 07." });
   if (!full.published) findings.push({ severity: "error", check: "Not published", item: "Hand-off", detail: "Publish the family package so RI and DA read it." });
   else if (full.publishedStale) findings.push({ severity: "error", check: "Published package older than the workbook", item: "Hand-off", detail: "Results, reviews or cases changed after the last publication. Publish again." });
   for (const item of full.feedback) {
@@ -777,7 +776,7 @@ function handoffViewOf(esq: EventSequenceQuantification, upstream: EsqUpstream):
     if (response === undefined || blank(response.response)) findings.push({ severity: "warning", check: "RI feedback with no response", item: item.label, detail: `${item.significance === undefined ? "" : `RI rates it ${item.significance.toLowerCase()}. `}Record the response and where it goes.`, target: { kind: "esqHandoffResponse", id: item.id } });
     else if (item.significance === ImportanceLevel.HIGH && item.kind === "CONTRIBUTOR" && response.sentTo === undefined) findings.push({ severity: "note", check: "Significant item not routed", item: item.label, detail: "Send it to the element that owns it.", target: { kind: "esqHandoffResponse", id: item.id } });
   }
-  if (cutSetRunIdOf(esq) === undefined && run !== undefined) findings.push({ severity: "note", check: "No cut sets behind the review", item: "Cut sets", detail: "Step 07 has no cut set list, so the published reviews hold no cut set." });
+  if (run !== undefined && !(reviewOf(esq).cutSetReviews ?? []).some((entry) => entry.verdict !== undefined)) findings.push({ severity: "note", check: "No cut set reviewed", item: "Cut sets", detail: "Step 05 holds no cut set review, so the published reviews hold no cut set." });
   return { ...full, findings: findings.sort((a, b) => FINDING_RANK[a.severity] - FINDING_RANK[b.severity]) };
 }
 

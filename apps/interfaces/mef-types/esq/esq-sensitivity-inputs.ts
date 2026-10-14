@@ -178,7 +178,8 @@ function applySensitivityCase(source: EventSequenceQuantification, entry: EsqSen
       for (const rule of esq.postWork?.recoveries ?? []) {
         if (!rule.credited) continue;
         const record = model.recoveries?.find((candidate) => candidate.id === rule.id);
-        const law = rule.ofRecord === "TYPED" || record?.hep === undefined ? rule.typed?.expression : record.hep;
+        const source = rule.ofRecord ?? (record?.hep !== undefined ? "HRA" : rule.parameterId !== undefined ? "DA" : "TYPED");
+        const law = source === "HRA" ? record?.hep : source === "TYPED" ? rule.typed?.expression : undefined;
         const value = raised(`RECOVERY:${rule.id}`, law);
         if (value === undefined) {
           applied.kept.push(rule.id);

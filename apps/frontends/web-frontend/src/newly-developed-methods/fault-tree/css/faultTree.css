@@ -222,10 +222,14 @@ button.fteditor__crumb:hover {
 }
 
 .fteditor__inspector h3,
-.fteditor__results h3,
 .fteditor__validation h3 {
   margin: 0 0 10px;
   font-size: 13px;
+}
+
+.fteditor__results h3 {
+  margin: 0;
+  font-size: 16px;
 }
 
 .fteditor__empty {
@@ -455,6 +459,13 @@ button.fteditor__crumb:hover {
   font-weight: 700;
 }
 
+.fteditor__context-caption {
+  padding: 2px 7px 0;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .fteditor__context-results {
   display: grid;
   max-height: 180px;
@@ -621,14 +632,18 @@ button.fteditor__crumb:hover {
   line-height: 1.45;
 }
 
+.fteditor__results .fteditor__run-detail {
+  font-size: 15px;
+}
+
 .fteditor__pill {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  padding: 3px 8px;
+  padding: 3px 10px;
   background: var(--color-surface-low);
   color: var(--color-text-muted);
-  font-size: 10.5px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -671,32 +686,34 @@ button.fteditor__crumb:hover {
 
 .fteditor__result-metrics {
   display: grid;
-  width: min(100%, 320px);
+  width: min(100%, 560px);
   grid-template-columns: minmax(0, 1fr);
-  margin: 14px auto 16px;
+  gap: 6px;
+  margin: 16px auto 18px;
 }
 
 .fteditor__result-metric {
   display: grid;
   min-width: 0;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: baseline;
   gap: 18px;
-  padding: 2px 0;
+  padding: 3px 0;
+}
+
+.fteditor__result-metric > span,
+.fteditor__result-metric > strong {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.3;
 }
 
 .fteditor__result-metric > span {
   color: var(--color-text-muted);
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 .fteditor__result-metric > strong {
   color: var(--color-text);
-  font-size: 11.5px;
-  line-height: 1.3;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -704,7 +721,7 @@ button.fteditor__crumb:hover {
 .fteditor__result-section {
   min-width: 0;
   border-top: 1px solid var(--color-border);
-  padding: 14px 0 2px;
+  padding: 16px 0 4px;
 }
 
 .fteditor__result-section-heading {
@@ -712,20 +729,20 @@ button.fteditor__crumb:hover {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .fteditor__result-section-heading h4 {
   margin: 0;
   color: var(--color-text);
-  font-size: 12px;
+  font-size: 15.5px;
 }
 
 .fteditor__result-section-heading span,
 .fteditor__result-note {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 15px;
 }
 
 .fteditor__result-table-wrap {
@@ -736,28 +753,30 @@ button.fteditor__crumb:hover {
 .fteditor__result-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 15px;
 }
 
 .fteditor__result-table th,
 .fteditor__result-table td {
   border-bottom: 1px solid var(--color-border);
-  padding: 7px 9px;
+  padding: 9px 12px;
   text-align: left;
   white-space: nowrap;
 }
 
 .fteditor__result-table th {
   color: var(--color-text-muted);
-  font-size: 9px;
-  letter-spacing: .04em;
-  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.fteditor__result-table td {
+  font-variant-numeric: tabular-nums;
 }
 
 .fteditor__result-definition {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px 20px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 8px 22px;
   margin: 0;
 }
 
@@ -766,18 +785,21 @@ button.fteditor__crumb:hover {
   justify-content: space-between;
   gap: 12px;
   border-bottom: 1px solid var(--color-border);
-  padding: 5px 0;
+  padding: 7px 0;
+}
+
+.fteditor__result-definition dt,
+.fteditor__result-definition dd {
+  margin: 0;
+  font-size: 15px;
 }
 
 .fteditor__result-definition dt {
   color: var(--color-text-muted);
-  font-size: 10px;
 }
 
 .fteditor__result-definition dd {
-  margin: 0;
   color: var(--color-text);
-  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -814,11 +836,6 @@ button.fteditor__crumb:hover {
   color: var(--color-error);
   font-size: 9.5px;
   letter-spacing: 0.03em;
-}
-
-.fteditor__mono {
-  font-family: var(--font-data), ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
 }
 
 .fteditor__file {

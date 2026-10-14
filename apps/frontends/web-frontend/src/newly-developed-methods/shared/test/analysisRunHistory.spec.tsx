@@ -31,6 +31,7 @@ const run: AnalysisRunMetadata = {
       { workbookId: "w", savedRevision: 1, currentRevision: 1, status: "CURRENT" },
       { workbookId: "da", savedRevision: 3, currentRevision: 4, status: "CHANGED" },
     ],
+    change: "The estimate of DA parameter LAMBDA-1 changed.",
   },
 };
 const details: AnalysisRunDetails = {
@@ -77,11 +78,11 @@ it("opens and closes analysis history with the saved-runs button", async () => {
   expect(get).not.toHaveBeenCalled();
   fireEvent.click(openButton);
   expect(screen.getByRole("button", { name: "Hide saved runs" })).toHaveAttribute("aria-expanded", "true");
-  await screen.findByRole("button", { name: /FAULT TREE/ });
+  await screen.findByRole("button", { name: /Fault tree/ });
 
   fireEvent.click(screen.getByRole("button", { name: "Hide saved runs" }));
   expect(screen.getByRole("button", { name: "Review saved runs" })).toHaveAttribute("aria-expanded", "false");
-  expect(screen.queryByRole("button", { name: /FAULT TREE/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Fault tree/ })).not.toBeInTheDocument();
 });
 
 it("opens a historical result with changed DA revisions and preserved probability", async () => {
@@ -94,11 +95,11 @@ it("opens a historical result with changed DA revisions and preserved probabilit
   );
   expect(get).not.toHaveBeenCalled();
   openHistory();
-  await screen.findByRole("button", { name: /FAULT TREE/ });
-  fireEvent.click(screen.getByRole("button", { name: /FAULT TREE/ }));
+  await screen.findByRole("button", { name: /Fault tree/ });
+  fireEvent.click(screen.getByRole("button", { name: /Fault tree/ }));
   expect(await screen.findByLabelText("1.00 times 10 to the power of −2")).toBeInTheDocument();
   expect(screen.getByText(/saved revision 3, current revision 4/)).toBeInTheDocument();
-  expect(screen.getByText(/Historical result: sources have changed/)).toBeInTheDocument();
+  expect(screen.getByText("The estimate of DA parameter LAMBDA-1 changed.")).toBeInTheDocument();
   expect(screen.getByText(/Native build: sha256:/)).toBeInTheDocument();
 });
 
@@ -154,7 +155,7 @@ it("clears a downloaded-detail view when source access is revoked on refresh", a
     />,
   );
   openHistory();
-  fireEvent.click(await screen.findByRole("button", { name: /FAULT TREE/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /Fault tree/ }));
   await screen.findByLabelText("1.00 times 10 to the power of −2");
   get.mockRejectedValue(new Error("Source access revoked"));
   fireEvent.focus(window);
@@ -189,7 +190,7 @@ it("discards late history responses after switching workbooks", async () => {
   await act(async () => {
     resolve(page());
   });
-  expect(screen.queryByRole("button", { name: /FAULT TREE/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Fault tree/ })).not.toBeInTheDocument();
 });
 
 function Guard({ workbookId = "w" }: { workbookId?: string }) {
@@ -205,7 +206,7 @@ it("invalidates active results when an external source changes", async () => {
   get.mockResolvedValue(run);
   render(<Guard />);
   act(() => notifyAnalysisRun("/api/sy-workbooks/w/fault-trees/model/runs", { run: { id } }));
-  await screen.findByText(/A source workbook changed/);
+  await screen.findByText("The estimate of DA parameter LAMBDA-1 changed.");
   expect(screen.getByText("1")).toBeInTheDocument();
 });
 it("rechecks a current result on focus and invalidates it after source access is revoked", async () => {
@@ -215,7 +216,7 @@ it("rechecks a current result on focus and invalidates it after source access is
   await waitFor(() => expect(get).toHaveBeenCalledTimes(1));
   get.mockRejectedValue(new Error("Forbidden"));
   fireEvent.focus(window);
-  await screen.findByText(/Source access or revisions could not be verified/);
+  await screen.findByText("The sources of these results could not be checked.");
 });
 it("checks the complete batch parent rather than issuing one check per scenario", async () => {
   get.mockResolvedValue({ ...run, freshness: { status: "CURRENT", sources: [] } });

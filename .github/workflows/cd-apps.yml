@@ -161,6 +161,8 @@ jobs:
           RESEND_API_KEY: ${{ secrets.APPS_RESEND_API_KEY }}
           TFA_ENC_KEY: ${{ secrets.APPS_TFA_ENC_KEY }}
           ADMIN_BOOTSTRAP_EMAILS: ${{ secrets.APPS_ADMIN_BOOTSTRAP_EMAILS }}
+          PRAETOR_WORKERS: "4"
+          PRAETOR_WORKER_SLOTS: "1"
         run: |
           docker stack deploy \
             --with-registry-auth \

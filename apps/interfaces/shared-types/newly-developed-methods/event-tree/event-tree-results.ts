@@ -145,6 +145,8 @@ interface EventTreeSequenceAnalysisResult {
 interface EventTreeEndStateAggregate {
   endStateId: WorkbookEntityId;
   annualFrequency: number;
+  sequenceSum?: number;
+  sequencesOverlap?: boolean;
   uncertainty?: HclUncertaintySummary;
 }
 
@@ -319,6 +321,12 @@ interface EsqModelRunEndState {
   annualFrequency: number;
 }
 
+interface EsqModelRunHclResult {
+  workbookId: string;
+  modelId: string;
+  treeIds: string[];
+}
+
 interface EsqPostCombinationFinding {
   eventIds: string[];
   treeIds: string[];
@@ -367,6 +375,7 @@ interface EsqModelRunResult {
   eventCodes: Record<string, string>;
   peakProbability: number | null;
   caseId?: string;
+  hcl?: EsqModelRunHclResult;
 }
 
 interface EsqImportanceRunResult {
@@ -522,6 +531,8 @@ const EventTreeEndStateAggregateSchema = z
   .object({
     endStateId: WorkbookEntityIdSchema,
     annualFrequency: z.number().nonnegative("Annual frequency cannot be negative"),
+    sequenceSum: z.number().nonnegative("A sequence sum cannot be negative").optional(),
+    sequencesOverlap: z.boolean().optional(),
     uncertainty: HclUncertaintySummarySchema.optional(),
   })
   .strict();
@@ -647,6 +658,14 @@ const EsqModelRunEndStateSchema = z
   })
   .strict();
 
+const EsqModelRunHclResultSchema = z
+  .object({
+    workbookId: z.string().min(1),
+    modelId: z.string().min(1),
+    treeIds: z.array(z.string().min(1)),
+  })
+  .strict();
+
 const EsqPostRunResultSchema = z
   .object({
     schemaVersion: WorkbookMethodSchemaVersionSchema,
@@ -702,6 +721,7 @@ const EsqModelRunResultSchema = z
     eventCodes: z.record(z.string(), z.string()),
     peakProbability: ProbabilitySchema.nullable(),
     caseId: z.string().min(1).optional(),
+    hcl: EsqModelRunHclResultSchema.optional(),
   })
   .strict();
 
@@ -876,6 +896,7 @@ export type {
   EsqModelRunFamilyState,
   EsqModelRunFamily,
   EsqModelRunEndState,
+  EsqModelRunHclResult,
   EsqModelRunResult,
   EventTreeCutSetFocusItems,
   EsqPostCombinationFinding,

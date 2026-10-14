@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
-use rand::{Rng, SeedableRng};
+use rand::rngs::OsRng;
+use rand::{Rng, RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use rand_distr::{Distribution, Gamma};
 use serde::{Deserialize, Serialize};
@@ -32,6 +33,19 @@ pub struct SamplingPlan {
     pub method: SamplingMethod,
     pub trials: usize,
     pub seed: u64,
+}
+
+pub struct DrawPlan<'a> {
+    pub trials: usize,
+    pub seed: u64,
+    pub method: &'a dyn Fn(&str, bool) -> SamplingMethod,
+    pub stream: &'a dyn Fn(&str) -> String,
+}
+
+pub const LARGEST_EXACT_SEED: u64 = (1 << 53) - 1;
+
+pub fn fresh_seed() -> u64 {
+    OsRng.next_u64() & LARGEST_EXACT_SEED
 }
 
 pub fn stream_seed(seed: u64, key: &str) -> u64 {
@@ -525,6 +539,20 @@ impl UncertaintyProgram {
     }
 
     pub fn sample(&self, targets: &[&Expr], plan: &SamplingPlan) -> Result<Vec<Vec<f64>>> {
+        let method = |_: &str, _: bool| plan.method;
+        let stream = |key: &str| key.to_string();
+        self.sample_drawn(
+            targets,
+            &DrawPlan {
+                trials: plan.trials,
+                seed: plan.seed,
+                method: &method,
+                stream: &stream,
+            },
+        )
+    }
+
+    pub fn sample_drawn(&self, targets: &[&Expr], plan: &DrawPlan) -> Result<Vec<Vec<f64>>> {
         if plan.trials == 0 {
             return Err(PraxisError::Settings(
                 "sampling needs at least one trial".to_string(),
@@ -541,10 +569,20 @@ impl UncertaintyProgram {
         let mut columns = Vec::with_capacity(collected.laws.len());
         for (key, law) in &collected.laws {
             let prepared = self.prepared_law(key, law)?;
-            columns.push((key.clone(), draw_law(key, &prepared, plan)?));
+            let sampling = SamplingPlan {
+                method: (plan.method)(key, false),
+                trials: plan.trials,
+                seed: plan.seed,
+            };
+            columns.push((key.clone(), draw_law(&(plan.stream)(key), &prepared, &sampling)?));
         }
         for (key, law) in &collected.vectors {
-            for (index, column) in draw_vector(key, law, plan)?.into_iter().enumerate() {
+            let sampling = SamplingPlan {
+                method: (plan.method)(key, true),
+                trials: plan.trials,
+                seed: plan.seed,
+            };
+            for (index, column) in draw_vector(&(plan.stream)(key), law, &sampling)?.into_iter().enumerate() {
                 columns.push((component_key(key, index), column));
             }
         }

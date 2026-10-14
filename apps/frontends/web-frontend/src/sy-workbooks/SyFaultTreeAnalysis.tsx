@@ -9,6 +9,7 @@ import type {
 } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { FaultTreeResults } from "../newly-developed-methods/fault-tree";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
+import { AnalysisJobs } from "../newly-developed-methods/shared/analysisJobs";
 import { useSyWorkbook } from "./syWorkbookContext";
 import { hoursPoint, hoursText, type HoursState } from "../sc-workbooks/scMissionTimePoints";
 import "./css/syFaultTreeAnalysis.css";
@@ -26,7 +27,7 @@ interface Props {
   exactResultIsStale: boolean;
   exactRunError: string | null;
   exactRunning: boolean;
-  sourceWarning: string | null;
+  staleReason: string | null;
   currentModelId: string;
   missionHours?: HoursState;
   models: FaultTreeRunModelOption[];
@@ -94,14 +95,14 @@ export function SyFaultTreeAnalysis({
   exactResultIsStale,
   exactRunError,
   exactRunning,
-  sourceWarning,
+  staleReason,
   currentModelId,
   missionHours,
   models,
   basicEventCodes,
   onRun,
 }: Props): JSX.Element {
-  const { editable, runtime } = useSyWorkbook();
+  const { sy, editable, runtime } = useSyWorkbook();
   const saveBlockedReason = analysisSaveBlock(runtime);
   const [calculationType, setCalculationType] = useState<FaultTreeCalculationType>("PROBABILITY");
   const [workflow, setWorkflow] = useState<FaultTreeWorkflow>("MANUAL");
@@ -152,6 +153,13 @@ export function SyFaultTreeAnalysis({
     });
   }
 
+  function modelLabel(modelId: string): string | undefined {
+    const code = sy.systemLogicModels.find((model) => model.uuid === modelId)?.code
+      ?? (sy.dependencyBayesianNetworks ?? []).find((model) => model.modelId === modelId)?.code
+      ?? (sy.dependencyHclConfigurations ?? []).find((configuration) => configuration.modelId === modelId)?.code;
+    return code === undefined || code.trim().length === 0 ? undefined : code;
+  }
+
   function toggleBatchModel(modelId: string): void {
     setBatchModelIds((current) =>
       current.includes(modelId) ? current.filter((id) => id !== modelId) : [...current, modelId],
@@ -160,7 +168,10 @@ export function SyFaultTreeAnalysis({
 
   return (
     <section className="syft-analysis" aria-label="Fault-tree quantification">
-      <div className="syft-analysis__heading"><h3>Fault-tree quantification</h3></div>
+      <div className="syft-analysis__heading">
+        <h3>Fault-tree quantification</h3>
+        <AnalysisJobs host="sy" workbookId={runtime.workbookId} modelLabel={modelLabel} />
+      </div>
       <div className={`syft-analysis__composer syft-analysis__composer--${workflow.toLowerCase()}`} aria-label="Fault-tree quantification controls">
         <fieldset className="syft-analysis__calculation-picker">
           <legend>Calculation</legend>
@@ -316,8 +327,9 @@ export function SyFaultTreeAnalysis({
         </div>
       </div>
       {saveBlockedReason !== null && <p className="syft-analysis__notice" role="status">{saveBlockedReason}</p>}
-      {calculationType === "SIL" && <p className="syft-analysis__notice" role="status">{missionHours === undefined ? "SIL needs a system mission time. Set it in the system definition." : `SIL uses the system mission time of ${hoursText(missionHours)}.`}</p>}
-      {(exactRunError ?? sourceWarning) !== null && <p className="syft-analysis__error" role="alert">{exactRunError ?? sourceWarning}</p>}
+      {calculationType === "SIL" && <p className="syft-analysis__notice" role="status">{missionHours === undefined ? "SIL needs a system mission time. Set it in Description › Definition › Mission time." : `SIL uses the system mission time of ${hoursText(missionHours)}.`}</p>}
+      {exactRunError !== null && <p className="syft-analysis__error" role="alert">{exactRunError}</p>}
+      {exactRunError === null && staleReason !== null && <p className="syft-analysis__notice" role="status">{staleReason}</p>}
       {workflow === "MANUAL" ? (
         <FaultTreeResults analysisResult={exactResult} resultIsStale={exactResultIsStale} basicEventCodes={basicEventCodes} />
       ) : batchResults.length > 0 ? (

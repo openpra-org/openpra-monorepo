@@ -39,6 +39,10 @@ interface HclHazardGridDefinition {
 
 type HclSampler = "MC" | "LHS";
 
+type HclParameterDraws = "SHARED" | "INDEPENDENT";
+
+type HclZeroProbabilityContexts = "ZERO" | "FAIL";
+
 interface HclBasicEventUncertainty {
   faultTreeBasicEvent: FaultTreeBasicEventCatalogueReference;
   expression: UncertainExpression;
@@ -87,8 +91,13 @@ interface HclCptGeneratorUncertainty {
 
 interface HclUncertaintySettings {
   sampleCount: number;
-  seed: number;
+  seed?: number;
   sampler: HclSampler;
+  cptSampler?: HclSampler;
+  correlation?: HclParameterDraws;
+  clipProbabilities?: boolean;
+  cptClipEpsilon?: number;
+  zeroProbabilityContexts?: HclZeroProbabilityContexts;
   basicEvents: HclBasicEventUncertainty[];
   cptRows: HclCptRowUncertainty[];
   cptGenerators: HclCptGeneratorUncertainty[];
@@ -125,6 +134,8 @@ export type {
   HclEvidenceScenario,
   HclHazardGridDefinition,
   HclSampler,
+  HclParameterDraws,
+  HclZeroProbabilityContexts,
   HclBasicEventUncertainty,
   HclCptRowUncertainty,
   HclUncertaintySettings,

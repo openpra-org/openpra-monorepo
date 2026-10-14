@@ -270,6 +270,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     hclExternalBindingLabels,
     hclReferencedFaultTrees,
     hclScope = "BOTH",
+    analysisHost,
     evidence,
     queryNodeId,
     validation,
@@ -1904,6 +1905,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
                 evidenceEditor={evidenceOpen ? renderEvidenceEditor() : null}
                 calculationType={calculationType}
                 workflow={quantificationWorkflow}
+                analysisHost={analysisHost}
                 onEditEvidence={() => setEvidenceOpen((open) => !open)}
                 onChange={onHclConfigurationsChange}
                 onGenerateScenarios={onGenerateHclScenarios}

@@ -1,3 +1,5 @@
+import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
+import { runProgressText } from "../newly-developed-methods/shared/analysisRunWait";
 import { useEffect, useMemo, useState, type JSX } from "react";
 import type { FaultTreeAnalysisSettings, FaultTreeWorkflow } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import type { UncertaintySamplingMethod } from "interfaces-shared-types/newly-developed-methods/shared";
@@ -69,6 +71,7 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
   const [settings, setSettings] = useState<FaultTreeAnalysisSettings>(DEFAULT_SETTINGS);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [running, setRunning] = useState(false);
+  const [live, setLive] = useState<AnalysisRunMetadata | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<AnalysisResult[]>([]);
 
@@ -117,7 +120,7 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
           calculationType: "UNCERTAINTY",
           workflow,
           settings,
-        });
+        }, setLive);
         if (execution.run.status !== "SUCCEEDED") throw new Error(execution.run.failure?.message ?? `The solver run ended with ${execution.run.status}.`);
         const result = await getSyFaultTreeResult(runtime.workbookId, model.id, execution.run.id);
         if (result.uncertainty === undefined) throw new Error("The solver returned no uncertainty summary.");
@@ -197,6 +200,7 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
       </p>}
       {workflow === "BATCH" && runnable.length === 0 && <p className="syft-analysis__notice" role="status">Give a basic event an uncertain value, or link a DA estimate that has one.</p>}
       {saveBlockedReason !== null && <p className="syft-analysis__notice" role="status">{saveBlockedReason}</p>}
+      {running && live !== null && <p className="possubtle" role="status">{runProgressText(live)}</p>}
       {(error ?? sourceWarning) !== null && <p className="syft-analysis__error" role="alert">{error ?? sourceWarning}</p>}
       {stale && <p className="syft-analysis__notice" role="status">These results use an earlier workbook revision.</p>}
       {results.length > 0 && <FaultTreeUncertaintyResults entries={results} batch={workflow === "BATCH"} />}

@@ -36,6 +36,7 @@ import { FaultTreeResults } from "../fault-tree";
 import { enumText } from "./resultPresentation";
 import type { HclEditorRunResult, HclEventTreeOption } from "../hybrid-causal-logic/hclBindingTypes";
 import { fetchJson } from "../../api/client";
+import { FLAG_VIEW, OPTIONAL_TEXT_VIEW, useWorkbookView } from "../../workbooks/workbookViewMemory";
 import { ANALYSIS_RUN_CHANGED, type AnalysisRunChanged } from "./analysisRunEvents";
 import type { AnalysisHost } from "./analysisRunWait";
 import "./css/analysisRunHistory.css";
@@ -306,14 +307,24 @@ export function AnalysisRunHistory({
   calculationType?: string;
   modelId?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useWorkbookView<boolean>(
+    `history.open:${host}:${modelId === undefined ? "workbook" : "model"}:${calculationType ?? "all"}`,
+    false,
+    FLAG_VIEW,
+  );
+  const [selectedRun, setSelectedRun] = useWorkbookView<string | null>(
+    `history.run:${host}:${workbookId ?? ""}:${modelId ?? "workbook"}:${calculationType ?? "all"}`,
+    null,
+    OPTIONAL_TEXT_VIEW,
+  );
   const [rows, setRows] = useState<AnalysisRunProvenance[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [details, setDetails] = useState<AnalysisRunDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const request = useRef(0);
-  const selected = useRef<string | null>(null);
+  const selected = useRef<string | null>(selectedRun);
+  selected.current = selectedRun;
   const page = useRef<string | undefined>(undefined);
   const base = `/api/${host}-workbooks/${encodeURIComponent(workbookId ?? "")}/analysis-runs`;
   async function load(next?: string) {
@@ -347,6 +358,7 @@ export function AnalysisRunHistory({
         setRows([]);
         setDetails(null);
         selected.current = null;
+        setSelectedRun(null);
         setError(caught instanceof Error ? caught.message : "Could not read saved runs.");
       }
     } finally {
@@ -356,6 +368,7 @@ export function AnalysisRunHistory({
   async function inspect(id: string) {
     const current = ++request.current;
     selected.current = id;
+    setSelectedRun(id);
     setLoading(true);
     setDetails(null);
     setError(null);
@@ -371,7 +384,6 @@ export function AnalysisRunHistory({
   }
   useEffect(() => {
     request.current++;
-    selected.current = null;
     setDetails(null);
     setRows([]);
     setCursor(null);

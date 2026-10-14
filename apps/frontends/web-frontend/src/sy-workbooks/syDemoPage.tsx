@@ -8,6 +8,7 @@ import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-rel
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
+import { WorkbookViewMemory } from "../workbooks/workbookViewMemory";
 import { SyWorkbench } from "./syWorkbench";
 import {
   SyWorkbookProvider,
@@ -160,17 +161,19 @@ function SyDemoPage(): JSX.Element {
       controlledCcfFactors={linked.ccfFactors}
       controlledComponentBoundaries={linked.componentBoundaries}
     >
-      <SyWorkbench
-        data={data}
-        persona={persona}
-        setPersona={setPersona}
-        showPersonaPicker={true}
-        headerMeta={{
-          projectName: "Generic-1 Reactor — Pre-operational PRA",
-          workbookName: data.sy.name,
-          workbookVersion: data.sy.version,
-        }}
-      />
+      <WorkbookViewMemory scope={null}>
+        <SyWorkbench
+          data={data}
+          persona={persona}
+          setPersona={setPersona}
+          showPersonaPicker={true}
+          headerMeta={{
+            projectName: "Generic-1 Reactor — Pre-operational PRA",
+            workbookName: data.sy.name,
+            workbookVersion: data.sy.version,
+          }}
+        />
+      </WorkbookViewMemory>
     </SyWorkbookProvider>
   );
 }

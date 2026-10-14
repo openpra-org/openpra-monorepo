@@ -1,5 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
+import { COUNT_VIEW, useWorkbookView } from "../../workbooks/workbookViewMemory";
 import { downloadResultCsv, type ResultCsvRecord } from "./resultCsv";
 import "./css/resultPresentation.css";
 
@@ -73,10 +74,7 @@ export function PagedResults<T>({
   resetKey: string;
   children: (page: readonly T[]) => ReactNode;
 }) {
-  const [page, setPage] = useState(0);
-  useEffect(() => {
-    setPage(0);
-  }, [resetKey]);
+  const [page, setPage] = useWorkbookView<number>(`page:${label}:${resetKey}`, 0, COUNT_VIEW, false);
   const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   const current = Math.min(page, pages - 1);
   const start = current * PAGE_SIZE;

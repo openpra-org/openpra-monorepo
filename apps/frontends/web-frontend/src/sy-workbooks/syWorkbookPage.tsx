@@ -38,6 +38,7 @@ import {
 } from "./syWorkbookContext";
 import { useSyMefPatch } from "./useSyMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
+import { WorkbookViewMemory } from "../workbooks/workbookViewMemory";
 import { SyDocumentsCard } from "./syDocumentsCard";
 import { type SyPersona } from "./syViewData";
 import { type Workbook } from "interfaces-shared-types";
@@ -342,36 +343,38 @@ function SyWorkbookPage(): JSX.Element {
       controlledComponentBoundaries={controlledComponentBoundaries}
       upstream={upstream}
     >
-      <SyWorkbench
-        data={providerData}
-        persona={persona}
-        setPersona={setPersona}
-        showPersonaPicker={availablePersonas.length > 1}
-        availablePersonas={availablePersonas}
-        onOpenRoles={() => setRolesOpen(true)}
-        onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
-        onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
-        actions={actions}
-        headerMeta={{ projectName, workbookName, workbookVersion, saveStatus }}
-        renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />}
-        renderSignCard={() => (
-          <WorkbookSignCard
-            workbookId={id}
-            actingUsername={actingUsername}
-            currentPersona={persona}
-            myOpenComments={data.sy.internalReviewComments.comments.filter((c) => c.authorId === actingUsername && !c.resolved).length}
-            refreshSignal={approvalRefresh}
-            onSigned={() => {
-              setApprovalRefresh((n) => n + 1);
-              void refreshWorkbook().catch((refreshError: unknown) => {
-                handleSaveErr((refreshError as { message?: string }).message ?? "Could not refresh this SY workbook");
-              });
-            }}
-          />
-        )}
-        renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
-        renderDocuments={() => <SyDocumentsCard workbookId={id} canEdit={canEdit} />}
-      />
+      <WorkbookViewMemory scope={`sy.${id}`}>
+        <SyWorkbench
+          data={providerData}
+          persona={persona}
+          setPersona={setPersona}
+          showPersonaPicker={availablePersonas.length > 1}
+          availablePersonas={availablePersonas}
+          onOpenRoles={() => setRolesOpen(true)}
+          onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
+          onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
+          actions={actions}
+          headerMeta={{ projectName, workbookName, workbookVersion, saveStatus }}
+          renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />}
+          renderSignCard={() => (
+            <WorkbookSignCard
+              workbookId={id}
+              actingUsername={actingUsername}
+              currentPersona={persona}
+              myOpenComments={data.sy.internalReviewComments.comments.filter((c) => c.authorId === actingUsername && !c.resolved).length}
+              refreshSignal={approvalRefresh}
+              onSigned={() => {
+                setApprovalRefresh((n) => n + 1);
+                void refreshWorkbook().catch((refreshError: unknown) => {
+                  handleSaveErr((refreshError as { message?: string }).message ?? "Could not refresh this SY workbook");
+                });
+              }}
+            />
+          )}
+          renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
+          renderDocuments={() => <SyDocumentsCard workbookId={id} canEdit={canEdit} />}
+        />
+      </WorkbookViewMemory>
       {saveError !== null && (
         <div className="ie-savebar" role="alert">
           <span>Could not save changes: {saveError}</span>

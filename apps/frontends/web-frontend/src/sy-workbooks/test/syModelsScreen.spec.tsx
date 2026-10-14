@@ -30,6 +30,7 @@ jest.mock("../../newly-developed-methods/fault-tree", () => ({
 }));
 
 jest.mock("interfaces-shared-types/newly-developed-methods/fault-tree", () => ({
+  ...jest.requireActual<typeof import("interfaces-shared-types/newly-developed-methods/fault-tree")>("interfaces-shared-types/newly-developed-methods/fault-tree"),
   validateFaultTreeModel: jest.fn(),
 }));
 

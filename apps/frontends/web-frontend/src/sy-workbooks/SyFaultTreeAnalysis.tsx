@@ -1,15 +1,20 @@
-import { useState, type JSX } from "react";
-import type {
-  FaultTreeAlgorithm,
-  FaultTreeAnalysisResult,
-  FaultTreeAnalysisSettings,
-  FaultTreeCalculationType,
-  FaultTreeExecuteRequest,
-  FaultTreeWorkflow,
+import { useMemo, type JSX } from "react";
+import { z } from "zod";
+import {
+  FaultTreeAnalysisSettingsSchema,
+  FaultTreeCalculationTypeSchema,
+  FaultTreeWorkflowSchema,
+  type FaultTreeAlgorithm,
+  type FaultTreeAnalysisResult,
+  type FaultTreeAnalysisSettings,
+  type FaultTreeCalculationType,
+  type FaultTreeExecuteRequest,
+  type FaultTreeWorkflow,
 } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { FaultTreeResults } from "../newly-developed-methods/fault-tree";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
 import { AnalysisJobs } from "../newly-developed-methods/shared/analysisJobs";
+import { jsonView, useWorkbookView } from "../workbooks/workbookViewMemory";
 import { useSyWorkbook } from "./syWorkbookContext";
 import { hoursPoint, hoursText, type HoursState } from "../sc-workbooks/scMissionTimePoints";
 import "./css/syFaultTreeAnalysis.css";
@@ -55,6 +60,22 @@ const DEFAULT_SETTINGS: FaultTreeAnalysisSettings = {
   importanceSamplingMinimumProbability: 1e-12,
   stratifyEvents: 4,
 };
+
+interface QuantifyChoice {
+  calculationType: FaultTreeCalculationType;
+  workflow: FaultTreeWorkflow;
+  settings: FaultTreeAnalysisSettings;
+  advancedOpen: boolean;
+  batchModelIds: string[];
+}
+
+const QUANTIFY_VIEW = jsonView<QuantifyChoice>(z.object({
+  calculationType: FaultTreeCalculationTypeSchema,
+  workflow: FaultTreeWorkflowSchema,
+  settings: FaultTreeAnalysisSettingsSchema.catch(DEFAULT_SETTINGS),
+  advancedOpen: z.boolean(),
+  batchModelIds: z.array(z.string()),
+}));
 
 const FAULT_TREE_ALGORITHM_LABELS: Record<FaultTreeAlgorithm, string> = {
   BDD: "Direct BDD",
@@ -104,12 +125,17 @@ export function SyFaultTreeAnalysis({
 }: Props): JSX.Element {
   const { sy, editable, runtime } = useSyWorkbook();
   const saveBlockedReason = analysisSaveBlock(runtime);
-  const [calculationType, setCalculationType] = useState<FaultTreeCalculationType>("PROBABILITY");
-  const [workflow, setWorkflow] = useState<FaultTreeWorkflow>("MANUAL");
-  const [settings, setSettings] = useState<FaultTreeAnalysisSettings>(DEFAULT_SETTINGS);
+  const initialChoice = useMemo<QuantifyChoice>(() => ({
+    calculationType: "PROBABILITY",
+    workflow: "MANUAL",
+    settings: DEFAULT_SETTINGS,
+    advancedOpen: false,
+    batchModelIds: [currentModelId],
+  }), [currentModelId]);
+  const [choice, setChoice] = useWorkbookView<QuantifyChoice>(`quantify:${currentModelId}`, initialChoice, QUANTIFY_VIEW);
+  const { calculationType, workflow, settings, advancedOpen } = choice;
+  const batchModelIds = choice.batchModelIds.filter((modelId) => models.some((model) => model.id === modelId));
   const missionPoint = hoursPoint(missionHours);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [batchModelIds, setBatchModelIds] = useState<string[]>([currentModelId]);
   const algorithms = algorithmsFor(calculationType);
   const usesCutSetApproximation = CUT_SET_ALGORITHMS.includes(settings.algorithm);
   const usesOrdering = !["MOCUS", "MOCUS_PI", "MONTE_CARLO"].includes(settings.algorithm);
@@ -137,13 +163,20 @@ export function SyFaultTreeAnalysis({
       || (Number.isInteger(settings.stratifyEvents) && settings.stratifyEvents > 0));
 
   function updateSettings(changes: Partial<FaultTreeAnalysisSettings>): void {
-    setSettings((current) => ({ ...current, ...changes }));
+    setChoice((current) => ({ ...current, settings: { ...current.settings, ...changes } }));
   }
 
   function changeCalculation(value: FaultTreeCalculationType): void {
     const algorithm = defaultAlgorithm(value);
-    setCalculationType(value);
-    setSettings((current) => ({ ...current, algorithm, approximation: "EXACT" }));
+    setChoice((current) => ({ ...current, calculationType: value, settings: { ...current.settings, algorithm, approximation: "EXACT" } }));
+  }
+
+  function changeWorkflow(value: FaultTreeWorkflow): void {
+    setChoice((current) => ({ ...current, workflow: value }));
+  }
+
+  function showAdvanced(open: boolean): void {
+    setChoice((current) => ({ ...current, advancedOpen: open }));
   }
 
   function changeAlgorithm(algorithm: FaultTreeAlgorithm): void {
@@ -161,9 +194,12 @@ export function SyFaultTreeAnalysis({
   }
 
   function toggleBatchModel(modelId: string): void {
-    setBatchModelIds((current) =>
-      current.includes(modelId) ? current.filter((id) => id !== modelId) : [...current, modelId],
-    );
+    setChoice((current) => ({
+      ...current,
+      batchModelIds: current.batchModelIds.includes(modelId)
+        ? current.batchModelIds.filter((id) => id !== modelId)
+        : [...current.batchModelIds, modelId],
+    }));
   }
 
   return (
@@ -196,7 +232,7 @@ export function SyFaultTreeAnalysis({
           <div role="radiogroup" aria-label="Fault-tree workflow">
             {(["MANUAL", "BATCH"] as const).map((value) => (
               <label key={value} className={workflow === value ? "is-selected" : ""}>
-                <input type="radio" name="fault-tree-workflow" value={value} checked={workflow === value} onChange={() => setWorkflow(value)} />
+                <input type="radio" name="fault-tree-workflow" value={value} checked={workflow === value} onChange={() => changeWorkflow(value)} />
                 <span>{value === "MANUAL" ? "Manual" : "Batch"}</span>
               </label>
             ))}
@@ -208,7 +244,7 @@ export function SyFaultTreeAnalysis({
             <span className="syft-analysis__selection-summary">
               {workflow === "BATCH" ? `${selectedModelIds.length} fault tree${selectedModelIds.length === 1 ? "" : "s"} selected` : "Current fault tree"}
             </span>
-            <button type="button" className="posnav__btn posnav__btn--sm" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen((open) => !open)}>Advanced</button>
+            <button type="button" className="posnav__btn posnav__btn--sm" aria-expanded={advancedOpen} onClick={() => showAdvanced(!advancedOpen)}>Advanced</button>
           </div>
 
           {workflow === "BATCH" && (
@@ -246,7 +282,7 @@ export function SyFaultTreeAnalysis({
           <div className="syft-analysis__advanced-panel" aria-label="Advanced fault-tree settings">
             <div className="syft-analysis__advanced-head">
               <strong>Advanced</strong>
-              <button type="button" className="posnav__btn posnav__btn--sm" aria-label="Close advanced fault-tree settings" onClick={() => setAdvancedOpen(false)}>Close</button>
+              <button type="button" className="posnav__btn posnav__btn--sm" aria-label="Close advanced fault-tree settings" onClick={() => showAdvanced(false)}>Close</button>
             </div>
             <div className="syft-analysis__advanced">
             {usesCutSetApproximation && (

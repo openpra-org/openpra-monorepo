@@ -5,18 +5,26 @@ import { ANALYSIS_RUN_CHANGED, type AnalysisRunChanged } from "./analysisRunEven
 
 const CHECK_FAILED = "The sources of these results could not be checked.";
 const STALE_FALLBACK = "A source of these results changed.";
+const NO_RUNS: readonly string[] = [];
 
 /** Verify all sources of displayed runs after execution, on focus and while visible. */
-export function useAnalysisSourceGuard(host: AnalysisRunChanged["host"], workbookId: string | null, revision: number | null = null) {
+export function useAnalysisSourceGuard(
+  host: AnalysisRunChanged["host"],
+  workbookId: string | null,
+  revision: number | null = null,
+  shownRuns: readonly string[] = NO_RUNS,
+) {
   const [sourceEpoch, setEpoch] = useState(0);
   const [sourceWarning, setWarning] = useState<string | null>(null);
   const [sourceChanges, setChanges] = useState<ReadonlyMap<string, string>>(() => new Map());
   const recheck = useRef<() => void>(() => undefined);
+  const track = useRef<(runIds: readonly string[]) => void>(() => undefined);
   useEffect(() => {
     setWarning(null);
     setChanges(new Map());
     if (workbookId === null) return;
     const ids = new Set<string>();
+    const reported = new Set<string>();
     let disposed = false;
     let generation = 0;
     const check = async () => {
@@ -36,7 +44,10 @@ export function useAnalysisSourceGuard(host: AnalysisRunChanged["host"], workboo
         );
         const [first] = stale;
         if (first === undefined) return;
-        stale.forEach(([id]) => ids.delete(id));
+        stale.forEach(([id]) => {
+          ids.delete(id);
+          reported.add(id);
+        });
         generation++;
         setChanges((previous) => new Map([...previous, ...stale]));
         setWarning(first[1]);
@@ -60,6 +71,12 @@ export function useAnalysisSourceGuard(host: AnalysisRunChanged["host"], workboo
       void check();
     };
     recheck.current = focus;
+    track.current = (runIds) => {
+      const fresh = runIds.filter((id) => !ids.has(id) && !reported.has(id));
+      if (fresh.length === 0) return;
+      fresh.forEach((id) => ids.add(id));
+      void check();
+    };
     window.addEventListener(ANALYSIS_RUN_CHANGED, changed);
     window.addEventListener("focus", focus);
     document.addEventListener("visibilitychange", focus);
@@ -68,12 +85,17 @@ export function useAnalysisSourceGuard(host: AnalysisRunChanged["host"], workboo
       disposed = true;
       generation++;
       recheck.current = () => undefined;
+      track.current = () => undefined;
       window.clearInterval(timer);
       window.removeEventListener(ANALYSIS_RUN_CHANGED, changed);
       window.removeEventListener("focus", focus);
       document.removeEventListener("visibilitychange", focus);
     };
   }, [host, workbookId]);
+  const shownKey = shownRuns.join(" ");
+  useEffect(() => {
+    track.current(shownKey.length === 0 ? NO_RUNS : shownKey.split(" "));
+  }, [host, shownKey, workbookId]);
   useEffect(() => {
     recheck.current();
   }, [revision]);

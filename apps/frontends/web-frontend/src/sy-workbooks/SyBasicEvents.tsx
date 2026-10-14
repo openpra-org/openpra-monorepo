@@ -2,6 +2,7 @@ import { JSX } from "react";
 import { carriesUncertainExpression, type SystemBasicEvent, type SystemLogicModel } from "interfaces-mef-types/sy/systems-analysis";
 import { systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
 import { requiresFailureRateConversionReview } from "interfaces-mef-types/modeling";
+import { PagedResults } from "../newly-developed-methods/shared/resultPresentation";
 import { expressionText } from "../newly-developed-methods/shared/uncertainText";
 import { PointValue, SYProvenanceChip } from "./syShared";
 import { heldValueDiffers } from "./syLinks";
@@ -140,29 +141,33 @@ function SyBasicEvents({ logic, openDrawer }: {
           <div className="sy-review-actions"><SYProvenanceChip>SY-A19 · A30 · A31</SYProvenanceChip></div>
         </div>
         {events.length === 0 ? <p className="sy-review-empty">No basic events in this fault tree yet. Add them in the Fault tree tab by right-clicking a gate.</p> : (
-          <table className="sy-review-table sy-review-events" aria-label="Basic events">
-            <thead><tr><th scope="col">Event</th><th scope="col">Failure mode</th><th scope="col">Value</th><th scope="col">Data source</th><th scope="col" className="sy-review-edit" aria-label="Actions" /></tr></thead>
-            <tbody>
-              {events.map((event) => {
-                const failureMode = event.failureMode ?? "";
-                return (
-                  <tr key={event.uuid}>
-                    <td>
-                      <span className="sy-review-name">{event.name}</span>
-                      <span className="sy-review-sub posmono">{event.code}</span>
-                    </td>
-                    <td>
-                      {failureMode.length === 0 ? <span className="sy-review-none">Not recorded</span> : <span>{FAILURE_MODE_LABELS[failureMode] ?? failureMode}</span>}
-                      {failureMode.length > 0 && <span className="sy-review-sub">{event.failureModeSource === undefined ? "Typed" : "DA"}</span>}
-                    </td>
-                    <td>{eventValueCell(event, cells)}</td>
-                    <td>{eventSourceCell(event, cells)}</td>
-                    <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} ${event.code}`} onClick={() => openDrawer({ kind: "be", id: event.uuid })}>{actionLabel}</button></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <PagedResults items={events} label="Basic events" resetKey={logic.uuid}>
+            {(page) => (
+              <table className="sy-review-table sy-review-events" aria-label="Basic events">
+                <thead><tr><th scope="col">Event</th><th scope="col">Failure mode</th><th scope="col">Value</th><th scope="col">Data source</th><th scope="col" className="sy-review-edit" aria-label="Actions" /></tr></thead>
+                <tbody>
+                  {page.map((event) => {
+                    const failureMode = event.failureMode ?? "";
+                    return (
+                      <tr key={event.uuid}>
+                        <td>
+                          <span className="sy-review-name">{event.name}</span>
+                          <span className="sy-review-sub posmono">{event.code}</span>
+                        </td>
+                        <td>
+                          {failureMode.length === 0 ? <span className="sy-review-none">Not recorded</span> : <span>{FAILURE_MODE_LABELS[failureMode] ?? failureMode}</span>}
+                          {failureMode.length > 0 && <span className="sy-review-sub">{event.failureModeSource === undefined ? "Typed" : "DA"}</span>}
+                        </td>
+                        <td>{eventValueCell(event, cells)}</td>
+                        <td>{eventSourceCell(event, cells)}</td>
+                        <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} ${event.code}`} onClick={() => openDrawer({ kind: "be", id: event.uuid })}>{actionLabel}</button></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </PagedResults>
         )}
       </section>
 
@@ -172,20 +177,24 @@ function SyBasicEvents({ logic, openDrawer }: {
           <div className="sy-review-actions"><SYProvenanceChip>SY-A7 · A15</SYProvenanceChip></div>
         </div>
         {houseEvents.length === 0 ? <p className="sy-review-empty">No house events in this fault tree.</p> : (
-          <table className="sy-review-table" aria-label="House events">
-            <tbody>
-              {houseEvents.map((leaf) => (
-                <tr key={leaf.id}>
-                  <th scope="row">
-                    <span>{leaf.name}</span>
-                    <span className="sy-review-sub posmono">{leaf.code}</span>
-                  </th>
-                  <td>{leaf.state ? "True" : "False"}</td>
-                  <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} ${leaf.code}`} onClick={() => openDrawer({ kind: "house", id: leaf.id, modelId: logic.uuid })}>{actionLabel}</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <PagedResults items={houseEvents} label="House events" resetKey={logic.uuid}>
+            {(page) => (
+              <table className="sy-review-table" aria-label="House events">
+                <tbody>
+                  {page.map((leaf) => (
+                    <tr key={leaf.id}>
+                      <th scope="row">
+                        <span>{leaf.name}</span>
+                        <span className="sy-review-sub posmono">{leaf.code}</span>
+                      </th>
+                      <td>{leaf.state ? "True" : "False"}</td>
+                      <td className="sy-review-edit"><button type="button" className="posnav__btn posnav__btn--sm" aria-label={`${actionLabel} ${leaf.code}`} onClick={() => openDrawer({ kind: "house", id: leaf.id, modelId: logic.uuid })}>{actionLabel}</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </PagedResults>
         )}
       </section>
     </div>

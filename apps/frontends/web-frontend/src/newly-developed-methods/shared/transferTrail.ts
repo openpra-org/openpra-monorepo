@@ -20,8 +20,18 @@ interface TransferBreadcrumb {
   onSelect: (index: number) => void;
 }
 
-function useTransferTrail<P>(isCurrent: (place: P) => boolean, leadsTo: (from: P, to: P, live: boolean) => boolean): TransferTrail<P> {
-  const [trail, setTrail] = useState<{ steps: TransferStep<P>[]; index: number }>({ steps: [], index: 0 });
+interface TrailState<P> {
+  steps: TransferStep<P>[];
+  index: number;
+}
+
+function useTransferTrail<P>(
+  isCurrent: (place: P) => boolean,
+  leadsTo: (from: P, to: P, live: boolean) => boolean,
+  held?: readonly [TrailState<P>, (next: TrailState<P>) => void],
+): TransferTrail<P> {
+  const own = useState<TrailState<P>>({ steps: [], index: 0 });
+  const [trail, setTrail] = held ?? own;
   const here = trail.steps[trail.index];
   const onPath = here !== undefined && isCurrent(here.place);
   const broken = trail.steps.findIndex((step, at) => {
@@ -63,4 +73,4 @@ function transferBreadcrumb<P>(trail: TransferTrail<P>, currentPlace: () => P, o
   };
 }
 
-export { transferBreadcrumb, useTransferTrail, type TransferBreadcrumb, type TransferStep, type TransferTrail };
+export { transferBreadcrumb, useTransferTrail, type TrailState, type TransferBreadcrumb, type TransferStep, type TransferTrail };

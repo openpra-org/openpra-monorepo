@@ -32,6 +32,7 @@ import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import { WorkbookSaveIndicator } from "../workbooks/workbookSaveIndicator";
+import { TEXT_VIEW, useWorkbookView, useWorkbookViewSlot } from "../workbooks/workbookViewMemory";
 import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
 import { SyBayesianNetworkWorkspace } from "./syBayesianNetworkWorkspace";
 import "../workbooks/css/workbookWorkspace.css";
@@ -398,11 +399,15 @@ function SyWorkbench({
     onStageChange?.(s);
   }
 
-  const [stepId, setStepIdState] = useState<string>(() =>
-    visibleSteps.some((candidate) => candidate.id === requestedStepId)
-      ? requestedStepId!
-      : visibleSteps[0]?.id ?? "scope");
-  const [sysId, setSysId] = useState<string>(data.sy.systemDefinitions[0]?.uuid ?? "SYS-DRACS");
+  const stepSlot = useWorkbookViewSlot<string>("step", TEXT_VIEW);
+  const [stepId, setStepIdState] = useState<string>(() => {
+    const savedStep = stepSlot.read();
+    return visibleSteps.find((candidate) => candidate.id === requestedStepId)?.id
+      ?? visibleSteps.find((candidate) => candidate.id === savedStep)?.id
+      ?? visibleSteps[0]?.id
+      ?? "scope";
+  });
+  const [sysId, setSysId] = useWorkbookView<string>("system", data.sy.systemDefinitions[0]?.uuid ?? "SYS-DRACS", TEXT_VIEW);
   const [dockOpen, setDockOpen] = useState(false);
   const [railOpen, setRailOpen] = useState(true);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
@@ -416,6 +421,10 @@ function SyWorkbench({
       setStepIdState(visibleSteps[0]?.id ?? "scope");
     }
   }, [persona, stepId, visibleSteps]);
+
+  useEffect(() => {
+    stepSlot.write(stepId);
+  }, [stepId, stepSlot]);
 
   function setStepId(id: string): void {
     setStepIdState(id);

@@ -173,6 +173,7 @@ interface EsqUncertaintyRunRequest {
   seed: number;
   method: EventTreeSamplingMethod;
   correlation: EsqUncertaintyCorrelation;
+  treeIds?: string[];
 }
 
 interface EsqSensitivityRunRequest {
@@ -408,6 +409,7 @@ const EsqUncertaintyRunRequestSchema = z
     seed: z.number().int().min(0).max(2_147_483_647),
     method: EventTreeSamplingMethodSchema,
     correlation: EsqUncertaintyCorrelationSchema,
+    treeIds: z.array(z.string().min(1)).min(1, "Pick at least one event tree").optional(),
   })
   .strict();
 

@@ -146,6 +146,17 @@ function sequenceFamilies(esq: EventSequenceQuantification, model: EsqModel, roo
   return families;
 }
 
+function sequenceKeys(model: EsqModel, rootId: string): Record<string, string> {
+  const treeIds = transferTreeIds(model, rootId);
+  const keys: Record<string, string> = {};
+  for (const record of model.sequences) {
+    if (!treeIds.includes(record.treeId)) continue;
+    const key = esqSequenceRunId(record.treeId, record.id);
+    keys[key] = key;
+  }
+  return keys;
+}
+
 interface PrepareTreesInput {
   workbookId: string;
   owner: LoadedWorkbook<EventSequenceQuantification>;
@@ -932,6 +943,9 @@ export class EsqModelRunsService {
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
     const request = parsed.data;
     const { owner, model, roots, sy, live, references, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const picked = request.treeIds;
+    const missing = (picked ?? []).filter((treeId) => !roots.some((root) => root.id === treeId));
+    if (missing.length > 0) throw new BadRequestException(`${missing.length === 1 ? "Event tree" : "Event trees"} ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} not in scope.`);
     const inputs = new Map(sampledInputsOf(live.esq).map((input) => [input.key, input]));
     const tally: EsqSamplingTally = { used: new Map(), unsampled: new Map() };
     const families = new Map<string, Record<string, string>>();
@@ -944,7 +958,7 @@ export class EsqModelRunsService {
       references,
       esq: live.esq,
       points: this.lazyPoints(live.esq, references, owner, acting),
-      roots,
+      roots: picked === undefined ? roots : roots.filter((root) => picked.includes(root.id)),
       schemaVersion: request.schemaVersion,
       workbookRevision: request.workbookRevision,
       logic: request.logic,
@@ -957,9 +971,8 @@ export class EsqModelRunsService {
         return sampled.build;
       },
       extras: (_build, root) => {
-        const map = sequenceFamilies(owner.mef, model, root.id);
-        families.set(root.id, map);
-        return { sampling: samplings.get(root.id), sequenceFamilies: map };
+        families.set(root.id, sequenceFamilies(owner.mef, model, root.id));
+        return { sampling: samplings.get(root.id), sequenceFamilies: sequenceKeys(model, root.id) };
       },
     });
     const runOwner = { workbookId, modelId: esqUncertaintyRunId(), workbookRevision: owner.workbookRevision };

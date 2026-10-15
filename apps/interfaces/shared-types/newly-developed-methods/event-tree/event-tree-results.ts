@@ -271,6 +271,39 @@ interface EsqUncertaintyFamily extends EsqUncertaintyStatistics {
   values: number[];
 }
 
+interface EsqUncertaintyTotal extends EsqUncertaintyStatistics {
+  values?: number[];
+}
+
+interface EsqUncertaintyHistogram {
+  low: number;
+  high: number;
+  counts: number[];
+  zeros: number;
+}
+
+interface EsqUncertaintySeries extends EsqUncertaintyStatistics {
+  histogram: EsqUncertaintyHistogram | null;
+  quantiles: number[];
+}
+
+interface EsqUncertaintySequence extends EsqUncertaintySeries {
+  treeId: string;
+  sequenceIds: string[];
+  paths: number;
+  familyId: string | null;
+  releaseCategoryId: string | null;
+  endState: string | null;
+}
+
+type EsqUncertaintyGroupKind = "FAMILY" | "RELEASE_CATEGORY" | "RELEASE_TOTAL";
+
+interface EsqUncertaintyGroup extends EsqUncertaintySeries {
+  treeId: string | null;
+  kind: EsqUncertaintyGroupKind;
+  key: string;
+}
+
 interface EsqUncertaintyKey {
   key: string;
   label: string;
@@ -432,7 +465,9 @@ interface EsqUncertaintyRunResult {
   correlation: EsqUncertaintyCorrelation;
   trees: EsqModelRunTree[];
   families: EsqUncertaintyFamily[];
-  total: EsqUncertaintyStatistics | null;
+  total: EsqUncertaintyTotal | null;
+  sequences?: EsqUncertaintySequence[];
+  groups?: EsqUncertaintyGroup[];
   keys: EsqUncertaintyKey[];
   unsampled: EsqUncertaintyUnsampled[];
 }
@@ -819,6 +854,35 @@ const EsqUncertaintyStatisticsSchema = z
   })
   .strict();
 
+const EsqUncertaintyHistogramSchema = z
+  .object({
+    low: z.number().int(),
+    high: z.number().int(),
+    counts: z.array(z.number().int().nonnegative()),
+    zeros: z.number().int().nonnegative(),
+  })
+  .strict();
+
+const EsqUncertaintySeriesSchema = EsqUncertaintyStatisticsSchema.extend({
+  histogram: EsqUncertaintyHistogramSchema.nullable(),
+  quantiles: z.array(FrequencySchema),
+}).strict();
+
+const EsqUncertaintySequenceSchema = EsqUncertaintySeriesSchema.extend({
+  treeId: z.string().min(1),
+  sequenceIds: z.array(z.string().min(1)),
+  paths: z.number().int().positive(),
+  familyId: z.string().nullable(),
+  releaseCategoryId: z.string().nullable(),
+  endState: z.string().nullable(),
+}).strict();
+
+const EsqUncertaintyGroupSchema = EsqUncertaintySeriesSchema.extend({
+  treeId: z.string().min(1).nullable(),
+  kind: z.enum(["FAMILY", "RELEASE_CATEGORY", "RELEASE_TOTAL"]),
+  key: z.string(),
+}).strict();
+
 const EsqUncertaintyRunResultSchema = z
   .object({
     schemaVersion: WorkbookMethodSchemaVersionSchema,
@@ -840,7 +904,9 @@ const EsqUncertaintyRunResultSchema = z
         values: z.array(FrequencySchema),
       }).strict(),
     ),
-    total: EsqUncertaintyStatisticsSchema.nullable(),
+    total: EsqUncertaintyStatisticsSchema.extend({ values: z.array(FrequencySchema).optional() }).strict().nullable(),
+    sequences: z.array(EsqUncertaintySequenceSchema).optional(),
+    groups: z.array(EsqUncertaintyGroupSchema).optional(),
     keys: z.array(
       z
         .object({
@@ -929,6 +995,10 @@ export {
   EventTreeSamplingResultSchema,
   EsqImportanceRunResultSchema,
   EsqUncertaintyStatisticsSchema,
+  EsqUncertaintyHistogramSchema,
+  EsqUncertaintySeriesSchema,
+  EsqUncertaintySequenceSchema,
+  EsqUncertaintyGroupSchema,
   EsqUncertaintyRunResultSchema,
 };
 export type {
@@ -976,6 +1046,12 @@ export type {
   EsqImportanceRunResult,
   EsqUncertaintyStatistics,
   EsqUncertaintyFamily,
+  EsqUncertaintyTotal,
+  EsqUncertaintyHistogram,
+  EsqUncertaintySeries,
+  EsqUncertaintySequence,
+  EsqUncertaintyGroupKind,
+  EsqUncertaintyGroup,
   EsqUncertaintyKey,
   EsqUncertaintyUnsampled,
   EsqUncertaintyRunResult,

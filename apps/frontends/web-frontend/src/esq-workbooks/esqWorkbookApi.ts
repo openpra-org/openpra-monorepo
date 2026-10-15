@@ -50,6 +50,7 @@ import {
 } from "interfaces-shared-types/newly-developed-methods/shared";
 import { esqCellRunId } from "interfaces-mef-types/esq/esq-barrier-inputs";
 import { esqModelRunId } from "interfaces-mef-types/esq/esq-solve-inputs";
+import { esqUncertaintyRunId } from "interfaces-mef-types/esq/esq-measure-inputs";
 import {
   EsqBarrierCellRunRequestSchema,
   LoadCapacityAnalysisResultSchema,
@@ -374,7 +375,14 @@ async function getEsqModelRunResult(workbookId: string, runId: string): Promise<
 }
 
 async function listEsqModelRuns(workbookId: string, limit = 12): Promise<EsqModelRunEntry[]> {
-  const modelId = esqModelRunId();
+  return listEsqBatchRuns(workbookId, esqModelRunId(), limit);
+}
+
+async function listEsqUncertaintyRuns(workbookId: string, limit = 12): Promise<EsqModelRunEntry[]> {
+  return listEsqBatchRuns(workbookId, esqUncertaintyRunId(), limit);
+}
+
+async function listEsqBatchRuns(workbookId: string, modelId: string, limit: number): Promise<EsqModelRunEntry[]> {
   const list = await listEsqRunsOf(workbookId, modelId);
   return list.runs
     .filter((row) => row.run.owner.modelId === modelId && row.run.scope === "BATCH")
@@ -426,8 +434,24 @@ interface EsqUncertaintySettings {
   correlation: EsqUncertaintyCorrelation;
 }
 
-async function runEsqUncertainty(workbookId: string, workbookRevision: number, logic: EsqEventTreeRunLogic, settings: EsqUncertaintySettings, onProgress?: RunProgressListener): Promise<EventTreeExecuteResult> {
-  return finishedRun("esq", workbookId, postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/uncertainty-runs`, { schemaVersion: "1.0.0", workbookRevision, logic, ...settings }), onProgress);
+async function runEsqUncertainty(
+  workbookId: string,
+  workbookRevision: number,
+  logic: EsqEventTreeRunLogic,
+  settings: EsqUncertaintySettings,
+  onProgress?: RunProgressListener,
+  treeIds?: readonly string[],
+): Promise<EventTreeExecuteResult> {
+  return finishedRun("esq", workbookId, postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/uncertainty-runs`, {
+    schemaVersion: "1.0.0",
+    workbookRevision,
+    logic,
+    trials: settings.trials,
+    seed: settings.seed,
+    method: settings.method,
+    correlation: settings.correlation,
+    ...(treeIds === undefined ? {} : { treeIds: [...treeIds] }),
+  }), onProgress);
 }
 
 async function getEsqUncertaintyResult(workbookId: string, runId: string): Promise<EsqUncertaintyRunResult> {
@@ -465,6 +489,7 @@ export {
   getEsqImportanceResult,
   runEsqUncertainty,
   getEsqUncertaintyResult,
+  listEsqUncertaintyRuns,
   runEsqSensitivity,
   getEsqSensitivityResult,
   type EsqUncertaintySettings,

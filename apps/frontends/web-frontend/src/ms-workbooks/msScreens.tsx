@@ -102,12 +102,12 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="MS" title="Interfaces" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Interfaces" level={3} /></div>
         <MsInterfaces />
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="MS" title="PRA scope" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="PRA scope" level={3} /></div>
         <p className="poscard__sub">Describe what this mechanistic source-term analysis covers and what it excludes.</p>
         <WorkbookTextarea
           className="posfield__textarea"
@@ -121,7 +121,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="MS" title="Capability category" level={3} />
+          <WorkbookSectionHeading title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <p className="poscard__sub">Applicable generic source terms with the uncertainty characterized, or plant-specific mechanistic calculations with the phenomena uncertainty propagated.</p>
@@ -143,7 +143,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="MS" title="Plant stage" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Plant stage" level={3} /></div>
         <p className="poscard__sub">MS has a light pre-operational fork, since the source-term physics is design-driven and the as-built gap enters only through the inputs.</p>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
@@ -179,7 +179,7 @@ function CategoriesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="MS" title="Release categories" level={3} />
+          <WorkbookSectionHeading title="Release categories" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-A1 · A4 · A5</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCategory}><MSIcon.Plus /> Add category</button>}
@@ -241,7 +241,7 @@ function CategoriesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="MS" title="Category completeness" level={3} />
+          <WorkbookSectionHeading title="Category completeness" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-A2</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "completeness", id: "completeness" })}>Edit</button>}
@@ -338,7 +338,7 @@ function SourcesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => v
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="MS" title="Source inventories" level={3} />
+          <WorkbookSectionHeading title="Source inventories" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-B1</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addInventory}><MSIcon.Plus /> Add inventory</button>}
@@ -387,7 +387,7 @@ function SourcesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="MS" title="The retention chain" level={3} />
+          <WorkbookSectionHeading title="The retention chain" level={3} />
           <MsProvenanceChip>MS-B2 · MS-B4</MsProvenanceChip>
         </div>
         <p className="poscard__sub">The barriers from each source to the environment are identified per release category, and the fraction each one passes is set by its decontamination factor rather than assumed.</p>
@@ -405,7 +405,7 @@ function SourcesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="MS" title="Barrier failure modes and transport" level={3} />
+          <WorkbookSectionHeading title="Barrier failure modes and transport" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-B3 · B4</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addBarrier}><MSIcon.Plus /> Add barrier</button>}
@@ -465,7 +465,7 @@ function TransportScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =>
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="MS" title="Transport phenomena" level={3} />
+        <WorkbookSectionHeading title="Transport phenomena" level={3} />
         <div className="posrow" style={{ gap: 10 }}>
           <MsProvenanceChip>MS-B5 · C4</MsProvenanceChip>
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addAssessment}><MSIcon.Plus /> Add assessment</button>}

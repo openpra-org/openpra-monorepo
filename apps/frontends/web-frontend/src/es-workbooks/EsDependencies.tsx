@@ -142,7 +142,7 @@ function DependenciesScreen(): JSX.Element {
   return (
     <section className="poscard" aria-label="Event sequence dependency networks">
       <div className="poscard__head bneditor__network-head">
-        <WorkbookSectionHeading workbook="ES" title="Bayesian dependency network" level={3} />
+        <WorkbookSectionHeading title="Bayesian dependency network" level={3} />
         <div className="posrow esqbn__network-actions" style={{ gap: 8 }}>
           {model !== undefined && (
             <select aria-label="Bayesian network" className="posfield__select" value={model.modelId} onChange={(event) => setSelectedModelId(event.target.value)}>
@@ -153,7 +153,7 @@ function DependenciesScreen(): JSX.Element {
           {editable && model !== undefined && <button type="button" className="posnav__btn posnav__btn--sm bneditor__network-delete" onClick={removeNetwork}>Delete network</button>}
         </div>
       </div>
-      {model === undefined ? <p className="posmuted">No dependency network yet.</p> : (
+      {model !== undefined && (
         <BayesianNetworkEditor
           model={model}
           editable={editable}

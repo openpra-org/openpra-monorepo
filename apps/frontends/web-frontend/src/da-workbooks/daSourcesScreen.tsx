@@ -723,7 +723,7 @@ function SourcesScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => v
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0} className="da-step__panel">
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="DA" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <div className="da-card-actions">
               <DaProvenanceChip>{head.sr}</DaProvenanceChip>
               {editable && tab === "library" && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "daCatalog", id: "catalog" })}>Add from catalog</button>}

@@ -1,16 +1,21 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use praxis::algorithms::build::build_sequence_bdd_with_successes;
+use praxis::algorithms::direct_zbdd::build_sequence_zbdd_from_pdag;
+use praxis::algorithms::zbdd_engine::{ZbddEngine, ZbddRef};
 use praxis::analysis::event_tree_quantification::{
     EventTreeSequenceDiagnostics, EventTreeSequenceProbability,
 };
 use praxis::analysis::sequence_cut_sets::{
     cut_set_sweep, merge_cut_sets, scale_for, sequence_cut_sets, CutOffBasis, CutSetQuantifier,
-    CutSetSweepPoint, SequenceCutSetSettings, SequenceCutSets, WeightedCutSet,
+    CutSetSweepPoint, SequenceCutSetAnalysis, SequenceCutSetSettings, SequenceCutSets,
+    WeightedCutSet,
 };
 use praxis::{PraxisError, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use super::treatment::{sequence_formulas, sequence_ids, SuccessTreatmentInput};
 use super::{event_tree_result_json, EventTreeAdapter};
 
 const MAX_KEEP: usize = 10_000;
@@ -170,10 +175,137 @@ fn order_distribution(cut_sets: &[WeightedCutSet]) -> Vec<usize> {
     counts
 }
 
+fn weighted_cut_sets(
+    zbdd: &ZbddEngine,
+    root: ZbddRef,
+    names: &[Option<String>],
+    probabilities: &HashMap<String, f64>,
+    sequence_id: &str,
+) -> Result<Vec<WeightedCutSet>> {
+    let mut cut_sets = Vec::new();
+    for positions in zbdd.enumerate(root) {
+        let mut events = Vec::with_capacity(positions.len());
+        for position in positions {
+            let name = names.get(position).cloned().flatten().ok_or_else(|| {
+                PraxisError::Logic(format!(
+                    "sequence '{sequence_id}' produced a cut set variable with no event"
+                ))
+            })?;
+            events.push(name);
+        }
+        events.sort();
+        let mut probability = 1.0;
+        for event in &events {
+            probability *= probabilities.get(event).copied().ok_or_else(|| {
+                PraxisError::Logic(format!("cut set event '{event}' has no probability"))
+            })?;
+        }
+        cut_sets.push(WeightedCutSet {
+            events,
+            probability,
+        });
+    }
+    cut_sets.sort_by(|left, right| {
+        right
+            .probability
+            .total_cmp(&left.probability)
+            .then_with(|| left.events.len().cmp(&right.events.len()))
+            .then_with(|| left.events.cmp(&right.events))
+    });
+    Ok(cut_sets)
+}
+
+fn treated_cut_sets(
+    adapter: &EventTreeAdapter,
+    settings: &SequenceCutSetSettings,
+    treatment: SuccessTreatmentInput,
+) -> Result<SequenceCutSetAnalysis> {
+    settings.validate()?;
+    let scale = scale_for(settings.basis, adapter.initiating_event_frequency);
+    let lowest = settings.lowest_cut_off();
+    let formulas = sequence_formulas(adapter, treatment)?;
+    let event_probabilities = formulas.event_probs.clone();
+    let mut pdag = formulas.pdag;
+    let mut sequences = Vec::new();
+    for sequence_id in sequence_ids(adapter) {
+        let cut_sets = if formulas.unconditional.contains(&sequence_id) {
+            if scale >= lowest {
+                vec![WeightedCutSet {
+                    events: Vec::new(),
+                    probability: 1.0,
+                }]
+            } else {
+                Vec::new()
+            }
+        } else if let Some(&root) = formulas.sequence_roots.get(&sequence_id) {
+            let (order, mut diagram, diagram_root, delete_roots) =
+                build_sequence_bdd_with_successes(
+                    &mut pdag,
+                    &event_probabilities,
+                    root,
+                    &[],
+                    &sequence_id,
+                )?;
+            if scale * diagram.probability(diagram_root) < lowest {
+                Vec::new()
+            } else if treatment == SuccessTreatmentInput::Unity {
+                let (zbdd, zbdd_root, names) = build_sequence_zbdd_from_pdag(
+                    &pdag,
+                    &event_probabilities,
+                    root,
+                    &[],
+                    Some(lowest),
+                    settings.limit_order,
+                    scale,
+                )?;
+                weighted_cut_sets(&zbdd, zbdd_root, &names, &event_probabilities, &sequence_id)?
+            } else {
+                diagram.freeze();
+                let names: Vec<Option<String>> = order
+                    .iter()
+                    .map(|&index| {
+                        pdag.get_node(index)
+                            .and_then(|node| node.id().map(str::to_string))
+                    })
+                    .collect();
+                let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd_with_delete_terms(
+                    &diagram,
+                    diagram_root,
+                    &delete_roots,
+                    false,
+                    settings.limit_order,
+                    Some(lowest),
+                    scale,
+                );
+                weighted_cut_sets(&zbdd, zbdd_root, &names, &event_probabilities, &sequence_id)?
+            }
+        } else {
+            Vec::new()
+        };
+        let sweep = cut_set_sweep(&cut_sets, settings, scale, &event_probabilities)?;
+        let failed_count = cut_sets.len();
+        sequences.push(SequenceCutSets {
+            sequence_id,
+            failed_count,
+            cut_sets,
+            sweep,
+        });
+    }
+    Ok(SequenceCutSetAnalysis {
+        sequences,
+        event_probabilities,
+    })
+}
+
 pub(super) fn execute(adapter: &EventTreeAdapter, input: &CutSetsInput) -> Result<Value> {
     let settings = input.settings();
     let annual = adapter.initiating_event_frequency;
-    let analysis = sequence_cut_sets(&adapter.model, &adapter.event_tree, &settings, annual)?;
+    let analysis = match adapter.success_treatment {
+        Some(chosen) if chosen != SuccessTreatmentInput::DeleteTerm => {
+            treated_cut_sets(adapter, &settings, chosen)?
+        }
+        _ => sequence_cut_sets(&adapter.model, &adapter.event_tree, &settings, annual)?,
+    };
     let scale = scale_for(settings.basis, annual);
     let by_id: HashMap<&str, &SequenceCutSets> = analysis
         .sequences
@@ -195,7 +327,7 @@ pub(super) fn execute(adapter: &EventTreeAdapter, input: &CutSetsInput) -> Resul
             },
         })
         .collect();
-    let mut value = event_tree_result_json(adapter, &probabilities, None)?;
+    let mut value = event_tree_result_json(adapter, &probabilities, &[], None)?;
     if let Some(sequences) = value["sequences"].as_array_mut() {
         for sequence in sequences.iter_mut() {
             let id = sequence["sequenceId"]

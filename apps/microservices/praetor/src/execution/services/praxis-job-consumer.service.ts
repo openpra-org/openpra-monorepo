@@ -10,6 +10,16 @@ import { PraxisWorkerError, runPraxisProcess } from "../workers/praxis-worker-ru
 
 const HEARTBEAT_MS = 10_000;
 
+const TABLE_METHODS: ReadonlySet<string> = new Set(["BAYESIAN_NETWORK", "HYBRID_CAUSAL_LOGIC"]);
+
+function plansBayesianTables(envelope: object): boolean {
+  const request = "request" in envelope ? envelope.request : undefined;
+  if (typeof request !== "object" || request === null) return true;
+  const method = "methodType" in request ? request.methodType : undefined;
+  if (typeof method !== "string" || TABLE_METHODS.has(method)) return true;
+  return method === "EVENT_TREE" && "mode" in request && request.mode === "HYBRID_CAUSAL_LOGIC";
+}
+
 function positiveSetting(name: string, fallback: number): number {
   const value = Number(process.env[name] ?? fallback);
   return Number.isSafeInteger(value) && value > 0 ? value : fallback;
@@ -114,6 +124,7 @@ class PraxisJobConsumerService implements OnApplicationBootstrap, OnApplicationS
 
   private async finish(jobId: string, status: PraxisJobDoneRecord["status"], error: NativeStructuredError | null): Promise<void> {
     await this.store.putDone(jobId, { status, completedAt: new Date().toISOString(), worker: this.worker, error });
+    this.logger.log(`${this.worker} ended PRAXIS job ${jobId} as ${status.toLowerCase()}${error === null ? "" : `: ${error.message}`}`);
   }
 
   private async process(jobId: string): Promise<void> {
@@ -144,6 +155,7 @@ class PraxisJobConsumerService implements OnApplicationBootstrap, OnApplicationS
     }
     const startedAt = new Date().toISOString();
     await this.store.putRunning(jobId, { worker: this.worker, startedAt, heartbeatAt: startedAt, attempts });
+    this.logger.log(`${this.worker} started PRAXIS job ${jobId} (${input.operation}, attempt ${attempts})`);
     const heartbeat = setInterval(() => {
       void this.store
         .putRunning(jobId, { worker: this.worker, startedAt, heartbeatAt: new Date().toISOString(), attempts })
@@ -152,7 +164,10 @@ class PraxisJobConsumerService implements OnApplicationBootstrap, OnApplicationS
     const controller = new AbortController();
     this.running.set(jobId, controller);
     try {
-      const { resultJson } = await runPraxisProcess({ operation: input.operation, requestJson }, { timeoutMs: input.timeoutMs, signal: controller.signal });
+      const { resultJson } = await runPraxisProcess(
+        { operation: input.operation, requestJson, preflight: plansBayesianTables(input.request) },
+        { timeoutMs: input.timeoutMs, signal: controller.signal },
+      );
       let failure: NativeStructuredError | null;
       try {
         failure = parseNativeResponse(JSON.parse(resultJson)).error ?? null;

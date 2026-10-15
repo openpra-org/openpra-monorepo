@@ -431,7 +431,7 @@ function creditFindings(view: EsqBarriersView, cc: string | undefined): EsqBarri
       if (credit.credited && credit.beyondQualification && cc === "CC-I") findings.push({ severity: "error", check: "Credit beyond qualification", item, detail: "CC-I takes no credit for equipment beyond its qualification limits (ESQ-C8).", target });
       if (credit.credited && credit.beyondQualification && cc !== "CC-I" && blank(credit.analysis)) findings.push({ severity: "error", check: "No survivability analysis", item, detail: "Credit beyond qualification needs an engineering analysis that shows the equipment survives (ESQ-C9).", target });
     } else {
-      if (credit.actionId !== undefined && row.action === undefined) findings.push({ severity: "error", check: "Not in HR", item, detail: `${credit.actionId} is not in the imported HR workbook.`, target });
+      if (credit.actionId !== undefined && row.action === undefined) findings.push({ severity: "error", check: "Not in HR", item, detail: `${credit.actionId} is not a post-initiator action in the imported HR workbook.`, target });
       if (credit.credited) {
         const missing = FEASIBILITY_KEYS.filter((key) => credit.feasibility?.[key] !== true).map((key) => FEASIBILITY_LABELS[key].toLowerCase());
         if (missing.length > 0) findings.push({ severity: "error", check: "Feasibility not shown", item, detail: `A credited action needs its feasibility shown before its HEP is used. Missing: ${listText(missing, 7)} (ESQ-C7, RG 1.247).`, target });

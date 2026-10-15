@@ -5,6 +5,7 @@ import { PlantOperatingStatesAnalysisSchema } from "interfaces-mef-types/zod/pos
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
+import { recordWorkbookStatus } from "../workbooks/workbook-status";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { PosWorkbook, type PosWorkbookDocument } from "./pos-workbook.schema";
 import { PosDocumentsService } from "./pos-documents.service";
@@ -97,9 +98,10 @@ export class PosWorkbooksService {
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };
-    doc.previousMefJson = JSON.stringify(doc.mef);
+    if (typeof doc.previousMefJson !== "string" || doc.previousMefJson.length === 0) doc.previousMefJson = JSON.stringify(doc.mef);
     doc.mef = cleaned;
     await doc.save();
+    await recordWorkbookStatus(this.posWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState);
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.posDocumentsService.removeAllForWorkbook(workbookId);
     return toResponse(doc, myRoles);
@@ -127,6 +129,7 @@ export class PosWorkbooksService {
     doc.mef = parsed.data;
     doc.previousMefJson = null;
     await doc.save();
+    await recordWorkbookStatus(this.posWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState);
     return toResponse(doc, myRoles);
   }
 }

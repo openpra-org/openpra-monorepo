@@ -6,6 +6,7 @@ import { Workbook, type WorkbookDocument } from "./workbook.schema";
 import { WorkbookSignoff, type WorkbookSignoffDocument, type WorkbookSignoffRole } from "./workbook-signoff.schema";
 import { WorkbookRolesService, type WorkbookRoleName } from "./workbook-roles.service";
 import { WorkbookElementRegistry } from "./workbook-element-registry";
+import { workbookStatusOf } from "./workbook-status";
 
 interface MefShape {
   workflowState: string;
@@ -97,7 +98,9 @@ export class WorkbookWorkflowService {
     history.push({ state: nextState, enteredAt: now, actor, note });
     mef.workflowState = nextState;
     mef.workflowHistory = history;
-    return this.registry.get(wb.elementCode).save(wb.id, mef, expectedRevision);
+    const saved = await this.registry.get(wb.elementCode).save(wb.id, mef, expectedRevision);
+    await this.workbookModel.updateOne({ _id: wb._id }, { $set: { status: workbookStatusOf(nextState), statusSynced: true } }, { timestamps: false }).exec();
+    return saved;
   }
 
   async status(workbookId: string, acting: ActingUser): Promise<WorkbookWorkflowStatus> {

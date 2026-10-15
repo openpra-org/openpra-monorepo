@@ -79,6 +79,9 @@ function MsWorkbookPage(): JSX.Element {
     ])
       .then(async ([workbook, bundle]) => {
         if (cancelled) return;
+        const linkChoices = await listMsLinkOptions(workbook.projectId);
+        if (cancelled) return;
+        setLinkOptions(linkChoices);
         setData({
           ms: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
@@ -98,8 +101,6 @@ function MsWorkbookPage(): JSX.Element {
         } catch {
           if (!cancelled) setProjectName("");
         }
-        const options = await listMsLinkOptions(workbook.projectId);
-        if (!cancelled) setLinkOptions(options);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -224,7 +225,7 @@ function MsWorkbookPage(): JSX.Element {
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as MsWorkbookRoleName[])} />}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="MS"
           exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}

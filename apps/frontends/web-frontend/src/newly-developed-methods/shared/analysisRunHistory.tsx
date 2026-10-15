@@ -45,7 +45,7 @@ const METHOD_TEXT: Readonly<Record<AnalysisRunMetadata["methodType"], string>> =
   FAULT_TREE: "Fault tree",
   EVENT_TREE: "Event tree",
   BAYESIAN_NETWORK: "Bayesian network",
-  HYBRID_CAUSAL_LOGIC: "HCL",
+  HYBRID_CAUSAL_LOGIC: "Dependencies",
   LOAD_CAPACITY: "Load capacity",
 };
 

@@ -35,7 +35,7 @@ import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivate
 import { DialogHead, DialogShell } from "../es-workbooks/EsScope";
 import { PAGE, Pager, TabBar, paged } from "../es-workbooks/EsTiming";
 import { cellRecordText } from "./esqBarriers";
-import { pointText, sciText, useExpressionPoints, type EsqPointEntry } from "./esqShared";
+import { FaultTreeDiagram, FaultTreeWindow, pointText, sciText, useExpressionPoints, type EsqPointEntry } from "./esqShared";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import { END_STATE_LABELS, FREQUENCY_UNIT_OPTIONS } from "./esqViewData";
 import {
@@ -96,7 +96,8 @@ type ModelDialog =
   | { kind: "initiator"; id: string }
   | { kind: "split"; key: string }
   | { kind: "value"; id: string }
-  | { kind: "faultTree"; treeId: string; functionalEventId: string; name: string };
+  | { kind: "faultTree"; treeId: string; functionalEventId: string; name: string }
+  | { kind: "faultTreeView"; modelIds: string[] };
 
 interface AxisOption {
   id: string;
@@ -299,11 +300,12 @@ function ReasonCell({ label, value, editable, onChange }: { label: string; value
   );
 }
 
-function TreePanel({ tree, initiators, states, onOpenTree, onLinkFaultTree }: {
+function TreePanel({ tree, initiators, states, onOpenTree, onOpenFaultTree, onLinkFaultTree }: {
   tree: EsqTreeRecord | undefined;
   initiators: readonly AxisOption[];
   states: readonly AxisOption[];
   onOpenTree: (id: string) => void;
+  onOpenFaultTree: (modelIds: string[]) => void;
   onLinkFaultTree: (treeId: string, event: FunctionalEvent) => void;
 }): JSX.Element | null {
   const { esq, editable, mutateEsq, upstream, runtime } = useEsqWorkbook();
@@ -366,7 +368,7 @@ function TreePanel({ tree, initiators, states, onOpenTree, onLinkFaultTree }: {
       {...(endStates.length === 0 ? {} : { endStateOptions: endStates })}
       onOpenReference={(reference) => {
         if ("targetEventTreeId" in reference) onOpenTree(reference.targetEventTreeId);
-        else window.open(`/sy-workbooks/${reference.workbookId}`, "_blank", "noopener,noreferrer");
+        else onOpenFaultTree([reference.modelId]);
       }}
     />
   );
@@ -395,14 +397,20 @@ function FaultTreeDialog({ treeId, functionalEventId, name, onClose }: { treeId:
     onClose();
   }
 
+  const chosen = tops.find((record) => topKey(record.modelId, record.gateId) === value);
+
   function save(): void {
-    const top = tops.find((record) => topKey(record.modelId, record.gateId) === value);
-    if (top === undefined) return;
-    apply({ referenceType: "FAULT_TREE_TOP_EVENT", workbookId, modelId: top.modelId, entityId: top.gateId });
+    if (chosen === undefined) return;
+    apply({ referenceType: "FAULT_TREE_TOP_EVENT", workbookId, modelId: chosen.modelId, entityId: chosen.gateId });
+  }
+
+  function showModel(modelId: string): void {
+    const top = tops.find((record) => record.modelId === modelId);
+    if (top !== undefined) setValue(topKey(top.modelId, top.gateId));
   }
 
   return (
-    <DialogShell label="Fault tree" onClose={onClose}>
+    <DialogShell label="Fault tree" onClose={onClose} fit>
       <DialogHead cap="Fault tree · ESQ-A2" title={name} onClose={onClose} />
       <div className="modal__body">
         <div className="posfield-grid esq-model-fields">
@@ -414,6 +422,7 @@ function FaultTreeDialog({ treeId, functionalEventId, name, onClose }: { treeId:
             </select>
           </div>
         </div>
+        {chosen !== undefined && <FaultTreeDiagram key={chosen.modelId} modelId={chosen.modelId} eventIds={[]} onModel={showModel} />}
         {editable && (
           <div className="posrow es-dialog-actions">
             {current !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => apply(undefined)}>Remove link</button>}
@@ -1327,6 +1336,7 @@ function EsqModelTabs(): JSX.Element {
           initiators={axes.initiators}
           states={axes.states}
           onOpenTree={openTree}
+          onOpenFaultTree={(modelIds) => setDialog({ kind: "faultTreeView", modelIds })}
           onLinkFaultTree={(id, event) => setDialog({ kind: "faultTree", treeId: id, functionalEventId: event.uuid, name: event.label ?? event.name })}
         />
       );
@@ -1346,6 +1356,7 @@ function EsqModelTabs(): JSX.Element {
     if (dialog === null) return null;
     const close = (): void => setDialog(null);
     if (dialog.kind === "faultTree") return <FaultTreeDialog treeId={dialog.treeId} functionalEventId={dialog.functionalEventId} name={dialog.name} onClose={close} />;
+    if (dialog.kind === "faultTreeView") return <FaultTreeWindow key={dialog.modelIds.join(",")} modelIds={dialog.modelIds} eventIds={[]} onClose={close} />;
     if (view === undefined) return null;
     switch (dialog.kind) {
       case "function": return <FunctionDialog id={dialog.id} view={view} onClose={close} />;

@@ -406,10 +406,6 @@ export const EsqActionRecordSchema = z.object({
   cueMinutes: z.number().optional(),
   availableMinutes: z.number().optional(),
   requiredMinutes: z.number().optional(),
-  recoveryId: z.string().optional(),
-  recoveryName: z.string().optional(),
-  feasibility: EsqActionFeasibilitySchema.optional(),
-  feasibilityNote: z.string().optional(),
 });
 
 export const EsqDependenceLevelSchema = z.enum(["ZERO", "LOW", "MODERATE", "HIGH", "COMPLETE"]);
@@ -701,6 +697,17 @@ export const EsqSolveWorkSchema = z.object({
       quantifier: z.enum(["MCUB", "RARE_EVENT", "EXACT"]).optional(),
       cutOffs: z.array(z.number()).optional(),
       limitOrder: z.number().optional(),
+      successTreatment: z.enum(["COMPLEMENT", "DELETE_TERM", "UNITY"]).optional(),
+      monteCarlo: z
+        .object({
+          trials: z.number(),
+          seed: z.number(),
+          earlyStop: z.boolean(),
+          convergenceDelta: z.number(),
+          confidenceLevel: z.number(),
+          burnInTrials: z.number(),
+        })
+        .optional(),
       peakProbability: z.number().optional(),
       peakInitiatorFrequency: z.number().optional(),
       hcl: z.object({ workbookId: z.string(), modelId: z.string(), treeIds: z.array(z.string()) }).optional(),
@@ -839,20 +846,6 @@ export const EsqReviewWorkSchema = z.object({
     .optional(),
   thresholds: z.object({ fussellVesely: z.number(), riskAchievementWorth: z.number(), source: z.string() }).optional(),
   cutSetList: z.object({ runId: z.string(), at: z.string(), inputs: z.string(), cutOff: z.number() }).optional(),
-  cutSetReviews: z
-    .array(
-      z.object({
-        key: z.string(),
-        familyId: z.string(),
-        treeId: z.string(),
-        eventIds: z.array(z.string()),
-        annualFrequency: z.number(),
-        significant: z.boolean(),
-        verdict: z.enum(["CORRECT", "ISSUE"]).optional(),
-        note: z.string(),
-      }),
-    )
-    .optional(),
   consistency: z
     .array(z.object({ topic: z.enum(["SYSTEMS", "SUCCESS_CRITERIA", "PROCEDURES", "RULES"]), consistent: z.boolean().optional(), note: z.string() }))
     .optional(),

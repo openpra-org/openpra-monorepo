@@ -1036,7 +1036,7 @@ function CreditDialog({ rowKey, view, onClose }: { rowKey: string; view: EsqBarr
       save(next);
       return;
     }
-    save({ ...next, actionId: record.id, name: blank(credit.name) ? record.name : credit.name, ...(record.feasibility === undefined ? {} : { feasibility: record.feasibility }) });
+    save({ ...next, actionId: record.id, name: blank(credit.name) ? record.name : credit.name });
   }
 
   function setTreatment(value: string): void {

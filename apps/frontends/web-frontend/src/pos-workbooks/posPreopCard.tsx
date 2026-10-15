@@ -1,5 +1,5 @@
 import { JSX, useState } from "react";
-import { PosSectionHeading } from "./posHelp";
+import { PosSectionHeading } from "./posSectionHeading";
 import { type PreOpAssumptionView } from "./posSelectors";
 
 function PreopAssumptionCard({ assumption }: { assumption: PreOpAssumptionView | undefined }): JSX.Element {
@@ -10,7 +10,6 @@ function PreopAssumptionCard({ assumption }: { assumption: PreOpAssumptionView |
       <div className="poscard__head">
         <PosSectionHeading
           title="Pre-operational assumption"
-          description="Flag a value that relies on design information or an engineering assumption, then record its source, risk effect, owner, and plan for confirmation using plant data."
         />
         <label className="posswitch">
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />

@@ -1,6 +1,6 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
-import { JSX, useEffect, useId, useState } from "react";
+import { JSX, useEffect, useId, useRef, useState } from "react";
 import { HANDOFF_ELEMENT_NAMES } from "interfaces-mef-types/technical-element-handoff";
 import { HandoffImports, readableId } from "../workbooks/workbookHandoff";
 import { HRIcon } from "./hrIcons";
@@ -43,19 +43,22 @@ function HrInterfaces({ linkActions }: { linkActions?: HrLinkActions }): JSX.Ele
   const [selected, setSelected] = useState<HrLinkCode | null>("POS");
   const [options, setOptions] = useState<Partial<Record<HrLinkCode, HrLinkOption[]>>>({});
   const [error, setError] = useState<string | null>(null);
+  const requested = useRef(new Set<HrLinkCode>());
   const selectId = useId();
   const linkedId = selected === null ? null : hr.linkedWorkbooks?.[selected] ?? null;
   const choices = selected === null ? undefined : options[selected];
   const linked = choices?.find((option) => option.workbookId === linkedId);
 
   useEffect(() => {
-    if (selected === null || linkActions === undefined || options[selected] !== undefined) return;
-    let cancelled = false;
-    linkActions.available(selected)
-      .then((found) => { if (!cancelled) setOptions((current) => ({ ...current, [selected]: found })); })
-      .catch((failure: Error) => { if (!cancelled) setError(failure.message); });
-    return () => { cancelled = true; };
-  }, [selected, linkActions, options]);
+    if (linkActions === undefined) return;
+    for (const code of HR_LINK_CODES) {
+      if (requested.current.has(code)) continue;
+      requested.current.add(code);
+      linkActions.available(code)
+        .then((found) => setOptions((current) => ({ ...current, [code]: found })))
+        .catch((failure: Error) => setError(failure.message));
+    }
+  }, [linkActions]);
 
   return (
     <>
@@ -86,7 +89,7 @@ function HrInterfaces({ linkActions }: { linkActions?: HrLinkActions }): JSX.Ele
             >
               <option value="">{choices !== undefined && choices.length === 0 && linkedId === null ? `No ${selected} workbooks in this project` : "Not linked"}</option>
               {(choices ?? []).map((option) => <option key={option.workbookId} value={option.workbookId}>{option.name}</option>)}
-              {linkedId !== null && linked === undefined && <option value={linkedId}>{linkedId.startsWith("example") ? `Example ${selected} workbook` : `${selected} workbook not in this project`}</option>}
+              {linkedId !== null && linked === undefined && <option value={linkedId}>{linkedId.startsWith("example") ? `Example ${selected} workbook` : choices === undefined ? "" : `${selected} workbook not in this project`}</option>}
             </select>
           </div>
           <HandoffImports consumer="HRA" producer={selected} />
@@ -121,14 +124,14 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, linkActions }: {
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="HR" title="Interfaces" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Interfaces" level={3} /></div>
         <p className="poscard__sub">Links are optional. Linked workbooks supply the initiator choices, the DA HEPs, and the state, criterion and system names.</p>
         <HrInterfaces linkActions={linkActions} />
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Capability category" level={3} />
+          <WorkbookSectionHeading title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <p className="poscard__sub">Conservative values where justified, or detailed assessments for risk-significant human failure events.</p>
@@ -152,7 +155,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, linkActions }: {
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="HR" title="Plant stage" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Plant stage" level={3} /></div>
         <p className="poscard__sub">HR has the widest pre-operational fork, since it depends most on how crews run the plant with its procedures.</p>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
@@ -206,7 +209,7 @@ function PreIdentifyScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) 
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Routine activities" level={3} />
+          <WorkbookSectionHeading title="Routine activities" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">{hr.routineActivities.length} found · HR-A1, A3</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addActivity}><HRIcon.Plus /> Add activity</button>}
@@ -238,7 +241,7 @@ function PreIdentifyScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) 
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Multi-train work practices" level={3} />
+          <WorkbookSectionHeading title="Multi-train work practices" level={3} />
           <HRProvenanceChip>HR-A5</HRProvenanceChip>
         </div>
         <p className="poscard__sub">Flag the work that touches redundant trains or diverse systems at once, since it cannot be screened out later and must be carried as a defined event.</p>
@@ -258,7 +261,7 @@ function PreIdentifyScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) 
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Operator contributions to initiators" level={3} />
+          <WorkbookSectionHeading title="Operator contributions to initiators" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-A7</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addContribution}><HRIcon.Plus /> Add contribution</button>}
@@ -319,7 +322,7 @@ function PreDefineScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Screening" level={3} />
+          <WorkbookSectionHeading title="Screening" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-B1 · HR-B3</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addScreening}><HRIcon.Plus /> Add screening</button>}
@@ -344,7 +347,7 @@ function PreDefineScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Pre-initiator events" level={3} />
+          <WorkbookSectionHeading title="Pre-initiator events" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">{preHfes.length} defined · HR-C1, C2, C4, C5</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addPreHfe}><HRIcon.Plus /> Add event</button>}
@@ -418,7 +421,7 @@ function PreQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => 
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Quantification" level={3} />
+          <WorkbookSectionHeading title="Quantification" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-D1 · HR-D2</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addQuant}><HRIcon.Plus /> Add quantification</button>}
@@ -448,7 +451,7 @@ function PreQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Recovery credit" level={3} />
+          <WorkbookSectionHeading title="Recovery credit" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-D5 · HR-D6</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCredit}><HRIcon.Plus /> Add recovery credit</button>}
@@ -468,7 +471,7 @@ function PreQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="HR" title="Same-crew dependence" level={3} />
+          <WorkbookSectionHeading title="Same-crew dependence" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-D7</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addDependence}><HRIcon.Plus /> Add dependence</button>}

@@ -25,22 +25,21 @@ import "./css/riScreens.css";
 interface StepHeader {
   area: string;
   title: string;
-  sub?: string;
 }
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "application": return { area: "HLR-RI-A", title: "Application", sub: "The decision, the criteria set, the measures and the scope." };
-    case "inputs": return { area: "HLR-RI-B", title: "Inputs", sub: "The families, sequences and consequences imported from ES, ESQ and RC." };
-    case "categories": return { area: "HLR-RI-B", title: "Event Categories", sub: "Each family's AOO, DBE or BDBE category from the Step 01 criteria." };
-    case "fc": return { area: "HLR-RI-B", title: "Frequency-Consequence", sub: "Each licensing basis event against the F-C target, with its risk significance and margins." };
-    case "integrate": return { area: "HLR-RI-B", title: "Integrated Risk", sub: "The plant's total risk against each cumulative target, where it comes from, and how often each dose is exceeded." };
-    case "aggregate": return { area: "HLR-RI-B", title: "Contributors and SSCs", sub: "What drives each total, grouped by SSC, with ESQ's importance measures." };
-    case "uncertainty": return { area: "HLR-RI-C", title: "Uncertainty", sub: "The key uncertainties and screened items of every element, the grouping review, the propagated totals and the sensitivity studies." };
+    case "application": return { area: "HLR-RI-A", title: "Application" };
+    case "inputs": return { area: "HLR-RI-B", title: "Inputs" };
+    case "categories": return { area: "HLR-RI-B", title: "Event Categories" };
+    case "fc": return { area: "HLR-RI-B", title: "Frequency-Consequence" };
+    case "integrate": return { area: "HLR-RI-B", title: "Integrated Risk" };
+    case "aggregate": return { area: "HLR-RI-B", title: "Contributors and SSCs" };
+    case "uncertainty": return { area: "HLR-RI-C", title: "Uncertainty" };
     case "handoff": return { area: "HLR-RI-D", title: "Technical Element Handoff" };
-    case "draft": return { area: "Draft", title: "Produce the draft", sub: "Build the RI report, then send it to review." };
-    case "review": return { area: "Review", title: "Internal technical review", sub: "Reviewers comment, the preparer replies, all resolve before approval." };
-    case "approval": return { area: "Approval", title: "Approval & sign-off", sub: "Everyone signs, the approver last." };
+    case "draft": return { area: "Draft", title: "Produce the draft" };
+    case "review": return { area: "Review", title: "Internal technical review" };
+    case "approval": return { area: "Approval", title: "Approval & sign-off" };
     default: return { area: "", title: "" };
   }
 }
@@ -477,7 +476,7 @@ function RiWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.area.length > 0 ? `Step ${step.num} · ${h.area}` : ""}</div>
-              <WorkbookSectionHeading workbook="RI" title={h.title} description={h.sub} level={1} className="posmain__title" />
+              <WorkbookSectionHeading title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
               {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm ri-show-steps" onClick={() => setRailOpen(true)}><RIIcon.Layers /> Show steps</button>}

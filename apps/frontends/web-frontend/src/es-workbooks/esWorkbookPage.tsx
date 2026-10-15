@@ -334,7 +334,7 @@ function EsWorkbookPage(): JSX.Element {
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as EsWorkbookRoleName[])} />}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="ES"
           exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}

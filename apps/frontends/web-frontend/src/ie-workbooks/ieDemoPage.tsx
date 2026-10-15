@@ -146,14 +146,6 @@ function IeDemoPage(): JSX.Element {
           projectName: identity !== undefined ? `${identity.name} ${stageLabel} PRA` : "Generic HTGR Pre-operational PRA",
           workbookName: data.ie.name,
           workbookVersion: data.ie.version,
-          plantIdentity: identity !== undefined
-            ? {
-                name: identity.name,
-                type: identity.reactorType,
-                power: identity.thermalPower,
-                vendor: identity.vendor,
-              }
-            : undefined,
         }}
       />
     </IeWorkbookProvider>

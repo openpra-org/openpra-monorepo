@@ -237,7 +237,7 @@ function HclEvidenceScenarioEditor({
   }
 
   return (
-    <div className="hcleditor__scenarios" role="tabpanel" aria-label="HCL evidence scenarios">
+    <div className="hcleditor__scenarios" role="tabpanel" aria-label="Dependency evidence scenarios">
       <div className="hcleditor__scenario-commandbar">
         <div className="hcleditor__scenario-summary">
           <strong>Scenarios</strong>

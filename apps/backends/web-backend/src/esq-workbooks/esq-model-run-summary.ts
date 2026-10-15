@@ -74,6 +74,7 @@ function summarizeEsqModelRun(input: EsqModelRunSummaryInput): EsqModelRunResult
   };
   const sequences: EsqModelRunSequence[] = [];
   const endStates = new Map<string, number>();
+  const treeFamilies = new Map<string, Map<string, number>>();
   let peak: number | null = null;
   const cutSetRun = input.request.calculation === "CUT_SETS";
 
@@ -81,6 +82,8 @@ function summarizeEsqModelRun(input: EsqModelRunSummaryInput): EsqModelRunResult
     const result = outcome.result;
     if (outcome.status !== "SUCCEEDED" || result === null) continue;
     const stateId = stateOf.get(outcome.treeId);
+    const ownFamilies = new Map<string, number>();
+    treeFamilies.set(outcome.treeId, ownFamilies);
     for (const entry of result.sequences) {
       const chain = entry.sequenceChain === undefined ? [entry.sequenceId] : entry.sequenceChain.map((link) => link.entityId);
       const records = chain.flatMap((id) => {
@@ -106,6 +109,7 @@ function summarizeEsqModelRun(input: EsqModelRunSummaryInput): EsqModelRunResult
       totals.sequenceCount += 1;
       if (!cutSetRun) {
         totals.annualFrequency += entry.annualFrequency;
+        ownFamilies.set(familyId, (ownFamilies.get(familyId) ?? 0) + entry.annualFrequency);
         if (stateId !== undefined) stateTotals(totals, stateId).annualFrequency += entry.annualFrequency;
       }
     }
@@ -115,6 +119,7 @@ function summarizeEsqModelRun(input: EsqModelRunSummaryInput): EsqModelRunResult
       const last = family.sweep[family.sweep.length - 1];
       const value = last?.annualFrequency ?? 0;
       totals.annualFrequency += value;
+      ownFamilies.set(family.familyId, (ownFamilies.get(family.familyId) ?? 0) + value);
       totals.cutSetCount += family.count;
       addSweep(totals.sweep, family.sweep);
       if (stateId !== undefined) {
@@ -151,13 +156,19 @@ function summarizeEsqModelRun(input: EsqModelRunSummaryInput): EsqModelRunResult
     calculation: input.request.calculation,
     logic: { ...input.request.logic },
     cutSets: input.request.cutSets === undefined ? null : { ...input.request.cutSets, cutOffs: [...input.request.cutSets.cutOffs] },
-    trees: input.outcomes.map((outcome) => ({
-      treeId: outcome.treeId,
-      runId: outcome.runId,
-      status: outcome.status,
-      initiatorFrequency: initiatorFrequencyOf(outcome),
-      failure: outcome.failure,
-    })),
+    ...(input.request.successTreatment === undefined ? {} : { successTreatment: input.request.successTreatment }),
+    ...(input.request.monteCarlo === undefined ? {} : { monteCarlo: { ...input.request.monteCarlo } }),
+    trees: input.outcomes.map((outcome) => {
+      const own = treeFamilies.get(outcome.treeId);
+      return {
+        treeId: outcome.treeId,
+        runId: outcome.runId,
+        status: outcome.status,
+        initiatorFrequency: initiatorFrequencyOf(outcome),
+        failure: outcome.failure,
+        ...(own === undefined ? {} : { families: [...own.entries()].map(([familyId, annualFrequency]) => ({ familyId, annualFrequency })) }),
+      };
+    }),
     sequences,
     families: familyRows,
     endStates: [...endStates.entries()].map(([endState, annualFrequency]) => ({ endState, annualFrequency })),

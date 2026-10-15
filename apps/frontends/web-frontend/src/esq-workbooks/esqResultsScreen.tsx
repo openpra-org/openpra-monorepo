@@ -346,7 +346,7 @@ function ImportancePanel({ view, openWindow }: { view: EsqResultsView; openWindo
     <div className="esq-run">
       <div className="esq-run__composer" aria-label="Importance controls">
         <div className="esq-run__row">
-          <p className="esq-meta">{`PRAXIS sets each event and each group to failure and to success on the exact diagrams of the run of record, with its logic.${run.hcl === undefined ? "" : " The run of record uses HCL, and HCL importance is not available, so the ranking leaves the network out."}`}</p>
+          <p className="esq-meta">{`PRAXIS sets each event and each group to failure and to success on the exact diagrams of the run of record, with its logic.${run.hcl === undefined ? "" : " The run of record uses dependencies, and dependency importance is not available, so the ranking leaves the dependency network out."}`}</p>
           <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={runner.running || !editable || blocked !== null} onClick={rank}>
             {runner.running ? "Ranking…" : "Rank"}
           </button>
@@ -505,7 +505,7 @@ function ResultsScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => 
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0} className="esq-step__panel">
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="ESQ" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <div className="esq-card-actions">
               <EsqProvenanceChip>{head.sr}</EsqProvenanceChip>
               {view !== undefined && tab === "importance" && (

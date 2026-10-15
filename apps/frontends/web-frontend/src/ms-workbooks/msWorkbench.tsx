@@ -24,21 +24,20 @@ import "./css/msScreens.css";
 interface StepHeader {
   eyebrow: string;
   title: string;
-  sub?: string;
 }
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "The interfaces and the capability target." };
-    case "categories": return { eyebrow: "Step 02", title: "Release Categories", sub: "The bins, the bounding sequences and the termination times (MS-A)." };
-    case "sources": return { eyebrow: "Step 03", title: "Sources & Barriers", sub: "The inventories and the calculated retention chain (MS-B)." };
-    case "transport": return { eyebrow: "Step 04", title: "Transport Phenomena", sub: "The phenomena checklist and the design-unique physics (MS-B)." };
-    case "sourceterm": return { eyebrow: "Step 05", title: "Source Terms", sub: "The mechanistic calculation and the source-term table (MS-C)." };
-    case "uncert": return { eyebrow: "Step 06", title: "Uncertainty & Pre-op", sub: "The fork, the phenomena dependencies and the pre-operational assumptions (MS-D)." };
+    case "scope": return { eyebrow: "Step 01", title: "Scope" };
+    case "categories": return { eyebrow: "Step 02", title: "Release Categories" };
+    case "sources": return { eyebrow: "Step 03", title: "Sources & Barriers" };
+    case "transport": return { eyebrow: "Step 04", title: "Transport Phenomena" };
+    case "sourceterm": return { eyebrow: "Step 05", title: "Source Terms" };
+    case "uncert": return { eyebrow: "Step 06", title: "Uncertainty & Pre-op" };
     case "handoff": return { eyebrow: "Step 07", title: "Technical Element Handoff" };
-    case "draft": return { eyebrow: "Step 08 · Draft", title: "Produce the draft", sub: "Build the MS report, then send it to review (MS-E)." };
-    case "review": return { eyebrow: "Step 09 · Review", title: "Internal technical review", sub: "Reviewers comment, the preparer replies, all resolve before approval." };
-    case "approval": return { eyebrow: "Step 10 · Approval", title: "Approval & sign-off", sub: "Everyone signs, the approver last." };
+    case "draft": return { eyebrow: "Step 08 · Draft", title: "Produce the draft" };
+    case "review": return { eyebrow: "Step 09 · Review", title: "Internal technical review" };
+    case "approval": return { eyebrow: "Step 10 · Approval", title: "Approval & sign-off" };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -433,7 +432,7 @@ function MsWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <WorkbookSectionHeading workbook="MS" title={h.title} description={h.sub} level={1} className="posmain__title" />
+              <WorkbookSectionHeading title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
               {!dockOpen && (

@@ -96,7 +96,7 @@ function RcEarlyResponseEditor(): JSX.Element {
         } catch (cause) { setError(message(cause)); }
       }} /></label>;
 
-  return <div className="poscard rc-response-card"><div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Early response" level={3} /></div>
+  return <div className="poscard rc-response-card"><div className="poscard__head"><WorkbookSectionHeading title="Early response" level={3} /></div>
     <section className="rc-response" aria-label="Early response inputs">
       {!rcProtectiveActionsNeeded(rc.scope.metrics) && <p className="rc-response-note">No selected metric credits protective actions. These response inputs are optional.</p>}
       <div className="rc-response-file"><div><span>Response input file</span><strong>{saved?.originalFile?.filename ?? "No file selected"}</strong><small>.inp · .txt · .json</small></div>

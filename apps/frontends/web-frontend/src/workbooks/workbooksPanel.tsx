@@ -7,7 +7,7 @@ import "./css/workbooks.css";
 
 type SortKey = "edited" | "name" | "status";
 
-const STATUS_ORDER: Record<WorkbookStatus, number> = { "in-progress": 0, draft: 1, complete: 2 };
+const STATUS_ORDER: Record<WorkbookStatus, number> = { "revision-required": 0, "in-review": 1, draft: 2, approved: 3 };
 
 interface WorkbooksPanelProps {
   projectId: string;

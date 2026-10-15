@@ -8,14 +8,15 @@ import { EventSequenceQuantificationSchema } from "interfaces-mef-types/zod/esq/
 import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 import type { SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import { SuccessCriteriaDevelopmentSchema } from "interfaces-mef-types/zod/sc/success-criteria-development";
-import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
+import { daCcfFactorParameters, type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import { DataAnalysisSchema } from "interfaces-mef-types/zod/da/data-analysis";
 import { expressionReferences, parameterReferenceKey, type UncertainExpression, type UncertainParameter } from "interfaces-mef-types/core/uncertainty";
-import { esqSequenceRunId, esqTreeRunId, transferTreeIds, treesInScope, withLiveDa } from "interfaces-mef-types/esq/esq-run-inputs";
+import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
+import { esqParameterLinks, esqSequenceRunId, esqTreeRunId, transferTreeIds, treesInScope, withLiveDa } from "interfaces-mef-types/esq/esq-run-inputs";
 import { esqCellRunId } from "interfaces-mef-types/esq/esq-barrier-inputs";
 import { esqModelRunId, sequenceFamilyOf, solveInputsKey } from "interfaces-mef-types/esq/esq-solve-inputs";
-import { esqPostRunId } from "interfaces-mef-types/esq/esq-post-inputs";
-import { esqImportanceRunId, esqUncertaintyRunId, parameterLaw, sampledInputsOf, uncertaintyInputsKey, type EsqSampledInput } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { esqPostRunId, hfeEventIds, recoveryInputKey, resolvedRecoveries } from "interfaces-mef-types/esq/esq-post-inputs";
+import { esqImportanceRunId, esqUncertaintyRunId, eventInputKey, parameterLaw, sampledInputsOf, uncertaintyInputsKey, type EsqSampledInput } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { applySensitivityCase, caseInputsKey, caseOf, esqSensitivityRunId } from "interfaces-mef-types/esq/esq-sensitivity-inputs";
 import {
   EsqBarrierCellRunRequestSchema,
@@ -30,6 +31,8 @@ import {
   EsqUncertaintyRunRequestSchema,
   EsqUncertaintyRunResultSchema,
   EventTreeAnalysisResultSchema,
+  HclEventTreeBatchExecuteRequestSchema,
+  HclEventTreeExecuteRequestSchema,
   LoadCapacityAnalysisResultSchema,
   type AnalysisRunMetadata,
   type EsqEventTreeRunLogic,
@@ -42,6 +45,7 @@ import {
   type EsqUncertaintyRunResult,
   type EventTreeCutSetSettings,
   type EventTreeAnalysisResult,
+  type HclBatchExecuteResult,
   type LoadCapacityAnalysisResult,
 } from "interfaces-shared-types/newly-developed-methods";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
@@ -58,6 +62,8 @@ import {
   combineFaultTrees,
   WorkbookAnalysisRunsService,
   type ActingUser,
+  type EsqDependencySource,
+  type EsqDependencyTreeBuild,
   type EsqHclStandIn,
   type EsqModelHcl,
   type EsqPreparedTreeRun,
@@ -66,7 +72,7 @@ import {
 } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
 import { EsqWorkbook, type EsqWorkbookDocument } from "./esq-workbook.schema";
 import { normalizeEsqMef } from "./esq-mef-normalize";
-import { buildEsqEventTreeRun, EsqRunBuildError, type EsqRunBuild } from "./esq-model-run-builder";
+import { buildEsqEventTreeRun, EsqPointsNeededError, EsqRunBuildError, EsqUnresolvedReferenceError, type EsqRunBuild } from "./esq-model-run-builder";
 import { buildEsqCellRun, type EsqCellRunBuild } from "./esq-barrier-run-builder";
 import { summarizeEsqModelRun } from "./esq-model-run-summary";
 import { summarizeEsqPostRun, type EsqPostTreeInfo } from "./esq-post-run-summary";
@@ -76,18 +82,44 @@ import { storedWorkbookRejection } from "../workbooks/stored-workbook-format";
 
 const UPPER_PERCENTILE = 0.95;
 
-function reachableParameters(expressions: readonly UncertainExpression[], table: ReadonlyMap<string, UncertainParameter>): UncertainParameter[] | undefined {
+const DEPENDENCY_LOGIC: EsqEventTreeRunLogic = { flags: true, loopBreaks: "AS_SET", exclusions: true, expandCcf: false, recovery: true, dependency: true };
+
+interface EsqReferences {
+  missionTimes: Map<string, UncertainParameter>;
+  external: Map<string, UncertainParameter>;
+  sources: Array<LoadedWorkbook<SuccessCriteriaDevelopment> | LoadedWorkbook<DataAnalysis>>;
+  names: Map<string, string>;
+  tried: Set<string>;
+}
+
+type EsqPointSource = ReadonlyMap<string, number> | (() => Promise<ReadonlyMap<string, number>>);
+
+type EsqReferenceOutcome = "LOADED" | "HELD" | "FAILED";
+
+type EsqReach = { parameters: UncertainParameter[] } | { missing: WorkbookParameterReference };
+
+function reachableParameters(expressions: readonly UncertainExpression[], table: ReadonlyMap<string, UncertainParameter>): EsqReach {
   const found = new Map<string, UncertainParameter>();
   const pending = expressions.flatMap(expressionReferences);
   for (let reference = pending.pop(); reference !== undefined; reference = pending.pop()) {
     const key = parameterReferenceKey(reference);
     if (found.has(key)) continue;
     const parameter = table.get(key);
-    if (parameter === undefined) return undefined;
+    if (parameter === undefined) return { missing: reference };
     found.set(key, parameter);
     pending.push(...expressionReferences(parameter.expression));
   }
-  return [...found.values()];
+  return { parameters: [...found.values()] };
+}
+
+function pointKeys(esq: EventSequenceQuantification, model: EsqModel): Set<string> {
+  const keys = new Set<string>();
+  for (const eventId of hfeEventIds(esq, model)) keys.add(eventInputKey(esq, model, eventId));
+  for (const recovery of resolvedRecoveries(esq)) keys.add(recoveryInputKey(recovery));
+  for (const combination of esq.postWork?.combinations ?? []) {
+    for (const eventId of combination.eventIds) keys.add(eventInputKey(esq, model, eventId));
+  }
+  return keys;
 }
 
 function resolvedValue(expression: UncertainExpression, table: ReadonlyMap<string, UncertainParameter>): UncertainExpression {
@@ -118,17 +150,17 @@ interface PrepareTreesInput {
   workbookId: string;
   owner: LoadedWorkbook<EventSequenceQuantification>;
   sy: LoadedWorkbook<SystemsAnalysis>;
-  missionTimes: ReadonlyMap<string, UncertainParameter>;
+  references: EsqReferences;
   roots: readonly EsqTreeRecord[];
   schemaVersion: string;
   workbookRevision: number;
   logic: EsqEventTreeRunLogic;
-  points: ReadonlyMap<string, number>;
+  points: EsqPointSource;
   raisedHep?: number;
   failedEventIds?: readonly string[];
   esq: EventSequenceQuantification;
   acting: ActingUser;
-  extras: (build: EsqRunBuild, root: EsqTreeRecord) => Record<string, object | undefined>;
+  extras: (build: EsqRunBuild, root: EsqTreeRecord) => Record<string, object | string | undefined>;
   transform?: (build: EsqRunBuild, root: EsqTreeRecord) => EsqRunBuild;
   eventCodes: Record<string, string>;
   builds: Map<string, EsqRunBuild>;
@@ -280,8 +312,8 @@ export class EsqModelRunsService {
     return { esq: { ...owner.mef, model: withLiveDa(model, da.mef, workbookId) }, sources: [da] };
   }
 
-  private parameterTable(esq: EventSequenceQuantification, missionTimes: ReadonlyMap<string, UncertainParameter>): Map<string, UncertainParameter> {
-    const table = new Map(missionTimes);
+  private parameterTable(esq: EventSequenceQuantification, references: EsqReferences): Map<string, UncertainParameter> {
+    const table = new Map([...references.missionTimes, ...references.external]);
     const workbookId = esq.linkedWorkbooks?.DA;
     const model = esq.model;
     if (workbookId === undefined || model === undefined) return table;
@@ -295,14 +327,123 @@ export class EsqModelRunsService {
     return table;
   }
 
-  private async pointsOf(esq: EventSequenceQuantification, missionTimes: ReadonlyMap<string, UncertainParameter>, always = false): Promise<Map<string, number>> {
+  private referencesOf(esq: EventSequenceQuantification, missionTimes: ReadonlyMap<string, UncertainParameter>): EsqReferences {
+    const tried = new Set<string>();
+    for (const linked of [esq.linkedWorkbooks?.SC, esq.linkedWorkbooks?.DA]) {
+      if (linked !== undefined && linked.trim().length > 0) tried.add(linked.trim());
+    }
+    return { missionTimes: new Map(missionTimes), external: new Map(), sources: [], names: new Map(), tried };
+  }
+
+  private async referencedSource(
+    workbookId: string,
+    owner: LoadedWorkbook<EventSequenceQuantification>,
+    acting: ActingUser,
+  ): Promise<{ kind: "DA"; workbook: LoadedWorkbook<DataAnalysis> } | { kind: "SC"; workbook: LoadedWorkbook<SuccessCriteriaDevelopment> } | undefined> {
+    if (workbookId.startsWith("example-da-")) return { kind: "DA", workbook: await this.loadDa(workbookId, owner, acting) };
+    if (workbookId.startsWith("example-sc-")) return { kind: "SC", workbook: await this.loadSc(workbookId, owner, acting) };
+    const [da, sc] = await Promise.all([
+      this.daWorkbookModel.exists({ workbookId }).exec(),
+      this.scWorkbookModel.exists({ workbookId }).exec(),
+    ]);
+    if (da !== null) return { kind: "DA", workbook: await this.loadDa(workbookId, owner, acting) };
+    if (sc !== null) return { kind: "SC", workbook: await this.loadSc(workbookId, owner, acting) };
+    return undefined;
+  }
+
+  private async resolveReference(
+    reference: WorkbookParameterReference,
+    references: EsqReferences,
+    owner: LoadedWorkbook<EventSequenceQuantification>,
+    acting: ActingUser,
+  ): Promise<EsqReferenceOutcome> {
+    const workbookId = reference.workbookId.trim();
+    if (references.tried.has(workbookId)) return "HELD";
+    references.tried.add(workbookId);
+    const source = await this.referencedSource(workbookId, owner, acting).catch(() => undefined);
+    if (source === undefined) return "FAILED";
+    if (source.kind === "SC") {
+      for (const entry of [...source.workbook.mef.missionTimes, ...(source.workbook.mef.componentMissionTimes ?? [])]) {
+        const key: WorkbookParameterReference = { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: entry.uuid };
+        references.missionTimes.set(parameterReferenceKey(key), { reference: key, expression: entry.missionTime });
+      }
+    } else {
+      for (const record of esqParameterLinks(source.workbook.mef)) {
+        const law = parameterLaw(record);
+        if (law === undefined) continue;
+        const key: WorkbookParameterReference = { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId: record.id };
+        references.external.set(parameterReferenceKey(key), { reference: key, expression: law });
+      }
+      for (const factor of daCcfFactorParameters(source.workbook.mef, workbookId)) references.external.set(parameterReferenceKey(factor.reference), factor);
+    }
+    references.names.set(workbookId, source.workbook.mef.name);
+    references.sources.push(source.workbook);
+    return "LOADED";
+  }
+
+  private async buildTree(
+    build: (points: ReadonlyMap<string, number> | undefined) => EsqRunBuild,
+    points: EsqPointSource,
+    references: EsqReferences,
+    owner: LoadedWorkbook<EventSequenceQuantification>,
+    acting: ActingUser,
+  ): Promise<EsqRunBuild> {
+    let known = typeof points === "function" ? undefined : points;
+    for (;;) {
+      try {
+        return build(known);
+      } catch (error) {
+        if (error instanceof EsqPointsNeededError) {
+          if (typeof points !== "function" || known !== undefined) throw new EsqRunBuildError(error.message);
+          known = await points();
+          continue;
+        }
+        if (!(error instanceof EsqUnresolvedReferenceError)) throw error;
+        const outcome = await this.resolveReference(error.reference, references, owner, acting);
+        if (outcome === "LOADED") continue;
+        const name = references.names.get(error.reference.workbookId.trim());
+        throw new EsqRunBuildError(outcome === "HELD" && name !== undefined
+          ? `${error.eventCode} reads ${error.reference.entityId}, which ${name} does not hold.`
+          : `${error.eventCode} reads ${error.reference.entityId} from workbook ${error.reference.workbookId}, which could not be loaded.`);
+      }
+    }
+  }
+
+  private lazyPoints(esq: EventSequenceQuantification, references: EsqReferences, owner: LoadedWorkbook<EventSequenceQuantification>, acting: ActingUser): () => Promise<ReadonlyMap<string, number>> {
+    let held: Promise<ReadonlyMap<string, number>> | undefined;
+    return () => {
+      held ??= this.pointsOf(esq, references, owner, acting, true);
+      return held;
+    };
+  }
+
+  private async pointsOf(
+    esq: EventSequenceQuantification,
+    references: EsqReferences,
+    owner: LoadedWorkbook<EventSequenceQuantification>,
+    acting: ActingUser,
+    always = false,
+  ): Promise<Map<string, number>> {
     const points = new Map<string, number>();
-    if (!always && (esq.postWork?.combinations ?? []).length === 0) return points;
-    const table = this.parameterTable(esq, missionTimes);
-    const entries = sampledInputsOf(esq).flatMap((input) => {
-      const parameters = input.expression === undefined || input.unit !== "PROBABILITY" ? undefined : reachableParameters([input.expression], table);
-      return input.expression === undefined || parameters === undefined ? [] : [{ input, expression: input.expression, parameters }];
-    });
+    const model = esq.model;
+    if (model === undefined || (!always && (esq.postWork?.combinations ?? []).length === 0)) return points;
+    const keys = pointKeys(esq, model);
+    const wanted = sampledInputsOf(esq).flatMap((input) => (input.expression === undefined || input.unit !== "PROBABILITY" || !keys.has(input.key) ? [] : [{ input, expression: input.expression }]));
+    if (wanted.length === 0) return points;
+    const reachOf = (): Array<{ input: EsqSampledInput; expression: UncertainExpression; reach: EsqReach }> => {
+      const table = this.parameterTable(esq, references);
+      return wanted.map((entry) => ({ ...entry, reach: reachableParameters([entry.expression], table) }));
+    };
+    let reached = reachOf();
+    for (;;) {
+      let loaded = false;
+      for (const entry of reached) {
+        if ("missing" in entry.reach && (await this.resolveReference(entry.reach.missing, references, owner, acting)) === "LOADED") loaded = true;
+      }
+      if (!loaded) break;
+      reached = reachOf();
+    }
+    const entries = reached.flatMap((entry) => ("parameters" in entry.reach ? [{ input: entry.input, expression: entry.expression, parameters: entry.reach.parameters }] : []));
     if (entries.length === 0) return points;
     const parameters = new Map(entries.flatMap((entry) => entry.parameters).map((parameter) => [parameterReferenceKey(parameter.reference), parameter]));
     const response = await this.uncertainty.evaluate({
@@ -318,9 +459,9 @@ export class EsqModelRunsService {
     return points;
   }
 
-  private async upperPercentiles(esq: EventSequenceQuantification, missionTimes: ReadonlyMap<string, UncertainParameter>): Promise<Map<string, number>> {
+  private async upperPercentiles(esq: EventSequenceQuantification, references: EsqReferences): Promise<Map<string, number>> {
     const upper = new Map<string, number>();
-    const table = this.parameterTable(esq, missionTimes);
+    const table = this.parameterTable(esq, references);
     const human = (input: EsqSampledInput): boolean => input.kind === "HFE" || input.kind === "RECOVERY";
     const entries = sampledInputsOf(esq).flatMap((input) => {
       const value = input.expression === undefined || !human(input) ? undefined : resolvedValue(input.expression, table);
@@ -366,21 +507,22 @@ export class EsqModelRunsService {
     const sy = await this.loadSy(syLink.workbookId, owner, acting);
     const sc = await this.loadMissionTimes(owner, acting);
     const live = await this.liveDa(owner, acting);
-    const points = await this.pointsOf(live.esq, sc.missionTimes);
+    const references = this.referencesOf(owner.mef, sc.missionTimes);
     let build: EsqRunBuild;
     try {
-      build = buildEsqEventTreeRun({
+      build = await this.buildTree((points) => buildEsqEventTreeRun({
         esq: live.esq,
         treeId,
         sy: sy.mef,
         syWorkbookId: sy.workbookId,
         syRevision: sy.workbookRevision,
-        missionTimes: sc.missionTimes,
+        missionTimes: references.missionTimes,
+        external: references.external,
         esqWorkbookId: workbookId,
         esqRevision: owner.workbookRevision,
         logic: request.logic,
-        points,
-      });
+        ...(points === undefined ? {} : { points }),
+      }), this.lazyPoints(live.esq, references, owner, acting), references, owner, acting);
     } catch (error) {
       if (error instanceof EsqRunBuildError) throw new BadRequestException(error.message);
       throw error;
@@ -391,7 +533,7 @@ export class EsqModelRunsService {
       runId,
       owner: { workbookId, modelId: build.rootModelId, workbookRevision: owner.workbookRevision },
       request,
-      sources: [owner, sy, ...sc.sources, ...live.sources],
+      sources: [owner, sy, ...sc.sources, ...live.sources, ...references.sources],
       envelope: {
         schemaVersion: "1.0.0",
         request: {
@@ -427,76 +569,82 @@ export class EsqModelRunsService {
     const sy = await this.loadSy(syLink.workbookId, owner, acting);
     const sc = await this.loadMissionTimes(owner, acting);
     const live = await this.liveDa(owner, acting);
-    return { owner, model, roots, sy, sc, live, sources: [owner, sy, ...sc.sources, ...live.sources] };
+    const references = this.referencesOf(owner.mef, sc.missionTimes);
+    return { owner, model, roots, sy, sc, live, references, sources: [owner, sy, ...sc.sources, ...live.sources] };
   }
 
-  private prepareTrees(input: PrepareTreesInput): EsqPreparedTreeRun[] {
+  private async prepareTrees(input: PrepareTreesInput): Promise<EsqPreparedTreeRun[]> {
+    const prepared: EsqPreparedTreeRun[] = [];
+    for (const root of input.roots) prepared.push(await this.prepareTree(input, root));
+    return prepared;
+  }
+
+  private async prepareTree(input: PrepareTreesInput, root: EsqTreeRecord): Promise<EsqPreparedTreeRun> {
     const { workbookId, owner, sy } = input;
-    return input.roots.map((root): EsqPreparedTreeRun => {
-      const runId = randomUUID();
-      const treeOwner = { workbookId, modelId: esqTreeRunId(root.id), workbookRevision: owner.workbookRevision };
-      const childRequest = { schemaVersion: input.schemaVersion, treeId: root.id, workbookRevision: input.workbookRevision, logic: { ...input.logic } };
-      let built: EsqRunBuild;
-      try {
-        built = buildEsqEventTreeRun({
-          esq: input.esq,
-          treeId: root.id,
-          sy: sy.mef,
-          syWorkbookId: sy.workbookId,
-          syRevision: sy.workbookRevision,
-          missionTimes: input.missionTimes,
-          esqWorkbookId: workbookId,
-          esqRevision: owner.workbookRevision,
-          logic: input.logic,
-          points: input.points,
-          ...(input.raisedHep === undefined ? {} : { raisedHep: input.raisedHep }),
-          ...(input.failedEventIds === undefined || input.failedEventIds.length === 0 ? {} : { failedEventIds: input.failedEventIds }),
-          ...(input.standInFor === undefined ? {} : { standIn: input.standInFor(root.id) }),
-        });
-      } catch (error) {
-        if (!(error instanceof EsqRunBuildError)) throw error;
-        return { treeId: root.id, label: root.code, runId, owner: treeOwner, request: childRequest, envelope: null, failure: error.message, models: [] };
-      }
-      const build = input.transform === undefined ? built : input.transform(built, root);
-      input.builds.set(root.id, build);
-      const faultTrees = combineFaultTrees(runId, build.faultTrees, build.initiatorTables);
-      Object.assign(input.eventCodes, build.eventCodes);
-      const envelope: SolverEnvelope = {
-        schemaVersion: "1.0.0",
-        request: {
-          schemaVersion: input.schemaVersion,
-          methodType: "EVENT_TREE",
-          modelId: build.rootModelId,
-          revision: owner.workbookRevision,
-          mode: "INDEPENDENT",
-          requestedBy: input.acting.username,
-          expandCcf: input.logic.expandCcf,
-          ...input.extras(build, root),
-        },
-        modelSnapshots: [...build.eventTreeSnapshots, ...faultTrees.modelSnapshots],
-        resources: { faultTreeBasicEventCatalogue: faultTrees.resource },
-      };
-      let augmented: SolverEnvelope;
-      try {
-        augmented = input.augment === undefined ? envelope : input.augment(envelope, build, root);
-      } catch (error) {
-        if (!(error instanceof BadRequestException)) throw error;
-        return { treeId: root.id, label: root.code, runId, owner: treeOwner, request: childRequest, envelope: null, failure: error.message, models: [] };
-      }
-      return {
+    const runId = randomUUID();
+    const treeOwner = { workbookId, modelId: esqTreeRunId(root.id), workbookRevision: owner.workbookRevision };
+    const childRequest = { schemaVersion: input.schemaVersion, treeId: root.id, workbookRevision: input.workbookRevision, logic: { ...input.logic } };
+    let built: EsqRunBuild;
+    try {
+      built = await this.buildTree((points) => buildEsqEventTreeRun({
+        esq: input.esq,
         treeId: root.id,
-        label: root.code,
-        runId,
-        owner: treeOwner,
-        request: childRequest,
-        envelope: augmented,
-        failure: null,
-        models: [
-          ...[...build.eventTreeModelIds, ...build.splitFractionModelIds].map((modelId) => ({ workbookId, modelId })),
-          ...build.syModelIds.map((modelId) => ({ workbookId: sy.workbookId, modelId })),
-        ],
-      };
-    });
+        sy: sy.mef,
+        syWorkbookId: sy.workbookId,
+        syRevision: sy.workbookRevision,
+        missionTimes: input.references.missionTimes,
+        external: input.references.external,
+        esqWorkbookId: workbookId,
+        esqRevision: owner.workbookRevision,
+        logic: input.logic,
+        ...(points === undefined ? {} : { points }),
+        ...(input.raisedHep === undefined ? {} : { raisedHep: input.raisedHep }),
+        ...(input.failedEventIds === undefined || input.failedEventIds.length === 0 ? {} : { failedEventIds: input.failedEventIds }),
+        ...(input.standInFor === undefined ? {} : { standIn: input.standInFor(root.id) }),
+      }), input.points, input.references, owner, input.acting);
+    } catch (error) {
+      if (!(error instanceof EsqRunBuildError)) throw error;
+      return { treeId: root.id, label: root.code, runId, owner: treeOwner, request: childRequest, envelope: null, failure: error.message, models: [] };
+    }
+    const build = input.transform === undefined ? built : input.transform(built, root);
+    input.builds.set(root.id, build);
+    const faultTrees = combineFaultTrees(runId, build.faultTrees, build.initiatorTables);
+    Object.assign(input.eventCodes, build.eventCodes);
+    const envelope: SolverEnvelope = {
+      schemaVersion: "1.0.0",
+      request: {
+        schemaVersion: input.schemaVersion,
+        methodType: "EVENT_TREE",
+        modelId: build.rootModelId,
+        revision: owner.workbookRevision,
+        mode: "INDEPENDENT",
+        requestedBy: input.acting.username,
+        expandCcf: input.logic.expandCcf,
+        ...input.extras(build, root),
+      },
+      modelSnapshots: [...build.eventTreeSnapshots, ...faultTrees.modelSnapshots],
+      resources: { faultTreeBasicEventCatalogue: faultTrees.resource },
+    };
+    let augmented: SolverEnvelope;
+    try {
+      augmented = input.augment === undefined ? envelope : input.augment(envelope, build, root);
+    } catch (error) {
+      if (!(error instanceof BadRequestException)) throw error;
+      return { treeId: root.id, label: root.code, runId, owner: treeOwner, request: childRequest, envelope: null, failure: error.message, models: [] };
+    }
+    return {
+      treeId: root.id,
+      label: root.code,
+      runId,
+      owner: treeOwner,
+      request: childRequest,
+      envelope: augmented,
+      failure: null,
+      models: [
+        ...[...build.eventTreeModelIds, ...build.splitFractionModelIds].map((modelId) => ({ workbookId, modelId })),
+        ...build.syModelIds.map((modelId) => ({ workbookId: sy.workbookId, modelId })),
+      ],
+    };
   }
 
   private async hclFor(owner: LoadedWorkbook<EventSequenceQuantification>, address: EsqModelRunHcl | undefined, acting: ActingUser): Promise<EsqModelHcl | undefined> {
@@ -523,7 +671,7 @@ export class EsqModelRunsService {
 
   private hclResult(hcl: EsqModelHcl | undefined, covered: readonly string[]): { hcl?: EsqModelRunHclResult } {
     if (hcl === undefined) return {};
-    if (covered.length === 0) throw new BadRequestException("The network configuration covers no event tree in scope. Pick a configuration whose scope or fault trees match these event trees.");
+    if (covered.length === 0) throw new BadRequestException("The dependency configuration covers no event tree in scope. Pick a configuration whose scope or fault trees match these event trees.");
     return { hcl: { workbookId: hcl.configurationWorkbookId, modelId: hcl.configurationId, treeIds: [...covered] } };
   }
 
@@ -531,19 +679,22 @@ export class EsqModelRunsService {
     const parsed = EsqModelRunRequestSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
     const request = parsed.data;
-    const { owner, model, roots, sy, sc, live, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const { owner, model, roots, sy, live, references, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const picked = request.treeIds;
+    const missing = (picked ?? []).filter((treeId) => !roots.some((root) => root.id === treeId));
+    if (missing.length > 0) throw new BadRequestException(`${missing.length === 1 ? "Event tree" : "Event trees"} ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} not in scope.`);
     const hcl = await this.hclFor(owner, request.hcl, acting);
     const eventCodes: Record<string, string> = {};
     const cutSets = request.cutSets;
     const covered: string[] = [];
-    const trees = this.prepareTrees({
+    const trees = await this.prepareTrees({
       workbookId,
       owner,
       sy,
-      missionTimes: sc.missionTimes,
+      references,
       esq: live.esq,
-      points: await this.pointsOf(live.esq, sc.missionTimes),
-      roots,
+      points: this.lazyPoints(live.esq, references, owner, acting),
+      roots: picked === undefined ? roots : roots.filter((root) => picked.includes(root.id)),
       schemaVersion: request.schemaVersion,
       workbookRevision: request.workbookRevision,
       logic: request.logic,
@@ -551,7 +702,11 @@ export class EsqModelRunsService {
       eventCodes,
       builds: new Map(),
       ...this.hclOptions(hcl, sy, covered),
-      extras: (_build, root) => cutSetExtras(cutSets, owner.mef, model, root.id),
+      extras: (_build, root) => ({
+        ...cutSetExtras(cutSets, owner.mef, model, root.id),
+        ...(request.successTreatment === undefined ? {} : { successTreatment: request.successTreatment }),
+        ...(request.monteCarlo === undefined ? {} : { monteCarlo: { ...request.monteCarlo } }),
+      }),
     });
     const quantified = this.hclResult(hcl, covered);
     const modelOwner = { workbookId, modelId: esqModelRunId(), workbookRevision: owner.workbookRevision };
@@ -559,7 +714,7 @@ export class EsqModelRunsService {
     return this.analysisRunsService.executeEsqBatch({
       owner: modelOwner,
       request,
-      sources: [...sources, ...(hcl?.sources ?? [])],
+      sources: [...sources, ...references.sources, ...(hcl?.sources ?? [])],
       trees,
       summarize: (batchId, completedAt, outcomes) => summarizeEsqModelRun({
         esq: owner.mef,
@@ -576,11 +731,93 @@ export class EsqModelRunsService {
     });
   }
 
+  private dependencyRoot(roots: readonly EsqTreeRecord[], treeId: string): EsqTreeRecord {
+    const root = roots.find((candidate) => candidate.id === treeId);
+    if (root === undefined) throw new BadRequestException(`Event tree ${treeId} is not in scope.`);
+    return root;
+  }
+
+  private async dependencyTree(input: {
+    workbookId: string;
+    owner: LoadedWorkbook<EventSequenceQuantification>;
+    sy: LoadedWorkbook<SystemsAnalysis>;
+    references: EsqReferences;
+    esq: EventSequenceQuantification;
+    sources: readonly EsqDependencySource[];
+    root: EsqTreeRecord;
+    hcl: EsqModelHcl;
+    schemaVersion: string;
+    workbookRevision: number;
+    acting: ActingUser;
+  }): Promise<EsqDependencyTreeBuild> {
+    const builds = new Map<string, EsqRunBuild>();
+    const prepared = await this.prepareTree({
+      workbookId: input.workbookId,
+      owner: input.owner,
+      sy: input.sy,
+      references: input.references,
+      roots: [input.root],
+      schemaVersion: input.schemaVersion,
+      workbookRevision: input.workbookRevision,
+      logic: DEPENDENCY_LOGIC,
+      points: this.lazyPoints(input.esq, input.references, input.owner, input.acting),
+      esq: input.esq,
+      acting: input.acting,
+      extras: () => ({}),
+      eventCodes: {},
+      builds,
+      standInFor: input.hcl.standInFor,
+    }, input.root);
+    const build = builds.get(input.root.id);
+    if (prepared.envelope === null || build === undefined) throw new BadRequestException(prepared.failure ?? `${input.root.code} could not be built.`);
+    return {
+      rootModelId: build.rootModelId,
+      envelope: prepared.envelope,
+      syWorkbookId: input.sy.workbookId,
+      syModelIds: build.syModelIds,
+      standInModelIds: build.standInModelIds,
+      models: prepared.models,
+      sources: [...input.sources, ...input.references.sources],
+    };
+  }
+
+  async runDependencyTree(workbookId: string, configurationId: string, body: object, acting: ActingUser): Promise<AnalysisRunMetadata> {
+    const parsed = HclEventTreeExecuteRequestSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException(parsed.error.message);
+    const request = parsed.data;
+    if (request.modelId !== configurationId) throw new BadRequestException("Route configuration id must match the request modelId");
+    const { owner, roots, sy, live, references, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const root = this.dependencyRoot(roots, request.eventTree.modelId);
+    return this.analysisRunsService.executeEsqDependencyRun({
+      owner,
+      request,
+      treeId: root.id,
+      acting,
+      build: (hcl) => this.dependencyTree({ workbookId, owner, sy, references, esq: live.esq, sources, root, hcl, schemaVersion: request.schemaVersion, workbookRevision: request.workbookRevision, acting }),
+    });
+  }
+
+  async runDependencyBatch(workbookId: string, configurationId: string, body: object, acting: ActingUser): Promise<HclBatchExecuteResult> {
+    const parsed = HclEventTreeBatchExecuteRequestSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException(parsed.error.message);
+    const request = parsed.data;
+    if (request.modelId !== configurationId) throw new BadRequestException("Route configuration id must match the request modelId");
+    const { owner, roots, sy, live, references, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const root = this.dependencyRoot(roots, request.eventTree.modelId);
+    return this.analysisRunsService.executeEsqDependencyBatch({
+      owner,
+      request,
+      treeId: root.id,
+      acting,
+      build: (hcl) => this.dependencyTree({ workbookId, owner, sy, references, esq: live.esq, sources, root, hcl, schemaVersion: request.schemaVersion, workbookRevision: request.workbookRevision, acting }),
+    });
+  }
+
   async runPost(workbookId: string, body: object, acting: ActingUser): Promise<AnalysisRunMetadata> {
     const parsed = EsqPostRunRequestSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
     const request = parsed.data;
-    const { owner, roots, sy, sc, live, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const { owner, roots, sy, live, references, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
     const combinations = request.purpose === "COMBINATIONS";
     const logic: EsqEventTreeRunLogic = combinations ? { ...request.logic, dependency: false } : { ...request.logic, exclusions: false, dependency: false };
     const exclusions = (owner.mef.logic?.exclusions ?? []).flatMap((exclusion) => {
@@ -590,13 +827,13 @@ export class EsqModelRunsService {
     if (!combinations && exclusions.length === 0) throw new BadRequestException("Step 04 holds no exclusion with two or more events to check.");
     const eventCodes: Record<string, string> = {};
     const builds = new Map<string, EsqRunBuild>();
-    const trees = this.prepareTrees({
+    const trees = await this.prepareTrees({
       workbookId,
       owner,
       sy,
-      missionTimes: sc.missionTimes,
+      references,
       esq: live.esq,
-      points: await this.pointsOf(live.esq, sc.missionTimes, true),
+      points: await this.pointsOf(live.esq, references, owner, acting, true),
       roots,
       schemaVersion: request.schemaVersion,
       workbookRevision: request.workbookRevision,
@@ -619,7 +856,7 @@ export class EsqModelRunsService {
     return this.analysisRunsService.executeEsqBatch({
       owner: postOwner,
       request,
-      sources,
+      sources: [...sources, ...references.sources],
       trees,
       summarize: (batchId, completedAt, outcomes) => summarizeEsqPostRun({
         request,
@@ -641,18 +878,18 @@ export class EsqModelRunsService {
     const parsed = EsqImportanceRunRequestSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
     const request = parsed.data;
-    const { owner, model, roots, sy, sc, live, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const { owner, model, roots, sy, live, references, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
     const groups = importanceGroupsFor(owner.mef, request.logic);
     const eventCodes: Record<string, string> = {};
     const builds = new Map<string, EsqRunBuild>();
     const families = new Map<string, Record<string, string>>();
-    const trees = this.prepareTrees({
+    const trees = await this.prepareTrees({
       workbookId,
       owner,
       sy,
-      missionTimes: sc.missionTimes,
+      references,
       esq: live.esq,
-      points: await this.pointsOf(live.esq, sc.missionTimes),
+      points: this.lazyPoints(live.esq, references, owner, acting),
       roots,
       schemaVersion: request.schemaVersion,
       workbookRevision: request.workbookRevision,
@@ -671,7 +908,7 @@ export class EsqModelRunsService {
     return this.analysisRunsService.executeEsqBatch({
       owner: runOwner,
       request,
-      sources,
+      sources: [...sources, ...references.sources],
       trees,
       summarize: (batchId, completedAt, outcomes) => summarizeEsqImportanceRun({
         esq: owner.mef,
@@ -694,19 +931,19 @@ export class EsqModelRunsService {
     const parsed = EsqUncertaintyRunRequestSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
     const request = parsed.data;
-    const { owner, model, roots, sy, sc, live, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const { owner, model, roots, sy, live, references, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
     const inputs = new Map(sampledInputsOf(live.esq).map((input) => [input.key, input]));
     const tally: EsqSamplingTally = { used: new Map(), unsampled: new Map() };
     const families = new Map<string, Record<string, string>>();
     const samplings = new Map<string, EsqSampling>();
     const settings = { trials: request.trials, seed: request.seed, method: request.method, correlation: request.correlation };
-    const trees = this.prepareTrees({
+    const trees = await this.prepareTrees({
       workbookId,
       owner,
       sy,
-      missionTimes: sc.missionTimes,
+      references,
       esq: live.esq,
-      points: await this.pointsOf(live.esq, sc.missionTimes),
+      points: this.lazyPoints(live.esq, references, owner, acting),
       roots,
       schemaVersion: request.schemaVersion,
       workbookRevision: request.workbookRevision,
@@ -730,7 +967,7 @@ export class EsqModelRunsService {
     return this.analysisRunsService.executeEsqBatch({
       owner: runOwner,
       request,
-      sources,
+      sources: [...sources, ...references.sources],
       trees,
       stored: (result) => (result.sampling === undefined ? result : { ...result, sampling: { ...result.sampling, families: result.sampling.families.map((family) => ({ familyId: family.familyId, values: [] })) } }),
       summarize: (batchId, completedAt, outcomes) => summarizeEsqUncertaintyRun({
@@ -758,26 +995,26 @@ export class EsqModelRunsService {
     if (!parsed.success) throw new BadRequestException(parsed.error.message);
     const request = parsed.data;
     if (request.caseId !== caseId) throw new BadRequestException("Route case id must match the request caseId");
-    const { owner, model, roots, sy, sc, live, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
+    const { owner, model, roots, sy, live, references, sources } = await this.loadRunSources(workbookId, request.workbookRevision, acting);
     const entry = caseOf(owner.mef, caseId);
     if (entry === undefined) throw new NotFoundException(`Step 08 holds no case ${caseId}.`);
-    const upper = entry.kind === "HEP_95TH" ? await this.upperPercentiles(live.esq, sc.missionTimes) : new Map<string, number>();
+    const upper = entry.kind === "HEP_95TH" ? await this.upperPercentiles(live.esq, references) : new Map<string, number>();
     const applied = applySensitivityCase(live.esq, entry, upper);
     if (applied.problem !== undefined) throw new BadRequestException(`${entry.name}: ${applied.problem}`);
     const logic: EsqEventTreeRunLogic = { ...request.logic, ...applied.logic };
     const cutSets = request.cutSets;
     const overrides = applied.overrides.events.length === 0 && applied.overrides.ccfGroups.length === 0 ? undefined : applied.overrides;
     const eventCodes: Record<string, string> = {};
-    const trees = this.prepareTrees({
+    const trees = await this.prepareTrees({
       workbookId,
       owner,
       sy,
-      missionTimes: sc.missionTimes,
+      references,
       roots,
       schemaVersion: request.schemaVersion,
       workbookRevision: request.workbookRevision,
       logic,
-      points: await this.pointsOf(applied.esq, sc.missionTimes),
+      points: this.lazyPoints(applied.esq, references, owner, acting),
       failedEventIds: applied.failedEvents,
       esq: applied.esq,
       acting,
@@ -803,7 +1040,7 @@ export class EsqModelRunsService {
     return this.analysisRunsService.executeEsqBatch({
       owner: runOwner,
       request,
-      sources,
+      sources: [...sources, ...references.sources],
       trees,
       summarize: (batchId, completedAt, outcomes) => ({
         ...summarizeEsqModelRun({ esq: applied.esq, request: modelRequest, batchId, owner: runOwner, completedAt, inputs, outcomes, eventCodes }),
@@ -831,6 +1068,12 @@ export class EsqModelRunsService {
 
   async getModelResult(workbookId: string, runId: string, acting: ActingUser): Promise<EsqModelRunResult> {
     return EsqModelRunResultSchema.parse(await this.analysisRunsService.getResult("ESQ", workbookId, esqModelRunId(), runId, acting));
+  }
+
+  async getRunWorkbook(workbookId: string, runId: string, acting: ActingUser): Promise<EventSequenceQuantification> {
+    const parsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(await this.analysisRunsService.getOwnerSnapshot("ESQ", workbookId, runId, acting)));
+    if (!parsed.success) throw storedWorkbookRejection("ESQ", workbookId, parsed.error.message);
+    return parsed.data;
   }
 
   async getEventTreeResult(workbookId: string, treeId: string, runId: string, acting: ActingUser): Promise<EventTreeAnalysisResult> {

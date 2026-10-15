@@ -157,11 +157,6 @@ function buildChildren(a: EventSequenceQuantification, final: boolean): (Paragra
   out.push(heading("Cutset review records", HeadingLevel.HEADING_1));
   out.push(para(doc.cutsetReviewProcess));
   const reviewWork = a.review ?? {};
-  const eventCode = new Map((a.model?.events ?? []).map((event) => [event.id, event.code]));
-  out.push(dataTable(
-    ["Family", "Cut set", "Frequency (/yr)", "Significant", "Logic", "Note"],
-    (reviewWork.cutSetReviews ?? []).filter((c) => c.verdict !== undefined).map((c) => [c.familyId, c.eventIds.map((id) => eventCode.get(id) ?? id).join(" · "), val(c.annualFrequency), c.significant ? "Yes" : "No", c.verdict === "CORRECT" ? "Correct" : "Issue", c.note]),
-  ));
   out.push(heading("Consistency of the results", HeadingLevel.HEADING_2));
   out.push(dataTable(
     ["Checked against", "Result", "Note"],

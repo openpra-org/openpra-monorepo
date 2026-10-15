@@ -8,6 +8,7 @@ import { ProjectsService } from "../projects/projects.service";
 import { healMef } from "../pos-workbooks/mef-heal";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
+import { recordWorkbookStatus } from "../workbooks/workbook-status";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { Workbook, type WorkbookDocument } from "../workbooks/workbook.schema";
 import { createBlankSeismicPra } from "./blank-seismic-pra";
@@ -122,13 +123,14 @@ export class SeismicPraWorkbooksService {
     const example = await this.exampleWorkbooksService.getSeismicPraBundle(exampleId);
     const parsed = SeismicPRASchema.safeParse(stripNulls(example.seismicPra.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
-    doc.previousMefJson = JSON.stringify(doc.mef);
+    if (typeof doc.previousMefJson !== "string" || doc.previousMefJson.length === 0) doc.previousMefJson = JSON.stringify(doc.mef);
     doc.mef = {
       ...synchronizeSeismicPraDerivedRegisters(parsed.data),
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };
     await doc.save();
+    await recordWorkbookStatus(this.baseWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState);
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.documentsService.removeAllForWorkbook(workbookId);
     return toResponse(doc, myRoles);
@@ -150,6 +152,7 @@ export class SeismicPraWorkbooksService {
     doc.mef = parsed.data;
     doc.previousMefJson = null;
     await doc.save();
+    await recordWorkbookStatus(this.baseWorkbookModel.db, workbookId, (doc.mef as { workflowState?: string }).workflowState);
     return toResponse(doc, myRoles);
   }
 }

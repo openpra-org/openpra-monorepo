@@ -1,6 +1,7 @@
 import { JSX, useCallback, useEffect, useState } from "react";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { fetchJson } from "../api/client";
+import { WorkbookViewMemory } from "../workbooks/workbookViewMemory";
 import { EsqWorkbench } from "./esqWorkbench";
 import { EsqWorkbookProvider, useEsqUpstream, type EsqWorkbookData } from "./esqWorkbookContext";
 import { NO_LINK_OPTIONS } from "./esqLinks";
@@ -61,17 +62,19 @@ function EsqDemoPage(): JSX.Element {
 
   return (
     <EsqWorkbookProvider data={data} editable={persona === "preparer"} mutateEsq={mutateEsq} upstream={upstream}>
-      <EsqWorkbench
-        data={data}
-        persona={persona}
-        setPersona={setPersona}
-        showPersonaPicker={true}
-        headerMeta={{
-          projectName: "Generic-1 Reactor — Pre-operational PRA",
-          workbookName: data.esq.name,
-          workbookVersion: data.esq.version,
-        }}
-      />
+      <WorkbookViewMemory scope={null}>
+        <EsqWorkbench
+          data={data}
+          persona={persona}
+          setPersona={setPersona}
+          showPersonaPicker={true}
+          headerMeta={{
+            projectName: "Generic-1 Reactor — Pre-operational PRA",
+            workbookName: data.esq.name,
+            workbookVersion: data.esq.version,
+          }}
+        />
+      </WorkbookViewMemory>
     </EsqWorkbookProvider>
   );
 }

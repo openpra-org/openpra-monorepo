@@ -251,7 +251,7 @@ function CasesPanel({ view, openWindow }: { view: EsqSensitivityView; openWindow
     <div className="esq-run">
       <div className="esq-run__composer" aria-label="Case run controls">
         <div className="esq-run__row">
-          <p className="esq-meta">{view.run === undefined ? "Run the model in Step 05 first. Each case runs with its settings." : `Each case is a PRAXIS run on ${runQuantityText(view.run)}, with the other settings of the run of record, and is compared with that run.${view.run.hcl === undefined ? "" : " The run of record uses HCL, and HCL sensitivity is not available, so the cases leave the network out."}`}</p>
+          <p className="esq-meta">{view.run === undefined ? "Run the model in Step 05 first. Each case runs with its settings." : `Each case is a PRAXIS run on ${runQuantityText(view.run)}, with the other settings of the run of record, and is compared with that run.${view.run.hcl === undefined ? "" : " The run of record uses dependencies, and dependency sensitivity is not available, so the cases leave the dependency network out."}`}</p>
           <div className="esq-card-actions">
             <button type="button" className="posnav__btn posnav__btn--sm" disabled={runs.disabled || pending.length === 0} onClick={() => runs.run(pending)}>{`Run ${pending.length} pending`}</button>
             <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={runs.disabled || runnable.length === 0} onClick={() => runs.run(runnable)}>
@@ -459,7 +459,7 @@ function SensScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => voi
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0} className="esq-step__panel">
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="ESQ" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <div className="esq-card-actions">
               <EsqProvenanceChip>{head.sr}</EsqProvenanceChip>
               {view !== undefined && tab === "register" && editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addEntry}>Add entry</button>}

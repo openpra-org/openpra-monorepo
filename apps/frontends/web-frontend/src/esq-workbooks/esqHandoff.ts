@@ -1,7 +1,6 @@
 import {
   RiskSignificantContributorType,
   type ConsistencyReviewRecord,
-  type CutsetLogicReviewRecord,
   type EsqFamilyValueSource,
   type EsqHandoffResponse,
   type EsqHandoffWork,
@@ -15,7 +14,6 @@ import {
   type ImportanceMeasureEntry,
   type ImportanceReviewRecord,
   type ModelUncertaintySourceAssessment,
-  type NonSignificantSampleReview,
   type RiskIntegrationFeedback,
   type RiskSignificantContributor,
   type RuleLogicReviewRecord,
@@ -473,26 +471,9 @@ function propagationOf(esq: EventSequenceQuantification, independentMean: number
   return propagation;
 }
 
-function reviewRecordsOf(esq: EventSequenceQuantification): Pick<EventSequenceQuantification, "cutsetLogicReviews" | "nonSignificantSampleReviews" | "consistencyReviews" | "ruleLogicReviews" | "similarPlantComparisons"> {
+function reviewRecordsOf(esq: EventSequenceQuantification): Pick<EventSequenceQuantification, "consistencyReviews" | "ruleLogicReviews" | "similarPlantComparisons"> {
   const review = reviewOf(esq);
-  const codes = new Map((esq.model?.events ?? []).map((event) => [event.id, event.code]));
-  const sample = (familyId: string, eventIds: readonly string[], frequency: number): string => `${familyId} · ${eventIds.map((id) => codes.get(id) ?? id).join(" · ")} · ${figures(frequency)} per year`;
-  const reviewed = (review.cutSetReviews ?? []).filter((entry) => entry.verdict !== undefined);
-  const cutsetLogicReviews: CutsetLogicReviewRecord[] = reviewed.filter((entry) => entry.significant).map((entry, index) => ({
-    uuid: `CLR-${index + 1}`,
-    sampleDescription: sample(entry.familyId, entry.eventIds, entry.annualFrequency),
-    logicCorrect: entry.verdict === "CORRECT",
-    findings: entry.note,
-    implementsSrs: [{ sr: "ESQ-D1", hlr: "D" }],
-  }));
-  const nonSignificantSampleReviews: NonSignificantSampleReview[] = reviewed.filter((entry) => !entry.significant).map((entry, index) => ({
-    uuid: `NSR-${index + 1}`,
-    sampleDescription: sample(entry.familyId, entry.eventIds, entry.annualFrequency),
-    physicallyMeaningful: entry.verdict === "CORRECT",
-    findings: entry.note,
-    implementsSrs: [{ sr: "ESQ-D5", hlr: "D" }],
-  }));
-  const topic = (key: "SYSTEMS" | "SUCCESS_CRITERIA" | "PROCEDURES" | "RULES") => review.consistency?.find((entry) => entry.topic === key);
+  const topic =(key: "SYSTEMS" | "SUCCESS_CRITERIA" | "PROCEDURES" | "RULES") => review.consistency?.find((entry) => entry.topic === key);
   const notes = (keys: ("SYSTEMS" | "SUCCESS_CRITERIA" | "PROCEDURES")[]): string => keys.flatMap((key) => {
     const entry = topic(key);
     return entry === undefined || blank(entry.note) ? [] : [`${CONSISTENCY_LABELS[key]}: ${entry.note.trim()}`];
@@ -522,7 +503,7 @@ function reviewRecordsOf(esq: EventSequenceQuantification): Pick<EventSequenceQu
     keyDifferences: comparison.plants.map((plant) => plant.note),
     implementsSrs: [{ sr: "ESQ-D4", hlr: "D" }],
   }];
-  return { cutsetLogicReviews, nonSignificantSampleReviews, consistencyReviews, ruleLogicReviews, similarPlantComparisons };
+  return { consistencyReviews, ruleLogicReviews, similarPlantComparisons };
 }
 
 function feedbackItems(esq: EventSequenceQuantification, ri: RiskIntegration | undefined): EsqFeedbackItem[] {
@@ -776,7 +757,6 @@ function handoffViewOf(esq: EventSequenceQuantification, upstream: EsqUpstream):
     if (response === undefined || blank(response.response)) findings.push({ severity: "warning", check: "RI feedback with no response", item: item.label, detail: `${item.significance === undefined ? "" : `RI rates it ${item.significance.toLowerCase()}. `}Record the response and where it goes.`, target: { kind: "esqHandoffResponse", id: item.id } });
     else if (item.significance === ImportanceLevel.HIGH && item.kind === "CONTRIBUTOR" && response.sentTo === undefined) findings.push({ severity: "note", check: "Significant item not routed", item: item.label, detail: "Send it to the element that owns it.", target: { kind: "esqHandoffResponse", id: item.id } });
   }
-  if (run !== undefined && !(reviewOf(esq).cutSetReviews ?? []).some((entry) => entry.verdict !== undefined)) findings.push({ severity: "note", check: "No cut set reviewed", item: "Cut sets", detail: "Step 05 holds no cut set review, so the published reviews hold no cut set." });
   return { ...full, findings: findings.sort((a, b) => FINDING_RANK[a.severity] - FINDING_RANK[b.severity]) };
 }
 

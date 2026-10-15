@@ -58,7 +58,7 @@ export function RcMetricsCard({ openDrawer }: { openDrawer: (context: { kind: st
   };
   return (
     <div className="poscard rc-handoff__wide-card rc-metrics">
-      <div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Consequence metrics" level={3} /></div>
+      <div className="poscard__head"><WorkbookSectionHeading title="Consequence metrics" level={3} /></div>
       {metrics.length === 0 ? <p className="rc-metrics__empty">No consequence metrics yet.</p> : (
         <div className="rc-metrics__table-wrap">
           <table className="postable rc-metrics__table" aria-label="Consequence metrics">
@@ -121,7 +121,7 @@ export function RcMetricDrawer({ id, onClose, centered }: { id: string; onClose:
   const receptor = metric.receptor, unit = rcMetricUnit(metric);
   return (
     <>
-      <DrawerHead cap="Consequence metric" title={metric.name.trim() || "Unnamed metric"} sub={metric.id} onClose={onClose} centered={centered} />
+      <DrawerHead cap="Consequence metric" title={metric.name.trim() || "Unnamed metric"} onClose={onClose} centered={centered} />
       <div className={`${centered ? "modal__body" : "posdrawer__body"} rc-metric-form`}>
         <RcTextField label="Name" value={metric.name} onChange={(name) => patch({ name })} disabled={dis} />
         <RcSelectField label="Quantity" value={metric.quantity} options={quantityOptions} disabled={dis}

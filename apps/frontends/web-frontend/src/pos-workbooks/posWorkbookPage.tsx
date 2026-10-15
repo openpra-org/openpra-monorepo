@@ -272,14 +272,6 @@ function PosWorkbookPage(): JSX.Element {
           projectName,
           workbookName,
           workbookVersion,
-          plantIdentity: data.pos.metadata.plantIdentity !== undefined
-            ? {
-                name: data.pos.metadata.plantIdentity.name,
-                type: data.pos.metadata.plantIdentity.reactorType,
-                power: data.pos.metadata.plantIdentity.thermalPower,
-                vendor: data.pos.metadata.plantIdentity.vendor,
-              }
-            : undefined,
         }}
         mefPatch={mefPatch}
         mefPatchDebounced={mefPatch}
@@ -308,7 +300,7 @@ function PosWorkbookPage(): JSX.Element {
         />
       )}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="POS"
           exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}

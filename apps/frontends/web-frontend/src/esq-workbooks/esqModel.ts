@@ -783,16 +783,14 @@ function jointFloorRecord(hr: HumanReliabilityAnalysis): EsqJointFloorRecord | u
 }
 
 function actionRecords(hr: HumanReliabilityAnalysis): EsqActionRecord[] {
-  const recoveries = hr.recoveryActions ?? [];
-  const recoveryQuantifications = new Set(texts(recoveries.map((recovery) => recovery?.hepQuantificationId)));
+  const recoveryQuantifications = new Set(texts((hr.recoveryActions ?? []).map((recovery) => recovery?.hepQuantificationId)));
   return hr.humanFailureEvents.flatMap((event): EsqActionRecord[] => {
-    const recovery = recoveries.find((candidate) => candidate.hfeId === event.uuid);
-    if (event.hfeTiming !== "POST_INITIATOR" && recovery === undefined) return [];
+    if (event.hfeTiming !== "POST_INITIATOR") return [];
     const quantification = hr.hepQuantifications.find((candidate) => candidate.hfeId === event.uuid && !recoveryQuantifications.has(candidate.uuid));
     const record: EsqActionRecord = {
       id: event.uuid,
       name: textOf(event.name) ?? event.uuid,
-      timing: event.hfeTiming === "POST_INITIATOR" ? "POST_INITIATOR" : "AT_INITIATOR",
+      timing: "POST_INITIATOR",
       riskSignificant: quantification?.isRiskSignificant === true,
     };
     const hep = quantification?.hep;
@@ -806,22 +804,6 @@ function actionRecords(hr: HumanReliabilityAnalysis): EsqActionRecord[] {
     if (available !== undefined) record.availableMinutes = available;
     const required = finite(quantification?.timeRequiredMinutes);
     if (required !== undefined) record.requiredMinutes = required;
-    if (recovery !== undefined) {
-      record.recoveryId = recovery.uuid;
-      record.recoveryName = textOf(recovery.name) ?? recovery.uuid;
-      const feasibility = recovery.feasibility;
-      record.feasibility = {
-        procedure: feasibility?.procedureOrGuidanceAvailable === true,
-        training: feasibility?.trainingIncluded === true,
-        cues: feasibility?.cuesAvailable === true,
-        crew: feasibility?.manpowerAvailable === true,
-        time: feasibility?.timeAvailable === true,
-        access: feasibility?.accessibilityConfirmed === true,
-        equipment: feasibility?.equipmentAvailable === true,
-      };
-      const note = textOf(recovery.preOperationalFeasibilityJustification);
-      if (note !== undefined) record.feasibilityNote = note;
-    }
     return [record];
   });
 }
@@ -1650,16 +1632,16 @@ function referenceProblems(esq: EventSequenceQuantification, model: EsqModel, ex
     const key = parameterReferenceKey(reference);
     if (seen.has(key)) continue;
     seen.add(key);
+    const missionTime = missionTimes?.get(key);
+    if (missionTime !== undefined) {
+      pending.push(...expressionReferences(missionTime.expression));
+      continue;
+    }
     if (readsMissionTime(esq, reference)) {
-      const missionTime = missionTimes?.get(key);
-      if (missionTimes !== undefined && missionTime === undefined) problems.push({ check: "SC mission time missing", detail: `${code} reads mission time ${reference.entityId}, which the linked SC workbook does not hold.` });
-      if (missionTime !== undefined) pending.push(...expressionReferences(missionTime.expression));
+      if (missionTimes !== undefined) problems.push({ check: "SC mission time missing", detail: `${code} reads mission time ${reference.entityId}, which the linked SC workbook does not hold.` });
       continue;
     }
-    if (workbookId === undefined || reference.workbookId.trim() !== workbookId.trim()) {
-      problems.push({ check: "Workbook not linked", detail: `${code} reads ${reference.entityId} from a workbook that Step 01 does not link as DA or SC.` });
-      continue;
-    }
+    if (workbookId === undefined || reference.workbookId.trim() !== workbookId.trim()) continue;
     const factor = (model.ccfFactors ?? []).find((entry) => parameterReferenceKey(entry.reference) === key);
     if (factor !== undefined) {
       pending.push(...expressionReferences(factor.expression));

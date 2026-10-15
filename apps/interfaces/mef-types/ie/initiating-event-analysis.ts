@@ -347,6 +347,7 @@ export interface IeSearchMethod {
 }
 
 export interface IeLinkedWorkbooks {
+  POS?: string;
   DA?: string;
 }
 

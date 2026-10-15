@@ -36,7 +36,9 @@ import {
   EsqUncertaintyCorrelationSchema,
   EventTreeCutSetSettingsSchema,
   EventTreeExecutionModeSchema,
+  EventTreeMonteCarloSettingsSchema,
   EventTreeSamplingMethodSchema,
+  EventTreeSuccessTreatmentSchema,
 } from "./event-tree-requests";
 import type { UncertainExpression, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
 import { UncertainExpressionSchema, UncertainUnitSchema } from "interfaces-mef-types/zod/core/uncertainty";
@@ -47,7 +49,9 @@ import type {
   EsqUncertaintyCorrelation,
   EventTreeCutSetSettings,
   EventTreeExecutionMode,
+  EventTreeMonteCarloSettings,
   EventTreeSamplingMethod,
+  EventTreeSuccessTreatment,
 } from "./event-tree-requests";
 import {
   HclUncertaintySummarySchema,
@@ -126,6 +130,18 @@ interface EventTreeFamilyCutSets {
   items: EventTreeCutSet[];
 }
 
+interface EventTreeSequenceMonteCarlo {
+  successes: number;
+  trials: number;
+}
+
+interface EventTreeMonteCarloRun {
+  trials: number;
+  requestedTrials: number;
+  seed: number;
+  stoppedEarly: boolean;
+}
+
 interface EventTreeSequenceAnalysisResult {
   sequenceId: WorkbookEntityId;
   /** Source and destination sequences forming this complete transfer path. */
@@ -140,6 +156,7 @@ interface EventTreeSequenceAnalysisResult {
     annualFrequency: HclUncertaintySummary;
   };
   cutSets?: EventTreeSequenceCutSets;
+  monteCarlo?: EventTreeSequenceMonteCarlo;
 }
 
 interface EventTreeEndStateAggregate {
@@ -207,6 +224,7 @@ interface EventTreeAnalysisResult {
   families?: EventTreeFamilyCutSets[];
   importance?: EventTreeImportanceResult;
   sampling?: EventTreeSamplingResult;
+  monteCarlo?: EventTreeMonteCarloRun;
   validationIssues: ValidationIssue[];
   completedAt: string;
 }
@@ -276,12 +294,18 @@ interface EsqModelRunSweepPoint {
   annualFrequency: number;
 }
 
+interface EsqModelRunTreeFamily {
+  familyId: string;
+  annualFrequency: number;
+}
+
 interface EsqModelRunTree {
   treeId: string;
   runId: AnalysisRunId;
   status: EsqModelRunTreeStatus;
   initiatorFrequency: number | null;
   failure: string | null;
+  families?: EsqModelRunTreeFamily[];
 }
 
 interface EsqModelRunSequence {
@@ -368,6 +392,8 @@ interface EsqModelRunResult {
   calculation: EsqModelCalculation;
   logic: EsqEventTreeRunLogic;
   cutSets: EventTreeCutSetSettings | null;
+  successTreatment?: EventTreeSuccessTreatment;
+  monteCarlo?: EventTreeMonteCarloSettings;
   trees: EsqModelRunTree[];
   sequences: EsqModelRunSequence[];
   families: EsqModelRunFamily[];
@@ -510,6 +536,22 @@ const EventTreeFamilyCutSetsSchema = z
   })
   .strict();
 
+const EventTreeSequenceMonteCarloSchema = z
+  .object({
+    successes: z.number().int().nonnegative(),
+    trials: z.number().int().positive(),
+  })
+  .strict();
+
+const EventTreeMonteCarloRunSchema = z
+  .object({
+    trials: z.number().int().positive(),
+    requestedTrials: z.number().int().positive(),
+    seed: z.number().int().nonnegative(),
+    stoppedEarly: z.boolean(),
+  })
+  .strict();
+
 const EventTreeSequenceAnalysisResultSchema = z
   .object({
     sequenceId: WorkbookEntityIdSchema,
@@ -524,6 +566,7 @@ const EventTreeSequenceAnalysisResultSchema = z
       annualFrequency: HclUncertaintySummarySchema,
     }).strict().optional(),
     cutSets: EventTreeSequenceCutSetsSchema.optional(),
+    monteCarlo: EventTreeSequenceMonteCarloSchema.optional(),
   })
   .strict();
 
@@ -588,6 +631,7 @@ const EventTreeAnalysisResultSchema = z
     families: z.array(EventTreeFamilyCutSetsSchema).optional(),
     importance: EventTreeImportanceResultSchema.optional(),
     sampling: EventTreeSamplingResultSchema.optional(),
+    monteCarlo: EventTreeMonteCarloRunSchema.optional(),
     validationIssues: z.array(ValidationIssueSchema),
     completedAt: z.string().datetime({ offset: true }),
   })
@@ -601,6 +645,13 @@ const EsqModelRunSweepPointSchema = z
   })
   .strict();
 
+const EsqModelRunTreeFamilySchema = z
+  .object({
+    familyId: z.string().min(1),
+    annualFrequency: FrequencySchema,
+  })
+  .strict();
+
 const EsqModelRunTreeSchema = z
   .object({
     treeId: z.string().min(1),
@@ -608,6 +659,7 @@ const EsqModelRunTreeSchema = z
     status: z.enum(["SUCCEEDED", "FAILED"]),
     initiatorFrequency: FrequencySchema.nullable(),
     failure: z.string().nullable(),
+    families: z.array(EsqModelRunTreeFamilySchema).optional(),
   })
   .strict();
 
@@ -714,6 +766,8 @@ const EsqModelRunResultSchema = z
     calculation: EsqModelCalculationSchema,
     logic: EsqEventTreeRunLogicSchema,
     cutSets: EventTreeCutSetSettingsSchema.nullable(),
+    successTreatment: EventTreeSuccessTreatmentSchema.optional(),
+    monteCarlo: EventTreeMonteCarloSettingsSchema.optional(),
     trees: z.array(EsqModelRunTreeSchema),
     sequences: z.array(EsqModelRunSequenceSchema),
     families: z.array(EsqModelRunFamilySchema),
@@ -867,6 +921,8 @@ export {
   EventTreeCutSetSchema,
   EventTreeSequenceCutSetsSchema,
   EventTreeFamilyCutSetsSchema,
+  EventTreeSequenceMonteCarloSchema,
+  EventTreeMonteCarloRunSchema,
   EsqModelRunResultSchema,
   EsqPostRunResultSchema,
   EventTreeImportanceResultSchema,
@@ -888,9 +944,12 @@ export type {
   EventTreeCutSet,
   EventTreeSequenceCutSets,
   EventTreeFamilyCutSets,
+  EventTreeSequenceMonteCarlo,
+  EventTreeMonteCarloRun,
   EsqModelRunTreeStatus,
   EsqModelRunSweepPoint,
   EsqModelRunTree,
+  EsqModelRunTreeFamily,
   EsqModelRunSequence,
   EsqModelRunCutSet,
   EsqModelRunFamilyState,

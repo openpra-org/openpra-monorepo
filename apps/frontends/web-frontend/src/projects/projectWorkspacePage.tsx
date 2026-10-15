@@ -1,5 +1,5 @@
 import { JSX, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { type Project, type Workbook } from "interfaces-shared-types";
 import { useToast } from "../toast/toastProvider";
 import { getProject, updateProject, duplicateProject, deleteProject } from "./projectApi";
@@ -13,13 +13,22 @@ import { ConfirmDeleteModal } from "./confirmDeleteModal";
 import { ShareProjectModal } from "./shareProjectModal";
 import { WorkbooksPanel } from "../workbooks/workbooksPanel";
 import { LoadExampleModal } from "../workbooks/exampleWorkbookModal";
-import { getProjectExampleInfo, generateProjectExamples, type ProjectExampleInfo } from "../workbooks/workbookApi";
+import { getProjectExampleInfo, generateProjectExamples, type ProjectExampleInfo, type ProjectExampleOption } from "../workbooks/workbookApi";
+import { CreationNoticeSchema, creationNoticeText } from "./projectCreation";
 import "./css/projectWorkspace.css";
+
+function generationIntro(option: ProjectExampleOption): string {
+  const perElement = option.id === "both" ? "one example workbook per reactor" : "one example workbook";
+  return `This will create ${perElement} in each of ${String(option.elements.length)} technical elements, all linked to each other. If a reserved example workbook such as "IE Workbook 1" already exists in this project, it is repopulated instead, so no duplicates are created.`;
+}
 
 function ProjectWorkspacePage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToast } = useToast();
+  const creation = CreationNoticeSchema.safeParse(location.state);
+  const creationText = creation.success ? creationNoticeText(creation.data) : undefined;
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -239,13 +248,23 @@ function ProjectWorkspacePage(): JSX.Element {
         )
       )}
 
+      {creationText !== undefined && (
+        <div className="pws-notice" role="alert">
+          <span>{creationText}</span>
+          <button type="button" className="pws-notice__dismiss" onClick={() => { navigate(location.pathname, { replace: true, state: null }); }}>Dismiss</button>
+        </div>
+      )}
+
       {generateOpen && project !== null && exampleInfo !== null && (
         <LoadExampleModal
           exampleName="project"
           title="Generate example workbooks"
-          intro={`This will create one example workbook per selected reactor in each covered technical element (${exampleInfo.elements.join(", ")}). If a reserved example workbook such as "IE Workbook 1" already exists in this project, it is repopulated instead, so no duplicates are created.`}
+          intro={`This will create one example workbook per selected reactor in each covered technical element. If a reserved example workbook such as "IE Workbook 1" already exists in this project, it is repopulated instead, so no duplicates are created.`}
+          hint="Useful for exploring the workflow without entering plant data first."
+          exampleIntros={Object.fromEntries(exampleInfo.options.map((option) => [option.id, generationIntro(option)]))}
           confirmLabel="Generate examples"
-          exampleOptions={exampleInfo.options}
+          choiceLabel="Example"
+          exampleOptions={exampleInfo.options.map((option) => ({ id: option.id, label: option.label, group: option.partial ? "Partial examples" : "Complete examples" }))}
           onCancel={() => { setGenerateOpen(false); }}
           onConfirm={async (exampleId) => {
             const result = await generateProjectExamples(project.id, exampleId);

@@ -9,6 +9,10 @@
   font-size: 14px;
 }
 
+.syccf-analysis__results > .es-records__bar {
+  margin-bottom: 0;
+}
+
 .syccf-analysis__result {
   display: grid;
   gap: 13px;

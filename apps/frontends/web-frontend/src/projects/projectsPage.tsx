@@ -22,6 +22,7 @@ import { NoResultsState } from "./noResultsState";
 import { ConfirmDeleteModal } from "./confirmDeleteModal";
 import { RenameModal } from "./renameModal";
 import { ShareProjectModal } from "./shareProjectModal";
+import type { CreationNotice } from "./projectCreation";
 import { type SortKey } from "./sortMenu";
 import { useViewMode } from "./useViewMode";
 import "./css/projectsPage.css";
@@ -38,10 +39,6 @@ function sortProjects(projects: Project[], key: SortKey): Project[] {
         return a.name.localeCompare(b.name);
       case "name-desc":
         return b.name.localeCompare(a.name);
-      case "progress-desc":
-        return b.progress - a.progress;
-      case "progress-asc":
-        return a.progress - b.progress;
     }
   });
   return sorted;
@@ -181,10 +178,11 @@ function ProjectsPage(): JSX.Element {
       .finally(() => { setMutating(false); });
   }
 
-  function handleCreated(project: Project): void {
+  function handleCreated(project: Project, notice: CreationNotice): void {
     setProjects((prev) => [project, ...prev]);
     setNewProjectOpen(false);
     flashSuccess(`Project "${project.name}" created`);
+    navigate(`/projects/${project.id}`, { state: notice });
   }
 
   function handleShareChanged(next: Project): void {

@@ -1,14 +1,12 @@
 import { JSX, useMemo, useState } from "react";
 import { type Project, elementsForMode } from "interfaces-shared-types";
-import { ElementRow, elementVisualStatus } from "./elementRow";
+import { ElementRow } from "./elementRow";
 
-type ElementFilter = "all" | "mine" | "in-progress" | "not-started";
+type ElementFilter = "all" | "mine";
 
 const FILTERS: readonly { key: ElementFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "mine", label: "Mine" },
-  { key: "in-progress", label: "In progress" },
-  { key: "not-started", label: "Not started" },
 ];
 
 function ElementsSection({
@@ -24,25 +22,12 @@ function ElementsSection({
   const elements = useMemo(() => elementsForMode(project.mode), [project.mode]);
 
   const isOwner = project.myRole === "owner";
-  const startedCount = elements.filter((e) => elementVisualStatus(project.status[e.code]) !== "not-started").length;
-  const pct = Math.round(project.progress * 100);
 
-  const visible = useMemo(() => {
-    return elements.filter((e) => {
-      const vstatus = elementVisualStatus(project.status[e.code]);
-      if (filter === "all") return true;
-      if (filter === "mine") return isOwner;
-      if (filter === "in-progress") return vstatus !== "not-started";
-      return vstatus === "not-started";
-    });
-  }, [elements, filter, project.status, isOwner]);
+  const visible = useMemo(() => elements.filter(() => filter === "all" || isOwner), [elements, filter, isOwner]);
 
   return (
     <div className="psect">
       <div className="wfilters">
-        <span className="wfilters__summary">
-          {pct}% · {startedCount} of {elements.length} elements in progress
-        </span>
         <div className="wfilters__chips" role="tablist" aria-label="Filter technical elements">
           {FILTERS.map((f) => (
             <button
@@ -66,7 +51,6 @@ function ElementsSection({
             key={el.code}
             code={el.code}
             name={el.name}
-            status={project.status[el.code]}
             onOpen={() => { onOpenElement({ code: el.code, name: el.name }); }}
           />
         ))}

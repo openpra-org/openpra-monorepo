@@ -42,23 +42,22 @@ import "./css/ieScreens.css";
 interface StepHeader {
   eyebrow: string;
   title: string;
-  sub?: string;
 }
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "What is in scope, which radioactive sources could be released, and which barriers protect them." };
-    case "methods": return { eyebrow: "Step 02", title: "Search methods", sub: "Register the structured, systematic techniques used to find every initiating event (IE-A1)." };
-    case "identify": return { eyebrow: "Step 03", title: "Identify initiators", sub: "Identify every challenge category, for every operating state and source (IE-A5)." };
-    case "completeness": return { eyebrow: "Step 04", title: "Completeness search", sub: "Per-system and support-system sweeps, source mechanisms, and similar-plant experience." };
-    case "hazards": return { eyebrow: "Step 05", title: "Hazard-induced initiators", sub: "Initiators caused by individual internal and external hazards (IE-A5 e/f) or by hazard combinations (IE-A6)." };
-    case "grouping": return { eyebrow: "Step 06", title: "Grouping", sub: "Bundle events that share mitigation requirements under a bounding case, without masking any risk-significant sequence (IE-B4)." };
-    case "screening": return { eyebrow: "Step 07", title: "Screening", sub: "Eliminate an event only if it does not breach a barrier AND meets an SCR test. The barrier-integrity gate is enforced first (IE-C9)." };
-    case "frequency": return { eyebrow: "Step 08", title: "Frequency & quantification", sub: "Annual frequency per event or group, on a plant-calendar-year basis, weighted by the POS time fraction (IE-C8)." };
+    case "scope": return { eyebrow: "Step 01", title: "Scope" };
+    case "methods": return { eyebrow: "Step 02", title: "Search methods" };
+    case "identify": return { eyebrow: "Step 03", title: "Identify initiators" };
+    case "completeness": return { eyebrow: "Step 04", title: "Completeness search" };
+    case "hazards": return { eyebrow: "Step 05", title: "Hazard-induced initiators" };
+    case "grouping": return { eyebrow: "Step 06", title: "Grouping" };
+    case "screening": return { eyebrow: "Step 07", title: "Screening" };
+    case "frequency": return { eyebrow: "Step 08", title: "Frequency & quantification" };
     case "handoff": return { eyebrow: "Step 09", title: "Technical Element Handoff" };
-    case "draft": return { eyebrow: "Step 10 · Draft", title: "Produce the draft", sub: "Generate the IE report from everything entered. Submitting advances the workbook to internal technical review." };
-    case "review": return { eyebrow: "Step 11 · Review", title: "Internal technical review", sub: "Reviewers and the approver leave comments and the preparer responds. The workbook advances to Approval once every comment is resolved." };
-    case "approval": return { eyebrow: "Step 12 · Approval", title: "Approval & sign-off", sub: "Everyone on the workbook signs. The approver signs last, gated on all comments being resolved." };
+    case "draft": return { eyebrow: "Step 10 · Draft", title: "Produce the draft" };
+    case "review": return { eyebrow: "Step 11 · Review", title: "Internal technical review" };
+    case "approval": return { eyebrow: "Step 12 · Approval", title: "Approval & sign-off" };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -67,7 +66,6 @@ interface HeaderMeta {
   projectName: string;
   workbookName: string;
   workbookVersion: string;
-  plantIdentity?: { name: string; type: string; power: string; vendor: string };
 }
 
 function WorkspaceHeader({
@@ -118,17 +116,6 @@ function WorkspaceHeader({
           </span>
         )}
       </div>
-
-      <div className="poshd__spacer" />
-
-      {headerMeta.plantIdentity !== undefined && (
-        <div className="poshd__identity">
-          <div className="poshd__identity-title">{headerMeta.plantIdentity.name}</div>
-          <div className="poshd__identity-meta">
-            {headerMeta.plantIdentity.type} <span className="poshd__identity-sep">·</span> {headerMeta.plantIdentity.power} <span className="poshd__identity-sep">·</span> {headerMeta.plantIdentity.vendor}
-          </div>
-        </div>
-      )}
 
       <div className="poshd__spacer" />
 
@@ -464,7 +451,7 @@ function IeWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <WorkbookSectionHeading workbook="IE" title={h.title} description={h.sub} level={1} className="posmain__title" />
+              <WorkbookSectionHeading title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
               {!dockOpen && (

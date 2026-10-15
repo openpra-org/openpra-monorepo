@@ -463,13 +463,13 @@ function DecisionScopeTab({ appType, setAppType, documents }: {
   return (
     <>
       <div className="poscard ri-handoff__wide-card">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="RI" title="Interfaces" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Interfaces" level={3} /></div>
         <RiInterfaces />
       </div>
 
       <div className="poscard ri-handoff__wide-card">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Decision" level={3} />
+          <WorkbookSectionHeading title="Decision" level={3} />
           <RiProvenanceChip>RI-A2 · A3</RiProvenanceChip>
         </div>
         <div className="ri-handoff__choices">
@@ -507,7 +507,7 @@ function DecisionScopeTab({ appType, setAppType, documents }: {
 
       <div className="poscard ri-handoff__wide-card ri-handoff__scope">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="PRA scope" level={3} />
+          <WorkbookSectionHeading title="PRA scope" level={3} />
           <RiProvenanceChip>RI-B1 · B4</RiProvenanceChip>
         </div>
         <WorkbookTextarea
@@ -524,7 +524,7 @@ function DecisionScopeTab({ appType, setAppType, documents }: {
 
       <div className="poscard ri-handoff__compact-card">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Capability category" level={3} />
+          <WorkbookSectionHeading title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <div className="ri-handoff__choices">
@@ -545,7 +545,7 @@ function DecisionScopeTab({ appType, setAppType, documents }: {
       </div>
 
       <div className="poscard ri-handoff__compact-card">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="RI" title="Plant stage" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Plant stage" level={3} /></div>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {PLANT_STAGES.map((s) => (
             <label key={s.id} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === s.id ? "var(--color-primary)" : undefined }}>
@@ -781,7 +781,7 @@ function AbsoluteCriteriaCard(): JSX.Element {
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="RI" title="Absolute criteria" level={3} />
+        <WorkbookSectionHeading title="Absolute criteria" level={3} />
         <div className="posrow" style={{ gap: 10 }}>
           <RiProvenanceChip>RI-A3</RiProvenanceChip>
           {editable && review.changed > 0 && <button type="button" className="posnav__btn posnav__btn--sm" onClick={restore}>Restore published values</button>}
@@ -832,7 +832,7 @@ function RelativeCriteriaCard(): JSX.Element {
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="RI" title="Relative criteria" level={3} />
+        <WorkbookSectionHeading title="Relative criteria" level={3} />
         <div className="posrow" style={{ gap: 10 }}>
           <RiProvenanceChip>RI-A2</RiProvenanceChip>
           {editable && review.changed > 0 && <button type="button" className="posnav__btn posnav__btn--sm" onClick={restore}>Restore published values</button>}
@@ -973,7 +973,7 @@ function CriteriaSetTab({ appType }: { appType: AppTypeId }): JSX.Element {
     <>
       <AbsoluteCriteriaCard />
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="RI" title="Target preview" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Target preview" level={3} /></div>
         <FcTargetPreview criteria={criteriaSetOf(ri).absolute} />
       </div>
     </>
@@ -1059,7 +1059,7 @@ function MeasuresCard({ appType, openDrawer }: { appType: AppTypeId; openDrawer:
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="RI" title="Consequence measures" level={3} />
+        <WorkbookSectionHeading title="Consequence measures" level={3} />
         <RiProvenanceChip>RI-A1</RiProvenanceChip>
       </div>
       {measures.length === 0 ? (
@@ -1357,7 +1357,7 @@ function FloorsCard({ appType }: { appType: AppTypeId }): JSX.Element {
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="RI" title="Reporting floors" level={3} />
+        <WorkbookSectionHeading title="Reporting floors" level={3} />
         <RiProvenanceChip>RI-A4 · A5</RiProvenanceChip>
       </div>
       <CriteriaTable label="Reporting floors" rows={rows} editable={editable} />
@@ -1482,7 +1482,7 @@ function InputSourcesCard(): JSX.Element {
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="RI" title="Source workbooks" level={3} />
+        <WorkbookSectionHeading title="Source workbooks" level={3} />
         <div className="posrow" style={{ gap: 10 }}>
           <RiProvenanceChip>RI-B1</RiProvenanceChip>
           {editable && linked && (
@@ -1856,7 +1856,7 @@ function InputsScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => vo
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0}>
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="RI" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <div className="posrow" style={{ gap: 10 }}>
               <RiProvenanceChip>{head.sr}</RiProvenanceChip>
               {editable && head.add !== undefined && (
@@ -2103,7 +2103,7 @@ function InputSequenceDrawer({ id, onClose, onRetarget }: { id: string; onClose:
   const failed = sequence.topEvents.filter((e) => e.state === "FAILURE").map((e) => e.event);
   return (
     <>
-      <DrawerHead cap="Event sequence · RI-B5" title={sequence.id} sub={sequence.name} onClose={onClose} />
+      <DrawerHead cap="Event sequence · RI-B5" title={sequence.id} onClose={onClose} />
       <div className="modal__body ri-form">
         {manual && (
           <>
@@ -2453,10 +2453,9 @@ function InputGapDrawer({ id, onClose }: { id: string; onClose: () => void }): J
   const inputs = ri.inputs;
   if (inputs === undefined) return null;
   const reason = inputs.unavailable?.find((u) => u.measure === id)?.reason ?? "";
-  const families = measuresWithoutResults(ri).find((g) => g.measure === id)?.families ?? [];
   return (
     <>
-      <DrawerHead cap="Measure without results · RI-B1" title={id} sub={`${families.length} release ${families.length === 1 ? "family has" : "families have"} no result.`} onClose={onClose} />
+      <DrawerHead cap="Measure without results · RI-B1" title={id} onClose={onClose} />
       <div className="modal__body ri-form">
         <FormRow label="Why they are not available" htmlFor={fieldId} top>
           <WorkbookTextarea
@@ -2698,7 +2697,7 @@ function CategoriesScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) =
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0}>
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="RI" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <RiProvenanceChip>{head.sr}</RiProvenanceChip>
           </div>
           {!imported ? (
@@ -3096,7 +3095,7 @@ function FcScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => void }
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0}>
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="RI" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <RiProvenanceChip>{head.sr}</RiProvenanceChip>
           </div>
           {!imported ? (
@@ -3467,7 +3466,7 @@ function AggregationReview({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) 
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Detail and conservatism" level={3} />
+          <WorkbookSectionHeading title="Detail and conservatism" level={3} />
           <RiProvenanceChip>RI-B3</RiProvenanceChip>
         </div>
         <p className="ri-step__note">Record how detailed and how conservative the model is for each hazard group and source in scope, so a conservative model is never added to a realistic one unnoticed.</p>
@@ -3495,7 +3494,7 @@ function AggregationReview({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) 
       </div>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Review and inclusion" level={3} />
+          <WorkbookSectionHeading title="Review and inclusion" level={3} />
           <RiProvenanceChip>RI-B3 · B4</RiProvenanceChip>
         </div>
         <AggregationForm />
@@ -3557,7 +3556,7 @@ function IntegratedRiskScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContex
         ) : (
           <div className="poscard">
             <div className="poscard__head">
-              <WorkbookSectionHeading workbook="RI" title={head.title} level={3} />
+              <WorkbookSectionHeading title={head.title} level={3} />
               <RiProvenanceChip>{head.sr}</RiProvenanceChip>
             </div>
             {!imported ? (
@@ -3853,7 +3852,7 @@ function ContributorsScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext)
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0}>
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="RI" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <RiProvenanceChip>{head.sr}</RiProvenanceChip>
           </div>
           {!imported ? (
@@ -3932,7 +3931,7 @@ function RegisterView({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => vo
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Model uncertainties" level={3} />
+          <WorkbookSectionHeading title="Model uncertainties" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-C1 · C3</RiProvenanceChip>
             {editable && newSources > 0 && (
@@ -3968,7 +3967,7 @@ function RegisterView({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => vo
       </div>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Screened items" level={3} />
+          <WorkbookSectionHeading title="Screened items" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-C1</RiProvenanceChip>
             {editable && newItems > 0 && (
@@ -4024,7 +4023,7 @@ function GroupingView(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Release categories shared by several families" level={3} />
+          <WorkbookSectionHeading title="Release categories shared by several families" level={3} />
           <RiProvenanceChip>RI-C2</RiProvenanceChip>
         </div>
         <p className="ri-step__note">One bounding consequence stands for every family in a shared release category, so a difference between those families can hide there.</p>
@@ -4045,7 +4044,7 @@ function GroupingView(): JSX.Element {
       </div>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Grouping review" level={3} />
+          <WorkbookSectionHeading title="Grouping review" level={3} />
           <RiProvenanceChip>RI-B5 · C2</RiProvenanceChip>
         </div>
         <div className="ri-form ri-form--card">
@@ -4109,7 +4108,7 @@ function PropagationView({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) =>
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Propagated totals" level={3} />
+          <WorkbookSectionHeading title="Propagated totals" level={3} />
           <RiProvenanceChip>RI-C4</RiProvenanceChip>
         </div>
         <p className="ri-step__note">{PROPAGATION_SAMPLES.toLocaleString()} samples with a fixed seed. Each family frequency and each release category value is lognormal, fitted to its 5th and 95th percentiles, or fixed when it has no spread. Families that share a release category share its sampled value. Families are otherwise sampled independently, so correlation between them is not captured. The chance above 100 mrem is each result's single reported value.</p>
@@ -4150,7 +4149,7 @@ function PropagationView({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) =>
       </div>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Uncertainty characterization" level={3} />
+          <WorkbookSectionHeading title="Uncertainty characterization" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-C3 · C4</RiProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addAnalysis}><RIIcon.Plus /> Add analysis</button>}
@@ -4203,7 +4202,7 @@ function SensitivityView({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) =>
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="RI sensitivity studies" level={3} />
+          <WorkbookSectionHeading title="RI sensitivity studies" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-C3</RiProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addStudy}><RIIcon.Plus /> Add study</button>}
@@ -4235,7 +4234,7 @@ function SensitivityView({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) =>
       </div>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="RI" title="Studies in the linked workbooks" level={3} />
+          <WorkbookSectionHeading title="Studies in the linked workbooks" level={3} />
           <RiProvenanceChip>RI-C3</RiProvenanceChip>
         </div>
         {linked.length === 0 ? (

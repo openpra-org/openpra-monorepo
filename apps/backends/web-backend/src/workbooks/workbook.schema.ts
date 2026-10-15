@@ -18,6 +18,9 @@ export class Workbook {
   @Prop({ type: String, default: "draft" })
   status!: WorkbookStatus;
 
+  @Prop({ type: Boolean })
+  statusSynced?: boolean;
+
   @Prop({ type: Number, default: 1 })
   version!: number;
 

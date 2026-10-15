@@ -396,7 +396,7 @@ function UnavailabilityScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContex
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0} className="da-step__panel">
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="DA" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <div className="da-card-actions">
               <DaProvenanceChip>{head.sr}</DaProvenanceChip>
               {editable && addLabel.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={tab === "outages" ? addOutage : addParameter}>{addLabel}</button>}

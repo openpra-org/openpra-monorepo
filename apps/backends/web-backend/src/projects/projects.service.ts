@@ -7,15 +7,12 @@ import {
   type Project as ProjectDto,
   type ProjectAccessRole,
   type ProjectShareRole,
-  type ProjectStatus,
-  type ProjectStatusMap,
   type ProjectTeamShareEntry,
   type ProjectUserShareEntry,
   type RecentProjectResponse,
   type RiskMode,
   type SharedProjectsResponse,
   type UpdateProjectRequest,
-  elementsForMode,
   riskModeLabel,
 } from "interfaces-shared-types";
 import { User, type UserDocument } from "../users/user.schema";
@@ -31,12 +28,7 @@ function computeInitials(fullName: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function computeProgress(status: ProjectStatusMap, mode: RiskMode): number {
-  const elements = elementsForMode(mode);
-  if (elements.length === 0) return 0;
-  const baseline = elements.filter((e) => status[e.code] === "baseline").length;
-  return baseline / elements.length;
-}
+const NEW_PROJECT_MODE: RiskMode = "full-scope";
 
 interface TeamLookup {
   name: string;
@@ -68,7 +60,6 @@ function computeRole(doc: ProjectDocument, viewer: string, myTeamIds: Set<string
 }
 
 function toDto(doc: ProjectDocument, viewer: string, maps: ResolverMaps): ProjectDto {
-  const status = doc.status;
   const mode = doc.mode;
   const updatedAt = (doc as ProjectDocument & { updatedAt?: Date }).updatedAt ?? new Date();
   const sharedTeams: ProjectTeamShareEntry[] = doc.sharedTeams.map((s) => {
@@ -97,10 +88,8 @@ function toDto(doc: ProjectDocument, viewer: string, maps: ResolverMaps): Projec
     myRole,
     sharedTeams,
     sharedUsers,
-    status,
-    progress: computeProgress(status, mode),
     pinned: doc.pinned,
-    state: doc.state,
+    state: doc.state === "archived" ? "archived" : "active",
     pageLayout: doc.pageLayout ?? "modern",
     version: doc.version ?? 1,
     updatedAt: updatedAt.toISOString(),
@@ -129,16 +118,13 @@ export class ProjectsService {
   async createProject(payload: CreateProjectRequest, acting: ActingUser): Promise<ProjectDto> {
     const owner = await this.userModel.findOne({ username: acting.username }).lean();
     if (!owner) throw new NotFoundException("Acting user not found");
-    const initialStatus: Record<string, ProjectStatus> = {};
-    for (const el of elementsForMode(payload.mode)) initialStatus[el.code] = "not-started";
     const created = await this.projectModel.create({
       name: payload.name,
-      mode: payload.mode,
+      mode: NEW_PROJECT_MODE,
       ownerUsername: owner.username,
       ownerFullName: owner.fullName,
       sharedTeams: [],
       sharedUsers: [],
-      status: initialStatus,
       pinned: false,
       state: "active",
       pageLayout: payload.pageLayout ?? "modern",
@@ -148,7 +134,7 @@ export class ProjectsService {
         userId: String(owner._id),
         username: owner.username,
         projectId: String(created._id),
-        projectType: payload.mode,
+        projectType: NEW_PROJECT_MODE,
       });
     } catch (error) {
       console.error("Could not record project analytics", error);
@@ -229,7 +215,6 @@ export class ProjectsService {
       ownerFullName: original.ownerFullName,
       sharedTeams: [],
       sharedUsers: [],
-      status: { ...original.status },
       pinned: false,
       state: "active",
       pageLayout: original.pageLayout ?? "modern",

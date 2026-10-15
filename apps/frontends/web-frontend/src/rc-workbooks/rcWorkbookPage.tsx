@@ -107,6 +107,9 @@ function RcWorkbookPage(): JSX.Element {
     ])
       .then(async ([workbook, bundle]) => {
         if (cancelled) return;
+        const linkChoices = await listRcLinkOptions(workbook.projectId);
+        if (cancelled) return;
+        setLinkOptions(linkChoices);
         setData({
           rc: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
@@ -126,8 +129,6 @@ function RcWorkbookPage(): JSX.Element {
         } catch {
           if (!cancelled) setProjectName("");
         }
-        const options = await listRcLinkOptions(workbook.projectId);
-        if (!cancelled) setLinkOptions(options);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -351,7 +352,7 @@ function RcWorkbookPage(): JSX.Element {
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as RcWorkbookRoleName[])} />}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="RC"
           exampleOptions={exampleOptions}
           choiceLabel="Example"

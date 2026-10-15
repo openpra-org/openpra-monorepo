@@ -62,7 +62,7 @@ function RcDocumentsCard({ workbookId, canEdit }: { workbookId?: string; canEdit
   return (
     <div className="poscard rc-handoff__wide-card">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="RC" title="Supporting documents" level={3} />
+        <WorkbookSectionHeading title="Supporting documents" level={3} />
         {canEdit && workbookId !== undefined && (
           <label className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ cursor: busy ? "wait" : "pointer" }}>
             <RCIcon.Plus /> {busy ? "Uploading…" : "Upload"}

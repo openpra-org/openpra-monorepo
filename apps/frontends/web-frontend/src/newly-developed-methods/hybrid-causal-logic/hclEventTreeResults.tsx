@@ -86,7 +86,7 @@ export function HclEventTreeResults({
         )}
         <PagedResults
           items={states}
-          label="HCL end states"
+          label="Dependency end states"
           resetKey={resetKey}
         >
           {(page) =>
@@ -129,7 +129,7 @@ export function HclEventTreeResults({
         </h4>
         <PagedResults
           items={sequences}
-          label="HCL sequences"
+          label="Dependency sequences"
           resetKey={resetKey}
         >
           {(page) => (

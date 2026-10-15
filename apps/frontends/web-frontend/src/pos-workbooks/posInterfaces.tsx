@@ -62,7 +62,7 @@ function PosInterfaces({ canEdit, mefPatch }: { canEdit: boolean; mefPatch?: (mu
             >
               <option value="">{options !== null && options.length === 0 && linkedId === undefined ? "No DA workbooks in this project" : "Not linked"}</option>
               {(options ?? []).map((option) => <option key={option.workbookId} value={option.workbookId}>{option.name}</option>)}
-              {linkedId !== undefined && linked === undefined && <option value={linkedId}>{linkedId.startsWith(EXAMPLE_PREFIX) ? "Example DA workbook" : "DA workbook not in this project"}</option>}
+              {linkedId !== undefined && linked === undefined && <option value={linkedId}>{linkedId.startsWith(EXAMPLE_PREFIX) ? "Example DA workbook" : options === null ? "" : "DA workbook not in this project"}</option>}
             </select>
           </div>
           <HandoffImports consumer="POS" producer="DA" />

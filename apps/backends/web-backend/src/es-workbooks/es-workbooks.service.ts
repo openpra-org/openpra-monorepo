@@ -8,6 +8,7 @@ import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analy
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
+import { recordWorkbookStatus } from "../workbooks/workbook-status";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { EsWorkbook, type EsWorkbookDocument } from "./es-workbook.schema";
 import { EsDocumentsService } from "./es-documents.service";
@@ -196,7 +197,7 @@ export class EsWorkbooksService {
         createWorkbookRevisionFilter(workbookId, expectedRevision),
         {
           $set: {
-            previousMefJson: stringifyJson(stripNulls(doc.mef)),
+            ...(typeof doc.previousMefJson === "string" && doc.previousMefJson.length > 0 ? {} : { previousMefJson: stringifyJson(stripNulls(doc.mef)) }),
             mef: cleaned,
             linkedPosWorkbookId: null,
             linkedIeWorkbookId: null,
@@ -210,6 +211,7 @@ export class EsWorkbooksService {
     if (!updatedDoc) throw workbookRevisionConflict(expectedRevision);
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.esDocumentsService.removeAllForWorkbook(workbookId);
+    await recordWorkbookStatus(this.esWorkbookModel.db, workbookId, (updatedDoc.mef as { workflowState?: string }).workflowState);
     return toResponse(updatedDoc, myRoles);
   }
 
@@ -249,6 +251,7 @@ export class EsWorkbooksService {
       )
       .exec();
     if (!updatedDoc) throw workbookRevisionConflict(expectedRevision);
+    await recordWorkbookStatus(this.esWorkbookModel.db, workbookId, (updatedDoc.mef as { workflowState?: string }).workflowState);
     return toResponse(updatedDoc, myRoles);
   }
 }

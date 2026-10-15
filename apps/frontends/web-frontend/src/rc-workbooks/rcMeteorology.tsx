@@ -183,7 +183,7 @@ export function RcMeteorologyPanel({ onReviewSite, onEditBasis, onEditQuality }:
   const periodApproach = analysis.periodSelection.approach === "MULTI_YEAR_EVALUATION" ? "Multi-year evaluation" : "Representative single year";
   const reviewTable = (name: string, items: { label: string; value: string }[]) => <table className="mw-review-table" aria-label={name}><tbody>{items.map(item => <tr key={item.label}><th scope="row">{item.label}</th><td>{item.value || "Not recorded"}</td></tr>)}</tbody></table>;
 
-  return <div className="poscard rc-weather-input-card"><div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Weather inputs" level={3} /></div>
+  return <div className="poscard rc-weather-input-card"><div className="poscard__head"><WorkbookSectionHeading title="Weather inputs" level={3} /></div>
     <section className="rc-meteorology" aria-label="Weather inputs">
       <div className="mw-source-choice" role="group" aria-label="Weather source">
         <button type="button" className="posnav__btn posnav__btn--sm" aria-pressed={source === "import"} onClick={() => setSource("import")}>Import weather file</button>

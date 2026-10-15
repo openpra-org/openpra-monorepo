@@ -315,7 +315,7 @@ function NamingScheme({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => vo
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="SY" title="Naming scheme" level={3} />
+        <WorkbookSectionHeading title="Naming scheme" level={3} />
       </div>
       <div className="sy-review">
         <section className="sy-review-section" aria-label="Naming convention">

@@ -7,6 +7,7 @@ import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.
 import { Workbook, type WorkbookDocument } from "../workbooks/workbook.schema";
 import { PosWorkbook, type PosWorkbookDocument } from "../pos-workbooks/pos-workbook.schema";
 import { IeWorkbook, type IeWorkbookDocument } from "./ie-workbook.schema";
+import { iePosLink, withIePosLink, type IeLinkedMef } from "./ie-links";
 
 const EXAMPLE_SENTINEL = "example";
 
@@ -122,20 +123,21 @@ export class IePosLinkService {
 
   async status(workbookId: string, acting: ActingUser): Promise<IePosLinkStatus> {
     const ie = await this.requireIe(workbookId, acting);
-    if (typeof ie.linkedPosWorkbookId !== "string" || ie.linkedPosWorkbookId.length === 0) {
+    const linkedId = iePosLink(ie);
+    if (linkedId === null) {
       return { linkedPosWorkbookId: null, linkedName: null, states: [], sources: [] };
     }
-    if (ie.linkedPosWorkbookId === EXAMPLE_SENTINEL) {
+    if (linkedId === EXAMPLE_SENTINEL) {
       const variant = ie.exampleVariant === "sfr" ? "sfr" : "htgr";
       const bundle = await this.exampleWorkbooksService.getPosBundle(variant);
       const { states, sources } = this.collectImported(bundle.pos.mef as PosMefShape);
       return { linkedPosWorkbookId: EXAMPLE_SENTINEL, linkedName: variant === "htgr" ? "Generic HTGR POS Workbook" : "Generic SFR POS Workbook", states, sources };
     }
-    const pos = await this.posWorkbookModel.findOne({ workbookId: ie.linkedPosWorkbookId }).exec();
-    if (!pos) return { linkedPosWorkbookId: ie.linkedPosWorkbookId, linkedName: null, states: [], sources: [] };
-    const reg = isValidObjectId(ie.linkedPosWorkbookId) ? await this.workbookModel.findById(ie.linkedPosWorkbookId).exec() : null;
+    const pos = await this.posWorkbookModel.findOne({ workbookId: linkedId }).exec();
+    if (!pos) return { linkedPosWorkbookId: linkedId, linkedName: null, states: [], sources: [] };
+    const reg = isValidObjectId(linkedId) ? await this.workbookModel.findById(linkedId).exec() : null;
     const { states, sources } = this.collectImported(pos.mef as PosMefShape);
-    return { linkedPosWorkbookId: ie.linkedPosWorkbookId, linkedName: reg?.name ?? null, states, sources };
+    return { linkedPosWorkbookId: linkedId, linkedName: reg?.name ?? null, states, sources };
   }
 
   async link(workbookId: string, posWorkbookId: string, acting: ActingUser): Promise<IePosLinkStatus> {
@@ -147,10 +149,10 @@ export class IePosLinkService {
     if (pos.projectId !== ie.projectId) throw new BadRequestException("POS workbook is in a different project");
     const mef = pos.mef as PosMefShape;
     const stateIds = (mef.plantOperatingStates ?? []).map((s) => s.uuid);
-    const ieMef = ie.mef as { applicablePlantOperatingStates?: string[] };
-    ieMef.applicablePlantOperatingStates = stateIds;
-    ie.mef = ieMef;
-    ie.linkedPosWorkbookId = posWorkbookId;
+    const ieMef = ie.mef as IeLinkedMef;
+    ie.mef = { ...ieMef, linkedWorkbooks: withIePosLink(ieMef.linkedWorkbooks, posWorkbookId), applicablePlantOperatingStates: stateIds };
+    ie.markModified("mef");
+    ie.linkedPosWorkbookId = null;
     await ie.save();
     return this.status(workbookId, acting);
   }
@@ -159,10 +161,10 @@ export class IePosLinkService {
     const ie = await this.requireIe(workbookId, acting);
     const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
     if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can unlink a POS workbook");
+    const ieMef = ie.mef as IeLinkedMef;
+    ie.mef = { ...ieMef, linkedWorkbooks: withIePosLink(ieMef.linkedWorkbooks, null), applicablePlantOperatingStates: [] };
+    ie.markModified("mef");
     ie.linkedPosWorkbookId = null;
-    const ieMef = ie.mef as { applicablePlantOperatingStates?: string[] };
-    ieMef.applicablePlantOperatingStates = [];
-    ie.mef = ieMef;
     await ie.save();
     return { linkedPosWorkbookId: null, linkedName: null, states: [], sources: [] };
   }

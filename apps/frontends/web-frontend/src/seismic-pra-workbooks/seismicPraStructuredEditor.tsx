@@ -13,7 +13,6 @@ type RootFieldSelection = string[] | ((value: JsonObject) => string[]);
 interface StructuredEditorDrawerProps<S extends z.ZodType> {
   eyebrow?: string;
   title: string;
-  subtitle?: string;
   schema: S;
   value: z.output<S>;
   editable: boolean;
@@ -413,7 +412,7 @@ function inferredSchema(value: JsonValue): z.ZodType {
   return z.string();
 }
 
-function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle, schema, value, editable, initialFocus = [], createAt, hiddenRootFields = [], visibleRootFields, inlinePrimitiveArrays = false, inlineObjectFields = [], onClose, onApply, onRemove, removeLabel = "Remove record" }: StructuredEditorDrawerProps<S>): JSX.Element {
+function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, schema, value, editable, initialFocus = [], createAt, hiddenRootFields = [], visibleRootFields, inlinePrimitiveArrays = false, inlineObjectFields = [], onClose, onApply, onRemove, removeLabel = "Remove record" }: StructuredEditorDrawerProps<S>): JSX.Element {
   const [initialState] = useState(() => initialEditorState(schema, value, initialFocus, createAt));
   const [draft, setDraft] = useState<JsonValue>(initialState.draft);
   const [focus, setFocus] = useState<EditorPath>(initialState.focus);
@@ -535,11 +534,11 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
     const shownUsageOptions = usageOptions.filter(([key]) => entries.some(([entryKey]) => entryKey === key));
     return <>
       {conciseEntries.length > 0 && <div className="sstructured__section">
-        {(narrativeEntries.length > 0 || nestedEntries.length > 0) && <WorkbookSectionHeading workbook="SEISMIC" title="Details" className="sstructured__section-title" />}
+        {(narrativeEntries.length > 0 || nestedEntries.length > 0) && <WorkbookSectionHeading title="Details" className="sstructured__section-title" />}
         <div className="sstructured__fields">{conciseEntries.map(([key, childSchema]) => <div className="sstructured__field" key={key}><label className="posfield__label" htmlFor={editorFieldId(key)}>{fieldLabel(key)}</label><PrimitiveControl schema={childSchema as z.ZodType} fieldKey={key} value={objectValue[key] ?? defaultFor(childSchema as z.ZodType, key)} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: next })} /></div>)}</div>
       </div>}
       {isGroundMotionParameter && (showGroundMotionRange || showFrequencyRange) && <div className="sstructured__section">
-        <WorkbookSectionHeading workbook="SEISMIC" title="Ranges" className="sstructured__section-title" />
+        <WorkbookSectionHeading title="Ranges" className="sstructured__section-title" />
         <div className="sstructured__fields">
           {showGroundMotionRange && <div className="sstructured__field">
             <span className="posfield__label">Ground-motion range</span>
@@ -558,15 +557,15 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
         </div>
       </div>}
       {isGroundMotionParameter && shownUsageOptions.length > 0 && <div className="sstructured__section">
-        <WorkbookSectionHeading workbook="SEISMIC" title="Used by" className="sstructured__section-title" />
+        <WorkbookSectionHeading title="Used by" className="sstructured__section-title" />
         <div className="sstructured__check-group">{shownUsageOptions.map(([key, label]) => <label key={key}><input type="checkbox" checked={objectValue[key] === true} disabled={!editable} onChange={(event) => updateCurrent({ ...objectValue, [key]: event.target.checked })} /><span>{label}</span></label>)}</div>
       </div>}
       {narrativeEntries.length > 0 && <div className="sstructured__section">
-        {(conciseEntries.length > 0 || nestedEntries.length > 0) && <WorkbookSectionHeading workbook="SEISMIC" title="Technical basis" className="sstructured__section-title" />}
+        {(conciseEntries.length > 0 || nestedEntries.length > 0) && <WorkbookSectionHeading title="Technical basis" className="sstructured__section-title" />}
         <div className="sstructured__fields">{narrativeEntries.map(([key, childSchema]) => <div className="sstructured__field sstructured__field--wide" key={key}><label className="posfield__label" htmlFor={editorFieldId(key)}>{fieldLabel(key)}</label><PrimitiveControl schema={childSchema as z.ZodType} fieldKey={key} value={objectValue[key] ?? defaultFor(childSchema as z.ZodType, key)} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: next })} /></div>)}</div>
       </div>}
       {inlineArrayEntries.length > 0 && <div className="sstructured__section">
-        <WorkbookSectionHeading workbook="SEISMIC" title="References and lists" className="sstructured__section-title" />
+        <WorkbookSectionHeading title="References and lists" className="sstructured__section-title" />
         <div className="sstructured__inline-arrays">{inlineArrayEntries.map(([key, childSchema]) => {
           const arraySchema = unwrap(childSchema as z.ZodType) as z.ZodArray;
           const arrayValue = Array.isArray(objectValue[key]) ? objectValue[key] : [];
@@ -593,7 +592,7 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
           ? objectValue[key]
           : defaultFor(childObjectSchema, key) as JsonObject;
         return <div className="sstructured__section" key={key}>
-          <WorkbookSectionHeading workbook="SEISMIC" title={fieldLabel(key)} cueKey="Structured record details" className="sstructured__section-title" />
+          <WorkbookSectionHeading title={fieldLabel(key)} className="sstructured__section-title" />
           <div className="sstructured__fields">{Object.entries(childObjectSchema.shape).map(([childKey, grandchildSchema]) =>
             <div className="sstructured__field sstructured__field--wide" key={childKey}>
               <label className="posfield__label" htmlFor={editorFieldId(`${key}-${childKey}`)}>{fieldLabel(childKey)}</label>
@@ -671,7 +670,7 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
 
   const removeActionLabel = canRemoveRoot ? removeLabel : `Remove ${focusTitle}`;
 
-  return <Drawer eyebrow={focus.length === rootDepth ? eyebrow : title} title={focusTitle} subtitle={focus.length === rootDepth ? subtitle : undefined} plainHeader onClose={onClose} footer={<>
+  return <Drawer eyebrow={focus.length === rootDepth ? eyebrow : title} title={focusTitle} plainHeader onClose={onClose} footer={<>
     {error !== null && <span className="sstructured__footer-error">Review the current record.</span>}
     {editable && (canRemoveRoot || canRemoveNested) && <button type="button" className="posnav__btn sstructured__remove-action" onClick={removeCurrent}><POSIcon.Close /> {removeActionLabel}</button>}
     <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>

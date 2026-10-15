@@ -373,7 +373,7 @@ function FrequencyScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0} className="da-step__panel">
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="DA" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <div className="da-card-actions">
               <DaProvenanceChip>{head.sr}</DaProvenanceChip>
               {editable && tab === "groups" && missing.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addImported}>Add {missing.length} {missing.length === 1 ? "parameter" : "parameters"} for imported groups</button>}

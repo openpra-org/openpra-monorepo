@@ -1,5 +1,6 @@
 import type {
   EsqActionFeasibility,
+  EsqCcfRecord,
   EsqCombination,
   EsqDependenceLevel,
   EsqDependencyRecord,
@@ -72,6 +73,19 @@ interface EsqJointSolution {
 
 type EsqPoints = ReadonlyMap<string, number>;
 
+type EsqSyntheticEvent =
+  | { kind: "RECOVERY" | "JOINT"; code: string; eventIds: string[] }
+  | { kind: "INDEPENDENT"; eventId: string };
+
+interface EsqEventReader {
+  code: (eventId: string) => string;
+  sources: (eventId: string) => string[];
+}
+
+const CCF_ORDER_TERMS: ReadonlySet<string> = new Set(["alpha", "mgl", "phi", "bfr"]);
+
+const MAX_EVENT_DEPTH = 4;
+
 const FEASIBILITY_REQUIRED: readonly EsqFeasibilityKey[] = ["cues", "time", "crew", "procedure", "access"];
 
 const REPAIR_REQUIRED: readonly EsqFeasibilityKey[] = ["time", "access"];
@@ -106,6 +120,73 @@ function esqJointEventId(combinationId: string): string {
 
 function esqIndependentEventId(eventId: string): string {
   return esqStableId(`independent:${eventId}`);
+}
+
+function combinationAt(members: readonly string[], size: number, rank: number): string[] | undefined {
+  if (!Number.isInteger(size) || !Number.isInteger(rank) || size < 1 || size > members.length || rank < 0) return undefined;
+  const indices = Array.from({ length: size }, (_, index) => index);
+  for (let step = 0; step < rank; step += 1) {
+    let slot = size;
+    while (slot > 0 && indices[slot - 1] === members.length - size + slot - 1) slot -= 1;
+    if (slot === 0) return undefined;
+    indices[slot - 1] = (indices[slot - 1] ?? 0) + 1;
+    for (let next = slot; next < size; next += 1) indices[next] = (indices[next - 1] ?? 0) + 1;
+  }
+  return indices.flatMap((index) => {
+    const member = members[index];
+    return member === undefined ? [] : [member];
+  });
+}
+
+function ccfTermMembers(group: EsqCcfRecord, eventId: string): string[] | undefined {
+  const prefix = `${group.id}-`;
+  if (!eventId.startsWith(prefix)) return undefined;
+  const parts = eventId.slice(prefix.length).split("-");
+  const [term, first, second] = parts;
+  if (term === "common" && parts.length === 1) return [...group.memberIds];
+  if (term === "indep" && parts.length === 2) {
+    const member = group.memberIds[Number(first) - 1];
+    return member === undefined ? undefined : [member];
+  }
+  if (term !== undefined && CCF_ORDER_TERMS.has(term) && parts.length === 3) return combinationAt(group.memberIds, Number(first), Number(second) - 1);
+  return undefined;
+}
+
+function esqEventReader(esq: EventSequenceQuantification, known: Readonly<Record<string, string>> = {}): EsqEventReader {
+  const model = esq.model;
+  const codes = new Map((model?.events ?? []).map((event) => [event.id, event.code]));
+  const listed = new Map(Object.entries(known));
+  const synthetic = new Map<string, EsqSyntheticEvent>();
+  for (const recovery of resolvedRecoveries(esq)) synthetic.set(recovery.eventId, { kind: "RECOVERY", code: `NR-${recovery.id}`, eventIds: [...recovery.eventIds] });
+  for (const combination of postWorkOf(esq).combinations ?? []) {
+    synthetic.set(esqJointEventId(combination.id), { kind: "JOINT", code: `JHEP-${combination.id}`, eventIds: [...combination.eventIds] });
+    for (const eventId of combination.eventIds) synthetic.set(esqIndependentEventId(eventId), { kind: "INDEPENDENT", eventId });
+  }
+  const groups = [...(model?.ccfGroups ?? [])].sort((left, right) => right.id.length - left.id.length);
+  const termOf = (eventId: string): { group: EsqCcfRecord; memberIds: string[] } | undefined => {
+    for (const group of groups) {
+      const memberIds = ccfTermMembers(group, eventId);
+      if (memberIds !== undefined) return { group, memberIds };
+    }
+    return undefined;
+  };
+  const code = (eventId: string, depth: number): string => {
+    const own = codes.get(eventId);
+    if (own !== undefined) return own;
+    const made = synthetic.get(eventId);
+    if (made !== undefined && depth < MAX_EVENT_DEPTH) return made.kind === "INDEPENDENT" ? `${code(made.eventId, depth + 1)}-IND` : made.code;
+    const given = listed.get(eventId);
+    if (given !== undefined) return given;
+    const term = termOf(eventId);
+    return term === undefined ? eventId : `${term.group.name}[${term.memberIds.map((id) => code(id, depth + 1)).join("+")}]`;
+  };
+  const sources = (eventId: string, depth: number): string[] => {
+    if (depth >= MAX_EVENT_DEPTH) return [eventId];
+    const made = synthetic.get(eventId);
+    if (made !== undefined) return (made.kind === "INDEPENDENT" ? [made.eventId] : made.eventIds).flatMap((id) => sources(id, depth + 1));
+    return termOf(eventId)?.memberIds ?? [eventId];
+  };
+  return { code: (eventId) => code(eventId, 0), sources: (eventId) => sources(eventId, 0) };
 }
 
 function combinationKey(eventIds: readonly string[]): string {
@@ -440,6 +521,7 @@ export {
   activeRecoveries,
   combinationKey,
   combinationMembers,
+  esqEventReader,
   esqIndependentEventId,
   esqJointEventId,
   esqPostRunId,
@@ -456,4 +538,4 @@ export {
   solveJointEvents,
   therpJoint,
 };
-export type { EsqCombinationMember, EsqFeasibilityKey, EsqJointSolution, EsqPoints, EsqResolvedCombination, EsqResolvedRecovery };
+export type { EsqCombinationMember, EsqEventReader, EsqFeasibilityKey, EsqJointSolution, EsqPoints, EsqResolvedCombination, EsqResolvedRecovery };

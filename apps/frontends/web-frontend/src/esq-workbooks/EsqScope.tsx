@@ -140,7 +140,7 @@ function CoverageTable({ onEdit }: { onEdit: (aspect: EsqScopeAspect) => void })
   const actionLabel = editable ? "Edit" : "View";
   return (
     <div className="poscard">
-      <div className="poscard__head"><WorkbookSectionHeading workbook="ESQ" title="Coverage" level={3} /></div>
+      <div className="poscard__head"><WorkbookSectionHeading title="Coverage" level={3} /></div>
       <table className="postable postable--mid esq-scope-table" aria-label="Coverage">
         <thead><tr><th scope="col">Scope item</th><th scope="col">Included</th><th scope="col">Excluded</th><th scope="col" className="esq-scope-edit" aria-label="Actions" /></tr></thead>
         <tbody>
@@ -384,7 +384,7 @@ function PlanCard(): JSX.Element {
 
   return (
     <div className="poscard">
-      <div className="poscard__head"><WorkbookSectionHeading workbook="ESQ" title="Quantification plan" level={3} /></div>
+      <div className="poscard__head"><WorkbookSectionHeading title="Quantification plan" level={3} /></div>
       <div className="esq-form esq-form--card">
         <FormRow label="State weighting" htmlFor={`${fieldId}-weighting`}>
           <select id={`${fieldId}-weighting`} className="posfield__select" value={values.stateWeighting} disabled={!editable} onChange={(event) => onStateWeighting(event.target.value === "TYPED_SHARES" ? "TYPED_SHARES" : "POS_HOURS")}>
@@ -499,13 +499,13 @@ function EsqScopeScreen({ ccId, setCcId, stage, setStage }: {
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="ESQ" title="Interfaces" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Interfaces" level={3} /></div>
         <p className="poscard__sub">Links are optional. A linked workbook fills the coverage and the quantification plan below, which you can also type by hand.</p>
         <EsqInterfaces />
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="ESQ" title="PRA scope" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="PRA scope" level={3} /></div>
         <WorkbookTextarea
           className="posfield__textarea esq-scope-text"
           aria-label="PRA scope"
@@ -522,7 +522,7 @@ function EsqScopeScreen({ ccId, setCcId, stage, setStage }: {
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ESQ" title="Capability category" level={3} />
+          <WorkbookSectionHeading title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <div className="esq-scope-choices">
@@ -542,7 +542,7 @@ function EsqScopeScreen({ ccId, setCcId, stage, setStage }: {
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="ESQ" title="Plant stage" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Plant stage" level={3} /></div>
         <div className="esq-scope-choices">
           {PLANT_STAGES.map((option) => (
             <label key={option.id} className={`esq-scope-choice${stage === option.id ? " esq-scope-choice--active" : ""}`}>

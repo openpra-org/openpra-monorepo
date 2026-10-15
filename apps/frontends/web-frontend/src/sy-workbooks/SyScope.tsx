@@ -149,7 +149,7 @@ function SystemsInScope({ openDrawer, focusRequested, onFocused }: {
   return (
     <div className="poscard sy-systems-in-scope" id={SYSTEMS_IN_SCOPE_ID} ref={card} tabIndex={-1}>
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="SY" title="Systems in scope" level={3} />
+        <WorkbookSectionHeading title="Systems in scope" level={3} />
         <div className="posrow">
           {total > 1 && (
             <>
@@ -243,13 +243,13 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction, openDrawer, onO
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="SY" title="Interfaces" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Interfaces" level={3} /></div>
         <p className="poscard__sub">Links are optional. A linked workbook fills matching fields here, such as safety functions from ES or estimates from DA. Without links, add the systems in <SystemsInScopeLink onOpen={onOpenSystems} /> below and type the values yourself.</p>
         <SyInterfaces />
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="SY" title="PRA scope" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="PRA scope" level={3} /></div>
         <WorkbookTextarea
           className="posfield__textarea sy-scope-text"
           aria-label="PRA scope"
@@ -264,7 +264,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction, openDrawer, onO
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SY" title="Capability category" level={3} />
+          <WorkbookSectionHeading title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <div className="sy-scope-choices">
@@ -284,7 +284,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction, openDrawer, onO
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="SY" title="Plant stage" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Plant stage" level={3} /></div>
         <div className="sy-scope-choices">
           {([
             ["pre_operational", "Pre-operational", "Models rest on design information. Gaps that walkdowns and operating practice would close are logged as pre-operational assumptions."],

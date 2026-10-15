@@ -22,6 +22,7 @@ export class ModelPayloadStore {
   private client?: Client;
   private ready?: Promise<void>;
   private bucket = "openpra-model-payloads";
+  private readonly uploaded = new Set<string>();
 
   private async connect(): Promise<Client> {
     if (!this.client) {
@@ -63,11 +64,13 @@ export class ModelPayloadStore {
       const client = await this.connect();
       const sha256 = createHash("sha256").update(data).digest("hex");
       const key = `v1/${sha256}.json.gz`;
+      if (this.uploaded.has(`${this.bucket}/${key}`)) return { format: "json-gzip-v1", key, sha256, bytes: data.length };
       const compressed = await compress(data, { level: 1 });
       // Content addressing shares identical snapshots and never overwrites other data.
       await client.putObject(this.bucket, key, compressed, compressed.length, {
         "Content-Type": "application/gzip",
       });
+      this.uploaded.add(`${this.bucket}/${key}`);
       return { format: "json-gzip-v1", key, sha256, bytes: data.length };
     } catch (error) {
       throw new ServiceUnavailableException("Unable to store model payload in MinIO", { cause: error });

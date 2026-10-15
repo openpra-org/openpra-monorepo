@@ -144,6 +144,7 @@ class PraxisJobsService implements OnApplicationBootstrap, OnApplicationShutdown
       { persistent: true, messageId: jobId, contentType: "application/json" },
     );
     if (!published) this.logger.warn(`The PRAXIS job queue is applying back pressure for ${jobId}`);
+    this.logger.log(`Queued PRAXIS job ${jobId} (${body.operation})`);
     return this.state(jobId);
   }
 

@@ -1,6 +1,6 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
-import { Fragment, JSX, ReactNode, useEffect, useId, useMemo, useState } from "react";
+import { Fragment, JSX, ReactNode, useEffect, useId, useMemo, useRef, useState } from "react";
 import { HANDOFF_ELEMENT_NAMES } from "interfaces-mef-types/technical-element-handoff";
 import { HandoffImports, idAndName } from "../workbooks/workbookHandoff";
 import { SCIcon } from "./scIcons";
@@ -58,19 +58,22 @@ function ScInterfaces({ linkActions }: { linkActions?: ScLinkActions }): JSX.Ele
   const [selected, setSelected] = useState<ScLinkCode | null>("POS");
   const [options, setOptions] = useState<Partial<Record<ScLinkCode, ScLinkOption[]>>>({});
   const [error, setError] = useState<string | null>(null);
+  const requested = useRef(new Set<ScLinkCode>());
   const selectId = useId();
   const linkedId = selected === null ? null : sc.linkedWorkbooks?.[selected] ?? null;
   const choices = selected === null ? undefined : options[selected];
   const linked = choices?.find((option) => option.workbookId === linkedId);
 
   useEffect(() => {
-    if (selected === null || linkActions === undefined || options[selected] !== undefined) return;
-    let cancelled = false;
-    linkActions.available(selected)
-      .then((found) => { if (!cancelled) setOptions((current) => ({ ...current, [selected]: found })); })
-      .catch((failure: Error) => { if (!cancelled) setError(failure.message); });
-    return () => { cancelled = true; };
-  }, [selected, linkActions, options]);
+    if (linkActions === undefined) return;
+    for (const code of SC_LINK_CODES) {
+      if (requested.current.has(code)) continue;
+      requested.current.add(code);
+      linkActions.available(code)
+        .then((found) => setOptions((current) => ({ ...current, [code]: found })))
+        .catch((failure: Error) => setError(failure.message));
+    }
+  }, [linkActions]);
 
   return (
     <>
@@ -101,7 +104,7 @@ function ScInterfaces({ linkActions }: { linkActions?: ScLinkActions }): JSX.Ele
             >
               <option value="">{choices !== undefined && choices.length === 0 && linkedId === null ? `No ${selected} workbooks in this project` : "Not linked"}</option>
               {(choices ?? []).map((option) => <option key={option.workbookId} value={option.workbookId}>{option.name}</option>)}
-              {linkedId !== null && linked === undefined && <option value={linkedId}>{linkedId.startsWith("example") ? `Example ${selected} workbook` : `${selected} workbook not in this project`}</option>}
+              {linkedId !== null && linked === undefined && <option value={linkedId}>{linkedId.startsWith("example") ? `Example ${selected} workbook` : choices === undefined ? "" : `${selected} workbook not in this project`}</option>}
             </select>
           </div>
           <HandoffImports consumer="SC" producer={selected} />
@@ -176,14 +179,14 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage, linkActions }: {
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Interfaces" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Interfaces" level={3} /></div>
         <p className="poscard__sub">Links are optional. Linked workbooks fill the state, barrier, initiator and safety function choices, which you can also type by hand.</p>
         <ScInterfaces linkActions={linkActions} />
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SC" title="Radionuclide transport barriers" level={3} />
+          <WorkbookSectionHeading title="Radionuclide transport barriers" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SCProvenanceChip kind="sc">SC-A4</SCProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addBarrier}><SCIcon.Plus /> Add barrier</button>}
@@ -226,7 +229,7 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage, linkActions }: {
             </div>
             <div className="scdrawer__body" style={{ paddingTop: 4 }}>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Protection" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Protection" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Barrier</label>
                     {editable ? <ChoiceInput label="Barrier" value={b.barrierId} choices={choices.barriers} onCommit={(barrierId) => patchBarrier(b.uuid, { barrierId })} /> : <div>{choiceLabel(choices.barriers, b.barrierId)}</div>}
@@ -243,7 +246,7 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage, linkActions }: {
                 </div>
               </div>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Capacity and method" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Capacity and method" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield"><label className="posfield__label">Evaluation method</label>
                     {editable
@@ -264,7 +267,7 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage, linkActions }: {
                 </div>
               </div>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Challenge loads" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Challenge loads" level={3} /></div>
                 {b.challengeLoads.length > 0 ? b.challengeLoads.map((load, i) => (
                   <div key={i} className="posfield-grid" style={{ marginBottom: 8 }}>
                     <div className="posfield"><label className="posfield__label">Sequence</label>
@@ -294,7 +297,7 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage, linkActions }: {
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SC" title="Capability category" level={3} />
+          <WorkbookSectionHeading title="Capability category" level={3} />
           <Badge kind="progress">{(CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0]).tag}</Badge>
         </div>
         <p className="poscard__sub">Generic analyses, or realistic design-specific ones.</p>
@@ -318,7 +321,7 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage, linkActions }: {
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Plant stage" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Plant stage" level={3} /></div>
         <p className="poscard__sub">Mostly a design question, so plant stage matters little here.</p>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
@@ -353,7 +356,7 @@ function EndStatesScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SC" title="End states" level={3} />
+          <WorkbookSectionHeading title="End states" level={3} />
           <span className="possubtle">{sc.endStateDefinitions.length} defined · SC-A2, SC-A3</span>
         </div>
         <p className="poscard__sub">Defined once and reused across every event tree. Release categories come from Mechanistic Source Term.</p>
@@ -407,13 +410,13 @@ function EndStatesScreen(): JSX.Element {
             </div>
             <div className="scdrawer__body" style={{ paddingTop: 4 }}>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Definition" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Definition" level={3} /></div>
                 {editable
                   ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.definition} onChange={(ev) => patchEnd(e.uuid, { definition: ev.target.value })} />
                   : <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6 }}>{e.definition}</p>}
               </div>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Determining parameters" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Determining parameters" level={3} /></div>
                 {e.determiningParameters.map((row, i) => (
                   <div key={i} style={{ borderTop: i > 0 ? "1px solid var(--color-border)" : undefined, paddingTop: i > 0 ? 12 : 0, marginBottom: 10 }}>
                     <div className="scdrawer__param-cap"><span className="scdrawer__param-num">{i + 1}</span>{row.parameter.length > 0 ? row.parameter : "New parameter"}</div>
@@ -440,7 +443,7 @@ function EndStatesScreen(): JSX.Element {
                 )}
               </div>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Margin and selection" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Margin and selection" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Margin justification</label>
                     {editable
@@ -643,7 +646,7 @@ function CriteriaScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SC" title="Success criteria table" level={3} />
+          <WorkbookSectionHeading title="Success criteria table" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">{groups.length} criteria · SC-A5</span>
             <button type="button" className={`posnav__btn posnav__btn--sm${activeFilters > 0 ? " posnav__btn--primary" : ""}`} onClick={() => setFilterOpen(!filterOpen)}><SCIcon.Filter /> Filter{activeFilters > 0 ? ` · ${activeFilters}` : ""}</button>
@@ -706,7 +709,7 @@ function CriteriaScreen(): JSX.Element {
       {((sc.systemSuccessCriteria ?? []).length > 0 || editable) && (
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="SC" title="System success criteria" level={3} />
+            <WorkbookSectionHeading title="System success criteria" level={3} />
             <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
               <span className="possubtle">What each system must deliver</span>
               {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSys}><SCIcon.Plus /> Add system</button>}
@@ -737,7 +740,7 @@ function CriteriaScreen(): JSX.Element {
       {((sc.sharedResources ?? []).length > 0 || editable) && (
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="SC" title="Shared systems" level={3} />
+            <WorkbookSectionHeading title="Shared systems" level={3} />
             <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
               <SCProvenanceChip kind="sc">SC-A6</SCProvenanceChip>
               {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addShr}><SCIcon.Plus /> Add resource</button>}
@@ -861,7 +864,7 @@ function CriteriaScreen(): JSX.Element {
             </div>
             <div className="scdrawer__body" style={{ paddingTop: 4 }}>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="System" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="System" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield"><label className="posfield__label">Name</label>
                     {editable ? <WorkbookInput className="posfield__input" value={s.description} onChange={(e) => patchSys(s.uuid, { description: e.target.value })} /> : <div>{s.description}</div>}
@@ -879,7 +882,7 @@ function CriteriaScreen(): JSX.Element {
                 </div>
               </div>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Required capacities" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Required capacities" level={3} /></div>
                 {s.requiredCapacities.map((row, i) => (
                   <div key={i} style={{ borderTop: i > 0 ? "1px solid var(--color-border)" : undefined, paddingTop: i > 0 ? 12 : 0, marginBottom: 10 }}>
                     <div className="scdrawer__param-cap"><span className="scdrawer__param-num">{i + 1}</span>{row.parameter.length > 0 ? row.parameter : "New capacity"}</div>
@@ -906,7 +909,7 @@ function CriteriaScreen(): JSX.Element {
                 )}
               </div>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Support dependencies" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Support dependencies" level={3} /></div>
                 {(s.systemDependencies ?? []).length === 0 && <p className="possubtle" style={{ margin: 0, fontSize: 12.5 }}>No support-system dependencies.</p>}
                 {(s.systemDependencies ?? []).map((d, i) => (
                   <div key={i} className="posfield-grid" style={{ marginBottom: 8 }}>
@@ -950,7 +953,7 @@ function CriteriaScreen(): JSX.Element {
             </div>
             <div className="scdrawer__body" style={{ paddingTop: 4 }}>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Resource" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Resource" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
                     {editable ? <WorkbookInput className="posfield__input" value={r.name} onChange={(e) => patchShr(r.uuid, { name: e.target.value })} /> : <div>{r.name}</div>}
@@ -967,7 +970,7 @@ function CriteriaScreen(): JSX.Element {
                 </div>
               </div>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Treatment" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Treatment" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Allocation</label>
                     {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={r.allocationStrategy} onChange={(e) => patchShr(r.uuid, { allocationStrategy: e.target.value })} /> : <div>{r.allocationStrategy}</div>}
@@ -1037,7 +1040,7 @@ function MissionScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SC" title="Sequence mission times" level={3} />
+          <WorkbookSectionHeading title="Sequence mission times" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SCProvenanceChip kind="sc">SC-A7</SCProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addMt}><SCIcon.Plus /> Add mission time</button>}
@@ -1097,7 +1100,7 @@ function MissionScreen(): JSX.Element {
             </div>
             <div className="scdrawer__body" style={{ paddingTop: 4 }}>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Sequence and time" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Sequence and time" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield"><label className="posfield__label">Sequence</label>
                     {editable ? <ChoiceInput label="Sequence" value={m.eventSequenceReference} choices={sequenceChoices} onCommit={(eventSequenceReference) => patchMt(m.uuid, { eventSequenceReference })} mono /> : <div className="posmono">{m.eventSequenceReference}</div>}
@@ -1124,7 +1127,7 @@ function MissionScreen(): JSX.Element {
                 </div>
               </div>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Safe stable state" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Safe stable state" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield"><label className="posfield__label">Reached within the mission time</label>
                     {editable
@@ -1177,7 +1180,7 @@ function MissionScreen(): JSX.Element {
             </div>
             <div className="scdrawer__body" style={{ paddingTop: 4 }}>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Component and time" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Component and time" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield"><label className="posfield__label">Component</label>
                     {editable ? <WorkbookInput className="posfield__input" value={c.componentId} onChange={(e) => patchCmt(c.uuid, { componentId: e.target.value })} /> : <div>{c.componentId}</div>}
@@ -1213,7 +1216,7 @@ function MissionScreen(): JSX.Element {
       {((sc.componentMissionTimes ?? []).length > 0 || editable) && (
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="SC" title="Component mission times" level={3} />
+            <WorkbookSectionHeading title="Component mission times" level={3} />
             <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
               <SCProvenanceChip kind="sc">SC-A8</SCProvenanceChip>
               {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCmt}><SCIcon.Plus /> Add component</button>}
@@ -1308,7 +1311,7 @@ function BasesScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SC" title="Engineering analyses" level={3} />
+          <WorkbookSectionHeading title="Engineering analyses" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">{sc.engineeringAnalyses.length} analyses · SC-B1, B4, B8</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addAnalysis}><SCIcon.Plus /> Add analysis</button>}
@@ -1335,7 +1338,7 @@ function BasesScreen(): JSX.Element {
       {((sc.computerCodeValidations ?? []).length > 0 || editable) && (
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="SC" title="Computer codes" level={3} />
+            <WorkbookSectionHeading title="Computer codes" level={3} />
             <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
               <SCProvenanceChip kind="sc">SC-B4</SCProvenanceChip>
               {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCode}><SCIcon.Plus /> Add code</button>}
@@ -1363,7 +1366,7 @@ function BasesScreen(): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SC" title="Barrier loads against capacity" level={3} />
+          <WorkbookSectionHeading title="Barrier loads against capacity" level={3} />
           <span className="possubtle">{sc.radionuclideBarrierCriteria.length} barriers · SC-B6, B7</span>
         </div>
         <p className="poscard__sub">Load on each barrier against the parameters defining its capacity. Click a barrier to edit it.</p>
@@ -1402,7 +1405,7 @@ function BasesScreen(): JSX.Element {
       {((sc.expertJudgments ?? []).length > 0 || editable) && (
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="SC" title="Expert judgment" level={3} />
+            <WorkbookSectionHeading title="Expert judgment" level={3} />
             <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
               <SCProvenanceChip kind="sc">SC-B2</SCProvenanceChip>
               {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addEj}><SCIcon.Plus /> Add judgment</button>}
@@ -1558,7 +1561,7 @@ function BasesScreen(): JSX.Element {
             </div>
             <div className="scdrawer__body" style={{ paddingTop: 4 }}>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Code" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Code" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
                     {editable ? <WorkbookInput className="posfield__input" value={c.name} onChange={(e) => patchCode(c.uuid, { name: e.target.value })} /> : <div>{c.name}</div>}
@@ -1575,7 +1578,7 @@ function BasesScreen(): JSX.Element {
                 </div>
               </div>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Phenomena validation" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Phenomena validation" level={3} /></div>
                 {c.phenomenaValidation.map((row, i) => (
                   <div key={i} style={{ borderTop: i > 0 ? "1px solid var(--color-border)" : undefined, paddingTop: i > 0 ? 12 : 0, marginBottom: 10 }}>
                     <div className="scdrawer__param-cap"><span className="scdrawer__param-num">{i + 1}</span>{row.phenomenonDescription.length > 0 ? row.phenomenonDescription : "New phenomenon"}</div>
@@ -1602,7 +1605,7 @@ function BasesScreen(): JSX.Element {
                 )}
               </div>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Limitations and gaps" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Limitations and gaps" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Limitations (one per line)</label>
                     {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.limitations.join("\n")} onChange={(e) => patchCode(c.uuid, { limitations: e.target.value.length === 0 ? [] : e.target.value.split("\n") })} /> : <div>{c.limitations.join(" ")}</div>}
@@ -1640,7 +1643,7 @@ function BasesScreen(): JSX.Element {
             </div>
             <div className="scdrawer__body" style={{ paddingTop: 4 }}>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Evaluation method" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Evaluation method" level={3} /></div>
                 {editable ? (
                   <select className="posfield__select" style={{ maxWidth: 240 }} value={b.effectivenessEvaluationMethod} onChange={(e) => patchBar(b.uuid, { effectivenessEvaluationMethod: e.target.value === "REALISTIC" ? "REALISTIC" : "CONSERVATIVE" })}>
                     <option value="REALISTIC">Realistic (CC-II)</option>
@@ -1649,7 +1652,7 @@ function BasesScreen(): JSX.Element {
                 ) : <div>{b.effectivenessEvaluationMethod === "REALISTIC" ? "Realistic (CC-II)" : "Conservative (CC-I)"}</div>}
               </div>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Challenge loads" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Challenge loads" level={3} /></div>
                 {b.challengeLoads.map((row, i) => (
                   <div key={i} style={{ borderTop: i > 0 ? "1px solid var(--color-border)" : undefined, paddingTop: i > 0 ? 12 : 0, marginBottom: 10 }}>
                     <div className="scdrawer__param-cap"><span className="scdrawer__param-num">{i + 1}</span>{row.loadDescription.length > 0 ? row.loadDescription : "New load"}</div>
@@ -1676,7 +1679,7 @@ function BasesScreen(): JSX.Element {
                 )}
               </div>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Capacity and uncertainty" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Capacity and uncertainty" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Capacity parameters (one per line)</label>
                     {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={b.capacityParameters.join("\n")} onChange={(e) => patchBar(b.uuid, { capacityParameters: e.target.value.length === 0 ? [] : e.target.value.split("\n") })} /> : <div>{b.capacityParameters.join(", ")}</div>}
@@ -1706,7 +1709,7 @@ function BasesScreen(): JSX.Element {
             </div>
             <div className="scdrawer__body" style={{ paddingTop: 4 }}>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Judgment" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Judgment" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Topic</label>
                     {editable ? <WorkbookInput className="posfield__input" value={e.topic} onChange={(ev) => patchEj(e.uuid, { topic: ev.target.value })} /> : <div>{e.topic}</div>}
@@ -1720,7 +1723,7 @@ function BasesScreen(): JSX.Element {
                 </div>
               </div>
               <div>
-                <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Process" level={3} /></div>
+                <div className="poscard__head"><WorkbookSectionHeading title="Process" level={3} /></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Process</label>
                     {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.processDescription} onChange={(ev) => patchEj(e.uuid, { processDescription: ev.target.value })} /> : <div>{e.processDescription}</div>}
@@ -1776,7 +1779,7 @@ function PassiveScreen(): JSX.Element {
     return (
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SC" title="Passive safety functions" level={3} />
+          <WorkbookSectionHeading title="Passive safety functions" level={3} />
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addPsv}><SCIcon.Plus /> Add function</button>}
         </div>
         <ScEmpty title="No passive functions recorded yet" hint="Passive safety functions use mechanistic models with characterized model and input uncertainty for functional reliability (SC-B5)." />
@@ -1787,7 +1790,7 @@ function PassiveScreen(): JSX.Element {
     <>
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="SC" title="Passive safety functions" level={3} />
+        <WorkbookSectionHeading title="Passive safety functions" level={3} />
         <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
           <span className="possubtle">SC-B5</span>
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addPsv}><SCIcon.Plus /> Add function</button>}
@@ -1844,7 +1847,7 @@ function PassiveScreen(): JSX.Element {
           </div>
           <div className="scdrawer__body" style={{ paddingTop: 4 }}>
             <div>
-              <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Model" level={3} /></div>
+              <div className="poscard__head"><WorkbookSectionHeading title="Model" level={3} /></div>
               <div className="posfield-grid">
                 <div className="posfield"><label className="posfield__label">Safety function</label>
                   {editable
@@ -1863,7 +1866,7 @@ function PassiveScreen(): JSX.Element {
               </div>
             </div>
             <div>
-              <div className="poscard__head"><WorkbookSectionHeading workbook="SC" title="Uncertainty" level={3} /></div>
+              <div className="poscard__head"><WorkbookSectionHeading title="Uncertainty" level={3} /></div>
               <div className="posfield-grid">
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Model uncertainty</label>
                   {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.modelUncertaintyCharacterization} onChange={(e) => patchPsv(p.uuid, { modelUncertaintyCharacterization: e.target.value })} /> : <div>{p.modelUncertaintyCharacterization}</div>}
@@ -1993,7 +1996,7 @@ function ConsistencyScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SC" title="Consistency checks" level={3} />
+          <WorkbookSectionHeading title="Consistency checks" level={3} />
           {openCount === 0 ? <Badge kind="ok">All consistent</Badge> : <Badge kind="warn">{openCount} open</Badge>}
         </div>
         <p className="poscard__sub">Click a check to edit it.</p>
@@ -2010,7 +2013,7 @@ function ConsistencyScreen(): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="SC" title="Open items register" level={3} />
+          <WorkbookSectionHeading title="Open items register" level={3} />
           <div className="posrow posrow--wrap" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">SC-A10, A11, B9, B10</span>
             {editable && <>
@@ -2045,7 +2048,7 @@ function ConsistencyScreen(): JSX.Element {
               <div className="scdrawer__head" style={{ borderBottom: "none" }}>
                 <div>
                   <div className="scdrawer__cap">Consistency check · SC-B3</div>
-                  <WorkbookSectionHeading workbook="SC" title="Analysis detail" level={2} className="scdrawer__title" />
+                  <WorkbookSectionHeading title="Analysis detail" level={2} className="scdrawer__title" />
                 </div>
                 <button type="button" className="scdrawer__close" onClick={() => setOpenCheckId(null)}><SCIcon.Close /></button>
               </div>
@@ -2291,7 +2294,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
       </div>
       <div className="posgen__side">
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="SC" title="Conformance check" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -2299,7 +2302,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           {scores.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label" style={{ color: "#b73b3b" }}>Blocked</span><span className="posmono">{scores.blocked}</span></div>}
         </div>
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="SC" title="Draft submission" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading title="Draft submission" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All items pass at <strong>{cc.name}</strong>. Producing the draft locks Steps 1–8 and advances the workbook to <strong>Internal Technical Review</strong>.</>

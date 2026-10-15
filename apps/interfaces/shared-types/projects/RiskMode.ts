@@ -1,10 +1,7 @@
 import { z } from "zod";
 import { TECHNICAL_ELEMENT_CODES, type TechnicalElementCode } from "interfaces-mef-types/technical-element";
 
-const ProjectStatusSchema = z.enum(["baseline", "in-progress", "not-started", "na"]);
-type ProjectStatus = z.infer<typeof ProjectStatusSchema>;
-
-const ProjectStateSchema = z.enum(["active", "baseline", "archived"]);
+const ProjectStateSchema = z.enum(["active", "archived"]);
 type ProjectState = z.infer<typeof ProjectStateSchema>;
 
 const RiskModeSchema = z.enum([
@@ -117,5 +114,5 @@ function riskModeLabel(mode: RiskMode): string {
   return def !== undefined ? def.name : mode;
 }
 
-export { ProjectStatusSchema, ProjectStateSchema, RiskModeSchema, RISK_MODES, ALL_ELEMENTS, elementsForMode, riskModeLabel };
-export type { ProjectStatus, ProjectState, RiskMode, RiskModeDefinition, TechnicalElementDefinition, IncludedCode };
+export { ProjectStateSchema, RiskModeSchema, RISK_MODES, ALL_ELEMENTS, elementsForMode, riskModeLabel };
+export type { ProjectState, RiskMode, RiskModeDefinition, TechnicalElementDefinition, IncludedCode };

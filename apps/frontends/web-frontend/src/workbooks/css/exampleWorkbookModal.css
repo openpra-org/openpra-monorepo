@@ -78,6 +78,17 @@
 }
 .exmodal__choice-select:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.exmodal__body p.exmodal__links {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  background: var(--color-warning-bg, rgba(196, 122, 24, 0.08));
+  border-left: 3px solid var(--color-warning);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
 .exmodal__disclaimer {
   margin-top: 14px;
   padding: 10px 12px;

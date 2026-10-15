@@ -345,7 +345,7 @@ pub(super) fn execute(
             },
         })
         .collect();
-    let mut value = event_tree_result_json(adapter, &probabilities, None)?;
+    let mut value = event_tree_result_json(adapter, &probabilities, &[], None)?;
     let family_of = family_map(adapter);
     let terms = ccf_terms(adapter)?;
     if let Some(input) = importance {

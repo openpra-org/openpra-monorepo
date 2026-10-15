@@ -32,6 +32,35 @@
 .pws-status--error {
   color: var(--color-error);
 }
+.pws-notice {
+  position: fixed;
+  bottom: 18px;
+  left: 18px;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 460px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-error);
+  color: var(--color-error);
+  font-size: 13px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+}
+.pws-notice__dismiss {
+  flex-shrink: 0;
+  border: 1px solid var(--color-error);
+  background: transparent;
+  color: var(--color-error);
+  border-radius: 7px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
 
 .phead {
   margin-bottom: 14px;
@@ -117,12 +146,6 @@
   gap: 16px;
   flex-wrap: wrap;
 }
-.wfilters__summary {
-  font-size: 13px;
-  color: var(--color-text-subtle);
-  font-family: var(--font-data), ui-monospace, monospace;
-  letter-spacing: 0.01em;
-}
 .wfilters__chips {
   display: flex;
   gap: 2px;
@@ -174,7 +197,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 26px 32px;
-  align-items: start;
+  align-items: stretch;
 }
 .erows__empty {
   grid-column: 1 / -1;
@@ -190,7 +213,7 @@
 .erow {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
   padding: 14px 16px;
   border: 1px solid var(--color-border);
@@ -237,41 +260,12 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.erow--not-started .erow__title {
-  color: var(--color-text-muted);
-}
-.erow--not-started .erow__code {
-  opacity: 0.5;
-}
-.erow__track {
-  position: relative;
-  height: 2px;
-  background: var(--color-border);
-  border-radius: 999px;
-  overflow: hidden;
-  margin-left: 38px;
-}
-.erow__track-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  background: var(--c-idle);
-  transition: width 0.3s;
-}
-.erow__track-fill--complete {
-  background: var(--c-complete);
-}
-.erow__track-fill--in-progress {
-  background: var(--c-progress);
-}
-.erow__track-fill--not-started {
-  background: transparent;
-}
 .erow__open {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   margin-left: 38px;
-  margin-top: 2px;
+  margin-top: auto;
   font-size: 12.5px;
   font-weight: 600;
   color: var(--color-primary);
@@ -667,14 +661,6 @@
   background: var(--color-surface-low);
   color: var(--color-text-subtle);
   text-align: center;
-}
-.lgl__elhead-code--complete {
-  background: rgb(18 197 185 / 0.1);
-  color: var(--c-complete);
-}
-.lgl__elhead-code--in-progress {
-  background: var(--color-primary-tint);
-  color: var(--color-primary);
 }
 
 

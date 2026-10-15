@@ -429,7 +429,7 @@ function RunsPanel({ view }: { view: EsqUncertaintyView }): JSX.Element {
             {sampling.runner.running ? "Sampling…" : "Sample"}
           </button>
         </div>
-        <p className="esq-meta">{`PRAXIS draws every input once per trial, quantifies each sequence diagram of the run of record with the drawn values and sums each family trial by trial. The same seed gives the same trials.${view.solveRun?.hcl === undefined ? "" : " The run of record uses HCL, and the sampling does not use the network, so it leaves the network out."}`}</p>
+        <p className="esq-meta">{`PRAXIS draws every input once per trial, quantifies each sequence diagram of the run of record with the drawn values and sums each family trial by trial. The same seed gives the same trials.${view.solveRun?.hcl === undefined ? "" : " The run of record uses dependencies, and the sampling does not use the dependency network, so it leaves the network out."}`}</p>
       </div>
       {problem !== undefined && <p className="esq-run__notice" role="status">{problem}</p>}
       <RunState runner={sampling.runner} model={view.model} blocked={sampling.blocked} />
@@ -538,7 +538,7 @@ function UncertScreen({ openWindow }: { openWindow: (ctx: EsqWindowContext) => v
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0} className="esq-step__panel">
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="ESQ" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <div className="esq-card-actions">
               <EsqProvenanceChip>{head.sr}</EsqProvenanceChip>
               {view?.solveRun !== undefined && (tab === "runs" || tab === "checks") && (

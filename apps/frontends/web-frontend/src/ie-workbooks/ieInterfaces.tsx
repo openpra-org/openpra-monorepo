@@ -19,25 +19,23 @@ interface IePosLinkActions {
   unlink: () => Promise<void>;
 }
 
+interface IeLaneOptions {
+  options: IeLinkOption[] | null;
+  loadError: string | null;
+}
+
 const IE_LINK_CODES: readonly IeLinkCode[] = ["POS", "DA"];
 
-function PosLane({ links }: { links?: IePosLinkActions }): JSX.Element {
+const NOT_LOADED: IeLaneOptions = { options: null, loadError: null };
+
+function PosLane({ links, options, loadError }: IeLaneOptions & { links?: IePosLinkActions }): JSX.Element {
   const { posLink, editable } = useIeWorkbook();
-  const [options, setOptions] = useState<IeLinkOption[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const selectId = useId();
   const linkedId = posLink.linkedPosWorkbookId;
   const linked = options?.find((option) => option.workbookId === linkedId);
-
-  useEffect(() => {
-    if (links === undefined) return;
-    let cancelled = false;
-    links.available()
-      .then((found) => { if (!cancelled) setOptions(found); })
-      .catch((failure: Error) => { if (!cancelled) setError(failure.message); });
-    return () => { cancelled = true; };
-  }, [links]);
+  const shownError = error ?? loadError;
 
   function onLink(workbookId: string): void {
     if (links === undefined || !editable) return;
@@ -61,35 +59,23 @@ function PosLane({ links }: { links?: IePosLinkActions }): JSX.Element {
         >
           <option value="">{options !== null && options.length === 0 && linkedId === null ? "No POS workbooks in this project" : "Not linked"}</option>
           {(options ?? []).map((option) => <option key={option.workbookId} value={option.workbookId}>{option.name}</option>)}
-          {linkedId !== null && linked === undefined && <option value={linkedId}>{posLink.linkedName ?? (linkedId.startsWith("example") ? "Example POS workbook" : "POS workbook not in this project")}</option>}
+          {linkedId !== null && linked === undefined && <option value={linkedId}>{posLink.linkedName ?? (linkedId.startsWith("example") ? "Example POS workbook" : options === null ? "" : "POS workbook not in this project")}</option>}
         </select>
       </div>
       <HandoffImports consumer="IE" producer="POS" />
-      {error !== null && <p className="ieiface__error" role="alert">{error}</p>}
+      {shownError !== null && <p className="ieiface__error" role="alert">{shownError}</p>}
     </div>
   );
 }
 
-function DaLane(): JSX.Element {
-  const { ie, editable, mutateIe, projectId } = useIeWorkbook();
-  const [options, setOptions] = useState<IeLinkOption[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+function DaLane({ options, loadError }: IeLaneOptions): JSX.Element {
+  const { ie, editable, mutateIe } = useIeWorkbook();
   const selectId = useId();
   const linkedId = ie.linkedWorkbooks?.DA;
   const linked = options?.find((option) => option.workbookId === linkedId);
 
-  useEffect(() => {
-    if (projectId === undefined) return;
-    let cancelled = false;
-    listWorkbooks(projectId, "DA")
-      .then((result) => { if (!cancelled) setOptions(result.workbooks.map((workbook) => ({ workbookId: workbook.id, name: workbook.name }))); })
-      .catch((failure: Error) => { if (!cancelled) setError(failure.message); });
-    return () => { cancelled = true; };
-  }, [projectId]);
-
   function onLink(workbookId: string): void {
     if (!editable) return;
-    setError(null);
     mutateIe((draft) => withDaLink(draft, workbookId));
   }
 
@@ -106,17 +92,39 @@ function DaLane(): JSX.Element {
         >
           <option value="">{options !== null && options.length === 0 && linkedId === undefined ? "No DA workbooks in this project" : "Not linked"}</option>
           {(options ?? []).map((option) => <option key={option.workbookId} value={option.workbookId}>{option.name}</option>)}
-          {linkedId !== undefined && linked === undefined && <option value={linkedId}>{linkedId.startsWith(EXAMPLE_PREFIX) ? "Example DA workbook" : "DA workbook not in this project"}</option>}
+          {linkedId !== undefined && linked === undefined && <option value={linkedId}>{linkedId.startsWith(EXAMPLE_PREFIX) ? "Example DA workbook" : options === null ? "" : "DA workbook not in this project"}</option>}
         </select>
       </div>
       <HandoffImports consumer="IE" producer="DA" />
-      {error !== null && <p className="ieiface__error" role="alert">{error}</p>}
+      {loadError !== null && <p className="ieiface__error" role="alert">{loadError}</p>}
     </div>
   );
 }
 
 function IeInterfaces({ posLinks }: { posLinks?: IePosLinkActions }): JSX.Element {
+  const { projectId } = useIeWorkbook();
   const [selected, setSelected] = useState<IeLinkCode | null>("POS");
+  const [posOptions, setPosOptions] = useState<IeLaneOptions>(NOT_LOADED);
+  const [daOptions, setDaOptions] = useState<IeLaneOptions>(NOT_LOADED);
+
+  useEffect(() => {
+    if (posLinks === undefined) return;
+    let cancelled = false;
+    posLinks.available()
+      .then((found) => { if (!cancelled) setPosOptions({ options: found, loadError: null }); })
+      .catch((failure: Error) => { if (!cancelled) setPosOptions({ options: null, loadError: failure.message }); });
+    return () => { cancelled = true; };
+  }, [posLinks]);
+
+  useEffect(() => {
+    if (projectId === undefined) return;
+    let cancelled = false;
+    listWorkbooks(projectId, "DA")
+      .then((result) => { if (!cancelled) setDaOptions({ options: result.workbooks.map((workbook) => ({ workbookId: workbook.id, name: workbook.name })), loadError: null }); })
+      .catch((failure: Error) => { if (!cancelled) setDaOptions({ options: null, loadError: failure.message }); });
+    return () => { cancelled = true; };
+  }, [projectId]);
+
   return (
     <>
       <div className="poshandoff__grid">
@@ -133,8 +141,8 @@ function IeInterfaces({ posLinks }: { posLinks?: IePosLinkActions }): JSX.Elemen
           </button>
         ))}
       </div>
-      {selected === "POS" && <PosLane links={posLinks} />}
-      {selected === "DA" && <DaLane />}
+      {selected === "POS" && <PosLane links={posLinks} options={posOptions.options} loadError={posOptions.loadError} />}
+      {selected === "DA" && <DaLane options={daOptions.options} loadError={daOptions.loadError} />}
     </>
   );
 }

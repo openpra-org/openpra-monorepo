@@ -7,6 +7,7 @@ import { parseRevisionedWorkbookPatchBody } from "../workbooks/workbook-mef-patc
 import { parseExpectedWorkbookRevision } from "../workbooks/workbook-revision";
 import { WorkbookAnalysisRunsService } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
 import { EsqModelRunsService } from "./esq-model-runs.service";
+import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type {
   AnalysisRunJobList,
   AnalysisRunMetadata,
@@ -54,6 +55,11 @@ export class EsqWorkbooksController {
   @Get(":id/analysis-runs/:runId/details")
   analysisRunDetails(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest) {
     return this.analysisRunsService.getRunDetails("ESQ", id, runId, { username: req.user!.username });
+  }
+
+  @Get(":id/analysis-runs/:runId/workbook")
+  analysisRunWorkbook(@Param("id") id: string, @Param("runId") runId: string, @Req() req: AuthenticatedRequest): Promise<EventSequenceQuantification> {
+    return this.modelRunsService.getRunWorkbook(id, runId, { username: req.user!.username });
   }
 
   @Get(":id/analysis-runs/:runId/samples")
@@ -365,12 +371,12 @@ export class EsqWorkbooksController {
   async runHclEventTree(
     @Param("id") id: string,
     @Param("modelId") modelId: string,
-    @Body() body: unknown,
+    @Body() body: object,
     @Req() req: AuthenticatedRequest,
   ): Promise<{ schemaVersion: "1.0.0"; run: AnalysisRunMetadata }> {
     return {
       schemaVersion: "1.0.0",
-      run: await this.analysisRunsService.executeHclEventTree(id, modelId, body, {
+      run: await this.modelRunsService.runDependencyTree(id, modelId, body, {
         username: req.user!.username,
       }),
     };
@@ -381,10 +387,10 @@ export class EsqWorkbooksController {
   runHclEventTreeBatch(
     @Param("id") id: string,
     @Param("modelId") modelId: string,
-    @Body() body: unknown,
+    @Body() body: object,
     @Req() req: AuthenticatedRequest,
   ): Promise<HclBatchExecuteResult> {
-    return this.analysisRunsService.executeHclEventTreeBatch(id, modelId, body, {
+    return this.modelRunsService.runDependencyBatch(id, modelId, body, {
       username: req.user!.username,
     });
   }

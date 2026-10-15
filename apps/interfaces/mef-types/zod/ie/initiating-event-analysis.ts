@@ -343,6 +343,7 @@ export const IeSearchMethodSchema = z.object({
 });
 
 export const IeLinkedWorkbooksSchema = z.object({
+  POS: z.string().optional(),
   DA: z.string().optional(),
 });
 

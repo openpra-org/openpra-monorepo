@@ -13,7 +13,7 @@
     },
     "start-manager": {
       "executor": "nx:run-commands",
-      "dependsOn": [{ "projects": ["solvers-praxis-node"], "target": "build:debug" }],
+      "dependsOn": [{ "projects": ["solvers-praxis-node"], "target": "build" }],
       "options": {
         "command": "npx ts-node -r tsconfig-paths/register src/main.ts",
         "cwd": "apps/microservices/praetor"
@@ -21,7 +21,7 @@
     },
     "start-engine": {
       "executor": "nx:run-commands",
-      "dependsOn": [{ "projects": ["solvers-praxis-node"], "target": "build:debug" }],
+      "dependsOn": [{ "projects": ["solvers-praxis-node"], "target": "build" }],
       "options": {
         "command": "npx ts-node -r tsconfig-paths/register src/main-engine.ts",
         "cwd": "apps/microservices/praetor"

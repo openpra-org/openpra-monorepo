@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const WorkbookStatusSchema = z.enum(["draft", "in-progress", "complete"]);
+const WorkbookStatusSchema = z.enum(["draft", "in-review", "revision-required", "approved"]);
 type WorkbookStatus = z.infer<typeof WorkbookStatusSchema>;
 
 const WorkbookSchema = z.object({
@@ -24,14 +24,9 @@ const CreateWorkbookRequestSchema = z.object({
 });
 type CreateWorkbookRequest = z.infer<typeof CreateWorkbookRequestSchema>;
 
-const UpdateWorkbookRequestSchema = z
-  .object({
-    name: z.string().trim().min(1, "Workbook name is required").optional(),
-    status: WorkbookStatusSchema.optional(),
-  })
-  .refine((data) => data.name !== undefined || data.status !== undefined, {
-    message: "At least one field is required",
-  });
+const UpdateWorkbookRequestSchema = z.object({
+  name: z.string().trim().min(1, "Workbook name is required"),
+});
 type UpdateWorkbookRequest = z.infer<typeof UpdateWorkbookRequestSchema>;
 
 const WorkbookListResponseSchema = z.object({
@@ -39,11 +34,41 @@ const WorkbookListResponseSchema = z.object({
 });
 type WorkbookListResponse = z.infer<typeof WorkbookListResponseSchema>;
 
+const CreateProjectWorkbooksRequestSchema = z.object({
+  name: z.string().trim().min(1, "Workbook name is required"),
+});
+type CreateProjectWorkbooksRequest = z.infer<typeof CreateProjectWorkbooksRequestSchema>;
+
+const ProjectWorkbookFailureSchema = z.object({
+  elementCode: z.string(),
+  reason: z.string(),
+});
+type ProjectWorkbookFailure = z.infer<typeof ProjectWorkbookFailureSchema>;
+
+const ProjectWorkbooksResultSchema = z.object({
+  workbooks: z.array(WorkbookSchema),
+  failed: z.array(ProjectWorkbookFailureSchema),
+  unlinked: z.array(ProjectWorkbookFailureSchema),
+});
+type ProjectWorkbooksResult = z.infer<typeof ProjectWorkbooksResultSchema>;
+
 export {
   WorkbookStatusSchema,
   WorkbookSchema,
   CreateWorkbookRequestSchema,
   UpdateWorkbookRequestSchema,
   WorkbookListResponseSchema,
+  CreateProjectWorkbooksRequestSchema,
+  ProjectWorkbookFailureSchema,
+  ProjectWorkbooksResultSchema,
 };
-export type { WorkbookStatus, Workbook, CreateWorkbookRequest, UpdateWorkbookRequest, WorkbookListResponse };
+export type {
+  WorkbookStatus,
+  Workbook,
+  CreateWorkbookRequest,
+  UpdateWorkbookRequest,
+  WorkbookListResponse,
+  CreateProjectWorkbooksRequest,
+  ProjectWorkbookFailure,
+  ProjectWorkbooksResult,
+};

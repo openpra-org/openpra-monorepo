@@ -25,24 +25,23 @@ import "./css/hrScreens.css";
 interface StepHeader {
   eyebrow: string;
   title: string;
-  sub?: string;
 }
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "Human failure events, the interfaces and the setup." };
-    case "preid": return { eyebrow: "Step 02", title: "Pre-initiator: Identify", sub: "Routine activities and multi-train practices (HR-A1 to A7)." };
-    case "predef": return { eyebrow: "Step 03", title: "Pre-initiator: Define", sub: "Screening and event definition (HR-B1 to C6)." };
-    case "prequant": return { eyebrow: "Step 04", title: "Pre-initiator: Quantify", sub: "Probabilities, recovery and dependence (HR-D1 to D10)." };
-    case "respid": return { eyebrow: "Step 05", title: "Response: Identify", sub: "Reviews and confirmation of the actions (HR-E1 to E9)." };
-    case "respdef": return { eyebrow: "Step 06", title: "Response: Define", sub: "Event definition and cue timing (HR-F1 to F5)." };
-    case "respquant": return { eyebrow: "Step 07", title: "Response: Quantify", sub: "Cognition, execution, timing and the joint floor (HR-G1 to G16)." };
-    case "recovery": return { eyebrow: "Step 08", title: "Recovery", sub: "Feasibility and credit for recovery actions (HR-H1 to H6)." };
-    case "uncert": return { eyebrow: "Step 09", title: "Dependence & Uncertainty", sub: "The dependence theme and the uncertainty sources." };
+    case "scope": return { eyebrow: "Step 01", title: "Scope" };
+    case "preid": return { eyebrow: "Step 02", title: "Pre-initiator: Identify" };
+    case "predef": return { eyebrow: "Step 03", title: "Pre-initiator: Define" };
+    case "prequant": return { eyebrow: "Step 04", title: "Pre-initiator: Quantify" };
+    case "respid": return { eyebrow: "Step 05", title: "Response: Identify" };
+    case "respdef": return { eyebrow: "Step 06", title: "Response: Define" };
+    case "respquant": return { eyebrow: "Step 07", title: "Response: Quantify" };
+    case "recovery": return { eyebrow: "Step 08", title: "Recovery" };
+    case "uncert": return { eyebrow: "Step 09", title: "Dependence & Uncertainty" };
     case "handoff": return { eyebrow: "Step 10", title: "Technical Element Handoff" };
-    case "draft": return { eyebrow: "Step 11 · Draft", title: "Produce the draft", sub: "Build the HR report, then send it to review (HLR-I)." };
-    case "review": return { eyebrow: "Step 12 · Review", title: "Internal technical review", sub: "Reviewers comment, the preparer replies, all resolve before approval." };
-    case "approval": return { eyebrow: "Step 13 · Approval", title: "Approval & sign-off", sub: "Everyone signs, the approver last." };
+    case "draft": return { eyebrow: "Step 11 · Draft", title: "Produce the draft" };
+    case "review": return { eyebrow: "Step 12 · Review", title: "Internal technical review" };
+    case "approval": return { eyebrow: "Step 13 · Approval", title: "Approval & sign-off" };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -442,7 +441,7 @@ function HrWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <WorkbookSectionHeading workbook="HR" title={h.title} description={h.sub} level={1} className="posmain__title" />
+              <WorkbookSectionHeading title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
               {!dockOpen && (

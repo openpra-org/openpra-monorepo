@@ -56,6 +56,7 @@ function EsInterfaces({ links }: { links?: EsLinkActions }): JSX.Element {
   const [options, setOptions] = useState<Partial<Record<EsLinkCode, EsLinkOption[]>>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requested = useRef(new Set<EsLinkCode>());
   const selectId = useId();
   const tile = LINK_TILES.find((candidate) => candidate.code === selected);
   const linkedId = selected === null ? null : selected === "POS" ? posLink.linkedPosWorkbookId : selected === "IE" ? ieLink.linkedIeWorkbookId : es.linkedWorkbooks?.[selected] ?? null;
@@ -64,13 +65,15 @@ function EsInterfaces({ links }: { links?: EsLinkActions }): JSX.Element {
   const linked = choices?.find((option) => option.workbookId === linkedId);
 
   useEffect(() => {
-    if (selected === null || links === undefined || options[selected] !== undefined) return;
-    let cancelled = false;
-    links.available(selected)
-      .then((found) => { if (!cancelled) setOptions((current) => ({ ...current, [selected]: found })); })
-      .catch((failure: Error) => { if (!cancelled) setError(failure.message); });
-    return () => { cancelled = true; };
-  }, [selected, links, options]);
+    if (links === undefined) return;
+    for (const { code } of LINK_TILES) {
+      if (requested.current.has(code)) continue;
+      requested.current.add(code);
+      links.available(code)
+        .then((found) => setOptions((current) => ({ ...current, [code]: found })))
+        .catch((failure: Error) => setError(failure.message));
+    }
+  }, [links]);
 
   function onLink(code: EsLinkCode, workbookId: string): void {
     if (links === undefined || !editable) return;
@@ -110,7 +113,7 @@ function EsInterfaces({ links }: { links?: EsLinkActions }): JSX.Element {
             >
               <option value="">{choices !== undefined && choices.length === 0 && linkedId === null ? `No ${tile.label} workbooks in this project` : "Not linked"}</option>
               {(choices ?? []).map((option) => <option key={option.workbookId} value={option.workbookId}>{option.name}</option>)}
-              {linkedId !== null && linked === undefined && <option value={linkedId}>{linkedName ?? (linkedId.startsWith("example") ? `Example ${tile.label} workbook` : `${tile.label} workbook not in this project`)}</option>}
+              {linkedId !== null && linked === undefined && <option value={linkedId}>{linkedName ?? (linkedId.startsWith("example") ? `Example ${tile.label} workbook` : choices === undefined ? "" : `${tile.label} workbook not in this project`)}</option>}
             </select>
           </div>
           <HandoffImports consumer="ES" producer={tile.code} />
@@ -135,7 +138,7 @@ function ScopeTable({ onEdit }: { onEdit: (key: ScopeKey) => void }): JSX.Elemen
   const actionLabel = editable ? "Edit" : "View";
   return (
     <div className="poscard">
-      <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Analysis scope" level={3} /></div>
+      <div className="poscard__head"><WorkbookSectionHeading title="Analysis scope" level={3} /></div>
       <table className="postable postable--mid es-scope-table" aria-label="Analysis scope">
         <thead><tr><th scope="col">Scope item</th><th scope="col">In scope</th><th scope="col" className="es-scope-edit" aria-label="Actions" /></tr></thead>
         <tbody>
@@ -177,7 +180,7 @@ function SafetyFunctions({ onOpen }: { onOpen: (id: string) => void }): JSX.Elem
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="ES" title="Key safety functions" level={3} />
+        <WorkbookSectionHeading title="Key safety functions" level={3} />
         <div className="posrow">
           {pages > 1 ? (
             <span className="es-pager">
@@ -394,13 +397,13 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, links }: {
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Interfaces" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Interfaces" level={3} /></div>
         <p className="poscard__sub">Links are optional. A linked workbook fills the analysis scope and the key safety functions below, which you can also type by hand.</p>
         <EsInterfaces links={links} />
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="PRA scope" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="PRA scope" level={3} /></div>
         <WorkbookTextarea
           className="posfield__textarea es-scope-text"
           aria-label="PRA scope"
@@ -417,7 +420,7 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, links }: {
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ES" title="Capability category" level={3} />
+          <WorkbookSectionHeading title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <div className="es-scope-choices">
@@ -437,7 +440,7 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, links }: {
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Plant stage" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Plant stage" level={3} /></div>
         <div className="es-scope-choices">
           {([
             ["pre_operational", "Pre-operational", "Plant-response data comes from design calculations. Gaps from the plant not yet built are written down as assumptions (ES-A15)."],

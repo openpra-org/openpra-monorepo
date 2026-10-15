@@ -2,13 +2,11 @@
 import { type JSX, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { POSIcon } from "../pos-workbooks/posIcons";
-import { composeWorkbookCue } from "../workbooks/workbookCueContent";
 import {
   groupOtherHazardsConformance,
   otherHazardsConformanceItems,
   otherHazardsConformanceScore,
 } from "./otherHazardsPraConformance";
-import { InfoButton } from "./otherHazardsPraFields";
 import { OtherHazardsPraStepScreen } from "./otherHazardsPraStepScreen";
 import { useOtherHazardsPraWorkbook } from "./otherHazardsPraWorkbookContext";
 import {
@@ -453,9 +451,6 @@ export function OtherHazardsPraWorkbench({
             </span>
             <div className="flmain__title-row">
               <h1>{active.title}</h1>
-              <InfoButton label={`About ${active.title}`}>
-                {composeWorkbookCue("O", active.title, active.subtitle)}
-              </InfoButton>
             </div>
           </div>
           {!dockOpen && (

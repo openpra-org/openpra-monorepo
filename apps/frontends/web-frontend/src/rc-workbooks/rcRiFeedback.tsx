@@ -64,7 +64,7 @@ function RcRiFeedbackCard({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="RC" title="Risk-integration feedback" level={3} />
+        <WorkbookSectionHeading title="Risk-integration feedback" level={3} />
         <div className="posrow rc-rifeedback__actions">
           <RcProvenanceChip>RCQ-B3 · RI-C1</RcProvenanceChip>
           {editable && ri !== undefined && sentRows.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => mutateRc((d) => ({ ...d, riskIntegrationFeedback: recordedFromRi(d.riskIntegrationFeedback, ri) }))}>{rif === undefined ? "Record RI feedback" : "Update from RI"}</button>}

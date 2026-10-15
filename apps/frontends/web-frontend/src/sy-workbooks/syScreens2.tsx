@@ -55,7 +55,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
       </div>
       <div className="posgen__side">
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="SY" title="Conformance check" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -63,7 +63,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           {scores.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label" style={{ color: "#b73b3b" }}>Blocked</span><span className="posmono">{scores.blocked}</span></div>}
         </div>
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="SY" title="Draft submission" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading title="Draft submission" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All items pass at <strong>{cc.name}</strong>. Producing the draft locks Steps 1 to 7 and advances the workbook to <strong>Internal Technical Review</strong>.</>

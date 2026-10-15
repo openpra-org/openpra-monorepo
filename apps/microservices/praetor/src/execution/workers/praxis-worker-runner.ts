@@ -6,6 +6,7 @@ type PraxisOperation = "validate" | "execute";
 interface PraxisWorkerTask {
   operation: PraxisOperation;
   requestJson: string;
+  preflight?: boolean;
 }
 interface PraxisWorkerResult {
   resultJson: string;

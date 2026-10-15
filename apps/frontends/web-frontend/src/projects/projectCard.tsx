@@ -1,5 +1,5 @@
 import { JSX, KeyboardEvent } from "react";
-import { type Project, elementsForMode } from "interfaces-shared-types";
+import { type Project } from "interfaces-shared-types";
 import { ClockIcon, PinIcon, UsersIcon } from "../welcome/icons";
 import { formatRelative } from "../welcome/formatRelative";
 import { KebabMenu } from "./kebabMenu";
@@ -19,9 +19,6 @@ interface ProjectCardProps {
 
 function ProjectCard(props: ProjectCardProps): JSX.Element {
   const { project, onOpen, readOnly } = props;
-  const elements = elementsForMode(project.mode);
-  const atBaseline = elements.filter((e) => project.status[e.code] === "baseline").length;
-  const pct = Math.round(project.progress * 100);
 
   function handleKey(e: KeyboardEvent<HTMLElement>): void {
     if (e.key === "Enter") {
@@ -51,7 +48,6 @@ function ProjectCard(props: ProjectCardProps): JSX.Element {
               <UsersIcon /> {s.teamName}
             </span>
           ))}
-          {project.state === "baseline" && <span className="chip chip--success">Baseline</span>}
           {project.state === "archived" && <span className="chip chip--muted">Archived</span>}
         </div>
         {readOnly !== true && <KebabMenu {...props} />}
@@ -63,24 +59,6 @@ function ProjectCard(props: ProjectCardProps): JSX.Element {
         )}
         {project.name}
       </h3>
-
-      <div className="pcard__progress">
-        <div className="pcard__progress-head">
-          <span className="pcard__progress-label">
-            {atBaseline} of {elements.length} elements at baseline
-          </span>
-          <span className="pcard__progress-pct">{pct}%</span>
-        </div>
-        <div
-          className="pcard__progress-bar"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={pct}
-        >
-          <div className="pcard__progress-fill" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
 
       <div className="pcard__foot">
         <span className="pcard__foot-item">

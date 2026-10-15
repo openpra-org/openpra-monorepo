@@ -1,34 +1,39 @@
-import { JSX, useCallback, useEffect, useId, useMemo, useState } from "react";
-import type { EventSequenceAnalysis, EventTree } from "interfaces-mef-types/es/event-sequence-analysis";
+import { Fragment, JSX, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { z } from "zod";
 import type { EsqFamilySolve, EsqModel, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
-import type { SystemLogicModel } from "interfaces-mef-types/sy/systems-analysis";
-import { eventInputKey } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { esqSequenceRunId, esqTreeRunId, treesInScope } from "interfaces-mef-types/esq/esq-run-inputs";
+import { esqModelRunId, solveInputsChange } from "interfaces-mef-types/esq/esq-solve-inputs";
+import { esqEventReader } from "interfaces-mef-types/esq/esq-post-inputs";
 import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
 import {
   EventTreeAnalysisResultSchema,
+  EventTreeCutOffBasisSchema,
+  EventTreeCutSetQuantifierSchema,
+  EventTreeSuccessTreatmentSchema,
   type EsqModelRunHcl,
   type EsqModelRunResult,
   type EsqModelRunSequence,
+  type EsqModelRunTree,
   type EventTreeAnalysisResult,
   type EventTreeCutOffBasis,
   type EventTreeCutSetQuantifier,
   type EventTreeCutSetSettings,
+  type EventTreeMonteCarloSettings,
+  type EventTreeSuccessTreatment,
 } from "interfaces-shared-types/newly-developed-methods/event-tree";
-import { EventTreeEditor, type EventTreeRepresentation } from "../newly-developed-methods/event-tree";
-import { FaultTreeEditor, type FaultTreeSelection } from "../newly-developed-methods/fault-tree";
+import { HclCalculationTypeSchema, type HclBatchInput, type HclCalculationType } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
-import { cancelAnalysisRun, runProgressText } from "../newly-developed-methods/shared/analysisRunWait";
-import { expressionText } from "../newly-developed-methods/shared/uncertainText";
-import { toFaultTreeEditorCatalogue, toFaultTreeEditorModel } from "../sy-workbooks/SySystemModels";
+import { cancelAnalysisRun } from "../newly-developed-methods/shared/analysisRunWait";
+import { AnalysisJobs } from "../newly-developed-methods/shared/analysisJobs";
+import { PagedResults } from "../newly-developed-methods/shared/resultPresentation";
+import { jsonView, useWorkbookView } from "../workbooks/workbookViewMemory";
 import { DialogHead, DialogShell } from "../es-workbooks/EsScope";
 import { PAGE, Pager, TabBar, paged } from "../es-workbooks/EsTiming";
-import { AreaField, ChecksPanel, NumberField, networkLabel, networkOptionsOf, sciText, treeLabel, useInputPoints, type EsqWindowContext, type NetworkOption } from "./esqShared";
+import { AreaField, ChecksPanel, NumberField, networkLabel, networkOptionsOf, sciText, treeLabel, type EsqWindowContext, type NetworkOption } from "./esqShared";
 import { useEsqWorkbook } from "./esqWorkbookContext";
-import { missionTimeSourcesOf, parameterTableOf, typedTreesOf } from "./esqModel";
 import { MODEL_AS_SET, runLogicText } from "./esqLogic";
 import { END_STATE_LABELS } from "./esqViewData";
-import { cutSetKey, cutSetRows, reviewOf, thresholdsOf, withCutSetReview, type EsqCutSetRow } from "./esqResults";
+import { cutSetKey, cutSetRows, thresholdsOf, type EsqCutSetRow } from "./esqResults";
 import {
   BASIS_LABELS,
   CALCULATION_LABELS,
@@ -40,6 +45,9 @@ import {
   runConvergenceOf,
   solveViewOf,
   summaryProblem,
+  summaryStale,
+  withRunChange,
+  treesCovered,
   withFamilySolve,
   withRareEventReason,
   withRunOfRecord,
@@ -48,25 +56,43 @@ import {
   type EsqSolveView,
   type EsqSolveWindowKind,
 } from "./esqSolve";
-import { getEsqModelRunResult, getEsqRunDetails, listEsqModelRuns, runEsqModel, type EsqModelRunEntry } from "./esqWorkbookApi";
-import { EsqEventTreeHclWorkspace } from "./esqEventTreeHclWorkspace";
+import { getEsqModelRunResult, getEsqRunDetails, getEsqRunWorkbook, listEsqModelRuns, runEsqModel, type EsqModelRunEntry } from "./esqWorkbookApi";
+import { EsqDependencies, studyConfiguration, studyTree, type DependencyEvidence, type DependencyStudy, type DependencyStudyTree } from "./EsqDependencies";
 import "../es-workbooks/css/esSequences.css";
+import "../sy-workbooks/css/syFaultTreeAnalysis.css";
 import "./css/esqSolveTabs.css";
 
-type SolveTab = "runs" | "trees" | "families" | "sequences" | "cutsets" | "convergence" | "scenarios" | "dynamic" | "checks";
+type SolveTab = "runs" | "families" | "convergence" | "dynamic" | "checks";
+
+type ResultOrder = "TREE" | "HIGH" | "LOW";
+
+type ResultGroup = "NONE" | "FAMILY" | "RELEASE";
 
 type RunChoice = "EXACT" | "CUT_SETS" | "HCL";
 
+type RunWorkflow = "MANUAL" | "BATCH";
+
+type ProbabilityAlgorithm = "BDD" | "MONTE_CARLO";
+
+type CutSetDialog =
+  | { kind: "sequenceCutSets"; sequenceKey: string }
+  | { kind: "familyCutSets"; familyId: string; treeId: string | null };
+
 type SolveDialog =
+  | CutSetDialog
   | { kind: "family"; id: string }
   | { kind: "run" }
-  | { kind: "review"; key: string }
-  | { kind: "sweep"; id: string }
-  | { kind: "faultTree"; modelIds: string[]; eventIds: string[] };
+  | { kind: "sweep"; id: string };
 
 interface ComposerSettings {
   choice: RunChoice;
+  workflow: RunWorkflow;
+  treeId: string;
+  batchTreeIds: string[] | null;
   network: string;
+  algorithm: ProbabilityAlgorithm;
+  treatment: EventTreeSuccessTreatment;
+  cutSetTreatment: EventTreeSuccessTreatment;
   expandCcf: boolean;
   basis: EventTreeCutOffBasis;
   quantifier: EventTreeCutSetQuantifier;
@@ -74,6 +100,19 @@ interface ComposerSettings {
   lowest: number;
   keep: number;
   limitOrder?: number;
+  trials: number;
+  seed: number;
+  earlyStop: boolean;
+  convergenceDelta: number;
+  confidenceLevel: number;
+  burnInTrials: number;
+  dependencyResult: HclCalculationType;
+  dependencyEvidence: DependencyEvidence;
+}
+
+interface TreeOption {
+  id: string;
+  label: string;
 }
 
 interface Composer {
@@ -81,6 +120,10 @@ interface Composer {
   set: (patch: Partial<ComposerSettings>) => void;
   clearLimit: () => void;
   networks: NetworkOption[];
+  roots: TreeOption[];
+  manualTreeId: string | undefined;
+  treeIds: string[];
+  toggleTree: (treeId: string) => void;
   running: boolean;
   live: AnalysisRunMetadata | null;
   error: string | null;
@@ -88,6 +131,11 @@ interface Composer {
   ready: boolean;
   run: () => void;
   stop: (runId: string) => void;
+  network: NetworkOption | undefined;
+  batchInput: HclBatchInput | null;
+  setBatchInput: (input: HclBatchInput | null) => void;
+  study: DependencyStudy | null;
+  studyTotal: number;
 }
 
 interface ShownRun {
@@ -96,18 +144,10 @@ interface ShownRun {
   summary?: EsqModelRunResult;
   error?: string;
   listError?: string;
+  problem?: string;
+  blocked?: boolean;
   show: (runId: string) => void;
   reload: () => void;
-}
-
-interface CutSetFilter {
-  familyId: string;
-  sequenceKey: string;
-}
-
-interface SequenceValue {
-  conditionalProbability: number;
-  annualFrequency: number;
 }
 
 interface TreeFailure {
@@ -117,21 +157,31 @@ interface TreeFailure {
 
 const SOLVE_TABS: { id: SolveTab; label: string; disabled?: boolean }[] = [
   { id: "runs", label: "Runs" },
-  { id: "trees", label: "Trees" },
-  { id: "families", label: "Families" },
-  { id: "sequences", label: "Sequences" },
-  { id: "cutsets", label: "Cut sets" },
+  { id: "families", label: "Family values" },
   { id: "convergence", label: "Convergence" },
-  { id: "scenarios", label: "Scenarios" },
   { id: "dynamic", label: "Dynamic", disabled: true },
   { id: "checks", label: "Checks" },
 ];
 
-const SOLVE_WINDOW_KINDS: ReadonlySet<string> = new Set<EsqSolveWindowKind>(["esqSolveFamily", "esqSolveRun", "esqSolveCutSet"]);
+const SOLVE_WINDOW_KINDS: ReadonlySet<string> = new Set<EsqSolveWindowKind>(["esqSolveFamily", "esqSolveRun"]);
 
-const SOLVE_WINDOW_LABELS: Record<EsqSolveWindowKind, string> = { esqSolveFamily: "Family value", esqSolveRun: "Run of record", esqSolveCutSet: "Cut set review" };
+const SOLVE_WINDOW_LABELS: Record<EsqSolveWindowKind, string> = { esqSolveFamily: "Family value", esqSolveRun: "Run of record" };
 
-const RUN_CHOICES: readonly (readonly [RunChoice, string])[] = [["EXACT", "Exact"], ["CUT_SETS", "Cut sets"], ["HCL", "HCL"]];
+const RUN_CHOICES: readonly (readonly [RunChoice, string])[] = [["EXACT", "Probability"], ["CUT_SETS", "Cut sets"], ["HCL", "Dependencies"]];
+
+const RUN_WORDS: Record<RunChoice, string> = { EXACT: "probability", CUT_SETS: "cut sets", HCL: "dependencies" };
+
+const DEPENDENCY_RESULTS: readonly (readonly [HclCalculationType, string])[] = [["PROBABILITY", "Probability"], ["UNCERTAINTY", "Uncertainty"]];
+
+const DEPENDENCY_EVIDENCE: readonly (readonly [DependencyEvidence, string])[] = [["BASE", "Base evidence"], ["SCENARIOS", "Evidence scenarios"], ["HAZARD", "Hazard convolution"]];
+
+const WORKFLOWS: readonly (readonly [RunWorkflow, string])[] = [["MANUAL", "Manual"], ["BATCH", "Batch"]];
+
+const ALGORITHM_OPTIONS: readonly (readonly [ProbabilityAlgorithm, string])[] = [["BDD", "Direct BDD"], ["MONTE_CARLO", "Direct Monte Carlo"]];
+
+const CUT_SET_ALGORITHM = "BDD-to-ZBDD";
+
+const TREATMENT_OPTIONS: readonly (readonly [EventTreeSuccessTreatment, string])[] = [["COMPLEMENT", "Complement"], ["DELETE_TERM", "Delete term"], ["UNITY", "Unity"]];
 
 const BASIS_OPTIONS: readonly (readonly [EventTreeCutOffBasis, string])[] = [["FREQUENCY", "Frequency per year"], ["PROBABILITY", "Probability"]];
 
@@ -141,13 +191,95 @@ const HIGHEST_EXPONENTS = [-1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12];
 
 const LOWEST_EXPONENTS = [-4, -5, -6, -7, -8, -9, -10, -11, -12, -13, -14, -15, -16, -17, -18, -19, -20];
 
-const START_SETTINGS: ComposerSettings = { choice: "CUT_SETS", network: "", expandCcf: MODEL_AS_SET.expandCcf, basis: "FREQUENCY", quantifier: "MCUB", highest: -6, lowest: -14, keep: 100 };
+const START_SETTINGS: ComposerSettings = {
+  choice: "CUT_SETS",
+  workflow: "BATCH",
+  treeId: "",
+  batchTreeIds: null,
+  network: "",
+  algorithm: "BDD",
+  treatment: "COMPLEMENT",
+  cutSetTreatment: "DELETE_TERM",
+  expandCcf: MODEL_AS_SET.expandCcf,
+  basis: "FREQUENCY",
+  quantifier: "MCUB",
+  highest: -6,
+  lowest: -14,
+  keep: 100,
+  trials: 10_000,
+  seed: 847,
+  earlyStop: false,
+  convergenceDelta: 0.1,
+  confidenceLevel: 0.95,
+  burnInTrials: 0,
+  dependencyResult: "PROBABILITY",
+  dependencyEvidence: "BASE",
+};
+
+const COMPOSER_VIEW = jsonView<ComposerSettings>(z.object({
+  choice: z.enum(["EXACT", "CUT_SETS", "HCL"]),
+  workflow: z.enum(["MANUAL", "BATCH"]),
+  treeId: z.string(),
+  batchTreeIds: z.array(z.string()).nullable(),
+  network: z.string(),
+  algorithm: z.enum(["BDD", "MONTE_CARLO"]).default(START_SETTINGS.algorithm),
+  treatment: EventTreeSuccessTreatmentSchema.default(START_SETTINGS.treatment),
+  cutSetTreatment: EventTreeSuccessTreatmentSchema.default(START_SETTINGS.cutSetTreatment),
+  expandCcf: z.boolean(),
+  basis: EventTreeCutOffBasisSchema,
+  quantifier: EventTreeCutSetQuantifierSchema,
+  highest: z.number(),
+  lowest: z.number(),
+  keep: z.number(),
+  limitOrder: z.number().int().positive().optional(),
+  trials: z.number().default(START_SETTINGS.trials),
+  seed: z.number().default(START_SETTINGS.seed),
+  earlyStop: z.boolean().default(START_SETTINGS.earlyStop),
+  convergenceDelta: z.number().default(START_SETTINGS.convergenceDelta),
+  confidenceLevel: z.number().default(START_SETTINGS.confidenceLevel),
+  burnInTrials: z.number().default(START_SETTINGS.burnInTrials),
+  dependencyResult: HclCalculationTypeSchema.default(START_SETTINGS.dependencyResult),
+  dependencyEvidence: z.enum(["BASE", "SCENARIOS", "HAZARD"]).default(START_SETTINGS.dependencyEvidence),
+}));
+
+const SOLVE_TAB_VIEW = jsonView<SolveTab>(z.enum(["runs", "families", "convergence", "dynamic", "checks"]));
+
+const RUN_TABS: ReadonlySet<SolveTab> = new Set<SolveTab>(["runs", "families", "convergence"]);
+
+interface ResultSettings {
+  treeId: string;
+  order: ResultOrder;
+  group: ResultGroup;
+}
+
+interface ResultRow {
+  sequence: EsqModelRunSequence;
+  position: number;
+}
+
+interface ResultGroupRow {
+  key: string;
+  label: string;
+  frequency: number;
+  position: number;
+  rows: ResultRow[];
+}
+
+const RESULT_ORDERS: readonly (readonly [ResultOrder, string])[] = [["TREE", "Tree order"], ["HIGH", "Frequency high to low"], ["LOW", "Frequency low to high"]];
+
+const RESULT_GROUPS: readonly (readonly [ResultGroup, string])[] = [["NONE", "None"], ["FAMILY", "Family"], ["RELEASE", "Release category"]];
+
+const START_RESULTS: ResultSettings = { treeId: "", order: "TREE", group: "NONE" };
+
+const RESULTS_VIEW = jsonView<ResultSettings>(z.object({
+  treeId: z.string(),
+  order: z.enum(["TREE", "HIGH", "LOW"]),
+  group: z.enum(["NONE", "FAMILY", "RELEASE"]),
+}));
 
 const STATUS_TEXT: Record<string, string> = { QUEUED: "queued until it starts", RUNNING: "running", FAILED: "failed", CANCELLED: "cancelled" };
 
 const LIST_POLL_MS = 3000;
-
-const READ_ONLY_TREE = { mode: "READ_ONLY" as const, canEditBasicEvents: false, canEditLayout: false, canImport: false, canExport: true, canRunAnalysis: false };
 
 function blank(text: string | undefined): boolean {
   return text === undefined || text.trim().length === 0;
@@ -206,29 +338,6 @@ function familyText(view: EsqSolveView, familyId: string): string {
   return family === undefined || blank(family.name) ? familyId : `${familyId} · ${family.name}`;
 }
 
-function sourceTreeOf(esq: EventSequenceQuantification, es: EventSequenceAnalysis | undefined, treeId: string, typed: boolean): EventTree | undefined {
-  return typed ? typedTreesOf(esq).find((candidate) => candidate.uuid === treeId) : es?.eventTrees?.find((candidate) => candidate.uuid === treeId);
-}
-
-function sequenceValuesOf(summary: EsqModelRunResult, treeId: string, source: EventTree): Map<string, SequenceValue> {
-  const byRecord = new Map<string, SequenceValue>();
-  for (const sequence of summary.sequences) {
-    const first = sequence.sequenceIds[0];
-    if (sequence.treeId !== treeId || first === undefined) continue;
-    const known = byRecord.get(first);
-    byRecord.set(first, {
-      conditionalProbability: (known?.conditionalProbability ?? 0) + sequence.conditionalProbability,
-      annualFrequency: (known?.annualFrequency ?? 0) + sequence.annualFrequency,
-    });
-  }
-  const out = new Map<string, SequenceValue>();
-  for (const [key, sequence] of Object.entries(source.sequences)) {
-    const value = byRecord.get(sequence.eventSequenceId ?? "") ?? byRecord.get(key) ?? byRecord.get(sequence.uuid);
-    if (value !== undefined) out.set(sequence.uuid, value);
-  }
-  return out;
-}
-
 function childEntryOf(result: EventTreeAnalysisResult | undefined, model: EsqModel, sequence: EsqModelRunSequence): EventTreeAnalysisResult["sequences"][number] | undefined {
   if (result === undefined) return undefined;
   const treeOf = new Map(model.sequences.map((record) => [record.id, record.treeId]));
@@ -239,24 +348,23 @@ function childEntryOf(result: EventTreeAnalysisResult | undefined, model: EsqMod
   });
 }
 
-function sequenceCutSetRows(input: {
-  entry: EventTreeAnalysisResult["sequences"][number] | undefined;
+function scopedCutSetRows(input: {
+  items: readonly { basicEventIds: string[]; annualFrequency: number }[];
   familyId: string;
   treeId: string;
   total: number;
+  familyValue: number;
   familyRows: readonly EsqCutSetRow[];
-  esq: EventSequenceQuantification;
   individualPercent: number;
   codeOf: (id: string) => string;
 }): EsqCutSetRow[] {
   const significant = new Map(input.familyRows.map((row) => [row.key, row.significant]));
-  const reviews = reviewOf(input.esq).cutSetReviews ?? [];
   let running = 0;
-  return (input.entry?.cutSets?.items ?? []).map((item) => {
+  return input.items.map((item) => {
     const share = input.total > 0 ? item.annualFrequency / input.total : 0;
     running += share;
     const key = cutSetKey(input.familyId, input.treeId, item.basicEventIds);
-    const row: EsqCutSetRow = {
+    return {
       key,
       familyId: input.familyId,
       treeId: input.treeId,
@@ -265,71 +373,23 @@ function sequenceCutSetRows(input: {
       annualFrequency: item.annualFrequency,
       share,
       cumulative: running,
-      significant: significant.get(key) ?? 100 * share >= input.individualPercent,
+      significant: significant.get(key) ?? (input.familyValue > 0 && (100 * item.annualFrequency) / input.familyValue >= input.individualPercent),
     };
-    const review = reviews.find((entry) => entry.key === key);
-    if (review !== undefined) row.review = review;
-    return row;
   });
 }
 
-function topsOf(model: EsqModel, eventIds: readonly string[]): string[] {
-  return model.tops.filter((top) => top.eventIds.some((id) => eventIds.includes(id))).map((top) => top.modelId);
+function cutSetTreeOf(dialog: CutSetDialog | undefined, summary: EsqModelRunResult | undefined): string | undefined {
+  if (dialog === undefined) return undefined;
+  if (dialog.kind === "familyCutSets") return dialog.treeId ?? undefined;
+  return summary?.sequences.find((sequence) => sequenceKeyOf(sequence) === dialog.sequenceKey)?.treeId;
 }
 
-function selectionIn(logic: SystemLogicModel | undefined, eventIds: readonly string[]): FaultTreeSelection {
-  if (logic === undefined) return null;
-  const leaf = logic.leafNodes.find((node) => node.kind === "BASIC_EVENT_REFERENCE" && eventIds.includes(node.basicEventId));
-  if (leaf !== undefined) return { kind: "LEAF", leafId: leaf.id };
-  return logic.topGate === null ? null : { kind: "GATE", gateId: logic.topGate.gateId };
-}
-
-function valueTexts(esq: EventSequenceQuantification, points: ReadonlyMap<string, number>): Record<string, string> {
-  const model = esq.model;
-  if (model === undefined) return {};
-  return Object.fromEntries(model.events.map((event) => {
-    const point = points.get(eventInputKey(esq, model, event.id));
-    const text = point !== undefined ? sciText(point)
-      : event.expression !== undefined ? expressionText(event.expression)
-      : event.value !== undefined ? sciText(event.value)
-      : "No value yet";
-    return [event.id, text];
-  }));
-}
-
-function settingsText(summary: EsqModelRunResult, networks: readonly NetworkOption[]): string {
-  const solved = summary.trees.filter((tree) => tree.status === "SUCCEEDED").length;
-  const parts = [`Solved ${String(solved)} of ${String(summary.trees.length)} event trees`];
-  const settings = summary.cutSets;
-  const hcl = summary.hcl;
-  if (hcl !== undefined) {
-    const network = networks.find((option) => option.workbookId === hcl.workbookId && option.configuration.modelId === hcl.modelId);
-    parts.push(`HCL on ${network === undefined ? hcl.modelId : networkLabel(network)} for ${String(hcl.treeIds.length)} event trees`);
-  } else if (settings === null) {
-    parts.push(CALCULATION_LABELS[summary.calculation]);
-  } else {
-    const first = settings.cutOffs[0];
-    const last = settings.cutOffs[settings.cutOffs.length - 1];
-    parts.push(`${CALCULATION_LABELS[summary.calculation]} · ${QUANTIFIER_LABELS[settings.quantifier].toLowerCase()}`);
-    if (first !== undefined && last !== undefined) parts.push(`cutoffs ${sciText(first)} to ${sciText(last)}${settings.basis === "FREQUENCY" ? " per year" : ""}`);
-  }
-  parts.push(runLogicText(summary.logic));
-  return parts.join(" · ");
+function isCutSetDialog(dialog: SolveDialog): dialog is CutSetDialog {
+  return dialog.kind === "sequenceCutSets" || dialog.kind === "familyCutSets";
 }
 
 function plural(count: number, one: string, many: string): string {
   return `${String(count)} ${count === 1 ? one : many}`;
-}
-
-function quantifiesText(esq: EventSequenceQuantification, model: EsqModel, settings: ComposerSettings, network: NetworkOption | undefined): string {
-  const roots = treesInScope(esq, model).filter((tree) => !tree.transferEntry);
-  const initiators = new Set(roots.map((tree) => tree.initiatorId)).size;
-  const states = new Set(roots.flatMap((tree) => (tree.stateId === undefined ? [] : [tree.stateId]))).size;
-  const scope = `Quantifies ${plural(roots.length, "event tree", "event trees")} from ${plural(initiators, "initiator group", "initiator groups")}${states === 0 ? "" : ` in ${plural(states, "operating state", "operating states")}`} into sequence, family and end state frequencies per year.`;
-  const quantity = settings.choice === "EXACT" ? "Exact probability of every sequence from its linked fault trees."
-    : settings.choice === "HCL" ? `Exact probability, with the basic events bound in ${network === undefined ? "the network configuration" : networkLabel(network)} taken from its Bayesian network on the trees it covers.`
-    : `Minimal cut sets swept from ${decadeText(settings.highest)} to ${decadeText(settings.lowest)}${settings.basis === "FREQUENCY" ? " per year" : ""}. ${QUANTIFIER_LABELS[settings.quantifier]} quantifier.`;
-  return `${scope} ${quantity} ${runLogicText({ ...MODEL_AS_SET, expandCcf: settings.expandCcf })}.`;
 }
 
 function useShownRun(workbookId: string | null, recordId: string | undefined): ShownRun {
@@ -386,14 +446,20 @@ function useShownRun(workbookId: string | null, recordId: string | undefined): S
   return out;
 }
 
-function useComposer(shownRun: ShownRun, initialNetworkId: string | null, initialSourceWorkbookId: string | null): Composer {
+function useComposer(model: EsqModel | undefined, shownRun: ShownRun, initialNetworkId: string | null, initialSourceWorkbookId: string | null): Composer {
   const { esq, upstream, runtime } = useEsqWorkbook();
   const networks = useMemo(() => networkOptionsOf(esq, upstream.es, upstream.sy), [esq, upstream.es, upstream.sy]);
-  const [settings, setSettings] = useState<ComposerSettings>(START_SETTINGS);
+  const roots = useMemo(() => (model === undefined ? [] : treesInScope(esq, model)
+    .filter((tree) => !tree.transferEntry)
+    .map((tree) => ({ id: tree.id, label: treeLabel(model, tree.id) }))), [esq, model]);
+  const [settings, setSettings] = useWorkbookView<ComposerSettings>("solve.composer", START_SETTINGS, COMPOSER_VIEW);
   const [linked, setLinked] = useState(initialNetworkId === null);
   const [running, setRunning] = useState(false);
   const [live, setLive] = useState<AnalysisRunMetadata | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [batchInput, setBatchInput] = useState<HclBatchInput | null>(null);
+  const [study, setStudy] = useState<DependencyStudy | null>(null);
+  const [studyTotal, setStudyTotal] = useState(0);
   const { show, reload } = shownRun;
 
   useEffect(() => {
@@ -402,20 +468,76 @@ function useComposer(shownRun: ShownRun, initialNetworkId: string | null, initia
     if (match === undefined) return;
     setSettings((current) => ({ ...current, choice: "HCL", network: match.key, expandCcf: false }));
     setLinked(true);
-  }, [initialNetworkId, initialSourceWorkbookId, linked, networks]);
+  }, [initialNetworkId, initialSourceWorkbookId, linked, networks, setSettings]);
 
   const network = networks.find((option) => option.key === settings.network) ?? networks[0];
+  const networkKey = network?.key;
+  useEffect(() => {
+    setBatchInput(null);
+  }, [networkKey]);
+  const rootIds = roots.map((tree) => tree.id);
+  const manualTreeId = roots.find((tree) => tree.id === settings.treeId)?.id ?? roots[0]?.id;
+  const chosen = settings.batchTreeIds;
+  const batchTreeIds = chosen === null ? rootIds : rootIds.filter((treeId) => chosen.includes(treeId));
+  const treeIds = settings.workflow === "MANUAL" ? (manualTreeId === undefined ? [] : [manualTreeId]) : batchTreeIds;
+  const everyTree = treeIds.length === rootIds.length;
+  const monteCarloRun = settings.choice === "EXACT" && settings.algorithm === "MONTE_CARLO";
+  const dependencyStudy = settings.choice === "HCL" && (settings.dependencyResult === "UNCERTAINTY" || settings.dependencyEvidence !== "BASE");
+  const studied = network === undefined ? undefined : studyConfiguration(network.configuration, batchInput);
+  const scenarioIds = (studied?.evidenceScenarios ?? []).filter((scenario) => scenario.enabled).map((scenario) => scenario.id);
   const problem = settings.choice === "HCL"
-    ? network === undefined ? "The linked ES and SY workbooks hold no network configuration."
-      : settings.expandCcf ? "An HCL run does not expand common cause. Set Common cause to Off."
+    ? network === undefined ? "The linked ES and SY workbooks hold no dependency configuration."
+      : settings.dependencyResult === "UNCERTAINTY" && network.configuration.solverSettings.uncertainty === undefined ? "This dependency configuration has no uncertainty settings. Turn them on in the Dependencies step of its ES or SY workbook."
+      : settings.dependencyEvidence === "HAZARD" && settings.dependencyResult === "UNCERTAINTY" ? "Hazard convolution gives a probability only. Pick Probability as the result."
+      : settings.dependencyEvidence !== "BASE" && scenarioIds.length === 0 ? "This dependency configuration has no enabled evidence scenario. Upload or generate scenarios under the network."
+      : settings.dependencyEvidence === "HAZARD" && studied?.hazardGrid === undefined ? "This dependency configuration has no hazard grid. Generate scenarios under the network to make one."
       : undefined
-    : settings.choice !== "CUT_SETS" ? undefined
-    : settings.lowest >= settings.highest ? "The lowest cutoff must be below the highest."
-    : !(settings.keep >= 1 && settings.keep <= 1000) ? "Keep between 1 and 1000 cut sets."
+    : settings.choice === "CUT_SETS"
+      ? settings.lowest >= settings.highest ? "The lowest cutoff must be below the highest."
+        : !(settings.keep >= 1 && settings.keep <= 1000) ? "Keep between 1 and 1000 cut sets."
+        : undefined
+    : !monteCarloRun ? undefined
+    : !(Number.isInteger(settings.trials) && settings.trials >= 1) ? "Run at least one trial."
+    : !(Number.isInteger(settings.seed) && settings.seed >= 0) ? "The seed is a whole number of at least 0."
+    : !settings.earlyStop ? undefined
+    : !(Number.isFinite(settings.convergenceDelta) && settings.convergenceDelta > 0) ? "The relative error target must be above 0."
+    : !(settings.confidenceLevel > 0 && settings.confidenceLevel < 1) ? "The confidence must be between 0 and 1."
+    : !(Number.isInteger(settings.burnInTrials) && settings.burnInTrials >= 0) ? "The burn-in trials are a whole number of at least 0."
     : undefined;
-  const ready = problem === undefined;
+  const ready = problem === undefined && treeIds.length > 0;
+
+  function runStudy(): void {
+    const workbookId = runtime.workbookId;
+    const revision = runtime.revision;
+    if (workbookId === null || revision === null || network === undefined || !ready || running) return;
+    const option = network;
+    const result = settings.dependencyResult;
+    const evidence = settings.dependencyEvidence;
+    const trees = [...treeIds];
+    const order = new Map(trees.map((treeId, index) => [treeId, index]));
+    setRunning(true);
+    setError(null);
+    setStudy({ result, evidence, trees: [] });
+    setStudyTotal(trees.length);
+    Promise.all(trees.map((treeId) => studyTree({ workbookId, revision, option, treeId, result, evidence, scenarioIds: [...scenarioIds], batchInput })
+      .catch((caught: Error): DependencyStudyTree => ({ treeId, runResult: null, batchRunResult: null, failure: caught.message }))
+      .then((outcome) => {
+        setStudy((current) => (current === null ? current : {
+          ...current,
+          trees: [...current.trees, outcome].sort((left, right) => (order.get(left.treeId) ?? 0) - (order.get(right.treeId) ?? 0)),
+        }));
+      })))
+      .finally(() => {
+        setRunning(false);
+        setStudyTotal(0);
+      });
+  }
 
   function run(): void {
+    if (dependencyStudy) {
+      runStudy();
+      return;
+    }
     const workbookId = runtime.workbookId;
     const revision = runtime.revision;
     if (workbookId === null || revision === null || !ready || running) return;
@@ -423,16 +545,32 @@ function useComposer(shownRun: ShownRun, initialNetworkId: string | null, initia
     const cutSets: EventTreeCutSetSettings | undefined = settings.choice === "CUT_SETS"
       ? { basis: settings.basis, cutOffs: cutOffsFrom(settings.highest, settings.lowest), quantifier: settings.quantifier, keep: settings.keep, ...(settings.limitOrder === undefined ? {} : { limitOrder: settings.limitOrder }) }
       : undefined;
+    const monteCarlo: EventTreeMonteCarloSettings | undefined = monteCarloRun
+      ? {
+        trials: settings.trials,
+        seed: settings.seed,
+        earlyStop: settings.earlyStop,
+        convergenceDelta: settings.convergenceDelta,
+        confidenceLevel: settings.confidenceLevel,
+        burnInTrials: settings.burnInTrials,
+      }
+      : undefined;
+    const successTreatment: EventTreeSuccessTreatment | undefined = settings.choice === "HCL" || monteCarloRun ? undefined
+      : settings.choice === "CUT_SETS" ? settings.cutSetTreatment
+      : settings.treatment;
     setRunning(true);
     setLive(null);
     setError(null);
     let announced = false;
-    runEsqModel(workbookId, revision, { ...MODEL_AS_SET, expandCcf: settings.expandCcf }, settings.choice === "CUT_SETS" ? "CUT_SETS" : "EXACT", cutSets, hcl, (progress) => {
+    runEsqModel(workbookId, revision, { ...MODEL_AS_SET, expandCcf: settings.choice === "HCL" ? false : settings.expandCcf }, settings.choice === "CUT_SETS" ? "CUT_SETS" : "EXACT", cutSets, hcl, (progress) => {
       setLive(progress);
       if (announced) return;
       announced = true;
       show(progress.id);
       reload();
+    }, everyTree ? undefined : treeIds, {
+      ...(successTreatment === undefined ? {} : { successTreatment }),
+      ...(monteCarlo === undefined ? {} : { monteCarlo }),
     })
       .then((response) => {
         show(response.run.id);
@@ -464,12 +602,24 @@ function useComposer(shownRun: ShownRun, initialNetworkId: string | null, initia
       return rest;
     }),
     networks,
+    roots,
+    manualTreeId,
+    treeIds,
+    toggleTree: (treeId) => setSettings((current) => {
+      const base = current.batchTreeIds ?? rootIds;
+      return { ...current, batchTreeIds: base.includes(treeId) ? base.filter((id) => id !== treeId) : [...base, treeId] };
+    }),
     running,
     live,
     error,
     ready,
     run,
     stop,
+    network,
+    batchInput,
+    setBatchInput,
+    study,
+    studyTotal,
   };
   if (problem !== undefined) out.problem = problem;
   return out;
@@ -492,31 +642,52 @@ function useTreeResult(workbookId: string | null, runId: string | undefined): Ev
   return state !== null && state.runId === runId ? state.result : undefined;
 }
 
-function Choice<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: readonly (readonly [T, string])[]; onChange: (value: T) => void }): JSX.Element {
-  const id = useId();
-  return (
-    <div className="es-records__filter">
-      <label className="posfield__label" htmlFor={id}>{label}</label>
-      <select id={id} className="posfield__select" value={value} onChange={(event) => {
-        const next = options.find(([option]) => option === event.target.value);
-        if (next !== undefined) onChange(next[0]);
-      }}>
-        {options.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
-      </select>
-    </div>
-  );
+function useRunWorkbooks(workbookId: string | null, runIds: readonly (string | undefined)[]): ReadonlyMap<string, EventSequenceQuantification> {
+  const [saved, setSaved] = useState<ReadonlyMap<string, EventSequenceQuantification>>(new Map());
+  const requested = useRef(new Set<string>());
+  const wanted = [...new Set(runIds.flatMap((runId) => (runId === undefined ? [] : [runId])))].sort().join(",");
+  useEffect(() => {
+    if (workbookId === null || wanted.length === 0) return;
+    for (const runId of wanted.split(",")) {
+      if (requested.current.has(runId)) continue;
+      requested.current.add(runId);
+      getEsqRunWorkbook(workbookId, runId)
+        .then((mef) => setSaved((current) => new Map(current).set(runId, mef)))
+        .catch(() => { requested.current.delete(runId); });
+    }
+  }, [workbookId, wanted]);
+  return saved;
 }
 
-function RunFilter({ shownRun, recordId }: { shownRun: ShownRun; recordId: string | undefined }): JSX.Element | null {
+function optionOf<T extends string>(options: readonly (readonly [T, string])[], value: string): T | undefined {
+  return options.find(([option]) => option === value)?.[0];
+}
+
+function RunHead({ view, shownRun, onRecord }: { view: EsqSolveView; shownRun: ShownRun; onRecord: () => void }): JSX.Element | null {
+  const { esq, editable, mutateEsq } = useEsqWorkbook();
   const id = useId();
-  const { runs, shown } = shownRun;
-  if (runs.length === 0 || shown === undefined) return null;
+  const { runs, shown, summary } = shownRun;
+  const recordId = view.run?.runId;
+  if (shown === undefined && view.run === undefined) return null;
+  const recorded = summary !== undefined && recordId === summary.runId;
+  const coverage = summary === undefined ? undefined : treesCovered(summary, esq);
+  const partial = coverage !== undefined && coverage.covered < coverage.total;
   return (
-    <div className="es-records__filter esq-solve-run">
-      <label className="posfield__label" htmlFor={id}>Run</label>
-      <select id={id} className="posfield__select" value={shown.id} onChange={(event) => shownRun.show(event.target.value)}>
-        {runs.map((run) => <option key={run.id} value={run.id}>{`${runLabel(run)}${run.id === recordId ? " · of record" : ""}`}</option>)}
-      </select>
+    <div className="poscard__head es-seq-card__head">
+      <div className="es-seq-card__picker">
+        {shown !== undefined && <label className="posfield__label" htmlFor={id}>Run</label>}
+        <div className="es-seq-card__pick-row">
+          {shown !== undefined && (
+            <select id={id} className="posfield__select" value={shown.id} onChange={(event) => shownRun.show(event.target.value)}>
+              {runs.map((run) => <option key={run.id} value={run.id}>{`${runLabel(run)}${run.id === recordId ? " · of record" : ""}`}</option>)}
+            </select>
+          )}
+          {view.run !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={onRecord}>Run of record</button>}
+          {editable && summary !== undefined && (
+            <button type="button" className="posnav__btn posnav__btn--sm" disabled={recorded || shownRun.blocked === true || partial} title={shownRun.problem} onClick={() => mutateEsq((draft) => withRunOfRecord(draft, summary))}>{recorded ? "Values of record" : "Use as values of record"}</button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -524,7 +695,7 @@ function RunFilter({ shownRun, recordId }: { shownRun: ShownRun; recordId: strin
 function FailedTreeTable({ rows, model }: { rows: readonly TreeFailure[]; model: EsqModel }): JSX.Element | null {
   if (rows.length === 0) return null;
   return (
-    <table className="postable postable--mid es-records" aria-label="Failed event trees">
+    <table className="postable postable--mid es-records esq-results" aria-label="Failed event trees">
       <thead><tr><th scope="col">Event tree</th><th scope="col">Why it failed</th></tr></thead>
       <tbody>
         {rows.map((row) => (
@@ -567,8 +738,7 @@ function ShownRunState({ shownRun, model, live = null }: { shownRun: ShownRun; m
   const failures = useTreeFailures(runtime.workbookId, shown?.status === "FAILED" ? shown.id : undefined, model);
   if (listError !== undefined && shown === undefined) return <p className="es-scope-error" role="alert">{listError}</p>;
   const current = live !== null && live.id === shown?.id ? live : shown;
-  const progress = current === undefined ? "" : runProgressText(current);
-  if (progress.length > 0) return <p className="possubtle esq-solve-settings" role="status">{progress}</p>;
+  if (current !== undefined && (current.status === "QUEUED" || current.status === "RUNNING")) return null;
   if (shown?.status === "FAILED") {
     return (
       <div className="esq-solve-stack">
@@ -582,216 +752,455 @@ function ShownRunState({ shownRun, model, live = null }: { shownRun: ShownRun; m
   return null;
 }
 
-function ShownCaption({ shownRun, model, networks }: { shownRun: ShownRun; model: EsqModel; networks: readonly NetworkOption[] }): JSX.Element | null {
-  const summary = shownRun.summary;
-  if (summary === undefined) return <ShownRunState shownRun={shownRun} model={model} />;
-  return <p className="possubtle esq-solve-settings">{settingsText(summary, networks)}</p>;
+function ShownCaption({ shownRun, model }: { shownRun: ShownRun; model: EsqModel }): JSX.Element | null {
+  return shownRun.summary === undefined ? <ShownRunState shownRun={shownRun} model={model} /> : null;
 }
 
-function RunsPanel({ view, shownRun, composer, onRecord }: { view: EsqSolveView; shownRun: ShownRun; composer: Composer; onRecord: () => void }): JSX.Element {
+function RunsPanel({ view, shownRun, composer, onCutSets }: { view: EsqSolveView; shownRun: ShownRun; composer: Composer; onCutSets: (dialog: CutSetDialog) => void }): JSX.Element {
   const { editable, runtime } = useEsqWorkbook();
   const fieldId = useId();
   const { settings, set } = composer;
   const blocked = analysisSaveBlock(runtime);
+  const batch = settings.workflow === "BATCH";
+  const network = composer.network;
+  const dependencies = settings.choice === "HCL";
   const shown = shownRun.shown;
   const activeId = composer.live !== null && (composer.live.status === "QUEUED" || composer.live.status === "RUNNING") ? composer.live.id
     : shown !== undefined && (shown.status === "QUEUED" || shown.status === "RUNNING") ? shown.id
     : undefined;
 
+  function jobLabel(modelId: string): string | undefined {
+    if (modelId === esqModelRunId()) return "Event trees";
+    const configuration = composer.networks.find((option) => option.configuration.modelId === modelId);
+    if (configuration !== undefined) return `Dependencies · ${networkLabel(configuration)}`;
+    const tree = view.model.trees.find((candidate) => esqTreeRunId(candidate.id) === modelId);
+    return tree === undefined ? undefined : treeLabel(view.model, tree.id);
+  }
+
   return (
-    <>
-      <div className="es-records__bar">
-        <div className="es-records__filters">
-          <Choice label="Calculation" value={settings.choice} options={RUN_CHOICES} onChange={(choice) => set({ choice })} />
-          {settings.choice === "HCL" && (
-            <div className="es-records__filter esq-solve-run">
-              <label className="posfield__label" htmlFor={`${fieldId}-network`}>Network configuration</label>
-              <select id={`${fieldId}-network`} className="posfield__select" value={composer.networks.some((option) => option.key === settings.network) ? settings.network : composer.networks[0]?.key ?? ""} disabled={composer.networks.length === 0} onChange={(event) => set({ network: event.target.value })}>
-                {composer.networks.map((option) => <option key={option.key} value={option.key}>{networkLabel(option)}</option>)}
-              </select>
+    <section className="syft-analysis" aria-label="Event tree quantification">
+      <div className="syft-analysis__heading">
+        <h3>Event tree quantification</h3>
+        <AnalysisJobs host="esq" workbookId={runtime.workbookId} modelLabel={jobLabel} />
+      </div>
+      <div className={`syft-analysis__composer syft-analysis__composer--${settings.workflow.toLowerCase()} esq-composer`} aria-label="Event tree quantification controls">
+        <div className="syft-analysis__run-composer">
+          {batch ? (
+            <>
+              <fieldset className="syft-analysis__batch-models">
+                <legend>Event trees</legend>
+                {composer.roots.map((tree) => (
+                  <label key={tree.id}>
+                    <input type="checkbox" checked={composer.treeIds.includes(tree.id)} onChange={() => composer.toggleTree(tree.id)} />
+                    <span>{tree.label}</span>
+                  </label>
+                ))}
+              </fieldset>
+              <span className="syft-analysis__selection-summary">{`${plural(composer.treeIds.length, "event tree", "event trees")} selected`}</span>
+            </>
+          ) : (
+            <div className="syft-analysis__run-fields">
+              <label className="syft-analysis__run-field">
+                <span>Event tree</span>
+                <select aria-label="Event tree" value={composer.manualTreeId ?? ""} disabled={composer.roots.length === 0} onChange={(event) => set({ treeId: event.target.value })}>
+                  {composer.roots.map((tree) => <option key={tree.id} value={tree.id}>{tree.label}</option>)}
+                </select>
+              </label>
             </div>
           )}
-          <Choice label="Common cause" value={settings.expandCcf ? "on" : "off"} options={[["on", "Expanded"], ["off", "Off"]]} onChange={(value) => set({ expandCcf: value === "on" })} />
-          {settings.choice === "CUT_SETS" && (
-            <>
-              <Choice label="Cutoff on" value={settings.basis} options={BASIS_OPTIONS} onChange={(basis) => set({ basis })} />
-              <Choice label="Quantifier" value={settings.quantifier} options={QUANTIFIER_OPTIONS} onChange={(quantifier) => set({ quantifier })} />
-              <div className="es-records__filter">
-                <label className="posfield__label" htmlFor={`${fieldId}-highest`}>Highest cutoff</label>
-                <select id={`${fieldId}-highest`} className="posfield__select" value={settings.highest} onChange={(event) => set({ highest: Number(event.target.value) })}>
-                  {HIGHEST_EXPONENTS.map((exponent) => <option key={exponent} value={exponent}>{decadeText(exponent)}</option>)}
-                </select>
-              </div>
-              <div className="es-records__filter">
-                <label className="posfield__label" htmlFor={`${fieldId}-lowest`}>Lowest cutoff</label>
-                <select id={`${fieldId}-lowest`} className="posfield__select" value={settings.lowest} onChange={(event) => set({ lowest: Number(event.target.value) })}>
-                  {LOWEST_EXPONENTS.map((exponent) => <option key={exponent} value={exponent}>{decadeText(exponent)}</option>)}
-                </select>
-              </div>
-              <div className="es-records__filter">
-                <label className="posfield__label" htmlFor={`${fieldId}-keep`}>Cut sets kept</label>
-                <input id={`${fieldId}-keep`} type="number" min={1} max={1000} step={1} className="posfield__input posmono esq-dialog-number" aria-invalid={!(settings.keep >= 1 && settings.keep <= 1000)} value={settings.keep} onChange={(event) => set({ keep: Math.round(Number(event.target.value)) })} />
-              </div>
-              <div className="es-records__filter">
-                <label className="posfield__label" htmlFor={`${fieldId}-order`}>Order limit</label>
-                <input id={`${fieldId}-order`} type="number" min={1} step={1} className="posfield__input posmono esq-dialog-number" value={settings.limitOrder ?? ""} onChange={(event) => {
-                  const value = Math.round(Number(event.target.value));
-                  if (event.target.value.trim().length === 0 || !(value >= 1)) composer.clearLimit();
-                  else set({ limitOrder: value });
-                }} />
-              </div>
-            </>
-          )}
         </div>
-        <div className="es-records__actions">
-          {editable && activeId !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => composer.stop(activeId)}>Stop</button>}
-          {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={composer.running || blocked !== null || !composer.ready} title={blocked ?? undefined} onClick={composer.run}>{composer.running ? "Running" : "Run"}</button>}
+
+        <fieldset className="syft-analysis__calculation-picker">
+          <legend>Calculation</legend>
+          <div role="radiogroup" aria-label="Event tree calculation">
+            {RUN_CHOICES.map(([value, label]) => (
+              <label key={value} className={settings.choice === value ? "is-selected" : ""}>
+                <input type="radio" name={`${fieldId}-calculation`} value={value} checked={settings.choice === value} onChange={() => set({ choice: value })} />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="syft-analysis__workflow-picker">
+          <legend>Workflow</legend>
+          <div role="radiogroup" aria-label="Event tree workflow">
+            {WORKFLOWS.map(([value, label]) => (
+              <label key={value} className={settings.workflow === value ? "is-selected" : ""}>
+                <input type="radio" name={`${fieldId}-workflow`} value={value} checked={settings.workflow === value} onChange={() => set({ workflow: value })} />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <div className="syft-analysis__run-composer">
+          <div className="syft-analysis__execution-row">
+            <div className="syft-analysis__run-fields">
+              {settings.choice === "EXACT" && (
+                <label className="syft-analysis__run-field">
+                  <span>Algorithm</span>
+                  <select aria-label="Event tree algorithm" value={settings.algorithm} onChange={(event) => {
+                    const algorithm = optionOf(ALGORITHM_OPTIONS, event.target.value);
+                    if (algorithm !== undefined) set({ algorithm });
+                  }}>
+                    {ALGORITHM_OPTIONS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+                  </select>
+                </label>
+              )}
+              {settings.choice === "CUT_SETS" && (
+                <label className="syft-analysis__run-field">
+                  <span>Algorithm</span>
+                  <select aria-label="Event tree algorithm" defaultValue={CUT_SET_ALGORITHM}>
+                    <option value={CUT_SET_ALGORITHM}>{CUT_SET_ALGORITHM}</option>
+                  </select>
+                </label>
+              )}
+              {dependencies && (
+                <label className="syft-analysis__run-field">
+                  <span>Dependency configuration</span>
+                  <select aria-label="Dependency configuration" value={network?.key ?? ""} disabled={composer.networks.length === 0} onChange={(event) => set({ network: event.target.value })}>
+                    {composer.networks.map((option) => <option key={option.key} value={option.key}>{networkLabel(option)}</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
+            {editable && (
+              <div className="esq-run-actions">
+                {activeId !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => composer.stop(activeId)}>Stop</button>}
+                <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={composer.running || blocked !== null || !composer.ready} onClick={composer.run}>
+                  {composer.running ? "Running…" : `Run ${RUN_WORDS[settings.choice]}${batch ? " batch" : ""}`}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="syft-analysis__advanced-panel" aria-label="Event tree quantification settings">
+            <div className="syft-analysis__advanced">
+              {settings.choice === "EXACT" && settings.algorithm === "BDD" && (
+                <label>
+                  <span>Success treatment</span>
+                  <select aria-label="Success treatment" value={settings.treatment} onChange={(event) => {
+                    const treatment = optionOf(TREATMENT_OPTIONS, event.target.value);
+                    if (treatment !== undefined) set({ treatment });
+                  }}>
+                    {TREATMENT_OPTIONS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+                  </select>
+                </label>
+              )}
+              {settings.choice === "EXACT" && settings.algorithm === "MONTE_CARLO" && (
+                <>
+                  <label><span>Trials</span><input aria-label="Event tree trials" type="number" min={1} step={1} aria-invalid={!(Number.isInteger(settings.trials) && settings.trials >= 1)} value={settings.trials} onChange={(event) => set({ trials: Number(event.target.value) })} /></label>
+                  <label><span>Seed</span><input aria-label="Event tree seed" type="number" min={0} step={1} aria-invalid={!(Number.isInteger(settings.seed) && settings.seed >= 0)} value={settings.seed} onChange={(event) => set({ seed: Number(event.target.value) })} /></label>
+                  <label className="syft-analysis__check"><input type="checkbox" checked={settings.earlyStop} onChange={(event) => set({ earlyStop: event.target.checked })} /><span>Stop when converged</span></label>
+                  {settings.earlyStop && (
+                    <>
+                      <label><span>Relative error target</span><input aria-label="Monte Carlo convergence delta" type="number" min="0.000001" step="any" value={settings.convergenceDelta} onChange={(event) => set({ convergenceDelta: Number(event.target.value) })} /></label>
+                      <label><span>Confidence</span><input aria-label="Monte Carlo confidence" type="number" min="0.01" max="0.999999" step="any" value={settings.confidenceLevel} onChange={(event) => set({ confidenceLevel: Number(event.target.value) })} /></label>
+                      <label><span>Burn-in trials</span><input aria-label="Monte Carlo burn-in trials" type="number" min={0} step={1} value={settings.burnInTrials} onChange={(event) => set({ burnInTrials: Number(event.target.value) })} /></label>
+                    </>
+                  )}
+                </>
+              )}
+              {settings.choice === "CUT_SETS" && (
+                <>
+                  <label>
+                    <span>Success treatment</span>
+                    <select aria-label="Success treatment" value={settings.cutSetTreatment} onChange={(event) => {
+                      const cutSetTreatment = optionOf(TREATMENT_OPTIONS, event.target.value);
+                      if (cutSetTreatment !== undefined) set({ cutSetTreatment });
+                    }}>
+                      {TREATMENT_OPTIONS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Probability method</span>
+                    <select aria-label="Probability method" value={settings.quantifier} onChange={(event) => {
+                      const quantifier = optionOf(QUANTIFIER_OPTIONS, event.target.value);
+                      if (quantifier !== undefined) set({ quantifier });
+                    }}>
+                      {QUANTIFIER_OPTIONS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Cutoff on</span>
+                    <select aria-label="Cutoff on" value={settings.basis} onChange={(event) => {
+                      const basis = optionOf(BASIS_OPTIONS, event.target.value);
+                      if (basis !== undefined) set({ basis });
+                    }}>
+                      {BASIS_OPTIONS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Highest cutoff</span>
+                    <select aria-label="Highest cutoff" value={settings.highest} onChange={(event) => set({ highest: Number(event.target.value) })}>
+                      {HIGHEST_EXPONENTS.map((exponent) => <option key={exponent} value={exponent}>{decadeText(exponent)}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Lowest cutoff</span>
+                    <select aria-label="Lowest cutoff" value={settings.lowest} onChange={(event) => set({ lowest: Number(event.target.value) })}>
+                      {LOWEST_EXPONENTS.map((exponent) => <option key={exponent} value={exponent}>{decadeText(exponent)}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Cut sets kept</span>
+                    <input aria-label="Cut sets kept" type="number" min={1} max={1000} step={1} aria-invalid={!(settings.keep >= 1 && settings.keep <= 1000)} value={settings.keep} onChange={(event) => set({ keep: Math.round(Number(event.target.value)) })} />
+                  </label>
+                  <label>
+                    <span>Maximum cut set order</span>
+                    <input aria-label="Maximum cut set order" type="number" min={1} step={1} placeholder="No limit" value={settings.limitOrder ?? ""} onChange={(event) => {
+                      const value = Math.round(Number(event.target.value));
+                      if (event.target.value.trim().length === 0 || !(value >= 1)) composer.clearLimit();
+                      else set({ limitOrder: value });
+                    }} />
+                  </label>
+                </>
+              )}
+              {dependencies && (
+                <>
+                  <label>
+                    <span>Result</span>
+                    <select aria-label="Dependency result" value={settings.dependencyResult} onChange={(event) => {
+                      const dependencyResult = optionOf(DEPENDENCY_RESULTS, event.target.value);
+                      if (dependencyResult !== undefined) set({ dependencyResult });
+                    }}>
+                      {DEPENDENCY_RESULTS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Evidence</span>
+                    <select aria-label="Dependency evidence" value={settings.dependencyEvidence} onChange={(event) => {
+                      const dependencyEvidence = optionOf(DEPENDENCY_EVIDENCE, event.target.value);
+                      if (dependencyEvidence !== undefined) set({ dependencyEvidence });
+                    }}>
+                      {DEPENDENCY_EVIDENCE.map(([option, text]) => <option key={option} value={option} disabled={option === "HAZARD" && settings.dependencyResult === "UNCERTAINTY"}>{text}</option>)}
+                    </select>
+                  </label>
+                </>
+              )}
+              {!dependencies && <label className="syft-analysis__check"><input type="checkbox" checked={settings.expandCcf} onChange={(event) => set({ expandCcf: event.target.checked })} /><span>Expand common-cause groups</span></label>}
+            </div>
+          </div>
         </div>
+        {dependencies && network !== undefined && (
+          <EsqDependencies
+            option={network}
+            evidence={settings.dependencyEvidence}
+            result={settings.dependencyResult}
+            batchInput={composer.batchInput}
+            study={composer.study}
+            running={composer.running}
+            onBatchInput={composer.setBatchInput}
+          />
+        )}
       </div>
-      <ModelRunsBody view={view} shownRun={shownRun} composer={composer} onRecord={onRecord} />
-    </>
+      {blocked !== null && <p className="syft-analysis__notice" role="status">{blocked}</p>}
+      {composer.running && composer.live === null && composer.studyTotal === 0 && <p className="syft-analysis__notice" role="status">Building the event trees for PRAXIS</p>}
+      {composer.problem !== undefined && <p className="syft-analysis__error" role="alert">{composer.problem}</p>}
+      {composer.error !== null && <p className="syft-analysis__error" role="alert">{composer.error}</p>}
+      <ModelRunsBody view={view} shownRun={shownRun} composer={composer} onCutSets={onCutSets} />
+    </section>
   );
 }
 
-function ModelRunsBody({ view, shownRun, composer, onRecord }: { view: EsqSolveView; shownRun: ShownRun; composer: Composer; onRecord: () => void }): JSX.Element {
-  const { esq, editable, mutateEsq } = useEsqWorkbook();
-  const summary = shownRun.summary;
-  const recordId = view.run?.runId;
-  const problem = summary === undefined ? undefined : summaryProblem(summary, esq);
-  const recorded = summary !== undefined && recordId === summary.runId;
-  const cutSetRun = summary?.calculation === "CUT_SETS";
-  const swept = summary === undefined ? [] : runConvergenceOf(summary, view);
-  const network = composer.networks.find((option) => option.key === composer.settings.network) ?? composer.networks[0];
+function ordered<T extends { position: number }>(items: readonly T[], order: ResultOrder, frequency: (item: T) => number): T[] {
+  const rank = (left: T, right: T): number => (order === "HIGH" ? frequency(right) - frequency(left) : order === "LOW" ? frequency(left) - frequency(right) : 0);
+  return [...items].sort((left, right) => rank(left, right) || left.position - right.position);
+}
+
+function rowsTotal(rows: readonly ResultRow[]): number {
+  return rows.reduce((total, row) => total + row.sequence.annualFrequency, 0);
+}
+
+function familyValueIn(tree: EsqModelRunTree, familyId: string, rows: readonly ResultRow[]): number {
+  return tree.families?.find((entry) => entry.familyId === familyId)?.annualFrequency ?? rowsTotal(rows);
+}
+
+function releaseCategoryOf(view: EsqSolveView, sequence: EsqModelRunSequence): string | undefined {
+  if (sequence.familyId !== null) return view.families.find((candidate) => candidate.id === sequence.familyId)?.family.releaseCategoryId;
+  const last = sequence.sequenceIds[sequence.sequenceIds.length - 1];
+  return view.model.sequences.find((record) => record.id === last)?.releaseCategoryId;
+}
+
+function groupValue(tree: EsqModelRunTree, rows: readonly ResultRow[]): number {
+  const byFamily = new Map<string, ResultRow[]>();
+  let loose = 0;
+  for (const row of rows) {
+    const familyId = row.sequence.familyId;
+    if (familyId === null) loose += row.sequence.annualFrequency;
+    else byFamily.set(familyId, [...(byFamily.get(familyId) ?? []), row]);
+  }
+  return [...byFamily.entries()].reduce((total, [familyId, members]) => total + familyValueIn(tree, familyId, members), loose);
+}
+
+function groupsOf(rows: readonly ResultRow[], group: ResultGroup, view: EsqSolveView, tree: EsqModelRunTree): ResultGroupRow[] {
+  const byKey = new Map<string, ResultRow[]>();
+  for (const row of rows) {
+    const key = group === "FAMILY" ? row.sequence.familyId ?? "" : releaseCategoryOf(view, row.sequence) ?? "";
+    byKey.set(key, [...(byKey.get(key) ?? []), row]);
+  }
+  return [...byKey.entries()].map(([key, members]) => ({
+    key,
+    label: group === "FAMILY" ? (key === "" ? "Not in a family" : familyText(view, key)) : (key === "" ? "No release category" : key),
+    frequency: group === "FAMILY" && key !== "" ? familyValueIn(tree, key, members) : groupValue(tree, members),
+    position: Math.min(...members.map((member) => member.position)),
+    rows: members,
+  }));
+}
+
+function SequenceTable({ rows, label, model, cutSetRun, onCutSets }: { rows: readonly ResultRow[]; label: string; model: EsqModel; cutSetRun: boolean; onCutSets: (dialog: CutSetDialog) => void }): JSX.Element {
   return (
-    <>
-      <p className="possubtle esq-solve-settings">{quantifiesText(esq, view.model, composer.settings, network)}</p>
-      {composer.running && composer.live === null && <p className="possubtle esq-solve-settings" role="status">Building the event trees for PRAXIS</p>}
-      {composer.problem !== undefined && <p className="es-scope-error" role="alert">{composer.problem}</p>}
-      {composer.error !== null && <p className="es-scope-error" role="alert">{composer.error}</p>}
+    <table className="postable postable--mid es-records esq-results" aria-label={label}>
+      <thead><tr><th scope="col">Sequence</th><th scope="col">End state</th><th scope="col">Frequency (/yr)</th></tr></thead>
+      <tbody>
+        {rows.map(({ sequence }) => {
+          const key = sequenceKeyOf(sequence);
+          const name = sequenceText(model, sequence.sequenceIds);
+          return (
+            <tr key={key}>
+              <td>
+                {cutSetRun && (sequence.cutSetCount ?? 0) > 0
+                  ? <button type="button" className="es-records__link" aria-label={`Cut sets of ${name}`} onClick={() => onCutSets({ kind: "sequenceCutSets", sequenceKey: key })}>{name}</button>
+                  : <span className="postable__name">{name}</span>}
+              </td>
+              <td>{sequence.endState === null ? <Muted>None</Muted> : END_STATE_LABELS[sequence.endState] ?? sequence.endState}</td>
+              <td className="posmono">{sciText(sequence.annualFrequency)}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function TreeResults({ view, summary, onCutSets }: { view: EsqSolveView; summary: EsqModelRunResult; onCutSets: (dialog: CutSetDialog) => void }): JSX.Element | null {
+  const fieldId = useId();
+  const [settings, setSettings] = useWorkbookView<ResultSettings>("solve.results", START_RESULTS, RESULTS_VIEW);
+  const [open, setOpen] = useState<readonly string[]>([]);
+  const model = view.model;
+  const trees = summary.trees.filter((candidate) => candidate.status === "SUCCEEDED");
+  const tree = trees.find((candidate) => candidate.treeId === settings.treeId) ?? trees[0];
+  if (tree === undefined) return null;
+  const cutSetRun = summary.calculation === "CUT_SETS";
+  const order = settings.order;
+  const rows: ResultRow[] = summary.sequences.flatMap((sequence, position) => (sequence.treeId === tree.treeId ? [{ sequence, position }] : []));
+  const groups = settings.group === "NONE" ? [] : ordered(groupsOf(rows, settings.group, view, tree), order, (entry) => entry.frequency);
+  const groupNoun = settings.group === "FAMILY" ? "Family" : "Release category";
+  const resetKey = `${summary.runId}:${tree.treeId}:${order}:${settings.group}`;
+
+  function set(patch: Partial<ResultSettings>): void {
+    setSettings((current) => ({ ...current, ...patch }));
+    setOpen([]);
+  }
+
+  function toggle(key: string): void {
+    setOpen((current) => (current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key]));
+  }
+
+  return (
+    <div className="esq-tree-results">
       <div className="es-records__bar">
-        <div className="es-records__filters"><RunFilter shownRun={shownRun} recordId={recordId} /></div>
-        <div className="es-records__actions">
-          {view.run !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={onRecord}>Run of record</button>}
-          {editable && summary !== undefined && (
-            <button type="button" className="posnav__btn posnav__btn--sm" disabled={recorded || problem !== undefined} title={problem} onClick={() => mutateEsq((draft) => withRunOfRecord(draft, summary))}>{recorded ? "Values of record" : "Use as values of record"}</button>
-          )}
+        <div className="es-records__filters">
+          <div className="es-records__filter">
+            <label className="posfield__label" htmlFor={`${fieldId}-tree`}>Event tree</label>
+            <select id={`${fieldId}-tree`} className="posfield__select" value={tree.treeId} onChange={(event) => set({ treeId: event.target.value })}>
+              {trees.map((candidate) => <option key={candidate.treeId} value={candidate.treeId}>{treeLabel(model, candidate.treeId)}</option>)}
+            </select>
+          </div>
+          <div className="es-records__filter">
+            <label className="posfield__label" htmlFor={`${fieldId}-order`}>Order</label>
+            <select id={`${fieldId}-order`} className="posfield__select" value={order} onChange={(event) => {
+              const next = optionOf(RESULT_ORDERS, event.target.value);
+              if (next !== undefined) set({ order: next });
+            }}>
+              {RESULT_ORDERS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+            </select>
+          </div>
+          <div className="es-records__filter">
+            <label className="posfield__label" htmlFor={`${fieldId}-group`}>Group by</label>
+            <select id={`${fieldId}-group`} className="posfield__select" value={settings.group} onChange={(event) => {
+              const next = optionOf(RESULT_GROUPS, event.target.value);
+              if (next !== undefined) set({ group: next });
+            }}>
+              {RESULT_GROUPS.map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+            </select>
+          </div>
         </div>
       </div>
+      {settings.group === "NONE" && rows.length > 0 && (
+        <PagedResults items={ordered(rows, order, (row) => row.sequence.annualFrequency)} label="Sequences of this event tree" resetKey={resetKey}>
+          {(page) => <SequenceTable rows={page} label="Sequences of this event tree" model={model} cutSetRun={cutSetRun} onCutSets={onCutSets} />}
+        </PagedResults>
+      )}
+      {groups.length > 0 && (
+        <PagedResults items={groups} label={`${groupNoun} results of this event tree`} resetKey={resetKey}>
+          {(page) => (
+            <table className="postable postable--mid es-records esq-results" aria-label={`${groupNoun} results of this event tree`}>
+              <thead><tr><th scope="col">{groupNoun}</th><th scope="col">Frequency (/yr)</th><th scope="col" className="es-records__act" aria-label="Actions" /></tr></thead>
+              <tbody>
+                {page.map((entry) => {
+                  const expanded = open.includes(entry.key);
+                  const familyCutSets = cutSetRun && settings.group === "FAMILY" && entry.key !== "" && entry.rows.some((row) => (row.sequence.cutSetCount ?? 0) > 0);
+                  return (
+                    <Fragment key={entry.key}>
+                      <tr>
+                        <td>
+                          {familyCutSets
+                            ? <button type="button" className="es-records__link" aria-label={`Cut sets of ${entry.label}`} onClick={() => onCutSets({ kind: "familyCutSets", familyId: entry.key, treeId: tree.treeId })}>{entry.label}</button>
+                            : <span className="postable__name">{entry.label}</span>}
+                        </td>
+                        <td className="posmono">{sciText(entry.frequency)}</td>
+                        <td className="es-records__act">
+                          <button type="button" className="posnav__btn posnav__btn--sm" aria-expanded={expanded} aria-label={`${expanded ? "Hide" : "Show"} the sequences of ${entry.label}`} onClick={() => toggle(entry.key)}>{expanded ? "Hide" : "Show"}</button>
+                        </td>
+                      </tr>
+                      {expanded && (
+                        <tr className="esq-tree-results__members">
+                          <td colSpan={3}>
+                            <PagedResults items={ordered(entry.rows, order, (row) => row.sequence.annualFrequency)} label={`Sequences of ${entry.label}`} resetKey={resetKey}>
+                              {(members) => <SequenceTable rows={members} label={`Sequences of ${entry.label}`} model={model} cutSetRun={cutSetRun} onCutSets={onCutSets} />}
+                            </PagedResults>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </PagedResults>
+      )}
+    </div>
+  );
+}
+
+function ModelRunsBody({ view, shownRun, composer, onCutSets }: { view: EsqSolveView; shownRun: ShownRun; composer: Composer; onCutSets: (dialog: CutSetDialog) => void }): JSX.Element {
+  const summary = shownRun.summary;
+  const problem = shownRun.problem;
+  const recorded = summary !== undefined && view.run?.runId === summary.runId;
+  return (
+    <>
       <ShownRunState shownRun={shownRun} model={view.model} live={composer.live} />
       {summary !== undefined && (
         <div className="esq-solve-stack">
-          <p className="possubtle esq-solve-settings">{settingsText(summary, composer.networks)}</p>
           {problem !== undefined && !recorded && <p className="es-scope-error" role="status">{problem}</p>}
           <FailedTrees summary={summary} model={view.model} />
-          {summary.families.length > 0 && (
-            <table className="postable postable--mid es-records" aria-label="Family frequencies of this run">
-              <thead><tr><th scope="col">Family</th><th scope="col">Frequency (/yr)</th><th scope="col">Sequences</th>{cutSetRun && <><th scope="col">Cut sets</th><th scope="col">Converged at</th></>}</tr></thead>
-              <tbody>
-                {summary.families.map((family) => (
-                  <tr key={family.familyId}>
-                    <td>{familyText(view, family.familyId)}</td>
-                    <td className="posmono">{sciText(family.annualFrequency)}</td>
-                    <td className="posmono">{family.sequenceCount}</td>
-                    {cutSetRun && <><td className="posmono">{family.cutSetCount ?? "—"}</td><td className="posmono">{convergedText(swept.find((entry) => entry.id === family.familyId)?.convergence)}</td></>}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          {summary.endStates.length > 0 && (
-            <table className="postable postable--mid es-records" aria-label="End state frequencies of this run">
-              <thead><tr><th scope="col">End state</th><th scope="col">Frequency (/yr)</th></tr></thead>
-              <tbody>
-                {summary.endStates.map((entry) => (
-                  <tr key={entry.endState}>
-                    <td>{END_STATE_LABELS[entry.endState] ?? entry.endState}</td>
-                    <td className="posmono">{sciText(entry.annualFrequency)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <TreeResults view={view} summary={summary} onCutSets={onCutSets} />
         </div>
       )}
     </>
   );
 }
 
-function TreesPanel({ view, shownRun, networks, onFaultTree }: { view: EsqSolveView; shownRun: ShownRun; networks: readonly NetworkOption[]; onFaultTree: (modelIds: string[]) => void }): JSX.Element {
-  const { esq, upstream, runtime } = useEsqWorkbook();
-  const fieldId = useId();
-  const [treeId, setTreeId] = useState("");
-  const [representation, setRepresentation] = useState<EventTreeRepresentation>("event-tree");
-  const [selection, setSelection] = useState<string | null>(null);
-  const model = view.model;
-  const tree = model.trees.find((candidate) => candidate.id === treeId) ?? model.trees[0];
-  const typed = tree?.typed === true;
-  const source = tree === undefined ? undefined : sourceTreeOf(esq, upstream.es, tree.id, typed);
-  const summary = shownRun.summary;
-  const values = useMemo(() => (summary === undefined || tree === undefined || source === undefined ? undefined : sequenceValuesOf(summary, tree.id, source)), [source, summary, tree]);
-  const initiators = model.initiators.map((initiator) => ({ id: initiator.id, name: initiator.name }));
-  const states = model.states.map((state) => ({ id: state.id, name: state.name }));
-  const transfers = model.trees.filter((candidate) => candidate.id !== tree?.id).map((candidate) => ({
-    id: candidate.id,
-    name: candidate.name,
-    sequenceIds: model.sequences.filter((sequence) => sequence.treeId === candidate.id).map((sequence) => sequence.id),
-  }));
-  const endStates = typed ? [] : (upstream.es?.endStateDefinitions ?? []).map((definition) => ({ id: definition.id, code: definition.code, name: definition.name, release: definition.kind === "RELEASE" }));
-
-  return (
-    <>
-      <div className="es-records__bar">
-        <div className="es-records__filters">
-          <RunFilter shownRun={shownRun} recordId={view.run?.runId} />
-          {model.trees.length > 0 && (
-            <div className="es-records__filter">
-              <label className="posfield__label" htmlFor={`${fieldId}-tree`}>Event tree</label>
-              <select id={`${fieldId}-tree`} className="posfield__select" value={tree?.id ?? ""} onChange={(event) => setTreeId(event.target.value)}>
-                {model.trees.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name === candidate.code ? candidate.code : `${candidate.code} · ${candidate.name}`}</option>)}
-              </select>
-            </div>
-          )}
-        </div>
-      </div>
-      <ShownCaption shownRun={shownRun} model={model} networks={networks} />
-      {tree !== undefined && source !== undefined && (
-        <EventTreeEditor
-          key={tree.id}
-          model={source}
-          eventSequences={typed ? [] : upstream.es?.eventSequences ?? []}
-          availableInitiatingEvents={initiators}
-          availableOperatingStates={states}
-          editFrequency={false}
-          availableTransfers={transfers}
-          representation={representation}
-          capabilities={{ author: false, quantification: false, linkSelection: false }}
-          selection={selection}
-          validation={[]}
-          saveState={runtime.saveStatus}
-          {...(values === undefined ? {} : { sequenceValues: values })}
-          onOperation={() => undefined}
-          onRepresentationChange={setRepresentation}
-          onSelectionChange={setSelection}
-          faultTreeName={(reference) => {
-            const top = model.tops.find((candidate) => candidate.modelId === reference.modelId);
-            return top === undefined ? undefined : `${top.code} · ${top.name}`;
-          }}
-          {...(endStates.length === 0 ? {} : { endStateOptions: endStates })}
-          onOpenReference={(reference) => {
-            if ("targetEventTreeId" in reference) setTreeId(reference.targetEventTreeId);
-            else onFaultTree([reference.modelId]);
-          }}
-        />
-      )}
-    </>
-  );
-}
-
-function FamiliesPanel({ view, onOpen }: { view: EsqSolveView; onOpen: (id: string) => void }): JSX.Element {
+function FamiliesPanel({ view, shownRun, onOpen, onCutSets }: { view: EsqSolveView; shownRun: ShownRun; onOpen: (id: string) => void; onCutSets: (dialog: CutSetDialog) => void }): JSX.Element {
   const { editable } = useEsqWorkbook();
   const [page, setPage] = useState(0);
   const rows = paged(view.families.length, page);
   const shown = view.families.slice(rows.start, rows.start + PAGE);
+  const runValues = new Map((shownRun.summary?.families ?? []).map((family) => [family.familyId, family.annualFrequency]));
+  const withCutSets = new Set((shownRun.summary?.families ?? []).flatMap((family) => (family.cutSets.length > 0 ? [family.familyId] : [])));
   const actionLabel = editable ? "Edit" : "View";
   return (
     <>
@@ -799,18 +1208,22 @@ function FamiliesPanel({ view, onOpen }: { view: EsqSolveView; onOpen: (id: stri
         <div className="es-records__filters" />
         <div className="es-records__actions"><Pager rows={rows} noun="family" plural="families" onPage={setPage} /></div>
       </div>
+      <ShownCaption shownRun={shownRun} model={view.model} />
       {view.families.length > 0 && (
-        <table className="postable postable--mid es-records" aria-label="Family values">
+        <table className="postable postable--mid es-records esq-results" aria-label="Family values">
           <thead><tr><th scope="col">Family</th><th scope="col">PRAXIS (/yr)</th><th scope="col">Typed or imported (/yr)</th><th scope="col">Difference</th><th scope="col">Of record (/yr)</th><th scope="col" className="es-records__act" aria-label="Actions" /></tr></thead>
           <tbody>
             {shown.map((family) => {
               const solve = family.solve;
-              const run = solve?.run?.annualFrequency;
+              const run = runValues.get(family.id);
               const compared = solve?.typed !== undefined ? { value: solve.typed.annualFrequency, from: "Typed" } : solve?.imported !== undefined ? { value: solve.imported.annualFrequency, from: "Imported from ES" } : undefined;
+              const name = blank(family.name) ? family.id : family.name;
               return (
                 <tr key={family.id}>
                   <td>
-                    <span className="postable__name">{blank(family.name) ? family.id : family.name}</span>
+                    {withCutSets.has(family.id)
+                      ? <button type="button" className="es-records__link" aria-label={`Cut sets of ${family.id}`} onClick={() => onCutSets({ kind: "familyCutSets", familyId: family.id, treeId: null })}>{name}</button>
+                      : <span className="postable__name">{name}</span>}
                     {!blank(family.name) && <span className="postable__name-sub">{family.id}</span>}
                   </td>
                   <td className="posmono">{run === undefined ? <Muted>None</Muted> : sciText(run)}</td>
@@ -836,187 +1249,79 @@ function FamiliesPanel({ view, onOpen }: { view: EsqSolveView; onOpen: (id: stri
   );
 }
 
-function SequencesPanel({ view, shownRun, networks, onCutSets }: { view: EsqSolveView; shownRun: ShownRun; networks: readonly NetworkOption[]; onCutSets: (filter: CutSetFilter) => void }): JSX.Element {
-  const fieldId = useId();
-  const [family, setFamily] = useState("");
-  const [state, setState] = useState("");
-  const [page, setPage] = useState(0);
-  const summary = shownRun.summary;
-  const model = view.model;
-  const stateOf = new Map(model.trees.map((tree) => [tree.id, tree.stateId]));
-  const all = summary?.sequences ?? [];
-  const families = [...new Set(all.flatMap((sequence) => (sequence.familyId === null ? [] : [sequence.familyId])))].sort();
-  const states = [...new Set(all.flatMap((sequence) => {
-    const stateId = stateOf.get(sequence.treeId);
-    return stateId === undefined ? [] : [stateId];
-  }))].sort();
-  const filtered = all
-    .filter((sequence) => (family === "" || sequence.familyId === family) && (state === "" || stateOf.get(sequence.treeId) === state))
-    .sort((a, b) => b.annualFrequency - a.annualFrequency);
-  const rows = paged(filtered.length, page);
-  const shown = filtered.slice(rows.start, rows.start + PAGE);
-  const cutSetRun = summary?.calculation === "CUT_SETS";
-
-  return (
-    <>
-      <div className="es-records__bar">
-        <div className="es-records__filters">
-          <RunFilter shownRun={shownRun} recordId={view.run?.runId} />
-          <div className="es-records__filter">
-            <label className="posfield__label" htmlFor={`${fieldId}-family`}>Family</label>
-            <select id={`${fieldId}-family`} className="posfield__select" value={family} onChange={(event) => { setFamily(event.target.value); setPage(0); }}>
-              <option value="">All families</option>
-              {families.map((id) => <option key={id} value={id}>{id}</option>)}
-            </select>
-          </div>
-          <div className="es-records__filter">
-            <label className="posfield__label" htmlFor={`${fieldId}-state`}>Operating state</label>
-            <select id={`${fieldId}-state`} className="posfield__select" value={state} onChange={(event) => { setState(event.target.value); setPage(0); }}>
-              <option value="">All states</option>
-              {states.map((id) => <option key={id} value={id}>{id}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="es-records__actions"><Pager rows={rows} noun="sequence" onPage={setPage} /></div>
-      </div>
-      <ShownCaption shownRun={shownRun} model={model} networks={networks} />
-      {filtered.length > 0 && (
-        <table className="postable postable--mid es-records" aria-label="Sequence frequencies">
-          <thead><tr><th scope="col">Sequence</th><th scope="col">Family</th><th scope="col">Given the initiator</th><th scope="col">Frequency (/yr)</th>{cutSetRun && <th scope="col" className="es-records__act" aria-label="Actions" />}</tr></thead>
-          <tbody>
-            {shown.map((sequence) => {
-              const key = sequenceKeyOf(sequence);
-              const familyId = sequence.familyId;
-              return (
-                <tr key={key}>
-                  <td>
-                    <span className="postable__name">{sequenceText(model, sequence.sequenceIds)}</span>
-                    <span className="postable__name-sub">{treeLabel(model, sequence.treeId)}</span>
-                  </td>
-                  <td>{familyId ?? <Muted>None</Muted>}</td>
-                  <td className="posmono">{sciText(sequence.conditionalProbability)}</td>
-                  <td className="posmono">{sciText(sequence.annualFrequency)}</td>
-                  {cutSetRun && (
-                    <td className="es-records__act">
-                      {familyId !== null && (sequence.cutSetCount ?? 0) > 0 && <button type="button" className="posnav__btn posnav__btn--sm" aria-label={`Cut sets of ${sequenceText(model, sequence.sequenceIds)}`} onClick={() => onCutSets({ familyId, sequenceKey: key })}>Cut sets</button>}
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-    </>
-  );
-}
-
-function CutSetsPanel({ view, shownRun, networks, filter, onFilter, onReview, onFaultTree }: {
+function CutSetsDialog({ dialog, view, summary, treeResult, onClose }: {
+  dialog: CutSetDialog;
   view: EsqSolveView;
-  shownRun: ShownRun;
-  networks: readonly NetworkOption[];
-  filter: CutSetFilter;
-  onFilter: (filter: CutSetFilter) => void;
-  onReview: (key: string) => void;
-  onFaultTree: (modelIds: string[], eventIds: string[]) => void;
-}): JSX.Element {
-  const { esq, editable, upstream, runtime, mutateEsq } = useEsqWorkbook();
-  const fieldId = useId();
-  const [page, setPage] = useState(0);
-  const summary = shownRun.summary;
+  summary: EsqModelRunResult | undefined;
+  treeResult: EventTreeAnalysisResult | undefined;
+  onClose: () => void;
+}): JSX.Element | null {
+  const { esq, upstream } = useEsqWorkbook();
+  const reader = useMemo(() => esqEventReader(esq, summary?.eventCodes), [esq, summary]);
   const model = view.model;
-  const cutSetRun = summary?.calculation === "CUT_SETS";
-  const families = summary === undefined || !cutSetRun ? [] : summary.families.filter((family) => family.cutSets.length > 0);
-  const family = families.find((candidate) => candidate.familyId === filter.familyId) ?? families[0];
-  const sequences = summary === undefined || family === undefined ? [] : summary.sequences
-    .filter((sequence) => sequence.familyId === family.familyId && (sequence.cutSetCount ?? 0) > 0)
-    .sort((a, b) => b.annualFrequency - a.annualFrequency);
-  const chosen = sequences.find((sequence) => sequenceKeyOf(sequence) === filter.sequenceKey);
-  const childRunId = chosen === undefined ? undefined : summary?.trees.find((tree) => tree.treeId === chosen.treeId)?.runId;
-  const treeResult = useTreeResult(runtime.workbookId, childRunId);
+  const sequence = dialog.kind === "sequenceCutSets" ? summary?.sequences.find((entry) => sequenceKeyOf(entry) === dialog.sequenceKey) : undefined;
+  if (summary === undefined || (dialog.kind === "sequenceCutSets" && sequence === undefined)) return null;
+  const familyId = dialog.kind === "familyCutSets" ? dialog.familyId : sequence?.familyId ?? null;
+  const treeId = dialog.kind === "familyCutSets" ? dialog.treeId : sequence?.treeId ?? null;
+  const family = familyId === null ? undefined : summary.families.find((entry) => entry.familyId === familyId);
+  const familyValue = family?.annualFrequency ?? 0;
   const thresholds = thresholdsOf(esq, upstream.ri);
-  const codes = new Map(model.events.map((event) => [event.id, event.code]));
-  const codeOf = (id: string): string => summary?.eventCodes[id] ?? codes.get(id) ?? id;
-  const familyRows = summary === undefined || family === undefined ? [] : cutSetRows(summary, family.familyId, family.annualFrequency, reviewOf(esq), thresholds, codeOf);
-  const rows = chosen === undefined || family === undefined ? familyRows : sequenceCutSetRows({
-    entry: childEntryOf(treeResult, model, chosen),
-    familyId: family.familyId,
-    treeId: chosen.treeId,
-    total: family.annualFrequency,
+  const familyRows = family === undefined ? [] : cutSetRows(summary, family.familyId, familyValue, thresholds, reader.code);
+  const treeFamily = sequence === undefined && treeId !== null ? treeResult?.families?.find((entry) => entry.familyId === familyId) : undefined;
+  const lastSweep = treeFamily === undefined ? undefined : treeFamily.sweep[treeFamily.sweep.length - 1];
+  const treeFamilyValue = summary.trees.find((tree) => tree.treeId === treeId)?.families?.find((entry) => entry.familyId === familyId)?.annualFrequency ?? lastSweep?.annualFrequency ?? 0;
+  const items = sequence === undefined ? treeFamily?.items : childEntryOf(treeResult, model, sequence)?.cutSets?.items;
+  const rows = treeId === null ? familyRows : scopedCutSetRows({
+    items: items ?? [],
+    familyId: familyId ?? "",
+    treeId,
+    total: sequence === undefined ? treeFamilyValue : sequence.annualFrequency,
+    familyValue,
     familyRows,
-    esq,
     individualPercent: thresholds.individualPercent,
-    codeOf,
+    codeOf: reader.code,
   });
-  const paging = paged(rows.length, page);
-  const shown = rows.slice(paging.start, paging.start + PAGE);
-
-  function review(row: EsqCutSetRow): void {
-    if (row.review === undefined) {
-      if (!editable) return;
-      mutateEsq((draft) => withCutSetReview(draft, row, {}));
-    }
-    onReview(row.key);
-  }
+  const familyTitle =familyId === null ? "" : familyText(view, familyId);
+  const title = sequence !== undefined ? `${sequenceText(model, sequence.sequenceIds)} · ${treeLabel(model, sequence.treeId)}`
+    : treeId === null ? familyTitle
+    : `${familyTitle} · ${treeLabel(model, treeId)}`;
+  const scopeKey = dialog.kind === "sequenceCutSets" ? dialog.sequenceKey : `${dialog.familyId}:${dialog.treeId ?? ""}`;
 
   return (
-    <>
-      <div className="es-records__bar">
-        <div className="es-records__filters">
-          <RunFilter shownRun={shownRun} recordId={view.run?.runId} />
-          {family !== undefined && (
-            <div className="es-records__filter">
-              <label className="posfield__label" htmlFor={`${fieldId}-family`}>Family</label>
-              <select id={`${fieldId}-family`} className="posfield__select" value={family.familyId} onChange={(event) => { onFilter({ familyId: event.target.value, sequenceKey: "" }); setPage(0); }}>
-                {families.map((candidate) => <option key={candidate.familyId} value={candidate.familyId}>{familyText(view, candidate.familyId)}</option>)}
-              </select>
-            </div>
-          )}
-          {family !== undefined && sequences.length > 0 && (
-            <div className="es-records__filter">
-              <label className="posfield__label" htmlFor={`${fieldId}-sequence`}>Sequence</label>
-              <select id={`${fieldId}-sequence`} className="posfield__select" value={chosen === undefined ? "" : sequenceKeyOf(chosen)} onChange={(event) => { onFilter({ familyId: family.familyId, sequenceKey: event.target.value }); setPage(0); }}>
-                <option value="">All sequences</option>
-                {sequences.map((sequence) => <option key={sequenceKeyOf(sequence)} value={sequenceKeyOf(sequence)}>{`${sequenceText(model, sequence.sequenceIds)} · ${treeLabel(model, sequence.treeId)}`}</option>)}
-              </select>
-            </div>
-          )}
-        </div>
-        <div className="es-records__actions"><Pager rows={paging} noun="cut set" onPage={setPage} /></div>
+    <DialogShell label="Cut sets" onClose={onClose} fit>
+      <DialogHead cap="Cut sets · ESQ-D1 · ESQ-D5" title={title} onClose={onClose} />
+      <div className="modal__body esq-dialog-body">
+        {rows.length > 0 && (
+          <PagedResults items={rows} label="Cut sets" resetKey={`${summary.runId}:${scopeKey}`}>
+            {(page) => (
+              <table className="postable postable--mid es-records esq-results" aria-label="Cut sets">
+                <thead><tr><th scope="col">Cut set</th><th scope="col">Frequency (/yr)</th><th scope="col">Share</th></tr></thead>
+                <tbody>
+                  {page.map((row) => {
+                    const text = row.codes.length === 0 ? "Initiator alone" : row.codes.join(" · ");
+                    const note = [row.significant ? "Significant" : "", treeId === null ? treeLabel(model, row.treeId) : ""].filter((part) => part.length > 0).join(" · ");
+                    return (
+                      <tr key={row.key}>
+                        <td>
+                          <span className="postable__name">{text}</span>
+                          {note.length > 0 && <span className="postable__name-sub">{note}</span>}
+                        </td>
+                        <td className="posmono">{sciText(row.annualFrequency)}</td>
+                        <td className="posmono">{shareText(row.share)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </PagedResults>
+        )}
       </div>
-      <ShownCaption shownRun={shownRun} model={model} networks={networks} />
-      {rows.length > 0 && (
-        <table className="postable postable--mid es-records" aria-label="Cut sets">
-          <thead><tr><th scope="col">Cut set</th><th scope="col">Frequency (/yr)</th><th scope="col">Share</th><th scope="col">Review</th><th scope="col" className="es-records__act" aria-label="Actions" /></tr></thead>
-          <tbody>
-            {shown.map((row) => {
-              const verdict = row.review?.verdict;
-              const tops = topsOf(model, row.eventIds);
-              const text = row.codes.length === 0 ? "Initiator alone" : row.codes.join(" · ");
-              return (
-                <tr key={row.key}>
-                  <td>
-                    <span className="postable__name">{text}</span>
-                    <span className="postable__name-sub">{`${row.significant ? "Significant · " : ""}${treeLabel(model, row.treeId)}`}</span>
-                  </td>
-                  <td className="posmono">{sciText(row.annualFrequency)}</td>
-                  <td className="posmono">{shareText(row.share)}</td>
-                  <td>{verdict === "CORRECT" ? "Correct" : verdict === "ISSUE" ? <Flag>Issue</Flag> : <Muted>Not reviewed</Muted>}</td>
-                  <td className="es-records__act">
-                    {(editable || row.review !== undefined) && <button type="button" className="posnav__btn posnav__btn--sm" aria-label={`Review ${text}`} onClick={() => review(row)}>{row.review === undefined ? "Review" : editable ? "Edit" : "View"}</button>}
-                    {tops.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm" aria-label={`Fault trees of ${text}`} onClick={() => onFaultTree(tops, row.eventIds)}>Fault trees</button>}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-    </>
+    </DialogShell>
   );
 }
 
-function ConvergencePanel({ view, shownRun, networks, onSweep }: { view: EsqSolveView; shownRun: ShownRun; networks: readonly NetworkOption[]; onSweep: (id: string) => void }): JSX.Element {
+function ConvergencePanel({ view, shownRun, onSweep }: { view: EsqSolveView; shownRun: ShownRun; onSweep: (id: string) => void }): JSX.Element {
   const [page, setPage] = useState(0);
   const summary = shownRun.summary;
   const swept = summary === undefined ? [] : runConvergenceOf(summary, view);
@@ -1025,12 +1330,12 @@ function ConvergencePanel({ view, shownRun, networks, onSweep }: { view: EsqSolv
   return (
     <>
       <div className="es-records__bar">
-        <div className="es-records__filters"><RunFilter shownRun={shownRun} recordId={view.run?.runId} /></div>
+        <div className="es-records__filters" />
         <div className="es-records__actions"><Pager rows={rows} noun="family" plural="families" onPage={setPage} /></div>
       </div>
-      <ShownCaption shownRun={shownRun} model={view.model} networks={networks} />
+      <ShownCaption shownRun={shownRun} model={view.model} />
       {swept.length > 0 && (
-        <table className="postable postable--mid es-records" aria-label="Convergence by family">
+        <table className="postable postable--mid es-records esq-results" aria-label="Convergence by family">
           <thead><tr><th scope="col">Family</th><th scope="col">Converged at</th><th scope="col">Last change</th><th scope="col">States converged</th><th scope="col" className="es-records__act" aria-label="Actions" /></tr></thead>
           <tbody>
             {shown.map((family) => {
@@ -1147,10 +1452,16 @@ function RunDialog({ view, onClose }: { view: EsqSolveView; onClose: () => void 
   const cutOffs = run.cutOffs ?? [];
   const first = cutOffs[0];
   const last = cutOffs[cutOffs.length - 1];
+  const calculation = run.hcl !== undefined ? `Dependencies · ${plural(run.hcl.treeIds.length, "event tree", "event trees")} on the dependency network`
+    : run.monteCarlo !== undefined ? `Direct Monte Carlo · ${run.monteCarlo.trials.toLocaleString()} trials · seed ${String(run.monteCarlo.seed)}`
+    : run.quantifier === undefined ? `${CALCULATION_LABELS[run.calculation]} · Direct BDD`
+    : `${CALCULATION_LABELS[run.calculation]} · ${CUT_SET_ALGORITHM} · ${QUANTIFIER_LABELS[run.quantifier].toLowerCase()}`;
+  const treatment = TREATMENT_OPTIONS.find(([option]) => option === run.successTreatment)?.[1];
   const facts: [string, string][] = [
-    ["Status", view.stale ? "Older than its inputs" : "Current"],
+    ["Status", view.stale ? view.change ?? "Older than its inputs" : "Current"],
     ["Workbook revision", String(run.revision)],
-    ["Calculation", run.hcl !== undefined ? `HCL · ${String(run.hcl.treeIds.length)} event trees on the network` : run.quantifier === undefined ? CALCULATION_LABELS[run.calculation] : `${CALCULATION_LABELS[run.calculation]} · ${QUANTIFIER_LABELS[run.quantifier].toLowerCase()}`],
+    ["Calculation", calculation],
+    ["Success treatment", treatment ?? "None"],
     ["Cutoffs", first === undefined || last === undefined ? "None" : `${sciText(first)} to ${sciText(last)}${run.basis === undefined ? "" : ` · ${BASIS_LABELS[run.basis].toLowerCase()}`}`],
     ["Order limit", run.limitOrder === undefined ? "None" : String(run.limitOrder)],
     ["Logic", runLogicText(run.logic)],
@@ -1180,56 +1491,6 @@ function RunDialog({ view, onClose }: { view: EsqSolveView; onClose: () => void 
   );
 }
 
-function ReviewDialog({ reviewKey, onClose, onFaultTree }: { reviewKey: string; onClose: () => void; onFaultTree?: (modelIds: string[], eventIds: string[]) => void }): JSX.Element | null {
-  const { esq, editable, mutateEsq } = useEsqWorkbook();
-  const fieldId = useId();
-  const review = reviewOf(esq).cutSetReviews?.find((entry) => entry.key === reviewKey);
-  const model = esq.model;
-  if (review === undefined || model === undefined) return null;
-  const codes = new Map(model.events.map((event) => [event.id, event.code]));
-  const labels = review.eventIds.map((eventId) => codes.get(eventId) ?? eventId);
-  const row: EsqCutSetRow = { key: review.key, familyId: review.familyId, treeId: review.treeId, eventIds: review.eventIds, codes: labels, annualFrequency: review.annualFrequency, share: 0, cumulative: 0, significant: review.significant };
-  const tops = topsOf(model, review.eventIds);
-
-  function save(change: { verdict?: "CORRECT" | "ISSUE"; note?: string }): void {
-    if (!editable) return;
-    mutateEsq((draft) => withCutSetReview(draft, row, change));
-  }
-
-  return (
-    <DialogShell label="Cut set review" onClose={onClose}>
-      <DialogHead cap={review.significant ? "Cut set review · significant · ESQ-D1" : "Cut set review · non-significant · ESQ-D5"} title={`${review.familyId} · ${labels.length === 0 ? "Initiator alone" : labels.join(" · ")}`} onClose={onClose} />
-      <div className="modal__body esq-dialog-body">
-        <div className="posfield-grid esq-dialog-fields">
-          <div className="posfield">
-            <label className="posfield__label" htmlFor={`${fieldId}-verdict`}>Logic</label>
-            <select id={`${fieldId}-verdict`} className="posfield__select" value={review.verdict ?? ""} disabled={!editable} onChange={(event) => {
-              const value = event.target.value;
-              save(value === "CORRECT" || value === "ISSUE" ? { verdict: value } : { verdict: undefined });
-            }}>
-              <option value="">Not reviewed</option>
-              <option value="CORRECT">{review.significant ? "Correct" : "Correct and physically meaningful"}</option>
-              <option value="ISSUE">Wrong, needs a fix</option>
-            </select>
-          </div>
-          <AreaField label="Note" value={review.note} editable={editable} required={review.verdict === "ISSUE"} onChange={(note) => save({ note })} />
-        </div>
-        {((onFaultTree !== undefined && tops.length > 0) || editable) && (
-          <div className="posrow es-dialog-actions">
-            {onFaultTree !== undefined && tops.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onFaultTree(tops, review.eventIds)}>Fault trees</button>}
-            {editable && (
-              <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => {
-                mutateEsq((draft) => ({ ...draft, review: { ...reviewOf(draft), cutSetReviews: (reviewOf(draft).cutSetReviews ?? []).filter((entry) => entry.key !== reviewKey) } }));
-                onClose();
-              }}>Remove review</button>
-            )}
-          </div>
-        )}
-      </div>
-    </DialogShell>
-  );
-}
-
 function SweepDialog({ id, view, summary, onClose }: { id: string; view: EsqSolveView; summary: EsqModelRunResult | undefined; onClose: () => void }): JSX.Element | null {
   const family = summary === undefined ? undefined : runConvergenceOf(summary, view).find((candidate) => candidate.id === id);
   if (family === undefined) return null;
@@ -1238,7 +1499,7 @@ function SweepDialog({ id, view, summary, onClose }: { id: string; view: EsqSolv
     <DialogShell label="Cutoff sweep" onClose={onClose} fit>
       <DialogHead cap="Cutoff sweep · ESQ-B2 · ESQ-B3 · ESQ-N-4" title={familyText(view, id)} onClose={onClose} />
       <div className="modal__body esq-dialog-body">
-        <table className="postable postable--mid es-records" aria-label={`${id} sweep`}>
+        <table className="postable postable--mid es-records esq-results" aria-label={`${id} sweep`}>
           <thead><tr><th scope="col">Cutoff</th><th scope="col">Cut sets</th><th scope="col">Frequency (/yr)</th><th scope="col">Change</th></tr></thead>
           <tbody>
             {family.sweep.map((point, index) => (
@@ -1252,7 +1513,7 @@ function SweepDialog({ id, view, summary, onClose }: { id: string; view: EsqSolv
           </tbody>
         </table>
         {states.length > 0 && (
-          <table className="postable postable--mid es-records" aria-label={`${id} by operating state`}>
+          <table className="postable postable--mid es-records esq-results" aria-label={`${id} by operating state`}>
             <thead><tr><th scope="col">Operating state</th><th scope="col">Frequency (/yr)</th><th scope="col">Converged at</th><th scope="col">Last change</th></tr></thead>
             <tbody>
               {states.map((state) => (
@@ -1271,72 +1532,6 @@ function SweepDialog({ id, view, summary, onClose }: { id: string; view: EsqSolv
   );
 }
 
-function FaultTreeDialog({ modelIds, eventIds, onClose }: { modelIds: readonly string[]; eventIds: readonly string[]; onClose: () => void }): JSX.Element {
-  const { esq, upstream } = useEsqWorkbook();
-  const fieldId = useId();
-  const sy = upstream.sy;
-  const logicModels = useMemo(() => (sy?.systemLogicModels ?? []).filter((model) => model.topGate !== null), [sy]);
-  const [modelId, setModelId] = useState(() => modelIds[0] ?? logicModels[0]?.uuid ?? "");
-  const [selection, setSelection] = useState<FaultTreeSelection>(() => selectionIn(logicModels.find((model) => model.uuid === modelId), eventIds));
-  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
-  const points = useInputPoints(esq, table);
-  const catalogue = useMemo(() => toFaultTreeEditorCatalogue(sy?.systemBasicEvents ?? []), [sy]);
-  const values = useMemo(() => valueTexts(esq, points), [esq, points]);
-  const logic = logicModels.find((model) => model.uuid === modelId);
-  const choices = modelIds.length === 0 ? logicModels : logicModels.filter((model) => modelIds.includes(model.uuid) || model.uuid === modelId);
-  const transferTargets = logicModels.flatMap((candidate) => (candidate.topGate === null || candidate.uuid === modelId
-    ? []
-    : [{ target: { modelId: candidate.uuid, entityId: candidate.topGate.gateId }, code: candidate.code, name: candidate.name, description: candidate.description }]));
-
-  function choose(id: string): void {
-    setModelId(id);
-    setSelection(selectionIn(logicModels.find((model) => model.uuid === id), eventIds));
-  }
-
-  return (
-    <DialogShell label="Fault trees" onClose={onClose} fit>
-      <DialogHead cap="Fault tree · SY" title={logic === undefined ? "Fault tree" : `${logic.code} · ${logic.name}`} onClose={onClose} />
-      <div className="modal__body">
-        {choices.length > 1 && (
-          <div className="es-records__bar">
-            <div className="es-records__filters">
-              <div className="es-records__filter">
-                <label className="posfield__label" htmlFor={`${fieldId}-model`}>Fault tree</label>
-                <select id={`${fieldId}-model`} className="posfield__select" value={modelId} onChange={(event) => choose(event.target.value)}>
-                  {choices.map((model) => <option key={model.uuid} value={model.uuid}>{`${model.code} · ${model.name}`}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-        {logic !== undefined && (
-          <div className="esq-solve-ft">
-            <FaultTreeEditor
-              key={logic.uuid}
-              model={toFaultTreeEditorModel(logic)}
-              catalogue={catalogue}
-              readOnlyBasicEventValues={values}
-              capabilities={READ_ONLY_TREE}
-              selection={selection}
-              validation={[]}
-              saveState="saved"
-              analysisResult={null}
-              showResults={false}
-              showHeaderStatus={false}
-              resultIsStale={false}
-              transferTargets={transferTargets}
-              onOperation={() => undefined}
-              onSelectionChange={setSelection}
-              onOpenReference={(request) => { if (request.kind === "TRANSFER") choose(request.target.modelId); }}
-              onRun={() => undefined}
-            />
-          </div>
-        )}
-      </div>
-    </DialogShell>
-  );
-}
-
 function SolveDialogs({ context, onClose }: { context: EsqWindowContext; onClose: () => void }): JSX.Element | null {
   const { esq, upstream } = useEsqWorkbook();
   const view = solveViewOf(esq, upstream.es);
@@ -1344,19 +1539,45 @@ function SolveDialogs({ context, onClose }: { context: EsqWindowContext; onClose
   switch (context.kind) {
     case "esqSolveFamily": return <FamilyDialog id={context.id} view={view} onClose={onClose} />;
     case "esqSolveRun": return <RunDialog view={view} onClose={onClose} />;
-    case "esqSolveCutSet": return <ReviewDialog reviewKey={context.id} onClose={onClose} />;
     default: return null;
   }
 }
 
 function EsqSolveTabs({ initialNetworkId = null, initialSourceWorkbookId = null }: { initialNetworkId?: string | null; initialSourceWorkbookId?: string | null }): JSX.Element {
   const { esq, upstream, runtime } = useEsqWorkbook();
-  const view = useMemo(() => solveViewOf(esq, upstream.es), [esq, upstream.es]);
-  const shownRun = useShownRun(view === undefined ? null : runtime.workbookId, view?.run?.runId);
-  const composer = useComposer(shownRun, initialNetworkId, initialSourceWorkbookId);
-  const [tab, setTab] = useState<SolveTab>("runs");
-  const [dialog, setDialog] = useState<SolveDialog | null>(null);
-  const [cutSetFilter, setCutSetFilter] = useState<CutSetFilter>({ familyId: "", sequenceKey: "" });
+  const baseView = useMemo(() => solveViewOf(esq, upstream.es), [esq, upstream.es]);
+  const loadedRun = useShownRun(baseView === undefined ? null : runtime.workbookId, baseView?.run?.runId);
+  const summary = loadedRun.summary;
+  const shownStale = useMemo(() => summary !== undefined && summaryStale(summary, esq), [summary, esq]);
+  const recordId = baseView?.stale === true ? baseView.run?.runId : undefined;
+  const saved = useRunWorkbooks(runtime.workbookId, [recordId, shownStale ? summary?.runId : undefined]);
+  const recordSaved = recordId === undefined ? undefined : saved.get(recordId);
+  const shownSaved = shownStale && summary !== undefined ? saved.get(summary.runId) : undefined;
+  const view = useMemo(() => (baseView === undefined || recordSaved === undefined ? baseView : withRunChange(baseView, esq, recordSaved)), [baseView, esq, recordSaved]);
+  const shownChange = useMemo(() => (shownSaved === undefined ? undefined : solveInputsChange(shownSaved, esq)), [shownSaved, esq]);
+  const shownProblem = summary === undefined ? undefined : summaryProblem(summary, shownChange);
+  const shownRun: ShownRun = summary === undefined ? loadedRun : {
+    ...loadedRun,
+    blocked: shownStale || summary.trees.some((tree) => tree.status === "FAILED"),
+    ...(shownProblem === undefined ? {} : { problem: shownProblem }),
+  };
+  const composer = useComposer(view?.model, shownRun, initialNetworkId, initialSourceWorkbookId);
+  const [tab, setTab] = useWorkbookView<SolveTab>("solve.tab", "runs", SOLVE_TAB_VIEW);
+  useEffect(() => {
+    if (initialNetworkId !== null) setTab("runs");
+  }, [initialNetworkId, setTab]);
+  const [dialogs, setDialogs] = useState<readonly SolveDialog[]>([]);
+  const dialog = dialogs.length === 0 ? undefined : dialogs[dialogs.length - 1];
+  const cutSetTreeId = cutSetTreeOf(dialogs.find(isCutSetDialog), shownRun.summary);
+  const treeResult = useTreeResult(runtime.workbookId, cutSetTreeId === undefined ? undefined : shownRun.summary?.trees.find((tree) => tree.treeId === cutSetTreeId)?.runId);
+
+  function open(next: SolveDialog): void {
+    setDialogs((current) => [...current, next]);
+  }
+
+  function close(): void {
+    setDialogs((current) => current.slice(0, -1));
+  }
 
   function opens(finding: EsqSolveFinding): boolean {
     const target = finding.target;
@@ -1364,7 +1585,6 @@ function EsqSolveTabs({ initialNetworkId = null, initialSourceWorkbookId = null 
     switch (target.kind) {
       case "esqSolveFamily": return view.families.some((family) => family.id === target.id);
       case "esqSolveRun": return view.run !== undefined;
-      case "esqSolveCutSet": return view.reviews.some((review) => review.key === target.id);
     }
   }
 
@@ -1372,46 +1592,37 @@ function EsqSolveTabs({ initialNetworkId = null, initialSourceWorkbookId = null 
     const target = finding.target;
     if (target === undefined) return;
     switch (target.kind) {
-      case "esqSolveFamily": setDialog({ kind: "family", id: target.id }); return;
-      case "esqSolveRun": setDialog({ kind: "run" }); return;
-      case "esqSolveCutSet": setDialog({ kind: "review", key: target.id });
+      case "esqSolveFamily": open({ kind: "family", id: target.id }); return;
+      case "esqSolveRun": open({ kind: "run" });
     }
-  }
-
-  function openFaultTree(modelIds: string[], eventIds: string[] = []): void {
-    setDialog({ kind: "faultTree", modelIds, eventIds });
   }
 
   function renderPanel(): JSX.Element | null {
     if (view === undefined) return null;
     switch (tab) {
-      case "runs": return <RunsPanel view={view} shownRun={shownRun} composer={composer} onRecord={() => setDialog({ kind: "run" })} />;
-      case "trees": return <TreesPanel view={view} shownRun={shownRun} networks={composer.networks} onFaultTree={openFaultTree} />;
-      case "families": return <FamiliesPanel view={view} onOpen={(id) => setDialog({ kind: "family", id })} />;
-      case "sequences": return <SequencesPanel view={view} shownRun={shownRun} networks={composer.networks} onCutSets={(filter) => { setCutSetFilter(filter); setTab("cutsets"); }} />;
-      case "cutsets": return <CutSetsPanel view={view} shownRun={shownRun} networks={composer.networks} filter={cutSetFilter} onFilter={setCutSetFilter} onReview={(key) => setDialog({ kind: "review", key })} onFaultTree={openFaultTree} />;
-      case "convergence": return <ConvergencePanel view={view} shownRun={shownRun} networks={composer.networks} onSweep={(id) => setDialog({ kind: "sweep", id })} />;
-      case "scenarios": return <EsqEventTreeHclWorkspace mode="RUNS" initialNetworkId={initialNetworkId} initialSourceWorkbookId={initialSourceWorkbookId} />;
+      case "runs": return <RunsPanel view={view} shownRun={shownRun} composer={composer} onCutSets={open} />;
+      case "families": return <FamiliesPanel view={view} shownRun={shownRun} onOpen={(id) => open({ kind: "family", id })} onCutSets={open} />;
+      case "convergence": return <ConvergencePanel view={view} shownRun={shownRun} onSweep={(id) => open({ kind: "sweep", id })} />;
       case "dynamic": return null;
       case "checks": return <ChecksPanel findings={view.findings} opens={opens} onOpen={openFinding} />;
     }
   }
 
   function renderDialog(): JSX.Element | null {
-    if (dialog === null || view === undefined) return null;
-    const close = (): void => setDialog(null);
+    if (dialog === undefined || view === undefined) return null;
     switch (dialog.kind) {
+      case "sequenceCutSets":
+      case "familyCutSets": return <CutSetsDialog key={dialog.kind === "sequenceCutSets" ? dialog.sequenceKey : `${dialog.familyId}:${dialog.treeId ?? ""}`} dialog={dialog} view={view} summary={shownRun.summary} treeResult={treeResult} onClose={close} />;
       case "family": return <FamilyDialog key={dialog.id} id={dialog.id} view={view} onClose={close} />;
       case "run": return <RunDialog view={view} onClose={close} />;
-      case "review": return <ReviewDialog key={dialog.key} reviewKey={dialog.key} onClose={close} onFaultTree={openFaultTree} />;
       case "sweep": return <SweepDialog id={dialog.id} view={view} summary={shownRun.summary} onClose={close} />;
-      case "faultTree": return <FaultTreeDialog key={dialog.modelIds.join(",")} modelIds={dialog.modelIds} eventIds={dialog.eventIds} onClose={close} />;
     }
   }
 
   return (
     <>
       <div className="poscard es-seq-card">
+        {view !== undefined && RUN_TABS.has(tab) && <RunHead view={view} shownRun={shownRun} onRecord={() => open({ kind: "run" })} />}
         <TabBar tabs={SOLVE_TABS} tab={tab} label="Solve sections" findings={view?.findings.length ?? 0} onTab={setTab} />
         <div className="es-seq-card__panel">{renderPanel()}</div>
       </div>

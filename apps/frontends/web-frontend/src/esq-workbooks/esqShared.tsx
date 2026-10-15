@@ -1,12 +1,17 @@
 import { JSX, ReactNode, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import type { EsqModel, EsqSolveRun, EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
-import { sampledInputsOf } from "interfaces-mef-types/esq/esq-measure-inputs";
+import { eventInputKey, sampledInputsOf } from "interfaces-mef-types/esq/esq-measure-inputs";
 import { esqTreeRunId } from "interfaces-mef-types/esq/esq-run-inputs";
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
-import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import type { SystemLogicModel, SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import type { WorkbookHclConfiguration } from "interfaces-mef-types/modeling";
 import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
 import { cancelAnalysisRun, runProgressText, type RunProgressListener } from "../newly-developed-methods/shared/analysisRunWait";
+import { FaultTreeEditor, type FaultTreeSelection } from "../newly-developed-methods/fault-tree";
+import { expressionText } from "../newly-developed-methods/shared/uncertainText";
+import { toFaultTreeEditorCatalogue, toFaultTreeEditorModel } from "../sy-workbooks/SySystemModels";
+import { DialogHead, DialogShell } from "../es-workbooks/EsScope";
+import { missionTimeSourcesOf, parameterTableOf } from "./esqModel";
 import { getEsqRunDetails } from "./esqWorkbookApi";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import type { UncertainExpression, UncertainParameter, UncertainUnit } from "interfaces-mef-types/core/uncertainty";
@@ -577,12 +582,108 @@ function pctText(frac: number): string {
   return `${Math.round(frac * 100)}%`;
 }
 
+const READ_ONLY_TREE = { mode: "READ_ONLY" as const, canEditBasicEvents: false, canEditLayout: false, canImport: false, canExport: true, canRunAnalysis: false };
+
+function selectionIn(logic: SystemLogicModel | undefined, eventIds: readonly string[]): FaultTreeSelection {
+  if (logic === undefined) return null;
+  const leaf = logic.leafNodes.find((node) => node.kind === "BASIC_EVENT_REFERENCE" && eventIds.includes(node.basicEventId));
+  if (leaf !== undefined) return { kind: "LEAF", leafId: leaf.id };
+  return logic.topGate === null ? null : { kind: "GATE", gateId: logic.topGate.gateId };
+}
+
+function valueTexts(esq: EventSequenceQuantification, points: ReadonlyMap<string, number>): Record<string, string> {
+  const model = esq.model;
+  if (model === undefined) return {};
+  return Object.fromEntries(model.events.map((event) => {
+    const point = points.get(eventInputKey(esq, model, event.id));
+    const text = point !== undefined ? sciText(point)
+      : event.expression !== undefined ? expressionText(event.expression)
+      : event.value !== undefined ? sciText(event.value)
+      : "No value yet";
+    return [event.id, text];
+  }));
+}
+
+function useLogicModels(): SystemLogicModel[] {
+  const { upstream } = useEsqWorkbook();
+  const sy = upstream.sy;
+  return useMemo(() => (sy?.systemLogicModels ?? []).filter((model) => model.topGate !== null), [sy]);
+}
+
+function FaultTreeDiagram({ modelId, eventIds, onModel }: { modelId: string; eventIds: readonly string[]; onModel: (modelId: string) => void }): JSX.Element | null {
+  const { esq, upstream } = useEsqWorkbook();
+  const sy = upstream.sy;
+  const logicModels = useLogicModels();
+  const logic = logicModels.find((model) => model.uuid === modelId);
+  const [selection, setSelection] = useState<FaultTreeSelection>(() => selectionIn(logic, eventIds));
+  const table = useMemo(() => parameterTableOf(esq, missionTimeSourcesOf(esq, upstream)), [esq, upstream]);
+  const points = useInputPoints(esq, table);
+  const catalogue = useMemo(() => toFaultTreeEditorCatalogue(sy?.systemBasicEvents ?? []), [sy]);
+  const values = useMemo(() => valueTexts(esq, points), [esq, points]);
+  if (logic === undefined) return null;
+  const transferTargets = logicModels.flatMap((candidate) => (candidate.topGate === null || candidate.uuid === modelId
+    ? []
+    : [{ target: { modelId: candidate.uuid, entityId: candidate.topGate.gateId }, code: candidate.code, name: candidate.name, description: candidate.description }]));
+  return (
+    <div className="esq-dialog-ft">
+      <FaultTreeEditor
+        model={toFaultTreeEditorModel(logic)}
+        catalogue={catalogue}
+        readOnlyBasicEventValues={values}
+        capabilities={READ_ONLY_TREE}
+        selection={selection}
+        validation={[]}
+        saveState="saved"
+        analysisResult={null}
+        showResults={false}
+        showHeaderStatus={false}
+        resultIsStale={false}
+        transferTargets={transferTargets}
+        onOperation={() => undefined}
+        onSelectionChange={setSelection}
+        onOpenReference={(request) => { if (request.kind === "TRANSFER") onModel(request.target.modelId); }}
+        onRun={() => undefined}
+      />
+    </div>
+  );
+}
+
+function FaultTreeWindow({ modelIds, eventIds, onClose }: { modelIds: readonly string[]; eventIds: readonly string[]; onClose: () => void }): JSX.Element {
+  const fieldId = useId();
+  const logicModels = useLogicModels();
+  const [modelId, setModelId] = useState(() => modelIds[0] ?? logicModels[0]?.uuid ?? "");
+  const logic = logicModels.find((model) => model.uuid === modelId);
+  const choices = modelIds.length === 0 ? logicModels : logicModels.filter((model) => modelIds.includes(model.uuid) || model.uuid === modelId);
+  return (
+    <DialogShell label="Fault trees" onClose={onClose} fit>
+      <DialogHead cap="Fault tree · SY" title={logic === undefined ? "Fault tree" : `${logic.code} · ${logic.name}`} onClose={onClose} />
+      <div className="modal__body">
+        {choices.length > 1 && (
+          <div className="es-records__bar">
+            <div className="es-records__filters">
+              <div className="es-records__filter">
+                <label className="posfield__label" htmlFor={`${fieldId}-model`}>Fault tree</label>
+                <select id={`${fieldId}-model`} className="posfield__select" value={modelId} onChange={(event) => setModelId(event.target.value)}>
+                  {choices.map((model) => <option key={model.uuid} value={model.uuid}>{`${model.code} · ${model.name}`}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+        <FaultTreeDiagram key={modelId} modelId={modelId} eventIds={eventIds} onModel={setModelId} />
+      </div>
+    </DialogShell>
+  );
+}
+
 export {
   AreaField,
   Badge,
   CheckGroup,
   ChecksPanel,
   CUT_OFF_EXPONENTS,
+  FaultTreeDiagram,
+  FaultTreeWindow,
   NumberField,
   Pager,
   TextField,

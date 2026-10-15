@@ -18,11 +18,13 @@ const METHOD_TEXT: Readonly<Record<MethodType, string>> = {
   FAULT_TREE: "Fault tree",
   BAYESIAN_NETWORK: "Bayesian network",
   EVENT_TREE: "Event tree",
-  HYBRID_CAUSAL_LOGIC: "HCL",
+  HYBRID_CAUSAL_LOGIC: "Dependencies",
   LOAD_CAPACITY: "Load capacity",
 };
 
 const CALCULATION_TEXT: ReadonlyMap<string, string> = new Map([
+  ["EXACT", "Exact"],
+  ["HCL", "Dependencies"],
   ["PROBABILITY", "Probability"],
   ["CUT_SETS", "Cut sets"],
   ["PROBABILITY_AND_CUT_SETS", "Probability + cut sets"],

@@ -291,7 +291,7 @@ function DaDataPlanCard(): JSX.Element {
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="DA" title="Data plan" level={3} />
+        <WorkbookSectionHeading title="Data plan" level={3} />
         <DaProvenanceChip>DA-C3 · DA-E1 · IE-C</DaProvenanceChip>
       </div>
       <div className="da-form da-form--card">
@@ -371,13 +371,13 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, documents }: {
   return (
     <div className="da-step">
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="DA" title="Interfaces" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Interfaces" level={3} /></div>
         <DaInterfaces />
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="DA" title="PRA scope" level={3} />
+          <WorkbookSectionHeading title="PRA scope" level={3} />
           <DaProvenanceChip>DA-A1</DaProvenanceChip>
         </div>
         <WorkbookTextarea
@@ -396,7 +396,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, documents }: {
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="DA" title="Capability category" level={3} />
+          <WorkbookSectionHeading title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <div className="da-scope-choices">
@@ -416,7 +416,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, documents }: {
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><WorkbookSectionHeading workbook="DA" title="Plant stage" level={3} /></div>
+        <div className="poscard__head"><WorkbookSectionHeading title="Plant stage" level={3} /></div>
         <div className="da-scope-choices">
           {PLANT_STAGES.map((option) => (
             <label key={option.id} className={`da-scope-choice${stage === option.id ? " da-scope-choice--active" : ""}`}>
@@ -660,7 +660,7 @@ function NeedSourcesCard(): JSX.Element {
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="DA" title="Source workbooks" level={3} />
+        <WorkbookSectionHeading title="Source workbooks" level={3} />
         <div className="da-card-actions">
           <DaProvenanceChip>DA-A1</DaProvenanceChip>
           {editable && linked.length > 0 && (
@@ -1048,7 +1048,7 @@ function DataNeedsScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =>
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0}>
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="DA" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <div className="da-card-actions">
               <DaProvenanceChip>{head.sr}</DaProvenanceChip>
               {editable && head.add !== undefined && (
@@ -1832,7 +1832,7 @@ function ParametersScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) =
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0}>
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="DA" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <div className="da-card-actions">
               <DaProvenanceChip>{head.sr}</DaProvenanceChip>
               {editable && tab === "map" && (

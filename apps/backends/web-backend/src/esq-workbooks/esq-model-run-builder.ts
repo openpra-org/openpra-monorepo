@@ -10,6 +10,7 @@ import type {
 import { cellExpressionOfRecord, cellOf } from "interfaces-mef-types/esq/esq-barrier-inputs";
 import {
   activeRecoveries,
+  esqEventReader,
   esqIndependentEventId,
   esqJointEventId,
   eventProbabilityOf,
@@ -73,6 +74,25 @@ class EsqRunBuildError extends Error {
   }
 }
 
+class EsqUnresolvedReferenceError extends EsqRunBuildError {
+  readonly reference: WorkbookParameterReference;
+  readonly eventCode: string;
+
+  constructor(message: string, reference: WorkbookParameterReference, eventCode: string) {
+    super(message);
+    this.name = "EsqUnresolvedReferenceError";
+    this.reference = reference;
+    this.eventCode = eventCode;
+  }
+}
+
+class EsqPointsNeededError extends Error {
+  constructor() {
+    super("An HFE dependence combination in this tree needs the point values of its members.");
+    this.name = "EsqPointsNeededError";
+  }
+}
+
 interface EsqRunBuildInput {
   esq: EventSequenceQuantification;
   treeId: string;
@@ -80,10 +100,11 @@ interface EsqRunBuildInput {
   syWorkbookId: string;
   syRevision: number;
   missionTimes: ReadonlyMap<string, UncertainParameter>;
+  external?: ReadonlyMap<string, UncertainParameter>;
   esqWorkbookId: string;
   esqRevision: number;
   logic: EsqEventTreeRunLogic;
-  points: ReadonlyMap<string, number>;
+  points?: ReadonlyMap<string, number>;
   raisedHep?: number;
   failedEventIds?: readonly string[];
   standIn?: (treeId: string, functionId: string) => EsqRunStandIn | undefined;
@@ -322,9 +343,11 @@ function applyDependencies(
   tree: EsqTreeRecord,
   reached: ReadonlySet<string>,
   codeOf: (eventId: string) => string,
-  points: ReadonlyMap<string, number>,
+  points: ReadonlyMap<string, number> | undefined,
 ): EsqDependencyEncoding {
-  const active = resolvedCombinations(esq, points).filter((view) => view.joint !== undefined && scopeApplies(view.combination.groupIds, view.combination.stateIds, tree) && view.combination.eventIds.every((id) => reached.has(id)));
+  const touching = resolvedCombinations(esq, points).filter((view) => scopeApplies(view.combination.groupIds, view.combination.stateIds, tree) && view.combination.eventIds.every((id) => reached.has(id)));
+  if (touching.length > 0 && points === undefined) throw new EsqPointsNeededError();
+  const active = touching.filter((view) => view.joint !== undefined);
   const broken = active.find((view) => view.problem !== undefined);
   if (broken !== undefined) throw new EsqRunBuildError(`${broken.combination.id}: ${broken.problem ?? ""} Fix it in Step 04.`);
   const encoded = active.filter((view) => view.joint !== undefined && (view.independent === undefined || view.joint > view.independent * (1 + 1e-12)));
@@ -413,6 +436,7 @@ interface EsqRunTables {
   esq: EventSequenceQuantification;
   model: EsqModel;
   missionTimes: ReadonlyMap<string, UncertainParameter>;
+  external: ReadonlyMap<string, UncertainParameter>;
   esqWorkbookId: string;
   own: Map<string, UncertainParameter>;
 }
@@ -443,14 +467,14 @@ function referencedParameters(tables: EsqRunTables, expression: UncertainExpress
     if (reference === undefined) break;
     const key = parameterReferenceKey(reference);
     if (found.has(key)) continue;
-    const missionTime = missionTimes.get(key) ?? tables.own.get(key);
+    const missionTime = missionTimes.get(key) ?? tables.own.get(key) ?? tables.external.get(key);
     if (missionTime !== undefined) {
       found.set(key, missionTime);
       pending.push(...expressionReferences(missionTime.expression));
       continue;
     }
     if (reference.workbookId.trim() === esq.linkedWorkbooks?.SC?.trim()) throw new EsqRunBuildError(`${code} reads mission time ${reference.entityId}, which the linked SC workbook does not hold.`);
-    if (workbookId === undefined || reference.workbookId.trim() !== workbookId.trim()) throw new EsqRunBuildError(`${code} reads ${reference.entityId} from a workbook that Step 01 does not link as DA or SC.`);
+    if (workbookId === undefined || reference.workbookId.trim() !== workbookId.trim()) throw new EsqUnresolvedReferenceError(`${code} reads ${reference.entityId} from a workbook that Step 01 does not link as DA or SC.`, reference, code);
     const factor = (model.ccfFactors ?? []).find((entry) => parameterReferenceKey(entry.reference) === key);
     if (factor !== undefined) {
       found.set(key, factor);
@@ -612,7 +636,7 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
   const { esq } = input;
   const model = esq.model;
   if (model?.importedAt === undefined) throw new EsqRunBuildError("Import the model in Step 02 before running.");
-  const tables: EsqRunTables = { esq, model, missionTimes: input.missionTimes, esqWorkbookId: input.esqWorkbookId, own: new Map() };
+  const tables: EsqRunTables = { esq, model, missionTimes: input.missionTimes, external: input.external ?? new Map(), esqWorkbookId: input.esqWorkbookId, own: new Map() };
   const root = model.trees.find((tree) => tree.id === input.treeId);
   if (root === undefined) throw new EsqRunBuildError(`Event tree ${input.treeId} is not in the imported model.`);
   if (root.transferEntry) throw new EsqRunBuildError(`${root.code} is entered by transfer. Run the tree that transfers into it.`);
@@ -731,8 +755,7 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
     throw new EsqRunBuildError(`The fault trees ${codes.join(", ")} form a loop. Break it in the Loops tab of Step 04.`);
   }
 
-  const eventCode = new Map(input.sy.systemBasicEvents.map((event) => [event.uuid, event.code]));
-  const codeOf = (eventId: string): string => model.events.find((event) => event.id === eventId)?.code ?? eventCode.get(eventId) ?? eventId;
+  const codeOf = esqEventReader(esq, Object.fromEntries(input.sy.systemBasicEvents.map((event) => [event.uuid, event.code]))).code;
   let sy = input.sy;
   if (input.logic.flags) {
     const chosen = new Map<string, EsqFlag>();
@@ -779,7 +802,7 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
   const nominal: Record<string, number> = {};
   for (const id of humanEventIds) {
     const recovery = recoveryOfEvent.get(id);
-    const value = recovery === undefined ? eventProbabilityOf(esq, model, id, input.points) : input.points.get(recoveryInputKey(recovery));
+    const value = recovery === undefined ? eventProbabilityOf(esq, model, id, input.points) : input.points?.get(recoveryInputKey(recovery));
     if (value !== undefined) nominal[id] = value;
   }
   let encoding: EsqDependencyEncoding = { sy, joints: [], independents: [] };
@@ -878,4 +901,14 @@ function buildEsqEventTreeRun(input: EsqRunBuildInput): EsqRunBuild {
   };
 }
 
-export { buildEsqEventTreeRun, EsqRunBuildError, type EsqRunBuild, type EsqRunBuildInput, type EsqRunEventRole, type EsqRunEventValue, type EsqRunStandIn };
+export {
+  buildEsqEventTreeRun,
+  EsqPointsNeededError,
+  EsqRunBuildError,
+  EsqUnresolvedReferenceError,
+  type EsqRunBuild,
+  type EsqRunBuildInput,
+  type EsqRunEventRole,
+  type EsqRunEventValue,
+  type EsqRunStandIn,
+};

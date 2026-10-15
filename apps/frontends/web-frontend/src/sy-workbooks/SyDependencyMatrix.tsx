@@ -44,7 +44,7 @@ function DependencyMatrix({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) =
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="SY" title="Dependency matrix" level={3} />
+        <WorkbookSectionHeading title="Dependency matrix" level={3} />
       </div>
       <div className="sy-review">
         <section className="sy-review-section" aria-label="Dependency matrix">

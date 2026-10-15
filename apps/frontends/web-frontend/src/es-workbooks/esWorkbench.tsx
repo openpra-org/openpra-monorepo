@@ -30,7 +30,6 @@ import "./css/esScreens.css";
 interface StepHeader {
   eyebrow: string;
   title: string;
-  sub?: string;
 }
 
 function headersFor(stepId: string): StepHeader {
@@ -38,13 +37,13 @@ function headersFor(stepId: string): StepHeader {
     case "scope": return { eyebrow: "Step 01 · ES-A", title: "Scope" };
     case "sequences": return { eyebrow: "Step 02 · ES-A", title: "Event Sequences" };
     case "deps": return { eyebrow: "Step 03 · ES-B", title: "Dependencies" };
-    case "timing": return { eyebrow: "Step 04", title: "Timing, phenomena & repair", sub: "Sequence timelines, operator windows, phenomena and repair credit (ES-A6, A10, A11, B3, C9)." };
-    case "dynamic": return { eyebrow: "Step 05", title: "Dynamic PRA", sub: "Dynamic event trees and the timing they give each sequence (ES-A5, A6, A10, B8)." };
-    case "uncertainty": return { eyebrow: "Step 06", title: "Uncertainty", sub: "Model uncertainties, the sensitivity cases they call for, and pre-operational assumptions (ES-A14, A15, B9, B10, C10, C11)." };
+    case "timing": return { eyebrow: "Step 04", title: "Timing, phenomena & repair" };
+    case "dynamic": return { eyebrow: "Step 05", title: "Dynamic PRA" };
+    case "uncertainty": return { eyebrow: "Step 06", title: "Uncertainty" };
     case "handoff": return { eyebrow: "Step 07", title: "Technical Element Handoff" };
-    case "draft": return { eyebrow: "Step 08 · Draft", title: "Produce the draft", sub: "Build the ES report from everything you entered; sending it moves the workbook to internal technical review." };
-    case "review": return { eyebrow: "Step 09 · Review", title: "Internal technical review", sub: "Reviewers and the approver leave comments and the preparer replies, with the workbook moving to Approval once every comment is resolved." };
-    case "approval": return { eyebrow: "Step 10 · Approval", title: "Approval & sign-off", sub: "Everyone on the workbook signs, with the approver signing last and only after all comments are resolved." };
+    case "draft": return { eyebrow: "Step 08 · Draft", title: "Produce the draft" };
+    case "review": return { eyebrow: "Step 09 · Review", title: "Internal technical review" };
+    case "approval": return { eyebrow: "Step 10 · Approval", title: "Approval & sign-off" };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -54,7 +53,6 @@ interface HeaderMeta {
   workbookName: string;
   workbookVersion: string;
   saveStatus?: RevisionedSaveStatus;
-  plantIdentity?: { name: string; type: string; power: string; vendor: string };
 }
 
 function WorkspaceHeader({
@@ -102,17 +100,6 @@ function WorkspaceHeader({
           </span>
         )}
       </div>
-
-      <div className="poshd__spacer" />
-
-      {headerMeta.plantIdentity !== undefined && (
-        <div className="poshd__identity">
-          <div className="poshd__identity-title">{headerMeta.plantIdentity.name}</div>
-          <div className="poshd__identity-meta">
-            {headerMeta.plantIdentity.type} <span className="poshd__identity-sep">·</span> {headerMeta.plantIdentity.power} <span className="poshd__identity-sep">·</span> {headerMeta.plantIdentity.vendor}
-          </div>
-        </div>
-      )}
 
       <div className="poshd__spacer" />
 
@@ -450,7 +437,7 @@ function EsWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <WorkbookSectionHeading workbook="ES" title={h.title} description={h.sub} level={1} className="posmain__title" />
+              <WorkbookSectionHeading title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
               {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm es-show-steps" onClick={() => setRailOpen(true)}><ESIcon.Layers /> Show steps</button>}

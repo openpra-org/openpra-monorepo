@@ -6,6 +6,7 @@ import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { daMissionTimeExpressions, reconcileExampleDaMissionTimeReferences, reconcileExampleDaOwnReferences, relinkExampleMissionTimes } from "../example-workbooks/seeds/dependency-model-seed";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
+import { recordWorkbookStatus } from "../workbooks/workbook-status";
 import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { DaWorkbook, type DaWorkbookDocument } from "./da-workbook.schema";
 import { DaDocumentsService } from "./da-documents.service";
@@ -122,13 +123,14 @@ export class DaWorkbooksService {
     const updatedDoc = await this.daWorkbookModel
       .findOneAndUpdate(
         createWorkbookRevisionFilter(workbookId, expectedRevision),
-        { $set: { previousMefJson: JSON.stringify(stripNulls(doc.mef)), mef: cleaned, revision: expectedRevision + 1 } },
+        { $set: { ...(typeof doc.previousMefJson === "string" && doc.previousMefJson.length > 0 ? {} : { previousMefJson: JSON.stringify(stripNulls(doc.mef)) }), mef: cleaned, revision: expectedRevision + 1 } },
         { new: true, runValidators: true },
       )
       .exec();
     if (!updatedDoc) throw workbookRevisionConflict(expectedRevision);
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.daDocumentsService.removeAllForWorkbook(workbookId);
+    await recordWorkbookStatus(this.daWorkbookModel.db, workbookId, (updatedDoc.mef as { workflowState?: string }).workflowState);
     return toResponse(updatedDoc, myRoles);
   }
 
@@ -160,6 +162,7 @@ export class DaWorkbooksService {
       )
       .exec();
     if (!updatedDoc) throw workbookRevisionConflict(expectedRevision);
+    await recordWorkbookStatus(this.daWorkbookModel.db, workbookId, (updatedDoc.mef as { workflowState?: string }).workflowState);
     return toResponse(updatedDoc, myRoles);
   }
 }

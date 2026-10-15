@@ -12,7 +12,7 @@ import {
   StructuredEditorDrawer,
   type EditorPath,
 } from "../seismic-pra-workbooks/seismicPraStructuredEditor";
-import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { HazardEventTreeEditor, HazardFaultTreeEditor } from "../workbooks/hazardConditionedModelEditors";
 import {
   Drawer,
@@ -29,7 +29,6 @@ import "../seismic-pra-workbooks/css/seismicPra.css";
 type SemanticRecord = OtherHazardsAnalysisRecord & Record<string, unknown>;
 interface RecordSection {
   title: string;
-  description: string;
   path: EditorPath;
   singular: string;
   empty: string;
@@ -41,7 +40,6 @@ interface StepConfig {
 }
 interface EditorTarget {
   title: string;
-  subtitle: string;
   focus: EditorPath;
   createAt?: EditorPath;
   removeLabel?: string;
@@ -125,10 +123,9 @@ function AnalysisRow({ label, value }: { label: string; value: unknown }): JSX.E
 
 function collectionTarget(section: RecordSection, index?: number): EditorTarget {
   return index === undefined ?
-      { title: `Add ${section.singular}`, subtitle: section.description, focus: [], createAt: section.path }
+      { title: `Add ${section.singular}`, focus: [], createAt: section.path }
     : {
         title: `Edit ${section.singular}`,
-        subtitle: section.description,
         focus: [...section.path, index],
         removeLabel: `Remove ${section.singular}`,
       };
@@ -147,7 +144,6 @@ function Editor({
     <StructuredEditorDrawer
       eyebrow="Other Hazards PRA · Flat record editor"
       title={target.title}
-      subtitle={target.subtitle}
       schema={OtherHazardsPRASchema}
       value={mef}
       editable={editable}
@@ -258,7 +254,6 @@ function RecordSectionView({
   return (
     <Section
       title={section.title}
-      description={section.description}
       actions={
         editable ?
           <AddButton
@@ -279,13 +274,11 @@ function RecordSectionView({
 
 const section = (
   title: string,
-  description: string,
   path: EditorPath,
   singular: string,
   columns: Array<{ label: string; key: string }>,
 ): RecordSection => ({
   title,
-  description,
   path,
   singular,
   empty: `No ${title.toLowerCase()} recorded`,
@@ -294,7 +287,6 @@ const section = (
 const common = (root: string): RecordSection[] => [
   section(
     "Model uncertainties",
-    "Identify the important parameter, model, and assumption uncertainties, their plausible alternatives, risk effect, and treatment.",
     [root, "modelUncertainties"],
     "uncertainty",
     [
@@ -306,7 +298,6 @@ const common = (root: string): RecordSection[] => [
   ),
   section(
     "Pre-operational assumptions",
-    "Control unavailable site, design, or as-built information with a limitation, closure action, responsible lifecycle phase, and closure status.",
     [root, "preOperationalAssumptions"],
     "assumption",
     [
@@ -324,7 +315,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Controlled evidence",
-        "Register the standards, site data, drawings, calculations, models, investigations, test data, reviews, and operating experience used by the analysis.",
         ["analysisBasis", "evidenceRegister"],
         "evidence record",
         [
@@ -336,7 +326,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Site and regional data",
-        "Qualify the meteorological, hydrological, geological, land-use, transportation, air-traffic, biological, industrial, and configuration data that characterize the site.",
         ["analysisBasis", "siteAndRegionalData"],
         "site-data record",
         [
@@ -348,7 +337,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Design-basis information",
-        "Control layouts, drawings, design criteria, qualifications, protection features, procedures, and calculations against the current plant configuration.",
         ["analysisBasis", "designBasisRecords"],
         "design-basis record",
         [
@@ -360,7 +348,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Operating experience",
-        "Capture applicable facility and industry events, observed hazard effects, affected safety functions, and lessons incorporated into the model.",
         ["analysisBasis", "operatingExperience"],
         "operating-experience event",
         [
@@ -377,7 +364,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Retained hazard groups",
-        "Translate HSA dispositions into complete, non-overlapping analysis groups with explicit subhazards, effects, intensity measures, operating states, units, and material sources.",
         ["retainedHazardGroups", "hazardGroups"],
         "hazard group",
         [
@@ -389,7 +375,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Hazard completeness reviews",
-        "Demonstrate that each group covers its applicable subhazards and documents every omitted phenomenon and boundary decision.",
         ["retainedHazardGroups", "completenessReviews"],
         "completeness review",
         [
@@ -401,7 +386,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Overlap controls",
-        "Allocate phenomena between Other Hazards and specialized Fire, Flood, Seismic, High Winds, or other analyses without omissions or double counting.",
         ["retainedHazardGroups", "overlapControls"],
         "overlap control",
         [
@@ -418,7 +402,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Hazard sources",
-        "Locate and characterize natural, fixed-facility, transport, pipeline, air-traffic, onsite, plant-equipment, biological, and extraterrestrial sources.",
         ["hazardSourceCharacterization", "hazardSources"],
         "hazard source",
         [
@@ -430,7 +413,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Intensity measures",
-        "Define the physical parameter, units, measurement basis, range, resolution, and compatibility used to connect the hazard, fragility, and plant-response models.",
         ["hazardSourceCharacterization", "intensityMeasures"],
         "intensity measure",
         [
@@ -442,7 +424,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Hazard-effect models",
-        "Convert source severity into the pressure, thermal, impact, toxic, corrosive, blockage, temperature, access, or other effects experienced at the plant.",
         ["hazardSourceCharacterization", "effectModels"],
         "effect model",
         [
@@ -454,7 +435,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Spatial zones",
-        "Map source-to-site variation, shielding, attenuation, affected buildings, rooms, outdoor areas, and multi-unit or multi-source exposure.",
         ["hazardSourceCharacterization", "spatialZones"],
         "spatial zone",
         [
@@ -466,7 +446,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Hazard timelines",
-        "Define warning, onset, rise, duration, recovery environment, cues, and temporal dependencies used in scenario and HRA development.",
         ["hazardSourceCharacterization", "timelineModels"],
         "timeline model",
         [
@@ -483,7 +462,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Occurrence datasets",
-        "Qualify site-specific, regional, generic, historical, experimental, simulated, and expert evidence used to estimate annual occurrence and severity.",
         ["hazardFrequencyAnalysis", "occurrenceDataSets"],
         "occurrence dataset",
         [
@@ -495,7 +473,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Occurrence models",
-        "Fit occurrence, severity, spatial, temporal, calibration, goodness-of-fit, and rare-tail models for each retained hazard group.",
         ["hazardFrequencyAnalysis", "occurrenceModels"],
         "occurrence model",
         [
@@ -507,7 +484,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Regional applicability",
-        "Compare source-region and site attributes, quantify differences, and justify adjustments and conservatism when non-site data are used.",
         ["hazardFrequencyAnalysis", "regionalApplicabilityAssessments"],
         "applicability assessment",
         [
@@ -519,7 +495,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Formal expert judgment",
-        "Control elicitation questions, expert independence, briefing, calibration, aggregation, and results where empirical evidence is insufficient.",
         ["hazardFrequencyAnalysis", "expertJudgmentPanels"],
         "expert-judgment panel",
         [
@@ -531,7 +506,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Frequency results",
-        "Record mean and uncertainty percentile exceedance frequencies at defined intensities, units, and plant locations.",
         ["hazardFrequencyAnalysis", "frequencyResults"],
         "frequency result",
         [
@@ -548,7 +522,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Secondary-hazard scenarios",
-        "Identify fire, flood, explosion, missile, toxic, collapse, power-loss, and other effects generated by each primary hazard and route them to the proper analysis.",
         ["secondaryAndCombinedHazards", "secondaryHazardScenarios"],
         "secondary-hazard scenario",
         [
@@ -560,7 +533,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Combined-hazard assessments",
-        "Model causal, coincident, sequential, and common-condition hazard combinations with joint frequency, dependence, plant response, and double-counting controls.",
         ["secondaryAndCombinedHazards", "combinedHazardAssessments"],
         "combined-hazard assessment",
         [
@@ -572,7 +544,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Transferred analyses",
-        "Track secondary-hazard content accepted by Fire, Internal Flood, External Flood, initiating-event, systems, HRA, quantification, or risk-integration models.",
         ["secondaryAndCombinedHazards", "transferredAnalyses"],
         "analysis transfer",
         [
@@ -584,7 +555,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Dependency controls",
-        "Control shared causes, timing, equipment, locations, data, and operator-response dependencies created by secondary and combined hazards.",
         ["secondaryAndCombinedHazards", "dependencyControls"],
         "dependency control",
         [
@@ -601,7 +571,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Hazard logic-tree branches",
-        "Represent data, occurrence, severity, source-to-site, effect-model, and expert alternatives with controlled weights and rationale.",
         ["hazardCurveAnalysis", "logicTreeBranches"],
         "logic-tree branch",
         [
@@ -613,7 +582,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Hazard curves",
-        "Produce mean, percentile, fractile, or branch curves on a controlled intensity basis with interpolation, extrapolation, and upper-tail treatment.",
         ["hazardCurveAnalysis", "hazardCurves"],
         "hazard curve",
         [
@@ -625,7 +593,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Hazard intervals",
-        "Discretize each curve into nonoverlapping intensity intervals with representative intensities, annual frequencies, conditional weights, and upper-tail flags.",
         ["hazardCurveAnalysis", "hazardIntervals"],
         "hazard interval",
         [
@@ -637,7 +604,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Hazard convergence",
-        "Verify interval refinement, upper-tail extension, truncation, sampling, and scenario grouping do not materially change risk results.",
         ["hazardCurveAnalysis", "convergenceStudies"],
         "convergence study",
         [
@@ -654,7 +620,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Preliminary initiating events",
-        "Identify direct, secondary, degraded-condition, common-cause, and multi-unit initiators and the affected operating states, units, material sources, and safety functions.",
         ["preliminaryPlantResponse", "preliminaryInitiatingEvents"],
         "preliminary initiating event",
         [
@@ -666,7 +631,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Baseline-model reviews",
-        "Review event sequences, systems, success criteria, data, HRA, Level 2, and peer-review findings for Other Hazards gaps and required changes.",
         ["preliminaryPlantResponse", "modelReviews"],
         "model review",
         [
@@ -678,7 +642,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Other Hazards SSC list",
-        "Identify each exposed SSC, location, credited function, hazard effects, realistic failure modes, supporting elements, investigation links, and model disposition.",
         ["preliminaryPlantResponse", "otherHazardsSscList"],
         "SSC-list entry",
         [
@@ -690,7 +653,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Functional requirements",
-        "Define the SSCs, supports, operator actions, operating states, and mission time required for each credited safety function.",
         ["preliminaryPlantResponse", "functionalRequirements"],
         "functional requirement",
         [
@@ -707,7 +669,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Plant investigations",
-        "Perform walkdowns, interviews, talk-throughs, document reviews, site reconnaissance, and surveys that confirm hazard sources, SSCs, protection, access, and configuration.",
         ["plantInvestigation", "investigations"],
         "investigation",
         [
@@ -719,7 +680,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Investigation findings",
-        "Disposition configuration, interaction, protection, inventory, access, procedure, and degradation observations into the model or corrective-action process.",
         ["plantInvestigation", "findings"],
         "finding",
         [
@@ -731,7 +691,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Configuration confirmations",
-        "Confirm the source records and governing configuration items against as-built/as-operated or as-designed/as-intended plant conditions.",
         ["plantInvestigation", "configurationConfirmations"],
         "configuration confirmation",
         [
@@ -743,7 +702,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Operator access routes",
-        "Verify action routes, hazard effects, travel time, protective equipment, availability, and alternates under the modeled hazard conditions.",
         ["plantInvestigation", "accessRouteChecks"],
         "access-route check",
         [
@@ -760,7 +718,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "SSC screening decisions",
-        "Screen or retain each SSC, hazard effect, failure mode, scenario, or sequence family using an approved criterion and investigation-supported conservative basis.",
         ["fragilityBasis", "screeningDecisions"],
         "screening decision",
         [
@@ -772,7 +729,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Fragility method selections",
-        "Select plant-specific analysis, test, experience, generic fragility, design capacity, screening bound, or human-response methods with intensity compatibility demonstrated.",
         ["fragilityBasis", "methodSelections"],
         "method selection",
         [
@@ -784,7 +740,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Fragility correlation groups",
-        "Group SSCs with shared hazard demand, construction, capacity, spatial, or causal dependencies and define the model treatment.",
         ["fragilityBasis", "correlationGroups"],
         "correlation group",
         [
@@ -796,7 +751,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Generic-data applicability",
-        "Compare generic test, experience, or fragility evidence with target SSCs and document adjustments, differences, conservatism, and applicability.",
         ["fragilityBasis", "genericDataApplicability"],
         "applicability assessment",
         [
@@ -813,7 +767,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Hazard demand models",
-        "Calculate SSC demand from the selected hazard intensity with spatial, dynamic, temporal, shielding, and source-to-target factors explicit.",
         ["fragilityAnalysis", "demandModels"],
         "demand model",
         [
@@ -825,7 +778,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "SSC capacity models",
-        "Establish median capacity, randomness, uncertainty, aging, condition, test, experience, and failure-mode basis for each retained SSC.",
         ["fragilityAnalysis", "capacityModels"],
         "capacity model",
         [
@@ -837,7 +789,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Fragility curves",
-        "Quantify conditional failure probability over the compatible hazard intensity range and retain method, demand, capacity, correlation, and cross-hazard traceability.",
         ["fragilityAnalysis", "fragilityCurves"],
         "fragility curve",
         [
@@ -849,7 +800,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Functional-failure models",
-        "Model operator incapacitation, loss of access, loss of cues, environmental exposure, procedure unavailability, and other functional failures not represented by physical SSC fragility.",
         ["fragilityAnalysis", "functionalFailureModels"],
         "functional-failure model",
         [
@@ -861,7 +811,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Secondary-effect fragilities",
-        "Connect generated fire, flood, explosion, missile, collapse, or toxic scenarios to the affected SSCs, failure modes, and conditional fragility models.",
         ["fragilityAnalysis", "secondaryEffectFragilities"],
         "secondary-effect fragility",
         [
@@ -878,7 +827,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Initiating-event models",
-        "Define direct, degraded, secondary, support-system, operator-incapacitation, and multi-unit initiators with frequency derivation and affected scope.",
         ["initiatingEventAndScenarioDevelopment", "initiatingEventModels"],
         "initiating-event model",
         [
@@ -890,7 +838,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Scenario families",
-        "Group source, location, intensity interval, SSC damage, initiating event, operating state, unit, material source, and secondary effects that share plant response.",
         ["initiatingEventAndScenarioDevelopment", "scenarioFamilies"],
         "scenario family",
         [
@@ -902,7 +849,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Scenario timelines",
-        "Align warning, initiating event, equipment failures, operator action windows, stable end state, and recovery for each scenario family.",
         ["initiatingEventAndScenarioDevelopment", "scenarioTimelines"],
         "scenario timeline",
         [
@@ -914,7 +860,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Secondary-scenario links",
-        "Link primary scenarios to accepted secondary-hazard model records and the affected plant-response logic.",
         ["initiatingEventAndScenarioDevelopment", "secondaryScenarioLinks"],
         "secondary-scenario link",
         [
@@ -926,7 +871,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Industry experience events",
-        "Apply operating experience to initiators, equipment failures, human performance, recovery, and scenario-model assumptions.",
         ["initiatingEventAndScenarioDevelopment", "industryExperienceEvents"],
         "industry event",
         [
@@ -943,7 +887,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Peer-review dispositions",
-        "Resolve applicable internal-events and hazard-PRA findings before reusing the affected sequence, system, success-criteria, data, HRA, or Level 2 model.",
         ["plantResponseModel", "peerReviewDispositions"],
         "peer-review disposition",
         [
@@ -955,7 +898,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Other Hazards event sequences",
-        "Adapt event-tree logic to hazard-group and scenario conditions, operating states, units, material sources, mission time, and Level 2 end states.",
         ["plantResponseModel", "eventSequenceModels"],
         "event-sequence model",
         [
@@ -967,7 +909,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Hazard-specific success criteria",
-        "Confirm credited equipment, trains, capacity, timing, supports, operator actions, and analysis evidence for each safety function and sequence family.",
         ["plantResponseModel", "successCriteria"],
         "success criterion",
         [
@@ -979,7 +920,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "System-model modifications",
-        "Implement hazard failure modes, fragilities, added basic events, dependencies, correlations, and logic changes in the baseline system models.",
         ["plantResponseModel", "systemModelModifications"],
         "system-model modification",
         [
@@ -991,7 +931,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Mission times and recovery",
-        "Define realistic or bounding mission time, stable end state, hazard duration, recovery model, and supporting operating experience.",
         ["plantResponseModel", "missionTimes"],
         "mission-time record",
         [
@@ -1003,7 +942,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Other Hazards data parameters",
-        "Control basic-event, recovery, common-cause, correlation, mission-time, and hazard-conditional values and uncertainty distributions.",
         ["plantResponseModel", "dataParameters"],
         "data parameter",
         [
@@ -1015,7 +953,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Correlation models",
-        "Implement shared demand, shared capacity, and conditional dependence among hazard-related basic events and affected SSCs.",
         ["plantResponseModel", "correlationModels"],
         "correlation model",
         [
@@ -1027,7 +964,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Multi-unit and multi-source response",
-        "Represent shared SSCs, resources, actions, site conditions, dependencies, and coupled scenarios across reactor units and other radionuclide sources.",
         ["plantResponseModel", "multiUnitAssessments"],
         "multi-unit assessment",
         [
@@ -1039,7 +975,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Level 2 interfaces",
-        "Transfer hazard damage attributes, plant-damage states, confinement status, dependent failures, and release categories to Level 2 models.",
         ["plantResponseModel", "levelTwoInterfaces"],
         "Level 2 interface",
         [
@@ -1056,7 +991,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Other Hazards human actions",
-        "Identify preparatory, diagnosis, response, recovery, local, remote, and multi-unit actions with procedures, cues, locations, timing, staff, equipment, and credit.",
         ["humanReliabilityAnalysis", "humanActions"],
         "human action",
         [
@@ -1068,7 +1002,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Human failure events",
-        "Define the modeled failure, basic event, affected sequences and safety functions, dependency group, and exclusive-recovery treatment for each credited action.",
         ["humanReliabilityAnalysis", "humanFailureEvents"],
         "human failure event",
         [
@@ -1080,7 +1013,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Hazard performance contexts",
-        "Characterize warning, workload, habitability, toxic or physical conditions, access, communications, cues, staffing, protective equipment, and multi-unit demands.",
         ["humanReliabilityAnalysis", "performanceContexts"],
         "performance context",
         [
@@ -1092,7 +1024,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "HEP estimates",
-        "Quantify nominal and hazard-context HEP, timing margin, dependency, recovery credit, uncertainty, and method basis.",
         ["humanReliabilityAnalysis", "hepEstimates"],
         "HEP estimate",
         [
@@ -1104,7 +1035,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Action confirmations",
-        "Record procedure reviews, interviews, talk-throughs, tabletop exercises, and simulations used to confirm interpretation, timing, feasibility, and model changes.",
         ["humanReliabilityAnalysis", "confirmations"],
         "action confirmation",
         [
@@ -1116,7 +1046,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Recovery assessments",
-        "Reevaluate baseline recovery against hazard damage, access, resources, timing, and whether the source recovery model remains valid.",
         ["humanReliabilityAnalysis", "recoveryAssessments"],
         "recovery assessment",
         [
@@ -1128,7 +1057,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "HRA dependencies",
-        "Model shared crews, cues, locations, timing, hazard conditions, dependency level, and joint failure probability.",
         ["humanReliabilityAnalysis", "dependencyAssessments"],
         "dependency assessment",
         [
@@ -1145,7 +1073,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Quantification runs",
-        "Control model version, hazard curves and intervals, fragilities, event sequences, HRA, numerical treatment, truncation, sampling, software, and run date.",
         ["eventSequenceQuantification", "quantificationRuns"],
         "quantification run",
         [
@@ -1157,7 +1084,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Hazard-interval results",
-        "Calculate conditional sequence probability and annual sequence frequency for each hazard interval and sequence family, with dominant fragility and basic-event contributors.",
         ["eventSequenceQuantification", "hazardIntervalResults"],
         "hazard-interval result",
         [
@@ -1169,7 +1095,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Event-sequence-family results",
-        "Aggregate results by sequence family, hazard group, operating state, unit, material source, plant-damage state, and release category with uncertainty percentiles.",
         ["eventSequenceQuantification", "eventSequenceFamilyResults"],
         "sequence-family result",
         [
@@ -1181,7 +1106,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Quantification convergence",
-        "Test hazard intervals, upper tail, truncation, sampling, scenario grouping, and other numerical choices against explicit acceptance criteria.",
         ["eventSequenceQuantification", "convergenceStudies"],
         "convergence study",
         [
@@ -1193,7 +1117,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Integrated uncertainty results",
-        "Propagate hazard, fragility, plant-response, HRA, and numerical uncertainty into mean and percentile risk metrics.",
         ["eventSequenceQuantification", "uncertaintyResults"],
         "uncertainty result",
         [
@@ -1205,7 +1128,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Risk contributors",
-        "Rank hazard groups, intervals, SSCs, failure modes, human failure events, scenarios, sequence families, and uncertainties by absolute and fractional contribution.",
         ["eventSequenceQuantification", "riskContributors"],
         "risk contributor",
         [
@@ -1217,7 +1139,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Quantification screening",
-        "Document any screened event-sequence families with an approved criterion, conservative assumptions, quantitative value, aggregate frequency, and affected results.",
         ["eventSequenceQuantification", "screeningDecisions"],
         "screening decision",
         [
@@ -1233,7 +1154,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Integrated uncertainties",
-        "Bring together the material hazard, fragility, plant-response, HRA, numerical, and assumption uncertainties that can affect conclusions and decisions.",
         ["integratedUncertainties"],
         "integrated uncertainty",
         [
@@ -1245,7 +1165,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Sensitivity studies",
-        "Quantify reasonable alternatives for hazard models, fragility, correlation, HRA, success states, screening, recovery, and numerical treatment.",
         ["riskInterpretation", "sensitivityStudies"],
         "sensitivity study",
         [
@@ -1257,7 +1176,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Other Hazards risk insights",
-        "Interpret dominant hazards, scenarios, SSC vulnerabilities, human actions, dependencies, uncertainty, defense in depth, and risk-reduction opportunities.",
         ["riskInterpretation", "riskInsights"],
         "risk insight",
         [
@@ -1269,7 +1187,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Model refinements",
-        "Prioritize technically meaningful hazard, source, investigation, fragility, plant-response, HRA, quantification, and documentation improvements.",
         ["riskInterpretation", "refinementActions"],
         "refinement action",
         [
@@ -1281,7 +1198,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Refinement iterations",
-        "Demonstrate stable aggregate and family results, contributor rankings, and absence of new risk-significant contributors across controlled model versions.",
         ["riskInterpretation", "quantificationIterations"],
         "refinement iteration",
         [
@@ -1297,7 +1213,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Risk Integration results",
-        "Transfer Other Hazards results by operating state, unit, material source, sequence family, damage state, and release category with overlap controlled.",
         ["riskInterpretation", "integrationResults"],
         "integration result",
         [
@@ -1309,7 +1224,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Integration overlap controls",
-        "Demonstrate how Other Hazards results avoid double counting with Fire, Flood, Seismic, High Winds, initiating events, and other technical elements.",
         ["riskInterpretation", "overlapControls"],
         "overlap control",
         [
@@ -1321,7 +1235,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Risk-informed decisions",
-        "Record design, procedure, configuration, monitoring, data, model-control, and emergency-preparedness actions with verification and reanalysis triggers.",
         ["riskInterpretation", "riskDecisions"],
         "risk decision",
         [
@@ -1333,7 +1246,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "End-to-end traceability",
-        "Link evidence, hazards, source models, curves, SSC scope, investigations, fragilities, initiators, HRA, sequence families, results, and decisions.",
         ["riskInterpretation", "traceabilityPaths"],
         "traceability path",
         [
@@ -1345,7 +1257,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Controlled baselines",
-        "Release the model, quantification run, report, peer review, manifest, limitations, and configuration-control record as one reproducible baseline.",
         ["riskInterpretation", "controlledBaselines"],
         "controlled baseline",
         [
@@ -1362,7 +1273,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
     sections: [
       section(
         "Conformance reviews",
-        "Review the evidence and satisfied-by links for every applicable OHA, OFR, and OPR supporting requirement.",
         ["technicalClosure", "conformanceReviews"],
         "conformance review",
         [
@@ -1374,7 +1284,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Documentation checks",
-        "Verify that inputs, analysis, results, uncertainty, limitations, interfaces, and configuration references are complete and reproducible.",
         ["technicalClosure", "documentationChecks"],
         "documentation check",
         [
@@ -1386,7 +1295,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Interface closure checks",
-        "Confirm every external technical-element input and output is controlled, consistent, accepted, traceable, and free of open items.",
         ["technicalClosure", "interfaceClosureChecks"],
         "interface closure check",
         [
@@ -1398,7 +1306,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Peer-review team",
-        "Record independent team roles, organizations, qualifications, experience, independence, and assigned review scope.",
         ["technicalClosure", "peerReviewTeam"],
         "team member",
         [
@@ -1410,7 +1317,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Peer-review findings",
-        "Track facts and observations, suggestions, best practices, and comments through evidence-backed resolution and closure.",
         ["technicalClosure", "peerReviewFindings"],
         "peer-review finding",
         [
@@ -1422,7 +1328,6 @@ const STEP_CONFIG: Record<string, StepConfig> = {
       ),
       section(
         "Readiness checks",
-        "Confirm the controlled analysis package is complete and suitable for technical review, approval, and configuration-controlled release.",
         ["technicalClosure", "readinessChecks"],
         "readiness check",
         [
@@ -1538,7 +1443,6 @@ function AnalysisScopeEditor({ onClose }: { onClose: () => void }): JSX.Element 
   return (
     <Drawer
       title="PRA analysis and scope"
-      subtitle="Record the decision application, reference plant, Other Hazards boundary, baseline scope, and required risk results in one flat editor."
       onClose={onClose}
       footer={
         <>
@@ -1567,7 +1471,6 @@ function AnalysisScopeEditor({ onClose }: { onClose: () => void }): JSX.Element 
       >
         <div className="sinlineeditor__group">
           <WorkbookSectionHeading
-            workbook="O"
             title="PRA application"
             className="sinlineeditor__title"
           />
@@ -1601,7 +1504,6 @@ function AnalysisScopeEditor({ onClose }: { onClose: () => void }): JSX.Element 
         </div>
         <div className="sinlineeditor__group">
           <WorkbookSectionHeading
-            workbook="O"
             title="Reference plant and site"
             className="sinlineeditor__title"
           />
@@ -1646,7 +1548,6 @@ function AnalysisScopeEditor({ onClose }: { onClose: () => void }): JSX.Element 
         </div>
         <div className="sinlineeditor__group">
           <WorkbookSectionHeading
-            workbook="O"
             title="Analysis boundary"
             className="sinlineeditor__title"
           />
@@ -1689,7 +1590,6 @@ function AnalysisScopeEditor({ onClose }: { onClose: () => void }): JSX.Element 
         </div>
         <div className="sinlineeditor__group">
           <WorkbookSectionHeading
-            workbook="O"
             title="Imported baseline scope"
             className="sinlineeditor__title"
           />
@@ -1747,10 +1647,7 @@ function Interfaces(): JSX.Element {
   const [selected, setSelected] = useState<number | null>(null);
   const current = selected === null ? undefined : mef.analysisBasis.interfaces[selected];
   return (
-    <Section
-      title="Interfaces"
-      description="Shows the controlled inputs received from other PRA technical elements and the Other Hazards results supplied to downstream technical elements."
-    >
+    <Section title="Interfaces">
       <div className="poshandoff__grid">
         {mef.analysisBasis.interfaces.map((item, index) => (
           <button
@@ -1779,16 +1676,12 @@ function Interfaces(): JSX.Element {
       )}
       {current !== undefined && selected !== null && (
         <div className="sinterface__details">
-          <WorkbookCueLabel
-            workbook="O"
-            title={
-              current.direction === "INPUT" ?
-                `Other Hazards PRA receives ${lowerInitial(current.role)} from ${current.technicalElementName}`
-              : `${current.technicalElementName} receives ${lowerInitial(current.role)} from Other Hazards PRA`
+          <div className="sinterface__flow-title">
+            {current.direction === "INPUT" ?
+              `Other Hazards PRA receives ${lowerInitial(current.role)} from ${current.technicalElementName}`
+            : `${current.technicalElementName} receives ${lowerInitial(current.role)} from Other Hazards PRA`
             }
-            cueKey="Interface transfer records"
-            className="sinterface__flow-title"
-          />
+          </div>
           <div className="sinterface__table-wrap">
             <table className="postable postable--mid">
               <thead>
@@ -1836,7 +1729,6 @@ function AnalysisBasis(): JSX.Element {
   const baseline = mef.analysisBasis.baselinePra;
   const scopeSection = section(
     "Analysis scope records",
-    "Define retained hazard groups, plant locations, operating states, units, material sources, risk metrics, and intended capability category.",
     ["analysisBasis", "scopeRecords"],
     "scope record",
     [
@@ -1848,7 +1740,6 @@ function AnalysisBasis(): JSX.Element {
   );
   const applicationSection = section(
     "PRA applications",
-    "Record each decision application, supported risk metrics, consuming technical elements, configuration basis, and limitations.",
     ["analysisBasis", "applications"],
     "application",
     [
@@ -1862,7 +1753,6 @@ function AnalysisBasis(): JSX.Element {
     <div className="flstep">
       <Section
         title="PRA analysis and scope"
-        description="Defines the intended application, plant stage, capability category, overall analysis boundary, and reference plant used by every later Other Hazards step."
         actions={
           editable ?
             <EditButton
@@ -1917,7 +1807,6 @@ function AnalysisBasis(): JSX.Element {
       </Section>
       <Section
         title="Site basis"
-        description="Defines the specific or bounding site, coordinates, regional setting, terrain, nearby facilities and transport, licensee-controlled area, units, material sources, operating states, and data cutoff."
         actions={
           editable ?
             <EditButton
@@ -1925,8 +1814,6 @@ function AnalysisBasis(): JSX.Element {
               onClick={() =>
                 setTarget({
                   title: "Other Hazards site basis",
-                  subtitle:
-                    "Define the reference site and every plant, geographic, and environmental attribute used by the analysis.",
                   focus: ["analysisBasis", "siteBasis"],
                 })
               }
@@ -1975,7 +1862,6 @@ function AnalysisBasis(): JSX.Element {
       />
       <Section
         title="Baseline PRA"
-        description="Freezes the internal-events model boundary and records which POS, IE, ES, SC, SY, DA, HR, Level 2, and Risk Integration records are reused, modified, new, or not applicable."
         actions={
           editable ?
             <EditButton
@@ -1983,8 +1869,6 @@ function AnalysisBasis(): JSX.Element {
               onClick={() =>
                 setTarget({
                   title: "Baseline PRA definition",
-                  subtitle:
-                    "Control the model freeze and external technical records used to build the Other Hazards PRA.",
                   focus: ["analysisBasis", "baselinePra"],
                 })
               }
@@ -2043,7 +1927,6 @@ function StoppingCriteria({ setTarget }: { setTarget: (target: EditorTarget) => 
   return (
     <Section
       title="Refinement stopping criteria"
-      description="Defines the quantitative stability checks that must be satisfied before the Other Hazards model can be accepted as stable."
       actions={
         editable ?
           <EditButton
@@ -2051,8 +1934,6 @@ function StoppingCriteria({ setTarget }: { setTarget: (target: EditorTarget) => 
             onClick={() =>
               setTarget({
                 title: "Refinement stopping criteria",
-                subtitle:
-                  "Set the aggregate, sequence-family, contributor-rank, and stable-iteration thresholds used to stop model refinement.",
                 focus: ["riskInterpretation", "stoppingCriteria"],
                 visibleRootFields: [
                   "maximumAggregateFrequencyChange",
@@ -2114,8 +1995,8 @@ function TechnicalStep({ stepId }: { stepId: string }): JSX.Element {
   const updateModels = (hazardConditionedModels: OtherHazardsPRA["hazardConditionedModels"]): void => mutate((current) => ({ ...current, hazardConditionedModels }));
   return (
     <div className="flstep">
-      {stepId === "scenarios" && <Section title="Hazard-conditioned initiating-event fault trees" description="Author initiating-event logic for the retained hazard scenario families."><HazardFaultTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>}
-      {stepId === "plant-response" && <Section title="Hazard-conditioned event trees" description="Author response paths, functional events, bypasses, transfers, and end states for retained hazards."><HazardEventTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>}
+      {stepId === "scenarios" && <Section title="Hazard-conditioned initiating-event fault trees"><HazardFaultTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>}
+      {stepId === "plant-response" && <Section title="Hazard-conditioned event trees"><HazardEventTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>}
       {recordSections.map((item) => (
         <RecordSectionView
           key={`${item.path.join(".")}-${item.title}`}

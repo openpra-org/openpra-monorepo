@@ -249,7 +249,7 @@ function ScWorkbookPage(): JSX.Element {
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as ScWorkbookRoleName[])} />}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="SC"
           exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}

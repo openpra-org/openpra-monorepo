@@ -121,6 +121,9 @@ function SyWorkbookPage(): JSX.Element {
     ])
       .then(async ([workbook, bundle]) => {
         if (cancelled) return;
+        const options = await listSyLinkOptions(workbook.projectId).catch(() => NO_LINK_OPTIONS);
+        if (cancelled) return;
+        setLinkOptions(options);
         setData({
           sy: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
@@ -136,12 +139,6 @@ function SyWorkbookPage(): JSX.Element {
           if (!cancelled) setProjectName(project.name);
         } catch {
           if (!cancelled) setProjectName("");
-        }
-        try {
-          const options = await listSyLinkOptions(workbook.projectId);
-          if (!cancelled) setLinkOptions(options);
-        } catch {
-          if (!cancelled) setLinkOptions(NO_LINK_OPTIONS);
         }
       })
       .catch((err: unknown) => {
@@ -383,7 +380,7 @@ function SyWorkbookPage(): JSX.Element {
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as SyWorkbookRoleName[])} />}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="SY"
           exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}

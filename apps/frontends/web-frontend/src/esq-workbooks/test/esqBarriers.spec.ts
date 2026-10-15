@@ -68,10 +68,7 @@ describe("ESQ Step 04 barriers and phenomena", () => {
       cueMinutes: 15,
       availableMinutes: 120,
       requiredMinutes: 30,
-      recoveryId: "REC-1",
-      feasibilityNote: "Access during the event is under review.",
     })]);
-    expect(model?.actions?.[0]?.feasibility?.access).toBe(false);
     expect(model?.parameters.find((parameter) => parameter.id === "P-WIN")?.estimate).toEqual(quantity({ family: "LOGNORMAL", mean: 33.74468539677077, errorFactor: 1.287, level: 0.95 }));
     const again = withModelImported(barrierStored(), barrierUpstream(), NOW);
     expect(again.model?.changes).toEqual([]);
@@ -169,8 +166,7 @@ describe("ESQ Step 04 barriers and phenomena", () => {
     expect(checks(esq)).not.toContain("warning:No credit decision:SPC-1");
     const analyzed = withCredit(esq, "CR-1", { id: "CR-1", kind: "EQUIPMENT", qualificationId: "SPC-1", name: "DMP-A, DMP-B", familyIds: ["F-REL"], environment: "Blowdown", beyondQualification: true, credited: true, analysis: "Thermal analysis keeps the seals below their limit.", basis: "Damper closure is needed." });
     expect(checks(analyzed).filter((check) => check.endsWith("DMP-A, DMP-B"))).toEqual([]);
-    const action = barriersViewOf(esq)?.actions[0];
-    const withAction = withCredit(esq, "CR-2", { id: "CR-2", kind: "ACTION", actionId: "HR-POST-1", name: "Filtration start", familyIds: ["F-REL"], environment: "After the release starts", beyondQualification: false, credited: true, analysis: "Cue at 15 min, 120 min available.", treatment: "CONSERVATIVE", ...(action?.feasibility === undefined ? {} : { feasibility: action.feasibility }), basis: "HR feasibility record." });
+    const withAction = withCredit(esq, "CR-2", { id: "CR-2", kind: "ACTION", actionId: "HR-POST-1", name: "Filtration start", familyIds: ["F-REL"], environment: "After the release starts", beyondQualification: false, credited: true, analysis: "Cue at 15 min, 120 min available.", treatment: "CONSERVATIVE", feasibility: { procedure: true, training: true, cues: true, crew: true, time: true, access: false, equipment: true }, basis: "HR feasibility record." });
     const found = barriersViewOf(withAction)?.findings.filter((finding) => finding.item === "Filtration start").map((finding) => `${finding.check}:${finding.detail}`);
     expect(found).toEqual([
       "Feasibility not shown:A credited action needs its feasibility shown before its HEP is used. Missing: access (ESQ-C7, RG 1.247).",

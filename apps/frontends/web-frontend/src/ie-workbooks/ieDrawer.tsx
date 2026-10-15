@@ -82,7 +82,7 @@ function InitiatorEditor({ initiator, states, editable, mutateIe, onClose }: {
       </div>
       <fieldset disabled={!editable} className="posdrawer__body" style={{ border: 0, margin: 0, minInlineSize: 0 }}>
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Initiator details" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Initiator details" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Name</label>
@@ -112,7 +112,7 @@ function InitiatorEditor({ initiator, states, editable, mutateIe, onClose }: {
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Applicable operating states" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Applicable operating states" level={3} /></div>
           {states.length === 0 ? (
             <p className="posmuted" style={{ margin: 0 }}>No operating states defined yet.</p>
           ) : (
@@ -131,7 +131,7 @@ function InitiatorEditor({ initiator, states, editable, mutateIe, onClose }: {
 
         {editable && (
           <div className="poscard">
-            <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Remove initiator" level={3} /></div>
+            <div className="poscard__head"><WorkbookSectionHeading title="Remove initiator" level={3} /></div>
             <p className="posfield__hint" style={{ marginTop: 0 }}>This deletes the initiating event from the analysis.</p>
             <button type="button" className="posnav__btn posnav__btn--sm" onClick={del}><IEIcon.Close /> Delete initiator</button>
           </div>
@@ -179,7 +179,7 @@ function GroupEditor({ group, initiators, editable, mutateIe, onClose }: {
       </div>
       <fieldset disabled={!editable} className="posdrawer__body" style={{ border: 0, margin: 0, minInlineSize: 0 }}>
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Group details" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Group details" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Name</label>
@@ -189,7 +189,7 @@ function GroupEditor({ group, initiators, editable, mutateIe, onClose }: {
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Member initiators" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Member initiators" level={3} /></div>
           {initiators.length === 0 ? (
             <p className="posmuted" style={{ margin: 0 }}>No initiators to group yet. Add them in Step 3.</p>
           ) : (
@@ -206,7 +206,7 @@ function GroupEditor({ group, initiators, editable, mutateIe, onClose }: {
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Bounding case" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Bounding case" level={3} /></div>
           <select className="posfield__input" value={group.boundingInitiatorId} onChange={(e) => patch({ boundingInitiatorId: e.target.value })}>
             <option value="">None selected</option>
             {group.memberInitiatorIds.map((m) => {
@@ -217,12 +217,12 @@ function GroupEditor({ group, initiators, editable, mutateIe, onClose }: {
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Grouping basis" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Grouping basis" level={3} /></div>
           <AutoTextarea value={group.groupingBasis} placeholder="Why these events are alike enough to group, and what bounds them." onChange={(v) => patch({ groupingBasis: v })} />
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Similarity and challenge" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Similarity and challenge" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Similar mitigation requirements (comma-separated)</label>
@@ -296,7 +296,7 @@ function HazardEditor({ hazard, editable, mutateIe, onClose }: {
       </div>
       <fieldset disabled={!editable} className="posdrawer__body" style={{ border: 0, margin: 0, minInlineSize: 0 }}>
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Hazard details" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Hazard details" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Name</label>
@@ -321,7 +321,7 @@ function HazardEditor({ hazard, editable, mutateIe, onClose }: {
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Screening" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Screening" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield">
               <label className="posfield__label">Screening status</label>
@@ -342,7 +342,7 @@ function HazardEditor({ hazard, editable, mutateIe, onClose }: {
 
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="IE" title="Hazard combinations (IE-A6)" level={3} />
+            <WorkbookSectionHeading title="Hazard combinations (IE-A6)" level={3} />
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addCombo}><IEIcon.Plus /> Add combination</button>}
           </div>
           {hazard.potentialCombinations.length === 0 ? (
@@ -361,7 +361,7 @@ function HazardEditor({ hazard, editable, mutateIe, onClose }: {
 
         {editable && (
           <div className="poscard">
-            <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Remove hazard" level={3} /></div>
+            <div className="poscard__head"><WorkbookSectionHeading title="Remove hazard" level={3} /></div>
             <p className="posfield__hint" style={{ marginTop: 0 }}>This deletes the hazard analysis from the analysis.</p>
             <button type="button" className="posnav__btn posnav__btn--sm" onClick={del}><IEIcon.Close /> Delete hazard</button>
           </div>
@@ -388,7 +388,7 @@ function IeDrawerContent({ context, onClose }: { context: IeDrawerContext; onClo
       <div className="posdrawer__head">
         <div>
           <div className="posdrawer__cap">Record</div>
-          <WorkbookSectionHeading workbook="IE" title="No longer available" level={2} className="posdrawer__title" />
+          <WorkbookSectionHeading title="No longer available" level={2} className="posdrawer__title" />
         </div>
         <button type="button" className="posdrawer__close" onClick={onClose}><IEIcon.Close /></button>
       </div>

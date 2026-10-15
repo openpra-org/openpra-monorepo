@@ -63,7 +63,7 @@ export function RcSiteReceptorsPanel({ initialTab = "receptors" }: { initialTab?
     ? <div>{field("Receptor height above ground (m)", "receptorHeightMetres", 0)}</div>
     : null;
   const status = busy ? "Saving…" : dirty ? "Unsaved changes" : saved ? "Site inputs saved." : !site ? "No site data" : issues.length ? undefined : "Site and receptors ready";
-  return <div className="poscard rc-site-input-card"><div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Site and receptors" level={3} /></div>
+  return <div className="poscard rc-site-input-card"><div className="poscard__head"><WorkbookSectionHeading title="Site and receptors" level={3} /></div>
     <section className="rc-site-receptors" aria-label="Site and receptors">
       <div className="sr-tabs" role="tablist" aria-label="Site input review" ref={tablist} onKeyDown={e => {
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;

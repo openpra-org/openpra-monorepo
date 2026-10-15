@@ -496,7 +496,7 @@ function EsqWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.area.length > 0 ? `Step ${step.num} · ${h.area}` : ""}</div>
-              <WorkbookSectionHeading workbook="ESQ" title={h.title} level={1} className="posmain__title" />
+              <WorkbookSectionHeading title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
               {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm esq-show-steps" onClick={() => setRailOpen(true)}><ESQIcon.Layers /> Show steps</button>}

@@ -84,6 +84,9 @@ function DaWorkbookPage(): JSX.Element {
     ])
       .then(async ([workbook, bundle]) => {
         if (cancelled) return;
+        const options = await listDaLinkOptions(workbook.projectId);
+        if (cancelled) return;
+        setLinkOptions(options);
         setData({
           da: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
@@ -98,8 +101,6 @@ function DaWorkbookPage(): JSX.Element {
         } catch {
           if (!cancelled) setProjectName("");
         }
-        const options = await listDaLinkOptions(workbook.projectId);
-        if (!cancelled) setLinkOptions(options);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -242,7 +243,7 @@ function DaWorkbookPage(): JSX.Element {
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as DaWorkbookRoleName[])} />}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="DA"
           exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}

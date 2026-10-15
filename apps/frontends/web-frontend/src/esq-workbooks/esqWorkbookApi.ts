@@ -38,6 +38,8 @@ import {
   type EventTreeAnalysisResult,
   type EventTreeCutSetSettings,
   type EventTreeExecuteResult,
+  type EventTreeMonteCarloSettings,
+  type EventTreeSuccessTreatment,
 } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import {
   AnalysisRunDetailsSchema,
@@ -283,6 +285,10 @@ async function getEsqRunDetails(workbookId: string, runId: string): Promise<Anal
   return AnalysisRunDetailsSchema.parse(await fetchJson<AnalysisRunDetails>(`/api/esq-workbooks/${workbookId}/analysis-runs/${runId}/details`));
 }
 
+async function getEsqRunWorkbook(workbookId: string, runId: string): Promise<EventSequenceQuantification> {
+  return fetchJson<EventSequenceQuantification>(`/api/esq-workbooks/${workbookId}/analysis-runs/${runId}/workbook`);
+}
+
 async function listEsqRunsOf(workbookId: string, modelId: string): Promise<AnalysisRunProvenanceList> {
   return AnalysisRunProvenanceListSchema.parse(await fetchJson<AnalysisRunProvenanceList>(`/api/esq-workbooks/${workbookId}/analysis-runs?modelId=${encodeURIComponent(modelId)}`));
 }
@@ -347,6 +353,8 @@ async function runEsqModel(
   cutSets: EventTreeCutSetSettings | undefined,
   hcl?: EsqModelRunHcl,
   onProgress?: RunProgressListener,
+  treeIds?: readonly string[],
+  engine?: { successTreatment?: EventTreeSuccessTreatment; monteCarlo?: EventTreeMonteCarloSettings },
 ): Promise<EventTreeExecuteResult> {
   return finishedRun("esq", workbookId, postJson<EventTreeExecuteResult>(`/api/esq-workbooks/${workbookId}/model-runs`, {
     schemaVersion: "1.0.0",
@@ -354,7 +362,10 @@ async function runEsqModel(
     logic,
     calculation,
     ...(cutSets === undefined ? {} : { cutSets }),
+    ...(engine?.successTreatment === undefined ? {} : { successTreatment: engine.successTreatment }),
+    ...(engine?.monteCarlo === undefined ? {} : { monteCarlo: { ...engine.monteCarlo } }),
     ...(hcl === undefined ? {} : { hcl }),
+    ...(treeIds === undefined ? {} : { treeIds: [...treeIds] }),
   }), onProgress);
 }
 
@@ -461,6 +472,7 @@ export {
   listEsqModelRuns,
   type EsqModelRunEntry,
   getEsqRunDetails,
+  getEsqRunWorkbook,
   getEsqRunSourceRevision,
   runEsqBarrierCell,
   listEsqCellRuns,

@@ -24,6 +24,7 @@ import { NO_LINK_OPTIONS, listEsqLinkOptions } from "./esqLinks";
 import { loadEsqDaLinks } from "./esqDaLinks";
 import { useEsqMefPatch } from "./useEsqMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
+import { WorkbookViewMemory } from "../workbooks/workbookViewMemory";
 import { EsqDocumentsCard } from "./esqDocumentsCard";
 import { type EsqPersona } from "./esqViewData";
 
@@ -76,6 +77,9 @@ function EsqWorkbookPage(): JSX.Element {
     getEsqWorkbook(id)
       .then(async (workbook) => {
         if (cancelled) return;
+        const options = await listEsqLinkOptions(workbook.projectId);
+        if (cancelled) return;
+        setLinkOptions(options);
         setData({ esq: workbook.mef });
         setMyRoles(workbook.myRoles);
         setProjectId(workbook.projectId);
@@ -87,8 +91,6 @@ function EsqWorkbookPage(): JSX.Element {
         } catch {
           if (!cancelled) setProjectName("");
         }
-        const options = await listEsqLinkOptions(workbook.projectId);
-        if (!cancelled) setLinkOptions(options);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -217,36 +219,38 @@ function EsqWorkbookPage(): JSX.Element {
       mutateEsq={mutateEsq}
       upstream={upstream}
     >
-      <EsqWorkbench
-        data={data}
-        persona={persona}
-        setPersona={setPersona}
-        showPersonaPicker={availablePersonas.length > 1}
-        availablePersonas={availablePersonas}
-        onOpenRoles={() => setRolesOpen(true)}
-        onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
-        onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
-        actions={actions}
-        headerMeta={{ projectName, workbookName, workbookVersion, saveStatus }}
-        renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />}
-        renderSignCard={() => (
-          <WorkbookSignCard
-            workbookId={id}
-            actingUsername={actingUsername}
-            currentPersona={persona}
-            myOpenComments={data.esq.internalReviewComments.comments.filter((c) => c.authorId === actingUsername && !c.resolved).length}
-            refreshSignal={approvalRefresh}
-            onSigned={() => {
-              setApprovalRefresh((n) => n + 1);
-              void refreshWorkbook().catch((refreshError: unknown) => {
-                handleSaveErr((refreshError as { message?: string }).message ?? "Could not refresh this ESQ workbook");
-              });
-            }}
-          />
-        )}
-        renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
-        renderDocuments={() => <EsqDocumentsCard workbookId={id} canEdit={canEdit} />}
-      />
+      <WorkbookViewMemory scope={`esq.${id}`}>
+        <EsqWorkbench
+          data={data}
+          persona={persona}
+          setPersona={setPersona}
+          showPersonaPicker={availablePersonas.length > 1}
+          availablePersonas={availablePersonas}
+          onOpenRoles={() => setRolesOpen(true)}
+          onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
+          onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
+          actions={actions}
+          headerMeta={{ projectName, workbookName, workbookVersion, saveStatus }}
+          renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />}
+          renderSignCard={() => (
+            <WorkbookSignCard
+              workbookId={id}
+              actingUsername={actingUsername}
+              currentPersona={persona}
+              myOpenComments={data.esq.internalReviewComments.comments.filter((c) => c.authorId === actingUsername && !c.resolved).length}
+              refreshSignal={approvalRefresh}
+              onSigned={() => {
+                setApprovalRefresh((n) => n + 1);
+                void refreshWorkbook().catch((refreshError: unknown) => {
+                  handleSaveErr((refreshError as { message?: string }).message ?? "Could not refresh this ESQ workbook");
+                });
+              }}
+            />
+          )}
+          renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
+          renderDocuments={() => <EsqDocumentsCard workbookId={id} canEdit={canEdit} />}
+        />
+      </WorkbookViewMemory>
       {saveError !== null && (
         <div className="ie-savebar" role="alert">
           <span>Could not save changes: {saveError}</span>
@@ -255,7 +259,7 @@ function EsqWorkbookPage(): JSX.Element {
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as EsqWorkbookRoleName[])} />}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="ESQ"
           exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}

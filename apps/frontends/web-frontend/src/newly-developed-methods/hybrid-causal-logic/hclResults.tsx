@@ -146,7 +146,7 @@ export function HclResults({
       {workflow === "MANUAL" && runResult?.kind === "FAULT_TREE" && (
         <div
           className="hcleditor__analysis-result"
-          aria-label="HCL fault-tree result"
+          aria-label="Dependency fault tree result"
         >
           <div className="analysis-results__toolbar">
             <strong>
@@ -188,7 +188,7 @@ export function HclResults({
       {workflow === "MANUAL" && runResult?.kind === "EVENT_TREE" && (
         <div
           className="hcleditor__batch-result"
-          aria-label="HCL event-tree result"
+          aria-label="Dependency event tree result"
         >
           <div className="hcleditor__batch-heading">
             <strong>Event-tree results</strong>
@@ -220,7 +220,7 @@ export function HclResults({
       {workflow === "BATCH" && batchRunResult !== null && (
         <div
           className="hcleditor__batch-result"
-          aria-label="HCL scenario batch result"
+          aria-label="Dependency scenario batch result"
         >
           <div className="hcleditor__batch-heading">
             <strong>{hazard === undefined ? "Scenario results" : "Hazard convolution"}</strong>
@@ -246,7 +246,7 @@ export function HclResults({
           )}
           <PagedResults
             items={batchRunResult.scenarios}
-            label="HCL scenarios"
+            label="Dependency scenarios"
             resetKey={`${batchKey}:${selected}`}
           >
             {(page) => (

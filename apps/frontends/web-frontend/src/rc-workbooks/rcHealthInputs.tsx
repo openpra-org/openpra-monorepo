@@ -59,7 +59,7 @@ export function RcHealthPanel({ openEditor }: { openEditor: (kind: "healthparams
       return <tr key={record.cardId}><td><input type="checkbox" aria-label={`Use ${rcHealthEffectLabel(record)}`} checked={list.includes(rcHealthEffectLabel(record))} disabled={!editable} onChange={() => toggle(record)} /></td><td>{rcHealthEffectLabel(record)}</td><td>{record.organ}</td><td className="rh-mono">{record.cardId}</td><td className="rh-values">{kind === "early_fatality" ? <>α {number(record.values[0])} Sv · β {number(record.values[1])} · threshold {number(record.values[2])} Sv</> : kind === "latent_cancer" ? <>fatality {number(record.values[3])} /Sv · incidence {number(record.values[4])} /Sv <span>· all values: {record.values.map(number).join(" · ")}</span></> : record.values.map(number).join(" · ")}</td></tr>;
     })}</tbody></table></div></section>;
   };
-  return <div className="poscard rh-card"><div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Health-effect inputs" level={3} /></div><section className="rh" aria-label="Health-effect inputs">
+  return <div className="poscard rh-card"><div className="poscard__head"><WorkbookSectionHeading title="Health-effect inputs" level={3} /></div><section className="rh" aria-label="Health-effect inputs">
     <div className="rh-tabs" role="tablist" aria-label="Health-effect sections" ref={tabs} onKeyDown={event => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
       event.preventDefault(); const order: Tab[] = ["effects", "model", "sources"], index = order.indexOf(tab);

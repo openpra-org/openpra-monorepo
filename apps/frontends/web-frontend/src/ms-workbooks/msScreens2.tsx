@@ -1,4 +1,4 @@
-import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useId } from "react";
 import { type ReleasePhase, type SourceTermDefinition, TransportPhenomenonType } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
@@ -97,7 +97,7 @@ function SourceTermScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="MS" title="Source terms" level={3} />
+          <WorkbookSectionHeading title="Source terms" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-C1 · C3 · C4</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSourceTerm}><MSIcon.Plus /> Add source term</button>}
@@ -147,7 +147,7 @@ function SourceTermScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =
       {headline !== undefined && headline.releaseForms.length > 0 && (
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="MS" title="Quantitative source-term table" level={3} />
+            <WorkbookSectionHeading title="Quantitative source-term table" level={3} />
             <MsProvenanceChip>MS-E2</MsProvenanceChip>
           </div>
           <p className="poscard__sub">The documentation deliverable is the table itself, here for {categoryName(headline.releaseCategoryReference)}, by species, phase, form and chemical form.</p>
@@ -160,7 +160,7 @@ function SourceTermScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="MS" title="Source-term models" level={3} />
+          <WorkbookSectionHeading title="Source-term models" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-C5</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addModel}><MSIcon.Plus /> Add model</button>}
@@ -236,7 +236,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => vo
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="MS" title="Uncertainty analyses" level={3} />
+          <WorkbookSectionHeading title="Uncertainty analyses" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-D2 · D4</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addAnalysis}><MSIcon.Plus /> Add analysis</button>}
@@ -310,7 +310,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="MS" title="Model-uncertainty sources" level={3} />
+          <WorkbookSectionHeading title="Model-uncertainty sources" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-C6 · D3</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addModelUncertainty}><MSIcon.Plus /> Add source</button>}
@@ -333,7 +333,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="MS" title="Open items register" level={3} />
+          <WorkbookSectionHeading title="Open items register" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-D3 · E4</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSensitivity}><MSIcon.Plus /> Add sensitivity</button>}
@@ -370,7 +370,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="MS" title="Surrogate risk metric" level={3} />
+          <WorkbookSectionHeading title="Surrogate risk metric" level={3} />
           <MsProvenanceChip>MS-E1</MsProvenanceChip>
         </div>
         <p className="poscard__sub">The surrogate risk metric relates the source-term deliverable to the plant risk metric that Risk Integration pairs with the frequency.</p>
@@ -418,7 +418,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
 
       <div className="posgen__side">
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="MS" title="Conformance check" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -427,7 +427,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
         </div>
 
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="MS" title="Draft submission" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading title="Draft submission" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All applicable items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 7 and moves to <strong>Internal Technical Review</strong>.</>
@@ -445,12 +445,12 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
 }
 
 // ─── Drawer content (category / inventory / barrier / source term) ─────────
-function DrawerHead({ cap, title, sub, onClose }: { cap: string; title: string; sub?: string; onClose: () => void }): JSX.Element {
+function DrawerHead({ cap, title, onClose }: { cap: string; title: string; onClose: () => void }): JSX.Element {
   return (
     <div className="posdrawer__head">
       <div>
         <div className="posdrawer__cap">{cap}</div>
-        <WorkbookSectionHeading workbook="MS" title={title} cueKey={cap} description={sub} level={2} className="posdrawer__title" />
+        <WorkbookSectionHeading title={title} level={2} className="posdrawer__title" />
       </div>
       <button type="button" className="posdrawer__close" onClick={onClose}><MSIcon.Close /></button>
     </div>
@@ -525,7 +525,7 @@ function RemoveBtn({ label, onClick }: { label: string; onClick: () => void }): 
 function SrChips({ srs }: { srs: { sr: string }[] }): JSX.Element {
   return (
     <div>
-      <WorkbookCueLabel workbook="MS" title="Standard requirements" className="essec" />
+      <div className="essec">Standard requirements</div>
       <div className="posdrawer__srs">{srs.map((s) => <span key={s.sr} className="poschip posmono">{s.sr}</span>)}</div>
     </div>
   );
@@ -578,7 +578,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
     const remove = (): void => { mutateMs((d) => ({ ...d, releaseCategories: d.releaseCategories.filter((x) => x.uuid !== r.uuid) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Release category" title={r.name} sub={r.uuid} onClose={onClose} />
+        <DrawerHead cap="Release category" title={r.name} onClose={onClose} />
         <div className="posdrawer__body">
           <MsTextField label="Name" value={r.name} onChange={(v) => patch({ name: v })} disabled={dis} />
           <MsAreaField label="Definition" value={r.description} onChange={(v) => patch({ description: v })} disabled={dis} />
@@ -612,7 +612,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
     const remove = (): void => { mutateMs((d) => ({ ...d, sourceInventories: d.sourceInventories.filter((x) => x.uuid !== s.uuid) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Source inventory" title={s.name} sub={s.radioactiveSourceRef} onClose={onClose} />
+        <DrawerHead cap="Source inventory" title={s.name} onClose={onClose} />
         <div className="posdrawer__body">
           <MsTextField label="Name" value={s.name} onChange={(v) => patch({ name: v })} disabled={dis} />
           <div className="posfield-grid">
@@ -661,7 +661,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
     const remove = (): void => { mutateMs((d) => ({ ...d, transportBarrierAssessments: d.transportBarrierAssessments.filter((x) => x.uuid !== b.uuid) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Transport barrier" title={b.name} sub={b.barrierType} onClose={onClose} />
+        <DrawerHead cap="Transport barrier" title={b.name} onClose={onClose} />
         <div className="posdrawer__body">
           <MsTextField label="Name" value={b.name} onChange={(v) => patch({ name: v })} disabled={dis} />
           <div className="posfield-grid">
@@ -727,7 +727,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
     const remove = (): void => { mutateMs((d) => ({ ...d, sourceTermDefinitions: d.sourceTermDefinitions.filter((x) => x.uuid !== s.uuid) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Source term" title={categoryName} sub={s.uuid} onClose={onClose} />
+        <DrawerHead cap="Source term" title={categoryName} onClose={onClose} />
         <div className="posdrawer__body">
           <div className="posfield-grid">
             <MsSelectField label="Release category" value={s.releaseCategoryReference} options={categoryOptions} onChange={(v) => patch({ releaseCategoryReference: v })} disabled={dis} />
@@ -806,7 +806,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
     const remove = (): void => { mutateMs((d) => ({ ...d, transportPhenomenaAssessments: d.transportPhenomenaAssessments.filter((x) => x.uuid !== a.uuid) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Transport phenomena" title={ms.releaseCategories.find((r) => r.uuid === a.releaseCategoryReference)?.name ?? a.releaseCategoryReference} sub={a.uuid} onClose={onClose} />
+        <DrawerHead cap="Transport phenomena" title={ms.releaseCategories.find((r) => r.uuid === a.releaseCategoryReference)?.name ?? a.releaseCategoryReference} onClose={onClose} />
         <div className="posdrawer__body">
           <MsSelectField label="Release category" value={a.releaseCategoryReference} options={categoryOptions} onChange={(v) => patch({ releaseCategoryReference: v })} disabled={dis} />
           <div className="posfield">
@@ -866,7 +866,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
     const remove = (): void => { mutateMs((d) => ({ ...d, uncertaintyAnalyses: d.uncertaintyAnalyses.filter((x) => x.uuid !== u.uuid) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Uncertainty analysis" title={ms.releaseCategories.find((r) => r.uuid === u.releaseCategoryReference)?.name ?? u.releaseCategoryReference} sub={u.uuid} onClose={onClose} />
+        <DrawerHead cap="Uncertainty analysis" title={ms.releaseCategories.find((r) => r.uuid === u.releaseCategoryReference)?.name ?? u.releaseCategoryReference} onClose={onClose} />
         <div className="posdrawer__body">
           <div className="posfield-grid">
             <MsSelectField label="Release category" value={u.releaseCategoryReference} options={categoryOptions} onChange={(v) => patch({ releaseCategoryReference: v })} disabled={dis} />
@@ -952,7 +952,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
     const remove = (): void => { mutateMs((d) => ({ ...d, modelUncertaintyAssessments: (d.modelUncertaintyAssessments ?? []).filter((x) => x.uuid !== u.uuid) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Model uncertainty" title={u.uncertaintySource} sub={u.uuid} onClose={onClose} />
+        <DrawerHead cap="Model uncertainty" title={u.uncertaintySource} onClose={onClose} />
         <div className="posdrawer__body">
           <MsTextField label="Uncertainty source" value={u.uncertaintySource} onChange={(v) => patch({ uncertaintySource: v })} disabled={dis} />
           <MsSelectField label="Source block" value={u.sourceBlock} options={SOURCE_BLOCK_OPTIONS} onChange={(v) => patch({ sourceBlock: v as typeof u.sourceBlock })} disabled={dis} />
@@ -981,7 +981,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
     const remove = (): void => { mutateMs((d) => ({ ...d, sensitivityStudies: (d.sensitivityStudies ?? []).filter((x) => x.uuid !== st.uuid) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Sensitivity study" title={st.name ?? st.uuid} sub={st.uuid} onClose={onClose} />
+        <DrawerHead cap="Sensitivity study" title={st.name ?? st.uuid} onClose={onClose} />
         <div className="posdrawer__body">
           <MsTextField label="Name" value={st.name ?? ""} onChange={(v) => patch({ name: v })} disabled={dis} />
           <MsAreaField label="Description" value={st.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
@@ -1018,7 +1018,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
     const remove = (): void => { mutateMs((d) => ({ ...d, preOperationalAssumptions: (d.preOperationalAssumptions ?? []).filter((x) => x.uuid !== a.uuid) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Pre-operational assumption" title={a.influenceOnDefinition} sub={a.uuid} onClose={onClose} />
+        <DrawerHead cap="Pre-operational assumption" title={a.influenceOnDefinition} onClose={onClose} />
         <div className="posdrawer__body">
           <MsTextField label="Area of influence" value={a.influenceOnDefinition} onChange={(v) => patch({ influenceOnDefinition: v })} disabled={dis} />
           <MsAreaField label="Description" value={a.description} onChange={(v) => patch({ description: v })} disabled={dis} rows={2} />
@@ -1059,7 +1059,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
     const remove = (): void => { mutateMs((d) => ({ ...d, sourceTermModels: (d.sourceTermModels ?? []).filter((x) => x.uuid !== m.uuid) })); onClose(); };
     return (
       <>
-        <DrawerHead cap="Source-term model" title={m.name} sub={m.uuid} onClose={onClose} />
+        <DrawerHead cap="Source-term model" title={m.name} onClose={onClose} />
         <div className="posdrawer__body">
           <MsTextField label="Name" value={m.name} onChange={(v) => patch({ name: v })} disabled={dis} />
           <div className="posfield-grid">

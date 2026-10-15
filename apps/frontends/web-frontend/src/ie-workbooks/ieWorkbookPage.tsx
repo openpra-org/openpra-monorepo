@@ -246,14 +246,6 @@ function IeWorkbookPage(): JSX.Element {
           projectName,
           workbookName,
           workbookVersion,
-          plantIdentity: data.ie.metadata.plantIdentity !== undefined
-            ? {
-                name: data.ie.metadata.plantIdentity.name,
-                type: data.ie.metadata.plantIdentity.reactorType,
-                power: data.ie.metadata.plantIdentity.thermalPower,
-                vendor: data.ie.metadata.plantIdentity.vendor,
-              }
-            : undefined,
         }}
         renderApprovalTable={() => (
           <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />
@@ -271,7 +263,7 @@ function IeWorkbookPage(): JSX.Element {
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as IeWorkbookRoleName[])} />}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="IE"
           exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}

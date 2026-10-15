@@ -2,7 +2,7 @@
 
 // Canonical worker source, copied unchanged into dist by Nest's asset build.
 // A process boundary allows the parent to stop synchronous native computation.
-process.once("message", ({ operation, requestJson, addonPath }) => {
+process.once("message", ({ operation, requestJson, addonPath, preflight: plansTables }) => {
   try {
     if (operation !== "validate" && operation !== "execute") throw new Error("Invalid PRAXIS operation");
     const addon = require(addonPath);
@@ -28,8 +28,8 @@ process.once("message", ({ operation, requestJson, addonPath }) => {
     }
     // The addon calls the original TensorBayes compiler without constructing
     // dense potentials. Keep this inside the timed, cancellable child process.
-    const preflight = JSON.parse(addon.preflight(requestJson, operation));
-    const resourceFailure = require("praxis-node/protocol").checkCliqueMemory(preflight);
+    const preflight = plansTables === false ? undefined : JSON.parse(addon.preflight(requestJson, operation));
+    const resourceFailure = preflight === undefined ? undefined : require("praxis-node/protocol").checkCliqueMemory(preflight);
     const response = resourceFailure ?? JSON.parse(addon[operation](requestJson));
     if (engine && response !== null && typeof response === "object" && !Array.isArray(response))
       response.engine = engine;

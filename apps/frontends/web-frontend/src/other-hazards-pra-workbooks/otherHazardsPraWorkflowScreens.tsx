@@ -101,9 +101,7 @@ export function OtherHazardsDraftScreen({
       <div className="posgen__side">
         <div className="posgen__readout">
           <WorkbookSectionHeading
-            workbook="O"
             title="Conformance check"
-            description="Summarizes whether the populated analysis satisfies the applicable OHA, OFR, and OPR requirements before controlled review."
             className="posgen__readout-h"
           />
           <div className="posgen__bar">
@@ -145,9 +143,7 @@ export function OtherHazardsDraftScreen({
         </div>
         <div className="posgen__readout">
           <WorkbookSectionHeading
-            workbook="O"
             title={canSubmit ? "Draft submission" : "Read-only draft preview"}
-            description="Generates the controlled analysis package and advances it to technical review after every blocking validation issue is resolved."
             className="posgen__readout-h"
           />
           <p className="posmuted">
@@ -215,13 +211,11 @@ function ReviewComments({
   actions,
   approvalView = false,
   title = "All review comments",
-  description = "Groups technical comments by OHA, OFR, OPR, or integrated analysis and tracks each finding through resolution.",
 }: {
   persona: OtherHazardsPraPersona;
   actions?: OtherHazardsWorkflowActions;
   approvalView?: boolean;
   title?: string;
-  description?: string;
 }): JSX.Element {
   const { mef, mutate } = useOtherHazardsPraWorkbook();
   const [filter, setFilter] = useState<"all" | "open" | "resolved">("all");
@@ -280,11 +274,7 @@ function ReviewComments({
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading
-          workbook="O"
-          title={title}
-          description={description}
-        />
+        <WorkbookSectionHeading title={title} />
         <div
           className="posrow"
           style={{ gap: 6 }}
@@ -477,11 +467,7 @@ export function OtherHazardsReviewScreen({
       {persona === "preparer" && (
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading
-              workbook="O"
-              title="Submit for Internal Approval"
-              description="Advances the technically reviewed Other Hazards baseline after every review comment has been dispositioned."
-            />
+            <WorkbookSectionHeading title="Submit for Internal Approval" />
             {open === 0 ?
               <Badge kind="ok">All comments resolved</Badge>
             : <Badge kind="warn">
@@ -543,15 +529,10 @@ export function OtherHazardsApprovalScreen({
         actions={actions}
         approvalView
         title={persona === "preparer" ? "Comments by reviewers & approvers" : "Your comments"}
-        description="Reviews the comment record supporting the Other Hazards approval decision and each responsible role's resolution status."
       />
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading
-            workbook="O"
-            title="What is being attested"
-            description="Confirms the capability target, requirements, comment record, and controlled configuration snapshot covered by approval."
-          />
+          <WorkbookSectionHeading title="What is being attested" />
         </div>
         <div className="posapprove__attest-with-sign">
           <div className="posapprove__attest-grid">
@@ -589,11 +570,7 @@ export function OtherHazardsApprovalScreen({
       {approved && (
         <div className="poscard posapprove__handoff">
           <div className="poscard__head">
-            <WorkbookSectionHeading
-              workbook="O"
-              title="After approval — external workflows"
-              description="Releases the approved, locked Other Hazards workbook to independent peer review or audit without allowing changes to the controlled analysis."
-            />
+            <WorkbookSectionHeading title="After approval — external workflows" />
             <Badge kind="draft">View + comment only</Badge>
           </div>
           <div className="posapprove__handoff-grid">

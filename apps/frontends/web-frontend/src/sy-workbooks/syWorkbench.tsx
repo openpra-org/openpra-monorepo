@@ -575,7 +575,7 @@ function SyWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <WorkbookSectionHeading workbook="SY" title={h.title} level={1} className="posmain__title" />
+              <WorkbookSectionHeading title={h.title} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
               {!railOpen && <button type="button" className="posnav__btn posnav__btn--sm sy-show-steps" onClick={() => setRailOpen(true)}><SYIcon.Layers /> Show steps</button>}

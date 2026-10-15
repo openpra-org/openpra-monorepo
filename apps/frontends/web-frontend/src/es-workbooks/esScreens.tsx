@@ -96,7 +96,7 @@ function SequenceDrawerBody({ seqId, trees, deps, onClose }: { seqId: string; tr
       <div className="posdrawer__body">
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="ES" title="Sequence path" level={3} />
+            <WorkbookSectionHeading title="Sequence path" level={3} />
             {isOk ? <Badge kind="ok">Safe stable state</Badge> : <Badge kind="block">Release · {s.releaseCategoryId}</Badge>}
           </div>
           <div className="espath">
@@ -122,7 +122,7 @@ function SequenceDrawerBody({ seqId, trees, deps, onClose }: { seqId: string; tr
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Outcome" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Outcome" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">End state</label><div className="posmono">{isOk ? "Safe stable state" : "Radionuclide release"}</div></div>
             <div className="posfield"><label className="posfield__label">Mean frequency</label><div className="posmono">{s.meanFrequency !== undefined ? `${fmtExp(s.meanFrequency)} /yr` : "—"}</div></div>
@@ -133,7 +133,7 @@ function SequenceDrawerBody({ seqId, trees, deps, onClose }: { seqId: string; tr
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Dependencies in this tree" level={3} /><Badge kind="progress">{relatedDeps.length}</Badge></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Dependencies in this tree" level={3} /><Badge kind="progress">{relatedDeps.length}</Badge></div>
           {relatedDeps.length > 0 ? (
             <div className="posrow posrow--wrap" style={{ gap: 6 }}>
               {relatedDeps.map((d) => <span key={d.id} className="poschip">{d.id} · {ES_DEPENDENCY_TYPES[d.type]?.label ?? d.type}</span>)}
@@ -199,13 +199,13 @@ function DependencyDrawerBody({ depId, deps, trees, onClose }: { depId: string; 
       </div>
       <div className="posdrawer__body">
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Description" level={3} />{!editable && imp.label !== "—" && <Badge kind={imp.kind}>{imp.label} importance</Badge>}</div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Description" level={3} />{!editable && imp.label !== "—" && <Badge kind={imp.kind}>{imp.label} importance</Badge>}</div>
           {editable
             ? <WorkbookTextarea className="posfield__textarea" style={{ minHeight: 64 }} placeholder="What links these two elements, and how is it modelled?" value={d.desc} onChange={(e) => patchDep({ description: e.target.value })} />
             : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{d.desc}</p>}
         </div>
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Modelling" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Modelling" level={3} /></div>
           <div className="posfield-grid">
             {editable && (
               <>
@@ -316,13 +316,13 @@ function ReleaseCategoryDrawerBody({ mappingId, onClose }: { mappingId: string; 
       </div>
       <div className="posdrawer__body">
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Mapping basis" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Mapping basis" level={3} /></div>
           {editable
             ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} placeholder="Why these sequences share one source-term calculation" value={m.mappingBasis} onChange={(e) => patch({ mappingBasis: e.target.value })} />
             : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{m.mappingBasis}</p>}
         </div>
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Characteristics" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Characteristics" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Common characteristics (comma separated)</label>
               {editable
@@ -346,7 +346,7 @@ function ReleaseCategoryDrawerBody({ mappingId, onClose }: { mappingId: string; 
           </div>
         </div>
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Member sequences" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Member sequences" level={3} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>
             {m.eventSequenceIds.map((id) => (
               <span key={id} className="poschip poschip--primary" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -416,13 +416,13 @@ function FamilyDrawerBody({ familyId, onClose }: { familyId: string; onClose: ()
       </div>
       <div className="posdrawer__body">
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Representative plant response" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Representative plant response" level={3} /></div>
           {editable
             ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} placeholder="How the plant responds in every member of this family" value={f.representativePlantResponse} onChange={(e) => patch({ representativePlantResponse: e.target.value })} />
             : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{f.representativePlantResponse}</p>}
         </div>
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Classification" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Classification" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">End state</label>
               {editable
@@ -462,7 +462,7 @@ function FamilyDrawerBody({ familyId, onClose }: { familyId: string; onClose: ()
           </div>
         </div>
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Member sequences" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Member sequences" level={3} /></div>
           <p className="poscard__sub">The highest-frequency member <span className="posmono">{representativeId ?? "—"}</span> is the representative sequence.</p>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>
             {f.memberSequenceIds.map((id) => (
@@ -520,7 +520,7 @@ function ScreeningDrawerBody({ recordId, onClose }: { recordId: string; onClose:
       </div>
       <div className="posdrawer__body">
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Disposition" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Disposition" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Decision</label>
               {editable
@@ -542,7 +542,7 @@ function ScreeningDrawerBody({ recordId, onClose }: { recordId: string; onClose:
           </div>
         </div>
         <div className="poscard">
-          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Justification" level={3} /></div>
+          <div className="poscard__head"><WorkbookSectionHeading title="Justification" level={3} /></div>
           {editable
             ? <WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} placeholder="Why this sequence is kept, or the SCR basis for dropping it" value={r.justification} onChange={(e) => patch({ justification: e.target.value })} />
             : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{r.justification}</p>}
@@ -1144,7 +1144,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
 
       <div className="posgen__side">
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="ES" title="Conformance check" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -1153,7 +1153,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
         </div>
 
         <div className="posgen__readout">
-          <WorkbookSectionHeading workbook="ES" title="Draft submission" level={3} className="posgen__readout-h" />
+          <WorkbookSectionHeading title="Draft submission" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All items pass at <strong>{cc.name}</strong>, so making the draft locks Steps 1-8 and moves the workbook to <strong>Internal Technical Review</strong>.</>

@@ -78,6 +78,9 @@ function RiWorkbookPage(): JSX.Element {
     ])
       .then(async ([workbook, bundle]) => {
         if (cancelled) return;
+        const linkChoices = await listRiLinkOptions(workbook.projectId);
+        if (cancelled) return;
+        setLinkOptions(linkChoices);
         setData({
           ri: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
@@ -97,8 +100,6 @@ function RiWorkbookPage(): JSX.Element {
         } catch {
           if (!cancelled) setProjectName("");
         }
-        const options = await listRiLinkOptions(workbook.projectId);
-        if (!cancelled) setLinkOptions(options);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -217,7 +218,7 @@ function RiWorkbookPage(): JSX.Element {
       )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as RiWorkbookRoleName[])} />}
       {loadExOpen && (
-        <LoadExampleModal
+        <LoadExampleModal replacesLinks
           exampleName="RI"
           exampleOptions={exampleOptions}
           exampleNotices={{ "published-ri-inputs": "Every frequency and dose in this example comes from the Kemmerer Unit 1 PSAR Rev. 1 and the applicant's RCI response, entered by hand with its source. Where the PSAR gives only plant totals, the workbook records the gap instead of inventing a value." }}

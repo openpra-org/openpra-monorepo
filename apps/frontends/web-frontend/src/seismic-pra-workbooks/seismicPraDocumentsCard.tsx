@@ -96,7 +96,7 @@ function SeismicPraDocumentsCard({ workbookId, canEdit }: { workbookId?: string;
 
   return <div className="poscard">
     <div className="poscard__head">
-      <WorkbookSectionHeading workbook="SEISMIC" title="Supporting Documents" />
+      <WorkbookSectionHeading title="Supporting Documents" />
       {canChange && workbookId !== undefined && <label className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ cursor: busy ? "wait" : "pointer" }}>
         <POSIcon.Plus /> {busy ? "Uploading…" : "Upload"}
         <input type="file" hidden disabled={busy} onChange={upload} />

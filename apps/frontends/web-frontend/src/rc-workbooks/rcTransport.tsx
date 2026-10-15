@@ -96,7 +96,7 @@ export function RcTransportPanel({ openEditor }: { openEditor?: (kind: "dispersi
   const ad = rc.atmosphericTransportAndDispersion;
   const treatment = (included: boolean, detail?: string) => included ? detail?.trim() ? `Included · ${detail}` : "Included" : "Excluded";
   const reviewTable = (name: string, items: readonly { label: string; value: string }[]) => <table className="at-review-table" aria-label={name}><tbody>{items.map(item => <tr key={item.label}><th scope="row">{item.label}</th><td>{item.value || "Not recorded"}</td></tr>)}</tbody></table>;
-  return <div className="poscard rc-transport-input-card"><div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Atmospheric transport" level={3} /></div>
+  return <div className="poscard rc-transport-input-card"><div className="poscard__head"><WorkbookSectionHeading title="Atmospheric transport" level={3} /></div>
     <section className="rc-transport" aria-label="Atmospheric transport inputs">
       <label className="at-category">Release category<select className="posfield__select" aria-label="Transport release category" disabled={!categories.length || dirty || busy} value={categoryId} onChange={e => setSelectedCategory(e.target.value)}>{!categories.length && <option value="">No release category yet</option>}{categories.map(c => <option key={c.releaseCategory} value={c.releaseCategory}>{c.releaseCategory}{c.sourceTermDefinitionRef ? ` · ${c.sourceTermDefinitionRef}` : ""}</option>)}</select></label>
       <div className="at-tabs" role="tablist" aria-label="Transport inputs" ref={tabs} onKeyDown={e => {

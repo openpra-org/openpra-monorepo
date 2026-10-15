@@ -2,12 +2,12 @@ import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX } from "react";
 import { RIIcon } from "./riIcons";
 
-function DrawerHead({ cap, title, sub, onClose }: { cap: string; title: string; sub?: string; onClose: () => void }): JSX.Element {
+function DrawerHead({ cap, title, onClose }: { cap: string; title: string; onClose: () => void }): JSX.Element {
   return (
     <div className="modal__head">
       <div>
         <div className="posdrawer__cap">{cap}</div>
-        <WorkbookSectionHeading workbook="RI" title={title} cueKey={cap} description={sub} level={2} className="modal__title" />
+        <WorkbookSectionHeading title={title} level={2} className="modal__title" />
       </div>
       <button type="button" className="modal__close" onClick={onClose} aria-label="Close"><RIIcon.Close /></button>
     </div>

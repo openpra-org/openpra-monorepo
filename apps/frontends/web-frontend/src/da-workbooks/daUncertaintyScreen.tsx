@@ -413,7 +413,7 @@ function ImportanceCard({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => 
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="DA" title="Importance" level={3} />
+        <WorkbookSectionHeading title="Importance" level={3} />
         <div className="da-card-actions">
           <DaProvenanceChip>DA-D1 · DA-D3</DaProvenanceChip>
           {editable && upstream.esq !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={importSignificance}>Import risk significance from ESQ</button>}
@@ -470,7 +470,7 @@ function UncertaintyScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) 
       <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} tabIndex={0} className="da-step__panel">
         <div className="poscard">
           <div className="poscard__head">
-            <WorkbookSectionHeading workbook="DA" title={head.title} level={3} />
+            <WorkbookSectionHeading title={head.title} level={3} />
             <div className="da-card-actions">
               <DaProvenanceChip>{head.sr}</DaProvenanceChip>
               {editable && tab === "register" && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSource}>Add entry</button>}

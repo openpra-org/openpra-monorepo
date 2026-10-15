@@ -1,4 +1,4 @@
-import { useMemo, type JSX } from "react";
+import { useId, useMemo, type JSX } from "react";
 import { z } from "zod";
 import {
   FaultTreeAnalysisSettingsSchema,
@@ -14,9 +14,10 @@ import {
 import { FaultTreeResults } from "../newly-developed-methods/fault-tree";
 import { analysisSaveBlock } from "../newly-developed-methods/shared/useAnalysisScope";
 import { AnalysisJobs } from "../newly-developed-methods/shared/analysisJobs";
-import { jsonView, useWorkbookView } from "../workbooks/workbookViewMemory";
+import { OPTIONAL_TEXT_VIEW, jsonView, useWorkbookView } from "../workbooks/workbookViewMemory";
 import { useSyWorkbook } from "./syWorkbookContext";
 import { hoursPoint, hoursText, type HoursState } from "../sc-workbooks/scMissionTimePoints";
+import "../es-workbooks/css/esSequences.css";
 import "./css/syFaultTreeAnalysis.css";
 
 type FaultTreeRunConfiguration = Pick<FaultTreeExecuteRequest, "calculationType" | "workflow" | "settings">;
@@ -110,6 +111,22 @@ function calculationLabel(calculationType: FaultTreeCalculationType): string {
   } satisfies Record<FaultTreeCalculationType, string>)[calculationType];
 }
 
+function FaultTreeResultPicker({ options, value, onChange }: { options: readonly FaultTreeRunModelOption[]; value: string; onChange: (modelId: string) => void }): JSX.Element {
+  const fieldId = useId();
+  return (
+    <div className="es-records__bar">
+      <div className="es-records__filters">
+        <div className="es-records__filter">
+          <label className="posfield__label" htmlFor={fieldId}>Fault tree</label>
+          <select id={fieldId} className="posfield__select" value={value} onChange={(event) => onChange(event.target.value)}>
+            {options.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SyFaultTreeAnalysis({
   exactResult,
   batchResults,
@@ -133,7 +150,10 @@ export function SyFaultTreeAnalysis({
     batchModelIds: [currentModelId],
   }), [currentModelId]);
   const [choice, setChoice] = useWorkbookView<QuantifyChoice>(`quantify:${currentModelId}`, initialChoice, QUANTIFY_VIEW);
+  const [shownTree, setShownTree] = useWorkbookView<string | null>("models.batch.tree", null, OPTIONAL_TEXT_VIEW);
   const { calculationType, workflow, settings, advancedOpen } = choice;
+  const batchOptions = batchResults.map((result) => ({ id: result.owner.modelId, label: models.find((model) => model.id === result.owner.modelId)?.label ?? result.owner.modelId }));
+  const shownBatch = batchResults.find((result) => result.owner.modelId === shownTree) ?? batchResults[0];
   const batchModelIds = choice.batchModelIds.filter((modelId) => models.some((model) => model.id === modelId));
   const missionPoint = hoursPoint(missionHours);
   const algorithms = algorithmsFor(calculationType);
@@ -371,17 +391,13 @@ export function SyFaultTreeAnalysis({
       ) : batchResults.length > 0 ? (
         <section className="syft-analysis__batch-results" aria-label="Fault-tree batch results">
           <h3>Batch results</h3>
-          {batchResults.map((result) => (
-            <div key={result.runId} className="syft-analysis__batch-result">
-              <strong>{models.find((model) => model.id === result.owner.modelId)?.label ?? result.owner.modelId}</strong>
-              <FaultTreeResults analysisResult={result} resultIsStale={false} basicEventCodes={basicEventCodes} />
-            </div>
-          ))}
+          <FaultTreeResultPicker options={batchOptions} value={shownBatch.owner.modelId} onChange={setShownTree} />
+          <FaultTreeResults key={shownBatch.runId} analysisResult={shownBatch} resultIsStale={false} basicEventCodes={basicEventCodes} />
         </section>
       ) : null}
     </section>
   );
 }
 
-export { FAULT_TREE_ALGORITHM_LABELS };
+export { FAULT_TREE_ALGORITHM_LABELS, FaultTreeResultPicker };
 export type { FaultTreeRunConfiguration, FaultTreeRunModelOption };

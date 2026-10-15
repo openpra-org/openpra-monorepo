@@ -4,9 +4,10 @@ import { ArrowRightIcon, BookIcon } from "../welcome/icons";
 import { formatRelative } from "../welcome/formatRelative";
 
 const STATUS_LABELS: Record<WorkbookStatus, string> = {
-  complete: "Complete",
-  "in-progress": "In progress",
   draft: "Draft",
+  "in-review": "In review",
+  "revision-required": "Revision required",
+  approved: "Approved",
 };
 
 function WorkbookRow({ workbook, onOpen }: { workbook: Workbook; onOpen: (workbook: Workbook) => void }): JSX.Element {

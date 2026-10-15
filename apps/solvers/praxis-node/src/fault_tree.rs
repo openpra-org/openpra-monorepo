@@ -572,13 +572,16 @@ pub(crate) fn catalogue_tables(
     Ok((catalogue.uncertainty_parameters, catalogue.uncertainty_vectors))
 }
 
+fn project_mismatch(catalogue_project_id: &str, project_id: &str) -> PraxisError {
+    PraxisError::Logic(format!(
+        "basic-event catalogue project '{catalogue_project_id}' does not match fault-tree project '{project_id}'"
+    ))
+}
+
 fn parse_catalogue(request: &SolverRequest, project_id: &str) -> Result<BasicEventCatalogue> {
     let catalogue = catalogue_value(request)?;
     if catalogue.project_id != project_id {
-        return Err(PraxisError::Logic(format!(
-            "basic-event catalogue project '{}' does not match fault-tree project '{}'",
-            catalogue.project_id, project_id
-        )));
+        return Err(project_mismatch(&catalogue.project_id, project_id));
     }
     Ok(catalogue)
 }
@@ -591,10 +594,24 @@ struct ResolvedCcfGroup {
 }
 
 struct ResolvedCatalogue {
-    program: UncertaintyProgram,
+    parameters: HashMap<String, Expr>,
     events: HashMap<String, (f64, Expr)>,
     groups: Vec<ResolvedCcfGroup>,
     records: Vec<BasicEventQuantificationRecord>,
+}
+
+fn shared_catalogue(
+    request: &SolverRequest,
+    snapshots: &[FaultTreeSnapshot],
+) -> Result<ResolvedCatalogue> {
+    let catalogue = catalogue_value(request)?;
+    if let Some(snapshot) = snapshots
+        .iter()
+        .find(|snapshot| snapshot.project_id != catalogue.project_id)
+    {
+        return Err(project_mismatch(&catalogue.project_id, &snapshot.project_id));
+    }
+    resolve_catalogue(catalogue)
 }
 
 fn resolve_catalogue(catalogue: BasicEventCatalogue) -> Result<ResolvedCatalogue> {
@@ -653,7 +670,7 @@ fn resolve_catalogue(catalogue: BasicEventCatalogue) -> Result<ResolvedCatalogue
         });
     }
     Ok(ResolvedCatalogue {
-        program,
+        parameters: program.into_parameters(),
         events,
         groups,
         records,
@@ -661,7 +678,7 @@ fn resolve_catalogue(catalogue: BasicEventCatalogue) -> Result<ResolvedCatalogue
 }
 
 fn build_fault_tree_snapshot(
-    request: &SolverRequest,
+    catalogue: &ResolvedCatalogue,
     snapshot: FaultTreeSnapshot,
     apply_uncertainty: bool,
     include_ccf: bool,
@@ -671,12 +688,7 @@ fn build_fault_tree_snapshot(
         .as_ref()
         .map(|top_gate| top_gate.gate_id.clone())
         .ok_or_else(|| PraxisError::Logic("fault-tree snapshot has no top gate".to_string()))?;
-    let ResolvedCatalogue {
-        program,
-        events: catalogue_events,
-        groups: common_cause_failure_groups,
-        records: basic_event_quantifications,
-    } = resolve_catalogue(parse_catalogue(request, &snapshot.project_id)?)?;
+    let catalogue_events = &catalogue.events;
 
     let mut aliases = HashMap::with_capacity(snapshot.leaf_nodes.len());
     let mut basic_event_probabilities = HashMap::new();
@@ -763,8 +775,9 @@ fn build_fault_tree_snapshot(
         }
         fault_tree.add_gate(gate)?;
     }
-    for group in common_cause_failure_groups
-        .into_iter()
+    for group in catalogue
+        .groups
+        .iter()
         .filter(|_| include_ccf)
         .filter(|group| {
             group
@@ -774,14 +787,14 @@ fn build_fault_tree_snapshot(
         })
     {
         fault_tree.add_ccf_group(CcfGroup::new(
-            group.id,
-            group.members,
-            group.model,
-            group.total,
+            group.id.clone(),
+            group.members.clone(),
+            group.model.clone(),
+            group.total.clone(),
         )?)?;
     }
-    for (name, expression) in program.into_parameters() {
-        fault_tree.set_parameter(name, expression);
+    for (name, expression) in &catalogue.parameters {
+        fault_tree.set_parameter(name.clone(), expression.clone());
     }
 
     Ok(FaultTreeAdapter {
@@ -789,7 +802,7 @@ fn build_fault_tree_snapshot(
         model_id: snapshot.id,
         model_revision: snapshot.revision,
         top_gate_id,
-        basic_event_quantifications,
+        basic_event_quantifications: catalogue.records.clone(),
     })
 }
 
@@ -798,19 +811,38 @@ pub(crate) fn build_fault_tree_for_model(
     model_id: &str,
     apply_uncertainty: bool,
 ) -> Result<FaultTreeAdapter> {
-    let snapshot = find_snapshot(request, model_id, None)?;
-    build_fault_tree_snapshot(request, snapshot, apply_uncertainty, false)
+    let mut adapters =
+        build_fault_trees_for_models(request, &[model_id], apply_uncertainty, false)?;
+    adapters
+        .pop()
+        .ok_or_else(|| PraxisError::Logic(format!("fault tree '{model_id}' was not built")))
 }
 
-pub(crate) fn build_expanded_fault_tree_for_model(
+pub(crate) fn build_fault_trees_for_models(
     request: &SolverRequest,
-    model_id: &str,
+    model_ids: &[&str],
     apply_uncertainty: bool,
-) -> Result<FaultTreeAdapter> {
-    let snapshot = find_snapshot(request, model_id, None)?;
-    let mut adapter = build_fault_tree_snapshot(request, snapshot, apply_uncertainty, true)?;
-    adapter.fault_tree.expand_ccf_groups()?;
-    Ok(adapter)
+    expand_ccf: bool,
+) -> Result<Vec<FaultTreeAdapter>> {
+    let snapshots = model_ids
+        .iter()
+        .map(|model_id| find_snapshot(request, model_id, None))
+        .collect::<Result<Vec<_>>>()?;
+    if snapshots.is_empty() {
+        return Ok(Vec::new());
+    }
+    let catalogue = shared_catalogue(request, &snapshots)?;
+    snapshots
+        .into_iter()
+        .map(|snapshot| -> Result<FaultTreeAdapter> {
+            let mut adapter =
+                build_fault_tree_snapshot(&catalogue, snapshot, apply_uncertainty, expand_ccf)?;
+            if expand_ccf {
+                adapter.fault_tree.expand_ccf_groups()?;
+            }
+            Ok(adapter)
+        })
+        .collect()
 }
 
 fn build_fault_tree(
@@ -823,8 +855,9 @@ fn build_fault_tree(
         FaultTreeCalculationType::Uncertainty
     );
     let include_ccf = execute.settings.expand_ccf;
+    let catalogue = shared_catalogue(request, std::slice::from_ref(&snapshot))?;
     Ok((
-        build_fault_tree_snapshot(request, snapshot, apply_uncertainty, include_ccf)?,
+        build_fault_tree_snapshot(&catalogue, snapshot, apply_uncertainty, include_ccf)?,
         execute,
     ))
 }

@@ -14,7 +14,7 @@
 
 .ap__tr {
   display: grid;
-  grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 1fr) 48px;
+  grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.6fr) minmax(0, 0.8fr) minmax(0, 1fr) 48px;
   align-items: center;
   gap: 16px;
   padding: 14px 20px;
@@ -94,37 +94,6 @@
   margin-top: 0;
 }
 
-.ap__td-progress {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.ap__td-progress-bar {
-  flex: 1;
-  height: 5px;
-  background: var(--color-surface-low);
-  border-radius: 999px;
-  overflow: hidden;
-  min-width: 60px;
-}
-
-.ap__td-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--color-primary) 0%, var(--op-violet-400) 100%);
-  border-radius: 999px;
-}
-
-.ap__td-pct {
-  font-family: var(--font-display), Georgia, serif;
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text);
-  min-width: 36px;
-  text-align: right;
-}
-
 .ap__td--actions,
 .ap__th--actions {
   justify-self: end;
@@ -132,10 +101,10 @@
 
 @media (max-width: 1080px) {
   .ap__tr {
-    grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) 48px;
+    grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.4fr) minmax(0, 1fr) 48px;
   }
-  .ap__th:nth-child(4),
-  .ap__td:nth-child(4) {
+  .ap__th:nth-child(3),
+  .ap__td:nth-child(3) {
     display: none;
   }
 }
@@ -146,9 +115,7 @@
     gap: 10px;
   }
   .ap__th:nth-child(2),
-  .ap__td:nth-child(2),
-  .ap__th:nth-child(5),
-  .ap__td:nth-child(5) {
+  .ap__td:nth-child(2) {
     display: none;
   }
 }

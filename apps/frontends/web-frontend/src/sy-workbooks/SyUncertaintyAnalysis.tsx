@@ -11,7 +11,8 @@ import { linkedMissionTimeTable } from "./syMissionTimes";
 import { runReadiness } from "./syUncertainty";
 import { isSystemLevelModel } from "./sySelectors";
 import { FaultTreeUncertaintyResults, type FaultTreeUncertaintyEntry } from "../newly-developed-methods/fault-tree";
-import { FAULT_TREE_ALGORITHM_LABELS } from "./SyFaultTreeAnalysis";
+import { OPTIONAL_TEXT_VIEW, useWorkbookView } from "../workbooks/workbookViewMemory";
+import { FAULT_TREE_ALGORITHM_LABELS, FaultTreeResultPicker } from "./SyFaultTreeAnalysis";
 import "./css/syFaultTreeAnalysis.css";
 import "./css/syUncertainty.css";
 
@@ -74,6 +75,8 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
   const [live, setLive] = useState<AnalysisRunMetadata | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<AnalysisResult[]>([]);
+  const [shownTree, setShownTree] = useWorkbookView<string | null>("uncertainty.batch.tree", null, OPTIONAL_TEXT_VIEW);
+  const shownResult = results.find((entry) => entry.modelId === shownTree) ?? results[0];
 
   const runnable = useMemo(() => modelOptions.filter(({ state }) => state === "READY"), [modelOptions]);
   useEffect(() => {
@@ -203,7 +206,15 @@ function SyUncertaintyAnalysis({ selectedModelId }: { selectedModelId?: string }
       {running && live !== null && <p className="possubtle" role="status">{runProgressText(live)}</p>}
       {(error ?? sourceWarning) !== null && <p className="syft-analysis__error" role="alert">{error ?? sourceWarning}</p>}
       {stale && <p className="syft-analysis__notice" role="status">These results use an earlier workbook revision.</p>}
-      {results.length > 0 && <FaultTreeUncertaintyResults entries={results} batch={workflow === "BATCH"} />}
+      {results.length > 0 && (
+        <FaultTreeUncertaintyResults
+          entries={workflow === "BATCH" ? [shownResult] : results}
+          batch={workflow === "BATCH"}
+          picker={workflow === "BATCH"
+            ? <FaultTreeResultPicker options={results.map((entry) => ({ id: entry.modelId, label: entry.label }))} value={shownResult.modelId} onChange={setShownTree} />
+            : undefined}
+        />
+      )}
     </section>
   );
 }

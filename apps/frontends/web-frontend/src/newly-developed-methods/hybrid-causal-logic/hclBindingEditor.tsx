@@ -930,5 +930,5 @@ function HclBindingEditor({
   );
 }
 
-export { HclBindingEditor };
+export { HclBindingEditor, createEvidenceBatchSamples, downloadText };
 export type { HclEventTreeOption, HclFaultTreeOption };

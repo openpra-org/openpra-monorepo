@@ -391,7 +391,7 @@ function SyBayesianNetworkWorkspace({
   return (
     <section className="poscard" aria-label="Systems Analysis dependency models">
       <div className="poscard__head bneditor__network-head">
-        <WorkbookSectionHeading workbook="SY" title="Bayesian dependency network" level={3} />
+        <WorkbookSectionHeading title="Bayesian dependency network" level={3} />
         <div className="posrow esqbn__network-actions" style={{ gap: 8 }}>
           {model !== undefined && (
             <select aria-label="Bayesian network" className="posfield__select" value={model.modelId} onChange={(event) => setSelectedModelId(event.target.value)}>

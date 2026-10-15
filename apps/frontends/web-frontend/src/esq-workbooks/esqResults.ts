@@ -3,7 +3,6 @@ import {
   type EsqComparedPlant,
   type EsqConsistencyEntry,
   type EsqConsistencyTopic,
-  type EsqCutSetReview,
   type EsqImportanceKind,
   type EsqImportanceRecord,
   type EsqImportanceSignificant,
@@ -79,7 +78,6 @@ interface EsqCutSetRow {
   share: number;
   cumulative: number;
   significant: boolean;
-  review?: EsqCutSetReview;
 }
 
 type EsqContributorKind = "SEQUENCE" | "STATE" | "INITIATOR" | "SOURCE" | "PARAMETER" | "CCF_GROUP" | "HFE" | "SYSTEM" | "BARRIER" | "EVENT";
@@ -314,7 +312,7 @@ function cutSetKey(familyId: string, treeId: string, eventIds: readonly string[]
   return `${familyId}|${treeId}|${[...eventIds].sort().join("+")}`;
 }
 
-function cutSetRows(summary: EsqModelRunResult, familyId: string, familyValue: number, work: EsqReviewWork, thresholds: Pick<EsqThresholdView, "aggregatePercent" | "individualPercent">, codeOf: (id: string) => string): EsqCutSetRow[] {
+function cutSetRows(summary: EsqModelRunResult, familyId: string, familyValue: number, thresholds: Pick<EsqThresholdView, "aggregatePercent" | "individualPercent">, codeOf: (id: string) => string): EsqCutSetRow[] {
   const family = summary.families.find((entry) => entry.familyId === familyId);
   if (family === undefined) return [];
   const total = familyValue > 0 ? familyValue : family.annualFrequency;
@@ -323,9 +321,8 @@ function cutSetRows(summary: EsqModelRunResult, familyId: string, familyValue: n
     const share = total > 0 ? cutSet.annualFrequency / total : 0;
     const before = running;
     running += share;
-    const key = cutSetKey(familyId, cutSet.treeId, cutSet.basicEventIds);
-    const row: EsqCutSetRow = {
-      key,
+    return {
+      key: cutSetKey(familyId, cutSet.treeId, cutSet.basicEventIds),
       familyId,
       treeId: cutSet.treeId,
       eventIds: [...cutSet.basicEventIds],
@@ -335,24 +332,6 @@ function cutSetRows(summary: EsqModelRunResult, familyId: string, familyValue: n
       cumulative: running,
       significant: 100 * share >= thresholds.individualPercent || 100 * before < thresholds.aggregatePercent,
     };
-    const review = work.cutSetReviews?.find((entry) => entry.key === key);
-    if (review !== undefined) row.review = review;
-    return row;
-  });
-}
-
-function withCutSetReview(esq: EventSequenceQuantification, row: EsqCutSetRow, change: { verdict?: "CORRECT" | "ISSUE"; note?: string }): EventSequenceQuantification {
-  return withReview(esq, (work) => {
-    const list = work.cutSetReviews ?? [];
-    const prior = list.find((entry) => entry.key === row.key);
-    const base: EsqCutSetReview = prior ?? { key: row.key, familyId: row.familyId, treeId: row.treeId, eventIds: [...row.eventIds], annualFrequency: row.annualFrequency, significant: row.significant, note: "" };
-    const next: EsqCutSetReview = { ...base, annualFrequency: row.annualFrequency, significant: row.significant, note: change.note ?? base.note };
-    if ("verdict" in change) {
-      if (change.verdict === undefined) delete next.verdict;
-      else next.verdict = change.verdict;
-    }
-    const index = list.findIndex((entry) => entry.key === row.key);
-    return { ...work, cutSetReviews: index < 0 ? [...list, next] : list.map((entry, position) => (position === index ? next : entry)) };
   });
 }
 
@@ -679,7 +658,6 @@ export {
   withComparison,
   withConfirmation,
   withConsistency,
-  withCutSetReview,
   withImportance,
   withReconciliation,
   withScreenedBound,

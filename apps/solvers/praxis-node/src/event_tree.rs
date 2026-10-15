@@ -24,7 +24,7 @@ use praxis::{PraxisError, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::fault_tree::{build_expanded_fault_tree_for_model, build_fault_tree_for_model};
+use crate::fault_tree::build_fault_trees_for_models;
 use crate::hybrid_causal_logic::build_event_tree_context;
 use crate::transport::SolverRequest;
 
@@ -33,6 +33,10 @@ const EVENT_TREE_METHOD: &str = "EVENT_TREE";
 mod cut_sets;
 mod linked;
 mod measures;
+mod monte_carlo;
+mod treatment;
+
+use treatment::SuccessTreatmentInput;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -61,6 +65,10 @@ struct EventTreeExecuteRequest {
     overrides: Option<measures::OverridesInput>,
     #[serde(default)]
     keep_samples: bool,
+    #[serde(default)]
+    success_treatment: Option<SuccessTreatmentInput>,
+    #[serde(default)]
+    monte_carlo: Option<monte_carlo::MonteCarloInput>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -314,6 +322,8 @@ struct EventTreeAdapter {
     sampling: Option<measures::SamplingInput>,
     initiator: Initiator,
     keep_samples: bool,
+    success_treatment: Option<SuccessTreatmentInput>,
+    monte_carlo: Option<monte_carlo::MonteCarloInput>,
 }
 
 fn serialization_error(context: &str, error: impl std::fmt::Display) -> PraxisError {
@@ -416,6 +426,37 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
         }
         overrides.validate()?;
     }
+    let treated = execute
+        .success_treatment
+        .is_some_and(|chosen| chosen != SuccessTreatmentInput::Complement);
+    if (treated || execute.monte_carlo.is_some())
+        && matches!(execute.mode, EventTreeExecutionMode::HybridCausalLogic)
+    {
+        return Err(PraxisError::Settings(
+            "Success treatments and Monte Carlo are available for independent event-tree runs."
+                .into(),
+        ));
+    }
+    if treated && (execute.importance.is_some() || execute.sampling.is_some()) {
+        return Err(PraxisError::Settings(
+            "Importance and sampling complement every succeeded system.".into(),
+        ));
+    }
+    if let Some(monte_carlo) = &execute.monte_carlo {
+        if treated
+            || execute.cut_sets.is_some()
+            || execute.importance.is_some()
+            || execute.sampling.is_some()
+            || execute.evidence_batch.is_some()
+            || execute.hazard_convolution.is_some()
+        {
+            return Err(PraxisError::Settings(
+                "Monte Carlo estimates sequence probabilities with every succeeded system complemented, without cut sets, measures, evidence batches or hazard convolution."
+                    .into(),
+            ));
+        }
+        monte_carlo.validate()?;
+    }
     let event_tree_snapshots = parse_event_tree_snapshots(request)?;
     let snapshot = event_tree_snapshots
         .get(&execute.model_id)
@@ -455,16 +496,18 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
     let linked = linked::build(&snapshot.id, &event_tree_snapshots)?;
     let mut model = Model::new(format!("event-tree-{}", snapshot.id))?;
     let added_fault_trees: HashSet<String> = linked.fault_trees.keys().cloned().collect();
-    for (id, top) in &linked.fault_trees {
-        let sampled = execute.sampling.is_some()
-            || (matches!(execute.mode, EventTreeExecutionMode::HybridCausalLogic)
-                && execute.calculation_type == HclCalculationType::Uncertainty);
-        let adapter = if execute.expand_ccf {
-            build_expanded_fault_tree_for_model(request, id, sampled)?
-        } else {
-            build_fault_tree_for_model(request, id, sampled)?
-        };
-        if &adapter.top_gate_id != top {
+    let sampled = execute.sampling.is_some()
+        || (matches!(execute.mode, EventTreeExecutionMode::HybridCausalLogic)
+            && execute.calculation_type == HclCalculationType::Uncertainty);
+    let links: Vec<(&str, &str)> = linked
+        .fault_trees
+        .iter()
+        .map(|(id, top)| (id.as_str(), top.as_str()))
+        .collect();
+    let ids: Vec<&str> = links.iter().map(|(id, _)| *id).collect();
+    let adapters = build_fault_trees_for_models(request, &ids, sampled, execute.expand_ccf)?;
+    for ((id, top), adapter) in links.into_iter().zip(adapters) {
+        if adapter.top_gate_id != top {
             return Err(PraxisError::Logic(format!(
                 "fault tree '{id}' uses top gate '{}' instead of '{top}'",
                 adapter.top_gate_id
@@ -529,6 +572,8 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
         sampling: execute.sampling,
         initiator,
         keep_samples: execute.keep_samples,
+        success_treatment: execute.success_treatment,
+        monte_carlo: execute.monte_carlo,
     })
 }
 
@@ -596,17 +641,23 @@ pub(crate) fn validate(request: &SolverRequest) -> Result<Value> {
 
 pub(crate) fn preflight(request: &SolverRequest, executing: bool) -> Result<Value> {
     let execute = parse_request(request)?;
-    let adapter = build_adapter(request)?;
-    if adapter.hcl_context.is_none() {
+    if matches!(execute.mode, EventTreeExecutionMode::Independent) {
         return Ok(crate::resource_preflight::no_clique());
     }
-    let configuration_id = &adapter
-        .snapshot
+    let snapshots = parse_event_tree_snapshots(request)?;
+    let snapshot = snapshots.get(&execute.model_id).ok_or_else(|| {
+        PraxisError::Logic(format!(
+            "event-tree model snapshot '{}' is missing",
+            execute.model_id
+        ))
+    })?;
+    let configuration_id = snapshot
         .hcl_configuration
         .as_ref()
-        .expect("HCL adapter requires its configuration")
-        .configuration
-        .model_id;
+        .map(|reference| reference.configuration.model_id.as_str())
+        .ok_or_else(|| {
+            PraxisError::Hcl("HCL event-tree execution requires an HCL configuration".to_string())
+        })?;
     crate::hybrid_causal_logic::preflight_event_tree_network(
         request,
         configuration_id,
@@ -623,6 +674,9 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
     if let Some(settings) = &adapter.cut_sets {
         return cut_sets::execute(&adapter, settings);
     }
+    if let Some(input) = &adapter.monte_carlo {
+        return monte_carlo::execute(&adapter, input);
+    }
     if let Some(rows) = &adapter.evidence_batch {
         validate_evidence_rows(rows)?;
         if adapter.hazard_convolution.is_some() {
@@ -634,6 +688,13 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
             batch_response(&adapter),
             |rows| execute_batch(&adapter, rows),
         );
+    }
+    if let Some(chosen) = adapter
+        .success_treatment
+        .filter(|chosen| *chosen != SuccessTreatmentInput::Complement)
+    {
+        let probabilities = treatment::probabilities(&adapter, chosen)?;
+        return event_tree_result_json(&adapter, &probabilities, &[], None);
     }
     let unions = end_state_unions(&adapter)?;
     let (probabilities, end_states) = quantify_event_tree_sequences_and_unions(

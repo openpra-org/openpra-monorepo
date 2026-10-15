@@ -26,8 +26,6 @@ import {
   SiteHazardModelScreen,
   type WorkflowActions,
 } from "./seismicPraScreens";
-import { InfoButton } from "./seismicPraFields";
-import { composeWorkbookCue } from "../workbooks/workbookCueContent";
 import {
   HazardEventTreeEditor,
   HazardFaultTreeEditor,
@@ -44,26 +42,25 @@ interface Step {
   subelement: "INTEGRATED" | "SHA" | "SFR" | "SPR" | "WORKFLOW";
   hlr?: string;
   title: string;
-  subtitle: string;
 }
 
 const STEPS: Step[] = [
-  { id: "scope", num: "01", label: "Analysis basis", subelement: "INTEGRATED", title: "Analysis basis", subtitle: "Use this step to set the starting rules for the Seismic PRA: what is included, which risk results are needed, how earthquake motion will be described, where that motion applies, and what data moves between technical elements." },
-  { id: "hazard-basis", num: "02", label: "Evidence base", subelement: "INTEGRATED", title: "Qualified evidence base", subtitle: "Use this step to register the existing PRA models, drawings, calculations, site data, procedures, operating experience, and configuration records that the Seismic PRA will rely on. Record where each item came from, its revision, who owns it, where it applies, and any known gaps before using it." },
-  { id: "earth-science", num: "03", label: "Baseline and seismic changes", subelement: "INTEGRATED", title: "Baseline PRA and seismic changes", subtitle: "Use this step to identify the exact baseline PRA version, inspect the imported model scope, decide what is reused or changed for seismic conditions, and resolve the model interfaces needed before detailed seismic work begins." },
-  { id: "sources-motion", num: "04", label: "Initial SEL", subelement: "INTEGRATED", title: "Initial SEL and failure consequences", subtitle: "Use this step to identify the SSCs that could affect seismic risk, record why each SSC is included, and connect each credible physical failure to its plant-model consequence." },
-  { id: "site-response", num: "05", label: "Site seismic hazard", subelement: "SHA", title: "Site seismic-hazard model", subtitle: "Use this step to define the PSHA process, characterize seismic sources and ground motion, calculate local site effects and hazard results, and disposition secondary seismic hazards." },
-  { id: "hazard-results", num: "06", label: "Plant demand", subelement: "SFR", title: "Plant seismic demand", subtitle: "Use this step to turn the site-hazard motion into foundation, floor, cabinet, and component demand for every applicable SEL item." },
-  { id: "secondary-hazards", num: "07", label: "Plant configuration", subelement: "SFR", title: "Plant configuration and final SEL", subtitle: "Use this step to confirm the intended or installed plant configuration, anchorage and support load paths, seismic interactions, fire and flood sources, operator access, open vulnerabilities, and final SEL demand and failure-mode alignment." },
-  { id: "sel-response", num: "08", label: "SSC screening and fragilities", subelement: "SFR", title: "SSC screening and fragility development", subtitle: "Use this step to screen only technically justified SSCs, identify governing failure mechanisms, calculate retained fragilities, and define the correlation and uncertainty treatments transferred to the plant model." },
-  { id: "thresholds", num: "09", label: "Plant-response model", subelement: "SPR", title: "Seismic plant-response model", subtitle: "Use this step to identify seismic initiating events, adapt the baseline PRA logic, add seismic failures and shared dependencies, and map each event sequence to its modeled outcome." },
-  { id: "fragility-results", num: "10", label: "Human response", subelement: "SPR", title: "Human response under seismic conditions", subtitle: "Use this step to identify credited human actions, evaluate earthquake-specific performance conditions and timing, and quantify HEP uncertainty, recovery credit, and dependencies." },
-  { id: "plant-model", num: "11", label: "Annual risk", subelement: "SPR", title: "Annual seismic-risk quantification", subtitle: "Use this step to integrate the seismic hazard, fragilities, plant-response model, and HEPs; calculate annual family and release-category frequencies; verify numerical convergence; propagate uncertainty; and identify significant cutsets and contributors." },
-  { id: "human-reliability", num: "12", label: "Risk interpretation", subelement: "INTEGRATED", title: "Risk interpretation and model refinement", subtitle: "Use this step to identify what drives the annual seismic-risk results, make only targeted technical refinements, requantify the model, and stop when the important results and contributor rankings remain stable." },
-  { id: "quantification", num: "13", label: "Risk integration", subelement: "INTEGRATED", title: "Risk integration and baseline package", subtitle: "Use this step to transfer the final seismic results to Risk Integration, prevent overlap with other hazards, record risk-informed actions, verify traceability, and prepare the package that proceeds through drafting, review, and approval." },
-  { id: "draft", num: "14", label: "Draft", subelement: "WORKFLOW", title: "Produce the draft", subtitle: "Complete SHA-I, SFR-F, and SPR-F documentation, verify traceability, and generate the controlled Word report for internal technical review." },
-  { id: "review", num: "15", label: "Review", subelement: "WORKFLOW", title: "Internal technical review", subtitle: "Review all three subelements, comment against requirements, resolve findings, and request revisions." },
-  { id: "approval", num: "16", label: "Approval", subelement: "WORKFLOW", title: "Internal approval", subtitle: "Review the controlled baseline, close comments, and complete role-based signatures." },
+  { id: "scope", num: "01", label: "Analysis basis", subelement: "INTEGRATED", title: "Analysis basis" },
+  { id: "hazard-basis", num: "02", label: "Evidence base", subelement: "INTEGRATED", title: "Qualified evidence base" },
+  { id: "earth-science", num: "03", label: "Baseline and seismic changes", subelement: "INTEGRATED", title: "Baseline PRA and seismic changes" },
+  { id: "sources-motion", num: "04", label: "Initial SEL", subelement: "INTEGRATED", title: "Initial SEL and failure consequences" },
+  { id: "site-response", num: "05", label: "Site seismic hazard", subelement: "SHA", title: "Site seismic-hazard model" },
+  { id: "hazard-results", num: "06", label: "Plant demand", subelement: "SFR", title: "Plant seismic demand" },
+  { id: "secondary-hazards", num: "07", label: "Plant configuration", subelement: "SFR", title: "Plant configuration and final SEL" },
+  { id: "sel-response", num: "08", label: "SSC screening and fragilities", subelement: "SFR", title: "SSC screening and fragility development" },
+  { id: "thresholds", num: "09", label: "Plant-response model", subelement: "SPR", title: "Seismic plant-response model" },
+  { id: "fragility-results", num: "10", label: "Human response", subelement: "SPR", title: "Human response under seismic conditions" },
+  { id: "plant-model", num: "11", label: "Annual risk", subelement: "SPR", title: "Annual seismic-risk quantification" },
+  { id: "human-reliability", num: "12", label: "Risk interpretation", subelement: "INTEGRATED", title: "Risk interpretation and model refinement" },
+  { id: "quantification", num: "13", label: "Risk integration", subelement: "INTEGRATED", title: "Risk integration and baseline package" },
+  { id: "draft", num: "14", label: "Draft", subelement: "WORKFLOW", title: "Produce the draft" },
+  { id: "review", num: "15", label: "Review", subelement: "WORKFLOW", title: "Internal technical review" },
+  { id: "approval", num: "16", label: "Approval", subelement: "WORKFLOW", title: "Internal approval" },
 ];
 
 interface HeaderMeta { projectName: string; workbookName: string; workbookVersion: string }
@@ -220,7 +217,7 @@ function SeismicPraWorkbench({ persona, setPersona, availablePersonas = ["prepar
   return <div className={`posw sw${dockOpen ? "" : " sw--dock-closed"}`}>
     <Header persona={persona} setPersona={setPersona} availablePersonas={availablePersonas} showPersonaPicker={showPersonaPicker} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailOpen((value) => !value)} onToggleDock={() => setDockOpen((value) => !value)} exampleOptions={exampleOptions} selectedExample={selectedExample} onSelectExample={onSelectExample} />
     <Rail current={stepId} setCurrent={choose} mobileOpen={railOpen} persona={persona} />
-    <main className="posmain smain"><div className="smain__head"><div><div className="smain__title"><h1>{active.title}</h1><InfoButton label={`About ${active.title}`}>{composeWorkbookCue("SEISMIC", active.title, active.subtitle)}</InfoButton></div></div><div className="posmain__actions">{!dockOpen && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDockOpen(true)}><POSIcon.Eye /> Show conformance</button>}</div></div><div className="smain__body"><Screen id={stepId} actions={actions} renderApprovalTable={renderApprovalTable} renderSignCard={renderSignCard} renderRoster={renderRoster} /></div><nav className="smain__nav">{previous !== undefined ? <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => choose(previous.id)}><POSIcon.ArrowL /> {previous.label}</button> : <span />}{next !== undefined ? <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => choose(next.id)}>Next: {next.label} <POSIcon.ArrowR /></button> : <span />}</nav></main>
+    <main className="posmain smain"><div className="smain__head"><div><div className="smain__title"><h1>{active.title}</h1></div></div><div className="posmain__actions">{!dockOpen && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDockOpen(true)}><POSIcon.Eye /> Show conformance</button>}</div></div><div className="smain__body"><Screen id={stepId} actions={actions} renderApprovalTable={renderApprovalTable} renderSignCard={renderSignCard} renderRoster={renderRoster} /></div><nav className="smain__nav">{previous !== undefined ? <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => choose(previous.id)}><POSIcon.ArrowL /> {previous.label}</button> : <span />}{next !== undefined ? <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => choose(next.id)}>Next: {next.label} <POSIcon.ArrowR /></button> : <span />}</nav></main>
     {dockOpen && <ConformanceDock mobileOpen={dockOpen} onClose={() => setDockOpen(false)} />}
   </div>;
 }

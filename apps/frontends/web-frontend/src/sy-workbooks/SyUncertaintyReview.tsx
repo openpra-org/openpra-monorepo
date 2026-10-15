@@ -297,7 +297,7 @@ function PlantUncertainty({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) =
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="SY" title="Plant-wide model uncertainty" level={3} />
+        <WorkbookSectionHeading title="Plant-wide model uncertainty" level={3} />
       </div>
       <div className="sy-review">
         {PLANT_SECTIONS.map((section) => {

@@ -7,7 +7,6 @@ import type { ProjectCardProps } from "./projectCard";
 
 function ProjectRow(props: ProjectCardProps): JSX.Element {
   const { project, onOpen, readOnly } = props;
-  const pct = Math.round(project.progress * 100);
 
   function handleKey(e: KeyboardEvent<HTMLDivElement>): void {
     if (e.key === "Enter") {
@@ -30,9 +29,6 @@ function ProjectRow(props: ProjectCardProps): JSX.Element {
         )}
         <div className="ap__td-name-wrap">
           <div className="ap__td-name">{project.name}</div>
-          {project.state === "baseline" && (
-            <span className="chip chip--success chip--xs">Baseline</span>
-          )}
           {project.state === "archived" && (
             <span className="chip chip--muted chip--xs">Archived</span>
           )}
@@ -51,14 +47,6 @@ function ProjectRow(props: ProjectCardProps): JSX.Element {
             <UsersIcon /> {s.teamName}
           </span>
         ))}
-      </div>
-      <div className="ap__td ap__td--progress" role="cell">
-        <div className="ap__td-progress">
-          <div className="ap__td-progress-bar">
-            <div className="ap__td-progress-fill" style={{ width: `${pct}%` }} />
-          </div>
-          <span className="ap__td-pct">{pct}%</span>
-        </div>
       </div>
       <div className="ap__td" role="cell">{project.sharedUsers.length}</div>
       <div className="ap__td ap__td--muted" role="cell">

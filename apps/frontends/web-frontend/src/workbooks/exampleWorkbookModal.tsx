@@ -12,6 +12,7 @@ function CloseIcon(): JSX.Element {
 interface ExampleOption {
   id: string;
   label: string;
+  group?: string;
 }
 
 interface LoadExampleModalProps {
@@ -19,20 +20,29 @@ interface LoadExampleModalProps {
   exampleOptions?: ExampleOption[];
   title?: string;
   intro?: string;
+  exampleIntros?: Record<string, string>;
+  hint?: string;
   confirmLabel?: string;
   choiceLabel?: string;
   exampleNotices?: Record<string, string>;
+  replacesLinks?: boolean;
   onCancel: () => void;
   onConfirm: (exampleId?: string) => Promise<void>;
 }
 
-function LoadExampleModal({ exampleName, exampleOptions, title, intro, confirmLabel, choiceLabel, exampleNotices, onCancel, onConfirm }: LoadExampleModalProps): JSX.Element {
+const LLM_CAUTION = "LLM-generated example. Not real plant or PRA data.";
+
+const EXPLORE_HINT = "Useful for exploring the workflow without entering plant data first. You can edit everything after loading.";
+
+function LoadExampleModal({ exampleName, exampleOptions, title, intro, exampleIntros, hint = EXPLORE_HINT, confirmLabel, choiceLabel, exampleNotices, replacesLinks = false, onCancel, onConfirm }: LoadExampleModalProps): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const options = exampleOptions ?? [];
   const hasChoice = options.length > 1;
   const [selected, setSelected] = useState<string>(options[0]?.id ?? "");
   const selectedLabel = options.find((o) => o.id === selected)?.label;
+  const groups = options.reduce<string[]>((found, option) => (option.group === undefined || found.includes(option.group) ? found : [...found, option.group]), []);
+  const shownIntro = exampleIntros?.[selected] ?? intro;
 
   function handleConfirm(): void {
     setBusy(true);
@@ -52,32 +62,31 @@ function LoadExampleModal({ exampleName, exampleOptions, title, intro, confirmLa
         </header>
 
         <div className="exmodal__body">
+          {replacesLinks && <p className="exmodal__links">Loading an example replaces this workbook's links to the other workbooks.</p>}
           {hasChoice && (
             <label className="exmodal__choice">
               <span className="exmodal__choice-label">{choiceLabel ?? "Example reactor"}</span>
               <select className="exmodal__choice-select" value={selected} disabled={busy} onChange={(e) => setSelected(e.target.value)}>
-                {options.map((o) => (
-                  <option key={o.id} value={o.id}>{o.label}</option>
-                ))}
+                {groups.length === 0
+                  ? options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)
+                  : groups.map((group) => (
+                    <optgroup key={group} label={group}>
+                      {options.filter((o) => o.group === group).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </optgroup>
+                  ))}
               </select>
             </label>
           )}
-          {intro !== undefined ? (
-            <p>{intro}</p>
+          {shownIntro !== undefined ? (
+            <p>{shownIntro}</p>
           ) : (
             <p>
               This will replace the current workbook contents with the <strong>{hasChoice ? (selectedLabel ?? "selected") : "Generic-1"}</strong> {exampleName} example. Any data
               you have entered will be lost. Uploaded documents, comments, and review signoffs will also be cleared.
             </p>
           )}
-          <p className="exmodal__hint">
-            Useful for exploring the workflow without entering plant data first. You can edit everything after loading.
-          </p>
-          <div className="exmodal__disclaimer">
-            {exampleNotices?.[selected] ? <>{exampleNotices[selected]}</> : <><strong>Disclaimer:</strong> Use with caution. The contents of this example are <strong>LLM-generated</strong> and are <strong>not representative of any real plant or actual PRA data</strong>. The example exists solely to demonstrate how to use the app — every plant identity field, parameter value, frequency, distribution, reviewer comment, and approver remark is illustrative. Do not cite or build on any of it for a real analysis.</>}
-            <br /><br />
-            <strong>Not recoverable on unload:</strong> uploaded documents and review signoffs are destroyed at load time. If you later click <em>Unload example</em>, your prior MEF contents are restored, but documents you had uploaded and signoffs you had collected before loading the example are <strong>permanently lost</strong>.
-          </div>
+          <p className="exmodal__hint">{hint}</p>
+          <div className="exmodal__disclaimer">{exampleNotices?.[selected] ?? LLM_CAUTION}</div>
           {error !== null && <p className="exmodal__error">{error}</p>}
         </div>
 

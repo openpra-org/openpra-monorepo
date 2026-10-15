@@ -511,7 +511,7 @@ function RulesCard({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void 
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="DA" title="Counting rules" level={3} />
+        <WorkbookSectionHeading title="Counting rules" level={3} />
         <div className="da-card-actions">
           <DaProvenanceChip>DA-C5 · DA-C6</DaProvenanceChip>
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={add}>Add rule</button>}
@@ -549,7 +549,7 @@ function RecordSetsCard({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => 
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="DA" title="Record sets" level={3} />
+        <WorkbookSectionHeading title="Record sets" level={3} />
         <div className="da-card-actions">
           <DaProvenanceChip>DA-C3 · DA-C4</DaProvenanceChip>
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={add}>Add set</button>}
@@ -597,7 +597,7 @@ function RecordsCard({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => voi
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="DA" title="Records" level={3} />
+        <WorkbookSectionHeading title="Records" level={3} />
         <div className="da-card-actions">
           <DaProvenanceChip>DA-C4 · DA-C5 · DA-C6</DaProvenanceChip>
           {editable && active !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "daRecordImport", id: active.id })}>Import records</button>}
@@ -655,7 +655,7 @@ function DesignChangesCard({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) 
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="DA" title="Design changes" level={3} />
+        <WorkbookSectionHeading title="Design changes" level={3} />
         <div className="da-card-actions">
           <DaProvenanceChip>DA-D10</DaProvenanceChip>
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={add}>Add design change</button>}
@@ -699,7 +699,7 @@ function DemandsCard({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => voi
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="DA" title="Demands" level={3} />
+        <WorkbookSectionHeading title="Demands" level={3} />
         <div className="da-card-actions">
           <DaProvenanceChip>DA-C7 · DA-C8 · DA-C9 · DA-C12</DaProvenanceChip>
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={add}>Add demands</button>}
@@ -739,7 +739,7 @@ function HoursCard({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void 
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading workbook="DA" title="Hours" level={3} />
+        <WorkbookSectionHeading title="Hours" level={3} />
         <div className="da-card-actions">
           <DaProvenanceChip>DA-C10 · DA-C11</DaProvenanceChip>
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={add}>Add hours</button>}
@@ -798,7 +798,7 @@ function FailuresScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => 
         {single && (
           <div className="poscard">
             <div className="poscard__head">
-              <WorkbookSectionHeading workbook="DA" title={head.title} level={3} />
+              <WorkbookSectionHeading title={head.title} level={3} />
               <div className="da-card-actions">
                 <DaProvenanceChip>{head.sr}</DaProvenanceChip>
               </div>

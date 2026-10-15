@@ -432,10 +432,6 @@ export interface EsqActionRecord {
   cueMinutes?: number;
   availableMinutes?: number;
   requiredMinutes?: number;
-  recoveryId?: string;
-  recoveryName?: string;
-  feasibility?: EsqActionFeasibility;
-  feasibilityNote?: string;
 }
 
 export type EsqDependenceLevel = "ZERO" | "LOW" | "MODERATE" | "HIGH" | "COMPLETE";
@@ -773,6 +769,17 @@ export type EsqCutOffBasis = "FREQUENCY" | "PROBABILITY";
 
 export type EsqCutSetQuantifier = "MCUB" | "RARE_EVENT" | "EXACT";
 
+export type EsqSuccessTreatment = "COMPLEMENT" | "DELETE_TERM" | "UNITY";
+
+export interface EsqSolveMonteCarlo {
+  trials: number;
+  seed: number;
+  earlyStop: boolean;
+  convergenceDelta: number;
+  confidenceLevel: number;
+  burnInTrials: number;
+}
+
 export type EsqSolveLoopChoice = "AS_SET" | "TRUE" | "FALSE";
 
 export interface EsqSolveLogic {
@@ -807,6 +814,8 @@ export interface EsqSolveRun {
   quantifier?: EsqCutSetQuantifier;
   cutOffs?: number[];
   limitOrder?: number;
+  successTreatment?: EsqSuccessTreatment;
+  monteCarlo?: EsqSolveMonteCarlo;
   peakProbability?: number;
   peakInitiatorFrequency?: number;
   hcl?: EsqSolveHcl;
@@ -956,17 +965,6 @@ export interface EsqThresholds {
   source: string;
 }
 
-export interface EsqCutSetReview {
-  key: string;
-  familyId: string;
-  treeId: string;
-  eventIds: string[];
-  annualFrequency: number;
-  significant: boolean;
-  verdict?: "CORRECT" | "ISSUE";
-  note: string;
-}
-
 export type EsqConsistencyTopic = "SYSTEMS" | "SUCCESS_CRITERIA" | "PROCEDURES" | "RULES";
 
 export interface EsqConsistencyEntry {
@@ -1009,7 +1007,6 @@ export interface EsqReviewWork {
   importance?: EsqImportanceRecord;
   thresholds?: EsqThresholds;
   cutSetList?: EsqCutSetList;
-  cutSetReviews?: EsqCutSetReview[];
   consistency?: EsqConsistencyEntry[];
   comparison?: EsqPlantComparison;
   screened?: EsqScreenedBound[];

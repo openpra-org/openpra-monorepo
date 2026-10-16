@@ -674,6 +674,7 @@ export {
   numberText,
   qualificationName,
   sideSourceText,
+  withBarrierEntry,
   withBarrierPatch,
   withCell,
   withCellBarrier,

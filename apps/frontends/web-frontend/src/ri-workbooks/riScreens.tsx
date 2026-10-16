@@ -2792,6 +2792,122 @@ interface FcPlotPoint {
   row: RiFcFamily;
 }
 
+interface LabelBox {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+type Anchor = "middle" | "start" | "end";
+
+const LABEL_CANDIDATES: { dx: number; dy: number; anchor: Anchor }[] = [
+  { dx: 0, dy: -13, anchor: "middle" },
+  { dx: 0, dy: 18, anchor: "middle" },
+  { dx: 12, dy: 4, anchor: "start" },
+  { dx: -12, dy: 4, anchor: "end" },
+  { dx: 12, dy: -9, anchor: "start" },
+  { dx: -12, dy: -9, anchor: "end" },
+  { dx: 12, dy: 16, anchor: "start" },
+  { dx: -12, dy: 16, anchor: "end" },
+  { dx: 0, dy: -25, anchor: "middle" },
+  { dx: 0, dy: 30, anchor: "middle" },
+];
+
+const FAR_LABEL_CANDIDATES: { dx: number; dy: number; anchor: Anchor }[] = [1, 2, 3, 4, 5].flatMap((step) => {
+  const d = 22 + step * 12;
+  const k = Math.round(d * 0.7);
+  return [
+    { dx: 0, dy: -d, anchor: "middle" as const },
+    { dx: 0, dy: d + 5, anchor: "middle" as const },
+    { dx: d, dy: 4, anchor: "start" as const },
+    { dx: -d, dy: 4, anchor: "end" as const },
+    { dx: k, dy: -k, anchor: "start" as const },
+    { dx: -k, dy: -k, anchor: "end" as const },
+    { dx: k, dy: k + 4, anchor: "start" as const },
+    { dx: -k, dy: k + 4, anchor: "end" as const },
+  ];
+});
+
+function labelBox(x: number, y: number, text: string, anchor: Anchor): LabelBox {
+  const w = text.length * 5.4 + 4;
+  const h = 11;
+  const x1 = anchor === "middle" ? x - w / 2 : anchor === "start" ? x : x - w;
+  return { x1, y1: y - h + 2, x2: x1 + w, y2: y + 2 };
+}
+
+function boxesHit(a: LabelBox, b: LabelBox): boolean {
+  return a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
+}
+
+interface Frame {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+function insidePlot(b: LabelBox, f: Frame): boolean {
+  return b.x1 >= f.left && b.x2 <= f.right && b.y1 >= f.top && b.y2 <= f.bottom;
+}
+
+function clampInto(x: number, y: number, text: string, anchor: Anchor, f: Frame): { x: number; y: number } {
+  const b = labelBox(x, y, text, anchor);
+  let dx = 0;
+  let dy = 0;
+  if (b.x1 < f.left) dx = f.left - b.x1;
+  else if (b.x2 > f.right) dx = f.right - b.x2;
+  if (b.y1 < f.top) dy = f.top - b.y1;
+  else if (b.y2 > f.bottom) dy = f.bottom - b.y2;
+  return { x: x + dx, y: y + dy };
+}
+
+interface PlacedLabel {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  anchor: Anchor;
+  leader?: { x: number; y: number };
+}
+
+function freeSpot(it: { id: string; text: string; cx: number; cy: number }, candidates: { dx: number; dy: number; anchor: Anchor }[], taken: LabelBox[], frame: Frame): PlacedLabel | undefined {
+  for (const cand of candidates) {
+    const x = it.cx + cand.dx;
+    const y = it.cy + cand.dy;
+    const box = labelBox(x, y, it.text, cand.anchor);
+    if (!insidePlot(box, frame)) continue;
+    if (taken.some((t) => boxesHit(box, t))) continue;
+    return { id: it.id, text: it.text, x, y, anchor: cand.anchor };
+  }
+  return undefined;
+}
+
+function placeLabels(
+  items: { id: string; text: string; cx: number; cy: number; optional?: boolean }[],
+  obstacles: LabelBox[],
+  frame: Frame,
+): PlacedLabel[] {
+  const taken: LabelBox[] = [...obstacles];
+  const placed: PlacedLabel[] = [];
+  for (const it of items) {
+    let best = freeSpot(it, LABEL_CANDIDATES, taken, frame);
+    if (best === undefined && it.optional === true) continue;
+    if (best === undefined && it.optional === false) {
+      const far = freeSpot(it, FAR_LABEL_CANDIDATES, taken, frame);
+      if (far !== undefined) best = { ...far, leader: { x: it.cx, y: it.cy } };
+    }
+    if (best === undefined) {
+      const cand = LABEL_CANDIDATES[0];
+      const c = clampInto(it.cx + cand.dx, it.cy + cand.dy, it.text, cand.anchor, frame);
+      best = { id: it.id, text: it.text, x: c.x, y: c.y, anchor: cand.anchor };
+    }
+    taken.push(labelBox(best.x, best.y, best.text, best.anchor));
+    placed.push(best);
+  }
+  return placed;
+}
+
 function FcChart({ criteria, rows }: { criteria: RiResolvedAbsoluteCriteria; rows: RiFcFamily[] }): JSX.Element {
   const baseId = useId().split(":").join("");
   const clipId = `ri-fcc-clip-${baseId}`;

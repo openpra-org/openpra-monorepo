@@ -1018,7 +1018,7 @@ function copiedRecord(record: EventSequence, uuid: string, name: string, treeId:
 
 function withDistinctSequences(before: EventSequenceAnalysis, after: EventSequenceAnalysis): EventSequenceAnalysis {
   const trees = after.eventTrees ?? [];
-  const previous = new Map((before.eventTrees ?? []).flatMap((tree) => Object.entries(tree.sequences).map(([id, sequence]) => [`${tree.uuid}|${id}`, sequence] as const)));
+  const previous = new Map<string, EventTreeSequence>((before.eventTrees ?? []).flatMap((tree) => Object.entries(tree.sequences).map(([id, sequence]) => [`${tree.uuid}|${id}`, sequence] as const)));
   const nameOwners = new Map<string, string>();
   const recordOwners = new Map<string, string>();
   for (const tree of trees) {

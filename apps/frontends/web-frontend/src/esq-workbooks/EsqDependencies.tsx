@@ -407,7 +407,7 @@ function GridRows({ network, configuration, grid, editable, onGrid }: {
   }
 
   function toggleNode(nodeId: string, on: boolean): void {
-    const current = grid?.hazardNodeIds ?? [];
+    const current: readonly string[] = grid?.hazardNodeIds ?? [];
     const [first, ...rest] = network.nodes.map((node) => node.id).filter((id) => (id === nodeId ? on : current.includes(id)));
     if (first === undefined) {
       onGrid(undefined);

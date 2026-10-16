@@ -38,7 +38,7 @@ import {
 import { type ParameterDistribution, DistributionType } from "interfaces-mef-types/core/events";
 import { type RcMetricReceptor } from "interfaces-mef-types/rc/metrics";
 import { EndState } from "interfaces-mef-types/core/events";
-import { type EventSequence, type EventSequenceAnalysis, type EventSequenceFamily } from "interfaces-mef-types/es/event-sequence-analysis";
+import { isEventTreeBranchState, type EventSequence, type EventSequenceAnalysis, type EventSequenceFamily } from "interfaces-mef-types/es/event-sequence-analysis";
 import {
   type EventSequenceFamilyQuantification,
   type EventSequenceQuantification,
@@ -748,9 +748,10 @@ function sequenceInput(sequence: EventSequence, es: EventSequenceAnalysis, esq: 
     name: sequence.name,
     plantOperatingStateId: sequence.plantOperatingStateId,
     initiatingEventId: sequence.initiatingEventId,
-    topEvents: Object.entries(sequence.functionalEventStates ?? {}).map(([key, state]) => {
+    topEvents: Object.entries(sequence.functionalEventStates ?? {}).flatMap(([key, state]) => {
+      if (isEventTreeBranchState(state)) return [];
       const event = tree?.functionalEvents[key];
-      return { event: event?.label ?? event?.name ?? key, state };
+      return [{ event: event?.label ?? event?.name ?? key, state }];
     }),
     endState: sequence.endState,
     reactorSourceCombinations: [...(sequence.affectedReactorSourceCombinations ?? [])],

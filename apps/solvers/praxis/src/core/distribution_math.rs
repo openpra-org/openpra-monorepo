@@ -3167,7 +3167,7 @@ fn binned_factor(factor: &Prepared, origin: f64, step: f64, cells: usize) -> Res
         } else {
             below[index + 1] - below[index]
         };
-        if !(mass > 0.0) {
+        if mass.is_nan() || mass <= 0.0 {
             continue;
         }
         let share = cell_share(factor, origin + index as f64 * step, step);

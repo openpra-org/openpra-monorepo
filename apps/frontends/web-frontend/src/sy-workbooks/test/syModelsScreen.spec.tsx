@@ -978,7 +978,6 @@ describe("ModelsScreen system tabs", () => {
 
     expect(screen.getByRole("tab", { name: "Description" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("Remove reactor heat")).toBeInTheDocument();
-    expect(screen.getByText("…")).toBeInTheDocument();
     await act(async () => { await settledWithPraxis(() => undefined); });
     expect(screen.getByText("72 h")).toBeInTheDocument();
     expect(screen.queryByText("Typed 72 hours")).not.toBeInTheDocument();

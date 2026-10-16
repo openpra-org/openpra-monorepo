@@ -45,6 +45,7 @@ pub(crate) struct PreparedHclUncertainty {
     adjustments: HclUncertaintyAdjustments,
 }
 
+#[derive(Debug)]
 pub(crate) struct UncertainSamples {
     pub(crate) values: Vec<f64>,
     pub(crate) adjustments: HclUncertaintyAdjustments,

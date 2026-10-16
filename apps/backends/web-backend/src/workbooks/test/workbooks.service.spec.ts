@@ -32,18 +32,18 @@ function makeWorkbookDoc(overrides: Record<string, unknown> = {}): Record<string
 
 describe("WorkbooksService", () => {
   let service: WorkbooksService;
-  let workbookModelMock: { find: jest.Mock; findById: jest.Mock; findOne: jest.Mock; create: jest.Mock };
+  let workbookModelMock: { find: jest.Mock; findById: jest.Mock; findOne: jest.Mock; create: jest.Mock; updateOne: jest.Mock };
   let userModelMock: { findOne: jest.Mock };
   let projectsServiceMock: { resolveAccess: jest.Mock };
   let elementRegistryMock: { tryGet: jest.Mock; list: jest.Mock };
   let rolesServiceMock: { createInitialPreparer: jest.Mock };
-  let posAdapterMock: { elementCode: string; createBlank: jest.Mock };
+  let posAdapterMock: { elementCode: string; createBlank: jest.Mock; load: jest.Mock };
 
   beforeEach(async () => {
-    workbookModelMock = { find: jest.fn(), findById: jest.fn(), findOne: jest.fn(), create: jest.fn() };
+    workbookModelMock = { find: jest.fn(), findById: jest.fn(), findOne: jest.fn(), create: jest.fn(), updateOne: jest.fn().mockReturnValue({ exec: () => Promise.resolve() }) };
     userModelMock = { findOne: jest.fn() };
     projectsServiceMock = { resolveAccess: jest.fn().mockResolvedValue({ doc: {}, role: "owner" }) };
-    posAdapterMock = { elementCode: "POS", createBlank: jest.fn().mockResolvedValue(undefined) };
+    posAdapterMock = { elementCode: "POS", createBlank: jest.fn().mockResolvedValue(undefined), load: jest.fn().mockResolvedValue({ mef: { workflowState: "INTERNAL_TECHNICAL_REVIEW" }, revision: 1 }) };
     elementRegistryMock = { tryGet: jest.fn().mockReturnValue(posAdapterMock), list: jest.fn().mockReturnValue([]) };
     rolesServiceMock = { createInitialPreparer: jest.fn().mockResolvedValue(undefined) };
 
@@ -62,7 +62,8 @@ describe("WorkbooksService", () => {
 
   describe("listWorkbooks", () => {
     it("returns workbooks scoped to the project and element with computed initials", async () => {
-      const exec = jest.fn().mockResolvedValue([makeWorkbookDoc()]);
+      const doc = makeWorkbookDoc();
+      const exec = jest.fn().mockResolvedValue([doc]);
       workbookModelMock.find.mockReturnValue({ sort: () => ({ exec }) });
 
       const result = await service.listWorkbooks("proj-1", "POS", { username: "ada" });
@@ -71,6 +72,8 @@ describe("WorkbooksService", () => {
       expect(workbookModelMock.find).toHaveBeenCalledWith({ projectId: "proj-1", elementCode: "POS" });
       expect(result.workbooks).toHaveLength(1);
       expect(result.workbooks[0].ownerInitials).toBe("AL");
+      expect(workbookModelMock.updateOne).toHaveBeenCalledWith({ _id: doc._id }, { $set: { status: "in-review", statusSynced: true } }, { timestamps: false });
+      expect(result.workbooks[0].status).toBe("in-review");
     });
   });
 
@@ -191,6 +194,7 @@ describe("WorkbooksService", () => {
         exampleVariants: () => [{ exampleId: "hcl", label: "Dissertation source", workbookName: "HCL DA" }],
         loadExample: jest.fn().mockResolvedValue(undefined),
         load: jest.fn().mockResolvedValue({ projectId: "proj-1", ownerUsername: "ada", mef: daMef, revision: 1 }),
+        save: jest.fn(async (_workbookId: string, mef: typeof daMef) => mef),
       };
       const hrMef = {
         humanFailureEvents: [{ uuid: "hfe-1" }],
@@ -202,6 +206,7 @@ describe("WorkbooksService", () => {
         exampleVariants: () => [{ exampleId: "hcl", label: "Dissertation source", workbookName: "HCL HRA" }],
         loadExample: jest.fn().mockResolvedValue(undefined),
         load: jest.fn().mockResolvedValue({ projectId: "proj-1", ownerUsername: "ada", mef: hrMef, revision: 1 }),
+        save: jest.fn(async (_workbookId: string, mef: typeof hrMef) => mef),
       };
       elementRegistryMock.list.mockReturnValue([syAdapter, daAdapter, hrAdapter]);
       elementRegistryMock.tryGet.mockImplementation((elementCode: string) =>
@@ -282,6 +287,8 @@ describe("WorkbooksService", () => {
         }),
         3,
       );
+      expect(daAdapter.save).toHaveBeenCalledWith("da-workbook", expect.objectContaining({ linkedWorkbooks: { SY: "sy-workbook", HRA: "hr-workbook" } }), 1);
+      expect(hrAdapter.save).toHaveBeenCalledWith("hr-workbook", expect.objectContaining({ linkedWorkbooks: { SY: "sy-workbook", DA: "da-workbook" } }), 1);
     });
   });
 });

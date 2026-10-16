@@ -14,8 +14,8 @@ import { RI_ANALYSIS_HTGR } from "../../example-workbooks/seeds/ri-seed-htgr";
 import { normalizeEsqMef } from "../esq-mef-normalize";
 
 const variants = [
-  { name: "HTGR", esq: ESQ_ANALYSIS_HTGR, sy: SY_ANALYSIS_HTGR, pos: POS_ANALYSIS, hr: HR_ANALYSIS_HTGR, ri: RI_ANALYSIS_HTGR, hs: "example-hs-htgr" },
-  { name: "SFR", esq: ESQ_ANALYSIS, sy: SY_ANALYSIS, pos: POS_ANALYSIS_SFR, hr: HR_ANALYSIS, ri: RI_ANALYSIS, hs: "example-hs-sfr" },
+  { name: "HTGR", esq: ESQ_ANALYSIS_HTGR, sy: SY_ANALYSIS_HTGR, pos: POS_ANALYSIS, hr: HR_ANALYSIS_HTGR, ri: RI_ANALYSIS_HTGR, hs: "example-hs-htgr", cells: ["BC-1", "BC-2", "BC-3", "BC-4", "BC-5"] },
+  { name: "SFR", esq: ESQ_ANALYSIS, sy: SY_ANALYSIS, pos: POS_ANALYSIS_SFR, hr: HR_ANALYSIS, ri: RI_ANALYSIS, hs: "example-hs-sfr", cells: ["BC-1", "BC-2", "BC-3", "BC-4", "BC-5", "BC-6", "BC-7"] },
 ] as const;
 
 describe("ESQ examples Steps 02 to 10", () => {
@@ -41,7 +41,7 @@ describe("ESQ examples Steps 02 to 10", () => {
     expect(mef.handoffWork?.responses).toHaveLength(13);
   });
 
-  it.each(variants)("keeps the $name Step 02 to 06 entries through the MEF schema", ({ esq, hs }) => {
+  it.each(variants)("keeps the $name Step 02 to 06 entries through the MEF schema", ({ esq, hs, cells }) => {
     const parsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(esq));
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
@@ -50,7 +50,7 @@ describe("ESQ examples Steps 02 to 10", () => {
     expect(mef.modelDecisions?.familyChoices?.map((choice) => choice.familyId)).toEqual(["ESF-OK", "ESF-LEAK", "ESF-LATE", "ESF-EARLY", "ESF-ATWS"]);
     expect(mef.modelDecisions?.familyChoices?.every((choice) => (choice.groupingReason ?? "").length > 0)).toBe(true);
     expect(mef.logic?.exclusions).toHaveLength(1);
-    expect(mef.barrierWork?.cells?.map((cell) => cell.id)).toEqual(["BC-1"]);
+    expect(mef.barrierWork?.cells?.map((cell) => cell.id)).toEqual(cells);
     expect(mef.postWork?.recoveries?.filter((rule) => rule.credited).map((rule) => rule.id)).toEqual(["REC-1"]);
     expect(mef.postWork?.combinations?.map((combination) => combination.id)).toEqual(["HC-1"]);
   });

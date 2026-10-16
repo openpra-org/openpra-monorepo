@@ -319,9 +319,9 @@ describe("ESQ event tree run builder", () => {
     esq.barrierWork = { cells: [{ ...cell, run: { runId: "run-1", revision: 6, at: "2026-10-05T12:00:00.000Z", method: "POINT_LOAD", inputs: "", point: 0.9912 }, ofRecord: "RUN" }] };
     expect(splitExpressions(build(esq))).toEqual([point("PROBABILITY", 0.9912)]);
     esq.barrierWork = { cells: [cell] };
-    expect(buildError(() => build(esq))).toBe("The split fraction of Recovery in ET-T1 takes cell BC-1, which has no value of record. Run it or type a value in Step 04.");
+    expect(buildError(() => build(esq))).toBe("The split fraction of Recovery in ET-T1 takes cell BC-1, which has no value of record. Run it or type a value in Step 03.");
     esq.barrierWork = {};
-    expect(buildError(() => build(esq))).toBe("The split fraction of Recovery in ET-T1 takes cell BC-1, which Step 04 no longer has.");
+    expect(buildError(() => build(esq))).toBe("The split fraction of Recovery in ET-T1 takes cell BC-1, which Step 03 no longer has.");
   });
 
   it("takes values from the snapshot and DA parameters instead of the live SY values", () => {
@@ -399,7 +399,7 @@ describe("ESQ event tree run builder", () => {
   });
 
   it("refuses a run while a support loop has no recorded break", () => {
-    expect(buildError(() => build(workbook({})))).toBe("The fault trees FT-B, FT-C form a loop. Break it in the Loops tab of Step 03.");
+    expect(buildError(() => build(workbook({})))).toBe("The fault trees FT-B, FT-C form a loop. Break it in the Loops tab of Step 04.");
   });
 
   it("replaces the broken transfer with a house event at the recorded or overridden state", () => {
@@ -724,7 +724,7 @@ describe("ESQ event tree run builder", () => {
       expect(gateOf(humanBuild(esq, { ...AS_SET, dependency: false }), FT_A, "a-e1")).toBeUndefined();
       const above = humanWorkbook();
       above.postWork = { combinations: [{ id: "HC-1", eventIds: [E1, E2], ofRecord: "TYPED", typed: { joint: 0.2, source: "" }, groupIds: [], stateIds: [], basis: "" }] };
-      expect(buildError(() => humanBuild(above))).toBe("HC-1: The joint HEP 0.200 exceeds a member HEP of 0.0500. Fix it in Step 06.");
+      expect(buildError(() => humanBuild(above))).toBe("HC-1: The joint HEP 0.200 exceeds a member HEP of 0.0500. Fix it in Step 04.");
     });
 
     it("raises every HEP and skips the dependencies for the combination search", () => {

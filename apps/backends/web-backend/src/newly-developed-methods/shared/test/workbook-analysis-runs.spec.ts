@@ -7,20 +7,23 @@ import type { UncertainExpression } from "interfaces-mef-types/core/uncertainty"
 import { legacyExpression } from "interfaces-mef-types/core/legacy-uncertainty-adapter";
 import { WorkbookOracle, assertPopulation, assertProbability, type PopulationSummary } from "./hcl-independent-oracle";
 import { analysisRequestSignal } from "../analysis-cancellation.interceptor";
-import type { Request, Response } from "express";
-import type { NativeResponse } from "praxis-node/protocol";
+import { parseNativeResponse, type NativeResponse } from "praxis-node/protocol";
+import type { PraetorJobOperation, PraetorJobState } from "interfaces-shared-types/execution/praetor-job";
+import { stringifyJson } from "interfaces-shared-types/json";
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
+  Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
+  Param,
   type CanActivate,
   type ExecutionContext,
   type INestApplication,
   Post,
-  Req,
-  Res,
 } from "@nestjs/common";
 import { Logger } from "@nestjs/common";
 import { getModelToken, MongooseModule } from "@nestjs/mongoose";
@@ -30,7 +33,7 @@ import type { Model } from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import type { AddressInfo } from "node:net";
 import request from "supertest";
-import { PraxisNativeService } from "../../../../../../microservices/praetor/src/execution/services/praxis-native.service";
+import { PraxisWorkerError, runPraxisProcess } from "../../../../../../microservices/praetor/src/execution/workers/praxis-worker-runner";
 import { JwtAuthGuard } from "../../../auth/jwt-auth.guard";
 import { createBlankEs } from "../../../es-workbooks/blank-es";
 import { EsWorkbook, EsWorkbookSchema } from "../../../es-workbooks/es-workbook.schema";
@@ -175,14 +178,89 @@ const HCL_SF = "30000000-0000-4000-8000-000000000011";
 const HCL_FS = "30000000-0000-4000-8000-000000000012";
 const HCL_FF = "30000000-0000-4000-8000-000000000013";
 
+const TABLE_METHODS: ReadonlySet<string> = new Set(["BAYESIAN_NETWORK", "HYBRID_CAUSAL_LOGIC"]);
+
+function plansBayesianTables(envelope: object): boolean {
+  const request = "request" in envelope ? envelope.request : undefined;
+  if (typeof request !== "object" || request === null) return true;
+  const method = "methodType" in request ? request.methodType : undefined;
+  if (typeof method !== "string" || TABLE_METHODS.has(method)) return true;
+  return method === "EVENT_TREE" && "mode" in request && request.mode === "HYBRID_CAUSAL_LOGIC";
+}
+
+function praxisFailure(code: string, message: string): NativeResponse {
+  return { schemaVersion: "1.0.0", error: { kind: "EXECUTION_ERROR", code, message, details: {} } };
+}
+
+async function runTestPraxis(operation: PraetorJobOperation, request: object, timeoutMs: number, signal: AbortSignal): Promise<NativeResponse> {
+  const requestJson = stringifyJson(request);
+  if (requestJson === undefined) return praxisFailure("PRAXIS_INVALID_REQUEST", "A versioned PRAXIS request body is required.");
+  try {
+    const { resultJson } = await runPraxisProcess({ operation, requestJson, preflight: plansBayesianTables(request) }, { timeoutMs, signal });
+    return parseNativeResponse(JSON.parse(resultJson));
+  } catch (error) {
+    return praxisFailure(error instanceof PraxisWorkerError ? error.code : "PRAXIS_WORKER_FAILURE", error instanceof Error ? error.message : String(error));
+  }
+}
+
+interface TestPraxisJob {
+  state: PraetorJobState;
+  response: Promise<NativeResponse>;
+  controller: AbortController;
+}
+
 @Controller()
 class TestPraetorController {
-  constructor(private readonly nativeService: PraxisNativeService) {}
+  private readonly jobs = new Map<string, TestPraxisJob>();
 
-  @Post("praxis/native/execute")
-  @HttpCode(HttpStatus.OK)
-  execute(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<NativeResponse> {
-    return this.nativeService.run("execute", body, { request: req, response: res });
+  private job(jobId: string): TestPraxisJob {
+    const job = this.jobs.get(jobId);
+    if (job === undefined) throw new NotFoundException(`PRAXIS job ${jobId} is unknown`);
+    return job;
+  }
+
+  @Post("praxis/jobs")
+  @HttpCode(HttpStatus.ACCEPTED)
+  submit(@Body() body: { operation: PraetorJobOperation; request: object; timeoutMs: number }): PraetorJobState {
+    const startedAt = new Date().toISOString();
+    const controller = new AbortController();
+    const state: PraetorJobState = {
+      jobId: randomUUID(),
+      operation: body.operation,
+      status: "RUNNING",
+      submittedAt: startedAt,
+      startedAt,
+      completedAt: null,
+      worker: "test-worker",
+      attempts: 1,
+      queuedJobs: 0,
+      workers: 1,
+      error: null,
+    };
+    const response = runTestPraxis(body.operation, body.request, body.timeoutMs, controller.signal).then((result) => {
+      state.status = controller.signal.aborted ? "CANCELLED" : result.error === undefined ? "SUCCEEDED" : "FAILED";
+      state.completedAt = new Date().toISOString();
+      return result;
+    });
+    this.jobs.set(state.jobId, { state, response, controller });
+    return { ...state };
+  }
+
+  @Get("praxis/jobs/:jobId")
+  state(@Param("jobId") jobId: string): PraetorJobState {
+    return { ...this.job(jobId).state };
+  }
+
+  @Get("praxis/jobs/:jobId/result")
+  result(@Param("jobId") jobId: string): Promise<NativeResponse> {
+    return this.job(jobId).response;
+  }
+
+  @Delete("praxis/jobs/:jobId")
+  cancel(@Param("jobId") jobId: string): PraetorJobState {
+    const job = this.job(jobId);
+    job.controller.abort();
+    return { ...job.state };
   }
 }
 
@@ -687,7 +765,6 @@ describe("workbook-owned analysis-run APIs", () => {
     mongo = await MongoMemoryServer.create();
     const praetorModule = await Test.createTestingModule({
       controllers: [TestPraetorController],
-      providers: [PraxisNativeService],
     }).compile();
     praetor = praetorModule.createNestApplication<NestExpressApplication>();
     (praetor as NestExpressApplication).useBodyParser("json", { limit: "25mb" });
@@ -4418,8 +4495,8 @@ describe("workbook-owned analysis-run APIs", () => {
   }, 120_000);
 
   it.each([false, true])("saves native deadline failures (batch=%s)", async (batch) => {
-    const previous = process.env["PRAETOR_NATIVE_TIMEOUT_MS"];
-    process.env["PRAETOR_NATIVE_TIMEOUT_MS"] = "1";
+    const previous = process.env["PRAETOR_JOB_TIMEOUT_MS"];
+    process.env["PRAETOR_JOB_TIMEOUT_MS"] = "1";
     try {
       const response = await request(api.getHttpServer())
         .post(
@@ -4446,8 +4523,8 @@ describe("workbook-owned analysis-run APIs", () => {
         expect(stored).toMatchObject({ status: "FAILED", failure: { code: "PRAXIS_TIMEOUT" }, result: null });
       }
     } finally {
-      if (previous === undefined) delete process.env["PRAETOR_NATIVE_TIMEOUT_MS"];
-      else process.env["PRAETOR_NATIVE_TIMEOUT_MS"] = previous;
+      if (previous === undefined) delete process.env["PRAETOR_JOB_TIMEOUT_MS"];
+      else process.env["PRAETOR_JOB_TIMEOUT_MS"] = previous;
     }
   });
 

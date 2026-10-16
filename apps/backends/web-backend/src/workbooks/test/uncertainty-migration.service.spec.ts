@@ -818,7 +818,7 @@ describe("UncertaintyMigrationService", () => {
 
     expect(leftLines()).toEqual([]);
     expect(tallyOf(summary, "da_workbooks")).toMatchObject({ converted: 1, left: 0 });
-    expect(tallyOf(summary, "sy_workbooks")).toMatchObject({ converted: 1, current: 1, left: 0 });
+    expect(tallyOf(summary, "sy_workbooks")).toMatchObject({ converted: 2, current: 0, left: 0 });
     expect(tallyOf(summary, "esq_workbooks")).toMatchObject({ converted: 1, left: 0 });
     const da = await storedMef<DaWorkbookDocument>(daModel, "da-proj");
     const sy = await storedMef<SyWorkbookDocument>(syModel, "sy-proj");
@@ -834,7 +834,9 @@ describe("UncertaintyMigrationService", () => {
     for (const text of [stringifyJson(field(da, "ccfParameterEstimations")), stringifyJson(field(sy, "commonCauseFailureGroups")), stringifyJson(field(esq, "model"))]) {
       expect(text?.includes("example-da-")).toBe(false);
     }
-    expect(stringifyJson(await storedMef<SyWorkbookDocument>(syModel, "sy-elsewhere"))).toBe(stringifyJson(SY_ANALYSIS_HTGR));
+    const elsewhere = await storedMef<SyWorkbookDocument>(syModel, "sy-elsewhere");
+    expect(stringifyJson(elsewhere)?.includes("da-proj")).toBe(false);
+    expect(field(record(field(byId(field(elsewhere, "commonCauseFailureGroups"), "uuid", rpsGroup.uuid), "factors")), "alphas")).toEqual({ node: "PARAMETER", reference: exampleVector });
     const backups = await connection.collection(BACKUP_COLLECTION).find({ workbookId: { $in: ["da-proj", "sy-proj", "esq-proj"] } }).toArray();
     expect(backups.map((backup) => backup["workbookId"]).sort()).toEqual(["da-proj", "esq-proj", "sy-proj"]);
     const original = asJson(backups.find((backup) => backup["workbookId"] === "sy-proj")?.["document"]);

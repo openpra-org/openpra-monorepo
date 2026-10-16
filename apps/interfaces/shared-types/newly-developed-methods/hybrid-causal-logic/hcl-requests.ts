@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   FaultTreeTopEventReferenceSchema,
+  WorkbookAddressSchema,
   WorkbookEntityIdSchema,
   WorkbookMethodSchemaVersionSchema,
   WorkbookModelAddressSchema,
@@ -217,13 +218,17 @@ const HclExecuteRequestSchema = z
   })
   .strict();
 
+const HclEventTreeAddressSchema = WorkbookAddressSchema.extend({
+  modelId: z.string().trim().min(1, "Event tree id is required"),
+}).strict();
+
 const HclEventTreeExecuteRequestSchema = z
   .object({
     calculationType: HclCalculationTypeSchema.default("PROBABILITY"),
     schemaVersion: WorkbookMethodSchemaVersionSchema,
     modelId: WorkbookModelIdSchema,
     workbookRevision: WorkbookRevisionSchema,
-    eventTree: WorkbookModelAddressSchema,
+    eventTree: HclEventTreeAddressSchema,
     dependencyConfiguration: WorkbookModelAddressSchema.optional(),
     evidenceScenarioId: WorkbookEntityIdSchema.optional(),
     sampling: HclRunSamplingSchema.optional(),
@@ -258,7 +263,7 @@ const HclEventTreeBatchExecuteRequestSchema = z
     schemaVersion: WorkbookMethodSchemaVersionSchema,
     modelId: WorkbookModelIdSchema,
     workbookRevision: WorkbookRevisionSchema,
-    eventTree: WorkbookModelAddressSchema,
+    eventTree: HclEventTreeAddressSchema,
     dependencyConfiguration: WorkbookModelAddressSchema.optional(),
     evidenceScenarioIds: EvidenceScenarioIdsSchema,
     batchInput: HclBatchInputSchema.optional(),

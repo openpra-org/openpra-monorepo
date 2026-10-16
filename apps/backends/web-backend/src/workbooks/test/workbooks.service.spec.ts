@@ -231,9 +231,9 @@ describe("WorkbooksService", () => {
       const result = await service.generateExamples("proj-1", "hcl", { username: "ada" });
 
       expect(result.generated).toEqual([
-        expect.objectContaining({ elementCode: "SY", workbookId: "sy-workbook", action: "repopulated" }),
-        expect.objectContaining({ elementCode: "DA", workbookId: "da-workbook", action: "repopulated" }),
         expect.objectContaining({ elementCode: "HRA", workbookId: "hr-workbook", action: "repopulated" }),
+        expect.objectContaining({ elementCode: "DA", workbookId: "da-workbook", action: "repopulated" }),
+        expect.objectContaining({ elementCode: "SY", workbookId: "sy-workbook", action: "repopulated" }),
       ]);
       expect(syAdapter.save).toHaveBeenCalledWith(
         "sy-workbook",

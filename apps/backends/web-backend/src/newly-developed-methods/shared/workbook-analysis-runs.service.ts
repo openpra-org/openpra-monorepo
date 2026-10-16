@@ -385,6 +385,15 @@ const iso = (value: Date | string): string =>
 
 const finishedStatuses: ReadonlySet<string> = new Set(["SUCCEEDED", "FAILED"]);
 
+interface RunOutcome {
+  status: "SUCCEEDED" | "FAILED" | "CANCELLED" | "SKIPPED";
+  completedAt: Date;
+  engine: AnalysisRunMetadata["engine"];
+  failure: AnalysisRunFailure | null;
+  result: object | null;
+  sampleVectors?: HclSampleVector[];
+}
+
 const toRunMetadata = (run: AnalysisRunRecord | AnalysisRunRecordDocument): AnalysisRunMetadata =>
   AnalysisRunMetadataSchema.parse({
     schemaVersion: run.schemaVersion,
@@ -1070,17 +1079,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
       .exec();
   }
 
-  private async finishRuns(
-    ids: readonly string[],
-    outcome: {
-      status: "SUCCEEDED" | "FAILED" | "CANCELLED" | "SKIPPED";
-      completedAt: Date;
-      engine: AnalysisRunMetadata["engine"];
-      failure: AnalysisRunFailure | null;
-      result: object | null;
-      sampleVectors?: HclSampleVector[];
-    },
-  ): Promise<void> {
+  private async finishRuns(ids: readonly string[], outcome: RunOutcome): Promise<void> {
     const active = { id: { $in: [...ids] }, status: { $in: ["QUEUED", "RUNNING"] } };
     if (outcome.status === "SUCCEEDED" || outcome.status === "FAILED") {
       await this.runModel.updateMany({ ...active, startedAt: null }, { $set: { startedAt: outcome.completedAt } }).exec();
@@ -1398,6 +1397,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
               throw new BadGatewayException("PRAXIS returned an invalid dependency batch scenario id");
             byId.set(row["scenarioId"], row);
           }
+          const outcomes: { runId: string; outcome: RunOutcome }[] = [];
           for (const row of scenarios) {
             const raw = byId.get(row.scenarioId);
             if (raw === undefined) throw new BadGatewayException(`PRAXIS omitted dependency scenario '${row.scenarioId}'`);
@@ -1409,7 +1409,7 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
               if (Object.keys(raw).some((key) => !["scenarioId", "status", "failure"].includes(key))) {
                 throw new BadGatewayException("PRAXIS returned result fields for a failed dependency scenario");
               }
-              await this.finishRuns([row.runId], { status: "FAILED", completedAt, engine, failure, result: null });
+              outcomes.push({ runId: row.runId, outcome: { status: "FAILED", completedAt, engine, failure, result: null } });
               continue;
             }
             const skipped = raw["status"] === "skipped_zero_weight";
@@ -1434,15 +1434,19 @@ export class WorkbookAnalysisRunsService implements OnModuleInit, OnModuleDestro
                   row.request,
                 )
               );
-            await this.finishRuns([row.runId], {
-              status: skipped ? "SKIPPED" : "SUCCEEDED",
-              completedAt,
-              engine,
-              failure: null,
-              result,
-              ...(skipped ? {} : this.keptSamples(raw)),
+            outcomes.push({
+              runId: row.runId,
+              outcome: {
+                status: skipped ? "SKIPPED" : "SUCCEEDED",
+                completedAt,
+                engine,
+                failure: null,
+                result,
+                ...(skipped ? {} : this.keptSamples(raw)),
+              },
             });
           }
+          for (const { runId, outcome } of outcomes) await this.finishRuns([runId], outcome);
           const runs = (await current()).runs;
           const complete = HclBatchExecuteResultSchema.parse({
             schemaVersion: "1.0.0",

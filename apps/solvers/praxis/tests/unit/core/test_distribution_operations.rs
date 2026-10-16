@@ -173,7 +173,7 @@ fn scaling_moves_every_quantile_by_the_factor() {
     }
     let binomial = law(json!({ "family": "POSTERIOR", "prior": null, "evidence": [{ "likelihood": "BINOMIAL", "failures": 1.0, "exposure": 10.0 }] }));
     assert_eq!(scale_law(&binomial, 0.5).unwrap(), law(json!({ "family": "BETA", "alpha": 1.5, "beta": 9.5, "lower": 0.0, "upper": 0.5 })));
-    assert_eq!(scale_law(&law(json!({ "family": "CONSTRAINED_NONINFORMATIVE", "mean": 0.01 })), 0.5).unwrap().family(), "SAMPLES");
+    assert_eq!(scale_law(&law(json!({ "family": "CONSTRAINED_NONINFORMATIVE", "mean": 0.01 })), 0.5).unwrap().family(), "PRODUCT");
     assert!(scale_law(&law(json!({ "family": "GAMMA", "shape": 1.0, "rate": 1.0 })), 0.0).is_err());
 }
 
